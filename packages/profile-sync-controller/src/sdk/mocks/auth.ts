@@ -5,6 +5,7 @@ import {
   SRP_LOGIN_URL,
   OIDC_TOKEN_URL,
   PAIR_IDENTIFIERS,
+  PAIR_PROFILES_URL,
   PROFILE_LINEAGE_URL,
 } from '../authentication-jwt-bearer/services';
 
@@ -13,6 +14,7 @@ export const MOCK_SRP_LOGIN_URL = SRP_LOGIN_URL(Env.PRD);
 export const MOCK_OIDC_TOKEN_URL = OIDC_TOKEN_URL(Env.PRD);
 export const MOCK_SIWE_LOGIN_URL = SIWE_LOGIN_URL(Env.PRD);
 export const MOCK_PAIR_IDENTIFIERS_URL = PAIR_IDENTIFIERS(Env.PRD);
+export const MOCK_PAIR_PROFILES_URL = PAIR_PROFILES_URL(Env.PRD);
 export const MOCK_PROFILE_LINEAGE_URL = PROFILE_LINEAGE_URL(Env.PRD);
 
 export const MOCK_JWT =
@@ -51,11 +53,21 @@ export const MOCK_SRP_LOGIN_RESPONSE = {
     identifier_type: 'SRP',
     encrypted_storage_key: 'd2ddd8af8af905306f3e1456fb',
   },
+  profile_aliases: [],
 };
 
 export const MOCK_OIDC_TOKEN_RESPONSE = {
   access_token: MOCK_ACCESS_JWT,
   expires_in: 3600,
+};
+
+export const MOCK_PAIR_PROFILES_RESPONSE = {
+  profile: {
+    identifier_id: MOCK_SRP_LOGIN_RESPONSE.profile.identifier_id,
+    metametrics_id: MOCK_SRP_LOGIN_RESPONSE.profile.metametrics_id,
+    profile_id: MOCK_SRP_LOGIN_RESPONSE.profile.profile_id,
+  },
+  profile_aliases: [],
 };
 
 export const MOCK_USER_PROFILE_LINEAGE_RESPONSE = {

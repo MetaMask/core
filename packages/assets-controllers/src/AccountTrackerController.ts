@@ -234,6 +234,8 @@ type AccountTrackerPollingInput = {
 const MESSENGER_EXPOSED_METHODS = [
   'updateNativeBalances',
   'updateStakedBalances',
+  'refresh',
+  'syncBalanceWithAddresses',
 ] as const;
 
 /**
@@ -470,9 +472,11 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
     );
     Object.keys(accountsByChainId).forEach((chainId) => {
       newAddresses.forEach((address) => {
-        accountsByChainId[chainId][address] = {
-          balance: '0x0',
-        };
+        if (!accountsByChainId[chainId][address]) {
+          accountsByChainId[chainId][address] = {
+            balance: '0x0',
+          };
+        }
       });
     });
 

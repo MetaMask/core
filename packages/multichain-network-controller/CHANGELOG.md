@@ -7,16 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.1.0]
+
 ### Added
 
 - Export `MultichainNetworkControllerGetNetworksWithTransactionActivityByAccountsAction` ([#8391](https://github.com/MetaMask/core/pull/8391))
 
 ### Changed
 
-- Bump `@metamask/accounts-controller` from `^37.1.0` to `^37.2.0` ([#8325](https://github.com/MetaMask/core/pull/8325), [#8363](https://github.com/MetaMask/core/pull/8363))
+- Bump `@metamask/keyring-controller` from `^25.3.0` to `^25.4.0` ([#8665](https://github.com/MetaMask/core/pull/8665))
+- Bump `@metamask/accounts-controller` from `^37.1.0` to `^38.0.0` ([#8325](https://github.com/MetaMask/core/pull/8325), [#8363](https://github.com/MetaMask/core/pull/8363), [#8665](https://github.com/MetaMask/core/pull/8665))
 - Bump `@metamask/controller-utils` from `^11.19.0` to `^11.20.0` ([#8344](https://github.com/MetaMask/core/pull/8344))
-- Bump `@metamask/messenger` from `^1.0.0` to `^1.1.1` ([#8364](https://github.com/MetaMask/core/pull/8364), [#8373](https://github.com/MetaMask/core/pull/8373))
+- Bump `@metamask/messenger` from `^1.0.0` to `^1.2.0` ([#8364](https://github.com/MetaMask/core/pull/8364), [#8373](https://github.com/MetaMask/core/pull/8373), [#8632](https://github.com/MetaMask/core/pull/8632))
 - Bump `@metamask/base-controller` from `^9.0.1` to `^9.1.0` ([#8457](https://github.com/MetaMask/core/pull/8457))
+- Bump `@metamask/keyring-api` from `^21.6.0` to `^23.1.0` ([#8464](https://github.com/MetaMask/core/pull/8464), [#8647](https://github.com/MetaMask/core/pull/8647))
+- Bump `@metamask/keyring-internal-api` from `^10.0.0` to `^11.0.1` ([#8464](https://github.com/MetaMask/core/pull/8464), [#8584](https://github.com/MetaMask/core/pull/8584), [#8647](https://github.com/MetaMask/core/pull/8647))
+- Bump `@metamask/network-controller` from `^30.0.1` to `^30.1.0` ([#8636](https://github.com/MetaMask/core/pull/8636))
 
 ## [3.0.6]
 
@@ -260,7 +266,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Handle both EVM and non-EVM network and account switching for the associated network.
   - Act as a proxy for the `NetworkController` (for EVM network changes).
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/multichain-network-controller@3.0.6...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/multichain-network-controller@3.1.0...HEAD
+[3.1.0]: https://github.com/MetaMask/core/compare/@metamask/multichain-network-controller@3.0.6...@metamask/multichain-network-controller@3.1.0
 [3.0.6]: https://github.com/MetaMask/core/compare/@metamask/multichain-network-controller@3.0.5...@metamask/multichain-network-controller@3.0.6
 [3.0.5]: https://github.com/MetaMask/core/compare/@metamask/multichain-network-controller@3.0.4...@metamask/multichain-network-controller@3.0.5
 [3.0.4]: https://github.com/MetaMask/core/compare/@metamask/multichain-network-controller@3.0.3...@metamask/multichain-network-controller@3.0.4

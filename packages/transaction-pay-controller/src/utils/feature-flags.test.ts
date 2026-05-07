@@ -461,14 +461,14 @@ describe('Feature Flags Utils', () => {
       expect(isRelayExecuteEnabled(messenger)).toBe(false);
     });
 
-    it('returns true when executeEnabled is true', () => {
+    it('returns true when gaslessEnabled is true', () => {
       getRemoteFeatureFlagControllerStateMock.mockReturnValue({
         ...getDefaultRemoteFeatureFlagControllerState(),
         remoteFeatureFlags: {
           confirmations_pay: {
             payStrategies: {
               relay: {
-                executeEnabled: true,
+                gaslessEnabled: true,
               },
             },
           },
@@ -478,14 +478,14 @@ describe('Feature Flags Utils', () => {
       expect(isRelayExecuteEnabled(messenger)).toBe(true);
     });
 
-    it('returns false when executeEnabled is false', () => {
+    it('returns false when gaslessEnabled is false', () => {
       getRemoteFeatureFlagControllerStateMock.mockReturnValue({
         ...getDefaultRemoteFeatureFlagControllerState(),
         remoteFeatureFlags: {
           confirmations_pay: {
             payStrategies: {
               relay: {
-                executeEnabled: false,
+                gaslessEnabled: false,
               },
             },
           },
@@ -808,6 +808,49 @@ describe('Feature Flags Utils', () => {
       expect(getStrategyOrder(messenger)).toStrictEqual([
         TransactionPayStrategy.Relay,
       ]);
+    });
+
+    it('returns only Fiat strategy when fiatPaymentMethodId is provided', () => {
+      const strategyOrder = getStrategyOrder(
+        messenger,
+        undefined,
+        undefined,
+        undefined,
+        'card-123',
+      );
+
+      expect(strategyOrder).toStrictEqual([TransactionPayStrategy.Fiat]);
+    });
+
+    it('returns only Fiat strategy regardless of other routing config when fiatPaymentMethodId is provided', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_pay: {
+            strategyOrder: [
+              TransactionPayStrategy.Relay,
+              TransactionPayStrategy.Across,
+            ],
+            strategyOverrides: {
+              default: {
+                chains: {
+                  [CHAIN_ID_MOCK]: [TransactionPayStrategy.Bridge],
+                },
+              },
+            },
+          },
+        },
+      });
+
+      const strategyOrder = getStrategyOrder(
+        messenger,
+        CHAIN_ID_MOCK,
+        TOKEN_ADDRESS_MOCK,
+        'perpsDeposit',
+        '/payments/debit-credit-card',
+      );
+
+      expect(strategyOrder).toStrictEqual([TransactionPayStrategy.Fiat]);
     });
   });
 

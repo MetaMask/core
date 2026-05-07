@@ -34,6 +34,13 @@ const EVM_NETWORK_CONFIGS: Record<string, { nativeCurrency: string }> = {
   '0x1': { nativeCurrency: 'ETH' },
 };
 
+const ETH_NATIVE_METADATA = {
+  type: 'native',
+  decimals: 18,
+  symbol: 'ETH',
+  name: 'Ether',
+} as AssetMetadata;
+
 describe('formatStateForTransactionPay', () => {
   it('returns empty tokenBalances, accountsByChainId, allTokens when no balances or info', () => {
     const result = formatStateForTransactionPay({
@@ -42,6 +49,7 @@ describe('formatStateForTransactionPay', () => {
       assetsInfo: {},
       assetsPrice: {},
       selectedCurrency: 'usd',
+      nativeAssetIdentifiers: {},
     });
 
     expect(result.tokenBalances).toStrictEqual({});
@@ -60,7 +68,7 @@ describe('formatStateForTransactionPay', () => {
           [ETH_NATIVE_ID]: { amount: '1000000000000000000' },
         },
       },
-      assetsInfo: {},
+      assetsInfo: { [ETH_NATIVE_ID]: ETH_NATIVE_METADATA },
       assetsPrice: { [ETH_NATIVE_ID]: price({ price: 2000 }) },
       selectedCurrency: 'usd',
       nativeAssetIdentifiers: EVM_NATIVE_IDS,
@@ -92,6 +100,7 @@ describe('formatStateForTransactionPay', () => {
       assetsInfo: {},
       assetsPrice: {},
       selectedCurrency: 'usd',
+      nativeAssetIdentifiers: {},
     });
 
     const accountLower = ACCOUNT_1.address.toLowerCase();
@@ -120,6 +129,7 @@ describe('formatStateForTransactionPay', () => {
       },
       assetsPrice: {},
       selectedCurrency: 'usd',
+      nativeAssetIdentifiers: {},
     });
 
     expect(result.allTokens['0x1']).toBeDefined();
@@ -164,6 +174,7 @@ describe('formatStateForTransactionPay', () => {
       },
       assetsPrice: {},
       selectedCurrency: 'usd',
+      nativeAssetIdentifiers: {},
     });
 
     expect(result.tokenBalances).toStrictEqual({});
@@ -191,6 +202,7 @@ describe('formatStateForTransactionPay', () => {
       },
       assetsPrice: {},
       selectedCurrency: 'usd',
+      nativeAssetIdentifiers: {},
     });
 
     expect(
@@ -206,9 +218,10 @@ describe('formatStateForTransactionPay', () => {
           [ETH_NATIVE_ID]: { amount: '1' },
         },
       },
-      assetsInfo: {},
+      assetsInfo: { [ETH_NATIVE_ID]: ETH_NATIVE_METADATA },
       assetsPrice: {},
       selectedCurrency: 'usd',
+      nativeAssetIdentifiers: {},
     });
 
     expect(result.tokenBalances[ACCOUNT_1.address.toLowerCase()]).toBeDefined();
@@ -223,9 +236,10 @@ describe('formatStateForTransactionPay', () => {
           [ETH_NATIVE_ID]: {} as AssetBalance,
         },
       },
-      assetsInfo: {},
+      assetsInfo: { [ETH_NATIVE_ID]: ETH_NATIVE_METADATA },
       assetsPrice: {},
       selectedCurrency: 'usd',
+      nativeAssetIdentifiers: {},
     });
 
     const accountLower = ACCOUNT_1.address.toLowerCase();
@@ -238,7 +252,7 @@ describe('formatStateForTransactionPay', () => {
     const result = formatStateForTransactionPay({
       accounts: [],
       assetsBalance: {},
-      assetsInfo: {},
+      assetsInfo: { [ETH_NATIVE_ID]: ETH_NATIVE_METADATA },
       assetsPrice: {
         [ETH_NATIVE_ID]: price({ price: 2000, lastUpdated: 1_700_000_000_000 }),
       },
@@ -256,7 +270,7 @@ describe('formatStateForTransactionPay', () => {
     const result = formatStateForTransactionPay({
       accounts: [],
       assetsBalance: {},
-      assetsInfo: {},
+      assetsInfo: { [ETH_NATIVE_ID]: ETH_NATIVE_METADATA },
       assetsPrice: {
         [ETH_NATIVE_ID]: price({
           price: 1840,
@@ -288,7 +302,7 @@ describe('formatStateForTransactionPay', () => {
         [ACCOUNT_1.id]: { [ETH_NATIVE_ID]: { amount: '100' } },
         [account2.id]: { [ETH_NATIVE_ID]: { amount: '200' } },
       },
-      assetsInfo: {},
+      assetsInfo: { [ETH_NATIVE_ID]: ETH_NATIVE_METADATA },
       assetsPrice: {},
       selectedCurrency: 'usd',
       nativeAssetIdentifiers: EVM_NATIVE_IDS,
@@ -324,6 +338,7 @@ describe('formatStateForTransactionPay', () => {
       assetsInfo: {},
       assetsPrice: {},
       selectedCurrency: 'usd',
+      nativeAssetIdentifiers: {},
     });
 
     expect(result.tokenBalances).toStrictEqual({});
@@ -340,6 +355,7 @@ describe('formatStateForTransactionPay', () => {
         },
       },
       assetsInfo: {
+        [ETH_NATIVE_ID]: ETH_NATIVE_METADATA,
         [USDC_ASSET_ID]: {
           type: 'erc20',
           decimals: 6,
@@ -352,6 +368,7 @@ describe('formatStateForTransactionPay', () => {
       },
       assetsPrice: {},
       selectedCurrency: 'usd',
+      nativeAssetIdentifiers: {},
     });
 
     const accountLower = ACCOUNT_1.address.toLowerCase();

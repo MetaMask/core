@@ -826,7 +826,7 @@ export class MultichainAssetsController extends StaticIntervalPollingController<
   }
 
   /**
-   * Fail-closed Blockaid filter for newly detected `token:` assets (native/other namespaces unchanged).
+   * Fail-open Blockaid filter for newly detected `token:` assets (native/other namespaces unchanged).
    *
    * @param assets - CAIP assets to filter.
    * @returns Filtered list, original order preserved.
@@ -840,7 +840,7 @@ export class MultichainAssetsController extends StaticIntervalPollingController<
       return [...assets];
     }
 
-    const keptTokenAssets = new Set<CaipAssetType>();
+    const rejectedAssets = new Set<CaipAssetType>();
 
     for (const [chainName, tokenEntries] of Object.entries(tokensByChain)) {
       const batchOutcomes = await this.#runBatchedBulkTokenScans(
@@ -850,30 +850,23 @@ export class MultichainAssetsController extends StaticIntervalPollingController<
 
       for (const outcome of batchOutcomes) {
         if (outcome.status === 'rejected') {
+          // Fail-open: if API fails, allow all tokens in this batch through
           continue;
         }
         for (const entry of outcome.entries) {
           const scanned = outcome.response[entry.address];
+          // Reject only if we have a definitive malicious result
           if (
             scanned?.result_type &&
-            scanned.result_type !== TokenScanResultType.Malicious
+            scanned.result_type === TokenScanResultType.Malicious
           ) {
-            keptTokenAssets.add(entry.asset);
+            rejectedAssets.add(entry.asset);
           }
         }
       }
     }
 
-    return assets.filter((asset) => {
-      try {
-        if (parseCaipAssetType(asset).assetNamespace === 'token') {
-          return keptTokenAssets.has(asset);
-        }
-      } catch {
-        return false;
-      }
-      return true;
-    });
+    return assets.filter((asset) => !rejectedAssets.has(asset));
   }
 
   /**

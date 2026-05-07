@@ -31,7 +31,10 @@ import type {
   FetchGasFeeEstimateOptions,
   GasFeeState,
 } from '@metamask/gas-fee-controller';
-import type { KeyringControllerSignEip7702AuthorizationAction } from '@metamask/keyring-controller';
+import type {
+  KeyringControllerGetStateAction,
+  KeyringControllerSignEip7702AuthorizationAction,
+} from '@metamask/keyring-controller';
 import type { Messenger } from '@metamask/messenger';
 import type {
   BlockTracker,
@@ -94,6 +97,7 @@ import type { TransactionControllerMethodActions } from './TransactionController
 import type {
   DappSuggestedGasFees,
   Layer1GasFeeFlow,
+  Revert,
   SavedGasFees,
   SecurityProviderRequest,
   SendFlowHistoryEntry,
@@ -149,6 +153,7 @@ import {
   getTransactionHistoryLimit,
 } from './utils/feature-flags';
 import { updateFirstTimeInteraction } from './utils/first-time-interaction';
+import type { EstimateGasBatchResult } from './utils/gas';
 import {
   addGasBuffer,
   estimateGas,
@@ -491,6 +496,7 @@ export type AllowedActions =
   | AccountsControllerGetSelectedAccountAction
   | AccountsControllerGetStateAction
   | ApprovalControllerAddRequestAction
+  | KeyringControllerGetStateAction
   | KeyringControllerSignEip7702AuthorizationAction
   | NetworkControllerFindNetworkClientIdByChainIdAction
   | NetworkControllerGetNetworkClientByIdAction
@@ -757,7 +763,13 @@ const MESSENGER_EXPOSED_METHODS = [
   'updateCustodialTransaction',
   'updateEditableParams',
   'updateIncomingTransactions',
+  'updatePreviousGasParams',
+  'updateRequiredTransactionIds',
+  'updateSecurityAlertResponse',
+  'updateSelectedGasFeeToken',
   'updateTransaction',
+  'updateTransactionGasFees',
+  'wipeTransactions',
 ] as const;
 
 /**
@@ -1717,7 +1729,7 @@ export class TransactionController extends BaseController<
     chainId: Hex;
     from: Hex;
     transactions: BatchTransactionParams[];
-  }): Promise<{ totalGasLimit: number; gasLimits: number[] }> {
+  }): Promise<EstimateGasBatchResult> {
     return estimateGasBatch({
       from,
       getSimulationConfig: this.#getSimulationConfig,
@@ -2220,6 +2232,15 @@ export class TransactionController extends BaseController<
 
     if (containerTypes) {
       updatedTransaction.containerTypes = containerTypes;
+
+      const isNewlyWrapped =
+        containerTypes.length && !transactionMeta.containerTypes?.length;
+
+      if (isNewlyWrapped && !transactionMeta.txParamsOriginal) {
+        updatedTransaction.txParamsOriginal = cloneDeep(
+          transactionMeta.txParams,
+        );
+      }
     }
 
     await updateTransactionLayer1GasFee({
@@ -2750,6 +2771,14 @@ export class TransactionController extends BaseController<
         transactionMeta.txParams.gas = draftTransaction.txParams.gas;
         transactionMeta.simulationFails = draftTransaction.simulationFails;
         transactionMeta.gasLimitNoBuffer = draftTransaction.gasLimitNoBuffer;
+
+        const draftGasRevert = draftTransaction.revert?.gas;
+        if (draftGasRevert) {
+          transactionMeta.revert = {
+            ...transactionMeta.revert,
+            gas: draftGasRevert,
+          };
+        }
       },
     );
 
@@ -3357,7 +3386,7 @@ export class TransactionController extends BaseController<
       const errorMessage =
         errorObject?.data?.message ?? errorObject?.message ?? String(error);
 
-      throw new Error(errorMessage);
+      throw new Error(`RPC submit: ${errorMessage}`);
     }
   }
 
@@ -4279,6 +4308,7 @@ export class TransactionController extends BaseController<
     let gasUsed: Hex | undefined;
     let gasFeeTokens: GasFeeToken[] = [];
     let isGasFeeSponsored = false;
+    let simulationRevert: Revert | undefined;
 
     const isBalanceChangesSkipped =
       this.#isBalanceChangesSkipped(transactionMeta);
@@ -4304,6 +4334,7 @@ export class TransactionController extends BaseController<
       );
       simulationData = balanceChangesResult.simulationData;
       gasUsed = balanceChangesResult.gasUsed;
+      simulationRevert = balanceChangesResult.simulationRevert;
 
       if (
         blockTime &&
@@ -4347,6 +4378,13 @@ export class TransactionController extends BaseController<
 
         if (!this.#isBalanceChangesSkipped(txMeta)) {
           txMeta.simulationData = simulationData;
+
+          if (simulationRevert) {
+            txMeta.revert = {
+              ...txMeta.revert,
+              simulation: simulationRevert,
+            };
+          }
         }
       },
     );
@@ -4583,6 +4621,7 @@ export class TransactionController extends BaseController<
       : error;
 
     let newTransactionMeta: TransactionMeta;
+    const { revert: receiptRevert } = error as { revert?: Revert };
 
     try {
       newTransactionMeta = this.#updateTransactionInternal(
@@ -4598,6 +4637,15 @@ export class TransactionController extends BaseController<
               status: TransactionStatus.failed;
             }
           ).error = normalizeTxError(errorToPersist);
+
+          if (receiptRevert === undefined) {
+            return;
+          }
+
+          draftTransactionMeta.revert = {
+            ...draftTransactionMeta.revert,
+            receipt: receiptRevert,
+          };
         },
       );
     } catch (caughtError: unknown) {
@@ -4607,6 +4655,14 @@ export class TransactionController extends BaseController<
         ...transactionMeta,
         status: TransactionStatus.failed,
         error: normalizeTxError(errorToPersist),
+        ...(receiptRevert === undefined
+          ? {}
+          : {
+              revert: {
+                ...transactionMeta.revert,
+                receipt: receiptRevert,
+              },
+            }),
       };
     }
 

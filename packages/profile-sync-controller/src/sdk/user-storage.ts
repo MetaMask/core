@@ -39,6 +39,13 @@ export type GetUserStorageAllFeatureEntriesResponse = {
 export type UserStorageMethodOptions = {
   nativeScryptCrypto?: NativeScrypt;
   entropySourceId?: string;
+  /**
+   * When true, skip the `x-profile-id` header on feature-scoped requests,
+   * letting the server default to the JWT `sub` (canonical profile ID).
+   * Useful during canonical storage migration (ADR 0005) to read/verify
+   * data stored under the canonical key.
+   */
+  useCanonicalScope?: boolean;
 };
 
 type ErrorMessage = {
@@ -140,6 +147,10 @@ export class UserStorage {
     const entropySourceId = options?.entropySourceId;
     try {
       const headers = await this.#getAuthorizationHeader(entropySourceId);
+      const profileScopeHeader = await this.#getProfileScopeHeader(
+        entropySourceId,
+        options?.useCanonicalScope,
+      );
       const storageKey = await this.getStorageKey(entropySourceId);
       const encryptedData = await encryption.encryptString(
         data,
@@ -155,6 +166,7 @@ export class UserStorage {
         headers: {
           'Content-Type': 'application/json',
           ...headers,
+          ...profileScopeHeader,
         },
         body: JSON.stringify({ data: encryptedData }),
       });
@@ -190,6 +202,10 @@ export class UserStorage {
       }
 
       const headers = await this.#getAuthorizationHeader(entropySourceId);
+      const profileScopeHeader = await this.#getProfileScopeHeader(
+        entropySourceId,
+        options?.useCanonicalScope,
+      );
       const storageKey = await this.getStorageKey(entropySourceId);
 
       const encryptedData = await Promise.all(
@@ -212,6 +228,7 @@ export class UserStorage {
         headers: {
           'Content-Type': 'application/json',
           ...headers,
+          ...profileScopeHeader,
         },
         body: JSON.stringify({ data: Object.fromEntries(encryptedData) }),
       });
@@ -239,9 +256,14 @@ export class UserStorage {
     path: UserStorageGenericPathWithFeatureOnly,
     encryptedData: [string, string][],
     entropySourceId?: string,
+    useCanonicalScope?: boolean,
   ): Promise<void> {
     try {
       const headers = await this.#getAuthorizationHeader(entropySourceId);
+      const profileScopeHeader = await this.#getProfileScopeHeader(
+        entropySourceId,
+        useCanonicalScope,
+      );
 
       const url = new URL(STORAGE_URL(this.env, path));
 
@@ -250,6 +272,7 @@ export class UserStorage {
         headers: {
           'Content-Type': 'application/json',
           ...headers,
+          ...profileScopeHeader,
         },
         body: JSON.stringify({ data: Object.fromEntries(encryptedData) }),
       });
@@ -343,6 +366,10 @@ export class UserStorage {
     const entropySourceId = options?.entropySourceId;
     try {
       const headers = await this.#getAuthorizationHeader(entropySourceId);
+      const profileScopeHeader = await this.#getProfileScopeHeader(
+        entropySourceId,
+        options?.useCanonicalScope,
+      );
       const storageKey = await this.getStorageKey(entropySourceId);
 
       const url = new URL(STORAGE_URL(this.env, path));
@@ -351,6 +378,7 @@ export class UserStorage {
         headers: {
           'Content-Type': 'application/json',
           ...headers,
+          ...profileScopeHeader,
         },
       });
 
@@ -411,6 +439,7 @@ export class UserStorage {
           path,
           reEncryptedEntries,
           entropySourceId,
+          options?.useCanonicalScope,
         );
       }
 
@@ -480,6 +509,10 @@ export class UserStorage {
     try {
       const entropySourceId = options?.entropySourceId;
       const headers = await this.#getAuthorizationHeader(entropySourceId);
+      const profileScopeHeader = await this.#getProfileScopeHeader(
+        entropySourceId,
+        options?.useCanonicalScope,
+      );
 
       const url = new URL(STORAGE_URL(this.env, path));
 
@@ -488,6 +521,7 @@ export class UserStorage {
         headers: {
           'Content-Type': 'application/json',
           ...headers,
+          ...profileScopeHeader,
         },
       });
 
@@ -574,5 +608,23 @@ export class UserStorage {
   ): Promise<{ Authorization: string }> {
     const accessToken = await this.config.auth.getAccessToken(entropySourceId);
     return { Authorization: `Bearer ${accessToken}` };
+  }
+
+  async #getProfileScopeHeader(
+    entropySourceId?: string,
+    useCanonicalScope?: boolean,
+  ): Promise<Record<string, string>> {
+    if (useCanonicalScope) {
+      return {};
+    }
+    const profile = await this.config.auth.getUserProfile(entropySourceId);
+    if (profile.profileId !== profile.canonicalProfileId) {
+      // After SRP pairing the JWT `sub` is the canonical profile id, but
+      // user storage data is still keyed by the original per-SRP profileId.
+      // The `x-profile-id` header tells the backend to scope reads/writes to
+      // that alias partition until ADR 0005 migrates storage keys to canonical.
+      return { 'x-profile-id': profile.profileId };
+    }
+    return {};
   }
 }

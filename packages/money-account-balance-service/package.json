@@ -1,6 +1,6 @@
 {
   "name": "@metamask/money-account-balance-service",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Data service for fetching Money account balances, exchange rates, and vault APY",
   "keywords": [
     "Ethereum",
@@ -44,8 +44,8 @@
     "build:docs": "typedoc",
     "changelog:update": "../../scripts/update-changelog.sh @metamask/money-account-balance-service",
     "changelog:validate": "../../scripts/validate-changelog.sh @metamask/money-account-balance-service",
-    "messenger-action-types:check": "tsx ../../packages/messenger-cli/src/cli.ts --check",
-    "messenger-action-types:generate": "tsx ../../packages/messenger-cli/src/cli.ts --generate",
+    "messenger-action-types:check": "tsx ../../packages/messenger-cli/src/cli.ts --formatter oxfmt --check",
+    "messenger-action-types:generate": "tsx ../../packages/messenger-cli/src/cli.ts --formatter oxfmt --generate",
     "since-latest-release": "../../scripts/since-latest-release.sh",
     "test": "NODE_OPTIONS=--experimental-vm-modules jest --reporters=jest-silent-reporter",
     "test:clean": "NODE_OPTIONS=--experimental-vm-modules jest --clearCache",
@@ -57,9 +57,9 @@
     "@ethersproject/providers": "^5.7.0",
     "@metamask/base-data-service": "^0.1.1",
     "@metamask/controller-utils": "^11.20.0",
-    "@metamask/messenger": "^1.1.1",
+    "@metamask/messenger": "^1.2.0",
     "@metamask/metamask-eth-abis": "^3.1.1",
-    "@metamask/network-controller": "^30.0.1",
+    "@metamask/network-controller": "^30.1.0",
     "@metamask/superstruct": "^3.1.0",
     "@metamask/utils": "^11.9.0"
   },

@@ -1,4 +1,9 @@
-import { Messenger } from '@metamask/messenger';
+import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
+import type {
+  MockAnyNamespace,
+  MessengerActions,
+  MessengerEvents,
+} from '@metamask/messenger';
 
 import { SocialServiceErrorMessage, serviceName } from './social-constants';
 import type { SocialServiceMessenger } from './SocialService';
@@ -33,6 +38,7 @@ const mockTrade = {
 };
 
 const mockPosition = {
+  positionId: 'position-1',
   tokenSymbol: 'ETH',
   tokenName: 'Ethereum',
   tokenAddress: '0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee',
@@ -47,10 +53,39 @@ const mockPosition = {
   tokenImageUrl: 'https://assets.daylight.xyz/images/token-eth.png',
 };
 
-function createMessenger(): SocialServiceMessenger {
-  return new Messenger({
+const MOCK_TOKEN = 'mock-bearer-token';
+
+type RootMessenger = Messenger<
+  MockAnyNamespace,
+  MessengerActions<SocialServiceMessenger>,
+  MessengerEvents<SocialServiceMessenger>
+>;
+
+function getRootMessenger(): RootMessenger {
+  return new Messenger({ namespace: MOCK_ANY_NAMESPACE });
+}
+
+function createMessenger(
+  rootMessenger?: RootMessenger,
+): SocialServiceMessenger {
+  const root = rootMessenger ?? getRootMessenger();
+
+  root.registerActionHandler(
+    'AuthenticationController:getBearerToken',
+    async () => MOCK_TOKEN,
+  );
+
+  const serviceMessenger: SocialServiceMessenger = new Messenger({
     namespace: serviceName,
-  }) as SocialServiceMessenger;
+    parent: root,
+  });
+
+  root.delegate({
+    messenger: serviceMessenger,
+    actions: ['AuthenticationController:getBearerToken'],
+  });
+
+  return serviceMessenger;
 }
 
 function createService(
@@ -108,7 +143,9 @@ describe('SocialService', () => {
       const result = await service.fetchLeaderboard();
 
       expect(result).toStrictEqual(mockLeaderboardResponse);
-      expect(mockFetch).toHaveBeenCalledWith(`${V1_URL}/leaderboard`);
+      expect(mockFetch).toHaveBeenCalledWith(`${V1_URL}/leaderboard`, {
+        headers: { Authorization: `Bearer ${MOCK_TOKEN}` },
+      });
     });
 
     it('appends sort, chains, and limit query params', async () => {
@@ -267,6 +304,7 @@ describe('SocialService', () => {
       expect(result).toStrictEqual(mockProfileResponse);
       expect(mockFetch).toHaveBeenCalledWith(
         `${V1_URL}/traders/0x1234/profile`,
+        { headers: { Authorization: `Bearer ${MOCK_TOKEN}` } },
       );
     });
 
@@ -284,6 +322,7 @@ describe('SocialService', () => {
 
       expect(mockFetch).toHaveBeenCalledWith(
         `${V1_URL}/traders/addr%2Fwith%2Fslashes/profile`,
+        { headers: { Authorization: `Bearer ${MOCK_TOKEN}` } },
       );
     });
 
@@ -357,6 +396,7 @@ describe('SocialService', () => {
       expect(result).toStrictEqual(mockPositionsResponse);
       expect(mockFetch).toHaveBeenCalledWith(
         `${V2_URL}/traders/0x1234/positions/open`,
+        { headers: { Authorization: `Bearer ${MOCK_TOKEN}` } },
       );
     });
 
@@ -480,6 +520,7 @@ describe('SocialService', () => {
       expect(result).toStrictEqual(mockPositionsResponse);
       expect(mockFetch).toHaveBeenCalledWith(
         `${V1_URL}/traders/0x1234/positions/closed`,
+        { headers: { Authorization: `Bearer ${MOCK_TOKEN}` } },
       );
     });
 
@@ -534,6 +575,7 @@ describe('SocialService', () => {
       expect(result).toStrictEqual(mockFollowersResponse);
       expect(mockFetch).toHaveBeenCalledWith(
         `${V1_URL}/traders/0x1234/followers`,
+        { headers: { Authorization: `Bearer ${MOCK_TOKEN}` } },
       );
     });
 
@@ -586,13 +628,92 @@ describe('SocialService', () => {
     });
   });
 
+  describe('fetchPositionById', () => {
+    it('fetches position from correct endpoint', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve(mockPosition),
+      });
+
+      const service = createService();
+      const result = await service.fetchPositionById({
+        positionId: 'position-1',
+      });
+
+      expect(result).toStrictEqual(mockPosition);
+      expect(mockFetch).toHaveBeenCalledWith(
+        `${V1_URL}/traders/position/position-1`,
+        { headers: { Authorization: `Bearer ${MOCK_TOKEN}` } },
+      );
+    });
+
+    it('encodes the positionId in the URL', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve(mockPosition),
+      });
+
+      const service = createService();
+      await service.fetchPositionById({ positionId: 'pos/with/slashes' });
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        `${V1_URL}/traders/position/pos%2Fwith%2Fslashes`,
+        { headers: { Authorization: `Bearer ${MOCK_TOKEN}` } },
+      );
+    });
+
+    it('throws HttpError on non-ok response', async () => {
+      mockFetch.mockResolvedValue({ ok: false, status: 404 });
+
+      const service = createService();
+
+      await expect(
+        service.fetchPositionById({ positionId: 'position-1' }),
+      ).rejects.toThrow(
+        `${SocialServiceErrorMessage.FETCH_POSITION_BY_ID_FAILED}: 404`,
+      );
+    });
+
+    it('throws when response schema is invalid', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve({ positionId: 123 }),
+      });
+
+      const service = createService();
+
+      await expect(
+        service.fetchPositionById({ positionId: 'position-1' }),
+      ).rejects.toThrow(
+        SocialServiceErrorMessage.FETCH_POSITION_BY_ID_INVALID_RESPONSE,
+      );
+    });
+
+    it('returns cached result on repeated calls with same positionId', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve(mockPosition),
+      });
+
+      const service = createService();
+      await service.fetchPositionById({ positionId: 'position-1' });
+      await service.fetchPositionById({ positionId: 'position-1' });
+
+      expect(mockFetch).toHaveBeenCalledTimes(1);
+    });
+  });
+
   describe('fetchFollowing', () => {
     const mockFollowingResponse = {
       following: [mockProfileSummary],
       count: 1,
     };
 
-    it('fetches following from correct endpoint', async () => {
+    it('fetches following from the /users/me/following endpoint', async () => {
       mockFetch.mockResolvedValue({
         ok: true,
         status: 200,
@@ -600,14 +721,12 @@ describe('SocialService', () => {
       });
 
       const service = createService();
-      const result = await service.fetchFollowing({
-        addressOrUid: '0x1234',
-      });
+      const result = await service.fetchFollowing();
 
       expect(result).toStrictEqual(mockFollowingResponse);
-      expect(mockFetch).toHaveBeenCalledWith(
-        `${V1_URL}/users/0x1234/following`,
-      );
+      expect(mockFetch).toHaveBeenCalledWith(`${V1_URL}/users/me/following`, {
+        headers: { Authorization: `Bearer ${MOCK_TOKEN}` },
+      });
     });
 
     it('throws HttpError on non-ok response', async () => {
@@ -615,9 +734,7 @@ describe('SocialService', () => {
 
       const service = createService();
 
-      await expect(
-        service.fetchFollowing({ addressOrUid: '0x1234' }),
-      ).rejects.toThrow(
+      await expect(service.fetchFollowing()).rejects.toThrow(
         `${SocialServiceErrorMessage.FETCH_FOLLOWING_FAILED}: 500`,
       );
     });
@@ -631,9 +748,7 @@ describe('SocialService', () => {
 
       const service = createService();
 
-      await expect(
-        service.fetchFollowing({ addressOrUid: '0x1234' }),
-      ).rejects.toThrow(
+      await expect(service.fetchFollowing()).rejects.toThrow(
         SocialServiceErrorMessage.FETCH_FOLLOWING_INVALID_RESPONSE,
       );
     });
@@ -646,8 +761,8 @@ describe('SocialService', () => {
       });
 
       const service = createService();
-      await service.fetchFollowing({ addressOrUid: '0x1234' });
-      await service.fetchFollowing({ addressOrUid: '0x1234' });
+      await service.fetchFollowing();
+      await service.fetchFollowing();
 
       expect(mockFetch).toHaveBeenCalledTimes(2);
     });
@@ -658,7 +773,7 @@ describe('SocialService', () => {
       followed: [mockProfileSummary],
     };
 
-    it('sends PUT request with targets in body', async () => {
+    it('sends PUT request with targets in body to /users/me/follows', async () => {
       mockFetch.mockResolvedValue({
         ok: true,
         status: 200,
@@ -667,14 +782,16 @@ describe('SocialService', () => {
 
       const service = createService();
       const result = await service.follow({
-        addressOrUid: '0x1234',
         targets: ['0xaaaa', '0xbbbb'],
       });
 
       expect(result).toStrictEqual(mockFollowResponse);
-      expect(mockFetch).toHaveBeenCalledWith(`${V1_URL}/users/0x1234/follows`, {
+      expect(mockFetch).toHaveBeenCalledWith(`${V1_URL}/users/me/follows`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          Authorization: `Bearer ${MOCK_TOKEN}`,
+          'Content-Type': 'application/json',
+        },
         body: JSON.stringify({ targets: ['0xaaaa', '0xbbbb'] }),
       });
     });
@@ -684,9 +801,9 @@ describe('SocialService', () => {
 
       const service = createService();
 
-      await expect(
-        service.follow({ addressOrUid: '0x1234', targets: ['0xaaaa'] }),
-      ).rejects.toThrow(`${SocialServiceErrorMessage.FOLLOW_FAILED}: 400`);
+      await expect(service.follow({ targets: ['0xaaaa'] })).rejects.toThrow(
+        `${SocialServiceErrorMessage.FOLLOW_FAILED}: 400`,
+      );
     });
 
     it('throws when response schema is invalid', async () => {
@@ -698,9 +815,9 @@ describe('SocialService', () => {
 
       const service = createService();
 
-      await expect(
-        service.follow({ addressOrUid: '0x1234', targets: ['0xaaaa'] }),
-      ).rejects.toThrow(SocialServiceErrorMessage.FOLLOW_INVALID_RESPONSE);
+      await expect(service.follow({ targets: ['0xaaaa'] })).rejects.toThrow(
+        SocialServiceErrorMessage.FOLLOW_INVALID_RESPONSE,
+      );
     });
   });
 
@@ -709,7 +826,7 @@ describe('SocialService', () => {
       unfollowed: [mockProfileSummary],
     };
 
-    it('sends DELETE request with targets as query params', async () => {
+    it('sends DELETE request with targets as query params to /users/me/follows', async () => {
       mockFetch.mockResolvedValue({
         ok: true,
         status: 200,
@@ -718,16 +835,17 @@ describe('SocialService', () => {
 
       const service = createService();
       const result = await service.unfollow({
-        addressOrUid: '0x1234',
         targets: ['0xaaaa', '0xbbbb'],
       });
 
       expect(result).toStrictEqual(mockUnfollowResponse);
       const calledUrl = mockFetch.mock.calls[0][0] as string;
+      expect(calledUrl).toContain(`${V1_URL}/users/me/follows`);
       expect(calledUrl).toContain('targets=0xaaaa');
       expect(calledUrl).toContain('targets=0xbbbb');
       expect(mockFetch.mock.calls[0][1]).toStrictEqual({
         method: 'DELETE',
+        headers: { Authorization: `Bearer ${MOCK_TOKEN}` },
       });
     });
 
@@ -736,9 +854,9 @@ describe('SocialService', () => {
 
       const service = createService();
 
-      await expect(
-        service.unfollow({ addressOrUid: '0x1234', targets: ['0xaaaa'] }),
-      ).rejects.toThrow(`${SocialServiceErrorMessage.UNFOLLOW_FAILED}: 400`);
+      await expect(service.unfollow({ targets: ['0xaaaa'] })).rejects.toThrow(
+        `${SocialServiceErrorMessage.UNFOLLOW_FAILED}: 400`,
+      );
     });
 
     it('throws when response schema is invalid', async () => {
@@ -750,9 +868,9 @@ describe('SocialService', () => {
 
       const service = createService();
 
-      await expect(
-        service.unfollow({ addressOrUid: '0x1234', targets: ['0xaaaa'] }),
-      ).rejects.toThrow(SocialServiceErrorMessage.UNFOLLOW_INVALID_RESPONSE);
+      await expect(service.unfollow({ targets: ['0xaaaa'] })).rejects.toThrow(
+        SocialServiceErrorMessage.UNFOLLOW_INVALID_RESPONSE,
+      );
     });
   });
 });
