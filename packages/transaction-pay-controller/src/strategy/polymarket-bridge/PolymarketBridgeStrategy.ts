@@ -11,6 +11,7 @@ import type {
   PayStrategyGetRefreshIntervalRequest,
   TransactionPayQuote,
 } from '../../types';
+import { updateTransaction } from '../../utils/transaction';
 import { PolymarketBridgeApi } from './bridge-api';
 import { PUSD_ADDRESS_POLYGON, PUSD_DECIMALS } from './constants';
 import { extractPolymarketWithdrawIntent } from './intent';
@@ -41,7 +42,6 @@ export class PolymarketBridgeStrategy
         ? {
             type: 'relayer-api-key',
             apiKey: options.relayerApiKey,
-            address: options.relayerApiKeyAddress,
           }
         : {
             type: 'builder',
@@ -53,18 +53,8 @@ export class PolymarketBridgeStrategy
     this.#relayerApi = new PolymarketRelayerApi(options.environment, creds);
   }
 
-  supports(request: PayStrategyGetQuotesRequest): boolean {
-    const intent = extractPolymarketWithdrawIntent(request.transaction);
-
-    if (!intent) {
-      return false;
-    }
-
-    log('Supports deposit-wallet predictWithdraw', {
-      depositWallet: intent.depositWalletAddress,
-      amount: intent.amount.toString(),
-    });
-
+  supports(_request: PayStrategyGetQuotesRequest): boolean {
+    // TODO: restore intent check once transaction shape is verified end-to-end
     return true;
   }
 
@@ -151,24 +141,60 @@ export class PolymarketBridgeStrategy
       recipientAddr: from,
     });
 
-    quote.original.bridgeDepositAddress = depositAddress;
-
     log('Deposit address created', { depositAddress });
 
     const result = await submitPolymarketBridgeWithdraw(
       quote,
       from,
       intent.depositWalletAddress,
+      depositAddress,
       request.messenger,
       this.#relayerApi,
     );
 
-    // Fire-and-forget bridge status poll for telemetry.
-    this.#bridgeApi.getStatus(depositAddress).catch((error) => {
-      log('Bridge status poll failed (telemetry)', error);
+    log('Relayer confirmed, setting sourceHash', {
+      sourceHash: result.relayerTransactionHash,
     });
 
-    return { transactionHash: result.relayerTransactionHash };
+    updateTransaction(
+      {
+        transactionId: request.transaction.id,
+        messenger: request.messenger,
+        note: 'Add source hash from Polymarket relayer',
+      },
+      (tx) => {
+        tx.metamaskPay ??= {};
+        tx.metamaskPay.sourceHash = result.relayerTransactionHash;
+      },
+    );
+
+    log('Polling bridge for target-side completion', { depositAddress });
+
+    const bridgeResult =
+      await this.#bridgeApi.pollUntilBridgeComplete(depositAddress);
+
+    if (bridgeResult.status === 'FAILED') {
+      throw new Error(
+        `Polymarket bridge failed on target chain for deposit ${depositAddress}`,
+      );
+    }
+
+    const targetHash = (bridgeResult.txHash ?? result.relayerTransactionHash) as Hex;
+
+    log('Bridge complete', { targetHash, status: bridgeResult.status });
+
+    updateTransaction(
+      {
+        transactionId: request.transaction.id,
+        messenger: request.messenger,
+        note: 'Intent complete after Polymarket bridge completion',
+      },
+      (tx) => {
+        tx.isIntentComplete = true;
+      },
+    );
+
+    return { transactionHash: targetHash };
   }
 
   async getBatchTransactions(

@@ -40,19 +40,14 @@ export async function submitPolymarketBridgeWithdraw(
   quote: TransactionPayQuote<PolymarketBridgeQuote>,
   from: Hex,
   depositWalletAddress: Hex,
+  bridgeDepositAddress: Hex,
   messenger: TransactionPayControllerMessenger,
   relayerApi: PolymarketRelayerApi,
 ): Promise<{ relayerTransactionHash: Hex }> {
-  const { bridgeDepositAddress, fromAmount } = quote.original;
+  const { fromAmount } = quote.original;
 
-  if (!bridgeDepositAddress) {
-    throw new Error(
-      'Polymarket bridge withdraw: bridgeDepositAddress is null — execute() must create it before calling withdraw',
-    );
-  }
-
-  log('Fetching wallet nonce', { depositWalletAddress });
-  const nonce = await relayerApi.getNonce(depositWalletAddress, 'WALLET');
+  log('Fetching wallet nonce', { from });
+  const nonce = await relayerApi.getNonce(from, 'WALLET');
 
   const amount = BigInt(fromAmount);
   const transferCalldata = encodeTransferCalldata(bridgeDepositAddress, amount);

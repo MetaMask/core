@@ -49,7 +49,7 @@ type BridgeWithdrawResponse = {
 
 /** Single transaction entry from Bridge API GET /status. */
 type BridgeStatusTransaction = {
-  status: string;
+  status: BridgeTransactionStatus;
   txHash?: string;
   createdTimeMs?: number;
   fromChainId: string;
@@ -58,6 +58,19 @@ type BridgeStatusTransaction = {
   toTokenAddress: string;
   fromAmountBaseUnit: string;
 };
+
+type BridgeTransactionStatus =
+  | 'DEPOSIT_DETECTED'
+  | 'PROCESSING'
+  | 'ORIGIN_TX_CONFIRMED'
+  | 'SUBMITTED'
+  | 'COMPLETED'
+  | 'FAILED';
+
+const BRIDGE_TERMINAL_STATUSES: readonly BridgeTransactionStatus[] = [
+  'COMPLETED',
+  'FAILED',
+];
 
 /** Raw status response from Bridge API GET /status/{address}. */
 type BridgeStatusResponse = {
@@ -172,6 +185,45 @@ export class PolymarketBridgeApi {
     return data.transactions;
   }
 
+  async pollUntilBridgeComplete(
+    depositAddress: string,
+    pollIntervalMs = 3000,
+    maxAttempts = 200,
+  ): Promise<BridgeStatusTransaction> {
+    log('Polling bridge status', { depositAddress, maxAttempts });
+
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
+      await delay(pollIntervalMs);
+
+      const transactions = await this.getStatus(depositAddress);
+      const latest = transactions[0];
+
+      if (
+        latest &&
+        (BRIDGE_TERMINAL_STATUSES as readonly string[]).includes(latest.status)
+      ) {
+        log('Bridge reached terminal state', {
+          depositAddress,
+          status: latest.status,
+          txHash: latest.txHash,
+          attempt: attempt + 1,
+        });
+        return latest;
+      }
+
+      log('Bridge polling', {
+        depositAddress,
+        status: latest?.status,
+        attempt: attempt + 1,
+      });
+    }
+
+    throw new PolymarketBridgeError(
+      `Bridge status polling timed out after ${maxAttempts} attempts`,
+      'BRIDGE_POLLING_TIMEOUT',
+    );
+  }
+
   /**
    * Get supported assets from the bridge API.
    *
@@ -264,4 +316,8 @@ async function bridgeFetch(url: string, init?: RequestInit): Promise<Response> {
   }
 
   return response;
+}
+
+async function delay(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }

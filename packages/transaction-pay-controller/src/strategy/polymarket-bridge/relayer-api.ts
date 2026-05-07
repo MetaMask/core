@@ -38,7 +38,6 @@ export class PolymarketRelayerError extends Error {
 export type RelayerApiKeyCredentials = {
   type: 'relayer-api-key';
   apiKey: string;
-  address: string;
 };
 
 export type BuilderCredentials = {
@@ -96,7 +95,7 @@ export class PolymarketRelayerApi {
     const response = await relayerFetch(url, {
       method: 'POST',
       headers: {
-        ...this.#authHeaders('POST', path, body),
+        ...this.#authHeaders('POST', path, body, request.from),
         'Content-Type': 'application/json',
       },
       body,
@@ -167,11 +166,16 @@ export class PolymarketRelayerApi {
     method: string,
     path: string,
     body: string,
+    fromAddress?: string,
   ): Record<string, string> {
     if (this.#creds.type === 'relayer-api-key') {
+      if (!fromAddress) {
+        return {};
+      }
+
       return {
         RELAYER_API_KEY: this.#creds.apiKey,
-        RELAYER_API_KEY_ADDRESS: this.#creds.address,
+        RELAYER_API_KEY_ADDRESS: fromAddress,
       };
     }
 

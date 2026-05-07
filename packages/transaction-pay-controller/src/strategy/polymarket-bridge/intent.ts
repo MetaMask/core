@@ -6,6 +6,7 @@ import { createModuleLogger } from '@metamask/utils';
 import { CHAIN_ID_POLYGON } from '../../constants';
 import { projectLogger } from '../../logger';
 import { PUSD_ADDRESS_POLYGON } from './constants';
+import { computeDepositWalletAddress } from './deposit-wallet';
 
 const log = createModuleLogger(projectLogger, 'polymarket-bridge-intent');
 
@@ -51,7 +52,7 @@ export function extractPolymarketWithdrawIntent(
     return undefined;
   }
 
-  const { data, from } = transferCall;
+  const { data, from: ownerAddress } = transferCall;
 
   const decoded = decodeTransferCalldata(data);
 
@@ -60,9 +61,11 @@ export function extractPolymarketWithdrawIntent(
     return undefined;
   }
 
+  const depositWalletAddress = computeDepositWalletAddress(ownerAddress);
+
   const result = {
     amount: decoded.amount,
-    depositWalletAddress: from,
+    depositWalletAddress,
   };
 
   log('Extracted withdraw intent', {
