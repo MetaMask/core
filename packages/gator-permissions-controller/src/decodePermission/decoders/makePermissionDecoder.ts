@@ -62,70 +62,74 @@ export function makePermissionDecoder({
     Object.entries(requiredEnforcers),
   ) as Map<Hex, number>;
 
+  const caveatAddressesMatch = (caveatAddresses: Hex[]): boolean => {
+    const { counts, enforcersSet } =
+      buildEnforcerCountsAndSet(caveatAddresses);
+
+    return enforcersMatchRule(
+      counts,
+      enforcersSet,
+      requiredEnforcersMap,
+      optionalEnforcersSet,
+    );
+  };
+
+  const validateAndDecodePermission =(
+    caveats: Caveat<Hex>[],
+  ): ValidateAndDecodeResult =>{
+    const checksumCaveats: ChecksumCaveat[] = caveats.map((caveat) => ({
+      ...caveat,
+      enforcer: getChecksumAddress(caveat.enforcer),
+    }));
+    try {
+      const invalidTerms = checksumCaveats.filter(
+        // isStrictHexString rejects '0x' which is a valid terms value
+        ({ terms }) => terms !== '0x' && !isStrictHexString(terms),
+      );
+
+      if (invalidTerms.length > 0) {
+        throw new Error('Invalid terms: must be a hex string');
+      }
+
+      let expiry: number | null = null;
+      const decodedRules: Rule[] = [];
+
+      for (const decode of rules) {
+        const rule = decode({
+          contractAddresses,
+          caveats: checksumCaveats,
+          requiredEnforcers: requiredEnforcersMap,
+        });
+
+        if (rule === null) {
+          continue;
+        }
+
+        decodedRules.push(rule);
+
+        if (rule.type === EXECUTION_PERMISSION_EXPIRY_RULE_TYPE) {
+          expiry = rule.data.timestamp as number;
+        }
+      }
+
+      const data = validateAndDecodeData(checksumCaveats, contractAddresses);
+
+      return {
+        isValid: true,
+        expiry,
+        data,
+        rules: decodedRules.length > 0 ? decodedRules : undefined,
+      };
+    } catch (caughtError) {
+      return { isValid: false, error: caughtError as Error };
+    }
+  }
+
   return {
     permissionType,
-    requiredEnforcers: requiredEnforcersMap,
+    caveatAddressesMatch,
+    validateAndDecodePermission,
     optionalEnforcers: optionalEnforcersSet,
-    caveatAddressesMatch(caveatAddresses: Hex[]): boolean {
-      const { counts, enforcersSet } =
-        buildEnforcerCountsAndSet(caveatAddresses);
-
-      return enforcersMatchRule(
-        counts,
-        enforcersSet,
-        requiredEnforcersMap,
-        optionalEnforcersSet,
-      );
-    },
-    validateAndDecodePermission(
-      caveats: Caveat<Hex>[],
-    ): ValidateAndDecodeResult {
-      const checksumCaveats: ChecksumCaveat[] = caveats.map((caveat) => ({
-        ...caveat,
-        enforcer: getChecksumAddress(caveat.enforcer),
-      }));
-      try {
-        const invalidTerms = checksumCaveats.filter(
-          // isStrictHexString rejects '0x' which is a valid terms value
-          ({ terms }) => terms !== '0x' && !isStrictHexString(terms),
-        );
-
-        if (invalidTerms.length > 0) {
-          throw new Error('Invalid terms: must be a hex string');
-        }
-
-        let expiry: number | null = null;
-        const decodedRules: Rule[] = [];
-
-        for (const decode of rules) {
-          const rule = decode({
-            contractAddresses,
-            caveats: checksumCaveats,
-            requiredEnforcers: requiredEnforcersMap,
-          });
-
-          if (rule === null) {
-            continue;
-          }
-
-          decodedRules.push(rule);
-
-          if (rule.type === EXECUTION_PERMISSION_EXPIRY_RULE_TYPE) {
-            expiry = rule.data.timestamp as number;
-          }
-        }
-
-        const data = validateAndDecodeData(checksumCaveats, contractAddresses);
-
-        return {
-          isValid: true,
-          expiry,
-          data,
-          rules: decodedRules.length > 0 ? decodedRules : undefined,
-        };
-      } catch (caughtError) {
-        return { isValid: false, error: caughtError as Error };
-      }
-    },
+    requiredEnforcers: requiredEnforcersMap
   };
 }
