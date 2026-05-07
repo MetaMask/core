@@ -12,7 +12,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Bump `@metamask/gas-fee-controller` from `^26.1.1` to `^26.2.0` ([#8722](https://github.com/MetaMask/core/pull/8722))
-- Bump `@metamask/transaction-controller` from `^65.1.0` to `^65.2.0` ([#8722](https://github.com/MetaMask/core/pull/8722))
+- Bump `@metamask/transaction-controller` from `^65.1.0` to `^65.3.0` ([#8722](https://github.com/MetaMask/core/pull/8722), [#8733](https://github.com/MetaMask/core/pull/8733))
+- Bump `@metamask/accounts-controller` from `^38.0.0` to `^38.1.0` ([#8733](https://github.com/MetaMask/core/pull/8733))
+- Bump `@metamask/assets-controller` from `^6.4.0` to `^6.5.0` ([#8733](https://github.com/MetaMask/core/pull/8733))
+- Bump `@metamask/assets-controllers` from `^106.0.0` to `^106.1.0` ([#8733](https://github.com/MetaMask/core/pull/8733))
+- Bump `@metamask/controller-utils` from `^11.20.0` to `^12.0.0` ([#8733](https://github.com/MetaMask/core/pull/8733))
+- Bump `@metamask/network-controller` from `^30.1.0` to `^31.0.0` ([#8733](https://github.com/MetaMask/core/pull/8733))
+- Bump `@metamask/polling-controller` from `^16.0.4` to `^16.1.0` ([#8733](https://github.com/MetaMask/core/pull/8733))
+- Bump `@metamask/profile-sync-controller` from `^28.0.2` to `^28.1.0` ([#8733](https://github.com/MetaMask/core/pull/8733))
+- Bump `@metamask/remote-feature-flag-controller` from `^4.2.0` to `^4.3.0` ([#8733](https://github.com/MetaMask/core/pull/8733))
 
 ## [71.1.1]
 

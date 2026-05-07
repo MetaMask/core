@@ -16,6 +16,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Bump `@metamask/account-tree-controller` from `^7.2.0` to `^7.3.0` ([#8722](https://github.com/MetaMask/core/pull/8722))
+- Bump `@metamask/controller-utils` from `^11.20.0` to `^12.0.0` ([#8733](https://github.com/MetaMask/core/pull/8733))
+- Bump `@metamask/network-controller` from `^30.1.0` to `^31.0.0` ([#8733](https://github.com/MetaMask/core/pull/8733))
 
 ## [12.1.0]
 

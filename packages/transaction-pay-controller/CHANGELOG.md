@@ -15,7 +15,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Adds `AssetsControllerStateChangeEvent`, `CurrencyRateStateChange`, `TokenRatesControllerStateChangeEvent`, and `TokensControllerStateChangeEvent` to `AllowedEvents`.
   - Consumers must grant these events when creating the controller messenger.
 - Bump `@metamask/gas-fee-controller` from `^26.1.1` to `^26.2.0` ([#8722](https://github.com/MetaMask/core/pull/8722))
-- Bump `@metamask/transaction-controller` from `^65.1.0` to `^65.2.0` ([#8722](https://github.com/MetaMask/core/pull/8722))
+- Bump `@metamask/transaction-controller` from `^65.1.0` to `^65.3.0` ([#8722](https://github.com/MetaMask/core/pull/8722), [#8733](https://github.com/MetaMask/core/pull/8733))
+- Bump `@metamask/assets-controller` from `^6.4.0` to `^6.5.0` ([#8733](https://github.com/MetaMask/core/pull/8733))
+- Bump `@metamask/assets-controllers` from `^106.0.0` to `^106.1.0` ([#8733](https://github.com/MetaMask/core/pull/8733))
+- Bump `@metamask/bridge-controller` from `^71.1.1` to `^71.2.0` ([#8733](https://github.com/MetaMask/core/pull/8733))
+- Bump `@metamask/bridge-status-controller` from `^71.1.0` to `^71.2.0` ([#8733](https://github.com/MetaMask/core/pull/8733))
+- Bump `@metamask/controller-utils` from `^11.20.0` to `^12.0.0` ([#8733](https://github.com/MetaMask/core/pull/8733))
+- Bump `@metamask/network-controller` from `^30.1.0` to `^31.0.0` ([#8733](https://github.com/MetaMask/core/pull/8733))
+- Bump `@metamask/remote-feature-flag-controller` from `^4.2.0` to `^4.3.0` ([#8733](https://github.com/MetaMask/core/pull/8733))
 
 ### Fixed
 

@@ -19,6 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Removed `MultichainAccountServiceConfig.snapPlatformWatcher` and the `SnapPlatformWatcherConfig` type export. Configure the keyring-wait timeout via `SnapAccountService`'s `config.snapPlatformWatcher.snapKeyringWaitTimeoutMs` instead.
   - The service messenger no longer needs `SnapController:getState` or `SnapController:stateChange`.
 - **BREAKING:** Rename `SnapAccountProvider.ensureCanUseSnapPlatform()` to `ensureReady()` ([#8715](https://github.com/MetaMask/core/pull/8715))
+- Bump `@metamask/accounts-controller` from `^38.0.0` to `^38.1.0` ([#8733](https://github.com/MetaMask/core/pull/8733))
 
 ## [9.0.0]
 

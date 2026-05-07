@@ -12,6 +12,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Bump `@metamask/keyring-controller` from `^25.3.0` to `^25.5.0` ([#8665](https://github.com/MetaMask/core/pull/8665), [#8722](https://github.com/MetaMask/core/pull/8722))
+- Bump `@metamask/controller-utils` from `^11.20.0` to `^12.0.0` ([#8733](https://github.com/MetaMask/core/pull/8733))
+- Bump `@metamask/polling-controller` from `^16.0.4` to `^16.1.0` ([#8733](https://github.com/MetaMask/core/pull/8733))
+- Bump `@metamask/profile-sync-controller` from `^28.0.2` to `^28.1.0` ([#8733](https://github.com/MetaMask/core/pull/8733))
+- Bump `@metamask/remote-feature-flag-controller` from `^4.2.0` to `^4.3.0` ([#8733](https://github.com/MetaMask/core/pull/8733))
 
 ## [0.3.0]
 

@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/accounts-controller` from `^38.0.0` to `^38.1.0` ([#8733](https://github.com/MetaMask/core/pull/8733))
+- Bump `@metamask/multichain-account-service` from `^9.0.0` to `^10.0.0` ([#8733](https://github.com/MetaMask/core/pull/8733))
+- Bump `@metamask/profile-sync-controller` from `^28.0.2` to `^28.1.0` ([#8733](https://github.com/MetaMask/core/pull/8733))
+
 ## [7.3.0]
 
 ### Added

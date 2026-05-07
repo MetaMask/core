@@ -12,6 +12,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Trigger the first-time-interaction warning correctly for `safeTransferFrom` token transfers by including `TransactionType.tokenMethodSafeTransferFrom` in the effective-recipient decoding logic ([#8723](https://github.com/MetaMask/core/pull/8723))
+- Bump `@metamask/accounts-controller` from `^38.0.0` to `^38.1.0` ([#8733](https://github.com/MetaMask/core/pull/8733))
+- Bump `@metamask/approval-controller` from `^9.0.1` to `^9.1.0` ([#8733](https://github.com/MetaMask/core/pull/8733))
+- Bump `@metamask/controller-utils` from `^11.20.0` to `^12.0.0` ([#8733](https://github.com/MetaMask/core/pull/8733))
+- Bump `@metamask/core-backend` from `^6.2.1` to `^6.3.0` ([#8733](https://github.com/MetaMask/core/pull/8733))
+- Bump `@metamask/network-controller` from `^30.1.0` to `^31.0.0` ([#8733](https://github.com/MetaMask/core/pull/8733))
+- Bump `@metamask/remote-feature-flag-controller` from `^4.2.0` to `^4.3.0` ([#8733](https://github.com/MetaMask/core/pull/8733))
 
 ## [65.2.0]
 

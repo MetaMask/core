@@ -12,7 +12,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Bump `@metamask/messenger` from `^1.1.1` to `^1.2.0` ([#8632](https://github.com/MetaMask/core/pull/8632))
-- Bump `@metamask/network-controller` from `^30.0.1` to `^30.1.0` ([#8636](https://github.com/MetaMask/core/pull/8636))
+- Bump `@metamask/network-controller` from `^30.0.1` to `^31.0.0` ([#8636](https://github.com/MetaMask/core/pull/8636), [#8733](https://github.com/MetaMask/core/pull/8733))
+- Bump `@metamask/base-data-service` from `^0.1.1` to `^0.1.2` ([#8733](https://github.com/MetaMask/core/pull/8733))
+- Bump `@metamask/controller-utils` from `^11.20.0` to `^12.0.0` ([#8733](https://github.com/MetaMask/core/pull/8733))
 
 ## [0.2.0]
 
