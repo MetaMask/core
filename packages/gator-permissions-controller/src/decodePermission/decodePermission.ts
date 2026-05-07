@@ -5,67 +5,69 @@ import { numberToHex } from '@metamask/utils';
 import type {
   DecodedPermission,
   PermissionType,
-  PermissionRule,
+  PermissionDecoder,
   ValidateAndDecodeResult,
 } from './types';
 
 /**
- * Returns every permission rule whose caveat-address pattern matches the given
- * enforcer list for the chain. Used when more than one permission type can
- * share the same enforcer set; the caller must disambiguate by validating
- * caveat terms (see {@link selectUniqueRuleAndDecodedPermission}).
+ * Returns every permission decoder whose caveat-address pattern matches the
+ * given enforcer list for the chain. Used when more than one permission type
+ * can share the same enforcer set; the caller must disambiguate by validating
+ * caveat terms (see {@link selectUniqueDecoderAndDecodedPermission}).
  *
  * @param args - The arguments to this function.
  * @param args.enforcers - List of enforcer contract addresses (hex strings).
- * @param args.permissionRules - The permission rules for the chain.
- * @returns All rules that match, possibly empty.
+ * @param args.permissionDecoders - The permission decoders for the chain.
+ * @returns All decoders that match, possibly empty.
  */
-export const findRulesWithMatchingCaveatAddresses = ({
+export const findDecodersWithMatchingCaveatAddresses = ({
   enforcers,
-  permissionRules,
+  permissionDecoders,
 }: {
   enforcers: Hex[];
-  permissionRules: PermissionRule[];
-}): PermissionRule[] => {
-  return permissionRules.filter((rule) => rule.caveatAddressesMatch(enforcers));
+  permissionDecoders: PermissionDecoder[];
+}): PermissionDecoder[] => {
+  return permissionDecoders.filter((decoder) =>
+    decoder.caveatAddressesMatch(enforcers),
+  );
 };
 
 /**
- * Returns the unique permission rule that matches a given set of enforcer
+ * Returns the unique permission decoder that matches a given set of enforcer
  * contract addresses (caveat types) for a specific chain.
  *
- * A rule matches when:
+ * A decoder matches when:
  * - All of its required enforcers are present in the provided list; and
- * - No provided enforcer falls outside the union of the rule's required and
+ * - No provided enforcer falls outside the union of the decoder's required and
  * optional enforcers (currently only `TimestampEnforcer` is allowed extra).
  *
- * If exactly one rule matches, it is returned.
+ * If exactly one decoder matches, it is returned.
  *
  * @param args - The arguments to this function.
  * @param args.enforcers - List of enforcer contract addresses (hex strings).
- * @param args.permissionRules - The permission rules for the chain.
- * @returns The matching permission rule.
- * @throws If no rule matches, or if more than one rule matches.
+ * @param args.permissionDecoders - The permission decoders for the chain.
+ * @returns The matching permission decoder.
+ * @throws If no decoder matches, or if more than one decoder matches.
  */
-export const findRuleWithMatchingCaveatAddresses = ({
+export const findDecoderWithMatchingCaveatAddresses = ({
   enforcers,
-  permissionRules,
+  permissionDecoders,
 }: {
   enforcers: Hex[];
-  permissionRules: PermissionRule[];
-}): PermissionRule => {
-  const matchingRules = findRulesWithMatchingCaveatAddresses({
+  permissionDecoders: PermissionDecoder[];
+}): PermissionDecoder => {
+  const matchingDecoders = findDecodersWithMatchingCaveatAddresses({
     enforcers,
-    permissionRules,
+    permissionDecoders,
   });
 
-  if (matchingRules.length === 0) {
+  if (matchingDecoders.length === 0) {
     throw new Error('Unable to identify permission type');
   }
-  if (matchingRules.length > 1) {
+  if (matchingDecoders.length > 1) {
     throw new Error('Multiple permission types match');
   }
-  return matchingRules[0];
+  return matchingDecoders[0];
 };
 
 type SuccessfulValidateAndDecodeResult = Extract<
@@ -73,50 +75,50 @@ type SuccessfulValidateAndDecodeResult = Extract<
   { isValid: true }
 >;
 
-type RuleAndDecodedPermission = {
-  rule: PermissionRule;
+type DecoderAndDecodedPermission = {
+  decoder: PermissionDecoder;
   rules: SuccessfulValidateAndDecodeResult['rules'];
   data: SuccessfulValidateAndDecodeResult['data'];
   expiry: SuccessfulValidateAndDecodeResult['expiry'];
 };
 
 /**
- * Runs {@link PermissionRule.validateAndDecodePermission} on each candidate
- * rule. Use when several rules share the same caveat addresses.
+ * Runs {@link PermissionDecoder.validateAndDecodePermission} on each candidate
+ * decoder. Use when several decoders share the same caveat addresses.
  *
  * @param args - The arguments to this function.
- * @param args.candidateRules - Rules whose addresses already match the caveats.
+ * @param args.candidateDecoders - Decoders whose addresses already match the caveats.
  * @param args.caveats - Caveats from the delegation.
- * @returns The unique rule and decoded expiry/data when exactly one rule validates.
- * @throws If `candidateRules` is empty, if no rule validates, or if more than one rule validates.
+ * @returns The unique decoder and decoded expiry/data when exactly one decoder validates.
+ * @throws If `candidateDecoders` is empty, if no decoder validates, or if more than one decoder validates.
  */
-export const selectUniqueRuleAndDecodedPermission = ({
-  candidateRules,
+export const selectUniqueDecoderAndDecodedPermission = ({
+  candidateDecoders,
   caveats,
 }: {
-  candidateRules: PermissionRule[];
+  candidateDecoders: PermissionDecoder[];
   caveats: Caveat<Hex>[];
-}): RuleAndDecodedPermission => {
-  if (candidateRules.length === 0) {
+}): DecoderAndDecodedPermission => {
+  if (candidateDecoders.length === 0) {
     throw new Error('Unable to identify permission type');
   }
 
-  const successfulDecodingResult: RuleAndDecodedPermission[] = [];
+  const successfulDecodingResult: DecoderAndDecodedPermission[] = [];
 
   const failedAttempts: { permissionType: PermissionType; error: Error }[] = [];
 
-  for (const rule of candidateRules) {
-    const decodeResult = rule.validateAndDecodePermission(caveats);
+  for (const decoder of candidateDecoders) {
+    const decodeResult = decoder.validateAndDecodePermission(caveats);
     if (decodeResult.isValid) {
       successfulDecodingResult.push({
-        rule,
+        decoder,
         rules: decodeResult.rules,
         data: decodeResult.data,
         expiry: decodeResult.expiry,
       });
     } else {
       failedAttempts.push({
-        permissionType: rule.permissionType,
+        permissionType: decoder.permissionType,
         error: decodeResult.error,
       });
     }
@@ -128,7 +130,7 @@ export const selectUniqueRuleAndDecodedPermission = ({
 
   if (successfulDecodingResult.length > 1) {
     const types = successfulDecodingResult
-      .map((result) => result.rule.permissionType)
+      .map((result) => result.decoder.permissionType)
       .join(', ');
     throw new Error(
       `Multiple permission types validate the same delegation caveats: ${types}`,

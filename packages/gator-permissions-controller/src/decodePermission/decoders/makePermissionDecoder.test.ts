@@ -10,38 +10,33 @@ import {
 import { getChecksumAddress } from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
 
-import { makePermissionRule } from './makePermissionRule';
+import { getChecksumEnforcersByChainId } from '../utils';
+import { erc20PayeeRule } from './erc20PayeeRule';
+import { expiryRule } from './expiryRule';
+import { makePermissionDecoder } from './makePermissionDecoder';
+import { nativePayeeRule } from './nativePayeeRule';
+import { redeemerRule } from './redeemerRule';
 
-describe('makePermissionRule', () => {
+describe('makePermissionDecoder', () => {
   const contracts = DELEGATOR_CONTRACTS['1.3.0'][CHAIN_ID.sepolia];
-  const timestampEnforcer = contracts.TimestampEnforcer;
-  const requiredEnforcer = contracts.NonceEnforcer;
-  const redeemerEnforcer = contracts.RedeemerEnforcer;
-  const allowedCalldataEnforcer = contracts.AllowedCalldataEnforcer;
-  const allowedTargetsEnforcer = contracts.AllowedTargetsEnforcer;
-
-  const payeeEnforcersNative = {
+  const contractAddresses = getChecksumEnforcersByChainId(contracts);
+  const {
+    timestampEnforcer,
+    nonceEnforcer: requiredEnforcer,
+    redeemerEnforcer,
     allowedCalldataEnforcer,
     allowedTargetsEnforcer,
-    singlePayeeEnforcer: allowedTargetsEnforcer,
-  };
+  } = contractAddresses;
 
-  const payeeEnforcersErc20 = {
-    allowedCalldataEnforcer,
-    allowedTargetsEnforcer,
-    singlePayeeEnforcer: allowedCalldataEnforcer,
-  };
-
-  it('calls optional validate callback when provided and decoding succeeds', () => {
+  it('calls validate callback when decoding succeeds and extracts expiry', () => {
     const validateAndDecodeData = jest.fn().mockReturnValue({});
 
-    const rule = makePermissionRule({
+    const decoder = makePermissionDecoder({
       permissionType: 'native-token-stream',
-      timestampEnforcer,
-      redeemerEnforcer,
-      payeeEnforcers: payeeEnforcersNative,
-      optionalEnforcers: [],
+      contractAddresses,
+      optionalEnforcers: [timestampEnforcer],
       requiredEnforcers: { [requiredEnforcer]: 1 },
+      rules: [expiryRule],
       validateAndDecodeData,
     });
 
@@ -61,7 +56,7 @@ describe('makePermissionRule', () => {
       },
     ];
 
-    const result = rule.validateAndDecodePermission(caveats);
+    const result = decoder.validateAndDecodePermission(caveats);
 
     expect(result.isValid).toBe(true);
     if (!result.isValid) {
@@ -75,13 +70,12 @@ describe('makePermissionRule', () => {
   it('rejects when any caveat terms are not valid hex (invalid characters)', () => {
     const validateAndDecodeData = jest.fn().mockReturnValue({});
 
-    const rule = makePermissionRule({
+    const decoder = makePermissionDecoder({
       permissionType: 'native-token-stream',
-      timestampEnforcer,
-      redeemerEnforcer,
-      payeeEnforcers: payeeEnforcersNative,
-      optionalEnforcers: [],
+      contractAddresses,
+      optionalEnforcers: [timestampEnforcer],
       requiredEnforcers: { [requiredEnforcer]: 1 },
+      rules: [expiryRule],
       validateAndDecodeData,
     });
 
@@ -98,7 +92,7 @@ describe('makePermissionRule', () => {
       },
     ];
 
-    const result = rule.validateAndDecodePermission(caveats);
+    const result = decoder.validateAndDecodePermission(caveats);
 
     expect(result.isValid).toBe(false);
     if (result.isValid) {
@@ -111,13 +105,12 @@ describe('makePermissionRule', () => {
   it('rejects when any caveat terms contain non-hex characters after 0x prefix', () => {
     const validateAndDecodeData = jest.fn().mockReturnValue({});
 
-    const rule = makePermissionRule({
+    const decoder = makePermissionDecoder({
       permissionType: 'native-token-stream',
-      timestampEnforcer,
-      redeemerEnforcer,
-      payeeEnforcers: payeeEnforcersNative,
-      optionalEnforcers: [],
+      contractAddresses,
+      optionalEnforcers: [timestampEnforcer],
       requiredEnforcers: { [requiredEnforcer]: 1 },
+      rules: [expiryRule],
       validateAndDecodeData,
     });
 
@@ -135,7 +128,7 @@ describe('makePermissionRule', () => {
       },
     ];
 
-    const result = rule.validateAndDecodePermission(caveats);
+    const result = decoder.validateAndDecodePermission(caveats);
 
     expect(result.isValid).toBe(false);
     if (result.isValid) {
@@ -148,13 +141,12 @@ describe('makePermissionRule', () => {
   it('rejects when required enforcer terms are not valid hex', () => {
     const validateAndDecodeData = jest.fn().mockReturnValue({});
 
-    const rule = makePermissionRule({
+    const decoder = makePermissionDecoder({
       permissionType: 'native-token-stream',
-      timestampEnforcer,
-      redeemerEnforcer,
-      payeeEnforcers: payeeEnforcersNative,
-      optionalEnforcers: [],
+      contractAddresses,
+      optionalEnforcers: [timestampEnforcer],
       requiredEnforcers: { [requiredEnforcer]: 1 },
+      rules: [expiryRule],
       validateAndDecodeData,
     });
 
@@ -174,7 +166,7 @@ describe('makePermissionRule', () => {
       },
     ];
 
-    const result = rule.validateAndDecodePermission(caveats);
+    const result = decoder.validateAndDecodePermission(caveats);
 
     expect(result.isValid).toBe(false);
     if (result.isValid) {
@@ -187,13 +179,12 @@ describe('makePermissionRule', () => {
   it('accepts caveat terms with mixed-case hex', () => {
     const validateAndDecodeData = jest.fn().mockReturnValue({});
 
-    const rule = makePermissionRule({
+    const decoder = makePermissionDecoder({
       permissionType: 'native-token-stream',
-      timestampEnforcer,
-      redeemerEnforcer,
-      payeeEnforcers: payeeEnforcersNative,
-      optionalEnforcers: [],
+      contractAddresses,
+      optionalEnforcers: [timestampEnforcer],
       requiredEnforcers: { [requiredEnforcer]: 1 },
+      rules: [expiryRule],
       validateAndDecodeData,
     });
 
@@ -214,7 +205,7 @@ describe('makePermissionRule', () => {
       },
     ];
 
-    const result = rule.validateAndDecodePermission(caveats);
+    const result = decoder.validateAndDecodePermission(caveats);
 
     expect(result.isValid).toBe(true);
     if (!result.isValid) {
@@ -227,13 +218,12 @@ describe('makePermissionRule', () => {
   it('accepts caveat terms with empty hex', () => {
     const validateAndDecodeData = jest.fn().mockReturnValue({});
 
-    const rule = makePermissionRule({
+    const decoder = makePermissionDecoder({
       permissionType: 'native-token-stream',
-      timestampEnforcer,
-      redeemerEnforcer,
-      payeeEnforcers: payeeEnforcersNative,
+      contractAddresses,
       optionalEnforcers: [],
       requiredEnforcers: { [requiredEnforcer]: 1 },
+      rules: [],
       validateAndDecodeData,
     });
 
@@ -245,7 +235,7 @@ describe('makePermissionRule', () => {
       },
     ];
 
-    const result = rule.validateAndDecodePermission(caveats);
+    const result = decoder.validateAndDecodePermission(caveats);
 
     expect(result.isValid).toBe(true);
     if (!result.isValid) {
@@ -259,13 +249,12 @@ describe('makePermissionRule', () => {
     // Raw packed 20-byte address (40 hex chars), not ABI-padded 32-byte words.
     const packedAddr = '1111111111111111111111111111111111111111' as const;
 
-    const rule = makePermissionRule({
+    const decoder = makePermissionDecoder({
       permissionType: 'native-token-stream',
-      timestampEnforcer,
-      redeemerEnforcer,
-      payeeEnforcers: payeeEnforcersNative,
-      optionalEnforcers: [],
+      contractAddresses,
+      optionalEnforcers: [redeemerEnforcer],
       requiredEnforcers: { [requiredEnforcer]: 1 },
+      rules: [redeemerRule],
       validateAndDecodeData,
     });
 
@@ -282,7 +271,7 @@ describe('makePermissionRule', () => {
       },
     ];
 
-    const result = rule.validateAndDecodePermission(caveats);
+    const result = decoder.validateAndDecodePermission(caveats);
 
     expect(result.isValid).toBe(true);
     if (!result.isValid) {
@@ -306,13 +295,12 @@ describe('makePermissionRule', () => {
     const validateAndDecodeData = jest.fn().mockReturnValue({});
     const payeeAddress = '0x2222222222222222222222222222222222222222' as Hex;
 
-    const rule = makePermissionRule({
+    const decoder = makePermissionDecoder({
       permissionType: 'native-token-stream',
-      timestampEnforcer,
-      redeemerEnforcer,
-      payeeEnforcers: payeeEnforcersNative,
+      contractAddresses,
       optionalEnforcers: [allowedTargetsEnforcer],
       requiredEnforcers: { [requiredEnforcer]: 1 },
+      rules: [nativePayeeRule],
       validateAndDecodeData,
     });
 
@@ -329,7 +317,7 @@ describe('makePermissionRule', () => {
       },
     ];
 
-    const result = rule.validateAndDecodePermission(caveats);
+    const result = decoder.validateAndDecodePermission(caveats);
 
     expect(result.isValid).toBe(true);
     if (!result.isValid) {
@@ -350,13 +338,12 @@ describe('makePermissionRule', () => {
     const payeeAddress = '0x3333333333333333333333333333333333333333' as Hex;
     const paddedAddress = `0x${payeeAddress.slice(2).padStart(64, '0')}`;
 
-    const rule = makePermissionRule({
+    const decoder = makePermissionDecoder({
       permissionType: 'erc20-token-stream',
-      timestampEnforcer,
-      redeemerEnforcer,
-      payeeEnforcers: payeeEnforcersErc20,
+      contractAddresses,
       optionalEnforcers: [allowedCalldataEnforcer],
       requiredEnforcers: { [requiredEnforcer]: 1 },
+      rules: [erc20PayeeRule],
       validateAndDecodeData,
     });
 
@@ -376,7 +363,7 @@ describe('makePermissionRule', () => {
       },
     ];
 
-    const result = rule.validateAndDecodePermission(caveats);
+    const result = decoder.validateAndDecodePermission(caveats);
 
     expect(result.isValid).toBe(true);
     if (!result.isValid) {
@@ -392,17 +379,16 @@ describe('makePermissionRule', () => {
     ]);
   });
 
-  it('does not include payee rule when only AllowedTargetsEnforcer caveat is present (erc20)', () => {
+  it('does not include payee rule when no matching payee caveat is present (erc20 decoder, AllowedTargets caveat)', () => {
     const validateAndDecodeData = jest.fn().mockReturnValue({});
     const payeeAddress = '0x2222222222222222222222222222222222222222' as Hex;
 
-    const rule = makePermissionRule({
+    const decoder = makePermissionDecoder({
       permissionType: 'erc20-token-stream',
-      timestampEnforcer,
-      redeemerEnforcer,
-      payeeEnforcers: payeeEnforcersErc20,
+      contractAddresses,
       optionalEnforcers: [allowedTargetsEnforcer],
       requiredEnforcers: { [requiredEnforcer]: 1 },
+      rules: [erc20PayeeRule],
       validateAndDecodeData,
     });
 
@@ -419,7 +405,7 @@ describe('makePermissionRule', () => {
       },
     ];
 
-    const result = rule.validateAndDecodePermission(caveats);
+    const result = decoder.validateAndDecodePermission(caveats);
 
     expect(result.isValid).toBe(true);
     if (!result.isValid) {
@@ -435,17 +421,16 @@ describe('makePermissionRule', () => {
     const padded1 = `0x${payeeAddress1.slice(2).padStart(64, '0')}`;
     const padded2 = `0x${payeeAddress2.slice(2).padStart(64, '0')}`;
 
-    const rule = makePermissionRule({
+    const decoder = makePermissionDecoder({
       permissionType: 'erc20-token-stream',
-      timestampEnforcer,
-      redeemerEnforcer,
-      payeeEnforcers: payeeEnforcersErc20,
+      contractAddresses,
       optionalEnforcers: [allowedCalldataEnforcer],
       requiredEnforcers: { [requiredEnforcer]: 1 },
+      rules: [erc20PayeeRule],
       validateAndDecodeData,
     });
 
-    const result = rule.validateAndDecodePermission([
+    const result = decoder.validateAndDecodePermission([
       {
         enforcer: requiredEnforcer,
         terms: '0x' as Hex,
@@ -474,7 +459,7 @@ describe('makePermissionRule', () => {
       throw new Error('Expected invalid result');
     }
     expect(result.error.message).toBe(
-      'Invalid payee caveats: multiple singlePayeeEnforcer caveats',
+      'Invalid payee caveats: multiple AllowedCalldataEnforcer caveats',
     );
   });
 
@@ -483,13 +468,12 @@ describe('makePermissionRule', () => {
     const payeeAddress1 = '0x4444444444444444444444444444444444444444' as Hex;
     const payeeAddress2 = '0x5555555555555555555555555555555555555555' as Hex;
 
-    const rule = makePermissionRule({
+    const decoder = makePermissionDecoder({
       permissionType: 'native-token-stream',
-      timestampEnforcer,
-      redeemerEnforcer,
-      payeeEnforcers: payeeEnforcersNative,
+      contractAddresses,
       optionalEnforcers: [allowedTargetsEnforcer],
       requiredEnforcers: { [requiredEnforcer]: 1 },
+      rules: [nativePayeeRule],
       validateAndDecodeData,
     });
 
@@ -508,7 +492,7 @@ describe('makePermissionRule', () => {
       },
     ];
 
-    const result = rule.validateAndDecodePermission(caveats);
+    const result = decoder.validateAndDecodePermission(caveats);
 
     expect(result.isValid).toBe(true);
     if (!result.isValid) {
@@ -527,18 +511,17 @@ describe('makePermissionRule', () => {
     ]);
   });
 
-  it('does not include payee rule when only AllowedCalldataEnforcer caveat is present (native)', () => {
+  it('does not include payee rule when no matching payee caveat is present (native decoder, AllowedCalldata caveat)', () => {
     const validateAndDecodeData = jest.fn().mockReturnValue({});
     const payeeAddress = '0x3333333333333333333333333333333333333333' as Hex;
     const paddedAddress = `0x${payeeAddress.slice(2).padStart(64, '0')}`;
 
-    const rule = makePermissionRule({
+    const decoder = makePermissionDecoder({
       permissionType: 'native-token-stream',
-      timestampEnforcer,
-      redeemerEnforcer,
-      payeeEnforcers: payeeEnforcersNative,
+      contractAddresses,
       optionalEnforcers: [allowedCalldataEnforcer],
       requiredEnforcers: { [requiredEnforcer]: 1 },
+      rules: [nativePayeeRule],
       validateAndDecodeData,
     });
 
@@ -558,7 +541,7 @@ describe('makePermissionRule', () => {
       },
     ];
 
-    const result = rule.validateAndDecodePermission(caveats);
+    const result = decoder.validateAndDecodePermission(caveats);
 
     expect(result.isValid).toBe(true);
     if (!result.isValid) {
@@ -572,13 +555,12 @@ describe('makePermissionRule', () => {
     const redeemerAddr = '1111111111111111111111111111111111111111' as const;
     const payeeAddress = '0x2222222222222222222222222222222222222222' as Hex;
 
-    const rule = makePermissionRule({
+    const decoder = makePermissionDecoder({
       permissionType: 'native-token-stream',
-      timestampEnforcer,
-      redeemerEnforcer,
-      payeeEnforcers: payeeEnforcersNative,
+      contractAddresses,
       optionalEnforcers: [redeemerEnforcer, allowedTargetsEnforcer],
       requiredEnforcers: { [requiredEnforcer]: 1 },
+      rules: [redeemerRule, nativePayeeRule],
       validateAndDecodeData,
     });
 
@@ -600,7 +582,7 @@ describe('makePermissionRule', () => {
       },
     ];
 
-    const result = rule.validateAndDecodePermission(caveats);
+    const result = decoder.validateAndDecodePermission(caveats);
 
     expect(result.isValid).toBe(true);
     if (!result.isValid) {
@@ -626,13 +608,12 @@ describe('makePermissionRule', () => {
   it('does not include payee rule when no payee caveat is present', () => {
     const validateAndDecodeData = jest.fn().mockReturnValue({});
 
-    const rule = makePermissionRule({
+    const decoder = makePermissionDecoder({
       permissionType: 'native-token-stream',
-      timestampEnforcer,
-      redeemerEnforcer,
-      payeeEnforcers: payeeEnforcersNative,
-      optionalEnforcers: [],
+      contractAddresses,
+      optionalEnforcers: [allowedTargetsEnforcer],
       requiredEnforcers: { [requiredEnforcer]: 1 },
+      rules: [nativePayeeRule],
       validateAndDecodeData,
     });
 
@@ -644,7 +625,7 @@ describe('makePermissionRule', () => {
       },
     ];
 
-    const result = rule.validateAndDecodePermission(caveats);
+    const result = decoder.validateAndDecodePermission(caveats);
 
     expect(result.isValid).toBe(true);
     if (!result.isValid) {
@@ -653,81 +634,42 @@ describe('makePermissionRule', () => {
     expect(result.rules).toBeUndefined();
   });
 
-  it('returns true from caveatAddressesMatch when enforcers match rule', () => {
+  it('returns true from caveatAddressesMatch when enforcers match', () => {
     const validateAndDecodeData = jest.fn().mockReturnValue({});
 
-    const rule = makePermissionRule({
+    const decoder = makePermissionDecoder({
       permissionType: 'native-token-stream',
-      timestampEnforcer,
-      redeemerEnforcer,
-      payeeEnforcers: payeeEnforcersNative,
+      contractAddresses,
       optionalEnforcers: [timestampEnforcer],
       requiredEnforcers: { [requiredEnforcer]: 1 },
+      rules: [expiryRule],
       validateAndDecodeData,
     });
 
     expect(
-      rule.caveatAddressesMatch([requiredEnforcer, timestampEnforcer]),
+      decoder.caveatAddressesMatch([requiredEnforcer, timestampEnforcer]),
     ).toBe(true);
-    expect(rule.caveatAddressesMatch([requiredEnforcer])).toBe(true);
-    expect(rule.caveatAddressesMatch([])).toBe(false);
+    expect(decoder.caveatAddressesMatch([requiredEnforcer])).toBe(true);
+    expect(decoder.caveatAddressesMatch([])).toBe(false);
   });
 
-  it('rejects when singlePayeeEnforcer is unrecognised', () => {
-    const validateAndDecodeData = jest.fn().mockReturnValue({});
-    const unknownEnforcer = '0x8888888888888888888888888888888888888888' as Hex;
-
-    const rule = makePermissionRule({
-      permissionType: 'native-token-stream',
-      timestampEnforcer,
-      redeemerEnforcer,
-      payeeEnforcers: {
-        allowedCalldataEnforcer,
-        allowedTargetsEnforcer,
-        singlePayeeEnforcer: unknownEnforcer,
-      },
-      optionalEnforcers: [unknownEnforcer],
-      requiredEnforcers: { [requiredEnforcer]: 1 },
-      validateAndDecodeData,
-    });
-
-    const caveats = [
-      {
-        enforcer: requiredEnforcer,
-        terms: '0x' as Hex,
-        args: '0x' as Hex,
-      },
-      {
-        enforcer: unknownEnforcer,
-        terms:
-          '0x0000000000000000000000000000000000000000000000000000000000000001' as Hex,
-        args: '0x' as Hex,
-      },
-    ];
-
-    const result = rule.validateAndDecodePermission(caveats);
-
-    expect(result.isValid).toBe(false);
-  });
-
-  it('rejects when singlePayeeEnforcer is configured as a required enforcer', () => {
+  it('rejects when payee enforcer is configured as a required enforcer', () => {
     const validateAndDecodeData = jest.fn().mockReturnValue({});
     const payeeAddress = '0x2222222222222222222222222222222222222222' as Hex;
 
-    const rule = makePermissionRule({
+    const decoder = makePermissionDecoder({
       permissionType: 'native-token-stream',
-      timestampEnforcer,
-      redeemerEnforcer,
-      payeeEnforcers: payeeEnforcersNative,
+      contractAddresses,
       optionalEnforcers: [],
       requiredEnforcers: {
         [requiredEnforcer]: 1,
         [allowedTargetsEnforcer]: 1,
       },
+      rules: [nativePayeeRule],
       validateAndDecodeData,
     });
 
-    const result = rule.validateAndDecodePermission([
+    const result = decoder.validateAndDecodePermission([
       {
         enforcer: requiredEnforcer,
         terms: '0x' as Hex,
@@ -745,7 +687,7 @@ describe('makePermissionRule', () => {
       throw new Error('Expected invalid result');
     }
     expect(result.error.message).toBe(
-      'Invalid payee caveats: singlePayeeEnforcer may not be a required caveat',
+      'Invalid payee caveats: payee enforcer may not be a required caveat',
     );
   });
 
@@ -755,17 +697,16 @@ describe('makePermissionRule', () => {
     const paddedAddress =
       `0x${payeeAddress.slice(2).padStart(64, '0')}` as const;
 
-    const rule = makePermissionRule({
+    const decoder = makePermissionDecoder({
       permissionType: 'erc20-token-stream',
-      timestampEnforcer,
-      redeemerEnforcer,
-      payeeEnforcers: payeeEnforcersErc20,
+      contractAddresses,
       optionalEnforcers: [allowedCalldataEnforcer],
       requiredEnforcers: { [requiredEnforcer]: 1 },
+      rules: [erc20PayeeRule],
       validateAndDecodeData,
     });
 
-    const result = rule.validateAndDecodePermission([
+    const result = decoder.validateAndDecodePermission([
       {
         enforcer: requiredEnforcer,
         terms: '0x' as Hex,
@@ -787,17 +728,16 @@ describe('makePermissionRule', () => {
   it('rejects an ERC20 payee caveat when the calldata value is not one address', () => {
     const validateAndDecodeData = jest.fn().mockReturnValue({});
 
-    const rule = makePermissionRule({
+    const decoder = makePermissionDecoder({
       permissionType: 'erc20-token-stream',
-      timestampEnforcer,
-      redeemerEnforcer,
-      payeeEnforcers: payeeEnforcersErc20,
+      contractAddresses,
       optionalEnforcers: [allowedCalldataEnforcer],
       requiredEnforcers: { [requiredEnforcer]: 1 },
+      rules: [erc20PayeeRule],
       validateAndDecodeData,
     });
 
-    const result = rule.validateAndDecodePermission([
+    const result = decoder.validateAndDecodePermission([
       {
         enforcer: requiredEnforcer,
         terms: '0x' as Hex,
@@ -819,17 +759,16 @@ describe('makePermissionRule', () => {
   it('rejects a native payee caveat with no targets', () => {
     const validateAndDecodeData = jest.fn().mockReturnValue({});
 
-    const rule = makePermissionRule({
+    const decoder = makePermissionDecoder({
       permissionType: 'native-token-stream',
-      timestampEnforcer,
-      redeemerEnforcer,
-      payeeEnforcers: payeeEnforcersNative,
+      contractAddresses,
       optionalEnforcers: [allowedTargetsEnforcer],
       requiredEnforcers: { [requiredEnforcer]: 1 },
+      rules: [nativePayeeRule],
       validateAndDecodeData,
     });
 
-    const result = rule.validateAndDecodePermission([
+    const result = decoder.validateAndDecodePermission([
       {
         enforcer: requiredEnforcer,
         terms: '0x' as Hex,
@@ -845,22 +784,21 @@ describe('makePermissionRule', () => {
     expect(result.isValid).toBe(false);
   });
 
-  it('rejects multiple single-payee caveats', () => {
+  it('rejects multiple AllowedTargetsEnforcer caveats for native payee decoding', () => {
     const validateAndDecodeData = jest.fn().mockReturnValue({});
     const payeeAddress1 = '0x2222222222222222222222222222222222222222' as Hex;
     const payeeAddress2 = '0x3333333333333333333333333333333333333333' as Hex;
 
-    const rule = makePermissionRule({
+    const decoder = makePermissionDecoder({
       permissionType: 'native-token-stream',
-      timestampEnforcer,
-      redeemerEnforcer,
-      payeeEnforcers: payeeEnforcersNative,
+      contractAddresses,
       optionalEnforcers: [allowedTargetsEnforcer],
       requiredEnforcers: { [requiredEnforcer]: 1 },
+      rules: [nativePayeeRule],
       validateAndDecodeData,
     });
 
-    const result = rule.validateAndDecodePermission([
+    const result = decoder.validateAndDecodePermission([
       {
         enforcer: requiredEnforcer,
         terms: '0x' as Hex,
@@ -879,5 +817,11 @@ describe('makePermissionRule', () => {
     ]);
 
     expect(result.isValid).toBe(false);
+    if (result.isValid) {
+      throw new Error('Expected invalid result');
+    }
+    expect(result.error.message).toBe(
+      'Invalid payee caveats: multiple AllowedTargetsEnforcer caveats',
+    );
   });
 });

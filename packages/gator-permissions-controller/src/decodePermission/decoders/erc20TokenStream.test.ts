@@ -8,20 +8,20 @@ import {
   DELEGATOR_CONTRACTS,
 } from '@metamask/delegation-deployments';
 
-import { createPermissionRulesForContracts } from '.';
+import { createPermissionDecodersForContracts } from '.';
 import { ZERO_32_BYTES } from '../utils';
 
-describe('erc20-token-stream rule', () => {
+describe('erc20-token-stream decoder', () => {
   const chainId = CHAIN_ID.sepolia;
   const contracts = DELEGATOR_CONTRACTS['1.3.0'][chainId];
   const { TimestampEnforcer, ERC20StreamingEnforcer, ValueLteEnforcer } =
     contracts;
-  const permissionRules = createPermissionRulesForContracts(contracts);
-  const rule = permissionRules.find(
+  const permissionDecoders = createPermissionDecodersForContracts(contracts);
+  const decoder = permissionDecoders.find(
     (candidate) => candidate.permissionType === 'erc20-token-stream',
   );
-  if (!rule) {
-    throw new Error('Rule not found');
+  if (!decoder) {
+    throw new Error('Decoder not found');
   }
 
   const expiryCaveat = {
@@ -57,7 +57,7 @@ describe('erc20-token-stream rule', () => {
       { enforcer: ERC20StreamingEnforcer, terms, args: '0x' as const },
       { enforcer: ERC20StreamingEnforcer, terms, args: '0x' as const },
     ];
-    const result = rule.validateAndDecodePermission(caveats);
+    const result = decoder.validateAndDecodePermission(caveats);
     expect(result.isValid).toBe(false);
 
     // this is here as a type guard
@@ -79,7 +79,7 @@ describe('erc20-token-stream rule', () => {
         args: '0x' as const,
       },
     ];
-    const result = rule.validateAndDecodePermission(caveats);
+    const result = decoder.validateAndDecodePermission(caveats);
     expect(result.isValid).toBe(false);
 
     // this is here as a type guard
@@ -118,7 +118,7 @@ describe('erc20-token-stream rule', () => {
         args: '0x' as const,
       },
     ];
-    const result = rule.validateAndDecodePermission(caveats);
+    const result = decoder.validateAndDecodePermission(caveats);
     expect(result.isValid).toBe(false);
 
     // this is here as a type guard
@@ -150,7 +150,7 @@ describe('erc20-token-stream rule', () => {
         args: '0x' as const,
       },
     ];
-    const result = rule.validateAndDecodePermission(caveats);
+    const result = decoder.validateAndDecodePermission(caveats);
     expect(result.isValid).toBe(true);
 
     // this is here as a type guard
@@ -184,7 +184,7 @@ describe('erc20-token-stream rule', () => {
         args: '0x' as const,
       },
     ];
-    const result = rule.validateAndDecodePermission(caveats);
+    const result = decoder.validateAndDecodePermission(caveats);
     expect(result.isValid).toBe(true);
 
     // this is here as a type guard
@@ -209,7 +209,7 @@ describe('erc20-token-stream rule', () => {
       valueLteCaveat,
       { enforcer: ERC20StreamingEnforcer, terms, args: '0x' as const },
     ];
-    const result = rule.validateAndDecodePermission(caveats);
+    const result = decoder.validateAndDecodePermission(caveats);
     expect(result.isValid).toBe(false);
 
     // this is here as a type guard
@@ -234,7 +234,7 @@ describe('erc20-token-stream rule', () => {
       valueLteCaveat,
       { enforcer: ERC20StreamingEnforcer, terms, args: '0x' as const },
     ];
-    const result = rule.validateAndDecodePermission(caveats);
+    const result = decoder.validateAndDecodePermission(caveats);
     expect(result.isValid).toBe(false);
 
     // this is here as a type guard
@@ -269,7 +269,7 @@ describe('erc20-token-stream rule', () => {
         args: '0x' as const,
       },
     ];
-    const result = rule.validateAndDecodePermission(caveats);
+    const result = decoder.validateAndDecodePermission(caveats);
     expect(result.isValid).toBe(false);
 
     // this is here as a type guard
@@ -295,7 +295,7 @@ describe('erc20-token-stream rule', () => {
       valueLteCaveat,
       { enforcer: ERC20StreamingEnforcer, terms, args: '0x' as const },
     ];
-    const result = rule.validateAndDecodePermission(caveats);
+    const result = decoder.validateAndDecodePermission(caveats);
     expect(result.isValid).toBe(false);
 
     // this is here as a type guard
@@ -321,7 +321,7 @@ describe('erc20-token-stream rule', () => {
       valueLteCaveat,
       { enforcer: ERC20StreamingEnforcer, terms, args: '0x' as const },
     ];
-    const result = rule.validateAndDecodePermission(caveats);
+    const result = decoder.validateAndDecodePermission(caveats);
     expect(result.isValid).toBe(false);
 
     // this is here as a type guard

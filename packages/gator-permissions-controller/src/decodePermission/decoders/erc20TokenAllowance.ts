@@ -4,7 +4,7 @@ import type {
   ChecksumCaveat,
   ChecksumEnforcersByChainId,
   DecodedPermission,
-  PermissionRule,
+  PermissionDecoder,
 } from '../types';
 import {
   getByteLength,
@@ -13,54 +13,48 @@ import {
   UINT256_MAX,
   ZERO_32_BYTES,
 } from '../utils';
-import { makePermissionRule } from './makePermissionRule';
+import { erc20PayeeRule } from './erc20PayeeRule';
+import { expiryRule } from './expiryRule';
+import { makePermissionDecoder } from './makePermissionDecoder';
+import { redeemerRule } from './redeemerRule';
 
 /**
- * Creates the erc20-token-allowance permission rule.
+ * Creates the erc20-token-allowance permission decoder.
  *
  * This permission shares the same enforcer set as `erc20-token-periodic` but
  * is distinguished by a `periodDuration` of `UINT256_MAX`, which effectively
  * disables the periodic reset and turns the caveat into a one-off allowance.
  *
- * @param enforcers - Checksummed enforcer addresses for the chain.
- * @returns The erc20-token-allowance permission rule.
+ * @param contractAddresses - Checksummed enforcer addresses for the chain.
+ * @returns The erc20-token-allowance permission decoder.
  */
-export function makeErc20TokenAllowanceRule(
-  enforcers: ChecksumEnforcersByChainId,
-): PermissionRule {
+export function makeErc20TokenAllowanceDecoder(
+  contractAddresses: ChecksumEnforcersByChainId,
+): PermissionDecoder {
   const {
     timestampEnforcer,
     erc20PeriodicEnforcer,
     valueLteEnforcer,
     nonceEnforcer,
     allowedCalldataEnforcer,
-    allowedTargetsEnforcer,
     redeemerEnforcer,
-  } = enforcers;
-  return makePermissionRule({
+  } = contractAddresses;
+
+  return makePermissionDecoder({
     permissionType: 'erc20-token-allowance',
+    contractAddresses,
     optionalEnforcers: [
-      timestampEnforcer,
-      redeemerEnforcer,
-      allowedCalldataEnforcer,
+      timestampEnforcer, // expiry rule
+      redeemerEnforcer, // redeemer rule
+      allowedCalldataEnforcer, // payee rule
     ],
-    redeemerEnforcer,
-    payeeEnforcers: {
-      allowedCalldataEnforcer,
-      allowedTargetsEnforcer,
-      singlePayeeEnforcer: allowedCalldataEnforcer,
-    },
-    timestampEnforcer,
     requiredEnforcers: {
       [erc20PeriodicEnforcer]: 1,
       [valueLteEnforcer]: 1,
       [nonceEnforcer]: 1,
     },
-    validateAndDecodeData: (caveats) =>
-      validateAndDecodeData(caveats, {
-        erc20PeriodicEnforcer,
-        valueLteEnforcer,
-      }),
+    rules: [expiryRule, redeemerRule, erc20PayeeRule],
+    validateAndDecodeData,
   });
 }
 
@@ -68,19 +62,14 @@ export function makeErc20TokenAllowanceRule(
  * Decodes erc20-token-allowance permission data from caveats; throws on invalid.
  *
  * @param caveats - Caveats from the permission context (checksummed).
- * @param enforcers - Addresses of the enforcers.
- * @param enforcers.erc20PeriodicEnforcer - Address of the ERC20PeriodicEnforcer.
- * @param enforcers.valueLteEnforcer - Address of the ValueLteEnforcer.
+ * @param contractAddresses - Checksummed enforcer addresses for the chain.
  * @returns Decoded allowance terms.
  */
 function validateAndDecodeData(
   caveats: ChecksumCaveat[],
-  enforcers: Pick<
-    ChecksumEnforcersByChainId,
-    'erc20PeriodicEnforcer' | 'valueLteEnforcer'
-  >,
+  contractAddresses: ChecksumEnforcersByChainId,
 ): DecodedPermission['permission']['data'] {
-  const { erc20PeriodicEnforcer, valueLteEnforcer } = enforcers;
+  const { erc20PeriodicEnforcer, valueLteEnforcer } = contractAddresses;
 
   const valueLteTerms = getTermsByEnforcer({
     caveats,

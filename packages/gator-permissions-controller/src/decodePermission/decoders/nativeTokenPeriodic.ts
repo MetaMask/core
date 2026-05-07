@@ -4,7 +4,7 @@ import type {
   ChecksumCaveat,
   ChecksumEnforcersByChainId,
   DecodedPermission,
-  PermissionRule,
+  PermissionDecoder,
 } from '../types';
 import {
   getByteLength,
@@ -12,50 +12,44 @@ import {
   MAX_PERIOD_DURATION,
   splitHex,
 } from '../utils';
-import { makePermissionRule } from './makePermissionRule';
+import { expiryRule } from './expiryRule';
+import { makePermissionDecoder } from './makePermissionDecoder';
+import { nativePayeeRule } from './nativePayeeRule';
+import { redeemerRule } from './redeemerRule';
 
 /**
- * Creates the native-token-periodic permission rule.
+ * Creates the native-token-periodic permission decoder.
  *
- * @param enforcers - Checksummed enforcer addresses for the chain.
- * @returns The native-token-periodic permission rule.
+ * @param contractAddresses - Checksummed enforcer addresses for the chain.
+ * @returns The native-token-periodic permission decoder.
  */
-export function makeNativeTokenPeriodicRule(
-  enforcers: ChecksumEnforcersByChainId,
-): PermissionRule {
+export function makeNativeTokenPeriodicDecoder(
+  contractAddresses: ChecksumEnforcersByChainId,
+): PermissionDecoder {
   const {
     timestampEnforcer,
     nativeTokenPeriodicEnforcer,
     exactCalldataEnforcer,
     nonceEnforcer,
-    allowedCalldataEnforcer,
     allowedTargetsEnforcer,
     redeemerEnforcer,
-  } = enforcers;
-  return makePermissionRule({
+  } = contractAddresses;
+
+  return makePermissionDecoder({
     permissionType: 'native-token-periodic',
+    contractAddresses,
     optionalEnforcers: [
-      timestampEnforcer,
-      redeemerEnforcer,
-      allowedTargetsEnforcer,
+      timestampEnforcer, // expiry rule
+      redeemerEnforcer, // redeemer rule
+      allowedTargetsEnforcer, // payee rule
     ],
-    redeemerEnforcer,
-    payeeEnforcers: {
-      allowedCalldataEnforcer,
-      allowedTargetsEnforcer,
-      singlePayeeEnforcer: allowedTargetsEnforcer,
-    },
-    timestampEnforcer,
     requiredEnforcers: {
       [nativeTokenPeriodicEnforcer]: 1,
       [exactCalldataEnforcer]: 1,
       [nonceEnforcer]: 1,
     },
-    validateAndDecodeData: (caveats) =>
-      validateAndDecodeData(caveats, {
-        nativeTokenPeriodicEnforcer,
-        exactCalldataEnforcer,
-      }),
+    rules: [expiryRule, redeemerRule, nativePayeeRule],
+    validateAndDecodeData,
   });
 }
 
@@ -63,19 +57,15 @@ export function makeNativeTokenPeriodicRule(
  * Decodes native-token-periodic permission data from caveats; throws on invalid.
  *
  * @param caveats - Caveats from the permission context (checksummed).
- * @param enforcers - Addresses of the enforcers.
- * @param enforcers.nativeTokenPeriodicEnforcer - Address of the NativeTokenPeriodicEnforcer.
- * @param enforcers.exactCalldataEnforcer - Address of the ExactCalldataEnforcer.
+ * @param contractAddresses - Checksummed enforcer addresses for the chain.
  * @returns Decoded periodic terms.
  */
 function validateAndDecodeData(
   caveats: ChecksumCaveat[],
-  enforcers: Pick<
-    ChecksumEnforcersByChainId,
-    'nativeTokenPeriodicEnforcer' | 'exactCalldataEnforcer'
-  >,
+  contractAddresses: ChecksumEnforcersByChainId,
 ): DecodedPermission['permission']['data'] {
-  const { nativeTokenPeriodicEnforcer, exactCalldataEnforcer } = enforcers;
+  const { nativeTokenPeriodicEnforcer, exactCalldataEnforcer } =
+    contractAddresses;
 
   const exactCalldataTerms = getTermsByEnforcer({
     caveats,

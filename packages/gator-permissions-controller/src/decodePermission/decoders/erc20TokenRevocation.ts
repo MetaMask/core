@@ -2,7 +2,7 @@ import type {
   ChecksumCaveat,
   ChecksumEnforcersByChainId,
   DecodedPermission,
-  PermissionRule,
+  PermissionDecoder,
 } from '../types';
 import {
   ERC20_APPROVE_SELECTOR_TERMS,
@@ -10,45 +10,46 @@ import {
   getTermsByEnforcer,
   ZERO_32_BYTES,
 } from '../utils';
-import { makePermissionRule } from './makePermissionRule';
+import { expiryRule } from './expiryRule';
+import { makePermissionDecoder } from './makePermissionDecoder';
+import { redeemerRule } from './redeemerRule';
 
 /**
- * Creates the erc20-token-revocation permission rule.
+ * Creates the erc20-token-revocation permission decoder.
  *
- * @param enforcers - Checksummed enforcer addresses for the chain.
- * @returns The erc20-token-revocation permission rule.
+ * Revocation permissions intentionally do not support a payee rule: the
+ * AllowedCalldataEnforcer is required (with count=2) to encode both the
+ * `approve` selector and the zero-amount constraint, so it cannot also be
+ * used to extract a payee address.
+ *
+ * @param contractAddresses - Checksummed enforcer addresses for the chain.
+ * @returns The erc20-token-revocation permission decoder.
  */
-export function makeErc20TokenRevocationRule(
-  enforcers: ChecksumEnforcersByChainId,
-): PermissionRule {
+export function makeErc20TokenRevocationDecoder(
+  contractAddresses: ChecksumEnforcersByChainId,
+): PermissionDecoder {
   const {
     timestampEnforcer,
     allowedCalldataEnforcer,
-    allowedTargetsEnforcer,
     valueLteEnforcer,
     nonceEnforcer,
     redeemerEnforcer,
-  } = enforcers;
-  return makePermissionRule({
+  } = contractAddresses;
+
+  return makePermissionDecoder({
     permissionType: 'erc20-token-revocation',
-    optionalEnforcers: [timestampEnforcer, redeemerEnforcer],
-    redeemerEnforcer,
-    payeeEnforcers: {
-      allowedCalldataEnforcer,
-      allowedTargetsEnforcer,
-      singlePayeeEnforcer: allowedCalldataEnforcer,
-    },
-    timestampEnforcer,
+    contractAddresses,
+    optionalEnforcers: [
+      timestampEnforcer, // expiry rule
+      redeemerEnforcer, // redeemer rule
+    ],
     requiredEnforcers: {
       [allowedCalldataEnforcer]: 2,
       [valueLteEnforcer]: 1,
       [nonceEnforcer]: 1,
     },
-    validateAndDecodeData: (caveats) =>
-      validateAndDecodeData(caveats, {
-        allowedCalldataEnforcer,
-        valueLteEnforcer,
-      }),
+    rules: [expiryRule, redeemerRule],
+    validateAndDecodeData,
   });
 }
 
@@ -56,19 +57,14 @@ export function makeErc20TokenRevocationRule(
  * Decodes erc20-token-revocation permission data from caveats; throws on invalid.
  *
  * @param caveats - Caveats from the permission context (checksummed).
- * @param enforcers - Addresses of the enforcers.
- * @param enforcers.allowedCalldataEnforcer - Address of the AllowedCalldataEnforcer.
- * @param enforcers.valueLteEnforcer - Address of the ValueLteEnforcer.
+ * @param contractAddresses - Checksummed enforcer addresses for the chain.
  * @returns Empty object (revocation has no decoded data payload).
  */
 function validateAndDecodeData(
   caveats: ChecksumCaveat[],
-  enforcers: Pick<
-    ChecksumEnforcersByChainId,
-    'allowedCalldataEnforcer' | 'valueLteEnforcer'
-  >,
+  contractAddresses: ChecksumEnforcersByChainId,
 ): DecodedPermission['permission']['data'] {
-  const { allowedCalldataEnforcer, valueLteEnforcer } = enforcers;
+  const { allowedCalldataEnforcer, valueLteEnforcer } = contractAddresses;
 
   const allowedCalldataCaveats = caveats.filter(
     (caveat) => caveat.enforcer === allowedCalldataEnforcer,

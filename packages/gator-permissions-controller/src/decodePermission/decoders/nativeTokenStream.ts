@@ -4,53 +4,47 @@ import type {
   ChecksumCaveat,
   ChecksumEnforcersByChainId,
   DecodedPermission,
-  PermissionRule,
+  PermissionDecoder,
 } from '../types';
 import { getByteLength, getTermsByEnforcer, splitHex } from '../utils';
-import { makePermissionRule } from './makePermissionRule';
+import { expiryRule } from './expiryRule';
+import { makePermissionDecoder } from './makePermissionDecoder';
+import { nativePayeeRule } from './nativePayeeRule';
+import { redeemerRule } from './redeemerRule';
 
 /**
- * Creates the native-token-stream permission rule.
+ * Creates the native-token-stream permission decoder.
  *
- * @param enforcers - Checksummed enforcer addresses for the chain.
- * @returns The native-token-stream permission rule.
+ * @param contractAddresses - Checksummed enforcer addresses for the chain.
+ * @returns The native-token-stream permission decoder.
  */
-export function makeNativeTokenStreamRule(
-  enforcers: ChecksumEnforcersByChainId,
-): PermissionRule {
+export function makeNativeTokenStreamDecoder(
+  contractAddresses: ChecksumEnforcersByChainId,
+): PermissionDecoder {
   const {
     timestampEnforcer,
     nativeTokenStreamingEnforcer,
     exactCalldataEnforcer,
     nonceEnforcer,
-    allowedCalldataEnforcer,
     allowedTargetsEnforcer,
     redeemerEnforcer,
-  } = enforcers;
-  return makePermissionRule({
+  } = contractAddresses;
+
+  return makePermissionDecoder({
     permissionType: 'native-token-stream',
+    contractAddresses,
     optionalEnforcers: [
-      timestampEnforcer,
-      redeemerEnforcer,
-      allowedTargetsEnforcer,
+      timestampEnforcer, // expiry rule
+      redeemerEnforcer, // redeemer rule
+      allowedTargetsEnforcer, // payee rule
     ],
-    redeemerEnforcer,
-    payeeEnforcers: {
-      allowedCalldataEnforcer,
-      allowedTargetsEnforcer,
-      singlePayeeEnforcer: allowedTargetsEnforcer,
-    },
-    timestampEnforcer,
     requiredEnforcers: {
       [nativeTokenStreamingEnforcer]: 1,
       [exactCalldataEnforcer]: 1,
       [nonceEnforcer]: 1,
     },
-    validateAndDecodeData: (caveats) =>
-      validateAndDecodeData(caveats, {
-        nativeTokenStreamingEnforcer,
-        exactCalldataEnforcer,
-      }),
+    rules: [expiryRule, redeemerRule, nativePayeeRule],
+    validateAndDecodeData,
   });
 }
 
@@ -58,19 +52,15 @@ export function makeNativeTokenStreamRule(
  * Decodes native-token-stream permission data from caveats; throws on invalid.
  *
  * @param caveats - Caveats from the permission context (checksummed).
- * @param enforcers - Addresses of the enforcers.
- * @param enforcers.nativeTokenStreamingEnforcer - Address of the NativeTokenStreamingEnforcer.
- * @param enforcers.exactCalldataEnforcer - Address of the ExactCalldataEnforcer.
+ * @param contractAddresses - Checksummed enforcer addresses for the chain.
  * @returns Decoded stream terms.
  */
 function validateAndDecodeData(
   caveats: ChecksumCaveat[],
-  enforcers: Pick<
-    ChecksumEnforcersByChainId,
-    'nativeTokenStreamingEnforcer' | 'exactCalldataEnforcer'
-  >,
+  contractAddresses: ChecksumEnforcersByChainId,
 ): DecodedPermission['permission']['data'] {
-  const { nativeTokenStreamingEnforcer, exactCalldataEnforcer } = enforcers;
+  const { nativeTokenStreamingEnforcer, exactCalldataEnforcer } =
+    contractAddresses;
 
   const exactCalldataTerms = getTermsByEnforcer({
     caveats,
