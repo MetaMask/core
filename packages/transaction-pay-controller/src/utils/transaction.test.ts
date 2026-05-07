@@ -359,6 +359,26 @@ describe('Transaction Utils', () => {
       expect(parseRequiredTokensMock).not.toHaveBeenCalled();
     });
 
+    it('skips transactions when parseRequiredTokens still returns empty', () => {
+      const updateTransactionDataMock = jest.fn();
+
+      parseRequiredTokensMock.mockReturnValue([]);
+      isolatedGetTransactionControllerStateMock.mockReturnValue({
+        transactions: [TRANSACTION_META_MOCK],
+      } as TransactionControllerState);
+
+      subscribeAssetChanges(
+        isolatedMessenger,
+        () => buildState({ tokens: [] }),
+        updateTransactionDataMock,
+      );
+
+      isolatedPublish('TokenRatesController:stateChange', {} as never, []);
+
+      expect(parseRequiredTokensMock).toHaveBeenCalledTimes(1);
+      expect(updateTransactionDataMock).not.toHaveBeenCalled();
+    });
+
     it.each(FINALIZED_STATUSES)(
       'skips transactions whose status is %s',
       (status) => {
