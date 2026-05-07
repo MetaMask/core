@@ -1,6 +1,7 @@
 import {
   NOTIFICATION_API_LIST_ENDPOINT,
   NOTIFICATION_API_MARK_ALL_AS_READ_ENDPOINT,
+  TRIGGER_API_NOTIFICATIONS_QUERY_ENDPOINT,
 } from '../services/api-notifications';
 import { FEATURE_ANNOUNCEMENT_API } from '../services/feature-announcements';
 import { PERPS_API_CREATE_ORDERS } from '../services/perp-notifications';
@@ -36,6 +37,14 @@ export const getMockListNotificationsResponse = () => {
     url: NOTIFICATION_API_LIST_ENDPOINT(),
     requestMethod: 'POST',
     response: MOCK_RAW_ON_CHAIN_NOTIFICATIONS,
+  } satisfies MockResponse;
+};
+
+export const getMockQueryNotificationsResponse = () => {
+  return {
+    url: TRIGGER_API_NOTIFICATIONS_QUERY_ENDPOINT(),
+    requestMethod: 'POST',
+    response: [],
   } satisfies MockResponse;
 };
 

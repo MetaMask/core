@@ -1,6 +1,7 @@
 import {
   mockGetAPINotifications,
   mockMarkNotificationsAsRead,
+  mockQueryNotifications,
 } from '../__fixtures__/mockServices';
 import {
   createMockNotificationERC20Sent,
@@ -10,6 +11,44 @@ import * as OnChainNotifications from './api-notifications';
 
 const MOCK_BEARER_TOKEN = 'MOCK_BEARER_TOKEN';
 const MOCK_ADDRESSES = ['0x123', '0x456', '0x789'];
+
+describe('On Chain Notifications - getNotificationsApiConfigCached()', () => {
+  it('should return notification config for addresses', async () => {
+    const body = [
+      { address: '0x123', enabled: true },
+      { address: '0x456', enabled: false },
+    ];
+    const mockEndpoint = mockQueryNotifications({ status: 200, body });
+
+    const result = await OnChainNotifications.getNotificationsApiConfigCached(
+      MOCK_BEARER_TOKEN,
+      ['0x123', '0x456'],
+    );
+
+    expect(mockEndpoint.isDone()).toBe(true);
+    expect(result).toStrictEqual(body);
+  });
+
+  it('should use cached notification config for repeated address sets', async () => {
+    const body = [
+      { address: '0x123', enabled: true },
+      { address: '0x456', enabled: false },
+    ];
+    const mockEndpoint = mockQueryNotifications({ status: 200, body });
+
+    await OnChainNotifications.getNotificationsApiConfigCached(
+      MOCK_BEARER_TOKEN,
+      ['0x123', '0x456'],
+    );
+    const result = await OnChainNotifications.getNotificationsApiConfigCached(
+      MOCK_BEARER_TOKEN,
+      ['0x123', '0x456'],
+    );
+
+    expect(mockEndpoint.isDone()).toBe(true);
+    expect(result).toStrictEqual(body);
+  });
+});
 
 describe('On Chain Notifications - getAPINotifications()', () => {
   it('should return a list of notifications', async () => {

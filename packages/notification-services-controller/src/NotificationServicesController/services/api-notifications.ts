@@ -7,6 +7,7 @@ import type {
   UnprocessedRawNotification,
 } from '../types/notification-api';
 import { makeApiCall } from '../utils/utils';
+import { notificationsConfigCache } from './notification-config-cache';
 
 export type NotificationTrigger = {
   id: string;
@@ -17,6 +18,15 @@ export type NotificationTrigger = {
 
 export type ENV = 'prd' | 'uat' | 'dev';
 
+const TRIGGER_API_ENV = {
+  dev: 'https://trigger.dev-api.cx.metamask.io',
+  uat: 'https://trigger.uat-api.cx.metamask.io',
+  prd: 'https://trigger.api.cx.metamask.io',
+} satisfies Record<ENV, string>;
+
+export const TRIGGER_API = (env: ENV = 'prd'): string =>
+  TRIGGER_API_ENV[env] ?? TRIGGER_API_ENV.prd;
+
 const NOTIFICATION_API_ENV = {
   dev: 'https://notification.dev-api.cx.metamask.io',
   uat: 'https://notification.uat-api.cx.metamask.io',
@@ -26,6 +36,11 @@ const NOTIFICATION_API_ENV = {
 export const NOTIFICATION_API = (env: ENV = 'prd'): string =>
   NOTIFICATION_API_ENV[env] ?? NOTIFICATION_API_ENV.prd;
 
+// Gets notification settings for each account provided.
+export const TRIGGER_API_NOTIFICATIONS_QUERY_ENDPOINT = (
+  env: ENV = 'prd',
+): string => `${TRIGGER_API(env)}/api/v2/notifications/query`;
+
 // Lists notifications for each address provided.
 export const NOTIFICATION_API_LIST_ENDPOINT = (env: ENV = 'prd'): string =>
   `${NOTIFICATION_API(env)}/api/v3/notifications`;
@@ -34,6 +49,53 @@ export const NOTIFICATION_API_LIST_ENDPOINT = (env: ENV = 'prd'): string =>
 export const NOTIFICATION_API_MARK_ALL_AS_READ_ENDPOINT = (
   env: ENV = 'prd',
 ): string => `${NOTIFICATION_API(env)}/api/v3/notifications/mark-as-read`;
+
+/**
+ * Fetches legacy Trigger API notification settings for the given addresses.
+ *
+ * This endpoint is only used to migrate/reconcile wallet-activity settings
+ * into AUS notification preferences.
+ *
+ * @param bearerToken - The JSON Web Token used for authentication in the API call.
+ * @param addresses - List of addresses to check.
+ * @param env - The environment to use for the API call.
+ * @returns A list of address-level enabled states, or an empty array on transport errors.
+ */
+export async function getNotificationsApiConfigCached(
+  bearerToken: string,
+  addresses: string[],
+  env: ENV = 'prd',
+): Promise<{ address: string; enabled: boolean }[]> {
+  if (addresses.length === 0) {
+    return [];
+  }
+
+  const normalizedAddresses = addresses.map((addr) => addr.toLowerCase());
+  const cached = notificationsConfigCache.get(normalizedAddresses);
+  if (cached) {
+    return cached;
+  }
+
+  type RequestBody = { address: string }[];
+  type Response = { address: string; enabled: boolean }[];
+  const body: RequestBody = normalizedAddresses.map((address) => ({ address }));
+  const apiResponse = await makeApiCall(
+    bearerToken,
+    TRIGGER_API_NOTIFICATIONS_QUERY_ENDPOINT(env),
+    'POST',
+    body,
+  )
+    .then<Response | null>((response) => (response.ok ? response.json() : null))
+    .catch(() => null);
+
+  const result = apiResponse ?? [];
+
+  if (result.length > 0) {
+    notificationsConfigCache.set(result);
+  }
+
+  return result;
+}
 
 /**
  * Fetches on-chain notifications for the given addresses.
