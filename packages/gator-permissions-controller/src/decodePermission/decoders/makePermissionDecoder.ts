@@ -16,22 +16,36 @@ import type {
 import { buildEnforcerCountsAndSet, enforcersMatchRule } from '../utils';
 
 /**
+ * Configuration object describing how to decode a single permission type.
+ *
+ * Returned by each `make<PermissionType>DecoderConfig` factory and consumed by
+ * {@link makePermissionDecoder} to produce a {@link PermissionDecoder}.
+ */
+export type MakePermissionDecoderConfig = {
+  permissionType: PermissionType;
+  contractAddresses: ChecksumEnforcersByChainId;
+  optionalEnforcers: Hex[];
+  requiredEnforcers: Record<Hex, number>;
+  rules: RuleDecoder[];
+  validateAndDecodeData: (
+    caveats: ChecksumCaveat[],
+    contractAddresses: ChecksumEnforcersByChainId,
+  ) => DecodedPermission['permission']['data'];
+};
+
+/**
  * Creates a single {@link PermissionDecoder} with the given type, enforcer
  * sets, rule decoders, and decode/validate callback.
  *
- * @param args - The arguments to this function.
- * @param args.permissionType - The permission type identifier.
- * @param args.contractAddresses - Checksummed enforcer addresses for the chain.
- * @param args.optionalEnforcers - Enforcer addresses that may appear in addition
- * to the required ones.
- * @param args.requiredEnforcers - Map of required enforcer address to required
- * count.
- * @param args.rules - Rule decoder functions invoked to decode rules (e.g.
- * `redeemer`, `payee`, `expiry`) from the caveats. Each may emit a {@link Rule}
- * to append to the decoded permission's `rules` array. The `expiry` rule is
- * additionally hoisted onto the top-level `expiry` field of the result.
- * @param args.validateAndDecodeData - Callback to decode the permission's
- * `data` payload from the caveats; may throw on invalid input.
+ * @param config - The configuration describing the permission type's
+ * enforcers, rule decoders, and data decoder. See
+ * {@link MakePermissionDecoderConfig} for field documentation.
+ * @param config.permissionType - The type of permission to decode.
+ * @param config.contractAddresses - Checksummed enforcer addresses for the chain.
+ * @param config.optionalEnforcers - Optional enforcers for the permission.
+ * @param config.requiredEnforcers - Required enforcers for the permission.
+ * @param config.rules - Rule decoders for the permission.
+ * @param config.validateAndDecodeData - Data decoder for the permission.
  * @returns A {@link PermissionDecoder} with `caveatAddressesMatch` and
  * `validateAndDecodePermission`.
  */
@@ -42,17 +56,7 @@ export function makePermissionDecoder({
   requiredEnforcers,
   rules,
   validateAndDecodeData,
-}: {
-  permissionType: PermissionType;
-  contractAddresses: ChecksumEnforcersByChainId;
-  optionalEnforcers: Hex[];
-  requiredEnforcers: Record<Hex, number>;
-  rules: RuleDecoder[];
-  validateAndDecodeData: (
-    caveats: ChecksumCaveat[],
-    contractAddresses: ChecksumEnforcersByChainId,
-  ) => DecodedPermission['permission']['data'];
-}): PermissionDecoder {
+}: MakePermissionDecoderConfig): PermissionDecoder {
   const optionalEnforcersSet = new Set(optionalEnforcers);
   const requiredEnforcersMap = new Map(
     Object.entries(requiredEnforcers),

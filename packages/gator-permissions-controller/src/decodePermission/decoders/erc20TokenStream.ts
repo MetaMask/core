@@ -4,7 +4,6 @@ import type {
   ChecksumCaveat,
   ChecksumEnforcersByChainId,
   DecodedPermission,
-  PermissionDecoder,
 } from '../types';
 import {
   getByteLength,
@@ -14,18 +13,18 @@ import {
 } from '../utils';
 import { erc20PayeeRule } from './erc20PayeeRule';
 import { expiryRule } from './expiryRule';
-import { makePermissionDecoder } from './makePermissionDecoder';
+import type { MakePermissionDecoderConfig } from './makePermissionDecoder';
 import { redeemerRule } from './redeemerRule';
 
 /**
- * Creates the erc20-token-stream permission decoder.
+ * Builds the configuration for the erc20-token-stream permission decoder.
  *
  * @param contractAddresses - Checksummed enforcer addresses for the chain.
- * @returns The erc20-token-stream permission decoder.
+ * @returns The erc20-token-stream permission decoder configuration.
  */
-export function makeErc20TokenStreamDecoder(
+export function makeErc20TokenStreamDecoderConfig(
   contractAddresses: ChecksumEnforcersByChainId,
-): PermissionDecoder {
+): MakePermissionDecoderConfig {
   const {
     timestampEnforcer,
     erc20StreamingEnforcer,
@@ -35,7 +34,7 @@ export function makeErc20TokenStreamDecoder(
     redeemerEnforcer,
   } = contractAddresses;
 
-  return makePermissionDecoder({
+  return {
     permissionType: 'erc20-token-stream',
     contractAddresses,
     optionalEnforcers: [
@@ -50,7 +49,7 @@ export function makeErc20TokenStreamDecoder(
     },
     rules: [expiryRule, redeemerRule, erc20PayeeRule],
     validateAndDecodeData,
-  });
+  };
 }
 
 /**

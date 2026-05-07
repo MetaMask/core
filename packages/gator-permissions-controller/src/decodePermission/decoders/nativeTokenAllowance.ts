@@ -4,7 +4,6 @@ import type {
   ChecksumCaveat,
   ChecksumEnforcersByChainId,
   DecodedPermission,
-  PermissionDecoder,
 } from '../types';
 import {
   getByteLength,
@@ -14,23 +13,23 @@ import {
   ZERO_32_BYTES,
 } from '../utils';
 import { expiryRule } from './expiryRule';
-import { makePermissionDecoder } from './makePermissionDecoder';
+import type { MakePermissionDecoderConfig } from './makePermissionDecoder';
 import { nativePayeeRule } from './nativePayeeRule';
 import { redeemerRule } from './redeemerRule';
 
 /**
- * Creates the native-token-allowance permission decoder.
+ * Builds the configuration for the native-token-allowance permission decoder.
  *
  * This permission shares the same enforcer set as `native-token-periodic` but
  * is distinguished by a `periodDuration` of `UINT256_MAX`, which effectively
  * disables the periodic reset and turns the caveat into a one-off allowance.
  *
  * @param contractAddresses - Checksummed enforcer addresses for the chain.
- * @returns The native-token-allowance permission decoder.
+ * @returns The native-token-allowance permission decoder configuration.
  */
-export function makeNativeTokenAllowanceDecoder(
+export function makeNativeTokenAllowanceDecoderConfig(
   contractAddresses: ChecksumEnforcersByChainId,
-): PermissionDecoder {
+): MakePermissionDecoderConfig {
   const {
     timestampEnforcer,
     nativeTokenPeriodicEnforcer,
@@ -40,7 +39,7 @@ export function makeNativeTokenAllowanceDecoder(
     redeemerEnforcer,
   } = contractAddresses;
 
-  return makePermissionDecoder({
+  return {
     permissionType: 'native-token-allowance',
     contractAddresses,
     optionalEnforcers: [
@@ -55,7 +54,7 @@ export function makeNativeTokenAllowanceDecoder(
     },
     rules: [expiryRule, redeemerRule, nativePayeeRule],
     validateAndDecodeData,
-  });
+  };
 }
 
 /**

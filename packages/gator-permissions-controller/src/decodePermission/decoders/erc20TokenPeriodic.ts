@@ -4,7 +4,6 @@ import type {
   ChecksumCaveat,
   ChecksumEnforcersByChainId,
   DecodedPermission,
-  PermissionDecoder,
 } from '../types';
 import {
   getByteLength,
@@ -15,18 +14,18 @@ import {
 } from '../utils';
 import { erc20PayeeRule } from './erc20PayeeRule';
 import { expiryRule } from './expiryRule';
-import { makePermissionDecoder } from './makePermissionDecoder';
+import type { MakePermissionDecoderConfig } from './makePermissionDecoder';
 import { redeemerRule } from './redeemerRule';
 
 /**
- * Creates the erc20-token-periodic permission decoder.
+ * Builds the configuration for the erc20-token-periodic permission decoder.
  *
  * @param contractAddresses - Checksummed enforcer addresses for the chain.
- * @returns The erc20-token-periodic permission decoder.
+ * @returns The erc20-token-periodic permission decoder configuration.
  */
-export function makeErc20TokenPeriodicDecoder(
+export function makeErc20TokenPeriodicDecoderConfig(
   contractAddresses: ChecksumEnforcersByChainId,
-): PermissionDecoder {
+): MakePermissionDecoderConfig {
   const {
     timestampEnforcer,
     erc20PeriodicEnforcer,
@@ -36,7 +35,7 @@ export function makeErc20TokenPeriodicDecoder(
     redeemerEnforcer,
   } = contractAddresses;
 
-  return makePermissionDecoder({
+  return {
     permissionType: 'erc20-token-periodic',
     contractAddresses,
     optionalEnforcers: [
@@ -51,7 +50,7 @@ export function makeErc20TokenPeriodicDecoder(
     },
     rules: [expiryRule, redeemerRule, erc20PayeeRule],
     validateAndDecodeData,
-  });
+  };
 }
 
 /**

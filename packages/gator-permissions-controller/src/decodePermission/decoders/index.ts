@@ -1,12 +1,13 @@
 import type { DeployedContractsByName, PermissionDecoder } from '../types';
 import { getChecksumEnforcersByChainId } from '../utils';
-import { makeErc20TokenAllowanceDecoder } from './erc20TokenAllowance';
-import { makeErc20TokenPeriodicDecoder } from './erc20TokenPeriodic';
-import { makeErc20TokenRevocationDecoder } from './erc20TokenRevocation';
-import { makeErc20TokenStreamDecoder } from './erc20TokenStream';
-import { makeNativeTokenAllowanceDecoder } from './nativeTokenAllowance';
-import { makeNativeTokenPeriodicDecoder } from './nativeTokenPeriodic';
-import { makeNativeTokenStreamDecoder } from './nativeTokenStream';
+import { makeErc20TokenAllowanceDecoderConfig } from './erc20TokenAllowance';
+import { makeErc20TokenPeriodicDecoderConfig } from './erc20TokenPeriodic';
+import { makeErc20TokenRevocationDecoderConfig } from './erc20TokenRevocation';
+import { makeErc20TokenStreamDecoderConfig } from './erc20TokenStream';
+import { makePermissionDecoder } from './makePermissionDecoder';
+import { makeNativeTokenAllowanceDecoderConfig } from './nativeTokenAllowance';
+import { makeNativeTokenPeriodicDecoderConfig } from './nativeTokenPeriodic';
+import { makeNativeTokenStreamDecoderConfig } from './nativeTokenStream';
 
 /**
  * Builds the canonical set of permission decoders for a chain.
@@ -24,12 +25,12 @@ export const createPermissionDecodersForContracts = (
 ): PermissionDecoder[] => {
   const contractAddresses = getChecksumEnforcersByChainId(contracts);
   return [
-    makeNativeTokenStreamDecoder(contractAddresses),
-    makeNativeTokenPeriodicDecoder(contractAddresses),
-    makeNativeTokenAllowanceDecoder(contractAddresses),
-    makeErc20TokenStreamDecoder(contractAddresses),
-    makeErc20TokenPeriodicDecoder(contractAddresses),
-    makeErc20TokenAllowanceDecoder(contractAddresses),
-    makeErc20TokenRevocationDecoder(contractAddresses),
-  ];
+    makeNativeTokenStreamDecoderConfig(contractAddresses),
+    makeNativeTokenPeriodicDecoderConfig(contractAddresses),
+    makeNativeTokenAllowanceDecoderConfig(contractAddresses),
+    makeErc20TokenStreamDecoderConfig(contractAddresses),
+    makeErc20TokenPeriodicDecoderConfig(contractAddresses),
+    makeErc20TokenAllowanceDecoderConfig(contractAddresses),
+    makeErc20TokenRevocationDecoderConfig(contractAddresses),
+  ].map(makePermissionDecoder);
 };

@@ -4,7 +4,6 @@ import type {
   ChecksumCaveat,
   ChecksumEnforcersByChainId,
   DecodedPermission,
-  PermissionDecoder,
 } from '../types';
 import {
   getByteLength,
@@ -13,19 +12,19 @@ import {
   splitHex,
 } from '../utils';
 import { expiryRule } from './expiryRule';
-import { makePermissionDecoder } from './makePermissionDecoder';
+import type { MakePermissionDecoderConfig } from './makePermissionDecoder';
 import { nativePayeeRule } from './nativePayeeRule';
 import { redeemerRule } from './redeemerRule';
 
 /**
- * Creates the native-token-periodic permission decoder.
+ * Builds the configuration for the native-token-periodic permission decoder.
  *
  * @param contractAddresses - Checksummed enforcer addresses for the chain.
- * @returns The native-token-periodic permission decoder.
+ * @returns The native-token-periodic permission decoder configuration.
  */
-export function makeNativeTokenPeriodicDecoder(
+export function makeNativeTokenPeriodicDecoderConfig(
   contractAddresses: ChecksumEnforcersByChainId,
-): PermissionDecoder {
+): MakePermissionDecoderConfig {
   const {
     timestampEnforcer,
     nativeTokenPeriodicEnforcer,
@@ -35,7 +34,7 @@ export function makeNativeTokenPeriodicDecoder(
     redeemerEnforcer,
   } = contractAddresses;
 
-  return makePermissionDecoder({
+  return {
     permissionType: 'native-token-periodic',
     contractAddresses,
     optionalEnforcers: [
@@ -50,7 +49,7 @@ export function makeNativeTokenPeriodicDecoder(
     },
     rules: [expiryRule, redeemerRule, nativePayeeRule],
     validateAndDecodeData,
-  });
+  };
 }
 
 /**

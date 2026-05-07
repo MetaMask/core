@@ -2,7 +2,6 @@ import type {
   ChecksumCaveat,
   ChecksumEnforcersByChainId,
   DecodedPermission,
-  PermissionDecoder,
 } from '../types';
 import {
   ERC20_APPROVE_SELECTOR_TERMS,
@@ -11,11 +10,11 @@ import {
   ZERO_32_BYTES,
 } from '../utils';
 import { expiryRule } from './expiryRule';
-import { makePermissionDecoder } from './makePermissionDecoder';
+import type { MakePermissionDecoderConfig } from './makePermissionDecoder';
 import { redeemerRule } from './redeemerRule';
 
 /**
- * Creates the erc20-token-revocation permission decoder.
+ * Builds the configuration for the erc20-token-revocation permission decoder.
  *
  * Revocation permissions intentionally do not support a payee rule: the
  * AllowedCalldataEnforcer is required (with count=2) to encode both the
@@ -23,11 +22,11 @@ import { redeemerRule } from './redeemerRule';
  * used to extract a payee address.
  *
  * @param contractAddresses - Checksummed enforcer addresses for the chain.
- * @returns The erc20-token-revocation permission decoder.
+ * @returns The erc20-token-revocation permission decoder configuration.
  */
-export function makeErc20TokenRevocationDecoder(
+export function makeErc20TokenRevocationDecoderConfig(
   contractAddresses: ChecksumEnforcersByChainId,
-): PermissionDecoder {
+): MakePermissionDecoderConfig {
   const {
     timestampEnforcer,
     allowedCalldataEnforcer,
@@ -36,7 +35,7 @@ export function makeErc20TokenRevocationDecoder(
     redeemerEnforcer,
   } = contractAddresses;
 
-  return makePermissionDecoder({
+  return {
     permissionType: 'erc20-token-revocation',
     contractAddresses,
     optionalEnforcers: [
@@ -50,7 +49,7 @@ export function makeErc20TokenRevocationDecoder(
     },
     rules: [expiryRule, redeemerRule],
     validateAndDecodeData,
-  });
+  };
 }
 
 /**

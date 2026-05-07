@@ -4,23 +4,22 @@ import type {
   ChecksumCaveat,
   ChecksumEnforcersByChainId,
   DecodedPermission,
-  PermissionDecoder,
 } from '../types';
 import { getByteLength, getTermsByEnforcer, splitHex } from '../utils';
 import { expiryRule } from './expiryRule';
-import { makePermissionDecoder } from './makePermissionDecoder';
+import type { MakePermissionDecoderConfig } from './makePermissionDecoder';
 import { nativePayeeRule } from './nativePayeeRule';
 import { redeemerRule } from './redeemerRule';
 
 /**
- * Creates the native-token-stream permission decoder.
+ * Builds the configuration for the native-token-stream permission decoder.
  *
  * @param contractAddresses - Checksummed enforcer addresses for the chain.
- * @returns The native-token-stream permission decoder.
+ * @returns The native-token-stream permission decoder configuration.
  */
-export function makeNativeTokenStreamDecoder(
+export function makeNativeTokenStreamDecoderConfig(
   contractAddresses: ChecksumEnforcersByChainId,
-): PermissionDecoder {
+): MakePermissionDecoderConfig {
   const {
     timestampEnforcer,
     nativeTokenStreamingEnforcer,
@@ -30,7 +29,7 @@ export function makeNativeTokenStreamDecoder(
     redeemerEnforcer,
   } = contractAddresses;
 
-  return makePermissionDecoder({
+  return {
     permissionType: 'native-token-stream',
     contractAddresses,
     optionalEnforcers: [
@@ -45,7 +44,7 @@ export function makeNativeTokenStreamDecoder(
     },
     rules: [expiryRule, redeemerRule, nativePayeeRule],
     validateAndDecodeData,
-  });
+  };
 }
 
 /**
