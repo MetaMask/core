@@ -161,7 +161,7 @@ export async function* submitIntentHandler(
   const syntheticTxMeta = await handleSyntheticTx(orderUid, {
     ...args,
     requireApproval: false,
-    isStxEnabledOnClient: false,
+    isStxEnabled: false,
   });
 
   // Use synthetic transaction metadata + translated intent order status as the tradeMeta

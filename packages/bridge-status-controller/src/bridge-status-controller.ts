@@ -1054,6 +1054,74 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     return { tradeMeta, approvalMeta };
   };
 
+  readonly #executeSubmitStrategy = async (
+    params: SubmitStrategyParams<Trade>,
+    sharedHistoryItemProperties: {
+      startTime: number;
+      location: MetaMetricsSwapsEventSource;
+      abTests?: Record<string, string>;
+      activeAbTests?: { key: string; value: string }[];
+      tokenSecurityTypeDestination?: string | null;
+    },
+  ): Promise<TransactionMeta> => {
+    let tradeTxMeta!: TransactionMeta;
+
+    const steps = executeSubmitStrategy(params);
+
+    // Each submission strategy determines when to execute step, which means these actions can happen in any order
+    for await (const { type, payload } of steps) {
+      try {
+        switch (type) {
+          case SubmitStep.RekeyHistoryItem:
+            this.#rekeyHistoryItem(
+              payload.oldKey,
+              payload.newKey,
+              payload.tradeMeta,
+            );
+            break;
+
+          case SubmitStep.SetTradeMeta:
+            tradeTxMeta = payload;
+            break;
+
+          case SubmitStep.AddHistoryItem:
+            this.#addTxToHistory(payload.historyKey, {
+              ...payload,
+              ...sharedHistoryItemProperties,
+              quoteResponse: params.quoteResponse,
+              accountAddress: params.selectedAccount.address,
+              isStxEnabled: params.isStxEnabled,
+              slippagePercentage: 0, // TODO include slippage provided by quote if using dynamic slippage, or slippage from quote request
+            });
+            break;
+
+          case SubmitStep.StartPolling:
+            this.#startPollingForTxId(payload);
+            break;
+
+          case SubmitStep.PublishCompletedEvent:
+            this.#trackUnifiedSwapBridgeEvent(
+              UnifiedSwapBridgeEventName.Completed,
+              payload,
+            );
+            break;
+
+          /* c8 ignore start */
+          default:
+            throw new Error(`Unknown submit step type: ${String(type)}`);
+          /* c8 ignore end */
+        }
+      } catch (error) {
+        console.error(
+          'Failed to add to bridge history and start polling.',
+          error,
+        );
+      }
+    }
+
+    return tradeTxMeta;
+  };
+
   /**
    * Submits a cross-chain swap transaction
    *
@@ -1137,10 +1205,10 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
             [formatChainIdToHex(quoteResponse.quote.srcChainId)],
           );
 
-      const params: SubmitStrategyParams<Trade> = {
+      const strategyParams: SubmitStrategyParams<Trade> = {
         messenger: this.messenger,
         quoteResponse,
-        isStxEnabledOnClient: isStxEnabled,
+        isStxEnabled,
         isBridgeTx,
         isDelegatedAccount,
         selectedAccount,
@@ -1155,7 +1223,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       return await this.#trace(
         getTraceParams(quoteResponse, isStxEnabled),
         async () =>
-          await this.#executeSubmitStrategy(params, {
+          await this.#executeSubmitStrategy(strategyParams, {
             startTime,
             location,
             abTests,
@@ -1189,7 +1257,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
    * @param params.abTests - Legacy A/B test context for `ab_tests` (backward compatibility)
    * @param params.activeAbTests - New A/B test context for `active_ab_tests` (migration target). Attributes events to specific experiments.
    * @param params.tokenSecurityTypeDestination - The security classification of the destination token, supplied by the client (e.g. from token security/scanning data). Pass `null` when no security data is available.
-   * @param params.isStxEnabledOnClient - Whether smart transactions are enabled on the client, for example the getSmartTransactionsEnabled selector value from the extension
+   * @param params.isStxEnabled - Whether smart transactions are enabled on the client, for example the getSmartTransactionsEnabled selector value from the extension
    * @param params.isStxEnabled - Whether smart transactions are enabled on the client, for example the getSmartTransactionsEnabled selector value from the extension
    * @param params.quotesReceivedContext - The context for the QuotesReceived event
    * @returns A lightweight TransactionMeta-like object for history linking
@@ -1227,65 +1295,6 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       activeAbTests,
       tokenSecurityTypeDestination,
     );
-  };
-
-  readonly #executeSubmitStrategy = async (
-    params: SubmitStrategyParams<Trade>,
-    sharedHistoryItemProperties: {
-      startTime: number;
-      location: MetaMetricsSwapsEventSource;
-      abTests?: Record<string, string>;
-      activeAbTests?: { key: string; value: string }[];
-      tokenSecurityTypeDestination?: string | null;
-    },
-  ): Promise<TransactionMeta> => {
-    let tradeTxMeta!: TransactionMeta;
-
-    const steps = executeSubmitStrategy(params);
-
-    // Each submission strategy determines when to return values, which means these values can be returned in any order
-    for await (const { type, payload } of steps) {
-      if (type === SubmitStep.RekeyHistoryItem) {
-        this.#rekeyHistoryItem(
-          payload.oldKey,
-          payload.newKey,
-          payload.tradeMeta,
-        );
-      }
-      if (type === SubmitStep.SetTradeMeta) {
-        tradeTxMeta = payload;
-      }
-
-      // If any of these steps fail, we should not block or fail the submission flow
-      try {
-        if (type === SubmitStep.AddHistoryItem) {
-          this.#addTxToHistory(payload.historyKey, {
-            ...payload,
-            ...sharedHistoryItemProperties,
-            quoteResponse: params.quoteResponse,
-            accountAddress: params.selectedAccount.address,
-            isStxEnabled: params.isStxEnabledOnClient,
-            slippagePercentage: 0, // TODO include slippage provided by quote if using dynamic slippage, or slippage from quote request
-          });
-        }
-        if (type === SubmitStep.StartPolling) {
-          this.#startPollingForTxId(payload);
-        }
-        if (type === SubmitStep.PublishCompletedEvent) {
-          this.#trackUnifiedSwapBridgeEvent(
-            UnifiedSwapBridgeEventName.Completed,
-            payload,
-          );
-        }
-      } catch (error) {
-        console.error(
-          'Failed to add to bridge history and start polling',
-          error,
-        );
-      }
-    }
-
-    return tradeTxMeta;
   };
 
   readonly #trackPollingStatusUpdatedEvent = (

@@ -50,7 +50,7 @@ const validateParams = <
 const executeSubmitStrategy = (
   params: SubmitStrategyParams<Trade>,
 ): AsyncGenerator<SubmitStepResult, void, void> => {
-  const { quoteResponse, isStxEnabledOnClient, isDelegatedAccount } = params;
+  const { quoteResponse, isStxEnabled, isDelegatedAccount } = params;
 
   // Non-EVM transactions
   if (isNonEvmChainId(quoteResponse.quote.srcChainId)) {
@@ -76,9 +76,7 @@ const executeSubmitStrategy = (
 
   // Batched transactions
   const shouldBatchTxs =
-    isStxEnabledOnClient ||
-    quoteResponse.quote.gasIncluded7702 ||
-    isDelegatedAccount;
+    isStxEnabled || quoteResponse.quote.gasIncluded7702 || isDelegatedAccount;
   if (shouldBatchTxs) {
     return submitBatchHandler(params);
   }
