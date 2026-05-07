@@ -16,6 +16,7 @@ import type {
 import { SnapId } from '@metamask/snaps-sdk';
 import type { TruncatedSnap } from '@metamask/snaps-utils';
 
+import { projectLogger as log } from './logger';
 import type {
   SnapAccountServiceEnsureReadyAction,
   SnapAccountServiceGetSnapsAction,
@@ -136,19 +137,19 @@ export class SnapAccountService {
     );
 
     this.#messenger.subscribe('SnapController:snapInstalled', (snap) =>
-      this.#handleSnapAdded(snap),
+      this.#handleSnapAdded(snap, 'installed'),
     );
     this.#messenger.subscribe('SnapController:snapEnabled', (snap) =>
-      this.#handleSnapAdded(snap),
+      this.#handleSnapAdded(snap, 'enabled'),
     );
     this.#messenger.subscribe('SnapController:snapDisabled', (snap) =>
-      this.#handleSnapRemoved(snap.id),
+      this.#handleSnapRemoved(snap.id, 'disabled'),
     );
     this.#messenger.subscribe('SnapController:snapBlocked', (snapId) =>
-      this.#handleSnapRemoved(snapId as SnapId),
+      this.#handleSnapRemoved(snapId as SnapId, 'blocked'),
     );
     this.#messenger.subscribe('SnapController:snapUninstalled', (snap) =>
-      this.#handleSnapRemoved(snap.id),
+      this.#handleSnapRemoved(snap.id, 'uninstalled'),
     );
 
     this.#messenger.registerMethodActionHandlers(
@@ -210,13 +211,16 @@ export class SnapAccountService {
    * account-management Snap, adds it to the internal set of tracked Snaps.
    *
    * @param snap - The Snap that was installed or enabled.
+   * @param reason - The reason the Snap was added.
    */
-  #handleSnapAdded(snap: TruncatedSnap): void {
+  #handleSnapAdded(snap: TruncatedSnap, reason: string): void {
     if (!this.#initialized) {
       return;
     }
 
-    if (isAccountManagementSnap(snap)) {
+    if (isAccountManagementSnap(snap) && !this.#snaps.has(snap.id)) {
+      log(`Added account management Snap: ${snap.id} (${reason})`);
+
       this.#snaps.add(snap.id);
     }
   }
@@ -226,12 +230,17 @@ export class SnapAccountService {
    * account-management Snap, removes it from the internal set of tracked Snaps.
    *
    * @param snapId - The Snap ID that was disabled, blocked, or uninstalled.
+   * @param reason - The reason the Snap was removed.
    */
-  #handleSnapRemoved(snapId: SnapId): void {
+  #handleSnapRemoved(snapId: SnapId, reason: string): void {
     if (!this.#initialized) {
       return;
     }
 
-    this.#snaps.delete(snapId);
+    if (this.#snaps.has(snapId)) {
+      log(`Removed account management Snap: ${snapId} (${reason})`);
+
+      this.#snaps.delete(snapId);
+    }
   }
 }
