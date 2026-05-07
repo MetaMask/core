@@ -7,12 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- RPC token detection now uses the same endpoint as `TokenListController` (`token.api.cx.metamask.io/tokens/{chainId}`) instead of the v3 `tokens.api.cx.metamask.io/v3/chains/.../assets` host, with no client-side `first` cap and a shared TanStack Query cache ([#8727](https://github.com/MetaMask/core/pull/8727))
+  - Mirrors `TokenListController.getTokensURL` exactly: same query parameters (`occurrenceFloor`, `includeNativeAssets=false`, `includeTokenFees=false`, `includeAssetType=false`, `includeERC20Permit=false`, `includeStorage=false`, `includeRwaData=true`), per-chain occurrence floor (`1` on Linea / MegaETH / Tempo mainnets, `3` elsewhere), and the Linea-mainnet aggregator filter (`lineaTeam`-flagged or ≥ 3 aggregators).
+  - Detection now also picks up `iconUrl` and `aggregators` returned by the API; previously only `address`/`symbol`/`name`/`decimals`/`occurrences` were forwarded into `TokenListEntry`.
+  - The previous client-side `first=25` cap is removed; the API still bounds responses server-side via `occurrenceFloor`, but the long tail past the previous 25-token slice is now visible to detection.
+  - `TokensApiClient` accepts an optional `queryClient` (compatible with `ApiPlatformClient.queryClient`); when provided it caches/dedupes per-chain list responses with a 5 min `staleTime` and 1 h `gcTime` under the `['assets-controller','rpc-detection','token-list',{chainId}]` key, so concurrent detector polls across accounts/instances coalesce into a single network request.
+  - `RpcDataSource` accepts a new optional `queryClient` option which it forwards to `TokensApiClient`. `AssetsController` defaults this to its existing `queryApiClient.queryClient`, so consumers get the full list and shared cache automatically.
+
 ### Changed
 
+- **BREAKING:** `AssetsController` now requires two additional messenger events from `NetworkController`: `NetworkController:networkAdded` and `NetworkController:networkRemoved` ([#8727](https://github.com/MetaMask/core/pull/8727))
+  - Consumers building restricted controller messengers must include both events in their allowed event set, otherwise TypeScript/action constraint checks will fail.
 - Bump `@metamask/account-tree-controller` from `^7.2.0` to `^7.3.0` ([#8722](https://github.com/MetaMask/core/pull/8722))
 - Bump `@metamask/keyring-controller` from `^25.4.0` to `^25.5.0` ([#8722](https://github.com/MetaMask/core/pull/8722))
 - Bump `@metamask/permission-controller` from `^13.0.0` to `^13.1.0` ([#8722](https://github.com/MetaMask/core/pull/8722))
 - Bump `@metamask/transaction-controller` from `^65.1.0` to `^65.2.0` ([#8722](https://github.com/MetaMask/core/pull/8722))
+
+### Fixed
+
+- `TokenDataSource` no longer drops user-imported EVM custom asset metadata when the V3 Tokens API returns the asset ID lower-cased ([#8727](https://github.com/MetaMask/core/pull/8727))
+  - State stores `customAssets` checksummed (via `normalizeAssetId`), but the API can echo it lower-cased; the spam-filter bypass now compares lower-cased on both sides so customs reliably skip the `MIN_TOKEN_OCCURRENCES` filter and `assetsInfo` is populated for them.
+- `RpcDataSource` no longer overwrites richer native token metadata with a minimal stub on every balance refresh ([#8727](https://github.com/MetaMask/core/pull/8727))
+  - Previously, each balance fetch emitted `{ type: 'native', symbol: chainStatus.nativeCurrency, name: chainStatus.nativeCurrency, decimals: 18 }` for native assets, which clobbered fields like `image`, `description`, `occurrences`, and `aggregators` enriched by the price/info API and renamed e.g. `"Avalanche"` to `"AVAX"`.
+  - Native token metadata now mirrors the existing ERC-20 behavior: prefer existing metadata in state when present, and only emit the stub when no metadata is in state yet (e.g. first sighting of the asset). The fallback in the balance-fetch error path is gated the same way.
 
 ## [6.4.0]
 
