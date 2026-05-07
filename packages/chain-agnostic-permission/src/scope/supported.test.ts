@@ -496,9 +496,7 @@ describe('Scope Support', () => {
   describe('isSupportedSessionProperty', () => {
     it('returns true for the session property', () => {
       expect(
-        isSupportedSessionProperty(
-          KnownSessionProperties.Eip1193Compatible,
-        ),
+        isSupportedSessionProperty(KnownSessionProperties.Eip1193Compatible),
       ).toBe(true);
       expect(
         isSupportedSessionProperty(
