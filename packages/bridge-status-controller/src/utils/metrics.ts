@@ -182,7 +182,7 @@ export const getPriceImpactFromQuote = (
  * The quote is used to populate event properties before confirmation
  *
  * @param quoteResponse - The quote response
- * @param isStxEnabledOnClient - Whether smart transactions are enabled on the client, for example the getSmartTransactionsEnabled selector value from the extension
+ * @param isStxEnabled - Whether smart transactions are enabled on the client, for example the getSmartTransactionsEnabled selector value from the extension
  * @param accountHardwareType - The hardware wallet type used to submit the tx, or null if not a hardware wallet
  * @param isHardwareAccount
  * @param location - The entry point from which the user initiated the swap or bridge (e.g. Main View, Token View, Trending Explore)
@@ -193,7 +193,7 @@ export const getPriceImpactFromQuote = (
  */
 export const getPreConfirmationPropertiesFromQuote = (
   quoteResponse: QuoteResponse & Partial<QuoteMetadata>,
-  isStxEnabledOnClient: boolean,
+  isStxEnabled: boolean,
   accountHardwareType: AccountHardwareType,
   location?: MetaMetricsSwapsEventSource,
   abTests?: Record<string, string>,
@@ -218,7 +218,7 @@ export const getPreConfirmationPropertiesFromQuote = (
       quoteResponse.quote.destChainId,
     ),
     usd_amount_source: Number(quoteResponse.sentAmount?.usd ?? 0),
-    stx_enabled: isStxEnabledOnClient,
+    stx_enabled: isStxEnabled,
     action_type: MetricsActionType.SWAPBRIDGE_V1,
     custom_slippage: false, // TODO detect whether the user changed the default slippage
     location,

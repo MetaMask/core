@@ -73,7 +73,7 @@ export type SubmitStrategyParams<TradeType extends Trade = TxData> = {
   addTransactionBatchFn: TransactionController['addTransactionBatch'];
   isBridgeTx: boolean;
   isDelegatedAccount: boolean;
-  isStxEnabledOnClient: boolean;
+  isStxEnabled: boolean;
   messenger: BridgeStatusControllerMessenger;
   quoteResponse: QuoteResponse<TradeType, TradeType> & QuoteMetadata;
   requireApproval: boolean;

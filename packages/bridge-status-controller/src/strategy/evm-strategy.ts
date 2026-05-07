@@ -31,17 +31,14 @@ const handleSingleTx = async (
   transactionType: TransactionType,
   trade: TxData,
   submitParams: Partial<Parameters<typeof submitEvmTransaction>[0]> = {},
-) => {
-  const approvalTxMeta = await submitEvmTransaction({
+) =>
+  await submitEvmTransaction({
     messenger,
     trade,
     transactionType,
     requireApproval,
     ...submitParams,
   });
-
-  return approvalTxMeta;
-};
 
 /**
  * Submits the approval and resetApproval transactions through the TransactionController.
@@ -79,7 +76,7 @@ const approve = async (args: SubmitStrategyParams) => {
 
 export const handleEvmApprovals = async (args: SubmitStrategyParams) =>
   await args.traceFn(
-    getApprovalTraceParams(args.quoteResponse, args.isStxEnabledOnClient),
+    getApprovalTraceParams(args.quoteResponse, args.isStxEnabled),
     async () => await approve(args),
   );
 
