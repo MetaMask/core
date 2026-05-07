@@ -24,7 +24,6 @@ import { Duration, inMilliseconds } from '@metamask/utils';
 
 import {
   ACCOUNTANT_ABI,
-  DEFAULT_VEDA_API_NETWORK_NAME,
   VAULT_CONFIG_FEATURE_FLAG_KEY,
   VEDA_API_NETWORK_NAMES,
   VEDA_PERFORMANCE_API_BASE_URL,
@@ -180,7 +179,7 @@ export class MoneyAccountBalanceService extends BaseDataService<
     });
 
     this.messenger.subscribe(
-      // TODO: Add to eslint exceptions
+      // eslint-disable-next-line no-restricted-syntax
       'RemoteFeatureFlagController:stateChange',
       (state) => {
         const flagValue =
@@ -189,12 +188,23 @@ export class MoneyAccountBalanceService extends BaseDataService<
       },
     );
 
-    // Eagerly read already-loaded flags. Wrapped in try/catch because
-    // RemoteFeatureFlagController may not be registered yet at construction
-    // time. Validation errors are also swallowed here — the service degrades
-    // gracefully and fails loud on the first method call.
+    this.messenger.registerMethodActionHandlers(
+      this,
+      MESSENGER_EXPOSED_METHODS,
+    );
+  }
+
+  /**
+   * Eagerly reads already-loaded feature flags and initialises `#vaultConfig`.
+   *
+   * Must be called after all controllers and services have been instantiated so
+   * that the `RemoteFeatureFlagController:getState` action is guaranteed to be
+   * registered. Validation errors are swallowed — the service degrades
+   * gracefully and throws {@link VaultConfigNotAvailableError} on the first
+   * method call instead.
+   */
+  init(): void {
     try {
-      // TODO: Fix by moving to init() method according to the controller guidelines.
       const { remoteFeatureFlags } = this.messenger.call(
         'RemoteFeatureFlagController:getState',
       );
@@ -203,18 +213,15 @@ export class MoneyAccountBalanceService extends BaseDataService<
         this.#vaultConfig = this.#parseAndValidateVaultConfig(flagValue);
       }
     } catch {
-      // RFFC not registered or flag is malformed — stay undefined.
+      // RemoteFeatureFlagController not registered or flag is malformed — stay undefined.
     }
-
-    this.messenger.registerMethodActionHandlers(
-      this,
-      MESSENGER_EXPOSED_METHODS,
-    );
   }
 
   /**
    * Returns the current vault config, or throws {@link VaultConfigNotAvailableError}
    * if it has not been loaded yet.
+   *
+   * @returns The validated vault configuration.
    */
   #requireConfig(): VaultConfig {
     if (!this.#vaultConfig) {
@@ -242,6 +249,7 @@ export class MoneyAccountBalanceService extends BaseDataService<
       // Flag key absent — treat as "not loaded".
       if (hadConfig) {
         this.#vaultConfig = undefined;
+        // eslint-disable-next-line @typescript-eslint/no-floating-promises
         this.invalidateQueries();
       }
       return;
@@ -254,6 +262,7 @@ export class MoneyAccountBalanceService extends BaseDataService<
       // Clear previously valid config and purge stale cache.
       if (hadConfig) {
         this.#vaultConfig = undefined;
+        // eslint-disable-next-line @typescript-eslint/no-floating-promises
         this.invalidateQueries();
       }
       throw error;
@@ -265,6 +274,7 @@ export class MoneyAccountBalanceService extends BaseDataService<
 
     this.#vaultConfig = newConfig;
     if (hadConfig) {
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
       this.invalidateQueries();
     }
   }
