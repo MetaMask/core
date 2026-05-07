@@ -28,7 +28,10 @@ type RootMessenger = Messenger<
 type MockKeyringControllerState = Pick<KeyringControllerState, 'keyrings'>;
 
 /** Mock truncated snap type for tests. */
-type MockTruncatedSnap = Pick<TruncatedSnap, 'id' | 'initialPermissions'>;
+type MockTruncatedSnap = Pick<
+  TruncatedSnap,
+  'id' | 'initialPermissions' | 'enabled' | 'blocked'
+>;
 
 type Mocks = {
   // eslint-disable-next-line @typescript-eslint/naming-convention
@@ -132,6 +135,8 @@ function buildSnap(id: string, hasKeyring: boolean): TruncatedSnap {
   return {
     id: id as SnapId,
     initialPermissions: hasKeyring ? { 'endowment:keyring': {} } : {},
+    enabled: true,
+    blocked: false,
   } as MockTruncatedSnap as TruncatedSnap;
 }
 

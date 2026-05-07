@@ -16,7 +16,10 @@ type RootMessenger = Messenger<
   MessengerEvents<SnapAccountServiceMessenger>
 >;
 
-type MockTruncatedSnap = Pick<TruncatedSnap, 'id' | 'initialPermissions'>;
+type MockTruncatedSnap = Pick<
+  TruncatedSnap,
+  'id' | 'initialPermissions' | 'enabled' | 'blocked'
+>;
 
 type Mocks = {
   // eslint-disable-next-line @typescript-eslint/naming-convention
@@ -75,6 +78,8 @@ function buildSnap(id: string, isKeyring: boolean): TruncatedSnap {
   return {
     id: id as SnapId,
     initialPermissions: isKeyring ? { 'endowment:keyring': {} } : {},
+    enabled: true,
+    blocked: false,
   } as MockTruncatedSnap as TruncatedSnap;
 }
 

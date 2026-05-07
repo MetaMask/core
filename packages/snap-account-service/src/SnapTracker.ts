@@ -106,6 +106,10 @@ export class SnapTracker {
       return;
     }
 
+    if (!snap.enabled || snap.blocked) {
+      return;
+    }
+
     if (isAccountManagementSnap(snap) && !this.#snaps.has(snap.id)) {
       log(`Added account management Snap: ${snap.id} (${reason})`);
 
@@ -125,7 +129,7 @@ export class SnapTracker {
     }
 
     const snap = this.#messenger.call('SnapController:getSnap', snapId);
-    if (snap && snap.enabled && !snap.blocked) {
+    if (snap) {
       this.#handleSnapAdded(snap, 'unblocked');
     }
   }
