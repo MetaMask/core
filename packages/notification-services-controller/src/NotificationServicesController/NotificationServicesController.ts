@@ -1058,14 +1058,12 @@ export class NotificationServicesController extends BaseController<
           bearerToken,
           accounts,
         );
-        const enableWalletActivityNotifications =
-          walletActivityAccounts.length > 0;
         nextPreferences = {
           ...preferences,
           walletActivity: {
             enabled: true,
-            inAppNotificationsEnabled: enableWalletActivityNotifications,
-            pushNotificationsEnabled: enableWalletActivityNotifications,
+            inAppNotificationsEnabled: true,
+            pushNotificationsEnabled: true,
             accounts: walletActivityAccounts,
           },
           marketing: {
