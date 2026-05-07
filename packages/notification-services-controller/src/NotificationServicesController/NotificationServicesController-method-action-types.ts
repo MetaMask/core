@@ -52,8 +52,7 @@ export type NotificationServicesControllerSetFeatureAnnouncementsEnabledAction =
  * **Action** - Used during Sign In / Enabling of notifications.
  *
  * @param opts - optional options to mutate this functionality
- * @param opts.resetNotifications - this will not use the users stored preferences, and instead re-create notification triggers
- * It will help in case uses get into a corrupted state or wants to wipe their notifications.
+ * @param opts.hasMarketingConsent - initial data required to build initial notification preferences blob when AUS has no notification preferences yet.
  * @returns The updated or newly created user storage.
  * @throws {Error} Throws an error if unauthenticated or from other operations.
  */
@@ -66,6 +65,7 @@ export type NotificationServicesControllerCreateOnChainTriggersAction = {
  * Enables all MetaMask notifications for the user.
  * This is identical flow when initializing notifications for the first time.
  *
+ * @param opts - Optional settings for first-time AUS notification preferences initialization.
  * @throws {Error} If there is an error during the process of enabling notifications.
  */
 export type NotificationServicesControllerEnableMetamaskNotificationsAction = {

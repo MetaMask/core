@@ -71,11 +71,15 @@ export type WalletActivityAccount = {
 
 export type WalletActivityPreference = {
   enabled: boolean;
+  inAppNotificationsEnabled?: boolean;
+  pushNotificationsEnabled?: boolean;
   accounts: WalletActivityAccount[];
 };
 
 export type MarketingPreference = {
   enabled: boolean;
+  inAppNotificationsEnabled?: boolean;
+  pushNotificationsEnabled?: boolean;
 };
 
 export type PerpsWatchlistExchange = {
@@ -90,11 +94,15 @@ export type PerpsWatchlistMarkets = {
 
 export type PerpsPreference = {
   enabled: boolean;
+  inAppNotificationsEnabled?: boolean;
+  pushNotificationsEnabled?: boolean;
   watchlistMarkets?: PerpsWatchlistMarkets;
 };
 
 export type SocialAIPreference = {
   enabled: boolean;
+  inAppNotificationsEnabled?: boolean;
+  pushNotificationsEnabled?: boolean;
   txAmountLimit?: number;
   mutedTraderProfileIds: string[];
 };

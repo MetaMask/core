@@ -55,11 +55,15 @@ const WalletActivityAccountSchema = type({
 
 const WalletActivityPreferenceSchema = type({
   enabled: boolean(),
+  inAppNotificationsEnabled: optional(boolean()),
+  pushNotificationsEnabled: optional(boolean()),
   accounts: array(WalletActivityAccountSchema),
 });
 
 const MarketingPreferenceSchema = type({
   enabled: boolean(),
+  inAppNotificationsEnabled: optional(boolean()),
+  pushNotificationsEnabled: optional(boolean()),
 });
 
 const PerpsWatchlistExchangeSchema = type({
@@ -74,11 +78,15 @@ const PerpsWatchlistMarketsSchema = type({
 
 const PerpsPreferenceSchema = type({
   enabled: boolean(),
+  inAppNotificationsEnabled: optional(boolean()),
+  pushNotificationsEnabled: optional(boolean()),
   watchlistMarkets: optional(PerpsWatchlistMarketsSchema),
 });
 
 const SocialAIPreferenceSchema = type({
   enabled: boolean(),
+  inAppNotificationsEnabled: optional(boolean()),
+  pushNotificationsEnabled: optional(boolean()),
   txAmountLimit: optional(number()),
   mutedTraderProfileIds: array(string()),
 });
