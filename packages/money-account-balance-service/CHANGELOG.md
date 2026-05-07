@@ -7,8 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `VaultConfigNotAvailableError` and `VaultConfigValidationError` error classes for typed consumer error handling ([#TODO](https://github.com/MetaMask/core/pull/TODO))
+- `MoneyAccountBalanceService` now subscribes to `RemoteFeatureFlagController:stateChange` and invalidates all cached queries when vault config changes ([#TODO](https://github.com/MetaMask/core/pull/TODO))
+
 ### Changed
 
+- **BREAKING:** `MoneyAccountBalanceService` no longer accepts vault config via constructor (`vaultAddress`, `vaultChainId`, `accountantAddress`, `underlyingTokenAddress`, `underlyingTokenDecimals`). Vault config is now read from remote feature flag via `RemoteFeatureFlagController`. The service requires `RemoteFeatureFlagController` to be registered on the messenger. Methods throw `VaultConfigNotAvailableError` until a valid config has been loaded from remote flags. ([#TODO](https://github.com/MetaMask/core/pull/TODO))
+  - Add `@metamask/remote-feature-flag-controller` as a dependency and ensure `RemoteFeatureFlagController:getState` and `RemoteFeatureFlagController:stateChange` are permitted on the messenger passed to `MoneyAccountBalanceService`.
 - Bump `@metamask/messenger` from `^1.1.1` to `^1.2.0` ([#8632](https://github.com/MetaMask/core/pull/8632))
 - Bump `@metamask/network-controller` from `^30.0.1` to `^30.1.0` ([#8636](https://github.com/MetaMask/core/pull/8636))
 

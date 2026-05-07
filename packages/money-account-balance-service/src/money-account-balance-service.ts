@@ -14,17 +14,26 @@ import type {
   NetworkControllerGetNetworkClientByIdAction,
   NetworkControllerGetNetworkConfigurationByChainIdAction,
 } from '@metamask/network-controller';
-import { is } from '@metamask/superstruct';
-import type { Hex } from '@metamask/utils';
+import type {
+  RemoteFeatureFlagControllerGetStateAction,
+  RemoteFeatureFlagControllerStateChangeEvent,
+} from '@metamask/remote-feature-flag-controller';
+import { assert, is } from '@metamask/superstruct';
+import type { Hex, Json } from '@metamask/utils';
 import { Duration, inMilliseconds } from '@metamask/utils';
 
 import {
   ACCOUNTANT_ABI,
   DEFAULT_VEDA_API_NETWORK_NAME,
+  VAULT_CONFIG_FEATURE_FLAG_KEY,
   VEDA_API_NETWORK_NAMES,
   VEDA_PERFORMANCE_API_BASE_URL,
 } from './constants';
-import { VedaResponseValidationError } from './errors';
+import {
+  VaultConfigNotAvailableError,
+  VaultConfigValidationError,
+  VedaResponseValidationError,
+} from './errors';
 import type { MoneyAccountBalanceServiceMethodActions } from './money-account-balance-service-method-action-types';
 import { normalizeVaultApyResponse } from './requestNormalization';
 import type {
@@ -32,7 +41,8 @@ import type {
   MusdEquivalentValueResponse,
   NormalizedVaultApyResponse,
 } from './response.types';
-import { VaultApyRawResponseStruct } from './structs';
+import type { VaultConfig } from './types';
+import { VaultApyRawResponseStruct, VaultConfigStruct } from './structs';
 
 // === GENERAL ===
 
@@ -70,7 +80,8 @@ export type MoneyAccountBalanceServiceActions =
  */
 type AllowedActions =
   | NetworkControllerGetNetworkConfigurationByChainIdAction
-  | NetworkControllerGetNetworkClientByIdAction;
+  | NetworkControllerGetNetworkClientByIdAction
+  | RemoteFeatureFlagControllerGetStateAction;
 
 /**
  * Published when {@link MoneyAccountBalanceService}'s cache is updated.
@@ -96,7 +107,7 @@ export type MoneyAccountBalanceServiceEvents =
  * Events from other messengers that {@link MoneyAccountBalanceService}
  * subscribes to.
  */
-type AllowedEvents = never;
+type AllowedEvents = RemoteFeatureFlagControllerStateChangeEvent;
 
 /**
  * The messenger which is restricted to actions and events accessed by
@@ -119,16 +130,16 @@ export type MoneyAccountBalanceServiceMessenger = Messenger<
  * {@link BaseDataService}) and protected by a service policy that provides
  * automatic retries and circuit-breaking.
  *
+ * Vault configuration (addresses, chain ID, decimals) is read from the
+ * remote feature flag via {@link RemoteFeatureFlagControllerGetStateAction}.
+ * Methods throw {@link VaultConfigNotAvailableError} until flags have been fetched and a
+ * valid config is present.
+ *
  * @example
  *
  * ```ts
  * const service = new MoneyAccountBalanceService({
  *   messenger: moneyAccountBalanceServiceMessenger,
- *   vaultAddress: '0x...',
- *   vaultChainId: '0xa4b1',
- *   accountantAddress: '0x...',
- *   underlyingTokenAddress: '0x...',
- *   underlyingTokenDecimals: 6,
  * });
  *
  * const { balance } = await service.getMusdBalance('0xYourMoneyAccount...');
@@ -137,11 +148,6 @@ export type MoneyAccountBalanceServiceMessenger = Messenger<
 
 type MoneyAccountBalanceServiceOptions = {
   messenger: MoneyAccountBalanceServiceMessenger;
-  vaultAddress: Hex;
-  vaultChainId: Hex;
-  accountantAddress: Hex;
-  underlyingTokenAddress: Hex;
-  underlyingTokenDecimals: number;
   policyOptions?: CreateServicePolicyOptions;
 };
 
@@ -149,37 +155,17 @@ export class MoneyAccountBalanceService extends BaseDataService<
   typeof serviceName,
   MoneyAccountBalanceServiceMessenger
 > {
-  readonly #networkName: string;
-
-  readonly #vaultAddress: Hex;
-
-  readonly #vaultChainId: Hex;
-
-  readonly #accountantAddress: Hex;
-
-  readonly #underlyingTokenAddress: Hex;
-
-  readonly #underlyingTokenDecimals: number;
+  #vaultConfig: VaultConfig | undefined;
 
   /**
    * Constructs a new MoneyAccountBalanceService.
    *
    * @param args - The constructor arguments.
    * @param args.messenger - The messenger suited for this service.
-   * @param args.vaultAddress - The address of the Veda vault (e.g. musdSHFvd token contract).
-   * @param args.vaultChainId - The chain ID of the Veda vault.
-   * @param args.accountantAddress - The address of the Veda Accountant contract.
-   * @param args.underlyingTokenAddress - The address of the underlying token (e.g. mUSD). Must be on the same chain as the vault.
-   * @param args.underlyingTokenDecimals - The decimals of the underlying token.
-   * @param args.policyOptions - Options to pass to `createServicePolicy`,
+   * @param args.policyOptions - Options to pass to `createServicePolicy`.
    */
   constructor({
     messenger,
-    vaultAddress,
-    vaultChainId,
-    accountantAddress,
-    underlyingTokenAddress,
-    underlyingTokenDecimals,
     policyOptions = {},
   }: MoneyAccountBalanceServiceOptions) {
     super({
@@ -193,15 +179,32 @@ export class MoneyAccountBalanceService extends BaseDataService<
       },
     });
 
-    this.#vaultAddress = vaultAddress;
-    this.#vaultChainId = vaultChainId;
-    this.#accountantAddress = accountantAddress;
-    this.#underlyingTokenAddress = underlyingTokenAddress;
-    this.#underlyingTokenDecimals = underlyingTokenDecimals;
+    this.messenger.subscribe(
+      // TODO: Add to eslint exceptions
+      'RemoteFeatureFlagController:stateChange',
+      (state) => {
+        const flagValue =
+          state.remoteFeatureFlags[VAULT_CONFIG_FEATURE_FLAG_KEY];
+        this.#onRemoteFeatureFlagChange(flagValue);
+      },
+    );
 
-    this.#networkName =
-      VEDA_API_NETWORK_NAMES[this.#vaultChainId] ??
-      DEFAULT_VEDA_API_NETWORK_NAME;
+    // Eagerly read already-loaded flags. Wrapped in try/catch because
+    // RemoteFeatureFlagController may not be registered yet at construction
+    // time. Validation errors are also swallowed here — the service degrades
+    // gracefully and fails loud on the first method call.
+    try {
+      // TODO: Fix by moving to init() method according to the controller guidelines.
+      const { remoteFeatureFlags } = this.messenger.call(
+        'RemoteFeatureFlagController:getState',
+      );
+      const flagValue = remoteFeatureFlags[VAULT_CONFIG_FEATURE_FLAG_KEY];
+      if (flagValue !== undefined) {
+        this.#vaultConfig = this.#parseAndValidateVaultConfig(flagValue);
+      }
+    } catch {
+      // RFFC not registered or flag is malformed — stay undefined.
+    }
 
     this.messenger.registerMethodActionHandlers(
       this,
@@ -210,22 +213,100 @@ export class MoneyAccountBalanceService extends BaseDataService<
   }
 
   /**
-   * Resolves a Web3Provider for {@link MoneyAccountBalanceServiceOptions.vaultChainId} by looking up the
-   * network configuration and client via the messenger.
+   * Returns the current vault config, or throws {@link VaultConfigNotAvailableError}
+   * if it has not been loaded yet.
+   */
+  #requireConfig(): VaultConfig {
+    if (!this.#vaultConfig) {
+      throw new VaultConfigNotAvailableError();
+    }
+    return this.#vaultConfig;
+  }
+
+  /**
+   * Called on every `RemoteFeatureFlagController:stateChange` event.
+   * Validates the flag value, updates `#vaultConfig`, and invalidates all
+   * cached queries when the config changes.
    *
-   * @returns A Web3Provider connected to the vault chain.
-   * @throws If no network configuration exists for the vault chain, or if the
+   * Throws {@link VaultConfigValidationError} when the flag value is malformed.
+   * The messenger catches throws from event subscribers and routes them to
+   * `captureException` (Sentry) — the error does NOT propagate to the
+   * stateChange publisher.
+   *
+   * @param flagValue - The raw flag value from `remoteFeatureFlags`.
+   */
+  #onRemoteFeatureFlagChange(flagValue: Json | undefined): void {
+    const hadConfig = this.#vaultConfig !== undefined;
+
+    if (flagValue === undefined) {
+      // Flag key absent — treat as "not loaded".
+      if (hadConfig) {
+        this.#vaultConfig = undefined;
+        this.invalidateQueries();
+      }
+      return;
+    }
+
+    let newConfig: VaultConfig;
+    try {
+      newConfig = this.#parseAndValidateVaultConfig(flagValue);
+    } catch (error) {
+      // Clear previously valid config and purge stale cache.
+      if (hadConfig) {
+        this.#vaultConfig = undefined;
+        this.invalidateQueries();
+      }
+      throw error;
+    }
+
+    if (JSON.stringify(newConfig) === JSON.stringify(this.#vaultConfig)) {
+      return;
+    }
+
+    this.#vaultConfig = newConfig;
+    if (hadConfig) {
+      this.invalidateQueries();
+    }
+  }
+
+  /**
+   * Validates `flagValue` against {@link VaultConfigStruct} and returns it
+   * cast as {@link VaultConfig}.
+   *
+   * @param flagValue - The raw JSON value from the feature flag.
+   * @returns The validated vault config.
+   * @throws {@link VaultConfigValidationError} if the value does not match the
+   * expected shape.
+   */
+  #parseAndValidateVaultConfig(flagValue: Json): VaultConfig {
+    try {
+      assert(flagValue, VaultConfigStruct);
+    } catch (error) {
+      throw new VaultConfigValidationError(
+        error instanceof Error ? error.message : undefined,
+      );
+    }
+    return flagValue as unknown as VaultConfig;
+  }
+
+  /**
+   * Resolves a Web3Provider for the given chain ID by looking up the network
+   * configuration and client via the messenger.
+   *
+   * @param vaultChainId - The chain ID to resolve a provider for.
+   * @returns A Web3Provider connected to the given chain.
+   * @throws If no network configuration exists for the chain, or if the
    * resolved network client has no provider.
    */
-  #getProvider(): Web3Provider {
+  #getProvider(vaultChainId: Hex): Web3Provider {
     const config = this.messenger.call(
       'NetworkController:getNetworkConfigurationByChainId',
-      this.#vaultChainId,
+      vaultChainId,
     );
 
     if (!config) {
       throw new Error(
-        `No network configuration found for chain ${this.#vaultChainId}`,
+        `No network configuration found for chain ${vaultChainId}`,
       );
     }
 
@@ -238,7 +319,7 @@ export class MoneyAccountBalanceService extends BaseDataService<
     );
 
     if (!networkClient?.provider) {
-      throw new Error(`No provider found for chain ${this.#vaultChainId}`);
+      throw new Error(`No provider found for chain ${vaultChainId}`);
     }
 
     return new Web3Provider(networkClient.provider);
@@ -249,13 +330,15 @@ export class MoneyAccountBalanceService extends BaseDataService<
    *
    * @param contractAddress - The address of the ERC-20 contract.
    * @param accountAddress - The address of the account.
+   * @param vaultChainId - The chain ID to use for the provider.
    * @returns The balance as a raw uint256 string.
    */
   async #fetchErc20Balance(
     contractAddress: Hex,
     accountAddress: Hex,
+    vaultChainId: Hex,
   ): Promise<string> {
-    const provider = this.#getProvider();
+    const provider = this.#getProvider(vaultChainId);
     const contract = new Contract(contractAddress, abiERC20, provider);
     const balance = await contract.balanceOf(accountAddress);
     return balance.toString();
@@ -266,14 +349,17 @@ export class MoneyAccountBalanceService extends BaseDataService<
    *
    * @param accountAddress - The Money account's Ethereum address.
    * @returns The mUSD balance as a raw uint256 string.
+   * @throws {@link VaultConfigNotAvailableError} if vault config has not been loaded.
    */
   async getMusdBalance(accountAddress: Hex): Promise<{ balance: string }> {
     return this.fetchQuery({
       queryKey: [`${this.name}:getMusdBalance`, accountAddress],
       queryFn: async () => {
+        const { underlyingTokenAddress, vaultChainId } = this.#requireConfig();
         const balance = await this.#fetchErc20Balance(
-          this.#underlyingTokenAddress,
+          underlyingTokenAddress,
           accountAddress,
+          vaultChainId,
         );
         return { balance };
       },
@@ -287,14 +373,17 @@ export class MoneyAccountBalanceService extends BaseDataService<
    *
    * @param accountAddress - The Money account's Ethereum address.
    * @returns The musdSHFvd balance as a raw uint256 string.
+   * @throws {@link VaultConfigNotAvailableError} if vault config has not been loaded.
    */
   async getMusdSHFvdBalance(accountAddress: Hex): Promise<{ balance: string }> {
     return this.fetchQuery({
       queryKey: [`${this.name}:getMusdSHFvdBalance`, accountAddress],
       queryFn: async () => {
+        const { vaultAddress, vaultChainId } = this.#requireConfig();
         const balance = await this.#fetchErc20Balance(
-          this.#vaultAddress,
+          vaultAddress,
           accountAddress,
+          vaultChainId,
         );
         return { balance };
       },
@@ -310,6 +399,7 @@ export class MoneyAccountBalanceService extends BaseDataService<
    * @param options - The options for the query.
    * @param options.staleTime - The stale time for the query. Defaults to 30 seconds.
    * @returns The exchange rate as a raw uint256 string.
+   * @throws {@link VaultConfigNotAvailableError} if vault config has not been loaded.
    */
   async getExchangeRate({
     staleTime = inMilliseconds(30, Duration.Second),
@@ -317,9 +407,10 @@ export class MoneyAccountBalanceService extends BaseDataService<
     return this.fetchQuery({
       queryKey: [`${this.name}:getExchangeRate`],
       queryFn: async () => {
-        const provider = this.#getProvider();
+        const { accountantAddress, vaultChainId } = this.#requireConfig();
+        const provider = this.#getProvider(vaultChainId);
         const contract = new Contract(
-          this.#accountantAddress,
+          accountantAddress,
           ACCOUNTANT_ABI,
           provider,
         );
@@ -339,6 +430,7 @@ export class MoneyAccountBalanceService extends BaseDataService<
    * @param accountAddress - The Money account's Ethereum address.
    * @returns The musdSHFvd balance, exchange rate, and computed
    * mUSD-equivalent value as raw uint256 strings.
+   * @throws {@link VaultConfigNotAvailableError} if vault config has not been loaded.
    */
   async getMusdEquivalentValue(
     accountAddress: Hex,
@@ -349,12 +441,14 @@ export class MoneyAccountBalanceService extends BaseDataService<
         this.getExchangeRate(),
       ]);
 
+    const { underlyingTokenDecimals } = this.#requireConfig();
+
     const balanceBigInt = BigInt(musdSHFvdBalance);
     const rateBigInt = BigInt(exchangeRate);
 
     const musdEquivalentValue = (
       (balanceBigInt * rateBigInt) /
-      10n ** BigInt(this.#underlyingTokenDecimals)
+      10n ** BigInt(underlyingTokenDecimals)
     ).toString();
 
     return {
@@ -368,13 +462,23 @@ export class MoneyAccountBalanceService extends BaseDataService<
    * Fetches the vault's APY and fee breakdown from the Veda performance REST API.
    *
    * @returns The normalized vault APY response.
+   * @throws {@link VaultConfigNotAvailableError} if vault config has not been loaded.
    */
   async getVaultApy(): Promise<NormalizedVaultApyResponse> {
     return this.fetchQuery({
       queryKey: [`${this.name}:getVaultApy`],
       queryFn: async () => {
+        const { vaultChainId, vaultAddress } = this.#requireConfig();
+        const networkName = VEDA_API_NETWORK_NAMES[vaultChainId];
+
+        if (!networkName) {
+          throw new Error(
+            `No Veda API network name found for chain ${vaultChainId}`,
+          );
+        }
+
         const url = new URL(
-          `/performance/${this.#networkName}/${this.#vaultAddress}`,
+          `/performance/${networkName}/${vaultAddress}`,
           VEDA_PERFORMANCE_API_BASE_URL,
         );
 

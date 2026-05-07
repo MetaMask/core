@@ -2,6 +2,14 @@ import { Hex } from '@metamask/utils';
 
 export const VEDA_PERFORMANCE_API_BASE_URL = 'https://api.sevenseas.capital';
 
+/**
+ * The key under which vault config is stored in
+ * `RemoteFeatureFlagController` state's `remoteFeatureFlags` map.
+ */
+// TOOD: Update this to the actual flag key when it is available.
+export const VAULT_CONFIG_FEATURE_FLAG_KEY = 'moneyVaultConfig';
+
+// TODO: Add Monad network name
 export const VEDA_API_NETWORK_NAMES: Record<Hex, string> = {
   '0xa4b1': 'arbitrum',
 };
