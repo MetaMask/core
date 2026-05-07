@@ -135,17 +135,9 @@ export function subscribeAssetChanges(
           continue;
         }
 
-        const tokens = parseRequiredTokens(transaction, messenger);
-
-        if (tokens.length === 0) {
-          continue;
-        }
-
         log('Asset data changed', { transactionId, source, patches });
 
-        updateTransactionData(transaction.id, (data) => {
-          data.tokens = tokens;
-        });
+        onTransactionChange(transaction, messenger, updateTransactionData);
       }
     };
 
