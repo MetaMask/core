@@ -1,6 +1,6 @@
 {
   "name": "@metamask/authenticated-user-storage",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "SDK for authenticated (non-encrypted) user storage endpoints",
   "keywords": [
     "Ethereum",
@@ -53,8 +53,8 @@
     "test:watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch"
   },
   "dependencies": {
-    "@metamask/base-data-service": "^0.1.1",
-    "@metamask/controller-utils": "^11.20.0",
+    "@metamask/base-data-service": "^0.1.2",
+    "@metamask/controller-utils": "^12.0.0",
     "@metamask/messenger": "^1.2.0",
     "@metamask/superstruct": "^3.1.0",
     "@metamask/utils": "^11.9.0"

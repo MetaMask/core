@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [10.0.0]
+
 ### Changed
 
 - **BREAKING:** The service messenger now requires the `SnapAccountService:ensureReady` action to be declared ([#8715](https://github.com/MetaMask/core/pull/8715))
@@ -481,7 +483,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add `MultichainAccountService` ([#6141](https://github.com/MetaMask/core/pull/6141), [#6165](https://github.com/MetaMask/core/pull/6165))
   - This service manages multichain accounts/wallets.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/multichain-account-service@9.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/multichain-account-service@10.0.0...HEAD
+[10.0.0]: https://github.com/MetaMask/core/compare/@metamask/multichain-account-service@9.0.0...@metamask/multichain-account-service@10.0.0
 [9.0.0]: https://github.com/MetaMask/core/compare/@metamask/multichain-account-service@8.0.1...@metamask/multichain-account-service@9.0.0
 [8.0.1]: https://github.com/MetaMask/core/compare/@metamask/multichain-account-service@8.0.0...@metamask/multichain-account-service@8.0.1
 [8.0.0]: https://github.com/MetaMask/core/compare/@metamask/multichain-account-service@7.1.0...@metamask/multichain-account-service@8.0.0

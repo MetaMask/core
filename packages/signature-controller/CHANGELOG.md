@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [39.3.0]
+
+### Uncategorized
+
+- Fix incorrect PR link in signature-controller changelog ([#8501](https://github.com/MetaMask/core/pull/8501))
+- chore: Enable Oxfmt for generating method action types files ([#8498](https://github.com/MetaMask/core/pull/8498))
+
 ### Changed
 
 - Bump `@metamask/accounts-controller` from `^37.2.0` to `^38.0.0` ([#8665](https://github.com/MetaMask/core/pull/8665))
@@ -751,7 +758,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#1214](https://github.com/MetaMask/core/pull/1214))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@39.2.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@39.3.0...HEAD
+[39.3.0]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@39.2.0...@metamask/signature-controller@39.3.0
 [39.2.0]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@39.1.2...@metamask/signature-controller@39.2.0
 [39.1.2]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@39.1.1...@metamask/signature-controller@39.1.2
 [39.1.1]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@39.1.0...@metamask/signature-controller@39.1.1
