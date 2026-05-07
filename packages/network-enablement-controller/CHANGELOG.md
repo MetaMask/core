@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Add Monad mainnet (`0x8f`, chain ID 143) to the default enabled network map for new users ([#8743](https://github.com/MetaMask/core/pull/8743))
+
 ## [5.1.1]
 
 ### Changed
