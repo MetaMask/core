@@ -34,7 +34,10 @@ import { getAcrossDestination } from './across-actions';
 import { hasUnsupportedTransactionAuthorizationList } from './authorization-list';
 import { normalizeAcrossRequest } from './perps';
 import { isAcrossQuoteRequest } from './requests';
-import { getAcrossOrderedTransactions } from './transactions';
+import {
+  getAcrossOrderedTransactions,
+  getOriginalTransactionGas,
+} from './transactions';
 import type {
   AcrossAction,
   AcrossActionRequestBody,
@@ -858,12 +861,33 @@ async function estimateAcrossQuoteGasLimits({
   transactions: QuoteGasTransaction[];
 }): Promise<Awaited<ReturnType<typeof estimateQuoteGasLimits>>> {
   try {
-    return await estimateQuoteGasLimits({
+    const gasEstimates = await estimateQuoteGasLimits({
       fallbackGas,
       fallbackOnSimulationFailure,
       messenger,
       transactions,
     });
+
+    if (
+      fallbackOnSimulationFailure &&
+      fallbackGas !== undefined &&
+      gasEstimates.is7702 &&
+      gasEstimates.batchGasLimit !== undefined &&
+      gasEstimates.batchGasLimit.max > fallbackGas.max
+    ) {
+      // Prefunded Predict withdraws can produce inflated 7702 batch estimates
+      // because the source account does not yet hold the funds. Keep the gas
+      // reservation bounded by the configured Across fallback for this path.
+      return {
+        ...gasEstimates,
+        batchGasLimit: fallbackGas,
+        gasLimits: [fallbackGas],
+        totalGasEstimate: fallbackGas.estimate,
+        totalGasLimit: fallbackGas.max,
+      };
+    }
+
+    return gasEstimates;
   } catch (error) {
     if (!fallbackOnSimulationFailure || transactions.length <= 1) {
       throw error;
@@ -997,23 +1021,4 @@ function calculateOriginalSourceNetworkCost({
       messenger,
     }),
   };
-}
-
-function getOriginalTransactionGas(
-  transaction: TransactionMeta,
-): number | undefined {
-  const nestedGas = transaction.nestedTransactions?.find((tx) => tx.gas)?.gas;
-  const rawGas = nestedGas ?? transaction.txParams.gas;
-
-  if (rawGas === undefined) {
-    return undefined;
-  }
-
-  const gas = new BigNumber(rawGas);
-
-  if (!gas.isFinite() || gas.isNaN() || !gas.isInteger() || gas.lte(0)) {
-    return undefined;
-  }
-
-  return gas.toNumber();
 }

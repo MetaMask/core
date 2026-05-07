@@ -11,7 +11,6 @@ import type {
 } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 import { createModuleLogger } from '@metamask/utils';
-import { BigNumber } from 'bignumber.js';
 
 import { projectLogger } from '../../logger';
 import type {
@@ -29,7 +28,10 @@ import {
   isPredictWithdrawTransaction,
   waitForTransactionConfirmed,
 } from '../../utils/transaction';
-import { getAcrossOrderedTransactions } from './transactions';
+import {
+  getAcrossOrderedTransactions,
+  getOriginalTransactionGas,
+} from './transactions';
 import type { AcrossQuote } from './types';
 
 const log = createModuleLogger(projectLogger, 'across-strategy');
@@ -555,18 +557,7 @@ function getOriginalTransactionType(
  * @returns Whether the original or nested transaction gas is a positive integer.
  */
 function hasOriginalTransactionGas(transaction: TransactionMeta): boolean {
-  const nestedGas = transaction.nestedTransactions?.find((tx) => tx.gas)?.gas;
-  const rawGas = nestedGas ?? transaction.txParams.gas;
-
-  if (rawGas === undefined) {
-    return false;
-  }
-
-  const gas = new BigNumber(rawGas);
-
-  return (
-    gas.isFinite() && !gas.isNaN() && gas.isInteger() && gas.isGreaterThan(0)
-  );
+  return getOriginalTransactionGas(transaction) !== undefined;
 }
 
 /**

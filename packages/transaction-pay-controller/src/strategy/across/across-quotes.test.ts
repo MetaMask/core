@@ -452,6 +452,103 @@ describe('Across Quotes', () => {
       expect(result[0].original.metamask.is7702).toBe(true);
     });
 
+    it('caps excessive prefunded post-quote batch gas at Across fallback gas', async () => {
+      const refundTo = '0x5afe000000000000000000000000000000000001' as Hex;
+
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_pay: {
+            payStrategies: {
+              across: {
+                enabled: true,
+                apiBase: 'https://test.across.to/api',
+                fallbackGas: {
+                  estimate: 900001,
+                  max: 1500001,
+                },
+              },
+            },
+          },
+        },
+      });
+
+      estimateGasBatchMock.mockResolvedValue({
+        gasLimits: [42000000],
+      });
+      getTokenBalanceMock.mockReturnValue('0');
+      isEIP7702ChainMock.mockReturnValue(true);
+      getGasFeeTokensMock.mockResolvedValue([GAS_FEE_TOKEN_MOCK]);
+
+      successfulFetchMock
+        .mockResolvedValueOnce({
+          json: async () => ({
+            ...QUOTE_MOCK,
+            approvalTxns: [
+              {
+                chainId: 1,
+                data: '0xaaaa' as Hex,
+                to: '0xapprove1' as Hex,
+              },
+            ],
+            inputAmount: '1000000000000000000',
+          }),
+        } as Response)
+        .mockResolvedValueOnce({
+          json: async () => ({
+            ...QUOTE_MOCK,
+            approvalTxns: [
+              {
+                chainId: 1,
+                data: '0xaaaa' as Hex,
+                to: '0xapprove1' as Hex,
+              },
+            ],
+            inputAmount: '999999999999999900',
+          }),
+        } as Response);
+
+      const result = await getAcrossQuotes({
+        accountSupports7702: true,
+        messenger,
+        requests: [
+          {
+            ...QUOTE_REQUEST_MOCK,
+            isPostQuote: true,
+            refundTo,
+            sourceBalanceRaw: '0',
+            targetAmountMinimum: '0',
+          },
+        ],
+        transaction: {
+          ...PREDICT_WITHDRAW_TRANSACTION_MOCK,
+          txParams: {
+            ...PREDICT_WITHDRAW_TRANSACTION_MOCK.txParams,
+            gas: '0x5208',
+            to: '0x000000000000000000000000000000000000dEaD' as Hex,
+          },
+        } as TransactionMeta,
+      });
+
+      expect(result[0].original.metamask.gasLimits).toStrictEqual([
+        {
+          estimate: 921001,
+          max: 1521001,
+        },
+      ]);
+      expect(calculateGasCostMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          gas: 900001,
+        }),
+      );
+      expect(calculateGasCostMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          gas: 1500001,
+          isMax: true,
+        }),
+      );
+    });
+
     it('preserves Across per-leg gas pricing when adding original post-quote gas fees', async () => {
       estimateGasBatchMock.mockResolvedValue({
         gasLimits: [21000, 21000],
