@@ -1,4 +1,7 @@
-import { KeyringTypes } from '@metamask/keyring-controller';
+import {
+  KeyringControllerState,
+  KeyringTypes,
+} from '@metamask/keyring-controller';
 import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
 import type {
   MockAnyNamespace,
@@ -6,6 +9,8 @@ import type {
   MessengerEvents,
 } from '@metamask/messenger';
 import type { SnapControllerState } from '@metamask/snaps-controllers';
+import type { SnapId } from '@metamask/snaps-sdk';
+import type { TruncatedSnap } from '@metamask/snaps-utils';
 
 import type {
   SnapAccountServiceMessenger,
@@ -13,23 +18,26 @@ import type {
 } from './SnapAccountService';
 import { SnapAccountService } from './SnapAccountService';
 
-/**
- * The type of the messenger populated with all external actions and events
- * required by the service under test.
- */
 type RootMessenger = Messenger<
   MockAnyNamespace,
   MessengerActions<SnapAccountServiceMessenger>,
   MessengerEvents<SnapAccountServiceMessenger>
 >;
 
-/**
- * Mock objects for all external dependencies of {@link SnapAccountService}.
- */
+/** Mock keyring controller state type for tests. */
+type MockKeyringControllerState = Pick<KeyringControllerState, 'keyrings'>;
+
+/** Mock truncated snap type for tests. */
+type MockTruncatedSnap = Pick<
+  TruncatedSnap,
+  'id' | 'initialPermissions' | 'enabled' | 'blocked'
+>;
+
 type Mocks = {
   // eslint-disable-next-line @typescript-eslint/naming-convention
   SnapController: {
     getState: jest.MockedFunction<() => SnapControllerState>;
+    getRunnableSnaps: jest.MockedFunction<() => TruncatedSnap[]>;
   };
   // eslint-disable-next-line @typescript-eslint/naming-convention
   KeyringController: {
@@ -62,8 +70,22 @@ function getMessenger(
   });
   rootMessenger.delegate({
     messenger,
-    actions: ['SnapController:getState', 'KeyringController:getState'],
-    events: ['SnapController:stateChange', 'KeyringController:stateChange'],
+    actions: [
+      'SnapController:getState',
+      'SnapController:getSnap',
+      'SnapController:getRunnableSnaps',
+      'KeyringController:getState',
+    ],
+    events: [
+      'SnapController:stateChange',
+      'SnapController:snapInstalled',
+      'SnapController:snapEnabled',
+      'SnapController:snapDisabled',
+      'SnapController:snapBlocked',
+      'SnapController:snapUnblocked',
+      'SnapController:snapUninstalled',
+      'KeyringController:stateChange',
+    ],
   });
   return messenger;
 }
@@ -97,10 +119,25 @@ function publishKeyrings(
 ): void {
   rootMessenger.publish(
     'KeyringController:stateChange',
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    { keyrings } as any,
+    { keyrings } as MockKeyringControllerState as KeyringControllerState,
     [],
   );
+}
+
+/**
+ * Builds a minimal `TruncatedSnap` for tests.
+ *
+ * @param id - The Snap ID.
+ * @param hasKeyring - Whether the Snap declares the `endowment:keyring` initial permission.
+ * @returns A minimal `TruncatedSnap`.
+ */
+function buildSnap(id: string, hasKeyring: boolean): TruncatedSnap {
+  return {
+    id: id as SnapId,
+    initialPermissions: hasKeyring ? { 'endowment:keyring': {} } : {},
+    enabled: true,
+    blocked: false,
+  } as MockTruncatedSnap as TruncatedSnap;
 }
 
 /**
@@ -109,16 +146,19 @@ function publishKeyrings(
  * @param args - The arguments to this function.
  * @param args.snapIsReady - Initial value of `SnapController.isReady`.
  * @param args.keyrings - Initial keyrings returned by `KeyringController:getState`.
+ * @param args.runnableSnaps - Snaps returned by `SnapController:getRunnableSnaps`.
  * @param args.config - Optional service config.
  * @returns The new service, root messenger, service messenger, and mocks.
  */
 function setup({
   snapIsReady = true,
   keyrings = [{ type: KeyringTypes.snap }],
+  runnableSnaps = [],
   config,
 }: {
   snapIsReady?: boolean;
   keyrings?: { type: string }[];
+  runnableSnaps?: TruncatedSnap[];
   config?: SnapAccountServiceOptions['config'];
 } = {}): {
   service: SnapAccountService;
@@ -134,6 +174,7 @@ function setup({
       getState: jest
         .fn()
         .mockReturnValue({ isReady: snapIsReady } as SnapControllerState),
+      getRunnableSnaps: jest.fn().mockReturnValue(runnableSnaps),
     },
     KeyringController: {
       getState: jest.fn().mockReturnValue({ keyrings }),
@@ -145,6 +186,10 @@ function setup({
     mocks.SnapController.getState,
   );
   rootMessenger.registerActionHandler(
+    'SnapController:getRunnableSnaps',
+    mocks.SnapController.getRunnableSnaps,
+  );
+  rootMessenger.registerActionHandler(
     'KeyringController:getState',
     mocks.KeyringController.getState,
   );
@@ -154,7 +199,7 @@ function setup({
   return { service, rootMessenger, messenger, mocks };
 }
 
-const MOCK_SNAP_ID = 'npm:@metamask/mock-snap' as const;
+const MOCK_SNAP_ID = 'npm:@metamask/mock-snap' as SnapId;
 
 describe('SnapAccountService', () => {
   describe('init', () => {
@@ -165,15 +210,56 @@ describe('SnapAccountService', () => {
     });
   });
 
+  describe('getSnaps', () => {
+    it('exposes tracked Snaps seeded by init', async () => {
+      const { service } = setup({
+        runnableSnaps: [buildSnap(MOCK_SNAP_ID, true)],
+      });
+
+      await service.init();
+
+      expect(service.getSnaps()).toStrictEqual([MOCK_SNAP_ID]);
+    });
+  });
+
   describe('ensureReady', () => {
-    it('resolves when platform is already ready', async () => {
+    it('throws when the Snap is not tracked', async () => {
       const { service } = setup();
+
+      await service.init();
+
+      await expect(service.ensureReady(MOCK_SNAP_ID)).rejects.toThrow(
+        `Unknown snap: "${MOCK_SNAP_ID}"`,
+      );
+    });
+
+    it('throws before init even for runnable Snaps', async () => {
+      const { service } = setup({
+        runnableSnaps: [buildSnap(MOCK_SNAP_ID, true)],
+      });
+
+      await expect(service.ensureReady(MOCK_SNAP_ID)).rejects.toThrow(
+        `Unknown snap: "${MOCK_SNAP_ID}"`,
+      );
+    });
+
+    it('resolves when platform is already ready', async () => {
+      const { service } = setup({
+        runnableSnaps: [buildSnap(MOCK_SNAP_ID, true)],
+      });
+
+      await service.init();
 
       expect(await service.ensureReady(MOCK_SNAP_ID)).toBeUndefined();
     });
 
     it('waits for the Snap platform to become ready', async () => {
-      const { service, rootMessenger } = setup({ snapIsReady: false });
+      const { service, rootMessenger } = setup({
+        snapIsReady: false,
+        runnableSnaps: [buildSnap(MOCK_SNAP_ID, true)],
+      });
+
+      await service.init();
 
       let resolved = false;
       const ensurePromise = service.ensureReady(MOCK_SNAP_ID).then(() => {
@@ -190,7 +276,12 @@ describe('SnapAccountService', () => {
     });
 
     it('waits for the Snap keyring to appear via KeyringController:stateChange', async () => {
-      const { service, rootMessenger } = setup({ keyrings: [] });
+      const { service, rootMessenger } = setup({
+        keyrings: [],
+        runnableSnaps: [buildSnap(MOCK_SNAP_ID, true)],
+      });
+
+      await service.init();
 
       let resolved = false;
       const ensurePromise = service.ensureReady(MOCK_SNAP_ID).then(() => {
@@ -213,10 +304,13 @@ describe('SnapAccountService', () => {
     it('rejects if the Snap keyring does not appear within snapKeyringWaitTimeoutMs', async () => {
       const { service } = setup({
         keyrings: [],
+        runnableSnaps: [buildSnap(MOCK_SNAP_ID, true)],
         config: {
           snapPlatformWatcher: { snapKeyringWaitTimeoutMs: 1_000 },
         },
       });
+
+      await service.init();
 
       jest.useFakeTimers();
       const ensurePromise = service.ensureReady(MOCK_SNAP_ID);
@@ -242,8 +336,11 @@ describe('SnapAccountService', () => {
       );
 
       const { service } = setup({
+        runnableSnaps: [buildSnap(MOCK_SNAP_ID, true)],
         config: { snapPlatformWatcher: { ensureOnboardingComplete } },
       });
+
+      await service.init();
 
       let resolved = false;
       const ensurePromise = service.ensureReady(MOCK_SNAP_ID).then(() => {
