@@ -33,6 +33,7 @@ import {
   VaultConfigValidationError,
   VedaResponseValidationError,
 } from './errors';
+import { projectLogger, createModuleLogger } from './logger';
 import type { MoneyAccountBalanceServiceMethodActions } from './money-account-balance-service-method-action-types';
 import { normalizeVaultApyResponse } from './requestNormalization';
 import type {
@@ -50,6 +51,8 @@ import { VaultApyRawResponseStruct, VaultConfigStruct } from './structs';
  * service's actions and events.
  */
 export const serviceName = 'MoneyAccountBalanceService';
+
+const configLogger = createModuleLogger(projectLogger, 'config');
 
 // === MESSENGER ===
 
@@ -209,11 +212,26 @@ export class MoneyAccountBalanceService extends BaseDataService<
         'RemoteFeatureFlagController:getState',
       );
       const flagValue = remoteFeatureFlags[VAULT_CONFIG_FEATURE_FLAG_KEY];
-      if (flagValue !== undefined) {
-        this.#vaultConfig = this.#parseAndValidateVaultConfig(flagValue);
+      if (flagValue === undefined) {
+        configLogger(
+          'Init complete — no vault config flag present, awaiting remote flags',
+        );
+        return;
       }
-    } catch {
-      // RemoteFeatureFlagController not registered or flag is malformed — stay undefined.
+      this.#vaultConfig = this.#parseAndValidateVaultConfig(flagValue);
+      configLogger('Vault config loaded during init', this.#vaultConfig);
+    } catch (error) {
+      if (error instanceof VaultConfigValidationError) {
+        configLogger(
+          'Init failed — vault config validation error, service will start without config',
+          { error },
+        );
+      } else {
+        configLogger(
+          'Init failed — RemoteFeatureFlagController not available, service will start without config',
+          { error },
+        );
+      }
     }
   }
 
@@ -243,14 +261,23 @@ export class MoneyAccountBalanceService extends BaseDataService<
    * @param flagValue - The raw flag value from `remoteFeatureFlags`.
    */
   #onRemoteFeatureFlagChange(flagValue: Json | undefined): void {
-    const hadConfig = this.#vaultConfig !== undefined;
+    const previousConfig = this.#vaultConfig;
+    const hadConfig = previousConfig !== undefined;
 
     if (flagValue === undefined) {
       // Flag key absent — treat as "not loaded".
       if (hadConfig) {
         this.#vaultConfig = undefined;
+        configLogger(
+          'Vault config cleared — flag key absent; cache invalidated',
+          previousConfig,
+        );
         // eslint-disable-next-line @typescript-eslint/no-floating-promises
         this.invalidateQueries();
+      } else {
+        configLogger(
+          'Flag key still absent after remote flag change — config remains unavailable',
+        );
       }
       return;
     }
@@ -262,8 +289,19 @@ export class MoneyAccountBalanceService extends BaseDataService<
       // Clear previously valid config and purge stale cache.
       if (hadConfig) {
         this.#vaultConfig = undefined;
+        configLogger(
+          'Vault config validation failed — previous config cleared; cache invalidated',
+          { previousConfig, error },
+        );
         // eslint-disable-next-line @typescript-eslint/no-floating-promises
         this.invalidateQueries();
+      } else {
+        configLogger(
+          'Vault config validation failed — config was already absent',
+          {
+            error,
+          },
+        );
       }
       throw error;
     }
@@ -274,8 +312,14 @@ export class MoneyAccountBalanceService extends BaseDataService<
 
     this.#vaultConfig = newConfig;
     if (hadConfig) {
+      configLogger('Vault config updated; cache invalidated', {
+        previous: previousConfig,
+        next: newConfig,
+      });
       // eslint-disable-next-line @typescript-eslint/no-floating-promises
       this.invalidateQueries();
+    } else {
+      configLogger('Vault config loaded', newConfig);
     }
   }
 
