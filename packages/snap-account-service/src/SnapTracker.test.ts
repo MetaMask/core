@@ -208,6 +208,16 @@ describe('SnapTracker', () => {
       expect(await tracker.init()).toBeUndefined();
     });
 
+    it('does not re-init if already initialized', async () => {
+      const { tracker, mocks } = setup();
+
+      expect(await tracker.init()).toBeUndefined();
+      expect(mocks.SnapController.getRunnableSnaps).toHaveBeenCalledTimes(1);
+
+      expect(await tracker.init()).toBeUndefined();
+      expect(mocks.SnapController.getRunnableSnaps).toHaveBeenCalledTimes(1); // Still only called once.
+    });
+
     it('seeds tracked Snaps from getRunnableSnaps, filtering out non-keyring Snaps', async () => {
       const { tracker } = setup({
         runnableSnaps: [

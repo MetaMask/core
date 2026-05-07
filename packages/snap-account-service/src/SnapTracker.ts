@@ -56,9 +56,17 @@ export class SnapTracker {
    * events.
    */
   async init(): Promise<void> {
+    if (this.#initialized) {
+      // Do not re-init, once setup we only rely on lifecycle events to update the set of
+      // tracked Snaps.
+      return;
+    }
+
+    this.#snaps.clear();
+
     const runnable = this.#messenger.call('SnapController:getRunnableSnaps');
     for (const snap of runnable) {
-      if (isAccountManagementSnap(snap) && !this.#snaps.has(snap.id)) {
+      if (isAccountManagementSnap(snap)) {
         log(`Found account management Snap: ${snap.id} (initialization)`);
         this.#snaps.add(snap.id);
       }
