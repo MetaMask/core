@@ -32,6 +32,20 @@ export function setPolymarketBridgeOptions(
 }
 
 /**
+ * Get the Polymarket Bridge strategy options.
+ * Used by cross-strategy code (e.g. the Relay strategy's Polymarket relayer
+ * submission path) that needs to authenticate with the Polymarket relayer
+ * using the same credentials as the Polymarket Bridge strategy.
+ *
+ * @returns The Polymarket Bridge strategy options, or undefined if not set.
+ */
+export function getPolymarketBridgeOptions():
+  | PolymarketBridgeStrategyOptions
+  | undefined {
+  return polymarketBridgeOptions;
+}
+
+/**
  * Get strategy instance by name.
  *
  * @param strategyName - Strategy name.

@@ -234,7 +234,8 @@ async function getSingleQuote(
     const useExecute =
       supports7702 &&
       isRelayExecuteEnabled(messenger) &&
-      isEIP7702Chain(messenger, sourceChainId);
+      isEIP7702Chain(messenger, sourceChainId) &&
+      !request.isPolymarketDepositWallet;
 
     const body: RelayQuoteRequest = {
       amount: useExactInput ? sourceTokenAmount : targetAmountMinimum,

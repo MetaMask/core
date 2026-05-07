@@ -112,6 +112,14 @@ export type TransactionConfig = {
    */
   isHyperliquidSource?: boolean;
 
+  /**
+   * Whether the source of funds is a Polymarket deposit wallet.
+   * When true, the Relay strategy submits Polygon deposit transactions
+   * via the Polymarket gasless relayer instead of TransactionController
+   * or Relay's /execute endpoint.
+   */
+  isPolymarketDepositWallet?: boolean;
+
   /** Whether the user has selected the maximum amount. */
   isMaxAmount?: boolean;
 
@@ -240,6 +248,9 @@ export type TransactionData = {
 
   /** Whether the source of funds is HyperLiquid (HyperCore). */
   isHyperliquidSource?: boolean;
+
+  /** Whether the source of funds is a Polymarket deposit wallet. */
+  isPolymarketDepositWallet?: boolean;
 
   /**
    * Optional address to receive refunds if the quote provider transaction fails.
@@ -419,6 +430,9 @@ export type QuoteRequest = {
 
   /** Whether the source of funds is HyperLiquid (HyperCore). */
   isHyperliquidSource?: boolean;
+
+  /** Whether the source of funds is a Polymarket deposit wallet. */
+  isPolymarketDepositWallet?: boolean;
 
   /**
    * Optional address to receive refunds if the quote provider transaction fails.
