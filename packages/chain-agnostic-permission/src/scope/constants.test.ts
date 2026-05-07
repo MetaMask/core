@@ -7,9 +7,9 @@ import {
 describe('KnownRpcMethods', () => {
   it('should match the snapshot', () => {
     expect(KnownRpcMethods).toMatchInlineSnapshot(`
-      {
-        "bip122": [],
-        "eip155": [
+      Object {
+        "bip122": Array [],
+        "eip155": Array [
           "personal_sign",
           "eth_signTypedData_v4",
           "wallet_watchAsset",
@@ -53,8 +53,8 @@ describe('KnownRpcMethods', () => {
           "eth_syncing",
           "eth_uninstallFilter",
         ],
-        "solana": [],
-        "tron": [],
+        "solana": Array [],
+        "tron": Array [],
       }
     `);
   });
@@ -63,8 +63,9 @@ describe('KnownRpcMethods', () => {
 describe('KnownSessionProperties', () => {
   it('should match the snapshot', () => {
     expect(KnownSessionProperties).toMatchInlineSnapshot(`
-      {
+      Object {
         "Bip122AccountChangedNotifications": "bip122_accountChanged_notifications",
+        "Eip1193Compatible": "eip1193-compatible",
         "SolanaAccountChangedNotifications": "solana_accountChanged_notifications",
         "TronAccountChangedNotifications": "tron_accountChanged_notifications",
       }
@@ -74,6 +75,7 @@ describe('KnownSessionProperties', () => {
 
 describe('isKnownSessionPropertyValue', () => {
   it('should return true for known session property values', () => {
+    expect(isKnownSessionPropertyValue('eip1193-compatible')).toBe(true);
     expect(
       isKnownSessionPropertyValue('solana_accountChanged_notifications'),
     ).toBe(true);

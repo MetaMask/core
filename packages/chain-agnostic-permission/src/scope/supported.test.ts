@@ -497,6 +497,11 @@ describe('Scope Support', () => {
     it('returns true for the session property', () => {
       expect(
         isSupportedSessionProperty(
+          KnownSessionProperties.Eip1193Compatible,
+        ),
+      ).toBe(true);
+      expect(
+        isSupportedSessionProperty(
           KnownSessionProperties.SolanaAccountChangedNotifications,
         ),
       ).toBe(true);
