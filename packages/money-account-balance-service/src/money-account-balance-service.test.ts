@@ -7,9 +7,15 @@ import type {
   MessengerActions,
   MessengerEvents,
 } from '@metamask/messenger';
+import type { Json } from '@metamask/utils';
 import nock, { cleanAll as nockCleanAll } from 'nock';
 
-import { VedaResponseValidationError } from './errors';
+import { VAULT_CONFIG_FEATURE_FLAG_KEY } from './constants';
+import {
+  VaultConfigNotAvailableError,
+  VaultConfigValidationError,
+  VedaResponseValidationError,
+} from './errors';
 import type { MoneyAccountBalanceServiceMessenger } from './money-account-balance-service';
 import {
   MoneyAccountBalanceService,
@@ -27,16 +33,16 @@ const MockWeb3Provider = Web3Provider as jest.MockedClass<typeof Web3Provider>;
 // ============================================================
 
 const MOCK_VAULT_ADDRESS =
-  '0xVaultAddress000000000000000000000000000000' as const;
+  '0x1111111111111111111111111111111111111111' as const;
 const MOCK_ACCOUNTANT_ADDRESS =
-  '0xAccountantAddr000000000000000000000000000' as const;
+  '0x2222222222222222222222222222222222222222' as const;
 const MOCK_UNDERLYING_TOKEN_ADDRESS =
-  '0xMusdAddress0000000000000000000000000000000' as const;
+  '0x3333333333333333333333333333333333333333' as const;
 const MOCK_ACCOUNT_ADDRESS =
-  '0xUserAccount0000000000000000000000000000000' as const;
+  '0x4444444444444444444444444444444444444444' as const;
 const MOCK_NETWORK_CLIENT_ID = 'arbitrum-mainnet';
 
-const DEFAULT_CONFIG = {
+const MOCK_VAULT_CONFIG = {
   vaultAddress: MOCK_VAULT_ADDRESS,
   vaultChainId: '0xa4b1' as const,
   accountantAddress: MOCK_ACCOUNTANT_ADDRESS,
@@ -58,9 +64,10 @@ const MOCK_NETWORK_CONFIG = {
   blockExplorerUrls: [],
 };
 
-// A bare object suffices — Web3Provider and Contract are mocked at the module level.
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const MOCK_PROVIDER = {} as any;
+// Web3Provider is mocked at the module level so type correctness is irrelevant.
+const MOCK_PROVIDER = {} as unknown as ConstructorParameters<
+  typeof Web3Provider
+>[0];
 
 const MOCK_VAULT_APY_RAW_RESPONSE = {
   Response: {
@@ -120,8 +127,10 @@ type RootMessenger = Messenger<
   MessengerEvents<MoneyAccountBalanceServiceMessenger>
 >;
 
-function createRootMessenger(): RootMessenger {
-  return new Messenger({ namespace: MOCK_ANY_NAMESPACE });
+function createRootMessenger(
+  captureException?: (error: Error) => void,
+): RootMessenger {
+  return new Messenger({ namespace: MOCK_ANY_NAMESPACE, captureException });
 }
 
 function createServiceMessenger(
@@ -138,16 +147,51 @@ function createServiceMessenger(
 // ============================================================
 
 /**
- * Builds the service under test with messenger action stubs for the two
- * NetworkController dependencies.
+ * Publishes a `RemoteFeatureFlagController:stateChange` event via the root
+ * messenger, simulating a flag update from RemoteFeatureFlagController.
  *
- * @param args - Optional overrides for the service constructor options.
- * @param args.options - Partial constructor options merged over {@link DEFAULT_CONFIG}.
+ * @param rootMessenger - The root messenger to publish on.
+ * @param remoteFeatureFlags - The new flags object.
+ */
+function publishRFFCStateChange(
+  rootMessenger: RootMessenger,
+  remoteFeatureFlags: Record<string, Json>,
+): void {
+  rootMessenger.publish(
+    'RemoteFeatureFlagController:stateChange',
+    { remoteFeatureFlags, cacheTimestamp: Date.now() },
+    [],
+  );
+}
+
+/**
+ * Builds the service under test with messenger action stubs for all
+ * dependencies, including RemoteFeatureFlagController.
+ *
+ * By default, `init()` is called and the RFFC state contains a valid
+ * `moneyVaultConfig`. Pass `rffcFlags` to override, or `callInit: false` to
+ * skip the eager init.
+ *
+ * A `captureException` mock is wired onto the root messenger by default so
+ * that subscriber errors (e.g. `VaultConfigValidationError`) are routed there
+ * instead of `console.error`. Pass your own mock to assert on it.
+ *
+ * @param args - Optional overrides.
+ * @param args.rffcFlags - Flags to return from `RemoteFeatureFlagController:getState`.
+ * @param args.callInit - Whether to call `service.init()` after construction. Defaults to true.
+ * @param args.captureException - Error reporter wired on the root messenger.
+ * @param args.options - Partial constructor options for the service.
  * @returns The constructed service together with messenger instances and mock stubs.
  */
 function createService({
+  rffcFlags = { [VAULT_CONFIG_FEATURE_FLAG_KEY]: MOCK_VAULT_CONFIG },
+  callInit = true,
+  captureException = jest.fn(),
   options = {},
 }: {
+  rffcFlags?: Record<string, Json>;
+  callInit?: boolean;
+  captureException?: jest.Mock;
   options?: Partial<
     ConstructorParameters<typeof MoneyAccountBalanceService>[0]
   >;
@@ -157,14 +201,19 @@ function createService({
   messenger: MoneyAccountBalanceServiceMessenger;
   mockGetNetworkConfig: jest.Mock;
   mockGetNetworkClient: jest.Mock;
+  mockGetRFFCState: jest.Mock;
+  captureException: jest.Mock;
 } {
-  const rootMessenger = createRootMessenger();
+  const rootMessenger = createRootMessenger(captureException);
   const messenger = createServiceMessenger(rootMessenger);
 
   const mockGetNetworkConfig = jest.fn().mockReturnValue(MOCK_NETWORK_CONFIG);
   const mockGetNetworkClient = jest.fn().mockReturnValue({
     provider: MOCK_PROVIDER,
   });
+  const mockGetRFFCState = jest
+    .fn()
+    .mockReturnValue({ remoteFeatureFlags: rffcFlags, cacheTimestamp: 0 });
 
   rootMessenger.registerActionHandler(
     'NetworkController:getNetworkConfigurationByChainId',
@@ -174,21 +223,27 @@ function createService({
     'NetworkController:getNetworkClientById',
     mockGetNetworkClient,
   );
+  rootMessenger.registerActionHandler(
+    'RemoteFeatureFlagController:getState',
+    mockGetRFFCState,
+  );
 
   rootMessenger.delegate({
     actions: [
       'NetworkController:getNetworkConfigurationByChainId',
       'NetworkController:getNetworkClientById',
+      'RemoteFeatureFlagController:getState',
     ],
-    events: [],
+    // eslint-disable-next-line no-restricted-syntax
+    events: ['RemoteFeatureFlagController:stateChange'],
     messenger,
   });
 
-  const service = new MoneyAccountBalanceService({
-    messenger,
-    ...DEFAULT_CONFIG,
-    ...options,
-  });
+  const service = new MoneyAccountBalanceService({ messenger, ...options });
+
+  if (callInit) {
+    service.init();
+  }
 
   return {
     service,
@@ -196,6 +251,8 @@ function createService({
     messenger,
     mockGetNetworkConfig,
     mockGetNetworkClient,
+    mockGetRFFCState,
+    captureException,
   };
 }
 
@@ -262,12 +319,294 @@ function mockContractsByAddress(
 
 describe('MoneyAccountBalanceService', () => {
   beforeEach(() => {
+    MockContract.mockReset();
     MockWeb3Provider.mockImplementation(() => ({}) as unknown as Web3Provider);
     nockCleanAll();
   });
 
   afterEach(() => {
     jest.resetAllMocks();
+  });
+
+  // ----------------------------------------------------------
+  // init
+  // ----------------------------------------------------------
+
+  describe('init', () => {
+    it('loads vault config when RemoteFeatureFlagController already has valid flags', async () => {
+      mockErc20BalanceOf('5000000');
+      const { service } = createService();
+
+      // If vault config was loaded, getMusdBalance succeeds without throwing.
+      expect(
+        await service.getMusdBalance(MOCK_ACCOUNT_ADDRESS),
+      ).toStrictEqual({ balance: '5000000' });
+    });
+
+    it('leaves config undefined and degrades gracefully when flag key is absent', async () => {
+      const { service } = createService({ rffcFlags: {} });
+
+      await expect(
+        service.getMusdBalance(MOCK_ACCOUNT_ADDRESS),
+      ).rejects.toThrow(VaultConfigNotAvailableError);
+    });
+
+    it('leaves config undefined and degrades gracefully when the flag value is malformed', async () => {
+      const { service } = createService({
+        rffcFlags: {
+          [VAULT_CONFIG_FEATURE_FLAG_KEY]: { notAValidConfig: true },
+        },
+      });
+
+      await expect(
+        service.getMusdBalance(MOCK_ACCOUNT_ADDRESS),
+      ).rejects.toThrow(VaultConfigNotAvailableError);
+    });
+
+    it('does not throw when RemoteFeatureFlagController is not yet registered', () => {
+      const rootMessenger = createRootMessenger();
+      const messenger = createServiceMessenger(rootMessenger);
+
+      // Do NOT register RemoteFeatureFlagController:getState or delegate it.
+      rootMessenger.registerActionHandler(
+        'NetworkController:getNetworkConfigurationByChainId',
+        jest.fn(),
+      );
+      rootMessenger.registerActionHandler(
+        'NetworkController:getNetworkClientById',
+        jest.fn(),
+      );
+      rootMessenger.delegate({
+        actions: [
+          'NetworkController:getNetworkConfigurationByChainId',
+          'NetworkController:getNetworkClientById',
+        ],
+        events: [],
+        messenger,
+      });
+
+      const service = new MoneyAccountBalanceService({ messenger });
+
+      expect(() => service.init()).not.toThrow();
+    });
+  });
+
+  // ----------------------------------------------------------
+  // RemoteFeatureFlagController:stateChange subscription
+  // ----------------------------------------------------------
+
+  describe('RemoteFeatureFlagController:stateChange subscription', () => {
+    describe('config lifecycle', () => {
+      it('sets vault config when a valid config arrives via subscription', async () => {
+        mockErc20BalanceOf('9000000');
+        // Start with no flags so config is absent after init.
+        const { service, rootMessenger } = createService({ rffcFlags: {} });
+
+        publishRFFCStateChange(rootMessenger, {
+          [VAULT_CONFIG_FEATURE_FLAG_KEY]: MOCK_VAULT_CONFIG,
+        });
+
+        expect(
+          await service.getMusdBalance(MOCK_ACCOUNT_ADDRESS),
+        ).toStrictEqual({ balance: '9000000' });
+      });
+
+      it('uses the updated vault address after config changes', async () => {
+        const NEW_VAULT_ADDRESS =
+          '0x5555555555555555555555555555555555555555' as const;
+        mockErc20BalanceOf('1000000');
+        const { service, rootMessenger } = createService();
+
+        publishRFFCStateChange(rootMessenger, {
+          [VAULT_CONFIG_FEATURE_FLAG_KEY]: {
+            ...MOCK_VAULT_CONFIG,
+            vaultAddress: NEW_VAULT_ADDRESS,
+          },
+        });
+
+        await service.getMusdSHFvdBalance(MOCK_ACCOUNT_ADDRESS);
+
+        // getMusdSHFvdBalance uses vaultAddress — verify the new address was used.
+        expect(MockContract).toHaveBeenCalledWith(
+          NEW_VAULT_ADDRESS,
+          expect.anything(),
+          expect.anything(),
+        );
+        expect(MockContract).not.toHaveBeenCalledWith(
+          MOCK_VAULT_ADDRESS,
+          expect.anything(),
+          expect.anything(),
+        );
+      });
+
+      it('clears vault config when the flag key is removed from remoteFeatureFlags', async () => {
+        const { service, rootMessenger } = createService();
+
+        publishRFFCStateChange(rootMessenger, {});
+
+        await expect(
+          service.getMusdBalance(MOCK_ACCOUNT_ADDRESS),
+        ).rejects.toThrow(VaultConfigNotAvailableError);
+      });
+
+      it('clears vault config and routes VaultConfigValidationError when a malformed config arrives after valid config', async () => {
+        const captureException = jest.fn();
+        const { service, rootMessenger } = createService({ captureException });
+
+        publishRFFCStateChange(rootMessenger, {
+          [VAULT_CONFIG_FEATURE_FLAG_KEY]: { malformed: true },
+        });
+
+        // Messenger routes the thrown VaultConfigValidationError to captureException.
+        expect(captureException).toHaveBeenCalledWith(
+          expect.any(VaultConfigValidationError),
+        );
+
+        // Config has been cleared so subsequent calls throw VaultConfigNotAvailableError.
+        await expect(
+          service.getMusdBalance(MOCK_ACCOUNT_ADDRESS),
+        ).rejects.toThrow(VaultConfigNotAvailableError);
+      });
+
+      it('routes VaultConfigValidationError to captureException when malformed config arrives with no prior config', () => {
+        const captureException = jest.fn();
+        const { rootMessenger } = createService({ rffcFlags: {}, captureException });
+
+        publishRFFCStateChange(rootMessenger, {
+          [VAULT_CONFIG_FEATURE_FLAG_KEY]: { malformed: true },
+        });
+
+        expect(captureException).toHaveBeenCalledWith(
+          expect.any(VaultConfigValidationError),
+        );
+      });
+
+    });
+
+    describe('cache invalidation', () => {
+      it('does NOT invalidate queries when config is set for the first time via subscription', () => {
+        const { service, rootMessenger } = createService({ rffcFlags: {} });
+        const invalidateQueriesSpy = jest.spyOn(service, 'invalidateQueries');
+
+        publishRFFCStateChange(rootMessenger, {
+          [VAULT_CONFIG_FEATURE_FLAG_KEY]: MOCK_VAULT_CONFIG,
+        });
+
+        expect(invalidateQueriesSpy).not.toHaveBeenCalled();
+      });
+
+      it('invalidates queries when config changes to a different valid config', () => {
+        const { service, rootMessenger } = createService();
+        const invalidateQueriesSpy = jest.spyOn(service, 'invalidateQueries');
+
+        const updatedConfig = {
+          ...MOCK_VAULT_CONFIG,
+          underlyingTokenDecimals: 18,
+        };
+        publishRFFCStateChange(rootMessenger, {
+          [VAULT_CONFIG_FEATURE_FLAG_KEY]: updatedConfig,
+        });
+
+        expect(invalidateQueriesSpy).toHaveBeenCalledTimes(1);
+      });
+
+      it('does NOT invalidate queries when the same config arrives again', () => {
+        const { service, rootMessenger } = createService();
+        const invalidateQueriesSpy = jest.spyOn(service, 'invalidateQueries');
+
+        publishRFFCStateChange(rootMessenger, {
+          [VAULT_CONFIG_FEATURE_FLAG_KEY]: { ...MOCK_VAULT_CONFIG },
+        });
+
+        expect(invalidateQueriesSpy).not.toHaveBeenCalled();
+      });
+
+      it('invalidates queries when the flag key is removed after valid config was set', () => {
+        const { service, rootMessenger } = createService();
+        const invalidateQueriesSpy = jest.spyOn(service, 'invalidateQueries');
+
+        publishRFFCStateChange(rootMessenger, {});
+
+        expect(invalidateQueriesSpy).toHaveBeenCalledTimes(1);
+      });
+
+      it('does NOT invalidate queries when absent flag key arrives with no prior config', () => {
+        const { service, rootMessenger } = createService({ rffcFlags: {} });
+        const invalidateQueriesSpy = jest.spyOn(service, 'invalidateQueries');
+
+        publishRFFCStateChange(rootMessenger, {});
+
+        expect(invalidateQueriesSpy).not.toHaveBeenCalled();
+      });
+
+      it('invalidates queries when a malformed config arrives after valid config was set', () => {
+        const { service, rootMessenger } = createService();
+        const invalidateQueriesSpy = jest.spyOn(service, 'invalidateQueries');
+
+        publishRFFCStateChange(rootMessenger, {
+          [VAULT_CONFIG_FEATURE_FLAG_KEY]: { malformed: true },
+        });
+
+        expect(invalidateQueriesSpy).toHaveBeenCalledTimes(1);
+      });
+
+      it('does NOT invalidate queries when a malformed config arrives with no prior config', () => {
+        const { service, rootMessenger } = createService({ rffcFlags: {} });
+        const invalidateQueriesSpy = jest.spyOn(service, 'invalidateQueries');
+
+        publishRFFCStateChange(rootMessenger, {
+          [VAULT_CONFIG_FEATURE_FLAG_KEY]: { malformed: true },
+        });
+
+        expect(invalidateQueriesSpy).not.toHaveBeenCalled();
+      });
+    });
+  });
+
+  // ----------------------------------------------------------
+  // VaultConfigNotAvailableError — all public methods
+  // ----------------------------------------------------------
+
+  describe('when vault config is not available', () => {
+    it('getMusdBalance throws VaultConfigNotAvailableError', async () => {
+      const { service } = createService({ rffcFlags: {} });
+
+      await expect(
+        service.getMusdBalance(MOCK_ACCOUNT_ADDRESS),
+      ).rejects.toThrow(VaultConfigNotAvailableError);
+    });
+
+    it('getMusdSHFvdBalance throws VaultConfigNotAvailableError', async () => {
+      const { service } = createService({ rffcFlags: {} });
+
+      await expect(
+        service.getMusdSHFvdBalance(MOCK_ACCOUNT_ADDRESS),
+      ).rejects.toThrow(VaultConfigNotAvailableError);
+    });
+
+    it('getExchangeRate throws VaultConfigNotAvailableError', async () => {
+      const { service } = createService({ rffcFlags: {} });
+
+      await expect(service.getExchangeRate()).rejects.toThrow(
+        VaultConfigNotAvailableError,
+      );
+    });
+
+    it('getMusdEquivalentValue throws VaultConfigNotAvailableError', async () => {
+      const { service } = createService({ rffcFlags: {} });
+
+      await expect(
+        service.getMusdEquivalentValue(MOCK_ACCOUNT_ADDRESS),
+      ).rejects.toThrow(VaultConfigNotAvailableError);
+    });
+
+    it('getVaultApy throws VaultConfigNotAvailableError', async () => {
+      const { service } = createService({ rffcFlags: {} });
+
+      await expect(service.getVaultApy()).rejects.toThrow(
+        VaultConfigNotAvailableError,
+      );
+    });
   });
 
   // ----------------------------------------------------------
@@ -465,12 +804,12 @@ describe('MoneyAccountBalanceService', () => {
       );
       const { service } = createService();
 
-      // Seed the cache
+      // Seed the cache.
       await service.getExchangeRate();
 
       mockGetRate.mockResolvedValue({ toString: () => '1100000' });
 
-      // Get cached value
+      // Second call should return the cached value.
       const result = await service.getExchangeRate();
 
       expect(result).toStrictEqual({ rate: '1050000' });
@@ -486,13 +825,13 @@ describe('MoneyAccountBalanceService', () => {
       );
       const { service } = createService();
 
-      // Seed the cache
+      // Seed the cache.
       const firstResult = await service.getExchangeRate();
       expect(firstResult).toStrictEqual({ rate: '1050000' });
 
       mockGetRate.mockResolvedValue({ toString: () => '1100000' });
 
-      // Refetch the value
+      // Refetch using staleTime: 0.
       const freshResult = await service.getExchangeRate({ staleTime: 0 });
 
       expect(freshResult).toStrictEqual({ rate: '1100000' });
@@ -626,15 +965,17 @@ describe('MoneyAccountBalanceService', () => {
       },
     );
 
-    it('accepts and normalizes a sparse response where only apy and timestamp are present', async () => {
-      const sparseResponse = {
+    it('accepts and normalizes a response with zero values and empty array breakdowns', async () => {
+      // All optional fields are present but carry zero / empty values — verifies
+      // that falsy values are not accidentally dropped during normalization.
+      const zeroValuesResponse = {
         Response: {
           aggregation_period: '7 days',
           apy: 0,
           chain_allocation: { arbitrum: 0 },
           fees: 0,
           global_apy_breakdown: { fee: 0, maturity_apy: 0, real_apy: 0 },
-          maturity_apy_breakdown: [],
+          performance_fees: 0,
           real_apy_breakdown: [],
           timestamp: 'Fri, 10 Apr 2026 22:05:54 GMT',
         },
@@ -642,13 +983,14 @@ describe('MoneyAccountBalanceService', () => {
 
       nock('https://api.sevenseas.capital')
         .get(`/performance/arbitrum/${MOCK_VAULT_ADDRESS}`)
-        .reply(200, sparseResponse);
+        .reply(200, zeroValuesResponse);
 
       const { service } = createService();
 
       const result = await service.getVaultApy();
 
       expect(result.apy).toBe(0);
+      expect(result.fees).toBe(0);
       expect(result.timestamp).toBe('Fri, 10 Apr 2026 22:05:54 GMT');
       expect(result.realApyBreakdown).toStrictEqual([]);
     });
@@ -696,22 +1038,54 @@ describe('MoneyAccountBalanceService', () => {
       );
     });
 
-    it('falls back to the default network name for unknown chain IDs', async () => {
-      // 0x1 is not in VEDA_API_NETWORK_NAMES, so DEFAULT_VEDA_API_NETWORK_NAME
-      // ('arbitrum') should be used. Nock matches on exact URL, so if the wrong
-      // network name were used the request would throw instead of returning data.
-      nock('https://api.sevenseas.capital')
-        .get(`/performance/arbitrum/${MOCK_VAULT_ADDRESS}`)
-        .reply(200, MOCK_VAULT_APY_RAW_RESPONSE);
-
+    it('throws when the vault chain ID has no Veda API network name mapping', async () => {
       const { service } = createService({
-        options: { vaultChainId: '0x1' as const },
+        rffcFlags: {
+          [VAULT_CONFIG_FEATURE_FLAG_KEY]: {
+            ...MOCK_VAULT_CONFIG,
+            vaultChainId: '0x1',
+          },
+        },
       });
 
-      const result = await service.getVaultApy();
-
-      expect(result).toStrictEqual(MOCK_VAULT_APY_NORMALIZED);
+      await expect(service.getVaultApy()).rejects.toThrow(
+        'No Veda API network name found for chain 0x1',
+      );
     });
+  });
+});
+
+// ============================================================
+// Error class unit tests
+// ============================================================
+
+describe('VaultConfigNotAvailableError', () => {
+  it('has the expected message and name', () => {
+    const error = new VaultConfigNotAvailableError();
+
+    expect(error.message).toBe(
+      'MoneyAccountBalanceService: vault config is not available. ' +
+        'RemoteFeatureFlagController may not have fetched flags yet.',
+    );
+    expect(error.name).toBe('VaultConfigNotAvailableError');
+  });
+});
+
+describe('VaultConfigValidationError', () => {
+  it('uses the default message when constructed with no argument', () => {
+    const error = new VaultConfigValidationError();
+
+    expect(error.message).toBe(
+      'MoneyAccountBalanceService: vault config from remote feature flags is malformed.',
+    );
+    expect(error.name).toBe('VaultConfigValidationError');
+  });
+
+  it('uses a custom message when one is provided', () => {
+    const error = new VaultConfigValidationError('custom message');
+
+    expect(error.message).toBe('custom message');
+    expect(error.name).toBe('VaultConfigValidationError');
   });
 });
 

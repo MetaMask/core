@@ -291,10 +291,8 @@ export class MoneyAccountBalanceService extends BaseDataService<
   #parseAndValidateVaultConfig(flagValue: Json): VaultConfig {
     try {
       assert(flagValue, VaultConfigStruct);
-    } catch (error) {
-      throw new VaultConfigValidationError(
-        error instanceof Error ? error.message : undefined,
-      );
+    } catch {
+      throw new VaultConfigValidationError();
     }
     return flagValue as unknown as VaultConfig;
   }
