@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/bridge-controller` from `^71.1.1` to `^72.0.0` ([#8737](https://github.com/MetaMask/core/pull/8737))
+
 ## [22.0.0]
 
 ### Changed
