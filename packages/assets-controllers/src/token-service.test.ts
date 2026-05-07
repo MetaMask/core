@@ -1139,7 +1139,7 @@ describe('Token service', () => {
     it('returns empty array if api returns non-array response', async () => {
       nock(TOKEN_END_POINT_API)
         .get(
-          `/v3/tokens/trending?chainIds=${encodeURIComponent(sampleCaipChainId)}`,
+          `/v3/tokens/trending?chainIds=${encodeURIComponent(sampleCaipChainId)}&includeRwaData=true&usePriceApiData=true`,
         )
         .reply(200, { error: 'Invalid response' })
         .persist();
@@ -1151,7 +1151,7 @@ describe('Token service', () => {
     it('returns empty array if the fetch fails', async () => {
       nock(TOKEN_END_POINT_API)
         .get(
-          `/v3/tokens/trending?chainIds=${encodeURIComponent(sampleCaipChainId)}`,
+          `/v3/tokens/trending?chainIds=${encodeURIComponent(sampleCaipChainId)}&includeRwaData=true&usePriceApiData=true`,
         )
         .reply(500)
         .persist();

@@ -412,9 +412,9 @@ export async function getTrendingTokens(
 
   const trendingTokensURL = getTrendingTokensURL({
     chainIds,
-    includeRwaData: true,
-    usePriceApiData: true,
     ...rest,
+    includeRwaData: rest.includeRwaData ?? true,
+    usePriceApiData: rest.usePriceApiData ?? true,
   });
 
   try {
