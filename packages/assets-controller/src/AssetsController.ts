@@ -321,8 +321,9 @@ type AllowedEvents =
   | TransactionControllerUnapprovedTransactionAddedEvent
   // RpcDataSource, StakedBalanceDataSource
   | NetworkControllerStateChangeEvent
-  // AssetsController (default-asset seeding when a new network is added,
-  // and per-chain state cleanup when a network is permanently removed)
+  // AssetsController (default-asset seeding + cross-source asset refresh
+  // whenever a network configuration is added to or removed from
+  // NetworkController)
   | NetworkControllerNetworkAddedEvent
   | NetworkControllerNetworkRemovedEvent
   | TransactionControllerTransactionConfirmedEvent
@@ -1020,31 +1021,23 @@ export class AssetsController extends BaseController<
       },
     );
 
-    // When a new network is added (e.g. the user finally adds Monad
-    // to NetworkController), seed the default tracked assets for it
-    // — but only if the chain is in our defaults registry. This is
-    // what makes mUSD show up on Monad the moment the network is
-    // configured, without waiting for it to also be enabled in
-    // NetworkEnablementController.
+    // When a network is added or removed from NetworkController, refresh
+    // assets across every data source so balances, prices, and metadata
+    // stay consistent. On add we also seed default tracked assets (e.g.
+    // mUSD on Monad) when the chain is in our defaults registry, so the
+    // entries appear immediately without waiting for it to also be
+    // enabled in NetworkEnablementController.
     this.messenger.subscribe(
       'NetworkController:networkAdded',
       (networkConfiguration) => {
         this.#handleNetworkAdded(networkConfiguration.chainId);
+        this.#refreshAssetsAfterNetworkChange();
       },
     );
 
-    // When a network is permanently removed from NetworkController, purge
-    // every per-chain state slice keyed by its CAIP-19 asset IDs. This is
-    // distinct from NetworkEnablementController disabling the chain, which
-    // intentionally preserves history; removal is the user saying "this
-    // network is gone for good", so leftover state would just bloat the
-    // persisted store with entries the UI can never reach again.
-    this.messenger.subscribe(
-      'NetworkController:networkRemoved',
-      (networkConfiguration) => {
-        this.#handleNetworkRemoved(networkConfiguration.chainId);
-      },
-    );
+    this.messenger.subscribe('NetworkController:networkRemoved', () => {
+      this.#refreshAssetsAfterNetworkChange();
+    });
 
     // Client + Keyring lifecycle: only run when UI is open AND keyring is unlocked
     this.messenger.subscribe(
@@ -3044,76 +3037,18 @@ export class AssetsController extends BaseController<
   }
 
   /**
-   * Handle a `NetworkController:networkRemoved` event. Permanently purges
-   * every per-chain state slice (balances, info, prices, customAssets,
-   * preferences) keyed to the removed chain. Distinct from the
-   * enable/disable path (`#handleEnabledNetworksChanged`), which keeps
-   * data so re-enabling restores history. Removal means the network is
-   * gone for good — leftover entries would bloat persisted state with
-   * data the UI can never reach again. Subscription teardown is already
-   * handled by the NetworkEnablementController cascade.
-   *
-   * @param hexChainId - Hex chain id of the removed network configuration.
+   * Refresh assets across every data source after a network configuration
+   * is added to or removed from NetworkController. Mirrors the
+   * `forceUpdate` path used elsewhere (e.g. unapproved tx, account-tree
+   * change), so balances/prices/metadata stay consistent for the user's
+   * currently-enabled chains without us having to maintain bespoke
+   * per-event state surgery.
    */
-  #handleNetworkRemoved(hexChainId: Hex): void {
-    let removedChainId: ChainId;
-    try {
-      removedChainId = `eip155:${parseInt(hexChainId, 16)}` as ChainId;
-    } catch {
-      return;
-    }
-
-    log('Network removed — purging chain state', {
-      hexChainId,
-      chainId: removedChainId,
-    });
-
-    const matches = (assetId: string): boolean => {
-      try {
-        return extractChainId(assetId as Caip19AssetId) === removedChainId;
-      } catch {
-        return false;
-      }
-    };
-
-    this.update((state) => {
-      for (const accountId of Object.keys(state.assetsBalance)) {
-        const accountBalances = state.assetsBalance[accountId];
-        for (const assetId of Object.keys(accountBalances)) {
-          if (matches(assetId)) {
-            delete accountBalances[assetId];
-          }
-        }
-        if (Object.keys(accountBalances).length === 0) {
-          delete state.assetsBalance[accountId];
-        }
-      }
-
-      const customAssets = state.customAssets as Record<string, string[]>;
-      for (const accountId of Object.keys(customAssets)) {
-        customAssets[accountId] = customAssets[accountId].filter(
-          (assetId) => !matches(assetId),
-        );
-        if (customAssets[accountId].length === 0) {
-          delete customAssets[accountId];
-        }
-      }
-
-      for (const assetId of Object.keys(state.assetsInfo)) {
-        if (matches(assetId)) {
-          delete state.assetsInfo[assetId];
-        }
-      }
-      for (const assetId of Object.keys(state.assetsPrice)) {
-        if (matches(assetId)) {
-          delete state.assetsPrice[assetId];
-        }
-      }
-      for (const assetId of Object.keys(state.assetPreferences)) {
-        if (matches(assetId)) {
-          delete state.assetPreferences[assetId];
-        }
-      }
+  #refreshAssetsAfterNetworkChange(): void {
+    this.getAssets(this.#getSelectedAccounts(), {
+      forceUpdate: true,
+    }).catch((error) => {
+      log('Failed to refresh assets after network change', { error });
     });
   }
 

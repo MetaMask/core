@@ -18,6 +18,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **BREAKING:** `AssetsController` now requires two additional messenger events from `NetworkController`: `NetworkController:networkAdded` and `NetworkController:networkRemoved` ([#8727](https://github.com/MetaMask/core/pull/8727))
+  - Consumers building restricted controller messengers must include both events in their allowed event set, otherwise TypeScript/action constraint checks will fail.
 - Bump `@metamask/account-tree-controller` from `^7.2.0` to `^7.3.0` ([#8722](https://github.com/MetaMask/core/pull/8722))
 - Bump `@metamask/keyring-controller` from `^25.4.0` to `^25.5.0` ([#8722](https://github.com/MetaMask/core/pull/8722))
 - Bump `@metamask/permission-controller` from `^13.0.0` to `^13.1.0` ([#8722](https://github.com/MetaMask/core/pull/8722))
