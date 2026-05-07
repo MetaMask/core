@@ -34,11 +34,6 @@ export type MultichainAccountServiceResyncAccountsAction = {
   handler: MultichainAccountService['resyncAccounts'];
 };
 
-export type MultichainAccountServiceEnsureCanUseSnapPlatformAction = {
-  type: `MultichainAccountService:ensureCanUseSnapPlatform`;
-  handler: MultichainAccountService['ensureCanUseSnapPlatform'];
-};
-
 /**
  * Gets a reference to the multichain account wallet matching this entropy source.
  *
@@ -201,7 +196,6 @@ export type MultichainAccountServiceAlignWalletAction = {
 export type MultichainAccountServiceMethodActions =
   | MultichainAccountServiceInitAction
   | MultichainAccountServiceResyncAccountsAction
-  | MultichainAccountServiceEnsureCanUseSnapPlatformAction
   | MultichainAccountServiceGetMultichainAccountWalletAction
   | MultichainAccountServiceGetMultichainAccountWalletsAction
   | MultichainAccountServiceCreateMultichainAccountWalletAction

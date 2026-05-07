@@ -540,6 +540,48 @@ describe('TransactionPayController', () => {
         CHAIN_ID_MOCK,
         TOKEN_ADDRESS_MOCK,
         'perpsDeposit',
+        undefined,
+      );
+    });
+
+    it('passes fiat payment method ID into getStrategyOrder', async () => {
+      const controller = createController();
+
+      controller.updatePaymentToken({
+        transactionId: TRANSACTION_ID_MOCK,
+        tokenAddress: TOKEN_ADDRESS_MOCK,
+        chainId: CHAIN_ID_MOCK,
+      });
+
+      const { updateTransactionData } = updatePaymentTokenMock.mock.calls[0][1];
+
+      updateTransactionData(TRANSACTION_ID_MOCK, (data) => {
+        data.paymentToken = {
+          address: TOKEN_ADDRESS_MOCK,
+          balanceFiat: '1',
+          balanceHuman: '1',
+          balanceRaw: '1',
+          balanceUsd: '1',
+          chainId: CHAIN_ID_MOCK,
+          decimals: 6,
+          symbol: 'USDC',
+        };
+        data.fiatPayment = { selectedPaymentMethodId: 'card-123' };
+      });
+
+      const transactionMeta = {
+        id: TRANSACTION_ID_MOCK,
+        type: 'perpsDeposit',
+      } as TransactionMeta;
+
+      messenger.call('TransactionPayController:getStrategy', transactionMeta);
+
+      expect(getStrategyOrderMock).toHaveBeenCalledWith(
+        messenger,
+        CHAIN_ID_MOCK,
+        TOKEN_ADDRESS_MOCK,
+        'perpsDeposit',
+        'card-123',
       );
     });
   });
