@@ -9,15 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **BREAKING:** Re-parse required tokens when asset state changes ([#8714](https://github.com/MetaMask/core/pull/8714))
+  - Adds `AssetsControllerStateChangeEvent`, `CurrencyRateStateChange`, `TokenRatesControllerStateChangeEvent`, and `TokensControllerStateChangeEvent` to `AllowedEvents`.
+  - Consumers must grant these events when creating the controller messenger.
 - Bump `@metamask/gas-fee-controller` from `^26.1.1` to `^26.2.0` ([#8722](https://github.com/MetaMask/core/pull/8722))
 - Bump `@metamask/transaction-controller` from `^65.1.0` to `^65.2.0` ([#8722](https://github.com/MetaMask/core/pull/8722))
 
 ### Fixed
 
 - Fix fiat strategy never being selected by routing fiat payment method through `getStrategyOrder` and allowing quote retrieval when no crypto payment token is set ([#8720](https://github.com/MetaMask/core/pull/8720))
-- **BREAKING:** Re-parse required tokens when asset state changes ([#8714](https://github.com/MetaMask/core/pull/8714))
-  - Adds `AssetsControllerStateChangeEvent`, `CurrencyRateStateChange`, `TokenRatesControllerStateChangeEvent`, and `TokensControllerStateChangeEvent` to `AllowedEvents`.
-  - Consumers must grant these events when creating the controller messenger.
 
 ## [21.1.0]
 
