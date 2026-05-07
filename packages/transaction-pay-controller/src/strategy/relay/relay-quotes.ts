@@ -644,8 +644,10 @@ async function calculateSourceNetworkCost(
 
   // HyperLiquid withdrawals are gasless -- the "deposit" step is an HL
   // sendAsset (off-chain signature), not an on-chain transaction.
-  if (request.isHyperliquidSource) {
-    log('Zeroing network fees for HyperLiquid withdrawal (gasless)');
+  // Polymarket deposit-wallet transactions are gasless -- submitted via the
+  // Polymarket gasless relayer, so the user pays no source-chain gas.
+  if (request.isHyperliquidSource || request.isPolymarketDepositWallet) {
+    log('Zeroing network fees for gasless source submission');
 
     const zeroAmount = { fiat: '0', human: '0', raw: '0', usd: '0' };
 
