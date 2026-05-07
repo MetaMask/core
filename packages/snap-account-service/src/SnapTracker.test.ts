@@ -242,13 +242,13 @@ describe('SnapTracker', () => {
     });
   });
 
-  describe('has', () => {
+  describe('canUse', () => {
     it('returns false before init', () => {
       const { tracker } = setup({
         runnableSnaps: [buildSnap(MOCK_SNAP_ID, true)],
       });
 
-      expect(tracker.has(MOCK_SNAP_ID)).toBe(false);
+      expect(tracker.canUse(MOCK_SNAP_ID)).toBe(false);
     });
 
     it('returns true for a tracked Snap', async () => {
@@ -258,7 +258,7 @@ describe('SnapTracker', () => {
 
       await tracker.init();
 
-      expect(tracker.has(MOCK_SNAP_ID)).toBe(true);
+      expect(tracker.canUse(MOCK_SNAP_ID)).toBe(true);
     });
 
     it('returns false for an untracked Snap', async () => {
@@ -266,7 +266,7 @@ describe('SnapTracker', () => {
 
       await tracker.init();
 
-      expect(tracker.has(MOCK_SNAP_ID)).toBe(false);
+      expect(tracker.canUse(MOCK_SNAP_ID)).toBe(false);
     });
   });
 

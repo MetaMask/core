@@ -85,12 +85,12 @@ export class SnapTracker {
   }
 
   /**
-   * Returns true if the given Snap ID is currently tracked.
+   * Returns true if the given Snap ID is currently tracked and can be used.
    *
    * @param snapId - The Snap ID to check.
-   * @returns True if the Snap is tracked.
+   * @returns True if the Snap is tracked and can be used.
    */
-  has(snapId: SnapId): boolean {
+  canUse(snapId: SnapId): boolean {
     return this.#snaps.has(snapId);
   }
 

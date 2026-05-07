@@ -166,7 +166,7 @@ export class SnapAccountService {
    * @throws If `snapId` is not a tracked account-management Snap.
    */
   async ensureReady(snapId: SnapId): Promise<void> {
-    if (!this.#tracker.has(snapId)) {
+    if (!this.#tracker.canUse(snapId)) {
       throw new Error(`Unknown snap: "${snapId}"`);
     }
     // Before doing anything with our Snap, we need to make sure the platform
