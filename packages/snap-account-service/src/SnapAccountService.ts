@@ -5,11 +5,13 @@ import type {
 import type { Messenger } from '@metamask/messenger';
 import type {
   SnapControllerGetRunnableSnapsAction,
+  SnapControllerGetSnapAction,
   SnapControllerGetStateAction,
   SnapControllerSnapBlockedEvent,
   SnapControllerSnapDisabledEvent,
   SnapControllerSnapEnabledEvent,
   SnapControllerSnapInstalledEvent,
+  SnapControllerSnapUnblockedEvent,
   SnapControllerSnapUninstalledEvent,
   SnapControllerStateChangeEvent,
 } from '@metamask/snaps-controllers';
@@ -59,6 +61,7 @@ export type SnapAccountServiceActions =
  */
 type AllowedActions =
   | SnapControllerGetStateAction
+  | SnapControllerGetSnapAction
   | SnapControllerGetRunnableSnapsAction
   | KeyringControllerGetStateAction;
 
@@ -76,6 +79,7 @@ type AllowedEvents =
   | SnapControllerSnapEnabledEvent
   | SnapControllerSnapDisabledEvent
   | SnapControllerSnapBlockedEvent
+  | SnapControllerSnapUnblockedEvent
   | SnapControllerSnapUninstalledEvent
   | KeyringControllerStateChangeEvent;
 
@@ -139,6 +143,9 @@ export class SnapAccountService {
     this.#messenger.subscribe('SnapController:snapInstalled', (snap) =>
       this.#handleSnapAdded(snap, 'installed'),
     );
+    this.#messenger.subscribe('SnapController:snapUninstalled', (snap) =>
+      this.#handleSnapRemoved(snap.id, 'uninstalled'),
+    );
     this.#messenger.subscribe('SnapController:snapEnabled', (snap) =>
       this.#handleSnapAdded(snap, 'enabled'),
     );
@@ -148,8 +155,8 @@ export class SnapAccountService {
     this.#messenger.subscribe('SnapController:snapBlocked', (snapId) =>
       this.#handleSnapRemoved(snapId as SnapId, 'blocked'),
     );
-    this.#messenger.subscribe('SnapController:snapUninstalled', (snap) =>
-      this.#handleSnapRemoved(snap.id, 'uninstalled'),
+    this.#messenger.subscribe('SnapController:snapUnblocked', (snapId) =>
+      this.#handleSnapUnblocked(snapId as SnapId),
     );
 
     this.#messenger.registerMethodActionHandlers(
@@ -223,6 +230,23 @@ export class SnapAccountService {
       log(`Added account management Snap: ${snap.id} (${reason})`);
 
       this.#snaps.add(snap.id);
+    }
+  }
+
+  /**
+   * Handles a Snap being unblocked. If the Snap is an enabled
+   * account-management Snap, re-adds it to the internal set of tracked Snaps.
+   *
+   * @param snapId - The Snap ID that was unblocked.
+   */
+  #handleSnapUnblocked(snapId: SnapId): void {
+    if (!this.#initialized) {
+      return;
+    }
+
+    const snap = this.#messenger.call('SnapController:getSnap', snapId);
+    if (snap && snap.enabled && !snap.blocked) {
+      this.#handleSnapAdded(snap, 'unblocked');
     }
   }
 

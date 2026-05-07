@@ -41,6 +41,7 @@ type Mocks = {
   // eslint-disable-next-line @typescript-eslint/naming-convention
   SnapController: {
     getState: jest.MockedFunction<() => SnapControllerState>;
+    getSnap: jest.MockedFunction<(snapId: string) => TruncatedSnap | null>;
     getRunnableSnaps: jest.MockedFunction<() => TruncatedSnap[]>;
   };
   // eslint-disable-next-line @typescript-eslint/naming-convention
@@ -76,6 +77,7 @@ function getMessenger(
     messenger,
     actions: [
       'SnapController:getState',
+      'SnapController:getSnap',
       'SnapController:getRunnableSnaps',
       'KeyringController:getState',
     ],
@@ -85,6 +87,7 @@ function getMessenger(
       'SnapController:snapEnabled',
       'SnapController:snapDisabled',
       'SnapController:snapBlocked',
+      'SnapController:snapUnblocked',
       'SnapController:snapUninstalled',
       'KeyringController:stateChange',
     ],
@@ -193,6 +196,19 @@ function publishSnapBlocked(
 }
 
 /**
+ * Publishes a `SnapController:snapUnblocked` event on the root messenger.
+ *
+ * @param rootMessenger - The root messenger.
+ * @param snapId - The ID of the Snap that was unblocked.
+ */
+function publishSnapUnblocked(
+  rootMessenger: RootMessenger,
+  snapId: string,
+): void {
+  rootMessenger.publish('SnapController:snapUnblocked', snapId);
+}
+
+/**
  * Publishes a `SnapController:snapUninstalled` event on the root messenger.
  *
  * @param rootMessenger - The root messenger.
@@ -239,6 +255,7 @@ function setup({
       getState: jest
         .fn()
         .mockReturnValue({ isReady: snapIsReady } as SnapControllerState),
+      getSnap: jest.fn().mockReturnValue(null),
       getRunnableSnaps: jest.fn().mockReturnValue(runnableSnaps),
     },
     KeyringController: {
@@ -249,6 +266,10 @@ function setup({
   rootMessenger.registerActionHandler(
     'SnapController:getState',
     mocks.SnapController.getState,
+  );
+  rootMessenger.registerActionHandler(
+    'SnapController:getSnap',
+    mocks.SnapController.getSnap as never,
   );
   rootMessenger.registerActionHandler(
     'SnapController:getRunnableSnaps',
@@ -371,6 +392,75 @@ describe('SnapAccountService', () => {
 
       await service.init();
       publishSnapBlocked(rootMessenger, MOCK_SNAP_ID);
+
+      expect(service.getSnaps()).toStrictEqual([]);
+    });
+
+    it('ignores snapUnblocked received before init', async () => {
+      const { service, rootMessenger, mocks } = setup();
+
+      mocks.SnapController.getSnap.mockReturnValue({
+        ...buildSnap(MOCK_SNAP_ID, true),
+        enabled: true,
+        blocked: false,
+      } as TruncatedSnap);
+      publishSnapUnblocked(rootMessenger, MOCK_SNAP_ID);
+
+      await service.init();
+
+      expect(service.getSnaps()).toStrictEqual([]);
+    });
+
+    it('re-adds a Snap on snapUnblocked when it is enabled and has the keyring endowment', async () => {
+      const { service, rootMessenger, mocks } = setup();
+
+      await service.init();
+      mocks.SnapController.getSnap.mockReturnValue({
+        ...buildSnap(MOCK_SNAP_ID, true),
+        enabled: true,
+        blocked: false,
+      } as TruncatedSnap);
+
+      publishSnapUnblocked(rootMessenger, MOCK_SNAP_ID);
+
+      expect(service.getSnaps()).toStrictEqual([MOCK_SNAP_ID]);
+    });
+
+    it('does not re-add a Snap on snapUnblocked when it is disabled', async () => {
+      const { service, rootMessenger, mocks } = setup();
+
+      await service.init();
+      mocks.SnapController.getSnap.mockReturnValue({
+        ...buildSnap(MOCK_SNAP_ID, true),
+        enabled: false,
+        blocked: false,
+      } as TruncatedSnap);
+
+      publishSnapUnblocked(rootMessenger, MOCK_SNAP_ID);
+
+      expect(service.getSnaps()).toStrictEqual([]);
+    });
+
+    it('does not re-add a Snap on snapUnblocked when it lacks the keyring endowment', async () => {
+      const { service, rootMessenger, mocks } = setup();
+
+      await service.init();
+      mocks.SnapController.getSnap.mockReturnValue({
+        ...buildSnap(MOCK_SNAP_ID, false),
+        enabled: true,
+        blocked: false,
+      } as TruncatedSnap);
+
+      publishSnapUnblocked(rootMessenger, MOCK_SNAP_ID);
+
+      expect(service.getSnaps()).toStrictEqual([]);
+    });
+
+    it('does not re-add a Snap on snapUnblocked when getSnap returns null', async () => {
+      const { service, rootMessenger } = setup();
+
+      await service.init();
+      publishSnapUnblocked(rootMessenger, MOCK_SNAP_ID);
 
       expect(service.getSnaps()).toStrictEqual([]);
     });
