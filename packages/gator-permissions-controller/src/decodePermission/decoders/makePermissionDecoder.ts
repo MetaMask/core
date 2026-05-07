@@ -63,8 +63,7 @@ export function makePermissionDecoder({
   ) as Map<Hex, number>;
 
   const caveatAddressesMatch = (caveatAddresses: Hex[]): boolean => {
-    const { counts, enforcersSet } =
-      buildEnforcerCountsAndSet(caveatAddresses);
+    const { counts, enforcersSet } = buildEnforcerCountsAndSet(caveatAddresses);
 
     return enforcersMatchRule(
       counts,
@@ -74,9 +73,9 @@ export function makePermissionDecoder({
     );
   };
 
-  const validateAndDecodePermission =(
+  const validateAndDecodePermission = (
     caveats: Caveat<Hex>[],
-  ): ValidateAndDecodeResult =>{
+  ): ValidateAndDecodeResult => {
     const checksumCaveats: ChecksumCaveat[] = caveats.map((caveat) => ({
       ...caveat,
       enforcer: getChecksumAddress(caveat.enforcer),
@@ -123,13 +122,13 @@ export function makePermissionDecoder({
     } catch (caughtError) {
       return { isValid: false, error: caughtError as Error };
     }
-  }
+  };
 
   return {
     permissionType,
     caveatAddressesMatch,
     validateAndDecodePermission,
     optionalEnforcers: optionalEnforcersSet,
-    requiredEnforcers: requiredEnforcersMap
+    requiredEnforcers: requiredEnforcersMap,
   };
 }
