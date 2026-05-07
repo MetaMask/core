@@ -143,8 +143,8 @@ export function subscribeAssetChanges(
 
         log('Asset data changed', { transactionId, source, patches });
 
-        updateTransactionData(transaction.id, (draft) => {
-          draft.tokens = tokens;
+        updateTransactionData(transaction.id, (data) => {
+          data.tokens = tokens;
         });
       }
     };
