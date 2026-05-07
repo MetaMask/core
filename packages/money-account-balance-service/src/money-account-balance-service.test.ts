@@ -338,9 +338,9 @@ describe('MoneyAccountBalanceService', () => {
       const { service } = createService();
 
       // If vault config was loaded, getMusdBalance succeeds without throwing.
-      expect(
-        await service.getMusdBalance(MOCK_ACCOUNT_ADDRESS),
-      ).toStrictEqual({ balance: '5000000' });
+      expect(await service.getMusdBalance(MOCK_ACCOUNT_ADDRESS)).toStrictEqual({
+        balance: '5000000',
+      });
     });
 
     it('leaves config undefined and degrades gracefully when flag key is absent', async () => {
@@ -470,7 +470,10 @@ describe('MoneyAccountBalanceService', () => {
 
       it('routes VaultConfigValidationError to captureException when malformed config arrives with no prior config', () => {
         const captureException = jest.fn();
-        const { rootMessenger } = createService({ rffcFlags: {}, captureException });
+        const { rootMessenger } = createService({
+          rffcFlags: {},
+          captureException,
+        });
 
         publishRFFCStateChange(rootMessenger, {
           [VAULT_CONFIG_FEATURE_FLAG_KEY]: { malformed: true },
@@ -480,7 +483,6 @@ describe('MoneyAccountBalanceService', () => {
           expect.any(VaultConfigValidationError),
         );
       });
-
     });
 
     describe('cache invalidation', () => {

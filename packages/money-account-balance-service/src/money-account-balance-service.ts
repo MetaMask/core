@@ -41,8 +41,8 @@ import type {
   MusdEquivalentValueResponse,
   NormalizedVaultApyResponse,
 } from './response.types';
-import type { VaultConfig } from './types';
 import { VaultApyRawResponseStruct, VaultConfigStruct } from './structs';
+import type { VaultConfig } from './types';
 
 // === GENERAL ===
 
