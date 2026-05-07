@@ -168,7 +168,8 @@ export class SnapAccountService {
   async init(): Promise<void> {
     const runnable = this.#messenger.call('SnapController:getRunnableSnaps');
     for (const snap of runnable) {
-      if (isAccountManagementSnap(snap)) {
+      if (isAccountManagementSnap(snap) && !this.#snaps.has(snap.id)) {
+        log(`Found account management Snap: ${snap.id} (initialization)`);
         this.#snaps.add(snap.id);
       }
     }
