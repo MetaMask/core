@@ -134,6 +134,7 @@ import type {
   TransactionPayLegacyFormat,
 } from './utils';
 import { ZERO_ADDRESS } from './utils/constants';
+import { pickRpcCustomAssetsSupplement } from './utils/customAssetsRpcSupplement';
 
 const NATIVE_ASSETS_QUERY_KEY = ['nativeAssets'];
 
@@ -2626,10 +2627,13 @@ export class AssetsController extends BaseController<
   }
 
   /**
-   * Subscribe RPC to chains where the user has customAssets but another
-   * balance data source already owns the chain in regular handoff. Uses a
-   * separate subscription key (`customAssetsOnly` mode) so the regular RPC
-   * subscription, if any, is unaffected.
+   * Guarantee that customAssets are **always** polled by RPC, even when
+   * AccountsApi or the websocket data source has claimed the chain in the
+   * regular handoff. RPC is the sole balance fetcher for user-imported
+   * tokens (see `pickRpcCustomAssetsSupplement` for the full rationale),
+   * so we run a dedicated subscription in `customAssetsOnly` mode under a
+   * distinct subscription key (`ds:RpcDataSource:custom`) that does not
+   * interfere with the regular RPC subscription.
    *
    * @param accounts - Accounts to consider for customAssets.
    * @param chainToAccounts - Map of chain → accounts (built by caller).
@@ -2641,54 +2645,30 @@ export class AssetsController extends BaseController<
     rpcAssignedChains: Set<ChainId>,
   ): void {
     const rpc = this.#rpcDataSource;
-    const rpcAvailableChains = new Set(rpc.getActiveChainsSync());
-
-    // Collect chains that have customAssets for at least one of the given
-    // accounts and are NOT already covered by the regular RPC subscription.
-    const supplementalChainSet = new Set<ChainId>();
-    const accountsWithCustomAssets = new Set<string>();
-    for (const account of accounts) {
-      const customForAccount = this.state.customAssets[account.id] ?? [];
-      if (customForAccount.length === 0) {
-        continue;
-      }
-      accountsWithCustomAssets.add(account.id);
-      for (const assetId of customForAccount) {
-        let chainId: ChainId;
-        try {
-          chainId = extractChainId(assetId);
-        } catch {
-          continue;
-        }
-        if (rpcAssignedChains.has(chainId)) {
-          continue;
-        }
-        if (!rpcAvailableChains.has(chainId)) {
-          continue;
-        }
-        if (!chainToAccounts.has(chainId)) {
-          continue;
-        }
-        supplementalChainSet.add(chainId);
-      }
-    }
-
     const supplementalKey = `ds:${rpc.getName()}:custom`;
-    if (supplementalChainSet.size === 0) {
+
+    const decision = pickRpcCustomAssetsSupplement({
+      accountIds: accounts.map((account) => account.id),
+      customAssetsByAccount: this.state.customAssets,
+      rpcAssignedChains,
+      rpcAvailableChains: new Set(rpc.getActiveChainsSync()),
+      enabledChains: new Set(chainToAccounts.keys()),
+    });
+
+    if (decision.chains.length === 0) {
       this.#unsubscribeBySubscriptionKey(rpc, supplementalKey);
       return;
     }
 
-    const supplementalChains = [...supplementalChainSet];
     const supplementalAccounts = accounts.filter((account) =>
-      accountsWithCustomAssets.has(account.id),
+      decision.accountIds.has(account.id),
     );
     if (supplementalAccounts.length === 0) {
       this.#unsubscribeBySubscriptionKey(rpc, supplementalKey);
       return;
     }
 
-    this.#subscribeDataSource(rpc, supplementalAccounts, supplementalChains, {
+    this.#subscribeDataSource(rpc, supplementalAccounts, decision.chains, {
       subscriptionKey: supplementalKey,
       customAssetsOnly: true,
     });

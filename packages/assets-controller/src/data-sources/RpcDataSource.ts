@@ -429,6 +429,8 @@ export class RpcDataSource extends AbstractDataSource<
       caipChainId,
     );
 
+    console.log('assetsInfo ++++++++++', assetsInfo);
+
     // Convert balances to human-readable format.
     // Resolution: state metadata → pipeline metadata; skip if decimals unknown.
     const existingMetadata = this.#getExistingAssetsMetadata();

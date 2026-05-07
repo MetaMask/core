@@ -1913,8 +1913,7 @@ describe('AssetsController', () => {
         'eip155:1/erc20:0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48' as Caip19AssetId;
       const POLYGON_ASSET_ID =
         'eip155:137/erc20:0xc2132D05D31c914a87C6611C10748AEb04B58e8F' as Caip19AssetId;
-      const POLYGON_NATIVE_ID =
-        'eip155:137/slip44:966' as Caip19AssetId;
+      const POLYGON_NATIVE_ID = 'eip155:137/slip44:966' as Caip19AssetId;
 
       const seededState: Partial<AssetsControllerState> = {
         assetsInfo: {
@@ -1986,9 +1985,9 @@ describe('AssetsController', () => {
             expect(
               controller.state.assetsPrice[MAINNET_ASSET_ID],
             ).toBeDefined();
-            expect(
-              controller.state.customAssets[MOCK_ACCOUNT_ID],
-            ).toContain(MAINNET_ASSET_ID);
+            expect(controller.state.customAssets[MOCK_ACCOUNT_ID]).toContain(
+              MAINNET_ASSET_ID,
+            );
             expect(
               controller.state.assetPreferences[MAINNET_ASSET_ID],
             ).toBeDefined();
@@ -2079,9 +2078,9 @@ describe('AssetsController', () => {
             await new Promise(process.nextTick);
 
             expect(controller.state.assetsInfo[MAINNET_ASSET_ID]).toBeDefined();
-            expect(
-              controller.state.customAssets[MOCK_ACCOUNT_ID],
-            ).toContain(MAINNET_ASSET_ID);
+            expect(controller.state.customAssets[MOCK_ACCOUNT_ID]).toContain(
+              MAINNET_ASSET_ID,
+            );
           },
         );
       });
