@@ -6,15 +6,14 @@ export const VEDA_PERFORMANCE_API_BASE_URL = 'https://api.sevenseas.capital';
  * The key under which vault config is stored in
  * `RemoteFeatureFlagController` state's `remoteFeatureFlags` map.
  */
-// TOOD: Update this to the actual flag key when it is available.
-export const VAULT_CONFIG_FEATURE_FLAG_KEY = 'moneyVaultConfig';
+export const VAULT_CONFIG_FEATURE_FLAG_KEY = 'testMoneyVaultConfig';
 
-// TODO: Add Monad network name
 export const VEDA_API_NETWORK_NAMES: Record<Hex, string> = {
   '0xa4b1': 'arbitrum',
+  '0x8f': 'monad',
 };
 
-export const DEFAULT_VEDA_API_NETWORK_NAME = VEDA_API_NETWORK_NAMES['0xa4b1'];
+export const DEFAULT_VEDA_API_NETWORK_NAME = VEDA_API_NETWORK_NAMES['0x8f'];
 
 /**
  * Minimal ABI for the Veda Accountant's `getRate()` function (selector 0x679aefce).
