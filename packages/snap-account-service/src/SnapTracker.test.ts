@@ -68,13 +68,13 @@ function getMessenger(
  * Builds a minimal `TruncatedSnap` for tests.
  *
  * @param id - The Snap ID.
- * @param hasKeyring - Whether the Snap declares the `endowment:keyring` initial permission.
+ * @param isKeyring - Whether the Snap declares the `endowment:keyring` initial permission.
  * @returns A minimal `TruncatedSnap`.
  */
-function buildSnap(id: string, hasKeyring: boolean): TruncatedSnap {
+function buildSnap(id: string, isKeyring: boolean): TruncatedSnap {
   return {
     id: id as SnapId,
-    initialPermissions: hasKeyring ? { 'endowment:keyring': {} } : {},
+    initialPermissions: isKeyring ? { 'endowment:keyring': {} } : {},
   } as MockTruncatedSnap as TruncatedSnap;
 }
 
