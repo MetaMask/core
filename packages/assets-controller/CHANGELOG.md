@@ -27,6 +27,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - `TokenDataSource` no longer drops user-imported EVM custom asset metadata when the V3 Tokens API returns the asset ID lower-cased ([#8727](https://github.com/MetaMask/core/pull/8727))
   - State stores `customAssets` checksummed (via `normalizeAssetId`), but the API can echo it lower-cased; the spam-filter bypass now compares lower-cased on both sides so customs reliably skip the `MIN_TOKEN_OCCURRENCES` filter and `assetsInfo` is populated for them.
+- `RpcDataSource` no longer overwrites richer native token metadata with a minimal stub on every balance refresh ([#8727](https://github.com/MetaMask/core/pull/8727))
+  - Previously, each balance fetch emitted `{ type: 'native', symbol: chainStatus.nativeCurrency, name: chainStatus.nativeCurrency, decimals: 18 }` for native assets, which clobbered fields like `image`, `description`, `occurrences`, and `aggregators` enriched by the price/info API and renamed e.g. `"Avalanche"` to `"AVAX"`.
+  - Native token metadata now mirrors the existing ERC-20 behavior: prefer existing metadata in state when present, and only emit the stub when no metadata is in state yet (e.g. first sighting of the asset). The fallback in the balance-fetch error path is gated the same way.
 
 ## [6.4.0]
 
