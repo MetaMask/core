@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Export `assertExpectedHooks` utility ([#8747](https://github.com/MetaMask/core/pull/8747))
+
 ## [10.4.0]
 
 ### Added
