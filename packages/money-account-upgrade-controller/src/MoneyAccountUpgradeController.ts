@@ -44,18 +44,6 @@ import type { UpgradeConfig } from './types';
  */
 const DELEGATION_FRAMEWORK_VERSION = '1.3.0';
 
-/**
- * Per-chain Veda boring vault addresses (vmUSD). Source of truth for the
- * withdrawal-side delegation token.
- *
- * TODO: Move this into the CHOMP service-details API once it exposes a
- * dedicated `boringVaultAddress` (or extends `supportedTokens` to cover
- * vmUSD). Hardcoding here is a temporary measure.
- */
-const BORING_VAULT_ADDRESSES: Record<Hex, Hex> = {
-  '0x1': '0xA20f97813014129E7609171d2D3AA3da5206259e',
-};
-
 export const controllerName = 'MoneyAccountUpgradeController';
 
 export type MoneyAccountUpgradeControllerState = Record<string, never>;
@@ -153,21 +141,25 @@ export class MoneyAccountUpgradeController extends BaseController<
    * given chain. Resolves the Delegation Framework contract addresses for the
    * chain from `@metamask/delegation-deployments`.
    *
-   * @param chainId - The chain to initialize for.
+   * @param params - The parameters for initialization.
+   * @param params.chainId - The chain to initialize for.
+   * @param params.boringVaultAddress - The Veda boring vault contract
+   * (vmUSD) for the given chain. Used as the withdrawal-side delegation
+   * token. Supplied by the consumer until the CHOMP service-details API
+   * exposes it.
    */
-  async init(chainId: Hex): Promise<void> {
+  async init({
+    chainId,
+    boringVaultAddress,
+  }: {
+    chainId: Hex;
+    boringVaultAddress: Hex;
+  }): Promise<void> {
     const contracts =
       DELEGATOR_CONTRACTS[DELEGATION_FRAMEWORK_VERSION][hexToNumber(chainId)];
     if (!contracts) {
       throw new Error(
         `Delegation Framework ${DELEGATION_FRAMEWORK_VERSION} is not deployed on chain ${chainId}`,
-      );
-    }
-
-    const boringVaultAddress = BORING_VAULT_ADDRESSES[chainId];
-    if (!boringVaultAddress) {
-      throw new Error(
-        `No Veda boring vault address configured for chain ${chainId}`,
       );
     }
 

@@ -13,11 +13,10 @@ import { MoneyAccountUpgradeController } from '.';
 
 const MOCK_CHAIN_ID = '0x1' as Hex; // mainnet, supported in delegation-deployments@1.3.0
 const UNSUPPORTED_CHAIN_ID = '0x539' as Hex; // 1337 — local dev, not in registry
-const SEPOLIA_CHAIN_ID = '0xaa36a7' as Hex; // 11155111 — in DF 1.3.0 but no boring vault configured
 const MOCK_ACCOUNT_ADDRESS =
   '0xabcdef1234567890abcdef1234567890abcdef12' as Hex;
-const MAINNET_BORING_VAULT_ADDRESS =
-  '0xA20f97813014129E7609171d2D3AA3da5206259e';
+const MOCK_BORING_VAULT_ADDRESS =
+  '0xA20f97813014129E7609171d2D3AA3da5206259e' as Hex;
 
 // CHOMP-API-derived values.
 const MOCK_DELEGATE_ADDRESS =
@@ -236,7 +235,10 @@ describe('MoneyAccountUpgradeController', () => {
     it('fetches service details and builds config', async () => {
       const { controller, mocks } = setup();
 
-      await controller.init(MOCK_CHAIN_ID);
+      await controller.init({
+        chainId: MOCK_CHAIN_ID,
+        boringVaultAddress: MOCK_BORING_VAULT_ADDRESS,
+      });
 
       expect(mocks.getServiceDetails).toHaveBeenCalledWith([MOCK_CHAIN_ID]);
     });
@@ -244,25 +246,24 @@ describe('MoneyAccountUpgradeController', () => {
     it('throws when the chain has no Delegation Framework deployment', async () => {
       const { controller, mocks } = setup();
 
-      await expect(controller.init(UNSUPPORTED_CHAIN_ID)).rejects.toThrow(
+      await expect(
+        controller.init({
+          chainId: UNSUPPORTED_CHAIN_ID,
+          boringVaultAddress: MOCK_BORING_VAULT_ADDRESS,
+        }),
+      ).rejects.toThrow(
         `Delegation Framework 1.3.0 is not deployed on chain ${UNSUPPORTED_CHAIN_ID}`,
       );
       expect(mocks.getServiceDetails).not.toHaveBeenCalled();
     });
 
-    it('throws when the chain has no configured Veda boring vault address', async () => {
+    it('uses the supplied boring vault address as the withdrawal-side delegation token', async () => {
       const { controller, mocks } = setup();
 
-      await expect(controller.init(SEPOLIA_CHAIN_ID)).rejects.toThrow(
-        `No Veda boring vault address configured for chain ${SEPOLIA_CHAIN_ID}`,
-      );
-      expect(mocks.getServiceDetails).not.toHaveBeenCalled();
-    });
-
-    it('uses the hardcoded mainnet Veda boring vault address for the withdrawal delegation', async () => {
-      const { controller, mocks } = setup();
-
-      await controller.init(MOCK_CHAIN_ID);
+      await controller.init({
+        chainId: MOCK_CHAIN_ID,
+        boringVaultAddress: MOCK_BORING_VAULT_ADDRESS,
+      });
       await controller.upgradeAccount(MOCK_ACCOUNT_ADDRESS);
 
       // Both delegations were signed; the boring-vault address shows up in the
@@ -273,7 +274,7 @@ describe('MoneyAccountUpgradeController', () => {
         .map((caveat) => caveat.terms.toLowerCase());
       expect(
         allCaveatTerms.some((terms) =>
-          terms.includes(MAINNET_BORING_VAULT_ADDRESS.toLowerCase().slice(2)),
+          terms.includes(MOCK_BORING_VAULT_ADDRESS.toLowerCase().slice(2)),
         ),
       ).toBe(true);
     });
@@ -286,7 +287,12 @@ describe('MoneyAccountUpgradeController', () => {
         chains: {},
       });
 
-      await expect(controller.init(MOCK_CHAIN_ID)).rejects.toThrow(
+      await expect(
+        controller.init({
+          chainId: MOCK_CHAIN_ID,
+          boringVaultAddress: MOCK_BORING_VAULT_ADDRESS,
+        }),
+      ).rejects.toThrow(
         `Chain ${MOCK_CHAIN_ID} not found in service details response`,
       );
     });
@@ -304,7 +310,12 @@ describe('MoneyAccountUpgradeController', () => {
         },
       });
 
-      await expect(controller.init(MOCK_CHAIN_ID)).rejects.toThrow(
+      await expect(
+        controller.init({
+          chainId: MOCK_CHAIN_ID,
+          boringVaultAddress: MOCK_BORING_VAULT_ADDRESS,
+        }),
+      ).rejects.toThrow(
         `vedaProtocol not found for chain ${MOCK_CHAIN_ID} in service details response`,
       );
     });
@@ -328,7 +339,12 @@ describe('MoneyAccountUpgradeController', () => {
         },
       });
 
-      await expect(controller.init(MOCK_CHAIN_ID)).rejects.toThrow(
+      await expect(
+        controller.init({
+          chainId: MOCK_CHAIN_ID,
+          boringVaultAddress: MOCK_BORING_VAULT_ADDRESS,
+        }),
+      ).rejects.toThrow(
         `No supported tokens found for vedaProtocol on chain ${MOCK_CHAIN_ID}`,
       );
     });
@@ -351,9 +367,12 @@ describe('MoneyAccountUpgradeController', () => {
         auth: { message: 'CHOMP Authentication' },
         chains: {},
       });
-      await expect(controller.init(MOCK_CHAIN_ID)).rejects.toThrow(
-        'Chain 0x1 not found in service details response',
-      );
+      await expect(
+        controller.init({
+          chainId: MOCK_CHAIN_ID,
+          boringVaultAddress: MOCK_BORING_VAULT_ADDRESS,
+        }),
+      ).rejects.toThrow('Chain 0x1 not found in service details response');
 
       await expect(
         controller.upgradeAccount(MOCK_ACCOUNT_ADDRESS),
@@ -364,7 +383,10 @@ describe('MoneyAccountUpgradeController', () => {
 
     it('runs each step against the deployment-derived contract addresses', async () => {
       const { controller, mocks } = setup();
-      await controller.init(MOCK_CHAIN_ID);
+      await controller.init({
+        chainId: MOCK_CHAIN_ID,
+        boringVaultAddress: MOCK_BORING_VAULT_ADDRESS,
+      });
 
       await controller.upgradeAccount(MOCK_ACCOUNT_ADDRESS);
 
@@ -391,7 +413,10 @@ describe('MoneyAccountUpgradeController', () => {
 
     it('is callable via the messenger', async () => {
       const { controller, rootMessenger } = setup();
-      await controller.init(MOCK_CHAIN_ID);
+      await controller.init({
+        chainId: MOCK_CHAIN_ID,
+        boringVaultAddress: MOCK_BORING_VAULT_ADDRESS,
+      });
 
       expect(
         await rootMessenger.call(
@@ -403,7 +428,10 @@ describe('MoneyAccountUpgradeController', () => {
 
     it('propagates errors thrown by a step', async () => {
       const { controller, mocks } = setup();
-      await controller.init(MOCK_CHAIN_ID);
+      await controller.init({
+        chainId: MOCK_CHAIN_ID,
+        boringVaultAddress: MOCK_BORING_VAULT_ADDRESS,
+      });
       mocks.signPersonalMessage.mockRejectedValue(new Error('signing failed'));
 
       await expect(
