@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Fix `Messenger.delegate` and `Messenger.revoke` to reduce the chance of TS2590 errors when delegatee has large number of actions/events or a large number of actions/events are being delegated
+- Fix `Messenger.delegate` and `Messenger.revoke` to reduce the chance of TS2590 errors when delegatee has large number of actions/events or a large number of actions/events are being delegated ([#8748](https://github.com/MetaMask/core/pull/8748))
 
 ## [1.2.0]
 
