@@ -73,7 +73,7 @@ export async function* submitBatchHandler(
 
   yield {
     type: SubmitStep.SetTradeMeta,
-    payload: tradeMeta,
+    payload: { tradeMeta },
   };
 
   yield {

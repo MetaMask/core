@@ -80,7 +80,7 @@ export async function* submitNonEvmHandler(
 
   yield {
     type: SubmitStep.SetTradeMeta,
-    payload: tradeMeta,
+    payload: { tradeMeta },
   };
 
   yield {
@@ -97,13 +97,17 @@ export async function* submitNonEvmHandler(
 
   yield {
     type: SubmitStep.StartPolling,
-    payload: tradeMeta.id,
+    payload: {
+      historyKey: tradeMeta.id,
+    },
   };
 
   if (!isTronChainId(quoteResponse.quote.srcChainId) && !isBridgeTx) {
     yield {
       type: SubmitStep.PublishCompletedEvent,
-      payload: tradeMeta.id,
+      payload: {
+        historyKey: tradeMeta.id,
+      },
     };
   }
 }

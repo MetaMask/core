@@ -62,7 +62,6 @@ import * as bridgeStatusUtils from './utils/bridge-status';
 import * as historyUtils from './utils/history';
 import * as metricsUtils from './utils/metrics';
 import * as transactionUtils from './utils/transaction';
-import * as metricsUtils from './utils/metrics';
 
 type AllBridgeStatusControllerActions =
   MessengerActions<BridgeStatusControllerMessenger>;

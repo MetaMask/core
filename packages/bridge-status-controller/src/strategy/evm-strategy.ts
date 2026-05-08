@@ -141,14 +141,16 @@ export async function* submitEvmHandler(
   yield {
     type: SubmitStep.RekeyHistoryItem,
     payload: {
-      oldKey: actionId,
-      newKey: tradeMeta.id,
+      oldHistoryKey: actionId,
+      newHistoryKey: tradeMeta.id,
       tradeMeta,
     },
   };
 
   yield {
     type: SubmitStep.SetTradeMeta,
-    payload: tradeMeta,
+    payload: {
+      tradeMeta,
+    },
   };
 }
