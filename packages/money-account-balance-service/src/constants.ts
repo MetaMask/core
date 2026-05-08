@@ -13,8 +13,6 @@ export const VEDA_API_NETWORK_NAMES: Record<Hex, string> = {
   '0x8f': 'monad',
 };
 
-export const DEFAULT_VEDA_API_NETWORK_NAME = VEDA_API_NETWORK_NAMES['0x8f'];
-
 /**
  * Minimal ABI for the Veda Accountant contract. Covers:
  *  - base    (0x5001f3b5) — the underlying ERC20 base asset address
