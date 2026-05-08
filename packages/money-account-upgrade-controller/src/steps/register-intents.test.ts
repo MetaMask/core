@@ -326,7 +326,9 @@ describe('registerIntentsStep', () => {
       const [submitted] = mocks.createIntents.mock.calls[0];
       expect(submitted).toHaveLength(2);
       expect(
-        submitted.map((intent: { delegationHash: Hex }) => intent.delegationHash),
+        submitted.map(
+          (intent: { delegationHash: Hex }) => intent.delegationHash,
+        ),
       ).toStrictEqual([MOCK_MUSD_DELEGATION_HASH, MOCK_VMUSD_DELEGATION_HASH]);
     });
 

@@ -383,6 +383,7 @@ linkStyle default opacity:0.5
   money_account_upgrade_controller --> authenticated_user_storage;
   money_account_upgrade_controller --> base_controller;
   money_account_upgrade_controller --> chomp_api_service;
+  money_account_upgrade_controller --> delegation_controller;
   money_account_upgrade_controller --> keyring_controller;
   money_account_upgrade_controller --> messenger;
   money_account_upgrade_controller --> network_controller;

@@ -35,8 +35,7 @@ const MOCK_ADDRESS = '0xabcdef1234567890abcdef1234567890abcdef12' as Hex;
 const MOCK_CHAIN_ID = '0xaa36a7' as Hex; // 11155111 (Sepolia)
 const MOCK_DELEGATE = '0x1111111111111111111111111111111111111111' as Hex;
 const MOCK_MUSD = '0x3333333333333333333333333333333333333333' as Hex;
-const MOCK_BORING_VAULT =
-  '0x7777777777777777777777777777777777777777' as Hex;
+const MOCK_BORING_VAULT = '0x7777777777777777777777777777777777777777' as Hex;
 const MOCK_VAULT_ADAPTER = '0x4444444444444444444444444444444444444444' as Hex;
 const MOCK_ERC20_ENFORCER = '0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' as Hex;
 const MOCK_REDEEMER_ENFORCER =
@@ -58,7 +57,11 @@ const MAX_UINT256_HEX: Hex = `0x${'f'.repeat(64)}`;
 
 type ExpectedCaveat = { enforcer: Hex; terms: Hex; args: '0x' };
 const expectedCaveats = (erc20Terms: Hex): ExpectedCaveat[] => [
-  { enforcer: MOCK_VALUE_LTE_ENFORCER, terms: MOCK_VALUE_LTE_TERMS, args: '0x' },
+  {
+    enforcer: MOCK_VALUE_LTE_ENFORCER,
+    terms: MOCK_VALUE_LTE_TERMS,
+    args: '0x',
+  },
   { enforcer: MOCK_ERC20_ENFORCER, terms: erc20Terms, args: '0x' },
   { enforcer: MOCK_REDEEMER_ENFORCER, terms: MOCK_REDEEMER_TERMS, args: '0x' },
 ];
@@ -189,12 +192,14 @@ describe('buildDelegationStep', () => {
     mockCreateRedeemerTerms.mockReturnValue(MOCK_REDEEMER_TERMS as never);
     // Return a different ERC20 terms blob per token so tests can tell which
     // delegation was signed when.
-    mockCreateErc20Terms.mockImplementation(
-      (({ tokenAddress }: { tokenAddress: Hex }) =>
-        tokenAddress === MOCK_MUSD
-          ? MOCK_MUSD_ERC20_TERMS
-          : MOCK_VMUSD_ERC20_TERMS) as never,
-    );
+    mockCreateErc20Terms.mockImplementation((({
+      tokenAddress,
+    }: {
+      tokenAddress: Hex;
+    }) =>
+      tokenAddress === MOCK_MUSD
+        ? MOCK_MUSD_ERC20_TERMS
+        : MOCK_VMUSD_ERC20_TERMS) as never);
     // Distinguish the two delegations by call order — the run loop signs
     // mUSD first, then vmUSD, so the first hashDelegation call corresponds to
     // mUSD.

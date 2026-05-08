@@ -1,5 +1,8 @@
 import type { DelegationResponse } from '@metamask/authenticated-user-storage';
-import type { IntentEntry, SendIntentParams } from '@metamask/chomp-api-service';
+import type {
+  IntentEntry,
+  SendIntentParams,
+} from '@metamask/chomp-api-service';
 import type { Hex } from '@metamask/utils';
 
 import type { Step } from './step';
@@ -52,9 +55,7 @@ export const registerIntentsStep: Step = {
     const activeIntentHashes = new Set(
       existingIntents
         .filter((intent: IntentEntry) => intent.status === 'active')
-        .map((intent: IntentEntry) =>
-          intent.delegationHash.toLowerCase(),
-        ),
+        .map((intent: IntentEntry) => intent.delegationHash.toLowerCase()),
     );
 
     const needsIntent = (entry: DelegationResponse): boolean =>
