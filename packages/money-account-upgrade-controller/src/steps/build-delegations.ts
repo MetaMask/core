@@ -4,22 +4,25 @@ import {
   createERC20TransferAmountTerms,
   createRedeemerTerms,
   createValueLteTerms,
+  hashDelegation,
 } from '@metamask/delegation-core';
-import { bytesToHex } from '@metamask/utils';
+import { add0x, bytesToHex } from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
 
 import type { MoneyAccountUpgradeControllerMessenger } from '../MoneyAccountUpgradeController';
 import type { Step } from './step';
 
 const MAX_UINT256 = 2n ** 256n - 1n;
+const MAX_UINT256_HEX: Hex = add0x(MAX_UINT256.toString(16));
 
 const equalsIgnoreCase = (a: Hex, b: Hex): boolean =>
   a.toLowerCase() === b.toLowerCase();
 
 /**
- * Builds, signs, and submits a single auto-deposit delegation for the given
- * token. Both the deposit (mUSD) and withdrawal (vmUSD / boring vault)
- * delegations share this shape; only the token address differs.
+ * Builds, signs, verifies (with CHOMP), and persists a single auto-deposit
+ * delegation for the given token. Both the deposit (mUSD) and withdrawal
+ * (vmUSD / boring vault) delegations share this shape; only the token
+ * address, symbol, and metadata `type` differ.
  *
  * @param params - The parameters for building the delegation.
  * @param params.messenger - The messenger to call signing/verifying actions on.
@@ -27,17 +30,21 @@ const equalsIgnoreCase = (a: Hex, b: Hex): boolean =>
  * @param params.chainId - The chain to scope the delegation to.
  * @param params.delegateAddress - CHOMP's delegate.
  * @param params.tokenAddress - The token the delegation authorises transfers of.
+ * @param params.tokenSymbol - Symbol stored in the delegation metadata (e.g. "mUSD").
+ * @param params.delegationType - Storage metadata `type` field; matches CHOMP's intent type.
  * @param params.vedaVaultAdapterAddress - The redeemer (Veda vault adapter).
  * @param params.erc20TransferAmountEnforcer - The ERC20TransferAmountEnforcer contract.
  * @param params.redeemerEnforcer - The RedeemerEnforcer contract.
  * @param params.valueLteEnforcer - The ValueLteEnforcer contract.
  */
-async function signAndSubmitDelegation(params: {
+async function signAndStoreDelegation(params: {
   messenger: MoneyAccountUpgradeControllerMessenger;
   address: Hex;
   chainId: Hex;
   delegateAddress: Hex;
   tokenAddress: Hex;
+  tokenSymbol: string;
+  delegationType: 'cash-deposit' | 'cash-withdrawal';
   vedaVaultAdapterAddress: Hex;
   erc20TransferAmountEnforcer: Hex;
   redeemerEnforcer: Hex;
@@ -49,6 +56,8 @@ async function signAndSubmitDelegation(params: {
     chainId,
     delegateAddress,
     tokenAddress,
+    tokenSymbol,
+    delegationType,
     vedaVaultAdapterAddress,
     erc20TransferAmountEnforcer,
     redeemerEnforcer,
@@ -90,8 +99,10 @@ async function signAndSubmitDelegation(params: {
     { delegation, chainId },
   )) as Hex;
 
+  const signedDelegation = { ...delegation, signature };
+
   const result = await messenger.call('ChompApiService:verifyDelegation', {
-    signedDelegation: { ...delegation, signature },
+    signedDelegation,
     chainId,
   });
 
@@ -100,6 +111,24 @@ async function signAndSubmitDelegation(params: {
       `CHOMP rejected delegation: ${result.errors?.join(', ') ?? 'unknown error'}`,
     );
   }
+
+  const delegationHash = hashDelegation({
+    ...delegation,
+    salt: BigInt(salt),
+    signature,
+  });
+
+  await messenger.call('AuthenticatedUserStorageService:createDelegation', {
+    signedDelegation,
+    metadata: {
+      delegationHash,
+      chainIdHex: chainId,
+      allowance: MAX_UINT256_HEX,
+      tokenSymbol,
+      tokenAddress,
+      type: delegationType,
+    },
+  });
 }
 
 export const buildDelegationStep: Step = {
@@ -131,19 +160,30 @@ export const buildDelegationStep: Step = {
     // The deposit delegation authorises transfers of mUSD (delegator → vault);
     // the withdrawal delegation authorises transfers of vmUSD (vault share
     // token → adapter, which redeems back to mUSD).
-    const tokens: Hex[] = [musdTokenAddress, boringVaultAddress];
+    const delegations = [
+      {
+        tokenAddress: musdTokenAddress,
+        tokenSymbol: 'mUSD',
+        delegationType: 'cash-deposit' as const,
+      },
+      {
+        tokenAddress: boringVaultAddress,
+        tokenSymbol: 'vmUSD',
+        delegationType: 'cash-withdrawal' as const,
+      },
+    ];
 
     let didWork = false;
-    for (const tokenAddress of tokens) {
-      if (existingDelegations.some(matches(tokenAddress))) {
+    for (const config of delegations) {
+      if (existingDelegations.some(matches(config.tokenAddress))) {
         continue;
       }
-      await signAndSubmitDelegation({
+      await signAndStoreDelegation({
         messenger,
         address,
         chainId,
         delegateAddress,
-        tokenAddress,
+        ...config,
         vedaVaultAdapterAddress,
         erc20TransferAmountEnforcer,
         redeemerEnforcer,

@@ -1,4 +1,7 @@
-import type { AuthenticatedUserStorageServiceListDelegationsAction } from '@metamask/authenticated-user-storage';
+import type {
+  AuthenticatedUserStorageServiceCreateDelegationAction,
+  AuthenticatedUserStorageServiceListDelegationsAction,
+} from '@metamask/authenticated-user-storage';
 import type {
   ControllerGetStateAction,
   ControllerStateChangedEvent,
@@ -70,6 +73,7 @@ export type MoneyAccountUpgradeControllerActions =
   | MoneyAccountUpgradeControllerMethodActions;
 
 type AllowedActions =
+  | AuthenticatedUserStorageServiceCreateDelegationAction
   | AuthenticatedUserStorageServiceListDelegationsAction
   | ChompApiServiceAssociateAddressAction
   | ChompApiServiceCreateUpgradeAction
