@@ -40,14 +40,17 @@ const MOCK_UNDERLYING_TOKEN_ADDRESS =
   '0x3333333333333333333333333333333333333333' as const;
 const MOCK_ACCOUNT_ADDRESS =
   '0x4444444444444444444444444444444444444444' as const;
+const MOCK_TELLER_ADDRESS =
+  '0x5555555555555555555555555555555555555555' as const;
+const MOCK_LENS_ADDRESS = '0x6666666666666666666666666666666666666666' as const;
 const MOCK_NETWORK_CLIENT_ID = 'arbitrum-mainnet';
 
 const MOCK_VAULT_CONFIG = {
-  vaultAddress: MOCK_VAULT_ADDRESS,
-  vaultChainId: '0xa4b1' as const,
+  boringVault: MOCK_VAULT_ADDRESS,
   accountantAddress: MOCK_ACCOUNTANT_ADDRESS,
-  underlyingTokenAddress: MOCK_UNDERLYING_TOKEN_ADDRESS,
-  underlyingTokenDecimals: 6,
+  tellerAddress: MOCK_TELLER_ADDRESS,
+  lensAddress: MOCK_LENS_ADDRESS,
+  chainId: '0xa4b1' as const,
 };
 
 const MOCK_NETWORK_CONFIG = {
@@ -258,7 +261,8 @@ function createService({
 
 /**
  * Configures the Contract mock so that `balanceOf` resolves to an object
- * whose `.toString()` returns `balance`.
+ * whose `.toString()` returns `balance`. Used for single-contract flows
+ * such as `getMusdSHFvdBalance`.
  *
  * @param balance - The raw uint256 balance string to return.
  */
@@ -267,6 +271,24 @@ function mockErc20BalanceOf(balance: string): void {
     () =>
       ({
         balanceOf: jest.fn().mockResolvedValue({ toString: () => balance }),
+      }) as unknown as Contract,
+  );
+}
+
+/**
+ * Configures the first Contract instantiation to respond to `.base()` with
+ * `MOCK_UNDERLYING_TOKEN_ADDRESS`. Used alongside `mockErc20BalanceOf` to
+ * stub the two-step flow inside `getMusdBalance`: the Accountant is
+ * instantiated first to resolve the underlying token address, then the ERC-20
+ * is instantiated to read the balance.
+ */
+function mockAccountantBase(): void {
+  MockContract.mockImplementationOnce(
+    () =>
+      ({
+        base: jest
+          .fn()
+          .mockResolvedValue(MOCK_UNDERLYING_TOKEN_ADDRESS),
       }) as unknown as Contract,
   );
 }
@@ -287,29 +309,21 @@ function mockAccountantGetRate(rate: string): void {
 }
 
 /**
- * Configures the Contract mock to route calls to the correct contract method
- * based on the address. Used when `getMusdEquivalentValue` creates two
- * contracts in the same call — the vault (balanceOf) and the accountant
- * (getRate).
+ * Configures the Contract mock so that `balanceOfInAssets` resolves to an
+ * object whose `.toString()` returns `balanceOfInAssets`. Used for
+ * `getMusdEquivalentValue`, which delegates the share-to-asset conversion to
+ * the Veda Lens contract.
  *
- * @param vaultBalance - The raw uint256 balance string for the vault share contract.
- * @param exchangeRate - The raw uint256 rate string for the accountant contract.
+ * @param balanceOfInAssets - The raw uint256 asset balance string to return.
  */
-function mockContractsByAddress(
-  vaultBalance: string,
-  exchangeRate: string,
-): void {
-  const contractMocksByAddress: Record<string, Partial<Contract>> = {
-    [MOCK_VAULT_ADDRESS]: {
-      balanceOf: jest.fn().mockResolvedValue({ toString: () => vaultBalance }),
-    },
-    [MOCK_ACCOUNTANT_ADDRESS]: {
-      getRate: jest.fn().mockResolvedValue({ toString: () => exchangeRate }),
-    },
-  };
-
+function mockLensBalanceOfInAssets(balanceOfInAssets: string): void {
   MockContract.mockImplementation(
-    (address) => contractMocksByAddress[address] as unknown as Contract,
+    () =>
+      ({
+        balanceOfInAssets: jest
+          .fn()
+          .mockResolvedValue({ toString: () => balanceOfInAssets }),
+      }) as unknown as Contract,
   );
 }
 
@@ -334,6 +348,7 @@ describe('MoneyAccountBalanceService', () => {
 
   describe('init', () => {
     it('loads vault config when RemoteFeatureFlagController already has valid flags', async () => {
+      mockAccountantBase();
       mockErc20BalanceOf('5000000');
       const { service } = createService();
 
@@ -398,6 +413,7 @@ describe('MoneyAccountBalanceService', () => {
   describe('RemoteFeatureFlagController:stateChange subscription', () => {
     describe('config lifecycle', () => {
       it('sets vault config when a valid config arrives via subscription', async () => {
+        mockAccountantBase();
         mockErc20BalanceOf('9000000');
         // Start with no flags so config is absent after init.
         const { service, rootMessenger } = createService({ rffcFlags: {} });
@@ -413,14 +429,14 @@ describe('MoneyAccountBalanceService', () => {
 
       it('uses the updated vault address after config changes', async () => {
         const NEW_VAULT_ADDRESS =
-          '0x5555555555555555555555555555555555555555' as const;
+          '0x9999999999999999999999999999999999999999' as const;
         mockErc20BalanceOf('1000000');
         const { service, rootMessenger } = createService();
 
         publishRFFCStateChange(rootMessenger, {
           [VAULT_CONFIG_FEATURE_FLAG_KEY]: {
             ...MOCK_VAULT_CONFIG,
-            vaultAddress: NEW_VAULT_ADDRESS,
+            boringVault: NEW_VAULT_ADDRESS,
           },
         });
 
@@ -503,7 +519,7 @@ describe('MoneyAccountBalanceService', () => {
 
         const updatedConfig = {
           ...MOCK_VAULT_CONFIG,
-          underlyingTokenDecimals: 18,
+          lensAddress: '0x7777777777777777777777777777777777777777' as const,
         };
         publishRFFCStateChange(rootMessenger, {
           [VAULT_CONFIG_FEATURE_FLAG_KEY]: updatedConfig,
@@ -617,6 +633,7 @@ describe('MoneyAccountBalanceService', () => {
 
   describe('getMusdBalance', () => {
     it('returns the mUSD balance for the given address', async () => {
+      mockAccountantBase();
       mockErc20BalanceOf('5000000');
       const { service } = createService();
 
@@ -625,25 +642,29 @@ describe('MoneyAccountBalanceService', () => {
       expect(result).toStrictEqual({ balance: '5000000' });
     });
 
-    it('calls balanceOf on the underlying token contract, not the vault', async () => {
+    it('first calls base() on the Accountant to resolve the underlying token, then calls balanceOf on it', async () => {
+      mockAccountantBase();
       mockErc20BalanceOf('5000000');
       const { service } = createService();
 
       await service.getMusdBalance(MOCK_ACCOUNT_ADDRESS);
 
+      // Step 1: Accountant contract instantiated to fetch underlying token address.
       expect(MockContract).toHaveBeenCalledWith(
-        MOCK_UNDERLYING_TOKEN_ADDRESS,
+        MOCK_ACCOUNTANT_ADDRESS,
         expect.anything(),
         expect.anything(),
       );
-      expect(MockContract).not.toHaveBeenCalledWith(
-        MOCK_VAULT_ADDRESS,
+      // Step 2: ERC-20 contract instantiated with the resolved underlying token address.
+      expect(MockContract).toHaveBeenCalledWith(
+        MOCK_UNDERLYING_TOKEN_ADDRESS,
         expect.anything(),
         expect.anything(),
       );
     });
 
     it('is also callable via the messenger action', async () => {
+      mockAccountantBase();
       mockErc20BalanceOf('5000000');
       const { rootMessenger } = createService();
 
@@ -674,6 +695,7 @@ describe('MoneyAccountBalanceService', () => {
     });
 
     it('uses the network client at defaultRpcEndpointIndex, not always index 0', async () => {
+      mockAccountantBase();
       mockErc20BalanceOf('1000000');
       const { service, mockGetNetworkConfig, mockGetNetworkClient } =
         createService();
@@ -846,42 +868,69 @@ describe('MoneyAccountBalanceService', () => {
   // ----------------------------------------------------------
 
   describe('getMusdEquivalentValue', () => {
-    it('returns the vault share balance, exchange rate, and computed mUSD-equivalent value', async () => {
-      // balance = 2_000_000, rate = 1_100_000, decimals = 6
-      // equivalent = (2_000_000 * 1_100_000) / 10^6 = 2_200_000
-      mockContractsByAddress('2000000', '1100000');
+    it('returns balanceOfInAssets from the Veda Lens contract', async () => {
+      mockLensBalanceOfInAssets('2200000');
 
       const { service } = createService();
 
       const result = await service.getMusdEquivalentValue(MOCK_ACCOUNT_ADDRESS);
 
-      expect(result).toStrictEqual({
-        musdSHFvdBalance: '2000000',
-        exchangeRate: '1100000',
-        musdEquivalentValue: '2200000',
-      });
+      expect(result).toStrictEqual({ balanceOfInAssets: '2200000' });
     });
 
-    it('returns zero musdEquivalentValue when the vault share balance is zero', async () => {
-      mockContractsByAddress('0', '1100000');
+    it('returns zero balanceOfInAssets when the account holds no vault shares', async () => {
+      mockLensBalanceOfInAssets('0');
 
       const { service } = createService();
 
       const result = await service.getMusdEquivalentValue(MOCK_ACCOUNT_ADDRESS);
 
-      expect(result.musdEquivalentValue).toBe('0');
+      expect(result).toStrictEqual({ balanceOfInAssets: '0' });
     });
 
-    it('truncates (floors) fractional mUSD when the product is not evenly divisible', async () => {
-      // balance = 7, rate = 1_500_000, decimals = 6
-      // => (7 * 1_500_000) / 1_000_000 = 10_500_000 / 1_000_000 = 10 (BigInt floors)
-      mockContractsByAddress('7', '1500000');
+    it('instantiates the Lens contract with lensAddress and calls balanceOfInAssets with (accountAddress, boringVault, accountantAddress)', async () => {
+      const mockBalanceOfInAssets = jest
+        .fn()
+        .mockResolvedValue({ toString: () => '1000000' });
+      MockContract.mockImplementation(
+        () =>
+          ({
+            balanceOfInAssets: mockBalanceOfInAssets,
+          }) as unknown as Contract,
+      );
 
       const { service } = createService();
 
-      const result = await service.getMusdEquivalentValue(MOCK_ACCOUNT_ADDRESS);
+      await service.getMusdEquivalentValue(MOCK_ACCOUNT_ADDRESS);
 
-      expect(result.musdEquivalentValue).toBe('10');
+      expect(MockContract).toHaveBeenCalledWith(
+        MOCK_LENS_ADDRESS,
+        expect.anything(),
+        expect.anything(),
+      );
+      expect(mockBalanceOfInAssets).toHaveBeenCalledWith(
+        MOCK_ACCOUNT_ADDRESS,
+        MOCK_VAULT_ADDRESS,
+        MOCK_ACCOUNTANT_ADDRESS,
+      );
+    });
+
+    it('throws if no network configuration is found for the vault chain', async () => {
+      const { service, mockGetNetworkConfig } = createService();
+      mockGetNetworkConfig.mockReturnValue(undefined);
+
+      await expect(
+        service.getMusdEquivalentValue(MOCK_ACCOUNT_ADDRESS),
+      ).rejects.toThrow('No network configuration found for chain 0xa4b1');
+    });
+
+    it('throws if the network client has no provider', async () => {
+      const { service, mockGetNetworkClient } = createService();
+      mockGetNetworkClient.mockReturnValue({ provider: null });
+
+      await expect(
+        service.getMusdEquivalentValue(MOCK_ACCOUNT_ADDRESS),
+      ).rejects.toThrow('No provider found for chain 0xa4b1');
     });
   });
 
@@ -1045,7 +1094,7 @@ describe('MoneyAccountBalanceService', () => {
         rffcFlags: {
           [VAULT_CONFIG_FEATURE_FLAG_KEY]: {
             ...MOCK_VAULT_CONFIG,
-            vaultChainId: '0x1',
+            chainId: '0x1',
           },
         },
       });

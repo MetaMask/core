@@ -5,9 +5,9 @@ import type { Hex } from '@metamask/utils';
  * Runtime validation is performed by {@link VaultConfigStruct}.
  */
 export type VaultConfig = {
-  vaultAddress: Hex;
-  vaultChainId: Hex;
+  boringVault: Hex;
+  tellerAddress: Hex;
   accountantAddress: Hex;
-  underlyingTokenAddress: Hex;
-  underlyingTokenDecimals: number;
+  lensAddress: Hex;
+  chainId: Hex;
 };

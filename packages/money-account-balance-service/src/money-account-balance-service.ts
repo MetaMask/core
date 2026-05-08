@@ -24,6 +24,7 @@ import { Duration, inMilliseconds } from '@metamask/utils';
 
 import {
   ACCOUNTANT_ABI,
+  LENS_ABI,
   VAULT_CONFIG_FEATURE_FLAG_KEY,
   VEDA_API_NETWORK_NAMES,
   VEDA_PERFORMANCE_API_BASE_URL,
@@ -214,6 +215,7 @@ export class MoneyAccountBalanceService extends BaseDataService<
         'RemoteFeatureFlagController:getState',
       );
       const flagValue = remoteFeatureFlags[VAULT_CONFIG_FEATURE_FLAG_KEY];
+
       if (flagValue === undefined) {
         configLogger(
           'Init complete — no vault config flag present, awaiting remote flags',
@@ -347,21 +349,19 @@ export class MoneyAccountBalanceService extends BaseDataService<
    * Resolves a Web3Provider for the given chain ID by looking up the network
    * configuration and client via the messenger.
    *
-   * @param vaultChainId - The chain ID to resolve a provider for.
+   * @param chainId - The chain ID to resolve a provider for.
    * @returns A Web3Provider connected to the given chain.
    * @throws If no network configuration exists for the chain, or if the
    * resolved network client has no provider.
    */
-  #getProvider(vaultChainId: Hex): Web3Provider {
+  #getProvider(chainId: Hex): Web3Provider {
     const config = this.messenger.call(
       'NetworkController:getNetworkConfigurationByChainId',
-      vaultChainId,
+      chainId,
     );
 
     if (!config) {
-      throw new Error(
-        `No network configuration found for chain ${vaultChainId}`,
-      );
+      throw new Error(`No network configuration found for chain ${chainId}`);
     }
 
     const { rpcEndpoints, defaultRpcEndpointIndex } = config;
@@ -373,7 +373,7 @@ export class MoneyAccountBalanceService extends BaseDataService<
     );
 
     if (!networkClient?.provider) {
-      throw new Error(`No provider found for chain ${vaultChainId}`);
+      throw new Error(`No provider found for chain ${chainId}`);
     }
 
     return new Web3Provider(networkClient.provider);
@@ -384,18 +384,32 @@ export class MoneyAccountBalanceService extends BaseDataService<
    *
    * @param contractAddress - The address of the ERC-20 contract.
    * @param accountAddress - The address of the account.
-   * @param vaultChainId - The chain ID to use for the provider.
+   * @param chainId - The chain ID to use for the provider.
    * @returns The balance as a raw uint256 string.
    */
   async #fetchErc20Balance(
     contractAddress: Hex,
     accountAddress: Hex,
-    vaultChainId: Hex,
+    chainId: Hex,
   ): Promise<string> {
-    const provider = this.#getProvider(vaultChainId);
+    const provider = this.#getProvider(chainId);
     const contract = new Contract(contractAddress, abiERC20, provider);
     const balance = await contract.balanceOf(accountAddress);
     return balance.toString();
+  }
+
+  /**
+   * Fetches the underlying token address from the Accountant contract via RPC.
+   *
+   * @param chainId - The chain ID to use for the provider.
+   * @returns The underlying token address as a hex string.
+   */
+  async #fetchUnderlyingTokenAddress(chainId: Hex): Promise<Hex> {
+    const { accountantAddress } = this.#requireConfig();
+    const provider = this.#getProvider(chainId);
+    const contract = new Contract(accountantAddress, ACCOUNTANT_ABI, provider);
+    const underlyingTokenAddress = await contract.base();
+    return underlyingTokenAddress;
   }
 
   /**
@@ -409,11 +423,15 @@ export class MoneyAccountBalanceService extends BaseDataService<
     return this.fetchQuery({
       queryKey: [`${this.name}:getMusdBalance`, accountAddress],
       queryFn: async () => {
-        const { underlyingTokenAddress, vaultChainId } = this.#requireConfig();
+        const { chainId } = this.#requireConfig();
+
+        const underlyingTokenAddress =
+          await this.#fetchUnderlyingTokenAddress(chainId);
+
         const balance = await this.#fetchErc20Balance(
           underlyingTokenAddress,
           accountAddress,
-          vaultChainId,
+          chainId,
         );
         return { balance };
       },
@@ -433,11 +451,11 @@ export class MoneyAccountBalanceService extends BaseDataService<
     return this.fetchQuery({
       queryKey: [`${this.name}:getMusdSHFvdBalance`, accountAddress],
       queryFn: async () => {
-        const { vaultAddress, vaultChainId } = this.#requireConfig();
+        const { boringVault, chainId } = this.#requireConfig();
         const balance = await this.#fetchErc20Balance(
-          vaultAddress,
+          boringVault,
           accountAddress,
-          vaultChainId,
+          chainId,
         );
         return { balance };
       },
@@ -461,8 +479,8 @@ export class MoneyAccountBalanceService extends BaseDataService<
     return this.fetchQuery({
       queryKey: [`${this.name}:getExchangeRate`],
       queryFn: async () => {
-        const { accountantAddress, vaultChainId } = this.#requireConfig();
-        const provider = this.#getProvider(vaultChainId);
+        const { accountantAddress, chainId } = this.#requireConfig();
+        const provider = this.#getProvider(chainId);
         const contract = new Contract(
           accountantAddress,
           ACCOUNTANT_ABI,
@@ -489,27 +507,23 @@ export class MoneyAccountBalanceService extends BaseDataService<
   async getMusdEquivalentValue(
     accountAddress: Hex,
   ): Promise<MusdEquivalentValueResponse> {
-    const [{ balance: musdSHFvdBalance }, { rate: exchangeRate }] =
-      await Promise.all([
-        this.getMusdSHFvdBalance(accountAddress),
-        this.getExchangeRate(),
-      ]);
+    return this.fetchQuery({
+      queryKey: [`${this.name}:getMusdEquivalentValue`, accountAddress],
+      queryFn: async () => {
+        const { lensAddress, boringVault, accountantAddress, chainId } =
+          this.#requireConfig();
+        const provider = this.#getProvider(chainId);
+        const contract = new Contract(lensAddress, LENS_ABI, provider);
+        const balanceOfInAssets = await contract.balanceOfInAssets(
+          accountAddress,
+          boringVault,
+          accountantAddress,
+        );
 
-    const { underlyingTokenDecimals } = this.#requireConfig();
-
-    const balanceBigInt = BigInt(musdSHFvdBalance);
-    const rateBigInt = BigInt(exchangeRate);
-
-    const musdEquivalentValue = (
-      (balanceBigInt * rateBigInt) /
-      10n ** BigInt(underlyingTokenDecimals)
-    ).toString();
-
-    return {
-      musdSHFvdBalance,
-      exchangeRate,
-      musdEquivalentValue,
-    };
+        return { balanceOfInAssets: balanceOfInAssets.toString() };
+      },
+      staleTime: inMilliseconds(30, Duration.Second),
+    });
   }
 
   /**
@@ -522,17 +536,17 @@ export class MoneyAccountBalanceService extends BaseDataService<
     return this.fetchQuery({
       queryKey: [`${this.name}:getVaultApy`],
       queryFn: async () => {
-        const { vaultChainId, vaultAddress } = this.#requireConfig();
-        const networkName = VEDA_API_NETWORK_NAMES[vaultChainId];
+        const { chainId, boringVault } = this.#requireConfig();
+        const networkName = VEDA_API_NETWORK_NAMES[chainId];
 
         if (!networkName) {
           throw new Error(
-            `No Veda API network name found for chain ${vaultChainId}`,
+            `No Veda API network name found for chain ${chainId}`,
           );
         }
 
         const url = new URL(
-          `/performance/${networkName}/${vaultAddress}`,
+          `/performance/${networkName}/${boringVault}`,
           VEDA_PERFORMANCE_API_BASE_URL,
         );
 

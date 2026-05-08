@@ -15,11 +15,11 @@ import { StrictHexStruct } from '@metamask/utils';
  * flag in future do not break existing clients.
  */
 export const VaultConfigStruct = type({
-  vaultAddress: StrictHexStruct,
-  vaultChainId: StrictHexStruct,
   accountantAddress: StrictHexStruct,
-  underlyingTokenAddress: StrictHexStruct,
-  underlyingTokenDecimals: number(),
+  boringVault: StrictHexStruct,
+  lensAddress: StrictHexStruct,
+  tellerAddress: StrictHexStruct,
+  chainId: StrictHexStruct,
 });
 
 /**
