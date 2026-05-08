@@ -9,6 +9,7 @@ on:
       - main
     types:
       - opened
+      - ready_for_review
 
 permissions:
   contents: write
@@ -17,7 +18,7 @@ permissions:
 jobs:
   is-fork:
     name: Determine whether this PR is from a fork
-    if: github.event_name == 'pull_request_target' || (github.event.issue.pull_request && startsWith(github.event.comment.body, '@metamaskbot update-changelogs'))
+    if: (github.event_name == 'pull_request_target' && !github.event.pull_request.draft) || (github.event.issue.pull_request && startsWith(github.event.comment.body, '@metamaskbot update-changelogs'))
     runs-on: ubuntu-latest
     outputs:
       is-fork: ${{ steps.is-fork.outputs.is-fork }}
