@@ -150,6 +150,7 @@ async function run(
     messenger,
     address: MOCK_ADDRESS,
     chainId: MOCK_CHAIN_ID,
+    boringVaultAddress: '0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee' as Hex,
     delegateAddress: MOCK_DELEGATE,
     delegatorImplAddress: MOCK_DELEGATOR_IMPL,
     erc20TransferAmountEnforcer: MOCK_ERC20_ENFORCER,

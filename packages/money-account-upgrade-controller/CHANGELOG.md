@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Add `build-delegation` step to the upgrade sequence ([#8621](https://github.com/MetaMask/core/pull/8621))
+  - Builds two delegations per upgrade — one for deposits (mUSD) and one for withdrawals (vmUSD / Veda boring vault) — checking the storage service for an existing match per token before signing. The Veda boring vault address is currently hardcoded per chain in the controller (mainnet only) pending exposure via the CHOMP service-details API.
 
 ### Changed
 

@@ -31,7 +31,9 @@ const mockCreateValueLteTerms = jest.mocked(createValueLteTerms);
 const MOCK_ADDRESS = '0xabcdef1234567890abcdef1234567890abcdef12' as Hex;
 const MOCK_CHAIN_ID = '0xaa36a7' as Hex; // 11155111 (Sepolia)
 const MOCK_DELEGATE = '0x1111111111111111111111111111111111111111' as Hex;
-const MOCK_TOKEN = '0x3333333333333333333333333333333333333333' as Hex;
+const MOCK_MUSD = '0x3333333333333333333333333333333333333333' as Hex;
+const MOCK_BORING_VAULT =
+  '0x7777777777777777777777777777777777777777' as Hex;
 const MOCK_VAULT_ADAPTER = '0x4444444444444444444444444444444444444444' as Hex;
 const MOCK_ERC20_ENFORCER = '0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' as Hex;
 const MOCK_REDEEMER_ENFORCER =
@@ -44,19 +46,21 @@ const OTHER_TOKEN = '0x8888888888888888888888888888888888888888' as Hex;
 const MOCK_SIGNATURE: Hex = `0x${'cd'.repeat(65)}`;
 
 const MOCK_VALUE_LTE_TERMS: Hex = '0xa1';
-const MOCK_ERC20_TERMS: Hex = '0xa2';
+const MOCK_MUSD_ERC20_TERMS: Hex = '0xa2';
+const MOCK_VMUSD_ERC20_TERMS: Hex = '0xa4';
 const MOCK_REDEEMER_TERMS: Hex = '0xa3';
 
-const EXPECTED_CAVEATS = [
+type ExpectedCaveat = { enforcer: Hex; terms: Hex; args: '0x' };
+const expectedCaveats = (erc20Terms: Hex): ExpectedCaveat[] => [
   { enforcer: MOCK_VALUE_LTE_ENFORCER, terms: MOCK_VALUE_LTE_TERMS, args: '0x' },
-  { enforcer: MOCK_ERC20_ENFORCER, terms: MOCK_ERC20_TERMS, args: '0x' },
+  { enforcer: MOCK_ERC20_ENFORCER, terms: erc20Terms, args: '0x' },
   { enforcer: MOCK_REDEEMER_ENFORCER, terms: MOCK_REDEEMER_TERMS, args: '0x' },
 ];
 
 /**
  * Builds a `DelegationResponse` for use as a mocked `listDelegations` entry,
- * defaulting every identifying field to one that matches our run() config.
- * Tests override one field at a time to probe the matcher.
+ * defaulting every identifying field to the deposit-side delegation. Tests
+ * override one field at a time to probe the matcher.
  *
  * @param overrides - Identifying fields to override.
  * @param overrides.delegator - The delegator address.
@@ -87,7 +91,7 @@ function makeDelegationResponse(
       chainIdHex: overrides.chainIdHex ?? MOCK_CHAIN_ID,
       allowance: '0x00',
       tokenSymbol: 'mUSD',
-      tokenAddress: overrides.tokenAddress ?? MOCK_TOKEN,
+      tokenAddress: overrides.tokenAddress ?? MOCK_MUSD,
       type: 'lend',
     },
   };
@@ -152,10 +156,11 @@ async function run(
     messenger,
     address: MOCK_ADDRESS,
     chainId: MOCK_CHAIN_ID,
+    boringVaultAddress: MOCK_BORING_VAULT,
     delegateAddress: MOCK_DELEGATE,
     delegatorImplAddress: '0x2222222222222222222222222222222222222222' as Hex,
     erc20TransferAmountEnforcer: MOCK_ERC20_ENFORCER,
-    musdTokenAddress: MOCK_TOKEN,
+    musdTokenAddress: MOCK_MUSD,
     redeemerEnforcer: MOCK_REDEEMER_ENFORCER,
     valueLteEnforcer: MOCK_VALUE_LTE_ENFORCER,
     vedaVaultAdapterAddress: MOCK_VAULT_ADAPTER,
@@ -168,8 +173,15 @@ describe('buildDelegationStep', () => {
     // picks the hex overload, but `jest.mocked()` picks the bytes overload, so
     // cast through `never` to satisfy both.
     mockCreateValueLteTerms.mockReturnValue(MOCK_VALUE_LTE_TERMS as never);
-    mockCreateErc20Terms.mockReturnValue(MOCK_ERC20_TERMS as never);
     mockCreateRedeemerTerms.mockReturnValue(MOCK_REDEEMER_TERMS as never);
+    // Return a different ERC20 terms blob per token so tests can tell which
+    // delegation was signed when.
+    mockCreateErc20Terms.mockImplementation(
+      (({ tokenAddress }: { tokenAddress: Hex }) =>
+        tokenAddress === MOCK_MUSD
+          ? MOCK_MUSD_ERC20_TERMS
+          : MOCK_VMUSD_ERC20_TERMS) as never,
+    );
   });
 
   afterEach(() => {
@@ -180,140 +192,194 @@ describe('buildDelegationStep', () => {
     expect(buildDelegationStep.name).toBe('build-delegation');
   });
 
-  it('encodes each caveat with the configured enforcer addresses', async () => {
-    const { messenger } = setup();
+  describe('when neither delegation exists in storage', () => {
+    it('signs and submits both delegations, deposit (mUSD) before withdrawal (vmUSD)', async () => {
+      const { messenger, mocks } = setup();
 
-    await run(messenger);
+      const result = await run(messenger);
 
-    expect(mockCreateValueLteTerms).toHaveBeenCalledWith({ maxValue: 0n });
-    expect(mockCreateErc20Terms).toHaveBeenCalledWith({
-      tokenAddress: MOCK_TOKEN,
-      maxAmount: 2n ** 256n - 1n,
+      expect(result).toBe('completed');
+      expect(mocks.signDelegation).toHaveBeenCalledTimes(2);
+      expect(mocks.verifyDelegation).toHaveBeenCalledTimes(2);
+
+      const signedTokens = mocks.signDelegation.mock.calls.map(
+        ([{ delegation }]) => delegation.caveats[1].terms,
+      );
+      expect(signedTokens).toStrictEqual([
+        MOCK_MUSD_ERC20_TERMS,
+        MOCK_VMUSD_ERC20_TERMS,
+      ]);
     });
-    expect(mockCreateRedeemerTerms).toHaveBeenCalledWith({
-      redeemers: [MOCK_VAULT_ADAPTER],
+
+    it('encodes each caveat against the right enforcer addresses for each token', async () => {
+      const { messenger } = setup();
+
+      await run(messenger);
+
+      // valueLte and redeemer share configuration across both delegations.
+      expect(mockCreateValueLteTerms).toHaveBeenCalledWith({ maxValue: 0n });
+      expect(mockCreateRedeemerTerms).toHaveBeenCalledWith({
+        redeemers: [MOCK_VAULT_ADAPTER],
+      });
+      // erc20TransferAmount is per-token.
+      expect(mockCreateErc20Terms).toHaveBeenCalledWith({
+        tokenAddress: MOCK_MUSD,
+        maxAmount: 2n ** 256n - 1n,
+      });
+      expect(mockCreateErc20Terms).toHaveBeenCalledWith({
+        tokenAddress: MOCK_BORING_VAULT,
+        maxAmount: 2n ** 256n - 1n,
+      });
+    });
+
+    it('hands each unsigned delegation to DelegationController:signDelegation, scoped to the chain, with a fresh 32-byte salt', async () => {
+      const { messenger, mocks } = setup();
+
+      await run(messenger);
+
+      const [first, second] = mocks.signDelegation.mock.calls.map(
+        ([params]) => params,
+      );
+
+      for (const { chainId, delegation } of [first, second]) {
+        expect(chainId).toBe(MOCK_CHAIN_ID);
+        expect(delegation.delegate).toBe(MOCK_DELEGATE);
+        expect(delegation.delegator).toBe(MOCK_ADDRESS);
+        expect(delegation.authority).toBe(ROOT_AUTHORITY);
+        expect(delegation.salt).toMatch(/^0x[0-9a-f]{64}$/u);
+        expect(delegation).not.toHaveProperty('signature');
+      }
+
+      expect(first.delegation.caveats).toStrictEqual(
+        expectedCaveats(MOCK_MUSD_ERC20_TERMS),
+      );
+      expect(second.delegation.caveats).toStrictEqual(
+        expectedCaveats(MOCK_VMUSD_ERC20_TERMS),
+      );
+      // Salts are independent per delegation.
+      expect(first.delegation.salt).not.toBe(second.delegation.salt);
+    });
+
+    it('submits each signed delegation to ChompApiService:verifyDelegation', async () => {
+      const { messenger, mocks } = setup();
+
+      await run(messenger);
+
+      const [first, second] = mocks.verifyDelegation.mock.calls.map(
+        ([params]) => params,
+      );
+
+      for (const { chainId, signedDelegation } of [first, second]) {
+        expect(chainId).toBe(MOCK_CHAIN_ID);
+        expect(signedDelegation.delegate).toBe(MOCK_DELEGATE);
+        expect(signedDelegation.delegator).toBe(MOCK_ADDRESS);
+        expect(signedDelegation.authority).toBe(ROOT_AUTHORITY);
+        expect(signedDelegation.signature).toBe(MOCK_SIGNATURE);
+        expect(signedDelegation.salt).toMatch(/^0x[0-9a-f]{64}$/u);
+      }
+
+      expect(first.signedDelegation.caveats).toStrictEqual(
+        expectedCaveats(MOCK_MUSD_ERC20_TERMS),
+      );
+      expect(second.signedDelegation.caveats).toStrictEqual(
+        expectedCaveats(MOCK_VMUSD_ERC20_TERMS),
+      );
     });
   });
 
-  describe('when listDelegations returns a delegation matching the config', () => {
-    it('returns "already-done" without building, signing, or submitting', async () => {
+  describe('when only one delegation already exists', () => {
+    it('signs and submits the missing withdrawal delegation when the deposit one already exists', async () => {
       const { messenger, mocks } = setup();
-      mocks.listDelegations.mockResolvedValue([makeDelegationResponse()]);
+      mocks.listDelegations.mockResolvedValue([
+        makeDelegationResponse({ tokenAddress: MOCK_MUSD }),
+      ]);
+
+      const result = await run(messenger);
+
+      expect(result).toBe('completed');
+      expect(mocks.signDelegation).toHaveBeenCalledTimes(1);
+      const { delegation } = mocks.signDelegation.mock.calls[0][0];
+      expect(delegation.caveats[1].terms).toBe(MOCK_VMUSD_ERC20_TERMS);
+    });
+
+    it('signs and submits the missing deposit delegation when the withdrawal one already exists', async () => {
+      const { messenger, mocks } = setup();
+      mocks.listDelegations.mockResolvedValue([
+        makeDelegationResponse({ tokenAddress: MOCK_BORING_VAULT }),
+      ]);
+
+      const result = await run(messenger);
+
+      expect(result).toBe('completed');
+      expect(mocks.signDelegation).toHaveBeenCalledTimes(1);
+      const { delegation } = mocks.signDelegation.mock.calls[0][0];
+      expect(delegation.caveats[1].terms).toBe(MOCK_MUSD_ERC20_TERMS);
+    });
+  });
+
+  describe('when both delegations already exist', () => {
+    it('returns "already-done" without signing or submitting', async () => {
+      const { messenger, mocks } = setup();
+      mocks.listDelegations.mockResolvedValue([
+        makeDelegationResponse({ tokenAddress: MOCK_MUSD }),
+        makeDelegationResponse({ tokenAddress: MOCK_BORING_VAULT }),
+      ]);
 
       const result = await run(messenger);
 
       expect(result).toBe('already-done');
-      expect(mockCreateErc20Terms).not.toHaveBeenCalled();
       expect(mocks.signDelegation).not.toHaveBeenCalled();
       expect(mocks.verifyDelegation).not.toHaveBeenCalled();
     });
 
-    it('matches addresses and chainId case-insensitively', async () => {
+    it('matches addresses, chainId, and tokenAddress case-insensitively', async () => {
       const { messenger, mocks } = setup();
       mocks.listDelegations.mockResolvedValue([
         makeDelegationResponse({
           delegator: MOCK_ADDRESS.toUpperCase() as Hex,
           delegate: MOCK_DELEGATE.toUpperCase() as Hex,
           chainIdHex: MOCK_CHAIN_ID.toUpperCase() as Hex,
-          tokenAddress: MOCK_TOKEN.toUpperCase() as Hex,
+          tokenAddress: MOCK_MUSD.toUpperCase() as Hex,
+        }),
+        makeDelegationResponse({
+          tokenAddress: MOCK_BORING_VAULT.toUpperCase() as Hex,
         }),
       ]);
 
       const result = await run(messenger);
 
       expect(result).toBe('already-done');
-      expect(mocks.signDelegation).not.toHaveBeenCalled();
     });
 
-    it('returns "already-done" when the matching entry is one of several', async () => {
+    it('ignores entries that differ on any identifying field', async () => {
       const { messenger, mocks } = setup();
       mocks.listDelegations.mockResolvedValue([
-        makeDelegationResponse({ chainIdHex: OTHER_CHAIN_ID }),
-        makeDelegationResponse(),
+        // Same token but wrong delegator/delegate/chain.
+        makeDelegationResponse({
+          tokenAddress: MOCK_MUSD,
+          delegator: OTHER_ADDRESS,
+        }),
+        makeDelegationResponse({
+          tokenAddress: MOCK_MUSD,
+          delegate: OTHER_ADDRESS,
+        }),
+        makeDelegationResponse({
+          tokenAddress: MOCK_MUSD,
+          chainIdHex: OTHER_CHAIN_ID,
+        }),
+        // Unrelated token.
         makeDelegationResponse({ tokenAddress: OTHER_TOKEN }),
       ]);
 
       const result = await run(messenger);
 
-      expect(result).toBe('already-done');
+      expect(result).toBe('completed');
+      expect(mocks.signDelegation).toHaveBeenCalledTimes(2);
     });
   });
 
-  describe('when no listed delegation matches the config', () => {
-    it.each([
-      ['delegator differs', { delegator: OTHER_ADDRESS }],
-      ['delegate differs', { delegate: OTHER_ADDRESS }],
-      ['chainIdHex differs', { chainIdHex: OTHER_CHAIN_ID }],
-      ['tokenAddress differs', { tokenAddress: OTHER_TOKEN }],
-    ])('proceeds when %s', async (_label, override) => {
-      const { messenger, mocks } = setup();
-      mocks.listDelegations.mockResolvedValue([
-        makeDelegationResponse(override),
-      ]);
-
-      const result = await run(messenger);
-
-      expect(result).toBe('completed');
-      expect(mocks.signDelegation).toHaveBeenCalledTimes(1);
-      expect(mocks.verifyDelegation).toHaveBeenCalledTimes(1);
-    });
-
-    it('proceeds when listDelegations is empty', async () => {
-      const { messenger, mocks } = setup();
-
-      const result = await run(messenger);
-
-      expect(result).toBe('completed');
-      expect(mocks.signDelegation).toHaveBeenCalledTimes(1);
-      expect(mocks.verifyDelegation).toHaveBeenCalledTimes(1);
-    });
-
-    it('hands the unsigned delegation to DelegationController:signDelegation, scoped to the target chain, with a fresh 32-byte salt', async () => {
-      const { messenger, mocks } = setup();
-
-      await run(messenger);
-
-      expect(mocks.signDelegation).toHaveBeenCalledTimes(1);
-      const params = mocks.signDelegation.mock.calls[0][0];
-      expect(params.chainId).toBe(MOCK_CHAIN_ID);
-      expect(params.delegation).toStrictEqual({
-        delegate: MOCK_DELEGATE,
-        delegator: MOCK_ADDRESS,
-        authority: ROOT_AUTHORITY,
-        caveats: EXPECTED_CAVEATS,
-        salt: expect.stringMatching(/^0x[0-9a-f]{64}$/u) as Hex,
-      });
-      expect(params.delegation).not.toHaveProperty('signature');
-    });
-
-    it('uses a fresh 32-byte salt on each call', async () => {
-      const { messenger, mocks } = setup();
-
-      await run(messenger);
-      await run(messenger);
-
-      const saltA = mocks.signDelegation.mock.calls[0][0].delegation.salt;
-      const saltB = mocks.signDelegation.mock.calls[1][0].delegation.salt;
-      expect(saltA).not.toBe(saltB);
-    });
-
-    it('submits the signed delegation to ChompApiService:verifyDelegation, with hex salt', async () => {
-      const { messenger, mocks } = setup();
-
-      await run(messenger);
-
-      expect(mocks.verifyDelegation).toHaveBeenCalledTimes(1);
-      const submitted = mocks.verifyDelegation.mock.calls[0][0];
-      expect(submitted.chainId).toBe(MOCK_CHAIN_ID);
-      expect(submitted.signedDelegation.delegate).toBe(MOCK_DELEGATE);
-      expect(submitted.signedDelegation.delegator).toBe(MOCK_ADDRESS);
-      expect(submitted.signedDelegation.authority).toBe(ROOT_AUTHORITY);
-      expect(submitted.signedDelegation.caveats).toStrictEqual(EXPECTED_CAVEATS);
-      expect(submitted.signedDelegation.signature).toBe(MOCK_SIGNATURE);
-      expect(submitted.signedDelegation.salt).toMatch(/^0x[0-9a-f]{64}$/u);
-    });
-
-    it('throws when CHOMP rejects the delegation', async () => {
+  describe('when CHOMP rejects a delegation', () => {
+    it('throws with the joined error list', async () => {
       const { messenger, mocks } = setup();
       mocks.verifyDelegation.mockResolvedValue({
         valid: false,
@@ -325,7 +391,7 @@ describe('buildDelegationStep', () => {
       );
     });
 
-    it('throws with a default message when CHOMP rejects without errors', async () => {
+    it('throws with a default message when CHOMP returns no errors', async () => {
       const { messenger, mocks } = setup();
       mocks.verifyDelegation.mockResolvedValue({ valid: false });
 
@@ -333,32 +399,47 @@ describe('buildDelegationStep', () => {
         'CHOMP rejected delegation: unknown error',
       );
     });
+
+    it('does not attempt the second delegation if the first one is rejected', async () => {
+      const { messenger, mocks } = setup();
+      mocks.verifyDelegation.mockResolvedValueOnce({
+        valid: false,
+        errors: ['nope'],
+      });
+
+      await expect(run(messenger)).rejects.toThrow(
+        'CHOMP rejected delegation: nope',
+      );
+      expect(mocks.signDelegation).toHaveBeenCalledTimes(1);
+    });
   });
 
   describe('error propagation', () => {
-    it('propagates errors from listDelegations and does not build, sign, or submit', async () => {
+    it('propagates errors from listDelegations and does not sign or submit anything', async () => {
       const { messenger, mocks } = setup();
       mocks.listDelegations.mockRejectedValue(new Error('storage failed'));
 
       await expect(run(messenger)).rejects.toThrow('storage failed');
-      expect(mockCreateErc20Terms).not.toHaveBeenCalled();
       expect(mocks.signDelegation).not.toHaveBeenCalled();
       expect(mocks.verifyDelegation).not.toHaveBeenCalled();
     });
 
-    it('propagates errors from signing and does not submit to CHOMP', async () => {
+    it('propagates errors from signing and stops the sequence', async () => {
       const { messenger, mocks } = setup();
       mocks.signDelegation.mockRejectedValue(new Error('signing failed'));
 
       await expect(run(messenger)).rejects.toThrow('signing failed');
+      expect(mocks.signDelegation).toHaveBeenCalledTimes(1);
       expect(mocks.verifyDelegation).not.toHaveBeenCalled();
     });
 
-    it('propagates errors from verifyDelegation', async () => {
+    it('propagates errors from verifyDelegation and stops the sequence', async () => {
       const { messenger, mocks } = setup();
       mocks.verifyDelegation.mockRejectedValue(new Error('chomp failed'));
 
       await expect(run(messenger)).rejects.toThrow('chomp failed');
+      expect(mocks.signDelegation).toHaveBeenCalledTimes(1);
+      expect(mocks.verifyDelegation).toHaveBeenCalledTimes(1);
     });
   });
 });

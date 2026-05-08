@@ -12,8 +12,10 @@ import type { Hex } from '@metamask/utils';
 export type UpgradeConfig = {
   /** CHOMP's delegate address — receives the delegation. */
   delegateAddress: Hex;
-  /** The mUSD token contract address. */
+  /** The mUSD token contract address (deposit-side delegation token). */
   musdTokenAddress: Hex;
+  /** The Veda boring vault contract address (withdrawal-side delegation token, vmUSD). */
+  boringVaultAddress: Hex;
   /** The Veda vault adapter contract address. */
   vedaVaultAdapterAddress: Hex;
   /** The EIP-7702 delegation target (EIP7702StatelessDeleGatorImpl). */
