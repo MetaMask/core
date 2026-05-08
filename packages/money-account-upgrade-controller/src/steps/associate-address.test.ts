@@ -20,6 +20,8 @@ const MOCK_REDEEMER_ENFORCER =
   '0x6666666666666666666666666666666666666666' as Hex;
 const MOCK_VALUE_LTE_ENFORCER =
   '0x7777777777777777777777777777777777777777' as Hex;
+const MOCK_DELEGATION_MANAGER =
+  '0x8888888888888888888888888888888888888888' as Hex;
 const MOCK_SIGNATURE = '0xdeadbeefcafebabe';
 const MOCK_NOW = new Date('2026-04-17T12:00:00.000Z').getTime();
 
@@ -80,6 +82,7 @@ async function run(
     address: MOCK_ADDRESS,
     chainId: MOCK_CHAIN_ID,
     delegateAddress: MOCK_DELEGATE,
+    delegationManager: MOCK_DELEGATION_MANAGER,
     delegatorImplAddress: MOCK_DELEGATOR_IMPL,
     erc20TransferAmountEnforcer: MOCK_ERC20_ENFORCER,
     musdTokenAddress: MOCK_TOKEN,

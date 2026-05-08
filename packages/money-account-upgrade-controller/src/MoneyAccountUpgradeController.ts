@@ -11,6 +11,7 @@ import type {
   ChompApiServiceGetServiceDetailsAction,
   ChompApiServiceVerifyDelegationAction,
 } from '@metamask/chomp-api-service';
+import { DELEGATOR_CONTRACTS } from '@metamask/delegation-deployments';
 import type {
   KeyringControllerSignEip7702AuthorizationAction,
   KeyringControllerSignPersonalMessageAction,
@@ -21,6 +22,7 @@ import type {
   NetworkControllerFindNetworkClientIdByChainIdAction,
   NetworkControllerGetNetworkClientByIdAction,
 } from '@metamask/network-controller';
+import { hexToNumber } from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
 
 import type { MoneyAccountUpgradeControllerMethodActions } from './MoneyAccountUpgradeController-method-action-types';
@@ -28,7 +30,13 @@ import { associateAddressStep } from './steps/associate-address';
 import { buildDelegationStep } from './steps/build-delegations';
 import { eip7702AuthorizationStep } from './steps/eip-7702-authorization';
 import type { Step } from './steps/step';
-import type { InitConfig } from './types';
+import type { UpgradeConfig } from './types';
+
+/**
+ * The Delegation Framework deployment version we resolve contract addresses
+ * against in `@metamask/delegation-deployments`.
+ */
+const DELEGATION_FRAMEWORK_VERSION = '1.3.0';
 
 export const controllerName = 'MoneyAccountUpgradeController';
 
@@ -86,16 +94,7 @@ export class MoneyAccountUpgradeController extends BaseController<
   MoneyAccountUpgradeControllerState,
   MoneyAccountUpgradeControllerMessenger
 > {
-  #config?: {
-    chainId: Hex;
-    delegateAddress: Hex;
-    delegatorImplAddress: Hex;
-    erc20TransferAmountEnforcer: Hex;
-    musdTokenAddress: Hex;
-    redeemerEnforcer: Hex;
-    valueLteEnforcer: Hex;
-    vedaVaultAdapterAddress: Hex;
-  };
+  #config?: UpgradeConfig & { chainId: Hex };
 
   readonly #steps: Step[] = [
     associateAddressStep,
@@ -129,12 +128,20 @@ export class MoneyAccountUpgradeController extends BaseController<
 
   /**
    * Fetches service details and validates the controller can operate on the
-   * given chain.
+   * given chain. Resolves the Delegation Framework contract addresses for the
+   * chain from `@metamask/delegation-deployments`.
    *
    * @param chainId - The chain to initialize for.
-   * @param initConfig - Contract addresses not available from the service details API.
    */
-  async init(chainId: Hex, initConfig: InitConfig): Promise<void> {
+  async init(chainId: Hex): Promise<void> {
+    const contracts =
+      DELEGATOR_CONTRACTS[DELEGATION_FRAMEWORK_VERSION][hexToNumber(chainId)];
+    if (!contracts) {
+      throw new Error(
+        `Delegation Framework ${DELEGATION_FRAMEWORK_VERSION} is not deployed on chain ${chainId}`,
+      );
+    }
+
     const response = await this.messenger.call(
       'ChompApiService:getServiceDetails',
       [chainId],
@@ -161,12 +168,13 @@ export class MoneyAccountUpgradeController extends BaseController<
     this.#config = {
       chainId,
       delegateAddress: chain.autoDepositDelegate,
-      delegatorImplAddress: initConfig.delegatorImplAddress,
-      erc20TransferAmountEnforcer: initConfig.erc20TransferAmountEnforcer,
       musdTokenAddress: vedaProtocol.supportedTokens[0].tokenAddress,
-      redeemerEnforcer: initConfig.redeemerEnforcer,
-      valueLteEnforcer: initConfig.valueLteEnforcer,
       vedaVaultAdapterAddress: vedaProtocol.adapterAddress,
+      delegationManager: contracts.DelegationManager,
+      delegatorImplAddress: contracts.EIP7702StatelessDeleGatorImpl,
+      erc20TransferAmountEnforcer: contracts.ERC20TransferAmountEnforcer,
+      redeemerEnforcer: contracts.RedeemerEnforcer,
+      valueLteEnforcer: contracts.ValueLteEnforcer,
     };
   }
 

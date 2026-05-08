@@ -14,10 +14,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - **BREAKING:** The controller messenger now requires access to three additional allowed actions: `ChompApiService:verifyDelegation`, `KeyringController:signTypedMessage`, and `AuthenticatedUserStorageService:listDelegations`. Consumers must update their messenger configuration accordingly. ([#8621](https://github.com/MetaMask/core/pull/8621))
-- **BREAKING:** `InitConfig` no longer includes `musdTokenAddress`; it is now derived internally from the Veda protocol service details. ([#8621](https://github.com/MetaMask/core/pull/8621))
-- **BREAKING:** `InitConfig` now also requires `erc20TransferAmountEnforcer`; the build-delegation step uses it (along with `redeemerEnforcer` and `valueLteEnforcer`) to pin caveat enforcer deployments rather than relying on `@metamask/smart-accounts-kit`'s registry. ([#8621](https://github.com/MetaMask/core/pull/8621))
-- Add `@metamask/authenticated-user-storage`, `@metamask/smart-accounts-kit`, `uuid`, and `viem` as dependencies. ([#8621](https://github.com/MetaMask/core/pull/8621))
+- **BREAKING:** `init()` now takes only a `chainId` and no longer accepts an `InitConfig`. Contract addresses (DelegationManager, the EIP-7702 delegator implementation, and the caveat enforcers) are resolved from `@metamask/delegation-deployments` for the target chain; `init()` throws if the chain is not supported by Delegation Framework 1.3.0. The `InitConfig` type is no longer exported. ([#8621](https://github.com/MetaMask/core/pull/8621))
+- **BREAKING:** `UpgradeConfig` no longer includes `musdTokenAddress` (now derived internally from the Veda protocol service details) and gains a `delegationManager` field. ([#8621](https://github.com/MetaMask/core/pull/8621))
+- Add `@metamask/authenticated-user-storage`, `@metamask/delegation-core`, and `@metamask/delegation-deployments` as dependencies. ([#8621](https://github.com/MetaMask/core/pull/8621))
 - Bump `@metamask/network-controller` from `^31.0.0` to `^31.1.0` ([#8765](https://github.com/MetaMask/core/pull/8765))
+
+### Fixed
+
+- Build-delegation step no longer emits a redundant duplicate `ValueLteEnforcer` caveat; the Delegation Framework treats both as equivalent, but the duplicate was inadvertently inherited from `@metamask/smart-accounts-kit`'s `erc20TransferAmount` scope helper. ([#8621](https://github.com/MetaMask/core/pull/8621))
 
 ## [1.3.2]
 

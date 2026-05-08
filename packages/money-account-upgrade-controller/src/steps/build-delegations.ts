@@ -1,20 +1,34 @@
 import type { DelegationResponse } from '@metamask/authenticated-user-storage';
+import {
+  ROOT_AUTHORITY,
+  createERC20TransferAmountTerms,
+  createRedeemerTerms,
+  createValueLteTerms,
+} from '@metamask/delegation-core';
 import { SignTypedDataVersion } from '@metamask/keyring-controller';
-import {
-  createDelegation,
-  getSmartAccountsEnvironment,
-} from '@metamask/smart-accounts-kit';
-import {
-  SIGNABLE_DELEGATION_TYPED_DATA,
-  toDelegationStruct,
-} from '@metamask/smart-accounts-kit/utils';
-import { hexToNumber, bytesToHex } from '@metamask/utils';
+import { bytesToHex, hexToNumber } from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
-import { webcrypto } from 'node:crypto';
 
 import type { Step } from './step';
 
 const MAX_UINT256 = 2n ** 256n - 1n;
+
+// EIP-712 typed-data shape expected by the on-chain DelegationManager. Values
+// are hardcoded into the contract; reproduced here verbatim from the
+// Delegation Framework reference implementation.
+const SIGNABLE_DELEGATION_TYPED_DATA = {
+  Caveat: [
+    { name: 'enforcer', type: 'address' },
+    { name: 'terms', type: 'bytes' },
+  ],
+  Delegation: [
+    { name: 'delegate', type: 'address' },
+    { name: 'delegator', type: 'address' },
+    { name: 'authority', type: 'bytes32' },
+    { name: 'caveats', type: 'Caveat[]' },
+    { name: 'salt', type: 'uint256' },
+  ],
+} as const;
 
 const equalsIgnoreCase = (a: Hex, b: Hex): boolean =>
   a.toLowerCase() === b.toLowerCase();
@@ -26,6 +40,7 @@ export const buildDelegationStep: Step = {
     address,
     chainId,
     delegateAddress,
+    delegationManager,
     erc20TransferAmountEnforcer,
     musdTokenAddress,
     redeemerEnforcer,
@@ -44,48 +59,50 @@ export const buildDelegationStep: Step = {
       return 'already-done';
     }
 
-    const saltBytes = webcrypto.getRandomValues(new Uint8Array(32));
+    const saltBytes = globalThis.crypto.getRandomValues(new Uint8Array(32));
     const salt = bytesToHex(saltBytes);
     const chainIdDecimal = hexToNumber(chainId);
-    const baseEnvironment = getSmartAccountsEnvironment(chainIdDecimal);
-    // Pin enforcer addresses to the values supplied at init() rather than
-    // letting the SDK resolve them from its own deployment registry.
-    const environment = {
-      ...baseEnvironment,
-      caveatEnforcers: {
-        ...baseEnvironment.caveatEnforcers,
-        ERC20TransferAmountEnforcer: erc20TransferAmountEnforcer,
-        RedeemerEnforcer: redeemerEnforcer,
-        ValueLteEnforcer: valueLteEnforcer,
-      },
-    };
 
-    const delegation = createDelegation({
-      environment,
-      scope: {
-        type: 'erc20TransferAmount',
-        tokenAddress: musdTokenAddress,
-        maxAmount: MAX_UINT256,
+    const caveats = [
+      {
+        enforcer: valueLteEnforcer,
+        terms: createValueLteTerms({ maxValue: 0n }),
+        args: '0x' as Hex,
       },
-      from: address,
-      to: delegateAddress,
-      caveats: [
-        { type: 'redeemer', redeemers: [vedaVaultAdapterAddress] },
-        { type: 'valueLte', maxValue: 0n },
-      ],
+      {
+        enforcer: erc20TransferAmountEnforcer,
+        terms: createERC20TransferAmountTerms({
+          tokenAddress: musdTokenAddress,
+          maxAmount: MAX_UINT256,
+        }),
+        args: '0x' as Hex,
+      },
+      {
+        enforcer: redeemerEnforcer,
+        terms: createRedeemerTerms({ redeemers: [vedaVaultAdapterAddress] }),
+        args: '0x' as Hex,
+      },
+    ];
+
+    const delegation = {
+      delegate: delegateAddress,
+      delegator: address,
+      authority: ROOT_AUTHORITY,
+      caveats,
       salt,
-    });
+      signature: '0x' as Hex,
+    };
 
     const typedData = {
       domain: {
         name: 'DelegationManager',
         version: '1',
         chainId: chainIdDecimal,
-        verifyingContract: environment.DelegationManager,
+        verifyingContract: delegationManager,
       },
       types: SIGNABLE_DELEGATION_TYPED_DATA,
       primaryType: 'Delegation' as const,
-      message: toDelegationStruct({ ...delegation, signature: '0x' }),
+      message: { ...delegation, salt: BigInt(salt) },
     };
 
     const signature = (await messenger.call(
