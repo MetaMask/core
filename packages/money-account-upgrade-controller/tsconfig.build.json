@@ -6,6 +6,7 @@
     "rootDir": "./src"
   },
   "references": [
+    { "path": "../authenticated-user-storage/tsconfig.build.json" },
     { "path": "../base-controller/tsconfig.build.json" },
     { "path": "../chomp-api-service/tsconfig.build.json" },
     { "path": "../keyring-controller/tsconfig.build.json" },

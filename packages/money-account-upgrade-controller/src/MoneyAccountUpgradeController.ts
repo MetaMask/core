@@ -1,3 +1,4 @@
+import type { AuthenticatedUserStorageServiceListDelegationsAction } from '@metamask/authenticated-user-storage';
 import type {
   ControllerGetStateAction,
   ControllerStateChangedEvent,
@@ -8,10 +9,12 @@ import type {
   ChompApiServiceAssociateAddressAction,
   ChompApiServiceCreateUpgradeAction,
   ChompApiServiceGetServiceDetailsAction,
+  ChompApiServiceVerifyDelegationAction,
 } from '@metamask/chomp-api-service';
 import type {
   KeyringControllerSignEip7702AuthorizationAction,
   KeyringControllerSignPersonalMessageAction,
+  KeyringControllerSignTypedMessageAction,
 } from '@metamask/keyring-controller';
 import type { Messenger } from '@metamask/messenger';
 import type {
@@ -22,6 +25,7 @@ import type { Hex } from '@metamask/utils';
 
 import type { MoneyAccountUpgradeControllerMethodActions } from './MoneyAccountUpgradeController-method-action-types';
 import { associateAddressStep } from './steps/associate-address';
+import { buildDelegationStep } from './steps/build-delegations';
 import { eip7702AuthorizationStep } from './steps/eip-7702-authorization';
 import type { Step } from './steps/step';
 import type { InitConfig } from './types';
@@ -49,10 +53,13 @@ type AllowedActions =
   | ChompApiServiceAssociateAddressAction
   | ChompApiServiceCreateUpgradeAction
   | ChompApiServiceGetServiceDetailsAction
+  | ChompApiServiceVerifyDelegationAction
   | KeyringControllerSignEip7702AuthorizationAction
   | KeyringControllerSignPersonalMessageAction
+  | KeyringControllerSignTypedMessageAction
   | NetworkControllerFindNetworkClientIdByChainIdAction
-  | NetworkControllerGetNetworkClientByIdAction;
+  | NetworkControllerGetNetworkClientByIdAction
+  | AuthenticatedUserStorageServiceListDelegationsAction;
 
 export type MoneyAccountUpgradeControllerStateChangedEvent =
   ControllerStateChangedEvent<
@@ -79,9 +86,22 @@ export class MoneyAccountUpgradeController extends BaseController<
   MoneyAccountUpgradeControllerState,
   MoneyAccountUpgradeControllerMessenger
 > {
-  #config?: { chainId: Hex; delegatorImplAddress: Hex };
+  #config?: {
+    chainId: Hex;
+    delegateAddress: Hex;
+    delegatorImplAddress: Hex;
+    erc20TransferAmountEnforcer: Hex;
+    musdTokenAddress: Hex;
+    redeemerEnforcer: Hex;
+    valueLteEnforcer: Hex;
+    vedaVaultAdapterAddress: Hex;
+  };
 
-  readonly #steps: Step[] = [associateAddressStep, eip7702AuthorizationStep];
+  readonly #steps: Step[] = [
+    associateAddressStep,
+    eip7702AuthorizationStep,
+    buildDelegationStep,
+  ];
 
   /**
    * Constructor for the MoneyAccountUpgradeController.
@@ -140,7 +160,13 @@ export class MoneyAccountUpgradeController extends BaseController<
 
     this.#config = {
       chainId,
+      delegateAddress: chain.autoDepositDelegate,
       delegatorImplAddress: initConfig.delegatorImplAddress,
+      erc20TransferAmountEnforcer: initConfig.erc20TransferAmountEnforcer,
+      musdTokenAddress: vedaProtocol.supportedTokens[0].tokenAddress,
+      redeemerEnforcer: initConfig.redeemerEnforcer,
+      valueLteEnforcer: initConfig.valueLteEnforcer,
+      vedaVaultAdapterAddress: vedaProtocol.adapterAddress,
     };
   }
 

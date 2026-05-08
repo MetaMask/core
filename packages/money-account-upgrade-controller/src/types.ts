@@ -28,7 +28,7 @@ export type UpgradeConfig = {
 export type InitConfig = Pick<
   UpgradeConfig,
   | 'delegatorImplAddress'
-  | 'musdTokenAddress'
+  | 'erc20TransferAmountEnforcer'
   | 'redeemerEnforcer'
   | 'valueLteEnforcer'
 >;

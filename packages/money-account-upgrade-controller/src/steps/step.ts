@@ -9,7 +9,13 @@ export type StepContext = {
   messenger: MoneyAccountUpgradeControllerMessenger;
   address: Hex;
   chainId: Hex;
+  delegateAddress: Hex;
   delegatorImplAddress: Hex;
+  erc20TransferAmountEnforcer: Hex;
+  musdTokenAddress: Hex;
+  redeemerEnforcer: Hex;
+  valueLteEnforcer: Hex;
+  vedaVaultAdapterAddress: Hex;
 };
 
 /**

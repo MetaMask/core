@@ -27,7 +27,7 @@ const MOCK_CONFIG: UpgradeConfig = {
 
 const MOCK_INIT_CONFIG = {
   delegatorImplAddress: MOCK_CONFIG.delegatorImplAddress,
-  musdTokenAddress: MOCK_CONFIG.musdTokenAddress,
+  erc20TransferAmountEnforcer: MOCK_CONFIG.erc20TransferAmountEnforcer,
   redeemerEnforcer: MOCK_CONFIG.redeemerEnforcer,
   valueLteEnforcer: MOCK_CONFIG.valueLteEnforcer,
 };
@@ -41,7 +41,7 @@ const MOCK_SERVICE_DETAILS_RESPONSE = {
         vedaProtocol: {
           supportedTokens: [
             {
-              tokenAddress: MOCK_CONFIG.erc20TransferAmountEnforcer,
+              tokenAddress: MOCK_CONFIG.musdTokenAddress,
               tokenDecimals: 18,
             },
           ],
@@ -68,6 +68,9 @@ type Mocks = {
   findNetworkClientIdByChainId: jest.Mock;
   getNetworkClientById: jest.Mock;
   providerRequest: jest.Mock;
+  listDelegations: jest.Mock;
+  signTypedMessage: jest.Mock;
+  verifyDelegation: jest.Mock;
 };
 
 function setup(): {
@@ -118,6 +121,9 @@ function setup(): {
       provider: { request: providerRequest },
     }),
     providerRequest,
+    listDelegations: jest.fn().mockResolvedValue([]),
+    signTypedMessage: jest.fn().mockResolvedValue(`0x${'cd'.repeat(65)}`),
+    verifyDelegation: jest.fn().mockResolvedValue({ valid: true }),
   };
 
   const rootMessenger = new Messenger<MockAnyNamespace, AllActions, AllEvents>({
@@ -152,6 +158,18 @@ function setup(): {
     'NetworkController:getNetworkClientById',
     mocks.getNetworkClientById,
   );
+  rootMessenger.registerActionHandler(
+    'AuthenticatedUserStorageService:listDelegations',
+    mocks.listDelegations,
+  );
+  rootMessenger.registerActionHandler(
+    'KeyringController:signTypedMessage',
+    mocks.signTypedMessage,
+  );
+  rootMessenger.registerActionHandler(
+    'ChompApiService:verifyDelegation',
+    mocks.verifyDelegation,
+  );
 
   const messenger: MoneyAccountUpgradeControllerMessenger = new Messenger({
     namespace: 'MoneyAccountUpgradeController',
@@ -167,6 +185,9 @@ function setup(): {
       'KeyringController:signEip7702Authorization',
       'NetworkController:findNetworkClientIdByChainId',
       'NetworkController:getNetworkClientById',
+      'AuthenticatedUserStorageService:listDelegations',
+      'KeyringController:signTypedMessage',
+      'ChompApiService:verifyDelegation',
     ],
     events: [],
     messenger,
