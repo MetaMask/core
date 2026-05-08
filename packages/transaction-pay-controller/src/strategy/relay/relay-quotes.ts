@@ -349,12 +349,6 @@ async function processTransactions(
     requestBody.refundTo = request.from;
   }
 
-  // Deliver the acquired token to the account that executes the delegation
-  // (transaction.txParams.from = delegator), not request.from (which can be an
-  // accountOverride / funding account). The teller / vault contract called by
-  // the inner delegation pulls funds via transferFrom(msg.sender, ...), and
-  // msg.sender after executeFromExecutor is the delegator EOA, so funds must
-  // land at the delegator, not the override.
   const fundingRecipient = (transaction.txParams?.from as Hex) ?? request.from;
 
   requestBody.txs = [
@@ -390,10 +384,6 @@ function normalizeRequest(
     ...request,
   };
 
-  // Only rewrite an Arbitrum-USDC target to a direct Hypercore deposit when the
-  // parent transaction is actually a Perps deposit. Without this gate, every
-  // Arbitrum-USDC quote (e.g. Money Account deposits) is silently rewritten to
-  // Hypercore, which then fails because the inner delegation runs on Arbitrum.
   const isPerpsDeposit = transaction.type === TransactionType.perpsDeposit;
 
   const isHyperliquidDeposit =
