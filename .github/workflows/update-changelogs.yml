@@ -9,15 +9,23 @@ on:
       - main
     types:
       - opened
+      - ready_for_review
 
 permissions:
   contents: write
   pull-requests: write
 
 jobs:
+  check-event:
+    name: Check event conditions
+    if: (github.event_name == 'pull_request_target' && !github.event.pull_request.draft) || (github.event.issue.pull_request && startsWith(github.event.comment.body, '@metamaskbot update-changelogs'))
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "Event conditions met, proceeding."
+
   is-fork:
     name: Determine whether this PR is from a fork
-    if: github.event_name == 'pull_request_target' || (github.event.issue.pull_request && startsWith(github.event.comment.body, '@metamaskbot update-changelogs'))
+    needs: check-event
     runs-on: ubuntu-latest
     outputs:
       is-fork: ${{ steps.is-fork.outputs.is-fork }}
