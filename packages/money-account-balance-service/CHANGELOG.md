@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.0]
+
 ### Added
 
 - Add `VaultConfigNotAvailableError` and `VaultConfigValidationError` error classes for typed consumer error handling ([#8742](https://github.com/MetaMask/core/pull/8742))
@@ -38,6 +40,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Compute mUSD-equivalent value of vault share holdings (`getMusdEquivalentValue`)
   - Fetch vault APY from the Veda performance REST API (`getVaultApy`)
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/money-account-balance-service@0.2.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/money-account-balance-service@1.0.0...HEAD
+[1.0.0]: https://github.com/MetaMask/core/compare/@metamask/money-account-balance-service@0.2.0...@metamask/money-account-balance-service@1.0.0
 [0.2.0]: https://github.com/MetaMask/core/compare/@metamask/money-account-balance-service@0.1.0...@metamask/money-account-balance-service@0.2.0
 [0.1.0]: https://github.com/MetaMask/core/releases/tag/@metamask/money-account-balance-service@0.1.0
