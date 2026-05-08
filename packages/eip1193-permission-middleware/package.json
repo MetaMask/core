@@ -53,7 +53,7 @@
   "dependencies": {
     "@metamask/chain-agnostic-permission": "^1.5.0",
     "@metamask/controller-utils": "^11.20.0",
-    "@metamask/json-rpc-engine": "^10.3.0",
+    "@metamask/json-rpc-engine": "^10.4.0",
     "@metamask/permission-controller": "^13.1.0",
     "@metamask/utils": "^11.9.0",
     "lodash": "^4.17.21"
