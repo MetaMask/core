@@ -286,9 +286,7 @@ function mockAccountantBase(): void {
   MockContract.mockImplementationOnce(
     () =>
       ({
-        base: jest
-          .fn()
-          .mockResolvedValue(MOCK_UNDERLYING_TOKEN_ADDRESS),
+        base: jest.fn().mockResolvedValue(MOCK_UNDERLYING_TOKEN_ADDRESS),
       }) as unknown as Contract,
   );
 }
