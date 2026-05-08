@@ -151,7 +151,7 @@ export const isHardwareWallet = (
  * @deprecated This function should not be used. Use {@link selectDefaultSlippagePercentage} instead.
  */
 export const isCustomSlippage = (slippage: GenericQuoteRequest['slippage']) => {
-  return slippage !== DEFAULT_BRIDGE_CONTROLLER_STATE.quoteRequest.slippage;
+  return slippage !== DEFAULT_BRIDGE_CONTROLLER_STATE.quoteRequest[0]?.slippage;
 };
 
 export const getQuotesReceivedProperties = (
