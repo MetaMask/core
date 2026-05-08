@@ -11,7 +11,12 @@ import type {
   TransactionPayRequiredToken,
   TransactionPayQuote,
 } from '../../types';
-import { computeRawFromFiatAmount, getTokenFiatRate } from '../../utils/token';
+import {
+  buildCaipAssetType,
+  computeRawFromFiatAmount,
+  getTokenFiatRate,
+  getTokenInfo,
+} from '../../utils/token';
 import { getRelayQuotes } from '../relay/relay-quotes';
 import type { RelayQuote } from '../relay/types';
 import { DEFAULT_FIAT_CURRENCY } from './constants';
@@ -46,14 +51,9 @@ export async function getFiatQuotes(
   const amountFiat = transactionData?.fiatPayment?.amountFiat;
   const walletAddress = transaction.txParams.from as Hex;
   const requiredTokens = getRequiredTokens(transactionData?.tokens);
-  const fiatAsset = deriveFiatAssetForFiatPayment(transaction);
+  const fiatAsset = deriveFiatAssetForFiatPayment(transaction, messenger);
 
-  if (
-    !amountFiat ||
-    !fiatPaymentMethod ||
-    !requiredTokens.length ||
-    !fiatAsset
-  ) {
+  if (!amountFiat || !fiatPaymentMethod || !requiredTokens.length) {
     return [];
   }
 
@@ -171,7 +171,7 @@ async function getRampsQuote({
 
   const quotes = await messenger.call('RampsController:getQuotes', {
     amount: adjustedAmount,
-    assetId: fiatAsset.caipAssetId,
+    assetId: buildCaipAssetType(fiatAsset.chainId, fiatAsset.address),
     fiat: DEFAULT_FIAT_CURRENCY,
     paymentMethods: [fiatPaymentMethod],
     providers: selectedProviderId ? [selectedProviderId] : undefined,
@@ -203,7 +203,6 @@ function buildRelayRequestFromAmountFiat({
   fiatAsset: {
     address: Hex;
     chainId: Hex;
-    decimals: number;
   };
   messenger: PayStrategyGetQuotesRequest['messenger'];
   requiredToken: TransactionPayRequiredToken;
@@ -219,9 +218,19 @@ function buildRelayRequestFromAmountFiat({
     return undefined;
   }
 
+  const tokenInfo = getTokenInfo(
+    messenger,
+    fiatAsset.address,
+    fiatAsset.chainId,
+  );
+
+  if (!tokenInfo) {
+    return undefined;
+  }
+
   const sourceAmountRaw = computeRawFromFiatAmount(
     amountFiat,
-    fiatAsset.decimals,
+    tokenInfo.decimals,
     sourceFiatRate.usdRate,
   );
 

@@ -26,6 +26,7 @@ import type {
 import { getStrategyOrder } from './utils/feature-flags';
 import { updateQuotes } from './utils/quotes';
 import { updateSourceAmounts } from './utils/source-amounts';
+import { buildCaipAssetType } from './utils/token';
 import {
   getTransaction,
   subscribeAssetChanges,
@@ -294,12 +295,15 @@ export class TransactionPayController extends BaseController<
         transactionId,
         this.messenger,
       ) as TransactionMeta;
-      const fiatAsset = deriveFiatAssetForFiatPayment(transaction);
+      const fiatAsset = deriveFiatAssetForFiatPayment(
+        transaction,
+        this.messenger,
+      );
       if (fiatAsset) {
         try {
           this.messenger.call(
             'RampsController:setSelectedToken',
-            fiatAsset.caipAssetId,
+            buildCaipAssetType(fiatAsset.chainId, fiatAsset.address),
           );
         } catch {
           // Intentionally no-op — tokens may not be loaded in RampsController yet.
