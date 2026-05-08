@@ -1,4 +1,5 @@
 import { decodeRedeemerTerms } from '@metamask/delegation-core';
+import { getChecksumAddress } from '@metamask/utils';
 
 import { EXECUTION_PERMISSION_REDEEMER_RULE_TYPE } from '../../constants';
 import type { RuleDecoder } from '../types';
@@ -30,7 +31,9 @@ export const redeemerRule: RuleDecoder = ({ contractAddresses, caveats }) => {
   return {
     type: EXECUTION_PERMISSION_REDEEMER_RULE_TYPE,
     data: {
-      addresses: decodeRedeemerTerms(redeemerTerms).redeemers,
+      addresses: decodeRedeemerTerms(redeemerTerms).redeemers.map(
+        getChecksumAddress,
+      ),
     },
   };
 };

@@ -17,6 +17,7 @@ describe('erc20PayeeRule', () => {
   const requiredEnforcers = new Map<Hex, number>([[nonceEnforcer, 1]]);
 
   const PAYEE_ADDRESS: Hex = '0x3333333333333333333333333333333333333333';
+  const CHECKSUM_PAYEE_INPUT: Hex = '0x8617e340b3d01fa5f11f306f4090fd50e238070d';
   const paddedPayee: Hex = `0x${PAYEE_ADDRESS.slice(2).padStart(64, '0')}`;
 
   const validPayeeCaveat: ChecksumCaveat = {
@@ -48,6 +49,29 @@ describe('erc20PayeeRule', () => {
     ).toStrictEqual({
       type: 'payee',
       data: { addresses: [getChecksumAddress(PAYEE_ADDRESS)] },
+    });
+  });
+
+  it('returns a checksummed payee address when encoded address is lowercase', () => {
+    const paddedLowercasePayee: Hex = `0x${CHECKSUM_PAYEE_INPUT.slice(2).padStart(64, '0')}`;
+    const caveat: ChecksumCaveat = {
+      enforcer: allowedCalldataEnforcer,
+      terms: createAllowedCalldataTerms({
+        startIndex: 4,
+        value: paddedLowercasePayee,
+      }),
+      args: '0x' as Hex,
+    };
+
+    expect(
+      erc20PayeeRule({
+        contractAddresses,
+        caveats: [caveat],
+        requiredEnforcers,
+      }),
+    ).toStrictEqual({
+      type: 'payee',
+      data: { addresses: [getChecksumAddress(CHECKSUM_PAYEE_INPUT)] },
     });
   });
 

@@ -18,6 +18,7 @@ describe('nativePayeeRule', () => {
 
   const PAYEE_A: Hex = '0x4444444444444444444444444444444444444444';
   const PAYEE_B: Hex = '0x5555555555555555555555555555555555555555';
+  const CHECKSUM_PAYEE_INPUT: Hex = '0xde709f2102306220921060314715629080e2fb77';
 
   it('returns null when no AllowedTargetsEnforcer caveat is present', () => {
     const caveats: ChecksumCaveat[] = [
@@ -62,6 +63,23 @@ describe('nativePayeeRule', () => {
       data: {
         addresses: [getChecksumAddress(PAYEE_A), getChecksumAddress(PAYEE_B)],
       },
+    });
+  });
+
+  it('returns checksummed payee addresses', () => {
+    const caveats: ChecksumCaveat[] = [
+      {
+        enforcer: allowedTargetsEnforcer,
+        terms: createAllowedTargetsTerms({ targets: [CHECKSUM_PAYEE_INPUT] }),
+        args: '0x' as Hex,
+      },
+    ];
+
+    expect(
+      nativePayeeRule({ contractAddresses, caveats, requiredEnforcers }),
+    ).toStrictEqual({
+      type: 'payee',
+      data: { addresses: [getChecksumAddress(CHECKSUM_PAYEE_INPUT)] },
     });
   });
 

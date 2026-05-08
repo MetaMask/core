@@ -18,6 +18,7 @@ describe('redeemerRule', () => {
 
   const ADDRESS_A: Hex = '0x1111111111111111111111111111111111111111';
   const ADDRESS_B: Hex = '0x2222222222222222222222222222222222222222';
+  const CHECKSUM_REDEEMER_INPUT: Hex = '0x52908400098527886e0f7030069857d2e4169ee7';
 
   it('returns null when no RedeemerEnforcer caveat is present', () => {
     const caveats: ChecksumCaveat[] = [
@@ -60,6 +61,23 @@ describe('redeemerRule', () => {
     ).toStrictEqual({
       type: 'redeemer',
       data: { addresses: [ADDRESS_A, ADDRESS_B] },
+    });
+  });
+
+  it('returns checksummed redeemer addresses', () => {
+    const caveats: ChecksumCaveat[] = [
+      {
+        enforcer: redeemerEnforcer,
+        terms: createRedeemerTerms({ redeemers: [CHECKSUM_REDEEMER_INPUT] }),
+        args: '0x' as Hex,
+      },
+    ];
+
+    expect(
+      redeemerRule({ contractAddresses, caveats, requiredEnforcers }),
+    ).toStrictEqual({
+      type: 'redeemer',
+      data: { addresses: [getChecksumAddress(CHECKSUM_REDEEMER_INPUT)] },
     });
   });
 
