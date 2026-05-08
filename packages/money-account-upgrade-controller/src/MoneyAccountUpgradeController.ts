@@ -11,11 +11,11 @@ import type {
   ChompApiServiceGetServiceDetailsAction,
   ChompApiServiceVerifyDelegationAction,
 } from '@metamask/chomp-api-service';
+import type { DelegationControllerSignDelegationAction } from '@metamask/delegation-controller';
 import { DELEGATOR_CONTRACTS } from '@metamask/delegation-deployments';
 import type {
   KeyringControllerSignEip7702AuthorizationAction,
   KeyringControllerSignPersonalMessageAction,
-  KeyringControllerSignTypedMessageAction,
 } from '@metamask/keyring-controller';
 import type { Messenger } from '@metamask/messenger';
 import type {
@@ -58,16 +58,16 @@ export type MoneyAccountUpgradeControllerActions =
   | MoneyAccountUpgradeControllerMethodActions;
 
 type AllowedActions =
+  | AuthenticatedUserStorageServiceListDelegationsAction
   | ChompApiServiceAssociateAddressAction
   | ChompApiServiceCreateUpgradeAction
   | ChompApiServiceGetServiceDetailsAction
   | ChompApiServiceVerifyDelegationAction
+  | DelegationControllerSignDelegationAction
   | KeyringControllerSignEip7702AuthorizationAction
   | KeyringControllerSignPersonalMessageAction
-  | KeyringControllerSignTypedMessageAction
   | NetworkControllerFindNetworkClientIdByChainIdAction
-  | NetworkControllerGetNetworkClientByIdAction
-  | AuthenticatedUserStorageServiceListDelegationsAction;
+  | NetworkControllerGetNetworkClientByIdAction;
 
 export type MoneyAccountUpgradeControllerStateChangedEvent =
   ControllerStateChangedEvent<
@@ -170,7 +170,6 @@ export class MoneyAccountUpgradeController extends BaseController<
       delegateAddress: chain.autoDepositDelegate,
       musdTokenAddress: vedaProtocol.supportedTokens[0].tokenAddress,
       vedaVaultAdapterAddress: vedaProtocol.adapterAddress,
-      delegationManager: contracts.DelegationManager,
       delegatorImplAddress: contracts.EIP7702StatelessDeleGatorImpl,
       erc20TransferAmountEnforcer: contracts.ERC20TransferAmountEnforcer,
       redeemerEnforcer: contracts.RedeemerEnforcer,

@@ -4,9 +4,10 @@ import type { Hex } from '@metamask/utils';
  * Configuration required to perform the Money Account upgrade sequence.
  *
  * `delegateAddress`, `musdTokenAddress`, and `vedaVaultAdapterAddress` come
- * from the CHOMP service details API. The remaining contract addresses
- * (`delegationManager`, `delegatorImplAddress`, and the caveat enforcers) are
- * resolved from `@metamask/delegation-deployments` for the target chain.
+ * from the CHOMP service details API. `delegatorImplAddress` and the caveat
+ * enforcer addresses are resolved from `@metamask/delegation-deployments` for
+ * the target chain. (DelegationManager resolution is delegated to
+ * `@metamask/delegation-controller`, which handles delegation signing.)
  */
 export type UpgradeConfig = {
   /** CHOMP's delegate address — receives the delegation. */
@@ -15,8 +16,6 @@ export type UpgradeConfig = {
   musdTokenAddress: Hex;
   /** The Veda vault adapter contract address. */
   vedaVaultAdapterAddress: Hex;
-  /** Address of the DelegationManager contract (EIP-712 verifying contract). */
-  delegationManager: Hex;
   /** The EIP-7702 delegation target (EIP7702StatelessDeleGatorImpl). */
   delegatorImplAddress: Hex;
   /** Address of the ERC20TransferAmountEnforcer caveat enforcer. */

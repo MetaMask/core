@@ -5,7 +5,6 @@ import {
   createRedeemerTerms,
   createValueLteTerms,
 } from '@metamask/delegation-core';
-import { SignTypedDataVersion } from '@metamask/keyring-controller';
 import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
 import type {
   MockAnyNamespace,
@@ -31,12 +30,9 @@ const mockCreateValueLteTerms = jest.mocked(createValueLteTerms);
 
 const MOCK_ADDRESS = '0xabcdef1234567890abcdef1234567890abcdef12' as Hex;
 const MOCK_CHAIN_ID = '0xaa36a7' as Hex; // 11155111 (Sepolia)
-const MOCK_CHAIN_ID_DECIMAL = 11155111;
 const MOCK_DELEGATE = '0x1111111111111111111111111111111111111111' as Hex;
 const MOCK_TOKEN = '0x3333333333333333333333333333333333333333' as Hex;
 const MOCK_VAULT_ADAPTER = '0x4444444444444444444444444444444444444444' as Hex;
-const MOCK_DELEGATION_MANAGER =
-  '0x5555555555555555555555555555555555555555' as Hex;
 const MOCK_ERC20_ENFORCER = '0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' as Hex;
 const MOCK_REDEEMER_ENFORCER =
   '0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb' as Hex;
@@ -50,20 +46,6 @@ const MOCK_SIGNATURE: Hex = `0x${'cd'.repeat(65)}`;
 const MOCK_VALUE_LTE_TERMS: Hex = '0xa1';
 const MOCK_ERC20_TERMS: Hex = '0xa2';
 const MOCK_REDEEMER_TERMS: Hex = '0xa3';
-
-const SIGNABLE_DELEGATION_TYPED_DATA = {
-  Caveat: [
-    { name: 'enforcer', type: 'address' },
-    { name: 'terms', type: 'bytes' },
-  ],
-  Delegation: [
-    { name: 'delegate', type: 'address' },
-    { name: 'delegator', type: 'address' },
-    { name: 'authority', type: 'bytes32' },
-    { name: 'caveats', type: 'Caveat[]' },
-    { name: 'salt', type: 'uint256' },
-  ],
-} as const;
 
 const EXPECTED_CAVEATS = [
   { enforcer: MOCK_VALUE_LTE_ENFORCER, terms: MOCK_VALUE_LTE_TERMS, args: '0x' },
@@ -116,7 +98,7 @@ type AllEvents = MessengerEvents<MoneyAccountUpgradeControllerMessenger>;
 
 type Mocks = {
   listDelegations: jest.Mock;
-  signTypedMessage: jest.Mock;
+  signDelegation: jest.Mock;
   verifyDelegation: jest.Mock;
 };
 
@@ -126,7 +108,7 @@ function setup(): {
 } {
   const mocks: Mocks = {
     listDelegations: jest.fn().mockResolvedValue([]),
-    signTypedMessage: jest.fn().mockResolvedValue(MOCK_SIGNATURE),
+    signDelegation: jest.fn().mockResolvedValue(MOCK_SIGNATURE),
     verifyDelegation: jest.fn().mockResolvedValue({ valid: true }),
   };
 
@@ -138,8 +120,8 @@ function setup(): {
     mocks.listDelegations,
   );
   rootMessenger.registerActionHandler(
-    'KeyringController:signTypedMessage',
-    mocks.signTypedMessage,
+    'DelegationController:signDelegation',
+    mocks.signDelegation,
   );
   rootMessenger.registerActionHandler(
     'ChompApiService:verifyDelegation',
@@ -153,7 +135,7 @@ function setup(): {
   rootMessenger.delegate({
     actions: [
       'AuthenticatedUserStorageService:listDelegations',
-      'KeyringController:signTypedMessage',
+      'DelegationController:signDelegation',
       'ChompApiService:verifyDelegation',
     ],
     events: [],
@@ -171,7 +153,6 @@ async function run(
     address: MOCK_ADDRESS,
     chainId: MOCK_CHAIN_ID,
     delegateAddress: MOCK_DELEGATE,
-    delegationManager: MOCK_DELEGATION_MANAGER,
     delegatorImplAddress: '0x2222222222222222222222222222222222222222' as Hex,
     erc20TransferAmountEnforcer: MOCK_ERC20_ENFORCER,
     musdTokenAddress: MOCK_TOKEN,
@@ -223,7 +204,7 @@ describe('buildDelegationStep', () => {
 
       expect(result).toBe('already-done');
       expect(mockCreateErc20Terms).not.toHaveBeenCalled();
-      expect(mocks.signTypedMessage).not.toHaveBeenCalled();
+      expect(mocks.signDelegation).not.toHaveBeenCalled();
       expect(mocks.verifyDelegation).not.toHaveBeenCalled();
     });
 
@@ -241,7 +222,7 @@ describe('buildDelegationStep', () => {
       const result = await run(messenger);
 
       expect(result).toBe('already-done');
-      expect(mocks.signTypedMessage).not.toHaveBeenCalled();
+      expect(mocks.signDelegation).not.toHaveBeenCalled();
     });
 
     it('returns "already-done" when the matching entry is one of several', async () => {
@@ -273,7 +254,7 @@ describe('buildDelegationStep', () => {
       const result = await run(messenger);
 
       expect(result).toBe('completed');
-      expect(mocks.signTypedMessage).toHaveBeenCalledTimes(1);
+      expect(mocks.signDelegation).toHaveBeenCalledTimes(1);
       expect(mocks.verifyDelegation).toHaveBeenCalledTimes(1);
     });
 
@@ -283,32 +264,26 @@ describe('buildDelegationStep', () => {
       const result = await run(messenger);
 
       expect(result).toBe('completed');
-      expect(mocks.signTypedMessage).toHaveBeenCalledTimes(1);
+      expect(mocks.signDelegation).toHaveBeenCalledTimes(1);
       expect(mocks.verifyDelegation).toHaveBeenCalledTimes(1);
     });
 
-    it('signs the delegation as EIP-712 V4 typed data scoped to the DelegationManager, with a fresh 32-byte salt', async () => {
+    it('hands the unsigned delegation to DelegationController:signDelegation, scoped to the target chain, with a fresh 32-byte salt', async () => {
       const { messenger, mocks } = setup();
 
       await run(messenger);
 
-      expect(mocks.signTypedMessage).toHaveBeenCalledTimes(1);
-      const [params, version] = mocks.signTypedMessage.mock.calls[0];
-      expect(version).toBe(SignTypedDataVersion.V4);
-      expect(params.from).toBe(MOCK_ADDRESS);
-      expect(params.data.domain).toStrictEqual({
-        name: 'DelegationManager',
-        version: '1',
-        chainId: MOCK_CHAIN_ID_DECIMAL,
-        verifyingContract: MOCK_DELEGATION_MANAGER,
+      expect(mocks.signDelegation).toHaveBeenCalledTimes(1);
+      const params = mocks.signDelegation.mock.calls[0][0];
+      expect(params.chainId).toBe(MOCK_CHAIN_ID);
+      expect(params.delegation).toStrictEqual({
+        delegate: MOCK_DELEGATE,
+        delegator: MOCK_ADDRESS,
+        authority: ROOT_AUTHORITY,
+        caveats: EXPECTED_CAVEATS,
+        salt: expect.stringMatching(/^0x[0-9a-f]{64}$/u) as Hex,
       });
-      expect(params.data.types).toStrictEqual(SIGNABLE_DELEGATION_TYPED_DATA);
-      expect(params.data.primaryType).toBe('Delegation');
-      expect(params.data.message.delegate).toBe(MOCK_DELEGATE);
-      expect(params.data.message.delegator).toBe(MOCK_ADDRESS);
-      expect(params.data.message.authority).toBe(ROOT_AUTHORITY);
-      expect(params.data.message.caveats).toStrictEqual(EXPECTED_CAVEATS);
-      expect(typeof params.data.message.salt).toBe('bigint');
+      expect(params.delegation).not.toHaveProperty('signature');
     });
 
     it('uses a fresh 32-byte salt on each call', async () => {
@@ -317,8 +292,8 @@ describe('buildDelegationStep', () => {
       await run(messenger);
       await run(messenger);
 
-      const saltA = mocks.signTypedMessage.mock.calls[0][0].data.message.salt;
-      const saltB = mocks.signTypedMessage.mock.calls[1][0].data.message.salt;
+      const saltA = mocks.signDelegation.mock.calls[0][0].delegation.salt;
+      const saltB = mocks.signDelegation.mock.calls[1][0].delegation.salt;
       expect(saltA).not.toBe(saltB);
     });
 
@@ -367,13 +342,13 @@ describe('buildDelegationStep', () => {
 
       await expect(run(messenger)).rejects.toThrow('storage failed');
       expect(mockCreateErc20Terms).not.toHaveBeenCalled();
-      expect(mocks.signTypedMessage).not.toHaveBeenCalled();
+      expect(mocks.signDelegation).not.toHaveBeenCalled();
       expect(mocks.verifyDelegation).not.toHaveBeenCalled();
     });
 
     it('propagates errors from signing and does not submit to CHOMP', async () => {
       const { messenger, mocks } = setup();
-      mocks.signTypedMessage.mockRejectedValue(new Error('signing failed'));
+      mocks.signDelegation.mockRejectedValue(new Error('signing failed'));
 
       await expect(run(messenger)).rejects.toThrow('signing failed');
       expect(mocks.verifyDelegation).not.toHaveBeenCalled();

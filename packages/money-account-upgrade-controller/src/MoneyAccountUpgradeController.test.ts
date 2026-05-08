@@ -68,7 +68,7 @@ type Mocks = {
   getNetworkClientById: jest.Mock;
   providerRequest: jest.Mock;
   listDelegations: jest.Mock;
-  signTypedMessage: jest.Mock;
+  signDelegation: jest.Mock;
   verifyDelegation: jest.Mock;
 };
 
@@ -121,7 +121,7 @@ function setup(): {
     }),
     providerRequest,
     listDelegations: jest.fn().mockResolvedValue([]),
-    signTypedMessage: jest.fn().mockResolvedValue(`0x${'cd'.repeat(65)}`),
+    signDelegation: jest.fn().mockResolvedValue(`0x${'cd'.repeat(65)}`),
     verifyDelegation: jest.fn().mockResolvedValue({ valid: true }),
   };
 
@@ -162,8 +162,8 @@ function setup(): {
     mocks.listDelegations,
   );
   rootMessenger.registerActionHandler(
-    'KeyringController:signTypedMessage',
-    mocks.signTypedMessage,
+    'DelegationController:signDelegation',
+    mocks.signDelegation,
   );
   rootMessenger.registerActionHandler(
     'ChompApiService:verifyDelegation',
@@ -185,7 +185,7 @@ function setup(): {
       'NetworkController:findNetworkClientIdByChainId',
       'NetworkController:getNetworkClientById',
       'AuthenticatedUserStorageService:listDelegations',
-      'KeyringController:signTypedMessage',
+      'DelegationController:signDelegation',
       'ChompApiService:verifyDelegation',
     ],
     events: [],

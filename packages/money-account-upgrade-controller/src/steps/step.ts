@@ -10,7 +10,6 @@ export type StepContext = {
   address: Hex;
   chainId: Hex;
   delegateAddress: Hex;
-  delegationManager: Hex;
   delegatorImplAddress: Hex;
   erc20TransferAmountEnforcer: Hex;
   musdTokenAddress: Hex;
