@@ -16,16 +16,9 @@ permissions:
   pull-requests: write
 
 jobs:
-  check-event:
-    name: Check event conditions
-    if: (github.event_name == 'pull_request_target' && !github.event.pull_request.draft) || (github.event.issue.pull_request && startsWith(github.event.comment.body, '@metamaskbot update-changelogs'))
-    runs-on: ubuntu-latest
-    steps:
-      - run: echo "Event conditions met, proceeding."
-
   is-fork:
     name: Determine whether this PR is from a fork
-    needs: check-event
+    if: (github.event_name == 'pull_request_target' && !github.event.pull_request.draft) || (github.event.issue.pull_request && startsWith(github.event.comment.body, '@metamaskbot update-changelogs'))
     runs-on: ubuntu-latest
     outputs:
       is-fork: ${{ steps.is-fork.outputs.is-fork }}
