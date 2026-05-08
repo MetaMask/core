@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Trigger the first-time-interaction warning correctly for `safeTransferFrom` token transfers by including `TransactionType.tokenMethodSafeTransferFrom` in the effective-recipient decoding logic ([#8723](https://github.com/MetaMask/core/pull/8723))
 
+### Fixed
+
+- Reject transactions with a missing `to` and empty `data` to prevent accidental empty contract deployments ([#8744](https://github.com/MetaMask/core/pull/8744))
+
 ## [65.2.0]
 
 ### Added
