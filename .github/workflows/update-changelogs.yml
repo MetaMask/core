@@ -127,7 +127,7 @@ jobs:
         with:
           is-high-risk-environment: false
 
-      - name: Overlay changelogs from current pull request
+      - name: Overlay relevant files from current pull request
         env:
           PR_HEAD_SHA: ${{ needs.is-release.outputs.head-sha }}
           PR_HEAD_REF: ${{ needs.is-release.outputs.head-ref }}
@@ -135,7 +135,7 @@ jobs:
           # These next two commands are also useful later when pushing
           git fetch --no-tags origin "$PR_HEAD_SHA"
           git fetch --no-tags origin "$PR_HEAD_REF"
-          git checkout "$PR_HEAD_SHA" -- '**/CHANGELOG.md'
+          git checkout "$PR_HEAD_SHA" -- '**/CHANGELOG.md' '**/package.json'
         shell: bash
 
       - name: Configure Git with name and email
@@ -146,9 +146,9 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
         shell: bash
 
-      - name: Commit changelogs from current pull request
+      - name: Commit relevant files from current pull request
         run: |
-          git add -- '**/CHANGELOG.md'
+          git add -- '**/CHANGELOG.md' '**/package.json'
           git commit -m "[Temporary] Add changelogs from current pull request"
         shell: bash
 
@@ -175,7 +175,7 @@ jobs:
           git add -- '**/CHANGELOG.md'
           git commit -m "chore: Update dependency bump changelog entries"
 
-          new_commit_id="$(git log -1 --pretty='format:%h')"
+          new_commit_id="$(git log -1 --pretty='format:%H')"
           echo "new-commit-id=${new_commit_id}" >> "$GITHUB_OUTPUT"
         shell: bash
 
