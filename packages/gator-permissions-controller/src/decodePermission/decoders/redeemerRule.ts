@@ -31,9 +31,8 @@ export const redeemerRule: RuleDecoder = ({ contractAddresses, caveats }) => {
   return {
     type: EXECUTION_PERMISSION_REDEEMER_RULE_TYPE,
     data: {
-      addresses: decodeRedeemerTerms(redeemerTerms).redeemers.map(
-        getChecksumAddress,
-      ),
+      addresses:
+        decodeRedeemerTerms(redeemerTerms).redeemers.map(getChecksumAddress),
     },
   };
 };

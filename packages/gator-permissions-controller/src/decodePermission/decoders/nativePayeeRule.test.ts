@@ -18,7 +18,8 @@ describe('nativePayeeRule', () => {
 
   const PAYEE_A: Hex = '0x4444444444444444444444444444444444444444';
   const PAYEE_B: Hex = '0x5555555555555555555555555555555555555555';
-  const CHECKSUM_PAYEE_INPUT: Hex = '0xde709f2102306220921060314715629080e2fb77';
+  const CHECKSUM_PAYEE_INPUT: Hex =
+    '0xde709f2102306220921060314715629080e2fb77';
 
   it('returns null when no AllowedTargetsEnforcer caveat is present', () => {
     const caveats: ChecksumCaveat[] = [

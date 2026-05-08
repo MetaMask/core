@@ -17,7 +17,8 @@ describe('erc20PayeeRule', () => {
   const requiredEnforcers = new Map<Hex, number>([[nonceEnforcer, 1]]);
 
   const PAYEE_ADDRESS: Hex = '0x3333333333333333333333333333333333333333';
-  const CHECKSUM_PAYEE_INPUT: Hex = '0x8617e340b3d01fa5f11f306f4090fd50e238070d';
+  const CHECKSUM_PAYEE_INPUT: Hex =
+    '0x8617e340b3d01fa5f11f306f4090fd50e238070d';
   const paddedPayee: Hex = `0x${PAYEE_ADDRESS.slice(2).padStart(64, '0')}`;
 
   const validPayeeCaveat: ChecksumCaveat = {
