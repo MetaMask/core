@@ -15,8 +15,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - Fix fiat strategy never being selected by routing fiat payment method through `getStrategyOrder` and allowing quote retrieval when no crypto payment token is set ([#8720](https://github.com/MetaMask/core/pull/8720))
-- Deliver the Relay-acquired token to `transaction.txParams.from` (the delegator that executes the inner delegation), not `request.from` ([#8724](https://github.com/MetaMask/core/pull/8724))
-- Gate the Arbitrum-USDC → Hypercore quote rewrite on `transaction.type === TransactionType.perpsDeposit` ([#8724](https://github.com/MetaMask/core/pull/8724))
+- Fix transaction with accountOverride and targeting Arbitrum USDC ([#8724](https://github.com/MetaMask/core/pull/8724))
+  - Deliver the Relay-acquired token to `transaction.txParams.from` (the delegator that executes the inner delegation), not `request.from`.
+  - Gate the Arbitrum-USDC → Hypercore quote rewrite on `transaction.type === TransactionType.perpsDeposit`.
 
 ## [21.1.0]
 
