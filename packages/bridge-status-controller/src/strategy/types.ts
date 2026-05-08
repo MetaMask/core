@@ -43,27 +43,33 @@ export type SubmitStepResult =
       type: SubmitStep.RekeyHistoryItem;
       payload: {
         /** Usually the actionId of the preceeding `approval` transaction */
-        oldKey: string;
+        oldHistoryKey: string;
         /** Usually the txMeta.id of the `trade` transaction */
-        newKey: string;
+        newHistoryKey: string;
         /** The {@link TransactionMeta} for the `trade` transaction after it has been submitted successfully */
         tradeMeta: TransactionMeta;
       };
     }
   | {
       type: SubmitStep.StartPolling;
-      /** The `txHistory` key of the transaction to start polling for */
-      payload: string;
+      payload: {
+        /** The `txHistory` key of the transaction to start polling for */
+        historyKey: string;
+      };
     }
   | {
       type: SubmitStep.PublishCompletedEvent;
-      /** The `txHistory` key of the transaction that has been submitted successfully */
-      payload: string;
+      payload: {
+        /** The `txHistory` key of the transaction that has been submitted successfully */
+        historyKey: string;
+      };
     }
   | {
       type: SubmitStep.SetTradeMeta;
       /** The {@link TransactionMeta} for the transaction that has been submitted successfully */
-      payload: TransactionMeta;
+      payload: {
+        tradeMeta: TransactionMeta;
+      };
     };
 
 /**

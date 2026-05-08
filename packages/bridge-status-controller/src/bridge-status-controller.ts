@@ -4,6 +4,7 @@ import type {
   RequiredEventContextFromClient,
   QuoteResponse,
   Trade,
+  FeatureId,
 } from '@metamask/bridge-controller';
 import {
   isNonEvmChainId,
@@ -1079,14 +1080,14 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
         switch (type) {
           case SubmitStep.RekeyHistoryItem:
             this.#rekeyHistoryItem(
-              payload.oldKey,
-              payload.newKey,
+              payload.oldHistoryKey,
+              payload.newHistoryKey,
               payload.tradeMeta,
             );
             break;
 
           case SubmitStep.SetTradeMeta:
-            tradeTxMeta = payload;
+            tradeTxMeta = payload.tradeMeta;
             break;
 
           case SubmitStep.AddHistoryItem:
@@ -1101,13 +1102,13 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
             break;
 
           case SubmitStep.StartPolling:
-            this.#startPollingForTxId(payload);
+            this.#startPollingForTxId(payload.historyKey);
             break;
 
           case SubmitStep.PublishCompletedEvent:
             this.#trackUnifiedSwapBridgeEvent(
               UnifiedSwapBridgeEventName.Completed,
-              payload,
+              payload.historyKey,
             );
             break;
 
@@ -1151,11 +1152,10 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     activeAbTests?: { key: string; value: string }[],
     tokenSecurityTypeDestination?: string | null,
   ): Promise<TransactionMeta> => {
-    stopPollingForQuotes(
-      this.messenger,
-      quoteResponse.featureId,
-      quotesReceivedContext,
-    );
+    const { featureId, quote } = quoteResponse;
+    const startTime = Date.now();
+
+    stopPollingForQuotes(this.messenger, featureId, quotesReceivedContext);
 
     const selectedAccount = getAccountByAddress(this.messenger, accountAddress);
     if (!selectedAccount) {
@@ -1165,18 +1165,13 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     }
     const accountHardwareType = getAccountHardwareType(selectedAccount);
 
-    const isHardwareAccount = isHardwareWallet(selectedAccount);
     /**
      * For hardware wallets on Mobile, this is fixes an issue where the Ledger does not get prompted for the 2nd approval.
      * Extension does not have this issue
      */
     const requireApproval =
-      this.#clientId === BridgeClientId.MOBILE && isHardwareAccount;
-    const startTime = Date.now();
-    const isBridgeTx = isCrossChain(
-      quoteResponse.quote.srcChainId,
-      quoteResponse.quote.destChainId,
-    );
+      this.#clientId === BridgeClientId.MOBILE && accountHardwareType !== null;
+    const isBridgeTx = isCrossChain(quote.srcChainId, quote.destChainId);
 
     const preConfirmationProperties = getPreConfirmationPropertiesFromQuote(
       quoteResponse,
@@ -1190,24 +1185,24 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
 
     try {
       // Emit Submitted event after submit button is clicked
-      !quoteResponse.featureId &&
-        this.#trackUnifiedSwapBridgeEvent(
-          UnifiedSwapBridgeEventName.Submitted,
-          undefined,
-          preConfirmationProperties,
-        );
+      this.#trackUnifiedSwapBridgeEvent(
+        UnifiedSwapBridgeEventName.Submitted,
+        undefined,
+        preConfirmationProperties,
+        featureId,
+      );
 
       /**
        * Check if the account is an EIP-7702 delegated account.
        * Delegated accounts only allow 1 in-flight tx, so approve + swap
        * must be batched into a single transaction
        */
-      const isDelegatedAccount = isNonEvmChainId(quoteResponse.quote.srcChainId)
+      const isDelegatedAccount = isNonEvmChainId(quote.srcChainId)
         ? false
         : await checkIsDelegatedAccount(
             this.messenger,
             selectedAccount.address as Hex,
-            [formatChainIdToHex(quoteResponse.quote.srcChainId)],
+            [formatChainIdToHex(quote.srcChainId)],
           );
 
       const strategyParams: SubmitStrategyParams<Trade> = {
@@ -1237,16 +1232,15 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
           }),
       );
     } catch (error) {
-      if (!quoteResponse.featureId) {
-        this.#trackUnifiedSwapBridgeEvent(
-          UnifiedSwapBridgeEventName.Failed,
-          undefined,
-          {
-            error_message: (error as Error)?.message,
-            ...preConfirmationProperties,
-          },
-        );
-      }
+      this.#trackUnifiedSwapBridgeEvent(
+        UnifiedSwapBridgeEventName.Failed,
+        undefined,
+        {
+          error_message: (error as Error)?.message,
+          ...preConfirmationProperties,
+        },
+        featureId,
+      );
       throw error;
     }
   };
@@ -1308,17 +1302,15 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
   ): void => {
     // Track polling status updated event
     const historyItem = this.state.txHistory[historyKey];
-    if (historyItem && !historyItem.featureId) {
-      this.#trackUnifiedSwapBridgeEvent(
-        UnifiedSwapBridgeEventName.PollingStatusUpdated,
-        historyKey,
-        getPollingStatusUpdatedProperties(
-          this.messenger,
-          pollingStatus,
-          historyItem,
-        ),
-      );
-    }
+    this.#trackUnifiedSwapBridgeEvent(
+      UnifiedSwapBridgeEventName.PollingStatusUpdated,
+      historyKey,
+      getPollingStatusUpdatedProperties(
+        this.messenger,
+        pollingStatus,
+        historyItem,
+      ),
+    );
   };
 
   /**
@@ -1327,6 +1319,8 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
    * @param eventName - The name of the event to track
    * @param txMetaId - The txMetaId of the history item to track the event for
    * @param eventProperties - The properties for the event
+   * @param featureIdOverride - The featureId to use when the history item is not available. Should
+   * only be provided for events that are not associated with a history item yet, such as Submitted or Failed
    */
   readonly #trackUnifiedSwapBridgeEvent = <
     EventName extends
@@ -1342,7 +1336,22 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       RequiredEventContextFromClient,
       EventName
     >[EventName],
+    featureIdOverride?: FeatureId,
   ): void => {
+    const historyItem: BridgeHistoryItem | undefined = txMetaId
+      ? this.state.txHistory[txMetaId]
+      : undefined;
+    const featureId = featureIdOverride ?? historyItem?.featureId;
+
+    const shouldSkipMetrics =
+      // Skip tracking all other events when featureId is set (i.e. PERPS)
+      featureId &&
+      // Always publish StatusValidationFailed event, regardless of featureId
+      eventName !== UnifiedSwapBridgeEventName.StatusValidationFailed;
+    if (shouldSkipMetrics) {
+      return;
+    }
+
     // Legacy/new metrics fields are intentionally kept independent during migration.
     const historyAbTests = txMetaId
       ? this.state.txHistory?.[txMetaId]?.abTests
@@ -1373,18 +1382,6 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     };
 
     // This will publish events for PERPS dropped tx failures as well
-    if (!txMetaId) {
-      trackMetricsEvent({
-        messenger: this.messenger,
-        eventName,
-        properties: baseProperties,
-      });
-      return;
-    }
-
-    const historyItem: BridgeHistoryItem | undefined =
-      this.state.txHistory[txMetaId];
-
     if (!historyItem) {
       trackMetricsEvent({
         messenger: this.messenger,
@@ -1394,9 +1391,9 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       return;
     }
 
-    const { featureId, approvalTxId, quote } = historyItem;
+    const { approvalTxId, quote } = historyItem;
     const requestParamProperties = getRequestParamFromHistory(historyItem);
-    // Always publish StatusValidationFailed event, regardless of featureId
+
     if (eventName === UnifiedSwapBridgeEventName.StatusValidationFailed) {
       trackMetricsEvent({
         messenger: this.messenger,
@@ -1413,11 +1410,6 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
           refresh_count: historyItem.attempts?.counter ?? 0,
         },
       });
-      return;
-    }
-
-    // Skip tracking all other events when featureId is set (i.e. PERPS)
-    if (featureId) {
       return;
     }
 

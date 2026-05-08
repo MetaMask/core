@@ -168,9 +168,11 @@ export async function* submitIntentHandler(
   yield {
     type: SubmitStep.SetTradeMeta,
     payload: {
-      ...syntheticTxMeta,
-      // Map intent order status to TransactionController status
-      status: mapIntentOrderStatusToTransactionStatus(orderStatus),
+      tradeMeta: {
+        ...syntheticTxMeta,
+        // Map intent order status to TransactionController status
+        status: mapIntentOrderStatusToTransactionStatus(orderStatus),
+      },
     },
   };
 
@@ -192,6 +194,8 @@ export async function* submitIntentHandler(
   // Start polling using the orderId as the history key
   yield {
     type: SubmitStep.StartPolling,
-    payload: orderUid,
+    payload: {
+      historyKey: orderUid,
+    },
   };
 }
