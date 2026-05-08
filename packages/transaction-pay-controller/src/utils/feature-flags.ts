@@ -324,6 +324,7 @@ function getDefaultOverrideStrategies(
  * @param tokenAddress - Optional token address used to match route overrides.
  * @param transactionType - Optional transaction type used to match route
  * overrides.
+ * @param fiatPaymentMethodId - Optional fiat payment method ID used to match route overrides.
  * @returns Ordered strategy list.
  */
 export function getStrategyOrder(
@@ -331,7 +332,13 @@ export function getStrategyOrder(
   chainId?: Hex,
   tokenAddress?: Hex,
   transactionType?: string,
+  fiatPaymentMethodId?: string,
 ): StrategyOrder {
+  // If fiat payment method is selected, use Fiat strategy only
+  if (fiatPaymentMethodId) {
+    return [TransactionPayStrategy.Fiat];
+  }
+
   const routingConfig = getStrategyRoutingConfig(messenger);
   const normalizedChainId = normalizeHex(chainId);
   const normalizedTokenAddress = normalizeHex(tokenAddress);

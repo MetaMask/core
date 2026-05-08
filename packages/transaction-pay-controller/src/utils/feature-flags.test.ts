@@ -812,6 +812,49 @@ describe('Feature Flags Utils', () => {
         TransactionPayStrategy.Relay,
       ]);
     });
+
+    it('returns only Fiat strategy when fiatPaymentMethodId is provided', () => {
+      const strategyOrder = getStrategyOrder(
+        messenger,
+        undefined,
+        undefined,
+        undefined,
+        'card-123',
+      );
+
+      expect(strategyOrder).toStrictEqual([TransactionPayStrategy.Fiat]);
+    });
+
+    it('returns only Fiat strategy regardless of other routing config when fiatPaymentMethodId is provided', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_pay: {
+            strategyOrder: [
+              TransactionPayStrategy.Relay,
+              TransactionPayStrategy.Across,
+            ],
+            strategyOverrides: {
+              default: {
+                chains: {
+                  [CHAIN_ID_MOCK]: [TransactionPayStrategy.Bridge],
+                },
+              },
+            },
+          },
+        },
+      });
+
+      const strategyOrder = getStrategyOrder(
+        messenger,
+        CHAIN_ID_MOCK,
+        TOKEN_ADDRESS_MOCK,
+        'perpsDeposit',
+        '/payments/debit-credit-card',
+      );
+
+      expect(strategyOrder).toStrictEqual([TransactionPayStrategy.Fiat]);
+    });
   });
 
   describe('getStrategyOrder route-aware resolution', () => {

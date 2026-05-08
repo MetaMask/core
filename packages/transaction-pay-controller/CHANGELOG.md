@@ -7,17 +7,51 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Resolve fiat asset per transaction type from `confirmations_pay_fiat` remote feature flag, falling back to hardcoded map then ETH on mainnet ([#8631](https://github.com/MetaMask/core/pull/8631))
+
+## [22.0.2]
+
+### Changed
+
+- Bump `@metamask/assets-controller` from `^6.4.0` to `^7.0.0` ([#8738](https://github.com/MetaMask/core/pull/8738))
+- Bump `@metamask/bridge-controller` from `^72.0.0` to `^72.0.1` ([#8738](https://github.com/MetaMask/core/pull/8738))
+
+## [22.0.1]
+
+### Changed
+
+- Bump `@metamask/bridge-controller` from `^71.1.1` to `^72.0.0` ([#8737](https://github.com/MetaMask/core/pull/8737))
+
+## [22.0.0]
+
+### Changed
+
+- **BREAKING:** Re-parse required tokens when asset state changes ([#8714](https://github.com/MetaMask/core/pull/8714))
+  - Adds `AssetsControllerStateChangeEvent`, `CurrencyRateStateChange`, `TokenRatesControllerStateChangeEvent`, and `TokensControllerStateChangeEvent` to `AllowedEvents`.
+  - Consumers must grant these events when creating the controller messenger.
+- Bump `@metamask/gas-fee-controller` from `^26.1.1` to `^26.2.0` ([#8722](https://github.com/MetaMask/core/pull/8722))
+- Bump `@metamask/transaction-controller` from `^65.1.0` to `^65.2.0` ([#8722](https://github.com/MetaMask/core/pull/8722))
+
+### Fixed
+
+- Fix fiat strategy never being selected by routing fiat payment method through `getStrategyOrder` and allowing quote retrieval when no crypto payment token is set ([#8720](https://github.com/MetaMask/core/pull/8720))
+
+## [21.1.0]
+
 ### Added
 
-- Allow EIP-7702 authorizations from accounts in the Money keyring ([#8687](https://github.com/MetaMask/core/pull/8687)).
+- Allow EIP-7702 authorizations from accounts in the Money keyring ([#8687](https://github.com/MetaMask/core/pull/8687))
 - Implement fiat strategy submit flow with order polling and relay execution ([#8347](https://github.com/MetaMask/core/pull/8347))
 
 ### Changed
 
-- Resolve fiat asset per transaction type from `confirmations_pay_fiat` remote feature flag, falling back to hardcoded map then ETH on mainnet ([#8631](https://github.com/MetaMask/core/pull/8631))
-- Bump `@metamask/bridge-controller` from `^71.0.0` to `^71.1.0` ([#8706](https://github.com/MetaMask/core/pull/8706))
+- Bump `@metamask/bridge-controller` from `^71.0.0` to `^71.1.1` ([#8706](https://github.com/MetaMask/core/pull/8706), [#8721](https://github.com/MetaMask/core/pull/8721))
 - Bump `@metamask/transaction-controller` from `^65.0.0` to `^65.1.0` ([#8691](https://github.com/MetaMask/core/pull/8691))
 - Bump `@metamask/ramps-controller` from `^13.2.0` to `^13.3.0` ([#8698](https://github.com/MetaMask/core/pull/8698))
+- Bump `@metamask/assets-controller` from `^6.3.0` to `^6.4.0` ([#8721](https://github.com/MetaMask/core/pull/8721))
+- Bump `@metamask/assets-controllers` from `^105.1.0` to `^106.0.0` ([#8721](https://github.com/MetaMask/core/pull/8721))
 
 ## [21.0.0]
 
@@ -776,7 +810,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#6820](https://github.com/MetaMask/core/pull/6820))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@21.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@22.0.2...HEAD
+[22.0.2]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@22.0.1...@metamask/transaction-pay-controller@22.0.2
+[22.0.1]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@22.0.0...@metamask/transaction-pay-controller@22.0.1
+[22.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@21.1.0...@metamask/transaction-pay-controller@22.0.0
+[21.1.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@21.0.0...@metamask/transaction-pay-controller@21.1.0
 [21.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@20.2.0...@metamask/transaction-pay-controller@21.0.0
 [20.2.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@20.1.0...@metamask/transaction-pay-controller@20.2.0
 [20.1.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@20.0.1...@metamask/transaction-pay-controller@20.1.0

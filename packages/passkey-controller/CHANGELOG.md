@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.0.1]
+
+### Changed
+
+- `PasskeyController` verifies registration and authentication responses with `requireUserVerification: true`, so the WebAuthn user verification (UV) flag must be set; assertions with user presence only no longer pass verification ([#8696](https://github.com/MetaMask/core/pull/8696))
+
+### Fixed
+
+- `generateAuthenticationOptions` now sets `userVerification: 'required'` so client WebAuthn requests align with server-side verification requirements and do not fail on authenticators that skip UV when set to `'preferred'` ([#8696](https://github.com/MetaMask/core/pull/8696))
+
 ## [2.0.0]
 
 ### Added
@@ -43,6 +53,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Registration verification requires the credential `id`/`rawId` to match the credential id in authenticator data; vault wrapping key derivation uses that verified credential id so enrollment keys align with the stored credential.
 - Registration options request attestation conveyance `'none'` so clients are not asked for direct attestation formats the verifier does not implement (`none` and self-attested `packed` only).
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/passkey-controller@2.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/passkey-controller@2.0.1...HEAD
+[2.0.1]: https://github.com/MetaMask/core/compare/@metamask/passkey-controller@2.0.0...@metamask/passkey-controller@2.0.1
 [2.0.0]: https://github.com/MetaMask/core/compare/@metamask/passkey-controller@1.0.0...@metamask/passkey-controller@2.0.0
 [1.0.0]: https://github.com/MetaMask/core/releases/tag/@metamask/passkey-controller@1.0.0
