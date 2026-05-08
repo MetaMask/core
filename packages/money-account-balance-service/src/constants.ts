@@ -41,7 +41,6 @@ export const ACCOUNTANT_ABI = [
  * Covers:
  *  - balanceOf        (0xf7888aec) — shares held by an account in a BoringVault
  *  - balanceOfInAssets (0x789fd871) — share balance denominated in underlying assets
- *  - exchangeRate     (0xdc3b7c8b) — current rate from an AccountantWithRateProviders
  */
 export const LENS_ABI = [
   {
