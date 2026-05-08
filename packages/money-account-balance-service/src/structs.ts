@@ -6,6 +6,21 @@ import {
   string,
   type,
 } from '@metamask/superstruct';
+import { StrictHexStruct } from '@metamask/utils';
+
+/**
+ * Superstruct schema for {@link VaultConfig}.
+ *
+ * Uses `type()` (loose validation) so that extra keys added to the feature
+ * flag in future do not break existing clients.
+ */
+export const VaultConfigStruct = type({
+  accountantAddress: StrictHexStruct,
+  boringVault: StrictHexStruct,
+  lensAddress: StrictHexStruct,
+  tellerAddress: StrictHexStruct,
+  chainId: StrictHexStruct,
+});
 
 /**
  * Superstruct schema for {@link NormalizedVaultApyResponse}.
