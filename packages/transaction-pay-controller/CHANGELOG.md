@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Fix transaction with accountOverride and targeting Arbitrum USDC ([#8724](https://github.com/MetaMask/core/pull/8724))
+  - Deliver the Relay-acquired token to `transaction.txParams.from` (the delegator that executes the inner delegation), not `request.from`.
+  - Gate the Arbitrum-USDC → Hypercore quote rewrite on `transaction.type === TransactionType.perpsDeposit`.
+
 ## [22.0.2]
 
 ### Changed
