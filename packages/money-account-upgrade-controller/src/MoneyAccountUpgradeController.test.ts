@@ -74,6 +74,8 @@ type Mocks = {
   createDelegation: jest.Mock;
   signDelegation: jest.Mock;
   verifyDelegation: jest.Mock;
+  getIntentsByAddress: jest.Mock;
+  createIntents: jest.Mock;
 };
 
 function setup(): {
@@ -128,6 +130,8 @@ function setup(): {
     createDelegation: jest.fn().mockResolvedValue(undefined),
     signDelegation: jest.fn().mockResolvedValue(`0x${'cd'.repeat(65)}`),
     verifyDelegation: jest.fn().mockResolvedValue({ valid: true }),
+    getIntentsByAddress: jest.fn().mockResolvedValue([]),
+    createIntents: jest.fn().mockResolvedValue([]),
   };
 
   const rootMessenger = new Messenger<MockAnyNamespace, AllActions, AllEvents>({
@@ -178,6 +182,14 @@ function setup(): {
     'ChompApiService:verifyDelegation',
     mocks.verifyDelegation,
   );
+  rootMessenger.registerActionHandler(
+    'ChompApiService:getIntentsByAddress',
+    mocks.getIntentsByAddress,
+  );
+  rootMessenger.registerActionHandler(
+    'ChompApiService:createIntents',
+    mocks.createIntents,
+  );
 
   const messenger: MoneyAccountUpgradeControllerMessenger = new Messenger({
     namespace: 'MoneyAccountUpgradeController',
@@ -197,6 +209,8 @@ function setup(): {
       'AuthenticatedUserStorageService:createDelegation',
       'DelegationController:signDelegation',
       'ChompApiService:verifyDelegation',
+      'ChompApiService:getIntentsByAddress',
+      'ChompApiService:createIntents',
     ],
     events: [],
     messenger,

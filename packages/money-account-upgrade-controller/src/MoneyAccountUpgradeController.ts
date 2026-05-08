@@ -10,7 +10,9 @@ import type {
 import { BaseController } from '@metamask/base-controller';
 import type {
   ChompApiServiceAssociateAddressAction,
+  ChompApiServiceCreateIntentsAction,
   ChompApiServiceCreateUpgradeAction,
+  ChompApiServiceGetIntentsByAddressAction,
   ChompApiServiceGetServiceDetailsAction,
   ChompApiServiceVerifyDelegationAction,
 } from '@metamask/chomp-api-service';
@@ -32,6 +34,7 @@ import type { MoneyAccountUpgradeControllerMethodActions } from './MoneyAccountU
 import { associateAddressStep } from './steps/associate-address';
 import { buildDelegationStep } from './steps/build-delegations';
 import { eip7702AuthorizationStep } from './steps/eip-7702-authorization';
+import { registerIntentsStep } from './steps/register-intents';
 import type { Step } from './steps/step';
 import type { UpgradeConfig } from './types';
 
@@ -76,7 +79,9 @@ type AllowedActions =
   | AuthenticatedUserStorageServiceCreateDelegationAction
   | AuthenticatedUserStorageServiceListDelegationsAction
   | ChompApiServiceAssociateAddressAction
+  | ChompApiServiceCreateIntentsAction
   | ChompApiServiceCreateUpgradeAction
+  | ChompApiServiceGetIntentsByAddressAction
   | ChompApiServiceGetServiceDetailsAction
   | ChompApiServiceVerifyDelegationAction
   | DelegationControllerSignDelegationAction
@@ -116,6 +121,7 @@ export class MoneyAccountUpgradeController extends BaseController<
     associateAddressStep,
     eip7702AuthorizationStep,
     buildDelegationStep,
+    registerIntentsStep,
   ];
 
   /**
