@@ -10,7 +10,7 @@ import {
   ETH_MAINNET_FIAT_ASSET,
   FIAT_ASSET_ID_BY_TX_TYPE,
 } from '../strategy/fiat/constants';
-import { POLYMARKET_RELAYER_PROXY_URL_PROD } from '../strategy/polymarket-bridge/constants';
+import { POLYMARKET_RELAYER_PROXY_URL_PROD } from '../strategy/relay/polymarket/constants';
 import {
   RELAY_EXECUTE_URL,
   RELAY_POLLING_INTERVAL,

@@ -334,7 +334,7 @@ export class TransactionPayController extends BaseController<
     const transactionData = this.state.transactionData[transaction.id];
 
     if (transactionData?.isPolymarketDepositWallet) {
-      return [TransactionPayStrategy.PolymarketBridge];
+      return [TransactionPayStrategy.Relay];
     }
 
     const strategyCandidates: unknown[] =

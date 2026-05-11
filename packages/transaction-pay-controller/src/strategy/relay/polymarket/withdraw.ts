@@ -2,18 +2,23 @@ import { SignTypedDataVersion } from '@metamask/keyring-controller';
 import type { Hex } from '@metamask/utils';
 import { createModuleLogger } from '@metamask/utils';
 
-import { CHAIN_ID_POLYGON } from '../../constants';
-import { projectLogger } from '../../logger';
+import { CHAIN_ID_POLYGON } from '../../../constants';
+import { projectLogger } from '../../../logger';
 import type {
   PayStrategyExecuteRequest,
   TransactionPayControllerMessenger,
   TransactionPayQuote,
-} from '../../types';
-import { getPolymarketRelayerUrl } from '../../utils/feature-flags';
-import { getLiveTokenBalance } from '../../utils/token';
-import { updateTransaction } from '../../utils/transaction';
-import { getRelayStatus } from '../relay/relay-api';
-import type { RelayQuote, RelayTransactionStep } from '../relay/types';
+} from '../../../types';
+import { getPolymarketRelayerUrl } from '../../../utils/feature-flags';
+import { getLiveTokenBalance } from '../../../utils/token';
+import { updateTransaction } from '../../../utils/transaction';
+import type { RelayQuote, RelayTransactionStep } from '../types';
+import {
+  encodeApprove,
+  encodeUnwrap,
+  encodeWrap,
+  extractErc20TransferRecipient,
+} from './calldata';
 import {
   DEPOSIT_WALLET_FACTORY_ADDRESS_POLYGON,
   POLYMARKET_BATCH_DEADLINE_SECONDS,
@@ -23,97 +28,27 @@ import {
   USDC_E_ADDRESS_POLYGON,
 } from './constants';
 import { computeDepositWalletAddress } from './deposit-wallet';
-import {
-  encodeApprove,
-  encodeUnwrap,
-  encodeWrap,
-  extractErc20TransferRecipient,
-} from './polymarket-calldata';
 import { PolymarketRelayerApi } from './relayer-api';
 import type {
-  PolymarketBridgeQuote,
-  PolymarketBridgeRelayerSubmitRequest,
-  PolymarketBridgeWalletCall,
+  PolymarketRelayerSubmitRequest,
+  PolymarketWalletCall,
 } from './types';
 import { buildWalletBatchTypedData } from './wallet-batch-typed-data';
 
-const log = createModuleLogger(projectLogger, 'polymarket-bridge-submit');
+const log = createModuleLogger(projectLogger, 'polymarket-withdraw');
 
 const POLYGON_CHAIN_ID_NUMBER = 137;
 
 const WALLET_BUSY_RETRY_ATTEMPTS = 5;
 const WALLET_BUSY_RETRY_DELAY_MS = 3_000;
 
-const RELAY_STATUS_POLL_INTERVAL_MS = 5_000;
-const RELAY_STATUS_POLL_MAX_ATTEMPTS = 120;
-
-type RelayPollOutcome =
-  | { kind: 'success'; targetHash: Hex }
-  | { kind: 'refunded' }
-  | { kind: 'failure' }
-  | { kind: 'timeout' };
-
-export async function submitPolymarketBridgeQuote(
-  request: PayStrategyExecuteRequest<PolymarketBridgeQuote>,
-): Promise<{ transactionHash?: Hex }> {
-  const quote = request.quotes[0];
-  if (!quote) {
-    throw new Error('Polymarket bridge submit: no quote provided');
-  }
-
-  markIntentComplete(request, quote);
-
-  const from = quote.request.from;
+export async function submitPolymarketDepositWalletWithdraw(
+  quote: TransactionPayQuote<RelayQuote>,
+  from: Hex,
+  messenger: TransactionPayControllerMessenger,
+): Promise<{ sourceHash: Hex }> {
   const depositWalletAddress = computeDepositWalletAddress(from);
-  const relayerApi = new PolymarketRelayerApi(
-    getPolymarketRelayerUrl(request.messenger),
-  );
-
-  const sourceHash = await submitUnwrapToRelayDepositAddress({
-    quote,
-    from,
-    depositWalletAddress,
-    messenger: request.messenger,
-    relayerApi,
-  });
-
-  updateSourceHash(request, sourceHash);
-
-  const relayOutcome = await pollRelayStatusUntilTerminal(
-    getRelayRequestId(quote.original.relayQuote),
-  );
-  log('Relay polling complete', { kind: relayOutcome.kind });
-
-  await sweepDepositWalletUsdce({
-    messenger: request.messenger,
-    from,
-    depositWalletAddress,
-    relayerApi,
-  });
-
-  if (relayOutcome.kind === 'success') {
-    return { transactionHash: relayOutcome.targetHash };
-  }
-
-  return { transactionHash: sourceHash };
-}
-
-async function submitUnwrapToRelayDepositAddress({
-  quote,
-  from,
-  depositWalletAddress,
-  messenger,
-  relayerApi,
-}: {
-  quote: TransactionPayQuote<PolymarketBridgeQuote>;
-  from: Hex;
-  depositWalletAddress: Hex;
-  messenger: TransactionPayControllerMessenger;
-  relayerApi: PolymarketRelayerApi;
-}): Promise<Hex> {
-  const relayDepositAddress = extractRelayDepositAddress(
-    quote.original.relayQuote,
-  );
+  const relayDepositAddress = extractRelayDepositAddress(quote.original);
   const amount = BigInt(quote.sourceAmount.raw);
 
   log('Submitting unwrap batch to Relay deposit address', {
@@ -121,6 +56,8 @@ async function submitUnwrapToRelayDepositAddress({
     relayDepositAddress,
     amount: amount.toString(),
   });
+
+  const relayerApi = new PolymarketRelayerApi(getPolymarketRelayerUrl(messenger));
 
   const result = await submitDepositWalletBatch({
     from,
@@ -145,20 +82,20 @@ async function submitUnwrapToRelayDepositAddress({
     relayerApi,
   });
 
-  return result.relayerTransactionHash;
+  return { sourceHash: result.relayerTransactionHash };
 }
 
-async function sweepDepositWalletUsdce({
-  messenger,
-  from,
-  depositWalletAddress,
-  relayerApi,
-}: {
-  messenger: TransactionPayControllerMessenger;
-  from: Hex;
-  depositWalletAddress: Hex;
-  relayerApi: PolymarketRelayerApi;
-}): Promise<void> {
+export async function sweepPolymarketDepositWalletUsdce(
+  request: PayStrategyExecuteRequest<RelayQuote>,
+): Promise<void> {
+  const { messenger } = request;
+  const from = request.quotes[0]?.request.from;
+  if (!from) {
+    return;
+  }
+
+  const depositWalletAddress = computeDepositWalletAddress(from);
+
   let usdceBalance: bigint;
   try {
     const raw = await getLiveTokenBalance(
@@ -183,6 +120,8 @@ async function sweepDepositWalletUsdce({
     return;
   }
 
+  const relayerApi = new PolymarketRelayerApi(getPolymarketRelayerUrl(messenger));
+
   try {
     const result = await submitDepositWalletBatch({
       from,
@@ -191,7 +130,10 @@ async function sweepDepositWalletUsdce({
         {
           target: USDC_E_ADDRESS_POLYGON,
           value: 0n,
-          data: encodeApprove(POLYMARKET_COLLATERAL_ONRAMP_POLYGON, usdceBalance),
+          data: encodeApprove(
+            POLYMARKET_COLLATERAL_ONRAMP_POLYGON,
+            usdceBalance,
+          ),
         },
         {
           target: POLYMARKET_COLLATERAL_ONRAMP_POLYGON,
@@ -215,7 +157,24 @@ async function sweepDepositWalletUsdce({
   }
 }
 
-export async function submitDepositWalletBatch({
+export function setPolymarketSourceHash(
+  request: PayStrategyExecuteRequest<RelayQuote>,
+  sourceHash: Hex,
+): void {
+  updateTransaction(
+    {
+      transactionId: request.transaction.id,
+      messenger: request.messenger,
+      note: 'Add source hash from Polymarket relayer',
+    },
+    (tx) => {
+      tx.metamaskPay ??= {};
+      tx.metamaskPay.sourceHash = sourceHash;
+    },
+  );
+}
+
+async function submitDepositWalletBatch({
   from,
   depositWalletAddress,
   calls,
@@ -224,7 +183,7 @@ export async function submitDepositWalletBatch({
 }: {
   from: Hex;
   depositWalletAddress: Hex;
-  calls: PolymarketBridgeWalletCall[];
+  calls: PolymarketWalletCall[];
   messenger: TransactionPayControllerMessenger;
   relayerApi: PolymarketRelayerApi;
 }): Promise<{ relayerTransactionHash: Hex }> {
@@ -272,7 +231,7 @@ async function submitDepositWalletBatchOnce({
 }: {
   from: Hex;
   depositWalletAddress: Hex;
-  calls: PolymarketBridgeWalletCall[];
+  calls: PolymarketWalletCall[];
   messenger: TransactionPayControllerMessenger;
   relayerApi: PolymarketRelayerApi;
 }): Promise<{ relayerTransactionHash: Hex }> {
@@ -297,7 +256,7 @@ async function submitDepositWalletBatchOnce({
     SignTypedDataVersion.V4,
   )) as Hex;
 
-  const submitRequest: PolymarketBridgeRelayerSubmitRequest = {
+  const submitRequest: PolymarketRelayerSubmitRequest = {
     type: 'WALLET',
     from,
     to: DEPOSIT_WALLET_FACTORY_ADDRESS_POLYGON,
@@ -329,13 +288,13 @@ async function submitDepositWalletBatchOnce({
     terminalStatus.state === 'STATE_INVALID'
   ) {
     throw new Error(
-      `Polymarket bridge withdraw failed: relayer state=${terminalStatus.state}, txId=${submitResponse.transactionID}`,
+      `Polymarket deposit wallet withdraw failed: relayer state=${terminalStatus.state}, txId=${submitResponse.transactionID}`,
     );
   }
 
   if (!terminalStatus.transactionHash) {
     throw new Error(
-      `Polymarket bridge withdraw: terminal state=${terminalStatus.state} but no transactionHash`,
+      `Polymarket deposit wallet withdraw: terminal state=${terminalStatus.state} but no transactionHash`,
     );
   }
 
@@ -349,48 +308,12 @@ async function submitDepositWalletBatchOnce({
   };
 }
 
-async function pollRelayStatusUntilTerminal(
-  requestId: string,
-): Promise<RelayPollOutcome> {
-  for (let attempt = 0; attempt < RELAY_STATUS_POLL_MAX_ATTEMPTS; attempt++) {
-    try {
-      const status = await getRelayStatus(requestId);
-      log('Relay status', {
-        attempt,
-        status: status.status,
-        txHashes: status.txHashes,
-      });
-
-      if (status.status === 'success' && status.txHashes?.length) {
-        return {
-          kind: 'success',
-          targetHash: status.txHashes[status.txHashes.length - 1] as Hex,
-        };
-      }
-
-      if (status.status === 'refunded') {
-        return { kind: 'refunded' };
-      }
-
-      if (status.status === 'failure') {
-        return { kind: 'failure' };
-      }
-    } catch (error) {
-      log('Relay status poll error', { attempt, error });
-    }
-
-    await delay(RELAY_STATUS_POLL_INTERVAL_MS);
-  }
-
-  return { kind: 'timeout' };
-}
-
 function extractRelayDepositAddress(relayQuote: RelayQuote): Hex {
   const depositStep = relayQuote.steps.find((step) => step.id === 'deposit');
 
   if (!depositStep || depositStep.kind !== 'transaction') {
     throw new Error(
-      'Polymarket bridge submit: Relay quote has no deposit step',
+      'Polymarket deposit wallet withdraw: Relay quote has no deposit step',
     );
   }
 
@@ -399,53 +322,11 @@ function extractRelayDepositAddress(relayQuote: RelayQuote): Hex {
 
   if (!depositCallData) {
     throw new Error(
-      'Polymarket bridge submit: Relay quote deposit step is missing calldata',
+      'Polymarket deposit wallet withdraw: Relay quote deposit step is missing calldata',
     );
   }
 
   return extractErc20TransferRecipient(depositCallData);
-}
-
-function getRelayRequestId(relayQuote: RelayQuote): string {
-  const requestId = relayQuote.steps[0]?.requestId;
-  if (!requestId) {
-    throw new Error('Polymarket bridge submit: Relay quote has no requestId');
-  }
-  return requestId;
-}
-
-function markIntentComplete(
-  request: PayStrategyExecuteRequest<PolymarketBridgeQuote>,
-  quote: TransactionPayQuote<PolymarketBridgeQuote>,
-): void {
-  updateTransaction(
-    {
-      transactionId: request.transaction.id,
-      messenger: request.messenger,
-      note: 'Mark intent complete at Polymarket bridge execute start',
-    },
-    (tx) => {
-      tx.isIntentComplete = true;
-    },
-  );
-  void quote;
-}
-
-function updateSourceHash(
-  request: PayStrategyExecuteRequest<PolymarketBridgeQuote>,
-  sourceHash: Hex,
-): void {
-  updateTransaction(
-    {
-      transactionId: request.transaction.id,
-      messenger: request.messenger,
-      note: 'Add source hash from Polymarket relayer',
-    },
-    (tx) => {
-      tx.metamaskPay ??= {};
-      tx.metamaskPay.sourceHash = sourceHash;
-    },
-  );
 }
 
 async function delay(ms: number): Promise<void> {

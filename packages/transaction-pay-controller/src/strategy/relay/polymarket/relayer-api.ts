@@ -1,13 +1,13 @@
 import { createModuleLogger } from '@metamask/utils';
 
-import { projectLogger } from '../../logger';
-import { RELAYER_TERMINAL_STATES } from './constants';
+import { projectLogger } from '../../../logger';
+import { POLYMARKET_RELAYER_TERMINAL_STATES } from './constants';
 import type {
-  PolymarketBridgeRelayerStatusResponse,
-  PolymarketBridgeRelayerSubmitRequest,
-  PolymarketBridgeRelayerSubmitResponse,
   PolymarketRelayerProxyEnvelope,
   PolymarketRelayerState,
+  PolymarketRelayerStatusResponse,
+  PolymarketRelayerSubmitRequest,
+  PolymarketRelayerSubmitResponse,
 } from './types';
 
 const log = createModuleLogger(projectLogger, 'polymarket-relayer-api');
@@ -50,12 +50,12 @@ export class PolymarketRelayerApi {
   }
 
   async submit(
-    request: PolymarketBridgeRelayerSubmitRequest,
-  ): Promise<PolymarketBridgeRelayerSubmitResponse> {
+    request: PolymarketRelayerSubmitRequest,
+  ): Promise<PolymarketRelayerSubmitResponse> {
     log('Submitting transaction', { from: request.from, to: request.to });
 
     const result =
-      await this.#postEnvelope<PolymarketBridgeRelayerSubmitResponse>({
+      await this.#postEnvelope<PolymarketRelayerSubmitResponse>({
         path: '/submit',
         method: 'POST',
         body: request,
@@ -71,10 +71,10 @@ export class PolymarketRelayerApi {
 
   async getTransaction(
     transactionId: string,
-  ): Promise<PolymarketBridgeRelayerStatusResponse[]> {
+  ): Promise<PolymarketRelayerStatusResponse[]> {
     const result = await this.#postEnvelope<
-      | PolymarketBridgeRelayerStatusResponse
-      | PolymarketBridgeRelayerStatusResponse[]
+      | PolymarketRelayerStatusResponse
+      | PolymarketRelayerStatusResponse[]
     >({
       path: '/transaction',
       method: 'GET',
@@ -86,7 +86,7 @@ export class PolymarketRelayerApi {
 
   async pollUntilTerminal(
     transactionId: string,
-  ): Promise<PolymarketBridgeRelayerStatusResponse> {
+  ): Promise<PolymarketRelayerStatusResponse> {
     log('Starting polling', { transactionId });
 
     for (let attempt = 0; attempt < POLLING_MAX_ATTEMPTS; attempt++) {
@@ -197,7 +197,7 @@ export class PolymarketRelayerApi {
 }
 
 function isTerminalState(state: PolymarketRelayerState): boolean {
-  return (RELAYER_TERMINAL_STATES as readonly string[]).includes(state);
+  return (POLYMARKET_RELAYER_TERMINAL_STATES as readonly string[]).includes(state);
 }
 
 async function delay(ms: number): Promise<void> {

@@ -37,6 +37,11 @@ import {
   RELAY_PENDING_STATUSES,
 } from './constants';
 import { submitHyperliquidWithdraw } from './hyperliquid-withdraw';
+import {
+  setPolymarketSourceHash,
+  submitPolymarketDepositWalletWithdraw,
+  sweepPolymarketDepositWalletUsdce,
+} from './polymarket/withdraw';
 import { getRelayStatus, submitRelayExecute } from './relay-api';
 import type {
   RelayExecuteRequest,
@@ -90,6 +95,10 @@ async function executeSingleQuote(
 ): Promise<{ transactionHash?: Hex }> {
   log('Executing single quote', quote);
 
+  if (quote.request.isPolymarketDepositWallet) {
+    return executePolymarketDepositWalletQuote(quote, messenger, transaction);
+  }
+
   updateTransaction(
     {
       transactionId: transaction.id,
@@ -141,6 +150,50 @@ async function executeSingleQuote(
   );
 
   return { transactionHash: targetHash };
+}
+
+async function executePolymarketDepositWalletQuote(
+  quote: TransactionPayQuote<RelayQuote>,
+  messenger: TransactionPayControllerMessenger,
+  transaction: TransactionMeta,
+): Promise<{ transactionHash?: Hex }> {
+  const request: PayStrategyExecuteRequest<RelayQuote> = {
+    quotes: [quote],
+    messenger,
+    transaction,
+    accountSupports7702: false,
+    isSmartTransaction: () => false,
+  };
+
+  updateTransaction(
+    {
+      transactionId: transaction.id,
+      messenger,
+      note: 'Mark intent complete at Polymarket deposit wallet execute start',
+    },
+    (tx) => {
+      tx.isIntentComplete = true;
+    },
+  );
+
+  const { sourceHash } = await submitPolymarketDepositWalletWithdraw(
+    quote,
+    quote.request.from,
+    messenger,
+  );
+
+  setPolymarketSourceHash(request, sourceHash);
+
+  let targetHash: Hex | undefined;
+  try {
+    targetHash = await waitForRelayCompletion(quote.original, messenger);
+  } catch (error) {
+    log('Relay polling ended in failure (refund expected)', { error });
+  }
+
+  await sweepPolymarketDepositWalletUsdce(request);
+
+  return { transactionHash: targetHash ?? sourceHash };
 }
 
 async function waitForRelayCompletion(

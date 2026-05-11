@@ -1,22 +1,12 @@
 import type { Hex } from '@metamask/utils';
 
-import type { RelayQuote } from '../relay/types';
-
-/**
- * Strategy-level quote type. The Polymarket bridge withdraw flow delegates
- * cross-chain routing to Relay, so the quote it carries is a Relay quote.
- */
-export type PolymarketBridgeQuote = {
-  relayQuote: RelayQuote;
-};
-
-export type PolymarketBridgeWalletCall = {
+export type PolymarketWalletCall = {
   target: Hex;
   value: bigint;
   data: Hex;
 };
 
-export type PolymarketBridgeRelayerSubmitRequest = {
+export type PolymarketRelayerSubmitRequest = {
   type: 'WALLET';
   from: Hex;
   to: Hex;
@@ -33,12 +23,12 @@ export type PolymarketBridgeRelayerSubmitRequest = {
   };
 };
 
-export type PolymarketBridgeRelayerSubmitResponse = {
+export type PolymarketRelayerSubmitResponse = {
   transactionID: string;
   state: string;
 };
 
-export type PolymarketBridgeRelayerStatusResponse = {
+export type PolymarketRelayerStatusResponse = {
   transactionHash: string | null;
   state: PolymarketRelayerState;
   from: string;

@@ -52,7 +52,6 @@ export enum TransactionPayStrategy {
   Across = 'across',
   Bridge = 'bridge',
   Fiat = 'fiat',
-  PolymarketBridge = 'polymarket-bridge',
   Relay = 'relay',
   Test = 'test',
 }
