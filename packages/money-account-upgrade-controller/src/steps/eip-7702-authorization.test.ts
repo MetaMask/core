@@ -327,6 +327,24 @@ describe('eip7702AuthorizationStep', () => {
       await expect(run(messenger)).rejects.toThrow('api failed');
     });
 
+    it('returns "already-done" when CHOMP responds 409 (authorization already submitted)', async () => {
+      const { messenger, mocks } = setup();
+      mocks.createUpgrade.mockRejectedValue(
+        Object.assign(new Error('conflict'), { httpStatus: 409 }),
+      );
+
+      expect(await run(messenger)).toBe('already-done');
+    });
+
+    it('propagates non-409 HttpError responses from createUpgrade', async () => {
+      const { messenger, mocks } = setup();
+      mocks.createUpgrade.mockRejectedValue(
+        Object.assign(new Error('server error'), { httpStatus: 500 }),
+      );
+
+      await expect(run(messenger)).rejects.toThrow('server error');
+    });
+
     it('throws when eth_getTransactionCount returns a non-hex response', async () => {
       const { messenger, mocks } = setup();
       mocks.providerRequest.mockImplementation(async ({ method }) => {

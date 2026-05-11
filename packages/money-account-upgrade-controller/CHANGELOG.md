@@ -26,6 +26,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - Build-delegation step no longer emits a redundant duplicate `ValueLteEnforcer` caveat; the Delegation Framework treats both as equivalent, but the duplicate was inadvertently inherited from `@metamask/smart-accounts-kit`'s `erc20TransferAmount` scope helper. ([#8621](https://github.com/MetaMask/core/pull/8621))
+- EIP-7702 authorization step now treats a 409 response from `POST /v1/account-upgrade` as `already-done` instead of a fatal error, making the step retry-safe when a prior submission was accepted by CHOMP but has not yet been observed on-chain.
 
 ## [1.3.2]
 
