@@ -9,10 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add `AccountTreeController:accountGroupCreated` and `AccountTreeController:accountGroupUpdated` messenger events
-  - `accountGroupCreated` fires with the affected `AccountGroupObject` when a new group is added to the tree after the controller has been initialized.
-  - `accountGroupUpdated` fires with the affected `AccountGroupObject` when an existing group's membership or metadata changes (`setAccountGroupName`, `setAccountGroupPinned`, `setAccountGroupHidden`, or accounts added/removed without pruning the group).
-  - Neither event fires during `init`/`reinit`; consumers should bootstrap from `:getState` or `:accountTreeChange`.
+- Add `AccountTreeController:accountGroupCreated` and `AccountTreeController:accountGroupUpdated` events ([#8766](https://github.com/MetaMask/core/pull/8766))
+  - Neither event fires during `init`/`reinit`, consumers should bootstrap from `:getState` or `:accountTreeChange`.
 
 ### Changed
 
