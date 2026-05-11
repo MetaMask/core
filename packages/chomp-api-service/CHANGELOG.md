@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- `ChompApiService` no longer retries HTTP requests that fail with a 4xx response (other than 429), since those responses indicate the request itself is at fault and will not be resolved by re-issuing it. 5xx, 429, and non-HTTP errors (network/timeout) continue to be retried. Consumers can still override this by passing a `retryFilterPolicy` via `policyOptions`. ([#8621](https://github.com/MetaMask/core/pull/8621))
+
 ## [3.0.1]
 
 ### Changed

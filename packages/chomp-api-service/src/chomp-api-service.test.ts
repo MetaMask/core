@@ -1,4 +1,4 @@
-import { DEFAULT_MAX_RETRIES } from '@metamask/controller-utils';
+import { DEFAULT_MAX_RETRIES, handleAll } from '@metamask/controller-utils';
 import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
 import type {
   MockAnyNamespace,
@@ -255,10 +255,7 @@ describe('ChompApiService', () => {
     });
 
     it('throws on non-OK status', async () => {
-      nock(BASE_URL)
-        .post('/v1/intent/verify-delegation')
-        .times(DEFAULT_MAX_RETRIES + 1)
-        .reply(400);
+      nock(BASE_URL).post('/v1/intent/verify-delegation').reply(400);
       const { service } = createService();
 
       await expect(service.verifyDelegation(delegationParams)).rejects.toThrow(
@@ -322,10 +319,7 @@ describe('ChompApiService', () => {
     });
 
     it('throws on non-OK status', async () => {
-      nock(BASE_URL)
-        .post('/v1/intent')
-        .times(DEFAULT_MAX_RETRIES + 1)
-        .reply(409);
+      nock(BASE_URL).post('/v1/intent').reply(409);
       const { service } = createService();
 
       await expect(service.createIntents(intentParams)).rejects.toThrow(
@@ -432,10 +426,7 @@ describe('ChompApiService', () => {
     });
 
     it('throws on non-OK status', async () => {
-      nock(BASE_URL)
-        .post('/v1/withdrawal')
-        .times(DEFAULT_MAX_RETRIES + 1)
-        .reply(400);
+      nock(BASE_URL).post('/v1/withdrawal').reply(400);
       const { service } = createService();
 
       await expect(service.createWithdrawal(withdrawalParams)).rejects.toThrow(
@@ -512,7 +503,6 @@ describe('ChompApiService', () => {
       nock(BASE_URL)
         .get('/v1/chomp')
         .query({ chainId: '0xa4b1' })
-        .times(DEFAULT_MAX_RETRIES + 1)
         .reply(400);
       const { service } = createService();
 
@@ -531,6 +521,104 @@ describe('ChompApiService', () => {
       await expect(service.getServiceDetails(['0xa4b1'])).rejects.toThrow(
         'At path: auth -- Expected an object',
       );
+    });
+  });
+
+  describe('retry policy', () => {
+    const upgradeParams = {
+      r: '0x1' as const,
+      s: '0x2' as const,
+      v: 27,
+      yParity: 0,
+      address: '0xabc' as const,
+      chainId: '1',
+      nonce: '0',
+    };
+
+    it('retries 5xx responses up to the default retry limit', async () => {
+      let attempts = 0;
+      nock(BASE_URL)
+        .post('/v1/account-upgrade')
+        .times(DEFAULT_MAX_RETRIES + 1)
+        .reply(() => {
+          attempts += 1;
+          return [500];
+        });
+      const { service } = createService();
+
+      await expect(service.createUpgrade(upgradeParams)).rejects.toThrow(
+        "POST /v1/account-upgrade failed with status '500'",
+      );
+      expect(attempts).toBe(DEFAULT_MAX_RETRIES + 1);
+    });
+
+    it.each([400, 401, 403, 404, 409, 422])(
+      'does not retry %i responses',
+      async (status) => {
+        let attempts = 0;
+        nock(BASE_URL)
+          .post('/v1/account-upgrade')
+          .times(DEFAULT_MAX_RETRIES + 1)
+          .reply(() => {
+            attempts += 1;
+            return [status];
+          });
+        const { service } = createService();
+
+        await expect(service.createUpgrade(upgradeParams)).rejects.toThrow(
+          `POST /v1/account-upgrade failed with status '${status}'`,
+        );
+        expect(attempts).toBe(1);
+      },
+    );
+
+    it('retries 429 responses alongside 5xx (rate-limit is transient)', async () => {
+      let attempts = 0;
+      nock(BASE_URL)
+        .post('/v1/account-upgrade')
+        .times(DEFAULT_MAX_RETRIES + 1)
+        .reply(() => {
+          attempts += 1;
+          return [429];
+        });
+      const { service } = createService();
+
+      await expect(service.createUpgrade(upgradeParams)).rejects.toThrow(
+        "POST /v1/account-upgrade failed with status '429'",
+      );
+      expect(attempts).toBe(DEFAULT_MAX_RETRIES + 1);
+    });
+
+    it('retries non-HTTP errors (e.g. network failures)', async () => {
+      const scope = nock(BASE_URL)
+        .post('/v1/account-upgrade')
+        .times(DEFAULT_MAX_RETRIES + 1)
+        .replyWithError('network down');
+      const { service } = createService();
+
+      await expect(service.createUpgrade(upgradeParams)).rejects.toThrow(
+        'network down',
+      );
+      expect(scope.isDone()).toBe(true);
+    });
+
+    it('lets consumer-supplied policyOptions override the default retryFilterPolicy', async () => {
+      let attempts = 0;
+      nock(BASE_URL)
+        .post('/v1/account-upgrade')
+        .times(DEFAULT_MAX_RETRIES + 1)
+        .reply(() => {
+          attempts += 1;
+          return [409];
+        });
+      const { service } = createService({
+        options: { policyOptions: { retryFilterPolicy: handleAll } },
+      });
+
+      await expect(service.createUpgrade(upgradeParams)).rejects.toThrow(
+        "POST /v1/account-upgrade failed with status '409'",
+      );
+      expect(attempts).toBe(DEFAULT_MAX_RETRIES + 1);
     });
   });
 });
