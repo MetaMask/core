@@ -14,6 +14,7 @@ import type {
 } from '@metamask/controller-utils';
 import type { Messenger } from '@metamask/messenger';
 
+import { projectLogger, createModuleLogger } from '../../logger';
 import type {
   WebSocketConnectionInfo,
   BackendWebSocketServiceConnectionStateChangedEvent,
@@ -21,7 +22,6 @@ import type {
 } from '../BackendWebSocketService';
 import { WebSocketState } from '../BackendWebSocketService';
 import type { BackendWebSocketServiceMethodActions } from '../BackendWebSocketService-method-action-types';
-import { projectLogger, createModuleLogger } from '../../logger';
 import type { OHLCVServiceMethodActions } from './OHLCVService-method-action-types';
 import type { OHLCVBar, OHLCVSubscriptionOptions } from './types';
 

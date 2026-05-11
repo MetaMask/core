@@ -13,6 +13,12 @@ import type { TraceCallback } from '@metamask/controller-utils';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type { Messenger } from '@metamask/messenger';
 
+import { projectLogger, createModuleLogger } from '../logger';
+import type {
+  Transaction,
+  AccountActivityMessage,
+  BalanceUpdate,
+} from '../types';
 import type { AccountActivityServiceMethodActions } from './AccountActivityService-method-action-types';
 import type {
   WebSocketConnectionInfo,
@@ -21,12 +27,6 @@ import type {
 } from './BackendWebSocketService';
 import { WebSocketState } from './BackendWebSocketService';
 import type { BackendWebSocketServiceMethodActions } from './BackendWebSocketService-method-action-types';
-import { projectLogger, createModuleLogger } from '../logger';
-import type {
-  Transaction,
-  AccountActivityMessage,
-  BalanceUpdate,
-} from '../types';
 
 // =============================================================================
 // Types and Constants
