@@ -509,6 +509,7 @@ linkStyle default opacity:0.5
   signature_controller --> logging_controller;
   signature_controller --> messenger;
   signature_controller --> network_controller;
+  snap_account_service --> account_tree_controller;
   snap_account_service --> keyring_controller;
   snap_account_service --> messenger;
   social_controllers --> base_controller;

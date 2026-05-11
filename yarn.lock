@@ -5453,6 +5453,8 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@metamask/snap-account-service@workspace:packages/snap-account-service"
   dependencies:
+    "@metamask/account-api": "npm:^1.0.4"
+    "@metamask/account-tree-controller": "npm:^7.3.0"
     "@metamask/auto-changelog": "npm:^6.1.0"
     "@metamask/eth-snap-keyring": "npm:^22.0.1"
     "@metamask/keyring-controller": "npm:^25.5.0"
