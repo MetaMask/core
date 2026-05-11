@@ -52,6 +52,7 @@ import {
 import type {
   BalancePollingInput,
   DetectionPollingInput,
+  TokenListQueryClient,
 } from './evm-rpc-services';
 import type {
   Address,
@@ -104,6 +105,12 @@ export type RpcDataSourceConfig = {
   /** Function returning whether onboarding is complete. When false, fetch and subscribe are no-ops. Defaults to () => true. */
   isOnboarded?: () => boolean;
   timeout?: number;
+  /**
+   * Optional shared TanStack Query client used by `TokensApiClient` to cache
+   * token-list responses across detector polls. Pass `apiPlatformClient.queryClient`
+   * to share the cache with other API clients in the host app.
+   */
+  queryClient?: TokenListQueryClient;
 };
 
 export type RpcDataSourceOptions = {
@@ -129,6 +136,11 @@ export type RpcDataSourceOptions = {
   useExternalService?: () => boolean;
   /** Function returning whether onboarding is complete. When false, fetch and subscribe are no-ops. Defaults to () => true. */
   isOnboarded?: () => boolean;
+  /**
+   * Optional shared TanStack Query client used by `TokensApiClient` to cache
+   * token-list responses across detector polls.
+   */
+  queryClient?: TokenListQueryClient;
 };
 
 /**
@@ -301,8 +313,13 @@ export class RpcDataSource extends AbstractDataSource<
       }
     });
 
-    // Initialize TokenDetector with polling interval
-    const tokensApiClient = new TokensApiClient();
+    // Initialize TokenDetector with polling interval. The TokensApiClient is
+    // configured with the shared TanStack Query client (when the controller
+    // provides one) so concurrent detector polls/accounts/instances share a
+    // single in-flight request and cached result per chain.
+    const tokensApiClient = new TokensApiClient({
+      queryClient: options.queryClient,
+    });
     this.#tokenDetector = new TokenDetector(
       this.#multicallClient,
       tokensApiClient,
@@ -357,27 +374,32 @@ export class RpcDataSource extends AbstractDataSource<
 
     const nativeAssetId = this.#getNativeAssetForChain(chainId);
     for (const balance of balances) {
+      const existingMeta = existingMetadata[balance.assetId];
       const isNative =
-        existingMetadata[balance.assetId]?.type === 'native' ||
+        existingMeta?.type === 'native' ||
         balance.assetId.toLowerCase() === nativeAssetId?.toLowerCase();
       if (isNative) {
-        const chainStatus = this.#chainStatuses[chainId];
-
-        if (chainStatus) {
-          assetsInfo[balance.assetId] = {
-            type: 'native',
-            symbol: chainStatus.nativeCurrency,
-            name: chainStatus.nativeCurrency,
-            decimals: 18,
-          };
-        }
-      } else {
-        // For ERC20 tokens, use existing metadata from state if available.
-        // Unknown ERC-20s are omitted until TokenDataSource enriches them.
-        const existingMeta = existingMetadata[balance.assetId];
+        // Prefer existing (richer) metadata in state — it may have been
+        // enriched by the price/info API with image, description, etc.
+        // Only emit a minimal stub when there's nothing in state yet,
+        // so we don't clobber that richer metadata on every balance refresh.
         if (existingMeta) {
           assetsInfo[balance.assetId] = existingMeta;
+        } else {
+          const chainStatus = this.#chainStatuses[chainId];
+          if (chainStatus) {
+            assetsInfo[balance.assetId] = {
+              type: 'native',
+              symbol: chainStatus.nativeCurrency,
+              name: chainStatus.nativeCurrency,
+              decimals: 18,
+            };
+          }
         }
+      } else if (existingMeta) {
+        // For ERC20 tokens, use existing metadata from state if available.
+        // Unknown ERC-20s are omitted until TokenDataSource enriches them.
+        assetsInfo[balance.assetId] = existingMeta;
       }
     }
 
@@ -1025,8 +1047,17 @@ export class RpcDataSource extends AbstractDataSource<
 
           if (!shouldSkipNative) {
             assetsBalance[accountId][nativeAssetId] = { amount: '0' };
-
-            // Even on error, include native token metadata
+          }
+          // Even on error, include native token metadata
+          // Even on error, include native token metadata. Prefer the richer
+          // metadata already in state (e.g. enriched with image/description
+          // by the price/info API) and fall back to a minimal stub only when
+          // nothing is in state yet, so we don't clobber that richer metadata.
+          const existingNativeMeta =
+            this.#getExistingAssetsMetadata()[nativeAssetId];
+          if (existingNativeMeta) {
+            assetsInfo[nativeAssetId] = existingNativeMeta;
+          } else {
             const chainStatus = this.#chainStatuses[chainId];
             if (chainStatus) {
               assetsInfo[nativeAssetId] = {

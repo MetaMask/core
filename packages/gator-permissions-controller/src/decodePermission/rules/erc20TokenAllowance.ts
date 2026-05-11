@@ -33,12 +33,23 @@ export function makeErc20TokenAllowanceRule(
     erc20PeriodicEnforcer,
     valueLteEnforcer,
     nonceEnforcer,
+    allowedCalldataEnforcer,
+    allowedTargetsEnforcer,
     redeemerEnforcer,
   } = enforcers;
   return makePermissionRule({
     permissionType: 'erc20-token-allowance',
-    optionalEnforcers: [timestampEnforcer, redeemerEnforcer],
+    optionalEnforcers: [
+      timestampEnforcer,
+      redeemerEnforcer,
+      allowedCalldataEnforcer,
+    ],
     redeemerEnforcer,
+    payeeEnforcers: {
+      allowedCalldataEnforcer,
+      allowedTargetsEnforcer,
+      singlePayeeEnforcer: allowedCalldataEnforcer,
+    },
     timestampEnforcer,
     requiredEnforcers: {
       [erc20PeriodicEnforcer]: 1,

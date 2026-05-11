@@ -423,12 +423,12 @@
   },
   "packages/assets-controllers/src/TokenDetectionController.test.ts": {
     "no-restricted-syntax": {
-      "count": 2
+      "count": 1
     }
   },
   "packages/assets-controllers/src/TokenDetectionController.ts": {
     "no-restricted-syntax": {
-      "count": 6
+      "count": 3
     }
   },
   "packages/assets-controllers/src/TokenListController.test.ts": {
@@ -471,8 +471,11 @@
     }
   },
   "packages/assets-controllers/src/TokensController.test.ts": {
+    "@typescript-eslint/explicit-function-return-type": {
+      "count": 6
+    },
     "no-restricted-syntax": {
-      "count": 4
+      "count": 3
     }
   },
   "packages/assets-controllers/src/TokensController.ts": {
@@ -483,7 +486,7 @@
       "count": 1
     },
     "@typescript-eslint/prefer-optional-chain": {
-      "count": 4
+      "count": 3
     },
     "id-length": {
       "count": 1
@@ -495,7 +498,7 @@
       "count": 1
     },
     "no-restricted-syntax": {
-      "count": 2
+      "count": 1
     },
     "require-atomic-updates": {
       "count": 1
@@ -1296,19 +1299,9 @@
       "count": 2
     }
   },
-  "packages/multichain-account-service/src/snaps/SnapPlatformWatcher.ts": {
-    "no-restricted-syntax": {
-      "count": 2
-    }
-  },
   "packages/multichain-account-service/src/tests/accounts.ts": {
     "@typescript-eslint/explicit-function-return-type": {
       "count": 7
-    }
-  },
-  "packages/multichain-account-service/src/tests/messenger.ts": {
-    "no-restricted-syntax": {
-      "count": 2
     }
   },
   "packages/multichain-api-middleware/src/handlers/types.ts": {
@@ -1525,7 +1518,7 @@
   },
   "packages/network-controller/src/rpc-service/rpc-service.ts": {
     "no-restricted-syntax": {
-      "count": 2
+      "count": 3
     }
   },
   "packages/network-controller/tests/NetworkController.provider.test.ts": {
@@ -1582,6 +1575,11 @@
     },
     "no-restricted-syntax": {
       "count": 3
+    }
+  },
+  "packages/perps-controller/src/services/HyperLiquidSubscriptionService.ts": {
+    "@typescript-eslint/no-unused-vars": {
+      "count": 1
     }
   },
   "packages/perps-controller/src/utils/myxAdapter.ts": {
@@ -2164,6 +2162,21 @@
       "count": 2
     }
   },
+  "packages/snap-account-service/src/SnapAccountService.test.ts": {
+    "no-restricted-syntax": {
+      "count": 2
+    }
+  },
+  "packages/snap-account-service/src/SnapPlatformWatcher.test.ts": {
+    "no-restricted-syntax": {
+      "count": 2
+    }
+  },
+  "packages/snap-account-service/src/SnapPlatformWatcher.ts": {
+    "no-restricted-syntax": {
+      "count": 2
+    }
+  },
   "packages/subscription-controller/src/SubscriptionController.test.ts": {
     "no-restricted-syntax": {
       "count": 2
@@ -2221,7 +2234,7 @@
   },
   "packages/transaction-pay-controller/src/utils/transaction.ts": {
     "no-restricted-syntax": {
-      "count": 2
+      "count": 6
     }
   },
   "packages/user-operation-controller/src/UserOperationController.test.ts": {

@@ -59,6 +59,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'createMoneyAccount',
   'getMoneyAccount',
   'clearState',
+  'init',
 ] as const;
 
 export type MoneyAccountControllerGetStateAction = ControllerGetStateAction<

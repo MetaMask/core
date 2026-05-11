@@ -1,6 +1,6 @@
 {
   "name": "@metamask/money-account-controller",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "MetaMask Money account controller",
   "keywords": [
     "Ethereum",
@@ -57,13 +57,13 @@
     "@metamask/base-controller": "^9.1.0",
     "@metamask/eth-money-keyring": "^2.0.4",
     "@metamask/keyring-api": "^23.1.0",
-    "@metamask/keyring-controller": "^25.4.0",
+    "@metamask/keyring-controller": "^25.5.0",
     "@metamask/messenger": "^1.2.0",
     "async-mutex": "^0.5.0"
   },
   "devDependencies": {
     "@metamask/auto-changelog": "^6.1.0",
-    "@metamask/keyring-utils": "^3.1.0",
+    "@metamask/keyring-utils": "^3.2.1",
     "@metamask/utils": "^11.9.0",
     "@ts-bridge/cli": "^0.6.4",
     "@types/jest": "^29.5.14",
