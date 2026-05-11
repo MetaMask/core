@@ -4655,6 +4655,138 @@ describe('Address poisoning detection', () => {
     ]);
   });
 
+  it('ignores transaction state changes that do not include transaction patches', async () => {
+    const { messenger, rootMessenger } = setupMessenger();
+
+    const controller = new PhishingController({
+      messenger,
+    });
+
+    rootMessenger.publish(
+      'TransactionController:stateChange',
+      createMockStateChangePayload([]),
+      [
+        {
+          op: 'replace' as const,
+          path: ['methodData'],
+          value: {},
+        },
+      ],
+    );
+
+    await new Promise((resolve) => process.nextTick(resolve));
+
+    expect(controller.checkAddressPoisoning(CANDIDATE_ADDRESS)).toStrictEqual(
+      [],
+    );
+  });
+
+  it('rebuilds known recipients when the transaction collection changes', async () => {
+    const { messenger, rootMessenger } = setupMessenger();
+
+    const controller = new PhishingController({
+      messenger,
+    });
+
+    const confirmedTransaction = createMockTransaction('confirmed-tx', [], {
+      status: TransactionStatus.confirmed,
+      txParams: {
+        from: TEST_ADDRESSES.FROM_ADDRESS,
+        to: ADDRESS_BOOK_RECIPIENT,
+        value: '0x0' as `0x${string}`,
+      },
+    });
+
+    rootMessenger.publish(
+      'TransactionController:stateChange',
+      createMockStateChangePayload([confirmedTransaction]),
+      [
+        {
+          op: 'replace' as const,
+          path: ['transactions'],
+          value: [confirmedTransaction],
+        },
+      ],
+    );
+
+    await new Promise((resolve) => process.nextTick(resolve));
+
+    expect(controller.checkAddressPoisoning(CANDIDATE_ADDRESS)).toHaveLength(1);
+  });
+
+  it('rebuilds known recipients when a transaction patch is not indexed by array position', async () => {
+    const { messenger, rootMessenger } = setupMessenger();
+
+    const controller = new PhishingController({
+      messenger,
+    });
+
+    const confirmedTransaction = createMockTransaction('confirmed-tx', [], {
+      status: TransactionStatus.confirmed,
+      txParams: {
+        from: TEST_ADDRESSES.FROM_ADDRESS,
+        to: ADDRESS_BOOK_RECIPIENT,
+        value: '0x0' as `0x${string}`,
+      },
+    });
+
+    rootMessenger.publish(
+      'TransactionController:stateChange',
+      createMockStateChangePayload([confirmedTransaction]),
+      [
+        {
+          op: 'replace' as const,
+          path: ['transactions', 'confirmed-tx'],
+          value: confirmedTransaction,
+        },
+      ],
+    );
+
+    await new Promise((resolve) => process.nextTick(resolve));
+
+    expect(controller.checkAddressPoisoning(CANDIDATE_ADDRESS)).toHaveLength(1);
+  });
+
+  it('rebuilds known recipients when a remove patch does not include the removed transaction', async () => {
+    const confirmedTransaction = createMockTransaction('confirmed-tx', [], {
+      status: TransactionStatus.confirmed,
+      txParams: {
+        from: TEST_ADDRESSES.FROM_ADDRESS,
+        to: ADDRESS_BOOK_RECIPIENT,
+        value: '0x0' as `0x${string}`,
+      },
+    });
+    const { messenger, rootMessenger } = setupMessenger({
+      transactionControllerState: {
+        ...getDefaultTransactionControllerState(),
+        transactions: [confirmedTransaction],
+      },
+    });
+
+    const controller = new PhishingController({
+      messenger,
+    });
+
+    expect(controller.checkAddressPoisoning(CANDIDATE_ADDRESS)).toHaveLength(1);
+
+    rootMessenger.publish(
+      'TransactionController:stateChange',
+      createMockStateChangePayload([]),
+      [
+        {
+          op: 'remove' as const,
+          path: ['transactions', 0],
+        },
+      ],
+    );
+
+    await new Promise((resolve) => process.nextTick(resolve));
+
+    expect(controller.checkAddressPoisoning(CANDIDATE_ADDRESS)).toStrictEqual(
+      [],
+    );
+  });
+
   it('removes known recipients when confirmed transactions are removed', async () => {
     const { messenger, rootMessenger } = setupMessenger();
 

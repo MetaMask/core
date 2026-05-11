@@ -906,7 +906,7 @@ export class PhishingController extends BaseController<
     this.#transactionRecipientsByTransactionId.delete(transactionId);
 
     for (const address of recipients) {
-      const count = this.#transactionRecipientCounts.get(address) ?? 0;
+      const count = this.#transactionRecipientCounts.get(address)!;
 
       if (count <= 1) {
         this.#transactionRecipientCounts.delete(address);
