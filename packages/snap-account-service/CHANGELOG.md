@@ -23,6 +23,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Export `SnapAccountServiceGetSnapsAction` type.
   - The service now seeds its internal set from `SnapController:getRunnableSnaps` during `init()` and keeps it in sync via `SnapController` lifecycle events (`snapInstalled`, `snapEnabled`, `snapDisabled`, `snapBlocked`, `snapUninstalled`).
   - The service messenger now requires the `SnapController:getRunnableSnaps` action and the five lifecycle events listed above.
+- Add `getLegacySnapKeyring` ([#8757](https://github.com/MetaMask/core/pull/8757))
+  - This is a concurrent-safe variant of the existing `getSnapKeyring` function that exist on clients.
+  - The service messenger now requires the `KeyringController:withController` action.
 
 ### Changed
 

@@ -1,6 +1,11 @@
+import type { SnapKeyring } from '@metamask/eth-snap-keyring';
 import {
   KeyringControllerState,
   KeyringTypes,
+} from '@metamask/keyring-controller';
+import type {
+  KeyringEntry,
+  RestrictedController,
 } from '@metamask/keyring-controller';
 import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
 import type {
@@ -42,6 +47,7 @@ type Mocks = {
   // eslint-disable-next-line @typescript-eslint/naming-convention
   KeyringController: {
     getState: jest.MockedFunction<() => { keyrings: { type: string }[] }>;
+    withController: jest.Mock;
   };
 };
 
@@ -75,6 +81,7 @@ function getMessenger(
       'SnapController:getSnap',
       'SnapController:getRunnableSnaps',
       'KeyringController:getState',
+      'KeyringController:withController',
     ],
     events: [
       'SnapController:stateChange',
@@ -141,6 +148,51 @@ function buildSnap(id: string, hasKeyring: boolean): TruncatedSnap {
 }
 
 /**
+ * Builds a fake {@link KeyringEntry} with the given type.
+ *
+ * @param type - The keyring type.
+ * @returns A minimal KeyringEntry for tests.
+ */
+function buildKeyringEntry(type: string): KeyringEntry {
+  return {
+    keyring: { type } as KeyringEntry['keyring'],
+    metadata: { id: `id-${type}`, name: type },
+  };
+}
+
+/**
+ * Configures `mocks.KeyringController.withController` to invoke the
+ * operation with a controllable {@link RestrictedController}.
+ *
+ * @param mocks - The mocks object from {@link setup}.
+ * @param initialEntries - Entries exposed via `controller.keyrings`.
+ * @returns The mocked `addNewKeyring` jest fn for assertions.
+ */
+function mockWithController(
+  mocks: Mocks,
+  initialEntries: KeyringEntry[],
+): {
+  addNewKeyring: jest.MockedFunction<RestrictedController['addNewKeyring']>;
+} {
+  const entries = [...initialEntries];
+  const addNewKeyring = jest.fn(async (type: string) => {
+    const entry = buildKeyringEntry(type);
+    entries.push(entry);
+    return entry;
+  });
+  mocks.KeyringController.withController.mockImplementation(async (operation) =>
+    operation({
+      get keyrings() {
+        return Object.freeze([...entries]);
+      },
+      addNewKeyring,
+      removeKeyring: jest.fn(),
+    }),
+  );
+  return { addNewKeyring };
+}
+
+/**
  * Constructs the service under test with sensible defaults.
  *
  * @param args - The arguments to this function.
@@ -178,6 +230,7 @@ function setup({
     },
     KeyringController: {
       getState: jest.fn().mockReturnValue({ keyrings }),
+      withController: jest.fn(),
     },
   };
 
@@ -192,6 +245,10 @@ function setup({
   rootMessenger.registerActionHandler(
     'KeyringController:getState',
     mocks.KeyringController.getState,
+  );
+  rootMessenger.registerActionHandler(
+    'KeyringController:withController',
+    mocks.KeyringController.withController,
   );
 
   const service = new SnapAccountService({ messenger, config });
@@ -356,6 +413,43 @@ describe('SnapAccountService', () => {
 
       await ensurePromise;
       expect(resolved).toBe(true);
+    });
+  });
+
+  describe('getLegacySnapKeyring', () => {
+    it('returns the existing Snap keyring when one is already present', async () => {
+      const { service, mocks } = setup();
+      const existing = buildKeyringEntry(KeyringTypes.snap);
+      const { addNewKeyring } = mockWithController(mocks, [
+        buildKeyringEntry(KeyringTypes.hd),
+        existing,
+      ]);
+
+      const result = await service.getLegacySnapKeyring();
+
+      expect(result).toBe(existing.keyring as unknown as SnapKeyring);
+      expect(addNewKeyring).not.toHaveBeenCalled();
+    });
+
+    it('creates a new Snap keyring when none exists', async () => {
+      const { service, mocks } = setup();
+      const { addNewKeyring } = mockWithController(mocks, [
+        buildKeyringEntry(KeyringTypes.hd),
+      ]);
+
+      const result = await service.getLegacySnapKeyring();
+
+      expect(addNewKeyring).toHaveBeenCalledWith(KeyringTypes.snap);
+      expect(result.type).toBe(KeyringTypes.snap);
+    });
+
+    it('propagates errors thrown by withController', async () => {
+      const { service, mocks } = setup();
+      mocks.KeyringController.withController.mockImplementation(async () => {
+        throw new Error('boom');
+      });
+
+      await expect(service.getLegacySnapKeyring()).rejects.toThrow('boom');
     });
   });
 });

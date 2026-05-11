@@ -5454,7 +5454,9 @@ __metadata:
   resolution: "@metamask/snap-account-service@workspace:packages/snap-account-service"
   dependencies:
     "@metamask/auto-changelog": "npm:^6.1.0"
+    "@metamask/eth-snap-keyring": "npm:^22.0.1"
     "@metamask/keyring-controller": "npm:^25.5.0"
+    "@metamask/keyring-utils": "npm:^3.2.1"
     "@metamask/messenger": "npm:^1.2.0"
     "@metamask/snaps-controllers": "npm:^19.0.0"
     "@metamask/snaps-sdk": "npm:^11.0.0"
