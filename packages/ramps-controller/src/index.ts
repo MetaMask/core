@@ -126,6 +126,7 @@ export type {
   PendingRequest,
   ResourceType,
 } from './RequestCache';
+export type { RampsErrorCode } from './rampsErrorCodes';
 export {
   RequestStatus,
   DEFAULT_REQUEST_CACHE_TTL,
@@ -136,6 +137,7 @@ export {
   createSuccessState,
   createErrorState,
 } from './RequestCache';
+export { RAMPS_ERROR_CODES } from './rampsErrorCodes';
 export type { RequestSelectorResult } from './selectors';
 export { createRequestSelector } from './selectors';
 export type {

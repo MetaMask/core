@@ -78,6 +78,15 @@ const MESSENGER_EXPOSED_METHODS = [
   'removeAccount',
   'isUnlocked',
   'exportSeedPhrase',
+  'changePassword',
+  'exportAccount',
+  'exportEncryptionKey',
+  'getAccountKeyringType',
+  'importAccountWithStrategy',
+  'setLocked',
+  'submitEncryptionKey',
+  'submitPassword',
+  'verifyPassword',
 ] as const;
 
 /**
@@ -2207,6 +2216,12 @@ export class KeyringController<
     });
   }
 
+  /**
+   * Gets the type of the keyring that manages the specified account.
+   *
+   * @param account - The account address to look up.
+   * @returns A promise that resolves to the type of the keyring managing the account.
+   */
   async getAccountKeyringType(account: string): Promise<string> {
     this.#assertIsUnlocked();
 

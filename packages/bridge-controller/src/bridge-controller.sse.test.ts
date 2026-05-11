@@ -87,6 +87,7 @@ const metricsContext = {
   stx_enabled: true,
   security_warnings: [],
   warnings: [],
+  token_security_type_destination: null,
 };
 
 const assetExchangeRates = {
@@ -255,17 +256,18 @@ describe('BridgeController SSE', function () {
         expect(startPollingSpy).toHaveBeenCalledTimes(1);
         expect(hasSufficientBalanceSpy).toHaveBeenCalledTimes(1);
         expect(startPollingSpy).toHaveBeenCalledWith({
-          updatedQuoteRequest: {
-            ...quoteRequest,
-            insufficientBal: false,
-            resetApproval: false,
-          },
+          quoteRequests: [
+            {
+              ...quoteRequest,
+              insufficientBal: false,
+            },
+          ],
           context: metricsContext,
         });
         expect(fetchAssetPricesSpy).toHaveBeenCalledTimes(0);
         const expectedState = {
           ...DEFAULT_BRIDGE_CONTROLLER_STATE,
-          quoteRequest,
+          quoteRequest: [{ ...quoteRequest, insufficientBal: false }],
           quotesLoadingStatus: RequestStatus.LOADING,
         };
         expect(bridgeController.state).toStrictEqual(expectedState);
@@ -275,11 +277,13 @@ describe('BridgeController SSE', function () {
         await advanceToNthTimerThenFlush();
         expect(fetchBridgeQuotesSpy).toHaveBeenCalledWith(
           mockFetchFn,
-          {
-            ...quoteRequest,
-            insufficientBal: false,
-            resetApproval: false,
-          },
+          [
+            {
+              ...quoteRequest,
+              insufficientBal: false,
+              resetApproval: false,
+            },
+          ],
           expect.any(AbortSignal),
           BridgeClientId.EXTENSION,
           'AUTH_TOKEN',
@@ -306,11 +310,13 @@ describe('BridgeController SSE', function () {
         expect(bridgeController.state).toStrictEqual({
           ...expectedState,
           quotesInitialLoadTime: 6000,
-          quoteRequest: {
-            ...quoteRequest,
-            insufficientBal: false,
-            resetApproval: false,
-          },
+          quoteRequest: [
+            {
+              ...quoteRequest,
+              insufficientBal: false,
+              resetApproval: false,
+            },
+          ],
           quotes: mockBridgeQuotesNativeErc20.map((quote) => ({
             ...quote,
             l1GasFeesInHexWei: '0x1',
@@ -413,16 +419,20 @@ describe('BridgeController SSE', function () {
           expect(stopAllPollingSpy).toHaveBeenCalledTimes(1);
           expect(startPollingSpy).toHaveBeenCalledTimes(1);
           expect(startPollingSpy).toHaveBeenCalledWith({
-            updatedQuoteRequest: {
-              ...usdtQuoteRequest,
-              insufficientBal: false,
-              resetApproval,
-            },
+            quoteRequests: [
+              {
+                ...usdtQuoteRequest,
+                insufficientBal: false,
+                resetApproval,
+              },
+            ],
             context: metricsContext,
           });
           const expectedState = {
             ...DEFAULT_BRIDGE_CONTROLLER_STATE,
-            quoteRequest: usdtQuoteRequest,
+            quoteRequest: [
+              { ...usdtQuoteRequest, insufficientBal: false, resetApproval },
+            ],
             quotesLoadingStatus: RequestStatus.LOADING,
           };
           expect(bridgeController.state).toStrictEqual(expectedState);
@@ -432,11 +442,13 @@ describe('BridgeController SSE', function () {
           await advanceToNthTimerThenFlush();
           expect(fetchBridgeQuotesSpy).toHaveBeenCalledWith(
             mockFetchFn,
-            {
-              ...usdtQuoteRequest,
-              insufficientBal: false,
-              resetApproval,
-            },
+            [
+              {
+                ...usdtQuoteRequest,
+                insufficientBal: false,
+                resetApproval,
+              },
+            ],
             expect.any(AbortSignal),
             BridgeClientId.EXTENSION,
             'AUTH_TOKEN',
@@ -452,11 +464,13 @@ describe('BridgeController SSE', function () {
           );
           const { quotesLastFetched: t1, quoteRequest: stateQuoteRequest } =
             bridgeController.state;
-          expect(stateQuoteRequest).toStrictEqual({
-            ...usdtQuoteRequest,
-            insufficientBal: false,
-            resetApproval,
-          });
+          expect(stateQuoteRequest).toStrictEqual([
+            {
+              ...usdtQuoteRequest,
+              insufficientBal: false,
+              resetApproval,
+            },
+          ]);
           expect(t1).toBeCloseTo(Date.now() - 1000);
 
           // After first fetch
@@ -465,11 +479,13 @@ describe('BridgeController SSE', function () {
           expect(bridgeController.state).toStrictEqual({
             ...expectedState,
             quotesInitialLoadTime: 6000,
-            quoteRequest: {
-              ...usdtQuoteRequest,
-              insufficientBal: false,
-              resetApproval,
-            },
+            quoteRequest: [
+              {
+                ...usdtQuoteRequest,
+                insufficientBal: false,
+                resetApproval,
+              },
+            ],
             quotes: mockUSDTQuoteResponse.map((quote) => ({
               ...quote,
               resetApproval: tradeData
@@ -561,16 +577,20 @@ describe('BridgeController SSE', function () {
         expect(stopAllPollingSpy).toHaveBeenCalledTimes(1);
         expect(startPollingSpy).toHaveBeenCalledTimes(1);
         expect(startPollingSpy).toHaveBeenCalledWith({
-          updatedQuoteRequest: {
-            ...usdtQuoteRequest,
-            insufficientBal: true,
-            resetApproval: true,
-          },
+          quoteRequests: [
+            {
+              ...usdtQuoteRequest,
+              insufficientBal: true,
+              resetApproval: true,
+            },
+          ],
           context: metricsContext,
         });
         const expectedState = {
           ...DEFAULT_BRIDGE_CONTROLLER_STATE,
-          quoteRequest: usdtQuoteRequest,
+          quoteRequest: [
+            { ...usdtQuoteRequest, insufficientBal: true, resetApproval: true },
+          ],
           quotesLoadingStatus: RequestStatus.LOADING,
         };
         expect(bridgeController.state).toStrictEqual(expectedState);
@@ -581,11 +601,13 @@ describe('BridgeController SSE', function () {
         await advanceToNthTimerThenFlush();
         expect(fetchBridgeQuotesSpy).toHaveBeenCalledWith(
           mockFetchFn,
-          {
-            ...usdtQuoteRequest,
-            insufficientBal: true,
-            resetApproval: true,
-          },
+          [
+            {
+              ...usdtQuoteRequest,
+              insufficientBal: true,
+              resetApproval: true,
+            },
+          ],
           expect.any(AbortSignal),
           BridgeClientId.EXTENSION,
           'AUTH_TOKEN',
@@ -601,7 +623,7 @@ describe('BridgeController SSE', function () {
         );
         const { quotesLastFetched: t1, quoteRequest: stateQuoteRequest } =
           bridgeController.state;
-        expect(stateQuoteRequest).toStrictEqual({
+        expect(stateQuoteRequest[0]).toStrictEqual({
           ...usdtQuoteRequest,
           insufficientBal: true,
           resetApproval: true,
@@ -614,11 +636,13 @@ describe('BridgeController SSE', function () {
         expect(bridgeController.state).toStrictEqual({
           ...expectedState,
           quotesInitialLoadTime: 6000,
-          quoteRequest: {
-            ...usdtQuoteRequest,
-            insufficientBal: true,
-            resetApproval: true,
-          },
+          quoteRequest: [
+            {
+              ...usdtQuoteRequest,
+              insufficientBal: true,
+              resetApproval: true,
+            },
+          ],
           quotes: mockUSDTQuoteResponse.map((quote) => ({
             ...quote,
             resetApproval: {
@@ -690,11 +714,13 @@ describe('BridgeController SSE', function () {
         const expectedState = {
           ...DEFAULT_BRIDGE_CONTROLLER_STATE,
           quotesInitialLoadTime: FIRST_FETCH_DELAY,
-          quoteRequest: {
-            ...quoteRequest,
-            insufficientBal: false,
-            resetApproval: false,
-          },
+          quoteRequest: [
+            {
+              ...quoteRequest,
+              insufficientBal: false,
+              resetApproval: false,
+            },
+          ],
           quotes: [mockBridgeQuotesNativeErc20Eth[0]].map((quote) => ({
             ...quote,
             resetApproval: undefined,
@@ -803,11 +829,13 @@ describe('BridgeController SSE', function () {
         expect(bridgeController.state).toStrictEqual({
           ...DEFAULT_BRIDGE_CONTROLLER_STATE,
           quotesInitialLoadTime: FIRST_FETCH_DELAY,
-          quoteRequest: {
-            ...quoteRequest,
-            insufficientBal: false,
-            resetApproval: false,
-          },
+          quoteRequest: [
+            {
+              ...quoteRequest,
+              insufficientBal: false,
+              resetApproval: false,
+            },
+          ],
           quotes: [],
           quotesLoadingStatus: 2,
           quoteFetchError: 'Network error',
@@ -910,10 +938,13 @@ describe('BridgeController SSE', function () {
         const expectedState = {
           ...DEFAULT_BRIDGE_CONTROLLER_STATE,
           quotesLoadingStatus: RequestStatus.LOADING,
-          quoteRequest: {
-            ...quoteRequest,
-            srcTokenAmount: '10',
-          },
+          quoteRequest: [
+            {
+              ...quoteRequest,
+              srcTokenAmount: '10',
+              insufficientBal: true,
+            },
+          ],
           assetExchangeRates: {},
         };
         // Start new quote request
@@ -926,6 +957,7 @@ describe('BridgeController SSE', function () {
             token_symbol_destination: 'USDC',
             security_warnings: [],
             usd_amount_source: 100,
+            token_security_type_destination: null,
           },
         );
         // Right after state update, before fetch has started
@@ -933,12 +965,14 @@ describe('BridgeController SSE', function () {
         advanceToNthTimer();
         expect(bridgeController.state).toStrictEqual({
           ...expectedState,
-          quoteRequest: {
-            ...quoteRequest,
-            srcTokenAmount: '10',
-            insufficientBal: true,
-            resetApproval: false,
-          },
+          quoteRequest: [
+            {
+              ...quoteRequest,
+              srcTokenAmount: '10',
+              insufficientBal: true,
+              resetApproval: false,
+            },
+          ],
           quotesLastFetched: Date.now(),
           quotesLoadingStatus: RequestStatus.LOADING,
         });
@@ -959,12 +993,14 @@ describe('BridgeController SSE', function () {
           ],
           quotesRefreshCount: 0,
           quotesLoadingStatus: RequestStatus.LOADING,
-          quoteRequest: {
-            ...quoteRequest,
-            srcTokenAmount: '10',
-            insufficientBal: true,
-            resetApproval: false,
-          },
+          quoteRequest: [
+            {
+              ...quoteRequest,
+              srcTokenAmount: '10',
+              insufficientBal: true,
+              resetApproval: false,
+            },
+          ],
           quotesLastFetched: t1,
           assetExchangeRates,
         };
@@ -1105,6 +1141,7 @@ describe('BridgeController SSE', function () {
             token_symbol_destination: 'USDC',
             security_warnings: [],
             usd_amount_source: 100,
+            token_security_type_destination: 'test',
           },
         );
 
@@ -1150,12 +1187,14 @@ describe('BridgeController SSE', function () {
         const expectedState = {
           ...DEFAULT_BRIDGE_CONTROLLER_STATE,
           quotesInitialLoadTime: 2000,
-          quoteRequest: {
-            ...quoteRequest,
-            srcTokenAmount: '10',
-            insufficientBal: false,
-            resetApproval: false,
-          },
+          quoteRequest: [
+            {
+              ...quoteRequest,
+              srcTokenAmount: '10',
+              insufficientBal: false,
+              resetApproval: false,
+            },
+          ],
           quotes: [mockBridgeQuotesNativeErc20Eth[0]].map((quote) => ({
             ...quote,
             resetApproval: undefined,
@@ -1165,6 +1204,7 @@ describe('BridgeController SSE', function () {
           quotesLoadingStatus: RequestStatus.LOADING,
           assetExchangeRates,
           quotesLastFetched: expect.any(Number),
+          tokenSecurityTypeDestination: 'test',
         };
         const t6 = bridgeController.state.quotesLastFetched;
         expect(t6).toBeCloseTo(Date.now() - 2000);
@@ -1263,16 +1303,24 @@ describe('BridgeController SSE', function () {
         expect(startPollingSpy).toHaveBeenCalledTimes(1);
         expect(hasSufficientBalanceSpy).toHaveBeenCalledTimes(1);
         expect(startPollingSpy).toHaveBeenCalledWith({
-          updatedQuoteRequest: {
-            ...quoteRequest,
-            insufficientBal: false,
-            resetApproval: false,
-          },
+          quoteRequests: [
+            {
+              ...quoteRequest,
+              insufficientBal: false,
+              resetApproval: false,
+            },
+          ],
           context: metricsContext,
         });
         const expectedState = {
           ...DEFAULT_BRIDGE_CONTROLLER_STATE,
-          quoteRequest,
+          quoteRequest: [
+            {
+              ...quoteRequest,
+              insufficientBal: false,
+              resetApproval: false,
+            },
+          ],
           assetExchangeRates: {},
           quotesLoadingStatus: RequestStatus.LOADING,
         };
@@ -1282,13 +1330,19 @@ describe('BridgeController SSE', function () {
         jest.advanceTimersByTime(1000);
         // Wait for JWT token retrieval
         await advanceToNthTimerThenFlush();
+        expect(hasSufficientBalanceSpy).toHaveBeenCalledTimes(1);
+        expect(bridgeController.state.quotesLoadingStatus).toBe(
+          RequestStatus.LOADING,
+        );
         expect(fetchBridgeQuotesSpy).toHaveBeenCalledWith(
           mockFetchFn,
-          {
-            ...quoteRequest,
-            insufficientBal: false,
-            resetApproval: false,
-          },
+          [
+            {
+              ...quoteRequest,
+              insufficientBal: false,
+              resetApproval: false,
+            },
+          ],
           expect.any(AbortSignal),
           BridgeClientId.EXTENSION,
           'AUTH_TOKEN',
@@ -1315,11 +1369,13 @@ describe('BridgeController SSE', function () {
         expect(bridgeController.state).toStrictEqual({
           ...expectedState,
           assetExchangeRates,
-          quoteRequest: {
-            ...quoteRequest,
-            insufficientBal: false,
-            resetApproval: false,
-          },
+          quoteRequest: [
+            {
+              ...quoteRequest,
+              insufficientBal: false,
+              resetApproval: false,
+            },
+          ],
           quotesRefreshCount: 1,
           quotesLoadingStatus: 2,
           quoteFetchError: 'Bridge-api error: timeout from server',

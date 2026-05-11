@@ -8,18 +8,25 @@ import type { Hex } from '@metamask/utils';
 import { noop } from 'lodash';
 
 import { getMessengerMock } from '../tests/messenger-mock';
-import type { TransactionData, TransactionPayRequiredToken } from '../types';
+import type {
+  TransactionData,
+  TransactionPayControllerState,
+  TransactionPayRequiredToken,
+} from '../types';
+import { getAssetsUnifyStateFeature } from './feature-flags';
 import { parseRequiredTokens } from './required-tokens';
 import {
   FINALIZED_STATUSES,
   collectTransactionIds,
   getTransaction,
   isPredictWithdrawTransaction,
-  pollTransactionChanges,
+  subscribeAssetChanges,
+  subscribeTransactionChanges,
   updateTransaction,
   waitForTransactionConfirmed,
 } from './transaction';
 
+jest.mock('./feature-flags');
 jest.mock('./required-tokens');
 
 const TRANSACTION_ID_MOCK = '123-456';
@@ -44,6 +51,9 @@ const TRANSCTION_TOKEN_REQUIRED_MOCK = {
 
 describe('Transaction Utils', () => {
   const parseRequiredTokensMock = jest.mocked(parseRequiredTokens);
+  const getAssetsUnifyStateFeatureMock = jest.mocked(
+    getAssetsUnifyStateFeature,
+  );
   const {
     messenger,
     getTransactionControllerStateMock,
@@ -57,6 +67,8 @@ describe('Transaction Utils', () => {
     getTransactionControllerStateMock.mockReturnValue({
       transactions: [] as TransactionMeta[],
     } as TransactionControllerState);
+
+    getAssetsUnifyStateFeatureMock.mockReturnValue(false);
   });
 
   describe('getTransaction', () => {
@@ -79,13 +91,13 @@ describe('Transaction Utils', () => {
     });
   });
 
-  describe('pollTransactionChanges', () => {
+  describe('subscribeTransactionChanges', () => {
     it('updates state for new transactions', () => {
       const updateTransactionDataMock = jest.fn();
 
       parseRequiredTokensMock.mockReturnValue([TRANSCTION_TOKEN_REQUIRED_MOCK]);
 
-      pollTransactionChanges(messenger, updateTransactionDataMock, noop);
+      subscribeTransactionChanges(messenger, updateTransactionDataMock, noop);
 
       publish(
         'TransactionController:stateChange',
@@ -110,7 +122,7 @@ describe('Transaction Utils', () => {
 
       parseRequiredTokensMock.mockReturnValue([TRANSCTION_TOKEN_REQUIRED_MOCK]);
 
-      pollTransactionChanges(messenger, updateTransactionDataMock, noop);
+      subscribeTransactionChanges(messenger, updateTransactionDataMock, noop);
 
       publish(
         'TransactionController:stateChange',
@@ -138,7 +150,7 @@ describe('Transaction Utils', () => {
       (status) => {
         const removeTransactionDataMock = jest.fn();
 
-        pollTransactionChanges(messenger, noop, removeTransactionDataMock);
+        subscribeTransactionChanges(messenger, noop, removeTransactionDataMock);
 
         publish(
           'TransactionController:stateChange',
@@ -165,7 +177,7 @@ describe('Transaction Utils', () => {
     it('removes state if transaction is deleted', () => {
       const removeTransactionDataMock = jest.fn();
 
-      pollTransactionChanges(messenger, noop, removeTransactionDataMock);
+      subscribeTransactionChanges(messenger, noop, removeTransactionDataMock);
 
       publish(
         'TransactionController:stateChange',
@@ -186,6 +198,204 @@ describe('Transaction Utils', () => {
       expect(removeTransactionDataMock).toHaveBeenCalledWith(
         TRANSACTION_ID_MOCK,
       );
+    });
+  });
+
+  describe('subscribeAssetChanges', () => {
+    function buildState(
+      data: Partial<TransactionData> & {
+        tokens: TransactionPayRequiredToken[];
+      } = { tokens: [] },
+    ): TransactionPayControllerState {
+      return {
+        transactionData: {
+          [TRANSACTION_ID_MOCK]: {
+            isLoading: false,
+            ...data,
+          } as TransactionData,
+        },
+      };
+    }
+
+    let isolatedMessenger: ReturnType<typeof getMessengerMock>['messenger'];
+    let isolatedPublish: ReturnType<typeof getMessengerMock>['publish'];
+    let isolatedGetTransactionControllerStateMock: ReturnType<
+      typeof getMessengerMock
+    >['getTransactionControllerStateMock'];
+
+    beforeEach(() => {
+      const fresh = getMessengerMock();
+      isolatedMessenger = fresh.messenger;
+      isolatedPublish = fresh.publish;
+      isolatedGetTransactionControllerStateMock =
+        fresh.getTransactionControllerStateMock;
+      isolatedGetTransactionControllerStateMock.mockReturnValue({
+        transactions: [] as TransactionMeta[],
+      } as TransactionControllerState);
+    });
+
+    it('re-parses required tokens for transactions with empty tokens when token rates change', () => {
+      const updateTransactionDataMock = jest.fn();
+
+      parseRequiredTokensMock.mockReturnValue([TRANSCTION_TOKEN_REQUIRED_MOCK]);
+      isolatedGetTransactionControllerStateMock.mockReturnValue({
+        transactions: [TRANSACTION_META_MOCK],
+      } as TransactionControllerState);
+
+      subscribeAssetChanges(
+        isolatedMessenger,
+        () => buildState({ tokens: [] }),
+        updateTransactionDataMock,
+      );
+
+      isolatedPublish('TokenRatesController:stateChange', {} as never, []);
+
+      expect(updateTransactionDataMock).toHaveBeenCalledTimes(1);
+      const transactionData = {} as TransactionData;
+      updateTransactionDataMock.mock.calls[0][1](transactionData);
+      expect(transactionData.tokens).toStrictEqual([
+        TRANSCTION_TOKEN_REQUIRED_MOCK,
+      ]);
+    });
+
+    it('re-parses required tokens when currency rates change', () => {
+      const updateTransactionDataMock = jest.fn();
+
+      parseRequiredTokensMock.mockReturnValue([TRANSCTION_TOKEN_REQUIRED_MOCK]);
+      isolatedGetTransactionControllerStateMock.mockReturnValue({
+        transactions: [TRANSACTION_META_MOCK],
+      } as TransactionControllerState);
+
+      subscribeAssetChanges(
+        isolatedMessenger,
+        () => buildState({ tokens: [] }),
+        updateTransactionDataMock,
+      );
+
+      isolatedPublish('CurrencyRateController:stateChange', {} as never, []);
+
+      expect(updateTransactionDataMock).toHaveBeenCalledTimes(1);
+    });
+
+    it('re-parses required tokens when token state changes', () => {
+      const updateTransactionDataMock = jest.fn();
+
+      parseRequiredTokensMock.mockReturnValue([TRANSCTION_TOKEN_REQUIRED_MOCK]);
+      isolatedGetTransactionControllerStateMock.mockReturnValue({
+        transactions: [TRANSACTION_META_MOCK],
+      } as TransactionControllerState);
+
+      subscribeAssetChanges(
+        isolatedMessenger,
+        () => buildState({ tokens: [] }),
+        updateTransactionDataMock,
+      );
+
+      isolatedPublish('TokensController:stateChange', {} as never, []);
+
+      expect(updateTransactionDataMock).toHaveBeenCalledTimes(1);
+    });
+
+    it('subscribes to AssetsController state changes when unify-state feature is enabled', () => {
+      const updateTransactionDataMock = jest.fn();
+
+      getAssetsUnifyStateFeatureMock.mockReturnValue(true);
+      parseRequiredTokensMock.mockReturnValue([TRANSCTION_TOKEN_REQUIRED_MOCK]);
+      isolatedGetTransactionControllerStateMock.mockReturnValue({
+        transactions: [TRANSACTION_META_MOCK],
+      } as TransactionControllerState);
+
+      subscribeAssetChanges(
+        isolatedMessenger,
+        () => buildState({ tokens: [] }),
+        updateTransactionDataMock,
+      );
+
+      isolatedPublish('AssetsController:stateChange', {} as never, []);
+
+      expect(updateTransactionDataMock).toHaveBeenCalledTimes(1);
+    });
+
+    it('does not subscribe to per-source events when unify-state feature is enabled', () => {
+      const updateTransactionDataMock = jest.fn();
+
+      getAssetsUnifyStateFeatureMock.mockReturnValue(true);
+      isolatedGetTransactionControllerStateMock.mockReturnValue({
+        transactions: [TRANSACTION_META_MOCK],
+      } as TransactionControllerState);
+
+      subscribeAssetChanges(
+        isolatedMessenger,
+        () => buildState({ tokens: [] }),
+        updateTransactionDataMock,
+      );
+
+      isolatedPublish('TokensController:stateChange', {} as never, []);
+      isolatedPublish('TokenRatesController:stateChange', {} as never, []);
+      isolatedPublish('CurrencyRateController:stateChange', {} as never, []);
+
+      expect(updateTransactionDataMock).not.toHaveBeenCalled();
+    });
+
+    it('skips transactions whose tokens are already populated', () => {
+      const updateTransactionDataMock = jest.fn();
+
+      isolatedGetTransactionControllerStateMock.mockReturnValue({
+        transactions: [TRANSACTION_META_MOCK],
+      } as TransactionControllerState);
+
+      subscribeAssetChanges(
+        isolatedMessenger,
+        () =>
+          buildState({
+            tokens: [TRANSCTION_TOKEN_REQUIRED_MOCK],
+          }),
+        updateTransactionDataMock,
+      );
+
+      isolatedPublish('TokenRatesController:stateChange', {} as never, []);
+
+      expect(updateTransactionDataMock).not.toHaveBeenCalled();
+      expect(parseRequiredTokensMock).not.toHaveBeenCalled();
+    });
+
+    it.each(FINALIZED_STATUSES)(
+      'skips transactions whose status is %s',
+      (status) => {
+        const updateTransactionDataMock = jest.fn();
+
+        isolatedGetTransactionControllerStateMock.mockReturnValue({
+          transactions: [{ ...TRANSACTION_META_MOCK, status }],
+        } as TransactionControllerState);
+
+        subscribeAssetChanges(
+          isolatedMessenger,
+          () => buildState({ tokens: [] }),
+          updateTransactionDataMock,
+        );
+
+        isolatedPublish('TokenRatesController:stateChange', {} as never, []);
+
+        expect(updateTransactionDataMock).not.toHaveBeenCalled();
+      },
+    );
+
+    it('skips transactions that no longer exist in TransactionController state', () => {
+      const updateTransactionDataMock = jest.fn();
+
+      isolatedGetTransactionControllerStateMock.mockReturnValue({
+        transactions: [] as TransactionMeta[],
+      } as TransactionControllerState);
+
+      subscribeAssetChanges(
+        isolatedMessenger,
+        () => buildState({ tokens: [] }),
+        updateTransactionDataMock,
+      );
+
+      isolatedPublish('TokenRatesController:stateChange', {} as never, []);
+
+      expect(updateTransactionDataMock).not.toHaveBeenCalled();
     });
   });
 

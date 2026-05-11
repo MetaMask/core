@@ -79,6 +79,9 @@ function setup(): {
   const mocks: Mocks = {
     createUpgrade: jest.fn().mockResolvedValue({
       signerAddress: MOCK_ADDRESS,
+      address: MOCK_DELEGATOR_IMPL,
+      chainId: MOCK_CHAIN_ID,
+      nonce: MOCK_NONCE_HEX,
       status: 'pending',
       createdAt: '2026-04-21T12:00:00.000Z',
     }),
@@ -256,7 +259,7 @@ describe('eip7702AuthorizationStep', () => {
       });
     });
 
-    it('submits the split signature and decimal-string chainId/nonce to CHOMP', async () => {
+    it('submits the split signature, delegator impl address, and hex-formatted chainId/nonce to CHOMP', async () => {
       const { messenger, mocks } = setup();
 
       await run(messenger);
@@ -266,9 +269,9 @@ describe('eip7702AuthorizationStep', () => {
         s: MOCK_S,
         v: 28,
         yParity: 1,
-        address: MOCK_ADDRESS,
-        chainId: MOCK_CHAIN_ID_DECIMAL.toString(),
-        nonce: MOCK_NONCE.toString(),
+        address: MOCK_DELEGATOR_IMPL,
+        chainId: MOCK_CHAIN_ID,
+        nonce: MOCK_NONCE_HEX,
       });
     });
 

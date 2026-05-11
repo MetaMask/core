@@ -1,6 +1,25 @@
-import { decryptWithKey, deriveEncryptionKey, encryptWithKey } from './crypto';
+import {
+  decryptWithKey,
+  deriveEncryptionKey,
+  encryptWithKey,
+  randomBytesToBase64URL,
+} from './crypto';
+import { base64URLToBytes } from './encoding';
 
 describe('crypto', () => {
+  describe('randomBytesToBase64URL', () => {
+    it('returns base64url whose decoded length matches byteLength', () => {
+      const encoded = randomBytesToBase64URL(32);
+      expect(base64URLToBytes(encoded)).toHaveLength(32);
+    });
+
+    it('returns distinct values on successive calls', () => {
+      const a = randomBytesToBase64URL(32);
+      const b = randomBytesToBase64URL(32);
+      expect(a).not.toBe(b);
+    });
+  });
+
   describe('encryptWithKey / decryptWithKey', () => {
     it('round-trips the encryption key with a derived key', () => {
       const ikm = new Uint8Array(32);

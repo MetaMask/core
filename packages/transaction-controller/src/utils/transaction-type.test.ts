@@ -165,7 +165,7 @@ describe('determineTransactionType', () => {
     });
   });
 
-  it('returns a contract deployment type when "to" is falsy and there is data', async () => {
+  it('returns a contract deployment type when "to" is falsy and there is real bytecode', async () => {
     const result = await determineTransactionType(
       {
         ...txParams,
@@ -178,6 +178,34 @@ describe('determineTransactionType', () => {
       type: TransactionType.deployContract,
       getCodeResponse: undefined,
     });
+  });
+
+  it('does NOT classify as deployContract when "to" is falsy but data is "0x" (empty bytecode)', async () => {
+    jest.mocked(rpcRequest).mockResolvedValue('0x');
+
+    const result = await determineTransactionType(
+      {
+        ...txParams,
+        to: '',
+        data: '0x',
+      },
+      { messenger: messengerMock, networkClientId: networkClientIdMock },
+    );
+    expect(result.type).not.toBe(TransactionType.deployContract);
+  });
+
+  it('does NOT classify as deployContract when "to" is undefined but data is "0x"', async () => {
+    jest.mocked(rpcRequest).mockResolvedValue('0x');
+
+    const result = await determineTransactionType(
+      {
+        ...txParams,
+        to: undefined,
+        data: '0x',
+      },
+      { messenger: messengerMock, networkClientId: networkClientIdMock },
+    );
+    expect(result.type).not.toBe(TransactionType.deployContract);
   });
 
   it('returns a simple send type with a 0x getCodeResponse when there is data, but the "to" address is not a contract address', async () => {

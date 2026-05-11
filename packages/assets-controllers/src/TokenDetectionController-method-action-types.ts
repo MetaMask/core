@@ -38,7 +38,7 @@ export type TokenDetectionControllerStopAction = {
 };
 
 /**
- * For each token in the token list provided by the TokenListController, checks the token's balance for the selected account address on the active network.
+ * For each token in the token list provided by the TokenListService, checks the token's balance for the selected account address on the active network.
  * On mainnet, if token detection is disabled in preferences, ERC20 token auto detection will be triggered for each contract address in the legacy token list from the @metamask/contract-metadata repo.
  *
  * @param options - Options for token detection.

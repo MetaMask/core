@@ -68,6 +68,16 @@ export type GasFeeControllerGetTimeEstimateAction = {
   handler: GasFeeController['getTimeEstimate'];
 };
 
+export type GasFeeControllerEnableNonRPCGasFeeApisAction = {
+  type: `GasFeeController:enableNonRPCGasFeeApis`;
+  handler: GasFeeController['enableNonRPCGasFeeApis'];
+};
+
+export type GasFeeControllerDisableNonRPCGasFeeApisAction = {
+  type: `GasFeeController:disableNonRPCGasFeeApis`;
+  handler: GasFeeController['disableNonRPCGasFeeApis'];
+};
+
 /**
  * Union of all GasFeeController action types.
  */
@@ -77,4 +87,6 @@ export type GasFeeControllerMethodActions =
   | GasFeeControllerGetGasFeeEstimatesAndStartPollingAction
   | GasFeeControllerDisconnectPollerAction
   | GasFeeControllerStopPollingAction
-  | GasFeeControllerGetTimeEstimateAction;
+  | GasFeeControllerGetTimeEstimateAction
+  | GasFeeControllerEnableNonRPCGasFeeApisAction
+  | GasFeeControllerDisableNonRPCGasFeeApisAction;

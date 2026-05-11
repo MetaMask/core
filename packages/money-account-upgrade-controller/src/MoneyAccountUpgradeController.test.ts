@@ -100,10 +100,13 @@ function setup(): {
     associateAddress: jest.fn().mockResolvedValue({
       profileId: 'profile-1',
       address: MOCK_ACCOUNT_ADDRESS,
-      status: 'CREATED',
+      status: 'created',
     }),
     createUpgrade: jest.fn().mockResolvedValue({
       signerAddress: MOCK_ACCOUNT_ADDRESS,
+      address: MOCK_CONFIG.delegatorImplAddress,
+      chainId: MOCK_CHAIN_ID,
+      nonce: '0x0',
       status: 'pending',
       createdAt: '2026-04-21T12:00:00.000Z',
     }),
@@ -303,7 +306,11 @@ describe('MoneyAccountUpgradeController', () => {
         }),
       );
       expect(mocks.createUpgrade).toHaveBeenCalledWith(
-        expect.objectContaining({ address: MOCK_ACCOUNT_ADDRESS }),
+        expect.objectContaining({
+          address: MOCK_CONFIG.delegatorImplAddress,
+          chainId: MOCK_CHAIN_ID,
+          nonce: '0x0',
+        }),
       );
     });
 

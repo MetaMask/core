@@ -12,7 +12,6 @@ import type {
 } from '@metamask/base-controller';
 import type { ClientControllerStateChangeEvent } from '@metamask/client-controller';
 import { clientControllerSelectors } from '@metamask/client-controller';
-import { CHAIN_IDS_WITH_NO_NATIVE_TOKEN } from '@metamask/controller-utils';
 import type { TraceCallback } from '@metamask/controller-utils';
 import type {
   ApiPlatformClient,
@@ -29,6 +28,8 @@ import type { Messenger } from '@metamask/messenger';
 import type {
   NetworkControllerGetNetworkClientByIdAction,
   NetworkControllerGetStateAction,
+  NetworkControllerNetworkAddedEvent,
+  NetworkControllerNetworkRemovedEvent,
   NetworkControllerStateChangeEvent,
 } from '@metamask/network-controller';
 import type {
@@ -52,6 +53,7 @@ import type {
   TransactionControllerUnapprovedTransactionAddedEvent,
   TransactionMeta,
 } from '@metamask/transaction-controller';
+import type { Hex } from '@metamask/utils';
 import {
   isCaipChainId,
   isStrictHexString,
@@ -71,6 +73,7 @@ import type {
 import type { AccountsApiDataSourceConfig } from './data-sources/AccountsApiDataSource';
 import { AccountsApiDataSource } from './data-sources/AccountsApiDataSource';
 import { BackendWebsocketDataSource } from './data-sources/BackendWebsocketDataSource';
+import { shouldSkipNativeForCaipChainId } from './data-sources/evm-rpc-services/utils/assets';
 import type { PriceDataSourceConfig } from './data-sources/PriceDataSource';
 import { PriceDataSource } from './data-sources/PriceDataSource';
 import type { RpcDataSourceConfig } from './data-sources/RpcDataSource';
@@ -80,6 +83,12 @@ import { SnapDataSource } from './data-sources/SnapDataSource';
 import type { StakedBalanceDataSourceConfig } from './data-sources/StakedBalanceDataSource';
 import { StakedBalanceDataSource } from './data-sources/StakedBalanceDataSource';
 import { TokenDataSource } from './data-sources/TokenDataSource';
+import {
+  CHAINS_WITH_DEFAULT_TRACKED_ASSETS,
+  DEFAULT_TRACKED_ASSETS_BY_CHAIN,
+  buildDefaultAssetsInfo,
+  getDefaultAssetMetadata,
+} from './defaults';
 import { AssetsDataSourceError } from './errors';
 import { projectLogger, createModuleLogger } from './logger';
 import { CustomAssetGraduationMiddleware } from './middlewares/CustomAssetGraduationMiddleware';
@@ -125,6 +134,7 @@ import type {
   TransactionPayLegacyFormat,
 } from './utils';
 import { ZERO_ADDRESS } from './utils/constants';
+import { pickRpcCustomAssetsSupplement } from './utils/customAssetsRpcSupplement';
 
 const NATIVE_ASSETS_QUERY_KEY = ['nativeAssets'];
 
@@ -167,6 +177,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'getCustomAssets',
   'hideAsset',
   'unhideAsset',
+  'setSelectedCurrency',
 ] as const;
 
 /** Default polling interval hint for data sources (30 seconds) */
@@ -215,11 +226,18 @@ export type AssetsControllerState = {
 /**
  * Returns the default state for AssetsController.
  *
- * @returns The default AssetsController state with empty maps.
+ * @returns The default AssetsController state. Balance, price, and custom
+ * asset maps start empty; `assetsInfo` is pre-seeded for default tracked
+ * assets (see {@link buildDefaultAssetsInfo}).
  */
 export function getDefaultAssetsControllerState(): AssetsControllerState {
   return {
-    assetsInfo: {},
+    // Pre-populate metadata for controller-managed default tracked assets
+    // (e.g. mUSD on Ethereum mainnet, Linea, Monad) so they are
+    // immediately renderable in the UI before any RPC poll completes.
+    // Per-account zero-balance entries are filled into `assetsBalance`
+    // by `#ensureDefaultTrackedAssetsSeeded` once accounts are known.
+    assetsInfo: buildDefaultAssetsInfo(),
     assetsBalance: {},
     assetsPrice: {},
     customAssets: {},
@@ -303,6 +321,11 @@ type AllowedEvents =
   | TransactionControllerUnapprovedTransactionAddedEvent
   // RpcDataSource, StakedBalanceDataSource
   | NetworkControllerStateChangeEvent
+  // AssetsController (default-asset seeding + cross-source asset refresh
+  // whenever a network configuration is added to or removed from
+  // NetworkController)
+  | NetworkControllerNetworkAddedEvent
+  | NetworkControllerNetworkRemovedEvent
   | TransactionControllerTransactionConfirmedEvent
   | TransactionControllerIncomingTransactionsReceivedEvent
   // StakedBalanceDataSource
@@ -804,6 +827,11 @@ export class AssetsController extends BaseController<
       getNativeAssetForChain: (chainId: ChainId): Caip19AssetId =>
         this.#getNativeAssetMap()[chainId] ??
         `${chainId}/erc20:${ZERO_ADDRESS}`,
+      // Share the API platform's TanStack Query client so the RPC token
+      // detector caches/dedupes its top-token-list fetches alongside the rest
+      // of the package's API calls. Caller-provided rpcConfig.queryClient
+      // wins via the spread below.
+      queryClient: queryApiClient.queryClient,
       ...rpcConfig,
       isOnboarded: rpcConfig.isOnboarded ?? isOnboarded,
     });
@@ -993,6 +1021,24 @@ export class AssetsController extends BaseController<
       },
     );
 
+    // When a network is added or removed from NetworkController, refresh
+    // assets across every data source so balances, prices, and metadata
+    // stay consistent. On add we also seed default tracked assets (e.g.
+    // mUSD on Monad) when the chain is in our defaults registry, so the
+    // entries appear immediately without waiting for it to also be
+    // enabled in NetworkEnablementController.
+    this.messenger.subscribe(
+      'NetworkController:networkAdded',
+      (networkConfiguration) => {
+        this.#handleNetworkAdded(networkConfiguration.chainId);
+        this.#refreshAssetsAfterNetworkChange();
+      },
+    );
+
+    this.messenger.subscribe('NetworkController:networkRemoved', () => {
+      this.#refreshAssetsAfterNetworkChange();
+    });
+
     // Client + Keyring lifecycle: only run when UI is open AND keyring is unlocked
     this.messenger.subscribe(
       'ClientController:stateChange',
@@ -1097,6 +1143,7 @@ export class AssetsController extends BaseController<
       this.#lastKnownAccountIds = currentIds;
       this.#subscribeAssets();
       this.#ensureNativeBalancesDefaultZero();
+      this.#ensureDefaultTrackedAssetsSeeded();
       this.getAssets(accounts, {
         chainIds: [...this.#enabledChains],
         forceUpdate: true,
@@ -1962,6 +2009,80 @@ export class AssetsController extends BaseController<
     });
   }
 
+  /**
+   * Seed selected accounts with zero-balance entries for every
+   * controller-managed default tracked asset (e.g. mUSD on mainnet,
+   * Linea, Monad). Also re-asserts the metadata in `assetsInfo` so the
+   * defaults survive a future state migration that strips them.
+   *
+   * `chainsToSeed` lets callers narrow the work to a specific subset
+   * of chains — useful when reacting to a `NetworkEnablementController`
+   * change to seed only the chain that was just added (e.g. when the
+   * user finally turns on Monad). When `undefined`, every chain in the
+   * default tracked assets registry is seeded.
+   *
+   * Existing entries are never clobbered.
+   *
+   * @param chainsToSeed - Optional subset of CAIP-2 chain ids to seed.
+   * If omitted, all default tracked chains are seeded.
+   */
+  #ensureDefaultTrackedAssetsSeeded(chainsToSeed?: ChainId[]): void {
+    const accounts = this.#getSelectedAccounts();
+    if (accounts.length === 0) {
+      return;
+    }
+
+    // Default tracked assets are ERC-20s on EVM chains today. Restrict
+    // seeding to accounts that have at least one EVM scope so we don't
+    // pollute non-EVM accounts. The wildcard `eip155:0` scope counts.
+    const evmAccounts = accounts.filter((account) =>
+      (account.scopes ?? []).some((scope) => scope.startsWith('eip155:')),
+    );
+    if (evmAccounts.length === 0) {
+      return;
+    }
+
+    // Gate seeding on whether the chain is currently enabled. This is
+    // why mUSD appears on mainnet/Linea immediately (those are normally
+    // enabled at startup) but only appears on Monad once the user
+    // turns the Monad network on.
+    const candidateChains = chainsToSeed ?? [...this.#enabledChains];
+    const targetChains = candidateChains.filter((chainId) =>
+      CHAINS_WITH_DEFAULT_TRACKED_ASSETS.has(chainId),
+    );
+    if (targetChains.length === 0) {
+      return;
+    }
+    this.update((state) => {
+      const balances = state.assetsBalance as Record<
+        string,
+        Record<string, AssetBalance>
+      >;
+      const metadata = state.assetsInfo as Record<string, AssetMetadata>;
+
+      for (const chainId of targetChains) {
+        const defaultAssetIds =
+          DEFAULT_TRACKED_ASSETS_BY_CHAIN.get(chainId) ?? [];
+        for (const assetId of defaultAssetIds) {
+          // Re-seed metadata if state was hydrated from a prior version
+          // that didn't include defaults.
+          if (!metadata[assetId]) {
+            const seed = getDefaultAssetMetadata(assetId);
+            if (seed) {
+              metadata[assetId] = seed;
+            }
+          }
+
+          for (const account of evmAccounts) {
+            balances[account.id] ??= {};
+            const accountBalances = balances[account.id];
+            accountBalances[assetId] ??= { amount: '0' };
+          }
+        }
+      }
+    });
+  }
+
   async #updateState(response: DataResponse): Promise<void> {
     const normalizedResponse = normalizeResponse(response);
     const mode: AssetsUpdateMode = normalizedResponse.updateMode ?? 'merge';
@@ -2272,11 +2393,7 @@ export class AssetsController extends BaseController<
    */
   #shouldHideNativeToken(chainId: ChainId, metadata: AssetMetadata): boolean {
     // Check if it's a chain that should skip native tokens
-    if (
-      !CHAIN_IDS_WITH_NO_NATIVE_TOKEN.includes(
-        chainId as (typeof CHAIN_IDS_WITH_NO_NATIVE_TOKEN)[number],
-      )
-    ) {
+    if (!shouldSkipNativeForCaipChainId(chainId)) {
       return false;
     }
 
@@ -2335,6 +2452,7 @@ export class AssetsController extends BaseController<
     this.#lastKnownAccountIds = new Set(accounts.map((a) => a.id));
     this.#subscribeAssets();
     this.#ensureNativeBalancesDefaultZero();
+    this.#ensureDefaultTrackedAssetsSeeded();
     this.getAssets(accounts, {
       chainIds,
       forceUpdate: true,
@@ -2498,10 +2616,13 @@ export class AssetsController extends BaseController<
   }
 
   /**
-   * Subscribe RPC to chains where the user has customAssets but another
-   * balance data source already owns the chain in regular handoff. Uses a
-   * separate subscription key (`customAssetsOnly` mode) so the regular RPC
-   * subscription, if any, is unaffected.
+   * Guarantee that customAssets are **always** polled by RPC, even when
+   * AccountsApi or the websocket data source has claimed the chain in the
+   * regular handoff. RPC is the sole balance fetcher for user-imported
+   * tokens (see `pickRpcCustomAssetsSupplement` for the full rationale),
+   * so we run a dedicated subscription in `customAssetsOnly` mode under a
+   * distinct subscription key (`ds:RpcDataSource:custom`) that does not
+   * interfere with the regular RPC subscription.
    *
    * @param accounts - Accounts to consider for customAssets.
    * @param chainToAccounts - Map of chain → accounts (built by caller).
@@ -2513,54 +2634,30 @@ export class AssetsController extends BaseController<
     rpcAssignedChains: Set<ChainId>,
   ): void {
     const rpc = this.#rpcDataSource;
-    const rpcAvailableChains = new Set(rpc.getActiveChainsSync());
-
-    // Collect chains that have customAssets for at least one of the given
-    // accounts and are NOT already covered by the regular RPC subscription.
-    const supplementalChainSet = new Set<ChainId>();
-    const accountsWithCustomAssets = new Set<string>();
-    for (const account of accounts) {
-      const customForAccount = this.state.customAssets[account.id] ?? [];
-      if (customForAccount.length === 0) {
-        continue;
-      }
-      accountsWithCustomAssets.add(account.id);
-      for (const assetId of customForAccount) {
-        let chainId: ChainId;
-        try {
-          chainId = extractChainId(assetId);
-        } catch {
-          continue;
-        }
-        if (rpcAssignedChains.has(chainId)) {
-          continue;
-        }
-        if (!rpcAvailableChains.has(chainId)) {
-          continue;
-        }
-        if (!chainToAccounts.has(chainId)) {
-          continue;
-        }
-        supplementalChainSet.add(chainId);
-      }
-    }
-
     const supplementalKey = `ds:${rpc.getName()}:custom`;
-    if (supplementalChainSet.size === 0) {
+
+    const decision = pickRpcCustomAssetsSupplement({
+      accountIds: accounts.map((account) => account.id),
+      customAssetsByAccount: this.state.customAssets,
+      rpcAssignedChains,
+      rpcAvailableChains: new Set(rpc.getActiveChainsSync()),
+      enabledChains: new Set(chainToAccounts.keys()),
+    });
+
+    if (decision.chains.length === 0) {
       this.#unsubscribeBySubscriptionKey(rpc, supplementalKey);
       return;
     }
 
-    const supplementalChains = [...supplementalChainSet];
     const supplementalAccounts = accounts.filter((account) =>
-      accountsWithCustomAssets.has(account.id),
+      decision.accountIds.has(account.id),
     );
     if (supplementalAccounts.length === 0) {
       this.#unsubscribeBySubscriptionKey(rpc, supplementalKey);
       return;
     }
 
-    this.#subscribeDataSource(rpc, supplementalAccounts, supplementalChains, {
+    this.#subscribeDataSource(rpc, supplementalAccounts, decision.chains, {
       subscriptionKey: supplementalKey,
       customAssetsOnly: true,
     });
@@ -2847,6 +2944,7 @@ export class AssetsController extends BaseController<
     }
 
     this.#ensureNativeBalancesDefaultZero();
+    this.#ensureDefaultTrackedAssetsSeeded();
   }
 
   async #handleEnabledNetworksChanged(
@@ -2895,6 +2993,59 @@ export class AssetsController extends BaseController<
     }
 
     this.#ensureNativeBalancesDefaultZero();
+    // Seed default tracked assets (mUSD) for any chain the user has
+    // *just* enabled. This is what makes mUSD appear on Monad after
+    // the user finally adds it to NetworkEnablementController.
+    if (addedChains.length > 0) {
+      this.#ensureDefaultTrackedAssetsSeeded(addedChains);
+    }
+  }
+
+  /**
+   * Handle a `NetworkController:networkAdded` event. When the user
+   * adds a network (e.g. Monad) to NetworkController, seed the
+   * controller-managed default tracked assets for that chain (mUSD on
+   * Monad) into state immediately — without waiting for the chain to
+   * also be enabled in NetworkEnablementController. No-op for chains
+   * that aren't in the defaults registry.
+   *
+   * @param hexChainId - Hex chain id of the newly-added network
+   * configuration (e.g. `0x279f`).
+   */
+  #handleNetworkAdded(hexChainId: Hex): void {
+    let caipChainId: ChainId;
+    try {
+      caipChainId = `eip155:${parseInt(hexChainId, 16)}` as ChainId;
+    } catch {
+      return;
+    }
+
+    if (!CHAINS_WITH_DEFAULT_TRACKED_ASSETS.has(caipChainId)) {
+      return;
+    }
+
+    log('Network added — seeding default tracked assets', {
+      hexChainId,
+      caipChainId,
+    });
+
+    this.#ensureDefaultTrackedAssetsSeeded([caipChainId]);
+  }
+
+  /**
+   * Refresh assets across every data source after a network configuration
+   * is added to or removed from NetworkController. Mirrors the
+   * `forceUpdate` path used elsewhere (e.g. unapproved tx, account-tree
+   * change), so balances/prices/metadata stay consistent for the user's
+   * currently-enabled chains without us having to maintain bespoke
+   * per-event state surgery.
+   */
+  #refreshAssetsAfterNetworkChange(): void {
+    this.getAssets(this.#getSelectedAccounts(), {
+      forceUpdate: true,
+    }).catch((error) => {
+      log('Failed to refresh assets after network change', { error });
+    });
   }
 
   /**
@@ -3021,5 +3172,8 @@ export class AssetsController extends BaseController<
     this.messenger.unregisterActionHandler('AssetsController:getCustomAssets');
     this.messenger.unregisterActionHandler('AssetsController:hideAsset');
     this.messenger.unregisterActionHandler('AssetsController:unhideAsset');
+    this.messenger.unregisterActionHandler(
+      'AssetsController:setSelectedCurrency',
+    );
   }
 }

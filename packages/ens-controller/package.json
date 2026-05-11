@@ -1,6 +1,6 @@
 {
   "name": "@metamask/ens-controller",
-  "version": "19.1.1",
+  "version": "19.1.2",
   "description": "Maps ENS names to their resolved addresses by chain id",
   "keywords": [
     "Ethereum",
@@ -55,9 +55,9 @@
   "dependencies": {
     "@ethersproject/providers": "^5.7.0",
     "@metamask/base-controller": "^9.1.0",
-    "@metamask/controller-utils": "^11.20.0",
-    "@metamask/messenger": "^1.1.1",
-    "@metamask/network-controller": "^30.0.1",
+    "@metamask/controller-utils": "^12.0.0",
+    "@metamask/messenger": "^1.2.0",
+    "@metamask/network-controller": "^31.1.0",
     "@metamask/utils": "^11.9.0",
     "punycode": "^2.1.1"
   },

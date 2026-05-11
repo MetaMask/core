@@ -2,7 +2,12 @@ import { KnownCaipNamespace } from '@metamask/utils';
 
 import { projectLogger, createModuleLogger } from '../logger';
 import { forDataTypes } from '../types';
-import type { AccountId, Caip19AssetId, Middleware } from '../types';
+import type {
+  AccountId,
+  AssetBalance,
+  Caip19AssetId,
+  Middleware,
+} from '../types';
 import { normalizeAssetId } from '../utils';
 
 const CONTROLLER_NAME = 'CustomAssetGraduationMiddleware';
@@ -16,15 +21,22 @@ export type CustomAssetGraduationMiddlewareOptions = {
 
 /**
  * CustomAssetGraduationMiddleware removes EVM assets from `customAssets` when
- * an upstream balance source (AccountsAPI / Websocket) reports a balance for
- * them. Once a detector sees the asset, it no longer needs to be tracked as
- * "custom" — the regular detection flow will keep it fresh.
+ * an upstream balance source (AccountsAPI / Websocket) reports a non-zero
+ * balance for them. Once a detector sees the asset with a real balance, it
+ * no longer needs to be tracked as "custom" — the regular detection flow
+ * will keep it fresh.
  *
  * Rules:
- * - Only the selected account's custom assets are considered.
+ * - Only the selected account's custom assets are considered. Switching the
+ *   selected account triggers a fresh fetch, which re-runs graduation
+ *   against the new account's balances.
  * - Only EVM (CAIP-2 namespace `eip155`) assets graduate. Non-EVM custom
  *   assets (Solana, BTC, Tron, etc. — served by Snap data sources) are left
  *   alone.
+ * - Only positive balances graduate. A zero balance from AccountsAPI means
+ *   the API knows about the token but the user does not currently hold it;
+ *   keeping it in `customAssets` ensures RPC keeps polling so a future
+ *   incoming transfer is reflected promptly.
  */
 export class CustomAssetGraduationMiddleware {
   readonly name = CONTROLLER_NAME;
@@ -79,6 +91,9 @@ export class CustomAssetGraduationMiddleware {
         if (!isEvmAssetId(rawAssetId)) {
           continue;
         }
+        if (!hasPositiveBalance(returnedBalances[rawAssetId])) {
+          continue;
+        }
         const normalizedAssetId = safeNormalize(rawAssetId);
         if (!customSet.has(normalizedAssetId)) {
           continue;
@@ -123,4 +138,23 @@ function safeNormalize(assetId: Caip19AssetId): Caip19AssetId {
   } catch {
     return assetId;
   }
+}
+
+/**
+ * Whether a balance entry reports a strictly positive amount. AccountsAPI
+ * may return zero for tokens it indexes but the user no longer holds; we
+ * treat those as non-graduating so RPC keeps polling and surfaces any
+ * future incoming transfer immediately.
+ *
+ * `AssetBalance.amount` is already a human-readable decimal string from
+ * both AccountsApi (e.g. "0.283549083429656057") and the websocket data
+ * source (which divides by `decimals` before emitting), so a `Number()`
+ * sign check is safe: `NaN`, `undefined`, empty strings, and zero all
+ * fail the comparison.
+ *
+ * @param balance - The balance entry from the response.
+ * @returns `true` when the balance amount represents a value greater than 0.
+ */
+function hasPositiveBalance(balance: AssetBalance | undefined): boolean {
+  return Number(balance?.amount) > 0;
 }
