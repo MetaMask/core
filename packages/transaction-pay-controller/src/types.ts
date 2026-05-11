@@ -1,10 +1,18 @@
-import type { AssetsControllerGetStateForTransactionPayAction } from '@metamask/assets-controller';
+import type {
+  AssetsControllerGetStateForTransactionPayAction,
+  AssetsControllerStateChangeEvent,
+} from '@metamask/assets-controller';
 import type {
   CurrencyRateControllerGetStateAction,
+  CurrencyRateStateChange,
   TokenBalancesControllerGetStateAction,
 } from '@metamask/assets-controllers';
 import type { TokenRatesControllerGetStateAction } from '@metamask/assets-controllers';
-import type { TokensControllerGetStateAction } from '@metamask/assets-controllers';
+import type { TokenRatesControllerStateChangeEvent } from '@metamask/assets-controllers';
+import type {
+  TokensControllerGetStateAction,
+  TokensControllerStateChangeEvent,
+} from '@metamask/assets-controllers';
 import type { AccountTrackerControllerGetStateAction } from '@metamask/assets-controllers';
 import type { ControllerStateChangeEvent } from '@metamask/base-controller';
 import type { ControllerGetStateAction } from '@metamask/base-controller';
@@ -82,7 +90,11 @@ export type AllowedActions =
   | TransactionControllerUpdateTransactionAction;
 
 export type AllowedEvents =
+  | AssetsControllerStateChangeEvent
   | BridgeStatusControllerStateChangeEvent
+  | CurrencyRateStateChange
+  | TokenRatesControllerStateChangeEvent
+  | TokensControllerStateChangeEvent
   | TransactionControllerStateChangeEvent
   | TransactionControllerUnapprovedTransactionAddedEvent;
 
@@ -252,6 +264,9 @@ export type TransactionData = {
 export type TransactionFiatPayment = {
   /** Entered fiat amount for the selected payment method. */
   amountFiat?: string;
+
+  /** CAIP-19 asset id derived from the transaction type for the fiat on-ramp. */
+  caipAssetId?: string;
 
   /** Order identifier in normalized format (/providers/{provider}/orders/{id}). */
   orderId?: string;

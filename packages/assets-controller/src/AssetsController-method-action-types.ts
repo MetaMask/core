@@ -116,6 +116,16 @@ export type AssetsControllerUnhideAssetAction = {
 };
 
 /**
+ * Set the current currency.
+ *
+ * @param selectedCurrency - The ISO 4217 currency code to set.
+ */
+export type AssetsControllerSetSelectedCurrencyAction = {
+  type: `AssetsController:setSelectedCurrency`;
+  handler: AssetsController['setSelectedCurrency'];
+};
+
+/**
  * Union of all AssetsController action types.
  */
 export type AssetsControllerMethodActions =
@@ -129,4 +139,5 @@ export type AssetsControllerMethodActions =
   | AssetsControllerRemoveCustomAssetAction
   | AssetsControllerGetCustomAssetsAction
   | AssetsControllerHideAssetAction
-  | AssetsControllerUnhideAssetAction;
+  | AssetsControllerUnhideAssetAction
+  | AssetsControllerSetSelectedCurrencyAction;

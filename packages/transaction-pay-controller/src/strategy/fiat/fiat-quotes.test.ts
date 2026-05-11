@@ -13,7 +13,12 @@ import type {
   TransactionPayQuote,
   TransactionPayRequiredToken,
 } from '../../types';
-import { computeRawFromFiatAmount, getTokenFiatRate } from '../../utils/token';
+import {
+  buildCaipAssetType,
+  computeRawFromFiatAmount,
+  getTokenFiatRate,
+  getTokenInfo,
+} from '../../utils/token';
 import { getRelayQuotes } from '../relay/relay-quotes';
 import type { RelayQuote } from '../relay/types';
 import type { TransactionPayFiatAsset } from './constants';
@@ -52,9 +57,7 @@ const REQUIRED_TOKEN_MOCK: TransactionPayRequiredToken = {
 
 const FIAT_ASSET_MOCK: TransactionPayFiatAsset = {
   address: '0x0000000000000000000000000000000000001010',
-  caipAssetId: 'eip155:137/slip44:966',
   chainId: '0x89',
-  decimals: 18,
 };
 
 const FIAT_QUOTE_MOCK: RampsQuote = {
@@ -199,9 +202,13 @@ function getRequest({
   };
 }
 
+const FIAT_ASSET_CAIP_ID_MOCK = 'eip155:137/slip44:966';
+
 describe('getFiatQuotes', () => {
+  const buildCaipAssetTypeMock = jest.mocked(buildCaipAssetType);
   const getRelayQuotesMock = jest.mocked(getRelayQuotes);
   const getTokenFiatRateMock = jest.mocked(getTokenFiatRate);
+  const getTokenInfoMock = jest.mocked(getTokenInfo);
   const computeRawFromFiatAmountMock = jest.mocked(computeRawFromFiatAmount);
   const deriveFiatAssetForFiatPaymentMock = jest.mocked(
     deriveFiatAssetForFiatPayment,
@@ -210,11 +217,13 @@ describe('getFiatQuotes', () => {
   beforeEach(() => {
     jest.resetAllMocks();
 
+    buildCaipAssetTypeMock.mockReturnValue(FIAT_ASSET_CAIP_ID_MOCK);
     deriveFiatAssetForFiatPaymentMock.mockReturnValue(FIAT_ASSET_MOCK);
     getTokenFiatRateMock.mockReturnValue({
       fiatRate: '2',
       usdRate: '2',
     });
+    getTokenInfoMock.mockReturnValue({ decimals: 18, symbol: 'POL' });
     computeRawFromFiatAmountMock.mockReturnValue('5000000000000000000');
     getRelayQuotesMock.mockResolvedValue([getRelayQuoteMock()]);
   });
@@ -242,7 +251,7 @@ describe('getFiatQuotes', () => {
       'RampsController:getQuotes',
       expect.objectContaining({
         amount: 20,
-        assetId: FIAT_ASSET_MOCK.caipAssetId,
+        assetId: FIAT_ASSET_CAIP_ID_MOCK,
         fiat: 'USD',
         paymentMethods: ['/payments/debit-credit-card'],
         providers: [SELECTED_PROVIDER_ID],
@@ -349,8 +358,8 @@ describe('getFiatQuotes', () => {
     expect(getRelayQuotesMock).not.toHaveBeenCalled();
   });
 
-  it('returns empty array if fiat asset mapping is missing', async () => {
-    deriveFiatAssetForFiatPaymentMock.mockReturnValue(undefined);
+  it('returns empty array if source token fiat rate is missing', async () => {
+    getTokenFiatRateMock.mockReturnValue(undefined);
     const { request } = getRequest();
 
     const result = await getFiatQuotes(request);
@@ -359,8 +368,8 @@ describe('getFiatQuotes', () => {
     expect(getRelayQuotesMock).not.toHaveBeenCalled();
   });
 
-  it('returns empty array if source token fiat rate is missing', async () => {
-    getTokenFiatRateMock.mockReturnValue(undefined);
+  it('returns empty array if token info is unavailable', async () => {
+    getTokenInfoMock.mockReturnValue(undefined);
     const { request } = getRequest();
 
     const result = await getFiatQuotes(request);

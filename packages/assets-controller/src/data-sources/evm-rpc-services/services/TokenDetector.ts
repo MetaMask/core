@@ -292,7 +292,6 @@ export class TokenDetector extends StaticIntervalPollingControllerOnly<Detection
 
       const { decimals } = tokenMetadata;
       const formattedBalance = this.#formatBalance(balance, decimals);
-
       detectedBalances.push({
         assetId: asset.assetId,
         accountId,

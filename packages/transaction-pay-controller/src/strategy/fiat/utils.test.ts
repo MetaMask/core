@@ -6,9 +6,11 @@ import type { TransactionMeta } from '@metamask/transaction-controller';
 import { TransactionType } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 
+import { getDefaultRemoteFeatureFlagControllerState } from '../../../../remote-feature-flag-controller/src/remote-feature-flag-controller';
 import { NATIVE_TOKEN_ADDRESS } from '../../constants';
 import { getMessengerMock } from '../../tests/messenger-mock';
-import { FIAT_ASSET_ID_BY_TX_TYPE, TransactionPayFiatAsset } from './constants';
+import { ETH_MAINNET_FIAT_ASSET, FIAT_ASSET_ID_BY_TX_TYPE } from './constants';
+import type { TransactionPayFiatAsset } from './constants';
 import {
   deriveFiatAssetForFiatPayment,
   getRawSourceAmountFromOrderCryptoAmount,
@@ -29,16 +31,12 @@ const PROVIDER_MOCK = { request: jest.fn() };
 
 const NATIVE_FIAT_ASSET_MOCK: TransactionPayFiatAsset = {
   address: NATIVE_TOKEN_ADDRESS,
-  caipAssetId: 'eip155:1/slip44:60',
   chainId: CHAIN_ID_MOCK,
-  decimals: 18,
 };
 
 const ERC20_FIAT_ASSET_MOCK: TransactionPayFiatAsset = {
   address: ERC20_ADDRESS_MOCK,
-  caipAssetId: 'eip155:1/erc20:0x2222222222222222222222222222222222222222',
   chainId: CHAIN_ID_MOCK,
-  decimals: 6,
 };
 
 const erc20Interface = new Interface(abiERC20);
@@ -55,41 +53,163 @@ function getOrderMock(overrides: Partial<RampsOrder> = {}): RampsOrder {
   } as RampsOrder;
 }
 
+const FEATURE_FLAG_ASSET_MOCK: TransactionPayFiatAsset = {
+  address: '0x0000000000000000000000000000000000000abc',
+  chainId: '0xa',
+};
+
 describe('Fiat Utils', () => {
+  const { messenger, getRemoteFeatureFlagControllerStateMock } =
+    getMessengerMock();
+
+  beforeEach(() => {
+    jest.resetAllMocks();
+
+    getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+      ...getDefaultRemoteFeatureFlagControllerState(),
+    });
+  });
+
   describe('deriveFiatAssetForFiatPayment', () => {
-    it('returns mapped fiat asset for direct transaction type', () => {
+    it('returns asset from feature flag when present', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_pay_fiat: {
+            assetPerTransactionType: {
+              [TransactionType.predictDeposit]: FEATURE_FLAG_ASSET_MOCK,
+            },
+          },
+        },
+      });
+
       const transaction = {
         type: TransactionType.predictDeposit,
       } as TransactionMeta;
 
-      const result = deriveFiatAssetForFiatPayment(transaction);
+      const result = deriveFiatAssetForFiatPayment(transaction, messenger);
+
+      expect(result).toStrictEqual(FEATURE_FLAG_ASSET_MOCK);
+    });
+
+    it('returns feature flag asset over hardcoded asset when both exist', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_pay_fiat: {
+            assetPerTransactionType: {
+              [TransactionType.predictDeposit]: FEATURE_FLAG_ASSET_MOCK,
+            },
+          },
+        },
+      });
+
+      const transaction = {
+        type: TransactionType.predictDeposit,
+      } as TransactionMeta;
+
+      const result = deriveFiatAssetForFiatPayment(transaction, messenger);
+
+      expect(result).toStrictEqual(FEATURE_FLAG_ASSET_MOCK);
+      expect(result).not.toStrictEqual(
+        FIAT_ASSET_ID_BY_TX_TYPE[TransactionType.predictDeposit],
+      );
+    });
+
+    it('returns hardcoded asset when feature flag has no entry for the type', () => {
+      const transaction = {
+        type: TransactionType.predictDeposit,
+      } as TransactionMeta;
+
+      const result = deriveFiatAssetForFiatPayment(transaction, messenger);
 
       expect(result).toStrictEqual(
         FIAT_ASSET_ID_BY_TX_TYPE[TransactionType.predictDeposit],
       );
     });
 
-    it('returns mapped fiat asset for first nested transaction in batch', () => {
+    it('returns hardcoded asset for direct transaction type', () => {
       const transaction = {
-        nestedTransactions: [{ type: TransactionType.perpsDeposit }],
-        type: TransactionType.batch,
+        type: TransactionType.perpsDeposit,
       } as TransactionMeta;
 
-      const result = deriveFiatAssetForFiatPayment(transaction);
+      const result = deriveFiatAssetForFiatPayment(transaction, messenger);
 
       expect(result).toStrictEqual(
         FIAT_ASSET_ID_BY_TX_TYPE[TransactionType.perpsDeposit],
       );
     });
 
-    it('returns undefined for unsupported type', () => {
+    it('returns hardcoded asset for supported nested transaction in batch', () => {
+      const transaction = {
+        nestedTransactions: [{ type: TransactionType.perpsDeposit }],
+        type: TransactionType.batch,
+      } as TransactionMeta;
+
+      const result = deriveFiatAssetForFiatPayment(transaction, messenger);
+
+      expect(result).toStrictEqual(
+        FIAT_ASSET_ID_BY_TX_TYPE[TransactionType.perpsDeposit],
+      );
+    });
+
+    it('skips unsupported nested types and finds supported one in batch', () => {
+      const transaction = {
+        nestedTransactions: [
+          { type: TransactionType.tokenMethodApprove },
+          { type: TransactionType.perpsDeposit },
+        ],
+        type: TransactionType.batch,
+      } as TransactionMeta;
+
+      const result = deriveFiatAssetForFiatPayment(transaction, messenger);
+
+      expect(result).toStrictEqual(
+        FIAT_ASSET_ID_BY_TX_TYPE[TransactionType.perpsDeposit],
+      );
+    });
+
+    it('returns feature flag asset for supported nested transaction in batch', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_pay_fiat: {
+            assetPerTransactionType: {
+              [TransactionType.perpsDeposit]: FEATURE_FLAG_ASSET_MOCK,
+            },
+          },
+        },
+      });
+
+      const transaction = {
+        nestedTransactions: [{ type: TransactionType.perpsDeposit }],
+        type: TransactionType.batch,
+      } as TransactionMeta;
+
+      const result = deriveFiatAssetForFiatPayment(transaction, messenger);
+
+      expect(result).toStrictEqual(FEATURE_FLAG_ASSET_MOCK);
+    });
+
+    it('returns ETH mainnet fallback for unsupported type', () => {
       const transaction = {
         type: TransactionType.contractInteraction,
       } as TransactionMeta;
 
-      const result = deriveFiatAssetForFiatPayment(transaction);
+      const result = deriveFiatAssetForFiatPayment(transaction, messenger);
 
-      expect(result).toBeUndefined();
+      expect(result).toStrictEqual(ETH_MAINNET_FIAT_ASSET);
+    });
+
+    it('returns ETH mainnet fallback for batch with no nested transactions', () => {
+      const transaction = {
+        nestedTransactions: [],
+        type: TransactionType.batch,
+      } as unknown as TransactionMeta;
+
+      const result = deriveFiatAssetForFiatPayment(transaction, messenger);
+
+      expect(result).toStrictEqual(ETH_MAINNET_FIAT_ASSET);
     });
   });
 
@@ -98,6 +218,9 @@ describe('Fiat Utils', () => {
       messenger,
       findNetworkClientIdByChainIdMock,
       getNetworkClientByIdMock,
+      getTokensControllerStateMock,
+      getRemoteFeatureFlagControllerStateMock:
+        resolveRemoteFeatureFlagControllerStateMock,
     } = getMessengerMock();
 
     let mockGetTransaction: jest.Mock;
@@ -110,6 +233,31 @@ describe('Fiat Utils', () => {
       findNetworkClientIdByChainIdMock.mockReturnValue(NETWORK_CLIENT_ID_MOCK);
       getNetworkClientByIdMock.mockReturnValue({
         provider: PROVIDER_MOCK,
+      } as never);
+
+      resolveRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+      });
+
+      getTokensControllerStateMock.mockReturnValue({
+        allTokens: {
+          [CHAIN_ID_MOCK]: {
+            '0x0': [
+              {
+                address: ERC20_ADDRESS_MOCK,
+                decimals: 6,
+                symbol: 'USDC',
+                aggregators: [],
+                image: '',
+                name: 'USDC',
+                isERC721: false,
+              },
+            ],
+          },
+        },
+        allTokensStale: {},
+        allIgnoredTokens: {},
+        allDetectedTokens: {},
       } as never);
 
       (Web3Provider as unknown as jest.Mock).mockImplementation(() => ({

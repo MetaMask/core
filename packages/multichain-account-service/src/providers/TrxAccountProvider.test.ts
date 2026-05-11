@@ -114,7 +114,7 @@ class MockTronKeyring {
 }
 
 class MockTrxAccountProvider extends TrxAccountProvider {
-  override async ensureCanUseSnapPlatform(): Promise<void> {
+  override async ensureReady(): Promise<void> {
     // Override to avoid waiting during tests.
   }
 }

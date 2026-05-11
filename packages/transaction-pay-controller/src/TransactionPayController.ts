@@ -26,7 +26,12 @@ import type {
 import { getStrategyOrder } from './utils/feature-flags';
 import { updateQuotes } from './utils/quotes';
 import { updateSourceAmounts } from './utils/source-amounts';
-import { getTransaction, pollTransactionChanges } from './utils/transaction';
+import { buildCaipAssetType } from './utils/token';
+import {
+  getTransaction,
+  subscribeAssetChanges,
+  subscribeTransactionChanges,
+} from './utils/transaction';
 
 const MESSENGER_EXPOSED_METHODS = [
   'getDelegationTransaction',
@@ -87,10 +92,16 @@ export class TransactionPayController extends BaseController<
       MESSENGER_EXPOSED_METHODS,
     );
 
-    pollTransactionChanges(
+    subscribeTransactionChanges(
       messenger,
       this.#updateTransactionData.bind(this),
       this.#removeTransactionData.bind(this),
+    );
+
+    subscribeAssetChanges(
+      messenger,
+      () => this.state,
+      this.#updateTransactionData.bind(this),
     );
 
     // eslint-disable-next-line no-new
@@ -284,16 +295,19 @@ export class TransactionPayController extends BaseController<
         transactionId,
         this.messenger,
       ) as TransactionMeta;
-      const fiatAsset = deriveFiatAssetForFiatPayment(transaction);
+      const fiatAsset = deriveFiatAssetForFiatPayment(
+        transaction,
+        this.messenger,
+      );
       if (fiatAsset) {
-        try {
-          this.messenger.call(
-            'RampsController:setSelectedToken',
-            fiatAsset.caipAssetId,
-          );
-        } catch {
-          // Intentionally no-op — tokens may not be loaded in RampsController yet.
-        }
+        this.#updateTransactionData(transactionId, (data) => {
+          if (data.fiatPayment) {
+            data.fiatPayment.caipAssetId = buildCaipAssetType(
+              fiatAsset.chainId,
+              fiatAsset.address,
+            );
+          }
+        });
       }
     }
 
@@ -324,14 +338,15 @@ export class TransactionPayController extends BaseController<
       return validStrategies;
     }
 
-    const paymentToken =
-      this.state.transactionData[transaction.id]?.paymentToken;
+    const transactionData = this.state.transactionData[transaction.id];
+    const paymentToken = transactionData?.paymentToken;
 
     return getStrategyOrder(
       this.messenger,
       paymentToken?.chainId,
       paymentToken?.address,
       transaction.type,
+      transactionData?.fiatPayment?.selectedPaymentMethodId,
     );
   }
 }

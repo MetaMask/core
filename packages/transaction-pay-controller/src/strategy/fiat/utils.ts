@@ -1,31 +1,38 @@
 import type { RampsOrder } from '@metamask/ramps-controller';
-import {
-  TransactionMeta,
-  TransactionType,
-} from '@metamask/transaction-controller';
+import type { TransactionMeta } from '@metamask/transaction-controller';
+import { TransactionType } from '@metamask/transaction-controller';
 import { createModuleLogger } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
 
 import { projectLogger } from '../../logger';
 import type { TransactionPayControllerMessenger } from '../../types';
+import { getFiatAssetPerTransactionType } from '../../utils/feature-flags';
+import { getTokenInfo } from '../../utils/token';
 import { getTransferredAmountFromTxHash } from '../../utils/transaction-receipt';
-import { FIAT_ASSET_ID_BY_TX_TYPE, TransactionPayFiatAsset } from './constants';
+import type { TransactionPayFiatAsset } from './constants';
+import { FIAT_ASSET_ID_BY_TX_TYPE } from './constants';
 
 const log = createModuleLogger(projectLogger, 'fiat-utils');
 
 export function deriveFiatAssetForFiatPayment(
   transaction: TransactionMeta,
-): TransactionPayFiatAsset | undefined {
-  const transactionType = transaction?.type;
+  messenger: TransactionPayControllerMessenger,
+): TransactionPayFiatAsset {
+  const txType = resolveTransactionType(transaction);
 
-  if (transactionType === TransactionType.batch) {
-    const firstMatchingType = transaction.nestedTransactions?.[0]?.type;
-    if (firstMatchingType) {
-      return FIAT_ASSET_ID_BY_TX_TYPE[firstMatchingType];
-    }
+  return getFiatAssetPerTransactionType(messenger, txType);
+}
+
+function resolveTransactionType(
+  transaction: TransactionMeta,
+): TransactionType | undefined {
+  if (transaction.type !== TransactionType.batch) {
+    return transaction.type;
   }
 
-  return FIAT_ASSET_ID_BY_TX_TYPE[transactionType as TransactionType];
+  return transaction.nestedTransactions?.find(
+    (tx) => tx.type && FIAT_ASSET_ID_BY_TX_TYPE[tx.type] !== undefined,
+  )?.type;
 }
 
 /**
@@ -74,9 +81,21 @@ export async function resolveSourceAmountRaw({
     }
   }
 
+  const tokenInfo = getTokenInfo(
+    messenger,
+    fiatAsset.address,
+    fiatAsset.chainId,
+  );
+
+  if (!tokenInfo) {
+    throw new Error(
+      `Unable to resolve token info for fiat asset ${fiatAsset.address} on chain ${fiatAsset.chainId}`,
+    );
+  }
+
   return getRawSourceAmountFromOrderCryptoAmount({
     cryptoAmount: order.cryptoAmount,
-    decimals: fiatAsset.decimals,
+    decimals: tokenInfo.decimals,
   });
 }
 
