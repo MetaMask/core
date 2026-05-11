@@ -81,6 +81,7 @@ describe('@metamask/controller-utils', () => {
         "weiHexToGweiDec",
         "isEqualCaseInsensitive",
         "InfuraNetworkType",
+        "defaultInfuraNetworks",
         "CustomNetworkType",
         "NetworkType",
         "isNetworkType",
