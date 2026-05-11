@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **BREAKING:** Remove Sei, MegaETH, Avalanche, and ZKSync from list of default networks ([#8767](https://github.com/MetaMask/core/pull/8767))
+  - You will need to add them as network configurations first before switching to them.
+
 ## [31.1.0]
 
 ### Added
