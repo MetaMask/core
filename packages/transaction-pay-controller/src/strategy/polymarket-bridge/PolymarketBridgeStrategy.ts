@@ -23,22 +23,30 @@ import {
   isEIP7702Chain,
   isRelayExecuteEnabled,
 } from '../../utils/feature-flags';
-import { getTokenFiatRate } from '../../utils/token';
+import { getLiveTokenBalance, getTokenFiatRate } from '../../utils/token';
 import { updateTransaction } from '../../utils/transaction';
-import { fetchRelayQuote } from '../relay/relay-api';
+import { fetchRelayQuote, getRelayStatus } from '../relay/relay-api';
 import { submitRelayQuotes } from '../relay/relay-submit';
 import type { RelayQuote, RelayQuoteRequest } from '../relay/types';
 import { PolymarketBridgeApi } from './bridge-api';
 import {
+  FORCE_SKIP_RELAY_POLL,
+  POLYMARKET_COLLATERAL_OFFRAMP_POLYGON,
+  POLYMARKET_COLLATERAL_ONRAMP_POLYGON,
   PUSD_ADDRESS_POLYGON,
   PUSD_DECIMALS,
+  USDC_E_ADDRESS_POLYGON,
   USE_RELAY_BRIDGE,
+  USE_RELAY_DEPOSIT_ADDRESS,
 } from './constants';
 import { computeDepositWalletAddress } from './deposit-wallet';
 import { extractPolymarketWithdrawIntent } from './intent';
 import { PolymarketRelayerApi } from './relayer-api';
 import type { PolymarketBridgeQuote } from './types';
-import { submitPolymarketBridgeWithdraw } from './withdraw';
+import {
+  submitDepositWalletBatch,
+  submitPolymarketBridgeWithdraw,
+} from './withdraw';
 
 const POLYGON_CHAIN_ID = '0x89' as Hex;
 const POLYGON_CHAIN_ID_NUMBER = 137;
@@ -133,41 +141,27 @@ export class PolymarketBridgeStrategy
     const { messenger, accountSupports7702 } = request;
     const depositWalletAddress = computeDepositWalletAddress(quoteRequest.from);
 
-    const useExecute =
-      accountSupports7702 &&
-      isRelayExecuteEnabled(messenger) &&
-      isEIP7702Chain(messenger, POLYGON_CHAIN_ID);
+    const body = USE_RELAY_DEPOSIT_ADDRESS
+      ? this.#buildRelayDepositAddressRequest({
+          intent,
+          quoteRequest,
+          depositWalletAddress,
+          messenger,
+        })
+      : this.#buildRelayEoaRequest({
+          intent,
+          quoteRequest,
+          depositWalletAddress,
+          accountSupports7702,
+          messenger,
+        });
 
-    const slippageDecimal = getSlippage(
-      messenger,
-      POLYGON_CHAIN_ID,
-      PUSD_ADDRESS_POLYGON,
-    );
-    const slippageTolerance = new BigNumber(
-      slippageDecimal * 100 * 100,
-    ).toFixed(0);
-
-    const body: RelayQuoteRequest = {
-      amount: intent.amount.toString(),
-      destinationChainId: parseInt(quoteRequest.targetChainId, 16),
-      destinationCurrency: quoteRequest.targetTokenAddress,
-      originChainId: POLYGON_CHAIN_ID_NUMBER,
-      originCurrency: PUSD_ADDRESS_POLYGON,
-      ...(useExecute
-        ? { originGasOverhead: getRelayOriginGasOverhead(messenger) }
-        : {}),
-      recipient: quoteRequest.from,
-      refundTo: depositWalletAddress,
-      slippageTolerance,
-      tradeType: 'EXACT_INPUT',
-      user: quoteRequest.from,
-    };
-
-    log('Fetching Relay quote (pUSD→target)', {
+    log('Fetching Relay quote', {
+      originCurrency: body.originCurrency,
       destinationChainId: body.destinationChainId,
       destinationCurrency: body.destinationCurrency,
       amount: body.amount,
-      useExecute,
+      useDepositAddress: USE_RELAY_DEPOSIT_ADDRESS,
     });
 
     const relayQuote = await fetchRelayQuote(messenger, body, request.signal);
@@ -187,6 +181,79 @@ export class PolymarketBridgeStrategy
     });
 
     return [quote];
+  }
+
+  #buildRelayEoaRequest({
+    intent,
+    quoteRequest,
+    depositWalletAddress,
+    accountSupports7702,
+    messenger,
+  }: {
+    intent: { amount: bigint };
+    quoteRequest: QuoteRequest;
+    depositWalletAddress: Hex;
+    accountSupports7702: boolean;
+    messenger: TransactionPayControllerMessenger;
+  }): RelayQuoteRequest {
+    const useExecute =
+      accountSupports7702 &&
+      isRelayExecuteEnabled(messenger) &&
+      isEIP7702Chain(messenger, POLYGON_CHAIN_ID);
+
+    const slippageTolerance = new BigNumber(
+      getSlippage(messenger, POLYGON_CHAIN_ID, PUSD_ADDRESS_POLYGON) *
+        100 *
+        100,
+    ).toFixed(0);
+
+    return {
+      amount: intent.amount.toString(),
+      destinationChainId: parseInt(quoteRequest.targetChainId, 16),
+      destinationCurrency: quoteRequest.targetTokenAddress,
+      originChainId: POLYGON_CHAIN_ID_NUMBER,
+      originCurrency: PUSD_ADDRESS_POLYGON,
+      ...(useExecute
+        ? { originGasOverhead: getRelayOriginGasOverhead(messenger) }
+        : {}),
+      recipient: quoteRequest.from,
+      refundTo: depositWalletAddress,
+      slippageTolerance,
+      tradeType: 'EXACT_INPUT',
+      user: quoteRequest.from,
+    };
+  }
+
+  #buildRelayDepositAddressRequest({
+    intent,
+    quoteRequest,
+    depositWalletAddress,
+    messenger,
+  }: {
+    intent: { amount: bigint };
+    quoteRequest: QuoteRequest;
+    depositWalletAddress: Hex;
+    messenger: TransactionPayControllerMessenger;
+  }): RelayQuoteRequest {
+    const slippageTolerance = new BigNumber(
+      getSlippage(messenger, POLYGON_CHAIN_ID, USDC_E_ADDRESS_POLYGON) *
+        100 *
+        100,
+    ).toFixed(0);
+
+    return {
+      amount: intent.amount.toString(),
+      destinationChainId: parseInt(quoteRequest.targetChainId, 16),
+      destinationCurrency: quoteRequest.targetTokenAddress,
+      originChainId: POLYGON_CHAIN_ID_NUMBER,
+      originCurrency: USDC_E_ADDRESS_POLYGON,
+      recipient: quoteRequest.from,
+      refundTo: depositWalletAddress,
+      slippageTolerance,
+      tradeType: 'EXACT_INPUT',
+      useDepositAddress: true,
+      user: depositWalletAddress,
+    };
   }
 
   #buildPolymarketBridgeQuote({
@@ -424,6 +491,10 @@ export class PolymarketBridgeStrategy
     request: PayStrategyExecuteRequest<PolymarketBridgeQuote>,
     relayQuote: RelayQuote,
   ): Promise<{ transactionHash?: Hex }> {
+    if (USE_RELAY_DEPOSIT_ADDRESS) {
+      return await this.#executeRelayDepositAddress(request, relayQuote);
+    }
+
     const quote = request.quotes[0];
     const from = quote.request.from;
     const depositWalletAddress = computeDepositWalletAddress(from);
@@ -480,6 +551,188 @@ export class PolymarketBridgeStrategy
     log('Step 2 complete', { transactionHash: targetHash.transactionHash });
 
     return targetHash;
+  }
+
+  async #executeRelayDepositAddress(
+    request: PayStrategyExecuteRequest<PolymarketBridgeQuote>,
+    relayQuote: RelayQuote,
+  ): Promise<{ transactionHash?: Hex }> {
+    const quote = request.quotes[0];
+    const from = quote.request.from;
+    const depositWalletAddress = computeDepositWalletAddress(from);
+
+    const depositStep = relayQuote.steps.find((step) => step.id === 'deposit');
+
+    if (!depositStep || depositStep.kind !== 'transaction') {
+      throw new Error(
+        'Polymarket bridge (Relay deposit-address): no deposit step found',
+      );
+    }
+
+    const depositItemData = depositStep.items[0]?.data;
+    const depositCallData =
+      depositItemData && 'data' in depositItemData
+        ? depositItemData.data
+        : undefined;
+
+    if (!depositCallData) {
+      throw new Error(
+        'Polymarket bridge (Relay deposit-address): missing deposit calldata',
+      );
+    }
+
+    const relayDepositAddress = extractTransferRecipient(depositCallData);
+    const amount = BigInt(quote.sourceAmount.raw);
+
+    log('Building approve + unwrap batch', {
+      depositWalletAddress,
+      relayDepositAddress,
+      amount: amount.toString(),
+    });
+
+    const approveData = encodeApproveCalldata(
+      POLYMARKET_COLLATERAL_OFFRAMP_POLYGON,
+      amount,
+    );
+    const unwrapData = encodeUnwrapCalldata({
+      asset: USDC_E_ADDRESS_POLYGON,
+      recipient: relayDepositAddress,
+      amount,
+    });
+
+    const result = await submitDepositWalletBatch({
+      from,
+      depositWalletAddress,
+      calls: [
+        {
+          target: PUSD_ADDRESS_POLYGON,
+          value: 0n,
+          data: approveData,
+        },
+        {
+          target: POLYMARKET_COLLATERAL_OFFRAMP_POLYGON,
+          value: 0n,
+          data: unwrapData,
+        },
+      ],
+      messenger: request.messenger,
+      relayerApi: this.#buildRelayerApi(request.messenger),
+    });
+
+    log('Relayer batch confirmed, setting sourceHash', {
+      sourceHash: result.relayerTransactionHash,
+    });
+
+    updateTransaction(
+      {
+        transactionId: request.transaction.id,
+        messenger: request.messenger,
+        note: 'Add source hash from Polymarket relayer (approve+unwrap batch)',
+      },
+      (tx) => {
+        tx.metamaskPay ??= {};
+        tx.metamaskPay.sourceHash = result.relayerTransactionHash;
+      },
+    );
+
+    const requestId = depositStep.requestId;
+
+    const relayOutcome = FORCE_SKIP_RELAY_POLL
+      ? ({ kind: 'skipped' } as const)
+      : await pollRelayStatusUntilTerminal(requestId);
+
+    if (FORCE_SKIP_RELAY_POLL) {
+      log('FORCE_SKIP_RELAY_POLL is true: skipping Relay status poll');
+    } else {
+      log('Relay polling complete', { kind: relayOutcome.kind });
+    }
+
+    await this.#wrapDepositWalletUsdce({
+      request,
+      depositWalletAddress,
+      from,
+    });
+
+    if (relayOutcome.kind === 'success') {
+      return { transactionHash: relayOutcome.targetHash };
+    }
+
+    return { transactionHash: result.relayerTransactionHash };
+  }
+
+  async #wrapDepositWalletUsdce({
+    request,
+    depositWalletAddress,
+    from,
+  }: {
+    request: PayStrategyExecuteRequest<PolymarketBridgeQuote>;
+    depositWalletAddress: Hex;
+    from: Hex;
+  }): Promise<void> {
+    let usdceBalance: bigint;
+    try {
+      const raw = await getLiveTokenBalance(
+        request.messenger,
+        depositWalletAddress,
+        POLYGON_CHAIN_ID,
+        USDC_E_ADDRESS_POLYGON,
+      );
+      usdceBalance = BigInt(raw);
+    } catch (error) {
+      log('USDC.e sweep: failed to read deposit wallet balance', { error });
+      return;
+    }
+
+    log('USDC.e sweep: deposit wallet balance', {
+      depositWalletAddress,
+      balance: usdceBalance.toString(),
+    });
+
+    if (usdceBalance === 0n) {
+      log('USDC.e sweep: nothing to wrap');
+      return;
+    }
+
+    log('USDC.e sweep: submitting approve + wrap batch', {
+      amount: usdceBalance.toString(),
+    });
+
+    const approveData = encodeApproveCalldata(
+      POLYMARKET_COLLATERAL_ONRAMP_POLYGON,
+      usdceBalance,
+    );
+    const wrapData = encodeWrapCalldata({
+      asset: USDC_E_ADDRESS_POLYGON,
+      recipient: depositWalletAddress,
+      amount: usdceBalance,
+    });
+
+    try {
+      const result = await submitWithBusyRetry({
+        from,
+        depositWalletAddress,
+        calls: [
+          {
+            target: USDC_E_ADDRESS_POLYGON,
+            value: 0n,
+            data: approveData,
+          },
+          {
+            target: POLYMARKET_COLLATERAL_ONRAMP_POLYGON,
+            value: 0n,
+            data: wrapData,
+          },
+        ],
+        messenger: request.messenger,
+        relayerApi: this.#buildRelayerApi(request.messenger),
+      });
+
+      log('USDC.e sweep: complete', {
+        transactionHash: result.relayerTransactionHash,
+      });
+    } catch (error) {
+      log('USDC.e sweep: batch submission failed', { error });
+    }
   }
 
   async getBatchTransactions(
@@ -552,4 +805,141 @@ function stripOriginalTxForRelayBatch(
       value: undefined,
     },
   };
+}
+
+function extractTransferRecipient(data: Hex): Hex {
+  const ERC20_TRANSFER_SELECTOR = '0xa9059cbb';
+  if (!data.startsWith(ERC20_TRANSFER_SELECTOR)) {
+    throw new Error(
+      `Expected ERC-20 transfer calldata, got selector ${data.slice(0, 10)}`,
+    );
+  }
+  return `0x${data.slice(34, 74)}` as Hex;
+}
+
+function encodeApproveCalldata(spender: Hex, amount: bigint): Hex {
+  const selector = '095ea7b3';
+  const paddedAddress = spender.slice(2).toLowerCase().padStart(64, '0');
+  const paddedAmount = amount.toString(16).padStart(64, '0');
+  return `0x${selector}${paddedAddress}${paddedAmount}` as Hex;
+}
+
+function encodeUnwrapCalldata({
+  asset,
+  recipient,
+  amount,
+}: {
+  asset: Hex;
+  recipient: Hex;
+  amount: bigint;
+}): Hex {
+  const selector = '8cc7104f';
+  const paddedAsset = asset.slice(2).toLowerCase().padStart(64, '0');
+  const paddedRecipient = recipient.slice(2).toLowerCase().padStart(64, '0');
+  const paddedAmount = amount.toString(16).padStart(64, '0');
+  return `0x${selector}${paddedAsset}${paddedRecipient}${paddedAmount}` as Hex;
+}
+
+const RELAY_STATUS_POLL_INTERVAL_MS = 5_000;
+const RELAY_STATUS_POLL_MAX_ATTEMPTS = 120;
+
+type RelayPollOutcome =
+  | { kind: 'success'; targetHash: Hex }
+  | { kind: 'refunded' }
+  | { kind: 'failure' }
+  | { kind: 'timeout' };
+
+async function pollRelayStatusUntilTerminal(
+  requestId: string,
+): Promise<RelayPollOutcome> {
+  for (let attempt = 0; attempt < RELAY_STATUS_POLL_MAX_ATTEMPTS; attempt++) {
+    try {
+      const status = await getRelayStatus(requestId);
+      log('Relay status', {
+        attempt,
+        status: status.status,
+        txHashes: status.txHashes,
+      });
+
+      if (status.status === 'success' && status.txHashes?.length) {
+        return {
+          kind: 'success',
+          targetHash: status.txHashes[status.txHashes.length - 1] as Hex,
+        };
+      }
+
+      if (status.status === 'refunded') {
+        return { kind: 'refunded' };
+      }
+
+      if (status.status === 'failure') {
+        return { kind: 'failure' };
+      }
+    } catch (error) {
+      log('Relay status poll error', { attempt, error });
+    }
+
+    await new Promise((resolve) =>
+      setTimeout(resolve, RELAY_STATUS_POLL_INTERVAL_MS),
+    );
+  }
+
+  return { kind: 'timeout' };
+}
+
+const WALLET_BUSY_RETRY_ATTEMPTS = 5;
+const WALLET_BUSY_RETRY_DELAY_MS = 3_000;
+
+async function submitWithBusyRetry(
+  args: Parameters<typeof submitDepositWalletBatch>[0],
+): Promise<{ relayerTransactionHash: Hex }> {
+  let lastError: unknown;
+
+  for (let attempt = 1; attempt <= WALLET_BUSY_RETRY_ATTEMPTS; attempt++) {
+    try {
+      return await submitDepositWalletBatch(args);
+    } catch (error) {
+      lastError = error;
+
+      const message =
+        (error instanceof Error ? error.message : String(error)) ?? '';
+      const isWalletBusy =
+        message.toLowerCase().includes('wallet busy') ||
+        message.toLowerCase().includes('active action');
+
+      log('submitWithBusyRetry caught error', {
+        attempt,
+        isWalletBusy,
+        errorName: (error as Error)?.name,
+        message,
+      });
+
+      if (!isWalletBusy || attempt === WALLET_BUSY_RETRY_ATTEMPTS) {
+        throw error;
+      }
+
+      log('Wallet busy, retrying', { attempt, delayMs: WALLET_BUSY_RETRY_DELAY_MS });
+      await new Promise((resolve) =>
+        setTimeout(resolve, WALLET_BUSY_RETRY_DELAY_MS),
+      );
+    }
+  }
+
+  throw lastError;
+}
+
+function encodeWrapCalldata({
+  asset,
+  recipient,
+  amount,
+}: {
+  asset: Hex;
+  recipient: Hex;
+  amount: bigint;
+}): Hex {
+  const selector = '62355638';
+  const paddedAsset = asset.slice(2).toLowerCase().padStart(64, '0');
+  const paddedRecipient = recipient.slice(2).toLowerCase().padStart(64, '0');
+  const paddedAmount = amount.toString(16).padStart(64, '0');
+  return `0x${selector}${paddedAsset}${paddedRecipient}${paddedAmount}` as Hex;
 }

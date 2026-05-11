@@ -1,4 +1,3 @@
-import { successfulFetch } from '@metamask/controller-utils';
 import { createModuleLogger } from '@metamask/utils';
 
 import { projectLogger } from '../../logger';
@@ -125,7 +124,7 @@ export class PolymarketRelayerApi {
 
     let response: Response;
     try {
-      response = await successfulFetch(url, {
+      response = await fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(envelope),
@@ -140,21 +139,44 @@ export class PolymarketRelayerApi {
 
     const text = await response.text();
 
-    if (!text) {
+    let parsed: unknown;
+    if (text) {
+      try {
+        parsed = JSON.parse(text);
+      } catch (error) {
+        if (!response.ok) {
+          throw new PolymarketRelayerError(
+            `Relayer proxy returned ${response.status} with non-JSON body`,
+            'HTTP_ERROR',
+            error,
+          );
+        }
+        throw new PolymarketRelayerError(
+          'Relayer proxy returned malformed JSON',
+          'MALFORMED_JSON',
+          error,
+        );
+      }
+    }
+
+    if (!response.ok) {
+      const detail =
+        typeof parsed === 'object' && parsed !== null
+          ? (parsed as { error?: string; message?: string }).error ??
+            (parsed as { error?: string; message?: string }).message
+          : undefined;
+
       throw new PolymarketRelayerError(
-        'Relayer proxy returned an empty response',
-        'EMPTY_RESPONSE',
+        detail ?? `Relayer proxy returned status ${response.status}`,
+        'PROXY_ERROR',
+        parsed,
       );
     }
 
-    let parsed: unknown;
-    try {
-      parsed = JSON.parse(text);
-    } catch (error) {
+    if (parsed === undefined) {
       throw new PolymarketRelayerError(
-        'Relayer proxy returned malformed JSON',
-        'MALFORMED_JSON',
-        error,
+        'Relayer proxy returned an empty response',
+        'EMPTY_RESPONSE',
       );
     }
 

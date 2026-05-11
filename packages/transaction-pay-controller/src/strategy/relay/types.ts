@@ -26,6 +26,11 @@ export type RelayQuoteRequest = {
     data: Hex;
     value: Hex;
   }[];
+  /**
+   * Request a single-step "send to deposit address" routing. Only supported
+   * by Relay for major tokens; rejected otherwise.
+   */
+  useDepositAddress?: boolean;
   user: Hex;
 };
 

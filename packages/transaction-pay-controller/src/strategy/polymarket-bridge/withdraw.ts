@@ -46,9 +46,6 @@ export async function submitPolymarketBridgeWithdraw(
 ): Promise<{ relayerTransactionHash: Hex }> {
   const { fromAmount } = quote.original;
 
-  log('Fetching wallet nonce', { from });
-  const nonce = await relayerApi.getNonce(from, 'WALLET');
-
   const amount = BigInt(fromAmount);
   const transferCalldata = encodeTransferCalldata(bridgeDepositAddress, amount);
 
@@ -58,13 +55,49 @@ export async function submitPolymarketBridgeWithdraw(
     amount: amount.toString(),
   });
 
-  const calls = [
-    {
-      target: PUSD_ADDRESS_POLYGON,
-      value: 0n,
-      data: transferCalldata,
-    },
-  ];
+  return await submitDepositWalletBatch({
+    from,
+    depositWalletAddress,
+    calls: [
+      {
+        target: PUSD_ADDRESS_POLYGON,
+        value: 0n,
+        data: transferCalldata,
+      },
+    ],
+    messenger,
+    relayerApi,
+  });
+}
+
+/**
+ * Submit an arbitrary batch of calls from a Polymarket deposit wallet via the
+ * existing relayer proxy. Handles nonce fetch, EIP-712 signing, submission,
+ * and polling to terminal state.
+ *
+ * @param options - Submission options.
+ * @param options.from - The owner EOA of the deposit wallet.
+ * @param options.depositWalletAddress - The deposit wallet address.
+ * @param options.calls - Calls to execute in the batch.
+ * @param options.messenger - Controller messenger for signing.
+ * @param options.relayerApi - Authenticated relayer API client.
+ * @returns The relayer's on-chain transaction hash.
+ */
+export async function submitDepositWalletBatch({
+  from,
+  depositWalletAddress,
+  calls,
+  messenger,
+  relayerApi,
+}: {
+  from: Hex;
+  depositWalletAddress: Hex;
+  calls: { target: Hex; value: bigint; data: Hex }[];
+  messenger: TransactionPayControllerMessenger;
+  relayerApi: PolymarketRelayerApi;
+}): Promise<{ relayerTransactionHash: Hex }> {
+  log('Fetching wallet nonce', { from });
+  const nonce = await relayerApi.getNonce(from, 'WALLET');
 
   const deadline =
     Math.floor(Date.now() / 1000) + POLYMARKET_BATCH_DEADLINE_SECONDS;
@@ -77,7 +110,7 @@ export async function submitPolymarketBridgeWithdraw(
     chainId: CHAIN_ID_POLYGON,
   });
 
-  log('Signing Batch via EIP-712', { nonce, deadline });
+  log('Signing Batch via EIP-712', { nonce, deadline, callCount: calls.length });
 
   const signature = await messenger.call(
     'KeyringController:signTypedMessage',
