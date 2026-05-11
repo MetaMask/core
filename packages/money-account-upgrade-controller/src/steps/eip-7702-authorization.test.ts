@@ -345,6 +345,19 @@ describe('eip7702AuthorizationStep', () => {
       await expect(run(messenger)).rejects.toThrow('server error');
     });
 
+    it.each([
+      ['a string', 'boom'],
+      ['null', null],
+    ])(
+      'propagates non-object rejections from createUpgrade (%s)',
+      async (_label, rejection) => {
+        const { messenger, mocks } = setup();
+        mocks.createUpgrade.mockRejectedValue(rejection);
+
+        await expect(run(messenger)).rejects.toBe(rejection);
+      },
+    );
+
     it('throws when eth_getTransactionCount returns a non-hex response', async () => {
       const { messenger, mocks } = setup();
       mocks.providerRequest.mockImplementation(async ({ method }) => {
