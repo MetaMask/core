@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [14.1.2]
+
 ### Uncategorized
 
 - chore: Format changelogs with Oxfmt ([#8442](https://github.com/MetaMask/core/pull/8442))
@@ -447,7 +449,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/message-manager@14.1.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/message-manager@14.1.2...HEAD
+[14.1.2]: https://github.com/MetaMask/core/compare/@metamask/message-manager@14.1.1...@metamask/message-manager@14.1.2
 [14.1.1]: https://github.com/MetaMask/core/compare/@metamask/message-manager@14.1.0...@metamask/message-manager@14.1.1
 [14.1.0]: https://github.com/MetaMask/core/compare/@metamask/message-manager@14.0.0...@metamask/message-manager@14.1.0
 [14.0.0]: https://github.com/MetaMask/core/compare/@metamask/message-manager@13.0.2...@metamask/message-manager@14.0.0
