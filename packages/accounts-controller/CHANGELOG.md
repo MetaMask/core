@@ -7,12 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [38.1.0]
+
 ### Changed
 
 - Use `KeyringV1Adapter` for `SnapKeyring` v2 accounts ([#8703](https://github.com/MetaMask/core/pull/8703))
   - `SnapKeyring` v2 instances will be adapted/wrapped by a v1 keyring adapter, making it compatible with the current `KeyringController` keyrings management.
 - Bump `@metamask/keyring-utils` from `^3.1.0` to `^3.2.1` ([#8703](https://github.com/MetaMask/core/pull/8703))
 - Bump `@metamask/keyring-controller` from `^25.4.0` to `^25.5.0` ([#8722](https://github.com/MetaMask/core/pull/8722))
+- Bump `@metamask/network-controller` from `^30.1.0` to `^31.0.0` ([#8755](https://github.com/MetaMask/core/pull/8755))
 
 ## [38.0.0]
 
@@ -790,7 +793,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#1637](https://github.com/MetaMask/core/pull/1637))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@38.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@38.1.0...HEAD
+[38.1.0]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@38.0.0...@metamask/accounts-controller@38.1.0
 [38.0.0]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@37.2.0...@metamask/accounts-controller@38.0.0
 [37.2.0]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@37.1.1...@metamask/accounts-controller@37.2.0
 [37.1.1]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@37.1.0...@metamask/accounts-controller@37.1.1
