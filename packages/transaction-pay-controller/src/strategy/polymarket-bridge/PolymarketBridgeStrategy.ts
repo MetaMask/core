@@ -1,5 +1,6 @@
 import type { Hex } from '@metamask/utils';
 import { createModuleLogger } from '@metamask/utils';
+import { BigNumber } from 'bignumber.js';
 
 import { TransactionPayStrategy } from '../../constants';
 import { projectLogger } from '../../logger';
@@ -12,14 +13,19 @@ import type {
   TransactionPayControllerMessenger,
   TransactionPayQuote,
 } from '../../types';
+import { getFiatValueFromUsd } from '../../utils/amounts';
 import { getPolymarketRelayerUrl } from '../../utils/feature-flags';
+import { getTokenFiatRate } from '../../utils/token';
 import { updateTransaction } from '../../utils/transaction';
 import { PolymarketBridgeApi } from './bridge-api';
 import { PUSD_ADDRESS_POLYGON, PUSD_DECIMALS } from './constants';
+import { computeDepositWalletAddress } from './deposit-wallet';
 import { extractPolymarketWithdrawIntent } from './intent';
 import { PolymarketRelayerApi } from './relayer-api';
 import type { PolymarketBridgeQuote } from './types';
 import { submitPolymarketBridgeWithdraw } from './withdraw';
+
+const POLYGON_CHAIN_ID = '0x89' as Hex;
 
 const log = createModuleLogger(projectLogger, 'polymarket-bridge-strategy');
 
@@ -65,60 +71,107 @@ export class PolymarketBridgeStrategy
       toTokenAddress: quoteRequest.targetTokenAddress.toLowerCase(),
     });
 
-    const humanAmount = formatBaseUnits(intent.amount, PUSD_DECIMALS);
+    const quote = this.#buildQuote({
+      bridgeQuote,
+      intent,
+      messenger: request.messenger,
+      quoteRequest,
+    });
 
-    const quote: TransactionPayQuote<PolymarketBridgeQuote> = {
+    log('Quote built', {
+      quoteId: bridgeQuote.quoteId,
+      providerUsd: quote.fees.provider.usd,
+    });
+
+    return [quote];
+  }
+
+  #buildQuote({
+    bridgeQuote,
+    intent,
+    messenger,
+    quoteRequest,
+  }: {
+    bridgeQuote: PolymarketBridgeQuote;
+    intent: { amount: bigint };
+    messenger: TransactionPayControllerMessenger;
+    quoteRequest: PayStrategyGetQuotesRequest['requests'][number];
+  }): TransactionPayQuote<PolymarketBridgeQuote> {
+    const sourceFiatRate = getTokenFiatRate(
+      messenger,
+      PUSD_ADDRESS_POLYGON,
+      POLYGON_CHAIN_ID,
+    );
+
+    const targetFiatRate =
+      getTokenFiatRate(
+        messenger,
+        quoteRequest.targetTokenAddress,
+        quoteRequest.targetChainId,
+      ) ?? sourceFiatRate;
+
+    const usdToFiatRate =
+      sourceFiatRate && new BigNumber(sourceFiatRate.usdRate).isGreaterThan(0)
+        ? new BigNumber(sourceFiatRate.fiatRate).dividedBy(
+            sourceFiatRate.usdRate,
+          )
+        : new BigNumber(1);
+
+    const sourceAmount = calculateAmount(
+      intent.amount.toString(),
+      PUSD_DECIMALS,
+      sourceFiatRate,
+    );
+
+    const targetAmount = calculateAmount(
+      bridgeQuote.toAmount,
+      // Polymarket bridge currently only supports USDC-equivalents (6 decimals)
+      PUSD_DECIMALS,
+      targetFiatRate,
+    );
+
+    const providerUsd = new BigNumber(bridgeQuote.estFeeBreakdown.gasUsd)
+      .plus(bridgeQuote.estFeeBreakdown.appFeeUsd)
+      .plus(bridgeQuote.estFeeBreakdown.swapImpactUsd);
+
+    const provider = getFiatValueFromUsd(providerUsd, usdToFiatRate);
+
+    return {
       original: bridgeQuote,
       fees: {
         metaMask: { fiat: '0', usd: '0' },
-        provider: { fiat: '0', usd: '0' },
+        provider,
         sourceNetwork: {
           estimate: { fiat: '0', usd: '0', human: '0', raw: '0' },
           max: { fiat: '0', usd: '0', human: '0', raw: '0' },
         },
         targetNetwork: { fiat: '0', usd: '0' },
       },
-      sourceAmount: {
-        fiat: '0',
-        usd: '0',
-        human: humanAmount,
-        raw: intent.amount.toString(),
-      },
-      targetAmount: { fiat: '0', usd: '0' },
+      sourceAmount,
+      targetAmount: { fiat: targetAmount.fiat, usd: targetAmount.usd },
       dust: { fiat: '0', usd: '0' },
       estimatedDuration: bridgeQuote.estCheckoutTimeMs / 1000,
       strategy: TransactionPayStrategy.PolymarketBridge,
       request: quoteRequest,
     };
-
-    log('Quote built', { quoteId: bridgeQuote.quoteId });
-
-    return [quote];
   }
 
   async execute(
     request: PayStrategyExecuteRequest<PolymarketBridgeQuote>,
   ): Promise<{ transactionHash?: Hex }> {
-    const intent = extractPolymarketWithdrawIntent(request.transaction);
-
-    if (!intent) {
-      throw new Error(
-        'Polymarket bridge execute: transaction is not a deposit-wallet predictWithdraw',
-      );
-    }
-
     const quote = request.quotes[0];
 
     if (!quote) {
       throw new Error('Polymarket bridge execute: no quote provided');
     }
 
-    const from = request.transaction.txParams.from as Hex;
+    const from = quote.request.from;
+    const depositWalletAddress = computeDepositWalletAddress(from);
 
     log('Creating one-shot deposit address');
 
     const depositAddress = await this.#bridgeApi.createWithdrawAddress({
-      address: intent.depositWalletAddress,
+      address: depositWalletAddress,
       toChainId: parseInt(quote.request.targetChainId, 16).toString(),
       toTokenAddress: quote.request.targetTokenAddress.toLowerCase(),
       recipientAddr: from,
@@ -129,7 +182,7 @@ export class PolymarketBridgeStrategy
     const result = await submitPolymarketBridgeWithdraw(
       quote,
       from,
-      intent.depositWalletAddress,
+      depositWalletAddress,
       depositAddress,
       request.messenger,
       this.#buildRelayerApi(request.messenger),
@@ -193,11 +246,22 @@ export class PolymarketBridgeStrategy
   }
 }
 
-function formatBaseUnits(amount: bigint, decimals: number): string {
-  const divisor = 10n ** BigInt(decimals);
-  const whole = amount / divisor;
-  const remainder = amount % divisor;
-  const paddedRemainder = remainder.toString().padStart(decimals, '0');
+function calculateAmount(
+  raw: string,
+  decimals: number,
+  fiatRate:
+    | { fiatRate: string; usdRate: string }
+    | undefined,
+): { fiat: string; human: string; raw: string; usd: string } {
+  const humanValue = new BigNumber(raw).shiftedBy(-decimals);
+  const human = humanValue.toString(10);
 
-  return `${whole}.${paddedRemainder}`;
+  const usd = fiatRate
+    ? humanValue.multipliedBy(fiatRate.usdRate).toString(10)
+    : '0';
+  const fiat = fiatRate
+    ? humanValue.multipliedBy(fiatRate.fiatRate).toString(10)
+    : '0';
+
+  return { fiat, human, raw, usd };
 }
