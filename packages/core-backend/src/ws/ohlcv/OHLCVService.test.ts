@@ -557,36 +557,52 @@ describe('OHLCVService', () => {
     });
 
     it('should deliver bar updates via resubscribed channel callback', async () => {
-      await withService(async ({ service, mocks, messenger, rootMessenger }) => {
-        await service.subscribe(SUB_OPTS);
-        mocks.subscribe.mockClear();
-        mocks.channelHasSubscription.mockReturnValue(false);
+      await withService(
+        async ({ service, mocks, messenger, rootMessenger }) => {
+          await service.subscribe(SUB_OPTS);
+          mocks.subscribe.mockClear();
+          mocks.channelHasSubscription.mockReturnValue(false);
 
-        rootMessenger.publish(
-          'BackendWebSocketService:connectionStateChanged',
-          {
-            ...BASE_CONNECTION_INFO,
-            state: WebSocketState.CONNECTED,
-            connectedAt: Date.now(),
-            reconnectAttempts: 0,
-          },
-        );
-        await completeAsyncOperations();
+          rootMessenger.publish(
+            'BackendWebSocketService:connectionStateChanged',
+            {
+              ...BASE_CONNECTION_INFO,
+              state: WebSocketState.CONNECTED,
+              connectedAt: Date.now(),
+              reconnectAttempts: 0,
+            },
+          );
+          await completeAsyncOperations();
 
-        const resubscribeCallback = mocks.subscribe.mock.calls[0][0].callback;
-        const barListener = jest.fn();
-        messenger.subscribe('OHLCVService:barUpdated', barListener);
+          const resubscribeCallback = mocks.subscribe.mock.calls[0][0].callback;
+          const barListener = jest.fn();
+          messenger.subscribe('OHLCVService:barUpdated', barListener);
 
-        resubscribeCallback({
-          data: { timestamp: 100, open: 1, high: 2, low: 0.5, close: 1.5, volume: 999 },
-          timestamp: Date.now(),
-        });
+          resubscribeCallback({
+            data: {
+              timestamp: 100,
+              open: 1,
+              high: 2,
+              low: 0.5,
+              close: 1.5,
+              volume: 999,
+            },
+            timestamp: Date.now(),
+          });
 
-        expect(barListener).toHaveBeenCalledWith({
-          channel: EXPECTED_CHANNEL,
-          bar: { timestamp: 100, open: 1, high: 2, low: 0.5, close: 1.5, volume: 999 },
-        });
-      });
+          expect(barListener).toHaveBeenCalledWith({
+            channel: EXPECTED_CHANNEL,
+            bar: {
+              timestamp: 100,
+              open: 1,
+              high: 2,
+              low: 0.5,
+              close: 1.5,
+              volume: 999,
+            },
+          });
+        },
+      );
     });
 
     it('should publish chainStatusChanged down on DISCONNECTED', async () => {
