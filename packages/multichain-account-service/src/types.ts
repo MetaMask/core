@@ -21,7 +21,6 @@ import type {
   KeyringControllerGetKeyringsByTypeAction,
   KeyringControllerGetStateAction,
   KeyringControllerRemoveAccountAction,
-  KeyringControllerStateChangeEvent,
   KeyringControllerWithKeyringAction,
   KeyringControllerWithKeyringV2Action,
 } from '@metamask/keyring-controller';
@@ -95,8 +94,7 @@ type AllowedActions =
  */
 type AllowedEvents =
   | AccountsControllerAccountAddedEvent
-  | AccountsControllerAccountRemovedEvent
-  | KeyringControllerStateChangeEvent;
+  | AccountsControllerAccountRemovedEvent;
 
 /**
  * The messenger restricted to actions and events that
