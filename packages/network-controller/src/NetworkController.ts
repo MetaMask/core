@@ -16,7 +16,7 @@ import {
   NetworkNickname,
   BUILT_IN_CUSTOM_NETWORKS_RPC,
   BUILT_IN_NETWORKS,
-  defaultInfuraNetworks,
+  DEFAULT_INFURA_NETWORKS,
 } from '@metamask/controller-utils';
 import type { PollingBlockTrackerOptions } from '@metamask/eth-block-tracker';
 import EthQuery from '@metamask/eth-query';
@@ -808,7 +808,7 @@ function getDefaultInfuraNetworkConfigurationsByChainId(): Record<
   Hex,
   NetworkConfiguration
 > {
-  return defaultInfuraNetworks.reduce<Record<Hex, NetworkConfiguration>>(
+  return DEFAULT_INFURA_NETWORKS.reduce<Record<Hex, NetworkConfiguration>>(
     (obj, infuraNetworkType) => {
       const chainId = ChainId[infuraNetworkType];
 

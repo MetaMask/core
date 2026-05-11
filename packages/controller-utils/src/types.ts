@@ -29,7 +29,7 @@ export type InfuraNetworkType =
  * This is a subset of the full list of {@link InfuraNetworkType}, and can be used to determine
  * which Infura networks to enable by default.
  */
-export const defaultInfuraNetworks: InfuraNetworkType[] = [
+export const DEFAULT_INFURA_NETWORKS = [
   InfuraNetworkType.mainnet,
   InfuraNetworkType.goerli,
   InfuraNetworkType.sepolia,
@@ -42,7 +42,7 @@ export const defaultInfuraNetworks: InfuraNetworkType[] = [
   InfuraNetworkType['optimism-mainnet'],
   InfuraNetworkType['polygon-mainnet'],
   InfuraNetworkType['monad-mainnet'],
-];
+] as const satisfies InfuraNetworkType[];
 
 /**
  * Custom network types that are not part of Infura.
