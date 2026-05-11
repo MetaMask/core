@@ -2351,7 +2351,7 @@
   },
   "packages/wallet/src/initialization/instances/accounts-controller.ts": {
     "no-restricted-syntax": {
-      "count": 2
+      "count": 1
     }
   },
   "packages/wallet/src/initialization/instances/transaction-controller.ts": {

@@ -1,11 +1,11 @@
 import type { StateMetadataConstraint } from '@metamask/base-controller';
 import type { Json } from '@metamask/utils';
-
 import type {
   DefaultActions,
   DefaultEvents,
   RootMessenger,
-} from '../initialization';
+} from '@metamask/wallet';
+
 import { KeyValueStore } from './KeyValueStore';
 import { loadState, subscribeToChanges } from './persistence';
 

@@ -1,13 +1,13 @@
 import type { StateMetadataConstraint } from '@metamask/base-controller';
 import { hasProperty } from '@metamask/utils';
 import type { Json } from '@metamask/utils';
-import type { Patch } from 'immer';
-
 import type {
   DefaultActions,
   DefaultEvents,
   RootMessenger,
-} from '../initialization';
+} from '@metamask/wallet';
+import type { Patch } from 'immer';
+
 import type { KeyValueStore } from './KeyValueStore';
 
 /**
@@ -80,7 +80,9 @@ export function loadState(
  */
 export function subscribeToChanges(
   messenger: RootMessenger<DefaultActions, DefaultEvents>,
-  controllerMetadata: Record<string, StateMetadataConstraint>,
+  controllerMetadata: Readonly<
+    Record<string, Readonly<StateMetadataConstraint>>
+  >,
   store: KeyValueStore,
 ): () => void {
   const unsubscribers: (() => void)[] = [];

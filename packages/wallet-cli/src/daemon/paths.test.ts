@@ -11,6 +11,7 @@ describe('getDaemonPaths', () => {
       socketPath: join(dataDir, 'daemon.sock'),
       pidPath: join(dataDir, 'daemon.pid'),
       logPath: join(dataDir, 'daemon.log'),
+      dbPath: join(dataDir, 'wallet.db'),
     });
   });
 });

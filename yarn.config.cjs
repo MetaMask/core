@@ -160,7 +160,12 @@ module.exports = defineConfig({
 
         // All non-root packages must have the same "test" script.
         // @metamask/wallet prepends an anvil binary download to the test script.
-        if (workspace.ident !== '@metamask/wallet') {
+        // @metamask/wallet-cli prepends a better-sqlite3 prebuild fetch to the
+        // test script.
+        if (
+          workspace.ident !== '@metamask/wallet' &&
+          workspace.ident !== '@metamask/wallet-cli'
+        ) {
           expectWorkspaceField(
             workspace,
             'scripts.test',

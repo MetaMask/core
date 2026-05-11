@@ -45,13 +45,19 @@ async function main(): Promise<void> {
     socketPath: defaultSocketPath,
     pidPath,
     logPath,
+    dbPath,
   } = getDaemonPaths(dataDir);
   const socketPath = process.env.MM_DAEMON_SOCKET_PATH ?? defaultSocketPath;
 
   const log = makeLogger(logPath);
   log('Starting daemon...');
 
-  const wallet = await createWallet({ infuraProjectId, password, srp });
+  const { wallet, store } = await createWallet({
+    databasePath: dbPath,
+    infuraProjectId,
+    password,
+    srp,
+  });
 
   const handlers: RpcHandlerMap = {
     getStatus: async (): Promise<DaemonStatusInfo> => ({
@@ -87,6 +93,11 @@ async function main(): Promise<void> {
     } catch (destroyError) {
       log(`wallet.destroy() failed during cleanup: ${String(destroyError)}`);
     }
+    try {
+      store.close();
+    } catch (closeError) {
+      log(`store.close() failed during cleanup: ${String(closeError)}`);
+    }
     await rm(pidPath, { force: true }).catch((rmError: unknown) => {
       log(`Failed to remove PID file during cleanup: ${String(rmError)}`);
     });
@@ -116,6 +127,11 @@ async function main(): Promise<void> {
           await wallet.destroy();
         } catch (destroyError) {
           log(`wallet.destroy() failed: ${String(destroyError)}`);
+        }
+        try {
+          store.close();
+        } catch (closeError) {
+          log(`store.close() failed: ${String(closeError)}`);
         }
         await Promise.all([
           rm(pidPath, { force: true }).catch((rmError: unknown) => {

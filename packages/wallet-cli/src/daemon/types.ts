@@ -19,6 +19,7 @@ export type DaemonPaths = {
   socketPath: string;
   pidPath: string;
   logPath: string;
+  dbPath: string;
 };
 
 /**

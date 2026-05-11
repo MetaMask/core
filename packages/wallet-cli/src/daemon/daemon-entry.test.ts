@@ -22,17 +22,24 @@ const mockCreateWallet = jest.mocked(createWallet);
 
 const ORIGINAL_ENV = process.env;
 
+type MockCreateWalletResult = Awaited<ReturnType<typeof createWallet>>;
+
 /**
- * Create a mock wallet.
+ * Create a mock createWallet result with a mocked wallet and store.
  *
- * @returns A mock wallet object.
+ * @returns A mock createWallet result.
  */
-function createMockWallet(): Awaited<ReturnType<typeof createWallet>> {
+function createMockWallet(): MockCreateWalletResult {
   return {
-    messenger: { call: jest.fn() } as never,
-    state: {} as never,
-    destroy: jest.fn().mockResolvedValue(undefined),
-  } as unknown as Awaited<ReturnType<typeof createWallet>>;
+    wallet: {
+      messenger: { call: jest.fn() },
+      state: {},
+      destroy: jest.fn().mockResolvedValue(undefined),
+    },
+    store: {
+      close: jest.fn(),
+    },
+  } as unknown as MockCreateWalletResult;
 }
 
 /**
@@ -63,6 +70,7 @@ describe('daemon-entry', () => {
       socketPath: '/tmp/daemon.sock',
       pidPath: '/tmp/daemon.pid',
       logPath: '/tmp/daemon.log',
+      dbPath: '/tmp/wallet.db',
     });
     mockWriteFile.mockResolvedValue(undefined);
     mockRm.mockResolvedValue(undefined);
@@ -137,10 +145,8 @@ describe('daemon-entry', () => {
   });
 
   it('creates data dir, wallet, server, and writes PID on successful startup', async () => {
-    const wallet = createMockWallet();
-    mockCreateWallet.mockResolvedValue(wallet);
-    const handle = createMockHandle();
-    mockStartRpcSocketServer.mockResolvedValue(handle);
+    mockCreateWallet.mockResolvedValue(createMockWallet());
+    mockStartRpcSocketServer.mockResolvedValue(createMockHandle());
 
     await importDaemonEntry();
 
@@ -148,6 +154,7 @@ describe('daemon-entry', () => {
       recursive: true,
     });
     expect(mockCreateWallet).toHaveBeenCalledWith({
+      databasePath: '/tmp/wallet.db',
       infuraProjectId: 'key',
       password: 'pass',
       srp: 'test test test test test test test test test test test ball',
@@ -179,28 +186,48 @@ describe('daemon-entry', () => {
     );
   });
 
-  it('cleans up wallet and PID file when server fails to start', async () => {
-    const wallet = createMockWallet();
-    mockCreateWallet.mockResolvedValue(wallet);
+  it('cleans up wallet, store, and PID file when server fails to start', async () => {
+    const result = createMockWallet();
+    mockCreateWallet.mockResolvedValue(result);
     mockStartRpcSocketServer.mockRejectedValue(new Error('server failed'));
 
     await importDaemonEntry();
 
-    expect(wallet.destroy).toHaveBeenCalled();
+    expect(result.wallet.destroy).toHaveBeenCalled();
+    expect(result.store.close).toHaveBeenCalled();
     expect(mockRm).toHaveBeenCalledWith('/tmp/daemon.pid', { force: true });
     expect(process.exitCode).toBe(1);
   });
 
-  it('still cleans up PID when wallet.destroy fails during error cleanup', async () => {
-    const wallet = createMockWallet();
-    (wallet.destroy as jest.Mock).mockRejectedValue(
+  it('still cleans up PID and store when wallet.destroy fails during error cleanup', async () => {
+    const result = createMockWallet();
+    (result.wallet.destroy as jest.Mock).mockRejectedValue(
       new Error('destroy failed'),
     );
-    mockCreateWallet.mockResolvedValue(wallet);
+    mockCreateWallet.mockResolvedValue(result);
     mockStartRpcSocketServer.mockRejectedValue(new Error('server failed'));
 
     await importDaemonEntry();
 
+    expect(result.store.close).toHaveBeenCalled();
+    expect(mockRm).toHaveBeenCalledWith('/tmp/daemon.pid', { force: true });
+    expect(process.exitCode).toBe(1);
+  });
+
+  it('logs and continues when store.close throws during error cleanup', async () => {
+    const result = createMockWallet();
+    (result.store.close as jest.Mock).mockImplementation(() => {
+      throw new Error('close failed');
+    });
+    mockCreateWallet.mockResolvedValue(result);
+    mockStartRpcSocketServer.mockRejectedValue(new Error('server failed'));
+
+    await importDaemonEntry();
+
+    expect(mockAppendFile).toHaveBeenCalledWith(
+      '/tmp/daemon.log',
+      expect.stringContaining('store.close() failed during cleanup'),
+    );
     expect(mockRm).toHaveBeenCalledWith('/tmp/daemon.pid', { force: true });
     expect(process.exitCode).toBe(1);
   });
@@ -267,8 +294,8 @@ describe('daemon-entry', () => {
   });
 
   it('triggers shutdown when SIGTERM handler is called', async () => {
-    const wallet = createMockWallet();
-    mockCreateWallet.mockResolvedValue(wallet);
+    const result = createMockWallet();
+    mockCreateWallet.mockResolvedValue(result);
     const handle = createMockHandle();
     mockStartRpcSocketServer.mockResolvedValue(handle);
 
@@ -285,12 +312,13 @@ describe('daemon-entry', () => {
     }
 
     expect(handle.close).toHaveBeenCalled();
-    expect(wallet.destroy).toHaveBeenCalled();
+    expect(result.wallet.destroy).toHaveBeenCalled();
+    expect(result.store.close).toHaveBeenCalled();
   });
 
   it('triggers shutdown when SIGINT handler is called', async () => {
-    const wallet = createMockWallet();
-    mockCreateWallet.mockResolvedValue(wallet);
+    const result = createMockWallet();
+    mockCreateWallet.mockResolvedValue(result);
     const handle = createMockHandle();
     mockStartRpcSocketServer.mockResolvedValue(handle);
 
@@ -307,12 +335,13 @@ describe('daemon-entry', () => {
     }
 
     expect(handle.close).toHaveBeenCalled();
-    expect(wallet.destroy).toHaveBeenCalled();
+    expect(result.wallet.destroy).toHaveBeenCalled();
+    expect(result.store.close).toHaveBeenCalled();
   });
 
   it('shutdown still calls wallet.destroy when handle.close fails', async () => {
-    const wallet = createMockWallet();
-    mockCreateWallet.mockResolvedValue(wallet);
+    const result = createMockWallet();
+    mockCreateWallet.mockResolvedValue(result);
     const handle = createMockHandle();
     (handle.close as jest.Mock).mockRejectedValue(new Error('close failed'));
     mockStartRpcSocketServer.mockResolvedValue(handle);
@@ -323,7 +352,7 @@ describe('daemon-entry', () => {
     const onShutdown = callArgs.onShutdown as () => Promise<void>;
     await onShutdown();
 
-    expect(wallet.destroy).toHaveBeenCalled();
+    expect(result.wallet.destroy).toHaveBeenCalled();
     expect(mockAppendFile).toHaveBeenCalledWith(
       '/tmp/daemon.log',
       expect.stringContaining('handle.close() failed'),
@@ -331,11 +360,11 @@ describe('daemon-entry', () => {
   });
 
   it('shutdown logs wallet.destroy failure', async () => {
-    const wallet = createMockWallet();
-    (wallet.destroy as jest.Mock).mockRejectedValue(
+    const result = createMockWallet();
+    (result.wallet.destroy as jest.Mock).mockRejectedValue(
       new Error('destroy failed'),
     );
-    mockCreateWallet.mockResolvedValue(wallet);
+    mockCreateWallet.mockResolvedValue(result);
     const handle = createMockHandle();
     mockStartRpcSocketServer.mockResolvedValue(handle);
 
@@ -351,9 +380,30 @@ describe('daemon-entry', () => {
     );
   });
 
+  it('shutdown logs store.close failure', async () => {
+    const result = createMockWallet();
+    (result.store.close as jest.Mock).mockImplementation(() => {
+      throw new Error('close failed');
+    });
+    mockCreateWallet.mockResolvedValue(result);
+    const handle = createMockHandle();
+    mockStartRpcSocketServer.mockResolvedValue(handle);
+
+    await importDaemonEntry();
+
+    const callArgs = mockStartRpcSocketServer.mock.calls[0][0];
+    const onShutdown = callArgs.onShutdown as () => Promise<void>;
+    await onShutdown();
+
+    expect(mockAppendFile).toHaveBeenCalledWith(
+      '/tmp/daemon.log',
+      expect.stringContaining('store.close() failed'),
+    );
+  });
+
   it('handles rm rejection during shutdown cleanup gracefully', async () => {
-    const wallet = createMockWallet();
-    mockCreateWallet.mockResolvedValue(wallet);
+    const result = createMockWallet();
+    mockCreateWallet.mockResolvedValue(result);
     const handle = createMockHandle();
     mockStartRpcSocketServer.mockResolvedValue(handle);
     // rm rejects but cleanup should not fail
@@ -367,12 +417,11 @@ describe('daemon-entry', () => {
     await onShutdown();
 
     expect(handle.close).toHaveBeenCalled();
-    expect(wallet.destroy).toHaveBeenCalled();
+    expect(result.wallet.destroy).toHaveBeenCalled();
   });
 
   it('handles rm rejection in error cleanup path gracefully', async () => {
-    const wallet = createMockWallet();
-    mockCreateWallet.mockResolvedValue(wallet);
+    mockCreateWallet.mockResolvedValue(createMockWallet());
     mockStartRpcSocketServer.mockRejectedValue(new Error('server failed'));
     mockRm.mockRejectedValue(new Error('rm failed'));
 
@@ -382,8 +431,8 @@ describe('daemon-entry', () => {
   });
 
   it('onShutdown closes server and destroys wallet', async () => {
-    const wallet = createMockWallet();
-    mockCreateWallet.mockResolvedValue(wallet);
+    const result = createMockWallet();
+    mockCreateWallet.mockResolvedValue(result);
     const handle = createMockHandle();
     mockStartRpcSocketServer.mockResolvedValue(handle);
 
@@ -396,7 +445,8 @@ describe('daemon-entry', () => {
     await onShutdown();
 
     expect(handle.close).toHaveBeenCalled();
-    expect(wallet.destroy).toHaveBeenCalled();
+    expect(result.wallet.destroy).toHaveBeenCalled();
+    expect(result.store.close).toHaveBeenCalled();
     expect(mockRm).toHaveBeenCalledWith('/tmp/daemon.pid', { force: true });
   });
 
@@ -405,14 +455,14 @@ describe('daemon-entry', () => {
      * Import the daemon entry and extract the `call` handler from the
      * handlers map, along with the mock wallet for assertions.
      *
-     * @returns The call handler function and mock wallet.
+     * @returns The call handler function and mock wallet result.
      */
     async function setupCallHandler(): Promise<{
       callHandler: (params: unknown) => Promise<unknown>;
-      wallet: Awaited<ReturnType<typeof createWallet>>;
+      result: MockCreateWalletResult;
     }> {
-      const wallet = createMockWallet();
-      mockCreateWallet.mockResolvedValue(wallet);
+      const result = createMockWallet();
+      mockCreateWallet.mockResolvedValue(result);
       mockStartRpcSocketServer.mockResolvedValue(createMockHandle());
 
       await importDaemonEntry();
@@ -421,7 +471,7 @@ describe('daemon-entry', () => {
       const callHandler = callArgs.handlers.call as (
         params: unknown,
       ) => Promise<unknown>;
-      return { callHandler, wallet };
+      return { callHandler, result };
     }
 
     it('registers a call handler', async () => {
@@ -435,23 +485,27 @@ describe('daemon-entry', () => {
     });
 
     it('forwards action and args to messenger.call', async () => {
-      const { callHandler, wallet } = await setupCallHandler();
-      const mockCall = wallet.messenger.call as jest.Mock;
+      const { callHandler, result } = await setupCallHandler();
+      const mockCall = result.wallet.messenger.call as jest.Mock;
       mockCall.mockReturnValue({ accounts: [] });
 
-      const result = await callHandler(['Controller:action', 'arg1', 'arg2']);
+      const callResult = await callHandler([
+        'Controller:action',
+        'arg1',
+        'arg2',
+      ]);
 
       expect(mockCall).toHaveBeenCalledWith(
         'Controller:action',
         'arg1',
         'arg2',
       );
-      expect(result).toStrictEqual({ accounts: [] });
+      expect(callResult).toStrictEqual({ accounts: [] });
     });
 
     it('calls messenger.call with no extra args when only action is provided', async () => {
-      const { callHandler, wallet } = await setupCallHandler();
-      const mockCall = wallet.messenger.call as jest.Mock;
+      const { callHandler, result } = await setupCallHandler();
+      const mockCall = result.wallet.messenger.call as jest.Mock;
       mockCall.mockReturnValue('ok');
 
       await callHandler(['Controller:action']);
@@ -460,18 +514,18 @@ describe('daemon-entry', () => {
     });
 
     it('awaits async messenger.call results', async () => {
-      const { callHandler, wallet } = await setupCallHandler();
-      const mockCall = wallet.messenger.call as jest.Mock;
+      const { callHandler, result } = await setupCallHandler();
+      const mockCall = result.wallet.messenger.call as jest.Mock;
       mockCall.mockResolvedValue({ async: true });
 
-      const result = await callHandler(['Controller:asyncAction']);
+      const callResult = await callHandler(['Controller:asyncAction']);
 
-      expect(result).toStrictEqual({ async: true });
+      expect(callResult).toStrictEqual({ async: true });
     });
 
     it('propagates errors thrown by messenger.call', async () => {
-      const { callHandler, wallet } = await setupCallHandler();
-      const mockCall = wallet.messenger.call as jest.Mock;
+      const { callHandler, result } = await setupCallHandler();
+      const mockCall = result.wallet.messenger.call as jest.Mock;
       mockCall.mockImplementation(() => {
         throw new Error('A handler for Unknown:action has not been registered');
       });
