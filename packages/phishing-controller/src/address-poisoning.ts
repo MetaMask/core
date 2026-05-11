@@ -1,14 +1,12 @@
+import { isValidHexAddress } from '@metamask/controller-utils';
+
 import type { SimilarAddressMatch, SimilarityOptions } from './types';
 
 const DEFAULT_PREFIX_LEN = 4;
 const DEFAULT_SUFFIX_LEN = 4;
 
-function isHexAddress(address: string): address is `0x${string}` {
-  return /^0x[0-9a-fA-F]+$/u.test(address);
-}
-
 function normalizeAddress(address: string): string | null {
-  if (!isHexAddress(address)) {
+  if (!isValidHexAddress(address, { allowNonPrefixed: false })) {
     return null;
   }
 

@@ -10,6 +10,7 @@ import type {
   ControllerStateChangeEvent,
 } from '@metamask/base-controller';
 import {
+  isValidHexAddress,
   safelyExecute,
   safelyExecuteWithTimeout,
 } from '@metamask/controller-utils';
@@ -492,6 +493,10 @@ export class PhishingController extends BaseController<
 
   readonly #transactionRecipients: Set<string>;
 
+  readonly #transactionRecipientsByTransactionId: Map<string, Set<string>>;
+
+  readonly #transactionRecipientCounts: Map<string, number>;
+
   readonly #addressBookRecipients: Set<string>;
 
   #inProgressHotlistUpdate?: Promise<void>;
@@ -553,6 +558,8 @@ export class PhishingController extends BaseController<
     this.#c2DomainBlocklistRefreshInterval = c2DomainBlocklistRefreshInterval;
     this.#knownRecipients = new Set();
     this.#transactionRecipients = new Set();
+    this.#transactionRecipientsByTransactionId = new Map();
+    this.#transactionRecipientCounts = new Map();
     this.#addressBookRecipients = new Set();
     this.#transactionControllerStateChangeHandler =
       this.#onTransactionControllerStateChange.bind(this);
@@ -602,6 +609,7 @@ export class PhishingController extends BaseController<
 
   #subscribeToAddressBookControllerStateChange(): void {
     this.messenger.subscribe(
+      // eslint-disable-next-line no-restricted-syntax
       'AddressBookController:stateChange',
       this.#addressBookControllerStateChangeHandler,
     );
@@ -609,6 +617,7 @@ export class PhishingController extends BaseController<
 
   #subscribeToTransactionControllerStateChange(): void {
     this.messenger.subscribe(
+      // eslint-disable-next-line no-restricted-syntax
       'TransactionController:stateChange',
       this.#transactionControllerStateChangeHandler,
     );
@@ -658,15 +667,13 @@ export class PhishingController extends BaseController<
     patches: Patch[],
   ): void {
     try {
-      if (patches.some((patch) => patch.path[0] === 'transactions')) {
-        try {
-          this.#setKnownRecipientsFromTransactionState(_state);
-        } catch (error) {
-          console.error(
-            'Error updating known recipients from transaction state:',
-            error,
-          );
-        }
+      try {
+        this.#updateKnownRecipientsFromTransactionPatches(_state, patches);
+      } catch (error) {
+        console.error(
+          'Error updating known recipients from transaction state:',
+          error,
+        );
       }
 
       const tokensByChain = new Map<string, Set<string>>();
@@ -757,8 +764,11 @@ export class PhishingController extends BaseController<
     try {
       const state = this.messenger.call('TransactionController:getState');
       this.#setKnownRecipientsFromTransactionState(state);
-    } catch {
-      // Some environments may not provide transaction state hydration.
+    } catch (error) {
+      console.error(
+        'Unable to hydrate known recipients from TransactionController state; address poisoning checks will not include existing confirmed transactions.',
+        error,
+      );
     }
   }
 
@@ -766,8 +776,11 @@ export class PhishingController extends BaseController<
     try {
       const state = this.messenger.call('AddressBookController:getState');
       this.#setKnownRecipientsFromAddressBookState(state);
-    } catch {
-      // Some environments may not provide address book state hydration.
+    } catch (error) {
+      console.error(
+        'Unable to hydrate known recipients from AddressBookController state; address poisoning checks will not include existing address book entries.',
+        error,
+      );
     }
   }
 
@@ -775,12 +788,135 @@ export class PhishingController extends BaseController<
     state: TransactionControllerState,
   ): void {
     this.#transactionRecipients.clear();
-    for (const address of this.#getConfirmedTransactionRecipients(
-      state.transactions,
-    )) {
+    this.#transactionRecipientsByTransactionId.clear();
+    this.#transactionRecipientCounts.clear();
+
+    for (const transaction of state.transactions) {
+      this.#addTransactionRecipients(transaction);
+    }
+
+    this.#rebuildKnownRecipients();
+  }
+
+  #updateKnownRecipientsFromTransactionPatches(
+    state: TransactionControllerState,
+    patches: Patch[],
+  ): void {
+    let recipientsChanged = false;
+
+    for (const patch of patches) {
+      if (patch.path[0] !== 'transactions') {
+        continue;
+      }
+
+      if (patch.path.length === 1) {
+        this.#setKnownRecipientsFromTransactionState(state);
+        return;
+      }
+
+      const transactionIndex = patch.path[1];
+
+      if (typeof transactionIndex !== 'number') {
+        this.#setKnownRecipientsFromTransactionState(state);
+        return;
+      }
+
+      if (patch.op === 'remove') {
+        const removedTransaction = this.#getTransactionFromPatchValue(
+          patch.value,
+        );
+
+        if (!removedTransaction) {
+          this.#setKnownRecipientsFromTransactionState(state);
+          return;
+        }
+
+        recipientsChanged =
+          this.#removeTransactionRecipients(removedTransaction.id) ||
+          recipientsChanged;
+        continue;
+      }
+
+      const transaction =
+        this.#getTransactionFromPatchValue(patch.value) ??
+        state.transactions[transactionIndex];
+
+      if (!transaction) {
+        continue;
+      }
+
+      recipientsChanged =
+        this.#updateTransactionRecipients(transaction) || recipientsChanged;
+    }
+
+    if (recipientsChanged) {
+      this.#rebuildKnownRecipients();
+    }
+  }
+
+  #getTransactionFromPatchValue(value: unknown): TransactionMeta | undefined {
+    if (
+      value &&
+      typeof value === 'object' &&
+      'id' in value &&
+      'txParams' in value
+    ) {
+      return value as TransactionMeta;
+    }
+
+    return undefined;
+  }
+
+  #updateTransactionRecipients(transaction: TransactionMeta): boolean {
+    const recipientsRemoved = this.#removeTransactionRecipients(transaction.id);
+    const recipientsAdded = this.#addTransactionRecipients(transaction);
+
+    return recipientsRemoved || recipientsAdded;
+  }
+
+  #addTransactionRecipients(transaction: TransactionMeta): boolean {
+    const recipients = this.#getRecipientAddressesFromTransaction(transaction);
+
+    if (recipients.length === 0) {
+      return false;
+    }
+
+    this.#transactionRecipientsByTransactionId.set(
+      transaction.id,
+      new Set(recipients),
+    );
+
+    for (const address of recipients) {
+      const count = this.#transactionRecipientCounts.get(address) ?? 0;
+      this.#transactionRecipientCounts.set(address, count + 1);
       this.#transactionRecipients.add(address);
     }
-    this.#rebuildKnownRecipients();
+
+    return true;
+  }
+
+  #removeTransactionRecipients(transactionId: string): boolean {
+    const recipients =
+      this.#transactionRecipientsByTransactionId.get(transactionId);
+
+    if (!recipients) {
+      return false;
+    }
+
+    this.#transactionRecipientsByTransactionId.delete(transactionId);
+
+    for (const address of recipients) {
+      const count = this.#transactionRecipientCounts.get(address) ?? 0;
+
+      if (count <= 1) {
+        this.#transactionRecipientCounts.delete(address);
+        this.#transactionRecipients.delete(address);
+      } else {
+        this.#transactionRecipientCounts.set(address, count - 1);
+      }
+    }
+
+    return true;
   }
 
   #setKnownRecipientsFromAddressBookState(
@@ -805,16 +941,6 @@ export class PhishingController extends BaseController<
     }
   }
 
-  #getConfirmedTransactionRecipients(
-    transactions: TransactionMeta[],
-  ): Set<string> {
-    return new Set(
-      transactions.flatMap((transaction) =>
-        this.#getRecipientAddressesFromTransaction(transaction),
-      ),
-    );
-  }
-
   #getAddressBookRecipients(state: AddressBookControllerState): Set<string> {
     return new Set(
       Object.values(state.addressBook)
@@ -833,17 +959,13 @@ export class PhishingController extends BaseController<
     const transactionRecipient = this.#normalizeAddress(
       transaction.txParams.to,
     );
-    const transferRecipient = this.#normalizeAddress(
-      (
-        transaction.transferInformation as
-          | { recipientAddress?: string }
-          | undefined
-      )?.recipientAddress,
+    const swapAndSendRecipient = this.#normalizeAddress(
+      transaction.swapAndSendRecipient,
     );
 
     return Array.from(
       new Set(
-        [transactionRecipient, transferRecipient].filter(
+        [transactionRecipient, swapAndSendRecipient].filter(
           (address): address is string => Boolean(address),
         ),
       ),
@@ -851,7 +973,7 @@ export class PhishingController extends BaseController<
   }
 
   #normalizeAddress(address?: string | null): string | null {
-    if (!address || !/^0x[0-9a-fA-F]{40}$/u.test(address)) {
+    if (!address || !isValidHexAddress(address, { allowNonPrefixed: false })) {
       return null;
     }
 

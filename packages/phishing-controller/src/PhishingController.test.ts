@@ -1,3 +1,4 @@
+import type { AddressBookControllerState } from '@metamask/address-book-controller';
 import { deriveStateFromMetadata } from '@metamask/base-controller';
 import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
 import type {
@@ -60,6 +61,27 @@ type RootMessenger = Messenger<
   RootMessenger
 >;
 
+type SetupMessengerOptions = {
+  transactionControllerState?: TransactionControllerState;
+  addressBookControllerState?: AddressBookControllerState;
+};
+
+function getDefaultTransactionControllerState(): TransactionControllerState {
+  return {
+    transactions: [],
+    transactionBatches: [],
+    methodData: {},
+    lastFetchedBlockNumbers: {},
+    submitHistory: [],
+  };
+}
+
+function getDefaultAddressBookControllerState(): AddressBookControllerState {
+  return {
+    addressBook: {},
+  };
+}
+
 /**
  * Creates and returns a root messenger for testing
  *
@@ -76,11 +98,20 @@ function getRootMessenger(): RootMessenger {
  *
  * @returns A messenger and the root messenger.
  */
-function setupMessenger(): {
+function setupMessenger({
+  transactionControllerState:
+    initialTransactionControllerState = getDefaultTransactionControllerState(),
+  addressBookControllerState:
+    initialAddressBookControllerState = getDefaultAddressBookControllerState(),
+}: SetupMessengerOptions = {}): {
   messenger: PhishingControllerMessenger;
   rootMessenger: RootMessenger;
+  setTransactionControllerState: (state: TransactionControllerState) => void;
+  setAddressBookControllerState: (state: AddressBookControllerState) => void;
 } {
   const rootMessenger = getRootMessenger();
+  let transactionControllerState = initialTransactionControllerState;
+  let addressBookControllerState = initialAddressBookControllerState;
 
   const messenger = new Messenger<
     typeof controllerName,
@@ -98,15 +129,32 @@ function setupMessenger(): {
       'TransactionController:getState',
     ],
     events: [
+      // eslint-disable-next-line no-restricted-syntax
       'AddressBookController:stateChange',
+      // eslint-disable-next-line no-restricted-syntax
       'TransactionController:stateChange',
     ],
     messenger,
   });
 
+  rootMessenger.registerActionHandler(
+    'TransactionController:getState',
+    () => transactionControllerState,
+  );
+  rootMessenger.registerActionHandler(
+    'AddressBookController:getState',
+    () => addressBookControllerState,
+  );
+
   return {
     messenger,
     rootMessenger,
+    setTransactionControllerState: (state: TransactionControllerState) => {
+      transactionControllerState = state;
+    },
+    setAddressBookControllerState: (state: AddressBookControllerState) => {
+      addressBookControllerState = state;
+    },
   };
 }
 
@@ -4409,6 +4457,11 @@ describe('Transaction Controller State Change Integration', () => {
       } as unknown as TransactionControllerState,
       [
         {
+          op: 'replace' as const,
+          path: ['transactions'],
+          value: undefined,
+        },
+        {
           op: 'add' as const,
           path: ['transactions', 0],
           value: mockTransaction,
@@ -4444,19 +4497,7 @@ describe('Address poisoning detection', () => {
   const TX_CANDIDATE_ADDRESS =
     '0x1234aaaacccccccccccccccccccccccccccc9abc' as `0x${string}`;
 
-  function getDefaultTransactionControllerState(): TransactionControllerState {
-    return {
-      transactions: [],
-      transactionBatches: [],
-      methodData: {},
-      lastFetchedBlockNumbers: {},
-      submitHistory: [],
-    };
-  }
-
   it('hydrates known recipients from confirmed transactions and address book state', () => {
-    const { messenger, rootMessenger } = setupMessenger();
-
     const confirmedTransaction = createMockTransaction('confirmed-tx', [], {
       status: TransactionStatus.confirmed,
       txParams: {
@@ -4466,17 +4507,12 @@ describe('Address poisoning detection', () => {
       },
     });
 
-    rootMessenger.registerActionHandler(
-      'TransactionController:getState',
-      () => ({
+    const { messenger } = setupMessenger({
+      transactionControllerState: {
         ...getDefaultTransactionControllerState(),
         transactions: [confirmedTransaction],
-      }),
-    );
-
-    rootMessenger.registerActionHandler(
-      'AddressBookController:getState',
-      () => ({
+      },
+      addressBookControllerState: {
         addressBook: {
           '0x1': {
             [ADDRESS_BOOK_RECIPIENT]: {
@@ -4488,8 +4524,8 @@ describe('Address poisoning detection', () => {
             },
           },
         },
-      }),
-    );
+      },
+    });
 
     const controller = new PhishingController({
       messenger,
@@ -4517,11 +4553,8 @@ describe('Address poisoning detection', () => {
   });
 
   it('ignores non-confirmed transactions when hydrating known recipients', () => {
-    const { messenger, rootMessenger } = setupMessenger();
-
-    rootMessenger.registerActionHandler(
-      'TransactionController:getState',
-      () => ({
+    const { messenger } = setupMessenger({
+      transactionControllerState: {
         ...getDefaultTransactionControllerState(),
         transactions: [
           createMockTransaction('unapproved-tx', [], {
@@ -4533,15 +4566,8 @@ describe('Address poisoning detection', () => {
             },
           }),
         ],
-      }),
-    );
-
-    rootMessenger.registerActionHandler(
-      'AddressBookController:getState',
-      () => ({
-        addressBook: {},
-      }),
-    );
+      },
+    });
 
     const controller = new PhishingController({
       messenger,
@@ -4554,21 +4580,6 @@ describe('Address poisoning detection', () => {
 
   it('updates known recipients when address book state changes', async () => {
     const { messenger, rootMessenger } = setupMessenger();
-
-    rootMessenger.registerActionHandler(
-      'TransactionController:getState',
-      () => ({
-        ...getDefaultTransactionControllerState(),
-        transactions: [],
-      }),
-    );
-
-    rootMessenger.registerActionHandler(
-      'AddressBookController:getState',
-      () => ({
-        addressBook: {},
-      }),
-    );
 
     const controller = new PhishingController({
       messenger,
@@ -4607,21 +4618,6 @@ describe('Address poisoning detection', () => {
   it('updates known recipients when confirmed transactions change', async () => {
     const { messenger, rootMessenger } = setupMessenger();
 
-    rootMessenger.registerActionHandler(
-      'TransactionController:getState',
-      () => ({
-        ...getDefaultTransactionControllerState(),
-        transactions: [],
-      }),
-    );
-
-    rootMessenger.registerActionHandler(
-      'AddressBookController:getState',
-      () => ({
-        addressBook: {},
-      }),
-    );
-
     const controller = new PhishingController({
       messenger,
     });
@@ -4659,20 +4655,157 @@ describe('Address poisoning detection', () => {
     ]);
   });
 
-  it('exposes checkAddressPoisoning through the controller messenger', async () => {
+  it('removes known recipients when confirmed transactions are removed', async () => {
     const { messenger, rootMessenger } = setupMessenger();
 
-    rootMessenger.registerActionHandler(
-      'TransactionController:getState',
-      () => ({
-        ...getDefaultTransactionControllerState(),
-        transactions: [],
-      }),
+    const controller = new PhishingController({
+      messenger,
+    });
+
+    const confirmedTransaction = createMockTransaction('confirmed-tx', [], {
+      status: TransactionStatus.confirmed,
+      txParams: {
+        from: TEST_ADDRESSES.FROM_ADDRESS,
+        to: ADDRESS_BOOK_RECIPIENT,
+        value: '0x0' as `0x${string}`,
+      },
+    });
+
+    rootMessenger.publish(
+      'TransactionController:stateChange',
+      createMockStateChangePayload([confirmedTransaction]),
+      [
+        {
+          op: 'add' as const,
+          path: ['transactions', 0],
+          value: confirmedTransaction,
+        },
+      ],
     );
 
+    await new Promise((resolve) => process.nextTick(resolve));
+
+    expect(controller.checkAddressPoisoning(CANDIDATE_ADDRESS)).toHaveLength(1);
+
+    rootMessenger.publish(
+      'TransactionController:stateChange',
+      createMockStateChangePayload([]),
+      [
+        {
+          op: 'remove' as const,
+          path: ['transactions', 0],
+          value: confirmedTransaction,
+        },
+      ],
+    );
+
+    await new Promise((resolve) => process.nextTick(resolve));
+
+    expect(controller.checkAddressPoisoning(CANDIDATE_ADDRESS)).toStrictEqual(
+      [],
+    );
+  });
+
+  it('keeps duplicate transaction recipients until all matching transactions are removed', async () => {
+    const firstTransaction = createMockTransaction('confirmed-tx-1', [], {
+      status: TransactionStatus.confirmed,
+      txParams: {
+        from: TEST_ADDRESSES.FROM_ADDRESS,
+        to: ADDRESS_BOOK_RECIPIENT,
+        value: '0x0' as `0x${string}`,
+      },
+    });
+    const secondTransaction = createMockTransaction('confirmed-tx-2', [], {
+      status: TransactionStatus.confirmed,
+      txParams: {
+        from: TEST_ADDRESSES.FROM_ADDRESS,
+        to: ADDRESS_BOOK_RECIPIENT,
+        value: '0x0' as `0x${string}`,
+      },
+    });
+    const { messenger, rootMessenger } = setupMessenger({
+      transactionControllerState: {
+        ...getDefaultTransactionControllerState(),
+        transactions: [firstTransaction, secondTransaction],
+      },
+    });
+
+    const controller = new PhishingController({
+      messenger,
+    });
+
+    rootMessenger.publish(
+      'TransactionController:stateChange',
+      createMockStateChangePayload([secondTransaction]),
+      [
+        {
+          op: 'remove' as const,
+          path: ['transactions', 0],
+          value: firstTransaction,
+        },
+      ],
+    );
+
+    await new Promise((resolve) => process.nextTick(resolve));
+
+    expect(controller.checkAddressPoisoning(CANDIDATE_ADDRESS)).toHaveLength(1);
+  });
+
+  it('logs when transaction state hydration fails', () => {
+    const { messenger, rootMessenger } = setupMessenger();
+    const error = new Error('Transaction state unavailable');
+    const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
+
+    rootMessenger.unregisterActionHandler('TransactionController:getState');
+    rootMessenger.registerActionHandler(
+      'TransactionController:getState',
+      () => {
+        throw error;
+      },
+    );
+
+    // eslint-disable-next-line no-new -- controller hydrates known recipients on construction
+    new PhishingController({
+      messenger,
+    });
+
+    expect(consoleErrorSpy).toHaveBeenCalledWith(
+      'Unable to hydrate known recipients from TransactionController state; address poisoning checks will not include existing confirmed transactions.',
+      error,
+    );
+
+    consoleErrorSpy.mockRestore();
+  });
+
+  it('logs when address book state hydration fails', () => {
+    const { messenger, rootMessenger } = setupMessenger();
+    const error = new Error('Address book state unavailable');
+    const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
+
+    rootMessenger.unregisterActionHandler('AddressBookController:getState');
     rootMessenger.registerActionHandler(
       'AddressBookController:getState',
-      () => ({
+      () => {
+        throw error;
+      },
+    );
+
+    // eslint-disable-next-line no-new -- controller hydrates known recipients on construction
+    new PhishingController({
+      messenger,
+    });
+
+    expect(consoleErrorSpy).toHaveBeenCalledWith(
+      'Unable to hydrate known recipients from AddressBookController state; address poisoning checks will not include existing address book entries.',
+      error,
+    );
+
+    consoleErrorSpy.mockRestore();
+  });
+
+  it('exposes checkAddressPoisoning through the controller messenger', async () => {
+    const { messenger, rootMessenger } = setupMessenger({
+      addressBookControllerState: {
         addressBook: {
           '0x1': {
             [ADDRESS_BOOK_RECIPIENT]: {
@@ -4684,8 +4817,8 @@ describe('Address poisoning detection', () => {
             },
           },
         },
-      }),
-    );
+      },
+    });
 
     // eslint-disable-next-line no-new -- controller registers messenger handlers as a side effect
     new PhishingController({
