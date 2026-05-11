@@ -14,6 +14,8 @@ export type {
   AccountTreeControllerStateChangeEvent,
   AccountTreeControllerAccountTreeChangeEvent,
   AccountTreeControllerSelectedAccountGroupChangeEvent,
+  AccountTreeControllerAccountGroupCreatedEvent,
+  AccountTreeControllerAccountGroupUpdatedEvent,
   AccountTreeControllerEvents,
   AccountTreeControllerMessenger,
 } from './types';

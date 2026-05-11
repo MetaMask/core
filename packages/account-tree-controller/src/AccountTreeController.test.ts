@@ -4740,6 +4740,261 @@ describe('AccountTreeController', () => {
 
       expect(selectedAccountGroupChangeListener).not.toHaveBeenCalled();
     });
+
+    it('does NOT emit accountGroupCreated or accountGroupUpdated during init', () => {
+      const { controller, messenger } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1],
+        keyrings: [MOCK_HD_KEYRING_1],
+      });
+
+      const createdListener = jest.fn();
+      const updatedListener = jest.fn();
+      messenger.subscribe(
+        'AccountTreeController:accountGroupCreated',
+        createdListener,
+      );
+      messenger.subscribe(
+        'AccountTreeController:accountGroupUpdated',
+        updatedListener,
+      );
+
+      controller.init();
+
+      expect(createdListener).not.toHaveBeenCalled();
+      expect(updatedListener).not.toHaveBeenCalled();
+    });
+
+    it('emits accountGroupCreated when a new group is added post-init', () => {
+      const { controller, messenger } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1],
+        keyrings: [MOCK_HD_KEYRING_1, MOCK_HD_KEYRING_2],
+      });
+
+      const createdListener = jest.fn();
+      const updatedListener = jest.fn();
+      messenger.subscribe(
+        'AccountTreeController:accountGroupCreated',
+        createdListener,
+      );
+      messenger.subscribe(
+        'AccountTreeController:accountGroupUpdated',
+        updatedListener,
+      );
+
+      controller.init();
+      jest.clearAllMocks();
+
+      messenger.publish('AccountsController:accountsAdded', [
+        { ...MOCK_HD_ACCOUNT_2 },
+      ]);
+
+      const newWalletId = toMultichainAccountWalletId(
+        MOCK_HD_KEYRING_2.metadata.id,
+      );
+      const newGroupId = toMultichainAccountGroupId(
+        newWalletId,
+        MOCK_HD_ACCOUNT_2.options.entropy.groupIndex,
+      );
+      const expectedGroup =
+        controller.state.accountTree.wallets[newWalletId].groups[newGroupId];
+
+      expect(createdListener).toHaveBeenCalledTimes(1);
+      expect(createdListener).toHaveBeenCalledWith(expectedGroup);
+      expect(updatedListener).not.toHaveBeenCalled();
+    });
+
+    it('emits accountGroupUpdated when an account is added to an existing group', () => {
+      const { controller, messenger } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1],
+        keyrings: [MOCK_HD_KEYRING_1],
+      });
+
+      const createdListener = jest.fn();
+      const updatedListener = jest.fn();
+      messenger.subscribe(
+        'AccountTreeController:accountGroupCreated',
+        createdListener,
+      );
+      messenger.subscribe(
+        'AccountTreeController:accountGroupUpdated',
+        updatedListener,
+      );
+
+      controller.init();
+      jest.clearAllMocks();
+
+      messenger.publish('AccountsController:accountsAdded', [
+        { ...MOCK_TRX_ACCOUNT_1 },
+      ]);
+
+      const walletId = toMultichainAccountWalletId(
+        MOCK_HD_KEYRING_1.metadata.id,
+      );
+      const groupId = toMultichainAccountGroupId(
+        walletId,
+        MOCK_HD_ACCOUNT_1.options.entropy.groupIndex,
+      );
+      const expectedGroup =
+        controller.state.accountTree.wallets[walletId].groups[groupId];
+
+      expect(updatedListener).toHaveBeenCalledTimes(1);
+      expect(updatedListener).toHaveBeenCalledWith(expectedGroup);
+      expect(createdListener).not.toHaveBeenCalled();
+    });
+
+    it('emits accountGroupUpdated when an account is removed but the group remains', () => {
+      const { controller, messenger } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1, MOCK_TRX_ACCOUNT_1],
+        keyrings: [MOCK_HD_KEYRING_1],
+      });
+
+      const updatedListener = jest.fn();
+      messenger.subscribe(
+        'AccountTreeController:accountGroupUpdated',
+        updatedListener,
+      );
+
+      controller.init();
+      jest.clearAllMocks();
+
+      messenger.publish('AccountsController:accountsRemoved', [
+        MOCK_TRX_ACCOUNT_1.id,
+      ]);
+
+      const walletId = toMultichainAccountWalletId(
+        MOCK_HD_KEYRING_1.metadata.id,
+      );
+      const groupId = toMultichainAccountGroupId(
+        walletId,
+        MOCK_HD_ACCOUNT_1.options.entropy.groupIndex,
+      );
+      const expectedGroup =
+        controller.state.accountTree.wallets[walletId].groups[groupId];
+
+      expect(updatedListener).toHaveBeenCalledTimes(1);
+      expect(updatedListener).toHaveBeenCalledWith(expectedGroup);
+    });
+
+    it('does NOT emit accountGroupUpdated when a removed account causes the group to be pruned', () => {
+      const { controller, messenger } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1, MOCK_SNAP_ACCOUNT_1],
+        keyrings: [MOCK_HD_KEYRING_1, MOCK_HD_KEYRING_2],
+      });
+
+      const updatedListener = jest.fn();
+      messenger.subscribe(
+        'AccountTreeController:accountGroupUpdated',
+        updatedListener,
+      );
+
+      controller.init();
+      jest.clearAllMocks();
+
+      messenger.publish('AccountsController:accountsRemoved', [
+        MOCK_SNAP_ACCOUNT_1.id,
+      ]);
+
+      expect(updatedListener).not.toHaveBeenCalled();
+    });
+
+    it('emits accountGroupUpdated when setAccountGroupName is called', () => {
+      const { controller, messenger } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1],
+        keyrings: [MOCK_HD_KEYRING_1],
+      });
+
+      const updatedListener = jest.fn();
+      messenger.subscribe(
+        'AccountTreeController:accountGroupUpdated',
+        updatedListener,
+      );
+
+      controller.init();
+      jest.clearAllMocks();
+
+      const walletId = toMultichainAccountWalletId(
+        MOCK_HD_KEYRING_1.metadata.id,
+      );
+      const groupId = toMultichainAccountGroupId(
+        walletId,
+        MOCK_HD_ACCOUNT_1.options.entropy.groupIndex,
+      );
+
+      controller.setAccountGroupName(groupId, 'Renamed Group');
+
+      const expectedGroup =
+        controller.state.accountTree.wallets[walletId].groups[groupId];
+
+      expect(updatedListener).toHaveBeenCalledTimes(1);
+      expect(updatedListener).toHaveBeenCalledWith(expectedGroup);
+      expect(expectedGroup.metadata.name).toBe('Renamed Group');
+    });
+
+    it('emits accountGroupUpdated when setAccountGroupPinned is called', () => {
+      const { controller, messenger } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1],
+        keyrings: [MOCK_HD_KEYRING_1],
+      });
+
+      const updatedListener = jest.fn();
+      messenger.subscribe(
+        'AccountTreeController:accountGroupUpdated',
+        updatedListener,
+      );
+
+      controller.init();
+      jest.clearAllMocks();
+
+      const walletId = toMultichainAccountWalletId(
+        MOCK_HD_KEYRING_1.metadata.id,
+      );
+      const groupId = toMultichainAccountGroupId(
+        walletId,
+        MOCK_HD_ACCOUNT_1.options.entropy.groupIndex,
+      );
+
+      controller.setAccountGroupPinned(groupId, true);
+
+      const expectedGroup =
+        controller.state.accountTree.wallets[walletId].groups[groupId];
+
+      expect(updatedListener).toHaveBeenCalledTimes(1);
+      expect(updatedListener).toHaveBeenCalledWith(expectedGroup);
+      expect(expectedGroup.metadata.pinned).toBe(true);
+    });
+
+    it('emits accountGroupUpdated when setAccountGroupHidden is called', () => {
+      const { controller, messenger } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1],
+        keyrings: [MOCK_HD_KEYRING_1],
+      });
+
+      const updatedListener = jest.fn();
+      messenger.subscribe(
+        'AccountTreeController:accountGroupUpdated',
+        updatedListener,
+      );
+
+      controller.init();
+      jest.clearAllMocks();
+
+      const walletId = toMultichainAccountWalletId(
+        MOCK_HD_KEYRING_1.metadata.id,
+      );
+      const groupId = toMultichainAccountGroupId(
+        walletId,
+        MOCK_HD_ACCOUNT_1.options.entropy.groupIndex,
+      );
+
+      controller.setAccountGroupHidden(groupId, true);
+
+      const expectedGroup =
+        controller.state.accountTree.wallets[walletId].groups[groupId];
+
+      expect(updatedListener).toHaveBeenCalledTimes(1);
+      expect(updatedListener).toHaveBeenCalledWith(expectedGroup);
+      expect(expectedGroup.metadata.hidden).toBe(true);
+    });
   });
 
   describe('syncWithUserStorage', () => {
