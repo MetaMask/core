@@ -1,6 +1,11 @@
+import type { SnapKeyring } from '@metamask/eth-snap-keyring';
 import {
   KeyringControllerState,
   KeyringTypes,
+} from '@metamask/keyring-controller';
+import type {
+  KeyringEntry,
+  RestrictedController,
 } from '@metamask/keyring-controller';
 import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
 import type {
@@ -75,6 +80,7 @@ function getMessenger(
       'SnapController:getSnap',
       'SnapController:getRunnableSnaps',
       'KeyringController:getState',
+      'KeyringController:withController',
     ],
     events: [
       'SnapController:stateChange',
@@ -356,6 +362,91 @@ describe('SnapAccountService', () => {
 
       await ensurePromise;
       expect(resolved).toBe(true);
+    });
+  });
+
+  describe('getLegacySnapKeyring', () => {
+    /**
+     * Builds a fake {@link KeyringEntry} with the given type.
+     *
+     * @param type - The keyring type.
+     * @returns A minimal KeyringEntry for tests.
+     */
+    function buildKeyringEntry(type: string): KeyringEntry {
+      return {
+        keyring: { type } as KeyringEntry['keyring'],
+        metadata: { id: `id-${type}`, name: type },
+      };
+    }
+
+    /**
+     * Registers a fake `KeyringController:withController` handler that calls
+     * the operation with a controllable {@link RestrictedController}.
+     *
+     * @param rootMessenger - The root messenger.
+     * @param initialEntries - Entries exposed via `controller.keyrings`.
+     * @returns The mocked `addNewKeyring` jest fn for assertions.
+     */
+    function registerWithController(
+      rootMessenger: RootMessenger,
+      initialEntries: KeyringEntry[],
+    ): jest.MockedFunction<RestrictedController['addNewKeyring']> {
+      const entries = [...initialEntries];
+      const addNewKeyring = jest.fn(async (type: string) => {
+        const entry = buildKeyringEntry(type);
+        entries.push(entry);
+        return entry;
+      });
+      rootMessenger.registerActionHandler(
+        'KeyringController:withController',
+        async (operation) =>
+          operation({
+            get keyrings() {
+              return Object.freeze([...entries]);
+            },
+            addNewKeyring,
+            removeKeyring: jest.fn(),
+          }),
+      );
+      return addNewKeyring;
+    }
+
+    it('returns the existing Snap keyring when one is already present', async () => {
+      const { service, rootMessenger } = setup();
+      const existing = buildKeyringEntry(KeyringTypes.snap);
+      const addNewKeyring = registerWithController(rootMessenger, [
+        buildKeyringEntry(KeyringTypes.hd),
+        existing,
+      ]);
+
+      const result = await service.getLegacySnapKeyring();
+
+      expect(result).toBe(existing.keyring as unknown as SnapKeyring);
+      expect(addNewKeyring).not.toHaveBeenCalled();
+    });
+
+    it('creates a new Snap keyring when none exists', async () => {
+      const { service, rootMessenger } = setup();
+      const addNewKeyring = registerWithController(rootMessenger, [
+        buildKeyringEntry(KeyringTypes.hd),
+      ]);
+
+      const result = await service.getLegacySnapKeyring();
+
+      expect(addNewKeyring).toHaveBeenCalledWith(KeyringTypes.snap);
+      expect(result.type).toBe(KeyringTypes.snap);
+    });
+
+    it('propagates errors thrown by withController', async () => {
+      const { service, rootMessenger } = setup();
+      rootMessenger.registerActionHandler(
+        'KeyringController:withController',
+        async () => {
+          throw new Error('boom');
+        },
+      );
+
+      await expect(service.getLegacySnapKeyring()).rejects.toThrow('boom');
     });
   });
 });

@@ -1,7 +1,11 @@
+import type { SnapKeyring } from '@metamask/eth-snap-keyring';
 import type {
   KeyringControllerGetStateAction,
   KeyringControllerStateChangeEvent,
+  KeyringControllerWithControllerAction,
+  KeyringEntry,
 } from '@metamask/keyring-controller';
+import { KeyringTypes } from '@metamask/keyring-controller';
 import type { Messenger } from '@metamask/messenger';
 import type {
   SnapControllerGetRunnableSnapsAction,
@@ -19,6 +23,7 @@ import { SnapId } from '@metamask/snaps-sdk';
 
 import type {
   SnapAccountServiceEnsureReadyAction,
+  SnapAccountServiceGetLegacySnapKeyringAction,
   SnapAccountServiceGetSnapsAction,
 } from './SnapAccountService-method-action-types';
 import { SnapPlatformWatcher } from './SnapPlatformWatcher';
@@ -35,14 +40,19 @@ export const serviceName = 'SnapAccountService';
  * All of the methods within {@link SnapAccountService} that are exposed via
  * the messenger.
  */
-const MESSENGER_EXPOSED_METHODS = ['ensureReady', 'getSnaps'] as const;
+const MESSENGER_EXPOSED_METHODS = [
+  'ensureReady',
+  'getSnaps',
+  'getLegacySnapKeyring',
+] as const;
 
 /**
  * Actions that {@link SnapAccountService} exposes to other consumers.
  */
 export type SnapAccountServiceActions =
   | SnapAccountServiceEnsureReadyAction
-  | SnapAccountServiceGetSnapsAction;
+  | SnapAccountServiceGetSnapsAction
+  | SnapAccountServiceGetLegacySnapKeyringAction;
 
 /**
  * Actions from other messengers that {@link SnapAccountService} calls.
@@ -51,7 +61,8 @@ type AllowedActions =
   | SnapControllerGetStateAction
   | SnapControllerGetSnapAction
   | SnapControllerGetRunnableSnapsAction
-  | KeyringControllerGetStateAction;
+  | KeyringControllerGetStateAction
+  | KeyringControllerWithControllerAction;
 
 /**
  * Events that {@link SnapAccountService} exposes to other consumers.
@@ -172,5 +183,49 @@ export class SnapAccountService {
     // Before doing anything with our Snap, we need to make sure the platform
     // is ready to process requests.
     await this.#watcher.ensureCanUseSnapPlatform();
+  }
+
+  /**
+   * Atomically gets-or-creates the legacy (v1) Snap keyring — the keyring
+   * associated with {@link KeyringTypes.snap}.
+   *
+   * @returns The existing or newly-created Snap keyring instance.
+   */
+  async getLegacySnapKeyring(): Promise<SnapKeyring> {
+    type Result = {
+      snapKeyring: SnapKeyring;
+    };
+
+    // `KeyringController:withController` forbids returning a direct keyring
+    // reference (it checks the result via `Object.is`), so we smuggle the
+    // instance out wrapped in an object and unwrap it after the call.
+    // NOTE: This violates the abstraction of `KeyringController:withController`, but this
+    // is how we currently interact with the legacy Snap keyring. Once we migrate it to
+    // the Snap keyring v2, we won't be using the same pattern.
+    const result = await this.#messenger.call(
+      'KeyringController:withController',
+      async (controller): Promise<Result> => {
+        let snapKeyring: KeyringEntry['keyring'] | undefined;
+
+        const found = controller.keyrings.find(
+          ({ keyring }) => keyring.type === KeyringTypes.snap,
+        );
+        if (found) {
+          snapKeyring = found.keyring;
+        }
+
+        if (!snapKeyring) {
+          const { keyring: newSnapKeyring } = await controller.addNewKeyring(
+            KeyringTypes.snap,
+          );
+          snapKeyring = newSnapKeyring;
+        }
+
+        // The legacy Snap keyring is not compatible with `EthKeyring`, so we need to cast here.
+        return { snapKeyring } as unknown as Result;
+      },
+    );
+
+    return (result as Result).snapKeyring;
   }
 }
