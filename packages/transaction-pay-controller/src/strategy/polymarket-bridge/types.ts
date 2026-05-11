@@ -1,5 +1,7 @@
 import type { Hex } from '@metamask/utils';
 
+import type { RelayQuote } from '../relay/types';
+
 /** Quote returned by Polymarket Bridge /quote endpoint. */
 export type PolymarketBridgeQuote = {
   /** Unique quote identifier. */
@@ -16,6 +18,13 @@ export type PolymarketBridgeQuote = {
   estCheckoutTimeMs: number;
   /** Fee breakdown from Polymarket (typically all zero for pUSD→USDC). */
   estFeeBreakdown: PolymarketBridgeFeeBreakdown;
+  /**
+   * When the USE_RELAY_BRIDGE flag is on, the Relay quote fetched at
+   * getQuotes time and replayed at execute time after the deposit-wallet
+   * transfers pUSD to the user EOA. Absent in the legacy Polymarket bridge
+   * flow.
+   */
+  relayQuote?: RelayQuote;
 };
 
 /** Fee breakdown from Bridge /quote response. */

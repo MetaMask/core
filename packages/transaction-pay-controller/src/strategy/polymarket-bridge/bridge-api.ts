@@ -172,8 +172,8 @@ export class PolymarketBridgeApi {
 
   async pollUntilBridgeComplete(
     depositAddress: string,
-    pollIntervalMs = 3000,
-    maxAttempts = 200,
+    pollIntervalMs = 10_000,
+    maxAttempts = 90,
   ): Promise<BridgeStatusTransaction> {
     log('Polling bridge status', { depositAddress, maxAttempts });
 

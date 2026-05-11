@@ -31,3 +31,18 @@ export const RELAYER_TERMINAL_STATES = [
 
 // pUSD decimals (same as USDC)
 export const PUSD_DECIMALS = 6;
+
+/**
+ * Hardcoded experiment flag. When true, the Polymarket bridge strategy bypasses
+ * Polymarket's `/quote` + `/withdraw` flow and instead:
+ *   1. Fetches a Relay quote (pUSD on Polygon → target chain/token).
+ *   2. At execute time, transfers pUSD from the deposit wallet to the user EOA
+ *      via the existing Polymarket relayer proxy (single ERC-20 transfer).
+ *   3. Submits the stored Relay quote from the user EOA, gaslessly via Relay's
+ *      /execute endpoint.
+ *
+ * Lets us avoid Polymarket-bridge minimums, fees, and the source-vs-target
+ * txHash ambiguity in their `/status` endpoint. Toggle to false to fall back to
+ * the original Polymarket bridge flow.
+ */
+export const USE_RELAY_BRIDGE = true;
