@@ -1,9 +1,4 @@
 import { AccountGroupId } from '@metamask/account-api';
-import {
-  AccountTreeControllerGetAccountGroupObjectAction,
-  AccountTreeControllerGetSelectedAccountGroupAction,
-  AccountTreeControllerSelectedAccountGroupChangeEvent,
-} from '@metamask/account-tree-controller';
 import type {
   SnapKeyring as LegacySnapKeyring,
   SnapMessage,
@@ -43,6 +38,11 @@ import type {
 import { SnapPlatformWatcher } from './SnapPlatformWatcher';
 import type { SnapPlatformWatcherConfig } from './SnapPlatformWatcher';
 import { SnapTracker } from './SnapTracker';
+import type {
+  AccountTreeControllerGetAccountGroupObjectAction,
+  AccountTreeControllerGetSelectedAccountGroupAction,
+  AccountTreeControllerSelectedAccountGroupChangeEvent,
+} from './types';
 
 /**
  * The name of the {@link SnapAccountService}, used to namespace the service's

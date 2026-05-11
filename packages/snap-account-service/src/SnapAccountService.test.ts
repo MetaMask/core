@@ -1,5 +1,4 @@
 import type { AccountGroupId } from '@metamask/account-api';
-import type { AccountGroupObject } from '@metamask/account-tree-controller';
 import type { SnapKeyring, SnapMessage } from '@metamask/eth-snap-keyring';
 import {
   KeyringControllerState,
@@ -24,6 +23,7 @@ import type {
   SnapAccountServiceOptions,
 } from './SnapAccountService';
 import { SnapAccountService } from './SnapAccountService';
+import type { AccountGroupObject } from './types';
 
 type RootMessenger = Messenger<
   MockAnyNamespace,
