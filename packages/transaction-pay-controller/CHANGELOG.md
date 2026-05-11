@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Fix fiat strategy submit flow to extract provider code from ramps quote instead of parsing order ID, store `caipAssetId` in fiat payment state, and use target amount for totals when fiat strategy is active ([#8726](https://github.com/MetaMask/core/pull/8726))
+
 ### Changed
 
 - Resolve fiat asset per transaction type from `confirmations_pay_fiat` remote feature flag, falling back to hardcoded map then ETH on mainnet ([#8631](https://github.com/MetaMask/core/pull/8631))
@@ -45,7 +49,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - Fix fiat strategy never being selected by routing fiat payment method through `getStrategyOrder` and allowing quote retrieval when no crypto payment token is set ([#8720](https://github.com/MetaMask/core/pull/8720))
-- Fix fiat strategy submit flow to extract provider code from ramps quote instead of parsing order ID, store `caipAssetId` in fiat payment state, and use target amount for totals when fiat strategy is active ([#8726](https://github.com/MetaMask/core/pull/8726))
 
 ## [21.1.0]
 
