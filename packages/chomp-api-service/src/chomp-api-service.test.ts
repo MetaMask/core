@@ -500,10 +500,7 @@ describe('ChompApiService', () => {
     });
 
     it('throws on non-OK status', async () => {
-      nock(BASE_URL)
-        .get('/v1/chomp')
-        .query({ chainId: '0xa4b1' })
-        .reply(400);
+      nock(BASE_URL).get('/v1/chomp').query({ chainId: '0xa4b1' }).reply(400);
       const { service } = createService();
 
       await expect(service.getServiceDetails(['0xa4b1'])).rejects.toThrow(
