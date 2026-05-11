@@ -1,4 +1,4 @@
-import type { SnapKeyring } from '@metamask/eth-snap-keyring';
+import type { SnapKeyring as LegacySnapKeyring } from '@metamask/eth-snap-keyring';
 import type {
   KeyringControllerGetStateAction,
   KeyringControllerStateChangeEvent,
@@ -6,6 +6,7 @@ import type {
   KeyringEntry,
 } from '@metamask/keyring-controller';
 import { KeyringTypes } from '@metamask/keyring-controller';
+import type { EthKeyring } from '@metamask/keyring-utils';
 import type { Messenger } from '@metamask/messenger';
 import type {
   SnapControllerGetRunnableSnapsAction,
@@ -109,6 +110,18 @@ export type SnapAccountServiceOptions = {
 };
 
 /**
+ * Checks if a given keyring is a Snap keyring (v2).
+ *
+ * @param keyring - The keyring to check.
+ * @returns `true` if the keyring is a Snap keyring (v2), `false` otherwise.
+ */
+function isLegacySnapKeyring(
+  keyring: EthKeyring,
+): keyring is LegacySnapKeyring {
+  return keyring.type === KeyringTypes.snap;
+}
+
+/**
  * Service responsible for managing account management snaps.
  */
 export class SnapAccountService {
@@ -192,9 +205,9 @@ export class SnapAccountService {
    *
    * @returns The existing or newly-created Snap keyring instance.
    */
-  async getLegacySnapKeyring(): Promise<SnapKeyring> {
+  async getLegacySnapKeyring(): Promise<LegacySnapKeyring> {
     type Result = {
-      snapKeyring: SnapKeyring;
+      snapKeyring: LegacySnapKeyring;
     };
 
     // `KeyringController:withController` forbids returning a direct keyring
@@ -208,8 +221,8 @@ export class SnapAccountService {
       async (controller): Promise<Result> => {
         let snapKeyring: KeyringEntry['keyring'] | undefined;
 
-        const found = controller.keyrings.find(
-          ({ keyring }) => keyring.type === KeyringTypes.snap,
+        const found = controller.keyrings.find(({ keyring }) =>
+          isLegacySnapKeyring(keyring),
         );
         if (found) {
           snapKeyring = found.keyring;
