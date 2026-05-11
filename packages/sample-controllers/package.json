@@ -1,6 +1,6 @@
 {
   "name": "@metamask/sample-controllers",
-  "version": "4.1.0",
+  "version": "5.0.0",
   "description": "Sample package to illustrate best practices for controllers",
   "keywords": [
     "Ethereum",
