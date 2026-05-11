@@ -30,5 +30,5 @@ export { TransactionPayStrategy } from './constants';
 export { TransactionPayController } from './TransactionPayController';
 export { TransactionPayPublishHook } from './helpers/TransactionPayPublishHook';
 export type { TransactionPayBridgeQuote } from './strategy/bridge/types';
-export { PolymarketBridgeStrategy } from './strategy/polymarket-bridge/PolymarketBridgeStrategy';
+export { PolymarketStrategy } from './strategy/polymarket-bridge/PolymarketStrategy';
 export type { PolymarketBridgeQuote } from './strategy/polymarket-bridge/types';

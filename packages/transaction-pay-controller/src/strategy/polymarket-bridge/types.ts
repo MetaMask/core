@@ -2,79 +2,29 @@ import type { Hex } from '@metamask/utils';
 
 import type { RelayQuote } from '../relay/types';
 
-/** Quote returned by Polymarket Bridge /quote endpoint. */
+/**
+ * Strategy-level quote type. The Polymarket bridge withdraw flow delegates
+ * cross-chain routing to Relay, so the quote it carries is a Relay quote.
+ */
 export type PolymarketBridgeQuote = {
-  /** Unique quote identifier. */
-  quoteId: string;
-  /** One-shot deposit address; null until execute() mints it via /withdraw. */
-  bridgeDepositAddress: Hex | null;
-  /** Amount being sent, in base units (e.g. 6 decimals for pUSD). */
-  fromAmount: string;
-  /** Estimated tokens received, in base units. */
-  toAmount: string;
-  /** Minimum amount the user will receive. */
-  minReceived: string;
-  /** Estimated checkout time in milliseconds. */
-  estCheckoutTimeMs: number;
-  /** Fee breakdown from Polymarket (typically all zero for pUSD→USDC). */
-  estFeeBreakdown: PolymarketBridgeFeeBreakdown;
-  /**
-   * When the USE_RELAY_BRIDGE flag is on, the Relay quote fetched at
-   * getQuotes time and replayed at execute time after the deposit-wallet
-   * transfers pUSD to the user EOA. Absent in the legacy Polymarket bridge
-   * flow.
-   */
-  relayQuote?: RelayQuote;
+  relayQuote: RelayQuote;
 };
 
-/** Fee breakdown from Bridge /quote response. */
-export type PolymarketBridgeFeeBreakdown = {
-  gasUsd: number;
-  appFeeUsd: number;
-  swapImpactUsd: number;
-};
-
-/** EIP-712 Batch structure for DepositWallet. */
-export type PolymarketBridgeWalletBatch = {
-  /** Deposit wallet address. */
-  wallet: Hex;
-  /** Relayer nonce for the wallet. */
-  nonce: string;
-  /** Unix timestamp deadline. */
-  deadline: number;
-  /** Calls to execute in the batch. */
-  calls: PolymarketBridgeWalletCall[];
-};
-
-/** Single call within a DepositWallet Batch. */
 export type PolymarketBridgeWalletCall = {
-  /** Target contract address. */
   target: Hex;
-  /** ETH value (usually 0n for token transfers). */
   value: bigint;
-  /** Encoded calldata. */
   data: Hex;
 };
 
-/** Request body for relayer /submit (WALLET type). */
 export type PolymarketBridgeRelayerSubmitRequest = {
-  /** Request type. */
   type: 'WALLET';
-  /** Owner/signer EOA address. */
   from: Hex;
-  /** Deposit wallet factory address. */
   to: Hex;
-  /** Wallet nonce (fetched from relayer). */
   nonce: string;
-  /** 65-byte EIP-712 Batch signature. */
   signature: Hex;
-  /** Deposit wallet batch parameters. */
   depositWalletParams: {
-    /** Deposit wallet contract address. */
     depositWallet: Hex;
-    /** Unix timestamp deadline as string. */
     deadline: string;
-    /** Calls to execute in the batch. */
     calls: {
       target: string;
       value: string;
@@ -83,41 +33,25 @@ export type PolymarketBridgeRelayerSubmitRequest = {
   };
 };
 
-/** Response from relayer /submit. */
 export type PolymarketBridgeRelayerSubmitResponse = {
-  /** Transaction tracking ID. */
   transactionID: string;
-  /** Initial state. */
   state: string;
 };
 
-/** Response from relayer /transaction?id=. */
 export type PolymarketBridgeRelayerStatusResponse = {
-  /** On-chain transaction hash (available once STATE_MINED or later). */
   transactionHash: string | null;
-  /** Current state. */
   state: PolymarketRelayerState;
-  /** Signer address. */
   from: string;
-  /** Target address. */
   to: string;
-  /** Proxy wallet address. */
   proxyAddress: string;
-  /** Hex-encoded data. */
   data: string;
-  /** Nonce. */
   nonce: string;
-  /** Signature. */
   signature: string;
-  /** Transaction type. */
   type: string;
-  /** ISO timestamp. */
   createdAt: string;
-  /** ISO timestamp. */
   updatedAt: string;
 };
 
-/** Relayer transaction states. */
 export type PolymarketRelayerState =
   | 'STATE_NEW'
   | 'STATE_EXECUTED'
@@ -126,14 +60,7 @@ export type PolymarketRelayerState =
   | 'STATE_INVALID'
   | 'STATE_FAILED';
 
-/**
- * Envelope posted to the MetaMask Polymarket relayer proxy. The proxy
- * authenticates the request and forwards it to the underlying Polymarket
- * relayer using the path/method/body or query described here.
- */
 export type PolymarketRelayerProxyEnvelope =
   | { path: '/submit'; method: 'POST'; body: unknown }
   | { path: '/nonce'; method: 'GET'; query: Record<string, string> }
   | { path: '/transaction'; method: 'GET'; query: Record<string, string> };
-
-
