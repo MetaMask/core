@@ -21,6 +21,7 @@ import type {
 } from '@metamask/snaps-controllers';
 import { SnapId } from '@metamask/snaps-sdk';
 
+import { projectLogger as log } from './logger';
 import type {
   SnapAccountServiceEnsureReadyAction,
   SnapAccountServiceGetLegacySnapKeyringAction,
@@ -215,10 +216,13 @@ export class SnapAccountService {
         }
 
         if (!snapKeyring) {
-          const { keyring: newSnapKeyring } = await controller.addNewKeyring(
-            KeyringTypes.snap,
-          );
+          const {
+            keyring: newSnapKeyring,
+            metadata: { id },
+          } = await controller.addNewKeyring(KeyringTypes.snap);
           snapKeyring = newSnapKeyring;
+
+          log(`Legacy Snap keyring created. ("${id}")`);
         }
 
         // The legacy Snap keyring is not compatible with `EthKeyring`, so we need to cast here.
