@@ -1,3 +1,7 @@
+import { defaultAbiCoder } from '@ethersproject/abi';
+import { getCreate2Address } from '@ethersproject/address';
+import { hexConcat, hexZeroPad } from '@ethersproject/bytes';
+import { keccak256 } from '@ethersproject/keccak256';
 import type { Hex } from '@metamask/utils';
 
 import {
@@ -24,13 +28,13 @@ const ERC1967_PREFIX = 0x61003d3d8160233d3973n;
 export function computeDepositWalletAddress(ownerAddress: string): Hex {
   const walletId = hexZeroPad(ownerAddress.toLowerCase(), 32);
 
-  const args = abiEncode(
+  const args = defaultAbiCoder.encode(
     ['address', 'bytes32'],
     [DEPOSIT_WALLET_FACTORY_ADDRESS_POLYGON, walletId],
   );
 
   const salt = keccak256(args);
-  const bytecodeHash = initCodeHashERC1967(
+  const initCodeHash = computeSoladyERC1967InitCodeHash(
     DEPOSIT_WALLET_IMPLEMENTATION_POLYGON,
     args,
   );
@@ -38,17 +42,20 @@ export function computeDepositWalletAddress(ownerAddress: string): Hex {
   return getCreate2Address(
     DEPOSIT_WALLET_FACTORY_ADDRESS_POLYGON,
     salt,
-    bytecodeHash,
-  );
+    initCodeHash,
+  ) as Hex;
 }
 
-function initCodeHashERC1967(implementation: string, args: string): string {
-  const n = BigInt((args.length - 2) / 2);
-  const combined = ERC1967_PREFIX + (n << 56n);
+function computeSoladyERC1967InitCodeHash(
+  implementation: string,
+  args: string,
+): string {
+  const argByteLength = BigInt((args.length - 2) / 2);
+  const prefixWithLength = ERC1967_PREFIX + (argByteLength << 56n);
 
   return keccak256(
     hexConcat([
-      bigintToHex(combined, 10),
+      `0x${prefixWithLength.toString(16).padStart(20, '0')}`,
       implementation,
       '0x6009',
       ERC1967_CONST2,
@@ -56,55 +63,4 @@ function initCodeHashERC1967(implementation: string, args: string): string {
       args,
     ]),
   );
-}
-
-function bigintToHex(value: bigint, byteLength: number): string {
-  const hex = value.toString(16).padStart(byteLength * 2, '0');
-  return `0x${hex}`;
-}
-
-function hexZeroPad(value: string, length: number): string {
-  const stripped = value.startsWith('0x') ? value.slice(2) : value;
-  return `0x${stripped.padStart(length * 2, '0')}`;
-}
-
-function abiEncode(types: string[], values: string[]): string {
-  const encoded = types.map((type, i) => {
-    const val = values[i];
-    if (type === 'address') {
-      return hexZeroPad(val, 32);
-    }
-    if (type === 'bytes32') {
-      return val.startsWith('0x') ? val : `0x${val}`;
-    }
-    throw new Error(`Unsupported ABI type: ${type}`);
-  });
-
-  return `0x${encoded.map((e) => e.slice(2)).join('')}`;
-}
-
-function keccak256(data: string): string {
-  // eslint-disable-next-line @typescript-eslint/no-require-imports, @typescript-eslint/no-var-requires
-  const { keccak256: k } = require('@ethersproject/keccak256');
-  return k(data) as string;
-}
-
-function hexConcat(items: string[]): string {
-  return `0x${items.map((item) => (item.startsWith('0x') ? item.slice(2) : item)).join('')}`;
-}
-
-function getCreate2Address(
-  deployer: string,
-  salt: string,
-  bytecodeHash: string,
-): Hex {
-  const data = hexConcat([
-    '0xff',
-    hexZeroPad(deployer, 20),
-    salt,
-    bytecodeHash,
-  ]);
-
-  const hash = keccak256(data);
-  return `0x${hash.slice(26)}` as Hex;
 }

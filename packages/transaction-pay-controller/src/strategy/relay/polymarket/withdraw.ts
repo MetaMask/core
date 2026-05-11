@@ -5,13 +5,11 @@ import { createModuleLogger } from '@metamask/utils';
 import { CHAIN_ID_POLYGON } from '../../../constants';
 import { projectLogger } from '../../../logger';
 import type {
-  PayStrategyExecuteRequest,
   TransactionPayControllerMessenger,
   TransactionPayQuote,
 } from '../../../types';
 import { getPolymarketRelayerUrl } from '../../../utils/feature-flags';
 import { getLiveTokenBalance } from '../../../utils/token';
-import { updateTransaction } from '../../../utils/transaction';
 import type { RelayQuote, RelayTransactionStep } from '../types';
 import {
   encodeApprove,
@@ -42,7 +40,7 @@ const POLYGON_CHAIN_ID_NUMBER = 137;
 const WALLET_BUSY_RETRY_ATTEMPTS = 5;
 const WALLET_BUSY_RETRY_DELAY_MS = 3_000;
 
-export async function submitPolymarketDepositWalletWithdraw(
+export async function submitPolymarketWithdraw(
   quote: TransactionPayQuote<RelayQuote>,
   from: Hex,
   messenger: TransactionPayControllerMessenger,
@@ -85,15 +83,10 @@ export async function submitPolymarketDepositWalletWithdraw(
   return { sourceHash: result.relayerTransactionHash };
 }
 
-export async function sweepPolymarketDepositWalletUsdce(
-  request: PayStrategyExecuteRequest<RelayQuote>,
+export async function sweepPolymarketDepositWallet(
+  from: Hex,
+  messenger: TransactionPayControllerMessenger,
 ): Promise<void> {
-  const { messenger } = request;
-  const from = request.quotes[0]?.request.from;
-  if (!from) {
-    return;
-  }
-
   const depositWalletAddress = computeDepositWalletAddress(from);
 
   let usdceBalance: bigint;
@@ -155,23 +148,6 @@ export async function sweepPolymarketDepositWalletUsdce(
   } catch (error) {
     log('USDC.e sweep: batch submission failed', { error });
   }
-}
-
-export function setPolymarketSourceHash(
-  request: PayStrategyExecuteRequest<RelayQuote>,
-  sourceHash: Hex,
-): void {
-  updateTransaction(
-    {
-      transactionId: request.transaction.id,
-      messenger: request.messenger,
-      note: 'Add source hash from Polymarket relayer',
-    },
-    (tx) => {
-      tx.metamaskPay ??= {};
-      tx.metamaskPay.sourceHash = sourceHash;
-    },
-  );
 }
 
 async function submitDepositWalletBatch({

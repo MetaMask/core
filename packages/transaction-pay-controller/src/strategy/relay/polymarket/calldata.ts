@@ -1,12 +1,9 @@
 import type { Hex } from '@metamask/utils';
 
 const ERC20_TRANSFER_SELECTOR = '0xa9059cbb';
-const ERC20_APPROVE_SELECTOR = '095ea7b3';
-const POLYMARKET_UNWRAP_SELECTOR = '8cc7104f';
-const POLYMARKET_WRAP_SELECTOR = '62355638';
 
 export function encodeApprove(spender: Hex, amount: bigint): Hex {
-  return encodeTwoArg(ERC20_APPROVE_SELECTOR, spender, amount);
+  return `0x095ea7b3${padAddress(spender)}${padUint256(amount)}` as Hex;
 }
 
 export function encodeUnwrap({
@@ -18,7 +15,7 @@ export function encodeUnwrap({
   recipient: Hex;
   amount: bigint;
 }): Hex {
-  return encodeThreeArg(POLYMARKET_UNWRAP_SELECTOR, asset, recipient, amount);
+  return `0x8cc7104f${padAddress(asset)}${padAddress(recipient)}${padUint256(amount)}` as Hex;
 }
 
 export function encodeWrap({
@@ -30,7 +27,7 @@ export function encodeWrap({
   recipient: Hex;
   amount: bigint;
 }): Hex {
-  return encodeThreeArg(POLYMARKET_WRAP_SELECTOR, asset, recipient, amount);
+  return `0x62355638${padAddress(asset)}${padAddress(recipient)}${padUint256(amount)}` as Hex;
 }
 
 export function extractErc20TransferRecipient(data: Hex): Hex {
@@ -40,19 +37,6 @@ export function extractErc20TransferRecipient(data: Hex): Hex {
     );
   }
   return `0x${data.slice(34, 74)}` as Hex;
-}
-
-function encodeTwoArg(selector: string, address: Hex, amount: bigint): Hex {
-  return `0x${selector}${padAddress(address)}${padUint256(amount)}` as Hex;
-}
-
-function encodeThreeArg(
-  selector: string,
-  asset: Hex,
-  recipient: Hex,
-  amount: bigint,
-): Hex {
-  return `0x${selector}${padAddress(asset)}${padAddress(recipient)}${padUint256(amount)}` as Hex;
 }
 
 function padAddress(address: Hex): string {

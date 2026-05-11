@@ -53,7 +53,7 @@ import {
 } from '../../utils/token';
 import { isPredictWithdrawTransaction } from '../../utils/transaction';
 import { TOKEN_TRANSFER_FOUR_BYTE } from './constants';
-import { buildPolymarketDepositWalletQuoteBody } from './polymarket/quotes';
+import { applyPolymarketDepositWalletOverrides } from './polymarket/quotes';
 import { fetchRelayQuote } from './relay-api';
 import { getRelayMaxGasStationQuote } from './relay-max-gas-station';
 import type {
@@ -237,22 +237,24 @@ async function getSingleQuote(
       isRelayExecuteEnabled(messenger) &&
       isEIP7702Chain(messenger, sourceChainId);
 
-    const body: RelayQuoteRequest = request.isPolymarketDepositWallet
-      ? buildPolymarketDepositWalletQuoteBody(request, messenger)
-      : {
-          amount: useExactInput ? sourceTokenAmount : targetAmountMinimum,
-          destinationChainId: Number(targetChainId),
-          destinationCurrency: targetTokenAddress,
-          originChainId: Number(sourceChainId),
-          originCurrency: sourceTokenAddress,
-          ...(useExecute
-            ? { originGasOverhead: getRelayOriginGasOverhead(messenger) }
-            : {}),
-          recipient: from,
-          slippageTolerance,
-          tradeType: useExactInput ? 'EXACT_INPUT' : 'EXPECTED_OUTPUT',
-          user: from,
-        };
+    const body: RelayQuoteRequest = {
+      amount: useExactInput ? sourceTokenAmount : targetAmountMinimum,
+      destinationChainId: Number(targetChainId),
+      destinationCurrency: targetTokenAddress,
+      originChainId: Number(sourceChainId),
+      originCurrency: sourceTokenAddress,
+      ...(useExecute
+        ? { originGasOverhead: getRelayOriginGasOverhead(messenger) }
+        : {}),
+      recipient: from,
+      slippageTolerance,
+      tradeType: useExactInput ? 'EXACT_INPUT' : 'EXPECTED_OUTPUT',
+      user: from,
+    };
+
+    if (request.isPolymarketDepositWallet) {
+      applyPolymarketDepositWalletOverrides(body, request);
+    }
 
     // Skip transaction processing for post-quote flows - the original transaction
     // will be included in the batch separately, not as part of the quote.
