@@ -54,6 +54,7 @@
   },
   "dependencies": {
     "@metamask/account-api": "^1.0.4",
+    "@metamask/account-tree-controller": "^7.3.0",
     "@metamask/eth-snap-keyring": "^22.0.1",
     "@metamask/keyring-controller": "^25.5.0",
     "@metamask/messenger": "^1.2.0",
