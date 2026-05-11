@@ -234,8 +234,7 @@ async function getSingleQuote(
     const useExecute =
       supports7702 &&
       isRelayExecuteEnabled(messenger) &&
-      isEIP7702Chain(messenger, sourceChainId) &&
-      !request.isPolymarketDepositWallet;
+      isEIP7702Chain(messenger, sourceChainId);
 
     const body: RelayQuoteRequest = {
       amount: useExactInput ? sourceTokenAmount : targetAmountMinimum,
@@ -644,10 +643,8 @@ async function calculateSourceNetworkCost(
 
   // HyperLiquid withdrawals are gasless -- the "deposit" step is an HL
   // sendAsset (off-chain signature), not an on-chain transaction.
-  // Polymarket deposit-wallet transactions are gasless -- submitted via the
-  // Polymarket gasless relayer, so the user pays no source-chain gas.
-  if (request.isHyperliquidSource || request.isPolymarketDepositWallet) {
-    log('Zeroing network fees for gasless source submission');
+  if (request.isHyperliquidSource) {
+    log('Zeroing network fees for HyperLiquid withdrawal (gasless)');
 
     const zeroAmount = { fiat: '0', human: '0', raw: '0', usd: '0' };
 

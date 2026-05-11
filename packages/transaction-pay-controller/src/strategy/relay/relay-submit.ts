@@ -37,7 +37,6 @@ import {
   RELAY_PENDING_STATUSES,
 } from './constants';
 import { submitHyperliquidWithdraw } from './hyperliquid-withdraw';
-import { submitViaPolymarketRelayer } from './submit-polymarket-relayer';
 import { getRelayStatus, submitRelayExecute } from './relay-api';
 import type {
   RelayExecuteRequest,
@@ -91,15 +90,6 @@ async function executeSingleQuote(
 ): Promise<{ transactionHash?: Hex }> {
   log('Executing single quote', quote);
 
-  if (
-    quote.request.isHyperliquidSource &&
-    quote.request.isPolymarketDepositWallet
-  ) {
-    throw new Error(
-      'Cannot set both isHyperliquidSource and isPolymarketDepositWallet on the same quote',
-    );
-  }
-
   updateTransaction(
     {
       transactionId: transaction.id,
@@ -113,26 +103,6 @@ async function executeSingleQuote(
 
   if (quote.request.isHyperliquidSource) {
     await submitHyperliquidWithdraw(quote, quote.request.from, messenger);
-  } else if (quote.request.isPolymarketDepositWallet) {
-    await submitViaPolymarketRelayer(
-      quote,
-      quote.request.from,
-      messenger,
-      (sourceHash) => {
-        log('Source hash received from Polymarket relayer', sourceHash);
-        updateTransaction(
-          {
-            transactionId: transaction.id,
-            messenger,
-            note: 'Add source hash from Polymarket relayer submission',
-          },
-          (tx) => {
-            tx.metamaskPay ??= {};
-            tx.metamaskPay.sourceHash = sourceHash;
-          },
-        );
-      },
-    );
   } else {
     await submitTransactions(quote, transaction, messenger);
   }

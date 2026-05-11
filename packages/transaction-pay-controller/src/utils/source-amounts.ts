@@ -45,12 +45,12 @@ export function updateSourceAmounts(
   // For post-quote flows, source amounts are calculated differently
   // The source is the transaction's required token, not the selected token
   if (isPostQuote) {
-    const { isHyperliquidSource, isPolymarketDepositWallet } = transactionData;
+    const { isHyperliquidSource } = transactionData;
     const sourceAmounts = calculatePostQuoteSourceAmounts(
       tokens,
       paymentToken,
       isMaxAmount ?? false,
-      Boolean(isHyperliquidSource) || Boolean(isPolymarketDepositWallet),
+      isHyperliquidSource,
     );
     log('Updated post-quote source amounts', { transactionId, sourceAmounts });
     transactionData.sourceAmounts = sourceAmounts;
