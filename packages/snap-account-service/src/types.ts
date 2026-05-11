@@ -1,4 +1,5 @@
 import type { AccountGroupId } from '@metamask/account-api';
+import { AccountId } from '@metamask/keyring-utils';
 
 /*
  * NOTE: The types below intentionally duplicate definitions from
@@ -24,7 +25,7 @@ import type { AccountGroupId } from '@metamask/account-api';
  * narrow. See the note above.
  */
 export type AccountGroupObject = {
-  accounts: string[];
+  accounts: AccountId[];
 };
 
 /**
