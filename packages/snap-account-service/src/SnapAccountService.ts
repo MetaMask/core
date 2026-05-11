@@ -1,3 +1,4 @@
+import type { SnapKeyring as LegacySnapKeyring } from '@metamask/eth-snap-keyring';
 import type {
   SnapKeyring as LegacySnapKeyring,
   SnapMessage,

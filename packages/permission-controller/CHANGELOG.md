@@ -7,9 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [13.1.1]
+
 ### Changed
 
 - Bump `@metamask/json-rpc-engine` from `^10.3.0` to `^10.5.0` ([#8746](https://github.com/MetaMask/core/pull/8746), [#8753](https://github.com/MetaMask/core/pull/8753))
+- Bump `@metamask/controller-utils` from `^11.20.0` to `^12.0.0` ([#8755](https://github.com/MetaMask/core/pull/8755))
 
 ## [13.1.0]
 
@@ -491,7 +494,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/permission-controller@13.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/permission-controller@13.1.1...HEAD
+[13.1.1]: https://github.com/MetaMask/core/compare/@metamask/permission-controller@13.1.0...@metamask/permission-controller@13.1.1
 [13.1.0]: https://github.com/MetaMask/core/compare/@metamask/permission-controller@13.0.0...@metamask/permission-controller@13.1.0
 [13.0.0]: https://github.com/MetaMask/core/compare/@metamask/permission-controller@12.3.0...@metamask/permission-controller@13.0.0
 [12.3.0]: https://github.com/MetaMask/core/compare/@metamask/permission-controller@12.2.1...@metamask/permission-controller@12.3.0
