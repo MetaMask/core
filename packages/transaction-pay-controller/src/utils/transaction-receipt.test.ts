@@ -97,6 +97,7 @@ describe('getTransferredAmountFromTxHash', () => {
   describe('ERC-20 token', () => {
     it('decodes transfer amount from tx.data', async () => {
       mockGetTransaction.mockResolvedValue({
+        to: ERC20_ADDRESS_MOCK,
         data: buildTransferCallData(WALLET_ADDRESS_MOCK, '5000000'),
         value: { toString: () => '0' },
       });
@@ -172,8 +173,26 @@ describe('getTransferredAmountFromTxHash', () => {
       expect(result).toBeUndefined();
     });
 
+    it('returns undefined when tx.to does not match tokenAddress', async () => {
+      mockGetTransaction.mockResolvedValue({
+        to: '0x3333333333333333333333333333333333333333',
+        data: buildTransferCallData(WALLET_ADDRESS_MOCK, '5000000'),
+        value: { toString: () => '0' },
+      });
+
+      const result = await getTransferredAmountFromTxHash({
+        messenger,
+        txHash: TX_HASH_MOCK,
+        chainId: CHAIN_ID_MOCK,
+        tokenAddress: ERC20_ADDRESS_MOCK,
+      });
+
+      expect(result).toBeUndefined();
+    });
+
     it('returns undefined when ERC-20 transfer amount is zero', async () => {
       mockGetTransaction.mockResolvedValue({
+        to: ERC20_ADDRESS_MOCK,
         data: buildTransferCallData(WALLET_ADDRESS_MOCK, '0'),
         value: { toString: () => '0' },
       });

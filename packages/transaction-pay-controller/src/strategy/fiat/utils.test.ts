@@ -267,6 +267,7 @@ describe('Fiat Utils', () => {
 
     it('returns on-chain amount when txHash is present and read succeeds', async () => {
       mockGetTransaction.mockResolvedValue({
+        to: ERC20_ADDRESS_MOCK,
         data: buildTransferCallData(WALLET_ADDRESS_MOCK, '7000000'),
         value: { toString: () => '0' },
       });

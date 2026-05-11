@@ -62,6 +62,10 @@ export async function getTransferredAmountFromTxHash({
     return positiveOrUndefined(tx.value.toString());
   }
 
+  if (tx.to?.toLowerCase() !== tokenAddress.toLowerCase()) {
+    return undefined;
+  }
+
   if (!tx.data?.startsWith(ERC20_TRANSFER_SELECTOR)) {
     return undefined;
   }
