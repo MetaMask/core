@@ -202,6 +202,14 @@ const SUB_OPTS: OHLCVSubscriptionOptions = {
 const EXPECTED_CHANNEL =
   'market-data.v1.eip155:8453/erc20:0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913.1m.usd';
 
+const BASE_CONNECTION_INFO = {
+  url: 'ws://test',
+  timeout: 10000,
+  reconnectDelay: 500,
+  maxReconnectDelay: 5000,
+  requestTimeout: 30000,
+};
+
 // =============================================================================
 // Tests
 // =============================================================================
@@ -485,6 +493,7 @@ describe('OHLCVService', () => {
         rootMessenger.publish(
           'BackendWebSocketService:connectionStateChanged',
           {
+            ...BASE_CONNECTION_INFO,
             state: WebSocketState.CONNECTED,
             connectedAt: Date.now(),
             reconnectAttempts: 0,
@@ -509,6 +518,7 @@ describe('OHLCVService', () => {
         rootMessenger.publish(
           'BackendWebSocketService:connectionStateChanged',
           {
+            ...BASE_CONNECTION_INFO,
             state: WebSocketState.CONNECTED,
             connectedAt: Date.now(),
             reconnectAttempts: 0,
@@ -517,6 +527,65 @@ describe('OHLCVService', () => {
         await completeAsyncOperations();
 
         expect(mocks.subscribe).not.toHaveBeenCalled();
+      });
+    });
+
+    it('should skip channels with refCount 0 and no grace period during resubscribe', async () => {
+      await withService(async ({ service, mocks, rootMessenger }) => {
+        await service.subscribe(SUB_OPTS);
+        await service.unsubscribe(SUB_OPTS);
+
+        jest.advanceTimersByTime(3_000);
+        await completeAsyncOperations();
+
+        mocks.subscribe.mockClear();
+        mocks.channelHasSubscription.mockReturnValue(false);
+
+        rootMessenger.publish(
+          'BackendWebSocketService:connectionStateChanged',
+          {
+            ...BASE_CONNECTION_INFO,
+            state: WebSocketState.CONNECTED,
+            connectedAt: Date.now(),
+            reconnectAttempts: 0,
+          },
+        );
+        await completeAsyncOperations();
+
+        expect(mocks.subscribe).not.toHaveBeenCalled();
+      });
+    });
+
+    it('should deliver bar updates via resubscribed channel callback', async () => {
+      await withService(async ({ service, mocks, messenger, rootMessenger }) => {
+        await service.subscribe(SUB_OPTS);
+        mocks.subscribe.mockClear();
+        mocks.channelHasSubscription.mockReturnValue(false);
+
+        rootMessenger.publish(
+          'BackendWebSocketService:connectionStateChanged',
+          {
+            ...BASE_CONNECTION_INFO,
+            state: WebSocketState.CONNECTED,
+            connectedAt: Date.now(),
+            reconnectAttempts: 0,
+          },
+        );
+        await completeAsyncOperations();
+
+        const resubscribeCallback = mocks.subscribe.mock.calls[0][0].callback;
+        const barListener = jest.fn();
+        messenger.subscribe('OHLCVService:barUpdated', barListener);
+
+        resubscribeCallback({
+          data: { timestamp: 100, open: 1, high: 2, low: 0.5, close: 1.5, volume: 999 },
+          timestamp: Date.now(),
+        });
+
+        expect(barListener).toHaveBeenCalledWith({
+          channel: EXPECTED_CHANNEL,
+          bar: { timestamp: 100, open: 1, high: 2, low: 0.5, close: 1.5, volume: 999 },
+        });
       });
     });
 
@@ -539,8 +608,9 @@ describe('OHLCVService', () => {
         rootMessenger.publish(
           'BackendWebSocketService:connectionStateChanged',
           {
+            ...BASE_CONNECTION_INFO,
             state: WebSocketState.DISCONNECTED,
-            connectedAt: null,
+            connectedAt: undefined,
             reconnectAttempts: 0,
           },
         );
@@ -658,6 +728,7 @@ describe('OHLCVService', () => {
         rootMessenger.publish(
           'BackendWebSocketService:connectionStateChanged',
           {
+            ...BASE_CONNECTION_INFO,
             state: WebSocketState.CONNECTED,
             connectedAt: Date.now(),
             reconnectAttempts: 1,
