@@ -855,11 +855,13 @@ export class PhishingController extends BaseController<
   }
 
   #getTransactionFromPatchValue(value: unknown): TransactionMeta | undefined {
+    const transaction = value as Partial<TransactionMeta>;
+
     if (
       value &&
       typeof value === 'object' &&
-      'id' in value &&
-      'txParams' in value
+      typeof transaction.id === 'string' &&
+      transaction.txParams !== undefined
     ) {
       return value as TransactionMeta;
     }
@@ -906,7 +908,7 @@ export class PhishingController extends BaseController<
     this.#transactionRecipientsByTransactionId.delete(transactionId);
 
     for (const address of recipients) {
-      const count = this.#transactionRecipientCounts.get(address)!;
+      const count = this.#transactionRecipientCounts.get(address) as number;
 
       if (count <= 1) {
         this.#transactionRecipientCounts.delete(address);
@@ -1257,17 +1259,18 @@ export class PhishingController extends BaseController<
         recommendedAction: RecommendedAction.None,
         fetchError: 'timeout of 8000ms exceeded',
       };
-    } else if ('error' in apiResponse) {
+    } else if ((apiResponse as { error?: string }).error) {
       return {
         hostname: '',
         recommendedAction: RecommendedAction.None,
-        fetchError: apiResponse.error,
+        fetchError: (apiResponse as { error: string }).error,
       };
     }
 
+    const scanResult = apiResponse as PhishingDetectionScanResult;
     const result = {
       hostname,
-      recommendedAction: apiResponse.recommendedAction,
+      recommendedAction: scanResult.recommendedAction,
     };
 
     this.#urlScanCache.set(hostname, result);
@@ -1428,14 +1431,13 @@ export class PhishingController extends BaseController<
       return null;
     }
 
-    if (
-      'error' in apiResponse &&
-      'status' in apiResponse &&
-      'statusText' in apiResponse
-    ) {
-      console.warn(
-        `Token bulk screening API error: ${apiResponse.status} ${apiResponse.statusText}`,
-      );
+    if ((apiResponse as { error?: string }).error) {
+      const { status, statusText } = apiResponse as {
+        status: number;
+        statusText: string;
+      };
+
+      console.warn(`Token bulk screening API error: ${status} ${statusText}`);
       return null;
     }
 
@@ -1513,23 +1515,24 @@ export class PhishingController extends BaseController<
         result_type: AddressScanResultType.ErrorResult,
         label: '',
       };
-    } else if ('error' in apiResponse) {
+    } else if ((apiResponse as { error?: string }).error) {
       return {
         result_type: AddressScanResultType.ErrorResult,
         label: '',
       };
     }
 
+    const scanResult = apiResponse as AddressScanResult;
     const result: AddressScanCacheData = {
-      result_type: apiResponse.result_type,
-      label: apiResponse.label,
+      result_type: scanResult.result_type,
+      label: scanResult.label,
     };
 
     this.#addressScanCache.set(cacheKey, result);
 
     return {
-      result_type: apiResponse.result_type,
-      label: apiResponse.label,
+      result_type: scanResult.result_type,
+      label: scanResult.label,
     };
   }
 
@@ -1582,15 +1585,18 @@ export class PhishingController extends BaseController<
       5000,
     );
 
+    if (!apiResponse) {
+      return { approvals: [] };
+    }
+
     if (
-      !apiResponse ||
-      'error' in apiResponse ||
-      !Array.isArray(apiResponse.approvals)
+      (apiResponse as { error?: string }).error ||
+      !Array.isArray((apiResponse as Partial<ApprovalsResponse>).approvals)
     ) {
       return { approvals: [] };
     }
 
-    return apiResponse;
+    return apiResponse as ApprovalsResponse;
   };
 
   /**
@@ -1733,15 +1739,16 @@ export class PhishingController extends BaseController<
     }
 
     // Handle HTTP error responses
-    if (
-      'error' in apiResponse &&
-      'status' in apiResponse &&
-      'statusText' in apiResponse
-    ) {
+    if ((apiResponse as { error?: string }).error) {
+      const { status, statusText } = apiResponse as {
+        status: number;
+        statusText: string;
+      };
+
       return {
         results: {},
         errors: {
-          api_error: [`${apiResponse.status} ${apiResponse.statusText}`],
+          api_error: [`${status} ${statusText}`],
         },
       };
     }

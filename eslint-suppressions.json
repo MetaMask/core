@@ -1643,9 +1643,6 @@
     },
     "@typescript-eslint/prefer-nullish-coalescing": {
       "count": 6
-    },
-    "no-restricted-syntax": {
-      "count": 10
     }
   },
   "packages/phishing-controller/src/PhishingDetector.test.ts": {
