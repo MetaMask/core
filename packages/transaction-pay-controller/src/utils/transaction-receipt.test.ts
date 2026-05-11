@@ -127,6 +127,7 @@ describe('getTransferredAmountFromTxHash', () => {
 
     it('returns undefined when tx.data is missing', async () => {
       mockGetTransaction.mockResolvedValue({
+        to: ERC20_ADDRESS_MOCK,
         data: undefined,
         value: { toString: () => '0' },
       });
@@ -143,6 +144,7 @@ describe('getTransferredAmountFromTxHash', () => {
 
     it('returns undefined when tx.data has non-transfer selector', async () => {
       mockGetTransaction.mockResolvedValue({
+        to: ERC20_ADDRESS_MOCK,
         data: `0x095ea7b3${'0'.repeat(128)}`,
         value: { toString: () => '0' },
       });
@@ -159,6 +161,7 @@ describe('getTransferredAmountFromTxHash', () => {
 
     it('returns undefined when tx.data is too short', async () => {
       mockGetTransaction.mockResolvedValue({
+        to: ERC20_ADDRESS_MOCK,
         data: '0xa9059c',
         value: { toString: () => '0' },
       });

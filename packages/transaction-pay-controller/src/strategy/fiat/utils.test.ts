@@ -329,6 +329,25 @@ describe('Fiat Utils', () => {
 
       expect(result).toBe('2000000000000000000');
     });
+
+    it('throws when token info cannot be resolved for fallback', async () => {
+      getTokensControllerStateMock.mockReturnValue({
+        allTokens: {},
+        allTokensStale: {},
+        allIgnoredTokens: {},
+        allDetectedTokens: {},
+      } as never);
+
+      await expect(
+        resolveSourceAmountRaw({
+          messenger,
+          order: getOrderMock({ txHash: '' }),
+          fiatAsset: ERC20_FIAT_ASSET_MOCK,
+        }),
+      ).rejects.toThrow(
+        `Unable to resolve token info for fiat asset ${ERC20_ADDRESS_MOCK} on chain ${CHAIN_ID_MOCK}`,
+      );
+    });
   });
 
   describe('getRawSourceAmountFromOrderCryptoAmount', () => {
