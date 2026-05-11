@@ -213,7 +213,6 @@ export class OHLCVService {
    */
   async subscribe(options: OHLCVSubscriptionOptions): Promise<void> {
     const channel = this.#buildChannel(options);
-    log('OHLCV-WS: Subscribe requested', { channel });
     const entry = this.#channels.get(channel);
 
     if (entry?.gracePeriodTimer) {
@@ -229,11 +228,21 @@ export class OHLCVService {
 
     if (entry && entry.refCount > 0) {
       entry.refCount += 1;
-      log('OHLCV-WS: Incremented refCount for existing subscription', {
-        channel,
-        refCount: entry.refCount,
-      });
       return;
+    }
+
+    // Flush other channels sitting in grace period to free server-side slots
+    // and prevent accumulation when switching time ranges rapidly.
+    for (const [otherChannel, otherEntry] of this.#channels.entries()) {
+      if (otherChannel !== channel && otherEntry.gracePeriodTimer) {
+        clearTimeout(otherEntry.gracePeriodTimer);
+        otherEntry.gracePeriodTimer = undefined;
+        log('OHLCV-WS: Flushing grace-period channel before new subscribe', {
+          flushedChannel: otherChannel,
+          newChannel: channel,
+        });
+        await this.#performUnsubscribe(otherChannel);
+      }
     }
 
     try {
@@ -245,9 +254,12 @@ export class OHLCVService {
           channel,
         )
       ) {
-        log('OHLCV-WS: Channel already has WS subscription (idempotency), skipping', {
-          channel,
-        });
+        log(
+          'OHLCV-WS: Channel already has WS subscription (idempotency), skipping',
+          {
+            channel,
+          },
+        );
         this.#channels.set(channel, { refCount: 1 });
         return;
       }
@@ -261,9 +273,14 @@ export class OHLCVService {
       });
 
       this.#channels.set(channel, { refCount: 1 });
-      log('OHLCV-WS: Subscribe succeeded — new WS subscription created', { channel });
+      log('OHLCV-WS: Subscribe succeeded — new WS subscription created', {
+        channel,
+      });
     } catch (error) {
-      log('OHLCV-WS: Subscription failed, forcing reconnection', { channel, error });
+      log('OHLCV-WS: Subscription failed, forcing reconnection', {
+        channel,
+        error,
+      });
       this.#messenger.publish('OHLCVService:subscriptionError', {
         channel,
         error: String(error),
@@ -282,25 +299,18 @@ export class OHLCVService {
    */
   async unsubscribe(options: OHLCVSubscriptionOptions): Promise<void> {
     const channel = this.#buildChannel(options);
-    log('OHLCV-WS: Unsubscribe requested', { channel });
     const entry = this.#channels.get(channel);
 
     if (!entry || entry.refCount <= 0) {
-      log('OHLCV-WS: Unsubscribe no-op — channel not tracked or refCount 0', { channel });
       return;
     }
 
     entry.refCount -= 1;
 
     if (entry.refCount > 0) {
-      log('OHLCV-WS: Decremented refCount, still has consumers', {
-        channel,
-        refCount: entry.refCount,
-      });
       return;
     }
 
-    log('OHLCV-WS: refCount reached 0, starting grace period', { channel });
     entry.gracePeriodTimer = setTimeout(() => {
       // eslint-disable-next-line @typescript-eslint/no-floating-promises
       this.#performUnsubscribe(channel);
@@ -312,7 +322,9 @@ export class OHLCVService {
   // =============================================================================
 
   async #performUnsubscribe(channel: string): Promise<void> {
-    log('OHLCV-WS: Grace period expired — performing actual WS unsubscribe', { channel });
+    log('OHLCV-WS: Grace period expired — performing actual WS unsubscribe', {
+      channel,
+    });
     this.#channels.delete(channel);
 
     try {
@@ -326,7 +338,10 @@ export class OHLCVService {
       }
       log('OHLCV-WS: WS unsubscribe completed', { channel });
     } catch (error) {
-      log('OHLCV-WS: Unsubscription failed, forcing reconnection', { channel, error });
+      log('OHLCV-WS: Unsubscription failed, forcing reconnection', {
+        channel,
+        error,
+      });
       this.#messenger.publish('OHLCVService:subscriptionError', {
         channel,
         error: String(error),
@@ -354,9 +369,12 @@ export class OHLCVService {
             channel,
           )
         ) {
-          log('OHLCV-WS: Channel already subscribed on server, skipping resubscribe', {
-            channel,
-          });
+          log(
+            'OHLCV-WS: Channel already subscribed on server, skipping resubscribe',
+            {
+              channel,
+            },
+          );
           continue;
         }
 
@@ -383,11 +401,6 @@ export class OHLCVService {
     notification: ServerNotificationMessage,
   ): void {
     const bar = notification.data as OHLCVBar;
-    log('OHLCV-WS: Bar update received', {
-      channel,
-      close: bar.close,
-      timestamp: bar.timestamp,
-    });
 
     // eslint-disable-next-line @typescript-eslint/no-floating-promises
     this.#trace(
@@ -438,7 +451,6 @@ export class OHLCVService {
     connectionInfo: WebSocketConnectionInfo,
   ): Promise<void> {
     const { state } = connectionInfo;
-    log('OHLCV-WS: WebSocket state changed', { state });
 
     if (state === WebSocketState.CONNECTED) {
       await this.#resubscribeActiveChannels();
@@ -452,10 +464,13 @@ export class OHLCVService {
           timestamp: Date.now(),
         });
 
-        log('OHLCV-WS: WebSocket disconnection — marked tracked chains as down', {
-          count: chainsToMarkDown.length,
-          chains: chainsToMarkDown,
-        });
+        log(
+          'OHLCV-WS: WebSocket disconnection — marked tracked chains as down',
+          {
+            count: chainsToMarkDown.length,
+            chains: chainsToMarkDown,
+          },
+        );
 
         this.#chainsUp.clear();
       }
@@ -483,9 +498,6 @@ export class OHLCVService {
    * Destroy the service and clean up all resources.
    */
   destroy(): void {
-    log('OHLCV-WS: Destroying — clearing all channels and timers', {
-      channelCount: this.#channels.size,
-    });
     for (const entry of this.#channels.values()) {
       if (entry.gracePeriodTimer) {
         clearTimeout(entry.gracePeriodTimer);
