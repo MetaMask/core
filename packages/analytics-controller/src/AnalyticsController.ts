@@ -308,6 +308,15 @@ export class AnalyticsController extends BaseController<
       Object.keys(event.sensitiveProperties).length > 0;
 
     if (!this.#isAnonymousEventsFeatureEnabled || hasSensitiveProperties) {
+      // Split events need distinct message IDs so analytics SDKs do not dedupe
+      // the anonymous counterpart.
+      const updatedOptions =
+        this.#isAnonymousEventsFeatureEnabled &&
+        hasSensitiveProperties &&
+        options?.messageId
+          ? { ...options, messageId: `${options.messageId}-0x000` }
+          : options;
+
       this.#platformAdapter.track(
         event.name,
         {
@@ -315,7 +324,7 @@ export class AnalyticsController extends BaseController<
           ...event.sensitiveProperties,
           ...(hasSensitiveProperties && { anonymous: true }),
         },
-        options,
+        updatedOptions,
       );
     }
   }

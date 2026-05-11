@@ -841,7 +841,7 @@ describe('AnalyticsController', () => {
         );
       });
 
-      it('forwards invocation options on each track when splitting sensitive events', async () => {
+      it('forwards invocation options with a derived messageId on the anonymous track when splitting sensitive events', async () => {
         const mockAdapter = createMockAdapter();
         const { controller } = await setupController({
           state: {
@@ -857,8 +857,10 @@ describe('AnalyticsController', () => {
           { prop: 'value' },
           { sensitive_prop: 'sensitive value' },
         );
+        const callback = jest.fn();
         const options: AnalyticsInvocationOptions = {
           messageId: 'c3c3c3c3-c3c3-43c3-8c3c-c3c3c3c3c3c3',
+          callback,
         };
         controller.trackEvent(event, options);
 
@@ -876,7 +878,10 @@ describe('AnalyticsController', () => {
             sensitive_prop: 'sensitive value',
             anonymous: true,
           },
-          options,
+          {
+            ...options,
+            messageId: `${options.messageId}-0x000`,
+          },
         );
       });
     });
