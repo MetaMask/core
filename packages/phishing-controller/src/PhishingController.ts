@@ -816,25 +816,19 @@ export class PhishingController extends BaseController<
 
       const transactionIndex = patch.path[1];
 
-      if (typeof transactionIndex !== 'number') {
+      if (transactionIndex === 'length') {
         this.#setKnownRecipientsFromTransactionState(state);
         return;
       }
 
       if (patch.op === 'remove') {
-        const removedTransaction = this.#getTransactionFromPatchValue(
-          patch.value,
-        );
+        this.#setKnownRecipientsFromTransactionState(state);
+        return;
+      }
 
-        if (!removedTransaction) {
-          this.#setKnownRecipientsFromTransactionState(state);
-          return;
-        }
-
-        recipientsChanged =
-          this.#removeTransactionRecipients(removedTransaction.id) ||
-          recipientsChanged;
-        continue;
+      if (typeof transactionIndex !== 'number') {
+        this.#setKnownRecipientsFromTransactionState(state);
+        return;
       }
 
       const transaction =

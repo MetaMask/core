@@ -4663,6 +4663,144 @@ describe('Address poisoning detection', () => {
     ]);
   });
 
+  it('updates transaction recipients when a confirmed transaction recipient changes', async () => {
+    const originalTransaction = createMockTransaction('confirmed-tx', [], {
+      status: TransactionStatus.confirmed,
+      txParams: {
+        from: TEST_ADDRESSES.FROM_ADDRESS,
+        to: ADDRESS_BOOK_RECIPIENT,
+        value: '0x0' as `0x${string}`,
+      },
+    });
+    const updatedTransaction = createMockTransaction('confirmed-tx', [], {
+      status: TransactionStatus.confirmed,
+      txParams: {
+        from: TEST_ADDRESSES.FROM_ADDRESS,
+        to: CONFIRMED_TX_RECIPIENT,
+        value: '0x0' as `0x${string}`,
+      },
+    });
+    const { messenger, rootMessenger } = setupMessenger({
+      transactionControllerState: {
+        ...getDefaultTransactionControllerState(),
+        transactions: [originalTransaction],
+      },
+    });
+
+    const controller = new PhishingController({
+      messenger,
+    });
+
+    expect(controller.checkAddressPoisoning(CANDIDATE_ADDRESS)).toHaveLength(1);
+
+    rootMessenger.publish(
+      'TransactionController:stateChange',
+      createMockStateChangePayload([updatedTransaction]),
+      [
+        {
+          op: 'replace' as const,
+          path: ['transactions', 0],
+          value: updatedTransaction,
+        },
+      ],
+    );
+
+    await new Promise((resolve) => process.nextTick(resolve));
+
+    expect(controller.checkAddressPoisoning(CANDIDATE_ADDRESS)).toStrictEqual(
+      [],
+    );
+    expect(
+      controller.checkAddressPoisoning(TX_CANDIDATE_ADDRESS),
+    ).toMatchObject([
+      {
+        knownAddress: CONFIRMED_TX_RECIPIENT,
+        prefixMatchLength: 4,
+        suffixMatchLength: 32,
+        poisoningScore: 36,
+      },
+    ]);
+  });
+
+  it('keeps duplicate transaction recipients when one matching transaction recipient changes', async () => {
+    const firstTransaction = createMockTransaction('confirmed-tx-1', [], {
+      status: TransactionStatus.confirmed,
+      txParams: {
+        from: TEST_ADDRESSES.FROM_ADDRESS,
+        to: ADDRESS_BOOK_RECIPIENT,
+        value: '0x0' as `0x${string}`,
+      },
+    });
+    const secondTransaction = createMockTransaction('confirmed-tx-2', [], {
+      status: TransactionStatus.confirmed,
+      txParams: {
+        from: TEST_ADDRESSES.FROM_ADDRESS,
+        to: ADDRESS_BOOK_RECIPIENT,
+        value: '0x0' as `0x${string}`,
+      },
+    });
+    const updatedFirstTransaction = createMockTransaction(
+      'confirmed-tx-1',
+      [],
+      {
+        status: TransactionStatus.confirmed,
+        txParams: {
+          from: TEST_ADDRESSES.FROM_ADDRESS,
+          to: CONFIRMED_TX_RECIPIENT,
+          value: '0x0' as `0x${string}`,
+        },
+      },
+    );
+    const { messenger, rootMessenger } = setupMessenger({
+      transactionControllerState: {
+        ...getDefaultTransactionControllerState(),
+        transactions: [firstTransaction, secondTransaction],
+      },
+    });
+
+    const controller = new PhishingController({
+      messenger,
+    });
+
+    expect(controller.checkAddressPoisoning(CANDIDATE_ADDRESS)).toHaveLength(1);
+
+    rootMessenger.publish(
+      'TransactionController:stateChange',
+      createMockStateChangePayload([
+        updatedFirstTransaction,
+        secondTransaction,
+      ]),
+      [
+        {
+          op: 'replace' as const,
+          path: ['transactions', 0],
+          value: updatedFirstTransaction,
+        },
+      ],
+    );
+
+    await new Promise((resolve) => process.nextTick(resolve));
+
+    expect(controller.checkAddressPoisoning(CANDIDATE_ADDRESS)).toMatchObject([
+      {
+        knownAddress: ADDRESS_BOOK_RECIPIENT,
+        prefixMatchLength: 4,
+        suffixMatchLength: 4,
+        poisoningScore: 8,
+      },
+    ]);
+    expect(
+      controller.checkAddressPoisoning(TX_CANDIDATE_ADDRESS),
+    ).toMatchObject([
+      {
+        knownAddress: CONFIRMED_TX_RECIPIENT,
+        prefixMatchLength: 4,
+        suffixMatchLength: 32,
+        poisoningScore: 36,
+      },
+    ]);
+  });
+
   it('ignores transaction state changes that do not include transaction patches', async () => {
     const { messenger, rootMessenger } = setupMessenger();
 
@@ -4795,13 +4933,7 @@ describe('Address poisoning detection', () => {
     );
   });
 
-  it('removes known recipients when confirmed transactions are removed', async () => {
-    const { messenger, rootMessenger } = setupMessenger();
-
-    const controller = new PhishingController({
-      messenger,
-    });
-
+  it('rebuilds known recipients when the transaction array length changes', async () => {
     const confirmedTransaction = createMockTransaction('confirmed-tx', [], {
       status: TransactionStatus.confirmed,
       txParams: {
@@ -4810,20 +4942,16 @@ describe('Address poisoning detection', () => {
         value: '0x0' as `0x${string}`,
       },
     });
+    const { messenger, rootMessenger } = setupMessenger({
+      transactionControllerState: {
+        ...getDefaultTransactionControllerState(),
+        transactions: [confirmedTransaction],
+      },
+    });
 
-    rootMessenger.publish(
-      'TransactionController:stateChange',
-      createMockStateChangePayload([confirmedTransaction]),
-      [
-        {
-          op: 'add' as const,
-          path: ['transactions', 0],
-          value: confirmedTransaction,
-        },
-      ],
-    );
-
-    await new Promise((resolve) => process.nextTick(resolve));
+    const controller = new PhishingController({
+      messenger,
+    });
 
     expect(controller.checkAddressPoisoning(CANDIDATE_ADDRESS)).toHaveLength(1);
 
@@ -4832,9 +4960,9 @@ describe('Address poisoning detection', () => {
       createMockStateChangePayload([]),
       [
         {
-          op: 'remove' as const,
-          path: ['transactions', 0],
-          value: confirmedTransaction,
+          op: 'replace' as const,
+          path: ['transactions', 'length'],
+          value: 0,
         },
       ],
     );
@@ -4846,7 +4974,7 @@ describe('Address poisoning detection', () => {
     );
   });
 
-  it('keeps duplicate transaction recipients until all matching transactions are removed', async () => {
+  it('rebuilds duplicate transaction recipients when transactions are removed', async () => {
     const firstTransaction = createMockTransaction('confirmed-tx-1', [], {
       status: TransactionStatus.confirmed,
       txParams: {
@@ -4874,6 +5002,8 @@ describe('Address poisoning detection', () => {
       messenger,
     });
 
+    expect(controller.checkAddressPoisoning(CANDIDATE_ADDRESS)).toHaveLength(1);
+
     rootMessenger.publish(
       'TransactionController:stateChange',
       createMockStateChangePayload([secondTransaction]),
@@ -4881,14 +5011,20 @@ describe('Address poisoning detection', () => {
         {
           op: 'remove' as const,
           path: ['transactions', 0],
-          value: firstTransaction,
         },
       ],
     );
 
     await new Promise((resolve) => process.nextTick(resolve));
 
-    expect(controller.checkAddressPoisoning(CANDIDATE_ADDRESS)).toHaveLength(1);
+    expect(controller.checkAddressPoisoning(CANDIDATE_ADDRESS)).toMatchObject([
+      {
+        knownAddress: ADDRESS_BOOK_RECIPIENT,
+        prefixMatchLength: 4,
+        suffixMatchLength: 4,
+        poisoningScore: 8,
+      },
+    ]);
   });
 
   it('logs when transaction state hydration fails', () => {
