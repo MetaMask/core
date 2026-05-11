@@ -322,11 +322,7 @@ export class OHLCVService {
    * Called when WebSocket transitions to CONNECTED.
    */
   async #resubscribeActiveChannels(): Promise<void> {
-    for (const [channel, entry] of this.#channels.entries()) {
-      if (entry.refCount <= 0 && !entry.gracePeriodTimer) {
-        continue;
-      }
-
+    for (const [channel] of this.#channels.entries()) {
       try {
         if (
           this.#messenger.call(
