@@ -1,15 +1,9 @@
 import type { Hex } from '@metamask/utils';
 
-// Bridge API base URLs
 export const POLYMARKET_BRIDGE_BASE_URL_PROD = 'https://bridge.polymarket.com';
-export const POLYMARKET_BRIDGE_BASE_URL_PREPROD =
-  'https://bridge-preprod.polymarket.com';
 
-// Relayer API base URLs
 export const POLYMARKET_RELAYER_BASE_URL_PROD =
   'https://relayer-v2.polymarket.com';
-export const POLYMARKET_RELAYER_BASE_URL_PREPROD =
-  'https://relayer-v2-preprod-int.polymarket.com';
 
 // On-chain addresses (Polygon)
 export const DEPOSIT_WALLET_FACTORY_ADDRESS_POLYGON =

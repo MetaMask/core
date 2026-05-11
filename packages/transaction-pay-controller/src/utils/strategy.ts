@@ -10,26 +10,11 @@ import type {
   PayStrategyCheckQuoteSupportRequest,
   PayStrategyGetQuotesRequest,
 } from '../types';
-import type { PolymarketBridgeStrategyOptions } from '../strategy/polymarket-bridge/types';
 
 export type NamedStrategy = {
   name: TransactionPayStrategy;
   strategy: PayStrategy<unknown>;
 };
-
-let polymarketBridgeOptions: PolymarketBridgeStrategyOptions | undefined;
-
-/**
- * Set the Polymarket Bridge strategy options.
- * Called by the controller constructor when the consumer provides credentials.
- *
- * @param options - The Polymarket Bridge strategy options, or undefined to clear.
- */
-export function setPolymarketBridgeOptions(
-  options: PolymarketBridgeStrategyOptions | undefined,
-): void {
-  polymarketBridgeOptions = options;
-}
 
 /**
  * Get strategy instance by name.
@@ -54,12 +39,7 @@ export function getStrategyByName(
       return new FiatStrategy() as never;
 
     case TransactionPayStrategy.PolymarketBridge:
-      if (!polymarketBridgeOptions) {
-        throw new Error(
-          'PolymarketBridgeStrategy requires polymarketBridgeOptions on the controller',
-        );
-      }
-      return new PolymarketBridgeStrategy(polymarketBridgeOptions) as never;
+      return new PolymarketBridgeStrategy() as never;
 
     case TransactionPayStrategy.Test:
       return new TestStrategy() as never;

@@ -9,18 +9,16 @@ import type {
   PayStrategyGetBatchRequest,
   PayStrategyGetQuotesRequest,
   PayStrategyGetRefreshIntervalRequest,
+  TransactionPayControllerMessenger,
   TransactionPayQuote,
 } from '../../types';
+import { getPolymarketRelayerUrl } from '../../utils/feature-flags';
 import { updateTransaction } from '../../utils/transaction';
 import { PolymarketBridgeApi } from './bridge-api';
 import { PUSD_ADDRESS_POLYGON, PUSD_DECIMALS } from './constants';
 import { extractPolymarketWithdrawIntent } from './intent';
 import { PolymarketRelayerApi } from './relayer-api';
-import type { RelayerCredentials } from './relayer-api';
-import type {
-  PolymarketBridgeQuote,
-  PolymarketBridgeStrategyOptions,
-} from './types';
+import type { PolymarketBridgeQuote } from './types';
 import { submitPolymarketBridgeWithdraw } from './withdraw';
 
 const log = createModuleLogger(projectLogger, 'polymarket-bridge-strategy');
@@ -30,27 +28,12 @@ const REFRESH_INTERVAL_MS = 25_000;
 export class PolymarketBridgeStrategy
   implements PayStrategy<PolymarketBridgeQuote>
 {
-  readonly #bridgeApi: PolymarketBridgeApi;
+  readonly #bridgeApi: PolymarketBridgeApi = new PolymarketBridgeApi();
 
-  readonly #relayerApi: PolymarketRelayerApi;
-
-  constructor(options: PolymarketBridgeStrategyOptions) {
-    this.#bridgeApi = new PolymarketBridgeApi(options.environment);
-
-    const creds: RelayerCredentials =
-      options.authType === 'relayer-api-key'
-        ? {
-            type: 'relayer-api-key',
-            apiKey: options.relayerApiKey,
-          }
-        : {
-            type: 'builder',
-            apiKey: options.builderApiKey,
-            secret: options.builderSecret,
-            passphrase: options.builderPassphrase ?? '',
-          };
-
-    this.#relayerApi = new PolymarketRelayerApi(options.environment, creds);
+  #buildRelayerApi(
+    messenger: TransactionPayControllerMessenger,
+  ): PolymarketRelayerApi {
+    return new PolymarketRelayerApi(getPolymarketRelayerUrl(messenger));
   }
 
   supports(_request: PayStrategyGetQuotesRequest): boolean {
@@ -149,7 +132,7 @@ export class PolymarketBridgeStrategy
       intent.depositWalletAddress,
       depositAddress,
       request.messenger,
-      this.#relayerApi,
+      this.#buildRelayerApi(request.messenger),
     );
 
     log('Relayer confirmed, setting sourceHash', {

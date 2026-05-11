@@ -117,21 +117,4 @@ export type PolymarketRelayerState =
   | 'STATE_INVALID'
   | 'STATE_FAILED';
 
-export type PolymarketBridgeRelayerApiKeyAuth = {
-  authType: 'relayer-api-key';
-  environment: 'prod' | 'preprod';
-  relayerApiKey: string;
-  relayerApiKeyAddress: string;
-};
 
-export type PolymarketBridgeBuilderAuth = {
-  authType: 'builder';
-  environment: 'prod' | 'preprod';
-  builderApiKey: string;
-  builderSecret: string;
-  builderPassphrase?: string;
-};
-
-export type PolymarketBridgeStrategyOptions =
-  | PolymarketBridgeRelayerApiKeyAuth
-  | PolymarketBridgeBuilderAuth;

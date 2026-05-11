@@ -10,6 +10,7 @@ import {
   ETH_MAINNET_FIAT_ASSET,
   FIAT_ASSET_ID_BY_TX_TYPE,
 } from '../strategy/fiat/constants';
+import { POLYMARKET_RELAYER_BASE_URL_PROD } from '../strategy/polymarket-bridge/constants';
 import {
   RELAY_EXECUTE_URL,
   RELAY_POLLING_INTERVAL,
@@ -27,6 +28,7 @@ export const DEFAULT_FALLBACK_GAS_MAX = 1500000;
 export const DEFAULT_RELAY_EXECUTE_URL = RELAY_EXECUTE_URL;
 export const DEFAULT_RELAY_QUOTE_URL = RELAY_QUOTE_URL;
 export const DEFAULT_RELAY_ORIGIN_GAS_OVERHEAD = '300000';
+export const DEFAULT_POLYMARKET_RELAYER_URL = POLYMARKET_RELAYER_BASE_URL_PROD;
 export const DEFAULT_SLIPPAGE = 0.005;
 export const DEFAULT_ACROSS_API_BASE = 'https://app.across.to/api';
 export const DEFAULT_STRATEGY_ORDER: StrategyOrder = [
@@ -45,6 +47,7 @@ type FeatureFlagsRaw = {
       }
     >;
   };
+  polymarketRelayerUrl?: string;
   relayDisabledGasStationChains?: Hex[];
   relayExecuteUrl?: string;
   relayFallbackGas?: {
@@ -556,6 +559,26 @@ export function getRelayPollingTimeout(
       | FeatureFlagsRaw
       | undefined) ?? {};
   return featureFlags.payStrategies?.relay?.pollingTimeout;
+}
+
+/**
+ * Get the Polymarket relayer base URL.
+ *
+ * Allows the URL to be overridden remotely so the proxy that injects
+ * Polymarket relayer credentials can be swapped without a controller release.
+ *
+ * @param messenger - Controller messenger.
+ * @returns Polymarket relayer base URL.
+ */
+export function getPolymarketRelayerUrl(
+  messenger: TransactionPayControllerMessenger,
+): string {
+  const state = messenger.call('RemoteFeatureFlagController:getState');
+  const featureFlags =
+    (state.remoteFeatureFlags?.confirmations_pay as
+      | FeatureFlagsRaw
+      | undefined) ?? {};
+  return featureFlags.polymarketRelayerUrl ?? DEFAULT_POLYMARKET_RELAYER_URL;
 }
 
 /**

@@ -2,10 +2,7 @@ import type { Hex } from '@metamask/utils';
 import { createModuleLogger } from '@metamask/utils';
 
 import { projectLogger } from '../../logger';
-import {
-  POLYMARKET_BRIDGE_BASE_URL_PROD,
-  POLYMARKET_BRIDGE_BASE_URL_PREPROD,
-} from './constants';
+import { POLYMARKET_BRIDGE_BASE_URL_PROD } from './constants';
 import type {
   PolymarketBridgeFeeBreakdown,
   PolymarketBridgeQuote,
@@ -84,19 +81,7 @@ type BridgeStatusResponse = {
  * and poll for bridge transaction status.
  */
 export class PolymarketBridgeApi {
-  readonly #baseUrl: string;
-
-  /**
-   * Creates a new PolymarketBridgeApi instance.
-   *
-   * @param environment - The API environment to use ('prod' or 'preprod').
-   */
-  constructor(environment: 'prod' | 'preprod') {
-    this.#baseUrl =
-      environment === 'prod'
-        ? POLYMARKET_BRIDGE_BASE_URL_PROD
-        : POLYMARKET_BRIDGE_BASE_URL_PREPROD;
-  }
+  readonly #baseUrl: string = POLYMARKET_BRIDGE_BASE_URL_PROD;
 
   /**
    * Fetch a bridge quote for a cross-chain transfer.

@@ -1,15 +1,8 @@
-// eslint-disable-next-line import-x/no-nodejs-modules
-import { createHmac } from 'crypto';
-
 import { successfulFetch } from '@metamask/controller-utils';
 import { createModuleLogger } from '@metamask/utils';
 
 import { projectLogger } from '../../logger';
-import {
-  POLYMARKET_RELAYER_BASE_URL_PREPROD,
-  POLYMARKET_RELAYER_BASE_URL_PROD,
-  RELAYER_TERMINAL_STATES,
-} from './constants';
+import { RELAYER_TERMINAL_STATES } from './constants';
 import type {
   PolymarketBridgeRelayerStatusResponse,
   PolymarketBridgeRelayerSubmitRequest,
@@ -35,31 +28,11 @@ export class PolymarketRelayerError extends Error {
   }
 }
 
-export type RelayerApiKeyCredentials = {
-  type: 'relayer-api-key';
-  apiKey: string;
-};
-
-export type BuilderCredentials = {
-  type: 'builder';
-  apiKey: string;
-  secret: string;
-  passphrase: string;
-};
-
-export type RelayerCredentials = RelayerApiKeyCredentials | BuilderCredentials;
-
 export class PolymarketRelayerApi {
   readonly #baseUrl: string;
 
-  readonly #creds: RelayerCredentials;
-
-  constructor(environment: 'prod' | 'preprod', creds: RelayerCredentials) {
-    this.#baseUrl =
-      environment === 'prod'
-        ? POLYMARKET_RELAYER_BASE_URL_PROD
-        : POLYMARKET_RELAYER_BASE_URL_PREPROD;
-    this.#creds = creds;
+  constructor(baseUrl: string) {
+    this.#baseUrl = baseUrl;
   }
 
   async getNonce(address: string, type: 'WALLET'): Promise<string> {
@@ -71,7 +44,6 @@ export class PolymarketRelayerApi {
     const response = await relayerFetch(url, {
       method: 'GET',
       headers: {
-        ...this.#authHeaders('GET', path, ''),
         Accept: 'application/json',
       },
     });
@@ -95,7 +67,6 @@ export class PolymarketRelayerApi {
     const response = await relayerFetch(url, {
       method: 'POST',
       headers: {
-        ...this.#authHeaders('POST', path, body, request.from),
         'Content-Type': 'application/json',
       },
       body,
@@ -121,7 +92,6 @@ export class PolymarketRelayerApi {
     const response = await relayerFetch(url, {
       method: 'GET',
       headers: {
-        ...this.#authHeaders('GET', path, ''),
         Accept: 'application/json',
       },
     });
@@ -160,37 +130,6 @@ export class PolymarketRelayerApi {
       `Polling timed out after ${POLLING_MAX_ATTEMPTS} attempts`,
       'POLLING_TIMEOUT',
     );
-  }
-
-  #authHeaders(
-    method: string,
-    path: string,
-    body: string,
-    fromAddress?: string,
-  ): Record<string, string> {
-    if (this.#creds.type === 'relayer-api-key') {
-      if (!fromAddress) {
-        return {};
-      }
-
-      return {
-        RELAYER_API_KEY: this.#creds.apiKey,
-        RELAYER_API_KEY_ADDRESS: fromAddress,
-      };
-    }
-
-    const timestamp = Math.floor(Date.now() / 1000).toString();
-    const canonical = timestamp + method.toUpperCase() + path + body;
-    const signature = createHmac('sha256', this.#creds.secret)
-      .update(canonical)
-      .digest('base64');
-
-    return {
-      'POLY-BUILDER-API-KEY': this.#creds.apiKey,
-      'POLY-BUILDER-TIMESTAMP': timestamp,
-      'POLY-BUILDER-PASSPHRASE': this.#creds.passphrase,
-      'POLY-BUILDER-SIGNATURE': signature,
-    };
   }
 }
 
