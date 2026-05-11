@@ -1,6 +1,9 @@
 import { AccountGroupId } from '@metamask/account-api';
-import { AccountTreeControllerSelectedAccountGroupChangeEvent } from '@metamask/account-tree-controller';
-import { AccountTreeControllerGetAccountGroupObjectAction } from '@metamask/account-tree-controller';
+import {
+  AccountTreeControllerGetAccountGroupObjectAction,
+  AccountTreeControllerGetSelectedAccountGroupAction,
+  AccountTreeControllerSelectedAccountGroupChangeEvent,
+} from '@metamask/account-tree-controller';
 import type {
   SnapKeyring as LegacySnapKeyring,
   SnapMessage,
@@ -8,6 +11,7 @@ import type {
 import type {
   KeyringControllerGetStateAction,
   KeyringControllerStateChangeEvent,
+  KeyringControllerUnlockEvent,
   KeyringControllerWithControllerAction,
   KeyringEntry,
 } from '@metamask/keyring-controller';
@@ -75,7 +79,8 @@ type AllowedActions =
   | SnapControllerGetRunnableSnapsAction
   | KeyringControllerGetStateAction
   | KeyringControllerWithControllerAction
-  | AccountTreeControllerGetAccountGroupObjectAction;
+  | AccountTreeControllerGetAccountGroupObjectAction
+  | AccountTreeControllerGetSelectedAccountGroupAction;
 
 /**
  * Events that {@link SnapAccountService} exposes to other consumers.
@@ -94,6 +99,7 @@ type AllowedEvents =
   | SnapControllerSnapUnblockedEvent
   | SnapControllerSnapUninstalledEvent
   | KeyringControllerStateChangeEvent
+  | KeyringControllerUnlockEvent
   | AccountTreeControllerSelectedAccountGroupChangeEvent;
 
 /**
@@ -172,12 +178,40 @@ export class SnapAccountService {
 
     this.#messenger.subscribe(
       'AccountTreeController:selectedAccountGroupChange',
-      (groupId) => {
-        this.#handleSelectedAccountGroupChange(groupId).catch((error) => {
-          console.error('Error handling selected account group change:', error);
-        });
-      },
+      (groupId) => this.#handleSelectedAccountGroupChange(groupId),
     );
+
+    this.#messenger.subscribe('KeyringController:unlock', () =>
+      this.#handleUnlock(),
+    );
+  }
+
+  /**
+   * Handles changes to the selected account group by forwarding the new
+   * group's accounts to the Snap keyring.
+   *
+   * @param groupId - The ID of the newly selected account group.
+   */
+  #handleSelectedAccountGroupChange(groupId: AccountGroupId | ''): void {
+    this.#forwardSelectedAccountGroup(groupId).catch((error) => {
+      console.error('Error handling selected account group change:', error);
+    });
+  }
+
+  /**
+   * Handles the keyring controller unlock event by forwarding the currently
+   * selected account group's accounts to the Snap keyring.
+   */
+  #handleUnlock(): void {
+    const groupId = this.#messenger.call(
+      'AccountTreeController:getSelectedAccountGroup',
+    );
+    this.#forwardSelectedAccountGroup(groupId).catch((error) => {
+      console.error(
+        'Error forwarding selected account group on unlock:',
+        error,
+      );
+    });
   }
 
   /**
@@ -284,12 +318,12 @@ export class SnapAccountService {
   }
 
   /**
-   * Handles changes to the selected account group. Forwards accounts from the selected account group object
-   * to te Snap keyring.
+   * Forwards the accounts of the given account group to the Snap keyring.
    *
-   * @param groupId - The ID of the newly selected account group.
+   * @param groupId - The ID of the account group whose accounts should be
+   * forwarded. If empty, this is a no-op.
    */
-  async #handleSelectedAccountGroupChange(
+  async #forwardSelectedAccountGroup(
     groupId: AccountGroupId | '',
   ): Promise<void> {
     if (groupId) {

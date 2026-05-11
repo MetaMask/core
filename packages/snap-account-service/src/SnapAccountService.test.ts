@@ -56,6 +56,7 @@ type Mocks = {
     getAccountGroupObject: jest.MockedFunction<
       (groupId: AccountGroupId) => AccountGroupObject | undefined
     >;
+    getSelectedAccountGroup: jest.MockedFunction<() => AccountGroupId | ''>;
   };
 };
 
@@ -91,6 +92,7 @@ function getMessenger(
       'KeyringController:getState',
       'KeyringController:withController',
       'AccountTreeController:getAccountGroupObject',
+      'AccountTreeController:getSelectedAccountGroup',
     ],
     events: [
       'SnapController:stateChange',
@@ -101,6 +103,7 @@ function getMessenger(
       'SnapController:snapUnblocked',
       'SnapController:snapUninstalled',
       'KeyringController:stateChange',
+      'KeyringController:unlock',
       'AccountTreeController:selectedAccountGroupChange',
     ],
   });
@@ -172,6 +175,15 @@ function publishSelectedAccountGroupChange(
 }
 
 /**
+ * Publishes a KeyringController unlock event on the root messenger.
+ *
+ * @param rootMessenger - The root messenger.
+ */
+function publishUnlock(rootMessenger: RootMessenger): void {
+  rootMessenger.publish('KeyringController:unlock');
+}
+
+/**
  * Builds a minimal `TruncatedSnap` for tests.
  *
  * @param id - The Snap ID.
@@ -185,6 +197,16 @@ function buildSnap(id: string, hasKeyring: boolean): TruncatedSnap {
     enabled: true,
     blocked: false,
   } as MockTruncatedSnap as TruncatedSnap;
+}
+
+/**
+ * Builds a minimal `AccountGroupObject` for tests.
+ *
+ * @param accounts - The list of account IDs in the group.
+ * @returns A minimal `AccountGroupObject`.
+ */
+function buildGroup(accounts: string[]): AccountGroupObject {
+  return { accounts } as unknown as AccountGroupObject;
 }
 
 /**
@@ -318,6 +340,7 @@ function setup({
     },
     AccountTreeController: {
       getAccountGroupObject: jest.fn().mockReturnValue(undefined),
+      getSelectedAccountGroup: jest.fn().mockReturnValue(''),
     },
   };
 
@@ -340,6 +363,10 @@ function setup({
   rootMessenger.registerActionHandler(
     'AccountTreeController:getAccountGroupObject',
     mocks.AccountTreeController.getAccountGroupObject,
+  );
+  rootMessenger.registerActionHandler(
+    'AccountTreeController:getSelectedAccountGroup',
+    mocks.AccountTreeController.getSelectedAccountGroup,
   );
 
   const service = new SnapAccountService({ messenger, config });
@@ -610,16 +637,6 @@ describe('SnapAccountService', () => {
       '00000000-0000-0000-0000-000000000002',
     ];
 
-    /**
-     * Builds a minimal `AccountGroupObject` for tests.
-     *
-     * @param accounts - The list of account IDs in the group.
-     * @returns A minimal `AccountGroupObject`.
-     */
-    function buildGroup(accounts: string[]): AccountGroupObject {
-      return { accounts } as unknown as AccountGroupObject;
-    }
-
     it('forwards the selected accounts to the Snap keyring', async () => {
       const { service, rootMessenger, mocks } = setup();
       const setSelectedAccounts = jest.fn().mockResolvedValue(undefined);
@@ -690,6 +707,82 @@ describe('SnapAccountService', () => {
       expect(setSelectedAccounts).toHaveBeenCalledWith(MOCK_ACCOUNTS);
       expect(consoleErrorSpy).toHaveBeenCalledWith(
         'Error handling selected account group change:',
+        error,
+      );
+
+      consoleErrorSpy.mockRestore();
+    });
+  });
+
+  describe('on KeyringController:unlock', () => {
+    const MOCK_GROUP_ID = 'keyring:01JABC/group-1' as AccountGroupId;
+    const MOCK_ACCOUNTS = [
+      '00000000-0000-0000-0000-000000000001',
+      '00000000-0000-0000-0000-000000000002',
+    ];
+
+    it('forwards the currently selected account group to the Snap keyring', async () => {
+      const { service, rootMessenger, mocks } = setup();
+      const setSelectedAccounts = jest.fn().mockResolvedValue(undefined);
+      mockLegacySnapKeyring(mocks, { setSelectedAccounts });
+      mocks.AccountTreeController.getSelectedAccountGroup.mockReturnValue(
+        MOCK_GROUP_ID,
+      );
+      mocks.AccountTreeController.getAccountGroupObject.mockReturnValue(
+        buildGroup(MOCK_ACCOUNTS),
+      );
+      expect(service).toBeDefined();
+
+      publishUnlock(rootMessenger);
+      await flushMicrotasks();
+
+      expect(
+        mocks.AccountTreeController.getSelectedAccountGroup,
+      ).toHaveBeenCalledTimes(1);
+      expect(
+        mocks.AccountTreeController.getAccountGroupObject,
+      ).toHaveBeenCalledWith(MOCK_GROUP_ID);
+      expect(setSelectedAccounts).toHaveBeenCalledWith(MOCK_ACCOUNTS);
+    });
+
+    it('does nothing when no account group is selected', async () => {
+      const { service, rootMessenger, mocks } = setup();
+      const setSelectedAccounts = jest.fn().mockResolvedValue(undefined);
+      mockLegacySnapKeyring(mocks, { setSelectedAccounts });
+      mocks.AccountTreeController.getSelectedAccountGroup.mockReturnValue('');
+      expect(service).toBeDefined();
+
+      publishUnlock(rootMessenger);
+      await flushMicrotasks();
+
+      expect(
+        mocks.AccountTreeController.getAccountGroupObject,
+      ).not.toHaveBeenCalled();
+      expect(setSelectedAccounts).not.toHaveBeenCalled();
+    });
+
+    it('logs an error when forwarding to the Snap keyring fails', async () => {
+      const { service, rootMessenger, mocks } = setup();
+      const error = new Error('forward boom');
+      const setSelectedAccounts = jest.fn().mockRejectedValue(error);
+      mockLegacySnapKeyring(mocks, { setSelectedAccounts });
+      mocks.AccountTreeController.getSelectedAccountGroup.mockReturnValue(
+        MOCK_GROUP_ID,
+      );
+      mocks.AccountTreeController.getAccountGroupObject.mockReturnValue(
+        buildGroup(MOCK_ACCOUNTS),
+      );
+      const consoleErrorSpy = jest
+        .spyOn(console, 'error')
+        .mockImplementation(() => undefined);
+      expect(service).toBeDefined();
+
+      publishUnlock(rootMessenger);
+      await flushMicrotasks();
+
+      expect(setSelectedAccounts).toHaveBeenCalledWith(MOCK_ACCOUNTS);
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
+        'Error forwarding selected account group on unlock:',
         error,
       );
 
