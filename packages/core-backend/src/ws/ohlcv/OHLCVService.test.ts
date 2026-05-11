@@ -433,8 +433,7 @@ describe('OHLCVService', () => {
 
     it('should flush other grace-period channels when subscribing to a new channel', async () => {
       const otherOpts: OHLCVSubscriptionOptions = {
-        assetId:
-          'eip155:8453/erc20:0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913',
+        assetId: 'eip155:8453/erc20:0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913',
         interval: '1h',
         currency: 'usd',
       };
