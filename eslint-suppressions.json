@@ -862,26 +862,6 @@
       "count": 1
     }
   },
-  "packages/core-backend/src/AccountActivityService.test.ts": {
-    "no-restricted-syntax": {
-      "count": 2
-    }
-  },
-  "packages/core-backend/src/AccountActivityService.ts": {
-    "no-restricted-syntax": {
-      "count": 1
-    }
-  },
-  "packages/core-backend/src/BackendWebSocketService.test.ts": {
-    "no-restricted-syntax": {
-      "count": 1
-    }
-  },
-  "packages/core-backend/src/BackendWebSocketService.ts": {
-    "no-restricted-syntax": {
-      "count": 5
-    }
-  },
   "packages/core-backend/src/api/shared-types.ts": {
     "no-restricted-syntax": {
       "count": 1
@@ -889,7 +869,38 @@
   },
   "packages/core-backend/src/index.ts": {
     "no-restricted-syntax": {
+      "count": 4
+    }
+  },
+  "packages/core-backend/src/ws/AccountActivityService.test.ts": {
+    "no-restricted-syntax": {
       "count": 2
+    }
+  },
+  "packages/core-backend/src/ws/AccountActivityService.ts": {
+    "no-restricted-syntax": {
+      "count": 1
+    }
+  },
+  "packages/core-backend/src/ws/BackendWebSocketService.test.ts": {
+    "no-restricted-syntax": {
+      "count": 1
+    }
+  },
+  "packages/core-backend/src/ws/BackendWebSocketService.ts": {
+    "no-restricted-syntax": {
+      "count": 5
+    }
+  },
+  "packages/core-backend/src/ws/ohlcv/OHLCVService.test.ts": {
+    "@typescript-eslint/naming-convention": {
+      "count": 2
+    },
+    "id-length": {
+      "count": 1
+    },
+    "no-restricted-syntax": {
+      "count": 1
     }
   },
   "packages/delegation-controller/src/DelegationController.test.ts": {
