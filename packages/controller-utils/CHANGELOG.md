@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add `defaultInfuraNetworks` with Infura network names to be enabled by default ([#8767](https://github.com/MetaMask/core/pull/8767))
+- Add `DEFAULT_INFURA_NETWORKS` with Infura network names to be enabled by default ([#8767](https://github.com/MetaMask/core/pull/8767))
 
 ## [12.0.0]
 
