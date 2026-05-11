@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add export for `AddNetworkCustomRpcEndpointFields` and `InfuraRpcEndpoint` types ([#8764](https://github.com/MetaMask/core/pull/8764))
+
 ## [31.0.0]
 
 ### Added
