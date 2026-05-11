@@ -14,6 +14,7 @@ import type {
   QuoteRequest,
   TransactionPayControllerMessenger,
 } from '../../types';
+import { buildCaipAssetType, getTokenInfo } from '../../utils/token';
 import { getRelayQuotes } from '../relay/relay-quotes';
 import { submitRelayQuotes } from '../relay/relay-submit';
 import type { RelayQuote } from '../relay/types';
@@ -160,7 +161,10 @@ function validateOrderAsset({
   transactionId: string;
 }): void {
   const orderAssetId = orderCrypto?.assetId?.toLowerCase();
-  const expectedAssetId = expectedAsset.caipAssetId.toLowerCase();
+  const expectedAssetId = buildCaipAssetType(
+    expectedAsset.chainId,
+    expectedAsset.address,
+  ).toLowerCase();
   const expectedChainId = expectedAssetId.split('/')[0];
   const orderChainId = orderCrypto?.chainId?.toLowerCase();
 
@@ -319,12 +323,7 @@ async function submitRelayAfterFiatCompletion({
     throw new Error('Multiple fiat quotes are not supported for submission');
   }
 
-  const fiatAsset = deriveFiatAssetForFiatPayment(transaction);
-  if (!fiatAsset) {
-    throw new Error(
-      `Missing fiat asset mapping for transaction type: ${String(transaction.type)}`,
-    );
-  }
+  const fiatAsset = deriveFiatAssetForFiatPayment(transaction, messenger);
 
   validateOrderAsset({
     expectedAsset: fiatAsset,
@@ -332,9 +331,21 @@ async function submitRelayAfterFiatCompletion({
     transactionId,
   });
 
+  const tokenInfo = getTokenInfo(
+    messenger,
+    fiatAsset.address,
+    fiatAsset.chainId,
+  );
+
+  if (!tokenInfo) {
+    throw new Error(
+      `Unable to resolve token info for fiat asset ${fiatAsset.address} on chain ${fiatAsset.chainId}`,
+    );
+  }
+
   const sourceAmountRaw = getRawSourceAmountFromOrder({
     cryptoAmount: order.cryptoAmount,
-    decimals: fiatAsset.decimals,
+    decimals: tokenInfo.decimals,
   });
 
   const baseRequest = quotes[0].request;

@@ -2,6 +2,7 @@
 
 import { Interface } from '@ethersproject/abi';
 import { toHex } from '@metamask/controller-utils';
+import { TransactionType } from '@metamask/transaction-controller';
 import type { TransactionMeta } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 import { createModuleLogger } from '@metamask/utils';
@@ -87,7 +88,9 @@ export async function getRelayQuotes(
 
         return hasTargetMinimum || isPostQuote || isExactInputRequest;
       })
-      .map((singleRequest) => normalizeRequest(singleRequest));
+      .map((singleRequest) =>
+        normalizeRequest(singleRequest, request.transaction),
+      );
 
     log('Normalized requests', normalizedRequests);
 
@@ -346,10 +349,15 @@ async function processTransactions(
     requestBody.refundTo = request.from;
   }
 
+  const fundingRecipient = (transaction.txParams?.from as Hex) ?? request.from;
+
   requestBody.txs = [
     {
       to: request.targetTokenAddress,
-      data: buildTokenTransferData(request.from, request.targetAmountMinimum),
+      data: buildTokenTransferData(
+        fundingRecipient,
+        request.targetAmountMinimum,
+      ),
       value: '0x0',
     },
     {
@@ -364,14 +372,22 @@ async function processTransactions(
  * Normalizes requests for Relay.
  *
  * @param request - Quote request to normalize.
+ * @param transaction - Parent transaction metadata, used to gate
+ * Hyperliquid-specific rewrites on transaction type.
  * @returns Normalized request.
  */
-function normalizeRequest(request: QuoteRequest): QuoteRequest {
+function normalizeRequest(
+  request: QuoteRequest,
+  transaction: TransactionMeta,
+): QuoteRequest {
   const newRequest = {
     ...request,
   };
 
+  const isPerpsDeposit = transaction.type === TransactionType.perpsDeposit;
+
   const isHyperliquidDeposit =
+    isPerpsDeposit &&
     !request.isPostQuote &&
     request.targetChainId === CHAIN_ID_ARBITRUM &&
     request.targetTokenAddress.toLowerCase() ===

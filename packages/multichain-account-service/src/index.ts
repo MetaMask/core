@@ -8,7 +8,6 @@ export type {
 } from './types';
 export type {
   MultichainAccountServiceResyncAccountsAction,
-  MultichainAccountServiceEnsureCanUseSnapPlatformAction,
   MultichainAccountServiceGetMultichainAccountWalletAction,
   MultichainAccountServiceGetMultichainAccountWalletsAction,
   MultichainAccountServiceCreateMultichainAccountWalletAction,

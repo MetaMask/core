@@ -14,6 +14,7 @@ import type {
   QuoteRequest,
   TransactionPayQuote,
 } from '../../types';
+import { buildCaipAssetType, getTokenInfo } from '../../utils/token';
 import { getRelayQuotes } from '../relay/relay-quotes';
 import { submitRelayQuotes } from '../relay/relay-submit';
 import type { RelayQuote } from '../relay/types';
@@ -23,6 +24,7 @@ import type { FiatQuote } from './types';
 import { deriveFiatAssetForFiatPayment } from './utils';
 
 jest.mock('./utils');
+jest.mock('../../utils/token');
 jest.mock('../relay/relay-quotes');
 jest.mock('../relay/relay-submit');
 
@@ -40,9 +42,7 @@ const TRANSACTION_MOCK = {
 
 const FIAT_ASSET_MOCK: TransactionPayFiatAsset = {
   address: '0x0000000000000000000000000000000000001010',
-  caipAssetId: 'eip155:137/slip44:966',
   chainId: '0x89',
-  decimals: 18,
 };
 
 const RAMPS_QUOTE_MOCK: RampsQuote = {
@@ -230,7 +230,11 @@ function getRequest({
   };
 }
 
+const FIAT_ASSET_CAIP_ID_MOCK = 'eip155:137/slip44:966';
+
 describe('submitFiatQuotes', () => {
+  const buildCaipAssetTypeMock = jest.mocked(buildCaipAssetType);
+  const getTokenInfoMock = jest.mocked(getTokenInfo);
   const deriveFiatAssetForFiatPaymentMock = jest.mocked(
     deriveFiatAssetForFiatPayment,
   );
@@ -241,6 +245,8 @@ describe('submitFiatQuotes', () => {
     jest.resetAllMocks();
     jest.useRealTimers();
 
+    buildCaipAssetTypeMock.mockReturnValue(FIAT_ASSET_CAIP_ID_MOCK);
+    getTokenInfoMock.mockReturnValue({ decimals: 18, symbol: 'POL' });
     deriveFiatAssetForFiatPaymentMock.mockReturnValue(FIAT_ASSET_MOCK);
     getRelayQuotesMock.mockResolvedValue([RELAY_QUOTE_RESULT_MOCK]);
     submitRelayQuotesMock.mockResolvedValue({
@@ -252,7 +258,7 @@ describe('submitFiatQuotes', () => {
     const order = getFiatOrderMock({
       cryptoAmount: '1.2345',
       cryptoCurrency: {
-        assetId: FIAT_ASSET_MOCK.caipAssetId,
+        assetId: FIAT_ASSET_CAIP_ID_MOCK,
         chainId: 'eip155:137',
         symbol: 'POL',
       },
@@ -504,12 +510,12 @@ describe('submitFiatQuotes', () => {
     dateNowSpy.mockRestore();
   });
 
-  it('throws if fiat asset mapping is missing', async () => {
-    deriveFiatAssetForFiatPaymentMock.mockReturnValue(undefined);
+  it('throws if token info is unavailable for the fiat asset', async () => {
+    getTokenInfoMock.mockReturnValue(undefined);
     const { request } = getRequest();
 
     await expect(submitFiatQuotes(request)).rejects.toThrow(
-      'Missing fiat asset mapping for transaction type: predictDeposit',
+      `Unable to resolve token info for fiat asset ${FIAT_ASSET_MOCK.address} on chain ${FIAT_ASSET_MOCK.chainId}`,
     );
   });
 
@@ -524,7 +530,7 @@ describe('submitFiatQuotes', () => {
     });
 
     await expect(submitFiatQuotes(request)).rejects.toThrow(
-      `Fiat order asset mismatch for transaction ${TRANSACTION_ID_MOCK}: expected ${FIAT_ASSET_MOCK.caipAssetId}, got eip155:137/slip44:60`,
+      `Fiat order asset mismatch for transaction ${TRANSACTION_ID_MOCK}: expected ${FIAT_ASSET_CAIP_ID_MOCK.toLowerCase()}, got eip155:137/slip44:60`,
     );
   });
 
