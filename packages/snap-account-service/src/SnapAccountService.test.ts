@@ -148,6 +148,51 @@ function buildSnap(id: string, hasKeyring: boolean): TruncatedSnap {
 }
 
 /**
+ * Builds a fake {@link KeyringEntry} with the given type.
+ *
+ * @param type - The keyring type.
+ * @returns A minimal KeyringEntry for tests.
+ */
+function buildKeyringEntry(type: string): KeyringEntry {
+  return {
+    keyring: { type } as KeyringEntry['keyring'],
+    metadata: { id: `id-${type}`, name: type },
+  };
+}
+
+/**
+ * Configures `mocks.KeyringController.withController` to invoke the
+ * operation with a controllable {@link RestrictedController}.
+ *
+ * @param mocks - The mocks object from {@link setup}.
+ * @param initialEntries - Entries exposed via `controller.keyrings`.
+ * @returns The mocked `addNewKeyring` jest fn for assertions.
+ */
+function mockWithController(
+  mocks: Mocks,
+  initialEntries: KeyringEntry[],
+): {
+  addNewKeyring: jest.MockedFunction<RestrictedController['addNewKeyring']>;
+} {
+  const entries = [...initialEntries];
+  const addNewKeyring = jest.fn(async (type: string) => {
+    const entry = buildKeyringEntry(type);
+    entries.push(entry);
+    return entry;
+  });
+  mocks.KeyringController.withController.mockImplementation(async (operation) =>
+    operation({
+      get keyrings() {
+        return Object.freeze([...entries]);
+      },
+      addNewKeyring,
+      removeKeyring: jest.fn(),
+    }),
+  );
+  return { addNewKeyring };
+}
+
+/**
  * Constructs the service under test with sensible defaults.
  *
  * @param args - The arguments to this function.
@@ -372,52 +417,6 @@ describe('SnapAccountService', () => {
   });
 
   describe('getLegacySnapKeyring', () => {
-    /**
-     * Builds a fake {@link KeyringEntry} with the given type.
-     *
-     * @param type - The keyring type.
-     * @returns A minimal KeyringEntry for tests.
-     */
-    function buildKeyringEntry(type: string): KeyringEntry {
-      return {
-        keyring: { type } as KeyringEntry['keyring'],
-        metadata: { id: `id-${type}`, name: type },
-      };
-    }
-
-    /**
-     * Configures `mocks.KeyringController.withController` to invoke the
-     * operation with a controllable {@link RestrictedController}.
-     *
-     * @param mocks - The mocks object from {@link setup}.
-     * @param initialEntries - Entries exposed via `controller.keyrings`.
-     * @returns The mocked `addNewKeyring` jest fn for assertions.
-     */
-    function mockWithController(
-      mocks: Mocks,
-      initialEntries: KeyringEntry[],
-    ): {
-      addNewKeyring: jest.MockedFunction<RestrictedController['addNewKeyring']>;
-    } {
-      const entries = [...initialEntries];
-      const addNewKeyring = jest.fn(async (type: string) => {
-        const entry = buildKeyringEntry(type);
-        entries.push(entry);
-        return entry;
-      });
-      mocks.KeyringController.withController.mockImplementation(
-        async (operation) =>
-          operation({
-            get keyrings() {
-              return Object.freeze([...entries]);
-            },
-            addNewKeyring,
-            removeKeyring: jest.fn(),
-          }),
-      );
-      return { addNewKeyring };
-    }
-
     it('returns the existing Snap keyring when one is already present', async () => {
       const { service, mocks } = setup();
       const existing = buildKeyringEntry(KeyringTypes.snap);
