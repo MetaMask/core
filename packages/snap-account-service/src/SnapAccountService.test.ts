@@ -47,6 +47,7 @@ type Mocks = {
   // eslint-disable-next-line @typescript-eslint/naming-convention
   KeyringController: {
     getState: jest.MockedFunction<() => { keyrings: { type: string }[] }>;
+    withController: jest.Mock;
   };
 };
 
@@ -184,6 +185,7 @@ function setup({
     },
     KeyringController: {
       getState: jest.fn().mockReturnValue({ keyrings }),
+      withController: jest.fn(),
     },
   };
 
@@ -198,6 +200,10 @@ function setup({
   rootMessenger.registerActionHandler(
     'KeyringController:getState',
     mocks.KeyringController.getState,
+  );
+  rootMessenger.registerActionHandler(
+    'KeyringController:withController',
+    mocks.KeyringController.withController,
   );
 
   const service = new SnapAccountService({ messenger, config });
@@ -380,25 +386,26 @@ describe('SnapAccountService', () => {
     }
 
     /**
-     * Registers a fake `KeyringController:withController` handler that calls
-     * the operation with a controllable {@link RestrictedController}.
+     * Configures `mocks.KeyringController.withController` to invoke the
+     * operation with a controllable {@link RestrictedController}.
      *
-     * @param rootMessenger - The root messenger.
+     * @param mocks - The mocks object from {@link setup}.
      * @param initialEntries - Entries exposed via `controller.keyrings`.
      * @returns The mocked `addNewKeyring` jest fn for assertions.
      */
-    function registerWithController(
-      rootMessenger: RootMessenger,
+    function mockWithController(
+      mocks: Mocks,
       initialEntries: KeyringEntry[],
-    ): jest.MockedFunction<RestrictedController['addNewKeyring']> {
+    ): {
+      addNewKeyring: jest.MockedFunction<RestrictedController['addNewKeyring']>;
+    } {
       const entries = [...initialEntries];
       const addNewKeyring = jest.fn(async (type: string) => {
         const entry = buildKeyringEntry(type);
         entries.push(entry);
         return entry;
       });
-      rootMessenger.registerActionHandler(
-        'KeyringController:withController',
+      mocks.KeyringController.withController.mockImplementation(
         async (operation) =>
           operation({
             get keyrings() {
@@ -408,13 +415,13 @@ describe('SnapAccountService', () => {
             removeKeyring: jest.fn(),
           }),
       );
-      return addNewKeyring;
+      return { addNewKeyring };
     }
 
     it('returns the existing Snap keyring when one is already present', async () => {
-      const { service, rootMessenger } = setup();
+      const { service, mocks } = setup();
       const existing = buildKeyringEntry(KeyringTypes.snap);
-      const addNewKeyring = registerWithController(rootMessenger, [
+      const { addNewKeyring } = mockWithController(mocks, [
         buildKeyringEntry(KeyringTypes.hd),
         existing,
       ]);
@@ -426,8 +433,8 @@ describe('SnapAccountService', () => {
     });
 
     it('creates a new Snap keyring when none exists', async () => {
-      const { service, rootMessenger } = setup();
-      const addNewKeyring = registerWithController(rootMessenger, [
+      const { service, mocks } = setup();
+      const { addNewKeyring } = mockWithController(mocks, [
         buildKeyringEntry(KeyringTypes.hd),
       ]);
 
@@ -438,13 +445,10 @@ describe('SnapAccountService', () => {
     });
 
     it('propagates errors thrown by withController', async () => {
-      const { service, rootMessenger } = setup();
-      rootMessenger.registerActionHandler(
-        'KeyringController:withController',
-        async () => {
-          throw new Error('boom');
-        },
-      );
+      const { service, mocks } = setup();
+      mocks.KeyringController.withController.mockImplementation(async () => {
+        throw new Error('boom');
+      });
 
       await expect(service.getLegacySnapKeyring()).rejects.toThrow('boom');
     });
