@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Use `defaultInfuraNetworks` from `controller-utils` as list of Infura networks ([#8767](https://github.com/MetaMask/core/pull/8767))
+  - The list of networks is used to determine which networks should be included in NetworkController's default state when constructed with an empty state.
+
 ## [31.1.0]
 
 ### Added
