@@ -1304,11 +1304,6 @@
       "count": 7
     }
   },
-  "packages/multichain-account-service/src/tests/messenger.ts": {
-    "no-restricted-syntax": {
-      "count": 1
-    }
-  },
   "packages/multichain-api-middleware/src/handlers/types.ts": {
     "@typescript-eslint/naming-convention": {
       "count": 2
