@@ -1048,7 +1048,6 @@ export class RpcDataSource extends AbstractDataSource<
           if (!shouldSkipNative) {
             assetsBalance[accountId][nativeAssetId] = { amount: '0' };
           }
-          // Even on error, include native token metadata
           // Even on error, include native token metadata. Prefer the richer
           // metadata already in state (e.g. enriched with image/description
           // by the price/info API) and fall back to a minimal stub only when
