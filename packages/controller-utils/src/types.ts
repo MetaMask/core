@@ -24,6 +24,27 @@ export type InfuraNetworkType =
   (typeof InfuraNetworkType)[keyof typeof InfuraNetworkType];
 
 /**
+ * The default set of Infura networks to include in the wallet.
+ *
+ * This is a subset of the full list of {@link InfuraNetworkType}, and can be used to determine
+ * which Infura networks to enable by default.
+ */
+export const defaultInfuraNetworks: InfuraNetworkType[] = [
+  InfuraNetworkType.mainnet,
+  InfuraNetworkType.goerli,
+  InfuraNetworkType.sepolia,
+  InfuraNetworkType['linea-goerli'],
+  InfuraNetworkType['linea-sepolia'],
+  InfuraNetworkType['linea-mainnet'],
+  InfuraNetworkType['base-mainnet'],
+  InfuraNetworkType['arbitrum-mainnet'],
+  InfuraNetworkType['bsc-mainnet'],
+  InfuraNetworkType['optimism-mainnet'],
+  InfuraNetworkType['polygon-mainnet'],
+  InfuraNetworkType['monad-mainnet'],
+];
+
+/**
  * Custom network types that are not part of Infura.
  */
 export const CustomNetworkType = {
