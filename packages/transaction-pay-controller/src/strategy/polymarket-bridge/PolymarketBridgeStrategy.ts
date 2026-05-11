@@ -165,6 +165,17 @@ export class PolymarketBridgeStrategy
       throw new Error('Polymarket bridge execute: no quote provided');
     }
 
+    updateTransaction(
+      {
+        transactionId: request.transaction.id,
+        messenger: request.messenger,
+        note: 'Mark intent complete at Polymarket bridge execute start',
+      },
+      (tx) => {
+        tx.isIntentComplete = true;
+      },
+    );
+
     const from = quote.request.from;
     const depositWalletAddress = computeDepositWalletAddress(from);
 
@@ -204,33 +215,7 @@ export class PolymarketBridgeStrategy
       },
     );
 
-    log('Polling bridge for target-side completion', { depositAddress });
-
-    const bridgeResult =
-      await this.#bridgeApi.pollUntilBridgeComplete(depositAddress);
-
-    if (bridgeResult.status === 'FAILED') {
-      throw new Error(
-        `Polymarket bridge failed on target chain for deposit ${depositAddress}`,
-      );
-    }
-
-    const targetHash = (bridgeResult.txHash ?? result.relayerTransactionHash) as Hex;
-
-    log('Bridge complete', { targetHash, status: bridgeResult.status });
-
-    updateTransaction(
-      {
-        transactionId: request.transaction.id,
-        messenger: request.messenger,
-        note: 'Intent complete after Polymarket bridge completion',
-      },
-      (tx) => {
-        tx.isIntentComplete = true;
-      },
-    );
-
-    return { transactionHash: targetHash };
+    return { transactionHash: result.relayerTransactionHash };
   }
 
   async getBatchTransactions(

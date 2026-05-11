@@ -46,6 +46,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Add `isPolymarketDepositWallet` flag on `TransactionConfig`. When set via `setTransactionConfig`, the controller routes the transaction's quotes and execution to `PolymarketBridgeStrategy`.
   - Add `polymarketRelayerUrl` remote feature flag to override the Polymarket relayer proxy URL without a release.
   - Surface bridge fees (`gasUsd + appFeeUsd + swapImpactUsd`) as `fees.provider`, and populate `sourceAmount` and `targetAmount` with fiat/USD values from token rates.
+  - Mark `isIntentComplete` at the start of `PolymarketBridgeStrategy.execute()` so the wrapper batch transaction is treated as confirmed by `PendingTransactionTracker` instead of failed (no on-chain receipt exists for the wrapper; the relayer broadcasts a separate transaction).
 
 ### Changed
 
