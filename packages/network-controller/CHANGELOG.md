@@ -9,8 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Use `defaultInfuraNetworks` from `controller-utils` as list of Infura networks ([#8767](https://github.com/MetaMask/core/pull/8767))
-  - The list of networks is used to determine which networks should be included in NetworkController's default state when constructed with an empty state.
+### Changed
+
+- **BREAKING:** Remove Sei, MegaETH, Avalanche, and ZKSync from list of default networks ([#8767](https://github.com/MetaMask/core/pull/8767))
+  - You will need to add them as network configurations first before switching to them. 
 
 ## [31.1.0]
 
