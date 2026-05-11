@@ -5,8 +5,8 @@ import type {
 import { createServicePolicy, HttpError } from '@metamask/controller-utils';
 import type { Messenger } from '@metamask/messenger';
 
-import type { RampsServiceMethodActions } from './RampsService-method-action-types';
 import packageJson from '../package.json';
+import type { RampsServiceMethodActions } from './RampsService-method-action-types';
 
 /**
  * Represents phone number information for a country.
@@ -81,6 +81,28 @@ export type ProviderLogos = {
 export type ProviderBrowserType = 'APP_BROWSER' | 'IN_APP_OS_BROWSER' | null;
 
 /**
+ * Fiat amount limits for a provider and payment method.
+ */
+export type ProviderLimit = {
+  minAmount: number;
+  maxAmount: number;
+  feeFixedRate: number;
+  feeDynamicRate: number;
+};
+
+/**
+ * Fiat buy limits keyed by lowercased fiat short code, then payment method id.
+ */
+export type ProviderFiatLimits = Record<string, Record<string, ProviderLimit>>;
+
+/**
+ * Provider limits exposed by the regions providers endpoint.
+ */
+export type ProviderLimits = {
+  fiat?: ProviderFiatLimits;
+};
+
+/**
  * Represents a ramp provider.
  */
 export type Provider = {
@@ -94,6 +116,7 @@ export type Provider = {
   supportedCryptoCurrencies?: Record<string, boolean>;
   supportedFiatCurrencies?: Record<string, boolean>;
   supportedPaymentMethods?: Record<string, boolean>;
+  limits?: ProviderLimits;
 };
 
 /**
@@ -687,7 +710,8 @@ export type RampsServiceMessenger = Messenger<
 
 /**
  * Gets the base URL for API requests based on the environment and service type.
- * The Regions service uses a cache URL, while other services use the standard URL.
+ * The Regions service uses a cache hostname in production and staging only;
+ * development serves regions from the same `on-ramp.dev-api` host (no `-cache`).
  *
  * @param environment - The environment to use.
  * @param service - The API service type (determines if cache URL is used).
@@ -697,14 +721,19 @@ function getBaseUrl(
   environment: RampsEnvironment,
   service: RampsApiService,
 ): string {
-  const cache = service === RampsApiService.Regions ? '-cache' : '';
+  const cache =
+    service === RampsApiService.Regions &&
+    environment !== RampsEnvironment.Development
+      ? '-cache'
+      : '';
 
   switch (environment) {
     case RampsEnvironment.Production:
       return `https://on-ramp${cache}.api.cx.metamask.io`;
     case RampsEnvironment.Staging:
-    case RampsEnvironment.Development:
       return `https://on-ramp${cache}.uat-api.cx.metamask.io`;
+    case RampsEnvironment.Development:
+      return `https://on-ramp${cache}.dev-api.cx.metamask.io`;
     case RampsEnvironment.Local:
       return 'http://localhost:3000';
     default:
@@ -1314,11 +1343,23 @@ export class RampsService {
   }
 
   /**
+   * Strips the `/providers/` prefix so the URL path uses the short form.
+   * Accepts both `/providers/transak` and `transak`.
+   *
+   * @param providerId - Provider ID in either path or short format.
+   * @returns The short provider code.
+   */
+  #toProviderSegment(providerId: string): string {
+    return providerId.replace(/^\/providers\//u, '');
+  }
+
+  /**
    * Fetches an order from the unified V2 API endpoint.
    * This endpoint returns a normalized `RampsOrder` (DepositOrder shape)
    * for all provider types, including both aggregator and native providers.
    *
-   * @param providerCode - The provider code (e.g., "transak", "transak-native", "moonpay").
+   * @param providerCode - The provider code (e.g., "transak", "transak-native", "moonpay"),
+   *   with or without the `/providers/` prefix.
    * @param orderCode - The order identifier.
    * @param wallet - The wallet address associated with the order.
    * @returns The unified order data.
@@ -1328,8 +1369,9 @@ export class RampsService {
     orderCode: string,
     wallet: string,
   ): Promise<RampsOrder> {
+    const segment = this.#toProviderSegment(providerCode);
     const url = new URL(
-      getApiPath(`providers/${providerCode}/orders/${orderCode}`),
+      getApiPath(`providers/${segment}/orders/${orderCode}`),
       this.#getBaseUrl(RampsApiService.Orders),
     );
     this.#addCommonParams(url);
@@ -1363,7 +1405,8 @@ export class RampsService {
    *
    * This is the V2 equivalent of the aggregator SDK's `getOrderFromCallback`.
    *
-   * @param providerCode - The provider code (e.g., "transak", "moonpay").
+   * @param providerCode - The provider code (e.g., "transak", "moonpay"),
+   *   with or without the `/providers/` prefix.
    * @param callbackUrl - The full callback URL the provider redirected to.
    * @param wallet - The wallet address associated with the order.
    * @returns The unified order data.
@@ -1373,10 +1416,11 @@ export class RampsService {
     callbackUrl: string,
     wallet: string,
   ): Promise<RampsOrder> {
+    const segment = this.#toProviderSegment(providerCode);
     // Step 1: Send the callback URL to the backend to extract the order ID.
     // The backend parses it using provider-specific logic.
     const callbackApiUrl = new URL(
-      getApiPath(`providers/${providerCode}/callback`),
+      getApiPath(`providers/${segment}/callback`),
       this.#getBaseUrl(RampsApiService.Orders),
     );
     this.#addCommonParams(callbackApiUrl);

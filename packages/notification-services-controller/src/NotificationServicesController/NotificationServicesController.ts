@@ -22,6 +22,11 @@ import { debounce } from 'lodash';
 import log from 'loglevel';
 
 import type { NormalisedAPINotification } from '.';
+import type {
+  NotificationServicesPushControllerStateChangeEvent,
+  NotificationServicesPushControllerOnNewNotificationEvent,
+} from '../NotificationServicesPushController';
+import type { NotificationServicesPushControllerMethodActions } from '../NotificationServicesPushController/NotificationServicesPushController-method-action-types';
 import { TRIGGER_TYPES } from './constants/notification-schema';
 import type { NotificationServicesControllerMethodActions } from './NotificationServicesController-method-action-types';
 import {
@@ -42,11 +47,6 @@ import type {
   MarkAsReadNotificationsParam,
 } from './types/notification/notification';
 import type { OrderInput } from './types/perps';
-import type {
-  NotificationServicesPushControllerStateChangeEvent,
-  NotificationServicesPushControllerOnNewNotificationEvent,
-} from '../NotificationServicesPushController';
-import type { NotificationServicesPushControllerMethodActions } from '../NotificationServicesPushController/NotificationServicesPushController-method-action-types';
 
 // Unique name for the controller
 const controllerName = 'NotificationServicesController';
@@ -336,6 +336,16 @@ export class NotificationServicesController extends BaseController<
       try {
         await this.messenger.call(
           'NotificationServicesPushController:enablePushNotifications',
+          addresses,
+        );
+      } catch {
+        // Do nothing, failing silently.
+      }
+    },
+    addPushNotificationLinks: async (addresses: string[]): Promise<void> => {
+      try {
+        await this.messenger.call(
+          'NotificationServicesPushController:addPushNotificationLinks',
           addresses,
         );
       } catch {
@@ -983,6 +993,8 @@ export class NotificationServicesController extends BaseController<
         accounts.map((address) => ({ address, enabled: true })),
         this.#env,
       );
+
+      await this.#pushNotifications.addPushNotificationLinks(accounts);
     } catch (error) {
       log.error('Failed to update OnChain triggers', error);
       throw new Error('Failed to update OnChain triggers');

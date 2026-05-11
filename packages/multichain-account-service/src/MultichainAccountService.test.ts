@@ -6,16 +6,26 @@ import type {
 } from '@metamask/keyring-api';
 import {
   AccountCreationType,
+  BtcAccountType,
   EthAccountType,
   SolAccountType,
+  TrxAccountType,
 } from '@metamask/keyring-api';
+import type { Keyring } from '@metamask/keyring-api/v2';
+import { KeyringType } from '@metamask/keyring-api/v2';
 import type { KeyringObject } from '@metamask/keyring-controller';
-import type { EthKeyring } from '@metamask/keyring-internal-api';
 
+import { traceFallback } from './analytics';
+import { isPerfEnabled, withLocalPerfTrace } from './analytics/perf';
 import type { MultichainAccountServiceOptions } from './MultichainAccountService';
 import { MultichainAccountService } from './MultichainAccountService';
 import type { Bip44AccountProvider } from './providers';
+import { TimeoutError } from './providers';
 import { AccountProviderWrapper } from './providers/AccountProviderWrapper';
+import {
+  BTC_ACCOUNT_PROVIDER_NAME,
+  BtcAccountProvider,
+} from './providers/BtcAccountProvider';
 import {
   EVM_ACCOUNT_PROVIDER_NAME,
   EvmAccountProvider,
@@ -24,7 +34,10 @@ import {
   SOL_ACCOUNT_PROVIDER_NAME,
   SolAccountProvider,
 } from './providers/SolAccountProvider';
-import { SnapPlatformWatcher } from './snaps/SnapPlatformWatcher';
+import {
+  TRX_ACCOUNT_PROVIDER_NAME,
+  TrxAccountProvider,
+} from './providers/TrxAccountProvider';
 import type { RootMessenger, MockAccountProvider } from './tests';
 import {
   MOCK_HARDWARE_ACCOUNT_1,
@@ -39,13 +52,18 @@ import {
 import {
   MOCK_HD_KEYRING_1,
   MOCK_HD_KEYRING_2,
-  MOCK_SNAP_KEYRING,
   getMultichainAccountServiceMessenger,
   getRootMessenger,
   makeMockAccountProvider,
   setupBip44AccountProvider,
 } from './tests';
 import type { MultichainAccountServiceMessenger } from './types';
+
+// Mock perf helpers so tests can control isPerfEnabled() without setting DEBUG env var.
+jest.mock('./analytics/perf', () => ({
+  isPerfEnabled: jest.fn().mockReturnValue(false),
+  withLocalPerfTrace: jest.fn((trace) => trace),
+}));
 
 // Mock providers.
 jest.mock('./providers/EvmAccountProvider', () => {
@@ -58,6 +76,18 @@ jest.mock('./providers/SolAccountProvider', () => {
   return {
     ...jest.requireActual('./providers/SolAccountProvider'),
     SolAccountProvider: jest.fn(),
+  };
+});
+jest.mock('./providers/BtcAccountProvider', () => {
+  return {
+    ...jest.requireActual('./providers/BtcAccountProvider'),
+    BtcAccountProvider: jest.fn(),
+  };
+});
+jest.mock('./providers/TrxAccountProvider', () => {
+  return {
+    ...jest.requireActual('./providers/TrxAccountProvider'),
+    TrxAccountProvider: jest.fn(),
   };
 });
 
@@ -82,20 +112,13 @@ type Mocks = {
     captureException: jest.Mock;
   };
   // eslint-disable-next-line @typescript-eslint/naming-convention
-  SnapController: {
-    getState: jest.Mock;
-  };
-  // eslint-disable-next-line @typescript-eslint/naming-convention
   EvmAccountProvider: MockAccountProvider;
   // eslint-disable-next-line @typescript-eslint/naming-convention
   SolAccountProvider: MockAccountProvider;
-};
-
-type Spies = {
   // eslint-disable-next-line @typescript-eslint/naming-convention
-  SnapPlatformWatcher: {
-    ensureCanUseSnapPlatform: jest.SpyInstance;
-  };
+  BtcAccountProvider: MockAccountProvider;
+  // eslint-disable-next-line @typescript-eslint/naming-convention
+  TrxAccountProvider: MockAccountProvider;
 };
 
 function mockAccountProvider<Provider extends Bip44AccountProvider>(
@@ -127,6 +150,16 @@ function mockAccountProvider<Provider extends Bip44AccountProvider>(
     mocks.isAccountCompatible?.mockImplementation(
       (account: KeyringAccount) => account.type === SolAccountType.DataAccount,
     );
+  } else if (providerClass === (BtcAccountProvider as unknown)) {
+    mocks.getName.mockReturnValue(BTC_ACCOUNT_PROVIDER_NAME);
+    mocks.isAccountCompatible?.mockImplementation(
+      (account: KeyringAccount) => account.type === BtcAccountType.P2wpkh,
+    );
+  } else if (providerClass === (TrxAccountProvider as unknown)) {
+    mocks.getName.mockReturnValue(TRX_ACCOUNT_PROVIDER_NAME);
+    mocks.isAccountCompatible?.mockImplementation(
+      (account: KeyringAccount) => account.type === TrxAccountType.Eoa,
+    );
   }
 }
 
@@ -135,17 +168,18 @@ async function setup({
   keyrings = [MOCK_HD_KEYRING_1, MOCK_HD_KEYRING_2],
   accounts,
   providerConfigs,
+  config,
 }: {
   rootMessenger?: RootMessenger;
   keyrings?: KeyringObject[];
   accounts?: KeyringAccount[];
   providerConfigs?: MultichainAccountServiceOptions['providerConfigs'];
+  config?: MultichainAccountServiceOptions['config'];
 } = {}): Promise<{
   service: MultichainAccountService;
   rootMessenger: RootMessenger;
   messenger: MultichainAccountServiceMessenger;
   mocks: Mocks;
-  spies: Spies;
 }> {
   const mocks: Mocks = {
     KeyringController: {
@@ -164,33 +198,14 @@ async function setup({
     ErrorReportingService: {
       captureException: jest.fn(),
     },
-    SnapController: {
-      getState: jest.fn(),
-    },
     EvmAccountProvider: makeMockAccountProvider(),
     SolAccountProvider: makeMockAccountProvider(),
-  };
-
-  const spies: Spies = {
-    SnapPlatformWatcher: {
-      ensureCanUseSnapPlatform: jest.spyOn(
-        SnapPlatformWatcher.prototype,
-        'ensureCanUseSnapPlatform',
-      ),
-    },
+    BtcAccountProvider: makeMockAccountProvider(),
+    TrxAccountProvider: makeMockAccountProvider(),
   };
 
   // Required for the `assert` on `MultichainAccountWallet.createMultichainAccountGroup`.
   Object.setPrototypeOf(mocks.EvmAccountProvider, EvmAccountProvider.prototype);
-
-  mocks.SnapController.getState.mockImplementation(() => ({
-    isReady: true,
-  }));
-
-  rootMessenger.registerActionHandler(
-    'SnapController:getState',
-    mocks.SnapController.getState,
-  );
 
   mocks.KeyringController.getState.mockImplementation(() => ({
     isUnlocked: true,
@@ -241,6 +256,8 @@ async function setup({
     // force it here.
     EvmAccountProvider.NAME = EVM_ACCOUNT_PROVIDER_NAME;
     SolAccountProvider.NAME = SOL_ACCOUNT_PROVIDER_NAME;
+    BtcAccountProvider.NAME = BTC_ACCOUNT_PROVIDER_NAME;
+    TrxAccountProvider.NAME = TRX_ACCOUNT_PROVIDER_NAME;
 
     mockAccountProvider<EvmAccountProvider>(
       EvmAccountProvider,
@@ -256,6 +273,20 @@ async function setup({
       1,
       SolAccountType.DataAccount,
     );
+    mockAccountProvider<BtcAccountProvider>(
+      BtcAccountProvider,
+      mocks.BtcAccountProvider,
+      accounts,
+      2,
+      BtcAccountType.P2wpkh,
+    );
+    mockAccountProvider<TrxAccountProvider>(
+      TrxAccountProvider,
+      mocks.TrxAccountProvider,
+      accounts,
+      3,
+      TrxAccountType.Eoa,
+    );
   }
 
   const messenger = getMultichainAccountServiceMessenger(rootMessenger);
@@ -263,6 +294,7 @@ async function setup({
   const service = new MultichainAccountService({
     messenger,
     providerConfigs,
+    config,
   });
 
   await service.init();
@@ -272,7 +304,6 @@ async function setup({
     rootMessenger,
     messenger,
     mocks,
-    spies,
   };
 }
 
@@ -317,6 +348,90 @@ describe('MultichainAccountService', () => {
         messenger,
         providerConfigs?.[SOL_ACCOUNT_PROVIDER_NAME],
         expect.any(Function), // TraceCallback
+      );
+    });
+
+    it('passes traceFallback to providers when no config.trace is provided and perf is disabled', async () => {
+      jest.mocked(isPerfEnabled).mockReturnValue(false);
+
+      const { mocks, messenger } = await setup({
+        accounts: [MOCK_HD_ACCOUNT_1, MOCK_SOL_ACCOUNT_1],
+      });
+
+      expect(withLocalPerfTrace).not.toHaveBeenCalled();
+      expect(mocks.EvmAccountProvider.constructor).toHaveBeenCalledWith(
+        messenger,
+        undefined,
+        traceFallback,
+      );
+      expect(mocks.SolAccountProvider.constructor).toHaveBeenCalledWith(
+        messenger,
+        undefined,
+        traceFallback,
+      );
+    });
+
+    it('passes config.trace to providers when provided and perf is disabled', async () => {
+      jest.mocked(isPerfEnabled).mockReturnValue(false);
+      const customTrace = jest.fn();
+
+      const { mocks, messenger } = await setup({
+        accounts: [MOCK_HD_ACCOUNT_1, MOCK_SOL_ACCOUNT_1],
+        config: { trace: customTrace },
+      });
+
+      expect(withLocalPerfTrace).not.toHaveBeenCalled();
+      expect(mocks.EvmAccountProvider.constructor).toHaveBeenCalledWith(
+        messenger,
+        undefined,
+        customTrace,
+      );
+      expect(mocks.SolAccountProvider.constructor).toHaveBeenCalledWith(
+        messenger,
+        undefined,
+        customTrace,
+      );
+    });
+
+    it('wraps trace with local perf trace and passes it to providers when perf is enabled', async () => {
+      jest.mocked(isPerfEnabled).mockReturnValue(true);
+      const wrappedTrace = jest.fn();
+      jest.mocked(withLocalPerfTrace).mockReturnValue(wrappedTrace);
+
+      const { mocks, messenger } = await setup({
+        accounts: [MOCK_HD_ACCOUNT_1, MOCK_SOL_ACCOUNT_1],
+      });
+
+      expect(withLocalPerfTrace).toHaveBeenCalledTimes(1);
+      expect(withLocalPerfTrace).toHaveBeenCalledWith(traceFallback);
+      expect(mocks.EvmAccountProvider.constructor).toHaveBeenCalledWith(
+        messenger,
+        undefined,
+        wrappedTrace,
+      );
+      expect(mocks.SolAccountProvider.constructor).toHaveBeenCalledWith(
+        messenger,
+        undefined,
+        wrappedTrace,
+      );
+    });
+
+    it('wraps config.trace with local perf trace when perf is enabled', async () => {
+      jest.mocked(isPerfEnabled).mockReturnValue(true);
+      const customTrace = jest.fn();
+      const wrappedTrace = jest.fn();
+      jest.mocked(withLocalPerfTrace).mockReturnValue(wrappedTrace);
+
+      const { mocks } = await setup({
+        accounts: [MOCK_HD_ACCOUNT_1, MOCK_SOL_ACCOUNT_1],
+        config: { trace: customTrace },
+      });
+
+      expect(withLocalPerfTrace).toHaveBeenCalledWith(customTrace);
+      expect(mocks.EvmAccountProvider.constructor).toHaveBeenCalledWith(
+        expect.anything(),
+        undefined,
+        wrappedTrace,
       );
     });
 
@@ -1072,20 +1187,6 @@ describe('MultichainAccountService', () => {
         MOCK_HD_ACCOUNT_1.address,
       );
     });
-
-    it('checks for Snap platform readiness with MultichainAccountService:ensureCanUseSnapPlatform', async () => {
-      const { rootMessenger, spies } = await setup({
-        accounts: [],
-        keyrings: [MOCK_HD_KEYRING_1, MOCK_HD_KEYRING_2, MOCK_SNAP_KEYRING],
-      });
-
-      await rootMessenger.call(
-        'MultichainAccountService:ensureCanUseSnapPlatform',
-      );
-      expect(
-        spies.SnapPlatformWatcher.ensureCanUseSnapPlatform,
-      ).toHaveBeenCalled();
-    });
   });
 
   describe('resyncAccounts', () => {
@@ -1143,6 +1244,31 @@ describe('MultichainAccountService', () => {
         'cause',
         providerError,
       );
+    });
+
+    it('does not capture exception when provider throws a TimeoutError', async () => {
+      const rootMessenger = getRootMessenger();
+      const captureExceptionSpy = jest.spyOn(rootMessenger, 'captureException');
+      const consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation();
+      const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
+
+      const { service, mocks } = await setup({
+        rootMessenger,
+        accounts: [MOCK_HD_ACCOUNT_1],
+      });
+
+      mocks.SolAccountProvider.resyncAccounts.mockRejectedValue(
+        new TimeoutError('Timed out after: 500ms'),
+      );
+
+      await service.resyncAccounts(); // Should not throw.
+
+      expect(captureExceptionSpy).not.toHaveBeenCalled();
+      expect(consoleWarnSpy).toHaveBeenCalled();
+      expect(consoleErrorSpy).not.toHaveBeenCalled();
+
+      consoleWarnSpy.mockRestore();
+      consoleErrorSpy.mockRestore();
     });
   });
 
@@ -1362,13 +1488,13 @@ describe('MultichainAccountService', () => {
         );
 
         rootMessenger.registerActionHandler(
-          'KeyringController:withKeyring',
+          'KeyringController:withKeyringV2',
           async (_, operation) => {
             const newKeyring = mocks.KeyringController.keyrings.find(
-              (keyring) => keyring.type === 'HD Key Tree',
+              (keyring) => keyring.type === KeyringType.Hd,
             ) as KeyringObject;
             return operation({
-              keyring: {} as unknown as EthKeyring,
+              keyring: {} as unknown as Keyring,
               metadata: newKeyring.metadata,
             });
           },
@@ -1405,13 +1531,13 @@ describe('MultichainAccountService', () => {
         );
 
         rootMessenger.registerActionHandler(
-          'KeyringController:withKeyring',
+          'KeyringController:withKeyringV2',
           async (_, operation) => {
             const newKeyring = mocks.KeyringController.keyrings.find(
               (keyring) => keyring.type === 'HD Key Tree',
             ) as KeyringObject;
             return operation({
-              keyring: {} as unknown as EthKeyring,
+              keyring: {} as unknown as Keyring,
               metadata: newKeyring.metadata,
             });
           },
@@ -1430,21 +1556,6 @@ describe('MultichainAccountService', () => {
         expect(newWallet).toBeDefined();
         expect(newWallet.entropySource).toBe(MOCK_HD_KEYRING_1.metadata.id);
       });
-    });
-  });
-
-  describe('ensureCanUseSnapPlatform', () => {
-    it('delegates Snap platform readiness check to SnapPlatformWatcher (method)', async () => {
-      const { service, spies } = await setup({
-        accounts: [],
-        keyrings: [MOCK_HD_KEYRING_1, MOCK_HD_KEYRING_2, MOCK_SNAP_KEYRING],
-      });
-
-      await service.ensureCanUseSnapPlatform();
-
-      expect(
-        spies.SnapPlatformWatcher.ensureCanUseSnapPlatform,
-      ).toHaveBeenCalledTimes(1);
     });
   });
 });

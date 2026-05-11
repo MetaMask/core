@@ -25,7 +25,7 @@ import type {
   AuthenticationController,
   UserStorageController,
 } from '@metamask/profile-sync-controller';
-import type { GetSnap as SnapControllerGetSnap } from '@metamask/snaps-controllers';
+import type { SnapControllerGetSnapAction } from '@metamask/snaps-controllers';
 
 import type { controllerName } from './AccountTreeController';
 import type { AccountTreeControllerMethodActions } from './AccountTreeController-method-action-types';
@@ -59,8 +59,8 @@ export type AccountTreeControllerState = {
       // Wallets:
       [walletId: AccountWalletId]: AccountWalletObject;
     };
-    selectedAccountGroup: AccountGroupId | '';
   };
+  selectedAccountGroup: AccountGroupId | '';
   isAccountTreeSyncingInProgress: boolean;
   hasAccountTreeSyncingSyncedAtLeastOnce: boolean;
   /** Persistent metadata for account groups (names, pinning, hiding, sync timestamps) */
@@ -86,7 +86,7 @@ export type AllowedActions =
   | AccountsControllerListMultichainAccountsAction
   | AccountsControllerSetSelectedAccountAction
   | KeyringControllerGetStateAction
-  | SnapControllerGetSnap
+  | SnapControllerGetSnapAction
   | UserStorageController.UserStorageControllerGetStateAction
   | UserStorageController.UserStorageControllerPerformGetStorageAction
   | UserStorageController.UserStorageControllerPerformGetStorageAllFeatureEntriesAction

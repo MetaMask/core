@@ -20,14 +20,6 @@ import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type { JsonRpcRequest, SnapId } from '@metamask/snaps-sdk';
 import deepmerge from 'deepmerge';
 
-import { BtcAccountProvider } from './BtcAccountProvider';
-import type { SnapAccountProviderConfig } from './SnapAccountProvider';
-import {
-  isSnapAccountProvider,
-  SnapAccountProvider,
-} from './SnapAccountProvider';
-import { SolAccountProvider } from './SolAccountProvider';
-import { TrxAccountProvider } from './TrxAccountProvider';
 import { traceFallback } from '../analytics';
 import type { DeepPartial, RootMessenger } from '../tests';
 import {
@@ -39,6 +31,15 @@ import {
   MockAccountBuilder,
 } from '../tests';
 import type { MultichainAccountServiceMessenger } from '../types';
+import { BtcAccountProvider } from './BtcAccountProvider';
+import type { SnapAccountProviderConfig } from './SnapAccountProvider';
+import {
+  isSnapAccountProvider,
+  SnapAccountProvider,
+} from './SnapAccountProvider';
+import { SolAccountProvider } from './SolAccountProvider';
+import { TrxAccountProvider } from './TrxAccountProvider';
+import { TimeoutError } from './utils';
 
 jest.mock('../analytics', () => {
   const actual = jest.requireActual('../analytics');
@@ -172,8 +173,8 @@ const setup = ({
       },
       handleRequest: jest.fn(),
     },
-    MultichainAccountService: {
-      ensureCanUseSnapPlatform: jest.fn(),
+    SnapAccountService: {
+      ensureReady: jest.fn(),
     },
   };
 
@@ -184,13 +185,11 @@ const setup = ({
   mocks.AccountsController.listMultichainAccounts.mockReturnValue(accounts);
 
   messenger.registerActionHandler(
-    'MultichainAccountService:ensureCanUseSnapPlatform',
-    mocks.MultichainAccountService.ensureCanUseSnapPlatform,
+    'SnapAccountService:ensureReady',
+    mocks.SnapAccountService.ensureReady,
   );
   // Make the platform ready right away (having a resolved promise is enough).
-  mocks.MultichainAccountService.ensureCanUseSnapPlatform.mockResolvedValue(
-    undefined,
-  );
+  mocks.SnapAccountService.ensureReady.mockResolvedValue(undefined);
 
   messenger.registerActionHandler(
     'SnapController:handleRequest',
@@ -238,10 +237,7 @@ const setup = ({
       ),
   );
 
-  const serviceMessenger = getMultichainAccountServiceMessenger(messenger, {
-    // We need this extra action to be able to mock it.
-    actions: ['MultichainAccountService:ensureCanUseSnapPlatform'],
-  });
+  const serviceMessenger = getMultichainAccountServiceMessenger(messenger);
   const config = deepmerge(
     DEFAULT_TEST_CONFIG,
     configOverride as SnapAccountProviderConfig,
@@ -799,6 +795,28 @@ describe('SnapAccountProvider', () => {
       );
     });
 
+    it('does not capture exception when deleteAccount times out', async () => {
+      const { provider, messenger, mocks } = setup({
+        accounts: mockAccounts,
+        config: { resyncAccounts: { autoRemoveExtraSnapAccounts: true } },
+      });
+
+      const captureExceptionSpy = jest.spyOn(messenger, 'captureException');
+      const consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation();
+      const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
+      mocks.SnapController.handleKeyringRequest.deleteAccount.mockRejectedValue(
+        new TimeoutError('Timed out after: 500ms'),
+      );
+
+      await provider.resyncAccounts([mockAccounts[0]]);
+
+      expect(captureExceptionSpy).not.toHaveBeenCalled();
+      expect(consoleWarnSpy).toHaveBeenCalled();
+      expect(consoleErrorSpy).not.toHaveBeenCalled();
+      consoleWarnSpy.mockRestore();
+      consoleErrorSpy.mockRestore();
+    });
+
     it('does not delete accounts that exist in both Snap and MetaMask', async () => {
       const { provider, mocks } = setup({ accounts: mockAccounts });
 
@@ -902,24 +920,42 @@ describe('SnapAccountProvider', () => {
       expect(createAccountsSpy).toHaveBeenCalled();
 
       expect(captureExceptionSpy).toHaveBeenCalledWith(
-        new Error('Unable to re-sync account: 0'),
+        new Error('Unable to re-sync accounts'),
       );
       expect(captureExceptionSpy.mock.lastCall[0]).toHaveProperty(
         'cause',
         providerError,
       );
     });
+
+    it('does not capture exception when re-sync times out', async () => {
+      const { provider, messenger } = setup({ accounts: [mockAccounts[0]] });
+
+      const captureExceptionSpy = jest.spyOn(messenger, 'captureException');
+      const consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation();
+      const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
+      const createAccountsSpy = jest.spyOn(provider, 'createAccounts');
+      createAccountsSpy.mockRejectedValue(
+        new TimeoutError('Timed out after: 500ms'),
+      );
+
+      await provider.resyncAccounts(mockAccounts);
+
+      expect(captureExceptionSpy).not.toHaveBeenCalled();
+      expect(consoleWarnSpy).toHaveBeenCalled();
+      expect(consoleErrorSpy).not.toHaveBeenCalled();
+      consoleWarnSpy.mockRestore();
+      consoleErrorSpy.mockRestore();
+    });
   });
 
-  describe('ensureCanUseSnapPlatform', () => {
-    it('delegates Snap platform readiness check to SnapPlatformWatcher', async () => {
+  describe('ensureReady', () => {
+    it('delegates Snap platform readiness check to SnapAccountService:ensureReady', async () => {
       const { provider, mocks } = setup();
 
-      await provider.ensureCanUseSnapPlatform();
+      await provider.ensureReady();
 
-      expect(
-        mocks.MultichainAccountService.ensureCanUseSnapPlatform,
-      ).toHaveBeenCalledTimes(1);
+      expect(mocks.SnapAccountService.ensureReady).toHaveBeenCalledTimes(1);
     });
   });
 });

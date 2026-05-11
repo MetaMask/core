@@ -1,4 +1,3 @@
-import { makePermissionRule } from './makePermissionRule';
 import type {
   ChecksumCaveat,
   ChecksumEnforcersByChainId,
@@ -11,6 +10,7 @@ import {
   getTermsByEnforcer,
   ZERO_32_BYTES,
 } from '../utils';
+import { makePermissionRule } from './makePermissionRule';
 
 /**
  * Creates the erc20-token-revocation permission rule.
@@ -24,12 +24,20 @@ export function makeErc20TokenRevocationRule(
   const {
     timestampEnforcer,
     allowedCalldataEnforcer,
+    allowedTargetsEnforcer,
     valueLteEnforcer,
     nonceEnforcer,
+    redeemerEnforcer,
   } = enforcers;
   return makePermissionRule({
     permissionType: 'erc20-token-revocation',
-    optionalEnforcers: [timestampEnforcer],
+    optionalEnforcers: [timestampEnforcer, redeemerEnforcer],
+    redeemerEnforcer,
+    payeeEnforcers: {
+      allowedCalldataEnforcer,
+      allowedTargetsEnforcer,
+      singlePayeeEnforcer: allowedCalldataEnforcer,
+    },
     timestampEnforcer,
     requiredEnforcers: {
       [allowedCalldataEnforcer]: 2,

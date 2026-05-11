@@ -1,11 +1,6 @@
 import { createModuleLogger } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
 
-import {
-  getGasStationEligibility,
-  getGasStationCostInSourceTokenRaw,
-} from './gas-station';
-import type { RelayQuote } from './types';
 import { projectLogger } from '../../logger';
 import type {
   PayStrategyGetQuotesRequest,
@@ -14,10 +9,15 @@ import type {
   TransactionPayQuote,
 } from '../../types';
 import {
+  getGasStationEligibility,
+  getGasStationCostInSourceTokenRaw,
+} from '../../utils/gas-station';
+import {
   getNativeToken,
   getTokenBalance,
   getTokenInfo,
 } from '../../utils/token';
+import type { RelayQuote, RelayTransactionStep } from './types';
 
 const log = createModuleLogger(projectLogger, 'relay-max-gas-station');
 
@@ -307,7 +307,10 @@ async function getGasCostFromQuoteOrGasStation(
     };
   }
 
-  const firstStepData = quote.original.steps[0]?.items[0]?.data;
+  const firstTxStep = quote.original.steps.find(
+    (step): step is RelayTransactionStep => step.kind === 'transaction',
+  );
+  const firstStepData = firstTxStep?.items[0]?.data;
 
   if (!firstStepData) {
     return undefined;

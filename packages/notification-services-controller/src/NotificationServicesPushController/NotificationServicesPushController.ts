@@ -8,16 +8,17 @@ import type { Messenger } from '@metamask/messenger';
 import type { AuthenticationController } from '@metamask/profile-sync-controller';
 import log from 'loglevel';
 
+import type { Types } from '../NotificationServicesController';
 import type { NotificationServicesPushControllerMethodActions } from './NotificationServicesPushController-method-action-types';
 import type { ENV } from './services/endpoints';
 import {
   activatePushNotifications,
   deleteLinksAPI,
   deactivatePushNotifications,
+  updateLinksAPI,
 } from './services/services';
 import type { PushNotificationEnv } from './types';
 import type { PushService } from './types/push-service-interface';
-import type { Types } from '../NotificationServicesController';
 
 const controllerName = 'NotificationServicesPushController';
 
@@ -30,6 +31,7 @@ export type NotificationServicesPushControllerState = {
 const MESSENGER_EXPOSED_METHODS = [
   'subscribeToPushNotifications',
   'enablePushNotifications',
+  'addPushNotificationLinks',
   'disablePushNotifications',
   'updateTriggerPushNotifications',
   'deletePushNotificationLinks',
@@ -355,6 +357,40 @@ export class NotificationServicesPushController extends BaseController<
 
     // Update State
     this.#updatePushState({ type: 'disable' });
+  }
+
+  /**
+   * Adds backend push notification links for the given addresses using the current FCM token.
+   * This is used when accounts are added after push notifications have already been enabled,
+   * so backend can link the existing device token to the newly added addresses.
+   *
+   * @param addresses - Addresses that should be linked to push notifications.
+   * @returns Whether the add request succeeded.
+   */
+  public async addPushNotificationLinks(addresses: string[]): Promise<boolean> {
+    if (
+      !this.#config.isPushFeatureEnabled ||
+      addresses.length === 0 ||
+      !this.state.fcmToken
+    ) {
+      return false;
+    }
+
+    try {
+      const bearerToken = await this.#getAndAssertBearerToken();
+      return await updateLinksAPI({
+        bearerToken,
+        addresses,
+        regToken: {
+          token: this.state.fcmToken,
+          platform: this.#config.platform,
+          locale: this.#config.getLocale?.() ?? 'en',
+        },
+        env: this.#config.env ?? 'prd',
+      });
+    } catch {
+      return false;
+    }
   }
 
   /**

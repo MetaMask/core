@@ -93,8 +93,7 @@ export type DecryptMessageParams = AbstractMessageParams & {
 // This interface was created before this ESLint rule was added.
 // Convert to a `type` in a future major version.
 // eslint-disable-next-line @typescript-eslint/consistent-type-definitions
-export interface DecryptMessageParamsMetamask
-  extends AbstractMessageParamsMetamask {
+export interface DecryptMessageParamsMetamask extends AbstractMessageParamsMetamask {
   data: string;
 }
 

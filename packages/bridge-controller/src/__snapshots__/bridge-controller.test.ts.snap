@@ -10,19 +10,24 @@ exports[`BridgeController should handle errors from fetchBridgeQuotes 1`] = `
   },
   "minimumBalanceForRentExemptionInLamports": "0",
   "quoteFetchError": null,
-  "quoteRequest": {
-    "destChainId": "0x1",
-    "destTokenAddress": "0x0000000000000000000000000000000000000000",
-    "insufficientBal": false,
-    "resetApproval": false,
-    "srcChainId": "0xa",
-    "srcTokenAddress": "0x4200000000000000000000000000000000000006",
-    "srcTokenAmount": "991250000000000000",
-    "walletAddress": "eip:id/id:id/0x123",
-  },
+  "quoteRequest": [
+    {
+      "destChainId": "0x1",
+      "destTokenAddress": "0x0000000000000000000000000000000000000000",
+      "insufficientBal": false,
+      "resetApproval": false,
+      "srcChainId": "0xa",
+      "srcTokenAddress": "0x4200000000000000000000000000000000000006",
+      "srcTokenAmount": "991250000000000000",
+      "walletAddress": "eip:id/id:id/0x123",
+    },
+  ],
+  "quoteStreamComplete": null,
   "quotesInitialLoadTime": 10000,
   "quotesLoadingStatus": 1,
   "quotesRefreshCount": 1,
+  "tokenSecurityTypeDestination": null,
+  "tokenWarnings": [],
 }
 `;
 
@@ -36,19 +41,24 @@ exports[`BridgeController should handle errors from fetchBridgeQuotes 2`] = `
   },
   "minimumBalanceForRentExemptionInLamports": "0",
   "quoteFetchError": null,
-  "quoteRequest": {
-    "destChainId": "0x1",
-    "destTokenAddress": "0x0000000000000000000000000000000000000000",
-    "insufficientBal": false,
-    "resetApproval": false,
-    "srcChainId": "0xa",
-    "srcTokenAddress": "0x4200000000000000000000000000000000000006",
-    "srcTokenAmount": "991250000000000000",
-    "walletAddress": "eip:id/id:id/0x123",
-  },
+  "quoteRequest": [
+    {
+      "destChainId": "0x1",
+      "destTokenAddress": "0x0000000000000000000000000000000000000000",
+      "insufficientBal": false,
+      "resetApproval": false,
+      "srcChainId": "0xa",
+      "srcTokenAddress": "0x4200000000000000000000000000000000000006",
+      "srcTokenAmount": "991250000000000000",
+      "walletAddress": "eip:id/id:id/0x123",
+    },
+  ],
+  "quoteStreamComplete": null,
   "quotesInitialLoadTime": 10000,
   "quotesLoadingStatus": 1,
   "quotesRefreshCount": 1,
+  "tokenSecurityTypeDestination": null,
+  "tokenWarnings": [],
 }
 `;
 
@@ -57,6 +67,7 @@ exports[`BridgeController trackUnifiedSwapBridgeEvent bridge-status-controller c
   [
     "Unified SwapBridge Completed",
     {
+      "account_hardware_type": null,
       "action_type": "swapbridge-v1",
       "actual_time_minutes": 10,
       "approval_transaction": "PENDING",
@@ -94,6 +105,7 @@ exports[`BridgeController trackUnifiedSwapBridgeEvent bridge-status-controller c
   [
     "Unified SwapBridge Failed",
     {
+      "account_hardware_type": null,
       "action_type": "swapbridge-v1",
       "actual_time_minutes": 10,
       "allowance_reset_transaction": "PENDING",
@@ -121,6 +133,7 @@ exports[`BridgeController trackUnifiedSwapBridgeEvent bridge-status-controller c
       "swap_type": "crosschain",
       "token_address_destination": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501",
       "token_address_source": "eip155:1/slip44:60",
+      "token_security_type_destination": null,
       "token_symbol_destination": "USDC",
       "token_symbol_source": "ETH",
       "usd_amount_source": 100,
@@ -136,6 +149,7 @@ exports[`BridgeController trackUnifiedSwapBridgeEvent bridge-status-controller c
   [
     "Unified SwapBridge Failed",
     {
+      "account_hardware_type": null,
       "action_type": "swapbridge-v1",
       "chain_id_destination": "eip155:1",
       "chain_id_source": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
@@ -160,6 +174,7 @@ exports[`BridgeController trackUnifiedSwapBridgeEvent bridge-status-controller c
       "swap_type": "crosschain",
       "token_address_destination": "eip155:1/erc20:0x1234",
       "token_address_source": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/token:NATIVE",
+      "token_security_type_destination": null,
       "token_symbol_destination": "USDC",
       "token_symbol_source": "ETH",
       "usd_amount_source": 100,
@@ -191,6 +206,7 @@ exports[`BridgeController trackUnifiedSwapBridgeEvent bridge-status-controller c
   [
     "Unified SwapBridge Submitted",
     {
+      "account_hardware_type": null,
       "action_type": "swapbridge-v1",
       "chain_id_destination": "eip155:1",
       "chain_id_source": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
@@ -219,6 +235,7 @@ exports[`BridgeController trackUnifiedSwapBridgeEvent client-side calls should t
   [
     "Unified SwapBridge All Quotes Opened",
     {
+      "account_hardware_type": null,
       "action_type": "swapbridge-v1",
       "can_submit": true,
       "chain_id_destination": null,
@@ -237,6 +254,7 @@ exports[`BridgeController trackUnifiedSwapBridgeEvent client-side calls should t
       "swap_type": "crosschain",
       "token_address_destination": null,
       "token_address_source": "eip155:1/slip44:60",
+      "token_security_type_destination": null,
       "token_symbol_destination": "USDC",
       "token_symbol_source": "ETH",
     },
@@ -249,6 +267,7 @@ exports[`BridgeController trackUnifiedSwapBridgeEvent client-side calls should t
   [
     "Unified SwapBridge All Quotes Sorted",
     {
+      "account_hardware_type": null,
       "action_type": "swapbridge-v1",
       "best_quote_provider": "provider_bridge2",
       "can_submit": true,
@@ -269,6 +288,7 @@ exports[`BridgeController trackUnifiedSwapBridgeEvent client-side calls should t
       "swap_type": "crosschain",
       "token_address_destination": null,
       "token_address_source": "eip155:1/slip44:60",
+      "token_security_type_destination": null,
       "token_symbol_destination": "USDC",
       "token_symbol_source": "ETH",
     },
@@ -304,6 +324,7 @@ exports[`BridgeController trackUnifiedSwapBridgeEvent client-side calls should t
       "location": "Main View",
       "token_address_destination": null,
       "token_address_source": "eip155:1/slip44:60",
+      "token_security_type_destination": null,
       "token_symbol_destination": null,
       "token_symbol_source": "ETH",
     },
@@ -325,6 +346,7 @@ exports[`BridgeController trackUnifiedSwapBridgeEvent client-side calls should t
       ],
       "token_address_destination": "eip155:10/slip44:60",
       "token_address_source": "eip155:1/slip44:60",
+      "token_security_type_destination": null,
       "token_symbol_destination": "USDC",
       "token_symbol_source": "ETH",
     },
@@ -337,13 +359,18 @@ exports[`BridgeController trackUnifiedSwapBridgeEvent client-side calls should t
   [
     "Unified SwapBridge Page Viewed",
     {
-      "abc": 1,
+      "account_hardware_type": null,
       "action_type": "swapbridge-v1",
       "chain_id_destination": null,
       "chain_id_source": "eip155:1",
+      "custom_slippage": false,
+      "is_hardware_wallet": false,
       "location": "Main View",
+      "slippage_limit": undefined,
+      "swap_type": "crosschain",
       "token_address_destination": null,
       "token_address_source": "eip155:1/slip44:60",
+      "token_security_type_destination": null,
     },
   ],
 ]
@@ -354,6 +381,7 @@ exports[`BridgeController trackUnifiedSwapBridgeEvent client-side calls should t
   [
     "Unified SwapBridge Quote Selected",
     {
+      "account_hardware_type": null,
       "action_type": "swapbridge-v1",
       "best_quote_provider": "provider_bridge2",
       "can_submit": false,
@@ -376,6 +404,7 @@ exports[`BridgeController trackUnifiedSwapBridgeEvent client-side calls should t
       "swap_type": "crosschain",
       "token_address_destination": null,
       "token_address_source": "eip155:1/slip44:60",
+      "token_security_type_destination": null,
       "usd_quoted_gas": 0,
       "usd_quoted_return": 100,
     },
@@ -397,6 +426,7 @@ exports[`BridgeController trackUnifiedSwapBridgeEvent client-side calls should t
   [
     "Unified SwapBridge Quotes Received",
     {
+      "account_hardware_type": null,
       "action_type": "swapbridge-v1",
       "best_quote_provider": "provider_bridge2",
       "can_submit": true,
@@ -419,6 +449,7 @@ exports[`BridgeController trackUnifiedSwapBridgeEvent client-side calls should t
       "swap_type": "crosschain",
       "token_address_destination": null,
       "token_address_source": "eip155:1/slip44:60",
+      "token_security_type_destination": null,
       "usd_balance_source": 0,
       "usd_quoted_gas": 0,
       "usd_quoted_return": 100,
@@ -471,11 +502,12 @@ exports[`BridgeController updateBridgeQuoteRequestParams should only poll once i
   [
     "Unified SwapBridge Quotes Requested",
     {
+      "account_hardware_type": null,
       "action_type": "swapbridge-v1",
       "chain_id_destination": "eip155:10",
       "chain_id_source": "eip155:1",
       "custom_slippage": true,
-      "has_sufficient_funds": true,
+      "has_sufficient_funds": false,
       "is_hardware_wallet": false,
       "location": "Main View",
       "security_warnings": [],
@@ -484,6 +516,7 @@ exports[`BridgeController updateBridgeQuoteRequestParams should only poll once i
       "swap_type": "crosschain",
       "token_address_destination": "eip155:10/erc20:0x123",
       "token_address_source": "eip155:1/slip44:60",
+      "token_security_type_destination": null,
       "token_symbol_destination": "USDC",
       "token_symbol_source": "ETH",
       "usd_amount_source": 100,
@@ -493,6 +526,7 @@ exports[`BridgeController updateBridgeQuoteRequestParams should only poll once i
   [
     "Unified SwapBridge Quotes Received",
     {
+      "account_hardware_type": null,
       "action_type": "swapbridge-v1",
       "best_quote_provider": "provider_bridge2",
       "can_submit": true,
@@ -518,6 +552,7 @@ exports[`BridgeController updateBridgeQuoteRequestParams should only poll once i
       "swap_type": "crosschain",
       "token_address_destination": "eip155:10/erc20:0x123",
       "token_address_source": "eip155:1/slip44:60",
+      "token_security_type_destination": null,
       "usd_balance_source": 0,
       "usd_quoted_gas": 0,
       "usd_quoted_return": 100,
@@ -796,22 +831,28 @@ exports[`BridgeController updateBridgeQuoteRequestParams should trigger quote po
   "assetExchangeRates": {},
   "minimumBalanceForRentExemptionInLamports": "0",
   "quoteFetchError": null,
-  "quoteRequest": {
-    "destChainId": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
-    "destTokenAddress": "123d1",
-    "destWalletAddress": "SolanaWalletAddres1234",
-    "insufficientBal": false,
-    "slippage": 0.5,
-    "srcChainId": "0x1",
-    "srcTokenAddress": "0x0000000000000000000000000000000000000000",
-    "srcTokenAmount": "10",
-    "walletAddress": "0x123",
-  },
+  "quoteRequest": [
+    {
+      "destChainId": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
+      "destTokenAddress": "123d1",
+      "destWalletAddress": "SolanaWalletAddres1234",
+      "insufficientBal": false,
+      "resetApproval": false,
+      "slippage": 0.5,
+      "srcChainId": "0x1",
+      "srcTokenAddress": "0x0000000000000000000000000000000000000000",
+      "srcTokenAmount": "10",
+      "walletAddress": "0x123",
+    },
+  ],
+  "quoteStreamComplete": null,
   "quotes": [],
   "quotesInitialLoadTime": null,
   "quotesLastFetched": null,
   "quotesLoadingStatus": 0,
   "quotesRefreshCount": 0,
+  "tokenSecurityTypeDestination": null,
+  "tokenWarnings": [],
 }
 `;
 
@@ -825,21 +866,26 @@ exports[`BridgeController updateBridgeQuoteRequestParams should trigger quote po
   },
   "minimumBalanceForRentExemptionInLamports": "0",
   "quoteFetchError": null,
-  "quoteRequest": {
-    "destChainId": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
-    "destTokenAddress": "123d1",
-    "destWalletAddress": "SolanaWalletAddres1234",
-    "insufficientBal": false,
-    "resetApproval": false,
-    "slippage": 0.5,
-    "srcChainId": "0x1",
-    "srcTokenAddress": "0x0000000000000000000000000000000000000000",
-    "srcTokenAmount": "10",
-    "walletAddress": "0x123",
-  },
+  "quoteRequest": [
+    {
+      "destChainId": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
+      "destTokenAddress": "123d1",
+      "destWalletAddress": "SolanaWalletAddres1234",
+      "insufficientBal": false,
+      "resetApproval": false,
+      "slippage": 0.5,
+      "srcChainId": "0x1",
+      "srcTokenAddress": "0x0000000000000000000000000000000000000000",
+      "srcTokenAmount": "10",
+      "walletAddress": "0x123",
+    },
+  ],
+  "quoteStreamComplete": null,
   "quotesInitialLoadTime": 10000,
   "quotesLoadingStatus": 1,
   "quotesRefreshCount": 1,
+  "tokenSecurityTypeDestination": null,
+  "tokenWarnings": [],
 }
 `;
 
@@ -884,6 +930,7 @@ exports[`BridgeController updateBridgeQuoteRequestParams should trigger quote po
   [
     "Unified SwapBridge Quotes Requested",
     {
+      "account_hardware_type": null,
       "action_type": "swapbridge-v1",
       "chain_id_destination": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
       "chain_id_source": "eip155:1",
@@ -897,6 +944,7 @@ exports[`BridgeController updateBridgeQuoteRequestParams should trigger quote po
       "swap_type": "crosschain",
       "token_address_destination": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/token:123d1",
       "token_address_source": "eip155:1/slip44:60",
+      "token_security_type_destination": null,
       "token_symbol_destination": "USDC",
       "token_symbol_source": "ETH",
       "usd_amount_source": 100,
@@ -906,6 +954,7 @@ exports[`BridgeController updateBridgeQuoteRequestParams should trigger quote po
   [
     "Unified SwapBridge Quotes Requested",
     {
+      "account_hardware_type": null,
       "action_type": "swapbridge-v1",
       "chain_id_destination": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
       "chain_id_source": "eip155:1",
@@ -919,6 +968,7 @@ exports[`BridgeController updateBridgeQuoteRequestParams should trigger quote po
       "swap_type": "crosschain",
       "token_address_destination": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/token:123d1",
       "token_address_source": "eip155:1/slip44:60",
+      "token_security_type_destination": null,
       "token_symbol_destination": "USDC",
       "token_symbol_source": "ETH",
       "usd_amount_source": 100,
@@ -928,6 +978,7 @@ exports[`BridgeController updateBridgeQuoteRequestParams should trigger quote po
   [
     "Unified SwapBridge Quotes Requested",
     {
+      "account_hardware_type": null,
       "action_type": "swapbridge-v1",
       "chain_id_destination": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
       "chain_id_source": "eip155:1",
@@ -941,6 +992,7 @@ exports[`BridgeController updateBridgeQuoteRequestParams should trigger quote po
       "swap_type": "crosschain",
       "token_address_destination": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/token:123d1",
       "token_address_source": "eip155:1/slip44:60",
+      "token_security_type_destination": null,
       "token_symbol_destination": "USDC",
       "token_symbol_source": "ETH",
       "usd_amount_source": 100,
@@ -950,6 +1002,7 @@ exports[`BridgeController updateBridgeQuoteRequestParams should trigger quote po
   [
     "Unified SwapBridge Quotes Error",
     {
+      "account_hardware_type": null,
       "action_type": "swapbridge-v1",
       "chain_id_destination": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
       "chain_id_source": "eip155:1",
@@ -964,6 +1017,7 @@ exports[`BridgeController updateBridgeQuoteRequestParams should trigger quote po
       "swap_type": "crosschain",
       "token_address_destination": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/token:123d1",
       "token_address_source": "eip155:1/slip44:60",
+      "token_security_type_destination": null,
       "token_symbol_destination": "USDC",
       "token_symbol_source": "ETH",
       "usd_amount_source": 100,
@@ -973,6 +1027,7 @@ exports[`BridgeController updateBridgeQuoteRequestParams should trigger quote po
   [
     "Unified SwapBridge Quotes Requested",
     {
+      "account_hardware_type": null,
       "action_type": "swapbridge-v1",
       "chain_id_destination": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
       "chain_id_source": "eip155:1",
@@ -986,6 +1041,7 @@ exports[`BridgeController updateBridgeQuoteRequestParams should trigger quote po
       "swap_type": "crosschain",
       "token_address_destination": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/token:123d1",
       "token_address_source": "eip155:1/slip44:60",
+      "token_security_type_destination": null,
       "token_symbol_destination": "USDC",
       "token_symbol_source": "ETH",
       "usd_amount_source": 100,
@@ -1143,6 +1199,7 @@ exports[`BridgeController updateBridgeQuoteRequestParams: should handle malforme
       "refresh_count": 0,
       "token_address_destination": "eip155:1/slip44:60",
       "token_address_source": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/token:NATIVE",
+      "token_security_type_destination": null,
     },
   ],
 ]

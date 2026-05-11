@@ -1,9 +1,16 @@
-import { getStrategiesByName, getStrategyByName } from './strategy';
 import { TransactionPayStrategy } from '../constants';
 import { AcrossStrategy } from '../strategy/across/AcrossStrategy';
 import { BridgeStrategy } from '../strategy/bridge/BridgeStrategy';
+import { FiatStrategy } from '../strategy/fiat/FiatStrategy';
 import { RelayStrategy } from '../strategy/relay/RelayStrategy';
 import { TestStrategy } from '../strategy/test/TestStrategy';
+import type { PayStrategyGetQuotesRequest } from '../types';
+import {
+  checkStrategyQuoteSupport,
+  checkStrategySupport,
+  getStrategiesByName,
+  getStrategyByName,
+} from './strategy';
 
 describe('Strategy Utils', () => {
   describe('getStrategyByName', () => {
@@ -27,6 +34,11 @@ describe('Strategy Utils', () => {
       expect(strategy).toBeInstanceOf(RelayStrategy);
     });
 
+    it('returns FiatStrategy if strategy name is Fiat', () => {
+      const strategy = getStrategyByName(TransactionPayStrategy.Fiat);
+      expect(strategy).toBeInstanceOf(FiatStrategy);
+    });
+
     it('throws if strategy name is unknown', () => {
       expect(() => getStrategyByName('UnknownStrategy' as never)).toThrow(
         'Unknown strategy: UnknownStrategy',
@@ -40,15 +52,18 @@ describe('Strategy Utils', () => {
         TransactionPayStrategy.Test,
         TransactionPayStrategy.Bridge,
         TransactionPayStrategy.Relay,
+        TransactionPayStrategy.Fiat,
       ]);
 
-      expect(strategies).toHaveLength(3);
+      expect(strategies).toHaveLength(4);
       expect(strategies[0].name).toBe(TransactionPayStrategy.Test);
       expect(strategies[1].name).toBe(TransactionPayStrategy.Bridge);
       expect(strategies[2].name).toBe(TransactionPayStrategy.Relay);
+      expect(strategies[3].name).toBe(TransactionPayStrategy.Fiat);
       expect(strategies[0].strategy).toBeInstanceOf(TestStrategy);
       expect(strategies[1].strategy).toBeInstanceOf(BridgeStrategy);
       expect(strategies[2].strategy).toBeInstanceOf(RelayStrategy);
+      expect(strategies[3].strategy).toBeInstanceOf(FiatStrategy);
     });
 
     it('skips unknown strategies and calls callback', () => {
@@ -68,6 +83,67 @@ describe('Strategy Utils', () => {
         TransactionPayStrategy.Relay,
       ]);
       expect(onUnknownStrategy).toHaveBeenCalledWith('UnknownStrategy');
+    });
+  });
+
+  describe('checkStrategySupport', () => {
+    const request = {} as PayStrategyGetQuotesRequest;
+
+    it('uses supports when available', async () => {
+      const strategy = {
+        getQuotes: jest.fn(),
+        execute: jest.fn(),
+        supports: jest.fn().mockReturnValue(true),
+      };
+
+      expect(await checkStrategySupport(strategy, request)).toBe(true);
+      expect(strategy.supports).toHaveBeenCalledWith(request);
+    });
+
+    it('supports async supports checks', async () => {
+      const strategy = {
+        getQuotes: jest.fn(),
+        execute: jest.fn(),
+        supports: jest.fn().mockResolvedValue(false),
+      };
+
+      expect(await checkStrategySupport(strategy, request)).toBe(false);
+      expect(strategy.supports).toHaveBeenCalledWith(request);
+    });
+
+    it('defaults to supported when no support check is provided', async () => {
+      const strategy = {
+        getQuotes: jest.fn(),
+        execute: jest.fn(),
+      };
+
+      expect(await checkStrategySupport(strategy, request)).toBe(true);
+    });
+  });
+
+  describe('checkStrategyQuoteSupport', () => {
+    const request = {
+      quotes: [],
+    } as never;
+
+    it('uses checkQuoteSupport when available', async () => {
+      const strategy = {
+        checkQuoteSupport: jest.fn().mockReturnValue(false),
+        getQuotes: jest.fn(),
+        execute: jest.fn(),
+      };
+
+      expect(await checkStrategyQuoteSupport(strategy, request)).toBe(false);
+      expect(strategy.checkQuoteSupport).toHaveBeenCalledWith(request);
+    });
+
+    it('defaults to supported when no post-quote support check is provided', async () => {
+      const strategy = {
+        getQuotes: jest.fn(),
+        execute: jest.fn(),
+      };
+
+      expect(await checkStrategyQuoteSupport(strategy, request)).toBe(true);
     });
   });
 });

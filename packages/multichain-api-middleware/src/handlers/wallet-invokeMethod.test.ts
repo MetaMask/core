@@ -2,7 +2,7 @@ import * as chainAgnosticPermissionModule from '@metamask/chain-agnostic-permiss
 import { providerErrors, rpcErrors } from '@metamask/rpc-errors';
 
 import type { WalletInvokeMethodRequest } from './wallet-invokeMethod';
-import { walletInvokeMethod } from './wallet-invokeMethod';
+import { walletInvokeMethodHandler } from './wallet-invokeMethod';
 
 // Allow individual modules to be mocked
 jest.mock('@metamask/chain-agnostic-permission', () => ({
@@ -58,14 +58,16 @@ const createMockedHandler = () => {
     .fn()
     .mockReturnValue('selectedNetworkClientId');
   const getNonEvmSupportedMethods = jest.fn().mockReturnValue([]);
+  const sortAccountIdsByLastSelected = jest.fn((accounts) => accounts);
   const handleNonEvmRequestForOrigin = jest.fn().mockResolvedValue(null);
   const response = { jsonrpc: '2.0' as const, id: 1 };
   const handler = (request: WalletInvokeMethodRequest) =>
-    walletInvokeMethod.implementation(request, response, next, end, {
+    walletInvokeMethodHandler.implementation(request, response, next, end, {
       getCaveatForOrigin,
       findNetworkClientIdByChainId,
       getSelectedNetworkClientId,
       getNonEvmSupportedMethods,
+      sortAccountIdsByLastSelected,
       handleNonEvmRequestForOrigin,
     });
 
@@ -77,6 +79,7 @@ const createMockedHandler = () => {
     findNetworkClientIdByChainId,
     getSelectedNetworkClientId,
     getNonEvmSupportedMethods,
+    sortAccountIdsByLastSelected,
     handleNonEvmRequestForOrigin,
     handler,
   };
@@ -115,6 +118,22 @@ describe('wallet_invokeMethod', () => {
       });
   });
 
+  it('returns invalid params when params is not a plain object', async () => {
+    const { handler, end, getCaveatForOrigin, next } = createMockedHandler();
+    const request = {
+      ...createMockedRequest(),
+      params: [
+        'not-a-plain-object',
+      ] as unknown as WalletInvokeMethodRequest['params'],
+    };
+    await handler(request);
+    expect(end).toHaveBeenCalledWith(
+      rpcErrors.invalidParams({ data: { request } }),
+    );
+    expect(getCaveatForOrigin).not.toHaveBeenCalled();
+    expect(next).not.toHaveBeenCalled();
+  });
+
   it('gets the authorized scopes from the CAIP-25 endowment permission', async () => {
     const request = createMockedRequest();
     const { handler, getCaveatForOrigin } = createMockedHandler();
@@ -127,7 +146,8 @@ describe('wallet_invokeMethod', () => {
 
   it('gets the session scopes from the CAIP-25 caveat value', async () => {
     const request = createMockedRequest();
-    const { handler, getNonEvmSupportedMethods } = createMockedHandler();
+    const { handler, getNonEvmSupportedMethods, sortAccountIdsByLastSelected } =
+      createMockedHandler();
     await handler(request);
     expect(chainAgnosticPermissionModule.getSessionScopes).toHaveBeenCalledWith(
       {
@@ -151,6 +171,7 @@ describe('wallet_invokeMethod', () => {
       },
       {
         getNonEvmSupportedMethods,
+        sortAccountIdsByLastSelected,
       },
     );
   });

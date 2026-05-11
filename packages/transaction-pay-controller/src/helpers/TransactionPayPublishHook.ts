@@ -9,7 +9,9 @@ import type {
   TransactionPayControllerMessenger,
   TransactionPayQuote,
 } from '../types';
+import { accountSupports7702 } from '../utils/7702';
 import { getStrategyByName } from '../utils/strategy';
+import { updateTransaction } from '../utils/transaction';
 
 const log = createModuleLogger(projectLogger, 'pay-publish-hook');
 
@@ -45,7 +47,8 @@ export class TransactionPayPublishHook {
       return await this.#publishHook(transactionMeta, _signedTx);
     } catch (error) {
       log('Error', error);
-      throw error;
+      const message = error instanceof Error ? error.message : String(error);
+      throw new Error(`MetaMask Pay: ${message}`);
     }
   }
 
@@ -68,9 +71,22 @@ export class TransactionPayPublishHook {
       return EMPTY_RESULT;
     }
 
+    updateTransaction(
+      {
+        transactionId,
+        messenger: this.#messenger,
+        note: 'Set submittedTime at pay publish hook start',
+      },
+      (tx) => {
+        tx.submittedTime = new Date().getTime();
+      },
+    );
+
     const strategy = getStrategyByName(quotes[0].strategy);
+    const from = transactionMeta.txParams.from as Hex;
 
     return await strategy.execute({
+      accountSupports7702: accountSupports7702(this.#messenger, from),
       isSmartTransaction: this.#isSmartTransaction,
       quotes,
       messenger: this.#messenger,

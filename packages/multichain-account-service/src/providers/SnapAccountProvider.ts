@@ -21,12 +21,16 @@ import type { Json, JsonRpcRequest, SnapId } from '@metamask/snaps-sdk';
 import { HandlerType } from '@metamask/snaps-utils';
 import { Semaphore } from 'async-mutex';
 
-import { BaseBip44AccountProvider } from './BaseBip44AccountProvider';
-import { withTimeout } from './utils';
-import { traceFallback } from '../analytics';
+import {
+  toCreateAccountsV2DataTraces,
+  traceFallback,
+  TraceName,
+} from '../analytics';
+import { reportError } from '../errors';
 import { projectLogger as log, WARNING_PREFIX } from '../logger';
 import type { MultichainAccountServiceMessenger } from '../types';
-import { createSentryError } from '../utils';
+import { BaseBip44AccountProvider } from './BaseBip44AccountProvider';
+import { withTimeout } from './utils';
 
 export type RestrictedSnapKeyring = {
   createAccount: (options: Record<string, Json>) => Promise<KeyringAccount>;
@@ -110,15 +114,13 @@ export abstract class SnapAccountProvider extends BaseBip44AccountProvider {
   }
 
   /**
-   * Ensures that the Snap platform is ready to be used.
+   * Ensures that the Snap is ready to be used.
    *
-   * @returns A promise that resolves when the platform is ready.
-   * @throws An error if the platform is not ready (only effective once the platform has been ready at least once).
+   * @returns A promise that resolves when the Snap is ready.
+   * @throws An error if the Snap could not become ready.
    */
-  async ensureCanUseSnapPlatform(): Promise<void> {
-    return this.messenger.call(
-      'MultichainAccountService:ensureCanUseSnapPlatform',
-    );
+  async ensureReady(): Promise<void> {
+    return this.messenger.call('SnapAccountService:ensureReady', this.snapId);
   }
 
   /**
@@ -230,12 +232,15 @@ export abstract class SnapAccountProvider extends BaseBip44AccountProvider {
                   snapAccounts.delete(snapAccountId);
                 }
               } catch (error) {
-                const sentryError = createSentryError(
+                reportError(
+                  this.messenger,
                   `Unable to delete de-synced Snap account: ${this.snapId}`,
-                  error as Error,
-                  { provider: this.getName(), snapAccountId },
+                  error,
+                  {
+                    provider: this.getName(),
+                    snapAccountId,
+                  },
                 );
-                this.messenger.captureException?.(sentryError);
               }
             }),
           );
@@ -269,15 +274,10 @@ export abstract class SnapAccountProvider extends BaseBip44AccountProvider {
                 });
               }
             } catch (error) {
-              const sentryError = createSentryError(
-                `Unable to re-sync account: ${groupIndex}`,
-                error as Error,
-                {
-                  provider: this.getName(),
-                  groupIndex,
-                },
-              );
-              this.messenger.captureException?.(sentryError);
+              reportError(this.messenger, 'Unable to re-sync accounts', error, {
+                provider: this.getName(),
+                groupIndex,
+              });
             }
           }),
         );
@@ -308,7 +308,7 @@ export abstract class SnapAccountProvider extends BaseBip44AccountProvider {
       keyring: RestrictedSnapKeyring;
     }) => Promise<CallbackResult>,
   ): Promise<CallbackResult> {
-    await this.ensureCanUseSnapPlatform();
+    await this.ensureReady();
 
     return await operation({
       client: this.#client,
@@ -344,13 +344,48 @@ export abstract class SnapAccountProvider extends BaseBip44AccountProvider {
       const batched = this.config.createAccounts.batched ?? false;
       const { entropySource } = options;
 
+      const createAccountV1 = async (
+        groupIndex: number,
+      ): Promise<KeyringAccount> =>
+        await withTimeout(
+          () =>
+            this.trace(
+              {
+                name: TraceName.ProviderCreateAccountV1,
+                data: {
+                  provider: this.getName(),
+                  groupIndex,
+                },
+              },
+              () =>
+                this.createAccountV1(keyring, { entropySource, groupIndex }),
+            ),
+          this.config.createAccounts.timeoutMs,
+        );
+      const createAccountsV2 = async (
+        optionsV2:
+          | CreateAccountBip44DeriveIndexOptions
+          | CreateAccountBip44DeriveIndexRangeOptions,
+      ): Promise<KeyringAccount[]> =>
+        await withTimeout(
+          () =>
+            this.trace(
+              {
+                name: TraceName.ProviderCreateAccounts,
+                data: {
+                  provider: this.getName(),
+                  ...toCreateAccountsV2DataTraces(optionsV2),
+                },
+              },
+              () => keyring.createAccounts(optionsV2),
+            ),
+          this.config.createAccounts.timeoutMs,
+        );
+
       if (options.type === `${AccountCreationType.Bip44DeriveIndexRange}`) {
         if (batched) {
           // Batch account creations.
-          snapAccounts = await withTimeout(
-            keyring.createAccounts(options),
-            this.config.createAccounts.timeoutMs,
-          );
+          snapAccounts = await createAccountsV2(options);
         } else {
           const { range } = options;
 
@@ -360,10 +395,7 @@ export abstract class SnapAccountProvider extends BaseBip44AccountProvider {
             groupIndex <= range.to;
             groupIndex++
           ) {
-            const snapAccount = await withTimeout(
-              this.createAccountV1(keyring, { entropySource, groupIndex }),
-              this.config.createAccounts.timeoutMs,
-            );
+            const snapAccount = await createAccountV1(groupIndex);
 
             snapAccounts.push(snapAccount);
           }
@@ -374,18 +406,12 @@ export abstract class SnapAccountProvider extends BaseBip44AccountProvider {
       } else {
         if (batched) {
           // Create account using new v2-like flow (no async flow + no Snap keyring events).
-          snapAccounts = await withTimeout(
-            keyring.createAccounts(options),
-            this.config.createAccounts.timeoutMs,
-          );
+          snapAccounts = await createAccountsV2(options);
         } else {
           const { groupIndex } = options;
 
           // Create account using the existing v1 flow.
-          const snapAccount = await withTimeout(
-            this.createAccountV1(keyring, { entropySource, groupIndex }),
-            this.config.createAccounts.timeoutMs,
-          );
+          const snapAccount = await createAccountV1(groupIndex);
 
           snapAccounts = [snapAccount];
         }

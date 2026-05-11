@@ -12,6 +12,7 @@ import {
   TransactionPayStrategy,
 } from './constants';
 import { QuoteRefresher } from './helpers/QuoteRefresher';
+import { deriveFiatAssetForFiatPayment } from './strategy/fiat/utils';
 import type {
   GetDelegationTransactionCallback,
   TransactionConfigCallback,
@@ -25,7 +26,12 @@ import type {
 import { getStrategyOrder } from './utils/feature-flags';
 import { updateQuotes } from './utils/quotes';
 import { updateSourceAmounts } from './utils/source-amounts';
-import { pollTransactionChanges } from './utils/transaction';
+import { buildCaipAssetType } from './utils/token';
+import {
+  getTransaction,
+  subscribeAssetChanges,
+  subscribeTransactionChanges,
+} from './utils/transaction';
 
 const MESSENGER_EXPOSED_METHODS = [
   'getDelegationTransaction',
@@ -86,10 +92,16 @@ export class TransactionPayController extends BaseController<
       MESSENGER_EXPOSED_METHODS,
     );
 
-    pollTransactionChanges(
+    subscribeTransactionChanges(
       messenger,
       this.#updateTransactionData.bind(this),
       this.#removeTransactionData.bind(this),
+    );
+
+    subscribeAssetChanges(
+      messenger,
+      () => this.state,
+      this.#updateTransactionData.bind(this),
     );
 
     // eslint-disable-next-line no-new
@@ -117,14 +129,24 @@ export class TransactionPayController extends BaseController<
       const config = {
         isMaxAmount: transactionData.isMaxAmount,
         isPostQuote: transactionData.isPostQuote,
+        isHyperliquidSource: transactionData.isHyperliquidSource,
         refundTo: transactionData.refundTo,
+        accountOverride: transactionData.accountOverride,
       };
+
+      const previousAccountOverride = config.accountOverride;
 
       callback(config);
 
+      transactionData.accountOverride = config.accountOverride;
       transactionData.isMaxAmount = config.isMaxAmount;
       transactionData.isPostQuote = config.isPostQuote;
+      transactionData.isHyperliquidSource = config.isHyperliquidSource;
       transactionData.refundTo = config.refundTo;
+
+      if (config.accountOverride !== previousAccountOverride) {
+        transactionData.paymentToken = undefined;
+      }
     });
   }
 
@@ -205,6 +227,7 @@ export class TransactionPayController extends BaseController<
     fn: (transactionData: Draft<TransactionData>) => void,
   ): void {
     let shouldUpdateQuotes = false;
+    let shouldUpdateFiatToken = false;
 
     this.update((state) => {
       const { transactionData } = state;
@@ -213,6 +236,10 @@ export class TransactionPayController extends BaseController<
       const originalTokens = current?.tokens;
       const originalIsMaxAmount = current?.isMaxAmount;
       const originalIsPostQuote = current?.isPostQuote;
+      const originalAccountOverride = current?.accountOverride;
+      const originalFiatPaymentAmount = current?.fiatPayment?.amountFiat;
+      const originalFiatPaymentMethodId =
+        current?.fiatPayment?.selectedPaymentMethodId;
 
       if (!current) {
         transactionData[transactionId] = {
@@ -234,18 +261,55 @@ export class TransactionPayController extends BaseController<
       const isTokensUpdated = current.tokens !== originalTokens;
       const isIsMaxUpdated = current.isMaxAmount !== originalIsMaxAmount;
       const isPostQuoteUpdated = current.isPostQuote !== originalIsPostQuote;
+      const isAccountOverrideUpdated =
+        current.accountOverride !== originalAccountOverride;
+      const isFiatAmountUpdated =
+        current.fiatPayment?.amountFiat !== originalFiatPaymentAmount;
+      const isFiatPaymentMethodUpdated =
+        current.fiatPayment?.selectedPaymentMethodId !==
+        originalFiatPaymentMethodId;
 
       if (
         isPaymentTokenUpdated ||
         isIsMaxUpdated ||
         isTokensUpdated ||
-        isPostQuoteUpdated
+        isPostQuoteUpdated ||
+        isAccountOverrideUpdated
       ) {
         updateSourceAmounts(transactionId, current as never, this.messenger);
 
         shouldUpdateQuotes = true;
       }
+
+      if (isFiatAmountUpdated || isFiatPaymentMethodUpdated) {
+        shouldUpdateQuotes = true;
+      }
+
+      if (isFiatPaymentMethodUpdated) {
+        shouldUpdateFiatToken = true;
+      }
     });
+
+    if (shouldUpdateFiatToken) {
+      const transaction = getTransaction(
+        transactionId,
+        this.messenger,
+      ) as TransactionMeta;
+      const fiatAsset = deriveFiatAssetForFiatPayment(
+        transaction,
+        this.messenger,
+      );
+      if (fiatAsset) {
+        this.#updateTransactionData(transactionId, (data) => {
+          if (data.fiatPayment) {
+            data.fiatPayment.caipAssetId = buildCaipAssetType(
+              fiatAsset.chainId,
+              fiatAsset.address,
+            );
+          }
+        });
+      }
+    }
 
     if (shouldUpdateQuotes) {
       updateQuotes({
@@ -270,8 +334,19 @@ export class TransactionPayController extends BaseController<
         isTransactionPayStrategy(strategy),
     );
 
-    return validStrategies.length
-      ? validStrategies
-      : getStrategyOrder(this.messenger);
+    if (validStrategies.length) {
+      return validStrategies;
+    }
+
+    const transactionData = this.state.transactionData[transaction.id];
+    const paymentToken = transactionData?.paymentToken;
+
+    return getStrategyOrder(
+      this.messenger,
+      paymentToken?.chainId,
+      paymentToken?.address,
+      transaction.type,
+      transactionData?.fiatPayment?.selectedPaymentMethodId,
+    );
   }
 }

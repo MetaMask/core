@@ -3,16 +3,18 @@ import { Web3Provider } from '@ethersproject/providers';
 import { TokensControllerState } from '@metamask/assets-controllers';
 import { toChecksumHexAddress } from '@metamask/controller-utils';
 import { abiERC20 } from '@metamask/metamask-eth-abis';
-import type { Hex } from '@metamask/utils';
+import type { CaipAssetType, Hex } from '@metamask/utils';
+import { hexToBigInt, toCaipAssetType } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
 
-import { getAssetsUnifyStateFeature } from './feature-flags';
 import {
   CHAIN_ID_POLYGON,
   NATIVE_TOKEN_ADDRESS,
+  SLIP44_COIN_TYPE_BY_CHAIN,
   STABLECOINS,
 } from '../constants';
 import type { FiatRates, TransactionPayControllerMessenger } from '../types';
+import { getAssetsUnifyStateFeature } from './feature-flags';
 
 /**
  * Check if two tokens are the same (same address and chain).
@@ -251,6 +253,38 @@ export function computeTokenAmounts(
 }
 
 /**
+ * Compute a raw token amount from a fiat (USD) amount.
+ * This is the inverse of `computeTokenAmounts` — it goes from USD to raw.
+ *
+ * @param fiatAmount - Amount in fiat/USD.
+ * @param decimals - Token decimals.
+ * @param usdRate - USD rate for the token (price per one unit of the token).
+ * @returns Raw token amount string, or undefined if the conversion produces an invalid result.
+ */
+export function computeRawFromFiatAmount(
+  fiatAmount: BigNumber.Value,
+  decimals: number,
+  usdRate: BigNumber.Value,
+): string | undefined {
+  const rate = new BigNumber(usdRate);
+  if (!rate.isFinite() || !rate.gt(0)) {
+    return undefined;
+  }
+
+  const humanAmount = new BigNumber(fiatAmount).dividedBy(rate);
+  if (!humanAmount.isFinite() || !humanAmount.gt(0)) {
+    return undefined;
+  }
+
+  const raw = humanAmount
+    .shiftedBy(decimals)
+    .decimalPlaces(0, BigNumber.ROUND_DOWN)
+    .toFixed(0);
+
+  return new BigNumber(raw).gt(0) ? raw : undefined;
+}
+
+/**
  * Get the native token address for a given chain ID.
  *
  * @param chainId - Chain ID.
@@ -306,6 +340,41 @@ export async function getLiveTokenBalance(
   const contract = new Contract(tokenAddress, abiERC20, ethersProvider);
   const balance = await contract.balanceOf(account);
   return balance.toString();
+}
+
+/**
+ * Build a CAIP-19 asset type identifier for an EVM token.
+ *
+ * For native tokens the SLIP-44 coin type is resolved automatically from
+ * a built-in chain→coin-type map, falling back to 60 (ETH).  Callers can
+ * override via the optional third parameter.
+ *
+ * @param chainId - Hex chain ID (e.g. `0x1`).
+ * @param tokenAddress - Token contract address, or the native token address.
+ * @param slip44CoinType - Optional SLIP-44 coin type override for native tokens.
+ * @returns CAIP-19 asset type string.
+ */
+export function buildCaipAssetType(
+  chainId: Hex,
+  tokenAddress: Hex,
+  slip44CoinType?: number,
+): CaipAssetType {
+  const chainReference = String(hexToBigInt(chainId));
+  const isNative =
+    tokenAddress.toLowerCase() === getNativeToken(chainId).toLowerCase();
+
+  if (isNative) {
+    const coinType = slip44CoinType ?? SLIP44_COIN_TYPE_BY_CHAIN[chainId] ?? 60;
+
+    return toCaipAssetType(
+      'eip155',
+      chainReference,
+      'slip44',
+      String(coinType),
+    );
+  }
+
+  return toCaipAssetType('eip155', chainReference, 'erc20', tokenAddress);
 }
 
 function getTicker(

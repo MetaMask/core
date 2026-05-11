@@ -17,6 +17,9 @@
       "path": "../controller-utils"
     },
     {
+      "path": "../geolocation-controller"
+    },
+    {
       "path": "../keyring-controller"
     },
     {

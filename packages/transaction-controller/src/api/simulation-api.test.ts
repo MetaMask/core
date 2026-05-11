@@ -2,9 +2,9 @@ import type { Hex } from '@metamask/utils';
 import { cloneDeep } from 'lodash';
 import type { GetSimulationConfig } from 'src';
 
+import { CHAIN_IDS, DELEGATION_MANAGER_ADDRESSES } from '../constants';
 import type { SimulationRequest, SimulationResponse } from './simulation-api';
 import { simulateTransactions } from './simulation-api';
-import { CHAIN_IDS, DELEGATION_MANAGER_ADDRESSES } from '../constants';
 
 const CHAIN_ID_MOCK = '0x1';
 const CHAIN_ID_MOCK_DECIMAL = 1;

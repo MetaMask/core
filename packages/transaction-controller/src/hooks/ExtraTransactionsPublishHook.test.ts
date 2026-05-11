@@ -1,6 +1,5 @@
 import type { Hex } from '@metamask/utils';
 
-import { ExtraTransactionsPublishHook } from './ExtraTransactionsPublishHook';
 import type {
   BatchTransactionParams,
   TransactionController,
@@ -8,6 +7,7 @@ import type {
 } from '..';
 import type { BatchTransaction } from '../types';
 import { TransactionType } from '../types';
+import { ExtraTransactionsPublishHook } from './ExtraTransactionsPublishHook';
 
 const SIGNED_TRANSACTION_MOCK = '0xffe';
 const SIGNED_TRANSACTION_2_MOCK = '0xfff' as Hex;

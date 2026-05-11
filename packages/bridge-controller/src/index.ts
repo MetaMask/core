@@ -9,6 +9,7 @@ export {
 } from './utils/metrics/constants';
 
 export type {
+  AccountHardwareType,
   RequiredEventContextFromClient,
   CrossChainSwapsEventProperties,
   TradeData,
@@ -20,6 +21,7 @@ export type {
 } from './utils/metrics/types';
 
 export {
+  getAccountHardwareType,
   formatProviderLabel,
   getRequestParams,
   getSwapType,
@@ -57,6 +59,16 @@ export type {
   FeatureFlagsPlatformConfig,
 } from './types';
 
+export type {
+  BridgeControllerUpdateBridgeQuoteRequestParamsAction,
+  BridgeControllerFetchQuotesAction,
+  BridgeControllerStopPollingForQuotesAction,
+  BridgeControllerSetLocationAction,
+  BridgeControllerResetStateAction,
+  BridgeControllerSetChainIntervalLengthAction,
+  BridgeControllerTrackUnifiedSwapBridgeEventAction,
+} from './bridge-controller-method-action-types';
+
 export { AbortReason } from './utils/metrics/constants';
 
 export { StatusTypes } from './types';
@@ -68,6 +80,8 @@ export {
   RequestStatus,
   BridgeUserAction,
   BridgeBackgroundAction,
+  type TokenFeature,
+  type QuoteStreamCompleteData,
   type BridgeControllerGetStateAction,
   type BridgeControllerStateChangeEvent,
 } from './types';
@@ -77,6 +91,9 @@ export {
   ActionTypes,
   BridgeAssetSchema,
   FeatureId,
+  TokenFeatureType,
+  validateQuoteStreamComplete,
+  QuoteStreamCompleteReason,
 } from './utils/validators';
 
 export {
@@ -131,6 +148,7 @@ export {
 
 export {
   isValidQuoteRequest,
+  isValidBatchSellQuoteRequest,
   formatEtaInMinutes,
   calcSlippagePercentage,
 } from './utils/quote';
@@ -156,12 +174,14 @@ export {
 
 export {
   selectBridgeQuotes,
+  selectBatchSellQuotes,
   selectDefaultSlippagePercentage,
   type BridgeAppState,
-  selectExchangeRateByChainIdAndAddress,
+  selectExchangeRateByAssetId,
   selectIsQuoteExpired,
   selectBridgeFeatureFlags,
   selectMinimumBalanceForRentExemptionInSOL,
+  selectTokenWarnings,
 } from './selectors';
 
 export { DEFAULT_FEATURE_FLAG_CONFIG } from './constants/bridge';

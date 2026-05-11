@@ -7,10 +7,77 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/network-controller` from `^31.0.0` to `^31.1.0` ([#8765](https://github.com/MetaMask/core/pull/8765))
+
+## [38.1.0]
+
+### Changed
+
+- Use `KeyringV1Adapter` for `SnapKeyring` v2 accounts ([#8703](https://github.com/MetaMask/core/pull/8703))
+  - `SnapKeyring` v2 instances will be adapted/wrapped by a v1 keyring adapter, making it compatible with the current `KeyringController` keyrings management.
+- Bump `@metamask/keyring-utils` from `^3.1.0` to `^3.2.1` ([#8703](https://github.com/MetaMask/core/pull/8703))
+- Bump `@metamask/keyring-controller` from `^25.4.0` to `^25.5.0` ([#8722](https://github.com/MetaMask/core/pull/8722))
+- Bump `@metamask/network-controller` from `^30.1.0` to `^31.0.0` ([#8755](https://github.com/MetaMask/core/pull/8755))
+
+## [38.0.0]
+
+### Added
+
+- Add support for `SnapKeyring` v2 accounts ([#8513](https://github.com/MetaMask/core/pull/8513))
+
+### Changed
+
+- Bump `@metamask/messenger` from `^1.0.0` to `^1.2.0` ([#8364](https://github.com/MetaMask/core/pull/8364), [#8373](https://github.com/MetaMask/core/pull/8373), [#8632](https://github.com/MetaMask/core/pull/8632))
+- Bump `@metamask/base-controller` from `^9.0.1` to `^9.1.0` ([#8457](https://github.com/MetaMask/core/pull/8457))
+- Bump `@metamask/eth-snap-keyring` from `^19.0.0` to `^22.0.1` ([#8464](https://github.com/MetaMask/core/pull/8464), [#8584](https://github.com/MetaMask/core/pull/8584), [#8647](https://github.com/MetaMask/core/pull/8647))
+- Bump `@metamask/keyring-api` from `^21.6.0` to `^23.1.0` ([#8464](https://github.com/MetaMask/core/pull/8464), [#8647](https://github.com/MetaMask/core/pull/8647))
+- Bump `@metamask/keyring-internal-api` from `^10.0.0` to `^11.0.1` ([#8464](https://github.com/MetaMask/core/pull/8464), [#8584](https://github.com/MetaMask/core/pull/8584), [#8647](https://github.com/MetaMask/core/pull/8647))
+- Bump `@metamask/keyring-controller` from `^25.2.0` to `^25.4.0` ([#8634](https://github.com/MetaMask/core/pull/8634), [#8665](https://github.com/MetaMask/core/pull/8665))
+- Bump `@metamask/network-controller` from `^30.0.1` to `^30.1.0` ([#8636](https://github.com/MetaMask/core/pull/8636))
+
+### Removed
+
+- **BREAKING:** `InternalAccount.metadata.snap.{enabled,name}` properties have been removed ([#8584](https://github.com/MetaMask/core/pull/8584))
+  - You now need to use `metadata.snap.id` and the `SnapController:<actions>` to get those information.
+- No longer depend on `SnapController:stateChange` event ([#8584](https://github.com/MetaMask/core/pull/8584))
+
+## [37.2.0]
+
+### Added
+
+- Now supports `KeyringTypes.money` in `keyringTypeToName` ([#8362](https://github.com/MetaMask/core/pull/8362))
+  - Even though this controller does not support Money accounts, this helper might be used with this new keyring type (added for completeness).
+
+### Changed
+
+- Filter out Money accounts when replicating `KeyringController` state ([#8362](https://github.com/MetaMask/core/pull/8362))
+  - Those accounts are treated differently with their own "account-like" controller.
+- Bump `@metamask/keyring-controller` from `^25.1.1` to `^25.2.0` ([#8363](https://github.com/MetaMask/core/pull/8363))
+
+## [37.1.1]
+
+### Changed
+
+- Bump `@metamask/snaps-controllers` from `^17.2.0` to `^19.0.0` ([#8319](https://github.com/MetaMask/core/pull/8319))
+- Bump `@metamask/snaps-sdk` from `^10.3.0` to `^11.0.0` ([#8319](https://github.com/MetaMask/core/pull/8319))
+- Bump `@metamask/snaps-utils` from `^11.7.0` to `^12.1.2` ([#8319](https://github.com/MetaMask/core/pull/8319))
+
+## [37.1.0]
+
 ### Added
 
 - Add `:accounts{Added,Removed}` batch events ([#8151](https://github.com/MetaMask/core/pull/8151))
   - Those new events can be used instead of single `:accountAdded` and `:accountRemoved` events to reduce the number of events emitted during batch operations (e.g. `KeyringController` state re-synchronization).
+
+### Changed
+
+- Bump `@metamask/base-controller` from `^9.0.0` to `^9.0.1` ([#8317](https://github.com/MetaMask/core/pull/8317))
+- Bump `@metamask/keyring-controller` from `^25.1.0` to `^25.1.1` ([#8317](https://github.com/MetaMask/core/pull/8317))
+- Bump `@metamask/messenger` from `^0.3.0` to `^1.0.0` ([#8317](https://github.com/MetaMask/core/pull/8317))
+- Bump `@metamask/network-controller` from `^30.0.0` to `^30.0.1` ([#8317](https://github.com/MetaMask/core/pull/8317))
+- Bump `@metamask/keyring-api` from `^21.5.0` to `^21.6.0` ([#8259](https://github.com/MetaMask/core/pull/8259))
 
 ### Fixed
 
@@ -730,7 +797,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#1637](https://github.com/MetaMask/core/pull/1637))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@37.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@38.1.0...HEAD
+[38.1.0]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@38.0.0...@metamask/accounts-controller@38.1.0
+[38.0.0]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@37.2.0...@metamask/accounts-controller@38.0.0
+[37.2.0]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@37.1.1...@metamask/accounts-controller@37.2.0
+[37.1.1]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@37.1.0...@metamask/accounts-controller@37.1.1
+[37.1.0]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@37.0.0...@metamask/accounts-controller@37.1.0
 [37.0.0]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@36.0.1...@metamask/accounts-controller@37.0.0
 [36.0.1]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@36.0.0...@metamask/accounts-controller@36.0.1
 [36.0.0]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@35.0.2...@metamask/accounts-controller@36.0.0

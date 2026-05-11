@@ -2,22 +2,30 @@
 import { StructError } from '@metamask/superstruct';
 import type { CaipAssetType, CaipChainId, Hex } from '@metamask/utils';
 
-import { getEthUsdtResetData } from './bridge';
-import {
-  formatAddressToCaipReference,
-  formatChainIdToDec,
-} from './caip-formatters';
-import { fetchServerEvents } from './fetch-server-events';
-import { isEvmTxData } from './trade-utils';
-import type { FeatureId } from './validators';
-import { validateQuoteResponse, validateSwapsTokenObject } from './validators';
 import type {
   QuoteResponse,
   FetchFunction,
   GenericQuoteRequest,
   QuoteRequest,
   BridgeAsset,
+  TokenFeature,
+  QuoteStreamCompleteData,
 } from '../types';
+import { getEthUsdtResetData } from './bridge';
+import {
+  formatAddressToAssetId,
+  formatAddressToCaipReference,
+  formatChainIdToDec,
+} from './caip-formatters';
+import { fetchServerEvents } from './fetch-server-events';
+import { isEvmTxData } from './trade-utils';
+import type { FeatureId } from './validators';
+import {
+  validateQuoteResponse,
+  validateSwapsTokenObject,
+  validateTokenFeature,
+  validateQuoteStreamComplete,
+} from './validators';
 
 export const getClientHeaders = ({
   clientId,
@@ -73,12 +81,12 @@ export async function fetchBridgeTokens(
 }
 
 /**
- * Converts the generic quote request to the type that the bridge-api expects
+ * Converts the generic quote request to QuoteRequest
  *
  * @param request - The quote request
- * @returns A URLSearchParams object with the query parameters
+ * @returns A QuoteRequest object
  */
-const formatQueryParams = (request: GenericQuoteRequest): URLSearchParams => {
+const formatQuoteRequest = (request: GenericQuoteRequest): QuoteRequest => {
   const destWalletAddress = request.destWalletAddress ?? request.walletAddress;
   // Transform the generic quote request into QuoteRequest
   const normalizedRequest: QuoteRequest = {
@@ -107,6 +115,18 @@ const formatQueryParams = (request: GenericQuoteRequest): URLSearchParams => {
     normalizedRequest.bridgeIds = request.bridgeIds;
   }
 
+  return normalizedRequest;
+};
+
+/**
+ * Converts the generic quote request to the type that the bridge-api expects
+ *
+ * @param normalizedRequest - The normalized quote request
+ * @returns A URLSearchParams object with the query parameters
+ */
+const formatQueryParams = (
+  normalizedRequest: QuoteRequest,
+): URLSearchParams => {
   const queryParams = new URLSearchParams();
   Object.entries(normalizedRequest).forEach(([key, value]) => {
     queryParams.append(key, value.toString());
@@ -140,7 +160,8 @@ export async function fetchBridgeQuotes(
   quotes: QuoteResponse[];
   validationFailures: string[];
 }> {
-  const queryParams = formatQueryParams(request);
+  const normalizedRequest = formatQuoteRequest(request);
+  const queryParams = formatQueryParams(normalizedRequest);
 
   const url = `${bridgeApiBaseUrl}/getQuote?${queryParams}`;
   const quotes: unknown[] = await fetchFn(url, {
@@ -281,56 +302,94 @@ export const fetchAssetPrices = async (
   return combinedPrices;
 };
 
+const getQuoteRequestId = ({
+  srcChainId,
+  destChainId,
+  srcTokenAddress,
+  destTokenAddress,
+}: QuoteRequest): string =>
+  `${formatAddressToAssetId(srcTokenAddress, srcChainId)}-${formatAddressToAssetId(destTokenAddress, destChainId)}`;
+
+const getQuoteResponseId = ({
+  srcAsset: { address: srcTokenAddress, chainId: srcChainId },
+  destAsset: { address: destTokenAddress, chainId: destChainId },
+}: QuoteResponse['quote']): string =>
+  `${formatAddressToAssetId(srcTokenAddress, srcChainId)}-${formatAddressToAssetId(destTokenAddress, destChainId)}`;
+
 /**
- * Converts the generic quote request to the type that the bridge-api expects
- * then fetches quotes from the bridge-api
+ * Fetches quotes from the bridge-api
  *
  * @param fetchFn - The fetch function to use
- * @param request - The quote request
+ * @param quoteRequests - An array of GenericQuoteRequest objects
  * @param signal - The abort signal
  * @param clientId - The client ID for metrics
  * @param jwt - The JWT token for authentication
  * @param bridgeApiBaseUrl - The base URL for the bridge API
  * @param serverEventHandlers - The server event handlers
- * @param serverEventHandlers.onValidationFailure - The function to handle validation failures
+ * @param serverEventHandlers.onQuoteValidationFailure - The function to handle quote validation failures
  * @param serverEventHandlers.onValidQuoteReceived - The function to handle valid quotes
+ * @param serverEventHandlers.onTokenWarning - The function to handle token warning events
+ * @param serverEventHandlers.onComplete - The function to handle the complete event emitted when the stream finishes
  * @param serverEventHandlers.onClose - The function to run when the stream is closed and there are no thrown errors
  * @param clientVersion - The client version for metrics (optional)
  * @returns A list of bridge tx quote promises
  */
 export async function fetchBridgeQuoteStream(
   fetchFn: FetchFunction,
-  request: GenericQuoteRequest,
+  quoteRequests: GenericQuoteRequest[],
   signal: AbortSignal | undefined,
   clientId: string,
   jwt: string | undefined,
   bridgeApiBaseUrl: string,
   serverEventHandlers: {
     onClose: () => void | Promise<void>;
-    onValidationFailure: (validationFailures: string[]) => void;
+    onQuoteValidationFailure: (validationFailures: string[]) => void;
     onValidQuoteReceived: (quotes: QuoteResponse) => Promise<void>;
+    onTokenWarning: (warning: TokenFeature) => void;
+    onComplete: (data: QuoteStreamCompleteData) => void;
   },
   clientVersion?: string,
 ): Promise<void> {
-  const queryParams = formatQueryParams(request);
+  /**
+   * If the request includes multiple quote requests, it is a batch sell request.
+   * A batch sell consists of multiple swaps that are executed in a single tx submission.
+   */
+  const isBatchSellRequest = quoteRequests.length > 1;
+  const normalizedQuoteRequests = quoteRequests.map(formatQuoteRequest);
+  const quoteRequestIds = isBatchSellRequest
+    ? normalizedQuoteRequests.map(getQuoteRequestId)
+    : undefined;
 
-  const onMessage = async (quoteResponse: unknown): Promise<void> => {
+  const onQuoteReceived = async (quoteResponse: unknown): Promise<void> => {
     const uniqueValidationFailures: Set<string> = new Set<string>([]);
 
     try {
       if (validateQuoteResponse(quoteResponse)) {
+        // Fallback to 0 if the quote doesn't match any requests
+        const matchedQuoteRequestIdx = Math.max(
+          quoteRequestIds?.findIndex((id) => {
+            return id === getQuoteResponseId(quoteResponse.quote);
+          }) ?? 0,
+          0,
+        );
+        const matchingQuoteRequest =
+          normalizedQuoteRequests[matchedQuoteRequestIdx];
+
         return await serverEventHandlers.onValidQuoteReceived({
           ...quoteResponse,
           // Append the reset approval data to the quote response if the request has resetApproval set to true and the quote has an approval
           resetApproval:
-            request.resetApproval &&
+            matchingQuoteRequest.resetApproval &&
             quoteResponse.approval &&
             isEvmTxData(quoteResponse.approval)
               ? {
                   ...quoteResponse.approval,
-                  data: getEthUsdtResetData(request.destChainId),
+                  data: getEthUsdtResetData(matchingQuoteRequest.destChainId),
                 }
               : undefined,
+          ...(isBatchSellRequest && {
+            quoteRequestIndex: matchedQuoteRequestIdx,
+          }),
         });
       }
     } catch (error) {
@@ -349,7 +408,7 @@ export async function fetchBridgeQuoteStream(
       const validationFailures = Array.from(uniqueValidationFailures);
       if (uniqueValidationFailures.size > 0) {
         console.warn('Quote validation failed', validationFailures);
-        return serverEventHandlers.onValidationFailure(validationFailures);
+        return serverEventHandlers.onQuoteValidationFailure(validationFailures);
       }
       // Rethrow any unexpected errors
       throw error;
@@ -357,15 +416,46 @@ export async function fetchBridgeQuoteStream(
     return undefined;
   };
 
-  const urlStream = `${bridgeApiBaseUrl}/getQuoteStream?${queryParams}`;
-  await fetchServerEvents(urlStream, {
-    headers: {
-      ...getClientHeaders({ clientId, clientVersion, jwt }),
-      'Content-Type': 'text/event-stream',
-    },
+  const onTokenWarningReceived = (data: unknown): void => {
+    try {
+      if (validateTokenFeature(data)) {
+        serverEventHandlers.onTokenWarning(data);
+      }
+    } catch (error) {
+      console.warn('Token warning validation failed', error);
+    }
+  };
+
+  const onCompleteReceived = (data: unknown): void => {
+    try {
+      if (validateQuoteStreamComplete(data)) {
+        serverEventHandlers.onComplete(data);
+      }
+    } catch (error) {
+      console.warn('Quote stream complete validation failed', error);
+    }
+  };
+
+  const onMessage = async (
+    data: Record<string, unknown>,
+    eventName?: string,
+  ): Promise<void> => {
+    switch (eventName) {
+      case 'quote':
+        return await onQuoteReceived(data);
+      case 'token_warning':
+        return onTokenWarningReceived(data);
+      case 'complete':
+        return onCompleteReceived(data);
+      default:
+        return undefined;
+    }
+  };
+
+  const sharedFetchOptions = {
     signal,
     onMessage,
-    onError: (error) => {
+    onError: (error: unknown) => {
       // Rethrow error to prevent silent fetch failures
       throw error;
     },
@@ -373,5 +463,29 @@ export async function fetchBridgeQuoteStream(
       await serverEventHandlers.onClose();
     },
     fetchFn,
+  };
+
+  if (isBatchSellRequest) {
+    const urlStream = `${bridgeApiBaseUrl}/getBatchQuoteStream`;
+    await fetchServerEvents(urlStream, {
+      method: 'POST',
+      body: JSON.stringify({ requests: normalizedQuoteRequests }),
+      headers: {
+        ...getClientHeaders({ clientId, clientVersion, jwt }),
+        'Content-Type': 'application/json',
+      },
+      ...sharedFetchOptions,
+    });
+    return;
+  }
+
+  const queryParams = formatQueryParams(normalizedQuoteRequests[0]);
+  const urlStream = `${bridgeApiBaseUrl}/getQuoteStream?${queryParams}`;
+  await fetchServerEvents(urlStream, {
+    headers: {
+      ...getClientHeaders({ clientId, clientVersion, jwt }),
+      'Content-Type': 'text/event-stream',
+    },
+    ...sharedFetchOptions,
   });
 }

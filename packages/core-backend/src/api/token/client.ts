@@ -17,6 +17,9 @@ import type {
   QueryFunctionContext,
 } from '@tanstack/query-core';
 
+import { BaseApiClient, API_URLS, STALE_TIMES, GC_TIMES } from '../base-client';
+import { getQueryOptionsOverrides } from '../shared-types';
+import type { FetchOptions } from '../shared-types';
 import type {
   TokenMetadata,
   V1TokenDescriptionResponse,
@@ -27,9 +30,6 @@ import type {
   TopGainersSortOption,
   V1SuggestedOccurrenceFloorsResponse,
 } from './types';
-import { BaseApiClient, API_URLS, STALE_TIMES, GC_TIMES } from '../base-client';
-import { getQueryOptionsOverrides } from '../shared-types';
-import type { FetchOptions } from '../shared-types';
 
 /**
  * Token API Client.

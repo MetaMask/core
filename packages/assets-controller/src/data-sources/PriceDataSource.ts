@@ -5,7 +5,6 @@ import type {
 import { ApiPlatformClient } from '@metamask/core-backend';
 import { parseCaipAssetType } from '@metamask/utils';
 
-import type { SubscriptionRequest } from './AbstractDataSource';
 import { projectLogger, createModuleLogger } from '../logger';
 import { forDataTypes } from '../types';
 import type {
@@ -16,6 +15,9 @@ import type {
   Middleware,
   AssetsControllerStateInternal,
 } from '../types';
+import { fetchWithTimeout } from '../utils';
+import type { SubscriptionRequest } from './AbstractDataSource';
+import { reduceInBatchesSerially } from './evm-rpc-services';
 
 // ============================================================================
 // CONSTANTS
@@ -23,6 +25,10 @@ import type {
 
 const CONTROLLER_NAME = 'PriceDataSource';
 const DEFAULT_POLL_INTERVAL = 60_000; // 1 minute for price updates
+const DEFAULT_FETCH_TIMEOUT_MS = 15_000;
+
+/** Maximum number of asset IDs per Price API request. */
+const PRICE_API_BATCH_SIZE = 50;
 
 const log = createModuleLogger(projectLogger, CONTROLLER_NAME);
 
@@ -34,6 +40,11 @@ const log = createModuleLogger(projectLogger, CONTROLLER_NAME);
 export type PriceDataSourceConfig = {
   /** Polling interval in ms (default: 60000) */
   pollInterval?: number;
+  /**
+   * Timeout in ms for a single Price API call (default: 15000). When it fires,
+   * the batch rejects so the caller can proceed without prices.
+   */
+  fetchTimeoutMs?: number;
 };
 
 export type PriceDataSourceOptions = PriceDataSourceConfig & {
@@ -52,8 +63,13 @@ export type PriceDataSourceOptions = PriceDataSourceConfig & {
  * These are internal resource tracking values without market prices.
  */
 const NON_PRICEABLE_ASSET_PATTERNS = [
-  // Tron resource assets (bandwidth, energy, staking states)
-  /\/slip44:\d+-staked-for-/u,
+  // Synthetic slip44 staking-position assets: the Price API only knows about
+  // pure numeric coin-type references (e.g. slip44:195). Any suffix after the
+  // number (e.g. slip44:195-ready-for-withdrawal, slip44:195-in-lock-period,
+  // slip44:195-staking-rewards, slip44:195-staked-for-…) is a MetaMask-internal
+  // synthetic asset that has no market price.
+  /\/slip44:\d+-/u,
+  // Tron non-price resource assets (bandwidth, energy)
   /\/slip44:bandwidth$/u,
   /\/slip44:energy$/u,
   /\/slip44:maximum-bandwidth$/u,
@@ -87,8 +103,7 @@ function isValidMarketData(data: unknown): data is SpotPriceMarketData {
   return (
     typeof data === 'object' &&
     data !== null &&
-    'price' in data &&
-    typeof data.price === 'number'
+    typeof (data as Record<string, unknown>).price === 'number'
   );
 }
 
@@ -120,6 +135,8 @@ export class PriceDataSource {
   /** ApiPlatformClient for cached API calls */
   readonly #apiClient: ApiPlatformClient;
 
+  readonly #fetchTimeoutMs: number;
+
   /** Active subscriptions by ID */
   readonly #activeSubscriptions: Map<
     string,
@@ -135,6 +152,7 @@ export class PriceDataSource {
     this.#getSelectedCurrency = options.getSelectedCurrency;
     this.#pollInterval = options.pollInterval ?? DEFAULT_POLL_INTERVAL;
     this.#apiClient = options.queryApiClient;
+    this.#fetchTimeoutMs = options.fetchTimeoutMs ?? DEFAULT_FETCH_TIMEOUT_MS;
   }
 
   // ============================================================================
@@ -211,7 +229,56 @@ export class PriceDataSource {
   // ============================================================================
 
   /**
-   * Fetch spot prices with caching and deduplication via query service.
+   * Fetch spot prices for a single batch of asset IDs (must be ≤ PRICE_API_BATCH_SIZE).
+   *
+   * @param assetIds - Array of CAIP-19 asset IDs (already within batch size limit).
+   * @param selectedCurrency - The user's selected display currency.
+   * @returns Raw spot-prices responses for the selected currency and USD.
+   */
+  async #fetchSpotPricesBatch(
+    assetIds: string[],
+    selectedCurrency: SupportedCurrency,
+  ): Promise<{
+    selectedCurrencyPrices: V3SpotPricesResponse;
+    usdPrices: V3SpotPricesResponse;
+  }> {
+    if (selectedCurrency === 'usd') {
+      const selectedCurrencyPrices = await fetchWithTimeout(
+        () =>
+          this.#apiClient.prices.fetchV3SpotPrices(assetIds, {
+            currency: selectedCurrency,
+            includeMarketData: true,
+          }),
+        this.#fetchTimeoutMs,
+      );
+      return { selectedCurrencyPrices, usdPrices: selectedCurrencyPrices };
+    }
+
+    const [selectedCurrencyPrices, usdPrices] = await Promise.all([
+      fetchWithTimeout(
+        () =>
+          this.#apiClient.prices.fetchV3SpotPrices(assetIds, {
+            currency: selectedCurrency,
+            includeMarketData: true,
+          }),
+        this.#fetchTimeoutMs,
+      ),
+      fetchWithTimeout(
+        () =>
+          this.#apiClient.prices.fetchV3SpotPrices(assetIds, {
+            currency: 'usd',
+            includeMarketData: true,
+          }),
+        this.#fetchTimeoutMs,
+      ),
+    ]);
+
+    return { selectedCurrencyPrices, usdPrices };
+  }
+
+  /**
+   * Fetch spot prices for all provided asset IDs, splitting into batches of
+   * PRICE_API_BATCH_SIZE to respect API limits.
    *
    * @param assetIds - Array of CAIP-19 asset IDs
    * @returns Spot prices response
@@ -221,49 +288,47 @@ export class PriceDataSource {
   ): Promise<Record<Caip19AssetId, FungibleAssetPrice>> {
     const selectedCurrency = this.#getSelectedCurrency();
 
-    let selectedCurrencyPrices: V3SpotPricesResponse;
-    let usdPrices: V3SpotPricesResponse;
-    if (selectedCurrency === 'usd') {
-      selectedCurrencyPrices = await this.#apiClient.prices.fetchV3SpotPrices(
-        assetIds,
-        {
-          currency: selectedCurrency,
-          includeMarketData: true,
-        },
-      );
-      usdPrices = selectedCurrencyPrices;
-    } else {
-      [selectedCurrencyPrices, usdPrices] = await Promise.all([
-        this.#apiClient.prices.fetchV3SpotPrices(assetIds, {
-          currency: selectedCurrency,
-          includeMarketData: true,
-        }),
-        this.#apiClient.prices.fetchV3SpotPrices(assetIds, {
-          currency: 'usd',
-          includeMarketData: true,
-        }),
-      ]);
-    }
+    type BatchResult = {
+      selectedCurrencyPrices: V3SpotPricesResponse;
+      usdPrices: V3SpotPricesResponse;
+    };
+
+    const batchResults = await reduceInBatchesSerially<string, BatchResult[]>({
+      values: assetIds,
+      batchSize: PRICE_API_BATCH_SIZE,
+      eachBatch: async (workingResult, batch) => {
+        const result = await this.#fetchSpotPricesBatch(
+          batch,
+          selectedCurrency,
+        );
+        return [...(workingResult as BatchResult[]), result];
+      },
+      initialResult: [],
+    });
 
     const prices: Record<Caip19AssetId, FungibleAssetPrice> = {};
 
-    for (const [assetId, marketData] of Object.entries(
-      selectedCurrencyPrices,
-    )) {
-      const usdMarketData = usdPrices[assetId];
+    for (const { selectedCurrencyPrices, usdPrices } of batchResults) {
+      for (const [assetId, marketData] of Object.entries(
+        selectedCurrencyPrices,
+      )) {
+        const usdMarketData = usdPrices[assetId];
 
-      // Skip assets with invalid market data (API doesn't have price for this asset is selected currency or USD)
-      if (!isValidMarketData(marketData) || !isValidMarketData(usdMarketData)) {
-        continue;
+        if (
+          !isValidMarketData(marketData) ||
+          !isValidMarketData(usdMarketData)
+        ) {
+          continue;
+        }
+
+        const caipAssetId = assetId as Caip19AssetId;
+        prices[caipAssetId] = {
+          ...marketData,
+          assetPriceType: 'fungible',
+          usdPrice: usdMarketData.price,
+          lastUpdated: Date.now(),
+        };
       }
-
-      const caipAssetId = assetId as Caip19AssetId;
-      prices[caipAssetId] = {
-        ...marketData,
-        assetPriceType: 'fungible',
-        usdPrice: usdMarketData.price,
-        lastUpdated: Date.now(),
-      };
     }
 
     return prices;

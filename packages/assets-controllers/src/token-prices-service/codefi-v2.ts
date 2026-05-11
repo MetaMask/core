@@ -15,6 +15,7 @@ import {
   toCaipChainId,
 } from '@metamask/utils';
 
+import type { MarketDataDetails } from '../TokenRatesController';
 import type {
   AbstractTokenPricesService,
   EvmAssetAddressWithChain,
@@ -23,7 +24,6 @@ import type {
   ExchangeRatesByCurrency,
   NativeAssetIdentifiersMap,
 } from './abstract-token-prices-service';
-import type { MarketDataDetails } from '../TokenRatesController';
 
 /**
  * The list of currencies that can be supplied as the `vsCurrency` parameter to
@@ -233,6 +233,8 @@ const chainIdToNativeTokenAddress: Record<Hex, Hex> = {
   '0x64': '0xe91d153e0b41518a2ce8dd3d7944fa863463a97d', // Gnosis
   '0x1e': '0x542fda317318ebf1d3deaf76e0b632741a7e677d', // Rootstock Mainnet - Native symbol: RBTC
   '0x3dc': '0x779ded0c9e1022225f8e0630b35a9b54be713736', // Stable - Native symbol: USDT0
+  '0x1079': '0x20c0000000000000000000000000000000000000', // Tempo Mainnet - Pseudo-Native symbol: pathUSD
+  '0xa5bf': '0x20c0000000000000000000000000000000000000', // Tempo Moderato Testnet - Pseudo-Native symbol: pathUSD
 };
 
 /**
@@ -283,9 +285,11 @@ export const SPOT_PRICES_SUPPORT_INFO = {
   '0x504': 'eip155:1284/slip44:1284', // Moonbeam - Native symbol: GLMR
   '0x505': 'eip155:1285/slip44:1285', // Moonriver - Native symbol: MOVR
   '0x531': 'eip155:1329/slip44:19000118', // Sei Mainnet - Native symbol: SEI
+  '0x6f0': 'eip155:1776/slip44:22000119', // Injective Mainnet - Native symbol: INJ
   '0x74c': 'eip155:1868/erc20:0x0000000000000000000000000000000000000000', // Soneium - Native symbol: ETH
   '0xa729': 'eip155:42793/erc20:0x0000000000000000000000000000000000000000', // Etherlink - Native symbol: XTZ (Tezos L2)
   '0xab5': 'eip155:2741/erc20:0x0000000000000000000000000000000000000000', // Abstract - Native symbol: ETH
+  '0x1079': 'eip155:4217/erc20:0x20c0000000000000000000000000000000000000', // Tempo Mainnet - Pseudo-Native symbol: pathUSD
   '0x10e6': 'eip155:4326/erc20:0x0000000000000000000000000000000000000000', // MegaETH Mainnet - Native symbol: ETH
   '0x1388': 'eip155:5000/erc20:0xdeaddeaddeaddeaddeaddeaddeaddeaddead0000', // Mantle - Native symbol: MNT
   '0x2105': 'eip155:8453/slip44:60', // Base - Native symbol: ETH
@@ -298,6 +302,7 @@ export const SPOT_PRICES_SUPPORT_INFO = {
   '0xa516': 'eip155:42262/slip44:474', // Oasis Emerald - Native symbol: ROSE
   '0xa867': 'eip155:43111/erc20:0x0000000000000000000000000000000000000000', // Hemi - Native symbol: ETH
   '0xa86a': 'eip155:43114/slip44:9005', // Avalanche C-Chain - Native symbol: AVAX
+  '0xa5bf': 'eip155:42431/erc20:0x20c0000000000000000000000000000000000000', // Tempo Testnet Moderato - Pseudo-Native symbol: pathUSD
   '0xe708': 'eip155:59144/slip44:60', // Linea Mainnet - Native symbol: ETH
   '0xed88': 'eip155:60808/erc20:0x0000000000000000000000000000000000000000', // BOB - Native symbol: ETH
   '0x138de': 'eip155:80094/erc20:0x0000000000000000000000000000000000000000', // Berachain - Native symbol: Bera',
@@ -312,8 +317,10 @@ export const SPOT_PRICES_SUPPORT_INFO = {
   '0x15f900': 'eip155:1440000/erc20:0x0000000000000000000000000000000000000000', // xrpl-evm - native symbol: XRP
   '0x4e454152': 'eip155:1313161554/slip44:60', // Aurora Mainnet (Ethereum L2 on NEAR) - Native symbol: ETH
   '0x63564c40': 'eip155:1666600000/slip44:1023', // Harmony Mainnet Shard 0 - Native symbol: ONE
-  '0xdef1': 'eip155:57073/erc20:0x0000000000000000000000000000000000000000', // Ink Mainnet - Native symbol: ETH
+  '0xdef1': 'eip155:57073/slip44:60', // Ink Mainnet - Native symbol: ETH
   '0x3dc': 'eip155:988/erc20:0x779ded0c9e1022225f8e0630b35a9b54be713736', // Stable - Native symbol: USDT0
+  '0xf043a': 'eip155:984122/slip44:984122', // Forma - Native symbol: TIA (Celestia)
+  '0x1b58': 'eip155:7000/slip44:7000', // ZetaChain - Native symbol: ZETA
 } as const;
 
 // MISSING CHAINS WITH NO NATIVE ASSET PRICES
@@ -564,9 +571,10 @@ export function resetSupportedCurrenciesCache(): void {
  * This version of the token prices service uses V2 of the Codefi Price API to
  * fetch token prices.
  */
-export class CodefiTokenPricesServiceV2
-  implements AbstractTokenPricesService<SupportedChainId, SupportedCurrency>
-{
+export class CodefiTokenPricesServiceV2 implements AbstractTokenPricesService<
+  SupportedChainId,
+  SupportedCurrency
+> {
   readonly #policy: ServicePolicy;
 
   /**
@@ -743,11 +751,11 @@ export class CodefiTokenPricesServiceV2
 
         let assetId: string | undefined;
         if (isNativeToken) {
-          // For native tokens, use nativeAssetIdentifiers from NetworkEnablementController,
-          // falling back to hardcoded SPOT_PRICES_SUPPORT_INFO
+          // For native tokens, use hardcoded SPOT_PRICES_SUPPORT_INFO when defined,
+          // otherwise use nativeAssetIdentifiers from NetworkEnablementController by default.
           assetId =
-            this.#nativeAssetIdentifiers[caipChainId] ??
-            SPOT_PRICES_SUPPORT_INFO[asset.chainId];
+            SPOT_PRICES_SUPPORT_INFO[asset.chainId] ??
+            this.#nativeAssetIdentifiers[caipChainId];
         } else {
           // For ERC20 tokens, construct the CAIP-19 ID dynamically
           assetId = `${caipChainId}/erc20:${asset.tokenAddress.toLowerCase()}`;

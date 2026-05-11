@@ -18,13 +18,17 @@ import type { KeyringControllerGetStateAction } from '@metamask/keyring-controll
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import { KeyringClient } from '@metamask/keyring-snap-client';
 import type { Messenger } from '@metamask/messenger';
-import type { HandleSnapRequest } from '@metamask/snaps-controllers';
+import type { SnapControllerHandleRequestAction } from '@metamask/snaps-controllers';
 import type { SnapId } from '@metamask/snaps-sdk';
 import { HandlerType } from '@metamask/snaps-utils';
 import type { CaipChainId, Json, JsonRpcRequest } from '@metamask/utils';
 import type { Draft } from 'immer';
 
+import type { MultichainTransactionsControllerMethodActions } from './MultichainTransactionsController-method-action-types';
+
 const controllerName = 'MultichainTransactionsController';
+
+const MESSENGER_EXPOSED_METHODS = ['updateTransactionsForAccount'] as const;
 
 /**
  * PaginationOptions
@@ -98,7 +102,8 @@ export type MultichainTransactionsControllerStateChange =
  * Actions exposed by the {@link MultichainTransactionsController}.
  */
 export type MultichainTransactionsControllerActions =
-  MultichainTransactionsControllerGetStateAction;
+  | MultichainTransactionsControllerGetStateAction
+  | MultichainTransactionsControllerMethodActions;
 
 /**
  * Events emitted by {@link MultichainTransactionsController}.
@@ -121,9 +126,9 @@ export type MultichainTransactionsControllerMessenger = Messenger<
  * Actions that this controller is allowed to call.
  */
 type AllowedActions =
-  | HandleSnapRequest
+  | AccountsControllerListMultichainAccountsAction
   | KeyringControllerGetStateAction
-  | AccountsControllerListMultichainAccountsAction;
+  | SnapControllerHandleRequestAction;
 
 /**
  * Events that this controller is allowed to subscribe.
@@ -183,6 +188,11 @@ export class MultichainTransactionsController extends BaseController<
         ...state,
       },
     });
+
+    this.messenger.registerMethodActionHandlers(
+      this,
+      MESSENGER_EXPOSED_METHODS,
+    );
 
     // Fetch initial transactions for all non-EVM accounts
     for (const account of this.#listAccounts()) {

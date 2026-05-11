@@ -1,10 +1,10 @@
 import { createModuleLogger } from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
 
-import { isValidSignature } from './signature';
-import { padHexToEvenLength } from './utils';
 import { projectLogger } from '../logger';
 import type { TransactionControllerMessenger } from '../TransactionController';
+import { isValidSignature } from './signature';
+import { padHexToEvenLength } from './utils';
 
 const DEFAULT_BATCH_SIZE_LIMIT = 10;
 const DEFAULT_ACCELERATED_POLLING_COUNT_MAX = 10;
@@ -399,19 +399,19 @@ export function getGasEstimateFallback(
  * @param request - The request object.
  * @param request.chainId - The chain ID.
  * @param request.isCustomRPC - Whether the network RPC is added by the user.
- * @param request.isUpgradeWithDataToSelf - Whether the transaction is an EIP-7702 upgrade with data to self.
+ * @param request.isUpgradeWithData - Whether the transaction is an EIP-7702 upgrade combined with a call.
  * @param request.messenger - The controller messenger instance.
  * @returns The gas buffers.
  */
 export function getGasEstimateBuffer({
   chainId,
   isCustomRPC,
-  isUpgradeWithDataToSelf,
+  isUpgradeWithData,
   messenger,
 }: {
   chainId: Hex;
   isCustomRPC: boolean;
-  isUpgradeWithDataToSelf: boolean;
+  isUpgradeWithData: boolean;
   messenger: TransactionControllerMessenger;
 }): number {
   const featureFlags = getFeatureFlags(messenger);
@@ -423,9 +423,7 @@ export function getGasEstimateBuffer({
     ? undefined
     : gasBufferFlags?.included;
 
-  const upgradeBuffer = isUpgradeWithDataToSelf
-    ? chainFlags?.eip7702
-    : undefined;
+  const upgradeBuffer = isUpgradeWithData ? chainFlags?.eip7702 : undefined;
 
   return (
     upgradeBuffer ??

@@ -4,11 +4,6 @@ import type {
 } from '@metamask/core-backend';
 import type { Hex } from '@metamask/utils';
 
-import { SUPPORTED_CHAIN_IDS } from './AccountsApiRemoteTransactionSource';
-import {
-  IncomingTransactionHelper,
-  WebSocketState,
-} from './IncomingTransactionHelper';
 import type { TransactionControllerMessenger } from '..';
 import { flushPromises } from '../../../../tests/helpers';
 import { TransactionStatus, TransactionType } from '../types';
@@ -17,6 +12,11 @@ import {
   getIncomingTransactionsPollingInterval,
   isIncomingTransactionsUseBackendWebSocketServiceEnabled,
 } from '../utils/feature-flags';
+import { SUPPORTED_CHAIN_IDS } from './AccountsApiRemoteTransactionSource';
+import {
+  IncomingTransactionHelper,
+  WebSocketState,
+} from './IncomingTransactionHelper';
 
 jest.useFakeTimers();
 
@@ -850,6 +850,51 @@ describe('IncomingTransactionHelper', () => {
           'AccountsController:selectedAccountChange',
           expect.any(Function),
         );
+      });
+
+      it('does not throw when WebSocket disconnects before ever connecting', async () => {
+        // eslint-disable-next-line no-new
+        new IncomingTransactionHelper({
+          ...CONTROLLER_ARGS_MOCK,
+          messenger: createMessengerMock(),
+          remoteTransactionSource: createRemoteTransactionSourceMock([]),
+        });
+
+        await flushPromises();
+
+        expect(() => {
+          connectionStateChangedHandler(
+            createConnectionInfo(WebSocketState.DISCONNECTED),
+          );
+        }).not.toThrow();
+
+        expect(unsubscribeMock).not.toHaveBeenCalled();
+      });
+
+      it('does not throw when WebSocket disconnects twice', async () => {
+        // eslint-disable-next-line no-new
+        new IncomingTransactionHelper({
+          ...CONTROLLER_ARGS_MOCK,
+          messenger: createMessengerMock(),
+          remoteTransactionSource: createRemoteTransactionSourceMock([]),
+        });
+
+        await flushPromises();
+
+        connectionStateChangedHandler(
+          createConnectionInfo(WebSocketState.CONNECTED),
+        );
+        await flushPromises();
+
+        connectionStateChangedHandler(
+          createConnectionInfo(WebSocketState.DISCONNECTED),
+        );
+
+        expect(() => {
+          connectionStateChangedHandler(
+            createConnectionInfo(WebSocketState.DISCONNECTED),
+          );
+        }).not.toThrow();
       });
     });
 

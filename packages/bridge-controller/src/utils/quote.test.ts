@@ -2,6 +2,14 @@ import { AddressZero } from '@ethersproject/constants';
 import { convertHexToDecimal } from '@metamask/controller-utils';
 import { BigNumber } from 'bignumber.js';
 
+import type {
+  GenericQuoteRequest,
+  QuoteResponse,
+  Quote,
+  NonEvmFees,
+  L1GasFees,
+  TxData,
+} from '../types';
 import {
   isValidQuoteRequest,
   getQuoteIdentifier,
@@ -18,14 +26,6 @@ import {
   formatEtaInMinutes,
   calcSlippagePercentage,
 } from './quote';
-import type {
-  GenericQuoteRequest,
-  QuoteResponse,
-  Quote,
-  NonEvmFees,
-  L1GasFees,
-  TxData,
-} from '../types';
 
 describe('Quote Utils', () => {
   describe('isValidQuoteRequest', () => {

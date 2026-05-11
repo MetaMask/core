@@ -21,6 +21,7 @@ import {
   PHISHING_DETECTION_BULK_SCAN_ENDPOINT,
   SECURITY_ALERTS_BASE_URL,
   ADDRESS_SCAN_ENDPOINT,
+  APPROVALS_ENDPOINT,
 } from './PhishingController';
 import type {
   PhishingControllerOptions,
@@ -38,6 +39,8 @@ import {
   PhishingDetectorResultType,
   RecommendedAction,
   AddressScanResultType,
+  ApprovalResultType,
+  ApprovalFeatureType,
 } from './types';
 import { getHostnameFromUrl } from './utils';
 
@@ -105,12 +108,16 @@ function setupMessenger(): {
  * @param options - The Phishing Controller options.
  * @returns The constructed Phishing Controller.
  */
-function getPhishingController(options?: Partial<PhishingControllerOptions>) {
-  const { messenger } = setupMessenger();
-  return new PhishingController({
+function getPhishingController(options?: Partial<PhishingControllerOptions>): {
+  controller: PhishingController;
+  rootMessenger: RootMessenger;
+} {
+  const { messenger, rootMessenger } = setupMessenger();
+  const controller = new PhishingController({
     messenger,
     ...options,
   });
+  return { controller, rootMessenger };
 }
 
 describe('PhishingController', () => {
@@ -120,20 +127,26 @@ describe('PhishingController', () => {
   });
 
   it('should have no default phishing lists', () => {
-    const controller = getPhishingController();
+    const { controller } = getPhishingController();
     expect(controller.state.phishingLists).toStrictEqual([]);
   });
 
   it('should default to an empty whitelist', () => {
-    const controller = getPhishingController();
+    const { controller } = getPhishingController();
     expect(controller.state.whitelist).toStrictEqual([]);
   });
   it('should return false if the hostname is in the whitelist', async () => {
     const whitelistedHostname = 'example.com';
 
-    const controller = getPhishingController();
-    controller.bypass(formatHostnameToUrl(whitelistedHostname));
-    const result = controller.test(whitelistedHostname);
+    const { rootMessenger } = getPhishingController();
+    rootMessenger.call(
+      'PhishingController:bypass',
+      formatHostnameToUrl(whitelistedHostname),
+    );
+    const result = rootMessenger.call(
+      'PhishingController:testOrigin',
+      whitelistedHostname,
+    );
 
     expect(result).toMatchObject({
       result: false,
@@ -143,9 +156,15 @@ describe('PhishingController', () => {
   it('should return false if the URL is in the whitelist', async () => {
     const whitelistedHostname = 'example.com';
 
-    const controller = getPhishingController();
-    controller.bypass(formatHostnameToUrl(whitelistedHostname));
-    const result = controller.test(`https://${whitelistedHostname}/path`);
+    const { rootMessenger } = getPhishingController();
+    rootMessenger.call(
+      'PhishingController:bypass',
+      formatHostnameToUrl(whitelistedHostname),
+    );
+    const result = rootMessenger.call(
+      'PhishingController:testOrigin',
+      `https://${whitelistedHostname}/path`,
+    );
 
     expect(result).toMatchObject({
       result: false,
@@ -156,9 +175,12 @@ describe('PhishingController', () => {
   it('returns false if the URL is in the whitelistPaths', async () => {
     const whitelistedURL = 'https://example.com/path';
 
-    const controller = getPhishingController();
-    controller.bypass(whitelistedURL);
-    const result = controller.test(whitelistedURL);
+    const { rootMessenger } = getPhishingController();
+    rootMessenger.call('PhishingController:bypass', whitelistedURL);
+    const result = rootMessenger.call(
+      'PhishingController:testOrigin',
+      whitelistedURL,
+    );
     expect(result).toMatchObject({
       result: false,
       type: PhishingDetectorResultType.All,
@@ -192,9 +214,12 @@ describe('PhishingController', () => {
         lastFetchedAt: 1,
       });
 
-    const controller = getPhishingController();
+    const { controller, rootMessenger } = getPhishingController();
     await controller.updateStalelist();
-    const result = controller.test(`https://${allowlistedHostname}/path`);
+    const result = rootMessenger.call(
+      'PhishingController:testOrigin',
+      `https://${allowlistedHostname}/path`,
+    );
 
     expect(result).toMatchObject({
       result: false,
@@ -244,7 +269,7 @@ describe('PhishingController', () => {
         ],
       });
 
-    const controller = getPhishingController({
+    const { controller } = getPhishingController({
       hotlistRefreshInterval: 10,
       state: {
         phishingLists: [
@@ -318,24 +343,24 @@ describe('PhishingController', () => {
 
     it('should not have stalelist be out of date immediately after maybeUpdateState is called', async () => {
       jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask'], now: 0 });
-      const controller = getPhishingController({
+      const { controller, rootMessenger } = getPhishingController({
         stalelistRefreshInterval: 10,
       });
       jest.advanceTimersByTime(1000 * 10);
       expect(controller.isStalelistOutOfDate()).toBe(true);
-      await controller.maybeUpdateState();
+      await rootMessenger.call('PhishingController:maybeUpdateState');
       expect(controller.isStalelistOutOfDate()).toBe(false);
       expect(nockScope.isDone()).toBe(true);
     });
 
     it('should not be out of date after maybeUpdateStalelist is called but before refresh interval has passed', async () => {
       jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask'], now: 0 });
-      const controller = getPhishingController({
+      const { controller, rootMessenger } = getPhishingController({
         stalelistRefreshInterval: 10,
       });
       jest.advanceTimersByTime(1000 * 10);
       expect(controller.isStalelistOutOfDate()).toBe(true);
-      await controller.maybeUpdateState();
+      await rootMessenger.call('PhishingController:maybeUpdateState');
       jest.advanceTimersByTime(1000 * 5);
       expect(controller.isStalelistOutOfDate()).toBe(false);
       expect(nockScope.isDone()).toBe(true);
@@ -343,12 +368,14 @@ describe('PhishingController', () => {
 
     it('should still be out of date while update is in progress', async () => {
       jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask'], now: 0 });
-      const controller = getPhishingController({
+      const { controller, rootMessenger } = getPhishingController({
         stalelistRefreshInterval: 10,
       });
       jest.advanceTimersByTime(1000 * 10);
       // do not wait
-      const maybeUpdatePhisingListPromise = controller.maybeUpdateState();
+      const maybeUpdatePhisingListPromise = rootMessenger.call(
+        'PhishingController:maybeUpdateState',
+      );
       expect(controller.isStalelistOutOfDate()).toBe(true);
       await maybeUpdatePhisingListPromise;
       expect(controller.isStalelistOutOfDate()).toBe(false);
@@ -359,13 +386,14 @@ describe('PhishingController', () => {
 
     it('should call update only if it is out of date, otherwise it should not call update', async () => {
       jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask'], now: 0 });
-      const controller = getPhishingController({
+      const { controller, rootMessenger } = getPhishingController({
         stalelistRefreshInterval: 10,
       });
       expect(controller.isStalelistOutOfDate()).toBe(false);
-      await controller.maybeUpdateState();
+      await rootMessenger.call('PhishingController:maybeUpdateState');
       expect(
-        controller.test(
+        rootMessenger.call(
+          'PhishingController:testOrigin',
           formatHostnameToUrl('this-should-not-be-in-default-blocklist.com'),
         ),
       ).toMatchObject({
@@ -374,7 +402,8 @@ describe('PhishingController', () => {
       });
 
       expect(
-        controller.test(
+        rootMessenger.call(
+          'PhishingController:testOrigin',
           formatHostnameToUrl('this-should-not-be-in-default-allowlist.com'),
         ),
       ).toMatchObject({
@@ -383,10 +412,11 @@ describe('PhishingController', () => {
       });
 
       jest.advanceTimersByTime(1000 * 10);
-      await controller.maybeUpdateState();
+      await rootMessenger.call('PhishingController:maybeUpdateState');
 
       expect(
-        controller.test(
+        rootMessenger.call(
+          'PhishingController:testOrigin',
           formatHostnameToUrl('this-should-not-be-in-default-blocklist.com'),
         ),
       ).toMatchObject({
@@ -395,7 +425,8 @@ describe('PhishingController', () => {
       });
 
       expect(
-        controller.test(
+        rootMessenger.call(
+          'PhishingController:testOrigin',
           formatHostnameToUrl('this-should-not-be-in-default-allowlist.com'),
         ),
       ).toMatchObject({
@@ -428,13 +459,13 @@ describe('PhishingController', () => {
         doNotFake: ['nextTick', 'queueMicrotask'],
         now: 50,
       });
-      const controller = getPhishingController({
+      const { controller, rootMessenger } = getPhishingController({
         hotlistRefreshInterval: 10,
         stalelistRefreshInterval: 50,
       });
       jest.advanceTimersByTime(1000 * 10);
       expect(controller.isHotlistOutOfDate()).toBe(true);
-      await controller.maybeUpdateState();
+      await rootMessenger.call('PhishingController:maybeUpdateState');
       expect(controller.isHotlistOutOfDate()).toBe(false);
     });
 
@@ -447,17 +478,17 @@ describe('PhishingController', () => {
           lastFetchedAt: 1,
         });
       jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask'], now: 0 });
-      const controller = getPhishingController({
+      const { controller, rootMessenger } = getPhishingController({
         c2DomainBlocklistRefreshInterval: 10,
       });
       jest.advanceTimersByTime(1000 * 10);
       expect(controller.isC2DomainBlocklistOutOfDate()).toBe(true);
-      await controller.maybeUpdateState();
+      await rootMessenger.call('PhishingController:maybeUpdateState');
       expect(controller.isC2DomainBlocklistOutOfDate()).toBe(false);
     });
 
     it('replaces existing phishing lists with completely new list from phishing detection API', async () => {
-      const { messenger } = setupMessenger();
+      const { messenger, rootMessenger } = setupMessenger();
       const controller = new PhishingController({
         messenger,
         stalelistRefreshInterval: 10,
@@ -514,7 +545,7 @@ describe('PhishingController', () => {
       jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask'], now: 0 });
       jest.advanceTimersByTime(1000 * 10);
 
-      await controller.maybeUpdateState();
+      await rootMessenger.call('PhishingController:maybeUpdateState');
 
       expect(controller.state.phishingLists).toStrictEqual([
         {
@@ -541,7 +572,7 @@ describe('PhishingController', () => {
   describe('isStalelistOutOfDate', () => {
     it('should not be out of date upon construction', () => {
       jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask'], now: 0 });
-      const controller = getPhishingController({
+      const { controller } = getPhishingController({
         stalelistRefreshInterval: 10,
       });
 
@@ -550,7 +581,7 @@ describe('PhishingController', () => {
 
     it('should not be out of date after some of the refresh interval has passed', () => {
       jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask'], now: 0 });
-      const controller = getPhishingController({
+      const { controller } = getPhishingController({
         stalelistRefreshInterval: 10,
       });
       jest.advanceTimersByTime(1000 * 5);
@@ -560,7 +591,7 @@ describe('PhishingController', () => {
 
     it('should be out of date after the refresh interval has passed', () => {
       jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask'], now: 0 });
-      const controller = getPhishingController({
+      const { controller } = getPhishingController({
         stalelistRefreshInterval: 10,
       });
       jest.advanceTimersByTime(1000 * 10);
@@ -570,7 +601,7 @@ describe('PhishingController', () => {
 
     it('should be out of date if the refresh interval has passed and an update is in progress', async () => {
       jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask'], now: 0 });
-      const controller = getPhishingController({
+      const { controller } = getPhishingController({
         stalelistRefreshInterval: 10,
       });
       jest.advanceTimersByTime(1000 * 10);
@@ -584,7 +615,7 @@ describe('PhishingController', () => {
 
     it('should not be out of date if the phishing lists were just updated', async () => {
       jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask'], now: 0 });
-      const controller = getPhishingController({
+      const { controller } = getPhishingController({
         stalelistRefreshInterval: 10,
       });
       await controller.updateStalelist();
@@ -594,7 +625,7 @@ describe('PhishingController', () => {
 
     it('should not be out of date if the phishing lists were recently updated', async () => {
       jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask'], now: 0 });
-      const controller = getPhishingController({
+      const { controller } = getPhishingController({
         stalelistRefreshInterval: 10,
       });
       await controller.updateStalelist();
@@ -605,7 +636,7 @@ describe('PhishingController', () => {
 
     it('should be out of date if the time elapsed since the last update equals the refresh interval', async () => {
       jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask'], now: 0 });
-      const controller = getPhishingController({
+      const { controller } = getPhishingController({
         stalelistRefreshInterval: 10,
       });
       await controller.updateStalelist();
@@ -618,7 +649,7 @@ describe('PhishingController', () => {
   describe('isHotlistOutOfDate', () => {
     it('should not be out of date upon construction', () => {
       jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask'], now: 0 });
-      const controller = getPhishingController({
+      const { controller } = getPhishingController({
         hotlistRefreshInterval: 10,
       });
 
@@ -627,7 +658,7 @@ describe('PhishingController', () => {
 
     it('should not be out of date after some of the refresh interval has passed', () => {
       jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask'], now: 0 });
-      const controller = getPhishingController({
+      const { controller } = getPhishingController({
         hotlistRefreshInterval: 10,
       });
       jest.advanceTimersByTime(1000 * 5);
@@ -637,7 +668,7 @@ describe('PhishingController', () => {
 
     it('should be out of date after the refresh interval has passed', () => {
       jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask'], now: 0 });
-      const controller = getPhishingController({
+      const { controller } = getPhishingController({
         hotlistRefreshInterval: 10,
       });
       jest.advanceTimersByTime(1000 * 10);
@@ -647,7 +678,7 @@ describe('PhishingController', () => {
 
     it('should be out of date if the refresh interval has passed and an update is in progress', async () => {
       jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask'], now: 0 });
-      const controller = getPhishingController({
+      const { controller } = getPhishingController({
         hotlistRefreshInterval: 10,
         state: {
           phishingLists: [
@@ -676,7 +707,7 @@ describe('PhishingController', () => {
 
     it('should not be out of date if the phishing lists were just updated', async () => {
       jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask'], now: 0 });
-      const controller = getPhishingController({
+      const { controller } = getPhishingController({
         hotlistRefreshInterval: 10,
       });
       await controller.updateHotlist();
@@ -686,7 +717,7 @@ describe('PhishingController', () => {
 
     it('should not be out of date if the phishing lists were recently updated', async () => {
       jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask'], now: 0 });
-      const controller = getPhishingController({
+      const { controller } = getPhishingController({
         hotlistRefreshInterval: 10,
       });
       await controller.updateHotlist();
@@ -697,7 +728,7 @@ describe('PhishingController', () => {
 
     it('should be out of date if the time elapsed since the last update equals the refresh interval', async () => {
       jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask'], now: 0 });
-      const controller = getPhishingController({
+      const { controller } = getPhishingController({
         hotlistRefreshInterval: 10,
       });
       await controller.updateHotlist();
@@ -710,7 +741,7 @@ describe('PhishingController', () => {
   describe('isC2DomainBlocklistOutOfDate', () => {
     it('should not be out of date upon construction', () => {
       jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask'], now: 0 });
-      const controller = getPhishingController({
+      const { controller } = getPhishingController({
         c2DomainBlocklistRefreshInterval: 10,
       });
 
@@ -719,7 +750,7 @@ describe('PhishingController', () => {
 
     it('should not be out of date after some of the refresh interval has passed', () => {
       jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask'], now: 0 });
-      const controller = getPhishingController({
+      const { controller } = getPhishingController({
         c2DomainBlocklistRefreshInterval: 10,
       });
       jest.advanceTimersByTime(1000 * 5);
@@ -729,7 +760,7 @@ describe('PhishingController', () => {
 
     it('should be out of date after the refresh interval has passed', () => {
       jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask'], now: 0 });
-      const controller = getPhishingController({
+      const { controller } = getPhishingController({
         c2DomainBlocklistRefreshInterval: 10,
       });
       jest.advanceTimersByTime(1000 * 10);
@@ -739,7 +770,7 @@ describe('PhishingController', () => {
 
     it('should be out of date if the refresh interval has passed and an update is in progress', async () => {
       jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask'], now: 0 });
-      const controller = getPhishingController({
+      const { controller } = getPhishingController({
         c2DomainBlocklistRefreshInterval: 10,
       });
       jest.advanceTimersByTime(1000 * 10);
@@ -753,7 +784,7 @@ describe('PhishingController', () => {
 
     it('should not be out of date if the C2 domain blocklist was just updated', async () => {
       jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask'], now: 0 });
-      const controller = getPhishingController({
+      const { controller } = getPhishingController({
         c2DomainBlocklistRefreshInterval: 10,
       });
       await controller.updateC2DomainBlocklist();
@@ -763,7 +794,7 @@ describe('PhishingController', () => {
 
     it('should not be out of date if the C2 domain blocklist was recently updated', async () => {
       jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask'], now: 0 });
-      const controller = getPhishingController({
+      const { controller } = getPhishingController({
         c2DomainBlocklistRefreshInterval: 10,
       });
       await controller.updateC2DomainBlocklist();
@@ -774,7 +805,7 @@ describe('PhishingController', () => {
 
     it('should be out of date if the time elapsed since the last update equals the refresh interval', async () => {
       jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask'], now: 0 });
-      const controller = getPhishingController({
+      const { controller } = getPhishingController({
         c2DomainBlocklistRefreshInterval: 10,
       });
       await controller.updateC2DomainBlocklist();
@@ -809,9 +840,14 @@ describe('PhishingController', () => {
         lastFetchedAt: 1,
       });
 
-    const controller = getPhishingController();
+    const { controller, rootMessenger } = getPhishingController();
     await controller.updateStalelist();
-    expect(controller.test(formatHostnameToUrl('metamask.io'))).toMatchObject({
+    expect(
+      rootMessenger.call(
+        'PhishingController:testOrigin',
+        formatHostnameToUrl('metamask.io'),
+      ),
+    ).toMatchObject({
       result: false,
       type: PhishingDetectorResultType.Allowlist,
       name: ListNames.MetaMask,
@@ -835,9 +871,14 @@ describe('PhishingController', () => {
       .get(`${METAMASK_HOTLIST_DIFF_FILE}/${1}`)
       .reply(200, { data: [] });
 
-    const controller = getPhishingController();
+    const { controller, rootMessenger } = getPhishingController();
     await controller.updateStalelist();
-    expect(controller.test(formatHostnameToUrl('i❤.ws'))).toMatchObject({
+    expect(
+      rootMessenger.call(
+        'PhishingController:testOrigin',
+        formatHostnameToUrl('i❤.ws'),
+      ),
+    ).toMatchObject({
       result: false,
       type: PhishingDetectorResultType.All,
     });
@@ -860,9 +901,14 @@ describe('PhishingController', () => {
       .get(`${METAMASK_HOTLIST_DIFF_FILE}/${1}`)
       .reply(200, { data: [] });
 
-    const controller = getPhishingController();
+    const { controller, rootMessenger } = getPhishingController();
     await controller.updateStalelist();
-    expect(controller.test(formatHostnameToUrl('xn--i-7iq.ws'))).toMatchObject({
+    expect(
+      rootMessenger.call(
+        'PhishingController:testOrigin',
+        formatHostnameToUrl('xn--i-7iq.ws'),
+      ),
+    ).toMatchObject({
       result: false,
       type: PhishingDetectorResultType.All,
     });
@@ -893,9 +939,14 @@ describe('PhishingController', () => {
         lastFetchedAt: 1,
       });
 
-    const controller = getPhishingController();
+    const { controller, rootMessenger } = getPhishingController();
     await controller.updateStalelist();
-    expect(controller.test(formatHostnameToUrl('etnerscan.io'))).toMatchObject({
+    expect(
+      rootMessenger.call(
+        'PhishingController:testOrigin',
+        formatHostnameToUrl('etnerscan.io'),
+      ),
+    ).toMatchObject({
       result: true,
       type: PhishingDetectorResultType.Blocklist,
       name: ListNames.MetaMask,
@@ -927,10 +978,13 @@ describe('PhishingController', () => {
         lastFetchedAt: 1,
       });
 
-    const controller = getPhishingController();
+    const { controller, rootMessenger } = getPhishingController();
     await controller.updateStalelist();
     expect(
-      controller.test(formatHostnameToUrl('myetherẉalletṭ.com')),
+      rootMessenger.call(
+        'PhishingController:testOrigin',
+        formatHostnameToUrl('myetherẉalletṭ.com'),
+      ),
     ).toMatchObject({
       result: true,
       type: PhishingDetectorResultType.Blocklist,
@@ -963,10 +1017,13 @@ describe('PhishingController', () => {
         lastFetchedAt: 1,
       });
 
-    const controller = getPhishingController();
+    const { controller, rootMessenger } = getPhishingController();
     await controller.updateStalelist();
     expect(
-      controller.test(formatHostnameToUrl('xn--myetherallet-4k5fwn.com')),
+      rootMessenger.call(
+        'PhishingController:testOrigin',
+        formatHostnameToUrl('xn--myetherallet-4k5fwn.com'),
+      ),
     ).toMatchObject({
       result: true,
       type: PhishingDetectorResultType.Blocklist,
@@ -1007,10 +1064,11 @@ describe('PhishingController', () => {
         lastFetchedAt: 1,
       });
 
-    const controller = getPhishingController();
+    const { controller, rootMessenger } = getPhishingController();
     await controller.updateStalelist();
     expect(
-      controller.test(
+      rootMessenger.call(
+        'PhishingController:testOrigin',
         formatHostnameToUrl('e4d600ab9141b7a9859511c77e63b9b3.com'),
       ),
     ).toMatchObject({
@@ -1037,10 +1095,11 @@ describe('PhishingController', () => {
       .get(`${METAMASK_HOTLIST_DIFF_FILE}/${1}`)
       .reply(500);
 
-    const controller = getPhishingController();
+    const { controller, rootMessenger } = getPhishingController();
     await controller.updateStalelist();
     expect(
-      controller.test(
+      rootMessenger.call(
+        'PhishingController:testOrigin',
         formatHostnameToUrl('e4d600ab9141b7a9859511c77e63b9b3.com'),
       ),
     ).toMatchObject({
@@ -1074,9 +1133,14 @@ describe('PhishingController', () => {
         lastFetchedAt: 1,
       });
 
-    const controller = getPhishingController();
+    const { controller, rootMessenger } = getPhishingController();
     await controller.updateStalelist();
-    expect(controller.test(formatHostnameToUrl('opensea.io'))).toMatchObject({
+    expect(
+      rootMessenger.call(
+        'PhishingController:testOrigin',
+        formatHostnameToUrl('opensea.io'),
+      ),
+    ).toMatchObject({
       result: false,
       type: PhishingDetectorResultType.Allowlist,
       name: ListNames.MetaMask,
@@ -1108,9 +1172,14 @@ describe('PhishingController', () => {
         lastFetchedAt: 1,
       });
 
-    const controller = getPhishingController();
+    const { controller, rootMessenger } = getPhishingController();
     await controller.updateStalelist();
-    expect(controller.test(formatHostnameToUrl('ohpensea.io'))).toMatchObject({
+    expect(
+      rootMessenger.call(
+        'PhishingController:testOrigin',
+        formatHostnameToUrl('ohpensea.io'),
+      ),
+    ).toMatchObject({
       result: true,
       type: PhishingDetectorResultType.Fuzzy,
       name: ListNames.MetaMask,
@@ -1133,10 +1202,11 @@ describe('PhishingController', () => {
       })
       .get(`${METAMASK_HOTLIST_DIFF_FILE}/${1}`)
       .reply(200, { data: [] });
-    const controller = getPhishingController();
+    const { controller, rootMessenger } = getPhishingController();
     await controller.updateStalelist();
     expect(
-      controller.test(
+      rootMessenger.call(
+        'PhishingController:testOrigin',
         formatHostnameToUrl('this-is-the-official-website-of-opensea.io'),
       ),
     ).toMatchObject({
@@ -1170,16 +1240,27 @@ describe('PhishingController', () => {
         lastFetchedAt: 1,
       });
 
-    const controller = getPhishingController();
+    const { controller, rootMessenger } = getPhishingController();
     await controller.updateStalelist();
     const unsafeDomain = 'electrum.mx';
     assert.equal(
-      controller.test(formatHostnameToUrl(unsafeDomain)).result,
+      rootMessenger.call(
+        'PhishingController:testOrigin',
+        formatHostnameToUrl(unsafeDomain),
+      ).result,
       true,
       'Example unsafe domain seems to be safe',
     );
-    controller.bypass(formatHostnameToUrl(unsafeDomain));
-    expect(controller.test(formatHostnameToUrl(unsafeDomain))).toMatchObject({
+    rootMessenger.call(
+      'PhishingController:bypass',
+      formatHostnameToUrl(unsafeDomain),
+    );
+    expect(
+      rootMessenger.call(
+        'PhishingController:testOrigin',
+        formatHostnameToUrl(unsafeDomain),
+      ),
+    ).toMatchObject({
       result: false,
       type: PhishingDetectorResultType.All,
     });
@@ -1210,17 +1291,31 @@ describe('PhishingController', () => {
         lastFetchedAt: 1,
       });
 
-    const controller = getPhishingController();
+    const { controller, rootMessenger } = getPhishingController();
     await controller.updateStalelist();
     const unsafeDomain = 'electrum.mx';
     assert.equal(
-      controller.test(formatHostnameToUrl(unsafeDomain)).result,
+      rootMessenger.call(
+        'PhishingController:testOrigin',
+        formatHostnameToUrl(unsafeDomain),
+      ).result,
       true,
       'Example unsafe domain seems to be safe',
     );
-    controller.bypass(formatHostnameToUrl(unsafeDomain));
-    controller.bypass(formatHostnameToUrl(unsafeDomain));
-    expect(controller.test(formatHostnameToUrl(unsafeDomain))).toMatchObject({
+    rootMessenger.call(
+      'PhishingController:bypass',
+      formatHostnameToUrl(unsafeDomain),
+    );
+    rootMessenger.call(
+      'PhishingController:bypass',
+      formatHostnameToUrl(unsafeDomain),
+    );
+    expect(
+      rootMessenger.call(
+        'PhishingController:testOrigin',
+        formatHostnameToUrl(unsafeDomain),
+      ),
+    ).toMatchObject({
       result: false,
       type: PhishingDetectorResultType.All,
     });
@@ -1251,16 +1346,27 @@ describe('PhishingController', () => {
         lastFetchedAt: 1,
       });
 
-    const controller = getPhishingController();
+    const { controller, rootMessenger } = getPhishingController();
     await controller.updateStalelist();
     const unsafeDomain = 'myetherẉalletṭ.com';
     assert.equal(
-      controller.test(formatHostnameToUrl(unsafeDomain)).result,
+      rootMessenger.call(
+        'PhishingController:testOrigin',
+        formatHostnameToUrl(unsafeDomain),
+      ).result,
       true,
       'Example unsafe domain seems to be safe',
     );
-    controller.bypass(formatHostnameToUrl(unsafeDomain));
-    expect(controller.test(formatHostnameToUrl(unsafeDomain))).toMatchObject({
+    rootMessenger.call(
+      'PhishingController:bypass',
+      formatHostnameToUrl(unsafeDomain),
+    );
+    expect(
+      rootMessenger.call(
+        'PhishingController:testOrigin',
+        formatHostnameToUrl(unsafeDomain),
+      ),
+    ).toMatchObject({
       result: false,
       type: PhishingDetectorResultType.All,
     });
@@ -1291,16 +1397,27 @@ describe('PhishingController', () => {
         lastFetchedAt: 1,
       });
 
-    const controller = getPhishingController();
+    const { controller, rootMessenger } = getPhishingController();
     await controller.updateStalelist();
     const unsafeDomain = 'xn--myetherallet-4k5fwn.com';
     assert.equal(
-      controller.test(formatHostnameToUrl(unsafeDomain)).result,
+      rootMessenger.call(
+        'PhishingController:testOrigin',
+        formatHostnameToUrl(unsafeDomain),
+      ).result,
       true,
       'Example unsafe domain seems to be safe',
     );
-    controller.bypass(formatHostnameToUrl(unsafeDomain));
-    expect(controller.test(formatHostnameToUrl(unsafeDomain))).toMatchObject({
+    rootMessenger.call(
+      'PhishingController:bypass',
+      formatHostnameToUrl(unsafeDomain),
+    );
+    expect(
+      rootMessenger.call(
+        'PhishingController:testOrigin',
+        formatHostnameToUrl(unsafeDomain),
+      ),
+    ).toMatchObject({
       result: false,
       type: PhishingDetectorResultType.All,
     });
@@ -1331,16 +1448,21 @@ describe('PhishingController', () => {
         lastFetchedAt: 1,
       });
 
-    const controller = getPhishingController();
+    const { controller, rootMessenger } = getPhishingController();
     await controller.updateStalelist();
-    expect(controller.test('https://example.com/path')).toMatchObject({
+    expect(
+      rootMessenger.call(
+        'PhishingController:testOrigin',
+        'https://example.com/path',
+      ),
+    ).toMatchObject({
       result: true,
       type: PhishingDetectorResultType.Blocklist,
     });
   });
 
   it('returns negative result if the hostname+pathname is in the whitelistPaths', async () => {
-    const controller = getPhishingController({
+    const { rootMessenger } = getPhishingController({
       state: {
         phishingLists: [
           {
@@ -1361,15 +1483,20 @@ describe('PhishingController', () => {
         ],
       },
     });
-    controller.bypass('https://example.com/path');
-    expect(controller.test('https://example.com/path')).toMatchObject({
+    rootMessenger.call('PhishingController:bypass', 'https://example.com/path');
+    expect(
+      rootMessenger.call(
+        'PhishingController:testOrigin',
+        'https://example.com/path',
+      ),
+    ).toMatchObject({
       result: false,
       type: PhishingDetectorResultType.All,
     });
   });
 
   it('returns positive result even if the hostname+pathname contains percent encoding', async () => {
-    const controller = getPhishingController({
+    const { rootMessenger } = getPhishingController({
       state: {
         phishingLists: [
           {
@@ -1391,7 +1518,12 @@ describe('PhishingController', () => {
       },
     });
 
-    expect(controller.test('https://example.com/%70%61%74%68')).toMatchObject({
+    expect(
+      rootMessenger.call(
+        'PhishingController:testOrigin',
+        'https://example.com/%70%61%74%68',
+      ),
+    ).toMatchObject({
       result: true,
       type: PhishingDetectorResultType.Blocklist,
     });
@@ -1437,7 +1569,7 @@ describe('PhishingController', () => {
           lastFetchedAt: 1,
         });
 
-      const controller = getPhishingController();
+      const { controller } = getPhishingController();
       await controller.updateStalelist();
 
       expect(controller.state.phishingLists).toStrictEqual([
@@ -1499,7 +1631,7 @@ describe('PhishingController', () => {
           lastFetchedAt: 1,
         });
 
-      const controller = getPhishingController();
+      const { controller } = getPhishingController();
       await controller.updateStalelist();
 
       expect(controller.state.phishingLists).toStrictEqual([
@@ -1542,7 +1674,7 @@ describe('PhishingController', () => {
           lastFetchedAt: 1,
         });
 
-      const controller = getPhishingController();
+      const { controller } = getPhishingController();
       await controller.updateStalelist();
       expect(controller.state.phishingLists).toStrictEqual([
         {
@@ -1570,7 +1702,7 @@ describe('PhishingController', () => {
         .get(`${METAMASK_HOTLIST_DIFF_FILE}/${1}`)
         .reply(304);
 
-      const controller = getPhishingController({
+      const { controller } = getPhishingController({
         state: {
           phishingLists: [
             {
@@ -1615,7 +1747,7 @@ describe('PhishingController', () => {
         .get(C2_DOMAIN_BLOCKLIST_ENDPOINT)
         .reply(500);
 
-      const controller = getPhishingController({
+      const { controller } = getPhishingController({
         state: {
           phishingLists: [
             {
@@ -1647,7 +1779,6 @@ describe('PhishingController', () => {
           lastUpdated: 0,
         },
       ]);
-      expect(controller.state.c2DomainBlocklistLastFetched).toBe(0);
     });
 
     it('should not throw when there is a network error', async () => {
@@ -1661,10 +1792,9 @@ describe('PhishingController', () => {
         .get(C2_DOMAIN_BLOCKLIST_ENDPOINT)
         .replyWithError('network error');
 
-      const controller = getPhishingController();
+      const { controller } = getPhishingController();
 
       expect(await controller.updateStalelist()).toBeUndefined();
-      expect(controller.state.c2DomainBlocklistLastFetched).toBe(0);
     });
 
     describe('an update is in progress', () => {
@@ -1690,7 +1820,7 @@ describe('PhishingController', () => {
           .delay(100)
           .reply(200, { data: [] });
 
-        const controller = getPhishingController();
+        const { controller } = getPhishingController();
         const firstPromise = controller.updateStalelist();
         const secondPromise = controller.updateStalelist();
 
@@ -1726,7 +1856,7 @@ describe('PhishingController', () => {
           .delay(100)
           .reply(200, { data: [] });
 
-        const controller = getPhishingController();
+        const { controller } = getPhishingController();
         const firstPromise = controller.updateStalelist();
         const secondPromise = controller.updateStalelist();
         jest.advanceTimersByTime(1000 * 99);
@@ -1754,7 +1884,7 @@ describe('PhishingController', () => {
           ],
         });
 
-      const controller = getPhishingController({
+      const { controller } = getPhishingController({
         state: {
           phishingLists: [
             {
@@ -1793,7 +1923,7 @@ describe('PhishingController', () => {
         .get(`${METAMASK_HOTLIST_DIFF_FILE}/${0}`)
         .reply(404);
 
-      const controller = getPhishingController({
+      const { controller } = getPhishingController({
         state: {
           phishingLists: [
             {
@@ -1834,7 +1964,7 @@ describe('PhishingController', () => {
           ],
         });
 
-      const controller = getPhishingController({
+      const { controller } = getPhishingController({
         state: {
           phishingLists: [],
         },
@@ -1857,7 +1987,7 @@ describe('PhishingController', () => {
           lastFetchedAt: 1,
         });
 
-      const controller = getPhishingController({
+      const { controller } = getPhishingController({
         state: {
           phishingLists: [
             {
@@ -1908,7 +2038,7 @@ describe('PhishingController', () => {
           lastFetchedAt: 1,
         });
 
-      const controller = getPhishingController({
+      const { controller } = getPhishingController({
         state: {
           phishingLists: [
             {
@@ -1959,7 +2089,7 @@ describe('PhishingController', () => {
           lastFetchedAt: 1,
         });
 
-      const controller = getPhishingController({
+      const { controller } = getPhishingController({
         state: {
           phishingLists: [
             {
@@ -2010,7 +2140,7 @@ describe('PhishingController', () => {
           lastFetchedAt: 1,
         });
 
-      const controller = getPhishingController({
+      const { controller } = getPhishingController({
         state: {
           phishingLists: [
             {
@@ -2052,7 +2182,7 @@ describe('PhishingController', () => {
         .get(`${C2_DOMAIN_BLOCKLIST_ENDPOINT}?timestamp=0`)
         .reply(404);
 
-      const controller = getPhishingController({
+      const { controller } = getPhishingController({
         state: {
           phishingLists: [
             {
@@ -2104,7 +2234,7 @@ describe('PhishingController', () => {
         });
 
       // Initialize the controller with an existing state
-      const controller = getPhishingController({
+      const { controller } = getPhishingController({
         state: {
           phishingLists: [
             {
@@ -2152,7 +2282,7 @@ describe('PhishingController', () => {
           lastFetchedAt: 1,
         });
 
-      const controller = getPhishingController({
+      const { controller } = getPhishingController({
         state: {
           phishingLists: [
             {
@@ -2202,7 +2332,7 @@ describe('PhishingController', () => {
           lastFetchedAt: 1,
         });
 
-      const controller = getPhishingController({
+      const { controller } = getPhishingController({
         state: {
           phishingLists: [
             {
@@ -2244,7 +2374,7 @@ describe('PhishingController', () => {
         .get(`${C2_DOMAIN_BLOCKLIST_ENDPOINT}?timestamp=0`)
         .replyWithError('network error');
 
-      const controller = getPhishingController({
+      const { controller } = getPhishingController({
         state: {
           phishingLists: [
             {
@@ -2311,9 +2441,12 @@ describe('PhishingController', () => {
           lastFetchedAt: 1,
         });
 
-      const controller = getPhishingController();
+      const { controller, rootMessenger } = getPhishingController();
       await controller.updateStalelist();
-      const result = controller.isBlockedRequest('https://example.com');
+      const result = rootMessenger.call(
+        'PhishingController:isBlockedRequest',
+        'https://example.com',
+      );
       expect(result).toMatchObject({
         result: false,
         type: PhishingDetectorResultType.C2DomainBlocklist,
@@ -2346,9 +2479,10 @@ describe('PhishingController', () => {
           lastFetchedAt: 1,
         });
 
-      const controller = getPhishingController();
+      const { controller, rootMessenger } = getPhishingController();
       await controller.updateStalelist();
-      const result = controller.isBlockedRequest(
+      const result = rootMessenger.call(
+        'PhishingController:isBlockedRequest',
         'https://develop.d3bkcslj57l47p.amplifyapp.com',
       );
       expect(result).toMatchObject({
@@ -2382,9 +2516,12 @@ describe('PhishingController', () => {
           lastFetchedAt: 1,
         });
 
-      const controller = getPhishingController();
+      const { controller, rootMessenger } = getPhishingController();
       await controller.updateStalelist();
-      const result = controller.isBlockedRequest('https://example.com');
+      const result = rootMessenger.call(
+        'PhishingController:isBlockedRequest',
+        'https://example.com',
+      );
       expect(result).toMatchObject({
         result: false,
         type: PhishingDetectorResultType.C2DomainBlocklist,
@@ -2415,9 +2552,12 @@ describe('PhishingController', () => {
           lastFetchedAt: 1,
         });
 
-      const controller = getPhishingController();
+      const { controller, rootMessenger } = getPhishingController();
       await controller.updateStalelist();
-      const result = controller.isBlockedRequest('#$@(%&@#$(%');
+      const result = rootMessenger.call(
+        'PhishingController:isBlockedRequest',
+        '#$@(%&@#$(%',
+      );
       expect(result).toMatchObject({
         result: false,
         type: PhishingDetectorResultType.C2DomainBlocklist,
@@ -2427,9 +2567,13 @@ describe('PhishingController', () => {
   it('isBlockedRequest - should return false if the URL is in the whitelist', async () => {
     const whitelistedHostname = 'example.com';
 
-    const controller = getPhishingController();
-    controller.bypass(formatHostnameToUrl(whitelistedHostname));
-    const result = controller.isBlockedRequest(
+    const { rootMessenger } = getPhishingController();
+    rootMessenger.call(
+      'PhishingController:bypass',
+      formatHostnameToUrl(whitelistedHostname),
+    );
+    const result = rootMessenger.call(
+      'PhishingController:isBlockedRequest',
       `https://${whitelistedHostname}/path`,
     );
 
@@ -2465,9 +2609,10 @@ describe('PhishingController', () => {
         lastFetchedAt: 1,
       });
 
-    const controller = getPhishingController();
+    const { controller, rootMessenger } = getPhishingController();
     await controller.updateStalelist();
-    const result = controller.isBlockedRequest(
+    const result = rootMessenger.call(
+      'PhishingController:isBlockedRequest',
       `https://${allowlistedDomain}/path`,
     );
 
@@ -2478,35 +2623,40 @@ describe('PhishingController', () => {
   });
   describe('bypass', () => {
     let controller: PhishingController;
+    let rootMessenger: RootMessenger;
 
     beforeEach(() => {
-      controller = getPhishingController({
-        state: {
-          phishingLists: [
-            {
-              allowlist: [],
-              blocklist: [],
-              c2DomainBlocklist: [],
-              blocklistPaths: {
-                'example.com': {
-                  path: {},
-                },
-                'sub.example.com': {
-                  path1: {
-                    path2: {},
+      const { controller: createdController, rootMessenger: createdMessenger } =
+        getPhishingController({
+          state: {
+            phishingLists: [
+              {
+                allowlist: [],
+                blocklist: [],
+                c2DomainBlocklist: [],
+                blocklistPaths: {
+                  'example.com': {
+                    path: {},
+                  },
+                  'sub.example.com': {
+                    path1: {
+                      path2: {},
+                    },
                   },
                 },
+                fuzzylist: [],
+                tolerance: 0,
+                version: 0,
+                lastUpdated: 0,
+                name: ListNames.MetaMask,
               },
-              fuzzylist: [],
-              tolerance: 0,
-              version: 0,
-              lastUpdated: 0,
-              name: ListNames.MetaMask,
-            },
-          ],
-          whitelistPaths: {},
-        },
-      });
+            ],
+            whitelistPaths: {},
+          },
+        });
+
+      controller = createdController;
+      rootMessenger = createdMessenger;
     });
 
     describe('whitelist', () => {
@@ -2515,8 +2665,8 @@ describe('PhishingController', () => {
         const hostname = getHostnameFromUrl(origin);
 
         // Call the bypass function
-        controller.bypass(origin);
-        controller.bypass(origin);
+        rootMessenger.call('PhishingController:bypass', origin);
+        rootMessenger.call('PhishingController:bypass', origin);
 
         // Verify that the whitelist has not changed
         expect(controller.state.whitelist).toContain(hostname);
@@ -2529,7 +2679,7 @@ describe('PhishingController', () => {
         const hostname = getHostnameFromUrl(origin);
 
         // Call the bypass function
-        controller.bypass(origin);
+        rootMessenger.call('PhishingController:bypass', origin);
 
         // Verify that the whitelist now includes the new origin
         expect(controller.state.whitelist).toContain(hostname);
@@ -2541,7 +2691,7 @@ describe('PhishingController', () => {
         const punycodeOrigin = 'xn--fsq.com'; // Example punycode domain
 
         // Call the bypass function
-        controller.bypass(punycodeOrigin);
+        rootMessenger.call('PhishingController:bypass', punycodeOrigin);
 
         // Verify that the whitelist now includes the punycode origin
         expect(controller.state.whitelist).toContain(punycodeOrigin);
@@ -2553,7 +2703,7 @@ describe('PhishingController', () => {
     describe('whitelistPaths', () => {
       it('adds the matched path prefix within blocklistPaths to the whitelistPaths', () => {
         const origin = 'https://sub.example.com/path1/path2/path3';
-        controller.bypass(origin);
+        rootMessenger.call('PhishingController:bypass', origin);
 
         expect(controller.state.whitelistPaths).toStrictEqual({
           'sub.example.com': {
@@ -2567,7 +2717,7 @@ describe('PhishingController', () => {
 
       it('does not add if a matched path prefix is not present', () => {
         const origin = 'https://sub.example.com/path1/path3';
-        controller.bypass(origin);
+        rootMessenger.call('PhishingController:bypass', origin);
 
         expect(controller.state.whitelistPaths).toStrictEqual({});
         expect(controller.state.whitelist).toStrictEqual(['sub.example.com']);
@@ -2575,8 +2725,8 @@ describe('PhishingController', () => {
 
       it('idempotent', () => {
         const origin = 'https://example.com/path';
-        controller.bypass(origin);
-        controller.bypass(origin);
+        rootMessenger.call('PhishingController:bypass', origin);
+        rootMessenger.call('PhishingController:bypass', origin);
 
         expect(controller.state.whitelistPaths).toStrictEqual({
           'example.com': {
@@ -2588,7 +2738,7 @@ describe('PhishingController', () => {
 
       it('if the pathname contains percent encoding, it is added decoded', () => {
         const origin = 'https://example.com/%70%61%74%68';
-        controller.bypass(origin);
+        rootMessenger.call('PhishingController:bypass', origin);
 
         expect(controller.state.whitelistPaths).toStrictEqual({
           'example.com': {
@@ -2600,7 +2750,7 @@ describe('PhishingController', () => {
   });
 
   describe('scanUrl', () => {
-    let controller: PhishingController;
+    let rootMessenger: RootMessenger;
 
     const testUrl: string = 'https://example.com';
     const mockResponse: PhishingDetectionScanResult = {
@@ -2609,7 +2759,10 @@ describe('PhishingController', () => {
     };
 
     beforeEach(() => {
-      controller = getPhishingController();
+      const { rootMessenger: createdMessenger } = getPhishingController();
+
+      rootMessenger = createdMessenger;
+
       jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask'], now: 0 });
     });
 
@@ -2619,7 +2772,10 @@ describe('PhishingController', () => {
         .query({ url: 'example.com' })
         .reply(200, mockResponse);
 
-      const response = await controller.scanUrl(testUrl);
+      const response = await rootMessenger.call(
+        'PhishingController:scanUrl',
+        testUrl,
+      );
       expect(response).toMatchObject(mockResponse);
       expect(scope.isDone()).toBe(true);
     });
@@ -2641,7 +2797,10 @@ describe('PhishingController', () => {
           .query({ url: 'example.com' })
           .reply(statusCode);
 
-        const response = await controller.scanUrl(testUrl);
+        const response = await rootMessenger.call(
+          'PhishingController:scanUrl',
+          testUrl,
+        );
         expect(response).toMatchObject({
           hostname: '',
           recommendedAction: RecommendedAction.None,
@@ -2658,7 +2817,7 @@ describe('PhishingController', () => {
         .delayConnection(10000)
         .reply(200, {});
 
-      const promise = controller.scanUrl(testUrl);
+      const promise = rootMessenger.call('PhishingController:scanUrl', testUrl);
       jest.advanceTimersByTime(8000);
       const response = await promise;
       expect(response).toMatchObject({
@@ -2679,7 +2838,10 @@ describe('PhishingController', () => {
         .query({ url: expectedHostname })
         .reply(200, mockResponse);
 
-      const response = await controller.scanUrl(urlWithQuery);
+      const response = await rootMessenger.call(
+        'PhishingController:scanUrl',
+        urlWithQuery,
+      );
       expect(response).toMatchObject(mockResponse);
       expect(scope.isDone()).toBe(true);
     });
@@ -2693,7 +2855,10 @@ describe('PhishingController', () => {
         .query({ url: expectedHostname })
         .reply(200, mockResponse);
 
-      const response = await controller.scanUrl(urlWithHash);
+      const response = await rootMessenger.call(
+        'PhishingController:scanUrl',
+        urlWithHash,
+      );
       expect(response).toMatchObject(mockResponse);
       expect(scope.isDone()).toBe(true);
     });
@@ -2713,7 +2878,10 @@ describe('PhishingController', () => {
         .query({ url: expectedHostname })
         .reply(200, subdomainResponse);
 
-      const response = await controller.scanUrl(complexUrl);
+      const response = await rootMessenger.call(
+        'PhishingController:scanUrl',
+        complexUrl,
+      );
       expect(response).toMatchObject(subdomainResponse);
       expect(scope.isDone()).toBe(true);
     });
@@ -2739,7 +2907,10 @@ describe('PhishingController', () => {
       ];
 
       for (const invalidUrl of invalidUrls) {
-        const response = await controller.scanUrl(invalidUrl);
+        const response = await rootMessenger.call(
+          'PhishingController:scanUrl',
+          invalidUrl,
+        );
         expect(response).toMatchObject({
           hostname: '',
           recommendedAction: RecommendedAction.None,
@@ -2757,14 +2928,17 @@ describe('PhishingController', () => {
         .query({ url: expectedHostname })
         .reply(200, mockResponse);
 
-      const response = await controller.scanUrl(urlWithAuth);
+      const response = await rootMessenger.call(
+        'PhishingController:scanUrl',
+        urlWithAuth,
+      );
       expect(response).toMatchObject(mockResponse);
       expect(scope.isDone()).toBe(true);
     });
   });
 
   describe('bulkScanUrls', () => {
-    let controller: PhishingController;
+    let rootMessenger: RootMessenger;
 
     const testUrls: string[] = [
       'https://example1.com',
@@ -2790,7 +2964,10 @@ describe('PhishingController', () => {
     };
 
     beforeEach(() => {
-      controller = getPhishingController();
+      const { rootMessenger: createdMessenger } = getPhishingController();
+
+      rootMessenger = createdMessenger;
+
       jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask'], now: 0 });
     });
 
@@ -2805,13 +2982,19 @@ describe('PhishingController', () => {
         })
         .reply(200, mockResponse);
 
-      const response = await controller.bulkScanUrls(testUrls);
+      const response = await rootMessenger.call(
+        'PhishingController:bulkScanUrls',
+        testUrls,
+      );
       expect(response).toStrictEqual(mockResponse);
       expect(scope.isDone()).toBe(true);
     });
 
     it('should handle empty URL arrays', async () => {
-      const response = await controller.bulkScanUrls([]);
+      const response = await rootMessenger.call(
+        'PhishingController:bulkScanUrls',
+        [],
+      );
       expect(response).toStrictEqual({
         results: {},
         errors: {},
@@ -2820,7 +3003,10 @@ describe('PhishingController', () => {
 
     it('should enforce maximum URL limit', async () => {
       const tooManyUrls = Array(251).fill('https://example.com');
-      const response = await controller.bulkScanUrls(tooManyUrls);
+      const response = await rootMessenger.call(
+        'PhishingController:bulkScanUrls',
+        tooManyUrls,
+      );
       expect(response).toStrictEqual({
         results: {},
         errors: {
@@ -2831,7 +3017,10 @@ describe('PhishingController', () => {
 
     it('should validate URL length', async () => {
       const longUrl = `https://example.com/${'a'.repeat(2048)}`;
-      const response = await controller.bulkScanUrls([longUrl]);
+      const response = await rootMessenger.call(
+        'PhishingController:bulkScanUrls',
+        [longUrl],
+      );
       expect(response).toStrictEqual({
         results: {},
         errors: {
@@ -2858,7 +3047,10 @@ describe('PhishingController', () => {
           })
           .reply(statusCode);
 
-        const response = await controller.bulkScanUrls(testUrls);
+        const response = await rootMessenger.call(
+          'PhishingController:bulkScanUrls',
+          testUrls,
+        );
         expect(response).toStrictEqual({
           results: {},
           errors: {
@@ -2877,7 +3069,10 @@ describe('PhishingController', () => {
         .delayConnection(20000)
         .reply(200, {});
 
-      const promise = controller.bulkScanUrls(testUrls);
+      const promise = rootMessenger.call(
+        'PhishingController:bulkScanUrls',
+        testUrls,
+      );
       jest.advanceTimersByTime(15000);
       const response = await promise;
       expect(response).toStrictEqual({
@@ -2963,7 +3158,10 @@ describe('PhishingController', () => {
         })
         .reply(200, mockBatch3Response);
 
-      const response = await controller.bulkScanUrls(manyUrls);
+      const response = await rootMessenger.call(
+        'PhishingController:bulkScanUrls',
+        manyUrls,
+      );
 
       // Verify all scopes were called
       expect(scope1.isDone()).toBe(true);
@@ -3001,7 +3199,10 @@ describe('PhishingController', () => {
         })
         .reply(200, mixedResponse);
 
-      const response = await controller.bulkScanUrls(testUrls);
+      const response = await rootMessenger.call(
+        'PhishingController:bulkScanUrls',
+        testUrls,
+      );
       expect(response).toStrictEqual(mixedResponse);
       expect(scope.isDone()).toBe(true);
     });
@@ -3031,7 +3232,10 @@ describe('PhishingController', () => {
         })
         .reply(500, { error: 'Internal Server Error' });
 
-      const response = await controller.bulkScanUrls(manyUrls);
+      const response = await rootMessenger.call(
+        'PhishingController:bulkScanUrls',
+        manyUrls,
+      );
 
       expect(scope1.isDone()).toBe(true);
       expect(scope2.isDone()).toBe(true);
@@ -3065,7 +3269,7 @@ describe('PhishingController', () => {
           recommendedAction: RecommendedAction.None,
         });
 
-      await controller.scanUrl(cachedUrl);
+      await rootMessenger.call('PhishingController:scanUrl', cachedUrl);
 
       // Now set up the mock for the bulk API call with only the uncached URL
       const expectedPostBody = {
@@ -3087,7 +3291,10 @@ describe('PhishingController', () => {
         .reply(200, bulkApiResponse);
 
       // Call bulkScanUrls with both URLs
-      const response = await controller.bulkScanUrls(mixedUrls);
+      const response = await rootMessenger.call(
+        'PhishingController:bulkScanUrls',
+        mixedUrls,
+      );
 
       // Verify that only the uncached URL was requested from the API
       expect(scope.isDone()).toBe(true);
@@ -3099,7 +3306,10 @@ describe('PhishingController', () => {
       });
 
       // Verify the newly fetched result is now in the cache
-      const newlyCachedResult = await controller.scanUrl(uncachedUrl);
+      const newlyCachedResult = await rootMessenger.call(
+        'PhishingController:scanUrl',
+        uncachedUrl,
+      );
       expect(newlyCachedResult).toStrictEqual(
         bulkApiResponse.results[uncachedUrl],
       );
@@ -3130,7 +3340,10 @@ describe('PhishingController', () => {
         .reply(200, bulkApiResponse);
 
       // Call bulkScanUrls with both URLs
-      const response = await controller.bulkScanUrls(mixedUrls);
+      const response = await rootMessenger.call(
+        'PhishingController:bulkScanUrls',
+        mixedUrls,
+      );
 
       // Verify that only the valid URL was requested from the API
       expect(scope.isDone()).toBe(true);
@@ -3144,7 +3357,10 @@ describe('PhishingController', () => {
       );
 
       // Verify the valid result is now in the cache
-      const cachedResult = await controller.scanUrl(validUrl);
+      const cachedResult = await rootMessenger.call(
+        'PhishingController:scanUrl',
+        validUrl,
+      );
       expect(cachedResult).toStrictEqual(bulkApiResponse.results[validUrl]);
 
       // Should not make a new API call for the cached URL
@@ -3188,11 +3404,14 @@ describe('PhishingController', () => {
         });
 
       // Cache the results
-      await controller.scanUrl(cachedUrls[0]);
-      await controller.scanUrl(cachedUrls[1]);
+      await rootMessenger.call('PhishingController:scanUrl', cachedUrls[0]);
+      await rootMessenger.call('PhishingController:scanUrl', cachedUrls[1]);
 
       // No API call should be made for bulkScanUrls
-      const response = await controller.bulkScanUrls(cachedUrls);
+      const response = await rootMessenger.call(
+        'PhishingController:bulkScanUrls',
+        cachedUrls,
+      );
 
       // Verify we got the results from cache
       expect(response.results[cachedUrls[0]]).toStrictEqual(cachedResults[0]);
@@ -3205,7 +3424,7 @@ describe('PhishingController', () => {
   });
 
   describe('scanAddress', () => {
-    let controller: PhishingController;
+    let rootMessenger: RootMessenger;
 
     const testChainId = '0x1';
     const testAddress = '0x1234567890123456789012345678901234567890';
@@ -3215,7 +3434,10 @@ describe('PhishingController', () => {
     };
 
     beforeEach(() => {
-      controller = getPhishingController();
+      const { rootMessenger: createdMessenger } = getPhishingController();
+
+      rootMessenger = createdMessenger;
+
       jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask'], now: 0 });
     });
 
@@ -3231,7 +3453,11 @@ describe('PhishingController', () => {
         })
         .reply(200, mockResponse);
 
-      const response = await controller.scanAddress(testChainId, testAddress);
+      const response = await rootMessenger.call(
+        'PhishingController:scanAddress',
+        testChainId,
+        testAddress,
+      );
       expect(response).toMatchObject(mockResponse);
       expect(scope.isDone()).toBe(true);
     });
@@ -3255,7 +3481,11 @@ describe('PhishingController', () => {
           })
           .reply(statusCode);
 
-        const response = await controller.scanAddress(testChainId, testAddress);
+        const response = await rootMessenger.call(
+          'PhishingController:scanAddress',
+          testChainId,
+          testAddress,
+        );
         expect(response).toMatchObject({
           result_type: AddressScanResultType.ErrorResult,
           label: '',
@@ -3273,7 +3503,11 @@ describe('PhishingController', () => {
         .delayConnection(10000)
         .reply(200, {});
 
-      const promise = controller.scanAddress(testChainId, testAddress);
+      const promise = rootMessenger.call(
+        'PhishingController:scanAddress',
+        testChainId,
+        testAddress,
+      );
       jest.advanceTimersByTime(5000);
       const response = await promise;
       expect(response).toMatchObject({
@@ -3284,7 +3518,11 @@ describe('PhishingController', () => {
     });
 
     it('will return an AddressScanResult with an ErrorResult when address is missing', async () => {
-      const response = await controller.scanAddress(testChainId, '');
+      const response = await rootMessenger.call(
+        'PhishingController:scanAddress',
+        testChainId,
+        '',
+      );
       expect(response).toMatchObject({
         result_type: AddressScanResultType.ErrorResult,
         label: '',
@@ -3293,7 +3531,8 @@ describe('PhishingController', () => {
 
     it('will return an AddressScanResult with an ErrorResult when chain ID is unknown', async () => {
       const unknownChainId = '0x999999';
-      const response = await controller.scanAddress(
+      const response = await rootMessenger.call(
+        'PhishingController:scanAddress',
         unknownChainId,
         testAddress,
       );
@@ -3312,7 +3551,8 @@ describe('PhishingController', () => {
         })
         .reply(200, mockResponse);
 
-      const response = await controller.scanAddress(
+      const response = await rootMessenger.call(
+        'PhishingController:scanAddress',
         testChainId,
         mixedCaseAddress,
       );
@@ -3329,7 +3569,8 @@ describe('PhishingController', () => {
         })
         .reply(200, mockResponse);
 
-      const response = await controller.scanAddress(
+      const response = await rootMessenger.call(
+        'PhishingController:scanAddress',
         mixedCaseChainId,
         testAddress,
       );
@@ -3347,10 +3588,18 @@ describe('PhishingController', () => {
         })
         .reply(200, mockResponse);
 
-      const result1 = await controller.scanAddress(testChainId, testAddress);
+      const result1 = await rootMessenger.call(
+        'PhishingController:scanAddress',
+        testChainId,
+        testAddress,
+      );
       expect(result1).toMatchObject(mockResponse);
 
-      const result2 = await controller.scanAddress(testChainId, testAddress);
+      const result2 = await rootMessenger.call(
+        'PhishingController:scanAddress',
+        testChainId,
+        testAddress,
+      );
       expect(result2).toMatchObject(mockResponse);
 
       expect(fetchSpy).toHaveBeenCalledTimes(1);
@@ -3387,19 +3636,206 @@ describe('PhishingController', () => {
         })
         .reply(200, mockResponse2);
 
-      const result1 = await controller.scanAddress(chainId1, testAddress);
-      const result2 = await controller.scanAddress(chainId2, testAddress);
+      const result1 = await rootMessenger.call(
+        'PhishingController:scanAddress',
+        chainId1,
+        testAddress,
+      );
+      const result2 = await rootMessenger.call(
+        'PhishingController:scanAddress',
+        chainId2,
+        testAddress,
+      );
 
       expect(result1).toMatchObject(mockResponse1);
       expect(result2).toMatchObject(mockResponse2);
       expect(scope1.isDone()).toBe(true);
       expect(scope2.isDone()).toBe(true);
 
-      const cachedResult1 = await controller.scanAddress(chainId1, testAddress);
-      const cachedResult2 = await controller.scanAddress(chainId2, testAddress);
+      const cachedResult1 = await rootMessenger.call(
+        'PhishingController:scanAddress',
+        chainId1,
+        testAddress,
+      );
+      const cachedResult2 = await rootMessenger.call(
+        'PhishingController:scanAddress',
+        chainId2,
+        testAddress,
+      );
 
       expect(cachedResult1).toMatchObject(mockResponse1);
       expect(cachedResult2).toMatchObject(mockResponse2);
+    });
+  });
+
+  describe('getApprovals', () => {
+    let rootMessenger: RootMessenger;
+
+    const testChainId = '0x1';
+    const testAddress = '0x1234567890123456789012345678901234567890';
+    const mockApproval = {
+      allowance: { value: '1000000', usd_price: '1000.00' },
+      asset: {
+        type: 'ERC20',
+        address: '0xtoken',
+        symbol: 'TKN',
+        name: 'Token',
+        decimals: 18,
+        logo_url: 'https://example.com/token.png',
+      },
+      exposure: { usd_price: '100.00', value: '100.00', raw_value: '0x64' },
+      spender: {
+        address: '0xspender',
+        label: 'Uniswap',
+        features: [
+          {
+            type: ApprovalFeatureType.Benign,
+            feature_id: 'VERIFIED_CONTRACT',
+            description: 'This contract is verified',
+          },
+        ],
+      },
+      verdict: ApprovalResultType.Benign,
+    };
+    const mockResponse = { approvals: [mockApproval] };
+
+    beforeEach(() => {
+      const { rootMessenger: createdMessenger } = getPhishingController();
+      rootMessenger = createdMessenger;
+      jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask'], now: 0 });
+    });
+
+    afterEach(() => {
+      jest.useRealTimers();
+    });
+
+    it('will return approvals for a valid address and chain', async () => {
+      const scope = nock(SECURITY_ALERTS_BASE_URL)
+        .post(APPROVALS_ENDPOINT, {
+          chain: 'ethereum',
+          address: testAddress.toLowerCase(),
+        })
+        .reply(200, mockResponse);
+
+      const response = await rootMessenger.call(
+        'PhishingController:getApprovals',
+        testChainId,
+        testAddress,
+      );
+      expect(response).toStrictEqual(mockResponse);
+      expect(scope.isDone()).toBe(true);
+    });
+
+    it('will return empty approvals when address is missing', async () => {
+      const response = await rootMessenger.call(
+        'PhishingController:getApprovals',
+        testChainId,
+        '',
+      );
+      expect(response).toStrictEqual({ approvals: [] });
+    });
+
+    it('will return empty approvals when chainId is missing', async () => {
+      const response = await rootMessenger.call(
+        'PhishingController:getApprovals',
+        '',
+        testAddress,
+      );
+      expect(response).toStrictEqual({ approvals: [] });
+    });
+
+    it('will return empty approvals for unknown chain ID', async () => {
+      const response = await rootMessenger.call(
+        'PhishingController:getApprovals',
+        '0x999999',
+        testAddress,
+      );
+      expect(response).toStrictEqual({ approvals: [] });
+    });
+
+    it('will return empty approvals for chains not supported by the approvals API', async () => {
+      const response = await rootMessenger.call(
+        'PhishingController:getApprovals',
+        '0x82750',
+        testAddress,
+      );
+      expect(response).toStrictEqual({ approvals: [] });
+    });
+
+    it.each([
+      [400, 'Bad Request'],
+      [500, 'Internal Server Error'],
+    ])('will return empty approvals on %i HTTP error', async (statusCode) => {
+      const scope = nock(SECURITY_ALERTS_BASE_URL)
+        .post(APPROVALS_ENDPOINT, {
+          chain: 'ethereum',
+          address: testAddress.toLowerCase(),
+        })
+        .reply(statusCode);
+
+      const response = await rootMessenger.call(
+        'PhishingController:getApprovals',
+        testChainId,
+        testAddress,
+      );
+      expect(response).toStrictEqual({ approvals: [] });
+      expect(scope.isDone()).toBe(true);
+    });
+
+    it('will return empty approvals on timeout', async () => {
+      const scope = nock(SECURITY_ALERTS_BASE_URL)
+        .post(APPROVALS_ENDPOINT, {
+          chain: 'ethereum',
+          address: testAddress.toLowerCase(),
+        })
+        .delayConnection(10000)
+        .reply(200, mockResponse);
+
+      const promise = rootMessenger.call(
+        'PhishingController:getApprovals',
+        testChainId,
+        testAddress,
+      );
+      jest.advanceTimersByTime(5000);
+      const response = await promise;
+      expect(response).toStrictEqual({ approvals: [] });
+      expect(scope.isDone()).toBe(false);
+    });
+
+    it('will normalize address to lowercase before API call', async () => {
+      const mixedCaseAddress = '0xAbCdEf1234567890123456789012345678901234';
+      const scope = nock(SECURITY_ALERTS_BASE_URL)
+        .post(APPROVALS_ENDPOINT, {
+          chain: 'ethereum',
+          address: mixedCaseAddress.toLowerCase(),
+        })
+        .reply(200, mockResponse);
+
+      const response = await rootMessenger.call(
+        'PhishingController:getApprovals',
+        testChainId,
+        mixedCaseAddress,
+      );
+      expect(response).toStrictEqual(mockResponse);
+      expect(scope.isDone()).toBe(true);
+    });
+
+    it('will normalize chainId and resolve to chain name', async () => {
+      const mixedCaseChainId = '0xA';
+      const scope = nock(SECURITY_ALERTS_BASE_URL)
+        .post(APPROVALS_ENDPOINT, {
+          chain: 'optimism',
+          address: testAddress.toLowerCase(),
+        })
+        .reply(200, mockResponse);
+
+      const response = await rootMessenger.call(
+        'PhishingController:getApprovals',
+        mixedCaseChainId,
+        testAddress,
+      );
+      expect(response).toStrictEqual(mockResponse);
+      expect(scope.isDone()).toBe(true);
     });
   });
 });
@@ -3429,15 +3865,21 @@ describe('URL Scan Cache', () => {
         recommendedAction: RecommendedAction.None,
       });
 
-    const controller = getPhishingController();
+    const { rootMessenger } = getPhishingController();
 
-    const result1 = await controller.scanUrl(`https://${testDomain}`);
+    const result1 = await rootMessenger.call(
+      'PhishingController:scanUrl',
+      `https://${testDomain}`,
+    );
     expect(result1).toStrictEqual({
       hostname: testDomain,
       recommendedAction: RecommendedAction.None,
     });
 
-    const result2 = await controller.scanUrl(`https://${testDomain}`);
+    const result2 = await rootMessenger.call(
+      'PhishingController:scanUrl',
+      `https://${testDomain}`,
+    );
     expect(result2).toStrictEqual({
       hostname: testDomain,
       recommendedAction: RecommendedAction.None,
@@ -3471,20 +3913,29 @@ describe('URL Scan Cache', () => {
         recommendedAction: RecommendedAction.None,
       });
 
-    const controller = getPhishingController({
+    const { rootMessenger } = getPhishingController({
       urlScanCacheTTL: cacheTTL,
     });
 
-    await controller.scanUrl(`https://${testDomain}`);
+    await rootMessenger.call(
+      'PhishingController:scanUrl',
+      `https://${testDomain}`,
+    );
 
     // Before TTL expires, should use cache
     jest.advanceTimersByTime((cacheTTL - 10) * 1000);
-    await controller.scanUrl(`https://${testDomain}`);
+    await rootMessenger.call(
+      'PhishingController:scanUrl',
+      `https://${testDomain}`,
+    );
     expect(pendingMocks()).toHaveLength(1); // One mock remaining
 
     // After TTL expires, should fetch again
     jest.advanceTimersByTime(11 * 1000);
-    await controller.scanUrl(`https://${testDomain}`);
+    await rootMessenger.call(
+      'PhishingController:scanUrl',
+      `https://${testDomain}`,
+    );
     expect(pendingMocks()).toHaveLength(0); // All mocks used
   });
 
@@ -3516,21 +3967,33 @@ describe('URL Scan Cache', () => {
         recommendedAction: RecommendedAction.Warn,
       });
 
-    const controller = getPhishingController({
+    const { rootMessenger } = getPhishingController({
       urlScanCacheMaxSize: maxCacheSize,
     });
 
     // Fill the cache
-    await controller.scanUrl(`https://${domains[0]}`);
+    await rootMessenger.call(
+      'PhishingController:scanUrl',
+      `https://${domains[0]}`,
+    );
     jest.advanceTimersByTime(1000); // Ensure different timestamps
-    await controller.scanUrl(`https://${domains[1]}`);
+    await rootMessenger.call(
+      'PhishingController:scanUrl',
+      `https://${domains[1]}`,
+    );
 
     // This should evict the oldest entry (domain1)
     jest.advanceTimersByTime(1000);
-    await controller.scanUrl(`https://${domains[2]}`);
+    await rootMessenger.call(
+      'PhishingController:scanUrl',
+      `https://${domains[2]}`,
+    );
 
     // Now domain1 should not be in cache and require a new fetch
-    await controller.scanUrl(`https://${domains[0]}`);
+    await rootMessenger.call(
+      'PhishingController:scanUrl',
+      `https://${domains[0]}`,
+    );
 
     // All mocks should be used
     expect(isDone()).toBe(true);
@@ -3555,14 +4018,20 @@ describe('URL Scan Cache', () => {
         recommendedAction: RecommendedAction.None,
       });
 
-    const controller = getPhishingController();
+    const { rootMessenger } = getPhishingController();
 
     // First call should result in an error response
-    const result1 = await controller.scanUrl(`https://${testDomain}`);
+    const result1 = await rootMessenger.call(
+      'PhishingController:scanUrl',
+      `https://${testDomain}`,
+    );
     expect(result1.fetchError).toBeDefined();
 
     // Second call should try again (not use cache since errors aren't cached)
-    const result2 = await controller.scanUrl(`https://${testDomain}`);
+    const result2 = await rootMessenger.call(
+      'PhishingController:scanUrl',
+      `https://${testDomain}`,
+    );
     expect(result2.fetchError).toBeUndefined();
     expect(result2.recommendedAction).toBe(RecommendedAction.None);
 
@@ -3590,14 +4059,20 @@ describe('URL Scan Cache', () => {
         recommendedAction: RecommendedAction.None,
       });
 
-    const controller = getPhishingController();
+    const { rootMessenger } = getPhishingController();
 
     // First call should result in an error
-    const result1 = await controller.scanUrl(`https://${testDomain}`);
+    const result1 = await rootMessenger.call(
+      'PhishingController:scanUrl',
+      `https://${testDomain}`,
+    );
     expect(result1.fetchError).toBeDefined();
 
     // Second call should succeed (not use cache since errors aren't cached)
-    const result2 = await controller.scanUrl(`https://${testDomain}`);
+    const result2 = await rootMessenger.call(
+      'PhishingController:scanUrl',
+      `https://${testDomain}`,
+    );
     expect(result2.fetchError).toBeUndefined();
     expect(result2.recommendedAction).toBe(RecommendedAction.None);
 
@@ -3608,20 +4083,26 @@ describe('URL Scan Cache', () => {
   it('should handle invalid URLs and not cache them', async () => {
     const invalidUrl = 'not-a-valid-url';
 
-    const controller = getPhishingController();
+    const { rootMessenger } = getPhishingController();
 
     // First call should return an error for invalid URL
-    const result1 = await controller.scanUrl(invalidUrl);
+    const result1 = await rootMessenger.call(
+      'PhishingController:scanUrl',
+      invalidUrl,
+    );
     expect(result1.fetchError).toBeDefined();
 
     // Second call should also return an error (not from cache)
-    const result2 = await controller.scanUrl(invalidUrl);
+    const result2 = await rootMessenger.call(
+      'PhishingController:scanUrl',
+      invalidUrl,
+    );
     expect(result2.fetchError).toBeDefined();
   });
 
   describe('metadata', () => {
     it('includes expected state in debug snapshots', () => {
-      const controller = getPhishingController();
+      const { controller } = getPhishingController();
 
       expect(
         deriveStateFromMetadata(
@@ -3633,7 +4114,7 @@ describe('URL Scan Cache', () => {
     });
 
     it('includes expected state in state logs', () => {
-      const controller = getPhishingController();
+      const { controller } = getPhishingController();
 
       expect(
         deriveStateFromMetadata(
@@ -3651,7 +4132,7 @@ describe('URL Scan Cache', () => {
     });
 
     it('persists expected state', () => {
-      const controller = getPhishingController();
+      const { controller } = getPhishingController();
 
       expect(
         deriveStateFromMetadata(
@@ -3675,7 +4156,7 @@ describe('URL Scan Cache', () => {
     });
 
     it('includes expected state in UI', () => {
-      const controller = getPhishingController();
+      const { controller } = getPhishingController();
 
       expect(
         deriveStateFromMetadata(

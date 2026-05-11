@@ -12,8 +12,6 @@ import type {
 import type { Hex } from '@metamask/utils';
 import { createModuleLogger } from '@metamask/utils';
 
-import { getAcrossOrderedTransactions } from './transactions';
-import type { AcrossQuote } from './types';
 import { projectLogger } from '../../logger';
 import type {
   PayStrategyExecuteRequest,
@@ -27,6 +25,8 @@ import {
   updateTransaction,
   waitForTransactionConfirmed,
 } from '../../utils/transaction';
+import { getAcrossOrderedTransactions } from './transactions';
+import type { AcrossQuote } from './types';
 
 const log = createModuleLogger(projectLogger, 'across-strategy');
 const ACROSS_STATUS_POLL_INTERVAL = 1000;
@@ -194,6 +194,9 @@ async function submitTransactions(
   );
 
   let result: { result: Promise<string> } | undefined;
+  const gasFeeToken = quote.fees.isSourceGasFeeToken
+    ? quote.request.sourceTokenAddress
+    : undefined;
 
   try {
     if (transactions.length === 1) {
@@ -201,6 +204,7 @@ async function submitTransactions(
         'TransactionController:addTransaction',
         transactions[0].params,
         {
+          gasFeeToken,
           networkClientId,
           origin: ORIGIN_METAMASK,
           requireApproval: false,
@@ -218,6 +222,7 @@ async function submitTransactions(
         disableHook: Boolean(gasLimit7702),
         disableSequential: Boolean(gasLimit7702),
         from,
+        gasFeeToken,
         gasLimit7702,
         networkClientId,
         origin: ORIGIN_METAMASK,
@@ -242,34 +247,30 @@ async function submitTransactions(
     ? getTransaction(transactionIds.slice(-1)[0], messenger)?.hash
     : undefined;
 
-  return await waitForAcrossCompletion(
-    quote.original,
-    hash as Hex | undefined,
-    messenger,
-  );
+  return await waitForAcrossCompletion(hash as Hex | undefined, messenger);
 }
 
 type AcrossStatusResponse = {
+  depositId?: number | string;
+  depositTxnRef?: Hex;
   status?: string;
   destinationTxHash?: Hex;
+  fillTxnRef?: Hex;
   fillTxHash?: Hex;
   txHash?: Hex;
 };
 
 async function waitForAcrossCompletion(
-  quote: AcrossQuote,
   transactionHash: Hex | undefined,
   messenger: TransactionPayControllerMessenger,
 ): Promise<Hex | undefined> {
-  if (!transactionHash || !quote.quote.id) {
+  if (!transactionHash) {
     return transactionHash;
   }
 
   const config = getPayStrategiesConfig(messenger);
   const params = new URLSearchParams({
-    depositId: quote.quote.id,
-    originChainId: String(quote.quote.swapTx.chainId),
-    txHash: transactionHash,
+    depositTxnRef: transactionHash,
   });
   const url = `${config.across.apiBase}/deposit/status?${params.toString()}`;
 
@@ -314,6 +315,7 @@ async function waitForAcrossCompletion(
     ) {
       return (
         status.destinationTxHash ??
+        status.fillTxnRef ??
         status.fillTxHash ??
         status.txHash ??
         transactionHash

@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [12.0.0]
+
+### Changed
+
+- **BREAKING:** The `ServicePolicy` type's `onDegraded` event now emits `{ duration: number }` instead of `void` when the service succeeds but takes longer than the `degradedThreshold` ([#8455](https://github.com/MetaMask/core/pull/8455))
+  - `void` has been removed from the event's type union. Listeners that checked for `undefined` data should now check for the `duration` property instead.
+  - The event still emits a `FailureReason` when retries are exhausted.
+- Update `normalizeEnsName` regex to allow ENS names with 3 or more characters (previously required 7 or more) ([#8510](https://github.com/MetaMask/core/pull/8510))
+- Update default Sei Mainnet block explorer URL from `seitrace.com` to `seiscan.io` ([#8545](https://github.com/MetaMask/core/pull/8545))
+- Update `BUILT_IN_NETWORKS`, `InfuraNetworkType`, `ChainId`, `NetworksTicker`, `BlockExplorerUrl`, `NetworkNickname` to include missing Infura networks ([#8680](https://github.com/MetaMask/core/pull/8680), [#8713](https://github.com/MetaMask/core/pull/8713))
+
+## [11.20.0]
+
+### Added
+
+- Add `CHAIN_IDS_WITH_NO_NATIVE_TOKEN` with Tempo chains in `constants.ts` ([#8336](https://github.com/MetaMask/core/pull/8336))
+
 ## [11.19.0]
 
 ### Added
@@ -609,7 +626,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Initial release
-
   - As a result of converting our shared controllers repo into a monorepo ([#831](https://github.com/MetaMask/core/pull/831)), we've created this package from select parts of [`@metamask/controllers` v33.0.0](https://github.com/MetaMask/core/tree/v33.0.0), namely:
     - `src/constants.ts` (but see below)
     - `src/util.ts` (but see below)
@@ -617,7 +633,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - `NetworkType` and `NetworkChainsId` from `src/network/NetworkController.ts` (via `types.ts`)
   - `ESTIMATE_GAS_ERROR`, which used to be exported by `src/constants.ts`, is now available via the `@metamask/gas-fee-controller` package.
   - A number of functions and types that were previously exported by `src/util.ts` are now available via other packages. Here's a breakdown of these exports and their new locations:
-
     - `@metamask/assets-controllers`:
       - `SupportedTokenDetectionNetworks`
       - `addUrlProtocolPrefix`
@@ -647,7 +662,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@11.19.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@12.0.0...HEAD
+[12.0.0]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@11.20.0...@metamask/controller-utils@12.0.0
+[11.20.0]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@11.19.0...@metamask/controller-utils@11.20.0
 [11.19.0]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@11.18.0...@metamask/controller-utils@11.19.0
 [11.18.0]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@11.17.0...@metamask/controller-utils@11.18.0
 [11.17.0]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@11.16.0...@metamask/controller-utils@11.17.0

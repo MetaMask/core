@@ -2,14 +2,14 @@ import { ORIGIN_METAMASK } from '@metamask/controller-utils';
 import { rpcErrors } from '@metamask/rpc-errors';
 import type { Hex } from '@metamask/utils';
 
+import { TransactionEnvelopeType, TransactionType } from '../types';
+import type { TransactionParams } from '../types';
 import {
   validateBatchRequest,
   validateParamTo,
   validateTransactionOrigin,
   validateTxParams,
 } from './validation';
-import { TransactionEnvelopeType, TransactionType } from '../types';
-import type { TransactionParams } from '../types';
 
 const DATA_MOCK = '0x12345678';
 const FROM_MOCK: Hex = '0x1678a085c290ebd122dc42cba69373b5953b831d';
@@ -77,7 +77,11 @@ describe('validation', () => {
       );
     });
 
-    it('should throw if no data', () => {
+    it('should throw if to is missing and no real bytecode', () => {
+      const expectedError = rpcErrors.invalidParams(
+        'Invalid "to" address: must be specified for transactions without contract deployment bytecode.',
+      );
+
       expect(() =>
         validateTxParams({
           from: FROM_MOCK,
@@ -85,7 +89,7 @@ describe('validation', () => {
           // TODO: Replace `any` with type
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
         } as any),
-      ).toThrow(rpcErrors.invalidParams('Invalid "to" address.'));
+      ).toThrow(expectedError);
 
       expect(() =>
         validateTxParams({
@@ -93,14 +97,72 @@ describe('validation', () => {
           // TODO: Replace `any` with type
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
         } as any),
-      ).toThrow(rpcErrors.invalidParams('Invalid "to" address.'));
+      ).toThrow(expectedError);
     });
 
-    it('should delete data', () => {
+    it('should throw if to is empty string and no real bytecode', () => {
+      expect(() =>
+        validateTxParams({
+          from: FROM_MOCK,
+          to: '' as Hex,
+          data: '0x',
+          value: '0x1',
+          // TODO: Replace `any` with type
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        } as any),
+      ).toThrow(
+        rpcErrors.invalidParams(
+          'Invalid "to" address: must be specified for transactions without contract deployment bytecode.',
+        ),
+      );
+    });
+
+    it('should throw if to is empty string and data is "0x" (would deploy empty contract)', () => {
+      expect(() =>
+        validateTxParams({
+          from: FROM_MOCK,
+          to: '' as Hex,
+          data: '0x',
+          // TODO: Replace `any` with type
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        } as any),
+      ).toThrow(
+        rpcErrors.invalidParams(
+          'Invalid "to" address: must be specified for transactions without contract deployment bytecode.',
+        ),
+      );
+    });
+
+    it('should throw if to is undefined and data is "0x" (would deploy empty contract)', () => {
+      expect(() =>
+        validateTxParams({
+          from: FROM_MOCK,
+          data: '0x',
+          // TODO: Replace `any` with type
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        } as any),
+      ).toThrow(
+        rpcErrors.invalidParams(
+          'Invalid "to" address: must be specified for transactions without contract deployment bytecode.',
+        ),
+      );
+    });
+
+    it('should remove "to" when missing and data has real bytecode (legitimate deployment)', () => {
       const transaction = {
-        data: 'foo',
+        data: '0x608060405234',
         from: TO_MOCK,
         to: '0x',
+      };
+      validateTxParams(transaction);
+      expect(transaction.to).toBeUndefined();
+    });
+
+    it('should remove "to" when empty string and data has real bytecode', () => {
+      const transaction = {
+        data: '0x608060405234',
+        from: TO_MOCK,
+        to: '' as Hex,
       };
       validateTxParams(transaction);
       expect(transaction.to).toBeUndefined();

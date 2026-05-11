@@ -7,6 +7,222 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [6.0.1]
+
+### Changed
+
+- Bump `@metamask/controller-utils` from `^11.20.0` to `^12.0.0` ([#8755](https://github.com/MetaMask/core/pull/8755))
+
+## [6.0.0]
+
+### Changed
+
+- **BREAKING:** Rename `AccountState.availableBalance` to `spendableBalance` and `AccountState.availableToTradeBalance` to `withdrawableBalance` for clearer semantics across abstraction modes ([#8678](https://github.com/MetaMask/core/pull/8678))
+- Mode-aware spot fold: `addSpotBalanceToAccountState` now folds free spot USDC into both `spendableBalance` and `withdrawableBalance` for Unified/Portfolio modes, while Standard/DEX-abstraction modes keep spot separate ([#8678](https://github.com/MetaMask/core/pull/8678))
+- Add throttled WS-driven `userAbstraction` refresh so HL-web mode flips propagate back without requiring a restart or account switch ([#8678](https://github.com/MetaMask/core/pull/8678))
+- Fix position direction display for flipped positions ([#8707](https://github.com/MetaMask/core/pull/8707))
+
+## [5.0.0]
+
+### Added
+
+- **BREAKING:** `HyperLiquidClientService` now forces the `dexAbstraction → unifiedAccount` migration via a new internal flow, deferred until first `withdraw`, `placeOrder`, or other action entry point so users see unified collateral on their first trade/withdrawal ([#8658](https://github.com/MetaMask/core/pull/8658))
+- **BREAKING:** `addSpotBalanceToAccountState` and `HyperLiquidSubscriptionService` are now mode-aware: spot USDC is only folded into tradeable collateral for `unifiedAccount` / `portfolioMargin` modes, and `userAbstraction` is propagated through subscriptions ([#8658](https://github.com/MetaMask/core/pull/8658))
+
+### Changed
+
+- Bump `@nktkas/hyperliquid` from `^0.30.2` to `^0.32.2` for `userAbstraction` / `userSetAbstraction` / `agentSetAbstraction` API surface ([#8658](https://github.com/MetaMask/core/pull/8658))
+- Replace `agentSetAbstraction` wire-code magic string with a typed constant ([#8658](https://github.com/MetaMask/core/pull/8658))
+- Bump `@metamask/keyring-controller` from `^25.3.0` to `^25.4.0` ([#8665](https://github.com/MetaMask/core/pull/8665))
+- Bump `@metamask/account-tree-controller` from `^7.1.0` to `^7.2.0` ([#8665](https://github.com/MetaMask/core/pull/8665))
+- Bump `@metamask/transaction-controller` from `^64.4.0` to `^65.0.0` ([#8613](https://github.com/MetaMask/core/pull/8613))
+- Bump `@metamask/messenger` from `^1.1.1` to `^1.2.0` ([#8632](https://github.com/MetaMask/core/pull/8632))
+
+### Fixed
+
+- Keep users on `portfolioMargin` mode and recover the resolved abstraction mode after migration instead of evicting it ([#8658](https://github.com/MetaMask/core/pull/8658))
+- Retry abstraction mode after transient `userAbstraction` failures and reset the memoized readiness promise after silent migration failures ([#8658](https://github.com/MetaMask/core/pull/8658))
+- Close WebSocket-vs-REST race that could fold spot for Standard users and preserve abstraction REST results across active subscribers ([#8658](https://github.com/MetaMask/core/pull/8658))
+- Drop the pre-fetch generation guard so `userAbstraction` always resolves; treat cached balances as an unambiguous spot owner ([#8658](https://github.com/MetaMask/core/pull/8658))
+- Restore HyperLiquid withdrawal for Unified Account Mode users and support arb USDC withdraw balance in unified mode ([#8658](https://github.com/MetaMask/core/pull/8658))
+- Harden unified-account migration handling and close MM Pay `$0` + analytics gaps ([#8658](https://github.com/MetaMask/core/pull/8658))
+
+## [4.0.0]
+
+### Added
+
+- Add `coalescePerpsRestRequest` utility for deduplicating concurrent REST requests with account-scoped cache keys ([#8560](https://github.com/MetaMask/core/pull/8560))
+- Add `accountUtils` helpers for resolving the active perps account id and pinning it to forwarded provider params ([#8560](https://github.com/MetaMask/core/pull/8560))
+
+### Changed
+
+- Account-scope the REST cache and guard cache writes so mount load stays cacheable without cross-account bleed ([#8560](https://github.com/MetaMask/core/pull/8560))
+- Make `forceRefresh` provider-agnostic and align rate-limit handling with the extension ([#8560](https://github.com/MetaMask/core/pull/8560))
+- Regenerate `PerpsController` method action types; shrink rate-limit diff and drop verbose history logs ([#8560](https://github.com/MetaMask/core/pull/8560))
+
+### Removed
+
+- **BREAKING:** Drop the dead `spotState` parameter from `adaptAccountStateFromSDK`. Spot balances are layered on by `addSpotBalanceToAccountState`, which enforces the USDC-only policy via `SPOT_COLLATERAL_COINS`; removing the dormant branch keeps one source of truth and prevents a future caller from silently getting ALL-coins behavior ([#8560](https://github.com/MetaMask/core/pull/8560))
+
+### Fixed
+
+- HyperLiquid Unified-mode live balance: subscribe to `spotState` WS and compute tradeable/total balance from on-chain math ([#8560](https://github.com/MetaMask/core/pull/8560))
+- Complete spot-balance parity with the extension consumer ([#8560](https://github.com/MetaMask/core/pull/8560))
+- Preserve integer trailing zeros when `szDecimals=0` in `perpsFormatters` ([#8560](https://github.com/MetaMask/core/pull/8560))
+- Preserve candle pagination cancellation and skip coalesce for explicit-`endTime` candle paging to avoid stale pages ([#8560](https://github.com/MetaMask/core/pull/8560))
+- Defer account resolution on the non-paginated cache path to prevent race conditions ([#8560](https://github.com/MetaMask/core/pull/8560))
+- Force-refresh on activity mount and evict expired coalesce entries so stale promises cannot resolve to cache ([#8560](https://github.com/MetaMask/core/pull/8560))
+- Normalize `event.user` to lowercase when caching the spot-state WS address so `#ensureSpotState` hits the cache instead of triggering a redundant REST `spotClearinghouseState` refetch when HyperLiquid returns a checksummed address ([#8560](https://github.com/MetaMask/core/pull/8560))
+
+## [3.2.0]
+
+### Added
+
+- Add `isAbortError` utility export from `utils` for distinguishing expected cancellation errors from real failures ([#8515](https://github.com/MetaMask/core/pull/8515))
+
+### Changed
+
+- `TradingService.flipPosition()` no longer passes stale position `entryPrice` as `currentPrice` on reverse-position orders; providers now validate and price flips against live market data ([#8515](https://github.com/MetaMask/core/pull/8515))
+
+### Removed
+
+- Remove unused `ESTIMATED_FEE_RATE` export from `constants/hyperLiquidConfig` (dead code after reverse-position fee precheck was removed) ([#8515](https://github.com/MetaMask/core/pull/8515))
+
+### Fixed
+
+- Suppress noisy Sentry reports from expected historical-candle fetch cancellations (`AbortError`) during navigation, while preserving real error reporting in `HyperLiquidClientService` and `MarketDataService` ([#8515](https://github.com/MetaMask/core/pull/8515))
+
+## [3.1.1]
+
+### Fixed
+
+- Preserve the `webpackIgnore` safeguard on the `MYXProvider` dynamic import in built dist files so extension consumers do not statically resolve the intentionally-unpublished MYX provider module ([#8473](https://github.com/MetaMask/core/pull/8473))
+- Use HTTP transport for HyperLiquid candle snapshots and refresh DEX discovery cache handling to avoid rapid market-switching 429s after syncing the latest mobile perps controller state ([#8473](https://github.com/MetaMask/core/pull/8473))
+
+## [3.1.0]
+
+### Added
+
+- Add disk-backed cold-start cache for instant data display on launch ([#8460](https://github.com/MetaMask/core/pull/8460))
+- Add `skipTTL` option to `getCachedMarketDataForActiveProvider` and `getCachedUserDataForActiveProvider` ([#8460](https://github.com/MetaMask/core/pull/8460))
+- Add perps decimal formatters (`perpsFormatters`) for shared formatting utilities ([#8460](https://github.com/MetaMask/core/pull/8460))
+- Add `FUNDING_RATE_CONFIG` constants for funding rate display formatting ([#8460](https://github.com/MetaMask/core/pull/8460))
+- Add `buildProviderCacheKey` and `getProviderNetworkKey` helper exports ([#8460](https://github.com/MetaMask/core/pull/8460))
+
+### Changed
+
+- Bump `@metamask/transaction-controller` from `^64.0.0` to `^64.1.0` ([#8432](https://github.com/MetaMask/core/pull/8432))
+- Bump `@metamask/base-controller` from `^9.0.1` to `^9.1.0` ([#8457](https://github.com/MetaMask/core/pull/8457))
+
+### Fixed
+
+- Fix TP/SL orders disappearing after creating a market order by filtering on `isPositionTpsl` ([#8460](https://github.com/MetaMask/core/pull/8460))
+- Fix missing latest funding payments by using paginated fetch with auto-split ([#8460](https://github.com/MetaMask/core/pull/8460))
+- Fix WebSocket reconnection on foreground return when socket is still alive ([#8460](https://github.com/MetaMask/core/pull/8460))
+
+## [3.0.0]
+
+### Added
+
+- Export `PerpsControllerGetStateAction` type ([#8352](https://github.com/MetaMask/core/pull/8352))
+- Expose missing public `PerpsController` methods through its messenger ([#8352](https://github.com/MetaMask/core/pull/8352))
+  - The following actions are now available:
+    - `PerpsController:calculateLiquidationPrice`
+    - `PerpsController:calculateMaintenanceMargin`
+    - `PerpsController:clearDepositResult`
+    - `PerpsController:clearWithdrawResult`
+    - `PerpsController:completeWithdrawalFromHistory`
+    - `PerpsController:depositWithConfirmation`
+    - `PerpsController:depositWithOrder`
+    - `PerpsController:fetchHistoricalCandles`
+    - `PerpsController:flipPosition`
+    - `PerpsController:getActiveProvider`
+    - `PerpsController:getActiveProviderOrNull`
+    - `PerpsController:getAvailableDexs`
+    - `PerpsController:getBlockExplorerUrl`
+    - `PerpsController:getCachedMarketDataForActiveProvider`
+    - `PerpsController:getCachedUserDataForActiveProvider`
+    - `PerpsController:getCurrentNetwork`
+    - `PerpsController:getMarketDataWithPrices`
+    - `PerpsController:getMaxLeverage`
+    - `PerpsController:getWatchlistMarkets`
+    - `PerpsController:getWebSocketConnectionState`
+    - `PerpsController:getWithdrawalProgress`
+    - `PerpsController:getWithdrawalRoutes`
+    - `PerpsController:init`
+    - `PerpsController:isCurrentlyReinitializing`
+    - `PerpsController:isFirstTimeUserOnCurrentNetwork`
+    - `PerpsController:isWatchlistMarket`
+    - `PerpsController:reconnect`
+    - `PerpsController:setLiveDataConfig`
+    - `PerpsController:startMarketDataPreload`
+    - `PerpsController:stopMarketDataPreload`
+    - `PerpsController:subscribeToAccount`
+    - `PerpsController:subscribeToCandles`
+    - `PerpsController:subscribeToConnectionState`
+    - `PerpsController:subscribeToOICaps`
+    - `PerpsController:subscribeToOrderBook`
+    - `PerpsController:subscribeToOrderFills`
+    - `PerpsController:subscribeToOrders`
+    - `PerpsController:subscribeToPositions`
+    - `PerpsController:subscribeToPrices`
+    - `PerpsController:switchProvider`
+    - `PerpsController:toggleWatchlistMarket`
+    - `PerpsController:updateMargin`
+    - `PerpsController:updatePositionTPSL`
+    - `PerpsController:updateWithdrawalProgress`
+    - `PerpsController:updateWithdrawalStatus`
+    - `PerpsController:validateClosePosition`
+    - `PerpsController:validateOrder`
+    - `PerpsController:validateWithdrawal`
+  - Corresponding action types are available as well.
+- Add `completeWithdrawalFromHistory` method for FIFO-based withdrawal completion matching ([#8333](https://github.com/MetaMask/core/pull/8333))
+- Add `lastCompletedWithdrawalTimestamp` and `lastCompletedWithdrawalTxHashes` state fields ([#8333](https://github.com/MetaMask/core/pull/8333))
+
+### Changed
+
+- Refactor pending withdraw/deposit tracking to FIFO queue design ([#8333](https://github.com/MetaMask/core/pull/8333))
+- Centralize Arbitrum network check in deposit hooks to prevent missing network errors ([#8333](https://github.com/MetaMask/core/pull/8333))
+- Provider credentials, builder fee injection, and env var centralization ([#8333](https://github.com/MetaMask/core/pull/8333))
+- Reduce max order amount by 0.5% buffer to avoid insufficient margin rejections ([#8333](https://github.com/MetaMask/core/pull/8333))
+- Bump `@metamask/account-tree-controller` from `^6.0.0` to `^7.0.0` ([#8325](https://github.com/MetaMask/core/pull/8325))
+- Bump `@metamask/profile-sync-controller` from `^28.0.1` to `^28.0.2` ([#8325](https://github.com/MetaMask/core/pull/8325))
+- Bump `@metamask/controller-utils` from `^11.19.0` to `^11.20.0` ([#8344](https://github.com/MetaMask/core/pull/8344))
+- Bump `@metamask/messenger` from `^1.0.0` to `^1.1.1` ([#8364](https://github.com/MetaMask/core/pull/8364), [#8373](https://github.com/MetaMask/core/pull/8373))
+- Move `@myx-trade/sdk` from `dependencies` to `optionalDependencies` so consumers (extension, mobile) do not install it automatically ([#8398](https://github.com/MetaMask/core/pull/8398))
+  - Combined with the MYX adapter export removal below, this prevents `@myx-trade/sdk` from entering the consumer's static webpack/metro import graph
+  - `MYXProvider` continues to load `@myx-trade/sdk` via dynamic `import()` when `MM_PERPS_MYX_PROVIDER_ENABLED=true`
+- Add `/* webpackIgnore: true */` magic comment to the `MYXProvider` dynamic import so webpack (extension) skips static resolution of the intentionally-unshipped module ([#8398](https://github.com/MetaMask/core/pull/8398))
+
+### Removed
+
+- **BREAKING:** Remove `adaptMarketFromMYX`, `adaptPriceFromMYX`, `adaptMarketDataFromMYX`, `filterMYXExclusiveMarkets`, `isOverlappingMarket`, `buildPoolSymbolMap`, `buildSymbolPoolsMap`, and `extractSymbolFromPoolId` from the public package exports to prevent `@myx-trade/sdk` from being included in the static webpack bundle ([#8398](https://github.com/MetaMask/core/pull/8398))
+  - These functions are still used internally by `MYXProvider`, which is loaded via dynamic import
+  - Consumers that imported these utilities directly should instead import from `@metamask/perps-controller/src/utils/myxAdapter` or duplicate the logic locally
+
+### Fixed
+
+- Preserve `/* webpackIgnore: true */` magic comment in built dist files by using a variable for the MYXProvider dynamic import path, preventing ts-bridge from rewriting the AST node and stripping the comment ([#8424](https://github.com/MetaMask/core/pull/8424))
+- Fix incorrect fee estimate when flipping a position ([#8333](https://github.com/MetaMask/core/pull/8333))
+- Fix incorrect PnL and order size displayed after SL execution ([#8333](https://github.com/MetaMask/core/pull/8333))
+- Fix stop loss not showing up in recent activity ([#8333](https://github.com/MetaMask/core/pull/8333))
+- Fix incorrect market categories ([#8333](https://github.com/MetaMask/core/pull/8333))
+- Fix TP/SL decimal precision for PUMP ([#8333](https://github.com/MetaMask/core/pull/8333))
+- Fix missing decimal on price input when using preset on limit price ([#8333](https://github.com/MetaMask/core/pull/8333))
+
+## [2.0.0]
+
+### Changed
+
+- Sync mobile perps code to core (mobile branch `feat/perps/core-resolver`) ([#8291](https://github.com/MetaMask/core/pull/8291))
+- Add `@metamask/geolocation-controller` dependency for eligibility geolocation checks ([#8291](https://github.com/MetaMask/core/pull/8291))
+- Exclude `MYXWalletService` from published package files ([#8291](https://github.com/MetaMask/core/pull/8291))
+- MYX provider improvements: enhanced error handling, wallet service integration ([#8291](https://github.com/MetaMask/core/pull/8291))
+- HyperLiquid provider improvements: subscription reliability, order book processing ([#8291](https://github.com/MetaMask/core/pull/8291))
+- Eligibility service refactored for geolocation-based region blocking ([#8291](https://github.com/MetaMask/core/pull/8291))
+- Bump `@metamask/base-controller` from `^9.0.0` to `^9.0.1` ([#8317](https://github.com/MetaMask/core/pull/8317))
+- Bump `@metamask/messenger` from `^0.3.0` to `^1.0.0` ([#8317](https://github.com/MetaMask/core/pull/8317))
+
 ## [1.3.0]
 
 ### Changed
@@ -69,7 +285,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Bump `@metamask/controller-utils` from `^11.18.0` to `^11.19.0` ([#7995](https://github.com/MetaMask/core/pull/7995))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@1.3.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@6.0.1...HEAD
+[6.0.1]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@6.0.0...@metamask/perps-controller@6.0.1
+[6.0.0]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@5.0.0...@metamask/perps-controller@6.0.0
+[5.0.0]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@4.0.0...@metamask/perps-controller@5.0.0
+[4.0.0]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@3.2.0...@metamask/perps-controller@4.0.0
+[3.2.0]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@3.1.1...@metamask/perps-controller@3.2.0
+[3.1.1]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@3.1.0...@metamask/perps-controller@3.1.1
+[3.1.0]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@3.0.0...@metamask/perps-controller@3.1.0
+[3.0.0]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@2.0.0...@metamask/perps-controller@3.0.0
+[2.0.0]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@1.3.0...@metamask/perps-controller@2.0.0
 [1.3.0]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@1.2.0...@metamask/perps-controller@1.3.0
 [1.2.0]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@1.1.0...@metamask/perps-controller@1.2.0
 [1.1.0]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@1.0.1...@metamask/perps-controller@1.1.0

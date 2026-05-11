@@ -16,13 +16,13 @@ import { providerErrors } from '@metamask/rpc-errors';
 import type { TransactionController } from '@metamask/transaction-controller';
 import type { Hex, JsonRpcRequest } from '@metamask/utils';
 
-import { processSendCalls } from './processSendCalls';
 import { SupportedCapabilities } from '../constants';
 import type {
   SendCallsPayload,
   SendCallsParams,
   EIP5792Messenger,
 } from '../types';
+import { processSendCalls } from './processSendCalls';
 
 const CHAIN_ID_MOCK = '0x123';
 const CHAIN_ID_2_MOCK = '0xabc';

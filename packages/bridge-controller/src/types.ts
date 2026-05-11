@@ -1,7 +1,8 @@
+/* eslint-disable @typescript-eslint/naming-convention */
 import type { AccountsControllerGetAccountByAddressAction } from '@metamask/accounts-controller';
 import type { AssetsControllerGetExchangeRatesForBridgeAction } from '@metamask/assets-controller';
 import type {
-  GetCurrencyRateState,
+  CurrencyRateControllerGetStateAction,
   MultichainAssetsRatesControllerGetStateAction,
   TokenRatesControllerGetStateAction,
 } from '@metamask/assets-controllers';
@@ -16,7 +17,7 @@ import type {
 } from '@metamask/network-controller';
 import type { AuthenticationControllerGetBearerTokenAction } from '@metamask/profile-sync-controller/auth';
 import type { RemoteFeatureFlagControllerGetStateAction } from '@metamask/remote-feature-flag-controller';
-import type { HandleSnapRequest } from '@metamask/snaps-controllers';
+import type { SnapControllerHandleRequestAction } from '@metamask/snaps-controllers';
 import type { Infer } from '@metamask/superstruct';
 import type {
   CaipAccountId,
@@ -27,6 +28,7 @@ import type {
 } from '@metamask/utils';
 
 import type { BridgeController } from './bridge-controller';
+import type { BridgeControllerMethodActions } from './bridge-controller-method-action-types';
 import type { BRIDGE_CONTROLLER_NAME } from './constants/bridge';
 import type {
   BitcoinTradeDataSchema,
@@ -41,6 +43,8 @@ import type {
   QuoteResponseSchema,
   QuoteSchema,
   StepSchema,
+  TokenFeatureSchema,
+  QuoteStreamCompleteSchema,
   TronTradeDataSchema,
   TxDataSchema,
 } from './utils/validators';
@@ -299,6 +303,11 @@ export type QuoteResponse<
    * If defined, the quote's total network fee will include the reset approval's gas limit.
    */
   resetApproval?: TxData;
+  /**
+   * Appended to the quote if there are multiple quote requests in a batch. This
+   * indicates which quoteRequest the quote is for
+   */
+  quoteRequestIndex?: number;
 };
 
 export enum ChainId {
@@ -322,15 +331,29 @@ export enum ChainId {
 
 export type FeatureFlagsPlatformConfig = Infer<typeof PlatformConfigSchema>;
 
+export type TokenFeature = Infer<typeof TokenFeatureSchema>;
+
+export type QuoteStreamCompleteData = Infer<typeof QuoteStreamCompleteSchema>;
+
 export enum RequestStatus {
   LOADING,
   FETCHED,
   ERROR,
 }
+
+/**
+ * @deprecated Use the separate method action types (e.g.,
+ * `BridgeControllerFetchQuotesAction`) instead.
+ */
 export enum BridgeUserAction {
   SELECT_DEST_NETWORK = 'selectDestNetwork',
   UPDATE_QUOTE_PARAMS = 'updateBridgeQuoteRequestParams',
 }
+
+/**
+ * @deprecated Use the separate method action types (e.g.,
+ * `BridgeControllerFetchQuotesAction`) instead.
+ */
 export enum BridgeBackgroundAction {
   SET_CHAIN_INTERVAL_LENGTH = 'setChainIntervalLength',
   RESET_STATE = 'resetState',
@@ -340,7 +363,7 @@ export enum BridgeBackgroundAction {
 }
 
 export type BridgeControllerState = {
-  quoteRequest: Partial<GenericQuoteRequest>;
+  quoteRequest: Partial<GenericQuoteRequest>[];
   quotes: (QuoteResponse & L1GasFees & NonEvmFees)[];
   /**
    * The time elapsed between the initial quote fetch and when the first valid quote was received
@@ -376,8 +399,30 @@ export type BridgeControllerState = {
    * the max amount that can be sent.
    */
   minimumBalanceForRentExemptionInLamports: string | null;
+  /**
+   * Security alerts for the destination token in the current quote request,
+   * populated from `token_warning` SSE events.
+   */
+  tokenWarnings: TokenFeature[];
+  /**
+   * Client-supplied security classification for the destination token in the
+   * current quote request, used as the `token_security_type_destination`
+   * analytics property. Set via the `context` arg of
+   * `updateBridgeQuoteRequestParams` and reset whenever the quote request is
+   * reset. `null` when the client has no security data for the token.
+   */
+  tokenSecurityTypeDestination: string | null;
+  /**
+   * Metadata about the completed quote stream, populated from the `complete` SSE event.
+   * Set to null at the start of each fetch and updated when the complete event is received.
+   */
+  quoteStreamComplete: QuoteStreamCompleteData | null;
 };
 
+/**
+ * @deprecated Use the separate method action types (e.g.,
+ * `BridgeControllerFetchQuotesAction`) instead.
+ */
 export type BridgeControllerAction<
   FunctionName extends keyof BridgeController,
 > = {
@@ -395,25 +440,19 @@ export type BridgeControllerStateChangeEvent = ControllerStateChangeEvent<
   BridgeControllerState
 >;
 
-// Maps to BridgeController function names
 export type BridgeControllerActions =
   | BridgeControllerGetStateAction
-  | BridgeControllerAction<BridgeBackgroundAction.SET_CHAIN_INTERVAL_LENGTH>
-  | BridgeControllerAction<BridgeBackgroundAction.RESET_STATE>
-  | BridgeControllerAction<BridgeBackgroundAction.TRACK_METAMETRICS_EVENT>
-  | BridgeControllerAction<BridgeBackgroundAction.STOP_POLLING_FOR_QUOTES>
-  | BridgeControllerAction<BridgeBackgroundAction.FETCH_QUOTES>
-  | BridgeControllerAction<BridgeUserAction.UPDATE_QUOTE_PARAMS>;
+  | BridgeControllerMethodActions;
 
 export type BridgeControllerEvents = BridgeControllerStateChangeEvent;
 
 export type AllowedActions =
   | AccountsControllerGetAccountByAddressAction
   | AuthenticationControllerGetBearerTokenAction
-  | GetCurrencyRateState
+  | CurrencyRateControllerGetStateAction
   | TokenRatesControllerGetStateAction
   | MultichainAssetsRatesControllerGetStateAction
-  | HandleSnapRequest
+  | SnapControllerHandleRequestAction
   | NetworkControllerFindNetworkClientIdByChainIdAction
   | NetworkControllerGetNetworkClientByIdAction
   | RemoteFeatureFlagControllerGetStateAction

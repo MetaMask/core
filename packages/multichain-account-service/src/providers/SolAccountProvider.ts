@@ -1,30 +1,27 @@
 import { assertIsBip44Account } from '@metamask/account-api';
 import type { Bip44Account } from '@metamask/account-api';
 import type { TraceCallback } from '@metamask/controller-utils';
-import type {
-  EntropySourceId,
-  KeyringAccount,
-  KeyringCapabilities,
-} from '@metamask/keyring-api';
+import type { EntropySourceId, KeyringAccount } from '@metamask/keyring-api';
 import {
   AccountCreationType,
   KeyringAccountEntropyTypeOption,
   SolAccountType,
   SolScope,
 } from '@metamask/keyring-api';
+import type { KeyringCapabilities } from '@metamask/keyring-api/v2';
 import { KeyringTypes } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type { SnapId } from '@metamask/snaps-sdk';
 
+import { traceFallback } from '../analytics';
+import { TraceName } from '../analytics/traces';
+import type { MultichainAccountServiceMessenger } from '../types';
 import { SnapAccountProvider } from './SnapAccountProvider';
 import type {
   RestrictedSnapKeyring,
   SnapAccountProviderConfig,
 } from './SnapAccountProvider';
 import { withRetry, withTimeout } from './utils';
-import { traceFallback } from '../analytics';
-import { TraceName } from '../constants/traces';
-import type { MultichainAccountServiceMessenger } from '../types';
 
 export type SolAccountProviderConfig = SnapAccountProviderConfig;
 
@@ -83,7 +80,7 @@ export class SolAccountProvider extends SnapAccountProvider {
     return `m/44'/501'/${groupIndex}'/0'`;
   }
 
-  protected override createAccountV1(
+  protected override async createAccountV1(
     keyring: RestrictedSnapKeyring,
     {
       entropySource,
@@ -139,11 +136,12 @@ export class SolAccountProvider extends SnapAccountProvider {
           const discoveredAccounts = await withRetry(
             () =>
               withTimeout(
-                client.discoverAccounts(
-                  [SolScope.Mainnet],
-                  entropySource,
-                  groupIndex,
-                ),
+                () =>
+                  client.discoverAccounts(
+                    [SolScope.Mainnet],
+                    entropySource,
+                    groupIndex,
+                  ),
                 this.config.discovery.timeoutMs,
               ),
             {

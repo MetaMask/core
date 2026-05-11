@@ -1,10 +1,54 @@
 import { is } from '@metamask/superstruct';
 
-import { validateFeatureFlagsResponse, IntentSchema } from './validators';
+import {
+  validateFeatureFlagsResponse,
+  validateQuoteStreamComplete,
+  QuoteStreamCompleteReason,
+  IntentSchema,
+} from './validators';
 
 describe('validators', () => {
   describe('validateFeatureFlagsResponse', () => {
     it.each([
+      {
+        response: {
+          chains: {
+            '1': {
+              isActiveDest: true,
+              isActiveSrc: true,
+              batchSellDestStablecoins: [
+                'eip155:1/erc20:0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48',
+                'eip155:1/slip44:60',
+              ],
+            },
+          },
+          maxRefreshCount: 5,
+          refreshRate: 30000,
+          support: true,
+          minimumVersion: '0.0.0',
+          chainRanking: [{ chainId: 'eip155:1', name: 'Ethereum' }],
+        },
+        type: 'batch sell destination stablecoins',
+        expected: true,
+      },
+      {
+        response: {
+          chains: {
+            '1': {
+              isActiveDest: true,
+              isActiveSrc: true,
+              batchSellDestStablecoins: ['not-a-caip-asset-type'],
+            },
+          },
+          maxRefreshCount: 5,
+          refreshRate: 30000,
+          support: true,
+          minimumVersion: '0.0.0',
+          chainRanking: [{ chainId: 'eip155:1', name: 'Ethereum' }],
+        },
+        type: 'malformed batch sell destination stablecoins',
+        expected: false,
+      },
       {
         response: {
           chains: {
@@ -442,6 +486,65 @@ describe('validators', () => {
           IntentSchema,
         ),
       ).toBe(true);
+    });
+  });
+
+  describe('validateQuoteStreamComplete', () => {
+    it('accepts a valid complete event with all fields', () => {
+      expect(
+        validateQuoteStreamComplete({
+          quoteCount: 3,
+          hasQuotes: true,
+          reason: QuoteStreamCompleteReason.RETRY,
+          context: { source: 'bridge-api' },
+        }),
+      ).toBe(true);
+    });
+
+    it('accepts a valid complete event with only required fields', () => {
+      expect(
+        validateQuoteStreamComplete({ quoteCount: 0, hasQuotes: false }),
+      ).toBe(true);
+    });
+
+    it('accepts all defined reason values', () => {
+      for (const reason of Object.values(QuoteStreamCompleteReason)) {
+        expect(
+          validateQuoteStreamComplete({
+            quoteCount: 1,
+            hasQuotes: true,
+            reason,
+          }),
+        ).toBe(true);
+      }
+    });
+
+    it('rejects an unknown reason string', () => {
+      expect(() =>
+        validateQuoteStreamComplete({
+          quoteCount: 1,
+          hasQuotes: true,
+          reason: 'UNKNOWN_REASON',
+        }),
+      ).toThrow('At path: reason');
+    });
+
+    it('rejects data missing quoteCount', () => {
+      expect(() => validateQuoteStreamComplete({ hasQuotes: true })).toThrow(
+        'At path: quoteCount',
+      );
+    });
+
+    it('rejects data missing hasQuotes', () => {
+      expect(() => validateQuoteStreamComplete({ quoteCount: 1 })).toThrow(
+        'At path: hasQuotes',
+      );
+    });
+
+    it('rejects data with wrong type for quoteCount', () => {
+      expect(() =>
+        validateQuoteStreamComplete({ quoteCount: 'three', hasQuotes: true }),
+      ).toThrow('At path: quoteCount');
     });
   });
 });

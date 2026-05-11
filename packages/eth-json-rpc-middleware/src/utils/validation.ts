@@ -1,10 +1,11 @@
+import { TYPED_MESSAGE_SCHEMA } from '@metamask/eth-sig-util';
 import { providerErrors, rpcErrors } from '@metamask/rpc-errors';
 import type { Struct, StructError } from '@metamask/superstruct';
 import { validate } from '@metamask/superstruct';
 import type { Hex } from '@metamask/utils';
 
-import { parseTypedMessage } from './normalize';
 import type { WalletMiddlewareContext } from '../wallet';
+import { parseTypedMessage } from './normalize';
 
 /**
  * Validates and normalizes a keyholder address for transaction- and
@@ -185,5 +186,51 @@ export function validateTypedDataForPrototypePollution(data: string): void {
   // Check message recursively for dangerous properties
   if (message !== undefined) {
     checkObjectForPrototypePollution(message);
+  }
+}
+
+/**
+ * Validates that EIP-712 typed message data contains only keys defined in
+ * the TYPED_MESSAGE_SCHEMA from `@metamask/eth-sig-util`. Rejects messages
+ * with extraneous top-level keys.
+ *
+ * @param data - The stringified typed data to validate.
+ * @throws rpcErrors.invalidInput() if extraneous keys are detected.
+ */
+export function validateTypedMessageKeys(data: string): void {
+  const parsedData = parseTypedMessage(data);
+  const allowedKeys = new Set([
+    ...Object.keys(TYPED_MESSAGE_SCHEMA.properties),
+    'metadata',
+  ]);
+  const hasExtraneousKey = Object.keys(parsedData).some(
+    (key) => !allowedKeys.has(key),
+  );
+
+  if (hasExtraneousKey) {
+    throw rpcErrors.invalidInput();
+  }
+
+  // Advanced Permissions adds `metadata: { justification: string, origin: string }` to eth_signTypedData requests.
+  // see GatorPermissionsController.decodePermissionFromPermissionContextForOrigin for more details.
+  const { metadata } = parsedData as { metadata?: unknown };
+  if (metadata !== undefined) {
+    if (typeof metadata !== 'object' || metadata === null) {
+      throw rpcErrors.invalidInput();
+    }
+
+    const { justification, origin } = metadata as {
+      justification?: unknown;
+      origin?: unknown;
+    };
+
+    if (typeof justification !== 'string' || typeof origin !== 'string') {
+      throw rpcErrors.invalidInput();
+    }
+
+    // we only need to check the keys length, because we already checked the known keys (justification and origin).
+    if (Object.keys(metadata).length !== 2) {
+      throw rpcErrors.invalidInput();
+    }
   }
 }

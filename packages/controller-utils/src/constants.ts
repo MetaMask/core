@@ -178,6 +178,34 @@ export const BUILT_IN_NETWORKS = {
       blockExplorerUrl: BlockExplorerUrl['sei-mainnet'],
     },
   },
+  [NetworkType['monad-mainnet']]: {
+    chainId: ChainId['monad-mainnet'],
+    ticker: NetworksTicker['monad-mainnet'],
+    rpcPrefs: {
+      blockExplorerUrl: BlockExplorerUrl['monad-mainnet'],
+    },
+  },
+  [NetworkType['zksync-mainnet']]: {
+    chainId: ChainId['zksync-mainnet'],
+    ticker: NetworksTicker['zksync-mainnet'],
+    rpcPrefs: {
+      blockExplorerUrl: BlockExplorerUrl['zksync-mainnet'],
+    },
+  },
+  [NetworkType['megaeth-mainnet']]: {
+    chainId: ChainId['megaeth-mainnet'],
+    ticker: NetworksTicker['megaeth-mainnet'],
+    rpcPrefs: {
+      blockExplorerUrl: BlockExplorerUrl['megaeth-mainnet'],
+    },
+  },
+  [NetworkType['avalanche-mainnet']]: {
+    chainId: ChainId['avalanche-mainnet'],
+    ticker: NetworksTicker['avalanche-mainnet'],
+    rpcPrefs: {
+      blockExplorerUrl: BlockExplorerUrl['avalanche-mainnet'],
+    },
+  },
   [NetworkType.rpc]: {
     chainId: undefined,
     blockExplorerUrl: undefined,
@@ -298,3 +326,14 @@ export const DAY = HOURS * 24;
  * The number of milliseconds in a day.
  */
 export const DAYS = DAY;
+
+/**
+ * Special "EVM-ish" chains with no native tokens.
+ * Created for Tempo, but can be extended to others.
+ * - For hidding the native token from the token list and Send list.
+ * - For excluding the native token from the total wallet value calculation.
+ */
+export const CHAIN_IDS_WITH_NO_NATIVE_TOKEN = [
+  'eip155:42431', // Tempo Testnet
+  'eip155:4217', // Tempo Mainnet
+] as const;

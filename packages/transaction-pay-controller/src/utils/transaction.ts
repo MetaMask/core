@@ -5,14 +5,17 @@ import {
 import type { TransactionMeta } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 import { createModuleLogger } from '@metamask/utils';
+import type { Patch } from 'immer';
 import { cloneDeep } from 'lodash';
 
-import { parseRequiredTokens } from './required-tokens';
 import { projectLogger } from '../logger';
 import type {
   TransactionPayControllerMessenger,
+  TransactionPayControllerState,
   UpdateTransactionDataCallback,
 } from '../types';
+import { getAssetsUnifyStateFeature } from './feature-flags';
+import { parseRequiredTokens } from './required-tokens';
 
 const log = createModuleLogger(projectLogger, 'transaction');
 
@@ -43,13 +46,13 @@ export function getTransaction(
 }
 
 /**
- * Poll for transaction changes and update the transaction data accordingly.
+ * Subscribe to transaction changes and update the transaction data accordingly.
  *
  * @param messenger - Controller messenger.
  * @param updateTransactionData - Callback to update transaction data.
  * @param removeTransactionData - Callback to remove transaction data.
  */
-export function pollTransactionChanges(
+export function subscribeTransactionChanges(
   messenger: TransactionPayControllerMessenger,
   updateTransactionData: UpdateTransactionDataCallback,
   removeTransactionData: (transactionId: string) => void,
@@ -100,6 +103,63 @@ export function pollTransactionChanges(
       );
     },
     (state) => state.transactions,
+  );
+}
+
+/**
+ * Subscribe to asset state changes and re-parse required tokens for
+ * in-flight transactions whose tokens have not yet resolved.
+ *
+ * @param messenger - Controller messenger.
+ * @param getControllerState - Callback returning the current controller state.
+ * @param updateTransactionData - Callback to update transaction data.
+ */
+export function subscribeAssetChanges(
+  messenger: TransactionPayControllerMessenger,
+  getControllerState: () => TransactionPayControllerState,
+  updateTransactionData: UpdateTransactionDataCallback,
+): void {
+  const buildHandler =
+    (source: string) =>
+    (_state: unknown, patches: Patch[] | undefined): void => {
+      const { transactionData } = getControllerState();
+
+      for (const [transactionId, data] of Object.entries(transactionData)) {
+        if (data.tokens.length > 0) {
+          continue;
+        }
+
+        const transaction = getTransaction(transactionId, messenger);
+
+        if (!transaction || FINALIZED_STATUSES.includes(transaction.status)) {
+          continue;
+        }
+
+        log('Asset data changed', { transactionId, source, patches });
+
+        onTransactionChange(transaction, messenger, updateTransactionData);
+      }
+    };
+
+  if (getAssetsUnifyStateFeature(messenger)) {
+    messenger.subscribe(
+      'AssetsController:stateChange',
+      buildHandler('AssetsController'),
+    );
+    return;
+  }
+
+  messenger.subscribe(
+    'TokensController:stateChange',
+    buildHandler('TokensController'),
+  );
+  messenger.subscribe(
+    'TokenRatesController:stateChange',
+    buildHandler('TokenRatesController'),
+  );
+  messenger.subscribe(
+    'CurrencyRateController:stateChange',
+    buildHandler('CurrencyRateController'),
   );
 }
 

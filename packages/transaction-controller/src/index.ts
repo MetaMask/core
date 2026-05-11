@@ -53,6 +53,12 @@ export type {
   TransactionControllerClearUnapprovedTransactionsAction,
   TransactionControllerAbortTransactionSigningAction,
   TransactionControllerUpdateAtomicBatchDataAction,
+  TransactionControllerWipeTransactionsAction,
+  TransactionControllerUpdateSecurityAlertResponseAction,
+  TransactionControllerUpdateTransactionGasFeesAction,
+  TransactionControllerUpdatePreviousGasParamsAction,
+  TransactionControllerUpdateSelectedGasFeeTokenAction,
+  TransactionControllerUpdateRequiredTransactionIdsAction,
 } from './TransactionController-method-action-types';
 export {
   CANCEL_RATE,
@@ -127,8 +133,8 @@ export {
   UserFeeLevel,
   WalletDevice,
 } from './types';
-export { determineTransactionType } from './utils/transaction-type';
 export { mergeGasFeeEstimates } from './utils/gas-flow';
+export { decodeAuthorizationSignature } from './utils/eip7702';
 export {
   isEIP1559Transaction,
   normalizeTransactionParams,
@@ -136,3 +142,8 @@ export {
 export { CHAIN_IDS } from './constants';
 export { SUPPORTED_CHAIN_IDS as INCOMING_TRANSACTIONS_SUPPORTED_CHAIN_IDS } from './helpers/AccountsApiRemoteTransactionSource';
 export { HARDFORK } from './utils/prepare';
+export { getAccountAddressRelationship } from './api/accounts-api';
+export type {
+  GetAccountAddressRelationshipRequest,
+  AccountAddressRelationshipResult,
+} from './api/accounts-api';

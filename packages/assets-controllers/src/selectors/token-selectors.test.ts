@@ -10,8 +10,6 @@ import type { NetworkState } from '@metamask/network-controller';
 import type { Hex } from '@metamask/utils';
 import { cloneDeep } from 'lodash';
 
-import { MOCK_TRON_TOKENS } from './__fixtures__/arrange-tron-state';
-import { selectAssetsBySelectedAccountGroup } from './token-selectors';
 import type { AccountGroupMultichainAccountObject } from '../../../account-tree-controller/src/group';
 import type { CurrencyRateState } from '../CurrencyRateController';
 import type { MultichainAssetsControllerState } from '../MultichainAssetsController';
@@ -20,6 +18,8 @@ import type { MultichainBalancesControllerState } from '../MultichainBalancesCon
 import type { TokenBalancesControllerState } from '../TokenBalancesController';
 import type { TokenRatesControllerState } from '../TokenRatesController';
 import type { TokensControllerState } from '../TokensController';
+import { MOCK_TRON_TOKENS } from './__fixtures__/arrange-tron-state';
+import { selectAssetsBySelectedAccountGroup } from './token-selectors';
 
 const mockTokensControllerState: TokensControllerState = {
   allTokens: {
@@ -306,8 +306,8 @@ const mockAccountTreeControllerState = {
         },
       },
     } as unknown as AccountWalletObject,
-    selectedAccountGroup: 'entropy:01K1TJY9QPSCKNBSVGZNG510GJ/0',
   },
+  selectedAccountGroup: 'entropy:01K1TJY9QPSCKNBSVGZNG510GJ/0',
 } as unknown as AccountTreeControllerState;
 
 const mockAccountControllerState: AccountsControllerState = {
@@ -745,10 +745,7 @@ describe('token-selectors', () => {
     it('includes evm tokens with no fiat balance due to missing conversion rate to native token', () => {
       const result = selectAssetsBySelectedAccountGroup({
         ...mockedMergedState,
-        accountTree: {
-          ...mockedMergedState.accountTree,
-          selectedAccountGroup: 'entropy:01K1TJY9QPSCKNBSVGZNG510GJ/1',
-        },
+        selectedAccountGroup: 'entropy:01K1TJY9QPSCKNBSVGZNG510GJ/1',
       });
 
       const tokenWithNoFiatBalance = result['0x1'].find(
@@ -777,10 +774,7 @@ describe('token-selectors', () => {
     it('includes evm tokens with no fiat balance due to missing conversion rate to fiat', () => {
       const result = selectAssetsBySelectedAccountGroup({
         ...mockedMergedState,
-        accountTree: {
-          ...mockedMergedState.accountTree,
-          selectedAccountGroup: 'entropy:01K1TJY9QPSCKNBSVGZNG510GJ/1',
-        },
+        selectedAccountGroup: 'entropy:01K1TJY9QPSCKNBSVGZNG510GJ/1',
         currencyRates: {},
       });
 
@@ -823,10 +817,7 @@ describe('token-selectors', () => {
     it('includes multichain tokens with no fiat balance due to missing conversion rate to fiat', () => {
       const result = selectAssetsBySelectedAccountGroup({
         ...mockedMergedState,
-        accountTree: {
-          ...mockedMergedState.accountTree,
-          selectedAccountGroup: 'entropy:01K1TJY9QPSCKNBSVGZNG510GJ/1',
-        },
+        selectedAccountGroup: 'entropy:01K1TJY9QPSCKNBSVGZNG510GJ/1',
       });
 
       const tokenWithNoFiatBalance = result[
@@ -858,10 +849,7 @@ describe('token-selectors', () => {
     it('extracts native currency names from network configuration', () => {
       const result = selectAssetsBySelectedAccountGroup({
         ...mockedMergedState,
-        accountTree: {
-          ...mockedMergedState.accountTree,
-          selectedAccountGroup: 'entropy:01K1TJY9QPSCKNBSVGZNG510GJ/1',
-        },
+        selectedAccountGroup: 'entropy:01K1TJY9QPSCKNBSVGZNG510GJ/1',
       });
 
       const nativeToken = result['0x89'].find((asset) => asset.isNative);
@@ -889,13 +877,22 @@ describe('token-selectors', () => {
       expect(result).toStrictEqual(expectedMockResult);
     });
 
+    it('skips accounts referenced in accountTree but missing from internalAccounts', () => {
+      const state = cloneDeep(mockedMergedState);
+
+      state.accountTree.wallets['entropy:01K1TJY9QPSCKNBSVGZNG510GJ'].groups[
+        'entropy:01K1TJY9QPSCKNBSVGZNG510GJ/0'
+      ].accounts.push('non-existent-account-id');
+
+      const result = selectAssetsBySelectedAccountGroup(state);
+
+      expect(result).toStrictEqual(expectedMockResult);
+    });
+
     it('returns no tokens if there is no selected account group', () => {
       const result = selectAssetsBySelectedAccountGroup({
         ...mockedMergedState,
-        accountTree: {
-          ...mockedMergedState.accountTree,
-          selectedAccountGroup: '',
-        },
+        selectedAccountGroup: '',
       });
 
       expect(result).toStrictEqual({});
@@ -1110,6 +1107,76 @@ describe('token-selectors', () => {
 
       // Should have undefined fiat since there's no currency rate for 'INK'
       expect(inkNativeToken?.fiat).toBeUndefined();
+    });
+
+    it('hides native tokens on Tempo testnet (0xa5bf)', () => {
+      const tempoTestnetChainId = '0xa5bf' as Hex; // 42431 in decimal
+      const stateWithTempoTestnet = {
+        ...mockedMergedState,
+        networkConfigurationsByChainId: {
+          ...mockNetworkControllerState.networkConfigurationsByChainId,
+          [tempoTestnetChainId]: {
+            nativeCurrency: 'ETH',
+          },
+        },
+        accountsByChainId: {
+          ...mockAccountsTrackerControllerState.accountsByChainId,
+          [tempoTestnetChainId]: {
+            '0x2bd63233fe369b0f13eaf25292af5a9b63d2b7ab': {
+              balance: '0xDE0B6B3A7640000', // 1 ETH
+            },
+          },
+        },
+      };
+
+      const result = selectAssetsBySelectedAccountGroup(stateWithTempoTestnet);
+
+      // Native token should be hidden on Tempo testnet
+      const nativeToken = result[tempoTestnetChainId]?.find(
+        (asset) => asset.isNative,
+      );
+      expect(nativeToken).toBeUndefined();
+    });
+
+    it('hides native tokens on Tempo mainnet (0x1079)', () => {
+      const tempoMainnetChainId = '0x1079' as Hex; // 4217 in decimal
+      const stateWithTempoMainnet = {
+        ...mockedMergedState,
+        networkConfigurationsByChainId: {
+          ...mockNetworkControllerState.networkConfigurationsByChainId,
+          [tempoMainnetChainId]: {
+            nativeCurrency: 'ETH',
+          },
+        },
+        accountsByChainId: {
+          ...mockAccountsTrackerControllerState.accountsByChainId,
+          [tempoMainnetChainId]: {
+            '0x2bd63233fe369b0f13eaf25292af5a9b63d2b7ab': {
+              balance: '0xDE0B6B3A7640000', // 1 ETH
+            },
+          },
+        },
+      };
+
+      const result = selectAssetsBySelectedAccountGroup(stateWithTempoMainnet);
+
+      // Native token should be hidden on Tempo mainnet
+      const nativeToken = result[tempoMainnetChainId]?.find(
+        (asset) => asset.isNative,
+      );
+      expect(nativeToken).toBeUndefined();
+    });
+
+    it('does not hide native tokens on non-Tempo networks', () => {
+      const ethereumChainId = '0x1' as Hex;
+      const result = selectAssetsBySelectedAccountGroup(mockedMergedState);
+
+      // Native token should still be visible on Ethereum
+      const nativeToken = result[ethereumChainId]?.find(
+        (asset) => asset.isNative,
+      );
+      expect(nativeToken).toBeDefined();
+      expect(nativeToken?.symbol).toBe('ETH');
     });
   });
 });

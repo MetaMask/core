@@ -2,11 +2,11 @@ import { AddressZero } from '@ethersproject/constants';
 import { BtcScope, SolScope, TrxScope } from '@metamask/keyring-api';
 import type { Hex } from '@metamask/utils';
 
-import { CHAIN_IDS } from './chains';
 import type {
   BridgeControllerState,
   FeatureFlagsPlatformConfig,
 } from '../types';
+import { CHAIN_IDS } from './chains';
 
 export const ALLOWED_BRIDGE_CHAIN_IDS = [
   CHAIN_IDS.MAINNET,
@@ -79,9 +79,11 @@ export const DEFAULT_FEATURE_FLAG_CONFIG: FeatureFlagsPlatformConfig = {
 };
 
 export const DEFAULT_BRIDGE_CONTROLLER_STATE: BridgeControllerState = {
-  quoteRequest: {
-    srcTokenAddress: AddressZero,
-  },
+  quoteRequest: [
+    {
+      srcTokenAddress: AddressZero,
+    },
+  ],
   quotesInitialLoadTime: null,
   quotes: [],
   quotesLastFetched: null,
@@ -90,6 +92,9 @@ export const DEFAULT_BRIDGE_CONTROLLER_STATE: BridgeControllerState = {
   quotesRefreshCount: 0,
   assetExchangeRates: {},
   minimumBalanceForRentExemptionInLamports: '0',
+  tokenWarnings: [],
+  tokenSecurityTypeDestination: null,
+  quoteStreamComplete: null,
 };
 
 export const METABRIDGE_CHAIN_TO_ADDRESS_MAP: Record<Hex, string> = {

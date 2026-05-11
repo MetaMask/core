@@ -12,7 +12,9 @@ import {
   isCrossChain,
   isTronTrade,
 } from '@metamask/bridge-controller';
+import { SnapController } from '@metamask/snaps-controllers';
 import {
+  CHAIN_IDS,
   TransactionStatus,
   TransactionType,
 } from '@metamask/transaction-controller';
@@ -68,19 +70,19 @@ export const createClientTransactionRequest = (
  *
  * @param trade - The trade data
  * @param srcChainId - The source chain ID
- * @param accountId - The selected account ID
+ * @param accountId - The account ID
  * @param snapId - The snap ID
  * @returns The snap request object for signing and sending transaction
  */
 export const getClientRequest = (
   trade: Trade,
   srcChainId: number,
-  accountId: string,
+  accountId: AccountsControllerState['internalAccounts']['accounts'][string]['id'],
   snapId: string,
-) => {
+): Parameters<SnapController['handleRequest']>[0] => {
   const scope = formatChainIdToCaip(srcChainId);
 
-  const transactionData = extractTradeData(trade);
+  const transaction = extractTradeData(trade);
 
   // Tron trades need the visible flag and contract type to be included in the request options
   const options = isTronTrade(trade)
@@ -90,10 +92,9 @@ export const getClientRequest = (
       }
     : undefined;
 
-  // Use the new unified interface
   return createClientTransactionRequest(
     snapId,
-    transactionData,
+    transaction,
     scope,
     accountId,
     options,
@@ -114,7 +115,7 @@ export const getTxMetaFields = (
     destinationChainId = formatChainIdToHex(quoteResponse.quote.destChainId);
   } catch {
     // Fallback for non-EVM destination (shouldn't happen for BTC->EVM)
-    destinationChainId = '0x1' as `0x${string}`; // Default to mainnet
+    destinationChainId = CHAIN_IDS.MAINNET; // Default to mainnet
   }
 
   return {

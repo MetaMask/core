@@ -1,27 +1,24 @@
 import type { Bip44Account } from '@metamask/account-api';
 import type { TraceCallback } from '@metamask/controller-utils';
-import type {
-  EntropySourceId,
-  KeyringAccount,
-  KeyringCapabilities,
-} from '@metamask/keyring-api';
+import type { EntropySourceId, KeyringAccount } from '@metamask/keyring-api';
 import {
   AccountCreationType,
   BtcAccountType,
   BtcScope,
 } from '@metamask/keyring-api';
+import type { KeyringCapabilities } from '@metamask/keyring-api/v2';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type { SnapId } from '@metamask/snaps-sdk';
 
+import { traceFallback } from '../analytics';
+import { TraceName } from '../analytics/traces';
+import type { MultichainAccountServiceMessenger } from '../types';
 import { SnapAccountProvider } from './SnapAccountProvider';
 import type {
   RestrictedSnapKeyring,
   SnapAccountProviderConfig,
 } from './SnapAccountProvider';
 import { withRetry, withTimeout } from './utils';
-import { traceFallback } from '../analytics';
-import { TraceName } from '../constants/traces';
-import type { MultichainAccountServiceMessenger } from '../types';
 
 export type BtcAccountProviderConfig = SnapAccountProviderConfig;
 
@@ -114,11 +111,12 @@ export class BtcAccountProvider extends SnapAccountProvider {
           const discoveredAccounts = await withRetry(
             () =>
               withTimeout(
-                client.discoverAccounts(
-                  [BtcScope.Mainnet],
-                  entropySource,
-                  groupIndex,
-                ),
+                () =>
+                  client.discoverAccounts(
+                    [BtcScope.Mainnet],
+                    entropySource,
+                    groupIndex,
+                  ),
                 this.config.discovery.timeoutMs,
               ),
             {

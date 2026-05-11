@@ -50,6 +50,7 @@ import type {
   AssetsContractController,
   StakedBalance,
 } from './AssetsContractController';
+import { shouldIncludeNativeToken } from './constants';
 import { AccountsApiBalanceFetcher } from './multi-chain-accounts-service/api-balance-fetcher';
 import type {
   BalanceFetcher,
@@ -233,6 +234,8 @@ type AccountTrackerPollingInput = {
 const MESSENGER_EXPOSED_METHODS = [
   'updateNativeBalances',
   'updateStakedBalances',
+  'refresh',
+  'syncBalanceWithAddresses',
 ] as const;
 
 /**
@@ -469,9 +472,11 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
     );
     Object.keys(accountsByChainId).forEach((chainId) => {
       newAddresses.forEach((address) => {
-        accountsByChainId[chainId][address] = {
-          balance: '0x0',
-        };
+        if (!accountsByChainId[chainId][address]) {
+          accountsByChainId[chainId][address] = {
+            balance: '0x0',
+          };
+        }
       });
     });
 
@@ -881,7 +886,19 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
       return {};
     }
 
-    const { ethQuery } = this.#getCorrectNetworkClient(networkClientId);
+    const { ethQuery, chainId } =
+      this.#getCorrectNetworkClient(networkClientId);
+
+    // Skip native token fetching for chains that return arbitrary large numbers
+    if (!shouldIncludeNativeToken(chainId)) {
+      // Return empty balances for chains that skip native token fetching
+      return addresses.reduce<
+        Record<string, { balance: string; stakedBalance?: StakedBalance }>
+      >((acc, address) => {
+        acc[address] = { balance: '0x0' };
+        return acc;
+      }, {});
+    }
 
     // TODO: This should use multicall when enabled by the user.
     return await Promise.all(

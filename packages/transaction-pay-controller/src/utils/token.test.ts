@@ -5,7 +5,16 @@ import type { AccountTrackerControllerState } from '@metamask/assets-controllers
 import type { TokenRatesControllerState } from '@metamask/assets-controllers';
 import type { Hex } from '@metamask/utils';
 
+import { getDefaultRemoteFeatureFlagControllerState } from '../../../remote-feature-flag-controller/src/remote-feature-flag-controller';
 import {
+  CHAIN_ID_POLYGON,
+  NATIVE_TOKEN_ADDRESS,
+  POLYGON_USDCE_ADDRESS,
+} from '../constants';
+import { getMessengerMock } from '../tests/messenger-mock';
+import {
+  buildCaipAssetType,
+  computeRawFromFiatAmount,
   computeTokenAmounts,
   getTokenBalance,
   getTokenInfo,
@@ -16,13 +25,6 @@ import {
   normalizeTokenAddress,
   TokenAddressTarget,
 } from './token';
-import { getDefaultRemoteFeatureFlagControllerState } from '../../../remote-feature-flag-controller/src/remote-feature-flag-controller';
-import {
-  CHAIN_ID_POLYGON,
-  NATIVE_TOKEN_ADDRESS,
-  POLYGON_USDCE_ADDRESS,
-} from '../constants';
-import { getMessengerMock } from '../tests/messenger-mock';
 
 jest.mock('@ethersproject/contracts', () => ({
   ...jest.requireActual('@ethersproject/contracts'),
@@ -749,6 +751,52 @@ describe('Token Utils', () => {
     });
   });
 
+  describe('computeRawFromFiatAmount', () => {
+    it('converts fiat amount to raw token amount', () => {
+      // fiat=10, decimals=6, usdRate=2 => human=5, raw=5000000
+      const result = computeRawFromFiatAmount('10', 6, '2');
+      expect(result).toBe('5000000');
+    });
+
+    it('handles 18-decimal tokens', () => {
+      // fiat=10, decimals=18, usdRate=2 => human=5, raw=5e18
+      const result = computeRawFromFiatAmount('10', 18, '2');
+      expect(result).toBe('5000000000000000000');
+    });
+
+    it('rounds down to nearest integer', () => {
+      // fiat=1, decimals=6, usdRate=3 => human=0.333..., raw=333333
+      const result = computeRawFromFiatAmount('1', 6, '3');
+      expect(result).toBe('333333');
+    });
+
+    it('returns undefined for zero usdRate', () => {
+      const result = computeRawFromFiatAmount('10', 6, '0');
+      expect(result).toBeUndefined();
+    });
+
+    it('returns undefined for negative usdRate', () => {
+      const result = computeRawFromFiatAmount('10', 6, '-1');
+      expect(result).toBeUndefined();
+    });
+
+    it('returns undefined for zero fiat amount', () => {
+      const result = computeRawFromFiatAmount('0', 6, '2');
+      expect(result).toBeUndefined();
+    });
+
+    it('returns undefined for negative fiat amount', () => {
+      const result = computeRawFromFiatAmount('-5', 6, '2');
+      expect(result).toBeUndefined();
+    });
+
+    it('returns undefined when raw rounds down to zero', () => {
+      // Very small fiat amount with low decimals
+      const result = computeRawFromFiatAmount('0.0000001', 0, '1');
+      expect(result).toBeUndefined();
+    });
+  });
+
   describe('isSameToken', () => {
     it('returns true for same address and chain', () => {
       const token1 = { address: TOKEN_ADDRESS_MOCK, chainId: CHAIN_ID_MOCK };
@@ -789,6 +837,44 @@ describe('Token Utils', () => {
       const token2 = { address: TOKEN_ADDRESS_2_MOCK, chainId: '0x89' as Hex };
 
       expect(isSameToken(token1, token2)).toBe(false);
+    });
+  });
+
+  describe('buildCaipAssetType', () => {
+    it('returns slip44 asset type for native token on mainnet', () => {
+      expect(buildCaipAssetType('0x1' as Hex, NATIVE_TOKEN_ADDRESS)).toBe(
+        'eip155:1/slip44:60',
+      );
+    });
+
+    it('returns slip44 asset type for Polygon native token with auto-mapped coin type', () => {
+      const polygonNative = '0x0000000000000000000000000000000000001010' as Hex;
+
+      expect(buildCaipAssetType('0x89' as Hex, polygonNative)).toBe(
+        'eip155:137/slip44:966',
+      );
+    });
+
+    it('returns slip44 asset type with explicit coin type override', () => {
+      const polygonNative = '0x0000000000000000000000000000000000001010' as Hex;
+
+      expect(buildCaipAssetType('0x89' as Hex, polygonNative, 966)).toBe(
+        'eip155:137/slip44:966',
+      );
+    });
+
+    it('returns erc20 asset type for ERC-20 token', () => {
+      const usdcAddress = '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48' as Hex;
+
+      expect(buildCaipAssetType('0x1' as Hex, usdcAddress)).toBe(
+        `eip155:1/erc20:${usdcAddress}`,
+      );
+    });
+
+    it('defaults slip44CoinType to 60 for native tokens', () => {
+      expect(buildCaipAssetType('0xa4b1' as Hex, NATIVE_TOKEN_ADDRESS)).toBe(
+        'eip155:42161/slip44:60',
+      );
     });
   });
 });

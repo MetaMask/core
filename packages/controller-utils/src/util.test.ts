@@ -4,9 +4,9 @@ import { BigNumber } from 'bignumber.js';
 import BN from 'bn.js';
 import nock from 'nock';
 
+import { FakeProvider } from '../../../tests/fake-provider';
 import { MAX_SAFE_CHAIN_ID } from './constants';
 import * as util from './util';
-import { FakeProvider } from '../../../tests/fake-provider';
 
 type EverythingButNull =
   | string
@@ -600,7 +600,7 @@ describe('util', () => {
       expect(invalid).toBeNull();
       invalid = util.normalizeEnsName('@metamask.eth');
       expect(invalid).toBeNull();
-      invalid = util.normalizeEnsName('foobar.eth');
+      invalid = util.normalizeEnsName('fo.eth');
       expect(invalid).toBeNull();
     });
 
@@ -617,9 +617,9 @@ describe('util', () => {
       expect(invalid).toBeNull();
     });
 
-    it('should return null with invalid 2LD and valid 3LD', async () => {
-      const invalid = util.normalizeEnsName('foo.barbaz.eth');
-      expect(invalid).toBeNull();
+    it('should normalize with valid 3LD', async () => {
+      const valid = util.normalizeEnsName('foo.barbaz.eth');
+      expect(valid).toBe('foo.barbaz.eth');
     });
 
     it('should return null with invalid TLD', async () => {

@@ -1,16 +1,16 @@
 import log from 'loglevel';
 
 import {
+  mockEndpointDeletePushNotificationLinks,
+  mockEndpointUpdatePushNotificationLinks,
+} from '../__fixtures__/mockServices';
+import type { PushNotificationEnv } from '../types/firebase';
+import {
   activatePushNotifications,
   deactivatePushNotifications,
   deleteLinksAPI,
   updateLinksAPI,
 } from './services';
-import {
-  mockEndpointDeletePushNotificationLinks,
-  mockEndpointUpdatePushNotificationLinks,
-} from '../__fixtures__/mockServices';
-import type { PushNotificationEnv } from '../types/firebase';
 
 // Testing util to clean up verbose logs when testing errors
 const mockErrorLog = (): jest.SpyInstance =>

@@ -13,10 +13,10 @@ import type {
 import type { NetworkConfiguration } from '@metamask/network-controller';
 import type { Hex } from '@metamask/utils';
 
+import { jestAdvanceTime } from '../../../tests/helpers';
 import type { CurrencyRateMessenger } from './CurrencyRateController';
 import { CurrencyRateController } from './CurrencyRateController';
 import type { AbstractTokenPricesService } from './token-prices-service';
-import { jestAdvanceTime } from '../../../tests/helpers';
 
 const namespace = 'CurrencyRateController';
 
