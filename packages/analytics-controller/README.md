@@ -21,6 +21,13 @@ The AnalyticsController provides a unified interface for tracking analytics even
 | `analyticsId` | `string`  | UUIDv4 identifier (client platform-generated) | Yes       |
 | `optedIn`     | `boolean` | User opt-in status                            | Yes       |
 
+### Client Platform Responsibilities
+
+1. **Generate or migrate an initial `analyticsId`**: Use the `uuid` package or client platform equivalent for new installs, or migrate an existing MetaMetrics identifier when available. The controller validates this value as a UUIDv4, but does not create a default ID.
+2. **Load state before controller init**: Read from storage, provide to constructor
+3. **Subscribe to state changes**: Persist changes to isolated storage
+4. **Persist to isolated storage**: Keep analytics settings separate from main state (protects against state corruption)
+
 ## Anonymous Events Feature
 
 When `isAnonymousEventsFeatureEnabled` is enabled in the constructor, events with sensitive properties are split into separate events:
