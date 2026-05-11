@@ -302,7 +302,10 @@ export class TransactionPayController extends BaseController<
       if (fiatAsset) {
         this.#updateTransactionData(transactionId, (data) => {
           if (data.fiatPayment) {
-            data.fiatPayment.caipAssetId = fiatAsset.caipAssetId;
+            data.fiatPayment.caipAssetId = buildCaipAssetType(
+              fiatAsset.chainId,
+              fiatAsset.address,
+            );
           }
         });
       }
