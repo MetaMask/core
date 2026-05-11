@@ -15,6 +15,7 @@ import type {
   TransactionPayQuote,
 } from '../../types';
 import { buildCaipAssetType } from '../../utils/token';
+import { updateTransaction } from '../../utils/transaction';
 import { getRelayQuotes } from '../relay/relay-quotes';
 import { submitRelayQuotes } from '../relay/relay-submit';
 import type { RelayQuote } from '../relay/types';
@@ -25,6 +26,7 @@ import { deriveFiatAssetForFiatPayment, resolveSourceAmountRaw } from './utils';
 
 jest.mock('./utils');
 jest.mock('../../utils/token');
+jest.mock('../../utils/transaction');
 jest.mock('../relay/relay-quotes');
 jest.mock('../relay/relay-submit');
 
@@ -238,6 +240,7 @@ describe('submitFiatQuotes', () => {
     deriveFiatAssetForFiatPayment,
   );
   const resolveSourceAmountRawMock = jest.mocked(resolveSourceAmountRaw);
+  const updateTransactionMock = jest.mocked(updateTransaction);
   const getRelayQuotesMock = jest.mocked(getRelayQuotes);
   const submitRelayQuotesMock = jest.mocked(submitRelayQuotes);
 
@@ -301,6 +304,48 @@ describe('submitFiatQuotes', () => {
       }),
     );
     expect(result).toStrictEqual({ transactionHash: '0x1234' });
+  });
+
+  it('persists fiat order metadata on the transaction before polling', async () => {
+    const { request } = getRequest();
+
+    await submitFiatQuotes(request);
+
+    expect(updateTransactionMock).toHaveBeenCalledWith(
+      {
+        transactionId: TRANSACTION_ID_MOCK,
+        messenger: request.messenger,
+        note: 'Persist fiat order metadata',
+      },
+      expect.any(Function),
+    );
+
+    const txDraft = { metamaskPay: undefined } as unknown as TransactionMeta;
+    const updateFn = updateTransactionMock.mock.calls[0][1];
+    updateFn(txDraft);
+
+    expect(txDraft.metamaskPay).toStrictEqual({
+      fiatOrderId: ORDER_ID_MOCK,
+      fiatProvider: 'transak-native-staging',
+    });
+  });
+
+  it('preserves existing metamaskPay fields when persisting fiat order metadata', async () => {
+    const { request } = getRequest();
+
+    await submitFiatQuotes(request);
+
+    const txDraft = {
+      metamaskPay: { totalFiat: '20.00' },
+    } as unknown as TransactionMeta;
+    const updateFn = updateTransactionMock.mock.calls[0][1];
+    updateFn(txDraft);
+
+    expect(txDraft.metamaskPay).toStrictEqual({
+      totalFiat: '20.00',
+      fiatOrderId: ORDER_ID_MOCK,
+      fiatProvider: 'transak-native-staging',
+    });
   });
 
   it('throws if wallet address is missing', async () => {

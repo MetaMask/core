@@ -15,6 +15,7 @@ import type {
   TransactionPayControllerMessenger,
 } from '../../types';
 import { buildCaipAssetType } from '../../utils/token';
+import { updateTransaction } from '../../utils/transaction';
 import { getRelayQuotes } from '../relay/relay-quotes';
 import { submitRelayQuotes } from '../relay/relay-submit';
 import type { RelayQuote } from '../relay/types';
@@ -69,6 +70,19 @@ export async function submitFiatQuotes(
   if (!providerCode) {
     throw new Error('Missing provider code for fiat submission');
   }
+
+  updateTransaction(
+    {
+      transactionId,
+      messenger,
+      note: 'Persist fiat order metadata',
+    },
+    (tx) => {
+      tx.metamaskPay ??= {};
+      tx.metamaskPay.fiatOrderId = orderId;
+      tx.metamaskPay.fiatProvider = providerCode;
+    },
+  );
 
   log('Starting fiat order polling', {
     orderId,

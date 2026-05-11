@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Resolve fiat asset per transaction type from `confirmations_pay_fiat` remote feature flag, falling back to hardcoded map then ETH on mainnet ([#8631](https://github.com/MetaMask/core/pull/8631))
 - Derive fiat order source amount from on-chain transaction data (`order.txHash`) with fallback to `order.cryptoAmount` ([#8694](https://github.com/MetaMask/core/pull/8694))
+- Persist fiat order ID and provider code on `transaction.metamaskPay` before polling, so activity views can query order status after controller state cleanup ([#8694](https://github.com/MetaMask/core/pull/8694))
 
 ### Fixed
 
