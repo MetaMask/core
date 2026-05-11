@@ -13,7 +13,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Treat 409 as 'already-done' in EIP-7702 step ([#8621](https://github.com/MetaMask/core/pull/8621))
 - **BREAKING:** The controller messenger now requires access to six additional allowed actions: `AuthenticatedUserStorageService:listDelegations`, `AuthenticatedUserStorageService:createDelegation`, `ChompApiService:verifyDelegation`, `ChompApiService:getIntentsByAddress`, `ChompApiService:createIntents`, and `DelegationController:signDelegation`. Delegation signing is now delegated to `@metamask/delegation-controller` rather than calling `KeyringController:signTypedMessage` directly; consumers must instantiate `DelegationController` and update their messenger configuration accordingly. ([#8621](https://github.com/MetaMask/core/pull/8621))
 - **BREAKING:** `init()` now takes a `{ chainId, boringVaultAddress }` object instead of an `InitConfig`. The EIP-7702 delegator implementation and caveat enforcer addresses are resolved from `@metamask/delegation-deployments` for the target chain; `init()` throws if the chain is not supported by Delegation Framework 1.3.0. The `InitConfig` type is no longer exported. ([#8621](https://github.com/MetaMask/core/pull/8621))
 - **BREAKING:** `UpgradeConfig` no longer includes `musdTokenAddress` (now derived internally from the Veda protocol service details). ([#8621](https://github.com/MetaMask/core/pull/8621))
@@ -23,7 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - Build-delegation step no longer emits a redundant duplicate `ValueLteEnforcer` caveat; the Delegation Framework treats both as equivalent, but the duplicate was inadvertently inherited from `@metamask/smart-accounts-kit`'s `erc20TransferAmount` scope helper. ([#8621](https://github.com/MetaMask/core/pull/8621))
-- EIP-7702 authorization step now treats a 409 response from `POST /v1/account-upgrade` as `already-done` instead of a fatal error, making the step retry-safe when a prior submission was accepted by CHOMP but has not yet been observed on-chain.
+- EIP-7702 authorization step now treats a 409 response from `POST /v1/account-upgrade` as `already-done` instead of a fatal error, making the step retry-safe when a prior submission was accepted by CHOMP but has not yet been observed on-chain. ([#8621](https://github.com/MetaMask/core/pull/8621))
 
 ## [1.3.2]
 
