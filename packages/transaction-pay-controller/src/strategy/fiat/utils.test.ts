@@ -215,7 +215,7 @@ describe('Fiat Utils', () => {
 
   describe('resolveSourceAmountRaw', () => {
     const {
-      messenger,
+      messenger: resolveMessenger,
       findNetworkClientIdByChainIdMock,
       getNetworkClientByIdMock,
       getTokensControllerStateMock,
@@ -273,7 +273,7 @@ describe('Fiat Utils', () => {
       });
 
       const result = await resolveSourceAmountRaw({
-        messenger,
+        messenger: resolveMessenger,
         order: getOrderMock(),
         fiatAsset: ERC20_FIAT_ASSET_MOCK,
       });
@@ -283,7 +283,7 @@ describe('Fiat Utils', () => {
 
     it('falls back to cryptoAmount when txHash is missing', async () => {
       const result = await resolveSourceAmountRaw({
-        messenger,
+        messenger: resolveMessenger,
         order: getOrderMock({ txHash: '' }),
         fiatAsset: ERC20_FIAT_ASSET_MOCK,
       });
@@ -296,7 +296,7 @@ describe('Fiat Utils', () => {
       mockGetTransaction.mockResolvedValue(null);
 
       const result = await resolveSourceAmountRaw({
-        messenger,
+        messenger: resolveMessenger,
         order: getOrderMock(),
         fiatAsset: ERC20_FIAT_ASSET_MOCK,
       });
@@ -308,7 +308,7 @@ describe('Fiat Utils', () => {
       mockGetTransaction.mockRejectedValue(new Error('Network error'));
 
       const result = await resolveSourceAmountRaw({
-        messenger,
+        messenger: resolveMessenger,
         order: getOrderMock(),
         fiatAsset: ERC20_FIAT_ASSET_MOCK,
       });
@@ -322,7 +322,7 @@ describe('Fiat Utils', () => {
       });
 
       const result = await resolveSourceAmountRaw({
-        messenger,
+        messenger: resolveMessenger,
         order: getOrderMock(),
         fiatAsset: NATIVE_FIAT_ASSET_MOCK,
       });
@@ -340,7 +340,7 @@ describe('Fiat Utils', () => {
 
       await expect(
         resolveSourceAmountRaw({
-          messenger,
+          messenger: resolveMessenger,
           order: getOrderMock({ txHash: '' }),
           fiatAsset: ERC20_FIAT_ASSET_MOCK,
         }),
