@@ -6,7 +6,7 @@ import type {
   KeyringEntry,
 } from '@metamask/keyring-controller';
 import { KeyringTypes } from '@metamask/keyring-controller';
-import type { EthKeyring } from '@metamask/keyring-utils';
+import type { BaseKeyring } from '@metamask/keyring-utils';
 import type { Messenger } from '@metamask/messenger';
 import type {
   SnapControllerGetRunnableSnapsAction,
@@ -113,11 +113,12 @@ export type SnapAccountServiceOptions = {
  * Checks if a given keyring is a Snap keyring (v2).
  *
  * @param keyring - The keyring to check.
+ * @param keyring.type - The type of the keyring.
  * @returns `true` if the keyring is a Snap keyring (v2), `false` otherwise.
  */
-function isLegacySnapKeyring(
-  keyring: EthKeyring,
-): keyring is LegacySnapKeyring {
+function isLegacySnapKeyring(keyring: {
+  type: BaseKeyring['type'];
+}): keyring is LegacySnapKeyring {
   return keyring.type === KeyringTypes.snap;
 }
 
