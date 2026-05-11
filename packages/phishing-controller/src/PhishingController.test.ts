@@ -96,19 +96,23 @@ function getRootMessenger(): RootMessenger {
 /**
  * Constructs a messenger for use in PhishingController tests.
  *
+ * @param options - Options for the test messenger.
+ * @param options.transactionControllerState - Initial transaction controller state.
+ * @param options.addressBookControllerState - Initial address book controller state.
  * @returns A messenger and the root messenger.
  */
-function setupMessenger({
-  transactionControllerState:
-    initialTransactionControllerState = getDefaultTransactionControllerState(),
-  addressBookControllerState:
-    initialAddressBookControllerState = getDefaultAddressBookControllerState(),
-}: SetupMessengerOptions = {}): {
+function setupMessenger(options: SetupMessengerOptions = {}): {
   messenger: PhishingControllerMessenger;
   rootMessenger: RootMessenger;
   setTransactionControllerState: (state: TransactionControllerState) => void;
   setAddressBookControllerState: (state: AddressBookControllerState) => void;
 } {
+  const {
+    transactionControllerState:
+      initialTransactionControllerState = getDefaultTransactionControllerState(),
+    addressBookControllerState:
+      initialAddressBookControllerState = getDefaultAddressBookControllerState(),
+  } = options;
   const rootMessenger = getRootMessenger();
   let transactionControllerState = initialTransactionControllerState;
   let addressBookControllerState = initialAddressBookControllerState;
@@ -149,10 +153,14 @@ function setupMessenger({
   return {
     messenger,
     rootMessenger,
-    setTransactionControllerState: (state: TransactionControllerState) => {
+    setTransactionControllerState: (
+      state: TransactionControllerState,
+    ): void => {
       transactionControllerState = state;
     },
-    setAddressBookControllerState: (state: AddressBookControllerState) => {
+    setAddressBookControllerState: (
+      state: AddressBookControllerState,
+    ): void => {
       addressBookControllerState = state;
     },
   };
