@@ -97,7 +97,20 @@ async function executeSingleQuote(
   const isPolymarket = Boolean(quote.request.isPolymarketDepositWallet);
   let sourceHash: Hex | undefined;
 
-  if (isPolymarket) {
+  updateTransaction(
+    {
+      transactionId: transaction.id,
+      messenger,
+      note: 'Remove nonce from skipped transaction',
+    },
+    (tx) => {
+      tx.txParams.nonce = undefined;
+    },
+  );
+
+  if (quote.request.isHyperliquidSource) {
+    await submitHyperliquidWithdraw(quote, quote.request.from, messenger);
+  } else if (isPolymarket) {
     const result = await submitPolymarketWithdraw(
       quote,
       quote.request.from,
@@ -106,22 +119,7 @@ async function executeSingleQuote(
     sourceHash = result.sourceHash;
     setRelaySourceHash(transaction, messenger, sourceHash);
   } else {
-    updateTransaction(
-      {
-        transactionId: transaction.id,
-        messenger,
-        note: 'Remove nonce from skipped transaction',
-      },
-      (tx) => {
-        tx.txParams.nonce = undefined;
-      },
-    );
-
-    if (quote.request.isHyperliquidSource) {
-      await submitHyperliquidWithdraw(quote, quote.request.from, messenger);
-    } else {
-      await submitTransactions(quote, transaction, messenger);
-    }
+    await submitTransactions(quote, transaction, messenger);
   }
 
   const targetHash = await waitForRelayCompletion(quote.original, messenger, {

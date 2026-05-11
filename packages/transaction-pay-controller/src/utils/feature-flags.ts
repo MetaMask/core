@@ -47,7 +47,6 @@ type FeatureFlagsRaw = {
       }
     >;
   };
-  polymarketRelayerUrl?: string;
   relayDisabledGasStationChains?: Hex[];
   relayExecuteUrl?: string;
   relayFallbackGas?: {
@@ -138,6 +137,7 @@ export type PayStrategiesConfigRaw = {
     enabled?: boolean;
     gaslessEnabled?: boolean;
     originGasOverhead?: string;
+    polymarketRelayerUrl?: string;
     pollingInterval?: number;
     pollingTimeout?: number;
   };
@@ -578,7 +578,10 @@ export function getPolymarketRelayerUrl(
     (state.remoteFeatureFlags?.confirmations_pay as
       | FeatureFlagsRaw
       | undefined) ?? {};
-  return featureFlags.polymarketRelayerUrl ?? DEFAULT_POLYMARKET_RELAYER_URL;
+  return (
+    featureFlags.payStrategies?.relay?.polymarketRelayerUrl ??
+    DEFAULT_POLYMARKET_RELAYER_URL
+  );
 }
 
 /**

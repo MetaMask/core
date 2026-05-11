@@ -112,12 +112,7 @@ export type TransactionConfig = {
    */
   isHyperliquidSource?: boolean;
 
-  /**
-   * Whether the source of funds is a Polymarket deposit wallet.
-   * When true, transaction-pay routes the post-quote `predictWithdraw` to
-   * the Polymarket Bridge strategy, which signs a deposit-wallet `Batch`
-   * and submits it via the Polymarket relayer proxy.
-   */
+  /** Whether the source of funds is a Polymarket deposit wallet. */
   isPolymarketDepositWallet?: boolean;
 
   /** Whether the user has selected the maximum amount. */

@@ -42,11 +42,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Add `POLYGON_PUSD_ADDRESS` constant and treat Polymarket pUSD as a Polygon stablecoin in display/fiat-rate logic ([#8735](https://github.com/MetaMask/core/pull/8735))
 - Add Across strategy plumbing to identify post-quote Predict withdraw requests ([#8759](https://github.com/MetaMask/core/pull/8759))
-- Add `PolymarketBridgeStrategy` for `predictWithdraw` transactions of deposit-wallet users via Polymarket's Bridge and Relayer APIs ([#8754](https://github.com/MetaMask/core/pull/8754))
-  - Add `isPolymarketDepositWallet` flag on `TransactionConfig`. When set via `setTransactionConfig`, the controller routes the transaction's quotes and execution to `PolymarketBridgeStrategy`.
-  - Add `polymarketRelayerUrl` remote feature flag to override the Polymarket relayer proxy URL without a release.
-  - Surface bridge fees (`gasUsd + appFeeUsd + swapImpactUsd`) as `fees.provider`, and populate `sourceAmount` and `targetAmount` with fiat/USD values from token rates.
-  - Mark `isIntentComplete` at the start of `PolymarketBridgeStrategy.execute()` so the wrapper batch transaction is treated as confirmed by `PendingTransactionTracker` instead of failed (no on-chain receipt exists for the wrapper; the relayer broadcasts a separate transaction).
+- Add Polymarket deposit-wallet support to the Relay strategy for `predictWithdraw` transactions, routed via the `isPolymarketDepositWallet` flag on `TransactionConfig` ([#8754](https://github.com/MetaMask/core/pull/8754))
 
 ### Changed
 

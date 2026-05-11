@@ -53,7 +53,7 @@ import {
 } from '../../utils/token';
 import { isPredictWithdrawTransaction } from '../../utils/transaction';
 import { TOKEN_TRANSFER_FOUR_BYTE } from './constants';
-import { applyPolymarketDepositWalletOverrides } from './polymarket/quotes';
+import { applyPolymarketDepositWalletOverrides } from './polymarket/withdraw';
 import { fetchRelayQuote } from './relay-api';
 import { getRelayMaxGasStationQuote } from './relay-max-gas-station';
 import type {
