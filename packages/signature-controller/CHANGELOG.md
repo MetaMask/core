@@ -9,11 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [39.2.1]
 
-### Uncategorized
-
-- Fix incorrect PR link in signature-controller changelog ([#8501](https://github.com/MetaMask/core/pull/8501))
-- chore: Enable Oxfmt for generating method action types files ([#8498](https://github.com/MetaMask/core/pull/8498))
-
 ### Changed
 
 - Bump `@metamask/accounts-controller` from `^37.2.0` to `^38.1.0` ([#8665](https://github.com/MetaMask/core/pull/8665), [#8755](https://github.com/MetaMask/core/pull/8755))

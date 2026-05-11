@@ -9,12 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [31.0.0]
 
-### Uncategorized
-
-- Revert "Continue to retry failed requests when offline (#8623)" ([#8623](https://github.com/MetaMask/core/pull/8623))
-- chore: add missing Infura networks ([#8680](https://github.com/MetaMask/core/pull/8680))
-- Continue to retry failed requests when offline ([#8623](https://github.com/MetaMask/core/pull/8623))
-
 ### Added
 
 - **BREAKING:** Add `duration` and `traceId` to `NetworkController:rpcEndpointDegraded` and `NetworkController:rpcEndpointChainDegraded` event payloads ([#8455](https://github.com/MetaMask/core/pull/8455))
@@ -1172,7 +1166,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Initial release
+
   - As a result of converting our shared controllers repo into a monorepo ([#831](https://github.com/MetaMask/core/pull/831)), we've created this package from select parts of [`@metamask/controllers` v33.0.0](https://github.com/MetaMask/core/tree/v33.0.0), namely:
+
     - Everything in `src/network` (minus `NetworkType` and `NetworksChainId`, which were placed in `@metamask/controller-utils`)
 
     All changes listed after this point were applied to this package following the monorepo conversion.
