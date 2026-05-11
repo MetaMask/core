@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add optional `AnalyticsInvocationOptions` on `trackEvent`, `identify`, and `trackView` to forward context, callback, messageId, and timestamp to `AnalyticsPlatformAdapter` implementations.
+- Add optional `AnalyticsInvocationOptions` on `trackEvent`, `identify`, and `trackView` to forward context, callback, messageId, and timestamp to `AnalyticsPlatformAdapter` implementations. ([#8701](https://github.com/MetaMask/core/pull/8701))
 
 ### Changed
 
