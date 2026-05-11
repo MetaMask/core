@@ -44,9 +44,22 @@ export type SnapAccountServiceGetLegacySnapKeyringAction = {
 };
 
 /**
+ * Handle a message from a Snap.
+ *
+ * @param snapId - ID of the Snap.
+ * @param message - Message sent by the Snap.
+ * @returns The execution result.
+ */
+export type SnapAccountServiceHandleKeyringSnapMessageAction = {
+  type: `SnapAccountService:handleKeyringSnapMessage`;
+  handler: SnapAccountService['handleKeyringSnapMessage'];
+};
+
+/**
  * Union of all SnapAccountService action types.
  */
 export type SnapAccountServiceMethodActions =
   | SnapAccountServiceGetSnapsAction
   | SnapAccountServiceEnsureReadyAction
-  | SnapAccountServiceGetLegacySnapKeyringAction;
+  | SnapAccountServiceGetLegacySnapKeyringAction
+  | SnapAccountServiceHandleKeyringSnapMessageAction;
