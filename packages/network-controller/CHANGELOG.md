@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [31.0.0]
+
 ### Added
 
 - **BREAKING:** Add `duration` and `traceId` to `NetworkController:rpcEndpointDegraded` and `NetworkController:rpcEndpointChainDegraded` event payloads ([#8455](https://github.com/MetaMask/core/pull/8455))
@@ -16,7 +18,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Bump `@metamask/json-rpc-engine` from `^10.2.4` to `^10.3.0` ([#8661](https://github.com/MetaMask/core/pull/8661))
+- Bump `@metamask/json-rpc-engine` from `^10.2.4` to `^10.5.0` ([#8661](https://github.com/MetaMask/core/pull/8661), [#8746](https://github.com/MetaMask/core/pull/8746), [#8753](https://github.com/MetaMask/core/pull/8753))
+- Bump `@metamask/controller-utils` from `^11.20.0` to `^12.0.0` ([#8755](https://github.com/MetaMask/core/pull/8755))
 
 ## [30.1.0]
 
@@ -50,10 +53,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `NetworkControllerGetNetworkConfigurationByNetworkClientId` type is deprecated in favor of `NetworkControllerGetNetworkConfigurationByNetworkClientIdAction` ([#8350](https://github.com/MetaMask/core/pull/8350))
 - Deprecate `AbstractRpcService` and `RpcServiceRequestable` ([#8475](https://github.com/MetaMask/core/pull/8475))
   - There are no equivalents to these interfaces. If you need to take an "RPC-service-like" argument, it's best to declare which properties you're interested in rather than accepting the entire RPC service interface.
-
-### Fixed
-
-- Restore retries for failed requests even if the user is offline, preventing a bad user experience if the reported offline status is inaccurate or stuck ([#8623](https://github.com/MetaMask/core/pull/8623))
 
 ## [30.0.1]
 
@@ -1172,7 +1171,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/network-controller@30.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/network-controller@31.0.0...HEAD
+[31.0.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@30.1.0...@metamask/network-controller@31.0.0
 [30.1.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@30.0.1...@metamask/network-controller@30.1.0
 [30.0.1]: https://github.com/MetaMask/core/compare/@metamask/network-controller@30.0.0...@metamask/network-controller@30.0.1
 [30.0.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@29.0.0...@metamask/network-controller@30.0.0

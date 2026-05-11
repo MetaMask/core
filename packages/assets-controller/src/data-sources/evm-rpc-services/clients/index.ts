@@ -5,7 +5,11 @@ export {
   type MulticallClientConfig,
 } from './MulticallClient';
 
-export { TokensApiClient, type TokensApiClientConfig } from './TokensApiClient';
+export {
+  TokensApiClient,
+  type TokensApiClientConfig,
+  type TokenListQueryClient,
+} from './TokensApiClient';
 
 // Re-export provider types from types module
 export type { GetProviderFunction, Provider } from '../types';

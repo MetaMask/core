@@ -13,11 +13,13 @@ import { validateParamTo } from './validation';
 const TOKEN_TRANSFER_TYPES = [
   TransactionType.tokenMethodTransfer,
   TransactionType.tokenMethodTransferFrom,
+  TransactionType.tokenMethodSafeTransferFrom,
 ];
 
 /**
  * Returns the effective recipient for first-time-interaction checks (decoded from data for token transfers).
- * Used when comparing existing transactions so we match by actual recipient, not txParams.to (contract for ERC20).
+ * Used when comparing existing transactions so we match by actual recipient, not txParams.to (the token
+ * contract for ERC20/ERC721/ERC1155 transfer methods).
  *
  * @param tx - Transaction meta with txParams and type
  * @returns Effective recipient address, or undefined
@@ -99,7 +101,8 @@ export async function updateFirstTimeInteraction({
   );
 
   // Skip API call only if we already have a tx with same from and same effective recipient (e.g. duplicate or pending).
-  // For ERC20, effective recipient is decoded from data; using txParams.to would wrongly match any send of that token.
+  // For token transfers (ERC20/ERC721/ERC1155), effective recipient is decoded from data; using txParams.to
+  // would wrongly match any send of the same token contract.
   if (existingTransaction) {
     return;
   }
