@@ -1,3 +1,6 @@
+import { AccountGroupId } from '@metamask/account-api';
+import { AccountTreeControllerSelectedAccountGroupChangeEvent } from '@metamask/account-tree-controller';
+import { AccountTreeControllerGetAccountGroupObjectAction } from '@metamask/account-tree-controller';
 import type {
   SnapKeyring as LegacySnapKeyring,
   SnapMessage,
@@ -71,7 +74,8 @@ type AllowedActions =
   | SnapControllerGetSnapAction
   | SnapControllerGetRunnableSnapsAction
   | KeyringControllerGetStateAction
-  | KeyringControllerWithControllerAction;
+  | KeyringControllerWithControllerAction
+  | AccountTreeControllerGetAccountGroupObjectAction;
 
 /**
  * Events that {@link SnapAccountService} exposes to other consumers.
@@ -89,7 +93,8 @@ type AllowedEvents =
   | SnapControllerSnapBlockedEvent
   | SnapControllerSnapUnblockedEvent
   | SnapControllerSnapUninstalledEvent
-  | KeyringControllerStateChangeEvent;
+  | KeyringControllerStateChangeEvent
+  | AccountTreeControllerSelectedAccountGroupChangeEvent;
 
 /**
  * The messenger which is restricted to actions and events accessed by
@@ -163,6 +168,15 @@ export class SnapAccountService {
     this.#messenger.registerMethodActionHandlers(
       this,
       MESSENGER_EXPOSED_METHODS,
+    );
+
+    this.#messenger.subscribe(
+      'AccountTreeController:selectedAccountGroupChange',
+      (groupId) => {
+        this.#handleSelectedAccountGroupChange(groupId).catch((error) => {
+          console.error('Error handling selected account group change:', error);
+        });
+      },
     );
   }
 
@@ -267,5 +281,31 @@ export class SnapAccountService {
   ): Promise<Json> {
     const snapKeyring = await this.getLegacySnapKeyring();
     return snapKeyring.handleKeyringSnapMessage(snapId, message);
+  }
+
+  /**
+   * Handles changes to the selected account group. Forwards accounts from the selected account group object
+   * to te Snap keyring.
+   *
+   * @param groupId - The ID of the newly selected account group.
+   */
+  async #handleSelectedAccountGroupChange(
+    groupId: AccountGroupId | '',
+  ): Promise<void> {
+    if (groupId) {
+      const group = this.#messenger.call(
+        'AccountTreeController:getAccountGroupObject',
+        groupId,
+      );
+
+      if (group) {
+        log(
+          `Forwarding selected accounts (from "${groupId}") to Snap keyring: ${group.accounts.join(', ')}`,
+        );
+
+        const snapKeyring = await this.getLegacySnapKeyring();
+        await snapKeyring.setSelectedAccounts(group.accounts);
+      }
+    }
   }
 }

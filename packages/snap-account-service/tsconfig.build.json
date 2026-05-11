@@ -6,6 +6,7 @@
     "rootDir": "./src"
   },
   "references": [
+    { "path": "../account-tree-controller/tsconfig.build.json" },
     { "path": "../keyring-controller/tsconfig.build.json" },
     { "path": "../messenger/tsconfig.build.json" }
   ],
