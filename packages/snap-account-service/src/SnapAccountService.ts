@@ -1,4 +1,7 @@
-import type { SnapKeyring as LegacySnapKeyring } from '@metamask/eth-snap-keyring';
+import type {
+  SnapKeyring as LegacySnapKeyring,
+  SnapMessage,
+} from '@metamask/eth-snap-keyring';
 import type {
   KeyringControllerGetStateAction,
   KeyringControllerStateChangeEvent,
@@ -21,12 +24,14 @@ import type {
   SnapControllerStateChangeEvent,
 } from '@metamask/snaps-controllers';
 import { SnapId } from '@metamask/snaps-sdk';
+import type { Json } from '@metamask/utils';
 
 import { projectLogger as log } from './logger';
 import type {
   SnapAccountServiceEnsureReadyAction,
   SnapAccountServiceGetLegacySnapKeyringAction,
   SnapAccountServiceGetSnapsAction,
+  SnapAccountServiceHandleKeyringSnapMessageAction,
 } from './SnapAccountService-method-action-types';
 import { SnapPlatformWatcher } from './SnapPlatformWatcher';
 import type { SnapPlatformWatcherConfig } from './SnapPlatformWatcher';
@@ -46,6 +51,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'ensureReady',
   'getSnaps',
   'getLegacySnapKeyring',
+  'handleKeyringSnapMessage',
 ] as const;
 
 /**
@@ -54,7 +60,8 @@ const MESSENGER_EXPOSED_METHODS = [
 export type SnapAccountServiceActions =
   | SnapAccountServiceEnsureReadyAction
   | SnapAccountServiceGetSnapsAction
-  | SnapAccountServiceGetLegacySnapKeyringAction;
+  | SnapAccountServiceGetLegacySnapKeyringAction
+  | SnapAccountServiceHandleKeyringSnapMessageAction;
 
 /**
  * Actions from other messengers that {@link SnapAccountService} calls.
@@ -245,5 +252,20 @@ export class SnapAccountService {
     );
 
     return (result as Result).snapKeyring;
+  }
+
+  /**
+   * Handle a message from a Snap.
+   *
+   * @param snapId - ID of the Snap.
+   * @param message - Message sent by the Snap.
+   * @returns The execution result.
+   */
+  async handleKeyringSnapMessage(
+    snapId: SnapId,
+    message: SnapMessage,
+  ): Promise<Json> {
+    const snapKeyring = await this.getLegacySnapKeyring();
+    return snapKeyring.handleKeyringSnapMessage(snapId, message);
   }
 }

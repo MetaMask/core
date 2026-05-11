@@ -26,6 +26,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add `getLegacySnapKeyring` ([#8757](https://github.com/MetaMask/core/pull/8757))
   - This is a concurrent-safe variant of the existing `getSnapKeyring` function that exist on clients.
   - The service messenger now requires the `KeyringController:withController` action.
+- Add `handleKeyringSnapMessage` ([#8758](https://github.com/MetaMask/core/pull/8758))
+  - This will be the new entry point for consumer that needs to forward keyring events to a account management Snap (instead of using the legacy Snap keyring instance directly).
 
 ### Changed
 

@@ -1,4 +1,4 @@
-import type { SnapKeyring } from '@metamask/eth-snap-keyring';
+import type { SnapKeyring, SnapMessage } from '@metamask/eth-snap-keyring';
 import {
   KeyringControllerState,
   KeyringTypes,
@@ -190,6 +190,44 @@ function mockWithController(
     }),
   );
   return { addNewKeyring };
+}
+
+/**
+ * Configures `mocks.KeyringController.withController` to expose a single
+ * legacy Snap keyring with the provided mocked methods.
+ *
+ * @param mocks - The mocks object from {@link setup}.
+ * @param keyring - The mocked Snap keyring methods.
+ * @param keyring.handleKeyringSnapMessage - The mocked implementation.
+ */
+function mockLegacySnapKeyring(
+  mocks: Mocks,
+  {
+    handleKeyringSnapMessage,
+  }: {
+    handleKeyringSnapMessage: jest.MockedFunction<
+      SnapKeyring['handleKeyringSnapMessage']
+    >;
+  },
+): void {
+  const snapKeyring = {
+    type: KeyringTypes.snap,
+    handleKeyringSnapMessage,
+  };
+  mocks.KeyringController.withController.mockImplementation(async (operation) =>
+    operation({
+      get keyrings() {
+        return Object.freeze([
+          {
+            keyring: snapKeyring as unknown as KeyringEntry['keyring'],
+            metadata: { id: 'id-snap', name: KeyringTypes.snap },
+          },
+        ]);
+      },
+      addNewKeyring: jest.fn(),
+      removeKeyring: jest.fn(),
+    }),
+  );
 }
 
 /**
@@ -450,6 +488,65 @@ describe('SnapAccountService', () => {
       });
 
       await expect(service.getLegacySnapKeyring()).rejects.toThrow('boom');
+    });
+  });
+
+  describe('handleKeyringSnapMessage', () => {
+    const MOCK_MESSAGE = {
+      method: 'keyring_listAccounts',
+      params: {},
+    } as unknown as SnapMessage;
+
+    it('forwards the call to the legacy Snap keyring and returns its result', async () => {
+      const { service, mocks } = setup();
+      const handleKeyringSnapMessage = jest
+        .fn()
+        .mockResolvedValue({ ok: true });
+      mockLegacySnapKeyring(mocks, { handleKeyringSnapMessage });
+
+      const result = await service.handleKeyringSnapMessage(
+        MOCK_SNAP_ID,
+        MOCK_MESSAGE,
+      );
+
+      expect(handleKeyringSnapMessage).toHaveBeenCalledWith(
+        MOCK_SNAP_ID,
+        MOCK_MESSAGE,
+      );
+      expect(result).toStrictEqual({ ok: true });
+    });
+
+    it('propagates errors thrown by the Snap keyring', async () => {
+      const { service, mocks } = setup();
+      const error = new Error('snap boom');
+      const handleKeyringSnapMessage = jest.fn().mockRejectedValue(error);
+      mockLegacySnapKeyring(mocks, { handleKeyringSnapMessage });
+
+      await expect(
+        service.handleKeyringSnapMessage(MOCK_SNAP_ID, MOCK_MESSAGE),
+      ).rejects.toThrow(error);
+    });
+
+    it('is exposed as a messenger action', async () => {
+      const { service, mocks, messenger } = setup();
+      const handleKeyringSnapMessage = jest.fn().mockResolvedValue('pong');
+      mockLegacySnapKeyring(mocks, { handleKeyringSnapMessage });
+
+      // Reference `service` so it isn't flagged as unused; constructing it
+      // registers the messenger action under test.
+      expect(service).toBeDefined();
+
+      const result = await messenger.call(
+        'SnapAccountService:handleKeyringSnapMessage',
+        MOCK_SNAP_ID,
+        MOCK_MESSAGE,
+      );
+
+      expect(handleKeyringSnapMessage).toHaveBeenCalledWith(
+        MOCK_SNAP_ID,
+        MOCK_MESSAGE,
+      );
+      expect(result).toBe('pong');
     });
   });
 });
