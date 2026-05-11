@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Bump `@metamask/network-controller` from `^31.0.0` to `^31.1.0` ([#8765](https://github.com/MetaMask/core/pull/8765))
 - Modify `SPOT_PRICES_SUPPORT_INFO` entries for Tempo chains (`0x1079` and `0xa5bf`) ([#8638](https://github.com/MetaMask/core/pull/8638))
 
 ## [106.0.1]
