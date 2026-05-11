@@ -112,6 +112,14 @@ export type TransactionConfig = {
    */
   isHyperliquidSource?: boolean;
 
+  /**
+   * Whether the source of funds is a Polymarket deposit wallet.
+   * When true, transaction-pay routes the post-quote `predictWithdraw` to
+   * the Polymarket Bridge strategy, which signs a deposit-wallet `Batch`
+   * and submits it via the Polymarket relayer proxy.
+   */
+  isPolymarketDepositWallet?: boolean;
+
   /** Whether the user has selected the maximum amount. */
   isMaxAmount?: boolean;
 
@@ -222,6 +230,9 @@ export type TransactionData = {
 
   /** Whether the source of funds is HyperLiquid (HyperCore). */
   isHyperliquidSource?: boolean;
+
+  /** Whether the source of funds is a Polymarket deposit wallet. */
+  isPolymarketDepositWallet?: boolean;
 
   /**
    * Optional address to receive refunds if the quote provider transaction fails.
@@ -401,6 +412,9 @@ export type QuoteRequest = {
 
   /** Whether the source of funds is HyperLiquid (HyperCore). */
   isHyperliquidSource?: boolean;
+
+  /** Whether the source of funds is a Polymarket deposit wallet. */
+  isPolymarketDepositWallet?: boolean;
 
   /**
    * Optional address to receive refunds if the quote provider transaction fails.

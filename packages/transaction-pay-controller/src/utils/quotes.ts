@@ -85,6 +85,7 @@ export async function updateQuotes(
     isMaxAmount,
     isPostQuote,
     isHyperliquidSource,
+    isPolymarketDepositWallet,
     paymentToken: originalPaymentToken,
     refundTo,
     sourceAmounts,
@@ -120,6 +121,7 @@ export async function updateQuotes(
       isMaxAmount: isMaxAmount ?? false,
       isPostQuote,
       isHyperliquidSource,
+      isPolymarketDepositWallet,
       paymentToken,
       refundTo,
       sourceAmounts,
@@ -335,6 +337,7 @@ function buildQuoteRequests({
   isMaxAmount,
   isPostQuote,
   isHyperliquidSource,
+  isPolymarketDepositWallet,
   paymentToken,
   refundTo,
   sourceAmounts,
@@ -345,6 +348,7 @@ function buildQuoteRequests({
   isMaxAmount: boolean;
   isPostQuote?: boolean;
   isHyperliquidSource?: boolean;
+  isPolymarketDepositWallet?: boolean;
   paymentToken: TransactionPaymentToken | undefined;
   refundTo?: Hex;
   sourceAmounts: TransactionPaySourceAmount[] | undefined;
@@ -360,6 +364,7 @@ function buildQuoteRequests({
       from,
       isMaxAmount,
       isHyperliquidSource,
+      isPolymarketDepositWallet,
       destinationToken: paymentToken,
       refundTo,
       sourceAmounts,
@@ -412,6 +417,7 @@ function buildPostQuoteRequests({
   from,
   isMaxAmount,
   isHyperliquidSource,
+  isPolymarketDepositWallet,
   destinationToken,
   refundTo,
   sourceAmounts,
@@ -420,6 +426,7 @@ function buildPostQuoteRequests({
   from: Hex;
   isMaxAmount: boolean;
   isHyperliquidSource?: boolean;
+  isPolymarketDepositWallet?: boolean;
   destinationToken: TransactionPaymentToken;
   refundTo?: Hex;
   sourceAmounts: TransactionPaySourceAmount[] | undefined;
@@ -449,6 +456,7 @@ function buildPostQuoteRequests({
     isMaxAmount,
     isPostQuote: true,
     isHyperliquidSource,
+    isPolymarketDepositWallet,
     refundTo,
     sourceBalanceRaw: sourceAmount.sourceBalanceRaw,
     sourceTokenAmount: sourceAmount.sourceAmountRaw,

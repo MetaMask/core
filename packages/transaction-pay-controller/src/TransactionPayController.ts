@@ -130,6 +130,7 @@ export class TransactionPayController extends BaseController<
         isMaxAmount: transactionData.isMaxAmount,
         isPostQuote: transactionData.isPostQuote,
         isHyperliquidSource: transactionData.isHyperliquidSource,
+        isPolymarketDepositWallet: transactionData.isPolymarketDepositWallet,
         refundTo: transactionData.refundTo,
         accountOverride: transactionData.accountOverride,
       };
@@ -142,6 +143,8 @@ export class TransactionPayController extends BaseController<
       transactionData.isMaxAmount = config.isMaxAmount;
       transactionData.isPostQuote = config.isPostQuote;
       transactionData.isHyperliquidSource = config.isHyperliquidSource;
+      transactionData.isPolymarketDepositWallet =
+        config.isPolymarketDepositWallet;
       transactionData.refundTo = config.refundTo;
 
       if (
@@ -328,6 +331,12 @@ export class TransactionPayController extends BaseController<
   #getStrategiesWithFallback(
     transaction: TransactionMeta,
   ): TransactionPayStrategy[] {
+    const transactionData = this.state.transactionData[transaction.id];
+
+    if (transactionData?.isPolymarketDepositWallet) {
+      return [TransactionPayStrategy.PolymarketBridge];
+    }
+
     const strategyCandidates: unknown[] =
       this.#getStrategies?.(transaction) ??
       (this.#getStrategy ? [this.#getStrategy(transaction)] : []);
@@ -341,7 +350,6 @@ export class TransactionPayController extends BaseController<
       return validStrategies;
     }
 
-    const transactionData = this.state.transactionData[transaction.id];
     const paymentToken = transactionData?.paymentToken;
 
     return getStrategyOrder(

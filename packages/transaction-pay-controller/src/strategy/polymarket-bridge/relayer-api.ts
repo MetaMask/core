@@ -7,6 +7,7 @@ import type {
   PolymarketBridgeRelayerStatusResponse,
   PolymarketBridgeRelayerSubmitRequest,
   PolymarketBridgeRelayerSubmitResponse,
+  PolymarketRelayerProxyEnvelope,
   PolymarketRelayerState,
 } from './types';
 
@@ -36,19 +37,13 @@ export class PolymarketRelayerApi {
   }
 
   async getNonce(address: string, type: 'WALLET'): Promise<string> {
-    const path = `/nonce?address=${address}&type=${type}`;
-    const url = `${this.#baseUrl}${path}`;
-
     log('Fetching nonce', { address, type });
 
-    const response = await relayerFetch(url, {
+    const result = await this.#postEnvelope<{ nonce: string }>({
+      path: '/nonce',
       method: 'GET',
-      headers: {
-        Accept: 'application/json',
-      },
+      query: { address, type },
     });
-
-    const result = (await response.json()) as { nonce: string };
 
     log('Nonce received', { nonce: result.nonce });
 
@@ -58,22 +53,14 @@ export class PolymarketRelayerApi {
   async submit(
     request: PolymarketBridgeRelayerSubmitRequest,
   ): Promise<PolymarketBridgeRelayerSubmitResponse> {
-    const path = '/submit';
-    const body = JSON.stringify(request);
-    const url = `${this.#baseUrl}${path}`;
-
     log('Submitting transaction', { from: request.from, to: request.to });
 
-    const response = await relayerFetch(url, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body,
-    });
-
     const result =
-      (await response.json()) as PolymarketBridgeRelayerSubmitResponse;
+      await this.#postEnvelope<PolymarketBridgeRelayerSubmitResponse>({
+        path: '/submit',
+        method: 'POST',
+        body: request,
+      });
 
     log('Transaction submitted', {
       transactionID: result.transactionID,
@@ -86,17 +73,16 @@ export class PolymarketRelayerApi {
   async getTransaction(
     transactionId: string,
   ): Promise<PolymarketBridgeRelayerStatusResponse[]> {
-    const path = `/transaction?id=${transactionId}`;
-    const url = `${this.#baseUrl}${path}`;
-
-    const response = await relayerFetch(url, {
+    const result = await this.#postEnvelope<
+      | PolymarketBridgeRelayerStatusResponse
+      | PolymarketBridgeRelayerStatusResponse[]
+    >({
+      path: '/transaction',
       method: 'GET',
-      headers: {
-        Accept: 'application/json',
-      },
+      query: { id: transactionId },
     });
 
-    return (await response.json()) as PolymarketBridgeRelayerStatusResponse[];
+    return Array.isArray(result) ? result : [result];
   }
 
   async pollUntilTerminal(
@@ -131,20 +117,60 @@ export class PolymarketRelayerApi {
       'POLLING_TIMEOUT',
     );
   }
-}
 
-async function relayerFetch(
-  url: string,
-  init?: RequestInit,
-): Promise<Response> {
-  try {
-    return await successfulFetch(url, init);
-  } catch (error) {
-    throw new PolymarketRelayerError(
-      `Relayer request failed: ${String(error)}`,
-      'REQUEST_FAILED',
-      error,
-    );
+  async #postEnvelope<TResponse>(
+    envelope: PolymarketRelayerProxyEnvelope,
+  ): Promise<TResponse> {
+    const url = `${this.#baseUrl}/transaction`;
+
+    let response: Response;
+    try {
+      response = await successfulFetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(envelope),
+      });
+    } catch (error) {
+      throw new PolymarketRelayerError(
+        `Relayer proxy request failed: ${String(error)}`,
+        'REQUEST_FAILED',
+        error,
+      );
+    }
+
+    const text = await response.text();
+
+    if (!text) {
+      throw new PolymarketRelayerError(
+        'Relayer proxy returned an empty response',
+        'EMPTY_RESPONSE',
+      );
+    }
+
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(text);
+    } catch (error) {
+      throw new PolymarketRelayerError(
+        'Relayer proxy returned malformed JSON',
+        'MALFORMED_JSON',
+        error,
+      );
+    }
+
+    if (
+      typeof parsed === 'object' &&
+      parsed !== null &&
+      'error' in parsed &&
+      typeof (parsed as { error: unknown }).error === 'string'
+    ) {
+      throw new PolymarketRelayerError(
+        (parsed as { error: string }).error,
+        'PROXY_ERROR',
+      );
+    }
+
+    return parsed as TResponse;
   }
 }
 

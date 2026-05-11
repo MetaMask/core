@@ -43,6 +43,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add `POLYGON_PUSD_ADDRESS` constant and treat Polymarket pUSD as a Polygon stablecoin in display/fiat-rate logic ([#8735](https://github.com/MetaMask/core/pull/8735))
 - Add Across strategy plumbing to identify post-quote Predict withdraw requests ([#8759](https://github.com/MetaMask/core/pull/8759))
 - Add `PolymarketBridgeStrategy` for `predictWithdraw` transactions of deposit-wallet users via Polymarket's Bridge and Relayer APIs ([#8754](https://github.com/MetaMask/core/pull/8754))
+  - Add `isPolymarketDepositWallet` flag on `TransactionConfig`. When set via `setTransactionConfig`, the controller routes the transaction's quotes and execution to `PolymarketBridgeStrategy`.
+  - Add `polymarketRelayerUrl` remote feature flag to override the Polymarket relayer proxy URL without a release.
 
 ### Changed
 

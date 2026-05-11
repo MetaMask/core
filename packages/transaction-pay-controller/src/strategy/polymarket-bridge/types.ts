@@ -117,4 +117,14 @@ export type PolymarketRelayerState =
   | 'STATE_INVALID'
   | 'STATE_FAILED';
 
+/**
+ * Envelope posted to the MetaMask Polymarket relayer proxy. The proxy
+ * authenticates the request and forwards it to the underlying Polymarket
+ * relayer using the path/method/body or query described here.
+ */
+export type PolymarketRelayerProxyEnvelope =
+  | { path: '/submit'; method: 'POST'; body: unknown }
+  | { path: '/nonce'; method: 'GET'; query: Record<string, string> }
+  | { path: '/transaction'; method: 'GET'; query: Record<string, string> };
+
 
