@@ -1,5 +1,4 @@
 /* eslint-disable @typescript-eslint/explicit-function-return-type */
-import { AddressZero } from '@ethersproject/constants';
 import type {
   CurrencyRateState,
   MultichainAssetsRatesControllerState,
@@ -10,7 +9,7 @@ import type {
   GasFeeEstimatesByChainId,
 } from '@metamask/gas-fee-controller';
 import type { CaipAssetType } from '@metamask/utils';
-import { isStrictHexString } from '@metamask/utils';
+import { isStrictHexString, parseCaipAssetType } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
 import { orderBy } from 'lodash';
 import {
@@ -22,9 +21,9 @@ import { BRIDGE_PREFERRED_GAS_ESTIMATE } from './constants/bridge';
 import type {
   BridgeControllerState,
   ExchangeRate,
-  GenericQuoteRequest,
   QuoteMetadata,
   QuoteResponse,
+  TokenAmountValues,
 } from './types';
 import { RequestStatus, SortOrder } from './types';
 import {
@@ -140,16 +139,17 @@ export const selectBridgeFeatureFlags = createFeatureFlagsSelector(
   (bridgeConfig: unknown) => processFeatureFlags(bridgeConfig),
 );
 
-const getExchangeRateByChainIdAndAddress = (
+/**
+ * Selects the asset exchange rate for a given chain and address
+ *
+ * @param exchangeRateSources - the controller states containing the exchange rates
+ * @param assetId - the assetId to get the exchange rate for
+ * @returns The asset exchange rate for the given assetId
+ */
+export const selectExchangeRateByAssetId = (
   exchangeRateSources: ExchangeRateSourcesForLookup,
-  chainId?: GenericQuoteRequest['srcChainId'],
-  rawAddress?: GenericQuoteRequest['srcTokenAddress'],
+  assetId?: CaipAssetType,
 ): ExchangeRate => {
-  if (!chainId) {
-    return {};
-  }
-  const address = formatAddressToCaipReference(rawAddress ?? '');
-  const assetId = formatAddressToAssetId(address, chainId);
   if (!assetId) {
     return {};
   }
@@ -168,6 +168,9 @@ const getExchangeRateByChainIdAndAddress = (
   ) {
     return bridgeControllerRate;
   }
+
+  const { chainId } = parseCaipAssetType(assetId);
+
   // If the chain is a non-EVM chain, use the conversion rate from the multichain assets controller
   if (isNonEvmChainId(chainId)) {
     const conversionRatesByKey = conversionRates as
@@ -204,6 +207,9 @@ const getExchangeRateByChainIdAndAddress = (
     }
     return {};
   }
+
+  const address = formatAddressToCaipReference(assetId);
+
   // If the chain is an EVM chain, use the conversion rate from the currency rates controller
   if (isNativeAddress(address)) {
     const { symbol } = getNativeAssetForChainId(chainId);
@@ -249,32 +255,18 @@ const getExchangeRateByChainIdAndAddress = (
 };
 
 /**
- * Selects the asset exchange rate for a given chain and address
+ * Checks whether an exchange rate is available for a given assetId
  *
  * @param state The state of the bridge controller and its dependency controllers
- * @param chainId The chain ID of the asset
- * @param address The address of the asset
- * @returns The asset exchange rate for the given chain and address
- */
-export const selectExchangeRateByChainIdAndAddress = (
-  state: BridgeAppState,
-  chainId?: GenericQuoteRequest['srcChainId'],
-  address?: GenericQuoteRequest['srcTokenAddress'],
-) => {
-  return getExchangeRateByChainIdAndAddress(state, chainId, address);
-};
-
-/**
- * Checks whether an exchange rate is available for a given chain and address
- *
- * @param params The parameters to pass to {@link getExchangeRateByChainIdAndAddress}
+ * @param assetId The assetId to check
  * @returns Whether an exchange rate is available for the given chain and address
  */
 export const selectIsAssetExchangeRateInState = (
-  ...params: Parameters<typeof getExchangeRateByChainIdAndAddress>
+  state: ExchangeRateSourcesForLookup,
+  assetId?: CaipAssetType,
 ) =>
-  Boolean(getExchangeRateByChainIdAndAddress(...params)?.exchangeRate) &&
-  Boolean(getExchangeRateByChainIdAndAddress(...params)?.usdExchangeRate);
+  Boolean(selectExchangeRateByAssetId(state, assetId)?.exchangeRate) &&
+  Boolean(selectExchangeRateByAssetId(state, assetId)?.usdExchangeRate);
 
 /**
  * Selects the gas fee estimates from the gas fee controller. All potential networks
@@ -322,23 +314,32 @@ const selectBridgeQuotesWithMetadata = createBridgeSelector(
     createBridgeSelector(
       [
         (state) => state,
-        ({ quoteRequest: { srcChainId } }) => srcChainId,
-        ({ quoteRequest: { srcTokenAddress } }) => srcTokenAddress,
+        ({ quoteRequest: [{ srcChainId, srcTokenAddress }] }) =>
+          srcTokenAddress
+            ? formatAddressToAssetId(srcTokenAddress, srcChainId)
+            : undefined,
       ],
-      selectExchangeRateByChainIdAndAddress,
+      selectExchangeRateByAssetId,
     ),
     createBridgeSelector(
       [
         (state) => state,
-        ({ quoteRequest: { destChainId } }) => destChainId,
-        ({ quoteRequest: { destTokenAddress } }) => destTokenAddress,
+        ({ quoteRequest: [{ destChainId, destTokenAddress }] }) =>
+          destTokenAddress
+            ? formatAddressToAssetId(destTokenAddress, destChainId)
+            : undefined,
       ],
-      selectExchangeRateByChainIdAndAddress,
+      selectExchangeRateByAssetId,
     ),
     createBridgeSelector(
-      [(state) => state, ({ quoteRequest: { srcChainId } }) => srcChainId],
-      (state, chainId) =>
-        selectExchangeRateByChainIdAndAddress(state, chainId, AddressZero),
+      [
+        (state) => state,
+        ({ quoteRequest: [{ srcChainId }] }) =>
+          srcChainId
+            ? getNativeAssetForChainId(srcChainId)?.assetId
+            : undefined,
+      ],
+      selectExchangeRateByAssetId,
     ),
   ],
   (
@@ -497,7 +498,11 @@ const selectActiveQuote = createBridgeSelector(
 const selectIsQuoteGoingToRefresh = createBridgeSelector(
   [
     selectBridgeFeatureFlags,
-    (state) => state.quoteRequest.insufficientBal,
+    // If at least one quote request is sufficiently funded, continue polling until max refresh count is reached
+    (state) =>
+      state.quoteRequest.every((quoteRequest) =>
+        Boolean(quoteRequest.insufficientBal),
+      ),
     (state) => state.quotesRefreshCount,
   ],
   (featureFlags, insufficientBal, quotesRefreshCount) =>
@@ -505,7 +510,7 @@ const selectIsQuoteGoingToRefresh = createBridgeSelector(
 );
 
 const selectQuoteRefreshRate = createBridgeSelector(
-  [selectBridgeFeatureFlags, (state) => state.quoteRequest.srcChainId],
+  [selectBridgeFeatureFlags, (state) => state.quoteRequest[0]?.srcChainId],
   (featureFlags, srcChainId) =>
     (srcChainId
       ? featureFlags.chains[formatChainIdToCaip(srcChainId)]?.refreshRate
@@ -550,6 +555,84 @@ export const selectBridgeQuotes = createStructuredBridgeSelector({
   sortedQuotes: selectSortedBridgeQuotes,
   recommendedQuote: selectRecommendedQuote,
   activeQuote: selectActiveQuote,
+  quotesLastFetchedMs: (state) => state.quotesLastFetched,
+  isLoading: (state) => state.quotesLoadingStatus === RequestStatus.LOADING,
+  quoteFetchError: (state) => state.quoteFetchError,
+  quotesRefreshCount: (state) => state.quotesRefreshCount,
+  quotesInitialLoadTimeMs: (state) => state.quotesInitialLoadTime,
+  isQuoteGoingToRefresh: selectIsQuoteGoingToRefresh,
+});
+
+const selectRecommendedQuotes = createBridgeSelector(
+  [
+    selectSortedBridgeQuotes,
+    (_, { requestCount }: { requestCount: number }) => requestCount,
+  ],
+  (quotes, requestCount) =>
+    quotes.reduce((acc, quote) => {
+      const requestIndex = quote.quoteRequestIndex ?? 0;
+      acc[requestIndex] ??= quote;
+      return acc;
+    }, Array<(QuoteResponse & QuoteMetadata) | null>(requestCount).fill(null)),
+);
+
+const selectMetadataSum = createBridgeSelector(
+  [
+    selectRecommendedQuotes,
+    (
+      _,
+      {
+        key,
+      }: { key: 'totalNetworkFee' | 'minToTokenAmount' | 'toTokenAmount' },
+    ) => key,
+  ],
+  (recommendedQuotes, key) =>
+    recommendedQuotes.reduce<TokenAmountValues>(
+      (acc, quote) => {
+        acc.usd = new BigNumber(acc.usd ?? 0)
+          .plus(quote?.[key]?.usd ?? 0)
+          .toString();
+        acc.valueInCurrency = new BigNumber(acc.valueInCurrency ?? 0)
+          .plus(quote?.[key]?.valueInCurrency ?? 0)
+          .toString();
+        acc.amount = new BigNumber(acc.amount ?? 0)
+          .plus(quote?.[key]?.amount ?? 0)
+          .toString();
+        return acc;
+      },
+      { usd: null, valueInCurrency: null, amount: '0' },
+    ),
+);
+
+/**
+ * Selects the recommended swap quotes for a batch of quote requests.
+ *
+ * @param state - The state of the bridge controller and its dependency controllers
+ * @param sortOrder - The sort order of the quotes
+ * @param requestCount - The number of quote requests fetched in the batch
+ * @returns The quotes for multiple quote requests, including their recommendedQuotes,
+ * totalReceived, minimumReceived, totalNetworkFee, and other quote fetching metadata.
+ *
+ * @example
+ * ```ts
+ * const quotes = useSelector(state => selectBridgeQuotesBatch(
+ *   { ...state.metamask },
+ *   {
+ *     sortOrder: state.bridge.sortOrder,
+ *     requestCount: 4,
+ *   }
+ * ));
+ * ```
+ */
+export const selectBatchSellQuotes = createStructuredBridgeSelector({
+  recommendedQuotes: selectRecommendedQuotes,
+  totalReceived: (state, opts) =>
+    selectMetadataSum(state, { ...opts, key: 'toTokenAmount' }),
+  minimumReceived: (state, opts) =>
+    selectMetadataSum(state, { ...opts, key: 'minToTokenAmount' }),
+  // TODO call estimation API
+  totalNetworkFee: (state, opts) =>
+    selectMetadataSum(state, { ...opts, key: 'totalNetworkFee' }),
   quotesLastFetchedMs: (state) => state.quotesLastFetched,
   isLoading: (state) => state.quotesLoadingStatus === RequestStatus.LOADING,
   quoteFetchError: (state) => state.quoteFetchError,

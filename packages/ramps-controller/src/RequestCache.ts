@@ -1,5 +1,7 @@
 import type { Json } from '@metamask/utils';
 
+import type { RampsErrorCode } from './rampsErrorCodes';
+
 /**
  * Types of resources that can have loading/error states.
  */
@@ -30,6 +32,8 @@ export type RequestState = {
   data: Json | null;
   /** Error message if the request failed */
   error: string | null;
+  /** Stable error key for client-side localization, if available */
+  errorKey?: RampsErrorCode | null;
   /** Timestamp when the request completed (for TTL calculation) */
   timestamp: number;
   /** Timestamp when the fetch started */
@@ -121,19 +125,27 @@ export function createSuccessState(
  *
  * @param error - The error message.
  * @param lastFetchedAt - When the fetch started.
+ * @param errorKey - Stable error key for client-side localization, if available.
  * @returns A new RequestState in error status.
  */
 export function createErrorState(
   error: string,
   lastFetchedAt: number,
+  errorKey?: RampsErrorCode | null,
 ): RequestState {
-  return {
+  const requestState: RequestState = {
     status: RequestStatus.ERROR,
     data: null,
     error,
     timestamp: Date.now(),
     lastFetchedAt,
   };
+
+  if (errorKey) {
+    requestState.errorKey = errorKey;
+  }
+
+  return requestState;
 }
 
 /**

@@ -337,6 +337,13 @@ export type DataRequest = {
   dataTypes: DataType[];
   /** Specific CAIP-19 asset IDs */
   customAssets?: Caip19AssetId[];
+  /**
+   * When true, the data source should poll only the user's `customAssets`
+   * for the requested chains and skip refreshing the regular tracked
+   * balances. Used by the AssetsController to issue a supplemental RPC
+   * subscription on chains that another data source is already covering.
+   */
+  customAssetsOnly?: boolean;
   /** Force fresh fetch, bypass cache */
   forceUpdate?: boolean;
   /** Hint for polling interval (ms) - used by data sources that implement polling */

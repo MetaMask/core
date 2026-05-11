@@ -7,11 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add SRP profile pairing support (Accounts ADR 0006) ([#8504](https://github.com/MetaMask/core/pull/8504), [#8642](https://github.com/MetaMask/core/pull/8642))
+  - Pairing runs at the end of `performSignIn`; pair failures are swallowed and retried on the next gate fire.
+  - Add `needsProfilePairing?: boolean` to state (defaults `true`, cleared on successful pair, re-armed via `requestProfilePairing()`). Optional in the type to keep partial-state selectors assignable; treat `undefined` as `true`.
+  - Add `requestProfilePairing()` (and `AuthenticationController:requestProfilePairing` action) for clients to signal SRP-set changes so the next auto-sign-in cycle re-pairs.
+  - Upgrade path: existing signed-in users re-pair automatically on the first auto-sign-in cycle. Pre-pairing sessions miss `canonicalProfileId` and re-login on the next `getAccessToken`, so the pair call runs against fresh v2 JWTs — no client migration needed.
+  - JWT staleness note: a newly added SRP's JWT keeps `sub = alias_id` until that SRP's session is re-logged-in. User storage is unaffected (it keys on `x-profile-id`, not `sub`).
+  - Add `canonicalProfileId` to `UserProfile` — the unified profile ID across paired SRPs
+  - Add `ProfileAlias` type for transient alias data returned by the pairing API
+  - Add `pairSrpProfiles` method to `SRPJwtBearerAuth` and `JwtBearerAuth`
+  - Add `ProfileSignInEvent` (`AuthenticationController:profileSignIn`) emitted after successful pairing when the canonical profile ID changes or new aliases are returned
+  - Send `X-MetaMask-Profile-Pairing: enabled` header on all `/srp/login` requests
+  - Resolve original per-SRP `profileId` from `profile_aliases` using `computeIdentifierId`
+  - Propagate canonical profile ID to all `srpSessionData` entries after pairing
+  - Add `refreshCanonicalProfileId` method — forces a fresh canonical retrieval from the server (1 primary SRP login) and propagates it to all cached SRP sessions. For best-effort reads, use `getSessionProfile().canonicalProfileId` instead.
+  - Force re-login when cached session is missing `canonicalProfileId`
+- Add optional `getAppVersion` callback to `MetaMetricsAuth`, forwarded as `metametrics.app_version` in the `POST /api/v2/srp/login` payload. ([#8626](https://github.com/MetaMask/core/pull/8626))
+
 ### Changed
 
-- Bump `@metamask/keyring-controller` from `^25.1.1` to `^25.2.0` ([#8363](https://github.com/MetaMask/core/pull/8363))
-- Bump `@metamask/messenger` from `^1.0.0` to `^1.1.1` ([#8364](https://github.com/MetaMask/core/pull/8364), [#8373](https://github.com/MetaMask/core/pull/8373))
+- Bump `@metamask/keyring-controller` from `^25.1.1` to `^25.5.0` ([#8363](https://github.com/MetaMask/core/pull/8363), [#8634](https://github.com/MetaMask/core/pull/8634), [#8665](https://github.com/MetaMask/core/pull/8665), [#8722](https://github.com/MetaMask/core/pull/8722))
+- Bump `@metamask/messenger` from `^1.0.0` to `^1.2.0` ([#8364](https://github.com/MetaMask/core/pull/8364), [#8373](https://github.com/MetaMask/core/pull/8373), [#8632](https://github.com/MetaMask/core/pull/8632))
 - Bump `@metamask/base-controller` from `^9.0.1` to `^9.1.0` ([#8457](https://github.com/MetaMask/core/pull/8457))
+- Bump `@metamask/address-book-controller` from `^7.1.1` to `^7.1.2` ([#8755](https://github.com/MetaMask/core/pull/8755))
 
 ## [28.0.2]
 

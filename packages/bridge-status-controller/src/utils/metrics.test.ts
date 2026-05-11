@@ -750,7 +750,16 @@ describe('metrics utils', () => {
         chain_id_destination: 'eip155:10',
         token_symbol_destination: 'ETH',
         token_address_destination: 'eip155:10/slip44:60',
+        token_security_type_destination: null,
       });
+    });
+
+    it('passes through tokenSecurityTypeDestination when present on the history item', () => {
+      const result = getRequestParamFromHistory({
+        ...mockHistoryItem,
+        tokenSecurityTypeDestination: 'Malicious',
+      });
+      expect(result.token_security_type_destination).toBe('Malicious');
     });
 
     it('should handle different token symbols', () => {
@@ -1049,7 +1058,7 @@ describe('metrics utils', () => {
     it('should return correct properties for a successful swap transaction', () => {
       const result = getEVMTxPropertiesFromTransactionMeta(mockTransactionMeta);
       expect(result).toStrictEqual({
-        error_message: '',
+        error_message: 'Transaction submitted',
         chain_id_source: 'eip155:1',
         chain_id_destination: 'eip155:1',
         token_symbol_source: 'ETH',
@@ -1060,6 +1069,7 @@ describe('metrics utils', () => {
         token_address_source: 'eip155:1/slip44:60',
         token_address_destination:
           'eip155:1/erc20:0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
+        token_security_type_destination: null,
         custom_slippage: false,
         is_hardware_wallet: false,
         account_hardware_type: null,
@@ -1086,14 +1096,14 @@ describe('metrics utils', () => {
         ...mockTransactionMeta,
         status: TransactionStatus.failed,
         error: {
-          message: 'Transaction failed',
+          message: 'Error message',
           name: 'Error',
         } as TransactionError,
       };
       const result = getEVMTxPropertiesFromTransactionMeta(
         failedTransactionMeta,
       );
-      expect(result.error_message).toBe('Transaction failed');
+      expect(result.error_message).toBe('Transaction failed. Error message');
       expect(result.source_transaction).toBe('FAILED');
     });
 

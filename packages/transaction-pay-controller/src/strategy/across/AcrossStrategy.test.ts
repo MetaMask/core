@@ -117,6 +117,86 @@ describe('AcrossStrategy', () => {
     ).toBe(true);
   });
 
+  it('ignores synthetic gas legs for supported perps direct deposits', () => {
+    const strategy = new AcrossStrategy();
+    expect(
+      strategy.supports({
+        ...baseRequest,
+        transaction: {
+          ...TRANSACTION_META_MOCK,
+          type: TransactionType.perpsDeposit,
+        } as TransactionMeta,
+        requests: [
+          {
+            from: '0xabc' as Hex,
+            sourceBalanceRaw: '100',
+            sourceChainId: CHAIN_ID_ARBITRUM,
+            sourceTokenAddress: ARBITRUM_USDC_ADDRESS,
+            sourceTokenAmount: '100',
+            targetAmountMinimum: '100',
+            targetChainId: CHAIN_ID_ARBITRUM,
+            targetTokenAddress: ARBITRUM_USDC_ADDRESS,
+          },
+          {
+            from: '0xabc' as Hex,
+            sourceBalanceRaw: '100',
+            sourceChainId: CHAIN_ID_ARBITRUM,
+            sourceTokenAddress: ARBITRUM_USDC_ADDRESS,
+            sourceTokenAmount: '100',
+            targetAmountMinimum: '0',
+            targetChainId: CHAIN_ID_ARBITRUM,
+            targetTokenAddress:
+              '0x0000000000000000000000000000000000000000' as Hex,
+          },
+        ],
+      }),
+    ).toBe(true);
+  });
+
+  it('returns false when all requests are synthetic zero-minimum legs', () => {
+    const strategy = new AcrossStrategy();
+    expect(
+      strategy.supports({
+        ...baseRequest,
+        requests: [
+          {
+            from: '0xabc' as Hex,
+            sourceBalanceRaw: '100',
+            sourceChainId: CHAIN_ID_ARBITRUM,
+            sourceTokenAddress: ARBITRUM_USDC_ADDRESS,
+            sourceTokenAmount: '100',
+            targetAmountMinimum: '0',
+            targetChainId: CHAIN_ID_ARBITRUM,
+            targetTokenAddress:
+              '0x0000000000000000000000000000000000000000' as Hex,
+          },
+        ],
+      }),
+    ).toBe(false);
+  });
+
+  it('treats max-amount requests as actionable even with zero minimums', () => {
+    const strategy = new AcrossStrategy();
+    expect(
+      strategy.supports({
+        ...baseRequest,
+        requests: [
+          {
+            from: '0xabc' as Hex,
+            isMaxAmount: true,
+            sourceBalanceRaw: '100',
+            sourceChainId: '0x1' as Hex,
+            sourceTokenAddress: '0xabc' as Hex,
+            sourceTokenAmount: '100',
+            targetAmountMinimum: '0',
+            targetChainId: '0x2' as Hex,
+            targetTokenAddress: '0xdef' as Hex,
+          },
+        ],
+      }),
+    ).toBe(true);
+  });
+
   it('returns false for unsupported perps deposits', () => {
     const strategy = new AcrossStrategy();
     expect(
@@ -160,6 +240,96 @@ describe('AcrossStrategy', () => {
             targetTokenAddress: '0xdef' as Hex,
           },
         ],
+      }),
+    ).toBe(false);
+  });
+
+  it('returns false when the transaction has an authorization list', () => {
+    const strategy = new AcrossStrategy();
+    expect(
+      strategy.supports({
+        ...baseRequest,
+        transaction: {
+          ...TRANSACTION_META_MOCK,
+          txParams: {
+            ...TRANSACTION_META_MOCK.txParams,
+            authorizationList: [{ address: '0xabc' as Hex }],
+          },
+        } as TransactionMeta,
+      }),
+    ).toBe(false);
+  });
+
+  it('does not support authorization lists during request support checks', () => {
+    const strategy = new AcrossStrategy();
+    const result = strategy.supports({
+      ...baseRequest,
+      transaction: {
+        ...TRANSACTION_META_MOCK,
+        txParams: {
+          ...TRANSACTION_META_MOCK.txParams,
+          authorizationList: [{ address: '0xabc' as Hex }],
+        },
+      } as TransactionMeta,
+    });
+
+    expect(result).toBe(false);
+  });
+
+  it('does not support quotes that require first-time 7702 upgrades', () => {
+    const strategy = new AcrossStrategy();
+    const quote = {
+      original: {
+        metamask: {
+          gasLimits: [],
+          is7702: true,
+          requiresAuthorizationList: true,
+        },
+      },
+    } as TransactionPayQuote<AcrossQuote>;
+
+    const result = strategy.checkQuoteSupport({
+      messenger,
+      quotes: [quote],
+      transaction: TRANSACTION_META_MOCK,
+    });
+
+    expect(result).toBe(false);
+  });
+
+  it('supports 7702 quotes that do not require an authorization list', () => {
+    const strategy = new AcrossStrategy();
+    const quote = {
+      original: {
+        metamask: {
+          gasLimits: [],
+          is7702: true,
+        },
+      },
+    } as TransactionPayQuote<AcrossQuote>;
+
+    expect(
+      strategy.checkQuoteSupport({
+        messenger,
+        quotes: [quote],
+        transaction: TRANSACTION_META_MOCK,
+      }),
+    ).toBe(true);
+  });
+
+  it('returns false for unsupported destination actions', () => {
+    const strategy = new AcrossStrategy();
+    expect(
+      strategy.supports({
+        ...baseRequest,
+        transaction: {
+          ...TRANSACTION_META_MOCK,
+          txParams: {
+            ...TRANSACTION_META_MOCK.txParams,
+            data: '0x12345678' as Hex,
+            to: '0xdef' as Hex,
+          },
+        } as TransactionMeta,
       }),
     ).toBe(false);
   });

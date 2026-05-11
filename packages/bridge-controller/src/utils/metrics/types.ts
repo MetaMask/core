@@ -20,6 +20,7 @@ export type RequestParams = {
   token_symbol_destination: string | null;
   token_address_source: CaipAssetType;
   token_address_destination: CaipAssetType | null;
+  token_security_type_destination: string | null;
 };
 
 export type AccountHardwareType =
@@ -89,7 +90,9 @@ export type QuoteWarning =
   | 'insufficient_gas_balance'
   | 'insufficient_gas_for_selected_quote'
   | 'insufficient_balance'
+  | 'market_closed'
   | 'price_impact'
+  | 'quote_expired'
   | 'tx_alert';
 
 /**
@@ -120,6 +123,7 @@ type RequiredEventContextFromClientBase = {
     token_symbol_destination: RequestParams['token_symbol_destination'];
     token_address_source: RequestParams['token_address_source'];
     token_address_destination: RequestParams['token_address_destination'];
+    token_security_type_destination: RequestParams['token_security_type_destination'];
     chain_id_source: RequestParams['chain_id_source'];
     chain_id_destination: RequestParams['chain_id_destination'];
   } & Pick<RequestMetadata, 'security_warnings'>;
@@ -152,8 +156,11 @@ type RequiredEventContextFromClientBase = {
       RequestParams,
       | 'token_symbol_source'
       | 'token_symbol_destination'
+      | 'token_address_source'
+      | 'token_address_destination'
       | 'chain_id_source'
       | 'chain_id_destination'
+      | 'token_security_type_destination'
     > & {
       action_type: MetricsActionType;
     };
@@ -182,7 +189,11 @@ type RequiredEventContextFromClientBase = {
         > &
         Pick<
           RequestParams,
-          'token_symbol_source' | 'token_symbol_destination'
+          | 'token_symbol_source'
+          | 'token_symbol_destination'
+          | 'token_address_source'
+          | 'token_address_destination'
+          | 'token_security_type_destination'
         > & { error_message: string }) // Tx failed after confirmation
     | (RequestParams &
         RequestMetadata &

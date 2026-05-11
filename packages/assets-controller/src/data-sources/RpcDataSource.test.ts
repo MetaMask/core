@@ -213,10 +213,16 @@ async function withController<ReturnValue>(
     registerRpcDataSourceActions(rootMessenger, { networkState });
   }
 
+  const defaultNativeAssetMap: Record<ChainId, Caip19AssetId> = {
+    [MOCK_CHAIN_ID_CAIP]: `${MOCK_CHAIN_ID_CAIP}/slip44:60`,
+  };
+
   const onActiveChainsUpdated = options.onActiveChainsUpdated ?? jest.fn();
   const controller = new RpcDataSource({
     messenger: assetsControllerMessenger,
     onActiveChainsUpdated,
+    getNativeAssetForChain: (chainId: ChainId): Caip19AssetId | undefined =>
+      defaultNativeAssetMap[chainId],
     ...options,
   });
 
@@ -265,6 +271,7 @@ describe('createRpcDataSource', () => {
     const source = createRpcDataSource({
       messenger: assetsControllerMessenger,
       onActiveChainsUpdated: jest.fn(),
+      getNativeAssetForChain: jest.fn(),
     });
     expect(source).toBeInstanceOf(RpcDataSource);
     source.destroy();
@@ -1718,6 +1725,7 @@ describe('RpcDataSource', () => {
       const controller = new RpcDataSource({
         messenger: assetsControllerMessenger,
         onActiveChainsUpdated: jest.fn(),
+        getNativeAssetForChain: jest.fn(),
       });
       controller.destroy();
       expect(controller).toBeDefined();

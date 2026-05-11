@@ -8,7 +8,6 @@ import type {
   NetworkState,
   NetworkStatus,
 } from '@metamask/network-controller';
-import type { NetworkEnablementControllerGetStateAction } from '@metamask/network-enablement-controller';
 import type {
   TransactionControllerIncomingTransactionsReceivedEvent,
   TransactionControllerTransactionConfirmedEvent,
@@ -53,6 +52,7 @@ import {
 import type {
   BalancePollingInput,
   DetectionPollingInput,
+  TokenListQueryClient,
 } from './evm-rpc-services';
 import type {
   Address,
@@ -72,8 +72,7 @@ const log = createModuleLogger(projectLogger, CONTROLLER_NAME);
 export type RpcDataSourceAllowedActions =
   | NetworkControllerGetStateAction
   | NetworkControllerGetNetworkClientByIdAction
-  | AssetsControllerGetStateAction
-  | NetworkEnablementControllerGetStateAction;
+  | AssetsControllerGetStateAction;
 
 // Allowed events that RpcDataSource can subscribe to
 export type RpcDataSourceAllowedEvents =
@@ -105,6 +104,12 @@ export type RpcDataSourceConfig = {
   /** Function returning whether onboarding is complete. When false, fetch and subscribe are no-ops. Defaults to () => true. */
   isOnboarded?: () => boolean;
   timeout?: number;
+  /**
+   * Optional shared TanStack Query client used by `TokensApiClient` to cache
+   * token-list responses across detector polls. Pass `apiPlatformClient.queryClient`
+   * to share the cache with other API clients in the host app.
+   */
+  queryClient?: TokenListQueryClient;
 };
 
 export type RpcDataSourceOptions = {
@@ -116,6 +121,8 @@ export type RpcDataSourceOptions = {
     chains: ChainId[],
     previousChains: ChainId[],
   ) => void;
+  /** Resolves CAIP-2 chain ID to CAIP-19 native asset ID from the cached native asset map. */
+  getNativeAssetForChain: (chainId: ChainId) => Caip19AssetId;
   /** Request timeout in ms */
   timeout?: number;
   /** Balance polling interval in ms (default: 30s) */
@@ -128,6 +135,11 @@ export type RpcDataSourceOptions = {
   useExternalService?: () => boolean;
   /** Function returning whether onboarding is complete. When false, fetch and subscribe are no-ops. Defaults to () => true. */
   isOnboarded?: () => boolean;
+  /**
+   * Optional shared TanStack Query client used by `TokensApiClient` to cache
+   * token-list responses across detector polls.
+   */
+  queryClient?: TokenListQueryClient;
 };
 
 /**
@@ -197,6 +209,8 @@ export class RpcDataSource extends AbstractDataSource<
     previousChains: ChainId[],
   ) => void;
 
+  readonly #getNativeAssetForChain: (chainId: ChainId) => Caip19AssetId;
+
   readonly #timeout: number;
 
   readonly #tokenDetectionEnabled: () => boolean;
@@ -232,6 +246,7 @@ export class RpcDataSource extends AbstractDataSource<
     super(CONTROLLER_NAME, { activeChains: [] });
     this.#messenger = options.messenger;
     this.#onActiveChainsUpdated = options.onActiveChainsUpdated;
+    this.#getNativeAssetForChain = options.getNativeAssetForChain;
     this.#timeout = options.timeout ?? 10_000;
     this.#tokenDetectionEnabled =
       options.tokenDetectionEnabled ?? ((): boolean => true);
@@ -262,6 +277,7 @@ export class RpcDataSource extends AbstractDataSource<
         _action: 'AssetsController:getState',
       ): {
         assetsBalance: Record<string, Record<string, { amount: string }>>;
+        customAssets?: Record<string, string[]>;
       } => {
         const state = this.#messenger.call('AssetsController:getState');
         return {
@@ -269,6 +285,7 @@ export class RpcDataSource extends AbstractDataSource<
             string,
             Record<string, { amount: string }>
           >,
+          customAssets: (state.customAssets ?? {}) as Record<string, string[]>,
         };
       },
     };
@@ -277,7 +294,14 @@ export class RpcDataSource extends AbstractDataSource<
     this.#balanceFetcher = new BalanceFetcher(
       this.#multicallClient,
       balanceFetcherMessenger,
-      { pollingInterval: balanceInterval },
+      {
+        pollingInterval: balanceInterval,
+        isNativeAsset: (assetId: Caip19AssetId): boolean => {
+          const { chainId } = parseCaipAssetType(assetId);
+          const nativeId = this.#getNativeAssetForChain(chainId);
+          return nativeId?.toLowerCase() === assetId.toLowerCase();
+        },
+      },
     );
     // Polling controller awaits this callback; rejections must not become unhandled.
     this.#balanceFetcher.setOnBalanceUpdate(async (result) => {
@@ -288,8 +312,13 @@ export class RpcDataSource extends AbstractDataSource<
       }
     });
 
-    // Initialize TokenDetector with polling interval
-    const tokensApiClient = new TokensApiClient();
+    // Initialize TokenDetector with polling interval. The TokensApiClient is
+    // configured with the shared TanStack Query client (when the controller
+    // provides one) so concurrent detector polls/accounts/instances share a
+    // single in-flight request and cached result per chain.
+    const tokensApiClient = new TokensApiClient({
+      queryClient: options.queryClient,
+    });
     this.#tokenDetector = new TokenDetector(
       this.#multicallClient,
       tokensApiClient,
@@ -342,26 +371,34 @@ export class RpcDataSource extends AbstractDataSource<
     const assetsInfo: Record<Caip19AssetId, AssetMetadata> = {};
     const existingMetadata = this.#getExistingAssetsMetadata();
 
+    const nativeAssetId = this.#getNativeAssetForChain(chainId);
     for (const balance of balances) {
-      const isNative = balance.assetId.includes('/slip44:');
+      const existingMeta = existingMetadata[balance.assetId];
+      const isNative =
+        existingMeta?.type === 'native' ||
+        balance.assetId.toLowerCase() === nativeAssetId?.toLowerCase();
       if (isNative) {
-        const chainStatus = this.#chainStatuses[chainId];
-
-        if (chainStatus) {
-          assetsInfo[balance.assetId] = {
-            type: 'native',
-            symbol: chainStatus.nativeCurrency,
-            name: chainStatus.nativeCurrency,
-            decimals: 18,
-          };
-        }
-      } else {
-        // For ERC20 tokens, use existing metadata from state if available.
-        // Unknown ERC-20s are omitted until TokenDataSource enriches them.
-        const existingMeta = existingMetadata[balance.assetId];
+        // Prefer existing (richer) metadata in state — it may have been
+        // enriched by the price/info API with image, description, etc.
+        // Only emit a minimal stub when there's nothing in state yet,
+        // so we don't clobber that richer metadata on every balance refresh.
         if (existingMeta) {
           assetsInfo[balance.assetId] = existingMeta;
+        } else {
+          const chainStatus = this.#chainStatuses[chainId];
+          if (chainStatus) {
+            assetsInfo[balance.assetId] = {
+              type: 'native',
+              symbol: chainStatus.nativeCurrency,
+              name: chainStatus.nativeCurrency,
+              decimals: 18,
+            };
+          }
         }
+      } else if (existingMeta) {
+        // For ERC20 tokens, use existing metadata from state if available.
+        // Unknown ERC-20s are omitted until TokenDataSource enriches them.
+        assetsInfo[balance.assetId] = existingMeta;
       }
     }
 
@@ -906,7 +943,7 @@ export class RpcDataSource extends AbstractDataSource<
         const hexChainId = caipChainIdToHex(chainId);
 
         // Build a single AssetFetchEntry[] for native + custom ERC-20s
-        const nativeAssetId = this.#buildNativeAssetId(chainId);
+        const nativeAssetId = this.#getNativeAssetForChain(chainId);
         const assetsToFetch: AssetFetchEntry[] = [
           { assetId: nativeAssetId, address: ZERO_ADDRESS },
         ];
@@ -1006,15 +1043,24 @@ export class RpcDataSource extends AbstractDataSource<
           }
           assetsBalance[accountId][nativeAssetId] = { amount: '0' };
 
-          // Even on error, include native token metadata
-          const chainStatus = this.#chainStatuses[chainId];
-          if (chainStatus) {
-            assetsInfo[nativeAssetId] = {
-              type: 'native',
-              symbol: chainStatus.nativeCurrency,
-              name: chainStatus.nativeCurrency,
-              decimals: 18,
-            };
+          // Even on error, include native token metadata. Prefer the richer
+          // metadata already in state (e.g. enriched with image/description
+          // by the price/info API) and fall back to a minimal stub only when
+          // nothing is in state yet, so we don't clobber that richer metadata.
+          const existingNativeMeta =
+            this.#getExistingAssetsMetadata()[nativeAssetId];
+          if (existingNativeMeta) {
+            assetsInfo[nativeAssetId] = existingNativeMeta;
+          } else {
+            const chainStatus = this.#chainStatuses[chainId];
+            if (chainStatus) {
+              assetsInfo[nativeAssetId] = {
+                type: 'native',
+                symbol: chainStatus.nativeCurrency,
+                name: chainStatus.nativeCurrency,
+                decimals: 18,
+              };
+            }
           }
 
           if (!failedChains.includes(chainId)) {
@@ -1295,12 +1341,20 @@ export class RpcDataSource extends AbstractDataSource<
           chainId: hexChainId,
           accountId,
           accountAddress: address as Address,
+          ...(request.customAssetsOnly === true
+            ? { customAssetsOnly: true }
+            : {}),
         };
         const balanceToken = this.#balanceFetcher.startPolling(balanceInput);
         balancePollingTokens.push(balanceToken);
 
-        // Start detection polling if enabled and external services allowed
-        if (this.#tokenDetectionEnabled() && this.#useExternalService()) {
+        // Token detection is only relevant for "regular" subscriptions —
+        // a customAssetsOnly subscription should never run detection.
+        if (
+          request.customAssetsOnly !== true &&
+          this.#tokenDetectionEnabled() &&
+          this.#useExternalService()
+        ) {
           const detectionInput: DetectionPollingInput = {
             chainId: hexChainId,
             accountId,
@@ -1354,20 +1408,6 @@ export class RpcDataSource extends AbstractDataSource<
       this.#activeSubscriptions.delete(subscriptionId);
       log('Unsubscribed and stopped polling', { subscriptionId });
     }
-  }
-
-  /**
-   * Build the native asset ID for a given chain using NetworkEnablementController state.
-   *
-   * @param chainId - The CAIP-2 chain ID (e.g., "eip155:1")
-   * @returns The CAIP-19 native asset ID (e.g., "eip155:1/slip44:60")
-   */
-  #buildNativeAssetId(chainId: ChainId): Caip19AssetId {
-    const { nativeAssetIdentifiers } = this.#messenger.call(
-      'NetworkEnablementController:getState',
-    );
-
-    return nativeAssetIdentifiers[chainId] ?? `${chainId}/slip44:60`;
   }
 
   /**

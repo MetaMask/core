@@ -79,9 +79,11 @@ export const DEFAULT_FEATURE_FLAG_CONFIG: FeatureFlagsPlatformConfig = {
 };
 
 export const DEFAULT_BRIDGE_CONTROLLER_STATE: BridgeControllerState = {
-  quoteRequest: {
-    srcTokenAddress: AddressZero,
-  },
+  quoteRequest: [
+    {
+      srcTokenAddress: AddressZero,
+    },
+  ],
   quotesInitialLoadTime: null,
   quotes: [],
   quotesLastFetched: null,
@@ -91,6 +93,7 @@ export const DEFAULT_BRIDGE_CONTROLLER_STATE: BridgeControllerState = {
   assetExchangeRates: {},
   minimumBalanceForRentExemptionInLamports: '0',
   tokenWarnings: [],
+  tokenSecurityTypeDestination: null,
   quoteStreamComplete: null,
 };
 

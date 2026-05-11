@@ -29,8 +29,8 @@ describe('native-token-stream rule', () => {
   const expiryCaveat = {
     enforcer: TimestampEnforcer,
     terms: createTimestampTerms({
-      timestampAfterThreshold: 0,
-      timestampBeforeThreshold: 1720000,
+      afterThreshold: 0,
+      beforeThreshold: 1720000,
     }),
     args: '0x' as const,
   };
@@ -48,8 +48,8 @@ describe('native-token-stream rule', () => {
       {
         enforcer: TimestampEnforcer,
         terms: createTimestampTerms({
-          timestampAfterThreshold: 0,
-          timestampBeforeThreshold: 9999,
+          afterThreshold: 0,
+          beforeThreshold: 9999,
         }),
         args: '0x' as const,
       },
@@ -280,8 +280,8 @@ describe('native-token-stream rule', () => {
       {
         enforcer: TimestampEnforcer,
         terms: createTimestampTerms({
-          timestampAfterThreshold: 0,
-          timestampBeforeThreshold: 0,
+          afterThreshold: 0,
+          beforeThreshold: 0,
         }),
         args: '0x' as const,
       },
@@ -319,8 +319,8 @@ describe('native-token-stream rule', () => {
       {
         enforcer: TimestampEnforcer,
         terms: createTimestampTerms({
-          timestampAfterThreshold: 1,
-          timestampBeforeThreshold: 1720000,
+          afterThreshold: 1,
+          beforeThreshold: 1720000,
         }),
         args: '0x' as const,
       },
