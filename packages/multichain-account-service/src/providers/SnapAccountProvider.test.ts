@@ -173,8 +173,8 @@ const setup = ({
       },
       handleRequest: jest.fn(),
     },
-    MultichainAccountService: {
-      ensureCanUseSnapPlatform: jest.fn(),
+    SnapAccountService: {
+      ensureReady: jest.fn(),
     },
   };
 
@@ -185,13 +185,11 @@ const setup = ({
   mocks.AccountsController.listMultichainAccounts.mockReturnValue(accounts);
 
   messenger.registerActionHandler(
-    'MultichainAccountService:ensureCanUseSnapPlatform',
-    mocks.MultichainAccountService.ensureCanUseSnapPlatform,
+    'SnapAccountService:ensureReady',
+    mocks.SnapAccountService.ensureReady,
   );
   // Make the platform ready right away (having a resolved promise is enough).
-  mocks.MultichainAccountService.ensureCanUseSnapPlatform.mockResolvedValue(
-    undefined,
-  );
+  mocks.SnapAccountService.ensureReady.mockResolvedValue(undefined);
 
   messenger.registerActionHandler(
     'SnapController:handleRequest',
@@ -239,10 +237,7 @@ const setup = ({
       ),
   );
 
-  const serviceMessenger = getMultichainAccountServiceMessenger(messenger, {
-    // We need this extra action to be able to mock it.
-    actions: ['MultichainAccountService:ensureCanUseSnapPlatform'],
-  });
+  const serviceMessenger = getMultichainAccountServiceMessenger(messenger);
   const config = deepmerge(
     DEFAULT_TEST_CONFIG,
     configOverride as SnapAccountProviderConfig,
@@ -954,15 +949,13 @@ describe('SnapAccountProvider', () => {
     });
   });
 
-  describe('ensureCanUseSnapPlatform', () => {
-    it('delegates Snap platform readiness check to SnapPlatformWatcher', async () => {
+  describe('ensureReady', () => {
+    it('delegates Snap platform readiness check to SnapAccountService:ensureReady', async () => {
       const { provider, mocks } = setup();
 
-      await provider.ensureCanUseSnapPlatform();
+      await provider.ensureReady();
 
-      expect(
-        mocks.MultichainAccountService.ensureCanUseSnapPlatform,
-      ).toHaveBeenCalledTimes(1);
+      expect(mocks.SnapAccountService.ensureReady).toHaveBeenCalledTimes(1);
     });
   });
 });

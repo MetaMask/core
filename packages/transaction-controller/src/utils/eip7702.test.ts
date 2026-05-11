@@ -414,6 +414,23 @@ describe('EIP-7702 Utils', () => {
       );
     });
 
+    it('returns true for Money Keyring', () => {
+      getKeyringStateMock.mockReturnValue({
+        isUnlocked: true,
+        keyrings: [
+          {
+            type: 'Money Keyring',
+            accounts: [ADDRESS_MOCK],
+            metadata: { id: 'money', name: 'Money Keyring' },
+          },
+        ],
+      });
+
+      expect(doesAccountSupportEIP7702(controllerMessenger, ADDRESS_MOCK)).toBe(
+        true,
+      );
+    });
+
     it('returns false for unsupported keyring type', () => {
       getKeyringStateMock.mockReturnValue({
         isUnlocked: true,

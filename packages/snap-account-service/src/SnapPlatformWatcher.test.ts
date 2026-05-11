@@ -1,18 +1,44 @@
 /* eslint-disable no-void */
 import { KeyringTypes } from '@metamask/keyring-controller';
-import { SnapControllerState } from '@metamask/snaps-controllers';
+import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
+import type {
+  MockAnyNamespace,
+  MessengerActions,
+  MessengerEvents,
+} from '@metamask/messenger';
+import type { SnapControllerState } from '@metamask/snaps-controllers';
 import { createDeferredPromise } from '@metamask/utils';
 
-import {
-  getMultichainAccountServiceMessenger,
-  getRootMessenger,
-} from '../tests';
-import type { RootMessenger } from '../tests';
-import { MultichainAccountServiceMessenger } from '../types';
+import type { SnapAccountServiceMessenger } from './SnapAccountService';
 import {
   DEFAULT_SNAP_KEYRING_WAIT_TIMEOUT_MS,
   SnapPlatformWatcher,
 } from './SnapPlatformWatcher';
+
+type RootMessenger = Messenger<
+  MockAnyNamespace,
+  MessengerActions<SnapAccountServiceMessenger>,
+  MessengerEvents<SnapAccountServiceMessenger>
+>;
+
+function getRootMessenger(): RootMessenger {
+  return new Messenger({ namespace: MOCK_ANY_NAMESPACE });
+}
+
+function getMessenger(
+  rootMessenger: RootMessenger,
+): SnapAccountServiceMessenger {
+  const messenger = new Messenger({
+    namespace: 'SnapAccountService',
+    parent: rootMessenger,
+  });
+  rootMessenger.delegate({
+    messenger,
+    actions: ['SnapController:getState', 'KeyringController:getState'],
+    events: ['SnapController:stateChange', 'KeyringController:stateChange'],
+  });
+  return messenger;
+}
 
 function setup(
   {
@@ -24,7 +50,7 @@ function setup(
   },
 ): {
   rootMessenger: RootMessenger;
-  messenger: MultichainAccountServiceMessenger;
+  messenger: SnapAccountServiceMessenger;
   mocks: {
     // eslint-disable-next-line @typescript-eslint/naming-convention
     SnapController: {
@@ -50,19 +76,21 @@ function setup(
     'SnapController:getState',
     mocks.SnapController.getState,
   );
-  mocks.SnapController.getState.mockReturnValue({ isReady: false });
+  mocks.SnapController.getState.mockReturnValue({
+    isReady: false,
+  } as SnapControllerState);
 
   rootMessenger.registerActionHandler(
     'KeyringController:getState',
     mocks.KeyringController.getState,
   );
-  // By default, Snap keyring exists so ensureCanUseSnapPlatform can complete (including #waitForSnapKeyring).
+  // By default, Snap keyring exists so ensureCanUseSnapPlatform can complete
+  // (including #waitForSnapKeyring) without arming the timeout.
   mocks.KeyringController.getState.mockReturnValue({
     keyrings: [{ type: KeyringTypes.snap }],
   });
 
-  const messenger = getMultichainAccountServiceMessenger(rootMessenger);
-
+  const messenger = getMessenger(rootMessenger);
   const watcher = new SnapPlatformWatcher(messenger);
 
   return { rootMessenger, messenger, watcher, mocks };
@@ -93,7 +121,6 @@ describe('SnapPlatformWatcher', () => {
       });
 
       expect(watcher).toBeDefined();
-      // isReady reflects SnapController state, not the callback (both are required).
       expect(watcher.isReady).toBe(false);
     });
   });
@@ -262,27 +289,17 @@ describe('SnapPlatformWatcher', () => {
 
       expect(await watcher.ensureCanUseSnapPlatform()).toBeUndefined();
 
-      // When keyring exists, getState is used to check for Snap keyring, so we return without throwing.
+      // When keyring exists, getState is used to check for Snap keyring, so we
+      // return without throwing.
       expect(mocks.KeyringController.getState).toHaveBeenCalled();
     });
 
     it('resolves when Snap keyring appears via stateChange (listener path)', async () => {
-      const rootMessenger = getRootMessenger();
-      const mocks = {
-        SnapController: { getState: jest.fn() },
-        KeyringController: { getState: jest.fn() },
-      };
-      mocks.SnapController.getState.mockReturnValue({ isReady: true });
+      const { messenger, mocks } = setup();
+      mocks.SnapController.getState.mockReturnValue({
+        isReady: true,
+      } as SnapControllerState);
       mocks.KeyringController.getState.mockReturnValue({ keyrings: [] });
-      rootMessenger.registerActionHandler(
-        'SnapController:getState',
-        mocks.SnapController.getState,
-      );
-      rootMessenger.registerActionHandler(
-        'KeyringController:getState',
-        mocks.KeyringController.getState,
-      );
-      const messenger = getMultichainAccountServiceMessenger(rootMessenger);
       const subscribeSpy = jest.spyOn(messenger, 'subscribe');
       const watcher = new SnapPlatformWatcher(messenger);
 
@@ -302,9 +319,7 @@ describe('SnapPlatformWatcher', () => {
         );
       }
       const listener = stateChangeCall[1] as (
-        keyrings: {
-          type: string;
-        }[],
+        keyrings: { type: string }[],
       ) => void;
       listener([{ type: KeyringTypes.snap }]);
 
@@ -312,22 +327,11 @@ describe('SnapPlatformWatcher', () => {
     });
 
     it('resolves when Snap keyring appears via published stateChange (selector path)', async () => {
-      const rootMessenger = getRootMessenger();
-      const mocks = {
-        SnapController: { getState: jest.fn() },
-        KeyringController: { getState: jest.fn() },
-      };
-      mocks.SnapController.getState.mockReturnValue({ isReady: true });
+      const { rootMessenger, messenger, mocks } = setup();
+      mocks.SnapController.getState.mockReturnValue({
+        isReady: true,
+      } as SnapControllerState);
       mocks.KeyringController.getState.mockReturnValue({ keyrings: [] });
-      rootMessenger.registerActionHandler(
-        'SnapController:getState',
-        mocks.SnapController.getState,
-      );
-      rootMessenger.registerActionHandler(
-        'KeyringController:getState',
-        mocks.KeyringController.getState,
-      );
-      const messenger = getMultichainAccountServiceMessenger(rootMessenger);
       const watcher = new SnapPlatformWatcher(messenger);
 
       const ensurePromise = watcher.ensureCanUseSnapPlatform();
@@ -353,24 +357,13 @@ describe('SnapPlatformWatcher', () => {
     });
 
     it('resolves when getState throws but stateChange later delivers Snap keyring (covers #hasSnapKeyring catch path)', async () => {
-      const rootMessenger = getRootMessenger();
-      const mocks = {
-        SnapController: { getState: jest.fn() },
-        KeyringController: { getState: jest.fn() },
-      };
-      mocks.SnapController.getState.mockReturnValue({ isReady: true });
+      const { messenger, mocks } = setup();
+      mocks.SnapController.getState.mockReturnValue({
+        isReady: true,
+      } as SnapControllerState);
       mocks.KeyringController.getState.mockImplementation(() => {
         throw new Error('KeyringController locked');
       });
-      rootMessenger.registerActionHandler(
-        'SnapController:getState',
-        mocks.SnapController.getState,
-      );
-      rootMessenger.registerActionHandler(
-        'KeyringController:getState',
-        mocks.KeyringController.getState,
-      );
-      const messenger = getMultichainAccountServiceMessenger(rootMessenger);
       const subscribeSpy = jest.spyOn(messenger, 'subscribe');
       const watcher = new SnapPlatformWatcher(messenger);
 
@@ -390,9 +383,7 @@ describe('SnapPlatformWatcher', () => {
         );
       }
       const listener = stateChangeCall[1] as (
-        keyrings: {
-          type: string;
-        }[],
+        keyrings: { type: string }[],
       ) => void;
       listener([{ type: KeyringTypes.snap }]);
 

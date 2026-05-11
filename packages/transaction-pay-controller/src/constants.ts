@@ -2,6 +2,7 @@ import type { Hex } from '@metamask/utils';
 
 export const CONTROLLER_NAME = 'TransactionPayController';
 export const CHAIN_ID_ARBITRUM = '0xa4b1' as Hex;
+export const CHAIN_ID_MAINNET = '0x1' as Hex;
 export const CHAIN_ID_POLYGON = '0x89' as Hex;
 export const CHAIN_ID_HYPERCORE = '0x539' as Hex;
 
@@ -18,6 +19,10 @@ export const HYPERCORE_USDC_ADDRESS = '0x00000000000000000000000000000000';
 
 export const HYPERCORE_USDC_DECIMALS = 8;
 export const USDC_DECIMALS = 6;
+
+export const SLIP44_COIN_TYPE_BY_CHAIN: Record<Hex, number> = {
+  [CHAIN_ID_POLYGON]: 966, // POL
+};
 
 export const STABLECOINS: Record<Hex, Hex[]> = {
   // Mainnet

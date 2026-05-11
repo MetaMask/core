@@ -9,10 +9,58 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Bump `@metamask/account-tree-controller` from `^7.2.0` to `^7.3.0` ([#8722](https://github.com/MetaMask/core/pull/8722))
+- Bump `@metamask/keyring-controller` from `^25.4.0` to `^25.5.0` ([#8722](https://github.com/MetaMask/core/pull/8722))
+- Bump `@metamask/multichain-account-service` from `^8.0.1` to `^9.0.0` ([#8722](https://github.com/MetaMask/core/pull/8722))
+- Bump `@metamask/permission-controller` from `^13.0.0` to `^13.1.0` ([#8722](https://github.com/MetaMask/core/pull/8722))
+- Bump `@metamask/transaction-controller` from `^65.1.0` to `^65.2.0` ([#8722](https://github.com/MetaMask/core/pull/8722))
+
+## [106.0.0]
+
+### Added
+
+- Add `TokenListService`, a shared service for fetching and caching the token list per chain ([#8700](https://github.com/MetaMask/core/pull/8700))
+  - Wraps `@tanstack/query-core` to cache results in-memory for 4 hours per chain ID, matching `TokenListController`'s existing threshold.
+  - Multiple controllers sharing the same `TokenListService` instance share the same cache: only one HTTP request is made per chain per 4-hour window regardless of how many callers invoke `fetchTokensByChainId`.
+  - Exported from the package as `TokenListService` and `buildTokenListMap`.
+- Add `@tanstack/query-core` `^5.62.16` as a direct dependency ([#8700](https://github.com/MetaMask/core/pull/8700))
+- Expose missing public `AccountTrackerController` methods through its messenger ([#8693](https://github.com/MetaMask/core/pull/8693))
+  - The following actions are now available:
+    - `AccountTrackerController:refresh`
+    - `AccountTrackerController:syncBalanceWithAddresses`
+  - Corresponding action types are available as well.
+- Expose missing public `TokenBalancesController` methods through its messenger ([#8693](https://github.com/MetaMask/core/pull/8693))
+  - The following actions are now available:
+    - `TokenBalancesController:updateBalances`
+    - `TokenBalancesController:resetState`
+  - Corresponding action types are available as well.
+
+### Changed
+
+- **BREAKING:** `TokenDetectionController` now requires a `tokenListService: TokenListService` constructor option ([#8700](https://github.com/MetaMask/core/pull/8700))
+  - Token list data is fetched directly from `TokenListService` instead of reading `TokenListController` state on each detection pass.
+  - `GetTokenListState` has been removed from `AllowedActions` and `TokenListStateChange` has been removed from `AllowedEvents` on `TokenDetectionControllerMessenger`.
+- **BREAKING:** `TokensController` now requires a `tokenListService: TokenListService` constructor option ([#8700](https://github.com/MetaMask/core/pull/8700))
+  - `TokenListStateChange` has been removed from `AllowedEvents` on `TokensControllerMessenger`.
+  - Token `name` and `rwaData` enrichment now happens once at controller initialization instead of reactively on every `TokenListController:stateChange` event.
+- Bump `@metamask/transaction-controller` from `^65.0.0` to `^65.1.0` ([#8691](https://github.com/MetaMask/core/pull/8691))
+- Switch the default mUSD asset from upfront `allTokens` state seeding to detection-based discovery on Ethereum mainnet (`0x1`), Linea (`0xe708`), and Monad mainnet (`0x8f`) ([#8688](https://github.com/MetaMask/core/pull/8688))
+  - `TokenDetectionController` now merges mUSD into the in-memory token list cache for these chains so it is treated as a regular detection candidate, replacing the previous `start()`-time `TokensController:addTokens` call and the per-event re-seed runs.
+  - `TokenBalancesController` schedules mUSD for import on the same chains even when the Accounts API returns a zero balance, so users without a current mUSD balance still see the token.
+  - Drops Monad testnet (`0x279f`) from the default mUSD chain list.
 - Bump `@metamask/network-enablement-controller` from `^5.0.2` to `^5.1.0` ([#8665](https://github.com/MetaMask/core/pull/8665))
 - Bump `@metamask/keyring-controller` from `^25.3.0` to `^25.4.0` ([#8665](https://github.com/MetaMask/core/pull/8665))
 - Bump `@metamask/accounts-controller` from `^37.2.0` to `^38.0.0` ([#8665](https://github.com/MetaMask/core/pull/8665))
 - Bump `@metamask/account-tree-controller` from `^7.1.0` to `^7.2.0` ([#8665](https://github.com/MetaMask/core/pull/8665))
+
+### Removed
+
+- `TokenDetectionController` no longer restarts token detection when `TokenListController` publishes a `stateChange` event ([#8700](https://github.com/MetaMask/core/pull/8700))
+  - Detection is still triggered on wallet unlock, account change, network change, and preference changes; the extra restart that occurred whenever `TokenListController` refreshed its cache is gone.
+- Stop seeding mUSD directly into `TokensController` state and remove the related event subscriptions ([#8688](https://github.com/MetaMask/core/pull/8688))
+  - `TokensController` no longer subscribes to `KeyringController:unlock`, `AccountsController:accountAdded`, `AccountsController:selectedEvmAccountChange`, `NetworkController:networkAdded`, or `NetworkController:stateChange` for mUSD seeding purposes.
+  - `TokensControllerMessenger` no longer requires `NetworkControllerNetworkAddedEvent`, `AccountsControllerAccountAddedEvent`, or `KeyringControllerUnlockEvent` as allowed events.
+  - Detection-based discovery (see Changed) covers the same user-facing behavior on supported chains.
 
 ## [105.1.0]
 
@@ -3003,7 +3051,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Use Ethers for AssetsContractController ([#845](https://github.com/MetaMask/core/pull/845))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@105.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@106.0.0...HEAD
+[106.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@105.1.0...@metamask/assets-controllers@106.0.0
 [105.1.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@105.0.0...@metamask/assets-controllers@105.1.0
 [105.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@104.3.0...@metamask/assets-controllers@105.0.0
 [104.3.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@104.2.0...@metamask/assets-controllers@104.3.0

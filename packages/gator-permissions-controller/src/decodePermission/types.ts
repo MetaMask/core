@@ -99,6 +99,7 @@ export type ChecksumEnforcersByChainId = {
   timestampEnforcer: Hex;
   nonceEnforcer: Hex;
   allowedCalldataEnforcer: Hex;
+  allowedTargetsEnforcer: Hex;
   redeemerEnforcer: Hex;
 };
 

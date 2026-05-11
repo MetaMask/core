@@ -2,6 +2,7 @@
 
 import { Interface } from '@ethersproject/abi';
 import { toHex } from '@metamask/controller-utils';
+import { TransactionType } from '@metamask/transaction-controller';
 import type { TransactionMeta } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 import { createModuleLogger } from '@metamask/utils';
@@ -78,14 +79,18 @@ export async function getRelayQuotes(
 
   try {
     const normalizedRequests = requests
-      // Ignore gas fee token requests (which have both target=0 and source=0)
-      // but keep post-quote requests (identified by isPostQuote flag)
-      .filter(
-        (singleRequest) =>
-          singleRequest.targetAmountMinimum !== '0' ||
-          singleRequest.isPostQuote,
-      )
-      .map((singleRequest) => normalizeRequest(singleRequest));
+      .filter((singleRequest) => {
+        const hasTargetMinimum = singleRequest.targetAmountMinimum !== '0';
+        const isPostQuote = Boolean(singleRequest.isPostQuote);
+        const isExactInputRequest =
+          Boolean(singleRequest.isMaxAmount) &&
+          new BigNumber(singleRequest.sourceTokenAmount).gt(0);
+
+        return hasTargetMinimum || isPostQuote || isExactInputRequest;
+      })
+      .map((singleRequest) =>
+        normalizeRequest(singleRequest, request.transaction),
+      );
 
     log('Normalized requests', normalizedRequests);
 
@@ -344,10 +349,15 @@ async function processTransactions(
     requestBody.refundTo = request.from;
   }
 
+  const fundingRecipient = (transaction.txParams?.from as Hex) ?? request.from;
+
   requestBody.txs = [
     {
       to: request.targetTokenAddress,
-      data: buildTokenTransferData(request.from, request.targetAmountMinimum),
+      data: buildTokenTransferData(
+        fundingRecipient,
+        request.targetAmountMinimum,
+      ),
       value: '0x0',
     },
     {
@@ -362,14 +372,22 @@ async function processTransactions(
  * Normalizes requests for Relay.
  *
  * @param request - Quote request to normalize.
+ * @param transaction - Parent transaction metadata, used to gate
+ * Hyperliquid-specific rewrites on transaction type.
  * @returns Normalized request.
  */
-function normalizeRequest(request: QuoteRequest): QuoteRequest {
+function normalizeRequest(
+  request: QuoteRequest,
+  transaction: TransactionMeta,
+): QuoteRequest {
   const newRequest = {
     ...request,
   };
 
+  const isPerpsDeposit = transaction.type === TransactionType.perpsDeposit;
+
   const isHyperliquidDeposit =
+    isPerpsDeposit &&
     !request.isPostQuote &&
     request.targetChainId === CHAIN_ID_ARBITRUM &&
     request.targetTokenAddress.toLowerCase() ===

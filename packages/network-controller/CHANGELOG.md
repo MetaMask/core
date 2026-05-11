@@ -7,9 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **BREAKING:** Add `duration` and `traceId` to `NetworkController:rpcEndpointDegraded` and `NetworkController:rpcEndpointChainDegraded` event payloads ([#8455](https://github.com/MetaMask/core/pull/8455))
+  - `duration` contains the policy execution time in milliseconds when the request succeeded but was slow. It is `undefined` when retries were exhausted.
+  - `traceId` contains the value of the `x-trace-id` response header from the last request attempt, or `undefined` if the header was not present.
+  - This is breaking because if you're calling `messenger.subscribe` with a handler function you've explicitly typed, you will need to make sure to update that type to cover these two additional payload properties.
+
 ### Changed
 
-- Bump `@metamask/json-rpc-engine` from `^10.2.4` to `^10.3.0` ([#8661](https://github.com/MetaMask/core/pull/8661))
+- Bump `@metamask/json-rpc-engine` from `^10.2.4` to `^10.5.0` ([#8661](https://github.com/MetaMask/core/pull/8661), [#8746](https://github.com/MetaMask/core/pull/8746), [#8753](https://github.com/MetaMask/core/pull/8753))
 
 ## [30.1.0]
 
@@ -43,10 +50,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `NetworkControllerGetNetworkConfigurationByNetworkClientId` type is deprecated in favor of `NetworkControllerGetNetworkConfigurationByNetworkClientIdAction` ([#8350](https://github.com/MetaMask/core/pull/8350))
 - Deprecate `AbstractRpcService` and `RpcServiceRequestable` ([#8475](https://github.com/MetaMask/core/pull/8475))
   - There are no equivalents to these interfaces. If you need to take an "RPC-service-like" argument, it's best to declare which properties you're interested in rather than accepting the entire RPC service interface.
-
-### Fixed
-
-- Restore retries for failed requests even if the user is offline, preventing a bad user experience if the reported offline status is inaccurate or stuck ([#8623](https://github.com/MetaMask/core/pull/8623))
 
 ## [30.0.1]
 

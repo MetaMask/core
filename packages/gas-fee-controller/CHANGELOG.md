@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [26.2.0]
+
+### Added
+
+- Expose missing public `GasFeeController` methods through its messenger ([#8699](https://github.com/MetaMask/core/pull/8699))
+  - The following actions are now available:
+    - `GasFeeController:enableNonRPCGasFeeApis`
+    - `GasFeeController:disableNonRPCGasFeeApis`
+  - Corresponding action types are available as well.
+
 ### Changed
 
 - Bump `@metamask/messenger` from `^1.1.0` to `^1.2.0` ([#8373](https://github.com/MetaMask/core/pull/8373), [#8632](https://github.com/MetaMask/core/pull/8632))
@@ -135,10 +145,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Bump `@metamask/base-controller` from `^7.0.2` to `^8.0.0` ([#5079](https://github.com/MetaMask/core/pull/5079)), ([#5305](https://github.com/MetaMask/core/pull/5305))
-- Bump `@metamask/controller-utils` from `^11.4.4` to `^11.5.0` ([#5135](https://github.com/MetaMask/core/pull/5135)), ([#5272](https://github.com/MetaMask/core/pull/5272))
+- Bump `@metamask/base-controller` from `^7.0.2` to `^8.0.0` ([#5079](https://github.com/MetaMask/core/pull/5079), [#5305](https://github.com/MetaMask/core/pull/5305))
+- Bump `@metamask/controller-utils` from `^11.4.4` to `^11.5.0` ([#5135](https://github.com/MetaMask/core/pull/5135), [#5272](https://github.com/MetaMask/core/pull/5272))
 - Bump `@metamask/polling-controller` from `^12.0.2` to `^12.0.3` ([#5305](https://github.com/MetaMask/core/pull/5305))
-- Bump `@metamask/utils` from `^10.0.0` to `^11.1.0` ([#5080](https://github.com/MetaMask/core/pull/5080)), ([#5223](https://github.com/MetaMask/core/pull/5223))
+- Bump `@metamask/utils` from `^10.0.0` to `^11.1.0` ([#5080](https://github.com/MetaMask/core/pull/5080), [#5223](https://github.com/MetaMask/core/pull/5223))
 
 ## [22.0.2]
 
@@ -194,7 +204,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     ["Are the Types Wrong?"](https://arethetypeswrong.github.io/) tool as
     ["masquerading as CJS"](https://github.com/arethetypeswrong/arethetypeswrong.github.io/blob/main/docs/problems/FalseCJS.md).
     All of the ATTW checks now pass.
-- Remove chunk files ([#4648](https://github.com/MetaMask/core/pull/4648)).
+- Remove chunk files ([#4648](https://github.com/MetaMask/core/pull/4648))
   - Previously, the build tool we used to generate JavaScript files extracted
     common code to "chunk" files. While this was intended to make this package
     more tree-shakeable, it also made debugging more difficult for our
@@ -278,11 +288,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add nonRPCGasFeeApisDisabled property to the gas fee controller, allowing the user to specify that they want to prevent network request to gas estimate services, and only want gas estimates to be based on rpc requests (eth_feeHistory and eth_gasPrice) to the provider. ([#4094](https://github.com/MetaMask/core.git/pull/4094))
+- Add nonRPCGasFeeApisDisabled property to the gas fee controller, allowing the user to specify that they want to prevent network request to gas estimate services, and only want gas estimates to be based on rpc requests (eth_feeHistory and eth_gasPrice) to the provider. ([#4094](https://github.com/MetaMask/core/pull/4094))
 
 ### Fixed
 
-- Fix GasFeeController incorrectly setting globally selected state, so that state is only updated if the gasFeeEstimate fetched is for the currently selected network ([#4214](https://github.com/MetaMask/core.git/pull/4214))
+- Fix GasFeeController incorrectly setting globally selected state, so that state is only updated if the gasFeeEstimate fetched is for the currently selected network ([#4214](https://github.com/MetaMask/core/pull/4214))
 
 ## [15.0.0]
 
@@ -524,7 +534,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@26.1.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@26.2.0...HEAD
+[26.2.0]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@26.1.1...@metamask/gas-fee-controller@26.2.0
 [26.1.1]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@26.1.0...@metamask/gas-fee-controller@26.1.1
 [26.1.0]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@26.0.3...@metamask/gas-fee-controller@26.1.0
 [26.0.3]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@26.0.2...@metamask/gas-fee-controller@26.0.3
