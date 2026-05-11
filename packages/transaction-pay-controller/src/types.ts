@@ -265,6 +265,9 @@ export type TransactionFiatPayment = {
   /** Entered fiat amount for the selected payment method. */
   amountFiat?: string;
 
+  /** CAIP-19 asset id derived from the transaction type for the fiat on-ramp. */
+  caipAssetId?: string;
+
   /** Order identifier in normalized format (/providers/{provider}/orders/{id}). */
   orderId?: string;
 

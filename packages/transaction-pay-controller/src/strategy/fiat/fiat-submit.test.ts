@@ -180,11 +180,13 @@ function getFiatQuoteMock({
 
 function getRequest({
   orderId = ORDER_ID_MOCK,
+  rampsQuote = RAMPS_QUOTE_MOCK,
   order = getFiatOrderMock(),
   quotes = [getFiatQuoteMock()],
   transaction = TRANSACTION_MOCK,
 }: {
   orderId?: string;
+  rampsQuote?: RampsQuote | undefined;
   order?: RampsOrder;
   quotes?: TransactionPayQuote<FiatQuote>[];
   transaction?: TransactionMeta;
@@ -199,6 +201,7 @@ function getRequest({
           [transaction.id]: {
             fiatPayment: {
               orderId,
+              rampsQuote,
             },
             isLoading: false,
             tokens: [],
@@ -267,8 +270,8 @@ describe('submitFiatQuotes', () => {
 
     expect(callMock).toHaveBeenCalledWith(
       'RampsController:getOrder',
-      'transak',
-      'order-123',
+      'transak-native-staging',
+      ORDER_ID_MOCK,
       WALLET_ADDRESS_MOCK,
     );
     expect(getRelayQuotesMock).toHaveBeenCalledTimes(1);
@@ -315,13 +318,45 @@ describe('submitFiatQuotes', () => {
     );
   });
 
-  it('throws if order ID format is invalid', async () => {
+  it('throws if ramps quote is missing from fiat payment state', async () => {
+    const callMock = jest.fn((action: string) => {
+      if (action === 'TransactionPayController:getState') {
+        return {
+          transactionData: {
+            [TRANSACTION_ID_MOCK]: {
+              fiatPayment: {
+                orderId: ORDER_ID_MOCK,
+              },
+              isLoading: false,
+              tokens: [],
+            },
+          },
+        };
+      }
+      throw new Error(`Unexpected action: ${action}`);
+    });
+
+    const request: PayStrategyExecuteRequest<FiatQuote> = {
+      isSmartTransaction: () => false,
+      messenger: {
+        call: callMock,
+      } as unknown as PayStrategyExecuteRequest<FiatQuote>['messenger'],
+      quotes: [getFiatQuoteMock()],
+      transaction: TRANSACTION_MOCK,
+    };
+
+    await expect(submitFiatQuotes(request)).rejects.toThrow(
+      'Missing provider code for fiat submission',
+    );
+  });
+
+  it('throws if provider string format is invalid', async () => {
     const { request } = getRequest({
-      orderId: '/providers/transak/oops',
+      rampsQuote: { ...RAMPS_QUOTE_MOCK, provider: 'invalid' },
     });
 
     await expect(submitFiatQuotes(request)).rejects.toThrow(
-      'Invalid order ID format: /providers/transak/oops',
+      'Missing provider code for fiat submission',
     );
   });
 
@@ -370,7 +405,10 @@ describe('submitFiatQuotes', () => {
         return {
           transactionData: {
             [TRANSACTION_ID_MOCK]: {
-              fiatPayment: { orderId: ORDER_ID_MOCK },
+              fiatPayment: {
+                orderId: ORDER_ID_MOCK,
+                rampsQuote: RAMPS_QUOTE_MOCK,
+              },
               isLoading: false,
               tokens: [],
             },
@@ -417,7 +455,10 @@ describe('submitFiatQuotes', () => {
         return {
           transactionData: {
             [TRANSACTION_ID_MOCK]: {
-              fiatPayment: { orderId: ORDER_ID_MOCK },
+              fiatPayment: {
+                orderId: ORDER_ID_MOCK,
+                rampsQuote: RAMPS_QUOTE_MOCK,
+              },
               isLoading: false,
               tokens: [],
             },

@@ -57,28 +57,29 @@ export async function submitFiatQuotes(
   }
 
   const state = messenger.call('TransactionPayController:getState');
-  const orderId = state.transactionData[transactionId]?.fiatPayment?.orderId;
+  const fiatPayment = state.transactionData[transactionId]?.fiatPayment;
+  const orderId = fiatPayment?.orderId;
 
   if (!orderId) {
     throw new Error('Missing order ID for fiat submission');
   }
 
-  const parsedOrder = parseOrderId(orderId);
+  const providerCode = extractProviderCode(fiatPayment?.rampsQuote?.provider);
 
-  if (!parsedOrder) {
-    throw new Error(`Invalid order ID format: ${orderId}`);
+  if (!providerCode) {
+    throw new Error('Missing provider code for fiat submission');
   }
 
   log('Starting fiat order polling', {
     orderId,
-    providerCode: parsedOrder.providerCode,
+    providerCode,
     transactionId,
   });
 
   const order = await waitForOrderCompletion({
     messenger,
-    orderCode: parsedOrder.orderCode,
-    providerCode: parsedOrder.providerCode,
+    orderCode: orderId,
+    providerCode,
     transactionId,
     walletAddress,
   });
@@ -93,21 +94,18 @@ export async function submitFiatQuotes(
 }
 
 /**
- * Parses a normalized order ID string into its provider and order components.
+ * Extracts the provider code from a ramps provider string.
  *
- * @param orderId - Order ID in `/providers/{providerCode}/orders/{orderCode}` format.
- * @returns The parsed provider and order codes, or `null` if the format is invalid.
+ * @param provider - Provider string (e.g. `/providers/transak-native`).
+ * @returns The provider code, or `null` if the format is invalid.
  */
-function parseOrderId(
-  orderId: string,
-): { orderCode: string; providerCode: string } | null {
-  const parts = orderId.split('/').filter(Boolean);
-
-  if (parts.length < 4 || parts[0] !== 'providers' || parts[2] !== 'orders') {
+function extractProviderCode(provider: string | undefined): string | null {
+  if (!provider) {
     return null;
   }
 
-  return { orderCode: parts[3], providerCode: parts[1] };
+  const parts = provider.split('/').filter(Boolean);
+  return parts.length >= 2 && parts[0] === 'providers' ? parts[1] : null;
 }
 
 /**

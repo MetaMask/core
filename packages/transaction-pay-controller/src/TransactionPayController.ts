@@ -300,14 +300,14 @@ export class TransactionPayController extends BaseController<
         this.messenger,
       );
       if (fiatAsset) {
-        try {
-          this.messenger.call(
-            'RampsController:setSelectedToken',
-            buildCaipAssetType(fiatAsset.chainId, fiatAsset.address),
-          );
-        } catch {
-          // Intentionally no-op — tokens may not be loaded in RampsController yet.
-        }
+        this.#updateTransactionData(transactionId, (data) => {
+          if (data.fiatPayment) {
+            data.fiatPayment.caipAssetId = buildCaipAssetType(
+              fiatAsset.chainId,
+              fiatAsset.address,
+            );
+          }
+        });
       }
     }
 
