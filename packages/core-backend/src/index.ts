@@ -9,7 +9,7 @@ export {
   getCloseReason,
   WebSocketState,
   WebSocketEventType,
-} from './BackendWebSocketService';
+} from './ws/BackendWebSocketService';
 
 export type {
   BackendWebSocketServiceOptions,
@@ -24,7 +24,7 @@ export type {
   BackendWebSocketServiceConnectionStateChangedEvent,
   BackendWebSocketServiceEvents,
   BackendWebSocketServiceMessenger,
-} from './BackendWebSocketService';
+} from './ws/BackendWebSocketService';
 
 // ============================================================================
 // ACCOUNT ACTIVITY SERVICE
@@ -34,7 +34,7 @@ export {
   AccountActivityService,
   ACCOUNT_ACTIVITY_SERVICE_ALLOWED_ACTIONS,
   ACCOUNT_ACTIVITY_SERVICE_ALLOWED_EVENTS,
-} from './AccountActivityService';
+} from './ws/AccountActivityService';
 
 export type {
   SystemNotificationData,
@@ -49,7 +49,7 @@ export type {
   AccountActivityServiceEvents,
   AllowedEvents as AccountActivityServiceAllowedEvents,
   AccountActivityServiceMessenger,
-} from './AccountActivityService';
+} from './ws/AccountActivityService';
 
 // ============================================================================
 // SHARED TYPES
@@ -88,7 +88,7 @@ export {
   OHLCVService,
   OHLCV_SERVICE_ALLOWED_ACTIONS,
   OHLCV_SERVICE_ALLOWED_EVENTS,
-} from './api/ohlcv';
+} from './ws/ohlcv';
 
 export type {
   OHLCVBar,
@@ -103,7 +103,7 @@ export type {
   OHLCVServiceEvents,
   OHLCVServiceAllowedEvents,
   OHLCVServiceMessenger,
-} from './api/ohlcv';
+} from './ws/ohlcv';
 
 // ============================================================================
 // API PLATFORM CLIENT

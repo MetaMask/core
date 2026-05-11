@@ -6,8 +6,8 @@ import type {
 } from '@metamask/messenger';
 
 import { flushPromises } from '../../../../../tests/helpers';
-import type { ServerNotificationMessage } from '../../BackendWebSocketService';
-import { WebSocketState } from '../../BackendWebSocketService';
+import type { ServerNotificationMessage } from '../BackendWebSocketService';
+import { WebSocketState } from '../BackendWebSocketService';
 import { OHLCVService } from './OHLCVService';
 import type { OHLCVServiceMessenger } from './OHLCVService';
 import type { OHLCVSubscriptionOptions } from './types';

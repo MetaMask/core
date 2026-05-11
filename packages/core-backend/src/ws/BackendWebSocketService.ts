@@ -10,7 +10,7 @@ import { getErrorMessage } from '@metamask/utils';
 import { v4 as uuidV4 } from 'uuid';
 
 import type { BackendWebSocketServiceMethodActions } from './BackendWebSocketService-method-action-types';
-import { projectLogger, createModuleLogger } from './logger';
+import { projectLogger, createModuleLogger } from '../logger';
 
 const SERVICE_NAME = 'BackendWebSocketService' as const;
 

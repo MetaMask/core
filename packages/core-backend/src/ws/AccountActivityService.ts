@@ -21,12 +21,12 @@ import type {
 } from './BackendWebSocketService';
 import { WebSocketState } from './BackendWebSocketService';
 import type { BackendWebSocketServiceMethodActions } from './BackendWebSocketService-method-action-types';
-import { projectLogger, createModuleLogger } from './logger';
+import { projectLogger, createModuleLogger } from '../logger';
 import type {
   Transaction,
   AccountActivityMessage,
   BalanceUpdate,
-} from './types';
+} from '../types';
 
 // =============================================================================
 // Types and Constants
