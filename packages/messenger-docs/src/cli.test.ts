@@ -45,6 +45,8 @@ export type FooControllerGetAction = {
   type: 'FooController:get';
   handler: () => string;
 };
+
+export type FooControllerMessenger = Messenger<'FooController', FooControllerGetAction, never>;
 `,
       );
 
@@ -69,6 +71,8 @@ export type BarDoAction = {
   type: 'Bar:do';
   handler: () => void;
 };
+
+export type BarMessenger = Messenger<'Bar', BarDoAction, never>;
 `,
       );
 
@@ -92,6 +96,8 @@ export type BazAction = {
   type: 'Baz:get';
   handler: () => number;
 };
+
+export type BazMessenger = Messenger<'Baz', BazAction, never>;
 `,
       );
 
@@ -121,6 +127,8 @@ export type QuxAction = {
   type: 'Qux:run';
   handler: () => void;
 };
+
+export type QuxMessenger = Messenger<'Qux', QuxAction, never>;
 `,
       );
       await fs.promises.writeFile(

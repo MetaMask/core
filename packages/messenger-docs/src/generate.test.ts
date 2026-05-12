@@ -22,6 +22,8 @@ export type FooControllerGetStateAction = {
   type: 'FooController:getState';
   handler: () => FooState;
 };
+
+export type FooControllerMessenger = Messenger<'FooController', FooControllerGetStateAction, never>;
 `,
       );
 
@@ -58,6 +60,8 @@ export type BarAction = {
   type: 'Bar:do';
   handler: () => void;
 };
+
+export type BarMessenger = Messenger<'Bar', BarAction, never>;
 `,
       );
 
@@ -96,6 +100,8 @@ export type MyGetAction = {
   type: 'My:get';
   handler: () => string;
 };
+
+export type MyMessenger = Messenger<'My', MyGetAction, never>;
 `,
       );
 
@@ -129,6 +135,8 @@ export type TestGetAction = {
   type: 'Test:get';
   handler: () => boolean;
 };
+
+export type TestMessenger = Messenger<'Test', TestGetAction, never>;
 `,
       );
 
@@ -174,6 +182,8 @@ export type FooAction = {
   type: 'Foo:get';
   handler: () => void;
 };
+
+export type FooMessenger = Messenger<'Foo', FooAction, never>;
 `,
       );
 
@@ -186,6 +196,8 @@ export type FooAction = {
   type: 'Foo:get';
   handler: () => void;
 };
+
+export type FooMessenger = Messenger<'Foo', FooAction, never>;
 `,
       );
 

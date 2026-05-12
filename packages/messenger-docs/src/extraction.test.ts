@@ -6,6 +6,26 @@ import { extractFromFile } from './extraction';
 
 const { withinSandbox } = createSandbox('messenger-cli/docs-extraction');
 
+/**
+ * Append a synthetic `*Messenger` declaration to a fixture so that the action
+ * and event types under test are reachable via the messenger-anchored
+ * extraction algorithm.
+ *
+ * @param body - The fixture body containing the types to extract.
+ * @param options - Names of action and event types the messenger should reference.
+ * @param options.actions - Action type names to list in the messenger's Actions slot.
+ * @param options.events - Event type names to list in the messenger's Events slot.
+ * @returns The fixture body with a trailing Messenger declaration appended.
+ */
+function withMessenger(
+  body: string,
+  options: { actions?: string[]; events?: string[] } = {},
+): string {
+  const actions = (options.actions ?? []).join(' | ') || 'never';
+  const events = (options.events ?? []).join(' | ') || 'never';
+  return `${body.trimEnd()}\nexport type TestMessenger = Messenger<'Test', ${actions}, ${events}>;\n`;
+}
+
 describe('extractFromFile', () => {
   it('extracts inline action type alias with handler', async () => {
     expect.assertions(5);
@@ -14,12 +34,15 @@ describe('extractFromFile', () => {
       const filePath = path.join(directoryPath, 'types.ts');
       await fs.promises.writeFile(
         filePath,
-        `
+        withMessenger(
+          `
 export type FooControllerGetStateAction = {
   type: 'FooController:getState';
   handler: () => FooState;
 };
 `,
+          { actions: ['FooControllerGetStateAction'] },
+        ),
       );
 
       const items = await extractFromFile(filePath, directoryPath);
@@ -39,12 +62,15 @@ export type FooControllerGetStateAction = {
       const filePath = path.join(directoryPath, 'types.ts');
       await fs.promises.writeFile(
         filePath,
-        `
+        withMessenger(
+          `
 export type FooControllerStateChangeEvent = {
   type: 'FooController:stateChange';
   payload: [FooState, Patch[]];
 };
 `,
+          { events: ['FooControllerStateChangeEvent'] },
+        ),
       );
 
       const items = await extractFromFile(filePath, directoryPath);
@@ -63,12 +89,15 @@ export type FooControllerStateChangeEvent = {
       const filePath = path.join(directoryPath, 'types.ts');
       await fs.promises.writeFile(
         filePath,
-        `
+        withMessenger(
+          `
 export interface BarControllerResetAction {
   type: 'BarController:reset';
   handler: () => void;
 }
 `,
+          { actions: ['BarControllerResetAction'] },
+        ),
       );
 
       const items = await extractFromFile(filePath, directoryPath);
@@ -86,7 +115,8 @@ export interface BarControllerResetAction {
       const filePath = path.join(directoryPath, 'types.ts');
       await fs.promises.writeFile(
         filePath,
-        `
+        withMessenger(
+          `
 /**
  * Gets the current state of the controller.
  */
@@ -95,6 +125,8 @@ export type FooControllerGetStateAction = {
   handler: () => FooState;
 };
 `,
+          { actions: ['FooControllerGetStateAction'] },
+        ),
       );
 
       const items = await extractFromFile(filePath, directoryPath);
@@ -113,13 +145,16 @@ export type FooControllerGetStateAction = {
       const filePath = path.join(directoryPath, 'types.ts');
       await fs.promises.writeFile(
         filePath,
-        `
+        withMessenger(
+          `
 /** Gets the state. */
 export type FooControllerGetStateAction = {
   type: 'FooController:getState';
   handler: () => FooState;
 };
 `,
+          { actions: ['FooControllerGetStateAction'] },
+        ),
       );
 
       const items = await extractFromFile(filePath, directoryPath);
@@ -136,13 +171,16 @@ export type FooControllerGetStateAction = {
       const filePath = path.join(directoryPath, 'types.ts');
       await fs.promises.writeFile(
         filePath,
-        `
+        withMessenger(
+          `
 /** @deprecated Use getState instead. */
 export type FooControllerOldAction = {
   type: 'FooController:old';
   handler: () => void;
 };
 `,
+          { actions: ['FooControllerOldAction'] },
+        ),
       );
 
       const items = await extractFromFile(filePath, directoryPath);
@@ -172,6 +210,76 @@ export function add(a: number, b: number): number {
     });
   });
 
+  it('ignores action-shaped types that are not referenced by any Messenger', async () => {
+    expect.assertions(2);
+
+    await withinSandbox(async ({ directoryPath }) => {
+      const filePath = path.join(directoryPath, 'types.ts');
+      // Both types share the same action-like shape, but only the first is
+      // referenced by the messenger. The second should be ignored as a
+      // potential false positive.
+      await fs.promises.writeFile(
+        filePath,
+        withMessenger(
+          `
+export type RealAction = {
+  type: 'Foo:real';
+  handler: () => void;
+};
+
+export type LookalikeAction = {
+  type: 'Foo:lookalike';
+  handler: () => void;
+};
+`,
+          { actions: ['RealAction'] },
+        ),
+      );
+
+      const items = await extractFromFile(filePath, directoryPath);
+
+      expect(items).toHaveLength(1);
+      expect(items[0].typeName).toBe('RealAction');
+    });
+  });
+
+  it('expands union-type aliases referenced by a Messenger', async () => {
+    expect.assertions(3);
+
+    await withinSandbox(async ({ directoryPath }) => {
+      const filePath = path.join(directoryPath, 'types.ts');
+      // The messenger references the umbrella union, not the individual
+      // actions directly. The walk should descend through the union.
+      await fs.promises.writeFile(
+        filePath,
+        `
+export type FooGetAction = {
+  type: 'Foo:get';
+  handler: () => string;
+};
+
+export type FooSetAction = {
+  type: 'Foo:set';
+  handler: (v: string) => void;
+};
+
+export type FooActions = FooGetAction | FooSetAction;
+
+export type FooMessenger = Messenger<'Foo', FooActions, never>;
+`,
+      );
+
+      const items = await extractFromFile(filePath, directoryPath);
+
+      expect(items).toHaveLength(2);
+      expect(items.map((item) => item.typeName).sort()).toStrictEqual([
+        'FooGetAction',
+        'FooSetAction',
+      ]);
+      expect(items.every((item) => item.kind === 'action')).toBe(true);
+    });
+  });
+
   it('resolves handler from class method signature', async () => {
     expect.assertions(2);
 
@@ -179,7 +287,8 @@ export function add(a: number, b: number): number {
       const filePath = path.join(directoryPath, 'types.ts');
       await fs.promises.writeFile(
         filePath,
-        `
+        withMessenger(
+          `
 class FooController {
   doStuff(x: string): boolean {
     return x.length > 0;
@@ -191,6 +300,8 @@ export type FooControllerDoStuffAction = {
   handler: FooController['doStuff'];
 };
 `,
+          { actions: ['FooControllerDoStuffAction'] },
+        ),
       );
 
       const items = await extractFromFile(filePath, directoryPath);
@@ -207,11 +318,14 @@ export type FooControllerDoStuffAction = {
       const filePath = path.join(directoryPath, 'types.ts');
       await fs.promises.writeFile(
         filePath,
-        `export type FooAction = {
+        withMessenger(
+          `export type FooAction = {
   type: 'Foo:bar';
   handler: () => void;
 };
 `,
+          { actions: ['FooAction'] },
+        ),
       );
 
       const items = await extractFromFile(filePath, directoryPath);
@@ -228,7 +342,8 @@ export type FooControllerDoStuffAction = {
       const filePath = path.join(directoryPath, 'types.ts');
       await fs.promises.writeFile(
         filePath,
-        `
+        withMessenger(
+          `
 /**
  * Returns an object like {foo: bar}.
  */
@@ -237,6 +352,8 @@ export type FooAction = {
   handler: () => void;
 };
 `,
+          { actions: ['FooAction'] },
+        ),
       );
 
       const items = await extractFromFile(filePath, directoryPath);
@@ -253,7 +370,8 @@ export type FooAction = {
       const filePath = path.join(directoryPath, 'types.ts');
       await fs.promises.writeFile(
         filePath,
-        `
+        withMessenger(
+          `
 export type FooGetAction = {
   type: 'Foo:get';
   handler: () => string;
@@ -269,6 +387,11 @@ export type FooChangeEvent = {
   payload: [string];
 };
 `,
+          {
+            actions: ['FooGetAction', 'FooSetAction'],
+            events: ['FooChangeEvent'],
+          },
+        ),
       );
 
       const items = await extractFromFile(filePath, directoryPath);
@@ -286,7 +409,8 @@ export type FooChangeEvent = {
       const filePath = path.join(directoryPath, 'types.ts');
       await fs.promises.writeFile(
         filePath,
-        `
+        withMessenger(
+          `
 const controllerName = 'MyController';
 
 export type MyControllerGetAction = {
@@ -294,6 +418,8 @@ export type MyControllerGetAction = {
   handler: () => void;
 };
 `,
+          { actions: ['MyControllerGetAction'] },
+        ),
       );
 
       const items = await extractFromFile(filePath, directoryPath);
@@ -315,7 +441,8 @@ export type MyControllerGetAction = {
       const filePath = path.join(directoryPath, 'types.ts');
       await fs.promises.writeFile(
         filePath,
-        `
+        withMessenger(
+          `
 import { CONTROLLER_NAME } from './constants';
 
 export type ImportedControllerGetAction = {
@@ -323,6 +450,8 @@ export type ImportedControllerGetAction = {
   handler: () => void;
 };
 `,
+          { actions: ['ImportedControllerGetAction'] },
+        ),
       );
 
       const items = await extractFromFile(filePath, directoryPath);
@@ -339,7 +468,8 @@ export type ImportedControllerGetAction = {
       const filePath = path.join(directoryPath, 'types.ts');
       await fs.promises.writeFile(
         filePath,
-        `
+        withMessenger(
+          `
 /**
  * See {@link FooController} for details.
  */
@@ -348,6 +478,8 @@ export type FooAction = {
   handler: () => void;
 };
 `,
+          { actions: ['FooAction'] },
+        ),
       );
 
       const items = await extractFromFile(filePath, directoryPath);
@@ -363,7 +495,8 @@ export type FooAction = {
       const filePath = path.join(directoryPath, 'types.ts');
       await fs.promises.writeFile(
         filePath,
-        `
+        withMessenger(
+          `
 /**
  * Does something important.
  *
@@ -375,6 +508,8 @@ export type FooAction = {
   handler: (x: string) => string;
 };
 `,
+          { actions: ['FooAction'] },
+        ),
       );
 
       const items = await extractFromFile(filePath, directoryPath);
@@ -392,7 +527,8 @@ export type FooAction = {
       const filePath = path.join(directoryPath, 'types.ts');
       await fs.promises.writeFile(
         filePath,
-        `
+        withMessenger(
+          `
 /**
  * Old method.
  * @deprecated Use newMethod instead.
@@ -402,6 +538,8 @@ export type FooAction = {
   handler: () => void;
 };
 `,
+          { actions: ['FooAction'] },
+        ),
       );
 
       const items = await extractFromFile(filePath, directoryPath);
@@ -418,12 +556,15 @@ export type FooAction = {
       const filePath = path.join(directoryPath, 'index.d.cts');
       await fs.promises.writeFile(
         filePath,
-        `
+        withMessenger(
+          `
 export type DeclaredGetAction = {
   type: 'Declared:get';
   handler: () => string;
 };
 `,
+          { actions: ['DeclaredGetAction'] },
+        ),
       );
 
       const items = await extractFromFile(filePath, directoryPath);
@@ -440,7 +581,8 @@ export type DeclaredGetAction = {
       const filePath = path.join(directoryPath, 'types.ts');
       await fs.promises.writeFile(
         filePath,
-        `
+        withMessenger(
+          `
 class MyCtrl {
   /**
    * Fetches data from server.
@@ -455,6 +597,8 @@ export type MyCtrlFetchAction = {
   handler: MyCtrl['fetchData'];
 };
 `,
+          { actions: ['MyCtrlFetchAction'] },
+        ),
       );
 
       const items = await extractFromFile(filePath, directoryPath);
@@ -471,7 +615,8 @@ export type MyCtrlFetchAction = {
       const filePath = path.join(directoryPath, 'types.ts');
       await fs.promises.writeFile(
         filePath,
-        `
+        withMessenger(
+          `
 const cn = 'AsConst' as const;
 
 export type AsConstGetAction = {
@@ -479,6 +624,8 @@ export type AsConstGetAction = {
   handler: () => void;
 };
 `,
+          { actions: ['AsConstGetAction'] },
+        ),
       );
 
       const items = await extractFromFile(filePath, directoryPath);
@@ -495,7 +642,8 @@ export type AsConstGetAction = {
       const filePath = path.join(directoryPath, 'index.d.cts');
       await fs.promises.writeFile(
         filePath,
-        `
+        withMessenger(
+          `
 declare const controllerName: "DeclaredConst";
 
 export type DeclaredConstGetAction = {
@@ -503,6 +651,8 @@ export type DeclaredConstGetAction = {
   handler: () => void;
 };
 `,
+          { actions: ['DeclaredConstGetAction'] },
+        ),
       );
 
       const items = await extractFromFile(filePath, directoryPath);
@@ -524,7 +674,8 @@ export type DeclaredConstGetAction = {
       const filePath = path.join(directoryPath, 'types.d.cts');
       await fs.promises.writeFile(
         filePath,
-        `
+        withMessenger(
+          `
 import { CN } from './constants.cjs';
 
 export type ImportedDtsGetAction = {
@@ -532,6 +683,8 @@ export type ImportedDtsGetAction = {
   handler: () => void;
 };
 `,
+          { actions: ['ImportedDtsGetAction'] },
+        ),
       );
 
       const items = await extractFromFile(filePath, directoryPath);
@@ -548,7 +701,8 @@ export type ImportedDtsGetAction = {
       const filePath = path.join(directoryPath, 'types.ts');
       await fs.promises.writeFile(
         filePath,
-        `
+        withMessenger(
+          `
 const controllerName = 'MyCtrl';
 
 type ControllerGetStateAction<T, S> = {
@@ -558,6 +712,8 @@ type ControllerGetStateAction<T, S> = {
 
 export type MyCtrlGetStateAction = ControllerGetStateAction<typeof controllerName, MyState>;
 `,
+          { actions: ['MyCtrlGetStateAction'] },
+        ),
       );
 
       const items = await extractFromFile(filePath, directoryPath);
@@ -575,7 +731,8 @@ export type MyCtrlGetStateAction = ControllerGetStateAction<typeof controllerNam
       const filePath = path.join(directoryPath, 'types.ts');
       await fs.promises.writeFile(
         filePath,
-        `
+        withMessenger(
+          `
 type ControllerGetStateAction<T, S> = {
   type: \`\${T & string}:getState\`;
   handler: () => S;
@@ -583,6 +740,8 @@ type ControllerGetStateAction<T, S> = {
 
 export type LitGetStateAction = ControllerGetStateAction<'LitCtrl', LitState>;
 `,
+          { actions: ['LitGetStateAction'] },
+        ),
       );
 
       const items = await extractFromFile(filePath, directoryPath);
@@ -599,7 +758,8 @@ export type LitGetStateAction = ControllerGetStateAction<'LitCtrl', LitState>;
       const filePath = path.join(directoryPath, 'types.ts');
       await fs.promises.writeFile(
         filePath,
-        `
+        withMessenger(
+          `
 const controllerName = 'MyCtrl';
 
 type ControllerStateChangeEvent<T, S> = {
@@ -609,6 +769,8 @@ type ControllerStateChangeEvent<T, S> = {
 
 export type MyCtrlStateChangeEvent = ControllerStateChangeEvent<typeof controllerName, MyState>;
 `,
+          { events: ['MyCtrlStateChangeEvent'] },
+        ),
       );
 
       const items = await extractFromFile(filePath, directoryPath);
@@ -626,7 +788,8 @@ export type MyCtrlStateChangeEvent = ControllerStateChangeEvent<typeof controlle
       const filePath = path.join(directoryPath, 'types.ts');
       await fs.promises.writeFile(
         filePath,
-        `
+        withMessenger(
+          `
 type ControllerStateChangeEvent<T, S> = {
   type: \`\${T & string}:stateChange\`;
   payload: [S, Patch[]];
@@ -634,6 +797,8 @@ type ControllerStateChangeEvent<T, S> = {
 
 export type LitStateChangeEvent = ControllerStateChangeEvent<'LitCtrl', LitState>;
 `,
+          { events: ['LitStateChangeEvent'] },
+        ),
       );
 
       const items = await extractFromFile(filePath, directoryPath);
@@ -650,7 +815,8 @@ export type LitStateChangeEvent = ControllerStateChangeEvent<'LitCtrl', LitState
       const filePath = path.join(directoryPath, 'types.ts');
       await fs.promises.writeFile(
         filePath,
-        `
+        withMessenger(
+          `
 /**
  * Does something.
  *
@@ -662,6 +828,8 @@ export type FooAction = {
   handler: () => void;
 };
 `,
+          { actions: ['FooAction'] },
+        ),
       );
 
       const items = await extractFromFile(filePath, directoryPath);
@@ -679,7 +847,8 @@ export type FooAction = {
       const filePath = path.join(directoryPath, 'types.ts');
       await fs.promises.writeFile(
         filePath,
-        `
+        withMessenger(
+          `
 /**
  * Old action.
  *
@@ -691,6 +860,8 @@ export type OldAction = {
   handler: () => void;
 };
 `,
+          { actions: ['OldAction'] },
+        ),
       );
 
       const items = await extractFromFile(filePath, directoryPath);
@@ -708,7 +879,8 @@ export type OldAction = {
       const filePath = path.join(directoryPath, 'types.ts');
       await fs.promises.writeFile(
         filePath,
-        `
+        withMessenger(
+          `
 /**
  * First paragraph.
  *
@@ -719,6 +891,8 @@ export type FooAction = {
   handler: () => void;
 };
 `,
+          { actions: ['FooAction'] },
+        ),
       );
 
       const items = await extractFromFile(filePath, directoryPath);
@@ -734,14 +908,17 @@ export type FooAction = {
       const filePath = path.join(directoryPath, 'types.ts');
       await fs.promises.writeFile(
         filePath,
-        [
-          '',
-          '/**',
-          ' *Some text without space after asterisk.',
-          ' */',
-          "export type FooAction = { type: 'Foo:do'; handler: () => void; };",
-          '',
-        ].join('\n'),
+        withMessenger(
+          [
+            '',
+            '/**',
+            ' *Some text without space after asterisk.',
+            ' */',
+            "export type FooAction = { type: 'Foo:do'; handler: () => void; };",
+            '',
+          ].join('\n'),
+          { actions: ['FooAction'] },
+        ),
       );
 
       const items = await extractFromFile(filePath, directoryPath);
@@ -759,7 +936,8 @@ export type FooAction = {
       const filePath = path.join(directoryPath, 'types.ts');
       await fs.promises.writeFile(
         filePath,
-        `
+        withMessenger(
+          `
 class MyCtrl {
   name = 'foo';
   doStuff(): void {}
@@ -770,6 +948,8 @@ export type MyCtrlDoAction = {
   handler: MyCtrl['doStuff'];
 };
 `,
+          { actions: ['MyCtrlDoAction'] },
+        ),
       );
 
       const items = await extractFromFile(filePath, directoryPath);
@@ -785,7 +965,8 @@ export type MyCtrlDoAction = {
       const filePath = path.join(directoryPath, 'types.ts');
       await fs.promises.writeFile(
         filePath,
-        `
+        withMessenger(
+          `
 /**
  * Returns \`{foo: bar}\` result.
  */
@@ -794,6 +975,8 @@ export type FooAction = {
   handler: () => void;
 };
 `,
+          { actions: ['FooAction'] },
+        ),
       );
 
       const items = await extractFromFile(filePath, directoryPath);
@@ -810,7 +993,8 @@ export type FooAction = {
       const filePath = path.join(directoryPath, 'types.ts');
       await fs.promises.writeFile(
         filePath,
-        `
+        withMessenger(
+          `
 /**
  * @deprecated Use v2.
  *
@@ -821,6 +1005,8 @@ export type OldAction = {
   handler: () => void;
 };
 `,
+          { actions: ['OldAction'] },
+        ),
       );
 
       const items = await extractFromFile(filePath, directoryPath);
@@ -837,7 +1023,8 @@ export type OldAction = {
       const filePath = path.join(directoryPath, 'types.ts');
       await fs.promises.writeFile(
         filePath,
-        `
+        withMessenger(
+          `
 import { something } from 'external-package';
 
 export type FooAction = {
@@ -845,6 +1032,8 @@ export type FooAction = {
   handler: () => void;
 };
 `,
+          { actions: ['FooAction'] },
+        ),
       );
 
       const items = await extractFromFile(filePath, directoryPath);
@@ -860,7 +1049,8 @@ export type FooAction = {
       const filePath = path.join(directoryPath, 'types.ts');
       await fs.promises.writeFile(
         filePath,
-        `
+        withMessenger(
+          `
 /**
  * Main description.
  *
@@ -875,6 +1065,8 @@ export type FooAction = {
   handler: () => void;
 };
 `,
+          { actions: ['FooAction'] },
+        ),
       );
 
       const items = await extractFromFile(filePath, directoryPath);
@@ -891,7 +1083,8 @@ export type FooAction = {
       const filePath = path.join(directoryPath, 'types.ts');
       await fs.promises.writeFile(
         filePath,
-        `
+        withMessenger(
+          `
 /**
  * @deprecated Use v2.
  * @param x - Input.
@@ -901,6 +1094,8 @@ export type FooAction = {
   handler: () => void;
 };
 `,
+          { actions: ['FooAction'] },
+        ),
       );
 
       const items = await extractFromFile(filePath, directoryPath);
@@ -917,7 +1112,8 @@ export type FooAction = {
       const filePath = path.join(directoryPath, 'types.ts');
       await fs.promises.writeFile(
         filePath,
-        `
+        withMessenger(
+          `
 /**
  * Returns an object.
  *
@@ -928,6 +1124,8 @@ export type FooAction = {
   handler: () => void;
 };
 `,
+          { actions: ['FooAction'] },
+        ),
       );
 
       const items = await extractFromFile(filePath, directoryPath);
@@ -943,13 +1141,16 @@ export type FooAction = {
       const filePath = path.join(directoryPath, 'types.ts');
       await fs.promises.writeFile(
         filePath,
-        [
-          '/**',
-          ' *',
-          ' * Text after empty asterisk.',
-          ' */',
-          "export type FooAction = { type: 'Foo:do'; handler: () => void; };",
-        ].join('\n'),
+        withMessenger(
+          [
+            '/**',
+            ' *',
+            ' * Text after empty asterisk.',
+            ' */',
+            "export type FooAction = { type: 'Foo:do'; handler: () => void; };",
+          ].join('\n'),
+          { actions: ['FooAction'] },
+        ),
       );
 
       const items = await extractFromFile(filePath, directoryPath);

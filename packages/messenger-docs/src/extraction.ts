@@ -90,7 +90,7 @@ async function collectStringConstants(
   //   import { BRIDGE_CONTROLLER_NAME } from './constants/bridge';
   for (const importDeclaration of sourceFile.getImportDeclarations()) {
     const spec = importDeclaration.getModuleSpecifierValue();
-    if (!spec?.startsWith('.')) {
+    if (!spec?.startsWith('.') || spec.endsWith('.json')) {
       continue;
     }
 
@@ -501,11 +501,327 @@ function getPropertyText(
 }
 
 // ---------------------------------------------------------------------------
+// Messenger discovery
+// ---------------------------------------------------------------------------
+
+/**
+ * Names of action and event types referenced by `*Messenger` declarations in a
+ * source file. Each set is intentionally narrowed to type names that appear,
+ * directly or transitively through union aliases, in the Actions or Events
+ * slot of some Messenger generic.
+ */
+type MessengerReferences = {
+  actions: Set<string>;
+  events: Set<string>;
+};
+
+/**
+ * Find every `*Messenger` type alias in a source file, parse its
+ * `Messenger<Namespace, Actions, Events>` (or `Messenger<Actions, Events>`)
+ * generic arguments, and collect the action/event type names referenced.
+ *
+ * Anchoring extraction on Messenger declarations avoids false positives from
+ * unrelated types that happen to share an action/event-like shape.
+ *
+ * @param sourceFile - The TypeScript source file to scan.
+ * @returns The sets of action and event type names referenced by messengers.
+ */
+function collectMessengerReferences(
+  sourceFile: SourceFile,
+): MessengerReferences {
+  const actions = new Set<string>();
+  const events = new Set<string>();
+
+  for (const typeAlias of sourceFile.getTypeAliases()) {
+    if (!typeAlias.getName().endsWith('Messenger')) {
+      continue;
+    }
+
+    const body = typeAlias.getTypeNode();
+    if (!body || !NodeGuards.isTypeReference(body)) {
+      continue;
+    }
+
+    const typeArgs = body.getTypeArguments();
+    let actionsArg: TsMorphNode | undefined;
+    let eventsArg: TsMorphNode | undefined;
+
+    if (typeArgs.length >= 3) {
+      actionsArg = typeArgs[1];
+      eventsArg = typeArgs[2];
+    } else if (typeArgs.length === 2) {
+      actionsArg = typeArgs[0];
+      eventsArg = typeArgs[1];
+    } else {
+      continue;
+    }
+
+    walkTypeReferences(actionsArg, sourceFile, new Set(), actions);
+    walkTypeReferences(eventsArg, sourceFile, new Set(), events);
+  }
+
+  return { actions, events };
+}
+
+/**
+ * Recursively walk a type node, adding the names of each leaf type reference
+ * to `output`. Unions are expanded into their members. When a type reference
+ * resolves to a local type alias whose body is itself a union, the walk
+ * continues *through* it without recording the intermediate alias name.
+ *
+ * @param node - The type node to walk.
+ * @param sourceFile - The containing source file, used to look up local aliases.
+ * @param visited - Names already visited (prevents cycles).
+ * @param output - The set to add leaf type-reference names to.
+ */
+function walkTypeReferences(
+  node: TsMorphNode,
+  sourceFile: SourceFile,
+  visited: Set<string>,
+  output: Set<string>,
+): void {
+  if (NodeGuards.isUnionTypeNode(node)) {
+    for (const member of node.getTypeNodes()) {
+      walkTypeReferences(member, sourceFile, visited, output);
+    }
+    return;
+  }
+
+  if (!NodeGuards.isTypeReference(node)) {
+    return;
+  }
+
+  const nameNode = node.getTypeName();
+  if (!NodeGuards.isIdentifier(nameNode)) {
+    return;
+  }
+  const name = nameNode.getText();
+  if (visited.has(name)) {
+    return;
+  }
+  visited.add(name);
+
+  // If this name maps to a local union alias, descend through it without
+  // recording the intermediate alias as an action/event.
+  const localAlias = sourceFile.getTypeAlias(name);
+  if (localAlias) {
+    const aliasBody = localAlias.getTypeNode();
+    if (aliasBody && NodeGuards.isUnionTypeNode(aliasBody)) {
+      walkTypeReferences(aliasBody, sourceFile, visited, output);
+      return;
+    }
+  }
+
+  output.add(name);
+}
+
+// ---------------------------------------------------------------------------
+// Per-statement extraction
+// ---------------------------------------------------------------------------
+
+/**
+ * Shared context passed to per-statement extraction helpers.
+ */
+type ExtractContext = {
+  constants: Map<string, string>;
+  classMethods: Map<string, MethodInfo>;
+  relPath: string;
+};
+
+/**
+ * Extract a single messenger item from a type alias or interface, given the
+ * kind already determined from the messenger declaration. Returns null if
+ * neither the inline-shape nor generic-helper patterns apply.
+ *
+ * @param statement - The type alias or interface declaration.
+ * @param kind - Whether this statement is referenced as an action or an event.
+ * @param context - Shared extraction context.
+ * @returns The extracted item, or null if no recognized pattern matches.
+ */
+function extractItem(
+  statement: TypeAliasDeclaration | InterfaceDeclaration,
+  kind: 'action' | 'event',
+  context: ExtractContext,
+): MessengerItemDoc | null {
+  const inlineItem = extractFromInlineShape(statement, kind, context);
+  if (inlineItem) {
+    return inlineItem;
+  }
+
+  if (NodeGuards.isTypeAliasDeclaration(statement)) {
+    return extractFromGenericHelper(statement, kind, context);
+  }
+
+  return null;
+}
+
+/**
+ * Try the inline shape pattern: `{ type: '...'; handler: ... }` (action) or
+ * `{ type: '...'; payload: ... }` (event), expressed as a type alias body or
+ * an interface body.
+ *
+ * @param statement - The type alias or interface declaration.
+ * @param kind - The expected kind (action or event).
+ * @param context - Shared extraction context.
+ * @returns The extracted item, or null if the shape doesn't match.
+ */
+function extractFromInlineShape(
+  statement: TypeAliasDeclaration | InterfaceDeclaration,
+  kind: 'action' | 'event',
+  context: ExtractContext,
+): MessengerItemDoc | null {
+  let members: TypeElementTypes[] | undefined;
+  if (NodeGuards.isTypeAliasDeclaration(statement)) {
+    const body = statement.getTypeNode();
+    if (body && NodeGuards.isTypeLiteral(body)) {
+      members = body.getMembers();
+    }
+  } else {
+    members = statement.getMembers();
+  }
+  if (!members) {
+    return null;
+  }
+
+  const typeString = resolveInlineTypeString(members, context.constants);
+  if (!typeString?.includes(':')) {
+    return null;
+  }
+
+  const handlerText = getPropertyText(members, 'handler');
+  const payloadText = getPropertyText(members, 'payload');
+  const rawSource = kind === 'action' ? handlerText : payloadText;
+  if (!rawSource) {
+    return null;
+  }
+
+  let handlerOrPayload = rawSource;
+  let jsDoc = extractJsDocText(statement);
+  if (kind === 'action') {
+    const resolved = resolveHandler(handlerText, context.classMethods);
+    handlerOrPayload = resolved.signature;
+    if (!jsDoc && resolved.methodJsDoc) {
+      jsDoc = resolved.methodJsDoc;
+    }
+  }
+
+  return {
+    typeName: statement.getName(),
+    typeString,
+    kind,
+    jsDoc,
+    handlerOrPayload,
+    sourceFile: context.relPath,
+    line: statement.getStartLineNumber(),
+    deprecated: isDeprecated(statement),
+  };
+}
+
+/**
+ * Resolve the literal value of an inline shape's `type` property — either a
+ * direct string literal or a template literal type that references known
+ * constants.
+ *
+ * @param members - The type elements of the inline shape.
+ * @param constants - Known string constants for resolving `typeof X` references.
+ * @returns The resolved type string, or null if it can't be resolved.
+ */
+function resolveInlineTypeString(
+  members: TypeElementTypes[],
+  constants: Map<string, string>,
+): string | null {
+  for (const member of members) {
+    if (!NodeGuards.isPropertySignature(member)) {
+      continue;
+    }
+    const memberNameNode = member.getNameNode();
+    if (
+      !NodeGuards.isIdentifier(memberNameNode) ||
+      memberNameNode.getText() !== 'type'
+    ) {
+      continue;
+    }
+    const typeNode = member.getTypeNode();
+    if (!typeNode) {
+      continue;
+    }
+    if (NodeGuards.isLiteralTypeNode(typeNode)) {
+      return resolveTypeString(typeNode.getLiteral(), constants);
+    }
+    if (NodeGuards.isTemplateLiteralTypeNode(typeNode)) {
+      return resolveTemplateLiteralType(typeNode, constants);
+    }
+  }
+  return null;
+}
+
+/**
+ * Try the generic-helper pattern: `ControllerGetStateAction<typeof X, State>`
+ * for actions, or `ControllerStateChangeEvent<typeof X, State>` for events.
+ *
+ * @param statement - The type alias declaration.
+ * @param kind - The expected kind (action or event).
+ * @param context - Shared extraction context.
+ * @returns The extracted item, or null if the helper doesn't match.
+ */
+function extractFromGenericHelper(
+  statement: TypeAliasDeclaration,
+  kind: 'action' | 'event',
+  context: ExtractContext,
+): MessengerItemDoc | null {
+  const aliasBody = statement.getTypeNode();
+  if (!aliasBody || !NodeGuards.isTypeReference(aliasBody)) {
+    return null;
+  }
+  const nameNode = aliasBody.getTypeName();
+  if (!NodeGuards.isIdentifier(nameNode)) {
+    return null;
+  }
+  const helperName = nameNode.getText();
+  const typeArgs = aliasBody.getTypeArguments();
+  if (typeArgs.length < 2) {
+    return null;
+  }
+
+  const expectedHelper =
+    kind === 'action'
+      ? 'ControllerGetStateAction'
+      : 'ControllerStateChangeEvent';
+  if (helperName !== expectedHelper) {
+    return null;
+  }
+
+  const namespace = resolveNamespaceFromTypeArg(typeArgs[0], context.constants);
+  if (!namespace) {
+    return null;
+  }
+  const stateArgText = typeArgs[1].getText();
+
+  return {
+    typeName: statement.getName(),
+    typeString:
+      kind === 'action' ? `${namespace}:getState` : `${namespace}:stateChange`,
+    kind,
+    jsDoc: extractJsDocText(statement),
+    handlerOrPayload:
+      kind === 'action'
+        ? `() => ${stateArgText}`
+        : `[${stateArgText}, Patch[]]`,
+    sourceFile: context.relPath,
+    line: statement.getStartLineNumber(),
+    deprecated: isDeprecated(statement),
+  };
+}
+
+// ---------------------------------------------------------------------------
 // Main extraction
 // ---------------------------------------------------------------------------
 
 /**
- * Extract messenger action/event type definitions from a single TypeScript file.
+ * Extract messenger action/event type definitions from a single TypeScript
+ * file. Only types referenced by a `*Messenger` declaration in the same file
+ * are considered — this avoids false positives from unrelated types that
+ * happen to share an action/event-like shape.
  *
  * @param filePath - The absolute path to the TypeScript file.
  * @param relBase - Base path for computing relative source paths.
@@ -524,166 +840,39 @@ export async function extractFromFile(
     overwrite: true,
   });
 
-  const constants = await collectStringConstants(project, sourceFile, filePath);
-  const classMethods = collectClassMethods(sourceFile);
+  const references = collectMessengerReferences(sourceFile);
+  if (references.actions.size === 0 && references.events.size === 0) {
+    return [];
+  }
+
+  const context: ExtractContext = {
+    constants: await collectStringConstants(project, sourceFile, filePath),
+    classMethods: collectClassMethods(sourceFile),
+    relPath: path.relative(relBase, filePath),
+  };
   const items: MessengerItemDoc[] = [];
-  const relPath = path.relative(relBase, filePath);
 
-  // Type aliases and interfaces are always top-level statements
   for (const statement of sourceFile.getStatements()) {
-    // ---------------------------------------------------------------
-    // Pattern 1: { type: '...'; handler/payload: ... }
-    // Matches both:
-    //   type X = { type: '...'; handler: ... }   (type alias with literal body)
-    //   interface X { type: '...'; handler: ... } (interface declaration)
-    // ---------------------------------------------------------------
-    let inlineNode: TypeAliasDeclaration | InterfaceDeclaration | undefined;
-    let inlineMembers: TypeElementTypes[] | undefined;
-
-    if (NodeGuards.isTypeAliasDeclaration(statement)) {
-      const aliasType = statement.getTypeNode();
-      if (aliasType && NodeGuards.isTypeLiteral(aliasType)) {
-        inlineNode = statement;
-        inlineMembers = aliasType.getMembers();
-      }
-    } else if (NodeGuards.isInterfaceDeclaration(statement)) {
-      inlineNode = statement;
-      inlineMembers = statement.getMembers();
-    }
-
-    if (inlineNode && inlineMembers) {
-      const typeName = inlineNode.getName();
-      const line = inlineNode.getStartLineNumber();
-
-      // Find `type` property
-      let typeString: string | null = null;
-      for (const member of inlineMembers) {
-        if (!NodeGuards.isPropertySignature(member)) {
-          continue;
-        }
-        const memberNameNode = member.getNameNode();
-        if (
-          !NodeGuards.isIdentifier(memberNameNode) ||
-          memberNameNode.getText() !== 'type'
-        ) {
-          continue;
-        }
-        const typeNode = member.getTypeNode();
-        if (!typeNode) {
-          continue;
-        }
-        if (NodeGuards.isLiteralTypeNode(typeNode)) {
-          typeString = resolveTypeString(typeNode.getLiteral(), constants);
-        } else if (NodeGuards.isTemplateLiteralTypeNode(typeNode)) {
-          typeString = resolveTemplateLiteralType(typeNode, constants);
-        }
-      }
-
-      if (typeString?.includes(':')) {
-        const handlerText = getPropertyText(inlineMembers, 'handler');
-        const payloadText = getPropertyText(inlineMembers, 'payload');
-
-        if (handlerText || payloadText) {
-          const kind: 'action' | 'event' = handlerText ? 'action' : 'event';
-
-          // For actions, resolve ClassName['methodName'] to actual signature + JSDoc
-          let resolvedHandler = handlerText || payloadText;
-          let typeAliasJsDoc = extractJsDocText(inlineNode);
-
-          if (handlerText) {
-            const resolved = resolveHandler(handlerText, classMethods);
-            resolvedHandler = resolved.signature;
-            // If the type alias has no JSDoc, use the method's JSDoc
-            if (!typeAliasJsDoc && resolved.methodJsDoc) {
-              typeAliasJsDoc = resolved.methodJsDoc;
-            }
-          }
-
-          items.push({
-            typeName,
-            typeString,
-            kind,
-            jsDoc: typeAliasJsDoc,
-            handlerOrPayload: resolvedHandler,
-            sourceFile: relPath,
-            line,
-            deprecated: isDeprecated(inlineNode),
-          });
-        }
-      }
-    }
-
-    // -------------------------------------------------------------------
-    // Patterns 2 & 3 only apply to type aliases (generic type references)
-    // -------------------------------------------------------------------
-    if (!NodeGuards.isTypeAliasDeclaration(statement)) {
+    if (
+      !NodeGuards.isTypeAliasDeclaration(statement) &&
+      !NodeGuards.isInterfaceDeclaration(statement)
+    ) {
       continue;
     }
-    const node = statement;
-    const typeName = node.getName();
-    const line = node.getStartLineNumber();
-    const aliasTypeNode = node.getTypeNode();
+    const name = statement.getName();
 
-    if (!aliasTypeNode || !NodeGuards.isTypeReference(aliasTypeNode)) {
+    let kind: 'action' | 'event';
+    if (references.actions.has(name)) {
+      kind = 'action';
+    } else if (references.events.has(name)) {
+      kind = 'event';
+    } else {
       continue;
     }
 
-    const typeNameNode = aliasTypeNode.getTypeName();
-    if (!NodeGuards.isIdentifier(typeNameNode)) {
-      continue;
-    }
-    const typeReferenceName = typeNameNode.getText();
-    const typeArguments = aliasTypeNode.getTypeArguments();
-    if (typeArguments.length < 2) {
-      continue;
-    }
-
-    // -------------------------------------------------------------------
-    // Pattern 2: ControllerGetStateAction<typeof cn, State>
-    // -------------------------------------------------------------------
-    if (typeReferenceName === 'ControllerGetStateAction') {
-      const namespace = resolveNamespaceFromTypeArg(
-        typeArguments[0],
-        constants,
-      );
-      const stateArg = typeArguments[1];
-
-      if (namespace) {
-        items.push({
-          typeName,
-          typeString: `${namespace}:getState`,
-          kind: 'action',
-          jsDoc: extractJsDocText(node),
-          handlerOrPayload: `() => ${stateArg.getText()}`,
-          sourceFile: relPath,
-          line,
-          deprecated: isDeprecated(node),
-        });
-      }
-    }
-
-    // -------------------------------------------------------------------
-    // Pattern 3: ControllerStateChangeEvent<typeof cn, State>
-    // -------------------------------------------------------------------
-    if (typeReferenceName === 'ControllerStateChangeEvent') {
-      const namespace = resolveNamespaceFromTypeArg(
-        typeArguments[0],
-        constants,
-      );
-      const stateArg = typeArguments[1];
-
-      if (namespace) {
-        items.push({
-          typeName,
-          typeString: `${namespace}:stateChange`,
-          kind: 'event',
-          jsDoc: extractJsDocText(node),
-          handlerOrPayload: `[${stateArg.getText()}, Patch[]]`,
-          sourceFile: relPath,
-          line,
-          deprecated: isDeprecated(node),
-        });
-      }
+    const item = extractItem(statement, kind, context);
+    if (item) {
+      items.push(item);
     }
   }
 
