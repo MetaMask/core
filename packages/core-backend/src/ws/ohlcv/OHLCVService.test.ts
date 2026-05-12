@@ -947,6 +947,65 @@ describe('OHLCVService', () => {
   });
 
   // ===========================================================================
+  // Reconnect + Concurrent Mutation Safety
+  // ===========================================================================
+
+  describe('resubscribe holds mutex to prevent concurrent mutation', () => {
+    it('should block unsubscribe until resubscription completes, preventing orphaned WS subscriptions', async () => {
+      await withService(async ({ service, mocks, rootMessenger }) => {
+        await service.subscribe(SUB_OPTS);
+        mocks.subscribe.mockClear();
+        mocks.channelHasSubscription.mockReturnValue(false);
+
+        // Make the WS subscribe during reconnect take time so we can
+        // attempt a concurrent unsubscribe while it's in progress.
+        let resubResolve!: () => void;
+        mocks.subscribe.mockImplementation(
+          () =>
+            new Promise<void>((resolve) => {
+              resubResolve = resolve;
+            }),
+        );
+
+        // Trigger reconnect — this calls #resubscribeActiveChannels which
+        // now holds the mutex across the entire loop.
+        rootMessenger.publish(
+          'BackendWebSocketService:connectionStateChanged',
+          {
+            ...BASE_CONNECTION_INFO,
+            state: WebSocketState.CONNECTED,
+            connectedAt: Date.now(),
+            reconnectAttempts: 1,
+          },
+        );
+        await flushPromises();
+
+        // Concurrent unsubscribe — must queue behind the mutex.
+        const unsubPromise = service.unsubscribe(SUB_OPTS);
+
+        // The unsubscribe hasn't run yet because the mutex is held.
+        // Complete the WS resubscription.
+        resubResolve();
+        await flushPromises();
+        await unsubPromise;
+
+        // refCount was 1 at reconnect time; after resubscribe completes
+        // the queued unsubscribe drops it to 0 and starts the grace timer.
+        const mockUnsub = jest.fn();
+        mocks.getSubscriptionsByChannel.mockReturnValue([
+          { unsubscribe: mockUnsub },
+        ]);
+
+        jest.advanceTimersByTime(3000);
+        await completeAsyncOperations();
+
+        // The grace-period unsubscribe fires cleanly — no orphaned subscription.
+        expect(mockUnsub).toHaveBeenCalledTimes(1);
+      });
+    });
+  });
+
+  // ===========================================================================
   // Destroy
   // ===========================================================================
 

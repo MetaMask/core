@@ -383,43 +383,51 @@ export class OHLCVService {
    * Called when WebSocket transitions to CONNECTED.
    */
   async #resubscribeActiveChannels(): Promise<void> {
-    const channelCount = this.#channels.size;
-    log('OHLCV-WS: Resubscribing active channels after reconnect', {
-      count: channelCount,
-    });
+    const releaseLock = await this.#mutex.acquire();
+    try {
+      const channelCount = this.#channels.size;
+      log('OHLCV-WS: Resubscribing active channels after reconnect', {
+        count: channelCount,
+      });
 
-    for (const [channel, entry] of this.#channels.entries()) {
-      if (entry.refCount === 0) {
-        continue;
-      }
-
-      try {
-        if (
-          this.#messenger.call(
-            'BackendWebSocketService:channelHasSubscription',
-            channel,
-          )
-        ) {
-          log(
-            'OHLCV-WS: Channel already subscribed on server, skipping resubscribe',
-            {
-              channel,
-            },
-          );
+      for (const [channel, entry] of this.#channels.entries()) {
+        if (entry.refCount === 0) {
           continue;
         }
 
-        await this.#messenger.call('BackendWebSocketService:subscribe', {
-          channels: [channel],
-          channelType: SUBSCRIPTION_NAMESPACE,
-          callback: (notification: ServerNotificationMessage) => {
-            this.#handleBarUpdate(channel, notification);
-          },
-        });
-        log('OHLCV-WS: Resubscription succeeded', { channel });
-      } catch (error) {
-        log('OHLCV-WS: Resubscription failed for channel', { channel, error });
+        try {
+          if (
+            this.#messenger.call(
+              'BackendWebSocketService:channelHasSubscription',
+              channel,
+            )
+          ) {
+            log(
+              'OHLCV-WS: Channel already subscribed on server, skipping resubscribe',
+              {
+                channel,
+              },
+            );
+            continue;
+          }
+
+          await this.#messenger.call('BackendWebSocketService:subscribe', {
+            channels: [channel],
+            channelType: SUBSCRIPTION_NAMESPACE,
+            callback: (notification: ServerNotificationMessage) => {
+              this.#handleBarUpdate(channel, notification);
+            },
+          });
+          log('OHLCV-WS: Resubscription succeeded', { channel });
+        } catch (error) {
+          log('OHLCV-WS: Resubscription failed for channel', {
+            channel,
+            error,
+          });
+        }
       }
+    } finally {
+      releaseLock();
     }
   }
 
