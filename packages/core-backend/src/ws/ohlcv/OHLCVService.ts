@@ -364,7 +364,11 @@ export class OHLCVService {
       count: channelCount,
     });
 
-    for (const [channel] of this.#channels.entries()) {
+    for (const [channel, entry] of this.#channels.entries()) {
+      if (entry.refCount === 0) {
+        continue;
+      }
+
       try {
         if (
           this.#messenger.call(

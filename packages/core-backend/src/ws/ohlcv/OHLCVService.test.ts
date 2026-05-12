@@ -636,6 +636,30 @@ describe('OHLCVService', () => {
       });
     });
 
+    it('should not resubscribe channels in grace period (refCount === 0)', async () => {
+      await withService(async ({ service, mocks, rootMessenger }) => {
+        await service.subscribe(SUB_OPTS);
+        await service.unsubscribe(SUB_OPTS);
+
+        // Channel is now in grace period (refCount === 0, timer running)
+        mocks.subscribe.mockClear();
+        mocks.channelHasSubscription.mockReturnValue(false);
+
+        rootMessenger.publish(
+          'BackendWebSocketService:connectionStateChanged',
+          {
+            ...BASE_CONNECTION_INFO,
+            state: WebSocketState.CONNECTED,
+            connectedAt: Date.now(),
+            reconnectAttempts: 0,
+          },
+        );
+        await completeAsyncOperations();
+
+        expect(mocks.subscribe).not.toHaveBeenCalled();
+      });
+    });
+
     it('should deliver bar updates via resubscribed channel callback', async () => {
       await withService(
         async ({ service, mocks, messenger, rootMessenger }) => {
