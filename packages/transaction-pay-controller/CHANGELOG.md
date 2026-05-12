@@ -12,6 +12,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add `POLYGON_PUSD_ADDRESS` constant and treat Polymarket pUSD as a Polygon stablecoin in display/fiat-rate logic ([#8735](https://github.com/MetaMask/core/pull/8735))
 - Add Across strategy plumbing to identify post-quote Predict withdraw requests ([#8759](https://github.com/MetaMask/core/pull/8759))
 
+### Changed
+
+- Derive fiat order source amount from on-chain transaction data (`order.txHash`) with fallback to `order.cryptoAmount` ([#8694](https://github.com/MetaMask/core/pull/8694))
+- Persist fiat order ID and provider code on `transaction.metamaskPay` before polling, so activity views can query order status after controller state cleanup ([#8694](https://github.com/MetaMask/core/pull/8694))
+
 ### Fixed
 
 - Predict same-chain withdraw quote no longer falls back to block-gas-limit (~30M+) on swap-only Relay routes ([#8735](https://github.com/MetaMask/core/pull/8735))
@@ -23,8 +28,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Derive fiat order source amount from on-chain transaction data (`order.txHash`) with fallback to `order.cryptoAmount` ([#8694](https://github.com/MetaMask/core/pull/8694))
-- Persist fiat order ID and provider code on `transaction.metamaskPay` before polling, so activity views can query order status after controller state cleanup ([#8694](https://github.com/MetaMask/core/pull/8694))
 - Bump `@metamask/network-controller` from `^31.0.0` to `^31.1.0` ([#8765](https://github.com/MetaMask/core/pull/8765))
 - Bump `@metamask/assets-controllers` from `^106.0.1` to `^106.1.0` ([#8768](https://github.com/MetaMask/core/pull/8768))
 - Bump `@metamask/assets-controller` from `^7.0.1` to `^7.1.0` ([#8768](https://github.com/MetaMask/core/pull/8768))
