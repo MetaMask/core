@@ -68,7 +68,8 @@ const expectedCaveats = (erc20Terms: Hex): ExpectedCaveat[] => [
 
 /**
  * Builds a `DelegationResponse` for use as a mocked `listDelegations` entry,
- * defaulting every identifying field to the deposit-side delegation. Tests
+ * defaulting every identifying field to the deposit-side delegation, and
+ * including a redeemer caveat that points at the Veda vault adapter. Tests
  * override one field at a time to probe the matcher.
  *
  * @param overrides - Identifying fields to override.
@@ -76,6 +77,8 @@ const expectedCaveats = (erc20Terms: Hex): ExpectedCaveat[] => [
  * @param overrides.delegate - The delegate address.
  * @param overrides.chainIdHex - The chain ID in hex.
  * @param overrides.tokenAddress - The token address.
+ * @param overrides.caveats - The caveats attached to the delegation. Defaults
+ * to a single redeemer caveat targeting the Veda vault adapter.
  * @returns A complete `DelegationResponse`.
  */
 function makeDelegationResponse(
@@ -84,6 +87,7 @@ function makeDelegationResponse(
     delegate?: Hex;
     chainIdHex?: Hex;
     tokenAddress?: Hex;
+    caveats?: { enforcer: Hex; terms: Hex; args: Hex }[];
   } = {},
 ): DelegationResponse {
   return {
@@ -91,7 +95,13 @@ function makeDelegationResponse(
       delegate: overrides.delegate ?? MOCK_DELEGATE,
       delegator: overrides.delegator ?? MOCK_ADDRESS,
       authority: ROOT_AUTHORITY as Hex,
-      caveats: [],
+      caveats: overrides.caveats ?? [
+        {
+          enforcer: MOCK_REDEEMER_ENFORCER,
+          terms: MOCK_REDEEMER_TERMS,
+          args: '0x',
+        },
+      ],
       salt: `0x${'42'.repeat(32)}`,
       signature: '0x' as Hex,
     },
@@ -457,6 +467,30 @@ describe('buildDelegationStep', () => {
         }),
         // Unrelated token.
         makeDelegationResponse({ tokenAddress: OTHER_TOKEN }),
+      ]);
+
+      const result = await run(messenger);
+
+      expect(result).toBe('completed');
+      expect(mocks.signDelegation).toHaveBeenCalledTimes(2);
+    });
+
+    it('ignores entries that do not carry a redeemer caveat targeting the Veda vault adapter', async () => {
+      const { messenger, mocks } = setup();
+      mocks.listDelegations.mockResolvedValue([
+        // No caveats at all.
+        makeDelegationResponse({ tokenAddress: MOCK_MUSD, caveats: [] }),
+        // Right enforcer, wrong terms (different redeemer encoded).
+        makeDelegationResponse({
+          tokenAddress: MOCK_BORING_VAULT,
+          caveats: [
+            {
+              enforcer: MOCK_REDEEMER_ENFORCER,
+              terms: '0xdeadbeef',
+              args: '0x',
+            },
+          ],
+        }),
       ]);
 
       const result = await run(messenger);

@@ -3,12 +3,12 @@ import type {
   IntentEntry,
   SendIntentParams,
 } from '@metamask/chomp-api-service';
-import type { Hex } from '@metamask/utils';
 
+import {
+  equalsIgnoreCase,
+  makeHasVedaRedeemerCaveat,
+} from './delegation-matchers';
 import type { Step } from './step';
-
-const equalsIgnoreCase = (a: Hex, b: Hex): boolean =>
-  a.toLowerCase() === b.toLowerCase();
 
 type IntentMetadataType = SendIntentParams['metadata']['type'];
 
@@ -46,7 +46,14 @@ function parseIntentMetadataType(type: string): IntentMetadataType {
  */
 export const registerIntentsStep: Step = {
   name: 'register-intents',
-  async run({ messenger, address, chainId, delegateAddress }) {
+  async run({
+    messenger,
+    address,
+    chainId,
+    delegateAddress,
+    redeemerEnforcer,
+    vedaVaultAdapterAddress,
+  }) {
     const [delegations, existingIntents] = await Promise.all([
       messenger.call('AuthenticatedUserStorageService:listDelegations'),
       messenger.call('ChompApiService:getIntentsByAddress', address),
@@ -58,10 +65,16 @@ export const registerIntentsStep: Step = {
         .map((intent: IntentEntry) => intent.delegationHash.toLowerCase()),
     );
 
+    const hasVedaRedeemerCaveat = makeHasVedaRedeemerCaveat(
+      redeemerEnforcer,
+      vedaVaultAdapterAddress,
+    );
+
     const needsIntent = (entry: DelegationResponse): boolean =>
       equalsIgnoreCase(entry.signedDelegation.delegator, address) &&
       equalsIgnoreCase(entry.signedDelegation.delegate, delegateAddress) &&
       equalsIgnoreCase(entry.metadata.chainIdHex, chainId) &&
+      hasVedaRedeemerCaveat(entry) &&
       !activeIntentHashes.has(entry.metadata.delegationHash.toLowerCase());
 
     const toIntent = (entry: DelegationResponse): SendIntentParams => ({

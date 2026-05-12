@@ -3,6 +3,7 @@ import type {
   DelegationMetadata,
 } from '@metamask/authenticated-user-storage';
 import type { IntentEntry } from '@metamask/chomp-api-service';
+import { createRedeemerTerms } from '@metamask/delegation-core';
 import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
 import type {
   MockAnyNamespace,
@@ -13,6 +14,12 @@ import type { Hex } from '@metamask/utils';
 
 import type { MoneyAccountUpgradeControllerMessenger } from '../MoneyAccountUpgradeController';
 import { registerIntentsStep } from './register-intents';
+
+jest.mock('@metamask/delegation-core', () => ({
+  createRedeemerTerms: jest.fn(),
+}));
+
+const mockCreateRedeemerTerms = jest.mocked(createRedeemerTerms);
 
 const MOCK_ADDRESS = '0xabcdef1234567890abcdef1234567890abcdef12' as Hex;
 const MOCK_CHAIN_ID = '0xaa36a7' as Hex; // 11155111 (Sepolia)
@@ -32,11 +39,13 @@ const OTHER_TOKEN = '0x8888888888888888888888888888888888888888' as Hex;
 const MOCK_MUSD_DELEGATION_HASH: Hex = `0x${'ee'.repeat(32)}`;
 const MOCK_VMUSD_DELEGATION_HASH: Hex = `0x${'ff'.repeat(32)}`;
 const MAX_UINT256_HEX: Hex = `0x${'f'.repeat(64)}`;
+const MOCK_REDEEMER_TERMS: Hex = '0xa3';
 
 /**
  * Builds a `DelegationResponse` for use as a mocked `listDelegations` entry.
  * Defaults match the deposit-side delegation written by the build-delegation
- * step; tests override identifying fields and metadata to probe the matcher.
+ * step, including a redeemer caveat that points at the Veda vault adapter.
+ * Tests override identifying fields and metadata to probe the matcher.
  *
  * @param overrides - Identifying fields and metadata to override.
  * @param overrides.delegator - The delegator address.
@@ -46,6 +55,8 @@ const MAX_UINT256_HEX: Hex = `0x${'f'.repeat(64)}`;
  * @param overrides.tokenSymbol - The token symbol.
  * @param overrides.delegationHash - The delegation hash recorded in metadata.
  * @param overrides.type - The metadata `type` field.
+ * @param overrides.caveats - The caveats attached to the delegation. Defaults
+ * to a single redeemer caveat targeting the Veda vault adapter.
  * @returns A complete `DelegationResponse`.
  */
 function makeDelegationResponse(
@@ -57,6 +68,7 @@ function makeDelegationResponse(
     tokenSymbol?: string;
     delegationHash?: Hex;
     type?: DelegationMetadata['type'];
+    caveats?: { enforcer: Hex; terms: Hex; args: Hex }[];
   } = {},
 ): DelegationResponse {
   return {
@@ -64,7 +76,13 @@ function makeDelegationResponse(
       delegate: overrides.delegate ?? MOCK_DELEGATE,
       delegator: overrides.delegator ?? MOCK_ADDRESS,
       authority: `0x${'ff'.repeat(32)}`,
-      caveats: [],
+      caveats: overrides.caveats ?? [
+        {
+          enforcer: MOCK_REDEEMER_ENFORCER,
+          terms: MOCK_REDEEMER_TERMS,
+          args: '0x',
+        },
+      ],
       salt: `0x${'42'.repeat(32)}`,
       signature: `0x${'cd'.repeat(65)}`,
     },
@@ -194,6 +212,17 @@ async function run(
 }
 
 describe('registerIntentsStep', () => {
+  beforeEach(() => {
+    // The terms factory is overloaded over output encoding; the runtime path
+    // picks the hex overload, but `jest.mocked()` picks the bytes overload, so
+    // cast through `never` to satisfy both.
+    mockCreateRedeemerTerms.mockReturnValue(MOCK_REDEEMER_TERMS as never);
+  });
+
+  afterEach(() => {
+    jest.clearAllMocks();
+  });
+
   it('is named "register-intents"', () => {
     expect(registerIntentsStep.name).toBe('register-intents');
   });
@@ -394,6 +423,37 @@ describe('registerIntentsStep', () => {
         makeDelegationResponse({
           delegator: OTHER_ADDRESS,
           tokenAddress: OTHER_TOKEN,
+        }),
+      ]);
+
+      const result = await run(messenger);
+
+      expect(result).toBe('already-done');
+      expect(mocks.createIntents).not.toHaveBeenCalled();
+    });
+
+    it('ignores delegations whose caveats do not include a redeemer caveat targeting the Veda vault adapter', async () => {
+      const { messenger, mocks } = setup();
+      mocks.listDelegations.mockResolvedValue([
+        // No caveats at all.
+        makeDelegationResponse({
+          tokenAddress: MOCK_MUSD,
+          delegationHash: MOCK_MUSD_DELEGATION_HASH,
+          caveats: [],
+        }),
+        // Right enforcer, wrong terms (different redeemer encoded).
+        makeDelegationResponse({
+          tokenAddress: MOCK_BORING_VAULT,
+          tokenSymbol: 'vmUSD',
+          delegationHash: MOCK_VMUSD_DELEGATION_HASH,
+          type: 'cash-withdrawal',
+          caveats: [
+            {
+              enforcer: MOCK_REDEEMER_ENFORCER,
+              terms: '0xdeadbeef',
+              args: '0x',
+            },
+          ],
         }),
       ]);
 

@@ -10,13 +10,14 @@ import { add0x, bytesToHex } from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
 
 import type { MoneyAccountUpgradeControllerMessenger } from '../MoneyAccountUpgradeController';
+import {
+  equalsIgnoreCase,
+  makeHasVedaRedeemerCaveat,
+} from './delegation-matchers';
 import type { Step } from './step';
 
 const MAX_UINT256 = 2n ** 256n - 1n;
 const MAX_UINT256_HEX: Hex = add0x(MAX_UINT256.toString(16));
-
-const equalsIgnoreCase = (a: Hex, b: Hex): boolean =>
-  a.toLowerCase() === b.toLowerCase();
 
 /**
  * Builds, signs, verifies (with CHOMP), and persists a single auto-deposit
@@ -149,13 +150,19 @@ export const buildDelegationStep: Step = {
       'AuthenticatedUserStorageService:listDelegations',
     );
 
+    const hasVedaRedeemerCaveat = makeHasVedaRedeemerCaveat(
+      redeemerEnforcer,
+      vedaVaultAdapterAddress,
+    );
+
     const matches =
       (tokenAddress: Hex) =>
       (entry: DelegationResponse): boolean =>
         equalsIgnoreCase(entry.signedDelegation.delegator, address) &&
         equalsIgnoreCase(entry.signedDelegation.delegate, delegateAddress) &&
         equalsIgnoreCase(entry.metadata.chainIdHex, chainId) &&
-        equalsIgnoreCase(entry.metadata.tokenAddress, tokenAddress);
+        equalsIgnoreCase(entry.metadata.tokenAddress, tokenAddress) &&
+        hasVedaRedeemerCaveat(entry);
 
     // The deposit delegation authorises transfers of mUSD (delegator → vault);
     // the withdrawal delegation authorises transfers of vmUSD (vault share
