@@ -441,9 +441,7 @@ export class RpcDataSource extends AbstractDataSource<
     metadata: AssetMetadata | undefined,
   ): metadata is AssetMetadata {
     return Boolean(
-      metadata &&
-        Number.isFinite(metadata.decimals) &&
-        metadata.decimals >= 0,
+      metadata && Number.isFinite(metadata.decimals) && metadata.decimals >= 0,
     );
   }
 
