@@ -5465,6 +5465,7 @@ __metadata:
     "@metamask/account-tree-controller": "npm:^7.4.0"
     "@metamask/auto-changelog": "npm:^6.1.0"
     "@metamask/eth-snap-keyring": "npm:^22.0.1"
+    "@metamask/keyring-api": "npm:^23.1.0"
     "@metamask/keyring-controller": "npm:^25.5.0"
     "@metamask/keyring-utils": "npm:^3.2.1"
     "@metamask/messenger": "npm:^1.2.0"

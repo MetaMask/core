@@ -3,6 +3,8 @@ import type {
   SnapKeyring as LegacySnapKeyring,
   SnapMessage,
 } from '@metamask/eth-snap-keyring';
+import { SnapKeyring, SnapKeyringState } from '@metamask/eth-snap-keyring/v2';
+import { Keyring, KeyringType } from '@metamask/keyring-api/v2';
 import type {
   KeyringControllerGetStateAction,
   KeyringControllerStateChangeEvent,
@@ -34,6 +36,7 @@ import type {
   SnapAccountServiceGetLegacySnapKeyringAction,
   SnapAccountServiceGetSnapsAction,
   SnapAccountServiceHandleKeyringSnapMessageAction,
+  SnapAccountServiceMigrateAction,
 } from './SnapAccountService-method-action-types';
 import { SnapPlatformWatcher } from './SnapPlatformWatcher';
 import type { SnapPlatformWatcherConfig } from './SnapPlatformWatcher';
@@ -63,6 +66,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'getSnaps',
   'getLegacySnapKeyring',
   'handleKeyringSnapMessage',
+  'migrate',
 ] as const;
 
 /**
@@ -72,7 +76,8 @@ export type SnapAccountServiceActions =
   | SnapAccountServiceEnsureReadyAction
   | SnapAccountServiceGetSnapsAction
   | SnapAccountServiceGetLegacySnapKeyringAction
-  | SnapAccountServiceHandleKeyringSnapMessageAction;
+  | SnapAccountServiceHandleKeyringSnapMessageAction
+  | SnapAccountServiceMigrateAction;
 
 /**
  * Actions from other messengers that {@link SnapAccountService} calls.
@@ -148,6 +153,17 @@ function isLegacySnapKeyring(keyring: {
 }
 
 /**
+ * Checks if a given keyring is a Snap keyring (v2).
+ *
+ * @param keyring - The keyring to check.
+ * @returns `true` if the keyring is a Snap keyring (v2), `false` otherwise.
+ */
+function isSnapKeyring(keyring: Keyring): keyring is SnapKeyring {
+  // Using `KeyringType.Snap` (used for v2).
+  return keyring.type === KeyringType.Snap;
+}
+
+/**
  * Service responsible for managing account management snaps.
  */
 export class SnapAccountService {
@@ -161,6 +177,8 @@ export class SnapAccountService {
   readonly #watcher: SnapPlatformWatcher;
 
   readonly #tracker: SnapTracker;
+
+  #migratePromise: Promise<void> | null = null;
 
   /**
    * Constructs a new {@link SnapAccountService}.
@@ -285,7 +303,11 @@ export class SnapAccountService {
   /**
    * Ensures everything is ready to use Snap accounts for the given Snap.
    * 1. Validates that `snapId` is a tracked account-management Snap.
-   * 2. Waits for the Snap platform to be fully started.
+   * 2. Runs the legacy -> v2 Snap keyring migration (cached — no-op if
+   *    already done).
+   * 3. Atomically creates the v2 keyring for this Snap if it doesn't exist
+   *    yet.
+   * 4. Waits for the Snap platform to be fully started.
    *
    * Safe to call concurrently — each step is idempotent or mutex-protected.
    *
@@ -296,9 +318,128 @@ export class SnapAccountService {
     if (!this.#tracker.canUse(snapId)) {
       throw new Error(`Unknown snap: "${snapId}"`);
     }
+
+    // Migrate from the global v1 Snap keyring to the per-Snap v2 keyring
+    // before doing anything else.
+    await this.migrate();
+
+    // We still try to create the keyring for the Snap here, since we might
+    // want to use a new Snap that never had accounts before.
+    await this.#ensureKeyringIsReady(snapId);
+
     // Before doing anything with our Snap, we need to make sure the platform
     // is ready to process requests.
     await this.#watcher.ensureCanUseSnapPlatform();
+  }
+
+  /**
+   * Migrate the legacy Snap keyring to the new (per-snap) Snap keyring v2.
+   * Safe to call concurrently — the migration runs only once; all callers
+   * await the same promise.
+   *
+   * @returns A promise that resolves when the migration is complete.
+   */
+  async migrate(): Promise<void> {
+    if (!this.#migratePromise) {
+      this.#migratePromise = this.#migrate();
+    }
+    return await this.#migratePromise;
+  }
+
+  /**
+   * Performs the actual migration logic. Should only be called once, and is not
+   * safe to call concurrently.
+   */
+  async #migrate(): Promise<void> {
+    log('Migration started...');
+
+    await this.#messenger.call(
+      'KeyringController:withController',
+      async (controller) => {
+        const { keyrings } = controller;
+
+        const legacySnapKeyringEntry = keyrings.find(({ keyring }) =>
+          isLegacySnapKeyring(keyring),
+        );
+        if (!legacySnapKeyringEntry) {
+          log('No legacy Snap keyring found. Migration not required.');
+          return;
+        }
+
+        // The legacy Snap keyring has never been a true `EthKeyring` so we
+        // need to cast it to `unknown` first.
+        const legacySnapKeyring =
+          legacySnapKeyringEntry.keyring as unknown as LegacySnapKeyring;
+
+        // Compute the account list for each Snap, grouped by snap ID.
+        const states = new Map<SnapId, SnapKeyringState>();
+        for (const internalAccount of legacySnapKeyring.listAccounts()) {
+          // Convert `InternalAccount` to `KeyringAccount` since the Snap
+          // keyring (v2) expects accounts in that format and will verify it
+          // with `superstruct` when adding the keyring.
+          const { metadata, ...account } = internalAccount;
+
+          const snap = metadata?.snap;
+          if (snap) {
+            const snapId = snap.id as SnapId;
+
+            let state = states.get(snapId);
+            if (!state) {
+              state = { snapId, accounts: {} };
+              states.set(snapId, state);
+            }
+            state.accounts[account.id] = account;
+          }
+        }
+
+        // Create the new Snap keyring (v2) for each Snap and migrate the
+        // accounts over.
+        for (const state of states.values()) {
+          log(`Migrating accounts for Snap "${state.snapId}"...`);
+          await controller.addNewKeyring(
+            // IMPORTANT: The Snap keyring (v2) can also be used as a v1
+            // keyring. So the builder associated with the v2 keyring type is
+            // able to build both v1 and v2 keyrings.
+            KeyringType.Snap,
+            state,
+          );
+        }
+
+        // Remove the legacy Snap keyring after migration.
+        log('Removing legacy Snap keyring...');
+        await controller.removeKeyring(legacySnapKeyringEntry.metadata.id);
+      },
+    );
+
+    log('Migration completed!');
+  }
+
+  /**
+   * Ensures a Snap keyring is ready for the given Snap. If it doesn't exist yet, it will be created.
+   * Safe to call concurrently.
+   *
+   * @param snapId - The Snap ID to ensure the keyring is ready for.
+   */
+  async #ensureKeyringIsReady(snapId: SnapId): Promise<void> {
+    await this.#messenger.call(
+      'KeyringController:withController',
+      async (controller) => {
+        const hasKeyring = controller.keyrings.some(
+          ({ keyringV2 }) =>
+            keyringV2 &&
+            isSnapKeyring(keyringV2) &&
+            keyringV2.snapId === snapId,
+        );
+
+        if (!hasKeyring) {
+          log(`Creating v2 keyring for Snap "${snapId}"...`);
+          await controller.addNewKeyring(KeyringType.Snap, {
+            snapId,
+            accounts: {},
+          });
+        }
+      },
+    );
   }
 
   /**

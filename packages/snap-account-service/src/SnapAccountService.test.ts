@@ -1,5 +1,7 @@
 import type { AccountGroupId } from '@metamask/account-api';
+import { SNAP_KEYRING_TYPE } from '@metamask/eth-snap-keyring';
 import type { SnapKeyring, SnapMessage } from '@metamask/eth-snap-keyring';
+import { KeyringType } from '@metamask/keyring-api/v2';
 import {
   KeyringControllerState,
   KeyringTypes,
@@ -436,6 +438,7 @@ function setup({
 }
 
 const MOCK_SNAP_ID = 'npm:@metamask/mock-snap' as SnapId;
+const MOCK_OTHER_SNAP_ID = 'npm:@metamask/other-snap' as SnapId;
 
 describe('SnapAccountService', () => {
   describe('init', () => {
@@ -455,6 +458,93 @@ describe('SnapAccountService', () => {
       await service.init();
 
       expect(service.getSnaps()).toStrictEqual([MOCK_SNAP_ID]);
+    });
+  });
+
+  describe('migrate', () => {
+    it('runs the migration only once when called concurrently', async () => {
+      const { service, mocks } = setup();
+      mocks.KeyringController.withController.mockResolvedValue(undefined);
+
+      await Promise.all([service.migrate(), service.migrate()]);
+
+      expect(mocks.KeyringController.withController).toHaveBeenCalledTimes(1);
+    });
+
+    it('is a no-op when no legacy Snap keyring is present', async () => {
+      const addNewKeyring = jest.fn().mockResolvedValue(undefined);
+      const removeKeyring = jest.fn().mockResolvedValue(undefined);
+      const { service, mocks } = setup();
+      mocks.KeyringController.withController.mockImplementation(
+        async (operation) =>
+          operation({ keyrings: [], addNewKeyring, removeKeyring }),
+      );
+
+      await service.migrate();
+
+      expect(addNewKeyring).not.toHaveBeenCalled();
+      expect(removeKeyring).not.toHaveBeenCalled();
+    });
+
+    it('migrates accounts from the legacy Snap keyring to per-Snap v2 keyrings and removes the legacy entry', async () => {
+      const addNewKeyring = jest.fn().mockResolvedValue(undefined);
+      const removeKeyring = jest.fn().mockResolvedValue(undefined);
+      const legacyKeyringId = 'legacy-keyring-id';
+      const account1 = {
+        id: 'account-1',
+        address: '0x1',
+        metadata: { snap: { id: MOCK_SNAP_ID } },
+      };
+      const account2 = {
+        id: 'account-2',
+        address: '0x2',
+        metadata: { snap: { id: MOCK_SNAP_ID } },
+      };
+      const account3 = {
+        id: 'account-3',
+        address: '0x3',
+        metadata: { snap: { id: MOCK_OTHER_SNAP_ID } },
+      };
+      const orphanAccount = {
+        id: 'orphan',
+        address: '0x4',
+        metadata: {},
+      };
+      const legacyKeyring = {
+        type: SNAP_KEYRING_TYPE,
+        listAccounts: jest
+          .fn()
+          .mockReturnValue([account1, account2, account3, orphanAccount]),
+      };
+      const { service, mocks } = setup();
+      mocks.KeyringController.withController.mockImplementation(
+        async (operation) =>
+          operation({
+            keyrings: [
+              { keyring: legacyKeyring, metadata: { id: legacyKeyringId } },
+            ],
+            addNewKeyring,
+            removeKeyring,
+          }),
+      );
+
+      await service.migrate();
+
+      expect(addNewKeyring).toHaveBeenCalledTimes(2);
+      expect(addNewKeyring).toHaveBeenCalledWith(KeyringType.Snap, {
+        snapId: MOCK_SNAP_ID,
+        accounts: {
+          [account1.id]: { id: account1.id, address: account1.address },
+          [account2.id]: { id: account2.id, address: account2.address },
+        },
+      });
+      expect(addNewKeyring).toHaveBeenCalledWith(KeyringType.Snap, {
+        snapId: MOCK_OTHER_SNAP_ID,
+        accounts: {
+          [account3.id]: { id: account3.id, address: account3.address },
+        },
+      });
+      expect(removeKeyring).toHaveBeenCalledWith(legacyKeyringId);
     });
   });
 
@@ -487,6 +577,73 @@ describe('SnapAccountService', () => {
       await service.init();
 
       expect(await service.ensureReady(MOCK_SNAP_ID)).toBeUndefined();
+    });
+
+    it('runs the migration before checking platform readiness', async () => {
+      const { service, mocks } = setup({
+        runnableSnaps: [buildSnap(MOCK_SNAP_ID, true)],
+      });
+      mocks.KeyringController.withController.mockResolvedValue(undefined);
+
+      await service.init();
+      // `migrate` is invoked once + `#createKeyringForSnap` is invoked once
+      // (the cached migrate call is a no-op on subsequent calls).
+      await service.ensureReady(MOCK_SNAP_ID);
+
+      expect(mocks.KeyringController.withController).toHaveBeenCalledTimes(2);
+    });
+
+    it('creates a v2 keyring for the Snap when one does not exist yet', async () => {
+      const addNewKeyring = jest.fn().mockResolvedValue(undefined);
+      const removeKeyring = jest.fn().mockResolvedValue(undefined);
+      const { service, mocks } = setup({
+        runnableSnaps: [buildSnap(MOCK_SNAP_ID, true)],
+      });
+      mocks.KeyringController.withController.mockImplementation(
+        async (operation) =>
+          operation({ keyrings: [], addNewKeyring, removeKeyring }),
+      );
+
+      await service.init();
+      await service.ensureReady(MOCK_SNAP_ID);
+
+      expect(addNewKeyring).toHaveBeenCalledWith(KeyringType.Snap, {
+        snapId: MOCK_SNAP_ID,
+        accounts: {},
+      });
+    });
+
+    it('does not create a v2 keyring when one already exists for the Snap', async () => {
+      const addNewKeyring = jest.fn().mockResolvedValue(undefined);
+      const removeKeyring = jest.fn().mockResolvedValue(undefined);
+      const { service, mocks } = setup({
+        runnableSnaps: [buildSnap(MOCK_SNAP_ID, true)],
+      });
+      // First call: migration (no legacy snap keyring → early return).
+      // Second call: ensureReady keyring check (snap keyring already exists).
+      mocks.KeyringController.withController
+        .mockImplementationOnce(async (operation) =>
+          operation({ keyrings: [], addNewKeyring, removeKeyring }),
+        )
+        .mockImplementationOnce(async (operation) =>
+          operation({
+            keyrings: [
+              {
+                keyringV2: {
+                  type: KeyringType.Snap,
+                  snapId: MOCK_SNAP_ID,
+                },
+              },
+            ],
+            addNewKeyring,
+            removeKeyring,
+          }),
+        );
+
+      await service.init();
+      await service.ensureReady(MOCK_SNAP_ID);
+
+      expect(addNewKeyring).not.toHaveBeenCalled();
     });
 
     it('waits for the Snap platform to become ready', async () => {
@@ -525,9 +682,9 @@ describe('SnapAccountService', () => {
         return undefined;
       });
 
-      // Flush microtasks so #waitForSnapKeyring subscribes.
-      await Promise.resolve();
-      await Promise.resolve();
+      // Flush microtasks so migration completes and #waitForSnapKeyring
+      // subscribes.
+      await flushMicrotasks();
 
       expect(resolved).toBe(false);
 
@@ -584,7 +741,7 @@ describe('SnapAccountService', () => {
         return undefined;
       });
 
-      await Promise.resolve();
+      await flushMicrotasks();
       expect(ensureOnboardingComplete).toHaveBeenCalledTimes(1);
       expect(resolved).toBe(false);
 
