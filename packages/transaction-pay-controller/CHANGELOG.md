@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Derive fiat order source amount from on-chain transaction data (`order.txHash`) with fallback to `order.cryptoAmount` ([#8694](https://github.com/MetaMask/core/pull/8694))
+- Persist fiat order ID and provider code on `transaction.metamaskPay` before polling, so activity views can query order status after controller state cleanup ([#8694](https://github.com/MetaMask/core/pull/8694))
+
 ## [22.3.1]
 
 ### Changed

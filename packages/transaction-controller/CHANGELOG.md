@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add optional `fiat` object (with `orderId` and `provider` properties) to `MetamaskPayMetadata` type for persisting fiat on-ramp order data on transactions ([#8694](https://github.com/MetaMask/core/pull/8694))
 - Add `predictAcrossWithdraw` to the `TransactionType` enum ([#8759](https://github.com/MetaMask/core/pull/8759))
 
 ### Changed
