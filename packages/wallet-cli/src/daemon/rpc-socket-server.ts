@@ -227,7 +227,9 @@ async function handleRequest(
       return { jsonrpc: '2.0', id, result: { status: 'shutting down' } };
     }
 
-    const handler = handlers[method];
+    const handler = Object.prototype.hasOwnProperty.call(handlers, method)
+      ? handlers[method]
+      : undefined;
     if (!handler) {
       return {
         jsonrpc: '2.0',

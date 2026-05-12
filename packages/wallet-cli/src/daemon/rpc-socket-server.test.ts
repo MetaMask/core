@@ -289,6 +289,29 @@ describe('startRpcSocketServer', () => {
       );
     });
 
+    it.each(['toString', 'constructor', 'hasOwnProperty', '__proto__'])(
+      'returns -32601 for the Object.prototype name %p instead of invoking the inherited member',
+      async (method) => {
+        const { simulateConnection } = createMockServer();
+        await startRpcSocketServer({
+          socketPath: '/tmp/test.sock',
+          handlers: {},
+        });
+
+        const socket = createMockSocket();
+        simulateConnection(socket);
+        sendRequest(socket, { jsonrpc: '2.0', id: '1', method });
+
+        await flushPromises();
+
+        expect(getResponse(socket).error).toStrictEqual(
+          expect.objectContaining({
+            code: -32601,
+          }),
+        );
+      },
+    );
+
     it('returns -32603 when handler throws an Error', async () => {
       const { simulateConnection } = createMockServer();
       const handlers: RpcHandlerMap = {

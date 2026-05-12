@@ -253,7 +253,14 @@ module.exports = defineConfig({
       }
 
       // All packages must specify a minimum Node.js version of 18.18.
-      expectWorkspaceField(workspace, 'engines.node', '^18.18 || >=20');
+      // @metamask/wallet-cli depends on `better-sqlite3` which only ships
+      // prebuilt binaries for Node 20+; bumping its declared minimum keeps
+      // the engines field honest.
+      if (workspace.ident === '@metamask/wallet-cli') {
+        expectWorkspaceField(workspace, 'engines.node', '>=20');
+      } else {
+        expectWorkspaceField(workspace, 'engines.node', '^18.18 || >=20');
+      }
 
       // All non-root public packages should be published to the NPM registry;
       // all non-root private packages should not.
