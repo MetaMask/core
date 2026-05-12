@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- Revert "Release/976.0.0 (#8768)" ([#8768](https://github.com/MetaMask/core/pull/8768))
+- Release/976.0.0 ([#8768](https://github.com/MetaMask/core/pull/8768))
+
 ### Added
 
 - Add `POLYGON_PUSD_ADDRESS` constant and treat Polymarket pUSD as a Polygon stablecoin in display/fiat-rate logic ([#8735](https://github.com/MetaMask/core/pull/8735))
