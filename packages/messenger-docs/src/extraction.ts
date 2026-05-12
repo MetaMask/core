@@ -59,15 +59,27 @@ function extractStringConstants(sourceFile: SourceFile): Map<string, string> {
 }
 
 /**
- * Resolve the value of `controllerName` (or similar constant) defined in the
- * same file or imported from a local `./constants*` module (single-hop only).
+ * Collect every top-level string constant that is visible from a source file:
+ * those declared in the file itself, plus those imported from single-hop local
+ * modules (e.g. `import { CONTROLLER_NAME } from './constants'`). Transitive
+ * imports are intentionally not followed.
+ *
+ * The resulting map is later used to resolve `typeof X` references inside
+ * messenger action and event type template strings — when an action type
+ * declares `type: \`${typeof CONTROLLER_NAME}:getState\``, we need to know the
+ * string value of `CONTROLLER_NAME` to render the namespace.
+ *
+ * The collection is broad on purpose: we don't filter by name (e.g. "looks
+ * like a controller name") because messenger client namespaces follow no fixed
+ * naming convention, and the extra entries are harmless — downstream resolvers
+ * only look up names that actually appear in messenger type strings.
  *
  * @param project - The ts-morph project to add imported source files to.
  * @param sourceFile - The TypeScript source file to search.
  * @param filePath - The absolute path of the source file on disk.
  * @returns A promise that resolves to a map of constant name to resolved string value.
  */
-async function resolveControllerName(
+async function collectStringConstants(
   project: Project,
   sourceFile: SourceFile,
   filePath: string,
@@ -512,7 +524,7 @@ export async function extractFromFile(
     overwrite: true,
   });
 
-  const constants = await resolveControllerName(project, sourceFile, filePath);
+  const constants = await collectStringConstants(project, sourceFile, filePath);
   const classMethods = collectClassMethods(sourceFile);
   const items: MessengerItemDoc[] = [];
   const relPath = path.relative(relBase, filePath);
