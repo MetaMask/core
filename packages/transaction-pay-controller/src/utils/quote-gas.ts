@@ -6,7 +6,7 @@ import { BigNumber } from 'bignumber.js';
 
 import type { TransactionPayControllerMessenger } from '..';
 import { projectLogger } from '../logger';
-import { getGasBuffer } from './feature-flags';
+import { getFallbackGas, getGasBuffer } from './feature-flags';
 import { estimateGasLimit } from './gas';
 
 const log = createModuleLogger(projectLogger, 'quote-gas');
@@ -55,7 +55,12 @@ export async function estimateQuoteGasLimits({
 
   if (useBatch) {
     return {
-      ...(await estimateQuoteGasLimitsBatch(transactions, messenger)),
+      ...(await estimateQuoteGasLimitsBatch({
+        fallbackGas,
+        fallbackOnSimulationFailure,
+        messenger,
+        transactions,
+      })),
       usedBatch: true,
     };
   }
@@ -72,10 +77,20 @@ export async function estimateQuoteGasLimits({
   };
 }
 
-async function estimateQuoteGasLimitsBatch(
-  transactions: QuoteGasTransaction[],
-  messenger: TransactionPayControllerMessenger,
-): Promise<{
+async function estimateQuoteGasLimitsBatch({
+  fallbackGas,
+  fallbackOnSimulationFailure,
+  messenger,
+  transactions,
+}: {
+  fallbackGas?: {
+    estimate: number;
+    max: number;
+  };
+  fallbackOnSimulationFailure: boolean;
+  messenger: TransactionPayControllerMessenger;
+  transactions: QuoteGasTransaction[];
+}): Promise<{
   batchGasLimit?: QuoteGasLimit;
   gasLimits: QuoteGasLimit[];
   is7702: boolean;
@@ -90,17 +105,60 @@ async function estimateQuoteGasLimitsBatch(
     parseGasLimit(transaction.gas),
   );
 
-  const { gasLimits, requiresAuthorizationList } = await messenger.call(
-    'TransactionController:estimateGasBatch',
-    {
+  const { gasLimits, requiresAuthorizationList, simulationFails } =
+    await messenger.call('TransactionController:estimateGasBatch', {
       chainId: firstTransaction.chainId,
       from: firstTransaction.from,
       transactions: transactions.map(toBatchTransactionParams),
-    },
-  );
+    });
 
   if (gasLimits.length !== 1 && gasLimits.length !== transactions.length) {
     throw new Error('Unexpected batch gas limit count');
+  }
+
+  const is7702 = gasLimits.length === 1;
+
+  if (simulationFails) {
+    if (!fallbackOnSimulationFailure) {
+      throw new Error(
+        `Batch gas estimation failed: ${
+          simulationFails.reason ?? 'unknown reason'
+        }`,
+      );
+    }
+
+    log('Batch gas estimate failed, using fallback', {
+      chainId: firstTransaction.chainId,
+      is7702,
+      simulationFails,
+    });
+
+    const resolvedFallback = fallbackGas ?? getFallbackGas(messenger);
+    const fallbackEstimate = Math.ceil(resolvedFallback.estimate * gasBuffer);
+    const fallbackMax = Math.ceil(resolvedFallback.max * gasBuffer);
+
+    const fallbackGasLimit: QuoteGasLimit = {
+      estimate: fallbackEstimate,
+      max: fallbackMax,
+    };
+
+    const fallbackGasLimits: QuoteGasLimit[] = is7702
+      ? [fallbackGasLimit]
+      : transactions.map(() => fallbackGasLimit);
+
+    const fallbackTotal = fallbackGasLimits.reduce(
+      (acc, current) => acc + current.max,
+      0,
+    );
+
+    return {
+      ...(is7702 ? { batchGasLimit: fallbackGasLimit } : {}),
+      gasLimits: fallbackGasLimits,
+      is7702,
+      ...(requiresAuthorizationList ? { requiresAuthorizationList } : {}),
+      totalGasEstimate: fallbackTotal,
+      totalGasLimit: fallbackTotal,
+    };
   }
 
   const bufferedGasLimits = gasLimits.map((gasLimit, index) => {
@@ -126,7 +184,6 @@ async function estimateQuoteGasLimitsBatch(
     (acc, gasLimit) => acc + gasLimit.max,
     0,
   );
-  const is7702 = bufferedGasLimits.length === 1;
   const batchGasLimit = is7702 ? bufferedGasLimits[0] : undefined;
 
   return {
