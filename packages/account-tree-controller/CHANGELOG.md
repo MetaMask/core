@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `AccountTreeController:accountGroup{Created,Updated,Removed}` events ([#8766](https://github.com/MetaMask/core/pull/8766))
+  - None of these events fire during `init`/`reinit`, consumers should bootstrap from `:getState` or `:accountTreeChange`.
+
 ### Changed
 
 - Bump `@metamask/accounts-controller` from `^38.0.0` to `^38.1.0` ([#8755](https://github.com/MetaMask/core/pull/8755))
