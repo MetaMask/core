@@ -1672,6 +1672,35 @@ describe('RpcDataSource', () => {
       const [response] = onAssetsUpdate.mock.calls[0];
       expect(response.assetsInfo?.[NATIVE_ASSET_ID]).toStrictEqual(existing);
     });
+
+    it('falls back to chain-status stub when state native metadata has negative decimals', async () => {
+      const onAssetsUpdate = jest.fn();
+      await subscribeAndEmit(
+        {
+          decimals: -1,
+          name: 'X',
+          symbol: 'X',
+          type: 'native',
+        },
+        onAssetsUpdate,
+      );
+
+      const [response] = onAssetsUpdate.mock.calls[0];
+      // Regression: `#hasValidDecimals` previously accepted negative
+      // decimals (only checked `Number.isFinite`), so consumers saw stale
+      // `decimals: -1` in `assetsInfo` while the balance silently became
+      // `'0'`. The metadata guard must reject negatives so the chain-status
+      // stub takes over and the balance resolves correctly.
+      expect(response.assetsInfo?.[NATIVE_ASSET_ID]).toStrictEqual({
+        type: 'native',
+        symbol: 'ETH',
+        name: 'ETH',
+        decimals: 18,
+      });
+      expect(
+        response.assetsBalance?.[MOCK_ACCOUNT_ID]?.[NATIVE_ASSET_ID]?.amount,
+      ).toBe('1');
+    });
   });
 
   describe('convertToHumanReadable guards', () => {
@@ -1734,23 +1763,6 @@ describe('RpcDataSource', () => {
           type: 'native',
         },
         'not-a-number',
-      );
-
-      const [response] = onAssetsUpdate.mock.calls[0];
-      expect(
-        response.assetsBalance?.[MOCK_ACCOUNT_ID]?.[NATIVE_ASSET_ID]?.amount,
-      ).toBe('0');
-    });
-
-    it('returns "0" amount when decimals is negative', async () => {
-      const { onAssetsUpdate } = await runFetchWithStateMetadata(
-        {
-          decimals: -1,
-          name: 'X',
-          symbol: 'X',
-          type: 'native',
-        },
-        '1000000000000000000',
       );
 
       const [response] = onAssetsUpdate.mock.calls[0];

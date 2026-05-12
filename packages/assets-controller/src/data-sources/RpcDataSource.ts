@@ -424,10 +424,27 @@ export class RpcDataSource extends AbstractDataSource<
     return assetsInfo;
   }
 
+  /**
+   * Type guard for metadata whose `decimals` is safe to use for balance
+   * conversion.
+   *
+   * Mirrors the validity rules in `#convertToHumanReadable` (finite and
+   * non-negative). Keeping these in sync ensures that whenever the metadata
+   * guard accepts a value, the balance guard will also accept it — so we
+   * never end up emitting metadata with `decimals: -1` while silently
+   * defaulting the balance to `'0'`.
+   *
+   * @param metadata - The metadata to check.
+   * @returns `true` if `decimals` is a finite, non-negative number.
+   */
   #hasValidDecimals(
     metadata: AssetMetadata | undefined,
   ): metadata is AssetMetadata {
-    return Boolean(metadata && Number.isFinite(metadata.decimals));
+    return Boolean(
+      metadata &&
+        Number.isFinite(metadata.decimals) &&
+        metadata.decimals >= 0,
+    );
   }
 
   /**
