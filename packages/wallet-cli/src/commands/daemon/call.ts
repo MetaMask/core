@@ -1,3 +1,4 @@
+import type { Json } from '@metamask/utils';
 import { isJsonRpcFailure } from '@metamask/utils';
 import { Args, Command, Flags } from '@oclif/core';
 
@@ -39,7 +40,10 @@ export default class DaemonCall extends Command {
     const { action } = args;
     const timeoutMs = flags.timeout;
 
-    let rpcParams: unknown[] = [action];
+    // The daemon's `call` RPC expects `[action, ...args]`. `JSON.parse` returns
+    // `unknown`, but anything it produces is structurally `Json`, so we cast to
+    // `Json[]` once we've confirmed the parsed payload is an array.
+    const rpcParams: Json[] = [action];
     if (args.params !== undefined) {
       let parsed: unknown;
       try {
@@ -52,7 +56,7 @@ export default class DaemonCall extends Command {
         this.error('params must be a JSON array');
       }
 
-      rpcParams = [action, ...parsed];
+      rpcParams.push(...(parsed as Json[]));
     }
 
     const { socketPath } = getDaemonPaths(this.config.dataDir);

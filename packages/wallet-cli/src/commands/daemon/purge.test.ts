@@ -1,17 +1,17 @@
-import confirm from '@inquirer/confirm';
 import { rm } from 'node:fs/promises';
 
 import { pingDaemon } from '../../daemon/daemon-client';
 import { stopDaemon } from '../../daemon/stop-daemon';
 import { runCommand } from '../../test/run-command';
+import { confirmPurge } from './prompts';
 import DaemonPurge from './purge';
 
 jest.mock('node:fs/promises');
 jest.mock('../../daemon/daemon-client');
 jest.mock('../../daemon/stop-daemon');
-jest.mock('@inquirer/confirm');
+jest.mock('./prompts');
 
-const inquirerConfirm = jest.mocked(confirm);
+const inquirerConfirm = jest.mocked(confirmPurge);
 const mockRm = jest.mocked(rm);
 const mockPingDaemon = jest.mocked(pingDaemon);
 const mockStopDaemon = jest.mocked(stopDaemon);

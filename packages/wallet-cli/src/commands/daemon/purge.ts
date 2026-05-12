@@ -1,10 +1,10 @@
-import confirm from '@inquirer/confirm';
 import { Command, Flags } from '@oclif/core';
 import { rm } from 'node:fs/promises';
 
 import { pingDaemon } from '../../daemon/daemon-client';
 import { getDaemonPaths } from '../../daemon/paths';
 import { stopDaemon } from '../../daemon/stop-daemon';
+import { confirmPurge } from './prompts';
 
 export default class DaemonPurge extends Command {
   static override description =
@@ -26,10 +26,7 @@ export default class DaemonPurge extends Command {
     const { flags } = await this.parse(DaemonPurge);
 
     if (!flags.force) {
-      const confirmed = await confirm({
-        message: 'This will stop the daemon and delete all state. Continue?',
-        default: false,
-      });
+      const confirmed = await confirmPurge();
       if (!confirmed) {
         this.log('Aborted.');
         return;

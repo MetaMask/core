@@ -76,21 +76,23 @@ export async function ensureDaemon(
     },
   });
 
-  let exitInfo: { code: number | null; signal: NodeJS.Signals | null } | null =
-    null;
+  type ExitInfo = { code: number | null; signal: NodeJS.Signals | null };
+  const exitInfo: { value: ExitInfo | null } = { value: null };
+
   child.on('error', (error) => {
     process.stderr.write(`Failed to spawn daemon process: ${String(error)}\n`);
   });
   child.on('exit', (code, signal) => {
-    exitInfo = { code, signal };
+    exitInfo.value = { code, signal };
   });
   child.unref();
 
   for (let i = 0; i < MAX_POLLS; i++) {
     await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL_MS));
-    if (exitInfo !== null) {
+    if (exitInfo.value !== null) {
+      const { code, signal } = exitInfo.value;
       throw new Error(
-        `Daemon process exited during startup (code=${String(exitInfo.code)}, signal=${String(exitInfo.signal)}). ` +
+        `Daemon process exited during startup (code=${String(code)}, signal=${String(signal)}). ` +
           `Check the daemon log at ${getDaemonPaths(config.dataDir).logPath}.`,
       );
     }

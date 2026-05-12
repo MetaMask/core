@@ -1,7 +1,9 @@
 import type { Json } from '@metamask/utils';
+import type { Wallet } from '@metamask/wallet';
 import { mkdirSync } from 'node:fs';
-import { appendFile, readFile, rm, writeFile } from 'node:fs/promises';
+import { appendFile, chmod, readFile, rm, writeFile } from 'node:fs/promises';
 
+import type { KeyValueStore } from '../persistence/KeyValueStore';
 import { pingDaemon } from './daemon-client';
 import { getDaemonPaths } from './paths';
 import { startRpcSocketServer } from './rpc-socket-server';
@@ -41,7 +43,11 @@ async function main(): Promise<void> {
     throw new Error('MM_WALLET_SRP environment variable is required');
   }
 
-  mkdirSync(dataDir, { recursive: true });
+  // 0o700: owner-only. The daemon exposes the full wallet messenger over
+  // the socket inside this directory, so anyone who can traverse the dir
+  // can also `connect()` to the socket. Restricting to the owning user is
+  // the only access-control boundary.
+  mkdirSync(dataDir, { recursive: true, mode: 0o700 });
 
   const {
     socketPath: defaultSocketPath,
@@ -61,40 +67,61 @@ async function main(): Promise<void> {
 
   const pidFileContents = `${process.pid}\n${startTime}\n`;
 
-  const { wallet, store } = await createWallet({
-    databasePath: dbPath,
-    infuraProjectId,
-    password,
-    srp,
-    log,
-  });
-
-  const handlers: RpcHandlerMap = {
-    getStatus: async (): Promise<DaemonStatusInfo> => ({
-      pid: process.pid,
-      uptime: Math.floor((Date.now() - startTime) / 1000),
-    }),
-    // Arbitrary messenger dispatch is intentional: the CLI exposes the full
-    // messenger surface over a Unix socket inside the per-user oclif data
-    // directory. Anything that can open that path can call into the wallet —
-    // no in-process auth check is performed.
-    call: async (params) => {
-      if (!Array.isArray(params) || typeof params[0] !== 'string') {
-        throw new Error('Expected params to be an array with an action name');
-      }
-      const [action, ...args] = params as [string, ...Json[]];
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- The messenger is strongly typed; we bypass it here to dispatch arbitrary action names from RPC.
-      const result = (wallet.messenger as any).call(action, ...args);
-      return (result instanceof Promise ? await result : result) as Json;
-    },
-  };
-
-  let handle: RpcSocketServerHandle;
+  // Claim the slot atomically BEFORE opening the SQLite database or
+  // constructing the Wallet. Two concurrent `daemon start` invocations can
+  // both pass `claimDaemonSlot` (the gap between its preflight and the slot
+  // write is racy); without this ordering, both would open `wallet.db` and
+  // both would run first-run SRP import before one loses the wx race.
   try {
-    // Exclusive create — if another daemon raced us between claimDaemonSlot
-    // and here, this fails with EEXIST and we abort rather than orphan the
-    // sibling daemon's PID file.
     await writeFile(pidPath, pidFileContents, { flag: 'wx' });
+  } catch (error) {
+    throw error instanceof Error
+      ? Object.assign(error, {
+          message: `Failed to claim daemon slot at ${pidPath}: ${error.message}`,
+        })
+      : /* istanbul ignore next -- node:fs/promises always rejects with an Error */
+        new Error(
+          `Failed to claim daemon slot at ${pidPath}: ${String(error)}`,
+        );
+  }
+
+  let wallet: Wallet | undefined;
+  let store: KeyValueStore | undefined;
+  let handle: RpcSocketServerHandle | undefined;
+
+  try {
+    ({ wallet, store } = await createWallet({
+      databasePath: dbPath,
+      infuraProjectId,
+      password,
+      srp,
+      log,
+    }));
+
+    const constructedWallet = wallet;
+    const handlers: RpcHandlerMap = {
+      getStatus: async (): Promise<DaemonStatusInfo> => ({
+        pid: process.pid,
+        uptime: Math.floor((Date.now() - startTime) / 1000),
+      }),
+      // Arbitrary messenger dispatch is intentional: the CLI exposes the full
+      // messenger surface over a Unix socket inside the per-user oclif data
+      // directory. The dataDir/socket are chmodded to 0o700/0o600 below so
+      // only the owning user can open them, but there is no in-process
+      // auth check beyond that filesystem-permission barrier.
+      call: async (params) => {
+        if (!Array.isArray(params) || typeof params[0] !== 'string') {
+          throw new Error('Expected params to be an array with an action name');
+        }
+        const [action, ...args] = params as [string, ...Json[]];
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- The messenger is strongly typed; we bypass it here to dispatch arbitrary action names from RPC.
+        const result = (constructedWallet.messenger as any).call(
+          action,
+          ...args,
+        );
+        return (result instanceof Promise ? await result : result) as Json;
+      },
+    };
 
     handle = await startRpcSocketServer({
       socketPath,
@@ -102,16 +129,23 @@ async function main(): Promise<void> {
       onShutdown: async () => shutdown('RPC shutdown'),
       log,
     });
+    // Restrict the socket to the owner. listen() emits 'listening'
+    // synchronously, so this runs before any client can connect.
+    await chmod(socketPath, 0o600);
   } catch (error) {
-    try {
-      await wallet.destroy();
-    } catch (destroyError) {
-      log(`wallet.destroy() failed during cleanup: ${String(destroyError)}`);
+    if (wallet) {
+      try {
+        await wallet.destroy();
+      } catch (destroyError) {
+        log(`wallet.destroy() failed during cleanup: ${String(destroyError)}`);
+      }
     }
-    try {
-      store.close();
-    } catch (closeError) {
-      log(`store.close() failed during cleanup: ${String(closeError)}`);
+    if (store) {
+      try {
+        store.close();
+      } catch (closeError) {
+        log(`store.close() failed during cleanup: ${String(closeError)}`);
+      }
     }
     // Only remove the PID file if it's still ours (we may have lost the race
     // and the file now belongs to another daemon).
@@ -122,6 +156,12 @@ async function main(): Promise<void> {
     );
     throw error;
   }
+
+  // Capture the now-resolved bindings so the shutdown closures below have
+  // a stable, non-undefined reference (TS narrowing across closure escape).
+  const activeHandle = handle;
+  const activeWallet = wallet;
+  const activeStore = store;
 
   log(`Daemon started. Socket: ${socketPath}`);
 
@@ -138,17 +178,17 @@ async function main(): Promise<void> {
       log(`Shutting down (${reason})...`);
       shutdownPromise = (async (): Promise<void> => {
         try {
-          await handle.close();
+          await activeHandle.close();
         } catch (closeError) {
           log(`handle.close() failed: ${String(closeError)}`);
         }
         try {
-          await wallet.destroy();
+          await activeWallet.destroy();
         } catch (destroyError) {
           log(`wallet.destroy() failed: ${String(destroyError)}`);
         }
         try {
-          store.close();
+          activeStore.close();
         } catch (closeError) {
           log(`store.close() failed: ${String(closeError)}`);
         }
@@ -202,16 +242,20 @@ async function claimDaemonSlot(
     throw new Error(`A daemon is already running on ${socketPath} ${pidPart}`);
   }
 
-  if (
-    ping.status === 'unreachable' &&
-    existingPid !== undefined &&
-    isProcessAlive(existingPid)
-  ) {
-    // Symmetric with `ensureDaemon`: do not silently take over a wedged
-    // sibling daemon. The user should `mm daemon stop` (or `purge`) first.
+  // Refuse to clobber when the recorded PID is still alive, regardless of
+  // whether the socket exists. Possible scenarios:
+  // - `unreachable`: wedged or mid-startup sibling daemon (socket present
+  //   but not responding to JSON-RPC).
+  // - `absent`: a sibling daemon that hasn't yet bound its socket, or one
+  //   whose socket was manually removed. In either case, removing its PID
+  //   file would orphan it from `daemon stop`.
+  if (existingPid !== undefined && isProcessAlive(existingPid)) {
+    const detail =
+      ping.status === 'unreachable'
+        ? `socket at ${socketPath} is unresponsive (${ping.error.message})`
+        : `no socket at ${socketPath}, but pid is still alive`;
     throw new Error(
-      `A daemon is already running but its socket at ${socketPath} is unresponsive ` +
-        `(pid ${existingPid}, ${ping.error.message}). ` +
+      `A daemon is already running (pid ${existingPid}): ${detail}. ` +
         `Run \`mm daemon stop\` (or \`mm daemon purge\`) before starting a new daemon.`,
     );
   }

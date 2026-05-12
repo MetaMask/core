@@ -183,6 +183,7 @@ describe('daemon-entry', () => {
 
     expect(mockMkdirSync).toHaveBeenCalledWith('/tmp/data', {
       recursive: true,
+      mode: 0o700,
     });
     expect(mockCreateWallet).toHaveBeenCalledWith({
       databasePath: '/tmp/wallet.db',
@@ -329,33 +330,25 @@ describe('daemon-entry', () => {
   it('aborts when another daemon wins the exclusive PID-file write race', async () => {
     // Simulate two daemons reaching the wx write nearly simultaneously: pre-flight
     // sees no PID file (ENOENT), but writeFile rejects with EEXIST because a
-    // sibling already claimed the slot. The cleanup ownership check must NOT
-    // remove the sibling's PID file.
-    const result = createMockWallet();
-    mockCreateWallet.mockResolvedValue(result);
+    // sibling already claimed the slot. Since the slot write now happens BEFORE
+    // createWallet, we never construct a wallet or open the DB.
     const eexist = Object.assign(new Error('already exists'), {
       code: 'EEXIST',
     });
     mockWriteFile.mockRejectedValue(eexist);
-    mockReadFile
-      .mockRejectedValueOnce(enoent()) // pre-flight readPidFile: no file yet
-      .mockResolvedValueOnce('99999\n9999999\n'); // ownership-check sees sibling
 
     await importDaemonEntry();
 
     expect(stderrSpy).toHaveBeenCalledWith(
       expect.stringContaining('already exists'),
     );
-    expect(process.exitCode).toBe(1);
-    expect(result.wallet.destroy).toHaveBeenCalled();
-    expect(result.store.close).toHaveBeenCalled();
-    // Critical: removeOwnedPidFile saw the sibling's contents and refused
-    // to delete. The only rm of pidPath should be the pre-flight cleanup
-    // call (which is a no-op when the file doesn't exist yet).
-    const pidRmCalls = mockRm.mock.calls.filter(
-      ([path]) => path === '/tmp/daemon.pid',
+    expect(stderrSpy).toHaveBeenCalledWith(
+      expect.stringContaining('Failed to claim daemon slot'),
     );
-    expect(pidRmCalls).toHaveLength(1);
+    expect(process.exitCode).toBe(1);
+    // Wallet must NOT be constructed when the slot write loses the race —
+    // this is the whole point of writing the PID before opening the DB.
+    expect(mockCreateWallet).not.toHaveBeenCalled();
   });
 
   it('refuses to take over an unreachable socket whose recorded PID is alive', async () => {
@@ -367,7 +360,28 @@ describe('daemon-entry', () => {
     await importDaemonEntry();
 
     expect(stderrSpy).toHaveBeenCalledWith(
-      expect.stringContaining('A daemon is already running but its socket'),
+      expect.stringContaining('A daemon is already running'),
+    );
+    expect(stderrSpy).toHaveBeenCalledWith(
+      expect.stringContaining('socket at /tmp/daemon.sock is unresponsive'),
+    );
+    expect(process.exitCode).toBe(1);
+    expect(mockWriteFile).not.toHaveBeenCalled();
+  });
+
+  it('refuses to take over when the socket is absent but the recorded PID is alive', async () => {
+    mockReadFile.mockResolvedValue('9999\n12345\n');
+    mockPingDaemon.mockResolvedValue(ABSENT);
+    mockIsProcessAlive.mockReturnValue(true);
+    mockCreateWallet.mockResolvedValue(createMockWallet());
+
+    await importDaemonEntry();
+
+    expect(stderrSpy).toHaveBeenCalledWith(
+      expect.stringContaining('A daemon is already running'),
+    );
+    expect(stderrSpy).toHaveBeenCalledWith(
+      expect.stringContaining('pid is still alive'),
     );
     expect(process.exitCode).toBe(1);
     expect(mockWriteFile).not.toHaveBeenCalled();
