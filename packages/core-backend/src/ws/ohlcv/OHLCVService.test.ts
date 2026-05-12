@@ -778,8 +778,7 @@ describe('OHLCVService', () => {
           });
 
           // 6. Verify bar updates are delivered through the new subscription.
-          const capturedCallback =
-            mocks.subscribe.mock.calls[0][0].callback;
+          const capturedCallback = mocks.subscribe.mock.calls[0][0].callback;
           const barListener = jest.fn();
           messenger.subscribe('OHLCVService:barUpdated', barListener);
 
