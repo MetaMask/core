@@ -356,7 +356,7 @@ export class SnapAccountService {
         this.#migrated = true;
       } finally {
         this.#migratePromise = null;
-      };
+      }
     }
     await this.#migratePromise;
   }

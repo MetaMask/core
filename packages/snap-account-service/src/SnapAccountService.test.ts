@@ -565,7 +565,7 @@ describe('SnapAccountService', () => {
         .mockResolvedValueOnce(undefined);
 
       await expect(service.migrate()).rejects.toThrow(error);
-      await expect(service.migrate()).resolves.toBeUndefined();
+      expect(await service.migrate()).toBeUndefined();
 
       expect(mocks.KeyringController.withController).toHaveBeenCalledTimes(2);
     });
@@ -585,7 +585,7 @@ describe('SnapAccountService', () => {
       expect(second).toStrictEqual({ status: 'rejected', reason: error });
       expect(mocks.KeyringController.withController).toHaveBeenCalledTimes(1);
 
-      await expect(service.migrate()).resolves.toBeUndefined();
+      expect(await service.migrate()).toBeUndefined();
       expect(mocks.KeyringController.withController).toHaveBeenCalledTimes(2);
     });
   });
