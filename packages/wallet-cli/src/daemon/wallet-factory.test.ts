@@ -161,6 +161,26 @@ describe('createWallet', () => {
       wallet.messenger,
       wallet.controllerMetadata,
       store,
+      undefined,
+    );
+
+    subscribeSpy.mockRestore();
+    store.close();
+  });
+
+  it('forwards the supplied log callback to subscribeToChanges', async () => {
+    const subscribeSpy = jest
+      .spyOn(persistenceModule, 'subscribeToChanges')
+      .mockReturnValue(() => undefined);
+    const log = jest.fn();
+
+    const { store } = await createWallet({ ...CONFIG, log });
+
+    expect(subscribeSpy).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.anything(),
+      expect.anything(),
+      log,
     );
 
     subscribeSpy.mockRestore();

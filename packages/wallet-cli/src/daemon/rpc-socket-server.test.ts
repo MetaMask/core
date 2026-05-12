@@ -233,8 +233,34 @@ describe('startRpcSocketServer', () => {
       expect(getResponse(socket).error).toStrictEqual(
         expect.objectContaining({
           code: -32600,
-          message: 'Invalid request: missing method',
+          message: 'Invalid JSON-RPC request',
         }),
+      );
+    });
+
+    it('returns -32600 for a request whose id is an object', async () => {
+      const { simulateConnection } = createMockServer();
+      await startRpcSocketServer({
+        socketPath: '/tmp/test.sock',
+        handlers: {},
+      });
+
+      const socket = createMockSocket();
+      simulateConnection(socket);
+      sendRequest(socket, {
+        jsonrpc: '2.0',
+        id: { nested: 'bad' },
+        method: 'getStatus',
+      });
+
+      await flushPromises();
+
+      const response = getResponse(socket);
+      // Per JSON-RPC 2.0, id must be string/number/null. We cannot echo the
+      // object back, so respond with id: null.
+      expect(response.id).toBeNull();
+      expect(response.error).toStrictEqual(
+        expect.objectContaining({ code: -32600 }),
       );
     });
 

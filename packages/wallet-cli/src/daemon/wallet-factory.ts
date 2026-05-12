@@ -42,6 +42,7 @@ export type CreateWalletResult = {
  * @param config.infuraProjectId - The Infura project ID for network access.
  * @param config.password - The wallet password.
  * @param config.srp - The secret recovery phrase (BIP-39 mnemonic).
+ * @param config.log - Optional logger for persistence-write failures.
  * @returns The Wallet instance and the underlying KeyValueStore. The caller
  * owns the store and must close it after destroying the wallet (closing
  * first would cause in-flight persistence writes during teardown to fail).
@@ -51,11 +52,18 @@ export async function createWallet({
   infuraProjectId,
   password,
   srp,
+  log,
 }: {
   databasePath: string;
   infuraProjectId: string;
   password: string;
   srp: string;
+  /**
+   * Optional logger for persistence-write failures. Without it, failures
+   * fall back to `console.error` (which a detached daemon's
+   * `stdio: 'ignore'` discards).
+   */
+  log?: (message: string) => void;
 }): Promise<CreateWalletResult> {
   const store = new KeyValueStore(databasePath);
   let wallet: Wallet | undefined;
@@ -82,7 +90,7 @@ export async function createWallet({
       getMetaMetricsId: (): string => 'cli',
     });
 
-    subscribeToChanges(wallet.messenger, wallet.controllerMetadata, store);
+    subscribeToChanges(wallet.messenger, wallet.controllerMetadata, store, log);
 
     if (wasFirstRun) {
       await importSecretRecoveryPhrase(wallet, password, srp);

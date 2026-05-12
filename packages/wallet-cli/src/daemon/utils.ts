@@ -9,8 +9,14 @@ import { readFile } from 'node:fs/promises';
  * @returns True if the error matches the code.
  */
 export function isErrorWithCode(error: unknown, code: string): boolean {
+  // Duck-typed rather than `instanceof Error` so error values that crossed a
+  // realm boundary (e.g. from Node built-ins under jest's
+  // `--experimental-vm-modules`) still pass.
   return (
-    error instanceof Error && hasProperty(error, 'code') && error.code === code
+    typeof error === 'object' &&
+    error !== null &&
+    hasProperty(error, 'code') &&
+    error.code === code
   );
 }
 

@@ -246,7 +246,7 @@ describe('pingDaemon', () => {
     });
   });
 
-  it('returns unreachable when the socket exists but is wedged', async () => {
+  it('returns unreachable with reason=refused when the socket refuses connection', async () => {
     // ECONNREFUSED is retried once; both attempts will reject with the same
     // mock implementation.
     mockConnectionError('ECONNREFUSED');
@@ -254,7 +254,88 @@ describe('pingDaemon', () => {
     const result = await pingDaemon('/tmp/test.sock');
     expect(result).toStrictEqual({
       status: 'unreachable',
+      reason: 'refused',
       error: expect.any(Error),
+    });
+  });
+
+  it('returns unreachable with reason=permission on EACCES', async () => {
+    mockConnectionError('EACCES');
+
+    const result = await pingDaemon('/tmp/test.sock');
+    expect(result).toMatchObject({
+      status: 'unreachable',
+      reason: 'permission',
+    });
+  });
+
+  it('returns unreachable with reason=timeout when the socket read times out', async () => {
+    setupMockSocket();
+    mockWriteLine.mockResolvedValue(undefined);
+    mockReadLine.mockRejectedValue(new Error('Socket read timed out'));
+
+    const result = await pingDaemon('/tmp/test.sock');
+    expect(result).toMatchObject({
+      status: 'unreachable',
+      reason: 'timeout',
+    });
+  });
+
+  it('returns unreachable with reason=protocol on a JSON-RPC id mismatch', async () => {
+    setupMockSocket();
+    mockWriteLine.mockResolvedValue(undefined);
+    mockReadLine.mockResolvedValue(
+      JSON.stringify({
+        jsonrpc: '2.0',
+        id: 'unrelated-id',
+        result: { status: 'ok' },
+      }),
+    );
+
+    const result = await pingDaemon('/tmp/test.sock');
+    expect(result).toMatchObject({
+      status: 'unreachable',
+      reason: 'protocol',
+    });
+  });
+
+  it('returns unreachable with reason=protocol on a JSON parse error', async () => {
+    setupMockSocket();
+    mockWriteLine.mockResolvedValue(undefined);
+    mockReadLine.mockResolvedValue('not json');
+
+    const result = await pingDaemon('/tmp/test.sock');
+    expect(result).toMatchObject({
+      status: 'unreachable',
+      reason: 'protocol',
+    });
+  });
+
+  it('returns unreachable with reason=other for unclassified errors', async () => {
+    setupMockSocket();
+    mockWriteLine.mockResolvedValue(undefined);
+    mockReadLine.mockRejectedValue(new Error('something weird'));
+
+    const result = await pingDaemon('/tmp/test.sock');
+    expect(result).toMatchObject({
+      status: 'unreachable',
+      reason: 'other',
+    });
+  });
+
+  it('normalizes non-Error throws into an Error instance', async () => {
+    setupMockSocket();
+    mockWriteLine.mockResolvedValue(undefined);
+    // Simulate a non-Error throw; the producer must normalize it.
+    mockReadLine.mockImplementation(async () =>
+      Promise.reject('string-throw' as unknown as Error),
+    );
+
+    const result = await pingDaemon('/tmp/test.sock');
+    expect(result).toStrictEqual({
+      status: 'unreachable',
+      reason: 'other',
+      error: expect.objectContaining({ message: 'string-throw' }),
     });
   });
 });

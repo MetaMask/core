@@ -39,6 +39,7 @@ const ABSENT = { status: 'absent' as const };
 const RESPONSIVE = { status: 'responsive' as const };
 const UNREACHABLE = {
   status: 'unreachable' as const,
+  reason: 'refused' as const,
   error: new Error('wedged'),
 };
 
@@ -188,6 +189,7 @@ describe('daemon-entry', () => {
       infuraProjectId: 'key',
       password: 'pass',
       srp: 'test test test test test test test test test test test ball',
+      log: expect.any(Function),
     });
     expect(mockWriteFile).toHaveBeenCalledWith(
       '/tmp/daemon.pid',

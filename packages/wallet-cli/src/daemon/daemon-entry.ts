@@ -66,6 +66,7 @@ async function main(): Promise<void> {
     infuraProjectId,
     password,
     srp,
+    log,
   });
 
   const handlers: RpcHandlerMap = {
@@ -99,6 +100,7 @@ async function main(): Promise<void> {
       socketPath,
       handlers,
       onShutdown: async () => shutdown('RPC shutdown'),
+      log,
     });
   } catch (error) {
     try {

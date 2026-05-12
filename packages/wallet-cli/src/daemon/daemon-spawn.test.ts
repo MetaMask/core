@@ -28,7 +28,14 @@ const ABSENT = { status: 'absent' as const };
 const RESPONSIVE = { status: 'responsive' as const };
 const UNREACHABLE = {
   status: 'unreachable' as const,
+  reason: 'refused' as const,
   error: new Error('wedged'),
+};
+
+const UNREACHABLE_PERMISSION = {
+  status: 'unreachable' as const,
+  reason: 'permission' as const,
+  error: new Error('EACCES'),
 };
 
 /**
@@ -95,6 +102,15 @@ describe('ensureDaemon', () => {
 
     await expect(ensureDaemon(CONFIG)).rejects.toThrow(
       /a daemon socket already exists.*unresponsive/u,
+    );
+    expect(mockSpawn).not.toHaveBeenCalled();
+  });
+
+  it('reports a foreign-user daemon distinctly when the ping reason is permission', async () => {
+    mockPingDaemon.mockResolvedValue(UNREACHABLE_PERMISSION);
+
+    await expect(ensureDaemon(CONFIG)).rejects.toThrow(
+      /owned by another user/u,
     );
     expect(mockSpawn).not.toHaveBeenCalled();
   });

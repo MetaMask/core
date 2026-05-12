@@ -25,7 +25,8 @@ export default class DaemonStatus extends Command {
     if (ping.status === 'unreachable') {
       const pidPart = pid === undefined ? '' : ` (recorded PID: ${pid})`;
       this.log(
-        `Daemon socket exists at ${socketPath} but is unresponsive${pidPart}: ${ping.error.message}`,
+        `Daemon socket exists at ${socketPath} but is unresponsive${pidPart} ` +
+          `[${ping.reason}]: ${ping.error.message}`,
       );
       return;
     }

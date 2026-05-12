@@ -1,6 +1,10 @@
 import { rpcErrors } from '@metamask/rpc-errors';
-import type { JsonRpcResponse } from '@metamask/utils';
-import { hasProperty } from '@metamask/utils';
+import type {
+  JsonRpcId,
+  JsonRpcParams,
+  JsonRpcResponse,
+} from '@metamask/utils';
+import { hasProperty, isJsonRpcRequest } from '@metamask/utils';
 import { unlink } from 'node:fs/promises';
 import { createServer } from 'node:net';
 import type { Server } from 'node:net';
@@ -18,36 +22,66 @@ export type RpcSocketServerHandle = {
 };
 
 /**
+ * Options for {@link startRpcSocketServer}.
+ */
+export type StartRpcSocketServerOptions = {
+  /** The Unix socket path to listen on. */
+  socketPath: string;
+  /** Map of RPC method names to handler functions. */
+  handlers: RpcHandlerMap;
+  /** Callback invoked when a `shutdown` RPC is received. */
+  onShutdown?: (() => Promise<void>) | undefined;
+  /**
+   * Optional logger for server-side diagnostics (unexpected socket errors,
+   * unhandled handler rejections, `onShutdown` callback failures). Without
+   * this, failures fall back to `process.stderr.write`, which is discarded
+   * when the daemon is spawned with `stdio: 'ignore'`.
+   */
+  log?: ((message: string) => void) | undefined;
+};
+
+/**
  * Start a Unix socket server that processes JSON-RPC requests.
  *
  * Each connection reads one newline-delimited JSON-RPC request, processes it
  * via the provided handler map, writes a JSON-RPC response, and closes.
  *
  * The special `shutdown` method is intercepted before handler dispatch and
- * triggers the provided {@link onShutdown} callback after responding.
+ * triggers the provided {@link StartRpcSocketServerOptions.onShutdown} callback
+ * after responding.
  *
  * @param options - Server options.
  * @param options.socketPath - The Unix socket path to listen on.
  * @param options.handlers - Map of RPC method names to handler functions.
- * @param options.onShutdown - Callback invoked when a `shutdown` RPC is received.
+ * @param options.onShutdown - Optional callback invoked when a `shutdown` RPC is received.
+ * @param options.log - Optional logger for server-side diagnostics.
  * @returns A handle with a `close()` function for cleanup.
  */
 export async function startRpcSocketServer({
   socketPath,
   handlers,
   onShutdown,
-}: {
-  socketPath: string;
-  handlers: RpcHandlerMap;
-  onShutdown?: (() => Promise<void>) | undefined;
-}): Promise<RpcSocketServerHandle> {
+  log,
+}: StartRpcSocketServerOptions): Promise<RpcSocketServerHandle> {
+  const logFn = log ?? defaultLog;
+
   const server = createServer((socket) => {
     let buffer = '';
 
-    // Destroy connections that never send a complete request line.
+    // Destroy connections that never send a complete request line. `unref` so
+    // the timer alone cannot keep the event loop alive at shutdown.
     const timer = setTimeout(() => {
       socket.destroy();
     }, CONNECTION_TIMEOUT_MS);
+    timer.unref();
+
+    /**
+     * Clear the idle-connection timer. Called from data, close, and error
+     * paths so the timer never outlives the connection itself.
+     */
+    const clearIdleTimer = (): void => {
+      clearTimeout(timer);
+    };
 
     const onData = (data: Buffer): void => {
       buffer += data.toString();
@@ -56,7 +90,7 @@ export async function startRpcSocketServer({
         return;
       }
 
-      clearTimeout(timer);
+      clearIdleTimer();
 
       // One request per connection.
       socket.removeListener('data', onData);
@@ -79,12 +113,13 @@ export async function startRpcSocketServer({
         return;
       }
 
-      handleRequest(handlers, line, onShutdown)
+      handleRequest(handlers, line, onShutdown, logFn)
         .then((response) => {
           socket.end(`${JSON.stringify(response)}\n`);
           return undefined;
         })
-        .catch(() => {
+        .catch((dispatchError: unknown) => {
+          logFn(`Unhandled RPC dispatch error: ${String(dispatchError)}`);
           socket.end(
             `${JSON.stringify({
               jsonrpc: '2.0',
@@ -96,13 +131,14 @@ export async function startRpcSocketServer({
         });
     };
     socket.on('data', onData);
-
+    socket.once('close', clearIdleTimer);
     socket.on('error', (socketError: NodeJS.ErrnoException) => {
+      clearIdleTimer();
       const { code } = socketError;
       if (code === 'EPIPE' || code === 'ECONNRESET') {
         return; // Expected during probe/disconnect.
       }
-      process.stderr.write(`Unexpected socket error: ${String(socketError)}\n`);
+      logFn(`Unexpected socket error: ${String(socketError)}`);
     });
   });
 
@@ -124,24 +160,33 @@ export async function startRpcSocketServer({
 }
 
 /**
+ * Default fallback logger: writes to stderr. Daemons spawned with
+ * `stdio: 'ignore'` should always pass an explicit `log`.
+ *
+ * @param message - The message to log.
+ */
+function defaultLog(message: string): void {
+  process.stderr.write(`${message}\n`);
+}
+
+/**
  * Handle a single JSON-RPC request line, intercepting the `shutdown` method.
  *
  * @param handlers - The RPC handler map.
  * @param line - The raw JSON line from the socket.
  * @param onShutdown - Optional shutdown callback.
+ * @param log - Logger for diagnostic messages.
  * @returns A JSON-RPC response object.
  */
 async function handleRequest(
   handlers: RpcHandlerMap,
   line: string,
-  onShutdown?: () => Promise<void>,
+  onShutdown: (() => Promise<void>) | undefined,
+  log: (message: string) => void,
 ): Promise<JsonRpcResponse> {
-  type JsonRpcId = string | number | null;
-  let id: JsonRpcId = null;
-  let request: { id?: unknown; method?: string; params?: unknown };
-
+  let parsed: unknown;
   try {
-    request = JSON.parse(line) as typeof request;
+    parsed = JSON.parse(line);
   } catch {
     return {
       jsonrpc: '2.0',
@@ -150,29 +195,32 @@ async function handleRequest(
     };
   }
 
-  id = (request.id ?? null) as JsonRpcId;
+  if (!isJsonRpcRequest(parsed)) {
+    const id: JsonRpcId =
+      typeof parsed === 'object' &&
+      parsed !== null &&
+      hasProperty(parsed, 'id') &&
+      isValidJsonRpcId(parsed.id)
+        ? parsed.id
+        : null;
+    return {
+      jsonrpc: '2.0',
+      id,
+      error: rpcErrors
+        .invalidRequest({ message: 'Invalid JSON-RPC request' })
+        .serialize(),
+    };
+  }
+
+  const { id, method, params } = parsed;
 
   try {
-    const { method } = request;
-
-    if (typeof method !== 'string') {
-      return {
-        jsonrpc: '2.0',
-        id,
-        error: rpcErrors
-          .invalidRequest({ message: 'Invalid request: missing method' })
-          .serialize(),
-      };
-    }
-
     // Intercept shutdown before handler dispatch.
     if (method === 'shutdown') {
       if (onShutdown) {
         setTimeout(() => {
           onShutdown().catch((error: unknown) => {
-            process.stderr.write(
-              `onShutdown callback failed: ${String(error)}\n`,
-            );
+            log(`onShutdown callback failed: ${String(error)}`);
           });
         }, 0);
       }
@@ -190,10 +238,10 @@ async function handleRequest(
       };
     }
 
-    const params = (request.params as Parameters<typeof handler>[0]) ?? null;
-    const result = await handler(params);
+    const result = await handler(coerceHandlerParams(params));
     return { jsonrpc: '2.0', id, result: result ?? null };
   } catch (error) {
+    log(`RPC handler "${method}" failed: ${String(error)}`);
     if (isRpcError(error)) {
       return { jsonrpc: '2.0', id, error };
     }
@@ -204,6 +252,32 @@ async function handleRequest(
       error: rpcErrors.internal({ message }).serialize(),
     };
   }
+}
+
+/**
+ * Narrow `params` to the shape handlers expect. JSON-RPC 2.0 requires
+ * `params`, when present, to be an array or object; both are valid `Json`.
+ *
+ * @param params - The validated `params` field from a JSON-RPC request.
+ * @returns The same value, or `null` when absent.
+ */
+function coerceHandlerParams(
+  params: JsonRpcParams | undefined,
+): JsonRpcParams | null {
+  return params ?? null;
+}
+
+/**
+ * Per JSON-RPC 2.0, `id` must be a string, number, or null. Used when
+ * salvaging an `id` from a parse-success-but-not-valid-request payload.
+ *
+ * @param value - The candidate id.
+ * @returns True if the value is an acceptable JSON-RPC id.
+ */
+function isValidJsonRpcId(value: unknown): value is JsonRpcId {
+  return (
+    value === null || typeof value === 'string' || typeof value === 'number'
+  );
 }
 
 /**

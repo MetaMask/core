@@ -45,6 +45,13 @@ export async function ensureDaemon(
     return { state: 'already-running', socketPath };
   }
   if (initialPing.status === 'unreachable') {
+    if (initialPing.reason === 'permission') {
+      throw new Error(
+        `Refusing to start: the socket at ${socketPath} is owned by another user. ` +
+          `Choose a different data directory (MM_DAEMON_DATA_DIR) or remove the socket manually. ` +
+          `(${initialPing.error.message})`,
+      );
+    }
     throw new Error(
       `Refusing to start: a daemon socket already exists at ${socketPath} but is unresponsive. ` +
         `Run \`mm daemon stop\` (or \`mm daemon purge\`) before starting a new daemon. ` +

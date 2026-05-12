@@ -1,3 +1,4 @@
+import confirm from '@inquirer/confirm';
 import { Command, Flags } from '@oclif/core';
 import { rm } from 'node:fs/promises';
 
@@ -25,7 +26,6 @@ export default class DaemonPurge extends Command {
     const { flags } = await this.parse(DaemonPurge);
 
     if (!flags.force) {
-      const { default: confirm } = await import('@inquirer/confirm');
       const confirmed = await confirm({
         message: 'This will stop the daemon and delete all state. Continue?',
         default: false,

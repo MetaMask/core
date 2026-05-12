@@ -9,9 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Persist controller state to a `better-sqlite3` key-value store inside the daemon's data directory ([#8682](https://github.com/MetaMask/core/issues/8682))
-  - The persistence layer (`KeyValueStore`, `loadState`, `subscribeToChanges`) moves here from `@metamask/wallet`.
-  - The daemon writes to `<dataDir>/wallet.db`, hydrates the `Wallet` from the store on startup, subscribes to the `:stateChanged` events of controllers that declare persist-flagged state for write-through persistence, and closes the store during shutdown.
-  - On subsequent runs the daemon reuses the persisted KeyringController vault instead of re-importing the supplied SRP. The wallet still starts locked; unlock is the caller's responsibility.
+- Initial release of `@metamask/wallet-cli`, an oclif-based `mm` CLI that runs `@metamask/wallet` as a Unix-socket daemon ([#8446](https://github.com/MetaMask/core/pull/8446)).
+  - `mm daemon start` spawns the daemon with `--infura-project-id`, `--password`, `--srp` (or the matching env vars).
+  - `mm daemon call <Action> [<jsonArrayParams>]` dispatches any messenger action over JSON-RPC.
+  - `mm daemon stop`, `mm daemon status`, `mm daemon purge` manage daemon lifecycle and state.
+- Persist daemon state to a SQLite database at `<dataDir>/wallet.db`; subsequent `daemon start` runs reuse the persisted KeyringController vault instead of re-importing the SRP ([#8682](https://github.com/MetaMask/core/issues/8682)).
 
 [Unreleased]: https://github.com/MetaMask/core/

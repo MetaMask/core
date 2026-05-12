@@ -20,6 +20,7 @@ const ABSENT = { status: 'absent' as const };
 const RESPONSIVE = { status: 'responsive' as const };
 const UNREACHABLE = {
   status: 'unreachable' as const,
+  reason: 'refused' as const,
   error: new Error('refused'),
 };
 

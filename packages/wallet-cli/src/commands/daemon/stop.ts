@@ -1,7 +1,9 @@
 import { Command } from '@oclif/core';
 
+import { pingDaemon } from '../../daemon/daemon-client';
 import { getDaemonPaths } from '../../daemon/paths';
 import { stopDaemon } from '../../daemon/stop-daemon';
+import { readPidFile } from '../../daemon/utils';
 
 export default class DaemonStop extends Command {
   static override description = 'Stop the wallet daemon';
@@ -10,6 +12,15 @@ export default class DaemonStop extends Command {
 
   public async run(): Promise<void> {
     const { socketPath, pidPath } = getDaemonPaths(this.config.dataDir);
+
+    // Distinguish "no daemon was running" from "successful stop" so the user
+    // gets feedback either way.
+    const ping = await pingDaemon(socketPath);
+    const pid = await readPidFile(pidPath);
+    if (ping.status === 'absent' && pid === undefined) {
+      this.log('Daemon is not running.');
+      return;
+    }
 
     const stopped = await stopDaemon(socketPath, pidPath, (message) =>
       this.log(message),
