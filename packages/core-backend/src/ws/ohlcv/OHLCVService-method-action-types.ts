@@ -12,6 +12,7 @@ import type { OHLCVService } from './OHLCVService';
  * count.
  *
  * @param options - The subscription parameters.
+ * @returns A promise that resolves once the subscription is established.
  */
 export type OHLCVServiceSubscribeAction = {
   type: `OHLCVService:subscribe`;
@@ -24,6 +25,7 @@ export type OHLCVServiceSubscribeAction = {
  * unsubscribing from the WebSocket to absorb rapid navigation patterns.
  *
  * @param options - The subscription parameters to unsubscribe from.
+ * @returns A promise that resolves once the unsubscription is processed.
  */
 export type OHLCVServiceUnsubscribeAction = {
   type: `OHLCVService:unsubscribe`;
