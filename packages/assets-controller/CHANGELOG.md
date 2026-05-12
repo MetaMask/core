@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- `RpcDataSource` no longer writes `{ amount: "NaN" }` entries into `assetsBalance` when state holds malformed native metadata ([#8781](https://github.com/MetaMask/core/pull/8781))
+  - Existing native metadata in `assetsInfo` is now only reused when its `decimals` field is a finite number (via a new `#hasValidDecimals` guard). Stale entries like `{ type: 'native', decimals: null, name: '', symbol: '' }` are replaced with the chain-status stub (`{ type: 'native', symbol/name: chainStatus.nativeCurrency, decimals: 18 }`) so balance conversion has a usable `decimals`.
+  - `decimals: 0` is treated as valid; `name` and `symbol` are not required.
+  - `#convertToHumanReadable` now defensively returns `'0'` when `decimals` isn't a finite non-negative number or when the raw balance can't be parsed, matching the existing safe fallback used in the error path. This catches `NaN`/non-numeric values that bypass the upstream `??` fallback.
+
 ## [7.1.1]
 
 ### Changed
