@@ -344,10 +344,9 @@ export class OHLCVService {
         return;
       }
 
-      log(
-        'OHLCV-WS: Grace period expired — performing actual WS unsubscribe',
-        { channel },
-      );
+      log('OHLCV-WS: Grace period expired — performing actual WS unsubscribe', {
+        channel,
+      });
       this.#channels.delete(channel);
 
       try {
