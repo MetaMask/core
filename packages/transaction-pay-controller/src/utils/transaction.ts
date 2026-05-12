@@ -362,11 +362,9 @@ function onTransactionFinalized(
   removeTransactionData(transaction.id);
 }
 
-const ERC20_TRANSFER_EVENT_TOPIC = new Interface(abiERC20).getEventTopic(
-  'Transfer',
-);
-
 const erc20Interface = new Interface(abiERC20);
+
+const ERC20_TRANSFER_EVENT_TOPIC = erc20Interface.getEventTopic('Transfer');
 
 /**
  * Reads the transferred token amount from a completed on-chain transaction.
