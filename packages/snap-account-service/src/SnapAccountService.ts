@@ -12,6 +12,7 @@ import type {
   KeyringControllerUnlockEvent,
   KeyringControllerWithControllerAction,
   KeyringControllerWithKeyringV2Action,
+  KeyringControllerWithKeyringV2UnsafeAction,
   KeyringEntry,
 } from '@metamask/keyring-controller';
 import {
@@ -95,6 +96,7 @@ type AllowedActions =
   | KeyringControllerGetStateAction
   | KeyringControllerWithControllerAction
   | KeyringControllerWithKeyringV2Action
+  | KeyringControllerWithKeyringV2UnsafeAction
   | AccountTreeControllerGetAccountGroupObjectAction
   | AccountTreeControllerGetSelectedAccountGroupAction;
 
@@ -603,20 +605,56 @@ export class SnapAccountService {
       return;
     }
 
-    const forwardSelectedAccounts = async (): Promise<void> => {
-      if (accounts.length) {
-        log(
-          `Forwarding selected accounts (from "${groupId}"): ${accounts.join(', ')}`,
-        );
-      } else {
-        log(`Clearing selected accounts (from "${groupId}")`);
-      }
+    if (accounts.length) {
+      log(
+        `Forwarding selected accounts (from "${groupId}"): ${accounts.join(', ')}`,
+      );
+    } else {
+      log(`Clearing selected accounts (from "${groupId}")`);
+    }
 
-      const snapKeyring = await this.getLegacySnapKeyring();
-      await snapKeyring.setSelectedAccounts(accounts);
+    const forwardSelectedAccounts = async (): Promise<void> => {
+      await Promise.all(
+        this.#tracker.getSnaps().map(async (snapId) => {
+          try {
+            // We can safely invoke this method without taking the controller lock
+            // because it should not mutate the keyring state. So we can use
+            // `withKeyringV2Unsafe` in this case.
+            await this.#messenger.call(
+              'KeyringController:withKeyringV2Unsafe',
+              {
+                filter: (keyring): keyring is SnapKeyring =>
+                  isSnapKeyring(keyring) && keyring.snapId === snapId,
+              },
+              async ({ keyring }) => {
+                const snapKeyring = keyring as SnapKeyring; // Forced to cast here as generic does not work when using the messenger.
+
+                // The group's accounts may belong to several Snaps; only
+                // forward the subset this Snap actually owns. An empty
+                // subset still gets forwarded to explicitly clear the
+                // Snap selected accounts.
+                await snapKeyring.setSelectedAccounts(
+                  accounts.filter((id) => snapKeyring.hasAccount(id)),
+                );
+              },
+            );
+          } catch (error) {
+            // Tracked Snaps without a v2 keyring yet are expected —
+            // forwarding will resume on the next event once `ensureReady`
+            // has run.
+            if (!isKeyringNotFoundError(error)) {
+              console.error(
+                `Error forwarding selected accounts to Snap "${snapId}":`,
+                error,
+              );
+            }
+          }
+        }),
+      );
     };
 
-    // There is nothing we can do if forwarding fails. This will auto-recover on the next relevant event.
+    // There is nothing we can do if forwarding fails. This will auto-recover on
+    // the next relevant event.
     forwardSelectedAccounts().catch((error) => {
       console.error('Error forwarding selected accounts:', error);
     });

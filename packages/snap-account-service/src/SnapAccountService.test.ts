@@ -52,15 +52,6 @@ type MockTruncatedSnap = Pick<
 /** Mock account group type for tests. */
 type MockAccountGroup = Pick<AccountGroupObject, 'id' | 'accounts'>;
 
-/** Mock Snap keyring type for tests. */
-type MockSnapKeyring = {
-  type: KeyringTypes.snap;
-  handleKeyringSnapMessage?: jest.MockedFunction<
-    SnapKeyring['handleKeyringSnapMessage']
-  >;
-  setSelectedAccounts?: jest.MockedFunction<SnapKeyring['setSelectedAccounts']>;
-};
-
 type Mocks = {
   // eslint-disable-next-line @typescript-eslint/naming-convention
   SnapController: {
@@ -72,6 +63,7 @@ type Mocks = {
     getState: jest.MockedFunction<() => { keyrings: { type: string }[] }>;
     withController: jest.Mock;
     withKeyringV2: jest.Mock;
+    withKeyringV2Unsafe: jest.Mock;
   };
   // eslint-disable-next-line @typescript-eslint/naming-convention
   AccountTreeController: {
@@ -114,6 +106,7 @@ function getMessenger(
       'KeyringController:getState',
       'KeyringController:withController',
       'KeyringController:withKeyringV2',
+      'KeyringController:withKeyringV2Unsafe',
       'AccountTreeController:getAccountGroupObject',
       'AccountTreeController:getSelectedAccountGroup',
     ],
@@ -213,10 +206,10 @@ function publishUnlock(rootMessenger: RootMessenger): void {
  * Builds a minimal `TruncatedSnap` for tests.
  *
  * @param id - The Snap ID.
- * @param hasKeyring - Whether the Snap declares the `endowment:keyring` initial permission.
+ * @param hasKeyring - Whether the Snap declares the `endowment:keyring` initial permission (default: `true`).
  * @returns A minimal `TruncatedSnap`.
  */
-function buildSnap(id: string, hasKeyring: boolean): TruncatedSnap {
+function buildSnap(id: string, hasKeyring = true): TruncatedSnap {
   return {
     id: id as SnapId,
     initialPermissions: hasKeyring ? { 'endowment:keyring': {} } : {},
@@ -346,10 +339,64 @@ function mockWithKeyringV2(
         metadata: KeyringMetadata;
       }) => Promise<unknown>,
     ) => {
-      const entry = Object.entries(keyrings).find(([snapId, kr]) =>
+      const entry = Object.entries(keyrings).find(([snapId, snapKeyring]) =>
         // The selector's filter expects a v2 keyring object; we synthesise
         // a minimal shape (`type` + `snapId`) so the production filter
         // function can identify it.
+        selector.filter?.(
+          {
+            type: KeyringType.Snap,
+            snapId,
+            ...snapKeyring,
+          } as unknown,
+          { id: `id-${snapId}`, name: 'snap' } as KeyringMetadata,
+        ),
+      );
+      if (!entry) {
+        throw new KeyringControllerError(
+          KeyringControllerErrorMessage.KeyringNotFound,
+        );
+      }
+      const [snapId, snapKeyring] = entry;
+      return operation({
+        keyring: {
+          type: KeyringType.Snap,
+          snapId,
+          ...snapKeyring,
+        } as unknown as SnapKeyringV2,
+        metadata: { id: `id-${snapId}`, name: 'snap' } as KeyringMetadata,
+      });
+    },
+  );
+}
+
+/**
+ * Configures `mocks.KeyringController.withKeyringV2Unsafe` so that the
+ * operation receives a Snap keyring v2 matching the given selector, or
+ * throws `KeyringNotFound` when none matches.
+ *
+ * @param mocks - The mocks object from {@link setup}.
+ * @param keyrings - The available v2 Snap keyrings, keyed by snap ID.
+ */
+function mockWithKeyringV2Unsafe(
+  mocks: Mocks,
+  keyrings: Record<
+    string,
+    {
+      setSelectedAccounts?: jest.Mock;
+      hasAccount?: (id: string) => boolean;
+    }
+  >,
+): void {
+  mocks.KeyringController.withKeyringV2Unsafe.mockImplementation(
+    async (
+      selector: KeyringSelectorV2,
+      operation: (args: {
+        keyring: SnapKeyringV2;
+        metadata: KeyringMetadata;
+      }) => Promise<unknown>,
+    ) => {
+      const entry = Object.entries(keyrings).find(([snapId, kr]) =>
         selector.filter?.(
           {
             type: KeyringType.Snap,
@@ -369,6 +416,7 @@ function mockWithKeyringV2(
         keyring: {
           type: KeyringType.Snap,
           snapId,
+          hasAccount: () => true,
           ...kr,
         } as unknown as SnapKeyringV2,
         metadata: { id: `id-${snapId}`, name: 'snap' } as KeyringMetadata,
@@ -378,75 +426,35 @@ function mockWithKeyringV2(
 }
 
 /**
- * Configures `mocks.KeyringController.withController` to expose a single
- * legacy Snap keyring with the provided mocked methods.
- *
- * @param mocks - The mocks object from {@link setup}.
- * @param keyring - The mocked Snap keyring methods.
- * @param keyring.handleKeyringSnapMessage - The mocked implementation.
- * @param keyring.setSelectedAccounts - The mocked implementation.
- */
-function mockLegacySnapKeyring(
-  mocks: Mocks,
-  {
-    handleKeyringSnapMessage,
-    setSelectedAccounts,
-  }: {
-    handleKeyringSnapMessage?: jest.MockedFunction<
-      SnapKeyring['handleKeyringSnapMessage']
-    >;
-    setSelectedAccounts?: jest.MockedFunction<
-      SnapKeyring['setSelectedAccounts']
-    >;
-  },
-): void {
-  const snapKeyring: MockSnapKeyring = {
-    type: KeyringTypes.snap,
-    handleKeyringSnapMessage,
-    setSelectedAccounts,
-  };
-  mocks.KeyringController.withController.mockImplementation(async (operation) =>
-    operation({
-      get keyrings() {
-        return Object.freeze([
-          {
-            keyring: snapKeyring as KeyringEntry['keyring'],
-            metadata: { id: 'id-snap', name: KeyringTypes.snap },
-          },
-        ]);
-      },
-      addNewKeyring: jest.fn(),
-      removeKeyring: jest.fn(),
-    }),
-  );
-}
-
-/**
- * Constructs the service under test with sensible defaults.
+ * Constructs the service under test with sensible defaults. Calls
+ * `service.init()` before returning unless `init: false` is passed.
  *
  * @param args - The arguments to this function.
  * @param args.snapIsReady - Initial value of `SnapController.isReady`.
  * @param args.keyrings - Initial keyrings returned by `KeyringController:getState`.
  * @param args.runnableSnaps - Snaps returned by `SnapController:getRunnableSnaps`.
  * @param args.config - Optional service config.
+ * @param args.init - Whether to call `service.init()` before returning (default: `true`).
  * @returns The new service, root messenger, service messenger, and mocks.
  */
-function setup({
+async function setup({
   snapIsReady = true,
   keyrings = [{ type: KeyringTypes.snap }],
   runnableSnaps = [],
   config,
+  init = true,
 }: {
   snapIsReady?: boolean;
   keyrings?: { type: string }[];
   runnableSnaps?: TruncatedSnap[];
   config?: SnapAccountServiceOptions['config'];
-} = {}): {
+  init?: boolean;
+} = {}): Promise<{
   service: SnapAccountService;
   rootMessenger: RootMessenger;
   messenger: SnapAccountServiceMessenger;
   mocks: Mocks;
-} {
+}> {
   const rootMessenger = getRootMessenger();
   const messenger = getMessenger(rootMessenger);
 
@@ -461,6 +469,7 @@ function setup({
       getState: jest.fn().mockReturnValue({ keyrings }),
       withController: jest.fn(),
       withKeyringV2: jest.fn(),
+      withKeyringV2Unsafe: jest.fn(),
     },
     AccountTreeController: {
       getAccountGroupObject: jest.fn().mockReturnValue(undefined),
@@ -489,6 +498,10 @@ function setup({
     mocks.KeyringController.withKeyringV2,
   );
   rootMessenger.registerActionHandler(
+    'KeyringController:withKeyringV2Unsafe',
+    mocks.KeyringController.withKeyringV2Unsafe,
+  );
+  rootMessenger.registerActionHandler(
     'AccountTreeController:getAccountGroupObject',
     mocks.AccountTreeController.getAccountGroupObject,
   );
@@ -499,6 +512,10 @@ function setup({
 
   const service = new SnapAccountService({ messenger, config });
 
+  if (init) {
+    await service.init();
+  }
+
   return { service, rootMessenger, messenger, mocks };
 }
 
@@ -508,7 +525,7 @@ const MOCK_OTHER_SNAP_ID = 'npm:@metamask/other-snap' as SnapId;
 describe('SnapAccountService', () => {
   describe('init', () => {
     it('resolves without throwing', async () => {
-      const { service } = setup();
+      const { service } = await setup({ init: false });
 
       expect(await service.init()).toBeUndefined();
     });
@@ -516,11 +533,9 @@ describe('SnapAccountService', () => {
 
   describe('getSnaps', () => {
     it('exposes tracked Snaps seeded by init', async () => {
-      const { service } = setup({
-        runnableSnaps: [buildSnap(MOCK_SNAP_ID, true)],
+      const { service } = await setup({
+        runnableSnaps: [buildSnap(MOCK_SNAP_ID)],
       });
-
-      await service.init();
 
       expect(service.getSnaps()).toStrictEqual([MOCK_SNAP_ID]);
     });
@@ -528,7 +543,7 @@ describe('SnapAccountService', () => {
 
   describe('migrate', () => {
     it('runs the migration only once when called concurrently', async () => {
-      const { service, mocks } = setup();
+      const { service, mocks } = await setup();
       mocks.KeyringController.withController.mockResolvedValue(undefined);
 
       await Promise.all([service.migrate(), service.migrate()]);
@@ -539,7 +554,7 @@ describe('SnapAccountService', () => {
     it('is a no-op when no legacy Snap keyring is present', async () => {
       const addNewKeyring = jest.fn().mockResolvedValue(undefined);
       const removeKeyring = jest.fn().mockResolvedValue(undefined);
-      const { service, mocks } = setup();
+      const { service, mocks } = await setup();
       mocks.KeyringController.withController.mockImplementation(
         async (operation) =>
           operation({ keyrings: [], addNewKeyring, removeKeyring }),
@@ -581,7 +596,7 @@ describe('SnapAccountService', () => {
           .fn()
           .mockReturnValue([account1, account2, account3, orphanAccount]),
       };
-      const { service, mocks } = setup();
+      const { service, mocks } = await setup();
       mocks.KeyringController.withController.mockImplementation(
         async (operation) =>
           operation({
@@ -613,7 +628,7 @@ describe('SnapAccountService', () => {
     });
 
     it('does not re-run after a successful migration', async () => {
-      const { service, mocks } = setup();
+      const { service, mocks } = await setup();
       mocks.KeyringController.withController.mockResolvedValue(undefined);
 
       await service.migrate();
@@ -623,7 +638,7 @@ describe('SnapAccountService', () => {
     });
 
     it('retries on a subsequent call after a failed migration', async () => {
-      const { service, mocks } = setup();
+      const { service, mocks } = await setup();
       const error = new Error('migration boom');
       mocks.KeyringController.withController
         .mockRejectedValueOnce(error)
@@ -636,7 +651,7 @@ describe('SnapAccountService', () => {
     });
 
     it('shares the rejection across concurrent callers but allows a later retry', async () => {
-      const { service, mocks } = setup();
+      const { service, mocks } = await setup();
       const error = new Error('migration boom');
       mocks.KeyringController.withController
         .mockRejectedValueOnce(error)
@@ -657,9 +672,7 @@ describe('SnapAccountService', () => {
 
   describe('ensureReady', () => {
     it('throws when the Snap is not tracked', async () => {
-      const { service } = setup();
-
-      await service.init();
+      const { service } = await setup();
 
       await expect(service.ensureReady(MOCK_SNAP_ID)).rejects.toThrow(
         `Unknown snap: "${MOCK_SNAP_ID}"`,
@@ -667,8 +680,9 @@ describe('SnapAccountService', () => {
     });
 
     it('throws before init even for runnable Snaps', async () => {
-      const { service } = setup({
-        runnableSnaps: [buildSnap(MOCK_SNAP_ID, true)],
+      const { service } = await setup({
+        runnableSnaps: [buildSnap(MOCK_SNAP_ID)],
+        init: false,
       });
 
       await expect(service.ensureReady(MOCK_SNAP_ID)).rejects.toThrow(
@@ -677,22 +691,19 @@ describe('SnapAccountService', () => {
     });
 
     it('resolves when platform is already ready', async () => {
-      const { service } = setup({
-        runnableSnaps: [buildSnap(MOCK_SNAP_ID, true)],
+      const { service } = await setup({
+        runnableSnaps: [buildSnap(MOCK_SNAP_ID)],
       });
-
-      await service.init();
 
       expect(await service.ensureReady(MOCK_SNAP_ID)).toBeUndefined();
     });
 
     it('runs the migration before checking platform readiness', async () => {
-      const { service, mocks } = setup({
-        runnableSnaps: [buildSnap(MOCK_SNAP_ID, true)],
+      const { service, mocks } = await setup({
+        runnableSnaps: [buildSnap(MOCK_SNAP_ID)],
       });
       mocks.KeyringController.withController.mockResolvedValue(undefined);
 
-      await service.init();
       // `migrate` is invoked once + `#createKeyringForSnap` is invoked once
       // (the cached migrate call is a no-op on subsequent calls).
       await service.ensureReady(MOCK_SNAP_ID);
@@ -703,15 +714,14 @@ describe('SnapAccountService', () => {
     it('creates a v2 keyring for the Snap when one does not exist yet', async () => {
       const addNewKeyring = jest.fn().mockResolvedValue(undefined);
       const removeKeyring = jest.fn().mockResolvedValue(undefined);
-      const { service, mocks } = setup({
-        runnableSnaps: [buildSnap(MOCK_SNAP_ID, true)],
+      const { service, mocks } = await setup({
+        runnableSnaps: [buildSnap(MOCK_SNAP_ID)],
       });
       mocks.KeyringController.withController.mockImplementation(
         async (operation) =>
           operation({ keyrings: [], addNewKeyring, removeKeyring }),
       );
 
-      await service.init();
       await service.ensureReady(MOCK_SNAP_ID);
 
       expect(addNewKeyring).toHaveBeenCalledWith(KeyringType.Snap, {
@@ -723,8 +733,8 @@ describe('SnapAccountService', () => {
     it('does not create a v2 keyring when one already exists for the Snap', async () => {
       const addNewKeyring = jest.fn().mockResolvedValue(undefined);
       const removeKeyring = jest.fn().mockResolvedValue(undefined);
-      const { service, mocks } = setup({
-        runnableSnaps: [buildSnap(MOCK_SNAP_ID, true)],
+      const { service, mocks } = await setup({
+        runnableSnaps: [buildSnap(MOCK_SNAP_ID)],
       });
       // First call: migration (no legacy snap keyring → early return).
       // Second call: ensureReady keyring check (snap keyring already exists).
@@ -747,19 +757,16 @@ describe('SnapAccountService', () => {
           }),
         );
 
-      await service.init();
       await service.ensureReady(MOCK_SNAP_ID);
 
       expect(addNewKeyring).not.toHaveBeenCalled();
     });
 
     it('waits for the Snap platform to become ready', async () => {
-      const { service, rootMessenger } = setup({
+      const { service, rootMessenger } = await setup({
         snapIsReady: false,
-        runnableSnaps: [buildSnap(MOCK_SNAP_ID, true)],
+        runnableSnaps: [buildSnap(MOCK_SNAP_ID)],
       });
-
-      await service.init();
 
       let resolved = false;
       const ensurePromise = service.ensureReady(MOCK_SNAP_ID).then(() => {
@@ -776,12 +783,10 @@ describe('SnapAccountService', () => {
     });
 
     it('waits for the Snap keyring to appear via KeyringController:stateChange', async () => {
-      const { service, rootMessenger } = setup({
+      const { service, rootMessenger } = await setup({
         keyrings: [],
-        runnableSnaps: [buildSnap(MOCK_SNAP_ID, true)],
+        runnableSnaps: [buildSnap(MOCK_SNAP_ID)],
       });
-
-      await service.init();
 
       let resolved = false;
       const ensurePromise = service.ensureReady(MOCK_SNAP_ID).then(() => {
@@ -802,15 +807,13 @@ describe('SnapAccountService', () => {
     });
 
     it('rejects if the Snap keyring does not appear within snapKeyringWaitTimeoutMs', async () => {
-      const { service } = setup({
+      const { service } = await setup({
         keyrings: [],
-        runnableSnaps: [buildSnap(MOCK_SNAP_ID, true)],
+        runnableSnaps: [buildSnap(MOCK_SNAP_ID)],
         config: {
           snapPlatformWatcher: { snapKeyringWaitTimeoutMs: 1_000 },
         },
       });
-
-      await service.init();
 
       jest.useFakeTimers();
       const ensurePromise = service.ensureReady(MOCK_SNAP_ID);
@@ -835,12 +838,10 @@ describe('SnapAccountService', () => {
           }),
       );
 
-      const { service } = setup({
-        runnableSnaps: [buildSnap(MOCK_SNAP_ID, true)],
+      const { service } = await setup({
+        runnableSnaps: [buildSnap(MOCK_SNAP_ID)],
         config: { snapPlatformWatcher: { ensureOnboardingComplete } },
       });
-
-      await service.init();
 
       let resolved = false;
       const ensurePromise = service.ensureReady(MOCK_SNAP_ID).then(() => {
@@ -861,7 +862,7 @@ describe('SnapAccountService', () => {
 
   describe('getLegacySnapKeyring', () => {
     it('returns the existing Snap keyring when one is already present', async () => {
-      const { service, mocks } = setup();
+      const { service, mocks } = await setup();
       const existing = buildKeyringEntry(KeyringTypes.snap);
       const { addNewKeyring } = mockWithController(mocks, [
         buildKeyringEntry(KeyringTypes.hd),
@@ -875,7 +876,7 @@ describe('SnapAccountService', () => {
     });
 
     it('creates a new Snap keyring when none exists', async () => {
-      const { service, mocks } = setup();
+      const { service, mocks } = await setup();
       const { addNewKeyring } = mockWithController(mocks, [
         buildKeyringEntry(KeyringTypes.hd),
       ]);
@@ -887,7 +888,7 @@ describe('SnapAccountService', () => {
     });
 
     it('propagates errors thrown by withController', async () => {
-      const { service, mocks } = setup();
+      const { service, mocks } = await setup();
       mocks.KeyringController.withController.mockImplementation(async () => {
         throw new Error('boom');
       });
@@ -912,7 +913,7 @@ describe('SnapAccountService', () => {
     ];
 
     it('forwards the message to the matching v2 Snap keyring and returns its result', async () => {
-      const { service, mocks } = setup();
+      const { service, mocks } = await setup();
       const handleKeyringSnapMessage = jest
         .fn()
         .mockResolvedValue({ ok: true });
@@ -930,7 +931,7 @@ describe('SnapAccountService', () => {
     });
 
     it('short-circuits the GetSelectedAccounts method by returning the selected account group accounts', async () => {
-      const { service, mocks } = setup();
+      const { service, mocks } = await setup();
       mocks.AccountTreeController.getSelectedAccountGroup.mockReturnValue(
         MOCK_GROUP_ID,
       );
@@ -948,7 +949,7 @@ describe('SnapAccountService', () => {
     });
 
     it('returns an empty array for GetSelectedAccounts when no account group is selected', async () => {
-      const { service } = setup();
+      const { service } = await setup();
 
       const result = await service.handleKeyringSnapMessage(MOCK_SNAP_ID, {
         method: SnapManageAccountsMethod.GetSelectedAccounts,
@@ -959,7 +960,7 @@ describe('SnapAccountService', () => {
     });
 
     it('throws a dedicated error when no v2 Snap keyring exists for the given Snap', async () => {
-      const { service, mocks } = setup();
+      const { service, mocks } = await setup();
       mockWithKeyringV2(mocks, {});
 
       await expect(
@@ -970,7 +971,7 @@ describe('SnapAccountService', () => {
     });
 
     it('propagates non-KeyringNotFound errors thrown by the Snap keyring', async () => {
-      const { service, mocks } = setup();
+      const { service, mocks } = await setup();
       const error = new Error('snap boom');
       const handleKeyringSnapMessage = jest.fn().mockRejectedValue(error);
       mockWithKeyringV2(mocks, {
@@ -983,7 +984,7 @@ describe('SnapAccountService', () => {
     });
 
     it('ensures the v2 keyring exists before forwarding an AccountCreated event', async () => {
-      const { service, mocks } = setup();
+      const { service, mocks } = await setup();
       // `#ensureKeyringIsReady` uses `withController` — start with no keyring
       // so it must create one.
       const { addNewKeyring } = mockWithController(mocks, []);
@@ -1009,7 +1010,7 @@ describe('SnapAccountService', () => {
     });
 
     it('is exposed as a messenger action', async () => {
-      const { service, mocks, messenger } = setup();
+      const { service, mocks, messenger } = await setup();
       const handleKeyringSnapMessage = jest.fn().mockResolvedValue('pong');
       mockWithKeyringV2(mocks, {
         [MOCK_SNAP_ID]: { handleKeyringSnapMessage },
@@ -1037,14 +1038,26 @@ describe('SnapAccountService', () => {
       '00000000-0000-0000-0000-000000000002',
     ];
 
-    it('forwards the selected accounts to the Snap keyring', async () => {
-      const { service, rootMessenger, mocks } = setup();
-      const setSelectedAccounts = jest.fn().mockResolvedValue(undefined);
-      mockLegacySnapKeyring(mocks, { setSelectedAccounts });
+    it('forwards owned accounts to every tracked v2 Snap keyring in parallel', async () => {
+      const { rootMessenger, mocks } = await setup({
+        runnableSnaps: [buildSnap(MOCK_SNAP_ID), buildSnap(MOCK_OTHER_SNAP_ID)],
+      });
+      const setSelectedAccounts1 = jest.fn().mockResolvedValue(undefined);
+      const setSelectedAccounts2 = jest.fn().mockResolvedValue(undefined);
+      // Snap A owns the first account; Snap B owns the second.
+      mockWithKeyringV2Unsafe(mocks, {
+        [MOCK_SNAP_ID]: {
+          setSelectedAccounts: setSelectedAccounts1,
+          hasAccount: (id) => id === MOCK_ACCOUNTS[0],
+        },
+        [MOCK_OTHER_SNAP_ID]: {
+          setSelectedAccounts: setSelectedAccounts2,
+          hasAccount: (id) => id === MOCK_ACCOUNTS[1],
+        },
+      });
       mocks.AccountTreeController.getAccountGroupObject.mockReturnValue(
         buildGroup(MOCK_GROUP_ID, MOCK_ACCOUNTS),
       );
-      expect(service).toBeDefined();
 
       publishSelectedAccountGroupChange(rootMessenger, MOCK_GROUP_ID);
       await flushMicrotasks();
@@ -1052,14 +1065,74 @@ describe('SnapAccountService', () => {
       expect(
         mocks.AccountTreeController.getAccountGroupObject,
       ).toHaveBeenCalledWith(MOCK_GROUP_ID);
-      expect(setSelectedAccounts).toHaveBeenCalledWith(MOCK_ACCOUNTS);
+      expect(setSelectedAccounts1).toHaveBeenCalledWith([MOCK_ACCOUNTS[0]]);
+      expect(setSelectedAccounts2).toHaveBeenCalledWith([MOCK_ACCOUNTS[1]]);
+    });
+
+    it('forwards an empty list to a tracked Snap that owns none of the selected accounts', async () => {
+      const { rootMessenger, mocks } = await setup({
+        runnableSnaps: [buildSnap(MOCK_SNAP_ID)],
+      });
+      const setSelectedAccounts = jest.fn().mockResolvedValue(undefined);
+      mockWithKeyringV2Unsafe(mocks, {
+        [MOCK_SNAP_ID]: {
+          setSelectedAccounts,
+          hasAccount: () => false,
+        },
+      });
+      mocks.AccountTreeController.getAccountGroupObject.mockReturnValue(
+        buildGroup(MOCK_GROUP_ID, MOCK_ACCOUNTS),
+      );
+
+      publishSelectedAccountGroupChange(rootMessenger, MOCK_GROUP_ID);
+      await flushMicrotasks();
+
+      expect(setSelectedAccounts).toHaveBeenCalledWith([]);
+    });
+
+    it('does nothing when no Snap is tracked', async () => {
+      const { service, rootMessenger, mocks } = await setup();
+      mocks.AccountTreeController.getAccountGroupObject.mockReturnValue(
+        buildGroup(MOCK_GROUP_ID, MOCK_ACCOUNTS),
+      );
+
+      publishSelectedAccountGroupChange(rootMessenger, MOCK_GROUP_ID);
+      await flushMicrotasks();
+
+      expect(
+        mocks.KeyringController.withKeyringV2Unsafe,
+      ).not.toHaveBeenCalled();
+      expect(service).toBeDefined();
+    });
+
+    it('silently skips a tracked Snap that has no v2 keyring yet', async () => {
+      const { service, rootMessenger, mocks } = await setup({
+        runnableSnaps: [buildSnap(MOCK_SNAP_ID)],
+      });
+      // No keyrings configured → withKeyringV2Unsafe throws KeyringNotFound.
+      mockWithKeyringV2Unsafe(mocks, {});
+      mocks.AccountTreeController.getAccountGroupObject.mockReturnValue(
+        buildGroup(MOCK_GROUP_ID, MOCK_ACCOUNTS),
+      );
+      const consoleErrorSpy = jest
+        .spyOn(console, 'error')
+        .mockImplementation(() => undefined);
+
+      publishSelectedAccountGroupChange(rootMessenger, MOCK_GROUP_ID);
+      await flushMicrotasks();
+
+      expect(consoleErrorSpy).not.toHaveBeenCalled();
+      expect(service).toBeDefined();
+      consoleErrorSpy.mockRestore();
     });
 
     it('does nothing when the new group ID is empty', async () => {
-      const { service, rootMessenger, mocks } = setup();
-      const setSelectedAccounts = jest.fn().mockResolvedValue(undefined);
-      mockLegacySnapKeyring(mocks, { setSelectedAccounts });
-      expect(service).toBeDefined();
+      const { service, rootMessenger, mocks } = await setup({
+        runnableSnaps: [buildSnap(MOCK_SNAP_ID)],
+      });
+      mockWithKeyringV2Unsafe(mocks, {
+        [MOCK_SNAP_ID]: { setSelectedAccounts: jest.fn() },
+      });
 
       publishSelectedAccountGroupChange(rootMessenger, '');
       await flushMicrotasks();
@@ -1067,17 +1140,22 @@ describe('SnapAccountService', () => {
       expect(
         mocks.AccountTreeController.getAccountGroupObject,
       ).not.toHaveBeenCalled();
-      expect(setSelectedAccounts).not.toHaveBeenCalled();
+      expect(
+        mocks.KeyringController.withKeyringV2Unsafe,
+      ).not.toHaveBeenCalled();
+      expect(service).toBeDefined();
     });
 
     it('does nothing when the account group is not found', async () => {
-      const { service, rootMessenger, mocks } = setup();
-      const setSelectedAccounts = jest.fn().mockResolvedValue(undefined);
-      mockLegacySnapKeyring(mocks, { setSelectedAccounts });
+      const { service, rootMessenger, mocks } = await setup({
+        runnableSnaps: [buildSnap(MOCK_SNAP_ID)],
+      });
+      mockWithKeyringV2Unsafe(mocks, {
+        [MOCK_SNAP_ID]: { setSelectedAccounts: jest.fn() },
+      });
       mocks.AccountTreeController.getAccountGroupObject.mockReturnValue(
         undefined,
       );
-      expect(service).toBeDefined();
 
       publishSelectedAccountGroupChange(rootMessenger, MOCK_GROUP_ID);
       await flushMicrotasks();
@@ -1085,31 +1163,75 @@ describe('SnapAccountService', () => {
       expect(
         mocks.AccountTreeController.getAccountGroupObject,
       ).toHaveBeenCalledWith(MOCK_GROUP_ID);
-      expect(setSelectedAccounts).not.toHaveBeenCalled();
+      expect(
+        mocks.KeyringController.withKeyringV2Unsafe,
+      ).not.toHaveBeenCalled();
+      expect(service).toBeDefined();
     });
 
-    it('logs an error when forwarding to the Snap keyring fails', async () => {
-      const { service, rootMessenger, mocks } = setup();
+    it('logs an error when forwarding to a v2 Snap keyring fails, but still forwards to the others', async () => {
+      const { service, rootMessenger, mocks } = await setup({
+        runnableSnaps: [buildSnap(MOCK_SNAP_ID), buildSnap(MOCK_OTHER_SNAP_ID)],
+      });
       const error = new Error('forward boom');
-      const setSelectedAccounts = jest.fn().mockRejectedValue(error);
-      mockLegacySnapKeyring(mocks, { setSelectedAccounts });
+      const setSelectedAccounts1 = jest.fn().mockRejectedValue(error);
+      const setSelectedAccounts2 = jest.fn().mockResolvedValue(undefined);
+      mockWithKeyringV2Unsafe(mocks, {
+        [MOCK_SNAP_ID]: { setSelectedAccounts: setSelectedAccounts1 },
+        [MOCK_OTHER_SNAP_ID]: { setSelectedAccounts: setSelectedAccounts2 },
+      });
       mocks.AccountTreeController.getAccountGroupObject.mockReturnValue(
         buildGroup(MOCK_GROUP_ID, MOCK_ACCOUNTS),
       );
       const consoleErrorSpy = jest
         .spyOn(console, 'error')
         .mockImplementation(() => undefined);
-      expect(service).toBeDefined();
 
       publishSelectedAccountGroupChange(rootMessenger, MOCK_GROUP_ID);
       await flushMicrotasks();
 
-      expect(setSelectedAccounts).toHaveBeenCalledWith(MOCK_ACCOUNTS);
+      expect(setSelectedAccounts1).toHaveBeenCalled();
+      expect(setSelectedAccounts2).toHaveBeenCalledWith(MOCK_ACCOUNTS);
       expect(consoleErrorSpy).toHaveBeenCalledWith(
-        'Error forwarding selected accounts:',
+        `Error forwarding selected accounts to Snap "${MOCK_SNAP_ID}":`,
         error,
       );
+      expect(service).toBeDefined();
+      consoleErrorSpy.mockRestore();
+    });
 
+    it('logs a top-level error if forwarding itself rejects unexpectedly', async () => {
+      const { service, rootMessenger, mocks } = await setup({
+        runnableSnaps: [buildSnap(MOCK_SNAP_ID)],
+      });
+      const innerError = new Error('inner boom');
+      mockWithKeyringV2Unsafe(mocks, {
+        [MOCK_SNAP_ID]: {
+          setSelectedAccounts: jest.fn().mockRejectedValue(innerError),
+        },
+      });
+      mocks.AccountTreeController.getAccountGroupObject.mockReturnValue(
+        buildGroup(MOCK_GROUP_ID, MOCK_ACCOUNTS),
+      );
+      // Force the per-Snap error handler itself to throw on its first
+      // invocation, so the rejection escapes the inner try/catch and reaches
+      // the outer `.catch` (the top-level fallback). Subsequent calls
+      // (including the top-level one) no-op.
+      const consoleErrorSpy = jest
+        .spyOn(console, 'error')
+        .mockImplementation(() => undefined);
+      consoleErrorSpy.mockImplementationOnce(() => {
+        throw new Error('logger boom');
+      });
+
+      publishSelectedAccountGroupChange(rootMessenger, MOCK_GROUP_ID);
+      await flushMicrotasks();
+
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
+        'Error forwarding selected accounts:',
+        expect.any(Error),
+      );
+      expect(service).toBeDefined();
       consoleErrorSpy.mockRestore();
     });
   });
@@ -1121,17 +1243,20 @@ describe('SnapAccountService', () => {
       '00000000-0000-0000-0000-000000000002',
     ];
 
-    it('forwards the currently selected account group to the Snap keyring', async () => {
-      const { service, rootMessenger, mocks } = setup();
+    it('forwards the currently selected account group to every tracked v2 Snap keyring', async () => {
+      const { service, rootMessenger, mocks } = await setup({
+        runnableSnaps: [buildSnap(MOCK_SNAP_ID)],
+      });
       const setSelectedAccounts = jest.fn().mockResolvedValue(undefined);
-      mockLegacySnapKeyring(mocks, { setSelectedAccounts });
+      mockWithKeyringV2Unsafe(mocks, {
+        [MOCK_SNAP_ID]: { setSelectedAccounts },
+      });
       mocks.AccountTreeController.getSelectedAccountGroup.mockReturnValue(
         MOCK_GROUP_ID,
       );
       mocks.AccountTreeController.getAccountGroupObject.mockReturnValue(
         buildGroup(MOCK_GROUP_ID, MOCK_ACCOUNTS),
       );
-      expect(service).toBeDefined();
 
       publishUnlock(rootMessenger);
       await flushMicrotasks();
@@ -1143,14 +1268,17 @@ describe('SnapAccountService', () => {
         mocks.AccountTreeController.getAccountGroupObject,
       ).toHaveBeenCalledWith(MOCK_GROUP_ID);
       expect(setSelectedAccounts).toHaveBeenCalledWith(MOCK_ACCOUNTS);
+      expect(service).toBeDefined();
     });
 
     it('does nothing when no account group is selected', async () => {
-      const { service, rootMessenger, mocks } = setup();
-      const setSelectedAccounts = jest.fn().mockResolvedValue(undefined);
-      mockLegacySnapKeyring(mocks, { setSelectedAccounts });
+      const { service, rootMessenger, mocks } = await setup({
+        runnableSnaps: [buildSnap(MOCK_SNAP_ID)],
+      });
+      mockWithKeyringV2Unsafe(mocks, {
+        [MOCK_SNAP_ID]: { setSelectedAccounts: jest.fn() },
+      });
       mocks.AccountTreeController.getSelectedAccountGroup.mockReturnValue('');
-      expect(service).toBeDefined();
 
       publishUnlock(rootMessenger);
       await flushMicrotasks();
@@ -1158,14 +1286,21 @@ describe('SnapAccountService', () => {
       expect(
         mocks.AccountTreeController.getAccountGroupObject,
       ).not.toHaveBeenCalled();
-      expect(setSelectedAccounts).not.toHaveBeenCalled();
+      expect(
+        mocks.KeyringController.withKeyringV2Unsafe,
+      ).not.toHaveBeenCalled();
+      expect(service).toBeDefined();
     });
 
-    it('logs an error when forwarding to the Snap keyring fails', async () => {
-      const { service, rootMessenger, mocks } = setup();
+    it('logs an error when forwarding to a v2 Snap keyring fails', async () => {
+      const { service, rootMessenger, mocks } = await setup({
+        runnableSnaps: [buildSnap(MOCK_SNAP_ID)],
+      });
       const error = new Error('forward boom');
       const setSelectedAccounts = jest.fn().mockRejectedValue(error);
-      mockLegacySnapKeyring(mocks, { setSelectedAccounts });
+      mockWithKeyringV2Unsafe(mocks, {
+        [MOCK_SNAP_ID]: { setSelectedAccounts },
+      });
       mocks.AccountTreeController.getSelectedAccountGroup.mockReturnValue(
         MOCK_GROUP_ID,
       );
@@ -1175,17 +1310,16 @@ describe('SnapAccountService', () => {
       const consoleErrorSpy = jest
         .spyOn(console, 'error')
         .mockImplementation(() => undefined);
-      expect(service).toBeDefined();
 
       publishUnlock(rootMessenger);
       await flushMicrotasks();
 
       expect(setSelectedAccounts).toHaveBeenCalledWith(MOCK_ACCOUNTS);
       expect(consoleErrorSpy).toHaveBeenCalledWith(
-        'Error forwarding selected accounts:',
+        `Error forwarding selected accounts to Snap "${MOCK_SNAP_ID}":`,
         error,
       );
-
+      expect(service).toBeDefined();
       consoleErrorSpy.mockRestore();
     });
   });
@@ -1202,13 +1336,16 @@ describe('SnapAccountService', () => {
     ];
 
     it('forwards the accounts from the event payload when the affected group is the selected one', async () => {
-      const { service, rootMessenger, mocks } = setup();
+      const { service, rootMessenger, mocks } = await setup({
+        runnableSnaps: [buildSnap(MOCK_SNAP_ID)],
+      });
       const setSelectedAccounts = jest.fn().mockResolvedValue(undefined);
-      mockLegacySnapKeyring(mocks, { setSelectedAccounts });
+      mockWithKeyringV2Unsafe(mocks, {
+        [MOCK_SNAP_ID]: { setSelectedAccounts },
+      });
       mocks.AccountTreeController.getSelectedAccountGroup.mockReturnValue(
         MOCK_GROUP_ID,
       );
-      expect(service).toBeDefined();
 
       publishEvent(rootMessenger, buildGroup(MOCK_GROUP_ID, MOCK_ACCOUNTS));
       await flushMicrotasks();
@@ -1217,16 +1354,19 @@ describe('SnapAccountService', () => {
         mocks.AccountTreeController.getAccountGroupObject,
       ).not.toHaveBeenCalled();
       expect(setSelectedAccounts).toHaveBeenCalledWith(MOCK_ACCOUNTS);
+      expect(service).toBeDefined();
     });
 
     it('does nothing when the affected group is not the selected one', async () => {
-      const { service, rootMessenger, mocks } = setup();
-      const setSelectedAccounts = jest.fn().mockResolvedValue(undefined);
-      mockLegacySnapKeyring(mocks, { setSelectedAccounts });
+      const { service, rootMessenger, mocks } = await setup({
+        runnableSnaps: [buildSnap(MOCK_SNAP_ID)],
+      });
+      mockWithKeyringV2Unsafe(mocks, {
+        [MOCK_SNAP_ID]: { setSelectedAccounts: jest.fn() },
+      });
       mocks.AccountTreeController.getSelectedAccountGroup.mockReturnValue(
         OTHER_GROUP_ID,
       );
-      expect(service).toBeDefined();
 
       publishEvent(rootMessenger, buildGroup(MOCK_GROUP_ID, MOCK_ACCOUNTS));
       await flushMicrotasks();
@@ -1234,15 +1374,20 @@ describe('SnapAccountService', () => {
       expect(
         mocks.AccountTreeController.getAccountGroupObject,
       ).not.toHaveBeenCalled();
-      expect(setSelectedAccounts).not.toHaveBeenCalled();
+      expect(
+        mocks.KeyringController.withKeyringV2Unsafe,
+      ).not.toHaveBeenCalled();
+      expect(service).toBeDefined();
     });
 
     it('does nothing when no account group is selected', async () => {
-      const { service, rootMessenger, mocks } = setup();
-      const setSelectedAccounts = jest.fn().mockResolvedValue(undefined);
-      mockLegacySnapKeyring(mocks, { setSelectedAccounts });
+      const { service, rootMessenger, mocks } = await setup({
+        runnableSnaps: [buildSnap(MOCK_SNAP_ID)],
+      });
+      mockWithKeyringV2Unsafe(mocks, {
+        [MOCK_SNAP_ID]: { setSelectedAccounts: jest.fn() },
+      });
       mocks.AccountTreeController.getSelectedAccountGroup.mockReturnValue('');
-      expect(service).toBeDefined();
 
       publishEvent(rootMessenger, buildGroup(MOCK_GROUP_ID, MOCK_ACCOUNTS));
       await flushMicrotasks();
@@ -1250,7 +1395,10 @@ describe('SnapAccountService', () => {
       expect(
         mocks.AccountTreeController.getAccountGroupObject,
       ).not.toHaveBeenCalled();
-      expect(setSelectedAccounts).not.toHaveBeenCalled();
+      expect(
+        mocks.KeyringController.withKeyringV2Unsafe,
+      ).not.toHaveBeenCalled();
+      expect(service).toBeDefined();
     });
   });
 
@@ -1258,14 +1406,17 @@ describe('SnapAccountService', () => {
     const MOCK_GROUP_ID = 'keyring:01JABC/group-1' as AccountGroupId;
     const OTHER_GROUP_ID = 'keyring:01JABC/group-2' as AccountGroupId;
 
-    it('clears the selected accounts when the removed group is the selected one', async () => {
-      const { service, rootMessenger, mocks } = setup();
+    it('clears the selected accounts on every tracked v2 Snap keyring when the removed group is the selected one', async () => {
+      const { service, rootMessenger, mocks } = await setup({
+        runnableSnaps: [buildSnap(MOCK_SNAP_ID)],
+      });
       const setSelectedAccounts = jest.fn().mockResolvedValue(undefined);
-      mockLegacySnapKeyring(mocks, { setSelectedAccounts });
+      mockWithKeyringV2Unsafe(mocks, {
+        [MOCK_SNAP_ID]: { setSelectedAccounts },
+      });
       mocks.AccountTreeController.getSelectedAccountGroup.mockReturnValue(
         MOCK_GROUP_ID,
       );
-      expect(service).toBeDefined();
 
       publishAccountGroupRemoved(rootMessenger, MOCK_GROUP_ID);
       await flushMicrotasks();
@@ -1274,16 +1425,19 @@ describe('SnapAccountService', () => {
         mocks.AccountTreeController.getAccountGroupObject,
       ).not.toHaveBeenCalled();
       expect(setSelectedAccounts).toHaveBeenCalledWith([]);
+      expect(service).toBeDefined();
     });
 
     it('does nothing when the removed group is not the selected one', async () => {
-      const { service, rootMessenger, mocks } = setup();
-      const setSelectedAccounts = jest.fn().mockResolvedValue(undefined);
-      mockLegacySnapKeyring(mocks, { setSelectedAccounts });
+      const { service, rootMessenger, mocks } = await setup({
+        runnableSnaps: [buildSnap(MOCK_SNAP_ID)],
+      });
+      mockWithKeyringV2Unsafe(mocks, {
+        [MOCK_SNAP_ID]: { setSelectedAccounts: jest.fn() },
+      });
       mocks.AccountTreeController.getSelectedAccountGroup.mockReturnValue(
         OTHER_GROUP_ID,
       );
-      expect(service).toBeDefined();
 
       publishAccountGroupRemoved(rootMessenger, MOCK_GROUP_ID);
       await flushMicrotasks();
@@ -1291,7 +1445,10 @@ describe('SnapAccountService', () => {
       expect(
         mocks.AccountTreeController.getAccountGroupObject,
       ).not.toHaveBeenCalled();
-      expect(setSelectedAccounts).not.toHaveBeenCalled();
+      expect(
+        mocks.KeyringController.withKeyringV2Unsafe,
+      ).not.toHaveBeenCalled();
+      expect(service).toBeDefined();
     });
   });
 });
