@@ -13,6 +13,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `mm daemon start` spawns the daemon with `--infura-project-id`, `--password`, `--srp` (or the matching env vars).
   - `mm daemon call <Action> [<jsonArrayParams>]` dispatches any messenger action over JSON-RPC.
   - `mm daemon stop`, `mm daemon status`, `mm daemon purge` manage daemon lifecycle and state.
-- Persist daemon state to a SQLite database at `<dataDir>/wallet.db`; subsequent `daemon start` runs reuse the persisted KeyringController vault instead of re-importing the SRP ([#8682](https://github.com/MetaMask/core/issues/8682)).
+- Persist daemon state to a SQLite database at `<dataDir>/wallet.db`; subsequent `daemon start` runs reuse the persisted KeyringController vault instead of re-importing the SRP ([#8446](https://github.com/MetaMask/core/pull/8446)).
 
 [Unreleased]: https://github.com/MetaMask/core/

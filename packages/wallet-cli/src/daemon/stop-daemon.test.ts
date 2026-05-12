@@ -50,16 +50,21 @@ describe('stopDaemon', () => {
     expect(mockSendSignal).not.toHaveBeenCalled();
   });
 
-  it('does not signal the recorded PID when the socket is absent even if isProcessAlive would say true', async () => {
+  it('signals the recorded PID when the socket is absent but the process is still alive', async () => {
     mockReadPidFile.mockResolvedValue(123);
     mockPingDaemon.mockResolvedValue(ABSENT);
-    // isProcessAlive should never be invoked in this branch, but guard the
-    // contract by also asserting no signal even if it would return true.
     mockIsProcessAlive.mockReturnValue(true);
+    mockSendSignal.mockReturnValue(true);
+    mockWaitFor.mockResolvedValueOnce(true);
 
-    const result = await stopDaemon('/tmp/test.sock', '/tmp/test.pid');
+    const log = jest.fn();
+    const result = await stopDaemon('/tmp/test.sock', '/tmp/test.pid', log);
+
     expect(result).toBe(true);
-    expect(mockSendSignal).not.toHaveBeenCalled();
+    expect(mockSendSignal).toHaveBeenCalledWith(123, 'SIGTERM');
+    expect(log).toHaveBeenCalledWith(
+      expect.stringContaining('Socket at /tmp/test.sock is absent'),
+    );
   });
 
   it('stops daemon via graceful RPC shutdown', async () => {

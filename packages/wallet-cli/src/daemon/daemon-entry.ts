@@ -46,8 +46,10 @@ async function main(): Promise<void> {
   // 0o700: owner-only. The daemon exposes the full wallet messenger over
   // the socket inside this directory, so anyone who can traverse the dir
   // can also `connect()` to the socket. Restricting to the owning user is
-  // the only access-control boundary.
+  // the only access-control boundary. We chmod after mkdir because the
+  // `mode` option is ignored when the directory already exists.
   mkdirSync(dataDir, { recursive: true, mode: 0o700 });
+  await chmod(dataDir, 0o700);
 
   const {
     socketPath: defaultSocketPath,

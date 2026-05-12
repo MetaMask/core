@@ -7,11 +7,12 @@ import { isProcessAlive, readPidFile, sendSignal, waitFor } from './utils';
  * Stop the daemon via a `shutdown` RPC call. Falls back to PID + SIGTERM if
  * the socket is unresponsive, and escalates to SIGKILL if SIGTERM is ignored.
  *
- * Signals are only sent if pinging the socket yielded `responsive` or
- * `unreachable` (i.e. we did not see `ENOENT`). When the ping is `absent`
- * we decline to signal the recorded PID, because long-running workstations
- * can recycle PIDs to unrelated processes; we just clean up the stale PID
- * file.
+ * Signals are sent when EITHER the socket was observed (`responsive` or
+ * `unreachable`) OR the recorded PID is still alive on its own. The
+ * socket-absent + alive-PID branch trades a small risk of signalling a
+ * recycled PID for the larger risk of leaving an orphan daemon holding the
+ * SQLite database — which `daemon purge` would otherwise wipe out from
+ * under it.
  *
  * @param socketPath - The daemon socket path.
  * @param pidPath - The daemon PID file path.
@@ -27,8 +28,7 @@ export async function stopDaemon(
   const ping = await pingDaemon(socketPath);
   const socketObserved =
     ping.status === 'responsive' || ping.status === 'unreachable';
-  const processAlive =
-    pid !== undefined && socketObserved && isProcessAlive(pid);
+  const processAlive = pid !== undefined && isProcessAlive(pid);
 
   if (!socketObserved && !processAlive) {
     // No live daemon evidence. Just remove the stale PID file if any.
@@ -53,9 +53,15 @@ export async function stopDaemon(
     );
   }
 
-  // Strategy 2: SIGTERM. Only signal when we have evidence the socket
-  // belongs to a live process (socketObserved && processAlive).
+  // Strategy 2: SIGTERM. Signal when either the socket was observed or the
+  // recorded PID is alive; the absent+alive case typically means someone
+  // removed the socket from under a live daemon.
   if (!stopped && processAlive && pid !== undefined) {
+    if (!socketObserved) {
+      log?.(
+        `Socket at ${socketPath} is absent but recorded pid ${pid} is alive; signalling anyway.`,
+      );
+    }
     try {
       if (sendSignal(pid, 'SIGTERM')) {
         stopped = await waitFor(() => !isProcessAlive(pid), 5_000);

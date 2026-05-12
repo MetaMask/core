@@ -3,8 +3,8 @@ import { rm } from 'node:fs/promises';
 
 import { pingDaemon } from '../../daemon/daemon-client';
 import { getDaemonPaths } from '../../daemon/paths';
+import { confirmPurge } from '../../daemon/prompts';
 import { stopDaemon } from '../../daemon/stop-daemon';
-import { confirmPurge } from './prompts';
 
 export default class DaemonPurge extends Command {
   static override description =
