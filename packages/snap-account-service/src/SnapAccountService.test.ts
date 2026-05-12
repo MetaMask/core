@@ -105,6 +105,9 @@ function getMessenger(
       'KeyringController:stateChange',
       'KeyringController:unlock',
       'AccountTreeController:selectedAccountGroupChange',
+      'AccountTreeController:accountGroupCreated',
+      'AccountTreeController:accountGroupUpdated',
+      'AccountTreeController:accountGroupRemoved',
     ],
   });
   return messenger;
@@ -202,11 +205,57 @@ function buildSnap(id: string, hasKeyring: boolean): TruncatedSnap {
 /**
  * Builds a minimal `AccountGroupObject` for tests.
  *
+ * @param id - The group ID.
  * @param accounts - The list of account IDs in the group.
  * @returns A minimal `AccountGroupObject`.
  */
-function buildGroup(accounts: string[]): AccountGroupObject {
-  return { accounts } as unknown as AccountGroupObject;
+function buildGroup(
+  id: AccountGroupId,
+  accounts: string[],
+): AccountGroupObject {
+  return { id, accounts } as unknown as AccountGroupObject;
+}
+
+/**
+ * Publishes an AccountTreeController accountGroupCreated event on the root
+ * messenger.
+ *
+ * @param rootMessenger - The root messenger.
+ * @param group - The created account group.
+ */
+function publishAccountGroupCreated(
+  rootMessenger: RootMessenger,
+  group: AccountGroupObject,
+): void {
+  rootMessenger.publish('AccountTreeController:accountGroupCreated', group);
+}
+
+/**
+ * Publishes an AccountTreeController accountGroupUpdated event on the root
+ * messenger.
+ *
+ * @param rootMessenger - The root messenger.
+ * @param group - The updated account group.
+ */
+function publishAccountGroupUpdated(
+  rootMessenger: RootMessenger,
+  group: AccountGroupObject,
+): void {
+  rootMessenger.publish('AccountTreeController:accountGroupUpdated', group);
+}
+
+/**
+ * Publishes an AccountTreeController accountGroupRemoved event on the root
+ * messenger.
+ *
+ * @param rootMessenger - The root messenger.
+ * @param groupId - The removed account group ID.
+ */
+function publishAccountGroupRemoved(
+  rootMessenger: RootMessenger,
+  groupId: AccountGroupId,
+): void {
+  rootMessenger.publish('AccountTreeController:accountGroupRemoved', groupId);
 }
 
 /**
@@ -642,7 +691,7 @@ describe('SnapAccountService', () => {
       const setSelectedAccounts = jest.fn().mockResolvedValue(undefined);
       mockLegacySnapKeyring(mocks, { setSelectedAccounts });
       mocks.AccountTreeController.getAccountGroupObject.mockReturnValue(
-        buildGroup(MOCK_ACCOUNTS),
+        buildGroup(MOCK_GROUP_ID, MOCK_ACCOUNTS),
       );
       expect(service).toBeDefined();
 
@@ -694,7 +743,7 @@ describe('SnapAccountService', () => {
       const setSelectedAccounts = jest.fn().mockRejectedValue(error);
       mockLegacySnapKeyring(mocks, { setSelectedAccounts });
       mocks.AccountTreeController.getAccountGroupObject.mockReturnValue(
-        buildGroup(MOCK_ACCOUNTS),
+        buildGroup(MOCK_GROUP_ID, MOCK_ACCOUNTS),
       );
       const consoleErrorSpy = jest
         .spyOn(console, 'error')
@@ -706,7 +755,7 @@ describe('SnapAccountService', () => {
 
       expect(setSelectedAccounts).toHaveBeenCalledWith(MOCK_ACCOUNTS);
       expect(consoleErrorSpy).toHaveBeenCalledWith(
-        'Error handling selected account group change:',
+        'Error forwarding selected accounts:',
         error,
       );
 
@@ -729,7 +778,7 @@ describe('SnapAccountService', () => {
         MOCK_GROUP_ID,
       );
       mocks.AccountTreeController.getAccountGroupObject.mockReturnValue(
-        buildGroup(MOCK_ACCOUNTS),
+        buildGroup(MOCK_GROUP_ID, MOCK_ACCOUNTS),
       );
       expect(service).toBeDefined();
 
@@ -770,7 +819,7 @@ describe('SnapAccountService', () => {
         MOCK_GROUP_ID,
       );
       mocks.AccountTreeController.getAccountGroupObject.mockReturnValue(
-        buildGroup(MOCK_ACCOUNTS),
+        buildGroup(MOCK_GROUP_ID, MOCK_ACCOUNTS),
       );
       const consoleErrorSpy = jest
         .spyOn(console, 'error')
@@ -782,11 +831,116 @@ describe('SnapAccountService', () => {
 
       expect(setSelectedAccounts).toHaveBeenCalledWith(MOCK_ACCOUNTS);
       expect(consoleErrorSpy).toHaveBeenCalledWith(
-        'Error forwarding selected account group on unlock:',
+        'Error forwarding selected accounts:',
         error,
       );
 
       consoleErrorSpy.mockRestore();
+    });
+  });
+
+  describe.each([
+    ['accountGroupCreated', publishAccountGroupCreated] as const,
+    ['accountGroupUpdated', publishAccountGroupUpdated] as const,
+  ])('on AccountTreeController:%s', (_eventName, publishEvent) => {
+    const MOCK_GROUP_ID = 'keyring:01JABC/group-1' as AccountGroupId;
+    const OTHER_GROUP_ID = 'keyring:01JABC/group-2' as AccountGroupId;
+    const MOCK_ACCOUNTS = [
+      '00000000-0000-0000-0000-000000000001',
+      '00000000-0000-0000-0000-000000000002',
+    ];
+
+    it('forwards the accounts from the event payload when the affected group is the selected one', async () => {
+      const { service, rootMessenger, mocks } = setup();
+      const setSelectedAccounts = jest.fn().mockResolvedValue(undefined);
+      mockLegacySnapKeyring(mocks, { setSelectedAccounts });
+      mocks.AccountTreeController.getSelectedAccountGroup.mockReturnValue(
+        MOCK_GROUP_ID,
+      );
+      expect(service).toBeDefined();
+
+      publishEvent(rootMessenger, buildGroup(MOCK_GROUP_ID, MOCK_ACCOUNTS));
+      await flushMicrotasks();
+
+      expect(
+        mocks.AccountTreeController.getAccountGroupObject,
+      ).not.toHaveBeenCalled();
+      expect(setSelectedAccounts).toHaveBeenCalledWith(MOCK_ACCOUNTS);
+    });
+
+    it('does nothing when the affected group is not the selected one', async () => {
+      const { service, rootMessenger, mocks } = setup();
+      const setSelectedAccounts = jest.fn().mockResolvedValue(undefined);
+      mockLegacySnapKeyring(mocks, { setSelectedAccounts });
+      mocks.AccountTreeController.getSelectedAccountGroup.mockReturnValue(
+        OTHER_GROUP_ID,
+      );
+      expect(service).toBeDefined();
+
+      publishEvent(rootMessenger, buildGroup(MOCK_GROUP_ID, MOCK_ACCOUNTS));
+      await flushMicrotasks();
+
+      expect(
+        mocks.AccountTreeController.getAccountGroupObject,
+      ).not.toHaveBeenCalled();
+      expect(setSelectedAccounts).not.toHaveBeenCalled();
+    });
+
+    it('does nothing when no account group is selected', async () => {
+      const { service, rootMessenger, mocks } = setup();
+      const setSelectedAccounts = jest.fn().mockResolvedValue(undefined);
+      mockLegacySnapKeyring(mocks, { setSelectedAccounts });
+      mocks.AccountTreeController.getSelectedAccountGroup.mockReturnValue('');
+      expect(service).toBeDefined();
+
+      publishEvent(rootMessenger, buildGroup(MOCK_GROUP_ID, MOCK_ACCOUNTS));
+      await flushMicrotasks();
+
+      expect(
+        mocks.AccountTreeController.getAccountGroupObject,
+      ).not.toHaveBeenCalled();
+      expect(setSelectedAccounts).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('on AccountTreeController:accountGroupRemoved', () => {
+    const MOCK_GROUP_ID = 'keyring:01JABC/group-1' as AccountGroupId;
+    const OTHER_GROUP_ID = 'keyring:01JABC/group-2' as AccountGroupId;
+
+    it('clears the selected accounts when the removed group is the selected one', async () => {
+      const { service, rootMessenger, mocks } = setup();
+      const setSelectedAccounts = jest.fn().mockResolvedValue(undefined);
+      mockLegacySnapKeyring(mocks, { setSelectedAccounts });
+      mocks.AccountTreeController.getSelectedAccountGroup.mockReturnValue(
+        MOCK_GROUP_ID,
+      );
+      expect(service).toBeDefined();
+
+      publishAccountGroupRemoved(rootMessenger, MOCK_GROUP_ID);
+      await flushMicrotasks();
+
+      expect(
+        mocks.AccountTreeController.getAccountGroupObject,
+      ).not.toHaveBeenCalled();
+      expect(setSelectedAccounts).toHaveBeenCalledWith([]);
+    });
+
+    it('does nothing when the removed group is not the selected one', async () => {
+      const { service, rootMessenger, mocks } = setup();
+      const setSelectedAccounts = jest.fn().mockResolvedValue(undefined);
+      mockLegacySnapKeyring(mocks, { setSelectedAccounts });
+      mocks.AccountTreeController.getSelectedAccountGroup.mockReturnValue(
+        OTHER_GROUP_ID,
+      );
+      expect(service).toBeDefined();
+
+      publishAccountGroupRemoved(rootMessenger, MOCK_GROUP_ID);
+      await flushMicrotasks();
+
+      expect(
+        mocks.AccountTreeController.getAccountGroupObject,
+      ).not.toHaveBeenCalled();
+      expect(setSelectedAccounts).not.toHaveBeenCalled();
     });
   });
 });

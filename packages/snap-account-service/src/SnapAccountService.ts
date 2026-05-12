@@ -11,7 +11,7 @@ import type {
   KeyringEntry,
 } from '@metamask/keyring-controller';
 import { KeyringTypes } from '@metamask/keyring-controller';
-import type { BaseKeyring } from '@metamask/keyring-utils';
+import type { AccountId, BaseKeyring } from '@metamask/keyring-utils';
 import type { Messenger } from '@metamask/messenger';
 import type {
   SnapControllerGetRunnableSnapsAction,
@@ -42,6 +42,10 @@ import type {
   AccountTreeControllerGetAccountGroupObjectAction,
   AccountTreeControllerGetSelectedAccountGroupAction,
   AccountTreeControllerSelectedAccountGroupChangeEvent,
+  AccountTreeControllerAccountGroupCreatedEvent,
+  AccountTreeControllerAccountGroupUpdatedEvent,
+  AccountTreeControllerAccountGroupRemovedEvent,
+  AccountGroupObject,
 } from './types';
 
 /**
@@ -100,7 +104,10 @@ type AllowedEvents =
   | SnapControllerSnapUninstalledEvent
   | KeyringControllerStateChangeEvent
   | KeyringControllerUnlockEvent
-  | AccountTreeControllerSelectedAccountGroupChangeEvent;
+  | AccountTreeControllerSelectedAccountGroupChangeEvent
+  | AccountTreeControllerAccountGroupCreatedEvent
+  | AccountTreeControllerAccountGroupUpdatedEvent
+  | AccountTreeControllerAccountGroupRemovedEvent;
 
 /**
  * The messenger which is restricted to actions and events accessed by
@@ -181,6 +188,21 @@ export class SnapAccountService {
       (groupId) => this.#handleSelectedAccountGroupChange(groupId),
     );
 
+    this.#messenger.subscribe(
+      'AccountTreeController:accountGroupCreated',
+      (group) => this.#handleAccountGroupCreatedOrUpdated(group),
+    );
+
+    this.#messenger.subscribe(
+      'AccountTreeController:accountGroupUpdated',
+      (group) => this.#handleAccountGroupCreatedOrUpdated(group),
+    );
+
+    this.#messenger.subscribe(
+      'AccountTreeController:accountGroupRemoved',
+      (groupId) => this.#handleAccountGroupRemoved(groupId),
+    );
+
     this.#messenger.subscribe('KeyringController:unlock', () =>
       this.#handleUnlock(),
     );
@@ -193,9 +215,10 @@ export class SnapAccountService {
    * @param groupId - The ID of the newly selected account group.
    */
   #handleSelectedAccountGroupChange(groupId: AccountGroupId | ''): void {
-    this.#forwardSelectedAccountGroup(groupId).catch((error) => {
-      console.error('Error handling selected account group change:', error);
-    });
+    this.#forwardSelectedAccounts(
+      groupId,
+      this.#getAccountGroup(groupId)?.accounts,
+    );
   }
 
   /**
@@ -203,15 +226,38 @@ export class SnapAccountService {
    * selected account group's accounts to the Snap keyring.
    */
   #handleUnlock(): void {
-    const groupId = this.#messenger.call(
-      'AccountTreeController:getSelectedAccountGroup',
+    const groupId = this.#getSelectedAccountGroupId();
+    this.#forwardSelectedAccounts(
+      groupId,
+      this.#getAccountGroup(groupId)?.accounts,
     );
-    this.#forwardSelectedAccountGroup(groupId).catch((error) => {
-      console.error(
-        'Error forwarding selected account group on unlock:',
-        error,
+  }
+
+  /**
+   * Handles created or updated account groups by forwarding the accounts of the currently
+   * selected account group to the Snap keyring, if the created/updated group is currently selected.
+   *
+   * @param group - The account group being created or updated.
+   */
+  #handleAccountGroupCreatedOrUpdated(group: AccountGroupObject): void {
+    if (group.id === this.#getSelectedAccountGroupId()) {
+      this.#forwardSelectedAccounts(group.id, group.accounts);
+    }
+  }
+
+  /**
+   * Handles removed account groups by forwarding the accounts of the currently
+   * selected account group to the Snap keyring, if the removed group is currently selected.
+   *
+   * @param groupId - The ID of the account group being removed.
+   */
+  #handleAccountGroupRemoved(groupId: AccountGroupId): void {
+    if (groupId === this.#getSelectedAccountGroupId()) {
+      this.#forwardSelectedAccounts(
+        groupId,
+        [] /* Clearing accounts since the group is removed */,
       );
-    });
+    }
   }
 
   /**
@@ -322,24 +368,68 @@ export class SnapAccountService {
    *
    * @param groupId - The ID of the account group whose accounts should be
    * forwarded. If empty, this is a no-op.
+   * @param accounts - The accounts to forward. If not defined, this is a no-op.
    */
-  async #forwardSelectedAccountGroup(
+  #forwardSelectedAccounts(
     groupId: AccountGroupId | '',
-  ): Promise<void> {
-    if (groupId) {
-      const group = this.#messenger.call(
-        'AccountTreeController:getAccountGroupObject',
-        groupId,
+    accounts: AccountId[] | undefined,
+  ): void {
+    if (!groupId) {
+      log(
+        'No selected account group, skipping forwarding selected accounts to Snap keyring.',
       );
+      return;
+    }
 
-      if (group) {
-        log(
-          `Forwarding selected accounts (from "${groupId}") to Snap keyring: ${group.accounts.join(', ')}`,
-        );
+    const forwardSelectedAccounts = async (): Promise<void> => {
+      if (accounts) {
+        if (accounts.length) {
+          log(
+            `Forwarding selected accounts (from "${groupId}"): ${accounts.join(', ')}`,
+          );
+        } else {
+          log(`Cleearing selected accounts (from "${groupId}")`);
+        }
 
         const snapKeyring = await this.getLegacySnapKeyring();
-        await snapKeyring.setSelectedAccounts(group.accounts);
+        await snapKeyring.setSelectedAccounts(accounts);
       }
+    };
+
+    // There is nothing we can do if forwarding fails. This will auto-recover on the next relevant event.
+    forwardSelectedAccounts().catch((error) => {
+      console.error('Error forwarding selected accounts:', error);
+    });
+  }
+
+  /**
+   * Gets the account group object for the given group ID.
+   *
+   * @param groupId - The ID of the account group.
+   * @returns The account group object, or undefined if the group ID is empty or the group does not exist.
+   */
+  #getAccountGroup(
+    groupId: AccountGroupId | '',
+  ): AccountGroupObject | undefined {
+    if (!groupId) {
+      return undefined;
     }
+
+    return this.#messenger.call(
+      'AccountTreeController:getAccountGroupObject',
+      groupId,
+    );
+  }
+
+  /**
+   * Gets the currently selected account group ID.
+   *
+   * @returns The currently selected account group ID, or an empty string if
+   * there is no selected account group.
+   */
+  #getSelectedAccountGroupId(): AccountGroupId | '' {
+    return this.#messenger.call(
+      'AccountTreeController:getSelectedAccountGroup',
+    );
   }
 }
