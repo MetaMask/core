@@ -104,6 +104,7 @@ Each package in this repository has its own README where you can find installati
 - [`@metamask/transaction-pay-controller`](packages/transaction-pay-controller)
 - [`@metamask/user-operation-controller`](packages/user-operation-controller)
 - [`@metamask/wallet`](packages/wallet)
+- [`@metamask/wallet-cli`](packages/wallet-cli)
 
 <!-- end package list -->
 
@@ -197,6 +198,7 @@ linkStyle default opacity:0.5
   transaction_pay_controller(["@metamask/transaction-pay-controller"]);
   user_operation_controller(["@metamask/user-operation-controller"]);
   wallet(["@metamask/wallet"]);
+  wallet_cli(["@metamask/wallet-cli"]);
   account_tree_controller --> accounts_controller;
   account_tree_controller --> base_controller;
   account_tree_controller --> keyring_controller;
@@ -565,6 +567,8 @@ linkStyle default opacity:0.5
   wallet --> remote_feature_flag_controller;
   wallet --> transaction_controller;
   wallet --> foundryup;
+  wallet_cli --> remote_feature_flag_controller;
+  wallet_cli --> wallet;
 ```
 
 <!-- end dependency graph -->

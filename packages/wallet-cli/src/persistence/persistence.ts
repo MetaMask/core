@@ -1,13 +1,13 @@
 import type { StateMetadataConstraint } from '@metamask/base-controller';
 import { hasProperty } from '@metamask/utils';
 import type { Json } from '@metamask/utils';
-import type { Patch } from 'immer';
-
 import type {
   DefaultActions,
   DefaultEvents,
   RootMessenger,
-} from '../initialization';
+} from '@metamask/wallet';
+import type { Patch } from 'immer';
+
 import type { KeyValueStore } from './KeyValueStore';
 
 /**
@@ -76,14 +76,25 @@ export function loadState(
  * @param messenger - The root messenger to subscribe on.
  * @param controllerMetadata - A map from controller name to its state metadata.
  * @param store - The key-value store to write to.
+ * @param log - Optional logger for persistence-write failures. Without a
+ * logger, failures fall back to `console.error` (which the daemon's
+ * `stdio: 'ignore'` discards in production).
  * @returns A function that unsubscribes all persistence handlers.
  */
 export function subscribeToChanges(
   messenger: RootMessenger<DefaultActions, DefaultEvents>,
-  controllerMetadata: Record<string, StateMetadataConstraint>,
+  controllerMetadata: Readonly<
+    Record<string, Readonly<StateMetadataConstraint>>
+  >,
   store: KeyValueStore,
+  log?: (message: string) => void,
 ): () => void {
   const unsubscribers: (() => void)[] = [];
+  const logFn =
+    log ??
+    ((message: string): void => {
+      console.error(message);
+    });
 
   for (const [controllerName, metadata] of Object.entries(controllerMetadata)) {
     const persistedProperties = getPersistPropertyNames(metadata);
@@ -113,8 +124,10 @@ export function subscribeToChanges(
             store.set(key, state[prop]);
           }
         } catch (error) {
-          // TODO: Handle persistence failure to protect the user from data loss.
-          console.error(`Failed to persist state for ${key}`, error);
+          // TODO: Surface persistence-write failures up the stack so callers
+          // can decide to halt rather than continue with diverging in-memory
+          // and on-disk state. For now, log and continue.
+          logFn(`Failed to persist state for ${key}: ${String(error)}`);
         }
       }
     };

@@ -1,11 +1,11 @@
 import type { StateMetadataConstraint } from '@metamask/base-controller';
 import type { Json } from '@metamask/utils';
-
 import type {
   DefaultActions,
   DefaultEvents,
   RootMessenger,
-} from '../initialization';
+} from '@metamask/wallet';
+
 import { KeyValueStore } from './KeyValueStore';
 import { loadState, subscribeToChanges } from './persistence';
 
@@ -258,7 +258,7 @@ describe('subscribeToChanges', () => {
     expect(store.get('TestController.transient')).toBeUndefined();
   });
 
-  it('logs and continues when store.set throws', () => {
+  it('routes store.set failures through the supplied log callback', () => {
     const { messenger, controllerMetadata } = createMockControllers({
       TestController: createStateMetadata([
         ['propA', true],
@@ -266,7 +266,8 @@ describe('subscribeToChanges', () => {
       ]),
     });
 
-    subscribeToChanges(messenger, controllerMetadata, store);
+    const log = jest.fn();
+    subscribeToChanges(messenger, controllerMetadata, store, log);
 
     const error = new Error('disk full');
     const originalSet = store.set.bind(store);
@@ -279,10 +280,6 @@ describe('subscribeToChanges', () => {
       originalSet(key, value);
     });
 
-    const consoleSpy = jest
-      .spyOn(console, 'error')
-      .mockImplementation(() => undefined);
-
     publishStateChanged(messenger, 'TestController', {
       state: { propA: 'a', propB: 'b' },
       patches: [
@@ -291,12 +288,41 @@ describe('subscribeToChanges', () => {
       ],
     });
 
-    expect(consoleSpy).toHaveBeenCalledWith(
-      'Failed to persist state for TestController.propA',
-      error,
+    expect(log).toHaveBeenCalledWith(
+      expect.stringContaining(
+        'Failed to persist state for TestController.propA',
+      ),
     );
     // propB should still be persisted despite propA failing
     expect(store.get('TestController.propB')).toBe('b');
+  });
+
+  it('falls back to console.error when no log callback is supplied', () => {
+    const { messenger, controllerMetadata } = createMockControllers({
+      TestController: createStateMetadata([['prop', true]]),
+    });
+
+    subscribeToChanges(messenger, controllerMetadata, store);
+
+    const consoleSpy = jest
+      .spyOn(console, 'error')
+      .mockImplementation(() => undefined);
+
+    const error = new Error('disk full');
+    jest.spyOn(store, 'set').mockImplementationOnce(() => {
+      throw error;
+    });
+
+    publishStateChanged(messenger, 'TestController', {
+      state: { prop: 'value' },
+      patches: [{ op: 'replace', path: ['prop'], value: 'value' }],
+    });
+
+    expect(consoleSpy).toHaveBeenCalledWith(
+      expect.stringContaining(
+        'Failed to persist state for TestController.prop',
+      ),
+    );
 
     consoleSpy.mockRestore();
   });

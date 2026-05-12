@@ -146,6 +146,8 @@ jobs:
         exclude:
           - node-version: 18.x
             package-name: '@metamask/wallet'
+          - node-version: 18.x
+            package-name: '@metamask/wallet-cli'
     steps:
       - name: Checkout and setup environment
         uses: MetaMask/action-checkout-and-setup@v2
