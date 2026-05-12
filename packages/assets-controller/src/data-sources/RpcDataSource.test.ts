@@ -1639,6 +1639,12 @@ describe('RpcDataSource', () => {
 
       const [response] = onAssetsUpdate.mock.calls[0];
       expect(response.assetsInfo?.[NATIVE_ASSET_ID]?.decimals).toBe(18);
+      // Regression: `decimals: NaN` in state must not bypass the pipeline's
+      // valid `decimals: 18` via `??`, otherwise the amount silently becomes
+      // '0' even though `assetsInfo` reports the correct decimals.
+      expect(
+        response.assetsBalance?.[MOCK_ACCOUNT_ID]?.[NATIVE_ASSET_ID]?.amount,
+      ).toBe('1');
     });
 
     it('keeps existing native metadata when decimals is 0 (valid)', async () => {
@@ -1718,23 +1724,6 @@ describe('RpcDataSource', () => {
 
       return { onAssetsUpdate };
     };
-
-    it('returns "0" amount when state decimals is NaN (bypasses ?? fallback)', async () => {
-      const { onAssetsUpdate } = await runFetchWithStateMetadata(
-        {
-          decimals: Number.NaN,
-          name: 'X',
-          symbol: 'X',
-          type: 'native',
-        },
-        '1000000000000000000',
-      );
-
-      const [response] = onAssetsUpdate.mock.calls[0];
-      expect(
-        response.assetsBalance?.[MOCK_ACCOUNT_ID]?.[NATIVE_ASSET_ID]?.amount,
-      ).toBe('0');
-    });
 
     it('returns "0" amount when raw balance is not a number', async () => {
       const { onAssetsUpdate } = await runFetchWithStateMetadata(

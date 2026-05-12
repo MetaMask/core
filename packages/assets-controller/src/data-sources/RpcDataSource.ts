@@ -431,6 +431,29 @@ export class RpcDataSource extends AbstractDataSource<
   }
 
   /**
+   * Pick the first valid `decimals` value from a list of metadata sources.
+   *
+   * `??` only short-circuits on `null`/`undefined`, so a stale state entry
+   * with `decimals: NaN` would otherwise win over a later source that holds
+   * a correct value (e.g. the chain-status stub produced by
+   * `#collectMetadataForBalances`). This helper treats `NaN`, negative, and
+   * non-finite values as missing so the next source can supply a usable one.
+   *
+   * @param metadatas - Metadata candidates in priority order.
+   * @returns The first finite `decimals` value, or `undefined` if none are valid.
+   */
+  #pickValidDecimals(
+    ...metadatas: (AssetMetadata | undefined)[]
+  ): number | undefined {
+    for (const metadata of metadatas) {
+      if (this.#hasValidDecimals(metadata)) {
+        return metadata.decimals;
+      }
+    }
+    return undefined;
+  }
+
+  /**
    * Handle balance update from BalanceFetcher.
    *
    * @param result - The balance fetch result.
@@ -460,7 +483,7 @@ export class RpcDataSource extends AbstractDataSource<
     for (const balance of normalizedBalances) {
       const stateMetadata = existingMetadata[balance.assetId];
       const pipelineMetadata = assetsInfo[balance.assetId];
-      const decimals = stateMetadata?.decimals ?? pipelineMetadata?.decimals;
+      const decimals = this.#pickValidDecimals(stateMetadata, pipelineMetadata);
 
       if (decimals === undefined) {
         continue;
@@ -1036,8 +1059,10 @@ export class RpcDataSource extends AbstractDataSource<
           for (const balance of normalizedBalances) {
             const stateMetadata = existingMetadata[balance.assetId];
             const pipelineMetadata = assetsInfo[balance.assetId];
-            let decimals: number | undefined =
-              stateMetadata?.decimals ?? pipelineMetadata?.decimals;
+            let decimals: number | undefined = this.#pickValidDecimals(
+              stateMetadata,
+              pipelineMetadata,
+            );
 
             if (decimals === undefined) {
               const parsed = parseCaipAssetType(balance.assetId);
