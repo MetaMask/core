@@ -18,6 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Real 7702 simulation is still preferred when it succeeds (the bundled call has no per-tx intrinsic gas cost so the estimate is typically tighter than summing per-tx limits).
   - Required for callers that submit batches whose individual sub-calls cannot be simulated standalone, for example predict-withdraw, where the batch's first sub-call (`Safe.execTransaction`) provides source-token balance to subsequent sub-calls (approve + swap), and simulating the relay-only sub-calls in isolation reverts because the EOA has no balance until the Safe sub-call has run.
 - Bump `@metamask/accounts-controller` from `^38.1.0` to `^38.1.1` ([#8774](https://github.com/MetaMask/core/pull/8774))
+- Bump `@metamask/controller-utils` from `^12.0.0` to `^12.1.0` ([#8774](https://github.com/MetaMask/core/pull/8774))
 
 ## [65.3.0]
 
