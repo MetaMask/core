@@ -4,15 +4,21 @@ import type {
   SnapMessage,
 } from '@metamask/eth-snap-keyring';
 import { SnapKeyring, SnapKeyringState } from '@metamask/eth-snap-keyring/v2';
+import { KeyringEvent } from '@metamask/keyring-api';
 import { Keyring, KeyringType } from '@metamask/keyring-api/v2';
 import type {
   KeyringControllerGetStateAction,
   KeyringControllerStateChangeEvent,
   KeyringControllerUnlockEvent,
   KeyringControllerWithControllerAction,
+  KeyringControllerWithKeyringV2Action,
   KeyringEntry,
 } from '@metamask/keyring-controller';
-import { KeyringTypes } from '@metamask/keyring-controller';
+import {
+  isKeyringNotFoundError,
+  KeyringTypes,
+} from '@metamask/keyring-controller';
+import { SnapManageAccountsMethod } from '@metamask/keyring-snap-sdk';
 import type { AccountId, BaseKeyring } from '@metamask/keyring-utils';
 import type { Messenger } from '@metamask/messenger';
 import type {
@@ -88,6 +94,7 @@ type AllowedActions =
   | SnapControllerGetRunnableSnapsAction
   | KeyringControllerGetStateAction
   | KeyringControllerWithControllerAction
+  | KeyringControllerWithKeyringV2Action
   | AccountTreeControllerGetAccountGroupObjectAction
   | AccountTreeControllerGetSelectedAccountGroupAction;
 
@@ -515,8 +522,60 @@ export class SnapAccountService {
     snapId: SnapId,
     message: SnapMessage,
   ): Promise<Json> {
-    const snapKeyring = await this.getLegacySnapKeyring();
-    return snapKeyring.handleKeyringSnapMessage(snapId, message);
+    // Handle specific methods first.
+    if (message.method === SnapManageAccountsMethod.GetSelectedAccounts) {
+      return (
+        this.#getAccountGroup(this.#getSelectedAccountGroupId())?.accounts ?? []
+      );
+    }
+
+    const event = message.method as KeyringEvent; // We assume the Snap platform always sends a valid `KeyringEvent` here.
+    log(
+      `Forwarding message "${event}" from Snap "${snapId}" to its keyring...`,
+    );
+
+    const isSnapKeyringForThisSnap = (
+      keyring: Keyring,
+    ): keyring is SnapKeyring =>
+      isSnapKeyring(keyring) && keyring.snapId === snapId;
+
+    // We can create a new keyring if the message is an AccountCreated event.
+    const isAccountCreatedMessage = event === KeyringEvent.AccountCreated;
+
+    // Create the Snap keyring if it doesn't exist yet (in an atomic way). We cannot assume
+    // the keyring exists (e.g for the MMI Snap).
+    // NOTE: We only auto-create it for v1 account creation flows.
+    if (isAccountCreatedMessage) {
+      await this.#ensureKeyringIsReady(snapId);
+    }
+
+    // This part of the flow relies on v1 flows, but v2 keyrings are compatible with those messages
+    // too.
+    try {
+      const result = await this.#messenger.call(
+        'KeyringController:withKeyringV2',
+        { filter: (keyring) => isSnapKeyringForThisSnap(keyring) },
+        async ({ keyring }) => {
+          const snapKeyring = keyring as SnapKeyring; // Forced to cast here as generic does not work when using the messenger.
+
+          return await snapKeyring.handleKeyringSnapMessage(message);
+        },
+      );
+
+      return result as Json;
+    } catch (error) {
+      if (isKeyringNotFoundError(error)) {
+        log(
+          `No Snap keyring found for Snap "${snapId}". Cannot handle message with method "${event}".`,
+        );
+
+        throw new Error(
+          `Cannot delegate keyring Snap message, keyring does not exist yet for Snap "${snapId}".`,
+        );
+      }
+
+      throw error;
+    }
   }
 
   /**
