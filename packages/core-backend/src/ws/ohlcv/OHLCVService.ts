@@ -236,10 +236,18 @@ export class OHLCVService {
         channel,
         refCount: entry.refCount,
       });
-      return;
-    }
 
-    if (entry && entry.refCount > 0) {
+      if (
+        this.#messenger.call(
+          'BackendWebSocketService:channelHasSubscription',
+          channel,
+        )
+      ) {
+        return;
+      }
+      // WS subscription was lost (e.g. after disconnect/reconnect) — fall
+      // through to recreate it while keeping the already-bumped refCount.
+    } else if (entry && entry.refCount > 0) {
       entry.refCount += 1;
       return;
     }

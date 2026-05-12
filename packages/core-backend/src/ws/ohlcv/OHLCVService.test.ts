@@ -418,6 +418,9 @@ describe('OHLCVService', () => {
         await service.subscribe(SUB_OPTS);
         await service.unsubscribe(SUB_OPTS);
 
+        // WS subscription still exists (no disconnect happened)
+        mocks.channelHasSubscription.mockReturnValue(true);
+
         // Re-subscribe during grace period
         jest.advanceTimersByTime(1000);
         mocks.subscribe.mockClear();
@@ -444,6 +447,9 @@ describe('OHLCVService', () => {
 
         await service.subscribe(SUB_OPTS);
         await service.unsubscribe(SUB_OPTS);
+
+        // WS subscription still exists (no disconnect happened)
+        mocks.channelHasSubscription.mockReturnValue(true);
 
         // Re-subscribe to the SAME channel — should cancel grace, not flush
         mocks.subscribe.mockClear();
@@ -715,6 +721,93 @@ describe('OHLCVService', () => {
 
         expect(mocks.subscribe).not.toHaveBeenCalled();
       });
+    });
+
+    it('should recreate WS subscription when re-subscribing during grace period after disconnect', async () => {
+      await withService(
+        async ({ service, mocks, messenger, rootMessenger }) => {
+          // 1. Subscribe — creates WS subscription, refCount = 1
+          await service.subscribe(SUB_OPTS);
+
+          // 2. Unsubscribe — refCount = 0, grace-period timer starts
+          await service.unsubscribe(SUB_OPTS);
+
+          // 3. Disconnect — BackendWebSocketService clears all server-side
+          //    subscriptions. channelHasSubscription now returns false.
+          mocks.channelHasSubscription.mockReturnValue(false);
+          rootMessenger.publish(
+            'BackendWebSocketService:connectionStateChanged',
+            {
+              ...BASE_CONNECTION_INFO,
+              state: WebSocketState.DISCONNECTED,
+              connectedAt: undefined,
+              reconnectAttempts: 0,
+            },
+          );
+          await completeAsyncOperations();
+
+          // 4. Reconnect — resubscribeActiveChannels skips this channel
+          //    because refCount is 0 (correct behaviour).
+          mocks.subscribe.mockClear();
+          mocks.connect.mockClear();
+          rootMessenger.publish(
+            'BackendWebSocketService:connectionStateChanged',
+            {
+              ...BASE_CONNECTION_INFO,
+              state: WebSocketState.CONNECTED,
+              connectedAt: Date.now(),
+              reconnectAttempts: 1,
+            },
+          );
+          await completeAsyncOperations();
+          expect(mocks.subscribe).not.toHaveBeenCalled();
+
+          // 5. User re-subscribes BEFORE grace timer fires.
+          //    The grace-period branch cancels the timer and bumps refCount,
+          //    but the underlying WS subscription no longer exists.
+          //    The fix must detect this and create a fresh WS subscription.
+          mocks.subscribe.mockClear();
+          mocks.connect.mockClear();
+          await service.subscribe(SUB_OPTS);
+
+          expect(mocks.connect).toHaveBeenCalledTimes(1);
+          expect(mocks.subscribe).toHaveBeenCalledWith({
+            channels: [EXPECTED_CHANNEL],
+            channelType: 'market-data.v1',
+            callback: expect.any(Function),
+          });
+
+          // 6. Verify bar updates are delivered through the new subscription.
+          const capturedCallback =
+            mocks.subscribe.mock.calls[0][0].callback;
+          const barListener = jest.fn();
+          messenger.subscribe('OHLCVService:barUpdated', barListener);
+
+          capturedCallback({
+            data: {
+              timestamp: 200,
+              open: 10,
+              high: 20,
+              low: 5,
+              close: 15,
+              volume: 1000,
+            },
+            timestamp: Date.now(),
+          });
+
+          expect(barListener).toHaveBeenCalledWith({
+            channel: EXPECTED_CHANNEL,
+            bar: {
+              timestamp: 200,
+              open: 10,
+              high: 20,
+              low: 5,
+              close: 15,
+              volume: 1000,
+            },
+          });
+        },
+      );
     });
 
     it('should deliver bar updates via resubscribed channel callback', async () => {
