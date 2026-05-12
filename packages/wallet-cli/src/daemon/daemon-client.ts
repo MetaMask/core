@@ -1,10 +1,11 @@
-import type { JsonRpcResponse } from '@metamask/utils';
+import type { JsonRpcParams, JsonRpcResponse } from '@metamask/utils';
 import { assertIsJsonRpcResponse } from '@metamask/utils';
 import { randomUUID } from 'node:crypto';
 import { createConnection } from 'node:net';
 import type { Socket } from 'node:net';
 
 import { readLine, writeLine } from './socket-line';
+import { isErrorWithCode } from './utils';
 
 const DEFAULT_TIMEOUT_MS = 30_000;
 
@@ -17,17 +18,11 @@ type SendCommandOptions = {
   /** The RPC method name. */
   method: string;
   /** Optional method parameters (object or positional array). */
-  params?: Record<string, unknown> | unknown[] | undefined;
+  params?: JsonRpcParams | undefined;
   /** Response read timeout in milliseconds (default: 30 000). */
   timeoutMs?: number | undefined;
 };
 
-/**
- * Connect to a Unix domain socket.
- *
- * @param socketPath - The socket path to connect to.
- * @returns A connected socket.
- */
 async function connectSocket(socketPath: string): Promise<Socket> {
   return new Promise((resolve, reject) => {
     const socket = createConnection(socketPath, () => {
@@ -44,7 +39,8 @@ async function connectSocket(socketPath: string): Promise<Socket> {
  *
  * Opens a connection, writes one JSON-RPC request line, reads one JSON-RPC
  * response line, then closes the connection. Retries once after a short delay
- * on transient connection errors (ECONNREFUSED, ECONNRESET).
+ * on transient connection errors (ECONNREFUSED, ECONNRESET). Verifies that the
+ * response `id` matches the outgoing request `id`.
  *
  * @param options - Command options.
  * @param options.socketPath - The Unix socket path.
@@ -76,6 +72,11 @@ export async function sendCommand({
       const responseLine = await readLine(socket, effectiveTimeout);
       const parsed: unknown = JSON.parse(responseLine);
       assertIsJsonRpcResponse(parsed);
+      if (parsed.id !== id) {
+        throw new Error(
+          `JSON-RPC response id ${JSON.stringify(parsed.id)} does not match request id ${JSON.stringify(id)}`,
+        );
+      }
       return parsed;
     } finally {
       socket.destroy();
@@ -85,8 +86,10 @@ export async function sendCommand({
   try {
     return await attempt();
   } catch (error: unknown) {
-    const code = (error as NodeJS.ErrnoException | undefined)?.code;
-    if (code !== 'ECONNREFUSED' && code !== 'ECONNRESET') {
+    if (
+      !isErrorWithCode(error, 'ECONNREFUSED') &&
+      !isErrorWithCode(error, 'ECONNRESET')
+    ) {
       throw error;
     }
     await new Promise((resolve) => setTimeout(resolve, 100));
@@ -95,17 +98,37 @@ export async function sendCommand({
 }
 
 /**
+ * Outcome of a daemon health check.
+ *
+ * - `'responsive'`: the daemon answered a `getStatus` RPC.
+ * - `'absent'`: the socket file does not exist (ENOENT). No daemon present.
+ * - `'unreachable'`: the socket exists but cannot be queried (refused after
+ *   retry, timeout, permission denied, parse error, etc.). Callers should
+ *   refuse to take destructive action against an unreachable daemon — the
+ *   process may still be alive.
+ */
+export type PingResult =
+  | { status: 'responsive' }
+  | { status: 'absent' }
+  | { status: 'unreachable'; error: Error };
+
+/**
  * Check whether the daemon is running by sending a lightweight `getStatus`
- * RPC call.
+ * RPC call. Distinguishes "no daemon present" (socket file missing) from
+ * "daemon present but unreachable" (socket file exists but the daemon is
+ * wedged, mid-shutdown, or owned by a different user).
  *
  * @param socketPath - The Unix socket path.
- * @returns True if the daemon responds to the RPC call.
+ * @returns A {@link PingResult} describing the daemon's reachability.
  */
-export async function pingDaemon(socketPath: string): Promise<boolean> {
+export async function pingDaemon(socketPath: string): Promise<PingResult> {
   try {
     await sendCommand({ socketPath, method: 'getStatus', timeoutMs: 3_000 });
-    return true;
-  } catch {
-    return false;
+    return { status: 'responsive' };
+  } catch (error: unknown) {
+    if (isErrorWithCode(error, 'ENOENT')) {
+      return { status: 'absent' };
+    }
+    return { status: 'unreachable', error: error as Error };
   }
 }

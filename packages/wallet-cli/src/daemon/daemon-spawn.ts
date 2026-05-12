@@ -10,15 +10,46 @@ const POLL_INTERVAL_MS = 100;
 const MAX_POLLS = 300; // 30 seconds
 
 /**
- * Ensure the daemon is running. If it is not, spawn it as a detached process
- * and wait until the socket becomes responsive.
+ * Outcome of {@link ensureDaemon}.
+ *
+ * - `'already-running'`: a responsive daemon was found at the configured
+ *   socket path. The supplied flags (`infuraProjectId`, `password`, `srp`)
+ *   were NOT applied to that daemon; the caller should surface this so a
+ *   user who is trying to change them isn't silently ignored.
+ * - `'started'`: a new daemon was spawned and is now responsive.
+ */
+export type EnsureDaemonResult = {
+  state: 'already-running' | 'started';
+  socketPath: string;
+};
+
+/**
+ * Ensure the daemon is running. If a responsive daemon already exists, return
+ * `'already-running'` (caller decides how to surface that). Otherwise spawn
+ * one as a detached process and wait until the socket becomes responsive.
+ *
+ * Refuses to spawn when the socket exists but is unreachable (wedged/foreign
+ * daemon) — taking over would orphan the existing process and corrupt its
+ * PID file.
  *
  * @param config - Spawn configuration.
+ * @returns The state of the daemon and the socket path it's listening on.
  */
-export async function ensureDaemon(config: DaemonSpawnConfig): Promise<void> {
+export async function ensureDaemon(
+  config: DaemonSpawnConfig,
+): Promise<EnsureDaemonResult> {
   const { socketPath } = getDaemonPaths(config.dataDir);
-  if (await pingDaemon(socketPath)) {
-    return;
+
+  const initialPing = await pingDaemon(socketPath);
+  if (initialPing.status === 'responsive') {
+    return { state: 'already-running', socketPath };
+  }
+  if (initialPing.status === 'unreachable') {
+    throw new Error(
+      `Refusing to start: a daemon socket already exists at ${socketPath} but is unresponsive. ` +
+        `Run \`mm daemon stop\` (or \`mm daemon purge\`) before starting a new daemon. ` +
+        `(${initialPing.error.message})`,
+    );
   }
 
   process.stderr.write('Starting daemon...\n');
@@ -31,21 +62,35 @@ export async function ensureDaemon(config: DaemonSpawnConfig): Promise<void> {
     env: {
       ...process.env,
       MM_DAEMON_DATA_DIR: config.dataDir,
+      MM_DAEMON_SOCKET_PATH: socketPath,
       INFURA_PROJECT_ID: config.infuraProjectId,
       MM_WALLET_PASSWORD: config.password,
       MM_WALLET_SRP: config.srp,
     },
   });
+
+  let exitInfo: { code: number | null; signal: NodeJS.Signals | null } | null =
+    null;
   child.on('error', (error) => {
     process.stderr.write(`Failed to spawn daemon process: ${String(error)}\n`);
+  });
+  child.on('exit', (code, signal) => {
+    exitInfo = { code, signal };
   });
   child.unref();
 
   for (let i = 0; i < MAX_POLLS; i++) {
     await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL_MS));
-    if (await pingDaemon(socketPath)) {
+    if (exitInfo !== null) {
+      throw new Error(
+        `Daemon process exited during startup (code=${String(exitInfo.code)}, signal=${String(exitInfo.signal)}). ` +
+          `Check the daemon log at ${getDaemonPaths(config.dataDir).logPath}.`,
+      );
+    }
+    const ping = await pingDaemon(socketPath);
+    if (ping.status === 'responsive') {
       process.stderr.write('Daemon ready.\n');
-      return;
+      return { state: 'started', socketPath };
     }
   }
 

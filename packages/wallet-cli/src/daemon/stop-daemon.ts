@@ -7,6 +7,12 @@ import { isProcessAlive, readPidFile, sendSignal, waitFor } from './utils';
  * Stop the daemon via a `shutdown` RPC call. Falls back to PID + SIGTERM if
  * the socket is unresponsive, and escalates to SIGKILL if SIGTERM is ignored.
  *
+ * Signals are only sent if we have positive evidence that this PID belongs
+ * to our daemon — namely, the socket file at `socketPath` existed when we
+ * pinged (`responsive` or `unreachable`). When the socket is `absent` we
+ * decline to signal the recorded PID, because long-running workstations can
+ * recycle PIDs to unrelated processes; we just clean up the stale PID file.
+ *
  * @param socketPath - The daemon socket path.
  * @param pidPath - The daemon PID file path.
  * @param log - Optional logging function for status messages.
@@ -18,13 +24,15 @@ export async function stopDaemon(
   log?: (message: string) => void,
 ): Promise<boolean> {
   const pid = await readPidFile(pidPath);
-  const processAlive = pid !== undefined && isProcessAlive(pid);
-  const socketResponsive = await pingDaemon(socketPath);
+  const ping = await pingDaemon(socketPath);
+  const socketObserved =
+    ping.status === 'responsive' || ping.status === 'unreachable';
+  const processAlive =
+    pid !== undefined && socketObserved && isProcessAlive(pid);
 
-  if (!socketResponsive && !processAlive) {
-    if (pid !== undefined) {
-      await rm(pidPath, { force: true });
-    }
+  if (!socketObserved && !processAlive) {
+    // No live daemon evidence. Just remove the stale PID file if any.
+    await cleanupFile(pidPath, 'PID file', log);
     return true;
   }
 
@@ -33,17 +41,21 @@ export async function stopDaemon(
   let stopped = false;
 
   // Strategy 1: Graceful socket-based shutdown.
-  if (socketResponsive) {
+  if (ping.status === 'responsive') {
     try {
       await sendCommand({ socketPath, method: 'shutdown' });
     } catch (error) {
       log?.(`Graceful shutdown request failed: ${String(error)}`);
     }
-    stopped = await waitFor(async () => !(await pingDaemon(socketPath)), 5_000);
+    stopped = await waitFor(
+      async () => (await pingDaemon(socketPath)).status !== 'responsive',
+      5_000,
+    );
   }
 
-  // Strategy 2: SIGTERM.
-  if (!stopped && pid !== undefined) {
+  // Strategy 2: SIGTERM. Only signal when we have evidence the socket
+  // belongs to a live process (socketObserved && processAlive).
+  if (!stopped && processAlive && pid !== undefined) {
     try {
       if (sendSignal(pid, 'SIGTERM')) {
         stopped = await waitFor(() => !isProcessAlive(pid), 5_000);
@@ -56,7 +68,7 @@ export async function stopDaemon(
   }
 
   // Strategy 3: SIGKILL.
-  if (!stopped && pid !== undefined) {
+  if (!stopped && processAlive && pid !== undefined) {
     try {
       if (sendSignal(pid, 'SIGKILL')) {
         stopped = await waitFor(() => !isProcessAlive(pid), 2_000);
@@ -69,12 +81,28 @@ export async function stopDaemon(
   }
 
   if (stopped) {
-    await Promise.all([
-      rm(pidPath, { force: true }),
-      rm(socketPath, { force: true }),
-    ]);
+    await cleanupFile(pidPath, 'PID file', log);
+    await cleanupFile(socketPath, 'socket file', log);
     log?.('Daemon stopped.');
   }
 
   return stopped;
+}
+
+/**
+ * Remove a file best-effort, logging any failure rather than letting it
+ * propagate. ENOENT is silently ignored via `force: true`.
+ *
+ * @param path - The file path to remove.
+ * @param label - Human-readable label for log messages.
+ * @param log - Optional log sink.
+ */
+async function cleanupFile(
+  path: string,
+  label: string,
+  log: ((message: string) => void) | undefined,
+): Promise<void> {
+  await rm(path, { force: true }).catch((error: unknown) => {
+    log?.(`Failed to remove ${label}: ${String(error)}`);
+  });
 }

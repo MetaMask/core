@@ -10,7 +10,6 @@ import { readFile } from 'node:fs/promises';
  */
 export function isErrorWithCode(error: unknown, code: string): boolean {
   return (
-    // TODO: use Error.isError()
     error instanceof Error && hasProperty(error, 'code') && error.code === code
   );
 }
@@ -38,6 +37,11 @@ export async function readPidFile(
 /**
  * Check whether a process is alive by sending signal 0.
  *
+ * Treats `ESRCH` as "process is gone", `EPERM` as "process exists but we
+ * cannot signal it" (still alive from our perspective), and rethrows
+ * anything else so the caller can surface unexpected failures rather than
+ * silently assuming the process is dead.
+ *
  * @param pid - The process ID to check.
  * @returns True if the process exists.
  */
@@ -46,10 +50,13 @@ export function isProcessAlive(pid: number): boolean {
     process.kill(pid, 0);
     return true;
   } catch (error: unknown) {
+    if (isErrorWithCode(error, 'ESRCH')) {
+      return false;
+    }
     if (isErrorWithCode(error, 'EPERM')) {
       return true;
     }
-    return false;
+    throw error;
   }
 }
 

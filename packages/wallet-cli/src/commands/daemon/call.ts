@@ -3,6 +3,7 @@ import { Args, Command, Flags } from '@oclif/core';
 
 import { sendCommand } from '../../daemon/daemon-client';
 import { getDaemonPaths } from '../../daemon/paths';
+import { isErrorWithCode } from '../../daemon/utils';
 
 export default class DaemonCall extends Command {
   static override description = 'Call a messenger action on the wallet daemon';
@@ -38,7 +39,6 @@ export default class DaemonCall extends Command {
     const { action } = args;
     const timeoutMs = flags.timeout;
 
-    // Build the params array for the `call` RPC method: [action, ...args]
     let rpcParams: unknown[] = [action];
     if (args.params !== undefined) {
       let parsed: unknown;
@@ -57,12 +57,23 @@ export default class DaemonCall extends Command {
 
     const { socketPath } = getDaemonPaths(this.config.dataDir);
 
-    const response = await sendCommand({
-      socketPath,
-      method: 'call',
-      params: rpcParams,
-      ...(timeoutMs === undefined ? {} : { timeoutMs }),
-    });
+    let response;
+    try {
+      response = await sendCommand({
+        socketPath,
+        method: 'call',
+        params: rpcParams,
+        ...(timeoutMs === undefined ? {} : { timeoutMs }),
+      });
+    } catch (error) {
+      if (
+        isErrorWithCode(error, 'ENOENT') ||
+        isErrorWithCode(error, 'ECONNREFUSED')
+      ) {
+        this.error('Daemon is not running. Start it with `mm daemon start`.');
+      }
+      this.error(error instanceof Error ? error.message : String(error));
+    }
 
     if (isJsonRpcFailure(response)) {
       this.error(

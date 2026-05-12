@@ -39,17 +39,37 @@ function setupMockSocket(): Socket {
   return socket;
 }
 
-const VALID_RESPONSE: JsonRpcResponse = {
-  jsonrpc: '2.0',
-  id: 'test-id',
-  result: { status: 'ok' },
-};
+/**
+ * Build a JSON-RPC response that mirrors back the request id from the most
+ * recent `mockWriteLine` call. `sendCommand` now verifies id correlation, so
+ * static fixtures no longer work — the response must echo the generated id.
+ *
+ * @param overrides - Optional fields to override on the response.
+ * @returns A function suitable for `mockReadLine.mockImplementation`.
+ */
+function respondWithMatchingId(
+  overrides: Partial<JsonRpcResponse> = {},
+): () => Promise<string> {
+  return async () => {
+    const lastWrite = mockWriteLine.mock.calls.at(-1)?.[1];
+    const sentId =
+      typeof lastWrite === 'string'
+        ? (JSON.parse(lastWrite).id as string)
+        : 'test-id';
+    return JSON.stringify({
+      jsonrpc: '2.0',
+      id: sentId,
+      result: { status: 'ok' },
+      ...overrides,
+    });
+  };
+}
 
 describe('sendCommand', () => {
   it('sends a JSON-RPC request and returns the response', async () => {
     const socket = setupMockSocket();
     mockWriteLine.mockResolvedValue(undefined);
-    mockReadLine.mockResolvedValue(JSON.stringify(VALID_RESPONSE));
+    mockReadLine.mockImplementation(respondWithMatchingId());
 
     const response = await sendCommand({
       socketPath: '/tmp/test.sock',
@@ -71,7 +91,7 @@ describe('sendCommand', () => {
   it('includes params when provided', async () => {
     setupMockSocket();
     mockWriteLine.mockResolvedValue(undefined);
-    mockReadLine.mockResolvedValue(JSON.stringify(VALID_RESPONSE));
+    mockReadLine.mockImplementation(respondWithMatchingId());
 
     await sendCommand({
       socketPath: '/tmp/test.sock',
@@ -86,7 +106,7 @@ describe('sendCommand', () => {
   it('omits params when undefined', async () => {
     setupMockSocket();
     mockWriteLine.mockResolvedValue(undefined);
-    mockReadLine.mockResolvedValue(JSON.stringify(VALID_RESPONSE));
+    mockReadLine.mockImplementation(respondWithMatchingId());
 
     await sendCommand({
       socketPath: '/tmp/test.sock',
@@ -100,7 +120,7 @@ describe('sendCommand', () => {
   it('passes timeoutMs to readLine', async () => {
     setupMockSocket();
     mockWriteLine.mockResolvedValue(undefined);
-    mockReadLine.mockResolvedValue(JSON.stringify(VALID_RESPONSE));
+    mockReadLine.mockImplementation(respondWithMatchingId());
 
     await sendCommand({
       socketPath: '/tmp/test.sock',
@@ -111,6 +131,22 @@ describe('sendCommand', () => {
     expect(mockReadLine).toHaveBeenCalledWith(expect.anything(), 5000);
   });
 
+  it('throws when the response id does not match the request id', async () => {
+    setupMockSocket();
+    mockWriteLine.mockResolvedValue(undefined);
+    mockReadLine.mockResolvedValue(
+      JSON.stringify({
+        jsonrpc: '2.0',
+        id: 'unrelated-id',
+        result: { status: 'ok' },
+      }),
+    );
+
+    await expect(
+      sendCommand({ socketPath: '/tmp/test.sock', method: 'test' }),
+    ).rejects.toThrow(/does not match request id/u);
+  });
+
   it('retries once on ECONNREFUSED', async () => {
     const socket = setupMockSocket();
     mockWriteLine.mockResolvedValue(undefined);
@@ -118,7 +154,7 @@ describe('sendCommand', () => {
       .mockRejectedValueOnce(
         Object.assign(new Error('refused'), { code: 'ECONNREFUSED' }),
       )
-      .mockResolvedValueOnce(JSON.stringify(VALID_RESPONSE));
+      .mockImplementationOnce(respondWithMatchingId());
 
     const response = await sendCommand({
       socketPath: '/tmp/test.sock',
@@ -136,7 +172,7 @@ describe('sendCommand', () => {
       .mockRejectedValueOnce(
         Object.assign(new Error('reset'), { code: 'ECONNRESET' }),
       )
-      .mockResolvedValueOnce(JSON.stringify(VALID_RESPONSE));
+      .mockImplementationOnce(respondWithMatchingId());
 
     const response = await sendCommand({
       socketPath: '/tmp/test.sock',
@@ -171,15 +207,13 @@ describe('sendCommand', () => {
 });
 
 describe('pingDaemon', () => {
-  it('returns true when daemon responds', async () => {
-    setupMockSocket();
-    mockWriteLine.mockResolvedValue(undefined);
-    mockReadLine.mockResolvedValue(JSON.stringify(VALID_RESPONSE));
-
-    expect(await pingDaemon('/tmp/test.sock')).toBe(true);
-  });
-
-  it('returns false when daemon is unresponsive', async () => {
+  /**
+   * Configure `createConnection` to emit a connection error synchronously.
+   *
+   * @param code - The Node errno code (e.g. ENOENT, ECONNREFUSED) the mock
+   * socket should emit on the next attempt.
+   */
+  function mockConnectionError(code: string): void {
     mockCreateConnection.mockImplementation((_path: unknown) => {
       const emitter = new EventEmitter();
       const socket = Object.assign(emitter, {
@@ -188,14 +222,39 @@ describe('pingDaemon', () => {
         removeListener: emitter.removeListener.bind(emitter),
       }) as unknown as Socket;
       process.nextTick(() =>
-        socket.emit(
-          'error',
-          Object.assign(new Error('refused'), { code: 'ECONNREFUSED' }),
-        ),
+        socket.emit('error', Object.assign(new Error(code), { code })),
       );
       return socket;
     });
+  }
 
-    expect(await pingDaemon('/tmp/test.sock')).toBe(false);
+  it('returns responsive when daemon responds', async () => {
+    setupMockSocket();
+    mockWriteLine.mockResolvedValue(undefined);
+    mockReadLine.mockImplementation(respondWithMatchingId());
+
+    expect(await pingDaemon('/tmp/test.sock')).toStrictEqual({
+      status: 'responsive',
+    });
+  });
+
+  it('returns absent when the socket file does not exist', async () => {
+    mockConnectionError('ENOENT');
+
+    expect(await pingDaemon('/tmp/test.sock')).toStrictEqual({
+      status: 'absent',
+    });
+  });
+
+  it('returns unreachable when the socket exists but is wedged', async () => {
+    // ECONNREFUSED is retried once; both attempts will reject with the same
+    // mock implementation.
+    mockConnectionError('ECONNREFUSED');
+
+    const result = await pingDaemon('/tmp/test.sock');
+    expect(result).toStrictEqual({
+      status: 'unreachable',
+      error: expect.any(Error),
+    });
   });
 });

@@ -1,7 +1,6 @@
 import { Command, Flags } from '@oclif/core';
 
 import { ensureDaemon } from '../../daemon/daemon-spawn';
-import { getDaemonPaths } from '../../daemon/paths';
 
 export default class DaemonStart extends Command {
   static override description = 'Start the wallet daemon';
@@ -11,7 +10,6 @@ export default class DaemonStart extends Command {
     'INFURA_PROJECT_ID=<key> MM_WALLET_PASSWORD=<pw> MM_WALLET_SRP=<phrase> <%= config.bin %> daemon start',
   ];
 
-  // TODO: Delete unsafe flags
   static override flags = {
     'infura-project-id': Flags.string({
       description: 'Infura project ID for network access',
@@ -37,7 +35,7 @@ export default class DaemonStart extends Command {
     const infuraProjectId = flags['infura-project-id'];
     const { password, srp } = flags;
 
-    await ensureDaemon({
+    const { state, socketPath } = await ensureDaemon({
       dataDir: this.config.dataDir,
       infuraProjectId,
       password,
@@ -45,7 +43,14 @@ export default class DaemonStart extends Command {
       packageRoot: this.config.root,
     });
 
-    const { socketPath } = getDaemonPaths(this.config.dataDir);
+    if (state === 'already-running') {
+      this.log(
+        `Daemon already running. Socket: ${socketPath}. ` +
+          `The provided flags were not applied; run \`mm daemon stop\` and start again to change them.`,
+      );
+      return;
+    }
+
     this.log(`Daemon running. Socket: ${socketPath}`);
   }
 }

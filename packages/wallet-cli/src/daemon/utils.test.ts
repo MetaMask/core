@@ -85,11 +85,25 @@ describe('isProcessAlive', () => {
     expect(isProcessAlive(123)).toBe(true);
   });
 
-  it('returns false on other errors', () => {
+  it('returns false on ESRCH (process gone)', () => {
     jest.spyOn(process, 'kill').mockImplementation(() => {
       throw Object.assign(new Error('esrch'), { code: 'ESRCH' });
     });
     expect(isProcessAlive(123)).toBe(false);
+  });
+
+  it('rethrows unknown errors instead of guessing the process is dead', () => {
+    jest.spyOn(process, 'kill').mockImplementation(() => {
+      throw Object.assign(new Error('einval'), { code: 'EINVAL' });
+    });
+    expect(() => isProcessAlive(123)).toThrow('einval');
+  });
+
+  it('rethrows non-system errors', () => {
+    jest.spyOn(process, 'kill').mockImplementation(() => {
+      throw new Error('unexpected');
+    });
+    expect(() => isProcessAlive(123)).toThrow('unexpected');
   });
 });
 

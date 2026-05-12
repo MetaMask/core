@@ -24,29 +24,85 @@ const CONFIG: DaemonSpawnConfig = {
   packageRoot: '/pkg',
 };
 
+const ABSENT = { status: 'absent' as const };
+const RESPONSIVE = { status: 'responsive' as const };
+const UNREACHABLE = {
+  status: 'unreachable' as const,
+  error: new Error('wedged'),
+};
+
+/**
+ * Build a minimal mock for the `ChildProcess` returned by `spawn`. The `on`
+ * handler captures `'exit'`/`'error'` listeners so tests can fire them.
+ */
+type SpawnMock = {
+  unref: jest.Mock;
+  on: jest.Mock;
+  fireExit: (code: number | null, signal: NodeJS.Signals | null) => void;
+};
+
+/**
+ * Build a fresh spawn mock and wire it as the return value of `mockSpawn`.
+ *
+ * @returns The captured handles so tests can fire lifecycle events.
+ */
+function setupSpawnMock(): SpawnMock {
+  const listeners = new Map<string, (...args: unknown[]) => void>();
+  const on = jest.fn((event: string, handler: (...args: unknown[]) => void) => {
+    listeners.set(event, handler);
+  });
+  const result: SpawnMock = {
+    unref: jest.fn(),
+    on,
+    fireExit: (code, signal) => {
+      listeners.get('exit')?.(code, signal);
+    },
+  };
+  mockSpawn.mockReturnValue(result as never);
+  return result;
+}
+
 describe('ensureDaemon', () => {
   beforeEach(() => {
+    jest.resetAllMocks();
     jest.spyOn(process.stderr, 'write').mockImplementation(() => true);
     mockGetDaemonPaths.mockReturnValue({
       socketPath: '/tmp/test.sock',
       pidPath: '/tmp/test.pid',
       logPath: '/tmp/test.log',
+      dbPath: '/tmp/wallet.db',
     });
-    mockSpawn.mockReturnValue({
-      unref: jest.fn(),
-      on: jest.fn(),
-    } as never);
+    setupSpawnMock();
   });
 
-  it('returns immediately if daemon is already running', async () => {
-    mockPingDaemon.mockResolvedValue(true);
+  afterEach(() => {
+    jest.useRealTimers();
+  });
 
-    await ensureDaemon(CONFIG);
+  it('returns already-running when a responsive daemon already exists', async () => {
+    mockPingDaemon.mockResolvedValue(RESPONSIVE);
+
+    const result = await ensureDaemon(CONFIG);
+    expect(result).toStrictEqual({
+      state: 'already-running',
+      socketPath: '/tmp/test.sock',
+    });
+    expect(mockSpawn).not.toHaveBeenCalled();
+  });
+
+  it('refuses to start when the socket exists but is unreachable', async () => {
+    mockPingDaemon.mockResolvedValue(UNREACHABLE);
+
+    await expect(ensureDaemon(CONFIG)).rejects.toThrow(
+      /a daemon socket already exists.*unresponsive/u,
+    );
     expect(mockSpawn).not.toHaveBeenCalled();
   });
 
   it('spawns daemon as detached child with correct env vars', async () => {
-    mockPingDaemon.mockResolvedValueOnce(false).mockResolvedValueOnce(true);
+    mockPingDaemon
+      .mockResolvedValueOnce(ABSENT)
+      .mockResolvedValueOnce(RESPONSIVE);
     mockExistsSync.mockReturnValue(true);
 
     await ensureDaemon(CONFIG);
@@ -59,6 +115,7 @@ describe('ensureDaemon', () => {
         stdio: 'ignore',
         env: expect.objectContaining({
           MM_DAEMON_DATA_DIR: '/tmp/data',
+          MM_DAEMON_SOCKET_PATH: '/tmp/test.sock',
           INFURA_PROJECT_ID: 'test-key',
           MM_WALLET_PASSWORD: 'test-pass',
           MM_WALLET_SRP:
@@ -68,8 +125,24 @@ describe('ensureDaemon', () => {
     );
   });
 
+  it('returns started when the spawned daemon becomes responsive', async () => {
+    mockPingDaemon
+      .mockResolvedValueOnce(ABSENT)
+      .mockResolvedValueOnce(RESPONSIVE);
+    mockExistsSync.mockReturnValue(true);
+
+    const result = await ensureDaemon(CONFIG);
+
+    expect(result).toStrictEqual({
+      state: 'started',
+      socketPath: '/tmp/test.sock',
+    });
+  });
+
   it('uses dist entry when it exists', async () => {
-    mockPingDaemon.mockResolvedValueOnce(false).mockResolvedValueOnce(true);
+    mockPingDaemon
+      .mockResolvedValueOnce(ABSENT)
+      .mockResolvedValueOnce(RESPONSIVE);
     mockExistsSync.mockReturnValue(true);
 
     await ensureDaemon(CONFIG);
@@ -79,7 +152,9 @@ describe('ensureDaemon', () => {
   });
 
   it('falls back to src entry with tsx when dist missing', async () => {
-    mockPingDaemon.mockResolvedValueOnce(false).mockResolvedValueOnce(true);
+    mockPingDaemon
+      .mockResolvedValueOnce(ABSENT)
+      .mockResolvedValueOnce(RESPONSIVE);
     mockExistsSync.mockReturnValue(false);
 
     await ensureDaemon(CONFIG);
@@ -94,10 +169,10 @@ describe('ensureDaemon', () => {
 
   it('polls until daemon is ready', async () => {
     mockPingDaemon
-      .mockResolvedValueOnce(false) // initial check
-      .mockResolvedValueOnce(false) // poll 1
-      .mockResolvedValueOnce(false) // poll 2
-      .mockResolvedValueOnce(true); // poll 3
+      .mockResolvedValueOnce(ABSENT) // initial check
+      .mockResolvedValueOnce(ABSENT) // poll 1
+      .mockResolvedValueOnce(ABSENT) // poll 2
+      .mockResolvedValueOnce(RESPONSIVE); // poll 3
     mockExistsSync.mockReturnValue(true);
 
     await ensureDaemon(CONFIG);
@@ -108,14 +183,12 @@ describe('ensureDaemon', () => {
 
   it('throws after timeout when daemon never responds', async () => {
     jest.useFakeTimers();
-    mockPingDaemon.mockResolvedValue(false);
+    mockPingDaemon.mockResolvedValue(ABSENT);
     mockExistsSync.mockReturnValue(true);
 
     const promise = ensureDaemon(CONFIG);
-    // Attach rejection handler before advancing timers to avoid unhandled rejection
     const rejection = promise.catch((thrown: unknown) => thrown);
 
-    // Advance past all 300 polls (100ms each = 30s)
     await jest.advanceTimersByTimeAsync(30_100);
     const thrownError = await rejection;
     expect(thrownError).toBeInstanceOf(Error);
@@ -125,21 +198,54 @@ describe('ensureDaemon', () => {
     jest.useRealTimers();
   });
 
-  it('calls unref on spawned child and registers error handler', async () => {
-    const unref = jest.fn();
-    const on = jest.fn();
-    mockPingDaemon.mockResolvedValueOnce(false).mockResolvedValueOnce(true);
+  it('throws early when the child process exits during the readiness poll', async () => {
+    mockPingDaemon.mockResolvedValue(ABSENT);
     mockExistsSync.mockReturnValue(true);
-    mockSpawn.mockReturnValue({ unref, on } as never);
+    // Fire exit at the moment the daemon-spawn code registers the listener,
+    // so the very first poll iteration sees exitInfo set.
+    const on = jest.fn(
+      (event: string, handler: (...args: unknown[]) => void) => {
+        if (event === 'exit') {
+          handler(1, null);
+        }
+      },
+    );
+    mockSpawn.mockReturnValue({ unref: jest.fn(), on } as never);
+
+    jest.useFakeTimers();
+    const promise = ensureDaemon(CONFIG);
+    const rejection = promise.catch((thrown: unknown) => thrown);
+    await jest.advanceTimersByTimeAsync(200);
+
+    const thrownError = await rejection;
+    expect(thrownError).toBeInstanceOf(Error);
+    expect((thrownError as Error).message).toContain(
+      'Daemon process exited during startup',
+    );
+    expect((thrownError as Error).message).toContain('code=1');
+    expect((thrownError as Error).message).toContain('/tmp/test.log');
+  });
+
+  it('calls unref on spawned child and registers error + exit handlers', async () => {
+    mockPingDaemon
+      .mockResolvedValueOnce(ABSENT)
+      .mockResolvedValueOnce(RESPONSIVE);
+    mockExistsSync.mockReturnValue(true);
+    const spawnMock = setupSpawnMock();
 
     await ensureDaemon(CONFIG);
 
-    expect(unref).toHaveBeenCalled();
-    expect(on).toHaveBeenCalledWith('error', expect.any(Function));
+    expect(spawnMock.unref).toHaveBeenCalled();
+    expect(spawnMock.on).toHaveBeenCalledWith('error', expect.any(Function));
+    expect(spawnMock.on).toHaveBeenCalledWith('exit', expect.any(Function));
   });
 
   it('writes spawn errors to stderr', async () => {
-    const unref = jest.fn();
+    mockPingDaemon
+      .mockResolvedValueOnce(ABSENT)
+      .mockResolvedValueOnce(RESPONSIVE);
+    mockExistsSync.mockReturnValue(true);
+
     let errorHandler: ((error: Error) => void) | undefined;
     const on = jest.fn(
       (event: string, handler: (error: Error) => void): void => {
@@ -148,9 +254,7 @@ describe('ensureDaemon', () => {
         }
       },
     );
-    mockPingDaemon.mockResolvedValueOnce(false).mockResolvedValueOnce(true);
-    mockExistsSync.mockReturnValue(true);
-    mockSpawn.mockReturnValue({ unref, on } as never);
+    mockSpawn.mockReturnValue({ unref: jest.fn(), on } as never);
 
     await ensureDaemon(CONFIG);
     errorHandler?.(new Error('spawn ENOENT'));

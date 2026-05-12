@@ -22,7 +22,7 @@ If you switch Node versions or branches and the binding is missing, re-run:
 yarn workspace @metamask/wallet-cli run test:prepare
 ```
 
-Or invoke `prebuild-install` directly from the workspace root:
+Or invoke `prebuild-install` directly from the monorepo root (where `better-sqlite3` is hoisted):
 
 ```sh
 cd node_modules/better-sqlite3 && node ../.bin/prebuild-install

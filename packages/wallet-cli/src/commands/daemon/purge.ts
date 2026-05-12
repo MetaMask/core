@@ -35,17 +35,33 @@ export default class DaemonPurge extends Command {
       }
     }
 
-    const { socketPath, pidPath } = getDaemonPaths(this.config.dataDir);
+    const paths = getDaemonPaths(this.config.dataDir);
 
-    const stopped = await stopDaemon(socketPath, pidPath, (message) =>
-      this.log(message),
+    const stopped = await stopDaemon(
+      paths.socketPath,
+      paths.pidPath,
+      (message) => this.log(message),
     );
 
     if (!stopped) {
       this.error('Refusing to delete state while the daemon is still running.');
     }
 
-    await rm(this.config.dataDir, { recursive: true, force: true });
+    // Whitelist only the daemon-owned files rather than rm'ing the entire
+    // oclif dataDir, which may hold unrelated state (caches, oclif lock
+    // files, future config). `force: true` makes ENOENT a no-op for any
+    // file already removed by stopDaemon.
+    await Promise.all(
+      [paths.pidPath, paths.socketPath, paths.logPath, paths.dbPath].map(
+        async (path) => rm(path, { force: true }),
+      ),
+    );
+    // Remove the SQLite sidecar files too (WAL/SHM are created in WAL mode).
+    await Promise.all(
+      [`${paths.dbPath}-wal`, `${paths.dbPath}-shm`].map(async (path) =>
+        rm(path, { force: true }),
+      ),
+    );
 
     this.log('All daemon state deleted.');
   }

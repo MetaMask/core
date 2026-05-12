@@ -4,7 +4,7 @@ import { Command } from '@oclif/core';
 import { pingDaemon, sendCommand } from '../../daemon/daemon-client';
 import { getDaemonPaths } from '../../daemon/paths';
 import type { DaemonStatusInfo } from '../../daemon/types';
-import { isProcessAlive, readPidFile } from '../../daemon/utils';
+import { readPidFile } from '../../daemon/utils';
 
 export default class DaemonStatus extends Command {
   static override description = 'Check the status of the wallet daemon';
@@ -15,17 +15,17 @@ export default class DaemonStatus extends Command {
     const { socketPath, pidPath } = getDaemonPaths(this.config.dataDir);
 
     const pid = await readPidFile(pidPath);
-    const processAlive = pid !== undefined && isProcessAlive(pid);
-    const socketResponsive = await pingDaemon(socketPath);
+    const ping = await pingDaemon(socketPath);
 
-    if (!processAlive && !socketResponsive) {
+    if (ping.status === 'absent') {
       this.log('Daemon is not running.');
       return;
     }
 
-    if (processAlive && !socketResponsive) {
+    if (ping.status === 'unreachable') {
+      const pidPart = pid === undefined ? '' : ` (recorded PID: ${pid})`;
       this.log(
-        `Daemon process exists (PID: ${pid}) but socket is not responding.`,
+        `Daemon socket exists at ${socketPath} but is unresponsive${pidPart}: ${ping.error.message}`,
       );
       return;
     }
@@ -52,6 +52,12 @@ export default class DaemonStatus extends Command {
     }
 
     const status = response.result as DaemonStatusInfo;
+    if (pid !== undefined && pid !== status.pid) {
+      this.log(
+        `Warning: PID file records ${pid} but the running daemon reports ${status.pid}. ` +
+          `Local state may be stale; consider \`mm daemon purge\`.`,
+      );
+    }
     this.log(
       `Daemon is running. PID: ${status.pid}, Uptime: ${status.uptime}s`,
     );

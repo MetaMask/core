@@ -1,6 +1,7 @@
 import { mkdirSync } from 'node:fs';
-import { appendFile, rm, writeFile } from 'node:fs/promises';
+import { appendFile, readFile, rm, writeFile } from 'node:fs/promises';
 
+import { pingDaemon } from './daemon-client';
 import { getDaemonPaths } from './paths';
 import { startRpcSocketServer } from './rpc-socket-server';
 import type { RpcSocketServerHandle } from './rpc-socket-server';
@@ -8,21 +9,40 @@ import { createWallet } from './wallet-factory';
 
 jest.mock('node:fs');
 jest.mock('node:fs/promises');
+jest.mock('./daemon-client');
 jest.mock('./paths');
 jest.mock('./rpc-socket-server');
 jest.mock('./wallet-factory');
 
 const mockMkdirSync = jest.mocked(mkdirSync);
 const mockAppendFile = jest.mocked(appendFile);
+const mockReadFile = jest.mocked(readFile);
 const mockWriteFile = jest.mocked(writeFile);
 const mockRm = jest.mocked(rm);
+const mockPingDaemon = jest.mocked(pingDaemon);
 const mockGetDaemonPaths = jest.mocked(getDaemonPaths);
 const mockStartRpcSocketServer = jest.mocked(startRpcSocketServer);
 const mockCreateWallet = jest.mocked(createWallet);
 
 const ORIGINAL_ENV = process.env;
 
+const ABSENT = { status: 'absent' as const };
+const RESPONSIVE = { status: 'responsive' as const };
+const UNREACHABLE = {
+  status: 'unreachable' as const,
+  error: new Error('wedged'),
+};
+
 type MockCreateWalletResult = Awaited<ReturnType<typeof createWallet>>;
+
+/**
+ * Build an ENOENT NodeJS.ErrnoException for fs/promises mock rejections.
+ *
+ * @returns An error mimicking what `readFile` throws when a file is missing.
+ */
+function enoent(): NodeJS.ErrnoException {
+  return Object.assign(new Error('not found'), { code: 'ENOENT' });
+}
 
 /**
  * Create a mock createWallet result with a mocked wallet and store.
@@ -72,9 +92,13 @@ describe('daemon-entry', () => {
       logPath: '/tmp/daemon.log',
       dbPath: '/tmp/wallet.db',
     });
+    // Default: no prior daemon state (pre-flight readFile + ownership readFile
+    // both miss). Tests that need a stale PID file override these per-call.
+    mockReadFile.mockRejectedValue(enoent());
     mockWriteFile.mockResolvedValue(undefined);
     mockRm.mockResolvedValue(undefined);
     mockAppendFile.mockResolvedValue(undefined);
+    mockPingDaemon.mockResolvedValue(ABSENT);
   });
 
   afterEach(() => {
@@ -88,12 +112,8 @@ describe('daemon-entry', () => {
    * Returns after main() settles.
    */
   async function importDaemonEntry(): Promise<void> {
-    // The module under test calls main() at top level on import.
-    // We use jest.isolateModules to re-import it fresh in each test
-    // after setting up mocks and env vars.
     await jest.isolateModulesAsync(async () => {
       await import('./daemon-entry');
-      // Flush microtasks so main()'s .catch() handler settles
       for (let i = 0; i < 10; i++) {
         await new Promise((resolve) => process.nextTick(resolve));
       }
@@ -144,7 +164,7 @@ describe('daemon-entry', () => {
     expect(process.exitCode).toBe(1);
   });
 
-  it('creates data dir, wallet, server, and writes PID on successful startup', async () => {
+  it('creates data dir, wallet, server, and writes PID exclusively on successful startup', async () => {
     mockCreateWallet.mockResolvedValue(createMockWallet());
     mockStartRpcSocketServer.mockResolvedValue(createMockHandle());
 
@@ -161,7 +181,8 @@ describe('daemon-entry', () => {
     });
     expect(mockWriteFile).toHaveBeenCalledWith(
       '/tmp/daemon.pid',
-      String(process.pid),
+      expect.stringMatching(new RegExp(`^${process.pid}\\n\\d+\\n$`, 'u')),
+      { flag: 'wx' },
     );
     expect(mockStartRpcSocketServer).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -186,10 +207,104 @@ describe('daemon-entry', () => {
     );
   });
 
+  it('refuses to start when a responsive daemon already owns the socket', async () => {
+    mockReadFile.mockResolvedValue('9999\n12345\n');
+    mockPingDaemon.mockResolvedValue(RESPONSIVE);
+    mockCreateWallet.mockResolvedValue(createMockWallet());
+
+    await importDaemonEntry();
+
+    expect(stderrSpy).toHaveBeenCalledWith(
+      expect.stringContaining('A daemon is already running'),
+    );
+    expect(process.exitCode).toBe(1);
+    expect(mockWriteFile).not.toHaveBeenCalled();
+  });
+
+  it('refuses to start when a responsive daemon owns the socket without a PID file', async () => {
+    // No PID file (ENOENT default) but pingDaemon returns responsive.
+    mockPingDaemon.mockResolvedValue(RESPONSIVE);
+    mockCreateWallet.mockResolvedValue(createMockWallet());
+
+    await importDaemonEntry();
+
+    expect(stderrSpy).toHaveBeenCalledWith(
+      expect.stringContaining('A daemon is already running'),
+    );
+    expect(process.exitCode).toBe(1);
+  });
+
+  it('removes a stale unreachable socket file when no PID file is present', async () => {
+    mockPingDaemon.mockResolvedValue(UNREACHABLE);
+    mockCreateWallet.mockResolvedValue(createMockWallet());
+    mockStartRpcSocketServer.mockResolvedValue(createMockHandle());
+
+    await importDaemonEntry();
+
+    expect(mockRm).toHaveBeenCalledWith('/tmp/daemon.sock', { force: true });
+    expect(mockAppendFile).toHaveBeenCalledWith(
+      '/tmp/daemon.log',
+      expect.stringContaining('Removing stale socket'),
+    );
+  });
+
+  it('surfaces non-ENOENT errors from reading the existing PID file during pre-flight', async () => {
+    mockReadFile.mockRejectedValue(
+      Object.assign(new Error('read denied'), { code: 'EACCES' }),
+    );
+    mockCreateWallet.mockResolvedValue(createMockWallet());
+
+    await importDaemonEntry();
+
+    expect(stderrSpy).toHaveBeenCalledWith(
+      expect.stringContaining('read denied'),
+    );
+    expect(process.exitCode).toBe(1);
+  });
+
+  it('treats a malformed PID file as having no PID (takes over the slot)', async () => {
+    mockReadFile.mockResolvedValueOnce('not-a-number\n');
+    mockCreateWallet.mockResolvedValue(createMockWallet());
+    mockStartRpcSocketServer.mockResolvedValue(createMockHandle());
+
+    await importDaemonEntry();
+
+    // Pre-flight treated the file as if no PID was present (existingPid === undefined),
+    // pinged, found nothing, then removed the stale socket. No error.
+    expect(process.exitCode).toBeUndefined();
+    expect(mockRm).toHaveBeenCalledWith('/tmp/daemon.sock', { force: true });
+  });
+
+  it('clears stale PID + socket files when the recorded daemon is no longer responsive', async () => {
+    // PID file is present and pingDaemon returns absent → take over.
+    mockReadFile.mockResolvedValueOnce('9999\n12345\n');
+    mockPingDaemon.mockResolvedValue(ABSENT);
+    mockCreateWallet.mockResolvedValue(createMockWallet());
+    mockStartRpcSocketServer.mockResolvedValue(createMockHandle());
+
+    await importDaemonEntry();
+
+    expect(mockRm).toHaveBeenCalledWith('/tmp/daemon.pid', { force: true });
+    expect(mockRm).toHaveBeenCalledWith('/tmp/daemon.sock', { force: true });
+    expect(mockWriteFile).toHaveBeenCalledWith(
+      '/tmp/daemon.pid',
+      expect.any(String),
+      { flag: 'wx' },
+    );
+  });
+
   it('cleans up wallet, store, and PID file when server fails to start', async () => {
     const result = createMockWallet();
     mockCreateWallet.mockResolvedValue(result);
     mockStartRpcSocketServer.mockRejectedValue(new Error('server failed'));
+    // Second readFile call (ownership check during cleanup) sees the PID
+    // file we just wrote — return matching contents so removal proceeds.
+    mockReadFile
+      .mockRejectedValueOnce(enoent()) // pre-flight readPidFromFile
+      .mockImplementation(async () => {
+        const lastWrite = mockWriteFile.mock.calls.at(-1)?.[1];
+        return typeof lastWrite === 'string' ? lastWrite : '';
+      });
 
     await importDaemonEntry();
 
@@ -199,7 +314,25 @@ describe('daemon-entry', () => {
     expect(process.exitCode).toBe(1);
   });
 
-  it('still cleans up PID and store when wallet.destroy fails during error cleanup', async () => {
+  it('does not remove the PID file during cleanup if its contents no longer match', async () => {
+    const result = createMockWallet();
+    mockCreateWallet.mockResolvedValue(result);
+    mockStartRpcSocketServer.mockRejectedValue(new Error('server failed'));
+    // Pre-flight finds no PID file (ENOENT). Cleanup readFile returns
+    // unrelated contents (a different daemon's PID file) — must not rm.
+    mockReadFile
+      .mockRejectedValueOnce(enoent())
+      .mockResolvedValueOnce('99999\n9999999\n');
+
+    await importDaemonEntry();
+
+    expect(mockRm).not.toHaveBeenCalledWith('/tmp/daemon.pid', {
+      force: true,
+    });
+    expect(process.exitCode).toBe(1);
+  });
+
+  it('still cleans up wallet/store when wallet.destroy fails during error cleanup', async () => {
     const result = createMockWallet();
     (result.wallet.destroy as jest.Mock).mockRejectedValue(
       new Error('destroy failed'),
@@ -210,7 +343,6 @@ describe('daemon-entry', () => {
     await importDaemonEntry();
 
     expect(result.store.close).toHaveBeenCalled();
-    expect(mockRm).toHaveBeenCalledWith('/tmp/daemon.pid', { force: true });
     expect(process.exitCode).toBe(1);
   });
 
@@ -228,7 +360,26 @@ describe('daemon-entry', () => {
       '/tmp/daemon.log',
       expect.stringContaining('store.close() failed during cleanup'),
     );
-    expect(mockRm).toHaveBeenCalledWith('/tmp/daemon.pid', { force: true });
+    expect(process.exitCode).toBe(1);
+  });
+
+  it('logs and continues when ownership-aware PID removal throws during error cleanup', async () => {
+    const result = createMockWallet();
+    mockCreateWallet.mockResolvedValue(result);
+    mockStartRpcSocketServer.mockRejectedValue(new Error('server failed'));
+    // Force ownership check (readFile) to throw non-ENOENT so removeOwnedPidFile rejects.
+    mockReadFile
+      .mockRejectedValueOnce(enoent())
+      .mockRejectedValueOnce(
+        Object.assign(new Error('read denied'), { code: 'EACCES' }),
+      );
+
+    await importDaemonEntry();
+
+    expect(mockAppendFile).toHaveBeenCalledWith(
+      '/tmp/daemon.log',
+      expect.stringContaining('Failed to remove PID file during cleanup'),
+    );
     expect(process.exitCode).toBe(1);
   });
 
@@ -238,7 +389,6 @@ describe('daemon-entry', () => {
 
     await importDaemonEntry();
 
-    // Extract the handlers passed to startRpcSocketServer
     const callArgs = mockStartRpcSocketServer.mock.calls[0][0];
     const { handlers } = callArgs;
     const status = (await handlers.getStatus(null)) as {
@@ -256,7 +406,6 @@ describe('daemon-entry', () => {
 
     await importDaemonEntry();
 
-    // makeLogger writes via appendFile to the log path
     expect(mockAppendFile).toHaveBeenCalledWith(
       '/tmp/daemon.log',
       expect.stringContaining('Starting daemon...'),
@@ -270,7 +419,6 @@ describe('daemon-entry', () => {
 
     await importDaemonEntry();
 
-    // Flush the appendFile rejection handler
     for (let i = 0; i < 10; i++) {
       await new Promise((resolve) => process.nextTick(resolve));
     }
@@ -406,8 +554,17 @@ describe('daemon-entry', () => {
     mockCreateWallet.mockResolvedValue(result);
     const handle = createMockHandle();
     mockStartRpcSocketServer.mockResolvedValue(handle);
-    // rm rejects but cleanup should not fail
-    mockRm.mockRejectedValue(new Error('rm failed'));
+    mockReadFile
+      .mockRejectedValueOnce(enoent())
+      .mockImplementation(async () => {
+        const lastWrite = mockWriteFile.mock.calls.at(-1)?.[1];
+        return typeof lastWrite === 'string' ? lastWrite : '';
+      });
+    // Pre-flight rm (claimDaemonSlot) should succeed; shutdown-time rm should
+    // reject so we can verify the failure is logged rather than thrown.
+    mockRm
+      .mockResolvedValueOnce(undefined)
+      .mockRejectedValue(new Error('rm failed'));
 
     await importDaemonEntry();
 
@@ -418,6 +575,10 @@ describe('daemon-entry', () => {
 
     expect(handle.close).toHaveBeenCalled();
     expect(result.wallet.destroy).toHaveBeenCalled();
+    expect(mockAppendFile).toHaveBeenCalledWith(
+      '/tmp/daemon.log',
+      expect.stringContaining('Failed to remove socket file'),
+    );
   });
 
   it('handles rm rejection in error cleanup path gracefully', async () => {
@@ -435,10 +596,16 @@ describe('daemon-entry', () => {
     mockCreateWallet.mockResolvedValue(result);
     const handle = createMockHandle();
     mockStartRpcSocketServer.mockResolvedValue(handle);
+    // Echo the written PID contents back for ownership check.
+    mockReadFile
+      .mockRejectedValueOnce(enoent())
+      .mockImplementation(async () => {
+        const lastWrite = mockWriteFile.mock.calls.at(-1)?.[1];
+        return typeof lastWrite === 'string' ? lastWrite : '';
+      });
 
     await importDaemonEntry();
 
-    // Extract the onShutdown callback
     const callArgs = mockStartRpcSocketServer.mock.calls[0][0];
     const onShutdown = callArgs.onShutdown as () => Promise<void>;
 

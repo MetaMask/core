@@ -16,14 +16,22 @@ const mockIsProcessAlive = jest.mocked(isProcessAlive);
 const mockSendSignal = jest.mocked(sendSignal);
 const mockWaitFor = jest.mocked(waitFor);
 
+const ABSENT = { status: 'absent' as const };
+const RESPONSIVE = { status: 'responsive' as const };
+const UNREACHABLE = {
+  status: 'unreachable' as const,
+  error: new Error('refused'),
+};
+
 describe('stopDaemon', () => {
   beforeEach(() => {
     mockRm.mockResolvedValue(undefined);
+    mockIsProcessAlive.mockReturnValue(false);
   });
 
   it('returns true when daemon is not running (no PID file)', async () => {
     mockReadPidFile.mockResolvedValue(undefined);
-    mockPingDaemon.mockResolvedValue(false);
+    mockPingDaemon.mockResolvedValue(ABSENT);
 
     const result = await stopDaemon('/tmp/test.sock', '/tmp/test.pid');
     expect(result).toBe(true);
@@ -31,24 +39,37 @@ describe('stopDaemon', () => {
 
   it('cleans up stale PID file when daemon is not running', async () => {
     mockReadPidFile.mockResolvedValue(123);
-    mockIsProcessAlive.mockReturnValue(false);
-    mockPingDaemon.mockResolvedValue(false);
+    mockPingDaemon.mockResolvedValue(ABSENT);
 
     const result = await stopDaemon('/tmp/test.sock', '/tmp/test.pid');
     expect(result).toBe(true);
     expect(mockRm).toHaveBeenCalledWith('/tmp/test.pid', { force: true });
+    // Critically: do NOT signal the recorded PID when the socket is absent
+    // (PID may have been recycled to an unrelated process).
+    expect(mockSendSignal).not.toHaveBeenCalled();
+  });
+
+  it('does not signal the recorded PID when the socket is absent even if isProcessAlive would say true', async () => {
+    mockReadPidFile.mockResolvedValue(123);
+    mockPingDaemon.mockResolvedValue(ABSENT);
+    // isProcessAlive should never be invoked in this branch, but guard the
+    // contract by also asserting no signal even if it would return true.
+    mockIsProcessAlive.mockReturnValue(true);
+
+    const result = await stopDaemon('/tmp/test.sock', '/tmp/test.pid');
+    expect(result).toBe(true);
+    expect(mockSendSignal).not.toHaveBeenCalled();
   });
 
   it('stops daemon via graceful RPC shutdown', async () => {
     mockReadPidFile.mockResolvedValue(123);
     mockIsProcessAlive.mockReturnValue(true);
-    mockPingDaemon.mockResolvedValue(true);
+    mockPingDaemon.mockResolvedValue(RESPONSIVE);
     mockSendCommand.mockResolvedValue({
       jsonrpc: '2.0',
       id: '1',
       result: { status: 'shutting down' },
     });
-    // Invoke the check callback for coverage, then return true
     mockWaitFor.mockImplementation(async (check) => {
       await check();
       return true;
@@ -71,14 +92,13 @@ describe('stopDaemon', () => {
   it('falls through to SIGTERM when graceful shutdown times out', async () => {
     mockReadPidFile.mockResolvedValue(123);
     mockIsProcessAlive.mockReturnValue(true);
-    mockPingDaemon.mockResolvedValue(true);
+    mockPingDaemon.mockResolvedValue(RESPONSIVE);
     mockSendCommand.mockResolvedValue({
       jsonrpc: '2.0',
       id: '1',
       result: null,
     });
     mockSendSignal.mockReturnValue(true);
-    // First waitFor (graceful) invokes cb and fails, second (SIGTERM) invokes cb and succeeds
     mockWaitFor
       .mockImplementationOnce(async (check) => {
         await check();
@@ -97,14 +117,13 @@ describe('stopDaemon', () => {
   it('falls through to SIGKILL when SIGTERM times out', async () => {
     mockReadPidFile.mockResolvedValue(123);
     mockIsProcessAlive.mockReturnValue(true);
-    mockPingDaemon.mockResolvedValue(true);
+    mockPingDaemon.mockResolvedValue(RESPONSIVE);
     mockSendCommand.mockResolvedValue({
       jsonrpc: '2.0',
       id: '1',
       result: null,
     });
     mockSendSignal.mockReturnValue(true);
-    // All three waitFor calls invoke check, graceful + SIGTERM fail, SIGKILL succeeds
     mockWaitFor
       .mockImplementationOnce(async (check) => {
         await check();
@@ -127,7 +146,7 @@ describe('stopDaemon', () => {
   it('returns false when all strategies fail', async () => {
     mockReadPidFile.mockResolvedValue(123);
     mockIsProcessAlive.mockReturnValue(true);
-    mockPingDaemon.mockResolvedValue(true);
+    mockPingDaemon.mockResolvedValue(RESPONSIVE);
     mockSendCommand.mockResolvedValue({
       jsonrpc: '2.0',
       id: '1',
@@ -140,10 +159,23 @@ describe('stopDaemon', () => {
     expect(result).toBe(false);
   });
 
+  it('skips graceful shutdown when the socket is unreachable and signals directly', async () => {
+    mockReadPidFile.mockResolvedValue(123);
+    mockIsProcessAlive.mockReturnValue(true);
+    mockPingDaemon.mockResolvedValue(UNREACHABLE);
+    mockSendSignal.mockReturnValue(true);
+    mockWaitFor.mockResolvedValueOnce(true);
+
+    const result = await stopDaemon('/tmp/test.sock', '/tmp/test.pid');
+    expect(result).toBe(true);
+    expect(mockSendCommand).not.toHaveBeenCalled();
+    expect(mockSendSignal).toHaveBeenCalledWith(123, 'SIGTERM');
+  });
+
   it('treats ESRCH on SIGTERM as stopped', async () => {
     mockReadPidFile.mockResolvedValue(123);
     mockIsProcessAlive.mockReturnValue(true);
-    mockPingDaemon.mockResolvedValue(false);
+    mockPingDaemon.mockResolvedValue(UNREACHABLE);
     mockSendSignal.mockReturnValue(false);
 
     const result = await stopDaemon('/tmp/test.sock', '/tmp/test.pid');
@@ -153,8 +185,7 @@ describe('stopDaemon', () => {
   it('treats ESRCH on SIGKILL as stopped', async () => {
     mockReadPidFile.mockResolvedValue(123);
     mockIsProcessAlive.mockReturnValue(true);
-    mockPingDaemon.mockResolvedValue(false);
-    // SIGTERM signal sent but process doesn't die, SIGKILL finds it gone
+    mockPingDaemon.mockResolvedValue(UNREACHABLE);
     mockSendSignal.mockReturnValueOnce(true).mockReturnValueOnce(false);
     mockWaitFor.mockResolvedValueOnce(false);
 
@@ -166,7 +197,7 @@ describe('stopDaemon', () => {
   it('falls through to SIGKILL when SIGTERM throws EPERM', async () => {
     mockReadPidFile.mockResolvedValue(123);
     mockIsProcessAlive.mockReturnValue(true);
-    mockPingDaemon.mockResolvedValue(false);
+    mockPingDaemon.mockResolvedValue(UNREACHABLE);
     mockSendSignal
       .mockImplementationOnce(() => {
         throw Object.assign(new Error('eperm'), { code: 'EPERM' });
@@ -182,7 +213,7 @@ describe('stopDaemon', () => {
   it('returns false when both SIGTERM and SIGKILL throw EPERM', async () => {
     mockReadPidFile.mockResolvedValue(123);
     mockIsProcessAlive.mockReturnValue(true);
-    mockPingDaemon.mockResolvedValue(false);
+    mockPingDaemon.mockResolvedValue(UNREACHABLE);
     mockSendSignal.mockImplementation(() => {
       throw Object.assign(new Error('eperm'), { code: 'EPERM' });
     });
@@ -191,14 +222,79 @@ describe('stopDaemon', () => {
     expect(result).toBe(false);
   });
 
-  it('treats sendCommand error as socket unresponsive', async () => {
+  it('treats sendCommand error as graceful shutdown failure and falls through', async () => {
     mockReadPidFile.mockResolvedValue(123);
     mockIsProcessAlive.mockReturnValue(true);
-    mockPingDaemon.mockResolvedValue(true);
+    mockPingDaemon.mockResolvedValue(RESPONSIVE);
     mockSendCommand.mockRejectedValue(new Error('socket error'));
     mockWaitFor.mockResolvedValue(true);
 
-    const result = await stopDaemon('/tmp/test.sock', '/tmp/test.pid');
+    const log = jest.fn();
+    const result = await stopDaemon('/tmp/test.sock', '/tmp/test.pid', log);
     expect(result).toBe(true);
+    expect(log).toHaveBeenCalledWith(
+      expect.stringContaining('Graceful shutdown request failed'),
+    );
+  });
+
+  it('logs rather than throws when post-stop cleanup of the PID file fails', async () => {
+    mockReadPidFile.mockResolvedValue(123);
+    mockIsProcessAlive.mockReturnValue(true);
+    mockPingDaemon.mockResolvedValue(RESPONSIVE);
+    mockSendCommand.mockResolvedValue({
+      jsonrpc: '2.0',
+      id: '1',
+      result: null,
+    });
+    mockWaitFor.mockResolvedValue(true);
+    mockRm.mockImplementation((path) =>
+      path === '/tmp/test.pid'
+        ? Promise.reject(new Error('pid rm failed'))
+        : Promise.resolve(undefined),
+    );
+
+    const log = jest.fn();
+    const result = await stopDaemon('/tmp/test.sock', '/tmp/test.pid', log);
+    expect(result).toBe(true);
+    expect(log).toHaveBeenCalledWith(
+      expect.stringContaining('Failed to remove PID file'),
+    );
+  });
+
+  it('logs rather than throws when post-stop cleanup of the socket file fails', async () => {
+    mockReadPidFile.mockResolvedValue(123);
+    mockIsProcessAlive.mockReturnValue(true);
+    mockPingDaemon.mockResolvedValue(RESPONSIVE);
+    mockSendCommand.mockResolvedValue({
+      jsonrpc: '2.0',
+      id: '1',
+      result: null,
+    });
+    mockWaitFor.mockResolvedValue(true);
+    mockRm.mockImplementation((path) =>
+      path === '/tmp/test.sock'
+        ? Promise.reject(new Error('socket rm failed'))
+        : Promise.resolve(undefined),
+    );
+
+    const log = jest.fn();
+    const result = await stopDaemon('/tmp/test.sock', '/tmp/test.pid', log);
+    expect(result).toBe(true);
+    expect(log).toHaveBeenCalledWith(
+      expect.stringContaining('Failed to remove socket file'),
+    );
+  });
+
+  it('logs rather than throws when stale-PID cleanup fails', async () => {
+    mockReadPidFile.mockResolvedValue(123);
+    mockPingDaemon.mockResolvedValue(ABSENT);
+    mockRm.mockRejectedValue(new Error('rm denied'));
+
+    const log = jest.fn();
+    const result = await stopDaemon('/tmp/test.sock', '/tmp/test.pid', log);
+    expect(result).toBe(true);
+    expect(log).toHaveBeenCalledWith(
+      expect.stringContaining('Failed to remove PID file'),
+    );
   });
 });
