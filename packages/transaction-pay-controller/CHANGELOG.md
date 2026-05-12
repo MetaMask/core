@@ -7,8 +7,64 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [22.3.0]
+
 ### Changed
 
+- Bump `@metamask/network-controller` from `^31.0.0` to `^31.1.0` ([#8765](https://github.com/MetaMask/core/pull/8765))
+- Bump `@metamask/assets-controllers` from `^106.0.1` to `^106.1.0` ([#8768](https://github.com/MetaMask/core/pull/8768))
+- Bump `@metamask/assets-controller` from `^7.0.1` to `^7.1.0` ([#8768](https://github.com/MetaMask/core/pull/8768))
+- Bump `@metamask/bridge-controller` from `^72.0.2` to `^72.1.0` ([#8768](https://github.com/MetaMask/core/pull/8768))
+- Bump `@metamask/bridge-status-controller` from `^71.1.2` to `^71.2.0` ([#8768](https://github.com/MetaMask/core/pull/8768))
+
+## [22.2.0]
+
+### Changed
+
+- Resolve fiat asset per transaction type from `confirmations_pay_fiat` remote feature flag, falling back to hardcoded map then ETH on mainnet ([#8631](https://github.com/MetaMask/core/pull/8631))
+- Bump `@metamask/assets-controller` from `^7.0.0` to `^7.0.1` ([#8755](https://github.com/MetaMask/core/pull/8755))
+- Bump `@metamask/assets-controllers` from `^106.0.0` to `^106.0.1` ([#8755](https://github.com/MetaMask/core/pull/8755))
+- Bump `@metamask/bridge-controller` from `^72.0.1` to `^72.0.2` ([#8755](https://github.com/MetaMask/core/pull/8755))
+- Bump `@metamask/bridge-status-controller` from `^71.1.1` to `^71.1.2` ([#8755](https://github.com/MetaMask/core/pull/8755))
+- Bump `@metamask/controller-utils` from `^11.20.0` to `^12.0.0` ([#8755](https://github.com/MetaMask/core/pull/8755))
+- Bump `@metamask/gas-fee-controller` from `^26.2.0` to `^26.2.1` ([#8755](https://github.com/MetaMask/core/pull/8755))
+- Bump `@metamask/network-controller` from `^30.1.0` to `^31.0.0` ([#8755](https://github.com/MetaMask/core/pull/8755))
+- Bump `@metamask/ramps-controller` from `^13.3.0` to `^13.3.1` ([#8755](https://github.com/MetaMask/core/pull/8755))
+- Bump `@metamask/remote-feature-flag-controller` from `^4.2.0` to `^4.2.1` ([#8755](https://github.com/MetaMask/core/pull/8755))
+- Bump `@metamask/transaction-controller` from `^65.2.0` to `^65.3.0` ([#8755](https://github.com/MetaMask/core/pull/8755))
+
+### Fixed
+
+- Fix fiat strategy submit flow to extract provider code from ramps quote instead of parsing order ID, store `caipAssetId` in fiat payment state, and use target amount for totals when fiat strategy is active ([#8726](https://github.com/MetaMask/core/pull/8726))
+
+## [22.1.0]
+
+### Fixed
+
+- Fix transaction with accountOverride and targeting Arbitrum USDC ([#8724](https://github.com/MetaMask/core/pull/8724))
+  - Deliver the Relay-acquired token to `transaction.txParams.from` (the delegator that executes the inner delegation), not `request.from`.
+  - Gate the Arbitrum-USDC → Hypercore quote rewrite on `transaction.type === TransactionType.perpsDeposit`.
+
+## [22.0.2]
+
+### Changed
+
+- Bump `@metamask/assets-controller` from `^6.4.0` to `^7.0.0` ([#8738](https://github.com/MetaMask/core/pull/8738))
+- Bump `@metamask/bridge-controller` from `^72.0.0` to `^72.0.1` ([#8738](https://github.com/MetaMask/core/pull/8738))
+
+## [22.0.1]
+
+### Changed
+
+- Bump `@metamask/bridge-controller` from `^71.1.1` to `^72.0.0` ([#8737](https://github.com/MetaMask/core/pull/8737))
+
+## [22.0.0]
+
+### Changed
+
+- **BREAKING:** Re-parse required tokens when asset state changes ([#8714](https://github.com/MetaMask/core/pull/8714))
+  - Adds `AssetsControllerStateChangeEvent`, `CurrencyRateStateChange`, `TokenRatesControllerStateChangeEvent`, and `TokensControllerStateChangeEvent` to `AllowedEvents`.
+  - Consumers must grant these events when creating the controller messenger.
 - Bump `@metamask/gas-fee-controller` from `^26.1.1` to `^26.2.0` ([#8722](https://github.com/MetaMask/core/pull/8722))
 - Bump `@metamask/transaction-controller` from `^65.1.0` to `^65.2.0` ([#8722](https://github.com/MetaMask/core/pull/8722))
 
@@ -788,7 +844,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#6820](https://github.com/MetaMask/core/pull/6820))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@21.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@22.3.0...HEAD
+[22.3.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@22.2.0...@metamask/transaction-pay-controller@22.3.0
+[22.2.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@22.1.0...@metamask/transaction-pay-controller@22.2.0
+[22.1.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@22.0.2...@metamask/transaction-pay-controller@22.1.0
+[22.0.2]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@22.0.1...@metamask/transaction-pay-controller@22.0.2
+[22.0.1]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@22.0.0...@metamask/transaction-pay-controller@22.0.1
+[22.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@21.1.0...@metamask/transaction-pay-controller@22.0.0
 [21.1.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@21.0.0...@metamask/transaction-pay-controller@21.1.0
 [21.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@20.2.0...@metamask/transaction-pay-controller@21.0.0
 [20.2.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@20.1.0...@metamask/transaction-pay-controller@20.2.0

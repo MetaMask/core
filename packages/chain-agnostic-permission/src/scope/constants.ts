@@ -98,6 +98,7 @@ export const KnownNotifications: Record<NonWalletKnownCaipNamespace, string[]> =
  * Session properties for known CAIP namespaces.
  */
 export enum KnownSessionProperties {
+  Eip1193Compatible = 'eip1193-compatible',
   SolanaAccountChangedNotifications = 'solana_accountChanged_notifications',
   TronAccountChangedNotifications = 'tron_accountChanged_notifications',
   Bip122AccountChangedNotifications = 'bip122_accountChanged_notifications',

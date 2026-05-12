@@ -106,7 +106,7 @@
     "test:watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch"
   },
   "dependencies": {
-    "@metamask/address-book-controller": "^7.1.1",
+    "@metamask/address-book-controller": "^7.1.2",
     "@metamask/base-controller": "^9.1.0",
     "@metamask/keyring-controller": "^25.5.0",
     "@metamask/messenger": "^1.2.0",

@@ -7,6 +7,47 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [72.1.0]
+
+### Changed
+
+- Bump `@metamask/network-controller` from `^31.0.0` to `^31.1.0` ([#8765](https://github.com/MetaMask/core/pull/8765))
+- Bump `@metamask/assets-controllers` from `^106.0.1` to `^106.1.0` ([#8768](https://github.com/MetaMask/core/pull/8768))
+- Bump `@metamask/assets-controller` from `^7.0.1` to `^7.1.0` ([#8768](https://github.com/MetaMask/core/pull/8768))
+
+## [72.0.2]
+
+### Changed
+
+- Bump `@metamask/accounts-controller` from `^38.0.0` to `^38.1.0` ([#8755](https://github.com/MetaMask/core/pull/8755))
+- Bump `@metamask/assets-controller` from `^7.0.0` to `^7.0.1` ([#8755](https://github.com/MetaMask/core/pull/8755))
+- Bump `@metamask/assets-controllers` from `^106.0.0` to `^106.0.1` ([#8755](https://github.com/MetaMask/core/pull/8755))
+- Bump `@metamask/controller-utils` from `^11.20.0` to `^12.0.0` ([#8755](https://github.com/MetaMask/core/pull/8755))
+- Bump `@metamask/gas-fee-controller` from `^26.2.0` to `^26.2.1` ([#8755](https://github.com/MetaMask/core/pull/8755))
+- Bump `@metamask/multichain-network-controller` from `^3.1.0` to `^3.1.1` ([#8755](https://github.com/MetaMask/core/pull/8755))
+- Bump `@metamask/network-controller` from `^30.1.0` to `^31.0.0` ([#8755](https://github.com/MetaMask/core/pull/8755))
+- Bump `@metamask/polling-controller` from `^16.0.4` to `^16.0.5` ([#8755](https://github.com/MetaMask/core/pull/8755))
+- Bump `@metamask/remote-feature-flag-controller` from `^4.2.0` to `^4.2.1` ([#8755](https://github.com/MetaMask/core/pull/8755))
+- Bump `@metamask/transaction-controller` from `^65.2.0` to `^65.3.0` ([#8755](https://github.com/MetaMask/core/pull/8755))
+
+## [72.0.1]
+
+### Changed
+
+- Bump `@metamask/assets-controller` from `^6.4.0` to `^7.0.0` ([#8738](https://github.com/MetaMask/core/pull/8738))
+
+## [72.0.0]
+
+### Added
+
+- **BREAKING:** Add support for BatchSell quotes ([#8711](https://github.com/MetaMask/core/pull/8711))
+  - change `quoteRequest`'s type from `QuoteRequest` to `QuoteRequest[]`
+  - allow callers to update specific quote requests within a batch by adding 2 optional parameters to `updateBridgeQuoteRequest`: quoteRequestIndex and quoteRequestCount
+  - export `isValidBatchSellQuoteRequest` request validator
+  - fetch multiple swap quotes through a single SSE stream and append `quoteRequestIndex` to link each one to its originating quoteRequest
+  - implement `selectBatchSellQuotes` selector which returns the recommended quote for each batched quote, and their aggregated fees and received amounts
+  - trace BatchSell quote fetch operations in Sentry using label `Batch Sell Quotes Fetched`
+
 ### Changed
 
 - Bump `@metamask/gas-fee-controller` from `^26.1.1` to `^26.2.0` ([#8722](https://github.com/MetaMask/core/pull/8722))
@@ -1421,7 +1462,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#5317](https://github.com/MetaMask/core/pull/5317))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@71.1.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@72.1.0...HEAD
+[72.1.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@72.0.2...@metamask/bridge-controller@72.1.0
+[72.0.2]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@72.0.1...@metamask/bridge-controller@72.0.2
+[72.0.1]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@72.0.0...@metamask/bridge-controller@72.0.1
+[72.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@71.1.1...@metamask/bridge-controller@72.0.0
 [71.1.1]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@71.1.0...@metamask/bridge-controller@71.1.1
 [71.1.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@71.0.0...@metamask/bridge-controller@71.1.0
 [71.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@70.2.0...@metamask/bridge-controller@71.0.0
