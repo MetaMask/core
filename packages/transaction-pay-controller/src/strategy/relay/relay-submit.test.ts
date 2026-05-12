@@ -1013,6 +1013,73 @@ describe('Relay Submit Utils', () => {
         );
       });
 
+      describe('with accountOverride', () => {
+        const ACCOUNT_OVERRIDE_MOCK = '0xaccountOverride' as Hex;
+        const DELEGATION_TO_MOCK = '0xdelegationManager' as Hex;
+        const DELEGATION_DATA_MOCK = '0xdelegationdata' as Hex;
+        const DELEGATION_VALUE_MOCK = '0x0' as Hex;
+
+        beforeEach(() => {
+          request.quotes[0].request.from = ACCOUNT_OVERRIDE_MOCK;
+          getDelegationTransactionMock.mockResolvedValue({
+            data: DELEGATION_DATA_MOCK,
+            to: DELEGATION_TO_MOCK,
+            value: DELEGATION_VALUE_MOCK,
+          });
+        });
+
+        it('passes the original transaction through to getDelegationTransaction', async () => {
+          await submitRelayQuotes(request);
+
+          expect(getDelegationTransactionMock).toHaveBeenCalledTimes(1);
+          expect(getDelegationTransactionMock).toHaveBeenCalledWith({
+            transaction: expect.objectContaining({
+              id: ORIGINAL_TRANSACTION_ID_MOCK,
+              txParams: expect.objectContaining({
+                from: FROM_MOCK,
+                to: '0xrecipient',
+                data: '0xorigdata',
+                value: '0x100',
+              }),
+            }),
+          });
+        });
+
+        it('uses the delegation result as the first batch tx', async () => {
+          await submitRelayQuotes(request);
+
+          expect(addTransactionBatchMock).toHaveBeenCalledTimes(1);
+          expect(addTransactionBatchMock).toHaveBeenCalledWith(
+            expect.objectContaining({
+              from: ACCOUNT_OVERRIDE_MOCK,
+              transactions: [
+                expect.objectContaining({
+                  params: expect.objectContaining({
+                    data: DELEGATION_DATA_MOCK,
+                    to: DELEGATION_TO_MOCK,
+                    value: DELEGATION_VALUE_MOCK,
+                  }),
+                  type: TransactionType.simpleSend,
+                }),
+                expect.objectContaining({
+                  params: expect.objectContaining({
+                    data: '0x1234',
+                    to: '0xfedcb',
+                  }),
+                  type: TransactionType.relayDeposit,
+                }),
+              ],
+            }),
+          );
+        });
+      });
+
+      it('does not call getDelegationTransaction when accountOverride is not set', async () => {
+        await submitRelayQuotes(request);
+
+        expect(getDelegationTransactionMock).not.toHaveBeenCalled();
+      });
+
       it('activates 7702 mode with single combined post-quote gas limit', async () => {
         request.quotes[0].original.metamask.gasLimits = [203093];
         request.quotes[0].original.metamask.is7702 = true;
