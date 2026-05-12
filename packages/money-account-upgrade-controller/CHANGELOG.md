@@ -19,6 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **BREAKING:** `init()` now takes a `{ chainId, boringVaultAddress }` object instead of an `InitConfig`. The EIP-7702 delegator implementation and caveat enforcer addresses are resolved from `@metamask/delegation-deployments` for the target chain; `init()` throws if the chain is not supported by Delegation Framework 1.3.0. The `InitConfig` type is no longer exported. ([#8621](https://github.com/MetaMask/core/pull/8621))
 - Add `@metamask/authenticated-user-storage`, `@metamask/delegation-controller`, `@metamask/delegation-core`, and `@metamask/delegation-deployments` as dependencies. ([#8621](https://github.com/MetaMask/core/pull/8621))
 - Bump `@metamask/network-controller` from `^31.0.0` to `^31.1.0` ([#8765](https://github.com/MetaMask/core/pull/8765))
+- Bump `@metamask/chomp-api-service` from `^3.0.1` to `^3.1.0` ([#8769](https://github.com/MetaMask/core/pull/8769))
 
 ### Fixed
 
