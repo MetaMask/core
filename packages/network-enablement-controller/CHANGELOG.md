@@ -75,13 +75,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add `listPopularNetworks()` method and `NetworkEnablementController:listPopularNetworks` messenger action. Returns CAIP-2 chain IDs for popular EVM networks (from POPULAR_NETWORKS) and Bitcoin, Solana, and Tron mainnets that are present in NetworkController `networkConfigurationsByChainId` and MultichainNetworkController `multichainNetworkConfigurationsByChainId` respectively ([#8105](https://github.com/MetaMask/core/pull/8105)).
-- Add `listPopularEvmNetworks()` and `NetworkEnablementController:listPopularEvmNetworks` for popular EVM networks only (returns hex chain IDs); add `listPopularMultichainNetworks()` and `NetworkEnablementController:listPopularMultichainNetworks` for Bitcoin, Solana, and Tron mainnets only (each restricted to configured networks in the corresponding controller state) ([#8105](https://github.com/MetaMask/core/pull/8105)).
+- Add `listPopularNetworks()` method and `NetworkEnablementController:listPopularNetworks` messenger action. Returns CAIP-2 chain IDs for popular EVM networks (from POPULAR_NETWORKS) and Bitcoin, Solana, and Tron mainnets that are present in NetworkController `networkConfigurationsByChainId` and MultichainNetworkController `multichainNetworkConfigurationsByChainId` respectively. ([#8105](https://github.com/MetaMask/core/pull/8105))
+- Add `listPopularEvmNetworks()` and `NetworkEnablementController:listPopularEvmNetworks` for popular EVM networks only (returns hex chain IDs); add `listPopularMultichainNetworks()` and `NetworkEnablementController:listPopularMultichainNetworks` for Bitcoin, Solana, and Tron mainnets only (each restricted to configured networks in the corresponding controller state). ([#8105](https://github.com/MetaMask/core/pull/8105))
 
 ### Changed
 
-- `listPopularEvmNetworks()` now returns `Hex[]` (e.g. `'0x1'`, `'0x89'`) instead of CAIP-2 chain IDs; `listPopularNetworks()` still returns CAIP-2 for the full combined list ([#8105](https://github.com/MetaMask/core/pull/8105)).
-- Bump `@metamask/transaction-controller` from `^62.17.1` to `^62.20.0` ([#8005](https://github.com/MetaMask/core/pull/8005), [#8031](https://github.com/MetaMask/core/pull/8031) [#8104](https://github.com/MetaMask/core/pull/8104))
+- `listPopularEvmNetworks()` now returns `Hex[]` (e.g. `'0x1'`, `'0x89'`) instead of CAIP-2 chain IDs; `listPopularNetworks()` still returns CAIP-2 for the full combined list. ([#8105](https://github.com/MetaMask/core/pull/8105))
+- Bump `@metamask/transaction-controller` from `^62.17.1` to `^62.20.0` ([#8005](https://github.com/MetaMask/core/pull/8005), [#8031](https://github.com/MetaMask/core/pull/8031), [#8104](https://github.com/MetaMask/core/pull/8104))
 
 ## [4.1.2]
 
@@ -97,7 +97,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Bump `@metamask/keyring-api` from `^21.0.0` to `^21.5.0` ([#7857](https://github.com/MetaMask/core/pull/7857))
-- Bump `@metamask/transaction-controller` from `^62.9.2` to `^62.17.0` ([#7737](https://github.com/MetaMask/core/pull/7737), [#7760](https://github.com/MetaMask/core/pull/7760), [#7775](https://github.com/MetaMask/core/pull/7775), [#7802](https://github.com/MetaMask/core/pull/7802), [#7832](https://github.com/MetaMask/core/pull/7832), [#7854](https://github.com/MetaMask/core/pull/7854), [#7872](https://github.com/MetaMask/core/pull/7872)), ([#7897](https://github.com/MetaMask/core/pull/7897))
+- Bump `@metamask/transaction-controller` from `^62.9.2` to `^62.17.0`, ([#7737](https://github.com/MetaMask/core/pull/7737), [#7760](https://github.com/MetaMask/core/pull/7760), [#7775](https://github.com/MetaMask/core/pull/7775), [#7802](https://github.com/MetaMask/core/pull/7802), [#7832](https://github.com/MetaMask/core/pull/7832), [#7854](https://github.com/MetaMask/core/pull/7854), [#7872](https://github.com/MetaMask/core/pull/7872), [#7897](https://github.com/MetaMask/core/pull/7897))
 - Bump `@metamask/multichain-network-controller` from `3.0.2` to `3.0.3` ([#7897](https://github.com/MetaMask/core/pull/7897))
 
 ### Fixed
