@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [107.0.0]
+
 ### Added
 
 - Export new type `TrendingTokensQueryParams` for extensible trending token query parameters ([#8729](https://github.com/MetaMask/core/pull/8729))
@@ -15,11 +17,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **BREAKING:** `getTrendingTokens` now accepts `sort` instead of `sortBy` to match the API parameter name ([#8729](https://github.com/MetaMask/core/pull/8729))
 - `getTrendingTokens` and `getTrendingTokensURL` now accept arbitrary query parameters via an index signature on `TrendingTokensQueryParams`, allowing new API parameters to pass through without a core release ([#8729](https://github.com/MetaMask/core/pull/8729))
-
-## [106.1.0]
-
-### Changed
-
 - Bump `@metamask/network-controller` from `^31.0.0` to `^31.1.0` ([#8765](https://github.com/MetaMask/core/pull/8765))
 - Modify `SPOT_PRICES_SUPPORT_INFO` entries for Tempo chains (`0x1079` and `0xa5bf`) ([#8638](https://github.com/MetaMask/core/pull/8638))
 
@@ -3076,8 +3073,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Use Ethers for AssetsContractController ([#845](https://github.com/MetaMask/core/pull/845))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@106.1.0...HEAD
-[106.1.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@106.0.1...@metamask/assets-controllers@106.1.0
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@107.0.0...HEAD
+[107.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@106.0.1...@metamask/assets-controllers@107.0.0
 [106.0.1]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@106.0.0...@metamask/assets-controllers@106.0.1
 [106.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@105.1.0...@metamask/assets-controllers@106.0.0
 [105.1.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@105.0.0...@metamask/assets-controllers@105.1.0

@@ -13,7 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Update `RpcDataSource` to prevent native `getEthBalance` fetching for Tempo chains ([#8638](https://github.com/MetaMask/core/pull/8638))
 - Bump `@metamask/network-controller` from `^31.0.0` to `^31.1.0` ([#8765](https://github.com/MetaMask/core/pull/8765))
-- Bump `@metamask/assets-controllers` from `^106.0.1` to `^106.1.0` ([#8768](https://github.com/MetaMask/core/pull/8768))
+- Bump `@metamask/assets-controllers` from `^106.0.1` to `^107.0.0` ([#8773](https://github.com/MetaMask/core/pull/8773))
 
 ## [7.0.1]
 
