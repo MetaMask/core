@@ -40,11 +40,11 @@ export const getMockListNotificationsResponse = () => {
   } satisfies MockResponse;
 };
 
-export const getMockQueryNotificationsResponse = () => {
+export const getMockOnChainNotificationsConfig = () => {
   return {
     url: TRIGGER_API_NOTIFICATIONS_QUERY_ENDPOINT(),
     requestMethod: 'POST',
-    response: [],
+    response: [{ address: '0xTestAddress', enabled: true }],
   } satisfies MockResponse;
 };
 

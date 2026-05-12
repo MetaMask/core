@@ -217,7 +217,7 @@ export const DEFAULT_PERPS_PREFERENCES: PerpsPreference = {
  * Hardcoded default Social AI notification preferences. Applied when
  * notification preferences are initialized for the first time.
  */
-export const DEFAULT_SOCIAL_AI_PREFERENCES: SocialAIPreference = {
+export const DEFAULT_SOCIAL_AI_PREFERENCES: Required<SocialAIPreference> = {
   enabled: true,
   inAppNotificationsEnabled: true,
   pushNotificationsEnabled: true,
@@ -273,7 +273,7 @@ const buildFreshPreferences = (
     accounts: walletActivityAccounts,
   },
   marketing: {
-    enabled: hasMarketingConsent,
+    enabled: true,
     inAppNotificationsEnabled: hasMarketingConsent,
     pushNotificationsEnabled: hasMarketingConsent,
   },
@@ -835,6 +835,44 @@ export class NotificationServicesController extends BaseController<
   }
 
   /**
+   * Merges partially initialized preferences with wallet-activity and
+   * notification-channel defaults expected by MetaMask notifications
+   *
+   * @param preferences - The partially initialized preferences
+   * @param hasMarketingConsent - The user's marketing-consent state
+   * @param walletActivityAccounts - The wallet-activity accounts to embed
+   *
+   * @returns Fully initialized notification preferences
+   */
+  #buildPreferencesFromPartialInitialization(
+    preferences: NotificationPreferences,
+    hasMarketingConsent: boolean,
+    walletActivityAccounts: WalletActivityAccount[],
+  ): NotificationPreferences {
+    const withChannelFlags = <T extends { enabled?: boolean }>(
+      value: T,
+      enabled: boolean,
+    ): T => ({
+      ...value, // Leave any existing preferences as-is for forward compatibility
+      enabled: true, // Deprecated, so always set to true until we can remove it
+      inAppNotificationsEnabled: enabled,
+      pushNotificationsEnabled: enabled,
+    });
+    const socialAIEnabled = preferences.socialAI.enabled ?? true;
+    const perpsEnabled = preferences.perps.enabled ?? true;
+    return {
+      ...preferences,
+      socialAI: withChannelFlags(preferences.socialAI, socialAIEnabled),
+      perps: withChannelFlags(preferences.perps, perpsEnabled),
+      walletActivity: {
+        ...withChannelFlags(preferences.walletActivity, true),
+        accounts: walletActivityAccounts,
+      },
+      marketing: withChannelFlags(preferences.marketing, hasMarketingConsent),
+    };
+  }
+
+  /**
    * Sets the state of notification creation process.
    *
    * This method updates the `isUpdatingMetamaskNotifications` state, which can be used to indicate
@@ -1058,21 +1096,11 @@ export class NotificationServicesController extends BaseController<
           bearerToken,
           accounts,
         );
-        nextPreferences = {
-          ...preferences,
-          walletActivity: {
-            enabled: true,
-            inAppNotificationsEnabled: true,
-            pushNotificationsEnabled: true,
-            accounts: walletActivityAccounts,
-          },
-          marketing: {
-            ...preferences.marketing,
-            enabled: hasMarketingConsent,
-            inAppNotificationsEnabled: hasMarketingConsent,
-            pushNotificationsEnabled: hasMarketingConsent,
-          },
-        };
+        nextPreferences = this.#buildPreferencesFromPartialInitialization(
+          preferences,
+          hasMarketingConsent,
+          walletActivityAccounts,
+        );
       }
 
       if (nextPreferences) {

@@ -52,7 +52,8 @@ export type NotificationServicesControllerSetFeatureAnnouncementsEnabledAction =
  * **Action** - Used during Sign In / Enabling of notifications.
  *
  * @param opts - optional options to mutate this functionality
- * @param opts.hasMarketingConsent - initial data required to build initial notification preferences blob when AUS has no notification preferences yet.
+ * @param opts.hasMarketingConsent - initial data required to enable marketing push notifications when AUS has no notification preferences yet.
+ * @param opts.productAnnouncementEnabled - initial data required to enable marketing in-app notifications when AUS has no notification preferences yet.
  * @returns The updated or newly created user storage.
  * @throws {Error} Throws an error if unauthenticated or from other operations.
  */

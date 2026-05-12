@@ -9,13 +9,6 @@ import type {
 import { makeApiCall } from '../utils/utils';
 import { notificationsConfigCache } from './notification-config-cache';
 
-export type NotificationTrigger = {
-  id: string;
-  chainId: string;
-  kind: string;
-  address: string;
-};
-
 export type ENV = 'prd' | 'uat' | 'dev';
 
 const TRIGGER_API_ENV = {
@@ -36,30 +29,27 @@ const NOTIFICATION_API_ENV = {
 export const NOTIFICATION_API = (env: ENV = 'prd'): string =>
   NOTIFICATION_API_ENV[env] ?? NOTIFICATION_API_ENV.prd;
 
-// Gets notification settings for each account provided.
+// Gets notification settings for each account provided
 export const TRIGGER_API_NOTIFICATIONS_QUERY_ENDPOINT = (
   env: ENV = 'prd',
 ): string => `${TRIGGER_API(env)}/api/v2/notifications/query`;
 
-// Lists notifications for each address provided.
+// Lists notifications for each address provided
 export const NOTIFICATION_API_LIST_ENDPOINT = (env: ENV = 'prd'): string =>
   `${NOTIFICATION_API(env)}/api/v3/notifications`;
 
-// Marks notifications as read.
+// Marks notifications as read
 export const NOTIFICATION_API_MARK_ALL_AS_READ_ENDPOINT = (
   env: ENV = 'prd',
 ): string => `${NOTIFICATION_API(env)}/api/v3/notifications/mark-as-read`;
 
 /**
- * Fetches legacy Trigger API notification settings for the given addresses.
+ * Fetches notification config (accounts enabled vs disabled) from the Trigger API.
  *
- * This endpoint is only used to migrate/reconcile wallet-activity settings
- * into AUS notification preferences.
- *
- * @param bearerToken - The JSON Web Token used for authentication in the API call.
+ * @param bearerToken - JWT used for authentication.
  * @param addresses - List of addresses to check.
  * @param env - The environment to use for the API call.
- * @returns A list of address-level enabled states, or an empty array on transport errors.
+ * @returns Trigger API notification config, or an empty array if unavailable.
  */
 export async function getNotificationsApiConfigCached(
   bearerToken: string,
@@ -71,6 +61,7 @@ export async function getNotificationsApiConfigCached(
   }
 
   const normalizedAddresses = addresses.map((addr) => addr.toLowerCase());
+
   const cached = notificationsConfigCache.get(normalizedAddresses);
   if (cached) {
     return cached;

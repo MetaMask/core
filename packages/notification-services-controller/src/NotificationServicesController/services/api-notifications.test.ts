@@ -8,11 +8,16 @@ import {
   createMockPlatformNotification,
 } from '../mocks';
 import * as OnChainNotifications from './api-notifications';
+import { notificationsConfigCache } from './notification-config-cache';
 
 const MOCK_BEARER_TOKEN = 'MOCK_BEARER_TOKEN';
 const MOCK_ADDRESSES = ['0x123', '0x456', '0x789'];
 
 describe('On Chain Notifications - getNotificationsApiConfigCached()', () => {
+  afterEach(() => {
+    notificationsConfigCache.clear();
+  });
+
   it('should return notification config for addresses', async () => {
     const body = [
       { address: '0x123', enabled: true },
@@ -29,24 +34,51 @@ describe('On Chain Notifications - getNotificationsApiConfigCached()', () => {
     expect(result).toStrictEqual(body);
   });
 
-  it('should use cached notification config for repeated address sets', async () => {
-    const body = [
-      { address: '0x123', enabled: true },
-      { address: '0x456', enabled: false },
-    ];
-    const mockEndpoint = mockQueryNotifications({ status: 200, body });
+  it('should bail early when no addresses are provided', async () => {
+    const mockEndpoint = mockQueryNotifications();
 
-    await OnChainNotifications.getNotificationsApiConfigCached(
-      MOCK_BEARER_TOKEN,
-      ['0x123', '0x456'],
-    );
     const result = await OnChainNotifications.getNotificationsApiConfigCached(
       MOCK_BEARER_TOKEN,
-      ['0x123', '0x456'],
+      [],
+    );
+
+    expect(mockEndpoint.isDone()).toBe(false);
+    expect(result).toStrictEqual([]);
+  });
+
+  it('should cache returned notification config', async () => {
+    const mockEndpoint = mockQueryNotifications({
+      status: 200,
+      body: [{ address: '0x123', enabled: true }],
+    });
+
+    await expect(
+      OnChainNotifications.getNotificationsApiConfigCached(MOCK_BEARER_TOKEN, [
+        '0x123',
+      ]),
+    ).resolves.toStrictEqual([{ address: '0x123', enabled: true }]);
+    await expect(
+      OnChainNotifications.getNotificationsApiConfigCached(MOCK_BEARER_TOKEN, [
+        '0x123',
+      ]),
+    ).resolves.toStrictEqual([{ address: '0x123', enabled: true }]);
+
+    expect(mockEndpoint.isDone()).toBe(true);
+  });
+
+  it('should return an empty array if the Trigger API fails', async () => {
+    const mockEndpoint = mockQueryNotifications({
+      status: 500,
+      body: { error: 'mock api failure' },
+    });
+
+    const result = await OnChainNotifications.getNotificationsApiConfigCached(
+      MOCK_BEARER_TOKEN,
+      MOCK_ADDRESSES,
     );
 
     expect(mockEndpoint.isDone()).toBe(true);
-    expect(result).toStrictEqual(body);
+    expect(result).toStrictEqual([]);
   });
 });
 

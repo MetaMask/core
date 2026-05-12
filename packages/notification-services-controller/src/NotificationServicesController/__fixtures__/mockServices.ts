@@ -4,8 +4,8 @@ import {
   getMockFeatureAnnouncementResponse,
   getMockListNotificationsResponse,
   getMockMarkNotificationsAsReadResponse,
-  getMockQueryNotificationsResponse,
   getMockCreatePerpOrderNotification,
+  getMockOnChainNotificationsConfig,
 } from '../mocks/mockResponses';
 
 type MockReply = {
@@ -39,12 +39,11 @@ export const mockGetAPINotifications = (mockReply?: MockReply): nock.Scope => {
 };
 
 export const mockQueryNotifications = (mockReply?: MockReply): nock.Scope => {
-  const mockResponse = getMockQueryNotificationsResponse();
+  const mockResponse = getMockOnChainNotificationsConfig();
   const reply = mockReply ?? { status: 200, body: mockResponse.response };
 
   const mockEndpoint = nock(mockResponse.url)
     .post('')
-    .query(true)
     .reply(reply.status, reply.body);
 
   return mockEndpoint;
