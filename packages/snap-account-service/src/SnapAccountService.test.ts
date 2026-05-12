@@ -546,6 +546,48 @@ describe('SnapAccountService', () => {
       });
       expect(removeKeyring).toHaveBeenCalledWith(legacyKeyringId);
     });
+
+    it('does not re-run after a successful migration', async () => {
+      const { service, mocks } = setup();
+      mocks.KeyringController.withController.mockResolvedValue(undefined);
+
+      await service.migrate();
+      await service.migrate();
+
+      expect(mocks.KeyringController.withController).toHaveBeenCalledTimes(1);
+    });
+
+    it('retries on a subsequent call after a failed migration', async () => {
+      const { service, mocks } = setup();
+      const error = new Error('migration boom');
+      mocks.KeyringController.withController
+        .mockRejectedValueOnce(error)
+        .mockResolvedValueOnce(undefined);
+
+      await expect(service.migrate()).rejects.toThrow(error);
+      await expect(service.migrate()).resolves.toBeUndefined();
+
+      expect(mocks.KeyringController.withController).toHaveBeenCalledTimes(2);
+    });
+
+    it('shares the rejection across concurrent callers but allows a later retry', async () => {
+      const { service, mocks } = setup();
+      const error = new Error('migration boom');
+      mocks.KeyringController.withController
+        .mockRejectedValueOnce(error)
+        .mockResolvedValueOnce(undefined);
+
+      const [first, second] = await Promise.allSettled([
+        service.migrate(),
+        service.migrate(),
+      ]);
+      expect(first).toStrictEqual({ status: 'rejected', reason: error });
+      expect(second).toStrictEqual({ status: 'rejected', reason: error });
+      expect(mocks.KeyringController.withController).toHaveBeenCalledTimes(1);
+
+      await expect(service.migrate()).resolves.toBeUndefined();
+      expect(mocks.KeyringController.withController).toHaveBeenCalledTimes(2);
+    });
   });
 
   describe('ensureReady', () => {

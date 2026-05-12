@@ -178,6 +178,8 @@ export class SnapAccountService {
 
   readonly #tracker: SnapTracker;
 
+  #migrated = false;
+
   #migratePromise: Promise<void> | null = null;
 
   /**
@@ -340,10 +342,19 @@ export class SnapAccountService {
    * @returns A promise that resolves when the migration is complete.
    */
   async migrate(): Promise<void> {
-    if (!this.#migratePromise) {
-      this.#migratePromise = this.#migrate();
+    if (this.#migrated) {
+      return;
     }
-    return await this.#migratePromise;
+    if (!this.#migratePromise) {
+      this.#migratePromise = this.#migrate()
+        .then(() => {
+          this.#migrated = true;
+        })
+        .finally(() => {
+          this.#migratePromise = null;
+        });
+    }
+    await this.#migratePromise;
   }
 
   /**

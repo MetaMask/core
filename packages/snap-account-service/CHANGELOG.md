@@ -43,6 +43,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - The service messenger now requires the `AccountTreeController:getSelectedAccountGroup` and `AccountTreeController:getAccountGroupObject` actions.
 - Add `migrate` ([#8732](https://github.com/MetaMask/core/pull/8732))
   - The migration is guaranteed to be run when using `ensureReady`.
+  - If the migration is not successful, it will get retried everytime we need to interact with any Snap keyring (v2) instances.
   - It is conccurent-free and can safely be called by multiple execution flows.
   - Once the migration has ran, the legacy Snap keyring will be emptied, thus, consumers are expected to use the new per-Snap keyring (v2) instances instead.
 
