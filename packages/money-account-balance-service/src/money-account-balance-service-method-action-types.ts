@@ -10,6 +10,7 @@ import type { MoneyAccountBalanceService } from './money-account-balance-service
  *
  * @param accountAddress - The Money account's Ethereum address.
  * @returns The mUSD balance as a raw uint256 string.
+ * @throws {@link VaultConfigNotAvailableError} if vault config has not been loaded.
  */
 export type MoneyAccountBalanceServiceGetMusdBalanceAction = {
   type: `MoneyAccountBalanceService:getMusdBalance`;
@@ -22,6 +23,7 @@ export type MoneyAccountBalanceServiceGetMusdBalanceAction = {
  *
  * @param accountAddress - The Money account's Ethereum address.
  * @returns The musdSHFvd balance as a raw uint256 string.
+ * @throws {@link VaultConfigNotAvailableError} if vault config has not been loaded.
  */
 export type MoneyAccountBalanceServiceGetMusdSHFvdBalanceAction = {
   type: `MoneyAccountBalanceService:getMusdSHFvdBalance`;
@@ -36,6 +38,7 @@ export type MoneyAccountBalanceServiceGetMusdSHFvdBalanceAction = {
  * @param options - The options for the query.
  * @param options.staleTime - The stale time for the query. Defaults to 30 seconds.
  * @returns The exchange rate as a raw uint256 string.
+ * @throws {@link VaultConfigNotAvailableError} if vault config has not been loaded.
  */
 export type MoneyAccountBalanceServiceGetExchangeRateAction = {
   type: `MoneyAccountBalanceService:getExchangeRate`;
@@ -51,6 +54,7 @@ export type MoneyAccountBalanceServiceGetExchangeRateAction = {
  * @param accountAddress - The Money account's Ethereum address.
  * @returns The musdSHFvd balance, exchange rate, and computed
  * mUSD-equivalent value as raw uint256 strings.
+ * @throws {@link VaultConfigNotAvailableError} if vault config has not been loaded.
  */
 export type MoneyAccountBalanceServiceGetMusdEquivalentValueAction = {
   type: `MoneyAccountBalanceService:getMusdEquivalentValue`;
@@ -61,6 +65,7 @@ export type MoneyAccountBalanceServiceGetMusdEquivalentValueAction = {
  * Fetches the vault's APY and fee breakdown from the Veda performance REST API.
  *
  * @returns The normalized vault APY response.
+ * @throws {@link VaultConfigNotAvailableError} if vault config has not been loaded.
  */
 export type MoneyAccountBalanceServiceGetVaultApyAction = {
   type: `MoneyAccountBalanceService:getVaultApy`;

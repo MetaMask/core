@@ -20,6 +20,7 @@ const ENFORCER_CONTRACT_NAMES = {
   ValueLteEnforcer: 'ValueLteEnforcer',
   NonceEnforcer: 'NonceEnforcer',
   AllowedCalldataEnforcer: 'AllowedCalldataEnforcer',
+  AllowedTargetsEnforcer: 'AllowedTargetsEnforcer',
   RedeemerEnforcer: 'RedeemerEnforcer',
 };
 
@@ -109,6 +110,10 @@ export const getChecksumEnforcersByChainId = (
     ENFORCER_CONTRACT_NAMES.AllowedCalldataEnforcer,
   );
 
+  const allowedTargetsEnforcer = getChecksumContractAddress(
+    ENFORCER_CONTRACT_NAMES.AllowedTargetsEnforcer,
+  );
+
   const redeemerEnforcer = getChecksumContractAddress(
     ENFORCER_CONTRACT_NAMES.RedeemerEnforcer,
   );
@@ -123,6 +128,7 @@ export const getChecksumEnforcersByChainId = (
     timestampEnforcer,
     nonceEnforcer,
     allowedCalldataEnforcer,
+    allowedTargetsEnforcer,
     redeemerEnforcer,
   };
 };

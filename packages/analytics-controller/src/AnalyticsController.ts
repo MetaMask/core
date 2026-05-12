@@ -220,7 +220,10 @@ export class AnalyticsController extends BaseController<
       ...state,
     };
 
-    validateAnalyticsControllerState(initialState);
+    validateAnalyticsControllerState(
+      initialState,
+      platformAdapter.skipUUIDv4Check === true,
+    );
 
     super({
       name: controllerName,

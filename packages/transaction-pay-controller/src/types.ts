@@ -1,10 +1,18 @@
-import type { AssetsControllerGetStateForTransactionPayAction } from '@metamask/assets-controller';
+import type {
+  AssetsControllerGetStateForTransactionPayAction,
+  AssetsControllerStateChangeEvent,
+} from '@metamask/assets-controller';
 import type {
   CurrencyRateControllerGetStateAction,
+  CurrencyRateStateChange,
   TokenBalancesControllerGetStateAction,
 } from '@metamask/assets-controllers';
 import type { TokenRatesControllerGetStateAction } from '@metamask/assets-controllers';
-import type { TokensControllerGetStateAction } from '@metamask/assets-controllers';
+import type { TokenRatesControllerStateChangeEvent } from '@metamask/assets-controllers';
+import type {
+  TokensControllerGetStateAction,
+  TokensControllerStateChangeEvent,
+} from '@metamask/assets-controllers';
 import type { AccountTrackerControllerGetStateAction } from '@metamask/assets-controllers';
 import type { ControllerStateChangeEvent } from '@metamask/base-controller';
 import type { ControllerGetStateAction } from '@metamask/base-controller';
@@ -82,7 +90,11 @@ export type AllowedActions =
   | TransactionControllerUpdateTransactionAction;
 
 export type AllowedEvents =
+  | AssetsControllerStateChangeEvent
   | BridgeStatusControllerStateChangeEvent
+  | CurrencyRateStateChange
+  | TokenRatesControllerStateChangeEvent
+  | TokensControllerStateChangeEvent
   | TransactionControllerStateChangeEvent
   | TransactionControllerUnapprovedTransactionAddedEvent;
 
@@ -111,8 +123,8 @@ export type TransactionConfig = {
   isPostQuote?: boolean;
 
   /**
-   * Optional address to receive refunds if the Relay transaction fails.
-   * When set, overrides the default refund recipient (EOA) in the Relay quote
+   * Optional address to receive refunds if the quote provider transaction fails.
+   * When set, overrides the default refund recipient (EOA) in the quote
    * request. Use this for post-quote flows where the user's funds originate
    * from a smart contract account (e.g. Predict Safe proxy) so that refunds
    * go back to that account rather than the EOA.
@@ -212,8 +224,8 @@ export type TransactionData = {
   isHyperliquidSource?: boolean;
 
   /**
-   * Optional address to receive refunds if the Relay transaction fails.
-   * When set, overrides the default refund recipient (EOA) in the Relay quote
+   * Optional address to receive refunds if the quote provider transaction fails.
+   * When set, overrides the default refund recipient (EOA) in the quote
    * request.
    */
   refundTo?: Hex;
@@ -252,6 +264,9 @@ export type TransactionData = {
 export type TransactionFiatPayment = {
   /** Entered fiat amount for the selected payment method. */
   amountFiat?: string;
+
+  /** CAIP-19 asset id derived from the transaction type for the fiat on-ramp. */
+  caipAssetId?: string;
 
   /** Order identifier in normalized format (/providers/{provider}/orders/{id}). */
   orderId?: string;
@@ -388,8 +403,8 @@ export type QuoteRequest = {
   isHyperliquidSource?: boolean;
 
   /**
-   * Optional address to receive refunds if the Relay transaction fails.
-   * When set, overrides the default refund recipient (EOA) in the Relay quote
+   * Optional address to receive refunds if the quote provider transaction fails.
+   * When set, overrides the default refund recipient (EOA) in the quote
    * request.
    */
   refundTo?: Hex;

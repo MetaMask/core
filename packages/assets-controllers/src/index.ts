@@ -128,6 +128,7 @@ export type {
   TokenListControllerMessenger,
 } from './TokenListController';
 export { TokenListController } from './TokenListController';
+export { TokenListService, buildTokenListMap } from './TokenListService';
 export type {
   ContractExchangeRates,
   ContractMarketData,
@@ -291,6 +292,7 @@ export { createFormatters } from './utils/formatters';
 export type {
   SortTrendingBy,
   TrendingAsset,
+  TrendingTokensQueryParams,
   TokenSearchItem,
   TokenAsset,
   TokenRwaData,

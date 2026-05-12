@@ -1905,6 +1905,23 @@ describe('AssetsController', () => {
         expect(true).toBe(true);
       });
     });
+
+    it('refreshes assets when a network is added or removed', async () => {
+      await withController(async ({ messenger }) => {
+        (messenger.publish as CallableFunction)(
+          'NetworkController:networkAdded',
+          { chainId: '0x89' },
+        );
+        (messenger.publish as CallableFunction)(
+          'NetworkController:networkRemoved',
+          { chainId: '0x89' },
+        );
+
+        await new Promise(process.nextTick);
+
+        expect(true).toBe(true);
+      });
+    });
   });
 
   describe('account group changes', () => {

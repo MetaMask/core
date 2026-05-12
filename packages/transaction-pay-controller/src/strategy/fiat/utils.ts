@@ -1,21 +1,28 @@
-import {
-  TransactionMeta,
-  TransactionType,
-} from '@metamask/transaction-controller';
+import type { TransactionMeta } from '@metamask/transaction-controller';
+import { TransactionType } from '@metamask/transaction-controller';
 
-import { FIAT_ASSET_ID_BY_TX_TYPE, TransactionPayFiatAsset } from './constants';
+import type { TransactionPayControllerMessenger } from '../../types';
+import { getFiatAssetPerTransactionType } from '../../utils/feature-flags';
+import type { TransactionPayFiatAsset } from './constants';
+import { FIAT_ASSET_ID_BY_TX_TYPE } from './constants';
 
 export function deriveFiatAssetForFiatPayment(
   transaction: TransactionMeta,
-): TransactionPayFiatAsset | undefined {
-  const transactionType = transaction?.type;
+  messenger: TransactionPayControllerMessenger,
+): TransactionPayFiatAsset {
+  const txType = resolveTransactionType(transaction);
 
-  if (transactionType === TransactionType.batch) {
-    const firstMatchingType = transaction.nestedTransactions?.[0]?.type;
-    if (firstMatchingType) {
-      return FIAT_ASSET_ID_BY_TX_TYPE[firstMatchingType];
-    }
+  return getFiatAssetPerTransactionType(messenger, txType);
+}
+
+function resolveTransactionType(
+  transaction: TransactionMeta,
+): TransactionType | undefined {
+  if (transaction.type !== TransactionType.batch) {
+    return transaction.type;
   }
 
-  return FIAT_ASSET_ID_BY_TX_TYPE[transactionType as TransactionType];
+  return transaction.nestedTransactions?.find(
+    (tx) => tx.type && FIAT_ASSET_ID_BY_TX_TYPE[tx.type] !== undefined,
+  )?.type;
 }

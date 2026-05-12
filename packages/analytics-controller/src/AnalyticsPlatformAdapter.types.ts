@@ -68,6 +68,12 @@ export type AnalyticsInvocationOptions = {
  */
 export type AnalyticsPlatformAdapter = {
   /**
+   * When `true`, the controller accepts any non-empty `analyticsId` string
+   * instead of requiring UUIDv4 format. Defaults to validation against UUIDv4 when omitted or `false`.
+   */
+  skipUUIDv4Check?: boolean;
+
+  /**
    * Track an analytics event.
    *
    * This is the same as trackEvent in the old analytics system

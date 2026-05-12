@@ -205,16 +205,31 @@ function validateParamValue(value?: string): void {
  *
  * @param txParams - The transaction parameters object to validate.
  * @throws Throws an error if the recipient address is invalid:
- * - If the recipient address is an empty string ('0x') or undefined and the transaction contains data,
- * the "to" field is removed from the transaction parameters.
- * - If the recipient address is not a valid hexadecimal Ethereum address, an error is thrown.
+ * - If the recipient address is missing (empty string, '0x', or undefined) and the
+ * transaction does not contain real bytecode (data must be longer than `0x`),
+ * an error is thrown. This prevents accidental contract deployments with empty
+ * `to` and empty `data` from locking funds.
+ * - If the recipient address is missing and the transaction contains real
+ * bytecode (data longer than `0x`), the "to" field is removed from the
+ * transaction parameters (legitimate contract deployment).
+ * - If the recipient address is not a valid hexadecimal Ethereum address, an
+ * error is thrown.
  */
 function validateParamRecipient(txParams: TransactionParams): void {
-  if (txParams.to === '0x' || txParams.to === undefined) {
-    if (txParams.data) {
+  const isMissingRecipient =
+    txParams.to === '0x' || txParams.to === '' || txParams.to === undefined;
+
+  if (isMissingRecipient) {
+    const hasRealBytecode = Boolean(
+      txParams.data && txParams.data !== '0x' && txParams.data.length > 2,
+    );
+
+    if (hasRealBytecode) {
       delete txParams.to;
     } else {
-      throw rpcErrors.invalidParams(`Invalid "to" address.`);
+      throw rpcErrors.invalidParams(
+        `Invalid "to" address: must be specified for transactions without contract deployment bytecode.`,
+      );
     }
   } else if (txParams.to !== undefined && !isValidHexAddress(txParams.to)) {
     throw rpcErrors.invalidParams(`Invalid "to" address.`);

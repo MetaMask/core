@@ -375,12 +375,15 @@ linkStyle default opacity:0.5
   money_account_balance_service --> controller_utils;
   money_account_balance_service --> messenger;
   money_account_balance_service --> network_controller;
+  money_account_balance_service --> remote_feature_flag_controller;
   money_account_controller --> accounts_controller;
   money_account_controller --> base_controller;
   money_account_controller --> keyring_controller;
   money_account_controller --> messenger;
+  money_account_upgrade_controller --> authenticated_user_storage;
   money_account_upgrade_controller --> base_controller;
   money_account_upgrade_controller --> chomp_api_service;
+  money_account_upgrade_controller --> delegation_controller;
   money_account_upgrade_controller --> keyring_controller;
   money_account_upgrade_controller --> messenger;
   money_account_upgrade_controller --> network_controller;
@@ -388,6 +391,7 @@ linkStyle default opacity:0.5
   multichain_account_service --> base_controller;
   multichain_account_service --> keyring_controller;
   multichain_account_service --> messenger;
+  multichain_account_service --> snap_account_service;
   multichain_account_service --> controller_utils;
   multichain_api_middleware --> accounts_controller;
   multichain_api_middleware --> chain_agnostic_permission;
@@ -507,6 +511,8 @@ linkStyle default opacity:0.5
   signature_controller --> logging_controller;
   signature_controller --> messenger;
   signature_controller --> network_controller;
+  snap_account_service --> account_tree_controller;
+  snap_account_service --> keyring_controller;
   snap_account_service --> messenger;
   social_controllers --> base_controller;
   social_controllers --> base_data_service;

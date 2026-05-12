@@ -303,6 +303,11 @@ export type QuoteResponse<
    * If defined, the quote's total network fee will include the reset approval's gas limit.
    */
   resetApproval?: TxData;
+  /**
+   * Appended to the quote if there are multiple quote requests in a batch. This
+   * indicates which quoteRequest the quote is for
+   */
+  quoteRequestIndex?: number;
 };
 
 export enum ChainId {
@@ -358,7 +363,7 @@ export enum BridgeBackgroundAction {
 }
 
 export type BridgeControllerState = {
-  quoteRequest: Partial<GenericQuoteRequest>;
+  quoteRequest: Partial<GenericQuoteRequest>[];
   quotes: (QuoteResponse & L1GasFees & NonEvmFees)[];
   /**
    * The time elapsed between the initial quote fetch and when the first valid quote was received

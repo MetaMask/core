@@ -197,6 +197,60 @@ describe('AcrossStrategy', () => {
     ).toBe(true);
   });
 
+  it('supports post-quote predict withdraw requests with source-chain authorization lists', () => {
+    const strategy = new AcrossStrategy();
+    expect(
+      strategy.supports({
+        ...baseRequest,
+        transaction: {
+          ...TRANSACTION_META_MOCK,
+          nestedTransactions: [{ type: TransactionType.predictWithdraw }],
+          txParams: {
+            ...TRANSACTION_META_MOCK.txParams,
+            authorizationList: [{ address: '0xabc' as Hex }],
+            data: '0x12345678' as Hex,
+            to: '0xdef' as Hex,
+          },
+        } as TransactionMeta,
+        requests: [
+          {
+            from: '0xabc' as Hex,
+            isPostQuote: true,
+            sourceBalanceRaw: '100',
+            sourceChainId: '0x1' as Hex,
+            sourceTokenAddress: '0xabc' as Hex,
+            sourceTokenAmount: '100',
+            targetAmountMinimum: '0',
+            targetChainId: '0x2' as Hex,
+            targetTokenAddress: '0xdef' as Hex,
+          },
+        ],
+      }),
+    ).toBe(true);
+  });
+
+  it('does not support post-quote requests outside predict withdraw', () => {
+    const strategy = new AcrossStrategy();
+    expect(
+      strategy.supports({
+        ...baseRequest,
+        requests: [
+          {
+            from: '0xabc' as Hex,
+            isPostQuote: true,
+            sourceBalanceRaw: '100',
+            sourceChainId: '0x1' as Hex,
+            sourceTokenAddress: '0xabc' as Hex,
+            sourceTokenAmount: '100',
+            targetAmountMinimum: '0',
+            targetChainId: '0x2' as Hex,
+            targetTokenAddress: '0xdef' as Hex,
+          },
+        ],
+      }),
+    ).toBe(false);
+  });
+
   it('returns false for unsupported perps deposits', () => {
     const strategy = new AcrossStrategy();
     expect(

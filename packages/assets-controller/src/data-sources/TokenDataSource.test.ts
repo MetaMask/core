@@ -780,6 +780,47 @@ describe('TokenDataSource', () => {
     );
   });
 
+  it('middleware bypasses occurrence filter for custom assets when state-stored ID is checksummed and API returns lower-case', async () => {
+    // State stores customs in normalized (checksummed) form; the V3 Tokens
+    // API can echo the same asset ID lower-cased. Without a case-insensitive
+    // bypass, the user's imported asset would fall through to the
+    // occurrence filter and be stripped from `response.assetsInfo`.
+    const checksummedCustomAsset =
+      'eip155:1/erc20:0xA0b86991c6218b36c1D19D4a2e9Eb0cE3606eB48' as Caip19AssetId;
+    const lowercaseCustomAsset =
+      'eip155:1/erc20:0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48' as Caip19AssetId;
+
+    const { controller } = setupController({
+      messenger: createTestMessenger(),
+      supportedNetworks: ['eip155:1'],
+      assetsResponse: [
+        createMockAssetResponse(lowercaseCustomAsset, { occurrences: 1 }),
+      ],
+    });
+
+    const next = jest.fn().mockResolvedValue(undefined);
+    const context: Context = {
+      request: createDataRequest(),
+      response: {
+        detectedAssets: {
+          'mock-account-id': [checksummedCustomAsset],
+        },
+      },
+      getAssetsState: jest.fn().mockReturnValue({
+        assetsInfo: {},
+        customAssets: {
+          'mock-account-id': [checksummedCustomAsset],
+        },
+      }),
+    };
+
+    await controller.assetsMiddleware(context, next);
+
+    // Custom asset is preserved despite occurrences=1 because the
+    // user-imported bypass is case-insensitive.
+    expect(context.response.assetsInfo?.[lowercaseCustomAsset]).toBeDefined();
+  });
+
   it.each([
     { occurrences: 1, label: 'low occurrences' },
     { occurrences: undefined, label: 'no occurrences' },
