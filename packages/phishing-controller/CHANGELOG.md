@@ -14,6 +14,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Exposes match metadata including prefix/suffix match lengths, poisoning score, and diff indices
 - Add `@metamask/address-book-controller` as a dependency ([#8171](https://github.com/MetaMask/core/pull/8171))
 
+### Changed
+
+- Bump `@metamask/controller-utils` from `^12.0.0` to `^12.1.0` ([#8774](https://github.com/MetaMask/core/pull/8774))
+
 ## [17.1.2]
 
 ### Changed

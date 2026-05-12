@@ -380,8 +380,10 @@ linkStyle default opacity:0.5
   money_account_controller --> base_controller;
   money_account_controller --> keyring_controller;
   money_account_controller --> messenger;
+  money_account_upgrade_controller --> authenticated_user_storage;
   money_account_upgrade_controller --> base_controller;
   money_account_upgrade_controller --> chomp_api_service;
+  money_account_upgrade_controller --> delegation_controller;
   money_account_upgrade_controller --> keyring_controller;
   money_account_upgrade_controller --> messenger;
   money_account_upgrade_controller --> network_controller;
@@ -510,6 +512,7 @@ linkStyle default opacity:0.5
   signature_controller --> logging_controller;
   signature_controller --> messenger;
   signature_controller --> network_controller;
+  snap_account_service --> account_tree_controller;
   snap_account_service --> keyring_controller;
   snap_account_service --> messenger;
   social_controllers --> base_controller;

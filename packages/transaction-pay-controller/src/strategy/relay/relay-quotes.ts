@@ -669,7 +669,17 @@ async function calculateSourceNetworkCost(
   const isPredictWithdraw =
     request.isPostQuote && isPredictWithdrawTransaction(transaction);
 
-  const fromOverride = isPredictWithdraw ? request.refundTo : undefined;
+  // `fromOverride = Safe proxy` is only valid for deposit-style Relay routes
+  // where the deposit contract reads the user's source-token balance directly.
+  // Same-chain destinations route through DEX swap aggregators that frequently
+  // reject contract callers (anti-MEV `msg.sender == tx.origin` checks,
+  // ERC777-style callback interfaces, native wrap/unwrap requiring caller
+  // native balance). Simulating those from the Safe proxy reverts and breaks
+  // gas estimation. For swap-only routes, fall back to the relay params'
+  // EOA `from` so simulation succeeds.
+  const hasDepositStep = quote.steps.some((step) => step.id === 'deposit');
+  const useFromOverride = isPredictWithdraw && hasDepositStep;
+  const fromOverride = useFromOverride ? request.refundTo : undefined;
 
   const relayOnlyGas = await calculateSourceNetworkGasLimit(
     relayParams,
@@ -745,6 +755,13 @@ async function calculateSourceNetworkCost(
     max: max.raw,
   });
 
+  // Gas-fee-token lookup must use the Safe proxy for ALL Predict withdraws,
+  // not only deposit-style routes. The user's source token (pUSD) lives in
+  // the Safe; the EOA is empty until the Safe.execTransaction sub-call runs
+  // mid-batch. Querying the EOA for gas-fee-token availability would always
+  // return nothing and force users to hold POL.
+  // (`useFromOverride` only governs the gas-estimation `from` address, where
+  // swap-style routes need EOA because DEX routers reject contract callers.)
   if (isPredictWithdraw && request.refundTo) {
     log('Using proxy address for predict withdraw gas station simulation', {
       proxyAddress: request.refundTo,

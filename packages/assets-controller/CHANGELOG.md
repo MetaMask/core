@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [7.1.1]
+
+### Changed
+
+- Bump `@metamask/accounts-controller` from `^38.1.0` to `^38.1.1` ([#8774](https://github.com/MetaMask/core/pull/8774))
+- Bump `@metamask/assets-controllers` from `^107.0.0` to `^108.0.0` ([#8774](https://github.com/MetaMask/core/pull/8774))
+- Bump `@metamask/network-controller` from `^31.1.0` to `^32.0.0` ([#8774](https://github.com/MetaMask/core/pull/8774))
+- Bump `@metamask/controller-utils` from `^12.0.0` to `^12.1.0` ([#8774](https://github.com/MetaMask/core/pull/8774))
+
+## [7.1.0]
+
+### Changed
+
+- Update `RpcDataSource` to prevent native `getEthBalance` fetching for Tempo chains ([#8638](https://github.com/MetaMask/core/pull/8638))
+- Bump `@metamask/network-controller` from `^31.0.0` to `^31.1.0` ([#8765](https://github.com/MetaMask/core/pull/8765))
+- Bump `@metamask/assets-controllers` from `^106.0.1` to `^107.0.0` ([#8773](https://github.com/MetaMask/core/pull/8773))
+
 ## [7.0.1]
 
 ### Changed
@@ -463,7 +480,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Refactor `RpcDataSource` to delegate polling to `BalanceFetcher` and `TokenDetector` services ([#7709](https://github.com/MetaMask/core/pull/7709))
 - Refactor `BalanceFetcher` and `TokenDetector` to extend `StaticIntervalPollingControllerOnly` for independent polling management ([#7709](https://github.com/MetaMask/core/pull/7709))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@7.0.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@7.1.1...HEAD
+[7.1.1]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@7.1.0...@metamask/assets-controller@7.1.1
+[7.1.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@7.0.1...@metamask/assets-controller@7.1.0
 [7.0.1]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@7.0.0...@metamask/assets-controller@7.0.1
 [7.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@6.4.0...@metamask/assets-controller@7.0.0
 [6.4.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@6.3.0...@metamask/assets-controller@6.4.0

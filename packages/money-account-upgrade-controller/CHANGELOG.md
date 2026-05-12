@@ -7,6 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.0.1]
+
+### Changed
+
+- Bump `@metamask/network-controller` from `^31.1.0` to `^32.0.0` ([#8774](https://github.com/MetaMask/core/pull/8774))
+
+## [2.0.0]
+
+### Added
+
+- Add remaining steps in money account upgrade process ([#8621](https://github.com/MetaMask/core/pull/8621))
+
+### Changed
+
+- **BREAKING:** The controller messenger now requires access to six additional allowed actions: `AuthenticatedUserStorageService:listDelegations`, `AuthenticatedUserStorageService:createDelegation`, `ChompApiService:verifyDelegation`, `ChompApiService:getIntentsByAddress`, `ChompApiService:createIntents`, and `DelegationController:signDelegation`. Delegation signing is now delegated to `@metamask/delegation-controller` rather than calling `KeyringController:signTypedMessage` directly; consumers must instantiate `DelegationController` and update their messenger configuration accordingly. ([#8621](https://github.com/MetaMask/core/pull/8621))
+- **BREAKING:** `init()` now takes a `{ chainId, boringVaultAddress }` object instead of an `InitConfig`. The EIP-7702 delegator implementation and caveat enforcer addresses are resolved from `@metamask/delegation-deployments` for the target chain; `init()` throws if the chain is not supported by Delegation Framework 1.3.0. The `InitConfig` type is no longer exported. ([#8621](https://github.com/MetaMask/core/pull/8621))
+- Add `@metamask/authenticated-user-storage`, `@metamask/delegation-controller`, `@metamask/delegation-core`, and `@metamask/delegation-deployments` as dependencies. ([#8621](https://github.com/MetaMask/core/pull/8621))
+- Bump `@metamask/network-controller` from `^31.0.0` to `^31.1.0` ([#8765](https://github.com/MetaMask/core/pull/8765))
+- Bump `@metamask/chomp-api-service` from `^3.0.1` to `^3.1.0` ([#8769](https://github.com/MetaMask/core/pull/8769))
+
+### Fixed
+
+- Build-delegation step no longer emits a redundant duplicate `ValueLteEnforcer` caveat; the Delegation Framework treats both as equivalent, but the duplicate was inadvertently inherited from `@metamask/smart-accounts-kit`'s `erc20TransferAmount` scope helper. ([#8621](https://github.com/MetaMask/core/pull/8621))
+- EIP-7702 authorization step now treats a 409 response from `POST /v1/account-upgrade` as `already-done` instead of a fatal error, making the step retry-safe when a prior submission was accepted by CHOMP but has not yet been observed on-chain. ([#8621](https://github.com/MetaMask/core/pull/8621))
+
 ## [1.3.2]
 
 ### Changed
@@ -60,7 +85,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Add `MoneyAccountUpgradeController` with `upgradeAccount` method ([#8426](https://github.com/MetaMask/core/pull/8426))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/money-account-upgrade-controller@1.3.2...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/money-account-upgrade-controller@2.0.1...HEAD
+[2.0.1]: https://github.com/MetaMask/core/compare/@metamask/money-account-upgrade-controller@2.0.0...@metamask/money-account-upgrade-controller@2.0.1
+[2.0.0]: https://github.com/MetaMask/core/compare/@metamask/money-account-upgrade-controller@1.3.2...@metamask/money-account-upgrade-controller@2.0.0
 [1.3.2]: https://github.com/MetaMask/core/compare/@metamask/money-account-upgrade-controller@1.3.1...@metamask/money-account-upgrade-controller@1.3.2
 [1.3.1]: https://github.com/MetaMask/core/compare/@metamask/money-account-upgrade-controller@1.3.0...@metamask/money-account-upgrade-controller@1.3.1
 [1.3.0]: https://github.com/MetaMask/core/compare/@metamask/money-account-upgrade-controller@1.2.0...@metamask/money-account-upgrade-controller@1.3.0
