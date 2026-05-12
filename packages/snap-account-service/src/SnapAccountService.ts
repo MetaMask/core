@@ -388,7 +388,7 @@ export class SnapAccountService {
             `Forwarding selected accounts (from "${groupId}"): ${accounts.join(', ')}`,
           );
         } else {
-          log(`Cleearing selected accounts (from "${groupId}")`);
+          log(`Clearing selected accounts (from "${groupId}")`);
         }
 
         const snapKeyring = await this.getLegacySnapKeyring();
