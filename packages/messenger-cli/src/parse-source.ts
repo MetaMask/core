@@ -5,30 +5,10 @@ import type {
   ArrayLiteralExpression,
   ClassDeclaration,
   MethodDeclaration,
-  Node as TSNode,
-  Program,
+  Node as TsMorphNode,
   SourceFile,
-  Type,
-} from 'typescript';
-import {
-  ScriptTarget,
-  createProgram,
-  createSourceFile,
-  findConfigFile,
-  forEachChild,
-  getJSDocCommentsAndTags,
-  isArrayLiteralExpression,
-  isAsExpression,
-  isClassDeclaration,
-  isIdentifier,
-  isJSDoc,
-  isMethodDeclaration,
-  isStringLiteral,
-  isVariableStatement,
-  parseJsonConfigFileContent,
-  readConfigFile,
-  sys,
-} from 'typescript';
+} from 'ts-morph';
+import { Node as NodeGuards, Project } from 'ts-morph';
 
 export type MethodInfo = {
   name: string;
@@ -41,36 +21,24 @@ export type SourceInfo = {
   methods: MethodInfo[];
 };
 
-type VisitorContext = {
-  exposedMethods: string[];
-  className: string;
-  methods: MethodInfo[];
-  sourceFile: SourceFile;
-};
-
 /**
- * Extracts JSDoc comment from a method declaration.
+ * Extracts JSDoc comment from a method declaration. When the method has
+ * overload signatures, JSDoc is typically placed on the first overload rather
+ * than the implementation, so overload signatures are checked first.
  *
- * @param node - The method declaration node.
- * @param source - The source file.
- * @returns The JSDoc comment.
+ * @param method - The method declaration node.
+ * @returns The formatted JSDoc comment.
  */
-function extractJSDoc(node: MethodDeclaration, source: SourceFile): string {
-  const jsDocTags = getJSDocCommentsAndTags(node);
-  if (jsDocTags.length === 0) {
-    return '';
+function extractJSDoc(method: MethodDeclaration): string {
+  const declarations = [...method.getOverloads(), method];
+  for (const declaration of declarations) {
+    const jsDocs = declaration.getJsDocs();
+    if (jsDocs.length > 0) {
+      // When multiple JSDoc blocks precede a declaration, the closest one
+      // (last in source order) is the one logically attached.
+      return formatJSDoc(jsDocs[jsDocs.length - 1].getText().trim());
+    }
   }
-
-  const jsDoc = jsDocTags[0];
-  if (isJSDoc(jsDoc)) {
-    const fullText = source.getFullText();
-    const start = jsDoc.getFullStart();
-    const end = jsDoc.getEnd();
-    const rawJsDoc = fullText.substring(start, end).trim();
-    return formatJSDoc(rawJsDoc);
-  }
-
-  // istanbul ignore next: defensive check — getJSDocCommentsAndTags always returns JSDoc nodes
   return '';
 }
 
@@ -105,161 +73,95 @@ function formatJSDoc(rawJsDoc: string): string {
 }
 
 /**
- * Visits AST nodes to find exposed methods and controller/service class.
+ * Returns the underlying array literal from a `MESSENGER_EXPOSED_METHODS`
+ * initializer, unwrapping a trailing `as const` assertion if present.
  *
- * @param context - The visitor context.
- * @returns A function to visit nodes.
+ * @param initializer - The initializer expression.
+ * @returns The array literal, or undefined if the initializer is not an array literal.
  */
-function createASTVisitor(context: VisitorContext): (node: TSNode) => void {
-  function visitNode(node: TSNode): void {
-    if (isVariableStatement(node)) {
-      const declaration = node.declarationList.declarations[0];
-      if (
-        isIdentifier(declaration.name) &&
-        declaration.name.text === 'MESSENGER_EXPOSED_METHODS'
-      ) {
-        if (declaration.initializer) {
-          let arrayExpression: ArrayLiteralExpression | undefined;
-
-          if (isArrayLiteralExpression(declaration.initializer)) {
-            arrayExpression = declaration.initializer;
-          } else if (
-            isAsExpression(declaration.initializer) &&
-            isArrayLiteralExpression(declaration.initializer.expression)
-          ) {
-            arrayExpression = declaration.initializer.expression;
-          }
-
-          if (arrayExpression) {
-            context.exposedMethods = arrayExpression.elements
-              .filter(isStringLiteral)
-              .map((element) => element.text);
-          }
-        }
-      }
-    }
-
-    if (isClassDeclaration(node) && node.name) {
-      const classText = node.name.text;
-      if (classText.includes('Controller') || classText.includes('Service')) {
-        context.className = classText;
-
-        const seenMethods = new Set<string>();
-        for (const member of node.members) {
-          if (
-            isMethodDeclaration(member) &&
-            member.name &&
-            isIdentifier(member.name)
-          ) {
-            const methodName = member.name.text;
-            if (
-              context.exposedMethods.includes(methodName) &&
-              !seenMethods.has(methodName)
-            ) {
-              seenMethods.add(methodName);
-              const jsDoc = extractJSDoc(member, context.sourceFile);
-              context.methods.push({
-                name: methodName,
-                jsDoc,
-              });
-            }
-          }
-        }
-      }
-    }
-
-    forEachChild(node, visitNode);
+function getArrayLiteral(
+  initializer: TsMorphNode,
+): ArrayLiteralExpression | undefined {
+  if (NodeGuards.isArrayLiteralExpression(initializer)) {
+    return initializer;
   }
-
-  return visitNode;
+  if (NodeGuards.isAsExpression(initializer)) {
+    const inner = initializer.getExpression();
+    if (NodeGuards.isArrayLiteralExpression(inner)) {
+      return inner;
+    }
+  }
+  return undefined;
 }
 
 /**
- * Create a TypeScript program for the given file by locating the nearest
- * tsconfig.json.
+ * Extracts the names listed in the `MESSENGER_EXPOSED_METHODS` constant.
  *
- * @param filePath - Absolute path to the source file.
- * @returns A TypeScript program, or null if no tsconfig was found.
+ * @param sourceFile - The source file to search.
+ * @returns The list of exposed method names, or an empty array if not found.
  */
-function createProgramForFile(filePath: string): Program | null {
-  const configPath = findConfigFile(
-    path.dirname(filePath),
-    sys.fileExists.bind(sys),
-    'tsconfig.json',
-  );
-  if (!configPath) {
-    return null;
+function extractExposedMethods(sourceFile: SourceFile): string[] {
+  for (const statement of sourceFile.getVariableStatements()) {
+    for (const declaration of statement.getDeclarations()) {
+      if (declaration.getName() !== 'MESSENGER_EXPOSED_METHODS') {
+        continue;
+      }
+      const initializer = declaration.getInitializer();
+      if (!initializer) {
+        continue;
+      }
+      const arrayExpression = getArrayLiteral(initializer);
+      if (!arrayExpression) {
+        continue;
+      }
+      return arrayExpression
+        .getElements()
+        .filter(NodeGuards.isStringLiteral)
+        .map((element) => element.getLiteralValue());
+    }
   }
+  return [];
+}
 
-  const { config, error } = readConfigFile(configPath, sys.readFile.bind(sys));
-
-  if (error) {
-    return null;
-  }
-
-  const parsedConfig = parseJsonConfigFileContent(
-    config,
-    sys,
-    path.dirname(configPath),
-  );
-
-  return createProgram({
-    rootNames: parsedConfig.fileNames,
-    options: parsedConfig.options,
+/**
+ * Finds the first class in the source file whose name contains "Controller" or
+ * "Service".
+ *
+ * @param sourceFile - The source file to search.
+ * @returns The class declaration, or undefined if not found.
+ */
+function findControllerOrServiceClass(
+  sourceFile: SourceFile,
+): ClassDeclaration | undefined {
+  return sourceFile.getClasses().find((cls) => {
+    const name = cls.getName();
+    return (
+      name !== undefined &&
+      (name.includes('Controller') || name.includes('Service'))
+    );
   });
 }
 
 /**
- * Find a class declaration with the given name in a source file.
+ * Walks the class hierarchy looking for a method with the given name.
  *
- * @param source - The source file to search.
- * @param className - The class name to look for.
- * @returns The class declaration node, or null if not found.
- */
-function findClassInSourceFile(
-  source: SourceFile,
-  className: string,
-): ClassDeclaration | null {
-  return (
-    source.statements.find(
-      (node): node is ClassDeclaration =>
-        isClassDeclaration(node) && node.name?.text === className,
-    ) ?? // istanbul ignore next: class is always found when called from parseSourceFile
-    null
-  );
-}
-
-/**
- * Search through the class hierarchy of a TypeScript type to find the
- * declaration of a method with the given name.
- *
- * @param classType - The class type to search.
+ * @param classDeclaration - The starting class.
  * @param methodName - The method name to look for.
- * @returns The method declaration node, or null if not found.
+ * @returns The method declaration, or undefined if not found.
  */
 function findMethodInHierarchy(
-  classType: Type,
+  classDeclaration: ClassDeclaration,
   methodName: string,
-): MethodDeclaration | null {
-  const symbol = classType.getProperty(methodName);
-  if (!symbol) {
-    return null;
-  }
-
-  const declarations = symbol.getDeclarations();
-  // istanbul ignore next: defensive check — symbols from getProperty always have declarations
-  if (!declarations) {
-    return null;
-  }
-
-  for (const declaration of declarations) {
-    if (isMethodDeclaration(declaration)) {
-      return declaration;
+): MethodDeclaration | undefined {
+  let current: ClassDeclaration | undefined = classDeclaration;
+  while (current) {
+    const method = current.getMethod(methodName);
+    if (method) {
+      return method;
     }
+    current = current.getBaseClass();
   }
-
-  // istanbul ignore next: defensive fallback — property found but not a method declaration
-  return null;
+  return undefined;
 }
 
 /**
@@ -286,6 +188,24 @@ async function isDirectory(pathValue: string): Promise<boolean> {
 }
 
 /**
+ * Walks up from the given file looking for the nearest `tsconfig.json`.
+ *
+ * @param filePath - The file to start searching from.
+ * @returns The absolute path to the nearest tsconfig.json, or undefined if none is found.
+ */
+function findNearestTsConfig(filePath: string): string | undefined {
+  let directory = path.dirname(filePath);
+  while (directory !== path.dirname(directory)) {
+    const candidate = path.join(directory, 'tsconfig.json');
+    if (fs.existsSync(candidate)) {
+      return candidate;
+    }
+    directory = path.dirname(directory);
+  }
+  return undefined;
+}
+
+/**
  * Parses a source file to extract exposed methods and their metadata.
  *
  * @param filePath - Path to the controller/service file to parse.
@@ -295,75 +215,65 @@ export async function parseSourceFile(
   filePath: string,
 ): Promise<SourceInfo | null> {
   try {
-    const content = await fs.promises.readFile(filePath, 'utf8');
-    const source = createSourceFile(
-      filePath,
-      content,
-      ScriptTarget.Latest,
-      true,
-    );
+    const standaloneProject = new Project({
+      skipAddingFilesFromTsConfig: true,
+    });
+    const sourceFile = standaloneProject.addSourceFileAtPath(filePath);
 
-    const context: VisitorContext = {
-      exposedMethods: [],
-      className: '',
-      methods: [],
-      sourceFile: source,
-    };
+    const exposedMethods = extractExposedMethods(sourceFile);
+    const classDeclaration = findControllerOrServiceClass(sourceFile);
 
-    createASTVisitor(context)(source);
-
-    if (context.exposedMethods.length === 0 || !context.className) {
+    if (exposedMethods.length === 0 || !classDeclaration) {
       return null;
     }
 
-    const foundMethodNames = new Set(
-      context.methods.map((method) => method.name),
-    );
+    const className = classDeclaration.getName();
+    // istanbul ignore next: findControllerOrServiceClass only matches named classes
+    assert(className, 'Class declaration is missing a name.');
 
-    const inheritedMethodNames = context.exposedMethods.filter(
-      (name) => !foundMethodNames.has(name),
+    const methods: MethodInfo[] = [];
+    const seenMethods = new Set<string>();
+
+    for (const member of classDeclaration.getMethods()) {
+      const methodName = member.getName();
+      if (exposedMethods.includes(methodName) && !seenMethods.has(methodName)) {
+        seenMethods.add(methodName);
+        methods.push({ name: methodName, jsDoc: extractJSDoc(member) });
+      }
+    }
+
+    const inheritedMethodNames = exposedMethods.filter(
+      (name) => !seenMethods.has(name),
     );
 
     if (inheritedMethodNames.length > 0) {
-      const program = createProgramForFile(filePath);
-      const checker = program?.getTypeChecker();
-      const programSourceFile = program?.getSourceFile(filePath);
-
+      const configPath = findNearestTsConfig(filePath);
       assert(
-        checker,
-        `Type checker could not be created for "${filePath}". Ensure a valid tsconfig.json is present.`,
+        configPath,
+        `tsconfig.json could not be located for "${filePath}". Ensure a valid tsconfig.json is present.`,
       );
 
+      const project = new Project({ tsConfigFilePath: configPath });
+      const fullSourceFile = project.addSourceFileAtPath(filePath);
+      const fullClassDeclaration = findControllerOrServiceClass(fullSourceFile);
+
+      // istanbul ignore next: class was found in the standalone parse above
       assert(
-        programSourceFile,
-        `Source file "${filePath}" not found in program.`,
+        fullClassDeclaration,
+        `Class "${className}" not found in "${filePath}".`,
       );
 
-      const classNode = findClassInSourceFile(
-        programSourceFile,
-        context.className,
-      );
-
-      assert(
-        classNode,
-        `Class "${context.className}" not found in "${filePath}".`,
-      );
-
-      const classType = checker.getTypeAtLocation(classNode);
       for (const methodName of inheritedMethodNames) {
-        const methodDeclaration = findMethodInHierarchy(classType, methodName);
-
-        const jsDoc = methodDeclaration
-          ? extractJSDoc(methodDeclaration, methodDeclaration.getSourceFile())
-          : '';
-        context.methods.push({ name: methodName, jsDoc });
+        const method = findMethodInHierarchy(fullClassDeclaration, methodName);
+        const jsDoc = method ? extractJSDoc(method) : '';
+        methods.push({ name: methodName, jsDoc });
       }
     }
 
     return {
-      name: context.className,
+      name: className,
       filePath,
-      methods: context.methods,
+      methods,
     };
   } catch (error) {
     console.error(`Error parsing ${filePath}:`, error);
@@ -371,12 +281,6 @@ export async function parseSourceFile(
   }
 }
 
-/**
- * Recursively get all files in a directory and its subdirectories.
- *
- * @param directory - The directory to search.
- * @returns An array of file paths.
- */
 const EXCLUDED_DIRECTORIES = new Set([
   'node_modules',
   'dist',
@@ -384,6 +288,12 @@ const EXCLUDED_DIRECTORIES = new Set([
   'coverage',
 ]);
 
+/**
+ * Recursively get all files in a directory and its subdirectories.
+ *
+ * @param directory - The directory to search.
+ * @returns An array of file paths.
+ */
 async function getFiles(directory: string): Promise<string[]> {
   const entries = await fs.promises.readdir(directory, { withFileTypes: true });
   const files = await Promise.all(

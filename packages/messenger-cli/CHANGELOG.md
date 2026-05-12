@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **BREAKING:** Replace direct usage of the TypeScript compiler API with `ts-morph` for parsing source files
+  - `typescript` is no longer required as a peer dependency.
+  - `ts-morph` is now a runtime dependency.
+
 ## [0.2.0]
 
 ### Added
