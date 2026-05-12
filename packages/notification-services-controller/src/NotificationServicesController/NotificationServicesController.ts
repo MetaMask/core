@@ -53,6 +53,27 @@ const controllerName = 'NotificationServicesController';
 
 export const ACCOUNTS_UPDATE_DEBOUNCE_TIME_MS = 1000;
 
+export type NotificationServicesControllerCreateOnChainTriggersOptions = {
+  resetNotifications?: boolean;
+  /**
+   * Whether to attempt FCM/device push registration after on-chain notification
+   * triggers are created. This does not request OS push permission.
+   *
+   * @default true
+   */
+  registerPushNotifications?: boolean;
+};
+
+export type NotificationServicesControllerEnableMetamaskNotificationsOptions = {
+  /**
+   * Whether to attempt FCM/device push registration after MetaMask
+   * notifications are enabled. This does not request OS push permission.
+   *
+   * @default true
+   */
+  registerPushNotifications?: boolean;
+};
+
 /**
  * State shape for NotificationServicesController
  */
@@ -820,9 +841,9 @@ export class NotificationServicesController extends BaseController<
    * @returns The updated or newly created user storage.
    * @throws {Error} Throws an error if unauthenticated or from other operations.
    */
-  public async createOnChainTriggers(opts?: {
-    resetNotifications?: boolean;
-  }): Promise<void> {
+  public async createOnChainTriggers(
+    opts: NotificationServicesControllerCreateOnChainTriggersOptions = {},
+  ): Promise<void> {
     try {
       this.#setIsUpdatingMetamaskNotifications(true);
 
@@ -853,12 +874,14 @@ export class NotificationServicesController extends BaseController<
         accountsWithNotifications = accounts;
       }
 
-      // 3. Lazily enable push notifications (FCM may take some time, so keeps UI unblocked)
-      this.#pushNotifications
-        .enablePushNotifications(accountsWithNotifications)
-        .catch(() => {
-          // Do Nothing
-        });
+      if (opts.registerPushNotifications ?? true) {
+        // Attempt FCM/device registration only; clients must request OS permission separately.
+        this.#pushNotifications
+          .enablePushNotifications(accountsWithNotifications)
+          .catch(() => {
+            // Do Nothing
+          });
+      }
 
       // Update the state of the controller
       this.update((state) => {
@@ -887,11 +910,13 @@ export class NotificationServicesController extends BaseController<
    *
    * @throws {Error} If there is an error during the process of enabling notifications.
    */
-  public async enableMetamaskNotifications(): Promise<void> {
+  public async enableMetamaskNotifications(
+    opts: NotificationServicesControllerEnableMetamaskNotificationsOptions = {},
+  ): Promise<void> {
     try {
       this.#setIsUpdatingMetamaskNotifications(true);
       await this.#enableAuth();
-      await this.createOnChainTriggers();
+      await this.createOnChainTriggers(opts);
     } catch (error) {
       log.error('Unable to enable notifications', error);
       throw new Error('Unable to enable notifications');

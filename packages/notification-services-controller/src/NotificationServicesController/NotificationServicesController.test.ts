@@ -501,6 +501,35 @@ describe('NotificationServicesController', () => {
       expect(mockEnablePushNotifications).toHaveBeenCalled();
     });
 
+    it('skips push registration when registerPushNotifications is false', async () => {
+      const {
+        messenger,
+        mockEnablePushNotifications,
+        mockGetConfig,
+        mockUpdateNotifications,
+      } = arrangeMocks({
+        mockGetConfig: () =>
+          mockGetOnChainNotificationsConfig({
+            status: 200,
+            body: [],
+          }),
+      });
+
+      const controller = new NotificationServicesController({
+        messenger,
+        env: { featureAnnouncements: featureAnnouncementsEnv },
+      });
+
+      await controller.createOnChainTriggers({
+        registerPushNotifications: false,
+      });
+
+      expect(mockGetConfig.isDone()).toBe(true);
+      expect(mockUpdateNotifications.isDone()).toBe(true);
+      expect(controller.state.isNotificationServicesEnabled).toBe(true);
+      expect(mockEnablePushNotifications).not.toHaveBeenCalled();
+    });
+
     it('tracks accounts from all keyrings when creating triggers', async () => {
       const {
         messenger,
@@ -1322,6 +1351,30 @@ describe('NotificationServicesController', () => {
       // Act - services called
       expect(mocks.mockGetConfig.isDone()).toBe(true);
       expect(mocks.mockUpdateNotifications.isDone()).toBe(true);
+    });
+
+    it('forwards registerPushNotifications false when enabling MetaMask notifications', async () => {
+      const mocks = arrangeMocks({
+        mockGetConfig: () =>
+          mockGetOnChainNotificationsConfig({
+            status: 200,
+            body: [],
+          }),
+      });
+
+      const controller = new NotificationServicesController({
+        messenger: mocks.messenger,
+        env: { featureAnnouncements: featureAnnouncementsEnv },
+      });
+
+      await controller.enableMetamaskNotifications({
+        registerPushNotifications: false,
+      });
+
+      expect(mocks.mockGetConfig.isDone()).toBe(true);
+      expect(mocks.mockUpdateNotifications.isDone()).toBe(true);
+      expect(controller.state.isNotificationServicesEnabled).toBe(true);
+      expect(mocks.mockEnablePushNotifications).not.toHaveBeenCalled();
     });
 
     it('should not create new notification subscriptions when enabling an account that already has notifications', async () => {
