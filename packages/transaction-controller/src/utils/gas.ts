@@ -208,6 +208,39 @@ export async function estimateGas({
   };
 }
 
+/**
+ * Sum caller-provided gas limits across a batch.
+ *
+ * If every transaction in the batch already has a `gas` value, returns the
+ * parsed per-tx limits and their sum. Otherwise returns `undefined`.
+ *
+ * Used by `estimateGasBatch`:
+ * - non-7702 path: short-circuits simulation entirely when present.
+ * - EIP-7702 path: used as a fallback when simulation fails — required for
+ *   callers that submit batches whose individual sub-calls cannot be simulated
+ *   standalone (e.g. predict-withdraw, where the batch's first sub-call
+ *   provides source-token balance to subsequent sub-calls). When 7702
+ *   simulation succeeds it is preferred since the bundled call has no per-tx
+ *   intrinsic gas cost and produces a tighter estimate.
+ *
+ * @param transactions - Batch transactions to inspect.
+ * @returns Parsed gas limits and total when every transaction has gas; otherwise `undefined`.
+ */
+export function getProvidedBatchGasLimits(
+  transactions: BatchTransactionParams[],
+): { gasLimits: number[]; totalGasLimit: number } | undefined {
+  if (!transactions.every((transaction) => transaction.gas !== undefined)) {
+    return undefined;
+  }
+
+  const gasLimits = transactions.map((transaction) =>
+    new BigNumber(transaction.gas as Hex).toNumber(),
+  );
+  const totalGasLimit = gasLimits.reduce((acc, gasLimit) => acc + gasLimit, 0);
+
+  return { gasLimits, totalGasLimit };
+}
+
 export async function estimateGasBatch({
   from,
   getSimulationConfig,
@@ -245,6 +278,8 @@ export async function estimateGasBatch({
   }
 
   if (chainResult) {
+    const providedBatchGasLimits = getProvidedBatchGasLimits(transactions);
+
     const authorizationList = isUpgradeRequired
       ? [{ address: chainResult.upgradeContractAddress as Hex }]
       : undefined;
@@ -260,13 +295,31 @@ export async function estimateGasBatch({
       type,
     };
 
-    const { estimatedGas: gasLimitHex } = await estimateGas({
+    // Prefer real EIP-7702 simulation when it succeeds — the bundled call has
+    // no per-tx intrinsic gas cost so the estimate is typically lower than
+    // summing per-tx provided limits. Fall back to the provided sum when the
+    // node-level simulation fails (e.g. predict-withdraw, where the batch's
+    // first sub-call provides source-token balance to subsequent sub-calls).
+    const { estimatedGas: gasLimitHex, simulationFails } = await estimateGas({
       isSimulationEnabled: true,
       getSimulationConfig,
       messenger,
       networkClientId,
       txParams: params,
     });
+
+    if (simulationFails && providedBatchGasLimits) {
+      log(
+        'EIP-7702 estimation failed, using batch parameter gas limits',
+        providedBatchGasLimits,
+        simulationFails,
+      );
+      return {
+        gasLimits: [providedBatchGasLimits.totalGasLimit],
+        ...(isUpgradeRequired ? { requiresAuthorizationList: true } : {}),
+        totalGasLimit: providedBatchGasLimits.totalGasLimit,
+      };
+    }
 
     const totalGasLimit = new BigNumber(gasLimitHex).toNumber();
 
@@ -279,20 +332,10 @@ export async function estimateGasBatch({
     };
   }
 
-  const allTransactionsHaveGas = transactions.every(
-    (transaction) => transaction.gas !== undefined,
-  );
-
-  if (allTransactionsHaveGas) {
-    const gasLimits = transactions.map((transaction) =>
-      new BigNumber(transaction.gas as Hex).toNumber(),
-    );
-
-    const total = gasLimits.reduce((acc, gasLimit) => acc + gasLimit, 0);
-
-    log('Using batch parameter gas limits', { gasLimits, total });
-
-    return { totalGasLimit: total, gasLimits };
+  const providedBatchGasLimits = getProvidedBatchGasLimits(transactions);
+  if (providedBatchGasLimits) {
+    log('Using batch parameter gas limits', providedBatchGasLimits);
+    return providedBatchGasLimits;
   }
 
   const { gasLimits: gasLimitsHex } = await simulateGasBatch({

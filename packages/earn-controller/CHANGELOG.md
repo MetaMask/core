@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [12.1.2]
+
+### Changed
+
+- Bump `@metamask/network-controller` from `^31.0.0` to `^32.0.0` ([#8765](https://github.com/MetaMask/core/pull/8765), [#8774](https://github.com/MetaMask/core/pull/8774))
+- Bump `@metamask/controller-utils` from `^12.0.0` to `^12.1.0` ([#8774](https://github.com/MetaMask/core/pull/8774))
+
 ## [12.1.1]
 
 ### Changed
@@ -102,7 +109,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Bump `@metamask/network-controller` from `^29.0.0` to `^30.0.0` ([#7996](https://github.com/MetaMask/core/pull/7996))
 - Bump `@metamask/keyring-api` from `^21.0.0` to `^21.5.0` ([#7857](https://github.com/MetaMask/core/pull/7857))
-- Bump `@metamask/account-tree-controller` from `^4.0.0` to `^4.1.1` ([#7869](https://github.com/MetaMask/core/pull/7869)), ([#7897](https://github.com/MetaMask/core/pull/7897))
+- Bump `@metamask/account-tree-controller` from `^4.0.0` to `^4.1.1`, ([#7869](https://github.com/MetaMask/core/pull/7869), [#7897](https://github.com/MetaMask/core/pull/7897))
 - Bump `@metamask/controller-utils` from `^11.18.0` to `^11.19.0` ([#7995](https://github.com/MetaMask/core/pull/7995))
 
 ## [11.1.0]
@@ -442,7 +449,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#5271](https://github.com/MetaMask/core/pull/5271))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/earn-controller@12.1.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/earn-controller@12.1.2...HEAD
+[12.1.2]: https://github.com/MetaMask/core/compare/@metamask/earn-controller@12.1.1...@metamask/earn-controller@12.1.2
 [12.1.1]: https://github.com/MetaMask/core/compare/@metamask/earn-controller@12.1.0...@metamask/earn-controller@12.1.1
 [12.1.0]: https://github.com/MetaMask/core/compare/@metamask/earn-controller@12.0.0...@metamask/earn-controller@12.1.0
 [12.0.0]: https://github.com/MetaMask/core/compare/@metamask/earn-controller@11.2.1...@metamask/earn-controller@12.0.0

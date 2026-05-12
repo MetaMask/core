@@ -5,7 +5,7 @@ import type {
   DataServiceInvalidateQueriesAction,
 } from '@metamask/base-data-service';
 import type { CreateServicePolicyOptions } from '@metamask/controller-utils';
-import { HttpError } from '@metamask/controller-utils';
+import { handleWhen, HttpError } from '@metamask/controller-utils';
 import type { Messenger } from '@metamask/messenger';
 import {
   array,
@@ -223,6 +223,34 @@ const ServiceDetailsResponseStruct = type({
   ),
 });
 
+// === RETRY POLICY ===
+
+/**
+ * Determines whether an error from a CHOMP API call is worth retrying.
+ *
+ * 4xx responses (e.g. 409 "already exists", 400 validation, 401/403 auth) are
+ * caused by the request itself and will not be resolved by re-issuing the same
+ * request, so they bypass the retry loop. 429 is treated as transient and
+ * retried alongside 5xx server errors. Non-HTTP errors (network/timeout) fall
+ * through to the default "retry" behaviour.
+ *
+ * @param error - The error thrown by the query function.
+ * @returns `true` when the error is worth retrying.
+ */
+function isRetryableError(error: unknown): boolean {
+  if (error instanceof HttpError) {
+    if (error.httpStatus === 429) {
+      return true;
+    }
+    return error.httpStatus < 400 || error.httpStatus >= 500;
+  }
+  return true;
+}
+
+const DEFAULT_POLICY_OPTIONS: CreateServicePolicyOptions = {
+  retryFilterPolicy: handleWhen(isRetryableError),
+};
+
 // === SERVICE DEFINITION ===
 
 /**
@@ -262,7 +290,7 @@ export class ChompApiService extends BaseDataService<
       name: serviceName,
       messenger,
       queryClientConfig,
-      policyOptions,
+      policyOptions: { ...DEFAULT_POLICY_OPTIONS, ...policyOptions },
     });
 
     this.#baseUrl = baseUrl;

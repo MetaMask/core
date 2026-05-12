@@ -8,9 +8,11 @@ import type {
   TransactionPayQuote,
 } from '../../types';
 import { getPayStrategiesConfig } from '../../utils/feature-flags';
+import { isPredictWithdrawTransaction } from '../../utils/transaction';
 import { getAcrossDestination } from './across-actions';
 import { getAcrossQuotes } from './across-quotes';
 import { submitAcrossQuotes } from './across-submit';
+import { hasUnsupportedTransactionAuthorizationList } from './authorization-list';
 import { isSupportedAcrossPerpsDepositRequest } from './perps';
 import { isAcrossQuoteRequest } from './requests';
 import type { AcrossQuote } from './types';
@@ -52,15 +54,20 @@ export class AcrossStrategy implements PayStrategy<AcrossQuote> {
       }
     }
 
-    // Across cannot submit EIP-7702 authorization lists. This pre-quote check
-    // catches transactions where the authorization list is already present.
-    // First-time 7702 upgrades discovered during gas planning are handled in
-    // `checkQuoteSupport` below.
-    if (request.transaction.txParams?.authorizationList?.length) {
+    if (
+      hasUnsupportedTransactionAuthorizationList(
+        request.transaction,
+        actionableRequests,
+      )
+    ) {
       return false;
     }
 
     return actionableRequests.every((singleRequest) => {
+      if (singleRequest.isPostQuote) {
+        return isPredictWithdrawTransaction(request.transaction);
+      }
+
       try {
         getAcrossDestination(request.transaction, singleRequest);
         return true;
