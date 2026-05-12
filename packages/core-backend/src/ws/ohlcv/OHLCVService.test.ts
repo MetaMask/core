@@ -814,6 +814,33 @@ describe('OHLCVService', () => {
       });
     });
 
+    it('should not produce unhandled rejection when forceReconnection throws during grace-period unsubscribe', async () => {
+      await withService(async ({ service, mocks, messenger }) => {
+        mocks.getSubscriptionsByChannel.mockImplementation(() => {
+          throw new Error('ws gone');
+        });
+        mocks.forceReconnection.mockRejectedValue(
+          new Error('reconnect also failed'),
+        );
+
+        const errorListener = jest.fn();
+        messenger.subscribe('OHLCVService:subscriptionError', errorListener);
+
+        await service.subscribe(SUB_OPTS);
+        await service.unsubscribe(SUB_OPTS);
+
+        jest.advanceTimersByTime(3000);
+        await completeAsyncOperations();
+
+        expect(errorListener).toHaveBeenCalledWith({
+          channel: EXPECTED_CHANNEL,
+          error: expect.stringContaining('ws gone'),
+          operation: 'unsubscribe',
+        });
+        expect(mocks.forceReconnection).toHaveBeenCalled();
+      });
+    });
+
     it('should log and continue when resubscription fails for a channel', async () => {
       await withService(async ({ service, mocks, rootMessenger }) => {
         await service.subscribe(SUB_OPTS);

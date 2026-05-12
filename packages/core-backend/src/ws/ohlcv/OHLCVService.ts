@@ -312,8 +312,9 @@ export class OHLCVService {
     }
 
     entry.gracePeriodTimer = setTimeout(() => {
-      // eslint-disable-next-line @typescript-eslint/no-floating-promises
-      this.#performUnsubscribe(channel);
+      this.#performUnsubscribe(channel).catch(() => {
+        // no-op
+      });
     }, GRACE_PERIOD_MS);
   }
 
@@ -347,7 +348,9 @@ export class OHLCVService {
         error: String(error),
         operation: 'unsubscribe',
       });
-      await this.#forceReconnection();
+      await this.#forceReconnection().catch(() => {
+        // no-op
+      });
     }
   }
 
