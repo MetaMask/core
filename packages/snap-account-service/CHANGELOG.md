@@ -10,7 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Add `SnapAccountService` ([#8414](https://github.com/MetaMask/core/pull/8414))
-- Add `SnapPlatformWatcher` and `SnapAccountService.ensureReady`, ([#8715](https://github.com/MetaMask/core/pull/8715), [#8725](https://github.com/MetaMask/core/pull/8725))
+- Add `SnapPlatformWatcher` and `SnapAccountService.ensureReady` ([#8715](https://github.com/MetaMask/core/pull/8715)), ([#8725](https://github.com/MetaMask/core/pull/8725))
   - Waits for the Snap platform to be ready and for a Snap keyring to appear in `KeyringController` state before allowing Snap account operations.
   - Callers must ensure `init()` has run and the Snap is currently installed, enabled, non-blocked, and declares `endowment:keyring`.
   - `SnapAccountService.ensureReady` now awaits the watcher, so it only resolves once both conditions hold (or rejects if the Snap keyring does not appear within the configured timeout).

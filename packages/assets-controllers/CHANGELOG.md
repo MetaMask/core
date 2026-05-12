@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [106.1.0]
+
 ### Changed
 
 - Bump `@metamask/network-controller` from `^31.0.0` to `^31.1.0` ([#8765](https://github.com/MetaMask/core/pull/8765))
@@ -3065,7 +3067,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Use Ethers for AssetsContractController ([#845](https://github.com/MetaMask/core/pull/845))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@106.0.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@106.1.0...HEAD
+[106.1.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@106.0.1...@metamask/assets-controllers@106.1.0
 [106.0.1]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@106.0.0...@metamask/assets-controllers@106.0.1
 [106.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@105.1.0...@metamask/assets-controllers@106.0.0
 [105.1.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@105.0.0...@metamask/assets-controllers@105.1.0
