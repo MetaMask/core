@@ -233,7 +233,7 @@ const setup = ({
     snapId: keyringOverrides.snapId ?? TEST_SNAP_ID,
     createAccount: jest.fn(),
     createAccounts: jest.fn(),
-    removeAccount: jest.fn(),
+    deleteAccount: jest.fn().mockResolvedValue(undefined),
     lookupByAddress: jest
       .fn()
       .mockImplementation((address: string) =>
@@ -883,9 +883,8 @@ describe('SnapAccountProvider', () => {
         mocks.SnapController.handleKeyringRequest.deleteAccount,
       ).toHaveBeenCalledWith(extraSnapAccount2.id);
 
-      // Should remove from keyring and recreate the missing account
-      // (the keyring has extraSnapAccount2 with the same address as mockAccounts[1])
-      expect(keyring.removeAccount).toHaveBeenCalledWith(extraSnapAccount2.id);
+      // Should delete the missing account from the keyring (by id) before recreating it.
+      expect(keyring.deleteAccount).toHaveBeenCalledWith(mockAccounts[1].id);
       expect(createAccountsSpy).toHaveBeenCalledWith({
         entropySource: mockAccounts[1].options.entropy.id,
         groupIndex: mockAccounts[1].options.entropy.groupIndex,
