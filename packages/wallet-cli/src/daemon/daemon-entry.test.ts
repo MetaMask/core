@@ -5,6 +5,7 @@ import { pingDaemon } from './daemon-client';
 import { getDaemonPaths } from './paths';
 import { startRpcSocketServer } from './rpc-socket-server';
 import type { RpcSocketServerHandle } from './rpc-socket-server';
+import { isProcessAlive } from './utils';
 import { createWallet } from './wallet-factory';
 
 jest.mock('node:fs');
@@ -12,6 +13,13 @@ jest.mock('node:fs/promises');
 jest.mock('./daemon-client');
 jest.mock('./paths');
 jest.mock('./rpc-socket-server');
+jest.mock('./utils', () => {
+  const actual = jest.requireActual('./utils');
+  return {
+    ...actual,
+    isProcessAlive: jest.fn(),
+  };
+});
 jest.mock('./wallet-factory');
 
 const mockMkdirSync = jest.mocked(mkdirSync);
@@ -23,6 +31,7 @@ const mockPingDaemon = jest.mocked(pingDaemon);
 const mockGetDaemonPaths = jest.mocked(getDaemonPaths);
 const mockStartRpcSocketServer = jest.mocked(startRpcSocketServer);
 const mockCreateWallet = jest.mocked(createWallet);
+const mockIsProcessAlive = jest.mocked(isProcessAlive);
 
 const ORIGINAL_ENV = process.env;
 
@@ -99,6 +108,7 @@ describe('daemon-entry', () => {
     mockRm.mockResolvedValue(undefined);
     mockAppendFile.mockResolvedValue(undefined);
     mockPingDaemon.mockResolvedValue(ABSENT);
+    mockIsProcessAlive.mockReturnValue(false);
   });
 
   afterEach(() => {
@@ -314,21 +324,94 @@ describe('daemon-entry', () => {
     expect(process.exitCode).toBe(1);
   });
 
+  it('aborts when another daemon wins the exclusive PID-file write race', async () => {
+    // Simulate two daemons reaching the wx write nearly simultaneously: pre-flight
+    // sees no PID file (ENOENT), but writeFile rejects with EEXIST because a
+    // sibling already claimed the slot. The cleanup ownership check must NOT
+    // remove the sibling's PID file.
+    const result = createMockWallet();
+    mockCreateWallet.mockResolvedValue(result);
+    const eexist = Object.assign(new Error('already exists'), {
+      code: 'EEXIST',
+    });
+    mockWriteFile.mockRejectedValue(eexist);
+    mockReadFile
+      .mockRejectedValueOnce(enoent()) // pre-flight readPidFile: no file yet
+      .mockResolvedValueOnce('99999\n9999999\n'); // ownership-check sees sibling
+
+    await importDaemonEntry();
+
+    expect(stderrSpy).toHaveBeenCalledWith(
+      expect.stringContaining('already exists'),
+    );
+    expect(process.exitCode).toBe(1);
+    expect(result.wallet.destroy).toHaveBeenCalled();
+    expect(result.store.close).toHaveBeenCalled();
+    // Critical: removeOwnedPidFile saw the sibling's contents and refused
+    // to delete. The only rm of pidPath should be the pre-flight cleanup
+    // call (which is a no-op when the file doesn't exist yet).
+    const pidRmCalls = mockRm.mock.calls.filter(
+      ([path]) => path === '/tmp/daemon.pid',
+    );
+    expect(pidRmCalls).toHaveLength(1);
+  });
+
+  it('refuses to take over an unreachable socket whose recorded PID is alive', async () => {
+    mockReadFile.mockResolvedValue('9999\n12345\n');
+    mockPingDaemon.mockResolvedValue(UNREACHABLE);
+    mockIsProcessAlive.mockReturnValue(true);
+    mockCreateWallet.mockResolvedValue(createMockWallet());
+
+    await importDaemonEntry();
+
+    expect(stderrSpy).toHaveBeenCalledWith(
+      expect.stringContaining('A daemon is already running but its socket'),
+    );
+    expect(process.exitCode).toBe(1);
+    expect(mockWriteFile).not.toHaveBeenCalled();
+  });
+
+  it('clears a corrupt PID file along with the socket so wx write can succeed', async () => {
+    // Pre-flight readPidFile returns undefined for a file that exists but
+    // doesn't parse as an integer (e.g. truncated/torn write from a crash).
+    // Without the rm pidPath in claimDaemonSlot, the wx write would fail
+    // with EEXIST and the daemon couldn't start.
+    mockReadFile.mockResolvedValueOnce('garbage-not-a-number\n');
+    mockPingDaemon.mockResolvedValue(ABSENT);
+    mockCreateWallet.mockResolvedValue(createMockWallet());
+    mockStartRpcSocketServer.mockResolvedValue(createMockHandle());
+
+    await importDaemonEntry();
+
+    expect(mockRm).toHaveBeenCalledWith('/tmp/daemon.pid', { force: true });
+    expect(mockRm).toHaveBeenCalledWith('/tmp/daemon.sock', { force: true });
+    expect(mockWriteFile).toHaveBeenCalledWith(
+      '/tmp/daemon.pid',
+      expect.any(String),
+      { flag: 'wx' },
+    );
+    expect(process.exitCode).toBeUndefined();
+  });
+
   it('does not remove the PID file during cleanup if its contents no longer match', async () => {
     const result = createMockWallet();
     mockCreateWallet.mockResolvedValue(result);
     mockStartRpcSocketServer.mockRejectedValue(new Error('server failed'));
     // Pre-flight finds no PID file (ENOENT). Cleanup readFile returns
-    // unrelated contents (a different daemon's PID file) — must not rm.
+    // unrelated contents (a different daemon's PID file) — must not rm
+    // the sibling's file during cleanup.
     mockReadFile
       .mockRejectedValueOnce(enoent())
       .mockResolvedValueOnce('99999\n9999999\n');
 
     await importDaemonEntry();
 
-    expect(mockRm).not.toHaveBeenCalledWith('/tmp/daemon.pid', {
-      force: true,
-    });
+    // Pre-flight unconditionally rms pidPath once; cleanup must NOT add
+    // a second rm because removeOwnedPidFile saw mismatched contents.
+    const pidRmCalls = mockRm.mock.calls.filter(
+      ([path]) => path === '/tmp/daemon.pid',
+    );
+    expect(pidRmCalls).toHaveLength(1);
     expect(process.exitCode).toBe(1);
   });
 
@@ -560,9 +643,11 @@ describe('daemon-entry', () => {
         const lastWrite = mockWriteFile.mock.calls.at(-1)?.[1];
         return typeof lastWrite === 'string' ? lastWrite : '';
       });
-    // Pre-flight rm (claimDaemonSlot) should succeed; shutdown-time rm should
-    // reject so we can verify the failure is logged rather than thrown.
+    // claimDaemonSlot calls rm on both pidPath and socketPath up front; let
+    // those succeed, and reject only the shutdown-time rms so we can verify
+    // the failure is logged rather than thrown.
     mockRm
+      .mockResolvedValueOnce(undefined)
       .mockResolvedValueOnce(undefined)
       .mockRejectedValue(new Error('rm failed'));
 

@@ -15,23 +15,29 @@ export function isErrorWithCode(error: unknown, code: string): boolean {
 }
 
 /**
- * Read a PID from a file.
+ * Read a PID from a file. The file may contain just the PID, or the PID on
+ * the first line followed by additional metadata (e.g. start time written by
+ * the daemon).
  *
  * @param pidPath - The PID file path.
- * @returns The PID, or undefined if the file is missing or invalid.
+ * @returns The PID, or undefined if the file is missing or its first line is
+ * not a positive integer.
  */
 export async function readPidFile(
   pidPath: string,
 ): Promise<number | undefined> {
+  let contents: string;
   try {
-    const pid = Number(await readFile(pidPath, 'utf-8'));
-    return pid > 0 && !Number.isNaN(pid) ? pid : undefined;
+    contents = await readFile(pidPath, 'utf-8');
   } catch (error: unknown) {
     if (isErrorWithCode(error, 'ENOENT')) {
       return undefined;
     }
     throw error;
   }
+  // String.prototype.split always returns at least one element, so [0] is safe.
+  const pid = Number(contents.split('\n')[0].trim());
+  return Number.isInteger(pid) && pid > 0 ? pid : undefined;
 }
 
 /**

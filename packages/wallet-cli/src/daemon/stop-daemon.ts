@@ -7,11 +7,11 @@ import { isProcessAlive, readPidFile, sendSignal, waitFor } from './utils';
  * Stop the daemon via a `shutdown` RPC call. Falls back to PID + SIGTERM if
  * the socket is unresponsive, and escalates to SIGKILL if SIGTERM is ignored.
  *
- * Signals are only sent if we have positive evidence that this PID belongs
- * to our daemon — namely, the socket file at `socketPath` existed when we
- * pinged (`responsive` or `unreachable`). When the socket is `absent` we
- * decline to signal the recorded PID, because long-running workstations can
- * recycle PIDs to unrelated processes; we just clean up the stale PID file.
+ * Signals are only sent if pinging the socket yielded `responsive` or
+ * `unreachable` (i.e. we did not see `ENOENT`). When the ping is `absent`
+ * we decline to signal the recorded PID, because long-running workstations
+ * can recycle PIDs to unrelated processes; we just clean up the stale PID
+ * file.
  *
  * @param socketPath - The daemon socket path.
  * @param pidPath - The daemon PID file path.

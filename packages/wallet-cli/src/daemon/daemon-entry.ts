@@ -7,7 +7,7 @@ import { getDaemonPaths } from './paths';
 import { startRpcSocketServer } from './rpc-socket-server';
 import type { RpcSocketServerHandle } from './rpc-socket-server';
 import type { DaemonStatusInfo, RpcHandlerMap } from './types';
-import { isErrorWithCode } from './utils';
+import { isErrorWithCode, isProcessAlive, readPidFile } from './utils';
 import { createWallet } from './wallet-factory';
 
 const startTime = Date.now();
@@ -189,58 +189,42 @@ async function claimDaemonSlot(
   socketPath: string,
   log: (message: string) => void,
 ): Promise<void> {
-  const existingPid = await readPidFromFile(pidPath);
-  if (existingPid === undefined) {
-    // No PID file. Still possible the socket file exists from a crashed run;
-    // ping it to confirm before removing.
-    const ping = await pingDaemon(socketPath);
-    if (ping.status === 'responsive') {
-      throw new Error(
-        `A daemon is already running on ${socketPath} (no PID file present)`,
-      );
-    }
-    if (ping.status === 'unreachable') {
-      log(`Removing stale socket at ${socketPath} (${ping.error.message})`);
-    }
-    await rm(socketPath, { force: true });
-    return;
+  const existingPid = await readPidFile(pidPath);
+  const ping = await pingDaemon(socketPath);
+
+  if (ping.status === 'responsive') {
+    const pidPart =
+      existingPid === undefined
+        ? '(no PID file present)'
+        : `(pid ${existingPid})`;
+    throw new Error(`A daemon is already running on ${socketPath} ${pidPart}`);
   }
 
-  const ping = await pingDaemon(socketPath);
-  if (ping.status === 'responsive') {
+  if (
+    ping.status === 'unreachable' &&
+    existingPid !== undefined &&
+    isProcessAlive(existingPid)
+  ) {
+    // Symmetric with `ensureDaemon`: do not silently take over a wedged
+    // sibling daemon. The user should `mm daemon stop` (or `purge`) first.
     throw new Error(
-      `A daemon is already running (pid ${existingPid}, socket ${socketPath})`,
+      `A daemon is already running but its socket at ${socketPath} is unresponsive ` +
+        `(pid ${existingPid}, ${ping.error.message}). ` +
+        `Run \`mm daemon stop\` (or \`mm daemon purge\`) before starting a new daemon.`,
     );
   }
 
-  log(`Removing stale daemon state (recorded pid ${existingPid}).`);
+  if (ping.status === 'unreachable') {
+    log(`Removing stale socket at ${socketPath} (${ping.error.message}).`);
+  }
+  // Always clear both files before claiming the slot. The PID file may be
+  // corrupt (truncated, partial write from a crashed run); without this, the
+  // exclusive `wx` write below would fail with EEXIST and the daemon could
+  // not start until a human manually deleted the file.
   await Promise.all([
     rm(pidPath, { force: true }),
     rm(socketPath, { force: true }),
   ]);
-}
-
-/**
- * Read the PID number from a PID file. Returns undefined when the file is
- * missing or malformed. Reads only the first line so files written with
- * `${pid}\n${startTime}\n` format are parsed correctly.
- *
- * @param pidPath - Path to the PID file.
- * @returns The PID, or undefined if missing or unparseable.
- */
-async function readPidFromFile(pidPath: string): Promise<number | undefined> {
-  let contents: string;
-  try {
-    contents = await readFile(pidPath, 'utf-8');
-  } catch (error: unknown) {
-    if (isErrorWithCode(error, 'ENOENT')) {
-      return undefined;
-    }
-    throw error;
-  }
-  // String.prototype.split always returns at least one element, so [0] is safe.
-  const pid = Number(contents.split('\n')[0].trim());
-  return Number.isInteger(pid) && pid > 0 ? pid : undefined;
 }
 
 /**

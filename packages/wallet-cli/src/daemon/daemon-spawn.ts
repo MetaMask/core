@@ -28,9 +28,9 @@ export type EnsureDaemonResult = {
  * `'already-running'` (caller decides how to surface that). Otherwise spawn
  * one as a detached process and wait until the socket becomes responsive.
  *
- * Refuses to spawn when the socket exists but is unreachable (wedged/foreign
- * daemon) — taking over would orphan the existing process and corrupt its
- * PID file.
+ * Refuses to spawn when pinging the existing socket fails with anything other
+ * than `ENOENT` (wedged or foreign daemon) — taking over could orphan the
+ * existing process and corrupt its PID file.
  *
  * @param config - Spawn configuration.
  * @returns The state of the daemon and the socket path it's listening on.

@@ -101,11 +101,13 @@ export async function sendCommand({
  * Outcome of a daemon health check.
  *
  * - `'responsive'`: the daemon answered a `getStatus` RPC.
- * - `'absent'`: the socket file does not exist (ENOENT). No daemon present.
- * - `'unreachable'`: the socket exists but cannot be queried (refused after
- *   retry, timeout, permission denied, parse error, etc.). Callers should
- *   refuse to take destructive action against an unreachable daemon — the
- *   process may still be alive.
+ * - `'absent'`: the socket connect attempt failed with `ENOENT`, i.e. no
+ *   socket file exists at the path. No daemon present.
+ * - `'unreachable'`: any other non-success outcome (refused after retry,
+ *   timeout, permission denied, parse error, id mismatch, etc.). The daemon
+ *   may still be alive but is not responding. Callers should not silently
+ *   take over the slot or assume the daemon is dead. User-initiated stop /
+ *   purge flows may still escalate to signals against the recorded PID.
  */
 export type PingResult =
   | { status: 'responsive' }

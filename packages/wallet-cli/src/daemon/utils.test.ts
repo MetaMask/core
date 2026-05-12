@@ -35,8 +35,15 @@ describe('isErrorWithCode', () => {
 });
 
 describe('readPidFile', () => {
-  it('returns the PID number from a valid file', async () => {
+  it('returns the PID number from a single-line file', async () => {
     mockReadFile.mockResolvedValue('12345');
+    expect(await readPidFile('/tmp/test.pid')).toBe(12345);
+  });
+
+  it('returns the PID from the first line when the file contains daemon metadata', async () => {
+    // The daemon writes `${pid}\n${startTime}\n` so it can verify ownership
+    // on cleanup; only the first line is the PID.
+    mockReadFile.mockResolvedValue('12345\n1715553908123\n');
     expect(await readPidFile('/tmp/test.pid')).toBe(12345);
   });
 
@@ -59,6 +66,11 @@ describe('readPidFile', () => {
 
   it('returns undefined for negative numbers', async () => {
     mockReadFile.mockResolvedValue('-1');
+    expect(await readPidFile('/tmp/test.pid')).toBeUndefined();
+  });
+
+  it('returns undefined for an empty file', async () => {
+    mockReadFile.mockResolvedValue('');
     expect(await readPidFile('/tmp/test.pid')).toBeUndefined();
   });
 

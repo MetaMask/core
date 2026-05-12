@@ -27,9 +27,9 @@ export type CreateWalletResult = {
  *
  * If the store does not yet contain a keyring vault (first-run), the supplied
  * secret recovery phrase is imported. On subsequent runs, the persisted vault
- * is reused and the SRP is unused; the wallet still starts locked and the
- * caller is responsible for unlocking it (`KeyringController:submitPassword`)
- * before any keyring-bound operation.
+ * is reused and both `password` and `srp` are unused by this function; the
+ * wallet still starts locked and the caller is responsible for unlocking it
+ * via `KeyringController:submitPassword` before any keyring-bound operation.
  *
  * On any failure after the wallet is constructed, the wallet is destroyed
  * before the store is closed so persistence handlers unsubscribe cleanly. On a
