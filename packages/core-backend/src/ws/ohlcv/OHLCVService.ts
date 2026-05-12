@@ -13,6 +13,7 @@ import type {
   TraceRequest,
 } from '@metamask/controller-utils';
 import type { Messenger } from '@metamask/messenger';
+import { Mutex } from 'async-mutex';
 
 import { projectLogger, createModuleLogger } from '../../logger';
 import type {
@@ -156,7 +157,7 @@ export class OHLCVService {
 
   readonly #channels = new Map<string, ChannelEntry>();
 
-  readonly #channelLocks = new Map<string, Promise<void>>();
+  readonly #mutex = new Mutex();
 
   readonly #chainsUp = new Set<string>();
 
@@ -216,7 +217,12 @@ export class OHLCVService {
    */
   async subscribe(options: OHLCVSubscriptionOptions): Promise<void> {
     const channel = this.#buildChannel(options);
-    return this.#withChannelLock(channel, () => this.#subscribeInner(channel));
+    const releaseLock = await this.#mutex.acquire();
+    try {
+      await this.#subscribeInner(channel);
+    } finally {
+      releaseLock();
+    }
   }
 
   async #subscribeInner(channel: string): Promise<void> {
@@ -236,20 +242,6 @@ export class OHLCVService {
     if (entry && entry.refCount > 0) {
       entry.refCount += 1;
       return;
-    }
-
-    // Flush other channels sitting in grace period to free server-side slots
-    // and prevent accumulation when switching time ranges rapidly.
-    for (const [otherChannel, otherEntry] of this.#channels.entries()) {
-      if (otherChannel !== channel && otherEntry.gracePeriodTimer) {
-        clearTimeout(otherEntry.gracePeriodTimer);
-        otherEntry.gracePeriodTimer = undefined;
-        log('OHLCV-WS: Flushing grace-period channel before new subscribe', {
-          flushedChannel: otherChannel,
-          newChannel: channel,
-        });
-        await this.#performUnsubscribe(otherChannel);
-      }
     }
 
     try {
@@ -307,9 +299,12 @@ export class OHLCVService {
    */
   async unsubscribe(options: OHLCVSubscriptionOptions): Promise<void> {
     const channel = this.#buildChannel(options);
-    return this.#withChannelLock(channel, () =>
-      this.#unsubscribeInner(channel),
-    );
+    const releaseLock = await this.#mutex.acquire();
+    try {
+      await this.#unsubscribeInner(channel);
+    } finally {
+      releaseLock();
+    }
   }
 
   async #unsubscribeInner(channel: string): Promise<void> {
@@ -338,7 +333,8 @@ export class OHLCVService {
   // =============================================================================
 
   async #performUnsubscribe(channel: string): Promise<void> {
-    return this.#withChannelLock(channel, async () => {
+    const releaseLock = await this.#mutex.acquire();
+    try {
       const entry = this.#channels.get(channel);
       if (entry && entry.refCount > 0) {
         log(
@@ -378,7 +374,9 @@ export class OHLCVService {
           // no-op
         });
       }
-    });
+    } finally {
+      releaseLock();
+    }
   }
 
   /**
@@ -519,30 +517,6 @@ export class OHLCVService {
     return `${SUBSCRIPTION_NAMESPACE}.${options.assetId}.${options.interval}.${options.currency}`;
   }
 
-  /**
-   * Serialize async operations for the same channel so that concurrent
-   * subscribe/unsubscribe calls cannot interleave and corrupt refCount.
-   * Different channels are not blocked by each other.
-   *
-   * @param channel - The channel key to lock on.
-   * @param fn - The async function to execute under the lock.
-   */
-  async #withChannelLock(
-    channel: string,
-    fn: () => Promise<void>,
-  ): Promise<void> {
-    const prev = this.#channelLocks.get(channel) ?? Promise.resolve();
-    const next = prev.then(fn, fn);
-    this.#channelLocks.set(channel, next);
-    try {
-      await next;
-    } finally {
-      if (this.#channelLocks.get(channel) === next) {
-        this.#channelLocks.delete(channel);
-      }
-    }
-  }
-
   async #forceReconnection(): Promise<void> {
     log('OHLCV-WS: Forcing WebSocket reconnection');
     await this.#messenger.call('BackendWebSocketService:forceReconnection');
@@ -562,7 +536,7 @@ export class OHLCVService {
       }
     }
     this.#channels.clear();
-    this.#channelLocks.clear();
+    this.#chainsUp.clear();
 
     this.#messenger.call(
       'BackendWebSocketService:removeChannelCallback',

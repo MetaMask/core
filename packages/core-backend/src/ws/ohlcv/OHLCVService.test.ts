@@ -435,47 +435,6 @@ describe('OHLCVService', () => {
       });
     });
 
-    it('should flush other grace-period channels when subscribing to a new channel', async () => {
-      const otherOpts: OHLCVSubscriptionOptions = {
-        assetId: 'eip155:8453/erc20:0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913',
-        interval: '1h',
-        currency: 'usd',
-      };
-      const otherChannel =
-        'market-data.v1.eip155:8453/erc20:0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913.1h.usd';
-
-      await withService(async ({ service, mocks }) => {
-        const mockUnsub = jest.fn();
-        mocks.getSubscriptionsByChannel.mockReturnValue([
-          { unsubscribe: mockUnsub },
-        ]);
-
-        // Subscribe to first channel (1m), then unsubscribe to put it in grace period
-        await service.subscribe(SUB_OPTS);
-        await service.unsubscribe(SUB_OPTS);
-
-        // Grace period is running for the 1m channel
-        expect(mockUnsub).not.toHaveBeenCalled();
-
-        // Subscribe to a different channel (1h) — should flush the 1m grace period
-        mocks.subscribe.mockClear();
-        await service.subscribe(otherOpts);
-
-        // The old channel (1m) should have been immediately unsubscribed
-        expect(mocks.getSubscriptionsByChannel).toHaveBeenCalledWith(
-          EXPECTED_CHANNEL,
-        );
-        expect(mockUnsub).toHaveBeenCalledTimes(1);
-
-        // The new channel (1h) should have been subscribed
-        expect(mocks.subscribe).toHaveBeenCalledWith({
-          channels: [otherChannel],
-          channelType: 'market-data.v1',
-          callback: expect.any(Function),
-        });
-      });
-    });
-
     it('should not flush same-channel grace period (reuse instead)', async () => {
       await withService(async ({ service, mocks }) => {
         const mockUnsub = jest.fn();
@@ -498,15 +457,11 @@ describe('OHLCVService', () => {
       });
     });
 
-    it('should handle rapid time-range switching without accumulating subscriptions', async () => {
-      const opts15m = SUB_OPTS; // 1m interval
+    it('should unsubscribe old channels via grace period during rapid time-range switching', async () => {
+      const opts1m = SUB_OPTS;
       const opts1h: OHLCVSubscriptionOptions = {
         ...SUB_OPTS,
         interval: '1h',
-      };
-      const opts1d: OHLCVSubscriptionOptions = {
-        ...SUB_OPTS,
-        interval: '1d',
       };
 
       await withService(async ({ service, mocks }) => {
@@ -515,29 +470,18 @@ describe('OHLCVService', () => {
           { unsubscribe: mockUnsub },
         ]);
 
-        // Subscribe 1m → unsubscribe → subscribe 1h → unsubscribe → subscribe 1d
-        await service.subscribe(opts15m);
-        await service.unsubscribe(opts15m);
-        // 1m is now in grace period
-
+        // Subscribe 1m → unsubscribe → subscribe 1h
+        await service.subscribe(opts1m);
+        await service.unsubscribe(opts1m);
         await service.subscribe(opts1h);
-        // 1m should have been flushed
-        expect(mockUnsub).toHaveBeenCalledTimes(1);
 
-        await service.unsubscribe(opts1h);
-        // 1h is now in grace period
-
-        mockUnsub.mockClear();
-        await service.subscribe(opts1d);
-        // 1h should have been flushed
-        expect(mockUnsub).toHaveBeenCalledTimes(1);
-
-        // After all this, only 1d should be active — no accumulation
-        // Advance timers well past any grace period — no additional unsubscribes
-        mockUnsub.mockClear();
-        jest.advanceTimersByTime(5000);
-        await completeAsyncOperations();
+        // 1m is in grace period, not yet unsubscribed
         expect(mockUnsub).not.toHaveBeenCalled();
+
+        // Grace period expires — old channel cleaned up
+        jest.advanceTimersByTime(3000);
+        await completeAsyncOperations();
+        expect(mockUnsub).toHaveBeenCalledTimes(1);
       });
     });
   });
