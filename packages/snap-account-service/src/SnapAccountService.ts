@@ -346,13 +346,17 @@ export class SnapAccountService {
       return;
     }
     if (!this.#migratePromise) {
-      this.#migratePromise = this.#migrate()
-        .then(() => {
-          this.#migrated = true;
-        })
-        .finally(() => {
-          this.#migratePromise = null;
-        });
+      this.#migratePromise = this.#migrate();
+
+      try {
+        await this.#migratePromise;
+
+        // Only mark it as migrated after the migration logic completes successfully. If
+        // it fails, we want future calls to retry the migration.
+        this.#migrated = true;
+      } finally {
+        this.#migratePromise = null;
+      };
     }
     await this.#migratePromise;
   }
