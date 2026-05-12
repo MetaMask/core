@@ -9,6 +9,7 @@ describe('@metamask/json-rpc-engine/v2', () => {
         "JsonRpcServer",
         "MiddlewareContext",
         "asLegacyMiddleware",
+        "assertExpectedHooks",
         "createMethodMiddleware",
         "createOriginMiddleware",
         "createScaffoldMiddleware",

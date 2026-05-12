@@ -24,6 +24,7 @@ export function makeErc20TokenRevocationRule(
   const {
     timestampEnforcer,
     allowedCalldataEnforcer,
+    allowedTargetsEnforcer,
     valueLteEnforcer,
     nonceEnforcer,
     redeemerEnforcer,
@@ -32,6 +33,11 @@ export function makeErc20TokenRevocationRule(
     permissionType: 'erc20-token-revocation',
     optionalEnforcers: [timestampEnforcer, redeemerEnforcer],
     redeemerEnforcer,
+    payeeEnforcers: {
+      allowedCalldataEnforcer,
+      allowedTargetsEnforcer,
+      singlePayeeEnforcer: allowedCalldataEnforcer,
+    },
     timestampEnforcer,
     requiredEnforcers: {
       [allowedCalldataEnforcer]: 2,

@@ -233,8 +233,6 @@ const chainIdToNativeTokenAddress: Record<Hex, Hex> = {
   '0x64': '0xe91d153e0b41518a2ce8dd3d7944fa863463a97d', // Gnosis
   '0x1e': '0x542fda317318ebf1d3deaf76e0b632741a7e677d', // Rootstock Mainnet - Native symbol: RBTC
   '0x3dc': '0x779ded0c9e1022225f8e0630b35a9b54be713736', // Stable - Native symbol: USDT0
-  '0x1079': '0x20c0000000000000000000000000000000000000', // Tempo Mainnet - Pseudo-Native symbol: pathUSD
-  '0xa5bf': '0x20c0000000000000000000000000000000000000', // Tempo Moderato Testnet - Pseudo-Native symbol: pathUSD
 };
 
 /**
@@ -289,7 +287,7 @@ export const SPOT_PRICES_SUPPORT_INFO = {
   '0x74c': 'eip155:1868/erc20:0x0000000000000000000000000000000000000000', // Soneium - Native symbol: ETH
   '0xa729': 'eip155:42793/erc20:0x0000000000000000000000000000000000000000', // Etherlink - Native symbol: XTZ (Tezos L2)
   '0xab5': 'eip155:2741/erc20:0x0000000000000000000000000000000000000000', // Abstract - Native symbol: ETH
-  '0x1079': 'eip155:4217/erc20:0x20c0000000000000000000000000000000000000', // Tempo Mainnet - Pseudo-Native symbol: pathUSD
+  '0x1079': 'eip155:4217/slip44:60', // Tempo Mainnet - No native asset
   '0x10e6': 'eip155:4326/erc20:0x0000000000000000000000000000000000000000', // MegaETH Mainnet - Native symbol: ETH
   '0x1388': 'eip155:5000/erc20:0xdeaddeaddeaddeaddeaddeaddeaddeaddead0000', // Mantle - Native symbol: MNT
   '0x2105': 'eip155:8453/slip44:60', // Base - Native symbol: ETH
@@ -302,7 +300,7 @@ export const SPOT_PRICES_SUPPORT_INFO = {
   '0xa516': 'eip155:42262/slip44:474', // Oasis Emerald - Native symbol: ROSE
   '0xa867': 'eip155:43111/erc20:0x0000000000000000000000000000000000000000', // Hemi - Native symbol: ETH
   '0xa86a': 'eip155:43114/slip44:9005', // Avalanche C-Chain - Native symbol: AVAX
-  '0xa5bf': 'eip155:42431/erc20:0x20c0000000000000000000000000000000000000', // Tempo Testnet Moderato - Pseudo-Native symbol: pathUSD
+  '0xa5bf': 'eip155:42431/slip44:60', // Tempo Testnet Moderato - No native asset
   '0xe708': 'eip155:59144/slip44:60', // Linea Mainnet - Native symbol: ETH
   '0xed88': 'eip155:60808/erc20:0x0000000000000000000000000000000000000000', // BOB - Native symbol: ETH
   '0x138de': 'eip155:80094/erc20:0x0000000000000000000000000000000000000000', // Berachain - Native symbol: Bera',

@@ -54,6 +54,11 @@ export type {
   TransactionControllerAbortTransactionSigningAction,
   TransactionControllerUpdateAtomicBatchDataAction,
   TransactionControllerWipeTransactionsAction,
+  TransactionControllerUpdateSecurityAlertResponseAction,
+  TransactionControllerUpdateTransactionGasFeesAction,
+  TransactionControllerUpdatePreviousGasParamsAction,
+  TransactionControllerUpdateSelectedGasFeeTokenAction,
+  TransactionControllerUpdateRequiredTransactionIdsAction,
 } from './TransactionController-method-action-types';
 export {
   CANCEL_RATE,
