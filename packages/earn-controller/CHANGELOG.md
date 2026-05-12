@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [12.1.2]
+
 ### Changed
 
 - Bump `@metamask/network-controller` from `^31.0.0` to `^31.1.0` ([#8765](https://github.com/MetaMask/core/pull/8765))
@@ -446,7 +448,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#5271](https://github.com/MetaMask/core/pull/5271))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/earn-controller@12.1.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/earn-controller@12.1.2...HEAD
+[12.1.2]: https://github.com/MetaMask/core/compare/@metamask/earn-controller@12.1.1...@metamask/earn-controller@12.1.2
 [12.1.1]: https://github.com/MetaMask/core/compare/@metamask/earn-controller@12.1.0...@metamask/earn-controller@12.1.1
 [12.1.0]: https://github.com/MetaMask/core/compare/@metamask/earn-controller@12.0.0...@metamask/earn-controller@12.1.0
 [12.0.0]: https://github.com/MetaMask/core/compare/@metamask/earn-controller@11.2.1...@metamask/earn-controller@12.0.0

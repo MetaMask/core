@@ -54,7 +54,7 @@
   },
   "dependencies": {
     "@ethereumjs/util": "^9.1.0",
-    "@metamask/accounts-controller": "^38.1.0",
+    "@metamask/accounts-controller": "^38.1.1",
     "@metamask/base-controller": "^9.1.0",
     "@metamask/eth-snap-keyring": "^22.0.1",
     "@metamask/key-tree": "^10.1.1",

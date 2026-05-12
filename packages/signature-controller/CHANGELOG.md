@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [39.2.2]
+
 ### Changed
 
 - Bump `@metamask/network-controller` from `^31.0.0` to `^31.1.0` ([#8765](https://github.com/MetaMask/core/pull/8765))
@@ -759,7 +761,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#1214](https://github.com/MetaMask/core/pull/1214))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@39.2.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@39.2.2...HEAD
+[39.2.2]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@39.2.1...@metamask/signature-controller@39.2.2
 [39.2.1]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@39.2.0...@metamask/signature-controller@39.2.1
 [39.2.0]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@39.1.2...@metamask/signature-controller@39.2.0
 [39.1.2]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@39.1.1...@metamask/signature-controller@39.1.2
