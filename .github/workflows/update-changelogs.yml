@@ -4,11 +4,12 @@ on:
   issue_comment:
     types:
       - created
-#  pull_request:
-#    branches:
-#      - main
-#    types:
-#      - opened
+  pull_request_target:
+    branches:
+      - main
+    types:
+      - opened
+      - ready_for_review
 
 permissions:
   contents: write
@@ -17,7 +18,7 @@ permissions:
 jobs:
   is-fork:
     name: Determine whether this PR is from a fork
-    if: github.event_name == 'pull_request' || (github.event.issue.pull_request && startsWith(github.event.comment.body, '@metamaskbot update-changelogs'))
+    if: (github.event_name == 'pull_request_target' && !github.event.pull_request.draft) || (github.event.issue.pull_request && startsWith(github.event.comment.body, '@metamaskbot update-changelogs'))
     runs-on: ubuntu-latest
     outputs:
       is-fork: ${{ steps.is-fork.outputs.is-fork }}
@@ -112,53 +113,89 @@ jobs:
     if: ${{ needs.is-release.outputs.is-release == 'true' }}
     runs-on: ubuntu-latest
     environment: default-branch
-    env:
-      PR_NUMBER: ${{ github.event.issue.number || github.event.pull_request.number }}
     steps:
-      - name: Checkout repository
+      - name: Check out the base branch
         uses: actions/checkout@v6
         with:
+          ref: ${{ needs.is-release.outputs.merge-base }}
           token: ${{ secrets.UPDATE_CHANGELOG_TOKEN }}
 
-      - name: Checkout pull request
-        env:
-          PR_HEAD_SHA: ${{ needs.is-release.outputs.head-sha }}
-          PR_BASE_REF: ${{ needs.is-release.outputs.base-ref }}
-        run: |
-          git fetch --no-tags origin "$PR_HEAD_SHA"
-          git fetch --no-tags origin "$PR_BASE_REF"
-          git checkout --detach "$PR_HEAD_SHA"
+      - name: Detach HEAD (to prevent accidental pushes)
+        run: git checkout --detach HEAD
 
-      - name: Setup environment
+      - name: Set up environment
         uses: MetaMask/action-checkout-and-setup@v3
         with:
           is-high-risk-environment: false
 
+      - name: Overlay relevant files from current pull request
+        env:
+          PR_HEAD_SHA: ${{ needs.is-release.outputs.head-sha }}
+          PR_HEAD_REF: ${{ needs.is-release.outputs.head-ref }}
+        run: |
+          # These next two commands are also useful later when pushing
+          git fetch --no-tags origin "$PR_HEAD_SHA"
+          git fetch --no-tags origin "$PR_HEAD_REF"
+          git checkout "$PR_HEAD_SHA" -- '**/CHANGELOG.md' '**/package.json'
+        shell: bash
+
+      - name: Configure Git with name and email
+        run: |
+          # This is necessary to make a commit
+          # Passing `token` to the `checkout` action does not do this for us
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+        shell: bash
+
+      - name: Commit relevant files from current pull request
+        run: |
+          git add -- '**/CHANGELOG.md' '**/package.json'
+          git commit -m "[Temporary] Add changelogs from current pull request"
+        shell: bash
+
       - name: Ensure required dependency bump entries exist across all changelogs
         id: update-changelogs
         env:
+          PR_NUMBER: ${{ github.event.issue.number || github.event.pull_request.number }}
           MERGE_BASE: ${{ needs.is-release.outputs.merge-base }}
-        run: yarn changelog:validate --checkDeps --fix --currentPr "$PR_NUMBER" --fromRef "$MERGE_BASE"
+        run: |
+          yarn changelog:validate --checkDeps --fix --currentPr "$PR_NUMBER" --fromRef "$MERGE_BASE"
+        shell: bash
+        # If changelogs were updated but there were other validation errors
+        # found, we need to still create a commit below
         continue-on-error: true
 
-      - name: Commit and push updated changelogs
-        id: push-changes
-        env:
-          PR_HEAD_REF: ${{ needs.is-release.outputs.head-ref }}
+      - name: Commit updated changelogs
+        id: commit-updated-changelogs
         run: |
           if git diff --quiet; then
-            echo "changes-pushed=false" >> "$GITHUB_OUTPUT"
+            # Nothing to commit; no changelogs updated
             exit 0
           fi
 
-          git diff --stat
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -- '**/CHANGELOG.md'
           git commit -m "chore: Update dependency bump changelog entries"
-          git push origin "HEAD:$PR_HEAD_REF"
 
-          echo "changes-pushed=true" >> "$GITHUB_OUTPUT"
+          new_commit_id="$(git log -1 --pretty='format:%H')"
+          echo "new-commit-id=${new_commit_id}" >> "$GITHUB_OUTPUT"
+        shell: bash
+
+      - name: Cherry-pick new commit on top of pull request branch and push it
+        id: push-changes
+        env:
+          NEW_COMMIT_ID: ${{ steps.commit-updated-changelogs.outputs.new-commit-id }}
+          PR_HEAD_SHA: ${{ needs.is-release.outputs.head-sha }}
+          PR_HEAD_REF: ${{ needs.is-release.outputs.head-ref }}
+        run: |
+          if [[ -n "$NEW_COMMIT_ID" ]]; then
+            git checkout "$PR_HEAD_SHA"
+            git cherry-pick "$NEW_COMMIT_ID"
+            git push origin "HEAD:$PR_HEAD_REF"
+            echo "changes-pushed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "changes-pushed=false" >> "$GITHUB_OUTPUT"
+          fi
+        shell: bash
 
       - name: Comment result
         if: always()

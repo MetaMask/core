@@ -253,7 +253,7 @@ export class PasskeyController extends BaseController<
       ],
       timeout: WEBAUTHN_TIMEOUT_MS,
       authenticatorSelection: {
-        userVerification: 'preferred',
+        userVerification: 'required',
         authenticatorAttachment: 'platform',
         residentKey: 'preferred',
       },
@@ -316,7 +316,7 @@ export class PasskeyController extends BaseController<
             | undefined,
         },
       ],
-      userVerification: 'preferred',
+      userVerification: 'required',
       hints: ['client-device', 'hybrid'],
       timeout: WEBAUTHN_TIMEOUT_MS,
       extensions,
@@ -356,7 +356,7 @@ export class PasskeyController extends BaseController<
           transports: record.credential.transports,
         },
       ],
-      userVerification: 'preferred',
+      userVerification: 'required',
       hints: ['client-device', 'hybrid'],
       timeout: WEBAUTHN_TIMEOUT_MS,
       extensions,
@@ -413,7 +413,7 @@ export class PasskeyController extends BaseController<
         expectedChallenge: registrationCeremony.challenge,
         expectedOrigin: this.#expectedOrigin,
         expectedRPIDs: this.#expectedRPIDs,
-        requireUserVerification: false,
+        requireUserVerification: true,
       }).catch((error) => {
         log('Error verifying passkey registration response', error);
         throw new PasskeyControllerError(
@@ -724,8 +724,7 @@ export class PasskeyController extends BaseController<
           counter: credential.counter,
           transports: credential.transports,
         },
-        // UV optional for device compatibility; vault key remains password-gated.
-        requireUserVerification: false,
+        requireUserVerification: true,
       }).catch((error) => {
         log(
           'Error verifying passkey authentication response',

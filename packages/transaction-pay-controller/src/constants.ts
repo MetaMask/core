@@ -2,6 +2,7 @@ import type { Hex } from '@metamask/utils';
 
 export const CONTROLLER_NAME = 'TransactionPayController';
 export const CHAIN_ID_ARBITRUM = '0xa4b1' as Hex;
+export const CHAIN_ID_MAINNET = '0x1' as Hex;
 export const CHAIN_ID_POLYGON = '0x89' as Hex;
 export const CHAIN_ID_HYPERCORE = '0x539' as Hex;
 
@@ -14,10 +15,17 @@ export const ARBITRUM_USDC_ADDRESS =
 export const POLYGON_USDCE_ADDRESS =
   '0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174' as Hex;
 
+export const POLYGON_PUSD_ADDRESS =
+  '0xC011a7E12a19f7B1f670d46F03B03f3342E82DFB' as Hex;
+
 export const HYPERCORE_USDC_ADDRESS = '0x00000000000000000000000000000000';
 
 export const HYPERCORE_USDC_DECIMALS = 8;
 export const USDC_DECIMALS = 6;
+
+export const SLIP44_COIN_TYPE_BY_CHAIN: Record<Hex, number> = {
+  [CHAIN_ID_POLYGON]: 966, // POL
+};
 
 export const STABLECOINS: Record<Hex, Hex[]> = {
   // Mainnet
@@ -33,7 +41,10 @@ export const STABLECOINS: Record<Hex, Hex[]> = {
     '0x176211869ca2b568f2a7d4ee941e073a821ee1ff', // USDC
     '0xa219439258ca9da29e9cc4ce5596924745e12b93', // USDT
   ],
-  [CHAIN_ID_POLYGON]: [POLYGON_USDCE_ADDRESS.toLowerCase() as Hex],
+  [CHAIN_ID_POLYGON]: [
+    POLYGON_USDCE_ADDRESS.toLowerCase() as Hex,
+    POLYGON_PUSD_ADDRESS.toLowerCase() as Hex,
+  ],
   [CHAIN_ID_HYPERCORE]: [HYPERCORE_USDC_ADDRESS], // USDC
 };
 

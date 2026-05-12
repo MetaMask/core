@@ -23,6 +23,7 @@ export {
   isRequest,
   JsonRpcEngineError,
   selectHooks,
+  assertExpectedHooks,
 } from './utils';
 export type {
   Json,

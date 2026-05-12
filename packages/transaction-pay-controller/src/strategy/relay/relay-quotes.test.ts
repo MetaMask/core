@@ -83,7 +83,7 @@ const QUOTE_REQUEST_MOCK: QuoteRequest = {
 };
 
 const STEP_MOCK: RelayTransactionStep = {
-  id: 'swap',
+  id: 'deposit',
   requestId: '0x1',
   kind: 'transaction',
   items: [
@@ -452,6 +452,68 @@ describe('Relay Quotes Utils', () => {
           ],
         }),
       );
+    });
+
+    it('funds the delegator (transaction.txParams.from) rather than request.from when they differ', async () => {
+      const delegatorAddress =
+        '0xabcdef0000000000000000000000000000000001' as Hex;
+
+      successfulFetchMock.mockResolvedValue({
+        ok: true,
+        json: async () => QUOTE_MOCK,
+      } as never);
+
+      await getRelayQuotes({
+        accountSupports7702: true,
+        messenger,
+        requests: [QUOTE_REQUEST_MOCK],
+        transaction: {
+          ...TRANSACTION_META_MOCK,
+          txParams: {
+            from: delegatorAddress,
+            data: '0xabc' as Hex,
+          },
+        } as TransactionMeta,
+      });
+
+      const body = JSON.parse(
+        successfulFetchMock.mock.calls[0][1]?.body as string,
+      );
+
+      expect(body.txs[0]).toStrictEqual({
+        to: QUOTE_REQUEST_MOCK.targetTokenAddress,
+        data: '0xa9059cbb000000000000000000000000abcdef0000000000000000000000000000000001000000000000000000000000000000000000000000000000000000000000007b',
+        value: '0x0',
+      });
+    });
+
+    it('falls back to request.from for the funding recipient when transaction.txParams.from is unset', async () => {
+      successfulFetchMock.mockResolvedValue({
+        ok: true,
+        json: async () => QUOTE_MOCK,
+      } as never);
+
+      await getRelayQuotes({
+        accountSupports7702: true,
+        messenger,
+        requests: [QUOTE_REQUEST_MOCK],
+        transaction: {
+          ...TRANSACTION_META_MOCK,
+          txParams: {
+            data: '0xabc' as Hex,
+          },
+        } as TransactionMeta,
+      });
+
+      const body = JSON.parse(
+        successfulFetchMock.mock.calls[0][1]?.body as string,
+      );
+
+      expect(body.txs[0]).toStrictEqual({
+        to: QUOTE_REQUEST_MOCK.targetTokenAddress,
+        data: '0xa9059cbb0000000000000000000000001234567890123456789012345678901234567891000000000000000000000000000000000000000000000000000000000000007b',
+        value: '0x0',
+      });
     });
 
     it('includes request in quote', async () => {
@@ -1474,6 +1536,93 @@ describe('Relay Quotes Utils', () => {
           from: FROM_MOCK,
         }),
       );
+    });
+
+    it('uses original (EOA) from for predictWithdraw post-quote when route has no deposit step', async () => {
+      // Same-chain swap routes (e.g. Polygon pUSD -> Polygon USDC) only emit
+      // `approve` + `swap` steps. Simulating from the Safe proxy reverts in
+      // the swap step because DEX aggregators reject contract callers, so the
+      // override must be skipped and the relay params' EOA `from` used instead.
+      const quoteMock = cloneDeep(QUOTE_MOCK);
+      quoteMock.steps = [
+        { ...STEP_MOCK, id: 'approve' },
+        { ...STEP_MOCK, id: 'swap' },
+      ];
+
+      successfulFetchMock.mockResolvedValue({
+        ok: true,
+        json: async () => quoteMock,
+      } as never);
+
+      estimateGasBatchMock.mockResolvedValue({
+        totalGasLimit: 100000,
+        gasLimits: [50000, 50000],
+      });
+
+      const proxyAddress = '0xproxyAddress1234567890123456789012345678' as Hex;
+
+      await getRelayQuotes({
+        messenger,
+        requests: [
+          {
+            ...QUOTE_REQUEST_MOCK,
+            targetAmountMinimum: '0',
+            isPostQuote: true,
+            refundTo: proxyAddress,
+          },
+        ],
+        transaction: PREDICT_WITHDRAW_TRANSACTION_MOCK,
+      });
+
+      expect(estimateGasBatchMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          from: FROM_MOCK,
+        }),
+      );
+    });
+
+    it('still uses Safe proxy for gas-fee-token lookup on swap-only predictWithdraw routes', async () => {
+      // The gas-fee-token lookup must always use the Safe proxy for Predict
+      // withdraws (because the source token lives in the Safe, not the EOA),
+      // even when the gas-estimation path falls back to the EOA `from`.
+      const quoteMock = cloneDeep(QUOTE_MOCK);
+      quoteMock.steps = [
+        { ...STEP_MOCK, id: 'approve' },
+        { ...STEP_MOCK, id: 'swap' },
+      ];
+
+      successfulFetchMock.mockResolvedValue({
+        ok: true,
+        json: async () => quoteMock,
+      } as never);
+
+      estimateGasBatchMock.mockResolvedValue({
+        totalGasLimit: 100000,
+        gasLimits: [50000, 50000],
+      });
+
+      getTokenBalanceMock.mockReturnValue('0');
+      getGasFeeTokensMock.mockResolvedValue([GAS_FEE_TOKEN_MOCK]);
+
+      const proxyAddress = '0xproxyAddress1234567890123456789012345678' as Hex;
+
+      const result = await getRelayQuotes({
+        messenger,
+        requests: [
+          {
+            ...QUOTE_REQUEST_MOCK,
+            targetAmountMinimum: '0',
+            isPostQuote: true,
+            refundTo: proxyAddress,
+          },
+        ],
+        transaction: PREDICT_WITHDRAW_TRANSACTION_MOCK,
+      });
+
+      expect(getGasFeeTokensMock).toHaveBeenCalledWith(
+        expect.objectContaining({ from: proxyAddress }),
+      );
+      expect(result[0].fees.isSourceGasFeeToken).toBe(true);
     });
 
     it('sets isSourceGasFeeToken for predictWithdraw post-quote when insufficient native balance', async () => {
@@ -2751,7 +2900,10 @@ describe('Relay Quotes Utils', () => {
         accountSupports7702: true,
         messenger,
         requests: [arbitrumToHyperliquidRequest],
-        transaction: TRANSACTION_META_MOCK,
+        transaction: {
+          ...TRANSACTION_META_MOCK,
+          type: TransactionType.perpsDeposit,
+        },
       });
 
       const body = JSON.parse(
@@ -2763,6 +2915,37 @@ describe('Relay Quotes Utils', () => {
           amount: '12300',
           destinationChainId: 1337,
           destinationCurrency: '0x00000000000000000000000000000000',
+        }),
+      );
+    });
+
+    it('does not convert to Hyperliquid deposit when parent transaction is not a Perps deposit', async () => {
+      const arbitrumUsdcRequest: QuoteRequest = {
+        ...QUOTE_REQUEST_MOCK,
+        targetChainId: CHAIN_ID_ARBITRUM,
+        targetTokenAddress: ARBITRUM_USDC_ADDRESS,
+      };
+
+      successfulFetchMock.mockResolvedValue({
+        ok: true,
+        json: async () => QUOTE_MOCK,
+      } as never);
+
+      await getRelayQuotes({
+        accountSupports7702: true,
+        messenger,
+        requests: [arbitrumUsdcRequest],
+        transaction: TRANSACTION_META_MOCK,
+      });
+
+      const body = JSON.parse(
+        successfulFetchMock.mock.calls[0][1]?.body as string,
+      );
+
+      expect(body).toStrictEqual(
+        expect.objectContaining({
+          destinationChainId: Number(CHAIN_ID_ARBITRUM),
+          destinationCurrency: ARBITRUM_USDC_ADDRESS,
         }),
       );
     });

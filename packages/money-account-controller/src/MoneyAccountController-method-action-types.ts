@@ -6,6 +6,15 @@
 import type { MoneyAccountController } from './MoneyAccountController';
 
 /**
+ * Initializes the controller by creating a money account for the primary
+ * entropy source if one does not already exist.
+ */
+export type MoneyAccountControllerInitAction = {
+  type: `MoneyAccountController:init`;
+  handler: MoneyAccountController['init'];
+};
+
+/**
  * Creates a money account for the given entropy source. If an account
  * already exists for that entropy source, it is returned as-is (idempotent).
  *
@@ -46,6 +55,7 @@ export type MoneyAccountControllerClearStateAction = {
  * Union of all MoneyAccountController action types.
  */
 export type MoneyAccountControllerMethodActions =
+  | MoneyAccountControllerInitAction
   | MoneyAccountControllerCreateMoneyAccountAction
   | MoneyAccountControllerGetMoneyAccountAction
   | MoneyAccountControllerClearStateAction;
