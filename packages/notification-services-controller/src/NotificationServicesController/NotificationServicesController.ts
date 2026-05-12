@@ -1119,7 +1119,7 @@ export class NotificationServicesController extends BaseController<
    * Enables all MetaMask notifications for the user.
    * This is identical flow when initializing notifications for the first time.
    *
-   * @param opts - Optional settings for first-time AUS notification preferences initialization.
+   * @param opts - Optional options to mutate this functionality.
    * @throws {Error} If there is an error during the process of enabling notifications.
    */
   public async enableMetamaskNotifications(
