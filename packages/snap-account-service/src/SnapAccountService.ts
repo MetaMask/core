@@ -255,7 +255,7 @@ export class SnapAccountService {
     if (groupId === this.#getSelectedAccountGroupId()) {
       this.#forwardSelectedAccounts(
         groupId,
-        [] /* Clearing accounts since the group is removed */,
+        [], // Clearing accounts since the group is removed
       );
     }
   }
