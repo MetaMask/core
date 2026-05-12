@@ -921,6 +921,12 @@ export class AccountTreeController extends BaseController<
         if (created) {
           createdGroups.set(groupId, walletId);
         } else if (!createdGroups.has(groupId)) {
+          // ^ We check that the group has not been created in this same batch before adding it to the `updatedGroups`
+          // map, to avoid sending both created and updated events for the same group:
+          // - Account 1 + Account 2 + Account 3
+          // - Account 1 and 3 belong to the same group
+          // - Account 1 will create the group
+          // - Account 3 will update the group (but we only want to send a created event, not an updated one).
           updatedGroups.set(groupId, walletId);
         }
 
