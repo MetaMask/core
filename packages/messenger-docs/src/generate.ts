@@ -89,180 +89,256 @@ export type GenerateResult = {
 };
 
 /**
- * Scan a project for messenger action/event types and generate documentation.
- *
- * @param options - Generation options.
- * @returns A promise resolving to counts of generated namespaces, actions, and events.
+ * The set of directories available to scan for messenger types, resolved from
+ * the project's filesystem layout.
  */
-export async function generate(
-  options: GenerateOptions,
-): Promise<GenerateResult> {
-  const { projectPath, outputDir, scanDirs } = options;
+type ScanSources = {
+  /** User-configured scan dirs that exist on disk (relative to projectPath). */
+  scanDirs: string[];
+  /** Absolute path to `packages/` if it exists, otherwise null. */
+  packagesDir: string | null;
+  /** Absolute path to `node_modules/@metamask/` if it exists, otherwise null. */
+  nodeModulesDir: string | null;
+};
 
-  const allItems: MessengerItemDoc[] = [];
-
-  // Check which sources are available
+/**
+ * Discover which configured source locations actually exist on disk.
+ *
+ * @param projectPath - The project root path.
+ * @param scanDirs - User-configured scan directories relative to projectPath.
+ * @returns A ScanSources object describing the locations to scan.
+ */
+async function discoverScanSources(
+  projectPath: string,
+  scanDirs: string[],
+): Promise<ScanSources> {
   const existingScanDirs: string[] = [];
   for (const dir of scanDirs) {
-    const abs = path.join(projectPath, dir);
-    if (await directoryExists(abs)) {
+    if (await directoryExists(path.join(projectPath, dir))) {
       existingScanDirs.push(dir);
     }
   }
-  const packagesDir = path.join(projectPath, 'packages');
-  const hasPackages = await directoryExists(packagesDir);
-  const nmDir = path.join(projectPath, 'node_modules', '@metamask');
-  const hasNodeModules = await directoryExists(nmDir);
 
-  const sources: string[] = [];
-  for (const dir of existingScanDirs) {
-    sources.push(`${dir}/ (.ts)`);
+  const packagesDir = path.join(projectPath, 'packages');
+  const nodeModulesDir = path.join(projectPath, 'node_modules', '@metamask');
+
+  return {
+    scanDirs: existingScanDirs,
+    packagesDir: (await directoryExists(packagesDir)) ? packagesDir : null,
+    nodeModulesDir: (await directoryExists(nodeModulesDir))
+      ? nodeModulesDir
+      : null,
+  };
+}
+
+/**
+ * Log a human-readable description of which source locations will be scanned.
+ *
+ * @param sources - The resolved scan sources.
+ */
+function logScanPlan(sources: ScanSources): void {
+  const summary: string[] = [];
+  for (const dir of sources.scanDirs) {
+    summary.push(`${dir}/ (.ts)`);
   }
-  if (hasPackages) {
-    sources.push('packages/*/src (.ts)');
+  if (sources.packagesDir) {
+    summary.push('packages/*/src (.ts)');
   }
-  if (hasNodeModules) {
-    sources.push('node_modules/@metamask/*/dist (.d.cts)');
+  if (sources.nodeModulesDir) {
+    summary.push('node_modules/@metamask/*/dist (.d.cts)');
   }
   console.log(
-    `Scanning ${sources.join(', ')} for Messenger action/event types...`,
+    `Scanning ${summary.join(', ')} for Messenger action/event types...`,
   );
+}
 
-  // Scan configured source directories for .ts files
-  for (const dir of existingScanDirs) {
-    const abs = path.join(projectPath, dir);
-    const tsFiles = await findTsFiles(abs);
-    for (const file of tsFiles) {
-      try {
-        const items = await extractFromFile(file, projectPath);
-        allItems.push(...items);
-      } catch (error) {
-        console.warn(
-          `Warning: failed to parse ${path.relative(projectPath, file)}`,
-        );
-        console.warn(error);
-      }
+/**
+ * Run extraction against every file in a single directory, logging and
+ * swallowing per-file failures.
+ *
+ * @param directory - The directory to scan.
+ * @param projectPath - The project root, used for relative path display.
+ * @param findFiles - The function used to enumerate files in the directory.
+ * @returns The list of extracted messenger items.
+ */
+async function extractFromDirectory(
+  directory: string,
+  projectPath: string,
+  findFiles: (dir: string) => Promise<string[]>,
+): Promise<MessengerItemDoc[]> {
+  const items: MessengerItemDoc[] = [];
+  const files = await findFiles(directory);
+  for (const file of files) {
+    try {
+      items.push(...(await extractFromFile(file, projectPath)));
+    } catch (error) {
+      console.warn(
+        `Warning: failed to parse ${path.relative(projectPath, file)}`,
+      );
+      console.warn(error);
     }
   }
+  return items;
+}
 
-  // Scan packages/*/src for .ts source files (monorepo)
-  if (hasPackages) {
-    const entries = await fs.readdir(packagesDir, { withFileTypes: true });
-    const packageDirs = entries
-      .filter((dirent) => dirent.isDirectory())
-      .map((dirent) => path.join(packagesDir, dirent.name, 'src'));
+/**
+ * Enumerate the subdirectories of a parent directory that match the expected
+ * layout (e.g., `packages/*‍/src` or `node_modules/@metamask/*‍/dist`), keeping
+ * only those that actually exist.
+ *
+ * @param parentDir - The parent directory to enumerate.
+ * @param subPath - The trailing path component appended to each entry.
+ * @param includeSymlinks - Whether to include symbolic links (true for
+ * node_modules where workspaces are symlinked).
+ * @returns The list of absolute paths to existing target subdirectories.
+ */
+async function listTargetSubdirectories(
+  parentDir: string,
+  subPath: string,
+  includeSymlinks: boolean,
+): Promise<string[]> {
+  const entries = await fs.readdir(parentDir, { withFileTypes: true });
+  const candidates = entries
+    .filter(
+      (entry) =>
+        entry.isDirectory() || (includeSymlinks && entry.isSymbolicLink()),
+    )
+    .map((entry) => path.join(parentDir, entry.name, subPath));
 
-    for (const srcDir of packageDirs) {
-      if (!(await directoryExists(srcDir))) {
-        continue;
-      }
-
-      const tsFiles = await findTsFiles(srcDir);
-      for (const file of tsFiles) {
-        try {
-          const items = await extractFromFile(file, projectPath);
-          allItems.push(...items);
-        } catch (error) {
-          console.warn(
-            `Warning: failed to parse ${path.relative(projectPath, file)}`,
-          );
-          console.warn(error);
-        }
-      }
+  const existing: string[] = [];
+  for (const candidate of candidates) {
+    if (await directoryExists(candidate)) {
+      existing.push(candidate);
     }
   }
+  return existing;
+}
 
-  // Scan node_modules/@metamask/*/dist for .d.cts declaration files
-  if (hasNodeModules) {
-    const entries = await fs.readdir(nmDir, { withFileTypes: true });
-    const pkgDirs = entries
-      .filter((dirent) => dirent.isDirectory() || dirent.isSymbolicLink())
-      .map((dirent) => path.join(nmDir, dirent.name, 'dist'));
+/**
+ * Scan every source location described by `sources` and return all extracted
+ * messenger items.
+ *
+ * @param projectPath - The project root path.
+ * @param sources - The set of source locations to scan.
+ * @returns A flat list of all extracted messenger items.
+ */
+async function scanSources(
+  projectPath: string,
+  sources: ScanSources,
+): Promise<MessengerItemDoc[]> {
+  const allItems: MessengerItemDoc[] = [];
 
-    for (const distDir of pkgDirs) {
-      if (!(await directoryExists(distDir))) {
-        continue;
-      }
-
-      const dtsFiles = await findDtsFiles(distDir);
-      for (const file of dtsFiles) {
-        try {
-          const items = await extractFromFile(file, projectPath);
-          allItems.push(...items);
-        } catch (error) {
-          console.warn(
-            `Warning: failed to parse ${path.relative(projectPath, file)}`,
-          );
-          console.warn(error);
-        }
-      }
-    }
-  }
-
-  if (existingScanDirs.length === 0 && !hasPackages && !hasNodeModules) {
-    throw new Error(
-      `No scannable directories found in ${projectPath}. ` +
-        `Looked for: ${scanDirs.join(', ')}, packages/, node_modules/@metamask/`,
+  for (const dir of sources.scanDirs) {
+    allItems.push(
+      ...(await extractFromDirectory(
+        path.join(projectPath, dir),
+        projectPath,
+        findTsFiles,
+      )),
     );
   }
 
-  console.log(
-    `Found ${allItems.length} messenger ${allItems.length === 1 ? 'item' : 'items'} total.`,
-  );
+  if (sources.packagesDir) {
+    const srcDirs = await listTargetSubdirectories(
+      sources.packagesDir,
+      'src',
+      false,
+    );
+    for (const srcDir of srcDirs) {
+      allItems.push(
+        ...(await extractFromDirectory(srcDir, projectPath, findTsFiles)),
+      );
+    }
+  }
 
-  // Group by namespace (part before the colon), deduplicating by typeString.
-  // When duplicates exist, prefer the one with JSDoc, or from the package
-  // whose name matches the namespace.
+  if (sources.nodeModulesDir) {
+    const distDirs = await listTargetSubdirectories(
+      sources.nodeModulesDir,
+      'dist',
+      true,
+    );
+    for (const distDir of distDirs) {
+      allItems.push(
+        ...(await extractFromDirectory(distDir, projectPath, findDtsFiles)),
+      );
+    }
+  }
+
+  return allItems;
+}
+
+/**
+ * Replace a previously-seen item in its existing namespace group with a
+ * higher-scoring duplicate. Handles the case where the duplicate is a
+ * different kind (action vs event) by moving it between lists.
+ *
+ * @param byNamespace - Map of namespace to its group.
+ * @param previous - The previously stored item.
+ * @param replacement - The new item to replace it with.
+ */
+function replaceDuplicateInGroup(
+  byNamespace: Map<string, NamespaceGroup>,
+  previous: MessengerItemDoc,
+  replacement: MessengerItemDoc,
+): void {
+  const namespace = replacement.typeString.split(':')[0];
+  const group = byNamespace.get(namespace);
+  if (!group) {
+    return;
+  }
+  const previousList =
+    previous.kind === 'action' ? group.actions : group.events;
+  const index = previousList.indexOf(previous);
+  if (index === -1) {
+    return;
+  }
+  if (previous.kind === replacement.kind) {
+    previousList[index] = replacement;
+  } else {
+    previousList.splice(index, 1);
+    const newList =
+      replacement.kind === 'action' ? group.actions : group.events;
+    newList.push(replacement);
+  }
+}
+
+/**
+ * Group items by namespace, deduplicating duplicate typeStrings using
+ * `deduplicationScore`. Returns groups sorted alphabetically by namespace,
+ * with each group's items sorted alphabetically by typeString.
+ *
+ * @param items - The full list of extracted items.
+ * @returns The deduplicated and sorted namespace groups.
+ */
+function groupByNamespace(items: MessengerItemDoc[]): NamespaceGroup[] {
   const byNamespace = new Map<string, NamespaceGroup>();
-  const seen = new Map<string, MessengerItemDoc>(); // key: typeString
+  const seen = new Map<string, MessengerItemDoc>();
 
-  for (const item of allItems) {
+  for (const item of items) {
     const existing = seen.get(item.typeString);
     if (existing) {
-      // Prefer item with JSDoc, or from the "home" package
-      const existingScore = deduplicationScore(existing);
-      const newScore = deduplicationScore(item);
-      if (newScore <= existingScore) {
+      if (deduplicationScore(item) <= deduplicationScore(existing)) {
         continue;
       }
-      // Replace existing with better item
-      const ns = item.typeString.split(':')[0];
-      const group = byNamespace.get(ns);
-      if (group) {
-        const oldList =
-          existing.kind === 'action' ? group.actions : group.events;
-        const idx = oldList.indexOf(existing);
-        if (idx !== -1) {
-          if (existing.kind === item.kind) {
-            oldList[idx] = item;
-          } else {
-            oldList.splice(idx, 1);
-            const newList =
-              item.kind === 'action' ? group.actions : group.events;
-            newList.push(item);
-          }
-        }
-      }
+      replaceDuplicateInGroup(byNamespace, existing, item);
       seen.set(item.typeString, item);
       continue;
     }
 
     seen.set(item.typeString, item);
-    const ns = item.typeString.split(':')[0];
-    if (!byNamespace.has(ns)) {
-      byNamespace.set(ns, { namespace: ns, actions: [], events: [] });
+    const namespace = item.typeString.split(':')[0];
+    let group = byNamespace.get(namespace);
+    if (!group) {
+      group = { namespace, actions: [], events: [] };
+      byNamespace.set(namespace, group);
     }
-    const group = byNamespace.get(ns);
-    if (group) {
-      if (item.kind === 'action') {
-        group.actions.push(item);
-      } else {
-        group.events.push(item);
-      }
+    if (item.kind === 'action') {
+      group.actions.push(item);
+    } else {
+      group.events.push(item);
     }
   }
 
-  // Sort namespaces alphabetically, sort items within each namespace
   const namespaces = Array.from(byNamespace.values()).sort((a, b) =>
     a.namespace.localeCompare(b.namespace),
   );
@@ -272,19 +348,30 @@ export async function generate(
     ns.events.sort((a, b) => a.typeString.localeCompare(b.typeString));
   }
 
-  // Resolve repository base URL for source links
-  const repoBaseUrl = await resolveRepoBaseUrl(projectPath);
+  return namespaces;
+}
 
-  // Write output
+/**
+ * Write generated docs (namespace pages, index page, sidebars) to disk,
+ * replacing any existing `docs/` directory.
+ *
+ * @param namespaces - The grouped namespaces to render.
+ * @param outputDir - The root output directory.
+ * @param repoBaseUrl - GitHub blob base URL for source links, or null.
+ * @returns Promise that resolves once all files are written.
+ */
+async function writeOutput(
+  namespaces: NamespaceGroup[],
+  outputDir: string,
+  repoBaseUrl: string | null,
+): Promise<void> {
   const docsDir = path.join(outputDir, 'docs');
 
-  // Clean existing generated docs
   if (await directoryExists(docsDir)) {
     await fs.rm(docsDir, { recursive: true });
   }
   await fs.mkdir(docsDir, { recursive: true });
 
-  // Generate namespace pages
   for (const ns of namespaces) {
     const nsDir = path.join(docsDir, ns.namespace);
     await fs.mkdir(nsDir, { recursive: true });
@@ -304,17 +391,52 @@ export async function generate(
     }
   }
 
-  // Generate index page
   await fs.writeFile(
     path.join(docsDir, 'index.md'),
     generateIndexPage(namespaces),
   );
 
-  // Generate sidebars
   await fs.writeFile(
     path.join(outputDir, 'sidebars.ts'),
     generateSidebars(namespaces),
   );
+}
+
+/**
+ * Scan a project for messenger action/event types and generate documentation.
+ *
+ * @param options - Generation options.
+ * @returns A promise resolving to counts of generated namespaces, actions, and events.
+ */
+export async function generate(
+  options: GenerateOptions,
+): Promise<GenerateResult> {
+  const { projectPath, outputDir, scanDirs } = options;
+
+  const sources = await discoverScanSources(projectPath, scanDirs);
+
+  if (
+    sources.scanDirs.length === 0 &&
+    !sources.packagesDir &&
+    !sources.nodeModulesDir
+  ) {
+    throw new Error(
+      `No scannable directories found in ${projectPath}. ` +
+        `Looked for: ${scanDirs.join(', ')}, packages/, node_modules/@metamask/`,
+    );
+  }
+
+  logScanPlan(sources);
+
+  const allItems = await scanSources(projectPath, sources);
+  console.log(
+    `Found ${allItems.length} messenger ${allItems.length === 1 ? 'item' : 'items'} total.`,
+  );
+
+  const namespaces = groupByNamespace(allItems);
+  const repoBaseUrl = await resolveRepoBaseUrl(projectPath);
+
+  await writeOutput(namespaces, outputDir, repoBaseUrl);
 
   const totalActions = namespaces.reduce(
     (sum, ns) => sum + ns.actions.length,
@@ -327,7 +449,7 @@ export async function generate(
   );
   console.log(`  Actions: ${totalActions}`);
   console.log(`  Events: ${totalEvents}`);
-  console.log(`Output: ${docsDir}/`);
+  console.log(`Output: ${path.join(outputDir, 'docs')}/`);
 
   return {
     namespaces: namespaces.length,
