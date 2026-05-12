@@ -12,6 +12,8 @@ import type { SnapId } from '@metamask/snaps-sdk';
 
 import { traceFallback } from '../analytics';
 import { TraceName } from '../analytics/traces';
+import { reportError } from '../errors';
+import { projectLogger as log, WARNING_PREFIX } from '../logger';
 import type { MultichainAccountServiceMessenger } from '../types';
 import { SnapAccountProvider } from './SnapAccountProvider';
 import type {
@@ -68,10 +70,130 @@ export class BtcAccountProvider extends SnapAccountProvider {
 
   isAccountCompatible(account: Bip44Account<InternalAccount>): boolean {
     return (
-      (account.type === BtcAccountType.P2wpkh ||
-        account.type === BtcAccountType.P2tr) &&
-      Object.values<string>(BtcAccountType).includes(account.type)
+      account.type === BtcAccountType.P2wpkh ||
+      account.type === BtcAccountType.P2tr
     );
+  }
+
+  /**
+   * Override resyncAccounts to preserve account type and scope when
+   * re-creating missing Snap accounts. The base implementation funnels
+   * re-creation through createAccountV1 which hardcodes P2WPKH / Mainnet,
+   * silently converting P2TR or testnet4 accounts and making the original
+   * addresses unreachable.
+   *
+   * @param accounts - The MetaMask-side BIP-44 accounts managed by this provider.
+   */
+  async resyncAccounts(
+    accounts: Bip44Account<InternalAccount>[],
+  ): Promise<void> {
+    await this.withSnap(async ({ client, keyring }) => {
+      const localSnapAccounts = accounts.filter(
+        (account) => account.metadata.snap?.id === this.snapId,
+      );
+      const snapAccounts = new Set(
+        (await client.listAccounts()).map((account) => account.id),
+      );
+
+      // Snap has more accounts than MetaMask — delete the extras.
+      if (localSnapAccounts.length < snapAccounts.size) {
+        const autoRemoveExtraSnapAccounts =
+          this.config.resyncAccounts?.autoRemoveExtraSnapAccounts ?? true;
+
+        if (autoRemoveExtraSnapAccounts) {
+          const localAccountIds = new Set(
+            localSnapAccounts.map((account) => account.id),
+          );
+
+          await Promise.all(
+            [...snapAccounts].map(async (snapAccountId) => {
+              try {
+                if (!localAccountIds.has(snapAccountId)) {
+                  await client.deleteAccount(snapAccountId);
+                  snapAccounts.delete(snapAccountId);
+                }
+              } catch (error) {
+                reportError(
+                  this.messenger,
+                  `Unable to delete de-synced Snap account: ${this.snapId}`,
+                  error,
+                  {
+                    provider: this.getName(),
+                    snapAccountId,
+                  },
+                );
+              }
+            }),
+          );
+        } else {
+          const message = `Snap "${this.snapId}" has de-synced accounts, Snap has more accounts than MetaMask! (${localSnapAccounts.length} < ${snapAccounts.size})`;
+          log(`${WARNING_PREFIX} ${message}`);
+          console.warn(message);
+          return;
+        }
+      }
+
+      // MetaMask has more accounts than the Snap — re-create the missing
+      // ones using the original account type and scope so the derived
+      // address matches.
+      if (localSnapAccounts.length > snapAccounts.size) {
+        await Promise.all(
+          localSnapAccounts.map(async (account) => {
+            const { id: entropySource, groupIndex } =
+              account.options.entropy;
+
+            try {
+              if (!snapAccounts.has(account.id)) {
+                const scope = account.scopes?.[0];
+                if (!scope) {
+                  throw new Error(
+                    `Account ${account.id} has no scopes, cannot determine target network for re-creation`,
+                  );
+                }
+
+                await keyring.removeAccount(account.address);
+                try {
+                  await withTimeout(
+                    () =>
+                      keyring.createAccount({
+                        entropySource,
+                        index: groupIndex,
+                        addressType: account.type,
+                        scope,
+                      }),
+                    this.config.createAccounts.timeoutMs,
+                  );
+                } catch (createError) {
+                  // Account was removed from keyring but re-creation failed.
+                  // State is now inconsistent — propagate so the caller knows.
+                  reportError(
+                    this.messenger,
+                    `Account removed from keyring but re-creation failed, state is inconsistent`,
+                    createError,
+                    {
+                      provider: this.getName(),
+                      groupIndex,
+                      accountId: account.id,
+                    },
+                  );
+                  throw createError;
+                }
+              }
+            } catch (error) {
+              reportError(
+                this.messenger,
+                'Unable to re-sync accounts',
+                error,
+                {
+                  provider: this.getName(),
+                  groupIndex,
+                },
+              );
+            }
+          }),
+        );
+      }
+    });
   }
 
   protected override createAccountV1(
@@ -114,7 +236,7 @@ export class BtcAccountProvider extends SnapAccountProvider {
               withTimeout(
                 () =>
                   client.discoverAccounts(
-                    [BtcScope.Mainnet, BtcScope.Testnet4],
+                    [BtcScope.Mainnet, BtcScope.Testnet, BtcScope.Testnet4],
                     entropySource,
                     groupIndex,
                   ),
