@@ -194,9 +194,16 @@ export const defaultState: NotificationServicesControllerState = {
 export type NotificationServicesControllerEnableNotificationsOptions = {
   /**
    * Whether the user has consented to marketing notifications. Used only when
-   * notification preferences are being initialized for the first time.
+   * notification preferences are being initialized for the first time to seed
+   * marketing push notifications.
    */
   hasMarketingConsent?: boolean;
+  /**
+   * Whether product announcements are enabled. Used only when notification
+   * preferences are being initialized for the first time to seed marketing
+   * in-app notifications.
+   */
+  productAnnouncementEnabled?: boolean;
 };
 
 const locallyPersistedNotificationTypes = new Set<TRIGGER_TYPES>([
@@ -208,7 +215,6 @@ const locallyPersistedNotificationTypes = new Set<TRIGGER_TYPES>([
  * preferences are initialized for the first time.
  */
 export const DEFAULT_PERPS_PREFERENCES: PerpsPreference = {
-  enabled: true,
   inAppNotificationsEnabled: true,
   pushNotificationsEnabled: true,
 };
@@ -218,7 +224,6 @@ export const DEFAULT_PERPS_PREFERENCES: PerpsPreference = {
  * notification preferences are initialized for the first time.
  */
 export const DEFAULT_SOCIAL_AI_PREFERENCES: Required<SocialAIPreference> = {
-  enabled: true,
   inAppNotificationsEnabled: true,
   pushNotificationsEnabled: true,
   txAmountLimit: 500,
@@ -226,55 +231,44 @@ export const DEFAULT_SOCIAL_AI_PREFERENCES: Required<SocialAIPreference> = {
 };
 
 /**
- * Builds wallet-activity preferences from the legacy Trigger API response.
- * Falls back to enabling each keyring account when the API has no record for
- * that address.
+ * Builds wallet-activity preferences from the keyring's current accounts.
  *
  * @param accounts - The keyring accounts to build wallet-activity entries for.
- * @param triggerApiResults - The Trigger API response for the same addresses.
  * @returns An array of wallet-activity account entries (lower-cased addresses).
  */
 const buildWalletActivityAccounts = (
-  accounts: string[],
-  triggerApiResults: { address: string; enabled: boolean }[],
-): WalletActivityAccount[] => {
-  const triggerApiByAddress = new Map(
-    triggerApiResults.map((entry) => [
-      entry.address.toLowerCase(),
-      entry.enabled,
-    ]),
-  );
-  return accounts.map((address) => {
+  accounts: { address: string; enabled: boolean }[],
+): WalletActivityAccount[] =>
+  accounts.map(({ address, enabled }) => {
     const lowercased = address.toLowerCase();
     return {
       address: lowercased as Hex,
-      enabled: triggerApiByAddress.get(lowercased) ?? true,
+      enabled,
     };
   });
-};
 
 /**
  * Builds a fresh `NotificationPreferences` blob using hardcoded defaults for
  * Perps and Social AI, the supplied wallet-activity accounts and the user's
- * marketing consent flag.
+ * marketing/product-announcement flags.
  *
- * @param walletActivityAccounts - Wallet-activity entries to embed.
- * @param hasMarketingConsent - Whether marketing notifications should be enabled.
+ * @param walletActivityAccounts - The wallet-activity account config to initialize.
+ * @param hasMarketingConsent - Whether marketing push notifications should be enabled.
+ * @param productAnnouncementEnabled - Whether marketing in-app notifications should be enabled.
  * @returns A complete `NotificationPreferences` object.
  */
 const buildFreshPreferences = (
-  walletActivityAccounts: WalletActivityAccount[],
+  walletActivityAccounts: { address: string; enabled: boolean }[],
   hasMarketingConsent: boolean,
+  productAnnouncementEnabled: boolean,
 ): NotificationPreferences => ({
   walletActivity: {
-    enabled: true,
     inAppNotificationsEnabled: true,
     pushNotificationsEnabled: true,
-    accounts: walletActivityAccounts,
+    accounts: buildWalletActivityAccounts(walletActivityAccounts),
   },
   marketing: {
-    enabled: true,
-    inAppNotificationsEnabled: hasMarketingConsent,
+    inAppNotificationsEnabled: productAnnouncementEnabled,
     pushNotificationsEnabled: hasMarketingConsent,
   },
   perps: { ...DEFAULT_PERPS_PREFERENCES },
@@ -774,11 +768,7 @@ export class NotificationServicesController extends BaseController<
     );
 
     if (!currentPreferences) {
-      // TODO: remove
-      log.warn(
-        "SHOULD NOT HAPPEN: No preferences blob yet — incremental updates can't safely run before initialization. The caller should run `createOnChainTriggers` first.",
-      );
-      // No preferences blob yet — incremental updates can't safely run before
+      // No preferences blob yet; incremental updates can't safely run before
       // initialization. The caller should run `createOnChainTriggers` first.
       return;
     }
@@ -807,69 +797,6 @@ export class NotificationServicesController extends BaseController<
       nextPreferences,
       this.#featureAnnouncementEnv.platform,
     );
-  }
-
-  /**
-   * Fetches legacy wallet-activity settings for the supplied addresses from the
-   * Trigger API and merges them with the keyring's current accounts. Addresses
-   * that the Trigger API does not know about default to `enabled: true` so
-   * brand-new wallets still receive notifications by default.
-   *
-   * @param bearerToken - The auth token used by the Trigger API call.
-   * @param accounts - The keyring accounts to fetch settings for.
-   * @returns A complete list of wallet-activity entries for the given accounts.
-   */
-  async #fetchWalletActivityAccounts(
-    bearerToken: string,
-    accounts: string[],
-  ): Promise<WalletActivityAccount[]> {
-    if (accounts.length === 0) {
-      return [];
-    }
-    const triggerApiResults = await getNotificationsApiConfigCached(
-      bearerToken,
-      accounts,
-      this.#env,
-    ).catch(() => [] as { address: string; enabled: boolean }[]);
-    return buildWalletActivityAccounts(accounts, triggerApiResults);
-  }
-
-  /**
-   * Merges partially initialized preferences with wallet-activity and
-   * notification-channel defaults expected by MetaMask notifications
-   *
-   * @param preferences - The partially initialized preferences
-   * @param hasMarketingConsent - The user's marketing-consent state
-   * @param walletActivityAccounts - The wallet-activity accounts to embed
-   *
-   * @returns Fully initialized notification preferences
-   */
-  #buildPreferencesFromPartialInitialization(
-    preferences: NotificationPreferences,
-    hasMarketingConsent: boolean,
-    walletActivityAccounts: WalletActivityAccount[],
-  ): NotificationPreferences {
-    const withChannelFlags = <T extends { enabled?: boolean }>(
-      value: T,
-      enabled: boolean,
-    ): T => ({
-      ...value, // Leave any existing preferences as-is for forward compatibility
-      enabled: true, // Deprecated, so always set to true until we can remove it
-      inAppNotificationsEnabled: enabled,
-      pushNotificationsEnabled: enabled,
-    });
-    const socialAIEnabled = preferences.socialAI.enabled ?? true;
-    const perpsEnabled = preferences.perps.enabled ?? true;
-    return {
-      ...preferences,
-      socialAI: withChannelFlags(preferences.socialAI, socialAIEnabled),
-      perps: withChannelFlags(preferences.perps, perpsEnabled),
-      walletActivity: {
-        ...withChannelFlags(preferences.walletActivity, true),
-        accounts: walletActivityAccounts,
-      },
-      marketing: withChannelFlags(preferences.marketing, hasMarketingConsent),
-    };
   }
 
   /**
@@ -1033,26 +960,15 @@ export class NotificationServicesController extends BaseController<
    *
    * **Action** - Used during Sign In / Enabling of notifications.
    *
-   * Notification preferences are initialized only when they have not been set
-   * yet in {@link AuthenticatedUserStorageService}. The initialization rules
-   * are:
-   *
-   * - When no notification preferences are stored, a fresh blob is written
-   *   using the hardcoded {@link DEFAULT_PERPS_PREFERENCES} and
-   *   {@link DEFAULT_SOCIAL_AI_PREFERENCES}, the wallet-activity entries
-   *   returned by the legacy Trigger API, and the supplied
-   *   `hasMarketingConsent` flag.
-   * - When notification preferences are stored but the
-   *   `walletActivity.pushNotificationsEnabled` field is missing (the blob was
-   *   only partially initialized by the Social AI flow), the wallet-activity
-   *   and marketing sections are reconciled while the rest of the blob is left
-   *   untouched.
-   * - When notification preferences are fully initialized, the blob is left
-   *   as-is.
+   * Notification preferences are initialized only when
+   * {@link AuthenticatedUserStorageService} has no stored preferences yet.
+   * Existing preferences are left as-is.
    *
    * @param opts - optional options to mutate this functionality
    * @param opts.hasMarketingConsent - The user's marketing-consent flag.
-   * Applied only when (re)initializing notification preferences.
+   * Used only during initialization to seed marketing push notifications.
+   * @param opts.productAnnouncementEnabled - The user's product-announcement flag.
+   * Used only during initialization to seed marketing in-app notifications.
    * @returns The updated or newly created user storage.
    * @throws {Error} Throws an error if unauthenticated or from other operations.
    */
@@ -1066,40 +982,38 @@ export class NotificationServicesController extends BaseController<
 
       const { accounts } = this.#accounts.listAccounts();
 
-      // 1. Read existing AUS notification preferences and decide whether we need to (re)initialize them.
+      // 1. Read existing AUS notification preferences and initialize only if absent.
       const preferences = await this.messenger.call(
         'AuthenticatedUserStorageService:getNotificationPreferences',
       );
 
       const hasMarketingConsent = Boolean(opts?.hasMarketingConsent);
-      const isInitialized = preferences !== null;
-      // Notification settings might be initialized with default hardcoded values from the SocialAI leaderboard flow.
-      // In that case, we need to add the missing in-app/push notifications settings and to initialize incorrectly
-      // initialized preferences (walletActivity and marketing).
-      const isPartiallyInitialized =
-        preferences !== null &&
-        preferences.walletActivity.pushNotificationsEnabled === undefined;
-
+      const productAnnouncementEnabled = Boolean(
+        opts?.productAnnouncementEnabled,
+      );
       let nextPreferences: NotificationPreferences | undefined;
 
-      if (!isInitialized) {
-        const walletActivityAccounts = await this.#fetchWalletActivityAccounts(
+      if (preferences === null) {
+        const triggerConfig = await getNotificationsApiConfigCached(
           bearerToken,
           accounts,
+          this.#env,
         );
+        const triggerConfigByAddress = new Map(
+          triggerConfig.map(({ address, enabled }) => [
+            address.toLowerCase(),
+            enabled,
+          ]),
+        );
+        const walletActivityAccounts = accounts.map((address) => ({
+          address,
+          enabled: triggerConfigByAddress.get(address.toLowerCase()) ?? false,
+        }));
+
         nextPreferences = buildFreshPreferences(
           walletActivityAccounts,
           hasMarketingConsent,
-        );
-      } else if (isPartiallyInitialized) {
-        const walletActivityAccounts = await this.#fetchWalletActivityAccounts(
-          bearerToken,
-          accounts,
-        );
-        nextPreferences = this.#buildPreferencesFromPartialInitialization(
-          preferences,
-          hasMarketingConsent,
-          walletActivityAccounts,
+          productAnnouncementEnabled,
         );
       }
 
