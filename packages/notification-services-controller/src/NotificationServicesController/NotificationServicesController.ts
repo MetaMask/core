@@ -204,7 +204,21 @@ export type NotificationServicesControllerEnableNotificationsOptions = {
    * in-app notifications.
    */
   productAnnouncementEnabled?: boolean;
+  /**
+   * Whether to attempt FCM/device push registration after notification
+   * preferences are initialized or refreshed. This does not request OS push
+   * permission.
+   *
+   * @default true
+   */
+  registerPushNotifications?: boolean;
 };
+
+export type NotificationServicesControllerCreateOnChainTriggersOptions =
+  NotificationServicesControllerEnableNotificationsOptions;
+
+export type NotificationServicesControllerEnableMetamaskNotificationsOptions =
+  NotificationServicesControllerEnableNotificationsOptions;
 
 const locallyPersistedNotificationTypes = new Set<TRIGGER_TYPES>([
   TRIGGER_TYPES.SNAP,
@@ -1016,11 +1030,12 @@ export class NotificationServicesController extends BaseController<
    * Used only during initialization to seed marketing push notifications.
    * @param opts.productAnnouncementEnabled - The user's product-announcement flag.
    * Used only during initialization to seed marketing in-app notifications.
+   * @param opts.registerPushNotifications - Whether to attempt FCM/device push registration.
    * @returns The updated or newly created user storage.
    * @throws {Error} Throws an error if unauthenticated or from other operations.
    */
   public async createOnChainTriggers(
-    opts?: NotificationServicesControllerEnableNotificationsOptions,
+    opts: NotificationServicesControllerCreateOnChainTriggersOptions = {},
   ): Promise<void> {
     try {
       this.#setIsUpdatingMetamaskNotifications(true);
@@ -1070,12 +1085,14 @@ export class NotificationServicesController extends BaseController<
         .filter((account) => account.enabled)
         .map((account) => account.address);
 
-      // 2. Lazily enable push notifications (FCM may take some time, so keeps UI unblocked)
-      this.#pushNotifications
-        .enablePushNotifications(accountsWithNotifications)
-        .catch(() => {
-          // Do Nothing
-        });
+      if (opts.registerPushNotifications ?? true) {
+        // Attempt FCM/device registration only; clients must request OS permission separately.
+        this.#pushNotifications
+          .enablePushNotifications(accountsWithNotifications)
+          .catch(() => {
+            // Do Nothing
+          });
+      }
 
       // Update the state of the controller
       this.update((state) => {
@@ -1106,7 +1123,7 @@ export class NotificationServicesController extends BaseController<
    * @throws {Error} If there is an error during the process of enabling notifications.
    */
   public async enableMetamaskNotifications(
-    opts?: NotificationServicesControllerEnableNotificationsOptions,
+    opts: NotificationServicesControllerEnableMetamaskNotificationsOptions = {},
   ): Promise<void> {
     try {
       this.#setIsUpdatingMetamaskNotifications(true);
