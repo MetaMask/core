@@ -143,6 +143,16 @@ export type AccountTreeControllerAccountGroupUpdatedEvent = {
   payload: [AccountGroupObject];
 };
 
+/**
+ * Represents the `AccountTreeController:accountGroupRemoved` event.
+ * This event is emitted when an account group is pruned from the tree
+ * (its last account was removed) after the controller has been initialized.
+ */
+export type AccountTreeControllerAccountGroupRemovedEvent = {
+  type: `${typeof controllerName}:accountGroupRemoved`;
+  payload: [AccountGroupId];
+};
+
 export type AllowedEvents =
   | AccountsControllerAccountsAddedEvent
   | AccountsControllerAccountsRemovedEvent
@@ -155,7 +165,8 @@ export type AccountTreeControllerEvents =
   | AccountTreeControllerAccountTreeChangeEvent
   | AccountTreeControllerSelectedAccountGroupChangeEvent
   | AccountTreeControllerAccountGroupCreatedEvent
-  | AccountTreeControllerAccountGroupUpdatedEvent;
+  | AccountTreeControllerAccountGroupUpdatedEvent
+  | AccountTreeControllerAccountGroupRemovedEvent;
 
 export type AccountTreeControllerMessenger = Messenger<
   typeof controllerName,

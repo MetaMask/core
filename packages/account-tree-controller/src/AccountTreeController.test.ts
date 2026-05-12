@@ -4897,6 +4897,59 @@ describe('AccountTreeController', () => {
       expect(updatedListener).not.toHaveBeenCalled();
     });
 
+    it('emits accountGroupRemoved when the last account of a group is removed', () => {
+      const { controller, messenger } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1, MOCK_SNAP_ACCOUNT_1],
+        keyrings: [MOCK_HD_KEYRING_1, MOCK_HD_KEYRING_2],
+      });
+
+      const removedListener = jest.fn();
+      messenger.subscribe(
+        'AccountTreeController:accountGroupRemoved',
+        removedListener,
+      );
+
+      controller.init();
+      jest.clearAllMocks();
+
+      const removedWalletId = toMultichainAccountWalletId(
+        MOCK_HD_KEYRING_2.metadata.id,
+      );
+      const removedGroupId = toMultichainAccountGroupId(
+        removedWalletId,
+        MOCK_SNAP_ACCOUNT_1.options.entropy.groupIndex,
+      );
+
+      messenger.publish('AccountsController:accountsRemoved', [
+        MOCK_SNAP_ACCOUNT_1.id,
+      ]);
+
+      expect(removedListener).toHaveBeenCalledTimes(1);
+      expect(removedListener).toHaveBeenCalledWith(removedGroupId);
+    });
+
+    it('does NOT emit accountGroupRemoved when the group still has accounts', () => {
+      const { controller, messenger } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1, MOCK_TRX_ACCOUNT_1],
+        keyrings: [MOCK_HD_KEYRING_1],
+      });
+
+      const removedListener = jest.fn();
+      messenger.subscribe(
+        'AccountTreeController:accountGroupRemoved',
+        removedListener,
+      );
+
+      controller.init();
+      jest.clearAllMocks();
+
+      messenger.publish('AccountsController:accountsRemoved', [
+        MOCK_TRX_ACCOUNT_1.id,
+      ]);
+
+      expect(removedListener).not.toHaveBeenCalled();
+    });
+
     it('emits accountGroupUpdated when setAccountGroupName is called', () => {
       const { controller, messenger } = setup({
         accounts: [MOCK_HD_ACCOUNT_1],

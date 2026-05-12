@@ -979,6 +979,7 @@ export class AccountTreeController extends BaseController<
 
     const previousSelectedAccountGroup = this.state.selectedAccountGroup;
     const updatedGroups = new Map<AccountGroupId, AccountWalletId>();
+    const removedGroups = new Set<AccountGroupId>();
 
     this.update((state) => {
       for (const { id: accountId, context } of knownAccounts) {
@@ -1002,7 +1003,10 @@ export class AccountTreeController extends BaseController<
           }
           if (accounts.length === 0) {
             this.#pruneEmptyGroupAndWallet(state, walletId, groupId);
+
+            // If the group gets pruned, we should not consider it as updated.
             updatedGroups.delete(groupId);
+            removedGroups.add(groupId);
           } else {
             updatedGroups.set(groupId, walletId);
           }
@@ -1022,6 +1026,9 @@ export class AccountTreeController extends BaseController<
 
     for (const [groupId, walletId] of updatedGroups) {
       this.#publishAccountGroupUpdated(walletId, groupId);
+    }
+    for (const groupId of removedGroups) {
+      this.#publishAccountGroupRemoved(groupId);
     }
 
     const newSelectedAccountGroup = this.state.selectedAccountGroup;
@@ -1099,6 +1106,15 @@ export class AccountTreeController extends BaseController<
     if (group) {
       this.messenger.publish(`${controllerName}:accountGroupUpdated`, group);
     }
+  }
+
+  /**
+   * Publishes the `:accountGroupRemoved` event for a pruned group.
+   *
+   * @param groupId - The removed group's ID.
+   */
+  #publishAccountGroupRemoved(groupId: AccountGroupId): void {
+    this.messenger.publish(`${controllerName}:accountGroupRemoved`, groupId);
   }
 
   /**
