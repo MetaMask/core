@@ -15,6 +15,7 @@ import { QuoteRefresher } from './helpers/QuoteRefresher';
 import { deriveFiatAssetForFiatPayment } from './strategy/fiat/utils';
 import type {
   GetDelegationTransactionCallback,
+  PolymarketCallbacks,
   TransactionConfigCallback,
   TransactionData,
   TransactionPayControllerMessenger,
@@ -36,6 +37,8 @@ import {
 const MESSENGER_EXPOSED_METHODS = [
   'getDelegationTransaction',
   'getStrategy',
+  'polymarketGetDepositWalletAddress',
+  'polymarketSubmitDepositWalletBatch',
   'setTransactionConfig',
   'updateFiatPayment',
   'updatePaymentToken',
@@ -69,11 +72,14 @@ export class TransactionPayController extends BaseController<
     transaction: TransactionMeta,
   ) => TransactionPayStrategy[];
 
+  readonly #polymarket?: PolymarketCallbacks;
+
   constructor({
     getDelegationTransaction,
     getStrategy,
     getStrategies,
     messenger,
+    polymarket,
     state,
   }: TransactionPayControllerOptions) {
     super({
@@ -86,6 +92,7 @@ export class TransactionPayController extends BaseController<
     this.#getDelegationTransaction = getDelegationTransaction;
     this.#getStrategy = getStrategy;
     this.#getStrategies = getStrategies;
+    this.#polymarket = polymarket;
 
     this.messenger.registerMethodActionHandlers(
       this,
@@ -220,6 +227,41 @@ export class TransactionPayController extends BaseController<
    */
   getStrategy(transaction: TransactionMeta): TransactionPayStrategy {
     return this.#getStrategiesWithFallback(transaction)[0];
+  }
+
+  /**
+   * Derives the Polymarket deposit-wallet address for an EOA via the
+   * client-supplied callback.
+   *
+   * @param params - The arguments forwarded to {@link PolymarketCallbacks.getDepositWalletAddress}.
+   * @returns A promise resolving to the deposit-wallet address.
+   */
+  polymarketGetDepositWalletAddress(
+    ...args: Parameters<PolymarketCallbacks['getDepositWalletAddress']>
+  ): ReturnType<PolymarketCallbacks['getDepositWalletAddress']> {
+    return this.#requirePolymarket().getDepositWalletAddress(...args);
+  }
+
+  /**
+   * Signs and broadcasts a Polymarket deposit-wallet batch via the
+   * client-supplied callback.
+   *
+   * @param params - The arguments forwarded to {@link PolymarketCallbacks.submitDepositWalletBatch}.
+   * @returns A promise resolving to the relayer-issued source hash.
+   */
+  polymarketSubmitDepositWalletBatch(
+    ...args: Parameters<PolymarketCallbacks['submitDepositWalletBatch']>
+  ): ReturnType<PolymarketCallbacks['submitDepositWalletBatch']> {
+    return this.#requirePolymarket().submitDepositWalletBatch(...args);
+  }
+
+  #requirePolymarket(): PolymarketCallbacks {
+    if (!this.#polymarket) {
+      throw new Error(
+        'TransactionPayController: polymarket callbacks were not supplied to the controller constructor; the Polymarket deposit-wallet flow is not available in this client.',
+      );
+    }
+    return this.#polymarket;
   }
 
   #removeTransactionData(transactionId: string): void {

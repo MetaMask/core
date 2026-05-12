@@ -55,10 +55,7 @@
   },
   "dependencies": {
     "@ethersproject/abi": "^5.7.0",
-    "@ethersproject/address": "^5.7.0",
-    "@ethersproject/bytes": "^5.7.0",
     "@ethersproject/contracts": "^5.7.0",
-    "@ethersproject/keccak256": "^5.7.0",
     "@ethersproject/providers": "^5.7.0",
     "@metamask/assets-controller": "^7.1.2",
     "@metamask/assets-controllers": "^108.1.0",

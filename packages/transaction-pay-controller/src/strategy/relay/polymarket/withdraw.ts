@@ -26,16 +26,18 @@ import {
   PUSD_ADDRESS_POLYGON,
   USDC_E_ADDRESS_POLYGON,
 } from './constants';
-import { computeDepositWalletAddress } from './deposit-wallet';
-import { submitDepositWalletBatch } from './relayer';
 
 const log = createModuleLogger(projectLogger, 'polymarket-withdraw');
 
-export function applyPolymarketDepositWalletOverrides(
+export async function applyPolymarketDepositWalletOverrides(
   body: RelayQuoteRequest,
   request: QuoteRequest,
-): void {
-  const depositWalletAddress = computeDepositWalletAddress(request.from);
+  messenger: TransactionPayControllerMessenger,
+): Promise<void> {
+  const depositWalletAddress = await messenger.call(
+    'TransactionPayController:polymarketGetDepositWalletAddress',
+    { eoa: request.from },
+  );
 
   body.originCurrency = USDC_E_ADDRESS_POLYGON;
   body.user = depositWalletAddress;
@@ -48,7 +50,10 @@ export async function submitPolymarketWithdraw(
   from: Hex,
   messenger: TransactionPayControllerMessenger,
 ): Promise<{ sourceHash: Hex }> {
-  const depositWalletAddress = computeDepositWalletAddress(from);
+  const depositWalletAddress = await messenger.call(
+    'TransactionPayController:polymarketGetDepositWalletAddress',
+    { eoa: from },
+  );
   const relayDepositAddress = extractRelayDepositAddress(quote.original);
   const amount = BigInt(quote.sourceAmount.raw);
 
@@ -58,35 +63,39 @@ export async function submitPolymarketWithdraw(
     amount: amount.toString(),
   });
 
-  const { transactionHash } = await submitDepositWalletBatch(messenger, {
-    from,
-    depositWalletAddress,
-    calls: [
-      {
-        target: PUSD_ADDRESS_POLYGON,
-        value: 0n,
-        data: encodeApprove(POLYMARKET_COLLATERAL_OFFRAMP_POLYGON, amount),
-      },
-      {
-        target: POLYMARKET_COLLATERAL_OFFRAMP_POLYGON,
-        value: 0n,
-        data: encodeUnwrap({
-          asset: USDC_E_ADDRESS_POLYGON,
-          recipient: relayDepositAddress,
-          amount,
-        }),
-      },
-    ],
-  });
-
-  return { sourceHash: transactionHash };
+  return await messenger.call(
+    'TransactionPayController:polymarketSubmitDepositWalletBatch',
+    {
+      eoa: from,
+      depositWallet: depositWalletAddress,
+      calls: [
+        {
+          target: PUSD_ADDRESS_POLYGON,
+          value: '0',
+          data: encodeApprove(POLYMARKET_COLLATERAL_OFFRAMP_POLYGON, amount),
+        },
+        {
+          target: POLYMARKET_COLLATERAL_OFFRAMP_POLYGON,
+          value: '0',
+          data: encodeUnwrap({
+            asset: USDC_E_ADDRESS_POLYGON,
+            recipient: relayDepositAddress,
+            amount,
+          }),
+        },
+      ],
+    },
+  );
 }
 
 export async function sweepPolymarketDepositWallet(
   from: Hex,
   messenger: TransactionPayControllerMessenger,
 ): Promise<void> {
-  const depositWalletAddress = computeDepositWalletAddress(from);
+  const depositWalletAddress = await messenger.call(
+    'TransactionPayController:polymarketGetDepositWalletAddress',
+    { eoa: from },
+  );
 
   let usdceBalance: bigint;
   try {
@@ -113,31 +122,34 @@ export async function sweepPolymarketDepositWallet(
   }
 
   try {
-    const { transactionHash } = await submitDepositWalletBatch(messenger, {
-      from,
-      depositWalletAddress,
-      calls: [
-        {
-          target: USDC_E_ADDRESS_POLYGON,
-          value: 0n,
-          data: encodeApprove(
-            POLYMARKET_COLLATERAL_ONRAMP_POLYGON,
-            usdceBalance,
-          ),
-        },
-        {
-          target: POLYMARKET_COLLATERAL_ONRAMP_POLYGON,
-          value: 0n,
-          data: encodeWrap({
-            asset: USDC_E_ADDRESS_POLYGON,
-            recipient: depositWalletAddress,
-            amount: usdceBalance,
-          }),
-        },
-      ],
-    });
+    const { sourceHash } = await messenger.call(
+      'TransactionPayController:polymarketSubmitDepositWalletBatch',
+      {
+        eoa: from,
+        depositWallet: depositWalletAddress,
+        calls: [
+          {
+            target: USDC_E_ADDRESS_POLYGON,
+            value: '0',
+            data: encodeApprove(
+              POLYMARKET_COLLATERAL_ONRAMP_POLYGON,
+              usdceBalance,
+            ),
+          },
+          {
+            target: POLYMARKET_COLLATERAL_ONRAMP_POLYGON,
+            value: '0',
+            data: encodeWrap({
+              asset: USDC_E_ADDRESS_POLYGON,
+              recipient: depositWalletAddress,
+              amount: usdceBalance,
+            }),
+          },
+        ],
+      },
+    );
 
-    log('USDC.e sweep: complete', { transactionHash });
+    log('USDC.e sweep: complete', { sourceHash });
   } catch (error) {
     log('USDC.e sweep: batch submission failed', { error });
   }

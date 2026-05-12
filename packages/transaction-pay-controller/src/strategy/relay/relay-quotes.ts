@@ -253,7 +253,7 @@ async function getSingleQuote(
     };
 
     if (request.isPolymarketDepositWallet) {
-      applyPolymarketDepositWalletOverrides(body, request);
+      await applyPolymarketDepositWalletOverrides(body, request, messenger);
     }
 
     // Skip transaction processing for post-quote flows - the original transaction
