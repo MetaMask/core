@@ -24,7 +24,11 @@ export const POLYMARKET_COLLATERAL_ONRAMP_POLYGON =
 export const POLYMARKET_WALLET_DOMAIN_NAME = 'DepositWallet';
 export const POLYMARKET_WALLET_DOMAIN_VERSION = '1';
 
-export const POLYMARKET_BATCH_DEADLINE_SECONDS = 240;
+/**
+ * Polymarket's relayer rejects deadlines above 300s, so use the maximum
+ * allowed window to reduce intermittent "deadline too soon" failures.
+ */
+export const POLYMARKET_BATCH_DEADLINE_SECONDS = 300;
 
 export const POLYMARKET_RELAYER_TERMINAL_STATES = [
   'STATE_MINED',
