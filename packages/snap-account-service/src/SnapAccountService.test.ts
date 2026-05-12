@@ -40,6 +40,18 @@ type MockTruncatedSnap = Pick<
   'id' | 'initialPermissions' | 'enabled' | 'blocked'
 >;
 
+/** Mock account group type for tests. */
+type MockAccountGroup = Pick<AccountGroupObject, 'id' | 'accounts'>;
+
+/** Mock Snap keyring type for tests. */
+type MockSnapKeyring = {
+  type: KeyringTypes.snap;
+  handleKeyringSnapMessage?: jest.MockedFunction<
+    SnapKeyring['handleKeyringSnapMessage']
+  >;
+  setSelectedAccounts?: jest.MockedFunction<SnapKeyring['setSelectedAccounts']>;
+};
+
 type Mocks = {
   // eslint-disable-next-line @typescript-eslint/naming-convention
   SnapController: {
@@ -213,7 +225,7 @@ function buildGroup(
   id: AccountGroupId,
   accounts: string[],
 ): AccountGroupObject {
-  return { id, accounts } as unknown as AccountGroupObject;
+  return { id, accounts } as MockAccountGroup as AccountGroupObject;
 }
 
 /**
@@ -326,7 +338,7 @@ function mockLegacySnapKeyring(
     >;
   },
 ): void {
-  const snapKeyring = {
+  const snapKeyring: MockSnapKeyring = {
     type: KeyringTypes.snap,
     handleKeyringSnapMessage,
     setSelectedAccounts,
@@ -336,7 +348,7 @@ function mockLegacySnapKeyring(
       get keyrings() {
         return Object.freeze([
           {
-            keyring: snapKeyring as unknown as KeyringEntry['keyring'],
+            keyring: snapKeyring as KeyringEntry['keyring'],
             metadata: { id: 'id-snap', name: KeyringTypes.snap },
           },
         ]);
