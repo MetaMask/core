@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Export new type `TrendingTokensQueryParams` for extensible trending token query parameters ([#8729](https://github.com/MetaMask/core/pull/8729))
+
+### Changed
+
+- **BREAKING:** `getTrendingTokens` now accepts `sort` instead of `sortBy` to match the API parameter name ([#8729](https://github.com/MetaMask/core/pull/8729))
+- `getTrendingTokens` and `getTrendingTokensURL` now accept arbitrary query parameters via an index signature on `TrendingTokensQueryParams`, allowing new API parameters to pass through without a core release ([#8729](https://github.com/MetaMask/core/pull/8729))
+
+## [106.1.0]
+
 ### Changed
 
 - Bump `@metamask/network-controller` from `^31.0.0` to `^31.1.0` ([#8765](https://github.com/MetaMask/core/pull/8765))
@@ -3065,7 +3076,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Use Ethers for AssetsContractController ([#845](https://github.com/MetaMask/core/pull/845))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@106.0.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@106.1.0...HEAD
+[106.1.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@106.0.1...@metamask/assets-controllers@106.1.0
 [106.0.1]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@106.0.0...@metamask/assets-controllers@106.0.1
 [106.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@105.1.0...@metamask/assets-controllers@106.0.0
 [105.1.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@105.0.0...@metamask/assets-controllers@105.1.0

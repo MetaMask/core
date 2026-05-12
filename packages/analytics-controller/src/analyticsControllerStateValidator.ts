@@ -24,12 +24,17 @@ export function isValidUUIDv4(value: string): boolean {
  * Validates that the analytics state has a valid UUIDv4 analyticsId.
  *
  * @param state - The analytics controller state to validate
+ * @param skipUUIDv4Check - When `true`, skips UUIDv4 format validation
  * @throws Error if analyticsId is missing or not a valid UUIDv4
  */
 export function validateAnalyticsControllerState(
   state: AnalyticsControllerState,
+  skipUUIDv4Check?: boolean,
 ): void {
-  if (!state.analyticsId || !isValidUUIDv4(state.analyticsId)) {
+  if (
+    !state.analyticsId ||
+    (skipUUIDv4Check !== true && !isValidUUIDv4(state.analyticsId))
+  ) {
     throw new Error('Invalid analyticsId');
   }
 }

@@ -846,6 +846,11 @@ export enum TransactionType {
   predictAcrossDeposit = 'predictAcrossDeposit',
 
   /**
+   * Withdraw funds for Across quote via Predict.
+   */
+  predictAcrossWithdraw = 'predictAcrossWithdraw',
+
+  /**
    * Buy a position via Predict.
    *
    * @deprecated Not used.

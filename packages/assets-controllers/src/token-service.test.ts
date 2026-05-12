@@ -1139,7 +1139,7 @@ describe('Token service', () => {
     it('returns empty array if api returns non-array response', async () => {
       nock(TOKEN_END_POINT_API)
         .get(
-          `/v3/tokens/trending?chainIds=${encodeURIComponent(sampleCaipChainId)}`,
+          `/v3/tokens/trending?chainIds=${encodeURIComponent(sampleCaipChainId)}&includeRwaData=true&usePriceApiData=true`,
         )
         .reply(200, { error: 'Invalid response' })
         .persist();
@@ -1151,7 +1151,7 @@ describe('Token service', () => {
     it('returns empty array if the fetch fails', async () => {
       nock(TOKEN_END_POINT_API)
         .get(
-          `/v3/tokens/trending?chainIds=${encodeURIComponent(sampleCaipChainId)}`,
+          `/v3/tokens/trending?chainIds=${encodeURIComponent(sampleCaipChainId)}&includeRwaData=true&usePriceApiData=true`,
         )
         .reply(500)
         .persist();
@@ -1162,7 +1162,7 @@ describe('Token service', () => {
 
     it('returns the list of trending tokens if the fetch succeeds', async () => {
       const testChainId = 'eip155:1';
-      const sortBy: SortTrendingBy = 'm5_trending';
+      const sort: SortTrendingBy = 'm5_trending';
       const testMinLiquidity = 1000000;
       const testMinVolume24hUsd = 1000000;
       const testMaxVolume24hUsd = 1000000;
@@ -1170,14 +1170,14 @@ describe('Token service', () => {
       const testMaxMarketCap = 1000000;
       nock(TOKEN_END_POINT_API)
         .get(
-          `/v3/tokens/trending?chainIds=${encodeURIComponent(testChainId)}&sort=${sortBy}&minLiquidity=${testMinLiquidity}&minVolume24hUsd=${testMinVolume24hUsd}&maxVolume24hUsd=${testMaxVolume24hUsd}&minMarketCap=${testMinMarketCap}&maxMarketCap=${testMaxMarketCap}&includeRwaData=true&usePriceApiData=true`,
+          `/v3/tokens/trending?chainIds=${encodeURIComponent(testChainId)}&sort=${sort}&minLiquidity=${testMinLiquidity}&minVolume24hUsd=${testMinVolume24hUsd}&maxVolume24hUsd=${testMaxVolume24hUsd}&minMarketCap=${testMinMarketCap}&maxMarketCap=${testMaxMarketCap}&includeRwaData=true&usePriceApiData=true`,
         )
         .reply(200, sampleTrendingTokens)
         .persist();
 
       const result = await getTrendingTokens({
         chainIds: [testChainId],
-        sortBy,
+        sort,
         minLiquidity: testMinLiquidity,
         minVolume24hUsd: testMinVolume24hUsd,
         maxVolume24hUsd: testMaxVolume24hUsd,
@@ -1292,13 +1292,30 @@ describe('Token service', () => {
 
       const result = await getTrendingTokens({
         chainIds: [testChainId],
-        sortBy: 'h6_trending',
+        sort: 'h6_trending',
         minLiquidity: testMinLiquidity,
         minVolume24hUsd: testMinVolume,
         includeRwaData: false,
         includeTokenSecurityData: true,
       });
       expect(result).toStrictEqual(sampleTrendingTokensWithSecurityData);
+    });
+
+    it('passes unknown query params through to the URL', async () => {
+      const testChainId = 'eip155:1';
+
+      nock(TOKEN_END_POINT_API)
+        .get(
+          `/v3/tokens/trending?chainIds=${encodeURIComponent(testChainId)}&includeRwaData=true&usePriceApiData=true&vsCurrency=eur`,
+        )
+        .reply(200, sampleTrendingTokens)
+        .persist();
+
+      const result = await getTrendingTokens({
+        chainIds: [testChainId],
+        vsCurrency: 'eur',
+      });
+      expect(result).toStrictEqual(sampleTrendingTokens);
     });
   });
 

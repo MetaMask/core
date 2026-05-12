@@ -10,10 +10,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Add optional `fiat` object (with `orderId` and `provider` properties) to `MetamaskPayMetadata` type for persisting fiat on-ramp order data on transactions ([#8694](https://github.com/MetaMask/core/pull/8694))
+- Add `predictAcrossWithdraw` to the `TransactionType` enum ([#8759](https://github.com/MetaMask/core/pull/8759))
 
 ### Changed
 
 - Bump `@metamask/network-controller` from `^31.0.0` to `^31.1.0` ([#8765](https://github.com/MetaMask/core/pull/8765))
+- `estimateGasBatch` now falls back to the sum of per-tx `gas` values in the EIP-7702 path when node simulation fails, instead of returning the block-gas-limit fallback ([#8735](https://github.com/MetaMask/core/pull/8735))
+  - Real 7702 simulation is still preferred when it succeeds (the bundled call has no per-tx intrinsic gas cost so the estimate is typically tighter than summing per-tx limits).
+  - Required for callers that submit batches whose individual sub-calls cannot be simulated standalone, for example predict-withdraw, where the batch's first sub-call (`Safe.execTransaction`) provides source-token balance to subsequent sub-calls (approve + swap), and simulating the relay-only sub-calls in isolation reverts because the EOA has no balance until the Safe sub-call has run.
 
 ## [65.3.0]
 
