@@ -586,6 +586,88 @@ describe('OHLCVService', () => {
   });
 
   // ===========================================================================
+  // Race Condition — Per-Channel Locking
+  // ===========================================================================
+
+  describe('per-channel locking', () => {
+    it('should serialize concurrent subscribes so refCount is correct', async () => {
+      await withService(async ({ service, mocks }) => {
+        let connectResolve!: () => void;
+        mocks.connect.mockImplementation(
+          () =>
+            new Promise<void>((resolve) => {
+              connectResolve = resolve;
+            }),
+        );
+
+        const p1 = service.subscribe(SUB_OPTS);
+        // Let the microtask tick so `connect` is called and `connectResolve` is assigned
+        await flushPromises();
+
+        const p2 = service.subscribe(SUB_OPTS);
+
+        // p1 is waiting on connect, p2 is queued behind it via the lock
+        connectResolve();
+        mocks.connect.mockResolvedValue(undefined);
+        await p1;
+        await p2;
+
+        expect(mocks.subscribe).toHaveBeenCalledTimes(1);
+
+        const mockUnsub = jest.fn();
+        mocks.getSubscriptionsByChannel.mockReturnValue([
+          { unsubscribe: mockUnsub },
+        ]);
+
+        // refCount must be 2 — first unsubscribe drops it to 1, no grace timer
+        await service.unsubscribe(SUB_OPTS);
+        jest.advanceTimersByTime(5000);
+        await completeAsyncOperations();
+        expect(mockUnsub).not.toHaveBeenCalled();
+
+        // Second unsubscribe drops refCount to 0 → grace timer → WS unsubscribe
+        await service.unsubscribe(SUB_OPTS);
+        jest.advanceTimersByTime(3000);
+        await completeAsyncOperations();
+        expect(mockUnsub).toHaveBeenCalledTimes(1);
+      });
+    });
+
+    it('should serialize concurrent subscribe + unsubscribe so refCount never corrupts', async () => {
+      await withService(async ({ service, mocks }) => {
+        let connectResolve!: () => void;
+        mocks.connect.mockImplementation(
+          () =>
+            new Promise<void>((resolve) => {
+              connectResolve = resolve;
+            }),
+        );
+
+        const pSub = service.subscribe(SUB_OPTS);
+        await flushPromises();
+
+        const pUnsub = service.unsubscribe(SUB_OPTS);
+
+        connectResolve();
+        await pSub;
+        await pUnsub;
+
+        // After subscribe then unsubscribe, refCount is 0 → grace timer starts
+        // Advance past grace period
+        const mockUnsub = jest.fn();
+        mocks.getSubscriptionsByChannel.mockReturnValue([
+          { unsubscribe: mockUnsub },
+        ]);
+
+        jest.advanceTimersByTime(3000);
+        await completeAsyncOperations();
+
+        expect(mockUnsub).toHaveBeenCalledTimes(1);
+      });
+    });
+  });
+
+  // ===========================================================================
   // Reconnect Resilience
   // ===========================================================================
 

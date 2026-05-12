@@ -156,6 +156,8 @@ export class OHLCVService {
 
   readonly #channels = new Map<string, ChannelEntry>();
 
+  readonly #channelLocks = new Map<string, Promise<void>>();
+
   readonly #chainsUp = new Set<string>();
 
   // =============================================================================
@@ -210,9 +212,14 @@ export class OHLCVService {
    * count.
    *
    * @param options - The subscription parameters.
+   * @returns A promise that resolves once the subscription is established.
    */
   async subscribe(options: OHLCVSubscriptionOptions): Promise<void> {
     const channel = this.#buildChannel(options);
+    return this.#withChannelLock(channel, () => this.#subscribeInner(channel));
+  }
+
+  async #subscribeInner(channel: string): Promise<void> {
     const entry = this.#channels.get(channel);
 
     if (entry?.gracePeriodTimer) {
@@ -296,9 +303,16 @@ export class OHLCVService {
    * unsubscribing from the WebSocket to absorb rapid navigation patterns.
    *
    * @param options - The subscription parameters to unsubscribe from.
+   * @returns A promise that resolves once the unsubscription is processed.
    */
   async unsubscribe(options: OHLCVSubscriptionOptions): Promise<void> {
     const channel = this.#buildChannel(options);
+    return this.#withChannelLock(channel, () =>
+      this.#unsubscribeInner(channel),
+    );
+  }
+
+  async #unsubscribeInner(channel: string): Promise<void> {
     const entry = this.#channels.get(channel);
 
     if (!entry || entry.refCount <= 0) {
@@ -492,6 +506,30 @@ export class OHLCVService {
     return `${SUBSCRIPTION_NAMESPACE}.${options.assetId}.${options.interval}.${options.currency}`;
   }
 
+  /**
+   * Serialize async operations for the same channel so that concurrent
+   * subscribe/unsubscribe calls cannot interleave and corrupt refCount.
+   * Different channels are not blocked by each other.
+   *
+   * @param channel - The channel key to lock on.
+   * @param fn - The async function to execute under the lock.
+   */
+  async #withChannelLock(
+    channel: string,
+    fn: () => Promise<void>,
+  ): Promise<void> {
+    const prev = this.#channelLocks.get(channel) ?? Promise.resolve();
+    const next = prev.then(fn, fn);
+    this.#channelLocks.set(channel, next);
+    try {
+      await next;
+    } finally {
+      if (this.#channelLocks.get(channel) === next) {
+        this.#channelLocks.delete(channel);
+      }
+    }
+  }
+
   async #forceReconnection(): Promise<void> {
     log('OHLCV-WS: Forcing WebSocket reconnection');
     await this.#messenger.call('BackendWebSocketService:forceReconnection');
@@ -511,6 +549,7 @@ export class OHLCVService {
       }
     }
     this.#channels.clear();
+    this.#channelLocks.clear();
 
     this.#messenger.call(
       'BackendWebSocketService:removeChannelCallback',
