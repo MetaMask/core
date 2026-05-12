@@ -231,10 +231,8 @@ export class OHLCVService {
     if (entry?.gracePeriodTimer) {
       clearTimeout(entry.gracePeriodTimer);
       entry.gracePeriodTimer = undefined;
-      entry.refCount += 1;
-      log('OHLCV-WS: Cancelled grace-period unsubscribe, bumped refCount', {
+      log('OHLCV-WS: Cancelled grace-period unsubscribe', {
         channel,
-        refCount: entry.refCount,
       });
 
       if (
@@ -243,10 +241,15 @@ export class OHLCVService {
           channel,
         )
       ) {
+        entry.refCount += 1;
+        log('OHLCV-WS: WS subscription still alive, bumped refCount', {
+          channel,
+          refCount: entry.refCount,
+        });
         return;
       }
       // WS subscription was lost (e.g. after disconnect/reconnect) — fall
-      // through to recreate it while keeping the already-bumped refCount.
+      // through to recreate it. refCount is bumped only after success below.
     } else if (entry && entry.refCount > 0) {
       entry.refCount += 1;
       return;
@@ -288,6 +291,7 @@ export class OHLCVService {
         channel,
         error,
       });
+      this.#channels.delete(channel);
       this.#messenger.publish('OHLCVService:subscriptionError', {
         channel,
         error: String(error),
