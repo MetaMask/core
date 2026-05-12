@@ -61,7 +61,7 @@
     "@metamask/assets-controllers": "^108.0.0",
     "@metamask/base-controller": "^9.1.0",
     "@metamask/client-controller": "^1.0.1",
-    "@metamask/controller-utils": "^12.0.0",
+    "@metamask/controller-utils": "^12.1.0",
     "@metamask/core-backend": "^6.2.2",
     "@metamask/keyring-api": "^23.1.0",
     "@metamask/keyring-controller": "^25.5.0",

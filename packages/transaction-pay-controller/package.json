@@ -62,7 +62,7 @@
     "@metamask/base-controller": "^9.1.0",
     "@metamask/bridge-controller": "^72.0.4",
     "@metamask/bridge-status-controller": "^71.1.4",
-    "@metamask/controller-utils": "^12.0.0",
+    "@metamask/controller-utils": "^12.1.0",
     "@metamask/gas-fee-controller": "^26.2.1",
     "@metamask/messenger": "^1.2.0",
     "@metamask/metamask-eth-abis": "^3.1.1",
