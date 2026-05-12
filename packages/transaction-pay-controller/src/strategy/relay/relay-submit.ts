@@ -45,6 +45,7 @@ import { getRelayStatus, submitRelayExecute } from './relay-api';
 import type {
   RelayExecuteRequest,
   RelayQuote,
+  RelayStatus,
   RelayStatusResponse,
   RelayTransactionStep,
 } from './types';
@@ -122,7 +123,7 @@ async function executeSingleQuote(
     await submitTransactions(quote, transaction, messenger);
   }
 
-  const targetHash = await waitForRelayCompletion(quote.original, messenger, {
+  const completion = await waitForRelayCompletion(quote.original, messenger, {
     onSourceHash: (hash) => {
       log('Source hash received', hash);
       setRelaySourceHash(transaction, messenger, hash);
@@ -130,10 +131,16 @@ async function executeSingleQuote(
     tolerateFailure: isPolymarket,
   });
 
-  log('Relay request completed', targetHash);
+  log('Relay request completed', completion);
 
   if (isPolymarket) {
     await sweepPolymarketDepositWallet(quote.request.from, messenger);
+
+    if (completion.status !== 'success') {
+      throw new Error(
+        `Relay request failed with status: ${completion.status}`,
+      );
+    }
   }
 
   updateTransaction(
@@ -147,7 +154,7 @@ async function executeSingleQuote(
     },
   );
 
-  return { transactionHash: targetHash ?? sourceHash };
+  return { transactionHash: completion.targetHash ?? sourceHash };
 }
 
 function setRelaySourceHash(
@@ -168,6 +175,11 @@ function setRelaySourceHash(
   );
 }
 
+type RelayCompletionOutcome = {
+  status: RelayStatus | 'timeout';
+  targetHash?: Hex;
+};
+
 async function waitForRelayCompletion(
   quote: RelayQuote,
   messenger: TransactionPayControllerMessenger,
@@ -175,7 +187,7 @@ async function waitForRelayCompletion(
     onSourceHash?: (hash: Hex) => void;
     tolerateFailure?: boolean;
   } = {},
-): Promise<Hex | undefined> {
+): Promise<RelayCompletionOutcome> {
   const { onSourceHash, tolerateFailure } = options;
 
   const isSameChain =
@@ -187,7 +199,7 @@ async function waitForRelayCompletion(
 
   if (isSameChain && !isSingleDepositStep) {
     log('Skipping polling as same chain');
-    return FALLBACK_HASH;
+    return { status: 'success', targetHash: FALLBACK_HASH };
   }
 
   const { requestId } = quote.steps[0];
@@ -200,7 +212,7 @@ async function waitForRelayCompletion(
   const startTime = Date.now();
 
   let sourceHashEmitted = false;
-  let lastStatus: string | undefined;
+  let lastStatus: RelayStatus | undefined;
 
   while (true) {
     let status: RelayStatusResponse | undefined;
@@ -223,18 +235,25 @@ async function waitForRelayCompletion(
       if (status.status === 'success') {
         const targetHash =
           (status.txHashes?.slice(-1)[0] as Hex) ?? FALLBACK_HASH;
-        return targetHash;
+        return { status: 'success', targetHash };
       }
 
-      if (RELAY_FAILURE_STATUSES.includes(status.status)) {
-        if (tolerateFailure) {
-          log('Relay ended in failure status (tolerated)', status.status);
-          return undefined;
+      // When tolerating failure, refund is mid-flight (refund tx not yet
+      // confirmed) - keep polling until refunded.
+      const isPendingForCaller =
+        RELAY_PENDING_STATUSES.includes(status.status) ||
+        (tolerateFailure && status.status === 'refund');
+
+      if (!isPendingForCaller) {
+        if (RELAY_FAILURE_STATUSES.includes(status.status)) {
+          if (tolerateFailure) {
+            log('Relay ended in failure status (tolerated)', status.status);
+            return { status: status.status };
+          }
+          throw new Error(
+            `Relay request failed with status: ${status.status}`,
+          );
         }
-        throw new Error(`Relay request failed with status: ${status.status}`);
-      }
-
-      if (!RELAY_PENDING_STATUSES.includes(status.status)) {
         throw new Error(`Relay returned unrecognized status: ${status.status}`);
       }
     }
@@ -243,7 +262,7 @@ async function waitForRelayCompletion(
       const statusDetail = lastStatus ? ` (last status: ${lastStatus})` : '';
       if (tolerateFailure) {
         log('Relay polling timed out (tolerated)', statusDetail);
-        return undefined;
+        return { status: 'timeout' };
       }
       throw new Error(`Relay polling timed out${statusDetail}`);
     }
