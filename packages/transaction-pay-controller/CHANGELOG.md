@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Predict same-chain withdraw quote no longer falls back to block-gas-limit (~30M+) on swap-only Relay routes ([#8735](https://github.com/MetaMask/core/pull/8735))
   - `fromOverride = Safe proxy` is now gated on the route having a `deposit` step. Same-chain destinations route through DEX swap aggregators that reject contract callers (anti-MEV `msg.sender == tx.origin` checks etc.) — for those, the relay params' EOA `from` is used so simulation succeeds.
   - Gas-fee-token lookup still uses the Safe proxy for ALL Predict withdraws (gated on `isPredictWithdraw && refundTo`), preserving the gasless flow for users who hold pUSD in the Safe but no native POL on the EOA.
+- Fix post-quote relay submission when `accountOverride` is set by replacing the prepended original transaction with a delegation transaction so the override account can submit it ([#8615](https://github.com/MetaMask/core/pull/8615))
 
 ## [22.3.0]
 
@@ -26,10 +27,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/assets-controller` from `^7.0.1` to `^7.1.0` ([#8768](https://github.com/MetaMask/core/pull/8768))
 - Bump `@metamask/bridge-controller` from `^72.0.2` to `^72.1.0` ([#8768](https://github.com/MetaMask/core/pull/8768))
 - Bump `@metamask/bridge-status-controller` from `^71.1.2` to `^71.2.0` ([#8768](https://github.com/MetaMask/core/pull/8768))
-
-### Fixed
-
-- Fix post-quote relay submission when `accountOverride` is set by replacing the prepended original transaction with a delegation transaction so the override account can submit it ([#8615](https://github.com/MetaMask/core/pull/8615))
 
 ## [22.2.0]
 
