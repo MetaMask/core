@@ -183,6 +183,7 @@ describe('Relay Quotes Utils', () => {
     getGasFeeTokensMock,
     getKeyringControllerStateMock,
     getRemoteFeatureFlagControllerStateMock,
+    polymarketGetDepositWalletAddressMock,
   } = getMessengerMock();
 
   beforeEach(() => {
@@ -3334,6 +3335,44 @@ describe('Relay Quotes Utils', () => {
           transaction: TRANSACTION_META_MOCK,
         }),
       ).rejects.toThrow('Failed to fetch Relay quotes');
+    });
+
+    describe('Polymarket deposit-wallet source (isPolymarketDepositWallet)', () => {
+      const DEPOSIT_WALLET_MOCK =
+        '0x2222222222222222222222222222222222222222' as Hex;
+      const POLYMARKET_REQUEST: QuoteRequest = {
+        ...QUOTE_REQUEST_MOCK,
+        isPolymarketDepositWallet: true,
+      };
+
+      it('overrides origin currency, user, refundTo and useDepositAddress on the quote body', async () => {
+        polymarketGetDepositWalletAddressMock.mockResolvedValue(
+          DEPOSIT_WALLET_MOCK,
+        );
+
+        successfulFetchMock.mockResolvedValue({
+          ok: true,
+          json: async () => QUOTE_MOCK,
+        } as never);
+
+        await getRelayQuotes({
+          accountSupports7702: true,
+          messenger,
+          requests: [POLYMARKET_REQUEST],
+          transaction: TRANSACTION_META_MOCK,
+        });
+
+        const body = JSON.parse(
+          successfulFetchMock.mock.calls[0][1]?.body as string,
+        );
+
+        expect(body.originCurrency).toBe(
+          '0x2791bca1f2de4661ed88a30c99a7a9449aa84174',
+        );
+        expect(body.user).toBe(DEPOSIT_WALLET_MOCK);
+        expect(body.refundTo).toBe(DEPOSIT_WALLET_MOCK);
+        expect(body.useDepositAddress).toBe(true);
+      });
     });
 
     describe('gas buffer support', () => {

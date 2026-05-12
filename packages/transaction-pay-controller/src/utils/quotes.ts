@@ -324,6 +324,7 @@ function clearControllerIfCurrent(
  * @param request.from - Address from which the transaction is sent.
  * @param request.isMaxAmount - Whether the transaction is a maximum amount transaction.
  * @param request.isHyperliquidSource - Whether the source of funds is HyperLiquid.
+ * @param request.isPolymarketDepositWallet - Whether the source of funds is a Polymarket deposit wallet.
  * @param request.isPostQuote - Whether this is a post-quote flow.
  * @param request.paymentToken - Payment token (source for standard flows, destination for post-quote).
  * @param request.refundTo - Optional address to receive refunds if the Relay transaction fails.
@@ -407,6 +408,7 @@ function buildQuoteRequests({
  * @param request.from - Address from which the transaction is sent.
  * @param request.isMaxAmount - Whether the transaction is a maximum amount transaction.
  * @param request.isHyperliquidSource - Whether the source of funds is HyperLiquid.
+ * @param request.isPolymarketDepositWallet - Whether the source of funds is a Polymarket deposit wallet.
  * @param request.destinationToken - Destination token (paymentToken in post-quote mode).
  * @param request.refundTo - Optional address to receive refunds if the Relay transaction fails.
  * @param request.sourceAmounts - Source amounts for the transaction (includes source token info).

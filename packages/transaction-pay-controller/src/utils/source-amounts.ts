@@ -84,6 +84,7 @@ export function updateSourceAmounts(
  * @param paymentToken - Selected payment/destination token.
  * @param isMaxAmount - Whether the transaction is a maximum amount transaction.
  * @param isHyperliquidSource - Whether the source is HyperLiquid (perps withdrawal).
+ * @param isPolymarketDepositWallet - Whether the source is a Polymarket deposit wallet.
  * @returns Array of source amounts.
  */
 function calculatePostQuoteSourceAmounts(

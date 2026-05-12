@@ -120,7 +120,10 @@ export async function sweepPolymarketDepositWallet(
         {
           target: USDC_E_ADDRESS_POLYGON,
           value: '0',
-          data: encodeApprove(POLYMARKET_COLLATERAL_ONRAMP_POLYGON, usdceBalance),
+          data: encodeApprove(
+            POLYMARKET_COLLATERAL_ONRAMP_POLYGON,
+            usdceBalance,
+          ),
         },
         {
           target: POLYMARKET_COLLATERAL_ONRAMP_POLYGON,
@@ -179,7 +182,7 @@ async function submitDepositWalletBatch(
 function extractRelayDepositAddress(relayQuote: RelayQuote): Hex {
   const depositStep = relayQuote.steps.find((step) => step.id === 'deposit');
 
-  if (!depositStep || depositStep.kind !== 'transaction') {
+  if (depositStep?.kind !== 'transaction') {
     throw new Error(
       'Polymarket deposit wallet withdraw: Relay quote has no deposit step',
     );

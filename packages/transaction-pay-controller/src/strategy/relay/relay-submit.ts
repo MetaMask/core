@@ -96,7 +96,6 @@ async function executeSingleQuote(
   log('Executing single quote', quote);
 
   const isPolymarket = Boolean(quote.request.isPolymarketDepositWallet);
-  let sourceHash: Hex | undefined;
 
   updateTransaction(
     {
@@ -112,12 +111,11 @@ async function executeSingleQuote(
   if (quote.request.isHyperliquidSource) {
     await submitHyperliquidWithdraw(quote, quote.request.from, messenger);
   } else if (isPolymarket) {
-    const result = await submitPolymarketWithdraw(
+    const { sourceHash } = await submitPolymarketWithdraw(
       quote,
       quote.request.from,
       messenger,
     );
-    sourceHash = result.sourceHash;
     setRelaySourceHash(transaction, messenger, sourceHash);
   } else {
     await submitTransactions(quote, transaction, messenger);
@@ -137,9 +135,7 @@ async function executeSingleQuote(
     await sweepPolymarketDepositWallet(quote.request.from, messenger);
 
     if (completion.status !== 'success') {
-      throw new Error(
-        `Relay request failed with status: ${completion.status}`,
-      );
+      throw new Error(`Relay request failed with status: ${completion.status}`);
     }
   }
 
@@ -154,7 +150,7 @@ async function executeSingleQuote(
     },
   );
 
-  return { transactionHash: completion.targetHash ?? sourceHash };
+  return { transactionHash: completion.targetHash };
 }
 
 function setRelaySourceHash(
@@ -186,7 +182,7 @@ async function waitForRelayCompletion(
   options: {
     onSourceHash?: (hash: Hex) => void;
     tolerateFailure?: boolean;
-  } = {},
+  },
 ): Promise<RelayCompletionOutcome> {
   const { onSourceHash, tolerateFailure } = options;
 
@@ -250,9 +246,7 @@ async function waitForRelayCompletion(
             log('Relay ended in failure status (tolerated)', status.status);
             return { status: status.status };
           }
-          throw new Error(
-            `Relay request failed with status: ${status.status}`,
-          );
+          throw new Error(`Relay request failed with status: ${status.status}`);
         }
         throw new Error(`Relay returned unrecognized status: ${status.status}`);
       }

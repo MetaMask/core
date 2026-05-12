@@ -85,7 +85,7 @@ export type TransactionPayControllerGetStrategyAction = {
  * Derives the Polymarket deposit-wallet address for an EOA via the
  * client-supplied callback.
  *
- * @param params - The arguments forwarded to {@link PolymarketCallbacks.getDepositWalletAddress}.
+ * @param args - The arguments forwarded to {@link PolymarketCallbacks.getDepositWalletAddress}.
  * @returns A promise resolving to the deposit-wallet address.
  */
 export type TransactionPayControllerPolymarketGetDepositWalletAddressAction = {
@@ -97,7 +97,7 @@ export type TransactionPayControllerPolymarketGetDepositWalletAddressAction = {
  * Signs and broadcasts a Polymarket deposit-wallet batch via the
  * client-supplied callback.
  *
- * @param params - The arguments forwarded to {@link PolymarketCallbacks.submitDepositWalletBatch}.
+ * @param args - The arguments forwarded to {@link PolymarketCallbacks.submitDepositWalletBatch}.
  * @returns A promise resolving to the relayer-issued source hash.
  */
 export type TransactionPayControllerPolymarketSubmitDepositWalletBatchAction = {

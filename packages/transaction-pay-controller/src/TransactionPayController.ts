@@ -233,7 +233,7 @@ export class TransactionPayController extends BaseController<
    * Derives the Polymarket deposit-wallet address for an EOA via the
    * client-supplied callback.
    *
-   * @param params - The arguments forwarded to {@link PolymarketCallbacks.getDepositWalletAddress}.
+   * @param args - The arguments forwarded to {@link PolymarketCallbacks.getDepositWalletAddress}.
    * @returns A promise resolving to the deposit-wallet address.
    */
   polymarketGetDepositWalletAddress(
@@ -246,7 +246,7 @@ export class TransactionPayController extends BaseController<
    * Signs and broadcasts a Polymarket deposit-wallet batch via the
    * client-supplied callback.
    *
-   * @param params - The arguments forwarded to {@link PolymarketCallbacks.submitDepositWalletBatch}.
+   * @param args - The arguments forwarded to {@link PolymarketCallbacks.submitDepositWalletBatch}.
    * @returns A promise resolving to the relayer-issued source hash.
    */
   polymarketSubmitDepositWalletBatch(
