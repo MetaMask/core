@@ -381,19 +381,24 @@ export class SnapAccountService {
       return;
     }
 
-    const forwardSelectedAccounts = async (): Promise<void> => {
-      if (accounts) {
-        if (accounts.length) {
-          log(
-            `Forwarding selected accounts (from "${groupId}"): ${accounts.join(', ')}`,
-          );
-        } else {
-          log(`Clearing selected accounts (from "${groupId}")`);
-        }
+    if (!accounts) {
+      log(
+        `Account group ("${groupId}") has no accounts, skipping forwarding selected accounts to Snap keyring.`,
+      );
+      return;
+    }
 
-        const snapKeyring = await this.getLegacySnapKeyring();
-        await snapKeyring.setSelectedAccounts(accounts);
+    const forwardSelectedAccounts = async (): Promise<void> => {
+      if (accounts.length) {
+        log(
+          `Forwarding selected accounts (from "${groupId}"): ${accounts.join(', ')}`,
+        );
+      } else {
+        log(`Clearing selected accounts (from "${groupId}")`);
       }
+
+      const snapKeyring = await this.getLegacySnapKeyring();
+      await snapKeyring.setSelectedAccounts(accounts);
     };
 
     // There is nothing we can do if forwarding fails. This will auto-recover on the next relevant event.
