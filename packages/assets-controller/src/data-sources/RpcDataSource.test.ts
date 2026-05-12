@@ -1553,6 +1553,224 @@ describe('RpcDataSource', () => {
     });
   });
 
+  describe('native metadata validation (#hasValidDecimals)', () => {
+    const NATIVE_ASSET_ID = 'eip155:1/slip44:60' as Caip19AssetId;
+
+    const subscribeAndEmit = async (
+      stateNativeMeta: unknown,
+      onAssetsUpdate: jest.Mock,
+    ): Promise<void> => {
+      let balanceUpdateCallback:
+        | ((result: BalanceFetchResult) => void | Promise<void>)
+        | null = null;
+      jest
+        .spyOn(BalanceFetcher.prototype, 'setOnBalanceUpdate')
+        .mockImplementation(function (this: BalanceFetcher, callback) {
+          balanceUpdateCallback = callback;
+        });
+
+      await withController(
+        {
+          actionHandlerOverrides: {
+            'AssetsController:getState': () => ({
+              ...getDefaultAssetsControllerState(),
+              assetsInfo: { [NATIVE_ASSET_ID]: stateNativeMeta },
+            }),
+          },
+        },
+        async ({ controller }) => {
+          await controller.subscribe({
+            request: createDataRequest(),
+            subscriptionId: 'test-sub',
+            isUpdate: false,
+            onAssetsUpdate,
+          });
+          await balanceUpdateCallback?.(
+            createBalanceFetchResult({
+              balances: [
+                {
+                  assetId: NATIVE_ASSET_ID,
+                  balance: '1000000000000000000',
+                } as BalanceFetchResult['balances'][0],
+              ],
+            }),
+          );
+        },
+      );
+    };
+
+    it('falls back to chain-status stub when state native metadata has null decimals', async () => {
+      const onAssetsUpdate = jest.fn();
+      await subscribeAndEmit(
+        {
+          aggregators: ['dynamic'],
+          decimals: null,
+          name: '',
+          symbol: '',
+          type: 'native',
+        },
+        onAssetsUpdate,
+      );
+
+      expect(onAssetsUpdate).toHaveBeenCalled();
+      const [response] = onAssetsUpdate.mock.calls[0];
+      expect(response.assetsInfo?.[NATIVE_ASSET_ID]).toStrictEqual({
+        type: 'native',
+        symbol: 'ETH',
+        name: 'ETH',
+        decimals: 18,
+      });
+      expect(
+        response.assetsBalance?.[MOCK_ACCOUNT_ID]?.[NATIVE_ASSET_ID]?.amount,
+      ).toBe('1');
+    });
+
+    it('falls back to chain-status stub when state native metadata has NaN decimals', async () => {
+      const onAssetsUpdate = jest.fn();
+      await subscribeAndEmit(
+        {
+          decimals: Number.NaN,
+          name: 'ETH',
+          symbol: 'ETH',
+          type: 'native',
+        },
+        onAssetsUpdate,
+      );
+
+      const [response] = onAssetsUpdate.mock.calls[0];
+      expect(response.assetsInfo?.[NATIVE_ASSET_ID]?.decimals).toBe(18);
+    });
+
+    it('keeps existing native metadata when decimals is 0 (valid)', async () => {
+      const onAssetsUpdate = jest.fn();
+      const existing = {
+        decimals: 0,
+        name: '',
+        symbol: '',
+        type: 'native' as const,
+      };
+      await subscribeAndEmit(existing, onAssetsUpdate);
+
+      const [response] = onAssetsUpdate.mock.calls[0];
+      expect(response.assetsInfo?.[NATIVE_ASSET_ID]).toStrictEqual(existing);
+    });
+
+    it('keeps existing native metadata when name/symbol are missing but decimals is valid', async () => {
+      const onAssetsUpdate = jest.fn();
+      const existing = {
+        decimals: 18,
+        type: 'native' as const,
+      };
+      await subscribeAndEmit(existing, onAssetsUpdate);
+
+      const [response] = onAssetsUpdate.mock.calls[0];
+      expect(response.assetsInfo?.[NATIVE_ASSET_ID]).toStrictEqual(existing);
+    });
+  });
+
+  describe('convertToHumanReadable guards', () => {
+    const NATIVE_ASSET_ID = 'eip155:1/slip44:60' as Caip19AssetId;
+
+    const runFetchWithStateMetadata = async (
+      stateNativeMeta: unknown,
+      rawBalance: string,
+    ): Promise<{
+      onAssetsUpdate: jest.Mock;
+    }> => {
+      let balanceUpdateCallback:
+        | ((result: BalanceFetchResult) => void | Promise<void>)
+        | null = null;
+      jest
+        .spyOn(BalanceFetcher.prototype, 'setOnBalanceUpdate')
+        .mockImplementation(function (this: BalanceFetcher, callback) {
+          balanceUpdateCallback = callback;
+        });
+
+      const onAssetsUpdate = jest.fn();
+      await withController(
+        {
+          actionHandlerOverrides: {
+            'AssetsController:getState': () => ({
+              ...getDefaultAssetsControllerState(),
+              assetsInfo: { [NATIVE_ASSET_ID]: stateNativeMeta },
+            }),
+          },
+        },
+        async ({ controller }) => {
+          await controller.subscribe({
+            request: createDataRequest(),
+            subscriptionId: 'test-sub',
+            isUpdate: false,
+            onAssetsUpdate,
+          });
+          await balanceUpdateCallback?.(
+            createBalanceFetchResult({
+              balances: [
+                {
+                  assetId: NATIVE_ASSET_ID,
+                  balance: rawBalance,
+                } as BalanceFetchResult['balances'][0],
+              ],
+            }),
+          );
+        },
+      );
+
+      return { onAssetsUpdate };
+    };
+
+    it('returns "0" amount when state decimals is NaN (bypasses ?? fallback)', async () => {
+      const { onAssetsUpdate } = await runFetchWithStateMetadata(
+        {
+          decimals: Number.NaN,
+          name: 'X',
+          symbol: 'X',
+          type: 'native',
+        },
+        '1000000000000000000',
+      );
+
+      const [response] = onAssetsUpdate.mock.calls[0];
+      expect(
+        response.assetsBalance?.[MOCK_ACCOUNT_ID]?.[NATIVE_ASSET_ID]?.amount,
+      ).toBe('0');
+    });
+
+    it('returns "0" amount when raw balance is not a number', async () => {
+      const { onAssetsUpdate } = await runFetchWithStateMetadata(
+        {
+          decimals: 18,
+          name: 'ETH',
+          symbol: 'ETH',
+          type: 'native',
+        },
+        'not-a-number',
+      );
+
+      const [response] = onAssetsUpdate.mock.calls[0];
+      expect(
+        response.assetsBalance?.[MOCK_ACCOUNT_ID]?.[NATIVE_ASSET_ID]?.amount,
+      ).toBe('0');
+    });
+
+    it('returns "0" amount when decimals is negative', async () => {
+      const { onAssetsUpdate } = await runFetchWithStateMetadata(
+        {
+          decimals: -1,
+          name: 'X',
+          symbol: 'X',
+          type: 'native',
+        },
+        '1000000000000000000',
+      );
+
+      const [response] = onAssetsUpdate.mock.calls[0];
+      expect(
+        response.assetsBalance?.[MOCK_ACCOUNT_ID]?.[NATIVE_ASSET_ID]?.amount,
+      ).toBe('0');
+    });
+  });
+
   describe('handleDetectionUpdate (via callback)', () => {
     it('invokes onAssetsUpdate when TokenDetector callback runs', async () => {
       let detectionUpdateCallback:

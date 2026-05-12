@@ -346,12 +346,30 @@ export class RpcDataSource extends AbstractDataSource<
   /**
    * Convert a raw balance to human-readable format using decimals.
    *
+   * Returns `'0'` when either input is invalid (e.g. `decimals` is `null`,
+   * `NaN`, negative or non-finite, or `rawBalance` cannot be parsed as a
+   * number). Defaulting to a fixed decimals value would silently produce
+   * wrong amounts; `'0'` keeps state safe and never lets `NaN` leak in.
+   *
    * @param rawBalance - The raw balance string.
    * @param decimals - The number of decimals for the token.
-   * @returns The human-readable balance string.
+   * @returns The human-readable balance string, or `'0'` when inputs are invalid.
    */
   #convertToHumanReadable(rawBalance: string, decimals: number): string {
+    if (!Number.isFinite(decimals) || decimals < 0) {
+      log('Invalid decimals — defaulting balance to "0"', {
+        rawBalance,
+        decimals,
+      });
+      return '0';
+    }
+
     const rawAmount = new BigNumberJS(rawBalance);
+    if (!rawAmount.isFinite()) {
+      log('Invalid raw balance — defaulting to "0"', { rawBalance, decimals });
+      return '0';
+    }
+
     const divisor = new BigNumberJS(10).pow(decimals);
     return rawAmount.dividedBy(divisor).toFixed();
   }
@@ -383,7 +401,7 @@ export class RpcDataSource extends AbstractDataSource<
         // enriched by the price/info API with image, description, etc.
         // Only emit a minimal stub when there's nothing in state yet,
         // so we don't clobber that richer metadata on every balance refresh.
-        if (existingMeta) {
+        if (this.#hasValidDecimals(existingMeta)) {
           assetsInfo[balance.assetId] = existingMeta;
         } else {
           const chainStatus = this.#chainStatuses[chainId];
@@ -404,6 +422,12 @@ export class RpcDataSource extends AbstractDataSource<
     }
 
     return assetsInfo;
+  }
+
+  #hasValidDecimals(
+    metadata: AssetMetadata | undefined,
+  ): metadata is AssetMetadata {
+    return Boolean(metadata && Number.isFinite(metadata.decimals));
   }
 
   /**
@@ -1054,7 +1078,7 @@ export class RpcDataSource extends AbstractDataSource<
           // nothing is in state yet, so we don't clobber that richer metadata.
           const existingNativeMeta =
             this.#getExistingAssetsMetadata()[nativeAssetId];
-          if (existingNativeMeta) {
+          if (this.#hasValidDecimals(existingNativeMeta)) {
             assetsInfo[nativeAssetId] = existingNativeMeta;
           } else {
             const chainStatus = this.#chainStatuses[chainId];
