@@ -138,24 +138,14 @@ function getTokenAssetsURL(options: {
 }
 
 /**
- * Get the trending tokens URL for the given networks and search query.
+ * Shared query-parameter type for the v3 trending tokens endpoint.
  *
- * @param options - Options for getting trending tokens.
- * @param options.chainIds - Array of CAIP format chain IDs (e.g., ['eip155:1', 'eip155:137', 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp']).
- * @param options.sort - The sort field.
- * @param options.minLiquidity - The minimum liquidity.
- * @param options.minVolume24hUsd - The minimum volume 24h in USD.
- * @param options.maxVolume24hUsd - The maximum volume 24h in USD.
- * @param options.minMarketCap - The minimum market cap.
- * @param options.maxMarketCap - The maximum market cap.
- * @param options.excludeLabels - Array of labels to exclude (e.g., ['stable_coin', 'blue_chip']).
- * @param options.includeRwaData - Optional flag to include RWA data in the results (defaults to false).
- * @param options.usePriceApiData - Optional flag to use price API data in the results (defaults to false).
- * @param options.includeTokenSecurityData - Optional flag to include token security data in the results (defaults to false).
- * @returns The trending tokens URL.
+ * Known parameters are explicitly typed for autocomplete and documentation.
+ * The index signature allows new API parameters to pass through without
+ * requiring a core release — callers can add any additional key/value and
+ * it will be forwarded as a query parameter.
  */
-function getTrendingTokensURL(options: {
-  chainIds: CaipChainId[];
+export type TrendingTokensQueryParams = {
   sort?: SortTrendingBy;
   minLiquidity?: number;
   minVolume24hUsd?: number;
@@ -166,11 +156,21 @@ function getTrendingTokensURL(options: {
   includeRwaData?: boolean;
   usePriceApiData?: boolean;
   includeTokenSecurityData?: boolean;
-}): string {
+  [key: string]: string | number | boolean | string[] | undefined;
+};
+
+/**
+ * Get the trending tokens URL for the given networks and search query.
+ *
+ * @param options - Options bag: `chainIds` (required) plus any query params.
+ * @returns The trending tokens URL.
+ */
+function getTrendingTokensURL(
+  options: { chainIds: CaipChainId[] } & TrendingTokensQueryParams,
+): string {
   const encodedChainIds = options.chainIds
     .map((id) => encodeURIComponent(id))
     .join(',');
-  // Add the rest of query params if they are defined
   const queryParams = new URLSearchParams();
   const { chainIds, excludeLabels, ...rest } = options;
   Object.entries(rest).forEach(([key, value]) => {
@@ -391,46 +391,20 @@ export type TrendingAsset = {
 /**
  * Get the trending tokens for the given chains.
  *
- * @param options - Options for getting trending tokens.
- * @param options.chainIds - The chains to get the trending tokens for.
- * @param options.sortBy - The sort by field.
- * @param options.minLiquidity - The minimum liquidity.
- * @param options.minVolume24hUsd - The minimum volume 24h in USD.
- * @param options.maxVolume24hUsd - The maximum volume 24h in USD.
- * @param options.minMarketCap - The minimum market cap.
- * @param options.maxMarketCap - The maximum market cap.
- * @param options.excludeLabels - Array of labels to exclude (e.g., ['stable_coin', 'blue_chip']).
- * @param options.includeRwaData - Optional flag to include RWA data in the results (defaults to true).
- * @param options.usePriceApiData - Optional flag to use price API data in the results (defaults to true).
- * @param options.includeTokenSecurityData - Optional flag to include token security data in the results (defaults to false).
+ * Accepts all known query parameters plus any additional ones via the
+ * index signature on {@link TrendingTokensQueryParams}. New API parameters
+ * can be passed without updating this function.
+ *
+ * @param options - Options bag: `chainIds` (required) plus any query params
+ *   supported by the v3 trending endpoint.
  * @returns The trending tokens.
  * @throws Will throw if the request fails.
  */
-export async function getTrendingTokens({
-  chainIds,
-  sortBy,
-  minLiquidity,
-  minVolume24hUsd,
-  maxVolume24hUsd,
-  minMarketCap,
-  maxMarketCap,
-  excludeLabels,
-  includeRwaData = true,
-  usePriceApiData = true,
-  includeTokenSecurityData,
-}: {
-  chainIds: CaipChainId[];
-  sortBy?: SortTrendingBy;
-  minLiquidity?: number;
-  minVolume24hUsd?: number;
-  maxVolume24hUsd?: number;
-  minMarketCap?: number;
-  maxMarketCap?: number;
-  excludeLabels?: string[];
-  includeRwaData?: boolean;
-  usePriceApiData?: boolean;
-  includeTokenSecurityData?: boolean;
-}): Promise<TrendingAsset[]> {
+export async function getTrendingTokens(
+  options: { chainIds: CaipChainId[] } & TrendingTokensQueryParams,
+): Promise<TrendingAsset[]> {
+  const { chainIds, ...rest } = options;
+
   if (chainIds.length === 0) {
     console.error('No chains provided');
     return [];
@@ -438,16 +412,9 @@ export async function getTrendingTokens({
 
   const trendingTokensURL = getTrendingTokensURL({
     chainIds,
-    sort: sortBy,
-    minLiquidity,
-    minVolume24hUsd,
-    maxVolume24hUsd,
-    minMarketCap,
-    maxMarketCap,
-    excludeLabels,
-    includeRwaData,
-    usePriceApiData,
-    includeTokenSecurityData,
+    ...rest,
+    includeRwaData: rest.includeRwaData ?? true,
+    usePriceApiData: rest.usePriceApiData ?? true,
   });
 
   try {

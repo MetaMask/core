@@ -292,6 +292,7 @@ export { createFormatters } from './utils/formatters';
 export type {
   SortTrendingBy,
   TrendingAsset,
+  TrendingTokensQueryParams,
   TokenSearchItem,
   TokenAsset,
   TokenRwaData,
