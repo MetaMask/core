@@ -27,12 +27,9 @@ import {
   USDC_E_ADDRESS_POLYGON,
 } from './constants';
 import { computeDepositWalletAddress } from './deposit-wallet';
-import { submitDepositWalletBatch } from './relayer-api';
+import { submitDepositWalletBatch } from './relayer';
 
 const log = createModuleLogger(projectLogger, 'polymarket-withdraw');
-
-const WALLET_BUSY_RETRY_ATTEMPTS = 5;
-const WALLET_BUSY_RETRY_DELAY_MS = 3_000;
 
 export function applyPolymarketDepositWalletOverrides(
   body: RelayQuoteRequest,
@@ -61,7 +58,7 @@ export async function submitPolymarketWithdraw(
     amount: amount.toString(),
   });
 
-  const { transactionHash } = await submitWithBusyRetry(messenger, {
+  const { transactionHash } = await submitDepositWalletBatch(messenger, {
     from,
     depositWalletAddress,
     calls: [
@@ -116,7 +113,7 @@ export async function sweepPolymarketDepositWallet(
   }
 
   try {
-    const { transactionHash } = await submitWithBusyRetry(messenger, {
+    const { transactionHash } = await submitDepositWalletBatch(messenger, {
       from,
       depositWalletAddress,
       calls: [
@@ -146,39 +143,6 @@ export async function sweepPolymarketDepositWallet(
   }
 }
 
-async function submitWithBusyRetry(
-  messenger: TransactionPayControllerMessenger,
-  args: Parameters<typeof submitDepositWalletBatch>[1],
-): Promise<{ transactionHash: Hex }> {
-  let lastError: unknown;
-
-  for (let attempt = 1; attempt <= WALLET_BUSY_RETRY_ATTEMPTS; attempt++) {
-    try {
-      return await submitDepositWalletBatch(messenger, args);
-    } catch (error) {
-      lastError = error;
-
-      const message = error instanceof Error ? error.message : String(error);
-      const isWalletBusy =
-        message.toLowerCase().includes('wallet busy') ||
-        message.toLowerCase().includes('active action');
-
-      if (!isWalletBusy || attempt === WALLET_BUSY_RETRY_ATTEMPTS) {
-        throw error;
-      }
-
-      log('Wallet busy, retrying', {
-        attempt,
-        delayMs: WALLET_BUSY_RETRY_DELAY_MS,
-      });
-
-      await delay(WALLET_BUSY_RETRY_DELAY_MS);
-    }
-  }
-
-  throw lastError;
-}
-
 function extractRelayDepositAddress(relayQuote: RelayQuote): Hex {
   const depositStep = relayQuote.steps.find((step) => step.id === 'deposit');
 
@@ -198,8 +162,4 @@ function extractRelayDepositAddress(relayQuote: RelayQuote): Hex {
   }
 
   return extractErc20TransferRecipient(depositCallData);
-}
-
-async function delay(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
 }

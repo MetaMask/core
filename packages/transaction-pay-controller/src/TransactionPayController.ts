@@ -333,10 +333,6 @@ export class TransactionPayController extends BaseController<
   ): TransactionPayStrategy[] {
     const transactionData = this.state.transactionData[transaction.id];
 
-    if (transactionData?.isPolymarketDepositWallet) {
-      return [TransactionPayStrategy.Relay];
-    }
-
     const strategyCandidates: unknown[] =
       this.#getStrategies?.(transaction) ??
       (this.#getStrategy ? [this.#getStrategy(transaction)] : []);
