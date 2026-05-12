@@ -339,6 +339,15 @@ export class OHLCVService {
 
   async #performUnsubscribe(channel: string): Promise<void> {
     return this.#withChannelLock(channel, async () => {
+      const entry = this.#channels.get(channel);
+      if (entry && entry.refCount > 0) {
+        log(
+          'OHLCV-WS: Skipping unsubscribe — new subscriber arrived while queued',
+          { channel, refCount: entry.refCount },
+        );
+        return;
+      }
+
       log(
         'OHLCV-WS: Grace period expired — performing actual WS unsubscribe',
         { channel },
