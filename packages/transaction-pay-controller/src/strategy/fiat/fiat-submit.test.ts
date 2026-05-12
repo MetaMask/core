@@ -282,6 +282,7 @@ describe('submitFiatQuotes', () => {
       messenger: expect.anything(),
       order,
       fiatAsset: FIAT_ASSET_MOCK,
+      walletAddress: WALLET_ADDRESS_MOCK,
     });
     expect(getRelayQuotesMock).toHaveBeenCalledTimes(1);
     expect(getRelayQuotesMock.mock.calls[0][0].requests).toStrictEqual([
@@ -325,8 +326,7 @@ describe('submitFiatQuotes', () => {
     updateFn(txDraft);
 
     expect(txDraft.metamaskPay).toStrictEqual({
-      fiatOrderId: ORDER_ID_MOCK,
-      fiatProvider: 'transak-native-staging',
+      fiat: { orderId: ORDER_ID_MOCK, provider: 'transak-native-staging' },
     });
   });
 
@@ -343,8 +343,7 @@ describe('submitFiatQuotes', () => {
 
     expect(txDraft.metamaskPay).toStrictEqual({
       totalFiat: '20.00',
-      fiatOrderId: ORDER_ID_MOCK,
-      fiatProvider: 'transak-native-staging',
+      fiat: { orderId: ORDER_ID_MOCK, provider: 'transak-native-staging' },
     });
   });
 

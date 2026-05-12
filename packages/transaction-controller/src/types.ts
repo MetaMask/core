@@ -2165,11 +2165,13 @@ export type MetamaskPayMetadata = {
   /** Chain ID of the payment token. */
   chainId?: Hex;
 
-  /** Fiat on-ramp order ID (normalized format: /providers/{provider}/orders/{id}). */
-  fiatOrderId?: string;
-
-  /** Fiat on-ramp provider code (e.g. "transak-native"). */
-  fiatProvider?: string;
+  /** Fiat on-ramp metadata (order ID and provider). */
+  fiat?: {
+    /** Order ID (normalized format: /providers/{provider}/orders/{id}). */
+    orderId: string;
+    /** Provider code (e.g. "transak-native"). */
+    provider: string;
+  };
 
   /**
    * Whether this is a post-quote transaction (e.g., withdrawal flow).

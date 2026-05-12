@@ -79,8 +79,7 @@ export async function submitFiatQuotes(
     },
     (tx) => {
       tx.metamaskPay ??= {};
-      tx.metamaskPay.fiatOrderId = orderId;
-      tx.metamaskPay.fiatProvider = providerCode;
+      tx.metamaskPay.fiat = { orderId, provider: providerCode };
     },
   );
 
@@ -310,10 +309,13 @@ async function submitRelayAfterFiatCompletion({
     transactionId,
   });
 
+  const walletAddress = transaction.txParams.from as Hex;
+
   const sourceAmountRaw = await resolveSourceAmountRaw({
     messenger,
     order,
     fiatAsset,
+    walletAddress,
   });
 
   const baseRequest = quotes[0].request;

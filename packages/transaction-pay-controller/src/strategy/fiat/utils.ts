@@ -1,6 +1,7 @@
 import type { RampsOrder } from '@metamask/ramps-controller';
 import type { TransactionMeta } from '@metamask/transaction-controller';
 import { TransactionType } from '@metamask/transaction-controller';
+import type { Hex } from '@metamask/utils';
 import { createModuleLogger } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
 
@@ -8,7 +9,7 @@ import { projectLogger } from '../../logger';
 import type { TransactionPayControllerMessenger } from '../../types';
 import { getFiatAssetPerTransactionType } from '../../utils/feature-flags';
 import { getTokenInfo } from '../../utils/token';
-import { getTransferredAmountFromTxHash } from '../../utils/transaction-receipt';
+import { getTransferredAmountFromTxHash } from '../../utils/transaction';
 import type { TransactionPayFiatAsset } from './constants';
 import { FIAT_ASSET_ID_BY_TX_TYPE } from './constants';
 
@@ -46,16 +47,19 @@ function resolveTransactionType(
  * @param options.messenger - Controller messenger for network access.
  * @param options.order - The completed on-ramp order.
  * @param options.fiatAsset - The fiat asset describing the expected token.
+ * @param options.walletAddress - Recipient wallet address for on-chain lookup.
  * @returns The raw (atomic) source amount as a decimal string.
  */
 export async function resolveSourceAmountRaw({
   messenger,
   order,
   fiatAsset,
+  walletAddress,
 }: {
   messenger: TransactionPayControllerMessenger;
   order: RampsOrder;
   fiatAsset: TransactionPayFiatAsset;
+  walletAddress: Hex;
 }): Promise<string> {
   if (order.txHash) {
     try {
@@ -64,6 +68,7 @@ export async function resolveSourceAmountRaw({
         txHash: order.txHash,
         chainId: fiatAsset.chainId,
         tokenAddress: fiatAsset.address,
+        walletAddress,
       });
 
       if (onChainAmount) {
