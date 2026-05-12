@@ -24,7 +24,7 @@ jobs:
           is-high-risk-environment: false
 
       - name: Generate and build Messenger docs
-        run: yarn docs:messenger
+        run: yarn docs:messenger:build
         env:
           DOCS_URL: https://${{ github.repository_owner }}.github.io
           DOCS_BASE_URL: /${{ github.event.repository.name }}/
