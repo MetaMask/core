@@ -326,6 +326,7 @@ export class OHLCVService {
     }
 
     entry.gracePeriodTimer = setTimeout(() => {
+      entry.gracePeriodTimer = undefined;
       this.#performUnsubscribe(channel).catch(() => {
         // no-op
       });
@@ -337,35 +338,38 @@ export class OHLCVService {
   // =============================================================================
 
   async #performUnsubscribe(channel: string): Promise<void> {
-    log('OHLCV-WS: Grace period expired — performing actual WS unsubscribe', {
-      channel,
-    });
-    this.#channels.delete(channel);
-
-    try {
-      const subscriptions = this.#messenger.call(
-        'BackendWebSocketService:getSubscriptionsByChannel',
-        channel,
+    return this.#withChannelLock(channel, async () => {
+      log(
+        'OHLCV-WS: Grace period expired — performing actual WS unsubscribe',
+        { channel },
       );
+      this.#channels.delete(channel);
 
-      for (const sub of subscriptions) {
-        await sub.unsubscribe();
+      try {
+        const subscriptions = this.#messenger.call(
+          'BackendWebSocketService:getSubscriptionsByChannel',
+          channel,
+        );
+
+        for (const sub of subscriptions) {
+          await sub.unsubscribe();
+        }
+        log('OHLCV-WS: WS unsubscribe completed', { channel });
+      } catch (error) {
+        log('OHLCV-WS: Unsubscription failed, forcing reconnection', {
+          channel,
+          error,
+        });
+        this.#messenger.publish('OHLCVService:subscriptionError', {
+          channel,
+          error: String(error),
+          operation: 'unsubscribe',
+        });
+        await this.#forceReconnection().catch(() => {
+          // no-op
+        });
       }
-      log('OHLCV-WS: WS unsubscribe completed', { channel });
-    } catch (error) {
-      log('OHLCV-WS: Unsubscription failed, forcing reconnection', {
-        channel,
-        error,
-      });
-      this.#messenger.publish('OHLCVService:subscriptionError', {
-        channel,
-        error: String(error),
-        operation: 'unsubscribe',
-      });
-      await this.#forceReconnection().catch(() => {
-        // no-op
-      });
-    }
+    });
   }
 
   /**

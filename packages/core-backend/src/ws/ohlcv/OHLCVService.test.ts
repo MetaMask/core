@@ -26,7 +26,11 @@ type RootMessenger = Messenger<
 >;
 
 const completeAsyncOperations = async (timeoutMs = 0): Promise<void> => {
-  await flushPromises();
+  // Multiple rounds are needed because the channel lock chains promises
+  // through .then(), requiring several microtask ticks to fully settle.
+  for (let i = 0; i < 5; i++) {
+    await flushPromises();
+  }
   if (timeoutMs > 0) {
     await new Promise((resolve) => setTimeout(resolve, timeoutMs));
   }
@@ -663,6 +667,33 @@ describe('OHLCVService', () => {
         await completeAsyncOperations();
 
         expect(mockUnsub).toHaveBeenCalledTimes(1);
+      });
+    });
+
+    it('should create a fresh WS subscription when subscribe races with grace-period unsubscribe', async () => {
+      await withService(async ({ service, mocks }) => {
+        let unsubResolve!: () => void;
+        const mockUnsub = jest.fn(
+          () =>
+            new Promise<void>((resolve) => {
+              unsubResolve = resolve;
+            }),
+        );
+        mocks.getSubscriptionsByChannel.mockReturnValue([
+          { unsubscribe: mockUnsub },
+        ]);
+
+        await service.subscribe(SUB_OPTS);
+        await service.unsubscribe(SUB_OPTS);
+
+        jest.advanceTimersByTime(3000);
+        await flushPromises();
+
+        const subscribePromise = service.subscribe(SUB_OPTS);
+        unsubResolve();
+        await subscribePromise;
+
+        expect(mocks.subscribe).toHaveBeenCalledTimes(2);
       });
     });
   });
