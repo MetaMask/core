@@ -1,42 +1,17 @@
 import { fileExists } from '@metamask/utils/node';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
-import {
-  createSourceFile,
-  getJSDocCommentsAndTags,
-  getJSDocTags,
-  isAsExpression,
-  isClassDeclaration,
-  isIdentifier,
-  isImportDeclaration,
-  isInterfaceDeclaration,
-  isJSDoc,
-  isLiteralTypeNode,
-  isMethodDeclaration,
-  isNamedImports,
-  isNoSubstitutionTemplateLiteral,
-  isPropertySignature,
-  isStringLiteral,
-  isTemplateExpression,
-  isTemplateLiteralTypeNode,
-  isTypeAliasDeclaration,
-  isTypeLiteralNode,
-  isTypeOfExpression,
-  isTypeQueryNode,
-  isTypeReferenceNode,
-  isVariableStatement,
-  ScriptTarget,
-} from 'typescript';
 import type {
   Expression,
   InterfaceDeclaration,
-  Node as TsNode,
-  NodeArray,
+  JSDocableNode,
+  Node as TsMorphNode,
   SourceFile,
-  TemplateLiteralTypeNode as TemplateLiteralType,
+  TemplateLiteralTypeNode,
   TypeAliasDeclaration,
-  TypeElement,
-} from 'typescript';
+  TypeElementTypes,
+} from 'ts-morph';
+import { Node as NodeGuards, Project, SyntaxKind, ts } from 'ts-morph';
 
 import type { MessengerItemDoc, MethodInfo } from './types';
 
@@ -50,32 +25,32 @@ import type { MessengerItemDoc, MethodInfo } from './types';
 function extractStringConstants(sourceFile: SourceFile): Map<string, string> {
   const names = new Map<string, string>();
 
-  for (const statement of sourceFile.statements) {
-    if (!isVariableStatement(statement)) {
-      continue;
-    }
-    for (const decl of statement.declarationList.declarations) {
-      if (!isIdentifier(decl.name)) {
+  for (const statement of sourceFile.getVariableStatements()) {
+    for (const declaration of statement.getDeclarations()) {
+      const name = declaration.getNameNode();
+      if (!NodeGuards.isIdentifier(name)) {
         continue;
       }
 
-      if (decl.initializer) {
-        const init = decl.initializer;
-        if (isStringLiteral(init)) {
-          names.set(decl.name.text, init.text);
-        } else if (isAsExpression(init) && isStringLiteral(init.expression)) {
-          names.set(decl.name.text, init.expression.text);
+      const initializer = declaration.getInitializer();
+      if (initializer) {
+        if (NodeGuards.isStringLiteral(initializer)) {
+          names.set(name.getText(), initializer.getLiteralValue());
+        } else if (NodeGuards.isAsExpression(initializer)) {
+          const inner = initializer.getExpression();
+          if (NodeGuards.isStringLiteral(inner)) {
+            names.set(name.getText(), inner.getLiteralValue());
+          }
         }
-      }
-
-      // Handle `declare const x: "value"` (common in .d.cts files)
-      if (
-        !decl.initializer &&
-        decl.type &&
-        isLiteralTypeNode(decl.type) &&
-        isStringLiteral(decl.type.literal)
-      ) {
-        names.set(decl.name.text, decl.type.literal.text);
+      } else {
+        // Handle `declare const x: "value"` (common in .d.cts files)
+        const typeNode = declaration.getTypeNode();
+        if (typeNode && NodeGuards.isLiteralTypeNode(typeNode)) {
+          const literal = typeNode.getLiteral();
+          if (NodeGuards.isStringLiteral(literal)) {
+            names.set(name.getText(), literal.getLiteralValue());
+          }
+        }
       }
     }
   }
@@ -87,11 +62,13 @@ function extractStringConstants(sourceFile: SourceFile): Map<string, string> {
  * Resolve the value of `controllerName` (or similar constant) defined in the
  * same file or imported from a local `./constants*` module (single-hop only).
  *
+ * @param project - The ts-morph project to add imported source files to.
  * @param sourceFile - The TypeScript source file to search.
  * @param filePath - The absolute path of the source file on disk.
  * @returns A promise that resolves to a map of constant name to resolved string value.
  */
 async function resolveControllerName(
+  project: Project,
   sourceFile: SourceFile,
   filePath: string,
 ): Promise<Map<string, string>> {
@@ -99,17 +76,9 @@ async function resolveControllerName(
 
   // Chase single-hop local imports (no further recursion):
   //   import { BRIDGE_CONTROLLER_NAME } from './constants/bridge';
-  for (const statement of sourceFile.statements) {
-    if (
-      !isImportDeclaration(statement) ||
-      !statement.moduleSpecifier ||
-      !isStringLiteral(statement.moduleSpecifier)
-    ) {
-      continue;
-    }
-
-    const spec = statement.moduleSpecifier.text;
-    if (!spec.startsWith('.')) {
+  for (const importDeclaration of sourceFile.getImportDeclarations()) {
+    const spec = importDeclaration.getModuleSpecifierValue();
+    if (!spec?.startsWith('.')) {
       continue;
     }
 
@@ -135,26 +104,20 @@ async function resolveControllerName(
       }
 
       const content = await fs.readFile(candidate, 'utf8');
-      const sf = createSourceFile(
-        candidate,
-        content,
-        ScriptTarget.Latest,
-        true,
-      );
+      const importedSourceFile =
+        project.getSourceFile(candidate) ??
+        project.createSourceFile(candidate, content, { overwrite: true });
       // Only extract constants — do NOT follow further imports
-      const imported = extractStringConstants(sf);
+      const imported = extractStringConstants(importedSourceFile);
 
-      if (
-        statement.importClause?.namedBindings &&
-        isNamedImports(statement.importClause.namedBindings)
-      ) {
-        for (const element of statement.importClause.namedBindings.elements) {
-          const importedName = (element.propertyName ?? element.name).text;
-          const localName = element.name.text;
-          const value = imported.get(importedName);
-          if (value !== undefined) {
-            names.set(localName, value);
-          }
+      const namedImports = importDeclaration.getNamedImports();
+      for (const element of namedImports) {
+        const importedName = element.getNameNode().getText();
+        const aliasNode = element.getAliasNode();
+        const localName = aliasNode ? aliasNode.getText() : importedName;
+        const value = imported.get(importedName);
+        if (value !== undefined) {
+          names.set(localName, value);
         }
       }
       break;
@@ -176,17 +139,22 @@ function resolveTypeString(
   node: Expression,
   constants: Map<string, string>,
 ): string | null {
-  if (isStringLiteral(node) || isNoSubstitutionTemplateLiteral(node)) {
-    return node.text;
+  if (
+    NodeGuards.isStringLiteral(node) ||
+    NodeGuards.isNoSubstitutionTemplateLiteral(node)
+  ) {
+    return node.getLiteralValue();
   }
 
-  if (isTemplateExpression(node)) {
-    let result = node.head.text;
-    for (const span of node.templateSpans) {
+  if (NodeGuards.isTemplateExpression(node)) {
+    let result = node.getHead().getLiteralText();
+    for (const span of node.getTemplateSpans()) {
+      const expression = span.getExpression();
       // typeof X  →  resolve X
-      if (isTypeOfExpression(span.expression)) {
-        if (isIdentifier(span.expression.expression)) {
-          const val = constants.get(span.expression.expression.text);
+      if (NodeGuards.isTypeOfExpression(expression)) {
+        const inner = expression.getExpression();
+        if (NodeGuards.isIdentifier(inner)) {
+          const val = constants.get(inner.getText());
           if (val === undefined) {
             return null;
           }
@@ -194,8 +162,8 @@ function resolveTypeString(
         } else {
           return null;
         }
-      } else if (isIdentifier(span.expression)) {
-        const val = constants.get(span.expression.text);
+      } else if (NodeGuards.isIdentifier(expression)) {
+        const val = constants.get(expression.getText());
         if (val === undefined) {
           return null;
         }
@@ -203,7 +171,7 @@ function resolveTypeString(
       } else {
         return null;
       }
-      result += span.literal.text;
+      result += span.getLiteral().getLiteralText();
     }
     return result;
   }
@@ -220,24 +188,35 @@ function resolveTypeString(
  * @returns The resolved string value, or null if unresolvable.
  */
 function resolveTemplateLiteralType(
-  node: TemplateLiteralType,
+  node: TemplateLiteralTypeNode,
   constants: Map<string, string>,
 ): string | null {
-  let result = node.head.text;
+  // ts-morph wraps `TemplateLiteralTypeSpan` awkwardly here, so we drop down to
+  // the raw compiler nodes to access each span's `type` and `literal`.
+  const { compilerNode } = node;
+  let result = compilerNode.head.text;
 
-  for (const span of node.templateSpans) {
+  for (const span of compilerNode.templateSpans) {
+    const typeNode = span.type;
     // In type position, `typeof X` is a TypeQueryNode
-    if (isTypeQueryNode(span.type) && isIdentifier(span.type.exprName)) {
-      const val = constants.get(span.type.exprName.text);
-      if (val === undefined) {
+    if (typeNode.kind === SyntaxKind.TypeQuery) {
+      const { exprName } = typeNode as ts.TypeQueryNode;
+      if (exprName.kind === SyntaxKind.Identifier) {
+        const val = constants.get(exprName.text);
+        if (val === undefined) {
+          return null;
+        }
+        result += val;
+      } else {
         return null;
       }
-      result += val;
-    } else if (
-      isLiteralTypeNode(span.type) &&
-      isStringLiteral(span.type.literal)
-    ) {
-      result += span.type.literal.text;
+    } else if (typeNode.kind === SyntaxKind.LiteralType) {
+      const { literal } = typeNode as ts.LiteralTypeNode;
+      if (literal.kind === SyntaxKind.StringLiteral) {
+        result += (literal as ts.StringLiteral).text;
+      } else {
+        return null;
+      }
     } else {
       return null;
     }
@@ -251,22 +230,15 @@ function resolveTemplateLiteralType(
  * Extract cleaned JSDoc body text from a node.
  *
  * @param node - The AST node to extract JSDoc from.
- * @param sourceFile - The source file containing the node.
  * @returns The cleaned JSDoc text, or empty string if none.
  */
-function extractJsDocText(node: TsNode, sourceFile: SourceFile): string {
-  const jsDocs = getJSDocCommentsAndTags(node);
+function extractJsDocText(node: JSDocableNode): string {
+  const jsDocs = node.getJsDocs();
   if (jsDocs.length === 0) {
     return '';
   }
 
-  const jsDoc = jsDocs[0];
-  if (!isJSDoc(jsDoc)) {
-    return '';
-  }
-
-  const fullText = sourceFile.getFullText();
-  const raw = fullText.substring(jsDoc.getFullStart(), jsDoc.getEnd()).trim();
+  const raw = jsDocs[0].getText().trim();
 
   // Handle single-line JSDoc: /** Gets the current state. */
   const singleLineMatch = raw.match(/^\/\*\*\s*(.*?)\s*\*\/$/u);
@@ -397,9 +369,11 @@ function extractJsDocText(node: TsNode, sourceFile: SourceFile): string {
  * @param node - The AST node to check.
  * @returns True if the node has an `@deprecated` tag.
  */
-function isDeprecated(node: TsNode): boolean {
-  const tags = getJSDocTags(node);
-  return tags.some((tag) => tag.tagName.text === 'deprecated');
+function isDeprecated(node: JSDocableNode): boolean {
+  return node
+    .getJsDocs()
+    .flatMap((jsDoc) => jsDoc.getTags())
+    .some((tag) => tag.getTagName() === 'deprecated');
 }
 
 /**
@@ -412,44 +386,44 @@ function isDeprecated(node: TsNode): boolean {
 function collectClassMethods(sourceFile: SourceFile): Map<string, MethodInfo> {
   const methods = new Map<string, MethodInfo>();
 
-  for (const statement of sourceFile.statements) {
-    if (!isClassDeclaration(statement) || !statement.name) {
+  for (const classDeclaration of sourceFile.getClasses()) {
+    const className = classDeclaration.getName();
+    if (!className) {
       continue;
     }
 
-    const className = statement.name.text;
-
-    for (const member of statement.members) {
-      if (
-        !isMethodDeclaration(member) ||
-        !member.name ||
-        !isIdentifier(member.name)
-      ) {
+    for (const member of classDeclaration.getMembers()) {
+      if (!NodeGuards.isMethodDeclaration(member)) {
+        continue;
+      }
+      const memberNameNode = member.getNameNode();
+      if (!NodeGuards.isIdentifier(memberNameNode)) {
         continue;
       }
 
-      const methodName = member.name.text;
+      const methodName = memberNameNode.getText();
 
       // Build parameter list
-      const params = member.parameters
+      const params = member
+        .getParameters()
         .map((param) => {
-          const paramName = param.name.getText(sourceFile);
-          const optional = param.questionToken ? '?' : '';
-          const paramType = param.type
-            ? param.type.getText(sourceFile)
-            : 'unknown';
+          const paramName = param.getNameNode().getText();
+          const optional = param.hasQuestionToken() ? '?' : '';
+          const typeNode = param.getTypeNode();
+          const paramType = typeNode ? typeNode.getText() : 'unknown';
           return `${paramName}${optional}: ${paramType}`;
         })
         .join(', ');
 
       // Get return type
-      const returnType = member.type ? member.type.getText(sourceFile) : 'void';
+      const returnTypeNode = member.getReturnTypeNode();
+      const returnType = returnTypeNode ? returnTypeNode.getText() : 'void';
 
       // For async methods, the declared return type already includes Promise<>,
       // so we don't need to wrap again.
       const methodSignature = `(${params}) => ${returnType}`;
 
-      const jsDoc = extractJsDocText(member, sourceFile);
+      const jsDoc = extractJsDocText(member);
 
       methods.set(`${className}.${methodName}`, {
         jsDoc,
@@ -489,23 +463,26 @@ function resolveHandler(
  *
  * @param members - The type literal members to search.
  * @param propName - The property name to find.
- * @param sourceFile - The source file for getText calls.
  * @returns The raw text of the property type, or empty string if not found.
  */
 function getPropertyText(
-  members: NodeArray<TypeElement>,
+  members: TypeElementTypes[],
   propName: string,
-  sourceFile: SourceFile,
 ): string {
   for (const member of members) {
+    if (!NodeGuards.isPropertySignature(member)) {
+      continue;
+    }
+    const memberNameNode = member.getNameNode();
     if (
-      isPropertySignature(member) &&
-      member.name &&
-      isIdentifier(member.name) &&
-      member.name.text === propName &&
-      member.type
+      !NodeGuards.isIdentifier(memberNameNode) ||
+      memberNameNode.getText() !== propName
     ) {
-      return member.type.getText(sourceFile).trim();
+      continue;
+    }
+    const typeNode = member.getTypeNode();
+    if (typeNode) {
+      return typeNode.getText().trim();
     }
   }
   return '';
@@ -527,20 +504,21 @@ export async function extractFromFile(
   relBase: string,
 ): Promise<MessengerItemDoc[]> {
   const content = await fs.readFile(filePath, 'utf8');
-  const sourceFile = createSourceFile(
-    filePath,
-    content,
-    ScriptTarget.Latest,
-    true,
-  );
+  const project = new Project({
+    useInMemoryFileSystem: true,
+    skipAddingFilesFromTsConfig: true,
+  });
+  const sourceFile = project.createSourceFile(filePath, content, {
+    overwrite: true,
+  });
 
-  const constants = await resolveControllerName(sourceFile, filePath);
+  const constants = await resolveControllerName(project, sourceFile, filePath);
   const classMethods = collectClassMethods(sourceFile);
   const items: MessengerItemDoc[] = [];
   const relPath = path.relative(relBase, filePath);
 
   // Type aliases and interfaces are always top-level statements
-  for (const statement of sourceFile.statements) {
+  for (const statement of sourceFile.getStatements()) {
     // ---------------------------------------------------------------
     // Pattern 1: { type: '...'; handler/payload: ... }
     // Matches both:
@@ -548,61 +526,57 @@ export async function extractFromFile(
     //   interface X { type: '...'; handler: ... } (interface declaration)
     // ---------------------------------------------------------------
     let inlineNode: TypeAliasDeclaration | InterfaceDeclaration | undefined;
-    let inlineMembers: NodeArray<TypeElement> | undefined;
+    let inlineMembers: TypeElementTypes[] | undefined;
 
-    if (
-      isTypeAliasDeclaration(statement) &&
-      isTypeLiteralNode(statement.type)
-    ) {
+    if (NodeGuards.isTypeAliasDeclaration(statement)) {
+      const aliasType = statement.getTypeNode();
+      if (aliasType && NodeGuards.isTypeLiteral(aliasType)) {
+        inlineNode = statement;
+        inlineMembers = aliasType.getMembers();
+      }
+    } else if (NodeGuards.isInterfaceDeclaration(statement)) {
       inlineNode = statement;
-      inlineMembers = statement.type.members;
-    } else if (isInterfaceDeclaration(statement)) {
-      inlineNode = statement;
-      inlineMembers = statement.members;
+      inlineMembers = statement.getMembers();
     }
 
     if (inlineNode && inlineMembers) {
-      const typeName = inlineNode.name.text;
-      const line =
-        sourceFile.getLineAndCharacterOfPosition(inlineNode.getStart()).line +
-        1;
+      const typeName = inlineNode.getName();
+      const line = inlineNode.getStartLineNumber();
 
       // Find `type` property
       let typeString: string | null = null;
       for (const member of inlineMembers) {
+        if (!NodeGuards.isPropertySignature(member)) {
+          continue;
+        }
+        const memberNameNode = member.getNameNode();
         if (
-          isPropertySignature(member) &&
-          member.name &&
-          isIdentifier(member.name) &&
-          member.name.text === 'type' &&
-          member.type
+          !NodeGuards.isIdentifier(memberNameNode) ||
+          memberNameNode.getText() !== 'type'
         ) {
-          if (isLiteralTypeNode(member.type)) {
-            typeString = resolveTypeString(member.type.literal, constants);
-          } else if (isTemplateLiteralTypeNode(member.type)) {
-            typeString = resolveTemplateLiteralType(member.type, constants);
-          }
+          continue;
+        }
+        const typeNode = member.getTypeNode();
+        if (!typeNode) {
+          continue;
+        }
+        if (NodeGuards.isLiteralTypeNode(typeNode)) {
+          typeString = resolveTypeString(typeNode.getLiteral(), constants);
+        } else if (NodeGuards.isTemplateLiteralTypeNode(typeNode)) {
+          typeString = resolveTemplateLiteralType(typeNode, constants);
         }
       }
 
       if (typeString?.includes(':')) {
-        const handlerText = getPropertyText(
-          inlineMembers,
-          'handler',
-          sourceFile,
-        );
-        const payloadText = getPropertyText(
-          inlineMembers,
-          'payload',
-          sourceFile,
-        );
+        const handlerText = getPropertyText(inlineMembers, 'handler');
+        const payloadText = getPropertyText(inlineMembers, 'payload');
 
         if (handlerText || payloadText) {
           const kind: 'action' | 'event' = handlerText ? 'action' : 'event';
 
           // For actions, resolve ClassName['methodName'] to actual signature + JSDoc
           let resolvedHandler = handlerText || payloadText;
-          let typeAliasJsDoc = extractJsDocText(inlineNode, sourceFile);
+          let typeAliasJsDoc = extractJsDocText(inlineNode);
 
           if (handlerText) {
             const resolved = resolveHandler(handlerText, classMethods);
@@ -630,42 +604,45 @@ export async function extractFromFile(
     // -------------------------------------------------------------------
     // Patterns 2 & 3 only apply to type aliases (generic type references)
     // -------------------------------------------------------------------
-    if (!isTypeAliasDeclaration(statement)) {
+    if (!NodeGuards.isTypeAliasDeclaration(statement)) {
       continue;
     }
     const node = statement;
-    const typeName = node.name.text;
-    const line =
-      sourceFile.getLineAndCharacterOfPosition(node.getStart()).line + 1;
+    const typeName = node.getName();
+    const line = node.getStartLineNumber();
+    const aliasTypeNode = node.getTypeNode();
+
+    if (!aliasTypeNode || !NodeGuards.isTypeReference(aliasTypeNode)) {
+      continue;
+    }
+
+    const typeNameNode = aliasTypeNode.getTypeName();
+    if (!NodeGuards.isIdentifier(typeNameNode)) {
+      continue;
+    }
+    const typeReferenceName = typeNameNode.getText();
+    const typeArguments = aliasTypeNode.getTypeArguments();
+    if (typeArguments.length < 2) {
+      continue;
+    }
 
     // -------------------------------------------------------------------
     // Pattern 2: ControllerGetStateAction<typeof cn, State>
     // -------------------------------------------------------------------
-    if (
-      isTypeReferenceNode(node.type) &&
-      isIdentifier(node.type.typeName) &&
-      node.type.typeName.text === 'ControllerGetStateAction' &&
-      node.type.typeArguments &&
-      node.type.typeArguments.length >= 2
-    ) {
-      const firstArg = node.type.typeArguments[0];
-      const stateArg = node.type.typeArguments[1];
-      let namespace: string | null = null;
-
-      if (isTypeQueryNode(firstArg) && isIdentifier(firstArg.exprName)) {
-        namespace = constants.get(firstArg.exprName.text) ?? null;
-      }
-      if (isLiteralTypeNode(firstArg) && isStringLiteral(firstArg.literal)) {
-        namespace = firstArg.literal.text;
-      }
+    if (typeReferenceName === 'ControllerGetStateAction') {
+      const namespace = resolveNamespaceFromTypeArg(
+        typeArguments[0],
+        constants,
+      );
+      const stateArg = typeArguments[1];
 
       if (namespace) {
         items.push({
           typeName,
           typeString: `${namespace}:getState`,
           kind: 'action',
-          jsDoc: extractJsDocText(node, sourceFile),
-          handlerOrPayload: `() => ${stateArg.getText(sourceFile)}`,
+          jsDoc: extractJsDocText(node),
+          handlerOrPayload: `() => ${stateArg.getText()}`,
           sourceFile: relPath,
           line,
           deprecated: isDeprecated(node),
@@ -676,31 +653,20 @@ export async function extractFromFile(
     // -------------------------------------------------------------------
     // Pattern 3: ControllerStateChangeEvent<typeof cn, State>
     // -------------------------------------------------------------------
-    if (
-      isTypeReferenceNode(node.type) &&
-      isIdentifier(node.type.typeName) &&
-      node.type.typeName.text === 'ControllerStateChangeEvent' &&
-      node.type.typeArguments &&
-      node.type.typeArguments.length >= 2
-    ) {
-      const firstArg = node.type.typeArguments[0];
-      const stateArg = node.type.typeArguments[1];
-      let namespace: string | null = null;
-
-      if (isTypeQueryNode(firstArg) && isIdentifier(firstArg.exprName)) {
-        namespace = constants.get(firstArg.exprName.text) ?? null;
-      }
-      if (isLiteralTypeNode(firstArg) && isStringLiteral(firstArg.literal)) {
-        namespace = firstArg.literal.text;
-      }
+    if (typeReferenceName === 'ControllerStateChangeEvent') {
+      const namespace = resolveNamespaceFromTypeArg(
+        typeArguments[0],
+        constants,
+      );
+      const stateArg = typeArguments[1];
 
       if (namespace) {
         items.push({
           typeName,
           typeString: `${namespace}:stateChange`,
           kind: 'event',
-          jsDoc: extractJsDocText(node, sourceFile),
-          handlerOrPayload: `[${stateArg.getText(sourceFile)}, Patch[]]`,
+          jsDoc: extractJsDocText(node),
+          handlerOrPayload: `[${stateArg.getText()}, Patch[]]`,
           sourceFile: relPath,
           line,
           deprecated: isDeprecated(node),
@@ -710,4 +676,32 @@ export async function extractFromFile(
   }
 
   return items;
+}
+
+/**
+ * Resolve the namespace string from the first type argument of a
+ * `ControllerGetStateAction` or `ControllerStateChangeEvent`. Accepts either
+ * `typeof someConstant` or a string literal.
+ *
+ * @param typeArg - The type argument node.
+ * @param constants - A map of known constant names to their string values.
+ * @returns The resolved namespace, or null if unresolvable.
+ */
+function resolveNamespaceFromTypeArg(
+  typeArg: TsMorphNode,
+  constants: Map<string, string>,
+): string | null {
+  if (NodeGuards.isTypeQuery(typeArg)) {
+    const exprName = typeArg.getExprName();
+    if (NodeGuards.isIdentifier(exprName)) {
+      return constants.get(exprName.getText()) ?? null;
+    }
+  }
+  if (NodeGuards.isLiteralTypeNode(typeArg)) {
+    const literal = typeArg.getLiteral();
+    if (NodeGuards.isStringLiteral(literal)) {
+      return literal.getLiteralValue();
+    }
+  }
+  return null;
 }
