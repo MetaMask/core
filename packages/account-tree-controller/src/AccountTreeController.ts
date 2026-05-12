@@ -926,7 +926,7 @@ export class AccountTreeController extends BaseController<
           // - Account 1 + Account 2 + Account 3
           // - Account 1 and 3 belong to the same group
           // - Account 1 will create the group
-          // - Account 3 will update the group (but we only want to send a created event, not an updated one).
+          // - Account 3 will update the group (but we only want to send a created event, not an updated one)
           updatedGroups.set(groupId, walletId);
         }
 
