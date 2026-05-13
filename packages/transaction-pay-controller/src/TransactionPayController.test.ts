@@ -527,7 +527,7 @@ describe('TransactionPayController', () => {
           'TransactionPayController:polymarketGetDepositWalletAddress',
           { eoa: EOA_MOCK },
         ),
-      ).toThrow('polymarket callbacks were not supplied');
+      ).toThrow('Polymarket callbacks missing');
     });
 
     it('throws if polymarketSubmitDepositWalletBatch is invoked without callbacks supplied', () => {
@@ -541,7 +541,7 @@ describe('TransactionPayController', () => {
           'TransactionPayController:polymarketSubmitDepositWalletBatch',
           { eoa: EOA_MOCK, depositWallet: DEPOSIT_WALLET_MOCK, calls: [] },
         ),
-      ).toThrow('polymarket callbacks were not supplied');
+      ).toThrow('Polymarket callbacks missing');
     });
   });
 

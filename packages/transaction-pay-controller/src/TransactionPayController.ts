@@ -257,9 +257,7 @@ export class TransactionPayController extends BaseController<
 
   #requirePolymarket(): PolymarketCallbacks {
     if (!this.#polymarket) {
-      throw new Error(
-        'TransactionPayController: polymarket callbacks were not supplied to the controller constructor; the Polymarket deposit-wallet flow is not available in this client.',
-      );
+      throw new Error('TransactionPayController: Polymarket callbacks missing');
     }
     return this.#polymarket;
   }
