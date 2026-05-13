@@ -37,10 +37,35 @@ function deduplicationScore(item: MessengerItemDoc): number {
 const execFileAsync = promisify(execFile);
 
 /**
- * Resolve the GitHub blob base URL for a project by reading its git remote.
+ * Resolve the default branch of a project's `origin` remote by reading the
+ * symbolic ref `refs/remotes/origin/HEAD`. Falls back to `main` if the
+ * symbolic ref isn't set (e.g. in shallow CI clones).
  *
  * @param projectPath - Absolute path to the project root.
- * @returns A base URL like "https://github.com/Owner/Repo/blob/main/" or null.
+ * @returns The default branch name (e.g. "main", "master", "develop").
+ */
+async function resolveDefaultBranch(projectPath: string): Promise<string> {
+  try {
+    const { stdout } = await execFileAsync(
+      'git',
+      ['symbolic-ref', '--short', 'refs/remotes/origin/HEAD'],
+      { cwd: projectPath },
+    );
+    // stdout looks like "origin/main"; strip the leading "origin/".
+    const trimmed = stdout.trim();
+    const slash = trimmed.indexOf('/');
+    return slash === -1 ? trimmed || 'main' : trimmed.slice(slash + 1);
+  } catch {
+    return 'main';
+  }
+}
+
+/**
+ * Resolve the GitHub blob base URL for a project by reading its git remote
+ * and default branch.
+ *
+ * @param projectPath - Absolute path to the project root.
+ * @returns A base URL like "https://github.com/Owner/Repo/blob/<branch>/" or null.
  */
 async function resolveRepoBaseUrl(projectPath: string): Promise<string | null> {
   try {
@@ -61,7 +86,8 @@ async function resolveRepoBaseUrl(projectPath: string): Promise<string | null> {
       return null;
     }
 
-    return `https://github.com/${match[1]}/blob/main/`;
+    const branch = await resolveDefaultBranch(projectPath);
+    return `https://github.com/${match[1]}/blob/${branch}/`;
   } catch {
     return null;
   }
