@@ -6,10 +6,18 @@ import type {
 } from './types';
 
 /**
- * Address of MetaMask USD (mUSD) — same canonical contract address
- * across every chain we deploy it to.
+ * EIP-55 checksummed address of MetaMask USD (mUSD) — same canonical contract
+ * address across every chain we deploy it to.
+ *
+ * Must be checksummed so that the CAIP-19 asset IDs produced by
+ * `musdAssetId()` (and therefore the keys seeded into `assetsInfo` by
+ * `buildDefaultAssetsInfo()`) match the keys written by data sources, which
+ * always pass IDs through `normalizeAssetId` → `toChecksumAddress` before
+ * emitting a `DataResponse`. Using a lowercase address would cause the
+ * pre-seeded keys to diverge from the data-source keys, leaving a duplicate
+ * entry in `assetsInfo` after the first balance or token-data poll.
  */
-const MUSD_ADDRESS = '0xaca92e438df0b2401ff60da7e4337b687a2435da';
+const MUSD_ADDRESS = '0xacA92E438df0B2401fF60dA7E4337B687a2435DA';
 
 /**
  * Hardcoded metadata for MetaMask USD. Pre-seeding this in default
