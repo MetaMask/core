@@ -235,6 +235,36 @@ describe('submitGenericQuotes', () => {
     expect(getGenericStatusMock).toHaveBeenCalledTimes(2);
   });
 
+  it('marks the parent transaction isIntentComplete after confirmation', async () => {
+    getGenericStatusMock.mockResolvedValue({
+      status: GenericStatus.Confirmed,
+      targetHash: TARGET_HASH_MOCK,
+    });
+
+    await submitGenericQuotes(request);
+
+    const completionUpdate = updateTransactionMock.mock.calls.find(
+      ([, note]) => note === 'Intent complete after Generic completion',
+    );
+    expect(completionUpdate).toBeDefined();
+    expect(completionUpdate?.[0]).toStrictEqual(
+      expect.objectContaining({ isIntentComplete: true }),
+    );
+  });
+
+  it('does not mark isIntentComplete when polling fails', async () => {
+    getGenericStatusMock.mockResolvedValue({ status: GenericStatus.Failed });
+
+    await expect(submitGenericQuotes(request)).rejects.toThrow(
+      'Generic intent failed',
+    );
+
+    const completionUpdate = updateTransactionMock.mock.calls.find(
+      ([, note]) => note === 'Intent complete after Generic completion',
+    );
+    expect(completionUpdate).toBeUndefined();
+  });
+
   it('throws on failed status', async () => {
     getGenericStatusMock.mockResolvedValue({ status: GenericStatus.Failed });
 

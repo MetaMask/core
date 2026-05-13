@@ -92,6 +92,17 @@ async function executeSingleGenericQuote(
 
   log('Generic request completed', targetHash);
 
+  updateTransaction(
+    {
+      transactionId: transaction.id,
+      messenger,
+      note: 'Intent complete after Generic completion',
+    },
+    (tx) => {
+      tx.isIntentComplete = true;
+    },
+  );
+
   return { transactionHash: targetHash };
 }
 

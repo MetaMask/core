@@ -87,6 +87,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - When `gasless: false`, falls back to submitting steps through `TransactionController` with EIP-7702 batching and gas-station support, matching the existing Relay strategy capabilities; status is then polled via the generic `/status` endpoint.
   - Detects Hyperliquid perps deposits by sniffing the parent transaction calldata for the Hyperliquid bridge contract and rewrites the destination to a provider-agnostic HyperCore sentinel (`0x2100…`) that backend providers translate to their native HyperCore identifiers.
   - Sends `supportsGasless` on the outgoing generic quote request when the account supports EIP-7702 and the source chain is EIP-7702-capable, so backend providers can opt into gasless execution paths (e.g. Relay `originGasOverhead`).
+  - Sets `isIntentComplete` on the parent transaction once the generic intent reaches the `CONFIRMED` status, matching the Relay and Across strategies.
 
 ### Changed
 
