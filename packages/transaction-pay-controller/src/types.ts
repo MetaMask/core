@@ -112,6 +112,9 @@ export type TransactionConfig = {
    */
   isHyperliquidSource?: boolean;
 
+  /** Whether the source of funds is a Polymarket deposit wallet. */
+  isPolymarketDepositWallet?: boolean;
+
   /** Whether the user has selected the maximum amount. */
   isMaxAmount?: boolean;
 
@@ -190,6 +193,9 @@ export type TransactionPayControllerOptions = {
   /** Controller messenger. */
   messenger: TransactionPayControllerMessenger;
 
+  /** Callbacks for the Polymarket relayer; required only for the Polymarket deposit-wallet flow. */
+  polymarket?: PolymarketCallbacks;
+
   /** Initial state of the controller. */
   state?: Partial<TransactionPayControllerState>;
 };
@@ -222,6 +228,9 @@ export type TransactionData = {
 
   /** Whether the source of funds is HyperLiquid (HyperCore). */
   isHyperliquidSource?: boolean;
+
+  /** Whether the source of funds is a Polymarket deposit wallet. */
+  isPolymarketDepositWallet?: boolean;
 
   /**
    * Optional address to receive refunds if the quote provider transaction fails.
@@ -401,6 +410,9 @@ export type QuoteRequest = {
 
   /** Whether the source of funds is HyperLiquid (HyperCore). */
   isHyperliquidSource?: boolean;
+
+  /** Whether the source of funds is a Polymarket deposit wallet. */
+  isPolymarketDepositWallet?: boolean;
 
   /**
    * Optional address to receive refunds if the quote provider transaction fails.
@@ -669,6 +681,19 @@ export type GetDelegationTransactionCallback = ({
   to: Hex;
   value: Hex;
 }>;
+
+/** Client-supplied callbacks for the Polymarket relayer protocol. */
+export type PolymarketCallbacks = {
+  /** Derive the deposit-wallet address (CREATE2) for the given EOA. */
+  getDepositWalletAddress: (params: { eoa: Hex }) => Promise<Hex>;
+
+  /** Sign and broadcast a deposit-wallet batch, returning the source hash. */
+  submitDepositWalletBatch: (params: {
+    eoa: Hex;
+    depositWallet: Hex;
+    calls: { target: Hex; data: Hex; value: string }[];
+  }) => Promise<{ sourceHash: Hex }>;
+};
 
 /** Single amount in alternate formats. */
 export type Amount = FiatValue & {

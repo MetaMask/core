@@ -45,12 +45,13 @@ export function updateSourceAmounts(
   // For post-quote flows, source amounts are calculated differently
   // The source is the transaction's required token, not the selected token
   if (isPostQuote) {
-    const { isHyperliquidSource } = transactionData;
+    const { isHyperliquidSource, isPolymarketDepositWallet } = transactionData;
     const sourceAmounts = calculatePostQuoteSourceAmounts(
       tokens,
       paymentToken,
       isMaxAmount ?? false,
       isHyperliquidSource,
+      isPolymarketDepositWallet,
     );
     log('Updated post-quote source amounts', { transactionId, sourceAmounts });
     transactionData.sourceAmounts = sourceAmounts;
@@ -83,6 +84,7 @@ export function updateSourceAmounts(
  * @param paymentToken - Selected payment/destination token.
  * @param isMaxAmount - Whether the transaction is a maximum amount transaction.
  * @param isHyperliquidSource - Whether the source is HyperLiquid (perps withdrawal).
+ * @param isPolymarketDepositWallet - Whether the source is a Polymarket deposit wallet.
  * @returns Array of source amounts.
  */
 function calculatePostQuoteSourceAmounts(
@@ -90,6 +92,7 @@ function calculatePostQuoteSourceAmounts(
   paymentToken: TransactionPaymentToken,
   isMaxAmount: boolean,
   isHyperliquidSource?: boolean,
+  isPolymarketDepositWallet?: boolean,
 ): TransactionPaySourceAmount[] {
   return tokens
     .filter((token) => {
@@ -103,11 +106,14 @@ function calculatePostQuoteSourceAmounts(
         return false;
       }
 
-      // Skip same token on same chain, unless the source is HyperLiquid.
-      // For HyperLiquid withdrawals the relay strategy renormalizes the
-      // source from Arbitrum USDC to HyperCore USDC (a different chain),
-      // so the tokens are not actually the same after normalization.
-      if (isSameToken(token, paymentToken) && !isHyperliquidSource) {
+      // Skip same token on same chain, unless the source is a synthetic
+      // upstream (HyperLiquid HyperCore or Polymarket deposit wallet) that
+      // the strategy renormalizes to a different effective source.
+      if (
+        isSameToken(token, paymentToken) &&
+        !isHyperliquidSource &&
+        !isPolymarketDepositWallet
+      ) {
         log('Skipping token as same as destination token');
         return false;
       }

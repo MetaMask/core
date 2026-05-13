@@ -654,7 +654,9 @@ describe('Token Utils', () => {
         expect.anything(),
         expect.anything(),
       );
-      expect(mockBalanceOf).toHaveBeenCalledWith(ACCOUNT_MOCK);
+      expect(mockBalanceOf).toHaveBeenCalledWith(ACCOUNT_MOCK, {
+        blockTag: 'pending',
+      });
     });
 
     it('returns native balance via ethersProvider.getBalance', async () => {
@@ -670,7 +672,7 @@ describe('Token Utils', () => {
       );
 
       expect(result).toBe('1000000000000000000');
-      expect(mockGetBalance).toHaveBeenCalledWith(ACCOUNT_MOCK);
+      expect(mockGetBalance).toHaveBeenCalledWith(ACCOUNT_MOCK, 'pending');
       expect(Contract).not.toHaveBeenCalled();
     });
 
@@ -687,7 +689,7 @@ describe('Token Utils', () => {
       );
 
       expect(result).toBe('2000000000000000000');
-      expect(mockGetBalance).toHaveBeenCalledWith(ACCOUNT_MOCK);
+      expect(mockGetBalance).toHaveBeenCalledWith(ACCOUNT_MOCK, 'pending');
       expect(Contract).not.toHaveBeenCalled();
     });
 
@@ -702,7 +704,7 @@ describe('Token Utils', () => {
       );
 
       expect(result).toBe('500');
-      expect(mockGetBalance).toHaveBeenCalledWith(ACCOUNT_MOCK);
+      expect(mockGetBalance).toHaveBeenCalledWith(ACCOUNT_MOCK, 'pending');
       expect(Contract).not.toHaveBeenCalled();
     });
   });
