@@ -9,8 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [6.1.0]
 
-### Uncategorized
-
 - Release/979.0.0 ([#8783](https://github.com/MetaMask/core/pull/8783))
 - Release 975.0.0 ([#8765](https://github.com/MetaMask/core/pull/8765))
 
