@@ -662,7 +662,7 @@ describe('Feature Flags Utils', () => {
       const config = getPayStrategiesConfig(messenger);
 
       expect(config.generic).toStrictEqual({
-        enabled: false,
+        enabled: true,
         pollingInterval: 1000,
         pollingTimeout: undefined,
         providerPriority: [GenericProviderName.Relay],
@@ -914,7 +914,10 @@ describe('Feature Flags Utils', () => {
     it('returns enabled default strategy order when none is set', () => {
       const strategyOrder = getStrategyOrder(messenger);
 
-      expect(strategyOrder).toStrictEqual([TransactionPayStrategy.Relay]);
+      expect(strategyOrder).toStrictEqual([
+        TransactionPayStrategy.Generic,
+        TransactionPayStrategy.Relay,
+      ]);
     });
 
     it('returns strategy order from feature flags', () => {
@@ -975,7 +978,10 @@ describe('Feature Flags Utils', () => {
 
       const strategyOrder = getStrategyOrder(messenger);
 
-      expect(strategyOrder).toStrictEqual([TransactionPayStrategy.Relay]);
+      expect(strategyOrder).toStrictEqual([
+        TransactionPayStrategy.Generic,
+        TransactionPayStrategy.Relay,
+      ]);
     });
 
     it('supports undefined local overrides when remote feature flags provide strategy order', () => {
@@ -1041,6 +1047,7 @@ describe('Feature Flags Utils', () => {
   describe('getStrategyOrder route-aware resolution', () => {
     it('uses default routing config when confirmations_pay flags are absent', () => {
       expect(getStrategyOrder(messenger)).toStrictEqual([
+        TransactionPayStrategy.Generic,
         TransactionPayStrategy.Relay,
       ]);
     });
@@ -1384,6 +1391,7 @@ describe('Feature Flags Utils', () => {
       });
 
       expect(getStrategyOrder(messenger)).toStrictEqual([
+        TransactionPayStrategy.Generic,
         TransactionPayStrategy.Relay,
       ]);
     });

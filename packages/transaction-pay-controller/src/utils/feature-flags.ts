@@ -41,6 +41,7 @@ export const DEFAULT_GENERIC_QUOTE_URL = GENERIC_QUOTE_URL;
 export const DEFAULT_GENERIC_STATUS_URL = GENERIC_STATUS_URL;
 export const DEFAULT_GENERIC_SUBMIT_URL = GENERIC_SUBMIT_URL;
 export const DEFAULT_STRATEGY_ORDER: StrategyOrder = [
+  TransactionPayStrategy.Generic,
   TransactionPayStrategy.Relay,
   TransactionPayStrategy.Across,
 ];
@@ -279,7 +280,7 @@ function normalizeStrategyRoutingConfig(
         enabled: featureFlags.payStrategies?.across?.enabled ?? false,
       },
       generic: {
-        enabled: featureFlags.payStrategies?.generic?.enabled ?? false,
+        enabled: featureFlags.payStrategies?.generic?.enabled ?? true,
       },
       relay: {
         enabled: featureFlags.payStrategies?.relay?.enabled ?? true,
@@ -532,7 +533,7 @@ export function getPayStrategiesConfig(
   ];
 
   const generic = {
-    enabled: genericRaw.enabled ?? false,
+    enabled: genericRaw.enabled ?? true,
     pollingInterval: genericRaw.pollingInterval ?? GENERIC_POLLING_INTERVAL,
     pollingTimeout: genericRaw.pollingTimeout,
     providerPriority:
