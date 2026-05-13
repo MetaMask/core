@@ -187,6 +187,66 @@ describe('markdown', () => {
 
       expect(result).toContain('_No actions found for this namespace._');
     });
+
+    it('cross-links events from an action page to ./events#anchor', () => {
+      const group = makeGroup({
+        actions: [makeItem()],
+        events: [
+          makeItem({
+            typeName: 'FooControllerChangeEvent',
+            typeString: 'FooController:change',
+            kind: 'event',
+            handlerOrPayload: '[FooState]',
+          }),
+        ],
+      });
+      // Generated with kind='action': the page is about actions, but events
+      // are still added to the cross-reference map with relative anchors.
+      const result = generateNamespacePage(
+        group,
+        'action',
+        'https://github.com/MetaMask/core/blob/main/',
+      );
+
+      expect(result).toContain('title: "FooController Actions"');
+      // Plural is rendered correctly when there is more than one item of the
+      // other kind referenced. (The page itself has 1 action.)
+      expect(result).toContain('1 action registered.');
+      // Source link uses the repoBaseUrl.
+      expect(result).toContain(
+        '(https://github.com/MetaMask/core/blob/main/packages/foo/src/FooController.ts#L10)',
+      );
+      // Marker that the table of contents was rendered.
+      expect(result).toContain('| Name | Deprecated |');
+    });
+
+    it('cross-links actions from an event page to ./actions#anchor and marks deprecated items', () => {
+      const group = makeGroup({
+        actions: [makeItem({ deprecated: true })],
+        events: [
+          makeItem({
+            typeName: 'FooControllerChangeEvent',
+            typeString: 'FooController:change',
+            kind: 'event',
+            handlerOrPayload: '[FooState]',
+          }),
+          makeItem({
+            typeName: 'FooControllerResetEvent',
+            typeString: 'FooController:reset',
+            kind: 'event',
+            handlerOrPayload: '[]',
+          }),
+        ],
+      });
+      const result = generateNamespacePage(group, 'event', null);
+
+      // Plural rendering when more than one event is registered.
+      expect(result).toContain('2 events registered.');
+      // Source link is plain (no repoBaseUrl).
+      expect(result).toContain(
+        '**Source**: `packages/foo/src/FooController.ts',
+      );
+    });
   });
 
   describe('generateIndexPage', () => {

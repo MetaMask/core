@@ -140,54 +140,26 @@ async function collectStringConstants(
 }
 
 /**
- * Resolve a template-literal or string-literal `type` property to its string
- * value. Returns null if unresolvable.
+ * Resolve a `LiteralTypeNode`'s literal child to a string value. The only
+ * literal kinds that produce a usable namespace-style action/event type are
+ * string literals and bare template literals (`'Foo:bar'` and
+ * `` `Foo:bar` ``); everything else (numeric, boolean, null, prefix-unary)
+ * isn't a valid messenger type string.
  *
- * @param node - The expression node to resolve.
- * @param constants - A map of known constant names to their string values.
- * @returns The resolved string value, or null if unresolvable.
+ * Template literals with substitutions (e.g. `` `${typeof X}:foo` ``) appear
+ * as `TemplateLiteralTypeNode` in type position, not as a child of
+ * `LiteralTypeNode`, so they're handled by {@link resolveTemplateLiteralType}.
+ *
+ * @param node - The literal child of a `LiteralTypeNode`.
+ * @returns The resolved string value, or null if the literal kind isn't usable.
  */
-function resolveTypeString(
-  node: Expression,
-  constants: Map<string, string>,
-): string | null {
+function resolveTypeString(node: Expression): string | null {
   if (
     NodeGuards.isStringLiteral(node) ||
     NodeGuards.isNoSubstitutionTemplateLiteral(node)
   ) {
     return node.getLiteralValue();
   }
-
-  if (NodeGuards.isTemplateExpression(node)) {
-    let result = node.getHead().getLiteralText();
-    for (const span of node.getTemplateSpans()) {
-      const expression = span.getExpression();
-      // typeof X  →  resolve X
-      if (NodeGuards.isTypeOfExpression(expression)) {
-        const inner = expression.getExpression();
-        if (NodeGuards.isIdentifier(inner)) {
-          const val = constants.get(inner.getText());
-          if (val === undefined) {
-            return null;
-          }
-          result += val;
-        } else {
-          return null;
-        }
-      } else if (NodeGuards.isIdentifier(expression)) {
-        const val = constants.get(expression.getText());
-        if (val === undefined) {
-          return null;
-        }
-        result += val;
-      } else {
-        return null;
-      }
-      result += span.getLiteral().getLiteralText();
-    }
-    return result;
-  }
-
   return null;
 }
 
@@ -746,7 +718,7 @@ function resolveInlineTypeString(
       continue;
     }
     if (NodeGuards.isLiteralTypeNode(typeNode)) {
-      return resolveTypeString(typeNode.getLiteral(), constants);
+      return resolveTypeString(typeNode.getLiteral());
     }
     if (NodeGuards.isTemplateLiteralTypeNode(typeNode)) {
       return resolveTemplateLiteralType(typeNode, constants);

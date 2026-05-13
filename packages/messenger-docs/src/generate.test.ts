@@ -1,4 +1,5 @@
 import { createSandbox } from '@metamask/utils/node';
+import execa from 'execa';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 
@@ -7,6 +8,30 @@ import { generate } from './generate';
 const { withinSandbox } = createSandbox('messenger-cli/docs-generate');
 
 jest.setTimeout(30_000);
+
+/**
+ * Initialize a git repository in the given directory with an `origin` remote
+ * pointing at the provided URL and `refs/remotes/origin/HEAD` symbolically
+ * pointing at `refs/remotes/origin/main`. Used to exercise the source-link
+ * resolution paths in {@link generate} without depending on a real network.
+ *
+ * @param directoryPath - Absolute path to initialize the repo in.
+ * @param remoteUrl - URL to set as the `origin` remote.
+ */
+async function initGitRepo(
+  directoryPath: string,
+  remoteUrl: string,
+): Promise<void> {
+  await execa('git', ['init', '-q', '-b', 'main'], { cwd: directoryPath });
+  await execa('git', ['remote', 'add', 'origin', remoteUrl], {
+    cwd: directoryPath,
+  });
+  await execa(
+    'git',
+    ['symbolic-ref', 'refs/remotes/origin/HEAD', 'refs/remotes/origin/main'],
+    { cwd: directoryPath },
+  );
+}
 
 describe('generate', () => {
   it('generates docs for a project with action types in src/', async () => {
@@ -239,6 +264,89 @@ export type FooMessenger = Messenger<'Foo', FooAction, never>;
       expect(result.namespaces).toBe(0);
       expect(result.actions).toBe(0);
       expect(result.events).toBe(0);
+    });
+  });
+
+  it('renders GitHub source links when the project has a GitHub origin remote', async () => {
+    expect.assertions(2);
+
+    await withinSandbox(async ({ directoryPath }) => {
+      await initGitRepo(
+        directoryPath,
+        'https://github.com/test-owner/test-repo.git',
+      );
+
+      const srcDir = path.join(directoryPath, 'src');
+      await fs.promises.mkdir(srcDir, { recursive: true });
+      await fs.promises.writeFile(
+        path.join(srcDir, 'GitController.ts'),
+        `
+export type GitGetAction = {
+  type: 'Git:get';
+  handler: () => string;
+};
+
+export type GitMessenger = Messenger<'Git', GitGetAction, never>;
+`,
+      );
+
+      const outputDir = path.join(directoryPath, '.docs');
+      await generate({
+        projectPath: directoryPath,
+        outputDir,
+        scanDirs: ['src'],
+      });
+
+      const actionsMd = await fs.promises.readFile(
+        path.join(outputDir, 'docs', 'Git', 'actions.md'),
+        'utf8',
+      );
+
+      expect(actionsMd).toContain(
+        'https://github.com/test-owner/test-repo/blob/main/',
+      );
+      expect(actionsMd).toContain('src/GitController.ts');
+    });
+  });
+
+  it('omits GitHub source links when the origin remote is not GitHub', async () => {
+    expect.assertions(2);
+
+    await withinSandbox(async ({ directoryPath }) => {
+      await initGitRepo(
+        directoryPath,
+        'https://gitlab.com/test-owner/test-repo.git',
+      );
+
+      const srcDir = path.join(directoryPath, 'src');
+      await fs.promises.mkdir(srcDir, { recursive: true });
+      await fs.promises.writeFile(
+        path.join(srcDir, 'NonGhController.ts'),
+        `
+export type NonGhGetAction = {
+  type: 'NonGh:get';
+  handler: () => string;
+};
+
+export type NonGhMessenger = Messenger<'NonGh', NonGhGetAction, never>;
+`,
+      );
+
+      const outputDir = path.join(directoryPath, '.docs');
+      await generate({
+        projectPath: directoryPath,
+        outputDir,
+        scanDirs: ['src'],
+      });
+
+      const actionsMd = await fs.promises.readFile(
+        path.join(outputDir, 'docs', 'NonGh', 'actions.md'),
+        'utf8',
+      );
+
+      expect(actionsMd).not.toContain('github.com');
+      // Source path is rendered plain (no link) when there's no recognized remote.
+      expect(actionsMd).toContain('`src/NonGhController.ts');
     });
   });
 });
