@@ -1,9 +1,9 @@
-import { deriveStateFromMetadata } from '@metamask/base-controller';
 import type {
   AuthenticatedUserStorageServiceGetNotificationPreferencesAction,
   AuthenticatedUserStorageServicePutNotificationPreferencesAction,
   NotificationPreferences,
 } from '@metamask/authenticated-user-storage';
+import { deriveStateFromMetadata } from '@metamask/base-controller';
 import * as ControllerUtils from '@metamask/controller-utils';
 import { KeyringTypes } from '@metamask/keyring-controller';
 import type {
