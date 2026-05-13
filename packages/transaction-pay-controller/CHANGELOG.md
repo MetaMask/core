@@ -43,7 +43,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Add `POLYGON_PUSD_ADDRESS` constant and treat Polymarket pUSD as a Polygon stablecoin in display/fiat-rate logic ([#8735](https://github.com/MetaMask/core/pull/8735))
 - Add Across strategy plumbing to identify post-quote Predict withdraw requests ([#8759](https://github.com/MetaMask/core/pull/8759))
-- Add Polymarket deposit-wallet support to the Relay strategy for `predictWithdraw` transactions, routed via the `isPolymarketDepositWallet` flag on `TransactionConfig` ([#8754](https://github.com/MetaMask/core/pull/8754))
 
 ### Changed
 
