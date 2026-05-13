@@ -308,7 +308,7 @@ export type TokenSearchItem = {
 
 export type PageInfo = {
   hasNextPage: boolean;
-  endCursor: string;
+  endCursor: string | null;
 };
 
 type SearchTokenOptions = {
