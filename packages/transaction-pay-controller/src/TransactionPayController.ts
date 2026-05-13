@@ -144,7 +144,10 @@ export class TransactionPayController extends BaseController<
       transactionData.isHyperliquidSource = config.isHyperliquidSource;
       transactionData.refundTo = config.refundTo;
 
-      if (config.accountOverride !== previousAccountOverride) {
+      if (
+        !config.isPostQuote &&
+        config.accountOverride !== previousAccountOverride
+      ) {
         transactionData.paymentToken = undefined;
       }
     });
