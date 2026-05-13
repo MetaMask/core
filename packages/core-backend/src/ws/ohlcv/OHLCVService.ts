@@ -254,7 +254,6 @@ export class OHLCVService {
       entry.refCount += 1;
       return;
     }
-
     try {
       await this.#messenger.call('BackendWebSocketService:connect');
 
@@ -287,17 +286,13 @@ export class OHLCVService {
         channel,
       });
     } catch (error) {
-      log('OHLCV-WS: Subscription failed, forcing reconnection', {
-        channel,
-        error,
-      });
+      log('OHLCV-WS: Subscription failed', { channel, error });
       this.#channels.delete(channel);
       this.#messenger.publish('OHLCVService:subscriptionError', {
         channel,
         error: String(error),
         operation: 'subscribe',
       });
-      await this.#forceReconnection();
     }
   }
 
@@ -372,17 +367,11 @@ export class OHLCVService {
         }
         log('OHLCV-WS: WS unsubscribe completed', { channel });
       } catch (error) {
-        log('OHLCV-WS: Unsubscription failed, forcing reconnection', {
-          channel,
-          error,
-        });
+        log('OHLCV-WS: Unsubscription failed', { channel, error });
         this.#messenger.publish('OHLCVService:subscriptionError', {
           channel,
           error: String(error),
           operation: 'unsubscribe',
-        });
-        await this.#forceReconnection().catch(() => {
-          // no-op
         });
       }
     } finally {
@@ -534,11 +523,6 @@ export class OHLCVService {
 
   #buildChannel(options: OHLCVSubscriptionOptions): string {
     return `${SUBSCRIPTION_NAMESPACE}.${options.assetId}.${options.interval}.${options.currency}`;
-  }
-
-  async #forceReconnection(): Promise<void> {
-    log('OHLCV-WS: Forcing WebSocket reconnection');
-    await this.#messenger.call('BackendWebSocketService:forceReconnection');
   }
 
   // =============================================================================

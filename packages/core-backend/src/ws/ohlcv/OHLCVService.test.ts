@@ -289,7 +289,7 @@ describe('OHLCVService', () => {
       });
     });
 
-    it('should force reconnection when subscribe fails', async () => {
+    it('should publish subscriptionError when subscribe fails', async () => {
       await withService(async ({ service, mocks, messenger }) => {
         mocks.connect.mockRejectedValueOnce(new Error('connection failed'));
 
@@ -303,7 +303,7 @@ describe('OHLCVService', () => {
           error: expect.stringContaining('connection failed'),
           operation: 'subscribe',
         });
-        expect(mocks.forceReconnection).toHaveBeenCalledTimes(1);
+        expect(mocks.forceReconnection).not.toHaveBeenCalled();
       });
     });
 
@@ -438,32 +438,7 @@ describe('OHLCVService', () => {
       });
     });
 
-    it('should not flush same-channel grace period (reuse instead)', async () => {
-      await withService(async ({ service, mocks }) => {
-        const mockUnsub = jest.fn();
-        mocks.getSubscriptionsByChannel.mockReturnValue([
-          { unsubscribe: mockUnsub },
-        ]);
-
-        await service.subscribe(SUB_OPTS);
-        await service.unsubscribe(SUB_OPTS);
-
-        // WS subscription still exists (no disconnect happened)
-        mocks.channelHasSubscription.mockReturnValue(true);
-
-        // Re-subscribe to the SAME channel — should cancel grace, not flush
-        mocks.subscribe.mockClear();
-        mocks.connect.mockClear();
-        await service.subscribe(SUB_OPTS);
-
-        // Should NOT have unsubscribed (grace was cancelled, not flushed)
-        expect(mockUnsub).not.toHaveBeenCalled();
-        // Should NOT have created a new WS subscription (reused existing)
-        expect(mocks.subscribe).not.toHaveBeenCalled();
-      });
-    });
-
-    it('should unsubscribe old channels via grace period during rapid time-range switching', async () => {
+    it('should unsubscribe old channel after grace period during time-range switching', async () => {
       const opts1m = SUB_OPTS;
       const opts1h: OHLCVSubscriptionOptions = {
         ...SUB_OPTS,
@@ -471,7 +446,7 @@ describe('OHLCVService', () => {
       };
 
       await withService(async ({ service, mocks }) => {
-        const mockUnsub = jest.fn();
+        const mockUnsub = jest.fn().mockResolvedValue(undefined);
         mocks.getSubscriptionsByChannel.mockReturnValue([
           { unsubscribe: mockUnsub },
         ]);
@@ -963,7 +938,7 @@ describe('OHLCVService', () => {
   // ===========================================================================
 
   describe('error paths', () => {
-    it('should publish subscriptionError and force reconnection when unsubscribe fails', async () => {
+    it('should publish subscriptionError when unsubscribe fails', async () => {
       await withService(async ({ service, mocks, messenger }) => {
         mocks.getSubscriptionsByChannel.mockImplementation(() => {
           throw new Error('ws gone');
@@ -983,34 +958,53 @@ describe('OHLCVService', () => {
           error: expect.stringContaining('ws gone'),
           operation: 'unsubscribe',
         });
-        expect(mocks.forceReconnection).toHaveBeenCalled();
+        expect(mocks.forceReconnection).not.toHaveBeenCalled();
       });
     });
 
-    it('should not produce unhandled rejection when forceReconnection throws during grace-period unsubscribe', async () => {
+    it('should clean up channel entry when subscribe fails during grace-period fall-through so subsequent subscribes work', async () => {
       await withService(async ({ service, mocks, messenger }) => {
-        mocks.getSubscriptionsByChannel.mockImplementation(() => {
-          throw new Error('ws gone');
-        });
-        mocks.forceReconnection.mockRejectedValue(
-          new Error('reconnect also failed'),
-        );
+        // 1. Subscribe — creates WS subscription, refCount = 1
+        await service.subscribe(SUB_OPTS);
+
+        // 2. Unsubscribe — refCount = 0, grace-period timer starts
+        await service.unsubscribe(SUB_OPTS);
+
+        // 3. Disconnect — channelHasSubscription returns false
+        mocks.channelHasSubscription.mockReturnValue(false);
+
+        // 4. Re-subscribe during grace period — grace branch detects WS
+        //    subscription is gone and falls through to the try block.
+        //    Make connect() throw to simulate a network failure.
+        mocks.connect.mockRejectedValueOnce(new Error('network down'));
+        mocks.subscribe.mockClear();
+        mocks.connect.mockClear();
 
         const errorListener = jest.fn();
         messenger.subscribe('OHLCVService:subscriptionError', errorListener);
 
         await service.subscribe(SUB_OPTS);
-        await service.unsubscribe(SUB_OPTS);
-
-        jest.advanceTimersByTime(3000);
-        await completeAsyncOperations();
 
         expect(errorListener).toHaveBeenCalledWith({
           channel: EXPECTED_CHANNEL,
-          error: expect.stringContaining('ws gone'),
-          operation: 'unsubscribe',
+          error: expect.stringContaining('network down'),
+          operation: 'subscribe',
         });
-        expect(mocks.forceReconnection).toHaveBeenCalled();
+        expect(mocks.forceReconnection).not.toHaveBeenCalled();
+
+        // 5. Now the critical assertion: a subsequent subscribe() must NOT
+        //    silently increment a stale refCount. It must attempt a fresh
+        //    WS subscription.
+        mocks.connect.mockResolvedValue(undefined);
+        mocks.subscribe.mockClear();
+
+        await service.subscribe(SUB_OPTS);
+
+        expect(mocks.subscribe).toHaveBeenCalledWith({
+          channels: [EXPECTED_CHANNEL],
+          channelType: 'market-data.v1',
+          callback: expect.any(Function),
+        });
       });
     });
 
