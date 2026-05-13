@@ -71,14 +71,14 @@ export const CHAINS_WITH_DEFAULT_TRACKED_ASSETS: ReadonlySet<ChainId> = new Set(
 
 /**
  * Pre-seeded metadata for every default tracked asset, keyed by the
- * lowercase CAIP-19 id so callers can look up without worrying about
- * checksum case.
+ * checksummed CAIP-19 id. All callers must pass a checksummed asset ID;
+ * use `normalizeAssetId` to ensure the correct format before looking up.
  */
 export const DEFAULT_ASSET_METADATA: ReadonlyMap<string, AssetMetadata> =
   new Map<string, AssetMetadata>([
-    [musdAssetId('eip155:1' as ChainId).toLowerCase(), MUSD_METADATA],
-    [musdAssetId('eip155:59144' as ChainId).toLowerCase(), MUSD_METADATA],
-    [musdAssetId('eip155:143' as ChainId).toLowerCase(), MUSD_METADATA],
+    [musdAssetId('eip155:1' as ChainId), MUSD_METADATA],
+    [musdAssetId('eip155:59144' as ChainId), MUSD_METADATA],
+    [musdAssetId('eip155:143' as ChainId), MUSD_METADATA],
   ]);
 
 /**
@@ -97,14 +97,14 @@ export function getDefaultTrackedAssetsForChain(
 /**
  * Look up pre-seeded metadata for a default tracked asset.
  *
- * @param assetId - CAIP-19 asset id (any case).
+ * @param assetId - CAIP-19 asset id (must be EIP-55 checksummed for EVM tokens).
  * @returns The metadata if the asset is a default tracked asset,
  * otherwise `undefined`.
  */
 export function getDefaultAssetMetadata(
   assetId: Caip19AssetId,
 ): AssetMetadata | undefined {
-  return DEFAULT_ASSET_METADATA.get(assetId.toLowerCase());
+  return DEFAULT_ASSET_METADATA.get(assetId);
 }
 
 /**
