@@ -177,6 +177,25 @@ export type AccountTreeControllerSyncWithUserStorageAtLeastOnceAction = {
 };
 
 /**
+ * Bi-directionally syncs a single entropy wallet with user storage, scoped
+ * by entropy source ID. Use this in place of `syncWithUserStorage` when
+ * only one wallet's state has changed (e.g., after an SRP import) to avoid
+ * the per-wallet fanout of fetches that a full sync triggers.
+ *
+ * IMPORTANT:
+ * If a full sync is already in progress, returns the ongoing full-sync
+ * promise. This call does NOT mark the controller as having completed
+ * its first full sync.
+ *
+ * @param entropySourceId - The entropy source ID of the wallet to sync.
+ * @returns A promise that resolves when the sync is complete.
+ */
+export type AccountTreeControllerSyncWalletWithUserStorageAction = {
+  type: `AccountTreeController:syncWalletWithUserStorage`;
+  handler: AccountTreeController['syncWalletWithUserStorage'];
+};
+
+/**
  * Union of all AccountTreeController action types.
  */
 export type AccountTreeControllerMethodActions =
@@ -193,4 +212,5 @@ export type AccountTreeControllerMethodActions =
   | AccountTreeControllerSetAccountGroupHiddenAction
   | AccountTreeControllerClearStateAction
   | AccountTreeControllerSyncWithUserStorageAction
-  | AccountTreeControllerSyncWithUserStorageAtLeastOnceAction;
+  | AccountTreeControllerSyncWithUserStorageAtLeastOnceAction
+  | AccountTreeControllerSyncWalletWithUserStorageAction;

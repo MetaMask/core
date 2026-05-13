@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `AccountTreeController.syncWalletWithUserStorage(entropySourceId)` and the corresponding `AccountTreeController:syncWalletWithUserStorage` messenger action, which performs a bidirectional user-storage sync for a single entropy wallet (wallet metadata + groups) without iterating every local wallet. Use this in place of `syncWithUserStorage` after operations that only affect one wallet (e.g., SRP import). Does not mark the controller as having completed its first full sync.
+
+### Fixed
+
+- Skip the pre-emptive `multichain_accounts_groups/<index>` GET when an account group has just been created locally and cannot yet exist in user storage, eliminating an unnecessary 404 round-trip on every account creation.
+
 ## [7.2.0]
 
 ### Changed

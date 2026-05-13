@@ -4830,6 +4830,49 @@ describe('AccountTreeController', () => {
     });
   });
 
+  describe('syncWalletWithUserStorage', () => {
+    beforeEach(() => {
+      jest.clearAllMocks();
+    });
+
+    it('calls performSyncForWallet on the syncing service', async () => {
+      const performSyncForWalletSpy = jest
+        .spyOn(BackupAndSyncService.prototype, 'performSyncForWallet')
+        .mockResolvedValue(undefined);
+
+      const { controller } = setup({
+        accounts: [MOCK_HARDWARE_ACCOUNT_1],
+        keyrings: [MOCK_HD_KEYRING_1],
+      });
+
+      controller.init();
+
+      await controller.syncWalletWithUserStorage('test-entropy-id');
+
+      expect(performSyncForWalletSpy).toHaveBeenCalledTimes(1);
+      expect(performSyncForWalletSpy).toHaveBeenCalledWith('test-entropy-id');
+    });
+
+    it('handles sync errors gracefully', async () => {
+      const syncError = new Error('Sync failed');
+      const performSyncForWalletSpy = jest
+        .spyOn(BackupAndSyncService.prototype, 'performSyncForWallet')
+        .mockRejectedValue(syncError);
+
+      const { controller } = setup({
+        accounts: [MOCK_HARDWARE_ACCOUNT_1],
+        keyrings: [MOCK_HD_KEYRING_1],
+      });
+
+      controller.init();
+
+      await expect(
+        controller.syncWalletWithUserStorage('test-entropy-id'),
+      ).rejects.toThrow(syncError.message);
+      expect(performSyncForWalletSpy).toHaveBeenCalledTimes(1);
+    });
+  });
+
   describe('UserStorageController:stateChange subscription', () => {
     beforeEach(() => {
       jest.clearAllMocks();

@@ -4,7 +4,13 @@ import { BackupAndSyncService } from '.';
 import type { AccountGroupObject } from '../../group';
 import type { AccountWalletEntropyObject } from '../../wallet';
 import { getProfileId } from '../authentication';
+import { syncGroupMetadata } from '../syncing';
 import type { BackupAndSyncContext } from '../types';
+import {
+  getAllGroupsFromUserStorage,
+  getGroupFromUserStorage,
+  getWalletFromUserStorage,
+} from '../user-storage';
 // We only need to import the functions we actually spy on
 import { getLocalEntropyWallets } from '../utils';
 
@@ -20,6 +26,21 @@ const mockGetProfileId = getProfileId as jest.MockedFunction<
 >;
 const mockGetLocalEntropyWallets =
   getLocalEntropyWallets as jest.MockedFunction<typeof getLocalEntropyWallets>;
+const mockGetGroupFromUserStorage =
+  getGroupFromUserStorage as jest.MockedFunction<
+    typeof getGroupFromUserStorage
+  >;
+const mockGetWalletFromUserStorage =
+  getWalletFromUserStorage as jest.MockedFunction<
+    typeof getWalletFromUserStorage
+  >;
+const mockGetAllGroupsFromUserStorage =
+  getAllGroupsFromUserStorage as jest.MockedFunction<
+    typeof getAllGroupsFromUserStorage
+  >;
+const mockSyncGroupMetadata = syncGroupMetadata as jest.MockedFunction<
+  typeof syncGroupMetadata
+>;
 
 describe('BackupAndSync - Service - BackupAndSyncService', () => {
   let mockContext: BackupAndSyncContext;
@@ -270,6 +291,93 @@ describe('BackupAndSync - Service - BackupAndSyncService', () => {
 
       // Should have called getProfileId as part of group sync
       expect(mockGetProfileId).toHaveBeenCalled();
+    });
+
+    it('fetches the group from user storage by default before syncing', async () => {
+      mockContext.controller.state.hasAccountTreeSyncingSyncedAtLeastOnce = true;
+
+      mockContext.groupIdToWalletId.set(
+        'entropy:wallet-1/1',
+        'entropy:wallet-1',
+      );
+      mockContext.controller.state.accountTree.wallets = {
+        'entropy:wallet-1': {
+          id: 'entropy:wallet-1',
+          type: AccountWalletType.Entropy,
+          metadata: {
+            entropy: { id: 'test-entropy-id' },
+            name: 'Test Wallet',
+          },
+          groups: {
+            'entropy:wallet-1/1': {
+              id: 'entropy:wallet-1/1',
+              name: 'Test Group',
+              metadata: {
+                entropy: { groupIndex: 1 },
+              },
+            } as unknown as AccountGroupObject,
+          },
+        } as unknown as AccountWalletEntropyObject,
+      };
+
+      backupAndSyncService.enqueueSingleGroupSync('entropy:wallet-1/1');
+
+      await new Promise((resolve) => setTimeout(resolve, 10));
+
+      expect(mockGetGroupFromUserStorage).toHaveBeenCalledWith(
+        expect.anything(),
+        'test-entropy-id',
+        1,
+      );
+      expect(mockSyncGroupMetadata).toHaveBeenCalled();
+    });
+
+    it('skips the user storage fetch when called with isFreshlyCreated and pushes directly', async () => {
+      mockContext.controller.state.hasAccountTreeSyncingSyncedAtLeastOnce = true;
+
+      mockContext.groupIdToWalletId.set(
+        'entropy:wallet-1/1',
+        'entropy:wallet-1',
+      );
+      const localGroup = {
+        id: 'entropy:wallet-1/1',
+        name: 'Test Group',
+        metadata: {
+          entropy: { groupIndex: 1 },
+        },
+      } as unknown as AccountGroupObject;
+      mockContext.controller.state.accountTree.wallets = {
+        'entropy:wallet-1': {
+          id: 'entropy:wallet-1',
+          type: AccountWalletType.Entropy,
+          metadata: {
+            entropy: { id: 'test-entropy-id' },
+            name: 'Test Wallet',
+          },
+          groups: {
+            'entropy:wallet-1/1': localGroup,
+          },
+        } as unknown as AccountWalletEntropyObject,
+      };
+
+      backupAndSyncService.enqueueSingleGroupSync('entropy:wallet-1/1', {
+        isFreshlyCreated: true,
+      });
+
+      await new Promise((resolve) => setTimeout(resolve, 10));
+
+      // The pre-emptive GET must be skipped for freshly created groups.
+      expect(mockGetGroupFromUserStorage).not.toHaveBeenCalled();
+
+      // syncGroupMetadata must still be invoked, and given null for the
+      // user-storage value so it short-circuits to a single PUT.
+      expect(mockSyncGroupMetadata).toHaveBeenCalledWith(
+        expect.anything(),
+        localGroup,
+        null,
+        'test-entropy-id',
+        'test-profile-id',
+      );
     });
   });
 
@@ -709,5 +817,134 @@ describe('BackupAndSync - Service - BackupAndSyncService', () => {
       await laterAtLeastOncePromise;
       expect(syncExecutionCount).toBe(2); // Still only 2
     }, 15000); // Increase timeout to 15 seconds
+  });
+
+  describe('performSyncForWallet', () => {
+    beforeEach(() => {
+      setupMockUserStorageControllerState(true, true);
+      jest.clearAllMocks();
+      mockGetLocalEntropyWallets.mockClear();
+    });
+
+    it('returns early when backup and sync is disabled', async () => {
+      setupMockUserStorageControllerState(false, true);
+
+      const result =
+        await backupAndSyncService.performSyncForWallet('test-entropy-id');
+
+      expect(result).toBeUndefined();
+      expect(mockContext.controllerStateUpdateFn).not.toHaveBeenCalled();
+      expect(mockGetWalletFromUserStorage).not.toHaveBeenCalled();
+    });
+
+    it('syncs only the matched wallet, not every local wallet', async () => {
+      mockGetLocalEntropyWallets.mockReturnValue([
+        {
+          id: 'entropy:wallet-1',
+          metadata: { entropy: { id: 'entropy-id-1' } },
+        } as unknown as AccountWalletEntropyObject,
+        {
+          id: 'entropy:wallet-2',
+          metadata: { entropy: { id: 'entropy-id-2' } },
+        } as unknown as AccountWalletEntropyObject,
+      ]);
+      mockGetWalletFromUserStorage.mockResolvedValue(null);
+      mockGetAllGroupsFromUserStorage.mockResolvedValue([]);
+
+      await backupAndSyncService.performSyncForWallet('entropy-id-2');
+
+      // The fetches should target only the requested wallet's entropy source.
+      expect(mockGetWalletFromUserStorage).toHaveBeenCalledTimes(1);
+      expect(mockGetWalletFromUserStorage).toHaveBeenCalledWith(
+        expect.anything(),
+        'entropy-id-2',
+      );
+      expect(mockGetAllGroupsFromUserStorage).toHaveBeenCalledTimes(1);
+      expect(mockGetAllGroupsFromUserStorage).toHaveBeenCalledWith(
+        expect.anything(),
+        'entropy-id-2',
+      );
+      expect(mockGetProfileId).toHaveBeenCalledTimes(1);
+      expect(mockGetProfileId).toHaveBeenCalledWith(
+        expect.anything(),
+        'entropy-id-2',
+      );
+    });
+
+    it('does not flip hasAccountTreeSyncingSyncedAtLeastOnce', async () => {
+      mockContext.controller.state.hasAccountTreeSyncingSyncedAtLeastOnce = false;
+      mockGetLocalEntropyWallets.mockReturnValue([
+        {
+          id: 'entropy:wallet-1',
+          metadata: { entropy: { id: 'entropy-id-1' } },
+        } as unknown as AccountWalletEntropyObject,
+      ]);
+      mockGetWalletFromUserStorage.mockResolvedValue(null);
+      mockGetAllGroupsFromUserStorage.mockResolvedValue([]);
+
+      // Capture state mutations applied via controllerStateUpdateFn so we can
+      // assert the flag was never touched.
+      const draft: Record<string, unknown> = {
+        hasAccountTreeSyncingSyncedAtLeastOnce: false,
+        isAccountTreeSyncingInProgress: false,
+      };
+      (mockContext.controllerStateUpdateFn as jest.Mock).mockImplementation(
+        (updater: (state: typeof draft) => void) => {
+          updater(draft);
+        },
+      );
+
+      await backupAndSyncService.performSyncForWallet('entropy-id-1');
+
+      expect(draft.hasAccountTreeSyncingSyncedAtLeastOnce).toBe(false);
+      // The in-progress flag is toggled on then off during the sync.
+      expect(draft.isAccountTreeSyncingInProgress).toBe(false);
+    });
+
+    it('returns the in-flight full sync promise when one is running', async () => {
+      mockGetLocalEntropyWallets.mockReturnValue([
+        {
+          id: 'entropy:wallet-1',
+          metadata: { entropy: { id: 'entropy-id-1' } },
+        } as unknown as AccountWalletEntropyObject,
+      ]);
+
+      // Make the full sync hang so we can observe the wallet-scoped call
+      // dedup against it.
+      let resolveTrace: (() => void) | undefined;
+      const tracePromise = new Promise<void>((resolve) => {
+        resolveTrace = resolve;
+      });
+      (mockContext.traceFn as jest.Mock).mockImplementation(
+        (_: unknown, fn: () => unknown) => {
+          fn();
+          return tracePromise;
+        },
+      );
+
+      const fullSyncPromise = backupAndSyncService.performFullSync();
+      const walletSyncPromise =
+        backupAndSyncService.performSyncForWallet('entropy-id-1');
+
+      expect(walletSyncPromise).toStrictEqual(fullSyncPromise);
+
+      resolveTrace?.();
+      await Promise.all([fullSyncPromise, walletSyncPromise]);
+    });
+
+    it('is a no-op when no local wallet matches the entropy source ID', async () => {
+      mockGetLocalEntropyWallets.mockReturnValue([
+        {
+          id: 'entropy:wallet-1',
+          metadata: { entropy: { id: 'entropy-id-1' } },
+        } as unknown as AccountWalletEntropyObject,
+      ]);
+
+      await backupAndSyncService.performSyncForWallet('unknown-entropy-id');
+
+      expect(mockGetWalletFromUserStorage).not.toHaveBeenCalled();
+      expect(mockGetAllGroupsFromUserStorage).not.toHaveBeenCalled();
+      expect(mockGetProfileId).not.toHaveBeenCalled();
+    });
   });
 });
