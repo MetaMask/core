@@ -1,6 +1,9 @@
 import type { Hex } from '@metamask/utils';
 
-import { POLYGON_PUSD_ADDRESS, POLYGON_USDCE_ADDRESS } from '../../../constants';
+import {
+  POLYGON_PUSD_ADDRESS,
+  POLYGON_USDCE_ADDRESS,
+} from '../../../constants';
 import { getMessengerMock } from '../../../tests/messenger-mock';
 import type { QuoteRequest, TransactionPayQuote } from '../../../types';
 import { getLiveTokenBalance } from '../../../utils/token';

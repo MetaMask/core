@@ -15,7 +15,6 @@ export type RelayQuoteRequest = {
   originChainId: number;
   originCurrency: Hex;
   originGasOverhead?: string;
-  /** Required for HyperLiquid withdrawals (value: 'v2'). */
   protocolVersion?: string;
   recipient: Hex;
   refundTo?: Hex;
@@ -26,16 +25,7 @@ export type RelayQuoteRequest = {
     data: Hex;
     value: Hex;
   }[];
-  /**
-   * Request a single-step "send to deposit address" routing. Only supported
-   * by Relay for major tokens; rejected otherwise.
-   */
   useDepositAddress?: boolean;
-  /**
-   * When combined with `useDepositAddress`, ties the deposit address to a
-   * specific order. Underpayments fail and refund; exact payments and
-   * overpayments fill. Requires `refundTo`.
-   */
   strict?: boolean;
   user: Hex;
 };
