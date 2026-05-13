@@ -27,6 +27,14 @@ export const getMockFeatureAnnouncementResponse = () => {
 };
 /* eslint-enable @typescript-eslint/explicit-function-return-type */
 
+export const getMockOnChainNotificationsConfig = () => {
+  return {
+    url: TRIGGER_API_NOTIFICATIONS_QUERY_ENDPOINT(),
+    requestMethod: 'POST',
+    response: [{ address: '0xTestAddress', enabled: true }],
+  } satisfies MockResponse;
+};
+
 export const MOCK_RAW_ON_CHAIN_NOTIFICATIONS =
   createMockRawOnChainNotifications();
 
@@ -37,14 +45,6 @@ export const getMockListNotificationsResponse = () => {
     url: NOTIFICATION_API_LIST_ENDPOINT(),
     requestMethod: 'POST',
     response: MOCK_RAW_ON_CHAIN_NOTIFICATIONS,
-  } satisfies MockResponse;
-};
-
-export const getMockOnChainNotificationsConfig = () => {
-  return {
-    url: TRIGGER_API_NOTIFICATIONS_QUERY_ENDPOINT(),
-    requestMethod: 'POST',
-    response: [{ address: '0xTestAddress', enabled: true }],
   } satisfies MockResponse;
 };
 

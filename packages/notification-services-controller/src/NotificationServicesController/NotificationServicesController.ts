@@ -768,8 +768,9 @@ export class NotificationServicesController extends BaseController<
     );
 
     if (!currentPreferences) {
-      // No preferences blob yet; incremental updates can't safely run before
-      // initialization. The caller should run `createOnChainTriggers` first.
+      log.warn(
+        'Preferences blob not yet initialized; run `createOnChainTriggers` first.',
+      );
       return;
     }
 

@@ -44,12 +44,14 @@ export const NOTIFICATION_API_MARK_ALL_AS_READ_ENDPOINT = (
 ): string => `${NOTIFICATION_API(env)}/api/v3/notifications/mark-as-read`;
 
 /**
- * Fetches notification config (accounts enabled vs disabled) from the Trigger API.
+ * fetches notification config (accounts enabled vs disabled)
  *
- * @param bearerToken - JWT used for authentication.
- * @param addresses - List of addresses to check.
- * @param env - The environment to use for the API call.
- * @returns Trigger API notification config, or an empty array if unavailable.
+ * @param bearerToken - jwt
+ * @param addresses - list of addresses to check
+ * @param env - the environment to use for the API call
+ * NOTE the API will return addresses config with false if they have not been created before.
+ * NOTE this is cached for 1s to prevent multiple update calls
+ * @returns object of notification config, or null if missing
  */
 export async function getNotificationsApiConfigCached(
   bearerToken: string,
@@ -89,13 +91,13 @@ export async function getNotificationsApiConfigCached(
 }
 
 /**
- * Fetches on-chain notifications for the given addresses.
+ * Fetches on-chain notifications for the given addresses
  *
  * @param bearerToken - The JSON Web Token used for authentication in the API call.
- * @param addresses - List of addresses to fetch notifications for.
- * @param locale - User's locale, used to translate server-rendered notifications.
- * @param platform - Filters notifications for a specific platform.
- * @param env - The environment to use for the API call.
+ * @param addresses - List of addresses
+ * @param locale - to generate translated notifications
+ * @param platform - filter notifications for specific platforms ('extension' | 'mobile')
+ * @param env - the environment to use for the API call
  * @returns An array of {@link NormalisedAPINotification}. Returns an empty array on transport or parse errors.
  */
 export async function getAPINotifications(
