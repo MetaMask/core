@@ -17,17 +17,15 @@ type MockResponse = {
 export const CONTENTFUL_RESPONSE = createMockFeatureAnnouncementAPIResult();
 
 // Using `satisfies` to preserve narrow return types while ensuring type safety; explicit return types would widen to MockResponse
-/* eslint-disable @typescript-eslint/explicit-function-return-type */
-export const getMockFeatureAnnouncementResponse = () => {
+export const getMockFeatureAnnouncementResponse = (): MockResponse => {
   return {
     url: FEATURE_ANNOUNCEMENT_API,
     requestMethod: 'GET',
     response: CONTENTFUL_RESPONSE,
   } satisfies MockResponse;
 };
-/* eslint-enable @typescript-eslint/explicit-function-return-type */
 
-export const getMockOnChainNotificationsConfig = () => {
+export const getMockOnChainNotificationsConfig = (): MockResponse => {
   return {
     url: TRIGGER_API_NOTIFICATIONS_QUERY_ENDPOINT(),
     requestMethod: 'POST',
@@ -39,8 +37,7 @@ export const MOCK_RAW_ON_CHAIN_NOTIFICATIONS =
   createMockRawOnChainNotifications();
 
 // Using `satisfies` to preserve narrow return types while ensuring type safety; explicit return types would widen to MockResponse
-/* eslint-disable @typescript-eslint/explicit-function-return-type */
-export const getMockListNotificationsResponse = () => {
+export const getMockListNotificationsResponse = (): MockResponse => {
   return {
     url: NOTIFICATION_API_LIST_ENDPOINT(),
     requestMethod: 'POST',
@@ -48,7 +45,7 @@ export const getMockListNotificationsResponse = () => {
   } satisfies MockResponse;
 };
 
-export const getMockMarkNotificationsAsReadResponse = () => {
+export const getMockMarkNotificationsAsReadResponse = (): MockResponse => {
   return {
     url: NOTIFICATION_API_MARK_ALL_AS_READ_ENDPOINT(),
     requestMethod: 'POST',
@@ -56,11 +53,10 @@ export const getMockMarkNotificationsAsReadResponse = () => {
   } satisfies MockResponse;
 };
 
-export const getMockCreatePerpOrderNotification = () => {
+export const getMockCreatePerpOrderNotification = (): MockResponse => {
   return {
     url: PERPS_API_CREATE_ORDERS,
     requestMethod: 'POST',
     response: null,
   } satisfies MockResponse;
 };
-/* eslint-enable @typescript-eslint/explicit-function-return-type */
