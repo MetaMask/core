@@ -5,7 +5,7 @@ import {
 } from './ceremony-manager';
 
 describe('CeremonyManager', () => {
-  const baseReg = { userHandle: 'u', prfSalt: '' };
+  const baseReg = { userHandle: 'u' };
 
   beforeEach(() => {
     jest.useFakeTimers();
@@ -35,7 +35,7 @@ describe('CeremonyManager', () => {
       const manager = new CeremonyManager();
       const tOld = 100_000;
       const tNew = 150_000;
-      const pruneAt = 200_000;
+      const pruneAt = tOld + CEREMONY_MAX_AGE_MS + 1;
       jest.setSystemTime(tOld);
       manager.saveRegistrationCeremony('old', {
         ...baseReg,
@@ -138,7 +138,6 @@ describe('CeremonyManager', () => {
 
     manager.saveRegistrationCeremony('reg-chal', {
       userHandle: 'uh',
-      prfSalt: '',
       challenge: 'reg-chal',
       createdAt: now,
     });
@@ -156,7 +155,6 @@ describe('CeremonyManager', () => {
     jest.setSystemTime(now);
     manager.saveRegistrationCeremony('reg2', {
       userHandle: 'uh2',
-      prfSalt: '',
       challenge: 'reg2',
       createdAt: now,
     });

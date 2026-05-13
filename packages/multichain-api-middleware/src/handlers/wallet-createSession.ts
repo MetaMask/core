@@ -1,3 +1,4 @@
+import type { AccountsController } from '@metamask/accounts-controller';
 import {
   Caip25CaveatType,
   Caip25EndowmentPermissionName,
@@ -19,13 +20,18 @@ import type {
 } from '@metamask/chain-agnostic-permission';
 import { isEqualCaseInsensitive } from '@metamask/controller-utils';
 import type {
+  MethodHandler,
   JsonRpcEngineEndCallback,
   JsonRpcEngineNextCallback,
 } from '@metamask/json-rpc-engine';
 import type { NetworkController } from '@metamask/network-controller';
 import { invalidParams } from '@metamask/permission-controller';
-import type { RequestedPermissions } from '@metamask/permission-controller';
+import type {
+  GenericPermissionController,
+  RequestedPermissions,
+} from '@metamask/permission-controller';
 import { JsonRpcError, rpcErrors } from '@metamask/rpc-errors';
+import type { MultichainRoutingService } from '@metamask/snaps-controllers';
 import {
   isPlainObject,
   KnownCaipNamespace,
@@ -33,16 +39,40 @@ import {
 } from '@metamask/utils';
 import type {
   CaipAccountId,
-  CaipChainId,
   Hex,
   Json,
   JsonRpcRequest,
-  JsonRpcSuccess,
+  PendingJsonRpcResponse,
 } from '@metamask/utils';
 
-import type { GrantedPermissions } from './types';
+import type {
+  GetNonEvmSupportedMethodsHook,
+  SortAccountIdsByLastSelectedHook,
+} from './types';
 
 const SOLANA_CAIP_CHAIN_ID = 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp';
+
+export type WalletCreateSessionHooks = GetNonEvmSupportedMethodsHook &
+  SortAccountIdsByLastSelectedHook & {
+    listAccounts: AccountsController['listAccounts'];
+    findNetworkClientIdByChainId: NetworkController['findNetworkClientIdByChainId'];
+    requestPermissionsForOrigin: (
+      requestedPermissions: RequestedPermissions,
+      metadata?: Record<string, Json>,
+    ) => ReturnType<GenericPermissionController['requestPermissions']>;
+    isNonEvmScopeSupported: MultichainRoutingService['isSupportedScope'];
+    getNonEvmAccountAddresses: MultichainRoutingService['getSupportedAccounts'];
+    trackSessionCreatedEvent:
+      | ((approvedCaip25CaveatValue: Caip25CaveatValue) => void)
+      | null;
+  };
+
+type Params = Caip25Authorization;
+
+type Result = {
+  sessionScopes: NormalizedScopesObject;
+  sessionProperties?: Record<string, Json>;
+};
 
 /**
  * Handler for the `wallet_createSession` RPC method which is responsible
@@ -67,35 +97,16 @@ const SOLANA_CAIP_CHAIN_ID = 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp';
  * @param hooks.isNonEvmScopeSupported - The hook that returns true if a non EVM scope is supported.
  * @param hooks.getNonEvmAccountAddresses - The hook that returns a list of CaipAccountIds that are supported for a CaipChainId.
  * @param hooks.sortAccountIdsByLastSelected - A function that accepts an array of CaipAccountId and returns an array of CaipAccountId sorted by last selected.
- * @param hooks.trackSessionCreatedEvent - An optional hook for platform specific logic to run. Can be undefined.
+ * @param hooks.trackSessionCreatedEvent - An optional hook for platform specific logic to run.
  * @returns A promise with wallet_createSession handler
  */
-async function walletCreateSessionHandler(
-  req: JsonRpcRequest<Caip25Authorization> & { origin: string },
-  res: JsonRpcSuccess<{
-    sessionScopes: NormalizedScopesObject;
-    sessionProperties?: Record<string, Json>;
-  }>,
+async function handleWalletCreateSession(
+  req: JsonRpcRequest<Params> & { origin: string },
+  res: PendingJsonRpcResponse<Result>,
   _next: JsonRpcEngineNextCallback,
   end: JsonRpcEngineEndCallback,
-  hooks: {
-    listAccounts: () => { address: string }[];
-    findNetworkClientIdByChainId: NetworkController['findNetworkClientIdByChainId'];
-    requestPermissionsForOrigin: (
-      requestedPermissions: RequestedPermissions,
-      metadata?: Record<string, Json>,
-    ) => Promise<[GrantedPermissions]>;
-    getNonEvmSupportedMethods: (scope: CaipChainId) => string[];
-    isNonEvmScopeSupported: (scope: CaipChainId) => boolean;
-    getNonEvmAccountAddresses: (scope: CaipChainId) => CaipAccountId[];
-    sortAccountIdsByLastSelected: (
-      accounts: CaipAccountId[],
-    ) => CaipAccountId[];
-    trackSessionCreatedEvent?: (
-      approvedCaip25CaveatValue: Caip25CaveatValue,
-    ) => void;
-  },
-) {
+  hooks: WalletCreateSessionHooks,
+): Promise<void> {
   if (!isPlainObject(req.params)) {
     return end(invalidParams({ data: { request: req } }));
   }
@@ -285,9 +296,16 @@ async function walletCreateSessionHandler(
   }
 }
 
-export const walletCreateSession = {
-  methodNames: ['wallet_createSession'],
-  implementation: walletCreateSessionHandler,
+export type WalletCreateSessionHandler = MethodHandler<
+  WalletCreateSessionHooks,
+  never,
+  Params,
+  Result,
+  { origin: string }
+>;
+
+export const walletCreateSessionHandler = {
+  implementation: handleWalletCreateSession,
   hookNames: {
     findNetworkClientIdByChainId: true,
     listAccounts: true,
@@ -298,4 +316,4 @@ export const walletCreateSession = {
     sortAccountIdsByLastSelected: true,
     trackSessionCreatedEvent: true,
   },
-};
+} satisfies WalletCreateSessionHandler;

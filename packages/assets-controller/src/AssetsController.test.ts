@@ -20,6 +20,7 @@ import type {
 import type { PriceDataSourceConfig } from './data-sources/PriceDataSource';
 import { PriceDataSource } from './data-sources/PriceDataSource';
 import { TokenDataSource } from './data-sources/TokenDataSource';
+import { buildDefaultAssetsInfo } from './defaults';
 import type {
   Caip19AssetId,
   AccountId,
@@ -247,11 +248,11 @@ async function withController<ReturnValue>(
 
 describe('AssetsController', () => {
   describe('getDefaultAssetsControllerState', () => {
-    it('returns default state with empty maps', () => {
+    it('returns default state with empty balance/price maps and pre-seeded assetsInfo', () => {
       const defaultState = getDefaultAssetsControllerState();
 
       expect(defaultState).toStrictEqual({
-        assetsInfo: {},
+        assetsInfo: buildDefaultAssetsInfo(),
         assetsBalance: {},
         assetsPrice: {},
         customAssets: {},
@@ -259,13 +260,30 @@ describe('AssetsController', () => {
         selectedCurrency: 'usd',
       });
     });
+
+    it('pre-seeds assetsInfo with EIP-55 checksummed CAIP-19 keys', () => {
+      // Regression: MUSD_ADDRESS was previously all-lowercase, so
+      // buildDefaultAssetsInfo() produced lowercase CAIP-19 keys while data
+      // sources (which call normalizeAssetId) wrote checksummed keys.
+      // After the first balance poll both keys existed in assetsInfo.
+      const defaultState = getDefaultAssetsControllerState();
+      const assetIds = Object.keys(defaultState.assetsInfo);
+      expect(assetIds.length).toBeGreaterThan(0);
+      // Every erc20 asset ID must contain at least one uppercase hex letter
+      // (EIP-55 checksum property) so that keys match normalizeAssetId output.
+      const erc20Ids = assetIds.filter((id) => id.includes('/erc20:'));
+      expect(erc20Ids.length).toBeGreaterThan(0);
+      for (const id of erc20Ids) {
+        expect(id).toMatch(/\/erc20:0x[0-9a-fA-F]*[A-F][0-9a-fA-F]*/u);
+      }
+    });
   });
 
   describe('constructor', () => {
     it('initializes with default state', async () => {
       await withController(({ controller }) => {
         expect(controller.state).toStrictEqual({
-          assetsInfo: {},
+          assetsInfo: buildDefaultAssetsInfo(),
           assetsBalance: {},
           assetsPrice: {},
           customAssets: {},
@@ -334,7 +352,7 @@ describe('AssetsController', () => {
       // Controller should still have default state (from super() call)
       expect(controller.state).toStrictEqual({
         assetPreferences: {},
-        assetsInfo: {},
+        assetsInfo: buildDefaultAssetsInfo(),
         assetsBalance: {},
         assetsPrice: {},
         customAssets: {},
@@ -356,7 +374,7 @@ describe('AssetsController', () => {
         // Controller should have default state
         expect(controller.state).toStrictEqual({
           assetPreferences: {},
-          assetsInfo: {},
+          assetsInfo: buildDefaultAssetsInfo(),
           assetsBalance: {},
           assetsPrice: {},
           customAssets: {},
@@ -1897,6 +1915,23 @@ describe('AssetsController', () => {
             },
           },
           [],
+        );
+
+        await new Promise(process.nextTick);
+
+        expect(true).toBe(true);
+      });
+    });
+
+    it('refreshes assets when a network is added or removed', async () => {
+      await withController(async ({ messenger }) => {
+        (messenger.publish as CallableFunction)(
+          'NetworkController:networkAdded',
+          { chainId: '0x89' },
+        );
+        (messenger.publish as CallableFunction)(
+          'NetworkController:networkRemoved',
+          { chainId: '0x89' },
         );
 
         await new Promise(process.nextTick);

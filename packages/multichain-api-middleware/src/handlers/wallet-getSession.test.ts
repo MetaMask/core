@@ -1,7 +1,7 @@
 import * as chainAgnosticPermissionModule from '@metamask/chain-agnostic-permission';
 import type { JsonRpcRequest } from '@metamask/utils';
 
-import { walletGetSession } from './wallet-getSession';
+import { walletGetSessionHandler } from './wallet-getSession';
 
 jest.mock('@metamask/chain-agnostic-permission', () => ({
   ...jest.requireActual('@metamask/chain-agnostic-permission'),
@@ -52,7 +52,7 @@ const createMockedHandler = () => {
     jsonrpc: '2.0' as const,
   };
   const handler = (request: JsonRpcRequest & { origin: string }) =>
-    walletGetSession.implementation(request, response, next, end, {
+    walletGetSessionHandler.implementation(request, response, next, end, {
       getCaveatForOrigin,
       getNonEvmSupportedMethods,
       sortAccountIdsByLastSelected,

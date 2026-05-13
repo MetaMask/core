@@ -7,6 +7,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [32.0.0]
+
+### Changed
+
+- **BREAKING:** Remove Sei, MegaETH, Avalanche, and ZKSync from list of default networks ([#8767](https://github.com/MetaMask/core/pull/8767))
+  - You will need to add them as network configurations first before switching to them.
+- Bump `@metamask/controller-utils` from `^12.0.0` to `^12.1.0` ([#8774](https://github.com/MetaMask/core/pull/8774))
+
+## [31.1.0]
+
+### Added
+
+- Add export for `AddNetworkCustomRpcEndpointFields` and `InfuraRpcEndpoint` types ([#8764](https://github.com/MetaMask/core/pull/8764))
+
+## [31.0.0]
+
+### Added
+
+- **BREAKING:** Add `duration` and `traceId` to `NetworkController:rpcEndpointDegraded` and `NetworkController:rpcEndpointChainDegraded` event payloads ([#8455](https://github.com/MetaMask/core/pull/8455))
+  - `duration` contains the policy execution time in milliseconds when the request succeeded but was slow. It is `undefined` when retries were exhausted.
+  - `traceId` contains the value of the `x-trace-id` response header from the last request attempt, or `undefined` if the header was not present.
+  - This is breaking because if you're calling `messenger.subscribe` with a handler function you've explicitly typed, you will need to make sure to update that type to cover these two additional payload properties.
+
+### Changed
+
+- Bump `@metamask/json-rpc-engine` from `^10.2.4` to `^10.5.0` ([#8661](https://github.com/MetaMask/core/pull/8661), [#8746](https://github.com/MetaMask/core/pull/8746), [#8753](https://github.com/MetaMask/core/pull/8753))
+- Bump `@metamask/controller-utils` from `^11.20.0` to `^12.0.0` ([#8755](https://github.com/MetaMask/core/pull/8755))
+
 ## [30.1.0]
 
 ### Added
@@ -1157,7 +1185,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/network-controller@30.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/network-controller@32.0.0...HEAD
+[32.0.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@31.1.0...@metamask/network-controller@32.0.0
+[31.1.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@31.0.0...@metamask/network-controller@31.1.0
+[31.0.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@30.1.0...@metamask/network-controller@31.0.0
 [30.1.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@30.0.1...@metamask/network-controller@30.1.0
 [30.0.1]: https://github.com/MetaMask/core/compare/@metamask/network-controller@30.0.0...@metamask/network-controller@30.0.1
 [30.0.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@29.0.0...@metamask/network-controller@30.0.0

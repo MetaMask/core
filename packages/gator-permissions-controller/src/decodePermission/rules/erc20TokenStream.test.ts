@@ -27,8 +27,8 @@ describe('erc20-token-stream rule', () => {
   const expiryCaveat = {
     enforcer: TimestampEnforcer,
     terms: createTimestampTerms({
-      timestampAfterThreshold: 0,
-      timestampBeforeThreshold: 1720000,
+      afterThreshold: 0,
+      beforeThreshold: 1720000,
     }),
     args: '0x' as const,
   };

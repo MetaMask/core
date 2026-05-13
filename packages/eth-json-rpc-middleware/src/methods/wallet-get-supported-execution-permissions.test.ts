@@ -10,7 +10,7 @@ import { createWalletGetSupportedExecutionPermissionsHandler } from './wallet-ge
 const RESULT_MOCK: GetSupportedExecutionPermissionsResult = {
   'native-token-allowance': {
     chainIds: ['0x123', '0x345'] as Hex[],
-    ruleTypes: ['expiry'],
+    ruleTypes: ['expiry', 'redeemer'],
   },
   'erc20-token-allowance': {
     chainIds: ['0x123'] as Hex[],
@@ -18,7 +18,7 @@ const RESULT_MOCK: GetSupportedExecutionPermissionsResult = {
   },
   'erc721-token-allowance': {
     chainIds: ['0x123'] as Hex[],
-    ruleTypes: ['expiry'],
+    ruleTypes: ['expiry', 'redeemer'],
   },
 };
 

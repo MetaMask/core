@@ -9,9 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Bump `@metamask/controller-utils` from `^12.0.0` to `^12.1.0` ([#8774](https://github.com/MetaMask/core/pull/8774))
+- Bump `@metamask/profile-sync-controller` from `^28.0.2` to `^28.1.0` ([#8783](https://github.com/MetaMask/core/pull/8783))
+
+## [23.1.1]
+
+### Changed
+
 - Bump `@metamask/base-controller` from `^9.0.1` to `^9.1.0` ([#8457](https://github.com/MetaMask/core/pull/8457))
 - Bump `@metamask/messenger` from `^1.1.1` to `^1.2.0` ([#8632](https://github.com/MetaMask/core/pull/8632))
-- Bump `@metamask/keyring-controller` from `^25.2.0` to `^25.3.0` ([#8634](https://github.com/MetaMask/core/pull/8634))
+- Bump `@metamask/keyring-controller` from `^25.2.0` to `^25.5.0` ([#8634](https://github.com/MetaMask/core/pull/8634), [#8665](https://github.com/MetaMask/core/pull/8665), [#8722](https://github.com/MetaMask/core/pull/8722))
+- Bump `@metamask/controller-utils` from `^11.20.0` to `^12.0.0` ([#8755](https://github.com/MetaMask/core/pull/8755))
 
 ## [23.1.0]
 
@@ -724,7 +732,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@23.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@23.1.1...HEAD
+[23.1.1]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@23.1.0...@metamask/notification-services-controller@23.1.1
 [23.1.0]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@23.0.1...@metamask/notification-services-controller@23.1.0
 [23.0.1]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@23.0.0...@metamask/notification-services-controller@23.0.1
 [23.0.0]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@22.1.0...@metamask/notification-services-controller@23.0.0

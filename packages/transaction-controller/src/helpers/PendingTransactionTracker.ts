@@ -17,6 +17,7 @@ import {
   getTimeoutAttempts,
 } from '../utils/feature-flags';
 import { getChainId, rpcRequest } from '../utils/provider';
+import { extractRevert, OnChainFailureError } from '../utils/revert-reason';
 import { TransactionPoller } from './TransactionPoller';
 
 /**
@@ -429,9 +430,20 @@ export class PendingTransactionTracker {
       const isFailure = receipt?.status === RECEIPT_STATUS_FAILURE;
 
       if (isFailure) {
-        this.#log('Transaction receipt has failed status');
+        this.#log('Transaction receipt has failed status', {
+          id: txMeta.id,
+          hash: txMeta.hash,
+          chainId: txMeta.chainId,
+          blockNumber: receipt.blockNumber,
+        });
 
-        this.#failTransaction(txMeta, new Error('Transaction failed on-chain'));
+        const revert = await extractRevert({
+          messenger: this.#messenger,
+          networkClientId: txMeta.networkClientId,
+          txParams: txMeta.txParams,
+        });
+
+        this.#failTransaction(txMeta, new OnChainFailureError(revert));
 
         return;
       }

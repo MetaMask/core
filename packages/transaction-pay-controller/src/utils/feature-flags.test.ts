@@ -1,7 +1,9 @@
+import { TransactionType } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 
 import { getDefaultRemoteFeatureFlagControllerState } from '../../../remote-feature-flag-controller/src/remote-feature-flag-controller';
 import { TransactionPayStrategy } from '../constants';
+import type { TransactionPayFiatAsset } from '../strategy/fiat/constants';
 import { getMessengerMock } from '../tests/messenger-mock';
 import {
   DEFAULT_ACROSS_API_BASE,
@@ -13,6 +15,7 @@ import {
   DEFAULT_SLIPPAGE,
   getAssetsUnifyStateFeature,
   getFallbackGas,
+  getFiatAssetPerTransactionType,
   DEFAULT_RELAY_EXECUTE_URL,
   getRelayOriginGasOverhead,
   getRelayPollingInterval,
@@ -809,6 +812,49 @@ describe('Feature Flags Utils', () => {
         TransactionPayStrategy.Relay,
       ]);
     });
+
+    it('returns only Fiat strategy when fiatPaymentMethodId is provided', () => {
+      const strategyOrder = getStrategyOrder(
+        messenger,
+        undefined,
+        undefined,
+        undefined,
+        'card-123',
+      );
+
+      expect(strategyOrder).toStrictEqual([TransactionPayStrategy.Fiat]);
+    });
+
+    it('returns only Fiat strategy regardless of other routing config when fiatPaymentMethodId is provided', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_pay: {
+            strategyOrder: [
+              TransactionPayStrategy.Relay,
+              TransactionPayStrategy.Across,
+            ],
+            strategyOverrides: {
+              default: {
+                chains: {
+                  [CHAIN_ID_MOCK]: [TransactionPayStrategy.Bridge],
+                },
+              },
+            },
+          },
+        },
+      });
+
+      const strategyOrder = getStrategyOrder(
+        messenger,
+        CHAIN_ID_MOCK,
+        TOKEN_ADDRESS_MOCK,
+        'perpsDeposit',
+        '/payments/debit-credit-card',
+      );
+
+      expect(strategyOrder).toStrictEqual([TransactionPayStrategy.Fiat]);
+    });
   });
 
   describe('getStrategyOrder route-aware resolution', () => {
@@ -1166,6 +1212,107 @@ describe('Feature Flags Utils', () => {
       });
 
       expect(getStrategy(messenger)).toBeUndefined();
+    });
+  });
+
+  describe('getFiatAssetPerTransactionType', () => {
+    const FIAT_ASSET_MOCK: TransactionPayFiatAsset = {
+      address: '0x0000000000000000000000000000000000001010',
+      chainId: '0x89',
+    };
+
+    it('returns ETH mainnet fallback when confirmations_pay_fiat flag is absent', () => {
+      const result = getFiatAssetPerTransactionType(
+        messenger,
+        TransactionType.contractInteraction,
+      );
+
+      expect(result).toStrictEqual({
+        address: '0x0000000000000000000000000000000000000000',
+        chainId: '0x1',
+      });
+    });
+
+    it('returns hardcoded asset when flag exists but has no entry for the transaction type', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_pay_fiat: {
+            assetPerTransactionType: {
+              [TransactionType.perpsDeposit]: FIAT_ASSET_MOCK,
+            },
+          },
+        },
+      });
+
+      const result = getFiatAssetPerTransactionType(
+        messenger,
+        TransactionType.predictDeposit,
+      );
+
+      expect(result).toStrictEqual({
+        address: '0x0000000000000000000000000000000000001010',
+        chainId: '0x89',
+      });
+    });
+
+    it('returns feature flag asset when entry matches the transaction type', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_pay_fiat: {
+            assetPerTransactionType: {
+              [TransactionType.predictDeposit]: FIAT_ASSET_MOCK,
+            },
+          },
+        },
+      });
+
+      const result = getFiatAssetPerTransactionType(
+        messenger,
+        TransactionType.predictDeposit,
+      );
+
+      expect(result).toStrictEqual(FIAT_ASSET_MOCK);
+    });
+
+    it('returns ETH mainnet fallback when assetPerTransactionType is not defined', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_pay_fiat: {},
+        },
+      });
+
+      const result = getFiatAssetPerTransactionType(
+        messenger,
+        TransactionType.contractInteraction,
+      );
+
+      expect(result).toStrictEqual({
+        address: '0x0000000000000000000000000000000000000000',
+        chainId: '0x1',
+      });
+    });
+
+    it('prefers feature flag over hardcoded asset', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_pay_fiat: {
+            assetPerTransactionType: {
+              [TransactionType.predictDeposit]: FIAT_ASSET_MOCK,
+            },
+          },
+        },
+      });
+
+      const result = getFiatAssetPerTransactionType(
+        messenger,
+        TransactionType.predictDeposit,
+      );
+
+      expect(result).toStrictEqual(FIAT_ASSET_MOCK);
     });
   });
 });

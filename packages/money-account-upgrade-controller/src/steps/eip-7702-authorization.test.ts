@@ -12,7 +12,15 @@ import { eip7702AuthorizationStep } from './eip-7702-authorization';
 const MOCK_ADDRESS = '0xabcdef1234567890abcdef1234567890abcdef12' as Hex;
 const MOCK_CHAIN_ID = '0xaa36a7' as Hex; // 11155111 (Sepolia) — non-trivial decimal
 const MOCK_CHAIN_ID_DECIMAL = parseInt(MOCK_CHAIN_ID, 16);
+const MOCK_DELEGATE = '0x1111111111111111111111111111111111111111' as Hex;
 const MOCK_DELEGATOR_IMPL = '0x2222222222222222222222222222222222222222' as Hex;
+const MOCK_TOKEN = '0x3333333333333333333333333333333333333333' as Hex;
+const MOCK_VAULT_ADAPTER = '0x4444444444444444444444444444444444444444' as Hex;
+const MOCK_ERC20_ENFORCER = '0x5555555555555555555555555555555555555555' as Hex;
+const MOCK_REDEEMER_ENFORCER =
+  '0x6666666666666666666666666666666666666666' as Hex;
+const MOCK_VALUE_LTE_ENFORCER =
+  '0x7777777777777777777777777777777777777777' as Hex;
 const MOCK_THIRD_PARTY_IMPL =
   '0x9999999999999999999999999999999999999999' as Hex;
 const MOCK_NETWORK_CLIENT_ID = 'network-client-id';
@@ -142,7 +150,14 @@ async function run(
     messenger,
     address: MOCK_ADDRESS,
     chainId: MOCK_CHAIN_ID,
+    boringVaultAddress: '0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee' as Hex,
+    delegateAddress: MOCK_DELEGATE,
     delegatorImplAddress: MOCK_DELEGATOR_IMPL,
+    erc20TransferAmountEnforcer: MOCK_ERC20_ENFORCER,
+    musdTokenAddress: MOCK_TOKEN,
+    redeemerEnforcer: MOCK_REDEEMER_ENFORCER,
+    valueLteEnforcer: MOCK_VALUE_LTE_ENFORCER,
+    vedaVaultAdapterAddress: MOCK_VAULT_ADAPTER,
   });
 }
 
@@ -259,7 +274,7 @@ describe('eip7702AuthorizationStep', () => {
       });
     });
 
-    it('submits the split signature and decimal-string chainId/nonce to CHOMP', async () => {
+    it('submits the split signature, delegator impl address, and hex-formatted chainId/nonce to CHOMP', async () => {
       const { messenger, mocks } = setup();
 
       await run(messenger);
@@ -269,9 +284,9 @@ describe('eip7702AuthorizationStep', () => {
         s: MOCK_S,
         v: 28,
         yParity: 1,
-        address: MOCK_ADDRESS,
-        chainId: MOCK_CHAIN_ID_DECIMAL.toString(),
-        nonce: MOCK_NONCE.toString(),
+        address: MOCK_DELEGATOR_IMPL,
+        chainId: MOCK_CHAIN_ID,
+        nonce: MOCK_NONCE_HEX,
       });
     });
 
@@ -311,6 +326,37 @@ describe('eip7702AuthorizationStep', () => {
 
       await expect(run(messenger)).rejects.toThrow('api failed');
     });
+
+    it('returns "already-done" when CHOMP responds 409 (authorization already submitted)', async () => {
+      const { messenger, mocks } = setup();
+      mocks.createUpgrade.mockRejectedValue(
+        Object.assign(new Error('conflict'), { httpStatus: 409 }),
+      );
+
+      expect(await run(messenger)).toBe('already-done');
+    });
+
+    it('propagates non-409 HttpError responses from createUpgrade', async () => {
+      const { messenger, mocks } = setup();
+      mocks.createUpgrade.mockRejectedValue(
+        Object.assign(new Error('server error'), { httpStatus: 500 }),
+      );
+
+      await expect(run(messenger)).rejects.toThrow('server error');
+    });
+
+    it.each([
+      ['a string', 'boom'],
+      ['null', null],
+    ])(
+      'propagates non-object rejections from createUpgrade (%s)',
+      async (_label, rejection) => {
+        const { messenger, mocks } = setup();
+        mocks.createUpgrade.mockRejectedValue(rejection);
+
+        await expect(run(messenger)).rejects.toBe(rejection);
+      },
+    );
 
     it('throws when eth_getTransactionCount returns a non-hex response', async () => {
       const { messenger, mocks } = setup();

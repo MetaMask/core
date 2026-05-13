@@ -1,6 +1,6 @@
 {
   "name": "@metamask/chain-agnostic-permission",
-  "version": "1.5.0",
+  "version": "1.6.1",
   "description": "Defines a CAIP-25 based endowment permission and helpers for interfacing with it",
   "keywords": [
     "Ethereum",
@@ -52,15 +52,15 @@
   },
   "dependencies": {
     "@metamask/api-specs": "^0.14.0",
-    "@metamask/controller-utils": "^11.20.0",
-    "@metamask/permission-controller": "^12.3.0",
+    "@metamask/controller-utils": "^12.1.0",
+    "@metamask/permission-controller": "^13.1.1",
     "@metamask/rpc-errors": "^7.0.2",
     "@metamask/utils": "^11.9.0",
     "lodash": "^4.17.21"
   },
   "devDependencies": {
     "@metamask/auto-changelog": "^6.1.0",
-    "@metamask/keyring-internal-api": "^11.0.0",
+    "@metamask/keyring-internal-api": "^11.0.1",
     "@ts-bridge/cli": "^0.6.4",
     "@types/jest": "^29.5.14",
     "deepmerge": "^4.2.2",

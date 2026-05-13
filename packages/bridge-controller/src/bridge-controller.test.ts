@@ -40,7 +40,10 @@ import type {
 } from './types';
 import * as balanceUtils from './utils/balance';
 import { getNativeAssetForChainId, isSolanaChainId } from './utils/bridge';
-import { formatChainIdToCaip } from './utils/caip-formatters';
+import {
+  formatAddressToAssetId,
+  formatChainIdToCaip,
+} from './utils/caip-formatters';
 import * as featureFlagUtils from './utils/feature-flags';
 import * as fetchUtils from './utils/fetch';
 import {
@@ -434,15 +437,19 @@ describe('BridgeController', function () {
           expect.objectContaining({
             assetExchangeRates: expect.any(Object),
           }),
-          quoteParams.srcChainId,
-          quoteParams.srcTokenAddress,
+          formatAddressToAssetId(
+            quoteParams.srcTokenAddress,
+            quoteParams.srcChainId,
+          ),
         );
         expect(selectIsAssetExchangeRateInStateSpy).toHaveBeenCalledWith(
           expect.objectContaining({
             assetExchangeRates: expect.any(Object),
           }),
-          quoteParams.destChainId,
-          quoteParams.destTokenAddress,
+          formatAddressToAssetId(
+            quoteParams.destTokenAddress,
+            quoteParams.destChainId,
+          ),
         );
 
         hasSufficientBalanceSpy.mockRestore();
@@ -526,26 +533,38 @@ describe('BridgeController', function () {
 
         await rootMessenger.call(
           'BridgeController:updateBridgeQuoteRequestParams',
-          { srcChainId: 1, walletAddress: '0x123' },
+          {
+            srcChainId: 1,
+            walletAddress: '0x123',
+            srcTokenAddress: '0x0000000000000000000000000000000000000000',
+          },
           metricsContext,
         );
-        expect(bridgeController.state.quoteRequest).toStrictEqual({
-          walletAddress: '0x123',
-          srcChainId: 1,
-          srcTokenAddress: '0x0000000000000000000000000000000000000000',
-        });
+        expect(bridgeController.state.quoteRequest).toStrictEqual([
+          {
+            walletAddress: '0x123',
+            srcChainId: 1,
+            srcTokenAddress: '0x0000000000000000000000000000000000000000',
+          },
+        ]);
         expect(trackMetaMetricsFn).toHaveBeenCalledTimes(1);
 
         await rootMessenger.call(
           'BridgeController:updateBridgeQuoteRequestParams',
-          { destChainId: 10, walletAddress: '0x123' },
+          {
+            destChainId: 10,
+            walletAddress: '0x123',
+            srcTokenAddress: '0x0000000000000000000000000000000000000000',
+          },
           metricsContext,
         );
-        expect(bridgeController.state.quoteRequest).toStrictEqual({
-          walletAddress: '0x123',
-          destChainId: 10,
-          srcTokenAddress: '0x0000000000000000000000000000000000000000',
-        });
+        expect(bridgeController.state.quoteRequest).toStrictEqual([
+          {
+            walletAddress: '0x123',
+            destChainId: 10,
+            srcTokenAddress: '0x0000000000000000000000000000000000000000',
+          },
+        ]);
 
         await rootMessenger.call(
           'BridgeController:updateBridgeQuoteRequestParams',
@@ -555,10 +574,10 @@ describe('BridgeController', function () {
           },
           metricsContext,
         );
-        expect(bridgeController.state.quoteRequest).toStrictEqual({
+        expect(bridgeController.state.quoteRequest[0]).toStrictEqual({
+          ...DEFAULT_BRIDGE_CONTROLLER_STATE.quoteRequest[0],
           walletAddress: '0x123abc',
           destChainId: undefined,
-          srcTokenAddress: '0x0000000000000000000000000000000000000000',
         });
 
         await rootMessenger.call(
@@ -569,7 +588,7 @@ describe('BridgeController', function () {
           },
           metricsContext,
         );
-        expect(bridgeController.state.quoteRequest).toStrictEqual({
+        expect(bridgeController.state.quoteRequest[0]).toStrictEqual({
           walletAddress: '0x123',
           srcTokenAddress: undefined,
         });
@@ -585,7 +604,7 @@ describe('BridgeController', function () {
           },
           metricsContext,
         );
-        expect(bridgeController.state.quoteRequest).toStrictEqual({
+        expect(bridgeController.state.quoteRequest[0]).toStrictEqual({
           walletAddress: '0x123',
           srcTokenAmount: '100000',
           destTokenAddress: '0x123',
@@ -601,13 +620,13 @@ describe('BridgeController', function () {
           },
           metricsContext,
         );
-        expect(bridgeController.state.quoteRequest).toStrictEqual({
+        expect(bridgeController.state.quoteRequest[0]).toStrictEqual({
           walletAddress: '0x123',
           srcTokenAddress: '0x2ABC',
         });
 
         rootMessenger.call('BridgeController:resetState');
-        expect(bridgeController.state.quoteRequest).toStrictEqual({
+        expect(bridgeController.state.quoteRequest[0]).toStrictEqual({
           srcTokenAddress: '0x0000000000000000000000000000000000000000',
         });
 
@@ -722,18 +741,25 @@ describe('BridgeController', function () {
         expect(startPollingSpy).toHaveBeenCalledTimes(1);
         expect(hasSufficientBalanceSpy).toHaveBeenCalledTimes(1);
         expect(startPollingSpy).toHaveBeenCalledWith({
-          updatedQuoteRequest: {
-            ...quoteRequest,
-            insufficientBal: false,
-            resetApproval: false,
-          },
+          quoteRequests: [
+            {
+              ...quoteRequest,
+              insufficientBal: false,
+              resetApproval: false,
+            },
+          ],
           context: metricsContext,
         });
         expect(fetchAssetPricesSpy).toHaveBeenCalledTimes(0);
 
         expect(bridgeController.state).toStrictEqual(
           expect.objectContaining({
-            quoteRequest: { ...quoteRequest, walletAddress: '0x123' },
+            quoteRequest: [
+              expect.objectContaining({
+                ...quoteRequest,
+                walletAddress: '0x123',
+              }),
+            ],
             quotes: DEFAULT_BRIDGE_CONTROLLER_STATE.quotes,
             quotesLastFetched:
               DEFAULT_BRIDGE_CONTROLLER_STATE.quotesLastFetched,
@@ -861,18 +887,25 @@ describe('BridgeController', function () {
         expect(startPollingSpy).toHaveBeenCalledTimes(1);
         expect(hasSufficientBalanceSpy).toHaveBeenCalledTimes(1);
         expect(startPollingSpy).toHaveBeenCalledWith({
-          updatedQuoteRequest: {
-            ...quoteRequest,
-            insufficientBal: false,
-            resetApproval: false,
-          },
+          quoteRequests: [
+            {
+              ...quoteRequest,
+              insufficientBal: false,
+              resetApproval: false,
+            },
+          ],
           context: metricsContext,
         });
         expect(fetchAssetPricesSpy).toHaveBeenCalledTimes(0);
 
         expect(bridgeController.state).toStrictEqual(
           expect.objectContaining({
-            quoteRequest: { ...quoteRequest, walletAddress: '0x123' },
+            quoteRequest: [
+              expect.objectContaining({
+                ...quoteRequest,
+                walletAddress: '0x123',
+              }),
+            ],
             quotes: DEFAULT_BRIDGE_CONTROLLER_STATE.quotes,
             quotesLastFetched:
               DEFAULT_BRIDGE_CONTROLLER_STATE.quotesLastFetched,
@@ -905,11 +938,13 @@ describe('BridgeController', function () {
 
         expect(bridgeController.state).toStrictEqual(
           expect.objectContaining({
-            quoteRequest: {
-              ...quoteRequest,
-              insufficientBal: false,
-              resetApproval: false,
-            },
+            quoteRequest: [
+              {
+                ...quoteRequest,
+                insufficientBal: false,
+                resetApproval: false,
+              },
+            ],
             quotes: [],
             quotesLoadingStatus: 0,
           }),
@@ -920,11 +955,13 @@ describe('BridgeController', function () {
         await flushPromises();
         expect(bridgeController.state).toStrictEqual(
           expect.objectContaining({
-            quoteRequest: {
-              ...quoteRequest,
-              insufficientBal: false,
-              resetApproval: false,
-            },
+            quoteRequest: [
+              {
+                ...quoteRequest,
+                insufficientBal: false,
+                resetApproval: false,
+              },
+            ],
             quotes: mockBridgeQuotesNativeErc20Eth,
             quotesLoadingStatus: 1,
           }),
@@ -940,11 +977,13 @@ describe('BridgeController', function () {
         await flushPromises();
         expect(bridgeController.state).toStrictEqual(
           expect.objectContaining({
-            quoteRequest: {
-              ...quoteRequest,
-              insufficientBal: false,
-              resetApproval: false,
-            },
+            quoteRequest: [
+              {
+                ...quoteRequest,
+                insufficientBal: false,
+                resetApproval: false,
+              },
+            ],
             quotes: [
               ...mockBridgeQuotesNativeErc20Eth,
               ...mockBridgeQuotesNativeErc20Eth,
@@ -967,11 +1006,13 @@ describe('BridgeController', function () {
         expect(fetchBridgeQuotesSpy).toHaveBeenCalledTimes(3);
         expect(bridgeController.state).toStrictEqual(
           expect.objectContaining({
-            quoteRequest: {
-              ...quoteRequest,
-              insufficientBal: false,
-              resetApproval: false,
-            },
+            quoteRequest: [
+              {
+                ...quoteRequest,
+                insufficientBal: false,
+                resetApproval: false,
+              },
+            ],
             quotes: [],
             quotesLoadingStatus: 2,
             quoteFetchError: 'Network error',
@@ -1175,7 +1216,7 @@ describe('BridgeController', function () {
         // Initial state check
         expect(bridgeController.state).toStrictEqual(
           expect.objectContaining({
-            quoteRequest: { ...quoteParams },
+            quoteRequest: [expect.objectContaining(quoteParams)],
             minimumBalanceForRentExemptionInLamports: '0',
             quotesLoadingStatus:
               DEFAULT_BRIDGE_CONTROLLER_STATE.quotesLoadingStatus,
@@ -1209,11 +1250,13 @@ describe('BridgeController', function () {
               nonEvmFeesInNative: '0.000000014',
             })),
             quotesLoadingStatus: RequestStatus.FETCHED,
-            quoteRequest: {
-              ...quoteParams,
-              resetApproval: false,
-              insufficientBal: undefined,
-            },
+            quoteRequest: [
+              {
+                ...quoteParams,
+                resetApproval: false,
+                insufficientBal: undefined,
+              },
+            ],
             quoteFetchError: null,
             assetExchangeRates: {},
             quotesRefreshCount: 1,
@@ -1284,11 +1327,13 @@ describe('BridgeController', function () {
               nonEvmFeesInNative: '0.000000014',
             })),
             quotesLoadingStatus: RequestStatus.FETCHED,
-            quoteRequest: {
-              ...quoteParams,
-              resetApproval: false,
-              insufficientBal: undefined,
-            },
+            quoteRequest: [
+              {
+                ...quoteParams,
+                resetApproval: false,
+                insufficientBal: undefined,
+              },
+            ],
             quoteFetchError: null,
             assetExchangeRates: {},
             quotesRefreshCount: expect.any(Number),
@@ -1331,12 +1376,14 @@ describe('BridgeController', function () {
               nonEvmFeesInNative: '0.000000014',
             })),
             quotesLoadingStatus: RequestStatus.FETCHED,
-            quoteRequest: {
-              ...quoteParams,
-              srcTokenAmount: '11111',
-              insufficientBal: undefined,
-              resetApproval: false,
-            },
+            quoteRequest: [
+              {
+                ...quoteParams,
+                srcTokenAmount: '11111',
+                insufficientBal: undefined,
+                resetApproval: false,
+              },
+            ],
             quoteFetchError: null,
             assetExchangeRates: {},
             quotesRefreshCount: 1,
@@ -1448,18 +1495,20 @@ describe('BridgeController', function () {
         expect(startPollingSpy).toHaveBeenCalledTimes(1);
         expect(hasSufficientBalanceSpy).toHaveBeenCalledTimes(1);
         expect(startPollingSpy).toHaveBeenCalledWith({
-          updatedQuoteRequest: {
-            ...quoteRequest,
-            insufficientBal: true,
-            resetApproval: false,
-          },
+          quoteRequests: [
+            {
+              ...quoteRequest,
+              insufficientBal: true,
+              resetApproval: false,
+            },
+          ],
           context: metricsContext,
         });
         expect(fetchAssetPricesSpy).not.toHaveBeenCalled();
 
         expect(bridgeController.state).toStrictEqual(
           expect.objectContaining({
-            quoteRequest,
+            quoteRequest: [expect.objectContaining(quoteRequest)],
             quotes: DEFAULT_BRIDGE_CONTROLLER_STATE.quotes,
             quotesLastFetched:
               DEFAULT_BRIDGE_CONTROLLER_STATE.quotesLastFetched,
@@ -1493,11 +1542,13 @@ describe('BridgeController', function () {
 
         expect(bridgeController.state).toStrictEqual(
           expect.objectContaining({
-            quoteRequest: {
-              ...quoteRequest,
-              insufficientBal: true,
-              resetApproval: false,
-            },
+            quoteRequest: [
+              {
+                ...quoteRequest,
+                insufficientBal: true,
+                resetApproval: false,
+              },
+            ],
             quotes: [],
             quotesLoadingStatus: 0,
             quotesLastFetched: t1,
@@ -1509,11 +1560,13 @@ describe('BridgeController', function () {
         await flushPromises();
         expect(bridgeController.state).toStrictEqual(
           expect.objectContaining({
-            quoteRequest: {
-              ...quoteRequest,
-              insufficientBal: true,
-              resetApproval: false,
-            },
+            quoteRequest: [
+              {
+                ...quoteRequest,
+                insufficientBal: true,
+                resetApproval: false,
+              },
+            ],
             quotes: mockBridgeQuotesNativeErc20Eth,
             quotesLoadingStatus: 1,
             quotesRefreshCount: 1,
@@ -1548,11 +1601,13 @@ describe('BridgeController', function () {
         expect(fetchBridgeQuotesSpy).toHaveBeenCalledTimes(1);
         expect(bridgeController.state).toStrictEqual(
           expect.objectContaining({
-            quoteRequest: {
-              ...quoteRequest,
-              insufficientBal: true,
-              resetApproval: false,
-            },
+            quoteRequest: [
+              {
+                ...quoteRequest,
+                insufficientBal: true,
+                resetApproval: false,
+              },
+            ],
             quotes: mockBridgeQuotesNativeErc20Eth,
             quotesLoadingStatus: 1,
             quotesRefreshCount: 1,
@@ -1671,11 +1726,13 @@ describe('BridgeController', function () {
         expect(startPollingSpy).toHaveBeenCalledTimes(1);
         expect(hasSufficientBalanceSpy).not.toHaveBeenCalled();
         expect(startPollingSpy).toHaveBeenCalledWith({
-          updatedQuoteRequest: {
-            ...quoteRequest,
-            insufficientBal: true,
-            resetApproval: false,
-          },
+          quoteRequests: [
+            {
+              ...quoteRequest,
+              insufficientBal: true,
+              resetApproval: false,
+            },
+          ],
           context: metricsContext,
         });
 
@@ -1688,11 +1745,13 @@ describe('BridgeController', function () {
         await flushPromises();
         expect(bridgeController.state).toStrictEqual(
           expect.objectContaining({
-            quoteRequest: {
-              ...quoteRequest,
-              insufficientBal: true,
-              resetApproval: false,
-            },
+            quoteRequest: [
+              {
+                ...quoteRequest,
+                insufficientBal: true,
+                resetApproval: false,
+              },
+            ],
             quotes: mockBridgeQuotesNativeErc20Eth,
             quotesLoadingStatus: 1,
             quotesRefreshCount: 1,
@@ -1736,14 +1795,16 @@ describe('BridgeController', function () {
 
         expect(bridgeController.state).toStrictEqual(
           expect.objectContaining({
-            quoteRequest: {
-              srcChainId: 1,
-              slippage: 0.5,
-              srcTokenAddress: '0x0000000000000000000000000000000000000000',
-              walletAddress: '0x123WalletAddress',
-              destChainId: 10,
-              destTokenAddress: '0x123',
-            },
+            quoteRequest: [
+              {
+                srcChainId: 1,
+                slippage: 0.5,
+                srcTokenAddress: '0x0000000000000000000000000000000000000000',
+                walletAddress: '0x123WalletAddress',
+                destChainId: 10,
+                destTokenAddress: '0x123',
+              },
+            ],
             quotes: DEFAULT_BRIDGE_CONTROLLER_STATE.quotes,
             quotesLastFetched:
               DEFAULT_BRIDGE_CONTROLLER_STATE.quotesLastFetched,
@@ -1786,14 +1847,16 @@ describe('BridgeController', function () {
 
         expect(bridgeController.state).toStrictEqual(
           expect.objectContaining({
-            quoteRequest: {
-              srcChainId: 1,
-              slippage: 0.5,
-              srcTokenAddress: '0x0000000000000000000000000000000000000000',
-              walletAddress: '0xabcWalletAddress',
-              destChainId: ChainId.SOLANA,
-              destTokenAddress: '0x123',
-            },
+            quoteRequest: [
+              {
+                srcChainId: 1,
+                slippage: 0.5,
+                srcTokenAddress: '0x0000000000000000000000000000000000000000',
+                walletAddress: '0xabcWalletAddress',
+                destChainId: ChainId.SOLANA,
+                destTokenAddress: '0x123',
+              },
+            ],
             quotes: DEFAULT_BRIDGE_CONTROLLER_STATE.quotes,
             quotesLastFetched:
               DEFAULT_BRIDGE_CONTROLLER_STATE.quotesLastFetched,
@@ -2059,17 +2122,19 @@ describe('BridgeController', function () {
           expect(startPollingSpy).toHaveBeenCalledTimes(1);
           expect(hasSufficientBalanceSpy).toHaveBeenCalledTimes(1);
           expect(startPollingSpy).toHaveBeenCalledWith({
-            updatedQuoteRequest: {
-              ...quoteRequest,
-              insufficientBal: true,
-              resetApproval: false,
-            },
+            quoteRequests: [
+              {
+                ...quoteRequest,
+                insufficientBal: true,
+                resetApproval: false,
+              },
+            ],
             context: metricsContext,
           });
 
           expect(bridgeController.state).toStrictEqual(
             expect.objectContaining({
-              quoteRequest,
+              quoteRequest: [expect.objectContaining(quoteRequest)],
               quotes: DEFAULT_BRIDGE_CONTROLLER_STATE.quotes,
               quotesLastFetched:
                 DEFAULT_BRIDGE_CONTROLLER_STATE.quotesLastFetched,
@@ -2101,11 +2166,13 @@ describe('BridgeController', function () {
 
           expect(bridgeController.state).toStrictEqual(
             expect.objectContaining({
-              quoteRequest: {
-                ...quoteRequest,
-                insufficientBal: true,
-                resetApproval: false,
-              },
+              quoteRequest: [
+                {
+                  ...quoteRequest,
+                  insufficientBal: true,
+                  resetApproval: false,
+                },
+              ],
               quotes: [],
               quotesLoadingStatus: 0,
             }),
@@ -2118,11 +2185,13 @@ describe('BridgeController', function () {
           expect(quotes).toHaveLength(expectedQuotesLength);
           expect(bridgeController.state).toStrictEqual(
             expect.objectContaining({
-              quoteRequest: {
-                ...quoteRequest,
-                insufficientBal: true,
-                resetApproval: false,
-              },
+              quoteRequest: [
+                {
+                  ...quoteRequest,
+                  insufficientBal: true,
+                  resetApproval: false,
+                },
+              ],
               quotesLoadingStatus: 1,
               quotesRefreshCount: 1,
             }),
@@ -3603,15 +3672,17 @@ describe('BridgeController', function () {
           options: {
             clientVersion: '1.0.0',
             state: {
-              quoteRequest: {
-                srcChainId: SolScope.Mainnet,
-                destChainId: '1',
-                srcTokenAddress: 'NATIVE',
-                destTokenAddress: '0x1234',
-                srcTokenAmount: '1000000',
-                walletAddress: '0x123',
-                slippage: 0.5,
-              },
+              quoteRequest: [
+                {
+                  srcChainId: SolScope.Mainnet,
+                  destChainId: '1',
+                  srcTokenAddress: 'NATIVE',
+                  destTokenAddress: '0x1234',
+                  srcTokenAmount: '1000000',
+                  walletAddress: '0x123',
+                  slippage: 0.5,
+                },
+              ],
               quotes: mockBridgeQuotesSolErc20 as never,
             },
           },
@@ -3649,15 +3720,17 @@ describe('BridgeController', function () {
           options: {
             clientVersion: '1.0.0',
             state: {
-              quoteRequest: {
-                srcChainId: SolScope.Mainnet,
-                destChainId: '1',
-                srcTokenAddress: 'NATIVE',
-                destTokenAddress: '0x1234',
-                srcTokenAmount: '1000000',
-                walletAddress: '0x123',
-                slippage: 0.5,
-              },
+              quoteRequest: [
+                {
+                  srcChainId: SolScope.Mainnet,
+                  destChainId: '1',
+                  srcTokenAddress: 'NATIVE',
+                  destTokenAddress: '0x1234',
+                  srcTokenAmount: '1000000',
+                  walletAddress: '0x123',
+                  slippage: 0.5,
+                },
+              ],
               quotes: mockBridgeQuotesSolErc20 as never,
             },
           },
@@ -4130,9 +4203,11 @@ describe('BridgeController', function () {
             "assetExchangeRates": {},
             "minimumBalanceForRentExemptionInLamports": "0",
             "quoteFetchError": null,
-            "quoteRequest": {
-              "srcTokenAddress": "0x0000000000000000000000000000000000000000",
-            },
+            "quoteRequest": [
+              {
+                "srcTokenAddress": "0x0000000000000000000000000000000000000000",
+              },
+            ],
             "quoteStreamComplete": null,
             "quotes": [],
             "quotesInitialLoadTime": null,
@@ -4171,9 +4246,11 @@ describe('BridgeController', function () {
             "assetExchangeRates": {},
             "minimumBalanceForRentExemptionInLamports": "0",
             "quoteFetchError": null,
-            "quoteRequest": {
-              "srcTokenAddress": "0x0000000000000000000000000000000000000000",
-            },
+            "quoteRequest": [
+              {
+                "srcTokenAddress": "0x0000000000000000000000000000000000000000",
+              },
+            ],
             "quoteStreamComplete": null,
             "quotes": [],
             "quotesInitialLoadTime": null,

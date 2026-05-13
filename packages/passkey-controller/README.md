@@ -12,19 +12,21 @@ or
 
 ## Overview
 
-The controller follows a two-phase ceremony pattern for both enrollment and authentication:
+The controller follows a two-phase ceremony pattern for unlock (authentication) and a three-step pattern for enrollment: registration options → post-registration authentication options → combined verify and protect.
 
 1. **Generate options** — call a synchronous method that returns options JSON and records **in-flight ceremony** state (challenge-keyed; not a user login session).
 2. **Verify response** — pass the authenticator's response back to the controller, which verifies the WebAuthn signature and performs the cryptographic operation (protect or retrieve the vault key).
+
+For enrollment, the wrapping key is always derived from the **post-registration** `get()` response (same path as unlock), not from the `create()` response alone.
 
 ### Key derivation strategies
 
 The controller supports two key derivation methods, selected automatically during enrollment:
 
-| Strategy       | When used                                                                                          | Input key material                                |
-| -------------- | -------------------------------------------------------------------------------------------------- | ------------------------------------------------- |
-| **PRF**        | Authenticator supports the [WebAuthn PRF extension](https://w3c.github.io/webauthn/#prf-extension) | PRF evaluation output                             |
-| **userHandle** | PRF is unavailable                                                                                 | Random `userHandle` generated during registration |
+| Strategy       | When used                                                                                                                                           | Input key material                                                                    |
+| -------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------- |
+| **PRF**        | Post-registration assertion includes non-empty [PRF extension](https://w3c.github.io/webauthn/#prf-extension) output and registration used PRF salt | PRF evaluation output from the assertion (ceremony `prfSalt` is stored on the record) |
+| **userHandle** | Otherwise                                                                                                                                           | Random `userHandle` from registration (asserted on the post-registration `get()`)     |
 
 Both strategies feed the input key material through **HKDF-SHA256** with the credential ID as salt and a fixed info string to produce the 32-byte AES-256 wrapping key.
 
@@ -40,7 +42,9 @@ const messenger: PasskeyControllerMessenger = /* create via root messenger */;
 
 const controller = new PasskeyController({
   messenger,
-  rpID: 'example.com',
+  rpId: 'example.com',
+  // Or multiple verification candidates: expectedRPID: ['a.example', 'b.example']
+  expectedRPID: 'example.com',
   rpName: 'My Wallet',
   expectedOrigin: 'chrome-extension://abcdef1234567890',
   // Optional — both default to `rpName` when omitted.
@@ -49,18 +53,31 @@ const controller = new PasskeyController({
 });
 ```
 
+`expectedRPID` is a string or string array used to verify the authenticator `rpIdHash`. Optional `rpId`, when set, is sent as `rp.id` / `rpId` in generated WebAuthn options; when omitted, those fields are omitted so the client uses its default RP ID behavior.
+
 ### Passkey enrollment (registration)
 
 ```typescript
 // 1. Generate registration options (synchronous)
-const options = controller.generateRegistrationOptions();
+const regOptions = controller.generateRegistrationOptions();
 
-// 2. Pass options to the browser WebAuthn API
-const response = await navigator.credentials.create({ publicKey: options });
+// 2. Create the passkey in the browser
+const regResponse = await navigator.credentials.create({
+  publicKey: regOptions,
+});
 
-// 3. Verify and protect the vault key
+// 3. Post-registration authentication (same wrapping-key path as unlock)
+const authOptions = controller.generatePostRegistrationAuthenticationOptions({
+  registrationResponse: regResponse,
+});
+const authResponse = await navigator.credentials.get({
+  publicKey: authOptions,
+});
+
+// 4. Verify registration + post-registration auth once, then persist
 await controller.protectVaultKeyWithPasskey({
-  registrationResponse: response,
+  registrationResponse: regResponse,
+  authenticationResponse: authResponse,
   vaultKey: myVaultEncryptionKey,
 });
 ```
@@ -116,8 +133,8 @@ passkeyControllerSelectors.selectIsPasskeyEnrolled(state); // boolean
 
 `PasskeyControllerError` is thrown for controller failures. Expected operational
 cases use a stable `code` from `PasskeyControllerErrorCode` (for example:
-`not_enrolled`, `no_registration_ceremony`, `authentication_verification_failed`,
-`missing_key_material`, `vault_key_decryption_failed`). Human-readable strings
+`not_enrolled`, `already_enrolled`, `no_registration_ceremony`,
+`authentication_verification_failed`, `missing_key_material`, `vault_key_decryption_failed`). Human-readable strings
 live on `PasskeyControllerErrorMessage`. Use `instanceof PasskeyControllerError`
 and a defined `error.code` to tell these apart from malformed WebAuthn payloads
 and other `Error` values. Thrown errors from the internal WebAuthn verify helpers

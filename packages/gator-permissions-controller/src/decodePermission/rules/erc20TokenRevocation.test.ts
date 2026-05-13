@@ -3,14 +3,19 @@ import {
   CHAIN_ID,
   DELEGATOR_CONTRACTS,
 } from '@metamask/delegation-deployments';
+import { getChecksumAddress } from '@metamask/utils';
 
 import { createPermissionRulesForContracts } from '.';
 
 describe('erc20-token-revocation rule', () => {
   const chainId = CHAIN_ID.sepolia;
   const contracts = DELEGATOR_CONTRACTS['1.3.0'][chainId];
-  const { TimestampEnforcer, AllowedCalldataEnforcer, ValueLteEnforcer } =
-    contracts;
+  const {
+    TimestampEnforcer,
+    AllowedCalldataEnforcer,
+    ValueLteEnforcer,
+    RedeemerEnforcer,
+  } = contracts;
   const permissionRules = createPermissionRulesForContracts(contracts);
   const rule = permissionRules.find(
     (candidate) => candidate.permissionType === 'erc20-token-revocation',
@@ -22,8 +27,8 @@ describe('erc20-token-revocation rule', () => {
   const expiryCaveat = {
     enforcer: TimestampEnforcer,
     terms: createTimestampTerms({
-      timestampAfterThreshold: 0,
-      timestampBeforeThreshold: 1720000,
+      afterThreshold: 0,
+      beforeThreshold: 1720000,
     }),
     args: '0x' as const,
   };
@@ -217,5 +222,56 @@ describe('erc20-token-revocation rule', () => {
 
     expect(result.expiry).toBe(1720000);
     expect(result.data).toStrictEqual({});
+    expect(result.rules).toBeUndefined();
+  });
+
+  it('includes redeemer rule but not payee when RedeemerEnforcer caveat is present', () => {
+    const packedAddr = '1111111111111111111111111111111111111111' as const;
+    const approveSelectorTerms =
+      '0x0000000000000000000000000000000000000000000000000000000000000000095ea7b3' as const;
+    const zeroAmountTerms =
+      '0x00000000000000000000000000000000000000000000000000000000000000240000000000000000000000000000000000000000000000000000000000000000' as const;
+    const zeroValueLteTerms =
+      '0x0000000000000000000000000000000000000000000000000000000000000000' as const;
+    const caveats = [
+      expiryCaveat,
+      {
+        enforcer: AllowedCalldataEnforcer,
+        terms: approveSelectorTerms,
+        args: '0x' as const,
+      },
+      {
+        enforcer: AllowedCalldataEnforcer,
+        terms: zeroAmountTerms,
+        args: '0x' as const,
+      },
+      {
+        enforcer: ValueLteEnforcer,
+        terms: zeroValueLteTerms,
+        args: '0x' as const,
+      },
+      {
+        enforcer: RedeemerEnforcer,
+        terms: `0x${packedAddr}` as const,
+        args: '0x' as const,
+      },
+    ];
+    const result = rule.validateAndDecodePermission(caveats);
+    expect(result.isValid).toBe(true);
+    if (!result.isValid) {
+      throw new Error('Expected valid result');
+    }
+    expect(result.rules).toStrictEqual([
+      {
+        type: 'redeemer',
+        data: {
+          addresses: [
+            getChecksumAddress(
+              '0x1111111111111111111111111111111111111111' as const,
+            ),
+          ],
+        },
+      },
+    ]);
   });
 });

@@ -7,6 +7,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [25.5.0]
+
+### Added
+
+- Expose missing public `KeyringController` methods through its messenger ([#8674](https://github.com/MetaMask/core/pull/8674))
+  - The following actions are now available:
+    - `KeyringController:changePassword`,
+    - `KeyringController:exportAccount`,
+    - `KeyringController:exportEncryptionKey`,
+    - `KeyringController:getAccountKeyringType`,
+    - `KeyringController:importAccountWithStrategy`,
+    - `KeyringController:setLocked`,
+    - `KeyringController:submitEncryptionKey`,
+    - `KeyringController:submitPassword`,
+    - `KeyringController:verifyPassword`,
+  - Corresponding action types are available as well.
+
+## [25.4.0]
+
+### Changed
+
+- Bump `@metamask/eth-hd-keyring` from `^14.1.0` to `^14.1.1` ([#8647](https://github.com/MetaMask/core/pull/8647))
+- Bump `@metamask/eth-simple-keyring` from `^12.0.1` to `^12.0.2` ([#8647](https://github.com/MetaMask/core/pull/8647))
+- Bump `@metamask/keyring-api` from `^23.0.1` to `^23.1.0` ([#8647](https://github.com/MetaMask/core/pull/8647))
+- Bump `@metamask/keyring-internal-api` from `^11.0.0` to `^11.0.1` ([#8647](https://github.com/MetaMask/core/pull/8647))
+
 ## [25.3.0]
 
 ### Added
@@ -982,7 +1008,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@25.3.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@25.5.0...HEAD
+[25.5.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@25.4.0...@metamask/keyring-controller@25.5.0
+[25.4.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@25.3.0...@metamask/keyring-controller@25.4.0
 [25.3.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@25.2.0...@metamask/keyring-controller@25.3.0
 [25.2.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@25.1.1...@metamask/keyring-controller@25.2.0
 [25.1.1]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@25.1.0...@metamask/keyring-controller@25.1.1

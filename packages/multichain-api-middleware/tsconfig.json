@@ -6,6 +6,7 @@
     "rootDir": "../.."
   },
   "references": [
+    { "path": "../accounts-controller" },
     { "path": "../chain-agnostic-permission" },
     { "path": "../json-rpc-engine" },
     { "path": "../network-controller" },
