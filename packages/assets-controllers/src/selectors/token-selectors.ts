@@ -89,6 +89,8 @@ export type Asset = (
         conversionRate: number;
       }
     | undefined;
+  /** Stellar classic `asset:` row added via import only (no keyring confirmation yet). */
+  isStellarTrustlineInactive?: boolean;
   rwaData?: TokenRwaData;
 };
 
@@ -103,6 +105,7 @@ export type AssetListState = {
   currencyRates: CurrencyRateState['currencyRates'];
   accountsAssets: MultichainAssetsControllerState['accountsAssets'];
   allIgnoredAssets: MultichainAssetsControllerState['allIgnoredAssets'];
+  stellarClassicTrustlineInactiveAssetIds: MultichainAssetsControllerState['stellarClassicTrustlineInactiveAssetIds'];
   assetsMetadata: MultichainAssetsControllerState['assetsMetadata'];
   balances: MultichainBalancesControllerState['balances'];
   conversionRates: MultichainAssetsRatesControllerState['conversionRates'];
@@ -352,6 +355,7 @@ const selectAllMultichainAssets = createAssetListSelector(
     selectAccountsToGroupIdMap,
     (state) => state.accountsAssets,
     (state) => state.allIgnoredAssets,
+    (state) => state.stellarClassicTrustlineInactiveAssetIds,
     (state) => state.assetsMetadata,
     (state) => state.balances,
     (state) => state.conversionRates,
@@ -361,6 +365,7 @@ const selectAllMultichainAssets = createAssetListSelector(
     accountsMap,
     multichainTokens,
     ignoredMultichainAssets,
+    stellarTrustlineInactiveByAccount,
     multichainAssetsMetadata,
     multichainBalances,
     multichainConversionRates,
@@ -426,6 +431,10 @@ const selectAllMultichainAssets = createAssetListSelector(
           assetId,
         );
 
+        const isStellarTrustlineInactive = (
+          stellarTrustlineInactiveByAccount[accountId] ?? []
+        ).includes(assetId);
+
         // TODO: We shouldn't have to rely on fallbacks for name and symbol, they should not be optional
         groupChainAssets.push({
           accountType: type as MultichainAccountType,
@@ -446,6 +455,7 @@ const selectAllMultichainAssets = createAssetListSelector(
               }
             : undefined,
           chainId,
+          ...(isStellarTrustlineInactive && { isStellarTrustlineInactive: true }),
         });
       }
     }

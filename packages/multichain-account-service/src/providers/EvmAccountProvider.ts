@@ -8,7 +8,6 @@ import type {
   EntropySourceId,
   KeyringAccount,
 } from '@metamask/keyring-api';
-import type { KeyringCapabilities } from '@metamask/keyring-api/v2';
 import {
   AccountCreationType,
   assertCreateAccountOptionIsSupported,

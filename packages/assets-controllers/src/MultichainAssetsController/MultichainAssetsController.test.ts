@@ -23,6 +23,7 @@ import type { SubjectPermissions } from '@metamask/permission-controller';
 import type { BulkTokenScanResponse } from '@metamask/phishing-controller';
 import { TokenScanResultType } from '@metamask/phishing-controller';
 import type { Snap } from '@metamask/snaps-utils';
+import { HandlerType } from '@metamask/snaps-utils';
 import { v4 as uuidv4 } from 'uuid';
 
 import {
@@ -196,6 +197,17 @@ const mockGetPermissionsReturnValue = [
     },
   },
 ];
+
+const STELLAR_CLASSIC_USDC =
+  'stellar:pubnet/asset:USDC-GA5ZSEJYB37JRC5AVCIA5MOP4RHTM335X2KGX3IHOJAPP5RE34K4KZVN' as CaipAssetType;
+
+const STELLAR_CLASSIC_USDC_METADATA = {
+  name: 'USD Coin',
+  symbol: 'USDC',
+  fungible: true,
+  iconUrl: '',
+  units: [{ name: 'USD Coin', symbol: 'USDC', decimals: 7 }],
+};
 
 const mockGetMetadataReturnValue: AssetMetadataResponse | undefined = {
   assets: {
@@ -380,7 +392,49 @@ describe('MultichainAssetsController', () => {
       accountsAssets: {},
       assetsMetadata: {},
       allIgnoredAssets: {},
+      stellarClassicTrustlineInactiveAssetIds: {},
+      stellarTrustlineInactiveBackfillComplete: true,
     });
+  });
+
+  it('backfills Stellar classic trustline-inactive for assets already in accountsAssets on first load', () => {
+    const accountId = 'stellar-legacy';
+    const { controller } = setupController({
+      state: {
+        accountsAssets: {
+          [accountId]: [STELLAR_CLASSIC_USDC],
+        },
+        assetsMetadata: {},
+        allIgnoredAssets: {},
+        stellarClassicTrustlineInactiveAssetIds: {},
+      } as MultichainAssetsControllerState,
+    });
+
+    expect(controller.state.stellarTrustlineInactiveBackfillComplete).toBe(
+      true,
+    );
+    expect(
+      controller.state.stellarClassicTrustlineInactiveAssetIds[accountId],
+    ).toStrictEqual([STELLAR_CLASSIC_USDC]);
+  });
+
+  it('skips Stellar trustline backfill when already completed', () => {
+    const accountId = 'stellar-legacy';
+    const { controller } = setupController({
+      state: {
+        accountsAssets: {
+          [accountId]: [STELLAR_CLASSIC_USDC],
+        },
+        assetsMetadata: {},
+        allIgnoredAssets: {},
+        stellarClassicTrustlineInactiveAssetIds: {},
+        stellarTrustlineInactiveBackfillComplete: true,
+      } as MultichainAssetsControllerState,
+    });
+
+    expect(
+      controller.state.stellarClassicTrustlineInactiveAssetIds[accountId],
+    ).toBeUndefined();
   });
 
   it('does not update state when new account added is EVM', async () => {
@@ -397,6 +451,8 @@ describe('MultichainAssetsController', () => {
       accountsAssets: {},
       assetsMetadata: {},
       allIgnoredAssets: {},
+      stellarClassicTrustlineInactiveAssetIds: {},
+      stellarTrustlineInactiveBackfillComplete: true,
     });
   });
 
@@ -430,6 +486,8 @@ describe('MultichainAssetsController', () => {
       },
       assetsMetadata: mockGetMetadataReturnValue.assets,
       allIgnoredAssets: {},
+      stellarClassicTrustlineInactiveAssetIds: {},
+      stellarTrustlineInactiveBackfillComplete: true,
     });
   });
 
@@ -499,6 +557,8 @@ describe('MultichainAssetsController', () => {
         ...mockGetMetadataReturnValue.assets,
       },
       allIgnoredAssets: {},
+      stellarClassicTrustlineInactiveAssetIds: {},
+      stellarTrustlineInactiveBackfillComplete: true,
     });
   });
 
@@ -556,6 +616,8 @@ describe('MultichainAssetsController', () => {
         ...mockGetMetadataReturnValue.assets,
       },
       allIgnoredAssets: {},
+      stellarClassicTrustlineInactiveAssetIds: {},
+      stellarTrustlineInactiveBackfillComplete: true,
     });
   });
 
@@ -591,6 +653,8 @@ describe('MultichainAssetsController', () => {
 
       assetsMetadata: mockGetMetadataReturnValue.assets,
       allIgnoredAssets: {},
+      stellarClassicTrustlineInactiveAssetIds: {},
+      stellarTrustlineInactiveBackfillComplete: true,
     });
     // Remove an EVM account
     messenger.publish('AccountsController:accountRemoved', mockEthAccount.id);
@@ -604,6 +668,8 @@ describe('MultichainAssetsController', () => {
 
       assetsMetadata: mockGetMetadataReturnValue.assets,
       allIgnoredAssets: {},
+      stellarClassicTrustlineInactiveAssetIds: {},
+      stellarTrustlineInactiveBackfillComplete: true,
     });
   });
 
@@ -639,6 +705,8 @@ describe('MultichainAssetsController', () => {
 
       assetsMetadata: mockGetMetadataReturnValue.assets,
       allIgnoredAssets: {},
+      stellarClassicTrustlineInactiveAssetIds: {},
+      stellarTrustlineInactiveBackfillComplete: true,
     });
     // Remove the added solana account
     messenger.publish(
@@ -653,10 +721,46 @@ describe('MultichainAssetsController', () => {
 
       assetsMetadata: mockGetMetadataReturnValue.assets,
       allIgnoredAssets: {},
+      stellarClassicTrustlineInactiveAssetIds: {},
+      stellarTrustlineInactiveBackfillComplete: true,
     });
   });
 
   describe('handleAccountAssetListUpdated', () => {
+    it('clears Stellar trustline-inactive when keyring re-announces an existing classic asset', async () => {
+      const accountId = 'stellar-test-account';
+      const { messenger, controller } = setupController({
+        state: {
+          accountsAssets: {
+            [accountId]: [STELLAR_CLASSIC_USDC],
+          },
+          assetsMetadata: {
+            ...mockGetMetadataReturnValue.assets,
+            [STELLAR_CLASSIC_USDC]: STELLAR_CLASSIC_USDC_METADATA,
+          },
+          allIgnoredAssets: {},
+          stellarClassicTrustlineInactiveAssetIds: {
+            [accountId]: [STELLAR_CLASSIC_USDC],
+          },
+        } as MultichainAssetsControllerState,
+      });
+
+      messenger.publish('AccountsController:accountAssetListUpdated', {
+        assets: {
+          [accountId]: {
+            added: [STELLAR_CLASSIC_USDC],
+            removed: [],
+          },
+        },
+      });
+
+      await jestAdvanceTime({ duration: 1 });
+
+      expect(
+        controller.state.stellarClassicTrustlineInactiveAssetIds[accountId],
+      ).toBeUndefined();
+    });
+
     it('updates the assets list for an account when a new asset is added', async () => {
       const mockSolanaAccountId1 = 'account1';
       const mockSolanaAccountId2 = 'account2';
@@ -1065,6 +1169,55 @@ describe('MultichainAssetsController', () => {
       expect(
         controller.state.accountsAssets[mockSolanaAccount.id],
       ).toStrictEqual([assetToAdd]);
+    });
+
+    it('adds Stellar classic assets to trustline-inactive when added via addAssets', async () => {
+      const { controller } = setupController({
+        state: {
+          accountsAssets: {},
+          assetsMetadata: {
+            [STELLAR_CLASSIC_USDC]: STELLAR_CLASSIC_USDC_METADATA,
+          },
+          allIgnoredAssets: {},
+        } as MultichainAssetsControllerState,
+      });
+
+      await controller.addAssets([STELLAR_CLASSIC_USDC], mockSolanaAccount.id);
+
+      expect(
+        controller.state.stellarClassicTrustlineInactiveAssetIds[
+          mockSolanaAccount.id
+        ],
+      ).toStrictEqual([STELLAR_CLASSIC_USDC]);
+    });
+
+    it('clears Stellar classic trustline-inactive when Snap listAccountAssets includes the asset', async () => {
+      const { controller, mockSnapHandleRequest } = setupController({
+        state: {
+          accountsAssets: {},
+          assetsMetadata: {
+            [STELLAR_CLASSIC_USDC]: STELLAR_CLASSIC_USDC_METADATA,
+          },
+          allIgnoredAssets: {},
+        } as MultichainAssetsControllerState,
+      });
+
+      mockSnapHandleRequest.mockImplementation(
+        (params: { handler: string }) => {
+          if (params.handler === HandlerType.OnKeyringRequest) {
+            return Promise.resolve([STELLAR_CLASSIC_USDC]);
+          }
+          return Promise.resolve(mockHandleRequestOnAssetsLookupReturnValue);
+        },
+      );
+
+      await controller.addAssets([STELLAR_CLASSIC_USDC], mockSolanaAccount.id);
+
+      expect(
+        controller.state.stellarClassicTrustlineInactiveAssetIds[
+          mockSolanaAccount.id
+        ],
+      ).toBeUndefined();
     });
 
     it('should publish accountAssetListUpdated event when asset is added', async () => {
@@ -1702,7 +1855,9 @@ describe('MultichainAssetsController', () => {
       const tokens = Array.from(
         { length: 150 },
         (_, i) =>
-          `solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1/token:Token${String(i).padStart(3, '0')}`,
+          `solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1/token:Token${String(
+            i,
+          ).padStart(3, '0')}`,
       );
 
       const { controller, messenger, mockBulkScanTokens } = setupController({
@@ -1771,7 +1926,9 @@ describe('MultichainAssetsController', () => {
       const tokens = Array.from(
         { length: 120 },
         (_, i) =>
-          `solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1/token:Token${String(i).padStart(3, '0')}`,
+          `solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1/token:Token${String(
+            i,
+          ).padStart(3, '0')}`,
       );
 
       const { controller, messenger, mockBulkScanTokens } = setupController({
@@ -1823,7 +1980,9 @@ describe('MultichainAssetsController', () => {
       ).toBeUndefined();
 
       for (let i = 100; i < 120; i++) {
-        const tokenCaip = `solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1/token:Token${String(i).padStart(3, '0')}`;
+        const tokenCaip = `solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1/token:Token${String(
+          i,
+        ).padStart(3, '0')}`;
         expect(storedAssets).not.toContain(tokenCaip);
       }
 
@@ -2012,6 +2171,8 @@ describe('MultichainAssetsController', () => {
           "accountsAssets": {},
           "allIgnoredAssets": {},
           "assetsMetadata": {},
+          "stellarClassicTrustlineInactiveAssetIds": {},
+          "stellarTrustlineInactiveBackfillComplete": true,
         }
       `);
     });
@@ -2030,6 +2191,7 @@ describe('MultichainAssetsController', () => {
           "accountsAssets": {},
           "allIgnoredAssets": {},
           "assetsMetadata": {},
+          "stellarClassicTrustlineInactiveAssetIds": {},
         }
       `);
     });
