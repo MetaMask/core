@@ -185,11 +185,11 @@ export function generateIndexPage(namespaces: NamespaceGroup[]): string {
 
   const parts: string[] = [];
   parts.push('---');
-  parts.push('title: "Messenger API Reference"');
+  parts.push('title: "Platform API Reference"');
   parts.push('slug: "/"');
   parts.push('---');
   parts.push('');
-  parts.push('# Messenger API');
+  parts.push('# Platform API');
   parts.push('');
   parts.push(
     'This site documents every action and event registered on the Messenger — the type-safe message bus used across all controllers.',
