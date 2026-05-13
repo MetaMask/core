@@ -574,6 +574,53 @@ describe('NotificationServicesController', () => {
         ]);
       });
 
+      it('enables all wallet-activity accounts when Trigger API has no enabled accounts for first-time setup', async () => {
+        const {
+          messenger,
+          mockEnablePushNotifications,
+          mockUpdateNotifications,
+          mockKeyringControllerGetState,
+        } = arrangeMocks({
+          configurePrefs: (mock) => mock.mockResolvedValueOnce(null),
+        });
+
+        mockKeyringControllerGetState.mockReturnValue({
+          isUnlocked: true,
+          keyrings: [
+            {
+              accounts: [ADDRESS_1, ADDRESS_2],
+              type: KeyringTypes.hd,
+              metadata: { id: 'srp-1', name: 'SRP 1' },
+            },
+          ],
+        });
+        const mockTriggerQuery = mockQueryNotifications({
+          status: 200,
+          body: [
+            { address: ADDRESS_1.toLowerCase(), enabled: false },
+            { address: ADDRESS_2.toLowerCase(), enabled: false },
+          ],
+        });
+
+        const controller = new NotificationServicesController({
+          messenger,
+          env: { featureAnnouncements: featureAnnouncementsEnv },
+        });
+
+        await controller.createOnChainTriggers();
+
+        expect(mockTriggerQuery.isDone()).toBe(true);
+        const [writtenPrefs] = mockUpdateNotifications.mock.calls[0];
+        expect(writtenPrefs.walletActivity.accounts).toStrictEqual([
+          { address: ADDRESS_1.toLowerCase(), enabled: true },
+          { address: ADDRESS_2.toLowerCase(), enabled: true },
+        ]);
+        expect(mockEnablePushNotifications).toHaveBeenCalledWith([
+          ADDRESS_1.toLowerCase(),
+          ADDRESS_2.toLowerCase(),
+        ]);
+      });
+
       it('defaults marketing notifications to disabled when no consent is supplied', async () => {
         const { messenger, mockUpdateNotifications } = arrangeMocks({
           configurePrefs: (mock) => mock.mockResolvedValueOnce(null),

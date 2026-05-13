@@ -248,6 +248,44 @@ const buildWalletActivityAccounts = (
   });
 
 /**
+ * Builds wallet-activity initialization from the Trigger API. If Trigger has no
+ * enabled entries for the current keyring accounts, this is a first-time
+ * notification setup and all current accounts should start enabled.
+ *
+ * @param bearerToken - JWT used to query Trigger API.
+ * @param accounts - The keyring accounts to initialize.
+ * @param env - The environment to use for the Trigger API call.
+ * @returns Wallet-activity account initialization entries.
+ */
+const buildWalletActivityAccountsFromTriggerConfig = async (
+  bearerToken: string,
+  accounts: string[],
+  env: ENV,
+): Promise<{ address: string; enabled: boolean }[]> => {
+  const triggerConfig = await getNotificationsApiConfigCached(
+    bearerToken,
+    accounts,
+    env,
+  );
+  const triggerConfigByAddress = new Map(
+    triggerConfig.map(({ address, enabled }) => [
+      address.toLowerCase(),
+      enabled,
+    ]),
+  );
+  const hasEnabledTriggerAccount = accounts.some(
+    (address) => triggerConfigByAddress.get(address.toLowerCase()) === true,
+  );
+
+  return accounts.map((address) => ({
+    address,
+    enabled: hasEnabledTriggerAccount
+      ? (triggerConfigByAddress.get(address.toLowerCase()) ?? false)
+      : true,
+  }));
+};
+
+/**
  * Builds a fresh `NotificationPreferences` blob using hardcoded defaults for
  * Perps and Social AI, the supplied wallet-activity accounts and the user's
  * marketing/product-announcement flags.
@@ -763,9 +801,17 @@ export class NotificationServicesController extends BaseController<
       return;
     }
 
-    const currentPreferences = await this.messenger.call(
-      'AuthenticatedUserStorageService:getNotificationPreferences',
-    );
+    const currentPreferences = await this.messenger
+      .call('AuthenticatedUserStorageService:getNotificationPreferences')
+      .catch((error) => {
+        log.error(
+          'Failed to get notification preferences. Re-initializing them instead.',
+          error,
+        );
+        // TODO: return null once validation error captured
+        // return null;
+        throw error;
+      });
 
     if (!currentPreferences) {
       log.warn(
@@ -995,21 +1041,12 @@ export class NotificationServicesController extends BaseController<
       let nextPreferences: NotificationPreferences | undefined;
 
       if (preferences === null) {
-        const triggerConfig = await getNotificationsApiConfigCached(
-          bearerToken,
-          accounts,
-          this.#env,
-        );
-        const triggerConfigByAddress = new Map(
-          triggerConfig.map(({ address, enabled }) => [
-            address.toLowerCase(),
-            enabled,
-          ]),
-        );
-        const walletActivityAccounts = accounts.map((address) => ({
-          address,
-          enabled: triggerConfigByAddress.get(address.toLowerCase()) ?? false,
-        }));
+        const walletActivityAccounts =
+          await buildWalletActivityAccountsFromTriggerConfig(
+            bearerToken,
+            accounts,
+            this.#env,
+          );
 
         nextPreferences = buildFreshPreferences(
           walletActivityAccounts,
