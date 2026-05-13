@@ -477,22 +477,51 @@ function getPropertyText(
 // ---------------------------------------------------------------------------
 
 /**
+ * A capability type declared in a source file, along with the kind
+ * (action/event) it was found under in a Messenger declaration's type
+ * arguments.
+ */
+type MessengerCapabilityTypeDeclaration = {
+  statement: TypeAliasDeclaration | InterfaceDeclaration;
+  kind: 'action' | 'event';
+};
+
+/**
  * Find every `*Messenger` type alias in a source file, parse its
- * `Messenger<Namespace, Actions, Events>` generic arguments, and collect the
- * action/event type names referenced.
+ * `Messenger<Namespace, Actions, Events>` generic arguments, and return the
+ * local capability-type declarations referenced from the Actions and Events
+ * slots — paired with the kind under which they were referenced.
  *
  * Anchoring extraction on Messenger declarations avoids false positives from
- * unrelated types that happen to share an action/event-like shape.
+ * unrelated types that happen to share an action/event-like shape. Returning
+ * the AST nodes (rather than just names) lets the caller skip a second walk
+ * over the source file's statements.
  *
  * @param sourceFile - The TypeScript source file to scan.
- * @returns The sets of action and event type names referenced by messengers.
+ * @returns The list of locally-declared capability types referenced by
+ * messengers, each tagged with its kind.
  */
-function collectMessengerCapabilityTypeNames(sourceFile: SourceFile): {
-  actionTypeNames: Set<string>;
-  eventTypeNames: Set<string>;
-} {
-  const actionTypeNames = new Set<string>();
-  const eventTypeNames = new Set<string>();
+function collectMessengerCapabilityTypeDeclarations(
+  sourceFile: SourceFile,
+): MessengerCapabilityTypeDeclaration[] {
+  const seen = new Set<string>();
+  const declarations: MessengerCapabilityTypeDeclaration[] = [];
+
+  const recordLocalDeclaration = (
+    name: string,
+    kind: 'action' | 'event',
+  ): void => {
+    if (seen.has(name)) {
+      return;
+    }
+    const local =
+      sourceFile.getTypeAlias(name) ?? sourceFile.getInterface(name);
+    if (!local) {
+      return;
+    }
+    seen.add(name);
+    declarations.push({ statement: local, kind });
+  };
 
   for (const typeAlias of sourceFile.getTypeAliases()) {
     if (!typeAlias.getName().endsWith('Messenger')) {
@@ -510,14 +539,14 @@ function collectMessengerCapabilityTypeNames(sourceFile: SourceFile): {
     }
 
     for (const name of collectNonUnionTypeNames(typeArgs[1], sourceFile)) {
-      actionTypeNames.add(name);
+      recordLocalDeclaration(name, 'action');
     }
     for (const name of collectNonUnionTypeNames(typeArgs[2], sourceFile)) {
-      eventTypeNames.add(name);
+      recordLocalDeclaration(name, 'event');
     }
   }
 
-  return { actionTypeNames, eventTypeNames };
+  return declarations;
 }
 
 /**
@@ -839,9 +868,9 @@ export async function extractFromFile(
     overwrite: true,
   });
 
-  const { actionTypeNames, eventTypeNames } =
-    collectMessengerCapabilityTypeNames(sourceFile);
-  if (actionTypeNames.size === 0 && eventTypeNames.size === 0) {
+  const capabilityTypeDeclarations =
+    collectMessengerCapabilityTypeDeclarations(sourceFile);
+  if (capabilityTypeDeclarations.length === 0) {
     return [];
   }
 
@@ -852,24 +881,7 @@ export async function extractFromFile(
   };
   const capabilities: ExtractedMessengerCapabilityType[] = [];
 
-  for (const statement of sourceFile.getStatements()) {
-    if (
-      !NodeGuards.isTypeAliasDeclaration(statement) &&
-      !NodeGuards.isInterfaceDeclaration(statement)
-    ) {
-      continue;
-    }
-    const name = statement.getName();
-
-    let kind: 'action' | 'event';
-    if (actionTypeNames.has(name)) {
-      kind = 'action';
-    } else if (eventTypeNames.has(name)) {
-      kind = 'event';
-    } else {
-      continue;
-    }
-
+  for (const { statement, kind } of capabilityTypeDeclarations) {
     const capability = extractFromMessengerCapabilityType(
       statement,
       kind,
