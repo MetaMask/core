@@ -122,7 +122,9 @@ async function executeSingleGenericQuote(
   const submitResponse = await submitGenericIntent(messenger, submitBody);
 
   if (!submitResponse.success) {
-    throw new Error(`Generic submit failed: ${submitResponse.error ?? 'unknown'}`);
+    throw new Error(
+      `Generic submit failed: ${submitResponse.error ?? 'unknown'}`,
+    );
   }
 
   const targetHash = await waitForGenericCompletion(
@@ -193,7 +195,9 @@ async function waitForGenericCompletion(
         statusResponse.status === GenericStatus.Failed ||
         statusResponse.status === GenericStatus.Refunded
       ) {
-        throw new Error(`Generic intent ${statusResponse.status.toLowerCase()}`);
+        throw new Error(
+          `Generic intent ${statusResponse.status.toLowerCase()}`,
+        );
       }
     }
 

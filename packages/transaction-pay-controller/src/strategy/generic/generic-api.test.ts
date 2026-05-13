@@ -5,15 +5,8 @@ import {
   getGenericStatus,
   submitGenericIntent,
 } from './generic-api';
-import {
-  GenericProviderName,
-  GenericStatus,
-  GenericTradeType,
-} from './types';
-import type {
-  GenericQuoteRequest,
-  GenericSubmitRequest,
-} from './types';
+import { GenericProviderName, GenericStatus, GenericTradeType } from './types';
+import type { GenericQuoteRequest, GenericSubmitRequest } from './types';
 
 jest.mock('../../utils/feature-flags');
 
@@ -99,7 +92,10 @@ describe('generic-api', () => {
     it('returns the parsed response', async () => {
       mockOkResponse(QUOTE_RESPONSE_MOCK);
 
-      const result = await fetchGenericQuote(MESSENGER_MOCK, QUOTE_REQUEST_MOCK);
+      const result = await fetchGenericQuote(
+        MESSENGER_MOCK,
+        QUOTE_REQUEST_MOCK,
+      );
 
       expect(result).toStrictEqual(QUOTE_RESPONSE_MOCK);
     });
@@ -143,7 +139,7 @@ describe('generic-api', () => {
         json: async () => {
           throw new Error('not json');
         },
-      } as Response);
+      } as unknown as Response);
 
       await expect(
         fetchGenericQuote(MESSENGER_MOCK, QUOTE_REQUEST_MOCK),

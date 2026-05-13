@@ -519,7 +519,9 @@ export function getPayStrategiesConfig(
     },
   };
 
-  const validProviderNames = new Set<string>(Object.values(GenericProviderName));
+  const validProviderNames = new Set<string>(
+    Object.values(GenericProviderName),
+  );
   const rawPriority = genericRaw.providerPriority ?? [];
   const normalizedPriority = [
     ...new Set(
@@ -537,7 +539,7 @@ export function getPayStrategiesConfig(
       normalizedPriority.length > 0
         ? normalizedPriority
         : [...GENERIC_DEFAULT_PROVIDER_PRIORITY].map(
-          (providerName) => providerName as GenericProviderName,
+            (providerName) => providerName as GenericProviderName,
           ),
     quoteUrl: genericRaw.quoteUrl ?? DEFAULT_GENERIC_QUOTE_URL,
     statusUrl: genericRaw.statusUrl ?? DEFAULT_GENERIC_STATUS_URL,

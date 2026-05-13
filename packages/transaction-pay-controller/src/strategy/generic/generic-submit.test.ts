@@ -133,7 +133,7 @@ describe('submitGenericQuotes', () => {
     currentTransaction = cloneDeep(TRANSACTION_META_MOCK);
     request = {
       accountSupports7702: true,
-        isSmartTransaction: (): boolean => false,
+      isSmartTransaction: (): boolean => false,
       messenger,
       quotes: [cloneDeep(QUOTE_MOCK)],
       transaction: cloneDeep(TRANSACTION_META_MOCK),

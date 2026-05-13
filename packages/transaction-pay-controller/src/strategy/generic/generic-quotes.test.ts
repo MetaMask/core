@@ -3,7 +3,10 @@ import type { Hex } from '@metamask/utils';
 
 import { CHAIN_ID_HYPERCORE, TransactionPayStrategy } from '../../constants';
 import { getMessengerMock } from '../../tests/messenger-mock';
-import type { GetDelegationTransactionCallback, QuoteRequest } from '../../types';
+import type {
+  GetDelegationTransactionCallback,
+  QuoteRequest,
+} from '../../types';
 import {
   getGenericProviderPriority,
   getSlippage,
@@ -89,14 +92,18 @@ const DELEGATION_RESULT_MOCK = {
 
 describe('generic-quotes', () => {
   const fetchGenericQuoteMock = jest.mocked(fetchGenericQuote);
-  const getGenericProviderPriorityMock = jest.mocked(getGenericProviderPriority);
+  const getGenericProviderPriorityMock = jest.mocked(
+    getGenericProviderPriority,
+  );
   const getSlippageMock = jest.mocked(getSlippage);
   const { getDelegationTransactionMock, messenger } = getMessengerMock();
 
   beforeEach(() => {
     jest.resetAllMocks();
 
-    fetchGenericQuoteMock.mockResolvedValue({ results: [FULFILLED_RESULT_MOCK] });
+    fetchGenericQuoteMock.mockResolvedValue({
+      results: [FULFILLED_RESULT_MOCK],
+    });
     getDelegationTransactionMock.mockResolvedValue(DELEGATION_RESULT_MOCK);
     getGenericProviderPriorityMock.mockReturnValue([GenericProviderName.Relay]);
     getSlippageMock.mockReturnValue(0.005);
@@ -151,7 +158,9 @@ describe('generic-quotes', () => {
       accountSupports7702: true,
       messenger,
       requests: [QUOTE_REQUEST_MOCK],
-      transaction: { txParams: { data: TOKEN_TRANSFER_DATA_MOCK } } as TransactionMeta,
+      transaction: {
+        txParams: { data: TOKEN_TRANSFER_DATA_MOCK },
+      } as TransactionMeta,
     });
 
     expect(fetchGenericQuoteMock).toHaveBeenCalledWith(
@@ -222,7 +231,9 @@ describe('generic-quotes', () => {
   });
 
   it('returns an empty array when all providers return only rejected results', async () => {
-    fetchGenericQuoteMock.mockResolvedValue({ results: [REJECTED_RESULT_MOCK] });
+    fetchGenericQuoteMock.mockResolvedValue({
+      results: [REJECTED_RESULT_MOCK],
+    });
 
     const result = await getGenericQuotes({
       accountSupports7702: true,

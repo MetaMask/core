@@ -53,7 +53,9 @@ export async function getGenericQuotes(
   log('Fetching quotes', { providerPriority, quoteRequests });
 
   const quotes = await Promise.all(
-    quoteRequests.map((quoteRequest) => getQuotesForRequest(quoteRequest, request)),
+    quoteRequests.map((quoteRequest) =>
+      getQuotesForRequest(quoteRequest, request),
+    ),
   );
 
   return quotes.flat();
@@ -117,7 +119,9 @@ async function buildGenericQuoteRequest(
     targetTokenAddress,
   } = quoteRequest;
 
-  const useExactInput = Boolean((isMaxAmount ?? false) || (isPostQuote ?? false));
+  const useExactInput = Boolean(
+    (isMaxAmount ?? false) || (isPostQuote ?? false),
+  );
   const singleData = getSingleTransactionData(transaction);
   const isHypercore = targetChainId === CHAIN_ID_HYPERCORE;
   const isTokenTransfer =
@@ -236,7 +240,9 @@ function normalizeQuote(
   };
 }
 
-function getSingleTransactionData(transaction: TransactionMeta): Hex | undefined {
+function getSingleTransactionData(
+  transaction: TransactionMeta,
+): Hex | undefined {
   return transaction.nestedTransactions?.length === 1
     ? transaction.nestedTransactions[0].data
     : (transaction.txParams?.data as Hex | undefined);
