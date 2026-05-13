@@ -117,7 +117,7 @@ async function buildGenericQuoteRequest(
     targetTokenAddress,
   } = quoteRequest;
 
-  const useExactInput = Boolean(isMaxAmount || isPostQuote);
+  const useExactInput = Boolean((isMaxAmount ?? false) || (isPostQuote ?? false));
   const singleData = getSingleTransactionData(transaction);
   const isHypercore = targetChainId === CHAIN_ID_HYPERCORE;
   const isTokenTransfer =
@@ -148,7 +148,11 @@ async function buildGenericQuoteRequest(
 
   const hasNoData = singleData === undefined || singleData === '0x';
   const skipDelegation =
-    hasNoData || isTokenTransfer || isHypercore || isPostQuote || isMaxAmount;
+    hasNoData ||
+    isTokenTransfer ||
+    isHypercore ||
+    (isPostQuote ?? false) ||
+    (isMaxAmount ?? false);
 
   if (!skipDelegation) {
     const delegation = await messenger.call(

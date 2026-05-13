@@ -1,7 +1,5 @@
-import {
-  TransactionStatus,
-  type TransactionMeta,
-} from '@metamask/transaction-controller';
+import { TransactionStatus } from '@metamask/transaction-controller';
+import type { TransactionMeta } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 import { cloneDeep } from 'lodash';
 
@@ -135,7 +133,7 @@ describe('submitGenericQuotes', () => {
     currentTransaction = cloneDeep(TRANSACTION_META_MOCK);
     request = {
       accountSupports7702: true,
-      isSmartTransaction: () => false,
+        isSmartTransaction: (): boolean => false,
       messenger,
       quotes: [cloneDeep(QUOTE_MOCK)],
       transaction: cloneDeep(TRANSACTION_META_MOCK),

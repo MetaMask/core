@@ -68,9 +68,9 @@ describe('GenericStrategy', () => {
 
   describe('getBatchTransactions', () => {
     it('returns empty batch list', async () => {
-      await expect(new GenericStrategy().getBatchTransactions()).resolves.toEqual(
-        [],
-      );
+      expect(
+        await new GenericStrategy().getBatchTransactions(),
+      ).toStrictEqual([]);
     });
   });
 
