@@ -332,6 +332,9 @@ export async function getLiveTokenBalance(
   const isNative =
     tokenAddress.toLowerCase() === getNativeToken(chainId).toLowerCase();
 
+  // Use `pending` blockTag to bypass the RPC block-cache middleware so callers
+  // always observe the latest balance instead of a value pinned to the last
+  // polled block.
   if (isNative) {
     const balance = await ethersProvider.getBalance(account, 'pending');
     return balance.toString();
