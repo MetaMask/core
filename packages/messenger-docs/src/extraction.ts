@@ -478,8 +478,8 @@ function getPropertyText(
 
 /**
  * Find every `*Messenger` type alias in a source file, parse its
- * `Messenger<Namespace, Actions, Events>` (or `Messenger<Actions, Events>`)
- * generic arguments, and collect the action/event type names referenced.
+ * `Messenger<Namespace, Actions, Events>` generic arguments, and collect the
+ * action/event type names referenced.
  *
  * Anchoring extraction on Messenger declarations avoids false positives from
  * unrelated types that happen to share an action/event-like shape.
@@ -505,76 +505,103 @@ function collectMessengerCapabilityTypeNames(sourceFile: SourceFile): {
     }
 
     const typeArgs = body.getTypeArguments();
-    let actionsArg: TsMorphNode | undefined;
-    let eventsArg: TsMorphNode | undefined;
-
-    if (typeArgs.length >= 3) {
-      actionsArg = typeArgs[1];
-      eventsArg = typeArgs[2];
-    } else if (typeArgs.length === 2) {
-      actionsArg = typeArgs[0];
-      eventsArg = typeArgs[1];
-    } else {
+    if (typeArgs.length < 3) {
       continue;
     }
 
-    walkTypeReferences(actionsArg, sourceFile, new Set(), actionTypeNames);
-    walkTypeReferences(eventsArg, sourceFile, new Set(), eventTypeNames);
+    for (const name of collectNonUnionTypeNames(typeArgs[1], sourceFile)) {
+      actionTypeNames.add(name);
+    }
+    for (const name of collectNonUnionTypeNames(typeArgs[2], sourceFile)) {
+      eventTypeNames.add(name);
+    }
   }
 
   return { actionTypeNames, eventTypeNames };
 }
 
 /**
- * Recursively walk a type node, adding the names of each leaf type reference
- * to `output`. Unions are expanded into their members. When a type reference
- * resolves to a local type alias whose body is itself a union, the walk
- * continues *through* it without recording the intermediate alias name.
+ * Walk an Actions or Events type-argument tree and return the names of the
+ * underlying non-union type references. Unions are expanded into their
+ * members; type references that resolve to a *local* union alias are also
+ * expanded, so the intermediate alias name itself doesn't appear in the
+ * result. Type references whose local alias body is anything other than a
+ * union are treated as leaves.
  *
- * @param node - The type node to walk.
- * @param sourceFile - The containing source file, used to look up local aliases.
- * @param visited - Names already visited (prevents cycles).
- * @param output - The set to add leaf type-reference names to.
+ * For example, given:
+ *
+ * ```typescript
+ * type AccountsControllerActions =
+ *   | AccountsControllerGetStateAction
+ *   | AccountsControllerMethodActions;
+ * type AccountsControllerMethodActions =
+ *   | AccountsControllerGetAccountAction
+ *   | AccountsControllerListAccountsAction;
+ * type AllowedActions = KeyringControllerGetStateAction;
+ *
+ * type AccountsControllerMessenger = Messenger<
+ *   typeof controllerName,
+ *   AccountsControllerActions | AllowedActions,
+ *   ...
+ * >;
+ * ```
+ *
+ * walking the Actions slot yields:
+ *
+ * - `AccountsControllerGetStateAction`,
+ * - `AccountsControllerGetAccountAction`,
+ * - `AccountsControllerListAccountsAction`,
+ * - `AllowedActions` (its body is a single TypeReference, not a union, so the
+ *   walk stops here — leaving `KeyringControllerGetStateAction` to be
+ *   documented from its home package, not this one).
+ *
+ * @param node - The Actions or Events type-argument node to walk.
+ * @param sourceFile - The containing source file, used to resolve aliases.
+ * @returns The set of non-union type-reference names reached by the walk.
  */
-function walkTypeReferences(
+function collectNonUnionTypeNames(
   node: TsMorphNode,
   sourceFile: SourceFile,
-  visited: Set<string>,
-  output: Set<string>,
-): void {
-  if (NodeGuards.isUnionTypeNode(node)) {
-    for (const member of node.getTypeNodes()) {
-      walkTypeReferences(member, sourceFile, visited, output);
-    }
-    return;
-  }
+): Set<string> {
+  const names = new Set<string>();
+  const visited = new Set<string>();
 
-  if (!NodeGuards.isTypeReference(node)) {
-    return;
-  }
-
-  const nameNode = node.getTypeName();
-  if (!NodeGuards.isIdentifier(nameNode)) {
-    return;
-  }
-  const name = nameNode.getText();
-  if (visited.has(name)) {
-    return;
-  }
-  visited.add(name);
-
-  // If this name maps to a local union alias, descend through it without
-  // recording the intermediate alias as an action/event.
-  const localAlias = sourceFile.getTypeAlias(name);
-  if (localAlias) {
-    const aliasBody = localAlias.getTypeNode();
-    if (aliasBody && NodeGuards.isUnionTypeNode(aliasBody)) {
-      walkTypeReferences(aliasBody, sourceFile, visited, output);
+  const visit = (current: TsMorphNode): void => {
+    if (NodeGuards.isUnionTypeNode(current)) {
+      for (const member of current.getTypeNodes()) {
+        visit(member);
+      }
       return;
     }
-  }
 
-  output.add(name);
+    if (!NodeGuards.isTypeReference(current)) {
+      return;
+    }
+
+    const nameNode = current.getTypeName();
+    if (!NodeGuards.isIdentifier(nameNode)) {
+      return;
+    }
+    const name = nameNode.getText();
+    if (visited.has(name)) {
+      return;
+    }
+    visited.add(name);
+
+    // If this name maps to a local union alias, descend through it without
+    // recording the intermediate alias as an action/event type.
+    const localAlias = sourceFile.getTypeAlias(name);
+    const aliasBody = localAlias?.getTypeNode();
+    if (aliasBody && NodeGuards.isUnionTypeNode(aliasBody)) {
+      visit(aliasBody);
+      return;
+    }
+
+    names.add(name);
+  };
+
+  visit(node);
+  return names;
 }
 
 // ---------------------------------------------------------------------------
