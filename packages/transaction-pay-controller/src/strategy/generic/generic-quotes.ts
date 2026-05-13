@@ -18,6 +18,8 @@ import {
   getFeatureFlags,
   getGenericProviderPriority,
   getSlippage,
+  isEIP7702Chain,
+  isRelayExecuteEnabled,
 } from '../../utils/feature-flags';
 import { calculateGasCost } from '../../utils/gas';
 import {
@@ -79,7 +81,7 @@ async function getQuotesForRequest(
   quoteRequest: QuoteRequest,
   fullRequest: PayStrategyGetQuotesRequest,
 ): Promise<TransactionPayQuote<GenericQuote>[]> {
-  const { messenger, signal, transaction } = fullRequest;
+  const { accountSupports7702, messenger, signal, transaction } = fullRequest;
   const providerPriority = getGenericProviderPriority(messenger);
 
   for (const provider of providerPriority) {
@@ -88,6 +90,7 @@ async function getQuotesForRequest(
       transaction,
       messenger,
       provider,
+      accountSupports7702,
     );
 
     try {
@@ -122,6 +125,7 @@ async function buildGenericQuoteRequest(
   transaction: TransactionMeta,
   messenger: TransactionPayControllerMessenger,
   provider: GenericQuoteRequest['provider'],
+  accountSupports7702: boolean,
 ): Promise<GenericQuoteRequest> {
   const normalizedRequest = normalizeGenericPerpsRequest(
     quoteRequest,
@@ -153,6 +157,11 @@ async function buildGenericQuoteRequest(
     recipient = decodeTransferRecipient(singleData);
   }
 
+  const supportsGasless =
+    accountSupports7702 &&
+    isRelayExecuteEnabled(messenger) &&
+    isEIP7702Chain(messenger, sourceChainId);
+
   const body: GenericQuoteRequest = {
     amount: useExactInput ? sourceTokenAmount : targetAmountMinimum,
     destinationChainId: Number(targetChainId),
@@ -165,6 +174,7 @@ async function buildGenericQuoteRequest(
     slippageBps: Math.round(
       getSlippage(messenger, sourceChainId, sourceTokenAddress) * 10000,
     ),
+    supportsGasless,
     tradeType: useExactInput
       ? GenericTradeType.ExactInput
       : GenericTradeType.ExpectedOutput,

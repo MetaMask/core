@@ -60,6 +60,7 @@ export type GenericQuoteRequest = {
   provider?: GenericProviderName;
   calls?: GenericCall[];
   authorizationList?: GenericAuthorization[];
+  supportsGasless?: boolean;
 };
 
 /** Error detail from a rejected quote result. */
