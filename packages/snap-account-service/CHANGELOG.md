@@ -28,9 +28,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - The service messenger now requires the `KeyringController:withController` action.
 - Add `handleKeyringSnapMessage` ([#8758](https://github.com/MetaMask/core/pull/8758))
   - This will be the new entry point for consumer that needs to forward keyring events to a account management Snap (instead of using the legacy Snap keyring instance directly).
-- Forward selected account group accounts ([#8763](https://github.com/MetaMask/core/pull/8763))
+- Forward selected account group accounts ([#8763](https://github.com/MetaMask/core/pull/8763)), ([#8770](https://github.com/MetaMask/core/pull/8770))
   - This logic used to live on the clients.
-  - The service messenger now requires the `KeyringController:unlock`, `AccountTreeController:selectedAccountGroupChange` events and `AccountTreeController:getAccountGroupObject` action.
+  - The service messenger now requires the `KeyringController:unlock`, `AccountTreeController:selectedAccountGroupChange`, `AccountTreeController:accountGroup{Created,Updated,Removed}` events.
+  - The service messenger now requires the `AccountTreeController:getSelectedAccountGroup` and `AccountTreeController:getAccountGroupObject` actions.
 
 ### Changed
 

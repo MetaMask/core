@@ -1,3 +1,4 @@
+import { deriveStateFromMetadata } from '@metamask/base-controller';
 import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
 import type { MockAnyNamespace } from '@metamask/messenger';
 
@@ -146,6 +147,88 @@ describe('AnalyticsController', () => {
       const defaults2 = getDefaultAnalyticsControllerState();
 
       expect(defaults1).toStrictEqual(defaults2);
+    });
+  });
+
+  describe('metadata', () => {
+    const metadataFixtureState: AnalyticsControllerState = {
+      optedIn: true,
+      analyticsId: '6ba7b810-9dad-41d4-80b5-0c4f5a7c1e2d',
+    };
+
+    it('includes expected state in debug snapshots', async () => {
+      const { controller } = await setupController({
+        state: metadataFixtureState,
+      });
+
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'includeInDebugSnapshot',
+        ),
+      ).toMatchInlineSnapshot(`
+        {
+          "analyticsId": "6ba7b810-9dad-41d4-80b5-0c4f5a7c1e2d",
+          "optedIn": true,
+        }
+      `);
+    });
+
+    it('includes expected state in state logs', async () => {
+      const { controller } = await setupController({
+        state: metadataFixtureState,
+      });
+
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'includeInStateLogs',
+        ),
+      ).toMatchInlineSnapshot(`
+        {
+          "analyticsId": "6ba7b810-9dad-41d4-80b5-0c4f5a7c1e2d",
+          "optedIn": true,
+        }
+      `);
+    });
+
+    it('persists expected state', async () => {
+      const { controller } = await setupController({
+        state: metadataFixtureState,
+      });
+
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'persist',
+        ),
+      ).toMatchInlineSnapshot(`
+        {
+          "analyticsId": "6ba7b810-9dad-41d4-80b5-0c4f5a7c1e2d",
+          "optedIn": true,
+        }
+      `);
+    });
+
+    it('exposes expected state to UI', async () => {
+      const { controller } = await setupController({
+        state: metadataFixtureState,
+      });
+
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'usedInUi',
+        ),
+      ).toMatchInlineSnapshot(`
+        {
+          "optedIn": true,
+        }
+      `);
     });
   });
 

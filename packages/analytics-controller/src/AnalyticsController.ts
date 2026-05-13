@@ -66,10 +66,8 @@ export function getDefaultAnalyticsControllerState(): Omit<
 /**
  * The metadata for each property in {@link AnalyticsControllerState}.
  *
- * Note: `optedIn` is persisted by the controller (`persist: true`).
- * `analyticsId` is persisted by the platform (`persist: false`) and provided
- * via initial state. The platform should subscribe to `stateChange` events
- * to persist any state changes.
+ * Both `optedIn` and `analyticsId` are persisted (`persist: true`).
+ * The platform must supply a valid UUIDv4 `analyticsId` on first run.
  */
 const analyticsControllerMetadata = {
   optedIn: {
@@ -80,7 +78,7 @@ const analyticsControllerMetadata = {
   },
   analyticsId: {
     includeInStateLogs: true,
-    persist: false,
+    persist: true,
     includeInDebugSnapshot: true,
     usedInUi: false,
   },
@@ -152,7 +150,8 @@ export type AnalyticsControllerMessenger = Messenger<
 export type AnalyticsControllerOptions = {
   /**
    * Initial controller state. Must include a valid UUIDv4 `analyticsId`.
-   * The platform is responsible for generating and persisting the analyticsId.
+   * The platform is responsible for generating the ID on first run.
+   * It is then persisted with controller state when using a persisted store.
    */
   state: AnalyticsControllerState;
   /**
@@ -182,9 +181,8 @@ export type AnalyticsControllerOptions = {
  * messenger system to allow other controllers and components to track analytics events.
  * It delegates platform-specific implementation to an {@link AnalyticsPlatformAdapter}.
  *
- * Note: The controller persists `optedIn` internally. The `analyticsId` is persisted
- * by the platform and must be provided via initial state. The platform should subscribe
- * to `AnalyticsController:stateChange` events to persist any state changes.
+ * The controller persists `optedIn` and `analyticsId` when composed with a persisted
+ * store. The platform must supply a valid `analyticsId` on first launch.
  */
 export class AnalyticsController extends BaseController<
   'AnalyticsController',
