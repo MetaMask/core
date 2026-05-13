@@ -25,13 +25,19 @@ function resolveDocusaurus(): { bin: string; nodeModules: string } {
  *
  * @param command - The docusaurus command (start, build, serve).
  * @param cwd - The site directory.
+ * @param extraEnv - Extra environment variables passed through to the
+ * Docusaurus process (e.g. `DOCS_PROJECT_LABEL`, `DOCS_COMMIT_SHA`).
  */
-async function runDocusaurus(command: string, cwd: string): Promise<void> {
+async function runDocusaurus(
+  command: string,
+  cwd: string,
+  extraEnv: Record<string, string> = {},
+): Promise<void> {
   const { bin, nodeModules } = resolveDocusaurus();
   await execa(process.execPath, [bin, command], {
     cwd,
     stdio: 'inherit',
-    env: { ...process.env, NODE_PATH: nodeModules },
+    env: { ...process.env, NODE_PATH: nodeModules, ...extraEnv },
   });
 }
 
@@ -60,36 +66,130 @@ async function setupSite(outDir: string): Promise<void> {
   }
 }
 
+type MessengerDocsConfig = {
+  scanDirs?: string[];
+  title?: string;
+};
+
 /**
- * Resolve scanDirs from CLI args, package.json config, or default.
+ * Read the `messenger-docs` config block out of the project's `package.json`,
+ * returning the parsed package and config (both optional).
  *
  * @param projectPath - The project root path.
- * @param cliScanDirs - Scan dirs provided via CLI flags.
- * @returns Resolved scan directories.
+ * @returns The parsed package.json and config, or empty values on failure.
  */
-async function resolveScanDirs(
-  projectPath: string,
-  cliScanDirs: string[],
-): Promise<string[]> {
-  if (cliScanDirs.length > 0) {
-    return cliScanDirs;
-  }
-
+async function readProjectPackageJson(projectPath: string): Promise<{
+  pkg: Record<string, unknown>;
+  config: MessengerDocsConfig;
+}> {
   try {
     const pkgRaw = await fs.readFile(
       path.join(projectPath, 'package.json'),
       'utf8',
     );
     const pkg = JSON.parse(pkgRaw) as Record<string, unknown>;
-    const config = pkg['messenger-docs'] as { scanDirs?: string[] } | undefined;
-    if (Array.isArray(config?.scanDirs)) {
-      return config.scanDirs;
-    }
+    const config =
+      (pkg['messenger-docs'] as MessengerDocsConfig | undefined) ?? {};
+    return { pkg, config };
   } catch {
-    // No package.json or invalid — use default.
+    return { pkg: {}, config: {} };
   }
+}
 
-  return ['src'];
+/**
+ * Resolve scanDirs by combining the base set with any CLI additions.
+ *
+ * The base set comes from `package.json#messenger-docs.scanDirs` when present,
+ * otherwise defaults to `['src']`. Any directories supplied via `--scan-dir`
+ * are appended to the base set (deduplicated, preserving order). This matches
+ * the flag's documented "additional" semantics.
+ *
+ * @param config - The project's `messenger-docs` config.
+ * @param cliScanDirs - Scan dirs provided via CLI flags.
+ * @returns Resolved scan directories.
+ */
+function resolveScanDirs(
+  config: MessengerDocsConfig,
+  cliScanDirs: string[],
+): string[] {
+  const base = Array.isArray(config.scanDirs) ? config.scanDirs : ['src'];
+  const combined = [...base, ...cliScanDirs];
+  const seen = new Set<string>();
+  return combined.filter((dir) => {
+    if (seen.has(dir)) {
+      return false;
+    }
+    seen.add(dir);
+    return true;
+  });
+}
+
+/**
+ * Derive a human-readable project label from a `package.json` name. Handles
+ * common MetaMask naming patterns:
+ *
+ * - `@metamask/core-monorepo` → "Core"
+ * - `metamask-extension` → "Extension"
+ * - `metamask-mobile` → "Mobile"
+ * - `some-other-thing` → "Some Other Thing"
+ *
+ * @param packageName - The raw `name` field from `package.json`.
+ * @returns A title-cased label, or null when the name yields nothing useful.
+ */
+function deriveProjectLabel(packageName: string): string | null {
+  const stripped = packageName
+    .replace(/^@[^/]+\//u, '')
+    .replace(/-monorepo$/u, '')
+    .replace(/^metamask-/u, '');
+  if (!stripped) {
+    return null;
+  }
+  return stripped
+    .split('-')
+    .filter((segment) => segment.length > 0)
+    .map((segment) => segment[0].toUpperCase() + segment.slice(1))
+    .join(' ');
+}
+
+/**
+ * Resolve the project label to stamp on the site title. Prefers an explicit
+ * `messenger-docs.title` override, falling back to a label derived from
+ * `package.json.name`.
+ *
+ * @param pkg - The parsed package.json contents.
+ * @param config - The `messenger-docs` config block.
+ * @returns The resolved project label, or null if neither source provided one.
+ */
+function resolveProjectLabel(
+  pkg: Record<string, unknown>,
+  config: MessengerDocsConfig,
+): string | null {
+  if (typeof config.title === 'string' && config.title.length > 0) {
+    return config.title;
+  }
+  if (typeof pkg.name === 'string' && pkg.name.length > 0) {
+    return deriveProjectLabel(pkg.name);
+  }
+  return null;
+}
+
+/**
+ * Resolve the short Git commit SHA the docs are being generated from.
+ * Returns null when the project isn't a git repo or git isn't available.
+ *
+ * @param projectPath - The project root path.
+ * @returns The short SHA, or null on failure.
+ */
+async function resolveCommitSha(projectPath: string): Promise<string | null> {
+  try {
+    const { stdout } = await execa('git', ['rev-parse', '--short', 'HEAD'], {
+      cwd: projectPath,
+    });
+    const trimmed = stdout.trim();
+    return trimmed.length > 0 ? trimmed : null;
+  } catch {
+    return null;
+  }
 }
 
 /**
@@ -149,29 +249,42 @@ async function main(): Promise<void> {
   const resolvedOutputDir = path.resolve(
     argv.output ?? path.join(resolvedProjectPath, '.messenger-docs'),
   );
-  const scanDirs = await resolveScanDirs(resolvedProjectPath, argv['scan-dir']);
+  const { pkg, config } = await readProjectPackageJson(resolvedProjectPath);
+  const scanDirs = resolveScanDirs(config, argv['scan-dir']);
+  const projectLabel = resolveProjectLabel(pkg, config);
+  const commitSha = await resolveCommitSha(resolvedProjectPath);
 
   // Step 1: Generate docs
   await generate({
     projectPath: resolvedProjectPath,
     outputDir: resolvedOutputDir,
     scanDirs,
+    projectLabel,
+    commitSha,
   });
 
   // Step 2: If --build, --serve, or --dev, set up and run Docusaurus
   if (argv.build || argv.serve || argv.dev) {
     await setupSite(resolvedOutputDir);
 
+    const docusaurusEnv: Record<string, string> = {};
+    if (projectLabel) {
+      docusaurusEnv.DOCS_PROJECT_LABEL = projectLabel;
+    }
+    if (commitSha) {
+      docusaurusEnv.DOCS_COMMIT_SHA = commitSha;
+    }
+
     if (argv.dev) {
       console.log('\nStarting dev server...');
-      await runDocusaurus('start', resolvedOutputDir);
+      await runDocusaurus('start', resolvedOutputDir, docusaurusEnv);
     } else if (argv.build || argv.serve) {
       console.log('\nBuilding static site...');
-      await runDocusaurus('build', resolvedOutputDir);
+      await runDocusaurus('build', resolvedOutputDir, docusaurusEnv);
 
       if (argv.serve) {
         console.log('\nServing static site...');
-        await runDocusaurus('serve', resolvedOutputDir);
+        await runDocusaurus('serve', resolvedOutputDir, docusaurusEnv);
       }
     }
   }

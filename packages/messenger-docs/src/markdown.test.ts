@@ -258,6 +258,28 @@ describe('markdown', () => {
       expect(result).toContain('FooController');
       expect(result).toContain('**1** actions');
     });
+
+    it('stamps the project label into the title and heading', () => {
+      const groups = [makeGroup()];
+      const result = generateIndexPage(groups, { projectLabel: 'Core' });
+
+      expect(result).toContain('title: "Platform API (Core) Reference"');
+      expect(result).toContain('# Platform API (Core)');
+    });
+
+    it('stamps the commit sha into the intro when provided', () => {
+      const groups = [makeGroup()];
+      const result = generateIndexPage(groups, { commitSha: 'abc1234' });
+
+      expect(result).toContain('Generated from commit `abc1234`.');
+    });
+
+    it('omits the commit line when no sha is provided', () => {
+      const groups = [makeGroup()];
+      const result = generateIndexPage(groups);
+
+      expect(result).not.toContain('Generated from commit');
+    });
   });
 
   describe('generateSidebars', () => {

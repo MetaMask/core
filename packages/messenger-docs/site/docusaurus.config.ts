@@ -36,10 +36,15 @@ function resolveDepsPlugin(): DocusaurusPlugin {
   };
 }
 
+const projectLabel = process.env.DOCS_PROJECT_LABEL;
+const commitSha = process.env.DOCS_COMMIT_SHA;
+const projectSuffix = projectLabel ? ` (${projectLabel})` : '';
+
 const config: Config = {
-  title: 'Platform API',
-  tagline:
-    'Actions and events available for use in clients via the message bus',
+  title: `Platform API${projectSuffix}`,
+  tagline: commitSha
+    ? `Generated from commit ${commitSha} — actions and events available for use in clients via the message bus`
+    : 'Actions and events available for use in clients via the message bus',
   url: process.env.DOCS_URL ?? 'https://metamask.github.io',
   baseUrl: process.env.DOCS_BASE_URL ?? '/',
   favicon: 'img/favicons/favicon-96x96.png',
@@ -100,6 +105,15 @@ const config: Config = {
       },
       hideOnScroll: false,
       items: [
+        ...(commitSha
+          ? [
+              {
+                label: `commit ${commitSha}`,
+                position: 'right' as const,
+                href: 'https://github.com/MetaMask/core',
+              },
+            ]
+          : []),
         {
           href: 'https://github.com/MetaMask/core',
           label: 'GitHub',

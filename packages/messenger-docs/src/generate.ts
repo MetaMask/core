@@ -103,6 +103,16 @@ export type GenerateOptions = {
   outputDir: string;
   /** Directories (relative to projectPath) to scan for .ts source files. */
   scanDirs: string[];
+  /**
+   * Short label identifying the project the docs were generated from (e.g.
+   * "Core", "Extension"). Stamped in the index page title.
+   */
+  projectLabel?: string | null;
+  /**
+   * Git commit SHA the docs were generated from. Stamped in the index page
+   * intro so engineers know how current the site is.
+   */
+  commitSha?: string | null;
 };
 
 /**
@@ -384,12 +394,19 @@ function groupByNamespace(items: MessengerItemDoc[]): NamespaceGroup[] {
  * @param namespaces - The grouped namespaces to render.
  * @param outputDir - The root output directory.
  * @param repoBaseUrl - GitHub blob base URL for source links, or null.
+ * @param indexOptions - Options stamped on the index page header.
+ * @param indexOptions.projectLabel - Short label identifying the project.
+ * @param indexOptions.commitSha - Git commit SHA the docs were generated from.
  * @returns Promise that resolves once all files are written.
  */
 async function writeOutput(
   namespaces: NamespaceGroup[],
   outputDir: string,
   repoBaseUrl: string | null,
+  indexOptions: {
+    projectLabel?: string | null;
+    commitSha?: string | null;
+  },
 ): Promise<void> {
   const docsDir = path.join(outputDir, 'docs');
 
@@ -419,7 +436,7 @@ async function writeOutput(
 
   await fs.writeFile(
     path.join(docsDir, 'index.md'),
-    generateIndexPage(namespaces),
+    generateIndexPage(namespaces, indexOptions),
   );
 
   await fs.writeFile(
@@ -437,7 +454,7 @@ async function writeOutput(
 export async function generate(
   options: GenerateOptions,
 ): Promise<GenerateResult> {
-  const { projectPath, outputDir, scanDirs } = options;
+  const { projectPath, outputDir, scanDirs, projectLabel, commitSha } = options;
 
   const sources = await discoverScanSources(projectPath, scanDirs);
 
@@ -462,7 +479,10 @@ export async function generate(
   const namespaces = groupByNamespace(allItems);
   const repoBaseUrl = await resolveRepoBaseUrl(projectPath);
 
-  await writeOutput(namespaces, outputDir, repoBaseUrl);
+  await writeOutput(namespaces, outputDir, repoBaseUrl, {
+    projectLabel,
+    commitSha,
+  });
 
   const totalActions = namespaces.reduce(
     (sum, ns) => sum + ns.actions.length,

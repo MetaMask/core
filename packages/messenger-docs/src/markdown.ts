@@ -171,30 +171,58 @@ export function generateNamespacePage(
 }
 
 /**
+ * Options controlling how {@link generateIndexPage} renders the index header.
+ */
+export type IndexPageOptions = {
+  /**
+   * Short label identifying the project the docs were generated from (e.g.
+   * "Core", "Extension"). When provided, the title is rendered as
+   * `Platform API (Core)`.
+   */
+  projectLabel?: string | null;
+  /**
+   * Git commit SHA the docs were generated from. When provided, it's shown
+   * in the intro so engineers know how current the site is.
+   */
+  commitSha?: string | null;
+};
+
+/**
  * Generate the index/overview page listing all namespaces.
  *
  * @param namespaces - All namespace groups sorted alphabetically.
+ * @param options - Optional project label and commit SHA to stamp in the header.
  * @returns The generated markdown string.
  */
-export function generateIndexPage(namespaces: NamespaceGroup[]): string {
+export function generateIndexPage(
+  namespaces: NamespaceGroup[],
+  options: IndexPageOptions = {},
+): string {
   const totalActions = namespaces.reduce(
     (sum, ns) => sum + ns.actions.length,
     0,
   );
   const totalEvents = namespaces.reduce((sum, ns) => sum + ns.events.length, 0);
+  const projectSuffix = options.projectLabel
+    ? ` (${options.projectLabel})`
+    : '';
 
   const parts: string[] = [];
   parts.push('---');
-  parts.push('title: "Platform API Reference"');
+  parts.push(`title: "Platform API${projectSuffix} Reference"`);
   parts.push('slug: "/"');
   parts.push('---');
   parts.push('');
-  parts.push('# Platform API');
+  parts.push(`# Platform API${projectSuffix}`);
   parts.push('');
   parts.push(
     'This site documents every action and event registered on the Messenger — the type-safe message bus used across all controllers.',
   );
   parts.push('');
+  if (options.commitSha) {
+    parts.push(`Generated from commit \`${options.commitSha}\`.`);
+    parts.push('');
+  }
   parts.push(`- **${namespaces.length}** namespaces`);
   parts.push(`- **${totalActions}** actions`);
   parts.push(`- **${totalEvents}** events`);
