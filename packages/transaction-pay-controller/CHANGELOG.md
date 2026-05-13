@@ -82,6 +82,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Add Across quote support for post-quote Predict withdraw flows ([#8760](https://github.com/MetaMask/core/pull/8760))
+- Added `Generic` pay strategy that consumes the MetaMask intents API generic `/quote`, `/submit`, and `/status` endpoints, gated by the `payStrategies.generic.enabled` feature flag (default: disabled).
 
 ### Changed
 
