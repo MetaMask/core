@@ -617,10 +617,7 @@ export class AnalyticsController extends BaseController<
 
     if (
       !currentEventQueue ||
-      !Object.prototype.hasOwnProperty.call(
-        currentEventQueue,
-        messageId,
-      )
+      !Object.prototype.hasOwnProperty.call(currentEventQueue, messageId)
     ) {
       return;
     }
