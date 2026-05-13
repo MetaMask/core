@@ -1,6 +1,5 @@
 import type { Hex } from '@metamask/utils';
 
-/** Request body POSTed to the Relay `/quote` endpoint. */
 export type RelayQuoteRequest = {
   amount: string;
   authorizationList?: {
