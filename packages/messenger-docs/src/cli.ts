@@ -66,113 +66,6 @@ async function setupSite(outDir: string): Promise<void> {
   }
 }
 
-type MessengerDocsConfig = {
-  scanDirs?: string[];
-  title?: string;
-};
-
-/**
- * Read the `messenger-docs` config block out of the project's `package.json`,
- * returning the parsed package and config (both optional).
- *
- * @param projectPath - The project root path.
- * @returns The parsed package.json and config, or empty values on failure.
- */
-async function readProjectPackageJson(projectPath: string): Promise<{
-  pkg: Record<string, unknown>;
-  config: MessengerDocsConfig;
-}> {
-  try {
-    const pkgRaw = await fs.readFile(
-      path.join(projectPath, 'package.json'),
-      'utf8',
-    );
-    const pkg = JSON.parse(pkgRaw) as Record<string, unknown>;
-    const config =
-      (pkg['messenger-docs'] as MessengerDocsConfig | undefined) ?? {};
-    return { pkg, config };
-  } catch {
-    return { pkg: {}, config: {} };
-  }
-}
-
-/**
- * Resolve scanDirs by combining the base set with any CLI additions.
- *
- * The base set comes from `package.json#messenger-docs.scanDirs` when present,
- * otherwise defaults to `['src']`. Any directories supplied via `--scan-dir`
- * are appended to the base set (deduplicated, preserving order). This matches
- * the flag's documented "additional" semantics.
- *
- * @param config - The project's `messenger-docs` config.
- * @param cliScanDirs - Scan dirs provided via CLI flags.
- * @returns Resolved scan directories.
- */
-function resolveScanDirs(
-  config: MessengerDocsConfig,
-  cliScanDirs: string[],
-): string[] {
-  const base = Array.isArray(config.scanDirs) ? config.scanDirs : ['src'];
-  const combined = [...base, ...cliScanDirs];
-  const seen = new Set<string>();
-  return combined.filter((dir) => {
-    if (seen.has(dir)) {
-      return false;
-    }
-    seen.add(dir);
-    return true;
-  });
-}
-
-/**
- * Derive a human-readable project label from a `package.json` name. Handles
- * common MetaMask naming patterns:
- *
- * - `@metamask/core-monorepo` → "Core"
- * - `metamask-extension` → "Extension"
- * - `metamask-mobile` → "Mobile"
- * - `some-other-thing` → "Some Other Thing"
- *
- * @param packageName - The raw `name` field from `package.json`.
- * @returns A title-cased label, or null when the name yields nothing useful.
- */
-function deriveProjectLabel(packageName: string): string | null {
-  const stripped = packageName
-    .replace(/^@[^/]+\//u, '')
-    .replace(/-monorepo$/u, '')
-    .replace(/^metamask-/u, '');
-  if (!stripped) {
-    return null;
-  }
-  return stripped
-    .split('-')
-    .filter((segment) => segment.length > 0)
-    .map((segment) => segment[0].toUpperCase() + segment.slice(1))
-    .join(' ');
-}
-
-/**
- * Resolve the project label to stamp on the site title. Prefers an explicit
- * `messenger-docs.title` override, falling back to a label derived from
- * `package.json.name`.
- *
- * @param pkg - The parsed package.json contents.
- * @param config - The `messenger-docs` config block.
- * @returns The resolved project label, or null if neither source provided one.
- */
-function resolveProjectLabel(
-  pkg: Record<string, unknown>,
-  config: MessengerDocsConfig,
-): string | null {
-  if (typeof config.title === 'string' && config.title.length > 0) {
-    return config.title;
-  }
-  if (typeof pkg.name === 'string' && pkg.name.length > 0) {
-    return deriveProjectLabel(pkg.name);
-  }
-  return null;
-}
-
 /**
  * Resolve the short Git commit SHA the docs are being generated from.
  * Returns null when the project isn't a git repo or git isn't available.
@@ -237,9 +130,11 @@ async function main(): Promise<void> {
       type: 'string',
       description: 'Output directory',
     })
-    .epilogue(
-      'Source directories can also be configured in package.json:\n  "messenger-docs": { "scanDirs": ["app", "src"] }',
-    )
+    .option('project-label', {
+      type: 'string',
+      description:
+        'Short label identifying the project (e.g. "Core", "Extension") — stamped on the site title and headings',
+    })
     .help().argv;
 
   const projectPathArg = argv['project-path'];
@@ -249,9 +144,14 @@ async function main(): Promise<void> {
   const resolvedOutputDir = path.resolve(
     argv.output ?? path.join(resolvedProjectPath, '.messenger-docs'),
   );
-  const { pkg, config } = await readProjectPackageJson(resolvedProjectPath);
-  const scanDirs = resolveScanDirs(config, argv['scan-dir']);
-  const projectLabel = resolveProjectLabel(pkg, config);
+  const scanDirs = ['src', ...argv['scan-dir']].filter(
+    (dir, index, dirs) => dirs.indexOf(dir) === index,
+  );
+  const projectLabel =
+    typeof argv['project-label'] === 'string' &&
+    argv['project-label'].length > 0
+      ? argv['project-label']
+      : null;
   const commitSha = await resolveCommitSha(resolvedProjectPath);
 
   // Step 1: Generate docs

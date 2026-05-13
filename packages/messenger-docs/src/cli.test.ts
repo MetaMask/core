@@ -114,14 +114,14 @@ export type BazMessenger = Messenger<'Baz', BazAction, never>;
     });
   });
 
-  it('reads scanDirs from package.json messenger-docs config', async () => {
+  it('stamps the project label on the generated index when --project-label is given', async () => {
     expect.assertions(2);
 
     await withinSandbox(async ({ directoryPath }) => {
-      const appDir = path.join(directoryPath, 'app');
-      await fs.promises.mkdir(appDir, { recursive: true });
+      const srcDir = path.join(directoryPath, 'src');
+      await fs.promises.mkdir(srcDir, { recursive: true });
       await fs.promises.writeFile(
-        path.join(appDir, 'Qux.ts'),
+        path.join(srcDir, 'Qux.ts'),
         `
 export type QuxAction = {
   type: 'Qux:run';
@@ -131,18 +131,15 @@ export type QuxAction = {
 export type QuxMessenger = Messenger<'Qux', QuxAction, never>;
 `,
       );
-      await fs.promises.writeFile(
-        path.join(directoryPath, 'package.json'),
-        JSON.stringify({
-          name: 'test-project',
-          'messenger-docs': { scanDirs: ['app'] },
-        }),
-      );
 
-      const result = await runCLI([directoryPath]);
+      const result = await runCLI([directoryPath, '--project-label', 'Test']);
 
       expect(result.exitCode).toBe(0);
-      expect(result.all).toContain('Found 1 messenger item');
+      const indexMd = await fs.promises.readFile(
+        path.join(directoryPath, '.messenger-docs', 'docs', 'index.md'),
+        'utf8',
+      );
+      expect(indexMd).toContain('# Platform API (Test)');
     });
   });
 

@@ -7,19 +7,11 @@ When run within a project (such as `metamask-extension` or `metamask-mobile`), t
 ## Installation
 
 1. Add this package as a dependency (`yarn add --dev @metamask/messenger-docs` or `npm install --save-dev @metamask/messenger-docs`).
-2. Add a script to your project's `package.json`:
+2. Add a script to your project's `package.json`. For example:
    ```json
    {
      "scripts": {
-       "docs:messenger": "messenger-docs"
-     }
-   }
-   ```
-3. (Optional) Configure the tool by adding a `messenger-docs` section to `package.json`. For instance, you can override the directory that should be scanned (default: `["src/"]`):
-   ```json
-   {
-     "messenger-docs": {
-       "scanDirs": ["app", "src"]
+       "docs:messenger:build": "messenger-docs --build --project-label MyProject"
      }
    }
    ```
@@ -30,15 +22,16 @@ When run within a project (such as `metamask-extension` or `metamask-mobile`), t
 messenger-docs [project-path] [options]
 
 Arguments:
-  project-path      Path to the project to scan (default: current directory)
+  project-path             Path to the project to scan (default: current directory)
 
 Options:
-  --build           Generate docs and build static site
-  --serve           Generate docs, build, and serve static site
-  --dev             Generate docs and start dev server with hot reload
-  --scan-dir <dir>  Extra source directory to scan (repeatable)
-  --output <dir>    Output directory (default: <project-path>/.messenger-docs)
-  --help            Show this help message
+  --build                  Generate docs and build static site
+  --serve                  Generate docs, build, and serve static site
+  --dev                    Generate docs and start dev server with hot reload
+  --scan-dir <dir>         Extra source directory to scan (repeatable)
+  --output <dir>           Output directory (default: <project-path>/.messenger-docs)
+  --project-label <label>  Short label identifying the project (e.g. "Core", "Extension")
+  --help                   Show this help message
 ```
 
 ## Contributing
