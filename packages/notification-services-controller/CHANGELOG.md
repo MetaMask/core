@@ -7,12 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `registerPushNotifications` to `NotificationServicesControllerEnableNotificationsOptions` so clients can enable MetaMask notifications without registering push notifications. ([#8782](https://github.com/MetaMask/core/pull/8782))
+- Add optional mobile OS and app version metadata to push token registrations so clients can provide Firebase error attribution data. ([#8782](https://github.com/MetaMask/core/pull/8782))
+
 ## [24.0.0]
 
 ### Added
 
 - Add `productAnnouncementEnabled` to `NotificationServicesControllerEnableNotificationsOptions`. ([#8784](https://github.com/MetaMask/core/pull/8784))
-- Add optional mobile OS and app version metadata to push token registrations so clients can provide Firebase error attribution data. ([#8782](https://github.com/MetaMask/core/pull/8782))
 
 ### Changed
 
