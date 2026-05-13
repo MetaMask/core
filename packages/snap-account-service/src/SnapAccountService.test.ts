@@ -1,6 +1,12 @@
+import type { AccountGroupId } from '@metamask/account-api';
+import type { SnapKeyring, SnapMessage } from '@metamask/eth-snap-keyring';
 import {
   KeyringControllerState,
   KeyringTypes,
+} from '@metamask/keyring-controller';
+import type {
+  KeyringEntry,
+  RestrictedController,
 } from '@metamask/keyring-controller';
 import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
 import type {
@@ -17,6 +23,7 @@ import type {
   SnapAccountServiceOptions,
 } from './SnapAccountService';
 import { SnapAccountService } from './SnapAccountService';
+import type { AccountGroupObject } from './types';
 
 type RootMessenger = Messenger<
   MockAnyNamespace,
@@ -33,6 +40,18 @@ type MockTruncatedSnap = Pick<
   'id' | 'initialPermissions' | 'enabled' | 'blocked'
 >;
 
+/** Mock account group type for tests. */
+type MockAccountGroup = Pick<AccountGroupObject, 'id' | 'accounts'>;
+
+/** Mock Snap keyring type for tests. */
+type MockSnapKeyring = {
+  type: KeyringTypes.snap;
+  handleKeyringSnapMessage?: jest.MockedFunction<
+    SnapKeyring['handleKeyringSnapMessage']
+  >;
+  setSelectedAccounts?: jest.MockedFunction<SnapKeyring['setSelectedAccounts']>;
+};
+
 type Mocks = {
   // eslint-disable-next-line @typescript-eslint/naming-convention
   SnapController: {
@@ -42,6 +61,14 @@ type Mocks = {
   // eslint-disable-next-line @typescript-eslint/naming-convention
   KeyringController: {
     getState: jest.MockedFunction<() => { keyrings: { type: string }[] }>;
+    withController: jest.Mock;
+  };
+  // eslint-disable-next-line @typescript-eslint/naming-convention
+  AccountTreeController: {
+    getAccountGroupObject: jest.MockedFunction<
+      (groupId: AccountGroupId) => AccountGroupObject | undefined
+    >;
+    getSelectedAccountGroup: jest.MockedFunction<() => AccountGroupId | ''>;
   };
 };
 
@@ -75,6 +102,9 @@ function getMessenger(
       'SnapController:getSnap',
       'SnapController:getRunnableSnaps',
       'KeyringController:getState',
+      'KeyringController:withController',
+      'AccountTreeController:getAccountGroupObject',
+      'AccountTreeController:getSelectedAccountGroup',
     ],
     events: [
       'SnapController:stateChange',
@@ -85,6 +115,11 @@ function getMessenger(
       'SnapController:snapUnblocked',
       'SnapController:snapUninstalled',
       'KeyringController:stateChange',
+      'KeyringController:unlock',
+      'AccountTreeController:selectedAccountGroupChange',
+      'AccountTreeController:accountGroupCreated',
+      'AccountTreeController:accountGroupUpdated',
+      'AccountTreeController:accountGroupRemoved',
     ],
   });
   return messenger;
@@ -125,6 +160,45 @@ function publishKeyrings(
 }
 
 /**
+ * Flushes pending microtasks so that chained `await`s in fire-and-forget
+ * handlers resolve before assertions run.
+ *
+ * @returns A promise that resolves once the event loop has drained.
+ */
+async function flushMicrotasks(): Promise<void> {
+  await new Promise<void>((resolve) => setImmediate(resolve));
+}
+
+/**
+ * Publishes an AccountTreeController selectedAccountGroupChange event on the
+ * root messenger.
+ *
+ * @param rootMessenger - The root messenger.
+ * @param next - The newly selected account group ID (or '').
+ * @param previous - The previously selected account group ID (or '').
+ */
+function publishSelectedAccountGroupChange(
+  rootMessenger: RootMessenger,
+  next: AccountGroupId | '',
+  previous: AccountGroupId | '' = '',
+): void {
+  rootMessenger.publish(
+    'AccountTreeController:selectedAccountGroupChange',
+    next,
+    previous,
+  );
+}
+
+/**
+ * Publishes a KeyringController unlock event on the root messenger.
+ *
+ * @param rootMessenger - The root messenger.
+ */
+function publishUnlock(rootMessenger: RootMessenger): void {
+  rootMessenger.publish('KeyringController:unlock');
+}
+
+/**
  * Builds a minimal `TruncatedSnap` for tests.
  *
  * @param id - The Snap ID.
@@ -138,6 +212,151 @@ function buildSnap(id: string, hasKeyring: boolean): TruncatedSnap {
     enabled: true,
     blocked: false,
   } as MockTruncatedSnap as TruncatedSnap;
+}
+
+/**
+ * Builds a minimal `AccountGroupObject` for tests.
+ *
+ * @param id - The group ID.
+ * @param accounts - The list of account IDs in the group.
+ * @returns A minimal `AccountGroupObject`.
+ */
+function buildGroup(
+  id: AccountGroupId,
+  accounts: string[],
+): AccountGroupObject {
+  return { id, accounts } as MockAccountGroup as AccountGroupObject;
+}
+
+/**
+ * Publishes an AccountTreeController accountGroupCreated event on the root
+ * messenger.
+ *
+ * @param rootMessenger - The root messenger.
+ * @param group - The created account group.
+ */
+function publishAccountGroupCreated(
+  rootMessenger: RootMessenger,
+  group: AccountGroupObject,
+): void {
+  rootMessenger.publish('AccountTreeController:accountGroupCreated', group);
+}
+
+/**
+ * Publishes an AccountTreeController accountGroupUpdated event on the root
+ * messenger.
+ *
+ * @param rootMessenger - The root messenger.
+ * @param group - The updated account group.
+ */
+function publishAccountGroupUpdated(
+  rootMessenger: RootMessenger,
+  group: AccountGroupObject,
+): void {
+  rootMessenger.publish('AccountTreeController:accountGroupUpdated', group);
+}
+
+/**
+ * Publishes an AccountTreeController accountGroupRemoved event on the root
+ * messenger.
+ *
+ * @param rootMessenger - The root messenger.
+ * @param groupId - The removed account group ID.
+ */
+function publishAccountGroupRemoved(
+  rootMessenger: RootMessenger,
+  groupId: AccountGroupId,
+): void {
+  rootMessenger.publish('AccountTreeController:accountGroupRemoved', groupId);
+}
+
+/**
+ * Builds a fake {@link KeyringEntry} with the given type.
+ *
+ * @param type - The keyring type.
+ * @returns A minimal KeyringEntry for tests.
+ */
+function buildKeyringEntry(type: string): KeyringEntry {
+  return {
+    keyring: { type } as KeyringEntry['keyring'],
+    metadata: { id: `id-${type}`, name: type },
+  };
+}
+
+/**
+ * Configures `mocks.KeyringController.withController` to invoke the
+ * operation with a controllable {@link RestrictedController}.
+ *
+ * @param mocks - The mocks object from {@link setup}.
+ * @param initialEntries - Entries exposed via `controller.keyrings`.
+ * @returns The mocked `addNewKeyring` jest fn for assertions.
+ */
+function mockWithController(
+  mocks: Mocks,
+  initialEntries: KeyringEntry[],
+): {
+  addNewKeyring: jest.MockedFunction<RestrictedController['addNewKeyring']>;
+} {
+  const entries = [...initialEntries];
+  const addNewKeyring = jest.fn(async (type: string) => {
+    const entry = buildKeyringEntry(type);
+    entries.push(entry);
+    return entry;
+  });
+  mocks.KeyringController.withController.mockImplementation(async (operation) =>
+    operation({
+      get keyrings() {
+        return Object.freeze([...entries]);
+      },
+      addNewKeyring,
+      removeKeyring: jest.fn(),
+    }),
+  );
+  return { addNewKeyring };
+}
+
+/**
+ * Configures `mocks.KeyringController.withController` to expose a single
+ * legacy Snap keyring with the provided mocked methods.
+ *
+ * @param mocks - The mocks object from {@link setup}.
+ * @param keyring - The mocked Snap keyring methods.
+ * @param keyring.handleKeyringSnapMessage - The mocked implementation.
+ * @param keyring.setSelectedAccounts - The mocked implementation.
+ */
+function mockLegacySnapKeyring(
+  mocks: Mocks,
+  {
+    handleKeyringSnapMessage,
+    setSelectedAccounts,
+  }: {
+    handleKeyringSnapMessage?: jest.MockedFunction<
+      SnapKeyring['handleKeyringSnapMessage']
+    >;
+    setSelectedAccounts?: jest.MockedFunction<
+      SnapKeyring['setSelectedAccounts']
+    >;
+  },
+): void {
+  const snapKeyring: MockSnapKeyring = {
+    type: KeyringTypes.snap,
+    handleKeyringSnapMessage,
+    setSelectedAccounts,
+  };
+  mocks.KeyringController.withController.mockImplementation(async (operation) =>
+    operation({
+      get keyrings() {
+        return Object.freeze([
+          {
+            keyring: snapKeyring as KeyringEntry['keyring'],
+            metadata: { id: 'id-snap', name: KeyringTypes.snap },
+          },
+        ]);
+      },
+      addNewKeyring: jest.fn(),
+      removeKeyring: jest.fn(),
+    }),
+  );
 }
 
 /**
@@ -178,6 +397,11 @@ function setup({
     },
     KeyringController: {
       getState: jest.fn().mockReturnValue({ keyrings }),
+      withController: jest.fn(),
+    },
+    AccountTreeController: {
+      getAccountGroupObject: jest.fn().mockReturnValue(undefined),
+      getSelectedAccountGroup: jest.fn().mockReturnValue(''),
     },
   };
 
@@ -192,6 +416,18 @@ function setup({
   rootMessenger.registerActionHandler(
     'KeyringController:getState',
     mocks.KeyringController.getState,
+  );
+  rootMessenger.registerActionHandler(
+    'KeyringController:withController',
+    mocks.KeyringController.withController,
+  );
+  rootMessenger.registerActionHandler(
+    'AccountTreeController:getAccountGroupObject',
+    mocks.AccountTreeController.getAccountGroupObject,
+  );
+  rootMessenger.registerActionHandler(
+    'AccountTreeController:getSelectedAccountGroup',
+    mocks.AccountTreeController.getSelectedAccountGroup,
   );
 
   const service = new SnapAccountService({ messenger, config });
@@ -356,6 +592,367 @@ describe('SnapAccountService', () => {
 
       await ensurePromise;
       expect(resolved).toBe(true);
+    });
+  });
+
+  describe('getLegacySnapKeyring', () => {
+    it('returns the existing Snap keyring when one is already present', async () => {
+      const { service, mocks } = setup();
+      const existing = buildKeyringEntry(KeyringTypes.snap);
+      const { addNewKeyring } = mockWithController(mocks, [
+        buildKeyringEntry(KeyringTypes.hd),
+        existing,
+      ]);
+
+      const result = await service.getLegacySnapKeyring();
+
+      expect(result).toBe(existing.keyring as unknown as SnapKeyring);
+      expect(addNewKeyring).not.toHaveBeenCalled();
+    });
+
+    it('creates a new Snap keyring when none exists', async () => {
+      const { service, mocks } = setup();
+      const { addNewKeyring } = mockWithController(mocks, [
+        buildKeyringEntry(KeyringTypes.hd),
+      ]);
+
+      const result = await service.getLegacySnapKeyring();
+
+      expect(addNewKeyring).toHaveBeenCalledWith(KeyringTypes.snap);
+      expect(result.type).toBe(KeyringTypes.snap);
+    });
+
+    it('propagates errors thrown by withController', async () => {
+      const { service, mocks } = setup();
+      mocks.KeyringController.withController.mockImplementation(async () => {
+        throw new Error('boom');
+      });
+
+      await expect(service.getLegacySnapKeyring()).rejects.toThrow('boom');
+    });
+  });
+
+  describe('handleKeyringSnapMessage', () => {
+    const MOCK_MESSAGE = {
+      method: 'keyring_listAccounts',
+      params: {},
+    } as unknown as SnapMessage;
+
+    it('forwards the call to the legacy Snap keyring and returns its result', async () => {
+      const { service, mocks } = setup();
+      const handleKeyringSnapMessage = jest
+        .fn()
+        .mockResolvedValue({ ok: true });
+      mockLegacySnapKeyring(mocks, { handleKeyringSnapMessage });
+
+      const result = await service.handleKeyringSnapMessage(
+        MOCK_SNAP_ID,
+        MOCK_MESSAGE,
+      );
+
+      expect(handleKeyringSnapMessage).toHaveBeenCalledWith(
+        MOCK_SNAP_ID,
+        MOCK_MESSAGE,
+      );
+      expect(result).toStrictEqual({ ok: true });
+    });
+
+    it('propagates errors thrown by the Snap keyring', async () => {
+      const { service, mocks } = setup();
+      const error = new Error('snap boom');
+      const handleKeyringSnapMessage = jest.fn().mockRejectedValue(error);
+      mockLegacySnapKeyring(mocks, { handleKeyringSnapMessage });
+
+      await expect(
+        service.handleKeyringSnapMessage(MOCK_SNAP_ID, MOCK_MESSAGE),
+      ).rejects.toThrow(error);
+    });
+
+    it('is exposed as a messenger action', async () => {
+      const { service, mocks, messenger } = setup();
+      const handleKeyringSnapMessage = jest.fn().mockResolvedValue('pong');
+      mockLegacySnapKeyring(mocks, { handleKeyringSnapMessage });
+
+      // Reference `service` so it isn't flagged as unused; constructing it
+      // registers the messenger action under test.
+      expect(service).toBeDefined();
+
+      const result = await messenger.call(
+        'SnapAccountService:handleKeyringSnapMessage',
+        MOCK_SNAP_ID,
+        MOCK_MESSAGE,
+      );
+
+      expect(handleKeyringSnapMessage).toHaveBeenCalledWith(
+        MOCK_SNAP_ID,
+        MOCK_MESSAGE,
+      );
+      expect(result).toBe('pong');
+    });
+  });
+
+  describe('on AccountTreeController:selectedAccountGroupChange', () => {
+    const MOCK_GROUP_ID = 'keyring:01JABC/group-1' as AccountGroupId;
+    const MOCK_ACCOUNTS = [
+      '00000000-0000-0000-0000-000000000001',
+      '00000000-0000-0000-0000-000000000002',
+    ];
+
+    it('forwards the selected accounts to the Snap keyring', async () => {
+      const { service, rootMessenger, mocks } = setup();
+      const setSelectedAccounts = jest.fn().mockResolvedValue(undefined);
+      mockLegacySnapKeyring(mocks, { setSelectedAccounts });
+      mocks.AccountTreeController.getAccountGroupObject.mockReturnValue(
+        buildGroup(MOCK_GROUP_ID, MOCK_ACCOUNTS),
+      );
+      expect(service).toBeDefined();
+
+      publishSelectedAccountGroupChange(rootMessenger, MOCK_GROUP_ID);
+      await flushMicrotasks();
+
+      expect(
+        mocks.AccountTreeController.getAccountGroupObject,
+      ).toHaveBeenCalledWith(MOCK_GROUP_ID);
+      expect(setSelectedAccounts).toHaveBeenCalledWith(MOCK_ACCOUNTS);
+    });
+
+    it('does nothing when the new group ID is empty', async () => {
+      const { service, rootMessenger, mocks } = setup();
+      const setSelectedAccounts = jest.fn().mockResolvedValue(undefined);
+      mockLegacySnapKeyring(mocks, { setSelectedAccounts });
+      expect(service).toBeDefined();
+
+      publishSelectedAccountGroupChange(rootMessenger, '');
+      await flushMicrotasks();
+
+      expect(
+        mocks.AccountTreeController.getAccountGroupObject,
+      ).not.toHaveBeenCalled();
+      expect(setSelectedAccounts).not.toHaveBeenCalled();
+    });
+
+    it('does nothing when the account group is not found', async () => {
+      const { service, rootMessenger, mocks } = setup();
+      const setSelectedAccounts = jest.fn().mockResolvedValue(undefined);
+      mockLegacySnapKeyring(mocks, { setSelectedAccounts });
+      mocks.AccountTreeController.getAccountGroupObject.mockReturnValue(
+        undefined,
+      );
+      expect(service).toBeDefined();
+
+      publishSelectedAccountGroupChange(rootMessenger, MOCK_GROUP_ID);
+      await flushMicrotasks();
+
+      expect(
+        mocks.AccountTreeController.getAccountGroupObject,
+      ).toHaveBeenCalledWith(MOCK_GROUP_ID);
+      expect(setSelectedAccounts).not.toHaveBeenCalled();
+    });
+
+    it('logs an error when forwarding to the Snap keyring fails', async () => {
+      const { service, rootMessenger, mocks } = setup();
+      const error = new Error('forward boom');
+      const setSelectedAccounts = jest.fn().mockRejectedValue(error);
+      mockLegacySnapKeyring(mocks, { setSelectedAccounts });
+      mocks.AccountTreeController.getAccountGroupObject.mockReturnValue(
+        buildGroup(MOCK_GROUP_ID, MOCK_ACCOUNTS),
+      );
+      const consoleErrorSpy = jest
+        .spyOn(console, 'error')
+        .mockImplementation(() => undefined);
+      expect(service).toBeDefined();
+
+      publishSelectedAccountGroupChange(rootMessenger, MOCK_GROUP_ID);
+      await flushMicrotasks();
+
+      expect(setSelectedAccounts).toHaveBeenCalledWith(MOCK_ACCOUNTS);
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
+        'Error forwarding selected accounts:',
+        error,
+      );
+
+      consoleErrorSpy.mockRestore();
+    });
+  });
+
+  describe('on KeyringController:unlock', () => {
+    const MOCK_GROUP_ID = 'keyring:01JABC/group-1' as AccountGroupId;
+    const MOCK_ACCOUNTS = [
+      '00000000-0000-0000-0000-000000000001',
+      '00000000-0000-0000-0000-000000000002',
+    ];
+
+    it('forwards the currently selected account group to the Snap keyring', async () => {
+      const { service, rootMessenger, mocks } = setup();
+      const setSelectedAccounts = jest.fn().mockResolvedValue(undefined);
+      mockLegacySnapKeyring(mocks, { setSelectedAccounts });
+      mocks.AccountTreeController.getSelectedAccountGroup.mockReturnValue(
+        MOCK_GROUP_ID,
+      );
+      mocks.AccountTreeController.getAccountGroupObject.mockReturnValue(
+        buildGroup(MOCK_GROUP_ID, MOCK_ACCOUNTS),
+      );
+      expect(service).toBeDefined();
+
+      publishUnlock(rootMessenger);
+      await flushMicrotasks();
+
+      expect(
+        mocks.AccountTreeController.getSelectedAccountGroup,
+      ).toHaveBeenCalledTimes(1);
+      expect(
+        mocks.AccountTreeController.getAccountGroupObject,
+      ).toHaveBeenCalledWith(MOCK_GROUP_ID);
+      expect(setSelectedAccounts).toHaveBeenCalledWith(MOCK_ACCOUNTS);
+    });
+
+    it('does nothing when no account group is selected', async () => {
+      const { service, rootMessenger, mocks } = setup();
+      const setSelectedAccounts = jest.fn().mockResolvedValue(undefined);
+      mockLegacySnapKeyring(mocks, { setSelectedAccounts });
+      mocks.AccountTreeController.getSelectedAccountGroup.mockReturnValue('');
+      expect(service).toBeDefined();
+
+      publishUnlock(rootMessenger);
+      await flushMicrotasks();
+
+      expect(
+        mocks.AccountTreeController.getAccountGroupObject,
+      ).not.toHaveBeenCalled();
+      expect(setSelectedAccounts).not.toHaveBeenCalled();
+    });
+
+    it('logs an error when forwarding to the Snap keyring fails', async () => {
+      const { service, rootMessenger, mocks } = setup();
+      const error = new Error('forward boom');
+      const setSelectedAccounts = jest.fn().mockRejectedValue(error);
+      mockLegacySnapKeyring(mocks, { setSelectedAccounts });
+      mocks.AccountTreeController.getSelectedAccountGroup.mockReturnValue(
+        MOCK_GROUP_ID,
+      );
+      mocks.AccountTreeController.getAccountGroupObject.mockReturnValue(
+        buildGroup(MOCK_GROUP_ID, MOCK_ACCOUNTS),
+      );
+      const consoleErrorSpy = jest
+        .spyOn(console, 'error')
+        .mockImplementation(() => undefined);
+      expect(service).toBeDefined();
+
+      publishUnlock(rootMessenger);
+      await flushMicrotasks();
+
+      expect(setSelectedAccounts).toHaveBeenCalledWith(MOCK_ACCOUNTS);
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
+        'Error forwarding selected accounts:',
+        error,
+      );
+
+      consoleErrorSpy.mockRestore();
+    });
+  });
+
+  describe.each([
+    ['accountGroupCreated', publishAccountGroupCreated] as const,
+    ['accountGroupUpdated', publishAccountGroupUpdated] as const,
+  ])('on AccountTreeController:%s', (_eventName, publishEvent) => {
+    const MOCK_GROUP_ID = 'keyring:01JABC/group-1' as AccountGroupId;
+    const OTHER_GROUP_ID = 'keyring:01JABC/group-2' as AccountGroupId;
+    const MOCK_ACCOUNTS = [
+      '00000000-0000-0000-0000-000000000001',
+      '00000000-0000-0000-0000-000000000002',
+    ];
+
+    it('forwards the accounts from the event payload when the affected group is the selected one', async () => {
+      const { service, rootMessenger, mocks } = setup();
+      const setSelectedAccounts = jest.fn().mockResolvedValue(undefined);
+      mockLegacySnapKeyring(mocks, { setSelectedAccounts });
+      mocks.AccountTreeController.getSelectedAccountGroup.mockReturnValue(
+        MOCK_GROUP_ID,
+      );
+      expect(service).toBeDefined();
+
+      publishEvent(rootMessenger, buildGroup(MOCK_GROUP_ID, MOCK_ACCOUNTS));
+      await flushMicrotasks();
+
+      expect(
+        mocks.AccountTreeController.getAccountGroupObject,
+      ).not.toHaveBeenCalled();
+      expect(setSelectedAccounts).toHaveBeenCalledWith(MOCK_ACCOUNTS);
+    });
+
+    it('does nothing when the affected group is not the selected one', async () => {
+      const { service, rootMessenger, mocks } = setup();
+      const setSelectedAccounts = jest.fn().mockResolvedValue(undefined);
+      mockLegacySnapKeyring(mocks, { setSelectedAccounts });
+      mocks.AccountTreeController.getSelectedAccountGroup.mockReturnValue(
+        OTHER_GROUP_ID,
+      );
+      expect(service).toBeDefined();
+
+      publishEvent(rootMessenger, buildGroup(MOCK_GROUP_ID, MOCK_ACCOUNTS));
+      await flushMicrotasks();
+
+      expect(
+        mocks.AccountTreeController.getAccountGroupObject,
+      ).not.toHaveBeenCalled();
+      expect(setSelectedAccounts).not.toHaveBeenCalled();
+    });
+
+    it('does nothing when no account group is selected', async () => {
+      const { service, rootMessenger, mocks } = setup();
+      const setSelectedAccounts = jest.fn().mockResolvedValue(undefined);
+      mockLegacySnapKeyring(mocks, { setSelectedAccounts });
+      mocks.AccountTreeController.getSelectedAccountGroup.mockReturnValue('');
+      expect(service).toBeDefined();
+
+      publishEvent(rootMessenger, buildGroup(MOCK_GROUP_ID, MOCK_ACCOUNTS));
+      await flushMicrotasks();
+
+      expect(
+        mocks.AccountTreeController.getAccountGroupObject,
+      ).not.toHaveBeenCalled();
+      expect(setSelectedAccounts).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('on AccountTreeController:accountGroupRemoved', () => {
+    const MOCK_GROUP_ID = 'keyring:01JABC/group-1' as AccountGroupId;
+    const OTHER_GROUP_ID = 'keyring:01JABC/group-2' as AccountGroupId;
+
+    it('clears the selected accounts when the removed group is the selected one', async () => {
+      const { service, rootMessenger, mocks } = setup();
+      const setSelectedAccounts = jest.fn().mockResolvedValue(undefined);
+      mockLegacySnapKeyring(mocks, { setSelectedAccounts });
+      mocks.AccountTreeController.getSelectedAccountGroup.mockReturnValue(
+        MOCK_GROUP_ID,
+      );
+      expect(service).toBeDefined();
+
+      publishAccountGroupRemoved(rootMessenger, MOCK_GROUP_ID);
+      await flushMicrotasks();
+
+      expect(
+        mocks.AccountTreeController.getAccountGroupObject,
+      ).not.toHaveBeenCalled();
+      expect(setSelectedAccounts).toHaveBeenCalledWith([]);
+    });
+
+    it('does nothing when the removed group is not the selected one', async () => {
+      const { service, rootMessenger, mocks } = setup();
+      const setSelectedAccounts = jest.fn().mockResolvedValue(undefined);
+      mockLegacySnapKeyring(mocks, { setSelectedAccounts });
+      mocks.AccountTreeController.getSelectedAccountGroup.mockReturnValue(
+        OTHER_GROUP_ID,
+      );
+      expect(service).toBeDefined();
+
+      publishAccountGroupRemoved(rootMessenger, MOCK_GROUP_ID);
+      await flushMicrotasks();
+
+      expect(
+        mocks.AccountTreeController.getAccountGroupObject,
+      ).not.toHaveBeenCalled();
+      expect(setSelectedAccounts).not.toHaveBeenCalled();
     });
   });
 });

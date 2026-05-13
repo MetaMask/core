@@ -1,7 +1,17 @@
+import { AccountGroupId } from '@metamask/account-api';
+import type {
+  SnapKeyring as LegacySnapKeyring,
+  SnapMessage,
+} from '@metamask/eth-snap-keyring';
 import type {
   KeyringControllerGetStateAction,
   KeyringControllerStateChangeEvent,
+  KeyringControllerUnlockEvent,
+  KeyringControllerWithControllerAction,
+  KeyringEntry,
 } from '@metamask/keyring-controller';
+import { KeyringTypes } from '@metamask/keyring-controller';
+import type { AccountId, BaseKeyring } from '@metamask/keyring-utils';
 import type { Messenger } from '@metamask/messenger';
 import type {
   SnapControllerGetRunnableSnapsAction,
@@ -16,14 +26,27 @@ import type {
   SnapControllerStateChangeEvent,
 } from '@metamask/snaps-controllers';
 import { SnapId } from '@metamask/snaps-sdk';
+import type { Json } from '@metamask/utils';
 
+import { projectLogger as log } from './logger';
 import type {
   SnapAccountServiceEnsureReadyAction,
+  SnapAccountServiceGetLegacySnapKeyringAction,
   SnapAccountServiceGetSnapsAction,
+  SnapAccountServiceHandleKeyringSnapMessageAction,
 } from './SnapAccountService-method-action-types';
 import { SnapPlatformWatcher } from './SnapPlatformWatcher';
 import type { SnapPlatformWatcherConfig } from './SnapPlatformWatcher';
 import { SnapTracker } from './SnapTracker';
+import type {
+  AccountTreeControllerGetAccountGroupObjectAction,
+  AccountTreeControllerGetSelectedAccountGroupAction,
+  AccountTreeControllerSelectedAccountGroupChangeEvent,
+  AccountTreeControllerAccountGroupCreatedEvent,
+  AccountTreeControllerAccountGroupUpdatedEvent,
+  AccountTreeControllerAccountGroupRemovedEvent,
+  AccountGroupObject,
+} from './types';
 
 /**
  * The name of the {@link SnapAccountService}, used to namespace the service's
@@ -35,14 +58,21 @@ export const serviceName = 'SnapAccountService';
  * All of the methods within {@link SnapAccountService} that are exposed via
  * the messenger.
  */
-const MESSENGER_EXPOSED_METHODS = ['ensureReady', 'getSnaps'] as const;
+const MESSENGER_EXPOSED_METHODS = [
+  'ensureReady',
+  'getSnaps',
+  'getLegacySnapKeyring',
+  'handleKeyringSnapMessage',
+] as const;
 
 /**
  * Actions that {@link SnapAccountService} exposes to other consumers.
  */
 export type SnapAccountServiceActions =
   | SnapAccountServiceEnsureReadyAction
-  | SnapAccountServiceGetSnapsAction;
+  | SnapAccountServiceGetSnapsAction
+  | SnapAccountServiceGetLegacySnapKeyringAction
+  | SnapAccountServiceHandleKeyringSnapMessageAction;
 
 /**
  * Actions from other messengers that {@link SnapAccountService} calls.
@@ -51,7 +81,10 @@ type AllowedActions =
   | SnapControllerGetStateAction
   | SnapControllerGetSnapAction
   | SnapControllerGetRunnableSnapsAction
-  | KeyringControllerGetStateAction;
+  | KeyringControllerGetStateAction
+  | KeyringControllerWithControllerAction
+  | AccountTreeControllerGetAccountGroupObjectAction
+  | AccountTreeControllerGetSelectedAccountGroupAction;
 
 /**
  * Events that {@link SnapAccountService} exposes to other consumers.
@@ -69,7 +102,12 @@ type AllowedEvents =
   | SnapControllerSnapBlockedEvent
   | SnapControllerSnapUnblockedEvent
   | SnapControllerSnapUninstalledEvent
-  | KeyringControllerStateChangeEvent;
+  | KeyringControllerStateChangeEvent
+  | KeyringControllerUnlockEvent
+  | AccountTreeControllerSelectedAccountGroupChangeEvent
+  | AccountTreeControllerAccountGroupCreatedEvent
+  | AccountTreeControllerAccountGroupUpdatedEvent
+  | AccountTreeControllerAccountGroupRemovedEvent;
 
 /**
  * The messenger which is restricted to actions and events accessed by
@@ -95,6 +133,19 @@ export type SnapAccountServiceOptions = {
   messenger: SnapAccountServiceMessenger;
   config?: SnapAccountServiceConfig;
 };
+
+/**
+ * Checks if a given keyring is a Snap keyring (v2).
+ *
+ * @param keyring - The keyring to check.
+ * @param keyring.type - The type of the keyring.
+ * @returns `true` if the keyring is a Snap keyring (v2), `false` otherwise.
+ */
+function isLegacySnapKeyring(keyring: {
+  type: BaseKeyring['type'];
+}): keyring is LegacySnapKeyring {
+  return keyring.type === KeyringTypes.snap;
+}
 
 /**
  * Service responsible for managing account management snaps.
@@ -131,6 +182,82 @@ export class SnapAccountService {
       this,
       MESSENGER_EXPOSED_METHODS,
     );
+
+    this.#messenger.subscribe(
+      'AccountTreeController:selectedAccountGroupChange',
+      (groupId) => this.#handleSelectedAccountGroupChange(groupId),
+    );
+
+    this.#messenger.subscribe(
+      'AccountTreeController:accountGroupCreated',
+      (group) => this.#handleAccountGroupCreatedOrUpdated(group),
+    );
+
+    this.#messenger.subscribe(
+      'AccountTreeController:accountGroupUpdated',
+      (group) => this.#handleAccountGroupCreatedOrUpdated(group),
+    );
+
+    this.#messenger.subscribe(
+      'AccountTreeController:accountGroupRemoved',
+      (groupId) => this.#handleAccountGroupRemoved(groupId),
+    );
+
+    this.#messenger.subscribe('KeyringController:unlock', () =>
+      this.#handleUnlock(),
+    );
+  }
+
+  /**
+   * Handles changes to the selected account group by forwarding the new
+   * group's accounts to the Snap keyring.
+   *
+   * @param groupId - The ID of the newly selected account group.
+   */
+  #handleSelectedAccountGroupChange(groupId: AccountGroupId | ''): void {
+    this.#forwardSelectedAccounts(
+      groupId,
+      this.#getAccountGroup(groupId)?.accounts,
+    );
+  }
+
+  /**
+   * Handles the keyring controller unlock event by forwarding the currently
+   * selected account group's accounts to the Snap keyring.
+   */
+  #handleUnlock(): void {
+    const groupId = this.#getSelectedAccountGroupId();
+    this.#forwardSelectedAccounts(
+      groupId,
+      this.#getAccountGroup(groupId)?.accounts,
+    );
+  }
+
+  /**
+   * Handles created or updated account groups by forwarding the accounts of the currently
+   * selected account group to the Snap keyring, if the created/updated group is currently selected.
+   *
+   * @param group - The account group being created or updated.
+   */
+  #handleAccountGroupCreatedOrUpdated(group: AccountGroupObject): void {
+    if (group.id === this.#getSelectedAccountGroupId()) {
+      this.#forwardSelectedAccounts(group.id, group.accounts);
+    }
+  }
+
+  /**
+   * Handles removed account groups by forwarding the accounts of the currently
+   * selected account group to the Snap keyring, if the removed group is currently selected.
+   *
+   * @param groupId - The ID of the account group being removed.
+   */
+  #handleAccountGroupRemoved(groupId: AccountGroupId): void {
+    if (groupId === this.#getSelectedAccountGroupId()) {
+      this.#forwardSelectedAccounts(
+        groupId,
+        [], // Clearing accounts since the group is removed
+      );
+    }
   }
 
   /**
@@ -172,5 +299,142 @@ export class SnapAccountService {
     // Before doing anything with our Snap, we need to make sure the platform
     // is ready to process requests.
     await this.#watcher.ensureCanUseSnapPlatform();
+  }
+
+  /**
+   * Atomically gets-or-creates the legacy (v1) Snap keyring — the keyring
+   * associated with {@link KeyringTypes.snap}.
+   *
+   * @returns The existing or newly-created Snap keyring instance.
+   */
+  async getLegacySnapKeyring(): Promise<LegacySnapKeyring> {
+    type Result = {
+      snapKeyring: LegacySnapKeyring;
+    };
+
+    // `KeyringController:withController` forbids returning a direct keyring
+    // reference (it checks the result via `Object.is`), so we smuggle the
+    // instance out wrapped in an object and unwrap it after the call.
+    // NOTE: This violates the abstraction of `KeyringController:withController`, but this
+    // is how we currently interact with the legacy Snap keyring. Once we migrate it to
+    // the Snap keyring v2, we won't be using the same pattern.
+    const result = await this.#messenger.call(
+      'KeyringController:withController',
+      async (controller): Promise<Result> => {
+        let snapKeyring: KeyringEntry['keyring'] | undefined;
+
+        const found = controller.keyrings.find(({ keyring }) =>
+          isLegacySnapKeyring(keyring),
+        );
+        if (found) {
+          snapKeyring = found.keyring;
+        }
+
+        if (!snapKeyring) {
+          const {
+            keyring: newSnapKeyring,
+            metadata: { id },
+          } = await controller.addNewKeyring(KeyringTypes.snap);
+          snapKeyring = newSnapKeyring;
+
+          log(`Legacy Snap keyring created. ("${id}")`);
+        }
+
+        // The legacy Snap keyring is not compatible with `EthKeyring`, so we need to cast here.
+        return { snapKeyring } as unknown as Result;
+      },
+    );
+
+    return (result as Result).snapKeyring;
+  }
+
+  /**
+   * Handle a message from a Snap.
+   *
+   * @param snapId - ID of the Snap.
+   * @param message - Message sent by the Snap.
+   * @returns The execution result.
+   */
+  async handleKeyringSnapMessage(
+    snapId: SnapId,
+    message: SnapMessage,
+  ): Promise<Json> {
+    const snapKeyring = await this.getLegacySnapKeyring();
+    return snapKeyring.handleKeyringSnapMessage(snapId, message);
+  }
+
+  /**
+   * Forwards the accounts of the given account group to the Snap keyring.
+   *
+   * @param groupId - The ID of the account group whose accounts should be
+   * forwarded. If empty, this is a no-op.
+   * @param accounts - The accounts to forward. If not defined, this is a no-op.
+   */
+  #forwardSelectedAccounts(
+    groupId: AccountGroupId | '',
+    accounts: AccountId[] | undefined,
+  ): void {
+    if (!groupId) {
+      log(
+        'No selected account group, skipping forwarding selected accounts to Snap keyring.',
+      );
+      return;
+    }
+
+    if (!accounts) {
+      log(
+        `Account group ("${groupId}") has no accounts, skipping forwarding selected accounts to Snap keyring.`,
+      );
+      return;
+    }
+
+    const forwardSelectedAccounts = async (): Promise<void> => {
+      if (accounts.length) {
+        log(
+          `Forwarding selected accounts (from "${groupId}"): ${accounts.join(', ')}`,
+        );
+      } else {
+        log(`Clearing selected accounts (from "${groupId}")`);
+      }
+
+      const snapKeyring = await this.getLegacySnapKeyring();
+      await snapKeyring.setSelectedAccounts(accounts);
+    };
+
+    // There is nothing we can do if forwarding fails. This will auto-recover on the next relevant event.
+    forwardSelectedAccounts().catch((error) => {
+      console.error('Error forwarding selected accounts:', error);
+    });
+  }
+
+  /**
+   * Gets the account group object for the given group ID.
+   *
+   * @param groupId - The ID of the account group.
+   * @returns The account group object, or undefined if the group ID is empty or the group does not exist.
+   */
+  #getAccountGroup(
+    groupId: AccountGroupId | '',
+  ): AccountGroupObject | undefined {
+    if (!groupId) {
+      return undefined;
+    }
+
+    return this.#messenger.call(
+      'AccountTreeController:getAccountGroupObject',
+      groupId,
+    );
+  }
+
+  /**
+   * Gets the currently selected account group ID.
+   *
+   * @returns The currently selected account group ID, or an empty string if
+   * there is no selected account group.
+   */
+  #getSelectedAccountGroupId(): AccountGroupId | '' {
+    return this.#messenger.call(
+      'AccountTreeController:getSelectedAccountGroup',
+    );
   }
 }

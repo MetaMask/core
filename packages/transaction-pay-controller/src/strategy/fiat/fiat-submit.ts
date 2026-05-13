@@ -14,13 +14,14 @@ import type {
   QuoteRequest,
   TransactionPayControllerMessenger,
 } from '../../types';
-import { buildCaipAssetType, getTokenInfo } from '../../utils/token';
+import { buildCaipAssetType } from '../../utils/token';
+import { updateTransaction } from '../../utils/transaction';
 import { getRelayQuotes } from '../relay/relay-quotes';
 import { submitRelayQuotes } from '../relay/relay-submit';
 import type { RelayQuote } from '../relay/types';
 import type { TransactionPayFiatAsset } from './constants';
 import type { FiatQuote } from './types';
-import { deriveFiatAssetForFiatPayment } from './utils';
+import { deriveFiatAssetForFiatPayment, resolveSourceAmountRaw } from './utils';
 
 const log = createModuleLogger(projectLogger, 'fiat-submit');
 
@@ -70,6 +71,18 @@ export async function submitFiatQuotes(
     throw new Error('Missing provider code for fiat submission');
   }
 
+  updateTransaction(
+    {
+      transactionId,
+      messenger,
+      note: 'Persist fiat order metadata',
+    },
+    (tx) => {
+      tx.metamaskPay ??= {};
+      tx.metamaskPay.fiat = { orderId, provider: providerCode };
+    },
+  );
+
   log('Starting fiat order polling', {
     orderId,
     providerCode,
@@ -106,41 +119,6 @@ function extractProviderCode(provider: string | undefined): string | null {
 
   const parts = provider.split('/').filter(Boolean);
   return parts.length >= 2 && parts[0] === 'providers' ? parts[1] : null;
-}
-
-/**
- * Converts the order's human-readable crypto amount to a raw token amount.
- *
- * @param options - The conversion options.
- * @param options.cryptoAmount - Human-readable crypto amount from the completed order.
- * @param options.decimals - Token decimals for the fiat asset.
- * @returns The raw token amount as a string.
- */
-function getRawSourceAmountFromOrder({
-  cryptoAmount,
-  decimals,
-}: {
-  cryptoAmount: RampsOrder['cryptoAmount'];
-  decimals: number;
-}): string {
-  const normalizedAmount = new BigNumber(String(cryptoAmount));
-
-  if (!normalizedAmount.isFinite() || normalizedAmount.lte(0)) {
-    throw new Error(
-      `Invalid fiat order crypto amount: ${String(cryptoAmount)}`,
-    );
-  }
-
-  const rawAmount = normalizedAmount
-    .shiftedBy(decimals)
-    .decimalPlaces(0, BigNumber.ROUND_DOWN)
-    .toFixed(0);
-
-  if (!new BigNumber(rawAmount).gt(0)) {
-    throw new Error('Computed fiat order source amount is not positive');
-  }
-
-  return rawAmount;
 }
 
 /**
@@ -331,21 +309,13 @@ async function submitRelayAfterFiatCompletion({
     transactionId,
   });
 
-  const tokenInfo = getTokenInfo(
+  const walletAddress = transaction.txParams.from as Hex;
+
+  const sourceAmountRaw = await resolveSourceAmountRaw({
     messenger,
-    fiatAsset.address,
-    fiatAsset.chainId,
-  );
-
-  if (!tokenInfo) {
-    throw new Error(
-      `Unable to resolve token info for fiat asset ${fiatAsset.address} on chain ${fiatAsset.chainId}`,
-    );
-  }
-
-  const sourceAmountRaw = getRawSourceAmountFromOrder({
-    cryptoAmount: order.cryptoAmount,
-    decimals: tokenInfo.decimals,
+    order,
+    fiatAsset,
+    walletAddress,
   });
 
   const baseRequest = quotes[0].request;

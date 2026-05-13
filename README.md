@@ -103,6 +103,7 @@ Each package in this repository has its own README where you can find installati
 - [`@metamask/transaction-controller`](packages/transaction-controller)
 - [`@metamask/transaction-pay-controller`](packages/transaction-pay-controller)
 - [`@metamask/user-operation-controller`](packages/user-operation-controller)
+- [`@metamask/wallet`](packages/wallet)
 
 <!-- end package list -->
 
@@ -195,6 +196,7 @@ linkStyle default opacity:0.5
   transaction_controller(["@metamask/transaction-controller"]);
   transaction_pay_controller(["@metamask/transaction-pay-controller"]);
   user_operation_controller(["@metamask/user-operation-controller"]);
+  wallet(["@metamask/wallet"]);
   account_tree_controller --> accounts_controller;
   account_tree_controller --> base_controller;
   account_tree_controller --> keyring_controller;
@@ -380,8 +382,10 @@ linkStyle default opacity:0.5
   money_account_controller --> base_controller;
   money_account_controller --> keyring_controller;
   money_account_controller --> messenger;
+  money_account_upgrade_controller --> authenticated_user_storage;
   money_account_upgrade_controller --> base_controller;
   money_account_upgrade_controller --> chomp_api_service;
+  money_account_upgrade_controller --> delegation_controller;
   money_account_upgrade_controller --> keyring_controller;
   money_account_upgrade_controller --> messenger;
   money_account_upgrade_controller --> network_controller;
@@ -509,6 +513,7 @@ linkStyle default opacity:0.5
   signature_controller --> logging_controller;
   signature_controller --> messenger;
   signature_controller --> network_controller;
+  snap_account_service --> account_tree_controller;
   snap_account_service --> keyring_controller;
   snap_account_service --> messenger;
   social_controllers --> base_controller;

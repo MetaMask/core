@@ -7,9 +7,56 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [22.4.0]
+
+### Added
+
+- Add Across quote support for post-quote Predict withdraw flows ([#8760](https://github.com/MetaMask/core/pull/8760))
+
+### Changed
+
+- Derive fiat order source amount from on-chain transaction data (`order.txHash`) with fallback to `order.cryptoAmount` ([#8694](https://github.com/MetaMask/core/pull/8694))
+- Persist fiat order ID and provider code on `transaction.metamaskPay` before polling, so activity views can query order status after controller state cleanup ([#8694](https://github.com/MetaMask/core/pull/8694))
+- Bump `@metamask/assets-controller` from `^7.1.1` to `^7.1.2` ([#8783](https://github.com/MetaMask/core/pull/8783))
+- Bump `@metamask/assets-controllers` from `^108.0.0` to `^108.1.0` ([#8783](https://github.com/MetaMask/core/pull/8783))
+- Bump `@metamask/transaction-controller` from `^65.3.0` to `^65.4.0` ([#8796](https://github.com/MetaMask/core/pull/8796))
+
+### Fixed
+
+- For postquote payments payment token for MM Pay transaction should not be reset when accountOverride is changed. ([#8787](https://github.com/MetaMask/core/pull/8787))
+
+## [22.3.1]
+
+### Changed
+
+- Bump `@metamask/assets-controller` from `^7.1.0` to `^7.1.1` ([#8774](https://github.com/MetaMask/core/pull/8774))
+- Bump `@metamask/assets-controllers` from `^107.0.0` to `^108.0.0` ([#8774](https://github.com/MetaMask/core/pull/8774))
+- Bump `@metamask/bridge-controller` from `^72.0.3` to `^72.0.4` ([#8774](https://github.com/MetaMask/core/pull/8774))
+- Bump `@metamask/bridge-status-controller` from `^71.1.3` to `^71.1.4` ([#8774](https://github.com/MetaMask/core/pull/8774))
+- Bump `@metamask/network-controller` from `^31.1.0` to `^32.0.0` ([#8774](https://github.com/MetaMask/core/pull/8774))
+- Bump `@metamask/controller-utils` from `^12.0.0` to `^12.1.0` ([#8774](https://github.com/MetaMask/core/pull/8774))
+
+## [22.3.0]
+
+### Added
+
+- Add `POLYGON_PUSD_ADDRESS` constant and treat Polymarket pUSD as a Polygon stablecoin in display/fiat-rate logic ([#8735](https://github.com/MetaMask/core/pull/8735))
+- Add Across strategy plumbing to identify post-quote Predict withdraw requests ([#8759](https://github.com/MetaMask/core/pull/8759))
+
 ### Changed
 
 - Bump `@metamask/network-controller` from `^31.0.0` to `^31.1.0` ([#8765](https://github.com/MetaMask/core/pull/8765))
+- Bump `@metamask/assets-controller` from `^7.0.1` to `^7.1.0` ([#8773](https://github.com/MetaMask/core/pull/8773))
+- Bump `@metamask/assets-controllers` from `^106.0.1` to `^107.0.0` ([#8773](https://github.com/MetaMask/core/pull/8773))
+- Bump `@metamask/bridge-controller` from `^72.0.2` to `^72.0.3` ([#8773](https://github.com/MetaMask/core/pull/8773))
+- Bump `@metamask/bridge-status-controller` from `^71.1.2` to `^71.1.3` ([#8773](https://github.com/MetaMask/core/pull/8773))
+
+### Fixed
+
+- Predict same-chain withdraw quote no longer falls back to block-gas-limit (~30M+) on swap-only Relay routes ([#8735](https://github.com/MetaMask/core/pull/8735))
+  - `fromOverride = Safe proxy` is now gated on the route having a `deposit` step. Same-chain destinations route through DEX swap aggregators that reject contract callers (anti-MEV `msg.sender == tx.origin` checks etc.) — for those, the relay params' EOA `from` is used so simulation succeeds.
+  - Gas-fee-token lookup still uses the Safe proxy for ALL Predict withdraws (gated on `isPredictWithdraw && refundTo`), preserving the gasless flow for users who hold pUSD in the Safe but no native POL on the EOA.
+- Fix post-quote relay submission when `accountOverride` is set by replacing the prepended original transaction with a delegation transaction so the override account can submit it ([#8615](https://github.com/MetaMask/core/pull/8615))
 
 ## [22.2.0]
 
@@ -838,7 +885,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#6820](https://github.com/MetaMask/core/pull/6820))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@22.2.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@22.4.0...HEAD
+[22.4.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@22.3.1...@metamask/transaction-pay-controller@22.4.0
+[22.3.1]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@22.3.0...@metamask/transaction-pay-controller@22.3.1
+[22.3.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@22.2.0...@metamask/transaction-pay-controller@22.3.0
 [22.2.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@22.1.0...@metamask/transaction-pay-controller@22.2.0
 [22.1.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@22.0.2...@metamask/transaction-pay-controller@22.1.0
 [22.0.2]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@22.0.1...@metamask/transaction-pay-controller@22.0.2

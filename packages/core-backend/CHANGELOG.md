@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `OHLCVService` for real-time OHLCV (candlestick) data streaming via WebSocket ([#8695](https://github.com/MetaMask/core/pull/8695))
+  - Wraps `BackendWebSocketService` through the messenger pattern to provide subscribe/unsubscribe semantics for market-data OHLCV channels
+  - Includes reference counting, grace-period unsubscribe, idempotency checks, chain-status forwarding, and automatic resubscription on reconnect
+- Export new types `OHLCVBar`, `OHLCVSubscriptionOptions`, `OHLCVSystemNotificationData`, `OHLCVServiceOptions`, `OHLCVServiceActions`, `OHLCVServiceAllowedActions`, `OHLCVServiceBarUpdatedEvent`, `OHLCVServiceChainStatusChangedEvent`, `OHLCVServiceSubscriptionErrorEvent`, `OHLCVServiceEvents`, `OHLCVServiceAllowedEvents`, and `OHLCVServiceMessenger` ([#8695](https://github.com/MetaMask/core/pull/8695))
+- Export new constants `OHLCV_SERVICE_ALLOWED_ACTIONS` and `OHLCV_SERVICE_ALLOWED_EVENTS` for configuring the messenger ([#8695](https://github.com/MetaMask/core/pull/8695))
+
+### Changed
+
+- Bump `@metamask/accounts-controller` from `^38.1.0` to `^38.1.1` ([#8774](https://github.com/MetaMask/core/pull/8774))
+- Bump `@metamask/controller-utils` from `^12.0.0` to `^12.1.0` ([#8774](https://github.com/MetaMask/core/pull/8774))
+- Bump `@metamask/profile-sync-controller` from `^28.0.2` to `^28.1.0` ([#8783](https://github.com/MetaMask/core/pull/8783))
+
 ## [6.2.2]
 
 ### Changed

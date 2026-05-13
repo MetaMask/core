@@ -33,8 +33,33 @@ export type SnapAccountServiceEnsureReadyAction = {
 };
 
 /**
+ * Atomically gets-or-creates the legacy (v1) Snap keyring — the keyring
+ * associated with {@link KeyringTypes.snap}.
+ *
+ * @returns The existing or newly-created Snap keyring instance.
+ */
+export type SnapAccountServiceGetLegacySnapKeyringAction = {
+  type: `SnapAccountService:getLegacySnapKeyring`;
+  handler: SnapAccountService['getLegacySnapKeyring'];
+};
+
+/**
+ * Handle a message from a Snap.
+ *
+ * @param snapId - ID of the Snap.
+ * @param message - Message sent by the Snap.
+ * @returns The execution result.
+ */
+export type SnapAccountServiceHandleKeyringSnapMessageAction = {
+  type: `SnapAccountService:handleKeyringSnapMessage`;
+  handler: SnapAccountService['handleKeyringSnapMessage'];
+};
+
+/**
  * Union of all SnapAccountService action types.
  */
 export type SnapAccountServiceMethodActions =
   | SnapAccountServiceGetSnapsAction
-  | SnapAccountServiceEnsureReadyAction;
+  | SnapAccountServiceEnsureReadyAction
+  | SnapAccountServiceGetLegacySnapKeyringAction
+  | SnapAccountServiceHandleKeyringSnapMessageAction;
