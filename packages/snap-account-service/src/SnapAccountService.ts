@@ -375,8 +375,6 @@ export class SnapAccountService {
    * safe to call concurrently.
    */
   async #migrate(): Promise<void> {
-    log('Migration started...');
-
     await this.#messenger.call(
       'KeyringController:withController',
       async (controller) => {
@@ -389,6 +387,8 @@ export class SnapAccountService {
           log('No legacy Snap keyring found. Migration not required.');
           return;
         }
+
+        log('Migration started...');
 
         // The legacy Snap keyring has never been a true `EthKeyring` so we
         // need to cast it to `unknown` first.
@@ -432,10 +432,10 @@ export class SnapAccountService {
         // Remove the legacy Snap keyring after migration.
         log('Removing legacy Snap keyring...');
         await controller.removeKeyring(legacySnapKeyringEntry.metadata.id);
+
+        log('Migration completed!');
       },
     );
-
-    log('Migration completed!');
   }
 
   /**
