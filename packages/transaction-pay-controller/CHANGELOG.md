@@ -20,7 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- For postquote payments payment token for MM Pay transaction should not be reset when accountOverride is changed ([#8787](https://github.com/MetaMask/core/pull/8787)).
+- For postquote payments payment token for MM Pay transaction should not be reset when accountOverride is changed. ([#8787](https://github.com/MetaMask/core/pull/8787))
 
 ## [22.3.1]
 
