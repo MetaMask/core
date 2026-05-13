@@ -29,11 +29,11 @@ import type {
 } from '../NotificationServicesPushController';
 import { ADDRESS_1, ADDRESS_2, ADDRESS_3 } from './__fixtures__/mockAddresses';
 import {
+  mockGetOnChainNotificationsConfig,
   mockGetAPINotifications,
   mockFetchFeatureAnnouncementNotifications,
   mockMarkNotificationsAsRead,
   mockCreatePerpNotification,
-  mockQueryNotifications,
 } from './__fixtures__/mockServices';
 import { waitFor } from './__fixtures__/test-utils';
 import { TRIGGER_TYPES } from './constants';
@@ -76,6 +76,11 @@ const mockErrorLog = (): jest.SpyInstance =>
 const mockWarnLog = (): jest.SpyInstance =>
   jest.spyOn(log, 'warn').mockImplementation(jest.fn());
 
+// Removing caches to avoid interference
+const clearAPICache = (): void => {
+  notificationsConfigCache.clear();
+};
+
 const prefsFromAddresses = (
   accounts: { address: string; enabled: boolean }[],
 ): NotificationPreferences => ({
@@ -104,7 +109,7 @@ const prefsFromAddresses = (
 
 describe('NotificationServicesController', () => {
   afterEach(() => {
-    notificationsConfigCache.clear();
+    clearAPICache();
   });
 
   describe('constructor', () => {
@@ -523,7 +528,7 @@ describe('NotificationServicesController', () => {
             },
           ],
         });
-        const mockTriggerQuery = mockQueryNotifications({
+        const mockTriggerQuery = mockGetOnChainNotificationsConfig({
           status: 200,
           body: [
             { address: ADDRESS_1.toLowerCase(), enabled: true },
@@ -594,7 +599,7 @@ describe('NotificationServicesController', () => {
             },
           ],
         });
-        const mockTriggerQuery = mockQueryNotifications({
+        const mockTriggerQuery = mockGetOnChainNotificationsConfig({
           status: 200,
           body: [
             { address: ADDRESS_1.toLowerCase(), enabled: false },
@@ -625,7 +630,7 @@ describe('NotificationServicesController', () => {
         const { messenger, mockUpdateNotifications } = arrangeMocks({
           configurePrefs: (mock) => mock.mockResolvedValueOnce(null),
         });
-        mockQueryNotifications();
+        mockGetOnChainNotificationsConfig();
 
         const controller = new NotificationServicesController({
           messenger,
@@ -645,7 +650,7 @@ describe('NotificationServicesController', () => {
         const { messenger, mockUpdateNotifications } = arrangeMocks({
           configurePrefs: (mock) => mock.mockResolvedValueOnce(null),
         });
-        mockQueryNotifications();
+        mockGetOnChainNotificationsConfig();
 
         const controller = new NotificationServicesController({
           messenger,
@@ -688,7 +693,7 @@ describe('NotificationServicesController', () => {
             },
           ],
         });
-        const mockTriggerQuery = mockQueryNotifications({
+        const mockTriggerQuery = mockGetOnChainNotificationsConfig({
           status: 200,
           body: [
             { address: ADDRESS_1.toLowerCase(), enabled: true },
@@ -740,7 +745,7 @@ describe('NotificationServicesController', () => {
             },
           ],
         });
-        const mockTriggerQuery = mockQueryNotifications({
+        const mockTriggerQuery = mockGetOnChainNotificationsConfig({
           status: 200,
           body: [
             { address: ADDRESS_1.toLowerCase(), enabled: true },
@@ -787,7 +792,7 @@ describe('NotificationServicesController', () => {
             },
           ],
         });
-        const mockTriggerQuery = mockQueryNotifications({
+        const mockTriggerQuery = mockGetOnChainNotificationsConfig({
           status: 200,
           body: [{ address: ADDRESS_1.toLowerCase(), enabled: true }],
         });
