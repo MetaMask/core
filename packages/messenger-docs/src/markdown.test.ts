@@ -4,11 +4,11 @@ import {
   generateNamespacePage,
   generateSidebars,
 } from './markdown';
-import type { MessengerItemDoc, NamespaceGroup } from './types';
+import type { ExtractedMessengerCapabilityType, NamespaceGroup } from './types';
 
 const makeItem = (
-  overrides: Partial<MessengerItemDoc> = {},
-): MessengerItemDoc => ({
+  overrides: Partial<ExtractedMessengerCapabilityType> = {},
+): ExtractedMessengerCapabilityType => ({
   typeName: 'FooControllerGetStateAction',
   typeString: 'FooController:getState',
   kind: 'action',

@@ -1,4 +1,8 @@
-export type MessengerItemDoc = {
+/**
+ * One messenger capability — an action or event registered with the platform
+ * — distilled from its TypeScript definition.
+ */
+export type ExtractedMessengerCapabilityType = {
   typeName: string; // e.g. "NetworkControllerGetStateAction"
   typeString: string; // e.g. "NetworkController:getState"
   kind: 'action' | 'event';
@@ -11,8 +15,8 @@ export type MessengerItemDoc = {
 
 export type NamespaceGroup = {
   namespace: string;
-  actions: MessengerItemDoc[];
-  events: MessengerItemDoc[];
+  actions: ExtractedMessengerCapabilityType[];
+  events: ExtractedMessengerCapabilityType[];
 };
 
 /**

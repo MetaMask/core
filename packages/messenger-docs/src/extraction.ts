@@ -13,7 +13,7 @@ import type {
 } from 'ts-morph';
 import { Node as NodeGuards, Project, SyntaxKind, ts } from 'ts-morph';
 
-import type { MessengerItemDoc, MethodInfo } from './types';
+import type { ExtractedMessengerCapabilityType, MethodInfo } from './types';
 
 /**
  * Extract string constants from top-level variable declarations in a source file.
@@ -477,17 +477,6 @@ function getPropertyText(
 // ---------------------------------------------------------------------------
 
 /**
- * Names of action and event types referenced by `*Messenger` declarations in a
- * source file. Each set is intentionally narrowed to type names that appear,
- * directly or transitively through union aliases, in the Actions or Events
- * slot of some Messenger generic.
- */
-type MessengerReferences = {
-  actions: Set<string>;
-  events: Set<string>;
-};
-
-/**
  * Find every `*Messenger` type alias in a source file, parse its
  * `Messenger<Namespace, Actions, Events>` (or `Messenger<Actions, Events>`)
  * generic arguments, and collect the action/event type names referenced.
@@ -498,11 +487,12 @@ type MessengerReferences = {
  * @param sourceFile - The TypeScript source file to scan.
  * @returns The sets of action and event type names referenced by messengers.
  */
-function collectMessengerReferences(
-  sourceFile: SourceFile,
-): MessengerReferences {
-  const actions = new Set<string>();
-  const events = new Set<string>();
+function collectMessengerCapabilityTypeNames(sourceFile: SourceFile): {
+  actionTypeNames: Set<string>;
+  eventTypeNames: Set<string>;
+} {
+  const actionTypeNames = new Set<string>();
+  const eventTypeNames = new Set<string>();
 
   for (const typeAlias of sourceFile.getTypeAliases()) {
     if (!typeAlias.getName().endsWith('Messenger')) {
@@ -528,11 +518,11 @@ function collectMessengerReferences(
       continue;
     }
 
-    walkTypeReferences(actionsArg, sourceFile, new Set(), actions);
-    walkTypeReferences(eventsArg, sourceFile, new Set(), events);
+    walkTypeReferences(actionsArg, sourceFile, new Set(), actionTypeNames);
+    walkTypeReferences(eventsArg, sourceFile, new Set(), eventTypeNames);
   }
 
-  return { actions, events };
+  return { actionTypeNames, eventTypeNames };
 }
 
 /**
@@ -603,45 +593,51 @@ type ExtractContext = {
 /**
  * Extract a single messenger item from a type alias or interface, given the
  * kind already determined from the messenger declaration. Returns null if
- * neither the inline-shape nor generic-helper patterns apply.
+ * neither the inline messenger-capability-type nor the capability-type-
+ * constructor patterns apply.
  *
  * @param statement - The type alias or interface declaration.
  * @param kind - Whether this statement is referenced as an action or an event.
  * @param context - Shared extraction context.
- * @returns The extracted item, or null if no recognized pattern matches.
+ * @returns The extracted capability, or null if no recognized pattern matches.
  */
-function extractItem(
+function extractFromMessengerCapabilityType(
   statement: TypeAliasDeclaration | InterfaceDeclaration,
   kind: 'action' | 'event',
   context: ExtractContext,
-): MessengerItemDoc | null {
-  const inlineItem = extractFromInlineShape(statement, kind, context);
-  if (inlineItem) {
-    return inlineItem;
+): ExtractedMessengerCapabilityType | null {
+  const inlineCapability = extractFromInlineMessengerCapabilityType(
+    statement,
+    kind,
+    context,
+  );
+  if (inlineCapability) {
+    return inlineCapability;
   }
 
   if (NodeGuards.isTypeAliasDeclaration(statement)) {
-    return extractFromGenericHelper(statement, kind, context);
+    return extractFromCapabilityTypeConstructor(statement, kind, context);
   }
 
   return null;
 }
 
 /**
- * Try the inline shape pattern: `{ type: '...'; handler: ... }` (action) or
- * `{ type: '...'; payload: ... }` (event), expressed as a type alias body or
- * an interface body.
+ * Try the inline messenger-capability-type pattern:
+ * `{ type: '...'; handler: ... }` (action) or
+ * `{ type: '...'; payload: ... }` (event), expressed as either a type alias
+ * body or an interface body.
  *
  * @param statement - The type alias or interface declaration.
  * @param kind - The expected kind (action or event).
  * @param context - Shared extraction context.
- * @returns The extracted item, or null if the shape doesn't match.
+ * @returns The extracted capability, or null if the shape doesn't match.
  */
-function extractFromInlineShape(
+function extractFromInlineMessengerCapabilityType(
   statement: TypeAliasDeclaration | InterfaceDeclaration,
   kind: 'action' | 'event',
   context: ExtractContext,
-): MessengerItemDoc | null {
+): ExtractedMessengerCapabilityType | null {
   let members: TypeElementTypes[] | undefined;
   if (NodeGuards.isTypeAliasDeclaration(statement)) {
     const body = statement.getTypeNode();
@@ -728,19 +724,23 @@ function resolveInlineTypeString(
 }
 
 /**
- * Try the generic-helper pattern: `ControllerGetStateAction<typeof X, State>`
- * for actions, or `ControllerStateChangeEvent<typeof X, State>` for events.
+ * Try the capability-type-constructor pattern:
+ * `ControllerGetStateAction<typeof X, State>` for actions, or
+ * `ControllerStateChangeEvent<typeof X, State>` for events. We don't have a
+ * settled term for these — they're generic types in `@metamask/base-controller`
+ * that you instantiate to declare a capability — but "type constructor" is
+ * close.
  *
  * @param statement - The type alias declaration.
  * @param kind - The expected kind (action or event).
  * @param context - Shared extraction context.
- * @returns The extracted item, or null if the helper doesn't match.
+ * @returns The extracted capability, or null if the constructor doesn't match.
  */
-function extractFromGenericHelper(
+function extractFromCapabilityTypeConstructor(
   statement: TypeAliasDeclaration,
   kind: 'action' | 'event',
   context: ExtractContext,
-): MessengerItemDoc | null {
+): ExtractedMessengerCapabilityType | null {
   const aliasBody = statement.getTypeNode();
   if (!aliasBody || !NodeGuards.isTypeReference(aliasBody)) {
     return null;
@@ -749,17 +749,17 @@ function extractFromGenericHelper(
   if (!NodeGuards.isIdentifier(nameNode)) {
     return null;
   }
-  const helperName = nameNode.getText();
+  const constructorName = nameNode.getText();
   const typeArgs = aliasBody.getTypeArguments();
   if (typeArgs.length < 2) {
     return null;
   }
 
-  const expectedHelper =
+  const expectedConstructor =
     kind === 'action'
       ? 'ControllerGetStateAction'
       : 'ControllerStateChangeEvent';
-  if (helperName !== expectedHelper) {
+  if (constructorName !== expectedConstructor) {
     return null;
   }
 
@@ -802,7 +802,7 @@ function extractFromGenericHelper(
 export async function extractFromFile(
   filePath: string,
   relBase: string,
-): Promise<MessengerItemDoc[]> {
+): Promise<ExtractedMessengerCapabilityType[]> {
   const content = await fs.readFile(filePath, 'utf8');
   const project = new Project({
     useInMemoryFileSystem: true,
@@ -812,8 +812,9 @@ export async function extractFromFile(
     overwrite: true,
   });
 
-  const references = collectMessengerReferences(sourceFile);
-  if (references.actions.size === 0 && references.events.size === 0) {
+  const { actionTypeNames, eventTypeNames } =
+    collectMessengerCapabilityTypeNames(sourceFile);
+  if (actionTypeNames.size === 0 && eventTypeNames.size === 0) {
     return [];
   }
 
@@ -822,7 +823,7 @@ export async function extractFromFile(
     classMethods: collectClassMethods(sourceFile),
     relPath: path.relative(relBase, filePath),
   };
-  const items: MessengerItemDoc[] = [];
+  const capabilities: ExtractedMessengerCapabilityType[] = [];
 
   for (const statement of sourceFile.getStatements()) {
     if (
@@ -834,21 +835,25 @@ export async function extractFromFile(
     const name = statement.getName();
 
     let kind: 'action' | 'event';
-    if (references.actions.has(name)) {
+    if (actionTypeNames.has(name)) {
       kind = 'action';
-    } else if (references.events.has(name)) {
+    } else if (eventTypeNames.has(name)) {
       kind = 'event';
     } else {
       continue;
     }
 
-    const item = extractItem(statement, kind, context);
-    if (item) {
-      items.push(item);
+    const capability = extractFromMessengerCapabilityType(
+      statement,
+      kind,
+      context,
+    );
+    if (capability) {
+      capabilities.push(capability);
     }
   }
 
-  return items;
+  return capabilities;
 }
 
 /**
