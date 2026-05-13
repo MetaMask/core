@@ -11,13 +11,23 @@ export { AnalyticsPlatformAdapterSetupError } from './AnalyticsPlatformAdapterSe
 // Export types
 export type {
   AnalyticsEventProperties,
+  AnalyticsDeliveryOptions,
+  AnalyticsInvocationCallback,
   AnalyticsUserTraits,
   AnalyticsPlatformAdapter,
   AnalyticsTrackingEvent,
 } from './AnalyticsPlatformAdapter.types';
 
 // Export state types
-export type { AnalyticsControllerState } from './AnalyticsController';
+export type {
+  AnalyticsControllerState,
+  AnalyticsEventQueue,
+  AnalyticsQueuedEvent,
+  AnalyticsQueuedEventType,
+  AnalyticsQueuedTrackEvent,
+  AnalyticsQueuedIdentifyEvent,
+  AnalyticsQueuedViewEvent,
+} from './AnalyticsController';
 
 // Export selectors
 export { analyticsControllerSelectors } from './selectors';

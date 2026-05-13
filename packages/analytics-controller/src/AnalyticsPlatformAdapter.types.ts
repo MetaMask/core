@@ -11,6 +11,33 @@ export type AnalyticsEventProperties = Record<string, Json>;
 export type AnalyticsUserTraits = Record<string, Json>;
 
 /**
+ * Callback invoked by the platform adapter after an analytics payload is
+ * delivered or fails.
+ */
+export type AnalyticsInvocationCallback = (error?: unknown) => void;
+
+/**
+ * Internal delivery metadata used by AnalyticsController when event queue
+ * persistence is enabled.
+ */
+export type AnalyticsDeliveryOptions = {
+  /**
+   * Stable identifier for the analytics payload.
+   */
+  messageId?: string;
+
+  /**
+   * Original timestamp for the analytics payload.
+   */
+  timestamp?: Date;
+
+  /**
+   * Callback for delivery acknowledgement.
+   */
+  callback?: AnalyticsInvocationCallback;
+};
+
+/**
  * Event properties structure with two distinct properties lists for regular and sensitive data.
  * Similar to ITrackingEvent from legacy analytics but decoupled for platform agnosticism.
  * Sensitivity is derived from the presence of sensitiveProperties (if sensitiveProperties has keys, the event is sensitive).
@@ -46,17 +73,27 @@ export type AnalyticsPlatformAdapter = {
    *
    * @param eventName - The name of the event
    * @param properties - Event properties. If not provided, the event has no properties.
+   * @param options - Optional delivery metadata for platform adapters.
    * The privacy plugin should check for `isSensitive === true` to determine if an event contains sensitive data.
    */
-  track(eventName: string, properties?: AnalyticsEventProperties): void;
+  track(
+    eventName: string,
+    properties?: AnalyticsEventProperties,
+    options?: AnalyticsDeliveryOptions,
+  ): void;
 
   /**
    * Identify a user with traits.
    *
    * @param userId - The user identifier (e.g., metametrics ID)
    * @param traits - User traits/properties
+   * @param options - Optional delivery metadata for platform adapters.
    */
-  identify(userId: string, traits?: AnalyticsUserTraits): void;
+  identify(
+    userId: string,
+    traits?: AnalyticsUserTraits,
+    options?: AnalyticsDeliveryOptions,
+  ): void;
 
   /**
    * Track a UI unit (page or screen) view depending on the platform
@@ -67,8 +104,13 @@ export type AnalyticsPlatformAdapter = {
    *
    * @param name - The identifier/name of the page or screen being viewed (e.g., "home", "settings", "wallet")
    * @param properties - Optional properties associated with the view
+   * @param options - Optional delivery metadata for platform adapters.
    */
-  view(name: string, properties?: AnalyticsEventProperties): void;
+  view(
+    name: string,
+    properties?: AnalyticsEventProperties,
+    options?: AnalyticsDeliveryOptions,
+  ): void;
 
   /**
    * Lifecycle hook called after the AnalyticsController is fully initialized.

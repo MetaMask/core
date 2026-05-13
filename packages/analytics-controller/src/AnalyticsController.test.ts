@@ -13,6 +13,7 @@ import type {
   AnalyticsControllerActions,
   AnalyticsControllerEvents,
   AnalyticsPlatformAdapter,
+  AnalyticsDeliveryOptions,
   AnalyticsTrackingEvent,
   AnalyticsControllerState,
 } from '.';
@@ -22,11 +23,19 @@ type SetupControllerOptions = {
   state: AnalyticsControllerState;
   platformAdapter?: AnalyticsPlatformAdapter;
   isAnonymousEventsFeatureEnabled?: boolean;
+  isEventQueuePersistenceEnabled?: boolean;
 };
 
 type SetupControllerReturn = {
   controller: AnalyticsController;
   messenger: AnalyticsControllerMessenger;
+};
+
+type MockAnalyticsPlatformAdapter = AnalyticsPlatformAdapter & {
+  track: jest.Mock;
+  identify: jest.Mock;
+  view: jest.Mock;
+  onSetupCompleted: jest.Mock;
 };
 
 /**
@@ -36,6 +45,7 @@ type SetupControllerReturn = {
  * @param options.state - Controller state (analyticsId required)
  * @param options.platformAdapter - Optional platform adapter
  * @param options.isAnonymousEventsFeatureEnabled - Optional anonymous events feature flag (default: false)
+ * @param options.isEventQueuePersistenceEnabled - Optional event queue persistence flag (default: false)
  * @returns The controller and messenger
  */
 async function setupController(
@@ -45,6 +55,7 @@ async function setupController(
     state,
     platformAdapter,
     isAnonymousEventsFeatureEnabled = false,
+    isEventQueuePersistenceEnabled = false,
   } = options;
 
   const adapter =
@@ -77,6 +88,7 @@ async function setupController(
     platformAdapter: adapter,
     state,
     isAnonymousEventsFeatureEnabled,
+    isEventQueuePersistenceEnabled,
   });
 
   controller.init();
@@ -121,13 +133,27 @@ function createTestEvent(
  *
  * @returns A mock AnalyticsPlatformAdapter
  */
-function createMockAdapter(): AnalyticsPlatformAdapter {
+function createMockAdapter(): MockAnalyticsPlatformAdapter {
   return {
     track: jest.fn(),
     identify: jest.fn(),
     view: jest.fn(),
     onSetupCompleted: jest.fn(),
   };
+}
+
+/**
+ * Gets delivery options from a mock adapter call.
+ *
+ * @param mock - The mock adapter method.
+ * @param callIndex - The call index.
+ * @returns Delivery options from the call.
+ */
+function getDeliveryOptions(
+  mock: jest.Mock,
+  callIndex = 0,
+): AnalyticsDeliveryOptions {
+  return mock.mock.calls[callIndex][2] as AnalyticsDeliveryOptions;
 }
 
 describe('AnalyticsController', () => {
@@ -210,6 +236,53 @@ describe('AnalyticsController', () => {
           "optedIn": true,
         }
       `);
+    });
+
+    it('persists eventQueue but excludes it from logs, snapshots, and UI', async () => {
+      const state: AnalyticsControllerState = {
+        ...metadataFixtureState,
+        eventQueue: {
+          'message-id-1': {
+            type: 'track',
+            eventName: 'test_event',
+            messageId: 'message-id-1',
+            timestamp: '2026-01-01T00:00:00.000Z',
+            properties: {
+              sensitive_prop: 'sensitive value',
+            },
+          },
+        },
+      };
+      const { controller } = await setupController({ state });
+
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'includeInDebugSnapshot',
+        ),
+      ).not.toHaveProperty('eventQueue');
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'includeInStateLogs',
+        ),
+      ).not.toHaveProperty('eventQueue');
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'usedInUi',
+        ),
+      ).not.toHaveProperty('eventQueue');
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'persist',
+        ),
+      ).toHaveProperty('eventQueue', state.eventQueue);
     });
 
     it('exposes expected state to UI', async () => {
@@ -964,6 +1037,468 @@ describe('AnalyticsController', () => {
       controller.trackView('home');
 
       expect(mockAdapter.view).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('event queue persistence', () => {
+    it('does not create eventQueue when disabled', async () => {
+      const mockAdapter = createMockAdapter();
+      const { controller } = await setupController({
+        state: {
+          optedIn: true,
+          analyticsId: '10000000-0000-4000-8000-000000000000',
+        },
+        platformAdapter: mockAdapter,
+      });
+
+      controller.trackEvent(createTestEvent('test_event', { prop: 'value' }));
+
+      expect(controller.state.eventQueue).toBeUndefined();
+      expect(mockAdapter.track).toHaveBeenCalledWith('test_event', {
+        prop: 'value',
+      });
+      expect(mockAdapter.track.mock.calls[0]).toHaveLength(2);
+    });
+
+    it('persists track payloads until the adapter callback succeeds', async () => {
+      const mockAdapter = createMockAdapter();
+      const { controller } = await setupController({
+        state: {
+          optedIn: true,
+          analyticsId: '10000000-0000-4000-8000-000000000001',
+        },
+        platformAdapter: mockAdapter,
+        isEventQueuePersistenceEnabled: true,
+      });
+
+      controller.trackEvent(createTestEvent('test_event', { prop: 'value' }));
+
+      const deliveryOptions = getDeliveryOptions(mockAdapter.track);
+      expect(deliveryOptions).toStrictEqual({
+        messageId: expect.any(String),
+        timestamp: expect.any(Date),
+        callback: expect.any(Function),
+      });
+      expect(controller.state.eventQueue).toStrictEqual({
+        [deliveryOptions.messageId as string]: {
+          type: 'track',
+          eventName: 'test_event',
+          messageId: deliveryOptions.messageId,
+          timestamp: deliveryOptions.timestamp?.toISOString(),
+          properties: { prop: 'value' },
+        },
+      });
+
+      deliveryOptions.callback?.();
+
+      expect(controller.state.eventQueue).toStrictEqual({});
+    });
+
+    it('ignores duplicate successful delivery callbacks', async () => {
+      const mockAdapter = createMockAdapter();
+      const { controller } = await setupController({
+        state: {
+          optedIn: true,
+          analyticsId: '10000000-0000-4000-8000-000000000011',
+        },
+        platformAdapter: mockAdapter,
+        isEventQueuePersistenceEnabled: true,
+      });
+
+      controller.trackEvent(createTestEvent('test_event', { prop: 'value' }));
+
+      const deliveryOptions = getDeliveryOptions(mockAdapter.track);
+      deliveryOptions.callback?.();
+
+      expect(() => deliveryOptions.callback?.()).not.toThrow();
+      expect(controller.state.eventQueue).toStrictEqual({});
+    });
+
+    it('keeps queued payloads when the adapter callback receives an error', async () => {
+      const mockAdapter = createMockAdapter();
+      const { controller } = await setupController({
+        state: {
+          optedIn: true,
+          analyticsId: '10000000-0000-4000-8000-000000000002',
+        },
+        platformAdapter: mockAdapter,
+        isEventQueuePersistenceEnabled: true,
+      });
+
+      controller.trackEvent(createTestEvent('test_event', { prop: 'value' }));
+
+      const deliveryOptions = getDeliveryOptions(mockAdapter.track);
+      deliveryOptions.callback?.(new Error('Segment failed'));
+
+      const [messageId] = Object.keys(controller.state.eventQueue ?? {});
+
+      expect(controller.state.eventQueue).toHaveProperty(messageId);
+      expect(controller.state.eventQueue?.[messageId]).toMatchObject({
+        type: 'track',
+        eventName: 'test_event',
+        properties: { prop: 'value' },
+      });
+    });
+
+    it('keeps queued payloads when the platform adapter throws', async () => {
+      const mockAdapter = createMockAdapter();
+      jest.spyOn(mockAdapter, 'track').mockImplementation(() => {
+        throw new Error('Segment failed');
+      });
+      const { controller } = await setupController({
+        state: {
+          optedIn: true,
+          analyticsId: '10000000-0000-4000-8000-000000000003',
+        },
+        platformAdapter: mockAdapter,
+        isEventQueuePersistenceEnabled: true,
+      });
+
+      expect(() =>
+        controller.trackEvent(createTestEvent('test_event', { prop: 'value' })),
+      ).not.toThrow();
+
+      const [messageId] = Object.keys(controller.state.eventQueue ?? {});
+
+      expect(controller.state.eventQueue).toHaveProperty(messageId);
+      expect(controller.state.eventQueue?.[messageId]).toMatchObject({
+        type: 'track',
+        eventName: 'test_event',
+        properties: { prop: 'value' },
+      });
+    });
+
+    it('queues both track payloads when anonymous events split sensitive properties', async () => {
+      const mockAdapter = createMockAdapter();
+      const { controller } = await setupController({
+        state: {
+          optedIn: true,
+          analyticsId: '10000000-0000-4000-8000-000000000004',
+        },
+        platformAdapter: mockAdapter,
+        isAnonymousEventsFeatureEnabled: true,
+        isEventQueuePersistenceEnabled: true,
+      });
+
+      controller.trackEvent(
+        createTestEvent(
+          'test_event',
+          { prop: 'value' },
+          { sensitive_prop: 'sensitive value' },
+        ),
+      );
+
+      const identifiedOptions = getDeliveryOptions(mockAdapter.track, 0);
+      const anonymousOptions = getDeliveryOptions(mockAdapter.track, 1);
+
+      expect(anonymousOptions.messageId).not.toBe(identifiedOptions.messageId);
+      expect(anonymousOptions.messageId).toStrictEqual(expect.any(String));
+      expect(Object.keys(controller.state.eventQueue ?? {})).toHaveLength(2);
+
+      identifiedOptions.callback?.();
+
+      expect(controller.state.eventQueue).not.toHaveProperty(
+        identifiedOptions.messageId as string,
+      );
+      expect(controller.state.eventQueue).toHaveProperty(
+        anonymousOptions.messageId as string,
+      );
+
+      anonymousOptions.callback?.();
+
+      expect(controller.state.eventQueue).toStrictEqual({});
+    });
+
+    it('persists identify and view payloads until their callbacks succeed', async () => {
+      const mockAdapter = createMockAdapter();
+      const analyticsId = '10000000-0000-4000-8000-000000000005';
+      const { controller } = await setupController({
+        state: {
+          optedIn: true,
+          analyticsId,
+        },
+        platformAdapter: mockAdapter,
+        isEventQueuePersistenceEnabled: true,
+      });
+
+      controller.identify({ trait: 'value' });
+      controller.trackView('home', { referrer: 'test' });
+
+      const identifyOptions = getDeliveryOptions(mockAdapter.identify);
+      const viewOptions = getDeliveryOptions(mockAdapter.view);
+
+      expect(mockAdapter.identify).toHaveBeenCalledWith(
+        analyticsId,
+        { trait: 'value' },
+        expect.objectContaining({ messageId: identifyOptions.messageId }),
+      );
+      expect(mockAdapter.view).toHaveBeenCalledWith(
+        'home',
+        { referrer: 'test' },
+        expect.objectContaining({ messageId: viewOptions.messageId }),
+      );
+      expect(Object.keys(controller.state.eventQueue ?? {})).toHaveLength(2);
+
+      identifyOptions.callback?.();
+      viewOptions.callback?.();
+
+      expect(controller.state.eventQueue).toStrictEqual({});
+    });
+
+    it('queues track, identify, and view payloads without optional properties', async () => {
+      const mockAdapter = createMockAdapter();
+      const analyticsId = '10000000-0000-4000-8000-000000000010';
+      const { controller } = await setupController({
+        state: {
+          optedIn: true,
+          analyticsId,
+        },
+        platformAdapter: mockAdapter,
+        isEventQueuePersistenceEnabled: true,
+      });
+
+      controller.trackEvent(createTestEvent('test_event'));
+      controller.identify();
+      controller.trackView('home');
+
+      const trackOptions = getDeliveryOptions(mockAdapter.track);
+      const identifyOptions = getDeliveryOptions(mockAdapter.identify);
+      const viewOptions = getDeliveryOptions(mockAdapter.view);
+
+      expect(controller.state.eventQueue).toStrictEqual({
+        [trackOptions.messageId as string]: {
+          type: 'track',
+          eventName: 'test_event',
+          messageId: trackOptions.messageId,
+          timestamp: trackOptions.timestamp?.toISOString(),
+        },
+        [identifyOptions.messageId as string]: {
+          type: 'identify',
+          userId: analyticsId,
+          messageId: identifyOptions.messageId,
+          timestamp: identifyOptions.timestamp?.toISOString(),
+        },
+        [viewOptions.messageId as string]: {
+          type: 'view',
+          name: 'home',
+          messageId: viewOptions.messageId,
+          timestamp: viewOptions.timestamp?.toISOString(),
+        },
+      });
+    });
+
+    it('replays queued track, identify, and view events during init when enabled and opted in', async () => {
+      const mockAdapter = createMockAdapter();
+      const analyticsId = '10000000-0000-4000-8000-000000000006';
+      const trackEvent = {
+        type: 'track' as const,
+        eventName: 'test_event',
+        messageId: 'track-message-id',
+        timestamp: '2026-01-01T00:00:00.000Z',
+        properties: { prop: 'value' },
+      };
+      const identifyEvent = {
+        type: 'identify' as const,
+        userId: analyticsId,
+        messageId: 'identify-message-id',
+        timestamp: '2026-01-01T00:00:01.000Z',
+        traits: { trait: 'value' },
+      };
+      const viewEvent = {
+        type: 'view' as const,
+        name: 'home',
+        messageId: 'view-message-id',
+        timestamp: '2026-01-01T00:00:02.000Z',
+        properties: { referrer: 'test' },
+      };
+
+      await setupController({
+        state: {
+          optedIn: true,
+          analyticsId,
+          eventQueue: {
+            'track-message-id': trackEvent,
+            'identify-message-id': identifyEvent,
+            'view-message-id': viewEvent,
+          },
+        },
+        platformAdapter: mockAdapter,
+        isEventQueuePersistenceEnabled: true,
+      });
+
+      expect(mockAdapter.track).toHaveBeenCalledWith(
+        'test_event',
+        { prop: 'value' },
+        expect.objectContaining({
+          messageId: 'track-message-id',
+          timestamp: new Date(trackEvent.timestamp),
+          callback: expect.any(Function),
+        }),
+      );
+      expect(mockAdapter.identify).toHaveBeenCalledWith(
+        analyticsId,
+        { trait: 'value' },
+        expect.objectContaining({
+          messageId: 'identify-message-id',
+          timestamp: new Date(identifyEvent.timestamp),
+          callback: expect.any(Function),
+        }),
+      );
+      expect(mockAdapter.view).toHaveBeenCalledWith(
+        'home',
+        { referrer: 'test' },
+        expect.objectContaining({
+          messageId: 'view-message-id',
+          timestamp: new Date(viewEvent.timestamp),
+          callback: expect.any(Function),
+        }),
+      );
+    });
+
+    it('does not replay queued events when queue persistence is disabled', async () => {
+      const mockAdapter = createMockAdapter();
+
+      await setupController({
+        state: {
+          optedIn: true,
+          analyticsId: '10000000-0000-4000-8000-000000000007',
+          eventQueue: {
+            'message-id-1': {
+              type: 'track',
+              eventName: 'test_event',
+              messageId: 'message-id-1',
+              timestamp: '2026-01-01T00:00:00.000Z',
+              properties: { prop: 'value' },
+            },
+          },
+        },
+        platformAdapter: mockAdapter,
+      });
+
+      expect(mockAdapter.track).not.toHaveBeenCalled();
+    });
+
+    it('clears queued events during init when opted out', async () => {
+      const mockAdapter = createMockAdapter();
+      const { controller } = await setupController({
+        state: {
+          optedIn: false,
+          analyticsId: '10000000-0000-4000-8000-000000000008',
+          eventQueue: {
+            'message-id-1': {
+              type: 'track',
+              eventName: 'test_event',
+              messageId: 'message-id-1',
+              timestamp: '2026-01-01T00:00:00.000Z',
+              properties: { prop: 'value' },
+            },
+          },
+        },
+        platformAdapter: mockAdapter,
+        isEventQueuePersistenceEnabled: true,
+      });
+
+      expect(mockAdapter.track).not.toHaveBeenCalled();
+      expect(controller.state.eventQueue).toStrictEqual({});
+    });
+
+    it('clears queued events on opt out', async () => {
+      const mockAdapter = createMockAdapter();
+      const { controller } = await setupController({
+        state: {
+          optedIn: true,
+          analyticsId: '10000000-0000-4000-8000-000000000009',
+          eventQueue: {
+            'message-id-1': {
+              type: 'track',
+              eventName: 'test_event',
+              messageId: 'message-id-1',
+              timestamp: '2026-01-01T00:00:00.000Z',
+              properties: { prop: 'value' },
+            },
+          },
+        },
+        platformAdapter: mockAdapter,
+        isEventQueuePersistenceEnabled: true,
+      });
+
+      controller.optOut();
+
+      expect(controller.state.optedIn).toBe(false);
+      expect(controller.state.eventQueue).toStrictEqual({});
+    });
+
+    it('does not fail when clearing an empty event queue on opt out', async () => {
+      const { controller } = await setupController({
+        state: {
+          optedIn: true,
+          analyticsId: '10000000-0000-4000-8000-00000000000c',
+        },
+        isEventQueuePersistenceEnabled: true,
+      });
+
+      expect(() => controller.optOut()).not.toThrow();
+
+      expect(controller.state.optedIn).toBe(false);
+      expect(controller.state.eventQueue).toBeUndefined();
+    });
+
+    it('drops invalid queued events during replay', async () => {
+      const mockAdapter = createMockAdapter();
+      const { controller } = await setupController({
+        state: {
+          optedIn: true,
+          analyticsId: '10000000-0000-4000-8000-00000000000d',
+          eventQueue: {
+            invalidRecord: 'not-an-event',
+            invalidMetadata: {
+              type: 'track',
+              eventName: 'test_event',
+              messageId: 123,
+              timestamp: '2026-01-01T00:00:00.000Z',
+            },
+            unsupportedType: {
+              type: 'unknown',
+              messageId: 'unsupportedType',
+              timestamp: '2026-01-01T00:00:00.000Z',
+            },
+            'message-id-1': {
+              type: 'track',
+              eventName: 'test_event',
+              messageId: 'different-message-id',
+              timestamp: '2026-01-01T00:00:00.000Z',
+            },
+          } as unknown as AnalyticsControllerState['eventQueue'],
+        },
+        platformAdapter: mockAdapter,
+        isEventQueuePersistenceEnabled: true,
+      });
+
+      expect(mockAdapter.track).not.toHaveBeenCalled();
+      expect(controller.state.eventQueue).toStrictEqual({});
+    });
+
+    it('drops queued events with invalid timestamps during replay', async () => {
+      const mockAdapter = createMockAdapter();
+      const { controller } = await setupController({
+        state: {
+          optedIn: true,
+          analyticsId: '10000000-0000-4000-8000-00000000000e',
+          eventQueue: {
+            'message-id-1': {
+              type: 'track',
+              eventName: 'test_event',
+              messageId: 'message-id-1',
+              timestamp: 'invalid-timestamp',
+            },
+          },
+        },
+        platformAdapter: mockAdapter,
+        isEventQueuePersistenceEnabled: true,
+      });
+
+      expect(mockAdapter.track).not.toHaveBeenCalled();
+      expect(controller.state.eventQueue).toStrictEqual({});
     });
   });
 
