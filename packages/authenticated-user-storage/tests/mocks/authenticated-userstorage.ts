@@ -40,7 +40,8 @@ export const MOCK_DELEGATION_RESPONSE: DelegationResponse =
 
 export const MOCK_NOTIFICATION_PREFERENCES: NotificationPreferences = {
   walletActivity: {
-    enabled: true,
+    inAppNotificationsEnabled: true,
+    pushNotificationsEnabled: true,
     accounts: [
       {
         address: '0x1234567890abcdef1234567890abcdef12345678',
@@ -48,10 +49,17 @@ export const MOCK_NOTIFICATION_PREFERENCES: NotificationPreferences = {
       },
     ],
   },
-  marketing: { enabled: false },
-  perps: { enabled: true },
+  marketing: {
+    inAppNotificationsEnabled: false,
+    pushNotificationsEnabled: false,
+  },
+  perps: {
+    inAppNotificationsEnabled: true,
+    pushNotificationsEnabled: true,
+  },
   socialAI: {
-    enabled: true,
+    inAppNotificationsEnabled: true,
+    pushNotificationsEnabled: true,
     txAmountLimit: 100,
     mutedTraderProfileIds: [
       'b3a7c9d1-4e2f-4a8b-9c6d-1f2e3a4b5c6d',
