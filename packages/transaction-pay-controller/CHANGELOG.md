@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [22.4.0]
+
 ### Added
 
 - Add Across quote support for post-quote Predict withdraw flows ([#8760](https://github.com/MetaMask/core/pull/8760))
@@ -882,7 +884,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#6820](https://github.com/MetaMask/core/pull/6820))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@22.3.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@22.4.0...HEAD
+[22.4.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@22.3.1...@metamask/transaction-pay-controller@22.4.0
 [22.3.1]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@22.3.0...@metamask/transaction-pay-controller@22.3.1
 [22.3.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@22.2.0...@metamask/transaction-pay-controller@22.3.0
 [22.2.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@22.1.0...@metamask/transaction-pay-controller@22.2.0
