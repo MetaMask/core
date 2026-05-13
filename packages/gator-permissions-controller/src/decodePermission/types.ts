@@ -75,6 +75,9 @@ export type DecodedPermission = Pick<
     // PermissionRequest type does not work well without the specific permission type, so we amend it here
     justification?: string;
   };
+  /**
+   * @deprecated Use `rules` instead.
+   */
   expiry: number | null;
   origin: string;
   /** Rules recovered from caveats (e.g. redeemer allowlist). */
