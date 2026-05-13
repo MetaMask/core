@@ -7,8 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [65.4.0]
+
 ### Added
 
+- Add optional `fiat` object (with `orderId` and `provider` properties) to `MetamaskPayMetadata` type for persisting fiat on-ramp order data on transactions ([#8694](https://github.com/MetaMask/core/pull/8694))
 - Add `predictAcrossWithdraw` to the `TransactionType` enum ([#8759](https://github.com/MetaMask/core/pull/8759))
 
 ### Changed
@@ -2428,7 +2431,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@65.3.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@65.4.0...HEAD
+[65.4.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@65.3.0...@metamask/transaction-controller@65.4.0
 [65.3.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@65.2.0...@metamask/transaction-controller@65.3.0
 [65.2.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@65.1.0...@metamask/transaction-controller@65.2.0
 [65.1.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@65.0.0...@metamask/transaction-controller@65.1.0
