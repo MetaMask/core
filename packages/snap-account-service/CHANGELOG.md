@@ -38,6 +38,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Bump `@metamask/messenger` from `^1.1.1` to `^1.2.0` ([#8632](https://github.com/MetaMask/core/pull/8632))
+- Bump `@metamask/account-tree-controller` from `^7.3.0` to `^7.4.0` ([#8785](https://github.com/MetaMask/core/pull/8785))
 
 [Unreleased]: https://github.com/MetaMask/core/compare/@metamask/snap-account-service@0.1.0...HEAD
 [0.1.0]: https://github.com/MetaMask/core/releases/tag/@metamask/snap-account-service@0.1.0

@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/assets-controllers` from `^108.0.0` to `^108.0.1` ([#8785](https://github.com/MetaMask/core/pull/8785))
+- Bump `@metamask/profile-sync-controller` from `^28.0.2` to `^28.1.0` ([#8785](https://github.com/MetaMask/core/pull/8785))
+
 ## [72.0.4]
 
 ### Changed
