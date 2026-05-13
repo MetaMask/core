@@ -14,6 +14,7 @@ import {
   CHAIN_ID_HYPERCORE,
   CHAIN_ID_POLYGON,
   NATIVE_TOKEN_ADDRESS,
+  POLYGON_USDCE_ADDRESS,
 } from '../../constants';
 import { getMessengerMock } from '../../tests/messenger-mock';
 import type {
@@ -3366,9 +3367,7 @@ describe('Relay Quotes Utils', () => {
           successfulFetchMock.mock.calls[0][1]?.body as string,
         );
 
-        expect(body.originCurrency).toBe(
-          '0x2791bca1f2de4661ed88a30c99a7a9449aa84174',
-        );
+        expect(body.originCurrency).toBe(POLYGON_USDCE_ADDRESS);
         expect(body.user).toBe(DEPOSIT_WALLET_MOCK);
         expect(body.refundTo).toBe(DEPOSIT_WALLET_MOCK);
         expect(body.useDepositAddress).toBe(true);

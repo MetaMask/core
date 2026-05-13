@@ -1,7 +1,11 @@
 import type { Hex } from '@metamask/utils';
 import { createModuleLogger } from '@metamask/utils';
 
-import { CHAIN_ID_POLYGON } from '../../../constants';
+import {
+  CHAIN_ID_POLYGON,
+  POLYGON_PUSD_ADDRESS,
+  POLYGON_USDCE_ADDRESS,
+} from '../../../constants';
 import { projectLogger } from '../../../logger';
 import type {
   QuoteRequest,
@@ -24,11 +28,9 @@ import {
 import {
   POLYMARKET_COLLATERAL_OFFRAMP_POLYGON,
   POLYMARKET_COLLATERAL_ONRAMP_POLYGON,
-  PUSD_ADDRESS_POLYGON,
   SWEEP_BALANCE_RETRY_ATTEMPTS,
   SWEEP_BALANCE_RETRY_DELAY_MS,
   SWEEP_RELAYER_SETTLE_DELAY_MS,
-  USDC_E_ADDRESS_POLYGON,
 } from './constants';
 
 const log = createModuleLogger(projectLogger, 'polymarket-withdraw');
@@ -43,7 +45,7 @@ export async function applyPolymarketDepositWalletOverrides(
     request.from,
   );
 
-  body.originCurrency = USDC_E_ADDRESS_POLYGON;
+  body.originCurrency = POLYGON_USDCE_ADDRESS;
   body.user = depositWalletAddress;
   body.refundTo = depositWalletAddress;
   body.useDepositAddress = true;
@@ -76,7 +78,7 @@ export async function submitPolymarketWithdraw(
     depositWallet: depositWalletAddress,
     calls: [
       {
-        target: PUSD_ADDRESS_POLYGON,
+        target: POLYGON_PUSD_ADDRESS,
         value: '0',
         data: encodeApprove(POLYMARKET_COLLATERAL_OFFRAMP_POLYGON, amount),
       },
@@ -84,7 +86,7 @@ export async function submitPolymarketWithdraw(
         target: POLYMARKET_COLLATERAL_OFFRAMP_POLYGON,
         value: '0',
         data: encodeUnwrap({
-          asset: USDC_E_ADDRESS_POLYGON,
+          asset: POLYGON_USDCE_ADDRESS,
           recipient: relayDepositAddress,
           amount,
         }),
@@ -138,7 +140,7 @@ export async function sweepPolymarketDepositWallet(
       depositWallet: depositWalletAddress,
       calls: [
         {
-          target: USDC_E_ADDRESS_POLYGON,
+          target: POLYGON_USDCE_ADDRESS,
           value: '0',
           data: encodeApprove(
             POLYMARKET_COLLATERAL_ONRAMP_POLYGON,
@@ -149,7 +151,7 @@ export async function sweepPolymarketDepositWallet(
           target: POLYMARKET_COLLATERAL_ONRAMP_POLYGON,
           value: '0',
           data: encodeWrap({
-            asset: USDC_E_ADDRESS_POLYGON,
+            asset: POLYGON_USDCE_ADDRESS,
             recipient: depositWalletAddress,
             amount: usdceBalance,
           }),
@@ -170,7 +172,7 @@ async function readUsdceBalanceOrZero(
       messenger,
       depositWalletAddress,
       CHAIN_ID_POLYGON,
-      USDC_E_ADDRESS_POLYGON,
+      POLYGON_USDCE_ADDRESS,
     );
     return BigInt(raw);
   } catch (error) {
@@ -200,7 +202,7 @@ async function readDepositWalletUsdceBalance(
         messenger,
         depositWalletAddress,
         CHAIN_ID_POLYGON,
-        USDC_E_ADDRESS_POLYGON,
+        POLYGON_USDCE_ADDRESS,
       );
       lastBalance = BigInt(raw);
     } catch (error) {

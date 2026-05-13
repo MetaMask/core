@@ -1,5 +1,6 @@
 import type { Hex } from '@metamask/utils';
 
+import { POLYGON_PUSD_ADDRESS, POLYGON_USDCE_ADDRESS } from '../../../constants';
 import { getMessengerMock } from '../../../tests/messenger-mock';
 import type { QuoteRequest, TransactionPayQuote } from '../../../types';
 import { getLiveTokenBalance } from '../../../utils/token';
@@ -7,8 +8,6 @@ import type { RelayQuote, RelayQuoteRequest } from '../types';
 import {
   POLYMARKET_COLLATERAL_OFFRAMP_POLYGON,
   POLYMARKET_COLLATERAL_ONRAMP_POLYGON,
-  PUSD_ADDRESS_POLYGON,
-  USDC_E_ADDRESS_POLYGON,
 } from './constants';
 import {
   applyPolymarketDepositWalletOverrides,
@@ -86,7 +85,7 @@ describe('Polymarket withdraw', () => {
         eoa: EOA_MOCK,
       });
       expect(body).toStrictEqual({
-        originCurrency: USDC_E_ADDRESS_POLYGON,
+        originCurrency: POLYGON_USDCE_ADDRESS,
         user: DEPOSIT_WALLET_MOCK,
         refundTo: DEPOSIT_WALLET_MOCK,
         useDepositAddress: true,
@@ -110,7 +109,7 @@ describe('Polymarket withdraw', () => {
       expect(call.eoa).toBe(EOA_MOCK);
       expect(call.depositWallet).toBe(DEPOSIT_WALLET_MOCK);
       expect(call.calls).toHaveLength(2);
-      expect(call.calls[0].target).toBe(PUSD_ADDRESS_POLYGON);
+      expect(call.calls[0].target).toBe(POLYGON_PUSD_ADDRESS);
       expect(call.calls[0].value).toBe('0');
       expect(call.calls[1].target).toBe(POLYMARKET_COLLATERAL_OFFRAMP_POLYGON);
       expect(call.calls[1].value).toBe('0');
@@ -181,7 +180,7 @@ describe('Polymarket withdraw', () => {
       expect(call.eoa).toBe(EOA_MOCK);
       expect(call.depositWallet).toBe(DEPOSIT_WALLET_MOCK);
       expect(call.calls).toHaveLength(2);
-      expect(call.calls[0].target).toBe(USDC_E_ADDRESS_POLYGON);
+      expect(call.calls[0].target).toBe(POLYGON_USDCE_ADDRESS);
       expect(call.calls[1].target).toBe(POLYMARKET_COLLATERAL_ONRAMP_POLYGON);
     });
 

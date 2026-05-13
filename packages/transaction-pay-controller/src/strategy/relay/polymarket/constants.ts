@@ -1,11 +1,5 @@
 import type { Hex } from '@metamask/utils';
 
-export const PUSD_ADDRESS_POLYGON =
-  '0xC011a7E12a19f7B1f670d46F03B03f3342E82DFB' as Hex;
-
-export const USDC_E_ADDRESS_POLYGON =
-  '0x2791bca1f2de4661ed88a30c99a7a9449aa84174' as Hex;
-
 export const POLYMARKET_COLLATERAL_OFFRAMP_POLYGON =
   '0x2957922Eb93258b93368531d39fAcCA3B4dC5854' as Hex;
 
