@@ -7,9 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Support path-based phishing lists (`blocklistPaths`, `whitelistPaths`) and path-aware URL scanning for shared gateways (for example IPFS gateways and `sites.google.com`) via `getPhishingDetectionScanUrlParam`, `isPhishingDetectionPathBasedHostname`, and `PHISHING_DETECTION_PATH_BASED_ROOT_DOMAINS` ([#8662](https://github.com/MetaMask/core/pull/8662))
+
 ### Changed
 
 - Bump `@metamask/controller-utils` from `^12.0.0` to `^12.1.0` ([#8774](https://github.com/MetaMask/core/pull/8774))
+- Bump `@metamask/transaction-controller` from `^65.3.0` to `^65.4.0` ([#8796](https://github.com/MetaMask/core/pull/8796))
 
 ## [17.1.2]
 

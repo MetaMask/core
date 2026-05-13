@@ -29,6 +29,11 @@ export {
   ApprovalFeatureType,
 } from './types';
 export type { CacheEntry } from './CacheManager';
+export {
+  PHISHING_DETECTION_PATH_BASED_ROOT_DOMAINS,
+  getPhishingDetectionScanUrlParam,
+  isPhishingDetectionPathBasedHostname,
+} from './utils';
 
 export type {
   PhishingControllerMaybeUpdateStateAction,

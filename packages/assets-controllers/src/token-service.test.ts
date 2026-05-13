@@ -557,6 +557,7 @@ describe('Token service', () => {
       expect(results).toStrictEqual({
         count: sampleSearchResults.length,
         data: sampleSearchResults,
+        pageInfo: { hasNextPage: false, endCursor: null },
       });
     });
 
@@ -583,6 +584,7 @@ describe('Token service', () => {
       expect(results).toStrictEqual({
         count: 1,
         data: [sampleSearchResults[0]],
+        pageInfo: { hasNextPage: false, endCursor: null },
       });
     });
 
@@ -607,6 +609,7 @@ describe('Token service', () => {
       expect(results).toStrictEqual({
         count: sampleSearchResults.length,
         data: sampleSearchResults,
+        pageInfo: { hasNextPage: false, endCursor: null },
       });
     });
 
@@ -636,6 +639,7 @@ describe('Token service', () => {
       expect(results).toStrictEqual({
         count: sampleSearchResults.length,
         data: sampleSearchResults,
+        pageInfo: { hasNextPage: false, endCursor: null },
       });
     });
 
@@ -734,7 +738,11 @@ describe('Token service', () => {
 
       const results = await searchTokens([sampleCaipChainId], searchQuery);
 
-      expect(results).toStrictEqual({ count: 0, data: [] });
+      expect(results).toStrictEqual({
+        count: 0,
+        data: [],
+        pageInfo: { hasNextPage: false, endCursor: null },
+      });
     });
 
     it('should return empty array when no chainIds are provided', async () => {
@@ -754,7 +762,11 @@ describe('Token service', () => {
 
       const results = await searchTokens([], searchQuery);
 
-      expect(results).toStrictEqual({ count: 0, data: [] });
+      expect(results).toStrictEqual({
+        count: 0,
+        data: [],
+        pageInfo: { hasNextPage: false, endCursor: null },
+      });
     });
 
     it('should handle API error responses in JSON format', async () => {
@@ -809,6 +821,7 @@ describe('Token service', () => {
       expect(result).toStrictEqual({
         count: sampleSearchResults.length,
         data: sampleSearchResults,
+        pageInfo: { hasNextPage: false, endCursor: null },
       });
     });
 
@@ -834,6 +847,7 @@ describe('Token service', () => {
       expect(results).toStrictEqual({
         count: sampleSearchResults.length,
         data: sampleSearchResults,
+        pageInfo: { hasNextPage: false, endCursor: null },
       });
     });
 
@@ -860,6 +874,7 @@ describe('Token service', () => {
       expect(results).toStrictEqual({
         count: sampleSearchResults.length,
         data: sampleSearchResults,
+        pageInfo: { hasNextPage: false, endCursor: null },
       });
     });
 
@@ -886,6 +901,7 @@ describe('Token service', () => {
       expect(results).toStrictEqual({
         count: sampleSearchResults.length,
         data: sampleSearchResults,
+        pageInfo: { hasNextPage: false, endCursor: null },
       });
     });
 
@@ -912,6 +928,7 @@ describe('Token service', () => {
       expect(results).toStrictEqual({
         count: sampleSearchResults.length,
         data: sampleSearchResults,
+        pageInfo: { hasNextPage: false, endCursor: null },
       });
     });
 
@@ -935,7 +952,87 @@ describe('Token service', () => {
       expect(results).toStrictEqual({
         count: sampleSearchResults.length,
         data: sampleSearchResults,
+        pageInfo: { hasNextPage: false, endCursor: null },
       });
+    });
+
+    it('should forward pageInfo and totalCount when the API returns them', async () => {
+      const searchQuery = 'USD';
+      const mockResponse = {
+        count: sampleSearchResults.length,
+        totalCount: 2343,
+        data: sampleSearchResults,
+        pageInfo: { hasNextPage: true, endCursor: 'MA==' },
+      };
+
+      nock(TOKEN_END_POINT_API)
+        .get(
+          `/tokens/search?networks=${encodeURIComponent(sampleCaipChainId)}&query=${searchQuery}&first=10&includeMarketData=false&includeRwaData=true`,
+        )
+        .reply(200, mockResponse)
+        .persist();
+
+      const results = await searchTokens([sampleCaipChainId], searchQuery);
+
+      expect(results).toStrictEqual({
+        count: sampleSearchResults.length,
+        totalCount: 2343,
+        data: sampleSearchResults,
+        pageInfo: { hasNextPage: true, endCursor: 'MA==' },
+      });
+    });
+
+    it('should send the after cursor as a query parameter', async () => {
+      const searchQuery = 'USD';
+      const cursor = 'MA==';
+      const mockResponse = {
+        count: sampleSearchResults.length,
+        totalCount: 2343,
+        data: sampleSearchResults,
+        pageInfo: { hasNextPage: false, endCursor: 'MQ==' },
+      };
+
+      nock(TOKEN_END_POINT_API)
+        .get(
+          `/tokens/search?networks=${encodeURIComponent(sampleCaipChainId)}&query=${searchQuery}&first=10&after=${encodeURIComponent(cursor)}&includeMarketData=false&includeRwaData=true`,
+        )
+        .reply(200, mockResponse)
+        .persist();
+
+      const results = await searchTokens([sampleCaipChainId], searchQuery, {
+        after: cursor,
+      });
+
+      expect(results).toStrictEqual({
+        count: sampleSearchResults.length,
+        totalCount: 2343,
+        data: sampleSearchResults,
+        pageInfo: { hasNextPage: false, endCursor: 'MQ==' },
+      });
+    });
+
+    it('should omit pageInfo and totalCount when the API does not return them', async () => {
+      const searchQuery = 'USD';
+      const mockResponse = {
+        count: sampleSearchResults.length,
+        data: sampleSearchResults,
+      };
+
+      nock(TOKEN_END_POINT_API)
+        .get(
+          `/tokens/search?networks=${encodeURIComponent(sampleCaipChainId)}&query=${searchQuery}&first=10&includeMarketData=false&includeRwaData=true`,
+        )
+        .reply(200, mockResponse)
+        .persist();
+
+      const results = await searchTokens([sampleCaipChainId], searchQuery);
+
+      expect(results).toStrictEqual({
+        count: sampleSearchResults.length,
+        data: sampleSearchResults,
+      });
+      expect(results).not.toHaveProperty('pageInfo');
+      expect(results).not.toHaveProperty('totalCount');
     });
   });
 
@@ -1421,6 +1518,7 @@ describe('Token service', () => {
       expect(results).toStrictEqual({
         count: sampleSearchResultsWithSecurityData.length,
         data: sampleSearchResultsWithSecurityData,
+        pageInfo: { hasNextPage: false, endCursor: null },
       });
       expect(results.data[0].securityData?.resultType).toBe('Verified');
       expect(results.data[0].securityData?.maliciousScore).toBe('0.0');

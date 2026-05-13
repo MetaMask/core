@@ -7,9 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `productAnnouncementEnabled` to `NotificationServicesControllerEnableNotificationsOptions`. ([#8784](https://github.com/MetaMask/core/pull/8784))
+
 ### Changed
 
+- **BREAKING:** Enrich notification settings using Authenticated User Storage. ([#8784](https://github.com/MetaMask/core/pull/8784))
+  - Replace Trigger API notification settings with AUS notification preferences as the source of truth.
+  - `NotificationServicesController` now requires AUS messenger actions for notification setup.
+  - When AUS has no stored preferences, `createOnChainTriggers` writes a complete preferences blob for `walletActivity`, `marketing`, `perps`, and `socialAI`.
+  - Wallet activity accounts are seeded from the current Trigger API config when at least one current account is already enabled; otherwise all current accounts are initialized as enabled for first-time notification setup.
+  - Marketing push notifications are initialized from `hasMarketingConsent`, while marketing in-app notifications are initialized from `productAnnouncementEnabled`.
 - Bump `@metamask/controller-utils` from `^12.0.0` to `^12.1.0` ([#8774](https://github.com/MetaMask/core/pull/8774))
+- Bump `@metamask/profile-sync-controller` from `^28.0.2` to `^28.1.0` ([#8783](https://github.com/MetaMask/core/pull/8783))
+
+### Removed
+
+- **BREAKING:** Remove unused `resetNotifications` option from `NotificationServicesControllerEnableNotificationsOptions`. ([#8784](https://github.com/MetaMask/core/pull/8784))
 
 ## [23.1.1]
 
@@ -294,7 +309,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Renamed method `updateOnChainTriggersByAccount` to `enableAccounts` in `NotificationServicesController`
   - Renamed method `deleteOnChainTriggersByAccount` to `disableAccounts` in `NotificationServicesController`
   - Deprecated `updateTriggerPushNotifications` from `NotificationServicesPushController` and will be removed in a subsequent release.
-
 - Bump `@metamask/controller-utils` to `^11.10.0` ([#5935](https://github.com/MetaMask/core/pull/5935))
 
 ### Removed

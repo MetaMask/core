@@ -10,6 +10,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Bump `@metamask/controller-utils` from `^12.0.0` to `^12.1.0` ([#8774](https://github.com/MetaMask/core/pull/8774))
+- Bump `@metamask/base-data-service` from `^0.1.2` to `^0.1.3` ([#8799](https://github.com/MetaMask/core/pull/8799))
+- **BREAKING:** Replace `enabled` by `inAppNotificationsEnabled` and `pushNotificationsEnabled` in all the `NotificationPreferences` type fields and validation to match the API payload. ([#8784](https://github.com/MetaMask/core/pull/8784))
 
 ## [1.0.1]
 
