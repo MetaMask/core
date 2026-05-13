@@ -7,12 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add Polymarket deposit-wallet support to the Relay strategy for `predictWithdraw` transactions, routed via the `isPolymarketDepositWallet` flag on `TransactionConfig` ([#8754](https://github.com/MetaMask/core/pull/8754))
+
 ## [22.4.0]
 
 ### Added
 
 - Add Across quote support for post-quote Predict withdraw flows ([#8760](https://github.com/MetaMask/core/pull/8760))
-- Add Polymarket deposit-wallet support to the Relay strategy for `predictWithdraw` transactions, routed via the `isPolymarketDepositWallet` flag on `TransactionConfig` ([#8754](https://github.com/MetaMask/core/pull/8754))
 
 ### Changed
 
