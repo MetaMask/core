@@ -5,6 +5,7 @@ import {
   buildNativeAssetsFromConstant,
   buildNativeAssetsFromApi,
 } from './native-assets';
+import { normalizeAssetId } from './normalizeAssetId';
 
 jest.mock('@metamask/controller-utils', () => ({
   ...jest.requireActual('@metamask/controller-utils'),
@@ -14,12 +15,12 @@ jest.mock('@metamask/controller-utils', () => ({
 const fetchWithErrorHandlingMock = jest.mocked(fetchWithErrorHandling);
 
 describe('buildNativeAssetsFromConstant', () => {
-  it('includes an entry for every value in SPOT_PRICES_SUPPORT_INFO', () => {
+  it('includes a normalized entry for every value in SPOT_PRICES_SUPPORT_INFO', () => {
     const result = buildNativeAssetsFromConstant();
     const supportInfoValues = Object.values(SPOT_PRICES_SUPPORT_INFO);
 
     for (const assetId of supportInfoValues) {
-      expect(Object.values(result)).toContain(assetId);
+      expect(Object.values(result)).toContain(normalizeAssetId(assetId));
     }
   });
 });
