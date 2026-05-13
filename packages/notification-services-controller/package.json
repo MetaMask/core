@@ -106,6 +106,7 @@
   },
   "dependencies": {
     "@contentful/rich-text-html-renderer": "^16.5.2",
+    "@metamask/authenticated-user-storage": "^1.0.1",
     "@metamask/base-controller": "^9.1.0",
     "@metamask/controller-utils": "^12.1.0",
     "@metamask/keyring-controller": "^25.5.0",
