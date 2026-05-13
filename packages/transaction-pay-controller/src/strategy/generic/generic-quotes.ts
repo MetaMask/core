@@ -28,6 +28,7 @@ import { estimateQuoteGasLimits } from '../../utils/quote-gas';
 import type { QuoteGasTransaction } from '../../utils/quote-gas';
 import { getNativeToken, getTokenBalance } from '../../utils/token';
 import { fetchGenericQuote } from './generic-api';
+import { normalizeGenericPerpsRequest } from './perps';
 import type {
   GenericQuote,
   GenericQuoteRequest,
@@ -122,6 +123,10 @@ async function buildGenericQuoteRequest(
   messenger: TransactionPayControllerMessenger,
   provider: GenericQuoteRequest['provider'],
 ): Promise<GenericQuoteRequest> {
+  const normalizedRequest = normalizeGenericPerpsRequest(
+    quoteRequest,
+    transaction,
+  );
   const {
     from,
     isMaxAmount,
@@ -132,7 +137,7 @@ async function buildGenericQuoteRequest(
     targetAmountMinimum,
     targetChainId,
     targetTokenAddress,
-  } = quoteRequest;
+  } = normalizedRequest;
 
   const useExactInput = Boolean(
     (isMaxAmount ?? false) || (isPostQuote ?? false),
