@@ -595,8 +595,11 @@ export class SnapAccountService {
   ): Promise<Json> {
     // Handle specific methods first.
     if (message.method === SnapManageAccountsMethod.GetSelectedAccounts) {
-      return (
-        this.#getAccountGroup(this.#getSelectedAccountGroupId())?.accounts ?? []
+      const groupId = this.#getSelectedAccountGroupId();
+      const accounts = this.#getAccountGroup(groupId)?.accounts ?? [];
+
+      return await this.#withKeyringV2Unsafe(snapId, async (keyring) =>
+        accounts.filter((id) => keyring.hasAccount(id)),
       );
     }
 

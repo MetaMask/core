@@ -930,7 +930,7 @@ describe('SnapAccountService', () => {
       expect(result).toStrictEqual({ ok: true });
     });
 
-    it('short-circuits the GetSelectedAccounts method by returning the selected account group accounts', async () => {
+    it('short-circuits GetSelectedAccounts by returning only the selected group accounts the Snap actually owns', async () => {
       const { service, mocks } = await setup();
       mocks.AccountTreeController.getSelectedAccountGroup.mockReturnValue(
         MOCK_GROUP_ID,
@@ -938,18 +938,27 @@ describe('SnapAccountService', () => {
       mocks.AccountTreeController.getAccountGroupObject.mockReturnValue(
         buildGroup(MOCK_GROUP_ID, MOCK_ACCOUNTS),
       );
+      // The Snap only owns the first account of the selected group.
+      mockWithKeyringV2Unsafe(mocks, {
+        [MOCK_SNAP_ID]: {
+          hasAccount: (id) => id === MOCK_ACCOUNTS[0],
+        },
+      });
 
       const result = await service.handleKeyringSnapMessage(MOCK_SNAP_ID, {
         method: SnapManageAccountsMethod.GetSelectedAccounts,
         params: {},
       } as unknown as SnapMessage);
 
-      expect(result).toStrictEqual(MOCK_ACCOUNTS);
+      expect(result).toStrictEqual([MOCK_ACCOUNTS[0]]);
       expect(mocks.KeyringController.withKeyringV2).not.toHaveBeenCalled();
     });
 
     it('returns an empty array for GetSelectedAccounts when no account group is selected', async () => {
-      const { service } = await setup();
+      const { service, mocks } = await setup();
+      mockWithKeyringV2Unsafe(mocks, {
+        [MOCK_SNAP_ID]: { hasAccount: () => true },
+      });
 
       const result = await service.handleKeyringSnapMessage(MOCK_SNAP_ID, {
         method: SnapManageAccountsMethod.GetSelectedAccounts,
