@@ -1042,8 +1042,8 @@ export type FooAction = {
     });
   });
 
-  it('handles skipped tag continuation lines', async () => {
-    expect.assertions(2);
+  it('keeps the description while dropping multi-line @param tags', async () => {
+    expect.assertions(3);
 
     await withinSandbox(async ({ directoryPath }) => {
       const filePath = path.join(directoryPath, 'types.ts');
@@ -1057,8 +1057,6 @@ export type FooAction = {
  * @param foo - First param that
  *   spans multiple lines.
  * @param bar - Second param.
- *
- * After params.
  */
 export type FooAction = {
   type: 'Foo:do';
@@ -1072,7 +1070,8 @@ export type FooAction = {
       const items = await extractFromFile(filePath, directoryPath);
 
       expect(items[0].jsDoc).toContain('Main description.');
-      expect(items[0].jsDoc).toContain('After params.');
+      expect(items[0].jsDoc).not.toContain('@param');
+      expect(items[0].jsDoc).not.toContain('First param');
     });
   });
 

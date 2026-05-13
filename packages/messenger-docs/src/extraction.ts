@@ -5,6 +5,7 @@ import type {
   Expression,
   InterfaceDeclaration,
   JSDocableNode,
+  JSDocTag,
   Node as TsMorphNode,
   SourceFile,
   TemplateLiteralTypeNode,
@@ -211,7 +212,51 @@ function resolveTemplateLiteralType(
 }
 
 /**
- * Extract cleaned JSDoc body text from a node.
+ * Convert `{@link X}` references inside a string to plain backtick code spans,
+ * and escape any remaining (out-of-backtick) curly braces so the output is
+ * safe to drop into MDX.
+ *
+ * @param text - The raw text to normalize.
+ * @returns The text with `@link` resolved and stray braces escaped.
+ */
+function escapeJsDocTextForMdx(text: string): string {
+  const withLinksResolved = text.replace(/\{@link\s+([^}]+)\}/gu, '`$1`');
+  return withLinksResolved.replace(
+    /`[^`]*`|(\{)|(\})/gu,
+    (match, open: string | undefined, close: string | undefined) => {
+      if (open) {
+        return '\\{';
+      }
+      if (close) {
+        return '\\}';
+      }
+      return match;
+    },
+  );
+}
+
+/**
+ * Extract a JSDoc tag's comment text, normalizing whitespace so continuation
+ * lines are joined with single spaces. ts-morph returns the raw comment with
+ * embedded newlines preserved; we collapse those for the markdown output.
+ *
+ * @param tag - The JSDoc tag.
+ * @returns The flattened comment text.
+ */
+function extractJsDocTagComment(tag: JSDocTag): string {
+  return (tag.getCommentText() ?? '').replace(/\s+/gu, ' ').trim();
+}
+
+/**
+ * Extract cleaned JSDoc body text from a node:
+ *
+ * - the description (everything above the first tag) goes through verbatim,
+ * - `@deprecated` tags are rendered as `**Deprecated:** <comment>` lines and
+ *   appended after the description,
+ * - all other tags (`@param`, `@returns`, `@see`, …) are dropped — their
+ *   information is already present in the rendered handler/payload signature.
+ *
+ * Output is normalized for MDX (curly braces escaped, `{@link}` resolved).
  *
  * @param node - The AST node to extract JSDoc from.
  * @returns The cleaned JSDoc text, or empty string if none.
@@ -222,129 +267,25 @@ function extractJsDocText(node: JSDocableNode): string {
     return '';
   }
 
-  const raw = jsDocs[0].getText().trim();
+  const jsDoc = jsDocs[0];
+  const description = jsDoc.getDescription().trim();
 
-  // Handle single-line JSDoc: /** Gets the current state. */
-  const singleLineMatch = raw.match(/^\/\*\*\s*(.*?)\s*\*\/$/u);
-  if (singleLineMatch) {
-    let text = singleLineMatch[1].replace(/^\*\s*/u, '');
-    // Handle tags in single-line JSDoc
-    if (text.startsWith('@deprecated')) {
-      const depText = text.slice('@deprecated'.length).trim();
-      text = depText ? `**Deprecated:** ${depText}` : '';
-    } else if (text.startsWith('@')) {
-      // Strip other tags (@param, @returns, @see, @throws, etc.)
-      return '';
-    }
-    // Apply same escaping as multi-line path
-    text = text.replace(/\{@link\s+([^}]+)\}/gu, '`$1`');
-    text = text.replace(/`[^`]*`|(\{)|(\})/gu, (match, open, close) => {
-      if (open) {
-        return '\\{';
-      }
-      if (close) {
-        return '\\}';
-      }
-      return match;
-    });
-    return text || '';
-  }
-
-  // Strip comment delimiters, leading asterisks, and @param/@returns/@see tags
-  const lines = raw.split('\n');
-  const cleaned: string[] = [];
-  const skippedTags = [
-    '@param',
-    '@returns',
-    '@see',
-    '@throws',
-    '@template',
-    '@example',
-  ];
-  let currentTag: 'skip' | 'deprecated' | null = null;
-  let deprecatedParts: string[] = [];
-
-  for (const rawLine of lines) {
-    let trimmed = rawLine.trim();
-    if (trimmed === '/**' || trimmed === '*/') {
+  const deprecatedLines: string[] = [];
+  for (const tag of jsDoc.getTags()) {
+    if (tag.getTagName() !== 'deprecated') {
       continue;
     }
-    if (trimmed.startsWith('* ')) {
-      trimmed = trimmed.slice(2);
-    } else if (trimmed === '*') {
-      trimmed = '';
-    } else if (trimmed.startsWith('*')) {
-      trimmed = trimmed.slice(1);
-    }
-
-    // Check if this line starts a new tag
-    if (trimmed.startsWith('@')) {
-      // Flush any accumulated deprecated text
-      if (currentTag === 'deprecated' && deprecatedParts.length > 0) {
-        cleaned.push(`**Deprecated:** ${deprecatedParts.join(' ')}`);
-        deprecatedParts = [];
-      }
-
-      if (trimmed.startsWith('@deprecated')) {
-        currentTag = 'deprecated';
-        const depText = trimmed.slice('@deprecated'.length).trim();
-        if (depText) {
-          deprecatedParts.push(depText);
-        }
-        continue;
-      }
-
-      currentTag = skippedTags.some((tag) => trimmed.startsWith(tag))
-        ? 'skip'
-        : null;
-      if (currentTag === 'skip') {
-        continue;
-      }
-    } else if (currentTag === 'skip') {
-      if (trimmed === '') {
-        currentTag = null;
-      } else {
-        continue;
-      }
-    } else if (currentTag === 'deprecated') {
-      if (trimmed === '') {
-        // End of deprecated tag
-        if (deprecatedParts.length > 0) {
-          cleaned.push(`**Deprecated:** ${deprecatedParts.join(' ')}`);
-          deprecatedParts = [];
-        }
-        currentTag = null;
-      } else {
-        deprecatedParts.push(trimmed);
-        continue;
-      }
-    }
-
-    cleaned.push(trimmed);
+    const comment = extractJsDocTagComment(tag);
+    deprecatedLines.push(
+      comment ? `**Deprecated:** ${comment}` : '**Deprecated:**',
+    );
   }
 
-  // Flush any remaining deprecated text
-  if (deprecatedParts.length > 0) {
-    cleaned.push(`**Deprecated:** ${deprecatedParts.join(' ')}`);
-  }
+  const combined = [description, ...deprecatedLines]
+    .filter((line) => line.length > 0)
+    .join('\n');
 
-  let result = cleaned.join('\n').trim();
-
-  // Convert JSDoc {@link X} references to markdown backtick code
-  result = result.replace(/\{@link\s+([^}]+)\}/gu, '`$1`');
-
-  // Escape remaining curly braces for MDX safety (but not inside backtick code spans)
-  result = result.replace(/`[^`]*`|(\{)|(\})/gu, (match, open, close) => {
-    if (open) {
-      return '\\{';
-    }
-    if (close) {
-      return '\\}';
-    }
-    return match; // preserve content inside backticks
-  });
-
-  return result;
+  return escapeJsDocTextForMdx(combined);
 }
 
 /**
