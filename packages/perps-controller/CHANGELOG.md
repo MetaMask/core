@@ -9,8 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Pass the perps builder base fee into rewards discount resolution and treat unhydrated rewards subscription state as retryable instead of a definitive no-discount result ([#8803](https://github.com/MetaMask/core/pull/8803))
 - Bump `@metamask/controller-utils` from `^12.0.0` to `^12.1.0` ([#8774](https://github.com/MetaMask/core/pull/8774))
 - Bump `@metamask/transaction-controller` from `^65.3.0` to `^65.4.0` ([#8796](https://github.com/MetaMask/core/pull/8796))
+
+### Fixed
+
+- Defer signing-backed HyperLiquid unified-account setup for hardware wallets across migratable abstraction modes, including Ledger, Trezor, OneKey, Lattice, and QR keyrings, to avoid repeated signing prompts while browsing ([#8803](https://github.com/MetaMask/core/pull/8803))
+- Improve logging and retry classification for failed cancel/close/TP-SL operations and SDK-wrapped keyring-locked errors ([#8803](https://github.com/MetaMask/core/pull/8803))
 
 ## [6.0.1]
 
