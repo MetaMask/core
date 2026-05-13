@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- Release/979.0.0 ([#8783](https://github.com/MetaMask/core/pull/8783))
+- Release 975.0.0 ([#8765](https://github.com/MetaMask/core/pull/8765))
+
 ### Changed
 
 - Pass the perps builder base fee into rewards discount resolution and treat unhydrated rewards subscription state as retryable instead of a definitive no-discount result ([#8803](https://github.com/MetaMask/core/pull/8803))
