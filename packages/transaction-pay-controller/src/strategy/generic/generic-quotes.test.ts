@@ -11,7 +11,6 @@ import {
   getGenericProviderPriority,
   getSlippage,
   isEIP7702Chain,
-  isRelayExecuteEnabled,
 } from '../../utils/feature-flags';
 import { fetchGenericQuote } from './generic-api';
 import { getGenericQuotes } from './generic-quotes';
@@ -22,7 +21,6 @@ jest.mock('../../utils/feature-flags', () => ({
   getGenericProviderPriority: jest.fn(),
   getSlippage: jest.fn(),
   isEIP7702Chain: jest.fn(),
-  isRelayExecuteEnabled: jest.fn(),
 }));
 jest.mock('./generic-api');
 
@@ -102,7 +100,6 @@ describe('generic-quotes', () => {
   );
   const getSlippageMock = jest.mocked(getSlippage);
   const isEIP7702ChainMock = jest.mocked(isEIP7702Chain);
-  const isRelayExecuteEnabledMock = jest.mocked(isRelayExecuteEnabled);
   const { getDelegationTransactionMock, messenger } = getMessengerMock();
 
   beforeEach(() => {
@@ -115,7 +112,6 @@ describe('generic-quotes', () => {
     getGenericProviderPriorityMock.mockReturnValue([GenericProviderName.Relay]);
     getSlippageMock.mockReturnValue(0.005);
     isEIP7702ChainMock.mockReturnValue(false);
-    isRelayExecuteEnabledMock.mockReturnValue(false);
   });
 
   it('maps standard transactions to EXPECTED_OUTPUT quote requests with relay provider', async () => {
@@ -240,9 +236,8 @@ describe('generic-quotes', () => {
     expect(getDelegationTransactionMock).not.toHaveBeenCalled();
   });
 
-  it('sets supportsGasless when 7702 + Relay execute + EIP-7702 chain all align', async () => {
+  it('sets supportsGasless when the account supports 7702 and the source chain is EIP-7702-capable', async () => {
     isEIP7702ChainMock.mockReturnValue(true);
-    isRelayExecuteEnabledMock.mockReturnValue(true);
 
     await getGenericQuotes({
       accountSupports7702: true,
@@ -259,14 +254,12 @@ describe('generic-quotes', () => {
   });
 
   it.each([
-    ['account does not support 7702', false, true, true],
-    ['Relay execute disabled', true, false, true],
-    ['source chain is not an EIP-7702 chain', true, true, false],
+    ['account does not support 7702', false, true],
+    ['source chain is not an EIP-7702 chain', true, false],
   ])(
     'leaves supportsGasless false when %s',
-    async (_label, supports7702, relayExecute, eip7702Chain) => {
+    async (_label, supports7702, eip7702Chain) => {
       isEIP7702ChainMock.mockReturnValue(eip7702Chain);
-      isRelayExecuteEnabledMock.mockReturnValue(relayExecute);
 
       await getGenericQuotes({
         accountSupports7702: supports7702,

@@ -19,7 +19,6 @@ import {
   getGenericProviderPriority,
   getSlippage,
   isEIP7702Chain,
-  isRelayExecuteEnabled,
 } from '../../utils/feature-flags';
 import { calculateGasCost } from '../../utils/gas';
 import {
@@ -158,9 +157,7 @@ async function buildGenericQuoteRequest(
   }
 
   const supportsGasless =
-    accountSupports7702 &&
-    isRelayExecuteEnabled(messenger) &&
-    isEIP7702Chain(messenger, sourceChainId);
+    accountSupports7702 && isEIP7702Chain(messenger, sourceChainId);
 
   const body: GenericQuoteRequest = {
     amount: useExactInput ? sourceTokenAmount : targetAmountMinimum,
