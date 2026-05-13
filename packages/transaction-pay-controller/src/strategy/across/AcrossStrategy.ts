@@ -83,8 +83,25 @@ export class AcrossStrategy implements PayStrategy<AcrossQuote> {
     // Gas planning can discover that TransactionController would add an
     // authorization list for a first-time 7702 upgrade. `is7702` alone is not a
     // blocker because it also covers already-upgraded accounts.
-    return !request.quotes.some(
+    const requiresAuthorizationList = request.quotes.some(
       (quote) => quote.original.metamask.requiresAuthorizationList,
+    );
+
+    if (!requiresAuthorizationList) {
+      return true;
+    }
+
+    if (!isPredictWithdrawTransaction(request.transaction)) {
+      return false;
+    }
+
+    // A first-time 7702 authorization list is acceptable here only because it is
+    // attached to MetaMask's source-chain batch transaction. It must not be
+    // smuggled into Across destination post-swap actions.
+    return request.quotes.every(
+      (quote) =>
+        quote.request.isPostQuote === true &&
+        quote.original.request.actions.length === 0,
     );
   }
 
