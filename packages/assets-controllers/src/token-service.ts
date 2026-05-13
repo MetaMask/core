@@ -60,6 +60,7 @@ export type SortTrendingBy =
  * @param options.chainIds - Array of CAIP format chain IDs (e.g., 'eip155:1', 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp').
  * @param options.query - The search query (token name, symbol, or address).
  * @param options.limit - Optional limit for the number of results (defaults to 10).
+ * @param options.after - Optional cursor for fetching the next page of results.
  * @param options.includeMarketData - Optional flag to include market data in the results (defaults to false).
  * @param options.includeRwaData - Optional flag to include RWA data in the results (defaults to false).
  * @param options.includeTokenSecurityData - Optional flag to include token security data in the results (defaults to false).
@@ -69,11 +70,12 @@ function getTokenSearchURL(options: {
   chainIds: CaipChainId[];
   query: string;
   limit?: number;
+  after?: string;
   includeMarketData?: boolean;
   includeRwaData?: boolean;
   includeTokenSecurityData?: boolean;
 }): string {
-  const { chainIds, query, limit, ...optionalParams } = options;
+  const { chainIds, query, limit, after, ...optionalParams } = options;
   const encodedQuery = encodeURIComponent(query);
   const encodedChainIds = chainIds
     .map((id) => encodeURIComponent(id))
@@ -97,7 +99,7 @@ function getTokenSearchURL(options: {
     }
   }
 
-  return `${TOKEN_END_POINT_API}/tokens/search?networks=${encodedChainIds}&query=${encodedQuery}${numberOfItems ? `&first=${numberOfItems}` : ''}&${queryParams.toString()}`;
+  return `${TOKEN_END_POINT_API}/tokens/search?networks=${encodedChainIds}&query=${encodedQuery}${numberOfItems ? `&first=${numberOfItems}` : ''}${after ? `&after=${encodeURIComponent(after)}` : ''}&${queryParams.toString()}`;
 }
 
 /**
@@ -304,8 +306,15 @@ export type TokenSearchItem = {
   securityData?: TokenSecurityData;
 };
 
+export type PageInfo = {
+  hasNextPage: boolean;
+  endCursor: string | null;
+};
+
 type SearchTokenOptions = {
   limit?: number;
+  /** Cursor returned by a previous response's `pageInfo.endCursor` to fetch the next page. */
+  after?: string;
   includeMarketData?: boolean;
   includeRwaData?: boolean;
   includeTokenSecurityData?: boolean;
@@ -318,39 +327,55 @@ type SearchTokenOptions = {
  * @param query - The search query (token name, symbol, or address).
  * @param options - Additional fetch options.
  * @param options.limit - The maximum number of results to return.
+ * @param options.after - Cursor from a previous response's `pageInfo.endCursor` to fetch the next page.
  * @param options.includeMarketData - Optional flag to include market data in the results (defaults to false).
  * @param options.includeRwaData - Optional flag to include RWA data in the results (defaults to false).
  * @param options.includeTokenSecurityData - Optional flag to include token security data in the results (defaults to false).
- * @returns Object containing count, data array, and an optional error message if the request failed.
+ * @returns Object containing count, totalCount, data array, optional pageInfo for pagination, and an optional error message if the request failed.
  */
 export async function searchTokens(
   chainIds: CaipChainId[],
   query: string,
   {
     limit = 10,
+    after,
     includeMarketData = false,
     includeRwaData = true,
     includeTokenSecurityData,
   }: SearchTokenOptions = {},
-): Promise<{ count: number; data: TokenSearchItem[]; error?: string }> {
+): Promise<{
+  count: number;
+  totalCount?: number;
+  data: TokenSearchItem[];
+  pageInfo?: PageInfo;
+  error?: string;
+}> {
   const tokenSearchURL = getTokenSearchURL({
     chainIds,
     query,
     limit,
+    after,
     includeMarketData,
     includeRwaData,
     includeTokenSecurityData,
   });
 
   try {
-    const result: { count: number; data: TokenSearchItem[] } =
-      await handleFetch(tokenSearchURL);
+    const result: {
+      count: number;
+      totalCount?: number;
+      data: TokenSearchItem[];
+      pageInfo?: PageInfo;
+    } = await handleFetch(tokenSearchURL);
 
-    // The API returns an object with structure: { count: number, data: array, pageInfo: object }
     if (result && typeof result === 'object' && Array.isArray(result.data)) {
       return {
         count: result.count ?? result.data.length,
+        ...(result.totalCount !== undefined && {
+          totalCount: result.totalCount,
+        }),
         data: result.data,
+        ...(result.pageInfo !== undefined && { pageInfo: result.pageInfo }),
       };
     }
 

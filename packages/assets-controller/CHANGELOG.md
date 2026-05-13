@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `buildNativeAssetsFromConstant` now normalizes each native asset ID via `normalizeAssetId`, ensuring ERC20 addresses are EIP-55 checksummed and consistent with IDs written by data sources ([#8789](https://github.com/MetaMask/core/pull/8789))
 - `RpcDataSource` no longer writes `{ amount: "NaN" }` entries into `assetsBalance` when state holds malformed native metadata ([#8781](https://github.com/MetaMask/core/pull/8781))
   - Existing native metadata in `assetsInfo` is now only reused when its `decimals` field is a finite, non-negative number (via a new `#hasValidDecimals` guard). Stale entries like `{ type: 'native', decimals: null, name: '', symbol: '' }` or `{ decimals: -1, ... }` are replaced with the chain-status stub (`{ type: 'native', symbol/name: chainStatus.nativeCurrency, decimals: 18 }`) so balance conversion has a usable `decimals` and consumers never see a negative `decimals` in `assetsInfo`.
   - `decimals: 0` is treated as valid; `name` and `symbol` are not required.
