@@ -1,4 +1,8 @@
-import type { TransactionMeta } from '@metamask/transaction-controller';
+import { ORIGIN_METAMASK, toHex } from '@metamask/controller-utils';
+import type {
+  TransactionMeta,
+  TransactionParams,
+} from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 import { createModuleLogger } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
@@ -13,10 +17,16 @@ import {
   getGenericPollingInterval,
   getGenericPollingTimeout,
 } from '../../utils/feature-flags';
-import { updateTransaction } from '../../utils/transaction';
+import {
+  collectTransactionIds,
+  getTransaction,
+  updateTransaction,
+  waitForTransactionConfirmed,
+} from '../../utils/transaction';
 import { getGenericStatus, submitGenericIntent } from './generic-api';
 import type {
   GenericQuote,
+  GenericQuoteStep,
   GenericStatusResponse,
   GenericSubmitRequest,
 } from './types';
@@ -68,6 +78,28 @@ async function executeSingleGenericQuote(
     },
   );
 
+  if (quote.original.gasless) {
+    await submitViaGenericExecute(quote, messenger, transaction);
+  } else {
+    await submitViaTransactionController(quote, messenger, transaction);
+  }
+
+  const targetHash = await waitForGenericCompletion(
+    quote.original,
+    messenger,
+    transaction.id,
+  );
+
+  log('Generic request completed', targetHash);
+
+  return { transactionHash: targetHash };
+}
+
+async function submitViaGenericExecute(
+  quote: TransactionPayQuote<GenericQuote>,
+  messenger: TransactionPayControllerMessenger,
+  transaction: TransactionMeta,
+): Promise<void> {
   const { from, sourceChainId } = quote.request;
   const networkClientId = messenger.call(
     'NetworkController:findNetworkClientIdByChainId',
@@ -126,16 +158,135 @@ async function executeSingleGenericQuote(
       `Generic submit failed: ${submitResponse.error ?? 'unknown'}`,
     );
   }
+}
 
-  const targetHash = await waitForGenericCompletion(
-    quote.original,
-    messenger,
-    transaction.id,
+async function submitViaTransactionController(
+  quote: TransactionPayQuote<GenericQuote>,
+  messenger: TransactionPayControllerMessenger,
+  transaction: TransactionMeta,
+): Promise<void> {
+  const { from, sourceChainId, sourceTokenAddress } = quote.request;
+  const { steps } = quote.original;
+
+  if (steps.length === 0) {
+    throw new Error('Generic quote has no steps to submit');
+  }
+
+  const networkClientId = messenger.call(
+    'NetworkController:findNetworkClientIdByChainId',
+    sourceChainId,
   );
 
-  log('Generic request completed', targetHash);
+  const transactionParams = steps.map((step) => stepToParams(step, from));
+  const gasFeeToken = quote.fees.isSourceGasFeeToken
+    ? sourceTokenAddress
+    : undefined;
 
-  return { transactionHash: targetHash };
+  log('Submitting via TransactionController', {
+    from,
+    gasFeeToken,
+    networkClientId,
+    sourceChainId,
+    stepCount: steps.length,
+  });
+
+  const transactionIds: string[] = [];
+  const { end } = collectTransactionIds(
+    sourceChainId,
+    from,
+    messenger,
+    (transactionId) => {
+      transactionIds.push(transactionId);
+      updateTransaction(
+        {
+          transactionId: transaction.id,
+          messenger,
+          note: 'Add required transaction ID from generic submission',
+        },
+        (tx) => {
+          tx.requiredTransactionIds ??= [];
+          tx.requiredTransactionIds.push(transactionId);
+        },
+      );
+    },
+  );
+
+  try {
+    if (transactionParams.length === 1) {
+      await messenger.call(
+        'TransactionController:addTransaction',
+        transactionParams[0],
+        {
+          gasFeeToken,
+          networkClientId,
+          origin: ORIGIN_METAMASK,
+          requireApproval: false,
+        },
+      );
+    } else {
+      await messenger.call('TransactionController:addTransactionBatch', {
+        from,
+        gasFeeToken,
+        networkClientId,
+        origin: ORIGIN_METAMASK,
+        overwriteUpgrade: true,
+        requireApproval: false,
+        transactions: transactionParams.map((params) => ({
+          params: {
+            data: params.data as Hex,
+            gas: params.gas as Hex | undefined,
+            maxFeePerGas: params.maxFeePerGas as Hex,
+            maxPriorityFeePerGas: params.maxPriorityFeePerGas as Hex,
+            to: params.to as Hex,
+            value: params.value as Hex,
+          },
+        })),
+      });
+    }
+  } finally {
+    end();
+  }
+
+  log('Generic transactions added', transactionIds);
+
+  await Promise.all(
+    transactionIds.map((txId) => waitForTransactionConfirmed(txId, messenger)),
+  );
+
+  log('Generic transactions confirmed', transactionIds);
+
+  const lastId = transactionIds.slice(-1)[0];
+  const sourceHash = lastId
+    ? getTransaction(lastId, messenger)?.hash
+    : undefined;
+
+  if (sourceHash) {
+    updateTransaction(
+      {
+        transactionId: transaction.id,
+        messenger,
+        note: 'Add source hash from generic transaction submission',
+      },
+      (tx) => {
+        tx.metamaskPay ??= {};
+        tx.metamaskPay.sourceHash = sourceHash as Hex;
+      },
+    );
+  }
+}
+
+function stepToParams(step: GenericQuoteStep, from: Hex): TransactionParams {
+  return {
+    data: step.data,
+    from,
+    gas: step.gasLimit ? toHex(step.gasLimit) : undefined,
+    maxFeePerGas: step.maxFeePerGas ? toHex(step.maxFeePerGas) : undefined,
+    maxPriorityFeePerGas: step.maxPriorityFeePerGas
+      ? toHex(step.maxPriorityFeePerGas)
+      : undefined,
+    to: step.to,
+    value: toHex(step.value),
+  };
 }
 
 async function waitForGenericCompletion(

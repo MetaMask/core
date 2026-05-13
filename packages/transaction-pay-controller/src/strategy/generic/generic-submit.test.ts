@@ -12,12 +12,23 @@ import {
   getGenericPollingInterval,
   getGenericPollingTimeout,
 } from '../../utils/feature-flags';
+import {
+  collectTransactionIds,
+  getTransaction,
+  waitForTransactionConfirmed,
+} from '../../utils/transaction';
 import { getGenericStatus, submitGenericIntent } from './generic-api';
 import { submitGenericQuotes } from './generic-submit';
 import { GenericProviderName, GenericStatus } from './types';
 import type { GenericQuote } from './types';
 
 jest.mock('../../utils/feature-flags');
+jest.mock('../../utils/transaction', () => ({
+  ...jest.requireActual('../../utils/transaction'),
+  collectTransactionIds: jest.fn(),
+  getTransaction: jest.fn(),
+  waitForTransactionConfirmed: jest.fn(),
+}));
 jest.mock('./generic-api');
 
 const NETWORK_CLIENT_ID_MOCK = 'networkClientIdMock';
@@ -44,6 +55,7 @@ const TRANSACTION_META_MOCK = {
 
 const ORIGINAL_QUOTE_MOCK: GenericQuote = {
   duration: 30,
+  gasless: true,
   id: 'generic-intent-id',
   input: { formatted: '1.23', raw: '1230000' },
   output: { formatted: '1', raw: '1000000' },
@@ -282,5 +294,115 @@ describe('submitGenericQuotes', () => {
 
     expect(addTxMock).not.toHaveBeenCalled();
     expect(addTxBatchMock).not.toHaveBeenCalled();
+  });
+
+  describe('non-gasless fallback', () => {
+    const collectTransactionIdsMock = jest.mocked(collectTransactionIds);
+    const getTransactionMock = jest.mocked(getTransaction);
+    const waitForTransactionConfirmedMock = jest.mocked(
+      waitForTransactionConfirmed,
+    );
+    const SUBMITTED_TX_ID_MOCK = 'submitted-tx-id';
+    const SUBMITTED_TX_HASH_MOCK = '0xsubmittedtx' as Hex;
+
+    beforeEach(() => {
+      collectTransactionIdsMock.mockImplementation(
+        (_chainId, _from, _messenger, onTransactionId) => {
+          onTransactionId(SUBMITTED_TX_ID_MOCK);
+          return { end: jest.fn() };
+        },
+      );
+      getTransactionMock.mockReturnValue({
+        hash: SUBMITTED_TX_HASH_MOCK,
+      } as TransactionMeta);
+      waitForTransactionConfirmedMock.mockResolvedValue(undefined);
+      addTxMock.mockResolvedValue({
+        result: Promise.resolve(SUBMITTED_TX_HASH_MOCK),
+      } as never);
+      addTxBatchMock.mockResolvedValue({
+        batchId: 'batch-id',
+      } as never);
+    });
+
+    const buildNonGaslessRequest = (
+      overrides: Partial<GenericQuote> = {},
+    ): PayStrategyExecuteRequest<GenericQuote> => {
+      const quote = cloneDeep(QUOTE_MOCK);
+      quote.original = {
+        ...quote.original,
+        gasless: false,
+        ...overrides,
+      };
+      return {
+        accountSupports7702: true,
+        isSmartTransaction: (): boolean => false,
+        messenger,
+        quotes: [quote],
+        transaction: cloneDeep(TRANSACTION_META_MOCK),
+      };
+    };
+
+    it('uses addTransaction when the quote has a single step', async () => {
+      await submitGenericQuotes(buildNonGaslessRequest());
+
+      expect(addTxMock).toHaveBeenCalledTimes(1);
+      expect(addTxBatchMock).not.toHaveBeenCalled();
+      expect(submitGenericIntentMock).not.toHaveBeenCalled();
+    });
+
+    it('uses addTransactionBatch when the quote has multiple steps', async () => {
+      await submitGenericQuotes(
+        buildNonGaslessRequest({
+          steps: [
+            ORIGINAL_QUOTE_MOCK.steps[0],
+            {
+              chainId: 137,
+              data: '0xseconddata' as Hex,
+              to: '0x9999999999999999999999999999999999999999' as Hex,
+              value: '0x20',
+            },
+          ],
+        }),
+      );
+
+      expect(addTxBatchMock).toHaveBeenCalledTimes(1);
+      expect(addTxMock).not.toHaveBeenCalled();
+    });
+
+    it('passes gasFeeToken when fees.isSourceGasFeeToken is true', async () => {
+      const reqWithGasFeeToken = buildNonGaslessRequest();
+      reqWithGasFeeToken.quotes[0].fees.isSourceGasFeeToken = true;
+
+      await submitGenericQuotes(reqWithGasFeeToken);
+
+      expect(addTxMock).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.objectContaining({
+          gasFeeToken: reqWithGasFeeToken.quotes[0].request.sourceTokenAddress,
+        }),
+      );
+    });
+
+    it('records submitted transaction ids onto requiredTransactionIds', async () => {
+      await submitGenericQuotes(buildNonGaslessRequest());
+
+      const requiredUpdate = updateTransactionMock.mock.calls.find(
+        ([, note]) =>
+          note === 'Add required transaction ID from generic submission',
+      );
+      expect(requiredUpdate).toBeDefined();
+    });
+
+    it('still polls /status after submitting via TransactionController', async () => {
+      await submitGenericQuotes(buildNonGaslessRequest());
+
+      expect(getGenericStatusMock).toHaveBeenCalled();
+    });
+
+    it('throws when the quote has no steps', async () => {
+      await expect(
+        submitGenericQuotes(buildNonGaslessRequest({ steps: [] })),
+      ).rejects.toThrow('Generic quote has no steps to submit');
+    });
   });
 });

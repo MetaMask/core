@@ -1,7 +1,9 @@
 import { Interface } from '@ethersproject/abi';
+import { toHex } from '@metamask/controller-utils';
 import type { TransactionMeta } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 import { createModuleLogger } from '@metamask/utils';
+import { BigNumber } from 'bignumber.js';
 
 import { CHAIN_ID_HYPERCORE, TransactionPayStrategy } from '../../constants';
 import { projectLogger } from '../../logger';
@@ -9,17 +11,28 @@ import type {
   PayStrategyGetQuotesRequest,
   QuoteRequest,
   TransactionPayControllerMessenger,
+  TransactionPayFees,
   TransactionPayQuote,
 } from '../../types';
 import {
+  getFeatureFlags,
   getGenericProviderPriority,
   getSlippage,
 } from '../../utils/feature-flags';
+import { calculateGasCost } from '../../utils/gas';
+import {
+  getGasStationCostInSourceTokenRaw,
+  getGasStationEligibility,
+} from '../../utils/gas-station';
+import { estimateQuoteGasLimits } from '../../utils/quote-gas';
+import type { QuoteGasTransaction } from '../../utils/quote-gas';
+import { getNativeToken, getTokenBalance } from '../../utils/token';
 import { fetchGenericQuote } from './generic-api';
 import type {
   GenericQuote,
   GenericQuoteRequest,
   GenericQuoteResult,
+  GenericQuoteStep,
 } from './types';
 import { GenericTradeType } from './types';
 
@@ -65,13 +78,13 @@ async function getQuotesForRequest(
   quoteRequest: QuoteRequest,
   fullRequest: PayStrategyGetQuotesRequest,
 ): Promise<TransactionPayQuote<GenericQuote>[]> {
-  const { messenger, signal } = fullRequest;
+  const { messenger, signal, transaction } = fullRequest;
   const providerPriority = getGenericProviderPriority(messenger);
 
   for (const provider of providerPriority) {
     const body = await buildGenericQuoteRequest(
       quoteRequest,
-      fullRequest.transaction,
+      transaction,
       messenger,
       provider,
     );
@@ -83,8 +96,10 @@ async function getQuotesForRequest(
       const fulfilledResults = response.results.filter(isFulfilledResult);
 
       if (fulfilledResults.length > 0) {
-        return fulfilledResults.map((result) =>
-          normalizeQuote(result, quoteRequest),
+        return await Promise.all(
+          fulfilledResults.map((result) =>
+            normalizeQuote(result, quoteRequest, messenger),
+          ),
         );
       }
 
@@ -200,24 +215,40 @@ function shouldRequestQuote(quoteRequest: QuoteRequest): boolean {
   );
 }
 
-function normalizeQuote(
+async function normalizeQuote(
   result: FulfilledGenericQuoteResult,
   quoteRequest: QuoteRequest,
-): TransactionPayQuote<GenericQuote> {
+  messenger: TransactionPayControllerMessenger,
+): Promise<TransactionPayQuote<GenericQuote>> {
+  const gasless = result.gasless === true;
+  const sourceNetwork = await calculateSourceNetworkCost({
+    gasless,
+    messenger,
+    quoteRequest,
+    steps: result.steps ?? [],
+  });
+
   return {
     dust: ZERO_FIAT_VALUE,
     estimatedDuration: result.duration ?? 0,
     fees: {
+      ...(sourceNetwork.isSourceGasFeeToken
+        ? { isSourceGasFeeToken: true }
+        : {}),
       metaMask: ZERO_FIAT_VALUE,
       provider: {
         fiat: '0',
         usd: result.providerFeeUsd ?? '0',
       },
-      sourceNetwork: { estimate: ZERO_AMOUNT, max: ZERO_AMOUNT },
+      sourceNetwork: {
+        estimate: sourceNetwork.estimate,
+        max: sourceNetwork.max,
+      },
       targetNetwork: ZERO_FIAT_VALUE,
     },
     original: {
       duration: result.duration ?? 0,
+      gasless,
       id: result.id,
       input: result.input,
       output: result.output,
@@ -237,6 +268,134 @@ function normalizeQuote(
       fiat: '0',
       usd: '0',
     },
+  };
+}
+
+type SourceNetworkCost = Pick<
+  TransactionPayFees['sourceNetwork'],
+  'estimate' | 'max'
+> & {
+  isSourceGasFeeToken?: boolean;
+};
+
+async function calculateSourceNetworkCost({
+  gasless,
+  messenger,
+  quoteRequest,
+  steps,
+}: {
+  gasless: boolean;
+  messenger: TransactionPayControllerMessenger;
+  quoteRequest: QuoteRequest;
+  steps: GenericQuoteStep[];
+}): Promise<SourceNetworkCost> {
+  if (gasless) {
+    log('Zeroing source network fees for gasless quote');
+    return { estimate: ZERO_AMOUNT, max: ZERO_AMOUNT };
+  }
+
+  if (steps.length === 0) {
+    log('No quote steps; zeroing source network fees');
+    return { estimate: ZERO_AMOUNT, max: ZERO_AMOUNT };
+  }
+
+  const { from, sourceChainId, sourceTokenAddress } = quoteRequest;
+  const firstStep = steps[0];
+  const gasTransactions = steps.map((step) => stepToGasTransaction(step, from));
+
+  const gasResult = await estimateQuoteGasLimits({
+    fallbackGas: getFeatureFlags(messenger).relayFallbackGas,
+    fallbackOnSimulationFailure: true,
+    messenger,
+    transactions: gasTransactions,
+  });
+
+  const chainIdHex = toHex(firstStep.chainId);
+
+  const estimate = calculateGasCost({
+    chainId: chainIdHex,
+    gas: gasResult.totalGasEstimate,
+    maxFeePerGas: firstStep.maxFeePerGas ?? '0',
+    maxPriorityFeePerGas: firstStep.maxPriorityFeePerGas ?? '0',
+    messenger,
+  });
+
+  const max = calculateGasCost({
+    chainId: chainIdHex,
+    gas: gasResult.totalGasLimit,
+    isMax: true,
+    maxFeePerGas: firstStep.maxFeePerGas ?? '0',
+    maxPriorityFeePerGas: firstStep.maxPriorityFeePerGas ?? '0',
+    messenger,
+  });
+
+  const nativeBalance = getTokenBalance(
+    messenger,
+    from,
+    sourceChainId,
+    getNativeToken(sourceChainId),
+  );
+
+  if (new BigNumber(nativeBalance).isGreaterThanOrEqualTo(max.raw)) {
+    return { estimate, max };
+  }
+
+  const eligibility = getGasStationEligibility(messenger, sourceChainId);
+
+  if (eligibility.isDisabledChain || !eligibility.chainSupportsGasStation) {
+    log('Skipping gas station for source network', {
+      isDisabledChain: eligibility.isDisabledChain,
+      sourceChainId,
+      supportsGasStation: eligibility.chainSupportsGasStation,
+    });
+    return { estimate, max };
+  }
+
+  log('Checking gas fee tokens due to insufficient native balance', {
+    max: max.raw,
+    nativeBalance,
+  });
+
+  const gasFeeTokenCost = await getGasStationCostInSourceTokenRaw({
+    firstStepData: {
+      data: firstStep.data,
+      to: firstStep.to,
+      value: firstStep.value as Hex,
+    },
+    messenger,
+    request: {
+      from,
+      sourceChainId,
+      sourceTokenAddress,
+    },
+    totalGasEstimate: gasResult.totalGasEstimate,
+    totalItemCount: steps.length,
+  });
+
+  if (!gasFeeTokenCost) {
+    return { estimate, max };
+  }
+
+  log('Using gas fee token for source network', { gasFeeTokenCost });
+
+  return {
+    estimate: gasFeeTokenCost,
+    isSourceGasFeeToken: true,
+    max: gasFeeTokenCost,
+  };
+}
+
+function stepToGasTransaction(
+  step: GenericQuoteStep,
+  from: Hex,
+): QuoteGasTransaction {
+  return {
+    chainId: toHex(step.chainId),
+    data: step.data,
+    from,
+    gas: step.gasLimit,
+    to: step.to,
+    value: step.value,
   };
 }
 

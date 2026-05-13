@@ -52,6 +52,7 @@ const QUOTE_REQUEST_MOCK: QuoteRequest = {
 
 const FULFILLED_RESULT_MOCK = {
   duration: 42,
+  gasless: true,
   id: 'quote-id',
   input: { formatted: '1.0', raw: '1000000000000000000' },
   output: { formatted: '0.123', raw: '123' },
@@ -304,7 +305,22 @@ describe('generic-quotes', () => {
     expect(result[0].original.provider).toBe(GenericProviderName.Across);
   });
 
-  it('normalizes network fees to zero and uses the generic strategy', async () => {
+  it('passes gasless through to the normalized quote', async () => {
+    fetchGenericQuoteMock.mockResolvedValue({
+      results: [{ ...FULFILLED_RESULT_MOCK, gasless: true }],
+    });
+
+    const result = await getGenericQuotes({
+      accountSupports7702: true,
+      messenger,
+      requests: [QUOTE_REQUEST_MOCK],
+      transaction: TRANSACTION_META_MOCK,
+    });
+
+    expect(result[0].original.gasless).toBe(true);
+  });
+
+  it('normalizes network fees to zero for gasless quotes and uses the generic strategy', async () => {
     const result = await getGenericQuotes({
       accountSupports7702: true,
       messenger,
@@ -327,6 +343,7 @@ describe('generic-quotes', () => {
         },
         original: {
           duration: FULFILLED_RESULT_MOCK.duration,
+          gasless: true,
           id: FULFILLED_RESULT_MOCK.id,
           input: FULFILLED_RESULT_MOCK.input,
           output: FULFILLED_RESULT_MOCK.output,

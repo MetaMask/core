@@ -79,6 +79,7 @@ export type GenericQuoteResult = {
   providerFeeUsd?: string;
   duration?: number;
   steps?: GenericQuoteStep[];
+  gasless?: boolean;
   error?: GenericQuoteError;
 };
 
@@ -99,6 +100,7 @@ export type GenericQuote = {
   providerFeeUsd?: string;
   duration: number;
   steps: GenericQuoteStep[];
+  gasless: boolean;
 };
 
 /** Status values returned by GET /status. */
