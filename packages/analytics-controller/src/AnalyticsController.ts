@@ -613,7 +613,12 @@ export class AnalyticsController extends BaseController<
    * @param messageId - The queued event message ID.
    */
   #removeQueuedEvent(messageId: string): void {
-    if (!this.state.eventQueue?.[messageId]) {
+    if (
+      !Object.prototype.hasOwnProperty.call(
+        this.state.eventQueue,
+        messageId,
+      )
+    ) {
       return;
     }
 

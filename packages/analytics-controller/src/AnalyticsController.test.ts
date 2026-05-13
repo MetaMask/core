@@ -1450,6 +1450,7 @@ describe('AnalyticsController', () => {
           optedIn: true,
           analyticsId: '10000000-0000-4000-8000-00000000000d',
           eventQueue: {
+            nullRecord: null,
             invalidRecord: 'not-an-event',
             invalidMetadata: {
               type: 'track',
