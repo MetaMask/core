@@ -613,16 +613,19 @@ export class AnalyticsController extends BaseController<
    * @param messageId - The queued event message ID.
    */
   #removeQueuedEvent(messageId: string): void {
+    const currentEventQueue = this.state.eventQueue;
+
     if (
+      !currentEventQueue ||
       !Object.prototype.hasOwnProperty.call(
-        this.state.eventQueue,
+        currentEventQueue,
         messageId,
       )
     ) {
       return;
     }
 
-    const { [messageId]: _deletedEvent, ...eventQueue } = this.state.eventQueue;
+    const { [messageId]: _deletedEvent, ...eventQueue } = currentEventQueue;
 
     this.update((state) => {
       state.eventQueue = eventQueue as never;
