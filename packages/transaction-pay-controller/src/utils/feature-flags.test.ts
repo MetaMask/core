@@ -4,12 +4,16 @@ import type { Hex } from '@metamask/utils';
 import { getDefaultRemoteFeatureFlagControllerState } from '../../../remote-feature-flag-controller/src/remote-feature-flag-controller';
 import { TransactionPayStrategy } from '../constants';
 import type { TransactionPayFiatAsset } from '../strategy/fiat/constants';
+import { GenericProviderName } from '../strategy/generic/types';
 import { getMessengerMock } from '../tests/messenger-mock';
 import {
   DEFAULT_ACROSS_API_BASE,
   DEFAULT_FALLBACK_GAS_ESTIMATE,
   DEFAULT_FALLBACK_GAS_MAX,
   DEFAULT_GAS_BUFFER,
+  DEFAULT_GENERIC_QUOTE_URL,
+  DEFAULT_GENERIC_STATUS_URL,
+  DEFAULT_GENERIC_SUBMIT_URL,
   DEFAULT_RELAY_ORIGIN_GAS_OVERHEAD,
   DEFAULT_RELAY_QUOTE_URL,
   DEFAULT_SLIPPAGE,
@@ -17,6 +21,9 @@ import {
   getFallbackGas,
   getFiatAssetPerTransactionType,
   DEFAULT_RELAY_EXECUTE_URL,
+  getGenericPollingInterval,
+  getGenericPollingTimeout,
+  getGenericProviderPriority,
   getRelayOriginGasOverhead,
   getRelayPollingInterval,
   getRelayPollingTimeout,
@@ -650,6 +657,180 @@ describe('Feature Flags Utils', () => {
     });
   });
 
+  describe('getPayStrategiesConfig - generic', () => {
+    it('returns defaults when generic config is missing', () => {
+      const config = getPayStrategiesConfig(messenger);
+
+      expect(config.generic).toStrictEqual({
+        enabled: false,
+        pollingInterval: 1000,
+        pollingTimeout: undefined,
+        providerPriority: [GenericProviderName.Relay],
+        quoteUrl: DEFAULT_GENERIC_QUOTE_URL,
+        statusUrl: DEFAULT_GENERIC_STATUS_URL,
+        submitUrl: DEFAULT_GENERIC_SUBMIT_URL,
+      });
+    });
+
+    it('returns enabled: true when the flag enables generic', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_pay: {
+            payStrategies: {
+              generic: {
+                enabled: true,
+              },
+            },
+          },
+        },
+      });
+
+      expect(getPayStrategiesConfig(messenger).generic.enabled).toBe(true);
+    });
+
+    it('returns custom URLs when set by the feature flag', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_pay: {
+            payStrategies: {
+              generic: {
+                quoteUrl: 'https://generic.test/quote',
+                statusUrl: 'https://generic.test/status',
+                submitUrl: 'https://generic.test/submit',
+              },
+            },
+          },
+        },
+      });
+
+      const { generic } = getPayStrategiesConfig(messenger);
+
+      expect(generic.quoteUrl).toBe('https://generic.test/quote');
+      expect(generic.statusUrl).toBe('https://generic.test/status');
+      expect(generic.submitUrl).toBe('https://generic.test/submit');
+    });
+
+    it('drops unknown provider names from providerPriority and falls back to default when result is empty', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_pay: {
+            payStrategies: {
+              generic: {
+                providerPriority: ['unknown', 'invalid'],
+              },
+            },
+          },
+        },
+      });
+
+      expect(
+        getPayStrategiesConfig(messenger).generic.providerPriority,
+      ).toStrictEqual([GenericProviderName.Relay]);
+    });
+
+    it('preserves valid provider names in order and drops duplicates', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_pay: {
+            payStrategies: {
+              generic: {
+                providerPriority: [
+                  'across',
+                  'relay',
+                  'across',
+                  'unknown',
+                  'relay',
+                ],
+              },
+            },
+          },
+        },
+      });
+
+      expect(
+        getPayStrategiesConfig(messenger).generic.providerPriority,
+      ).toStrictEqual([GenericProviderName.Across, GenericProviderName.Relay]);
+    });
+  });
+
+  describe('getGenericPollingInterval', () => {
+    it('returns the default polling interval when no feature flag is set', () => {
+      expect(getGenericPollingInterval(messenger)).toBe(1000);
+    });
+
+    it('returns the configured polling interval when set', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_pay: {
+            payStrategies: {
+              generic: {
+                pollingInterval: 7500,
+              },
+            },
+          },
+        },
+      });
+
+      expect(getGenericPollingInterval(messenger)).toBe(7500);
+    });
+  });
+
+  describe('getGenericPollingTimeout', () => {
+    it('returns undefined when no feature flag is set', () => {
+      expect(getGenericPollingTimeout(messenger)).toBeUndefined();
+    });
+
+    it('returns the configured polling timeout when set', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_pay: {
+            payStrategies: {
+              generic: {
+                pollingTimeout: 45000,
+              },
+            },
+          },
+        },
+      });
+
+      expect(getGenericPollingTimeout(messenger)).toBe(45000);
+    });
+  });
+
+  describe('getGenericProviderPriority', () => {
+    it('returns the default provider priority when no feature flag is set', () => {
+      expect(getGenericProviderPriority(messenger)).toStrictEqual([
+        GenericProviderName.Relay,
+      ]);
+    });
+
+    it('returns the configured provider priority when set', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_pay: {
+            payStrategies: {
+              generic: {
+                providerPriority: ['across', 'relay'],
+              },
+            },
+          },
+        },
+      });
+
+      expect(getGenericProviderPriority(messenger)).toStrictEqual([
+        GenericProviderName.Across,
+        GenericProviderName.Relay,
+      ]);
+    });
+  });
+
   describe('getAssetsUnifyStateFeature', () => {
     type AssetsUnifyingState =
       | {
@@ -1152,6 +1333,45 @@ describe('Feature Flags Utils', () => {
       });
 
       expect(getStrategyOrder(messenger)).toStrictEqual([]);
+    });
+
+    it('filters Generic out of the strategy order when payStrategies.generic is disabled', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_pay: {
+            payStrategies: {
+              relay: { enabled: true },
+              generic: { enabled: false },
+            },
+            strategyOrder: ['generic', 'relay'],
+          },
+        },
+      });
+
+      expect(getStrategyOrder(messenger)).toStrictEqual([
+        TransactionPayStrategy.Relay,
+      ]);
+    });
+
+    it('includes Generic in the strategy order when payStrategies.generic is enabled', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_pay: {
+            payStrategies: {
+              relay: { enabled: true },
+              generic: { enabled: true },
+            },
+            strategyOrder: ['generic', 'relay'],
+          },
+        },
+      });
+
+      expect(getStrategyOrder(messenger)).toStrictEqual([
+        TransactionPayStrategy.Generic,
+        TransactionPayStrategy.Relay,
+      ]);
     });
   });
 

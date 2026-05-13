@@ -11,6 +11,14 @@ import {
   FIAT_ASSET_ID_BY_TX_TYPE,
 } from '../strategy/fiat/constants';
 import {
+  GENERIC_DEFAULT_PROVIDER_PRIORITY,
+  GENERIC_POLLING_INTERVAL,
+  GENERIC_QUOTE_URL,
+  GENERIC_STATUS_URL,
+  GENERIC_SUBMIT_URL,
+} from '../strategy/generic/constants';
+import { GenericProviderName } from '../strategy/generic/types';
+import {
   RELAY_EXECUTE_URL,
   RELAY_POLLING_INTERVAL,
   RELAY_QUOTE_URL,
@@ -29,6 +37,9 @@ export const DEFAULT_RELAY_QUOTE_URL = RELAY_QUOTE_URL;
 export const DEFAULT_RELAY_ORIGIN_GAS_OVERHEAD = '300000';
 export const DEFAULT_SLIPPAGE = 0.005;
 export const DEFAULT_ACROSS_API_BASE = 'https://app.across.to/api';
+export const DEFAULT_GENERIC_QUOTE_URL = GENERIC_QUOTE_URL;
+export const DEFAULT_GENERIC_STATUS_URL = GENERIC_STATUS_URL;
+export const DEFAULT_GENERIC_SUBMIT_URL = GENERIC_SUBMIT_URL;
 export const DEFAULT_STRATEGY_ORDER: StrategyOrder = [
   TransactionPayStrategy.Relay,
   TransactionPayStrategy.Across,
@@ -92,6 +103,9 @@ type StrategyRoutingConfig = {
     across: {
       enabled: boolean;
     };
+    generic: {
+      enabled: boolean;
+    };
     relay: {
       enabled: boolean;
     };
@@ -131,6 +145,15 @@ export type AcrossConfig = {
 
 export type PayStrategiesConfigRaw = {
   across?: AcrossConfigRaw;
+  generic?: {
+    enabled?: boolean;
+    pollingInterval?: number;
+    pollingTimeout?: number;
+    providerPriority?: string[];
+    quoteUrl?: string;
+    statusUrl?: string;
+    submitUrl?: string;
+  };
   relay?: {
     enabled?: boolean;
     originGasOverhead?: string;
@@ -149,6 +172,15 @@ type FeatureFlagsExtendedRaw = {
 
 export type PayStrategiesConfig = {
   across: AcrossConfig;
+  generic: {
+    enabled: boolean;
+    pollingInterval: number;
+    pollingTimeout?: number;
+    providerPriority: GenericProviderName[];
+    quoteUrl: string;
+    statusUrl: string;
+    submitUrl: string;
+  };
   relay: {
     enabled: boolean;
   };
@@ -246,6 +278,9 @@ function normalizeStrategyRoutingConfig(
       across: {
         enabled: featureFlags.payStrategies?.across?.enabled ?? false,
       },
+      generic: {
+        enabled: featureFlags.payStrategies?.generic?.enabled ?? false,
+      },
       relay: {
         enabled: featureFlags.payStrategies?.relay?.enabled ?? true,
       },
@@ -288,6 +323,10 @@ function filterEnabledStrategies(
 
     if (strategy === TransactionPayStrategy.Relay) {
       return routingConfig.payStrategies.relay.enabled;
+    }
+
+    if (strategy === TransactionPayStrategy.Generic) {
+      return routingConfig.payStrategies.generic.enabled;
     }
 
     return true;
@@ -467,6 +506,7 @@ export function getPayStrategiesConfig(
   const payStrategies = featureFlags.payStrategies ?? {};
 
   const acrossRaw = payStrategies.across ?? {};
+  const genericRaw = payStrategies.generic ?? {};
   const relayRaw = payStrategies.relay ?? {};
 
   const across = {
@@ -479,12 +519,38 @@ export function getPayStrategiesConfig(
     },
   };
 
+  const validProviderNames = new Set<string>(Object.values(GenericProviderName));
+  const rawPriority = genericRaw.providerPriority ?? [];
+  const normalizedPriority = [
+    ...new Set(
+      rawPriority.filter((p): p is GenericProviderName =>
+        validProviderNames.has(p),
+      ),
+    ),
+  ];
+
+  const generic = {
+    enabled: genericRaw.enabled ?? false,
+    pollingInterval: genericRaw.pollingInterval ?? GENERIC_POLLING_INTERVAL,
+    pollingTimeout: genericRaw.pollingTimeout,
+    providerPriority:
+      normalizedPriority.length > 0
+        ? normalizedPriority
+        : [...GENERIC_DEFAULT_PROVIDER_PRIORITY].map(
+            (p) => p as GenericProviderName,
+          ),
+    quoteUrl: genericRaw.quoteUrl ?? DEFAULT_GENERIC_QUOTE_URL,
+    statusUrl: genericRaw.statusUrl ?? DEFAULT_GENERIC_STATUS_URL,
+    submitUrl: genericRaw.submitUrl ?? DEFAULT_GENERIC_SUBMIT_URL,
+  };
+
   const relay = {
     enabled: relayRaw.enabled ?? true,
   };
 
   return {
     across,
+    generic,
     relay,
   };
 }
@@ -563,6 +629,42 @@ export function getRelayPollingTimeout(
       | FeatureFlagsRaw
       | undefined) ?? {};
   return featureFlags.payStrategies?.relay?.pollingTimeout;
+}
+
+/**
+ * Get the generic strategy status polling interval in milliseconds.
+ *
+ * @param messenger - Controller messenger.
+ * @returns Polling interval in milliseconds.
+ */
+export function getGenericPollingInterval(
+  messenger: TransactionPayControllerMessenger,
+): number {
+  return getPayStrategiesConfig(messenger).generic.pollingInterval;
+}
+
+/**
+ * Get the generic strategy status polling timeout in milliseconds.
+ *
+ * @param messenger - Controller messenger.
+ * @returns Polling timeout in milliseconds, or undefined when not configured.
+ */
+export function getGenericPollingTimeout(
+  messenger: TransactionPayControllerMessenger,
+): number | undefined {
+  return getPayStrategiesConfig(messenger).generic.pollingTimeout;
+}
+
+/**
+ * Get the ordered provider priority for the generic strategy.
+ *
+ * @param messenger - Controller messenger.
+ * @returns Ordered list of provider names to try.
+ */
+export function getGenericProviderPriority(
+  messenger: TransactionPayControllerMessenger,
+): GenericProviderName[] {
+  return getPayStrategiesConfig(messenger).generic.providerPriority;
 }
 
 /**
