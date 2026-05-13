@@ -346,12 +346,30 @@ export class RpcDataSource extends AbstractDataSource<
   /**
    * Convert a raw balance to human-readable format using decimals.
    *
+   * Returns `'0'` when either input is invalid (e.g. `decimals` is `null`,
+   * `NaN`, negative or non-finite, or `rawBalance` cannot be parsed as a
+   * number). Defaulting to a fixed decimals value would silently produce
+   * wrong amounts; `'0'` keeps state safe and never lets `NaN` leak in.
+   *
    * @param rawBalance - The raw balance string.
    * @param decimals - The number of decimals for the token.
-   * @returns The human-readable balance string.
+   * @returns The human-readable balance string, or `'0'` when inputs are invalid.
    */
   #convertToHumanReadable(rawBalance: string, decimals: number): string {
+    if (!Number.isFinite(decimals) || decimals < 0) {
+      log('Invalid decimals — defaulting balance to "0"', {
+        rawBalance,
+        decimals,
+      });
+      return '0';
+    }
+
     const rawAmount = new BigNumberJS(rawBalance);
+    if (!rawAmount.isFinite()) {
+      log('Invalid raw balance — defaulting to "0"', { rawBalance, decimals });
+      return '0';
+    }
+
     const divisor = new BigNumberJS(10).pow(decimals);
     return rawAmount.dividedBy(divisor).toFixed();
   }
@@ -383,7 +401,7 @@ export class RpcDataSource extends AbstractDataSource<
         // enriched by the price/info API with image, description, etc.
         // Only emit a minimal stub when there's nothing in state yet,
         // so we don't clobber that richer metadata on every balance refresh.
-        if (existingMeta) {
+        if (this.#hasValidDecimals(existingMeta)) {
           assetsInfo[balance.assetId] = existingMeta;
         } else {
           const chainStatus = this.#chainStatuses[chainId];
@@ -404,6 +422,50 @@ export class RpcDataSource extends AbstractDataSource<
     }
 
     return assetsInfo;
+  }
+
+  /**
+   * Type guard for metadata whose `decimals` is safe to use for balance
+   * conversion.
+   *
+   * Mirrors the validity rules in `#convertToHumanReadable` (finite and
+   * non-negative). Keeping these in sync ensures that whenever the metadata
+   * guard accepts a value, the balance guard will also accept it — so we
+   * never end up emitting metadata with `decimals: -1` while silently
+   * defaulting the balance to `'0'`.
+   *
+   * @param metadata - The metadata to check.
+   * @returns `true` if `decimals` is a finite, non-negative number.
+   */
+  #hasValidDecimals(
+    metadata: AssetMetadata | undefined,
+  ): metadata is AssetMetadata {
+    return Boolean(
+      metadata && Number.isFinite(metadata.decimals) && metadata.decimals >= 0,
+    );
+  }
+
+  /**
+   * Pick the first valid `decimals` value from a list of metadata sources.
+   *
+   * `??` only short-circuits on `null`/`undefined`, so a stale state entry
+   * with `decimals: NaN` would otherwise win over a later source that holds
+   * a correct value (e.g. the chain-status stub produced by
+   * `#collectMetadataForBalances`). This helper treats `NaN`, negative, and
+   * non-finite values as missing so the next source can supply a usable one.
+   *
+   * @param metadatas - Metadata candidates in priority order.
+   * @returns The first finite `decimals` value, or `undefined` if none are valid.
+   */
+  #pickValidDecimals(
+    ...metadatas: (AssetMetadata | undefined)[]
+  ): number | undefined {
+    for (const metadata of metadatas) {
+      if (this.#hasValidDecimals(metadata)) {
+        return metadata.decimals;
+      }
+    }
+    return undefined;
   }
 
   /**
@@ -436,7 +498,7 @@ export class RpcDataSource extends AbstractDataSource<
     for (const balance of normalizedBalances) {
       const stateMetadata = existingMetadata[balance.assetId];
       const pipelineMetadata = assetsInfo[balance.assetId];
-      const decimals = stateMetadata?.decimals ?? pipelineMetadata?.decimals;
+      const decimals = this.#pickValidDecimals(stateMetadata, pipelineMetadata);
 
       if (decimals === undefined) {
         continue;
@@ -1012,8 +1074,10 @@ export class RpcDataSource extends AbstractDataSource<
           for (const balance of normalizedBalances) {
             const stateMetadata = existingMetadata[balance.assetId];
             const pipelineMetadata = assetsInfo[balance.assetId];
-            let decimals: number | undefined =
-              stateMetadata?.decimals ?? pipelineMetadata?.decimals;
+            let decimals: number | undefined = this.#pickValidDecimals(
+              stateMetadata,
+              pipelineMetadata,
+            );
 
             if (decimals === undefined) {
               const parsed = parseCaipAssetType(balance.assetId);
@@ -1054,7 +1118,7 @@ export class RpcDataSource extends AbstractDataSource<
           // nothing is in state yet, so we don't clobber that richer metadata.
           const existingNativeMeta =
             this.#getExistingAssetsMetadata()[nativeAssetId];
-          if (existingNativeMeta) {
+          if (this.#hasValidDecimals(existingNativeMeta)) {
             assetsInfo[nativeAssetId] = existingNativeMeta;
           } else {
             const chainStatus = this.#chainStatuses[chainId];
