@@ -182,6 +182,12 @@ const config = createConfig([
     },
   },
   {
+    files: ['packages/wallet/**/*.test.ts'],
+    rules: {
+      'n/no-process-env': 'off',
+    },
+  },
+  {
     // These files are test helpers, not tests. We still use the Jest ESLint
     // config here to ensure that ESLint expects a test-like environment, but
     // various rules meant just to apply to tests have been disabled.

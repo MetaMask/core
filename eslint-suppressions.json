@@ -2341,6 +2341,16 @@
       "count": 1
     }
   },
+  "packages/wallet/src/initialization/instances/accounts-controller.ts": {
+    "no-restricted-syntax": {
+      "count": 2
+    }
+  },
+  "packages/wallet/src/initialization/instances/transaction-controller.ts": {
+    "no-restricted-syntax": {
+      "count": 1
+    }
+  },
   "tests/fake-provider.ts": {
     "no-restricted-syntax": {
       "count": 7

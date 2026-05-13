@@ -158,11 +158,14 @@ module.exports = defineConfig({
         );
 
         // All non-root packages must have the same "test" script.
-        expectWorkspaceField(
-          workspace,
-          'scripts.test',
-          'NODE_OPTIONS=--experimental-vm-modules jest --reporters=jest-silent-reporter',
-        );
+        // @metamask/wallet prepends an anvil binary download to the test script.
+        if (workspace.ident !== '@metamask/wallet') {
+          expectWorkspaceField(
+            workspace,
+            'scripts.test',
+            'NODE_OPTIONS=--experimental-vm-modules jest --reporters=jest-silent-reporter',
+          );
+        }
 
         // All non-root packages must have the same "test:clean" script.
         expectWorkspaceField(

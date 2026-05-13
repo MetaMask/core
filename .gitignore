@@ -36,5 +36,13 @@ scripts/coverage
 # typescript
 packages/*/*.tsbuildinfo
 
+# foundryup binary cache
+.metamask/
+
 # AI
 .sisyphus/
+
+# Wallet
+.claude/
+.env
+!.env.example

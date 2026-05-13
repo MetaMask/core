@@ -103,6 +103,7 @@ Each package in this repository has its own README where you can find installati
 - [`@metamask/transaction-controller`](packages/transaction-controller)
 - [`@metamask/transaction-pay-controller`](packages/transaction-pay-controller)
 - [`@metamask/user-operation-controller`](packages/user-operation-controller)
+- [`@metamask/wallet`](packages/wallet)
 
 <!-- end package list -->
 
@@ -195,6 +196,7 @@ linkStyle default opacity:0.5
   transaction_controller(["@metamask/transaction-controller"]);
   transaction_pay_controller(["@metamask/transaction-pay-controller"]);
   user_operation_controller(["@metamask/user-operation-controller"]);
+  wallet(["@metamask/wallet"]);
   account_tree_controller --> accounts_controller;
   account_tree_controller --> base_controller;
   account_tree_controller --> keyring_controller;
@@ -560,6 +562,16 @@ linkStyle default opacity:0.5
   user_operation_controller --> polling_controller;
   user_operation_controller --> transaction_controller;
   user_operation_controller --> eth_block_tracker;
+  wallet --> accounts_controller;
+  wallet --> approval_controller;
+  wallet --> connectivity_controller;
+  wallet --> controller_utils;
+  wallet --> keyring_controller;
+  wallet --> messenger;
+  wallet --> network_controller;
+  wallet --> remote_feature_flag_controller;
+  wallet --> transaction_controller;
+  wallet --> foundryup;
 ```
 
 <!-- end dependency graph -->
