@@ -467,6 +467,75 @@ export class SnapAccountService {
   }
 
   /**
+   * Shared body for {@link SnapAccountService.#withKeyringV2} and
+   * {@link SnapAccountService.#withKeyringV2Unsafe}. Hides the per-Snap
+   * filter and the cast back to {@link SnapKeyring} (the messenger action's
+   * callback receives a generic `Keyring`; the selector's type predicate
+   * doesn't flow through the messenger's generics).
+   *
+   * @param action - The messenger action to invoke.
+   * @param snapId - The Snap ID to look up the keyring for.
+   * @param operation - The operation to run with the matching keyring.
+   * @returns The result of the operation.
+   */
+  async #withKeyringV2Call<Result>(
+    action:
+      | 'KeyringController:withKeyringV2'
+      | 'KeyringController:withKeyringV2Unsafe',
+    snapId: SnapId,
+    operation: (keyring: SnapKeyring) => Promise<Result>,
+  ): Promise<Result> {
+    return this.#messenger.call(
+      action,
+      {
+        filter: (keyring): keyring is SnapKeyring =>
+          isSnapKeyring(keyring) && keyring.snapId === snapId,
+      },
+      async ({ keyring }) => operation(keyring as SnapKeyring),
+    ) as Result;
+  }
+
+  /**
+   * Runs an operation against the v2 Snap keyring for the given Snap, under
+   * the `KeyringController` mutex. Throws `KeyringNotFound` if no v2 Snap
+   * keyring exists for the given Snap.
+   *
+   * @param snapId - The Snap ID to look up the keyring for.
+   * @param operation - The operation to run with the matching keyring.
+   * @returns The result of the operation.
+   */
+  async #withKeyringV2<Result>(
+    snapId: SnapId,
+    operation: (keyring: SnapKeyring) => Promise<Result>,
+  ): Promise<Result> {
+    return this.#withKeyringV2Call(
+      'KeyringController:withKeyringV2',
+      snapId,
+      operation,
+    );
+  }
+
+  /**
+   * Lock-free variant of {@link SnapAccountService.#withKeyringV2}. Only use
+   * for operations that do not mutate keyring or controller state — see
+   * `KeyringController.withKeyringV2Unsafe` for the contract.
+   *
+   * @param snapId - The Snap ID to look up the keyring for.
+   * @param operation - The operation to run with the matching keyring.
+   * @returns The result of the operation.
+   */
+  async #withKeyringV2Unsafe<Result>(
+    snapId: SnapId,
+    operation: (keyring: SnapKeyring) => Promise<Result>,
+  ): Promise<Result> {
+    return this.#withKeyringV2Call(
+      'KeyringController:withKeyringV2Unsafe',
+      snapId,
+      operation,
+    );
+  }
+
+  /**
    * Atomically gets-or-creates the legacy (v1) Snap keyring — the keyring
    * associated with {@link KeyringTypes.snap}.
    *
@@ -536,11 +605,6 @@ export class SnapAccountService {
       `Forwarding message "${event}" from Snap "${snapId}" to its keyring...`,
     );
 
-    const isSnapKeyringForThisSnap = (
-      keyring: Keyring,
-    ): keyring is SnapKeyring =>
-      isSnapKeyring(keyring) && keyring.snapId === snapId;
-
     // We can create a new keyring if the message is an AccountCreated event.
     const isAccountCreatedMessage = event === KeyringEvent.AccountCreated;
 
@@ -554,17 +618,9 @@ export class SnapAccountService {
     // This part of the flow relies on v1 flows, but v2 keyrings are compatible with those messages
     // too.
     try {
-      const result = await this.#messenger.call(
-        'KeyringController:withKeyringV2',
-        { filter: (keyring) => isSnapKeyringForThisSnap(keyring) },
-        async ({ keyring }) => {
-          const snapKeyring = keyring as SnapKeyring; // Forced to cast here as generic does not work when using the messenger.
-
-          return await snapKeyring.handleKeyringSnapMessage(message);
-        },
+      return await this.#withKeyringV2(snapId, async (keyring) =>
+        keyring.handleKeyringSnapMessage(message),
       );
-
-      return result as Json;
     } catch (error) {
       if (isKeyringNotFoundError(error)) {
         log(
@@ -620,24 +676,15 @@ export class SnapAccountService {
             // We can safely invoke this method without taking the controller lock
             // because it should not mutate the keyring state. So we can use
             // `withKeyringV2Unsafe` in this case.
-            await this.#messenger.call(
-              'KeyringController:withKeyringV2Unsafe',
-              {
-                filter: (keyring): keyring is SnapKeyring =>
-                  isSnapKeyring(keyring) && keyring.snapId === snapId,
-              },
-              async ({ keyring }) => {
-                const snapKeyring = keyring as SnapKeyring; // Forced to cast here as generic does not work when using the messenger.
-
-                // The group's accounts may belong to several Snaps; only
-                // forward the subset this Snap actually owns. An empty
-                // subset still gets forwarded to explicitly clear the
-                // Snap selected accounts.
-                await snapKeyring.setSelectedAccounts(
-                  accounts.filter((id) => snapKeyring.hasAccount(id)),
-                );
-              },
-            );
+            await this.#withKeyringV2Unsafe(snapId, async (keyring) => {
+              // The group's accounts may belong to several Snaps; only
+              // forward the subset this Snap actually owns. An empty
+              // subset still gets forwarded to explicitly clear the
+              // Snap selected accounts.
+              await keyring.setSelectedAccounts(
+                accounts.filter((id) => keyring.hasAccount(id)),
+              );
+            });
           } catch (error) {
             // Tracked Snaps without a v2 keyring yet are expected —
             // forwarding will resume on the next event once `ensureReady`
