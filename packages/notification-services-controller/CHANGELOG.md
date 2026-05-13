@@ -9,11 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add `productAnnouncementEnabled` to `NotificationServicesControllerEnableNotificationsOptions`.
+- Add `productAnnouncementEnabled` to `NotificationServicesControllerEnableNotificationsOptions`. ([#8784](https://github.com/MetaMask/core/pull/8784))
 
 ### Changed
 
-- **BREAKING:** Enrich notification settings using Authenticated User Storage.
+- **BREAKING:** Enrich notification settings using Authenticated User Storage. ([#8784](https://github.com/MetaMask/core/pull/8784))
   - Replace Trigger API notification settings with AUS notification preferences as the source of truth.
   - `NotificationServicesController` now requires AUS messenger actions for notification setup.
   - When AUS has no stored preferences, `createOnChainTriggers` writes a complete preferences blob for `walletActivity`, `marketing`, `perps`, and `socialAI`.
@@ -23,7 +23,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Removed
 
-- **BREAKING:** Remove unused `resetNotifications` option from `NotificationServicesControllerEnableNotificationsOptions`.
+- **BREAKING:** Remove unused `resetNotifications` option from `NotificationServicesControllerEnableNotificationsOptions`. ([#8784](https://github.com/MetaMask/core/pull/8784))
 
 ## [23.1.1]
 
