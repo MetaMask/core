@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add Across quote support for post-quote Predict withdraw flows ([#8760](https://github.com/MetaMask/core/pull/8760))
+
 ### Changed
 
 - Derive fiat order source amount from on-chain transaction data (`order.txHash`) with fallback to `order.cryptoAmount` ([#8694](https://github.com/MetaMask/core/pull/8694))
