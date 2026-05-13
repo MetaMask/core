@@ -49,6 +49,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Selected-account forwarding now targets v2 Snap keyrings.
   - The service messenger now requires the `KeyringController:withKeyringV2Unsafe`.
 
+### Removed
+
+- **BREAKING:** Removed `getLegacySnapKeyring` ([#8732](https://github.com/MetaMask/core/pull/8732))
+  - The legacy Snap keyring should not be used anymore after the migration has completed.
+
 ### Changed
 
 - Bump `@metamask/messenger` from `^1.1.1` to `^1.2.0` ([#8632](https://github.com/MetaMask/core/pull/8632))

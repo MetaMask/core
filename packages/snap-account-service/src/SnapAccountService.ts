@@ -13,7 +13,6 @@ import type {
   KeyringControllerWithControllerAction,
   KeyringControllerWithKeyringV2Action,
   KeyringControllerWithKeyringV2UnsafeAction,
-  KeyringEntry,
 } from '@metamask/keyring-controller';
 import {
   isKeyringNotFoundError,
@@ -40,7 +39,6 @@ import type { Json } from '@metamask/utils';
 import { projectLogger as log } from './logger';
 import type {
   SnapAccountServiceEnsureReadyAction,
-  SnapAccountServiceGetLegacySnapKeyringAction,
   SnapAccountServiceGetSnapsAction,
   SnapAccountServiceHandleKeyringSnapMessageAction,
   SnapAccountServiceMigrateAction,
@@ -71,7 +69,6 @@ export const serviceName = 'SnapAccountService';
 const MESSENGER_EXPOSED_METHODS = [
   'ensureReady',
   'getSnaps',
-  'getLegacySnapKeyring',
   'handleKeyringSnapMessage',
   'migrate',
 ] as const;
@@ -82,7 +79,6 @@ const MESSENGER_EXPOSED_METHODS = [
 export type SnapAccountServiceActions =
   | SnapAccountServiceEnsureReadyAction
   | SnapAccountServiceGetSnapsAction
-  | SnapAccountServiceGetLegacySnapKeyringAction
   | SnapAccountServiceHandleKeyringSnapMessageAction
   | SnapAccountServiceMigrateAction;
 
@@ -533,53 +529,6 @@ export class SnapAccountService {
       snapId,
       operation,
     );
-  }
-
-  /**
-   * Atomically gets-or-creates the legacy (v1) Snap keyring — the keyring
-   * associated with {@link KeyringTypes.snap}.
-   *
-   * @returns The existing or newly-created Snap keyring instance.
-   */
-  async getLegacySnapKeyring(): Promise<LegacySnapKeyring> {
-    type Result = {
-      snapKeyring: LegacySnapKeyring;
-    };
-
-    // `KeyringController:withController` forbids returning a direct keyring
-    // reference (it checks the result via `Object.is`), so we smuggle the
-    // instance out wrapped in an object and unwrap it after the call.
-    // NOTE: This violates the abstraction of `KeyringController:withController`, but this
-    // is how we currently interact with the legacy Snap keyring. Once we migrate it to
-    // the Snap keyring v2, we won't be using the same pattern.
-    const result = await this.#messenger.call(
-      'KeyringController:withController',
-      async (controller): Promise<Result> => {
-        let snapKeyring: KeyringEntry['keyring'] | undefined;
-
-        const found = controller.keyrings.find(({ keyring }) =>
-          isLegacySnapKeyring(keyring),
-        );
-        if (found) {
-          snapKeyring = found.keyring;
-        }
-
-        if (!snapKeyring) {
-          const {
-            keyring: newSnapKeyring,
-            metadata: { id },
-          } = await controller.addNewKeyring(KeyringTypes.snap);
-          snapKeyring = newSnapKeyring;
-
-          log(`Legacy Snap keyring created. ("${id}")`);
-        }
-
-        // The legacy Snap keyring is not compatible with `EthKeyring`, so we need to cast here.
-        return { snapKeyring } as unknown as Result;
-      },
-    );
-
-    return (result as Result).snapKeyring;
   }
 
   /**

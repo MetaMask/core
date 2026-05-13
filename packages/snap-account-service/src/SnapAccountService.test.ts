@@ -1,6 +1,6 @@
 import type { AccountGroupId } from '@metamask/account-api';
 import { SNAP_KEYRING_TYPE } from '@metamask/eth-snap-keyring';
-import type { SnapKeyring, SnapMessage } from '@metamask/eth-snap-keyring';
+import type { SnapMessage } from '@metamask/eth-snap-keyring';
 import type { SnapKeyring as SnapKeyringV2 } from '@metamask/eth-snap-keyring/v2';
 import { KeyringEvent } from '@metamask/keyring-api';
 import { KeyringType } from '@metamask/keyring-api/v2';
@@ -857,43 +857,6 @@ describe('SnapAccountService', () => {
 
       await ensurePromise;
       expect(resolved).toBe(true);
-    });
-  });
-
-  describe('getLegacySnapKeyring', () => {
-    it('returns the existing Snap keyring when one is already present', async () => {
-      const { service, mocks } = await setup();
-      const existing = buildKeyringEntry(KeyringTypes.snap);
-      const { addNewKeyring } = mockWithController(mocks, [
-        buildKeyringEntry(KeyringTypes.hd),
-        existing,
-      ]);
-
-      const result = await service.getLegacySnapKeyring();
-
-      expect(result).toBe(existing.keyring as unknown as SnapKeyring);
-      expect(addNewKeyring).not.toHaveBeenCalled();
-    });
-
-    it('creates a new Snap keyring when none exists', async () => {
-      const { service, mocks } = await setup();
-      const { addNewKeyring } = mockWithController(mocks, [
-        buildKeyringEntry(KeyringTypes.hd),
-      ]);
-
-      const result = await service.getLegacySnapKeyring();
-
-      expect(addNewKeyring).toHaveBeenCalledWith(KeyringTypes.snap);
-      expect(result.type).toBe(KeyringTypes.snap);
-    });
-
-    it('propagates errors thrown by withController', async () => {
-      const { service, mocks } = await setup();
-      mocks.KeyringController.withController.mockImplementation(async () => {
-        throw new Error('boom');
-      });
-
-      await expect(service.getLegacySnapKeyring()).rejects.toThrow('boom');
     });
   });
 
