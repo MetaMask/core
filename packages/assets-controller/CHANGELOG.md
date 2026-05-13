@@ -9,8 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Bump `@metamask/account-tree-controller` from `^7.3.0` to `^7.4.0` ([#8785](https://github.com/MetaMask/core/pull/8785))
-- Bump `@metamask/assets-controllers` from `^108.0.0` to `^108.0.1` ([#8785](https://github.com/MetaMask/core/pull/8785))
+- Bump `@metamask/account-tree-controller` from `^7.3.0` to `^7.4.0` ([#8783](https://github.com/MetaMask/core/pull/8783))
+- Bump `@metamask/assets-controllers` from `^108.0.0` to `^108.0.1` ([#8783](https://github.com/MetaMask/core/pull/8783))
 
 ### Fixed
 
