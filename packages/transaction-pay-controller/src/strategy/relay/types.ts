@@ -31,6 +31,12 @@ export type RelayQuoteRequest = {
    * by Relay for major tokens; rejected otherwise.
    */
   useDepositAddress?: boolean;
+  /**
+   * When combined with `useDepositAddress`, ties the deposit address to a
+   * specific order. Underpayments fail and refund; exact payments and
+   * overpayments fill. Requires `refundTo`.
+   */
+  strict?: boolean;
   user: Hex;
 };
 

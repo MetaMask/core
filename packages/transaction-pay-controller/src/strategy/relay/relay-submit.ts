@@ -108,14 +108,14 @@ async function executeSingleQuote(
     },
   );
 
+  let polymarketPreSubmitUsdceBalance = 0n;
+
   if (quote.request.isHyperliquidSource) {
     await submitHyperliquidWithdraw(quote, quote.request.from, messenger);
   } else if (isPolymarket) {
-    const { sourceHash } = await submitPolymarketWithdraw(
-      quote,
-      quote.request.from,
-      messenger,
-    );
+    const { sourceHash, preSubmitUsdceBalance } =
+      await submitPolymarketWithdraw(quote, quote.request.from, messenger);
+    polymarketPreSubmitUsdceBalance = preSubmitUsdceBalance;
     setRelaySourceHash(transaction, messenger, sourceHash);
   } else {
     await submitTransactions(quote, transaction, messenger);
@@ -132,7 +132,10 @@ async function executeSingleQuote(
   log('Relay request completed', completion);
 
   if (isPolymarket) {
-    await sweepPolymarketDepositWallet(quote.request.from, messenger);
+    await sweepPolymarketDepositWallet(quote.request.from, messenger, {
+      relayStatus: completion.status,
+      preSubmitUsdceBalance: polymarketPreSubmitUsdceBalance,
+    });
 
     if (completion.status !== 'success') {
       throw new Error(`Relay request failed with status: ${completion.status}`);
@@ -234,13 +237,7 @@ async function waitForRelayCompletion(
         return { status: 'success', targetHash };
       }
 
-      // When tolerating failure, refund is mid-flight (refund tx not yet
-      // confirmed) - keep polling until refunded.
-      const isPendingForCaller =
-        RELAY_PENDING_STATUSES.includes(status.status) ||
-        (tolerateFailure && status.status === 'refund');
-
-      if (!isPendingForCaller) {
+      if (!RELAY_PENDING_STATUSES.includes(status.status)) {
         if (RELAY_FAILURE_STATUSES.includes(status.status)) {
           if (tolerateFailure) {
             log('Relay ended in failure status (tolerated)', status.status);

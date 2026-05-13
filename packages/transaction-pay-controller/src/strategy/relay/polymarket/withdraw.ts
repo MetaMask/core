@@ -12,6 +12,7 @@ import { getLiveTokenBalance } from '../../../utils/token';
 import type {
   RelayQuote,
   RelayQuoteRequest,
+  RelayStatus,
   RelayTransactionStep,
 } from '../types';
 import {
@@ -24,6 +25,9 @@ import {
   POLYMARKET_COLLATERAL_OFFRAMP_POLYGON,
   POLYMARKET_COLLATERAL_ONRAMP_POLYGON,
   PUSD_ADDRESS_POLYGON,
+  SWEEP_BALANCE_RETRY_ATTEMPTS,
+  SWEEP_BALANCE_RETRY_DELAY_MS,
+  SWEEP_RELAYER_SETTLE_DELAY_MS,
   USDC_E_ADDRESS_POLYGON,
 } from './constants';
 
@@ -43,24 +47,31 @@ export async function applyPolymarketDepositWalletOverrides(
   body.user = depositWalletAddress;
   body.refundTo = depositWalletAddress;
   body.useDepositAddress = true;
+  body.strict = true;
 }
 
 export async function submitPolymarketWithdraw(
   quote: TransactionPayQuote<RelayQuote>,
   from: Hex,
   messenger: TransactionPayControllerMessenger,
-): Promise<{ sourceHash: Hex }> {
+): Promise<{ sourceHash: Hex; preSubmitUsdceBalance: bigint }> {
   const depositWalletAddress = await getDepositWalletAddress(messenger, from);
   const relayDepositAddress = extractRelayDepositAddress(quote.original);
   const amount = BigInt(quote.sourceAmount.raw);
+
+  const preSubmitUsdceBalance = await readUsdceBalanceOrZero(
+    messenger,
+    depositWalletAddress,
+  );
 
   log('Submitting unwrap batch to Relay deposit address', {
     depositWalletAddress,
     relayDepositAddress,
     amount: amount.toString(),
+    preSubmitUsdceBalance: preSubmitUsdceBalance.toString(),
   });
 
-  return await submitDepositWalletBatch(messenger, {
+  const result = await submitDepositWalletBatch(messenger, {
     eoa: from,
     depositWallet: depositWalletAddress,
     calls: [
@@ -80,36 +91,45 @@ export async function submitPolymarketWithdraw(
       },
     ],
   });
+
+  return { ...result, preSubmitUsdceBalance };
 }
 
 export async function sweepPolymarketDepositWallet(
   from: Hex,
   messenger: TransactionPayControllerMessenger,
+  options: {
+    relayStatus: RelayStatus | 'timeout';
+    preSubmitUsdceBalance: bigint;
+  },
 ): Promise<void> {
-  const depositWalletAddress = await getDepositWalletAddress(messenger, from);
+  const isRefund =
+    options.relayStatus === 'refund' || options.relayStatus === 'refunded';
+  const waitForBalanceAbove = isRefund
+    ? options.preSubmitUsdceBalance
+    : undefined;
 
-  let usdceBalance: bigint;
-  try {
-    const raw = await getLiveTokenBalance(
-      messenger,
-      depositWalletAddress,
-      CHAIN_ID_POLYGON,
-      USDC_E_ADDRESS_POLYGON,
-    );
-    usdceBalance = BigInt(raw);
-  } catch (error) {
-    log('USDC.e sweep: failed to read deposit wallet balance', { error });
+  const depositWalletAddress = await getDepositWalletAddress(messenger, from);
+  const usdceBalance = await readDepositWalletUsdceBalance(
+    messenger,
+    depositWalletAddress,
+    waitForBalanceAbove,
+  );
+
+  if (usdceBalance === undefined) {
     return;
   }
-
-  log('USDC.e sweep: deposit wallet balance', {
-    depositWalletAddress,
-    balance: usdceBalance.toString(),
-  });
 
   if (usdceBalance === 0n) {
     log('USDC.e sweep: nothing to wrap');
     return;
+  }
+
+  if (waitForBalanceAbove !== undefined && usdceBalance > waitForBalanceAbove) {
+    log('USDC.e sweep: waiting for relayer RPC to catch up to new balance');
+    await new Promise((resolve) =>
+      setTimeout(resolve, SWEEP_RELAYER_SETTLE_DELAY_MS),
+    );
   }
 
   try {
@@ -139,6 +159,71 @@ export async function sweepPolymarketDepositWallet(
   } catch (error) {
     log('USDC.e sweep: batch submission failed', { error });
   }
+}
+
+async function readUsdceBalanceOrZero(
+  messenger: TransactionPayControllerMessenger,
+  depositWalletAddress: Hex,
+): Promise<bigint> {
+  try {
+    const raw = await getLiveTokenBalance(
+      messenger,
+      depositWalletAddress,
+      CHAIN_ID_POLYGON,
+      USDC_E_ADDRESS_POLYGON,
+    );
+    return BigInt(raw);
+  } catch (error) {
+    log('USDC.e balance read failed, defaulting to zero', { error });
+    return 0n;
+  }
+}
+
+async function readDepositWalletUsdceBalance(
+  messenger: TransactionPayControllerMessenger,
+  depositWalletAddress: Hex,
+  waitForBalanceAbove: bigint | undefined,
+): Promise<bigint | undefined> {
+  const shouldRetry = waitForBalanceAbove !== undefined;
+  const maxAttempts = shouldRetry ? SWEEP_BALANCE_RETRY_ATTEMPTS : 1;
+  let lastBalance = 0n;
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    if (attempt > 1) {
+      await new Promise((resolve) =>
+        setTimeout(resolve, SWEEP_BALANCE_RETRY_DELAY_MS),
+      );
+    }
+
+    try {
+      const raw = await getLiveTokenBalance(
+        messenger,
+        depositWalletAddress,
+        CHAIN_ID_POLYGON,
+        USDC_E_ADDRESS_POLYGON,
+      );
+      lastBalance = BigInt(raw);
+    } catch (error) {
+      log('USDC.e sweep: failed to read deposit wallet balance', { error });
+      return undefined;
+    }
+
+    log('USDC.e sweep: deposit wallet balance', {
+      depositWalletAddress,
+      balance: lastBalance.toString(),
+      attempt,
+      waitForBalanceAbove: waitForBalanceAbove?.toString(),
+    });
+
+    const hasIncreased =
+      waitForBalanceAbove === undefined || lastBalance > waitForBalanceAbove;
+
+    if (hasIncreased) {
+      return lastBalance;
+    }
+  }
+
+  return lastBalance;
 }
 
 async function getDepositWalletAddress(

@@ -90,6 +90,7 @@ describe('Polymarket withdraw', () => {
         user: DEPOSIT_WALLET_MOCK,
         refundTo: DEPOSIT_WALLET_MOCK,
         useDepositAddress: true,
+        strict: true,
       });
     });
   });
@@ -100,7 +101,10 @@ describe('Polymarket withdraw', () => {
 
       const result = await submitPolymarketWithdraw(quote, EOA_MOCK, messenger);
 
-      expect(result).toStrictEqual({ sourceHash: SOURCE_HASH_MOCK });
+      expect(result).toStrictEqual({
+        sourceHash: SOURCE_HASH_MOCK,
+        preSubmitUsdceBalance: 0n,
+      });
       expect(polymarketSubmitDepositWalletBatchMock).toHaveBeenCalledTimes(1);
       const call = polymarketSubmitDepositWalletBatchMock.mock.calls[0][0];
       expect(call.eoa).toBe(EOA_MOCK);
@@ -110,6 +114,30 @@ describe('Polymarket withdraw', () => {
       expect(call.calls[0].value).toBe('0');
       expect(call.calls[1].target).toBe(POLYMARKET_COLLATERAL_OFFRAMP_POLYGON);
       expect(call.calls[1].value).toBe('0');
+    });
+
+    it('captures the pre-submit USDC.e balance', async () => {
+      getLiveTokenBalanceMock.mockResolvedValue('2500000');
+
+      const result = await submitPolymarketWithdraw(
+        buildQuote(),
+        EOA_MOCK,
+        messenger,
+      );
+
+      expect(result.preSubmitUsdceBalance).toBe(2500000n);
+    });
+
+    it('defaults pre-submit balance to zero when the balance read fails', async () => {
+      getLiveTokenBalanceMock.mockRejectedValue(new Error('rpc down'));
+
+      const result = await submitPolymarketWithdraw(
+        buildQuote(),
+        EOA_MOCK,
+        messenger,
+      );
+
+      expect(result.preSubmitUsdceBalance).toBe(0n);
     });
 
     it('throws when the Relay quote has no deposit step', async () => {
@@ -138,10 +166,15 @@ describe('Polymarket withdraw', () => {
   });
 
   describe('sweepPolymarketDepositWallet', () => {
+    const successOptions = {
+      relayStatus: 'success' as const,
+      preSubmitUsdceBalance: 0n,
+    };
+
     it('wraps any USDC.e balance back into pUSD on the deposit wallet', async () => {
       getLiveTokenBalanceMock.mockResolvedValue('5000000');
 
-      await sweepPolymarketDepositWallet(EOA_MOCK, messenger);
+      await sweepPolymarketDepositWallet(EOA_MOCK, messenger, successOptions);
 
       expect(polymarketSubmitDepositWalletBatchMock).toHaveBeenCalledTimes(1);
       const call = polymarketSubmitDepositWalletBatchMock.mock.calls[0][0];
@@ -155,7 +188,7 @@ describe('Polymarket withdraw', () => {
     it('is a no-op when the USDC.e balance is zero', async () => {
       getLiveTokenBalanceMock.mockResolvedValue('0');
 
-      await sweepPolymarketDepositWallet(EOA_MOCK, messenger);
+      await sweepPolymarketDepositWallet(EOA_MOCK, messenger, successOptions);
 
       expect(polymarketSubmitDepositWalletBatchMock).not.toHaveBeenCalled();
     });
@@ -164,7 +197,7 @@ describe('Polymarket withdraw', () => {
       getLiveTokenBalanceMock.mockRejectedValue(new Error('rpc down'));
 
       expect(
-        await sweepPolymarketDepositWallet(EOA_MOCK, messenger),
+        await sweepPolymarketDepositWallet(EOA_MOCK, messenger, successOptions),
       ).toBeUndefined();
       expect(polymarketSubmitDepositWalletBatchMock).not.toHaveBeenCalled();
     });
@@ -176,8 +209,70 @@ describe('Polymarket withdraw', () => {
       );
 
       expect(
-        await sweepPolymarketDepositWallet(EOA_MOCK, messenger),
+        await sweepPolymarketDepositWallet(EOA_MOCK, messenger, successOptions),
       ).toBeUndefined();
+    });
+
+    describe('when relayStatus is refund', () => {
+      beforeEach(() => {
+        jest.useFakeTimers();
+      });
+
+      afterEach(() => {
+        jest.useRealTimers();
+      });
+
+      it('retries until the balance exceeds the pre-submit balance, waits for the relayer to settle, then sweeps the full new balance', async () => {
+        getLiveTokenBalanceMock
+          .mockResolvedValueOnce('1000000')
+          .mockResolvedValueOnce('1000000')
+          .mockResolvedValueOnce('4000000');
+
+        const sweepPromise = sweepPolymarketDepositWallet(EOA_MOCK, messenger, {
+          relayStatus: 'refund',
+          preSubmitUsdceBalance: 1000000n,
+        });
+
+        await jest.advanceTimersByTimeAsync(5000);
+        await sweepPromise;
+
+        expect(getLiveTokenBalanceMock).toHaveBeenCalledTimes(3);
+        expect(polymarketSubmitDepositWalletBatchMock).toHaveBeenCalledTimes(1);
+        const call = polymarketSubmitDepositWalletBatchMock.mock.calls[0][0];
+        expect(call.calls[1].target).toBe(POLYMARKET_COLLATERAL_ONRAMP_POLYGON);
+      });
+
+      it('also retries when relayStatus is refunded', async () => {
+        getLiveTokenBalanceMock
+          .mockResolvedValueOnce('1000000')
+          .mockResolvedValueOnce('4000000');
+
+        const sweepPromise = sweepPolymarketDepositWallet(EOA_MOCK, messenger, {
+          relayStatus: 'refunded',
+          preSubmitUsdceBalance: 1000000n,
+        });
+
+        await jest.advanceTimersByTimeAsync(4000);
+        await sweepPromise;
+
+        expect(getLiveTokenBalanceMock).toHaveBeenCalledTimes(2);
+        expect(polymarketSubmitDepositWalletBatchMock).toHaveBeenCalledTimes(1);
+      });
+
+      it('gives up after five attempts and sweeps the residual stale balance', async () => {
+        getLiveTokenBalanceMock.mockResolvedValue('1000000');
+
+        const sweepPromise = sweepPolymarketDepositWallet(EOA_MOCK, messenger, {
+          relayStatus: 'refund',
+          preSubmitUsdceBalance: 1000000n,
+        });
+
+        await jest.advanceTimersByTimeAsync(4000);
+        await sweepPromise;
+
+        expect(getLiveTokenBalanceMock).toHaveBeenCalledTimes(5);
+        expect(polymarketSubmitDepositWalletBatchMock).toHaveBeenCalledTimes(1);
+      });
     });
   });
 });

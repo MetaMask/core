@@ -3372,6 +3372,7 @@ describe('Relay Quotes Utils', () => {
         expect(body.user).toBe(DEPOSIT_WALLET_MOCK);
         expect(body.refundTo).toBe(DEPOSIT_WALLET_MOCK);
         expect(body.useDepositAddress).toBe(true);
+        expect(body.strict).toBe(true);
       });
     });
 

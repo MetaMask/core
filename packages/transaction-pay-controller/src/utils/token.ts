@@ -333,12 +333,12 @@ export async function getLiveTokenBalance(
     tokenAddress.toLowerCase() === getNativeToken(chainId).toLowerCase();
 
   if (isNative) {
-    const balance = await ethersProvider.getBalance(account);
+    const balance = await ethersProvider.getBalance(account, 'pending');
     return balance.toString();
   }
 
   const contract = new Contract(tokenAddress, abiERC20, ethersProvider);
-  const balance = await contract.balanceOf(account);
+  const balance = await contract.balanceOf(account, { blockTag: 'pending' });
   return balance.toString();
 }
 
