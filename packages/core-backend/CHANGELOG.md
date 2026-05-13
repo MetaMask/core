@@ -21,6 +21,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/controller-utils` from `^12.0.0` to `^12.1.0` ([#8774](https://github.com/MetaMask/core/pull/8774))
 - Bump `@metamask/profile-sync-controller` from `^28.0.2` to `^28.1.0` ([#8783](https://github.com/MetaMask/core/pull/8783))
 
+### Fixed
+
+- Update HTTP headers from `X-Client-Product`/`X-Client-Version` to `x-metamask-clientproduct`/`x-metamask-clientversion` ([#8798](https://github.com/MetaMask/core/pull/8798))
+- Remove default `clientVersion` value of `1.0.0`; the `x-metamask-clientversion` header is now only sent when `clientVersion` is explicitly provided ([#8798](https://github.com/MetaMask/core/pull/8798))
+
 ## [6.2.2]
 
 ### Changed
