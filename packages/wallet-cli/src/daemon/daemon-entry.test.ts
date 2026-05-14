@@ -154,15 +154,17 @@ describe('daemon-entry', () => {
     expect(process.exitCode).toBe(1);
   });
 
-  it('writes to stderr and sets exitCode when MM_WALLET_PASSWORD is missing', async () => {
+  it('passes password: undefined to createWallet when MM_WALLET_PASSWORD is absent', async () => {
     delete process.env.MM_WALLET_PASSWORD;
+    mockCreateWallet.mockResolvedValue(createMockWallet());
+    mockStartRpcSocketServer.mockResolvedValue(createMockHandle());
 
     await importDaemonEntry();
 
-    expect(stderrSpy).toHaveBeenCalledWith(
-      expect.stringContaining('MM_WALLET_PASSWORD'),
+    expect(mockCreateWallet).toHaveBeenCalledWith(
+      expect.objectContaining({ password: undefined }),
     );
-    expect(process.exitCode).toBe(1);
+    expect(process.exitCode).toBeUndefined();
   });
 
   it('writes to stderr and sets exitCode when MM_WALLET_SRP is missing', async () => {

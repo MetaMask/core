@@ -82,17 +82,28 @@ export async function ensureDaemon(
   // discarding it, so a crash after startup stays diagnosable. stdout stays
   // ignored — structured status goes through the file logger.
   const logFileDescriptor = openSync(logPath, 'a');
+
+  const childEnv: NodeJS.ProcessEnv = {
+    ...process.env,
+    MM_DAEMON_DATA_DIR: config.dataDir,
+    MM_DAEMON_SOCKET_PATH: socketPath,
+    INFURA_PROJECT_ID: config.infuraProjectId,
+    MM_WALLET_SRP: config.srp,
+  };
+  // Strip any inherited `MM_WALLET_PASSWORD` from the child env when the
+  // caller did not pass a password: the daemon treats an absent variable as
+  // "start locked", but assigning `undefined` via `env` would set the literal
+  // string `'undefined'` and be interpreted as a (wrong) password.
+  if (config.password === undefined) {
+    delete childEnv.MM_WALLET_PASSWORD;
+  } else {
+    childEnv.MM_WALLET_PASSWORD = config.password;
+  }
+
   const child = spawn(process.execPath, [...args, entryPath], {
     detached: true,
     stdio: ['ignore', 'ignore', logFileDescriptor],
-    env: {
-      ...process.env,
-      MM_DAEMON_DATA_DIR: config.dataDir,
-      MM_DAEMON_SOCKET_PATH: socketPath,
-      INFURA_PROJECT_ID: config.infuraProjectId,
-      MM_WALLET_PASSWORD: config.password,
-      MM_WALLET_SRP: config.srp,
-    },
+    env: childEnv,
   });
   // The child dup'd the file descriptor into its stderr, so drop the parent's
   // copy. Safe on the success path: `spawn` reports failures via the 'error'

@@ -8,6 +8,7 @@ export default class DaemonStart extends Command {
   static override examples = [
     '<%= config.bin %> daemon start --infura-project-id <key> --password <pw> --srp <phrase>',
     'INFURA_PROJECT_ID=<key> MM_WALLET_PASSWORD=<pw> MM_WALLET_SRP=<phrase> <%= config.bin %> daemon start',
+    '<%= config.bin %> daemon start --infura-project-id <key> --srp <phrase>   # then `mm wallet unlock` later',
   ];
 
   static override flags = {
@@ -18,9 +19,10 @@ export default class DaemonStart extends Command {
     }),
     password: Flags.string({
       description:
-        'Wallet password (testing only — use MM_WALLET_PASSWORD env var in production)',
+        'Wallet password (testing only — use MM_WALLET_PASSWORD env var in production). ' +
+        'Required on first run; on subsequent runs, omit to start with a locked keyring and use `mm wallet unlock`.',
       env: 'MM_WALLET_PASSWORD',
-      required: true,
+      required: false,
     }),
     srp: Flags.string({
       description:
