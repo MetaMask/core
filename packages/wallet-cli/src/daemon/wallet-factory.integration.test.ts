@@ -17,7 +17,7 @@ import { createWallet } from './wallet-factory';
  */
 
 const TEST_PHRASE =
-  'test test test test test test test test test test test ball';
+  'abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about';
 const TEST_PASSWORD = 'integration-pass';
 const INFURA_PROJECT_ID = 'fake-infura-project-id';
 
@@ -44,6 +44,29 @@ function tempDbPath(label: string): string {
   return path;
 }
 
+describe('createWallet (real Wallet, in-memory)', () => {
+  it('constructs an unlocked wallet on first run and dispatches messenger actions', async () => {
+    const { wallet, dispose } = await createWallet({
+      databasePath: ':memory:',
+      password: TEST_PASSWORD,
+      srp: TEST_PHRASE,
+      infuraProjectId: INFURA_PROJECT_ID,
+      log: () => undefined,
+    });
+
+    try {
+      expect(wallet.state.KeyringController?.isUnlocked).toBe(true);
+
+      // `getState` resolves synchronously; awaiting a non-thenable trips
+      // `@typescript-eslint/await-thenable`.
+      const { keyrings } = wallet.messenger.call('KeyringController:getState');
+      expect(keyrings[0]?.accounts[0]).toMatch(/^0x[0-9a-fA-F]{40}$/u);
+    } finally {
+      await dispose();
+    }
+  });
+});
+
 describe('createWallet (integration)', () => {
   afterEach(() => {
     while (createdTempDbPaths.length > 0) {
@@ -57,7 +80,7 @@ describe('createWallet (integration)', () => {
   it('imports the SRP on first run and lists accounts via the messenger', async () => {
     const databasePath = tempDbPath('first-run');
 
-    const { wallet, store } = await createWallet({
+    const { wallet, dispose } = await createWallet({
       databasePath,
       infuraProjectId: INFURA_PROJECT_ID,
       password: TEST_PASSWORD,
@@ -69,8 +92,7 @@ describe('createWallet (integration)', () => {
       const accounts = wallet.messenger.call('AccountsController:listAccounts');
       expect(accounts).toHaveLength(1);
     } finally {
-      await wallet.destroy();
-      store.close();
+      await dispose();
     }
   });
 
@@ -86,8 +108,7 @@ describe('createWallet (integration)', () => {
     const firstAddress = first.wallet.messenger
       .call('AccountsController:listAccounts')
       .map((account) => account.address)[0];
-    await first.wallet.destroy();
-    first.store.close();
+    await first.dispose();
 
     const second = await createWallet({
       databasePath,
@@ -105,8 +126,7 @@ describe('createWallet (integration)', () => {
         firstAddress,
       ]);
     } finally {
-      await second.wallet.destroy();
-      second.store.close();
+      await second.dispose();
     }
   });
 
@@ -119,8 +139,7 @@ describe('createWallet (integration)', () => {
       password: TEST_PASSWORD,
       srp: TEST_PHRASE,
     });
-    await first.wallet.destroy();
-    first.store.close();
+    await first.dispose();
 
     const second = await createWallet({
       databasePath,
@@ -141,8 +160,7 @@ describe('createWallet (integration)', () => {
         second.wallet.messenger.call('AccountsController:listAccounts'),
       ).toHaveLength(1);
     } finally {
-      await second.wallet.destroy();
-      second.store.close();
+      await second.dispose();
     }
   });
 
@@ -155,8 +173,7 @@ describe('createWallet (integration)', () => {
       password: TEST_PASSWORD,
       srp: TEST_PHRASE,
     });
-    await first.wallet.destroy();
-    first.store.close();
+    await first.dispose();
 
     await expect(
       createWallet({
@@ -181,8 +198,7 @@ describe('createWallet (integration)', () => {
         retry.wallet.messenger.call('AccountsController:listAccounts'),
       ).toHaveLength(1);
     } finally {
-      await retry.wallet.destroy();
-      retry.store.close();
+      await retry.dispose();
     }
   });
 });
