@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Add Polymarket deposit-wallet support to the Relay strategy for `predictWithdraw` transactions, routed via the `isPolymarketDepositWallet` flag on `TransactionConfig` ([#8754](https://github.com/MetaMask/core/pull/8754))
 
+### Changed
+
+- Rename Relay gasless execution feature flag from `gaslessEnabled` to `isGaslessEnabled` ([#8801](https://github.com/MetaMask/core/pull/8801))
+
 ## [22.4.0]
 
 ### Added
