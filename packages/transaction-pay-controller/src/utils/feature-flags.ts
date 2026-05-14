@@ -133,7 +133,6 @@ export type PayStrategiesConfigRaw = {
   across?: AcrossConfigRaw;
   relay?: {
     enabled?: boolean;
-    isGaslessEnabled?: boolean;
     originGasOverhead?: string;
     pollingInterval?: number;
     pollingTimeout?: number;
