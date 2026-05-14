@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [6.1.0]
+
 ### Changed
 
 - Pass the perps builder base fee into rewards discount resolution and treat unhydrated rewards subscription state as retryable instead of a definitive no-discount result ([#8803](https://github.com/MetaMask/core/pull/8803))
@@ -296,7 +298,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Bump `@metamask/controller-utils` from `^11.18.0` to `^11.19.0` ([#7995](https://github.com/MetaMask/core/pull/7995))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@6.0.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@6.1.0...HEAD
+[6.1.0]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@6.0.1...@metamask/perps-controller@6.1.0
 [6.0.1]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@6.0.0...@metamask/perps-controller@6.0.1
 [6.0.0]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@5.0.0...@metamask/perps-controller@6.0.0
 [5.0.0]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@4.0.0...@metamask/perps-controller@5.0.0
