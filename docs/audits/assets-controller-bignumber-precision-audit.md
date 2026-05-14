@@ -474,6 +474,48 @@ eliminate exponential output even for that band, two alternatives:
   construction. The cost is changing the field type from `number` to
   `string`, which is the broader refactor discussed in the next section.
 
+### Did the `"e"` issue already exist in the old controller's bounded helper?
+
+Yes, latently — though it never bit in production. The old
+`boundedPrecisionNumber` in `CurrencyRateController` shares the final
+`Number(...)` round-trip step, and `Number.prototype.toString` chooses
+exponential notation whenever the decimal exponent is `< -6`. No bounding
+strategy that returns a `number` can change that; only storing the
+already-formatted string can.
+
+Verified against the old helper as it ships in `@metamask/assets-controllers`:
+
+| Input                              | Old `boundedPrecisionNumber(value)` | `String(bounded)`    | Has `"e"`? | `new BigNumber(bounded)` |
+| ---------------------------------- | ----------------------------------- | -------------------- | ---------- | ------------------------ |
+| VND `40160642.570281126`           | `40160642.570281126`                | `40160642.570281126` | no         | **THROWS** (the bug)     |
+| IDR `11261261.261261262`           | `11261261.261261262`                | `11261261.261261262` | no         | **THROWS** (the bug)     |
+| USD `2309.4688221709007`           | `2309.468822171`                    | `2309.468822171`     | no         | OK                       |
+| BTC `0.043478260869565216`         | `0.043478261`                       | `0.043478261`        | no         | OK                       |
+| `1.0000000000000002` (fp artifact) | `1`                                 | `1`                  | no         | OK                       |
+| `1.23e-7` (sub-`1e-6` price)       | `1.23e-7`                           | `1.23e-7`            | **yes**    | OK                       |
+| `1.23e-10` (sub-nano)              | `0`                                 | `0`                  | no         | OK                       |
+
+Reading the table:
+
+- The old helper produces `"e"`-form output in exactly the same
+  `1e-9 ≤ |x| < 1e-6` band as the unbounded number would. The bounding does
+  not eliminate the band; it only collapses sub-`1e-9` values to `0`.
+- The reason this has not been a reported problem is the input distribution.
+  `boundedPrecisionNumber` in `CurrencyRateController` is only called on
+  fiat-currency conversion rates and asset prices in fiat. Both live far
+  above `1e-6` in production — the state dump cited in the upstream audit
+  (`40115252.21304121`, `2308.478753378`, …) has no `"e"`-form values for
+  exactly that reason.
+- Conversely, the old helper does **not** prevent the throw for VND/IDR-class
+  rates. That is the actual user-visible bug.
+
+So the hybrid utility recommended above is strictly an improvement on both
+axes: it fixes the crash that `toFixed(9)` alone misses, and it tightens a
+latent edge that has been silently present in the old helper since it was
+introduced. It does not regress on the dust-handling property of the old
+helper either (sub-`1e-9` values still snap to `0` because of the
+`toFixed(decimalPlaces)` step).
+
 ### Why we need the bound now even though we didn't before
 
 The original `boundedPrecisionNumber` shipped in
