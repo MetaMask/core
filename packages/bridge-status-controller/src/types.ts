@@ -22,6 +22,7 @@ import type {
   NetworkControllerGetStateAction,
 } from '@metamask/network-controller';
 import type { AuthenticationControllerGetBearerTokenAction } from '@metamask/profile-sync-controller/auth';
+import type { RemoteFeatureFlagControllerGetStateAction } from '@metamask/remote-feature-flag-controller';
 import type { SnapControllerHandleRequestAction } from '@metamask/snaps-controllers';
 import type { Infer } from '@metamask/superstruct';
 import type {
@@ -29,8 +30,7 @@ import type {
   TransactionControllerEstimateGasFeeAction,
   TransactionControllerGetStateAction,
   TransactionControllerIsAtomicBatchSupportedAction,
-  TransactionControllerTransactionConfirmedEvent,
-  TransactionControllerTransactionFailedEvent,
+  TransactionControllerTransactionStatusUpdatedEvent,
   TransactionControllerUpdateTransactionAction,
   TransactionMeta,
 } from '@metamask/transaction-controller';
@@ -116,7 +116,7 @@ export type BridgeHistoryItem = {
   batchId?: string;
   quote: Quote;
   status: StatusResponse;
-  startTime?: number; // timestamp in ms
+  startTime: number; // timestamp in ms
   estimatedProcessingTimeInSeconds: number;
   slippagePercentage: number;
   completionTime?: number; // timestamp in ms
@@ -163,6 +163,14 @@ export type BridgeHistoryItem = {
     counter: number;
     lastAttemptTime: number; // timestamp in ms
   };
+  /**
+   * Client-supplied security classification for the destination token at the
+   * time the swap/bridge was submitted. Persisted so post-submit analytics
+   * events (Completed, Failed, StatusValidationFailed) can include
+   * `token_security_type_destination`. `null` when no security data was
+   * available for the destination token.
+   */
+  tokenSecurityTypeDestination?: string | null;
 };
 
 /**
@@ -225,7 +233,7 @@ export type StartPollingForBridgeTxStatusArgs = {
    */
   originalTransactionId?: string;
   quoteResponse: QuoteResponse & QuoteMetadata;
-  startTime?: BridgeHistoryItem['startTime'];
+  startTime: BridgeHistoryItem['startTime'];
   slippagePercentage: BridgeHistoryItem['slippagePercentage'];
   initialDestAssetBalance?: BridgeHistoryItem['initialDestAssetBalance'];
   targetContractAddress?: BridgeHistoryItem['targetContractAddress'];
@@ -237,6 +245,9 @@ export type StartPollingForBridgeTxStatusArgs = {
   // New field for `active_ab_tests` metrics payload.
   activeAbTests?: BridgeHistoryItem['activeAbTests'];
   accountAddress: string;
+  // Client-supplied destination token security classification, persisted on
+  // the history item for post-submit analytics events.
+  tokenSecurityTypeDestination?: BridgeHistoryItem['tokenSecurityTypeDestination'];
 };
 
 /**
@@ -292,6 +303,7 @@ type AllowedActions =
   | NetworkControllerFindNetworkClientIdByChainIdAction
   | NetworkControllerGetStateAction
   | NetworkControllerGetNetworkClientByIdAction
+  | RemoteFeatureFlagControllerGetStateAction
   | SnapControllerHandleRequestAction
   | TransactionControllerGetStateAction
   | TransactionControllerUpdateTransactionAction
@@ -308,9 +320,7 @@ type AllowedActions =
 /**
  * The external events available to the BridgeStatusController.
  */
-type AllowedEvents =
-  | TransactionControllerTransactionFailedEvent
-  | TransactionControllerTransactionConfirmedEvent;
+type AllowedEvents = TransactionControllerTransactionStatusUpdatedEvent;
 
 /**
  * The messenger for the BridgeStatusController.

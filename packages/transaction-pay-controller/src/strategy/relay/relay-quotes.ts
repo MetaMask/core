@@ -2,6 +2,7 @@
 
 import { Interface } from '@ethersproject/abi';
 import { toHex } from '@metamask/controller-utils';
+import { TransactionType } from '@metamask/transaction-controller';
 import type { TransactionMeta } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 import { createModuleLogger } from '@metamask/utils';
@@ -37,6 +38,10 @@ import {
   isRelayExecuteEnabled,
 } from '../../utils/feature-flags';
 import { calculateGasCost } from '../../utils/gas';
+import {
+  getGasStationCostInSourceTokenRaw,
+  getGasStationEligibility,
+} from '../../utils/gas-station';
 import { estimateQuoteGasLimits } from '../../utils/quote-gas';
 import type { QuoteGasTransaction } from '../../utils/quote-gas';
 import {
@@ -48,10 +53,7 @@ import {
 } from '../../utils/token';
 import { isPredictWithdrawTransaction } from '../../utils/transaction';
 import { TOKEN_TRANSFER_FOUR_BYTE } from './constants';
-import {
-  getGasStationCostInSourceTokenRaw,
-  getGasStationEligibility,
-} from './gas-station';
+import { applyPolymarketDepositWalletOverrides } from './polymarket/withdraw';
 import { fetchRelayQuote } from './relay-api';
 import { getRelayMaxGasStationQuote } from './relay-max-gas-station';
 import type {
@@ -78,14 +80,18 @@ export async function getRelayQuotes(
 
   try {
     const normalizedRequests = requests
-      // Ignore gas fee token requests (which have both target=0 and source=0)
-      // but keep post-quote requests (identified by isPostQuote flag)
-      .filter(
-        (singleRequest) =>
-          singleRequest.targetAmountMinimum !== '0' ||
-          singleRequest.isPostQuote,
-      )
-      .map((singleRequest) => normalizeRequest(singleRequest));
+      .filter((singleRequest) => {
+        const hasTargetMinimum = singleRequest.targetAmountMinimum !== '0';
+        const isPostQuote = Boolean(singleRequest.isPostQuote);
+        const isExactInputRequest =
+          Boolean(singleRequest.isMaxAmount) &&
+          new BigNumber(singleRequest.sourceTokenAmount).gt(0);
+
+        return hasTargetMinimum || isPostQuote || isExactInputRequest;
+      })
+      .map((singleRequest) =>
+        normalizeRequest(singleRequest, request.transaction),
+      );
 
     log('Normalized requests', normalizedRequests);
 
@@ -191,7 +197,12 @@ async function getSingleQuote(
   request: QuoteRequest,
   fullRequest: PayStrategyGetQuotesRequest,
 ): Promise<TransactionPayQuote<RelayQuote>> {
-  const { messenger, transaction } = fullRequest;
+  const {
+    accountSupports7702: supports7702,
+    messenger,
+    signal,
+    transaction,
+  } = fullRequest;
 
   const {
     from,
@@ -222,6 +233,7 @@ async function getSingleQuote(
     const useExactInput = isMaxAmount || request.isPostQuote;
 
     const useExecute =
+      supports7702 &&
       isRelayExecuteEnabled(messenger) &&
       isEIP7702Chain(messenger, sourceChainId);
 
@@ -240,9 +252,15 @@ async function getSingleQuote(
       user: from,
     };
 
+    if (request.isPolymarketDepositWallet) {
+      await applyPolymarketDepositWalletOverrides(body, request, messenger);
+    }
+
     // Skip transaction processing for post-quote flows - the original transaction
-    // will be included in the batch separately, not as part of the quote
-    if (!request.isPostQuote) {
+    // will be included in the batch separately, not as part of the quote.
+    // Skip for Polymarket deposit wallet flows - the source is already a
+    // bridged token transfer, not a contract call to embed.
+    if (!request.isPostQuote && !request.isPolymarketDepositWallet) {
       await processTransactions(transaction, request, body, messenger);
     } else if (request.refundTo) {
       // For post-quote flows, honour the caller-specified refund address so that
@@ -253,7 +271,7 @@ async function getSingleQuote(
 
     log('Request body', body);
 
-    const quote = await fetchRelayQuote(messenger, body);
+    const quote = await fetchRelayQuote(messenger, body, signal);
 
     log('Fetched relay quote', quote);
 
@@ -338,10 +356,15 @@ async function processTransactions(
     requestBody.refundTo = request.from;
   }
 
+  const fundingRecipient = (transaction.txParams?.from as Hex) ?? request.from;
+
   requestBody.txs = [
     {
       to: request.targetTokenAddress,
-      data: buildTokenTransferData(request.from, request.targetAmountMinimum),
+      data: buildTokenTransferData(
+        fundingRecipient,
+        request.targetAmountMinimum,
+      ),
       value: '0x0',
     },
     {
@@ -356,14 +379,22 @@ async function processTransactions(
  * Normalizes requests for Relay.
  *
  * @param request - Quote request to normalize.
+ * @param transaction - Parent transaction metadata, used to gate
+ * Hyperliquid-specific rewrites on transaction type.
  * @returns Normalized request.
  */
-function normalizeRequest(request: QuoteRequest): QuoteRequest {
+function normalizeRequest(
+  request: QuoteRequest,
+  transaction: TransactionMeta,
+): QuoteRequest {
   const newRequest = {
     ...request,
   };
 
+  const isPerpsDeposit = transaction.type === TransactionType.perpsDeposit;
+
   const isHyperliquidDeposit =
+    isPerpsDeposit &&
     !request.isPostQuote &&
     request.targetChainId === CHAIN_ID_ARBITRUM &&
     request.targetTokenAddress.toLowerCase() ===
@@ -645,7 +676,17 @@ async function calculateSourceNetworkCost(
   const isPredictWithdraw =
     request.isPostQuote && isPredictWithdrawTransaction(transaction);
 
-  const fromOverride = isPredictWithdraw ? request.refundTo : undefined;
+  // `fromOverride = Safe proxy` is only valid for deposit-style Relay routes
+  // where the deposit contract reads the user's source-token balance directly.
+  // Same-chain destinations route through DEX swap aggregators that frequently
+  // reject contract callers (anti-MEV `msg.sender == tx.origin` checks,
+  // ERC777-style callback interfaces, native wrap/unwrap requiring caller
+  // native balance). Simulating those from the Safe proxy reverts and breaks
+  // gas estimation. For swap-only routes, fall back to the relay params'
+  // EOA `from` so simulation succeeds.
+  const hasDepositStep = quote.steps.some((step) => step.id === 'deposit');
+  const useFromOverride = isPredictWithdraw && hasDepositStep;
+  const fromOverride = useFromOverride ? request.refundTo : undefined;
 
   const relayOnlyGas = await calculateSourceNetworkGasLimit(
     relayParams,
@@ -721,6 +762,13 @@ async function calculateSourceNetworkCost(
     max: max.raw,
   });
 
+  // Gas-fee-token lookup must use the Safe proxy for ALL Predict withdraws,
+  // not only deposit-style routes. The user's source token (pUSD) lives in
+  // the Safe; the EOA is empty until the Safe.execTransaction sub-call runs
+  // mid-batch. Querying the EOA for gas-fee-token availability would always
+  // return nothing and force users to hold POL.
+  // (`useFromOverride` only governs the gas-estimation `from` address, where
+  // swap-style routes need EOA because DEX routers reject contract callers.)
   if (isPredictWithdraw && request.refundTo) {
     log('Using proxy address for predict withdraw gas station simulation', {
       proxyAddress: request.refundTo,

@@ -7,8 +7,71 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/profile-sync-controller` from `^28.0.2` to `^28.1.0` ([#8783](https://github.com/MetaMask/core/pull/8783))
+- Bump `@metamask/transaction-controller` from `^65.3.0` to `^65.4.0` ([#8796](https://github.com/MetaMask/core/pull/8796))
+
+## [71.1.4]
+
+### Changed
+
+- Bump `@metamask/accounts-controller` from `^38.1.0` to `^38.1.1` ([#8774](https://github.com/MetaMask/core/pull/8774))
+- Bump `@metamask/bridge-controller` from `^72.0.3` to `^72.0.4` ([#8774](https://github.com/MetaMask/core/pull/8774))
+- Bump `@metamask/network-controller` from `^31.1.0` to `^32.0.0` ([#8774](https://github.com/MetaMask/core/pull/8774))
+- Bump `@metamask/controller-utils` from `^12.0.0` to `^12.1.0` ([#8774](https://github.com/MetaMask/core/pull/8774))
+
+## [71.1.3]
+
+### Changed
+
+- Bump `@metamask/network-controller` from `^31.0.0` to `^31.1.0` ([#8765](https://github.com/MetaMask/core/pull/8765))
+- Bump `@metamask/bridge-controller` from `^72.0.2` to `^72.0.3` ([#8773](https://github.com/MetaMask/core/pull/8773))
+
+## [71.1.2]
+
+### Changed
+
+- Bump `@metamask/bridge-controller` from `^72.0.0` to `^72.0.2` ([#8738](https://github.com/MetaMask/core/pull/8738), [#8755](https://github.com/MetaMask/core/pull/8755))
+- Bump `@metamask/accounts-controller` from `^38.0.0` to `^38.1.0` ([#8755](https://github.com/MetaMask/core/pull/8755))
+- Bump `@metamask/controller-utils` from `^11.20.0` to `^12.0.0` ([#8755](https://github.com/MetaMask/core/pull/8755))
+- Bump `@metamask/gas-fee-controller` from `^26.2.0` to `^26.2.1` ([#8755](https://github.com/MetaMask/core/pull/8755))
+- Bump `@metamask/network-controller` from `^30.1.0` to `^31.0.0` ([#8755](https://github.com/MetaMask/core/pull/8755))
+- Bump `@metamask/polling-controller` from `^16.0.4` to `^16.0.5` ([#8755](https://github.com/MetaMask/core/pull/8755))
+- Bump `@metamask/transaction-controller` from `^65.2.0` to `^65.3.0` ([#8755](https://github.com/MetaMask/core/pull/8755))
+
+## [71.1.1]
+
+### Changed
+
+- Bump `@metamask/bridge-controller` from `^71.0.0` to `^72.0.0` ([#8706](https://github.com/MetaMask/core/pull/8706), [#8721](https://github.com/MetaMask/core/pull/8721), [#8737](https://github.com/MetaMask/core/pull/8737))
+- Bump `@metamask/transaction-controller` from `^65.0.0` to `^65.2.0` ([#8691](https://github.com/MetaMask/core/pull/8691), [#8722](https://github.com/MetaMask/core/pull/8722))
+- Bump `@metamask/accounts-controller` from `^37.2.0` to `^38.0.0` ([#8665](https://github.com/MetaMask/core/pull/8665))
+- Bump `@metamask/messenger` from `^1.1.1` to `^1.2.0` ([#8632](https://github.com/MetaMask/core/pull/8632))
+- Bump `@metamask/keyring-controller` from `^25.2.0` to `^25.5.0` ([#8634](https://github.com/MetaMask/core/pull/8634), [#8665](https://github.com/MetaMask/core/pull/8665), [#8722](https://github.com/MetaMask/core/pull/8722))
+- Bump `@metamask/network-controller` from `^30.0.1` to `^30.1.0` ([#8636](https://github.com/MetaMask/core/pull/8636))
+- Bump `@metamask/gas-fee-controller` from `^26.1.1` to `^26.2.0` ([#8722](https://github.com/MetaMask/core/pull/8722))
+
+### Fixed
+
+- When `submitIntent` records bridge history keyed by `orderUid`, pass `originalTransactionId` at the top level to `#addTxToHistory` so `getInitialHistoryItem` links the history item to the synthetic `TransactionController` entry instead of incorrectly using `orderUid` ([#8655](https://github.com/MetaMask/core/pull/8655))
+
+## [71.1.0]
+
 ### Added
 
+- Add optional `tokenSecurityTypeDestination?: string \| null` to `BridgeHistoryItem`, `StartPollingForBridgeTxStatusArgs[Serialized]`, and the `submitTx` / `submitIntent` arguments; when provided, it's persisted on the history item and emitted as `token_security_type_destination` on post-submit analytics events ([#8595](https://github.com/MetaMask/core/pull/8595))
+
+### Changed
+
+- Bump `@metamask/transaction-controller` from `^64.3.0` to `^65.0.0` ([#8585](https://github.com/MetaMask/core/pull/8585), [#8613](https://github.com/MetaMask/core/pull/8613))
+- Bump `@metamask/bridge-controller` from `^70.2.0` to `^71.0.0` ([#8622](https://github.com/MetaMask/core/pull/8622))
+
+## [71.0.0]
+
+### Added
+
+- Remove stale bridge transactions from `txHistory` to prevent excessive polling. Once a history item exceeds the configured maximum age, the status is fetched once, then the src tx hash's receipt is retrieved. If there is no receipt, the history item's hash is presumed to be invalid and the entry is deleted from state. ([#8479](https://github.com/MetaMask/core/pull/8479))
 - Add missing action types for public `BridgeStatusController` methods ([#8367](https://github.com/MetaMask/core/pull/8367))
   - The following types are now available:
     - `BridgeStatusControllerSubmitTxAction`
@@ -17,6 +80,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **BREAKING:** Replace `transactionFailed` and `transactionConfirmed` event subscriptions with `TransactionController:transactionStatusUpdated` ([#8479](https://github.com/MetaMask/core/pull/8479))
+- **BREAKING:** Add `RemoteFeatureFlags:getState` to allowed actions to retrieve max history item age config ([#8479](https://github.com/MetaMask/core/pull/8479))
 - Add `account_hardware_type` field to all cross-chain swap analytics events ([#8503](https://github.com/MetaMask/core/pull/8503))
   - `account_hardware_type` carries the specific hardware wallet brand (e.g. `'Ledger'`, `'QR Hardware'`) or `null` for software wallets
   - `is_hardware_wallet` is now derived from `account_hardware_type !== null`, keeping both fields in sync
@@ -26,7 +91,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/messenger` from `^1.0.0` to `^1.1.1` ([#8364](https://github.com/MetaMask/core/pull/8364), [#8373](https://github.com/MetaMask/core/pull/8373))
 - Bump `@metamask/transaction-controller` from `^64.0.0` to `^64.3.0` ([#8432](https://github.com/MetaMask/core/pull/8432), [#8447](https://github.com/MetaMask/core/pull/8447), [#8482](https://github.com/MetaMask/core/pull/8482))
 - Bump `@metamask/base-controller` from `^9.0.1` to `^9.1.0` ([#8457](https://github.com/MetaMask/core/pull/8457))
-- Bump `@metamask/bridge-controller` from `^70.0.1` to `^70.1.1` ([#8466](https://github.com/MetaMask/core/pull/8466), [#8474](https://github.com/MetaMask/core/pull/8474))
+- Bump `@metamask/bridge-controller` from `^70.0.1` to `^70.2.0` ([#8466](https://github.com/MetaMask/core/pull/8466), [#8474](https://github.com/MetaMask/core/pull/8474), [#8571](https://github.com/MetaMask/core/pull/8571))
+
+### Fixed
+
+- Prevent invalid src hashes from being persisted in `txHistory` ([#8479](https://github.com/MetaMask/core/pull/8479))
+  - Make transaction status subscribers generic so that `txHistory` items get updated if there are any transaction updates matching by actionId, txMetaId, hash or type
+  - Skip saving smart transaction hashes on transaction submission. This used to make it possible for invalid src hashes to be stored in state and polled indefinitely. Instead, the txHistory item will now be updated with the confirmed tx hash when the `transactionStatusUpdated` event is published
+  - If there is no srcTxHash in state, attempt to set it based on the local TransactionController state
 
 ## [70.0.5]
 
@@ -131,7 +203,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Bump `@metamask/transaction-controller` from `^62.19.0` to `^62.21.0` ([#8104](https://github.com/MetaMask/core/pull/8104)), ([#8140](https://github.com/MetaMask/core/pull/8140))
+- Bump `@metamask/transaction-controller` from `^62.19.0` to `^62.21.0`, ([#8104](https://github.com/MetaMask/core/pull/8104), [#8140](https://github.com/MetaMask/core/pull/8140))
 - Bump `@metamask/accounts-controller` from `^36.0.1` to `^37.0.0` ([8140](https://github.com/MetaMask/core/pull/8140))
 - Bump `@metamask/bridge-controller` from `^68.0.0` to `^69.0.0` ([8140](https://github.com/MetaMask/core/pull/8140))
 
@@ -196,8 +268,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Bump `@metamask/accounts-controller` from `^35.0.2` to `^36.0.0` ([#7897](https://github.com/MetaMask/core/pull/7897))
-- Bump `@metamask/bridge-controller` from `^65.3.0` to `^66.1.0` ([#7862](https://github.com/MetaMask/core/pull/7862)), ([#7897](https://github.com/MetaMask/core/pull/7897))
-- Bump `@metamask/transaction-controller` from `^62.14.0` to `^62.17.0` ([#7854](https://github.com/MetaMask/core/pull/7854), [#7872](https://github.com/MetaMask/core/pull/7872)), ([#7897](https://github.com/MetaMask/core/pull/7897))
+- Bump `@metamask/bridge-controller` from `^65.3.0` to `^66.1.0`, ([#7862](https://github.com/MetaMask/core/pull/7862), [#7897](https://github.com/MetaMask/core/pull/7897))
+- Bump `@metamask/transaction-controller` from `^62.14.0` to `^62.17.0`, ([#7854](https://github.com/MetaMask/core/pull/7854), [#7872](https://github.com/MetaMask/core/pull/7872), [#7897](https://github.com/MetaMask/core/pull/7897))
 
 ## [66.0.0]
 
@@ -562,7 +634,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Bump `@metamask/bridge-controller` from `^44.0.1` to `^45.0.0` ([#6716](https://github.com/MetaMask/core/pull/6716), [#6629](https://github.com/MetaMask/core/pull/6716))
+- Bump `@metamask/bridge-controller` from `^44.0.1` to `^45.0.0` ([#6716](https://github.com/MetaMask/core/pull/6716), [#6629](https://github.com/MetaMask/core/pull/6629))
 
 ## [44.1.0]
 
@@ -703,7 +775,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **BREAKING:** Bump peer dependency `@metamask/accounts-controller` to `^32.0.0` ([#6171](https://github.com/MetaMask/core/pull/6171))
 - **BREAKING:** Bump peer dependency `@metamask/bridge-controller` to `^37.0.0` ([#6171](https://github.com/MetaMask/core/pull/6171))
-- **BREAKING:** Bump peer dependency `@metamask/transaction-controller` to `^59.0.0` ([#6171](https://github.com/MetaMask/core/pull/6171)), ([#6027](https://github.com/MetaMask/core/pull/6027))
+- **BREAKING:** Bump peer dependency `@metamask/transaction-controller` to `^59.0.0`, ([#6171](https://github.com/MetaMask/core/pull/6171), [#6027](https://github.com/MetaMask/core/pull/6027))
 
 ## [36.1.0]
 
@@ -1018,7 +1090,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **BREAKING** Change `@metamask/bridge-controller` from dependency to peer dependency and bump to `^16.0.0` ([#5657](https://github.com/MetaMask/core/pull/5657), [#5665](https://github.com/MetaMask/core/pull/5665), [#5643](https://github.com/MetaMask/core/pull/5643) [#5672](https://github.com/MetaMask/core/pull/5672))
+- **BREAKING** Change `@metamask/bridge-controller` from dependency to peer dependency and bump to `^16.0.0` ([#5657](https://github.com/MetaMask/core/pull/5657), [#5665](https://github.com/MetaMask/core/pull/5665), [#5643](https://github.com/MetaMask/core/pull/5643), [#5672](https://github.com/MetaMask/core/pull/5672))
 - Add optional config.customBridgeApiBaseUrl constructor arg to set the bridge-api base URL ([#5634](https://github.com/MetaMask/core/pull/5634))
 - Add required `addTransactionFn` and `estimateGasFeeFn` args to the BridgeStatusController constructor to enable calling TransactionController's methods from `submitTx` ([#5643](https://github.com/MetaMask/core/pull/5643))
 - Add optional `addUserOperationFromTransactionFn` arg to the BridgeStatusController constructor to enable submitting txs from smart accounts using the UserOperationController's addUserOperationFromTransaction method ([#5643](https://github.com/MetaMask/core/pull/5643))
@@ -1045,7 +1117,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **BREAKING:** Bump `@metamask/transaction-controller` peer dependency to `^53.0.0` ([#5585](https://github.com/MetaMask/core/pull/5585))
 - Bump `@metamask/bridge-controller` dependency to `^11.0.0` ([#5525](https://github.com/MetaMask/core/pull/5525))
-- **BREAKING:** Change controller to fetch multichain address instead of EVM ([#5554](https://github.com/MetaMask/core/pull/5540))
+- **BREAKING:** Change controller to fetch multichain address instead of EVM ([#5554](https://github.com/MetaMask/core/pull/5554))
 
 ## [10.0.0]
 
@@ -1123,7 +1195,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#5317](https://github.com/MetaMask/core/pull/5317))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@70.0.5...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@71.1.4...HEAD
+[71.1.4]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@71.1.3...@metamask/bridge-status-controller@71.1.4
+[71.1.3]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@71.1.2...@metamask/bridge-status-controller@71.1.3
+[71.1.2]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@71.1.1...@metamask/bridge-status-controller@71.1.2
+[71.1.1]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@71.1.0...@metamask/bridge-status-controller@71.1.1
+[71.1.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@71.0.0...@metamask/bridge-status-controller@71.1.0
+[71.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@70.0.5...@metamask/bridge-status-controller@71.0.0
 [70.0.5]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@70.0.4...@metamask/bridge-status-controller@70.0.5
 [70.0.4]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@70.0.3...@metamask/bridge-status-controller@70.0.4
 [70.0.3]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@70.0.2...@metamask/bridge-status-controller@70.0.3

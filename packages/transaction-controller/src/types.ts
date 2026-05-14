@@ -416,6 +416,9 @@ export type TransactionMeta = {
    */
   retryCount?: number;
 
+  /** Decoded revert information from each lifecycle source. */
+  revert?: RevertData;
+
   /**
    * The transaction's 's' value as a hex string.
    */
@@ -841,6 +844,11 @@ export enum TransactionType {
    * Deposit funds for Across quote via Predict.
    */
   predictAcrossDeposit = 'predictAcrossDeposit',
+
+  /**
+   * Withdraw funds for Across quote via Predict.
+   */
+  predictAcrossWithdraw = 'predictAcrossWithdraw',
 
   /**
    * Buy a position via Predict.
@@ -2162,6 +2170,14 @@ export type MetamaskPayMetadata = {
   /** Chain ID of the payment token. */
   chainId?: Hex;
 
+  /** Fiat on-ramp metadata (order ID and provider). */
+  fiat?: {
+    /** Order ID (normalized format: /providers/{provider}/orders/{id}). */
+    orderId: string;
+    /** Provider code (e.g. "transak-native"). */
+    provider: string;
+  };
+
   /**
    * Whether this is a post-quote transaction (e.g., withdrawal flow).
    * When true, the token represents the destination rather than source.
@@ -2324,4 +2340,29 @@ export type RequiredAsset = {
 
   /** Token standard of the asset (e.g., 'erc20'). */
   standard: string;
+};
+
+/**
+ * Decoded revert from a single lifecycle source.
+ */
+export type Revert = {
+  /** Decoded human-readable revert reason. */
+  message?: string;
+
+  /** Raw revert data hex returned by the EVM. */
+  data?: Hex;
+};
+
+/**
+ * Revert information across each stage where a transaction can fail.
+ */
+export type RevertData = {
+  /** Revert from pre-confirmation gas estimation. */
+  gas?: Revert;
+
+  /** Revert from the simulation API's root call frame. */
+  simulation?: Revert;
+
+  /** Revert from on-chain failure, via receipt replay. */
+  receipt?: Revert;
 };

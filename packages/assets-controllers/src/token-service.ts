@@ -60,6 +60,7 @@ export type SortTrendingBy =
  * @param options.chainIds - Array of CAIP format chain IDs (e.g., 'eip155:1', 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp').
  * @param options.query - The search query (token name, symbol, or address).
  * @param options.limit - Optional limit for the number of results (defaults to 10).
+ * @param options.after - Optional cursor for fetching the next page of results.
  * @param options.includeMarketData - Optional flag to include market data in the results (defaults to false).
  * @param options.includeRwaData - Optional flag to include RWA data in the results (defaults to false).
  * @param options.includeTokenSecurityData - Optional flag to include token security data in the results (defaults to false).
@@ -69,11 +70,12 @@ function getTokenSearchURL(options: {
   chainIds: CaipChainId[];
   query: string;
   limit?: number;
+  after?: string;
   includeMarketData?: boolean;
   includeRwaData?: boolean;
   includeTokenSecurityData?: boolean;
 }): string {
-  const { chainIds, query, limit, ...optionalParams } = options;
+  const { chainIds, query, limit, after, ...optionalParams } = options;
   const encodedQuery = encodeURIComponent(query);
   const encodedChainIds = chainIds
     .map((id) => encodeURIComponent(id))
@@ -97,7 +99,7 @@ function getTokenSearchURL(options: {
     }
   }
 
-  return `${TOKEN_END_POINT_API}/tokens/search?networks=${encodedChainIds}&query=${encodedQuery}${numberOfItems ? `&first=${numberOfItems}` : ''}&${queryParams.toString()}`;
+  return `${TOKEN_END_POINT_API}/tokens/search?networks=${encodedChainIds}&query=${encodedQuery}${numberOfItems ? `&first=${numberOfItems}` : ''}${after ? `&after=${encodeURIComponent(after)}` : ''}&${queryParams.toString()}`;
 }
 
 /**
@@ -138,24 +140,14 @@ function getTokenAssetsURL(options: {
 }
 
 /**
- * Get the trending tokens URL for the given networks and search query.
+ * Shared query-parameter type for the v3 trending tokens endpoint.
  *
- * @param options - Options for getting trending tokens.
- * @param options.chainIds - Array of CAIP format chain IDs (e.g., ['eip155:1', 'eip155:137', 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp']).
- * @param options.sort - The sort field.
- * @param options.minLiquidity - The minimum liquidity.
- * @param options.minVolume24hUsd - The minimum volume 24h in USD.
- * @param options.maxVolume24hUsd - The maximum volume 24h in USD.
- * @param options.minMarketCap - The minimum market cap.
- * @param options.maxMarketCap - The maximum market cap.
- * @param options.excludeLabels - Array of labels to exclude (e.g., ['stable_coin', 'blue_chip']).
- * @param options.includeRwaData - Optional flag to include RWA data in the results (defaults to false).
- * @param options.usePriceApiData - Optional flag to use price API data in the results (defaults to false).
- * @param options.includeTokenSecurityData - Optional flag to include token security data in the results (defaults to false).
- * @returns The trending tokens URL.
+ * Known parameters are explicitly typed for autocomplete and documentation.
+ * The index signature allows new API parameters to pass through without
+ * requiring a core release — callers can add any additional key/value and
+ * it will be forwarded as a query parameter.
  */
-function getTrendingTokensURL(options: {
-  chainIds: CaipChainId[];
+export type TrendingTokensQueryParams = {
   sort?: SortTrendingBy;
   minLiquidity?: number;
   minVolume24hUsd?: number;
@@ -166,11 +158,21 @@ function getTrendingTokensURL(options: {
   includeRwaData?: boolean;
   usePriceApiData?: boolean;
   includeTokenSecurityData?: boolean;
-}): string {
+  [key: string]: string | number | boolean | string[] | undefined;
+};
+
+/**
+ * Get the trending tokens URL for the given networks and search query.
+ *
+ * @param options - Options bag: `chainIds` (required) plus any query params.
+ * @returns The trending tokens URL.
+ */
+function getTrendingTokensURL(
+  options: { chainIds: CaipChainId[] } & TrendingTokensQueryParams,
+): string {
   const encodedChainIds = options.chainIds
     .map((id) => encodeURIComponent(id))
     .join(',');
-  // Add the rest of query params if they are defined
   const queryParams = new URLSearchParams();
   const { chainIds, excludeLabels, ...rest } = options;
   Object.entries(rest).forEach(([key, value]) => {
@@ -304,8 +306,15 @@ export type TokenSearchItem = {
   securityData?: TokenSecurityData;
 };
 
+export type PageInfo = {
+  hasNextPage: boolean;
+  endCursor: string | null;
+};
+
 type SearchTokenOptions = {
   limit?: number;
+  /** Cursor returned by a previous response's `pageInfo.endCursor` to fetch the next page. */
+  after?: string;
   includeMarketData?: boolean;
   includeRwaData?: boolean;
   includeTokenSecurityData?: boolean;
@@ -318,39 +327,55 @@ type SearchTokenOptions = {
  * @param query - The search query (token name, symbol, or address).
  * @param options - Additional fetch options.
  * @param options.limit - The maximum number of results to return.
+ * @param options.after - Cursor from a previous response's `pageInfo.endCursor` to fetch the next page.
  * @param options.includeMarketData - Optional flag to include market data in the results (defaults to false).
  * @param options.includeRwaData - Optional flag to include RWA data in the results (defaults to false).
  * @param options.includeTokenSecurityData - Optional flag to include token security data in the results (defaults to false).
- * @returns Object containing count, data array, and an optional error message if the request failed.
+ * @returns Object containing count, totalCount, data array, optional pageInfo for pagination, and an optional error message if the request failed.
  */
 export async function searchTokens(
   chainIds: CaipChainId[],
   query: string,
   {
     limit = 10,
+    after,
     includeMarketData = false,
     includeRwaData = true,
     includeTokenSecurityData,
   }: SearchTokenOptions = {},
-): Promise<{ count: number; data: TokenSearchItem[]; error?: string }> {
+): Promise<{
+  count: number;
+  totalCount?: number;
+  data: TokenSearchItem[];
+  pageInfo?: PageInfo;
+  error?: string;
+}> {
   const tokenSearchURL = getTokenSearchURL({
     chainIds,
     query,
     limit,
+    after,
     includeMarketData,
     includeRwaData,
     includeTokenSecurityData,
   });
 
   try {
-    const result: { count: number; data: TokenSearchItem[] } =
-      await handleFetch(tokenSearchURL);
+    const result: {
+      count: number;
+      totalCount?: number;
+      data: TokenSearchItem[];
+      pageInfo?: PageInfo;
+    } = await handleFetch(tokenSearchURL);
 
-    // The API returns an object with structure: { count: number, data: array, pageInfo: object }
     if (result && typeof result === 'object' && Array.isArray(result.data)) {
       return {
         count: result.count ?? result.data.length,
+        ...(result.totalCount !== undefined && {
+          totalCount: result.totalCount,
+        }),
         data: result.data,
+        ...(result.pageInfo !== undefined && { pageInfo: result.pageInfo }),
       };
     }
 
@@ -391,46 +416,20 @@ export type TrendingAsset = {
 /**
  * Get the trending tokens for the given chains.
  *
- * @param options - Options for getting trending tokens.
- * @param options.chainIds - The chains to get the trending tokens for.
- * @param options.sortBy - The sort by field.
- * @param options.minLiquidity - The minimum liquidity.
- * @param options.minVolume24hUsd - The minimum volume 24h in USD.
- * @param options.maxVolume24hUsd - The maximum volume 24h in USD.
- * @param options.minMarketCap - The minimum market cap.
- * @param options.maxMarketCap - The maximum market cap.
- * @param options.excludeLabels - Array of labels to exclude (e.g., ['stable_coin', 'blue_chip']).
- * @param options.includeRwaData - Optional flag to include RWA data in the results (defaults to true).
- * @param options.usePriceApiData - Optional flag to use price API data in the results (defaults to true).
- * @param options.includeTokenSecurityData - Optional flag to include token security data in the results (defaults to false).
+ * Accepts all known query parameters plus any additional ones via the
+ * index signature on {@link TrendingTokensQueryParams}. New API parameters
+ * can be passed without updating this function.
+ *
+ * @param options - Options bag: `chainIds` (required) plus any query params
+ *   supported by the v3 trending endpoint.
  * @returns The trending tokens.
  * @throws Will throw if the request fails.
  */
-export async function getTrendingTokens({
-  chainIds,
-  sortBy,
-  minLiquidity,
-  minVolume24hUsd,
-  maxVolume24hUsd,
-  minMarketCap,
-  maxMarketCap,
-  excludeLabels,
-  includeRwaData = true,
-  usePriceApiData = true,
-  includeTokenSecurityData,
-}: {
-  chainIds: CaipChainId[];
-  sortBy?: SortTrendingBy;
-  minLiquidity?: number;
-  minVolume24hUsd?: number;
-  maxVolume24hUsd?: number;
-  minMarketCap?: number;
-  maxMarketCap?: number;
-  excludeLabels?: string[];
-  includeRwaData?: boolean;
-  usePriceApiData?: boolean;
-  includeTokenSecurityData?: boolean;
-}): Promise<TrendingAsset[]> {
+export async function getTrendingTokens(
+  options: { chainIds: CaipChainId[] } & TrendingTokensQueryParams,
+): Promise<TrendingAsset[]> {
+  const { chainIds, ...rest } = options;
+
   if (chainIds.length === 0) {
     console.error('No chains provided');
     return [];
@@ -438,16 +437,9 @@ export async function getTrendingTokens({
 
   const trendingTokensURL = getTrendingTokensURL({
     chainIds,
-    sort: sortBy,
-    minLiquidity,
-    minVolume24hUsd,
-    maxVolume24hUsd,
-    minMarketCap,
-    maxMarketCap,
-    excludeLabels,
-    includeRwaData,
-    usePriceApiData,
-    includeTokenSecurityData,
+    ...rest,
+    includeRwaData: rest.includeRwaData ?? true,
+    usePriceApiData: rest.usePriceApiData ?? true,
   });
 
   try {

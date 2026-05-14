@@ -1,4 +1,5 @@
 import { successfulFetch, toHex } from '@metamask/controller-utils';
+import type { TransactionMeta } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 import { createModuleLogger } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
@@ -16,12 +17,26 @@ import type {
 import { getFiatValueFromUsd, sumAmounts } from '../../utils/amounts';
 import { getPayStrategiesConfig, getSlippage } from '../../utils/feature-flags';
 import { calculateGasCost } from '../../utils/gas';
+import {
+  getGasStationCostInSourceTokenRaw,
+  getGasStationEligibility,
+} from '../../utils/gas-station';
 import { estimateQuoteGasLimits } from '../../utils/quote-gas';
-import { getTokenFiatRate } from '../../utils/token';
+import {
+  getNativeToken,
+  getTokenBalance,
+  getTokenFiatRate,
+} from '../../utils/token';
+import { isPredictWithdrawTransaction } from '../../utils/transaction';
+import type { AcrossDestination } from './across-actions';
 import { getAcrossDestination } from './across-actions';
+import { hasUnsupportedTransactionAuthorizationList } from './authorization-list';
 import { normalizeAcrossRequest } from './perps';
 import { isAcrossQuoteRequest } from './requests';
-import { getAcrossOrderedTransactions } from './transactions';
+import {
+  getAcrossOrderedTransactions,
+  getOriginalTransactionGas,
+} from './transactions';
 import type {
   AcrossAction,
   AcrossActionRequestBody,
@@ -57,13 +72,18 @@ export async function getAcrossQuotes(
       return [];
     }
 
-    if (request.transaction.txParams?.authorizationList?.length) {
+    if (
+      hasUnsupportedTransactionAuthorizationList(
+        request.transaction,
+        normalizedRequests,
+      )
+    ) {
       throw new Error(UNSUPPORTED_AUTHORIZATION_LIST_ERROR);
     }
 
     return await Promise.all(
       normalizedRequests.map((singleRequest) =>
-        getSingleQuote(singleRequest, request),
+        getQuoteWithGasStationHandling(singleRequest, request),
       ),
     );
   } catch (error) {
@@ -76,7 +96,7 @@ async function getSingleQuote(
   request: QuoteRequest,
   fullRequest: PayStrategyGetQuotesRequest,
 ): Promise<TransactionPayQuote<AcrossQuote>> {
-  const { messenger, transaction } = fullRequest;
+  const { messenger, signal, transaction } = fullRequest;
   const normalizedRequest = normalizeAcrossRequest(request, transaction.type);
   const {
     from,
@@ -96,9 +116,17 @@ async function getSingleQuote(
     sourceTokenAddress,
   );
 
-  const amount = isMaxAmount ? sourceTokenAmount : targetAmountMinimum;
-  const tradeType = isMaxAmount ? 'exactInput' : 'exactOutput';
-  const destination = getAcrossDestination(transaction, request);
+  const useExactInput = isMaxAmount
+    ? true
+    : normalizedRequest.isPostQuote === true;
+  const amount = useExactInput ? sourceTokenAmount : targetAmountMinimum;
+  const tradeType = useExactInput ? 'exactInput' : 'exactOutput';
+  const destination = getAcrossDestinationForRequest(
+    transaction,
+    request,
+    from,
+  );
+
   const quote = await requestAcrossApproval({
     actions: destination.actions,
     amount,
@@ -109,6 +137,8 @@ async function getSingleQuote(
     originChainId: sourceChainId,
     outputToken: targetTokenAddress,
     recipient: destination.recipient,
+    signal,
+    refundAddress: normalizedRequest.refundTo,
     slippage: slippageDecimal,
     tradeType,
   });
@@ -116,12 +146,126 @@ async function getSingleQuote(
   const originalQuote: AcrossQuoteWithoutMetaMask = {
     quote,
     request: {
+      actions: destination.actions,
       amount,
       tradeType,
     },
   };
 
   return await normalizeQuote(originalQuote, normalizedRequest, fullRequest);
+}
+
+function getAcrossDestinationForRequest(
+  transaction: TransactionMeta,
+  request: QuoteRequest,
+  recipient: Hex,
+): AcrossDestination {
+  if (request.isPostQuote) {
+    return {
+      actions: [],
+      recipient,
+    };
+  }
+
+  return getAcrossDestination(transaction, request);
+}
+
+async function getQuoteWithGasStationHandling(
+  request: QuoteRequest,
+  fullRequest: PayStrategyGetQuotesRequest,
+): Promise<TransactionPayQuote<AcrossQuote>> {
+  // Phase 1 uses the requested source amount to discover whether Across will
+  // pay source-chain gas with the source token, and what the max gas cost is.
+  // Phase 2 repeats the quote with that max gas cost reserved from the source
+  // amount, so execution can fund both the Across deposit and token-paid gas.
+  const phase1Quote = await getSingleQuote(request, fullRequest);
+
+  if (
+    (!request.isMaxAmount && !request.isPostQuote) ||
+    !phase1Quote.fees.isSourceGasFeeToken
+  ) {
+    return phase1Quote;
+  }
+
+  const requiresSourceGasReservation =
+    request.isPostQuote === true &&
+    isPredictWithdrawTransaction(fullRequest.transaction);
+
+  const adjustedSourceAmount = new BigNumber(request.sourceTokenAmount)
+    .minus(phase1Quote.fees.sourceNetwork.max.raw)
+    .integerValue(BigNumber.ROUND_DOWN);
+
+  if (!adjustedSourceAmount.isGreaterThan(0)) {
+    log('Insufficient balance after gas subtraction for Across quote');
+    if (requiresSourceGasReservation) {
+      throw new Error(
+        'Across Predict withdraw source amount cannot cover source gas fee token',
+      );
+    }
+    return phase1Quote;
+  }
+
+  log('Subtracting gas from source for Across quote', {
+    adjustedSourceAmount: adjustedSourceAmount.toString(10),
+    gasCostRaw: phase1Quote.fees.sourceNetwork.max.raw,
+    originalSourceAmount: request.sourceTokenAmount,
+  });
+
+  try {
+    const phase2Quote = await getSingleQuote(
+      {
+        ...request,
+        sourceTokenAmount: adjustedSourceAmount.toFixed(
+          0,
+          BigNumber.ROUND_DOWN,
+        ),
+      },
+      fullRequest,
+    );
+
+    if (!phase2Quote.fees.isSourceGasFeeToken) {
+      log('Across phase 2 lost gas fee token eligibility');
+      if (requiresSourceGasReservation) {
+        throw new Error(
+          'Across Predict withdraw quote lost source gas fee token eligibility',
+        );
+      }
+      return phase1Quote;
+    }
+
+    const phase2GasCost = new BigNumber(phase2Quote.fees.sourceNetwork.max.raw);
+
+    if (
+      adjustedSourceAmount
+        .plus(phase2GasCost)
+        .isGreaterThan(request.sourceTokenAmount)
+    ) {
+      log('Across phase 2 quote exceeds original source amount', {
+        adjustedSourceAmount: adjustedSourceAmount.toString(10),
+        gasCostRaw: phase2GasCost.toString(10),
+        originalSourceAmount: request.sourceTokenAmount,
+      });
+      if (requiresSourceGasReservation) {
+        throw new Error(
+          'Across Predict withdraw source gas fee token quote exceeds source amount',
+        );
+      }
+      return phase1Quote;
+    }
+
+    return phase2Quote;
+  } catch (error) {
+    log(
+      requiresSourceGasReservation
+        ? 'Across phase 2 quote failed after source gas reservation'
+        : 'Across phase 2 quote failed, falling back to phase 1',
+      { error },
+    );
+    if (requiresSourceGasReservation) {
+      throw error;
+    }
+    return phase1Quote;
+  }
 }
 
 type AcrossApprovalRequest = {
@@ -134,6 +278,8 @@ type AcrossApprovalRequest = {
   originChainId: Hex;
   outputToken: Hex;
   recipient: Hex;
+  refundAddress?: Hex;
+  signal?: AbortSignal;
   slippage?: number;
   tradeType: 'exactInput' | 'exactOutput';
 };
@@ -151,6 +297,8 @@ async function requestAcrossApproval(
     originChainId,
     outputToken,
     recipient,
+    refundAddress,
+    signal,
     slippage,
     tradeType,
   } = request;
@@ -165,6 +313,10 @@ async function requestAcrossApproval(
   params.set('depositor', depositor);
   params.set('recipient', recipient);
 
+  if (refundAddress !== undefined) {
+    params.set('refundAddress', refundAddress);
+  }
+
   if (slippage !== undefined) {
     params.set('slippage', String(slippage));
   }
@@ -178,7 +330,9 @@ async function requestAcrossApproval(
       'Content-Type': 'application/json',
     },
     method: 'POST',
+    signal,
   };
+
   const response = await successfulFetch(url, options);
 
   return (await response.json()) as AcrossSwapApprovalResponse;
@@ -200,10 +354,17 @@ async function normalizeQuote(
   const dustUsd = calculateDustUsd(quote, request, targetFiatRate);
   const dust = getFiatValueFromUsd(dustUsd, usdToFiatRate);
 
-  const { gasLimits, is7702, sourceNetwork } = await calculateSourceNetworkCost(
+  const {
+    gasLimits,
+    is7702,
+    isGasFeeToken: isSourceGasFeeToken,
+    requiresAuthorizationList,
+    sourceNetwork,
+  } = await calculateSourceNetworkCost(
     quote,
     messenger,
     request,
+    fullRequest.transaction,
   );
 
   const targetNetwork = getFiatValueFromUsd(new BigNumber(0), usdToFiatRate);
@@ -244,12 +405,14 @@ async function normalizeQuote(
   const metamask = {
     gasLimits,
     is7702,
+    ...(requiresAuthorizationList ? { requiresAuthorizationList } : {}),
   };
 
   return {
     dust,
     estimatedDuration: quote.expectedFillTime ?? 0,
     fees: {
+      isSourceGasFeeToken,
       metaMask: metaMaskFee,
       provider,
       sourceNetwork,
@@ -386,30 +549,38 @@ async function calculateSourceNetworkCost(
   quote: AcrossSwapApprovalResponse,
   messenger: TransactionPayControllerMessenger,
   request: QuoteRequest,
+  transaction: TransactionMeta,
 ): Promise<{
   sourceNetwork: TransactionPayQuote<AcrossQuote>['fees']['sourceNetwork'];
   gasLimits: AcrossGasLimits;
+  isGasFeeToken?: boolean;
   is7702: boolean;
+  requiresAuthorizationList?: true;
 }> {
   const acrossFallbackGas =
     getPayStrategiesConfig(messenger).across.fallbackGas;
-  const { from } = request;
+  const { from, sourceChainId, sourceTokenAddress } = request;
   const orderedTransactions = getAcrossOrderedTransactions({ quote });
   const { swapTx } = quote;
   const swapChainId = toHex(swapTx.chainId);
   const gasEstimates = await estimateQuoteGasLimits({
     fallbackGas: acrossFallbackGas,
     messenger,
-    transactions: orderedTransactions.map((transaction) => ({
-      chainId: toHex(transaction.chainId),
-      data: transaction.data,
+    transactions: orderedTransactions.map((orderedTransaction) => ({
+      chainId: toHex(orderedTransaction.chainId),
+      data: orderedTransaction.data,
       from,
-      gas: transaction.gas,
-      to: transaction.to,
-      value: transaction.value ?? '0x0',
+      gas: orderedTransaction.gas,
+      to: orderedTransaction.to,
+      value: orderedTransaction.value ?? '0x0',
     })),
   });
-  const { batchGasLimit, is7702 } = gasEstimates;
+
+  const { batchGasLimit, is7702, requiresAuthorizationList, totalGasEstimate } =
+    gasEstimates;
+
+  let sourceNetwork: TransactionPayQuote<AcrossQuote>['fees']['sourceNetwork'];
+  let gasLimits: AcrossGasLimits;
 
   if (is7702) {
     if (!batchGasLimit) {
@@ -432,62 +603,238 @@ async function calculateSourceNetworkCost(
       messenger,
     });
 
-    return {
-      sourceNetwork: {
-        estimate,
-        max,
-      },
-      is7702: true,
-      gasLimits: [
-        {
-          estimate: batchGasLimit.estimate,
-          max: batchGasLimit.max,
-        },
-      ],
-    };
-  }
-
-  const transactionGasLimits = orderedTransactions.map(
-    (transaction, index) => ({
-      gasEstimate: gasEstimates.gasLimits[index],
-      transaction,
-    }),
-  );
-
-  const estimate = sumAmounts(
-    transactionGasLimits.map(({ gasEstimate, transaction }) =>
-      calculateGasCost({
-        chainId: toHex(transaction.chainId),
-        gas: gasEstimate.estimate,
-        maxFeePerGas: transaction.maxFeePerGas,
-        maxPriorityFeePerGas: transaction.maxPriorityFeePerGas,
-        messenger,
-      }),
-    ),
-  );
-
-  const max = sumAmounts(
-    transactionGasLimits.map(({ gasEstimate, transaction }) =>
-      calculateGasCost({
-        chainId: toHex(transaction.chainId),
-        gas: gasEstimate.max,
-        isMax: true,
-        maxFeePerGas: transaction.maxFeePerGas,
-        maxPriorityFeePerGas: transaction.maxPriorityFeePerGas,
-        messenger,
-      }),
-    ),
-  );
-
-  return {
-    sourceNetwork: {
+    sourceNetwork = {
       estimate,
       max,
-    },
-    is7702: false,
-    gasLimits: transactionGasLimits.map(({ gasEstimate }) => ({
+    };
+    gasLimits = [
+      {
+        estimate: batchGasLimit.estimate,
+        max: batchGasLimit.max,
+      },
+    ];
+  } else {
+    const transactionGasLimits = orderedTransactions.map(
+      (orderedTransaction, index) => ({
+        gasEstimate: gasEstimates.gasLimits[index],
+        orderedTransaction,
+      }),
+    );
+
+    const estimate = sumAmounts(
+      transactionGasLimits.map(({ gasEstimate, orderedTransaction }) =>
+        calculateGasCost({
+          chainId: toHex(orderedTransaction.chainId),
+          gas: gasEstimate.estimate,
+          maxFeePerGas: orderedTransaction.maxFeePerGas,
+          maxPriorityFeePerGas: orderedTransaction.maxPriorityFeePerGas,
+          messenger,
+        }),
+      ),
+    );
+
+    const max = sumAmounts(
+      transactionGasLimits.map(({ gasEstimate, orderedTransaction }) =>
+        calculateGasCost({
+          chainId: toHex(orderedTransaction.chainId),
+          gas: gasEstimate.max,
+          isMax: true,
+          maxFeePerGas: orderedTransaction.maxFeePerGas,
+          maxPriorityFeePerGas: orderedTransaction.maxPriorityFeePerGas,
+          messenger,
+        }),
+      ),
+    );
+
+    sourceNetwork = {
+      estimate,
+      max,
+    };
+    gasLimits = transactionGasLimits.map(({ gasEstimate }) => ({
       estimate: gasEstimate.estimate,
       max: gasEstimate.max,
-    })),
+    }));
+  }
+
+  const result = {
+    sourceNetwork,
+    is7702,
+    ...(requiresAuthorizationList ? { requiresAuthorizationList } : {}),
+    gasLimits,
+    totalGasEstimate,
+    totalGasLimit: gasEstimates.totalGasLimit,
+  };
+
+  const finalResult = request.isPostQuote
+    ? combinePostQuoteGas(result, transaction, swapTx, messenger)
+    : result;
+
+  const nativeBalance = getTokenBalance(
+    messenger,
+    from,
+    sourceChainId,
+    getNativeToken(sourceChainId),
+  );
+  const hasNativeBalance = new BigNumber(nativeBalance).isGreaterThanOrEqualTo(
+    finalResult.sourceNetwork.max.raw,
+  );
+
+  if (hasNativeBalance) {
+    return finalResult;
+  }
+
+  const gasStationEligibility = getGasStationEligibility(
+    messenger,
+    sourceChainId,
+  );
+
+  if (gasStationEligibility.isDisabledChain) {
+    log('Skipping Across gas station as disabled chain', { sourceChainId });
+    return finalResult;
+  }
+
+  if (!gasStationEligibility.chainSupportsGasStation) {
+    log('Skipping Across gas station as chain does not support EIP-7702', {
+      sourceChainId,
+    });
+    return finalResult;
+  }
+
+  const firstTransaction = orderedTransactions[0];
+
+  const gasFeeTokenCost = await getGasStationCostInSourceTokenRaw({
+    firstStepData: {
+      data: firstTransaction.data,
+      to: firstTransaction.to,
+      value: firstTransaction.value,
+    },
+    messenger,
+    request: {
+      from,
+      sourceChainId,
+      sourceTokenAddress,
+    },
+    totalGasEstimate: finalResult.totalGasEstimate,
+    totalItemCount: Math.max(
+      orderedTransactions.length + (request.isPostQuote ? 1 : 0),
+      finalResult.gasLimits.length,
+    ),
+  });
+
+  if (!gasFeeTokenCost) {
+    return finalResult;
+  }
+
+  log('Using gas fee token for Across source network', {
+    gasFeeTokenCost,
+  });
+
+  return {
+    isGasFeeToken: true,
+    sourceNetwork: {
+      estimate: gasFeeTokenCost,
+      max: gasFeeTokenCost,
+    },
+    is7702: finalResult.is7702,
+    ...(requiresAuthorizationList ? { requiresAuthorizationList } : {}),
+    gasLimits: finalResult.gasLimits,
+  };
+}
+
+function combinePostQuoteGas(
+  gasResult: {
+    sourceNetwork: TransactionPayQuote<AcrossQuote>['fees']['sourceNetwork'];
+    gasLimits: AcrossGasLimits;
+    is7702: boolean;
+    requiresAuthorizationList?: true;
+    totalGasEstimate: number;
+    totalGasLimit: number;
+  },
+  transaction: TransactionMeta,
+  swapTx: AcrossSwapApprovalResponse['swapTx'],
+  messenger: TransactionPayControllerMessenger,
+): typeof gasResult {
+  const originalTxGas = getOriginalTransactionGas(transaction);
+
+  if (originalTxGas === undefined) {
+    return gasResult;
+  }
+
+  const gasLimits = gasResult.is7702
+    ? [
+        {
+          estimate: gasResult.gasLimits[0].estimate + originalTxGas,
+          max: gasResult.gasLimits[0].max + originalTxGas,
+        },
+      ]
+    : [
+        {
+          estimate: originalTxGas,
+          max: originalTxGas,
+        },
+        ...gasResult.gasLimits,
+      ];
+
+  const totalGasEstimate = gasResult.totalGasEstimate + originalTxGas;
+  const totalGasLimit = gasResult.totalGasLimit + originalTxGas;
+  const originalSourceNetwork = calculateOriginalSourceNetworkCost({
+    gas: originalTxGas,
+    messenger,
+    swapTx,
+    transaction,
+  });
+
+  return {
+    ...gasResult,
+    sourceNetwork: {
+      estimate: sumAmounts([
+        gasResult.sourceNetwork.estimate,
+        originalSourceNetwork.estimate,
+      ]),
+      max: sumAmounts([gasResult.sourceNetwork.max, originalSourceNetwork.max]),
+    },
+    gasLimits,
+    totalGasEstimate,
+    totalGasLimit,
+  };
+}
+
+function calculateOriginalSourceNetworkCost({
+  gas,
+  messenger,
+  swapTx,
+  transaction,
+}: {
+  gas: number;
+  messenger: TransactionPayControllerMessenger;
+  swapTx: AcrossSwapApprovalResponse['swapTx'];
+  transaction: TransactionMeta;
+}): TransactionPayQuote<AcrossQuote>['fees']['sourceNetwork'] {
+  const originalTransactionWithGas = transaction.nestedTransactions?.find(
+    (tx) => tx.gas,
+  );
+  const maxFeePerGas =
+    originalTransactionWithGas?.maxFeePerGas ??
+    transaction.txParams.maxFeePerGas;
+  const maxPriorityFeePerGas =
+    originalTransactionWithGas?.maxPriorityFeePerGas ??
+    transaction.txParams.maxPriorityFeePerGas;
+
+  return {
+    estimate: calculateGasCost({
+      chainId: transaction.chainId ?? toHex(swapTx.chainId),
+      gas,
+      maxFeePerGas,
+      maxPriorityFeePerGas,
+      messenger,
+    }),
+    max: calculateGasCost({
+      chainId: transaction.chainId ?? toHex(swapTx.chainId),
+      gas,
+      isMax: true,
+      maxFeePerGas,
+      maxPriorityFeePerGas,
+      messenger,
+    }),
   };
 }

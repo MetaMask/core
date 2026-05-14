@@ -1,3 +1,4 @@
+import { deriveStateFromMetadata } from '@metamask/base-controller';
 import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
 import type { MockAnyNamespace } from '@metamask/messenger';
 
@@ -145,6 +146,88 @@ describe('AnalyticsController', () => {
       const defaults2 = getDefaultAnalyticsControllerState();
 
       expect(defaults1).toStrictEqual(defaults2);
+    });
+  });
+
+  describe('metadata', () => {
+    const metadataFixtureState: AnalyticsControllerState = {
+      optedIn: true,
+      analyticsId: '6ba7b810-9dad-41d4-80b5-0c4f5a7c1e2d',
+    };
+
+    it('includes expected state in debug snapshots', async () => {
+      const { controller } = await setupController({
+        state: metadataFixtureState,
+      });
+
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'includeInDebugSnapshot',
+        ),
+      ).toMatchInlineSnapshot(`
+        {
+          "analyticsId": "6ba7b810-9dad-41d4-80b5-0c4f5a7c1e2d",
+          "optedIn": true,
+        }
+      `);
+    });
+
+    it('includes expected state in state logs', async () => {
+      const { controller } = await setupController({
+        state: metadataFixtureState,
+      });
+
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'includeInStateLogs',
+        ),
+      ).toMatchInlineSnapshot(`
+        {
+          "analyticsId": "6ba7b810-9dad-41d4-80b5-0c4f5a7c1e2d",
+          "optedIn": true,
+        }
+      `);
+    });
+
+    it('persists expected state', async () => {
+      const { controller } = await setupController({
+        state: metadataFixtureState,
+      });
+
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'persist',
+        ),
+      ).toMatchInlineSnapshot(`
+        {
+          "analyticsId": "6ba7b810-9dad-41d4-80b5-0c4f5a7c1e2d",
+          "optedIn": true,
+        }
+      `);
+    });
+
+    it('exposes expected state to UI', async () => {
+      const { controller } = await setupController({
+        state: metadataFixtureState,
+      });
+
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'usedInUi',
+        ),
+      ).toMatchInlineSnapshot(`
+        {
+          "optedIn": true,
+        }
+      `);
     });
   });
 
@@ -375,6 +458,26 @@ describe('AnalyticsController', () => {
           isAnonymousEventsFeatureEnabled: false,
         });
       }).toThrow('Invalid analyticsId');
+    });
+
+    it('accepts non-UUID analyticsId when adapter skipUUIDv4Check is true', async () => {
+      const analyticsId = 'not-a-uuid';
+      const platformAdapter = {
+        ...createMockAdapter(),
+        skipUUIDv4Check: true,
+      };
+      const { controller } = await setupController({
+        state: {
+          optedIn: false,
+          analyticsId,
+        },
+        platformAdapter,
+      });
+
+      expect(controller.state.analyticsId).toBe(analyticsId);
+      expect(platformAdapter.onSetupCompleted).toHaveBeenCalledWith(
+        analyticsId,
+      );
     });
 
     it('accepts different valid UUIDv4 values', async () => {

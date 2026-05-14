@@ -20,8 +20,13 @@ const MOCK_ADDRESS = '0x1234567890123456789012345678901234567890';
 const MOCK_TOKEN_ASSET =
   'eip155:1/erc20:0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48' as Caip19AssetId;
 const MOCK_NATIVE_ASSET = 'eip155:1/slip44:60' as Caip19AssetId;
+const MOCK_BTC_ASSET =
+  'bip122:000000000019d6689c085ae165831e93/slip44:0' as Caip19AssetId;
+const MOCK_SOL_NATIVE_ASSET =
+  'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501' as Caip19AssetId;
+const MOCK_TRX_ASSET = 'tron:728126428/slip44:195' as Caip19AssetId;
 const MOCK_SPL_ASSET =
-  'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/spl:EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v' as Caip19AssetId;
+  'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/token:EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v' as Caip19AssetId;
 
 type MockApiClient = {
   tokens: {
@@ -464,6 +469,7 @@ describe('TokenDataSource', () => {
     const { controller } = setupController({
       messenger: createTestMessenger(),
       supportedNetworks: ['eip155:1'],
+      nativeAssetIds: [MOCK_NATIVE_ASSET],
       assetsResponse: [
         createMockAssetResponse(MOCK_NATIVE_ASSET, {
           name: 'Ethereum',
@@ -514,6 +520,57 @@ describe('TokenDataSource', () => {
 
     expect(context.response.assetsInfo?.[MOCK_SPL_ASSET]?.type).toBe('spl');
   });
+
+  it.each([
+    {
+      label: 'Bitcoin (bip122/slip44)',
+      assetId: MOCK_BTC_ASSET,
+      chainId: 'bip122:000000000019d6689c085ae165831e93',
+      name: 'Bitcoin',
+      symbol: 'BTC',
+      decimals: 8,
+    },
+    {
+      label: 'SOL native (solana/slip44)',
+      assetId: MOCK_SOL_NATIVE_ASSET,
+      chainId: 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp',
+      name: 'Solana',
+      symbol: 'SOL',
+      decimals: 9,
+    },
+    {
+      label: 'TRX native (tron/slip44)',
+      assetId: MOCK_TRX_ASSET,
+      chainId: 'tron:728126428',
+      name: 'TRON',
+      symbol: 'TRX',
+      decimals: 6,
+    },
+  ])(
+    'middleware types non-EVM slip44 asset as native: $label',
+    async ({ assetId, chainId, name, symbol, decimals }) => {
+      const { controller } = setupController({
+        messenger: createTestMessenger(),
+        supportedNetworks: [chainId],
+        assetsResponse: [
+          createMockAssetResponse(assetId, { name, symbol, decimals }),
+        ],
+      });
+
+      const next = jest.fn().mockResolvedValue(undefined);
+      const context = createMiddlewareContext({
+        response: {
+          detectedAssets: {
+            'mock-account-id': [assetId],
+          },
+        },
+      });
+
+      await controller.assetsMiddleware(context, next);
+
+      expect(context.response.assetsInfo?.[assetId]?.type).toBe('native');
+    },
+  );
 
   it('middleware merges metadata into existing response', async () => {
     const anotherAsset =
@@ -777,6 +834,47 @@ describe('TokenDataSource', () => {
     expect(context.response.detectedAssets?.['mock-account-id']).not.toContain(
       spamAsset,
     );
+  });
+
+  it('middleware bypasses occurrence filter for custom assets when state-stored ID is checksummed and API returns lower-case', async () => {
+    // State stores customs in normalized (checksummed) form; the V3 Tokens
+    // API can echo the same asset ID lower-cased. Without a case-insensitive
+    // bypass, the user's imported asset would fall through to the
+    // occurrence filter and be stripped from `response.assetsInfo`.
+    const checksummedCustomAsset =
+      'eip155:1/erc20:0xA0b86991c6218b36c1D19D4a2e9Eb0cE3606eB48' as Caip19AssetId;
+    const lowercaseCustomAsset =
+      'eip155:1/erc20:0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48' as Caip19AssetId;
+
+    const { controller } = setupController({
+      messenger: createTestMessenger(),
+      supportedNetworks: ['eip155:1'],
+      assetsResponse: [
+        createMockAssetResponse(lowercaseCustomAsset, { occurrences: 1 }),
+      ],
+    });
+
+    const next = jest.fn().mockResolvedValue(undefined);
+    const context: Context = {
+      request: createDataRequest(),
+      response: {
+        detectedAssets: {
+          'mock-account-id': [checksummedCustomAsset],
+        },
+      },
+      getAssetsState: jest.fn().mockReturnValue({
+        assetsInfo: {},
+        customAssets: {
+          'mock-account-id': [checksummedCustomAsset],
+        },
+      }),
+    };
+
+    await controller.assetsMiddleware(context, next);
+
+    // Custom asset is preserved despite occurrences=1 because the
+    // user-imported bypass is case-insensitive.
+    expect(context.response.assetsInfo?.[lowercaseCustomAsset]).toBeDefined();
   });
 
   it.each([

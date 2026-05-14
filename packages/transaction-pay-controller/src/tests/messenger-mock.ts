@@ -6,6 +6,7 @@ import type {
   BridgeStatusControllerGetStateAction,
   BridgeStatusControllerSubmitTxAction,
 } from '@metamask/bridge-status-controller';
+import type { KeyringControllerGetStateAction } from '@metamask/keyring-controller';
 import type {
   MessengerActions,
   MessengerEvents,
@@ -29,6 +30,8 @@ import type { TransactionPayControllerMessenger } from '..';
 import type {
   TransactionPayControllerGetDelegationTransactionAction,
   TransactionPayControllerGetStrategyAction,
+  TransactionPayControllerPolymarketGetDepositWalletAddressAction,
+  TransactionPayControllerPolymarketSubmitDepositWalletBatchAction,
 } from '../TransactionPayController-method-action-types';
 import type { TransactionPayControllerGetStateAction } from '../types';
 
@@ -117,6 +120,14 @@ export function getMessengerMock({
     TransactionPayControllerGetDelegationTransactionAction['handler']
   > = jest.fn();
 
+  const polymarketGetDepositWalletAddressMock: jest.MockedFn<
+    TransactionPayControllerPolymarketGetDepositWalletAddressAction['handler']
+  > = jest.fn();
+
+  const polymarketSubmitDepositWalletBatchMock: jest.MockedFn<
+    TransactionPayControllerPolymarketSubmitDepositWalletBatchAction['handler']
+  > = jest.fn();
+
   const getGasFeeTokensMock: jest.MockedFn<
     TransactionControllerGetGasFeeTokensAction['handler']
   > = jest.fn();
@@ -130,6 +141,19 @@ export function getMessengerMock({
   > = jest.fn();
 
   const getAssetsControllerStateMock = jest.fn();
+
+  const getKeyringControllerStateMock: jest.MockedFn<
+    KeyringControllerGetStateAction['handler']
+  > = jest.fn().mockReturnValue({
+    isUnlocked: true,
+    keyrings: [
+      {
+        type: 'HD Key Tree',
+        accounts: ['0x1234567890123456789012345678901234567891'],
+        metadata: { id: 'hd-keyring', name: 'HD Key Tree' },
+      },
+    ],
+  });
 
   const messenger: RootMessenger = new Messenger({
     namespace: MOCK_ANY_NAMESPACE,
@@ -232,6 +256,16 @@ export function getMessengerMock({
     );
 
     messenger.registerActionHandler(
+      'TransactionPayController:polymarketGetDepositWalletAddress',
+      polymarketGetDepositWalletAddressMock,
+    );
+
+    messenger.registerActionHandler(
+      'TransactionPayController:polymarketSubmitDepositWalletBatch',
+      polymarketSubmitDepositWalletBatchMock,
+    );
+
+    messenger.registerActionHandler(
       'TransactionController:getGasFeeTokens',
       getGasFeeTokensMock,
     );
@@ -252,6 +286,11 @@ export function getMessengerMock({
     );
   }
 
+  messenger.registerActionHandler(
+    'KeyringController:getState',
+    getKeyringControllerStateMock,
+  );
+
   const publish = messenger.publish.bind(messenger);
 
   return {
@@ -269,6 +308,7 @@ export function getMessengerMock({
     getDelegationTransactionMock,
     getGasFeeControllerStateMock,
     getGasFeeTokensMock,
+    getKeyringControllerStateMock,
     getNetworkClientByIdMock,
     getRemoteFeatureFlagControllerStateMock,
     getStrategyMock,
@@ -277,6 +317,8 @@ export function getMessengerMock({
     getTokensControllerStateMock,
     getTransactionControllerStateMock,
     messenger: messenger as TransactionPayControllerMessenger,
+    polymarketGetDepositWalletAddressMock,
+    polymarketSubmitDepositWalletBatchMock,
     publish,
     submitTransactionMock,
     updateTransactionMock,

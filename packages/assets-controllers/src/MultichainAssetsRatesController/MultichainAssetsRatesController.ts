@@ -37,7 +37,7 @@ import type { Draft } from 'immer';
 import type {
   CurrencyRateState,
   CurrencyRateStateChange,
-  GetCurrencyRateState,
+  CurrencyRateControllerGetStateAction,
 } from '../CurrencyRateController';
 import type {
   MultichainAssetsControllerGetStateAction,
@@ -121,7 +121,7 @@ export type MultichainAssetsRatesControllerEvents =
 export type AllowedActions =
   | SnapControllerHandleRequestAction
   | AccountsControllerListMultichainAccountsAction
-  | GetCurrencyRateState
+  | CurrencyRateControllerGetStateAction
   | MultichainAssetsControllerGetStateAction
   | AccountsControllerGetSelectedMultichainAccountAction;
 

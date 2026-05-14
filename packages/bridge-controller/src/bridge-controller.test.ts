@@ -38,7 +38,10 @@ import type {
 } from './types';
 import * as balanceUtils from './utils/balance';
 import { getNativeAssetForChainId, isSolanaChainId } from './utils/bridge';
-import { formatChainIdToCaip } from './utils/caip-formatters';
+import {
+  formatAddressToAssetId,
+  formatChainIdToCaip,
+} from './utils/caip-formatters';
 import * as featureFlagUtils from './utils/feature-flags';
 import * as fetchUtils from './utils/fetch';
 import {
@@ -97,6 +100,7 @@ const metricsContext = {
   stx_enabled: true,
   security_warnings: [],
   warnings: [],
+  token_security_type_destination: null,
 };
 
 type RootMessenger = Messenger<
@@ -431,15 +435,19 @@ describe('BridgeController', function () {
           expect.objectContaining({
             assetExchangeRates: expect.any(Object),
           }),
-          quoteParams.srcChainId,
-          quoteParams.srcTokenAddress,
+          formatAddressToAssetId(
+            quoteParams.srcTokenAddress,
+            quoteParams.srcChainId,
+          ),
         );
         expect(selectIsAssetExchangeRateInStateSpy).toHaveBeenCalledWith(
           expect.objectContaining({
             assetExchangeRates: expect.any(Object),
           }),
-          quoteParams.destChainId,
-          quoteParams.destTokenAddress,
+          formatAddressToAssetId(
+            quoteParams.destTokenAddress,
+            quoteParams.destChainId,
+          ),
         );
 
         hasSufficientBalanceSpy.mockRestore();
@@ -523,26 +531,38 @@ describe('BridgeController', function () {
 
         await rootMessenger.call(
           'BridgeController:updateBridgeQuoteRequestParams',
-          { srcChainId: 1, walletAddress: '0x123' },
+          {
+            srcChainId: 1,
+            walletAddress: '0x123',
+            srcTokenAddress: '0x0000000000000000000000000000000000000000',
+          },
           metricsContext,
         );
-        expect(bridgeController.state.quoteRequest).toStrictEqual({
-          walletAddress: '0x123',
-          srcChainId: 1,
-          srcTokenAddress: '0x0000000000000000000000000000000000000000',
-        });
+        expect(bridgeController.state.quoteRequest).toStrictEqual([
+          {
+            walletAddress: '0x123',
+            srcChainId: 1,
+            srcTokenAddress: '0x0000000000000000000000000000000000000000',
+          },
+        ]);
         expect(trackMetaMetricsFn).toHaveBeenCalledTimes(1);
 
         await rootMessenger.call(
           'BridgeController:updateBridgeQuoteRequestParams',
-          { destChainId: 10, walletAddress: '0x123' },
+          {
+            destChainId: 10,
+            walletAddress: '0x123',
+            srcTokenAddress: '0x0000000000000000000000000000000000000000',
+          },
           metricsContext,
         );
-        expect(bridgeController.state.quoteRequest).toStrictEqual({
-          walletAddress: '0x123',
-          destChainId: 10,
-          srcTokenAddress: '0x0000000000000000000000000000000000000000',
-        });
+        expect(bridgeController.state.quoteRequest).toStrictEqual([
+          {
+            walletAddress: '0x123',
+            destChainId: 10,
+            srcTokenAddress: '0x0000000000000000000000000000000000000000',
+          },
+        ]);
 
         await rootMessenger.call(
           'BridgeController:updateBridgeQuoteRequestParams',
@@ -552,10 +572,10 @@ describe('BridgeController', function () {
           },
           metricsContext,
         );
-        expect(bridgeController.state.quoteRequest).toStrictEqual({
+        expect(bridgeController.state.quoteRequest[0]).toStrictEqual({
+          ...DEFAULT_BRIDGE_CONTROLLER_STATE.quoteRequest[0],
           walletAddress: '0x123abc',
           destChainId: undefined,
-          srcTokenAddress: '0x0000000000000000000000000000000000000000',
         });
 
         await rootMessenger.call(
@@ -566,7 +586,7 @@ describe('BridgeController', function () {
           },
           metricsContext,
         );
-        expect(bridgeController.state.quoteRequest).toStrictEqual({
+        expect(bridgeController.state.quoteRequest[0]).toStrictEqual({
           walletAddress: '0x123',
           srcTokenAddress: undefined,
         });
@@ -582,7 +602,7 @@ describe('BridgeController', function () {
           },
           metricsContext,
         );
-        expect(bridgeController.state.quoteRequest).toStrictEqual({
+        expect(bridgeController.state.quoteRequest[0]).toStrictEqual({
           walletAddress: '0x123',
           srcTokenAmount: '100000',
           destTokenAddress: '0x123',
@@ -598,19 +618,59 @@ describe('BridgeController', function () {
           },
           metricsContext,
         );
-        expect(bridgeController.state.quoteRequest).toStrictEqual({
+        expect(bridgeController.state.quoteRequest[0]).toStrictEqual({
           walletAddress: '0x123',
           srcTokenAddress: '0x2ABC',
         });
 
         rootMessenger.call('BridgeController:resetState');
-        expect(bridgeController.state.quoteRequest).toStrictEqual({
+        expect(bridgeController.state.quoteRequest[0]).toStrictEqual({
           srcTokenAddress: '0x0000000000000000000000000000000000000000',
         });
 
         expect(trackMetaMetricsFn).toHaveBeenCalledTimes(3);
 
         expect(trackMetaMetricsFn.mock.calls).toMatchSnapshot();
+      },
+    );
+  });
+
+  it('stores tokenSecurityTypeDestination from the metrics context and resets it', async function () {
+    await withController(
+      async ({ controller: bridgeController, rootMessenger }) => {
+        messengerCallMock.mockReturnValue({
+          currentCurrency: 'usd',
+        } as never);
+
+        expect(bridgeController.state.tokenSecurityTypeDestination).toBeNull();
+
+        await rootMessenger.call(
+          'BridgeController:updateBridgeQuoteRequestParams',
+          { srcChainId: 1, walletAddress: '0x123' },
+          { ...metricsContext, token_security_type_destination: 'Malicious' },
+        );
+        expect(bridgeController.state.tokenSecurityTypeDestination).toBe(
+          'Malicious',
+        );
+
+        await rootMessenger.call(
+          'BridgeController:updateBridgeQuoteRequestParams',
+          { srcChainId: 1, walletAddress: '0x123' },
+          metricsContext,
+        );
+        expect(bridgeController.state.tokenSecurityTypeDestination).toBeNull();
+
+        await rootMessenger.call(
+          'BridgeController:updateBridgeQuoteRequestParams',
+          { srcChainId: 1, walletAddress: '0x123' },
+          { ...metricsContext, token_security_type_destination: 'Warning' },
+        );
+        expect(bridgeController.state.tokenSecurityTypeDestination).toBe(
+          'Warning',
+        );
+
+        rootMessenger.call('BridgeController:resetState');
+        expect(bridgeController.state.tokenSecurityTypeDestination).toBeNull();
       },
     );
   });
@@ -679,18 +739,25 @@ describe('BridgeController', function () {
         expect(startPollingSpy).toHaveBeenCalledTimes(1);
         expect(hasSufficientBalanceSpy).toHaveBeenCalledTimes(1);
         expect(startPollingSpy).toHaveBeenCalledWith({
-          updatedQuoteRequest: {
-            ...quoteRequest,
-            insufficientBal: false,
-            resetApproval: false,
-          },
+          quoteRequests: [
+            {
+              ...quoteRequest,
+              insufficientBal: false,
+              resetApproval: false,
+            },
+          ],
           context: metricsContext,
         });
         expect(fetchAssetPricesSpy).toHaveBeenCalledTimes(0);
 
         expect(bridgeController.state).toStrictEqual(
           expect.objectContaining({
-            quoteRequest: { ...quoteRequest, walletAddress: '0x123' },
+            quoteRequest: [
+              expect.objectContaining({
+                ...quoteRequest,
+                walletAddress: '0x123',
+              }),
+            ],
             quotes: DEFAULT_BRIDGE_CONTROLLER_STATE.quotes,
             quotesLastFetched:
               DEFAULT_BRIDGE_CONTROLLER_STATE.quotesLastFetched,
@@ -818,18 +885,25 @@ describe('BridgeController', function () {
         expect(startPollingSpy).toHaveBeenCalledTimes(1);
         expect(hasSufficientBalanceSpy).toHaveBeenCalledTimes(1);
         expect(startPollingSpy).toHaveBeenCalledWith({
-          updatedQuoteRequest: {
-            ...quoteRequest,
-            insufficientBal: false,
-            resetApproval: false,
-          },
+          quoteRequests: [
+            {
+              ...quoteRequest,
+              insufficientBal: false,
+              resetApproval: false,
+            },
+          ],
           context: metricsContext,
         });
         expect(fetchAssetPricesSpy).toHaveBeenCalledTimes(0);
 
         expect(bridgeController.state).toStrictEqual(
           expect.objectContaining({
-            quoteRequest: { ...quoteRequest, walletAddress: '0x123' },
+            quoteRequest: [
+              expect.objectContaining({
+                ...quoteRequest,
+                walletAddress: '0x123',
+              }),
+            ],
             quotes: DEFAULT_BRIDGE_CONTROLLER_STATE.quotes,
             quotesLastFetched:
               DEFAULT_BRIDGE_CONTROLLER_STATE.quotesLastFetched,
@@ -862,11 +936,13 @@ describe('BridgeController', function () {
 
         expect(bridgeController.state).toStrictEqual(
           expect.objectContaining({
-            quoteRequest: {
-              ...quoteRequest,
-              insufficientBal: false,
-              resetApproval: false,
-            },
+            quoteRequest: [
+              {
+                ...quoteRequest,
+                insufficientBal: false,
+                resetApproval: false,
+              },
+            ],
             quotes: [],
             quotesLoadingStatus: 0,
           }),
@@ -877,11 +953,13 @@ describe('BridgeController', function () {
         await flushPromises();
         expect(bridgeController.state).toStrictEqual(
           expect.objectContaining({
-            quoteRequest: {
-              ...quoteRequest,
-              insufficientBal: false,
-              resetApproval: false,
-            },
+            quoteRequest: [
+              {
+                ...quoteRequest,
+                insufficientBal: false,
+                resetApproval: false,
+              },
+            ],
             quotes: mockBridgeQuotesNativeErc20Eth,
             quotesLoadingStatus: 1,
           }),
@@ -897,11 +975,13 @@ describe('BridgeController', function () {
         await flushPromises();
         expect(bridgeController.state).toStrictEqual(
           expect.objectContaining({
-            quoteRequest: {
-              ...quoteRequest,
-              insufficientBal: false,
-              resetApproval: false,
-            },
+            quoteRequest: [
+              {
+                ...quoteRequest,
+                insufficientBal: false,
+                resetApproval: false,
+              },
+            ],
             quotes: [
               ...mockBridgeQuotesNativeErc20Eth,
               ...mockBridgeQuotesNativeErc20Eth,
@@ -924,11 +1004,13 @@ describe('BridgeController', function () {
         expect(fetchBridgeQuotesSpy).toHaveBeenCalledTimes(3);
         expect(bridgeController.state).toStrictEqual(
           expect.objectContaining({
-            quoteRequest: {
-              ...quoteRequest,
-              insufficientBal: false,
-              resetApproval: false,
-            },
+            quoteRequest: [
+              {
+                ...quoteRequest,
+                insufficientBal: false,
+                resetApproval: false,
+              },
+            ],
             quotes: [],
             quotesLoadingStatus: 2,
             quoteFetchError: 'Network error',
@@ -953,6 +1035,7 @@ describe('BridgeController', function () {
             token_symbol_destination: 'USDC',
             security_warnings: [],
             usd_amount_source: 100,
+            token_security_type_destination: null,
           },
         );
         await flushPromises();
@@ -1131,7 +1214,7 @@ describe('BridgeController', function () {
         // Initial state check
         expect(bridgeController.state).toStrictEqual(
           expect.objectContaining({
-            quoteRequest: { ...quoteParams },
+            quoteRequest: [expect.objectContaining(quoteParams)],
             minimumBalanceForRentExemptionInLamports: '0',
             quotesLoadingStatus:
               DEFAULT_BRIDGE_CONTROLLER_STATE.quotesLoadingStatus,
@@ -1165,11 +1248,13 @@ describe('BridgeController', function () {
               nonEvmFeesInNative: '0.000000014',
             })),
             quotesLoadingStatus: RequestStatus.FETCHED,
-            quoteRequest: {
-              ...quoteParams,
-              resetApproval: false,
-              insufficientBal: undefined,
-            },
+            quoteRequest: [
+              {
+                ...quoteParams,
+                resetApproval: false,
+                insufficientBal: undefined,
+              },
+            ],
             quoteFetchError: null,
             assetExchangeRates: {},
             quotesRefreshCount: 1,
@@ -1240,11 +1325,13 @@ describe('BridgeController', function () {
               nonEvmFeesInNative: '0.000000014',
             })),
             quotesLoadingStatus: RequestStatus.FETCHED,
-            quoteRequest: {
-              ...quoteParams,
-              resetApproval: false,
-              insufficientBal: undefined,
-            },
+            quoteRequest: [
+              {
+                ...quoteParams,
+                resetApproval: false,
+                insufficientBal: undefined,
+              },
+            ],
             quoteFetchError: null,
             assetExchangeRates: {},
             quotesRefreshCount: expect.any(Number),
@@ -1287,12 +1374,14 @@ describe('BridgeController', function () {
               nonEvmFeesInNative: '0.000000014',
             })),
             quotesLoadingStatus: RequestStatus.FETCHED,
-            quoteRequest: {
-              ...quoteParams,
-              srcTokenAmount: '11111',
-              insufficientBal: undefined,
-              resetApproval: false,
-            },
+            quoteRequest: [
+              {
+                ...quoteParams,
+                srcTokenAmount: '11111',
+                insufficientBal: undefined,
+                resetApproval: false,
+              },
+            ],
             quoteFetchError: null,
             assetExchangeRates: {},
             quotesRefreshCount: 1,
@@ -1404,18 +1493,20 @@ describe('BridgeController', function () {
         expect(startPollingSpy).toHaveBeenCalledTimes(1);
         expect(hasSufficientBalanceSpy).toHaveBeenCalledTimes(1);
         expect(startPollingSpy).toHaveBeenCalledWith({
-          updatedQuoteRequest: {
-            ...quoteRequest,
-            insufficientBal: true,
-            resetApproval: false,
-          },
+          quoteRequests: [
+            {
+              ...quoteRequest,
+              insufficientBal: true,
+              resetApproval: false,
+            },
+          ],
           context: metricsContext,
         });
         expect(fetchAssetPricesSpy).not.toHaveBeenCalled();
 
         expect(bridgeController.state).toStrictEqual(
           expect.objectContaining({
-            quoteRequest,
+            quoteRequest: [expect.objectContaining(quoteRequest)],
             quotes: DEFAULT_BRIDGE_CONTROLLER_STATE.quotes,
             quotesLastFetched:
               DEFAULT_BRIDGE_CONTROLLER_STATE.quotesLastFetched,
@@ -1449,11 +1540,13 @@ describe('BridgeController', function () {
 
         expect(bridgeController.state).toStrictEqual(
           expect.objectContaining({
-            quoteRequest: {
-              ...quoteRequest,
-              insufficientBal: true,
-              resetApproval: false,
-            },
+            quoteRequest: [
+              {
+                ...quoteRequest,
+                insufficientBal: true,
+                resetApproval: false,
+              },
+            ],
             quotes: [],
             quotesLoadingStatus: 0,
             quotesLastFetched: t1,
@@ -1465,11 +1558,13 @@ describe('BridgeController', function () {
         await flushPromises();
         expect(bridgeController.state).toStrictEqual(
           expect.objectContaining({
-            quoteRequest: {
-              ...quoteRequest,
-              insufficientBal: true,
-              resetApproval: false,
-            },
+            quoteRequest: [
+              {
+                ...quoteRequest,
+                insufficientBal: true,
+                resetApproval: false,
+              },
+            ],
             quotes: mockBridgeQuotesNativeErc20Eth,
             quotesLoadingStatus: 1,
             quotesRefreshCount: 1,
@@ -1504,11 +1599,13 @@ describe('BridgeController', function () {
         expect(fetchBridgeQuotesSpy).toHaveBeenCalledTimes(1);
         expect(bridgeController.state).toStrictEqual(
           expect.objectContaining({
-            quoteRequest: {
-              ...quoteRequest,
-              insufficientBal: true,
-              resetApproval: false,
-            },
+            quoteRequest: [
+              {
+                ...quoteRequest,
+                insufficientBal: true,
+                resetApproval: false,
+              },
+            ],
             quotes: mockBridgeQuotesNativeErc20Eth,
             quotesLoadingStatus: 1,
             quotesRefreshCount: 1,
@@ -1627,11 +1724,13 @@ describe('BridgeController', function () {
         expect(startPollingSpy).toHaveBeenCalledTimes(1);
         expect(hasSufficientBalanceSpy).not.toHaveBeenCalled();
         expect(startPollingSpy).toHaveBeenCalledWith({
-          updatedQuoteRequest: {
-            ...quoteRequest,
-            insufficientBal: true,
-            resetApproval: false,
-          },
+          quoteRequests: [
+            {
+              ...quoteRequest,
+              insufficientBal: true,
+              resetApproval: false,
+            },
+          ],
           context: metricsContext,
         });
 
@@ -1644,11 +1743,13 @@ describe('BridgeController', function () {
         await flushPromises();
         expect(bridgeController.state).toStrictEqual(
           expect.objectContaining({
-            quoteRequest: {
-              ...quoteRequest,
-              insufficientBal: true,
-              resetApproval: false,
-            },
+            quoteRequest: [
+              {
+                ...quoteRequest,
+                insufficientBal: true,
+                resetApproval: false,
+              },
+            ],
             quotes: mockBridgeQuotesNativeErc20Eth,
             quotesLoadingStatus: 1,
             quotesRefreshCount: 1,
@@ -1692,14 +1793,16 @@ describe('BridgeController', function () {
 
         expect(bridgeController.state).toStrictEqual(
           expect.objectContaining({
-            quoteRequest: {
-              srcChainId: 1,
-              slippage: 0.5,
-              srcTokenAddress: '0x0000000000000000000000000000000000000000',
-              walletAddress: '0x123WalletAddress',
-              destChainId: 10,
-              destTokenAddress: '0x123',
-            },
+            quoteRequest: [
+              {
+                srcChainId: 1,
+                slippage: 0.5,
+                srcTokenAddress: '0x0000000000000000000000000000000000000000',
+                walletAddress: '0x123WalletAddress',
+                destChainId: 10,
+                destTokenAddress: '0x123',
+              },
+            ],
             quotes: DEFAULT_BRIDGE_CONTROLLER_STATE.quotes,
             quotesLastFetched:
               DEFAULT_BRIDGE_CONTROLLER_STATE.quotesLastFetched,
@@ -1742,14 +1845,16 @@ describe('BridgeController', function () {
 
         expect(bridgeController.state).toStrictEqual(
           expect.objectContaining({
-            quoteRequest: {
-              srcChainId: 1,
-              slippage: 0.5,
-              srcTokenAddress: '0x0000000000000000000000000000000000000000',
-              walletAddress: '0xabcWalletAddress',
-              destChainId: ChainId.SOLANA,
-              destTokenAddress: '0x123',
-            },
+            quoteRequest: [
+              {
+                srcChainId: 1,
+                slippage: 0.5,
+                srcTokenAddress: '0x0000000000000000000000000000000000000000',
+                walletAddress: '0xabcWalletAddress',
+                destChainId: ChainId.SOLANA,
+                destTokenAddress: '0x123',
+              },
+            ],
             quotes: DEFAULT_BRIDGE_CONTROLLER_STATE.quotes,
             quotesLastFetched:
               DEFAULT_BRIDGE_CONTROLLER_STATE.quotesLastFetched,
@@ -2015,17 +2120,19 @@ describe('BridgeController', function () {
           expect(startPollingSpy).toHaveBeenCalledTimes(1);
           expect(hasSufficientBalanceSpy).toHaveBeenCalledTimes(1);
           expect(startPollingSpy).toHaveBeenCalledWith({
-            updatedQuoteRequest: {
-              ...quoteRequest,
-              insufficientBal: true,
-              resetApproval: false,
-            },
+            quoteRequests: [
+              {
+                ...quoteRequest,
+                insufficientBal: true,
+                resetApproval: false,
+              },
+            ],
             context: metricsContext,
           });
 
           expect(bridgeController.state).toStrictEqual(
             expect.objectContaining({
-              quoteRequest,
+              quoteRequest: [expect.objectContaining(quoteRequest)],
               quotes: DEFAULT_BRIDGE_CONTROLLER_STATE.quotes,
               quotesLastFetched:
                 DEFAULT_BRIDGE_CONTROLLER_STATE.quotesLastFetched,
@@ -2057,11 +2164,13 @@ describe('BridgeController', function () {
 
           expect(bridgeController.state).toStrictEqual(
             expect.objectContaining({
-              quoteRequest: {
-                ...quoteRequest,
-                insufficientBal: true,
-                resetApproval: false,
-              },
+              quoteRequest: [
+                {
+                  ...quoteRequest,
+                  insufficientBal: true,
+                  resetApproval: false,
+                },
+              ],
               quotes: [],
               quotesLoadingStatus: 0,
             }),
@@ -2074,11 +2183,13 @@ describe('BridgeController', function () {
           expect(quotes).toHaveLength(expectedQuotesLength);
           expect(bridgeController.state).toStrictEqual(
             expect.objectContaining({
-              quoteRequest: {
-                ...quoteRequest,
-                insufficientBal: true,
-                resetApproval: false,
-              },
+              quoteRequest: [
+                {
+                  ...quoteRequest,
+                  insufficientBal: true,
+                  resetApproval: false,
+                },
+              ],
               quotesLoadingStatus: 1,
               quotesRefreshCount: 1,
             }),
@@ -2855,6 +2966,7 @@ describe('BridgeController', function () {
             token_symbol_source: 'ETH',
             token_symbol_destination: 'USDC',
             usd_amount_source: 100,
+            token_security_type_destination: null,
           },
         );
         jest.clearAllMocks();
@@ -2889,6 +3001,7 @@ describe('BridgeController', function () {
             token_symbol_source: 'ETH',
             token_symbol_destination: 'USDC',
             usd_amount_source: 100,
+            token_security_type_destination: null,
           },
         );
         jest.clearAllMocks();
@@ -2919,6 +3032,7 @@ describe('BridgeController', function () {
             token_symbol_source: 'ETH',
             token_symbol_destination: 'USDC',
             usd_amount_source: 100,
+            token_security_type_destination: null,
           },
         );
         jest.clearAllMocks();
@@ -2961,6 +3075,7 @@ describe('BridgeController', function () {
             token_symbol_source: 'ETH',
             token_symbol_destination: 'USDC',
             usd_amount_source: 100,
+            token_security_type_destination: null,
           },
         );
         jest.clearAllMocks();
@@ -3017,6 +3132,7 @@ describe('BridgeController', function () {
             token_symbol_source: 'ETH',
             token_symbol_destination: 'USDC',
             usd_amount_source: 100,
+            token_security_type_destination: null,
           },
         );
         jest.clearAllMocks();
@@ -3055,6 +3171,7 @@ describe('BridgeController', function () {
             token_symbol_source: 'ETH',
             token_symbol_destination: 'USDC',
             usd_amount_source: 100,
+            token_security_type_destination: null,
           },
         );
         jest.clearAllMocks();
@@ -3092,6 +3209,7 @@ describe('BridgeController', function () {
             token_symbol_source: 'ETH',
             token_symbol_destination: 'USDC',
             usd_amount_source: 100,
+            token_security_type_destination: null,
           },
         );
         jest.clearAllMocks();
@@ -3131,6 +3249,7 @@ describe('BridgeController', function () {
             token_symbol_source: 'ETH',
             token_symbol_destination: 'USDC',
             usd_amount_source: 100,
+            token_security_type_destination: null,
           },
         );
         jest.clearAllMocks();
@@ -3172,6 +3291,7 @@ describe('BridgeController', function () {
             token_symbol_source: 'ETH',
             token_symbol_destination: 'USDC',
             usd_amount_source: 100,
+            token_security_type_destination: null,
           },
         );
         jest.clearAllMocks();
@@ -3199,6 +3319,48 @@ describe('BridgeController', function () {
       });
     });
 
+    it('includes tokenSecurityTypeDestination on the tracked event payload when set', async () => {
+      await withController(async ({ rootMessenger }) => {
+        jest.spyOn(console, 'warn').mockImplementationOnce(jest.fn());
+        await rootMessenger.call(
+          'BridgeController:updateBridgeQuoteRequestParams',
+          { walletAddress: '0x123' },
+          {
+            stx_enabled: false,
+            security_warnings: [],
+            token_symbol_source: 'ETH',
+            token_symbol_destination: 'USDC',
+            usd_amount_source: 100,
+            token_security_type_destination: 'Malicious',
+          },
+        );
+        jest.clearAllMocks();
+        rootMessenger.call(
+          'BridgeController:trackUnifiedSwapBridgeEvent',
+          UnifiedSwapBridgeEventName.QuotesReceived,
+          {
+            warnings: [],
+            usd_quoted_gas: 0,
+            gas_included: false,
+            gas_included_7702: false,
+            quoted_time_minutes: 10,
+            usd_quoted_return: 100,
+            price_impact: 0,
+            provider: 'provider_bridge',
+            best_quote_provider: 'provider_bridge2',
+            can_submit: true,
+            usd_balance_source: 0,
+          },
+        );
+        expect(trackMetaMetricsFn).toHaveBeenCalledTimes(1);
+        expect(trackMetaMetricsFn.mock.calls[0][1]).toStrictEqual(
+          expect.objectContaining({
+            token_security_type_destination: 'Malicious',
+          }),
+        );
+      });
+    });
+
     it('should track the AssetDetailTooltipClicked event', async () => {
       await withController(async ({ rootMessenger }) => {
         // Ignore console.warn for this test bc there will be expected asset rate fetching warnings
@@ -3215,6 +3377,7 @@ describe('BridgeController', function () {
             token_symbol_source: 'ETH',
             token_symbol_destination: 'USDC',
             usd_amount_source: 100,
+            token_security_type_destination: null,
           },
         );
         jest.clearAllMocks();
@@ -3378,15 +3541,17 @@ describe('BridgeController', function () {
           options: {
             clientVersion: '1.0.0',
             state: {
-              quoteRequest: {
-                srcChainId: SolScope.Mainnet,
-                destChainId: '1',
-                srcTokenAddress: 'NATIVE',
-                destTokenAddress: '0x1234',
-                srcTokenAmount: '1000000',
-                walletAddress: '0x123',
-                slippage: 0.5,
-              },
+              quoteRequest: [
+                {
+                  srcChainId: SolScope.Mainnet,
+                  destChainId: '1',
+                  srcTokenAddress: 'NATIVE',
+                  destTokenAddress: '0x1234',
+                  srcTokenAmount: '1000000',
+                  walletAddress: '0x123',
+                  slippage: 0.5,
+                },
+              ],
               quotes: mockBridgeQuotesSolErc20 as never,
             },
           },
@@ -3424,15 +3589,17 @@ describe('BridgeController', function () {
           options: {
             clientVersion: '1.0.0',
             state: {
-              quoteRequest: {
-                srcChainId: SolScope.Mainnet,
-                destChainId: '1',
-                srcTokenAddress: 'NATIVE',
-                destTokenAddress: '0x1234',
-                srcTokenAmount: '1000000',
-                walletAddress: '0x123',
-                slippage: 0.5,
-              },
+              quoteRequest: [
+                {
+                  srcChainId: SolScope.Mainnet,
+                  destChainId: '1',
+                  srcTokenAddress: 'NATIVE',
+                  destTokenAddress: '0x1234',
+                  srcTokenAmount: '1000000',
+                  walletAddress: '0x123',
+                  slippage: 0.5,
+                },
+              ],
               quotes: mockBridgeQuotesSolErc20 as never,
             },
           },
@@ -3514,6 +3681,7 @@ describe('BridgeController', function () {
             token_symbol_source: 'ETH',
             usd_amount_source: 100,
             token_symbol_destination: 'USDC',
+            token_security_type_destination: null,
           },
         );
         rootMessenger.call(
@@ -3637,39 +3805,39 @@ describe('BridgeController', function () {
 
           expect(fetchBridgeQuotesSpy).toHaveBeenCalledTimes(1);
           expect(fetchBridgeQuotesSpy.mock.calls).toMatchInlineSnapshot(`
-        [
-          [
-            {
-              "aggIds": [
-                "debridge",
-                "socket",
-              ],
-              "bridgeIds": [
-                "bridge1",
-                "bridge2",
-              ],
-              "destChainId": "1",
-              "destTokenAddress": "0x1234",
-              "fee": 0,
-              "gasIncluded": false,
-              "gasIncluded7702": false,
-              "resetApproval": false,
-              "slippage": 0.5,
-              "srcChainId": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
-              "srcTokenAddress": "NATIVE",
-              "srcTokenAmount": "1000000",
-              "walletAddress": "0x123",
-            },
-            null,
-            "extension",
-            "AUTH_TOKEN",
-            [Function],
-            "https://bridge.api.cx.metamask.io",
-            "perps",
-            "13.7.0",
-          ],
-        ]
-      `);
+                    [
+                      [
+                        {
+                          "aggIds": [
+                            "debridge",
+                            "socket",
+                          ],
+                          "bridgeIds": [
+                            "bridge1",
+                            "bridge2",
+                          ],
+                          "destChainId": "1",
+                          "destTokenAddress": "0x1234",
+                          "fee": 0,
+                          "gasIncluded": false,
+                          "gasIncluded7702": false,
+                          "resetApproval": false,
+                          "slippage": 0.5,
+                          "srcChainId": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
+                          "srcTokenAddress": "NATIVE",
+                          "srcTokenAmount": "1000000",
+                          "walletAddress": "0x123",
+                        },
+                        null,
+                        "extension",
+                        "AUTH_TOKEN",
+                        [Function],
+                        "https://bridge.api.cx.metamask.io",
+                        "perps",
+                        "13.7.0",
+                      ],
+                    ]
+                `);
           expect(quotes).toStrictEqual(mockBridgeQuotesSolErc20);
           expect(bridgeController.state).toStrictEqual(expectedControllerState);
         },
@@ -3744,39 +3912,39 @@ describe('BridgeController', function () {
 
           expect(fetchBridgeQuotesSpy).toHaveBeenCalledTimes(1);
           expect(fetchBridgeQuotesSpy.mock.calls).toMatchInlineSnapshot(`
-        [
-          [
-            {
-              "aggIds": [
-                "debridge",
-                "socket",
-              ],
-              "bridgeIds": [
-                "bridge1",
-                "bridge2",
-              ],
-              "destChainId": "1",
-              "destTokenAddress": "0x1234",
-              "fee": 0,
-              "gasIncluded": false,
-              "gasIncluded7702": false,
-              "resetApproval": false,
-              "slippage": 0.5,
-              "srcChainId": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
-              "srcTokenAddress": "NATIVE",
-              "srcTokenAmount": "1000000",
-              "walletAddress": "0x123",
-            },
-            null,
-            "extension",
-            "AUTH_TOKEN",
-            [Function],
-            "https://bridge.api.cx.metamask.io",
-            "perps",
-            "13.7.0",
-          ],
-        ]
-      `);
+                    [
+                      [
+                        {
+                          "aggIds": [
+                            "debridge",
+                            "socket",
+                          ],
+                          "bridgeIds": [
+                            "bridge1",
+                            "bridge2",
+                          ],
+                          "destChainId": "1",
+                          "destTokenAddress": "0x1234",
+                          "fee": 0,
+                          "gasIncluded": false,
+                          "gasIncluded7702": false,
+                          "resetApproval": false,
+                          "slippage": 0.5,
+                          "srcChainId": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
+                          "srcTokenAddress": "NATIVE",
+                          "srcTokenAmount": "1000000",
+                          "walletAddress": "0x123",
+                        },
+                        null,
+                        "extension",
+                        "AUTH_TOKEN",
+                        [Function],
+                        "https://bridge.api.cx.metamask.io",
+                        "perps",
+                        "13.7.0",
+                      ],
+                    ]
+                `);
           expect(quotes).toStrictEqual(mockBridgeQuotesSolErc20);
           expect(bridgeController.state).toStrictEqual(expectedControllerState);
         },
@@ -3812,30 +3980,30 @@ describe('BridgeController', function () {
 
           expect(fetchBridgeQuotesSpy).toHaveBeenCalledTimes(1);
           expect(fetchBridgeQuotesSpy.mock.calls).toMatchInlineSnapshot(`
-        [
-          [
-            {
-              "destChainId": "1",
-              "destTokenAddress": "0x1234",
-              "gasIncluded": false,
-              "gasIncluded7702": false,
-              "resetApproval": false,
-              "slippage": 0.5,
-              "srcChainId": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
-              "srcTokenAddress": "NATIVE",
-              "srcTokenAmount": "1000000",
-              "walletAddress": "0x123",
-            },
-            null,
-            "extension",
-            "AUTH_TOKEN",
-            [Function],
-            "https://bridge.api.cx.metamask.io",
-            null,
-            "13.7.0",
-          ],
-        ]
-      `);
+                    [
+                      [
+                        {
+                          "destChainId": "1",
+                          "destTokenAddress": "0x1234",
+                          "gasIncluded": false,
+                          "gasIncluded7702": false,
+                          "resetApproval": false,
+                          "slippage": 0.5,
+                          "srcChainId": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
+                          "srcTokenAddress": "NATIVE",
+                          "srcTokenAmount": "1000000",
+                          "walletAddress": "0x123",
+                        },
+                        null,
+                        "extension",
+                        "AUTH_TOKEN",
+                        [Function],
+                        "https://bridge.api.cx.metamask.io",
+                        null,
+                        "13.7.0",
+                      ],
+                    ]
+                `);
           expect(quotes).toStrictEqual(mockBridgeQuotesSolErc20);
           expect(bridgeController.state).toStrictEqual(expectedControllerState);
         },
@@ -3900,22 +4068,25 @@ describe('BridgeController', function () {
             'includeInStateLogs',
           ),
         ).toMatchInlineSnapshot(`
-        {
-          "assetExchangeRates": {},
-          "minimumBalanceForRentExemptionInLamports": "0",
-          "quoteFetchError": null,
-          "quoteRequest": {
-            "srcTokenAddress": "0x0000000000000000000000000000000000000000",
-          },
-          "quoteStreamComplete": null,
-          "quotes": [],
-          "quotesInitialLoadTime": null,
-          "quotesLastFetched": null,
-          "quotesLoadingStatus": null,
-          "quotesRefreshCount": 0,
-          "tokenWarnings": [],
-        }
-      `);
+          {
+            "assetExchangeRates": {},
+            "minimumBalanceForRentExemptionInLamports": "0",
+            "quoteFetchError": null,
+            "quoteRequest": [
+              {
+                "srcTokenAddress": "0x0000000000000000000000000000000000000000",
+              },
+            ],
+            "quoteStreamComplete": null,
+            "quotes": [],
+            "quotesInitialLoadTime": null,
+            "quotesLastFetched": null,
+            "quotesLoadingStatus": null,
+            "quotesRefreshCount": 0,
+            "tokenSecurityTypeDestination": null,
+            "tokenWarnings": [],
+          }
+        `);
       });
     });
 
@@ -3940,22 +4111,25 @@ describe('BridgeController', function () {
             'usedInUi',
           ),
         ).toMatchInlineSnapshot(`
-        {
-          "assetExchangeRates": {},
-          "minimumBalanceForRentExemptionInLamports": "0",
-          "quoteFetchError": null,
-          "quoteRequest": {
-            "srcTokenAddress": "0x0000000000000000000000000000000000000000",
-          },
-          "quoteStreamComplete": null,
-          "quotes": [],
-          "quotesInitialLoadTime": null,
-          "quotesLastFetched": null,
-          "quotesLoadingStatus": null,
-          "quotesRefreshCount": 0,
-          "tokenWarnings": [],
-        }
-      `);
+          {
+            "assetExchangeRates": {},
+            "minimumBalanceForRentExemptionInLamports": "0",
+            "quoteFetchError": null,
+            "quoteRequest": [
+              {
+                "srcTokenAddress": "0x0000000000000000000000000000000000000000",
+              },
+            ],
+            "quoteStreamComplete": null,
+            "quotes": [],
+            "quotesInitialLoadTime": null,
+            "quotesLastFetched": null,
+            "quotesLoadingStatus": null,
+            "quotesRefreshCount": 0,
+            "tokenSecurityTypeDestination": null,
+            "tokenWarnings": [],
+          }
+        `);
       });
     });
   });

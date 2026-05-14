@@ -17,7 +17,13 @@ import type {
   TransactionPaymentToken,
   UpdateTransactionDataCallback,
 } from '../types';
-import { getStrategiesByName, getStrategyByName } from './strategy';
+import { accountSupports7702 } from './7702';
+import {
+  checkStrategyQuoteSupport,
+  checkStrategySupport,
+  getStrategiesByName,
+  getStrategyByName,
+} from './strategy';
 import {
   computeTokenAmounts,
   getLiveTokenBalance,
@@ -30,6 +36,8 @@ const DEFAULT_REFRESH_INTERVAL = 30 * 1000; // 30 Seconds
 
 const log = createModuleLogger(projectLogger, 'quotes');
 
+const inFlightQuoteRequests = new Map<string, AbortController>();
+
 export type UpdateQuotesRequest = {
   getStrategies: (transaction: TransactionMeta) => TransactionPayStrategy[];
   messenger: TransactionPayControllerMessenger;
@@ -41,8 +49,13 @@ export type UpdateQuotesRequest = {
 /**
  * Update the quotes for a specific transaction.
  *
+ * Calls for the same `transactionId` are serialised: a fresh call aborts any
+ * previous in-flight call so a slower stale response cannot overwrite a newer
+ * one in state.
+ *
  * @param request - Request parameters.
- * @returns Boolean indicating if the quotes were updated.
+ * @returns Boolean indicating if the quotes were updated. Returns `false` when
+ * the call was aborted by a subsequent call for the same transaction.
  */
 export async function updateQuotes(
   request: UpdateQuotesRequest,
@@ -68,16 +81,21 @@ export async function updateQuotes(
   log('Updating quotes', { transactionId });
 
   const {
+    accountOverride,
     isMaxAmount,
     isPostQuote,
     isHyperliquidSource,
+    isPolymarketDepositWallet,
     paymentToken: originalPaymentToken,
     refundTo,
     sourceAmounts,
     tokens,
   } = transactionData;
 
-  const from = transaction.txParams.from as Hex;
+  const from = accountOverride ?? (transaction.txParams.from as Hex);
+
+  const controller = abortPreviousAndCreateController(transactionId);
+  const { signal } = controller;
 
   updateTransactionData(transactionId, (data) => {
     data.isLoading = true;
@@ -88,15 +106,22 @@ export async function updateQuotes(
       from,
       messenger,
       paymentToken: originalPaymentToken,
+      signal,
       transactionId,
       updateTransactionData,
     });
+
+    if (signal.aborted) {
+      log('Quote request aborted before building requests', { transactionId });
+      return false;
+    }
 
     const requests = buildQuoteRequests({
       from,
       isMaxAmount: isMaxAmount ?? false,
       isPostQuote,
       isHyperliquidSource,
+      isPolymarketDepositWallet,
       paymentToken,
       refundTo,
       sourceAmounts,
@@ -104,13 +129,22 @@ export async function updateQuotes(
       transactionId,
     });
 
+    const supports7702 = accountSupports7702(messenger, from);
+
     const { batchTransactions, quotes } = await getQuotes(
       transaction,
       requests,
+      supports7702,
       getStrategies,
       messenger,
       transactionData.fiatPayment?.selectedPaymentMethodId,
+      signal,
     );
+
+    if (signal.aborted) {
+      log('Quote request aborted before persisting results', { transactionId });
+      return false;
+    }
 
     const totals = calculateTotals({
       isMaxAmount,
@@ -136,10 +170,19 @@ export async function updateQuotes(
       data.quotesLastUpdated = Date.now();
       data.totals = totals;
     });
+  } catch (error) {
+    if (signal.aborted) {
+      log('Quote request aborted', { transactionId, reason: signal.reason });
+      return false;
+    }
+    throw error;
   } finally {
-    updateTransactionData(transactionId, (data) => {
-      data.isLoading = false;
-    });
+    if (!signal.aborted) {
+      updateTransactionData(transactionId, (data) => {
+        data.isLoading = false;
+      });
+    }
+    clearControllerIfCurrent(transactionId, controller);
   }
 
   return true;
@@ -250,6 +293,30 @@ export async function refreshQuotes(
   }
 }
 
+function abortPreviousAndCreateController(
+  transactionId: string,
+): AbortController {
+  const previous = inFlightQuoteRequests.get(transactionId);
+
+  if (previous && !previous.signal.aborted) {
+    log('Aborting previous quote request', { transactionId });
+    previous.abort(new Error('Superseded by newer quote request'));
+  }
+
+  const controller = new AbortController();
+  inFlightQuoteRequests.set(transactionId, controller);
+  return controller;
+}
+
+function clearControllerIfCurrent(
+  transactionId: string,
+  controller: AbortController,
+): void {
+  if (inFlightQuoteRequests.get(transactionId) === controller) {
+    inFlightQuoteRequests.delete(transactionId);
+  }
+}
+
 /**
  * Build quote requests required to retrieve quotes.
  *
@@ -257,6 +324,7 @@ export async function refreshQuotes(
  * @param request.from - Address from which the transaction is sent.
  * @param request.isMaxAmount - Whether the transaction is a maximum amount transaction.
  * @param request.isHyperliquidSource - Whether the source of funds is HyperLiquid.
+ * @param request.isPolymarketDepositWallet - Whether the source of funds is a Polymarket deposit wallet.
  * @param request.isPostQuote - Whether this is a post-quote flow.
  * @param request.paymentToken - Payment token (source for standard flows, destination for post-quote).
  * @param request.refundTo - Optional address to receive refunds if the Relay transaction fails.
@@ -270,6 +338,7 @@ function buildQuoteRequests({
   isMaxAmount,
   isPostQuote,
   isHyperliquidSource,
+  isPolymarketDepositWallet,
   paymentToken,
   refundTo,
   sourceAmounts,
@@ -280,6 +349,7 @@ function buildQuoteRequests({
   isMaxAmount: boolean;
   isPostQuote?: boolean;
   isHyperliquidSource?: boolean;
+  isPolymarketDepositWallet?: boolean;
   paymentToken: TransactionPaymentToken | undefined;
   refundTo?: Hex;
   sourceAmounts: TransactionPaySourceAmount[] | undefined;
@@ -295,6 +365,7 @@ function buildQuoteRequests({
       from,
       isMaxAmount,
       isHyperliquidSource,
+      isPolymarketDepositWallet,
       destinationToken: paymentToken,
       refundTo,
       sourceAmounts,
@@ -337,6 +408,7 @@ function buildQuoteRequests({
  * @param request.from - Address from which the transaction is sent.
  * @param request.isMaxAmount - Whether the transaction is a maximum amount transaction.
  * @param request.isHyperliquidSource - Whether the source of funds is HyperLiquid.
+ * @param request.isPolymarketDepositWallet - Whether the source of funds is a Polymarket deposit wallet.
  * @param request.destinationToken - Destination token (paymentToken in post-quote mode).
  * @param request.refundTo - Optional address to receive refunds if the Relay transaction fails.
  * @param request.sourceAmounts - Source amounts for the transaction (includes source token info).
@@ -347,6 +419,7 @@ function buildPostQuoteRequests({
   from,
   isMaxAmount,
   isHyperliquidSource,
+  isPolymarketDepositWallet,
   destinationToken,
   refundTo,
   sourceAmounts,
@@ -355,6 +428,7 @@ function buildPostQuoteRequests({
   from: Hex;
   isMaxAmount: boolean;
   isHyperliquidSource?: boolean;
+  isPolymarketDepositWallet?: boolean;
   destinationToken: TransactionPaymentToken;
   refundTo?: Hex;
   sourceAmounts: TransactionPaySourceAmount[] | undefined;
@@ -384,6 +458,7 @@ function buildPostQuoteRequests({
     isMaxAmount,
     isPostQuote: true,
     isHyperliquidSource,
+    isPolymarketDepositWallet,
     refundTo,
     sourceBalanceRaw: sourceAmount.sourceBalanceRaw,
     sourceTokenAmount: sourceAmount.sourceAmountRaw,
@@ -405,12 +480,14 @@ async function refreshPaymentTokenBalance({
   from,
   messenger,
   paymentToken,
+  signal,
   transactionId,
   updateTransactionData,
 }: {
   from: Hex;
   messenger: TransactionPayControllerMessenger;
   paymentToken: TransactionPaymentToken | undefined;
+  signal: AbortSignal;
   transactionId: string;
   updateTransactionData: UpdateTransactionDataCallback;
 }): Promise<TransactionPaymentToken | undefined> {
@@ -435,6 +512,11 @@ async function refreshPaymentTokenBalance({
       paymentToken.chainId,
       paymentToken.address,
     );
+
+    if (signal.aborted) {
+      log('Payment token balance refresh aborted', { transactionId });
+      return paymentToken;
+    }
 
     const {
       raw: balanceRaw,
@@ -469,17 +551,21 @@ async function refreshPaymentTokenBalance({
  *
  * @param transaction - Transaction metadata.
  * @param requests - Quote requests.
+ * @param isAccountEIP7702Compatible - Whether the account supports EIP-7702.
  * @param getStrategies - Callback to get ordered strategy names for a transaction.
  * @param messenger - Controller messenger.
  * @param fiatPaymentMethod - Selected fiat payment method ID, if applicable.
+ * @param signal - Signal that aborts when the quote request is superseded.
  * @returns An object containing batch transactions and quotes.
  */
 async function getQuotes(
   transaction: TransactionMeta,
   requests: QuoteRequest[],
+  isAccountEIP7702Compatible: boolean,
   getStrategies: (transaction: TransactionMeta) => TransactionPayStrategy[],
   messenger: TransactionPayControllerMessenger,
   fiatPaymentMethod?: string,
+  signal?: AbortSignal,
 ): Promise<{
   batchTransactions: BatchTransaction[];
   quotes: TransactionPayQuote<Json>[];
@@ -495,7 +581,7 @@ async function getQuotes(
     },
   );
 
-  if (!requests?.length) {
+  if (!requests?.length && !fiatPaymentMethod) {
     return {
       batchTransactions: [],
       quotes: [],
@@ -503,15 +589,19 @@ async function getQuotes(
   }
 
   const request = {
+    accountSupports7702: isAccountEIP7702Compatible,
     fiatPaymentMethod,
     messenger,
     requests,
+    signal,
     transaction,
   };
 
   for (const { name, strategy } of strategies) {
     try {
-      if (strategy.supports && !strategy.supports(request)) {
+      const support = await checkStrategySupport(strategy, request);
+
+      if (!support) {
         log('Strategy does not support request', {
           strategy: name,
           transactionId,
@@ -528,12 +618,28 @@ async function getQuotes(
         continue;
       }
 
+      const quoteSupport = await checkStrategyQuoteSupport(strategy, {
+        messenger,
+        quotes,
+        signal,
+        transaction,
+      });
+
+      if (!quoteSupport) {
+        log('Strategy does not support quotes', {
+          strategy: name,
+          transactionId,
+        });
+        continue;
+      }
+
       log('Updated', { transactionId, quotes });
 
       const batchTransactions = strategy.getBatchTransactions
         ? await strategy.getBatchTransactions({
             messenger,
             quotes,
+            signal,
           })
         : [];
 
@@ -544,6 +650,10 @@ async function getQuotes(
         quotes,
       };
     } catch (error) {
+      if (signal?.aborted) {
+        throw error;
+      }
+
       log('Strategy failed, trying next', {
         error,
         strategy: name,

@@ -1393,7 +1393,7 @@ describe('TransactionController', () => {
         estimatedGas: gasMock,
         blockGasLimit: blockGasLimitMock,
         simulationFails: simulationFailsMock,
-        isUpgradeWithDataToSelf: false,
+        isUpgradeWithData: false,
       });
 
       addGasBufferMock.mockReturnValue(expectedEstimatedGas);
@@ -3924,7 +3924,9 @@ describe('TransactionController', () => {
 
       rpcRequestMock.mockRejectedValueOnce(error);
 
-      await expect(controller.stopTransaction('2')).rejects.toThrow(error);
+      await expect(controller.stopTransaction('2')).rejects.toThrow(
+        'RPC submit: Another reason',
+      );
 
       const sendRawTransactionCalls = rpcRequestMock.mock.calls.filter(
         ([request]) => request.method === 'eth_sendRawTransaction',
@@ -4276,13 +4278,48 @@ describe('TransactionController', () => {
 
       rpcRequestMock.mockRejectedValueOnce(error);
 
-      await expect(controller.speedUpTransaction('2')).rejects.toThrow(error);
+      await expect(controller.speedUpTransaction('2')).rejects.toThrow(
+        'RPC submit: Another reason',
+      );
 
       const sendRawTransactionCalls = rpcRequestMock.mock.calls.filter(
         ([request]) => request.method === 'eth_sendRawTransaction',
       );
       expect(sendRawTransactionCalls).toHaveLength(1);
       expect(controller.state.transactions).toHaveLength(1);
+    });
+
+    it('extracts nested data.message and prefixes it with RPC submit', async () => {
+      const error = {
+        message: 'Outer message',
+        data: { message: 'Nested rpc error message' },
+      };
+      const { controller } = setupController({
+        options: {
+          state: {
+            transactions: [
+              {
+                id: '2',
+                chainId: toHex(5),
+                networkClientId: NETWORK_CLIENT_ID_MOCK,
+                status: TransactionStatus.submitted,
+                type: TransactionType.retry,
+                time: 123456789,
+                txParams: {
+                  from: ACCOUNT_MOCK,
+                  gasPrice: '0x1',
+                },
+              },
+            ],
+          },
+        },
+      });
+
+      rpcRequestMock.mockRejectedValueOnce(error);
+
+      await expect(controller.speedUpTransaction('2')).rejects.toThrow(
+        'RPC submit: Nested rpc error message',
+      );
     });
 
     it('creates additional transaction with increased gas', async () => {
@@ -7342,6 +7379,107 @@ describe('TransactionController', () => {
       expect(updatedTransaction?.containerTypes).toStrictEqual([
         TransactionContainerType.EnforcedSimulations,
       ]);
+    });
+
+    it('snapshots txParamsOriginal when container types are newly applied', async () => {
+      const { controller } = setupController({
+        options: {
+          state: {
+            transactions: [transactionMeta],
+          },
+        },
+        updateToInitialState: true,
+      });
+
+      const updatedTransaction = await controller.updateEditableParams(
+        transactionId,
+        {
+          ...params,
+          containerTypes: [TransactionContainerType.EnforcedSimulations],
+        },
+      );
+
+      expect(updatedTransaction?.txParamsOriginal).toStrictEqual(
+        transactionMeta.txParams,
+      );
+    });
+
+    it('does not snapshot txParamsOriginal when container types are not applied', async () => {
+      const { controller } = setupController({
+        options: {
+          state: {
+            transactions: [transactionMeta],
+          },
+        },
+        updateToInitialState: true,
+      });
+
+      const updatedTransaction = await controller.updateEditableParams(
+        transactionId,
+        params,
+      );
+
+      expect(updatedTransaction?.txParamsOriginal).toBeUndefined();
+    });
+
+    it('does not snapshot txParamsOriginal when container types are already set', async () => {
+      const alreadyWrappedMeta: TransactionMeta = {
+        ...transactionMeta,
+        containerTypes: [TransactionContainerType.EnforcedSimulations],
+      };
+
+      const { controller } = setupController({
+        options: {
+          state: {
+            transactions: [alreadyWrappedMeta],
+          },
+        },
+        updateToInitialState: true,
+      });
+
+      const updatedTransaction = await controller.updateEditableParams(
+        transactionId,
+        {
+          ...params,
+          containerTypes: [TransactionContainerType.EnforcedSimulations],
+        },
+      );
+
+      expect(updatedTransaction?.txParamsOriginal).toBeUndefined();
+    });
+
+    it('does not overwrite an existing txParamsOriginal', async () => {
+      const existingOriginal = {
+        data: '0xexistingdata',
+        from: ACCOUNT_MOCK,
+        to: ACCOUNT_2_MOCK,
+        value: '0x1',
+      };
+      const metaWithOriginal: TransactionMeta = {
+        ...transactionMeta,
+        txParamsOriginal: existingOriginal,
+      };
+
+      const { controller } = setupController({
+        options: {
+          state: {
+            transactions: [metaWithOriginal],
+          },
+        },
+        updateToInitialState: true,
+      });
+
+      const updatedTransaction = await controller.updateEditableParams(
+        transactionId,
+        {
+          ...params,
+          containerTypes: [TransactionContainerType.EnforcedSimulations],
+        },
+      );
+
+      expect(updatedTransaction?.txParamsOriginal).toStrictEqual(
+        existingOriginal,
+      );
     });
 
     it('updates transaction type', async () => {

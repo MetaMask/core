@@ -1,4 +1,4 @@
-import { DEFAULT_MAX_RETRIES } from '@metamask/controller-utils';
+import { DEFAULT_MAX_RETRIES, handleAll } from '@metamask/controller-utils';
 import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
 import type {
   MockAnyNamespace,
@@ -17,7 +17,7 @@ describe('ChompApiService', () => {
   describe('associateAddress', () => {
     const associateParams = {
       signature: '0x123' as const,
-      timestamp: '2026-01-01T00:00:00Z',
+      timestamp: 1735689600,
       address: '0xabc' as const,
     };
 
@@ -47,18 +47,16 @@ describe('ChompApiService', () => {
 
     it('returns the response on 409 without throwing', async () => {
       nock(BASE_URL).post('/v1/auth/address').reply(409, {
-        profileId: 'p1',
         address: '0xabc',
-        status: 'already_associated',
+        status: 'active',
       });
       const { service } = createService();
 
       const result = await service.associateAddress(associateParams);
 
       expect(result).toStrictEqual({
-        profileId: 'p1',
         address: '0xabc',
-        status: 'already_associated',
+        status: 'active',
       });
     });
 
@@ -81,7 +79,7 @@ describe('ChompApiService', () => {
       const { service } = createService();
 
       await expect(service.associateAddress(associateParams)).rejects.toThrow(
-        'At path: profileId -- Expected a string',
+        'At path: address',
       );
     });
   });
@@ -99,6 +97,9 @@ describe('ChompApiService', () => {
 
     const upgradeResponse = {
       signerAddress: '0xdef',
+      address: '0xabc',
+      chainId: '0xa4b1',
+      nonce: '0x0',
       status: 'pending',
       createdAt: '2026-01-01T00:00:00Z',
     };
@@ -142,57 +143,68 @@ describe('ChompApiService', () => {
     });
   });
 
-  describe('getUpgrade', () => {
-    const upgradeRecord = {
+  describe('getUpgrades', () => {
+    const upgradeEntry = {
       signerAddress: '0xdef',
+      chainId: '0xa4b1',
+      nonce: '0x0',
+      authorization: {
+        r: '0x1',
+        s: '0x2',
+        v: 27,
+        yParity: 0,
+        address: '0xabc',
+        chainId: '0xa4b1',
+        nonce: '0x0',
+      },
       status: 'pending',
       createdAt: '2026-01-01T00:00:00Z',
     };
 
-    it('sends a GET with auth headers and returns the upgrade record', async () => {
+    it('sends a GET with auth headers and returns the upgrade entries', async () => {
       nock(BASE_URL)
         .get('/v1/account-upgrade/0xabc')
         .matchHeader('Authorization', `Bearer ${MOCK_TOKEN}`)
-        .reply(200, upgradeRecord);
+        .reply(200, [upgradeEntry]);
       const { rootMessenger } = createService();
 
       const result = await rootMessenger.call(
-        'ChompApiService:getUpgrade',
+        'ChompApiService:getUpgrades',
         '0xabc',
       );
 
-      expect(result).toStrictEqual(upgradeRecord);
+      expect(result).toStrictEqual([upgradeEntry]);
     });
 
-    it('returns null on 404', async () => {
-      nock(BASE_URL).get('/v1/account-upgrade/0xabc').reply(404);
+    it('returns an empty array when no upgrades exist', async () => {
+      nock(BASE_URL).get('/v1/account-upgrade/0xabc').reply(200, []);
       const { service } = createService();
 
-      const result = await service.getUpgrade('0xabc');
+      const result = await service.getUpgrades('0xabc');
 
-      expect(result).toBeNull();
+      expect(result).toStrictEqual([]);
     });
 
-    it('throws on non-OK/non-404 status', async () => {
+    it('throws on non-OK status', async () => {
       nock(BASE_URL)
         .get('/v1/account-upgrade/0xabc')
         .times(DEFAULT_MAX_RETRIES + 1)
         .reply(500);
       const { service } = createService();
 
-      await expect(service.getUpgrade('0xabc')).rejects.toThrow(
-        "Get upgrade request failed with status '500'",
+      await expect(service.getUpgrades('0xabc')).rejects.toThrow(
+        "Get upgrades request failed with status '500'",
       );
     });
 
     it('throws on malformed response', async () => {
       nock(BASE_URL)
         .get('/v1/account-upgrade/0xabc')
-        .reply(200, JSON.stringify({ bad: 'data' }));
+        .reply(200, JSON.stringify([{ bad: 'data' }]));
       const { service } = createService();
 
-      await expect(service.getUpgrade('0xabc')).rejects.toThrow(
-        'At path: signerAddress -- Expected a string',
+      await expect(service.getUpgrades('0xabc')).rejects.toThrow(
+        'At path: 0.signerAddress -- Expected a string',
       );
     });
   });
@@ -243,10 +255,7 @@ describe('ChompApiService', () => {
     });
 
     it('throws on non-OK status', async () => {
-      nock(BASE_URL)
-        .post('/v1/intent/verify-delegation')
-        .times(DEFAULT_MAX_RETRIES + 1)
-        .reply(400);
+      nock(BASE_URL).post('/v1/intent/verify-delegation').reply(400);
       const { service } = createService();
 
       await expect(service.verifyDelegation(delegationParams)).rejects.toThrow(
@@ -310,10 +319,7 @@ describe('ChompApiService', () => {
     });
 
     it('throws on non-OK status', async () => {
-      nock(BASE_URL)
-        .post('/v1/intent')
-        .times(DEFAULT_MAX_RETRIES + 1)
-        .reply(409);
+      nock(BASE_URL).post('/v1/intent').reply(409);
       const { service } = createService();
 
       await expect(service.createIntents(intentParams)).rejects.toThrow(
@@ -344,7 +350,7 @@ describe('ChompApiService', () => {
           allowance: '0xff',
           tokenAddress: '0x123',
           tokenSymbol: 'USDC',
-          type: 'deposit',
+          type: 'cash-deposit',
         },
       },
     ];
@@ -420,10 +426,7 @@ describe('ChompApiService', () => {
     });
 
     it('throws on non-OK status', async () => {
-      nock(BASE_URL)
-        .post('/v1/withdrawal')
-        .times(DEFAULT_MAX_RETRIES + 1)
-        .reply(400);
+      nock(BASE_URL).post('/v1/withdrawal').reply(400);
       const { service } = createService();
 
       await expect(service.createWithdrawal(withdrawalParams)).rejects.toThrow(
@@ -497,11 +500,7 @@ describe('ChompApiService', () => {
     });
 
     it('throws on non-OK status', async () => {
-      nock(BASE_URL)
-        .get('/v1/chomp')
-        .query({ chainId: '0xa4b1' })
-        .times(DEFAULT_MAX_RETRIES + 1)
-        .reply(400);
+      nock(BASE_URL).get('/v1/chomp').query({ chainId: '0xa4b1' }).reply(400);
       const { service } = createService();
 
       await expect(service.getServiceDetails(['0xa4b1'])).rejects.toThrow(
@@ -519,6 +518,104 @@ describe('ChompApiService', () => {
       await expect(service.getServiceDetails(['0xa4b1'])).rejects.toThrow(
         'At path: auth -- Expected an object',
       );
+    });
+  });
+
+  describe('retry policy', () => {
+    const upgradeParams = {
+      r: '0x1' as const,
+      s: '0x2' as const,
+      v: 27,
+      yParity: 0,
+      address: '0xabc' as const,
+      chainId: '1',
+      nonce: '0',
+    };
+
+    it('retries 5xx responses up to the default retry limit', async () => {
+      let attempts = 0;
+      nock(BASE_URL)
+        .post('/v1/account-upgrade')
+        .times(DEFAULT_MAX_RETRIES + 1)
+        .reply(() => {
+          attempts += 1;
+          return [500];
+        });
+      const { service } = createService();
+
+      await expect(service.createUpgrade(upgradeParams)).rejects.toThrow(
+        "POST /v1/account-upgrade failed with status '500'",
+      );
+      expect(attempts).toBe(DEFAULT_MAX_RETRIES + 1);
+    });
+
+    it.each([400, 401, 403, 404, 409, 422])(
+      'does not retry %i responses',
+      async (status) => {
+        let attempts = 0;
+        nock(BASE_URL)
+          .post('/v1/account-upgrade')
+          .times(DEFAULT_MAX_RETRIES + 1)
+          .reply(() => {
+            attempts += 1;
+            return [status];
+          });
+        const { service } = createService();
+
+        await expect(service.createUpgrade(upgradeParams)).rejects.toThrow(
+          `POST /v1/account-upgrade failed with status '${status}'`,
+        );
+        expect(attempts).toBe(1);
+      },
+    );
+
+    it('retries 429 responses alongside 5xx (rate-limit is transient)', async () => {
+      let attempts = 0;
+      nock(BASE_URL)
+        .post('/v1/account-upgrade')
+        .times(DEFAULT_MAX_RETRIES + 1)
+        .reply(() => {
+          attempts += 1;
+          return [429];
+        });
+      const { service } = createService();
+
+      await expect(service.createUpgrade(upgradeParams)).rejects.toThrow(
+        "POST /v1/account-upgrade failed with status '429'",
+      );
+      expect(attempts).toBe(DEFAULT_MAX_RETRIES + 1);
+    });
+
+    it('retries non-HTTP errors (e.g. network failures)', async () => {
+      const scope = nock(BASE_URL)
+        .post('/v1/account-upgrade')
+        .times(DEFAULT_MAX_RETRIES + 1)
+        .replyWithError('network down');
+      const { service } = createService();
+
+      await expect(service.createUpgrade(upgradeParams)).rejects.toThrow(
+        'network down',
+      );
+      expect(scope.isDone()).toBe(true);
+    });
+
+    it('lets consumer-supplied policyOptions override the default retryFilterPolicy', async () => {
+      let attempts = 0;
+      nock(BASE_URL)
+        .post('/v1/account-upgrade')
+        .times(DEFAULT_MAX_RETRIES + 1)
+        .reply(() => {
+          attempts += 1;
+          return [409];
+        });
+      const { service } = createService({
+        options: { policyOptions: { retryFilterPolicy: handleAll } },
+      });
+
+      await expect(service.createUpgrade(upgradeParams)).rejects.toThrow(
+        "POST /v1/account-upgrade failed with status '409'",
+      );
+      expect(attempts).toBe(DEFAULT_MAX_RETRIES + 1);
     });
   });
 });

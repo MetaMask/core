@@ -5,7 +5,7 @@ import type {
   DataServiceInvalidateQueriesAction,
 } from '@metamask/base-data-service';
 import type { CreateServicePolicyOptions } from '@metamask/controller-utils';
-import { HttpError } from '@metamask/controller-utils';
+import { handleWhen, HttpError } from '@metamask/controller-utils';
 import type { Messenger } from '@metamask/messenger';
 import {
   array,
@@ -28,7 +28,8 @@ import type {
   AssociateAddressParams,
   AssociateAddressResponse,
   CreateUpgradeParams,
-  UpgradeResponse,
+  CreateUpgradeResponse,
+  UpgradeEntry,
   CreateWithdrawalParams,
   CreateWithdrawalResponse,
   IntentEntry,
@@ -56,7 +57,7 @@ export const serviceName = 'ChompApiService';
 const MESSENGER_EXPOSED_METHODS = [
   'associateAddress',
   'createUpgrade',
-  'getUpgrade',
+  'getUpgrades',
   'verifyDelegation',
   'createIntents',
   'getIntentsByAddress',
@@ -123,16 +124,42 @@ export type ChompApiServiceMessenger = Messenger<
 // === RESPONSE VALIDATION ===
 
 const AssociateAddressResponseStruct = type({
-  profileId: string(),
+  profileId: optional(string()),
   address: StrictHexStruct,
-  status: string(),
+  status: enums(['active', 'created']),
 });
 
-const UpgradeResponseStruct = type({
+const AccountUpgradeStatusStruct = enums(['pending', 'upgraded']);
+
+const AuthorizationDataStruct = type({
+  r: StrictHexStruct,
+  s: StrictHexStruct,
+  v: number(),
+  yParity: number(),
+  address: StrictHexStruct,
+  chainId: StrictHexStruct,
+  nonce: StrictHexStruct,
+});
+
+const CreateUpgradeResponseStruct = type({
   signerAddress: StrictHexStruct,
-  status: string(),
+  address: StrictHexStruct,
+  chainId: StrictHexStruct,
+  nonce: StrictHexStruct,
+  status: AccountUpgradeStatusStruct,
   createdAt: string(),
 });
+
+const UpgradeEntryArrayStruct = array(
+  type({
+    signerAddress: StrictHexStruct,
+    chainId: StrictHexStruct,
+    nonce: StrictHexStruct,
+    authorization: AuthorizationDataStruct,
+    status: AccountUpgradeStatusStruct,
+    createdAt: string(),
+  }),
+);
 
 const VerifyDelegationResponseStruct = type({
   valid: boolean(),
@@ -163,7 +190,7 @@ const IntentEntryArrayStruct = array(
       allowance: StrictHexStruct,
       tokenAddress: StrictHexStruct,
       tokenSymbol: string(),
-      type: enums(['deposit', 'withdraw']),
+      type: enums(['cash-deposit', 'cash-withdrawal']),
     }),
   }),
 );
@@ -195,6 +222,34 @@ const ServiceDetailsResponseStruct = type({
     }),
   ),
 });
+
+// === RETRY POLICY ===
+
+/**
+ * Determines whether an error from a CHOMP API call is worth retrying.
+ *
+ * 4xx responses (e.g. 409 "already exists", 400 validation, 401/403 auth) are
+ * caused by the request itself and will not be resolved by re-issuing the same
+ * request, so they bypass the retry loop. 429 is treated as transient and
+ * retried alongside 5xx server errors. Non-HTTP errors (network/timeout) fall
+ * through to the default "retry" behaviour.
+ *
+ * @param error - The error thrown by the query function.
+ * @returns `true` when the error is worth retrying.
+ */
+function isRetryableError(error: unknown): boolean {
+  if (error instanceof HttpError) {
+    if (error.httpStatus === 429) {
+      return true;
+    }
+    return error.httpStatus < 400 || error.httpStatus >= 500;
+  }
+  return true;
+}
+
+const DEFAULT_POLICY_OPTIONS: CreateServicePolicyOptions = {
+  retryFilterPolicy: handleWhen(isRetryableError),
+};
 
 // === SERVICE DEFINITION ===
 
@@ -235,7 +290,7 @@ export class ChompApiService extends BaseDataService<
       name: serviceName,
       messenger,
       queryClientConfig,
-      policyOptions,
+      policyOptions: { ...DEFAULT_POLICY_OPTIONS, ...policyOptions },
     });
 
     this.#baseUrl = baseUrl;
@@ -310,7 +365,9 @@ export class ChompApiService extends BaseDataService<
    * chain details.
    * @returns The upgrade result.
    */
-  async createUpgrade(params: CreateUpgradeParams): Promise<UpgradeResponse> {
+  async createUpgrade(
+    params: CreateUpgradeParams,
+  ): Promise<CreateUpgradeResponse> {
     const jsonResponse = await this.fetchQuery({
       queryKey: [`${this.name}:createUpgrade`, params],
       staleTime: 0,
@@ -336,20 +393,21 @@ export class ChompApiService extends BaseDataService<
       },
     });
 
-    return create(jsonResponse, UpgradeResponseStruct);
+    return create(jsonResponse, CreateUpgradeResponseStruct);
   }
 
   /**
-   * Fetches the upgrade record for a given address.
+   * Fetches all EIP-7702 upgrade authorizations for a given address (one per
+   * chain).
    *
    * GET /v1/account-upgrade/:address
    *
    * @param address - The address to look up.
-   * @returns The upgrade record, or null if not found.
+   * @returns The upgrade entries; empty array if none exist.
    */
-  async getUpgrade(address: Hex): Promise<UpgradeResponse | null> {
+  async getUpgrades(address: Hex): Promise<UpgradeEntry[]> {
     const jsonResponse = await this.fetchQuery({
-      queryKey: [`${this.name}:getUpgrade`, address],
+      queryKey: [`${this.name}:getUpgrades`, address],
       queryFn: async () => {
         const headers = await this.#authHeaders();
         const response = await fetch(
@@ -357,14 +415,10 @@ export class ChompApiService extends BaseDataService<
           { headers },
         );
 
-        if (response.status === 404) {
-          return null;
-        }
-
         if (!response.ok) {
           throw new HttpError(
             response.status,
-            `Get upgrade request failed with status '${response.status}'`,
+            `Get upgrades request failed with status '${response.status}'`,
           );
         }
 
@@ -372,11 +426,7 @@ export class ChompApiService extends BaseDataService<
       },
     });
 
-    if (jsonResponse === null) {
-      return null;
-    }
-
-    return create(jsonResponse, UpgradeResponseStruct);
+    return create(jsonResponse, UpgradeEntryArrayStruct);
   }
 
   /**

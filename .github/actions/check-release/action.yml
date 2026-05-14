@@ -1,6 +1,11 @@
 name: Check release
 description: Check for conflicts in packages being released in this PR.
 
+inputs:
+  commit-starts-with:
+    description: "Validate that the release commit starts with a string in this comma-separated list. Use '[version]' to refer to the current release version."
+    required: true
+
 runs:
   using: composite
   steps:
@@ -32,7 +37,7 @@ runs:
       id: is-release
       uses: MetaMask/action-is-release@v2
       with:
-        commit-starts-with: 'Release [version],Release v[version],Release/[version],Release/v[version],Release `[version]`'
+        commit-starts-with: ${{ inputs.commit-starts-with }}
         commit-message: ${{ github.event.pull_request.title }}
         before: ${{ steps.merge-base.outputs.MERGE_BASE }}
         skip-checkout: true

@@ -548,21 +548,6 @@ describe('NetworkController', () => {
                   },
                 ],
               },
-              "0x531": {
-                "blockExplorerUrls": [],
-                "chainId": "0x531",
-                "defaultRpcEndpointIndex": 0,
-                "name": "Sei Mainnet",
-                "nativeCurrency": "SEI",
-                "rpcEndpoints": [
-                  {
-                    "failoverUrls": [],
-                    "networkClientId": "sei-mainnet",
-                    "type": "infura",
-                    "url": "https://sei-mainnet.infura.io/v3/{infuraProjectId}",
-                  },
-                ],
-              },
               "0x89": {
                 "blockExplorerUrls": [],
                 "chainId": "0x89",
@@ -575,6 +560,21 @@ describe('NetworkController', () => {
                     "networkClientId": "polygon-mainnet",
                     "type": "infura",
                     "url": "https://polygon-mainnet.infura.io/v3/{infuraProjectId}",
+                  },
+                ],
+              },
+              "0x8f": {
+                "blockExplorerUrls": [],
+                "chainId": "0x8f",
+                "defaultRpcEndpointIndex": 0,
+                "name": "Monad Mainnet",
+                "nativeCurrency": "MON",
+                "rpcEndpoints": [
+                  {
+                    "failoverUrls": [],
+                    "networkClientId": "monad-mainnet",
+                    "type": "infura",
+                    "url": "https://monad-mainnet.infura.io/v3/{infuraProjectId}",
                   },
                 ],
               },
@@ -735,21 +735,6 @@ describe('NetworkController', () => {
                     },
                   ],
                 },
-                "0x531": {
-                  "blockExplorerUrls": [],
-                  "chainId": "0x531",
-                  "defaultRpcEndpointIndex": 0,
-                  "name": "Sei Mainnet",
-                  "nativeCurrency": "SEI",
-                  "rpcEndpoints": [
-                    {
-                      "failoverUrls": [],
-                      "networkClientId": "sei-mainnet",
-                      "type": "infura",
-                      "url": "https://sei-mainnet.infura.io/v3/{infuraProjectId}",
-                    },
-                  ],
-                },
                 "0x89": {
                   "blockExplorerUrls": [],
                   "chainId": "0x89",
@@ -762,6 +747,21 @@ describe('NetworkController', () => {
                       "networkClientId": "polygon-mainnet",
                       "type": "infura",
                       "url": "https://polygon-mainnet.infura.io/v3/{infuraProjectId}",
+                    },
+                  ],
+                },
+                "0x8f": {
+                  "blockExplorerUrls": [],
+                  "chainId": "0x8f",
+                  "defaultRpcEndpointIndex": 0,
+                  "name": "Monad Mainnet",
+                  "nativeCurrency": "MON",
+                  "rpcEndpoints": [
+                    {
+                      "failoverUrls": [],
+                      "networkClientId": "monad-mainnet",
+                      "type": "infura",
+                      "url": "https://monad-mainnet.infura.io/v3/{infuraProjectId}",
                     },
                   ],
                 },
@@ -2026,6 +2026,21 @@ describe('NetworkController', () => {
                 enableRpcFailover: expect.any(Function),
                 disableRpcFailover: expect.any(Function),
               },
+              'monad-mainnet': {
+                blockTracker: expect.anything(),
+                configuration: {
+                  type: NetworkClientType.Infura,
+                  failoverRpcUrls: [],
+                  infuraProjectId,
+                  chainId: '0x8f',
+                  ticker: 'MON',
+                  network: InfuraNetworkType['monad-mainnet'],
+                },
+                provider: expect.anything(),
+                destroy: expect.any(Function),
+                enableRpcFailover: expect.any(Function),
+                disableRpcFailover: expect.any(Function),
+              },
               'optimism-mainnet': {
                 blockTracker: expect.anything(),
                 configuration: {
@@ -2050,21 +2065,6 @@ describe('NetworkController', () => {
                   chainId: '0x89',
                   ticker: 'POL',
                   network: InfuraNetworkType['polygon-mainnet'],
-                },
-                provider: expect.anything(),
-                destroy: expect.any(Function),
-                enableRpcFailover: expect.any(Function),
-                disableRpcFailover: expect.any(Function),
-              },
-              'sei-mainnet': {
-                blockTracker: expect.anything(),
-                configuration: {
-                  type: NetworkClientType.Infura,
-                  failoverRpcUrls: [],
-                  infuraProjectId,
-                  chainId: '0x531',
-                  ticker: 'SEI',
-                  network: InfuraNetworkType['sei-mainnet'],
                 },
                 provider: expect.anything(),
                 destroy: expect.any(Function),
@@ -14940,21 +14940,6 @@ describe('NetworkController', () => {
                   },
                 ],
               },
-              "0x531": {
-                "blockExplorerUrls": [],
-                "chainId": "0x531",
-                "defaultRpcEndpointIndex": 0,
-                "name": "Sei Mainnet",
-                "nativeCurrency": "SEI",
-                "rpcEndpoints": [
-                  {
-                    "failoverUrls": [],
-                    "networkClientId": "sei-mainnet",
-                    "type": "infura",
-                    "url": "https://sei-mainnet.infura.io/v3/{infuraProjectId}",
-                  },
-                ],
-              },
               "0x89": {
                 "blockExplorerUrls": [],
                 "chainId": "0x89",
@@ -14967,6 +14952,21 @@ describe('NetworkController', () => {
                     "networkClientId": "polygon-mainnet",
                     "type": "infura",
                     "url": "https://polygon-mainnet.infura.io/v3/{infuraProjectId}",
+                  },
+                ],
+              },
+              "0x8f": {
+                "blockExplorerUrls": [],
+                "chainId": "0x8f",
+                "defaultRpcEndpointIndex": 0,
+                "name": "Monad Mainnet",
+                "nativeCurrency": "MON",
+                "rpcEndpoints": [
+                  {
+                    "failoverUrls": [],
+                    "networkClientId": "monad-mainnet",
+                    "type": "infura",
+                    "url": "https://monad-mainnet.infura.io/v3/{infuraProjectId}",
                   },
                 ],
               },
@@ -15109,21 +15109,6 @@ describe('NetworkController', () => {
                   },
                 ],
               },
-              "0x531": {
-                "blockExplorerUrls": [],
-                "chainId": "0x531",
-                "defaultRpcEndpointIndex": 0,
-                "name": "Sei Mainnet",
-                "nativeCurrency": "SEI",
-                "rpcEndpoints": [
-                  {
-                    "failoverUrls": [],
-                    "networkClientId": "sei-mainnet",
-                    "type": "infura",
-                    "url": "https://sei-mainnet.infura.io/v3/{infuraProjectId}",
-                  },
-                ],
-              },
               "0x89": {
                 "blockExplorerUrls": [],
                 "chainId": "0x89",
@@ -15136,6 +15121,21 @@ describe('NetworkController', () => {
                     "networkClientId": "polygon-mainnet",
                     "type": "infura",
                     "url": "https://polygon-mainnet.infura.io/v3/{infuraProjectId}",
+                  },
+                ],
+              },
+              "0x8f": {
+                "blockExplorerUrls": [],
+                "chainId": "0x8f",
+                "defaultRpcEndpointIndex": 0,
+                "name": "Monad Mainnet",
+                "nativeCurrency": "MON",
+                "rpcEndpoints": [
+                  {
+                    "failoverUrls": [],
+                    "networkClientId": "monad-mainnet",
+                    "type": "infura",
+                    "url": "https://monad-mainnet.infura.io/v3/{infuraProjectId}",
                   },
                 ],
               },
@@ -15278,21 +15278,6 @@ describe('NetworkController', () => {
                   },
                 ],
               },
-              "0x531": {
-                "blockExplorerUrls": [],
-                "chainId": "0x531",
-                "defaultRpcEndpointIndex": 0,
-                "name": "Sei Mainnet",
-                "nativeCurrency": "SEI",
-                "rpcEndpoints": [
-                  {
-                    "failoverUrls": [],
-                    "networkClientId": "sei-mainnet",
-                    "type": "infura",
-                    "url": "https://sei-mainnet.infura.io/v3/{infuraProjectId}",
-                  },
-                ],
-              },
               "0x89": {
                 "blockExplorerUrls": [],
                 "chainId": "0x89",
@@ -15305,6 +15290,21 @@ describe('NetworkController', () => {
                     "networkClientId": "polygon-mainnet",
                     "type": "infura",
                     "url": "https://polygon-mainnet.infura.io/v3/{infuraProjectId}",
+                  },
+                ],
+              },
+              "0x8f": {
+                "blockExplorerUrls": [],
+                "chainId": "0x8f",
+                "defaultRpcEndpointIndex": 0,
+                "name": "Monad Mainnet",
+                "nativeCurrency": "MON",
+                "rpcEndpoints": [
+                  {
+                    "failoverUrls": [],
+                    "networkClientId": "monad-mainnet",
+                    "type": "infura",
+                    "url": "https://monad-mainnet.infura.io/v3/{infuraProjectId}",
                   },
                 ],
               },

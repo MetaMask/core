@@ -11,6 +11,7 @@ import type {
 } from '@metamask/base-controller';
 import {
   BNToHex,
+  isEqualCaseInsensitive,
   isValidHexAddress,
   safelyExecuteWithTimeout,
   toChecksumHexAddress,
@@ -62,6 +63,10 @@ import type {
   AccountTrackerControllerUpdateStakedBalancesAction,
 } from './AccountTrackerController-method-action-types';
 import { STAKING_CONTRACT_ADDRESS_BY_CHAINID } from './AssetsContractController';
+import {
+  MUSD_ERC20_ADDRESS_LOWER,
+  MUSD_TOKEN_DETECTION_CHAIN_IDS,
+} from './constants';
 import { AccountsApiBalanceFetcher } from './multi-chain-accounts-service/api-balance-fetcher';
 import type {
   BalanceFetcher,
@@ -81,6 +86,8 @@ import type {
   TokensControllerStateChangeEvent,
 } from './TokensController';
 import { createBatchedHandler } from './utils/create-batch-handler';
+
+const MUSD_IMPORT_CHAIN_ID_SET = new Set<Hex>(MUSD_TOKEN_DETECTION_CHAIN_IDS);
 
 export type ChainIdHex = Hex;
 export type ChecksumAddress = Hex;
@@ -289,6 +296,8 @@ type StakedBalanceUpdate = {
 const MESSENGER_EXPOSED_METHODS = [
   'updateChainPollingConfigs',
   'getChainPollingConfig',
+  'updateBalances',
+  'resetState',
 ] as const;
 
 export class TokenBalancesController extends StaticIntervalPollingController<{
@@ -821,7 +830,7 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
       }
     }
 
-    await this.#importUntrackedTokens(filteredAggregated);
+    await this.#importUntrackedTokens(filteredAggregated, targetChains);
   }
 
   #getTargetChains(chainIds?: ChainIdHex[]): ChainIdHex[] {
@@ -1156,14 +1165,20 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
   /**
    * Import untracked tokens that have non-zero balances.
    * This mirrors the v2 behavior where only tokens with actual balances are added.
+   * For mUSD default networks, the mUSD contract is also scheduled for import when
+   * balance is zero (Accounts API omits it like the single-call contract).
    * Delegates to TokenDetectionController:addDetectedTokensViaPolling which handles:
    * - Checking if useTokenDetection preference is enabled
    * - Filtering tokens already in allTokens or allIgnoredTokens
    * - Token metadata lookup and addition via TokensController
    *
    * @param balances - Array of processed balance results from fetchers
+   * @param targetChainIds - Chains included in this balance update (for mUSD zero-balance import)
    */
-  async #importUntrackedTokens(balances: ProcessedBalance[]): Promise<void> {
+  async #importUntrackedTokens(
+    balances: ProcessedBalance[],
+    targetChainIds: ChainIdHex[],
+  ): Promise<void> {
     const tokensByChain = new Map<ChainIdHex, string[]>();
 
     for (const balance of balances) {
@@ -1182,6 +1197,19 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
       if (!existing.includes(tokenAddress)) {
         existing.push(tokenAddress);
         tokensByChain.set(balance.chainId, existing);
+      }
+    }
+
+    for (const chainId of targetChainIds) {
+      if (!MUSD_IMPORT_CHAIN_ID_SET.has(chainId)) {
+        continue;
+      }
+      const existing = tokensByChain.get(chainId) ?? [];
+      const alreadyHasMusd = existing.some((addr) =>
+        isEqualCaseInsensitive(addr, MUSD_ERC20_ADDRESS_LOWER),
+      );
+      if (!alreadyHasMusd) {
+        tokensByChain.set(chainId, [...existing, MUSD_ERC20_ADDRESS_LOWER]);
       }
     }
 

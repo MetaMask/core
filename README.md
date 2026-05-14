@@ -78,6 +78,7 @@ Each package in this repository has its own README where you can find installati
 - [`@metamask/network-controller`](packages/network-controller)
 - [`@metamask/network-enablement-controller`](packages/network-enablement-controller)
 - [`@metamask/notification-services-controller`](packages/notification-services-controller)
+- [`@metamask/passkey-controller`](packages/passkey-controller)
 - [`@metamask/permission-controller`](packages/permission-controller)
 - [`@metamask/permission-log-controller`](packages/permission-log-controller)
 - [`@metamask/perps-controller`](packages/perps-controller)
@@ -95,12 +96,14 @@ Each package in this repository has its own README where you can find installati
 - [`@metamask/selected-network-controller`](packages/selected-network-controller)
 - [`@metamask/shield-controller`](packages/shield-controller)
 - [`@metamask/signature-controller`](packages/signature-controller)
+- [`@metamask/snap-account-service`](packages/snap-account-service)
 - [`@metamask/social-controllers`](packages/social-controllers)
 - [`@metamask/storage-service`](packages/storage-service)
 - [`@metamask/subscription-controller`](packages/subscription-controller)
 - [`@metamask/transaction-controller`](packages/transaction-controller)
 - [`@metamask/transaction-pay-controller`](packages/transaction-pay-controller)
 - [`@metamask/user-operation-controller`](packages/user-operation-controller)
+- [`@metamask/wallet`](packages/wallet)
 
 <!-- end package list -->
 
@@ -168,6 +171,7 @@ linkStyle default opacity:0.5
   network_controller(["@metamask/network-controller"]);
   network_enablement_controller(["@metamask/network-enablement-controller"]);
   notification_services_controller(["@metamask/notification-services-controller"]);
+  passkey_controller(["@metamask/passkey-controller"]);
   permission_controller(["@metamask/permission-controller"]);
   permission_log_controller(["@metamask/permission-log-controller"]);
   perps_controller(["@metamask/perps-controller"]);
@@ -185,12 +189,14 @@ linkStyle default opacity:0.5
   selected_network_controller(["@metamask/selected-network-controller"]);
   shield_controller(["@metamask/shield-controller"]);
   signature_controller(["@metamask/signature-controller"]);
+  snap_account_service(["@metamask/snap-account-service"]);
   social_controllers(["@metamask/social-controllers"]);
   storage_service(["@metamask/storage-service"]);
   subscription_controller(["@metamask/subscription-controller"]);
   transaction_controller(["@metamask/transaction-controller"]);
   transaction_pay_controller(["@metamask/transaction-pay-controller"]);
   user_operation_controller(["@metamask/user-operation-controller"]);
+  wallet(["@metamask/wallet"]);
   account_tree_controller --> accounts_controller;
   account_tree_controller --> base_controller;
   account_tree_controller --> keyring_controller;
@@ -371,19 +377,25 @@ linkStyle default opacity:0.5
   money_account_balance_service --> controller_utils;
   money_account_balance_service --> messenger;
   money_account_balance_service --> network_controller;
+  money_account_balance_service --> remote_feature_flag_controller;
   money_account_controller --> accounts_controller;
   money_account_controller --> base_controller;
   money_account_controller --> keyring_controller;
   money_account_controller --> messenger;
+  money_account_upgrade_controller --> authenticated_user_storage;
   money_account_upgrade_controller --> base_controller;
   money_account_upgrade_controller --> chomp_api_service;
+  money_account_upgrade_controller --> delegation_controller;
   money_account_upgrade_controller --> keyring_controller;
   money_account_upgrade_controller --> messenger;
+  money_account_upgrade_controller --> network_controller;
   multichain_account_service --> accounts_controller;
   multichain_account_service --> base_controller;
   multichain_account_service --> keyring_controller;
   multichain_account_service --> messenger;
+  multichain_account_service --> snap_account_service;
   multichain_account_service --> controller_utils;
+  multichain_api_middleware --> accounts_controller;
   multichain_api_middleware --> chain_agnostic_permission;
   multichain_api_middleware --> controller_utils;
   multichain_api_middleware --> json_rpc_engine;
@@ -418,11 +430,14 @@ linkStyle default opacity:0.5
   network_enablement_controller --> multichain_network_controller;
   network_enablement_controller --> network_controller;
   network_enablement_controller --> transaction_controller;
+  notification_services_controller --> authenticated_user_storage;
   notification_services_controller --> base_controller;
   notification_services_controller --> controller_utils;
   notification_services_controller --> keyring_controller;
   notification_services_controller --> messenger;
   notification_services_controller --> profile_sync_controller;
+  passkey_controller --> base_controller;
+  passkey_controller --> messenger;
   permission_controller --> approval_controller;
   permission_controller --> base_controller;
   permission_controller --> controller_utils;
@@ -441,6 +456,7 @@ linkStyle default opacity:0.5
   perps_controller --> profile_sync_controller;
   perps_controller --> remote_feature_flag_controller;
   perps_controller --> transaction_controller;
+  phishing_controller --> address_book_controller;
   phishing_controller --> base_controller;
   phishing_controller --> controller_utils;
   phishing_controller --> messenger;
@@ -499,6 +515,9 @@ linkStyle default opacity:0.5
   signature_controller --> logging_controller;
   signature_controller --> messenger;
   signature_controller --> network_controller;
+  snap_account_service --> account_tree_controller;
+  snap_account_service --> keyring_controller;
+  snap_account_service --> messenger;
   social_controllers --> base_controller;
   social_controllers --> base_data_service;
   social_controllers --> controller_utils;

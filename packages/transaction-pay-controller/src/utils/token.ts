@@ -3,12 +3,14 @@ import { Web3Provider } from '@ethersproject/providers';
 import { TokensControllerState } from '@metamask/assets-controllers';
 import { toChecksumHexAddress } from '@metamask/controller-utils';
 import { abiERC20 } from '@metamask/metamask-eth-abis';
-import type { Hex } from '@metamask/utils';
+import type { CaipAssetType, Hex } from '@metamask/utils';
+import { hexToBigInt, toCaipAssetType } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
 
 import {
   CHAIN_ID_POLYGON,
   NATIVE_TOKEN_ADDRESS,
+  SLIP44_COIN_TYPE_BY_CHAIN,
   STABLECOINS,
 } from '../constants';
 import type { FiatRates, TransactionPayControllerMessenger } from '../types';
@@ -330,14 +332,52 @@ export async function getLiveTokenBalance(
   const isNative =
     tokenAddress.toLowerCase() === getNativeToken(chainId).toLowerCase();
 
+  // Use `pending` blockTag to bypass the RPC block-cache middleware so callers
+  // always observe the latest balance instead of a value pinned to the last
+  // polled block.
   if (isNative) {
-    const balance = await ethersProvider.getBalance(account);
+    const balance = await ethersProvider.getBalance(account, 'pending');
     return balance.toString();
   }
 
   const contract = new Contract(tokenAddress, abiERC20, ethersProvider);
-  const balance = await contract.balanceOf(account);
+  const balance = await contract.balanceOf(account, { blockTag: 'pending' });
   return balance.toString();
+}
+
+/**
+ * Build a CAIP-19 asset type identifier for an EVM token.
+ *
+ * For native tokens the SLIP-44 coin type is resolved automatically from
+ * a built-in chain→coin-type map, falling back to 60 (ETH).  Callers can
+ * override via the optional third parameter.
+ *
+ * @param chainId - Hex chain ID (e.g. `0x1`).
+ * @param tokenAddress - Token contract address, or the native token address.
+ * @param slip44CoinType - Optional SLIP-44 coin type override for native tokens.
+ * @returns CAIP-19 asset type string.
+ */
+export function buildCaipAssetType(
+  chainId: Hex,
+  tokenAddress: Hex,
+  slip44CoinType?: number,
+): CaipAssetType {
+  const chainReference = String(hexToBigInt(chainId));
+  const isNative =
+    tokenAddress.toLowerCase() === getNativeToken(chainId).toLowerCase();
+
+  if (isNative) {
+    const coinType = slip44CoinType ?? SLIP44_COIN_TYPE_BY_CHAIN[chainId] ?? 60;
+
+    return toCaipAssetType(
+      'eip155',
+      chainReference,
+      'slip44',
+      String(coinType),
+    );
+  }
+
+  return toCaipAssetType('eip155', chainReference, 'erc20', tokenAddress);
 }
 
 function getTicker(
