@@ -143,11 +143,9 @@ export type PayStrategiesConfigRaw = {
 type FeatureFlagsExtendedRaw = {
   payStrategies?: {
     relay?: {
-      enabled?: boolean;
       gaslessEnabled?: boolean;
     };
   };
-  strategyOrder?: string[];
 };
 
 export type PayStrategiesConfig = {
