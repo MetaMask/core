@@ -45,7 +45,7 @@ const BULK_SCAN_BATCH_SIZE = 100;
 const MIN_TOKEN_OCCURRENCES = 3;
 
 /** CAIP-19 `assetNamespace` segments used across filtering logic. */
-enum CaipAssetNamespace {
+export enum CaipAssetNamespace {
   Slip44 = 'slip44',
   Erc20 = 'erc20',
   Token = 'token',
@@ -102,11 +102,18 @@ function transformV3AssetResponseToMetadata(
   const parsed = parseCaipAssetType(assetId);
   let tokenType: 'native' | 'erc20' | 'spl' = 'erc20';
 
-  if (nativeAssetIds.has(assetId.toLowerCase())) {
+  if (
+    nativeAssetIds.has(assetId.toLowerCase()) ||
+    parsed.assetNamespace === CaipAssetNamespace.Slip44
+  ) {
     tokenType = 'native';
-  } else if (parsed.assetNamespace === 'spl') {
+  } else if (
+    parsed.chain.namespace === KnownCaipNamespace.Solana &&
+    parsed.assetNamespace === CaipAssetNamespace.Token
+  ) {
     tokenType = 'spl';
   }
+  // TODO: Add support for Tron trc20 standard
 
   const metadata: FungibleAssetMetadata = {
     // Type derived from assetId
