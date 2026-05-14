@@ -6,6 +6,17 @@
 import type { PhishingController } from './PhishingController';
 
 /**
+ * Finds known recipient addresses that look like an address poisoning match.
+ *
+ * @param candidate - The recipient address being checked.
+ * @returns Similar known recipient matches sorted by score.
+ */
+export type PhishingControllerCheckAddressPoisoningAction = {
+  type: `PhishingController:checkAddressPoisoning`;
+  handler: PhishingController['checkAddressPoisoning'];
+};
+
+/**
  * Conditionally update the phishing configuration.
  *
  * If the stalelist configuration is out of date, this function will call `updateStalelist`
@@ -121,6 +132,7 @@ export type PhishingControllerGetApprovalsAction = {
  * Union of all PhishingController action types.
  */
 export type PhishingControllerMethodActions =
+  | PhishingControllerCheckAddressPoisoningAction
   | PhishingControllerMaybeUpdateStateAction
   | PhishingControllerTestOriginAction
   | PhishingControllerIsBlockedRequestAction

@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add `findSimilarAddresses` utility and `PhishingController:checkAddressPoisoning` messenger action to detect address poisoning attempts against known recipients ([#8171](https://github.com/MetaMask/core/pull/8171))
+  - The controller now hydrates and maintains a set of known recipient addresses from confirmed transactions (`TransactionController`) and the address book (`AddressBookController`)
+  - Exposes match metadata including prefix/suffix match lengths, poisoning score, and diff indices
+- Add `@metamask/address-book-controller` as a dependency ([#8171](https://github.com/MetaMask/core/pull/8171))
 - Support path-based phishing lists (`blocklistPaths`, `whitelistPaths`) and path-aware URL scanning for shared gateways (for example IPFS gateways and `sites.google.com`) via `getPhishingDetectionScanUrlParam`, `isPhishingDetectionPathBasedHostname`, and `PHISHING_DETECTION_PATH_BASED_ROOT_DOMAINS` ([#8662](https://github.com/MetaMask/core/pull/8662))
 
 ### Changed
