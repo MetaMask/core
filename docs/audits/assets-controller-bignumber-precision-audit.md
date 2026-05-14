@@ -329,6 +329,115 @@ into state. Two complementary changes:
    bridge-controller selector path (Finding 3) is the direct downstream
    consumer of these fields.
 
+## Why `toPrecision(15)` and not `toFixed(9)` (or anything else)?
+
+The older `boundedPrecisionNumber` in `CurrencyRateController` clamps decimal
+places (`toFixed(9)`). That helper was introduced to deflake fiat rates near
+`1` (USD/EUR-style values with 17-sig-digit floating-point artifacts like
+`1.0000000000000002`) — not to bound large-magnitude rates. As soon as the
+input is a weak-currency rate with eight integer digits (VND, IDR, etc.),
+`toFixed(9)` does not cap significant digits at all: it just keeps every
+fractional digit unchanged.
+
+Empirically, with `BigNumber.DEBUG = true` and `bignumber.js@9.1.2`:
+
+| Input (number)                         | `toFixed(9)` clamp value | `new BigNumber(clamped)` | `toPrecision(15)` clamp value | `new BigNumber(clamped)` |
+| -------------------------------------- | ------------------------ | ------------------------ | ----------------------------- | ------------------------ |
+| `40115252.21304121` (VND, 16 sd)       | `40115252.21304121`      | **throws**               | `40115252.2130412`            | OK                       |
+| `11259865.090939905` (IDR, 17 sd)      | `11259865.090939905`     | **throws**               | `11259865.0909399`            | OK                       |
+| `12345678901.234568` (big rate, 17 sd) | `12345678901.234568`     | **throws**               | `12345678901.2346`            | OK                       |
+| `12345678901234568` (int, 17 sd)       | `12345678901234568`      | **throws**               | `12345678901234600`           | OK                       |
+| `1.0000000000000002` (fp artifact)     | `1`                      | OK                       | `1`                           | OK                       |
+| `2308.478753378` (USD, 13 sd)          | `2308.478753378`         | OK                       | `2308.478753378`              | OK                       |
+| `1.2345678901234566e-7` (small, 16 sd) | `1.23e-7`                | OK                       | `1.23456789012346e-7`         | OK                       |
+| `1.23456789e-10` (sub-nano dust)       | `0` (**lost**)           | OK                       | `1.23456789e-10`              | OK                       |
+| `1.234567890123456e-15` (micro-dust)   | `0` (**lost**)           | OK                       | `1.23456789012346e-15`        | OK                       |
+
+In short, on the dimension we care about here `toPrecision(15)` strictly
+dominates `toFixed(9)`:
+
+- It is the only one of the two that actually defangs large-magnitude rates;
+  `toFixed(9)` only happens to deflake the small-magnitude floating-point
+  artifact case, not the weak-currency case the upstream audit reproduces.
+- It also _preserves more dust precision_, not less: `toFixed(9)` rounds
+  anything below `1e-9` to literal `0`. `toPrecision(15)` keeps up to fifteen
+  significant digits regardless of magnitude.
+
+### Cons of `toPrecision(15)`, such as they are
+
+1. **Exponential string form for `|x| < 1e-6`.** Once the bounded value is
+   round-tripped through `Number(...)`, its `.toString()` for sub-`1e-6`
+   magnitudes is exponential notation (e.g. `"1.23456789012346e-7"`). The
+   numeric value is preserved exactly; the only consumer-visible difference
+   is in raw string display. Fiat / price-API values never approach this
+   magnitude in practice (USD-priced assets bottom out far above `1e-6`),
+   and the controller has no path that builds a UI string off the bare
+   number anyway — formatting is consistently routed through bignumber.js'
+   `.toFixed(n)`.
+
+2. **Trailing-digit erosion for integers near `MAX_SAFE_INTEGER`.**
+   `12345678901234568` → `12345678901234600`. The source value is already
+   beyond IEEE-754's exact-integer range (`2^53 ≈ 9.007e15`), so the
+   "precision" was illusory; we are trading "looks precise but isn't" for
+   "fifteen genuine significant digits". No Price API field ever lands in
+   this range.
+
+3. **Rounding boundary moves with magnitude.** `toFixed(9)` rounds at the
+   ninth decimal place irrespective of magnitude; `toPrecision(15)` rounds
+   at the fifteenth significant digit. For values that previously rounded
+   to the same `toFixed(9)` output (e.g. `1.0000000001` and `1.0000000002`
+   both → `1.000000000`), `toPrecision(15)` keeps them distinct. This is
+   more correct, but tests that asserted on coarse-rounding collisions will
+   need updates.
+
+### Why we need the bound now even though we didn't before
+
+The original `boundedPrecisionNumber` shipped in
+`@metamask/assets-controllers` PR #7324 specifically to handle dust-token
+floating-point artifacts (the `1.0000000000000002` family). That works
+because those values shrink in significant-digit count after `toFixed(9)`
+rounds at the ninth decimal. The new failure mode — surfaced by
+weak-currency locales (VND, IDR) and by `usdPrice / nativeAssetUsdPrice`
+divisions that produce 17-sig-digit values — operates at the _opposite_ end
+of the magnitude scale: the digits that exceed fifteen significant are
+_to the left of the decimal point_, where `toFixed(9)` cannot reach. A
+significant-digit cap covers both ends and is the smallest change that
+restores the original intent ("store rates in a form that safely
+round-trips through `new BigNumber(...)`").
+
+### Subtle gotcha: bignumber.js' DEBUG regex on exponential strings
+
+`bignumber.js@9.x` enforces the 15-significant-digit limit by stringifying
+the input number and applying
+
+```js
+str.replace(/^0\.0*|\./, '').length > 15;
+```
+
+That regex strips at most one decimal point or leading-zero run and then
+counts the remaining characters — _including_ an exponential suffix like
+`e-7` as if it were digits:
+
+```js
+'1.23456789012346e-7'.replace(/^0\.0*|\./, ''); // "123456789012346e-7", length 18
+```
+
+Empirically, this does _not_ trip on our `toPrecision(15)` outputs when
+they reach `new BigNumber(value)` via the number-input path — the float
+constructor branch normalises through JS' default
+`(1.23456789012346e-7).toString()` which collapses the trailing zeros and
+the regex passes. But the same value handed in as a literal _string_ would
+trip the throw under `DEBUG`. The implication is:
+
+- Bound via `toPrecision(15)` _at the source_ (when we read from the API
+  / when we compute the divided rate), not at the BigNumber call site, so
+  every downstream caller — whether they pass the value as a number or as
+  a stringified form — is safe.
+- Do not stringify a bounded value explicitly before passing to BigNumber.
+  `new BigNumber(state.assetsPrice[id].price)` is fine after bounding;
+  `new BigNumber(String(state.assetsPrice[id].price))` may not be in
+  DEBUG mode for sub-`1e-6` values.
+
 ## Should `AssetPrice.*` numeric fields just be strings?
 
 A reasonable follow-up question is: bounding is only required for `number`
