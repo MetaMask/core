@@ -14,3 +14,19 @@ export async function confirmPurge(): Promise<boolean> {
     default: false,
   });
 }
+
+/**
+ * Prompt the user for the wallet password, with input masked. Used by
+ * `mm wallet unlock` when the user did not pass `--password` or set the
+ * `MM_WALLET_PASSWORD` env var. Same dynamic-import + ESM-interop pattern
+ * as {@link confirmPurge}.
+ *
+ * @returns The password the user typed.
+ */
+export async function promptPassword(): Promise<string> {
+  const { default: password } = await import('@inquirer/password');
+  return password({
+    message: 'Wallet password:',
+    mask: true,
+  });
+}
