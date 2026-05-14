@@ -47,13 +47,31 @@ type NativeTokenAllowancePermission = BasePermission & {
 };
 
 /**
+ * Permission type for token approval revocation.
+ *
+ * Not yet defined in `@metamask/7715-permission-types`, so declared locally.
+ */
+type TokenApprovalRevocationPermission = BasePermission & {
+  type: 'token-approval-revocation';
+  data: MetaMaskBasePermissionData & {
+    erc20Approve: boolean;
+    erc721Approve: boolean;
+    erc721SetApprovalForAll: boolean;
+    permit2Approve: boolean;
+    permit2Lockdown: boolean;
+    permit2InvalidateNonces: boolean;
+  };
+};
+
+/**
  * Extended permission union, including types not yet published in
  * `@metamask/7715-permission-types` but supported by this package's decoder.
  */
 type ExtendedPermissionTypes =
   | PermissionTypes
   | Erc20TokenAllowancePermission
-  | NativeTokenAllowancePermission;
+  | NativeTokenAllowancePermission
+  | TokenApprovalRevocationPermission;
 
 // This is a somewhat convoluted type - it includes all of the fields that are decoded from the permission context.
 /**
@@ -65,13 +83,15 @@ type ExtendedPermissionTypes =
  * `TimestampEnforcer` terms, as well as the `origin` property.
  */
 export type DecodedPermission = Pick<
-  PermissionRequest<ExtendedPermissionTypes>,
+  PermissionRequest<PermissionTypes>,
   'chainId' | 'from' | 'to'
 > & {
   permission: Omit<
-    PermissionRequest<ExtendedPermissionTypes>['permission'],
-    'isAdjustmentAllowed'
+    PermissionRequest<PermissionTypes>['permission'],
+    'isAdjustmentAllowed' | 'type' | 'data'
   > & {
+    type: ExtendedPermissionTypes['type'];
+    data: ExtendedPermissionTypes['data'];
     // PermissionRequest type does not work well without the specific permission type, so we amend it here
     justification?: string;
   };
@@ -97,6 +117,7 @@ export type ChecksumEnforcersByChainId = {
   erc20PeriodicEnforcer: Hex;
   nativeTokenStreamingEnforcer: Hex;
   nativeTokenPeriodicEnforcer: Hex;
+  approvalRevocationEnforcer: Hex;
   exactCalldataEnforcer: Hex;
   valueLteEnforcer: Hex;
   timestampEnforcer: Hex;
