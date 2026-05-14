@@ -464,14 +464,14 @@ describe('Feature Flags Utils', () => {
       expect(isRelayExecuteEnabled(messenger)).toBe(false);
     });
 
-    it('returns true when isGaslessEnabled is true', () => {
+    it('returns true when gaslessEnabled is true', () => {
       getRemoteFeatureFlagControllerStateMock.mockReturnValue({
         ...getDefaultRemoteFeatureFlagControllerState(),
         remoteFeatureFlags: {
-          confirmations_pay: {
+          confirmations_pay_extended: {
             payStrategies: {
               relay: {
-                isGaslessEnabled: true,
+                gaslessEnabled: true,
               },
             },
           },
@@ -481,14 +481,14 @@ describe('Feature Flags Utils', () => {
       expect(isRelayExecuteEnabled(messenger)).toBe(true);
     });
 
-    it('returns false when isGaslessEnabled is false', () => {
+    it('returns false when gaslessEnabled is false', () => {
       getRemoteFeatureFlagControllerStateMock.mockReturnValue({
         ...getDefaultRemoteFeatureFlagControllerState(),
         remoteFeatureFlags: {
-          confirmations_pay: {
+          confirmations_pay_extended: {
             payStrategies: {
               relay: {
-                isGaslessEnabled: false,
+                gaslessEnabled: false,
               },
             },
           },
