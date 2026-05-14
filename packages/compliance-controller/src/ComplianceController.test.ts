@@ -1,4 +1,5 @@
 import { deriveStateFromMetadata } from '@metamask/base-controller';
+import { toChecksumHexAddress } from '@metamask/controller-utils';
 import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
 import type {
   MockAnyNamespace,
@@ -11,7 +12,7 @@ import type { ComplianceControllerMessenger } from './ComplianceController';
 import { selectAreAnyWalletsBlocked, selectIsWalletBlocked } from './selectors';
 
 const LOWERCASE_EVM_ADDRESS = '0x4e1ff7229bddaf0a73df183a88d9c3a04cc975e0';
-const CHECKSUM_EVM_ADDRESS = '0x4e1fF7229BDdAf0A73DF183a88d9c3a04cc975e0';
+const CHECKSUM_EVM_ADDRESS = toChecksumHexAddress(LOWERCASE_EVM_ADDRESS);
 
 describe('ComplianceController', () => {
   describe('constructor', () => {
