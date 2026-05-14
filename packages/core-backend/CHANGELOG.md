@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [6.3.0]
+
 ### Added
 
 - Add `OHLCVService` for real-time OHLCV (candlestick) data streaming via WebSocket ([#8695](https://github.com/MetaMask/core/pull/8695))
@@ -282,7 +284,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Type definitions** - Comprehensive TypeScript types for transactions, balances, WebSocket messages, and service configurations
 - **Logging infrastructure** - Structured logging with module-specific loggers for debugging and monitoring
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/core-backend@6.2.2...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/core-backend@6.3.0...HEAD
+[6.3.0]: https://github.com/MetaMask/core/compare/@metamask/core-backend@6.2.2...@metamask/core-backend@6.3.0
 [6.2.2]: https://github.com/MetaMask/core/compare/@metamask/core-backend@6.2.1...@metamask/core-backend@6.2.2
 [6.2.1]: https://github.com/MetaMask/core/compare/@metamask/core-backend@6.2.0...@metamask/core-backend@6.2.1
 [6.2.0]: https://github.com/MetaMask/core/compare/@metamask/core-backend@6.1.1...@metamask/core-backend@6.2.0
