@@ -30,7 +30,7 @@ const CONFIG: DaemonSpawnConfig = {
   dataDir: '/tmp/data',
   infuraProjectId: 'test-key',
   password: 'test-pass',
-  srp: 'test test test test test test test test test test test ball',
+  srp: 'abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about',
   packageRoot: '/pkg',
 };
 
@@ -147,7 +147,7 @@ describe('ensureDaemon', () => {
           INFURA_PROJECT_ID: 'test-key',
           MM_WALLET_PASSWORD: 'test-pass',
           MM_WALLET_SRP:
-            'test test test test test test test test test test test ball',
+            'abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about',
         }),
       }),
     );
