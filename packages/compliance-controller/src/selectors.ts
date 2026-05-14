@@ -1,35 +1,12 @@
-import {
-  isEqualCaseInsensitive,
-  isValidHexAddress,
-} from '@metamask/controller-utils';
 import { createSelector } from 'reselect';
 
 import type { ComplianceControllerState } from './ComplianceController';
-import type { WalletComplianceStatus } from './types';
+import { getWalletComplianceStatus } from './utils';
 
 const selectWalletComplianceStatusMap = (
   state: ComplianceControllerState,
 ): ComplianceControllerState['walletComplianceStatusMap'] =>
   state.walletComplianceStatusMap;
-
-export const getWalletComplianceStatus = (
-  statusMap: ComplianceControllerState['walletComplianceStatusMap'],
-  address: string,
-): WalletComplianceStatus | undefined => {
-  const exactMatch = statusMap[address];
-
-  if (exactMatch || !isValidHexAddress(address, { allowNonPrefixed: false })) {
-    return exactMatch;
-  }
-
-  const matchingAddress = Object.keys(statusMap).find(
-    (cachedAddress) =>
-      isValidHexAddress(cachedAddress, { allowNonPrefixed: false }) &&
-      isEqualCaseInsensitive(cachedAddress, address),
-  );
-
-  return matchingAddress ? statusMap[matchingAddress] : undefined;
-};
 
 /**
  * Creates a selector that returns whether a wallet address is blocked, based

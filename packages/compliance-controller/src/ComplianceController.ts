@@ -11,8 +11,8 @@ import type {
   ComplianceServiceCheckWalletComplianceAction,
   ComplianceServiceCheckWalletsComplianceAction,
 } from './ComplianceService-method-action-types';
-import { getWalletComplianceStatus } from './selectors';
 import type { WalletComplianceStatus } from './types';
+import { getWalletComplianceStatus } from './utils';
 
 // === GENERAL ===
 

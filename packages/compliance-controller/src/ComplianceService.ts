@@ -33,7 +33,8 @@ export type ComplianceServiceOptions = {
   fetch: typeof fetch;
   /**
    * Explicit Compliance API URL. Prefer this for application builds so API
-   * endpoints can be managed by build configuration.
+   * endpoints can be managed by build configuration. Path components are
+   * preserved as a base path for Compliance API routes.
    */
   apiUrl?: string;
   /**
@@ -260,7 +261,7 @@ export class ComplianceService {
   async checkWalletCompliance(address: string): Promise<WalletCheckResponse> {
     const response = await this.#policy.execute(async () => {
       const url = new URL(
-        `/v1/wallet/${encodeURIComponent(address)}`,
+        `v1/wallet/${encodeURIComponent(address)}`,
         this.#complianceApiUrl,
       );
       const localResponse = await this.#fetch(url);
@@ -291,7 +292,7 @@ export class ComplianceService {
     addresses: string[],
   ): Promise<BatchWalletCheckResponseItem[]> {
     const response = await this.#policy.execute(async () => {
-      const url = new URL('/v1/wallet/batch', this.#complianceApiUrl);
+      const url = new URL('v1/wallet/batch', this.#complianceApiUrl);
       const localResponse = await this.#fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -326,11 +327,22 @@ function getComplianceApiUrl({
     return COMPLIANCE_API_URLS[env];
   }
 
+  let url: URL;
   try {
-    return new URL(apiUrl).href;
+    url = new URL(apiUrl);
   } catch {
     throw new Error(`Invalid Compliance API URL: ${apiUrl}`);
   }
+
+  if (url.search || url.hash) {
+    throw new Error(
+      `Invalid Compliance API URL: ${apiUrl}. Query strings and fragments are not supported.`,
+    );
+  }
+  if (!url.pathname.endsWith('/')) {
+    url.pathname = `${url.pathname}/`;
+  }
+  return url.href;
 }
 
 /**

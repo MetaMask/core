@@ -194,6 +194,28 @@ describe('ComplianceService', () => {
       });
     });
 
+    it('preserves path components in the configured API URL', async () => {
+      nock(MOCK_CONFIGURED_API_URL)
+        .get('/compliance/v1/wallet/0xABC123')
+        .reply(200, {
+          address: '0xABC123',
+          blocked: false,
+        });
+      const { rootMessenger } = getService({
+        options: { apiUrl: `${MOCK_CONFIGURED_API_URL}/compliance` },
+      });
+
+      const result = await rootMessenger.call(
+        'ComplianceService:checkWalletCompliance',
+        '0xABC123',
+      );
+
+      expect(result).toStrictEqual({
+        address: '0xABC123',
+        blocked: false,
+      });
+    });
+
     it('defaults to the production API URL when no API URL or environment is provided', async () => {
       nock(MOCK_PRODUCTION_API_URL).get('/v1/wallet/0xABC123').reply(200, {
         address: '0xABC123',
@@ -216,6 +238,23 @@ describe('ComplianceService', () => {
       expect(() =>
         getService({ options: { apiUrl: 'not-a-valid-url' } }),
       ).toThrow('Invalid Compliance API URL: not-a-valid-url');
+    });
+
+    it('throws if the configured API URL includes a query string or fragment', () => {
+      expect(() =>
+        getService({
+          options: { apiUrl: `${MOCK_CONFIGURED_API_URL}?foo=bar` },
+        }),
+      ).toThrow(
+        `Invalid Compliance API URL: ${MOCK_CONFIGURED_API_URL}?foo=bar. Query strings and fragments are not supported.`,
+      );
+      expect(() =>
+        getService({
+          options: { apiUrl: `${MOCK_CONFIGURED_API_URL}#anchor` },
+        }),
+      ).toThrow(
+        `Invalid Compliance API URL: ${MOCK_CONFIGURED_API_URL}#anchor. Query strings and fragments are not supported.`,
+      );
     });
   });
 
@@ -372,7 +411,7 @@ function getService({
   const service = new ComplianceService({
     fetch,
     messenger,
-    ...(!useDefaultEnvironment && { env: 'development' as const }),
+    ...(useDefaultEnvironment ? {} : { env: 'development' as const }),
     ...options,
   });
 
