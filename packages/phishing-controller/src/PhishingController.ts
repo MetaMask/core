@@ -59,6 +59,7 @@ import {
   getHostnameFromUrl,
   roundToNearestMinute,
   getHostnameFromWebUrl,
+  getPhishingDetectionScanUrlParam,
   buildCacheKey,
   splitCacheHits,
   resolveChainName,
@@ -1202,15 +1203,16 @@ export class PhishingController extends BaseController<
   }
 
   /**
-   * Scan a URL for phishing. It will only scan the hostname of the URL. It also only supports
-   * web URLs.
+   * Scan a URL for phishing. For most hosts only the hostname is sent to the API; for known
+   * shared gateways the pathname is included (see `PHISHING_DETECTION_PATH_BASED_ROOT_DOMAINS`).
+   * Only supports web URLs (`http:` / `https:`).
    *
    * @param url - The URL to scan.
    * @returns The phishing detection scan result.
    */
   async scanUrl(url: string): Promise<PhishingDetectionScanResult> {
-    const [hostname, ok] = getHostnameFromWebUrl(url);
-    if (!ok) {
+    const [scanUrlParam, scanParamOk] = getPhishingDetectionScanUrlParam(url);
+    if (!scanParamOk) {
       return {
         hostname: '',
         recommendedAction: RecommendedAction.None,
@@ -1218,7 +1220,9 @@ export class PhishingController extends BaseController<
       };
     }
 
-    const cachedResult = this.#urlScanCache.get(hostname);
+    const [hostname] = getHostnameFromWebUrl(url);
+
+    const cachedResult = this.#urlScanCache.get(scanUrlParam);
     if (cachedResult) {
       return cachedResult;
     }
@@ -1226,7 +1230,7 @@ export class PhishingController extends BaseController<
     const apiResponse = await safelyExecuteWithTimeout(
       async () => {
         const res = await fetch(
-          `${PHISHING_DETECTION_BASE_URL}/${PHISHING_DETECTION_SCAN_ENDPOINT}?url=${encodeURIComponent(hostname)}`,
+          `${PHISHING_DETECTION_BASE_URL}/${PHISHING_DETECTION_SCAN_ENDPOINT}?url=${encodeURIComponent(scanUrlParam)}`,
           {
             method: 'GET',
             headers: {
@@ -1267,7 +1271,7 @@ export class PhishingController extends BaseController<
       recommendedAction: scanResult.recommendedAction,
     };
 
-    this.#urlScanCache.set(hostname, result);
+    this.#urlScanCache.set(scanUrlParam, result);
 
     return result;
   }

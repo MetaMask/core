@@ -2877,7 +2877,7 @@ describe('PhishingController', () => {
     it('should return a PhishingDetectionScanResult with a fetchError on timeout', async () => {
       const scope = nock(PHISHING_DETECTION_BASE_URL)
         .get(`/${PHISHING_DETECTION_SCAN_ENDPOINT}`)
-        .query({ url: testUrl })
+        .query({ url: 'example.com' })
         .delayConnection(10000)
         .reply(200, {});
 
@@ -2998,6 +2998,56 @@ describe('PhishingController', () => {
       );
       expect(response).toMatchObject(mockResponse);
       expect(scope.isDone()).toBe(true);
+    });
+
+    it('should send hostname and path for path-based gateways and cache per path', async () => {
+      const urlA = 'https://ipfs.io/ipfs/QmAAA';
+      const urlB = 'https://ipfs.io/ipfs/QmBBB';
+
+      const scopeA = nock(PHISHING_DETECTION_BASE_URL)
+        .get(`/${PHISHING_DETECTION_SCAN_ENDPOINT}`)
+        .query({ url: 'ipfs.io/ipfs/QmAAA' })
+        .reply(200, {
+          recommendedAction: RecommendedAction.Warn,
+        });
+
+      const scopeB = nock(PHISHING_DETECTION_BASE_URL)
+        .get(`/${PHISHING_DETECTION_SCAN_ENDPOINT}`)
+        .query({ url: 'ipfs.io/ipfs/QmBBB' })
+        .reply(200, {
+          recommendedAction: RecommendedAction.Block,
+        });
+
+      const fetchSpy = jest.spyOn(global, 'fetch');
+
+      const resultA1 = await rootMessenger.call(
+        'PhishingController:scanUrl',
+        urlA,
+      );
+      const resultB = await rootMessenger.call(
+        'PhishingController:scanUrl',
+        urlB,
+      );
+      const resultA2 = await rootMessenger.call(
+        'PhishingController:scanUrl',
+        urlA,
+      );
+
+      expect(resultA1).toMatchObject({
+        hostname: 'ipfs.io',
+        recommendedAction: RecommendedAction.Warn,
+      });
+      expect(resultB).toMatchObject({
+        hostname: 'ipfs.io',
+        recommendedAction: RecommendedAction.Block,
+      });
+      expect(resultA2).toStrictEqual(resultA1);
+
+      expect(scopeA.isDone()).toBe(true);
+      expect(scopeB.isDone()).toBe(true);
+      expect(fetchSpy).toHaveBeenCalledTimes(2);
+
+      fetchSpy.mockRestore();
     });
   });
 

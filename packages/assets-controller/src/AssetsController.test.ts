@@ -260,6 +260,23 @@ describe('AssetsController', () => {
         selectedCurrency: 'usd',
       });
     });
+
+    it('pre-seeds assetsInfo with EIP-55 checksummed CAIP-19 keys', () => {
+      // Regression: MUSD_ADDRESS was previously all-lowercase, so
+      // buildDefaultAssetsInfo() produced lowercase CAIP-19 keys while data
+      // sources (which call normalizeAssetId) wrote checksummed keys.
+      // After the first balance poll both keys existed in assetsInfo.
+      const defaultState = getDefaultAssetsControllerState();
+      const assetIds = Object.keys(defaultState.assetsInfo);
+      expect(assetIds.length).toBeGreaterThan(0);
+      // Every erc20 asset ID must contain at least one uppercase hex letter
+      // (EIP-55 checksum property) so that keys match normalizeAssetId output.
+      const erc20Ids = assetIds.filter((id) => id.includes('/erc20:'));
+      expect(erc20Ids.length).toBeGreaterThan(0);
+      for (const id of erc20Ids) {
+        expect(id).toMatch(/\/erc20:0x[0-9a-fA-F]*[A-F][0-9a-fA-F]*/u);
+      }
+    });
   });
 
   describe('constructor', () => {

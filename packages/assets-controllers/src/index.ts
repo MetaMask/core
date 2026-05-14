@@ -294,6 +294,7 @@ export type {
   TrendingAsset,
   TrendingTokensQueryParams,
   TokenSearchItem,
+  PageInfo,
   TokenAsset,
   TokenRwaData,
   TokenSecurityData,

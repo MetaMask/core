@@ -10,6 +10,7 @@ export type {
   TransactionPayControllerMessenger,
   TransactionPayControllerOptions,
   TransactionPayControllerState,
+  PolymarketCallbacks,
   TransactionPayControllerStateChangeEvent,
   TransactionPaymentToken,
   TransactionPayQuote,
@@ -22,6 +23,8 @@ export type {
 export type {
   TransactionPayControllerGetDelegationTransactionAction,
   TransactionPayControllerGetStrategyAction,
+  TransactionPayControllerPolymarketGetDepositWalletAddressAction,
+  TransactionPayControllerPolymarketSubmitDepositWalletBatchAction,
   TransactionPayControllerSetTransactionConfigAction,
   TransactionPayControllerUpdatePaymentTokenAction,
   TransactionPayControllerUpdateFiatPaymentAction,

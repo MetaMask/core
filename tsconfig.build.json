@@ -255,6 +255,9 @@
     },
     {
       "path": "./packages/user-operation-controller/tsconfig.build.json"
+    },
+    {
+      "path": "./packages/wallet/tsconfig.build.json"
     }
   ],
   "files": [],

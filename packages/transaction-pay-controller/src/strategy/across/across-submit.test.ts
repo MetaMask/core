@@ -79,6 +79,7 @@ const QUOTE_MOCK: TransactionPayQuote<AcrossQuote> = {
       },
     },
     request: {
+      actions: [],
       amount: '100',
       tradeType: 'exactOutput',
     },
@@ -104,8 +105,10 @@ describe('Across Submit', () => {
   const {
     addTransactionBatchMock,
     addTransactionMock,
+    estimateGasBatchMock,
     estimateGasMock,
     findNetworkClientIdByChainIdMock,
+    getKeyringControllerStateMock,
     getRemoteFeatureFlagControllerStateMock,
     getTransactionControllerStateMock,
     messenger,
@@ -125,6 +128,16 @@ describe('Across Submit', () => {
           },
         },
       },
+    });
+    getKeyringControllerStateMock.mockReturnValue({
+      isUnlocked: true,
+      keyrings: [
+        {
+          type: 'HD Key Tree',
+          accounts: [FROM_MOCK],
+          metadata: { id: 'hd-keyring', name: 'HD Key Tree' },
+        },
+      ],
     });
 
     estimateGasMock.mockResolvedValue({
@@ -231,6 +244,7 @@ describe('Across Submit', () => {
 
       expect(addTransactionBatchMock).toHaveBeenCalledWith(
         expect.objectContaining({
+          excludeNativeTokenForFee: true,
           gasFeeToken: QUOTE_MOCK.request.sourceTokenAddress,
         }),
       );
@@ -281,6 +295,237 @@ describe('Across Submit', () => {
               type: TransactionType.perpsAcrossDeposit,
             }),
           ],
+        }),
+      );
+    });
+
+    it('estimates 7702 batch gas when a post-quote original transaction was not priced in the quote', async () => {
+      const postQuote = {
+        ...QUOTE_MOCK,
+        original: {
+          ...QUOTE_MOCK.original,
+          metamask: {
+            gasLimits: [{ estimate: 43000, max: 64000 }],
+            is7702: true,
+          },
+        },
+        request: {
+          ...QUOTE_MOCK.request,
+          isPostQuote: true,
+        },
+      } as TransactionPayQuote<AcrossQuote>;
+
+      getKeyringControllerStateMock.mockReturnValue({
+        isUnlocked: true,
+        keyrings: [
+          {
+            type: 'HD Key Tree',
+            accounts: [FROM_MOCK],
+            metadata: { id: 'hd-keyring', name: 'HD Key Tree' },
+          },
+        ],
+      });
+      estimateGasBatchMock.mockResolvedValue({
+        gasLimits: [123456],
+      });
+
+      await submitAcrossQuotes({
+        accountSupports7702: true,
+        messenger,
+        quotes: [postQuote],
+        transaction: {
+          ...TRANSACTION_META_MOCK,
+          type: TransactionType.batch,
+          nestedTransactions: [{ type: TransactionType.predictWithdraw }],
+          txParams: {
+            from: FROM_MOCK,
+            to: '0x000000000000000000000000000000000000dEaD' as Hex,
+            data: '0x12345678' as Hex,
+          },
+        } as TransactionMeta,
+        isSmartTransaction: jest.fn(),
+      });
+
+      expect(estimateGasBatchMock).toHaveBeenCalledWith({
+        chainId: QUOTE_MOCK.request.sourceChainId,
+        from: FROM_MOCK,
+        transactions: [
+          expect.objectContaining({
+            data: '0x12345678',
+            gas: undefined,
+            to: '0x000000000000000000000000000000000000dEaD',
+          }),
+          expect.objectContaining({
+            data: QUOTE_MOCK.original.quote.approvalTxns[0].data,
+            gas: undefined,
+            to: QUOTE_MOCK.original.quote.approvalTxns[0].to,
+          }),
+          expect.objectContaining({
+            data: QUOTE_MOCK.original.quote.swapTx.data,
+            gas: undefined,
+            to: QUOTE_MOCK.original.quote.swapTx.to,
+          }),
+        ],
+      });
+      expect(addTransactionBatchMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          disable7702: false,
+          disableHook: true,
+          disableSequential: true,
+          gasLimit7702: toHex(123456),
+          transactions: [
+            expect.objectContaining({
+              params: expect.objectContaining({
+                data: '0x12345678',
+                gas: undefined,
+                to: '0x000000000000000000000000000000000000dEaD',
+              }),
+              type: TransactionType.predictWithdraw,
+            }),
+            expect.objectContaining({
+              params: expect.objectContaining({
+                data: QUOTE_MOCK.original.quote.approvalTxns[0].data,
+                gas: undefined,
+                to: QUOTE_MOCK.original.quote.approvalTxns[0].to,
+              }),
+              type: TransactionType.tokenMethodApprove,
+            }),
+            expect.objectContaining({
+              params: expect.objectContaining({
+                data: QUOTE_MOCK.original.quote.swapTx.data,
+                gas: undefined,
+                to: QUOTE_MOCK.original.quote.swapTx.to,
+              }),
+              type: TransactionType.predictAcrossWithdraw,
+            }),
+          ],
+        }),
+      );
+    });
+
+    it('reuses quoted 7702 batch gas when the post-quote original transaction already has gas', async () => {
+      const postQuote = {
+        ...QUOTE_MOCK,
+        original: {
+          ...QUOTE_MOCK.original,
+          metamask: {
+            gasLimits: [{ estimate: 43000, max: 64000 }],
+            is7702: true,
+          },
+          quote: {
+            ...QUOTE_MOCK.original.quote,
+            approvalTxns: [],
+          },
+        },
+        request: {
+          ...QUOTE_MOCK.request,
+          isPostQuote: true,
+        },
+      } as TransactionPayQuote<AcrossQuote>;
+
+      await submitAcrossQuotes({
+        accountSupports7702: true,
+        messenger,
+        quotes: [postQuote],
+        transaction: {
+          ...TRANSACTION_META_MOCK,
+          type: TransactionType.swap,
+          txParams: {
+            from: FROM_MOCK,
+            to: '0x000000000000000000000000000000000000dEaD' as Hex,
+            data: '0x12345678' as Hex,
+            gas: '0x5208',
+          },
+        } as TransactionMeta,
+        isSmartTransaction: jest.fn(),
+      });
+
+      expect(estimateGasBatchMock).not.toHaveBeenCalled();
+      expect(addTransactionBatchMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          disable7702: false,
+          gasLimit7702: toHex(64000),
+          transactions: [
+            expect.objectContaining({
+              params: expect.objectContaining({
+                data: '0x12345678',
+                gas: undefined,
+                to: '0x000000000000000000000000000000000000dEaD',
+              }),
+              type: TransactionType.swap,
+            }),
+            expect.objectContaining({
+              params: expect.objectContaining({
+                data: QUOTE_MOCK.original.quote.swapTx.data,
+                gas: undefined,
+                to: QUOTE_MOCK.original.quote.swapTx.to,
+              }),
+              type: TransactionType.swap,
+            }),
+          ],
+        }),
+      );
+    });
+
+    it('submits 7702 batches without estimated gas when the account cannot sign authorizations', async () => {
+      getKeyringControllerStateMock.mockReturnValue({
+        isUnlocked: true,
+        keyrings: [
+          {
+            type: 'Ledger Hardware',
+            accounts: [FROM_MOCK],
+            metadata: { id: 'ledger-keyring', name: 'Ledger Hardware' },
+          },
+        ],
+      });
+
+      await submitAcrossQuotes({
+        accountSupports7702: true,
+        messenger,
+        quotes: [QUOTE_MOCK],
+        transaction: {
+          ...TRANSACTION_META_MOCK,
+          txParams: {
+            ...TRANSACTION_META_MOCK.txParams,
+            authorizationList: [{ address: '0xabc' as Hex }],
+          },
+        } as TransactionMeta,
+        isSmartTransaction: jest.fn(),
+      });
+
+      expect(estimateGasBatchMock).not.toHaveBeenCalled();
+      expect(addTransactionBatchMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          disable7702: false,
+          gasLimit7702: undefined,
+        }),
+      );
+    });
+
+    it('submits 7702 batches without estimated gas when estimation returns multiple gas limits', async () => {
+      estimateGasBatchMock.mockResolvedValue({
+        gasLimits: [123456, 234567],
+      });
+
+      await submitAcrossQuotes({
+        accountSupports7702: true,
+        messenger,
+        quotes: [QUOTE_MOCK],
+        transaction: {
+          ...TRANSACTION_META_MOCK,
+          txParams: {
+            ...TRANSACTION_META_MOCK.txParams,
+            authorizationList: [{ address: '0xabc' as Hex }],
+          },
+        } as TransactionMeta,
+        isSmartTransaction: jest.fn(),
+      });
+
+      expect(estimateGasBatchMock).toHaveBeenCalledTimes(1);
+      expect(addTransactionBatchMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          disable7702: false,
+          gasLimit7702: undefined,
         }),
       );
     });
@@ -340,6 +585,7 @@ describe('Across Submit', () => {
       expect(addTransactionMock).toHaveBeenCalledWith(
         expect.anything(),
         expect.objectContaining({
+          excludeNativeTokenForFee: true,
           gasFeeToken: QUOTE_MOCK.request.sourceTokenAddress,
         }),
       );
@@ -397,6 +643,297 @@ describe('Across Submit', () => {
         expect.anything(),
         expect.objectContaining({
           type: TransactionType.predictAcrossDeposit,
+        }),
+      );
+    });
+
+    it('prepends the original transaction and uses predict withdraw type for post-quote predict withdraws', async () => {
+      const postQuote = {
+        ...QUOTE_MOCK,
+        original: {
+          ...QUOTE_MOCK.original,
+          metamask: {
+            gasLimits: [
+              { estimate: 50000, max: 50000 },
+              { estimate: 22000, max: 22000 },
+            ],
+            is7702: false,
+          },
+          quote: {
+            ...QUOTE_MOCK.original.quote,
+            approvalTxns: [],
+          },
+        },
+        request: {
+          ...QUOTE_MOCK.request,
+          isPostQuote: true,
+        },
+      } as TransactionPayQuote<AcrossQuote>;
+
+      await submitAcrossQuotes({
+        messenger,
+        quotes: [postQuote],
+        transaction: {
+          ...TRANSACTION_META_MOCK,
+          type: TransactionType.batch,
+          nestedTransactions: [{ type: TransactionType.predictWithdraw }],
+          txParams: {
+            from: FROM_MOCK,
+            to: '0x000000000000000000000000000000000000dEaD' as Hex,
+            data: '0x12345678' as Hex,
+            value: '0x1' as Hex,
+          },
+        } as TransactionMeta,
+        isSmartTransaction: jest.fn(),
+      });
+
+      expect(addTransactionBatchMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          from: FROM_MOCK,
+          transactions: [
+            {
+              params: expect.objectContaining({
+                data: '0x12345678',
+                gas: toHex(50000),
+                to: '0x000000000000000000000000000000000000dEaD',
+                value: '0x1',
+              }),
+              type: TransactionType.predictWithdraw,
+            },
+            {
+              params: expect.objectContaining({
+                data: QUOTE_MOCK.original.quote.swapTx.data,
+                gas: toHex(22000),
+                to: QUOTE_MOCK.original.quote.swapTx.to,
+              }),
+              type: TransactionType.predictAcrossWithdraw,
+            },
+          ],
+        }),
+      );
+    });
+
+    it('keeps Across gas limits aligned when post-quote original gas is absent', async () => {
+      const postQuote = {
+        ...QUOTE_MOCK,
+        original: {
+          ...QUOTE_MOCK.original,
+          metamask: {
+            gasLimits: [{ estimate: 22000, max: 22000 }],
+            is7702: false,
+          },
+          quote: {
+            ...QUOTE_MOCK.original.quote,
+            approvalTxns: [],
+          },
+        },
+        request: {
+          ...QUOTE_MOCK.request,
+          isPostQuote: true,
+        },
+      } as TransactionPayQuote<AcrossQuote>;
+
+      await submitAcrossQuotes({
+        messenger,
+        quotes: [postQuote],
+        transaction: {
+          ...TRANSACTION_META_MOCK,
+          type: TransactionType.batch,
+          nestedTransactions: [{ type: TransactionType.predictWithdraw }],
+          txParams: {
+            from: FROM_MOCK,
+            to: '0x000000000000000000000000000000000000dEaD' as Hex,
+            data: '0x12345678' as Hex,
+            value: '0x1' as Hex,
+          },
+        } as TransactionMeta,
+        isSmartTransaction: jest.fn(),
+      });
+
+      expect(addTransactionBatchMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          transactions: [
+            {
+              params: expect.objectContaining({
+                data: '0x12345678',
+                gas: undefined,
+                to: '0x000000000000000000000000000000000000dEaD',
+                value: '0x1',
+              }),
+              type: TransactionType.predictWithdraw,
+            },
+            {
+              params: expect.objectContaining({
+                data: QUOTE_MOCK.original.quote.swapTx.data,
+                gas: toHex(22000),
+                to: QUOTE_MOCK.original.quote.swapTx.to,
+              }),
+              type: TransactionType.predictAcrossWithdraw,
+            },
+          ],
+        }),
+      );
+    });
+
+    it('passes gas fee token for post-quote predict withdraw batches', async () => {
+      const postQuote = {
+        ...QUOTE_MOCK,
+        fees: {
+          ...QUOTE_MOCK.fees,
+          isSourceGasFeeToken: true,
+        },
+        original: {
+          ...QUOTE_MOCK.original,
+          metamask: {
+            gasLimits: [
+              { estimate: 50000, max: 50000 },
+              { estimate: 22000, max: 22000 },
+            ],
+            is7702: false,
+          },
+          quote: {
+            ...QUOTE_MOCK.original.quote,
+            approvalTxns: [],
+          },
+        },
+        request: {
+          ...QUOTE_MOCK.request,
+          isPostQuote: true,
+        },
+      } as TransactionPayQuote<AcrossQuote>;
+
+      await submitAcrossQuotes({
+        messenger,
+        quotes: [postQuote],
+        transaction: {
+          ...TRANSACTION_META_MOCK,
+          type: TransactionType.predictWithdraw,
+          txParams: {
+            from: FROM_MOCK,
+            to: '0x000000000000000000000000000000000000dEaD' as Hex,
+            data: '0x12345678' as Hex,
+          },
+        } as TransactionMeta,
+        isSmartTransaction: jest.fn(),
+      });
+
+      expect(addTransactionBatchMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          excludeNativeTokenForFee: true,
+          gasFeeToken: QUOTE_MOCK.request.sourceTokenAddress,
+        }),
+      );
+    });
+
+    it('submits post-quote predict withdraw parent authorization lists as 7702 batches', async () => {
+      const postQuote = {
+        ...QUOTE_MOCK,
+        original: {
+          ...QUOTE_MOCK.original,
+          metamask: {
+            gasLimits: [{ estimate: 22000, max: 22000 }],
+            is7702: false,
+          },
+          quote: {
+            ...QUOTE_MOCK.original.quote,
+            approvalTxns: [],
+          },
+        },
+        request: {
+          ...QUOTE_MOCK.request,
+          isPostQuote: true,
+        },
+      } as TransactionPayQuote<AcrossQuote>;
+
+      await submitAcrossQuotes({
+        messenger,
+        quotes: [postQuote],
+        transaction: {
+          ...TRANSACTION_META_MOCK,
+          type: TransactionType.batch,
+          nestedTransactions: [{ type: TransactionType.predictWithdraw }],
+          txParams: {
+            authorizationList: [{ address: '0xabc' as Hex }],
+            from: FROM_MOCK,
+            to: '0x000000000000000000000000000000000000dEaD' as Hex,
+            data: '0x12345678' as Hex,
+          },
+        } as TransactionMeta,
+        isSmartTransaction: jest.fn(),
+      });
+
+      expect(addTransactionBatchMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          disable7702: false,
+          disableHook: true,
+          disableSequential: true,
+          transactions: [
+            {
+              params: expect.objectContaining({
+                data: '0x12345678',
+                gas: undefined,
+                to: '0x000000000000000000000000000000000000dEaD',
+              }),
+              type: TransactionType.predictWithdraw,
+            },
+            {
+              params: expect.objectContaining({
+                data: QUOTE_MOCK.original.quote.swapTx.data,
+                gas: undefined,
+                to: QUOTE_MOCK.original.quote.swapTx.to,
+              }),
+              type: TransactionType.predictAcrossWithdraw,
+            },
+          ],
+        }),
+      );
+    });
+
+    it('uses the original transaction type for non-predict post-quote batches', async () => {
+      const postQuote = {
+        ...QUOTE_MOCK,
+        original: {
+          ...QUOTE_MOCK.original,
+          metamask: {
+            gasLimits: [undefined as never, { estimate: 22000, max: 22000 }],
+            is7702: false,
+          },
+          quote: {
+            ...QUOTE_MOCK.original.quote,
+            approvalTxns: [],
+          },
+        },
+        request: {
+          ...QUOTE_MOCK.request,
+          isPostQuote: true,
+        },
+      } as TransactionPayQuote<AcrossQuote>;
+
+      await submitAcrossQuotes({
+        messenger,
+        quotes: [postQuote],
+        transaction: {
+          ...TRANSACTION_META_MOCK,
+          type: TransactionType.swap,
+          txParams: {
+            from: FROM_MOCK,
+            to: '0x000000000000000000000000000000000000dEaD' as Hex,
+            data: '0x12345678' as Hex,
+          },
+        } as TransactionMeta,
+        isSmartTransaction: jest.fn(),
+      });
+
+      expect(addTransactionBatchMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          transactions: expect.arrayContaining([
+            expect.objectContaining({
+              params: expect.objectContaining({
+                gas: undefined,
+              }),
+              type: TransactionType.swap,
+            }),
+          ]),
         }),
       );
     });

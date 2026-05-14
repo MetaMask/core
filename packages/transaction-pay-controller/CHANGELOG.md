@@ -7,10 +7,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [22.5.0]
+
+### Added
+
+- Add Across submit support for post-quote Predict withdraw flows ([#8761](https://github.com/MetaMask/core/pull/8761))
+- Add Polymarket deposit-wallet support to the Relay strategy for `predictWithdraw` transactions, routed via the `isPolymarketDepositWallet` flag on `TransactionConfig` ([#8754](https://github.com/MetaMask/core/pull/8754))
+
+### Changed
+
+- Move the Relay gasless execution feature flag to `confirmations_pay_extended.payStrategies.relay.gaslessEnabled` ([#8810](https://github.com/MetaMask/core/pull/8810))
+
+## [22.4.0]
+
+### Added
+
+- Add Across quote support for post-quote Predict withdraw flows ([#8760](https://github.com/MetaMask/core/pull/8760))
+
 ### Changed
 
 - Derive fiat order source amount from on-chain transaction data (`order.txHash`) with fallback to `order.cryptoAmount` ([#8694](https://github.com/MetaMask/core/pull/8694))
 - Persist fiat order ID and provider code on `transaction.metamaskPay` before polling, so activity views can query order status after controller state cleanup ([#8694](https://github.com/MetaMask/core/pull/8694))
+- Bump `@metamask/assets-controller` from `^7.1.1` to `^7.1.2` ([#8783](https://github.com/MetaMask/core/pull/8783))
+- Bump `@metamask/assets-controllers` from `^108.0.0` to `^108.1.0` ([#8783](https://github.com/MetaMask/core/pull/8783))
+- Bump `@metamask/transaction-controller` from `^65.3.0` to `^65.4.0` ([#8796](https://github.com/MetaMask/core/pull/8796))
+
+### Fixed
+
+- For postquote payments payment token for MM Pay transaction should not be reset when accountOverride is changed. ([#8787](https://github.com/MetaMask/core/pull/8787))
 
 ## [22.3.1]
 
@@ -872,7 +896,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#6820](https://github.com/MetaMask/core/pull/6820))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@22.3.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@22.5.0...HEAD
+[22.5.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@22.4.0...@metamask/transaction-pay-controller@22.5.0
+[22.4.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@22.3.1...@metamask/transaction-pay-controller@22.4.0
 [22.3.1]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@22.3.0...@metamask/transaction-pay-controller@22.3.1
 [22.3.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@22.2.0...@metamask/transaction-pay-controller@22.3.0
 [22.2.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@22.1.0...@metamask/transaction-pay-controller@22.2.0
