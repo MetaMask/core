@@ -38,3 +38,6 @@ packages/*/*.tsbuildinfo
 
 # AI
 .sisyphus/
+
+# VitePress
+**/.vitepress/cache

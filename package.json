@@ -42,7 +42,10 @@
     "test:packages": "yarn test:verbose --silent --collectCoverage=false --reporters=jest-silent-reporter",
     "test:scripts": "NODE_OPTIONS=--experimental-vm-modules yarn jest --config ./jest.config.scripts.js --silent",
     "test:verbose": "yarn workspaces foreach --all --parallel --verbose run test:verbose",
-    "workspaces:list-versions": "./scripts/list-workspace-versions.sh"
+    "workspaces:list-versions": "./scripts/list-workspace-versions.sh",
+    "docs:dev": "vitepress dev docs/developers",
+    "docs:build": "vitepress build docs/developers",
+    "docs:preview": "vitepress preview docs/developers"
   },
   "devDependencies": {
     "@lavamoat/allow-scripts": "^3.0.4",
@@ -92,6 +95,7 @@
     "typescript": "~5.3.3",
     "typescript-eslint": "^8.48.0",
     "uuid": "^8.3.2",
+    "vitepress": "^1.6.4",
     "yargs": "^17.7.2"
   },
   "resolutions": {
@@ -113,7 +117,8 @@
       "babel-runtime>core-js": false,
       "simple-git-hooks": false,
       "tsx>esbuild": false,
-      "eslint-plugin-import-x>unrs-resolver": false
+      "eslint-plugin-import-x>unrs-resolver": false,
+      "vitepress>vite>esbuild": true
     }
   }
 }

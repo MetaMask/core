@@ -4,7 +4,9 @@ import type {
   DataServiceGranularCacheUpdatedEvent,
   DataServiceInvalidateQueriesAction,
 } from '@metamask/base-data-service';
+import type { CreateServicePolicyOptions } from '@metamask/controller-utils';
 import type { Messenger } from '@metamask/messenger';
+import type { QueryClientConfig } from '@tanstack/query-core';
 
 /**
  * The name of the {@link OrdersService}, used to namespace the service's
@@ -68,3 +70,48 @@ export type OrdersServiceMessenger = Messenger<
   OrdersServiceActions | AllowedActions,
   OrdersServiceEvents | AllowedEvents
 >;
+
+/**
+ * The base URL of the API that the service represents.
+ */
+const BASE_URL = 'https://orders.metamask.io';
+
+/**
+ * This service wraps the Orders API.
+ */
+export class OrdersService extends BaseDataService<
+  typeof DATA_SERVICE_NAME,
+  OrdersServiceMessenger
+> {
+  /**
+   * Constructs a new OrdersService object.
+   *
+   * @param args - The constructor arguments.
+   * @param args.messenger - The messenger suited for this service.
+   * @param args.queryClientConfig - Configuration for the underlying TanStack
+   * Query client.
+   * @param args.policyOptions - Options to pass to `createServicePolicy`, which
+   * is used to wrap each request. See {@link CreateServicePolicyOptions}.
+   */
+  constructor({
+    messenger,
+    queryClientConfig = {},
+    policyOptions = {},
+  }: {
+    messenger: OrdersServiceMessenger;
+    queryClientConfig?: QueryClientConfig;
+    policyOptions?: CreateServicePolicyOptions;
+  }) {
+    super({
+      name: DATA_SERVICE_NAME,
+      messenger,
+      queryClientConfig,
+      policyOptions,
+    });
+
+    this.messenger.registerMethodActionHandlers(
+      this,
+      MESSENGER_EXPOSED_METHODS,
+    );
+  }
+}
