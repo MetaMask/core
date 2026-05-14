@@ -16,6 +16,7 @@ import type {
   QuoteResponse,
   NonEvmFees,
   TxData,
+  BatchSellTradesResponse,
 } from '../types';
 import { isNativeAddress, isNonEvmChainId } from './bridge';
 import { FeatureId } from './validators';
@@ -161,6 +162,25 @@ export const calcSentAmount = (
     usd: usdExchangeRate
       ? normalizedSentAmount.times(usdExchangeRate).toString()
       : null,
+  };
+};
+
+export const calcBatchFees = (
+  amount: string,
+  asset: BridgeAsset,
+  { exchangeRate, usdExchangeRate }: ExchangeRate,
+) => {
+  const normalizedAmount = calcTokenAmount(amount, asset.decimals);
+
+  return {
+    amount: normalizedAmount.toString(),
+    valueInCurrency: exchangeRate
+      ? normalizedAmount.times(exchangeRate).toString()
+      : null,
+    usd: usdExchangeRate
+      ? normalizedAmount.times(usdExchangeRate).toString()
+      : null,
+    asset,
   };
 };
 

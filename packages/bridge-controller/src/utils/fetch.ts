@@ -10,6 +10,8 @@ import type {
   BridgeAsset,
   TokenFeature,
   QuoteStreamCompleteData,
+  BatchSellTradesRequest,
+  BatchSellTradesResponse,
 } from '../types';
 import { getEthUsdtResetData } from './bridge';
 import {
@@ -25,6 +27,7 @@ import {
   validateSwapsTokenObject,
   validateTokenFeature,
   validateQuoteStreamComplete,
+  validateBatchSellTradesResponse,
 } from './validators';
 
 export const getClientHeaders = ({
@@ -488,4 +491,51 @@ export async function fetchBridgeQuoteStream(
     },
     ...sharedFetchOptions,
   });
+}
+
+/**
+ * Fetches quotes from the bridge-api's getQuote endpoint
+ *
+ * @param request - The quote request
+ * @param signal - The abort signal
+ * @param clientId - The client ID for metrics
+ * @param jwt - The JWT token for authentication
+ * @param fetchFn - The fetch function to use
+ * @param bridgeApiBaseUrl - The base URL for the bridge API
+ * @param clientVersion - The client version for metrics (optional)
+ * @returns A list of bridge tx quotes
+ */
+export async function fetchBatchSellTrades(
+  request: BatchSellTradesRequest,
+  signal: AbortSignal | null,
+  clientId: string,
+  jwt: string | undefined,
+  fetchFn: FetchFunction,
+  bridgeApiBaseUrl: string,
+  clientVersion?: string,
+): Promise<BatchSellTradesResponse> {
+  const url = `${bridgeApiBaseUrl}/obtainGaslessBatch`;
+  const batchSellTradesResponse: unknown = await fetchFn(url, {
+    headers: {
+      ...getClientHeaders({
+        clientId,
+        clientVersion,
+        jwt,
+      }),
+      'Content-Type': 'application/json',
+    },
+    signal,
+    method: 'POST',
+    body: JSON.stringify(request),
+  });
+
+  try {
+    if (validateBatchSellTradesResponse(batchSellTradesResponse)) {
+      return batchSellTradesResponse;
+    }
+    throw new Error('Invalid batch simulation response');
+  } catch (error: unknown) {
+    // TODO validation failure event
+    throw new Error(`Invalid batch simulation response. ${error?.toString()}`);
+  }
 }

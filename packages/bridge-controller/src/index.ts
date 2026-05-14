@@ -40,6 +40,9 @@ export type {
   BridgeAsset,
   GenericQuoteRequest,
   Protocol,
+  BatchSellTradesResponse,
+  GaslessProperties,
+  SimulatedGasFeeLimits,
   TokenAmountValues,
   Step,
   RefuelData,
@@ -57,6 +60,7 @@ export type {
   BridgeControllerEvents,
   BridgeControllerMessenger,
   FeatureFlagsPlatformConfig,
+  TxFeeGasLimits,
 } from './types';
 
 export type {
@@ -67,6 +71,7 @@ export type {
   BridgeControllerResetStateAction,
   BridgeControllerSetChainIntervalLengthAction,
   BridgeControllerTrackUnifiedSwapBridgeEventAction,
+  BridgeControllerFetchBatchSellTradesAction,
 } from './bridge-controller-method-action-types';
 
 export { AbortReason } from './utils/metrics/constants';
@@ -94,6 +99,7 @@ export {
   TokenFeatureType,
   validateQuoteStreamComplete,
   QuoteStreamCompleteReason,
+  BatchSimulationTransactionType,
 } from './utils/validators';
 
 export {
@@ -175,6 +181,7 @@ export {
 export {
   selectBridgeQuotes,
   selectBatchSellQuotes,
+  selectBatchSellTrades,
   selectDefaultSlippagePercentage,
   type BridgeAppState,
   selectExchangeRateByAssetId,
