@@ -10,6 +10,13 @@ import type { SpotClearinghouseStateResponse } from '../types/hyperliquid-types'
 
 const EVM_ACCOUNT_TYPES = new Set(['eip155:eoa', 'eip155:erc4337']);
 
+<<<<<<< HEAD
+=======
+type SelectedEvmAccountMessenger = {
+  call: unknown;
+};
+
+>>>>>>> 967dd23de (fix: type error)
 function isEvmAccountType(type: string): boolean {
   return EVM_ACCOUNT_TYPES.has(type);
 }
@@ -60,6 +67,7 @@ function isAccountLike(
 
 export function getSelectedEvmAccountDetailsFromMessenger(
   messenger: SelectedEvmAccountMessenger,
+<<<<<<< HEAD
 ): InternalAccount | PerpsInternalAccount | undefined {
   try {
     const selectedAccount = messenger.call(
@@ -70,13 +78,32 @@ export function getSelectedEvmAccountDetailsFromMessenger(
       if (evmAccount) {
         return evmAccount;
       }
+=======
+): { address: string } | undefined {
+  if (typeof messenger.call !== 'function') {
+    return undefined;
+  }
+  const call = messenger.call as (actionType: string) => unknown;
+
+  try {
+    const selectedAccount = call('AccountsController:getSelectedAccount');
+    const evmAccount = isAccountWithAddressAndType(selectedAccount)
+      ? findEvmAccount([selectedAccount])
+      : null;
+    if (evmAccount) {
+      return { address: evmAccount.address };
+>>>>>>> 967dd23de (fix: type error)
     }
   } catch {
     // Fall back to the selected account group if the direct lookup is unavailable.
   }
 
   try {
+<<<<<<< HEAD
     const selectedAccountGroup = messenger.call(
+=======
+    const accounts = call(
+>>>>>>> 967dd23de (fix: type error)
       'AccountTreeController:getAccountsFromSelectedAccountGroup',
     );
     return Array.isArray(selectedAccountGroup)
