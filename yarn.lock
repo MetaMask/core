@@ -2768,7 +2768,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/assets-controller@npm:^7.1.2, @metamask/assets-controller@workspace:packages/assets-controller":
+"@metamask/assets-controller@npm:^8.0.0, @metamask/assets-controller@workspace:packages/assets-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/assets-controller@workspace:packages/assets-controller"
   dependencies:
@@ -2777,12 +2777,12 @@ __metadata:
     "@ethersproject/providers": "npm:^5.7.0"
     "@metamask/account-tree-controller": "npm:^7.4.0"
     "@metamask/accounts-controller": "npm:^38.1.1"
-    "@metamask/assets-controllers": "npm:^108.1.0"
+    "@metamask/assets-controllers": "npm:^109.0.0"
     "@metamask/auto-changelog": "npm:^6.1.0"
     "@metamask/base-controller": "npm:^9.1.0"
     "@metamask/client-controller": "npm:^1.0.1"
     "@metamask/controller-utils": "npm:^12.1.0"
-    "@metamask/core-backend": "npm:^6.2.2"
+    "@metamask/core-backend": "npm:^7.0.0"
     "@metamask/keyring-api": "npm:^23.1.0"
     "@metamask/keyring-controller": "npm:^25.5.0"
     "@metamask/keyring-internal-api": "npm:^11.0.1"
@@ -2796,7 +2796,7 @@ __metadata:
     "@metamask/preferences-controller": "npm:^23.1.0"
     "@metamask/snaps-controllers": "npm:^19.0.0"
     "@metamask/snaps-utils": "npm:^12.1.2"
-    "@metamask/transaction-controller": "npm:^65.4.0"
+    "@metamask/transaction-controller": "npm:^66.0.0"
     "@metamask/utils": "npm:^11.9.0"
     "@ts-bridge/cli": "npm:^0.6.4"
     "@types/jest": "npm:^29.5.14"
@@ -2815,7 +2815,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/assets-controllers@npm:^108.1.0, @metamask/assets-controllers@workspace:packages/assets-controllers":
+"@metamask/assets-controllers@npm:^109.0.0, @metamask/assets-controllers@workspace:packages/assets-controllers":
   version: 0.0.0-use.local
   resolution: "@metamask/assets-controllers@workspace:packages/assets-controllers"
   dependencies:
@@ -2835,7 +2835,7 @@ __metadata:
     "@metamask/base-controller": "npm:^9.1.0"
     "@metamask/contract-metadata": "npm:^2.4.0"
     "@metamask/controller-utils": "npm:^12.1.0"
-    "@metamask/core-backend": "npm:^6.2.2"
+    "@metamask/core-backend": "npm:^7.0.0"
     "@metamask/eth-query": "npm:^4.0.0"
     "@metamask/ethjs-provider-http": "npm:^0.3.0"
     "@metamask/keyring-api": "npm:^23.1.0"
@@ -2858,7 +2858,7 @@ __metadata:
     "@metamask/snaps-sdk": "npm:^11.0.0"
     "@metamask/snaps-utils": "npm:^12.1.2"
     "@metamask/storage-service": "npm:^1.0.1"
-    "@metamask/transaction-controller": "npm:^65.4.0"
+    "@metamask/transaction-controller": "npm:^66.0.0"
     "@metamask/utils": "npm:^11.9.0"
     "@tanstack/query-core": "npm:^5.62.16"
     "@ts-bridge/cli": "npm:^0.6.4"
@@ -3025,8 +3025,8 @@ __metadata:
     "@ethersproject/contracts": "npm:^5.7.0"
     "@ethersproject/providers": "npm:^5.7.0"
     "@metamask/accounts-controller": "npm:^38.1.1"
-    "@metamask/assets-controller": "npm:^7.1.2"
-    "@metamask/assets-controllers": "npm:^108.1.0"
+    "@metamask/assets-controller": "npm:^8.0.0"
+    "@metamask/assets-controllers": "npm:^109.0.0"
     "@metamask/auto-changelog": "npm:^6.1.0"
     "@metamask/base-controller": "npm:^9.1.0"
     "@metamask/controller-utils": "npm:^12.1.0"
@@ -3042,7 +3042,7 @@ __metadata:
     "@metamask/remote-feature-flag-controller": "npm:^4.2.1"
     "@metamask/snaps-controllers": "npm:^19.0.0"
     "@metamask/superstruct": "npm:^3.1.0"
-    "@metamask/transaction-controller": "npm:^65.4.0"
+    "@metamask/transaction-controller": "npm:^66.0.0"
     "@metamask/utils": "npm:^11.9.0"
     "@ts-bridge/cli": "npm:^0.6.4"
     "@types/jest": "npm:^29.5.14"
@@ -3079,7 +3079,7 @@ __metadata:
     "@metamask/profile-sync-controller": "npm:^28.1.0"
     "@metamask/snaps-controllers": "npm:^19.0.0"
     "@metamask/superstruct": "npm:^3.1.0"
-    "@metamask/transaction-controller": "npm:^65.4.0"
+    "@metamask/transaction-controller": "npm:^66.0.0"
     "@metamask/utils": "npm:^11.9.0"
     "@ts-bridge/cli": "npm:^0.6.4"
     "@types/jest": "npm:^29.5.14"
@@ -3368,7 +3368,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/core-backend@npm:^6.2.2, @metamask/core-backend@workspace:packages/core-backend":
+"@metamask/core-backend@npm:^7.0.0, @metamask/core-backend@workspace:packages/core-backend":
   version: 0.0.0-use.local
   resolution: "@metamask/core-backend@workspace:packages/core-backend"
   dependencies:
@@ -3534,7 +3534,7 @@ __metadata:
     "@metamask/messenger": "npm:^1.2.0"
     "@metamask/network-controller": "npm:^32.0.0"
     "@metamask/stake-sdk": "npm:^3.2.1"
-    "@metamask/transaction-controller": "npm:^65.4.0"
+    "@metamask/transaction-controller": "npm:^66.0.0"
     "@ts-bridge/cli": "npm:^0.6.4"
     "@types/jest": "npm:^29.5.14"
     deepmerge: "npm:^4.2.2"
@@ -3557,7 +3557,7 @@ __metadata:
     "@metamask/messenger": "npm:^1.2.0"
     "@metamask/rpc-errors": "npm:^7.0.2"
     "@metamask/superstruct": "npm:^3.1.0"
-    "@metamask/transaction-controller": "npm:^65.4.0"
+    "@metamask/transaction-controller": "npm:^66.0.0"
     "@metamask/utils": "npm:^11.9.0"
     "@ts-bridge/cli": "npm:^0.6.4"
     "@types/jest": "npm:^29.5.14"
@@ -4139,7 +4139,7 @@ __metadata:
     "@metamask/snaps-controllers": "npm:^19.0.0"
     "@metamask/snaps-sdk": "npm:^11.0.0"
     "@metamask/snaps-utils": "npm:^12.1.2"
-    "@metamask/transaction-controller": "npm:^65.4.0"
+    "@metamask/transaction-controller": "npm:^66.0.0"
     "@metamask/utils": "npm:^11.9.0"
     "@ts-bridge/cli": "npm:^0.6.4"
     "@types/jest": "npm:^29.5.14"
@@ -4792,7 +4792,7 @@ __metadata:
     "@metamask/multichain-network-controller": "npm:^3.1.1"
     "@metamask/network-controller": "npm:^32.0.0"
     "@metamask/slip44": "npm:^4.3.0"
-    "@metamask/transaction-controller": "npm:^65.4.0"
+    "@metamask/transaction-controller": "npm:^66.0.0"
     "@metamask/utils": "npm:^11.9.0"
     "@ts-bridge/cli": "npm:^0.6.4"
     "@types/jest": "npm:^29.5.14"
@@ -4989,7 +4989,7 @@ __metadata:
     "@metamask/network-controller": "npm:^32.0.0"
     "@metamask/profile-sync-controller": "npm:^28.1.0"
     "@metamask/remote-feature-flag-controller": "npm:^4.2.1"
-    "@metamask/transaction-controller": "npm:^65.4.0"
+    "@metamask/transaction-controller": "npm:^66.0.0"
     "@metamask/utils": "npm:^11.9.0"
     "@myx-trade/sdk": "npm:^0.1.265"
     "@nktkas/hyperliquid": "npm:^0.32.2"
@@ -5020,7 +5020,7 @@ __metadata:
     "@metamask/base-controller": "npm:^9.1.0"
     "@metamask/controller-utils": "npm:^12.1.0"
     "@metamask/messenger": "npm:^1.2.0"
-    "@metamask/transaction-controller": "npm:^65.4.0"
+    "@metamask/transaction-controller": "npm:^66.0.0"
     "@noble/hashes": "npm:^1.8.0"
     "@ts-bridge/cli": "npm:^0.6.4"
     "@types/jest": "npm:^29.5.14"
@@ -5106,7 +5106,7 @@ __metadata:
     "@metamask/messenger": "npm:^1.2.0"
     "@metamask/polling-controller": "npm:^16.0.5"
     "@metamask/profile-sync-controller": "npm:^28.1.0"
-    "@metamask/transaction-controller": "npm:^65.4.0"
+    "@metamask/transaction-controller": "npm:^66.0.0"
     "@metamask/utils": "npm:^11.9.0"
     "@ts-bridge/cli": "npm:^0.6.4"
     "@types/jest": "npm:^29.5.14"
@@ -5401,7 +5401,7 @@ __metadata:
     "@metamask/controller-utils": "npm:^12.1.0"
     "@metamask/messenger": "npm:^1.2.0"
     "@metamask/signature-controller": "npm:^39.2.2"
-    "@metamask/transaction-controller": "npm:^65.4.0"
+    "@metamask/transaction-controller": "npm:^66.0.0"
     "@metamask/utils": "npm:^11.9.0"
     "@ts-bridge/cli": "npm:^0.6.4"
     "@types/jest": "npm:^29.5.14"
@@ -5659,7 +5659,7 @@ __metadata:
     "@metamask/messenger": "npm:^1.2.0"
     "@metamask/polling-controller": "npm:^16.0.5"
     "@metamask/profile-sync-controller": "npm:^28.1.0"
-    "@metamask/transaction-controller": "npm:^65.4.0"
+    "@metamask/transaction-controller": "npm:^66.0.0"
     "@metamask/utils": "npm:^11.9.0"
     "@ts-bridge/cli": "npm:^0.6.4"
     "@types/jest": "npm:^29.5.14"
@@ -5706,7 +5706,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/transaction-controller@npm:^65.4.0, @metamask/transaction-controller@workspace:packages/transaction-controller":
+"@metamask/transaction-controller@npm:^66.0.0, @metamask/transaction-controller@workspace:packages/transaction-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/transaction-controller@workspace:packages/transaction-controller"
   dependencies:
@@ -5724,7 +5724,7 @@ __metadata:
     "@metamask/base-controller": "npm:^9.1.0"
     "@metamask/connectivity-controller": "npm:^0.2.0"
     "@metamask/controller-utils": "npm:^12.1.0"
-    "@metamask/core-backend": "npm:^6.2.2"
+    "@metamask/core-backend": "npm:^7.0.0"
     "@metamask/eth-block-tracker": "npm:^15.0.0"
     "@metamask/eth-json-rpc-provider": "npm:^6.0.1"
     "@metamask/ethjs-provider-http": "npm:^0.3.0"
@@ -5770,8 +5770,8 @@ __metadata:
     "@ethersproject/abi": "npm:^5.7.0"
     "@ethersproject/contracts": "npm:^5.7.0"
     "@ethersproject/providers": "npm:^5.7.0"
-    "@metamask/assets-controller": "npm:^7.1.2"
-    "@metamask/assets-controllers": "npm:^108.1.0"
+    "@metamask/assets-controller": "npm:^8.0.0"
+    "@metamask/assets-controllers": "npm:^109.0.0"
     "@metamask/auto-changelog": "npm:^6.1.0"
     "@metamask/base-controller": "npm:^9.1.0"
     "@metamask/bridge-controller": "npm:^72.0.4"
@@ -5783,7 +5783,7 @@ __metadata:
     "@metamask/network-controller": "npm:^32.0.0"
     "@metamask/ramps-controller": "npm:^13.3.1"
     "@metamask/remote-feature-flag-controller": "npm:^4.2.1"
-    "@metamask/transaction-controller": "npm:^65.4.0"
+    "@metamask/transaction-controller": "npm:^66.0.0"
     "@metamask/utils": "npm:^11.9.0"
     "@ts-bridge/cli": "npm:^0.6.4"
     "@types/jest": "npm:^29.5.14"
@@ -5818,7 +5818,7 @@ __metadata:
     "@metamask/polling-controller": "npm:^16.0.5"
     "@metamask/rpc-errors": "npm:^7.0.2"
     "@metamask/superstruct": "npm:^3.1.0"
-    "@metamask/transaction-controller": "npm:^65.4.0"
+    "@metamask/transaction-controller": "npm:^66.0.0"
     "@metamask/utils": "npm:^11.9.0"
     "@ts-bridge/cli": "npm:^0.6.4"
     "@types/jest": "npm:^29.5.14"

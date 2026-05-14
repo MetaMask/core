@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [7.0.0]
+
 ### Added
 
 - Add `OHLCVService` for real-time OHLCV (candlestick) data streaming via WebSocket ([#8695](https://github.com/MetaMask/core/pull/8695))
@@ -68,7 +70,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Bump `@metamask/accounts-controller` from `^36.0.0` to `^37.0.0` ([#7996](https://github.com/MetaMask/core/pull/7996)), ([#8140](https://github.com/MetaMask/core/pull/8140))
+- Bump `@metamask/accounts-controller` from `^36.0.0` to `^37.0.0`, ([#7996](https://github.com/MetaMask/core/pull/7996), [#8140](https://github.com/MetaMask/core/pull/8140))
 - Bump `@metamask/controller-utils` from `^11.18.0` to `^11.19.0` ([#7995](https://github.com/MetaMask/core/pull/7995))
 
 ## [6.0.0]
@@ -282,7 +284,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Type definitions** - Comprehensive TypeScript types for transactions, balances, WebSocket messages, and service configurations
 - **Logging infrastructure** - Structured logging with module-specific loggers for debugging and monitoring
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/core-backend@6.2.2...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/core-backend@7.0.0...HEAD
+[7.0.0]: https://github.com/MetaMask/core/compare/@metamask/core-backend@6.2.2...@metamask/core-backend@7.0.0
 [6.2.2]: https://github.com/MetaMask/core/compare/@metamask/core-backend@6.2.1...@metamask/core-backend@6.2.2
 [6.2.1]: https://github.com/MetaMask/core/compare/@metamask/core-backend@6.2.0...@metamask/core-backend@6.2.1
 [6.2.0]: https://github.com/MetaMask/core/compare/@metamask/core-backend@6.1.1...@metamask/core-backend@6.2.0
