@@ -432,7 +432,7 @@ describe('BridgeController BatchSell (multiple quote requests) SSE', function ()
                       l1GasFeesInHexWei: '0x2',
                       resetApproval: undefined,
                       quoteRequestIndex: 1,
-                    } as never),
+                    }) as never,
                 ),
               ),
             quotesRefreshCount: 1,

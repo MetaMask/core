@@ -7,12 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Implement transaction batch and fee fetching for BatchSell quotes ([#8805](https://github.com/MetaMask/core/pull/8805))
+  - add new states `batchSellTrades` and `batchSellTradesLoadingStatus` to contain transaction data and its fetch status
+  - support transaction batch data fetching with the new `fetchBatchSellTrades` handler. Clients will need to call this whenever the recommended quotes update
+  - implement `selectBatchSellTrades` selector which returns the ordered list of transactions to submit as a batch, including any transfer transactions required to cover gas costs. This also returns the `totalNetworkFee` provided by the `obtainGaslessBatch` endpoint and its converted values
+
 ### Changed
 
 - Bump `@metamask/assets-controller` from `^7.1.1` to `^7.1.2` ([#8783](https://github.com/MetaMask/core/pull/8783))
 - Bump `@metamask/assets-controllers` from `^108.0.0` to `^108.1.0` ([#8783](https://github.com/MetaMask/core/pull/8783))
 - Bump `@metamask/profile-sync-controller` from `^28.0.2` to `^28.1.0` ([#8783](https://github.com/MetaMask/core/pull/8783))
 - Bump `@metamask/transaction-controller` from `^65.3.0` to `^65.4.0` ([#8796](https://github.com/MetaMask/core/pull/8796))
+
+### Removed
+
+- **BREAKING**: Remove `totalNetworkFee` from the `selectBatchSellQuotes`'s results. Clients should use `selectBatchSellTrades` instead ([#8805](https://github.com/MetaMask/core/pull/8805))
 
 ## [72.0.4]
 

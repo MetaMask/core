@@ -660,14 +660,11 @@ const selectBatchSellFees = createBridgeSelector(
  * Selects the batch transactions and fees for a batch of quotes
  *
  * @param state - The state of the bridge controller and its dependency controllers
- * @param sortOrder - The sort order of the quotes
- * @param requestCount - The number of quote requests fetched in the batch
- * @returns The quotes for multiple quote requests, including their recommendedQuotes,
- * totalReceived, minimumReceived, totalNetworkFee, and other quote fetching metadata.
+ * @returns The ordered list of transactions to submit as a batch, and the total transaction fee.
  *
  * @example
  * ```ts
- * const quotes = useSelector(state => selectBatchSellTrades(state.metamask));
+ * const { batchSellTrades, totalNetworkFee, isLoading } = useSelector(state => selectBatchSellTrades(state.metamask));
  * ```
  */
 export const selectBatchSellTrades = createBridgeSelector(

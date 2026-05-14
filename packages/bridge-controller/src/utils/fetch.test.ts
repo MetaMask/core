@@ -4,6 +4,7 @@ import type { CaipAssetType } from '@metamask/utils';
 import mockBridgeQuotesErc20Erc20 from '../../tests/mock-quotes-erc20-erc20.json';
 import mockBridgeQuotesNativeErc20 from '../../tests/mock-quotes-native-erc20.json';
 import { BridgeClientId, BRIDGE_PROD_API_BASE_URL } from '../constants/bridge';
+import { QuoteResponse } from '../types';
 import {
   fetchBridgeQuotes,
   fetchBridgeTokens,
@@ -11,7 +12,6 @@ import {
   fetchBatchSellTrades,
 } from './fetch';
 import { BatchSimulationTransactionType, FeatureId } from './validators';
-import { QuoteResponse } from '../types';
 
 const mockFetchFn = jest.fn();
 
