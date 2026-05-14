@@ -326,6 +326,78 @@ into state. Two complementary changes:
    bridge-controller selector path (Finding 3) is the direct downstream
    consumer of these fields.
 
+## Should `AssetPrice.*` numeric fields just be strings?
+
+A reasonable follow-up question is: bounding is only required for `number`
+inputs to `bignumber.js`. The string constructor branch
+(`bignumber.js` lines ~268–278) has no significant-digit check; only the
+number branch (lines ~325–332) does. So if `AssetPrice.price`, `usdPrice`,
+`marketCap`, etc. were typed as `string`, the crash would be structurally
+impossible inside this package. Is that a cleaner fix than `boundedPrecisionNumber`?
+
+It is a viable internal fix, but it does **not** remove the need to bound
+precision at the shim layer. Three considerations:
+
+1. **It is a breaking change to the public type surface.** `AssetPrice`,
+   `FungibleAssetPrice`, and `NFTAssetPrice` are exported. Consumers that do
+   `priceData.price * x`, comparisons like
+   `priceData.marketCap > threshold`, sums via `+`, etc. would silently
+   coerce to string concatenation or lexicographic compare unless they
+   re-cast through `Number(...)`. Persisted state would also need a
+   migration to convert existing number-typed values to strings on read,
+   since `JSON.parse` does not infer a quoted form from a numeric literal.
+
+2. **The bridge-compat shim cannot go fully-string anyway.**
+   `formatExchangeRatesForBridge` writes into the legacy
+   `CurrencyRateState` / `MarketDataDetails` shapes which are owned by the
+   older `@metamask/assets-controllers` package and typed as `number | null`
+   (`CurrencyRateState.currencyRates[symbol].conversionRate`,
+   `usdConversionRate`) or `number` (`MarketDataDetails.price`). The
+   `@metamask/bridge-controller` selector wraps those exact `number` fields
+   in `new BigNumber(...)`. Even if `AssetPrice.*` were strings inside this
+   package, the shim still has to emit numbers, so the precision-bounding
+   step at the shim boundary is still required to actually unblock the
+   extension crash.
+
+   Of note, the non-EVM path inside `formatExchangeRatesForBridge` already
+   does string-encode at the boundary
+   (`rate: String(price)`, `allTimeHigh: \`${priceData.allTimeHigh}\``, ...).
+   The crash-relevant fields are the EVM path's
+   `marketData[chainIdHex][tokenAddress]` and `currencyRates[symbol]`, which
+   keep `number` typing to match the legacy shape.
+
+3. **In-package consumers are easier with strings, not harder.** Both
+   at-risk BigNumber sites (`selectors/balance.ts:471`,
+   `AssetsController.ts:2368`) feed the value to `.multipliedBy(...)`,
+   which accepts strings. The only mixed-arithmetic site is
+   `selectors/balance.ts:474`
+   (`weightedNumerator += contribution * pricePercentChange1d`), which
+   would need an explicit `Number(...)` cast if the percent fields were
+   strings.
+
+### Summary recommendation
+
+- **Smallest, non-breaking fix that resolves the production crash:**
+  do precision-bounding (`toPrecision(15)`) at the two boundaries — in
+  `PriceDataSource` before writing into state, and inside
+  `formatExchangeRatesForBridge` for `conversionRate`,
+  `usdConversionRate`, and the derived
+  `priceInNative = usdPrice / nativeAssetUsdPrice` (the float division
+  re-introduces >15-sig-digit artifacts even after bounding the inputs).
+- **Structurally cleanest fix:** also switch `AssetPrice.*` numeric fields
+  to `string`, mirroring `FungibleAssetBalance.amount`. This is a
+  breaking change requiring a state migration and a `Number(...)` cast at
+  the one mixed-arithmetic site in `selectors/balance.ts`. It does **not**
+  remove the bounding step inside `formatExchangeRatesForBridge`, because
+  the legacy shape this package emits to is owned externally and uses
+  `number`.
+
+Put differently: bounding is needed only for `number`. Strings everywhere
+inside this package is structurally tidier, but the legacy bridge / token-rates
+shapes that this package converts into are typed `number` and consumed via
+`new BigNumber(...)` downstream, so the bound has to happen at the shim layer
+regardless of what the internal `AssetPrice` type chooses.
+
 ## Test recommendations
 
 - Add a `PriceDataSource` test where the API returns a price like
