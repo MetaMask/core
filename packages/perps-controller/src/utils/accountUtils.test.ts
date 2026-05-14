@@ -6,10 +6,7 @@ import { getSelectedEvmAccountFromMessenger } from './accountUtils';
 const SELECTED_ADDRESS = '0x1111111111111111111111111111111111111111';
 const GROUP_ADDRESS = '0x2222222222222222222222222222222222222222';
 
-function buildEvmAccount(
-  address: string,
-  id: string,
-): InternalAccount {
+function buildEvmAccount(address: string, id: string): InternalAccount {
   return {
     address,
     id,
