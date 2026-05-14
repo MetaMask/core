@@ -114,6 +114,7 @@ const config = createConfig([
       '**/tests/**/*.{js,ts}',
       'scripts/*.ts',
       'scripts/create-package/**/*.ts',
+      'packages/wallet-framework-docs/site/docusaurus.config.ts',
     ],
     extends: [nodejs],
   },
@@ -341,6 +342,12 @@ const config = createConfig([
       // for types that don't follow TSDoc properly.
       // See https://github.com/gajus/eslint-plugin-jsdoc/issues/1054
       'jsdoc/check-tag-names': 'off',
+    },
+  },
+  {
+    files: ['packages/wallet-framework-docs/site/docusaurus.config.ts'],
+    rules: {
+      'n/no-process-env': 'off',
     },
   },
 ]);
