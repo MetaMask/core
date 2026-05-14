@@ -7,8 +7,8 @@ silently truncates, depending on configuration) JS `number` primitives that
 carry more than 15 significant digits, e.g.:
 
 ```js
-new BigNumber(40115252.21304121);   // 16 significant digits
-new BigNumber(1.0000000000000002);  // 17 significant digits (FP artifact)
+new BigNumber(40115252.21304121); // 16 significant digits
+new BigNumber(1.0000000000000002); // 17 significant digits (FP artifact)
 ```
 
 When `BigNumber.DEBUG === true` is set anywhere in the runtime (the extension
@@ -44,9 +44,13 @@ if (BigNumber.DEBUG && str.replace(/^0\.0*|\./, '').length > 15) {
   throw Error(tooManyDigits + v);
 }
 // L328
-if (isNum && BigNumber.DEBUG &&
-  len > 15 && (v > MAX_SAFE_INTEGER || v !== mathfloor(v))) {
-  throw Error(tooManyDigits + (x.s * v));
+if (
+  isNum &&
+  BigNumber.DEBUG &&
+  len > 15 &&
+  (v > MAX_SAFE_INTEGER || v !== mathfloor(v))
+) {
+  throw Error(tooManyDigits + x.s * v);
 }
 ```
 
@@ -66,19 +70,19 @@ if (isNum && BigNumber.DEBUG &&
 I grepped every `BigNumber` / `BigNumberJS` call site in
 `packages/assets-controller/src/**`:
 
-| File (under `packages/assets-controller/src/`) | Line | Construction | Input type | Risk |
-| --- | --- | --- | --- | --- |
-| `selectors/balance.ts` | 62 | `new BigNumberJS(value)` | `string` (from `getAmountFromBalance`) | Safe |
-| `selectors/balance.ts` | 63 | `new BigNumberJS(0)` | integer literal | Safe |
-| `selectors/balance.ts` | 82 | `new BigNumberJS(10).pow(decimals)` | integer literal | Safe |
-| `selectors/balance.ts` | 471 | `amount.multipliedBy(price)` | `price` is a **JS number** from `assetsPrice[...].price` | **At risk** |
-| `data-sources/evm-rpc-services/utils/parsing.ts` | 30 | `new BigNumberJS(weiStr)` | `string` (or `bigint → string`) | Safe |
-| `data-sources/RpcDataSource.ts` | 367 | `new BigNumberJS(rawBalance)` | `string` parameter | Safe |
-| `data-sources/RpcDataSource.ts` | 373 | `new BigNumberJS(10).pow(decimals)` | integer literal | Safe |
-| `data-sources/BackendWebsocketDataSource.ts` | 661 | `new BigNumberJS(rawBalanceStr)` | `string` | Safe |
-| `data-sources/BackendWebsocketDataSource.ts` | 662 | `.dividedBy(new BigNumberJS(10).pow(...))` | integer literal | Safe |
-| `AssetsController.ts` | 2366 | `new BigNumberJS(typedBalance.amount \|\| '0')` | `string` | Safe |
-| `AssetsController.ts` | 2368 | `balanceAmount.multipliedBy(price.price \|\| 0)` | `price.price` is a **JS number** from state | **At risk** |
+| File (under `packages/assets-controller/src/`)   | Line | Construction                                     | Input type                                               | Risk        |
+| ------------------------------------------------ | ---- | ------------------------------------------------ | -------------------------------------------------------- | ----------- |
+| `selectors/balance.ts`                           | 62   | `new BigNumberJS(value)`                         | `string` (from `getAmountFromBalance`)                   | Safe        |
+| `selectors/balance.ts`                           | 63   | `new BigNumberJS(0)`                             | integer literal                                          | Safe        |
+| `selectors/balance.ts`                           | 82   | `new BigNumberJS(10).pow(decimals)`              | integer literal                                          | Safe        |
+| `selectors/balance.ts`                           | 471  | `amount.multipliedBy(price)`                     | `price` is a **JS number** from `assetsPrice[...].price` | **At risk** |
+| `data-sources/evm-rpc-services/utils/parsing.ts` | 30   | `new BigNumberJS(weiStr)`                        | `string` (or `bigint → string`)                          | Safe        |
+| `data-sources/RpcDataSource.ts`                  | 367  | `new BigNumberJS(rawBalance)`                    | `string` parameter                                       | Safe        |
+| `data-sources/RpcDataSource.ts`                  | 373  | `new BigNumberJS(10).pow(decimals)`              | integer literal                                          | Safe        |
+| `data-sources/BackendWebsocketDataSource.ts`     | 661  | `new BigNumberJS(rawBalanceStr)`                 | `string`                                                 | Safe        |
+| `data-sources/BackendWebsocketDataSource.ts`     | 662  | `.dividedBy(new BigNumberJS(10).pow(...))`       | integer literal                                          | Safe        |
+| `AssetsController.ts`                            | 2366 | `new BigNumberJS(typedBalance.amount \|\| '0')`  | `string`                                                 | Safe        |
+| `AssetsController.ts`                            | 2368 | `balanceAmount.multipliedBy(price.price \|\| 0)` | `price.price` is a **JS number** from state              | **At risk** |
 
 ### Finding 1 — Unbounded JS numbers are written into `assetsPrice` state
 
@@ -250,7 +254,7 @@ output (which re-uses `formatExchangeRatesForBridge` internally — see
 `src/utils/formatStateForTransactionPay.ts` lines 182–197) feeds the
 transaction-pay controller, so the surface area is identical.
 
-### What is *not* affected
+### What is _not_ affected
 
 - All balance-value BigNumber sites take strings (`amount`, `rawBalance`,
   `weiStr`, `rawBalanceStr`). Balances are stored as decimal strings in
@@ -269,7 +273,7 @@ into state. Two complementary changes:
 
 1. **Bound precision when constructing `assetsPrice` entries in
    `PriceDataSource`.** Introduce a `boundedPrecisionNumber` helper that
-   clamps to 15 *significant* digits (not decimal places):
+   clamps to 15 _significant_ digits (not decimal places):
 
    ```ts
    const boundedPrecisionNumber = (
@@ -314,7 +318,6 @@ into state. Two complementary changes:
 
 3. **Bound precision (or stringify) inside
    `formatExchangeRatesForBridge`.** Specifically:
-
    - Clamp `price`, `usdPrice`, and `priceInNative = usdPrice / nativeAssetUsdPrice`
      before assignment.
    - Clamp / stringify the entries written into `currencyRates[symbol]`
@@ -360,9 +363,10 @@ precision at the shim layer. Three considerations:
    extension crash.
 
    Of note, the non-EVM path inside `formatExchangeRatesForBridge` already
-   does string-encode at the boundary
-   (`rate: String(price)`, `allTimeHigh: \`${priceData.allTimeHigh}\``, ...).
-   The crash-relevant fields are the EVM path's
+   string-encodes at the boundary (`rate: String(price)`, and the
+   `allTimeHigh`/`allTimeLow`/`circulatingSupply`/`marketCap`/`totalVolume`
+   fields under `marketData` are written via template literals). The
+   crash-relevant fields are the ones the EVM path writes into
    `marketData[chainIdHex][tokenAddress]` and `currencyRates[symbol]`, which
    keep `number` typing to match the legacy shape.
 
