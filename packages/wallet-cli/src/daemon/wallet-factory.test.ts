@@ -187,7 +187,7 @@ describe('createWallet', () => {
     store.close();
   });
 
-  it('skips importing the SRP when the store already contains a KeyringController vault', async () => {
+  it('skips importing the SRP and unlocks the persisted vault on subsequent runs', async () => {
     jest.spyOn(persistenceModule, 'loadState').mockReturnValue({
       KeyringController: { vault: 'encrypted-vault-blob' },
     });
@@ -195,8 +195,117 @@ describe('createWallet', () => {
     const { store } = await createWallet(CONFIG);
 
     expect(mockImportSrp).not.toHaveBeenCalled();
+    expect(mockMessenger.call).toHaveBeenCalledWith(
+      'KeyringController:submitPassword',
+      'test-pass',
+    );
 
     store.close();
+  });
+
+  it('does not call submitPassword on first run', async () => {
+    await createWallet(CONFIG);
+
+    expect(mockMessenger.call).not.toHaveBeenCalledWith(
+      'KeyringController:submitPassword',
+      expect.anything(),
+    );
+  });
+
+  it('throws a clear error when first-run startup has no password', async () => {
+    const { password: _password, ...configWithoutPassword } = CONFIG;
+
+    await expect(createWallet(configWithoutPassword)).rejects.toThrow(
+      /password is required on first run/iu,
+    );
+
+    expect(mockImportSrp).not.toHaveBeenCalled();
+  });
+
+  it('treats an empty-string password as no password (subsequent run stays locked)', async () => {
+    // Empty `--password ''` or empty `MM_WALLET_PASSWORD` env var means
+    // "no password supplied", not "the empty string is the password";
+    // otherwise the daemon would try `submitPassword('')` and fail with a
+    // wrong-password error instead of the intended "start locked" path.
+    jest.spyOn(persistenceModule, 'loadState').mockReturnValue({
+      KeyringController: { vault: 'encrypted-vault-blob' },
+    });
+
+    const { store } = await createWallet({ ...CONFIG, password: '' });
+
+    expect(mockImportSrp).not.toHaveBeenCalled();
+    expect(mockMessenger.call).not.toHaveBeenCalledWith(
+      'KeyringController:submitPassword',
+      expect.anything(),
+    );
+
+    store.close();
+  });
+
+  it('rejects empty-string password on first run with the same error as missing password', async () => {
+    await expect(createWallet({ ...CONFIG, password: '' })).rejects.toThrow(
+      /password is required on first run/iu,
+    );
+
+    expect(mockImportSrp).not.toHaveBeenCalled();
+  });
+
+  it('starts subsequent runs with a locked keyring when no password is supplied', async () => {
+    jest.spyOn(persistenceModule, 'loadState').mockReturnValue({
+      KeyringController: { vault: 'encrypted-vault-blob' },
+    });
+    const { password: _password, ...configWithoutPassword } = CONFIG;
+
+    const { store } = await createWallet(configWithoutPassword);
+
+    expect(mockImportSrp).not.toHaveBeenCalled();
+    expect(mockMessenger.call).not.toHaveBeenCalledWith(
+      'KeyringController:submitPassword',
+      expect.anything(),
+    );
+
+    store.close();
+  });
+
+  it('destroys the wallet and rethrows when submitPassword rejects on a subsequent run', async () => {
+    jest.spyOn(persistenceModule, 'loadState').mockReturnValue({
+      KeyringController: { vault: 'encrypted-vault-blob' },
+    });
+    const failure = new Error('wrong password');
+    mockMessenger.call.mockImplementation((action: string) => {
+      if (action === 'KeyringController:submitPassword') {
+        return Promise.reject(failure);
+      }
+      return undefined;
+    });
+    const closeSpy = jest.spyOn(KeyValueStore.prototype, 'close');
+
+    await expect(createWallet(CONFIG)).rejects.toThrow(failure);
+
+    const constructedWallet = MockWallet.mock.results[0]?.value as Wallet;
+    expect(constructedWallet.destroy).toHaveBeenCalledTimes(1);
+    expect(closeSpy).toHaveBeenCalled();
+  });
+
+  it('does not remove the database when submitPassword rejects on a subsequent run', async () => {
+    jest.spyOn(persistenceModule, 'loadState').mockReturnValue({
+      KeyringController: { vault: 'encrypted-vault-blob' },
+    });
+    mockMessenger.call.mockImplementation((action: string) => {
+      if (action === 'KeyringController:submitPassword') {
+        return Promise.reject(new Error('wrong password'));
+      }
+      return undefined;
+    });
+
+    await expect(
+      createWallet({
+        ...CONFIG,
+        databasePath: tempDbPath('subsequent-unlock-failure'),
+      }),
+    ).rejects.toThrow('wrong password');
+
+    expect(mockRm).not.toHaveBeenCalled();
   });
 
   it('closes the store and rethrows when state hydration fails', async () => {

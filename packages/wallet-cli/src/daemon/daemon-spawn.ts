@@ -63,17 +63,27 @@ export async function ensureDaemon(
 
   const { entryPath, args } = resolveEntryPoint(config.packageRoot);
 
+  const childEnv: NodeJS.ProcessEnv = {
+    ...process.env,
+    MM_DAEMON_DATA_DIR: config.dataDir,
+    MM_DAEMON_SOCKET_PATH: socketPath,
+    INFURA_PROJECT_ID: config.infuraProjectId,
+    MM_WALLET_SRP: config.srp,
+  };
+  // Strip any inherited `MM_WALLET_PASSWORD` from the child env when the
+  // caller did not pass a password: the daemon treats an absent variable as
+  // "start locked", but assigning `undefined` via `env` would set the literal
+  // string `'undefined'` and be interpreted as a (wrong) password.
+  if (config.password === undefined) {
+    delete childEnv.MM_WALLET_PASSWORD;
+  } else {
+    childEnv.MM_WALLET_PASSWORD = config.password;
+  }
+
   const child = spawn(process.execPath, [...args, entryPath], {
     detached: true,
     stdio: 'ignore',
-    env: {
-      ...process.env,
-      MM_DAEMON_DATA_DIR: config.dataDir,
-      MM_DAEMON_SOCKET_PATH: socketPath,
-      INFURA_PROJECT_ID: config.infuraProjectId,
-      MM_WALLET_PASSWORD: config.password,
-      MM_WALLET_SRP: config.srp,
-    },
+    env: childEnv,
   });
 
   type ExitInfo = { code: number | null; signal: NodeJS.Signals | null };
