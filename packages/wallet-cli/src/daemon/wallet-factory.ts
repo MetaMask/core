@@ -22,7 +22,7 @@ const IN_MEMORY_DATABASE_PATH = ':memory:';
 
 export type CreateWalletConfig = {
   databasePath: string;
-  password: string;
+  password?: string;
   srp: string;
   infuraProjectId: string;
   log?: Logger;
@@ -112,10 +112,15 @@ function buildInstanceOptions(
  * persist-flagged properties are written through.
  *
  * If the store does not yet contain a keyring vault (first run), the supplied
- * secret recovery phrase is imported. On subsequent runs the persisted vault is
- * reused — `password`/`srp` go unused and the wallet starts locked; the caller
- * unlocks it via `KeyringController:submitPassword` before any keyring-bound
- * operation.
+ * secret recovery phrase is imported using the supplied password. On
+ * subsequent runs, the persisted vault is reused: when a password is
+ * supplied, the wallet is unlocked via `KeyringController:submitPassword` so
+ * keyring-bound messenger actions work immediately; when no password is
+ * supplied, the wallet starts locked and the caller is expected to invoke
+ * `mm wallet unlock` before any keyring-bound operation. First-run startup
+ * without a password is rejected (the SRP cannot be imported without one).
+ * On a subsequent run, a wrong password surfaces as the rejection thrown by
+ * `submitPassword`.
  *
  * On any failure after the store is opened, the store is closed (and the wallet
  * destroyed, if constructed). On a first-run failure, the on-disk database is
@@ -126,8 +131,11 @@ function buildInstanceOptions(
  * @param config - Wallet configuration.
  * @param config.databasePath - Path to the SQLite database file (or
  * `':memory:'` for ephemeral use).
- * @param config.password - The wallet password.
- * @param config.srp - The secret recovery phrase (BIP-39 mnemonic).
+ * @param config.password - The wallet password. Optional on subsequent runs;
+ * when omitted, the daemon starts with a locked keyring. Required on first
+ * run (to import the SRP).
+ * @param config.srp - The secret recovery phrase (BIP-39 mnemonic). Used
+ * only on first run.
  * @param config.infuraProjectId - The Infura project ID for the
  * `NetworkController`.
  * @param config.log - Optional logger for persistence-write and teardown
@@ -142,6 +150,13 @@ export async function createWallet({
   infuraProjectId,
   log,
 }: CreateWalletConfig): Promise<CreateWalletResult> {
+  // An empty `--password` flag or `MM_WALLET_PASSWORD` env var means "no
+  // password supplied", not "the empty string is my password". Collapsing
+  // the ambiguity here avoids the daemon trying to submit `''` to the
+  // keyring (which would surface as a wrong-password error rather than the
+  // intended "start locked" behavior).
+  const effectivePassword = password === '' ? undefined : password;
+
   const logFn = log ?? ((message: string): void => console.error(message));
   const store = new KeyValueStore(databasePath);
   let wallet: Wallet | undefined;
@@ -151,6 +166,16 @@ export async function createWallet({
   try {
     const state = await loadPersistedState(store, infuraProjectId, logFn);
     wasFirstRun = !hasPersistedKeyring(state);
+
+    // Validate the first-run precondition BEFORE constructing the wallet,
+    // so a doomed startup doesn't build a Wallet (and wire persistence
+    // handlers) just to tear it down.
+    if (wasFirstRun && effectivePassword === undefined) {
+      throw new Error(
+        'A password is required on first run to import the secret recovery phrase. ' +
+          'Pass `--password` (or `MM_WALLET_PASSWORD`) on `mm daemon start`.',
+      );
+    }
 
     wallet = new Wallet({
       state,
@@ -184,7 +209,19 @@ export async function createWallet({
     }
 
     if (wasFirstRun) {
-      await importSecretRecoveryPhrase(wallet, password, srp);
+      // The precondition check above narrows `effectivePassword` to a
+      // defined string on this branch; TS can't follow that, hence the
+      // non-null assertion.
+      await importSecretRecoveryPhrase(
+        wallet,
+        effectivePassword as string,
+        srp,
+      );
+    } else if (effectivePassword !== undefined) {
+      await wallet.messenger.call(
+        'KeyringController:submitPassword',
+        effectivePassword,
+      );
     }
 
     let disposePromise: Promise<void> | undefined;
