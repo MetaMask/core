@@ -390,6 +390,90 @@ dominates `toFixed(9)`:
    more correct, but tests that asserted on coarse-rounding collisions will
    need updates.
 
+### Recommended utility: significant-digit cap + decimal-place cap
+
+Pure `toPrecision(15)` solves the crash and preserves precision, but the
+round-tripped JS number for any value with magnitude `< 1e-6` re-serialises
+as exponential notation (`"1.23456789012346e-7"`). For state that may be
+JSON-serialised, logged, or surfaced in audit traces, we generally do not
+want `"e"`-form numbers leaking out. The fix is to compose both bounds:
+clamp significant digits _first_ (defeats the crash for large-magnitude
+rates) and clamp decimal places _second_ (locks the value to a fixed-decimal
+form for any practical price/rate magnitude).
+
+```ts
+/**
+ * Bound a numeric value so that it
+ *
+ * 1. Safely round-trips through `new BigNumber(value)` (i.e. the resulting
+ *    JS number has at most 15 significant digits in its native string form,
+ *    so bignumber.js' `DEBUG` check cannot trip).
+ * 2. Serialises as a fixed-decimal number (no `"e"` notation) for any
+ *    realistic price/rate magnitude.
+ *
+ * Order matters: significant-digit clamping comes first, because
+ * `toFixed(decimalPlaces)` on a large-magnitude input (e.g. a weak-currency
+ * conversion rate like 40115252.21304121) does nothing to its significant
+ * digit count.
+ *
+ * @param value - Numeric value to bound. `null`, `undefined`, `NaN`, and
+ * `Infinity` yield `undefined`.
+ * @param significantDigits - Maximum significant digits. Default `15`
+ * matches IEEE-754 double precision and the bignumber.js cap.
+ * @param decimalPlaces - Maximum decimal places. Default `9` matches the
+ * historical `boundedPrecisionNumber` helper in
+ * `@metamask/assets-controllers/CurrencyRateController`. Values whose
+ * magnitude rounds below `10 ** -decimalPlaces` snap to `0`.
+ * @returns Bounded number, or `undefined` for non-finite inputs.
+ */
+function boundedPriceNumber(
+  value: number | null | undefined,
+  significantDigits = 15,
+  decimalPlaces = 9,
+): number | undefined {
+  if (typeof value !== 'number' || !Number.isFinite(value)) {
+    return undefined;
+  }
+  const sigBounded = Number(value.toPrecision(significantDigits));
+  return Number(sigBounded.toFixed(decimalPlaces));
+}
+```
+
+Empirical behaviour (verified against `bignumber.js@9.1.2` with
+`BigNumber.DEBUG = true`):
+
+| Input                                     | Bounded value       | `String(bounded)`   | Has `"e"`? | `new BigNumber(bounded)` |
+| ----------------------------------------- | ------------------- | ------------------- | ---------- | ------------------------ |
+| `40115252.21304121` (VND rate)            | `40115252.2130412`  | `40115252.2130412`  | no         | OK                       |
+| `11259865.090939905` (IDR rate)           | `11259865.0909399`  | `11259865.0909399`  | no         | OK                       |
+| `12345678901.234568` (big rate)           | `12345678901.2346`  | `12345678901.2346`  | no         | OK                       |
+| `2308.478753378` (mid USD rate)           | `2308.478753378`    | `2308.478753378`    | no         | OK                       |
+| `1.0000000000000002` (fp artifact, up)    | `1`                 | `1`                 | no         | OK                       |
+| `0.9999999999999998` (fp artifact, down)  | `1`                 | `1`                 | no         | OK                       |
+| `0.00010234567891234` (token ≈ $0.0001)   | `0.000102346`       | `0.000102346`       | no         | OK                       |
+| `0.0000012345678912` (token ≈ $0.000001)  | `0.000001235`       | `0.000001235`       | no         | OK                       |
+| `1.2345678901234566e-7` (sub-`1e-6` dust) | `1.23e-7`           | `1.23e-7`           | **yes**    | OK                       |
+| `1.23456789e-10` (sub-nano)               | `0`                 | `0`                 | no         | OK                       |
+| `1.234567890123456e-15` (micro-dust)      | `0`                 | `0`                 | no         | OK                       |
+| `-40115252.21304121`                      | `-40115252.2130412` | `-40115252.2130412` | no         | OK                       |
+
+The only band where exponential notation survives is `1e-9 ≤ |x| < 1e-6` —
+a price range of roughly `$0.000000001` to `$0.000001` per token unit. This
+is below where any realistic fiat or asset price lives; nothing in the
+Price API contract approaches this magnitude. If a future use case needs to
+eliminate exponential output even for that band, two alternatives:
+
+- **Snap the band to zero.** Tighten `decimalPlaces` to `6`. `(1.23e-7).toFixed(6)`
+  rounds to `"0.000000"`, so anything below `1e-6` becomes literal `0` and
+  `String(0)` is `"0"`. The cost is losing precision for sub-`1e-6` prices —
+  acceptable for fiat / token prices, never acceptable for raw balances (which
+  this package already stores as `string`, so this concern does not apply
+  there).
+- **Return the `toFixed` string directly** instead of round-tripping through
+  `Number(...)`. The `toFixed(dp)` return value is always fixed-decimal by
+  construction. The cost is changing the field type from `number` to
+  `string`, which is the broader refactor discussed in the next section.
+
 ### Why we need the bound now even though we didn't before
 
 The original `boundedPrecisionNumber` shipped in
