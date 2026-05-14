@@ -1,7 +1,7 @@
 {
   "name": "@metamask/profile-metrics-controller",
   "version": "3.1.4",
-  "description": "Sample package to illustrate best practices for controllers",
+  "description": "Manages user profile metrics",
   "keywords": [
     "Ethereum",
     "MetaMask"

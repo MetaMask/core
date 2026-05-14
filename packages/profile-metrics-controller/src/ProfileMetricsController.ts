@@ -159,6 +159,12 @@ export type ProfileMetricsControllerMessenger = Messenger<
   ProfileMetricsControllerEvents | AllowedEvents
 >;
 
+/**
+ * Manages user profile metrics.
+ *
+ * For users who opt-in to metrics, this controller ensures we have metrics about their user
+ * profile (metrics ID and accounts).
+ */
 export class ProfileMetricsController extends StaticIntervalPollingController()<
   typeof controllerName,
   ProfileMetricsControllerState,
