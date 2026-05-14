@@ -28,6 +28,21 @@ const COMPLIANCE_API_URLS: Record<ComplianceServiceEnvironment, string> = {
   development: 'https://compliance.dev-api.cx.metamask.io',
 };
 
+export type ComplianceServiceOptions = {
+  messenger: ComplianceServiceMessenger;
+  fetch: typeof fetch;
+  /**
+   * Explicit Compliance API URL. Prefer this for application builds so API
+   * endpoints can be managed by build configuration.
+   */
+  apiUrl?: string;
+  /**
+   * Fallback environment used when `apiUrl` is not provided.
+   */
+  env?: ComplianceServiceEnvironment;
+  policyOptions?: CreateServicePolicyOptions;
+};
+
 // === MESSENGER ===
 
 const MESSENGER_EXPOSED_METHODS = [
@@ -126,7 +141,7 @@ type BatchWalletCheckResponseItem = Infer<
  * new ComplianceService({
  *   messenger: serviceMessenger,
  *   fetch,
- *   env: 'production',
+ *   apiUrl: 'https://compliance.api.cx.metamask.io',
  * });
  *
  * // Check a single wallet
@@ -173,26 +188,23 @@ export class ComplianceService {
    * @param args - The constructor arguments.
    * @param args.messenger - The messenger suited for this service.
    * @param args.fetch - A function that can be used to make an HTTP request.
-   * @param args.env - The environment to use for the Compliance API. Determines
-   * the base URL.
+   * @param args.apiUrl - The explicit Compliance API URL.
+   * @param args.env - The fallback environment to use for the Compliance API
+   * when `apiUrl` is not provided.
    * @param args.policyOptions - Options to pass to `createServicePolicy`, which
    * is used to wrap each request. See {@link CreateServicePolicyOptions}.
    */
   constructor({
     messenger,
     fetch: fetchFunction,
-    env,
+    apiUrl,
+    env = 'production',
     policyOptions = {},
-  }: {
-    messenger: ComplianceServiceMessenger;
-    fetch: typeof fetch;
-    env: ComplianceServiceEnvironment;
-    policyOptions?: CreateServicePolicyOptions;
-  }) {
+  }: ComplianceServiceOptions) {
     this.name = serviceName;
     this.#messenger = messenger;
     this.#fetch = fetchFunction;
-    this.#complianceApiUrl = COMPLIANCE_API_URLS[env];
+    this.#complianceApiUrl = getComplianceApiUrl({ apiUrl, env });
     this.#policy = createServicePolicy(policyOptions);
 
     this.#messenger.registerMethodActionHandlers(
@@ -300,6 +312,24 @@ export class ComplianceService {
       array(BatchWalletCheckResponseItemStruct),
       'compliance batch check API',
     );
+  }
+}
+
+function getComplianceApiUrl({
+  apiUrl,
+  env,
+}: {
+  apiUrl?: string;
+  env: ComplianceServiceEnvironment;
+}): string {
+  if (apiUrl === undefined) {
+    return COMPLIANCE_API_URLS[env];
+  }
+
+  try {
+    return new URL(apiUrl).href;
+  } catch {
+    throw new Error(`Invalid Compliance API URL: ${apiUrl}`);
   }
 }
 
