@@ -97,6 +97,7 @@ import type { TransactionControllerMethodActions } from './TransactionController
 import type {
   DappSuggestedGasFees,
   Layer1GasFeeFlow,
+  Revert,
   SavedGasFees,
   SecurityProviderRequest,
   SendFlowHistoryEntry,
@@ -762,7 +763,12 @@ const MESSENGER_EXPOSED_METHODS = [
   'updateCustodialTransaction',
   'updateEditableParams',
   'updateIncomingTransactions',
+  'updatePreviousGasParams',
+  'updateRequiredTransactionIds',
+  'updateSecurityAlertResponse',
+  'updateSelectedGasFeeToken',
   'updateTransaction',
+  'updateTransactionGasFees',
   'wipeTransactions',
 ] as const;
 
@@ -2765,6 +2771,14 @@ export class TransactionController extends BaseController<
         transactionMeta.txParams.gas = draftTransaction.txParams.gas;
         transactionMeta.simulationFails = draftTransaction.simulationFails;
         transactionMeta.gasLimitNoBuffer = draftTransaction.gasLimitNoBuffer;
+
+        const draftGasRevert = draftTransaction.revert?.gas;
+        if (draftGasRevert) {
+          transactionMeta.revert = {
+            ...transactionMeta.revert,
+            gas: draftGasRevert,
+          };
+        }
       },
     );
 
@@ -4294,6 +4308,7 @@ export class TransactionController extends BaseController<
     let gasUsed: Hex | undefined;
     let gasFeeTokens: GasFeeToken[] = [];
     let isGasFeeSponsored = false;
+    let simulationRevert: Revert | undefined;
 
     const isBalanceChangesSkipped =
       this.#isBalanceChangesSkipped(transactionMeta);
@@ -4319,6 +4334,7 @@ export class TransactionController extends BaseController<
       );
       simulationData = balanceChangesResult.simulationData;
       gasUsed = balanceChangesResult.gasUsed;
+      simulationRevert = balanceChangesResult.simulationRevert;
 
       if (
         blockTime &&
@@ -4362,6 +4378,13 @@ export class TransactionController extends BaseController<
 
         if (!this.#isBalanceChangesSkipped(txMeta)) {
           txMeta.simulationData = simulationData;
+
+          if (simulationRevert) {
+            txMeta.revert = {
+              ...txMeta.revert,
+              simulation: simulationRevert,
+            };
+          }
         }
       },
     );
@@ -4538,6 +4561,7 @@ export class TransactionController extends BaseController<
     actionId?: string,
   ): void {
     let newTransactionMeta: TransactionMeta;
+    const { revert: receiptRevert } = error as { revert?: Revert };
 
     try {
       newTransactionMeta = this.#updateTransactionInternal(
@@ -4553,6 +4577,15 @@ export class TransactionController extends BaseController<
               status: TransactionStatus.failed;
             }
           ).error = normalizeTxError(error);
+
+          if (receiptRevert === undefined) {
+            return;
+          }
+
+          draftTransactionMeta.revert = {
+            ...draftTransactionMeta.revert,
+            receipt: receiptRevert,
+          };
         },
       );
     } catch (caughtError: unknown) {
@@ -4562,6 +4595,14 @@ export class TransactionController extends BaseController<
         ...transactionMeta,
         status: TransactionStatus.failed,
         error: normalizeTxError(error),
+        ...(receiptRevert === undefined
+          ? {}
+          : {
+              revert: {
+                ...transactionMeta.revert,
+                receipt: receiptRevert,
+              },
+            }),
       };
     }
 

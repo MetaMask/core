@@ -37,6 +37,10 @@ import {
   isRelayExecuteEnabled,
 } from '../../utils/feature-flags';
 import { calculateGasCost } from '../../utils/gas';
+import {
+  getGasStationCostInSourceTokenRaw,
+  getGasStationEligibility,
+} from '../../utils/gas-station';
 import { estimateQuoteGasLimits } from '../../utils/quote-gas';
 import type { QuoteGasTransaction } from '../../utils/quote-gas';
 import {
@@ -48,10 +52,6 @@ import {
 } from '../../utils/token';
 import { isPredictWithdrawTransaction } from '../../utils/transaction';
 import { TOKEN_TRANSFER_FOUR_BYTE } from './constants';
-import {
-  getGasStationCostInSourceTokenRaw,
-  getGasStationEligibility,
-} from './gas-station';
 import { fetchRelayQuote } from './relay-api';
 import { getRelayMaxGasStationQuote } from './relay-max-gas-station';
 import type {
@@ -78,13 +78,15 @@ export async function getRelayQuotes(
 
   try {
     const normalizedRequests = requests
-      // Ignore gas fee token requests (which have both target=0 and source=0)
-      // but keep post-quote requests (identified by isPostQuote flag)
-      .filter(
-        (singleRequest) =>
-          singleRequest.targetAmountMinimum !== '0' ||
-          singleRequest.isPostQuote,
-      )
+      .filter((singleRequest) => {
+        const hasTargetMinimum = singleRequest.targetAmountMinimum !== '0';
+        const isPostQuote = Boolean(singleRequest.isPostQuote);
+        const isExactInputRequest =
+          Boolean(singleRequest.isMaxAmount) &&
+          new BigNumber(singleRequest.sourceTokenAmount).gt(0);
+
+        return hasTargetMinimum || isPostQuote || isExactInputRequest;
+      })
       .map((singleRequest) => normalizeRequest(singleRequest));
 
     log('Normalized requests', normalizedRequests);

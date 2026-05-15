@@ -278,6 +278,8 @@ const mockMultichainAssetsControllerState: MultichainAssetsControllerState = {
       },
   },
   allIgnoredAssets: {},
+  stellarClassicTrustlineInactiveAssetIds: {},
+  stellarTrustlineInactiveBackfillComplete: true,
 };
 
 const mockAccountTreeControllerState = {

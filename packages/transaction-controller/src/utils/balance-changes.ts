@@ -28,6 +28,7 @@ import {
 import { projectLogger } from '../logger';
 import type { TransactionControllerMessenger } from '../TransactionController';
 import type {
+  Revert,
   SimulationBalanceChange,
   SimulationData,
   SimulationTokenBalanceChange,
@@ -38,6 +39,7 @@ import type {
 } from '../types';
 import { SimulationTokenStandard } from '../types';
 import { getNativeBalance } from './balance';
+import { decodeRevert } from './revert-reason';
 
 export enum SupportedToken {
   ERC20 = 'erc20',
@@ -120,10 +122,15 @@ type BalanceTransactionMap = Map<SimulationToken, SimulationRequestTransaction>;
  */
 export async function getBalanceChanges(
   request: GetBalanceChangesRequest,
-): Promise<{ simulationData: SimulationData; gasUsed?: Hex }> {
+): Promise<{
+  simulationData: SimulationData;
+  gasUsed?: Hex;
+  simulationRevert?: Revert;
+}> {
   log('Request', request);
 
   let callTraceErrors: string[] | undefined;
+  let simulationRevert: Revert | undefined;
 
   try {
     const response = await baseRequest({
@@ -136,6 +143,7 @@ export async function getBalanceChanges(
 
     const transactionResponse = response.transactions?.[0];
     callTraceErrors = extractCallTraceErrors(transactionResponse?.callTrace);
+    simulationRevert = extractRootRevert(transactionResponse?.callTrace);
     const transactionError = transactionResponse?.error;
 
     if (transactionError) {
@@ -156,7 +164,7 @@ export async function getBalanceChanges(
       tokenBalanceChanges,
     };
 
-    return { simulationData, gasUsed };
+    return { simulationData, gasUsed, simulationRevert };
   } catch (error) {
     log('Failed to get balance changes', error, request);
 
@@ -182,6 +190,7 @@ export async function getBalanceChanges(
         },
       },
       gasUsed: undefined,
+      simulationRevert,
     };
   }
 }
@@ -658,6 +667,25 @@ function extractCallTraceErrors(call?: SimulationResponseCallTrace): string[] {
   );
 
   return [...errors, ...nestedErrors];
+}
+
+/**
+ * Build a `Revert` from the root call trace frame. Reads only the raw
+ * `output` hex and decodes it locally; the upstream `error` message string
+ * is never parsed. Only the root frame's output is considered, since
+ * nested frame errors may have been caught and recovered by their callers.
+ *
+ * @param call - The root call trace frame.
+ * @returns A `Revert` if the root frame reverted with output data,
+ * otherwise `undefined`.
+ */
+function extractRootRevert(
+  call?: SimulationResponseCallTrace,
+): Revert | undefined {
+  if (!call?.error) {
+    return undefined;
+  }
+  return decodeRevert(call.output, 'simulation');
 }
 
 /**

@@ -1486,17 +1486,23 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
 
       // Record in bridge history with actual transaction metadata
       try {
-        // Create a bridge transaction metadata that includes the original txId
+        // Create a bridge transaction metadata keyed by orderUid for intent polling
         const bridgeTxMetaForHistory = {
           ...syntheticMeta,
           id: orderUid,
-          originalTransactionId: syntheticMeta.id, // Keep original txId for TransactionController updates
         };
 
         // Use orderId as the history key for intent transactions
+        // IMPORTANT: pass originalTransactionId as a top-level argument so
+        // `getInitialHistoryItem` reads it. Setting it on `bridgeTxMeta` is a no-op
+        // because `getInitialHistoryItem` destructures `originalTransactionId` from
+        // the top-level args, not from `bridgeTxMeta`. Without this, the field
+        // falls back to `bridgeTxMeta.id` (the orderUid), severing the link between
+        // the bridge history record and the synthetic TransactionController entry.
         const historyKey = this.#addTxToHistory({
           accountAddress,
           bridgeTxMeta: bridgeTxMetaForHistory,
+          originalTransactionId: syntheticMeta.id,
           quoteResponse,
           slippagePercentage: 0,
           isStxEnabled: false,

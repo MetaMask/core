@@ -3,65 +3,10 @@ import {
   PasskeyControllerErrorMessage,
 } from './constants';
 import { PasskeyControllerError } from './errors';
-import type {
-  PasskeyKeyDerivation,
-  PasskeyRecord,
-  PasskeyRegistrationCeremony,
-  PrfClientExtensionResults,
-} from './types';
+import type { PasskeyRecord, PrfClientExtensionResults } from './types';
 import { deriveEncryptionKey } from './utils/crypto';
 import { base64URLToBytes } from './utils/encoding';
-import type {
-  PasskeyAuthenticationResponse,
-  PasskeyRegistrationResponse,
-} from './webauthn/types';
-
-/**
- * Derives an AES-256 wrapping key from a WebAuthn registration ceremony
- * response.
- *
- * Uses the PRF output as HKDF input key material when
- * `clientExtensionResults.prf.results.first` is a non-empty string;
- * otherwise falls back to the random `userHandle` created during option
- * generation (including when PRF is enabled but no output is present).
- *
- * @param registrationResponse - The registration credential result from
- *   `navigator.credentials.create()`.
- * @param registrationCeremony - In-flight registration ceremony state from
- *   when `generateRegistrationOptions()` was called.
- * @param verifiedCredentialId - Base64url credential id from verified
- *   authenticator data (same value as persisted `credential.id` after
- *   `verifyRegistrationResponse`), not the client wrapper field alone.
- * @returns The derived 32-byte AES wrapping key and the
- *   {@link PasskeyKeyDerivation} parameters needed to reproduce it.
- */
-export function deriveKeyFromRegistrationResponse(
-  registrationResponse: PasskeyRegistrationResponse,
-  registrationCeremony: PasskeyRegistrationCeremony,
-  verifiedCredentialId: string,
-): {
-  encKey: Uint8Array;
-  keyDerivation: PasskeyKeyDerivation;
-} {
-  const prfFirst = (
-    registrationResponse.clientExtensionResults as PrfClientExtensionResults
-  )?.prf?.results?.first;
-  const hasPrfOutput = typeof prfFirst === 'string' && prfFirst.length > 0;
-
-  const keyDerivation: PasskeyKeyDerivation = hasPrfOutput
-    ? { method: 'prf', prfSalt: registrationCeremony.prfSalt }
-    : { method: 'userHandle' };
-  const ikm =
-    keyDerivation.method === 'prf'
-      ? base64URLToBytes(prfFirst as string)
-      : base64URLToBytes(registrationCeremony.userHandle);
-  const encKey = deriveEncryptionKey(
-    ikm,
-    base64URLToBytes(verifiedCredentialId),
-  );
-
-  return { encKey, keyDerivation };
-}
+import type { PasskeyAuthenticationResponse } from './webauthn/types';
 
 /**
  * Derives an AES-256 wrapping key from a WebAuthn authentication ceremony
@@ -73,15 +18,15 @@ export function deriveKeyFromRegistrationResponse(
  *
  * @param authenticationResponse - The authentication credential result
  *   from `navigator.credentials.get()`.
- * @param record - The persisted passkey record that was created during
- *   enrollment.
+ * @param record - Credential id and key derivation parameters (ciphertext is
+ *   not read).
  * @returns The derived 32-byte AES wrapping key.
  * @throws {@link PasskeyControllerError} with code `missing_key_material` if the
  *   required key material (PRF result or userHandle) is missing from the response.
  */
 export function deriveKeyFromAuthenticationResponse(
   authenticationResponse: PasskeyAuthenticationResponse,
-  record: PasskeyRecord,
+  record: Pick<PasskeyRecord, 'credential' | 'keyDerivation'>,
 ): Uint8Array {
   const { userHandle } = authenticationResponse.response;
   const prfFirst = (

@@ -23,6 +23,7 @@ import {
   KeyringTypes,
 } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
+import { KeyringV1Adapter } from '@metamask/keyring-sdk/v2';
 import { MOCK_ANY_NAMESPACE, Messenger } from '@metamask/messenger';
 import type {
   MessengerActions,
@@ -263,7 +264,6 @@ function buildMockSnapKeyringV2(
   snapId: string,
   overrides: Partial<SnapKeyringV2> = {},
 ): SnapKeyringV2 {
-  // We need to use the same prototype as we use some `instanceof` checks.
   const instance = Object.create(SnapKeyringV2.prototype) as SnapKeyringV2;
 
   // The `snapId` is usually injected via `deserialize`, but here we just mock the getter directly.
@@ -273,6 +273,19 @@ function buildMockSnapKeyringV2(
   });
 
   return Object.assign(instance, overrides);
+}
+
+/**
+ * Wraps a mock SnapKeyringV2 in a KeyringV1Adapter so it passes the
+ * `instanceof KeyringV1Adapter` check in AccountsController.
+ *
+ * @param inner - The mock SnapKeyringV2 instance to wrap.
+ * @returns A KeyringV1Adapter wrapping the mock instance.
+ */
+function buildMockKeyringV1Adapter(
+  inner: SnapKeyringV2,
+): KeyringV1Adapter<SnapKeyringV2> {
+  return new KeyringV1Adapter(inner);
 }
 
 /**
@@ -882,7 +895,9 @@ describe('AccountsController', () => {
         const messenger = buildMessenger();
         messenger.registerActionHandler(
           'KeyringController:getKeyringsByType',
-          mockGetKeyringByType.mockReturnValue([mockSnapKeyringV2Instance]),
+          mockGetKeyringByType.mockReturnValue([
+            buildMockKeyringV1Adapter(mockSnapKeyringV2Instance),
+          ]),
         );
 
         const mockNewKeyringState = {
@@ -945,7 +960,9 @@ describe('AccountsController', () => {
         const messenger = buildMessenger();
         messenger.registerActionHandler(
           'KeyringController:getKeyringsByType',
-          mockGetKeyringByType.mockReturnValue([mockSnapKeyringV2Instance]),
+          mockGetKeyringByType.mockReturnValue([
+            buildMockKeyringV1Adapter(mockSnapKeyringV2Instance),
+          ]),
         );
 
         const mockNewKeyringState = {
@@ -989,7 +1006,7 @@ describe('AccountsController', () => {
         messenger.registerActionHandler(
           'KeyringController:getKeyringsByType',
           mockGetKeyringByType.mockReturnValue([
-            // Plain object — does NOT pass instanceof SnapKeyringV2
+            // Plain object — does NOT pass instanceof KeyringV1Adapter
             { lookupByAddress: jest.fn() },
           ]),
         );
@@ -3294,7 +3311,9 @@ describe('AccountsController', () => {
       );
       messenger.registerActionHandler(
         'KeyringController:getKeyringsByType',
-        mockGetKeyringByType.mockReturnValue([mockSnapKeyringV2Instance]),
+        mockGetKeyringByType.mockReturnValue([
+          buildMockKeyringV1Adapter(mockSnapKeyringV2Instance),
+        ]),
       );
 
       const { accountsController } = setupAccountsController({

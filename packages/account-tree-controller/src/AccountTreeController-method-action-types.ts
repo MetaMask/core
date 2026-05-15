@@ -6,6 +6,29 @@
 import type { AccountTreeController } from './AccountTreeController';
 
 /**
+ * Initialize the controller's state.
+ *
+ * It constructs the initial state of the account tree (tree nodes, nodes
+ * names, metadata, etc..) and will automatically update the controller's
+ * state with it.
+ */
+export type AccountTreeControllerInitAction = {
+  type: `AccountTreeController:init`;
+  handler: AccountTreeController['init'];
+};
+
+/**
+ * Re-initialize the controller's state.
+ *
+ * This is done in one single (atomic) `update` block to avoid having a temporary
+ * cleared state. Use this when you need to force a full re-init even if already initialized.
+ */
+export type AccountTreeControllerReinitAction = {
+  type: `AccountTreeController:reinit`;
+  handler: AccountTreeController['reinit'];
+};
+
+/**
  * Gets the account wallet object from its ID.
  *
  * @param walletId - Account wallet ID.
@@ -180,6 +203,8 @@ export type AccountTreeControllerSyncWithUserStorageAtLeastOnceAction = {
  * Union of all AccountTreeController action types.
  */
 export type AccountTreeControllerMethodActions =
+  | AccountTreeControllerInitAction
+  | AccountTreeControllerReinitAction
   | AccountTreeControllerGetAccountWalletObjectAction
   | AccountTreeControllerGetAccountWalletObjectsAction
   | AccountTreeControllerGetAccountsFromSelectedAccountGroupAction

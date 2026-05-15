@@ -11,6 +11,8 @@ export { AccountTrackerController } from './AccountTrackerController';
 export type {
   AccountTrackerControllerUpdateNativeBalancesAction,
   AccountTrackerControllerUpdateStakedBalancesAction,
+  AccountTrackerControllerRefreshAction,
+  AccountTrackerControllerSyncBalanceWithAddressesAction,
 } from './AccountTrackerController-method-action-types';
 export type {
   AssetsContractControllerActions,
@@ -95,6 +97,8 @@ export { TokenBalancesController } from './TokenBalancesController';
 export type {
   TokenBalancesControllerUpdateChainPollingConfigsAction,
   TokenBalancesControllerGetChainPollingConfigAction,
+  TokenBalancesControllerUpdateBalancesAction,
+  TokenBalancesControllerResetStateAction,
 } from './TokenBalancesController-method-action-types';
 export type {
   TokenDetectionControllerMessenger,
@@ -124,6 +128,7 @@ export type {
   TokenListControllerMessenger,
 } from './TokenListController';
 export { TokenListController } from './TokenListController';
+export { TokenListService, buildTokenListMap } from './TokenListService';
 export type {
   ContractExchangeRates,
   ContractMarketData,
@@ -212,6 +217,11 @@ export type {
   MultichainAssetsControllerAccountAssetListUpdatedEvent,
   MultichainAssetsControllerMessenger,
 } from './MultichainAssetsController';
+export {
+  isStellarCaipChain,
+  isStellarClassicAssetCaip19,
+  isStellarTrustlineTrackedAsset,
+} from './multichain/stellarTrustline';
 export type {
   MultichainAssetsControllerGetAssetMetadataAction,
   MultichainAssetsControllerIgnoreAssetsAction,
