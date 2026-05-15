@@ -210,7 +210,7 @@ type BridgePollingInput = {
 const MESSENGER_EXPOSED_METHODS = [
   'updateBridgeQuoteRequestParams',
   'fetchQuotes',
-  'fetchBatchSellTrades',
+  'updateBatchSellTrades',
   'stopPollingForQuotes',
   'setLocation',
   'resetState',
@@ -451,19 +451,17 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
    *
    * @param quotes - The quotes to fetch the gasless transaction data and fees for
    */
-  fetchBatchSellTrades = async (quotes: QuoteResponse[]): Promise<void> => {
+  updateBatchSellTrades = async (
+    quotes: (QuoteResponse | null)[],
+  ): Promise<void> => {
     this.#batchSellTradesAbortController?.abort(
       AbortReason.GaslessTxBatchFetched,
     );
     this.#batchSellTradesAbortController = new AbortController();
 
-    this.update((state) => {
-      state.batchSellTradesLoadingStatus = RequestStatus.LOADING;
-    });
-
     try {
       const batchSellTradesResponse = await fetchBatchSellTrades(
-        { quotes },
+        quotes,
         this.#batchSellTradesAbortController.signal,
         this.#clientId,
         await this.#getJwt(),
@@ -785,6 +783,8 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
     context,
   }: BridgePollingInput) => {
     this.#abortController?.abort(AbortReason.NewQuoteRequest);
+    this.#batchSellTradesAbortController?.abort(AbortReason.NewQuoteRequest);
+
     this.#abortController = new AbortController();
 
     this.#fetchAssetExchangeRates(quoteRequests).catch((error) =>
@@ -809,6 +809,11 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
         DEFAULT_BRIDGE_CONTROLLER_STATE.quoteStreamComplete;
       state.quotesLastFetched = Date.now();
       state.quotesLoadingStatus = RequestStatus.LOADING;
+      // Prevent clients from displaying stale batch sell fees
+      if (quoteRequests.length > 1) {
+        state.batchSellTradesLoadingStatus = RequestStatus.LOADING;
+        state.batchSellTrades = DEFAULT_BRIDGE_CONTROLLER_STATE.batchSellTrades;
+      }
     });
 
     const jwt = await this.#getJwt();

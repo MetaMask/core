@@ -471,6 +471,7 @@ export const TronTradeDataSchema = type({
 });
 
 export const QuoteResponseSchema = type({
+  quoteId: optional(string()),
   quote: QuoteSchema,
   estimatedProcessingTimeInSeconds: number(),
   approval: optional(union([TxDataSchema, TronTradeDataSchema])),

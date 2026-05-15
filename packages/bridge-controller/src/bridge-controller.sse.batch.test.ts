@@ -439,6 +439,8 @@ describe('BridgeController BatchSell (multiple quote requests) SSE', function ()
             quotesLoadingStatus: 1,
             quotesLastFetched: t1,
             assetExchangeRates,
+            batchSellTrades: null,
+            batchSellTradesLoadingStatus: RequestStatus.LOADING,
           });
           expect(fetchBridgeQuotesSpy).toHaveBeenCalledTimes(1);
           expect(consoleLogSpy).toHaveBeenCalledTimes(0);
@@ -521,16 +523,17 @@ describe('BridgeController BatchSell (multiple quote requests) SSE', function ()
           );
 
           // Initial fetch
-          await rootMessenger.call('BridgeController:fetchBatchSellTrades', []);
+          await rootMessenger.call(
+            'BridgeController:updateBatchSellTrades',
+            [],
+          );
 
           await jest.advanceTimersByTimeAsync(1000);
           await flushPromises();
 
           expect(stopAllPollingSpy).toHaveBeenCalledTimes(0);
           expect(abortControllerSpy).toHaveBeenCalledTimes(0);
-          expect(fetchBatchSellTradesSpy.mock.calls[0][0].quotes).toStrictEqual(
-            [],
-          );
+          expect(fetchBatchSellTradesSpy.mock.calls[0][0]).toStrictEqual([]);
           expect(startPollingSpy).not.toHaveBeenCalled();
           expect(bridgeController.state.batchSellTrades).toStrictEqual(
             mockBatchSellTrades,
@@ -631,9 +634,12 @@ describe('BridgeController BatchSell (multiple quote requests) SSE', function ()
           );
 
           // Call twice in a row
-          await rootMessenger.call('BridgeController:fetchBatchSellTrades', []);
           await rootMessenger.call(
-            'BridgeController:fetchBatchSellTrades',
+            'BridgeController:updateBatchSellTrades',
+            [],
+          );
+          await rootMessenger.call(
+            'BridgeController:updateBatchSellTrades',
             mockBridgeQuotesErc20Erc20 as unknown as QuoteResponse[],
           );
 
@@ -642,9 +648,7 @@ describe('BridgeController BatchSell (multiple quote requests) SSE', function ()
 
           expect(stopAllPollingSpy).toHaveBeenCalledTimes(0);
           expect(abortControllerSpy).toHaveBeenCalledTimes(1);
-          expect(fetchBatchSellTradesSpy.mock.calls[0][0].quotes).toStrictEqual(
-            [],
-          );
+          expect(fetchBatchSellTradesSpy.mock.calls[0][0]).toStrictEqual([]);
           expect(startPollingSpy).not.toHaveBeenCalled();
           expect(bridgeController.state.batchSellTrades).toStrictEqual(
             mockBatchSellTrades2,
@@ -665,9 +669,7 @@ describe('BridgeController BatchSell (multiple quote requests) SSE', function ()
 
           expect(fetchBatchSellTradesSpy).toHaveBeenCalledTimes(2);
           expect(fetchBatchSellTradesSpy.mock.calls[0]).toStrictEqual([
-            {
-              quotes: [],
-            },
+            [],
             expect.any(AbortSignal),
             'extension',
             'AUTH_TOKEN',
@@ -676,9 +678,7 @@ describe('BridgeController BatchSell (multiple quote requests) SSE', function ()
             '13.8.0',
           ]);
           expect(fetchBatchSellTradesSpy.mock.calls[1]).toStrictEqual([
-            {
-              quotes: mockBridgeQuotesErc20Erc20,
-            },
+            mockBridgeQuotesErc20Erc20,
             expect.any(AbortSignal),
             'extension',
             'AUTH_TOKEN',
@@ -745,7 +745,10 @@ describe('BridgeController BatchSell (multiple quote requests) SSE', function ()
           );
 
           // Reset after starting fetch
-          await rootMessenger.call('BridgeController:fetchBatchSellTrades', []);
+          await rootMessenger.call(
+            'BridgeController:updateBatchSellTrades',
+            [],
+          );
           rootMessenger.call('BridgeController:resetState');
 
           await jest.advanceTimersByTimeAsync(1000);
@@ -753,9 +756,7 @@ describe('BridgeController BatchSell (multiple quote requests) SSE', function ()
 
           expect(stopAllPollingSpy).toHaveBeenCalledTimes(1);
           expect(abortControllerSpy).toHaveBeenCalledTimes(2);
-          expect(fetchBatchSellTradesSpy.mock.calls[0][0].quotes).toStrictEqual(
-            [],
-          );
+          expect(fetchBatchSellTradesSpy.mock.calls[0][0]).toStrictEqual([]);
           expect(startPollingSpy).not.toHaveBeenCalled();
           expect(bridgeController.state.batchSellTrades).toBeNull();
           expect(
@@ -772,9 +773,7 @@ describe('BridgeController BatchSell (multiple quote requests) SSE', function ()
 
           expect(fetchBatchSellTradesSpy).toHaveBeenCalledTimes(1);
           expect(fetchBatchSellTradesSpy.mock.calls[0]).toStrictEqual([
-            {
-              quotes: [],
-            },
+            [],
             expect.any(AbortSignal),
             'extension',
             'AUTH_TOKEN',
@@ -843,16 +842,17 @@ describe('BridgeController BatchSell (multiple quote requests) SSE', function ()
           );
 
           // 1st fetch
-          await rootMessenger.call('BridgeController:fetchBatchSellTrades', []);
+          await rootMessenger.call(
+            'BridgeController:updateBatchSellTrades',
+            [],
+          );
 
           await jest.advanceTimersByTimeAsync(1000);
           await flushPromises();
 
           expect(stopAllPollingSpy).toHaveBeenCalledTimes(0);
           expect(abortControllerSpy).toHaveBeenCalledTimes(0);
-          expect(fetchBatchSellTradesSpy.mock.calls[0][0].quotes).toStrictEqual(
-            [],
-          );
+          expect(fetchBatchSellTradesSpy.mock.calls[0][0]).toStrictEqual([]);
           expect(startPollingSpy).not.toHaveBeenCalled();
           expect(bridgeController.state.batchSellTrades).toStrictEqual(
             mockBatchSellTrades,
@@ -870,7 +870,7 @@ describe('BridgeController BatchSell (multiple quote requests) SSE', function ()
 
           // 2nd fetch
           await rootMessenger.call(
-            'BridgeController:fetchBatchSellTrades',
+            'BridgeController:updateBatchSellTrades',
             mockBridgeQuotesErc20Erc20 as unknown as QuoteResponse[],
           );
 
@@ -879,7 +879,7 @@ describe('BridgeController BatchSell (multiple quote requests) SSE', function ()
 
           expect(stopAllPollingSpy).toHaveBeenCalledTimes(0);
           expect(abortControllerSpy).toHaveBeenCalledTimes(1);
-          expect(fetchBatchSellTradesSpy.mock.calls[1][0].quotes).toStrictEqual(
+          expect(fetchBatchSellTradesSpy.mock.calls[1][0]).toStrictEqual(
             mockBridgeQuotesErc20Erc20,
           );
           expect(startPollingSpy).not.toHaveBeenCalled();

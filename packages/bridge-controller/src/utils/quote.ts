@@ -16,7 +16,6 @@ import type {
   QuoteResponse,
   NonEvmFees,
   TxData,
-  BatchSellTradesResponse,
 } from '../types';
 import { isNativeAddress, isNonEvmChainId } from './bridge';
 import { FeatureId } from './validators';

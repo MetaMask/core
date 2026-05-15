@@ -11,7 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Implement transaction batch and fee fetching for BatchSell quotes ([#8805](https://github.com/MetaMask/core/pull/8805))
   - add new states `batchSellTrades` and `batchSellTradesLoadingStatus` to contain transaction data and its fetch status
-  - support transaction batch data fetching with the new `fetchBatchSellTrades` handler. Clients will need to call this whenever the recommended quotes update
+  - support transaction batch data fetching with the new `updateBatchSellTrades` handler. Clients will need to call this whenever the recommended quotes update
   - implement `selectBatchSellTrades` selector which returns the ordered list of transactions to submit as a batch, including any transfer transactions required to cover gas costs. This also returns the `totalNetworkFee` provided by the `obtainGaslessBatch` endpoint and its converted values
 
 ### Changed

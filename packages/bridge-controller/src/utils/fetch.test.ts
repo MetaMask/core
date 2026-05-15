@@ -1,5 +1,6 @@
 import { AddressZero } from '@ethersproject/constants';
 import type { CaipAssetType } from '@metamask/utils';
+import { ServerResponse } from 'http';
 
 import mockBridgeQuotesErc20Erc20 from '../../tests/mock-quotes-erc20-erc20.json';
 import mockBridgeQuotesNativeErc20 from '../../tests/mock-quotes-native-erc20.json';
@@ -10,6 +11,7 @@ import {
   fetchBridgeTokens,
   fetchAssetPrices,
   fetchBatchSellTrades,
+  formatBatchSellTradesRequest,
 } from './fetch';
 import { BatchSimulationTransactionType, FeatureId } from './validators';
 
@@ -732,13 +734,15 @@ describe('fetch', () => {
       },
     };
 
-    // TODO error response
     it('should fetch batch sell trades', async () => {
-      mockFetchFn.mockResolvedValue(mockBatchSellTrades);
+      mockFetchFn.mockResolvedValue({
+        ok: true,
+        json: jest.fn().mockResolvedValue(mockBatchSellTrades),
+      });
       const { signal } = new AbortController();
 
       const result = await fetchBatchSellTrades(
-        { quotes: mockBridgeQuotesErc20Erc20 as unknown as QuoteResponse[] },
+        mockBridgeQuotesErc20Erc20 as unknown as QuoteResponse[],
         signal,
         BridgeClientId.EXTENSION,
         'AUTH_TOKEN',
@@ -758,9 +762,11 @@ describe('fetch', () => {
           },
           signal,
           method: 'POST',
-          body: JSON.stringify({
-            quotes: mockBridgeQuotesErc20Erc20 as unknown as QuoteResponse[],
-          }),
+          body: JSON.stringify(
+            formatBatchSellTradesRequest(
+              mockBridgeQuotesErc20Erc20 as unknown as QuoteResponse[],
+            ),
+          ),
         },
       );
 
@@ -770,12 +776,15 @@ describe('fetch', () => {
     });
 
     it('should rethrow fetch error', async () => {
-      mockFetchFn.mockRejectedValue(new Error('Fetch error'));
+      mockFetchFn.mockResolvedValue({
+        ok: false,
+        statusText: 'Fetch error',
+      });
       const { signal } = new AbortController();
 
       await expect(
         fetchBatchSellTrades(
-          { quotes: mockBridgeQuotesErc20Erc20 as unknown as QuoteResponse[] },
+          mockBridgeQuotesErc20Erc20 as unknown as QuoteResponse[],
           signal,
           BridgeClientId.EXTENSION,
           'AUTH_TOKEN',
@@ -796,9 +805,11 @@ describe('fetch', () => {
           },
           signal,
           method: 'POST',
-          body: JSON.stringify({
-            quotes: mockBridgeQuotesErc20Erc20 as unknown as QuoteResponse[],
-          }),
+          body: JSON.stringify(
+            formatBatchSellTradesRequest(
+              mockBridgeQuotesErc20Erc20 as unknown as QuoteResponse[],
+            ),
+          ),
         },
       );
 
@@ -808,43 +819,53 @@ describe('fetch', () => {
 
     it('should fetch batch sell trades (malformed response)', async () => {
       mockFetchFn.mockResolvedValueOnce({
-        ...mockBatchSellTrades,
-        transactions: mockBatchSellTrades.transactions.map(
-          ({ maxFeePerGas, maxPriorityFeePerGas, ...rest }) => rest,
-        ),
+        ok: true,
+        json: jest.fn().mockResolvedValue({
+          ...mockBatchSellTrades,
+          transactions: mockBatchSellTrades.transactions.map(
+            ({ maxFeePerGas, maxPriorityFeePerGas, ...rest }) => rest,
+          ),
+        }),
       });
       mockFetchFn.mockResolvedValueOnce({
-        ...mockBatchSellTrades,
-        transactions: mockBatchSellTrades.transactions.map((trade) => ({
-          ...trade,
-          maxFeePerGas: 1000,
-          maxPriorityFeePerGas: 1000,
-        })),
+        ok: true,
+        json: jest.fn().mockResolvedValue({
+          ...mockBatchSellTrades,
+          transactions: mockBatchSellTrades.transactions.map((trade) => ({
+            ...trade,
+            maxFeePerGas: 1000,
+            maxPriorityFeePerGas: 1000,
+          })),
+        }),
       });
       mockFetchFn.mockResolvedValueOnce({
-        ...mockBatchSellTrades,
-        transactions: mockBatchSellTrades.transactions.map((trade) => ({
-          ...trade,
-          maxFeePerGas: '1000',
-          maxPriorityFeePerGas: '1000',
-        })),
+        ok: true,
+        json: jest.fn().mockResolvedValue({
+          ...mockBatchSellTrades,
+          transactions: mockBatchSellTrades.transactions.map((trade) => ({
+            ...trade,
+            maxFeePerGas: '1000',
+            maxPriorityFeePerGas: '1000',
+          })),
+        }),
       });
       mockFetchFn.mockResolvedValueOnce({
-        ...mockBatchSellTrades,
-        transactions: mockBatchSellTrades.transactions.map((trade) => ({
-          ...trade,
-          maxFeePerGas: 0x123,
-          maxPriorityFeePerGas: 0x456,
-        })),
+        ok: true,
+        json: jest.fn().mockResolvedValue({
+          ...mockBatchSellTrades,
+          transactions: mockBatchSellTrades.transactions.map((trade) => ({
+            ...trade,
+            maxFeePerGas: 0x123,
+            maxPriorityFeePerGas: 0x456,
+          })),
+        }),
       });
 
       const { signal } = new AbortController();
 
       await expect(
         fetchBatchSellTrades(
-          {
-            quotes: mockBridgeQuotesErc20Erc20 as unknown as QuoteResponse[],
-          },
+          [...(mockBridgeQuotesErc20Erc20 as unknown as QuoteResponse[]), null],
           signal,
           BridgeClientId.EXTENSION,
           'AUTH_TOKEN',
@@ -857,9 +878,7 @@ describe('fetch', () => {
       const result = await Promise.allSettled(
         Array.from({ length: 3 }, () =>
           fetchBatchSellTrades(
-            {
-              quotes: mockBridgeQuotesErc20Erc20 as unknown as QuoteResponse[],
-            },
+            mockBridgeQuotesErc20Erc20 as unknown as QuoteResponse[],
             signal,
             BridgeClientId.EXTENSION,
             'AUTH_TOKEN',
@@ -882,13 +901,16 @@ describe('fetch', () => {
           },
           signal,
           method: 'POST',
-          body: JSON.stringify({
-            quotes: mockBridgeQuotesErc20Erc20 as unknown as QuoteResponse[],
-          }),
+          body: JSON.stringify(
+            formatBatchSellTradesRequest(
+              mockBridgeQuotesErc20Erc20 as unknown as QuoteResponse[],
+            ),
+          ),
         },
       );
 
       expect(
+        // @ts-expect-error - reason is not in type
         result.map((error) => ({ ...error, reason: error.reason?.message })),
       ).toMatchInlineSnapshot(`
         [

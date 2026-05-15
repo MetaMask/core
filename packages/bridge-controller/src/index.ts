@@ -71,7 +71,7 @@ export type {
   BridgeControllerResetStateAction,
   BridgeControllerSetChainIntervalLengthAction,
   BridgeControllerTrackUnifiedSwapBridgeEventAction,
-  BridgeControllerFetchBatchSellTradesAction,
+  BridgeControllerUpdateBatchSellTradesAction,
 } from './bridge-controller-method-action-types';
 
 export { AbortReason } from './utils/metrics/constants';

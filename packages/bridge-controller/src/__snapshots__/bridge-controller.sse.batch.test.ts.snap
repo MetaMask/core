@@ -9,7 +9,7 @@ exports[`BridgeController BatchSell (multiple quote requests) SSE fetch quotes s
     },
   },
   "batchSellTrades": null,
-  "batchSellTradesLoadingStatus": null,
+  "batchSellTradesLoadingStatus": 0,
   "minimumBalanceForRentExemptionInLamports": "0",
   "quoteFetchError": null,
   "quoteRequest": [
