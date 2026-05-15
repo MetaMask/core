@@ -218,6 +218,31 @@ describe('TokenApiClient', () => {
       expect(queryOptions.staleTime).toBe(STALE_TIMES.DEFAULT);
       expect(queryOptions.gcTime).toBe(GC_TIMES.DEFAULT);
     });
+
+    it('getTokenSearchQueryOptions queryFn short-circuits empty queries without calling fetch', async () => {
+      const options = client.token.getTokenSearchQueryOptions({
+        query: '   ',
+      });
+      if (!options.queryFn) {
+        throw new Error('queryFn is required');
+      }
+      const result = await options.queryFn({
+        queryKey: options.queryKey,
+        signal: new AbortController().signal,
+        meta: undefined,
+      });
+
+      expect(result).toStrictEqual({
+        data: [],
+        count: 0,
+        totalCount: 0,
+        pageInfo: {
+          hasNextPage: false,
+          endCursor: '',
+        },
+      });
+      expect(mockFetch).not.toHaveBeenCalled();
+    });
   });
 
   describe('Token Metadata', () => {
