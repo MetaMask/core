@@ -36,7 +36,7 @@ jobs:
 
       - name: Upload build artifact (PR)
         if: github.event_name == 'pull_request'
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: platform-api-docs
           path: .platform-api-docs/build/
@@ -44,7 +44,7 @@ jobs:
 
       - name: Upload build artifact for deploy job
         if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: platform-api-docs-build
           path: .platform-api-docs/build/
@@ -59,7 +59,7 @@ jobs:
       contents: write
     steps:
       - name: Download build artifact
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           name: platform-api-docs-build
           path: build/

@@ -311,6 +311,68 @@ export type FooControllerDoStuffAction = {
     });
   });
 
+  it('resolves handler from double-quoted indexed access', async () => {
+    expect.assertions(2);
+
+    await withinSandbox(async ({ directoryPath }) => {
+      const filePath = path.join(directoryPath, 'types.ts');
+      await fs.promises.writeFile(
+        filePath,
+        withMessenger(
+          `
+class FooController {
+  doStuff(x: string): boolean {
+    return x.length > 0;
+  }
+}
+
+export type FooControllerDoStuffAction = {
+  type: 'FooController:doStuff';
+  handler: FooController["doStuff"];
+};
+`,
+          { actions: ['FooControllerDoStuffAction'] },
+        ),
+      );
+
+      const items = await extractFromFile(filePath, directoryPath);
+
+      expect(items).toHaveLength(1);
+      expect(items[0].handlerOrPayload).toContain('(x: string) => boolean');
+    });
+  });
+
+  it('resolves handler from template-literal indexed access', async () => {
+    expect.assertions(2);
+
+    await withinSandbox(async ({ directoryPath }) => {
+      const filePath = path.join(directoryPath, 'types.ts');
+      await fs.promises.writeFile(
+        filePath,
+        withMessenger(
+          [
+            'class FooController {',
+            '  doStuff(x: string): boolean {',
+            '    return x.length > 0;',
+            '  }',
+            '}',
+            '',
+            'export type FooControllerDoStuffAction = {',
+            "  type: 'FooController:doStuff';",
+            '  handler: FooController[`doStuff`];',
+            '};',
+          ].join('\n'),
+          { actions: ['FooControllerDoStuffAction'] },
+        ),
+      );
+
+      const items = await extractFromFile(filePath, directoryPath);
+
+      expect(items).toHaveLength(1);
+      expect(items[0].handlerOrPayload).toContain('(x: string) => boolean');
+    });
+  });
+
   it('includes source file path and line number', async () => {
     expect.assertions(2);
 

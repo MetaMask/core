@@ -374,9 +374,12 @@ function resolveHandler(
   handlerText: string,
   classMethods: Map<string, MethodInfo>,
 ): { signature: string; methodJsDoc: string } {
-  const match = handlerText.match(/^(\w+)\['(\w+)'\]$/u);
+  // Matches `Class['method']`, `Class["method"]`, and `` Class[`method`] ``
+  // — all three forms are valid TypeScript indexed-access types and ts-morph
+  // returns whatever's in the source verbatim.
+  const match = handlerText.match(/^(\w+)\[(['"`])(\w+)\2\]$/u);
   if (match) {
-    const key = `${match[1]}.${match[2]}`;
+    const key = `${match[1]}.${match[3]}`;
     const info = classMethods.get(key);
     if (info) {
       return { signature: info.signature, methodJsDoc: info.jsDoc };
