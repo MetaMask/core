@@ -60,6 +60,7 @@ export type NotificationServicesControllerSetFeatureAnnouncementsEnabledAction =
  * Used only during initialization to seed marketing push notifications.
  * @param opts.productAnnouncementEnabled - The user's product-announcement flag.
  * Used only during initialization to seed marketing in-app notifications.
+ * @param opts.registerPushNotifications - Whether to attempt FCM/device push registration.
  * @returns The updated or newly created user storage.
  * @throws {Error} Throws an error if unauthenticated or from other operations.
  */
@@ -72,7 +73,7 @@ export type NotificationServicesControllerCreateOnChainTriggersAction = {
  * Enables all MetaMask notifications for the user.
  * This is identical flow when initializing notifications for the first time.
  *
- * @param opts - Optional settings for first-time AUS notification preferences initialization.
+ * @param opts - Optional options to mutate this functionality.
  * @throws {Error} If there is an error during the process of enabling notifications.
  */
 export type NotificationServicesControllerEnableMetamaskNotificationsAction = {

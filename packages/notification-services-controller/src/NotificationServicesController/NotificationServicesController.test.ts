@@ -579,6 +579,45 @@ describe('NotificationServicesController', () => {
         ]);
       });
 
+      it('skips push registration when registerPushNotifications is false', async () => {
+        const {
+          messenger,
+          mockEnablePushNotifications,
+          mockGetConfig,
+          mockUpdateNotifications,
+          mockKeyringControllerGetState,
+        } = arrangeMocks({
+          configurePrefs: (mock) => mock.mockResolvedValueOnce(null),
+        });
+
+        mockKeyringControllerGetState.mockReturnValue({
+          isUnlocked: true,
+          keyrings: [
+            {
+              accounts: [ADDRESS_1],
+              type: KeyringTypes.hd,
+              metadata: { id: 'srp-1', name: 'SRP 1' },
+            },
+          ],
+        });
+        const mockTriggerQuery = mockGetOnChainNotificationsConfig();
+
+        const controller = new NotificationServicesController({
+          messenger,
+          env: { featureAnnouncements: featureAnnouncementsEnv },
+        });
+
+        await controller.createOnChainTriggers({
+          registerPushNotifications: false,
+        });
+
+        expect(mockGetConfig).toHaveBeenCalled();
+        expect(mockTriggerQuery.isDone()).toBe(true);
+        expect(mockUpdateNotifications).toHaveBeenCalled();
+        expect(controller.state.isNotificationServicesEnabled).toBe(true);
+        expect(mockEnablePushNotifications).not.toHaveBeenCalled();
+      });
+
       it('enables all wallet-activity accounts when Trigger API has no enabled accounts for first-time setup', async () => {
         const {
           messenger,
@@ -1445,6 +1484,28 @@ describe('NotificationServicesController', () => {
       // Act - services called
       expect(mocks.mockGetConfig).toHaveBeenCalled();
       expect(mocks.mockUpdateNotifications).toHaveBeenCalled();
+    });
+
+    it('forwards registerPushNotifications false when enabling MetaMask notifications', async () => {
+      const mocks = arrangeMocks({
+        configurePrefs: (mock) => mock.mockResolvedValueOnce(null),
+      });
+      const mockTriggerQuery = mockGetOnChainNotificationsConfig();
+
+      const controller = new NotificationServicesController({
+        messenger: mocks.messenger,
+        env: { featureAnnouncements: featureAnnouncementsEnv },
+      });
+
+      await controller.enableMetamaskNotifications({
+        registerPushNotifications: false,
+      });
+
+      expect(mocks.mockGetConfig).toHaveBeenCalled();
+      expect(mockTriggerQuery.isDone()).toBe(true);
+      expect(mocks.mockUpdateNotifications).toHaveBeenCalled();
+      expect(controller.state.isNotificationServicesEnabled).toBe(true);
+      expect(mocks.mockEnablePushNotifications).not.toHaveBeenCalled();
     });
 
     it('should not create new notification subscriptions when enabling an account that already has notifications', async () => {

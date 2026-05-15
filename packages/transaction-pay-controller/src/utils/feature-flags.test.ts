@@ -468,7 +468,7 @@ describe('Feature Flags Utils', () => {
       getRemoteFeatureFlagControllerStateMock.mockReturnValue({
         ...getDefaultRemoteFeatureFlagControllerState(),
         remoteFeatureFlags: {
-          confirmations_pay: {
+          confirmations_pay_extended: {
             payStrategies: {
               relay: {
                 gaslessEnabled: true,
@@ -485,7 +485,7 @@ describe('Feature Flags Utils', () => {
       getRemoteFeatureFlagControllerStateMock.mockReturnValue({
         ...getDefaultRemoteFeatureFlagControllerState(),
         remoteFeatureFlags: {
-          confirmations_pay: {
+          confirmations_pay_extended: {
             payStrategies: {
               relay: {
                 gaslessEnabled: false,

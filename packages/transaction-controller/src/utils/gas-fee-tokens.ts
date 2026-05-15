@@ -146,31 +146,40 @@ export async function checkGasFeeTokenBeforePublish({
     fn: (tx: TransactionMeta) => void,
   ) => void;
 }): Promise<void> {
-  const { isGasFeeTokenIgnoredIfBalance, selectedGasFeeToken } = transaction;
+  const {
+    excludeNativeTokenForFee,
+    isGasFeeTokenIgnoredIfBalance,
+    selectedGasFeeToken,
+  } = transaction;
 
-  if (!selectedGasFeeToken || !isGasFeeTokenIgnoredIfBalance) {
+  if (
+    !selectedGasFeeToken ||
+    (!isGasFeeTokenIgnoredIfBalance && !excludeNativeTokenForFee)
+  ) {
     return;
   }
 
   log('Checking gas fee token before publish', { selectedGasFeeToken });
 
-  const hasNativeBalance = await isNativeBalanceSufficientForGas(
-    transaction,
-    messenger,
-    networkClientId,
-  );
-
-  if (hasNativeBalance) {
-    log(
-      'Ignoring gas fee token before publish due to sufficient native balance',
+  if (!excludeNativeTokenForFee) {
+    const hasNativeBalance = await isNativeBalanceSufficientForGas(
+      transaction,
+      messenger,
+      networkClientId,
     );
 
-    updateTransaction(transaction.id, (tx) => {
-      tx.isExternalSign = false;
-      tx.selectedGasFeeToken = undefined;
-    });
+    if (hasNativeBalance) {
+      log(
+        'Ignoring gas fee token before publish due to sufficient native balance',
+      );
 
-    return;
+      updateTransaction(transaction.id, (tx) => {
+        tx.isExternalSign = false;
+        tx.selectedGasFeeToken = undefined;
+      });
+
+      return;
+    }
   }
 
   const gasFeeTokens = await fetchGasFeeTokens({

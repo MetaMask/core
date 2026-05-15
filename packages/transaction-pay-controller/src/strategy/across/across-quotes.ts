@@ -22,6 +22,7 @@ import {
   getGasStationEligibility,
 } from '../../utils/gas-station';
 import { estimateQuoteGasLimits } from '../../utils/quote-gas';
+import type { QuoteGasTransaction } from '../../utils/quote-gas';
 import {
   getNativeToken,
   getTokenBalance,
@@ -33,7 +34,10 @@ import { getAcrossDestination } from './across-actions';
 import { hasUnsupportedTransactionAuthorizationList } from './authorization-list';
 import { normalizeAcrossRequest } from './perps';
 import { isAcrossQuoteRequest } from './requests';
-import { getAcrossOrderedTransactions } from './transactions';
+import {
+  getAcrossOrderedTransactions,
+  getOriginalTransactionGas,
+} from './transactions';
 import type {
   AcrossAction,
   AcrossActionRequestBody,
@@ -362,6 +366,7 @@ async function normalizeQuote(
     messenger,
     request,
     fullRequest.transaction,
+    fullRequest.accountSupports7702,
   );
 
   const targetNetwork = getFiatValueFromUsd(new BigNumber(0), usdToFiatRate);
@@ -547,6 +552,7 @@ async function calculateSourceNetworkCost(
   messenger: TransactionPayControllerMessenger,
   request: QuoteRequest,
   transaction: TransactionMeta,
+  accountSupports7702: boolean,
 ): Promise<{
   sourceNetwork: TransactionPayQuote<AcrossQuote>['fees']['sourceNetwork'];
   gasLimits: AcrossGasLimits;
@@ -560,17 +566,27 @@ async function calculateSourceNetworkCost(
   const orderedTransactions = getAcrossOrderedTransactions({ quote });
   const { swapTx } = quote;
   const swapChainId = toHex(swapTx.chainId);
-  const gasEstimates = await estimateQuoteGasLimits({
-    fallbackGas: acrossFallbackGas,
-    messenger,
-    transactions: orderedTransactions.map((orderedTransaction) => ({
+  const isPredictWithdraw =
+    request.isPostQuote === true && isPredictWithdrawTransaction(transaction);
+  const relaxPrefundedSourceEstimate =
+    isPredictWithdraw &&
+    new BigNumber(request.sourceTokenAmount).gt(request.sourceBalanceRaw);
+  const gasEstimateTransactions = orderedTransactions.map(
+    (orderedTransaction) => ({
       chainId: toHex(orderedTransaction.chainId),
       data: orderedTransaction.data,
       from,
       gas: orderedTransaction.gas,
       to: orderedTransaction.to,
       value: orderedTransaction.value ?? '0x0',
-    })),
+    }),
+  );
+
+  const gasEstimates = await estimateAcrossQuoteGasLimits({
+    fallbackGas: acrossFallbackGas,
+    fallbackOnSimulationFailure: relaxPrefundedSourceEstimate,
+    messenger,
+    transactions: gasEstimateTransactions,
   });
 
   const { batchGasLimit, is7702, requiresAuthorizationList, totalGasEstimate } =
@@ -676,7 +692,11 @@ async function calculateSourceNetworkCost(
     finalResult.sourceNetwork.max.raw,
   );
 
-  if (hasNativeBalance) {
+  if (isPredictWithdraw && !accountSupports7702) {
+    return finalResult;
+  }
+
+  if (hasNativeBalance && !isPredictWithdraw) {
     return finalResult;
   }
 
@@ -718,24 +738,191 @@ async function calculateSourceNetworkCost(
     ),
   });
 
-  if (!gasFeeTokenCost) {
+  let gasFeeTokenNetwork:
+    | TransactionPayQuote<AcrossQuote>['fees']['sourceNetwork']
+    | undefined;
+
+  if (gasFeeTokenCost) {
+    gasFeeTokenNetwork = {
+      estimate: gasFeeTokenCost,
+      max: gasFeeTokenCost,
+    };
+  } else if (isPredictWithdraw) {
+    gasFeeTokenNetwork = calculateSourceGasFeeTokenNetworkFallback({
+      messenger,
+      nativeSourceNetwork: finalResult.sourceNetwork,
+      quote,
+      request,
+    });
+  }
+
+  if (!gasFeeTokenNetwork) {
     return finalResult;
   }
 
   log('Using gas fee token for Across source network', {
-    gasFeeTokenCost,
+    gasFeeTokenCost: gasFeeTokenNetwork.max,
   });
 
   return {
     isGasFeeToken: true,
-    sourceNetwork: {
-      estimate: gasFeeTokenCost,
-      max: gasFeeTokenCost,
-    },
+    sourceNetwork: gasFeeTokenNetwork,
     is7702: finalResult.is7702,
     ...(requiresAuthorizationList ? { requiresAuthorizationList } : {}),
     gasLimits: finalResult.gasLimits,
   };
+}
+
+function calculateSourceGasFeeTokenNetworkFallback({
+  messenger,
+  nativeSourceNetwork,
+  quote,
+  request,
+}: {
+  messenger: TransactionPayControllerMessenger;
+  nativeSourceNetwork: TransactionPayQuote<AcrossQuote>['fees']['sourceNetwork'];
+  quote: AcrossSwapApprovalResponse;
+  request: QuoteRequest;
+}): TransactionPayQuote<AcrossQuote>['fees']['sourceNetwork'] | undefined {
+  const sourceFiatRate = getTokenFiatRate(
+    messenger,
+    request.sourceTokenAddress,
+    request.sourceChainId,
+  );
+
+  if (!sourceFiatRate) {
+    return undefined;
+  }
+
+  const estimate = calculateSourceGasFeeTokenAmountFallback({
+    decimals: quote.inputToken.decimals,
+    fiatRate: sourceFiatRate,
+    nativeGasCost: nativeSourceNetwork.estimate,
+  });
+  const max = calculateSourceGasFeeTokenAmountFallback({
+    decimals: quote.inputToken.decimals,
+    fiatRate: sourceFiatRate,
+    nativeGasCost: nativeSourceNetwork.max,
+  });
+
+  if (!estimate || !max) {
+    return undefined;
+  }
+
+  return { estimate, max };
+}
+
+function calculateSourceGasFeeTokenAmountFallback({
+  decimals,
+  fiatRate,
+  nativeGasCost,
+}: {
+  decimals: number;
+  fiatRate: FiatRates;
+  nativeGasCost: Amount;
+}): Amount | undefined {
+  const usdRate = new BigNumber(fiatRate.usdRate);
+  const nativeGasUsd = new BigNumber(nativeGasCost.usd);
+
+  if (
+    !usdRate.isFinite() ||
+    !usdRate.isGreaterThan(0) ||
+    !nativeGasUsd.isFinite() ||
+    !nativeGasUsd.isGreaterThan(0)
+  ) {
+    return undefined;
+  }
+
+  const amountRaw = nativeGasUsd
+    .dividedBy(usdRate)
+    .shiftedBy(decimals)
+    .integerValue(BigNumber.ROUND_CEIL)
+    .toFixed(0);
+
+  return getAmountFromTokenAmount({
+    amountRaw,
+    decimals,
+    fiatRate,
+  });
+}
+
+async function estimateAcrossQuoteGasLimits({
+  fallbackGas,
+  fallbackOnSimulationFailure,
+  messenger,
+  transactions,
+}: {
+  fallbackGas?: {
+    estimate: number;
+    max: number;
+  };
+  fallbackOnSimulationFailure: boolean;
+  messenger: TransactionPayControllerMessenger;
+  transactions: QuoteGasTransaction[];
+}): Promise<Awaited<ReturnType<typeof estimateQuoteGasLimits>>> {
+  try {
+    const gasEstimates = await estimateQuoteGasLimits({
+      fallbackGas,
+      fallbackOnSimulationFailure,
+      messenger,
+      transactions,
+    });
+
+    if (
+      fallbackOnSimulationFailure &&
+      fallbackGas !== undefined &&
+      gasEstimates.is7702 &&
+      gasEstimates.batchGasLimit !== undefined &&
+      gasEstimates.batchGasLimit.max > fallbackGas.max
+    ) {
+      // Prefunded Predict withdraws can produce inflated 7702 batch estimates
+      // because the source account does not yet hold the funds. Keep the gas
+      // reservation bounded by the configured Across fallback for this path.
+      return {
+        ...gasEstimates,
+        batchGasLimit: fallbackGas,
+        gasLimits: [fallbackGas],
+        totalGasEstimate: fallbackGas.estimate,
+        totalGasLimit: fallbackGas.max,
+      };
+    }
+
+    return gasEstimates;
+  } catch (error) {
+    if (!fallbackOnSimulationFailure || transactions.length <= 1) {
+      throw error;
+    }
+
+    const perTransactionGasEstimates = await Promise.all(
+      transactions.map((transaction) =>
+        estimateQuoteGasLimits({
+          fallbackGas,
+          fallbackOnSimulationFailure: true,
+          messenger,
+          transactions: [transaction],
+        }),
+      ),
+    );
+    const gasLimits = perTransactionGasEstimates.map(
+      (estimate) => estimate.gasLimits[0],
+    );
+    const totalGasEstimate = gasLimits.reduce(
+      (total, gasLimit) => total + gasLimit.estimate,
+      0,
+    );
+    const totalGasLimit = gasLimits.reduce(
+      (total, gasLimit) => total + gasLimit.max,
+      0,
+    );
+
+    return {
+      gasLimits,
+      is7702: false,
+      totalGasEstimate,
+      totalGasLimit,
+      usedBatch: false,
+    };
+  }
 }
 
 function combinePostQuoteGas(
@@ -794,25 +981,6 @@ function combinePostQuoteGas(
     totalGasEstimate,
     totalGasLimit,
   };
-}
-
-function getOriginalTransactionGas(
-  transaction: TransactionMeta,
-): number | undefined {
-  const nestedGas = transaction.nestedTransactions?.find((tx) => tx.gas)?.gas;
-  const rawGas = nestedGas ?? transaction.txParams.gas;
-
-  if (rawGas === undefined) {
-    return undefined;
-  }
-
-  const gas = new BigNumber(rawGas);
-
-  if (!gas.isFinite() || gas.isNaN() || !gas.isInteger() || gas.lte(0)) {
-    return undefined;
-  }
-
-  return gas.toNumber();
 }
 
 function calculateOriginalSourceNetworkCost({

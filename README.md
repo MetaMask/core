@@ -458,6 +458,7 @@ linkStyle default opacity:0.5
   perps_controller --> profile_sync_controller;
   perps_controller --> remote_feature_flag_controller;
   perps_controller --> transaction_controller;
+  phishing_controller --> address_book_controller;
   phishing_controller --> base_controller;
   phishing_controller --> controller_utils;
   phishing_controller --> messenger;

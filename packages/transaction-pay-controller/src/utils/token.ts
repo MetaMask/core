@@ -212,12 +212,12 @@ export function getTokenFiatRate(
 
   const usdRate = isStablecoin
     ? '1'
-    : new BigNumber(tokenToNativeRate ?? 1)
-        .multipliedBy(nativeToUsdRate)
+    : new BigNumber(String(tokenToNativeRate ?? 1))
+        .multipliedBy(String(nativeToUsdRate))
         .toString(10);
 
-  const fiatRate = new BigNumber(tokenToNativeRate ?? 1)
-    .multipliedBy(nativeToFiatRate)
+  const fiatRate = new BigNumber(String(tokenToNativeRate ?? 1))
+    .multipliedBy(String(nativeToFiatRate))
     .toString(10);
 
   return { usdRate, fiatRate };
@@ -332,13 +332,16 @@ export async function getLiveTokenBalance(
   const isNative =
     tokenAddress.toLowerCase() === getNativeToken(chainId).toLowerCase();
 
+  // Use `pending` blockTag to bypass the RPC block-cache middleware so callers
+  // always observe the latest balance instead of a value pinned to the last
+  // polled block.
   if (isNative) {
-    const balance = await ethersProvider.getBalance(account);
+    const balance = await ethersProvider.getBalance(account, 'pending');
     return balance.toString();
   }
 
   const contract = new Contract(tokenAddress, abiERC20, ethersProvider);
-  const balance = await contract.balanceOf(account);
+  const balance = await contract.balanceOf(account, { blockTag: 'pending' });
   return balance.toString();
 }
 
