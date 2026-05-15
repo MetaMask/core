@@ -3,9 +3,10 @@ import { execFile } from 'node:child_process';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import { promisify } from 'node:util';
+import type { Project } from 'ts-morph';
 
 import { findDtsFiles, findTsFiles } from './discovery';
-import { extractFromFile } from './extraction';
+import { createExtractionProject, extractFromSourceFile } from './extraction';
 import {
   generateIndexPage,
   generateNamespacePage,
@@ -195,14 +196,18 @@ function logScanPlan(sources: ScanSources): void {
 
 /**
  * Run extraction against every file in a single directory, logging and
- * swallowing per-file failures.
+ * swallowing per-file failures. All files are added to the shared `project`
+ * up front so the type checker can resolve cross-file references when the
+ * walker descends into imported types.
  *
+ * @param project - The shared ts-morph project.
  * @param directory - The directory to scan.
  * @param projectPath - The project root, used for relative path display.
  * @param findFiles - The function used to enumerate files in the directory.
  * @returns The list of extracted messenger items.
  */
 async function extractFromDirectory(
+  project: Project,
   directory: string,
   projectPath: string,
   findFiles: (dir: string) => Promise<string[]>,
@@ -211,7 +216,9 @@ async function extractFromDirectory(
   const files = await findFiles(directory);
   for (const file of files) {
     try {
-      items.push(...(await extractFromFile(file, projectPath)));
+      const sourceFile =
+        project.getSourceFile(file) ?? project.addSourceFileAtPath(file);
+      items.push(...extractFromSourceFile(sourceFile, projectPath));
     } catch (error) {
       console.warn(
         `Warning: failed to parse ${path.relative(projectPath, file)}`,
@@ -257,7 +264,10 @@ async function listTargetSubdirectories(
 
 /**
  * Scan every source location described by `sources` and return all extracted
- * messenger items.
+ * messenger items. A single ts-morph Project is shared across every file so
+ * the type checker can resolve cross-file references (e.g. a `*Messenger`
+ * declaration in one file walking through an imported umbrella union into
+ * an auto-generated `*-method-action-types.ts` sibling).
  *
  * @param projectPath - The project root path.
  * @param sources - The set of source locations to scan.
@@ -267,11 +277,13 @@ async function scanSources(
   projectPath: string,
   sources: ScanSources,
 ): Promise<ExtractedMessengerCapabilityType[]> {
+  const project = createExtractionProject();
   const allItems: ExtractedMessengerCapabilityType[] = [];
 
   for (const dir of sources.scanDirs) {
     allItems.push(
       ...(await extractFromDirectory(
+        project,
         path.join(projectPath, dir),
         projectPath,
         findTsFiles,
@@ -287,7 +299,12 @@ async function scanSources(
     );
     for (const srcDir of srcDirs) {
       allItems.push(
-        ...(await extractFromDirectory(srcDir, projectPath, findTsFiles)),
+        ...(await extractFromDirectory(
+          project,
+          srcDir,
+          projectPath,
+          findTsFiles,
+        )),
       );
     }
   }
@@ -300,7 +317,12 @@ async function scanSources(
     );
     for (const distDir of distDirs) {
       allItems.push(
-        ...(await extractFromDirectory(distDir, projectPath, findDtsFiles)),
+        ...(await extractFromDirectory(
+          project,
+          distDir,
+          projectPath,
+          findDtsFiles,
+        )),
       );
     }
   }

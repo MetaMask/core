@@ -1274,6 +1274,52 @@ export type FooAction = {
     });
   });
 
+  it('follows umbrella-union imports into sibling files to find capability types', async () => {
+    expect.assertions(3);
+
+    await withinSandbox(async ({ directoryPath }) => {
+      // Auto-generated sibling file with the actual action types.
+      await fs.promises.writeFile(
+        path.join(directoryPath, 'method-action-types.ts'),
+        `
+export type FooAddAction = {
+  type: 'Foo:add';
+  handler: () => void;
+};
+
+export type FooRemoveAction = {
+  type: 'Foo:remove';
+  handler: () => void;
+};
+
+export type FooMethodActions = FooAddAction | FooRemoveAction;
+`,
+      );
+
+      const filePath = path.join(directoryPath, 'FooController.ts');
+      // Main file imports the umbrella union and uses it in the messenger.
+      await fs.promises.writeFile(
+        filePath,
+        `
+import type { FooMethodActions } from './method-action-types';
+
+export type FooMessenger = Messenger<'Foo', FooMethodActions, never>;
+`,
+      );
+
+      const items = await extractFromFile(filePath, directoryPath);
+
+      expect(items).toHaveLength(2);
+      expect(items.map((item) => item.typeName).sort()).toStrictEqual([
+        'FooAddAction',
+        'FooRemoveAction',
+      ]);
+      // Source paths come from where the types actually live (the sibling
+      // file), not from where the messenger is declared.
+      expect(items[0].sourceFile).toBe('method-action-types.ts');
+    });
+  });
+
   it('ignores externally-declared action references that are not local to the file', async () => {
     expect.assertions(2);
 
