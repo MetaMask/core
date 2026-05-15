@@ -459,6 +459,11 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
     );
     this.#batchSellTradesAbortController = new AbortController();
 
+    this.update((state) => {
+      // Set loading status again if recommended quotes are re-ordered
+      state.batchSellTradesLoadingStatus = RequestStatus.LOADING;
+    });
+
     try {
       const batchSellTradesResponse = await fetchBatchSellTrades(
         quotes,
