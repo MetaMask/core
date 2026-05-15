@@ -4,7 +4,7 @@ import * as path from 'node:path';
 
 import { findDtsFiles, findTsFiles } from './discovery';
 
-const { withinSandbox } = createSandbox('messenger-cli/docs-discovery');
+const { withinSandbox } = createSandbox('platform-api-docs/discovery');
 
 describe('findTsFiles', () => {
   it('finds .ts files in a directory', async () => {

@@ -39,5 +39,5 @@ packages/*/*.tsbuildinfo
 # AI
 .sisyphus/
 
-# Messenger API docs (generated)
-.messenger-docs/
+# Platform API docs (generated)
+.platform-api-docs/

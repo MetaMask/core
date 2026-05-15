@@ -8,7 +8,7 @@ const TSX_PATH = path.join(ROOT_DIR, 'node_modules', '.bin', 'tsx');
 const CLI_PATH = path.join(
   ROOT_DIR,
   'packages',
-  'messenger-docs',
+  'platform-api-docs',
   'src',
   'cli.ts',
 );
@@ -27,11 +27,11 @@ async function runCLI(args: string[]): Promise<execa.ExecaReturnValue> {
   });
 }
 
-const { withinSandbox } = createSandbox('messenger-cli/docs-cli');
+const { withinSandbox } = createSandbox('platform-api-docs/cli');
 
 jest.setTimeout(30_000);
 
-describe('messenger-docs CLI (functional)', () => {
+describe('platform-api-docs CLI (functional)', () => {
   it('generates docs for a project with action types', async () => {
     expect.assertions(3);
 
@@ -136,7 +136,7 @@ export type QuxMessenger = Messenger<'Qux', QuxAction, never>;
 
       expect(result.exitCode).toBe(0);
       const indexMd = await fs.promises.readFile(
-        path.join(directoryPath, '.messenger-docs', 'docs', 'index.md'),
+        path.join(directoryPath, '.platform-api-docs', 'docs', 'index.md'),
         'utf8',
       );
       expect(indexMd).toContain('# Platform API (Test)');

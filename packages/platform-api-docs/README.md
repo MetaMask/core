@@ -1,4 +1,4 @@
-# `@metamask/messenger-docs`
+# `@metamask/platform-api-docs`
 
 Produces documentation for the platform API, the set of actions and events available in clients through the message bus.
 
@@ -6,12 +6,12 @@ When run within a project (such as `metamask-extension` or `metamask-mobile`), t
 
 ## Installation
 
-1. Add this package as a dependency (`yarn add --dev @metamask/messenger-docs` or `npm install --save-dev @metamask/messenger-docs`).
+1. Add this package as a dependency (`yarn add --dev @metamask/platform-api-docs` or `npm install --save-dev @metamask/platform-api-docs`).
 2. Add a script to your project's `package.json`. For example:
    ```json
    {
      "scripts": {
-       "docs:messenger:build": "messenger-docs --build --project-label MyProject"
+       "docs:platform-api:build": "platform-api-docs --build --project-label MyProject"
      }
    }
    ```
@@ -19,7 +19,7 @@ When run within a project (such as `metamask-extension` or `metamask-mobile`), t
 ## Usage
 
 ```
-messenger-docs [project-path] [options]
+platform-api-docs [project-path] [options]
 
 Arguments:
   project-path             Path to the project to scan (default: current directory)
@@ -29,7 +29,7 @@ Options:
   --serve                  Generate docs, build, and serve static site
   --dev                    Generate docs and start dev server with hot reload
   --scan-dir <dir>         Extra source directory to scan (repeatable)
-  --output <dir>           Output directory (default: <project-path>/.messenger-docs)
+  --output <dir>           Output directory (default: <project-path>/.platform-api-docs)
   --project-label <label>  Short label identifying the project (e.g. "Core", "Extension")
   --help                   Show this help message
 ```

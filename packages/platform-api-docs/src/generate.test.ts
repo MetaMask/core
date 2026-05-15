@@ -5,7 +5,7 @@ import * as path from 'node:path';
 
 import { generate } from './generate';
 
-const { withinSandbox } = createSandbox('messenger-cli/docs-generate');
+const { withinSandbox } = createSandbox('platform-api-docs/generate');
 
 jest.setTimeout(30_000);
 

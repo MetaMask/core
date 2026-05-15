@@ -4,7 +4,7 @@ import * as path from 'node:path';
 
 import { extractFromFile } from './extraction';
 
-const { withinSandbox } = createSandbox('messenger-cli/docs-extraction');
+const { withinSandbox } = createSandbox('platform-api-docs/extraction');
 
 /**
  * Append a synthetic `*Messenger` declaration to a fixture so that the action

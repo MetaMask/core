@@ -83,5 +83,5 @@
   "metamask/money-account-controller": "team-accounts-framework",
   "metamask/money-account-upgrade-controller": "team-earn",
   "metamask/snap-account-service": "team-accounts-framework",
-  "metamask/messenger-docs": "team-core-platform"
+  "metamask/platform-api-docs": "team-core-platform"
 }

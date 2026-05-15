@@ -1,12 +1,12 @@
 {
-  "name": "@metamask/messenger-docs",
+  "name": "@metamask/platform-api-docs",
   "version": "0.0.0",
   "description": "Produces documentation for the platform API, the set of actions and events available in the clients through the message bus",
   "keywords": [
     "Ethereum",
     "MetaMask"
   ],
-  "homepage": "https://github.com/MetaMask/core/tree/main/packages/messenger-docs#readme",
+  "homepage": "https://github.com/MetaMask/core/tree/main/packages/platform-api-docs#readme",
   "bugs": {
     "url": "https://github.com/MetaMask/core/issues"
   },
@@ -15,7 +15,9 @@
     "type": "git",
     "url": "https://github.com/MetaMask/core.git"
   },
-  "bin": "./dist/cli.mjs",
+  "bin": {
+    "platform-api-docs": "./dist/cli.mjs"
+  },
   "files": [
     "dist/",
     "site/"
@@ -28,8 +30,8 @@
   "scripts": {
     "build": "ts-bridge --project tsconfig.build.json --verbose --clean --no-references",
     "build:all": "ts-bridge --project tsconfig.build.json --verbose --clean",
-    "changelog:update": "../../scripts/update-changelog.sh @metamask/messenger-docs",
-    "changelog:validate": "../../scripts/validate-changelog.sh @metamask/messenger-docs",
+    "changelog:update": "../../scripts/update-changelog.sh @metamask/platform-api-docs",
+    "changelog:validate": "../../scripts/validate-changelog.sh @metamask/platform-api-docs",
     "cli": "tsx src/cli.ts",
     "since-latest-release": "../../scripts/since-latest-release.sh",
     "test": "NODE_OPTIONS=--experimental-vm-modules jest --reporters=jest-silent-reporter",

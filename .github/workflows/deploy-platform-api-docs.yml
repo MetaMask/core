@@ -15,7 +15,7 @@ permissions:
 
 jobs:
   build-docs:
-    name: Build Messenger API docs
+    name: Build Platform API docs
     runs-on: ubuntu-latest
     steps:
       - name: Checkout and setup environment
@@ -23,8 +23,8 @@ jobs:
         with:
           is-high-risk-environment: false
 
-      - name: Generate and build Messenger docs
-        run: yarn docs:messenger:build
+      - name: Generate and build Platform API docs
+        run: yarn docs:platform-api:build
         env:
           DOCS_URL: https://${{ github.repository_owner }}.github.io
           DOCS_BASE_URL: /${{ github.event.repository.name }}/
@@ -33,15 +33,15 @@ jobs:
         if: github.event_name == 'pull_request'
         uses: actions/upload-artifact@v4
         with:
-          name: messenger-api-docs
-          path: .messenger-docs/build/
+          name: platform-api-docs
+          path: .platform-api-docs/build/
           retention-days: 7
 
       - name: Upload Pages artifact (main)
         if: github.ref == 'refs/heads/main' && github.event_name == 'push'
         uses: actions/upload-pages-artifact@v3
         with:
-          path: .messenger-docs/build/
+          path: .platform-api-docs/build/
 
   deploy:
     name: Deploy to GitHub Pages

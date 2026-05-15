@@ -61,7 +61,11 @@ async function setupSite(outDir: string): Promise<void> {
   } catch {
     await fs.writeFile(
       pkgJsonPath,
-      JSON.stringify({ name: 'messenger-docs-site', private: true }, null, 2),
+      JSON.stringify(
+        { name: 'platform-api-docs-site', private: true },
+        null,
+        2,
+      ),
     );
   }
 }
@@ -142,7 +146,7 @@ async function main(): Promise<void> {
     typeof projectPathArg === 'string' ? projectPathArg : '.',
   );
   const resolvedOutputDir = path.resolve(
-    argv.output ?? path.join(resolvedProjectPath, '.messenger-docs'),
+    argv.output ?? path.join(resolvedProjectPath, '.platform-api-docs'),
   );
   const scanDirs = ['src', ...argv['scan-dir']].filter(
     (dir, index, dirs) => dirs.indexOf(dir) === index,
