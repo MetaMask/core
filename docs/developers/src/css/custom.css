@@ -1,6 +1,11 @@
 /*
  * MetaMask-themed Docusaurus styles.
- * Adapted from the MetaMask developer documentation template.
+ * Adapted from the official MetaMask developer documentation
+ * (https://github.com/MetaMask/metamask-docs).
+ *
+ * The official docs set html { font-size: 10px } so all rem values are at a
+ * 10px base (e.g. 1.6rem = 16px). We adopt the same convention here so that
+ * sizing values copied directly from the official source are accurate.
  */
 
 /* ── Fonts ──────────────────────────────────────────────────────────── */
@@ -13,6 +18,22 @@
   font-weight: normal;
   font-style: normal;
   font-display: swap;
+}
+
+/* ── Base font size (10px scale, matching official MetaMask docs) ────── */
+
+html {
+  font-size: 10px;
+  -moz-osx-font-smoothing: grayscale;
+  -webkit-font-smoothing: antialiased;
+  scroll-padding-top: 10rem;
+}
+
+body {
+  font-size: 1.6rem;
+  line-height: 1.5;
+  height: auto !important; /* fix for dark theme */
+  -webkit-text-size-adjust: 100%;
 }
 
 /* ── MetaMask color palette ─────────────────────────────────────────── */
@@ -60,13 +81,13 @@
 
 :root {
   /* Primary: purple */
-  --ifm-color-primary: #d075ff;
-  --ifm-color-primary-dark: #3d065f;
-  --ifm-color-primary-darker: #25043a;
-  --ifm-color-primary-darkest: #25043a;
-  --ifm-color-primary-light: #eac2ff;
-  --ifm-color-primary-lighter: #eac2ff;
-  --ifm-color-primary-lightest: #eac2ff;
+  --ifm-color-primary: var(--developer-purple);
+  --ifm-color-primary-dark: var(--developer-purple-dark);
+  --ifm-color-primary-darker: var(--institution-purple-dark-2);
+  --ifm-color-primary-darkest: var(--institution-purple-dark-2);
+  --ifm-color-primary-light: var(--developer-purple-light);
+  --ifm-color-primary-lighter: var(--developer-purple-light);
+  --ifm-color-primary-lightest: var(--developer-purple-light);
 
   --ifm-heading-color: var(--general-black);
   --ifm-font-family-monospace: 'MM Sans Mono', 'Andale Mono', AndaleMono,
@@ -74,6 +95,7 @@
   --ifm-heading-font-family: var(--ifm-font-family-monospace);
   --ifm-font-family-base: 'Geist', Arial, 'Helvetica Neue', Helvetica,
     sans-serif;
+  --ifm-font-size-base: 1.6rem;
   --ifm-code-font-size: 90%;
   --docusaurus-highlighted-code-line-bg: rgba(0, 0, 0, 0.1);
 
@@ -85,6 +107,7 @@
   --ifm-hover-overlay: var(--general-gray-light);
   --ifm-menu-color-active: var(--general-black);
   --ifm-menu-color: var(--general-gray-dark);
+  --ifm-menu-link-padding-horizontal: 2rem;
 
   /* TOC */
   --ifm-toc-border-color: var(--general-gray-light);
@@ -115,7 +138,9 @@
   /* Buttons */
   --ifm-button-border-radius: 10rem;
 
-  /* Header */
+  /* Navbar — 8rem tall (= 80px at 10px base), 3rem side padding */
+  --ifm-navbar-height: 8rem;
+  --ifm-navbar-padding-horizontal: 3rem;
   --ifm-navbar-link-hover-color: var(--developer-purple);
 
   /* Footer */
@@ -135,13 +160,13 @@
 
 [data-theme='dark'] {
   /* Primary: green */
-  --ifm-color-primary: #baf24a;
-  --ifm-color-primary-dark: #013330;
-  --ifm-color-primary-darker: #012321;
-  --ifm-color-primary-darkest: #012321;
-  --ifm-color-primary-light: #e5ffc3;
-  --ifm-color-primary-lighter: #e5ffc3;
-  --ifm-color-primary-lightest: #e5ffc3;
+  --ifm-color-primary: var(--developer-green);
+  --ifm-color-primary-dark: var(--institution-green-dark);
+  --ifm-color-primary-darker: var(--institution-green-dark-2);
+  --ifm-color-primary-darkest: var(--institution-green-dark-2);
+  --ifm-color-primary-light: var(--developer-green-light);
+  --ifm-color-primary-lighter: var(--developer-green-light);
+  --ifm-color-primary-lightest: var(--developer-green-light);
 
   --ifm-background-surface-color: var(--general-black-light) !important;
 
@@ -194,7 +219,7 @@
   --ifm-background-color: var(--general-gray-dark);
   --ifm-heading-color: var(--general-white);
 
-  /* Header */
+  /* Navbar */
   --ifm-navbar-link-hover-color: var(--developer-green);
 
   /* Footer */
@@ -206,12 +231,7 @@
   --ifm-table-stripe-background: var(--general-black-light) !important;
 }
 
-/* ── Body & Dark mode ───────────────────────────────────────────────── */
-
-body {
-  height: auto !important;
-  -webkit-text-size-adjust: 100%;
-}
+/* ── Dark mode body ──────────────────────────────────────────────────── */
 
 [data-theme='dark'] body {
   background: var(--general-gray-dark);
@@ -230,6 +250,12 @@ h6 {
   font-weight: 500;
 }
 
+p,
+ul,
+ol {
+  font-size: 1.6rem;
+}
+
 .alert {
   border: none;
 }
@@ -239,18 +265,25 @@ h6 {
 .navbar {
   box-shadow: none;
   border-bottom: 1px solid var(--ifm-toc-border-color);
-  height: 5rem; /* 80px */
-}
-
-.navbar > .navbar__inner {
-  height: 100%;
+  /* Height and horizontal padding come from the Infima variables above. */
 }
 
 .navbar__brand {
+  /*
+   * Matches the official docs: 4rem on mobile, 7.2rem on wider viewports.
+   * Using a responsive value that approximates the official breakpoint.
+   */
   margin-right: 4rem;
 }
 
+@media screen and (min-width: 1200px) {
+  .navbar__brand {
+    margin-right: 7.2rem;
+  }
+}
+
 .navbar__logo {
+  /* 3.2rem × 6.5rem = 32px × 65px at 10px base — matches official docs */
   height: 3.2rem;
   width: 6.5rem;
 }
@@ -262,6 +295,22 @@ h6 {
 .navbar__link {
   font-size: 1.6rem;
   font-weight: 500;
+  line-height: 124%;
+  /*
+   * Vertical padding: calc(2rem + var(--ifm-navbar-padding-vertical))
+   * Horizontal padding: responsive, from the official docs.
+   */
+  padding-top: calc(2rem + var(--ifm-navbar-padding-vertical));
+  padding-bottom: calc(2rem + var(--ifm-navbar-padding-vertical));
+  padding-left: 1rem;
+  padding-right: 1rem;
+}
+
+@media screen and (min-width: 1200px) {
+  .navbar__link {
+    padding-left: 1.8rem;
+    padding-right: 1.8rem;
+  }
 }
 
 .navbar__link:hover {
@@ -272,11 +321,47 @@ h6 {
 
 .footer {
   border-top: 1px solid var(--general-gray-light);
+  /* 4.6rem top / 3rem sides / 3rem bottom on mobile */
   padding: 4.6rem 3rem 3rem;
+}
+
+@media screen and (min-width: 997px) {
+  .footer {
+    /* 8rem all sides on tablet+ */
+    padding: 8rem 3rem;
+  }
 }
 
 [data-theme='dark'] .footer {
   border-top: 1px solid transparent;
+}
+
+.footer__title {
+  font-size: 1.6rem;
+  font-weight: 400;
+  line-height: 124%;
+  color: var(--general-gray-dark);
+  margin-bottom: 1rem;
+}
+
+[data-theme='dark'] .footer__title {
+  color: var(--general-gray);
+}
+
+.footer__link-item {
+  font-size: 1.5rem;
+  font-weight: 500;
+  line-height: 124%;
+  color: var(--general-black);
+}
+
+[data-theme='dark'] .footer__link-item {
+  color: var(--general-gray);
+}
+
+.footer__link-item:hover {
+  text-decoration: none !important;
+  color: var(--ifm-navbar-link-hover-color);
 }
 
 .footer__logo {
@@ -302,10 +387,32 @@ h6 {
   color: var(--general-gray);
 }
 
-/* ── Sidebar ─────────────────────────────────────────────────────────── */
+/* ── Main content area — left-aligned, not centred ───────────────────── */
 
-html {
-  scroll-padding-top: 5rem;
+/*
+ * The official MetaMask docs remove the container's max-width and centre
+ * margin and instead left-align the content with a fixed left padding on
+ * desktop (5rem from the left edge of the content column). We replicate
+ * that here by zeroing Docusaurus's default centred container and adding
+ * direct padding to the doc main container.
+ */
+
+.container {
+  padding: 0;
+  max-width: none !important;
+  margin: 0 !important;
+}
+
+[class*='docMainContainer'],
+[class*='mainContainer'] {
+  padding: 2rem 0 0;
+}
+
+@media screen and (min-width: 997px) {
+  [class*='docMainContainer'],
+  [class*='mainContainer'] {
+    padding: 2.8rem 0 0 5rem;
+  }
 }
 
 /* ── Code blocks ─────────────────────────────────────────────────────── */
