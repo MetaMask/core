@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - Fix BigNumber crash when exchange rate numbers exceed 15 significant digits ([#8808](https://github.com/MetaMask/core/pull/8808))
+- Handle gas-station and prefunded gas-estimate edge cases for Across Predict withdraw quotes ([#8762](https://github.com/MetaMask/core/pull/8762))
 
 ## [22.5.0]
 
