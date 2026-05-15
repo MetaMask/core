@@ -1,0 +1,128 @@
+// Font paths are relative to this file; webpack resolves them at build time
+// and Docusaurus copies the originals from static/fonts/ to the output.
+// The ~/ prefix tells sass-loader / css-loader to treat paths as absolute
+// from the project root — but the simplest approach for static assets is to
+// use @font-face src with string literals that match the served URL.
+// We use the @font-face CSS directly (no webpack resolution) by prefixing
+// the URL with the Docusaurus baseUrl via a CSS custom property set at
+// runtime, OR — the most robust approach — just inline the relative path
+// from the static directory, which Docusaurus serves as-is.
+
+@font-face {
+  font-family: 'MM Poly Variable';
+  src: url('/core/fonts/MM-Poly/MM_Poly-Variable.woff2') format('woff2-variations');
+  font-style: normal;
+  font-display: swap;
+  font-variation-settings: 'wdth' 25;
+}
+
+@font-face {
+  font-family: 'MM Sans Variable';
+  src: url('/core/fonts/MM-Sans/MM_Sans-Variable.woff2') format('woff2');
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'MM Sans';
+  src: url('/core/fonts/MM-Sans/MM_Sans-Regular.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'MM Sans';
+  src: url('/core/fonts/MM-Sans/MM_Sans-Medium.woff2') format('woff2');
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'MM Sans';
+  src: url('/core/fonts/MM-Sans/MM_Sans-Semibold.woff2') format('woff2');
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'MM Sans';
+  src: url('/core/fonts/MM-Sans/MM_Sans-Bold.woff2') format('woff2');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'MM Sans';
+  src: url('/core/fonts/MM-Sans/MM_Sans-Extrabold.woff2') format('woff2');
+  font-weight: 800;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'MM Sans';
+  src: url('/core/fonts/MM-Sans/MM_Sans-Black.woff2') format('woff2');
+  font-weight: 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'MM Sans Mono';
+  src: url('/core/fonts/MM-Sans/MM_Sans_Mono-Regular.woff2') format('woff2');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Geist';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/core/fonts/Geist/Geist-Regular.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'Geist';
+  font-style: italic;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/core/fonts/Geist/Geist-RegularItalic.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'Geist';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url('/core/fonts/Geist/Geist-Medium.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'Geist';
+  font-style: italic;
+  font-weight: 500;
+  font-display: swap;
+  src: url('/core/fonts/Geist/Geist-MediumItalic.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'Geist';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url('/core/fonts/Geist/Geist-Bold.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'Geist';
+  font-style: italic;
+  font-weight: 700;
+  font-display: swap;
+  src: url('/core/fonts/Geist/Geist-BoldItalic.woff2') format('woff2');
+}

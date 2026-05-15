@@ -1,0 +1,109 @@
+@use './app';
+@use './theme/sidebar';
+@use './theme/markdown';
+@use './theme/prism-code';
+
+/**
+ * Global CSS for the MetaMask Core developer documentation site.
+ *
+ * Infima CSS variables are overridden here to apply MetaMask branding.
+ * See: https://infima.dev/docs/getting-started/introduction
+ */
+
+:root {
+  // Font stacks
+  --font-mm-poly-variable: 'MM Poly Variable', 'Arial Bold', 'Gadget', sans-serif;
+  --font-mm-sans: 'MM Sans', Arial, 'Helvetica Neue', Helvetica, sans-serif;
+  --font-mm-sans-mono: 'MM Sans Mono', 'Andale Mono', AndaleMono, monospace;
+  --font-mm-sans-variable: 'MM Sans Variable', Arial, 'Helvetica Neue', Helvetica, sans-serif;
+  --font-mm-geist: 'Geist', Arial, 'Helvetica Neue', Helvetica, sans-serif;
+
+  // Primary colour — developer purple in light mode
+  --ifm-color-primary: var(--developer-purple);
+  --ifm-color-primary-dark: #c45ef7;
+  --ifm-color-primary-darker: #bc4ef6;
+  --ifm-color-primary-darkest: #a827f3;
+  --ifm-color-primary-light: #dc8cff;
+  --ifm-color-primary-lighter: #e49cff;
+  --ifm-color-primary-lightest: #f4cbff;
+
+  // Code blocks
+  --prism-background-color: var(--general-black-light);
+  --ifm-code-font-size: 87.5%;
+  --ifm-code-background: rgba(208, 117, 255, 0.1);
+
+  // Fonts
+  --ifm-font-family-base: var(--font-mm-geist);
+  --ifm-font-family-monospace: var(--font-mm-sans-mono);
+  --ifm-heading-font-family: var(--font-mm-sans);
+
+  // Sizing
+  --ifm-font-size-base: 16px;
+  --ifm-line-height-base: 1.65;
+
+  // Navbar
+  --ifm-navbar-height: 60px;
+  --ifm-navbar-background-color: var(--general-white);
+  --ifm-navbar-shadow: 0 1px 0 0 var(--ifm-toc-border-color);
+
+  // Sidebar
+  --doc-sidebar-width: 280px;
+  --ifm-menu-color: var(--ifm-color-emphasis-700);
+  --ifm-menu-color-active: var(--developer-purple);
+
+  // Borders & dividers
+  --ifm-toc-border-color: var(--general-gray-light);
+
+  // Links
+  --ifm-link-color: var(--developer-purple);
+  --ifm-link-hover-color: var(--developer-purple-dark);
+
+  // Footer
+  --ifm-footer-background-color: var(--general-black);
+  --ifm-footer-color: var(--general-gray);
+  --ifm-footer-link-color: var(--general-gray);
+  --ifm-footer-link-hover-color: var(--general-white);
+  --ifm-footer-title-color: var(--general-white);
+}
+
+// Dark mode overrides — developer green as primary
+[data-theme='dark'] {
+  --ifm-color-primary: var(--developer-green);
+  --ifm-color-primary-dark: #a8e030;
+  --ifm-color-primary-darker: #9dd42b;
+  --ifm-color-primary-darkest: #82b022;
+  --ifm-color-primary-light: #c6f564;
+  --ifm-color-primary-lighter: #cef677;
+  --ifm-color-primary-lightest: #dff89b;
+
+  --ifm-background-color: var(--general-black-mid);
+  --ifm-background-surface-color: var(--general-black-light);
+  --ifm-navbar-background-color: var(--general-black-mid);
+  --ifm-toc-border-color: rgba(255, 255, 255, 0.1);
+  --ifm-code-background: rgba(186, 242, 74, 0.1);
+  --ifm-menu-color-active: var(--developer-green);
+  --ifm-link-color: var(--developer-green);
+  --ifm-link-hover-color: var(--developer-green-light);
+  --ifm-footer-background-color: #111;
+}
+
+// Global base styles
+html {
+  font-family: var(--font-mm-geist);
+}
+
+// Docusaurus layout adjustments
+.main-wrapper {
+  min-height: calc(100vh - var(--ifm-navbar-height));
+}
+
+// Navbar logo sizing
+.navbar__logo {
+  height: 28px;
+}
+
+.navbar__title {
+  font-family: var(--font-mm-sans);
+  font-size: 1.5rem;
+  font-weight: 600;
+}

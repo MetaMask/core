@@ -1,0 +1,24 @@
+{
+  "id": "wallet-framework/data-services/using-data-services",
+  "title": "How to use a data service",
+  "description": "Within controllers and other services",
+  "source": "@site/../docs/developers/wallet-framework/data-services/using-data-services.md",
+  "sourceDirName": "wallet-framework/data-services",
+  "slug": "/wallet-framework/data-services/using-data-services",
+  "permalink": "/core/wallet-framework/data-services/using-data-services",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/MetaMask/core/edit/main/../docs/developers/wallet-framework/data-services/using-data-services.md",
+  "tags": [],
+  "version": "current",
+  "frontMatter": {},
+  "sidebar": "developersSidebar",
+  "previous": {
+    "title": "Data Services: Introduction",
+    "permalink": "/core/wallet-framework/data-services/introduction"
+  },
+  "next": {
+    "title": "How to write a data service",
+    "permalink": "/core/wallet-framework/data-services/writing-data-services/"
+  }
+}

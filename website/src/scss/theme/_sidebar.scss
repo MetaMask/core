@@ -1,0 +1,68 @@
+.menu {
+  --doc-sidebar-selected-bg: color-mix(in srgb, var(--ifm-color-primary) 14%, transparent);
+
+  &.thin-scrollbar {
+    padding: 1rem 0 0;
+  }
+
+  &__list {
+    margin: 0;
+    padding: 0;
+  }
+
+  &__list-item {
+    &:not(:first-child) {
+      margin-top: 0;
+    }
+  }
+
+  &__link {
+    border-radius: 0.6rem;
+    font-size: 1.4rem;
+    font-weight: 400;
+    line-height: 1.4;
+    padding: 0.6rem 1.2rem;
+    transition: background 0.15s ease, color 0.15s ease;
+
+    &:hover {
+      background: var(--doc-sidebar-selected-bg);
+      color: var(--ifm-color-primary);
+      text-decoration: none;
+    }
+
+    &--active {
+      background: var(--doc-sidebar-selected-bg);
+      color: var(--ifm-color-primary);
+      font-weight: 600;
+    }
+
+    &--sublist {
+      font-weight: 600;
+      font-size: 1.3rem;
+      letter-spacing: 0.02em;
+      text-transform: uppercase;
+      color: var(--ifm-color-emphasis-700);
+
+      &:hover {
+        color: var(--ifm-color-primary);
+      }
+    }
+  }
+
+  &__caret {
+    &::before {
+      border-color: var(--ifm-color-emphasis-600) transparent transparent;
+    }
+  }
+}
+
+.theme-doc-sidebar-container {
+  border-right: 1px solid var(--ifm-toc-border-color) !important;
+}
+
+// Navbar mobile sidebar
+.navbar-sidebar {
+  &__back {
+    background-color: transparent;
+  }
+}

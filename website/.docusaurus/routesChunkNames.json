@@ -1,0 +1,102 @@
+{
+  "/core/__docusaurus/debug/-e71": {
+    "__comp": "__comp---theme-debug-config-23-a-2ff",
+    "__context": {
+      "plugin": "plugin---core-docusaurus-debug-b-38-c34"
+    }
+  },
+  "/core/__docusaurus/debug/config/-016": {
+    "__comp": "__comp---theme-debug-config-23-a-2ff",
+    "__context": {
+      "plugin": "plugin---core-docusaurus-debug-b-38-c34"
+    }
+  },
+  "/core/__docusaurus/debug/content/-8f3": {
+    "__comp": "__comp---theme-debug-contentba-8-ce7",
+    "__context": {
+      "plugin": "plugin---core-docusaurus-debug-b-38-c34"
+    },
+    "__props": "__props---core-docusaurus-debug-content-485-a9b"
+  },
+  "/core/__docusaurus/debug/globalData/-c96": {
+    "__comp": "__comp---theme-debug-global-dataede-0fa",
+    "__context": {
+      "plugin": "plugin---core-docusaurus-debug-b-38-c34"
+    }
+  },
+  "/core/__docusaurus/debug/metadata/-c80": {
+    "__comp": "__comp---theme-debug-site-metadata-68-e-3d4",
+    "__context": {
+      "plugin": "plugin---core-docusaurus-debug-b-38-c34"
+    }
+  },
+  "/core/__docusaurus/debug/registry/-f7c": {
+    "__comp": "__comp---theme-debug-registry-679-501",
+    "__context": {
+      "plugin": "plugin---core-docusaurus-debug-b-38-c34"
+    }
+  },
+  "/core/__docusaurus/debug/routes/-abc": {
+    "__comp": "__comp---theme-debug-routes-946-699",
+    "__context": {
+      "plugin": "plugin---core-docusaurus-debug-b-38-c34"
+    }
+  },
+  "/core/-ae2": {
+    "__comp": "__comp---theme-docs-root-5-e-9-0b6",
+    "__context": {
+      "plugin": "plugin---core-154-681"
+    }
+  },
+  "/core/-7ea": {
+    "__comp": "__comp---theme-doc-version-roota-7-b-5de",
+    "__props": "__props---core-a-9-d-d00"
+  },
+  "/core/-00e": {
+    "__comp": "__comp---theme-doc-roota-94-67a"
+  },
+  "/core/wallet-framework/-4e2": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---core-wallet-framework-470-96d"
+  },
+  "/core/wallet-framework/data-services/-8d3": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---core-wallet-framework-data-services-c-69-dd3"
+  },
+  "/core/wallet-framework/data-services/best-practices/-dd4": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---core-wallet-framework-data-services-best-practices-783-c13"
+  },
+  "/core/wallet-framework/data-services/introduction/-c0c": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---core-wallet-framework-data-services-introduction-c-2-e-03c"
+  },
+  "/core/wallet-framework/data-services/using-data-services/-6d3": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---core-wallet-framework-data-services-using-data-services-6-fd-7a3"
+  },
+  "/core/wallet-framework/data-services/writing-data-services/-363": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---core-wallet-framework-data-services-writing-data-services-35-e-34c"
+  },
+  "/core/wallet-framework/data-services/writing-data-services/basics/-9e7": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---core-wallet-framework-data-services-writing-data-services-basics-fe-0-407"
+  },
+  "/core/wallet-framework/data-services/writing-data-services/mutations/-85a": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---core-wallet-framework-data-services-writing-data-services-mutations-0-fa-4df"
+  },
+  "/core/wallet-framework/data-services/writing-data-services/other-features/-e60": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---core-wallet-framework-data-services-writing-data-services-other-features-6-d-8-792"
+  },
+  "/core/wallet-framework/data-services/writing-data-services/real-time-updates/-b8d": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---core-wallet-framework-data-services-writing-data-services-real-time-updates-47-c-4e8"
+  },
+  "/core/-681": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---core-bdb-8d4"
+  }
+}

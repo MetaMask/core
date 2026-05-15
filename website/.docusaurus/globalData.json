@@ -1,0 +1,83 @@
+{
+  "docusaurus-plugin-content-docs": {
+    "developers": {
+      "path": "/core/",
+      "versions": [
+        {
+          "name": "current",
+          "label": "Next",
+          "isLast": true,
+          "path": "/core/",
+          "mainDocId": "README",
+          "docs": [
+            {
+              "id": "README",
+              "path": "/core/",
+              "sidebar": "developersSidebar"
+            },
+            {
+              "id": "wallet-framework/data-services/best-practices",
+              "path": "/core/wallet-framework/data-services/best-practices",
+              "sidebar": "developersSidebar"
+            },
+            {
+              "id": "wallet-framework/data-services/introduction",
+              "path": "/core/wallet-framework/data-services/introduction",
+              "sidebar": "developersSidebar"
+            },
+            {
+              "id": "wallet-framework/data-services/README",
+              "path": "/core/wallet-framework/data-services/",
+              "sidebar": "developersSidebar"
+            },
+            {
+              "id": "wallet-framework/data-services/using-data-services",
+              "path": "/core/wallet-framework/data-services/using-data-services",
+              "sidebar": "developersSidebar"
+            },
+            {
+              "id": "wallet-framework/data-services/writing-data-services/basics",
+              "path": "/core/wallet-framework/data-services/writing-data-services/basics",
+              "sidebar": "developersSidebar"
+            },
+            {
+              "id": "wallet-framework/data-services/writing-data-services/mutations",
+              "path": "/core/wallet-framework/data-services/writing-data-services/mutations",
+              "sidebar": "developersSidebar"
+            },
+            {
+              "id": "wallet-framework/data-services/writing-data-services/other-features",
+              "path": "/core/wallet-framework/data-services/writing-data-services/other-features",
+              "sidebar": "developersSidebar"
+            },
+            {
+              "id": "wallet-framework/data-services/writing-data-services/README",
+              "path": "/core/wallet-framework/data-services/writing-data-services/",
+              "sidebar": "developersSidebar"
+            },
+            {
+              "id": "wallet-framework/data-services/writing-data-services/real-time-updates",
+              "path": "/core/wallet-framework/data-services/writing-data-services/real-time-updates",
+              "sidebar": "developersSidebar"
+            },
+            {
+              "id": "wallet-framework/README",
+              "path": "/core/wallet-framework/",
+              "sidebar": "developersSidebar"
+            }
+          ],
+          "draftIds": [],
+          "sidebars": {
+            "developersSidebar": {
+              "link": {
+                "path": "/core/",
+                "label": "README"
+              }
+            }
+          }
+        }
+      ],
+      "breadcrumbs": true
+    }
+  }
+}

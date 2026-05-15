@@ -1,0 +1,21 @@
+{
+  "id": "wallet-framework/data-services/writing-data-services/other-features",
+  "title": "How to write a data service (part 4)",
+  "description": "Paginated queries",
+  "source": "@site/../docs/developers/wallet-framework/data-services/writing-data-services/04-other-features.md",
+  "sourceDirName": "wallet-framework/data-services/writing-data-services",
+  "slug": "/wallet-framework/data-services/writing-data-services/other-features",
+  "permalink": "/core/wallet-framework/data-services/writing-data-services/other-features",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/MetaMask/core/edit/main/../docs/developers/wallet-framework/data-services/writing-data-services/04-other-features.md",
+  "tags": [],
+  "version": "current",
+  "sidebarPosition": 4,
+  "frontMatter": {},
+  "sidebar": "developersSidebar",
+  "previous": {
+    "title": "How to write a data service (part 3)",
+    "permalink": "/core/wallet-framework/data-services/writing-data-services/real-time-updates"
+  }
+}

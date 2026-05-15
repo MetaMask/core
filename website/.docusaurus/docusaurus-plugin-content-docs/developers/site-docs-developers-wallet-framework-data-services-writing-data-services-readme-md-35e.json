@@ -1,0 +1,24 @@
+{
+  "id": "wallet-framework/data-services/writing-data-services/README",
+  "title": "How to write a data service",
+  "description": "This tutorial is divided into 3 parts. You can navigate them below:",
+  "source": "@site/../docs/developers/wallet-framework/data-services/writing-data-services/README.md",
+  "sourceDirName": "wallet-framework/data-services/writing-data-services",
+  "slug": "/wallet-framework/data-services/writing-data-services/",
+  "permalink": "/core/wallet-framework/data-services/writing-data-services/",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/MetaMask/core/edit/main/../docs/developers/wallet-framework/data-services/writing-data-services/README.md",
+  "tags": [],
+  "version": "current",
+  "frontMatter": {},
+  "sidebar": "developersSidebar",
+  "previous": {
+    "title": "How to use a data service",
+    "permalink": "/core/wallet-framework/data-services/using-data-services"
+  },
+  "next": {
+    "title": "How to write a data service (part 1)",
+    "permalink": "/core/wallet-framework/data-services/writing-data-services/basics"
+  }
+}

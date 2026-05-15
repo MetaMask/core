@@ -1,0 +1,61 @@
+/**
+ * Dracula-inspired code block styles.
+ * Prism token colours are set by prism-react-renderer's Dracula theme;
+ * these rules handle layout, scrolling, and copy-button presentation.
+ */
+
+code[class*='language-'],
+pre[class*='language-'] {
+  font-family: var(--font-mm-sans-mono), 'Fira Code', 'Fira Mono', Menlo, Consolas,
+    'DejaVu Sans Mono', monospace;
+  font-size: 1.4rem;
+  line-height: 1.6;
+  direction: ltr;
+  text-align: left;
+  white-space: pre;
+  word-spacing: normal;
+  word-break: normal;
+  tab-size: 2;
+  hyphens: none;
+}
+
+.prism-code {
+  border-radius: 0.8rem;
+  font-size: 1.4rem;
+  line-height: 1.6;
+}
+
+div[class*='codeBlockContainer'] {
+  border-radius: 0.8rem;
+  overflow: hidden;
+
+  // Title bar
+  div[class*='codeBlockTitle'] {
+    font-family: var(--font-mm-sans-mono);
+    font-size: 1.2rem;
+    font-weight: 500;
+    letter-spacing: 0.04em;
+    padding: 0.6rem 1.6rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  }
+}
+
+// Line highlight
+.theme-code-block-highlighted-line {
+  background-color: rgba(255, 255, 255, 0.1);
+  display: block;
+  margin: 0 -1.6rem;
+  padding: 0 1.6rem;
+  border-left: 3px solid var(--ifm-color-primary);
+}
+
+// Copy button
+button[class*='copyButton'] {
+  border-radius: 0.4rem;
+  opacity: 0.6;
+  transition: opacity 0.15s ease;
+
+  &:hover {
+    opacity: 1;
+  }
+}

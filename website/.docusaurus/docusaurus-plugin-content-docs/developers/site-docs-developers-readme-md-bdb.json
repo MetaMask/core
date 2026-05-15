@@ -1,0 +1,20 @@
+{
+  "id": "README",
+  "title": "Developer Documentation",
+  "description": "This section of the docs is oriented for developer users.",
+  "source": "@site/../docs/developers/README.md",
+  "sourceDirName": ".",
+  "slug": "/",
+  "permalink": "/core/",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/MetaMask/core/edit/main/../docs/developers/README.md",
+  "tags": [],
+  "version": "current",
+  "frontMatter": {},
+  "sidebar": "developersSidebar",
+  "next": {
+    "title": "Wallet Framework",
+    "permalink": "/core/wallet-framework/"
+  }
+}

@@ -1,0 +1,42 @@
+@use 'commons/reset';
+@use 'commons/typescale';
+
+:root {
+  --motion: 1;
+  --motion-speed: 0.55s;
+  --general-white: #fff;
+  --general-white-off: #f7f9fc;
+  --general-gray-light: #e9edf6;
+  --general-gray: #c8ceda;
+  --general-gray-mid: #a1a8b7;
+  --general-gray-dark: #393d46;
+  --general-black-light: #242628;
+  --general-black-mid: #1b1b1b;
+  --general-black: #0a0a0a;
+  --developer-orange-light: #ffa680;
+  --developer-orange: #ff5c16;
+  --developer-orange-dark: #661800;
+  --developer-purple-light: #eac2ff;
+  --developer-purple: #d075ff;
+  --developer-purple-dark: #3d065f;
+  --developer-green-light: #e5ffc3;
+  --developer-green: #baf24a;
+  --developer-blue-light: #cce7ff;
+  --developer-blue: #89b0ff;
+
+  @media (prefers-reduced-motion: reduce) {
+    --motion: 0;
+  }
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  font-family: var(--font-mm-geist);
+  -moz-osx-font-smoothing: grayscale;
+  -webkit-font-smoothing: antialiased;
+}
