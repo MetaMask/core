@@ -1,9 +1,11 @@
+/* eslint-disable no-bitwise */
+import { hexToNumber } from '@metamask/utils';
+
 import type {
   ChecksumCaveat,
   ChecksumEnforcersByChainId,
   DecodedPermission,
 } from '../types';
-import { hexToNumber } from '@metamask/utils';
 import { getTermsByEnforcer } from '../utils';
 import { expiryRule } from './expiryRule';
 import type { MakePermissionDecoderConfig } from './makePermissionDecoder';
@@ -17,8 +19,13 @@ enum ApprovalRevocationFlag {
   Permit2InvalidateNonces = 0x20,
 }
 
-// eslint-disable-next-line no-bitwise
-const MAX_APPROVAL_REVOCATION_MASK = ApprovalRevocationFlag.Permit2InvalidateNonces | ApprovalRevocationFlag.Permit2Lockdown | ApprovalRevocationFlag.Permit2Approve | ApprovalRevocationFlag.Erc721SetApprovalForAll | ApprovalRevocationFlag.Erc721Approve | ApprovalRevocationFlag.Erc20Approve;
+const MAX_APPROVAL_REVOCATION_MASK =
+  ApprovalRevocationFlag.Permit2InvalidateNonces |
+  ApprovalRevocationFlag.Permit2Lockdown |
+  ApprovalRevocationFlag.Permit2Approve |
+  ApprovalRevocationFlag.Erc721SetApprovalForAll |
+  ApprovalRevocationFlag.Erc721Approve |
+  ApprovalRevocationFlag.Erc20Approve;
 
 /**
  * Builds the configuration for the token-approval-revocation permission decoder.
@@ -68,7 +75,9 @@ function validateAndDecodeData(
   const mask = hexToNumber(terms);
 
   if (mask > MAX_APPROVAL_REVOCATION_MASK) {
-    throw new Error(`Invalid ApprovalRevocation terms: must be less than or equal to ${MAX_APPROVAL_REVOCATION_MASK}`);
+    throw new Error(
+      `Invalid ApprovalRevocation terms: must be less than or equal to ${MAX_APPROVAL_REVOCATION_MASK}`,
+    );
   }
 
   if (mask === 0) {
@@ -95,6 +104,5 @@ function validateAndDecodeData(
 }
 
 function isFlagEnabled(mask: number, flag: number): boolean {
-  // eslint-disable-next-line no-bitwise
   return (mask & flag) === flag;
 }
