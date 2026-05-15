@@ -278,10 +278,14 @@ export class TokenApiClient extends BaseApiClient {
           return getEmptyTokenSearchResponse();
         }
 
-        return this.fetch<TokenSearchResponse>(API_URLS.TOKEN, '/tokens/search', {
-          signal,
-          params: normalizedQueryOptions,
-        });
+        return this.fetch<TokenSearchResponse>(
+          API_URLS.TOKEN,
+          '/tokens/search',
+          {
+            signal,
+            params: normalizedQueryOptions,
+          },
+        );
       },
       ...getQueryOptionsOverrides(options),
       staleTime: options?.staleTime ?? STALE_TIMES.DEFAULT,
