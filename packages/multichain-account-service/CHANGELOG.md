@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `XlmAccountProvider` for Stellar (XLM) snap-backed accounts, including `XLM_ACCOUNT_PROVIDER_DEFAULT_CONFIG` and package export ([#TODO](https://github.com/MetaMask/core/pull/TODO))
+
 ## [8.0.1]
 
 ### Changed

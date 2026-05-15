@@ -1,9 +1,13 @@
 import type { Bip44Account } from '@metamask/account-api';
-import { BtcScope, EthScope, SolScope, TrxScope } from '@metamask/keyring-api';
-import type {
-  KeyringAccount,
-  KeyringCapabilities,
+import {
+  BtcScope,
+  EthScope,
+  SolScope,
+  TrxScope,
+  XlmScope,
 } from '@metamask/keyring-api';
+import type { KeyringAccount } from '@metamask/keyring-api';
+import type { KeyringCapabilities } from '@metamask/keyring-api/v2';
 
 import { AccountProviderWrapper, EvmAccountProvider } from '../providers';
 import { GroupIndexRange } from '../utils';
@@ -39,6 +43,7 @@ export function makeMockAccountProvider(
         SolScope.Testnet,
         BtcScope.Testnet,
         TrxScope.Shasta,
+        XlmScope.Testnet,
         EthScope.Eoa,
       ],
       bip44: { deriveIndex: true },

@@ -35,6 +35,8 @@ export {
   BtcAccountProvider,
   TRX_ACCOUNT_PROVIDER_NAME,
   TrxAccountProvider,
+  XLM_ACCOUNT_PROVIDER_NAME,
+  XlmAccountProvider,
 } from './providers';
 export { MultichainAccountWallet } from './MultichainAccountWallet';
 export { MultichainAccountGroup } from './MultichainAccountGroup';
