@@ -50,6 +50,7 @@ export type {
   Intent,
   IntentOrderLike,
   BitcoinTradeData,
+  StellarTradeData,
   TronTradeData,
   BridgeControllerState,
   BridgeControllerAction,
@@ -140,6 +141,7 @@ export {
   isSolanaChainId,
   isBitcoinChainId,
   isTronChainId,
+  isStellarChainId,
   isNonEvmChainId,
   getNativeAssetForChainId,
   getDefaultBridgeControllerState,
@@ -148,6 +150,7 @@ export {
 
 export {
   isValidQuoteRequest,
+  isValidBatchSellQuoteRequest,
   formatEtaInMinutes,
   calcSlippagePercentage,
 } from './utils/quote';
@@ -166,6 +169,7 @@ export {
 export {
   extractTradeData,
   isBitcoinTrade,
+  isStellarTrade,
   isTronTrade,
   isEvmTxData,
   type Trade,
@@ -173,9 +177,10 @@ export {
 
 export {
   selectBridgeQuotes,
+  selectBatchSellQuotes,
   selectDefaultSlippagePercentage,
   type BridgeAppState,
-  selectExchangeRateByChainIdAndAddress,
+  selectExchangeRateByAssetId,
   selectIsQuoteExpired,
   selectBridgeFeatureFlags,
   selectMinimumBalanceForRentExemptionInSOL,

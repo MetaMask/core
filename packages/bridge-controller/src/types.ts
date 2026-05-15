@@ -45,6 +45,7 @@ import type {
   StepSchema,
   TokenFeatureSchema,
   QuoteStreamCompleteSchema,
+  StellarTradeDataSchema,
   TronTradeDataSchema,
   TxDataSchema,
 } from './utils/validators';
@@ -283,13 +284,15 @@ export type IntentOrderLike = Intent['order'];
 export type BitcoinTradeData = Infer<typeof BitcoinTradeDataSchema>;
 
 export type TronTradeData = Infer<typeof TronTradeDataSchema>;
+
+export type StellarTradeData = Infer<typeof StellarTradeDataSchema>;
 /**
  * This is the type for the quote response from the bridge-api
  * TxDataType can be overriden to be a string when the quote is non-evm
  * ApprovalType can be overriden when you know the specific approval type (e.g., TxData for EVM-only contexts)
  */
 export type QuoteResponse<
-  TxDataType = TxData | string | BitcoinTradeData | TronTradeData,
+  TxDataType = TxData | string | BitcoinTradeData | TronTradeData | StellarTradeData,
   ApprovalType = TxData | TronTradeData,
 > = Infer<typeof QuoteResponseSchema> & {
   trade: TxDataType;
@@ -303,6 +306,11 @@ export type QuoteResponse<
    * If defined, the quote's total network fee will include the reset approval's gas limit.
    */
   resetApproval?: TxData;
+  /**
+   * Appended to the quote if there are multiple quote requests in a batch. This
+   * indicates which quoteRequest the quote is for
+   */
+  quoteRequestIndex?: number;
 };
 
 export enum ChainId {
@@ -317,6 +325,8 @@ export enum ChainId {
   LINEA = 59144,
   SOLANA = 1151111081099710,
   BTC = 20000000000001,
+  /** Internal bridge / token-list id for Stellar pubnet (Token API chain: stellar:pubnet). */
+  STELLAR = 20000000000002,
   TRON = 728126428,
   SEI = 1329,
   MONAD = 143,
@@ -358,7 +368,7 @@ export enum BridgeBackgroundAction {
 }
 
 export type BridgeControllerState = {
-  quoteRequest: Partial<GenericQuoteRequest>;
+  quoteRequest: Partial<GenericQuoteRequest>[];
   quotes: (QuoteResponse & L1GasFees & NonEvmFees)[];
   /**
    * The time elapsed between the initial quote fetch and when the first valid quote was received

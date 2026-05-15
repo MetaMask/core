@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add legacy `createOriginMiddleware` utility ([#8734](https://github.com/MetaMask/core/pull/8734))
+
 ## [10.3.0]
 
 ### Added

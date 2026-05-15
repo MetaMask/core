@@ -2,8 +2,8 @@ import { KeyringTypes } from '@metamask/keyring-controller';
 import { createDeferredPromise, DeferredPromise } from '@metamask/utils';
 import { once } from 'lodash';
 
-import { projectLogger as log, WARNING_PREFIX } from '../logger';
-import { MultichainAccountServiceMessenger } from '../types';
+import { projectLogger as log, WARNING_PREFIX } from './logger';
+import type { SnapAccountServiceMessenger } from './SnapAccountService';
 
 /** Minimal KeyringController state shape needed to detect Snap keyring. */
 type KeyringControllerStateSlice = {
@@ -27,7 +27,7 @@ function stateHasSnapKeyring(state: KeyringControllerStateSlice): boolean {
   return state.keyrings.some((k) => k.type === KeyringTypes.snap);
 }
 
-export type SnapPlatformWatcherOptions = {
+export type SnapPlatformWatcherConfig = {
   /**
    * Resolves when onboarding is complete.
    */
@@ -41,7 +41,7 @@ export type SnapPlatformWatcherOptions = {
 };
 
 export class SnapPlatformWatcher {
-  readonly #messenger: MultichainAccountServiceMessenger;
+  readonly #messenger: SnapAccountServiceMessenger;
 
   readonly #ensureOnboardingComplete?: () => Promise<void>;
 
@@ -52,13 +52,13 @@ export class SnapPlatformWatcher {
   #isReady: boolean;
 
   constructor(
-    messenger: MultichainAccountServiceMessenger,
-    options: SnapPlatformWatcherOptions = {},
+    messenger: SnapAccountServiceMessenger,
+    config: SnapPlatformWatcherConfig = {},
   ) {
     this.#messenger = messenger;
-    this.#ensureOnboardingComplete = options.ensureOnboardingComplete;
+    this.#ensureOnboardingComplete = config.ensureOnboardingComplete;
     this.#snapKeyringWaitTimeoutMs =
-      options.snapKeyringWaitTimeoutMs ?? DEFAULT_SNAP_KEYRING_WAIT_TIMEOUT_MS;
+      config.snapKeyringWaitTimeoutMs ?? DEFAULT_SNAP_KEYRING_WAIT_TIMEOUT_MS;
 
     this.#isReady = false;
     this.#isReadyOnce = createDeferredPromise<void>();

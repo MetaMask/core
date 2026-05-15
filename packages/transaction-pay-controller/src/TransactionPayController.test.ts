@@ -17,7 +17,11 @@ import type {
 import { getStrategyOrder } from './utils/feature-flags';
 import { updateQuotes } from './utils/quotes';
 import { updateSourceAmounts } from './utils/source-amounts';
-import { getTransaction, pollTransactionChanges } from './utils/transaction';
+import {
+  getTransaction,
+  subscribeAssetChanges,
+  subscribeTransactionChanges,
+} from './utils/transaction';
 
 jest.mock('./actions/update-fiat-payment');
 jest.mock('./actions/update-payment-token');
@@ -41,7 +45,10 @@ describe('TransactionPayController', () => {
   const getTransactionMock = jest.mocked(getTransaction);
   const updateSourceAmountsMock = jest.mocked(updateSourceAmounts);
   const updateQuotesMock = jest.mocked(updateQuotes);
-  const pollTransactionChangesMock = jest.mocked(pollTransactionChanges);
+  const subscribeTransactionChangesMock = jest.mocked(
+    subscribeTransactionChanges,
+  );
+  const subscribeAssetChangesMock = jest.mocked(subscribeAssetChanges);
   const getStrategyOrderMock = jest.mocked(getStrategyOrder);
   let messenger: TransactionPayControllerMessenger;
   let getKeyringControllerStateMock: jest.Mock;
@@ -78,6 +85,21 @@ describe('TransactionPayController', () => {
 
     getStrategyOrderMock.mockReturnValue([TransactionPayStrategy.Relay]);
     updateQuotesMock.mockResolvedValue(true);
+  });
+
+  describe('constructor', () => {
+    it('subscribes to rate changes for in-flight retry', () => {
+      const controller = createController();
+
+      expect(subscribeAssetChangesMock).toHaveBeenCalledWith(
+        messenger,
+        expect.any(Function),
+        expect.any(Function),
+      );
+
+      const getControllerState = subscribeAssetChangesMock.mock.calls[0][1];
+      expect(getControllerState()).toBe(controller.state);
+    });
   });
 
   describe('updatePaymentToken', () => {
@@ -540,6 +562,48 @@ describe('TransactionPayController', () => {
         CHAIN_ID_MOCK,
         TOKEN_ADDRESS_MOCK,
         'perpsDeposit',
+        undefined,
+      );
+    });
+
+    it('passes fiat payment method ID into getStrategyOrder', async () => {
+      const controller = createController();
+
+      controller.updatePaymentToken({
+        transactionId: TRANSACTION_ID_MOCK,
+        tokenAddress: TOKEN_ADDRESS_MOCK,
+        chainId: CHAIN_ID_MOCK,
+      });
+
+      const { updateTransactionData } = updatePaymentTokenMock.mock.calls[0][1];
+
+      updateTransactionData(TRANSACTION_ID_MOCK, (data) => {
+        data.paymentToken = {
+          address: TOKEN_ADDRESS_MOCK,
+          balanceFiat: '1',
+          balanceHuman: '1',
+          balanceRaw: '1',
+          balanceUsd: '1',
+          chainId: CHAIN_ID_MOCK,
+          decimals: 6,
+          symbol: 'USDC',
+        };
+        data.fiatPayment = { selectedPaymentMethodId: 'card-123' };
+      });
+
+      const transactionMeta = {
+        id: TRANSACTION_ID_MOCK,
+        type: 'perpsDeposit',
+      } as TransactionMeta;
+
+      messenger.call('TransactionPayController:getStrategy', transactionMeta);
+
+      expect(getStrategyOrderMock).toHaveBeenCalledWith(
+        messenger,
+        CHAIN_ID_MOCK,
+        TOKEN_ADDRESS_MOCK,
+        'perpsDeposit',
+        'card-123',
       );
     });
   });
@@ -632,7 +696,7 @@ describe('TransactionPayController', () => {
       ).toBeDefined();
 
       const removeTransactionDataCallback =
-        pollTransactionChangesMock.mock.calls[0][2];
+        subscribeTransactionChangesMock.mock.calls[0][2];
 
       removeTransactionDataCallback(TRANSACTION_ID_MOCK);
 

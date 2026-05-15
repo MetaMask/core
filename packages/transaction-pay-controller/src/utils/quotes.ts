@@ -571,7 +571,7 @@ async function getQuotes(
     },
   );
 
-  if (!requests?.length) {
+  if (!requests?.length && !fiatPaymentMethod) {
     return {
       batchTransactions: [],
       quotes: [],
