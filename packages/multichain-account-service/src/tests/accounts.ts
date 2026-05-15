@@ -248,8 +248,6 @@ export const MOCK_BTC_P2WPKH_ACCOUNT_1: Bip44Account<InternalAccount> = {
     },
     snap: {
       id: 'mock-btc-snap-id',
-      enabled: true,
-      name: 'Mock Bitcoin Snap',
     },
   },
 };
@@ -277,8 +275,6 @@ export const MOCK_BTC_P2TR_ACCOUNT_1: Bip44Account<InternalAccount> = {
     },
     snap: {
       id: 'mock-btc-snap-id',
-      enabled: true,
-      name: 'Mock Bitcoin Snap',
     },
   },
 };
@@ -387,9 +383,7 @@ export class MockAccountBuilder<Account extends KeyringAccount> {
   withSnapId(snapId: SnapId) {
     if (isInternalAccount(this.#account)) {
       this.#account.metadata.snap = {
-        enabled: true,
         id: snapId,
-        name: `Name: ${snapId}`,
       };
     }
     return this;

@@ -50,7 +50,7 @@
     "@metamask/accounts-controller": "^37.1.1",
     "@metamask/base-controller": "^9.0.1",
     "@metamask/keyring-api": "^21.6.0",
-    "@metamask/keyring-internal-api": "^10.0.0",
+    "@metamask/keyring-internal-api": "^11.0.1",
     "@metamask/keyring-snap-client": "^8.2.0",
     "@metamask/messenger": "^1.0.0",
     "@metamask/polling-controller": "^16.0.4",

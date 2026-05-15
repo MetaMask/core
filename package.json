@@ -46,6 +46,8 @@
     "pre-push": "yarn lint"
   },
   "resolutions": {
+    "@metamask/keyring-api": "23.1.0",
+    "@metamask/keyring-internal-api": "11.0.1",
     "elliptic@6.5.4": "^6.5.7",
     "fast-xml-parser@^4.3.4": "^4.4.1",
     "ws@7.4.6": "^7.5.10"

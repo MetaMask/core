@@ -1,11 +1,8 @@
 import { assertIsBip44Account } from '@metamask/account-api';
 import type { Bip44Account } from '@metamask/account-api';
 import type { TraceCallback } from '@metamask/controller-utils';
-import type {
-  EntropySourceId,
-  KeyringAccount,
-  KeyringCapabilities,
-} from '@metamask/keyring-api';
+import type { EntropySourceId, KeyringAccount } from '@metamask/keyring-api';
+import type { KeyringCapabilities } from '@metamask/keyring-api/v2';
 import {
   AccountCreationType,
   KeyringAccountEntropyTypeOption,

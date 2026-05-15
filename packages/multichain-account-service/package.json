@@ -1,6 +1,6 @@
 {
   "name": "@metamask/multichain-account-service",
-  "version": "8.0.1",
+  "version": "8.0.1-dev.67",
   "description": "Service to manage multichain accounts",
   "keywords": [
     "MetaMask",
@@ -55,7 +55,7 @@
     "@metamask/key-tree": "^10.1.1",
     "@metamask/keyring-api": "^23.1.0",
     "@metamask/keyring-controller": "^25.1.1",
-    "@metamask/keyring-internal-api": "^10.0.0",
+    "@metamask/keyring-internal-api": "^11.0.1",
     "@metamask/keyring-snap-client": "^8.2.0",
     "@metamask/keyring-utils": "^3.1.0",
     "@metamask/messenger": "^1.0.0",
