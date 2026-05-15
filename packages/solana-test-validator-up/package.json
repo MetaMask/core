@@ -15,9 +15,7 @@
     "type": "git",
     "url": "https://github.com/MetaMask/core.git"
   },
-  "bin": {
-    "solana-test-validator-up": "./dist/bin/solana-test-validator-up.mjs"
-  },
+  "bin": "./dist/bin/solana-test-validator-up.mjs",
   "files": [
     "dist/"
   ],
