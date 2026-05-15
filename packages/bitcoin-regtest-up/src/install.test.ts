@@ -335,7 +335,7 @@ describe('bitcoin-regtest-up installer', () => {
       'bitcoin-regtest-up',
       'bitcoin-core',
       cacheKey,
-      'bitcoin-31.0',
+      'bitcoin-30.2',
       'bin',
     );
     const downloads: { destination: string; url: string }[] = [];
@@ -417,8 +417,8 @@ function createDependencies({
       await writeFile(destination, bitcoinCoreContent);
     },
     extractArchive: async (_archivePath, destination): Promise<void> => {
-      const binDirectory = join(destination, 'bitcoin-31.0', 'bin');
-      const libexecDirectory = join(destination, 'bitcoin-31.0', 'libexec');
+      const binDirectory = join(destination, 'bitcoin-30.2', 'bin');
+      const libexecDirectory = join(destination, 'bitcoin-30.2', 'libexec');
       await mkdir(binDirectory, { recursive: true });
       await mkdir(libexecDirectory, { recursive: true });
       await writeExecutable(
