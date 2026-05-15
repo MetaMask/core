@@ -1,23 +1,21 @@
-# How to write a data service
+# How to write a data service (part 1)
 
-This guide demonstrate some of the features of data services by walking through an example.
+In this tutorial, we'll show you how to write a data service.
+
+This tutorial is divided into 3 parts. In the first part, we'll start with a basic example, and then later, we'll demonstrate some more advanced use cases.
 
 ## Requirements
 
-Let's say that we're developing a terminal for advanced traders. We have a WebSocket API that gives us real-time data on orders and a HTTP API that allows to retrieve, place, and cancel orders as needed. Both APIs are deployed under three environments: `dev`, `qa`, and `prod`.
+Let's say that we're developing a terminal for advanced traders. We have an HTTP API that allows us to retrieve orders that all users are making. This API has the following operations:
 
-- The WebSocket API is available at `ws://orders.<environment>.metamask.io/`.
-- The HTTP API is available at `https://orders.<environment>.metamask.io/` and has the following operations:
-  - **GET `/v1/orders`**: Retrieve a paginated list of orders, limited to 100 at a time (latest first by default).
-  - **POST `/v1/orders`**: Enqueue a new order for processing.
-  - **GET `/v1/orders/:id`**: Retrieve data about an order, including its processing status.
-  - **DELETE `/v1/orders/:id`**: Cancel a pending order.
+- **GET `/v1/orders`**: Retrieve a paginated list of orders, limited to 100 at a time (latest first by default).
+- **GET `/v1/orders/:id`**: Retrieve data about an order.
+
+We want to write a data service that represents this API.
 
 ## Setting up the data service
 
-Before we can implement these APIs, we need to take care of some boilerplate.
-
-Here are the steps we'll follow:
+First, we need to take care of some boilerplate. Here are the steps we'll follow:
 
 1. Decide on a name
 2. Define the messenger
@@ -25,7 +23,7 @@ Here are the steps we'll follow:
 
 ### Deciding on a name
 
-What should we call our data service? It's best if we choose a descriptive name that reflects the API that we are wrapping. Additionally, since data services are special within the Wallet Framework, it's conventional to end the name with "Service".
+What should we call our data service? A data service is intended to represent a singular data source, so it's best if we choose a descriptive name that reflects the API that we are wrapping. Additionally, since data services are special within the Wallet Framework, it's conventional to end the name with "Service".
 
 So, let's go with `OrdersService`. We'll set this in a constant because we'll need this at key points shortly:
 
@@ -188,87 +186,8 @@ export class OrdersService extends BaseDataService<
 }
 ```
 
-### Declaring the base URL (and its variants)
-
-Next, we need to set the base URL of the API up front (this way we don't need to repeat it each time when we make a request).
-
-In our case, we also need to figure out a way to allow the base URL to be dynamic depending on the environment. To do this, we'll have our constructor take an `env` option and then build the URL in the constructor:
-
-```typescript
-// [!code highlight:22]
-/**
- * The environments the API is deployed under.
- */
-// Note that we do not use an enum because they are not supported by Node's
-// type-stripping feature, nor TypeScript's `erasableSyntaxOnly` option
-const Env = {
-  Development: 'dev',
-  QA: 'qa',
-  Production: 'prod'
-} as const;
-
-/**
- * A deployment environment.
- */
-type Env = (typeof Env)[typeof keyof Env];
-
-/**
- * @returns The base URL of the API that the service represents.
- */
-function getBaseUrl(env: Env): string {
-  return `https://orders.${env}.metamask.io`;
-}
-
-export class OrdersService extends BaseDataService<
-  typeof DATA_SERVICE_NAME,
-  OrdersServiceMessenger
-> {
-  // [!code highlight]
-  readonly #baseUrl: string;
-
-  constructor({
-    messenger,
-    // [!code highlight]
-    env,
-    queryClientConfig = {},
-    policyOptions = {},
-  }: {
-    messenger: OrdersServiceMessenger;
-    // [!code highlight]
-    env: Env;
-    queryClientConfig?: QueryClientConfig;
-    policyOptions?: CreateServicePolicyOptions;
-  }) {
-    super({
-      name: DATA_SERVICE_NAME,
-      messenger,
-      queryClientConfig,
-      policyOptions,
-    });
-
-    // [!code highlight]
-    this.#baseUrl = getBaseUrl(env);
-
-    this.messenger.registerMethodActionHandlers(
-      this,
-      MESSENGER_EXPOSED_METHODS,
-    );
-  }
-}
-```
-
 ## Making requests
 
-### Non-paginated queries
+Now we're ready to implement the main part of the data service. How do we do that?
 
-## Paginated queries
-
-### Mutations
-
-## Subscribing to data
-
-### Polling
-
-### WebSockets
-
-## Writing tests
+If a data service class ought to represent a data source, then the methods in that class ought to represent an operation. Since our API has two operations, we'll add two methods:

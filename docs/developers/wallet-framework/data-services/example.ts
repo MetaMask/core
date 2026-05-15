@@ -114,4 +114,35 @@ export class OrdersService extends BaseDataService<
       MESSENGER_EXPOSED_METHODS,
     );
   }
+
+  /**
+   * Uses the API to retrieve orders.
+   *
+   * @returns The gas prices for the given chain.
+   */
+  async fetchOrders(): Promise<FetchOrdersResponse> {
+    const url = new URL('/orders', BASE_URL);
+
+    const jsonResponse = await this.fetchQuery({
+      queryKey: [`${this.name}:fetchOrders`],
+      queryFn: async () => {
+        const response = await fetch(url);
+
+        if (!response.ok) {
+          throw new HttpError(
+            response.status,
+            `Gas prices API failed with status '${response.status}'`,
+          );
+        }
+
+        return response.json();
+      },
+    });
+
+    if (!is(jsonResponse, GasPricesResponseStruct)) {
+      throw new Error('Malformed response received from gas prices API');
+    }
+
+    return jsonResponse.data;
+  }
 }
