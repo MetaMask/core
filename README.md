@@ -34,6 +34,7 @@ Each package in this repository has its own README where you can find installati
 - [`@metamask/authenticated-user-storage`](packages/authenticated-user-storage)
 - [`@metamask/base-controller`](packages/base-controller)
 - [`@metamask/base-data-service`](packages/base-data-service)
+- [`@metamask/bitcoin-regtest-up`](packages/bitcoin-regtest-up)
 - [`@metamask/bridge-controller`](packages/bridge-controller)
 - [`@metamask/bridge-status-controller`](packages/bridge-status-controller)
 - [`@metamask/build-utils`](packages/build-utils)
@@ -127,6 +128,7 @@ linkStyle default opacity:0.5
   authenticated_user_storage(["@metamask/authenticated-user-storage"]);
   base_controller(["@metamask/base-controller"]);
   base_data_service(["@metamask/base-data-service"]);
+  bitcoin_regtest_up(["@metamask/bitcoin-regtest-up"]);
   bridge_controller(["@metamask/bridge-controller"]);
   bridge_status_controller(["@metamask/bridge-status-controller"]);
   build_utils(["@metamask/build-utils"]);

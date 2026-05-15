@@ -67,6 +67,7 @@
   "metamask/eth-block-tracker": "team-wallet-integrations,team-core-platform",
   "metamask/eth-json-rpc-middleware": "team-core-platform,team-confirmations,team-wallet-integrations",
   "metamask/eth-json-rpc-provider": "team-wallet-integrations,team-core-platform",
+  "metamask/bitcoin-regtest-up": "team-mobile-platform,team-extension-platform,team-networks",
   "metamask/foundryup": "team-mobile-platform,team-extension-platform",
   "metamask/json-rpc-engine": "team-wallet-integrations,team-core-platform",
   "metamask/json-rpc-middleware-stream": "team-wallet-integrations,team-core-platform",
