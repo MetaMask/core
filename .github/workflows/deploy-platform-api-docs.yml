@@ -17,9 +17,11 @@ jobs:
   build-docs:
     name: Build Platform API docs
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
       - name: Checkout and setup environment
-        uses: MetaMask/action-checkout-and-setup@v2
+        uses: MetaMask/action-checkout-and-setup@v3
         with:
           is-high-risk-environment: false
 
@@ -27,21 +29,26 @@ jobs:
         run: yarn docs:platform-api:build
         env:
           DOCS_URL: https://${{ github.repository_owner }}.github.io
-          DOCS_BASE_URL: /${{ github.event.repository.name }}/
+          # The site is published under the `/platform-api/` subdirectory of
+          # the repo's GitHub Pages site so that other doc sites (e.g.
+          # package API docs) can be hosted alongside under sibling paths.
+          DOCS_BASE_URL: /${{ github.event.repository.name }}/platform-api/
 
       - name: Upload build artifact (PR)
         if: github.event_name == 'pull_request'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: platform-api-docs
           path: .platform-api-docs/build/
           retention-days: 7
 
-      - name: Upload Pages artifact (main)
+      - name: Upload build artifact for deploy job
         if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-        uses: actions/upload-pages-artifact@v3
+        uses: actions/upload-artifact@v6
         with:
+          name: platform-api-docs-build
           path: .platform-api-docs/build/
+          retention-days: 1
 
   deploy:
     name: Deploy to GitHub Pages
@@ -49,12 +56,20 @@ jobs:
     needs: build-docs
     runs-on: ubuntu-latest
     permissions:
-      pages: write
-      id-token: write
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
+      contents: write
     steps:
+      - name: Download build artifact
+        uses: actions/download-artifact@v7
+        with:
+          name: platform-api-docs-build
+          path: build/
+
       - name: Deploy to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v4
+        uses: peaceiris/actions-gh-pages@v4.1.0
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./build
+          destination_dir: platform-api
+          # Preserve sibling subdirectories (e.g. /package-api/) so this
+          # deploy only overwrites /platform-api/.
+          keep_files: true
