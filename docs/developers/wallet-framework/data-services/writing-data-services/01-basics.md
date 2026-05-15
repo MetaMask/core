@@ -209,6 +209,8 @@ If a data service class ought to represent a data source, then the methods in th
 
 ### Requesting a list of orders
 
+#### Writing the implementation
+
 First, let's add a method to represent `GET /v1/orders`:
 
 ```typescript
@@ -525,7 +527,11 @@ export type OrdersServiceFetchOrdersAction = {
 export type OrdersServiceMethodActions = OrdersServiceFetchOrdersAction;
 ```
 
-Finally, we need to write tests for the data service class we've come up with so far.
+#### Writing tests
+
+Before we move on, we need to make sure to test the data service class we've come up with so far.
+
+To keep this tutorial short, we won't go into detail on how to do this
 
 ### Requesting details for an order
 
