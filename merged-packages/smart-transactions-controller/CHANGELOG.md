@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [24.1.1]
+
 ### Changed
 
 - Bump `@metamask/base-controller` from `^9.0.0` to `^9.1.0` ([#585](https://github.com/MetaMask/smart-transactions-controller/pull/585))
@@ -800,7 +802,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add initial SmartTransactionsController ([#1](https://github.com/MetaMask/smart-transactions-controller/pull/1))
 - Initial commit
 
-[Unreleased]: https://github.com/MetaMask/smart-transactions-controller/compare/v24.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/smart-transactions-controller/compare/v24.1.1...HEAD
+[24.1.1]: https://github.com/MetaMask/smart-transactions-controller/compare/v24.1.0...v24.1.1
 [24.1.0]: https://github.com/MetaMask/smart-transactions-controller/compare/v24.0.0...v24.1.0
 [24.0.0]: https://github.com/MetaMask/smart-transactions-controller/compare/v23.0.0...v24.0.0
 [23.0.0]: https://github.com/MetaMask/smart-transactions-controller/compare/v22.7.0...v23.0.0
