@@ -555,10 +555,12 @@ export const BatchSellTradesResponseSchema = type({
       type({ type: enums(Object.values(BatchSellTransactionType)) }),
     ]),
   ),
-  fee: type({
-    asset: BridgeAssetSchema,
-    amount: NumberStringSchema,
-  }),
+  fee: optional(
+    type({
+      asset: BridgeAssetSchema,
+      amount: NumberStringSchema,
+    }),
+  ),
 });
 
 export const validateBatchSellTradesResponse = (
