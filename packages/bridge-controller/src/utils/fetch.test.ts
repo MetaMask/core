@@ -1,6 +1,5 @@
 import { AddressZero } from '@ethersproject/constants';
 import type { CaipAssetType } from '@metamask/utils';
-import { ServerResponse } from 'http';
 
 import mockBridgeQuotesErc20Erc20 from '../../tests/mock-quotes-erc20-erc20.json';
 import mockBridgeQuotesNativeErc20 from '../../tests/mock-quotes-native-erc20.json';
