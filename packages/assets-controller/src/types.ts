@@ -9,7 +9,7 @@ import type { CaipAssetType, CaipChainId, Json } from '@metamask/utils';
  * - Native: "eip155:1/slip44:60" (ETH)
  * - ERC20: "eip155:1/erc20:0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48" (USDC)
  * - ERC721: "eip155:1/erc721:0xBC4CA0EdA7647A8aB7C2061c2E118A18a936f13D/1234" (BAYC #1234)
- * - SPL: "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/spl:EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"
+ * - SPL: "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/token:EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"
  */
 export type Caip19AssetId = CaipAssetType;
 

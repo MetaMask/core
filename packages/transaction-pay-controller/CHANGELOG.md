@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [22.5.0]
+
 ### Added
 
 - Add Across submit support for post-quote Predict withdraw flows ([#8761](https://github.com/MetaMask/core/pull/8761))
@@ -14,7 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Rename Relay gasless execution feature flag from `gaslessEnabled` to `isGaslessEnabled` ([#8801](https://github.com/MetaMask/core/pull/8801))
+- Move the Relay gasless execution feature flag to `confirmations_pay_extended.payStrategies.relay.gaslessEnabled` ([#8810](https://github.com/MetaMask/core/pull/8810))
 
 ### Fixed
 
@@ -898,7 +900,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#6820](https://github.com/MetaMask/core/pull/6820))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@22.4.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@22.5.0...HEAD
+[22.5.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@22.4.0...@metamask/transaction-pay-controller@22.5.0
 [22.4.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@22.3.1...@metamask/transaction-pay-controller@22.4.0
 [22.3.1]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@22.3.0...@metamask/transaction-pay-controller@22.3.1
 [22.3.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@22.2.0...@metamask/transaction-pay-controller@22.3.0

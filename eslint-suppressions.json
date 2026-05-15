@@ -1634,26 +1634,15 @@
       "count": 2
     }
   },
-  "packages/phishing-controller/src/PhishingController.test.ts": {
-    "jest/unbound-method": {
-      "count": 7
-    },
-    "no-restricted-syntax": {
-      "count": 1
-    }
-  },
   "packages/phishing-controller/src/PhishingController.ts": {
     "@typescript-eslint/explicit-function-return-type": {
-      "count": 19
+      "count": 14
     },
     "@typescript-eslint/naming-convention": {
       "count": 1
     },
     "@typescript-eslint/prefer-nullish-coalescing": {
       "count": 6
-    },
-    "no-restricted-syntax": {
-      "count": 10
     }
   },
   "packages/phishing-controller/src/PhishingDetector.test.ts": {

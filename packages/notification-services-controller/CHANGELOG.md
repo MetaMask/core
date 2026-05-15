@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [24.1.0]
+
+### Added
+
+- Add `registerPushNotifications` to `NotificationServicesControllerEnableNotificationsOptions` so clients can enable MetaMask notifications without registering push notifications. ([#8782](https://github.com/MetaMask/core/pull/8782))
+- Add optional mobile OS and app version metadata to push token registrations so clients can provide Firebase error attribution data. ([#8782](https://github.com/MetaMask/core/pull/8782))
+
 ## [24.0.0]
 
 ### Added
@@ -743,7 +750,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@24.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@24.1.0...HEAD
+[24.1.0]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@24.0.0...@metamask/notification-services-controller@24.1.0
 [24.0.0]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@23.1.1...@metamask/notification-services-controller@24.0.0
 [23.1.1]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@23.1.0...@metamask/notification-services-controller@23.1.1
 [23.1.0]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@23.0.1...@metamask/notification-services-controller@23.1.0

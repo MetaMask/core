@@ -133,10 +133,17 @@ export type PayStrategiesConfigRaw = {
   across?: AcrossConfigRaw;
   relay?: {
     enabled?: boolean;
-    isGaslessEnabled?: boolean;
     originGasOverhead?: string;
     pollingInterval?: number;
     pollingTimeout?: number;
+  };
+};
+
+type FeatureFlagsExtendedRaw = {
+  payStrategies?: {
+    relay?: {
+      gaslessEnabled?: boolean;
+    };
   };
 };
 
@@ -493,10 +500,10 @@ export function isRelayExecuteEnabled(
 ): boolean {
   const state = messenger.call('RemoteFeatureFlagController:getState');
   const featureFlags =
-    (state.remoteFeatureFlags?.confirmations_pay as
-      | FeatureFlagsRaw
+    (state.remoteFeatureFlags?.confirmations_pay_extended as
+      | FeatureFlagsExtendedRaw
       | undefined) ?? {};
-  return featureFlags.payStrategies?.relay?.isGaslessEnabled ?? false;
+  return featureFlags.payStrategies?.relay?.gaslessEnabled ?? false;
 }
 
 /**
