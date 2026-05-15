@@ -1,1 +1,0 @@
-"use strict";(self.webpackChunk_metamask_core_docs=self.webpackChunk_metamask_core_docs||[]).push([[744],{5151:e=>{e.exports=JSON.parse('{"name":"docusaurus-plugin-content-docs","id":"developers"}')}}]);

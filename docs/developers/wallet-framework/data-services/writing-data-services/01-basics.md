@@ -495,7 +495,35 @@ Great, we now have a method called `fetchOrders` that wraps `GET /v1/orders`. No
 + ] as const;
 ```
 
-Then we can run `yarn `
+Then we'll run `yarn workspace @metamask/orders-service run generate-action-types` to generate `packages/orders-service/src/orders-service-method-action-types.ts`, which should look like this:
+
+```typescript
+/**
+ * This file is auto generated.
+ * Do not edit manually.
+ */
+
+import type { OrdersService } from './orders-service';
+
+/**
+ * Uses the API to retrieve orders.
+ *
+ * @param params - Parameters to qualify the request.
+ * @param params.sortField - The field by which to sort the list of orders.
+ * @param params.sortOrder - The direction in which to sort the list of
+ * orders.
+ * @returns The orders from the API.
+ */
+export type OrdersServiceFetchOrdersAction = {
+  type: `OrdersService:fetchOrders`;
+  handler: OrdersService['fetchOrders'];
+};
+
+/**
+ * Union of all OrdersService action types.
+ */
+export type OrdersServiceMethodActions = OrdersServiceFetchOrdersAction;
+```
 
 Finally, we need to write tests for the data service class we've come up with so far.
 
