@@ -5,7 +5,24 @@ import type {
   DataServiceInvalidateQueriesAction,
 } from '@metamask/base-data-service';
 import type { CreateServicePolicyOptions } from '@metamask/controller-utils';
+import { HttpError } from '@metamask/controller-utils';
 import type { Messenger } from '@metamask/messenger';
+import type { Infer } from '@metamask/superstruct';
+import {
+  array,
+  bigint,
+  literal,
+  number,
+  refine,
+  type,
+  union,
+  validate,
+} from '@metamask/superstruct';
+import {
+  CaipChainIdStruct,
+  HexAddressStruct,
+  HexChecksumAddressStruct,
+} from '@metamask/utils';
 import type { QueryClientConfig } from '@tanstack/query-core';
 
 /**
@@ -72,6 +89,59 @@ export type OrdersServiceMessenger = Messenger<
 >;
 
 /**
+ * A struct that represents a timestamp (number of seconds since the UNIX
+ * epoch).
+ */
+const TimestampStruct = refine(number(), 'timestamp', (value) => {
+  if (new Date(value).toString() === 'Invalid Date') {
+    return 'Expected a valid timestamp';
+  }
+  return true;
+});
+
+/**
+ * Struct to validate an order object that the Orders API returns.
+ */
+const OrderStruct = type({
+  createdTime: TimestampStruct,
+  fromAddress: HexAddressStruct,
+  fromChainId: CaipChainIdStruct,
+  status: union([
+    literal('pending'),
+    literal('completed'),
+    literal('canceled'),
+  ]),
+  toAddress: HexAddressStruct,
+  toChainId: CaipChainIdStruct,
+  tokenAddress: HexChecksumAddressStruct,
+  tokenAmount: bigint(),
+  updatedTime: TimestampStruct,
+});
+
+/**
+ * Struct to validate what `GET /v1/orders` returns.
+ */
+const FetchOrdersResponseStruct = type({
+  orders: array(OrderStruct),
+});
+/**
+ * The data that `GET /v1/orders` returns.
+ */
+type FetchOrdersResponse = Infer<typeof FetchOrdersResponseStruct>;
+
+/**
+ * Struct to validate what `GET /v1/orders/:id` returns.
+ */
+const FetchOrderResponseStruct = type({
+  order: OrderStruct,
+});
+
+/**
+ * The data that `GET /v1/orders/:id` returns.
+ */
+type FetchOrderResponse = Infer<typeof FetchOrderResponseStruct>;
+
+/**
  * The base URL of the API that the service represents.
  */
 const BASE_URL = 'https://orders.metamask.io';
@@ -118,20 +188,32 @@ export class OrdersService extends BaseDataService<
   /**
    * Uses the API to retrieve orders.
    *
-   * @returns The gas prices for the given chain.
+   * @param params - Parameters to qualify the request.
+   * @param params.sortField - The field by which to sort the list of orders.
+   * @param params.sortOrder - The direction in which to sort the list of
+   * orders.
+   * @returns The orders from the API.
    */
-  async fetchOrders(): Promise<FetchOrdersResponse> {
-    const url = new URL('/orders', BASE_URL);
+  async fetchOrders({
+    sortField = 'createdTime',
+    sortOrder = 'asc',
+  }: {
+    sortField?: 'createdTime' | 'updatedTime';
+    sortOrder?: 'asc' | 'desc';
+  }): Promise<FetchOrdersResponse> {
+    const url = new URL('/v1/orders', BASE_URL);
+    url.searchParams.append('sortField', sortField);
+    url.searchParams.append('sortOrder', sortOrder);
 
     const jsonResponse = await this.fetchQuery({
-      queryKey: [`${this.name}:fetchOrders`],
+      queryKey: [`${this.name}:fetchOrders`, url.toString()],
       queryFn: async () => {
         const response = await fetch(url);
 
         if (!response.ok) {
           throw new HttpError(
             response.status,
-            `Gas prices API failed with status '${response.status}'`,
+            `Orders API failed with status '${response.status}'`,
           );
         }
 
@@ -139,10 +221,56 @@ export class OrdersService extends BaseDataService<
       },
     });
 
-    if (!is(jsonResponse, GasPricesResponseStruct)) {
-      throw new Error('Malformed response received from gas prices API');
+    const [error, validatedJsonResponse] = validate(
+      jsonResponse,
+      FetchOrdersResponseStruct,
+    );
+    if (error) {
+      throw new Error(
+        `Malformed response received from Orders API (${error.toString()})`,
+      );
     }
 
-    return jsonResponse.data;
+    return validatedJsonResponse;
+  }
+
+  /**
+   * Uses the API to retrieve details about an order.
+   *
+   * @param params - Parameters to qualify the request.
+   * @param params.id - The order ID
+   * orders.
+   * @returns The requested order.
+   */
+  async fetchOrder({ id }: { id?: string }): Promise<FetchOrderResponse> {
+    const url = new URL(`/v1/order/${id}`, BASE_URL);
+
+    const jsonResponse = await this.fetchQuery({
+      queryKey: [`${this.name}:fetchOrder`, url.toString()],
+      queryFn: async () => {
+        const response = await fetch(url);
+
+        if (!response.ok) {
+          throw new HttpError(
+            response.status,
+            `Orders API failed with status '${response.status}'`,
+          );
+        }
+
+        return response.json();
+      },
+    });
+
+    const [error, validatedJsonResponse] = validate(
+      jsonResponse,
+      FetchOrderResponseStruct,
+    );
+    if (error) {
+      throw new Error(
+        `Malformed response received from Orders API (${error.toString()})`,
+      );
+    }
+
+    return validatedJsonResponse;
   }
 }

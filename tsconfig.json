@@ -250,5 +250,5 @@
     }
   ],
   "files": [],
-  "include": ["./types", "./scripts"]
+  "include": ["./docs", "./types", "./scripts"]
 }

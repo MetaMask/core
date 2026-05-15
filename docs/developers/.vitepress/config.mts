@@ -9,6 +9,8 @@ export default defineConfig({
     'wallet-framework/README.md': 'wallet-framework/index.md',
     'wallet-framework/data-services/README.md':
       'wallet-framework/data-services/index.md',
+    'wallet-framework/data-services/writing-data-services/README.md':
+      'wallet-framework/data-services/writing-data-services/index.md',
   },
   /*
   themeConfig: {
