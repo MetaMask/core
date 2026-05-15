@@ -1691,7 +1691,6 @@ describe('Bridge Selectors', () => {
         batchSellTrades: mockBatchSellTrades,
       });
 
-      expect(result.batchSellTrades).toStrictEqual(mockBatchSellTrades);
       expect(result.totalNetworkFee).toMatchInlineSnapshot(`
         {
           "amount": "0.01",
@@ -1707,7 +1706,7 @@ describe('Bridge Selectors', () => {
           "valueInCurrency": "2",
         }
       `);
-      expect(result.isLoading).toBe(false);
+      expect(result.isBatchSellTradeAvailable).toBe(true);
     });
 
     it('should return total network fee (exchange rates are not available)', () => {
@@ -1727,7 +1726,6 @@ describe('Bridge Selectors', () => {
         batchSellTrades: mockBatchSellTrades,
       });
 
-      expect(result.batchSellTrades).toStrictEqual(mockBatchSellTrades);
       expect(result.totalNetworkFee).toMatchInlineSnapshot(`
         {
           "amount": "0.01",
@@ -1743,7 +1741,7 @@ describe('Bridge Selectors', () => {
           "valueInCurrency": null,
         }
       `);
-      expect(result.isLoading).toBe(false);
+      expect(result.isBatchSellTradeAvailable).toBe(true);
     });
 
     it('should return empty data when batch sell trades are not defined', () => {
@@ -1763,20 +1761,75 @@ describe('Bridge Selectors', () => {
         batchSellTrades: null,
       });
 
-      expect(result.batchSellTrades).toBeNull();
       expect(result.totalNetworkFee).toMatchInlineSnapshot(`undefined`);
-      expect(result.isLoading).toBe(false);
+      expect(result.isBatchSellTradeAvailable).toBe(false);
     });
 
     it.each([
-      { status: RequestStatus.LOADING, expectedResult: true },
-      { status: RequestStatus.FETCHED, expectedResult: false },
+      {
+        status: RequestStatus.LOADING,
+        transactions: [
+          {
+            chainId: 137,
+            to: '0x3c499c542cef5e3811e1192ce70d8cc03d5c3359',
+            from: '0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85',
+            value: '0x0',
+            data: '0x',
+            gasLimit: 21000,
+            effectiveGas: 21000,
+            maxFeePerGas: '0x5d21dba00',
+            maxPriorityFeePerGas: '0x5d21dba00',
+          },
+        ],
+        expectedResult: false,
+      },
+      {
+        status: RequestStatus.FETCHED,
+        transactions: [
+          {
+            chainId: 137,
+            to: '0x3c499c542cef5e3811e1192ce70d8cc03d5c3359',
+            from: '0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85',
+            value: '0x0',
+            data: '0x',
+            gasLimit: 21000,
+            effectiveGas: 21000,
+            maxFeePerGas: '0x5d21dba00',
+            maxPriorityFeePerGas: '0x5d21dba00',
+          },
+        ],
+        expectedResult: true,
+      },
+      {
+        status: RequestStatus.FETCHED,
+        transactions: undefined,
+        expectedResult: false,
+      },
+      {
+        status: RequestStatus.FETCHED,
+        transactions: [],
+        expectedResult: false,
+      },
+      {
+        status: RequestStatus.ERROR,
+        transactions: undefined,
+        expectedResult: false,
+      },
     ])(
       'should return loading state when status is $status',
-      ({ status, expectedResult }) => {
-        const { isLoading } = selectBatchSellTrades({
+      ({ status, transactions, expectedResult }) => {
+        const { isBatchSellTradeAvailable } = selectBatchSellTrades({
           ...mockState,
           batchSellTradesLoadingStatus: status,
+          // @ts-expect-error - test data
+          batchSellTrades: transactions
+            ? {
+                fee: {
+                  amount: '10000',
+                },
+                transactions,
+              }
+            : null,
           assetExchangeRates: {
             'eip155:10/erc20:0x0b2c639c533813f4aa9d7837caf62653d097ff85': {
               exchangeRate: '1980',
@@ -1789,7 +1842,7 @@ describe('Bridge Selectors', () => {
           },
         });
 
-        expect(isLoading).toBe(expectedResult);
+        expect(isBatchSellTradeAvailable).toBe(expectedResult);
       },
     );
   });

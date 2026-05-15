@@ -660,24 +660,28 @@ const selectBatchSellFees = createBridgeSelector(
  * Selects the batch transactions and fees for a batch of quotes
  *
  * @param state - The state of the bridge controller and its dependency controllers
- * @returns The ordered list of transactions to submit as a batch, and the total transaction fee.
+ * @returns The total transaction fees and whether the batch sell trades are submittable.
  *
  * @example
  * ```ts
- * const { batchSellTrades, totalNetworkFee, isLoading } = useSelector(state => selectBatchSellTrades(state.metamask));
+ * const { totalNetworkFee, isBatchSellTradeAvailable } = useSelector(state => selectBatchSellTrades(state.metamask));
  * ```
  */
 export const selectBatchSellTrades = createBridgeSelector(
   [
-    (state) => state.batchSellTradesLoadingStatus === RequestStatus.LOADING,
+    (state) => state.batchSellTradesLoadingStatus === RequestStatus.FETCHED,
     (state) => state.batchSellTrades,
     selectBatchSellFees,
   ],
-  (isLoading, batchSellTrades, batchFees) => {
+  (isBatchSellTradeAvailable, batchSellTrades, batchFees) => {
     return {
-      batchSellTrades,
       totalNetworkFee: batchFees,
-      isLoading,
+      /**
+       * Whether the batch sell trades have been fetched and transactions are ready to be submitted
+       */
+      isBatchSellTradeAvailable:
+        isBatchSellTradeAvailable &&
+        Boolean(batchSellTrades?.transactions?.length),
     };
   },
 );
