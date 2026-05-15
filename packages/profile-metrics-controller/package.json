@@ -1,7 +1,7 @@
 {
   "name": "@metamask/profile-metrics-controller",
   "version": "3.1.4",
-  "description": "Sample package to illustrate best practices for controllers",
+  "description": "Manages user profile metrics",
   "keywords": [
     "Ethereum",
     "MetaMask"
@@ -58,7 +58,7 @@
     "@metamask/controller-utils": "^12.1.0",
     "@metamask/keyring-controller": "^25.5.0",
     "@metamask/messenger": "^1.2.0",
-    "@metamask/polling-controller": "^16.0.5",
+    "@metamask/polling-controller": "^16.0.6",
     "@metamask/profile-sync-controller": "^28.1.0",
     "@metamask/transaction-controller": "^65.4.0",
     "@metamask/utils": "^11.9.0",

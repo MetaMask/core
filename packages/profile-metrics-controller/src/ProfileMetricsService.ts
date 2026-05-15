@@ -73,6 +73,9 @@ export type ProfileMetricsServiceMessenger = Messenger<
 
 // === SERVICE DEFINITION ===
 
+/**
+ * A service for submitting user profile metrics (metrics ID and accounts).
+ */
 export class ProfileMetricsService {
   /**
    * The name of the service.

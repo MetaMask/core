@@ -41,7 +41,7 @@ describe('Bridge Selectors', () => {
           exchangeRate: '2.5',
           usdExchangeRate: '1.5',
         },
-        'solana:101/spl:456': {
+        'solana:101/token:456': {
           exchangeRate: '3.0',
         },
       },
