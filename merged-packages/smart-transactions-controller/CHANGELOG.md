@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/base-controller` from `^9.0.0` to `^9.1.0` ([#585](https://github.com/MetaMask/smart-transactions-controller/pull/585))
+- Bump `@metamask/controller-utils` from `^11.0.0` to `^12.1.0` ([#585](https://github.com/MetaMask/smart-transactions-controller/pull/585))
+- Bump `@metamask/eth-json-rpc-provider` from `^4.1.6` to `^6.0.1` ([#585](https://github.com/MetaMask/smart-transactions-controller/pull/585))
+- Bump `@metamask/messenger` from `^1.1.0` to `^1.2.0` ([#585](https://github.com/MetaMask/smart-transactions-controller/pull/585))
+- Bump `@metamask/network-controller` from `^30.0.0` to `^32.0.0` ([#585](https://github.com/MetaMask/smart-transactions-controller/pull/585))
+- Bump `@metamask/polling-controller` from `^16.0.0` to `^16.0.6` ([#585](https://github.com/MetaMask/smart-transactions-controller/pull/585))
+- Bump `@metamask/profile-sync-controller` from `^28.0.2` to `^28.1.0` ([#585](https://github.com/MetaMask/smart-transactions-controller/pull/585))
+- Bump `@metamask/remote-feature-flag-controller` from `^4.1.0` to `^4.2.1` ([#585](https://github.com/MetaMask/smart-transactions-controller/pull/585))
+- Bump `@metamask/transaction-controller` from `^64.3.0` to `^65.4.0` ([#585](https://github.com/MetaMask/smart-transactions-controller/pull/585))
+
 ## [24.1.0]
 
 ### Changed

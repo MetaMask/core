@@ -1,4 +1,4 @@
-import { providerFromEngine } from '@metamask/eth-json-rpc-provider';
+import { InternalProvider } from '@metamask/eth-json-rpc-provider';
 import { JsonRpcEngine } from '@metamask/json-rpc-engine';
 
 /**
@@ -40,5 +40,5 @@ export async function advanceTime({
 }
 
 export function getFakeProvider() {
-  return providerFromEngine(new JsonRpcEngine());
+  return new InternalProvider({ engine: new JsonRpcEngine() });
 }
