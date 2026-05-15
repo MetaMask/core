@@ -9,6 +9,7 @@ import type {
   StateMetadata,
   ControllerGetStateAction,
   ControllerStateChangeEvent,
+  ControllerStateChangedEvent,
 } from '@metamask/base-controller';
 import { isEvmAccountType } from '@metamask/keyring-api';
 import type {
@@ -16,7 +17,10 @@ import type {
   CaipAssetType,
   AccountBalancesUpdatedEventPayload,
 } from '@metamask/keyring-api';
-import type { KeyringControllerGetStateAction } from '@metamask/keyring-controller';
+import type {
+  KeyringControllerGetStateAction,
+  KeyringControllerState,
+} from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import { KeyringClient } from '@metamask/keyring-snap-client';
 import type { Messenger } from '@metamask/messenger';
@@ -105,7 +109,8 @@ type AllowedEvents =
   | AccountsControllerAccountAddedEvent
   | AccountsControllerAccountRemovedEvent
   | AccountsControllerAccountBalancesUpdatesEvent
-  | MultichainAssetsControllerAccountAssetListUpdatedEvent;
+  | MultichainAssetsControllerAccountAssetListUpdatedEvent
+  | ControllerStateChangedEvent<'KeyringController', KeyringControllerState>;
 /**
  * Messenger type for the MultichainBalancesController.
  */
@@ -190,6 +195,47 @@ export class MultichainBalancesController extends BaseController<
         await this.#handleOnAccountAssetListUpdated(updatedAccountAssets);
       },
     );
+
+    // When the keyring transitions from locked → unlocked, fetch balances for
+    // any non-EVM account that had its balance fetch skipped while locked.
+    // We cannot read KeyringController state in the constructor (restricted),
+    // so the first `stateChanged` establishes the baseline; if the vault is
+    // already unlocked on that first event, we refetch once (covers unlock as
+    // the only keyring update after construction).
+    let previousKeyringIsUnlocked: boolean | undefined;
+    this.messenger.subscribe(
+      'KeyringController:stateChanged',
+      (keyringState: KeyringControllerState) => {
+        const { isUnlocked } = keyringState;
+        if (previousKeyringIsUnlocked === undefined) {
+          previousKeyringIsUnlocked = isUnlocked;
+          if (isUnlocked) {
+            this.#refetchBalancesForAccountsMissingFromState();
+          }
+          return;
+        }
+        const justUnlocked = isUnlocked && !previousKeyringIsUnlocked;
+        previousKeyringIsUnlocked = isUnlocked;
+        if (justUnlocked) {
+          this.#refetchBalancesForAccountsMissingFromState();
+        }
+      },
+    );
+  }
+
+  /**
+   * Fetches balances for non-EVM accounts that have no cached balances yet.
+   */
+  #refetchBalancesForAccountsMissingFromState(): void {
+    for (const account of this.#listAccounts()) {
+      const hasBalance =
+        this.state.balances[account.id] &&
+        Object.keys(this.state.balances[account.id]).length > 0;
+      if (!hasBalance) {
+        // eslint-disable-next-line no-void
+        void this.updateBalance(account.id);
+      }
+    }
   }
 
   /**
@@ -392,7 +438,9 @@ export class MultichainBalancesController extends BaseController<
     this.update((state: Draft<MultichainBalancesControllerState>) => {
       Object.entries(balanceUpdate.balances).forEach(
         ([accountId, assetBalances]) => {
-          if (accountId in state.balances) {
+          if (
+            Object.prototype.hasOwnProperty.call(state.balances, accountId)
+          ) {
             Object.assign(state.balances[accountId], assetBalances);
           }
         },
@@ -406,7 +454,9 @@ export class MultichainBalancesController extends BaseController<
    * @param accountId - The account ID being removed.
    */
   async #handleOnAccountRemoved(accountId: string): Promise<void> {
-    if (accountId in this.state.balances) {
+    if (
+      Object.prototype.hasOwnProperty.call(this.state.balances, accountId)
+    ) {
       this.update((state: Draft<MultichainBalancesControllerState>) => {
         delete state.balances[accountId];
       });

@@ -217,6 +217,11 @@ export type {
   MultichainAssetsControllerAccountAssetListUpdatedEvent,
   MultichainAssetsControllerMessenger,
 } from './MultichainAssetsController';
+export {
+  isStellarCaipChain,
+  isStellarClassicAssetCaip19,
+  isStellarTrustlineTrackedAsset,
+} from './multichain/stellarTrustline';
 export type {
   MultichainAssetsControllerGetAssetMetadataAction,
   MultichainAssetsControllerIgnoreAssetsAction,
