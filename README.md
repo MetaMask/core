@@ -60,6 +60,7 @@ Each package in this repository has its own README where you can find installati
 - [`@metamask/gas-fee-controller`](packages/gas-fee-controller)
 - [`@metamask/gator-permissions-controller`](packages/gator-permissions-controller)
 - [`@metamask/geolocation-controller`](packages/geolocation-controller)
+- [`@metamask/java-tron-up`](packages/java-tron-up)
 - [`@metamask/json-rpc-engine`](packages/json-rpc-engine)
 - [`@metamask/json-rpc-middleware-stream`](packages/json-rpc-middleware-stream)
 - [`@metamask/keyring-controller`](packages/keyring-controller)
@@ -153,6 +154,7 @@ linkStyle default opacity:0.5
   gas_fee_controller(["@metamask/gas-fee-controller"]);
   gator_permissions_controller(["@metamask/gator-permissions-controller"]);
   geolocation_controller(["@metamask/geolocation-controller"]);
+  java_tron_up(["@metamask/java-tron-up"]);
   json_rpc_engine(["@metamask/json-rpc-engine"]);
   json_rpc_middleware_stream(["@metamask/json-rpc-middleware-stream"]);
   keyring_controller(["@metamask/keyring-controller"]);
