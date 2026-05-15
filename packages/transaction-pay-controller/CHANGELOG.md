@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Fix BigNumber crash when exchange rate numbers exceed 15 significant digits ([#8808](https://github.com/MetaMask/core/pull/8808))
+
 ## [22.5.0]
 
 ### Added
@@ -17,10 +21,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Move the Relay gasless execution feature flag to `confirmations_pay_extended.payStrategies.relay.gaslessEnabled` ([#8810](https://github.com/MetaMask/core/pull/8810))
-
-### Fixed
-
-- Fix BigNumber crash when exchange rate numbers exceed 15 significant digits ([#8808](https://github.com/MetaMask/core/pull/8808))
 
 ## [22.4.0]
 
