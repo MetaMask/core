@@ -15,9 +15,7 @@
     "type": "git",
     "url": "https://github.com/MetaMask/core.git"
   },
-  "bin": {
-    "java-tron-up": "./dist/bin/java-tron-up.mjs"
-  },
+  "bin": "./dist/bin/java-tron-up.mjs",
   "files": [
     "dist/"
   ],
