@@ -62,9 +62,15 @@ export function generateItemMarkdown(
     parts.push('');
   }
 
-  if (item.sourceFile.includes('node_modules/')) {
-    const pkgMatch = item.sourceFile.match(/node_modules\/(@metamask\/[^/]+)/u);
-    const pkgName = pkgMatch ? pkgMatch[1] : item.sourceFile;
+  // For sources scanned out of an @metamask/*/dist directory we render an
+  // npm link, since the original .ts paths are not part of the repo we're
+  // documenting. Other `node_modules/` paths fall through to the normal
+  // source-link branches.
+  const metamaskPkgMatch = item.sourceFile.match(
+    /node_modules\/(@metamask\/[^/]+)/u,
+  );
+  if (metamaskPkgMatch) {
+    const pkgName = metamaskPkgMatch[1];
     const npmUrl = `https://www.npmjs.com/package/${pkgName}`;
     parts.push(`**Package**: [\`${pkgName}\`](${npmUrl})`);
   } else if (repoBaseUrl) {

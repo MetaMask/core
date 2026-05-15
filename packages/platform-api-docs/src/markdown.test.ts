@@ -102,7 +102,7 @@ describe('markdown', () => {
       expect(result).toContain('npmjs.com/package/@metamask/base-controller');
     });
 
-    it('falls back to the source path when node_modules entry is not @metamask-scoped', async () => {
+    it('renders a plain source path for non-@metamask node_modules entries', async () => {
       const item = makeItem({
         sourceFile: 'node_modules/some-vendor/dist/index.d.ts',
       });
@@ -113,9 +113,30 @@ describe('markdown', () => {
         null,
       );
 
-      // No @metamask scope match, so the package label falls back to the
-      // raw source path rather than a parsed package name.
-      expect(result).toContain('node_modules/some-vendor/dist/index.d.ts');
+      // No @metamask scope match — fall through to the normal source-link
+      // branches rather than producing a broken `npmjs.com/package/<path>`
+      // URL.
+      expect(result).toContain(
+        '**Source**: `node_modules/some-vendor/dist/index.d.ts:10`',
+      );
+      expect(result).not.toContain('npmjs.com/package/node_modules');
+    });
+
+    it('renders a GitHub source link for non-@metamask node_modules entries when a repo URL is given', async () => {
+      const item = makeItem({
+        sourceFile: 'node_modules/some-vendor/dist/index.d.ts',
+      });
+      const result = generateItemMarkdown(
+        item,
+        'FooController',
+        new Map(),
+        'https://github.com/MetaMask/core/blob/main/',
+      );
+
+      expect(result).toContain(
+        '(https://github.com/MetaMask/core/blob/main/node_modules/some-vendor/dist/index.d.ts#L10)',
+      );
+      expect(result).not.toContain('npmjs.com/package/node_modules');
     });
 
     it('linkifies backtick references to known actions', () => {
