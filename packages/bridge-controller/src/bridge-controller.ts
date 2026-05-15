@@ -477,10 +477,6 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
 
       // TODO if fee.asset.assetId is not in exchange rates, fetch the exchange rate and update the state
     } catch (error) {
-      // Reset the batch sell trades if the fetch fails to avoid showing stale data
-      this.update((state) => {
-        state.batchSellTrades = DEFAULT_BRIDGE_CONTROLLER_STATE.batchSellTrades;
-      });
       // Ignore abort errors
       if (
         (error as Error).toString().includes('AbortError') ||
@@ -497,8 +493,10 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
         return;
       }
 
-      // Update loading status
       this.update((state) => {
+        // Reset the batch sell trades if the fetch fails to avoid showing stale data
+        state.batchSellTrades = DEFAULT_BRIDGE_CONTROLLER_STATE.batchSellTrades;
+        // Update loading status
         state.batchSellTradesLoadingStatus = RequestStatus.ERROR;
       });
       console.log(`Failed to fetch batch sell trades`, error);
