@@ -1,6 +1,6 @@
 {
   "name": "@metamask/multichain-network-controller",
-  "version": "3.1.0",
+  "version": "3.1.0-dev.2",
   "description": "Multichain network controller",
   "keywords": [
     "Ethereum",
