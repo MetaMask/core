@@ -212,12 +212,12 @@ export function getTokenFiatRate(
 
   const usdRate = isStablecoin
     ? '1'
-    : new BigNumber(tokenToNativeRate ?? 1)
-        .multipliedBy(nativeToUsdRate)
+    : new BigNumber(String(tokenToNativeRate ?? 1))
+        .multipliedBy(String(nativeToUsdRate))
         .toString(10);
 
-  const fiatRate = new BigNumber(tokenToNativeRate ?? 1)
-    .multipliedBy(nativeToFiatRate)
+  const fiatRate = new BigNumber(String(tokenToNativeRate ?? 1))
+    .multipliedBy(String(nativeToFiatRate))
     .toString(10);
 
   return { usdRate, fiatRate };
