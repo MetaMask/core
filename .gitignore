@@ -39,5 +39,6 @@ packages/*/*.tsbuildinfo
 # AI
 .sisyphus/
 
-# VitePress
-**/.vitepress/cache
+# Docusaurus
+docs/developers/build
+docs/developers/.docusaurus
