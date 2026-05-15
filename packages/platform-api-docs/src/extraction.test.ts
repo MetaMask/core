@@ -550,8 +550,8 @@ export type FooAction = {
     });
   });
 
-  it('strips @param and @returns tags from JSDoc', async () => {
-    expect.assertions(3);
+  it('extracts @param and @returns tags into structured fields', async () => {
+    expect.assertions(5);
 
     await withinSandbox(async ({ directoryPath }) => {
       const filePath = path.join(directoryPath, 'types.ts');
@@ -576,9 +576,16 @@ export type FooAction = {
 
       const items = await extractFromFile(filePath, directoryPath);
 
+      // Description body keeps the prose above the first tag.
       expect(items[0].jsDoc).toContain('Does something important.');
+      // Tags are pulled out of the description body.
       expect(items[0].jsDoc).not.toContain('@param');
       expect(items[0].jsDoc).not.toContain('@returns');
+      // And surfaced as structured fields instead.
+      expect(items[0].params).toStrictEqual([
+        { name: 'x', description: 'The input.' },
+      ]);
+      expect(items[0].returns).toBe('The output.');
     });
   });
 
@@ -667,6 +674,89 @@ export type MyCtrlFetchAction = {
 
       expect(items).toHaveLength(1);
       expect(items[0].handlerOrPayload).toContain('(id: number)');
+    });
+  });
+
+  it('inherits @param and @returns from the resolved class method when the type alias has no JSDoc', async () => {
+    expect.assertions(3);
+
+    await withinSandbox(async ({ directoryPath }) => {
+      const filePath = path.join(directoryPath, 'types.ts');
+      await fs.promises.writeFile(
+        filePath,
+        withMessenger(
+          `
+class MyCtrl {
+  /**
+   * Fetches data.
+   *
+   * @param id - The id to fetch.
+   * @returns The fetched data.
+   */
+  fetchData(id: number): Promise<string> {
+    return Promise.resolve('');
+  }
+}
+
+export type MyCtrlFetchAction = {
+  type: 'MyCtrl:fetchData';
+  handler: MyCtrl['fetchData'];
+};
+`,
+          { actions: ['MyCtrlFetchAction'] },
+        ),
+      );
+
+      const items = await extractFromFile(filePath, directoryPath);
+
+      expect(items[0].jsDoc).toContain('Fetches data.');
+      expect(items[0].params).toStrictEqual([
+        { name: 'id', description: 'The id to fetch.' },
+      ]);
+      expect(items[0].returns).toBe('The fetched data.');
+    });
+  });
+
+  it('prefers the type alias\\u2019s own @param/@returns over the resolved method\\u2019s', async () => {
+    expect.assertions(2);
+
+    await withinSandbox(async ({ directoryPath }) => {
+      const filePath = path.join(directoryPath, 'types.ts');
+      await fs.promises.writeFile(
+        filePath,
+        withMessenger(
+          `
+class MyCtrl {
+  /**
+   * Method doc.
+   *
+   * @param id - From the method.
+   * @returns From the method.
+   */
+  fetchData(id: number): Promise<string> {
+    return Promise.resolve('');
+  }
+}
+
+/**
+ * Type-alias doc.
+ *
+ * @param id - From the alias.
+ * @returns From the alias.
+ */
+export type MyCtrlFetchAction = {
+  type: 'MyCtrl:fetchData';
+  handler: MyCtrl['fetchData'];
+};
+`,
+          { actions: ['MyCtrlFetchAction'] },
+        ),
+      );
+
+      const items = await extractFromFile(filePath, directoryPath);
+
+      expect(items[0].params[0].description).toBe('From the alias.');
+      expect(items[0].returns).toBe('From the alias.');
     });
   });
 
@@ -1402,8 +1492,8 @@ export type FooAction = {
     });
   });
 
-  it('keeps the description while dropping multi-line @param tags', async () => {
-    expect.assertions(3);
+  it('captures multi-line @param tags as structured params and keeps the description', async () => {
+    expect.assertions(4);
 
     await withinSandbox(async ({ directoryPath }) => {
       const filePath = path.join(directoryPath, 'types.ts');
@@ -1431,7 +1521,11 @@ export type FooAction = {
 
       expect(items[0].jsDoc).toContain('Main description.');
       expect(items[0].jsDoc).not.toContain('@param');
-      expect(items[0].jsDoc).not.toContain('First param');
+      expect(items[0].params).toHaveLength(2);
+      expect(items[0].params[0]).toStrictEqual({
+        name: 'foo',
+        description: 'First param that spans multiple lines.',
+      });
     });
   });
 

@@ -14,7 +14,11 @@ import type {
 } from 'ts-morph';
 import { Node as NodeGuards, Project, SyntaxKind, ts } from 'ts-morph';
 
-import type { ExtractedMessengerCapabilityType, MethodInfo } from './types';
+import type {
+  ExtractedMessengerCapabilityType,
+  MethodInfo,
+  ParamDoc,
+} from './types';
 
 /**
  * Extract string constants from top-level variable declarations in a source file.
@@ -245,44 +249,80 @@ function extractJsDocTagComment(tag: JSDocTag): string {
 }
 
 /**
- * Extract cleaned JSDoc body text from a node:
+ * Strip the conventional `- ` separator from the start of a `@param` tag's
+ * comment. JSDoc style is `@param name - description`, and ts-morph hands us
+ * back `- description` for the comment. The hyphen is purely cosmetic; we'd
+ * rather render the description without it.
  *
- * - the description (everything above the first tag) goes through verbatim,
- * - `@deprecated` tags are rendered as `**Deprecated:** <comment>` lines and
- *   appended after the description,
- * - all other tags (`@param`, `@returns`, `@see`, …) are dropped — their
- *   information is already present in the rendered handler/payload signature.
+ * @param comment - The flattened comment text from a `@param` tag.
+ * @returns The comment with any leading `- ` (or `– `, `— `) removed.
+ */
+function stripParamSeparator(comment: string): string {
+  return comment.replace(/^[-–—]\s*/u, '');
+}
+
+/**
+ * Decompose a node's JSDoc into the parts the rendered docs need:
  *
- * Output is normalized for MDX (curly braces escaped, `{@link}` resolved).
+ * - `description` — the body above the first tag, with `@deprecated` comments
+ *   appended as `**Deprecated:** <comment>` lines and normalized for MDX
+ *   (curly braces escaped, `{@link}` resolved),
+ * - `params` — every `@param` tag in source order, with name and description,
+ * - `returns` — the `@returns` tag's comment, or empty string if absent.
+ *
+ * Other tags (`@see`, `@throws`, `@template`, `@example`) are dropped.
  *
  * @param node - The AST node to extract JSDoc from.
- * @returns The cleaned JSDoc text, or empty string if none.
+ * @returns The decomposed JSDoc; empty strings/arrays when the node has no JSDoc.
  */
-function extractJsDocText(node: JSDocableNode): string {
+function extractJsDoc(node: JSDocableNode): {
+  description: string;
+  params: ParamDoc[];
+  returns: string;
+} {
   const jsDocs = node.getJsDocs();
   if (jsDocs.length === 0) {
-    return '';
+    return { description: '', params: [], returns: '' };
   }
 
   const jsDoc = jsDocs[0];
-  const description = jsDoc.getDescription().trim();
+  const descriptionBody = jsDoc.getDescription().trim();
 
   const deprecatedLines: string[] = [];
+  const params: ParamDoc[] = [];
+  let returns = '';
+
   for (const tag of jsDoc.getTags()) {
-    if (tag.getTagName() !== 'deprecated') {
-      continue;
+    const tagName = tag.getTagName();
+    if (tagName === 'deprecated') {
+      const comment = extractJsDocTagComment(tag);
+      deprecatedLines.push(
+        comment ? `**Deprecated:** ${comment}` : '**Deprecated:**',
+      );
+    } else if (tagName === 'param' && NodeGuards.isJSDocParameterTag(tag)) {
+      const nameNode = tag.getNameNode();
+      // istanbul ignore next: `@param` tags without a name aren't valid JSDoc.
+      if (!nameNode) {
+        continue;
+      }
+      params.push({
+        name: nameNode.getText(),
+        description: escapeJsDocTextForMdx(
+          stripParamSeparator(extractJsDocTagComment(tag)),
+        ),
+      });
+    } else if (tagName === 'returns' || tagName === 'return') {
+      returns = escapeJsDocTextForMdx(extractJsDocTagComment(tag));
     }
-    const comment = extractJsDocTagComment(tag);
-    deprecatedLines.push(
-      comment ? `**Deprecated:** ${comment}` : '**Deprecated:**',
-    );
   }
 
-  const combined = [description, ...deprecatedLines]
-    .filter((line) => line.length > 0)
-    .join('\n');
+  const description = escapeJsDocTextForMdx(
+    [descriptionBody, ...deprecatedLines]
+      .filter((line) => line.length > 0)
+      .join('\n'),
+  );
 
-  return escapeJsDocTextForMdx(combined);
+  return { description, params, returns };
 }
 
 /**
@@ -330,8 +370,7 @@ function collectClassMethods(sourceFile: SourceFile): Map<string, MethodInfo> {
 
       const methodName = memberNameNode.getText();
 
-      // Build parameter list
-      const params = member
+      const signatureParams = member
         .getParameters()
         .map((param) => {
           const paramName = param.getNameNode().getText();
@@ -342,18 +381,19 @@ function collectClassMethods(sourceFile: SourceFile): Map<string, MethodInfo> {
         })
         .join(', ');
 
-      // Get return type
       const returnTypeNode = member.getReturnTypeNode();
       const returnType = returnTypeNode ? returnTypeNode.getText() : 'void';
 
-      // For async methods, the declared return type already includes Promise<>,
-      // so we don't need to wrap again.
-      const methodSignature = `(${params}) => ${returnType}`;
+      // For async methods, the declared return type already includes
+      // `Promise<>`, so we don't need to wrap again.
+      const methodSignature = `(${signatureParams}) => ${returnType}`;
 
-      const jsDoc = extractJsDocText(member);
+      const { description, params, returns } = extractJsDoc(member);
 
       methods.set(`${className}.${methodName}`, {
-        jsDoc,
+        jsDoc: description,
+        params,
+        returns,
         signature: methodSignature,
       });
     }
@@ -363,17 +403,24 @@ function collectClassMethods(sourceFile: SourceFile): Map<string, MethodInfo> {
 }
 
 /**
- * If `handlerText` matches `ClassName['methodName']`, look it up in classMethodInfo
- * and return the resolved signature. Otherwise return the original text.
+ * If `handlerText` matches `ClassName['methodName']`, look it up in
+ * `classMethods` and return the resolved signature along with the method's
+ * JSDoc description / params / returns. Otherwise return the original text
+ * and empty docs.
  *
  * @param handlerText - The raw handler text to resolve.
  * @param classMethods - A map of class methods collected from the source file.
- * @returns An object with the resolved signature and any associated JSDoc.
+ * @returns The resolved signature plus any JSDoc the method had.
  */
 function resolveHandler(
   handlerText: string,
   classMethods: Map<string, MethodInfo>,
-): { signature: string; methodJsDoc: string } {
+): {
+  signature: string;
+  methodJsDoc: string;
+  methodParams: ParamDoc[];
+  methodReturns: string;
+} {
   // Matches `Class['method']`, `Class["method"]`, and `` Class[`method`] ``
   // — all three forms are valid TypeScript indexed-access types and ts-morph
   // returns whatever's in the source verbatim.
@@ -382,10 +429,20 @@ function resolveHandler(
     const key = `${match[1]}.${match[3]}`;
     const info = classMethods.get(key);
     if (info) {
-      return { signature: info.signature, methodJsDoc: info.jsDoc };
+      return {
+        signature: info.signature,
+        methodJsDoc: info.jsDoc,
+        methodParams: info.params,
+        methodReturns: info.returns,
+      };
     }
   }
-  return { signature: handlerText, methodJsDoc: '' };
+  return {
+    signature: handlerText,
+    methodJsDoc: '',
+    methodParams: [],
+    methodReturns: '',
+  };
 }
 
 /**
@@ -684,12 +741,21 @@ function extractFromInlineMessengerCapabilityType(
   }
 
   let handlerOrPayload = rawSource;
-  let jsDoc = extractJsDocText(statement);
+  let { description: jsDoc, params, returns } = extractJsDoc(statement);
+
+  // For actions, if the type alias itself has no JSDoc but the handler
+  // resolves to a class method, inherit the method's docs.
   if (kind === 'action') {
     const resolved = resolveHandler(handlerText, context.classMethods);
     handlerOrPayload = resolved.signature;
     if (!jsDoc && resolved.methodJsDoc) {
       jsDoc = resolved.methodJsDoc;
+    }
+    if (params.length === 0 && resolved.methodParams.length > 0) {
+      params = resolved.methodParams;
+    }
+    if (!returns && resolved.methodReturns) {
+      returns = resolved.methodReturns;
     }
   }
 
@@ -698,6 +764,8 @@ function extractFromInlineMessengerCapabilityType(
     typeString,
     kind,
     jsDoc,
+    params,
+    returns,
     handlerOrPayload,
     sourceFile: context.relPath,
     line: statement.getStartLineNumber(),
@@ -802,13 +870,16 @@ function extractFromCapabilityTypeConstructor(
     return null;
   }
   const stateArgText = typeArgs[1].getText();
+  const { description, params, returns } = extractJsDoc(statement);
 
   return {
     typeName: statement.getName(),
     typeString:
       kind === 'action' ? `${namespace}:getState` : `${namespace}:stateChange`,
     kind,
-    jsDoc: extractJsDocText(statement),
+    jsDoc: description,
+    params,
+    returns,
     handlerOrPayload:
       kind === 'action'
         ? `() => ${stateArgText}`

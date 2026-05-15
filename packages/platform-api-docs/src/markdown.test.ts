@@ -13,6 +13,8 @@ const makeItem = (
   typeString: 'FooController:getState',
   kind: 'action',
   jsDoc: '',
+  params: [],
+  returns: '',
   handlerOrPayload: '() => FooState',
   sourceFile: 'packages/foo/src/FooController.ts',
   line: 10,
@@ -41,7 +43,7 @@ describe('markdown', () => {
       );
 
       expect(result).toContain('### `FooController:getState`');
-      expect(result).toContain('**Handler**:');
+      expect(result).toContain('**Handler signature**:');
       expect(result).toContain('() => FooState');
       expect(result).toContain('FooController.ts:10');
     });
@@ -60,7 +62,7 @@ describe('markdown', () => {
         null,
       );
 
-      expect(result).toContain('**Payload**:');
+      expect(result).toContain('**Payload signature**:');
       expect(result).toContain('[FooState, Patch[]]');
     });
 
@@ -188,6 +190,59 @@ describe('markdown', () => {
       expect(result).toContain(
         '**Source**: `packages/foo/src/FooController.ts:10`',
       );
+    });
+
+    it('renders a parameters table when an action has @param tags', () => {
+      const item = makeItem({
+        params: [
+          { name: 'opts.id', description: 'The id of the request.' },
+          { name: 'opts.type', description: 'The type associated.' },
+        ],
+      });
+      const result = generateItemMarkdown(
+        item,
+        'FooController',
+        new Map(),
+        null,
+      );
+
+      expect(result).toContain('**Parameters**:');
+      expect(result).toContain('| `opts.id` | The id of the request. |');
+      expect(result).toContain('| `opts.type` | The type associated. |');
+    });
+
+    it('renders a Returns line when an action has a @returns tag', () => {
+      const item = makeItem({ returns: 'The approval promise.' });
+      const result = generateItemMarkdown(
+        item,
+        'FooController',
+        new Map(),
+        null,
+      );
+
+      expect(result).toContain('**Returns**: The approval promise.');
+    });
+
+    it('linkifies backtick references inside param descriptions', () => {
+      const known = new Map([['reset', '#foocontrollerreset']]);
+      const item = makeItem({
+        params: [{ name: 'x', description: 'Call `reset` first.' }],
+      });
+      const result = generateItemMarkdown(item, 'FooController', known, null);
+
+      expect(result).toContain('[`reset`](#foocontrollerreset)');
+    });
+
+    it('omits the parameters table when an action has no @param tags', () => {
+      const item = makeItem();
+      const result = generateItemMarkdown(
+        item,
+        'FooController',
+        new Map(),
+        null,
+      );
+
+      expect(result).not.toContain('**Parameters**:');
     });
   });
 

@@ -86,8 +86,33 @@ export function generateItemMarkdown(
     parts.push('');
   }
 
-  const label = item.kind === 'action' ? 'Handler' : 'Payload';
-  parts.push(`**${label}**:`);
+  // Only actions get a parameters table — events carry a positional tuple
+  // payload, not named arguments, so a `@param` table doesn't fit.
+  if (item.kind === 'action' && item.params.length > 0) {
+    parts.push('**Parameters**:');
+    parts.push('');
+    parts.push('| Name | Description |');
+    parts.push('|------|-------------|');
+    for (const param of item.params) {
+      const description = linkifyReferences(
+        param.description,
+        namespace,
+        knownNames,
+      );
+      parts.push(`| \`${param.name}\` | ${description} |`);
+    }
+    parts.push('');
+  }
+
+  if (item.kind === 'action' && item.returns) {
+    parts.push(
+      `**Returns**: ${linkifyReferences(item.returns, namespace, knownNames)}`,
+    );
+    parts.push('');
+  }
+
+  const signatureLabel = item.kind === 'action' ? 'Handler' : 'Payload';
+  parts.push(`**${signatureLabel} signature**:`);
   parts.push('');
   parts.push('```typescript');
   parts.push(item.handlerOrPayload);
