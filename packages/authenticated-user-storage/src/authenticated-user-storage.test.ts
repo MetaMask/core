@@ -12,11 +12,16 @@ import {
   handleMockRevokeDelegation,
   handleMockGetNotificationPreferences,
   handleMockPutNotificationPreferences,
+  handleMockGetAssetsWatchlist,
+  handleMockSetAssetsWatchlist,
 } from '../tests/fixtures/authenticated-userstorage';
 import {
   MOCK_DELEGATION_RESPONSE,
   MOCK_DELEGATION_SUBMISSION,
+  MOCK_INVALID_ASSETS_WATCHLIST_BLOB,
   MOCK_NOTIFICATION_PREFERENCES,
+  MOCK_ASSETS_WATCHLIST_BLOB,
+  MOCK_ASSETS_WATCHLIST_URL,
 } from '../tests/mocks/authenticated-userstorage';
 import type { AuthenticatedUserStorageMessenger } from './authenticated-user-storage';
 import {
@@ -25,6 +30,7 @@ import {
 } from './authenticated-user-storage';
 import type { Environment } from './env';
 import { getUserStorageApiUrl } from './env';
+import { ASSETS_WATCHLIST_MAX_ASSETS } from './validators';
 
 const MOCK_ACCESS_TOKEN = 'mock-access-token';
 
@@ -239,6 +245,224 @@ describe('AuthenticatedUserStorageService', () => {
     });
   });
 
+  describe('AuthenticatedUserStorageService:getAssetsWatchlist', () => {
+    it('returns the assets-watchlist via the messenger', async () => {
+      handleMockGetAssetsWatchlist();
+      const { rootMessenger } = createService();
+
+      const result = await rootMessenger.call(
+        'AuthenticatedUserStorageService:getAssetsWatchlist',
+      );
+
+      expect(result).toStrictEqual(MOCK_ASSETS_WATCHLIST_BLOB);
+    });
+  });
+
+  describe('AuthenticatedUserStorageService:setAssetsWatchlist', () => {
+    it('sets the assets-watchlist via the messenger', async () => {
+      const mock = handleMockSetAssetsWatchlist();
+      const { rootMessenger } = createService();
+
+      await rootMessenger.call(
+        'AuthenticatedUserStorageService:setAssetsWatchlist',
+        MOCK_ASSETS_WATCHLIST_BLOB,
+      );
+
+      expect(mock.isDone()).toBe(true);
+    });
+  });
+
+  describe('getAssetsWatchlist', () => {
+    it('returns the assets-watchlist from the API', async () => {
+      const mock = handleMockGetAssetsWatchlist();
+      const { service } = createService();
+
+      const result = await service.getAssetsWatchlist();
+
+      expect(mock.isDone()).toBe(true);
+      expect(result).toStrictEqual(MOCK_ASSETS_WATCHLIST_BLOB);
+    });
+
+    it('sends the Authorization header', async () => {
+      const scope = nock(MOCK_ASSETS_WATCHLIST_URL, {
+        reqheaders: {
+          authorization: 'Bearer mock-access-token',
+        },
+      })
+        .get('')
+        .reply(200, MOCK_ASSETS_WATCHLIST_BLOB);
+
+      const { service } = createService();
+      const result = await service.getAssetsWatchlist();
+
+      expect(scope.isDone()).toBe(true);
+      expect(result).toStrictEqual(MOCK_ASSETS_WATCHLIST_BLOB);
+    });
+
+    it('returns null when the assets-watchlist is not found', async () => {
+      handleMockGetAssetsWatchlist({ status: 404 });
+      const { service } = createService();
+
+      const result = await service.getAssetsWatchlist();
+
+      expect(result).toBeNull();
+    });
+
+    it('throws when the API returns a non-200/404 status', async () => {
+      handleMockGetAssetsWatchlist({ status: 500 });
+      const { service } = createService();
+
+      await expect(service.getAssetsWatchlist()).rejects.toThrow(
+        'Failed to get assets watchlist: 500',
+      );
+    });
+
+    it('throws when the API returns a 401', async () => {
+      handleMockGetAssetsWatchlist({ status: 401 });
+      const { service } = createService();
+
+      await expect(service.getAssetsWatchlist()).rejects.toThrow(
+        'Failed to get assets watchlist: 401',
+      );
+    });
+
+    it('throws when the response body is malformed', async () => {
+      handleMockGetAssetsWatchlist({
+        status: 200,
+        body: MOCK_INVALID_ASSETS_WATCHLIST_BLOB,
+      });
+      const { service } = createService();
+
+      await expect(service.getAssetsWatchlist()).rejects.toThrow(
+        /Expected.*but received/u,
+      );
+    });
+
+    it('caches the result so a second call within staleTime does not re-fetch', async () => {
+      const scope = nock(MOCK_ASSETS_WATCHLIST_URL)
+        .get('')
+        .once()
+        .reply(200, MOCK_ASSETS_WATCHLIST_BLOB);
+      const { service } = createService();
+
+      const first = await service.getAssetsWatchlist();
+      const second = await service.getAssetsWatchlist();
+
+      expect(scope.isDone()).toBe(true);
+      expect(first).toStrictEqual(MOCK_ASSETS_WATCHLIST_BLOB);
+      expect(second).toStrictEqual(MOCK_ASSETS_WATCHLIST_BLOB);
+    });
+  });
+
+  describe('setAssetsWatchlist', () => {
+    it('submits the assets-watchlist to the API', async () => {
+      const mock = handleMockSetAssetsWatchlist();
+      const { service } = createService();
+
+      await service.setAssetsWatchlist(MOCK_ASSETS_WATCHLIST_BLOB);
+
+      expect(mock.isDone()).toBe(true);
+    });
+
+    it('sends the correct request body', async () => {
+      handleMockSetAssetsWatchlist(undefined, async (_, requestBody) => {
+        expect(requestBody).toStrictEqual(MOCK_ASSETS_WATCHLIST_BLOB);
+      });
+      const { service } = createService();
+
+      await service.setAssetsWatchlist(MOCK_ASSETS_WATCHLIST_BLOB);
+    });
+
+    it('sends Content-Type and Authorization headers but no X-Client-Type when clientType is omitted', async () => {
+      const scope = nock(MOCK_ASSETS_WATCHLIST_URL, {
+        reqheaders: {
+          'content-type': 'application/json',
+          authorization: 'Bearer mock-access-token',
+        },
+        badheaders: ['x-client-type'],
+      })
+        .put('')
+        .reply(200);
+      const { service } = createService();
+
+      await service.setAssetsWatchlist(MOCK_ASSETS_WATCHLIST_BLOB);
+
+      expect(scope.isDone()).toBe(true);
+    });
+
+    it('includes X-Client-Type header when clientType is provided', async () => {
+      const scope = nock(MOCK_ASSETS_WATCHLIST_URL, {
+        reqheaders: {
+          'x-client-type': 'extension',
+        },
+      })
+        .put('')
+        .reply(200);
+      const { service } = createService();
+
+      await service.setAssetsWatchlist(MOCK_ASSETS_WATCHLIST_BLOB, 'extension');
+
+      expect(scope.isDone()).toBe(true);
+    });
+
+    it('throws when the API returns a non-200 status', async () => {
+      handleMockSetAssetsWatchlist({ status: 400 });
+      const { service } = createService();
+
+      await expect(service.setAssetsWatchlist(MOCK_ASSETS_WATCHLIST_BLOB)).rejects.toThrow(
+        'Failed to put assets watchlist: 400',
+      );
+    });
+
+    it(`throws synchronously when the blob exceeds ${ASSETS_WATCHLIST_MAX_ASSETS} assets`, async () => {
+      const { service } = createService();
+      const oversized = {
+        version: 1 as const,
+        assets: Array.from(
+          { length: ASSETS_WATCHLIST_MAX_ASSETS + 1 },
+          (_, index) =>
+            `eip155:1/erc20:0x${index.toString(16).padStart(40, '0')}`,
+        ),
+      };
+
+      await expect(service.setAssetsWatchlist(oversized)).rejects.toThrow(
+        new RegExp(
+          `At path: assets -- Expected a array with a length between \`0\` and \`${ASSETS_WATCHLIST_MAX_ASSETS}\` but received one with a length of \`${ASSETS_WATCHLIST_MAX_ASSETS + 1}\``,
+          'u',
+        ),
+      );
+    });
+
+    it('throws a structural error before sending the request when the blob is malformed', async () => {
+      const { service } = createService();
+      const malformed = {
+        version: 2,
+        assets: ['eip155:1/slip44:60'],
+      } as unknown as Parameters<typeof service.setAssetsWatchlist>[0];
+
+      await expect(service.setAssetsWatchlist(malformed)).rejects.toThrow(
+        /At path: version -- Expected the literal/u,
+      );
+    });
+
+    it(`accepts a blob with exactly ${ASSETS_WATCHLIST_MAX_ASSETS} assets`, async () => {
+      const mock = handleMockSetAssetsWatchlist();
+      const { service } = createService();
+      const maxBlob = {
+        version: 1 as const,
+        assets: Array.from(
+          { length: ASSETS_WATCHLIST_MAX_ASSETS },
+          (_, index) =>
+            `eip155:1/erc20:0x${index.toString(16).padStart(40, '0')}`,
+        ),
+      };
+
+      await service.setAssetsWatchlist(maxBlob);
+
+      expect(mock.isDone()).toBe(true);
+    });
+  });
+
   describe('cache invalidation', () => {
     it('invalidates listDelegations cache after createDelegation', async () => {
       handleMockCreateDelegation();
@@ -281,6 +505,42 @@ describe('AuthenticatedUserStorageService', () => {
           'AuthenticatedUserStorageService:getNotificationPreferences',
         ],
       });
+    });
+
+    it('invalidates getAssetsWatchlist cache after setAssetsWatchlist', async () => {
+      handleMockSetAssetsWatchlist();
+      handleMockGetAssetsWatchlist();
+      const { service } = createService();
+      const invalidateSpy = jest.spyOn(service, 'invalidateQueries');
+
+      await service.setAssetsWatchlist(MOCK_ASSETS_WATCHLIST_BLOB);
+
+      expect(invalidateSpy).toHaveBeenCalledWith({
+        queryKey: ['AuthenticatedUserStorageService:getAssetsWatchlist'],
+      });
+    });
+
+    it('causes a subsequent getAssetsWatchlist to refetch after setAssetsWatchlist', async () => {
+      const updatedBlob = {
+        version: 1 as const,
+        assets: ['eip155:137/slip44:966'],
+      };
+      const getScope = nock(MOCK_ASSETS_WATCHLIST_URL)
+        .get('')
+        .reply(200, MOCK_ASSETS_WATCHLIST_BLOB)
+        .put('')
+        .reply(200)
+        .get('')
+        .reply(200, updatedBlob);
+
+      const { service } = createService();
+      const first = await service.getAssetsWatchlist();
+      await service.setAssetsWatchlist(updatedBlob);
+      const second = await service.getAssetsWatchlist();
+
+      expect(getScope.isDone()).toBe(true);
+      expect(first).toStrictEqual(MOCK_ASSETS_WATCHLIST_BLOB);
+      expect(second).toStrictEqual(updatedBlob);
     });
   });
 
