@@ -18,8 +18,9 @@ We want to write a data service that represents this API.
 First, we need to take care of some boilerplate. Here are the steps we'll follow:
 
 1. Decide on a name
-2. Define the messenger
-3. Define the class
+2. Create a package
+3. Define the messenger
+4. Define the class
 
 ### Deciding on a name
 
@@ -35,11 +36,23 @@ So, let's go with `OrdersService`. We'll set this in a constant because we'll ne
 export const DATA_SERVICE_NAME = 'OrdersService';
 ```
 
+## Creating a package
+
+We want our data service to live in its own package. (In practice, this step may not be necessary — it depends on your use case — but it makes this tutorial simpler.)
+
+Working from this repo, we'll use the `create-package` tool to do just that:
+
+```
+yarn create-package --name orders-service --description "Wraps the Orders API"
+```
+
+That should give us a new directory in `packages/orders-service` which has a `src/` directory. We'll remove `index.ts` and `index.test.ts` so we have a clean slate.
+
 ### Defining the messenger
 
 Every data service has a messenger, an object which acts as a liaison, allowing other parts of the stack to access the data service without a direct reference to it.
 
-We'll first define the type for the messenger:
+So the very first thing we'll do is open a file in `packages/orders-service/src/orders-service.ts` and define the type for the messenger:
 
 ```typescript
 import type { Messenger } from '@metamask/messenger';
@@ -473,6 +486,19 @@ export class OrdersService extends BaseDataService</* ... */> {
 }
 ```
 
+Great, we now have a method called `fetchOrders` that wraps `GET /v1/orders`. Now we need to make sure to add it to `MESSENGER_EXPOSED_METHODS` so that it will become an action on the messenger:
+
+```diff
+- const MESSENGER_EXPOSED_METHODS = [] as const;
++ const MESSENGER_EXPOSED_METHODS = [
++   'fetchOrders',
++ ] as const;
+```
+
+Then we can run `yarn `
+
+Finally, we need to write tests for the data service class we've come up with so far.
+
 ### Requesting details for an order
 
 Now let's implement `GET /v1/orders/:id`. We'll do that by adding a `fetchOrder` method that follows the same steps as we did above.
@@ -534,3 +560,5 @@ export class OrdersService extends BaseDataService</* ... */> {
   }
 }
 ```
+
+We're almost

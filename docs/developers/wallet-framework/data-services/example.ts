@@ -35,7 +35,7 @@ export const DATA_SERVICE_NAME = 'OrdersService';
  * All of the methods within {@link OrdersService} that are exposed via the
  * messenger.
  */
-const MESSENGER_EXPOSED_METHODS = [] as const;
+const MESSENGER_EXPOSED_METHODS = ['fetchOrders'] as const;
 
 /**
  * Invalidates cached queries for {@link OrdersService}.
