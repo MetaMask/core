@@ -536,7 +536,7 @@ export const validateQuoteStreamComplete = (
   return true;
 };
 
-export enum BatchSimulationTransactionType {
+export enum BatchSellTransactionType {
   TRADE = 'trade',
   APPROVAL = 'approval',
   TRANSFER = 'transfer',
@@ -552,7 +552,7 @@ export const BatchSellTradesResponseSchema = type({
     intersection([
       TxDataSchema,
       SimulatedGasFeeLimitsSchema,
-      type({ type: enums(Object.values(BatchSimulationTransactionType)) }),
+      type({ type: enums(Object.values(BatchSellTransactionType)) }),
     ]),
   ),
   fee: type({

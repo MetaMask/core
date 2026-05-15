@@ -27,7 +27,7 @@ import {
   formatAddressToAssetId,
   formatChainIdToHex,
 } from './utils/caip-formatters';
-import { BatchSimulationTransactionType } from './utils/validators';
+import { BatchSellTransactionType } from './utils/validators';
 
 const MOCK_USDC_ADDRESS = '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48';
 const MOCK_MUSD_ADDRESS = '0x12345A7890123456789012345678901234567890';
@@ -1657,7 +1657,7 @@ describe('Bridge Selectors', () => {
           effectiveGas: 21000,
           maxFeePerGas: '0x5d21dba00',
           maxPriorityFeePerGas: '0x5d21dba00',
-          type: BatchSimulationTransactionType.TRANSFER,
+          type: BatchSellTransactionType.TRANSFER,
         } as const,
       ],
       fee: {

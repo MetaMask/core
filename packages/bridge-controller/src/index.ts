@@ -99,7 +99,7 @@ export {
   TokenFeatureType,
   validateQuoteStreamComplete,
   QuoteStreamCompleteReason,
-  BatchSimulationTransactionType,
+  BatchSellTransactionType,
 } from './utils/validators';
 
 export {

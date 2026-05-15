@@ -12,7 +12,7 @@ import {
   fetchBatchSellTrades,
   formatBatchSellTradesRequest,
 } from './fetch';
-import { BatchSimulationTransactionType, FeatureId } from './validators';
+import { BatchSellTransactionType, FeatureId } from './validators';
 
 const mockFetchFn = jest.fn();
 
@@ -708,13 +708,13 @@ describe('fetch', () => {
         ({ trade, approval }) => [
           {
             ...trade,
-            type: BatchSimulationTransactionType.TRADE,
+            type: BatchSellTransactionType.TRADE,
             maxFeePerGas: '0x123',
             maxPriorityFeePerGas: '0x456',
           },
           {
             ...approval,
-            type: BatchSimulationTransactionType.APPROVAL,
+            type: BatchSellTransactionType.APPROVAL,
             maxFeePerGas: '0x123',
             maxPriorityFeePerGas: '0x456',
           },
