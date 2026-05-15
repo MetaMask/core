@@ -19,6 +19,9 @@ import {
   TrxAccountType,
   TrxMethod,
   TrxScope,
+  XlmAccountType,
+  XlmMethod,
+  XlmScope,
 } from '@metamask/keyring-api';
 import { KeyringTypes } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
@@ -149,6 +152,31 @@ export const MOCK_SOL_ACCOUNT_1: Bip44Account<InternalAccount> = {
   },
 };
 
+const XLM_METHODS = Object.values(XlmMethod);
+
+export const MOCK_XLM_ACCOUNT_1: Bip44Account<InternalAccount> = {
+  id: 'mock-snap-id-1',
+  address: `G${'A'.repeat(55)}`,
+  options: {
+    entropy: {
+      type: KeyringAccountEntropyTypeOption.Mnemonic,
+      id: MOCK_HD_KEYRING_2.metadata.id,
+      groupIndex: 0,
+      derivationPath: '',
+    },
+  },
+  methods: XLM_METHODS,
+  type: XlmAccountType.Account,
+  scopes: [XlmScope.Pubnet, XlmScope.Testnet],
+  metadata: {
+    name: 'Stellar Account 1',
+    keyring: { type: KeyringTypes.snap },
+    snap: MOCK_SNAP_1,
+    importTime: 0,
+    lastSelected: 0,
+  },
+};
+
 export const MOCK_TRX_ACCOUNT_1: Bip44Account<InternalAccount> = {
   id: 'mock-snap-id-1',
   address: 'aabbccdd',
@@ -183,6 +211,12 @@ export const MOCK_TRX_DISCOVERED_ACCOUNT_1: DiscoveredAccount = {
   type: 'bip44',
   scopes: [TrxScope.Mainnet],
   derivationPath: `m/44'/195'/0'/0'`,
+};
+
+export const MOCK_XLM_DISCOVERED_ACCOUNT_1: DiscoveredAccount = {
+  type: 'bip44',
+  scopes: [XlmScope.Pubnet],
+  derivationPath: `m/44'/148'/0'`,
 };
 
 export const MOCK_BTC_P2TR_DISCOVERED_ACCOUNT_1: DiscoveredAccount = {

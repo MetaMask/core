@@ -7,38 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Changed
-
-- **BREAKING:** The service messenger now requires the `SnapAccountService:ensureReady` action to be declared ([#8715](https://github.com/MetaMask/core/pull/8715))
-- **BREAKING:** Delegate Snap platform readiness to `@metamask/snap-account-service` ([#8715](https://github.com/MetaMask/core/pull/8715))
-  - Removed `MultichainAccountService.ensureCanUseSnapPlatform()` method and the corresponding `MultichainAccountService:ensureCanUseSnapPlatform` messenger action.
-  - Removed the `MultichainAccountServiceEnsureCanUseSnapPlatformAction` type export.
-  - Removed `MultichainAccountServiceOptions.ensureOnboardingComplete`. Configure it via `SnapAccountService`'s `config.snapPlatformWatcher.ensureOnboardingComplete` instead.
-  - Removed `MultichainAccountServiceConfig.snapPlatformWatcher` and the `SnapPlatformWatcherConfig` type export. Configure the keyring-wait timeout via `SnapAccountService`'s `config.snapPlatformWatcher.snapKeyringWaitTimeoutMs` instead.
-  - The service messenger no longer needs `SnapController:getState` or `SnapController:stateChange`.
-- **BREAKING:** Rename `SnapAccountProvider.ensureCanUseSnapPlatform()` to `ensureReady()` ([#8715](https://github.com/MetaMask/core/pull/8715))
-
-## [9.0.0]
-
 ### Added
 
-- Expose missing `MultichainAccountService:init` action through its messenger ([#8717](https://github.com/MetaMask/core/pull/8717))
-  - Corresponding action type is available as well.
-- Filter out `KeyringController` locked errors from sentry reporting ([#8619](https://github.com/MetaMask/core/pull/8619))
-
-### Changed
-
-- **BREAKING:** Replace `KeyringController:withKeyring` with `KeyringController:withKeyringV2` for the EVM account provider ([#8491](https://github.com/MetaMask/core/pull/8491))
-- Bump `@metamask/accounts-controller` from `^37.1.1` to `^38.0.0` ([#8363](https://github.com/MetaMask/core/pull/8363), [#8665](https://github.com/MetaMask/core/pull/8665))
-- Bump `@metamask/keyring-controller` from `^25.1.1` to `^25.5.0` ([#8363](https://github.com/MetaMask/core/pull/8363), [#8634](https://github.com/MetaMask/core/pull/8634), [#8665](https://github.com/MetaMask/core/pull/8665), [#8722](https://github.com/MetaMask/core/pull/8722))
-- Bump `@metamask/messenger` from `^1.0.0` to `^1.2.0` ([#8364](https://github.com/MetaMask/core/pull/8364), [#8373](https://github.com/MetaMask/core/pull/8373), [#8632](https://github.com/MetaMask/core/pull/8632))
-- Bump `@metamask/base-controller` from `^9.0.1` to `^9.1.0` ([#8457](https://github.com/MetaMask/core/pull/8457))
-- Bump `@metamask/account-api` from `^1.0.0` to `^1.0.4` ([#8464](https://github.com/MetaMask/core/pull/8464), [#8647](https://github.com/MetaMask/core/pull/8647))
-- Bump `@metamask/eth-snap-keyring` from `^19.0.0` to `^22.0.1` ([#8464](https://github.com/MetaMask/core/pull/8464), [#8584](https://github.com/MetaMask/core/pull/8584), [#8647](https://github.com/MetaMask/core/pull/8647))
-- Bump `@metamask/keyring-api` from `^21.6.0` to `^23.1.0` ([#8464](https://github.com/MetaMask/core/pull/8464), [#8647](https://github.com/MetaMask/core/pull/8647))
-- Bump `@metamask/keyring-internal-api` from `^10.0.0` to `^11.0.1` ([#8464](https://github.com/MetaMask/core/pull/8464), [#8584](https://github.com/MetaMask/core/pull/8584), [#8647](https://github.com/MetaMask/core/pull/8647))
-- Bump `@metamask/keyring-snap-client` from `^8.2.0` to `^9.0.2` ([#8464](https://github.com/MetaMask/core/pull/8464), [#8647](https://github.com/MetaMask/core/pull/8647))
-- Bump `@metamask/keyring-utils` from `^3.1.0` to `^3.2.1` ([#8703](https://github.com/MetaMask/core/pull/8703))
+- Add `XlmAccountProvider` for Stellar (XLM) snap-backed accounts, including `XLM_ACCOUNT_PROVIDER_DEFAULT_CONFIG` and package export ([#TODO](https://github.com/MetaMask/core/pull/TODO))
 
 ## [8.0.1]
 
