@@ -170,6 +170,10 @@ export type {
   // Token API types
   TokenMetadata,
   V1TokenDescriptionResponse,
+  TokenSearchResult,
+  TokenSearchPageInfo,
+  TokenSearchResponse,
+  TokenSearchQueryOptions,
   NetworkInfo,
   TopAsset,
   TrendingSortBy,

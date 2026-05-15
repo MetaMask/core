@@ -3,13 +3,13 @@
  */
 
 import type { ApiPlatformClient } from '../ApiPlatformClient';
-import { API_URLS } from '../shared-types';
+import { API_URLS, GC_TIMES, STALE_TIMES } from '../shared-types';
 import {
   mockFetch,
   createMockResponse,
   setupTestEnvironment,
 } from '../test-utils';
-import type { NetworkInfo, TokenMetadata } from './types';
+import type { NetworkInfo, TokenMetadata, TokenSearchResponse } from './types';
 
 describe('TokenApiClient', () => {
   let client: ApiPlatformClient;
@@ -131,6 +131,92 @@ describe('TokenApiClient', () => {
       const calledUrl = mockFetch.mock.calls[0]?.[0] as string;
       expect(calledUrl).toContain('includeIconUrl=true');
       expect(calledUrl).toContain('includeOccurrences=true');
+    });
+  });
+
+  describe('Token Search', () => {
+    it('fetches token search results with query options', async () => {
+      const mockResponse: TokenSearchResponse = {
+        data: [
+          {
+            assetId:
+              'eip155:1/erc20:0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48',
+            symbol: 'USDC',
+            decimals: 6,
+            name: 'USD Coin',
+            iconUrl: 'https://static.cx.metamask.io/api/v1/tokenIcons/1/usdc',
+            labels: ['stable_coin'],
+          },
+        ],
+        count: 1,
+        totalCount: 1,
+        pageInfo: {
+          hasNextPage: false,
+          endCursor: '',
+        },
+      };
+      mockFetch.mockResolvedValueOnce(createMockResponse(mockResponse));
+
+      const result = await client.token.fetchTokenSearch({
+        query: ' usdc ',
+        networks: ['eip155:137', 'eip155:1'],
+        first: 25,
+        after: 'MA==',
+        includeTokenSecurityData: true,
+      });
+
+      expect(result).toStrictEqual(mockResponse);
+
+      const calledUrl = new URL(mockFetch.mock.calls[0]?.[0] as string);
+      expect(calledUrl.origin).toBe(API_URLS.TOKEN);
+      expect(calledUrl.pathname).toBe('/tokens/search');
+      expect(calledUrl.searchParams.get('query')).toBe('usdc');
+      expect(calledUrl.searchParams.get('networks')).toBe(
+        'eip155:1,eip155:137',
+      );
+      expect(calledUrl.searchParams.get('first')).toBe('25');
+      expect(calledUrl.searchParams.get('after')).toBe('MA==');
+      expect(calledUrl.searchParams.get('includeTokenSecurityData')).toBe(
+        'true',
+      );
+    });
+
+    it('short-circuits empty token search queries', async () => {
+      const result = await client.token.fetchTokenSearch({
+        query: '   ',
+      });
+
+      expect(result).toStrictEqual({
+        data: [],
+        count: 0,
+        totalCount: 0,
+        pageInfo: {
+          hasNextPage: false,
+          endCursor: '',
+        },
+      });
+      expect(mockFetch).not.toHaveBeenCalled();
+    });
+
+    it('returns reusable query options for token search', () => {
+      const queryOptions = client.token.getTokenSearchQueryOptions({
+        query: ' usdc ',
+        networks: ['eip155:137', 'eip155:1'],
+        first: 25,
+      });
+
+      expect(queryOptions.queryKey).toStrictEqual([
+        'token',
+        'search',
+        {
+          query: 'usdc',
+          networks: ['eip155:1', 'eip155:137'],
+          first: 25,
+        },
+      ]);
+      expect(typeof queryOptions.queryFn).toBe('function');
+      expect(queryOptions.staleTime).toBe(STALE_TIMES.DEFAULT);
+      expect(queryOptions.gcTime).toBe(GC_TIMES.DEFAULT);
     });
   });
 

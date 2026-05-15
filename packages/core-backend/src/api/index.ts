@@ -61,6 +61,10 @@ export { TokenApiClient } from './token';
 export type {
   TokenMetadata,
   V1TokenDescriptionResponse,
+  TokenSearchResult,
+  TokenSearchPageInfo,
+  TokenSearchResponse,
+  TokenSearchQueryOptions,
   NetworkInfo,
   TopAsset,
   TrendingSortBy,

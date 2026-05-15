@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `fetchTokenSearch` and `getTokenSearchQueryOptions` to `TokenApiClient` for querying the Token API search endpoint.
+- Export `TokenSearchResult`, `TokenSearchPageInfo`, `TokenSearchResponse`, and `TokenSearchQueryOptions` types.
+
 ## [6.3.0]
 
 ### Added
