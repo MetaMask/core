@@ -234,6 +234,9 @@
       "path": "./packages/social-controllers"
     },
     {
+      "path": "./packages/solana-test-validator-up"
+    },
+    {
       "path": "./packages/subscription-controller"
     },
     {

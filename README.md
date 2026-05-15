@@ -98,6 +98,7 @@ Each package in this repository has its own README where you can find installati
 - [`@metamask/signature-controller`](packages/signature-controller)
 - [`@metamask/snap-account-service`](packages/snap-account-service)
 - [`@metamask/social-controllers`](packages/social-controllers)
+- [`@metamask/solana-test-validator-up`](packages/solana-test-validator-up)
 - [`@metamask/storage-service`](packages/storage-service)
 - [`@metamask/subscription-controller`](packages/subscription-controller)
 - [`@metamask/transaction-controller`](packages/transaction-controller)
@@ -191,6 +192,7 @@ linkStyle default opacity:0.5
   signature_controller(["@metamask/signature-controller"]);
   snap_account_service(["@metamask/snap-account-service"]);
   social_controllers(["@metamask/social-controllers"]);
+  solana_test_validator_up(["@metamask/solana-test-validator-up"]);
   storage_service(["@metamask/storage-service"]);
   subscription_controller(["@metamask/subscription-controller"]);
   transaction_controller(["@metamask/transaction-controller"]);
