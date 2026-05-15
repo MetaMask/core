@@ -1,7 +1,17 @@
-import type { BitcoinTradeData, TronTradeData, TxData } from '../types';
+import type {
+  BitcoinTradeData,
+  StellarTradeData,
+  TronTradeData,
+  TxData,
+} from '../types';
 
-// Union type representing all possible trade formats (EVM, Solana, Bitcoin, Tron)
-export type Trade = TxData | string | BitcoinTradeData | TronTradeData;
+// Union type representing all possible trade formats (EVM, Solana, Bitcoin, Tron, Stellar)
+export type Trade =
+  | TxData
+  | string
+  | BitcoinTradeData
+  | TronTradeData
+  | StellarTradeData;
 
 /**
  * Type guard to check if a trade is an EVM TxData object
@@ -42,6 +52,25 @@ export const isTronTrade = (trade: Trade): trade is TronTradeData => {
 };
 
 /**
+ * Type guard to check if a trade is a Stellar trade with XDR (base64) payload
+ */
+export const isStellarTrade = (trade: Trade): trade is StellarTradeData => {
+  if (typeof trade !== 'object' || trade === null) {
+    return false;
+  }
+  if (
+    'xdrBase64' in trade &&
+    typeof (trade as { xdrBase64: unknown }).xdrBase64 === 'string'
+  ) {
+    return true;
+  }
+  if ('xdr' in trade && typeof (trade as { xdr: unknown }).xdr === 'string') {
+    return true;
+  }
+  return false;
+};
+
+/**
  * Extracts the transaction data from different trade formats
  *
  * @param trade - The trade object which can be a TxData, string, Bitcoin trade, or Tron trade
@@ -57,6 +86,10 @@ export const extractTradeData = (trade: Trade): string => {
   if (isTronTrade(trade)) {
     // Tron trades need hex to base64 conversion for SnapController
     return Buffer.from(trade.raw_data_hex, 'hex').toString('base64');
+  }
+
+  if (isStellarTrade(trade)) {
+    return 'xdrBase64' in trade ? trade.xdrBase64 : trade.xdr;
   }
 
   if (typeof trade === 'string') {
