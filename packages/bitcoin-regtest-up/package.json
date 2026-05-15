@@ -15,9 +15,7 @@
     "type": "git",
     "url": "https://github.com/MetaMask/core.git"
   },
-  "bin": {
-    "bitcoin-regtest-up": "./dist/bin/bitcoin-regtest-up.mjs"
-  },
+  "bin": "./dist/bin/bitcoin-regtest-up.mjs",
   "files": [
     "dist/"
   ],
