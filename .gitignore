@@ -38,7 +38,3 @@ packages/*/*.tsbuildinfo
 
 # AI
 .sisyphus/
-
-# Docusaurus
-docs/developers/build
-docs/developers/.docusaurus

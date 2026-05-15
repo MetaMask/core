@@ -42,18 +42,11 @@
     "test:packages": "yarn test:verbose --silent --collectCoverage=false --reporters=jest-silent-reporter",
     "test:scripts": "NODE_OPTIONS=--experimental-vm-modules yarn jest --config ./jest.config.scripts.js --silent",
     "test:verbose": "yarn workspaces foreach --all --parallel --verbose run test:verbose",
-    "workspaces:list-versions": "./scripts/list-workspace-versions.sh",
-    "docs:dev": "docusaurus start docs/developers",
-    "docs:build": "docusaurus build docs/developers",
-    "docs:preview": "docusaurus serve docs/developers"
+    "workspaces:list-versions": "./scripts/list-workspace-versions.sh"
   },
   "devDependencies": {
-    "@docusaurus/core": "3",
-    "@docusaurus/preset-classic": "3",
-    "@docusaurus/types": "3",
     "@lavamoat/allow-scripts": "^3.0.4",
     "@lavamoat/preinstall-always-fail": "^2.1.0",
-    "@mdx-js/react": "3",
     "@metamask/create-release-branch": "^4.2.0",
     "@metamask/eslint-config": "^15.0.0",
     "@metamask/eslint-config-jest": "^15.0.0",
@@ -68,8 +61,6 @@
     "@types/jest": "^29.5.14",
     "@types/lodash": "^4.14.191",
     "@types/node": "^16.18.54",
-    "@types/react": "^18",
-    "@types/react-dom": "^18",
     "@types/semver": "^7",
     "@typescript-eslint/eslint-plugin": "^8.48.0",
     "@typescript-eslint/parser": "^8.48.0",
@@ -94,9 +85,6 @@
     "oxfmt": "^0.44.0",
     "prettier": "^3.3.3",
     "prettier-2": "npm:prettier@^2.8.8",
-    "prism-react-renderer": "^2.4.1",
-    "react": "18",
-    "react-dom": "18",
     "rimraf": "^5.0.5",
     "semver": "^7.6.3",
     "simple-git-hooks": "^2.8.0",
@@ -125,8 +113,7 @@
       "babel-runtime>core-js": false,
       "simple-git-hooks": false,
       "tsx>esbuild": false,
-      "eslint-plugin-import-x>unrs-resolver": false,
-      "@docusaurus/core>core-js": false
+      "eslint-plugin-import-x>unrs-resolver": false
     }
   }
 }
