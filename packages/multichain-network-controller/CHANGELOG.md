@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add Stellar pubnet (`stellar:pubnet`) and Stellar testnet (`stellar:testnet`) to multichain network configurations (`AVAILABLE_MULTICHAIN_NETWORK_CONFIGURATIONS`), native asset CAIP-19 constants, metadata, tickers, decimal places, and `SupportedCaipChainId`; register testnet in `NON_EVM_TESTNET_IDS` ([#TODO](https://github.com/MetaMask/core/pull/TODO))
+
 ## [3.1.0]
 
 ### Added
