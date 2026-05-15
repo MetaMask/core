@@ -11,6 +11,7 @@ import type { AnalyticsController } from './AnalyticsController';
  * Events are only tracked if analytics is enabled.
  *
  * @param event - Analytics event with properties and sensitive properties
+ * @param context - Optional platform-specific context forwarded to the platform adapter.
  */
 export type AnalyticsControllerTrackEventAction = {
   type: `AnalyticsController:trackEvent`;
@@ -21,6 +22,7 @@ export type AnalyticsControllerTrackEventAction = {
  * Identify a user for analytics.
  *
  * @param traits - User traits/properties
+ * @param context - Optional platform-specific context forwarded to the platform adapter.
  */
 export type AnalyticsControllerIdentifyAction = {
   type: `AnalyticsController:identify`;
@@ -32,6 +34,7 @@ export type AnalyticsControllerIdentifyAction = {
  *
  * @param name - The identifier/name of the page or screen being viewed (e.g., "home", "settings", "wallet")
  * @param properties - Optional properties associated with the view
+ * @param context - Optional platform-specific context forwarded to the platform adapter.
  */
 export type AnalyticsControllerTrackViewAction = {
   type: `AnalyticsController:trackView`;
