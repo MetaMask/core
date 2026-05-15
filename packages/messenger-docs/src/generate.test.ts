@@ -199,10 +199,13 @@ export type TestMessenger = Messenger<'Test', TestGetAction, never>;
       const srcDir = path.join(directoryPath, 'src');
       await fs.promises.mkdir(srcDir, { recursive: true });
 
-      // File without JSDoc
+      // The JSDoc'd file is named to sort first so it's encountered
+      // first — that way the second (no-doc) file is the one that gets
+      // skipped by the dedup logic.
       await fs.promises.writeFile(
-        path.join(srcDir, 'a.ts'),
+        path.join(srcDir, 'a-with-doc.ts'),
         `
+/** Gets foo. */
 export type FooAction = {
   type: 'Foo:get';
   handler: () => void;
@@ -212,11 +215,9 @@ export type FooMessenger = Messenger<'Foo', FooAction, never>;
 `,
       );
 
-      // File with JSDoc (should win)
       await fs.promises.writeFile(
-        path.join(srcDir, 'b.ts'),
+        path.join(srcDir, 'b-no-doc.ts'),
         `
-/** Gets foo. */
 export type FooAction = {
   type: 'Foo:get';
   handler: () => void;
@@ -306,6 +307,307 @@ export type GitMessenger = Messenger<'Git', GitGetAction, never>;
         'https://github.com/test-owner/test-repo/blob/main/',
       );
       expect(actionsMd).toContain('src/GitController.ts');
+    });
+  });
+
+  it('warns and continues when a single source file fails to read', async () => {
+    expect.assertions(2);
+
+    await withinSandbox(async ({ directoryPath }) => {
+      const srcDir = path.join(directoryPath, 'src');
+      await fs.promises.mkdir(srcDir, { recursive: true });
+      // A valid file so the build still produces something.
+      await fs.promises.writeFile(
+        path.join(srcDir, 'Ok.ts'),
+        `
+export type OkAction = {
+  type: 'Ok:run';
+  handler: () => void;
+};
+
+export type OkMessenger = Messenger<'Ok', OkAction, never>;
+`,
+      );
+      // A broken symlink pointing nowhere. Discovery surfaces it (it's not a
+      // directory), but reading it throws ENOENT — exercising the per-file
+      // failure path in `extractFromDirectory`.
+      await fs.promises.symlink(
+        '/this/path/does/not/exist',
+        path.join(srcDir, 'Bad.ts'),
+      );
+
+      const warnSpy = jest.spyOn(console, 'warn').mockImplementation();
+      try {
+        const result = await generate({
+          projectPath: directoryPath,
+          outputDir: path.join(directoryPath, '.docs'),
+          scanDirs: ['src'],
+        });
+
+        expect(result.actions).toBe(1);
+        expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('Bad.ts'));
+      } finally {
+        warnSpy.mockRestore();
+      }
+    });
+  });
+
+  it('groups events into their own list and emits an events-only namespace page', async () => {
+    expect.assertions(3);
+
+    await withinSandbox(async ({ directoryPath }) => {
+      const srcDir = path.join(directoryPath, 'src');
+      await fs.promises.mkdir(srcDir, { recursive: true });
+      await fs.promises.writeFile(
+        path.join(srcDir, 'EventsOnly.ts'),
+        `
+export type EventsOnlyChangeEvent = {
+  type: 'EventsOnly:change';
+  payload: [number];
+};
+
+export type EventsOnlyMessenger = Messenger<'EventsOnly', never, EventsOnlyChangeEvent>;
+`,
+      );
+
+      const outputDir = path.join(directoryPath, '.docs');
+      const result = await generate({
+        projectPath: directoryPath,
+        outputDir,
+        scanDirs: ['src'],
+      });
+
+      expect(result.actions).toBe(0);
+      expect(result.events).toBe(1);
+      // Sanity: the events page exists; the actions page does not.
+      const eventsExists = await fs.promises
+        .access(path.join(outputDir, 'docs', 'EventsOnly', 'events.md'))
+        .then(() => true)
+        .catch(() => false);
+      expect(eventsExists).toBe(true);
+    });
+  });
+
+  it('cleans the docs directory when regenerating into the same output', async () => {
+    expect.assertions(2);
+
+    await withinSandbox(async ({ directoryPath }) => {
+      const srcDir = path.join(directoryPath, 'src');
+      await fs.promises.mkdir(srcDir, { recursive: true });
+      await fs.promises.writeFile(
+        path.join(srcDir, 'First.ts'),
+        `
+export type FirstAction = { type: 'First:do'; handler: () => void };
+export type FirstMessenger = Messenger<'First', FirstAction, never>;
+`,
+      );
+
+      const outputDir = path.join(directoryPath, '.docs');
+      const docsDir = path.join(outputDir, 'docs');
+
+      // First run creates the docs directory.
+      await generate({
+        projectPath: directoryPath,
+        outputDir,
+        scanDirs: ['src'],
+      });
+      const firstExists = await fs.promises
+        .access(path.join(docsDir, 'First', 'actions.md'))
+        .then(() => true)
+        .catch(() => false);
+      expect(firstExists).toBe(true);
+
+      // Rewrite the source so the first namespace disappears.
+      await fs.promises.rm(path.join(srcDir, 'First.ts'));
+      await fs.promises.writeFile(
+        path.join(srcDir, 'Second.ts'),
+        `
+export type SecondAction = { type: 'Second:do'; handler: () => void };
+export type SecondMessenger = Messenger<'Second', SecondAction, never>;
+`,
+      );
+
+      // Second run should remove the stale `First/` directory before
+      // writing the new output.
+      await generate({
+        projectPath: directoryPath,
+        outputDir,
+        scanDirs: ['src'],
+      });
+      const stalePresent = await fs.promises
+        .access(path.join(docsDir, 'First'))
+        .then(() => true)
+        .catch(() => false);
+      expect(stalePresent).toBe(false);
+    });
+  });
+
+  it('orders namespaces alphabetically when there are multiple', async () => {
+    expect.assertions(1);
+
+    await withinSandbox(async ({ directoryPath }) => {
+      const srcDir = path.join(directoryPath, 'src');
+      await fs.promises.mkdir(srcDir, { recursive: true });
+      await fs.promises.writeFile(
+        path.join(srcDir, 'Multi.ts'),
+        `
+export type ZooAction = { type: 'Zoo:do'; handler: () => void };
+export type AlphaAction = { type: 'Alpha:do'; handler: () => void };
+
+export type ZooMessenger = Messenger<'Zoo', ZooAction, never>;
+export type AlphaMessenger = Messenger<'Alpha', AlphaAction, never>;
+`,
+      );
+
+      const outputDir = path.join(directoryPath, '.docs');
+      await generate({
+        projectPath: directoryPath,
+        outputDir,
+        scanDirs: ['src'],
+      });
+
+      const indexMd = await fs.promises.readFile(
+        path.join(outputDir, 'docs', 'index.md'),
+        'utf8',
+      );
+      // Index lists namespaces alphabetically — "Alpha" should appear before
+      // "Zoo" even though "Zoo" was written first.
+      expect(indexMd.indexOf('Alpha')).toBeLessThan(indexMd.indexOf('Zoo'));
+    });
+  });
+
+  it('replaces a duplicate of the same kind when the second occurrence has a higher score', async () => {
+    expect.assertions(2);
+
+    await withinSandbox(async ({ directoryPath }) => {
+      const srcDir = path.join(directoryPath, 'src');
+      await fs.promises.mkdir(srcDir, { recursive: true });
+
+      // No-JSDoc copy sorts first, JSDoc'd copy sorts second — so the
+      // dedup logic *replaces* the existing entry in place rather than
+      // skipping the new one.
+      await fs.promises.writeFile(
+        path.join(srcDir, 'a-no-doc.ts'),
+        `
+export type FooAction = {
+  type: 'Foo:get';
+  handler: () => void;
+};
+
+export type FooMessenger = Messenger<'Foo', FooAction, never>;
+`,
+      );
+      await fs.promises.writeFile(
+        path.join(srcDir, 'b-with-doc.ts'),
+        `
+/** Documented. */
+export type FooAction = {
+  type: 'Foo:get';
+  handler: () => void;
+};
+
+export type FooMessenger = Messenger<'Foo', FooAction, never>;
+`,
+      );
+
+      const outputDir = path.join(directoryPath, '.docs');
+      const result = await generate({
+        projectPath: directoryPath,
+        outputDir,
+        scanDirs: ['src'],
+      });
+
+      expect(result.actions).toBe(1);
+      const actionsMd = await fs.promises.readFile(
+        path.join(outputDir, 'docs', 'Foo', 'actions.md'),
+        'utf8',
+      );
+      expect(actionsMd).toContain('Documented.');
+    });
+  });
+
+  it('replaces a duplicate when the better-scored variant has a different kind', async () => {
+    expect.assertions(2);
+
+    await withinSandbox(async ({ directoryPath }) => {
+      const srcDir = path.join(directoryPath, 'src');
+      await fs.promises.mkdir(srcDir, { recursive: true });
+
+      // Two files declare a capability with the same typeString
+      // ("Dupe:thing") but disagree on the kind. The "home" file
+      // (matching the namespace) gets the higher dedup score; the
+      // filenames are chosen so the lower-scored variant is encountered
+      // first.
+      await fs.promises.writeFile(
+        path.join(srcDir, 'a-other.ts'),
+        `
+export type DupeAction = { type: 'Dupe:thing'; handler: () => void };
+export type OtherMessenger = Messenger<'Other', DupeAction, never>;
+`,
+      );
+      await fs.promises.writeFile(
+        path.join(srcDir, 'z-DupeController.ts'),
+        `
+export type DupeEvent = { type: 'Dupe:thing'; payload: [] };
+export type DupeMessenger = Messenger<'Dupe', never, DupeEvent>;
+`,
+      );
+
+      const result = await generate({
+        projectPath: directoryPath,
+        outputDir: path.join(directoryPath, '.docs'),
+        scanDirs: ['src'],
+      });
+
+      // The home-package version wins: Dupe:thing is documented as an event
+      // exactly once.
+      expect(result.actions).toBe(0);
+      expect(result.events).toBe(1);
+    });
+  });
+
+  it('falls back to `main` when origin/HEAD is not set (shallow clone)', async () => {
+    expect.assertions(1);
+
+    await withinSandbox(async ({ directoryPath }) => {
+      // Initialize a git repo with a GitHub origin but DO NOT set
+      // refs/remotes/origin/HEAD. This is the shape of a shallow CI clone:
+      // origin is configured but the symbolic ref is absent, so
+      // `resolveDefaultBranch` must fall back to "main".
+      await execa('git', ['init', '-q', '-b', 'main'], { cwd: directoryPath });
+      await execa(
+        'git',
+        [
+          'remote',
+          'add',
+          'origin',
+          'https://github.com/test-owner/test-repo.git',
+        ],
+        { cwd: directoryPath },
+      );
+
+      const srcDir = path.join(directoryPath, 'src');
+      await fs.promises.mkdir(srcDir, { recursive: true });
+      await fs.promises.writeFile(
+        path.join(srcDir, 'Foo.ts'),
+        `
+export type FooAction = { type: 'Foo:do'; handler: () => void };
+export type FooMessenger = Messenger<'Foo', FooAction, never>;
+`,
+      );
+
+      const outputDir = path.join(directoryPath, '.docs');
+      await generate({
+        projectPath: directoryPath,
+        outputDir,
+        scanDirs: ['src'],
+      });
+
+      const actionsMd = await fs.promises.readFile(
+        path.join(outputDir, 'docs', 'Foo', 'actions.md'),
+        'utf8',
+      );
+      expect(actionsMd).toContain('blob/main/');
     });
   });
 

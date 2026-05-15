@@ -102,6 +102,22 @@ describe('markdown', () => {
       expect(result).toContain('npmjs.com/package/@metamask/base-controller');
     });
 
+    it('falls back to the source path when node_modules entry is not @metamask-scoped', async () => {
+      const item = makeItem({
+        sourceFile: 'node_modules/some-vendor/dist/index.d.ts',
+      });
+      const result = generateItemMarkdown(
+        item,
+        'FooController',
+        new Map(),
+        null,
+      );
+
+      // No @metamask scope match, so the package label falls back to the
+      // raw source path rather than a parsed package name.
+      expect(result).toContain('node_modules/some-vendor/dist/index.d.ts');
+    });
+
     it('linkifies backtick references to known actions', () => {
       const known = new Map([['getState', '#foocontrollergetstate']]);
       const item = makeItem({ jsDoc: 'See `getState` for details.' });
@@ -188,6 +204,32 @@ describe('markdown', () => {
       expect(result).toContain('_No actions found for this namespace._');
     });
 
+    it('falls back to no source links when repoBaseUrl is omitted', () => {
+      const group = makeGroup();
+      // Calling without a third argument exercises the default value.
+      const result = generateNamespacePage(group, 'action');
+
+      expect(result).toContain(
+        '**Source**: `packages/foo/src/FooController.ts',
+      );
+    });
+
+    it('marks deprecated items in the summary table', () => {
+      const group = makeGroup({
+        actions: [
+          makeItem({ deprecated: true }),
+          makeItem({ typeString: 'FooController:reset' }),
+        ],
+      });
+      const result = generateNamespacePage(group, 'action', null);
+
+      // The summary table should call out the deprecated item with a "Yes".
+      const tableRow = result
+        .split('\n')
+        .find((line) => line.startsWith('| [`getState`]'));
+      expect(tableRow).toMatch(/\| Yes \|$/u);
+    });
+
     it('cross-links events from an action page to ./events#anchor', () => {
       const group = makeGroup({
         actions: [makeItem()],
@@ -259,6 +301,26 @@ describe('markdown', () => {
       expect(result).toContain('**1** actions');
     });
 
+    it('links to events when a namespace has only events', () => {
+      const groups = [
+        makeGroup({
+          actions: [],
+          events: [
+            makeItem({
+              typeString: 'FooController:change',
+              kind: 'event',
+              handlerOrPayload: '[FooState]',
+            }),
+          ],
+        }),
+      ];
+      const result = generateIndexPage(groups);
+
+      // When a namespace has no actions, the index row should link to the
+      // events page instead of actions.
+      expect(result).toContain('[FooController](FooController/events)');
+    });
+
     it('stamps the project label into the title and heading', () => {
       const groups = [makeGroup()];
       const result = generateIndexPage(groups, { projectLabel: 'Core' });
@@ -289,6 +351,25 @@ describe('markdown', () => {
 
       expect(result).toContain('FooController');
       expect(result).toContain('actions');
+    });
+
+    it('includes both actions and events when the namespace has both', () => {
+      const groups = [
+        makeGroup({
+          actions: [makeItem()],
+          events: [
+            makeItem({
+              typeString: 'FooController:change',
+              kind: 'event',
+              handlerOrPayload: '[FooState]',
+            }),
+          ],
+        }),
+      ];
+      const result = generateSidebars(groups);
+
+      expect(result).toContain('FooController/actions');
+      expect(result).toContain('FooController/events');
     });
   });
 });

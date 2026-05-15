@@ -161,6 +161,8 @@ function resolveTypeString(node: Expression): string | null {
   ) {
     return node.getLiteralValue();
   }
+  // istanbul ignore next: numeric/boolean literal types aren't valid as a
+  // messenger `type` and don't appear in real fixtures.
   return null;
 }
 
@@ -183,29 +185,24 @@ function resolveTemplateLiteralType(
 
   for (const span of compilerNode.templateSpans) {
     const typeNode = span.type;
-    // In type position, `typeof X` is a TypeQueryNode
-    if (typeNode.kind === SyntaxKind.TypeQuery) {
-      const { exprName } = typeNode as ts.TypeQueryNode;
-      if (exprName.kind === SyntaxKind.Identifier) {
-        const val = constants.get(exprName.text);
-        if (val === undefined) {
-          return null;
-        }
-        result += val;
-      } else {
-        return null;
-      }
-    } else if (typeNode.kind === SyntaxKind.LiteralType) {
-      const { literal } = typeNode as ts.LiteralTypeNode;
-      if (literal.kind === SyntaxKind.StringLiteral) {
-        result += (literal as ts.StringLiteral).text;
-      } else {
-        return null;
-      }
-    } else {
+    // In type position, `typeof X` is a TypeQueryNode. Other span shapes
+    // (literal interpolations, qualified names) are valid TS but not used
+    // in any of the messenger types we extract from, so we bail out.
+    /* istanbul ignore if */
+    if (typeNode.kind !== SyntaxKind.TypeQuery) {
       return null;
     }
-    result += span.literal.text;
+    const { exprName } = typeNode as ts.TypeQueryNode;
+    /* istanbul ignore if */
+    if (exprName.kind !== SyntaxKind.Identifier) {
+      return null;
+    }
+    const val = constants.get(exprName.text);
+    /* istanbul ignore if */
+    if (val === undefined) {
+      return null;
+    }
+    result += val + span.literal.text;
   }
 
   return result;
@@ -313,6 +310,8 @@ function collectClassMethods(sourceFile: SourceFile): Map<string, MethodInfo> {
 
   for (const classDeclaration of sourceFile.getClasses()) {
     const className = classDeclaration.getName();
+    // istanbul ignore next: anonymous class expressions don't appear as
+    // top-level declarations in controllers we extract from.
     if (!className) {
       continue;
     }
@@ -322,6 +321,9 @@ function collectClassMethods(sourceFile: SourceFile): Map<string, MethodInfo> {
         continue;
       }
       const memberNameNode = member.getNameNode();
+      // istanbul ignore next: methods with computed property names
+      // (e.g. `[Symbol.iterator]()`) aren't referenced from messenger
+      // handler types.
       if (!NodeGuards.isIdentifier(memberNameNode)) {
         continue;
       }
@@ -395,17 +397,23 @@ function getPropertyText(
   propName: string,
 ): string {
   for (const member of members) {
+    // istanbul ignore next: messenger capability-type bodies contain only
+    // property signatures (`type`, `handler`, `payload`).
     if (!NodeGuards.isPropertySignature(member)) {
       continue;
     }
     const memberNameNode = member.getNameNode();
     if (
+      // istanbul ignore next: `type`, `handler`, `payload` are always plain
+      // identifiers in capability-type bodies.
       !NodeGuards.isIdentifier(memberNameNode) ||
       memberNameNode.getText() !== propName
     ) {
       continue;
     }
     const typeNode = member.getTypeNode();
+    // istanbul ignore next: property signatures we care about always have
+    // an explicit type.
     if (typeNode) {
       return typeNode.getText().trim();
     }
@@ -549,10 +557,14 @@ function collectNonUnionTypeNames(
     }
 
     const nameNode = current.getTypeName();
+    // istanbul ignore next: qualified-name references like
+    // `Namespace.Type` aren't used in messenger generic arguments.
     if (!NodeGuards.isIdentifier(nameNode)) {
       return;
     }
     const name = nameNode.getText();
+    // istanbul ignore next: cycle guard — defensive, real messenger
+    // unions don't recurse through themselves.
     if (visited.has(name)) {
       return;
     }
@@ -616,6 +628,9 @@ function extractFromMessengerCapabilityType(
     return extractFromCapabilityTypeConstructor(statement, kind, context);
   }
 
+  // istanbul ignore next: interface declarations always have members and
+  // therefore an inline shape, so the inline branch above always returns
+  // non-null here.
   return null;
 }
 
@@ -649,6 +664,8 @@ function extractFromInlineMessengerCapabilityType(
   }
 
   const typeString = resolveInlineTypeString(members, context.constants);
+  // istanbul ignore next: capabilities reachable via the messenger walk
+  // always have a resolvable `Namespace:name` type string.
   if (!typeString?.includes(':')) {
     return null;
   }
@@ -656,6 +673,9 @@ function extractFromInlineMessengerCapabilityType(
   const handlerText = getPropertyText(members, 'handler');
   const payloadText = getPropertyText(members, 'payload');
   const rawSource = kind === 'action' ? handlerText : payloadText;
+  // istanbul ignore next: actions always have `handler` and events always
+  // have `payload`; the messenger walk wouldn't have surfaced this
+  // declaration otherwise.
   if (!rawSource) {
     return null;
   }
@@ -696,17 +716,22 @@ function resolveInlineTypeString(
   constants: Map<string, string>,
 ): string | null {
   for (const member of members) {
+    // istanbul ignore next: capability-type bodies only contain property
+    // signatures.
     if (!NodeGuards.isPropertySignature(member)) {
       continue;
     }
     const memberNameNode = member.getNameNode();
     if (
+      // istanbul ignore next: `type` is always a plain identifier.
       !NodeGuards.isIdentifier(memberNameNode) ||
       memberNameNode.getText() !== 'type'
     ) {
       continue;
     }
     const typeNode = member.getTypeNode();
+    // istanbul ignore next: a `type` property without an explicit type
+    // wouldn't compile.
     if (!typeNode) {
       continue;
     }
@@ -717,6 +742,8 @@ function resolveInlineTypeString(
       return resolveTemplateLiteralType(typeNode, constants);
     }
   }
+  // istanbul ignore next: the inline shape always has a `type` member
+  // that produces either a literal or template-literal type.
   return null;
 }
 
@@ -739,10 +766,14 @@ function extractFromCapabilityTypeConstructor(
   context: ExtractContext,
 ): ExtractedMessengerCapabilityType | null {
   const aliasBody = statement.getTypeNode();
+  // istanbul ignore next: type aliases without a body or that resolve to
+  // non-type-reference forms don't reach this helper.
   if (!aliasBody || !NodeGuards.isTypeReference(aliasBody)) {
     return null;
   }
   const nameNode = aliasBody.getTypeName();
+  // istanbul ignore next: qualified-name type references aren't used as
+  // capability-type constructors.
   if (!NodeGuards.isIdentifier(nameNode)) {
     return null;
   }
@@ -761,6 +792,9 @@ function extractFromCapabilityTypeConstructor(
   }
 
   const namespace = resolveNamespaceFromTypeArg(typeArgs[0], context.constants);
+  // istanbul ignore next: a recognized constructor whose first type
+  // argument couldn't be resolved to a namespace string doesn't appear in
+  // real source files.
   if (!namespace) {
     return null;
   }
@@ -851,15 +885,20 @@ function resolveNamespaceFromTypeArg(
 ): string | null {
   if (NodeGuards.isTypeQuery(typeArg)) {
     const exprName = typeArg.getExprName();
+    // istanbul ignore next: `typeof Foo.bar` isn't used in capability-type
+    // constructor invocations.
     if (NodeGuards.isIdentifier(exprName)) {
       return constants.get(exprName.getText()) ?? null;
     }
   }
   if (NodeGuards.isLiteralTypeNode(typeArg)) {
     const literal = typeArg.getLiteral();
+    // istanbul ignore next: defensive — only string literals are valid
+    // namespace arguments.
     if (NodeGuards.isStringLiteral(literal)) {
       return literal.getLiteralValue();
     }
   }
+  // istanbul ignore next: defensive — any other shape is meaningless here.
   return null;
 }

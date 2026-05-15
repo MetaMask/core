@@ -1016,6 +1016,304 @@ export type OldAction = {
     });
   });
 
+  it('ignores types that look like Messenger but are not type references', async () => {
+    expect.assertions(1);
+
+    await withinSandbox(async ({ directoryPath }) => {
+      const filePath = path.join(directoryPath, 'types.ts');
+      // The walker bails out for anything that isn't `Messenger<...>` —
+      // including bare aliases like `type FooMessenger = string`. Adding
+      // such a type should not produce any capability docs.
+      await fs.promises.writeFile(
+        filePath,
+        `
+export type FooMessenger = string;
+
+export type ShouldNotShowAction = {
+  type: 'Foo:do';
+  handler: () => void;
+};
+`,
+      );
+
+      const items = await extractFromFile(filePath, directoryPath);
+
+      expect(items).toStrictEqual([]);
+    });
+  });
+
+  it('ignores Messenger types with fewer than three type arguments', async () => {
+    expect.assertions(1);
+
+    await withinSandbox(async ({ directoryPath }) => {
+      const filePath = path.join(directoryPath, 'types.ts');
+      // The current `Messenger<Namespace, Actions, Events>` shape requires
+      // three type arguments. A two-arg `Messenger<A, E>` (legacy form) is
+      // not supported and should be skipped silently.
+      await fs.promises.writeFile(
+        filePath,
+        `
+export type FooMessenger = Messenger<Actions, Events>;
+
+export type ShouldNotShowAction = {
+  type: 'Foo:do';
+  handler: () => void;
+};
+`,
+      );
+
+      const items = await extractFromFile(filePath, directoryPath);
+
+      expect(items).toStrictEqual([]);
+    });
+  });
+
+  it('ignores union members that are not type references', async () => {
+    expect.assertions(2);
+
+    await withinSandbox(async ({ directoryPath }) => {
+      const filePath = path.join(directoryPath, 'types.ts');
+      // `never` inside an Actions union is a `KeywordTypeNode` (not a
+      // `TypeReference`); the walker should skip it without throwing and
+      // still document the real action sitting next to it.
+      await fs.promises.writeFile(
+        filePath,
+        `
+export type FooGetAction = {
+  type: 'Foo:get';
+  handler: () => void;
+};
+
+export type FooMessenger = Messenger<'Foo', FooGetAction | never, never>;
+`,
+      );
+
+      const items = await extractFromFile(filePath, directoryPath);
+
+      expect(items).toHaveLength(1);
+      expect(items[0].typeName).toBe('FooGetAction');
+    });
+  });
+
+  it('handles capability types where the `type` property is not declared first', async () => {
+    expect.assertions(2);
+
+    await withinSandbox(async ({ directoryPath }) => {
+      const filePath = path.join(directoryPath, 'types.ts');
+      // `handler` is declared before `type`, exercising the property-search
+      // loop's "this isn't the one we want, keep looking" branch.
+      await fs.promises.writeFile(
+        filePath,
+        withMessenger(
+          `
+export type FooAction = {
+  handler: () => void;
+  type: 'Foo:do';
+};
+`,
+          { actions: ['FooAction'] },
+        ),
+      );
+
+      const items = await extractFromFile(filePath, directoryPath);
+
+      expect(items).toHaveLength(1);
+      expect(items[0].typeString).toBe('Foo:do');
+    });
+  });
+
+  it('ignores externally-declared action references that are not local to the file', async () => {
+    expect.assertions(2);
+
+    await withinSandbox(async ({ directoryPath }) => {
+      const filePath = path.join(directoryPath, 'types.ts');
+      // `AllowedActions` is imported from elsewhere; the walker reaches its
+      // name as a leaf but it has no local declaration to resolve, so the
+      // extractor should ignore it without crashing.
+      await fs.promises.writeFile(
+        filePath,
+        `
+import type { AllowedActions } from '@metamask/other';
+
+export type LocalAction = {
+  type: 'Local:do';
+  handler: () => void;
+};
+
+export type LocalMessenger = Messenger<'Local', LocalAction | AllowedActions, never>;
+`,
+      );
+
+      const items = await extractFromFile(filePath, directoryPath);
+
+      // Only the locally-declared action is documented; the imported name
+      // is left alone (and will be documented from its home package).
+      expect(items).toHaveLength(1);
+      expect(items[0].typeName).toBe('LocalAction');
+    });
+  });
+
+  it('does not double-extract a capability referenced by two messengers', async () => {
+    expect.assertions(2);
+
+    await withinSandbox(async ({ directoryPath }) => {
+      const filePath = path.join(directoryPath, 'types.ts');
+      // Two messengers both reference the same action type; extraction
+      // should produce exactly one item.
+      await fs.promises.writeFile(
+        filePath,
+        `
+export type SharedAction = {
+  type: 'Shared:do';
+  handler: () => void;
+};
+
+export type FirstMessenger = Messenger<'First', SharedAction, never>;
+export type SecondMessenger = Messenger<'Second', SharedAction, never>;
+`,
+      );
+
+      const items = await extractFromFile(filePath, directoryPath);
+
+      expect(items).toHaveLength(1);
+      expect(items[0].typeName).toBe('SharedAction');
+    });
+  });
+
+  it('ignores capability-type-constructor aliases whose name does not match', async () => {
+    expect.assertions(1);
+
+    await withinSandbox(async ({ directoryPath }) => {
+      const filePath = path.join(directoryPath, 'types.ts');
+      // The Messenger references a type that resolves to a generic with an
+      // unknown constructor name — neither inline shape nor a recognized
+      // helper, so nothing is extracted.
+      await fs.promises.writeFile(
+        filePath,
+        `
+type SomeUnrelatedHelper<T, S> = { type: T; state: S };
+
+export type WeirdAction = SomeUnrelatedHelper<'Weird:do', WeirdState>;
+
+export type WeirdMessenger = Messenger<'Weird', WeirdAction, never>;
+`,
+      );
+
+      const items = await extractFromFile(filePath, directoryPath);
+
+      expect(items).toStrictEqual([]);
+    });
+  });
+
+  it('ignores capability-type-constructor aliases with insufficient type arguments', async () => {
+    expect.assertions(1);
+
+    await withinSandbox(async ({ directoryPath }) => {
+      const filePath = path.join(directoryPath, 'types.ts');
+      // ControllerGetStateAction is the recognized name, but here it only
+      // has one type argument — extraction should bail rather than guess.
+      await fs.promises.writeFile(
+        filePath,
+        `
+type ControllerGetStateAction<T> = { type: T; handler: () => void };
+
+export type ShortAction = ControllerGetStateAction<'Short'>;
+
+export type ShortMessenger = Messenger<'Short', ShortAction, never>;
+`,
+      );
+
+      const items = await extractFromFile(filePath, directoryPath);
+
+      expect(items).toStrictEqual([]);
+    });
+  });
+
+  it('skips `.json` imports without trying to chase them', async () => {
+    expect.assertions(2);
+
+    await withinSandbox(async ({ directoryPath }) => {
+      const filePath = path.join(directoryPath, 'types.ts');
+      // Real-world pattern: `import pkg from '../package.json'`. The
+      // resolver shouldn't try to resolve such imports as TS files.
+      await fs.promises.writeFile(
+        filePath,
+        withMessenger(
+          `
+import packageJson from './package.json';
+
+export type FooAction = {
+  type: 'Foo:do';
+  handler: () => typeof packageJson;
+};
+`,
+          { actions: ['FooAction'] },
+        ),
+      );
+
+      const items = await extractFromFile(filePath, directoryPath);
+
+      expect(items).toHaveLength(1);
+      expect(items[0].typeName).toBe('FooAction');
+    });
+  });
+
+  it('skips imports whose candidate paths do not exist on disk', async () => {
+    expect.assertions(1);
+
+    await withinSandbox(async ({ directoryPath }) => {
+      const filePath = path.join(directoryPath, 'types.ts');
+      // Relative import points to a missing file — the resolver should
+      // continue past every candidate without throwing.
+      await fs.promises.writeFile(
+        filePath,
+        withMessenger(
+          `
+import { MISSING } from './does-not-exist';
+
+export type FooAction = {
+  type: 'Foo:do';
+  handler: () => typeof MISSING;
+};
+`,
+          { actions: ['FooAction'] },
+        ),
+      );
+
+      const items = await extractFromFile(filePath, directoryPath);
+
+      expect(items).toHaveLength(1);
+    });
+  });
+
+  it('ignores destructured `const` declarations', async () => {
+    expect.assertions(1);
+
+    await withinSandbox(async ({ directoryPath }) => {
+      const filePath = path.join(directoryPath, 'types.ts');
+      // Binding patterns aren't named constants; the resolver should
+      // simply skip them rather than crash.
+      await fs.promises.writeFile(
+        filePath,
+        withMessenger(
+          `
+const { x } = { x: 'IgnoredViaDestructure' };
+
+export type FooAction = {
+  type: 'Foo:do';
+  handler: () => void;
+};
+`,
+          { actions: ['FooAction'] },
+        ),
+      );
+
+      const items = await extractFromFile(filePath, directoryPath);
+
+      expect(items).toHaveLength(1);
+    });
+  });
+
   it('skips non-relative imports when resolving constants', async () => {
     expect.assertions(1);
 
