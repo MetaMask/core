@@ -237,8 +237,6 @@ export class MultichainAccountWallet<
     from: number,
     to: number,
   ): Promise<Bip44Account<Account>[]> {
-    const isBatching = to > from;
-
     try {
       return await provider.createAccounts({
         type: AccountCreationType.Bip44DeriveIndexRange,
@@ -251,12 +249,12 @@ export class MultichainAccountWallet<
     } catch (error) {
       reportError(
         this.#messenger,
-        `Unable to create ${isBatching ? 'some accounts (batch)' : 'some accounts'} with provider "${provider.getName()}"`,
+        `Unable to create accounts with provider "${provider.getName()}" (group indices ${from}–${to})`,
         error,
         {
           range: { from, to },
           provider: provider.getName(),
-          isBatching,
+          spansMultipleGroupIndices: to > from,
         },
       );
       throw error;
