@@ -5,6 +5,7 @@ import type {
   JSDocTag,
   MethodDeclaration,
   Node as TsMorphNode,
+  PropertySignature,
   SourceFile,
   TemplateLiteralTypeNode,
   TypeAliasDeclaration,
@@ -640,7 +641,7 @@ function resolveInlineTypeString(members: TypeElementTypes[]): string | null {
 function getPropertyMember(
   members: TypeElementTypes[],
   propName: string,
-): TypeElementTypes | null {
+): PropertySignature | null {
   for (const member of members) {
     // istanbul ignore next: capability-type bodies only contain property
     // signatures.
