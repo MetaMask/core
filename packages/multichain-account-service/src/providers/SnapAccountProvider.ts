@@ -1,7 +1,7 @@
 import { assertIsBip44Account } from '@metamask/account-api';
 import type { Bip44Account } from '@metamask/account-api';
 import type { TraceCallback, TraceRequest } from '@metamask/controller-utils';
-import type { SnapKeyring as SnapKeyringV2 } from '@metamask/eth-snap-keyring/v2';
+import type { SnapKeyring as SnapKeyringV2, isSnapKeyring } from '@metamask/eth-snap-keyring/v2';
 import {
   AccountCreationType,
   assertCreateAccountOptionIsSupported,
@@ -13,7 +13,6 @@ import type {
   EntropySourceId,
   KeyringAccount,
 } from '@metamask/keyring-api';
-import { Keyring, KeyringType } from '@metamask/keyring-api/v2';
 import type { KeyringMetadata } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import { KeyringClient } from '@metamask/keyring-snap-client';
@@ -71,18 +70,6 @@ export type SnapAccountProviderConfig = {
     autoRemoveExtraSnapAccounts?: boolean;
   };
 };
-
-// TODO: Move this in `eth-snap-keyring/v2` package?
-/**
- * Checks if a given keyring is a Snap keyring (v2).
- *
- * @param keyring - The keyring to check.
- * @returns `true` if the keyring is a Snap keyring (v2), `false` otherwise.
- */
-function isSnapKeyring(keyring: Keyring): keyring is SnapKeyringV2 {
-  // Using `KeyringType.Snap` (used for v2).
-  return keyring.type === KeyringType.Snap;
-}
 
 export abstract class SnapAccountProvider extends BaseBip44AccountProvider {
   readonly snapId: SnapId;

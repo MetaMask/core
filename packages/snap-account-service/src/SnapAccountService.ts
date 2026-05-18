@@ -3,7 +3,7 @@ import type {
   SnapKeyring as LegacySnapKeyring,
   SnapMessage,
 } from '@metamask/eth-snap-keyring';
-import { SnapKeyring, SnapKeyringState } from '@metamask/eth-snap-keyring/v2';
+import { SnapKeyring, SnapKeyringState, isSnapKeyring } from '@metamask/eth-snap-keyring/v2';
 import { KeyringEvent } from '@metamask/keyring-api';
 import { Keyring, KeyringType } from '@metamask/keyring-api/v2';
 import type {
@@ -155,17 +155,6 @@ function isLegacySnapKeyring(keyring: {
   type: BaseKeyring['type'];
 }): keyring is LegacySnapKeyring {
   return keyring.type === KeyringTypes.snap;
-}
-
-/**
- * Checks if a given keyring is a Snap keyring (v2).
- *
- * @param keyring - The keyring to check.
- * @returns `true` if the keyring is a Snap keyring (v2), `false` otherwise.
- */
-function isSnapKeyring(keyring: Keyring): keyring is SnapKeyring {
-  // Using `KeyringType.Snap` (used for v2).
-  return keyring.type === KeyringType.Snap;
 }
 
 /**
