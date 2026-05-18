@@ -81,9 +81,9 @@ describe('decodePermission', () => {
           enforcers,
           permissionDecoders: createPermissionDecodersForContracts(contracts),
         });
-        expect(rules.map((matchingRule) => matchingRule.permissionType)).toStrictEqual(
-          [expectedPermissionType],
-        );
+        expect(
+          rules.map((matchingRule) => matchingRule.permissionType),
+        ).toStrictEqual([expectedPermissionType]);
       });
 
       it('allows TimestampEnforcer as extra', () => {
@@ -97,9 +97,9 @@ describe('decodePermission', () => {
           enforcers,
           permissionDecoders: createPermissionDecodersForContracts(contracts),
         });
-        expect(rules.map((matchingRule) => matchingRule.permissionType)).toStrictEqual(
-          [expectedPermissionType],
-        );
+        expect(
+          rules.map((matchingRule) => matchingRule.permissionType),
+        ).toStrictEqual([expectedPermissionType]);
       });
 
       it('allows RedeemerEnforcer as extra', () => {
@@ -113,9 +113,9 @@ describe('decodePermission', () => {
           enforcers,
           permissionDecoders: createPermissionDecodersForContracts(contracts),
         });
-        expect(rules.map((matchingRule) => matchingRule.permissionType)).toStrictEqual(
-          [expectedPermissionType],
-        );
+        expect(
+          rules.map((matchingRule) => matchingRule.permissionType),
+        ).toStrictEqual([expectedPermissionType]);
       });
 
       it('allows TimestampEnforcer and RedeemerEnforcer as extras', () => {
@@ -130,9 +130,9 @@ describe('decodePermission', () => {
           enforcers,
           permissionDecoders: createPermissionDecodersForContracts(contracts),
         });
-        expect(rules.map((matchingRule) => matchingRule.permissionType)).toStrictEqual(
-          [expectedPermissionType],
-        );
+        expect(
+          rules.map((matchingRule) => matchingRule.permissionType),
+        ).toStrictEqual([expectedPermissionType]);
       });
 
       it('rejects forbidden extra caveat', () => {
@@ -169,9 +169,9 @@ describe('decodePermission', () => {
           enforcers,
           permissionDecoders: createPermissionDecodersForContracts(contracts),
         });
-        expect(rules.map((matchingRule) => matchingRule.permissionType)).toStrictEqual(
-          ['native-token-stream'],
-        );
+        expect(
+          rules.map((matchingRule) => matchingRule.permissionType),
+        ).toStrictEqual(['native-token-stream']);
       });
 
       it('throws if a contract is not found', () => {
@@ -308,9 +308,9 @@ describe('decodePermission', () => {
           enforcers,
           permissionDecoders: createPermissionDecodersForContracts(contracts),
         });
-        expect(rules.map((matchingRule) => matchingRule.permissionType)).toStrictEqual(
-          [expectedPermissionType],
-        );
+        expect(
+          rules.map((matchingRule) => matchingRule.permissionType),
+        ).toStrictEqual([expectedPermissionType]);
       });
 
       it('allows TimestampEnforcer as extra', () => {
@@ -324,9 +324,9 @@ describe('decodePermission', () => {
           enforcers,
           permissionDecoders: createPermissionDecodersForContracts(contracts),
         });
-        expect(rules.map((matchingRule) => matchingRule.permissionType)).toStrictEqual(
-          [expectedPermissionType],
-        );
+        expect(
+          rules.map((matchingRule) => matchingRule.permissionType),
+        ).toStrictEqual([expectedPermissionType]);
       });
 
       it('rejects forbidden extra caveat', () => {
@@ -363,9 +363,9 @@ describe('decodePermission', () => {
           enforcers,
           permissionDecoders: createPermissionDecodersForContracts(contracts),
         });
-        expect(rules.map((matchingRule) => matchingRule.permissionType)).toStrictEqual(
-          [expectedPermissionType],
-        );
+        expect(
+          rules.map((matchingRule) => matchingRule.permissionType),
+        ).toStrictEqual([expectedPermissionType]);
       });
 
       it('throws if a contract is not found', () => {
@@ -504,9 +504,9 @@ describe('decodePermission', () => {
           enforcers,
           permissionDecoders: createPermissionDecodersForContracts(contracts),
         });
-        expect(rules.map((matchingRule) => matchingRule.permissionType)).toStrictEqual(
-          [expectedPermissionType],
-        );
+        expect(
+          rules.map((matchingRule) => matchingRule.permissionType),
+        ).toStrictEqual([expectedPermissionType]);
       });
 
       it('allows TimestampEnforcer as extra', () => {
@@ -521,9 +521,9 @@ describe('decodePermission', () => {
           enforcers,
           permissionDecoders: createPermissionDecodersForContracts(contracts),
         });
-        expect(rules.map((matchingRule) => matchingRule.permissionType)).toStrictEqual(
-          [expectedPermissionType],
-        );
+        expect(
+          rules.map((matchingRule) => matchingRule.permissionType),
+        ).toStrictEqual([expectedPermissionType]);
       });
 
       it('rejects when only one AllowedCalldataEnforcer is provided', () => {
@@ -594,9 +594,9 @@ describe('decodePermission', () => {
           enforcers,
           permissionDecoders: createPermissionDecodersForContracts(contracts),
         });
-        expect(rules.map((matchingRule) => matchingRule.permissionType)).toStrictEqual(
-          [expectedPermissionType],
-        );
+        expect(
+          rules.map((matchingRule) => matchingRule.permissionType),
+        ).toStrictEqual([expectedPermissionType]);
       });
 
       it('throws if a contract is not found', () => {
