@@ -1053,18 +1053,18 @@ export class EarnController extends BaseController<
       : toHex(transactionData.gasLimit);
 
     const txHash = await this.#addTransactionFn(
-          {
-            ...transactionData,
-            value: transactionData.value.toString(),
-            chainId: toHex(chainId),
-            gasLimit,
-          },
-          {
-            ...txOptions,
-            networkClientId: selectedNetworkClientId,
-            isInternal: true,
-          },
-        );
+      {
+        ...transactionData,
+        value: transactionData.value.toString(),
+        chainId: toHex(chainId),
+        gasLimit,
+      },
+      {
+        ...txOptions,
+        networkClientId: selectedNetworkClientId,
+        isInternal: true,
+      },
+    );
 
     return txHash;
   }
@@ -1131,18 +1131,18 @@ export class EarnController extends BaseController<
       : toHex(transactionData.gasLimit);
 
     const txHash = await this.#addTransactionFn(
-          {
-            ...transactionData,
-            value: transactionData.value.toString(),
-            chainId: toHex(chainId),
-            gasLimit,
-          },
-          {
-            ...txOptions,
-            networkClientId: selectedNetworkClientId,
-            isInternal: true,
-          },
-        );
+      {
+        ...transactionData,
+        value: transactionData.value.toString(),
+        chainId: toHex(chainId),
+        gasLimit,
+      },
+      {
+        ...txOptions,
+        networkClientId: selectedNetworkClientId,
+        isInternal: true,
+      },
+    );
 
     return txHash;
   }
@@ -1209,18 +1209,18 @@ export class EarnController extends BaseController<
       : toHex(transactionData.gasLimit);
 
     const txHash = await this.#addTransactionFn(
-          {
-            ...transactionData,
-            value: transactionData.value.toString(),
-            chainId: toHex(chainId),
-            gasLimit,
-          },
-          {
-            ...txOptions,
-            networkClientId: selectedNetworkClientId,
-            isInternal: true,
-          },
-        );
+      {
+        ...transactionData,
+        value: transactionData.value.toString(),
+        chainId: toHex(chainId),
+        gasLimit,
+      },
+      {
+        ...txOptions,
+        networkClientId: selectedNetworkClientId,
+        isInternal: true,
+      },
+    );
 
     return txHash;
   }
