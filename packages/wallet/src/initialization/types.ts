@@ -24,10 +24,6 @@ export type InitFunctionArguments<Instance, InstanceMessenger> = {
 
 export type InitializationConfiguration<Instance, InstanceMessenger> = {
   name: InstanceName<Instance>;
-  // This is a method as opposed to function property in order to collect
-  // heterogeneous InitializationConfiguration values in a single array.
-  init(args: InitFunctionArguments<Instance, InstanceMessenger>): {
-    instance: Instance;
-  };
+  init(args: InitFunctionArguments<Instance, InstanceMessenger>): Instance;
   messenger(parent: RootMessenger): InstanceMessenger;
 };

@@ -66,12 +66,12 @@ describe('Wallet', () => {
         {
           name: 'KeyringController',
           messenger: () => new Messenger({ namespace: 'KeyringController' }),
-          init: () => ({ instance: new DummyController() }),
+          init: () => new DummyController(),
         },
         {
           name: 'TestService',
           messenger: () => new Messenger({ namespace: 'TestService' }),
-          init: () => ({ instance: new DummyService() }),
+          init: () => new DummyService(),
         },
       ],
     });

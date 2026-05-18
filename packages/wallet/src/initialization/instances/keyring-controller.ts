@@ -143,18 +143,13 @@ export const keyringController: InitializationConfiguration<
   KeyringControllerMessenger
 > = {
   name: 'KeyringController',
-  init: ({ state, messenger, options }) => {
-    const instance = new KeyringController({
+  init: ({ state, messenger, options }) =>
+    new KeyringController({
       state,
       messenger,
       keyringBuilders: options.keyringBuilders,
       encryptor: options.encryptor ?? encryptorFactory(600_000),
-    });
-
-    return {
-      instance,
-    };
-  },
+    }),
   messenger: (parent) =>
     new Messenger<'KeyringController', never, never, typeof parent>({
       namespace: 'KeyringController',

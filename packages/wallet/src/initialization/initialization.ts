@@ -32,7 +32,7 @@ export function initialize({
 
     const instanceMessenger = config.messenger(messenger);
 
-    const { instance } = config.init({
+    const instance = config.init({
       state: instanceState,
       messenger: instanceMessenger,
       options:
