@@ -1,7 +1,8 @@
 import { assertIsBip44Account } from '@metamask/account-api';
 import type { Bip44Account } from '@metamask/account-api';
 import type { TraceCallback, TraceRequest } from '@metamask/controller-utils';
-import type { SnapKeyring as SnapKeyringV2, isSnapKeyring } from '@metamask/eth-snap-keyring/v2';
+import type { SnapKeyring as SnapKeyringV2 } from '@metamask/eth-snap-keyring/v2';
+import { isSnapKeyring } from '@metamask/eth-snap-keyring/v2';
 import {
   AccountCreationType,
   assertCreateAccountOptionIsSupported,

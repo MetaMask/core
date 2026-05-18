@@ -3,9 +3,13 @@ import type {
   SnapKeyring as LegacySnapKeyring,
   SnapMessage,
 } from '@metamask/eth-snap-keyring';
-import { SnapKeyring, SnapKeyringState, isSnapKeyring } from '@metamask/eth-snap-keyring/v2';
+import {
+  SnapKeyring,
+  SnapKeyringState,
+  isSnapKeyring,
+} from '@metamask/eth-snap-keyring/v2';
 import { KeyringEvent } from '@metamask/keyring-api';
-import { Keyring, KeyringType } from '@metamask/keyring-api/v2';
+import { KeyringType } from '@metamask/keyring-api/v2';
 import type {
   KeyringControllerGetStateAction,
   KeyringControllerStateChangeEvent,
