@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/snap-account-service` from `^0.1.0` to `^0.2.0` ([#8844](https://github.com/MetaMask/core/pull/8844))
+
 ## [10.0.0]
 
 ### Changed
