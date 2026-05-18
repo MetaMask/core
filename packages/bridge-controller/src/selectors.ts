@@ -641,12 +641,12 @@ export const selectBatchSellQuotes = createStructuredBridgeSelector({
 
 const selectBatchSellFees = createBridgeSelector(
   [
-    (state) => state.batchSellTrades?.fee.amount,
-    (state) => state.batchSellTrades?.fee.asset,
+    (state) => state.batchSellTrades?.fee?.amount,
+    (state) => state.batchSellTrades?.fee?.asset,
     (state) =>
       selectExchangeRateByAssetId(
         state,
-        state.batchSellTrades?.fee.asset?.assetId,
+        state.batchSellTrades?.fee?.asset?.assetId,
       ),
   ],
   (feeAmount, feeAsset, exchangeRate) => {
