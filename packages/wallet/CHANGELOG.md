@@ -17,5 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Overrides the `fetch` implementation used by `NetworkController`'s RPC service. Defaults to `globalThis.fetch`. Allows platform-specific fetch implementations (e.g. React Native) to be injected.
 - Add optional `logger` field to `WalletOptions` ([#XXXX](https://github.com/MetaMask/core/pull/XXXX))
   - When provided, emits an `info`-level log after each controller finishes initializing: `[wallet] ${ControllerName}: initialized`. Defaults to no-op (no output). Pass `console` during development to observe initialization order.
+- Accept optional `initializationConfigurations` in the `Wallet` constructor ([#XXXX](https://github.com/MetaMask/core/pull/XXXX))
+  - Allows callers to override or extend the default set of controller configurations.
 
 [Unreleased]: https://github.com/MetaMask/core/
