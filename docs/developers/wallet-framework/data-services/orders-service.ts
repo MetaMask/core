@@ -14,6 +14,7 @@ import {
   literal,
   number,
   refine,
+  string,
   type,
   union,
   validate,
@@ -24,6 +25,8 @@ import {
   HexChecksumAddressStruct,
 } from '@metamask/utils';
 import type { QueryClientConfig } from '@tanstack/query-core';
+
+import type { OrdersServiceMethodActions } from './orders-service-method-action-types';
 
 /**
  * The name of the {@link OrdersService}, used to namespace the service's
@@ -46,7 +49,9 @@ export type OrdersServiceInvalidateQueriesAction =
 /**
  * Actions that {@link OrdersService} exposes to other consumers.
  */
-export type OrdersServiceActions = OrdersServiceInvalidateQueriesAction;
+export type OrdersServiceActions =
+  | OrdersServiceInvalidateQueriesAction
+  | OrdersServiceMethodActions;
 
 /**
  * Actions from other messengers that {@link OrdersService} calls.
@@ -103,6 +108,7 @@ const TimestampStruct = refine(number(), 'timestamp', (value) => {
  * Struct to validate an order object that the Orders API returns.
  */
 const OrderStruct = type({
+  id: string(),
   createdTime: TimestampStruct,
   fromAddress: HexAddressStruct,
   fromChainId: CaipChainIdStruct,
@@ -200,12 +206,12 @@ export class OrdersService extends BaseDataService<
   }: {
     sortField?: 'createdTime' | 'updatedTime';
     sortOrder?: 'asc' | 'desc';
-  }): Promise<FetchOrdersResponse> {
+  } = {}): Promise<FetchOrdersResponse> {
     const url = new URL('/v1/orders', BASE_URL);
     url.searchParams.append('sortField', sortField);
     url.searchParams.append('sortOrder', sortOrder);
 
-    const jsonResponse = await this.fetchQuery({
+    const responseData = await this.fetchQuery({
       queryKey: [`${this.name}:fetchOrders`, url.toString()],
       queryFn: async () => {
         const response = await fetch(url);
@@ -221,8 +227,8 @@ export class OrdersService extends BaseDataService<
       },
     });
 
-    const [error, validatedJsonResponse] = validate(
-      jsonResponse,
+    const [error, validatedResponseData] = validate(
+      responseData,
       FetchOrdersResponseStruct,
     );
     if (error) {
@@ -231,7 +237,7 @@ export class OrdersService extends BaseDataService<
       );
     }
 
-    return validatedJsonResponse;
+    return validatedResponseData;
   }
 
   /**
@@ -245,7 +251,7 @@ export class OrdersService extends BaseDataService<
   async fetchOrder({ id }: { id?: string }): Promise<FetchOrderResponse> {
     const url = new URL(`/v1/order/${id}`, BASE_URL);
 
-    const jsonResponse = await this.fetchQuery({
+    const responseData = await this.fetchQuery({
       queryKey: [`${this.name}:fetchOrder`, url.toString()],
       queryFn: async () => {
         const response = await fetch(url);
@@ -261,8 +267,8 @@ export class OrdersService extends BaseDataService<
       },
     });
 
-    const [error, validatedJsonResponse] = validate(
-      jsonResponse,
+    const [error, validatedResponseData] = validate(
+      responseData,
       FetchOrderResponseStruct,
     );
     if (error) {
@@ -271,6 +277,6 @@ export class OrdersService extends BaseDataService<
       );
     }
 
-    return validatedJsonResponse;
+    return validatedResponseData;
   }
 }

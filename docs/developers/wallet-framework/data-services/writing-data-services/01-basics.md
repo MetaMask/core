@@ -531,8 +531,6 @@ export type OrdersServiceMethodActions = OrdersServiceFetchOrdersAction;
 
 Before we move on, we need to make sure to test the data service class we've come up with so far.
 
-To keep this tutorial short, we won't go into detail on how to do this
-
 ### Requesting details for an order
 
 Now let's implement `GET /v1/orders/:id`. We'll do that by adding a `fetchOrder` method that follows the same steps as we did above.

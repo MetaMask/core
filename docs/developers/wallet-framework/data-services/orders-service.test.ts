@@ -7,49 +7,86 @@ import type {
 } from '@metamask/messenger';
 import nock from 'nock';
 
-import type { OrdersServiceMessenger } from './example';
-import { OrdersService } from './example';
+import type { OrdersServiceMessenger } from './orders-service';
+import { OrdersService } from './orders-service';
+
+const MOCK_RESPONSE_DATA = {
+  orders: [
+    {
+      id: '1',
+      createdTime: 123456,
+      fromAddress: '0x1',
+      fromChainId: '0x1',
+      status: 'pending',
+      toAddress: '0x2',
+      toChainId: '0x2',
+      tokenAddress: '0x999',
+      tokenAmount: '0x000000000',
+      updatedTime: 123456,
+    },
+    {
+      id: '2',
+      createdTime: 123456,
+      fromAddress: '0x1',
+      fromChainId: '0x1',
+      status: 'pending',
+      toAddress: '0x2',
+      toChainId: '0x2',
+      tokenAddress: '0x999',
+      tokenAmount: '0x000000000',
+      updatedTime: 123456,
+    },
+  ],
+};
 
 describe('OrdersService', () => {
   describe('OrdersService:fetchOrders', () => {
-    it('returns the low, average, and high gas prices from the API', async () => {
+    it('requests orders with the default sortField and sortOrder', async () => {
       nock('https://api.example.com')
-        .get('/gas-prices')
-        .query({ chainId: 'eip155:1' })
-        .reply(200, {
-          data: {
-            low: 5,
-            average: 10,
-            high: 15,
-          },
-        });
+        .get('/v1/orders')
+        .query({ sortField: 'createdTime', sortOrder: 'asc' })
+        .reply(200, MOCK_RESPONSE_DATA);
       const { rootMessenger } = createService();
 
-      const gasPricesResponse = await rootMessenger.call(
+      const responseData = await rootMessenger.call(
         'OrdersService:fetchOrders',
-        '0x1',
       );
 
-      expect(gasPricesResponse).toStrictEqual({
-        low: 5,
-        average: 10,
-        high: 15,
-      });
+      expect(responseData).toStrictEqual(MOCK_RESPONSE_DATA);
+    });
+
+    it('requests orders with the given sortField and sortOrder', async () => {
+      nock('https://api.example.com')
+        .get('/gas-prices')
+        .query({ sortField: 'updatedTime', sortOrder: 'desc' })
+        .reply(200, MOCK_RESPONSE_DATA);
+      const { rootMessenger } = createService();
+
+      const responseData = await rootMessenger.call(
+        'OrdersService:fetchOrders',
+        {
+          sortField: 'updatedTime',
+          sortOrder: 'desc',
+        },
+      );
+
+      expect(responseData).toStrictEqual(MOCK_RESPONSE_DATA);
     });
 
     it('throws if the API returns a non-200 status', async () => {
-      nock('https://api.example.com')
-        .get('/gas-prices')
-        .query({ chainId: 'eip155:1' })
+      nock('https://orders.metamask.io')
+        .get('/v1/orders')
+        .query({ sortField: 'createdTime', sortOrder: 'asc' })
         .times(DEFAULT_MAX_RETRIES + 1)
         .reply(500);
       const { rootMessenger } = createService();
 
       await expect(
-        rootMessenger.call('OrdersService:fetchOrders', '0x1'),
-      ).rejects.toThrow("Gas prices API failed with status '500'");
+        rootMessenger.call('OrdersService:fetchOrders'),
+      ).rejects.toThrow("Orders API failed with status '500'");
     });
 
+    // TODO: Update this test
     it.each([
       'not an object',
       { missing: 'data' },
@@ -63,14 +100,14 @@ describe('OrdersService', () => {
     ])(
       'throws if the API returns a malformed response %o',
       async (response) => {
-        nock('https://api.example.com')
-          .get('/gas-prices')
-          .query({ chainId: 'eip155:1' })
+        nock('https://orders.metamask.io')
+          .get('/v1/orders')
+          .query({ sortField: 'createdTime', sortOrder: 'asc' })
           .reply(200, JSON.stringify(response));
         const { rootMessenger } = createService();
 
         await expect(
-          rootMessenger.call('OrdersService:fetchOrders', '0x1'),
+          rootMessenger.call('OrdersService:fetchOrders'),
         ).rejects.toThrow('Malformed response received from gas prices API');
       },
     );
@@ -79,24 +116,14 @@ describe('OrdersService', () => {
   describe('fetchOrders', () => {
     it('does the same thing as the messenger action', async () => {
       nock('https://api.example.com')
-        .get('/gas-prices')
-        .query({ chainId: 'eip155:1' })
-        .reply(200, {
-          data: {
-            low: 5,
-            average: 10,
-            high: 15,
-          },
-        });
+        .get('/v1/orders')
+        .query({ sortField: 'createdTime', sortOrder: 'asc' })
+        .reply(200, MOCK_RESPONSE_DATA);
       const { service } = createService();
 
-      const gasPricesResponse = await service.fetchOrders('0x1');
+      const responseData = await service.fetchOrders();
 
-      expect(gasPricesResponse).toStrictEqual({
-        low: 5,
-        average: 10,
-        high: 15,
-      });
+      expect(responseData).toStrictEqual(MOCK_RESPONSE_DATA);
     });
   });
 });
