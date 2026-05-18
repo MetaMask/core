@@ -1,6 +1,7 @@
 import { KeyringController } from '@metamask/keyring-controller';
 import { Messenger } from '@metamask/messenger';
 import { Json } from '@metamask/utils';
+import { webcrypto } from 'crypto';
 
 import MockEncryptor from '../../keyring-controller/tests/mocks/mockEncryptor';
 import * as initializationModule from './initialization';
@@ -19,6 +20,12 @@ async function setupWallet(): Promise<Wallet> {
 }
 
 describe('Wallet', () => {
+  beforeAll(() => {
+    // We can remove this once we drop Node 18
+    // eslint-disable-next-line n/no-unsupported-features/node-builtins
+    globalThis.crypto ??= webcrypto as typeof globalThis.crypto;
+  });
+
   it('exposes state', async () => {
     const wallet = await setupWallet();
     const { state } = wallet;
@@ -65,13 +72,15 @@ describe('Wallet', () => {
       initializationConfigurations: [
         {
           name: 'KeyringController',
-          messenger: () => new Messenger({ namespace: 'KeyringController' }),
-          init: () => new DummyController(),
+          messenger: (): Messenger<string> =>
+            new Messenger({ namespace: 'KeyringController' }),
+          init: (): DummyController => new DummyController(),
         },
         {
           name: 'TestService',
-          messenger: () => new Messenger({ namespace: 'TestService' }),
-          init: () => new DummyService(),
+          messenger: (): Messenger<string> =>
+            new Messenger({ namespace: 'TestService' }),
+          init: (): DummyService => new DummyService(),
         },
       ],
     });
@@ -81,7 +90,7 @@ describe('Wallet', () => {
       foo: 'bar',
     });
 
-    expect((state as Record<string, Json>)['TestService']).toBeNull();
+    expect((state as Record<string, Json>).TestService).toBeNull();
   });
 
   it('exposes controllerMetadata for each initialized controller', async () => {
@@ -171,7 +180,7 @@ describe('Wallet', () => {
       const wallet = await setupWallet();
       const { messenger } = wallet;
 
-      expect(await messenger.call('KeyringController:setLocked'));
+      await messenger.call('KeyringController:setLocked');
 
       expect(wallet.state.KeyringController).toStrictEqual({
         isUnlocked: false,
