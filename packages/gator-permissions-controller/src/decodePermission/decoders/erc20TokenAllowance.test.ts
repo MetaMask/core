@@ -5,22 +5,20 @@ import {
   DELEGATOR_CONTRACTS,
 } from '@metamask/delegation-deployments';
 
-import { createPermissionRulesForContracts } from '.';
+import { createPermissionDecodersForContracts } from '.';
+import { ZERO_32_BYTES } from '../utils';
 
-describe('native-token-allowance rule', () => {
+describe('erc20-token-allowance decoder', () => {
   const chainId = CHAIN_ID.sepolia;
   const contracts = DELEGATOR_CONTRACTS['1.3.0'][chainId];
-  const {
-    TimestampEnforcer,
-    NativeTokenPeriodTransferEnforcer,
-    ExactCalldataEnforcer,
-  } = contracts;
-  const permissionRules = createPermissionRulesForContracts(contracts);
-  const rule = permissionRules.find(
-    (candidate) => candidate.permissionType === 'native-token-allowance',
+  const { TimestampEnforcer, ERC20PeriodTransferEnforcer, ValueLteEnforcer } =
+    contracts;
+  const permissionDecoders = createPermissionDecodersForContracts(contracts);
+  const decoder = permissionDecoders.find(
+    (candidate) => candidate.permissionType === 'erc20-token-allowance',
   );
-  if (!rule) {
-    throw new Error('Rule not found');
+  if (!decoder) {
+    throw new Error('Decoder not found');
   }
 
   const expiryCaveat = {
@@ -32,37 +30,38 @@ describe('native-token-allowance rule', () => {
     args: '0x' as const,
   };
 
-  const exactCalldataCaveat = {
-    enforcer: ExactCalldataEnforcer,
-    terms: '0x' as Hex,
+  const valueLteCaveat = {
+    enforcer: ValueLteEnforcer,
+    terms: ZERO_32_BYTES,
     args: '0x' as const,
   };
 
-  const PERIOD_AMOUNT_HEX = 100n.toString(16).padStart(64, '0');
+  const TOKEN_ADDRESS_HEX = 'aa'.repeat(20);
+  const TOKEN_ADDRESS: Hex = `0x${TOKEN_ADDRESS_HEX}`;
+  const ALLOWANCE_AMOUNT_HEX = 100n.toString(16).padStart(64, '0');
   const PERIOD_DURATION_MAX_HEX = 'f'.repeat(64);
   const START_DATE_HEX = (1715664).toString(16).padStart(64, '0');
   const ALLOWANCE_TERMS =
-    `0x${PERIOD_AMOUNT_HEX}${PERIOD_DURATION_MAX_HEX}${START_DATE_HEX}` as Hex;
+    `0x${TOKEN_ADDRESS_HEX}${ALLOWANCE_AMOUNT_HEX}${PERIOD_DURATION_MAX_HEX}${START_DATE_HEX}` as Hex;
 
-  it('rejects duplicate NativeTokenPeriodTransferEnforcer caveats', () => {
+  it('rejects duplicate ERC20PeriodTransferEnforcer caveats', () => {
     const caveats = [
       expiryCaveat,
-      exactCalldataCaveat,
+      valueLteCaveat,
       {
-        enforcer: NativeTokenPeriodTransferEnforcer,
+        enforcer: ERC20PeriodTransferEnforcer,
         terms: ALLOWANCE_TERMS,
         args: '0x' as const,
       },
       {
-        enforcer: NativeTokenPeriodTransferEnforcer,
+        enforcer: ERC20PeriodTransferEnforcer,
         terms: ALLOWANCE_TERMS,
         args: '0x' as const,
       },
     ];
-    const result = rule.validateAndDecodePermission(caveats);
+    const result = decoder.validateAndDecodePermission(caveats);
     expect(result.isValid).toBe(false);
 
-    // this is here as a type guard
     if (result.isValid) {
       throw new Error('Expected invalid result');
     }
@@ -71,19 +70,19 @@ describe('native-token-allowance rule', () => {
   });
 
   it('rejects truncated terms', () => {
-    const truncatedTerms: Hex = `0x${'00'.repeat(40)}`; // 40 bytes, need 96
+    const truncatedTerms: Hex = `0x${'00'.repeat(40)}`; // 40 bytes, need 116
 
     const caveats = [
       expiryCaveat,
-      exactCalldataCaveat,
+      valueLteCaveat,
       {
-        enforcer: NativeTokenPeriodTransferEnforcer,
+        enforcer: ERC20PeriodTransferEnforcer,
         terms: truncatedTerms,
         args: '0x' as const,
       },
     ];
 
-    const result = rule.validateAndDecodePermission(caveats);
+    const result = decoder.validateAndDecodePermission(caveats);
     expect(result.isValid).toBe(false);
 
     if (result.isValid) {
@@ -91,7 +90,7 @@ describe('native-token-allowance rule', () => {
     }
 
     expect(result.error.message).toContain(
-      'Invalid native-token-allowance terms: expected 96 bytes',
+      'Invalid erc20-token-allowance terms: expected 116 bytes',
     );
   });
 
@@ -99,14 +98,14 @@ describe('native-token-allowance rule', () => {
     const termsWithTrailing = `${ALLOWANCE_TERMS}deadbeef` as Hex;
     const caveats = [
       expiryCaveat,
-      exactCalldataCaveat,
+      valueLteCaveat,
       {
-        enforcer: NativeTokenPeriodTransferEnforcer,
+        enforcer: ERC20PeriodTransferEnforcer,
         terms: termsWithTrailing,
         args: '0x' as const,
       },
     ];
-    const result = rule.validateAndDecodePermission(caveats);
+    const result = decoder.validateAndDecodePermission(caveats);
     expect(result.isValid).toBe(false);
 
     if (result.isValid) {
@@ -114,25 +113,26 @@ describe('native-token-allowance rule', () => {
     }
 
     expect(result.error.message).toContain(
-      'Invalid native-token-allowance terms: expected 96 bytes',
+      'Invalid erc20-token-allowance terms: expected 116 bytes',
     );
   });
 
-  it('rejects when ExactCalldataEnforcer terms are not 0x', () => {
+  it('rejects when ValueLteEnforcer terms are not zero', () => {
+    const nonZeroValueLte: Hex = `0x${'0'.repeat(62)}01` as Hex;
     const caveats = [
       expiryCaveat,
       {
-        enforcer: ExactCalldataEnforcer,
-        terms: '0x00' as Hex,
+        enforcer: ValueLteEnforcer,
+        terms: nonZeroValueLte,
         args: '0x' as const,
       },
       {
-        enforcer: NativeTokenPeriodTransferEnforcer,
+        enforcer: ERC20PeriodTransferEnforcer,
         terms: ALLOWANCE_TERMS,
         args: '0x' as const,
       },
     ];
-    const result = rule.validateAndDecodePermission(caveats);
+    const result = decoder.validateAndDecodePermission(caveats);
     expect(result.isValid).toBe(false);
 
     if (result.isValid) {
@@ -140,22 +140,22 @@ describe('native-token-allowance rule', () => {
     }
 
     expect(result.error.message).toContain(
-      'Invalid exact-calldata terms: must be 0x',
+      `Invalid value-lte terms: must be ${ZERO_32_BYTES}`,
     );
   });
 
-  it('successfully decodes valid native-token-allowance caveats', () => {
+  it('successfully decodes valid erc20-token-allowance caveats', () => {
     const caveats = [
       expiryCaveat,
-      exactCalldataCaveat,
+      valueLteCaveat,
       {
-        enforcer: NativeTokenPeriodTransferEnforcer,
+        enforcer: ERC20PeriodTransferEnforcer,
         terms: ALLOWANCE_TERMS,
         args: '0x' as const,
       },
     ];
 
-    const result = rule.validateAndDecodePermission(caveats);
+    const result = decoder.validateAndDecodePermission(caveats);
     expect(result.isValid).toBe(true);
 
     if (!result.isValid) {
@@ -164,7 +164,8 @@ describe('native-token-allowance rule', () => {
 
     expect(result.expiry).toBe(1720000);
     expect(result.data).toStrictEqual({
-      allowanceAmount: `0x${PERIOD_AMOUNT_HEX}`,
+      tokenAddress: TOKEN_ADDRESS,
+      allowanceAmount: `0x${ALLOWANCE_AMOUNT_HEX}`,
       startTime: 1715664,
     });
   });
@@ -172,37 +173,37 @@ describe('native-token-allowance rule', () => {
   it('successfully decodes when periodDuration uses uppercase UINT256_MAX', () => {
     const uppercaseMax = 'F'.repeat(64);
     const terms =
-      `0x${PERIOD_AMOUNT_HEX}${uppercaseMax}${START_DATE_HEX}` as Hex;
+      `0x${TOKEN_ADDRESS_HEX}${ALLOWANCE_AMOUNT_HEX}${uppercaseMax}${START_DATE_HEX}` as Hex;
 
     const caveats = [
       expiryCaveat,
-      exactCalldataCaveat,
+      valueLteCaveat,
       {
-        enforcer: NativeTokenPeriodTransferEnforcer,
+        enforcer: ERC20PeriodTransferEnforcer,
         terms,
         args: '0x' as const,
       },
     ];
 
-    const result = rule.validateAndDecodePermission(caveats);
+    const result = decoder.validateAndDecodePermission(caveats);
     expect(result.isValid).toBe(true);
   });
 
   it('rejects when periodDuration is not UINT256_MAX', () => {
     const nonMaxDuration = (86400).toString(16).padStart(64, '0');
     const terms =
-      `0x${PERIOD_AMOUNT_HEX}${nonMaxDuration}${START_DATE_HEX}` as Hex;
+      `0x${TOKEN_ADDRESS_HEX}${ALLOWANCE_AMOUNT_HEX}${nonMaxDuration}${START_DATE_HEX}` as Hex;
 
     const caveats = [
       expiryCaveat,
-      exactCalldataCaveat,
+      valueLteCaveat,
       {
-        enforcer: NativeTokenPeriodTransferEnforcer,
+        enforcer: ERC20PeriodTransferEnforcer,
         terms,
         args: '0x' as const,
       },
     ];
-    const result = rule.validateAndDecodePermission(caveats);
+    const result = decoder.validateAndDecodePermission(caveats);
     expect(result.isValid).toBe(false);
 
     if (result.isValid) {
@@ -210,24 +211,24 @@ describe('native-token-allowance rule', () => {
     }
 
     expect(result.error.message).toContain(
-      'Invalid native-token-allowance terms: periodDuration must be UINT256_MAX',
+      'Invalid erc20-token-allowance terms: periodDuration must be UINT256_MAX',
     );
   });
 
   it('rejects when startTime is 0', () => {
     const startTimeZero = '0'.repeat(64);
     const terms =
-      `0x${PERIOD_AMOUNT_HEX}${PERIOD_DURATION_MAX_HEX}${startTimeZero}` as Hex;
+      `0x${TOKEN_ADDRESS_HEX}${ALLOWANCE_AMOUNT_HEX}${PERIOD_DURATION_MAX_HEX}${startTimeZero}` as Hex;
     const caveats = [
       expiryCaveat,
-      exactCalldataCaveat,
+      valueLteCaveat,
       {
-        enforcer: NativeTokenPeriodTransferEnforcer,
+        enforcer: ERC20PeriodTransferEnforcer,
         terms,
         args: '0x' as const,
       },
     ];
-    const result = rule.validateAndDecodePermission(caveats);
+    const result = decoder.validateAndDecodePermission(caveats);
     expect(result.isValid).toBe(false);
 
     if (result.isValid) {
@@ -235,26 +236,26 @@ describe('native-token-allowance rule', () => {
     }
 
     expect(result.error.message).toContain(
-      'Invalid native-token-allowance terms: startTime must be a positive number',
+      'Invalid erc20-token-allowance terms: startTime must be a positive number',
     );
   });
 
   it('rejects when allowanceAmount is 0', () => {
     const allowanceZero = '0'.repeat(64);
     const terms =
-      `0x${allowanceZero}${PERIOD_DURATION_MAX_HEX}${START_DATE_HEX}` as Hex;
+      `0x${TOKEN_ADDRESS_HEX}${allowanceZero}${PERIOD_DURATION_MAX_HEX}${START_DATE_HEX}` as Hex;
 
     const caveats = [
       expiryCaveat,
-      exactCalldataCaveat,
+      valueLteCaveat,
       {
-        enforcer: NativeTokenPeriodTransferEnforcer,
+        enforcer: ERC20PeriodTransferEnforcer,
         terms,
         args: '0x' as const,
       },
     ];
 
-    const result = rule.validateAndDecodePermission(caveats);
+    const result = decoder.validateAndDecodePermission(caveats);
     expect(result.isValid).toBe(false);
 
     if (result.isValid) {
@@ -262,7 +263,7 @@ describe('native-token-allowance rule', () => {
     }
 
     expect(result.error.message).toContain(
-      'Invalid native-token-allowance terms: allowanceAmount must be a positive number',
+      'Invalid erc20-token-allowance terms: allowanceAmount must be a positive number',
     );
   });
 });
