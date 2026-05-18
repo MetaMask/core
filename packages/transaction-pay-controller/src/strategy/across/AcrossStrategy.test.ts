@@ -249,6 +249,33 @@ describe('AcrossStrategy', () => {
     ).toBe(true);
   });
 
+  it('supports post-quote perps withdraw requests with HyperLiquid source', () => {
+    const strategy = new AcrossStrategy();
+    expect(
+      strategy.supports({
+        ...baseRequest,
+        transaction: {
+          ...TRANSACTION_META_MOCK,
+          type: TransactionType.perpsWithdraw,
+        } as TransactionMeta,
+        requests: [
+          {
+            from: '0xabc' as Hex,
+            isHyperliquidSource: true,
+            isPostQuote: true,
+            sourceBalanceRaw: '100',
+            sourceChainId: CHAIN_ID_ARBITRUM,
+            sourceTokenAddress: ARBITRUM_USDC_ADDRESS,
+            sourceTokenAmount: '100',
+            targetAmountMinimum: '0',
+            targetChainId: CHAIN_ID_ARBITRUM,
+            targetTokenAddress: ARBITRUM_USDC_ADDRESS,
+          },
+        ],
+      }),
+    ).toBe(true);
+  });
+
   it('does not support post-quote requests outside predict withdraw', () => {
     const strategy = new AcrossStrategy();
     expect(

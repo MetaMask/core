@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add Across quote and submit support for HyperLiquid-source Perps withdraw flows ([#8841](https://github.com/MetaMask/core/pull/8841))
+
 ### Changed
 
 - Bump `@metamask/gas-fee-controller` from `^26.2.1` to `^26.2.2` ([#8834](https://github.com/MetaMask/core/pull/8834))

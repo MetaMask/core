@@ -815,6 +815,11 @@ export enum TransactionType {
   perpsAcrossDeposit = 'perpsAcrossDeposit',
 
   /**
+   * Withdraw funds for Across quote via Perps.
+   */
+  perpsAcrossWithdraw = 'perpsAcrossWithdraw',
+
+  /**
    * Deposit funds to be available for trading via Perps.
    */
   perpsDeposit = 'perpsDeposit',

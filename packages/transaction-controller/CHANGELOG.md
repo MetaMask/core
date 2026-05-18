@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `perpsAcrossWithdraw` to the `TransactionType` enum ([#8841](https://github.com/MetaMask/core/pull/8841))
+
 ### Changed
 
 - Bump `@metamask/core-backend` from `^6.2.2` to `^6.3.0` ([#8813](https://github.com/MetaMask/core/pull/8813))

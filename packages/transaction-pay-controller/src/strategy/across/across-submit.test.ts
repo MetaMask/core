@@ -713,6 +713,56 @@ describe('Across Submit', () => {
       );
     });
 
+    it('does not prepend the original transaction and uses perps withdraw type for post-quote HyperLiquid source withdraws', async () => {
+      const postQuote = {
+        ...QUOTE_MOCK,
+        original: {
+          ...QUOTE_MOCK.original,
+          metamask: {
+            gasLimits: [{ estimate: 22000, max: 22000 }],
+            is7702: false,
+          },
+          quote: {
+            ...QUOTE_MOCK.original.quote,
+            approvalTxns: [],
+          },
+        },
+        request: {
+          ...QUOTE_MOCK.request,
+          isHyperliquidSource: true,
+          isPostQuote: true,
+        },
+      } as TransactionPayQuote<AcrossQuote>;
+
+      await submitAcrossQuotes({
+        messenger,
+        quotes: [postQuote],
+        transaction: {
+          ...TRANSACTION_META_MOCK,
+          type: TransactionType.perpsWithdraw,
+          txParams: {
+            from: FROM_MOCK,
+            to: '0x000000000000000000000000000000000000dEaD' as Hex,
+            data: '0x12345678' as Hex,
+            value: '0x1' as Hex,
+          },
+        } as TransactionMeta,
+        isSmartTransaction: jest.fn(),
+      });
+
+      expect(addTransactionBatchMock).not.toHaveBeenCalled();
+      expect(addTransactionMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: QUOTE_MOCK.original.quote.swapTx.data,
+          gas: toHex(22000),
+          to: QUOTE_MOCK.original.quote.swapTx.to,
+        }),
+        expect.objectContaining({
+          type: TransactionType.perpsAcrossWithdraw,
+        }),
+      );
+    });
+
     it('keeps Across gas limits aligned when post-quote original gas is absent', async () => {
       const postQuote = {
         ...QUOTE_MOCK,
