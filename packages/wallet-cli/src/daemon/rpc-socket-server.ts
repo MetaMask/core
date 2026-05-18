@@ -1,4 +1,5 @@
 import { rpcErrors } from '@metamask/rpc-errors';
+import { validate as validateStruct } from '@metamask/superstruct';
 import type {
   JsonRpcId,
   JsonRpcParams,
@@ -229,7 +230,23 @@ async function handleRequest(
       };
     }
 
-    const result = await handler(coerceHandlerParams(params));
+    const [structError, validatedParams] = validateStruct(
+      coerceHandlerParams(params),
+      handler.paramsStruct,
+    );
+    if (structError !== undefined) {
+      return {
+        jsonrpc: '2.0',
+        id,
+        error: rpcErrors
+          .invalidParams({
+            message: `Invalid params for ${method}: ${structError.message}`,
+          })
+          .serialize(),
+      };
+    }
+
+    const result = await handler.run(validatedParams);
     return { jsonrpc: '2.0', id, result: result ?? null };
   } catch (error) {
     log(`RPC handler "${method}" failed: ${String(error)}`);

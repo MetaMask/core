@@ -1,10 +1,26 @@
+import { any, literal } from '@metamask/superstruct';
 import { EventEmitter } from 'node:events';
 import { chmod, unlink } from 'node:fs/promises';
 import { createServer } from 'node:net';
 import type { Server, Socket } from 'node:net';
 
 import { startRpcSocketServer } from './rpc-socket-server';
-import type { RpcHandlerMap } from './types';
+import type { RpcHandlerDefinition, RpcHandlerMap } from './types';
+
+/**
+ * Wrap a `jest.fn` as an {@link RpcHandlerDefinition} so existing tests can
+ * register a handler without writing out the `{ paramsStruct, run }` shape.
+ * Defaults to `any()` so the struct guard never rejects the test inputs.
+ *
+ * @param run - The mocked handler function.
+ * @returns A handler definition with an `any()` paramsStruct.
+ */
+function asHandler(run: jest.Mock): RpcHandlerDefinition<unknown, never> {
+  return {
+    paramsStruct: any(),
+    run: run as unknown as RpcHandlerDefinition<unknown, never>['run'],
+  };
+}
 
 jest.mock('node:fs/promises');
 jest.mock('node:net');
@@ -224,7 +240,7 @@ describe('startRpcSocketServer', () => {
     it('dispatches valid request to handler and returns result', async () => {
       const { simulateConnection } = createMockServer();
       const handlers: RpcHandlerMap = {
-        getStatus: jest.fn().mockResolvedValue({ status: 'ok' }),
+        getStatus: asHandler(jest.fn().mockResolvedValue({ status: 'ok' })),
       };
 
       await startRpcSocketServer({
@@ -252,7 +268,7 @@ describe('startRpcSocketServer', () => {
     it('returns null result when handler returns undefined', async () => {
       const { simulateConnection } = createMockServer();
       const handlers: RpcHandlerMap = {
-        noop: jest.fn().mockResolvedValue(undefined),
+        noop: asHandler(jest.fn().mockResolvedValue(undefined)),
       };
 
       await startRpcSocketServer({
@@ -367,7 +383,9 @@ describe('startRpcSocketServer', () => {
     it('returns -32603 when handler throws an Error', async () => {
       const { simulateConnection } = createMockServer();
       const handlers: RpcHandlerMap = {
-        failing: jest.fn().mockRejectedValue(new Error('handler failed')),
+        failing: asHandler(
+          jest.fn().mockRejectedValue(new Error('handler failed')),
+        ),
       };
 
       await startRpcSocketServer({
@@ -393,7 +411,7 @@ describe('startRpcSocketServer', () => {
       const { simulateConnection } = createMockServer();
       const rpcError = { code: -32001, message: 'custom rpc' };
       const handlers: RpcHandlerMap = {
-        failing: jest.fn().mockRejectedValue(rpcError),
+        failing: asHandler(jest.fn().mockRejectedValue(rpcError)),
       };
 
       await startRpcSocketServer({
@@ -416,7 +434,7 @@ describe('startRpcSocketServer', () => {
     it('returns Internal error when handler throws a non-Error value', async () => {
       const { simulateConnection } = createMockServer();
       const handlers: RpcHandlerMap = {
-        failing: jest.fn().mockRejectedValue('string error'),
+        failing: asHandler(jest.fn().mockRejectedValue('string error')),
       };
 
       await startRpcSocketServer({
@@ -540,7 +558,7 @@ describe('startRpcSocketServer', () => {
     it('accumulates partial data across multiple events', async () => {
       const { simulateConnection } = createMockServer();
       const handlers: RpcHandlerMap = {
-        test: jest.fn().mockResolvedValue('ok'),
+        test: asHandler(jest.fn().mockResolvedValue('ok')),
       };
 
       await startRpcSocketServer({
@@ -619,7 +637,7 @@ describe('startRpcSocketServer', () => {
       const circular: Record<string, unknown> = {};
       circular.self = circular;
       const handlers: RpcHandlerMap = {
-        bad: jest.fn().mockResolvedValue(circular),
+        bad: asHandler(jest.fn().mockResolvedValue(circular)),
       };
 
       await startRpcSocketServer({
@@ -691,10 +709,45 @@ describe('startRpcSocketServer', () => {
       jest.useRealTimers();
     });
 
+    it('returns -32602 when params fail the registered struct', async () => {
+      const { simulateConnection } = createMockServer();
+      const run = jest.fn();
+      const handlers: RpcHandlerMap = {
+        strict: {
+          paramsStruct: literal('expected'),
+          run: run as unknown as RpcHandlerMap[string]['run'],
+        },
+      };
+
+      await startRpcSocketServer({
+        socketPath: '/tmp/test.sock',
+        handlers,
+      });
+
+      const socket = createMockSocket();
+      simulateConnection(socket);
+      sendRequest(socket, {
+        jsonrpc: '2.0',
+        id: '1',
+        method: 'strict',
+        params: ['something else'],
+      });
+
+      await flushPromises();
+
+      expect(getResponse(socket).error).toStrictEqual(
+        expect.objectContaining({
+          code: -32602,
+          message: expect.stringContaining('Invalid params for strict'),
+        }),
+      );
+      expect(run).not.toHaveBeenCalled();
+    });
+
     it('wraps thrown object with code but no message as internal error', async () => {
       const { simulateConnection } = createMockServer();
       const handlers: RpcHandlerMap = {
-        failing: jest.fn().mockRejectedValue({ code: 42 }),
+        failing: asHandler(jest.fn().mockRejectedValue({ code: 42 })),
       };
 
       await startRpcSocketServer({
