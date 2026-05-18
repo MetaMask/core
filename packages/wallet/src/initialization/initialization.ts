@@ -32,6 +32,7 @@ export function initialize({
     });
 
     instances[name] = instance as Record<string, unknown>;
+    options.logger?.info(`[wallet] ${name}: initialized`);
   }
 
   return instances as DefaultInstances;
