@@ -46,6 +46,18 @@ describe('Wallet', () => {
     });
   });
 
+  it('exposes instances', async () => {
+    const wallet = await setupWallet();
+
+    expect(wallet.getInstance('KeyringController').state).toStrictEqual({
+      isUnlocked: true,
+      keyrings: expect.any(Array),
+      encryptionKey: expect.any(String),
+      encryptionSalt: expect.any(String),
+      vault: expect.any(String),
+    });
+  });
+
   it('supports passing instance options', async () => {
     const wallet = new Wallet({
       instanceOptions: {

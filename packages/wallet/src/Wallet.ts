@@ -61,6 +61,17 @@ export class Wallet {
     return this.#controllerMetadata;
   }
 
+  /**
+   * Get an instantiated controller or service.
+   * 
+   * @param name - The name.
+   * @returns - The instance.
+   * @deprecated - Please use the messenger instead of direct access.
+   */
+  getInstance(name: keyof DefaultInstances) {
+    return this.#instances[name];
+  }
+
   async destroy(): Promise<void> {
     if (this.#destroyed) {
       return;
