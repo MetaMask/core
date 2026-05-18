@@ -77,7 +77,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **BREAKING:** Add optional `isInternal` flag to `addTransaction` and `addTransactionBatch`; internal-only validations are now gated by `isInternal` instead of `origin === ORIGIN_METAMASK` — callers that previously relied on `origin === ORIGIN_METAMASK` to bypass dapp restrictions must now pass `isInternal: true` ([#8633](https://github.com/MetaMask/core/pull/8633))
 - Bump `@metamask/accounts-controller` from `^37.2.0` to `^38.0.0` ([#8665](https://github.com/MetaMask/core/pull/8665))
 - Bump `@metamask/messenger` from `^1.1.1` to `^1.2.0` ([#8632](https://github.com/MetaMask/core/pull/8632))
 - Bump `@metamask/network-controller` from `^30.0.1` to `^30.1.0` ([#8636](https://github.com/MetaMask/core/pull/8636))
