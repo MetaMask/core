@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.0]
+
 ### Added
 
 - Add `SnapAccountService{GetLegacySnapKeyring,HandleKeyringSnapMessage}Action` ([#8842](https://github.com/MetaMask/core/pull/8842))
@@ -44,5 +46,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/messenger` from `^1.1.1` to `^1.2.0` ([#8632](https://github.com/MetaMask/core/pull/8632))
 - Bump `@metamask/account-tree-controller` from `^7.3.0` to `^7.4.0` ([#8783](https://github.com/MetaMask/core/pull/8783))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/snap-account-service@0.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/snap-account-service@0.2.0...HEAD
+[0.2.0]: https://github.com/MetaMask/core/compare/@metamask/snap-account-service@0.1.0...@metamask/snap-account-service@0.2.0
 [0.1.0]: https://github.com/MetaMask/core/releases/tag/@metamask/snap-account-service@0.1.0
