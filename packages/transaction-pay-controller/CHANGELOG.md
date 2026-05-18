@@ -67,6 +67,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/bridge-status-controller` from `^71.1.4` to `^71.2.0` ([#8848](https://github.com/MetaMask/core/pull/8848))
 - Bump `@metamask/transaction-controller` from `^65.4.0` to `^66.0.0` ([#8848](https://github.com/MetaMask/core/pull/8848))
 - Bump `@metamask/gas-fee-controller` from `^26.2.1` to `^26.2.2` ([#8834](https://github.com/MetaMask/core/pull/8834))
+- `getLiveTokenBalance` now prefers the Infura RPC endpoint for a chain when querying live token balances, falling back to the chain's default endpoint if no Infura endpoint is configured ([#XXXX](https://github.com/MetaMask/core/pull/XXXX))
 
 ### Fixed
 

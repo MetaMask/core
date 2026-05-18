@@ -1,5 +1,4 @@
-import { Contract } from '@ethersproject/contracts';
-import { Web3Provider } from '@ethersproject/providers';
+import { Interface } from '@ethersproject/abi';
 import { TokensControllerState } from '@metamask/assets-controllers';
 import { toChecksumHexAddress } from '@metamask/controller-utils';
 import { abiERC20 } from '@metamask/metamask-eth-abis';
@@ -15,6 +14,7 @@ import {
 } from '../constants';
 import type { FiatRates, TransactionPayControllerMessenger } from '../types';
 import { getAssetsUnifyStateFeature } from './feature-flags';
+import { getNetworkClientId, rpcRequest } from './provider';
 
 /**
  * Check if two tokens are the same (same address and chain).
@@ -306,6 +306,10 @@ export function getNativeToken(chainId: Hex): Hex {
  * Unlike {@link getTokenBalance}, this bypasses the cached state in
  * `TokenBalancesController` and reads directly from the chain.
  *
+ * Uses the Infura RPC endpoint for the chain when one is configured, falling
+ * back to the chain's default endpoint. This avoids errors on custom mainnet
+ * RPC endpoints that may not support pending block queries.
+ *
  * @param messenger - Controller messenger.
  * @param account - Address of the account.
  * @param chainId - Chain ID.
@@ -318,31 +322,35 @@ export async function getLiveTokenBalance(
   chainId: Hex,
   tokenAddress: Hex,
 ): Promise<string> {
-  const networkClientId = messenger.call(
-    'NetworkController:findNetworkClientIdByChainId',
-    chainId,
-  );
-
-  const { provider } = messenger.call(
-    'NetworkController:getNetworkClientById',
-    networkClientId,
-  );
-
-  const ethersProvider = new Web3Provider(provider);
+  const options = { preferInfura: true };
   const isNative =
     tokenAddress.toLowerCase() === getNativeToken(chainId).toLowerCase();
 
-  // Use `pending` blockTag to bypass the RPC block-cache middleware so callers
-  // always observe the latest balance instead of a value pinned to the last
-  // polled block.
   if (isNative) {
-    const balance = await ethersProvider.getBalance(account, 'pending');
-    return balance.toString();
+    const result = await rpcRequest(
+      messenger,
+      chainId,
+      'eth_getBalance',
+      [account, 'pending'],
+      options,
+    );
+
+    return new BigNumber(result as string, 16).toString(10);
   }
 
-  const contract = new Contract(tokenAddress, abiERC20, ethersProvider);
-  const balance = await contract.balanceOf(account, { blockTag: 'pending' });
-  return balance.toString();
+  const calldata = new Interface(abiERC20).encodeFunctionData('balanceOf', [
+    account,
+  ]) as Hex;
+
+  const result = await rpcRequest(
+    messenger,
+    chainId,
+    'eth_call',
+    [{ to: tokenAddress, data: calldata }, 'pending'],
+    options,
+  );
+
+  return new BigNumber(result as string, 16).toString(10);
 }
 
 /**
@@ -385,17 +393,12 @@ function getTicker(
   messenger: TransactionPayControllerMessenger,
 ): string | undefined {
   try {
-    const networkClientId = messenger.call(
-      'NetworkController:findNetworkClientIdByChainId',
-      chainId,
-    );
+    const networkClientId = getNetworkClientId(messenger, chainId);
 
-    const networkConfiguration = messenger.call(
+    return messenger.call(
       'NetworkController:getNetworkClientById',
       networkClientId,
-    );
-
-    return networkConfiguration.configuration.ticker;
+    ).configuration.ticker;
   } catch {
     return undefined;
   }
@@ -447,3 +450,5 @@ export function normalizeTokenAddress(
 
   return tokenAddress;
 }
+
+

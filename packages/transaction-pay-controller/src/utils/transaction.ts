@@ -1,5 +1,4 @@
 import { Interface } from '@ethersproject/abi';
-import { Web3Provider } from '@ethersproject/providers';
 import { abiERC20 } from '@metamask/metamask-eth-abis';
 import {
   TransactionStatus,
@@ -19,6 +18,7 @@ import type {
   UpdateTransactionDataCallback,
 } from '../types';
 import { getAssetsUnifyStateFeature } from './feature-flags';
+import { getNetworkClientId, rpcRequest } from './provider';
 import { parseRequiredTokens } from './required-tokens';
 import { getNativeToken } from './token';
 
@@ -396,17 +396,16 @@ export async function getTransferredAmountFromTxHash({
   tokenAddress: Hex;
   walletAddress: Hex;
 }): Promise<string | undefined> {
-  const provider = getEthersProvider(messenger, chainId);
-
   const isNative =
     tokenAddress.toLowerCase() === getNativeToken(chainId).toLowerCase();
 
   if (isNative) {
-    return await getNativeTransferAmount(provider, txHash, walletAddress);
+    return await getNativeTransferAmount(messenger, chainId, txHash, walletAddress);
   }
 
   return await getErc20TransferAmount(
-    provider,
+    messenger,
+    chainId,
     txHash,
     tokenAddress,
     walletAddress,
@@ -421,23 +420,25 @@ export async function getTransferredAmountFromTxHash({
  * 2. Falls back to the top-level `tx.value` when the wallet is the direct
  *    recipient and the trace RPC is unavailable or errors.
  *
- * @param provider - Ethers Web3Provider.
+ * @param messenger - Controller messenger.
+ * @param chainId - Chain ID where the transaction was executed.
  * @param txHash - Transaction hash.
  * @param walletAddress - Recipient wallet address.
  * @returns Raw amount as a decimal string, or `undefined`.
  */
 async function getNativeTransferAmount(
-  provider: Web3Provider,
+  messenger: TransactionPayControllerMessenger,
+  chainId: Hex,
   txHash: string,
   walletAddress: Hex,
 ): Promise<string | undefined> {
   try {
-    const trace = await provider.send('debug_traceTransaction', [
+    const trace = await rpcRequest(messenger, chainId, 'debug_traceTransaction', [
       txHash,
       { tracer: 'callTracer' },
     ]);
 
-    const amount = sumNativeValueFromTrace(trace, walletAddress);
+    const amount = sumNativeValueFromTrace(trace as CallTrace, walletAddress);
     if (amount.gt(0)) {
       return amount.toFixed(0);
     }
@@ -445,7 +446,11 @@ async function getNativeTransferAmount(
     // debug_traceTransaction not supported — fall through to tx.value
   }
 
-  const tx = await provider.getTransaction(txHash);
+  const tx = await rpcRequest(messenger, chainId, 'eth_getTransactionByHash', [txHash]) as {
+    to?: string;
+    value: string;
+  } | null;
+
   if (!tx) {
     return undefined;
   }
@@ -454,26 +459,30 @@ async function getNativeTransferAmount(
     return undefined;
   }
 
-  return positiveOrUndefined(tx.value.toString());
+  return positiveOrUndefined(new BigNumber(tx.value).toFixed(0));
 }
 
 /**
  * Resolves the ERC-20 token amount received by a wallet from a transaction
  * by decoding `Transfer` event logs from the transaction receipt.
  *
- * @param provider - Ethers Web3Provider.
+ * @param messenger - Controller messenger.
+ * @param chainId - Chain ID where the transaction was executed.
  * @param txHash - Transaction hash.
  * @param tokenAddress - ERC-20 token contract address.
  * @param walletAddress - Recipient wallet address.
  * @returns Raw amount as a decimal string, or `undefined`.
  */
 async function getErc20TransferAmount(
-  provider: Web3Provider,
+  messenger: TransactionPayControllerMessenger,
+  chainId: Hex,
   txHash: string,
   tokenAddress: Hex,
   walletAddress: Hex,
 ): Promise<string | undefined> {
-  const receipt = await provider.getTransactionReceipt(txHash);
+  const receipt = await rpcRequest(messenger, chainId, 'eth_getTransactionReceipt', [txHash]) as {
+    logs: { address: string; topics: string[]; data: string }[];
+  } | null;
 
   if (!receipt) {
     return undefined;
@@ -542,23 +551,6 @@ function sumNativeValueFromTrace(
   }
 
   return total;
-}
-
-function getEthersProvider(
-  messenger: TransactionPayControllerMessenger,
-  chainId: Hex,
-): Web3Provider {
-  const networkClientId = messenger.call(
-    'NetworkController:findNetworkClientIdByChainId',
-    chainId,
-  );
-
-  const { provider } = messenger.call(
-    'NetworkController:getNetworkClientById',
-    networkClientId,
-  );
-
-  return new Web3Provider(provider);
 }
 
 function positiveOrUndefined(amount: string): string | undefined {

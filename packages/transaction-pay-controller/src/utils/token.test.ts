@@ -1,8 +1,10 @@
-import { Contract } from '@ethersproject/contracts';
-import { Web3Provider } from '@ethersproject/providers';
+import { Interface } from '@ethersproject/abi';
 import type { TokensControllerState } from '@metamask/assets-controllers';
 import type { AccountTrackerControllerState } from '@metamask/assets-controllers';
 import type { TokenRatesControllerState } from '@metamask/assets-controllers';
+import { abiERC20 } from '@metamask/metamask-eth-abis';
+import { RpcEndpointType } from '@metamask/network-controller';
+import type { NetworkConfiguration } from '@metamask/network-controller';
 import type { Hex } from '@metamask/utils';
 
 import { getDefaultRemoteFeatureFlagControllerState } from '../../../remote-feature-flag-controller/src/remote-feature-flag-controller';
@@ -26,15 +28,6 @@ import {
   TokenAddressTarget,
 } from './token';
 
-jest.mock('@ethersproject/contracts', () => ({
-  ...jest.requireActual('@ethersproject/contracts'),
-  Contract: jest.fn(),
-}));
-
-jest.mock('@ethersproject/providers', () => ({
-  ...jest.requireActual('@ethersproject/providers'),
-  Web3Provider: jest.fn(),
-}));
 
 const TOKEN_ADDRESS_MOCK = '0x559B65722aD62AD6DAC4Fa5a1c6B23A2e8ce57Ec' as Hex;
 const TOKEN_ADDRESS_2_MOCK = '0x123456789abcdef1234567890abcdef12345678' as Hex;
@@ -43,6 +36,7 @@ const DECIMALS_MOCK = 6;
 const BALANCE_MOCK = '0x123' as Hex;
 const FROM_MOCK = '0x456' as Hex;
 const NETWORK_CLIENT_ID_MOCK = '123-456';
+const INFURA_NETWORK_CLIENT_ID_MOCK = 'mainnet';
 const TICKER_MOCK = 'TST';
 const SYMBOL_MOCK = 'TEST';
 const ACCOUNT_MOCK = '0x1234567890abcdef1234567890abcdef12345678' as Hex;
@@ -56,6 +50,7 @@ describe('Token Utils', () => {
     getRemoteFeatureFlagControllerStateMock,
     getTokensControllerStateMock,
     getNetworkClientByIdMock,
+    getNetworkConfigurationByChainIdMock,
     getTokenBalanceControllerStateMock,
     getAccountTrackerControllerStateMock,
     getTokenRatesControllerStateMock,
@@ -63,33 +58,20 @@ describe('Token Utils', () => {
     findNetworkClientIdByChainIdMock,
   } = getMessengerMock();
 
-  let mockBalanceOf: jest.Mock;
-  let mockGetBalance: jest.Mock;
-
   beforeEach(() => {
     jest.resetAllMocks();
-
-    mockBalanceOf = jest.fn();
-    mockGetBalance = jest.fn();
 
     getRemoteFeatureFlagControllerStateMock.mockReturnValue({
       ...getDefaultRemoteFeatureFlagControllerState(),
     });
 
     findNetworkClientIdByChainIdMock.mockReturnValue(NETWORK_CLIENT_ID_MOCK);
+    getNetworkConfigurationByChainIdMock.mockReturnValue(undefined);
 
     getNetworkClientByIdMock.mockReturnValue({
       configuration: { ticker: TICKER_MOCK },
       provider: PROVIDER_MOCK,
     } as never);
-
-    (Contract as unknown as jest.Mock).mockImplementation(() => ({
-      balanceOf: mockBalanceOf,
-    }));
-
-    (Web3Provider as unknown as jest.Mock).mockImplementation(() => ({
-      getBalance: mockGetBalance,
-    }));
   });
 
   function enableAssetsUnifyState(): void {
@@ -631,8 +613,8 @@ describe('Token Utils', () => {
   });
 
   describe('getLiveTokenBalance', () => {
-    it('returns ERC-20 balance via contract balanceOf', async () => {
-      mockBalanceOf.mockResolvedValue({ toString: () => '5000000' });
+    it('returns ERC-20 balance via eth_call', async () => {
+      (PROVIDER_MOCK.request as jest.Mock).mockResolvedValue('0x4C4B40');
 
       const result = await getLiveTokenBalance(
         messenger,
@@ -648,21 +630,22 @@ describe('Token Utils', () => {
       expect(getNetworkClientByIdMock).toHaveBeenCalledWith(
         NETWORK_CLIENT_ID_MOCK,
       );
-      expect(Web3Provider).toHaveBeenCalledWith(PROVIDER_MOCK);
-      expect(Contract).toHaveBeenCalledWith(
-        ERC20_ADDRESS_MOCK,
-        expect.anything(),
-        expect.anything(),
-      );
-      expect(mockBalanceOf).toHaveBeenCalledWith(ACCOUNT_MOCK, {
-        blockTag: 'pending',
+      expect(PROVIDER_MOCK.request).toHaveBeenCalledWith({
+        method: 'eth_call',
+        params: [
+          {
+            to: ERC20_ADDRESS_MOCK,
+            data: new Interface(abiERC20).encodeFunctionData('balanceOf', [
+              ACCOUNT_MOCK,
+            ]),
+          },
+          'pending',
+        ],
       });
     });
 
-    it('returns native balance via ethersProvider.getBalance', async () => {
-      mockGetBalance.mockResolvedValue({
-        toString: () => '1000000000000000000',
-      });
+    it('returns native balance via eth_getBalance', async () => {
+      (PROVIDER_MOCK.request as jest.Mock).mockResolvedValue('0xde0b6b3a7640000');
 
       const result = await getLiveTokenBalance(
         messenger,
@@ -672,14 +655,14 @@ describe('Token Utils', () => {
       );
 
       expect(result).toBe('1000000000000000000');
-      expect(mockGetBalance).toHaveBeenCalledWith(ACCOUNT_MOCK, 'pending');
-      expect(Contract).not.toHaveBeenCalled();
+      expect(PROVIDER_MOCK.request).toHaveBeenCalledWith({
+        method: 'eth_getBalance',
+        params: [ACCOUNT_MOCK, 'pending'],
+      });
     });
 
     it('returns native balance for polygon native address', async () => {
-      mockGetBalance.mockResolvedValue({
-        toString: () => '2000000000000000000',
-      });
+      (PROVIDER_MOCK.request as jest.Mock).mockResolvedValue('0x1bc16d674ec80000');
 
       const result = await getLiveTokenBalance(
         messenger,
@@ -689,12 +672,14 @@ describe('Token Utils', () => {
       );
 
       expect(result).toBe('2000000000000000000');
-      expect(mockGetBalance).toHaveBeenCalledWith(ACCOUNT_MOCK, 'pending');
-      expect(Contract).not.toHaveBeenCalled();
+      expect(PROVIDER_MOCK.request).toHaveBeenCalledWith({
+        method: 'eth_getBalance',
+        params: [ACCOUNT_MOCK, 'pending'],
+      });
     });
 
     it('treats native address comparison as case-insensitive', async () => {
-      mockGetBalance.mockResolvedValue({ toString: () => '500' });
+      (PROVIDER_MOCK.request as jest.Mock).mockResolvedValue('0x1f4');
 
       const result = await getLiveTokenBalance(
         messenger,
@@ -704,8 +689,90 @@ describe('Token Utils', () => {
       );
 
       expect(result).toBe('500');
-      expect(mockGetBalance).toHaveBeenCalledWith(ACCOUNT_MOCK, 'pending');
-      expect(Contract).not.toHaveBeenCalled();
+      expect(PROVIDER_MOCK.request).toHaveBeenCalledWith({
+        method: 'eth_getBalance',
+        params: [ACCOUNT_MOCK, 'pending'],
+      });
+    });
+
+    it('uses Infura network client when Infura endpoint is available', async () => {
+      (PROVIDER_MOCK.request as jest.Mock).mockResolvedValue('0x895440');
+
+      getNetworkConfigurationByChainIdMock.mockReturnValue({
+        rpcEndpoints: [
+          {
+            type: RpcEndpointType.Infura,
+            networkClientId: INFURA_NETWORK_CLIENT_ID_MOCK,
+          },
+        ],
+      } as NetworkConfiguration);
+
+      const result = await getLiveTokenBalance(
+        messenger,
+        ACCOUNT_MOCK,
+        CHAIN_ID_MOCK,
+        ERC20_ADDRESS_MOCK,
+      );
+
+      expect(result).toBe('9000000');
+      expect(getNetworkConfigurationByChainIdMock).toHaveBeenCalledWith(
+        CHAIN_ID_MOCK,
+      );
+      expect(getNetworkClientByIdMock).toHaveBeenCalledWith(
+        INFURA_NETWORK_CLIENT_ID_MOCK,
+      );
+      expect(findNetworkClientIdByChainIdMock).not.toHaveBeenCalled();
+    });
+
+    it('falls back to default network client when no Infura endpoint is configured', async () => {
+      (PROVIDER_MOCK.request as jest.Mock).mockResolvedValue('0x6ACFC0');
+
+      getNetworkConfigurationByChainIdMock.mockReturnValue({
+        rpcEndpoints: [
+          {
+            type: RpcEndpointType.Custom,
+            networkClientId: 'custom-rpc-id',
+          },
+        ],
+      } as NetworkConfiguration);
+
+      const result = await getLiveTokenBalance(
+        messenger,
+        ACCOUNT_MOCK,
+        CHAIN_ID_MOCK,
+        ERC20_ADDRESS_MOCK,
+      );
+
+      expect(result).toBe('7000000');
+      expect(findNetworkClientIdByChainIdMock).toHaveBeenCalledWith(
+        CHAIN_ID_MOCK,
+      );
+      expect(getNetworkClientByIdMock).toHaveBeenCalledWith(
+        NETWORK_CLIENT_ID_MOCK,
+      );
+    });
+
+    it('falls back to default network client when getNetworkConfigurationByChainId throws', async () => {
+      (PROVIDER_MOCK.request as jest.Mock).mockResolvedValue('0x2DC6C0');
+
+      getNetworkConfigurationByChainIdMock.mockImplementation(() => {
+        throw new Error('Network configuration not found');
+      });
+
+      const result = await getLiveTokenBalance(
+        messenger,
+        ACCOUNT_MOCK,
+        CHAIN_ID_MOCK,
+        ERC20_ADDRESS_MOCK,
+      );
+
+      expect(result).toBe('3000000');
+      expect(findNetworkClientIdByChainIdMock).toHaveBeenCalledWith(
+        CHAIN_ID_MOCK,
+      );
+      expect(getNetworkClientByIdMock).toHaveBeenCalledWith(
+        NETWORK_CLIENT_ID_MOCK,
+      );
     });
   });
 
