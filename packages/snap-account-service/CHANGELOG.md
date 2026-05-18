@@ -20,6 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - `SnapAccountService.ensureReady` now automatically creates the Snap keyring (v2) for a given Snap ID if it was not available ([#8732](https://github.com/MetaMask/core/pull/8732))
+- Bump `@metamask/eth-snap-keyring` from `^22.0.1` to `^22.1.0` ([#8732](https://github.com/MetaMask/core/pull/8732))
 
 ### Removed
 
