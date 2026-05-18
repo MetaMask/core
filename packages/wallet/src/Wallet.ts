@@ -13,7 +13,7 @@ import { initialize } from './initialization';
 import { WalletOptions } from './types';
 
 export class Wallet {
-  // TODO: Expand types when passing additionalConfigurations.
+  // TODO: Expand default types when passing additionalConfigurations.
   readonly #messenger: RootMessenger<DefaultActions, DefaultEvents>;
 
   readonly #instances: DefaultInstances;

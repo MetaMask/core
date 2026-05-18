@@ -2,6 +2,7 @@ import { KeyringController } from '@metamask/keyring-controller';
 import { Messenger } from '@metamask/messenger';
 import { Json } from '@metamask/utils';
 
+import MockEncryptor from '../../keyring-controller/tests/mocks/mockEncryptor';
 import * as initializationModule from './initialization';
 import { importSecretRecoveryPhrase } from './utilities';
 import { Wallet } from './Wallet';
@@ -28,6 +29,28 @@ describe('Wallet', () => {
       encryptionKey: expect.any(String),
       encryptionSalt: expect.any(String),
       vault: expect.any(String),
+    });
+  });
+
+  it('supports passing instance options', async () => {
+    const wallet = new Wallet({
+      instanceOptions: {
+        KeyringController: {
+          encryptor: new MockEncryptor(),
+        },
+      },
+    });
+
+    await importSecretRecoveryPhrase(wallet, TEST_PASSWORD, TEST_SRP);
+
+    const { state } = wallet;
+
+    const vault = JSON.parse(state.KeyringController.vault as string);
+
+    expect(vault).toStrictEqual({
+      data: expect.any(String),
+      iv: 'iv',
+      salt: 'salt',
     });
   });
 

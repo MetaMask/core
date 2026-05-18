@@ -1,4 +1,4 @@
-import { WalletOptions } from '../types';
+import type { InstanceSpecificOptions, WalletOptions } from '../types';
 import type { DefaultInstances } from './defaults';
 import { defaultConfigurations, RootMessenger } from './defaults';
 
@@ -35,7 +35,8 @@ export function initialize({
     const { instance } = config.init({
       state: instanceState,
       messenger: instanceMessenger,
-      options,
+      options:
+        options.instanceOptions?.[name as keyof InstanceSpecificOptions] ?? {},
     });
 
     instances[name] = instance as Record<string, unknown>;

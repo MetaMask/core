@@ -1,18 +1,29 @@
-import type { WalletOptions } from '../types';
+import type { InstanceSpecificOptions } from '../types';
 import type { RootMessenger } from './defaults';
 
 export type InstanceState<Instance> = Instance extends { state: unknown }
   ? Instance['state']
   : unknown;
 
+type InstanceName<Instance> = Instance extends {
+  name: infer Name extends string;
+}
+  ? Name
+  : string;
+
+type InstanceOptions<Instance> =
+  InstanceName<Instance> extends keyof InstanceSpecificOptions
+    ? NonNullable<InstanceSpecificOptions[InstanceName<Instance>]>
+    : unknown;
+
 export type InitFunctionArguments<Instance, InstanceMessenger> = {
   state: InstanceState<Instance>;
   messenger: InstanceMessenger;
-  options: WalletOptions;
+  options: InstanceOptions<Instance>;
 };
 
 export type InitializationConfiguration<Instance, InstanceMessenger> = {
-  name: string;
+  name: InstanceName<Instance>;
   // This is a method as opposed to function property in order to collect
   // heterogeneous InitializationConfiguration values in a single array.
   init(args: InitFunctionArguments<Instance, InstanceMessenger>): {

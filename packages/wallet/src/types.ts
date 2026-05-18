@@ -1,3 +1,4 @@
+import { KeyringControllerOptions } from '@metamask/keyring-controller';
 import type { Json } from '@metamask/utils';
 
 import type { InitializationConfiguration } from './initialization';
@@ -8,4 +9,11 @@ export type WalletOptions = {
     unknown,
     unknown
   >[];
+  instanceOptions?: InstanceSpecificOptions;
+};
+
+export type InstanceSpecificOptions = {
+  KeyringController?: Partial<
+    Pick<KeyringControllerOptions, 'encryptor' | 'keyringBuilders'>
+  >;
 };
