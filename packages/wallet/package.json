@@ -54,7 +54,10 @@
   },
   "dependencies": {
     "@metamask/base-controller": "^9.1.0",
+    "@metamask/browser-passworder": "^6.0.0",
+    "@metamask/keyring-controller": "^25.5.0",
     "@metamask/messenger": "^1.2.0",
+    "@metamask/scure-bip39": "^2.1.1",
     "@metamask/utils": "^11.11.0"
   },
   "devDependencies": {
