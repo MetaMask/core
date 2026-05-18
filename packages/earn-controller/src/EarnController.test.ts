@@ -2143,16 +2143,17 @@ describe('EarnController', () => {
         expect(result).toBe('successfulhash');
 
         expect(addTransactionFn).toHaveBeenCalledWith(
-          {
-            ...mockTransactionData,
-            value: '0',
-            chainId: '0x1',
-            gasLimit: toHex(mockTransactionData.gasLimit),
-          },
-          {
-            networkClientId: '1',
-          },
-        );
+                  {
+                    ...mockTransactionData,
+                    value: '0',
+                    chainId: '0x1',
+                    gasLimit: toHex(mockTransactionData.gasLimit),
+                  },
+                  {
+                    networkClientId: '1',
+                    isInternal: true,
+                  },
+                );
       });
 
       it('executes lending deposit transaction with 0 gasLimit', async () => {
@@ -2199,16 +2200,17 @@ describe('EarnController', () => {
         expect(result).toBe('successfulhash');
 
         expect(addTransactionFn).toHaveBeenCalledWith(
-          {
-            ...mockTransactionData,
-            value: '0',
-            chainId: '0x1',
-            gasLimit: undefined,
-          },
-          {
-            networkClientId: '1',
-          },
-        );
+                  {
+                    ...mockTransactionData,
+                    value: '0',
+                    chainId: '0x1',
+                    gasLimit: undefined,
+                  },
+                  {
+                    networkClientId: '1',
+                    isInternal: true,
+                  },
+                );
       });
 
       it('handles error when encodeDepositTransactionData throws', async () => {
@@ -2370,16 +2372,17 @@ describe('EarnController', () => {
         ).toHaveBeenCalledWith('100', mockAccount1Address, {});
         expect(result).toBe('successfulhash');
         expect(addTransactionFn).toHaveBeenCalledWith(
-          {
-            ...mockTransactionData,
-            value: '0',
-            chainId: '0x1',
-            gasLimit: toHex(mockTransactionData.gasLimit),
-          },
-          {
-            networkClientId: '1',
-          },
-        );
+                  {
+                    ...mockTransactionData,
+                    value: '0',
+                    chainId: '0x1',
+                    gasLimit: toHex(mockTransactionData.gasLimit),
+                  },
+                  {
+                    networkClientId: '1',
+                    isInternal: true,
+                  },
+                );
       });
 
       it('executes lending withdraw transaction with 0 gasLimit', async () => {
@@ -2427,16 +2430,17 @@ describe('EarnController', () => {
         ).toHaveBeenCalledWith('100', mockAccount1Address, {});
         expect(result).toBe('successfulhash');
         expect(addTransactionFn).toHaveBeenCalledWith(
-          {
-            ...mockTransactionData,
-            value: '0',
-            chainId: '0x1',
-            gasLimit: undefined,
-          },
-          {
-            networkClientId: '1',
-          },
-        );
+                  {
+                    ...mockTransactionData,
+                    value: '0',
+                    chainId: '0x1',
+                    gasLimit: undefined,
+                  },
+                  {
+                    networkClientId: '1',
+                    isInternal: true,
+                  },
+                );
       });
 
       it('handles transaction data not found', async () => {
@@ -2564,16 +2568,17 @@ describe('EarnController', () => {
         ).toHaveBeenCalledWith('100', mockAccount1Address, {});
         expect(result).toBe('successfulhash');
         expect(addTransactionFn).toHaveBeenCalledWith(
-          {
-            ...mockTransactionData,
-            value: '0',
-            chainId: '0x1',
-            gasLimit: toHex(mockTransactionData.gasLimit),
-          },
-          {
-            networkClientId: '1',
-          },
-        );
+                  {
+                    ...mockTransactionData,
+                    value: '0',
+                    chainId: '0x1',
+                    gasLimit: toHex(mockTransactionData.gasLimit),
+                  },
+                  {
+                    networkClientId: '1',
+                    isInternal: true,
+                  },
+                );
       });
 
       it('executes lending token approve transaction with 0 gasLimit', async () => {
@@ -2621,16 +2626,17 @@ describe('EarnController', () => {
         ).toHaveBeenCalledWith('100', mockAccount1Address, {});
         expect(result).toBe('successfulhash');
         expect(addTransactionFn).toHaveBeenCalledWith(
-          {
-            ...mockTransactionData,
-            value: '0',
-            chainId: '0x1',
-            gasLimit: undefined,
-          },
-          {
-            networkClientId: '1',
-          },
-        );
+                  {
+                    ...mockTransactionData,
+                    value: '0',
+                    chainId: '0x1',
+                    gasLimit: undefined,
+                  },
+                  {
+                    networkClientId: '1',
+                    isInternal: true,
+                  },
+                );
       });
 
       it('handles transaction data not found', async () => {
