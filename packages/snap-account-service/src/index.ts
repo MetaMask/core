@@ -9,7 +9,6 @@ export type {
 export type {
   SnapAccountServiceEnsureReadyAction,
   SnapAccountServiceGetSnapsAction,
-  SnapAccountServiceGetLegacySnapKeyringAction,
   SnapAccountServiceHandleKeyringSnapMessageAction,
 } from './SnapAccountService-method-action-types';
 export { SnapPlatformWatcher } from './SnapPlatformWatcher';
