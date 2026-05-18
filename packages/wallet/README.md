@@ -43,6 +43,10 @@ for (const [name, metadata] of Object.entries(wallet.controllerMetadata)) {
 
 The `patches` argument contains Immer patches identifying exactly which top-level fields changed, so writes can be scoped rather than full-state replacements.
 
+## Architecture decisions
+
+- [Init-messenger pattern](./init-messenger-decision.md) — why the wallet uses a single messenger per controller rather than the extension/mobile two-messenger pattern, and when to revisit.
+
 ## Contributing
 
 This package is part of a monorepo. Instructions for contributing can be found in the [monorepo README](https://github.com/MetaMask/core#readme).
