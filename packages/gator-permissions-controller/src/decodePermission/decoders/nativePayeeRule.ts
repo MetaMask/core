@@ -15,7 +15,7 @@ import type { RuleDecoder } from '../types';
  * @param args.contractAddresses - Checksummed enforcer addresses for the chain.
  * @param args.caveats - Checksummed caveats from the delegation.
  * @param args.requiredEnforcers - Required enforcer counts for the permission.
- * @returns A `{ rule }` result containing the payee addresses when an
+ * @returns A `Rule` result containing the payee addresses when an
  * AllowedTargetsEnforcer caveat exists, otherwise `null`.
  * @throws If the AllowedTargetsEnforcer is also a required enforcer (the
  * payee enforcer must not be configured as required), or if multiple matching

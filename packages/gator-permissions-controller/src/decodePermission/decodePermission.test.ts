@@ -7,7 +7,6 @@ import {
 import { numberToHex } from '@metamask/utils';
 
 import {
-  findDecoderWithMatchingCaveatAddresses,
   findDecodersWithMatchingCaveatAddresses,
   reconstructDecodedPermission,
   selectUniqueDecoderAndDecodedPermission,
@@ -39,30 +38,8 @@ describe('decodePermission', () => {
     RedeemerEnforcer,
   } = contracts;
 
-  describe('getPermissionDecoderMatchingCaveatTypes()', () => {
+  describe('findDecodersWithMatchingCaveatAddresses()', () => {
     const zeroAddress = '0x0000000000000000000000000000000000000000' as Hex;
-
-    it('throws if multiple permission types match', () => {
-      // this test is a little convoluted, because in reality it can only happen
-      // if the deployed contracts are invalid, or the rules are malformed. In
-      // order to test the case, we are creating a contract set where the
-      // enforcers match both native-token-stream and native-token-periodic.
-      const enforcers = [ExactCalldataEnforcer, NonceEnforcer, zeroAddress];
-      const contractsWithDuplicates = {
-        ...contracts,
-        NativeTokenStreamingEnforcer: zeroAddress,
-        NativeTokenPeriodTransferEnforcer: zeroAddress,
-      } as unknown as DeployedContractsByName;
-
-      expect(() => {
-        findDecoderWithMatchingCaveatAddresses({
-          enforcers,
-          permissionDecoders: createPermissionDecodersForContracts(
-            contractsWithDuplicates,
-          ),
-        });
-      }).toThrow('Multiple permission types match');
-    });
 
     it('returns all matching rules from findDecodersWithMatchingCaveatAddresses', () => {
       const enforcers = [ExactCalldataEnforcer, NonceEnforcer, zeroAddress];
@@ -100,11 +77,13 @@ describe('decodePermission', () => {
           ExactCalldataEnforcer,
           NonceEnforcer,
         ];
-        const result = findDecoderWithMatchingCaveatAddresses({
+        const rules = findDecodersWithMatchingCaveatAddresses({
           enforcers,
           permissionDecoders: createPermissionDecodersForContracts(contracts),
         });
-        expect(result.permissionType).toBe(expectedPermissionType);
+        expect(rules.map((matchingRule) => matchingRule.permissionType)).toStrictEqual(
+          [expectedPermissionType],
+        );
       });
 
       it('allows TimestampEnforcer as extra', () => {
@@ -114,11 +93,13 @@ describe('decodePermission', () => {
           NonceEnforcer,
           TimestampEnforcer,
         ];
-        const result = findDecoderWithMatchingCaveatAddresses({
+        const rules = findDecodersWithMatchingCaveatAddresses({
           enforcers,
           permissionDecoders: createPermissionDecodersForContracts(contracts),
         });
-        expect(result.permissionType).toBe(expectedPermissionType);
+        expect(rules.map((matchingRule) => matchingRule.permissionType)).toStrictEqual(
+          [expectedPermissionType],
+        );
       });
 
       it('allows RedeemerEnforcer as extra', () => {
@@ -128,11 +109,13 @@ describe('decodePermission', () => {
           NonceEnforcer,
           RedeemerEnforcer,
         ];
-        const result = findDecoderWithMatchingCaveatAddresses({
+        const rules = findDecodersWithMatchingCaveatAddresses({
           enforcers,
           permissionDecoders: createPermissionDecodersForContracts(contracts),
         });
-        expect(result.permissionType).toBe(expectedPermissionType);
+        expect(rules.map((matchingRule) => matchingRule.permissionType)).toStrictEqual(
+          [expectedPermissionType],
+        );
       });
 
       it('allows TimestampEnforcer and RedeemerEnforcer as extras', () => {
@@ -143,11 +126,13 @@ describe('decodePermission', () => {
           TimestampEnforcer,
           RedeemerEnforcer,
         ];
-        const result = findDecoderWithMatchingCaveatAddresses({
+        const rules = findDecodersWithMatchingCaveatAddresses({
           enforcers,
           permissionDecoders: createPermissionDecodersForContracts(contracts),
         });
-        expect(result.permissionType).toBe(expectedPermissionType);
+        expect(rules.map((matchingRule) => matchingRule.permissionType)).toStrictEqual(
+          [expectedPermissionType],
+        );
       });
 
       it('rejects forbidden extra caveat', () => {
@@ -158,22 +143,20 @@ describe('decodePermission', () => {
           // Not allowed for native-token-stream
           ValueLteEnforcer,
         ];
-        expect(() =>
-          findDecoderWithMatchingCaveatAddresses({
-            enforcers,
-            permissionDecoders: createPermissionDecodersForContracts(contracts),
-          }),
-        ).toThrow('Unable to identify permission type');
+        const rules = findDecodersWithMatchingCaveatAddresses({
+          enforcers,
+          permissionDecoders: createPermissionDecodersForContracts(contracts),
+        });
+        expect(rules).toStrictEqual([]);
       });
 
       it('rejects when required caveats are missing', () => {
         const enforcers = [ExactCalldataEnforcer];
-        expect(() =>
-          findDecoderWithMatchingCaveatAddresses({
-            enforcers,
-            permissionDecoders: createPermissionDecodersForContracts(contracts),
-          }),
-        ).toThrow('Unable to identify permission type');
+        const rules = findDecodersWithMatchingCaveatAddresses({
+          enforcers,
+          permissionDecoders: createPermissionDecodersForContracts(contracts),
+        });
+        expect(rules).toStrictEqual([]);
       });
 
       it('accepts lowercased addresses', () => {
@@ -182,11 +165,13 @@ describe('decodePermission', () => {
           ExactCalldataEnforcer.toLowerCase() as unknown as Hex,
           NonceEnforcer.toLowerCase() as unknown as Hex,
         ];
-        const result = findDecoderWithMatchingCaveatAddresses({
+        const rules = findDecodersWithMatchingCaveatAddresses({
           enforcers,
           permissionDecoders: createPermissionDecodersForContracts(contracts),
         });
-        expect(result.permissionType).toBe('native-token-stream');
+        expect(rules.map((matchingRule) => matchingRule.permissionType)).toStrictEqual(
+          ['native-token-stream'],
+        );
       });
 
       it('throws if a contract is not found', () => {
@@ -201,7 +186,7 @@ describe('decodePermission', () => {
         } as unknown as DeployedContractsByName;
 
         expect(() =>
-          findDecoderWithMatchingCaveatAddresses({
+          findDecodersWithMatchingCaveatAddresses({
             enforcers,
             permissionDecoders: createPermissionDecodersForContracts(
               contractsWithoutTimestampEnforcer,
@@ -256,22 +241,20 @@ describe('decodePermission', () => {
           // Not allowed for native-token-periodic
           ValueLteEnforcer,
         ];
-        expect(() =>
-          findDecoderWithMatchingCaveatAddresses({
-            enforcers,
-            permissionDecoders: createPermissionDecodersForContracts(contracts),
-          }),
-        ).toThrow('Unable to identify permission type');
+        const rules = findDecodersWithMatchingCaveatAddresses({
+          enforcers,
+          permissionDecoders: createPermissionDecodersForContracts(contracts),
+        });
+        expect(rules).toStrictEqual([]);
       });
 
       it('rejects when required caveats are missing', () => {
         const enforcers = [ExactCalldataEnforcer];
-        expect(() =>
-          findDecoderWithMatchingCaveatAddresses({
-            enforcers,
-            permissionDecoders: createPermissionDecodersForContracts(contracts),
-          }),
-        ).toThrow('Unable to identify permission type');
+        const rules = findDecodersWithMatchingCaveatAddresses({
+          enforcers,
+          permissionDecoders: createPermissionDecodersForContracts(contracts),
+        });
+        expect(rules).toStrictEqual([]);
       });
 
       it('accepts lowercased addresses', () => {
@@ -303,7 +286,7 @@ describe('decodePermission', () => {
         } as unknown as DeployedContractsByName;
 
         expect(() =>
-          findDecoderWithMatchingCaveatAddresses({
+          findDecodersWithMatchingCaveatAddresses({
             enforcers,
             permissionDecoders: createPermissionDecodersForContracts(
               contractsWithoutTimestampEnforcer,
@@ -321,11 +304,13 @@ describe('decodePermission', () => {
           ValueLteEnforcer,
           NonceEnforcer,
         ];
-        const result = findDecoderWithMatchingCaveatAddresses({
+        const rules = findDecodersWithMatchingCaveatAddresses({
           enforcers,
           permissionDecoders: createPermissionDecodersForContracts(contracts),
         });
-        expect(result.permissionType).toBe(expectedPermissionType);
+        expect(rules.map((matchingRule) => matchingRule.permissionType)).toStrictEqual(
+          [expectedPermissionType],
+        );
       });
 
       it('allows TimestampEnforcer as extra', () => {
@@ -335,11 +320,13 @@ describe('decodePermission', () => {
           NonceEnforcer,
           TimestampEnforcer,
         ];
-        const result = findDecoderWithMatchingCaveatAddresses({
+        const rules = findDecodersWithMatchingCaveatAddresses({
           enforcers,
           permissionDecoders: createPermissionDecodersForContracts(contracts),
         });
-        expect(result.permissionType).toBe(expectedPermissionType);
+        expect(rules.map((matchingRule) => matchingRule.permissionType)).toStrictEqual(
+          [expectedPermissionType],
+        );
       });
 
       it('rejects forbidden extra caveat', () => {
@@ -350,22 +337,20 @@ describe('decodePermission', () => {
           // Not allowed for erc20-token-stream
           ExactCalldataEnforcer,
         ];
-        expect(() =>
-          findDecoderWithMatchingCaveatAddresses({
-            enforcers,
-            permissionDecoders: createPermissionDecodersForContracts(contracts),
-          }),
-        ).toThrow('Unable to identify permission type');
+        const rules = findDecodersWithMatchingCaveatAddresses({
+          enforcers,
+          permissionDecoders: createPermissionDecodersForContracts(contracts),
+        });
+        expect(rules).toStrictEqual([]);
       });
 
       it('rejects when required caveats are missing', () => {
         const enforcers = [ERC20StreamingEnforcer];
-        expect(() =>
-          findDecoderWithMatchingCaveatAddresses({
-            enforcers,
-            permissionDecoders: createPermissionDecodersForContracts(contracts),
-          }),
-        ).toThrow('Unable to identify permission type');
+        const rules = findDecodersWithMatchingCaveatAddresses({
+          enforcers,
+          permissionDecoders: createPermissionDecodersForContracts(contracts),
+        });
+        expect(rules).toStrictEqual([]);
       });
 
       it('accepts lowercased addresses', () => {
@@ -374,11 +359,13 @@ describe('decodePermission', () => {
           ValueLteEnforcer.toLowerCase() as unknown as Hex,
           NonceEnforcer.toLowerCase() as unknown as Hex,
         ];
-        const result = findDecoderWithMatchingCaveatAddresses({
+        const rules = findDecodersWithMatchingCaveatAddresses({
           enforcers,
           permissionDecoders: createPermissionDecodersForContracts(contracts),
         });
-        expect(result.permissionType).toBe(expectedPermissionType);
+        expect(rules.map((matchingRule) => matchingRule.permissionType)).toStrictEqual(
+          [expectedPermissionType],
+        );
       });
 
       it('throws if a contract is not found', () => {
@@ -393,7 +380,7 @@ describe('decodePermission', () => {
         } as unknown as DeployedContractsByName;
 
         expect(() =>
-          findDecoderWithMatchingCaveatAddresses({
+          findDecodersWithMatchingCaveatAddresses({
             enforcers,
             permissionDecoders: createPermissionDecodersForContracts(
               contractsWithoutTimestampEnforcer,
@@ -448,22 +435,20 @@ describe('decodePermission', () => {
           // Not allowed for erc20-token-periodic
           ExactCalldataEnforcer,
         ];
-        expect(() =>
-          findDecoderWithMatchingCaveatAddresses({
-            enforcers,
-            permissionDecoders: createPermissionDecodersForContracts(contracts),
-          }),
-        ).toThrow('Unable to identify permission type');
+        const rules = findDecodersWithMatchingCaveatAddresses({
+          enforcers,
+          permissionDecoders: createPermissionDecodersForContracts(contracts),
+        });
+        expect(rules).toStrictEqual([]);
       });
 
       it('rejects when required caveats are missing', () => {
         const enforcers = [ERC20PeriodTransferEnforcer];
-        expect(() =>
-          findDecoderWithMatchingCaveatAddresses({
-            enforcers,
-            permissionDecoders: createPermissionDecodersForContracts(contracts),
-          }),
-        ).toThrow('Unable to identify permission type');
+        const rules = findDecodersWithMatchingCaveatAddresses({
+          enforcers,
+          permissionDecoders: createPermissionDecodersForContracts(contracts),
+        });
+        expect(rules).toStrictEqual([]);
       });
 
       it('accepts lowercased addresses', () => {
@@ -495,7 +480,7 @@ describe('decodePermission', () => {
         } as unknown as DeployedContractsByName;
 
         expect(() =>
-          findDecoderWithMatchingCaveatAddresses({
+          findDecodersWithMatchingCaveatAddresses({
             enforcers,
             permissionDecoders: createPermissionDecodersForContracts(
               contractsWithoutTimestampEnforcer,
@@ -515,11 +500,13 @@ describe('decodePermission', () => {
           ValueLteEnforcer,
           NonceEnforcer,
         ];
-        const result = findDecoderWithMatchingCaveatAddresses({
+        const rules = findDecodersWithMatchingCaveatAddresses({
           enforcers,
           permissionDecoders: createPermissionDecodersForContracts(contracts),
         });
-        expect(result.permissionType).toBe(expectedPermissionType);
+        expect(rules.map((matchingRule) => matchingRule.permissionType)).toStrictEqual(
+          [expectedPermissionType],
+        );
       });
 
       it('allows TimestampEnforcer as extra', () => {
@@ -530,11 +517,13 @@ describe('decodePermission', () => {
           NonceEnforcer,
           TimestampEnforcer,
         ];
-        const result = findDecoderWithMatchingCaveatAddresses({
+        const rules = findDecodersWithMatchingCaveatAddresses({
           enforcers,
           permissionDecoders: createPermissionDecodersForContracts(contracts),
         });
-        expect(result.permissionType).toBe(expectedPermissionType);
+        expect(rules.map((matchingRule) => matchingRule.permissionType)).toStrictEqual(
+          [expectedPermissionType],
+        );
       });
 
       it('rejects when only one AllowedCalldataEnforcer is provided', () => {
@@ -543,12 +532,11 @@ describe('decodePermission', () => {
           ValueLteEnforcer,
           NonceEnforcer,
         ];
-        expect(() =>
-          findDecoderWithMatchingCaveatAddresses({
-            enforcers,
-            permissionDecoders: createPermissionDecodersForContracts(contracts),
-          }),
-        ).toThrow('Unable to identify permission type');
+        const rules = findDecodersWithMatchingCaveatAddresses({
+          enforcers,
+          permissionDecoders: createPermissionDecodersForContracts(contracts),
+        });
+        expect(rules).toStrictEqual([]);
       });
 
       it('rejects when three AllowedCalldataEnforcer are provided', () => {
@@ -559,12 +547,11 @@ describe('decodePermission', () => {
           ValueLteEnforcer,
           NonceEnforcer,
         ];
-        expect(() =>
-          findDecoderWithMatchingCaveatAddresses({
-            enforcers,
-            permissionDecoders: createPermissionDecodersForContracts(contracts),
-          }),
-        ).toThrow('Unable to identify permission type');
+        const rules = findDecodersWithMatchingCaveatAddresses({
+          enforcers,
+          permissionDecoders: createPermissionDecodersForContracts(contracts),
+        });
+        expect(rules).toStrictEqual([]);
       });
 
       it('rejects when ValueLteEnforcer is missing', () => {
@@ -573,12 +560,11 @@ describe('decodePermission', () => {
           AllowedCalldataEnforcer,
           NonceEnforcer,
         ];
-        expect(() =>
-          findDecoderWithMatchingCaveatAddresses({
-            enforcers,
-            permissionDecoders: createPermissionDecodersForContracts(contracts),
-          }),
-        ).toThrow('Unable to identify permission type');
+        const rules = findDecodersWithMatchingCaveatAddresses({
+          enforcers,
+          permissionDecoders: createPermissionDecodersForContracts(contracts),
+        });
+        expect(rules).toStrictEqual([]);
       });
 
       it('rejects forbidden extra caveat', () => {
@@ -590,12 +576,11 @@ describe('decodePermission', () => {
           // Not allowed for erc20-token-revocation
           ExactCalldataEnforcer,
         ];
-        expect(() =>
-          findDecoderWithMatchingCaveatAddresses({
-            enforcers,
-            permissionDecoders: createPermissionDecodersForContracts(contracts),
-          }),
-        ).toThrow('Unable to identify permission type');
+        const rules = findDecodersWithMatchingCaveatAddresses({
+          enforcers,
+          permissionDecoders: createPermissionDecodersForContracts(contracts),
+        });
+        expect(rules).toStrictEqual([]);
       });
 
       it('accepts lowercased addresses', () => {
@@ -605,11 +590,13 @@ describe('decodePermission', () => {
           ValueLteEnforcer.toLowerCase() as unknown as Hex,
           NonceEnforcer.toLowerCase() as unknown as Hex,
         ];
-        const result = findDecoderWithMatchingCaveatAddresses({
+        const rules = findDecodersWithMatchingCaveatAddresses({
           enforcers,
           permissionDecoders: createPermissionDecodersForContracts(contracts),
         });
-        expect(result.permissionType).toBe(expectedPermissionType);
+        expect(rules.map((matchingRule) => matchingRule.permissionType)).toStrictEqual(
+          [expectedPermissionType],
+        );
       });
 
       it('throws if a contract is not found', () => {
@@ -625,7 +612,7 @@ describe('decodePermission', () => {
         } as unknown as DeployedContractsByName;
 
         expect(() =>
-          findDecoderWithMatchingCaveatAddresses({
+          findDecodersWithMatchingCaveatAddresses({
             enforcers,
             permissionDecoders: createPermissionDecodersForContracts(
               contractsWithoutAllowedCalldataEnforcer,
@@ -913,22 +900,20 @@ describe('decodePermission', () => {
   describe('adversarial: attempts to violate decoder expectations', () => {
     describe('getPermissionDecoderMatchingCaveatTypes()', () => {
       it('rejects empty enforcer list', () => {
-        expect(() =>
-          findDecoderWithMatchingCaveatAddresses({
-            enforcers: [],
-            permissionDecoders: createPermissionDecodersForContracts(contracts),
-          }),
-        ).toThrow('Unable to identify permission type');
+        const rules = findDecodersWithMatchingCaveatAddresses({
+          enforcers: [],
+          permissionDecoders: createPermissionDecodersForContracts(contracts),
+        });
+        expect(rules).toStrictEqual([]);
       });
 
       it('rejects enforcer list with only unknown/forbidden addresses', () => {
         const unknown = '0xdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef' as Hex;
-        expect(() =>
-          findDecoderWithMatchingCaveatAddresses({
-            enforcers: [unknown],
-            permissionDecoders: createPermissionDecodersForContracts(contracts),
-          }),
-        ).toThrow('Unable to identify permission type');
+        const rules = findDecodersWithMatchingCaveatAddresses({
+          enforcers: [unknown],
+          permissionDecoders: createPermissionDecodersForContracts(contracts),
+        });
+        expect(rules).toStrictEqual([]);
       });
 
       it('rejects when required enforcer count is exceeded (e.g. duplicate NonceEnforcer)', () => {
@@ -938,12 +923,11 @@ describe('decodePermission', () => {
           NonceEnforcer,
           NonceEnforcer,
         ];
-        expect(() =>
-          findDecoderWithMatchingCaveatAddresses({
-            enforcers,
-            permissionDecoders: createPermissionDecodersForContracts(contracts),
-          }),
-        ).toThrow('Unable to identify permission type');
+        const rules = findDecodersWithMatchingCaveatAddresses({
+          enforcers,
+          permissionDecoders: createPermissionDecodersForContracts(contracts),
+        });
+        expect(rules).toStrictEqual([]);
       });
 
       it('rejects mix of valid known enforcers and valid but unknown enforcer address', () => {
@@ -955,12 +939,11 @@ describe('decodePermission', () => {
           NonceEnforcer,
           unknownEnforcer,
         ];
-        expect(() =>
-          findDecoderWithMatchingCaveatAddresses({
-            enforcers,
-            permissionDecoders: createPermissionDecodersForContracts(contracts),
-          }),
-        ).toThrow('Unable to identify permission type');
+        const rules = findDecodersWithMatchingCaveatAddresses({
+          enforcers,
+          permissionDecoders: createPermissionDecodersForContracts(contracts),
+        });
+        expect(rules).toStrictEqual([]);
       });
 
       it('rejects exactly one AllowedCalldataEnforcer for erc20-token-revocation (wrong multiplicity)', () => {
@@ -969,12 +952,11 @@ describe('decodePermission', () => {
           ValueLteEnforcer,
           NonceEnforcer,
         ];
-        expect(() =>
-          findDecoderWithMatchingCaveatAddresses({
-            enforcers,
-            permissionDecoders: createPermissionDecodersForContracts(contracts),
-          }),
-        ).toThrow('Unable to identify permission type');
+        const rules = findDecodersWithMatchingCaveatAddresses({
+          enforcers,
+          permissionDecoders: createPermissionDecodersForContracts(contracts),
+        });
+        expect(rules).toStrictEqual([]);
       });
 
       it('rejects three AllowedCalldataEnforcer for erc20-token-revocation (excess multiplicity)', () => {
@@ -985,12 +967,11 @@ describe('decodePermission', () => {
           ValueLteEnforcer,
           NonceEnforcer,
         ];
-        expect(() =>
-          findDecoderWithMatchingCaveatAddresses({
-            enforcers,
-            permissionDecoders: createPermissionDecodersForContracts(contracts),
-          }),
-        ).toThrow('Unable to identify permission type');
+        const rules = findDecodersWithMatchingCaveatAddresses({
+          enforcers,
+          permissionDecoders: createPermissionDecodersForContracts(contracts),
+        });
+        expect(rules).toStrictEqual([]);
       });
     });
 

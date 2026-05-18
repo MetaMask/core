@@ -1,5 +1,4 @@
 export {
-  findDecoderWithMatchingCaveatAddresses,
   findDecodersWithMatchingCaveatAddresses,
   reconstructDecodedPermission,
   selectUniqueDecoderAndDecodedPermission,

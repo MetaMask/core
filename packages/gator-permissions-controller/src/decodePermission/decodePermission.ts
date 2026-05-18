@@ -32,44 +32,6 @@ export const findDecodersWithMatchingCaveatAddresses = ({
   );
 };
 
-/**
- * Returns the unique permission decoder that matches a given set of enforcer
- * contract addresses (caveat types) for a specific chain.
- *
- * A decoder matches when:
- * - All of its required enforcers are present in the provided list; and
- * - No provided enforcer falls outside the union of the decoder's required and
- * optional enforcers (currently only `TimestampEnforcer` is allowed extra).
- *
- * If exactly one decoder matches, it is returned.
- *
- * @param args - The arguments to this function.
- * @param args.enforcers - List of enforcer contract addresses (hex strings).
- * @param args.permissionDecoders - The permission decoders for the chain.
- * @returns The matching permission decoder.
- * @throws If no decoder matches, or if more than one decoder matches.
- */
-export const findDecoderWithMatchingCaveatAddresses = ({
-  enforcers,
-  permissionDecoders,
-}: {
-  enforcers: Hex[];
-  permissionDecoders: PermissionDecoder[];
-}): PermissionDecoder => {
-  const matchingDecoders = findDecodersWithMatchingCaveatAddresses({
-    enforcers,
-    permissionDecoders,
-  });
-
-  if (matchingDecoders.length === 0) {
-    throw new Error('Unable to identify permission type');
-  }
-  if (matchingDecoders.length > 1) {
-    throw new Error('Multiple permission types match');
-  }
-  return matchingDecoders[0];
-};
-
 type SuccessfulValidateAndDecodeResult = Extract<
   ValidateAndDecodeResult,
   { isValid: true }
@@ -156,13 +118,6 @@ export const selectUniqueDecoderAndDecodedPermission = ({
 /**
  * Reconstructs a {@link DecodedPermission} object from primitive values
  * obtained while decoding a permission context.
- *
- * The resulting object contains:
- * - `chainId` encoded as hex (`0x…`)
- * - `address` set to the delegator (user account)
- * - `signer` set to an account signer with the delegate address
- * - `permission` with the identified type and decoded data
- * - `expiry` timestamp (or null)
  *
  * @param args - The arguments to this function.
  * @param args.chainId - Chain ID.

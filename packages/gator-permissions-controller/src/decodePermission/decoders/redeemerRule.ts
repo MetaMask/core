@@ -12,7 +12,7 @@ import { getTermsByEnforcer } from '../utils';
  * @param args - The arguments to this function.
  * @param args.contractAddresses - Checksummed enforcer addresses for the chain.
  * @param args.caveats - Checksummed caveats from the delegation.
- * @returns A `{ rule }` result containing the redeemer addresses when a
+ * @returns A `Rule` containing the redeemer addresses when a
  * RedeemerEnforcer caveat exists, otherwise `null`.
  */
 export const redeemerRule: RuleDecoder = ({ contractAddresses, caveats }) => {
