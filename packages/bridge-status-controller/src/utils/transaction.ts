@@ -459,6 +459,7 @@ export const getAddTransactionBatchParams = async ({
     networkClientId,
     requireApproval,
     origin: 'metamask',
+    isInternal: true,
     from: trade.from as Hex,
     transactions,
   };
@@ -663,6 +664,7 @@ export const submitEvmTransaction = async ({
     requireApproval,
     type: transactionType,
     origin: 'metamask',
+    isInternal: true,
   };
   // Exclude gasLimit from trade to avoid type issues (it can be null)
   const { gasLimit: tradeGasLimit, ...tradeWithoutGasLimit } = trade;
