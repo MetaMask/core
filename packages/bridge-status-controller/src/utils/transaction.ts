@@ -239,6 +239,7 @@ export const addSyntheticTransaction = async (
       origin: 'metamask',
       actionId: generateActionId(),
       isStateOnly: true,
+      isInternal: true,
       ...args[1],
     },
   );
