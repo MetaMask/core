@@ -1,3 +1,4 @@
+import { define, literal } from '@metamask/superstruct';
 import type { Json } from '@metamask/utils';
 import type { Wallet } from '@metamask/wallet';
 import { mkdirSync } from 'node:fs';
@@ -8,9 +9,32 @@ import { pingDaemon } from './daemon-client';
 import { getDaemonPaths } from './paths';
 import { startRpcSocketServer } from './rpc-socket-server';
 import type { RpcSocketServerHandle } from './rpc-socket-server';
-import type { DaemonStatusInfo, RpcHandlerMap } from './types';
+import { defineHandler } from './types';
+import type {
+  DaemonStatusInfo,
+  RpcDispatcher,
+  RpcHandlerMap,
+} from './types';
 import { isErrorWithCode, isProcessAlive, readPidFile } from './utils';
 import { createWallet } from './wallet-factory';
+
+/**
+ * Params struct for the `call` RPC method. `params` must be a non-empty array
+ * whose first element is the messenger action name; remaining elements are
+ * positional action arguments forwarded as-is to `messenger.call`.
+ */
+const callParamsStruct = define<[string, ...Json[]]>('CallParams', (value) => {
+  if (!Array.isArray(value)) {
+    return 'Expected an array';
+  }
+  if (value.length === 0) {
+    return 'Expected a non-empty array';
+  }
+  if (typeof value[0] !== 'string') {
+    return 'Expected the first element to be a string action name';
+  }
+  return true;
+});
 
 const startTime = Date.now();
 
@@ -101,28 +125,29 @@ async function main(): Promise<void> {
     }));
 
     const constructedWallet = wallet;
+    // Arbitrary messenger dispatch is intentional: the CLI exposes the full
+    // messenger surface over a Unix socket inside the per-user oclif data
+    // directory. The dataDir/socket are chmodded to 0o700/0o600 below so
+    // only the owning user can open them, but there is no in-process
+    // auth check beyond that filesystem-permission barrier. The messenger is
+    // strongly typed by action name; we narrow it once here to the
+    // RpcDispatcher shape the `call` handler needs.
+    const dispatch = constructedWallet.messenger.call.bind(
+      constructedWallet.messenger,
+    ) as unknown as RpcDispatcher;
+
     const handlers: RpcHandlerMap = {
-      getStatus: async (): Promise<DaemonStatusInfo> => ({
-        pid: process.pid,
-        uptime: Math.floor((Date.now() - startTime) / 1000),
+      getStatus: defineHandler(
+        literal(null),
+        async (): Promise<DaemonStatusInfo> => ({
+          pid: process.pid,
+          uptime: Math.floor((Date.now() - startTime) / 1000),
+        }),
+      ),
+      call: defineHandler(callParamsStruct, async (params) => {
+        const [action, ...args] = params;
+        return await dispatch(action, ...args);
       }),
-      // Arbitrary messenger dispatch is intentional: the CLI exposes the full
-      // messenger surface over a Unix socket inside the per-user oclif data
-      // directory. The dataDir/socket are chmodded to 0o700/0o600 below so
-      // only the owning user can open them, but there is no in-process
-      // auth check beyond that filesystem-permission barrier.
-      call: async (params) => {
-        if (!Array.isArray(params) || typeof params[0] !== 'string') {
-          throw new Error('Expected params to be an array with an action name');
-        }
-        const [action, ...args] = params as [string, ...Json[]];
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- The messenger is strongly typed; we bypass it here to dispatch arbitrary action names from RPC.
-        const result = (constructedWallet.messenger as any).call(
-          action,
-          ...args,
-        );
-        return (result instanceof Promise ? await result : result) as Json;
-      },
     };
 
     handle = await startRpcSocketServer({
