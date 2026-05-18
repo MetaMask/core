@@ -1,3 +1,4 @@
+import { any } from '@metamask/superstruct';
 import { stat } from 'node:fs/promises';
 import { createConnection } from 'node:net';
 import { tmpdir } from 'node:os';
@@ -6,6 +7,24 @@ import { join } from 'node:path';
 import { pingDaemon, sendCommand } from './daemon-client';
 import { startRpcSocketServer } from './rpc-socket-server';
 import type { RpcSocketServerHandle } from './rpc-socket-server';
+import type { RpcHandlerDefinition } from './types';
+
+/**
+ * Wrap a plain async function as an {@link RpcHandlerDefinition} with an
+ * `any()` paramsStruct so integration tests don't need to spell out the full
+ * definition shape for each handler.
+ *
+ * @param run - The async handler implementation.
+ * @returns A handler definition usable in an {@link RpcHandlerMap}.
+ */
+function handlerDefinition(
+  run: (params: unknown) => Promise<unknown>,
+): RpcHandlerDefinition<unknown, never> {
+  return {
+    paramsStruct: any(),
+    run: run as unknown as RpcHandlerDefinition<unknown, never>['run'],
+  };
+}
 
 /**
  * End-to-end integration tests for the daemon's IPC layer: real
@@ -54,7 +73,7 @@ describe('socket integration', () => {
     await startServer({
       socketPath,
       handlers: {
-        getStatus: async () => ({ pid: 42, uptime: 7 }),
+        getStatus: handlerDefinition(async () => ({ pid: 42, uptime: 7 })),
       },
     });
 
@@ -88,7 +107,7 @@ describe('socket integration', () => {
     await startServer({
       socketPath,
       handlers: {
-        getStatus: async () => ({ pid: 1, uptime: 0 }),
+        getStatus: handlerDefinition(async () => ({ pid: 1, uptime: 0 })),
       },
     });
 
@@ -105,9 +124,9 @@ describe('socket integration', () => {
     await startServer({
       socketPath,
       handlers: {
-        boom: async () => {
+        boom: handlerDefinition(async () => {
           throw new Error('handler exploded');
-        },
+        }),
       },
     });
 
@@ -130,7 +149,7 @@ describe('socket integration', () => {
     await startServer({
       socketPath,
       handlers: {
-        getStatus: async () => ({ pid: 1, uptime: 0 }),
+        getStatus: handlerDefinition(async () => ({ pid: 1, uptime: 0 })),
       },
     });
 
@@ -150,7 +169,7 @@ describe('socket integration', () => {
     await startServer({
       socketPath,
       handlers: {
-        echo: async (params) => ({ params }),
+        echo: handlerDefinition(async (params) => ({ params })),
       },
     });
 
@@ -199,7 +218,7 @@ describe('socket integration', () => {
     await startServer({
       socketPath,
       handlers: {
-        getStatus: async () => ({ pid: 1, uptime: 0 }),
+        getStatus: handlerDefinition(async () => ({ pid: 1, uptime: 0 })),
       },
     });
 

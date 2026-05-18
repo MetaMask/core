@@ -49,6 +49,7 @@
     "@metamask/remote-feature-flag-controller": "^4.2.2",
     "@metamask/rpc-errors": "^7.0.2",
     "@metamask/storage-service": "^1.0.2",
+    "@metamask/superstruct": "^3.1.0",
     "@metamask/utils": "^11.11.0",
     "@metamask/wallet": "^7.0.1",
     "@oclif/core": "^4.10.5",
