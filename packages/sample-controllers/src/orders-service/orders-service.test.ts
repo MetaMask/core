@@ -13,7 +13,7 @@ import type {
 } from './orders-service';
 import { OrdersService } from './orders-service';
 
-const MOCK_RESPONSE_DATA = {
+const MOCK_VALID_RESPONSE_DATA = {
   orders: [
     {
       createdTime: 1747526400,
@@ -48,21 +48,21 @@ describe('OrdersService', () => {
       nock('https://api.example.com')
         .get('/v1/orders')
         .query({ sortField: 'createdTime', sortOrder: 'asc' })
-        .reply(200, MOCK_RESPONSE_DATA);
+        .reply(200, MOCK_VALID_RESPONSE_DATA);
       const { rootMessenger } = createService();
 
       const responseData = await rootMessenger.call(
         'OrdersService:fetchOrders',
       );
 
-      expect(responseData).toStrictEqual(MOCK_RESPONSE_DATA);
+      expect(responseData).toStrictEqual(MOCK_VALID_RESPONSE_DATA);
     });
 
     it('requests orders with the given sortField and sortOrder', async () => {
       nock('https://api.example.com')
         .get('/v1/orders')
         .query({ sortField: 'updatedTime', sortOrder: 'desc' })
-        .reply(200, MOCK_RESPONSE_DATA);
+        .reply(200, MOCK_VALID_RESPONSE_DATA);
       const { rootMessenger } = createService();
 
       const responseData = await rootMessenger.call(
@@ -73,7 +73,7 @@ describe('OrdersService', () => {
         },
       );
 
-      expect(responseData).toStrictEqual(MOCK_RESPONSE_DATA);
+      expect(responseData).toStrictEqual(MOCK_VALID_RESPONSE_DATA);
     });
 
     it('throws if the API returns a non-200 status', async () => {
@@ -98,7 +98,7 @@ describe('OrdersService', () => {
       {
         orders: [
           {
-            ...MOCK_RESPONSE_DATA.orders[0],
+            ...MOCK_VALID_RESPONSE_DATA.orders[0],
             createdTime: 'not a timestamp',
           },
         ],
@@ -106,7 +106,15 @@ describe('OrdersService', () => {
       {
         orders: [
           {
-            ...MOCK_RESPONSE_DATA.orders[0],
+            ...MOCK_VALID_RESPONSE_DATA.orders[0],
+            createdTime: 2 ** 53 - 1,
+          },
+        ],
+      },
+      {
+        orders: [
+          {
+            ...MOCK_VALID_RESPONSE_DATA.orders[0],
             details: 'not an object',
           },
         ],
@@ -114,7 +122,7 @@ describe('OrdersService', () => {
       {
         orders: [
           {
-            ...MOCK_RESPONSE_DATA.orders[0],
+            ...MOCK_VALID_RESPONSE_DATA.orders[0],
             from: 'not a CAIP account ID',
           },
         ],
@@ -122,7 +130,7 @@ describe('OrdersService', () => {
       {
         orders: [
           {
-            ...MOCK_RESPONSE_DATA.orders[0],
+            ...MOCK_VALID_RESPONSE_DATA.orders[0],
             orderId: {
               not: 'a string',
             },
@@ -132,7 +140,7 @@ describe('OrdersService', () => {
       {
         orders: [
           {
-            ...MOCK_RESPONSE_DATA.orders[0],
+            ...MOCK_VALID_RESPONSE_DATA.orders[0],
             status: 'not a valid status',
           },
         ],
@@ -140,7 +148,7 @@ describe('OrdersService', () => {
       {
         orders: [
           {
-            ...MOCK_RESPONSE_DATA.orders[0],
+            ...MOCK_VALID_RESPONSE_DATA.orders[0],
             to: 'not a CAIP account ID',
           },
         ],
@@ -148,7 +156,7 @@ describe('OrdersService', () => {
       {
         orders: [
           {
-            ...MOCK_RESPONSE_DATA.orders[0],
+            ...MOCK_VALID_RESPONSE_DATA.orders[0],
             updatedTime: 'not a timestamp',
           },
         ],
@@ -156,7 +164,7 @@ describe('OrdersService', () => {
       {
         orders: [
           {
-            ...MOCK_RESPONSE_DATA.orders[0],
+            ...MOCK_VALID_RESPONSE_DATA.orders[0],
             objectId: 'not a CAIP asset type',
           },
         ],
@@ -164,7 +172,7 @@ describe('OrdersService', () => {
       {
         orders: [
           {
-            ...MOCK_RESPONSE_DATA.orders[0],
+            ...MOCK_VALID_RESPONSE_DATA.orders[0],
             type: 'not a valid type',
           },
         ],
@@ -190,12 +198,12 @@ describe('OrdersService', () => {
       nock('https://api.example.com')
         .get('/v1/orders')
         .query({ sortField: 'createdTime', sortOrder: 'asc' })
-        .reply(200, MOCK_RESPONSE_DATA);
+        .reply(200, MOCK_VALID_RESPONSE_DATA);
       const { service } = createService();
 
       const responseData = await service.fetchOrders();
 
-      expect(responseData).toStrictEqual(MOCK_RESPONSE_DATA);
+      expect(responseData).toStrictEqual(MOCK_VALID_RESPONSE_DATA);
     });
   });
 });

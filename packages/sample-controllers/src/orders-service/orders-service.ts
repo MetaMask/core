@@ -26,7 +26,6 @@ import {
   CaipAccountIdStruct,
   CaipAssetIdStruct,
   CaipAssetTypeStruct,
-  StrictHexStruct,
 } from '@metamask/utils';
 import type { QueryClientConfig } from '@tanstack/query-core';
 
@@ -263,6 +262,7 @@ export class OrdersService extends BaseDataService<
    * orders.
    * @returns The requested order.
    */
+  /*
   async fetchOrder({ id }: { id?: string }): Promise<FetchOrderResponse> {
     const url = new URL(`/v1/order/${id}`, BASE_URL);
 
@@ -294,4 +294,5 @@ export class OrdersService extends BaseDataService<
 
     return validatedResponseData;
   }
+  */
 }

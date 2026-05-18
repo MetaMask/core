@@ -1,235 +1,36 @@
-# How to write a data service (part 1)
+# Writing a Data Service, Part 2: Making Requests
 
-In this tutorial, we'll show you how to write a data service.
-
-This tutorial is divided into 3 parts. In the first part, we'll start with a basic example, and then later, we'll demonstrate some more advanced use cases.
-
-## Requirements
-
-Let's say that we're developing a terminal for advanced traders. We have an HTTP API that allows us to retrieve orders that all users are making. This API has the following operations:
-
-- **GET `/v1/orders`**: Retrieve a paginated list of orders, limited to 100 at a time (latest first by default).
-- **GET `/v1/orders/:id`**: Retrieve data about an order.
-
-We want to write a data service that represents this API.
-
-## Setting up the data service
-
-First, we need to take care of some boilerplate. Here are the steps we'll follow:
-
-1. Decide on a name
-2. Create a package
-3. Define the messenger
-4. Define the class
-
-### Deciding on a name
-
-What should we call our data service? A data service is intended to represent a singular data source, so it's best if we choose a descriptive name that reflects the API that we are wrapping. Additionally, since data services are special within the Wallet Framework, it's conventional to end the name with "Service".
-
-So, let's go with `OrdersService`. We'll set this in a constant because we'll need this at key points shortly:
-
-```typescript
-/**
- * The name of the {@link OrdersService}, used to namespace the service's
- * actions and events.
- */
-export const DATA_SERVICE_NAME = 'OrdersService';
-```
-
-## Creating a package
-
-We want our data service to live in its own package. (In practice, this step may not be necessary — it depends on your use case — but it makes this tutorial simpler.)
-
-Working from this repo, we'll use the `create-package` tool to do just that:
-
-```
-yarn create-package --name orders-service --description "Wraps the Orders API"
-```
-
-That should give us a new directory in `packages/orders-service` which has a `src/` directory. We'll remove `index.ts` and `index.test.ts` so we have a clean slate.
-
-### Defining the messenger
-
-Every data service has a messenger, an object which acts as a liaison, allowing other parts of the stack to access the data service without a direct reference to it.
-
-So the very first thing we'll do is open a file in `packages/orders-service/src/orders-service.ts` and define the type for the messenger:
-
-```typescript
-import type { Messenger } from '@metamask/messenger';
-
-/**
- * The messenger which is restricted to actions and events accessed by
- * {@link OrdersService}.
- */
-export type OrdersServiceMessenger = Messenger<
-  typeof DATA_SERVICE_NAME,
-  OrdersServiceActions | AllowedActions,
-  OrdersServiceEvents | AllowedEvents
->;
-```
-
-Note that the `Messenger` takes three type parameters:
-
-- A namespace for all owned actions and events
-- A union type representing all actions that the messenger recognizes, which can be divided into:
-  - All internal actions, those that the messenger owns and "exports" to other messengers
-  - All external actions, those that the messenger "imports" from other messengers
-- A union type representing all events that the messenger recognizes, which can similarly be divided into
-  - All internal actions, those that the messenger owns and "exports" to other messengers
-  - All external events, those that the messenger "imports" from other messengers
-
-We've already defined the namespace, so let's define `OrdersServiceActions`. The set of internal actions for a data service must at least include `<DataServiceName>:invalidateQueries`:
-
-```typescript
-import type { DataServiceInvalidateQueriesAction } from '@metamask/base-data-service';
-
-/**
- * Invalidates cached queries for {@link OrdersService}.
- */
-export type OrdersServiceInvalidateQueriesAction =
-  DataServiceInvalidateQueriesAction<typeof DATA_SERVICE_NAME>;
-
-/**
- * Actions that {@link OrdersService} exposes to other consumers.
- */
-export type OrdersServiceActions = OrdersServiceInvalidateQueriesAction;
-```
-
-Then we define `OrdersServiceEvents`. The set of events for a data service must at least include `<DataServiceName>:granularCacheUpdated` and `<DataServiceName>:cacheUpdated`:
-
-```typescript
-// [!code highlight:3]
-import type {
-  DataServiceCacheUpdatedEvent,
-  DataServiceGranularCacheUpdatedEvent,
-  DataServiceInvalidateQueriesAction,
-} from '@metamask/base-data-service'; // [!code highlight:21]
-
-/**
- * Published when {@link OrdersService}'s cache is updated.
- */
-export type OrdersServiceCacheUpdatedEvent = DataServiceCacheUpdatedEvent<
-  typeof DATA_SERVICE_NAME
->;
-
-/**
- * Published when a key within {@link OrdersService}'s cache is updated.
- */
-export type OrdersServiceGranularCacheUpdatedEvent =
-  DataServiceGranularCacheUpdatedEvent<typeof DATA_SERVICE_NAME>;
-
-/**
- * Events that {@link OrdersService} exposes to other consumers.
- */
-export type OrdersServiceEvents =
-  | OrdersServiceCacheUpdatedEvent
-  | OrdersServiceGranularCacheUpdatedEvent;
-```
-
-Our data service won't use any external actions or events. For completeness, however, we will also define `AllowedActions` and `AllowedEvents`:
-
-```typescript
-/**
- * Events from other messengers that {@link OrdersService} subscribes to.
- */
-type AllowedEvents = never;
-
-/**
- * Events from other messengers that {@link OrdersService} subscribes to.
- */
-type AllowedEvents = never;
-```
-
-Finally, we define a constant that will be used to hold methods that should be automatically exposed through the messenger. We'll talk about that shortly:
-
-```typescript
-/**
- * All of the methods within {@link OrdersService} that are exposed via the
- * messenger.
- */
-const MESSENGER_EXPOSED_METHODS = [] as const;
-```
-
-### Defining the class
-
-Now we need to define the data service class itself. We extend `BaseDataService`, passing it the name of the service and the messenger type. We also define a constructor which takes a messenger and options for the underlying query client and policy object and passes them to the parent along with the name:
-
-```typescript
-import type { CreateServicePolicyOptions } from '@metamask/controller-utils';
-import type { QueryClientConfig } from '@tanstack/query-core';
-
-// ...
-
-/**
- * This service wraps the HTTP and WebSocket Orders APIs.
- */
-export class OrdersService extends BaseDataService<
-  typeof DATA_SERVICE_NAME,
-  OrdersServiceMessenger
-> {
-  /**
-   * Constructs a new OrdersService object.
-   *
-   * @param args - The constructor arguments.
-   * @param args.messenger - The messenger suited for this service.
-   * @param args.queryClientConfig - Configuration for the underlying TanStack
-   * Query client.
-   * @param args.policyOptions - Options to pass to `createServicePolicy`, which
-   * is used to wrap each request. See {@link CreateServicePolicyOptions}.
-   */
-  constructor({
-    messenger,
-    queryClientConfig = {},
-    policyOptions = {},
-  }: {
-    messenger: OrdersServiceMessenger;
-    queryClientConfig?: QueryClientConfig;
-    policyOptions?: CreateServicePolicyOptions;
-  }) {
-    super({
-      name: DATA_SERVICE_NAME,
-      messenger,
-      queryClientConfig,
-      policyOptions,
-    });
-
-    this.messenger.registerMethodActionHandlers(
-      this,
-      MESSENGER_EXPOSED_METHODS,
-    );
-  }
-}
-```
-
-## Making requests
+In the [previous section](./01-getting-started.md), we started by creating a data service class and a messenger to go along with it.
 
 Now we're ready to implement the main part of the data service. How do we do that?
 
 If a data service class ought to represent a data source, then the methods in that class ought to represent an operation. Since our API has two operations, we'll add two methods.
 
-### Requesting a list of orders
+## Requesting a list of orders
 
-#### Writing the implementation
-
-First, let's add a method to represent `GET /v1/orders`:
+First, let's add a method to represent `GET /v1/orders`. It looks like this:
 
 ```typescript
 import { HttpError } from '@metamask/controller-utils';
 import type { Infer } from '@metamask/superstruct';
 import {
   array,
-  bigint,
+  intersection,
   literal,
   number,
+  optional,
+  record,
   refine,
+  string,
   type,
   union,
+  unknown,
   validate,
 } from '@metamask/superstruct';
 import {
-  CaipChainIdStruct,
-  HexAddressStruct,
-  HexChecksumAddressStruct,
+  CaipAccountIdStruct,
+  CaipAssetIdStruct,
+  CaipAssetTypeStruct,
 } from '@metamask/utils';
 
 // ...
@@ -248,21 +49,33 @@ const TimestampStruct = refine(number(), 'timestamp', (value) => {
 /**
  * Struct to validate an order object that the Orders API returns.
  */
-const OrderStruct = type({
-  createdTime: TimestampStruct,
-  fromAddress: HexAddressStruct,
-  fromChainId: CaipChainIdStruct,
-  status: union([
-    literal('pending'),
-    literal('completed'),
-    literal('canceled'),
+const OrderStruct = intersection([
+  // Need to list this first, otherwise the inferred type is never
+  // See: <https://github.com/ianstormtaylor/superstruct/issues/1180>
+  union([
+    type({
+      objectId: CaipAssetTypeStruct,
+      type: literal('token'),
+    }),
+    type({
+      objectId: CaipAssetIdStruct,
+      type: literal('asset'),
+    }),
   ]),
-  toAddress: HexAddressStruct,
-  toChainId: CaipChainIdStruct,
-  tokenAddress: HexChecksumAddressStruct,
-  tokenAmount: bigint(),
-  updatedTime: TimestampStruct,
-});
+  type({
+    createdTime: TimestampStruct,
+    details: optional(record(string(), unknown())),
+    from: CaipAccountIdStruct,
+    orderId: string(),
+    status: union([
+      literal('pending'),
+      literal('completed'),
+      literal('canceled'),
+    ]),
+    to: CaipAccountIdStruct,
+    updatedTime: TimestampStruct,
+  }),
+]);
 
 /**
  * Struct to validate what `GET /v1/orders` returns.
@@ -329,7 +142,11 @@ export class OrdersService extends BaseDataService</* ... */> {
 }
 ```
 
-Let's break this down. Our endpoint takes two query parameters, so we have our method take a `params` object. We assign defaults for each key/value pair and map them to query parameters. Then we construct the URL.
+Let's break that down:
+
+### Building the URL
+
+Our endpoint takes two query parameters, so we have our method take a `params` object. We assign defaults for each key/value pair and map them to query parameters. Then we construct the URL.
 
 ```typescript
 export class OrdersService extends BaseDataService</* ... */> {
@@ -348,6 +165,8 @@ export class OrdersService extends BaseDataService</* ... */> {
   }
 }
 ```
+
+### Making the request
 
 Now we call `fetchQuery` — a method in `BaseDataService` — to make the request. This uses TanStack Query under the hood, and so we make sure to give it two things:
 
@@ -407,24 +226,30 @@ export class OrdersService extends BaseDataService</* ... */> {
 }
 ```
 
+### Handling the response
+
 Finally, we end our method by handling the response. We want to ensure that the data we get back from the server is in a format we expect. We could simply typecast the response data, but instead, we use the [Superstruct](https://docs.superstructjs.org/) library to define a schema (making use of some utility schemas from `@metamask/utils`), and then we match the data against it. As a plus, we can use the schema to define `FetchOrdersResponse`:
 
 ```typescript
 import type { Infer } from '@metamask/superstruct';
 import {
   array,
-  bigint,
+  intersection,
   literal,
   number,
+  optional,
+  record,
   refine,
+  string,
   type,
   union,
+  unknown,
   validate,
 } from '@metamask/superstruct';
 import {
-  CaipChainIdStruct,
-  HexAddressStruct,
-  HexChecksumAddressStruct,
+  CaipAccountIdStruct,
+  CaipAssetIdStruct,
+  CaipAssetTypeStruct,
 } from '@metamask/utils';
 
 /**
@@ -441,21 +266,33 @@ const TimestampStruct = refine(number(), 'timestamp', (value) => {
 /**
  * Struct to validate an order object that the Orders API returns.
  */
-const OrderStruct = type({
-  createdTime: TimestampStruct,
-  fromAddress: HexAddressStruct,
-  fromChainId: CaipChainIdStruct,
-  status: union([
-    literal('pending'),
-    literal('completed'),
-    literal('canceled'),
+const OrderStruct = intersection([
+  // Need to list this first, otherwise the inferred type is never
+  // See: <https://github.com/ianstormtaylor/superstruct/issues/1180>
+  union([
+    type({
+      objectId: CaipAssetTypeStruct,
+      type: literal('token'),
+    }),
+    type({
+      objectId: CaipAssetIdStruct,
+      type: literal('asset'),
+    }),
   ]),
-  toAddress: HexAddressStruct,
-  toChainId: CaipChainIdStruct,
-  tokenAddress: HexChecksumAddressStruct,
-  tokenAmount: bigint(),
-  updatedTime: TimestampStruct,
-});
+  type({
+    createdTime: TimestampStruct,
+    details: optional(record(string(), unknown())),
+    from: CaipAccountIdStruct,
+    orderId: string(),
+    status: union([
+      literal('pending'),
+      literal('completed'),
+      literal('canceled'),
+    ]),
+    to: CaipAccountIdStruct,
+    updatedTime: TimestampStruct,
+  }),
+]);
 
 /**
  * Struct to validate what `GET /v1/orders` returns.
@@ -487,6 +324,8 @@ export class OrdersService extends BaseDataService</* ... */> {
   }
 }
 ```
+
+### Registering an action
 
 Great, we now have a method called `fetchOrders` that wraps `GET /v1/orders`. Now we need to make sure to add it to `MESSENGER_EXPOSED_METHODS` so that it will become an action on the messenger:
 
@@ -527,11 +366,144 @@ export type OrdersServiceFetchOrdersAction = {
 export type OrdersServiceMethodActions = OrdersServiceFetchOrdersAction;
 ```
 
-#### Writing tests
+## Writing tests
 
 Before we move on, we need to make sure to test the data service class we've come up with so far.
 
-### Requesting details for an order
+### Setting up the tests
+
+We'll need some way to instantiate our service class in each test along with its messenger, so we'll define a few test helpers:
+
+```typescript
+/**
+ * The type of the messenger populated with all external actions and events
+ * required by the service under test.
+ */
+type RootMessenger = Messenger<
+  MockAnyNamespace,
+  MessengerActions<OrdersServiceMessenger>,
+  MessengerEvents<OrdersServiceMessenger>
+>;
+
+/**
+ * Constructs the messenger populated with all external actions and events
+ * required by the service under test.
+ *
+ * @returns The root messenger.
+ */
+function createRootMessenger(): RootMessenger {
+  return new Messenger({ namespace: MOCK_ANY_NAMESPACE });
+}
+
+/**
+ * Constructs the messenger for the service under test.
+ *
+ * @param rootMessenger - The root messenger, with all external actions and
+ * events required by the controller's messenger.
+ * @returns The service-specific messenger.
+ */
+function createServiceMessenger(
+  rootMessenger: RootMessenger,
+): OrdersServiceMessenger {
+  return new Messenger({
+    namespace: 'OrdersService',
+    parent: rootMessenger,
+  });
+}
+
+/**
+ * Constructs the service under test.
+ *
+ * @param args - The arguments to this function.
+ * @param args.options - The options that the service constructor takes. All are
+ * optional and will be filled in with defaults in as needed (including
+ * `messenger`).
+ * @returns The new service, root messenger, and service messenger.
+ */
+function createService({
+  options = {},
+}: {
+  options?: Partial<ConstructorParameters<typeof OrdersService>[0]>;
+} = {}): {
+  service: OrdersService;
+  rootMessenger: RootMessenger;
+  messenger: OrdersServiceMessenger;
+} {
+  const rootMessenger = createRootMessenger();
+  const messenger = createServiceMessenger(rootMessenger);
+  const service = new OrdersService({
+    messenger,
+    ...options,
+  });
+
+  return { service, rootMessenger, messenger };
+}
+```
+
+### Writing a basic test
+
+Now we can write a test for the happy path. We define some response data we know will pass validation — it doesn't really matter what this is but we try to make it realistic — and we make a new service and fetch the orders.
+
+You may notice that we test the messenger action, not the method. Why? Services are designed to be used in any part of the stack, so the main way that they will be used is through the messenger.
+
+```typescript
+const MOCK_VALID_RESPONSE_DATA = {
+  orders: [
+    {
+      createdTime: 1747526400,
+      details: {
+        amount: '0xde0b6b3a7640000',
+      },
+      from: 'eip155:1:0xab16a96D359eC26a11e2C2b3d8f8B8942d5Bfcdb',
+      objectId: 'eip155:1/erc721:0x06012c8cf97BEaD5deAe237070F9587f8E7A266d',
+      orderId: '0000000000000000001',
+      status: 'pending',
+      to: 'bip122:000000000019d6689c085ae165831e93:128Lkh3S7CkDTBZ8W7BbpsN3YYizJMp8p6',
+      type: 'token',
+      updatedTime: 1747526400,
+    },
+    {
+      createdTime: 1747440000,
+      from: 'eip155:1:0xab16a96D359eC26a11e2C2b3d8f8B8942d5Bfcdb',
+      objectId:
+        'eip155:1/erc721:0x06012c8cf97BEaD5deAe237070F9587f8E7A266d/771769',
+      orderId: '0000000000000000002',
+      status: 'completed',
+      to: 'bip122:000000000019d6689c085ae165831e93:128Lkh3S7CkDTBZ8W7BbpsN3YYizJMp8p6',
+      type: 'asset',
+      updatedTime: 1747526400,
+    },
+  ],
+} satisfies FetchOrdersResponse;
+
+describe('OrdersService', () => {
+  describe('OrdersService:fetchOrders', () => {
+    it('requests orders with the default sortField and sortOrder', async () => {
+      nock('https://api.example.com')
+        .get('/v1/orders')
+        .query({ sortField: 'createdTime', sortOrder: 'asc' })
+        .reply(200, MOCK_VALID_RESPONSE_DATA);
+      const { rootMessenger } = createService();
+
+      const responseData = await rootMessenger.call(
+        'OrdersService:fetchOrders',
+      );
+
+      expect(responseData).toStrictEqual(MOCK_VALID_RESPONSE_DATA);
+    });
+  });
+});
+```
+
+If we run this by saying:
+
+```
+yarn workspace @metamask/orders-service run test
+```
+
+then we should see that all of our tests pass.
+
+## Requesting details for an order
 
 Now let's implement `GET /v1/orders/:id`. We'll do that by adding a `fetchOrder` method that follows the same steps as we did above.
 
