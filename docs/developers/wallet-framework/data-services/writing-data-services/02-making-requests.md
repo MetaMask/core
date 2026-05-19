@@ -143,7 +143,7 @@ export class OrdersService extends BaseDataService</* ... */> {
 }
 ```
 
-Let's break that down:
+That's a lot, so let's break that down.
 
 ### Building the URL
 
@@ -328,7 +328,7 @@ export class OrdersService extends BaseDataService</* ... */> {
 
 ### Registering an action
 
-Great, we now have a method called `fetchOrders` that wraps `GET /v1/orders`. Now we need to make sure to add it to `MESSENGER_EXPOSED_METHODS` so that it will become an action on the messenger:
+Great, we have a method called `fetchOrders` that wraps `GET /v1/orders`. Now we need to make sure to add it to `MESSENGER_EXPOSED_METHODS` so that it will become an action on the messenger:
 
 ```diff
 - const MESSENGER_EXPOSED_METHODS = [] as const;
@@ -369,7 +369,7 @@ export type OrdersServiceMethodActions = OrdersServiceFetchOrdersAction;
 
 ## Writing tests
 
-Before we move on, we need to make sure to test the data service class we've come up with so far.
+Before we move on, we need to make sure to test our new data service class.
 
 ### Setting up the tests
 
@@ -445,7 +445,8 @@ function createService({
 
 Now we can write a couple of tests for the happy path. We define some response data we know will pass validation — it doesn't really matter what this is, but we try to make it realistic — and we make a new service and fetch the orders. We test our method both without any parameters and with all of the parameters, to make sure it uses the correct URL.
 
-You may notice that we test the messenger action, not the method. Why? Services are designed to be used in any part of the stack, so the main way that they will be used is through the messenger.
+> [!NOTE]
+> You may notice that we test the messenger action, not the method. Why? Services are designed to be used in any part of the stack, and the messenger is the primary interface. So we want to test the service how it will be used in practice.
 
 ```typescript
 const MOCK_VALID_RESPONSE_DATA = {
@@ -793,9 +794,7 @@ We'll run `yarn workspace @metamask/orders-service run generate-action-types` an
 +   | OrdersServiceFetchOrderAction;
 ```
 
-</details>
-
-Finally we'll write tests:
+Finally we'll write tests. (For brevity, we hide them below by default, but they are very similar as the ones we wrote earlier.)
 
 <details>
 <summary>View code</summary>
@@ -932,8 +931,10 @@ describe('OrdersService', () => {
 
 ## Learn more
 
-That's it for the basics, but there are probably other things you want to do with data services. In the following sections we'll explore more use cases.
+At this point, you're ready to write your own data service.
+
+That said, we recognize there are probably other things you want to do with data services. So in the following sections we'll explore more use cases.
 
 ---
 
-Continue to [**Part 3: Mutations**](./02-making-requests.md) →
+Continue to [**Part 3: Mutations**](./03-mutations.md) →
