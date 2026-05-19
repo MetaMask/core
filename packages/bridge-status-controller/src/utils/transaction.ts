@@ -114,9 +114,9 @@ export const calculateGasFees = async (
   const transactionParams = {
     ...trade,
     gas: gasLimit?.toString(),
-    data: trade.data as `0x${string}`,
-    to: trade.to as `0x${string}`,
-    value: trade.value as `0x${string}`,
+    data: trade.data,
+    to: trade.to,
+    value: trade.value,
   };
   const { maxFeePerGas, maxPriorityFeePerGas } = await getTxGasEstimates(
     messenger,
@@ -334,9 +334,9 @@ export const toBatchTxParams = (
 ): BatchTransactionParams => {
   const params = {
     ...trade,
-    data: trade.data as Hex,
-    to: trade.to as Hex,
-    value: trade.value as Hex,
+    data: trade.data,
+    to: trade.to,
+    value: trade.value,
   };
   if (skipGasFields) {
     return params;
@@ -460,8 +460,8 @@ export const getAddTransactionBatchParams = async ({
     networkClientId,
     requireApproval,
     origin: 'metamask',
+    from: trade.from,
     isInternal: true,
-    from: trade.from as Hex,
     transactions,
   };
 
