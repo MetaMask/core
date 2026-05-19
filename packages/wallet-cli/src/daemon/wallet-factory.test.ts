@@ -108,11 +108,11 @@ describe('createWallet', () => {
     );
   });
 
-  it('returns the wallet and its backing KeyValueStore', async () => {
-    const { wallet, store } = await createWallet(CONFIG);
+  it('returns the wallet alongside a dispose callback', async () => {
+    const { wallet, dispose } = await createWallet(CONFIG);
     expect(wallet.messenger).toBe(mockMessenger);
-    expect(store).toBeInstanceOf(KeyValueStore);
-    store.close();
+    expect(typeof dispose).toBe('function');
+    await dispose();
   });
 
   it('hydrates the Wallet with state loaded from the store', async () => {
@@ -134,7 +134,7 @@ describe('createWallet', () => {
         },
       });
 
-    const { store } = await createWallet(CONFIG);
+    const { dispose } = await createWallet(CONFIG);
 
     const args = MockWallet.mock.calls[0][0];
     expect(args.state).toStrictEqual({
@@ -147,7 +147,7 @@ describe('createWallet', () => {
     });
 
     loadStateSpy.mockRestore();
-    store.close();
+    await dispose();
   });
 
   it('subscribes the store to controller state changes', async () => {
@@ -155,17 +155,17 @@ describe('createWallet', () => {
       .spyOn(persistenceModule, 'subscribeToChanges')
       .mockReturnValue(() => undefined);
 
-    const { wallet, store } = await createWallet(CONFIG);
+    const { wallet, dispose } = await createWallet(CONFIG);
 
     expect(subscribeSpy).toHaveBeenCalledWith(
       wallet.messenger,
       wallet.controllerMetadata,
-      store,
+      expect.any(KeyValueStore),
       undefined,
     );
 
     subscribeSpy.mockRestore();
-    store.close();
+    await dispose();
   });
 
   it('forwards the supplied log callback to subscribeToChanges', async () => {
@@ -174,7 +174,7 @@ describe('createWallet', () => {
       .mockReturnValue(() => undefined);
     const log = jest.fn();
 
-    const { store } = await createWallet({ ...CONFIG, log });
+    const { dispose } = await createWallet({ ...CONFIG, log });
 
     expect(subscribeSpy).toHaveBeenCalledWith(
       expect.anything(),
@@ -184,7 +184,7 @@ describe('createWallet', () => {
     );
 
     subscribeSpy.mockRestore();
-    store.close();
+    await dispose();
   });
 
   it('skips importing the SRP when the store already contains a KeyringController vault', async () => {
@@ -192,11 +192,11 @@ describe('createWallet', () => {
       KeyringController: { vault: 'encrypted-vault-blob' },
     });
 
-    const { store } = await createWallet(CONFIG);
+    const { dispose } = await createWallet(CONFIG);
 
     expect(mockImportSrp).not.toHaveBeenCalled();
 
-    store.close();
+    await dispose();
   });
 
   it('closes the store and rethrows when state hydration fails', async () => {
@@ -251,10 +251,10 @@ describe('createWallet', () => {
 
   it('does not remove the database when SRP import succeeds on first run', async () => {
     const databasePath = tempDbPath('success');
-    const { store } = await createWallet({ ...CONFIG, databasePath });
+    const { dispose } = await createWallet({ ...CONFIG, databasePath });
 
     expect(mockRm).not.toHaveBeenCalled();
-    store.close();
+    await dispose();
   });
 
   it('does not remove the database when failure occurs on a subsequent run', async () => {
@@ -299,9 +299,29 @@ describe('createWallet', () => {
           destroy,
         }) as unknown as Wallet,
     );
+    const log = jest.fn();
 
-    await expect(createWallet(CONFIG)).rejects.toThrow(original);
+    await expect(createWallet({ ...CONFIG, log })).rejects.toThrow(original);
     expect(destroy).toHaveBeenCalledTimes(1);
+    expect(log).toHaveBeenCalledWith(
+      expect.stringContaining(
+        'wallet.destroy() failed during first-run cleanup',
+      ),
+    );
+  });
+
+  it('tolerates store.close throwing during cleanup and still rethrows the original error', async () => {
+    const original = new Error('bad SRP');
+    mockImportSrp.mockRejectedValue(original);
+    jest.spyOn(KeyValueStore.prototype, 'close').mockImplementation(() => {
+      throw new Error('close failed');
+    });
+    const log = jest.fn();
+
+    await expect(createWallet({ ...CONFIG, log })).rejects.toThrow(original);
+    expect(log).toHaveBeenCalledWith(
+      expect.stringContaining('store.close() failed during first-run cleanup'),
+    );
   });
 
   it('destroys the wallet when subscribeToChanges throws', async () => {
@@ -328,5 +348,127 @@ describe('createWallet', () => {
 
     await expect(createWallet(CONFIG)).rejects.toThrow(ctorError);
     expect(closeSpy).toHaveBeenCalled();
+  });
+
+  describe('dispose', () => {
+    it('destroys the wallet before closing the store', async () => {
+      const closeSpy = jest.spyOn(KeyValueStore.prototype, 'close');
+      const { wallet, dispose } = await createWallet(CONFIG);
+
+      const order: string[] = [];
+      (wallet.destroy as jest.Mock).mockImplementation(async () => {
+        order.push('destroy');
+      });
+      closeSpy.mockImplementation(() => {
+        order.push('close');
+      });
+
+      await dispose();
+
+      expect(order).toStrictEqual(['destroy', 'close']);
+    });
+
+    it('coalesces concurrent calls onto a single teardown', async () => {
+      const { wallet, dispose } = await createWallet(CONFIG);
+      const closeSpy = jest.spyOn(KeyValueStore.prototype, 'close');
+
+      await Promise.all([dispose(), dispose(), dispose()]);
+
+      expect(wallet.destroy).toHaveBeenCalledTimes(1);
+      expect(closeSpy).toHaveBeenCalledTimes(1);
+    });
+
+    it('is idempotent across sequential calls', async () => {
+      const { wallet, dispose } = await createWallet(CONFIG);
+      const closeSpy = jest.spyOn(KeyValueStore.prototype, 'close');
+
+      await dispose();
+      await dispose();
+
+      expect(wallet.destroy).toHaveBeenCalledTimes(1);
+      expect(closeSpy).toHaveBeenCalledTimes(1);
+    });
+
+    it('still closes the store when wallet.destroy rejects', async () => {
+      jest.spyOn(console, 'error').mockImplementation(() => undefined);
+      const { wallet, dispose } = await createWallet(CONFIG);
+      const closeSpy = jest.spyOn(KeyValueStore.prototype, 'close');
+      (wallet.destroy as jest.Mock).mockRejectedValue(
+        new Error('destroy failed'),
+      );
+
+      expect(await dispose()).toBeUndefined();
+
+      expect(closeSpy).toHaveBeenCalledTimes(1);
+    });
+
+    it('forwards destroy failures to the supplied log callback', async () => {
+      const log = jest.fn();
+      const { wallet, dispose } = await createWallet({ ...CONFIG, log });
+      (wallet.destroy as jest.Mock).mockRejectedValue(
+        new Error('destroy failed'),
+      );
+
+      await dispose();
+
+      expect(log).toHaveBeenCalledWith(
+        expect.stringContaining(
+          'wallet.destroy() failed: Error: destroy failed',
+        ),
+      );
+    });
+
+    it('forwards store.close failures to the supplied log callback', async () => {
+      const log = jest.fn();
+      const { dispose } = await createWallet({ ...CONFIG, log });
+      jest.spyOn(KeyValueStore.prototype, 'close').mockImplementation(() => {
+        throw new Error('close failed');
+      });
+
+      await dispose();
+
+      expect(log).toHaveBeenCalledWith(
+        expect.stringContaining('store.close() failed: Error: close failed'),
+      );
+    });
+
+    it('falls back to console.error when no log callback is supplied', async () => {
+      const consoleSpy = jest
+        .spyOn(console, 'error')
+        .mockImplementation(() => undefined);
+      const { wallet, dispose } = await createWallet(CONFIG);
+      (wallet.destroy as jest.Mock).mockRejectedValue(
+        new Error('destroy failed'),
+      );
+
+      await dispose();
+
+      expect(consoleSpy).toHaveBeenCalledWith(
+        expect.stringContaining('wallet.destroy() failed'),
+      );
+
+      consoleSpy.mockRestore();
+    });
+
+    it('falls back to console.error when the supplied log callback throws', async () => {
+      const consoleSpy = jest
+        .spyOn(console, 'error')
+        .mockImplementation(() => undefined);
+      const log = jest.fn().mockImplementation(() => {
+        throw new Error('log explode');
+      });
+      const { wallet, dispose } = await createWallet({ ...CONFIG, log });
+      (wallet.destroy as jest.Mock).mockRejectedValue(
+        new Error('destroy failed'),
+      );
+
+      expect(await dispose()).toBeUndefined();
+
+      expect(consoleSpy).toHaveBeenCalledWith(
+        expect.stringContaining('wallet.destroy() failed'),
+      );
+
+      consoleSpy.mockRestore();
+    });
   });
 });
