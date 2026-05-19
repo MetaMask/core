@@ -48,8 +48,8 @@ export type DefaultEvents =
   | WalletDestroyedEvent;
 
 export type RootMessenger<
-  AllowedActions extends ActionConstraint = ActionConstraint,
-  AllowedEvents extends EventConstraint = EventConstraint,
+  AllowedActions extends ActionConstraint,
+  AllowedEvents extends EventConstraint,
 > = Messenger<'Wallet', AllowedActions, AllowedEvents>;
 
 export type DefaultState = {

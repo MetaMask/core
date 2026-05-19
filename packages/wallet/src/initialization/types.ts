@@ -1,5 +1,5 @@
 import type { InstanceSpecificOptions } from '../types';
-import type { RootMessenger } from './defaults';
+import type { DefaultActions, DefaultEvents, RootMessenger } from './defaults';
 
 export type InstanceState<Instance> = Instance extends { state: unknown }
   ? Instance['state']
@@ -25,5 +25,5 @@ export type InitFunctionArguments<Instance, InstanceMessenger> = {
 export type InitializationConfiguration<Instance, InstanceMessenger> = {
   name: InstanceName<Instance>;
   init(args: InitFunctionArguments<Instance, InstanceMessenger>): Instance;
-  messenger(parent: RootMessenger): InstanceMessenger;
+  messenger(parent: RootMessenger<DefaultActions, DefaultEvents>): InstanceMessenger;
 };

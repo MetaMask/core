@@ -1,10 +1,10 @@
 import type { InstanceSpecificOptions, WalletOptions } from '../types';
-import type { DefaultInstances } from './defaults';
+import type { DefaultActions, DefaultEvents, DefaultInstances } from './defaults';
 import { defaultConfigurations, RootMessenger } from './defaults';
 
 export type InitializeArgs = {
   options: WalletOptions;
-  messenger: RootMessenger;
+  messenger: RootMessenger<DefaultActions, DefaultEvents>;
 };
 
 export function initialize({
