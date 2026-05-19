@@ -92,7 +92,7 @@
     "@types/uuid": "^8.3.0",
     "async-mutex": "^0.5.0",
     "bitcoin-address-validation": "^2.2.3",
-    "bn.js": "^5.2.1",
+    "bn.js": "^5.2.3",
     "immer": "^9.0.6",
     "lodash": "^4.17.21",
     "multiformats": "^9.9.0",
@@ -101,7 +101,7 @@
     "uuid": "^8.3.2"
   },
   "devDependencies": {
-    "@babel/runtime": "^7.23.9",
+    "@babel/runtime": "^7.26.10",
     "@metamask/account-api": "^1.0.4",
     "@metamask/auto-changelog": "^6.1.0",
     "@metamask/ethjs-provider-http": "^0.3.0",

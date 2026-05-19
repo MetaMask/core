@@ -67,7 +67,7 @@
     "@metamask/superstruct": "^3.1.0",
     "@metamask/transaction-controller": "^66.0.0",
     "@metamask/utils": "^11.9.0",
-    "bn.js": "^5.2.1",
+    "bn.js": "^5.2.3",
     "immer": "^9.0.6",
     "lodash": "^4.17.21",
     "uuid": "^8.3.2"

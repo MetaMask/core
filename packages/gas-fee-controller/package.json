@@ -63,11 +63,11 @@
     "@metamask/utils": "^11.9.0",
     "@types/bn.js": "^5.1.5",
     "@types/uuid": "^8.3.0",
-    "bn.js": "^5.2.1",
+    "bn.js": "^5.2.3",
     "uuid": "^8.3.2"
   },
   "devDependencies": {
-    "@babel/runtime": "^7.23.9",
+    "@babel/runtime": "^7.26.10",
     "@metamask/auto-changelog": "^6.1.0",
     "@ts-bridge/cli": "^0.6.4",
     "@types/jest": "^29.5.14",
