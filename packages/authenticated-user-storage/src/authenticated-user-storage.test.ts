@@ -409,9 +409,9 @@ describe('AuthenticatedUserStorageService', () => {
       handleMockSetAssetsWatchlist({ status: 400 });
       const { service } = createService();
 
-      await expect(service.setAssetsWatchlist(MOCK_ASSETS_WATCHLIST_BLOB)).rejects.toThrow(
-        'Failed to put assets watchlist: 400',
-      );
+      await expect(
+        service.setAssetsWatchlist(MOCK_ASSETS_WATCHLIST_BLOB),
+      ).rejects.toThrow('Failed to put assets watchlist: 400');
     });
 
     it(`throws synchronously when the blob exceeds ${ASSETS_WATCHLIST_MAX_ASSETS} assets`, async () => {
