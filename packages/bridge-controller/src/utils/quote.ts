@@ -164,6 +164,25 @@ export const calcSentAmount = (
   };
 };
 
+export const calcBatchFees = (
+  amount: string,
+  asset: BridgeAsset,
+  { exchangeRate, usdExchangeRate }: ExchangeRate,
+) => {
+  const normalizedAmount = calcTokenAmount(amount, asset.decimals);
+
+  return {
+    amount: normalizedAmount.toString(),
+    valueInCurrency: exchangeRate
+      ? normalizedAmount.times(exchangeRate).toString()
+      : null,
+    usd: usdExchangeRate
+      ? normalizedAmount.times(usdExchangeRate).toString()
+      : null,
+    asset,
+  };
+};
+
 export const calcRelayerFee = (
   quoteResponse: QuoteResponse<TxData, TxData>,
   { exchangeRate, usdExchangeRate }: ExchangeRate,

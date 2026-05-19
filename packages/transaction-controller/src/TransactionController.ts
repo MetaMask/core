@@ -1204,6 +1204,7 @@ export class TransactionController extends BaseController<
       excludeNativeTokenForFee,
       isGasFeeIncluded,
       isGasFeeSponsored,
+      isInternal = false,
       isStateOnly,
       method,
       nestedTransactions,
@@ -1240,6 +1241,7 @@ export class TransactionController extends BaseController<
       data: txParams.data,
       from: txParams.from,
       internalAccounts,
+      isInternal,
       origin,
       permittedAddresses,
       txParams,
@@ -1268,7 +1270,7 @@ export class TransactionController extends BaseController<
         (tx) => tx.batchId?.toLowerCase() === batchId?.toLowerCase(),
       );
 
-    if (isDuplicateBatchId && origin && origin !== ORIGIN_METAMASK) {
+    if (isDuplicateBatchId && !isInternal) {
       throw new JsonRpcError(
         ErrorCode.DuplicateBundleId,
         'Batch ID already exists',
@@ -1278,6 +1280,7 @@ export class TransactionController extends BaseController<
     const dappSuggestedGasFees = this.#generateDappSuggestedGasFees(
       txParams,
       origin,
+      isInternal,
     );
 
     const transactionType =
@@ -1313,6 +1316,7 @@ export class TransactionController extends BaseController<
         ? {}
         : { excludeNativeTokenForFee }),
       isFirstTimeInteraction: undefined,
+      isInternal,
       isStateOnly,
       nestedTransactions,
       networkClientId,
@@ -3635,8 +3639,9 @@ export class TransactionController extends BaseController<
   #generateDappSuggestedGasFees(
     txParams: TransactionParams,
     origin?: string,
+    isInternal?: boolean,
   ): DappSuggestedGasFees | undefined {
-    if (!origin || origin === ORIGIN_METAMASK) {
+    if (isInternal || !origin) {
       return undefined;
     }
 

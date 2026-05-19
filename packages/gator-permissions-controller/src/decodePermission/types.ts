@@ -75,6 +75,9 @@ export type DecodedPermission = Pick<
     // PermissionRequest type does not work well without the specific permission type, so we amend it here
     justification?: string;
   };
+  /**
+   * @deprecated Use `rules` instead.
+   */
   expiry: number | null;
   origin: string;
   /** Rules recovered from caveats (e.g. redeemer allowlist). */
@@ -120,17 +123,18 @@ export type ValidateAndDecodeResult =
   | { isValid: false; error: Error };
 
 /**
- * A rule that defines the required and optional enforcers for a permission type,
- * and provides methods to test whether caveat addresses match the rule and to
- * validate and decode permission terms from caveats.
+ * A decoder that defines the required and optional enforcers for a permission
+ * type, and provides methods to test whether caveat addresses match the
+ * permission and to validate and decode permission terms from caveats.
  */
-export type PermissionRule = {
+export type PermissionDecoder = {
   permissionType: PermissionType;
   requiredEnforcers: Map<Hex, number>;
   optionalEnforcers: Set<Hex>;
   /**
    * Returns true if the given caveat addresses (enforcer addresses) match this
-   * rule (required enforcers present with correct multiplicity, no forbidden enforcers).
+   * decoder (required enforcers present with correct multiplicity, no
+   * forbidden enforcers).
    */
   caveatAddressesMatch: (caveatAddresses: Hex[]) => boolean;
   /**
@@ -141,3 +145,17 @@ export type PermissionRule = {
     caveats: Caveat<Hex>[],
   ) => ValidateAndDecodeResult;
 };
+
+/**
+ * A function that inspects checksummed caveats and optionally produces a
+ * {@link Rule} (e.g. redeemer, payee, expiry). Each rule decoder is
+ * responsible for a single rule type and is composed by
+ * `makePermissionDecoder` to populate the permission's `rules` array. The
+ * `expiry` rule, in addition to being appended to `rules`, has its value
+ * hoisted onto the top-level `expiry` field of the decoded permission.
+ */
+export type RuleDecoder = (args: {
+  contractAddresses: ChecksumEnforcersByChainId;
+  caveats: ChecksumCaveat[];
+  requiredEnforcers: Map<Hex, number>;
+}) => Rule | null;

@@ -5,9 +5,9 @@ import {
 } from '@metamask/delegation-deployments';
 import { getChecksumAddress } from '@metamask/utils';
 
-import { createPermissionRulesForContracts } from '.';
+import { createPermissionDecodersForContracts } from '.';
 
-describe('erc20-token-revocation rule', () => {
+describe('erc20-token-revocation decoder', () => {
   const chainId = CHAIN_ID.sepolia;
   const contracts = DELEGATOR_CONTRACTS['1.3.0'][chainId];
   const {
@@ -16,12 +16,12 @@ describe('erc20-token-revocation rule', () => {
     ValueLteEnforcer,
     RedeemerEnforcer,
   } = contracts;
-  const permissionRules = createPermissionRulesForContracts(contracts);
-  const rule = permissionRules.find(
+  const permissionDecoders = createPermissionDecodersForContracts(contracts);
+  const decoder = permissionDecoders.find(
     (candidate) => candidate.permissionType === 'erc20-token-revocation',
   );
-  if (!rule) {
-    throw new Error('Rule not found');
+  if (!decoder) {
+    throw new Error('Decoder not found');
   }
 
   const expiryCaveat = {
@@ -57,7 +57,7 @@ describe('erc20-token-revocation rule', () => {
       },
     ];
 
-    const result = rule.validateAndDecodePermission(caveats);
+    const result = decoder.validateAndDecodePermission(caveats);
     expect(result.isValid).toBe(false);
 
     // this is here as a type guard
@@ -94,7 +94,7 @@ describe('erc20-token-revocation rule', () => {
       },
     ];
 
-    const result = rule.validateAndDecodePermission(caveats);
+    const result = decoder.validateAndDecodePermission(caveats);
     expect(result.isValid).toBe(false);
 
     // this is here as a type guard
@@ -133,7 +133,7 @@ describe('erc20-token-revocation rule', () => {
       },
     ];
 
-    const result = rule.validateAndDecodePermission(caveats);
+    const result = decoder.validateAndDecodePermission(caveats);
     expect(result.isValid).toBe(false);
 
     // this is here as a type guard
@@ -176,7 +176,7 @@ describe('erc20-token-revocation rule', () => {
         args: '0x' as const,
       },
     ];
-    const result = rule.validateAndDecodePermission(caveats);
+    const result = decoder.validateAndDecodePermission(caveats);
     expect(result.isValid).toBe(false);
 
     // this is here as a type guard
@@ -212,7 +212,7 @@ describe('erc20-token-revocation rule', () => {
         args: '0x' as const,
       },
     ];
-    const result = rule.validateAndDecodePermission(caveats);
+    const result = decoder.validateAndDecodePermission(caveats);
     expect(result.isValid).toBe(true);
 
     // this is here as a type guard
@@ -222,7 +222,12 @@ describe('erc20-token-revocation rule', () => {
 
     expect(result.expiry).toBe(1720000);
     expect(result.data).toStrictEqual({});
-    expect(result.rules).toBeUndefined();
+    expect(result.rules).toStrictEqual([
+      {
+        type: 'expiry',
+        data: { timestamp: 1720000 },
+      },
+    ]);
   });
 
   it('includes redeemer rule but not payee when RedeemerEnforcer caveat is present', () => {
@@ -256,12 +261,16 @@ describe('erc20-token-revocation rule', () => {
         args: '0x' as const,
       },
     ];
-    const result = rule.validateAndDecodePermission(caveats);
+    const result = decoder.validateAndDecodePermission(caveats);
     expect(result.isValid).toBe(true);
     if (!result.isValid) {
       throw new Error('Expected valid result');
     }
     expect(result.rules).toStrictEqual([
+      {
+        type: 'expiry',
+        data: { timestamp: 1720000 },
+      },
       {
         type: 'redeemer',
         data: {
