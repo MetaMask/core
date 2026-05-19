@@ -575,7 +575,6 @@ function getAcrossDepositType(transaction: TransactionMeta): TransactionType {
 
   switch (transaction.type) {
     case TransactionType.perpsDeposit:
-    case TransactionType.perpsDepositAndOrder:
       return TransactionType.perpsAcrossDeposit;
     case TransactionType.predictDeposit:
       return TransactionType.predictAcrossDeposit;

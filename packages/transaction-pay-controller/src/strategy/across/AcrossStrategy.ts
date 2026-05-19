@@ -31,10 +31,7 @@ export class AcrossStrategy implements PayStrategy<AcrossQuote> {
       return false;
     }
 
-    if (
-      request.transaction?.type === TransactionType.perpsDeposit ||
-      request.transaction?.type === TransactionType.perpsDepositAndOrder
-    ) {
+    if (request.transaction?.type === TransactionType.perpsDeposit) {
       const supportsPerpsDeposit = actionableRequests.every((singleRequest) =>
         isSupportedAcrossPerpsDepositRequest(
           singleRequest,
