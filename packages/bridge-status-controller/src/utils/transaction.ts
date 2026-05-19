@@ -239,6 +239,7 @@ export const addSyntheticTransaction = async (
       origin: 'metamask',
       actionId: generateActionId(),
       isStateOnly: true,
+      isInternal: true,
       ...args[1],
     },
   );
@@ -460,6 +461,7 @@ export const getAddTransactionBatchParams = async ({
     requireApproval,
     origin: 'metamask',
     from: trade.from,
+    isInternal: true,
     transactions,
   };
 
@@ -663,6 +665,7 @@ export const submitEvmTransaction = async ({
     requireApproval,
     type: transactionType,
     origin: 'metamask',
+    isInternal: true,
   };
   // Exclude gasLimit from trade to avoid type issues (it can be null)
   const { gasLimit: tradeGasLimit, ...tradeWithoutGasLimit } = trade;

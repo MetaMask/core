@@ -1,4 +1,3 @@
-import { ORIGIN_METAMASK } from '@metamask/controller-utils';
 import type { NetworkClientId } from '@metamask/network-controller';
 
 import type { TransactionControllerMessenger } from '../TransactionController';
@@ -506,9 +505,9 @@ describe('gas-fees', () => {
         );
       });
 
-      it('to custom if request gas price but no request maxFeePerGas or maxPriorityFeePerGas and origin is metamask', async () => {
+      it('to custom if request gas price but no request maxFeePerGas or maxPriorityFeePerGas and isInternal', async () => {
         updateGasFeeRequest.txMeta.txParams.gasPrice = GAS_HEX_MOCK;
-        updateGasFeeRequest.txMeta.origin = ORIGIN_METAMASK;
+        updateGasFeeRequest.txMeta.isInternal = true;
 
         await updateGasFees(updateGasFeeRequest);
 
@@ -517,7 +516,7 @@ describe('gas-fees', () => {
         );
       });
 
-      it('to medium if request gas price but no request maxFeePerGas or maxPriorityFeePerGas and origin not metamask', async () => {
+      it('to dappSuggested if request gas price but no request maxFeePerGas or maxPriorityFeePerGas and not isInternal', async () => {
         updateGasFeeRequest.txMeta.txParams.gasPrice = GAS_HEX_MOCK;
         updateGasFeeRequest.txMeta.origin = ORIGIN_MOCK;
 
@@ -538,8 +537,8 @@ describe('gas-fees', () => {
         );
       });
 
-      it('to medium if origin is metamask', async () => {
-        updateGasFeeRequest.txMeta.origin = ORIGIN_METAMASK;
+      it('to medium if isInternal', async () => {
+        updateGasFeeRequest.txMeta.isInternal = true;
 
         await updateGasFees(updateGasFeeRequest);
 
@@ -548,7 +547,7 @@ describe('gas-fees', () => {
         );
       });
 
-      it('to dappSuggested if origin is not metamask', async () => {
+      it('to dappSuggested if not isInternal', async () => {
         updateGasFeeRequest.txMeta.origin = ORIGIN_MOCK;
 
         await updateGasFees(updateGasFeeRequest);

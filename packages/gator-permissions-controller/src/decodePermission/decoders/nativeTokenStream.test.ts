@@ -8,9 +8,9 @@ import {
   DELEGATOR_CONTRACTS,
 } from '@metamask/delegation-deployments';
 
-import { createPermissionRulesForContracts } from '.';
+import { createPermissionDecodersForContracts } from '.';
 
-describe('native-token-stream rule', () => {
+describe('native-token-stream decoder', () => {
   const chainId = CHAIN_ID.sepolia;
   const contracts = DELEGATOR_CONTRACTS['1.3.0'][chainId];
   const {
@@ -18,12 +18,12 @@ describe('native-token-stream rule', () => {
     NativeTokenStreamingEnforcer,
     ExactCalldataEnforcer,
   } = contracts;
-  const permissionRules = createPermissionRulesForContracts(contracts);
-  const rule = permissionRules.find(
+  const permissionDecoders = createPermissionDecodersForContracts(contracts);
+  const decoder = permissionDecoders.find(
     (candidate) => candidate.permissionType === 'native-token-stream',
   );
-  if (!rule) {
-    throw new Error('Rule not found');
+  if (!decoder) {
+    throw new Error('Decoder not found');
   }
 
   const expiryCaveat = {
@@ -68,7 +68,7 @@ describe('native-token-stream rule', () => {
       },
     ];
 
-    const result = rule.validateAndDecodePermission(caveats);
+    const result = decoder.validateAndDecodePermission(caveats);
     expect(result.isValid).toBe(false);
 
     // this is here as a type guard
@@ -100,7 +100,7 @@ describe('native-token-stream rule', () => {
       },
     ];
 
-    const result = rule.validateAndDecodePermission(caveats);
+    const result = decoder.validateAndDecodePermission(caveats);
     expect(result.isValid).toBe(false);
 
     // this is here as a type guard
@@ -123,7 +123,7 @@ describe('native-token-stream rule', () => {
       },
     ];
 
-    const result = rule.validateAndDecodePermission(caveats);
+    const result = decoder.validateAndDecodePermission(caveats);
     expect(result.isValid).toBe(false);
 
     // this is here as a type guard
@@ -156,7 +156,7 @@ describe('native-token-stream rule', () => {
         args: '0x' as const,
       },
     ];
-    const result = rule.validateAndDecodePermission(caveats);
+    const result = decoder.validateAndDecodePermission(caveats);
     expect(result.isValid).toBe(false);
 
     // this is here as a type guard
@@ -191,7 +191,7 @@ describe('native-token-stream rule', () => {
         args: '0x' as const,
       },
     ];
-    const result = rule.validateAndDecodePermission(caveats);
+    const result = decoder.validateAndDecodePermission(caveats);
     expect(result.isValid).toBe(false);
 
     // this is here as a type guard
@@ -222,7 +222,7 @@ describe('native-token-stream rule', () => {
         args: '0x' as const,
       },
     ];
-    const result = rule.validateAndDecodePermission(caveats);
+    const result = decoder.validateAndDecodePermission(caveats);
     expect(result.isValid).toBe(true);
 
     // this is here as a type guard
@@ -261,7 +261,7 @@ describe('native-token-stream rule', () => {
       },
     ];
 
-    const result = rule.validateAndDecodePermission(caveats);
+    const result = decoder.validateAndDecodePermission(caveats);
     expect(result.isValid).toBe(false);
 
     // this is here as a type guard
@@ -300,7 +300,7 @@ describe('native-token-stream rule', () => {
       },
     ];
 
-    const result = rule.validateAndDecodePermission(caveats);
+    const result = decoder.validateAndDecodePermission(caveats);
     expect(result.isValid).toBe(false);
 
     // this is here as a type guard
@@ -339,7 +339,7 @@ describe('native-token-stream rule', () => {
       },
     ];
 
-    const result = rule.validateAndDecodePermission(caveats);
+    const result = decoder.validateAndDecodePermission(caveats);
     expect(result.isValid).toBe(false);
 
     // this is here as a type guard
@@ -364,7 +364,7 @@ describe('native-token-stream rule', () => {
       exactCalldataCaveat,
       { enforcer: NativeTokenStreamingEnforcer, terms, args: '0x' as const },
     ];
-    const result = rule.validateAndDecodePermission(caveats);
+    const result = decoder.validateAndDecodePermission(caveats);
     expect(result.isValid).toBe(false);
 
     // this is here as a type guard
@@ -388,7 +388,7 @@ describe('native-token-stream rule', () => {
       exactCalldataCaveat,
       { enforcer: NativeTokenStreamingEnforcer, terms, args: '0x' as const },
     ];
-    const result = rule.validateAndDecodePermission(caveats);
+    const result = decoder.validateAndDecodePermission(caveats);
     expect(result.isValid).toBe(false);
 
     // this is here as a type guard
@@ -412,7 +412,7 @@ describe('native-token-stream rule', () => {
       { enforcer: NativeTokenStreamingEnforcer, terms, args: '0x' as const },
     ];
 
-    const result = rule.validateAndDecodePermission(caveats);
+    const result = decoder.validateAndDecodePermission(caveats);
     expect(result.isValid).toBe(false);
 
     // this is here as a type guard
@@ -437,7 +437,7 @@ describe('native-token-stream rule', () => {
       exactCalldataCaveat,
       { enforcer: NativeTokenStreamingEnforcer, terms, args: '0x' as const },
     ];
-    const result = rule.validateAndDecodePermission(caveats);
+    const result = decoder.validateAndDecodePermission(caveats);
     expect(result.isValid).toBe(false);
 
     // this is here as a type guard
@@ -462,7 +462,7 @@ describe('native-token-stream rule', () => {
       { enforcer: NativeTokenStreamingEnforcer, terms, args: '0x' as const },
     ];
 
-    const result = rule.validateAndDecodePermission(caveats);
+    const result = decoder.validateAndDecodePermission(caveats);
     expect(result.isValid).toBe(false);
 
     // this is here as a type guard

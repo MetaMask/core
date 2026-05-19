@@ -2151,6 +2151,7 @@ describe('EarnController', () => {
           },
           {
             networkClientId: '1',
+            isInternal: true,
           },
         );
       });
@@ -2207,6 +2208,7 @@ describe('EarnController', () => {
           },
           {
             networkClientId: '1',
+            isInternal: true,
           },
         );
       });
@@ -2378,6 +2380,7 @@ describe('EarnController', () => {
           },
           {
             networkClientId: '1',
+            isInternal: true,
           },
         );
       });
@@ -2435,6 +2438,7 @@ describe('EarnController', () => {
           },
           {
             networkClientId: '1',
+            isInternal: true,
           },
         );
       });
@@ -2572,6 +2576,7 @@ describe('EarnController', () => {
           },
           {
             networkClientId: '1',
+            isInternal: true,
           },
         );
       });
@@ -2629,6 +2634,7 @@ describe('EarnController', () => {
           },
           {
             networkClientId: '1',
+            isInternal: true,
           },
         );
       });

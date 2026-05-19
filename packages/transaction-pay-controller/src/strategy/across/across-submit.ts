@@ -274,6 +274,7 @@ async function submitTransactions(
           gasFeeToken,
           networkClientId,
           origin: ORIGIN_METAMASK,
+          isInternal: true,
           requireApproval: false,
           type: transactions[0].type,
         },
@@ -294,6 +295,7 @@ async function submitTransactions(
         gasLimit7702,
         networkClientId,
         origin: ORIGIN_METAMASK,
+        isInternal: true,
         requireApproval: false,
         transactions: batchTransactions,
       });

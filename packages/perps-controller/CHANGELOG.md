@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [6.2.0]
+
+### Changed
+
+- Pass `isInternal: true` to all internal `addTransaction` calls to adopt the explicit `isInternal` flag introduced in `@metamask/transaction-controller` ([#8633](https://github.com/MetaMask/core/pull/8633))
+- Bump `@metamask/transaction-controller` from `^65.4.0` to `^66.0.0` ([#8848](https://github.com/MetaMask/core/pull/8848))
+
 ## [6.1.0]
 
 ### Changed
@@ -298,7 +305,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Bump `@metamask/controller-utils` from `^11.18.0` to `^11.19.0` ([#7995](https://github.com/MetaMask/core/pull/7995))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@6.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@6.2.0...HEAD
+[6.2.0]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@6.1.0...@metamask/perps-controller@6.2.0
 [6.1.0]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@6.0.1...@metamask/perps-controller@6.1.0
 [6.0.1]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@6.0.0...@metamask/perps-controller@6.0.1
 [6.0.0]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@5.0.0...@metamask/perps-controller@6.0.0
