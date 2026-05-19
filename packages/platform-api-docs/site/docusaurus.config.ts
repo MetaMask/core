@@ -1,40 +1,8 @@
 import type * as Preset from '@docusaurus/preset-classic';
-import type { Config, Plugin as DocusaurusPlugin } from '@docusaurus/types';
-import * as fs from 'node:fs';
-import * as path from 'node:path';
+import type { Config } from '@docusaurus/types';
 import { themes } from 'prism-react-renderer';
 
 const codeTheme = themes.dracula;
-
-// When running inside a host project (e.g. metamask-extension) whose React
-// version differs from Docusaurus's, we alias react/react-dom to the copies
-// installed alongside this package.  Only create aliases for packages that
-// actually exist at the NODE_PATH location (they may be hoisted when the host
-// already has a compatible version).
-const extraNodeModules = process.env.NODE_PATH;
-const reactAlias: Record<string, string> = {};
-if (extraNodeModules) {
-  for (const pkg of ['react', 'react-dom', '@mdx-js/react']) {
-    const pkgPath = path.join(extraNodeModules, pkg);
-    if (fs.existsSync(pkgPath)) {
-      reactAlias[pkg] = pkgPath;
-    }
-  }
-}
-
-function resolveDepsPlugin(): DocusaurusPlugin {
-  return {
-    name: 'resolve-deps',
-    configureWebpack(): { resolve?: { alias: Record<string, string> } } {
-      if (Object.keys(reactAlias).length === 0) {
-        return {};
-      }
-      return {
-        resolve: { alias: reactAlias },
-      };
-    },
-  };
-}
 
 const projectLabel = process.env.DOCS_PROJECT_LABEL;
 const commitSha = process.env.DOCS_COMMIT_SHA;
@@ -61,8 +29,6 @@ const config: Config = {
     defaultLocale: 'en',
     locales: ['en'],
   },
-
-  plugins: [resolveDepsPlugin],
 
   themes: [
     [

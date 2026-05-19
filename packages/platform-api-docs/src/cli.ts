@@ -3,21 +3,20 @@
 import execa from 'execa';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
+import npmWhich from 'npm-which';
 import yargs from 'yargs';
 
 import { generate } from './generate';
 
 /**
- * Resolve the path to the docusaurus CLI binary and the node_modules
- * directory that contains the Docusaurus packages.
+ * Locate the Docusaurus binary in this package's `node_modules/.bin`. Using
+ * `npm-which` lets the lookup track wherever the installed Docusaurus puts
+ * its binary, so a future Docusaurus upgrade can't break this path.
  *
- * @returns The docusaurus binary path and the node_modules directory.
+ * @returns Absolute path to the `docusaurus` executable.
  */
-function resolveDocusaurus(): { bin: string; nodeModules: string } {
-  const bin = require.resolve('@docusaurus/core/bin/docusaurus.mjs');
-  const coreDir = path.dirname(path.dirname(bin));
-  const nodeModules = path.dirname(path.dirname(coreDir));
-  return { bin, nodeModules };
+function resolveDocusaurus(): string {
+  return npmWhich(__dirname).sync('docusaurus');
 }
 
 /**
@@ -33,16 +32,17 @@ async function runDocusaurus(
   cwd: string,
   extraEnv: Record<string, string> = {},
 ): Promise<void> {
-  const { bin, nodeModules } = resolveDocusaurus();
-  await execa(process.execPath, [bin, command], {
+  await execa(resolveDocusaurus(), [command], {
     cwd,
     stdio: 'inherit',
-    env: { ...process.env, NODE_PATH: nodeModules, ...extraEnv },
+    env: { ...process.env, ...extraEnv },
   });
 }
 
 /**
- * Copy site files into the output directory using fs.cp with filtering.
+ * Copy site files into the output directory, skipping `node_modules` and
+ * `docs` (the latter is owned by the doc generator and shouldn't be carried
+ * over from the source `site/` directory).
  *
  * @param outDir - The output directory to set up.
  */
@@ -52,7 +52,14 @@ async function setupSite(outDir: string): Promise<void> {
 
   console.log(`\nSetting up Docusaurus site in ${outDir}...`);
 
-  await copyDir(siteDir, outDir, skip);
+  // `fs.cp` has been available since Node 16.7 and only got the "stable"
+  // marker in 22.3 — it's functional throughout our supported Node range
+  // (`^18.18 || >=20`), even though the linter flags the older versions.
+  // eslint-disable-next-line n/no-unsupported-features/node-builtins
+  await fs.cp(siteDir, outDir, {
+    recursive: true,
+    filter: (source) => !skip.has(path.basename(source)),
+  });
 
   // Write a minimal package.json so Docusaurus doesn't warn about a missing one
   const pkgJsonPath = path.join(outDir, 'package.json');
@@ -190,36 +197,6 @@ async function main(): Promise<void> {
         console.log('\nServing static site...');
         await runDocusaurus('serve', resolvedOutputDir, docusaurusEnv);
       }
-    }
-  }
-}
-
-/**
- * Recursively copy a directory, skipping specified directory names.
- *
- * @param src - Source directory.
- * @param dest - Destination directory.
- * @param skip - Set of directory names to skip.
- */
-async function copyDir(
-  src: string,
-  dest: string,
-  skip: Set<string>,
-): Promise<void> {
-  await fs.mkdir(dest, { recursive: true });
-  const entries = await fs.readdir(src, { withFileTypes: true });
-
-  for (const entry of entries) {
-    if (skip.has(entry.name)) {
-      continue;
-    }
-    const srcPath = path.join(src, entry.name);
-    const destPath = path.join(dest, entry.name);
-
-    if (entry.isDirectory()) {
-      await copyDir(srcPath, destPath, skip);
-    } else {
-      await fs.copyFile(srcPath, destPath);
     }
   }
 }

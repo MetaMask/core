@@ -7963,12 +7963,14 @@ __metadata:
     "@ts-bridge/cli": "npm:^0.6.4"
     "@types/jest": "npm:^29.5.14"
     "@types/node": "npm:^16.18.54"
+    "@types/npm-which": "npm:^3"
     "@types/react": "npm:^18.3.0"
     "@types/yargs": "npm:^17.0.32"
     deepmerge: "npm:^4.2.2"
     execa: "npm:^5.0.0"
     glob: "npm:^13.0.6"
     jest: "npm:^29.7.0"
+    npm-which: "npm:^3.0.1"
     prism-react-renderer: "npm:^2.4.1"
     react: "npm:^19.2.5"
     react-dom: "npm:^19.2.5"
@@ -10835,6 +10837,15 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@types/npm-which@npm:^3":
+  version: 3.0.4
+  resolution: "@types/npm-which@npm:3.0.4"
+  dependencies:
+    "@types/node": "npm:*"
+  checksum: 10/c26d3ef41e20c2013958c29ee858182851f110941ae19e304c9594a60e9b3fae879dfc97c312507d6a9c50922e0b1dbfe145b2432bb8fdd2903fce063f3d07d5
+  languageName: node
+  linkType: hard
+
 "@types/parse-json@npm:^4.0.0":
   version: 4.0.2
   resolution: "@types/parse-json@npm:4.0.2"
@@ -13154,7 +13165,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"commander@npm:^2.20.0":
+"commander@npm:^2.20.0, commander@npm:^2.9.0":
   version: 2.20.3
   resolution: "commander@npm:2.20.3"
   checksum: 10/90c5b6898610cd075984c58c4f88418a4fb44af08c1b1415e9854c03171bec31b336b7f3e4cefe33de994b3f12b03c5e2d638da4316df83593b9e82554e7e95b
@@ -20239,6 +20250,17 @@ __metadata:
   languageName: node
   linkType: hard
 
+"npm-path@npm:^2.0.2":
+  version: 2.0.4
+  resolution: "npm-path@npm:2.0.4"
+  dependencies:
+    which: "npm:^1.2.10"
+  bin:
+    npm-path: bin/npm-path
+  checksum: 10/b62f5c7739da994684a1df64ccc987f232dc348ae307986eadf2234338b54714ba44b5372e0327cff9794ed0f57e4c0382dab79af710ce0e33bd1f124b1d6e35
+  languageName: node
+  linkType: hard
+
 "npm-pick-manifest@npm:^9.0.0":
   version: 9.1.0
   resolution: "npm-pick-manifest@npm:9.1.0"
@@ -20266,6 +20288,19 @@ __metadata:
   dependencies:
     path-key: "npm:^4.0.0"
   checksum: 10/ae8e7a89da9594fb9c308f6555c73f618152340dcaae423e5fb3620026fefbec463618a8b761920382d666fa7a2d8d240b6fe320e8a6cdd54dc3687e2b659d25
+  languageName: node
+  linkType: hard
+
+"npm-which@npm:^3.0.1":
+  version: 3.0.1
+  resolution: "npm-which@npm:3.0.1"
+  dependencies:
+    commander: "npm:^2.9.0"
+    npm-path: "npm:^2.0.2"
+    which: "npm:^1.2.10"
+  bin:
+    npm-which: bin/npm-which.js
+  checksum: 10/742e24acdd6503edd6093bf8fa88f437760143301c6c5d846f532cf02ff40e815a7c28c96eca170398dfbbed97e7ab4dff07fbdcbb2ae3000a6a9845bc77b8c7
   languageName: node
   linkType: hard
 
@@ -25337,7 +25372,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"which@npm:^1.2.14":
+"which@npm:^1.2.10, which@npm:^1.2.14":
   version: 1.3.1
   resolution: "which@npm:1.3.1"
   dependencies:
