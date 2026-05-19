@@ -17,7 +17,7 @@ import { Node as NodeGuards, Project, ts } from 'ts-morph';
 import type {
   ExtractedMessengerCapabilityType,
   MethodInfo,
-  ParamDoc,
+  DocumentedParameter,
 } from './types';
 
 // ---------------------------------------------------------------------------
@@ -89,7 +89,7 @@ function stripParamSeparator(comment: string): string {
  */
 function extractJsDoc(node: JSDocableNode): {
   description: string;
-  params: ParamDoc[];
+  params: DocumentedParameter[];
   returns: string;
 } {
   const jsDocs = node.getJsDocs();
@@ -101,7 +101,7 @@ function extractJsDoc(node: JSDocableNode): {
   const descriptionBody = jsDoc.getDescription().trim();
 
   const deprecatedLines: string[] = [];
-  const params: ParamDoc[] = [];
+  const params: DocumentedParameter[] = [];
   let returns = '';
 
   for (const tag of jsDoc.getTags()) {

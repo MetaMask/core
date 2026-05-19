@@ -2,7 +2,7 @@
  * A documented parameter for an action handler or event payload — name from
  * the JSDoc `@param` tag, description from the tag's comment body.
  */
-export type ParamDoc = {
+export type DocumentedParameter = {
   name: string;
   description: string;
 };
@@ -12,24 +12,35 @@ export type ParamDoc = {
  * — distilled from its TypeScript definition.
  */
 export type ExtractedMessengerCapabilityType = {
-  typeName: string; // e.g. "NetworkControllerGetStateAction"
-  typeString: string; // e.g. "NetworkController:getState"
+  /** The capability type's TypeScript identifier, e.g. `NetworkControllerGetStateAction`. */
+  typeName: string;
+  /** The capability's messenger key, e.g. `NetworkController:getState`. */
+  typeString: string;
+  /** Whether the capability is an action (request/response) or an event (broadcast). */
   kind: 'action' | 'event';
-  jsDoc: string; // Cleaned description body — content above the first tag.
+  /** Cleaned description body — content above the first JSDoc tag. */
+  jsDoc: string;
   /**
    * Documented parameters — populated from `@param` tags, in source order.
    * For actions these describe the handler's arguments; for events they
    * describe the payload tuple's positional elements.
    */
-  params: ParamDoc[];
+  params: DocumentedParameter[];
   /** Documented return value — populated from a `@returns` tag, if any. */
   returns: string;
-  handlerOrPayload: string; // Raw type text of handler / payload
-  sourceFile: string; // Relative path from repo root
+  /** Raw type text of the handler (action) or payload (event). */
+  handlerOrPayload: string;
+  /** Path to the file the capability was declared in, relative to the project root. */
+  sourceFile: string;
+  /** 1-based line number of the capability declaration. */
   line: number;
+  /** Whether the capability is marked `@deprecated`. */
   deprecated: boolean;
 };
 
+/**
+ * A namespace's actions and events, after dedup and sorting.
+ */
 export type NamespaceGroup = {
   namespace: string;
   actions: ExtractedMessengerCapabilityType[];
@@ -43,8 +54,12 @@ export type NamespaceGroup = {
  * the type alias itself has none.
  */
 export type MethodInfo = {
+  /** Cleaned description body — content above the first JSDoc tag. */
   jsDoc: string;
-  params: ParamDoc[];
+  /** Documented parameters from the method's `@param` tags. */
+  params: DocumentedParameter[];
+  /** Documented return value from the method's `@returns` tag, if any. */
   returns: string;
-  signature: string; // e.g. "(fields: AddNetworkFields) => NetworkConfiguration"
+  /** Method signature in TypeScript syntax, e.g. `(fields: AddNetworkFields) => NetworkConfiguration`. */
+  signature: string;
 };

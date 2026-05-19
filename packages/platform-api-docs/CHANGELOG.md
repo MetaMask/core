@@ -9,6 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Initial release of the platform-api-docs package
+- Initial release of the platform-api-docs package ([#8012](https://github.com/MetaMask/core/pull/8012))
 
 [Unreleased]: https://github.com/MetaMask/core/
