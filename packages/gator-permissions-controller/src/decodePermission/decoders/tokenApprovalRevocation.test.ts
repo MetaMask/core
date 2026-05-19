@@ -57,6 +57,33 @@ describe('token-approval-revocation decoder', () => {
     );
   });
 
+  it('rejects 0x00 terms', () => {
+    const caveats = [
+      expiryCaveat,
+      {
+        enforcer: approvalRevocationEnforcer,
+        terms: '0x00' as const,
+        args: '0x' as const,
+      },
+      {
+        enforcer: nonceEnforcer,
+        terms: '0x' as const,
+        args: '0x' as const,
+      },
+    ];
+
+    const result = decoder.validateAndDecodePermission(caveats);
+    expect(result.isValid).toBe(false);
+
+    if (result.isValid) {
+      throw new Error('Expected invalid result');
+    }
+
+    expect(result.error.message).toContain(
+      'Invalid ApprovalRevocation terms: must be greater than 0',
+    );
+  });
+
   it('rejects terms whose mask exceeds the supported max', () => {
     const caveats = [
       expiryCaveat,

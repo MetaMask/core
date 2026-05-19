@@ -72,6 +72,10 @@ function validateAndDecodeData(
     enforcer: approvalRevocationEnforcer,
   });
 
+  if (terms === '0x') {
+    throw new Error('Invalid ApprovalRevocation terms: must be greater than 0');
+  }
+
   const mask = hexToNumber(terms);
 
   if (mask > MAX_APPROVAL_REVOCATION_MASK) {
