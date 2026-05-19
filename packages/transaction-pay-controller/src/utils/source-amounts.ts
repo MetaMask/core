@@ -232,7 +232,8 @@ function isQuoteAlwaysRequired(
     isHyperliquidDeposit &&
     (strategy === TransactionPayStrategy.Relay ||
       (strategy === TransactionPayStrategy.Across &&
-        parentTransactionType === TransactionType.perpsDeposit))
+        (parentTransactionType === TransactionType.perpsDeposit ||
+          parentTransactionType === TransactionType.perpsDepositAndOrder)))
   );
 }
 

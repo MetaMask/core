@@ -39,6 +39,7 @@ const SLIPPAGE_DEFAULT = 0.005;
 
 const FEATURE_ID_BY_TRANSACTION_TYPE = new Map<TransactionType, FeatureId>([
   [TransactionType.perpsDeposit, FeatureId.PERPS],
+  [TransactionType.perpsDepositAndOrder, FeatureId.PERPS],
 ]);
 
 const log = createModuleLogger(projectLogger, 'bridge-strategy');

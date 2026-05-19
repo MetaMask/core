@@ -29,4 +29,5 @@ export const RELAY_DEPOSIT_TYPES: Record<string, TransactionType> = {
   [TransactionType.musdConversion]: TransactionType.musdRelayDeposit,
   [TransactionType.predictDeposit]: TransactionType.predictRelayDeposit,
   [TransactionType.perpsDeposit]: TransactionType.perpsRelayDeposit,
+  [TransactionType.perpsDepositAndOrder]: TransactionType.perpsRelayDeposit,
 };

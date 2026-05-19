@@ -391,7 +391,9 @@ function normalizeRequest(
     ...request,
   };
 
-  const isPerpsDeposit = transaction.type === TransactionType.perpsDeposit;
+  const isPerpsDeposit =
+    transaction.type === TransactionType.perpsDeposit ||
+    transaction.type === TransactionType.perpsDepositAndOrder;
 
   const isHyperliquidDeposit =
     isPerpsDeposit &&

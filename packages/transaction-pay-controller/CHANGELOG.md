@@ -11,6 +11,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Remove unnecessary type assertions for bridge quotes ([#8805](https://github.com/MetaMask/core/pull/8805))
 
+### Fixed
+
+- Treat `perpsDepositAndOrder` transactions identically to `perpsDeposit` across the Relay, Across, and Bridge strategies ([#TODO](https://github.com/MetaMask/core/pull/TODO))
+  - Quote-time Hypercore redirect, strategy support checks, generated leg transaction types, and quote-required gating now cover both parent transaction types.
+
 ## [22.6.0]
 
 ### Changed

@@ -18,9 +18,9 @@ export const ACROSS_HYPERCORE_USDC_PERPS_ADDRESS =
  * Detect the quote-time parent transaction shape that Across can map to the
  * new HyperCore USDC-PERPS direct-deposit route.
  *
- * The parent transaction remains `perpsDeposit` while quotes are being
- * selected. `perpsAcrossDeposit` is only assigned later to the generated
- * Across submission transaction(s).
+ * The parent transaction remains `perpsDeposit` or `perpsDepositAndOrder`
+ * while quotes are being selected. `perpsAcrossDeposit` is only assigned
+ * later to the generated Across submission transaction(s).
  *
  * @param request - Transaction pay quote request.
  * @param parentTransactionType - Parent transaction type before Across
@@ -35,7 +35,8 @@ export function isSupportedAcrossPerpsDepositRequest(
   parentTransactionType?: TransactionType,
 ): boolean {
   return (
-    parentTransactionType === TransactionType.perpsDeposit &&
+    (parentTransactionType === TransactionType.perpsDeposit ||
+      parentTransactionType === TransactionType.perpsDepositAndOrder) &&
     request.isPostQuote !== true &&
     request.targetChainId === CHAIN_ID_ARBITRUM &&
     request.targetTokenAddress.toLowerCase() ===
