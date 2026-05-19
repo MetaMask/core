@@ -30,6 +30,9 @@ export const RELAY_DEPOSIT_TYPES: Record<string, TransactionType> = {
   [TransactionType.musdConversion]: TransactionType.musdRelayDeposit,
   [TransactionType.predictDeposit]: TransactionType.predictRelayDeposit,
   ...Object.fromEntries(
-    PERPS_DEPOSIT_TYPES.map((type) => [type, TransactionType.perpsRelayDeposit]),
+    PERPS_DEPOSIT_TYPES.map((type) => [
+      type,
+      TransactionType.perpsRelayDeposit,
+    ]),
   ),
 };
