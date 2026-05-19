@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [71.2.0]
+
 ### Changed
 
 - Pass `isInternal: true` to all internal `addTransaction` / `addTransactionBatch` calls to adopt the explicit `isInternal` flag introduced in `@metamask/transaction-controller` ([#8633](https://github.com/MetaMask/core/pull/8633))
@@ -1198,7 +1200,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#5317](https://github.com/MetaMask/core/pull/5317))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@71.1.4...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@71.2.0...HEAD
+[71.2.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@71.1.4...@metamask/bridge-status-controller@71.2.0
 [71.1.4]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@71.1.3...@metamask/bridge-status-controller@71.1.4
 [71.1.3]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@71.1.2...@metamask/bridge-status-controller@71.1.3
 [71.1.2]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@71.1.1...@metamask/bridge-status-controller@71.1.2
