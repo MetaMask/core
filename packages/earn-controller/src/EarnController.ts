@@ -1062,6 +1062,7 @@ export class EarnController extends BaseController<
       {
         ...txOptions,
         networkClientId: selectedNetworkClientId,
+        isInternal: true,
       },
     );
 
@@ -1139,6 +1140,7 @@ export class EarnController extends BaseController<
       {
         ...txOptions,
         networkClientId: selectedNetworkClientId,
+        isInternal: true,
       },
     );
 
@@ -1216,6 +1218,7 @@ export class EarnController extends BaseController<
       {
         ...txOptions,
         networkClientId: selectedNetworkClientId,
+        isInternal: true,
       },
     );
 
