@@ -10,7 +10,7 @@
   "bugs": {
     "url": "https://github.com/MetaMask/core/issues"
   },
-  "license": "(MIT OR Apache-2.0)",
+  "license": "MIT",
   "repository": {
     "type": "git",
     "url": "https://github.com/MetaMask/core.git"
@@ -44,20 +44,38 @@
     "build:docs": "typedoc",
     "changelog:update": "../../scripts/update-changelog.sh @metamask/wallet",
     "changelog:validate": "../../scripts/validate-changelog.sh @metamask/wallet",
-    "messenger-action-types:check": "tsx ../../packages/messenger-cli/src/cli.ts --formatter oxfmt --check",
-    "messenger-action-types:generate": "tsx ../../packages/messenger-cli/src/cli.ts --formatter oxfmt --generate",
+    "messenger-action-types:check": "tsx ../../packages/messenger-cli/src/cli.ts --check",
+    "messenger-action-types:generate": "tsx ../../packages/messenger-cli/src/cli.ts --generate",
     "since-latest-release": "../../scripts/since-latest-release.sh",
+    "pretest": "./scripts/install-binaries.sh",
     "test": "NODE_OPTIONS=--experimental-vm-modules jest --reporters=jest-silent-reporter",
     "test:clean": "NODE_OPTIONS=--experimental-vm-modules jest --clearCache",
     "test:verbose": "NODE_OPTIONS=--experimental-vm-modules jest --verbose",
     "test:watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch"
   },
+  "dependencies": {
+    "@metamask/accounts-controller": "^38.1.1",
+    "@metamask/approval-controller": "^9.0.1",
+    "@metamask/base-controller": "^9.1.0",
+    "@metamask/browser-passworder": "^6.0.0",
+    "@metamask/connectivity-controller": "^0.2.0",
+    "@metamask/controller-utils": "^12.1.0",
+    "@metamask/keyring-controller": "^25.5.0",
+    "@metamask/messenger": "^1.2.0",
+    "@metamask/network-controller": "^32.0.0",
+    "@metamask/remote-feature-flag-controller": "^4.2.1",
+    "@metamask/scure-bip39": "^2.1.1",
+    "@metamask/transaction-controller": "^65.4.0",
+    "@metamask/utils": "^11.9.0"
+  },
   "devDependencies": {
     "@metamask/auto-changelog": "^6.1.0",
+    "@metamask/foundryup": "^1.0.1",
     "@ts-bridge/cli": "^0.6.4",
     "@types/jest": "^29.5.14",
     "deepmerge": "^4.2.2",
     "jest": "^29.7.0",
+    "nock": "^13.3.1",
     "ts-jest": "^29.2.5",
     "tsx": "^4.20.5",
     "typedoc": "^0.25.13",
