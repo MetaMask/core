@@ -41,7 +41,7 @@ export const DATA_SERVICE_NAME = 'OrdersService';
  * All of the methods within {@link OrdersService} that are exposed via the
  * messenger.
  */
-const MESSENGER_EXPOSED_METHODS = ['fetchOrders'] as const;
+const MESSENGER_EXPOSED_METHODS = ['fetchOrders', 'fetchOrder'] as const;
 
 /**
  * Invalidates cached queries for {@link OrdersService}.
@@ -159,7 +159,7 @@ const FetchOrderResponseStruct = type({
 /**
  * The data that `GET /v1/orders/:id` returns.
  */
-type FetchOrderResponse = Infer<typeof FetchOrderResponseStruct>;
+export type FetchOrderResponse = Infer<typeof FetchOrderResponseStruct>;
 
 /**
  * The base URL of the API that the service represents.
@@ -257,14 +257,11 @@ export class OrdersService extends BaseDataService<
   /**
    * Uses the API to retrieve details about an order.
    *
-   * @param params - Parameters to qualify the request.
-   * @param params.id - The order ID
-   * orders.
+   * @param id - The order ID.
    * @returns The requested order.
    */
-  /*
-  async fetchOrder({ id }: { id?: string }): Promise<FetchOrderResponse> {
-    const url = new URL(`/v1/order/${id}`, BASE_URL);
+  async fetchOrder(id: string): Promise<FetchOrderResponse> {
+    const url = new URL(`/v1/orders/${id}`, BASE_URL);
 
     const responseData = await this.fetchQuery({
       queryKey: [`${this.name}:fetchOrder`, url.toString()],
@@ -294,5 +291,4 @@ export class OrdersService extends BaseDataService<
 
     return validatedResponseData;
   }
-  */
 }

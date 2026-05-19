@@ -20,6 +20,19 @@ export type OrdersServiceFetchOrdersAction = {
 };
 
 /**
+ * Uses the API to retrieve details about an order.
+ *
+ * @param id - The order ID.
+ * @returns The requested order.
+ */
+export type OrdersServiceFetchOrderAction = {
+  type: `OrdersService:fetchOrder`;
+  handler: OrdersService['fetchOrder'];
+};
+
+/**
  * Union of all OrdersService action types.
  */
-export type OrdersServiceMethodActions = OrdersServiceFetchOrdersAction;
+export type OrdersServiceMethodActions =
+  | OrdersServiceFetchOrdersAction
+  | OrdersServiceFetchOrderAction;

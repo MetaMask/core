@@ -2,9 +2,10 @@
 
 In the [previous section](./01-getting-started.md), we started by creating a data service class and a messenger to go along with it.
 
-Now we're ready to implement the main part of the data service. How do we do that?
+Now we're ready to implement the main part of the data service. Recall that our API looks like this:
 
-If a data service class ought to represent a data source, then the methods in that class ought to represent an operation. Since our API has two operations, we'll add two methods.
+- **GET `/v1/orders`**: Retrieve a paginated list of orders, limited to 100 at a time (latest first by default).
+- **GET `/v1/orders/:id`**: Retrieve data about an order.
 
 ## Requesting a list of orders
 
@@ -442,7 +443,7 @@ function createService({
 
 ### Writing a basic test
 
-Now we can write a test for the happy path. We define some response data we know will pass validation — it doesn't really matter what this is but we try to make it realistic — and we make a new service and fetch the orders.
+Now we can write a couple of tests for the happy path. We define some response data we know will pass validation — it doesn't really matter what this is, but we try to make it realistic — and we make a new service and fetch the orders. We test our method both without any parameters and with all of the parameters, to make sure it uses the correct URL.
 
 You may notice that we test the messenger action, not the method. Why? Services are designed to be used in any part of the stack, so the main way that they will be used is through the messenger.
 
@@ -491,21 +492,184 @@ describe('OrdersService', () => {
 
       expect(responseData).toStrictEqual(MOCK_VALID_RESPONSE_DATA);
     });
+
+    it('requests orders with the given sortField and sortOrder', async () => {
+      nock('https://api.example.com')
+        .get('/v1/orders')
+        .query({ sortField: 'updatedTime', sortOrder: 'desc' })
+        .reply(200, MOCK_VALID_RESPONSE_DATA);
+      const { rootMessenger } = createService();
+
+      const responseData = await rootMessenger.call(
+        'OrdersService:fetchOrders',
+        {
+          sortField: 'updatedTime',
+          sortOrder: 'desc',
+        },
+      );
+
+      expect(responseData).toStrictEqual(MOCK_VALID_RESPONSE_DATA);
+    });
   });
 });
 ```
 
-If we run this by saying:
+If we run this file (e.g. `yarn workspace @metamask/orders-service run test`), we'll see that it passes.
 
-```
-yarn workspace @metamask/orders-service run test
+Now for the "sad" paths (the error cases). We'll check that non-2xx and invalid responses throw errors:
+
+```typescript
+describe('OrdersService', () => {
+  describe('OrdersService:fetchOrders', () => {
+    // ...
+
+    it('throws if the API returns a non-200 status', async () => {
+      nock('https://api.example.com')
+        .get('/v1/orders')
+        .query({ sortField: 'createdTime', sortOrder: 'asc' })
+        .times(DEFAULT_MAX_RETRIES + 1)
+        .reply(500);
+      const { rootMessenger } = createService();
+
+      await expect(
+        rootMessenger.call('OrdersService:fetchOrders'),
+      ).rejects.toThrow("Orders API failed with status '500'");
+    });
+
+    it.each([
+      'not an object',
+      { missing: 'orders' },
+      { orders: 'not an array' },
+      { orders: ['not an object'] },
+      {
+        orders: [
+          {
+            ...MOCK_VALID_RESPONSE_DATA.orders[0],
+            createdTime: 'not a timestamp',
+          },
+        ],
+      },
+      {
+        orders: [
+          {
+            ...MOCK_VALID_RESPONSE_DATA.orders[0],
+            createdTime: 2 ** 53 - 1,
+          },
+        ],
+      },
+      {
+        orders: [
+          {
+            ...MOCK_VALID_RESPONSE_DATA.orders[0],
+            details: 'not an object',
+          },
+        ],
+      },
+      {
+        orders: [
+          {
+            ...MOCK_VALID_RESPONSE_DATA.orders[0],
+            from: 'not a CAIP account ID',
+          },
+        ],
+      },
+      {
+        orders: [
+          {
+            ...MOCK_VALID_RESPONSE_DATA.orders[0],
+            orderId: {
+              not: 'a string',
+            },
+          },
+        ],
+      },
+      {
+        orders: [
+          {
+            ...MOCK_VALID_RESPONSE_DATA.orders[0],
+            status: 'not a valid status',
+          },
+        ],
+      },
+      {
+        orders: [
+          {
+            ...MOCK_VALID_RESPONSE_DATA.orders[0],
+            to: 'not a CAIP account ID',
+          },
+        ],
+      },
+      {
+        orders: [
+          {
+            ...MOCK_VALID_RESPONSE_DATA.orders[0],
+            updatedTime: 'not a timestamp',
+          },
+        ],
+      },
+      {
+        orders: [
+          {
+            ...MOCK_VALID_RESPONSE_DATA.orders[0],
+            objectId: 'not a CAIP asset type',
+          },
+        ],
+      },
+      {
+        orders: [
+          {
+            ...MOCK_VALID_RESPONSE_DATA.orders[0],
+            type: 'not a valid type',
+          },
+        ],
+      },
+    ])(
+      'throws if the API returns a malformed response %o',
+      async (response) => {
+        nock('https://api.example.com')
+          .get('/v1/orders')
+          .query({ sortField: 'createdTime', sortOrder: 'asc' })
+          .reply(200, JSON.stringify(response));
+        const { rootMessenger } = createService();
+
+        await expect(
+          rootMessenger.call('OrdersService:fetchOrders'),
+        ).rejects.toThrow('Malformed response received from Orders API');
+      },
+    );
+  });
+});
 ```
 
-then we should see that all of our tests pass.
+Again, if we run this file (e.g. `yarn workspace @metamask/orders-service run test`), we'll see that it passes too.
+
+Finally, let's write a simple test for the method itself:
+
+```typescript
+describe('OrdersService', () => {
+  // ...
+
+  describe('fetchOrders', () => {
+    it('requests orders from the API, same as the method', async () => {
+      nock('https://api.example.com')
+        .get('/v1/orders')
+        .query({ sortField: 'createdTime', sortOrder: 'asc' })
+        .reply(200, MOCK_VALID_RESPONSE_DATA);
+      const { service } = createService();
+
+      const responseData = await service.fetchOrders();
+
+      expect(responseData).toStrictEqual(MOCK_VALID_RESPONSE_DATA);
+    });
+  });
+});
+```
 
 ## Requesting details for an order
 
-Now let's implement `GET /v1/orders/:id`. We'll do that by adding a `fetchOrder` method that follows the same steps as we did above.
+At this point we've implemented `GET /v1/orders` and we know it works.
+
+Now let's implement `GET /v1/orders/:id`. We'll do that by adding a `fetchOrder` method that follows the same steps as we did above. Luckily, we can assume that this endpoint returns data in a similar structure as the `/v1/orders` endpoint, which means we can reuse some types.
 
 ```typescript
 /**
@@ -526,15 +690,13 @@ export class OrdersService extends BaseDataService</* ... */> {
   /**
    * Uses the API to retrieve details about an order.
    *
-   * @param params - Parameters to qualify the request.
-   * @param params.id - The order ID
-   * orders.
+   * @param id - The order ID.
    * @returns The requested order.
    */
-  async fetchOrder({ id }: { id?: string }): Promise<FetchOrderResponse> {
-    const url = new URL(`/v1/order/${id}`, BASE_URL);
+  async fetchOrder(id: string): Promise<FetchOrderResponse> {
+    const url = new URL(`/v1/orders/${id}`, BASE_URL);
 
-    const jsonResponse = await this.fetchQuery({
+    const responseData = await this.fetchQuery({
       queryKey: [`${this.name}:fetchOrder`, url.toString()],
       queryFn: async () => {
         const response = await fetch(url);
@@ -550,8 +712,8 @@ export class OrdersService extends BaseDataService</* ... */> {
       },
     });
 
-    const [error, validatedJsonResponse] = validate(
-      jsonResponse,
+    const [error, validatedResponseData] = validate(
+      responseData,
       FetchOrderResponseStruct,
     );
     if (error) {
@@ -560,9 +722,218 @@ export class OrdersService extends BaseDataService</* ... */> {
       );
     }
 
-    return validatedJsonResponse;
+    return validatedResponseData;
   }
 }
 ```
 
-We're almost
+We'll also register this method on the messenger:
+
+```diff
+  const MESSENGER_EXPOSED_METHODS = [
+    'fetchOrders',
++   'fetchOrder',
+  ] as const;
+```
+
+We'll run `yarn workspace @metamask/orders-service run generate-action-types` and see that `packages/orders-service/src/orders-service-method-action-types.ts` has this additional content:
+
+```diff
+  /**
+   * This file is auto generated.
+   * Do not edit manually.
+   */
+
+  import type { OrdersService } from './orders-service';
+
+  /**
+   * Uses the API to retrieve orders.
+   *
+   * @param params - Parameters to qualify the request.
+   * @param params.sortField - The field by which to sort the list of orders.
+   * @param params.sortOrder - The direction in which to sort the list of
+   * orders.
+   * @returns The orders from the API.
+   */
+  export type OrdersServiceFetchOrdersAction = {
+    type: `OrdersService:fetchOrders`;
+    handler: OrdersService['fetchOrders'];
+  };
+
+  /**
+   * Uses the API to retrieve details about an order.
+   *
+   * @param id - The order ID.
+   * @returns The requested order.
+   */
+  export type OrdersServiceFetchOrderAction = {
+    type: `OrdersService:fetchOrder`;
+    handler: OrdersService['fetchOrder'];
+  };
++
++ /**
++  * Uses the API to retrieve details about an order.
++  *
++  * @param params - Parameters to qualify the request.
++  * @param params.id - The order ID
++  * orders.
++  * @returns The requested order.
++  */
++ export type OrdersServiceFetchOrderAction = {
++   type: `OrdersService:fetchOrder`;
++   handler: OrdersService['fetchOrder'];
++ };
+
+  /**
+   * Union of all OrdersService action types.
+   */
+- export type OrdersServiceMethodActions = OrdersServiceFetchOrdersAction;
++ export type OrdersServiceMethodActions =
++   | OrdersServiceFetchOrdersAction
++   | OrdersServiceFetchOrderAction;
+```
+
+</details>
+
+Finally we'll write tests:
+
+<details>
+<summary>View code</summary>
+
+```typescript
+describe('OrdersService', () => {
+  // ...
+
+  describe('OrdersService:fetchOrder', () => {
+    it('requests an order with the default sortField and sortOrder', async () => {
+      nock('https://api.example.com')
+        .get('/v1/orders/AAAA-BBBB-CCCC-DDDD')
+        .reply(200, MOCK_VALID_ORDER_RESPONSE_DATA);
+      const { rootMessenger } = createService();
+
+      const responseData = await rootMessenger.call(
+        'OrdersService:fetchOrder',
+        'AAAA-BBBB-CCCC-DDDD',
+      );
+
+      expect(responseData).toStrictEqual(MOCK_VALID_ORDER_RESPONSE_DATA);
+    });
+
+    it('throws if the API returns a non-200 status', async () => {
+      nock('https://api.example.com')
+        .get('/v1/orders/AAAA-BBBB-CCCC-DDDD')
+        .times(DEFAULT_MAX_RETRIES + 1)
+        .reply(500);
+      const { rootMessenger } = createService();
+
+      await expect(
+        rootMessenger.call('OrdersService:fetchOrder', 'AAAA-BBBB-CCCC-DDDD'),
+      ).rejects.toThrow("Orders API failed with status '500'");
+    });
+
+    it.each([
+      'not an object',
+      { missing: 'order' },
+      { order: 'not an array' },
+      { order: ['not an object'] },
+      {
+        order: {
+          ...MOCK_VALID_ORDER_RESPONSE_DATA.order,
+          createdTime: 'not a timestamp',
+        },
+      },
+      {
+        order: {
+          ...MOCK_VALID_ORDER_RESPONSE_DATA.order,
+          createdTime: 2 ** 53 - 1,
+        },
+      },
+      {
+        order: {
+          ...MOCK_VALID_ORDER_RESPONSE_DATA.order,
+          details: 'not an object',
+        },
+      },
+      {
+        order: {
+          ...MOCK_VALID_ORDER_RESPONSE_DATA.order,
+          from: 'not a CAIP account ID',
+        },
+      },
+      {
+        order: {
+          ...MOCK_VALID_ORDER_RESPONSE_DATA.order,
+          orderId: {
+            not: 'a string',
+          },
+        },
+      },
+      {
+        order: {
+          ...MOCK_VALID_ORDER_RESPONSE_DATA.order,
+          status: 'not a valid status',
+        },
+      },
+      {
+        order: {
+          ...MOCK_VALID_ORDER_RESPONSE_DATA.order,
+          to: 'not a CAIP account ID',
+        },
+      },
+      {
+        order: {
+          ...MOCK_VALID_ORDER_RESPONSE_DATA.order,
+          updatedTime: 'not a timestamp',
+        },
+      },
+      {
+        order: {
+          ...MOCK_VALID_ORDER_RESPONSE_DATA.order,
+          objectId: 'not a CAIP asset type',
+        },
+      },
+      {
+        order: {
+          ...MOCK_VALID_ORDER_RESPONSE_DATA.order,
+          type: 'not a valid type',
+        },
+      },
+    ])(
+      'throws if the API returns a malformed response %o',
+      async (response) => {
+        nock('https://api.example.com')
+          .get('/v1/orders/AAAA-BBBB-CCCC-DDDD')
+          .reply(200, JSON.stringify(response));
+        const { rootMessenger } = createService();
+
+        await expect(
+          rootMessenger.call('OrdersService:fetchOrder', 'AAAA-BBBB-CCCC-DDDD'),
+        ).rejects.toThrow('Malformed response received from Orders API');
+      },
+    );
+  });
+
+  describe('fetchOrder', () => {
+    it('requests an order from the API, same as the method', async () => {
+      nock('https://api.example.com')
+        .get('/v1/orders/AAAA-BBBB-CCCC-DDDD')
+        .reply(200, MOCK_VALID_ORDER_RESPONSE_DATA);
+      const { service } = createService();
+
+      const responseData = await service.fetchOrder('AAAA-BBBB-CCCC-DDDD');
+
+      expect(responseData).toStrictEqual(MOCK_VALID_ORDER_RESPONSE_DATA);
+    });
+  });
+});
+```
+
+</details>
+
+## Learn more
+
+That's it for the basics, but there are probably other things you want to do with data services. In the following sections we'll explore more use cases.
+
+---
+
+Continue to [**Part 3: Mutations**](./02-making-requests.md) →
