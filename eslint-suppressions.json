@@ -641,11 +641,6 @@
       "count": 3
     }
   },
-  "packages/bridge-controller/src/types.ts": {
-    "@typescript-eslint/prefer-enum-initializers": {
-      "count": 3
-    }
-  },
   "packages/bridge-controller/src/utils/assets.ts": {
     "@typescript-eslint/explicit-function-return-type": {
       "count": 2
@@ -728,14 +723,6 @@
     },
     "no-restricted-syntax": {
       "count": 5
-    }
-  },
-  "packages/bridge-controller/src/utils/validators.ts": {
-    "@typescript-eslint/explicit-function-return-type": {
-      "count": 1
-    },
-    "id-length": {
-      "count": 4
     }
   },
   "packages/bridge-controller/tests/mock-sse.ts": {

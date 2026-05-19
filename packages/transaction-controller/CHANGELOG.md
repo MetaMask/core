@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [66.0.0]
+
 ### Changed
 
 - **BREAKING:** Replace implicit `origin === 'metamask'` trust checks with an explicit `isInternal` flag on `AddTransactionOptions`, `TransactionBatchRequest`, `TransactionMeta`, and `TransactionBatchMeta`; internal callers must now pass `isInternal: true` ([#8633](https://github.com/MetaMask/core/pull/8633))
@@ -2441,7 +2443,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@65.4.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@66.0.0...HEAD
+[66.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@65.4.0...@metamask/transaction-controller@66.0.0
 [65.4.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@65.3.0...@metamask/transaction-controller@65.4.0
 [65.3.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@65.2.0...@metamask/transaction-controller@65.3.0
 [65.2.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@65.1.0...@metamask/transaction-controller@65.2.0
