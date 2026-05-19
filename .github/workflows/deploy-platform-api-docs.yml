@@ -26,13 +26,13 @@ jobs:
           is-high-risk-environment: false
 
       - name: Generate and build Platform API docs
-        run: yarn docs:platform-api:build
-        env:
-          DOCS_URL: https://${{ github.repository_owner }}.github.io
-          # The site is published under the `/platform-api/` subdirectory of
-          # the repo's GitHub Pages site so that other doc sites (e.g.
-          # package API docs) can be hosted alongside under sibling paths.
-          DOCS_BASE_URL: /${{ github.event.repository.name }}/platform-api/
+        # The site is published under the `/platform-api/` subdirectory of
+        # the repo's GitHub Pages site so that other doc sites (e.g.
+        # package API docs) can be hosted alongside under sibling paths.
+        run: |
+          yarn docs:platform-api:build \
+            --site-url "https://${{ github.repository_owner }}.github.io" \
+            --site-base-url "/${{ github.event.repository.name }}/platform-api/"
 
       - name: Upload build artifact (PR)
         if: github.event_name == 'pull_request'

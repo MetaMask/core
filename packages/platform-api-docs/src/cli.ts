@@ -146,6 +146,16 @@ async function main(): Promise<void> {
       description:
         'Short label identifying the project (e.g. "Core", "Extension") — stamped on the site title and headings',
     })
+    .option('site-url', {
+      type: 'string',
+      description:
+        'Absolute URL the built site will be served from, e.g. https://metamask.github.io',
+    })
+    .option('site-base-url', {
+      type: 'string',
+      description:
+        'Path prefix the built site will be served under, e.g. /core/platform-api/',
+    })
     .help().argv;
 
   const projectPathArg = argv['project-path'];
@@ -178,12 +188,25 @@ async function main(): Promise<void> {
   if (argv.build || argv.serve || argv.dev) {
     await setupSite(resolvedOutputDir);
 
+    // Translate CLI flags into the environment variables Docusaurus's
+    // config reads. Keeping the CLI surface flag-only means consumers
+    // (workflow files, package.json scripts) don't have to know how the
+    // values are plumbed through to Docusaurus.
     const docusaurusEnv: Record<string, string> = {};
     if (projectLabel) {
       docusaurusEnv.DOCS_PROJECT_LABEL = projectLabel;
     }
     if (commitSha) {
       docusaurusEnv.DOCS_COMMIT_SHA = commitSha;
+    }
+    if (typeof argv['site-url'] === 'string' && argv['site-url'].length > 0) {
+      docusaurusEnv.DOCS_URL = argv['site-url'];
+    }
+    if (
+      typeof argv['site-base-url'] === 'string' &&
+      argv['site-base-url'].length > 0
+    ) {
+      docusaurusEnv.DOCS_BASE_URL = argv['site-base-url'];
     }
 
     if (argv.dev) {
