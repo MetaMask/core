@@ -55,7 +55,7 @@ function enoent(): NodeJS.ErrnoException {
 }
 
 /**
- * Create a mock createWallet result with a mocked wallet and store.
+ * Create a mock createWallet result with a mocked wallet and dispose callback.
  *
  * @returns A mock createWallet result.
  */
@@ -66,9 +66,7 @@ function createMockWallet(): MockCreateWalletResult {
       state: {},
       destroy: jest.fn().mockResolvedValue(undefined),
     },
-    store: {
-      close: jest.fn(),
-    },
+    dispose: jest.fn().mockResolvedValue(undefined),
   } as unknown as MockCreateWalletResult;
 }
 
@@ -306,7 +304,7 @@ describe('daemon-entry', () => {
     );
   });
 
-  it('cleans up wallet, store, and PID file when server fails to start', async () => {
+  it('disposes the wallet and removes the PID file when server fails to start', async () => {
     const result = createMockWallet();
     mockCreateWallet.mockResolvedValue(result);
     mockStartRpcSocketServer.mockRejectedValue(new Error('server failed'));
@@ -321,8 +319,7 @@ describe('daemon-entry', () => {
 
     await importDaemonEntry();
 
-    expect(result.wallet.destroy).toHaveBeenCalled();
-    expect(result.store.close).toHaveBeenCalled();
+    expect(result.dispose).toHaveBeenCalledTimes(1);
     expect(mockRm).toHaveBeenCalledWith('/tmp/daemon.pid', { force: true });
     expect(process.exitCode).toBe(1);
   });
@@ -431,37 +428,6 @@ describe('daemon-entry', () => {
     expect(process.exitCode).toBe(1);
   });
 
-  it('still cleans up wallet/store when wallet.destroy fails during error cleanup', async () => {
-    const result = createMockWallet();
-    (result.wallet.destroy as jest.Mock).mockRejectedValue(
-      new Error('destroy failed'),
-    );
-    mockCreateWallet.mockResolvedValue(result);
-    mockStartRpcSocketServer.mockRejectedValue(new Error('server failed'));
-
-    await importDaemonEntry();
-
-    expect(result.store.close).toHaveBeenCalled();
-    expect(process.exitCode).toBe(1);
-  });
-
-  it('logs and continues when store.close throws during error cleanup', async () => {
-    const result = createMockWallet();
-    (result.store.close as jest.Mock).mockImplementation(() => {
-      throw new Error('close failed');
-    });
-    mockCreateWallet.mockResolvedValue(result);
-    mockStartRpcSocketServer.mockRejectedValue(new Error('server failed'));
-
-    await importDaemonEntry();
-
-    expect(mockAppendFile).toHaveBeenCalledWith(
-      '/tmp/daemon.log',
-      expect.stringContaining('store.close() failed during cleanup'),
-    );
-    expect(process.exitCode).toBe(1);
-  });
-
   it('logs and continues when ownership-aware PID removal throws during error cleanup', async () => {
     const result = createMockWallet();
     mockCreateWallet.mockResolvedValue(result);
@@ -559,8 +525,7 @@ describe('daemon-entry', () => {
     }
 
     expect(handle.close).toHaveBeenCalled();
-    expect(result.wallet.destroy).toHaveBeenCalled();
-    expect(result.store.close).toHaveBeenCalled();
+    expect(result.dispose).toHaveBeenCalledTimes(1);
   });
 
   it('triggers shutdown when SIGINT handler is called', async () => {
@@ -582,11 +547,10 @@ describe('daemon-entry', () => {
     }
 
     expect(handle.close).toHaveBeenCalled();
-    expect(result.wallet.destroy).toHaveBeenCalled();
-    expect(result.store.close).toHaveBeenCalled();
+    expect(result.dispose).toHaveBeenCalledTimes(1);
   });
 
-  it('shutdown still calls wallet.destroy when handle.close fails', async () => {
+  it('shutdown still disposes the wallet when handle.close fails', async () => {
     const result = createMockWallet();
     mockCreateWallet.mockResolvedValue(result);
     const handle = createMockHandle();
@@ -599,52 +563,10 @@ describe('daemon-entry', () => {
     const onShutdown = callArgs.onShutdown as () => Promise<void>;
     await onShutdown();
 
-    expect(result.wallet.destroy).toHaveBeenCalled();
+    expect(result.dispose).toHaveBeenCalledTimes(1);
     expect(mockAppendFile).toHaveBeenCalledWith(
       '/tmp/daemon.log',
       expect.stringContaining('handle.close() failed'),
-    );
-  });
-
-  it('shutdown logs wallet.destroy failure', async () => {
-    const result = createMockWallet();
-    (result.wallet.destroy as jest.Mock).mockRejectedValue(
-      new Error('destroy failed'),
-    );
-    mockCreateWallet.mockResolvedValue(result);
-    const handle = createMockHandle();
-    mockStartRpcSocketServer.mockResolvedValue(handle);
-
-    await importDaemonEntry();
-
-    const callArgs = mockStartRpcSocketServer.mock.calls[0][0];
-    const onShutdown = callArgs.onShutdown as () => Promise<void>;
-    await onShutdown();
-
-    expect(mockAppendFile).toHaveBeenCalledWith(
-      '/tmp/daemon.log',
-      expect.stringContaining('wallet.destroy() failed'),
-    );
-  });
-
-  it('shutdown logs store.close failure', async () => {
-    const result = createMockWallet();
-    (result.store.close as jest.Mock).mockImplementation(() => {
-      throw new Error('close failed');
-    });
-    mockCreateWallet.mockResolvedValue(result);
-    const handle = createMockHandle();
-    mockStartRpcSocketServer.mockResolvedValue(handle);
-
-    await importDaemonEntry();
-
-    const callArgs = mockStartRpcSocketServer.mock.calls[0][0];
-    const onShutdown = callArgs.onShutdown as () => Promise<void>;
-    await onShutdown();
-
-    expect(mockAppendFile).toHaveBeenCalledWith(
-      '/tmp/daemon.log',
-      expect.stringContaining('store.close() failed'),
     );
   });
 
@@ -675,7 +597,7 @@ describe('daemon-entry', () => {
     await onShutdown();
 
     expect(handle.close).toHaveBeenCalled();
-    expect(result.wallet.destroy).toHaveBeenCalled();
+    expect(result.dispose).toHaveBeenCalledTimes(1);
     expect(mockAppendFile).toHaveBeenCalledWith(
       '/tmp/daemon.log',
       expect.stringContaining('Failed to remove socket file'),
@@ -692,7 +614,7 @@ describe('daemon-entry', () => {
     expect(process.exitCode).toBe(1);
   });
 
-  it('onShutdown closes server and destroys wallet', async () => {
+  it('onShutdown closes server and disposes the wallet', async () => {
     const result = createMockWallet();
     mockCreateWallet.mockResolvedValue(result);
     const handle = createMockHandle();
@@ -713,8 +635,7 @@ describe('daemon-entry', () => {
     await onShutdown();
 
     expect(handle.close).toHaveBeenCalled();
-    expect(result.wallet.destroy).toHaveBeenCalled();
-    expect(result.store.close).toHaveBeenCalled();
+    expect(result.dispose).toHaveBeenCalledTimes(1);
     expect(mockRm).toHaveBeenCalledWith('/tmp/daemon.pid', { force: true });
   });
 

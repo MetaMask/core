@@ -14,7 +14,14 @@ const IN_MEMORY_DATABASE_PATH = ':memory:';
 
 export type CreateWalletResult = {
   wallet: Wallet;
-  store: KeyValueStore;
+  /**
+   * Tear down the wallet and its backing store in the required order
+   * (`wallet.destroy()` then `store.close()`). Idempotent — concurrent and
+   * repeat calls coalesce onto the same teardown promise. Per-step errors are
+   * forwarded to the `log` callback (or `console.error` if none was supplied),
+   * so a destroy failure does not prevent the store from being closed.
+   */
+  dispose: () => Promise<void>;
 };
 
 /**
@@ -42,10 +49,11 @@ export type CreateWalletResult = {
  * @param config.infuraProjectId - The Infura project ID for network access.
  * @param config.password - The wallet password.
  * @param config.srp - The secret recovery phrase (BIP-39 mnemonic).
- * @param config.log - Optional logger for persistence-write failures.
- * @returns The Wallet instance and the underlying KeyValueStore. The caller
- * owns the store and must close it after destroying the wallet (closing
- * first would cause in-flight persistence writes during teardown to fail).
+ * @param config.log - Optional logger for persistence-write failures and
+ * teardown errors surfaced through `dispose`.
+ * @returns The Wallet instance and a `dispose` callback that owns teardown.
+ * Call `dispose()` to release resources; it destroys the wallet before
+ * closing the store so in-flight persistence writes can finish.
  */
 export async function createWallet({
   databasePath,
@@ -96,12 +104,28 @@ export async function createWallet({
       await importSecretRecoveryPhrase(wallet, password, srp);
     }
 
-    return { wallet, store };
+    return { wallet, dispose: createDisposer(wallet, store, log) };
   } catch (error) {
     if (wallet) {
-      await wallet.destroy().catch(() => undefined);
+      try {
+        await wallet.destroy();
+      } catch (destroyError) {
+        report(
+          'wallet.destroy() failed during first-run cleanup',
+          destroyError,
+          log,
+        );
+      }
     }
-    store.close();
+    try {
+      store.close();
+    } catch (closeError) {
+      report(
+        'store.close() failed during first-run cleanup',
+        closeError,
+        log,
+      );
+    }
 
     if (wasFirstRun && databasePath !== IN_MEMORY_DATABASE_PATH) {
       // Best-effort cleanup of the on-disk SQLite files (main, WAL, SHM) so
@@ -131,4 +155,69 @@ function hasPersistedKeyring(
   state: Record<string, Record<string, unknown>>,
 ): boolean {
   return typeof state.KeyringController?.vault === 'string';
+}
+
+/**
+ * Build the single-owner teardown callback returned alongside the Wallet.
+ *
+ * Encodes the ordering invariant (`wallet.destroy()` before `store.close()`)
+ * so call sites can't reintroduce the wrong order. Idempotent via a cached
+ * promise — repeat or concurrent invocations resolve once teardown finishes.
+ * Per-step failures are reported but never thrown, so a destroy failure does
+ * not block the store close.
+ *
+ * @param wallet - The wallet to destroy first.
+ * @param store - The key-value store to close after destroy resolves.
+ * @param log - Optional logger; falls back to `console.error` when omitted.
+ * @returns An idempotent teardown callback.
+ */
+function createDisposer(
+  wallet: Wallet,
+  store: KeyValueStore,
+  log: ((message: string) => void) | undefined,
+): () => Promise<void> {
+  let pending: Promise<void> | undefined;
+  return async () => {
+    pending ??= (async (): Promise<void> => {
+      try {
+        await wallet.destroy();
+      } catch (destroyError) {
+        report('wallet.destroy() failed', destroyError, log);
+      }
+      try {
+        store.close();
+      } catch (closeError) {
+        report('store.close() failed', closeError, log);
+      }
+    })();
+    return pending;
+  };
+}
+
+/**
+ * Forward a teardown error to the optional logger, falling back to
+ * `console.error` so a detached daemon's `stdio: 'ignore'` doesn't silently
+ * discard the diagnostic in development. A throwing `log` callback also
+ * falls back to `console.error`, so the disposer's "never throws" contract
+ * holds even if a consumer wires in a misbehaving logger.
+ *
+ * @param prefix - Short label identifying which step failed.
+ * @param error - The underlying failure.
+ * @param log - Optional logger callback.
+ */
+function report(
+  prefix: string,
+  error: unknown,
+  log: ((message: string) => void) | undefined,
+): void {
+  const message = `${prefix}: ${String(error)}`;
+  if (log) {
+    try {
+      log(message);
+      return;
+    } catch {
+      // Fall through to console.error so a buggy logger can't break teardown.
+    }
+  }
+  console.error(message);
 }

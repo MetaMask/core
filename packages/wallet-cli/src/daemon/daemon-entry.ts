@@ -3,7 +3,6 @@ import type { Wallet } from '@metamask/wallet';
 import { mkdirSync } from 'node:fs';
 import { appendFile, chmod, readFile, rm, writeFile } from 'node:fs/promises';
 
-import type { KeyValueStore } from '../persistence/KeyValueStore';
 import { pingDaemon } from './daemon-client';
 import { getDaemonPaths } from './paths';
 import { startRpcSocketServer } from './rpc-socket-server';
@@ -88,11 +87,11 @@ async function main(): Promise<void> {
   }
 
   let wallet: Wallet | undefined;
-  let store: KeyValueStore | undefined;
+  let dispose: (() => Promise<void>) | undefined;
   let handle: RpcSocketServerHandle | undefined;
 
   try {
-    ({ wallet, store } = await createWallet({
+    ({ wallet, dispose } = await createWallet({
       databasePath: dbPath,
       infuraProjectId,
       password,
@@ -135,19 +134,8 @@ async function main(): Promise<void> {
     // synchronously, so this runs before any client can connect.
     await chmod(socketPath, 0o600);
   } catch (error) {
-    if (wallet) {
-      try {
-        await wallet.destroy();
-      } catch (destroyError) {
-        log(`wallet.destroy() failed during cleanup: ${String(destroyError)}`);
-      }
-    }
-    if (store) {
-      try {
-        store.close();
-      } catch (closeError) {
-        log(`store.close() failed during cleanup: ${String(closeError)}`);
-      }
+    if (dispose) {
+      await dispose();
     }
     // Only remove the PID file if it's still ours (we may have lost the race
     // and the file now belongs to another daemon).
@@ -162,8 +150,7 @@ async function main(): Promise<void> {
   // Capture the now-resolved bindings so the shutdown closures below have
   // a stable, non-undefined reference (TS narrowing across closure escape).
   const activeHandle = handle;
-  const activeWallet = wallet;
-  const activeStore = store;
+  const activeDispose = dispose;
 
   log(`Daemon started. Socket: ${socketPath}`);
 
@@ -184,16 +171,7 @@ async function main(): Promise<void> {
         } catch (closeError) {
           log(`handle.close() failed: ${String(closeError)}`);
         }
-        try {
-          await activeWallet.destroy();
-        } catch (destroyError) {
-          log(`wallet.destroy() failed: ${String(destroyError)}`);
-        }
-        try {
-          activeStore.close();
-        } catch (closeError) {
-          log(`store.close() failed: ${String(closeError)}`);
-        }
+        await activeDispose();
         await Promise.all([
           removeOwnedPidFile(pidPath, pidFileContents).catch(
             (rmError: unknown) => {
