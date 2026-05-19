@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [72.1.0]
+
 ### Uncategorized
 
 - fix non-evm token type detection ([#8811](https://github.com/MetaMask/core/pull/8811))
@@ -1498,7 +1500,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#5317](https://github.com/MetaMask/core/pull/5317))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@72.0.4...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@72.1.0...HEAD
+[72.1.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@72.0.4...@metamask/bridge-controller@72.1.0
 [72.0.4]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@72.0.3...@metamask/bridge-controller@72.0.4
 [72.0.3]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@72.0.2...@metamask/bridge-controller@72.0.3
 [72.0.2]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@72.0.1...@metamask/bridge-controller@72.0.2
