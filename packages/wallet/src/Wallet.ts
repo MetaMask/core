@@ -22,12 +22,14 @@ export class Wallet {
     Record<string, Readonly<StateMetadataConstraint>>
   >;
 
-  #destroyed = false;
+  #isDestroyed = false;
 
   constructor(options: WalletOptions) {
-    this.#messenger = new Messenger({
-      namespace: 'Wallet',
-    });
+    this.#messenger =
+      options.messenger ??
+      new Messenger({
+        namespace: 'Wallet',
+      });
 
     this.#instances = initialize({
       options,
@@ -63,9 +65,9 @@ export class Wallet {
 
   /**
    * Get an instantiated controller or service.
-   * 
+   *
    * @param name - The name.
-   * @returns - The instance.
+   * @returns The instance.
    * @deprecated - Please use the messenger instead of direct access.
    */
   getInstance(name: keyof DefaultInstances) {
@@ -73,11 +75,11 @@ export class Wallet {
   }
 
   async destroy(): Promise<void> {
-    if (this.#destroyed) {
+    if (this.#isDestroyed) {
       return;
     }
 
-    this.#destroyed = true;
+    this.#isDestroyed = true;
 
     await Promise.allSettled(
       Object.values(this.#instances).map(async (instance) => {

@@ -1,9 +1,15 @@
 import { KeyringControllerOptions } from '@metamask/keyring-controller';
 import type { Json } from '@metamask/utils';
 
-import type { InitializationConfiguration } from './initialization';
+import type {
+  DefaultActions,
+  DefaultEvents,
+  InitializationConfiguration,
+  RootMessenger,
+} from './initialization';
 
 export type WalletOptions = {
+  messenger?: RootMessenger<DefaultActions, DefaultEvents>;
   state?: Record<string, Record<string, Json>>;
   initializationConfigurations?: InitializationConfiguration<
     unknown,
