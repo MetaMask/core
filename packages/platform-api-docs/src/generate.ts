@@ -25,7 +25,7 @@ function deduplicationScore(item: ExtractedMessengerCapabilityType): number {
   const jsDocScore = item.jsDoc ? 2 : 0;
   const namespacePrefix = item.typeString
     .split(':')[0]
-    .replace(/Controller|Service/u, '')
+    .replace(/(?:Controller|Service)$/u, '')
     .toLowerCase();
   const homeScore =
     namespacePrefix.length > 0 &&

@@ -566,6 +566,46 @@ export type DupeMessenger = Messenger<'Dupe', never, DupeEvent>;
     });
   });
 
+  it('strips trailing "Controller"/"Service" from the namespace, not interior occurrences', async () => {
+    expect.assertions(2);
+
+    await withinSandbox(async ({ directoryPath }) => {
+      const srcDir = path.join(directoryPath, 'src');
+      await fs.promises.mkdir(srcDir, { recursive: true });
+
+      // Both files declare `ServiceWorkerController:tick` but disagree on
+      // the kind. The home file's name contains `serviceworker` — the
+      // namespace with its trailing `Controller` stripped. If the
+      // suffix-strip regex matched interior occurrences instead, it
+      // would strip the leading `Service` and look for
+      // `workercontroller`, which the home filename doesn't contain, and
+      // the wrong variant would win.
+      await fs.promises.writeFile(
+        path.join(srcDir, 'a-other.ts'),
+        `
+export type SWAction = { type: 'ServiceWorkerController:tick'; handler: () => void };
+export type OtherMessenger = Messenger<'Other', SWAction, never>;
+`,
+      );
+      await fs.promises.writeFile(
+        path.join(srcDir, 'serviceworker-home.ts'),
+        `
+export type SWEvent = { type: 'ServiceWorkerController:tick'; payload: [] };
+export type SWMessenger = Messenger<'ServiceWorkerController', never, SWEvent>;
+`,
+      );
+
+      const result = await generate({
+        projectPath: directoryPath,
+        outputDir: path.join(directoryPath, '.docs'),
+        scanDirs: ['src'],
+      });
+
+      expect(result.actions).toBe(0);
+      expect(result.events).toBe(1);
+    });
+  });
+
   it('falls back to `main` when origin/HEAD is not set (shallow clone)', async () => {
     expect.assertions(1);
 
