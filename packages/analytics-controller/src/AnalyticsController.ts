@@ -11,6 +11,7 @@ import { validateAnalyticsControllerState } from './analyticsControllerStateVali
 import { projectLogger as log } from './AnalyticsLogger';
 import type {
   AnalyticsPlatformAdapter,
+  AnalyticsContext,
   AnalyticsEventProperties,
   AnalyticsUserTraits,
   AnalyticsTrackingEvent,
@@ -273,8 +274,9 @@ export class AnalyticsController extends BaseController<
    * Events are only tracked if analytics is enabled.
    *
    * @param event - Analytics event with properties and sensitive properties
+   * @param context - Optional platform-specific context forwarded to the platform adapter.
    */
-  trackEvent(event: AnalyticsTrackingEvent): void {
+  trackEvent(event: AnalyticsTrackingEvent, context?: AnalyticsContext): void {
     // Don't track if analytics is disabled
     if (!analyticsControllerSelectors.selectEnabled(this.state)) {
       return;
@@ -283,7 +285,11 @@ export class AnalyticsController extends BaseController<
     // if event does not have properties, send event without properties
     // and return to prevent any additional processing
     if (!event.hasProperties) {
-      this.#platformAdapter.track(event.name);
+      if (context) {
+        this.#platformAdapter.track(event.name, undefined, context);
+      } else {
+        this.#platformAdapter.track(event.name);
+      }
       return;
     }
 
@@ -291,20 +297,30 @@ export class AnalyticsController extends BaseController<
     if (this.#isAnonymousEventsFeatureEnabled) {
       // Note: Even if regular properties object is empty, we still send it to ensure
       // an event with user ID is tracked.
-      this.#platformAdapter.track(event.name, {
+      const properties = {
         ...event.properties,
-      });
+      };
+      if (context) {
+        this.#platformAdapter.track(event.name, properties, context);
+      } else {
+        this.#platformAdapter.track(event.name, properties);
+      }
     }
 
     const hasSensitiveProperties =
       Object.keys(event.sensitiveProperties).length > 0;
 
     if (!this.#isAnonymousEventsFeatureEnabled || hasSensitiveProperties) {
-      this.#platformAdapter.track(event.name, {
+      const properties = {
         ...event.properties,
         ...event.sensitiveProperties,
         ...(hasSensitiveProperties && { anonymous: true }),
-      });
+      };
+      if (context) {
+        this.#platformAdapter.track(event.name, properties, context);
+      } else {
+        this.#platformAdapter.track(event.name, properties);
+      }
     }
   }
 
@@ -312,14 +328,19 @@ export class AnalyticsController extends BaseController<
    * Identify a user for analytics.
    *
    * @param traits - User traits/properties
+   * @param context - Optional platform-specific context forwarded to the platform adapter.
    */
-  identify(traits?: AnalyticsUserTraits): void {
+  identify(traits?: AnalyticsUserTraits, context?: AnalyticsContext): void {
     if (!analyticsControllerSelectors.selectEnabled(this.state)) {
       return;
     }
 
     // Delegate to platform adapter using the current analytics ID
-    this.#platformAdapter.identify(this.state.analyticsId, traits);
+    if (context) {
+      this.#platformAdapter.identify(this.state.analyticsId, traits, context);
+    } else {
+      this.#platformAdapter.identify(this.state.analyticsId, traits);
+    }
   }
 
   /**
@@ -327,14 +348,23 @@ export class AnalyticsController extends BaseController<
    *
    * @param name - The identifier/name of the page or screen being viewed (e.g., "home", "settings", "wallet")
    * @param properties - Optional properties associated with the view
+   * @param context - Optional platform-specific context forwarded to the platform adapter.
    */
-  trackView(name: string, properties?: AnalyticsEventProperties): void {
+  trackView(
+    name: string,
+    properties?: AnalyticsEventProperties,
+    context?: AnalyticsContext,
+  ): void {
     if (!analyticsControllerSelectors.selectEnabled(this.state)) {
       return;
     }
 
     // Delegate to platform adapter
-    this.#platformAdapter.view(name, properties);
+    if (context) {
+      this.#platformAdapter.view(name, properties, context);
+    } else {
+      this.#platformAdapter.view(name, properties);
+    }
   }
 
   /**
