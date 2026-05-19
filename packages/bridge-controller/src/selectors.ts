@@ -51,6 +51,7 @@ import {
   calcToAmount,
   calcTotalEstimatedNetworkFee,
   calcTotalMaxNetworkFee,
+  calcBatchFees,
 } from './utils/quote';
 import { getDefaultSlippagePercentage } from './utils/slippage';
 
@@ -615,7 +616,7 @@ const selectMetadataSum = createBridgeSelector(
  *
  * @example
  * ```ts
- * const quotes = useSelector(state => selectBridgeQuotesBatch(
+ * const quotes = useSelector(state => selectBatchSellQuotes(
  *   { ...state.metamask },
  *   {
  *     sortOrder: state.bridge.sortOrder,
@@ -630,9 +631,6 @@ export const selectBatchSellQuotes = createStructuredBridgeSelector({
     selectMetadataSum(state, { ...opts, key: 'toTokenAmount' }),
   minimumReceived: (state, opts) =>
     selectMetadataSum(state, { ...opts, key: 'minToTokenAmount' }),
-  // TODO call estimation API
-  totalNetworkFee: (state, opts) =>
-    selectMetadataSum(state, { ...opts, key: 'totalNetworkFee' }),
   quotesLastFetchedMs: (state) => state.quotesLastFetched,
   isLoading: (state) => state.quotesLoadingStatus === RequestStatus.LOADING,
   quoteFetchError: (state) => state.quoteFetchError,
@@ -640,6 +638,53 @@ export const selectBatchSellQuotes = createStructuredBridgeSelector({
   quotesInitialLoadTimeMs: (state) => state.quotesInitialLoadTime,
   isQuoteGoingToRefresh: selectIsQuoteGoingToRefresh,
 });
+
+const selectBatchSellFees = createBridgeSelector(
+  [
+    (state) => state.batchSellTrades?.fee?.amount,
+    (state) => state.batchSellTrades?.fee?.asset,
+    (state) =>
+      selectExchangeRateByAssetId(
+        state,
+        state.batchSellTrades?.fee?.asset?.assetId,
+      ),
+  ],
+  (feeAmount, feeAsset, exchangeRate) => {
+    return feeAmount && feeAsset && exchangeRate
+      ? calcBatchFees(feeAmount, feeAsset, exchangeRate)
+      : undefined;
+  },
+);
+
+/**
+ * Selects the batch transactions and fees for a batch of quotes
+ *
+ * @param state - The state of the bridge controller and its dependency controllers
+ * @returns The total transaction fees and whether the batch sell trades are submittable.
+ *
+ * @example
+ * ```ts
+ * const { totalNetworkFee, isBatchSellTradeAvailable } = useSelector(state => selectBatchSellTrades(state.metamask));
+ * ```
+ */
+export const selectBatchSellTrades = createBridgeSelector(
+  [
+    (state) => state.batchSellTradesLoadingStatus === RequestStatus.FETCHED,
+    (state) => state.batchSellTrades,
+    selectBatchSellFees,
+  ],
+  (isBatchSellTradeAvailable, batchSellTrades, batchFees) => {
+    return {
+      totalNetworkFee: batchFees,
+      /**
+       * Whether the batch sell trades have been fetched and transactions are ready to be submitted
+       */
+      isBatchSellTradeAvailable:
+        isBatchSellTradeAvailable &&
+        Boolean(batchSellTrades?.transactions?.length),
+    };
+  },
+);
 
 export const selectMinimumBalanceForRentExemptionInSOL = (
   state: BridgeAppState,

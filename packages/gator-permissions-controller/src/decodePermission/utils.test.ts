@@ -2,7 +2,7 @@ import type { Caveat } from '@metamask/delegation-core';
 import { getChecksumAddress } from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
 
-import { createPermissionRulesForContracts } from './rules';
+import { createPermissionDecodersForContracts } from './decoders';
 import type { DeployedContractsByName } from './types';
 import {
   getChecksumEnforcersByChainId,
@@ -69,8 +69,8 @@ describe('getChecksumEnforcersByChainId', () => {
   });
 });
 
-describe('createPermissionRulesForChainId', () => {
-  it('builds canonical rules with correct required and allowed enforcers', () => {
+describe('createPermissionDecodersForContracts', () => {
+  it('builds canonical decoders with correct required and allowed enforcers', () => {
     const contracts = buildContracts();
     const {
       erc20StreamingEnforcer,
@@ -94,11 +94,11 @@ describe('createPermissionRulesForChainId', () => {
     // native-token-allowance
     // erc20-token-revocation
     const permissionTypeCount = 7;
-    const rules = createPermissionRulesForContracts(contracts);
-    expect(rules).toHaveLength(permissionTypeCount);
+    const decoders = createPermissionDecodersForContracts(contracts);
+    expect(decoders).toHaveLength(permissionTypeCount);
 
     const byType = Object.fromEntries(
-      rules.map((rule) => [rule.permissionType, rule]),
+      decoders.map((decoder) => [decoder.permissionType, decoder]),
     );
 
     // native-token-stream
@@ -293,9 +293,9 @@ describe('createPermissionRulesForChainId', () => {
     );
   });
 
-  it('each rule has caveatAddressesMatch and validateAndDecodePermission', () => {
+  it('each decoder has caveatAddressesMatch and validateAndDecodePermission', () => {
     const contracts = buildContracts();
-    const rules = createPermissionRulesForContracts(contracts);
+    const decoders = createPermissionDecodersForContracts(contracts);
     const {
       nativeTokenStreamingEnforcer,
       exactCalldataEnforcer,
@@ -303,17 +303,17 @@ describe('createPermissionRulesForChainId', () => {
       timestampEnforcer,
     } = getChecksumEnforcersByChainId(contracts);
 
-    for (const rule of rules) {
-      expect(typeof rule.caveatAddressesMatch).toBe('function');
-      expect(typeof rule.validateAndDecodePermission).toBe('function');
+    for (const decoder of decoders) {
+      expect(typeof decoder.caveatAddressesMatch).toBe('function');
+      expect(typeof decoder.validateAndDecodePermission).toBe('function');
     }
 
-    const nativeStreamRule = rules.find(
+    const nativeStreamDecoder = decoders.find(
       (candidate) => candidate.permissionType === 'native-token-stream',
     );
-    expect(nativeStreamRule).toBeDefined();
-    if (!nativeStreamRule) {
-      throw new Error('Rule not found');
+    expect(nativeStreamDecoder).toBeDefined();
+    if (!nativeStreamDecoder) {
+      throw new Error('Decoder not found');
     }
 
     const matchingCaveatAddresses: Hex[] = [
@@ -322,9 +322,9 @@ describe('createPermissionRulesForChainId', () => {
       nonceEnforcer,
       timestampEnforcer,
     ];
-    expect(nativeStreamRule.caveatAddressesMatch(matchingCaveatAddresses)).toBe(
-      true,
-    );
+    expect(
+      nativeStreamDecoder.caveatAddressesMatch(matchingCaveatAddresses),
+    ).toBe(true);
   });
 });
 
