@@ -215,8 +215,10 @@ describe('Relay Submit Utils', () => {
           value: '0x4d2',
         },
         {
+          gasFeeToken: undefined,
           networkClientId: NETWORK_CLIENT_ID_MOCK,
           origin: ORIGIN_METAMASK,
+          isInternal: true,
           requireApproval: false,
           type: TransactionType.relayDeposit,
         },
@@ -465,8 +467,11 @@ describe('Relay Submit Utils', () => {
         disableHook: false,
         disableSequential: false,
         from: FROM_MOCK,
+        gasFeeToken: undefined,
+        gasLimit7702: undefined,
         networkClientId: NETWORK_CLIENT_ID_MOCK,
         origin: ORIGIN_METAMASK,
+        isInternal: true,
         overwriteUpgrade: true,
         requireApproval: false,
         transactions: [

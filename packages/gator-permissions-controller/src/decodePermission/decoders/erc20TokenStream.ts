@@ -4,7 +4,6 @@ import type {
   ChecksumCaveat,
   ChecksumEnforcersByChainId,
   DecodedPermission,
-  PermissionRule,
 } from '../types';
 import {
   getByteLength,
@@ -12,70 +11,59 @@ import {
   splitHex,
   ZERO_32_BYTES,
 } from '../utils';
-import { makePermissionRule } from './makePermissionRule';
+import { erc20PayeeRule } from './erc20PayeeRule';
+import { expiryRule } from './expiryRule';
+import type { MakePermissionDecoderConfig } from './makePermissionDecoder';
+import { redeemerRule } from './redeemerRule';
 
 /**
- * Creates the erc20-token-stream permission rule.
+ * Builds the configuration for the erc20-token-stream permission decoder.
  *
- * @param enforcers - Checksummed enforcer addresses for the chain.
- * @returns The erc20-token-stream permission rule.
+ * @param contractAddresses - Checksummed enforcer addresses for the chain.
+ * @returns The erc20-token-stream permission decoder configuration.
  */
-export function makeErc20TokenStreamRule(
-  enforcers: ChecksumEnforcersByChainId,
-): PermissionRule {
+export function makeErc20TokenStreamDecoderConfig(
+  contractAddresses: ChecksumEnforcersByChainId,
+): MakePermissionDecoderConfig {
   const {
     timestampEnforcer,
     erc20StreamingEnforcer,
     valueLteEnforcer,
     nonceEnforcer,
     allowedCalldataEnforcer,
-    allowedTargetsEnforcer,
     redeemerEnforcer,
-  } = enforcers;
-  return makePermissionRule({
+  } = contractAddresses;
+
+  return {
     permissionType: 'erc20-token-stream',
+    contractAddresses,
     optionalEnforcers: [
-      timestampEnforcer,
-      redeemerEnforcer,
-      allowedCalldataEnforcer,
+      timestampEnforcer, // expiry rule
+      redeemerEnforcer, // redeemer rule
+      allowedCalldataEnforcer, // payee rule
     ],
-    redeemerEnforcer,
-    payeeEnforcers: {
-      allowedCalldataEnforcer,
-      allowedTargetsEnforcer,
-      singlePayeeEnforcer: allowedCalldataEnforcer,
-    },
-    timestampEnforcer,
     requiredEnforcers: {
       [erc20StreamingEnforcer]: 1,
       [valueLteEnforcer]: 1,
       [nonceEnforcer]: 1,
     },
-    validateAndDecodeData: (caveats) =>
-      validateAndDecodeData(caveats, {
-        erc20StreamingEnforcer,
-        valueLteEnforcer,
-      }),
-  });
+    rules: [expiryRule, redeemerRule, erc20PayeeRule],
+    validateAndDecodeData,
+  };
 }
 
 /**
  * Decodes erc20-token-stream permission data from caveats; throws on invalid.
  *
  * @param caveats - Caveats from the permission context (checksummed).
- * @param enforcers - Addresses of the enforcers.
- * @param enforcers.erc20StreamingEnforcer - Address of the ERC20StreamingEnforcer.
- * @param enforcers.valueLteEnforcer - Address of the ValueLteEnforcer.
+ * @param contractAddresses - Checksummed enforcer addresses for the chain.
  * @returns Decoded stream terms.
  */
 function validateAndDecodeData(
   caveats: ChecksumCaveat[],
-  enforcers: Pick<
-    ChecksumEnforcersByChainId,
-    'erc20StreamingEnforcer' | 'valueLteEnforcer'
-  >,
+  contractAddresses: ChecksumEnforcersByChainId,
 ): DecodedPermission['permission']['data'] {
-  const { erc20StreamingEnforcer, valueLteEnforcer } = enforcers;
+  const { erc20StreamingEnforcer, valueLteEnforcer } = contractAddresses;
   const valueLteTerms = getTermsByEnforcer({
     caveats,
     enforcer: valueLteEnforcer,

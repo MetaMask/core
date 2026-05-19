@@ -1,8 +1,4 @@
-import {
-  ORIGIN_METAMASK,
-  gweiDecToWEIBN,
-  toHex,
-} from '@metamask/controller-utils';
+import { gweiDecToWEIBN, toHex } from '@metamask/controller-utils';
 import type {
   FetchGasFeeEstimateOptions,
   GasFeeState,
@@ -291,7 +287,7 @@ function getUserFeeLevel(request: GetGasFeeRequest): UserFeeLevel | undefined {
     !initialParams.maxPriorityFeePerGas &&
     initialParams.gasPrice
   ) {
-    return txMeta.origin === ORIGIN_METAMASK
+    return txMeta.isInternal
       ? UserFeeLevel.CUSTOM
       : UserFeeLevel.DAPP_SUGGESTED;
   }
@@ -313,7 +309,7 @@ function getUserFeeLevel(request: GetGasFeeRequest): UserFeeLevel | undefined {
     return UserFeeLevel.MEDIUM;
   }
 
-  if (txMeta.origin === ORIGIN_METAMASK) {
+  if (txMeta.isInternal) {
     return UserFeeLevel.MEDIUM;
   }
 
