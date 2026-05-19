@@ -9,10 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [73.0.0]
 
-### Uncategorized
-
-- fix non-evm token type detection ([#8811](https://github.com/MetaMask/core/pull/8811))
-
 ### Added
 
 - Implement transaction batch and fee fetching for BatchSell quotes ([#8805](https://github.com/MetaMask/core/pull/8805))
@@ -34,6 +30,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Removed
 
 - **BREAKING**: Remove `totalNetworkFee` from the `selectBatchSellQuotes`'s results. Clients should use `selectBatchSellTrades` instead ([#8805](https://github.com/MetaMask/core/pull/8805))
+
+### Fixed
+
+- fix non-evm token type detection ([#8811](https://github.com/MetaMask/core/pull/8811))
 
 ## [72.0.4]
 
