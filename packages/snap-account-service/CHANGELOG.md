@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Prevent double-lock in `:handleKeyringSnapMessage` for some events/methods ([#8860](https://github.com/MetaMask/core/pull/8860))
+
 ## [0.2.0]
 
 ### Added
