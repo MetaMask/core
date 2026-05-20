@@ -1061,7 +1061,7 @@ describe('PerpsController', () => {
     let depositController: TestablePerpsController;
     let depositMockCall: jest.Mock;
 
-    beforeEach(() => {
+    beforeEach(async () => {
       // Mock DepositService
       jest
         .spyOn(mockDepositServiceInstance, 'prepareTransaction')
@@ -1142,6 +1142,16 @@ describe('PerpsController', () => {
         state: getDefaultPerpsControllerState(),
         infrastructure: depositInfrastructure,
       });
+
+      // Drain the async eligibility chain started in the constructor
+      // (RemoteFeatureFlagController:getState → refreshEligibility →
+      // GeolocationController:getGeolocation) so its messenger calls do not
+      // leak into per-test assertions on depositMockCall. Microtask ordering
+      // differs between Node versions, so without this drain the chain can
+      // bleed into the recorded call list on CI (Node 18) while passing
+      // locally (Node 22).
+      await new Promise((resolve) => setImmediate(resolve));
+      depositMockCall.mockClear();
     });
 
     afterEach(() => {
