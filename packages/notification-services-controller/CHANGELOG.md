@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Fetch feature announcements based on AUS `marketing.inAppNotificationsEnabled` preferences instead of the deprecated `isFeatureAnnouncementsEnabled` controller state. ([#8861](https://github.com/MetaMask/core/pull/8861))
+
 ## [24.1.0]
 
 ### Added
