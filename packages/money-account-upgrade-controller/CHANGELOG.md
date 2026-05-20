@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/delegation-core` from `^2.0.0` to `^2.2.1` ([#8823](https://github.com/MetaMask/core/pull/8823))
+- Bump `@metamask/delegation-deployments` from `^1.3.0` to `^1.4.0` ([#8823](https://github.com/MetaMask/core/pull/8823))
+
 ## [2.0.2]
 
 ### Changed
