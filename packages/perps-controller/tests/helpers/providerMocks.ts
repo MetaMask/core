@@ -64,21 +64,6 @@ export const createMockHyperLiquidProvider =
       reconnect: jest.fn().mockResolvedValue(undefined),
     }) as unknown as jest.Mocked<HyperLiquidProvider>;
 
-export const createMockOrderResult = () => ({
-  success: true,
-  orderId: 'order-123',
-  filledSize: '0.1',
-  averagePrice: '50000',
-});
-
-export const createMockOrderParams = () => ({
-  symbol: 'BTC',
-  side: 'buy',
-  orderType: 'market',
-  amount: '0.1',
-  price: '50000',
-});
-
 export const createMockOrder = (overrides = {}) => ({
   orderId: 'order-1',
   symbol: 'BTC',
