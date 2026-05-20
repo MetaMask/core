@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Fix `calcSentAmount` double-counting fees for intent-based swap quotes ([#8845](https://github.com/MetaMask/core/pull/8845))
+
 ## [73.0.0]
 
 ### Added
