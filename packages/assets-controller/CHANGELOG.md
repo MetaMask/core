@@ -18,6 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - `AccountsApiDataSource` no longer treats non-EVM chains (e.g. Solana) returned by the Accounts API as active chains; only `eip155:` networks are now included ([#8864](https://github.com/MetaMask/core/pull/8864))
+- **BREAKING:** **SnapDataSource:** `SnapControllerSnapInstalledEvent` has been added to `SnapDataSourceAllowedEvents`. Hosts that restrict which events flow through the `AssetsController` messenger must now also delegate `SnapController:snapInstalled`; failing to do so will prevent snap chain re-discovery after install. Re-run keyring snap discovery when a new snap is installed so that snap-backed chains (Bitcoin, Solana, Tron, etc.) become available immediately after install ([#8862](https://github.com/MetaMask/core/pull/8862))
 - Non-EVM assets with a `slip44` asset namespace (e.g. Bitcoin, Solana native, TRON) are now correctly typed as `native` instead of `erc20` in `assetsInfo` ([#8811](https://github.com/MetaMask/core/pull/8811))
 - Solana SPL tokens (CAIP-19 `solana:.../token:<address>`) are now correctly typed as `spl` instead of `erc20` in `assetsInfo` ([#8811](https://github.com/MetaMask/core/pull/8811))
 
