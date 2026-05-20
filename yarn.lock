@@ -2492,10 +2492,10 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/7715-permission-types@npm:^0.7.0":
-  version: 0.7.0
-  resolution: "@metamask/7715-permission-types@npm:0.7.0"
-  checksum: 10/b6295e45fd500679b141ae88afd90d0fcea1e2450bc207cf0064ae63eeff2654abd954b58e79b66ded62cbd959bbf6bc8d643d22b8eabf332dde4aa980457d7e
+"@metamask/7715-permission-types@npm:^0.7.1":
+  version: 0.7.1
+  resolution: "@metamask/7715-permission-types@npm:0.7.1"
+  checksum: 10/2cbe7b8d09ae9b11171d2f9c36bf94f1acea17f9541b399bf99caa14e500c0e91d79e69a4846db2c80b18aa0df0215b36be1ea661cc99f4d6b5bc8d9eea5a4dd
   languageName: node
   linkType: hard
 
@@ -3502,14 +3502,14 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/delegation-core@npm:^2.2.0":
-  version: 2.2.0
-  resolution: "@metamask/delegation-core@npm:2.2.0"
+"@metamask/delegation-core@npm:^2.2.1":
+  version: 2.2.1
+  resolution: "@metamask/delegation-core@npm:2.2.1"
   dependencies:
     "@metamask/abi-utils": "npm:^3.0.0"
     "@metamask/utils": "npm:^11.4.0"
     "@noble/hashes": "npm:^1.8.0"
-  checksum: 10/cd9d06f3d5cb778591838e7887f9203791dd37aa366e73bbbc7b1497cce1faed0cb9211e091750531b1210712b591fdbf188851dc19853bef2edf481d3a016a2
+  checksum: 10/8cc532e4a5fdc83eddb36fada6283d51629272fcce8b7c7c2d3b4addde5aff7c741365a3bcd701364460fbbcbbe94fccc0460ee3ef9af284a82f84ca708f0e06
   languageName: node
   linkType: hard
 
@@ -4128,11 +4128,11 @@ __metadata:
   dependencies:
     "@lavamoat/allow-scripts": "npm:^3.0.4"
     "@lavamoat/preinstall-always-fail": "npm:^2.1.0"
-    "@metamask/7715-permission-types": "npm:^0.7.0"
+    "@metamask/7715-permission-types": "npm:^0.7.1"
     "@metamask/abi-utils": "npm:^2.0.3"
     "@metamask/auto-changelog": "npm:^6.1.0"
     "@metamask/base-controller": "npm:^9.1.0"
-    "@metamask/delegation-core": "npm:^2.2.0"
+    "@metamask/delegation-core": "npm:^2.2.1"
     "@metamask/delegation-deployments": "npm:^1.4.0"
     "@metamask/messenger": "npm:^1.2.0"
     "@metamask/network-controller": "npm:^32.0.0"
@@ -4546,7 +4546,7 @@ __metadata:
     "@metamask/base-controller": "npm:^9.1.0"
     "@metamask/chomp-api-service": "npm:^3.1.0"
     "@metamask/delegation-controller": "npm:^3.0.0"
-    "@metamask/delegation-core": "npm:^2.2.0"
+    "@metamask/delegation-core": "npm:^2.2.1"
     "@metamask/delegation-deployments": "npm:^1.4.0"
     "@metamask/keyring-controller": "npm:^25.5.0"
     "@metamask/messenger": "npm:^1.2.0"
