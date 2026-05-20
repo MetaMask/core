@@ -1,13 +1,11 @@
 {
+  "extends": "../../../tsconfig.base.json",
   "compilerOptions": {
     "composite": false,
     "noEmit": true,
     "jsx": "react-jsx",
     "module": "ESNext",
-    "moduleResolution": "Bundler",
-    "target": "ES2020",
-    "esModuleInterop": true,
-    "strict": true
+    "moduleResolution": "Bundler"
   },
   "include": ["./**/*.ts", "./**/*.tsx"]
 }
