@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- refactor: decompose rule decoders, and refactor permission decoding ([#8730](https://github.com/MetaMask/core/pull/8730))
+
 ### Added
 
 - Add `token-approval-revocation` execution permission type decoding ([#8823](https://github.com/MetaMask/core/pull/8823))
