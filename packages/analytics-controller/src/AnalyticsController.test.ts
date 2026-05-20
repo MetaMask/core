@@ -1357,6 +1357,7 @@ describe('AnalyticsController', () => {
 
     it('passes mutable clones of queued payload data to the platform adapter', async () => {
       const mockAdapter = createMockAdapter();
+      let adapterMutationCompleted = false;
       jest
         .spyOn(mockAdapter, 'track')
         .mockImplementation((_eventName, properties, context, options) => {
@@ -1366,6 +1367,7 @@ describe('AnalyticsController', () => {
           (
             context as { page: { adapterNormalized?: boolean } }
           ).page.adapterNormalized = true;
+          adapterMutationCompleted = true;
           (options as AnalyticsDeliveryOptions).callback?.(
             new Error('Segment failed'),
           );
@@ -1389,6 +1391,7 @@ describe('AnalyticsController', () => {
 
       const [messageId] = Object.keys(controller.state.eventQueue ?? {});
 
+      expect(adapterMutationCompleted).toBe(true);
       expect(controller.state.eventQueue?.[messageId]).toMatchObject({
         type: 'track',
         eventName: 'test_event',
