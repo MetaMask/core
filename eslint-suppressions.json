@@ -183,11 +183,6 @@
       "count": 2
     }
   },
-  "packages/assets-controller/src/data-sources/SnapDataSource.ts": {
-    "no-restricted-syntax": {
-      "count": 2
-    }
-  },
   "packages/assets-controller/src/data-sources/StakedBalanceDataSource.ts": {
     "no-restricted-syntax": {
       "count": 2
