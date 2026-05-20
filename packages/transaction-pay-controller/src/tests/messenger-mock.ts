@@ -30,6 +30,8 @@ import type { TransactionPayControllerMessenger } from '..';
 import type {
   TransactionPayControllerGetDelegationTransactionAction,
   TransactionPayControllerGetStrategyAction,
+  TransactionPayControllerPolymarketGetDepositWalletAddressAction,
+  TransactionPayControllerPolymarketSubmitDepositWalletBatchAction,
 } from '../TransactionPayController-method-action-types';
 import type { TransactionPayControllerGetStateAction } from '../types';
 
@@ -116,6 +118,14 @@ export function getMessengerMock({
 
   const getDelegationTransactionMock: jest.MockedFn<
     TransactionPayControllerGetDelegationTransactionAction['handler']
+  > = jest.fn();
+
+  const polymarketGetDepositWalletAddressMock: jest.MockedFn<
+    TransactionPayControllerPolymarketGetDepositWalletAddressAction['handler']
+  > = jest.fn();
+
+  const polymarketSubmitDepositWalletBatchMock: jest.MockedFn<
+    TransactionPayControllerPolymarketSubmitDepositWalletBatchAction['handler']
   > = jest.fn();
 
   const getGasFeeTokensMock: jest.MockedFn<
@@ -246,6 +256,16 @@ export function getMessengerMock({
     );
 
     messenger.registerActionHandler(
+      'TransactionPayController:polymarketGetDepositWalletAddress',
+      polymarketGetDepositWalletAddressMock,
+    );
+
+    messenger.registerActionHandler(
+      'TransactionPayController:polymarketSubmitDepositWalletBatch',
+      polymarketSubmitDepositWalletBatchMock,
+    );
+
+    messenger.registerActionHandler(
       'TransactionController:getGasFeeTokens',
       getGasFeeTokensMock,
     );
@@ -297,6 +317,8 @@ export function getMessengerMock({
     getTokensControllerStateMock,
     getTransactionControllerStateMock,
     messenger: messenger as TransactionPayControllerMessenger,
+    polymarketGetDepositWalletAddressMock,
+    polymarketSubmitDepositWalletBatchMock,
     publish,
     submitTransactionMock,
     updateTransactionMock,

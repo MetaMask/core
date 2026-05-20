@@ -457,6 +457,94 @@ describe('TransactionPayController', () => {
     });
   });
 
+  describe('polymarket callbacks', () => {
+    const EOA_MOCK = '0x1111111111111111111111111111111111111111' as Hex;
+    const DEPOSIT_WALLET_MOCK =
+      '0x2222222222222222222222222222222222222222' as Hex;
+    const SOURCE_HASH_MOCK: Hex = `0x${'aa'.repeat(32)}`;
+
+    it('delegates polymarketGetDepositWalletAddress to the callback', async () => {
+      const getDepositWalletAddressMock = jest
+        .fn()
+        .mockResolvedValue(DEPOSIT_WALLET_MOCK);
+
+      new TransactionPayController({
+        getDelegationTransaction: jest.fn(),
+        messenger,
+        polymarket: {
+          getDepositWalletAddress: getDepositWalletAddressMock,
+          submitDepositWalletBatch: jest.fn(),
+        },
+      });
+
+      const result = await messenger.call(
+        'TransactionPayController:polymarketGetDepositWalletAddress',
+        { eoa: EOA_MOCK },
+      );
+
+      expect(getDepositWalletAddressMock).toHaveBeenCalledWith({
+        eoa: EOA_MOCK,
+      });
+      expect(result).toBe(DEPOSIT_WALLET_MOCK);
+    });
+
+    it('delegates polymarketSubmitDepositWalletBatch to the callback', async () => {
+      const submitDepositWalletBatchMock = jest
+        .fn()
+        .mockResolvedValue({ sourceHash: SOURCE_HASH_MOCK });
+
+      new TransactionPayController({
+        getDelegationTransaction: jest.fn(),
+        messenger,
+        polymarket: {
+          getDepositWalletAddress: jest.fn(),
+          submitDepositWalletBatch: submitDepositWalletBatchMock,
+        },
+      });
+
+      const params = {
+        eoa: EOA_MOCK,
+        depositWallet: DEPOSIT_WALLET_MOCK,
+        calls: [],
+      };
+      const result = await messenger.call(
+        'TransactionPayController:polymarketSubmitDepositWalletBatch',
+        params,
+      );
+
+      expect(submitDepositWalletBatchMock).toHaveBeenCalledWith(params);
+      expect(result).toStrictEqual({ sourceHash: SOURCE_HASH_MOCK });
+    });
+
+    it('throws if polymarketGetDepositWalletAddress is invoked without callbacks supplied', () => {
+      new TransactionPayController({
+        getDelegationTransaction: jest.fn(),
+        messenger,
+      });
+
+      expect(() =>
+        messenger.call(
+          'TransactionPayController:polymarketGetDepositWalletAddress',
+          { eoa: EOA_MOCK },
+        ),
+      ).toThrow('Polymarket callbacks missing');
+    });
+
+    it('throws if polymarketSubmitDepositWalletBatch is invoked without callbacks supplied', () => {
+      new TransactionPayController({
+        getDelegationTransaction: jest.fn(),
+        messenger,
+      });
+
+      expect(() =>
+        messenger.call(
+          'TransactionPayController:polymarketSubmitDepositWalletBatch',
+          { eoa: EOA_MOCK, depositWallet: DEPOSIT_WALLET_MOCK, calls: [] },
+        ),
+      ).toThrow('Polymarket callbacks missing');
+    });
+  });
+
   describe('getStrategy Action', () => {
     it('returns relay if no callback', async () => {
       createController();

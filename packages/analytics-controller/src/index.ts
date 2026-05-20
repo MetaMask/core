@@ -10,6 +10,7 @@ export { AnalyticsPlatformAdapterSetupError } from './AnalyticsPlatformAdapterSe
 
 // Export types
 export type {
+  AnalyticsContext,
   AnalyticsEventProperties,
   AnalyticsDeliveryOptions,
   AnalyticsInvocationCallback,

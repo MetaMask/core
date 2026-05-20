@@ -37,10 +37,15 @@ import {
   RELAY_PENDING_STATUSES,
 } from './constants';
 import { submitHyperliquidWithdraw } from './hyperliquid-withdraw';
+import {
+  sweepPolymarketDepositWallet,
+  submitPolymarketWithdraw,
+} from './polymarket/withdraw';
 import { getRelayStatus, submitRelayExecute } from './relay-api';
 import type {
   RelayExecuteRequest,
   RelayQuote,
+  RelayStatus,
   RelayStatusResponse,
   RelayTransactionStep,
 } from './types';
@@ -90,6 +95,8 @@ async function executeSingleQuote(
 ): Promise<{ transactionHash?: Hex }> {
   log('Executing single quote', quote);
 
+  const isPolymarket = Boolean(quote.request.isPolymarketDepositWallet);
+
   updateTransaction(
     {
       transactionId: transaction.id,
@@ -101,33 +108,39 @@ async function executeSingleQuote(
     },
   );
 
+  let polymarketPreSubmitUsdceBalance = 0n;
+
   if (quote.request.isHyperliquidSource) {
     await submitHyperliquidWithdraw(quote, quote.request.from, messenger);
+  } else if (isPolymarket) {
+    const { sourceHash, preSubmitUsdceBalance } =
+      await submitPolymarketWithdraw(quote, quote.request.from, messenger);
+    polymarketPreSubmitUsdceBalance = preSubmitUsdceBalance;
+    setRelaySourceHash(transaction, messenger, sourceHash);
   } else {
     await submitTransactions(quote, transaction, messenger);
   }
 
-  const targetHash = await waitForRelayCompletion(
-    quote.original,
-    messenger,
-    (sourceHash) => {
-      log('Source hash received', sourceHash);
-
-      updateTransaction(
-        {
-          transactionId: transaction.id,
-          messenger,
-          note: 'Add source hash from Relay status',
-        },
-        (tx) => {
-          tx.metamaskPay ??= {};
-          tx.metamaskPay.sourceHash = sourceHash;
-        },
-      );
+  const completion = await waitForRelayCompletion(quote.original, messenger, {
+    onSourceHash: (hash) => {
+      log('Source hash received', hash);
+      setRelaySourceHash(transaction, messenger, hash);
     },
-  );
+    tolerateFailure: isPolymarket,
+  });
 
-  log('Relay request completed', targetHash);
+  log('Relay request completed', completion);
+
+  if (isPolymarket) {
+    await sweepPolymarketDepositWallet(quote.request.from, messenger, {
+      relayStatus: completion.status,
+      preSubmitUsdceBalance: polymarketPreSubmitUsdceBalance,
+    });
+
+    if (completion.status !== 'success') {
+      throw new Error(`Relay request failed with status: ${completion.status}`);
+    }
+  }
 
   updateTransaction(
     {
@@ -140,14 +153,42 @@ async function executeSingleQuote(
     },
   );
 
-  return { transactionHash: targetHash };
+  return { transactionHash: completion.targetHash };
 }
+
+function setRelaySourceHash(
+  transaction: TransactionMeta,
+  messenger: TransactionPayControllerMessenger,
+  sourceHash: Hex,
+): void {
+  updateTransaction(
+    {
+      transactionId: transaction.id,
+      messenger,
+      note: 'Add source hash from Relay status',
+    },
+    (tx) => {
+      tx.metamaskPay ??= {};
+      tx.metamaskPay.sourceHash = sourceHash;
+    },
+  );
+}
+
+type RelayCompletionOutcome = {
+  status: RelayStatus | 'timeout';
+  targetHash?: Hex;
+};
 
 async function waitForRelayCompletion(
   quote: RelayQuote,
   messenger: TransactionPayControllerMessenger,
-  onSourceHash?: (hash: Hex) => void,
-): Promise<Hex> {
+  options: {
+    onSourceHash?: (hash: Hex) => void;
+    tolerateFailure?: boolean;
+  },
+): Promise<RelayCompletionOutcome> {
+  const { onSourceHash, tolerateFailure } = options;
+
   const isSameChain =
     quote.details.currencyIn.currency.chainId ===
     quote.details.currencyOut.currency.chainId;
@@ -157,7 +198,7 @@ async function waitForRelayCompletion(
 
   if (isSameChain && !isSingleDepositStep) {
     log('Skipping polling as same chain');
-    return FALLBACK_HASH;
+    return { status: 'success', targetHash: FALLBACK_HASH };
   }
 
   const { requestId } = quote.steps[0];
@@ -170,7 +211,7 @@ async function waitForRelayCompletion(
   const startTime = Date.now();
 
   let sourceHashEmitted = false;
-  let lastStatus: string | undefined;
+  let lastStatus: RelayStatus | undefined;
 
   while (true) {
     let status: RelayStatusResponse | undefined;
@@ -193,20 +234,27 @@ async function waitForRelayCompletion(
       if (status.status === 'success') {
         const targetHash =
           (status.txHashes?.slice(-1)[0] as Hex) ?? FALLBACK_HASH;
-        return targetHash;
-      }
-
-      if (RELAY_FAILURE_STATUSES.includes(status.status)) {
-        throw new Error(`Relay request failed with status: ${status.status}`);
+        return { status: 'success', targetHash };
       }
 
       if (!RELAY_PENDING_STATUSES.includes(status.status)) {
+        if (RELAY_FAILURE_STATUSES.includes(status.status)) {
+          if (tolerateFailure) {
+            log('Relay ended in failure status (tolerated)', status.status);
+            return { status: status.status };
+          }
+          throw new Error(`Relay request failed with status: ${status.status}`);
+        }
         throw new Error(`Relay returned unrecognized status: ${status.status}`);
       }
     }
 
     if (hasTimeout && Date.now() - startTime >= pollingTimeout) {
       const statusDetail = lastStatus ? ` (last status: ${lastStatus})` : '';
+      if (tolerateFailure) {
+        log('Relay polling timed out (tolerated)', statusDetail);
+        return { status: 'timeout' };
+      }
       throw new Error(`Relay polling timed out${statusDetail}`);
     }
 
@@ -606,6 +654,7 @@ async function submitViaTransactionController(
         gasFeeToken,
         networkClientId,
         origin: ORIGIN_METAMASK,
+        isInternal: true,
         requireApproval: false,
         type: getRelayDepositType(getEffectiveTransactionType(transaction)),
       },
@@ -647,6 +696,7 @@ async function submitViaTransactionController(
       gasLimit7702,
       networkClientId,
       origin: ORIGIN_METAMASK,
+      isInternal: true,
       overwriteUpgrade: true,
       requireApproval: false,
       transactions,

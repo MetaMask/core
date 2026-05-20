@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Optional persisted event queue support in `AnalyticsController`, disabled by default. ([#8797](https://github.com/MetaMask/core/pull/8797))
+- Add optional analytics context on `trackEvent`, `identify`, and `trackView` to forward platform-specific context to `AnalyticsPlatformAdapter` implementations ([#8835](https://github.com/MetaMask/core/pull/8835))
 - Optional `skipUUIDv4Check` on `AnalyticsPlatformAdapter` to allow non-UUIDv4 `analyticsId` strings when constructing `AnalyticsController` ([#8543](https://github.com/MetaMask/core/pull/8543))
 
 ### Changed

@@ -2,7 +2,6 @@
 
 import { Interface } from '@ethersproject/abi';
 import { toHex } from '@metamask/controller-utils';
-import { TransactionType } from '@metamask/transaction-controller';
 import type { TransactionMeta } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 import { createModuleLogger } from '@metamask/utils';
@@ -17,6 +16,7 @@ import {
   HYPERCORE_USDC_ADDRESS,
   HYPERCORE_USDC_DECIMALS,
   NATIVE_TOKEN_ADDRESS,
+  PERPS_DEPOSIT_TYPES,
   USDC_DECIMALS,
   STABLECOINS,
 } from '../../constants';
@@ -53,6 +53,7 @@ import {
 } from '../../utils/token';
 import { isPredictWithdrawTransaction } from '../../utils/transaction';
 import { TOKEN_TRANSFER_FOUR_BYTE } from './constants';
+import { applyPolymarketDepositWalletOverrides } from './polymarket/withdraw';
 import { fetchRelayQuote } from './relay-api';
 import { getRelayMaxGasStationQuote } from './relay-max-gas-station';
 import type {
@@ -251,9 +252,15 @@ async function getSingleQuote(
       user: from,
     };
 
+    if (request.isPolymarketDepositWallet) {
+      await applyPolymarketDepositWalletOverrides(body, request, messenger);
+    }
+
     // Skip transaction processing for post-quote flows - the original transaction
-    // will be included in the batch separately, not as part of the quote
-    if (!request.isPostQuote) {
+    // will be included in the batch separately, not as part of the quote.
+    // Skip for Polymarket deposit wallet flows - the source is already a
+    // bridged token transfer, not a contract call to embed.
+    if (!request.isPostQuote && !request.isPolymarketDepositWallet) {
       await processTransactions(transaction, request, body, messenger);
     } else if (request.refundTo) {
       // For post-quote flows, honour the caller-specified refund address so that
@@ -384,7 +391,9 @@ function normalizeRequest(
     ...request,
   };
 
-  const isPerpsDeposit = transaction.type === TransactionType.perpsDeposit;
+  const isPerpsDeposit =
+    transaction.type !== undefined &&
+    PERPS_DEPOSIT_TYPES.includes(transaction.type);
 
   const isHyperliquidDeposit =
     isPerpsDeposit &&

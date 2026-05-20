@@ -4070,6 +4070,8 @@ describe('BridgeController', function () {
         ).toMatchInlineSnapshot(`
           {
             "assetExchangeRates": {},
+            "batchSellTrades": null,
+            "batchSellTradesLoadingStatus": null,
             "minimumBalanceForRentExemptionInLamports": "0",
             "quoteFetchError": null,
             "quoteRequest": [
@@ -4113,6 +4115,8 @@ describe('BridgeController', function () {
         ).toMatchInlineSnapshot(`
           {
             "assetExchangeRates": {},
+            "batchSellTrades": null,
+            "batchSellTradesLoadingStatus": null,
             "minimumBalanceForRentExemptionInLamports": "0",
             "quoteFetchError": null,
             "quoteRequest": [

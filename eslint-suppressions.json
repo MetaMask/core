@@ -641,11 +641,6 @@
       "count": 3
     }
   },
-  "packages/bridge-controller/src/types.ts": {
-    "@typescript-eslint/prefer-enum-initializers": {
-      "count": 3
-    }
-  },
   "packages/bridge-controller/src/utils/assets.ts": {
     "@typescript-eslint/explicit-function-return-type": {
       "count": 2
@@ -728,14 +723,6 @@
     },
     "no-restricted-syntax": {
       "count": 5
-    }
-  },
-  "packages/bridge-controller/src/utils/validators.ts": {
-    "@typescript-eslint/explicit-function-return-type": {
-      "count": 1
-    },
-    "id-length": {
-      "count": 4
     }
   },
   "packages/bridge-controller/tests/mock-sse.ts": {
@@ -862,26 +849,6 @@
       "count": 1
     }
   },
-  "packages/core-backend/src/AccountActivityService.test.ts": {
-    "no-restricted-syntax": {
-      "count": 2
-    }
-  },
-  "packages/core-backend/src/AccountActivityService.ts": {
-    "no-restricted-syntax": {
-      "count": 1
-    }
-  },
-  "packages/core-backend/src/BackendWebSocketService.test.ts": {
-    "no-restricted-syntax": {
-      "count": 1
-    }
-  },
-  "packages/core-backend/src/BackendWebSocketService.ts": {
-    "no-restricted-syntax": {
-      "count": 5
-    }
-  },
   "packages/core-backend/src/api/shared-types.ts": {
     "no-restricted-syntax": {
       "count": 1
@@ -889,7 +856,38 @@
   },
   "packages/core-backend/src/index.ts": {
     "no-restricted-syntax": {
+      "count": 4
+    }
+  },
+  "packages/core-backend/src/ws/AccountActivityService.test.ts": {
+    "no-restricted-syntax": {
       "count": 2
+    }
+  },
+  "packages/core-backend/src/ws/AccountActivityService.ts": {
+    "no-restricted-syntax": {
+      "count": 1
+    }
+  },
+  "packages/core-backend/src/ws/BackendWebSocketService.test.ts": {
+    "no-restricted-syntax": {
+      "count": 1
+    }
+  },
+  "packages/core-backend/src/ws/BackendWebSocketService.ts": {
+    "no-restricted-syntax": {
+      "count": 5
+    }
+  },
+  "packages/core-backend/src/ws/ohlcv/OHLCVService.test.ts": {
+    "@typescript-eslint/naming-convention": {
+      "count": 2
+    },
+    "id-length": {
+      "count": 1
+    },
+    "no-restricted-syntax": {
+      "count": 1
     }
   },
   "packages/delegation-controller/src/DelegationController.test.ts": {
@@ -1623,26 +1621,15 @@
       "count": 2
     }
   },
-  "packages/phishing-controller/src/PhishingController.test.ts": {
-    "jest/unbound-method": {
-      "count": 7
-    },
-    "no-restricted-syntax": {
-      "count": 1
-    }
-  },
   "packages/phishing-controller/src/PhishingController.ts": {
     "@typescript-eslint/explicit-function-return-type": {
-      "count": 19
+      "count": 14
     },
     "@typescript-eslint/naming-convention": {
       "count": 1
     },
     "@typescript-eslint/prefer-nullish-coalescing": {
       "count": 6
-    },
-    "no-restricted-syntax": {
-      "count": 10
     }
   },
   "packages/phishing-controller/src/PhishingDetector.test.ts": {

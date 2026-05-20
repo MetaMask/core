@@ -430,6 +430,7 @@ linkStyle default opacity:0.5
   network_enablement_controller --> multichain_network_controller;
   network_enablement_controller --> network_controller;
   network_enablement_controller --> transaction_controller;
+  notification_services_controller --> authenticated_user_storage;
   notification_services_controller --> base_controller;
   notification_services_controller --> controller_utils;
   notification_services_controller --> keyring_controller;
@@ -455,6 +456,7 @@ linkStyle default opacity:0.5
   perps_controller --> profile_sync_controller;
   perps_controller --> remote_feature_flag_controller;
   perps_controller --> transaction_controller;
+  phishing_controller --> address_book_controller;
   phishing_controller --> base_controller;
   phishing_controller --> controller_utils;
   phishing_controller --> messenger;
@@ -480,6 +482,7 @@ linkStyle default opacity:0.5
   ramps_controller --> base_controller;
   ramps_controller --> controller_utils;
   ramps_controller --> messenger;
+  ramps_controller --> profile_sync_controller;
   rate_limit_controller --> base_controller;
   rate_limit_controller --> messenger;
   react_data_query --> base_data_service;

@@ -56,6 +56,11 @@ export type AnalyticsTrackingEvent = {
 };
 
 /**
+ * Optional analytics context payload (for example Segment-style context).
+ */
+export type AnalyticsContext = Record<string, Json>;
+
+/**
  * Platform adapter interface for analytics tracking
  * Implementations should handle platform-specific details (Segment SDK, etc.)
  */
@@ -73,12 +78,14 @@ export type AnalyticsPlatformAdapter = {
    *
    * @param eventName - The name of the event
    * @param properties - Event properties. If not provided, the event has no properties.
-   * @param options - Optional delivery metadata for platform adapters.
    * The privacy plugin should check for `isSensitive === true` to determine if an event contains sensitive data.
+   * @param context - Optional platform-specific context attached to the invocation.
+   * @param options - Optional delivery metadata for platform adapters.
    */
   track(
     eventName: string,
     properties?: AnalyticsEventProperties,
+    context?: AnalyticsContext,
     options?: AnalyticsDeliveryOptions,
   ): void;
 
@@ -87,11 +94,13 @@ export type AnalyticsPlatformAdapter = {
    *
    * @param userId - The user identifier (e.g., metametrics ID)
    * @param traits - User traits/properties
+   * @param context - Optional platform-specific context attached to the invocation.
    * @param options - Optional delivery metadata for platform adapters.
    */
   identify(
     userId: string,
     traits?: AnalyticsUserTraits,
+    context?: AnalyticsContext,
     options?: AnalyticsDeliveryOptions,
   ): void;
 
@@ -104,11 +113,13 @@ export type AnalyticsPlatformAdapter = {
    *
    * @param name - The identifier/name of the page or screen being viewed (e.g., "home", "settings", "wallet")
    * @param properties - Optional properties associated with the view
+   * @param context - Optional platform-specific context attached to the invocation.
    * @param options - Optional delivery metadata for platform adapters.
    */
   view(
     name: string,
     properties?: AnalyticsEventProperties,
+    context?: AnalyticsContext,
     options?: AnalyticsDeliveryOptions,
   ): void;
 
