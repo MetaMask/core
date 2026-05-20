@@ -1,6 +1,8 @@
 import nock from 'nock';
 
 import {
+  MOCK_ASSETS_WATCHLIST_BLOB,
+  MOCK_ASSETS_WATCHLIST_URL,
   MOCK_DELEGATIONS_URL,
   MOCK_DELEGATION_RESPONSE,
   MOCK_NOTIFICATION_PREFERENCES,
@@ -65,6 +67,34 @@ export function handleMockPutNotificationPreferences(
 ): nock.Scope {
   const reply = mockReply ?? { status: 200 };
   const interceptor = nock(MOCK_NOTIFICATION_PREFERENCES_URL).persist().put('');
+
+  if (callback) {
+    return interceptor.reply(reply.status, async (uri, requestBody) => {
+      return callback(uri, requestBody);
+    });
+  }
+  return interceptor.reply(reply.status, reply.body);
+}
+
+export function handleMockGetAssetsWatchlist(
+  mockReply?: MockReply,
+): nock.Scope {
+  const reply = mockReply ?? {
+    status: 200,
+    body: MOCK_ASSETS_WATCHLIST_BLOB,
+  };
+  return nock(MOCK_ASSETS_WATCHLIST_URL)
+    .persist()
+    .get('')
+    .reply(reply.status, reply.body);
+}
+
+export function handleMockSetAssetsWatchlist(
+  mockReply?: MockReply,
+  callback?: (uri: string, requestBody: nock.Body) => Promise<void>,
+): nock.Scope {
+  const reply = mockReply ?? { status: 200 };
+  const interceptor = nock(MOCK_ASSETS_WATCHLIST_URL).persist().put('');
 
   if (callback) {
     return interceptor.reply(reply.status, async (uri, requestBody) => {

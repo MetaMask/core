@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `getAssetsWatchlist` and `setAssetsWatchlist` methods to `AuthenticatedUserStorageService` for managing the authenticated user's assets-watchlist, along with corresponding messenger actions (`AuthenticatedUserStorageService:getAssetsWatchlist`, `AuthenticatedUserStorageService:setAssetsWatchlist`), the `AssetsWatchlistBlob` type, and the `ASSETS_WATCHLIST_MAX_ASSETS` constant ([#8836](https://github.com/MetaMask/core/pull/8836))
+  - `getAssetsWatchlist` returns the assets-watchlist blob or `null` on 404, mirroring `getNotificationPreferences`.
+  - `setAssetsWatchlist` writes the full blob and enforces a maximum of `ASSETS_WATCHLIST_MAX_ASSETS` (100) assets before sending the request, via a superstruct `size` constraint on the write-side schema.
+
 ## [2.0.0]
 
 ### Changed
