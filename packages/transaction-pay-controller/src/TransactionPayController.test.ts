@@ -206,6 +206,18 @@ describe('TransactionPayController', () => {
       ).toBe(true);
     });
 
+    it('updates useMoneyAccount in state', () => {
+      const controller = createController();
+
+      controller.setTransactionConfig(TRANSACTION_ID_MOCK, (config) => {
+        config.useMoneyAccount = true;
+      });
+
+      expect(
+        controller.state.transactionData[TRANSACTION_ID_MOCK].useMoneyAccount,
+      ).toBe(true);
+    });
+
     it('triggers source amounts and quotes update when only isPostQuote changes', () => {
       const controller = createController();
 

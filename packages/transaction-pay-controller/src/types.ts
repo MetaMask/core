@@ -140,6 +140,9 @@ export type TransactionConfig = {
    * When `isPostQuote` is false, it provides the funds and pays for gas.
    */
   accountOverride?: Hex;
+
+  /** Whether to use the Money Account (Money Keyring) as the payment source. */
+  useMoneyAccount?: boolean;
 };
 
 /** Callback to update transaction config. */
@@ -245,6 +248,9 @@ export type TransactionData = {
    * When `isPostQuote` is false, it provides the funds and pays for gas.
    */
   accountOverride?: Hex;
+
+  /** Whether to use the Money Account (Money Keyring) as the payment source. */
+  useMoneyAccount?: boolean;
 
   /**
    * Token selected for the transaction.

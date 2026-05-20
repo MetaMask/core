@@ -140,6 +140,7 @@ export class TransactionPayController extends BaseController<
         isPolymarketDepositWallet: transactionData.isPolymarketDepositWallet,
         refundTo: transactionData.refundTo,
         accountOverride: transactionData.accountOverride,
+        useMoneyAccount: transactionData.useMoneyAccount,
       };
 
       const previousAccountOverride = config.accountOverride;
@@ -153,6 +154,7 @@ export class TransactionPayController extends BaseController<
       transactionData.isPolymarketDepositWallet =
         config.isPolymarketDepositWallet;
       transactionData.refundTo = config.refundTo;
+      transactionData.useMoneyAccount = config.useMoneyAccount;
 
       if (
         !config.isPostQuote &&
