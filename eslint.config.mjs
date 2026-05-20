@@ -80,6 +80,7 @@ const config = createConfig([
       'merged-packages/**',
       '.yarn/**',
       'scripts/create-package/package-template/**',
+      'packages/platform-api-docs/site/**',
     ],
   },
   {
