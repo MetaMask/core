@@ -4,7 +4,7 @@ import type {
   MessengerActions,
   MessengerEvents,
 } from '@metamask/messenger';
-import nock from 'nock';
+import nock, { cleanAll } from 'nock';
 
 import { flushPromises } from '../../../tests/helpers';
 import packageJson from '../package.json';
@@ -2468,7 +2468,11 @@ describe('RampsService', () => {
 
   describe('RampsService:getBuyWidgetUrl', () => {
     it('returns buy widget data from the buy URL endpoint', async () => {
-      nock('https://on-ramp.uat-api.cx.metamask.io')
+      nock('https://on-ramp.uat-api.cx.metamask.io', {
+        reqheaders: {
+          Authorization: 'Bearer mock-bearer-token',
+        },
+      })
         .get('/providers/transak-staging/buy-widget')
         .query({
           sdk: '2.1.6',
@@ -2498,7 +2502,11 @@ describe('RampsService', () => {
     });
 
     it('throws when the response is not ok', async () => {
-      nock('https://on-ramp.uat-api.cx.metamask.io')
+      nock('https://on-ramp.uat-api.cx.metamask.io', {
+        reqheaders: {
+          Authorization: 'Bearer mock-bearer-token',
+        },
+      })
         .get('/providers/transak-staging/buy-widget')
         .query({
           sdk: '2.1.6',
@@ -2524,7 +2532,11 @@ describe('RampsService', () => {
     });
 
     it('throws when the response does not contain url field', async () => {
-      nock('https://on-ramp.uat-api.cx.metamask.io')
+      nock('https://on-ramp.uat-api.cx.metamask.io', {
+        reqheaders: {
+          Authorization: 'Bearer mock-bearer-token',
+        },
+      })
         .get('/providers/transak-staging/buy-widget')
         .query({
           sdk: '2.1.6',
@@ -2547,6 +2559,101 @@ describe('RampsService', () => {
       await expect(buyWidgetPromise).rejects.toThrow(
         'Malformed response received from buy widget URL API',
       );
+    });
+
+    it('requests a bearer token exactly once per call', async () => {
+      nock('https://on-ramp.uat-api.cx.metamask.io', {
+        reqheaders: {
+          Authorization: 'Bearer mock-bearer-token',
+        },
+      })
+        .get('/providers/transak-staging/buy-widget')
+        .query({
+          sdk: '2.1.6',
+          controller: CONTROLLER_VERSION,
+          context: 'mobile-ios',
+        })
+        .reply(200, {
+          url: 'https://global.transak.com/?apiKey=test',
+          browser: 'APP_BROWSER',
+          orderId: null,
+        });
+      const { service, mockGetBearerToken } = getService();
+
+      const buyWidgetPromise = service.getBuyWidgetUrl(
+        'https://on-ramp.uat-api.cx.metamask.io/providers/transak-staging/buy-widget',
+      );
+      await jest.runAllTimersAsync();
+      await flushPromises();
+      await buyWidgetPromise;
+
+      expect(mockGetBearerToken).toHaveBeenCalledTimes(1);
+    });
+
+    it('rejects without making an HTTP call when the bearer token cannot be retrieved', async () => {
+      const interceptor = nock('https://on-ramp.uat-api.cx.metamask.io')
+        .get('/providers/transak-staging/buy-widget')
+        .query(true)
+        .reply(200, {
+          url: 'https://global.transak.com/?apiKey=test',
+          browser: 'APP_BROWSER',
+          orderId: null,
+        });
+      const { service } = getService({
+        mockGetBearerToken: jest
+          .fn()
+          .mockRejectedValue(new Error('Wallet is locked')),
+      });
+
+      await expect(
+        service.getBuyWidgetUrl(
+          'https://on-ramp.uat-api.cx.metamask.io/providers/transak-staging/buy-widget',
+        ),
+      ).rejects.toThrow('Wallet is locked');
+      expect(interceptor.isDone()).toBe(false);
+      cleanAll();
+    });
+  });
+
+  describe('RampsService bearer auth scope', () => {
+    it('does not request a bearer token for getGeolocation', async () => {
+      nock('https://on-ramp.uat-api.cx.metamask.io')
+        .get('/geolocation')
+        .query({
+          sdk: '2.1.6',
+          controller: CONTROLLER_VERSION,
+          context: 'mobile-ios',
+        })
+        .reply(200, 'US');
+      const { service, mockGetBearerToken } = getService();
+
+      const geolocationPromise = service.getGeolocation();
+      await jest.runAllTimersAsync();
+      await flushPromises();
+      await geolocationPromise;
+
+      expect(mockGetBearerToken).not.toHaveBeenCalled();
+    });
+
+    it('does not send an Authorization header for getGeolocation', async () => {
+      const scope = nock('https://on-ramp.uat-api.cx.metamask.io', {
+        badheaders: ['authorization'],
+      })
+        .get('/geolocation')
+        .query({
+          sdk: '2.1.6',
+          controller: CONTROLLER_VERSION,
+          context: 'mobile-ios',
+        })
+        .reply(200, 'US');
+      const { service } = getService();
+
+      const geolocationPromise = service.getGeolocation();
+      await jest.runAllTimersAsync();
+      await flushPromises();
+      await geolocationPromise;
+
+      expect(scope.isDone()).toBe(true);
     });
   });
 
@@ -2917,10 +3024,16 @@ function getRootMessenger(): RootMessenger {
  * @returns The service-specific messenger.
  */
 function getMessenger(rootMessenger: RootMessenger): RampsServiceMessenger {
-  return new Messenger({
+  const messenger: RampsServiceMessenger = new Messenger({
     namespace: 'RampsService',
     parent: rootMessenger,
   });
+  rootMessenger.delegate({
+    actions: ['AuthenticationController:getBearerToken'],
+    events: [],
+    messenger,
+  });
+  return messenger;
 }
 
 /**
@@ -2930,18 +3043,31 @@ function getMessenger(rootMessenger: RootMessenger): RampsServiceMessenger {
  * @param args.options - The options that the service constructor takes. All are
  * optional and will be filled in with defaults in as needed (including
  * `messenger`).
- * @returns The new service, root messenger, and service messenger.
+ * @param args.mockGetBearerToken - Optional override for the
+ * `AuthenticationController:getBearerToken` handler. Defaults to a jest mock
+ * that resolves with `'mock-bearer-token'`.
+ * @returns The new service, root messenger, service messenger, and the bearer
+ * token mock so tests can inspect or override its behavior.
  */
 function getService({
   options = {},
+  mockGetBearerToken,
 }: {
   options?: Partial<ConstructorParameters<typeof RampsService>[0]>;
+  mockGetBearerToken?: jest.Mock;
 } = {}): {
   service: RampsService;
   rootMessenger: RootMessenger;
   messenger: RampsServiceMessenger;
+  mockGetBearerToken: jest.Mock;
 } {
   const rootMessenger = getRootMessenger();
+  const getBearerTokenMock =
+    mockGetBearerToken ?? jest.fn().mockResolvedValue('mock-bearer-token');
+  rootMessenger.registerActionHandler(
+    'AuthenticationController:getBearerToken',
+    getBearerTokenMock,
+  );
   const messenger = getMessenger(rootMessenger);
   const service = new RampsService({
     fetch,
@@ -2950,5 +3076,10 @@ function getService({
     ...options,
   });
 
-  return { service, rootMessenger, messenger };
+  return {
+    service,
+    rootMessenger,
+    messenger,
+    mockGetBearerToken: getBearerTokenMock,
+  };
 }
