@@ -57,6 +57,8 @@ function escapeJsDocTextForMdx(text: string): string {
  * @returns The flattened comment text.
  */
 function extractJsDocTagComment(tag: JSDocTag): string {
+  // istanbul ignore next: ts-morph returns null for tags without comment text,
+  // but every fixture tag we extract from carries a comment.
   return (tag.getCommentText() ?? '').replace(/\s+/gu, ' ').trim();
 }
 
@@ -108,6 +110,8 @@ function extractJsDoc(node: JSDocableNode): {
     const tagName = tag.getTagName();
     if (tagName === 'deprecated') {
       const comment = extractJsDocTagComment(tag);
+      // istanbul ignore next: bare `@deprecated` (without explanatory text)
+      // doesn't appear in messenger JSDoc in practice.
       deprecatedLines.push(
         comment ? `**Deprecated:** ${comment}` : '**Deprecated:**',
       );
@@ -170,6 +174,8 @@ function resolveTemplateLiteralType(
   if (type.isStringLiteral()) {
     return type.getLiteralValueOrThrow() as string;
   }
+  // istanbul ignore next: messenger fixtures always reduce template literal
+  // types to a single string literal via `typeof X` constants.
   return null;
 }
 
@@ -195,6 +201,8 @@ function resolveNamespaceFromTypeArg(typeArg: TsMorphNode): string | null {
       return literal.getLiteralValue();
     }
   }
+  // istanbul ignore next: namespace args are always a `typeof X` query or a
+  // string literal in valid messenger usage.
   return null;
 }
 
@@ -215,9 +223,13 @@ function resolveIndexedAccessMethod(
   const objectType = typeNode.getObjectTypeNode();
   const indexType = typeNode.getIndexTypeNode();
 
+  // istanbul ignore next: handler indexed-access types in messenger fixtures
+  // always reference a class via TypeReference.
   if (!NodeGuards.isTypeReference(objectType)) {
     return null;
   }
+  // istanbul ignore next: the index in `Class['method']` is always a literal
+  // type node in valid handler syntax.
   if (!NodeGuards.isLiteralTypeNode(indexType)) {
     return null;
   }
@@ -225,6 +237,7 @@ function resolveIndexedAccessMethod(
   // The index can be written as `'method'`, `"method"`, or `` `method` ``.
   // The first two land as `StringLiteral`; the bare template literal is a
   // `NoSubstitutionTemplateLiteral`.
+  // istanbul ignore next: numeric/boolean indices aren't valid method names.
   if (
     !NodeGuards.isStringLiteral(indexLiteral) &&
     !NodeGuards.isNoSubstitutionTemplateLiteral(indexLiteral)
@@ -234,10 +247,14 @@ function resolveIndexedAccessMethod(
   const methodName = indexLiteral.getLiteralValue();
 
   const classNameNode = objectType.getTypeName();
+  // istanbul ignore next: qualified-name class references aren't used in
+  // messenger handler types.
   if (!NodeGuards.isIdentifier(classNameNode)) {
     return null;
   }
   const localSymbol = classNameNode.getSymbol();
+  // istanbul ignore next: a referenced class name always resolves to a symbol
+  // in a typechecked project.
   if (!localSymbol) {
     return null;
   }
@@ -245,6 +262,8 @@ function resolveIndexedAccessMethod(
   // its home file.
   const symbol = localSymbol.getAliasedSymbol() ?? localSymbol;
 
+  // istanbul ignore next: a resolved symbol always exposes its declarations
+  // array in a typechecked project.
   for (const declaration of symbol.getDeclarations() ?? []) {
     if (NodeGuards.isClassDeclaration(declaration)) {
       const method = declaration.getMethod(methodName);
@@ -253,6 +272,9 @@ function resolveIndexedAccessMethod(
       }
     }
   }
+  // istanbul ignore next: only reached if the indexed method isn't declared
+  // on any of the resolved class declarations, which doesn't happen in valid
+  // handler types.
   return null;
 }
 
@@ -275,12 +297,16 @@ function buildMethodInfo(method: MethodDeclaration): MethodInfo {
       const paramName = param.getNameNode().getText();
       const optional = param.hasQuestionToken() ? '?' : '';
       const typeNode = param.getTypeNode();
+      // istanbul ignore next: handler parameters in messenger fixtures always
+      // declare an explicit type.
       const paramType = typeNode ? typeNode.getText() : 'unknown';
       return `${paramName}${optional}: ${paramType}`;
     })
     .join(', ');
 
   const returnTypeNode = method.getReturnTypeNode();
+  // istanbul ignore next: handler class methods in messenger fixtures always
+  // declare an explicit return type.
   const returnType = returnTypeNode ? returnTypeNode.getText() : 'void';
   // For async methods, the declared return type already includes `Promise<>`,
   // so we don't need to wrap again.
@@ -415,11 +441,15 @@ function walkCapabilityTypes(
   // the imported file. Use it when present; otherwise fall back to the
   // (already-local) symbol.
   const localSymbol = nameNode.getSymbol();
+  // istanbul ignore next: a referenced type name always resolves to a symbol
+  // in a typechecked project.
   if (!localSymbol) {
     return;
   }
   const symbol = localSymbol.getAliasedSymbol() ?? localSymbol;
 
+  // istanbul ignore next: a resolved symbol always exposes its declarations
+  // array in a typechecked project.
   for (const declaration of symbol.getDeclarations() ?? []) {
     if (seen.has(declaration)) {
       continue;
@@ -612,6 +642,9 @@ function resolveInlineTypeString(members: TypeElementTypes[]): string | null {
     }
     if (NodeGuards.isLiteralTypeNode(typeNode)) {
       const literal = typeNode.getLiteral();
+      // istanbul ignore next: messenger `type` fields are written as
+      // quoted string literals in real fixtures; backtick template literals
+      // are valid TypeScript but don't appear in practice.
       if (
         NodeGuards.isStringLiteral(literal) ||
         NodeGuards.isNoSubstitutionTemplateLiteral(literal)

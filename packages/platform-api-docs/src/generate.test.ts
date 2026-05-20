@@ -176,6 +176,46 @@ export type TestMessenger = Messenger<'Test', TestGetAction, never>;
     });
   });
 
+  it('follows symlinked @metamask packages when scanning node_modules/@metamask/*/dist', async () => {
+    expect.assertions(1);
+
+    await withinSandbox(async ({ directoryPath }) => {
+      // In a yarn-workspaces layout, `node_modules/@metamask/<pkg>` is a
+      // symlink to the package's actual directory. `listTargetSubdirectories`
+      // must follow these symlinks when scanning node_modules.
+      const realPkgDir = path.join(directoryPath, 'real-pkg');
+      const distDir = path.join(realPkgDir, 'dist');
+      await fs.promises.mkdir(distDir, { recursive: true });
+      await fs.promises.writeFile(
+        path.join(distDir, 'index.d.cts'),
+        `
+export type LinkedGetAction = {
+  type: 'Linked:get';
+  handler: () => boolean;
+};
+
+export type LinkedMessenger = Messenger<'Linked', LinkedGetAction, never>;
+`,
+      );
+
+      const scopedDir = path.join(directoryPath, 'node_modules', '@metamask');
+      await fs.promises.mkdir(scopedDir, { recursive: true });
+      await fs.promises.symlink(
+        realPkgDir,
+        path.join(scopedDir, 'linked-pkg'),
+        'dir',
+      );
+
+      const result = await generate({
+        projectPath: directoryPath,
+        outputDir: path.join(directoryPath, '.docs'),
+        scanDirs: ['src'],
+      });
+
+      expect(result.actions).toBe(1);
+    });
+  });
+
   it('throws when no scannable directories found', async () => {
     expect.assertions(1);
 
@@ -563,6 +603,91 @@ export type DupeMessenger = Messenger<'Dupe', never, DupeEvent>;
       // exactly once.
       expect(result.actions).toBe(0);
       expect(result.events).toBe(1);
+    });
+  });
+
+  it('sorts multiple actions and events within a single namespace by type string', async () => {
+    expect.assertions(2);
+
+    await withinSandbox(async ({ directoryPath }) => {
+      const srcDir = path.join(directoryPath, 'src');
+      await fs.promises.mkdir(srcDir, { recursive: true });
+      await fs.promises.writeFile(
+        path.join(srcDir, 'Foo.ts'),
+        `
+export type FooZooAction = { type: 'Foo:zoo'; handler: () => void };
+export type FooBarAction = { type: 'Foo:bar'; handler: () => void };
+export type FooZapEvent = { type: 'Foo:zap'; payload: [] };
+export type FooBeepEvent = { type: 'Foo:beep'; payload: [] };
+
+export type FooMessenger = Messenger<
+  'Foo',
+  FooZooAction | FooBarAction,
+  FooZapEvent | FooBeepEvent
+>;
+`,
+      );
+
+      const outputDir = path.join(directoryPath, '.docs');
+      await generate({
+        projectPath: directoryPath,
+        outputDir,
+        scanDirs: ['src'],
+      });
+
+      const actionsMd = await fs.promises.readFile(
+        path.join(outputDir, 'docs', 'Foo', 'actions.md'),
+        'utf8',
+      );
+      const eventsMd = await fs.promises.readFile(
+        path.join(outputDir, 'docs', 'Foo', 'events.md'),
+        'utf8',
+      );
+      expect(actionsMd.indexOf('Foo:bar')).toBeLessThan(
+        actionsMd.indexOf('Foo:zoo'),
+      );
+      expect(eventsMd.indexOf('Foo:beep')).toBeLessThan(
+        eventsMd.indexOf('Foo:zap'),
+      );
+    });
+  });
+
+  it('replaces an event with a higher-scored action variant of the same type string', async () => {
+    expect.assertions(2);
+
+    await withinSandbox(async ({ directoryPath }) => {
+      const srcDir = path.join(directoryPath, 'src');
+      await fs.promises.mkdir(srcDir, { recursive: true });
+
+      // The first-encountered file declares `Dupe:thing` as an event in a
+      // non-home namespace; the second declares it as an action in the home
+      // namespace. The action wins on dedup score, so the event must be
+      // removed from `group.events` and the action pushed into
+      // `group.actions` — the reverse direction of the
+      // action-replaced-by-event case covered above.
+      await fs.promises.writeFile(
+        path.join(srcDir, 'a-other.ts'),
+        `
+export type DupeEvent = { type: 'Dupe:thing'; payload: [] };
+export type OtherMessenger = Messenger<'Other', never, DupeEvent>;
+`,
+      );
+      await fs.promises.writeFile(
+        path.join(srcDir, 'z-DupeController.ts'),
+        `
+export type DupeAction = { type: 'Dupe:thing'; handler: () => void };
+export type DupeMessenger = Messenger<'Dupe', DupeAction, never>;
+`,
+      );
+
+      const result = await generate({
+        projectPath: directoryPath,
+        outputDir: path.join(directoryPath, '.docs'),
+        scanDirs: ['src'],
+      });
+
+      expect(result.actions).toBe(1);
+      expect(result.events).toBe(0);
     });
   });
 

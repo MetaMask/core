@@ -243,6 +243,36 @@ export type LookalikeAction = {
     });
   });
 
+  it('skips bare-TypeReference aliases (plain re-exports) without double-documenting the target', async () => {
+    expect.assertions(2);
+
+    await withinSandbox(async ({ directoryPath }) => {
+      const filePath = path.join(directoryPath, 'types.ts');
+      // The messenger's actions slot references both the direct action and a
+      // plain alias of it. The alias has no type arguments — it's a bare
+      // re-export — and should be skipped so the action isn't documented
+      // twice from the same file.
+      await fs.promises.writeFile(
+        filePath,
+        `
+export type SharedAction = {
+  type: 'Test:get';
+  handler: () => string;
+};
+
+export type AliasOfShared = SharedAction;
+
+export type TestMessenger = Messenger<'Test', SharedAction | AliasOfShared, never>;
+`,
+      );
+
+      const items = await extractFromFile(filePath, directoryPath);
+
+      expect(items).toHaveLength(1);
+      expect(items[0].typeName).toBe('SharedAction');
+    });
+  });
+
   it('expands union-type aliases referenced by a Messenger', async () => {
     expect.assertions(3);
 
@@ -308,6 +338,36 @@ export type FooControllerDoStuffAction = {
 
       expect(items).toHaveLength(1);
       expect(items[0].handlerOrPayload).toContain('(x: string) => boolean');
+    });
+  });
+
+  it('marks optional parameters with `?` in the resolved handler signature', async () => {
+    expect.assertions(1);
+
+    await withinSandbox(async ({ directoryPath }) => {
+      const filePath = path.join(directoryPath, 'types.ts');
+      await fs.promises.writeFile(
+        filePath,
+        withMessenger(
+          `
+class FooController {
+  doStuff(x: string, y?: number): boolean {
+    return x.length > (y ?? 0);
+  }
+}
+
+export type FooControllerDoStuffAction = {
+  type: 'FooController:doStuff';
+  handler: FooController['doStuff'];
+};
+`,
+          { actions: ['FooControllerDoStuffAction'] },
+        ),
+      );
+
+      const items = await extractFromFile(filePath, directoryPath);
+
+      expect(items[0].handlerOrPayload).toContain('y?: number');
     });
   });
 
