@@ -1,11 +1,12 @@
-# How to write a data service (part 2)
+# How to write a data service (part 4)
 
-Our API now allows us to place and cancel orders as needed. Now we have:
+## Paginated queries
 
-- **GET `/v1/orders`**: Retrieve a paginated list of orders, limited to 100 at a time (latest first by default).
-- **POST `/v1/orders`**: Enqueue a new order for processing.
-- **GET `/v1/orders/:id`**: Retrieve data about an order, including its processing status.
-- **DELETE `/v1/orders/:id`**: Cancel a pending order.
+## Authentication
+
+## Cache invalidation
+
+## Environments
 
 In addition, the API is now deployed under three environments: `dev`, `qa`, and `prod`.
 
@@ -77,3 +78,5 @@ export class OrdersService extends BaseDataService<
   }
 }
 ```
+
+## Versioned endpoints

@@ -41,7 +41,11 @@ export const DATA_SERVICE_NAME = 'OrdersService';
  * All of the methods within {@link OrdersService} that are exposed via the
  * messenger.
  */
-const MESSENGER_EXPOSED_METHODS = ['fetchOrders', 'fetchOrder'] as const;
+const MESSENGER_EXPOSED_METHODS = [
+  'fetchOrders',
+  'fetchOrder',
+  'createOrder',
+] as const;
 
 /**
  * Invalidates cached queries for {@link OrdersService}.
@@ -110,7 +114,7 @@ const TimestampStruct = refine(number(), 'timestamp', (value) => {
 /**
  * Struct to validate an order object that the Orders API returns.
  */
-const OrderStruct = intersection([
+const ResponseOrderStruct = intersection([
   // Need to list this first, otherwise the inferred type is never
   // See: <https://github.com/ianstormtaylor/superstruct/issues/1180>
   union([
@@ -139,11 +143,17 @@ const OrderStruct = intersection([
 ]);
 
 /**
+ * An order object that the Orders API returns.
+ */
+export type ResponseOrder = Infer<typeof ResponseOrderStruct>;
+
+/**
  * Struct to validate what `GET /v1/orders` returns.
  */
 const FetchOrdersResponseStruct = type({
-  orders: array(OrderStruct),
+  orders: array(ResponseOrderStruct),
 });
+
 /**
  * The data that `GET /v1/orders` returns.
  */
@@ -153,13 +163,21 @@ export type FetchOrdersResponse = Infer<typeof FetchOrdersResponseStruct>;
  * Struct to validate what `GET /v1/orders/:id` returns.
  */
 const FetchOrderResponseStruct = type({
-  order: OrderStruct,
+  order: ResponseOrderStruct,
 });
 
 /**
  * The data that `GET /v1/orders/:id` returns.
  */
 export type FetchOrderResponse = Infer<typeof FetchOrderResponseStruct>;
+
+/**
+ * The arguments for `createOrder`.
+ */
+export type CreateOrderParams = Omit<
+  ResponseOrder,
+  'createdTime' | 'orderId' | 'status' | 'updatedTime'
+>;
 
 /**
  * The base URL of the API that the service represents.
@@ -206,7 +224,7 @@ export class OrdersService extends BaseDataService<
   }
 
   /**
-   * Uses the API to retrieve orders.
+   * Retrieves orders.
    *
    * @param params - Parameters to qualify the request.
    * @param params.sortField - The field by which to sort the list of orders.
@@ -255,7 +273,7 @@ export class OrdersService extends BaseDataService<
   }
 
   /**
-   * Uses the API to retrieve details about an order.
+   * Retrieves details about an order.
    *
    * @param id - The order ID.
    * @returns The requested order.
@@ -277,6 +295,48 @@ export class OrdersService extends BaseDataService<
 
         return response.json();
       },
+    });
+
+    const [error, validatedResponseData] = validate(
+      responseData,
+      FetchOrderResponseStruct,
+    );
+    if (error) {
+      throw new Error(
+        `Malformed response received from Orders API (${error.toString()})`,
+      );
+    }
+
+    return validatedResponseData;
+  }
+
+  /**
+   * Retrieves details about an order.
+   *
+   * @param params - The order ID.
+   * @returns The requested order.
+   */
+  async createOrder(params: CreateOrderParams): Promise<FetchOrderResponse> {
+    const url = new URL(`/v1/orders`, BASE_URL);
+
+    const responseData = await this.fetchQuery({
+      queryKey: [`${this.name}:createOrder`, url.toString()],
+      queryFn: async () => {
+        const response = await fetch(url, {
+          method: 'POST',
+          body: JSON.stringify(params),
+        });
+
+        if (!response.ok) {
+          throw new HttpError(
+            response.status,
+            `Orders API failed with status '${response.status}'`,
+          );
+        }
+
+        return response.json();
+      },
+      staleTime: 0,
     });
 
     const [error, validatedResponseData] = validate(

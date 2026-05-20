@@ -6,7 +6,7 @@
 import type { OrdersService } from './orders-service';
 
 /**
- * Uses the API to retrieve orders.
+ * Retrieves orders.
  *
  * @param params - Parameters to qualify the request.
  * @param params.sortField - The field by which to sort the list of orders.
@@ -20,7 +20,7 @@ export type OrdersServiceFetchOrdersAction = {
 };
 
 /**
- * Uses the API to retrieve details about an order.
+ * Retrieves details about an order.
  *
  * @param id - The order ID.
  * @returns The requested order.
@@ -31,8 +31,20 @@ export type OrdersServiceFetchOrderAction = {
 };
 
 /**
+ * Retrieves details about an order.
+ *
+ * @param params - The order ID.
+ * @returns The requested order.
+ */
+export type OrdersServiceCreateOrderAction = {
+  type: `OrdersService:createOrder`;
+  handler: OrdersService['createOrder'];
+};
+
+/**
  * Union of all OrdersService action types.
  */
 export type OrdersServiceMethodActions =
   | OrdersServiceFetchOrdersAction
-  | OrdersServiceFetchOrderAction;
+  | OrdersServiceFetchOrderAction
+  | OrdersServiceCreateOrderAction;
