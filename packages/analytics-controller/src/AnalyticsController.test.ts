@@ -1355,6 +1355,54 @@ describe('AnalyticsController', () => {
       });
     });
 
+    it('passes mutable clones of queued payload data to the platform adapter', async () => {
+      const mockAdapter = createMockAdapter();
+      jest
+        .spyOn(mockAdapter, 'track')
+        .mockImplementation((_eventName, properties, context, options) => {
+          (
+            properties as { nested: { adapterNormalized?: boolean } }
+          ).nested.adapterNormalized = true;
+          (
+            context as { page: { adapterNormalized?: boolean } }
+          ).page.adapterNormalized = true;
+          (options as AnalyticsDeliveryOptions).callback?.(
+            new Error('Segment failed'),
+          );
+        });
+      const { controller } = await setupController({
+        state: {
+          optedIn: true,
+          analyticsId: '10000000-0000-4000-8000-000000000012',
+        },
+        platformAdapter: mockAdapter,
+        isEventQueuePersistenceEnabled: true,
+      });
+      const context: AnalyticsContext = {
+        page: { title: 'Unit test' },
+      };
+
+      controller.trackEvent(
+        createTestEvent('test_event', { nested: { prop: 'value' } }),
+        context,
+      );
+
+      const [messageId] = Object.keys(controller.state.eventQueue ?? {});
+
+      expect(controller.state.eventQueue?.[messageId]).toMatchObject({
+        type: 'track',
+        eventName: 'test_event',
+        properties: { nested: { prop: 'value' } },
+        context: { page: { title: 'Unit test' } },
+      });
+      expect(controller.state.eventQueue?.[messageId]).not.toHaveProperty(
+        'properties.nested.adapterNormalized',
+      );
+      expect(controller.state.eventQueue?.[messageId]).not.toHaveProperty(
+        'context.page.adapterNormalized',
+      );
+    });
+
     it('queues both track payloads when anonymous events split sensitive properties', async () => {
       const mockAdapter = createMockAdapter();
       const { controller } = await setupController({

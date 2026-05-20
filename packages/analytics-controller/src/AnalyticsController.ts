@@ -6,6 +6,7 @@ import type {
 import { BaseController } from '@metamask/base-controller';
 import type { Messenger } from '@metamask/messenger';
 import type { Json } from '@metamask/utils';
+import { cloneDeep } from 'lodash';
 import { v4 as uuid } from 'uuid';
 
 import type { AnalyticsControllerMethodActions } from './AnalyticsController-method-action-types';
@@ -565,22 +566,22 @@ export class AnalyticsController extends BaseController<
       if (queuedEvent.type === 'track') {
         this.#platformAdapter.track(
           queuedEvent.eventName,
-          queuedEvent.properties,
-          queuedEvent.context,
+          cloneDeep(queuedEvent.properties),
+          cloneDeep(queuedEvent.context),
           options,
         );
       } else if (queuedEvent.type === 'identify') {
         this.#platformAdapter.identify(
           queuedEvent.userId,
-          queuedEvent.traits,
-          queuedEvent.context,
+          cloneDeep(queuedEvent.traits),
+          cloneDeep(queuedEvent.context),
           options,
         );
       } else {
         this.#platformAdapter.view(
           queuedEvent.name,
-          queuedEvent.properties,
-          queuedEvent.context,
+          cloneDeep(queuedEvent.properties),
+          cloneDeep(queuedEvent.context),
           options,
         );
       }
