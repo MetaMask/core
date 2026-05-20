@@ -154,7 +154,7 @@ function getDeliveryOptions(
   mock: jest.Mock,
   callIndex = 0,
 ): AnalyticsDeliveryOptions {
-  return mock.mock.calls[callIndex][2] as AnalyticsDeliveryOptions;
+  return mock.mock.calls[callIndex][3] as AnalyticsDeliveryOptions;
 }
 
 describe('AnalyticsController', () => {
@@ -1368,11 +1368,13 @@ describe('AnalyticsController', () => {
       expect(mockAdapter.identify).toHaveBeenCalledWith(
         analyticsId,
         { trait: 'value' },
+        undefined,
         expect.objectContaining({ messageId: identifyOptions.messageId }),
       );
       expect(mockAdapter.view).toHaveBeenCalledWith(
         'home',
         { referrer: 'test' },
+        undefined,
         expect.objectContaining({ messageId: viewOptions.messageId }),
       );
       expect(Object.keys(controller.state.eventQueue ?? {})).toHaveLength(2);
@@ -1467,6 +1469,7 @@ describe('AnalyticsController', () => {
       expect(mockAdapter.track).toHaveBeenCalledWith(
         'test_event',
         { prop: 'value' },
+        undefined,
         expect.objectContaining({
           messageId: 'track-message-id',
           timestamp: new Date(trackEvent.timestamp),
@@ -1476,6 +1479,7 @@ describe('AnalyticsController', () => {
       expect(mockAdapter.identify).toHaveBeenCalledWith(
         analyticsId,
         { trait: 'value' },
+        undefined,
         expect.objectContaining({
           messageId: 'identify-message-id',
           timestamp: new Date(identifyEvent.timestamp),
@@ -1485,6 +1489,7 @@ describe('AnalyticsController', () => {
       expect(mockAdapter.view).toHaveBeenCalledWith(
         'home',
         { referrer: 'test' },
+        undefined,
         expect.objectContaining({
           messageId: 'view-message-id',
           timestamp: new Date(viewEvent.timestamp),
