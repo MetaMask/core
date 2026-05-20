@@ -4,6 +4,7 @@ import { existsSync } from 'node:fs';
 import { pingDaemon } from './daemon-client';
 import { ensureDaemon } from './daemon-spawn';
 import { getDaemonPaths } from './paths';
+import { Password, Srp } from './secrets';
 import type { DaemonSpawnConfig } from './types';
 
 jest.mock('node:child_process');
@@ -16,11 +17,13 @@ const mockExistsSync = jest.mocked(existsSync);
 const mockPingDaemon = jest.mocked(pingDaemon);
 const mockGetDaemonPaths = jest.mocked(getDaemonPaths);
 
+const SRP = 'test test test test test test test test test test test ball';
+
 const CONFIG: DaemonSpawnConfig = {
   dataDir: '/tmp/data',
   infuraProjectId: 'test-key',
-  password: 'test-pass',
-  srp: 'test test test test test test test test test test test ball',
+  password: Password.from('test-pass'),
+  srp: Srp.from(SRP),
   packageRoot: '/pkg',
 };
 
@@ -134,8 +137,7 @@ describe('ensureDaemon', () => {
           MM_DAEMON_SOCKET_PATH: '/tmp/test.sock',
           INFURA_PROJECT_ID: 'test-key',
           MM_WALLET_PASSWORD: 'test-pass',
-          MM_WALLET_SRP:
-            'test test test test test test test test test test test ball',
+          MM_WALLET_SRP: SRP,
         }),
       }),
     );

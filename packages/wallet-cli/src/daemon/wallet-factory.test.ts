@@ -6,6 +6,7 @@ import { join } from 'node:path';
 
 import { KeyValueStore } from '../persistence/KeyValueStore';
 import * as persistenceModule from '../persistence/persistence';
+import { Password, Srp } from './secrets';
 import { createWallet } from './wallet-factory';
 
 jest.mock('@metamask/wallet');
@@ -37,11 +38,13 @@ function tempDbPath(label: string): string {
 const MockWallet = jest.mocked(Wallet);
 const mockImportSrp = jest.mocked(importSecretRecoveryPhrase);
 
+const SRP = 'test test test test test test test test test test test ball';
+
 const CONFIG = {
   databasePath: ':memory:',
   infuraProjectId: 'test-key',
-  password: 'test-pass',
-  srp: 'test test test test test test test test test test test ball',
+  password: Password.from('test-pass'),
+  srp: Srp.from(SRP),
 };
 
 describe('createWallet', () => {
@@ -104,7 +107,7 @@ describe('createWallet', () => {
     expect(mockImportSrp).toHaveBeenCalledWith(
       expect.objectContaining({ messenger: mockMessenger }),
       'test-pass',
-      'test test test test test test test test test test test ball',
+      SRP,
     );
   });
 

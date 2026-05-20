@@ -185,13 +185,21 @@ describe('daemon-entry', () => {
       recursive: true,
       mode: 0o700,
     });
-    expect(mockCreateWallet).toHaveBeenCalledWith({
-      databasePath: '/tmp/wallet.db',
-      infuraProjectId: 'key',
-      password: 'pass',
-      srp: 'test test test test test test test test test test test ball',
-      log: expect.any(Function),
-    });
+    expect(mockCreateWallet).toHaveBeenCalledWith(
+      expect.objectContaining({
+        databasePath: '/tmp/wallet.db',
+        infuraProjectId: 'key',
+        log: expect.any(Function),
+      }),
+    );
+    // The Password/Srp instances are constructed in an isolated module scope
+    // (jest.isolateModulesAsync), so their class identity differs from any
+    // import in this test file. Verify structurally via `.unwrap()`.
+    const passedConfig = mockCreateWallet.mock.calls[0][0];
+    expect(passedConfig.password.unwrap()).toBe('pass');
+    expect(passedConfig.srp.unwrap()).toBe(
+      'test test test test test test test test test test test ball',
+    );
     expect(mockWriteFile).toHaveBeenCalledWith(
       '/tmp/daemon.pid',
       expect.stringMatching(new RegExp(`^${process.pid}\\n\\d+\\n$`, 'u')),

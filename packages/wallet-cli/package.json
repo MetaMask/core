@@ -49,6 +49,7 @@
     "@inquirer/confirm": "^6.0.11",
     "@metamask/remote-feature-flag-controller": "^4.2.0",
     "@metamask/rpc-errors": "^7.0.2",
+    "@metamask/scure-bip39": "^2.1.1",
     "@metamask/utils": "^11.9.0",
     "@metamask/wallet": "^0.0.0",
     "@oclif/core": "^4.10.5",
