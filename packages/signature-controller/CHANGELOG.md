@@ -7,10 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Changed
-
-- Bump `@metamask/gator-permissions-controller` from `^4.1.2` to `^4.2.0` ([#8855](https://github.com/MetaMask/core/pull/8855))
-
 ## [39.2.2]
 
 ### Changed
