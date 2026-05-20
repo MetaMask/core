@@ -1668,6 +1668,32 @@ describe('AnalyticsController', () => {
       expect(controller.state.eventQueue).toStrictEqual({});
     });
 
+    it('clears queued events on opt out when queue persistence is disabled', async () => {
+      const mockAdapter = createMockAdapter();
+      const { controller } = await setupController({
+        state: {
+          optedIn: true,
+          analyticsId: '10000000-0000-4000-8000-000000000013',
+          eventQueue: {
+            'message-id-1': {
+              type: 'track',
+              eventName: 'test_event',
+              messageId: 'message-id-1',
+              timestamp: '2026-01-01T00:00:00.000Z',
+              properties: { prop: 'value' },
+            },
+          },
+        },
+        platformAdapter: mockAdapter,
+        isEventQueuePersistenceEnabled: false,
+      });
+
+      controller.optOut();
+
+      expect(controller.state.optedIn).toBe(false);
+      expect(controller.state.eventQueue).toStrictEqual({});
+    });
+
     it('does not fail when clearing an empty event queue on opt out', async () => {
       const { controller } = await setupController({
         state: {

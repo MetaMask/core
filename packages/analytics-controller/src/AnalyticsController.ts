@@ -762,8 +762,6 @@ export class AnalyticsController extends BaseController<
       state.optedIn = false;
     });
 
-    if (this.#isEventQueuePersistenceEnabled) {
-      this.#clearQueuedEvents();
-    }
+    this.#clearQueuedEvents();
   }
 }
