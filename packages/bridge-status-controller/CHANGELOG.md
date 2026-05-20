@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Bump `@metamask/bridge-controller` from `^72.0.4` to `^73.0.0` ([#8850](https://github.com/MetaMask/core/pull/8850))
 - Remove unnecessary type assertions for bridge quotes ([#8805](https://github.com/MetaMask/core/pull/8805))
 
 ## [71.2.0]

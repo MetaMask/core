@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [73.0.0]
+
 ### Added
 
 - Implement transaction batch and fee fetching for BatchSell quotes ([#8805](https://github.com/MetaMask/core/pull/8805))
@@ -32,6 +34,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Removed
 
 - **BREAKING**: Remove `totalNetworkFee` from the `selectBatchSellQuotes`'s results. Clients should use `selectBatchSellTrades` instead ([#8805](https://github.com/MetaMask/core/pull/8805))
+
+### Fixed
+
+- fix non-evm token type detection ([#8811](https://github.com/MetaMask/core/pull/8811))
 
 ## [72.0.4]
 
@@ -1498,7 +1504,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#5317](https://github.com/MetaMask/core/pull/5317))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@72.0.4...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@73.0.0...HEAD
+[73.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@72.0.4...@metamask/bridge-controller@73.0.0
 [72.0.4]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@72.0.3...@metamask/bridge-controller@72.0.4
 [72.0.3]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@72.0.2...@metamask/bridge-controller@72.0.3
 [72.0.2]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@72.0.1...@metamask/bridge-controller@72.0.2

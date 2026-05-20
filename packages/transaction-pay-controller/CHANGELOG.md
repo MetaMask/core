@@ -7,9 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [22.6.1]
+
 ### Changed
 
+- Bump `@metamask/bridge-controller` from `^72.0.4` to `^73.0.0` ([#8850](https://github.com/MetaMask/core/pull/8850))
 - Remove unnecessary type assertions for bridge quotes ([#8805](https://github.com/MetaMask/core/pull/8805))
+
+### Fixed
+
+- Treat `perpsDepositAndOrder` transactions identically to `perpsDeposit` in the Relay strategy ([#8851](https://github.com/MetaMask/core/pull/8851))
 
 ## [22.6.0]
 
@@ -914,7 +921,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#6820](https://github.com/MetaMask/core/pull/6820))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@22.6.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@22.6.1...HEAD
+[22.6.1]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@22.6.0...@metamask/transaction-pay-controller@22.6.1
 [22.6.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@22.5.0...@metamask/transaction-pay-controller@22.6.0
 [22.5.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@22.4.0...@metamask/transaction-pay-controller@22.5.0
 [22.4.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@22.3.1...@metamask/transaction-pay-controller@22.4.0

@@ -29,6 +29,11 @@ export type AnalyticsTrackingEvent = {
 };
 
 /**
+ * Optional analytics context payload (for example Segment-style context).
+ */
+export type AnalyticsContext = Record<string, Json>;
+
+/**
  * Platform adapter interface for analytics tracking
  * Implementations should handle platform-specific details (Segment SDK, etc.)
  */
@@ -47,16 +52,26 @@ export type AnalyticsPlatformAdapter = {
    * @param eventName - The name of the event
    * @param properties - Event properties. If not provided, the event has no properties.
    * The privacy plugin should check for `isSensitive === true` to determine if an event contains sensitive data.
+   * @param context - Optional platform-specific context attached to the invocation.
    */
-  track(eventName: string, properties?: AnalyticsEventProperties): void;
+  track(
+    eventName: string,
+    properties?: AnalyticsEventProperties,
+    context?: AnalyticsContext,
+  ): void;
 
   /**
    * Identify a user with traits.
    *
    * @param userId - The user identifier (e.g., metametrics ID)
    * @param traits - User traits/properties
+   * @param context - Optional platform-specific context attached to the invocation.
    */
-  identify(userId: string, traits?: AnalyticsUserTraits): void;
+  identify(
+    userId: string,
+    traits?: AnalyticsUserTraits,
+    context?: AnalyticsContext,
+  ): void;
 
   /**
    * Track a UI unit (page or screen) view depending on the platform
@@ -67,8 +82,13 @@ export type AnalyticsPlatformAdapter = {
    *
    * @param name - The identifier/name of the page or screen being viewed (e.g., "home", "settings", "wallet")
    * @param properties - Optional properties associated with the view
+   * @param context - Optional platform-specific context attached to the invocation.
    */
-  view(name: string, properties?: AnalyticsEventProperties): void;
+  view(
+    name: string,
+    properties?: AnalyticsEventProperties,
+    context?: AnalyticsContext,
+  ): void;
 
   /**
    * Lifecycle hook called after the AnalyticsController is fully initialized.

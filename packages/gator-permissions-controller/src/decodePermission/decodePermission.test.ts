@@ -17,6 +17,7 @@ import type {
   DeployedContractsByName,
   PermissionDecoder,
 } from './types';
+import { getChecksumEnforcersByChainId } from './utils';
 
 // These tests use the live deployments table for version 1.3.0 to
 // construct deterministic caveat address sets for a known chain.
@@ -37,6 +38,8 @@ describe('decodePermission', () => {
     NonceEnforcer,
     RedeemerEnforcer,
   } = contracts;
+  const { approvalRevocationEnforcer } =
+    getChecksumEnforcersByChainId(contracts);
 
   describe('findDecodersWithMatchingCaveatAddresses()', () => {
     const zeroAddress = '0x0000000000000000000000000000000000000000' as Hex;
@@ -619,6 +622,62 @@ describe('decodePermission', () => {
             ),
           }),
         ).toThrow('Contract not found: AllowedCalldataEnforcer');
+      });
+    });
+
+    describe('token-approval-revocation', () => {
+      const expectedPermissionType = 'token-approval-revocation';
+      const findMatchingDecoders = (enforcers: Hex[]): PermissionDecoder[] =>
+        findDecodersWithMatchingCaveatAddresses({
+          enforcers,
+          permissionDecoders: createPermissionDecodersForContracts(contracts),
+        });
+
+      it('matches with ApprovalRevocationEnforcer and NonceEnforcer', () => {
+        const enforcers = [approvalRevocationEnforcer, NonceEnforcer];
+        const rules = findMatchingDecoders(enforcers);
+        expect(
+          rules.map((matchingRule) => matchingRule.permissionType),
+        ).toStrictEqual([expectedPermissionType]);
+      });
+
+      it('allows TimestampEnforcer as extra', () => {
+        const enforcers = [
+          approvalRevocationEnforcer,
+          NonceEnforcer,
+          TimestampEnforcer,
+        ];
+        const rules = findMatchingDecoders(enforcers);
+        expect(
+          rules.map((matchingRule) => matchingRule.permissionType),
+        ).toStrictEqual([expectedPermissionType]);
+      });
+
+      it('rejects when NonceEnforcer is missing', () => {
+        const enforcers = [approvalRevocationEnforcer];
+        const rules = findMatchingDecoders(enforcers);
+        expect(rules).toStrictEqual([]);
+      });
+
+      it('rejects forbidden extra caveat', () => {
+        const enforcers = [
+          approvalRevocationEnforcer,
+          NonceEnforcer,
+          ValueLteEnforcer,
+        ];
+        const rules = findMatchingDecoders(enforcers);
+        expect(rules).toStrictEqual([]);
+      });
+
+      it('accepts lowercased addresses', () => {
+        const enforcers: Hex[] = [
+          approvalRevocationEnforcer.toLowerCase() as unknown as Hex,
+          NonceEnforcer.toLowerCase() as unknown as Hex,
+        ];
+        const rules = findMatchingDecoders(enforcers);
+        expect(
+          rules.map((matchingRule) => matchingRule.permissionType),
+        ).toStrictEqual([expectedPermissionType]);
       });
     });
   });
