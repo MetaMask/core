@@ -8,6 +8,7 @@ import { pingDaemon } from './daemon-client';
 import { getDaemonPaths } from './paths';
 import { startRpcSocketServer } from './rpc-socket-server';
 import type { RpcSocketServerHandle } from './rpc-socket-server';
+import { Password, Srp } from './secrets';
 import type { DaemonStatusInfo, RpcHandlerMap } from './types';
 import { isErrorWithCode, isProcessAlive, readPidFile } from './utils';
 import { createWallet } from './wallet-factory';
@@ -33,15 +34,17 @@ async function main(): Promise<void> {
     throw new Error('INFURA_PROJECT_ID environment variable is required');
   }
 
-  const password = process.env.MM_WALLET_PASSWORD;
-  if (!password) {
+  const passwordRaw = process.env.MM_WALLET_PASSWORD;
+  if (!passwordRaw) {
     throw new Error('MM_WALLET_PASSWORD environment variable is required');
   }
+  const password = Password.from(passwordRaw);
 
-  const srp = process.env.MM_WALLET_SRP;
-  if (!srp) {
+  const srpRaw = process.env.MM_WALLET_SRP;
+  if (!srpRaw) {
     throw new Error('MM_WALLET_SRP environment variable is required');
   }
+  const srp = Srp.from(srpRaw);
 
   // 0o700: owner-only. The daemon exposes the full wallet messenger over
   // the socket inside this directory, so anyone who can traverse the dir

@@ -9,6 +9,7 @@ import { rm } from 'node:fs/promises';
 
 import { KeyValueStore } from '../persistence/KeyValueStore';
 import { loadState, subscribeToChanges } from '../persistence/persistence';
+import type { Password, Srp } from './secrets';
 
 const IN_MEMORY_DATABASE_PATH = ':memory:';
 
@@ -56,8 +57,8 @@ export async function createWallet({
 }: {
   databasePath: string;
   infuraProjectId: string;
-  password: string;
-  srp: string;
+  password: Password;
+  srp: Srp;
   /**
    * Optional logger for persistence-write failures. Without it, failures
    * fall back to `console.error` (which a detached daemon's
@@ -93,7 +94,7 @@ export async function createWallet({
     subscribeToChanges(wallet.messenger, wallet.controllerMetadata, store, log);
 
     if (wasFirstRun) {
-      await importSecretRecoveryPhrase(wallet, password, srp);
+      await importSecretRecoveryPhrase(wallet, password.unwrap(), srp.unwrap());
     }
 
     return { wallet, store };

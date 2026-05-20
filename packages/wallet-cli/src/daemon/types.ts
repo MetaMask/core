@@ -1,5 +1,7 @@
 import type { Json } from '@metamask/utils';
 
+import type { Password, Srp } from './secrets';
+
 /**
  * A function that handles a JSON-RPC method call.
  *
@@ -36,7 +38,7 @@ export type DaemonStatusInfo = {
 export type DaemonSpawnConfig = {
   dataDir: string;
   infuraProjectId: string;
-  password: string;
-  srp: string;
+  password: Password;
+  srp: Srp;
   packageRoot: string;
 };
