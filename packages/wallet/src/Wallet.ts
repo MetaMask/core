@@ -63,6 +63,14 @@ export class Wallet {
     return this.#controllerMetadata;
   }
 
+  getInstance<Name extends keyof DefaultInstances>(
+    name: Name,
+  ): DefaultInstances[Name];
+
+  getInstance(
+    name: string,
+  ): DefaultInstances[keyof DefaultInstances] | undefined;
+
   /**
    * Get an instantiated controller or service.
    *
