@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- SnapDataSource now subscribes to `PermissionController:stateChange` instead of deprecated `PermissionController:stateChange`. Hosts that restrict or delegate events into the `AssetsController` messenger must delegate `PermissionController:stateChange`; delegating only `stateChange` will prevent permission-driven snap rediscovery. ([#8857](https://github.com/MetaMask/core/pull/8857))
 - Bump `@metamask/transaction-controller` from `^65.3.0` to `^66.0.0` ([#8796](https://github.com/MetaMask/core/pull/8796), [#8848](https://github.com/MetaMask/core/pull/8848))
 - Bump `@metamask/core-backend` from `^6.2.2` to `^6.3.0` ([#8813](https://github.com/MetaMask/core/pull/8813))
 - Bump `@metamask/phishing-controller` from `^17.1.2` to `^17.2.0` ([#8819](https://github.com/MetaMask/core/pull/8819))
@@ -17,6 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **SnapDataSource:** Read supported CAIP-2 chain IDs from `endowment:keyring` when `endowment:assets` has no `chainIds` caveat (common for some wallet snaps); retry discovery when a balance push arrives before `activeChains` is populated; accept balance payloads while discovery is still empty so updates are not dropped; register subscriptions in that window so `AccountsController:accountBalancesUpdated` can reach `onAssetsUpdate`. ([#8857](https://github.com/MetaMask/core/pull/8857))
 - Non-EVM assets with a `slip44` asset namespace (e.g. Bitcoin, Solana native, TRON) are now correctly typed as `native` instead of `erc20` in `assetsInfo` ([#8811](https://github.com/MetaMask/core/pull/8811))
 - Solana SPL tokens (CAIP-19 `solana:.../token:<address>`) are now correctly typed as `spl` instead of `erc20` in `assetsInfo` ([#8811](https://github.com/MetaMask/core/pull/8811))
 

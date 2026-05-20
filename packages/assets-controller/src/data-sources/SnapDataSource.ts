@@ -216,6 +216,9 @@ export class SnapDataSource extends AbstractDataSource<
   /** Cache of KeyringClient instances per snap ID to avoid re-instantiation */
   readonly #keyringClientCache: Map<string, KeyringClient> = new Map();
 
+  /** Whether at least one snap discovery pass completed successfully */
+  #hasCompletedSnapDiscovery = false;
+
   constructor(options: SnapDataSourceOptions) {
     super(SNAP_DATA_SOURCE_NAME, {
       ...defaultSnapState,
@@ -265,6 +268,12 @@ export class SnapDataSource extends AbstractDataSource<
   #handleSnapBalancesUpdated(
     payload: AccountBalancesUpdatedEventPayload,
   ): void {
+    // Balance events can arrive before SnapController/PermissionController are
+    // ready. Retry discovery until a pass completes successfully.
+    if (!this.#hasCompletedSnapDiscovery) {
+      this.#discoverKeyringSnaps();
+    }
+
     // Transform the snap keyring payload to DataResponse format
     let assetsBalance: NonNullable<DataResponse['assetsBalance']> | undefined;
 
@@ -282,7 +291,29 @@ export class SnapDataSource extends AbstractDataSource<
           });
           continue;
         }
-        if (this.#isChainSupportedBySnap(chainId)) {
+        const discoveryReady = this.#hasCompletedSnapDiscovery;
+        let chainAllowed =
+          !discoveryReady || this.#isChainSupportedBySnap(chainId);
+
+        // Discovery ran but this chain wasn't found (snap has no chainIds caveat
+        // on either endowment:assets or endowment:keyring, e.g. Tron snap).
+        // Learn the chain from the balance event so future checks pass and a
+        // re-subscription is triggered via onActiveChainsUpdated.
+        // Guard: never learn EVM chains — those belong to RpcDataSource.
+        if (discoveryReady && !chainAllowed && !chainId.startsWith('eip155:')) {
+          const previous = [...this.state.activeChains];
+          this.state.chainToSnap[chainId] = 'discovered-from-event';
+          try {
+            this.updateActiveChains([...previous, chainId], (updatedChains) => {
+              this.#onActiveChainsUpdated(this.getName(), updatedChains, previous);
+            });
+          } catch {
+            // AssetsController not ready yet
+          }
+          chainAllowed = true;
+        }
+
+        if (chainAllowed) {
           accountAssets ??= {};
           accountAssets[assetId as Caip19AssetId] = {
             amount: balance.amount,
@@ -326,15 +357,30 @@ export class SnapDataSource extends AbstractDataSource<
    * @returns Array of runnable snaps.
    */
   #getRunnableSnaps(): Snap[] {
-    try {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      return (this.#messenger as any).call(
-        'SnapController:getRunnableSnaps',
-      ) as Snap[];
-    } catch (error) {
-      log('Failed to get runnable snaps', error);
-      return [];
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    return (this.#messenger as any).call(
+      'SnapController:getRunnableSnaps',
+    ) as Snap[];
+  }
+
+  /**
+   * Resolves CAIP-2 chain IDs declared for a keyring snap.
+   * Prefer `endowment:assets` (historical); fall back to `endowment:keyring`
+   * when snaps only declare `chainIds` on the keyring permission (e.g. some
+   * multichain wallet snaps).
+   *
+   * @param permissions - Snap subject permissions from PermissionController.
+   * @returns Chain IDs, or null when neither permission carries a chainIds caveat.
+   */
+  #getChainIdsFromSnapPermissions(
+    permissions: SubjectPermissions<PermissionConstraint>,
+  ): ChainId[] | null {
+    const fromAssets = getChainIdsCaveat(permissions[ASSETS_PERMISSION]);
+    if (fromAssets?.length) {
+      return fromAssets;
     }
+    const fromKeyring = getChainIdsCaveat(permissions[KEYRING_PERMISSION]);
+    return fromKeyring?.length ? fromKeyring : null;
   }
 
   /**
@@ -386,15 +432,12 @@ export class SnapDataSource extends AbstractDataSource<
           continue;
         }
 
-        // Get chainIds caveat from the assets permission (not keyring permission)
-        // The chainIds are stored in endowment:assets
-        const assetsPermission = permissions[ASSETS_PERMISSION];
-        const chainIds = getChainIdsCaveat(assetsPermission);
+        const chainIds = this.#getChainIdsFromSnapPermissions(permissions);
 
         // Map each chain to this snap (first snap wins if multiple support same chain)
         if (chainIds) {
           for (const chainId of chainIds) {
-            if (!(chainId in chainToSnap)) {
+            if (chainToSnap[chainId] === undefined) {
               chainToSnap[chainId] = snap.id;
               supportedChains.push(chainId);
             }
@@ -404,6 +447,7 @@ export class SnapDataSource extends AbstractDataSource<
 
       // Update chainToSnap mapping
       this.state.chainToSnap = chainToSnap;
+      this.#hasCompletedSnapDiscovery = true;
 
       // Notify if chains changed
       try {
@@ -416,15 +460,9 @@ export class SnapDataSource extends AbstractDataSource<
       }
     } catch (error) {
       log('Keyring snap discovery failed', { error });
-      this.state.chainToSnap = {};
-      try {
-        const previous = [...this.state.activeChains];
-        this.updateActiveChains([], (updatedChains) => {
-          this.#onActiveChainsUpdated(this.getName(), updatedChains, previous);
-        });
-      } catch {
-        // AssetsController not ready yet - expected during initialization
-      }
+      // Keep the last known-good discovery state. If discovery has never
+      // completed, state is still the default empty mapping and subscriptions
+      // can use the temporary fail-open path.
     }
   }
 
@@ -495,7 +533,12 @@ export class SnapDataSource extends AbstractDataSource<
             }
           }
         }
-      } catch {
+      } catch (error) {
+        log('Snap keyring fetch failed for account', {
+          accountId,
+          snapId,
+          error,
+        });
         // Expected when account doesn't belong to this snap
       }
     }
@@ -608,23 +651,35 @@ export class SnapDataSource extends AbstractDataSource<
       return;
     }
 
-    // Filter to chains we have a snap for
+    // Filter to chains this data source supports for proactive fetch.
+    // When discovery has not run yet (`activeChains` empty), still attach the
+    // subscription using the requested chain IDs so push balance events can
+    // be delivered once `#handleSnapBalancesUpdated` runs (fail-open + retry
+    // discovery there).
     const supportedChains = request.chainIds.filter((chainId) =>
       this.#isChainSupportedBySnap(chainId),
     );
+    let effectiveSubscriptionChains = supportedChains;
+    if (
+      effectiveSubscriptionChains.length === 0 &&
+      request.chainIds.length > 0 &&
+      !this.#hasCompletedSnapDiscovery
+    ) {
+      effectiveSubscriptionChains = request.chainIds;
+    }
 
-    if (supportedChains.length === 0) {
+    if (effectiveSubscriptionChains.length === 0) {
       return;
     }
 
     if (isUpdate) {
       const existing = this.activeSubscriptions.get(subscriptionId);
       if (existing) {
-        existing.chains = supportedChains;
+        existing.chains = effectiveSubscriptionChains;
         // Do a fetch to get latest data on subscription update
         this.fetch({
           ...request,
-          chainIds: supportedChains,
+          chainIds: effectiveSubscriptionChains,
         })
           .then(async (fetchResponse) => {
             if (Object.keys(fetchResponse.assetsBalance ?? {}).length > 0) {
@@ -649,7 +704,7 @@ export class SnapDataSource extends AbstractDataSource<
       cleanup: () => {
         // No timer to clear - we use event-based updates
       },
-      chains: supportedChains,
+      chains: effectiveSubscriptionChains,
       onAssetsUpdate: subscriptionRequest.onAssetsUpdate,
     });
 
@@ -657,7 +712,7 @@ export class SnapDataSource extends AbstractDataSource<
     try {
       const fetchResponse = await this.fetch({
         ...request,
-        chainIds: supportedChains,
+        chainIds: effectiveSubscriptionChains,
       });
 
       const subscription = this.activeSubscriptions.get(subscriptionId);
