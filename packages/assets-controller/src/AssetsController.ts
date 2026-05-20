@@ -37,10 +37,7 @@ import type {
   NetworkEnablementControllerEvents,
   NetworkEnablementControllerState,
 } from '@metamask/network-enablement-controller';
-import type {
-  GetPermissions,
-  PermissionControllerStateChange,
-} from '@metamask/permission-controller';
+import type { GetPermissions } from '@metamask/permission-controller';
 import { PhishingControllerBulkScanTokensAction } from '@metamask/phishing-controller';
 import type { PreferencesControllerStateChangeEvent } from '@metamask/preferences-controller';
 import type {
@@ -79,7 +76,7 @@ import type { PriceDataSourceConfig } from './data-sources/PriceDataSource';
 import { PriceDataSource } from './data-sources/PriceDataSource';
 import type { RpcDataSourceConfig } from './data-sources/RpcDataSource';
 import { RpcDataSource } from './data-sources/RpcDataSource';
-import type { AccountsControllerAccountBalancesUpdatedEvent } from './data-sources/SnapDataSource';
+import type { SnapDataSourceAllowedEvents } from './data-sources/SnapDataSource';
 import { SnapDataSource } from './data-sources/SnapDataSource';
 import type { StakedBalanceDataSourceConfig } from './data-sources/StakedBalanceDataSource';
 import { StakedBalanceDataSource } from './data-sources/StakedBalanceDataSource';
@@ -335,8 +332,7 @@ type AllowedEvents =
   // StakedBalanceDataSource
   | NetworkEnablementControllerEvents
   // SnapDataSource
-  | AccountsControllerAccountBalancesUpdatedEvent
-  | PermissionControllerStateChange
+  | SnapDataSourceAllowedEvents
   // BackendWebsocketDataSource
   | BackendWebSocketServiceEvents;
 
@@ -2565,9 +2561,13 @@ export class AssetsController extends BaseController<
     accounts: InternalAccount[],
     chainIds: ChainId[],
   ): void {
+    // Snap data source handles non-EVM chains that are never in #enabledChains.
+    // Include its active chains so snap-backed accounts (bip122, solana, tron…)
+    // appear in chainToAccounts and receive a subscription.
+    const snapActiveChains = this.#snapDataSource.getActiveChainsSync();
     const chainToAccounts = this.#buildChainToAccountsMap(
       accounts,
-      new Set(chainIds),
+      new Set([...chainIds, ...snapActiveChains]),
     );
     const remainingChains = new Set(chainToAccounts.keys());
     // When basic functionality is on, use all balance data sources; when off, RPC only.

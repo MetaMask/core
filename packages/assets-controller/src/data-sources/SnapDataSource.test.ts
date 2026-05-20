@@ -147,6 +147,31 @@ function createMockPermissions(
 }
 
 /**
+ * Mock permissions where chainIds exist only on `endowment:keyring` (no assets permission).
+ *
+ * @param chainIds - Chain IDs for the caveat.
+ * @returns Permissions object.
+ */
+function createMockPermissionsKeyringOnly(
+  chainIds: ChainId[],
+): SubjectPermissions<PermissionConstraint> {
+  return {
+    [KEYRING_PERMISSION]: {
+      id: 'mock-keyring-permission-id',
+      parentCapability: KEYRING_PERMISSION,
+      invoker: 'test',
+      date: Date.now(),
+      caveats: [
+        {
+          type: 'chainIds',
+          value: chainIds,
+        },
+      ],
+    },
+  } as unknown as SubjectPermissions<PermissionConstraint>;
+}
+
+/**
  * Creates a mock handler for SnapController:handleRequest
  *
  * @param accountAssets - Assets to return for keyring_listAccountAssets
@@ -171,13 +196,26 @@ function createMockHandleRequest(
 
 function setupController(
   options: {
-    installedSnaps?: Record<string, { version: string; chainIds?: ChainId[] }>;
+    installedSnaps?: Record<
+      string,
+      {
+        version: string;
+        chainIds?: ChainId[];
+        keyringOnlyChainIds?: ChainId[];
+      }
+    >;
     accountAssets?: string[];
     balances?: Record<string, { amount: string; unit: string }>;
     configuredNetworks?: ChainId[];
+    getRunnableSnapsImplementation?: () => unknown;
   } = {},
 ): SetupResult {
-  const { installedSnaps = {}, accountAssets = [], balances = {} } = options;
+  const {
+    installedSnaps = {},
+    accountAssets = [],
+    balances = {},
+    getRunnableSnapsImplementation,
+  } = options;
 
   const rootMessenger = new Messenger<MockAnyNamespace, AllActions, AllEvents>({
     namespace: MOCK_ANY_NAMESPACE,
@@ -200,7 +238,10 @@ function setupController(
       'SnapController:handleRequest',
       'PermissionController:getPermissions',
     ],
-    events: ['AccountsController:accountBalancesUpdated'],
+    events: [
+      'AccountsController:accountBalancesUpdated',
+      'PermissionController:stateChange',
+    ],
   });
 
   const assetsUpdateHandler = jest.fn().mockResolvedValue(undefined);
@@ -218,9 +259,12 @@ function setupController(
   );
 
   // Register SnapController action handlers
-  const mockGetRunnableSnaps = jest
-    .fn()
-    .mockReturnValue(snapsForGetRunnableSnaps);
+  const mockGetRunnableSnaps = jest.fn(
+    getRunnableSnapsImplementation ??
+      ((): typeof snapsForGetRunnableSnaps => {
+        return snapsForGetRunnableSnaps;
+      }),
+  );
   rootMessenger.registerActionHandler(
     'SnapController:getRunnableSnaps',
     mockGetRunnableSnaps,
@@ -236,8 +280,11 @@ function setupController(
   // Returns permissions with chainIds caveat based on installed snaps config
   const mockGetPermissions = jest.fn().mockImplementation((snapId: string) => {
     const snapConfig = installedSnaps[snapId];
-    if (snapConfig?.chainIds) {
+    if (snapConfig?.chainIds?.length) {
       return createMockPermissions(snapConfig.chainIds);
+    }
+    if (snapConfig?.keyringOnlyChainIds?.length) {
+      return createMockPermissionsKeyringOnly(snapConfig.keyringOnlyChainIds);
     }
     return undefined;
   });
@@ -405,6 +452,166 @@ describe('SnapDataSource', () => {
 
     expect(mockGetRunnableSnaps).toHaveBeenCalled();
     expect(mockGetPermissions).toHaveBeenCalledWith(SOLANA_SNAP_ID);
+
+    cleanup();
+  });
+
+  it('discovers chain IDs from endowment:keyring when assets permission has no chainIds caveat', async () => {
+    const { controller, cleanup } = setupController({
+      installedSnaps: {
+        [SOLANA_SNAP_ID]: {
+          version: '1.0.0',
+          keyringOnlyChainIds: [SOLANA_MAINNET, TRON_MAINNET],
+        },
+      },
+    });
+    await new Promise(process.nextTick);
+
+    const chains = await controller.getActiveChains();
+    expect(chains).toStrictEqual(
+      expect.arrayContaining([SOLANA_MAINNET, TRON_MAINNET]),
+    );
+
+    cleanup();
+  });
+
+  it('forwards accountBalancesUpdated while snap discovery has not completed (fail-open)', async () => {
+    const assetsUpdateHandler = jest.fn().mockResolvedValue(undefined);
+    const { controller, triggerBalancesUpdated, cleanup } = setupController({
+      getRunnableSnapsImplementation: () => {
+        throw new Error('SnapController not ready');
+      },
+    });
+    await new Promise(process.nextTick);
+
+    await controller.subscribe({
+      request: createDataRequest({
+        chainIds: [SOLANA_MAINNET],
+      }),
+      subscriptionId: 'sub-fail-open',
+      isUpdate: false,
+      onAssetsUpdate: assetsUpdateHandler,
+    });
+
+    triggerBalancesUpdated({
+      balances: {
+        'mock-account-id': {
+          [MOCK_SOL_ASSET]: { amount: '1', unit: 'SOL' },
+        },
+      },
+    });
+
+    expect(assetsUpdateHandler).toHaveBeenCalledTimes(1);
+    expect(assetsUpdateHandler).toHaveBeenCalledWith(
+      expect.objectContaining({
+        updateMode: 'merge',
+        assetsBalance: {
+          'mock-account-id': {
+            [MOCK_SOL_ASSET]: { amount: '1' },
+          },
+        },
+      }),
+    );
+
+    cleanup();
+  });
+
+  it('does not fail-open after discovery completes with no supported chains', async () => {
+    const assetsUpdateHandler = jest.fn().mockResolvedValue(undefined);
+    const { controller, triggerBalancesUpdated, cleanup } = setupController({
+      installedSnaps: {
+        [SOLANA_SNAP_ID]: { version: '1.0.0' },
+      },
+    });
+    await new Promise(process.nextTick);
+
+    await controller.subscribe({
+      request: createDataRequest({
+        chainIds: [SOLANA_MAINNET],
+      }),
+      subscriptionId: 'sub-no-discovered-chains',
+      isUpdate: false,
+      onAssetsUpdate: assetsUpdateHandler,
+    });
+
+    triggerBalancesUpdated({
+      balances: {
+        'mock-account-id': {
+          [MOCK_SOL_ASSET]: { amount: '1', unit: 'SOL' },
+        },
+      },
+    });
+
+    await new Promise(process.nextTick);
+
+    expect(assetsUpdateHandler).not.toHaveBeenCalled();
+
+    cleanup();
+  });
+
+  it('keeps last discovered chains when rediscovery fails', async () => {
+    const assetsUpdateHandler = jest.fn().mockResolvedValue(undefined);
+    let shouldFailRediscovery = false;
+    const { controller, messenger, triggerBalancesUpdated, cleanup } =
+      setupController({
+        installedSnaps: {
+          [SOLANA_SNAP_ID]: { version: '1.0.0', chainIds: [SOLANA_MAINNET] },
+        },
+        getRunnableSnapsImplementation: () => {
+          if (shouldFailRediscovery) {
+            throw new Error('SnapController not ready');
+          }
+          return [
+            {
+              id: SOLANA_SNAP_ID,
+              version: '1.0.0',
+              enabled: true,
+              blocked: false,
+            },
+          ];
+        },
+      });
+    await new Promise(process.nextTick);
+
+    expect(await controller.getActiveChains()).toStrictEqual([SOLANA_MAINNET]);
+
+    shouldFailRediscovery = true;
+    messenger.publish('PermissionController:stateChange', { subjects: {} }, []);
+
+    expect(await controller.getActiveChains()).toStrictEqual([SOLANA_MAINNET]);
+
+    await controller.subscribe({
+      request: createDataRequest({
+        chainIds: [SOLANA_MAINNET],
+      }),
+      subscriptionId: 'sub-after-failed-rediscovery',
+      isUpdate: false,
+      onAssetsUpdate: assetsUpdateHandler,
+    });
+
+    assetsUpdateHandler.mockClear();
+    triggerBalancesUpdated({
+      balances: {
+        'mock-account-id': {
+          [MOCK_SOL_ASSET]: { amount: '1', unit: 'SOL' },
+          ['eip155:1/slip44:60' as Caip19AssetId]: {
+            amount: '1',
+            unit: 'ETH',
+          },
+        },
+      },
+    });
+
+    expect(assetsUpdateHandler).toHaveBeenCalledTimes(1);
+    expect(assetsUpdateHandler).toHaveBeenCalledWith(
+      expect.objectContaining({
+        assetsBalance: {
+          'mock-account-id': {
+            [MOCK_SOL_ASSET]: { amount: '1' },
+          },
+        },
+      }),
+    );
 
     cleanup();
   });
@@ -922,7 +1129,10 @@ describe('SnapDataSource', () => {
         'SnapController:handleRequest',
         'PermissionController:getPermissions',
       ],
-      events: ['AccountsController:accountBalancesUpdated'],
+      events: [
+        'AccountsController:accountBalancesUpdated',
+        'PermissionController:stateChange',
+      ],
     });
     rootMessenger.registerActionHandler(
       'SnapController:getRunnableSnaps',
