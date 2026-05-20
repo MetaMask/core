@@ -484,6 +484,7 @@ linkStyle default opacity:0.5
   ramps_controller --> base_controller;
   ramps_controller --> controller_utils;
   ramps_controller --> messenger;
+  ramps_controller --> profile_sync_controller;
   rate_limit_controller --> base_controller;
   rate_limit_controller --> messenger;
   react_data_query --> base_data_service;

@@ -14,6 +14,7 @@ import {
 const buildContracts = (): DeployedContractsByName => ({
   ERC20PeriodTransferEnforcer: '0x1111111111111111111111111111111111111111',
   ERC20StreamingEnforcer: '0x2222222222222222222222222222222222222222',
+  ApprovalRevocationEnforcer: '0x1212121212121212121212121212121212121212',
   ExactCalldataEnforcer: '0x3333333333333333333333333333333333333333',
   NativeTokenPeriodTransferEnforcer:
     '0x4444444444444444444444444444444444444444',
@@ -43,6 +44,9 @@ describe('getChecksumEnforcersByChainId', () => {
       ),
       nativeTokenPeriodicEnforcer: getChecksumAddress(
         contracts.NativeTokenPeriodTransferEnforcer,
+      ),
+      approvalRevocationEnforcer: getChecksumAddress(
+        contracts.ApprovalRevocationEnforcer,
       ),
       exactCalldataEnforcer: getChecksumAddress(
         contracts.ExactCalldataEnforcer,
@@ -77,6 +81,7 @@ describe('createPermissionDecodersForContracts', () => {
       erc20PeriodicEnforcer,
       nativeTokenStreamingEnforcer,
       nativeTokenPeriodicEnforcer,
+      approvalRevocationEnforcer,
       exactCalldataEnforcer,
       valueLteEnforcer,
       timestampEnforcer,
@@ -93,7 +98,8 @@ describe('createPermissionDecodersForContracts', () => {
     // native-token-periodic
     // native-token-allowance
     // erc20-token-revocation
-    const permissionTypeCount = 7;
+    // token-approval-revocation
+    const permissionTypeCount = 8;
     const decoders = createPermissionDecodersForContracts(contracts);
     expect(decoders).toHaveLength(permissionTypeCount);
 
@@ -288,6 +294,29 @@ describe('createPermissionDecodersForContracts', () => {
       expect.arrayContaining([
         [allowedCalldataEnforcer, 2],
         [valueLteEnforcer, 1],
+        [nonceEnforcer, 1],
+      ]),
+    );
+
+    // token-approval-revocation
+    expect(byType['token-approval-revocation']).toBeDefined();
+    expect(byType['token-approval-revocation'].permissionType).toBe(
+      'token-approval-revocation',
+    );
+    expect(byType['token-approval-revocation'].optionalEnforcers.size).toBe(1);
+    expect(
+      byType['token-approval-revocation'].optionalEnforcers.has(
+        timestampEnforcer,
+      ),
+    ).toBe(true);
+    expect(byType['token-approval-revocation'].requiredEnforcers.size).toBe(2);
+    expect(
+      Array.from(
+        byType['token-approval-revocation'].requiredEnforcers.entries(),
+      ),
+    ).toStrictEqual(
+      expect.arrayContaining([
+        [approvalRevocationEnforcer, 1],
         [nonceEnforcer, 1],
       ]),
     );
