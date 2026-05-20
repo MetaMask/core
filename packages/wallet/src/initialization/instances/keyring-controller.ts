@@ -150,7 +150,7 @@ export const keyringController: InitializationConfiguration<
       keyringBuilders: options.keyringBuilders,
       encryptor: options.encryptor ?? encryptorFactory(600_000),
     }),
-  messenger: (parent) =>
+  getMessenger: (parent) =>
     new Messenger({
       namespace: 'KeyringController',
       parent,

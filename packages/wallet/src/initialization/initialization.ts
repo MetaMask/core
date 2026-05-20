@@ -1,5 +1,9 @@
 import type { InstanceSpecificOptions, WalletOptions } from '../types';
-import type { DefaultActions, DefaultEvents, DefaultInstances } from './defaults';
+import type {
+  DefaultActions,
+  DefaultEvents,
+  DefaultInstances,
+} from './defaults';
 import { defaultConfigurations, RootMessenger } from './defaults';
 
 export type InitializeArgs = {
@@ -30,7 +34,7 @@ export function initialize({
 
     const instanceState = state[name];
 
-    const instanceMessenger = config.messenger(messenger);
+    const instanceMessenger = config.getMessenger(messenger);
 
     const instance = config.init({
       state: instanceState,

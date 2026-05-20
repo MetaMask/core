@@ -8,8 +8,8 @@ import type {
   DefaultInstances,
   DefaultState,
   RootMessenger,
-} from './initialization';
-import { initialize } from './initialization';
+} from './initialization/defaults';
+import { initialize } from './initialization/initialization';
 import { WalletOptions } from './types';
 
 export class Wallet {
@@ -67,11 +67,13 @@ export class Wallet {
    * Get an instantiated controller or service.
    *
    * @param name - The name.
-   * @returns The instance.
+   * @returns The instance, if it exists.
    * @deprecated - Please use the messenger instead of direct access.
    */
-  getInstance(name: keyof DefaultInstances) {
-    return this.#instances[name];
+  getInstance(
+    name: string,
+  ): DefaultInstances[keyof DefaultInstances] | undefined {
+    return this.#instances[name as keyof DefaultInstances];
   }
 
   async destroy(): Promise<void> {

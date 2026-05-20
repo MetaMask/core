@@ -4,9 +4,9 @@ import type { Json } from '@metamask/utils';
 import type {
   DefaultActions,
   DefaultEvents,
-  InitializationConfiguration,
   RootMessenger,
-} from './initialization';
+} from './initialization/defaults';
+import { InitializationConfiguration } from './initialization/types';
 
 export type WalletOptions = {
   messenger?: RootMessenger<DefaultActions, DefaultEvents>;

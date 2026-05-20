@@ -25,5 +25,7 @@ export type InitFunctionArguments<Instance, InstanceMessenger> = {
 export type InitializationConfiguration<Instance, InstanceMessenger> = {
   name: InstanceName<Instance>;
   init(args: InitFunctionArguments<Instance, InstanceMessenger>): Instance;
-  messenger(parent: RootMessenger<DefaultActions, DefaultEvents>): InstanceMessenger;
+  getMessenger(
+    parent: RootMessenger<DefaultActions, DefaultEvents>,
+  ): InstanceMessenger;
 };

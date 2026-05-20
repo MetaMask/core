@@ -49,7 +49,7 @@ describe('Wallet', () => {
   it('exposes instances', async () => {
     const wallet = await setupWallet();
 
-    expect(wallet.getInstance('KeyringController').state).toStrictEqual({
+    expect(wallet.getInstance('KeyringController')?.state).toStrictEqual({
       isUnlocked: true,
       keyrings: expect.any(Array),
       encryptionKey: expect.any(String),
@@ -91,13 +91,13 @@ describe('Wallet', () => {
       initializationConfigurations: [
         {
           name: 'KeyringController',
-          messenger: (): Messenger<string> =>
+          getMessenger: (): Messenger<string> =>
             new Messenger({ namespace: 'KeyringController' }),
           init: (): DummyController => new DummyController(),
         },
         {
           name: 'TestService',
-          messenger: (): Messenger<string> =>
+          getMessenger: (): Messenger<string> =>
             new Messenger({ namespace: 'TestService' }),
           init: (): DummyService => new DummyService(),
         },
