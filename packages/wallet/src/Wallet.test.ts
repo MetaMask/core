@@ -4,7 +4,7 @@ import { Json } from '@metamask/utils';
 import { webcrypto } from 'crypto';
 
 import MockEncryptor from '../../keyring-controller/tests/mocks/mockEncryptor';
-import * as initializationModule from './initialization';
+import * as initializationModule from './initialization/initialization';
 import { importSecretRecoveryPhrase } from './utilities';
 import { Wallet } from './Wallet';
 
