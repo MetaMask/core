@@ -1456,8 +1456,15 @@ describe('AnalyticsController', () => {
         isEventQueuePersistenceEnabled: true,
       });
 
-      controller.identify({ trait: 'value' });
-      controller.trackView('home', { referrer: 'test' });
+      const identifyContext: AnalyticsContext = {
+        app: { name: 'MetaMask' },
+      };
+      const viewContext: AnalyticsContext = {
+        page: { title: 'Home' },
+      };
+
+      controller.identify({ trait: 'value' }, identifyContext);
+      controller.trackView('home', { referrer: 'test' }, viewContext);
 
       const identifyOptions = getDeliveryOptions(mockAdapter.identify);
       const viewOptions = getDeliveryOptions(mockAdapter.view);
@@ -1465,15 +1472,23 @@ describe('AnalyticsController', () => {
       expect(mockAdapter.identify).toHaveBeenCalledWith(
         analyticsId,
         { trait: 'value' },
-        undefined,
+        identifyContext,
         expect.objectContaining({ messageId: identifyOptions.messageId }),
       );
       expect(mockAdapter.view).toHaveBeenCalledWith(
         'home',
         { referrer: 'test' },
-        undefined,
+        viewContext,
         expect.objectContaining({ messageId: viewOptions.messageId }),
       );
+      expect(controller.state.eventQueue).toMatchObject({
+        [identifyOptions.messageId as string]: {
+          context: identifyContext,
+        },
+        [viewOptions.messageId as string]: {
+          context: viewContext,
+        },
+      });
       expect(Object.keys(controller.state.eventQueue ?? {})).toHaveLength(2);
 
       identifyOptions.callback?.();
@@ -1742,6 +1757,85 @@ describe('AnalyticsController', () => {
       });
 
       expect(mockAdapter.track).not.toHaveBeenCalled();
+      expect(controller.state.eventQueue).toStrictEqual({});
+    });
+
+    it('drops queued events with invalid payload fields during replay', async () => {
+      const mockAdapter = createMockAdapter();
+      const { controller } = await setupController({
+        state: {
+          optedIn: true,
+          analyticsId: '10000000-0000-4000-8000-000000000014',
+          eventQueue: {
+            invalidTrackName: {
+              type: 'track',
+              eventName: 123,
+              messageId: 'invalidTrackName',
+              timestamp: '2026-01-01T00:00:00.000Z',
+            },
+            invalidTrackProperties: {
+              type: 'track',
+              eventName: 'test_event',
+              messageId: 'invalidTrackProperties',
+              timestamp: '2026-01-01T00:00:00.000Z',
+              properties: 'invalid',
+            },
+            invalidTrackContext: {
+              type: 'track',
+              eventName: 'test_event',
+              messageId: 'invalidTrackContext',
+              timestamp: '2026-01-01T00:00:00.000Z',
+              context: 'invalid',
+            },
+            invalidIdentifyUserId: {
+              type: 'identify',
+              userId: 123,
+              messageId: 'invalidIdentifyUserId',
+              timestamp: '2026-01-01T00:00:00.000Z',
+            },
+            invalidIdentifyTraits: {
+              type: 'identify',
+              userId: '10000000-0000-4000-8000-000000000014',
+              messageId: 'invalidIdentifyTraits',
+              timestamp: '2026-01-01T00:00:00.000Z',
+              traits: 'invalid',
+            },
+            invalidIdentifyContext: {
+              type: 'identify',
+              userId: '10000000-0000-4000-8000-000000000014',
+              messageId: 'invalidIdentifyContext',
+              timestamp: '2026-01-01T00:00:00.000Z',
+              context: 'invalid',
+            },
+            invalidViewName: {
+              type: 'view',
+              name: 123,
+              messageId: 'invalidViewName',
+              timestamp: '2026-01-01T00:00:00.000Z',
+            },
+            invalidViewProperties: {
+              type: 'view',
+              name: 'home',
+              messageId: 'invalidViewProperties',
+              timestamp: '2026-01-01T00:00:00.000Z',
+              properties: 'invalid',
+            },
+            invalidViewContext: {
+              type: 'view',
+              name: 'home',
+              messageId: 'invalidViewContext',
+              timestamp: '2026-01-01T00:00:00.000Z',
+              context: 'invalid',
+            },
+          } as unknown as AnalyticsControllerState['eventQueue'],
+        },
+        platformAdapter: mockAdapter,
+        isEventQueuePersistenceEnabled: true,
+      });
+
+      expect(mockAdapter.track).not.toHaveBeenCalled();
+      expect(mockAdapter.identify).not.toHaveBeenCalled();
+      expect(mockAdapter.view).not.toHaveBeenCalled();
       expect(controller.state.eventQueue).toStrictEqual({});
     });
 
