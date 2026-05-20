@@ -639,7 +639,7 @@ describe('PerpsController', () => {
     if (mockProvider) {
       Object.values(mockProvider).forEach((value) => {
         if (
-          typeof value === 'object' &&
+          typeof value === 'function' &&
           value !== null &&
           'mockClear' in value
         ) {
