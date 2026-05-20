@@ -46,6 +46,7 @@ import type { PreferencesControllerStateChangeEvent } from '@metamask/preference
 import type {
   SnapControllerGetRunnableSnapsAction,
   SnapControllerHandleRequestAction,
+  SnapControllerSnapInstalledEvent,
 } from '@metamask/snaps-controllers';
 import type {
   TransactionControllerIncomingTransactionsReceivedEvent,
@@ -337,6 +338,7 @@ type AllowedEvents =
   // SnapDataSource
   | AccountsControllerAccountBalancesUpdatedEvent
   | PermissionControllerStateChange
+  | SnapControllerSnapInstalledEvent
   // BackendWebsocketDataSource
   | BackendWebSocketServiceEvents;
 
