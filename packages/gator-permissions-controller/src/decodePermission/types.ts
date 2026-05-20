@@ -5,7 +5,10 @@ import type {
   PermissionTypes,
   Rule,
 } from '@metamask/7715-permission-types';
-import type { Caveat } from '@metamask/delegation-core';
+import type {
+  ApprovalRevocationTerms,
+  Caveat,
+} from '@metamask/delegation-core';
 import type { DELEGATOR_CONTRACTS } from '@metamask/delegation-deployments';
 import type { Hex } from '@metamask/utils';
 
@@ -53,14 +56,7 @@ type NativeTokenAllowancePermission = BasePermission & {
  */
 type TokenApprovalRevocationPermission = BasePermission & {
   type: 'token-approval-revocation';
-  data: MetaMaskBasePermissionData & {
-    erc20Approve: boolean;
-    erc721Approve: boolean;
-    erc721SetApprovalForAll: boolean;
-    permit2Approve: boolean;
-    permit2Lockdown: boolean;
-    permit2InvalidateNonces: boolean;
-  };
+  data: MetaMaskBasePermissionData & ApprovalRevocationTerms;
 };
 
 /**
