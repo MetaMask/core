@@ -433,6 +433,7 @@ describe('AnalyticsController', () => {
           sensitive_prop: 'sensitive value',
           anonymous: true,
         }),
+        undefined,
       );
     });
 
@@ -761,9 +762,11 @@ describe('AnalyticsController', () => {
       const event = createTestEvent('test_event', { prop: 'value' });
       controller.trackEvent(event);
 
-      expect(mockAdapter.track).toHaveBeenCalledWith('test_event', {
-        prop: 'value',
-      });
+      expect(mockAdapter.track).toHaveBeenCalledWith(
+        'test_event',
+        { prop: 'value' },
+        undefined,
+      );
     });
 
     it('forwards context to the platform adapter', async () => {
@@ -827,7 +830,11 @@ describe('AnalyticsController', () => {
       const event = createTestEvent('test_event', {}, {}, true);
       controller.trackEvent(event);
 
-      expect(mockAdapter.track).toHaveBeenCalledWith('test_event');
+      expect(mockAdapter.track).toHaveBeenCalledWith(
+        'test_event',
+        undefined,
+        undefined,
+      );
     });
 
     it('tracks single combined event when isAnonymousEventsFeatureEnabled is disabled', async () => {
@@ -849,11 +856,15 @@ describe('AnalyticsController', () => {
       controller.trackEvent(event);
 
       expect(mockAdapter.track).toHaveBeenCalledTimes(1);
-      expect(mockAdapter.track).toHaveBeenCalledWith('test_event', {
-        prop: 'value',
-        sensitive_prop: 'sensitive value',
-        anonymous: true,
-      });
+      expect(mockAdapter.track).toHaveBeenCalledWith(
+        'test_event',
+        {
+          prop: 'value',
+          sensitive_prop: 'sensitive value',
+          anonymous: true,
+        },
+        undefined,
+      );
     });
 
     it('tracks single combined event when isAnonymousEventsFeatureEnabled is disabled and only sensitiveProperties are present', async () => {
@@ -875,10 +886,14 @@ describe('AnalyticsController', () => {
       controller.trackEvent(event);
 
       expect(mockAdapter.track).toHaveBeenCalledTimes(1);
-      expect(mockAdapter.track).toHaveBeenCalledWith('test_event', {
-        sensitive_prop: 'sensitive value',
-        anonymous: true,
-      });
+      expect(mockAdapter.track).toHaveBeenCalledWith(
+        'test_event',
+        {
+          sensitive_prop: 'sensitive value',
+          anonymous: true,
+        },
+        undefined,
+      );
     });
 
     it('does not call platform adapter when disabled', async () => {
@@ -917,14 +932,22 @@ describe('AnalyticsController', () => {
         controller.trackEvent(event);
 
         expect(mockAdapter.track).toHaveBeenCalledTimes(2);
-        expect(mockAdapter.track).toHaveBeenNthCalledWith(1, 'test_event', {
-          prop: 'value',
-        });
-        expect(mockAdapter.track).toHaveBeenNthCalledWith(2, 'test_event', {
-          prop: 'value',
-          sensitive_prop: 'sensitive value',
-          anonymous: true,
-        });
+        expect(mockAdapter.track).toHaveBeenNthCalledWith(
+          1,
+          'test_event',
+          { prop: 'value' },
+          undefined,
+        );
+        expect(mockAdapter.track).toHaveBeenNthCalledWith(
+          2,
+          'test_event',
+          {
+            prop: 'value',
+            sensitive_prop: 'sensitive value',
+            anonymous: true,
+          },
+          undefined,
+        );
       });
 
       it('forwards context to both events when splitting sensitive events', async () => {
@@ -987,11 +1010,21 @@ describe('AnalyticsController', () => {
         controller.trackEvent(event);
 
         expect(mockAdapter.track).toHaveBeenCalledTimes(2);
-        expect(mockAdapter.track).toHaveBeenNthCalledWith(1, 'test_event', {});
-        expect(mockAdapter.track).toHaveBeenNthCalledWith(2, 'test_event', {
-          sensitive_prop: 'sensitive value',
-          anonymous: true,
-        });
+        expect(mockAdapter.track).toHaveBeenNthCalledWith(
+          1,
+          'test_event',
+          {},
+          undefined,
+        );
+        expect(mockAdapter.track).toHaveBeenNthCalledWith(
+          2,
+          'test_event',
+          {
+            sensitive_prop: 'sensitive value',
+            anonymous: true,
+          },
+          undefined,
+        );
       });
 
       it('tracks only regular properties when no sensitive properties are present', async () => {
@@ -1009,9 +1042,11 @@ describe('AnalyticsController', () => {
         controller.trackEvent(event);
 
         expect(mockAdapter.track).toHaveBeenCalledTimes(1);
-        expect(mockAdapter.track).toHaveBeenCalledWith('test_event', {
-          prop: 'value',
-        });
+        expect(mockAdapter.track).toHaveBeenCalledWith(
+          'test_event',
+          { prop: 'value' },
+          undefined,
+        );
       });
 
       it('tracks only regular properties when empty sensitive properties are present', async () => {
@@ -1029,9 +1064,11 @@ describe('AnalyticsController', () => {
         controller.trackEvent(event);
 
         expect(mockAdapter.track).toHaveBeenCalledTimes(1);
-        expect(mockAdapter.track).toHaveBeenCalledWith('test_event', {
-          prop: 'value',
-        });
+        expect(mockAdapter.track).toHaveBeenCalledWith(
+          'test_event',
+          { prop: 'value' },
+          undefined,
+        );
       });
     });
   });
@@ -1056,7 +1093,11 @@ describe('AnalyticsController', () => {
       controller.identify(traits);
 
       expect(controller.state.analyticsId).toBe(analyticsId);
-      expect(mockAdapter.identify).toHaveBeenCalledWith(analyticsId, traits);
+      expect(mockAdapter.identify).toHaveBeenCalledWith(
+        analyticsId,
+        traits,
+        undefined,
+      );
     });
 
     it('identifies user without traits', async () => {
@@ -1072,7 +1113,11 @@ describe('AnalyticsController', () => {
 
       controller.identify();
 
-      expect(mockAdapter.identify).toHaveBeenCalledWith(analyticsId, undefined);
+      expect(mockAdapter.identify).toHaveBeenCalledWith(
+        analyticsId,
+        undefined,
+        undefined,
+      );
     });
 
     it('forwards context to the platform adapter', async () => {
@@ -1134,9 +1179,11 @@ describe('AnalyticsController', () => {
 
       controller.trackView('home', { referrer: 'test' });
 
-      expect(mockAdapter.view).toHaveBeenCalledWith('home', {
-        referrer: 'test',
-      });
+      expect(mockAdapter.view).toHaveBeenCalledWith(
+        'home',
+        { referrer: 'test' },
+        undefined,
+      );
     });
 
     it('forwards context to the platform adapter', async () => {
@@ -1192,10 +1239,12 @@ describe('AnalyticsController', () => {
       controller.trackEvent(createTestEvent('test_event', { prop: 'value' }));
 
       expect(controller.state.eventQueue).toBeUndefined();
-      expect(mockAdapter.track).toHaveBeenCalledWith('test_event', {
-        prop: 'value',
-      });
-      expect(mockAdapter.track.mock.calls[0]).toHaveLength(2);
+      expect(mockAdapter.track).toHaveBeenCalledWith(
+        'test_event',
+        { prop: 'value' },
+        undefined,
+      );
+      expect(mockAdapter.track.mock.calls[0]).toHaveLength(3);
     });
 
     it('persists track payloads until the adapter callback succeeds', async () => {

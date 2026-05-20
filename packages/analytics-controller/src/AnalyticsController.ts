@@ -345,68 +345,6 @@ export class AnalyticsController extends BaseController<
 
   #initialized: boolean;
 
-  #track(
-    eventName: string,
-    properties?: AnalyticsEventProperties,
-    context?: AnalyticsContext,
-    options?: AnalyticsDeliveryOptions,
-  ): void {
-    if (options) {
-      this.#platformAdapter.track(eventName, properties, context, options);
-      return;
-    }
-
-    if (context) {
-      this.#platformAdapter.track(eventName, properties, context);
-      return;
-    }
-
-    if (properties === undefined) {
-      this.#platformAdapter.track(eventName);
-      return;
-    }
-
-    this.#platformAdapter.track(eventName, properties);
-  }
-
-  #identify(
-    userId: string,
-    traits?: AnalyticsUserTraits,
-    context?: AnalyticsContext,
-    options?: AnalyticsDeliveryOptions,
-  ): void {
-    if (options) {
-      this.#platformAdapter.identify(userId, traits, context, options);
-      return;
-    }
-
-    if (context) {
-      this.#platformAdapter.identify(userId, traits, context);
-      return;
-    }
-
-    this.#platformAdapter.identify(userId, traits);
-  }
-
-  #view(
-    name: string,
-    properties?: AnalyticsEventProperties,
-    context?: AnalyticsContext,
-    options?: AnalyticsDeliveryOptions,
-  ): void {
-    if (options) {
-      this.#platformAdapter.view(name, properties, context, options);
-      return;
-    }
-
-    if (context) {
-      this.#platformAdapter.view(name, properties, context);
-      return;
-    }
-
-    this.#platformAdapter.view(name, properties);
-  }
-
   /**
    * Constructs an AnalyticsController instance.
    *
@@ -499,7 +437,7 @@ export class AnalyticsController extends BaseController<
     context?: AnalyticsContext,
   ): void {
     if (!this.#isEventQueuePersistenceEnabled) {
-      this.#track(eventName, properties, context);
+      this.#platformAdapter.track(eventName, properties, context);
       return;
     }
 
@@ -528,7 +466,7 @@ export class AnalyticsController extends BaseController<
     context?: AnalyticsContext,
   ): void {
     if (!this.#isEventQueuePersistenceEnabled) {
-      this.#identify(userId, traits, context);
+      this.#platformAdapter.identify(userId, traits, context);
       return;
     }
 
@@ -557,7 +495,7 @@ export class AnalyticsController extends BaseController<
     context?: AnalyticsContext,
   ): void {
     if (!this.#isEventQueuePersistenceEnabled) {
-      this.#view(name, properties, context);
+      this.#platformAdapter.view(name, properties, context);
       return;
     }
 
@@ -625,21 +563,21 @@ export class AnalyticsController extends BaseController<
 
     try {
       if (queuedEvent.type === 'track') {
-        this.#track(
+        this.#platformAdapter.track(
           queuedEvent.eventName,
           queuedEvent.properties,
           queuedEvent.context,
           options,
         );
       } else if (queuedEvent.type === 'identify') {
-        this.#identify(
+        this.#platformAdapter.identify(
           queuedEvent.userId,
           queuedEvent.traits,
           queuedEvent.context,
           options,
         );
       } else {
-        this.#view(
+        this.#platformAdapter.view(
           queuedEvent.name,
           queuedEvent.properties,
           queuedEvent.context,
