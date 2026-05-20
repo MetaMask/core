@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [14.0.0]
+
 ### Added
 
 - Authenticate ramps requests by sourcing a bearer token from `AuthenticationController:getBearerToken` and sending it as an `Authorization: Bearer <token>` header for `getBuyWidgetUrl` ([#8843](https://github.com/MetaMask/core/pull/8843))
@@ -32,7 +34,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Tag circuit-breaker errors in `RampsController` with a stable `CIRCUIT_BREAKER_OPEN` error key so clients can localize the fallback copy without depending on internal Cockatiel text ([#8596](https://github.com/MetaMask/core/pull/8596)).
+- Tag circuit-breaker errors in `RampsController` with a stable `CIRCUIT_BREAKER_OPEN` error key so clients can localize the fallback copy without depending on internal Cockatiel text. ([#8596](https://github.com/MetaMask/core/pull/8596))
 
 ## [13.2.0]
 
@@ -348,7 +350,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Add `OnRampService` for interacting with the OnRamp API
   - Add geolocation detection via IP address lookup
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@13.3.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@14.0.0...HEAD
+[14.0.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@13.3.1...@metamask/ramps-controller@14.0.0
 [13.3.1]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@13.3.0...@metamask/ramps-controller@13.3.1
 [13.3.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@13.2.0...@metamask/ramps-controller@13.3.0
 [13.2.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@13.1.0...@metamask/ramps-controller@13.2.0
