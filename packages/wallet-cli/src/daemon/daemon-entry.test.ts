@@ -183,13 +183,21 @@ describe('daemon-entry', () => {
     await importDaemonEntry();
 
     expect(mockEnsureOwnerOnlyDirectory).toHaveBeenCalledWith('/tmp/data');
-    expect(mockCreateWallet).toHaveBeenCalledWith({
-      databasePath: '/tmp/wallet.db',
-      password: 'pass',
-      srp: 'test test test test test test test test test test test ball',
-      infuraProjectId: 'key',
-      log: expect.any(Function),
-    });
+    expect(mockCreateWallet).toHaveBeenCalledWith(
+      expect.objectContaining({
+        databasePath: '/tmp/wallet.db',
+        infuraProjectId: 'key',
+        log: expect.any(Function),
+      }),
+    );
+    // The Password/Srp instances are constructed in an isolated module scope
+    // (jest.isolateModulesAsync), so their class identity differs from any
+    // import in this test file. Verify structurally via `.unwrap()`.
+    const passedConfig = mockCreateWallet.mock.calls[0][0];
+    expect(passedConfig.password.unwrap()).toBe('pass');
+    expect(passedConfig.srp.unwrap()).toBe(
+      'test test test test test test test test test test test ball',
+    );
     expect(mockWriteFile).toHaveBeenCalledWith(
       '/tmp/daemon.pid',
       expect.stringMatching(new RegExp(`^${process.pid}\\n\\d+\\n$`, 'u')),
@@ -209,12 +217,12 @@ describe('daemon-entry', () => {
 
     await importDaemonEntry();
 
-    // The captured values still reach createWallet...
-    expect(mockCreateWallet).toHaveBeenCalledWith(
-      expect.objectContaining({
-        password: 'pass',
-        srp: 'test test test test test test test test test test test ball',
-      }),
+    // The captured values still reach createWallet (as opaque Password/Srp
+    // instances, verified structurally via `.unwrap()`)...
+    const passedConfig = mockCreateWallet.mock.calls[0][0];
+    expect(passedConfig.password.unwrap()).toBe('pass');
+    expect(passedConfig.srp.unwrap()).toBe(
+      'test test test test test test test test test test test ball',
     );
     // ...but no longer linger in the long-lived daemon's environment.
     expect(process.env.MM_WALLET_PASSWORD).toBeUndefined();

@@ -7,6 +7,7 @@ import { ensureOwnerOnlyDirectory } from './data-dir';
 import { getDaemonPaths } from './paths';
 import { startRpcSocketServer } from './rpc-socket-server';
 import type { RpcSocketServerHandle } from './rpc-socket-server';
+import { Password, Srp } from './secrets';
 import type { DaemonStatusInfo, Logger, RpcHandlerMap } from './types';
 import { isErrorWithCode, isProcessAlive, readPidFile } from './utils';
 import { createWallet } from './wallet-factory';
@@ -29,15 +30,17 @@ async function main(): Promise<void> {
     throw new Error('INFURA_PROJECT_ID environment variable is required');
   }
 
-  const password = process.env.MM_WALLET_PASSWORD;
-  if (!password) {
+  const passwordRaw = process.env.MM_WALLET_PASSWORD;
+  if (!passwordRaw) {
     throw new Error('MM_WALLET_PASSWORD environment variable is required');
   }
+  const password = Password.from(passwordRaw);
 
-  const srp = process.env.MM_WALLET_SRP;
-  if (!srp) {
+  const srpRaw = process.env.MM_WALLET_SRP;
+  if (!srpRaw) {
     throw new Error('MM_WALLET_SRP environment variable is required');
   }
+  const srp = Srp.from(srpRaw);
 
   // Scrub the wallet secrets from the environment now they are captured. The
   // daemon is long-lived and dispatches arbitrary messenger actions over its

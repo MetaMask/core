@@ -1,3 +1,4 @@
+import { Password, Srp } from './secrets';
 import { createWallet } from './wallet-factory';
 
 // Unlike the unit test alongside it, this does NOT mock `@metamask/wallet`, so
@@ -14,8 +15,8 @@ describe('createWallet (real Wallet, in-memory)', () => {
   it('constructs an unlocked wallet on first run and dispatches messenger actions', async () => {
     const { wallet, dispose } = await createWallet({
       databasePath: ':memory:',
-      password: TEST_PASSWORD,
-      srp: TEST_SRP,
+      password: Password.from(TEST_PASSWORD),
+      srp: Srp.from(TEST_SRP),
       infuraProjectId: 'test-infura-id',
       log: () => undefined,
     });

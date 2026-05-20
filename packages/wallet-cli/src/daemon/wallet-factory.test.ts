@@ -12,6 +12,7 @@ import { join } from 'node:path';
 
 import { KeyValueStore } from '../persistence/KeyValueStore';
 import * as persistenceModule from '../persistence/persistence';
+import { Password, Srp } from './secrets';
 import { createWallet } from './wallet-factory';
 
 jest.mock('@metamask/wallet');
@@ -28,8 +29,8 @@ const SRP = 'test test test test test test test test test test test ball';
 
 const CONFIG = {
   databasePath: ':memory:',
-  password: 'test-pass',
-  srp: SRP,
+  password: Password.from('test-pass'),
+  srp: Srp.from(SRP),
   infuraProjectId: 'test-infura-id',
 };
 

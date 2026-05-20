@@ -16,14 +16,15 @@ import { rm } from 'node:fs/promises';
 
 import { KeyValueStore } from '../persistence/KeyValueStore';
 import { loadState, subscribeToChanges } from '../persistence/persistence';
+import type { Password, Srp } from './secrets';
 import type { Logger } from './types';
 
 const IN_MEMORY_DATABASE_PATH = ':memory:';
 
 export type CreateWalletConfig = {
   databasePath: string;
-  password: string;
-  srp: string;
+  password: Password;
+  srp: Srp;
   infuraProjectId: string;
   log?: Logger;
 };
@@ -184,7 +185,7 @@ export async function createWallet({
     }
 
     if (wasFirstRun) {
-      await importSecretRecoveryPhrase(wallet, password, srp);
+      await importSecretRecoveryPhrase(wallet, password.unwrap(), srp.unwrap());
     }
 
     let disposePromise: Promise<void> | undefined;

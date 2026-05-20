@@ -1,5 +1,7 @@
 import type { Json } from '@metamask/utils';
 
+import type { Password, Srp } from './secrets';
+
 /**
  * Sink for daemon diagnostic messages. A backgrounded daemon's stdio may be
  * discarded, so hosts supply a logger that writes somewhere durable.
@@ -42,7 +44,7 @@ export type DaemonStatusInfo = {
 export type DaemonSpawnConfig = {
   dataDir: string;
   infuraProjectId: string;
-  password: string;
-  srp: string;
+  password: Password;
+  srp: Srp;
   packageRoot: string;
 };
