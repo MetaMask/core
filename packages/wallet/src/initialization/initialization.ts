@@ -37,7 +37,8 @@ export function initialize({
     const instanceMessenger = config.getMessenger(messenger);
 
     const instance = config.init({
-      state: instanceState,
+      // TODO: Consider whether this can be improved
+      state: instanceState as never,
       messenger: instanceMessenger,
       options:
         options.instanceOptions?.[name as keyof InstanceSpecificOptions] ?? {},

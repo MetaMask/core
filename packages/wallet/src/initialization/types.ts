@@ -3,7 +3,7 @@ import type { DefaultActions, DefaultEvents, RootMessenger } from './defaults';
 
 export type InstanceState<Instance> = Instance extends { state: unknown }
   ? Instance['state']
-  : unknown;
+  : undefined;
 
 type InstanceName<Instance> = Instance extends {
   name: infer Name extends string;
@@ -17,7 +17,7 @@ type InstanceOptions<Instance> =
     : unknown;
 
 export type InitFunctionArguments<Instance, InstanceMessenger> = {
-  state: InstanceState<Instance>;
+  state: InstanceState<Instance> | undefined;
   messenger: InstanceMessenger;
   options: InstanceOptions<Instance>;
 };
