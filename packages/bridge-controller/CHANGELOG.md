@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [73.0.1]
 
+### Changed
+
+- Bump `@metamask/assets-controller` from `^7.1.2` to `^8.0.0` ([#8866](https://github.com/MetaMask/core/pull/8866))
+
 ### Fixed
 
 - Fix `calcSentAmount` double-counting fees for intent-based swap quotes ([#8845](https://github.com/MetaMask/core/pull/8845))
