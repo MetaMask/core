@@ -7,8 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Authenticate ramps requests by sourcing a bearer token from `AuthenticationController:getBearerToken` and sending it as an `Authorization: Bearer <token>` header for `getBuyWidgetUrl` ([#8843](https://github.com/MetaMask/core/pull/8843))
+- Add `@metamask/profile-sync-controller` `^28.1.0` as a runtime dependency ([#8843](https://github.com/MetaMask/core/pull/8843))
+
 ### Changed
 
+- **BREAKING:** `RampsServiceMessenger` now requires the `AuthenticationController:getBearerToken` action to be delegated to it; consumers must register this action handler before calling `getBuyWidgetUrl`, otherwise the call will throw ([#8843](https://github.com/MetaMask/core/pull/8843))
 - Bump `@metamask/controller-utils` from `^12.0.0` to `^12.1.0` ([#8774](https://github.com/MetaMask/core/pull/8774))
 
 ## [13.3.1]

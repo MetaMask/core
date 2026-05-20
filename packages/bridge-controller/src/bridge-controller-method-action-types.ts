@@ -40,6 +40,11 @@ export type BridgeControllerTrackUnifiedSwapBridgeEventAction = {
   handler: BridgeController['trackUnifiedSwapBridgeEvent'];
 };
 
+export type BridgeControllerUpdateBatchSellTradesAction = {
+  type: `BridgeController:updateBatchSellTrades`;
+  handler: BridgeController['updateBatchSellTrades'];
+};
+
 /**
  * Union of all BridgeController action types.
  */
@@ -50,4 +55,5 @@ export type BridgeControllerMethodActions =
   | BridgeControllerSetLocationAction
   | BridgeControllerResetStateAction
   | BridgeControllerSetChainIntervalLengthAction
-  | BridgeControllerTrackUnifiedSwapBridgeEventAction;
+  | BridgeControllerTrackUnifiedSwapBridgeEventAction
+  | BridgeControllerUpdateBatchSellTradesAction;

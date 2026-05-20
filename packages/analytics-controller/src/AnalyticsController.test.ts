@@ -15,6 +15,7 @@ import type {
   AnalyticsPlatformAdapter,
   AnalyticsTrackingEvent,
   AnalyticsControllerState,
+  AnalyticsContext,
 } from '.';
 import { isValidUUIDv4 } from './analyticsControllerStateValidator';
 
@@ -692,6 +693,54 @@ describe('AnalyticsController', () => {
       });
     });
 
+    it('forwards context to the platform adapter', async () => {
+      const mockAdapter = createMockAdapter();
+      const { controller } = await setupController({
+        state: {
+          optedIn: true,
+          analyticsId: '77777777-7777-4777-b777-777777777777',
+        },
+        platformAdapter: mockAdapter,
+      });
+
+      const event = createTestEvent('test_event', { prop: 'value' });
+      const context: AnalyticsContext = {
+        page: { title: 'Unit test' },
+      };
+
+      controller.trackEvent(event, context);
+
+      expect(mockAdapter.track).toHaveBeenCalledWith(
+        'test_event',
+        { prop: 'value' },
+        context,
+      );
+    });
+
+    it('forwards context when tracking an event without properties', async () => {
+      const mockAdapter = createMockAdapter();
+      const { controller } = await setupController({
+        state: {
+          optedIn: true,
+          analyticsId: '77777777-7777-4777-9777-777777777777',
+        },
+        platformAdapter: mockAdapter,
+      });
+
+      const event = createTestEvent('test_event', {}, {}, true);
+      const context: AnalyticsContext = {
+        page: { path: '/background-process' },
+      };
+
+      controller.trackEvent(event, context);
+
+      expect(mockAdapter.track).toHaveBeenCalledWith(
+        'test_event',
+        undefined,
+        context,
+      );
+    });
+
     it('tracks event without properties when event has no properties', async () => {
       const mockAdapter = createMockAdapter();
       const { controller } = await setupController({
@@ -805,6 +854,47 @@ describe('AnalyticsController', () => {
         });
       });
 
+      it('forwards context to both events when splitting sensitive events', async () => {
+        const mockAdapter = createMockAdapter();
+        const { controller } = await setupController({
+          state: {
+            optedIn: true,
+            analyticsId: '11111111-1111-4111-9111-111111111111',
+          },
+          platformAdapter: mockAdapter,
+          isAnonymousEventsFeatureEnabled: true,
+        });
+
+        const event = createTestEvent(
+          'test_event',
+          { prop: 'value' },
+          { sensitive_prop: 'sensitive value' },
+        );
+        const context: AnalyticsContext = {
+          app: { name: 'MetaMask' },
+        };
+
+        controller.trackEvent(event, context);
+
+        expect(mockAdapter.track).toHaveBeenCalledTimes(2);
+        expect(mockAdapter.track).toHaveBeenNthCalledWith(
+          1,
+          'test_event',
+          { prop: 'value' },
+          context,
+        );
+        expect(mockAdapter.track).toHaveBeenNthCalledWith(
+          2,
+          'test_event',
+          {
+            prop: 'value',
+            sensitive_prop: 'sensitive value',
+            anonymous: true,
+          },
+          context,
+        );
+      });
+
       it('tracks regular properties first, then combined event when only sensitive properties are present', async () => {
         const mockAdapter = createMockAdapter();
         const { controller } = await setupController({
@@ -912,6 +1002,31 @@ describe('AnalyticsController', () => {
       expect(mockAdapter.identify).toHaveBeenCalledWith(analyticsId, undefined);
     });
 
+    it('forwards context to the platform adapter', async () => {
+      const mockAdapter = createMockAdapter();
+      const analyticsId = 'dddddddd-dddd-4ddd-9ddd-dddddddddddd';
+      const { controller } = await setupController({
+        state: {
+          analyticsId,
+          optedIn: true,
+        },
+        platformAdapter: mockAdapter,
+      });
+
+      const traits = { PLAN: 'pro' };
+      const context: AnalyticsContext = {
+        locale: 'en',
+      };
+
+      controller.identify(traits, context);
+
+      expect(mockAdapter.identify).toHaveBeenCalledWith(
+        analyticsId,
+        traits,
+        context,
+      );
+    });
+
     it('does not identify when disabled', async () => {
       const mockAdapter = createMockAdapter();
       const { controller } = await setupController({
@@ -949,6 +1064,29 @@ describe('AnalyticsController', () => {
       expect(mockAdapter.view).toHaveBeenCalledWith('home', {
         referrer: 'test',
       });
+    });
+
+    it('forwards context to the platform adapter', async () => {
+      const mockAdapter = createMockAdapter();
+      const { controller } = await setupController({
+        state: {
+          optedIn: true,
+          analyticsId: 'ffffffff-ffff-4fff-afff-ffffffffffff',
+        },
+        platformAdapter: mockAdapter,
+      });
+
+      const context: AnalyticsContext = {
+        page: { title: 'Settings' },
+      };
+
+      controller.trackView('settings', { section: 'security' }, context);
+
+      expect(mockAdapter.view).toHaveBeenCalledWith(
+        'settings',
+        { section: 'security' },
+        context,
+      );
     });
 
     it('does not call platform adapter when disabled', async () => {
