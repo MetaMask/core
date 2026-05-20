@@ -17,6 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `AccountsApiDataSource` no longer treats non-EVM chains (e.g. Solana) returned by the Accounts API as active chains; only `eip155:` networks are now included ([#8864](https://github.com/MetaMask/core/pull/8864))
 - Non-EVM assets with a `slip44` asset namespace (e.g. Bitcoin, Solana native, TRON) are now correctly typed as `native` instead of `erc20` in `assetsInfo` ([#8811](https://github.com/MetaMask/core/pull/8811))
 - Solana SPL tokens (CAIP-19 `solana:.../token:<address>`) are now correctly typed as `spl` instead of `erc20` in `assetsInfo` ([#8811](https://github.com/MetaMask/core/pull/8811))
 
