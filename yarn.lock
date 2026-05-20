@@ -2420,7 +2420,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@docusaurus/core@npm:3.10.1, @docusaurus/core@npm:^3.10.0":
+"@docusaurus/core@npm:3.10.1, @docusaurus/core@npm:^3.10.1":
   version: 3.10.1
   resolution: "@docusaurus/core@npm:3.10.1"
   dependencies:
@@ -2586,7 +2586,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@docusaurus/plugin-content-docs@npm:3.10.1, @docusaurus/plugin-content-docs@npm:^2 || ^3":
+"@docusaurus/plugin-content-docs@npm:3.10.1, @docusaurus/plugin-content-docs@npm:^2 || ^3, @docusaurus/plugin-content-docs@npm:^3.10.1":
   version: 3.10.1
   resolution: "@docusaurus/plugin-content-docs@npm:3.10.1"
   dependencies:
@@ -2749,7 +2749,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@docusaurus/preset-classic@npm:^3.10.0":
+"@docusaurus/preset-classic@npm:^3.10.1":
   version: 3.10.1
   resolution: "@docusaurus/preset-classic@npm:3.10.1"
   dependencies:
@@ -2812,7 +2812,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@docusaurus/theme-common@npm:3.10.1, @docusaurus/theme-common@npm:^3.10.0":
+"@docusaurus/theme-common@npm:3.10.1, @docusaurus/theme-common@npm:^3.10.1":
   version: 3.10.1
   resolution: "@docusaurus/theme-common@npm:3.10.1"
   dependencies:
@@ -2874,7 +2874,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@docusaurus/types@npm:3.10.1, @docusaurus/types@npm:^3.10.0":
+"@docusaurus/types@npm:3.10.1, @docusaurus/types@npm:^3.10.1":
   version: 3.10.1
   resolution: "@docusaurus/types@npm:3.10.1"
   dependencies:
@@ -7952,10 +7952,11 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@metamask/platform-api-docs@workspace:packages/platform-api-docs"
   dependencies:
-    "@docusaurus/core": "npm:^3.10.0"
-    "@docusaurus/preset-classic": "npm:^3.10.0"
-    "@docusaurus/theme-common": "npm:^3.10.0"
-    "@docusaurus/types": "npm:^3.10.0"
+    "@docusaurus/core": "npm:^3.10.1"
+    "@docusaurus/plugin-content-docs": "npm:^3.10.1"
+    "@docusaurus/preset-classic": "npm:^3.10.1"
+    "@docusaurus/theme-common": "npm:^3.10.1"
+    "@docusaurus/types": "npm:^3.10.1"
     "@easyops-cn/docusaurus-search-local": "npm:^0.55.1"
     "@mdx-js/react": "npm:^3.1.1"
     "@metamask/auto-changelog": "npm:^6.1.0"
@@ -7964,7 +7965,7 @@ __metadata:
     "@types/jest": "npm:^29.5.14"
     "@types/node": "npm:^16.18.54"
     "@types/npm-which": "npm:^3"
-    "@types/react": "npm:^18.3.0"
+    "@types/react": "npm:^19.2.14"
     "@types/yargs": "npm:^17.0.32"
     deepmerge: "npm:^4.2.2"
     execa: "npm:^5.0.0"
@@ -7972,8 +7973,8 @@ __metadata:
     jest: "npm:^29.7.0"
     npm-which: "npm:^3.0.1"
     prism-react-renderer: "npm:^2.4.1"
-    react: "npm:^19.2.5"
-    react-dom: "npm:^19.2.5"
+    react: "npm:^19.2.6"
+    react-dom: "npm:^19.2.6"
     ts-jest: "npm:^29.2.5"
     ts-morph: "npm:^28.0.0"
     tsx: "npm:^4.20.5"
@@ -10877,13 +10878,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@types/prop-types@npm:*":
-  version: 15.7.15
-  resolution: "@types/prop-types@npm:15.7.15"
-  checksum: 10/31aa2f59b28f24da6fb4f1d70807dae2aedfce090ec63eaf9ea01727a9533ef6eaf017de5bff99fbccad7d1c9e644f52c6c2ba30869465dd22b1a7221c29f356
-  languageName: node
-  linkType: hard
-
 "@types/punycode@npm:^2.1.0":
   version: 2.1.4
   resolution: "@types/punycode@npm:2.1.4"
@@ -10937,22 +10931,12 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@types/react@npm:*":
+"@types/react@npm:*, @types/react@npm:^19.2.14":
   version: 19.2.14
   resolution: "@types/react@npm:19.2.14"
   dependencies:
     csstype: "npm:^3.2.2"
   checksum: 10/fbff239089ee64b6bd9b00543594db498278b06de527ef1b0f71bb0eb09cc4445a71b5dd3c0d3d0257255c4eed94406be40a74ad4a987ade8a8d5dd65c82bc5f
-  languageName: node
-  linkType: hard
-
-"@types/react@npm:^18.3.0":
-  version: 18.3.28
-  resolution: "@types/react@npm:18.3.28"
-  dependencies:
-    "@types/prop-types": "npm:*"
-    csstype: "npm:^3.2.2"
-  checksum: 10/6db7bb7f19957ee9f530baa7d143527f8befedad1585b064eb80777be0d84621157de75aba4f499ff429b10c5ef0c7d13e89be6bca3296ef71c80472894ff0eb
   languageName: node
   linkType: hard
 
@@ -22232,14 +22216,14 @@ __metadata:
   languageName: node
   linkType: hard
 
-"react-dom@npm:^19.2.5":
-  version: 19.2.5
-  resolution: "react-dom@npm:19.2.5"
+"react-dom@npm:^19.2.6":
+  version: 19.2.6
+  resolution: "react-dom@npm:19.2.6"
   dependencies:
     scheduler: "npm:^0.27.0"
   peerDependencies:
-    react: ^19.2.5
-  checksum: 10/ba14b022c7191d27b723314b964a1a4d839832e6edd231294097e323973808f97ac647bcf182ab0104e20ae6532dbc36733aec3e8333a1446a7183099c96b255
+    react: ^19.2.6
+  checksum: 10/695122e37dec3460311231ff1f9a96368d74457d4ccf60010eaebc08c3e1c47b054c9267b40d98c689ae99d0c29a340acacfd405016a954a4f11613146191e68
   languageName: node
   linkType: hard
 
@@ -22360,10 +22344,10 @@ __metadata:
   languageName: node
   linkType: hard
 
-"react@npm:^19.2.5":
-  version: 19.2.5
-  resolution: "react@npm:19.2.5"
-  checksum: 10/1c3c7ffecb90b7f89a5c3ef635e6811f3a84600097f203b918150cb7e6b0a52915e858e5b4c82317a520dffccfa46ee4819ccf92c59c5b2d6c25cffe258dd20c
+"react@npm:^19.2.6":
+  version: 19.2.6
+  resolution: "react@npm:19.2.6"
+  checksum: 10/205f0db93bd6c6485f94471d1c3437ae1d410f322297c76186fe4f658f88a6786bb0805e3cf8f330f24d1daa923b6b610ec63960d2461e9201bca64ca8361db9
   languageName: node
   linkType: hard
 
