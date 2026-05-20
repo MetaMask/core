@@ -630,8 +630,33 @@ describe('SnapAccountService', () => {
   });
 
   describe('getLegacySnapKeyring', () => {
-    it('returns the existing Snap keyring when one is already present', async () => {
+    it('returns the existing Snap keyring via the fast-path without acquiring the KeyringController mutex', async () => {
       const { service, mocks } = setup();
+      const existing = mockLegacySnapKeyring(mocks, {});
+
+      const result = await service.getLegacySnapKeyring();
+
+      expect(result).toBe(existing as unknown as SnapKeyring);
+      expect(mocks.KeyringController.withController).not.toHaveBeenCalled();
+    });
+
+    it('falls back to withController and creates a new Snap keyring when the fast-path reports it missing', async () => {
+      const { service, mocks } = setup();
+      mockLegacySnapKeyringMissing(mocks);
+      const { addNewKeyring } = mockWithController(mocks, [
+        buildKeyringEntry(KeyringTypes.hd),
+      ]);
+
+      const result = await service.getLegacySnapKeyring();
+
+      expect(mocks.KeyringController.withKeyringUnsafe).toHaveBeenCalled();
+      expect(addNewKeyring).toHaveBeenCalledWith(KeyringTypes.snap);
+      expect(result.type).toBe(KeyringTypes.snap);
+    });
+
+    it('returns the existing Snap keyring found within withController when the fast-path reports it missing', async () => {
+      const { service, mocks } = setup();
+      mockLegacySnapKeyringMissing(mocks);
       const existing = buildKeyringEntry(KeyringTypes.snap);
       const { addNewKeyring } = mockWithController(mocks, [
         buildKeyringEntry(KeyringTypes.hd),
@@ -644,25 +669,24 @@ describe('SnapAccountService', () => {
       expect(addNewKeyring).not.toHaveBeenCalled();
     });
 
-    it('creates a new Snap keyring when none exists', async () => {
-      const { service, mocks } = setup();
-      const { addNewKeyring } = mockWithController(mocks, [
-        buildKeyringEntry(KeyringTypes.hd),
-      ]);
-
-      const result = await service.getLegacySnapKeyring();
-
-      expect(addNewKeyring).toHaveBeenCalledWith(KeyringTypes.snap);
-      expect(result.type).toBe(KeyringTypes.snap);
-    });
-
     it('propagates errors thrown by withController', async () => {
       const { service, mocks } = setup();
+      mockLegacySnapKeyringMissing(mocks);
       mocks.KeyringController.withController.mockImplementation(async () => {
         throw new Error('boom');
       });
 
       await expect(service.getLegacySnapKeyring()).rejects.toThrow('boom');
+    });
+
+    it('propagates non-KeyringNotFound errors thrown by the fast-path', async () => {
+      const { service, mocks } = setup();
+      mocks.KeyringController.withKeyringUnsafe.mockImplementation(async () => {
+        throw new Error('boom');
+      });
+
+      await expect(service.getLegacySnapKeyring()).rejects.toThrow('boom');
+      expect(mocks.KeyringController.withController).not.toHaveBeenCalled();
     });
   });
 
