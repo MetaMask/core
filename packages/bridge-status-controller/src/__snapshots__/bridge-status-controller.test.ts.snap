@@ -658,11 +658,9 @@ exports[`BridgeStatusController submitTx: EVM bridge should delay after submitti
       "chainId": "0xa4b1",
       "networkClientId": "arbitrum-client-id",
       "transactionParams": {
-        "chainId": "0xa4b1",
         "data": "0xapprovalData",
         "from": "0xaccount1",
-        "gas": "21000",
-        "gasLimit": "21000",
+        "gas": "0x5208",
         "to": "0xtokenContract",
         "value": "0x0",
       },
@@ -671,11 +669,9 @@ exports[`BridgeStatusController submitTx: EVM bridge should delay after submitti
   [
     "TransactionController:addTransaction",
     {
-      "chainId": "0xa4b1",
       "data": "0xapprovalData",
       "from": "0xaccount1",
       "gas": "0x5208",
-      "gasLimit": "21000",
       "maxFeePerGas": undefined,
       "maxPriorityFeePerGas": undefined,
       "to": "0xtokenContract",
@@ -707,9 +703,9 @@ exports[`BridgeStatusController submitTx: EVM bridge should delay after submitti
       "chainId": "0xa4b1",
       "networkClientId": "arbitrum",
       "transactionParams": {
-        "chainId": "0xa4b1",
         "data": "0xdata",
         "from": "0xaccount1",
+        "gas": undefined,
         "to": "0xbridgeContract",
         "value": "0x0",
       },
@@ -718,7 +714,6 @@ exports[`BridgeStatusController submitTx: EVM bridge should delay after submitti
   [
     "TransactionController:addTransaction",
     {
-      "chainId": "0xa4b1",
       "data": "0xdata",
       "from": "0xaccount1",
       "gas": undefined,
@@ -977,11 +972,9 @@ exports[`BridgeStatusController submitTx: EVM bridge should delay after submitti
       "chainId": "0xa4b1",
       "networkClientId": "arbitrum-client-id",
       "transactionParams": {
-        "chainId": "0xa4b1",
         "data": "0xapprovalData",
         "from": "0xaccount1",
-        "gas": "21000",
-        "gasLimit": "21000",
+        "gas": "0x5208",
         "to": "0xtokenContract",
         "value": "0x0",
       },
@@ -990,11 +983,9 @@ exports[`BridgeStatusController submitTx: EVM bridge should delay after submitti
   [
     "TransactionController:addTransaction",
     {
-      "chainId": "0xa4b1",
       "data": "0xapprovalData",
       "from": "0xaccount1",
       "gas": "0x5208",
-      "gasLimit": "21000",
       "maxFeePerGas": undefined,
       "maxPriorityFeePerGas": undefined,
       "to": "0xtokenContract",
@@ -1026,9 +1017,9 @@ exports[`BridgeStatusController submitTx: EVM bridge should delay after submitti
       "chainId": "0xa4b1",
       "networkClientId": "arbitrum",
       "transactionParams": {
-        "chainId": "0xa4b1",
         "data": "0xdata",
         "from": "0xaccount1",
+        "gas": undefined,
         "to": "0xbridgeContract",
         "value": "0x0",
       },
@@ -1037,7 +1028,6 @@ exports[`BridgeStatusController submitTx: EVM bridge should delay after submitti
   [
     "TransactionController:addTransaction",
     {
-      "chainId": "0xa4b1",
       "data": "0xdata",
       "from": "0xaccount1",
       "gas": undefined,
@@ -1239,6 +1229,7 @@ exports[`BridgeStatusController submitTx: EVM bridge should handle smart transac
 [
   [
     {
+      "atomic": true,
       "disable7702": true,
       "from": "0xaccount1",
       "isGasFeeIncluded": false,
@@ -1257,8 +1248,8 @@ exports[`BridgeStatusController submitTx: EVM bridge should handle smart transac
             "data": "0xdata",
             "from": "0xaccount1",
             "gas": "0x5208",
-            "maxFeePerGas": "0x0",
-            "maxPriorityFeePerGas": "0x0",
+            "maxFeePerGas": undefined,
+            "maxPriorityFeePerGas": undefined,
             "to": "0xbridgeContract",
             "value": "0x0",
           },
@@ -1348,7 +1339,7 @@ exports[`BridgeStatusController submitTx: EVM bridge should handle smart transac
       "transactionParams": {
         "data": "0xdata",
         "from": "0xaccount1",
-        "gas": "21000",
+        "gas": "0x5208",
         "to": "0xbridgeContract",
         "value": "0x0",
       },
@@ -1595,11 +1586,9 @@ exports[`BridgeStatusController submitTx: EVM bridge should not call handleMobil
       "chainId": "0xa4b1",
       "networkClientId": "arbitrum-client-id",
       "transactionParams": {
-        "chainId": "0xa4b1",
         "data": "0xapprovalData",
         "from": "0xaccount1",
-        "gas": "21000",
-        "gasLimit": "21000",
+        "gas": "0x5208",
         "to": "0xtokenContract",
         "value": "0x0",
       },
@@ -1608,11 +1597,9 @@ exports[`BridgeStatusController submitTx: EVM bridge should not call handleMobil
   [
     "TransactionController:addTransaction",
     {
-      "chainId": "0xa4b1",
       "data": "0xapprovalData",
       "from": "0xaccount1",
       "gas": "0x5208",
-      "gasLimit": "21000",
       "maxFeePerGas": undefined,
       "maxPriorityFeePerGas": undefined,
       "to": "0xtokenContract",
@@ -1644,11 +1631,9 @@ exports[`BridgeStatusController submitTx: EVM bridge should not call handleMobil
       "chainId": "0xa4b1",
       "networkClientId": "arbitrum",
       "transactionParams": {
-        "chainId": "0xa4b1",
         "data": "0xdata",
         "from": "0xaccount1",
-        "gas": "21000",
-        "gasLimit": "21000",
+        "gas": "0x5208",
         "to": "0xbridgeContract",
         "value": "0x0",
       },
@@ -1657,11 +1642,9 @@ exports[`BridgeStatusController submitTx: EVM bridge should not call handleMobil
   [
     "TransactionController:addTransaction",
     {
-      "chainId": "0xa4b1",
       "data": "0xdata",
       "from": "0xaccount1",
       "gas": "0x5208",
-      "gasLimit": "21000",
       "maxFeePerGas": undefined,
       "maxPriorityFeePerGas": undefined,
       "to": "0xbridgeContract",
@@ -1917,11 +1900,9 @@ exports[`BridgeStatusController submitTx: EVM bridge should not call handleMobil
       "chainId": "0xa4b1",
       "networkClientId": "arbitrum-client-id",
       "transactionParams": {
-        "chainId": "0xa4b1",
         "data": "0xapprovalData",
         "from": "0xaccount1",
-        "gas": "21000",
-        "gasLimit": "21000",
+        "gas": "0x5208",
         "to": "0xtokenContract",
         "value": "0x0",
       },
@@ -1930,11 +1911,9 @@ exports[`BridgeStatusController submitTx: EVM bridge should not call handleMobil
   [
     "TransactionController:addTransaction",
     {
-      "chainId": "0xa4b1",
       "data": "0xapprovalData",
       "from": "0xaccount1",
       "gas": "0x5208",
-      "gasLimit": "21000",
       "maxFeePerGas": undefined,
       "maxPriorityFeePerGas": undefined,
       "to": "0xtokenContract",
@@ -1966,11 +1945,9 @@ exports[`BridgeStatusController submitTx: EVM bridge should not call handleMobil
       "chainId": "0xa4b1",
       "networkClientId": "arbitrum",
       "transactionParams": {
-        "chainId": "0xa4b1",
         "data": "0xdata",
         "from": "0xaccount1",
-        "gas": "21000",
-        "gasLimit": "21000",
+        "gas": "0x5208",
         "to": "0xbridgeContract",
         "value": "0x0",
       },
@@ -1979,11 +1956,9 @@ exports[`BridgeStatusController submitTx: EVM bridge should not call handleMobil
   [
     "TransactionController:addTransaction",
     {
-      "chainId": "0xa4b1",
       "data": "0xdata",
       "from": "0xaccount1",
       "gas": "0x5208",
-      "gasLimit": "21000",
       "maxFeePerGas": undefined,
       "maxPriorityFeePerGas": undefined,
       "to": "0xbridgeContract",
@@ -2239,11 +2214,9 @@ exports[`BridgeStatusController submitTx: EVM bridge should reset USDT allowance
       "chainId": "0x1",
       "networkClientId": "arbitrum-client-id",
       "transactionParams": {
-        "chainId": "0x1",
         "data": "0x095ea7b3000000000000000000000000881d40237659c251811cec9c364ef91dc08d300c0000000000000000000000000000000000000000000000000000000000000000",
         "from": "0xaccount1",
-        "gas": "21000",
-        "gasLimit": "21000",
+        "gas": "0x5208",
         "to": "0xtokenContract",
         "value": "0x0",
       },
@@ -2252,11 +2225,9 @@ exports[`BridgeStatusController submitTx: EVM bridge should reset USDT allowance
   [
     "TransactionController:addTransaction",
     {
-      "chainId": "0x1",
       "data": "0x095ea7b3000000000000000000000000881d40237659c251811cec9c364ef91dc08d300c0000000000000000000000000000000000000000000000000000000000000000",
       "from": "0xaccount1",
       "gas": "0x5208",
-      "gasLimit": "21000",
       "maxFeePerGas": undefined,
       "maxPriorityFeePerGas": undefined,
       "to": "0xtokenContract",
@@ -2288,11 +2259,9 @@ exports[`BridgeStatusController submitTx: EVM bridge should reset USDT allowance
       "chainId": "0xa4b1",
       "networkClientId": "arbitrum-client-id",
       "transactionParams": {
-        "chainId": "0xa4b1",
         "data": "0xapprovalData",
         "from": "0xaccount1",
-        "gas": "21000",
-        "gasLimit": "21000",
+        "gas": "0x5208",
         "to": "0xtokenContract",
         "value": "0x0",
       },
@@ -2301,11 +2270,9 @@ exports[`BridgeStatusController submitTx: EVM bridge should reset USDT allowance
   [
     "TransactionController:addTransaction",
     {
-      "chainId": "0xa4b1",
       "data": "0xapprovalData",
       "from": "0xaccount1",
       "gas": "0x5208",
-      "gasLimit": "21000",
       "maxFeePerGas": undefined,
       "maxPriorityFeePerGas": undefined,
       "to": "0xtokenContract",
@@ -2337,11 +2304,9 @@ exports[`BridgeStatusController submitTx: EVM bridge should reset USDT allowance
       "chainId": "0xa4b1",
       "networkClientId": "arbitrum",
       "transactionParams": {
-        "chainId": "0xa4b1",
         "data": "0xdata",
         "from": "0xaccount1",
-        "gas": "21000",
-        "gasLimit": "21000",
+        "gas": "0x5208",
         "to": "0xbridgeContract",
         "value": "0x0",
       },
@@ -2350,11 +2315,9 @@ exports[`BridgeStatusController submitTx: EVM bridge should reset USDT allowance
   [
     "TransactionController:addTransaction",
     {
-      "chainId": "0xa4b1",
       "data": "0xdata",
       "from": "0xaccount1",
       "gas": "0x5208",
-      "gasLimit": "21000",
       "maxFeePerGas": undefined,
       "maxPriorityFeePerGas": undefined,
       "to": "0xbridgeContract",
@@ -2585,11 +2548,9 @@ exports[`BridgeStatusController submitTx: EVM bridge should successfully submit 
       "chainId": "0xa4b1",
       "networkClientId": "arbitrum-client-id",
       "transactionParams": {
-        "chainId": "0xa4b1",
         "data": "0xapprovalData",
         "from": "0xaccount1",
-        "gas": "21000",
-        "gasLimit": "21000",
+        "gas": "0x5208",
         "to": "0xtokenContract",
         "value": "0x0",
       },
@@ -2598,11 +2559,9 @@ exports[`BridgeStatusController submitTx: EVM bridge should successfully submit 
   [
     "TransactionController:addTransaction",
     {
-      "chainId": "0xa4b1",
       "data": "0xapprovalData",
       "from": "0xaccount1",
       "gas": "0x5208",
-      "gasLimit": "21000",
       "maxFeePerGas": undefined,
       "maxPriorityFeePerGas": undefined,
       "to": "0xtokenContract",
@@ -2634,11 +2593,9 @@ exports[`BridgeStatusController submitTx: EVM bridge should successfully submit 
       "chainId": "0xa4b1",
       "networkClientId": "arbitrum",
       "transactionParams": {
-        "chainId": "0xa4b1",
         "data": "0xdata",
         "from": "0xaccount1",
-        "gas": "21000",
-        "gasLimit": "21000",
+        "gas": "0x5208",
         "to": "0xbridgeContract",
         "value": "0x0",
       },
@@ -2647,11 +2604,9 @@ exports[`BridgeStatusController submitTx: EVM bridge should successfully submit 
   [
     "TransactionController:addTransaction",
     {
-      "chainId": "0xa4b1",
       "data": "0xdata",
       "from": "0xaccount1",
       "gas": "0x5208",
-      "gasLimit": "21000",
       "maxFeePerGas": undefined,
       "maxPriorityFeePerGas": undefined,
       "to": "0xbridgeContract",
@@ -2882,11 +2837,9 @@ exports[`BridgeStatusController submitTx: EVM bridge should successfully submit 
       "chainId": "0xa4b1",
       "networkClientId": "arbitrum",
       "transactionParams": {
-        "chainId": "0xa4b1",
         "data": "0xdata",
         "from": "0xaccount1",
-        "gas": "21000",
-        "gasLimit": "21000",
+        "gas": "0x5208",
         "to": "0xbridgeContract",
         "value": "0x0",
       },
@@ -2895,11 +2848,9 @@ exports[`BridgeStatusController submitTx: EVM bridge should successfully submit 
   [
     "TransactionController:addTransaction",
     {
-      "chainId": "0xa4b1",
       "data": "0xdata",
       "from": "0xaccount1",
       "gas": "0x5208",
-      "gasLimit": "21000",
       "maxFeePerGas": undefined,
       "maxPriorityFeePerGas": undefined,
       "to": "0xbridgeContract",
@@ -2982,11 +2933,9 @@ exports[`BridgeStatusController submitTx: EVM bridge should throw an error if ap
       "chainId": "0xa4b1",
       "networkClientId": "arbitrum-client-id",
       "transactionParams": {
-        "chainId": "0xa4b1",
         "data": "0xapprovalData",
         "from": "0xaccount1",
-        "gas": "21000",
-        "gasLimit": "21000",
+        "gas": "0x5208",
         "to": "0xtokenContract",
         "value": "0x0",
       },
@@ -2995,11 +2944,9 @@ exports[`BridgeStatusController submitTx: EVM bridge should throw an error if ap
   [
     "TransactionController:addTransaction",
     {
-      "chainId": "0xa4b1",
       "data": "0xapprovalData",
       "from": "0xaccount1",
       "gas": "0x5208",
-      "gasLimit": "21000",
       "maxFeePerGas": undefined,
       "maxPriorityFeePerGas": undefined,
       "to": "0xtokenContract",
@@ -3108,11 +3055,9 @@ exports[`BridgeStatusController submitTx: EVM bridge should throw an error if ap
       "chainId": "0xa4b1",
       "networkClientId": "arbitrum-client-id",
       "transactionParams": {
-        "chainId": "0xa4b1",
         "data": "0xapprovalData",
         "from": "0xaccount1",
-        "gas": "21000",
-        "gasLimit": "21000",
+        "gas": "0x5208",
         "to": "0xtokenContract",
         "value": "0x0",
       },
@@ -3121,11 +3066,9 @@ exports[`BridgeStatusController submitTx: EVM bridge should throw an error if ap
   [
     "TransactionController:addTransaction",
     {
-      "chainId": "0xa4b1",
       "data": "0xapprovalData",
       "from": "0xaccount1",
       "gas": "0x5208",
-      "gasLimit": "21000",
       "maxFeePerGas": undefined,
       "maxPriorityFeePerGas": undefined,
       "to": "0xtokenContract",
@@ -3385,11 +3328,9 @@ exports[`BridgeStatusController submitTx: EVM bridge waits for approval tx confi
       "chainId": "0xa4b1",
       "networkClientId": "arbitrum-client-id",
       "transactionParams": {
-        "chainId": "0xa4b1",
         "data": "0xapprovalData",
         "from": "0xaccount1",
-        "gas": "21000",
-        "gasLimit": "21000",
+        "gas": "0x5208",
         "to": "0xtokenContract",
         "value": "0x0",
       },
@@ -3398,11 +3339,9 @@ exports[`BridgeStatusController submitTx: EVM bridge waits for approval tx confi
   [
     "TransactionController:addTransaction",
     {
-      "chainId": "0xa4b1",
       "data": "0xapprovalData",
       "from": "0xaccount1",
       "gas": "0x5208",
-      "gasLimit": "21000",
       "maxFeePerGas": undefined,
       "maxPriorityFeePerGas": undefined,
       "to": "0xtokenContract",
@@ -3434,11 +3373,9 @@ exports[`BridgeStatusController submitTx: EVM bridge waits for approval tx confi
       "chainId": "0xa4b1",
       "networkClientId": "arbitrum",
       "transactionParams": {
-        "chainId": "0xa4b1",
         "data": "0xdata",
         "from": "0xaccount1",
-        "gas": "21000",
-        "gasLimit": "21000",
+        "gas": "0x5208",
         "to": "0xbridgeContract",
         "value": "0x0",
       },
@@ -3447,11 +3384,9 @@ exports[`BridgeStatusController submitTx: EVM bridge waits for approval tx confi
   [
     "TransactionController:addTransaction",
     {
-      "chainId": "0xa4b1",
       "data": "0xdata",
       "from": "0xaccount1",
       "gas": "0x5208",
-      "gasLimit": "21000",
       "maxFeePerGas": undefined,
       "maxPriorityFeePerGas": undefined,
       "to": "0xbridgeContract",
@@ -3578,11 +3513,9 @@ exports[`BridgeStatusController submitTx: EVM swap should gracefully handle isAt
       "chainId": "0xa4b1",
       "networkClientId": "arbitrum-client-id",
       "transactionParams": {
-        "chainId": "0xa4b1",
         "data": "0xapprovalData",
         "from": "0xaccount1",
-        "gas": "21000",
-        "gasLimit": "21000",
+        "gas": "0x5208",
         "to": "0xtokenContract",
         "value": "0x0",
       },
@@ -3591,11 +3524,9 @@ exports[`BridgeStatusController submitTx: EVM swap should gracefully handle isAt
   [
     "TransactionController:addTransaction",
     {
-      "chainId": "0xa4b1",
       "data": "0xapprovalData",
       "from": "0xaccount1",
       "gas": "0x5208",
-      "gasLimit": "21000",
       "maxFeePerGas": undefined,
       "maxPriorityFeePerGas": undefined,
       "to": "0xtokenContract",
@@ -3627,11 +3558,9 @@ exports[`BridgeStatusController submitTx: EVM swap should gracefully handle isAt
       "chainId": "0xa4b1",
       "networkClientId": "arbitrum",
       "transactionParams": {
-        "chainId": "0xa4b1",
         "data": "0xdata",
         "from": "0xaccount1",
-        "gas": "21000",
-        "gasLimit": "21000",
+        "gas": "0x5208",
         "to": "0xbridgeContract",
         "value": "0x0",
       },
@@ -3640,11 +3569,9 @@ exports[`BridgeStatusController submitTx: EVM swap should gracefully handle isAt
   [
     "TransactionController:addTransaction",
     {
-      "chainId": "0xa4b1",
       "data": "0xdata",
       "from": "0xaccount1",
       "gas": "0x5208",
-      "gasLimit": "21000",
       "maxFeePerGas": undefined,
       "maxPriorityFeePerGas": undefined,
       "to": "0xbridgeContract",
@@ -3929,6 +3856,7 @@ exports[`BridgeStatusController submitTx: EVM swap should handle smart transacti
 [
   [
     {
+      "atomic": true,
       "disable7702": true,
       "from": "0xaccount1",
       "isGasFeeIncluded": false,
@@ -3939,12 +3867,13 @@ exports[`BridgeStatusController submitTx: EVM swap should handle smart transacti
       "requireApproval": false,
       "transactions": [
         {
+          "assetsFiatValues": undefined,
           "params": {
             "data": "0xapprovalData",
             "from": "0xaccount1",
             "gas": "0x5208",
-            "maxFeePerGas": "0x0",
-            "maxPriorityFeePerGas": "0x0",
+            "maxFeePerGas": undefined,
+            "maxPriorityFeePerGas": undefined,
             "to": "0xtokenContract",
             "value": "0x0",
           },
@@ -3959,8 +3888,8 @@ exports[`BridgeStatusController submitTx: EVM swap should handle smart transacti
             "data": "0xdata",
             "from": "0xaccount1",
             "gas": "0x5208",
-            "maxFeePerGas": "0x0",
-            "maxPriorityFeePerGas": "0x0",
+            "maxFeePerGas": undefined,
+            "maxPriorityFeePerGas": undefined,
             "to": "0xbridgeContract",
             "value": "0x0",
           },
@@ -4036,7 +3965,7 @@ exports[`BridgeStatusController submitTx: EVM swap should handle smart transacti
       "transactionParams": {
         "data": "0xapprovalData",
         "from": "0xaccount1",
-        "gas": "21000",
+        "gas": "0x5208",
         "to": "0xtokenContract",
         "value": "0x0",
       },
@@ -4050,7 +3979,7 @@ exports[`BridgeStatusController submitTx: EVM swap should handle smart transacti
       "transactionParams": {
         "data": "0xdata",
         "from": "0xaccount1",
-        "gas": "21000",
+        "gas": "0x5208",
         "to": "0xbridgeContract",
         "value": "0x0",
       },
@@ -4155,11 +4084,9 @@ exports[`BridgeStatusController submitTx: EVM swap should successfully submit an
       "chainId": "0xa4b1",
       "networkClientId": "arbitrum-client-id",
       "transactionParams": {
-        "chainId": "0xa4b1",
         "data": "0xapprovalData",
         "from": "0xaccount1",
-        "gas": "21000",
-        "gasLimit": "21000",
+        "gas": "0x5208",
         "to": "0xtokenContract",
         "value": "0x0",
       },
@@ -4168,11 +4095,9 @@ exports[`BridgeStatusController submitTx: EVM swap should successfully submit an
   [
     "TransactionController:addTransaction",
     {
-      "chainId": "0xa4b1",
       "data": "0xapprovalData",
       "from": "0xaccount1",
       "gas": "0x5208",
-      "gasLimit": "21000",
       "maxFeePerGas": undefined,
       "maxPriorityFeePerGas": undefined,
       "to": "0xtokenContract",
@@ -4204,11 +4129,9 @@ exports[`BridgeStatusController submitTx: EVM swap should successfully submit an
       "chainId": "0xa4b1",
       "networkClientId": "arbitrum",
       "transactionParams": {
-        "chainId": "0xa4b1",
         "data": "0xdata",
         "from": "0xaccount1",
-        "gas": "21000",
-        "gasLimit": "21000",
+        "gas": "0x5208",
         "to": "0xbridgeContract",
         "value": "0x0",
       },
@@ -4217,11 +4140,9 @@ exports[`BridgeStatusController submitTx: EVM swap should successfully submit an
   [
     "TransactionController:addTransaction",
     {
-      "chainId": "0xa4b1",
       "data": "0xdata",
       "from": "0xaccount1",
       "gas": "0x5208",
-      "gasLimit": "21000",
       "maxFeePerGas": undefined,
       "maxPriorityFeePerGas": undefined,
       "to": "0xbridgeContract",
@@ -4448,11 +4369,9 @@ exports[`BridgeStatusController submitTx: EVM swap should successfully submit an
       "chainId": "0xa4b1",
       "networkClientId": "arbitrum",
       "transactionParams": {
-        "chainId": "0xa4b1",
         "data": "0xdata",
         "from": "0xaccount1",
-        "gas": "21000",
-        "gasLimit": "21000",
+        "gas": "0x5208",
         "to": "0xbridgeContract",
         "value": "0x0",
       },
@@ -4461,11 +4380,9 @@ exports[`BridgeStatusController submitTx: EVM swap should successfully submit an
   [
     "TransactionController:addTransaction",
     {
-      "chainId": "0xa4b1",
       "data": "0xdata",
       "from": "0xaccount1",
       "gas": "0x5208",
-      "gasLimit": "21000",
       "maxFeePerGas": undefined,
       "maxPriorityFeePerGas": undefined,
       "to": "0xbridgeContract",

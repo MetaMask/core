@@ -26,7 +26,10 @@ import type {
   MockAnyNamespace,
 } from '@metamask/messenger';
 import type { Provider } from '@metamask/network-controller';
-import { CHAIN_IDS } from '@metamask/transaction-controller';
+import {
+  CHAIN_IDS,
+  GasFeeEstimateType,
+} from '@metamask/transaction-controller';
 import {
   TransactionType,
   TransactionStatus,
@@ -2833,6 +2836,7 @@ describe('BridgeStatusController', () => {
 
     const mockEstimateGasFeeResult = {
       estimates: {
+        type: GasFeeEstimateType.FeeMarket,
         high: {
           suggestedMaxFeePerGas: '0x1234',
           suggestedMaxPriorityFeePerGas: '0x5678',
@@ -3636,6 +3640,7 @@ describe('BridgeStatusController', () => {
         mockMessengerCall.mockReturnValueOnce('arbitrum-client-id');
         mockMessengerCall.mockResolvedValueOnce({
           estimates: {
+            type: GasFeeEstimateType.FeeMarket,
             high: {
               suggestedMaxFeePerGas: '0x1234',
               suggestedMaxPriorityFeePerGas: '0x5678',
@@ -3806,6 +3811,7 @@ describe('BridgeStatusController', () => {
 
     const mockEstimateGasFeeResult = {
       estimates: {
+        type: GasFeeEstimateType.FeeMarket,
         high: {
           suggestedMaxFeePerGas: '0x1234',
           suggestedMaxPriorityFeePerGas: '0x5678',

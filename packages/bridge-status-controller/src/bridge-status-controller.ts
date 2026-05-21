@@ -91,7 +91,6 @@ import {
 import { handleNonEvmTx } from './utils/snaps';
 import { getApprovalTraceParams, getTraceParams } from './utils/trace';
 import {
-  getAddTransactionBatchParams,
   handleApprovalDelay,
   handleMobileHardwareWalletDelay,
   generateActionId,
@@ -1014,38 +1013,40 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     return undefined;
   };
 
-  // TODO simplify and make more readable
   /**
    * Submits batched EVM transactions to the TransactionController
    *
    * @param args - The parameters for the transaction
    * @param args.isBridgeTx - Whether the transaction is a bridge transaction
-   * @param args.trade - The trade data to confirm
-   * @param args.approval - The approval data to confirm
-   * @param args.resetApproval - The ethereum:USDT reset approval data to confirm
-   * @param args.quoteResponse - The quote response
+   * @param args.quoteResponse - The quote response containing the approval and trade data
    * @param args.requireApproval - Whether to require approval for the transaction
+   * @param args.isDelegatedAccount - Whether the account is a delegated account
    * @returns The approvalMeta and tradeMeta for the batched transaction
    */
-  readonly #handleEvmTransactionBatch = async (
-    args: Omit<
-      Parameters<typeof getAddTransactionBatchParams>[0],
-      'messenger' | 'estimateGasFeeFn'
-    >,
-  ): Promise<{
+  readonly #handleEvmTransactionBatch = async (args: {
+    requireApproval: boolean;
+    isDelegatedAccount: boolean;
+    isBridgeTx: boolean;
+    quoteResponse: QuoteResponse<Trade, Trade> & QuoteMetadata;
+  }): Promise<{
     approvalMeta?: TransactionMeta;
     tradeMeta: TransactionMeta;
   }> => {
-    const transactionParams = await getAddTransactionBatchParams({
-      messenger: this.messenger,
-      ...args,
-    });
-
-    return await addTransactionBatch(
+    const { tradeMeta, approvalMeta } = await addTransactionBatch(
       this.messenger,
       this.#addTransactionBatchFn,
-      transactionParams,
+      args.quoteResponse,
+      args.isBridgeTx,
+      args.requireApproval,
+      args.isDelegatedAccount,
     );
+
+    if (!tradeMeta) {
+      throw new Error(
+        'Failed to update cross-chain swap transaction batch: tradeMeta not found',
+      );
+    }
+    return { tradeMeta, approvalMeta };
   };
 
   /**
@@ -1200,13 +1201,6 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
               const { tradeMeta, approvalMeta } =
                 await this.#handleEvmTransactionBatch({
                   isBridgeTx,
-                  resetApproval: quoteResponse.resetApproval,
-                  approval:
-                    quoteResponse.approval &&
-                    isEvmTxData(quoteResponse.approval)
-                      ? quoteResponse.approval
-                      : undefined,
-                  trade: quoteResponse.trade,
                   quoteResponse,
                   requireApproval,
                   isDelegatedAccount,

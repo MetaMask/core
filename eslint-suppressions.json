@@ -742,7 +742,7 @@
   },
   "packages/bridge-status-controller/src/utils/transaction.ts": {
     "no-restricted-syntax": {
-      "count": 4
+      "count": 2
     }
   },
   "packages/chain-agnostic-permission/src/caip25Permission.ts": {
