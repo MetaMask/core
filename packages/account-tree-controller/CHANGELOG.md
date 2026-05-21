@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add group naming support for `KeyringType` (v2) ([#8885](https://github.com/MetaMask/core/pull/8885))
+
 ## [7.4.0]
 
 ### Added
