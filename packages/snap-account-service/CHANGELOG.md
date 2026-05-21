@@ -20,6 +20,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - We now check if the keyring is available before delegating those messages.
   - We still auto-create the keyring in some specific calls (e.g `notify:accountCreated`).
 
+## Removed
+
+- Removed `init` in favor of synchronous initialization when constructing the service ([#8877](https://github.com/MetaMask/core/pull/8877))
+
 ## [0.2.0]
 
 ### Added
