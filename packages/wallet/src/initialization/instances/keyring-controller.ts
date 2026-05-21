@@ -145,9 +145,21 @@ type MobileEncryptionKey = {
   keyMetadata: KeyDerivationOptions;
 };
 
+type MobileEncryptionResult = {
+  cipher: string;
+  iv: string;
+  salt?: string;
+  lib?: string;
+  keyMetadata?: KeyDerivationOptions;
+};
+
 export type GenericEncryptor =
   | Encryptor<EncryptionKey | CryptoKey>
-  | Encryptor<MobileEncryptionKey>;
+  | Encryptor<
+      MobileEncryptionKey,
+      KeyDerivationOptions,
+      MobileEncryptionResult
+    >;
 
 export const keyringController: InitializationConfiguration<
   KeyringController,
