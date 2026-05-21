@@ -14,7 +14,7 @@ exports[`BridgeStatusController constructor rehydrates the tx history state 1`] 
     "hasApprovalTx": false,
     "initialDestAssetBalance": undefined,
     "isStxEnabled": false,
-    "location": undefined,
+    "location": "Main View",
     "originalTransactionId": "bridgeTxMetaId1",
     "pricingData": {
       "amountSent": "1.234",
@@ -269,7 +269,7 @@ exports[`BridgeStatusController startPollingForBridgeTxStatus sets the inital tx
     "hasApprovalTx": false,
     "initialDestAssetBalance": undefined,
     "isStxEnabled": false,
-    "location": undefined,
+    "location": "Main View",
     "originalTransactionId": "bridgeTxMetaId1",
     "pricingData": {
       "amountSent": "1.234",

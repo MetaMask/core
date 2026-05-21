@@ -17,6 +17,7 @@ import {
   FeatureId,
   getQuotesReceivedProperties,
   UnifiedSwapBridgeEventName,
+  MetaMetricsSwapsEventSource,
 } from '@metamask/bridge-controller';
 import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
 import type {
@@ -56,6 +57,7 @@ import type {
 } from './types';
 import * as bridgeStatusUtils from './utils/bridge-status';
 import * as historyUtils from './utils/history';
+import * as metricsUtils from './utils/metrics';
 import * as transactionUtils from './utils/transaction';
 
 type AllBridgeStatusControllerActions =
@@ -332,6 +334,7 @@ const getMockStartPollingForBridgeTxStatusArgs = ({
   initialDestAssetBalance: undefined,
   targetContractAddress: '0x23981fC34e69eeDFE2BD9a0a9fCb0719Fe09DbFC',
   isStxEnabled,
+  location: MetaMetricsSwapsEventSource.MainView,
 });
 
 const MockTxHistory = {
@@ -432,7 +435,7 @@ const MockTxHistory = {
       completionTime: undefined,
       attempts,
       featureId,
-      location: undefined,
+      location: MetaMetricsSwapsEventSource.MainView,
     },
   }),
   getUnknown: ({
@@ -547,7 +550,7 @@ const MockTxHistory = {
       isStxEnabled: true,
       hasApprovalTx: false,
       attempts: undefined,
-      location: undefined,
+      location: MetaMetricsSwapsEventSource.MainView,
     },
   }),
 };
@@ -5052,6 +5055,81 @@ describe('BridgeStatusController', () => {
           bridgeStatusController.state.txHistory.bridgeTxMetaId1.status.status,
         ).toBe(StatusTypes.FAILED);
         expect(messengerCallSpy.mock.lastCall).toMatchSnapshot();
+      });
+
+      it('should use txMeta properties if history item does not exist', () => {
+        const messengerCallSpy = jest.spyOn(mockBridgeStatusMessenger, 'call');
+
+        const transactionMeta = {
+          error: { name: 'Error', message: 'tx-error' },
+          chainId: CHAIN_IDS.ARBITRUM,
+          networkClientId: 'eth-id',
+          time: Date.now(),
+          txParams: {} as unknown as TransactionParams,
+          type: TransactionType.bridge,
+          status: TransactionStatus.failed,
+          id: 'bridgeTxMetaId1',
+        };
+        const getEVMTxPropertiesFromTransactionMetaSpy = jest
+          .spyOn(metricsUtils, 'getEVMTxPropertiesFromTransactionMeta')
+          .mockImplementationOnce(() => {
+            bridgeStatusController.wipeBridgeStatus({
+              address: 'otherAccount',
+              ignoreNetwork: true,
+            });
+            return metricsUtils.getEVMTxPropertiesFromTransactionMeta(
+              transactionMeta,
+            );
+          });
+        mockMessenger.publish(
+          'TransactionController:transactionStatusUpdated',
+          {
+            transactionMeta,
+          },
+        );
+
+        expect(getEVMTxPropertiesFromTransactionMetaSpy).toHaveBeenCalledTimes(
+          2,
+        );
+        expect(bridgeStatusController.state.txHistory).toStrictEqual({});
+        expect(messengerCallSpy.mock.lastCall).toMatchInlineSnapshot(`
+          [
+            "BridgeController:trackUnifiedSwapBridgeEvent",
+            "Unified SwapBridge Failed",
+            {
+              "account_hardware_type": null,
+              "action_type": "swapbridge-v1",
+              "actual_time_minutes": 0,
+              "chain_id_destination": "eip155:42161",
+              "chain_id_source": "eip155:42161",
+              "custom_slippage": false,
+              "error_message": "Transaction failed. tx-error",
+              "gas_included": false,
+              "gas_included_7702": false,
+              "is_hardware_wallet": false,
+              "location": "Main View",
+              "price_impact": 0,
+              "provider": "",
+              "quote_vs_execution_ratio": 0,
+              "quoted_time_minutes": 0,
+              "quoted_vs_used_gas_ratio": 0,
+              "security_warnings": [],
+              "source_transaction": "FAILED",
+              "stx_enabled": false,
+              "swap_type": "crosschain",
+              "token_address_destination": "eip155:42161/slip44:60",
+              "token_address_source": "eip155:42161/slip44:60",
+              "token_security_type_destination": null,
+              "token_symbol_destination": "",
+              "token_symbol_source": "",
+              "usd_actual_gas": 0,
+              "usd_actual_return": 0,
+              "usd_amount_source": 0,
+              "usd_quoted_gas": 0,
+              "usd_quoted_return": 0,
+            },
+          ]
+        `);
       });
 
       it('should include ab_tests and active_ab_tests from history in tracked event properties', () => {
