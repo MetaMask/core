@@ -24,7 +24,7 @@ export const networkController: InitializationConfiguration<
 > = {
   name: 'NetworkController',
   init: ({ state, messenger, options }) => {
-    const fetchFn = globalThis.fetch.bind(globalThis);
+    const fetchFn = options.fetch ?? globalThis.fetch.bind(globalThis);
 
     const getRpcServiceOptions: NetworkControllerOptions['getRpcServiceOptions'] =
       () => {

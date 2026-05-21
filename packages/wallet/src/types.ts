@@ -5,6 +5,8 @@ export type WalletOptions = {
   state?: Record<string, Record<string, Json>>;
   infuraProjectId: string;
   clientVersion: string;
+  prevClientVersion?: string;
+  fetch?: typeof globalThis.fetch;
   showApprovalRequest: () => void;
   clientConfigApiService: ClientConfigApiService;
   getMetaMetricsId: () => string;
