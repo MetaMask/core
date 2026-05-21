@@ -42,7 +42,6 @@
     "@docusaurus/plugin-content-docs": "^3.10.1",
     "@docusaurus/preset-classic": "^3.10.1",
     "@docusaurus/theme-common": "^3.10.1",
-    "@docusaurus/types": "^3.10.1",
     "@easyops-cn/docusaurus-search-local": "^0.55.1",
     "@mdx-js/react": "^3.1.1",
     "@metamask/utils": "^11.9.0",
@@ -56,6 +55,7 @@
     "yargs": "^17.7.2"
   },
   "devDependencies": {
+    "@docusaurus/types": "^3.10.1",
     "@metamask/auto-changelog": "^6.1.0",
     "@ts-bridge/cli": "^0.6.4",
     "@types/jest": "^29.5.14",
