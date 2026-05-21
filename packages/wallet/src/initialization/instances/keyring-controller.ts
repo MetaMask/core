@@ -159,9 +159,9 @@ export const keyringController: InitializationConfiguration<
       state,
       messenger,
       keyringBuilders: options.keyringBuilders,
-      encryptor:
-        options.encryptor ??
-        (encryptorFactory(600_000) as Encryptor<EncryptionKey | CryptoKey>),
+      encryptor: (options.encryptor ?? encryptorFactory(600_000)) as Encryptor<
+        EncryptionKey | CryptoKey
+      >,
     }),
   getMessenger: (parent) =>
     new Messenger({
