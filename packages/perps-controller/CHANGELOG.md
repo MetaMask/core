@@ -9,15 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add slippage controls so users can configure per-order slippage tolerance for market trades ([#NNNN](https://github.com/MetaMask/core/pull/NNNN))
-- Track `vip_tier` and `vip_discount` properties on perps trading events for fee analytics ([#NNNN](https://github.com/MetaMask/core/pull/NNNN))
-- Surface an in-app banner during an ongoing HyperLiquid outage so users see degraded trading status ([#NNNN](https://github.com/MetaMask/core/pull/NNNN))
+- Add slippage controls so users can configure per-order slippage tolerance for market trades ([#8871](https://github.com/MetaMask/core/pull/8871))
+- Track `vip_tier` and `vip_discount` properties on perps trading events for fee analytics ([#8871](https://github.com/MetaMask/core/pull/8871))
+- Surface an in-app banner during an ongoing HyperLiquid outage so users see degraded trading status ([#8871](https://github.com/MetaMask/core/pull/8871))
 
 ### Fixed
 
-- Prefer the currently selected EVM account when resolving the trading account so account switching is honored across providers ([#NNNN](https://github.com/MetaMask/core/pull/NNNN))
-- Suppress `User or API Wallet does not exist` Sentry noise from unfunded wallets that have not interacted with HyperLiquid ([#NNNN](https://github.com/MetaMask/core/pull/NNNN))
-- Approve the HyperLiquid builder fee when missing so order submission succeeds after fresh wallet setup ([#NNNN](https://github.com/MetaMask/core/pull/NNNN))
+- Prefer the currently selected EVM account when resolving the trading account so account switching is honored across providers ([#8871](https://github.com/MetaMask/core/pull/8871))
+- Suppress `User or API Wallet does not exist` Sentry noise from unfunded wallets that have not interacted with HyperLiquid ([#8871](https://github.com/MetaMask/core/pull/8871))
+- Approve the HyperLiquid builder fee when missing so order submission succeeds after fresh wallet setup ([#8871](https://github.com/MetaMask/core/pull/8871))
 
 ## [6.2.0]
 
