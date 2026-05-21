@@ -523,6 +523,37 @@ describe('AssetsController', () => {
         expect(controller.state.customAssets[MOCK_ACCOUNT_ID]).toHaveLength(2);
       });
     });
+
+    it('seeds assetsBalance with a zero amount for a newly added custom asset', async () => {
+      await withController(async ({ controller }) => {
+        await controller.addCustomAsset(MOCK_ACCOUNT_ID, MOCK_ASSET_ID);
+
+        expect(
+          controller.state.assetsBalance[MOCK_ACCOUNT_ID]?.[MOCK_ASSET_ID],
+        ).toStrictEqual({ amount: '0' });
+      });
+    });
+
+    it('does not overwrite an existing balance when re-adding a custom asset', async () => {
+      await withController(
+        {
+          state: {
+            assetsBalance: {
+              [MOCK_ACCOUNT_ID]: {
+                [MOCK_ASSET_ID]: { amount: '1000000' },
+              },
+            },
+          },
+        },
+        async ({ controller }) => {
+          await controller.addCustomAsset(MOCK_ACCOUNT_ID, MOCK_ASSET_ID);
+
+          expect(
+            controller.state.assetsBalance[MOCK_ACCOUNT_ID]?.[MOCK_ASSET_ID],
+          ).toStrictEqual({ amount: '1000000' });
+        },
+      );
+    });
   });
 
   describe('removeCustomAsset', () => {
