@@ -58,7 +58,11 @@ import type {
 import type { Hex, Json } from '@metamask/utils';
 import type { Draft } from 'immer';
 
-import type { CONTROLLER_NAME, TransactionPayStrategy } from './constants';
+import type {
+  CONTROLLER_NAME,
+  PaymentOverride,
+  TransactionPayStrategy,
+} from './constants';
 import type { TransactionPayControllerMethodActions } from './TransactionPayController-method-action-types';
 
 export type AllowedActions =
@@ -141,8 +145,8 @@ export type TransactionConfig = {
    */
   accountOverride?: Hex;
 
-  /** Whether to use the Money Account (Money Keyring) as the payment source. */
-  useMoneyAccount?: boolean;
+  /** Overrides the payment source for the transaction. */
+  paymentOverride?: PaymentOverride;
 };
 
 /** Callback to update transaction config. */
@@ -249,8 +253,8 @@ export type TransactionData = {
    */
   accountOverride?: Hex;
 
-  /** Whether to use the Money Account (Money Keyring) as the payment source. */
-  useMoneyAccount?: boolean;
+  /** Overrides the payment source for the transaction. */
+  paymentOverride?: PaymentOverride;
 
   /**
    * Token selected for the transaction.
