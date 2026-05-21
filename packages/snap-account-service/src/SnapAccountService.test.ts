@@ -7,8 +7,6 @@ import { KeyringType } from '@metamask/keyring-api/v2';
 import {
   KeyringControllerError,
   KeyringControllerErrorMessage,
-  KeyringControllerState,
-  KeyringTypes,
 } from '@metamask/keyring-controller';
 import type {
   KeyringEntry,
@@ -39,9 +37,6 @@ type RootMessenger = Messenger<
   MessengerActions<SnapAccountServiceMessenger>,
   MessengerEvents<SnapAccountServiceMessenger>
 >;
-
-/** Mock keyring controller state type for tests. */
-type MockKeyringControllerState = Pick<KeyringControllerState, 'keyrings'>;
 
 /** Mock truncated snap type for tests. */
 type MockTruncatedSnap = Pick<
@@ -142,23 +137,6 @@ function publishSnapIsReady(
   rootMessenger.publish(
     'SnapController:stateChange',
     { isReady } as SnapControllerState,
-    [],
-  );
-}
-
-/**
- * Publishes a KeyringController stateChange event on the root messenger.
- *
- * @param rootMessenger - The root messenger.
- * @param keyrings - The keyrings to publish.
- */
-function publishKeyrings(
-  rootMessenger: RootMessenger,
-  keyrings: { type: string }[],
-): void {
-  rootMessenger.publish(
-    'KeyringController:stateChange',
-    { keyrings } as MockKeyringControllerState as KeyringControllerState,
     [],
   );
 }
@@ -431,7 +409,6 @@ function mockWithKeyringV2Unsafe(
  *
  * @param args - The arguments to this function.
  * @param args.snapIsReady - Initial value of `SnapController.isReady`.
- * @param args.keyrings - Initial keyrings returned by `KeyringController:getState`.
  * @param args.runnableSnaps - Snaps returned by `SnapController:getRunnableSnaps`.
  * @param args.config - Optional service config.
  * @param args.init - Whether to call `service.init()` before returning (default: `true`).
@@ -439,13 +416,11 @@ function mockWithKeyringV2Unsafe(
  */
 async function setup({
   snapIsReady = true,
-  keyrings = [{ type: KeyringTypes.snap }],
   runnableSnaps = [],
   config,
   init = true,
 }: {
   snapIsReady?: boolean;
-  keyrings?: { type: string }[];
   runnableSnaps?: TruncatedSnap[];
   config?: SnapAccountServiceOptions['config'];
   init?: boolean;
@@ -466,7 +441,7 @@ async function setup({
       getRunnableSnaps: jest.fn().mockReturnValue(runnableSnaps),
     },
     KeyringController: {
-      getState: jest.fn().mockReturnValue({ keyrings }),
+      getState: jest.fn().mockReturnValue({ keyrings: [] }),
       withController: jest.fn(),
       withKeyringV2: jest.fn(),
       withKeyringV2Unsafe: jest.fn(),
@@ -780,53 +755,6 @@ describe('SnapAccountService', () => {
 
       await ensurePromise;
       expect(resolved).toBe(true);
-    });
-
-    it('waits for the Snap keyring to appear via KeyringController:stateChange', async () => {
-      const { service, rootMessenger } = await setup({
-        keyrings: [],
-        runnableSnaps: [buildSnap(MOCK_SNAP_ID)],
-      });
-
-      let resolved = false;
-      const ensurePromise = service.ensureReady(MOCK_SNAP_ID).then(() => {
-        resolved = true;
-        return undefined;
-      });
-
-      // Flush microtasks so migration completes and #waitForSnapKeyring
-      // subscribes.
-      await flushMicrotasks();
-
-      expect(resolved).toBe(false);
-
-      publishKeyrings(rootMessenger, [{ type: KeyringTypes.snap }]);
-
-      await ensurePromise;
-      expect(resolved).toBe(true);
-    });
-
-    it('rejects if the Snap keyring does not appear within snapKeyringWaitTimeoutMs', async () => {
-      const { service } = await setup({
-        keyrings: [],
-        runnableSnaps: [buildSnap(MOCK_SNAP_ID)],
-        config: {
-          snapPlatformWatcher: { snapKeyringWaitTimeoutMs: 1_000 },
-        },
-      });
-
-      jest.useFakeTimers();
-      const ensurePromise = service.ensureReady(MOCK_SNAP_ID);
-      // Attach rejection handler before advancing timers to avoid unhandled rejection.
-      // eslint-disable-next-line jest/valid-expect -- assertion is awaited after advancing timers
-      const expectRejection = expect(ensurePromise).rejects.toThrow(
-        'Snap platform or keyrings still not ready. Aborting.',
-      );
-      await Promise.resolve();
-      await jest.advanceTimersByTimeAsync(1_000 + 1);
-      jest.useRealTimers();
-
-      await expectRejection;
     });
 
     it('awaits config.snapPlatformWatcher.ensureOnboardingComplete before resolving', async () => {
