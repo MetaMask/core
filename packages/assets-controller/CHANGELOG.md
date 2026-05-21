@@ -11,7 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Export `SnapControllerSnapInstalledEvent` from `AssetsControllerMessenger` allowed events type ([#8868](https://github.com/MetaMask/core/pull/8868))
+- Add the previously declared `SnapControllerSnapInstalledEvent` to the `AssetsControllerMessenger` allowed events ([#8868](https://github.com/MetaMask/core/pull/8868)).
 - `addCustomAsset` now immediately seeds `assetsBalance` with a zero amount for the newly added asset, so the UI can render it before the next pipeline fetch ([#8872](https://github.com/MetaMask/core/pull/8872))
 
 ## [8.0.0]
