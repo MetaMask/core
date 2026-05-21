@@ -9,6 +9,7 @@ export type SentinelMeta = {
   feature?: Feature;
   kind?: Kind;
   client?: string;
+  clientVersion?: string;
   wallet?: string;
   origin?: string;
 };
