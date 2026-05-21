@@ -19,7 +19,7 @@ export type WalletOptions = {
 };
 
 export type InstanceSpecificOptions = {
-  KeyringController?: Partial<
+  keyringController?: Partial<
     Pick<KeyringControllerOptions, 'encryptor' | 'keyringBuilders'>
   >;
 };

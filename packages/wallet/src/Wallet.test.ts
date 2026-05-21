@@ -49,7 +49,7 @@ describe('Wallet', () => {
   it('exposes instances', async () => {
     const wallet = await setupWallet();
 
-    expect(wallet.getInstance('KeyringController')?.state).toStrictEqual({
+    expect(wallet.getInstance('KeyringController').state).toStrictEqual({
       isUnlocked: true,
       keyrings: expect.any(Array),
       encryptionKey: expect.any(String),
@@ -61,7 +61,7 @@ describe('Wallet', () => {
   it('supports passing instance options', async () => {
     const wallet = new Wallet({
       instanceOptions: {
-        KeyringController: {
+        keyringController: {
           encryptor: new MockEncryptor(),
         },
       },

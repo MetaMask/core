@@ -11,9 +11,18 @@ type InstanceName<Instance> = Instance extends {
   ? Name
   : string;
 
+type LowerCaseFirstLetter<Name extends string> =
+  Name extends `${infer Character1}${infer Rest}`
+    ? `${Lowercase<Character1>}${Rest}`
+    : Lowercase<Name>;
+
+type CamelCaseInstanceName<Instance> = LowerCaseFirstLetter<
+  InstanceName<Instance>
+>;
+
 type InstanceOptions<Instance> =
-  InstanceName<Instance> extends keyof InstanceSpecificOptions
-    ? NonNullable<InstanceSpecificOptions[InstanceName<Instance>]>
+  CamelCaseInstanceName<Instance> extends keyof InstanceSpecificOptions
+    ? NonNullable<InstanceSpecificOptions[CamelCaseInstanceName<Instance>]>
     : unknown;
 
 export type InitFunctionArguments<Instance, InstanceMessenger> = {

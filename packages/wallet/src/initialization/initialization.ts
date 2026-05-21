@@ -36,12 +36,14 @@ export function initialize({
 
     const instanceMessenger = config.getMessenger(messenger);
 
+    const camelCaseName =
+      `${name.charAt(0).toLowerCase()}${name.slice(1)}` as keyof InstanceSpecificOptions;
+
     const instance = config.init({
       // TODO: Consider whether this can be improved
       state: instanceState as never,
       messenger: instanceMessenger,
-      options:
-        options.instanceOptions?.[name as keyof InstanceSpecificOptions] ?? {},
+      options: options.instanceOptions?.[camelCaseName] ?? {},
     });
 
     instances[name] = instance as Record<string, unknown>;
