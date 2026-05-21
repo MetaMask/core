@@ -12,7 +12,7 @@ import {
   generateNamespacePage,
   generateSidebars,
 } from './markdown';
-import type { ExtractedMessengerCapabilityType, NamespaceGroup } from './types';
+import type { MessengerCapabilityPacket, NamespaceGroup } from './types';
 
 /**
  * Compute a deduplication score for a messenger item, preferring items with
@@ -21,7 +21,7 @@ import type { ExtractedMessengerCapabilityType, NamespaceGroup } from './types';
  * @param item - The messenger item to score.
  * @returns A numeric score (higher is better).
  */
-function deduplicationScore(item: ExtractedMessengerCapabilityType): number {
+function deduplicationScore(item: MessengerCapabilityPacket): number {
   const jsDocScore = item.jsDoc ? 2 : 0;
   const namespacePrefix = item.typeString
     .split(':')[0]
@@ -211,8 +211,8 @@ async function extractFromDirectory(
   directory: string,
   projectPath: string,
   findFiles: (dir: string) => Promise<string[]>,
-): Promise<ExtractedMessengerCapabilityType[]> {
-  const items: ExtractedMessengerCapabilityType[] = [];
+): Promise<MessengerCapabilityPacket[]> {
+  const items: MessengerCapabilityPacket[] = [];
   const files = await findFiles(directory);
   for (const file of files) {
     try {
@@ -276,9 +276,9 @@ async function listTargetSubdirectories(
 async function scanSources(
   projectPath: string,
   sources: ScanSources,
-): Promise<ExtractedMessengerCapabilityType[]> {
+): Promise<MessengerCapabilityPacket[]> {
   const project = createExtractionProject();
-  const allItems: ExtractedMessengerCapabilityType[] = [];
+  const allItems: MessengerCapabilityPacket[] = [];
 
   for (const dir of sources.scanDirs) {
     allItems.push(
@@ -341,8 +341,8 @@ async function scanSources(
  */
 function replaceDuplicateInGroup(
   byNamespace: Map<string, NamespaceGroup>,
-  previous: ExtractedMessengerCapabilityType,
-  replacement: ExtractedMessengerCapabilityType,
+  previous: MessengerCapabilityPacket,
+  replacement: MessengerCapabilityPacket,
 ): void {
   const namespace = replacement.typeString.split(':')[0];
   const group = byNamespace.get(namespace);
@@ -380,10 +380,10 @@ function replaceDuplicateInGroup(
  * @returns The deduplicated and sorted namespace groups.
  */
 function groupByNamespace(
-  items: ExtractedMessengerCapabilityType[],
+  items: MessengerCapabilityPacket[],
 ): NamespaceGroup[] {
   const byNamespace = new Map<string, NamespaceGroup>();
-  const seen = new Map<string, ExtractedMessengerCapabilityType>();
+  const seen = new Map<string, MessengerCapabilityPacket>();
 
   for (const item of items) {
     const existing = seen.get(item.typeString);

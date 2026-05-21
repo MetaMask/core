@@ -7,7 +7,6 @@ import type {
   Node as TsMorphNode,
   PropertySignature,
   SourceFile,
-  TemplateLiteralTypeNode,
   TypeAliasDeclaration,
   TypeElementTypes,
   TypeNode,
@@ -15,19 +14,26 @@ import type {
 import { Node as NodeGuards, Project, ts } from 'ts-morph';
 
 import type {
-  ExtractedMessengerCapabilityType,
+  MessengerCapabilityPacket,
   MethodInfo,
   DocumentedParameter,
 } from './types';
+
+// ---------------------------------------------------------------------------
+// NOTE: `ts-morph` is used heavily in this file to parse and extract
+// information from TypeScript files. Although this library is not well
+// documented, it wraps the TypeScript AST fairly well, and you can get a good
+// sense of the AST by using this website: <https://ts-ast-viewer.com>
+// ---------------------------------------------------------------------------
 
 // ---------------------------------------------------------------------------
 // JSDoc utilities
 // ---------------------------------------------------------------------------
 
 /**
- * Convert `{@link X}` references inside a string to plain backtick code spans,
- * and escape any remaining (out-of-backtick) curly braces so the output is
- * safe to drop into MDX.
+ * Convert `{@link X}` references inside a JSDoc comment string to plain
+ * backtick code spans and escape any remaining (out-of-backtick) curly braces.
+ * This way the output is safe to render in a MDX document.
  *
  * @param text - The raw text to normalize.
  * @returns The text with `@link` resolved and stray braces escaped.
@@ -49,34 +55,32 @@ function escapeJsDocTextForMdx(text: string): string {
 }
 
 /**
- * Extract a JSDoc tag's comment text, normalizing whitespace so continuation
- * lines are joined with single spaces. ts-morph returns the raw comment with
- * embedded newlines preserved; we collapse those for the markdown output.
+ * Extract the comment text of a JSDoc tag — the part that comes after the tag
+ * and any identifier, e.g. "Some param" in "@param foo Some param" —
+ * normalizing whitespace to a single space so we can better control how it's
+ * rendered within the site.
  *
  * @param tag - The JSDoc tag.
  * @returns The flattened comment text.
  */
 function extractJsDocTagComment(tag: JSDocTag): string {
-  // istanbul ignore next: ts-morph returns null for tags without comment text,
-  // but every fixture tag we extract from carries a comment.
   return (tag.getCommentText() ?? '').replace(/\s+/gu, ' ').trim();
 }
 
 /**
  * Strip the conventional `- ` separator from the start of a `@param` tag's
- * comment. JSDoc style is `@param name - description`, and ts-morph hands us
- * back `- description` for the comment. The hyphen is purely cosmetic; we'd
- * rather render the description without it.
+ * comment.
  *
  * @param comment - The flattened comment text from a `@param` tag.
  * @returns The comment with any leading `- ` (or `– `, `— `) removed.
  */
-function stripParamSeparator(comment: string): string {
+function stripJsDocParamSeparator(comment: string): string {
   return comment.replace(/^[-–—]\s*/u, '');
 }
 
 /**
- * Decompose a node's JSDoc into the parts the rendered docs need:
+ * Extract JSDoc from a TypeScript AST node and decompose it into the parts we
+ * need to render docs:
  *
  * - `description` — the body above the first tag, with `@deprecated` comments
  *   appended as `**Deprecated:** <comment>` lines and normalized for MDX
@@ -86,7 +90,7 @@ function stripParamSeparator(comment: string): string {
  *
  * Other tags (`@see`, `@throws`, `@template`, `@example`) are dropped.
  *
- * @param node - The AST node to extract JSDoc from.
+ * @param node - The AST node to extract JSDoc from (e.g. a type or a method).
  * @returns The decomposed JSDoc; empty strings/arrays when the node has no JSDoc.
  */
 function extractJsDoc(node: JSDocableNode): {
@@ -110,25 +114,23 @@ function extractJsDoc(node: JSDocableNode): {
     const tagName = tag.getTagName();
     if (tagName === 'deprecated') {
       const comment = extractJsDocTagComment(tag);
-      // istanbul ignore next: bare `@deprecated` (without explanatory text)
-      // doesn't appear in messenger JSDoc in practice.
       deprecatedLines.push(
         comment ? `**Deprecated:** ${comment}` : '**Deprecated:**',
       );
     } else if (tagName === 'param' && NodeGuards.isJSDocParameterTag(tag)) {
       const nameNode = tag.getNameNode();
-      // istanbul ignore next: `@param` tags without a name aren't valid JSDoc.
-      if (!nameNode) {
+      const paramName = nameNode.getText();
+      if (!paramName) {
         continue;
       }
+      const comment = extractJsDocTagComment(tag);
       params.push({
-        name: nameNode.getText(),
-        description: escapeJsDocTextForMdx(
-          stripParamSeparator(extractJsDocTagComment(tag)),
-        ),
+        name: paramName,
+        description: escapeJsDocTextForMdx(stripJsDocParamSeparator(comment)),
       });
     } else if (tagName === 'returns' || tagName === 'return') {
-      returns = escapeJsDocTextForMdx(extractJsDocTagComment(tag));
+      const comment = extractJsDocTagComment(tag);
+      returns = escapeJsDocTextForMdx(comment);
     }
   }
 
@@ -147,7 +149,7 @@ function extractJsDoc(node: JSDocableNode): {
  * @param node - The AST node to check.
  * @returns True if the node has an `@deprecated` tag.
  */
-function isDeprecated(node: JSDocableNode): boolean {
+function hasDeprecatedJsDocTag(node: JSDocableNode): boolean {
   return node
     .getJsDocs()
     .flatMap((jsDoc) => jsDoc.getTags())
@@ -157,54 +159,6 @@ function isDeprecated(node: JSDocableNode): boolean {
 // ---------------------------------------------------------------------------
 // Type-resolution helpers (powered by ts-morph's type checker)
 // ---------------------------------------------------------------------------
-
-/**
- * Resolve a TemplateLiteralTypeNode (e.g. `` `${typeof X}:foo` ``) to its
- * concrete string value, using the type checker to follow `typeof X` to its
- * literal type. Returns null if the type checker can't reduce it to a single
- * string literal.
- *
- * @param node - The template literal type node.
- * @returns The resolved string, or null.
- */
-function resolveTemplateLiteralType(
-  node: TemplateLiteralTypeNode,
-): string | null {
-  const type = node.getType();
-  if (type.isStringLiteral()) {
-    return type.getLiteralValueOrThrow() as string;
-  }
-  // istanbul ignore next: messenger fixtures always reduce template literal
-  // types to a single string literal via `typeof X` constants.
-  return null;
-}
-
-/**
- * Resolve a capability-type-constructor's first generic argument to a
- * namespace string. Accepts either `typeof X` (resolved via the type checker)
- * or a string literal.
- *
- * @param typeArg - The first generic argument node.
- * @returns The resolved namespace, or null.
- */
-function resolveNamespaceFromTypeArg(typeArg: TsMorphNode): string | null {
-  if (NodeGuards.isTypeQuery(typeArg)) {
-    const type = typeArg.getType();
-    if (type.isStringLiteral()) {
-      return type.getLiteralValueOrThrow() as string;
-    }
-  }
-  if (NodeGuards.isLiteralTypeNode(typeArg)) {
-    const literal = typeArg.getLiteral();
-    // istanbul ignore else: only string literals are valid namespace args.
-    if (NodeGuards.isStringLiteral(literal)) {
-      return literal.getLiteralValue();
-    }
-  }
-  // istanbul ignore next: namespace args are always a `typeof X` query or a
-  // string literal in valid messenger usage.
-  return null;
-}
 
 /**
  * If `typeNode` is `Class['method']`, resolve `Class` to its declaration
@@ -297,16 +251,12 @@ function buildMethodInfo(method: MethodDeclaration): MethodInfo {
       const paramName = param.getNameNode().getText();
       const optional = param.hasQuestionToken() ? '?' : '';
       const typeNode = param.getTypeNode();
-      // istanbul ignore next: handler parameters in messenger fixtures always
-      // declare an explicit type.
       const paramType = typeNode ? typeNode.getText() : 'unknown';
       return `${paramName}${optional}: ${paramType}`;
     })
     .join(', ');
 
   const returnTypeNode = method.getReturnTypeNode();
-  // istanbul ignore next: handler class methods in messenger fixtures always
-  // declare an explicit return type.
   const returnType = returnTypeNode ? returnTypeNode.getText() : 'void';
   // For async methods, the declared return type already includes `Promise<>`,
   // so we don't need to wrap again.
@@ -322,147 +272,228 @@ function buildMethodInfo(method: MethodDeclaration): MethodInfo {
 // ---------------------------------------------------------------------------
 
 /**
- * A capability type declared somewhere reachable from a `*Messenger`, along
- * with the kind (action/event) it was found under.
+ * Represents a type declaration (type alias or interface) for an individual
+ * messenger action or event.
  */
 type MessengerCapabilityTypeDeclaration = {
-  statement: TypeAliasDeclaration | InterfaceDeclaration;
+  declaration: TypeAliasDeclaration | InterfaceDeclaration;
   kind: 'action' | 'event';
 };
 
 /**
- * Find every `*Messenger` type alias in a source file, parse its
- * `Messenger<Namespace, Actions, Events>` generic arguments, and return the
- * capability-type declarations referenced from the Actions and Events slots
- * — paired with the kind under which they were referenced.
- *
- * The walker follows imported references via ts-morph's symbol resolution,
- * so capability types declared in sibling files (e.g. the auto-generated
- * `*-method-action-types.ts` files) are discovered even though only the
- * `*Messenger` declaration is local to this file.
+ * Represents a type alias for a messenger. Only includes nodes representing the
+ * `Actions` and `Events` type parameters.
+ */
+type ParsedMessengerTypeAlias = {
+  actionsTypeParameter: TypeNode;
+  eventsTypeParameter: TypeNode;
+};
+
+/**
+ * Looks for Messenger types in the source file (that is, those that are type
+ * aliases whose names end with "Messenger"), then extracts the `Actions` and
+ * `Events` parameters from these types.
  *
  * @param sourceFile - The TypeScript source file to scan.
- * @returns The list of locally- and transitively-referenced capability types.
+ * @returns A list of objects that represent messenger types.
  */
-function collectMessengerCapabilityTypeDeclarations(
+function findMessengerTypeAliases(
   sourceFile: SourceFile,
-): MessengerCapabilityTypeDeclaration[] {
-  const declarations: MessengerCapabilityTypeDeclaration[] = [];
-  const seen = new Set<TsMorphNode>();
+): ParsedMessengerTypeAlias[] {
+  const parsedMessengerTypeAliases: ParsedMessengerTypeAlias[] = [];
 
   for (const typeAlias of sourceFile.getTypeAliases()) {
     if (!typeAlias.getName().endsWith('Messenger')) {
       continue;
     }
+
     const body = typeAlias.getTypeNode();
+    // Basic check
     if (!body || !NodeGuards.isTypeReference(body)) {
       continue;
     }
+
     const typeArgs = body.getTypeArguments();
+    // Messenger types always have 3 type parameters
+    // (e.g. `Messenger<'FooController', Actions, Events>`)
     if (typeArgs.length < 3) {
       continue;
     }
 
-    walkCapabilityTypes(typeArgs[1], 'action', declarations, seen);
-    walkCapabilityTypes(typeArgs[2], 'event', declarations, seen);
+    parsedMessengerTypeAliases.push({
+      actionsTypeParameter: typeArgs[1],
+      eventsTypeParameter: typeArgs[2],
+    });
   }
 
-  return declarations;
+  return parsedMessengerTypeAliases;
 }
 
 /**
- * Walk an Actions or Events type-argument tree and append the underlying
- * capability-type declarations to `output`. Unions are expanded. Type
- * references are resolved via ts-morph's symbol resolution (so imported
- * names are followed across files); a resolved alias whose body is itself a
- * union expands transparently, leaving the intermediate alias unrecorded.
+ * Walks the `Actions` and `Events` type parameters of the given messenger
+ * types, extracted in a previous step, to find all type declarations (i.e.,
+ * statements) that represent individual messenger actions or events.
  *
- * A resolved alias whose body is a single non-union type reference (e.g.
- * `type AllowedActions = ConnectivityControllerGetStateAction`) is treated
- * as an opaque re-export — the walk stops there, leaving the target to be
- * documented from its home package by the dedup logic later.
- *
- * For example, given:
- *
- * ```typescript
- * // NetworkController.ts
- * import type { NetworkControllerMethodActions } from './NetworkController-method-action-types';
- * type NetworkControllerActions =
- *   | NetworkControllerGetStateAction
- *   | NetworkControllerMethodActions;
- * type NetworkControllerMessenger = Messenger<typeof name, NetworkControllerActions, ...>;
- *
- * // NetworkController-method-action-types.ts
- * export type NetworkControllerAddNetworkAction = {
- *   type: 'NetworkController:addNetwork';
- *   handler: NetworkController['addNetwork'];
- * };
- * // ... more ...
- * export type NetworkControllerMethodActions =
- *   | NetworkControllerAddNetworkAction
- *   | ...;
- * ```
- *
- * walking the Actions slot yields each individual `NetworkController*Action`
- * declaration — both the local `NetworkControllerGetStateAction` and the
- * cross-file ones reached via `NetworkControllerMethodActions`.
- *
- * @param node - The Actions or Events type-argument node to walk.
- * @param kind - Whether to tag found declarations as 'action' or 'event'.
- * @param output - The list to append discovered declarations to.
- * @param seen - Declaration nodes already visited (prevents cycles and
- * duplicate work).
+ * @param parsedMessengerTypeAliases - The list of objects representing
+ * messenger types, parsed in a previous step.
+ * @returns The list of type aliases that represent messenger capabilities among
+ * the given messenger types.
  */
-function walkCapabilityTypes(
+function findAllMessengerCapabilityTypeDeclarations(
+  parsedMessengerTypeAliases: ParsedMessengerTypeAlias[],
+): MessengerCapabilityTypeDeclaration[] {
+  const allCapabilityTypeDeclarations: MessengerCapabilityTypeDeclaration[] =
+    [];
+  let allVisitedTypeDeclarations: Set<TsMorphNode> = new Set();
+
+  for (const {
+    actionsTypeParameter,
+    eventsTypeParameter,
+  } of parsedMessengerTypeAliases) {
+    for (const [typeParameter, kind] of [
+      [actionsTypeParameter, 'action'],
+      [eventsTypeParameter, 'event'],
+    ] as const) {
+      const result = recursivelyFindMessengerCapabilityTypeDeclarations(
+        typeParameter,
+        kind,
+        allVisitedTypeDeclarations,
+      );
+      allCapabilityTypeDeclarations.push(...result.capabilityTypeDeclarations);
+      allVisitedTypeDeclarations = result.visitedTypeDeclarations;
+    }
+  }
+
+  return allCapabilityTypeDeclarations;
+}
+
+/**
+ * Recursively walks a `ts-morph` AST node — at first the `Actions` or `Events`
+ * type parameter of a messenger type, and then a node within that parameter —
+ * to find all type aliases that represent individual messenger actions or
+ * events, no matter how deeply the type aliases exist in the tree or in which
+ * file they are located.
+ *
+ * @param node - The `ts-morph` AST node to walk.
+ * @param kind - Whether to tag found type aliases as 'action' or 'event'.
+ * @param visitedTypeDeclarations - A variable that tracks visited type aliases
+ * and prevents duplicates.
+ * @returns The list of extracted messenger capability type aliases as well as
+ * an updated version of `visitedTypeDeclarations`.
+ */
+function recursivelyFindMessengerCapabilityTypeDeclarations(
   node: TsMorphNode,
   kind: 'action' | 'event',
-  output: MessengerCapabilityTypeDeclaration[],
-  seen: Set<TsMorphNode>,
-): void {
+  visitedTypeDeclarations: Set<TsMorphNode>,
+): {
+  capabilityTypeDeclarations: MessengerCapabilityTypeDeclaration[];
+  visitedTypeDeclarations: Set<TsMorphNode>;
+} {
+  const result: {
+    capabilityTypeDeclarations: MessengerCapabilityTypeDeclaration[];
+    visitedTypeDeclarations: Set<TsMorphNode>;
+  } = {
+    capabilityTypeDeclarations: [],
+    visitedTypeDeclarations: new Set([...visitedTypeDeclarations]),
+  };
+
+  // If `node` is a union type, walk each type within it.
+  // EXAMPLES:
+  //   type Actions = FooControllerSomeAction | FooControllerSomeOtherAction
+  //                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  //   type FooControllerActions = FooControllerSomeAction | FooControllerSomeOtherAction
+  //                               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
   if (NodeGuards.isUnionTypeNode(node)) {
-    for (const member of node.getTypeNodes()) {
-      walkCapabilityTypes(member, kind, output, seen);
+    for (const typeNode of node.getTypeNodes()) {
+      const innerResult = recursivelyFindMessengerCapabilityTypeDeclarations(
+        typeNode,
+        kind,
+        result.visitedTypeDeclarations,
+      );
+      result.capabilityTypeDeclarations.push(
+        ...innerResult.capabilityTypeDeclarations,
+      );
+      for (const typeDeclaration of innerResult.visitedTypeDeclarations) {
+        result.visitedTypeDeclarations.add(typeDeclaration);
+      }
     }
-    return;
+    return result;
   }
 
+  // If `node` is not a type reference, don't walk it.
+  // EXAMPLE:
+  //   // Bad
+  //   type Actions = { ... }
+  //                  ^^^^^^^
+  //   // Good
+  //   type Actions = FooControllerSomeAction;
+  //   // Good
+  //   type Actions = ControllerGetStateAction<...>;
   if (!NodeGuards.isTypeReference(node)) {
-    return;
+    return result;
   }
+
   const nameNode = node.getTypeName();
-  // istanbul ignore next: qualified-name references aren't used in messenger
-  // generic arguments.
+
+  // Reject qualified-name type references, as we can't follow those.
+  // EXAMPLE:
+  //   import * as somePackage from '...';
+  //   type Actions = somePackage.FooControllerSomeAction;
+  //                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
   if (!NodeGuards.isIdentifier(nameNode)) {
-    return;
+    return result;
   }
-  // For a TypeReference whose name was imported, `getSymbol()` returns the
-  // import alias symbol — its only declaration is the `ImportSpecifier`.
-  // `getAliasedSymbol()` follows the alias to the original declaration in
-  // the imported file. Use it when present; otherwise fall back to the
-  // (already-local) symbol.
-  const localSymbol = nameNode.getSymbol();
-  // istanbul ignore next: a referenced type name always resolves to a symbol
-  // in a typechecked project.
-  if (!localSymbol) {
-    return;
-  }
+
+  // Since we know we have a type reference, we can assume that we have a symbol.
+  // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+  const localSymbol = nameNode.getSymbol()!;
+  // If we have a type imported from another file, ensure that when we access
+  // the declaration, it's the *type* declaration in the other file, not the
+  // *import* declaration in this file.
+  // EXAMPLE:
+  //   import { FooControllerSomeAction } from '@metamask/foo-controller';
+  //   type Actions = FooControllerSomeAction;
+  //                  ^^^^^^^^^^^^^^^^^^^^^^^
   const symbol = localSymbol.getAliasedSymbol() ?? localSymbol;
 
-  // istanbul ignore next: a resolved symbol always exposes its declarations
-  // array in a typechecked project.
-  for (const declaration of symbol.getDeclarations() ?? []) {
-    if (seen.has(declaration)) {
+  // At this point, we have a type *reference*, but we need to find the type
+  // *declaration*.
+  // For instance, if we have `FooControllerSomeAction`, we need to find
+  // the full `type FooControllerSomeAction = ...` statement.
+  for (const declaration of symbol.getDeclarations()) {
+    // Prevent duplicates
+    if (result.visitedTypeDeclarations.has(declaration)) {
       continue;
     }
-    seen.add(declaration);
+    result.visitedTypeDeclarations.add(declaration);
 
+    // If we have a type alias, then we have to handle a few scenarios.
+    // EXAMPLES:
+    //   type FooControllerMethodActions = ...
+    //   type FooControllerSomeAction = ...
     if (NodeGuards.isTypeAliasDeclaration(declaration)) {
-      const aliasBody = declaration.getTypeNode();
-      if (aliasBody && NodeGuards.isUnionTypeNode(aliasBody)) {
-        // Umbrella union — descend through it without documenting the alias.
-        walkCapabilityTypes(aliasBody, kind, output, seen);
+      const body = declaration.getTypeNode();
+
+      // If we have a union type, then walk each type in the union.
+      // EXAMPLE:
+      //   type FooControllerMethodActions = FooControllerSomeAction | FooControllerSomeOtherAction
+      //                                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+      if (body && NodeGuards.isUnionTypeNode(body)) {
+        const innerResult = recursivelyFindMessengerCapabilityTypeDeclarations(
+          body,
+          kind,
+          result.visitedTypeDeclarations,
+        );
+        result.capabilityTypeDeclarations.push(
+          ...innerResult.capabilityTypeDeclarations,
+        );
+        for (const typeDeclaration of innerResult.visitedTypeDeclarations) {
+          result.visitedTypeDeclarations.add(typeDeclaration);
+        }
         continue;
       }
+
+      // TODO: Is this necessary?
       // A bare TypeReference body with no type arguments (e.g.
       // `type AllowedActions = ConnectivityControllerGetStateAction`) is a
       // plain re-export — leave the target to be documented from its home
@@ -470,18 +501,32 @@ function walkCapabilityTypes(
       // capability-type-constructor invocations (e.g.
       // `ControllerGetStateAction<typeof name, State>`) and are recorded.
       if (
-        aliasBody &&
-        NodeGuards.isTypeReference(aliasBody) &&
-        aliasBody.getTypeArguments().length === 0
+        body &&
+        NodeGuards.isTypeReference(body) &&
+        body.getTypeArguments().length === 0
       ) {
         continue;
       }
-      // TypeLiteral body, capability-type-constructor invocation, etc.
-      output.push({ statement: declaration, kind });
-    } else if (NodeGuards.isInterfaceDeclaration(declaration)) {
-      output.push({ statement: declaration, kind });
+
+      // We finally found a messenger capability type! Capture the whole thing.
+      // (We will parse the body later.)
+      // EXAMPLE:
+      //   type FooControllerSomeAction = { ... }
+      //   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+      result.capabilityTypeDeclarations.push({ declaration, kind });
+    }
+
+    // If we have an interface, we don't have any scenarios to handle, so
+    // capture it as is.
+    // EXAMPLE:
+    //   interface FooControllerSomeAction { ... }
+    //   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    else if (NodeGuards.isInterfaceDeclaration(declaration)) {
+      result.capabilityTypeDeclarations.push({ declaration, kind });
     }
   }
+
+  return result;
 }
 
 // ---------------------------------------------------------------------------
@@ -489,101 +534,123 @@ function walkCapabilityTypes(
 // ---------------------------------------------------------------------------
 
 /**
- * Extract a single capability-type declaration to an
- * {@link ExtractedMessengerCapabilityType}.
+ * Given the declaration of a messenger capability type, extract information
+ * about it (action/event type string, handler/payload arguments and return
+ * type, etc.)
  *
- * @param statement - The type alias or interface declaration.
- * @param kind - Whether this statement is referenced as an action or an event.
+ * @param capabilityTypeDeclaration - The statement that declared the type for a
+ * messenger action or event, extracted in a previous step.
  * @param projectPath - Project root, used for computing relative source paths.
- * @returns The extracted capability, or null if no recognized pattern matches.
+ * @returns Information that may be extracted from the messenger capability type
+ * (may be `null` if the type is ineligible for extraction).
  */
-function extractFromMessengerCapabilityType(
-  statement: TypeAliasDeclaration | InterfaceDeclaration,
-  kind: 'action' | 'event',
+function extractFromMessengerCapabilityTypeDeclaration(
+  capabilityTypeDeclaration: MessengerCapabilityTypeDeclaration,
   projectPath: string,
-): ExtractedMessengerCapabilityType | null {
-  const inlineCapability = extractFromInlineMessengerCapabilityType(
-    statement,
-    kind,
-    projectPath,
+): MessengerCapabilityPacket | null {
+  return (
+    tryToExtractFromMessengerCapabilityTypeLiteral(
+      capabilityTypeDeclaration,
+      projectPath,
+    ) ??
+    tryToExtractFromCapabilityTypeConstructor(
+      capabilityTypeDeclaration,
+      projectPath,
+    )
   );
-  if (inlineCapability) {
-    return inlineCapability;
-  }
-
-  if (NodeGuards.isTypeAliasDeclaration(statement)) {
-    return extractFromCapabilityTypeConstructor(statement, kind, projectPath);
-  }
-
-  // istanbul ignore next: interface declarations always have members and
-  // therefore an inline shape, so the inline branch above always returns
-  // non-null here.
-  return null;
 }
 
 /**
- * Try the inline messenger-capability-type pattern:
- * `{ type: '...'; handler: ... }` (action) or
- * `{ type: '...'; payload: ... }` (event), expressed as either a type alias
- * body or an interface body.
+ * If a messenger capability type is a type alias or interface and its body is
+ * a literal object type — i.e. one of:
  *
- * @param statement - The type alias or interface declaration.
- * @param kind - The expected kind (action or event).
+ * - `{ type: '...'; handler: ... }` (action)
+ * - `{ type: '...'; payload: ... }` (event)
+ *
+ * then this function extracts information about the type (action/event type
+ * string, handler/payload arguments and return type, etc.)
+ *
+ * @param capabilityTypeDeclaration - The statement that declared the type for a
+ * messenger action or event, extracted in a previous step.
  * @param projectPath - Project root, used for computing relative source paths.
- * @returns The extracted capability, or null if the shape doesn't match.
+ * @returns The extracted capability packet, or null if the shape of the type
+ * doesn't match.
  */
-function extractFromInlineMessengerCapabilityType(
-  statement: TypeAliasDeclaration | InterfaceDeclaration,
-  kind: 'action' | 'event',
+function tryToExtractFromMessengerCapabilityTypeLiteral(
+  capabilityTypeDeclaration: MessengerCapabilityTypeDeclaration,
   projectPath: string,
-): ExtractedMessengerCapabilityType | null {
+): MessengerCapabilityPacket | null {
+  const { declaration, kind } = capabilityTypeDeclaration;
+
+  // Reject empty type aliases or interfaces.
+  // EXAMPLES:
+  //   // Good
+  //   type FooControllerSomeAction = {
+  //     type: 'FooController:getState';
+  //     handler: FooController['getState'];
+  //   }
+  //   // Good
+  //   interface FooControllerSomeAction {
+  //     type: 'FooController:getState';
+  //     handler: FooController['getState'];
+  //   }
+  //   // Bad
+  //   type FooControllerSomeAction = {};
+  //   // Bad
+  //   interface FooControllerSomeAction {};
   let members: TypeElementTypes[] | undefined;
-  if (NodeGuards.isTypeAliasDeclaration(statement)) {
-    const body = statement.getTypeNode();
+  if (NodeGuards.isTypeAliasDeclaration(declaration)) {
+    const body = declaration.getTypeNode();
     if (body && NodeGuards.isTypeLiteral(body)) {
       members = body.getMembers();
     }
   } else {
-    members = statement.getMembers();
+    members = declaration.getMembers();
   }
   if (!members) {
     return null;
   }
 
-  const typeString = resolveInlineTypeString(members);
-  // istanbul ignore next: capabilities reachable via the messenger walk
-  // always have a resolvable `Namespace:name` type string.
-  if (!typeString?.includes(':')) {
+  const propertySignatures = members.filter(
+    NodeGuards.isPropertySignature.bind(NodeGuards),
+  );
+
+  // Actions and events must have a `type`, and it must be a string.
+  const typeString = getMessengerCapabilityTypeString(propertySignatures);
+  if (!typeString) {
     return null;
   }
 
-  const handlerMember = getPropertyMember(members, 'handler');
-  const payloadMember = getPropertyMember(members, 'payload');
-  const rawSourceMember = kind === 'action' ? handlerMember : payloadMember;
-  // istanbul ignore next: actions always have `handler` and events always
-  // have `payload`; the messenger walk wouldn't have surfaced this
-  // declaration otherwise.
-  if (!rawSourceMember) {
-    return null;
-  }
-  const rawSourceTypeNode = rawSourceMember.getTypeNode();
-  // istanbul ignore next: property signatures we care about always have an
-  // explicit type.
-  if (!rawSourceTypeNode) {
+  // Actions must have a `handler`, and events must have a `payload`.
+  const handlerOrPayloadProperty = findProperty(
+    propertySignatures,
+    kind === 'action' ? 'handler' : 'payload',
+  );
+  if (!handlerOrPayloadProperty) {
     return null;
   }
 
-  let handlerOrPayload = rawSourceTypeNode.getText().trim();
-  let { description: jsDoc, params, returns } = extractJsDoc(statement);
+  const handlerOrPayloadPropertyTypeNode =
+    // We can assume the property has a type; otherwise it wouldn't compile.
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+    handlerOrPayloadProperty.getTypeNode()!;
+  let handlerOrPayloadSignature = handlerOrPayloadPropertyTypeNode
+    .getText()
+    .trim();
 
-  // For actions, if the handler resolves to a class method (`Class['method']`
-  // — possibly in another file), inherit its signature plus any JSDoc fields
-  // the type alias itself doesn't already provide.
+  let { description: jsDoc, params, returns } = extractJsDoc(declaration);
+
+  // For actions, if the handler resolves to a class method (e.g.
+  // `FooController['method']`), inherit its signature plus any JSDoc fields the
+  // type alias itself doesn't already provide.
+  // TODO: We don't want to do this.
   if (kind === 'action') {
-    const resolvedMethod = resolveIndexedAccessMethod(rawSourceTypeNode);
+    const resolvedMethod = resolveIndexedAccessMethod(
+      handlerOrPayloadPropertyTypeNode,
+    );
     if (resolvedMethod) {
       const info = buildMethodInfo(resolvedMethod);
-      handlerOrPayload = info.signature;
+      handlerOrPayloadSignature = info.signature;
       if (!jsDoc && info.jsDoc) {
         jsDoc = info.jsDoc;
       }
@@ -596,167 +663,205 @@ function extractFromInlineMessengerCapabilityType(
     }
   }
 
-  const sourceFile = statement.getSourceFile();
+  const sourceFile = declaration.getSourceFile();
   return {
-    typeName: statement.getName(),
+    typeName: declaration.getName(),
     typeString,
     kind,
     jsDoc,
     params,
     returns,
-    handlerOrPayload,
+    handlerOrPayload: handlerOrPayloadSignature,
     sourceFile: path.relative(projectPath, sourceFile.getFilePath()),
-    line: statement.getStartLineNumber(),
-    deprecated: isDeprecated(statement),
+    line: declaration.getStartLineNumber(),
+    deprecated: hasDeprecatedJsDocTag(declaration),
   };
 }
 
 /**
- * Resolve the literal value of an inline shape's `type` property — either a
- * direct string literal or a template literal type with `typeof X`
- * substitutions (resolved via the type checker).
+ * Searches the property signatures of a messenger capability type alias or
+ * interface to find the value of the `type` property, and then resolves it to a
+ * string (assuming it is already a string or a resolvable template literal).
  *
- * @param members - The type elements of the inline shape.
- * @returns The resolved type string, or null if it can't be resolved.
+ * @param capabilityTypeProperties - The property signatures of the messenger
+ * capability type.
+ * @returns The extracted capability type string, or null if `type` cannot be
+ * found in the members or it is an unexpected node.
  */
-function resolveInlineTypeString(members: TypeElementTypes[]): string | null {
-  for (const member of members) {
-    // istanbul ignore next: capability-type bodies only contain property
-    // signatures.
-    if (!NodeGuards.isPropertySignature(member)) {
-      continue;
-    }
-    const memberNameNode = member.getNameNode();
-    if (
-      // istanbul ignore next: `type` is always a plain identifier.
-      !NodeGuards.isIdentifier(memberNameNode) ||
-      memberNameNode.getText() !== 'type'
-    ) {
-      continue;
-    }
-    const typeNode = member.getTypeNode();
-    // istanbul ignore next: a `type` property without an explicit type
-    // wouldn't compile.
-    if (!typeNode) {
-      continue;
-    }
-    if (NodeGuards.isLiteralTypeNode(typeNode)) {
-      const literal = typeNode.getLiteral();
-      // istanbul ignore next: messenger `type` fields are written as
-      // quoted string literals in real fixtures; backtick template literals
-      // are valid TypeScript but don't appear in practice.
-      if (
-        NodeGuards.isStringLiteral(literal) ||
-        NodeGuards.isNoSubstitutionTemplateLiteral(literal)
-      ) {
-        return literal.getLiteralValue();
-      }
-      // istanbul ignore next: numeric/boolean literal types aren't valid as a
-      // messenger `type` and don't appear in real fixtures.
-      return null;
-    }
-    if (NodeGuards.isTemplateLiteralTypeNode(typeNode)) {
-      return resolveTemplateLiteralType(typeNode);
+function getMessengerCapabilityTypeString(
+  capabilityTypeProperties: PropertySignature[],
+): string | null {
+  const typeProperty = findProperty(capabilityTypeProperties, 'type');
+  if (!typeProperty) {
+    return null;
+  }
+
+  // A `type` property without an explicit type wouldn't compile.
+  // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+  const typeNode = typeProperty.getTypeNode()!;
+
+  // Ask the type checker to resolve the value of `type`. We're looking for
+  // `type` to be either a string literal or template literal.
+  //
+  // EXAMPLES:
+  //   type FooControllerSomeAction = {
+  //     type: 'FooController:someAction';
+  //           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  //   }
+  //   type FooControllerSomeAction = {
+  //     type: `FooController:someAction`;
+  //           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  //   }
+  //   type FooControllerSomeAction = {
+  //     type: `${typeof CONTROLLER_NAME}:someAction`;
+  //           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  //   }
+  const resolvedType = typeNode.getType();
+  if (resolvedType.isStringLiteral()) {
+    // Type assertion: There aren't any type guards we can use to narrow this
+    // type further.
+    const literalValue = resolvedType.getLiteralValueOrThrow() as string;
+
+    // Messenger action/event types need to be namespaced.
+    if (literalValue.includes(':')) {
+      return literalValue;
     }
   }
-  // istanbul ignore next: the inline shape always has a `type` member that
-  // produces either a literal or template-literal type.
+
   return null;
 }
 
 /**
- * Find the `PropertySignature` named `propName` in a type literal body.
+ * Finds a specific property in a list of property signatures for an object
+ * type.
  *
- * @param members - The type literal members to search.
- * @param propName - The property name to find.
+ * @param propertySignatures - The property signatures of the messenger
+ * capability type.
+ * @param name - The property name to find.
  * @returns The property signature, or null.
  */
-function getPropertyMember(
-  members: TypeElementTypes[],
-  propName: string,
+function findProperty(
+  propertySignatures: PropertySignature[],
+  name: string,
 ): PropertySignature | null {
-  for (const member of members) {
-    // istanbul ignore next: capability-type bodies only contain property
-    // signatures.
-    if (!NodeGuards.isPropertySignature(member)) {
-      continue;
-    }
-    const memberNameNode = member.getNameNode();
+  for (const property of propertySignatures) {
+    const propertyNameNode = property.getNameNode();
     if (
-      // istanbul ignore next: capability properties always have identifier names.
-      !NodeGuards.isIdentifier(memberNameNode) ||
-      memberNameNode.getText() !== propName
+      !NodeGuards.isIdentifier(propertyNameNode) ||
+      propertyNameNode.getText() !== name
     ) {
       continue;
     }
-    return member;
+
+    return property;
   }
+
   return null;
 }
 
 /**
- * Try the capability-type-constructor pattern:
- * `ControllerGetStateAction<typeof X, State>` for actions, or
- * `ControllerStateChangeEvent<typeof X, State>` for events.
+ * If a messenger capability type is a type alias for either the
+ * `ControllerGetStateAction` or `ControllerStateChangeEvent` type constructors,
+ * then this function extracts information about the type (action/event type
+ * string, handler/payload arguments and return type, etc.)
  *
- * @param statement - The type alias declaration.
- * @param kind - The expected kind (action or event).
+ * @param capabilityTypeDeclaration - The statement that declared the type for a
+ * messenger action or event, extracted in a previous step.
  * @param projectPath - Project root, used for computing relative source paths.
- * @returns The extracted capability, or null if the constructor doesn't match.
+ * @returns The extracted capability packet, or null if the shape of the type
+ * doesn't match.
  */
-function extractFromCapabilityTypeConstructor(
-  statement: TypeAliasDeclaration,
-  kind: 'action' | 'event',
+function tryToExtractFromCapabilityTypeConstructor(
+  capabilityTypeDeclaration: MessengerCapabilityTypeDeclaration,
   projectPath: string,
-): ExtractedMessengerCapabilityType | null {
-  const aliasBody = statement.getTypeNode();
-  // istanbul ignore next: walker only records aliases whose body matches.
-  if (!aliasBody || !NodeGuards.isTypeReference(aliasBody)) {
-    return null;
-  }
-  const nameNode = aliasBody.getTypeName();
-  // istanbul ignore next: qualified-name type references aren't used.
-  if (!NodeGuards.isIdentifier(nameNode)) {
-    return null;
-  }
-  const constructorName = nameNode.getText();
-  const typeArgs = aliasBody.getTypeArguments();
-  if (typeArgs.length < 2) {
+): MessengerCapabilityPacket | null {
+  const { declaration, kind } = capabilityTypeDeclaration;
+
+  // Basic check: we need a type alias, otherwise the rest doesn't make sense.
+  // EXAMPLE:
+  //   type FooControllerSomeAction = ...
+  if (!NodeGuards.isTypeAliasDeclaration(declaration)) {
     return null;
   }
 
+  // We want our type alias to be a reference to a utility type.
+  // Non-null assertion: We can assume the type has a body of some kind,
+  // otherwise it wouldn't compile.
+  // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+  const body = declaration.getTypeNode()!;
+  // We already determined in
+  // `recursivelyFindMessengerCapabilityTypeDeclarations` that the declaration
+  // is a type reference.
+  // TODO: Capture the following information ahead of time so we don't need to
+  // check this again.
+  // istanbul ignore next
+  if (!NodeGuards.isTypeReference(body)) {
+    return null;
+  }
+  const typeName = body.getTypeName();
+  // We already determined in
+  // `recursivelyFindMessengerCapabilityTypeDeclarations` that the type is an
+  // identifier.
+  // TODO: Capture the following information ahead of time so we don't need to
+  // check this again.
+  // istanbul ignore next
+  if (!NodeGuards.isIdentifier(typeName)) {
+    return null;
+  }
+
+  // The name of the utility type should be either `ControllerGetStateAction`
+  // (for actions) or `ControllerStateChangeEvent` (for events).
+  // EXAMPLES:
+  //   type FooControllerSomeAction = ControllerGetStateAction<...>
+  //   type FooControllerSomeEvent = ControllerStateChangeEvent<...>
   const expectedConstructor =
     kind === 'action'
       ? 'ControllerGetStateAction'
       : 'ControllerStateChangeEvent';
-  if (constructorName !== expectedConstructor) {
+  if (typeName.getText() !== expectedConstructor) {
     return null;
   }
 
-  const namespace = resolveNamespaceFromTypeArg(typeArgs[0]);
-  // istanbul ignore next: recognized constructors always have resolvable args.
-  if (!namespace) {
+  // The utility type should take two parameters.
+  // EXAMPLES:
+  //   type FooControllerSomeAction = ControllerGetStateAction<..., ...>
+  //   type FooControllerSomeEvent = ControllerStateChangeEvent<..., ...>
+  const typeArgs = body.getTypeArguments();
+  if (typeArgs.length < 2) {
     return null;
   }
+
+  const namespaceArgType = typeArgs[0].getType();
+  // The first parameter should be a string literal.
+  // EXAMPLES:
+  //   type FooControllerSomeAction = ControllerGetStateAction<'FooController', ...>
+  //   type FooControllerSomeAction = ControllerGetStateAction<typeof CONTROLLER_NAME, ...>
+  if (!namespaceArgType.isStringLiteral()) {
+    return null;
+  }
+  // Type assertion: There aren't any type guards we can use to narrow this type
+  // further.
+  const namespace = namespaceArgType.getLiteralValueOrThrow() as string;
+
+  const typeString =
+    kind === 'action' ? `${namespace}:getState` : `${namespace}:stateChange`;
   const stateArgText = typeArgs[1].getText();
-  const { description, params, returns } = extractJsDoc(statement);
+  const handlerOrPayload =
+    kind === 'action' ? `() => ${stateArgText}` : `[${stateArgText}, Patch[]]`;
+  const { description, params, returns } = extractJsDoc(declaration);
+  const sourceFile = declaration.getSourceFile();
 
-  const sourceFile = statement.getSourceFile();
   return {
-    typeName: statement.getName(),
-    typeString:
-      kind === 'action' ? `${namespace}:getState` : `${namespace}:stateChange`,
+    typeName: declaration.getName(),
+    typeString,
     kind,
     jsDoc: description,
     params,
     returns,
-    handlerOrPayload:
-      kind === 'action'
-        ? `() => ${stateArgText}`
-        : `[${stateArgText}, Patch[]]`,
+    handlerOrPayload,
     sourceFile: path.relative(projectPath, sourceFile.getFilePath()),
-    line: statement.getStartLineNumber(),
-    deprecated: isDeprecated(statement),
+    line: declaration.getStartLineNumber(),
+    deprecated: hasDeprecatedJsDocTag(declaration),
   };
 }
 
@@ -791,38 +896,39 @@ export function createExtractionProject(): Project {
 }
 
 /**
- * Extract every messenger action/event type reachable from a single source
- * file's `*Messenger` declarations.
+ * Extract information (action/event type string, handler/payload arguments and
+ * return type, etc.) about every messenger action or event type which is
+ * reachable through all of a source file's `*Messenger` type declarations.
  *
  * The caller is responsible for ensuring `sourceFile` (plus any files it
- * imports from) belongs to a ts-morph Project so cross-file symbol resolution
+ * imports from) belongs to a `ts-morph` Project so cross-file symbol resolution
  * works.
  *
  * @param sourceFile - The TypeScript source file to extract from.
  * @param projectPath - Project root, used for computing relative source paths.
- * @returns The extracted capability list.
+ * @returns The extracted information about actions and events.
  */
 export function extractFromSourceFile(
   sourceFile: SourceFile,
   projectPath: string,
-): ExtractedMessengerCapabilityType[] {
-  const declarations = collectMessengerCapabilityTypeDeclarations(sourceFile);
-  if (declarations.length === 0) {
-    return [];
-  }
+): MessengerCapabilityPacket[] {
+  const messengerTypeAliases = findMessengerTypeAliases(sourceFile);
 
-  const items: ExtractedMessengerCapabilityType[] = [];
-  for (const { statement, kind } of declarations) {
-    const item = extractFromMessengerCapabilityType(
-      statement,
-      kind,
-      projectPath,
-    );
-    if (item) {
-      items.push(item);
+  const capabilityTypeDeclarations =
+    findAllMessengerCapabilityTypeDeclarations(messengerTypeAliases);
+
+  const messengerCapabilityPackets: MessengerCapabilityPacket[] = [];
+  for (const capabilityTypeDeclaration of capabilityTypeDeclarations) {
+    const messengerCapabilityPacket =
+      extractFromMessengerCapabilityTypeDeclaration(
+        capabilityTypeDeclaration,
+        projectPath,
+      );
+    if (messengerCapabilityPacket) {
+      messengerCapabilityPackets.push(messengerCapabilityPacket);
     }
   }
-  return items;
+  return messengerCapabilityPackets;
 }
 
 /**
@@ -841,7 +947,7 @@ export function extractFromSourceFile(
 export async function extractFromFile(
   filePath: string,
   projectPath: string,
-): Promise<ExtractedMessengerCapabilityType[]> {
+): Promise<MessengerCapabilityPacket[]> {
   const project = createExtractionProject();
   const parentDir = path.dirname(filePath);
   // Load the file's directory so single-hop relative imports resolve.

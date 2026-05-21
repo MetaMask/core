@@ -1,4 +1,4 @@
-import type { ExtractedMessengerCapabilityType, NamespaceGroup } from './types';
+import type { MessengerCapabilityPacket, NamespaceGroup } from './types';
 
 /**
  * Convert backtick-quoted action/event names in text into links when they
@@ -47,7 +47,7 @@ function linkifyReferences(
  * @returns The generated markdown string.
  */
 export function generateItemMarkdown(
-  item: ExtractedMessengerCapabilityType,
+  item: MessengerCapabilityPacket,
   namespace: string,
   knownNames: Map<string, string>,
   repoBaseUrl: string | null,
