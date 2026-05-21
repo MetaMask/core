@@ -4,5 +4,6 @@ export type {
   DefaultActions,
   DefaultEvents,
   DefaultInstances,
+  DefaultState,
   RootMessenger,
 } from './initialization/defaults';
