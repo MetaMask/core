@@ -10,4 +10,5 @@ export type WalletOptions = {
   showApprovalRequest: () => void;
   clientConfigApiService: ClientConfigApiService;
   getMetaMetricsId: () => string;
+  logger?: Pick<Console, 'info'>;
 };
