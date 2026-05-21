@@ -210,6 +210,27 @@ describe('Wallet', () => {
       expect(Object.keys(wallet.state)).toStrictEqual(['WithMeta', 'NoMeta']);
     });
 
+    it('initializes additional controllers passed via initializationConfigurations', () => {
+      const customInit = jest
+        .fn()
+        .mockReturnValue({ instance: {} as never });
+      const customMessenger = jest.fn().mockReturnValue({} as never);
+
+      wallet = new Wallet({
+        ...options,
+        initializationConfigurations: [
+          {
+            name: 'CustomController',
+            init: customInit,
+            messenger: customMessenger,
+          },
+        ],
+      });
+
+      expect(customInit).toHaveBeenCalledTimes(1);
+      expect(customMessenger).toHaveBeenCalledTimes(1);
+    });
+
     it('publishes Wallet:destroyed exactly once on destroy', async () => {
       wallet = new Wallet(options);
 

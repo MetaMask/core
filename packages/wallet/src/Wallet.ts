@@ -10,9 +10,12 @@ import type {
   RootMessenger,
 } from './initialization';
 import { initialize } from './initialization';
+import type { InitializationConfiguration } from './initialization/types';
 import type { WalletOptions } from './types';
 
 export class Wallet {
+  // messenger is typed against the default controller set. Action/event types for
+  // any additional configurations passed to the constructor are not reflected here.
   public readonly messenger: RootMessenger<DefaultActions, DefaultEvents>;
 
   readonly #instances: DefaultInstances;
@@ -23,7 +26,13 @@ export class Wallet {
 
   #destroyed = false;
 
-  constructor({ state, ...options }: WalletOptions) {
+  constructor({
+    state,
+    initializationConfigurations,
+    ...options
+  }: WalletOptions & {
+    initializationConfigurations?: InitializationConfiguration<unknown, unknown>[];
+  }) {
     this.messenger = new Messenger({
       namespace: 'Wallet',
     });
@@ -31,6 +40,7 @@ export class Wallet {
     this.#instances = initialize({
       state: state ?? {},
       messenger: this.messenger,
+      initializationConfigurations,
       options,
     });
 
