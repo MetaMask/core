@@ -2670,13 +2670,16 @@ __metadata:
     "@metamask/utils": "npm:^11.9.0"
     "@ts-bridge/cli": "npm:^0.6.4"
     "@types/jest": "npm:^29.5.14"
+    "@types/uuid": "npm:^8.3.0"
     deepmerge: "npm:^4.2.2"
     jest: "npm:^29.7.0"
+    lodash: "npm:^4.17.21"
     ts-jest: "npm:^29.2.5"
     tsx: "npm:^4.20.5"
     typedoc: "npm:^0.25.13"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:~5.3.3"
+    uuid: "npm:^8.3.2"
   languageName: unknown
   linkType: soft
 
