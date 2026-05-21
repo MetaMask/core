@@ -2,7 +2,6 @@
 
 import { Interface } from '@ethersproject/abi';
 import { toHex } from '@metamask/controller-utils';
-import { TransactionType } from '@metamask/transaction-controller';
 import type { TransactionMeta } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 import { createModuleLogger } from '@metamask/utils';
@@ -17,6 +16,7 @@ import {
   HYPERCORE_USDC_ADDRESS,
   HYPERCORE_USDC_DECIMALS,
   NATIVE_TOKEN_ADDRESS,
+  PERPS_DEPOSIT_TYPES,
   USDC_DECIMALS,
   STABLECOINS,
 } from '../../constants';
@@ -391,7 +391,9 @@ function normalizeRequest(
     ...request,
   };
 
-  const isPerpsDeposit = transaction.type === TransactionType.perpsDeposit;
+  const isPerpsDeposit =
+    transaction.type !== undefined &&
+    PERPS_DEPOSIT_TYPES.includes(transaction.type);
 
   const isHyperliquidDeposit =
     isPerpsDeposit &&

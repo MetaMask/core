@@ -179,6 +179,8 @@ exports[`BridgeController SSE should rethrow error from server 1`] = `
       "usdExchangeRate": "100",
     },
   },
+  "batchSellTrades": null,
+  "batchSellTradesLoadingStatus": null,
   "minimumBalanceForRentExemptionInLamports": "0",
   "quoteFetchError": null,
   "quoteRequest": [
@@ -303,6 +305,8 @@ exports[`BridgeController SSE should trigger quote polling if request is valid 1
       "usdExchangeRate": "100",
     },
   },
+  "batchSellTrades": null,
+  "batchSellTradesLoadingStatus": null,
   "minimumBalanceForRentExemptionInLamports": "0",
   "quoteFetchError": null,
   "quoteRequest": [

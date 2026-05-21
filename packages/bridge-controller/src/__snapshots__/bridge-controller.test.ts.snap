@@ -8,6 +8,8 @@ exports[`BridgeController should handle errors from fetchBridgeQuotes 1`] = `
       "usdExchangeRate": "100",
     },
   },
+  "batchSellTrades": null,
+  "batchSellTradesLoadingStatus": null,
   "minimumBalanceForRentExemptionInLamports": "0",
   "quoteFetchError": null,
   "quoteRequest": [
@@ -39,6 +41,8 @@ exports[`BridgeController should handle errors from fetchBridgeQuotes 2`] = `
       "usdExchangeRate": "100",
     },
   },
+  "batchSellTrades": null,
+  "batchSellTradesLoadingStatus": null,
   "minimumBalanceForRentExemptionInLamports": "0",
   "quoteFetchError": null,
   "quoteRequest": [
@@ -829,6 +833,8 @@ exports[`BridgeController updateBridgeQuoteRequestParams should reset minimumBal
 exports[`BridgeController updateBridgeQuoteRequestParams should trigger quote polling if request is valid 1`] = `
 {
   "assetExchangeRates": {},
+  "batchSellTrades": null,
+  "batchSellTradesLoadingStatus": null,
   "minimumBalanceForRentExemptionInLamports": "0",
   "quoteFetchError": null,
   "quoteRequest": [
@@ -864,6 +870,8 @@ exports[`BridgeController updateBridgeQuoteRequestParams should trigger quote po
       "usdExchangeRate": "100",
     },
   },
+  "batchSellTrades": null,
+  "batchSellTradesLoadingStatus": null,
   "minimumBalanceForRentExemptionInLamports": "0",
   "quoteFetchError": null,
   "quoteRequest": [

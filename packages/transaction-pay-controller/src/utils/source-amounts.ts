@@ -1,5 +1,7 @@
-import { TransactionType } from '@metamask/transaction-controller';
-import type { TransactionMeta } from '@metamask/transaction-controller';
+import type {
+  TransactionMeta,
+  TransactionType,
+} from '@metamask/transaction-controller';
 import { createModuleLogger } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
 
@@ -8,7 +10,11 @@ import type {
   TransactionPaymentToken,
 } from '..';
 import { TransactionPayStrategy } from '..';
-import { ARBITRUM_USDC_ADDRESS, CHAIN_ID_ARBITRUM } from '../constants';
+import {
+  ARBITRUM_USDC_ADDRESS,
+  CHAIN_ID_ARBITRUM,
+  PERPS_DEPOSIT_TYPES,
+} from '../constants';
 import { projectLogger } from '../logger';
 import type {
   TransactionPaySourceAmount,
@@ -232,7 +238,8 @@ function isQuoteAlwaysRequired(
     isHyperliquidDeposit &&
     (strategy === TransactionPayStrategy.Relay ||
       (strategy === TransactionPayStrategy.Across &&
-        parentTransactionType === TransactionType.perpsDeposit))
+        parentTransactionType !== undefined &&
+        PERPS_DEPOSIT_TYPES.includes(parentTransactionType)))
   );
 }
 
