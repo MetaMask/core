@@ -35,6 +35,46 @@
         "default": "./dist/index.cjs"
       }
     },
+    "./constants": {
+      "import": {
+        "types": "./dist/constants/index.d.mts",
+        "default": "./dist/constants/index.mjs"
+      },
+      "require": {
+        "types": "./dist/constants/index.d.cts",
+        "default": "./dist/constants/index.cjs"
+      }
+    },
+    "./constants/*": {
+      "import": {
+        "types": "./dist/constants/*.d.mts",
+        "default": "./dist/constants/*.mjs"
+      },
+      "require": {
+        "types": "./dist/constants/*.d.cts",
+        "default": "./dist/constants/*.cjs"
+      }
+    },
+    "./types": {
+      "import": {
+        "types": "./dist/types/index.d.mts",
+        "default": "./dist/types/index.mjs"
+      },
+      "require": {
+        "types": "./dist/types/index.d.cts",
+        "default": "./dist/types/index.cjs"
+      }
+    },
+    "./utils/*": {
+      "import": {
+        "types": "./dist/utils/*.d.mts",
+        "default": "./dist/utils/*.mjs"
+      },
+      "require": {
+        "types": "./dist/utils/*.d.cts",
+        "default": "./dist/utils/*.cjs"
+      }
+    },
     "./package.json": "./package.json"
   },
   "publishConfig": {
