@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.1.0]
+
 ### Uncategorized
 
 - chore: Enable Oxfmt for generating method action types files ([#8498](https://github.com/MetaMask/core/pull/8498))
@@ -44,6 +46,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release of @metamask/analytics-controller. ([#7017](https://github.com/MetaMask/core/pull/7017), [#7202](https://github.com/MetaMask/core/pull/7202))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/analytics-controller@1.0.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/analytics-controller@1.1.0...HEAD
+[1.1.0]: https://github.com/MetaMask/core/compare/@metamask/analytics-controller@1.0.1...@metamask/analytics-controller@1.1.0
 [1.0.1]: https://github.com/MetaMask/core/compare/@metamask/analytics-controller@1.0.0...@metamask/analytics-controller@1.0.1
 [1.0.0]: https://github.com/MetaMask/core/releases/tag/@metamask/analytics-controller@1.0.0
