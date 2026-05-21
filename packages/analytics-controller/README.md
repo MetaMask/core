@@ -20,6 +20,7 @@ The AnalyticsController provides a unified interface for tracking analytics even
 | ------------- | --------- | --------------------------------------------- | --------- |
 | `analyticsId` | `string`  | UUIDv4 identifier (client platform-generated) | Yes       |
 | `optedIn`     | `boolean` | User opt-in status                            | Yes       |
+| `eventQueue`  | `object`  | Optional persisted delivery queue             | Yes       |
 
 ### Client Platform Responsibilities
 
@@ -36,6 +37,14 @@ When `isAnonymousEventsFeatureEnabled` is enabled in the constructor, events wit
 - **Sensitive properties event**: Tracked separately with both `properties` and `sensitiveProperties` (uses anonymous ID)
 
 This allows sensitive data to be tracked anonymously while maintaining user identification for regular properties. When disabled (default), all properties are tracked in a single event.
+
+## Persisted Event Queue
+
+When `isEventQueuePersistenceEnabled` is enabled in the constructor, each final platform adapter payload is persisted until the adapter reports successful delivery through its callback.
+
+This feature is disabled by default. Client platforms that already rely on SDK-level persistence, such as MetaMask Mobile through `@segment/analytics-react-native`'s `storePersistor` option, should leave it disabled.
+
+Platforms without SDK-level persistence, such as MetaMask Extension, can enable it to replay queued payloads after restart. The queue stores the final adapter calls, so anonymous event splitting persists the identified and anonymous payloads separately.
 
 ## Lifecycle Hooks
 
