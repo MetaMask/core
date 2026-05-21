@@ -138,6 +138,17 @@ const encryptorFactory = (iterations: number): Encryptor => ({
   generateSalt,
 });
 
+type MobileEncryptionKey = {
+  key: string;
+  lib: string;
+  exportable: boolean;
+  keyMetadata: KeyDerivationOptions;
+};
+
+export type GenericEncryptor =
+  | Encryptor<EncryptionKey | CryptoKey>
+  | Encryptor<MobileEncryptionKey>;
+
 export const keyringController: InitializationConfiguration<
   KeyringController,
   KeyringControllerMessenger
@@ -148,7 +159,9 @@ export const keyringController: InitializationConfiguration<
       state,
       messenger,
       keyringBuilders: options.keyringBuilders,
-      encryptor: options.encryptor ?? encryptorFactory(600_000),
+      encryptor:
+        options.encryptor ??
+        (encryptorFactory(600_000) as Encryptor<EncryptionKey | CryptoKey>),
     }),
   getMessenger: (parent) =>
     new Messenger({

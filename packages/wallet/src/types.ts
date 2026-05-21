@@ -6,6 +6,7 @@ import type {
   DefaultEvents,
   RootMessenger,
 } from './initialization/defaults';
+import { GenericEncryptor } from './initialization/instances/keyring-controller';
 import { InitializationConfiguration } from './initialization/types';
 
 export type WalletOptions = {
@@ -19,7 +20,8 @@ export type WalletOptions = {
 };
 
 export type InstanceSpecificOptions = {
-  keyringController?: Partial<
-    Pick<KeyringControllerOptions, 'encryptor' | 'keyringBuilders'>
-  >;
+  keyringController?: {
+    encryptor?: GenericEncryptor;
+    keyringBuilders?: KeyringControllerOptions['keyringBuilders'];
+  };
 };
