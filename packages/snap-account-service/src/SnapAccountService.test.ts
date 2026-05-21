@@ -298,57 +298,6 @@ function mockWithController(
 }
 
 /**
- * Configures `mocks.KeyringController.withKeyringV2` so that the operation
- * receives a Snap keyring v2 matching the given selector, or throws
- * `KeyringNotFound` when none matches.
- *
- * @param mocks - The mocks object from {@link setup}.
- * @param keyrings - The available v2 Snap keyrings, keyed by snap ID.
- */
-function mockWithKeyringV2(
-  mocks: Mocks,
-  keyrings: Record<string, Pick<SnapKeyringV2, 'handleKeyringSnapMessage'>>,
-): void {
-  mocks.KeyringController.withKeyringV2.mockImplementation(
-    async (
-      selector: KeyringSelectorV2,
-      operation: (args: {
-        keyring: SnapKeyringV2;
-        metadata: KeyringMetadata;
-      }) => Promise<unknown>,
-    ) => {
-      const entry = Object.entries(keyrings).find(([snapId, snapKeyring]) =>
-        // The selector's filter expects a v2 keyring object; we synthesise
-        // a minimal shape (`type` + `snapId`) so the production filter
-        // function can identify it.
-        selector.filter?.(
-          {
-            type: KeyringType.Snap,
-            snapId,
-            ...snapKeyring,
-          } as unknown,
-          { id: `id-${snapId}`, name: 'snap' } as KeyringMetadata,
-        ),
-      );
-      if (!entry) {
-        throw new KeyringControllerError(
-          KeyringControllerErrorMessage.KeyringNotFound,
-        );
-      }
-      const [snapId, snapKeyring] = entry;
-      return operation({
-        keyring: {
-          type: KeyringType.Snap,
-          snapId,
-          ...snapKeyring,
-        } as unknown as SnapKeyringV2,
-        metadata: { id: `id-${snapId}`, name: 'snap' } as KeyringMetadata,
-      });
-    },
-  );
-}
-
-/**
  * Configures `mocks.KeyringController.withKeyringV2Unsafe` so that the
  * operation receives a Snap keyring v2 matching the given selector, or
  * throws `KeyringNotFound` when none matches.
@@ -363,6 +312,7 @@ function mockWithKeyringV2Unsafe(
     {
       setSelectedAccounts?: jest.Mock;
       hasAccount?: (id: string) => boolean;
+      handleKeyringSnapMessage?: jest.Mock;
     }
   >,
 ): void {
@@ -808,7 +758,7 @@ describe('SnapAccountService', () => {
       const handleKeyringSnapMessage = jest
         .fn()
         .mockResolvedValue({ ok: true });
-      mockWithKeyringV2(mocks, {
+      mockWithKeyringV2Unsafe(mocks, {
         [MOCK_SNAP_ID]: { handleKeyringSnapMessage },
       });
 
@@ -861,7 +811,7 @@ describe('SnapAccountService', () => {
 
     it('throws a dedicated error when no v2 Snap keyring exists for the given Snap', async () => {
       const { service, mocks } = await setup();
-      mockWithKeyringV2(mocks, {});
+      mockWithKeyringV2Unsafe(mocks, {});
 
       await expect(
         service.handleKeyringSnapMessage(MOCK_SNAP_ID, MOCK_MESSAGE),
@@ -874,7 +824,7 @@ describe('SnapAccountService', () => {
       const { service, mocks } = await setup();
       const error = new Error('snap boom');
       const handleKeyringSnapMessage = jest.fn().mockRejectedValue(error);
-      mockWithKeyringV2(mocks, {
+      mockWithKeyringV2Unsafe(mocks, {
         [MOCK_SNAP_ID]: { handleKeyringSnapMessage },
       });
 
@@ -889,9 +839,7 @@ describe('SnapAccountService', () => {
       // so it must create one.
       const { addNewKeyring } = mockWithController(mocks, []);
       const handleKeyringSnapMessage = jest.fn().mockResolvedValue(null);
-      // `withController` mock takes precedence over `withKeyringV2`; configure
-      // `withKeyringV2` separately for the forwarding step.
-      mockWithKeyringV2(mocks, {
+      mockWithKeyringV2Unsafe(mocks, {
         [MOCK_SNAP_ID]: { handleKeyringSnapMessage },
       });
 
@@ -912,7 +860,7 @@ describe('SnapAccountService', () => {
     it('is exposed as a messenger action', async () => {
       const { service, mocks, messenger } = await setup();
       const handleKeyringSnapMessage = jest.fn().mockResolvedValue('pong');
-      mockWithKeyringV2(mocks, {
+      mockWithKeyringV2Unsafe(mocks, {
         [MOCK_SNAP_ID]: { handleKeyringSnapMessage },
       });
 

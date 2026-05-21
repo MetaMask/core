@@ -485,26 +485,6 @@ export class SnapAccountService {
   }
 
   /**
-   * Runs an operation against the v2 Snap keyring for the given Snap, under
-   * the `KeyringController` mutex. Throws `KeyringNotFound` if no v2 Snap
-   * keyring exists for the given Snap.
-   *
-   * @param snapId - The Snap ID to look up the keyring for.
-   * @param operation - The operation to run with the matching keyring.
-   * @returns The result of the operation.
-   */
-  async #withKeyringV2<Result>(
-    snapId: SnapId,
-    operation: (keyring: SnapKeyring) => Promise<Result>,
-  ): Promise<Result> {
-    return this.#withKeyringV2Call(
-      'KeyringController:withKeyringV2',
-      snapId,
-      operation,
-    );
-  }
-
-  /**
    * Lock-free variant of {@link SnapAccountService.#withKeyringV2}. Only use
    * for operations that do not mutate keyring or controller state — see
    * `KeyringController.withKeyringV2Unsafe` for the contract.
@@ -563,7 +543,15 @@ export class SnapAccountService {
     // This part of the flow relies on v1 flows, but v2 keyrings are compatible with those messages
     // too.
     try {
-      return await this.#withKeyringV2(snapId, async (keyring) =>
+      // NOTE: We use "unsafe" here since none of the messages should trigger mutations to the keyring state.
+      // The exception might be `:accountCreated`, but even in that case, the mutation is handled differently
+      // in the client by call `:persistAllKeyrings` explicitly.
+      // Using `:withKeyringV2` would cause a deadlock when we're initiating operations like `removeAccount` from
+      // the keyring itself:
+      // 1: withKeyring(..., ({ keyring }) => { keyring.removeAccount(...) })
+      // 2. removeAccount(...) -> handleKeyringSnapMessage(..., { method: 'accountRemoved', ... })
+      // 3. handleKeyringSnapMessage tries to acquire the same lock again via withKeyringV2 -> deadlock.
+      return await this.#withKeyringV2Unsafe(snapId, async (keyring) =>
         keyring.handleKeyringSnapMessage(message),
       );
     } catch (error) {
