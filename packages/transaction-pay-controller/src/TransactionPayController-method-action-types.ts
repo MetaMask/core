@@ -50,6 +50,22 @@ export type TransactionPayControllerUpdateFiatPaymentAction = {
 };
 
 /**
+ * Returns additional transactions for the money account flow.
+ *
+ * Delegates to the client-supplied callback. Called during quote execution
+ * when `useMoneyAccount` is true. Returns an empty array when no callback
+ * is configured.
+ *
+ * @param args - The arguments forwarded to the {@link GetMoneyAccountTransactionsCallback},
+ * containing the transaction ID.
+ * @returns A promise resolving to the additional transactions array.
+ */
+export type TransactionPayControllerGetMoneyAccountTransactionsAction = {
+  type: `TransactionPayController:getMoneyAccountTransactions`;
+  handler: TransactionPayController['getMoneyAccountTransactions'];
+};
+
+/**
  * Gets the delegation transaction for a given transaction.
  *
  * Converts the provided transaction into a redeem delegation by delegating
@@ -113,6 +129,7 @@ export type TransactionPayControllerMethodActions =
   | TransactionPayControllerUpdatePaymentTokenAction
   | TransactionPayControllerUpdateFiatPaymentAction
   | TransactionPayControllerGetDelegationTransactionAction
+  | TransactionPayControllerGetMoneyAccountTransactionsAction
   | TransactionPayControllerGetStrategyAction
   | TransactionPayControllerPolymarketGetDepositWalletAddressAction
   | TransactionPayControllerPolymarketSubmitDepositWalletBatchAction;

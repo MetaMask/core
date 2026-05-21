@@ -54,6 +54,7 @@ import type {
   TransactionControllerStateChangeEvent,
   TransactionControllerUpdateTransactionAction,
   TransactionMeta,
+  TransactionParams,
 } from '@metamask/transaction-controller';
 import type { Hex, Json } from '@metamask/utils';
 import type { Draft } from 'immer';
@@ -148,6 +149,15 @@ export type TransactionConfig = {
 /** Callback to update transaction config. */
 export type TransactionConfigCallback = (config: TransactionConfig) => void;
 
+/**
+ * Callback invoked during quote execution when `useMoneyAccount` is true.
+ * Returns additional transactions to be submitted alongside the quote,
+ * ordered before or after the quote batch depending on `isPostQuote`.
+ */
+export type GetMoneyAccountTransactionsCallback = (
+  transactionId: string,
+) => Promise<TransactionParams[]>;
+
 /** Callback to update fiat payment state. */
 export type TransactionFiatPaymentCallback = (
   fiatPayment: TransactionFiatPayment,
@@ -198,6 +208,12 @@ export type TransactionPayControllerOptions = {
 
   /** Callbacks for the Polymarket relayer; required only for the Polymarket deposit-wallet flow. */
   polymarket?: PolymarketCallbacks;
+
+  /**
+   * Optional callback invoked during quote execution when `useMoneyAccount` is true.
+   * Returns additional transactions to be submitted alongside the quote batch.
+   */
+  getMoneyAccountTransactions?: GetMoneyAccountTransactionsCallback;
 
   /** Initial state of the controller. */
   state?: Partial<TransactionPayControllerState>;
@@ -419,6 +435,9 @@ export type QuoteRequest = {
 
   /** Whether the source of funds is a Polymarket deposit wallet. */
   isPolymarketDepositWallet?: boolean;
+
+  /** Whether the money account is the source of funds for this quote. */
+  useMoneyAccount?: boolean;
 
   /**
    * Optional address to receive refunds if the quote provider transaction fails.

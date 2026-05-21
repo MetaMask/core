@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Add `useMoneyAccount` property to `TransactionConfig` and `TransactionData`, settable via `setTransactionConfig` ([#8858](https://github.com/MetaMask/core/pull/8858))
+- Add `getMoneyAccountTransactions` callback to `TransactionPayControllerOptions`; when `useMoneyAccount` is true on a transaction, the publish hook calls this callback and passes the resulting `additionalTransactions` to the strategy's `execute` request, ordered before or after the quote batch based on `isPostQuote` ([#8858](https://github.com/MetaMask/core/pull/8858))
 
 ## [22.6.1]
 

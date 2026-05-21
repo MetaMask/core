@@ -183,6 +183,7 @@ describe('Relay Quotes Utils', () => {
     getDelegationTransactionMock,
     getGasFeeTokensMock,
     getKeyringControllerStateMock,
+    getMoneyAccountTransactionsMock,
     getRemoteFeatureFlagControllerStateMock,
     polymarketGetDepositWalletAddressMock,
   } = getMessengerMock();
@@ -3372,6 +3373,112 @@ describe('Relay Quotes Utils', () => {
         expect(body.refundTo).toBe(DEPOSIT_WALLET_MOCK);
         expect(body.useDepositAddress).toBe(true);
         expect(body.strict).toBe(true);
+      });
+    });
+
+    describe('money account deposit step injection (useMoneyAccount)', () => {
+      const DEPOSIT_TX_MOCK = {
+        from: FROM_MOCK,
+        to: '0xmoneyaccount' as Hex,
+        data: '0xdeposit' as Hex,
+        value: '0x0',
+        gas: '30000',
+        maxFeePerGas: '1000000000',
+        maxPriorityFeePerGas: '2000000000',
+      };
+
+      beforeEach(() => {
+        successfulFetchMock.mockResolvedValue({
+          ok: true,
+          json: async () => QUOTE_MOCK,
+        } as never);
+
+        estimateGasBatchMock.mockResolvedValue({
+          gasLimits: [30000, 21000],
+          totalGasLimit: 51000,
+        });
+      });
+
+      it('prepends deposit step before relay steps for standard (non-post-quote) flow', async () => {
+        getMoneyAccountTransactionsMock.mockResolvedValue([DEPOSIT_TX_MOCK]);
+
+        const [quote] = await getRelayQuotes({
+          accountSupports7702: true,
+          messenger,
+          requests: [{ ...QUOTE_REQUEST_MOCK, useMoneyAccount: true }],
+          transaction: TRANSACTION_META_MOCK,
+        });
+
+        const txSteps = quote.original.steps.filter(
+          (s): s is RelayTransactionStep => s.kind === 'transaction',
+        );
+        expect(txSteps[0].id).toBe('money-account-deposit');
+        expect(txSteps[0].items[0].data.to).toBe(DEPOSIT_TX_MOCK.to);
+        expect(txSteps[1].id).toBe(STEP_MOCK.id);
+      });
+
+      it('appends deposit step after relay steps for post-quote flow', async () => {
+        getMoneyAccountTransactionsMock.mockResolvedValue([DEPOSIT_TX_MOCK]);
+
+        const [quote] = await getRelayQuotes({
+          accountSupports7702: true,
+          messenger,
+          requests: [
+            { ...QUOTE_REQUEST_MOCK, useMoneyAccount: true, isPostQuote: true },
+          ],
+          transaction: TRANSACTION_META_MOCK,
+        });
+
+        const txSteps = quote.original.steps.filter(
+          (s): s is RelayTransactionStep => s.kind === 'transaction',
+        );
+        expect(txSteps[0].id).toBe(STEP_MOCK.id);
+        expect(txSteps[1].id).toBe('money-account-deposit');
+      });
+
+      it('does not inject when useMoneyAccount is false', async () => {
+        const [quote] = await getRelayQuotes({
+          accountSupports7702: true,
+          messenger,
+          requests: [QUOTE_REQUEST_MOCK],
+          transaction: TRANSACTION_META_MOCK,
+        });
+
+        expect(
+          quote.original.steps.every((s) => s.id !== 'money-account-deposit'),
+        ).toBe(true);
+        expect(getMoneyAccountTransactionsMock).not.toHaveBeenCalled();
+      });
+
+      it('does not inject when callback returns empty array', async () => {
+        getMoneyAccountTransactionsMock.mockResolvedValue([]);
+
+        const [quote] = await getRelayQuotes({
+          accountSupports7702: true,
+          messenger,
+          requests: [{ ...QUOTE_REQUEST_MOCK, useMoneyAccount: true }],
+          transaction: TRANSACTION_META_MOCK,
+        });
+
+        expect(quote.original.steps).toHaveLength(1);
+        expect(quote.original.steps[0].id).toBe(STEP_MOCK.id);
+      });
+
+      it('uses sourceChainId to set chainId on deposit step items', async () => {
+        getMoneyAccountTransactionsMock.mockResolvedValue([DEPOSIT_TX_MOCK]);
+
+        const [quote] = await getRelayQuotes({
+          accountSupports7702: true,
+          messenger,
+          requests: [{ ...QUOTE_REQUEST_MOCK, useMoneyAccount: true }],
+          transaction: TRANSACTION_META_MOCK,
+        });
+
+        const depositStep = quote.original.steps.find(
+          (s) => s.id === 'money-account-deposit',
+        ) as RelayTransactionStep;
+        // QUOTE_REQUEST_MOCK.sourceChainId is '0x1' → chainId 1
+        expect(depositStep.items[0].data.chainId).toBe(1);
       });
     });
 

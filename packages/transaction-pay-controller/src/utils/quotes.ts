@@ -86,6 +86,7 @@ export async function updateQuotes(
     isPostQuote,
     isHyperliquidSource,
     isPolymarketDepositWallet,
+    useMoneyAccount,
     paymentToken: originalPaymentToken,
     refundTo,
     sourceAmounts,
@@ -122,6 +123,7 @@ export async function updateQuotes(
       isPostQuote,
       isHyperliquidSource,
       isPolymarketDepositWallet,
+      useMoneyAccount,
       paymentToken,
       refundTo,
       sourceAmounts,
@@ -339,6 +341,7 @@ function buildQuoteRequests({
   isPostQuote,
   isHyperliquidSource,
   isPolymarketDepositWallet,
+  useMoneyAccount,
   paymentToken,
   refundTo,
   sourceAmounts,
@@ -350,6 +353,7 @@ function buildQuoteRequests({
   isPostQuote?: boolean;
   isHyperliquidSource?: boolean;
   isPolymarketDepositWallet?: boolean;
+  useMoneyAccount?: boolean;
   paymentToken: TransactionPaymentToken | undefined;
   refundTo?: Hex;
   sourceAmounts: TransactionPaySourceAmount[] | undefined;
@@ -366,6 +370,7 @@ function buildQuoteRequests({
       isMaxAmount,
       isHyperliquidSource,
       isPolymarketDepositWallet,
+      useMoneyAccount,
       destinationToken: paymentToken,
       refundTo,
       sourceAmounts,
@@ -382,6 +387,7 @@ function buildQuoteRequests({
     return {
       from,
       isMaxAmount,
+      useMoneyAccount,
       sourceBalanceRaw: paymentToken.balanceRaw,
       sourceTokenAmount: sourceAmount.sourceAmountRaw,
       sourceChainId: paymentToken.chainId,
@@ -420,6 +426,7 @@ function buildPostQuoteRequests({
   isMaxAmount,
   isHyperliquidSource,
   isPolymarketDepositWallet,
+  useMoneyAccount,
   destinationToken,
   refundTo,
   sourceAmounts,
@@ -429,6 +436,7 @@ function buildPostQuoteRequests({
   isMaxAmount: boolean;
   isHyperliquidSource?: boolean;
   isPolymarketDepositWallet?: boolean;
+  useMoneyAccount?: boolean;
   destinationToken: TransactionPaymentToken;
   refundTo?: Hex;
   sourceAmounts: TransactionPaySourceAmount[] | undefined;
@@ -459,6 +467,7 @@ function buildPostQuoteRequests({
     isPostQuote: true,
     isHyperliquidSource,
     isPolymarketDepositWallet,
+    useMoneyAccount,
     refundTo,
     sourceBalanceRaw: sourceAmount.sourceBalanceRaw,
     sourceTokenAmount: sourceAmount.sourceAmountRaw,

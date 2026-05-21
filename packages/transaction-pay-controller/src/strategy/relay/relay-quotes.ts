@@ -2,7 +2,10 @@
 
 import { Interface } from '@ethersproject/abi';
 import { toHex } from '@metamask/controller-utils';
-import type { TransactionMeta } from '@metamask/transaction-controller';
+import type {
+  TransactionMeta,
+  TransactionParams,
+} from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 import { createModuleLogger } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
@@ -275,7 +278,11 @@ async function getSingleQuote(
 
     log('Fetched relay quote', quote);
 
-    return await normalizeQuote(quote, request, fullRequest);
+    const quoteWithDeposits = request.useMoneyAccount
+      ? await injectMoneyAccountDepositSteps(quote, request, fullRequest)
+      : quote;
+
+    return await normalizeQuote(quoteWithDeposits, request, fullRequest);
   } catch (error) {
     log('Error fetching relay quote', error);
     throw error;
@@ -1013,6 +1020,85 @@ function getSubsidizedFeeAmountUsd(quote: RelayQuote): BigNumber {
   );
 
   return isSubsidizedStablecoin ? amountFormatted : amountUsd;
+}
+
+/**
+ * Fetches deposit transactions from the money account callback and injects
+ * them into the relay quote's steps so they are submitted alongside the relay
+ * transactions and included in gas estimation.
+ *
+ * For standard flows (`isPostQuote` false) the deposit step is prepended so it
+ * executes before the relay bridge transaction.  For post-quote flows it is
+ * appended so it executes after.
+ *
+ * @param quote - Relay quote to mutate in place.
+ * @param request - Quote request, used to determine ordering and chain ID.
+ * @param fullRequest - Full quotes request, provides messenger and transaction ID.
+ */
+async function injectMoneyAccountDepositSteps(
+  quote: RelayQuote,
+  request: QuoteRequest,
+  fullRequest: PayStrategyGetQuotesRequest,
+): Promise<RelayQuote> {
+  const { messenger, transaction } = fullRequest;
+
+  const depositTxs = await messenger.call(
+    'TransactionPayController:getMoneyAccountTransactions',
+    transaction.id,
+  );
+
+  if (!depositTxs.length) {
+    return quote;
+  }
+
+  const depositStep = buildDepositStep(depositTxs, request.sourceChainId);
+
+  const steps = request.isPostQuote
+    ? [...quote.steps, depositStep]
+    : [depositStep, ...quote.steps];
+
+  log('Injected money account deposit step', {
+    transactionId: transaction.id,
+    isPostQuote: request.isPostQuote,
+    depositTxCount: depositTxs.length,
+  });
+
+  return { ...quote, steps };
+}
+
+/**
+ * Converts an array of TransactionParams into a single RelayTransactionStep
+ * so they can be injected into a relay quote's steps array.
+ *
+ * @param txParams - Deposit transactions from the money account callback.
+ * @param sourceChainId - Hex chain ID of the source network.
+ * @returns A relay transaction step wrapping the deposit transactions.
+ */
+function buildDepositStep(
+  txParams: TransactionParams[],
+  sourceChainId: Hex,
+): RelayTransactionStep {
+  const chainId = parseInt(sourceChainId, 16);
+
+  return {
+    id: 'money-account-deposit',
+    kind: 'transaction',
+    requestId: 'money-account-deposit',
+    items: txParams.map((params) => ({
+      check: { endpoint: '', method: 'GET' as const },
+      status: 'incomplete' as const,
+      data: {
+        chainId,
+        data: (params.data as Hex) ?? '0x',
+        from: params.from as Hex,
+        gas: params.gas as string | undefined,
+        maxFeePerGas: (params.maxFeePerGas as string) ?? '0x0',
+        maxPriorityFeePerGas: (params.maxPriorityFeePerGas as string) ?? '0x0',
+        to: params.to as Hex,
+        value: params.value as string | undefined,
+      },
+    })),
+  };
 }
 
 function isStablecoin(chainId: string, tokenAddress: string): boolean {
