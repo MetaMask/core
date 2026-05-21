@@ -11,41 +11,45 @@ import type { InitializationConfiguration, InstanceState } from './types';
 
 export { defaultConfigurations };
 
+/**
+ * Utility type for inferring and extracting an instance type from an initialization configuration.
+ */
 type ExtractInstance<Config> =
   Config extends InitializationConfiguration<infer Instance, unknown>
     ? Instance
     : never;
 
+/**
+ * Utility type for inferring and extracting an instance messenger type from an initialization configuration.
+ */
 type ExtractInstanceMessenger<Config> =
   Config extends InitializationConfiguration<unknown, infer InferredMessenger>
     ? InferredMessenger
     : never;
 
+/**
+ * Utility type for inferring and extracting the name of an instance from an initialization configuration.
+ */
 type ExtractName<Config> =
   ExtractInstance<Config> extends { name: infer Name extends string }
     ? Name
     : never;
 
-type Configs = typeof defaultConfigurations;
+type DefaultConfigs = typeof defaultConfigurations;
 
-type AllMessengers = ExtractInstanceMessenger<Configs[keyof Configs]>;
+type AllDefaultMessengers = ExtractInstanceMessenger<
+  DefaultConfigs[keyof DefaultConfigs]
+>;
 
 export type DefaultInstances = {
-  [Key in keyof Configs as ExtractName<Configs[Key]>]: ExtractInstance<
-    Configs[Key]
-  >;
+  [Key in keyof DefaultConfigs as ExtractName<
+    DefaultConfigs[Key]
+  >]: ExtractInstance<DefaultConfigs[Key]>;
 };
 
-export type DefaultActions = MessengerActions<AllMessengers>;
+export type DefaultActions = MessengerActions<AllDefaultMessengers>;
 
-export type WalletDestroyedEvent = {
-  type: 'Root:destroyed';
-  payload: [];
-};
-
-export type DefaultEvents =
-  | MessengerEvents<AllMessengers>
-  | WalletDestroyedEvent;
+export type DefaultEvents = MessengerEvents<AllDefaultMessengers>;
 
 export type RootMessenger<
   AllowedActions extends ActionConstraint,

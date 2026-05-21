@@ -71,7 +71,9 @@ export class Wallet {
   get state(): DefaultState {
     return Object.entries(this.#instances).reduce<Record<string, unknown>>(
       (totalState, [name, instance]) => {
-        totalState[name] = instance.state ?? null;
+        if (instance.state) {
+          totalState[name] = instance.state;
+        }
         return totalState;
       },
       {},
@@ -138,7 +140,5 @@ export class Wallet {
         return undefined;
       }),
     );
-
-    this.messenger.publish('Root:destroyed');
   }
 }

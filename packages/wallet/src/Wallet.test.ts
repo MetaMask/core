@@ -109,7 +109,7 @@ describe('Wallet', () => {
       foo: 'bar',
     });
 
-    expect((state as Record<string, Json>).TestService).toBeNull();
+    expect((state as Record<string, Json>).TestService).toBeUndefined();
   });
 
   it('exposes controllerMetadata for each initialized controller', async () => {
@@ -127,9 +127,10 @@ describe('Wallet', () => {
       foo: { persist: true, includeInDebugSnapshot: false },
     };
     jest.spyOn(initializationModule, 'initialize').mockReturnValueOnce({
+      // @ts-expect-error Mock data.
       WithMeta: { state: {}, metadata: fakeMetadata },
       NoMeta: { state: {} },
-    } as never);
+    });
 
     const wallet = new Wallet({});
 
@@ -163,50 +164,17 @@ describe('Wallet', () => {
     }).toThrow('The controller metadata cannot be directly mutated.');
   });
 
-  describe('lifecycle', () => {
-    it('publishes Root:destroyed exactly once on destroy', async () => {
-      const wallet = await setupWallet();
+  it('calls destroy on instances exactly once', async () => {
+    const wallet = await setupWallet();
 
-      const listener = jest.fn();
-      wallet.messenger.subscribe('Root:destroyed', listener);
+    const keyringController = wallet.getInstance('KeyringController');
 
-      await wallet.destroy();
-      await wallet.destroy();
+    const spy = jest.spyOn(keyringController, 'destroy');
 
-      expect(listener).toHaveBeenCalledTimes(1);
-    });
+    await wallet.destroy();
+    await wallet.destroy();
 
-    it('publishes Root:destroyed even if a controller destroy throws synchronously', async () => {
-      const wallet = await setupWallet();
-
-      jest
-        .spyOn(KeyringController.prototype, 'destroy')
-        .mockImplementation(() => {
-          throw new Error('sync destroy error');
-        });
-
-      const listener = jest.fn();
-      wallet.messenger.subscribe('Root:destroyed', listener);
-
-      await wallet.destroy();
-
-      expect(listener).toHaveBeenCalledTimes(1);
-    });
-
-    it('publishes Root:destroyed even if a controller destroy rejects', async () => {
-      const wallet = await setupWallet();
-
-      jest
-        .spyOn(KeyringController.prototype, 'destroy')
-        .mockRejectedValue(new Error('async destroy error') as never);
-
-      const listener = jest.fn();
-      wallet.messenger.subscribe('Root:destroyed', listener);
-
-      await wallet.destroy();
-
-      expect(listener).toHaveBeenCalledTimes(1);
-    });
+    expect(spy).toHaveBeenCalledTimes(1);
   });
 
   describe('KeyringController', () => {

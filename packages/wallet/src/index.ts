@@ -5,5 +5,4 @@ export type {
   DefaultEvents,
   DefaultInstances,
   RootMessenger,
-  WalletDestroyedEvent,
 } from './initialization/defaults';
