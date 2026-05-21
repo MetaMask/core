@@ -5,7 +5,6 @@ import {
 import type { GasFeeState } from '@metamask/gas-fee-controller';
 import type { FeeMarketGasFeeEstimates } from '@metamask/transaction-controller';
 import { GasFeeEstimateLevel } from '@metamask/transaction-controller';
-import { BigNumber } from 'bignumber.js';
 
 import { calculateGasFees, getTxGasEstimates } from './transaction';
 
@@ -39,10 +38,7 @@ describe('gas calculation utils', () => {
       jest.clearAllMocks();
     });
 
-    it('should return gas fee estimates with baseAndPriorityFeePerGas when maxPriorityFeePerGas is provided', async () => {
-      mockMessenger.call.mockReturnValueOnce({
-        gasFeeEstimates: mockNetworkGasFeeEstimates,
-      });
+    it('should return gas fee estimates when maxPriorityFeePerGas is provided', async () => {
       mockMessenger.call.mockReturnValueOnce({
         estimates: mockTxGasFeeEstimates,
       });
@@ -54,9 +50,6 @@ describe('gas calculation utils', () => {
 
       // Verify the result
       expect(result).toStrictEqual({
-        baseAndPriorityFeePerGas: new BigNumber('0.00000001', 10)
-          .times(10 ** 9)
-          .plus('0x1234567890', 16),
         maxFeePerGas: '0x1234567890',
         maxPriorityFeePerGas: '0x1234567890',
       });
@@ -64,18 +57,12 @@ describe('gas calculation utils', () => {
 
     it('should handle missing property in txGasFeeEstimates', async () => {
       mockMessenger.call.mockReturnValueOnce({
-        gasFeeEstimates: {
-          estimatedBaseFee: '0.00000001',
-        } as GasFeeState['gasFeeEstimates'],
-      });
-      mockMessenger.call.mockReturnValueOnce({
         estimates: {},
       });
 
       const result = await getTxGasEstimates(mockMessenger);
 
       expect(result).toStrictEqual({
-        baseAndPriorityFeePerGas: undefined,
         maxFeePerGas: undefined,
         maxPriorityFeePerGas: undefined,
       });
@@ -99,9 +86,6 @@ describe('gas calculation utils', () => {
       } as FeeMarketGasFeeEstimates;
 
       mockMessenger.call.mockReturnValueOnce({
-        gasFeeEstimates: mockNetworkGasFeeEstimates,
-      });
-      mockMessenger.call.mockReturnValueOnce({
         estimates,
       });
 
@@ -121,9 +105,6 @@ describe('gas calculation utils', () => {
     it('should use default estimatedBaseFee when not provided in networkGasFeeEstimates', async () => {
       // Mock data
       mockMessengerCall.mockClear();
-      mockMessengerCall.mockReturnValueOnce({
-        gasFeeEstimates: {},
-      });
       mockMessengerCall.mockResolvedValueOnce({
         estimates: mockTxGasFeeEstimates,
       });
@@ -136,9 +117,6 @@ describe('gas calculation utils', () => {
 
       // Verify the result
       expect(result).toStrictEqual({
-        baseAndPriorityFeePerGas: new BigNumber('0', 10)
-          .times(10 ** 9)
-          .plus('0x1234567890', 16),
         maxFeePerGas: '0x1234567890',
         maxPriorityFeePerGas: '0x1234567890',
       });
@@ -197,12 +175,7 @@ describe('gas calculation utils', () => {
     ])(
       'should return $expectedGas if trade.gasLimit is $gasLimit',
       async ({ gasLimit, expectedGas }) => {
-        const mockCall = jest.fn().mockReturnValueOnce({
-          gasFeeEstimates: {
-            estimatedBaseFee: '0x1234',
-          },
-        });
-        mockCall.mockResolvedValueOnce({
+        const mockCall = jest.fn().mockResolvedValueOnce({
           estimates: {
             [GasFeeEstimateLevel.Medium]: {
               maxFeePerGas: '0x1234567890',

@@ -69,29 +69,13 @@ export const getTxGasEstimates = async (
   messenger: BridgeStatusControllerMessenger,
   estimateGasFeeParams: Parameters<TransactionController['estimateGasFee']>[0],
 ) => {
-  const { gasFeeEstimates } = messenger.call('GasFeeController:getState');
-  const estimatedBaseFee =
-    'estimatedBaseFee' in gasFeeEstimates
-      ? gasFeeEstimates.estimatedBaseFee
-      : '0';
-
   // Get transaction's 1559 gas fee estimates
   const { maxFeePerGas, maxPriorityFeePerGas } = await getGasFeeEstimates(
     messenger,
     estimateGasFeeParams,
   );
 
-  /**
-   * @deprecated this is unused
-   */
-  const baseAndPriorityFeePerGas = maxPriorityFeePerGas
-    ? new BigNumber(estimatedBaseFee, 10)
-        .times(10 ** 9)
-        .plus(maxPriorityFeePerGas, 16)
-    : undefined;
-
   return {
-    baseAndPriorityFeePerGas,
     maxFeePerGas,
     maxPriorityFeePerGas,
   };

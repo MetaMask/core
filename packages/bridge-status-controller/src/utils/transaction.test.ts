@@ -1787,24 +1787,6 @@ describe('Bridge Status Controller Transaction Utils', () => {
               rpcUrl: 'https://mainnet.infura.io/v3/API_KEY',
             };
           }
-          if (method === 'GasFeeController:getState') {
-            return {
-              gasFeeEstimates: {
-                low: {
-                  suggestedMaxFeePerGas: '20',
-                  suggestedMaxPriorityFeePerGas: '1',
-                },
-                medium: {
-                  suggestedMaxFeePerGas: '30',
-                  suggestedMaxPriorityFeePerGas: '2',
-                },
-                high: {
-                  suggestedMaxFeePerGas: '40',
-                  suggestedMaxPriorityFeePerGas: '3',
-                },
-              },
-            };
-          }
           if (method === 'TransactionController:estimateGasFee') {
             return estimateGasFeeOverrides;
           }
@@ -2132,9 +2114,6 @@ describe('Bridge Status Controller Transaction Utils', () => {
           [
             "NetworkController:findNetworkClientIdByChainId",
             "0x1",
-          ],
-          [
-            "GasFeeController:getState",
           ],
           [
             "TransactionController:estimateGasFee",

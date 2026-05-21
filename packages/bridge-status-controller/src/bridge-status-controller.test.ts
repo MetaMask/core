@@ -580,7 +580,6 @@ function getControllerMessenger(
       'TransactionController:isAtomicBatchSupported',
       'BridgeController:trackUnifiedSwapBridgeEvent',
       'BridgeController:stopPollingForQuotes',
-      'GasFeeController:getState',
       'RemoteFeatureFlagController:getState',
       'AuthenticationController:getBearerToken',
       'KeyringController:signTypedMessage',
@@ -2863,9 +2862,6 @@ describe('BridgeStatusController', () => {
     const setupApprovalMocks = (mockCall: jest.Mock) => {
       mockCall.mockReturnValueOnce(mockSelectedAccount);
       mockCall.mockReturnValueOnce('arbitrum-client-id');
-      mockCall.mockReturnValueOnce({
-        gasFeeEstimates: { estimatedBaseFee: '0x1234' },
-      });
       mockMessengerCall.mockResolvedValueOnce(mockEstimateGasFeeResult);
       mockMessengerCall.mockResolvedValueOnce({
         transactionMeta: mockApprovalTxMeta,
@@ -2879,9 +2875,6 @@ describe('BridgeStatusController', () => {
     const setupBridgeMocks = (mockCall: jest.Mock) => {
       mockCall.mockReturnValueOnce(mockSelectedAccount);
       mockCall.mockReturnValueOnce('arbitrum');
-      mockCall.mockReturnValueOnce({
-        gasFeeEstimates: { estimatedBaseFee: '0x1234' },
-      });
       mockCall.mockResolvedValueOnce(mockEstimateGasFeeResult);
       mockCall.mockResolvedValueOnce({
         transactionMeta: mockEvmTxMeta,
@@ -2901,9 +2894,6 @@ describe('BridgeStatusController', () => {
     const setupBridgeStxMocks = (mockCall: jest.Mock) => {
       mockCall.mockReturnValueOnce(mockSelectedAccount);
       mockCall.mockReturnValueOnce('arbitrum');
-      mockCall.mockReturnValueOnce({
-        gasFeeEstimates: { estimatedBaseFee: '0x1234' },
-      });
       mockCall.mockResolvedValueOnce(mockEstimateGasFeeResult);
       addTransactionBatchFn.mockResolvedValueOnce({
         batchId: 'batchId1',
@@ -3188,17 +3178,8 @@ describe('BridgeStatusController', () => {
       setupEventTrackingMocks(mockMessengerCall);
       mockMessengerCall.mockReturnValueOnce(mockSelectedAccount);
       mockMessengerCall.mockReturnValueOnce('arbitrum');
-      mockMessengerCall.mockReturnValueOnce({
-        gasFeeEstimates: { estimatedBaseFee: '0x1234' },
-      });
       mockMessengerCall.mockResolvedValueOnce(mockEstimateGasFeeResult);
-      mockMessengerCall.mockReturnValueOnce({
-        gasFeeEstimates: { estimatedBaseFee: '0x1234' },
-      });
       mockMessengerCall.mockResolvedValueOnce(mockEstimateGasFeeResult);
-      mockMessengerCall.mockReturnValueOnce({
-        gasFeeEstimates: { estimatedBaseFee: '0x1234' },
-      });
       mockMessengerCall.mockResolvedValueOnce(mockEstimateGasFeeResult);
       addTransactionBatchFn.mockResolvedValueOnce({
         batchId: 'batchId1',
@@ -3257,7 +3238,7 @@ describe('BridgeStatusController', () => {
                 action === 'TransactionController:updateTransaction',
             ),
           ).toHaveLength(1);
-          expect(mockMessengerCall).toHaveBeenCalledTimes(14);
+          expect(mockMessengerCall).toHaveBeenCalledTimes(11);
         },
       );
     });
@@ -3266,9 +3247,6 @@ describe('BridgeStatusController', () => {
       setupEventTrackingMocks(mockMessengerCall);
       mockMessengerCall.mockReturnValueOnce(mockSelectedAccount);
       mockMessengerCall.mockReturnValueOnce('arbitrum-client-id');
-      mockMessengerCall.mockReturnValueOnce({
-        gasFeeEstimates: { estimatedBaseFee: '0x1234' },
-      });
       mockMessengerCall.mockResolvedValueOnce(mockEstimateGasFeeResult);
       mockMessengerCall.mockRejectedValueOnce(new Error('Approval tx failed'));
 
@@ -3294,9 +3272,6 @@ describe('BridgeStatusController', () => {
       setupEventTrackingMocks(mockMessengerCall);
       mockMessengerCall.mockReturnValueOnce(mockSelectedAccount);
       mockMessengerCall.mockReturnValueOnce('arbitrum-client-id');
-      mockMessengerCall.mockReturnValueOnce({
-        gasFeeEstimates: { estimatedBaseFee: '0x1234' },
-      });
       mockMessengerCall.mockResolvedValueOnce(mockEstimateGasFeeResult);
       mockMessengerCall.mockResolvedValueOnce({
         transactionMeta: undefined,
@@ -3656,9 +3631,6 @@ describe('BridgeStatusController', () => {
         // Setup for trade tx (no approval)
         mockMessengerCall.mockReturnValueOnce(mockSelectedAccount);
         mockMessengerCall.mockReturnValueOnce('arbitrum-client-id');
-        mockMessengerCall.mockReturnValueOnce({
-          gasFeeEstimates: { estimatedBaseFee: '0x1234' },
-        });
         mockMessengerCall.mockResolvedValueOnce({
           estimates: {
             high: {
@@ -3859,9 +3831,6 @@ describe('BridgeStatusController', () => {
     const setupApprovalMocks = () => {
       mockMessengerCall.mockReturnValueOnce(mockSelectedAccount);
       mockMessengerCall.mockReturnValueOnce('arbitrum-client-id');
-      mockMessengerCall.mockReturnValueOnce({
-        gasFeeEstimates: { estimatedBaseFee: '0x1234' },
-      });
       mockMessengerCall.mockResolvedValueOnce(mockEstimateGasFeeResult);
       mockMessengerCall.mockResolvedValueOnce({
         transactionMeta: mockApprovalTxMeta,
@@ -3875,9 +3844,6 @@ describe('BridgeStatusController', () => {
     const setupBridgeMocks = () => {
       mockMessengerCall.mockReturnValueOnce(mockSelectedAccount);
       mockMessengerCall.mockReturnValueOnce('arbitrum');
-      mockMessengerCall.mockReturnValueOnce({
-        gasFeeEstimates: { estimatedBaseFee: '0x1234' },
-      });
       mockMessengerCall.mockResolvedValueOnce(mockEstimateGasFeeResult);
       mockMessengerCall.mockResolvedValueOnce({
         transactionMeta: mockEvmTxMeta,
@@ -3919,7 +3885,7 @@ describe('BridgeStatusController', () => {
               ([action]) => action === 'TransactionController:addTransaction',
             ),
           ).toHaveLength(2);
-          expect(mockMessengerCall).toHaveBeenCalledTimes(16);
+          expect(mockMessengerCall).toHaveBeenCalledTimes(14);
         },
       );
     });
@@ -4379,13 +4345,7 @@ describe('BridgeStatusController', () => {
       setupEventTrackingMocks(mockMessengerCall);
       mockMessengerCall.mockReturnValueOnce(mockSelectedAccount);
       mockMessengerCall.mockReturnValueOnce('arbitrum');
-      mockMessengerCall.mockReturnValueOnce({
-        gasFeeEstimates: { estimatedBaseFee: '0x1234' },
-      });
       mockMessengerCall.mockResolvedValueOnce(mockEstimateGasFeeResult);
-      mockMessengerCall.mockReturnValueOnce({
-        gasFeeEstimates: { estimatedBaseFee: '0x1234' },
-      });
       mockMessengerCall.mockResolvedValueOnce(mockEstimateGasFeeResult);
       addTransactionBatchFn.mockResolvedValueOnce({
         batchId: 'batchId1',
@@ -4505,13 +4465,7 @@ describe('BridgeStatusController', () => {
       setupEventTrackingMocks(mockMessengerCall);
       mockMessengerCall.mockReturnValueOnce(mockSelectedAccount);
       mockMessengerCall.mockReturnValueOnce('arbitrum');
-      mockMessengerCall.mockReturnValueOnce({
-        gasFeeEstimates: { estimatedBaseFee: '0x1234' },
-      });
       mockMessengerCall.mockResolvedValueOnce(mockEstimateGasFeeResult);
-      mockMessengerCall.mockReturnValueOnce({
-        gasFeeEstimates: { estimatedBaseFee: '0x1234' },
-      });
       mockMessengerCall.mockResolvedValueOnce(mockEstimateGasFeeResult);
       addTransactionBatchFn.mockResolvedValueOnce({
         batchId: 'batchId1',
@@ -4552,7 +4506,7 @@ describe('BridgeStatusController', () => {
             ),
           ).toHaveLength(0);
           expect(addTransactionBatchFn).toHaveBeenCalledTimes(1);
-          expect(mockMessengerCall).toHaveBeenCalledTimes(12);
+          expect(mockMessengerCall).toHaveBeenCalledTimes(10);
           expect(
             mockCalls.find(
               ([action, eventName]) =>
@@ -4628,7 +4582,7 @@ describe('BridgeStatusController', () => {
               ([action]) => action === 'TransactionController:addTransaction',
             ),
           ).toHaveLength(2);
-          expect(mockMessengerCall).toHaveBeenCalledTimes(16);
+          expect(mockMessengerCall).toHaveBeenCalledTimes(14);
           expect(addTransactionBatchFn).not.toHaveBeenCalled();
           expect(mockCalls).toMatchSnapshot();
           expect(result).toMatchInlineSnapshot(`

@@ -13,7 +13,6 @@ import type {
   QuoteResponse,
   MetaMetricsSwapsEventSource,
 } from '@metamask/bridge-controller';
-import type { GetGasFeeState } from '@metamask/gas-fee-controller';
 import type { KeyringControllerSignTypedMessageAction } from '@metamask/keyring-controller';
 import type { Messenger } from '@metamask/messenger';
 import type {
@@ -312,7 +311,6 @@ type AllowedActions =
   | TransactionControllerIsAtomicBatchSupportedAction
   | BridgeControllerAction<BridgeBackgroundAction.TRACK_METAMETRICS_EVENT>
   | BridgeControllerAction<BridgeBackgroundAction.STOP_POLLING_FOR_QUOTES>
-  | GetGasFeeState
   | AccountsControllerGetAccountByAddressAction
   | AuthenticationControllerGetBearerTokenAction
   | KeyringControllerSignTypedMessageAction;

@@ -653,9 +653,6 @@ exports[`BridgeStatusController submitTx: EVM bridge should delay after submitti
     "0xa4b1",
   ],
   [
-    "GasFeeController:getState",
-  ],
-  [
     "TransactionController:estimateGasFee",
     {
       "chainId": "0xa4b1",
@@ -703,9 +700,6 @@ exports[`BridgeStatusController submitTx: EVM bridge should delay after submitti
   [
     "NetworkController:findNetworkClientIdByChainId",
     "0xa4b1",
-  ],
-  [
-    "GasFeeController:getState",
   ],
   [
     "TransactionController:estimateGasFee",
@@ -978,9 +972,6 @@ exports[`BridgeStatusController submitTx: EVM bridge should delay after submitti
     "0xa4b1",
   ],
   [
-    "GasFeeController:getState",
-  ],
-  [
     "TransactionController:estimateGasFee",
     {
       "chainId": "0xa4b1",
@@ -1028,9 +1019,6 @@ exports[`BridgeStatusController submitTx: EVM bridge should delay after submitti
   [
     "NetworkController:findNetworkClientIdByChainId",
     "0xa4b1",
-  ],
-  [
-    "GasFeeController:getState",
   ],
   [
     "TransactionController:estimateGasFee",
@@ -1353,9 +1341,6 @@ exports[`BridgeStatusController submitTx: EVM bridge should handle smart transac
     "0xa4b1",
   ],
   [
-    "GasFeeController:getState",
-  ],
-  [
     "TransactionController:estimateGasFee",
     {
       "chainId": "0xa4b1",
@@ -1605,9 +1590,6 @@ exports[`BridgeStatusController submitTx: EVM bridge should not call handleMobil
     "0xa4b1",
   ],
   [
-    "GasFeeController:getState",
-  ],
-  [
     "TransactionController:estimateGasFee",
     {
       "chainId": "0xa4b1",
@@ -1655,9 +1637,6 @@ exports[`BridgeStatusController submitTx: EVM bridge should not call handleMobil
   [
     "NetworkController:findNetworkClientIdByChainId",
     "0xa4b1",
-  ],
-  [
-    "GasFeeController:getState",
   ],
   [
     "TransactionController:estimateGasFee",
@@ -1933,9 +1912,6 @@ exports[`BridgeStatusController submitTx: EVM bridge should not call handleMobil
     "0xa4b1",
   ],
   [
-    "GasFeeController:getState",
-  ],
-  [
     "TransactionController:estimateGasFee",
     {
       "chainId": "0xa4b1",
@@ -1983,9 +1959,6 @@ exports[`BridgeStatusController submitTx: EVM bridge should not call handleMobil
   [
     "NetworkController:findNetworkClientIdByChainId",
     "0xa4b1",
-  ],
-  [
-    "GasFeeController:getState",
   ],
   [
     "TransactionController:estimateGasFee",
@@ -2261,9 +2234,6 @@ exports[`BridgeStatusController submitTx: EVM bridge should reset USDT allowance
     "0x1",
   ],
   [
-    "GasFeeController:getState",
-  ],
-  [
     "TransactionController:estimateGasFee",
     {
       "chainId": "0x1",
@@ -2313,9 +2283,6 @@ exports[`BridgeStatusController submitTx: EVM bridge should reset USDT allowance
     "0xa4b1",
   ],
   [
-    "GasFeeController:getState",
-  ],
-  [
     "TransactionController:estimateGasFee",
     {
       "chainId": "0xa4b1",
@@ -2363,9 +2330,6 @@ exports[`BridgeStatusController submitTx: EVM bridge should reset USDT allowance
   [
     "NetworkController:findNetworkClientIdByChainId",
     "0xa4b1",
-  ],
-  [
-    "GasFeeController:getState",
   ],
   [
     "TransactionController:estimateGasFee",
@@ -2616,9 +2580,6 @@ exports[`BridgeStatusController submitTx: EVM bridge should successfully submit 
     "0xa4b1",
   ],
   [
-    "GasFeeController:getState",
-  ],
-  [
     "TransactionController:estimateGasFee",
     {
       "chainId": "0xa4b1",
@@ -2666,9 +2627,6 @@ exports[`BridgeStatusController submitTx: EVM bridge should successfully submit 
   [
     "NetworkController:findNetworkClientIdByChainId",
     "0xa4b1",
-  ],
-  [
-    "GasFeeController:getState",
   ],
   [
     "TransactionController:estimateGasFee",
@@ -2919,9 +2877,6 @@ exports[`BridgeStatusController submitTx: EVM bridge should successfully submit 
     "0xa4b1",
   ],
   [
-    "GasFeeController:getState",
-  ],
-  [
     "TransactionController:estimateGasFee",
     {
       "chainId": "0xa4b1",
@@ -3020,9 +2975,6 @@ exports[`BridgeStatusController submitTx: EVM bridge should throw an error if ap
   [
     "NetworkController:findNetworkClientIdByChainId",
     "0xa4b1",
-  ],
-  [
-    "GasFeeController:getState",
   ],
   [
     "TransactionController:estimateGasFee",
@@ -3149,9 +3101,6 @@ exports[`BridgeStatusController submitTx: EVM bridge should throw an error if ap
   [
     "NetworkController:findNetworkClientIdByChainId",
     "0xa4b1",
-  ],
-  [
-    "GasFeeController:getState",
   ],
   [
     "TransactionController:estimateGasFee",
@@ -3431,9 +3380,6 @@ exports[`BridgeStatusController submitTx: EVM bridge waits for approval tx confi
     "0xa4b1",
   ],
   [
-    "GasFeeController:getState",
-  ],
-  [
     "TransactionController:estimateGasFee",
     {
       "chainId": "0xa4b1",
@@ -3481,9 +3427,6 @@ exports[`BridgeStatusController submitTx: EVM bridge waits for approval tx confi
   [
     "NetworkController:findNetworkClientIdByChainId",
     "0xa4b1",
-  ],
-  [
-    "GasFeeController:getState",
   ],
   [
     "TransactionController:estimateGasFee",
@@ -3630,9 +3573,6 @@ exports[`BridgeStatusController submitTx: EVM swap should gracefully handle isAt
     "0xa4b1",
   ],
   [
-    "GasFeeController:getState",
-  ],
-  [
     "TransactionController:estimateGasFee",
     {
       "chainId": "0xa4b1",
@@ -3680,9 +3620,6 @@ exports[`BridgeStatusController submitTx: EVM swap should gracefully handle isAt
   [
     "NetworkController:findNetworkClientIdByChainId",
     "0xa4b1",
-  ],
-  [
-    "GasFeeController:getState",
   ],
   [
     "TransactionController:estimateGasFee",
@@ -4092,9 +4029,6 @@ exports[`BridgeStatusController submitTx: EVM swap should handle smart transacti
     "0xa4b1",
   ],
   [
-    "GasFeeController:getState",
-  ],
-  [
     "TransactionController:estimateGasFee",
     {
       "chainId": "0xa4b1",
@@ -4107,9 +4041,6 @@ exports[`BridgeStatusController submitTx: EVM swap should handle smart transacti
         "value": "0x0",
       },
     },
-  ],
-  [
-    "GasFeeController:getState",
   ],
   [
     "TransactionController:estimateGasFee",
@@ -4219,9 +4150,6 @@ exports[`BridgeStatusController submitTx: EVM swap should successfully submit an
     "0xa4b1",
   ],
   [
-    "GasFeeController:getState",
-  ],
-  [
     "TransactionController:estimateGasFee",
     {
       "chainId": "0xa4b1",
@@ -4269,9 +4197,6 @@ exports[`BridgeStatusController submitTx: EVM swap should successfully submit an
   [
     "NetworkController:findNetworkClientIdByChainId",
     "0xa4b1",
-  ],
-  [
-    "GasFeeController:getState",
   ],
   [
     "TransactionController:estimateGasFee",
@@ -4516,9 +4441,6 @@ exports[`BridgeStatusController submitTx: EVM swap should successfully submit an
   [
     "NetworkController:findNetworkClientIdByChainId",
     "0xa4b1",
-  ],
-  [
-    "GasFeeController:getState",
   ],
   [
     "TransactionController:estimateGasFee",
