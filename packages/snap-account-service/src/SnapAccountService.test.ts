@@ -472,21 +472,11 @@ function setup({
 const MOCK_SNAP_ID = 'npm:@metamask/mock-snap' as SnapId;
 
 describe('SnapAccountService', () => {
-  describe('init', () => {
-    it('resolves without throwing', async () => {
-      const { service } = setup();
-
-      expect(await service.init()).toBeUndefined();
-    });
-  });
-
   describe('getSnaps', () => {
-    it('exposes tracked Snaps seeded by init', async () => {
+    it('exposes tracked Snaps seeded from construction', () => {
       const { service } = setup({
         runnableSnaps: [buildSnap(MOCK_SNAP_ID, true)],
       });
-
-      await service.init();
 
       expect(service.getSnaps()).toStrictEqual([MOCK_SNAP_ID]);
     });
@@ -495,18 +485,6 @@ describe('SnapAccountService', () => {
   describe('ensureReady', () => {
     it('throws when the Snap is not tracked', async () => {
       const { service } = setup();
-
-      await service.init();
-
-      await expect(service.ensureReady(MOCK_SNAP_ID)).rejects.toThrow(
-        `Unknown snap: "${MOCK_SNAP_ID}"`,
-      );
-    });
-
-    it('throws before init even for runnable Snaps', async () => {
-      const { service } = setup({
-        runnableSnaps: [buildSnap(MOCK_SNAP_ID, true)],
-      });
 
       await expect(service.ensureReady(MOCK_SNAP_ID)).rejects.toThrow(
         `Unknown snap: "${MOCK_SNAP_ID}"`,
@@ -518,8 +496,6 @@ describe('SnapAccountService', () => {
         runnableSnaps: [buildSnap(MOCK_SNAP_ID, true)],
       });
 
-      await service.init();
-
       expect(await service.ensureReady(MOCK_SNAP_ID)).toBeUndefined();
     });
 
@@ -528,8 +504,6 @@ describe('SnapAccountService', () => {
         snapIsReady: false,
         runnableSnaps: [buildSnap(MOCK_SNAP_ID, true)],
       });
-
-      await service.init();
 
       let resolved = false;
       const ensurePromise = service.ensureReady(MOCK_SNAP_ID).then(() => {
@@ -550,8 +524,6 @@ describe('SnapAccountService', () => {
         keyrings: [],
         runnableSnaps: [buildSnap(MOCK_SNAP_ID, true)],
       });
-
-      await service.init();
 
       let resolved = false;
       const ensurePromise = service.ensureReady(MOCK_SNAP_ID).then(() => {
@@ -580,8 +552,6 @@ describe('SnapAccountService', () => {
         },
       });
 
-      await service.init();
-
       jest.useFakeTimers();
       const ensurePromise = service.ensureReady(MOCK_SNAP_ID);
       // Attach rejection handler before advancing timers to avoid unhandled rejection.
@@ -609,8 +579,6 @@ describe('SnapAccountService', () => {
         runnableSnaps: [buildSnap(MOCK_SNAP_ID, true)],
         config: { snapPlatformWatcher: { ensureOnboardingComplete } },
       });
-
-      await service.init();
 
       let resolved = false;
       const ensurePromise = service.ensureReady(MOCK_SNAP_ID).then(() => {
