@@ -268,7 +268,12 @@ export class AccountsApiDataSource extends AbstractDataSource<
     const response = await this.#apiClient.accounts.fetchV2SupportedNetworks();
 
     // Use fullSupport networks as active chains
-    return response.fullSupport.map(decimalToChainId);
+    return (
+      response.fullSupport
+        .map(decimalToChainId)
+        // TODO Restore solana when there is a fix for how we handle non-evm chains here
+        .filter((chainId) => chainId.startsWith('eip155:'))
+    );
   }
 
   // ============================================================================
