@@ -6,7 +6,7 @@ import type { Hex } from '@metamask/utils';
 import { TransactionPayController } from '.';
 import { updateFiatPayment } from './actions/update-fiat-payment';
 import { updatePaymentToken } from './actions/update-payment-token';
-import { TransactionPayStrategy } from './constants';
+import { PaymentOverride, TransactionPayStrategy } from './constants';
 import { deriveFiatAssetForFiatPayment } from './strategy/fiat/utils';
 import { getMessengerMock } from './tests/messenger-mock';
 import type {
@@ -204,6 +204,18 @@ describe('TransactionPayController', () => {
         controller.state.transactionData[TRANSACTION_ID_MOCK]
           .isHyperliquidSource,
       ).toBe(true);
+    });
+
+    it('updates paymentOverride in state', () => {
+      const controller = createController();
+
+      controller.setTransactionConfig(TRANSACTION_ID_MOCK, (config) => {
+        config.paymentOverride = PaymentOverride.MoneyAccount;
+      });
+
+      expect(
+        controller.state.transactionData[TRANSACTION_ID_MOCK].paymentOverride,
+      ).toBe(PaymentOverride.MoneyAccount);
     });
 
     it('triggers source amounts and quotes update when only isPostQuote changes', () => {

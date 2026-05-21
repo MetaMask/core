@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/assets-controller` from `^8.0.0` to `^8.0.1` ([#8874](https://github.com/MetaMask/core/pull/8874))
+
+## [73.0.1]
+
+### Changed
+
+- Bump `@metamask/assets-controller` from `^7.1.2` to `^8.0.0` ([#8866](https://github.com/MetaMask/core/pull/8866))
+
+### Fixed
+
+- Fix `calcSentAmount` double-counting fees for intent-based swap quotes ([#8845](https://github.com/MetaMask/core/pull/8845))
+
 ## [73.0.0]
 
 ### Added
@@ -1500,7 +1514,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#5317](https://github.com/MetaMask/core/pull/5317))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@73.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@73.0.1...HEAD
+[73.0.1]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@73.0.0...@metamask/bridge-controller@73.0.1
 [73.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@72.0.4...@metamask/bridge-controller@73.0.0
 [72.0.4]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@72.0.3...@metamask/bridge-controller@72.0.4
 [72.0.3]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@72.0.2...@metamask/bridge-controller@72.0.3

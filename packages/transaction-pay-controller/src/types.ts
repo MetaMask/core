@@ -58,7 +58,11 @@ import type {
 import type { Hex, Json } from '@metamask/utils';
 import type { Draft } from 'immer';
 
-import type { CONTROLLER_NAME, TransactionPayStrategy } from './constants';
+import type {
+  CONTROLLER_NAME,
+  PaymentOverride,
+  TransactionPayStrategy,
+} from './constants';
 import type { TransactionPayControllerMethodActions } from './TransactionPayController-method-action-types';
 
 export type AllowedActions =
@@ -140,6 +144,9 @@ export type TransactionConfig = {
    * When `isPostQuote` is false, it provides the funds and pays for gas.
    */
   accountOverride?: Hex;
+
+  /** Overrides the payment source for the transaction. */
+  paymentOverride?: PaymentOverride;
 };
 
 /** Callback to update transaction config. */
@@ -245,6 +252,9 @@ export type TransactionData = {
    * When `isPostQuote` is false, it provides the funds and pays for gas.
    */
   accountOverride?: Hex;
+
+  /** Overrides the payment source for the transaction. */
+  paymentOverride?: PaymentOverride;
 
   /**
    * Token selected for the transaction.

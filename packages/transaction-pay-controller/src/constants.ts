@@ -59,6 +59,12 @@ export const STABLECOINS: Record<Hex, Hex[]> = {
   [CHAIN_ID_HYPERCORE]: [HYPERCORE_USDC_ADDRESS], // USDC
 };
 
+export enum PaymentOverride {
+  MoneyAccount = 'moneyAccount',
+  Perps = 'perps',
+  Predict = 'predict',
+}
+
 export enum TransactionPayStrategy {
   Across = 'across',
   Bridge = 'bridge',
