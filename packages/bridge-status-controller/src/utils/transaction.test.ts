@@ -1726,7 +1726,14 @@ describe('Bridge Status Controller Transaction Utils', () => {
             [FeeType.METABRIDGE]: {
               amount: '100000000000000000',
             },
-            txFee: '50000000000000000',
+            ...(overrides.gasIncluded7702 || overrides.gasIncluded
+              ? {
+                  txFee: {
+                    maxFeePerGas: '50000000000000000',
+                    maxPriorityFeePerGas: '50000000000000000',
+                  },
+                }
+              : {}),
           },
           gasIncluded: overrides.gasIncluded ?? false,
           gasIncluded7702: overrides.gasIncluded7702 ?? false,
@@ -1764,7 +1771,7 @@ describe('Bridge Status Controller Transaction Utils', () => {
           valueInCurrency: '200',
           usd: '200',
         },
-      }) as never;
+      } as never);
 
     const createMockMessagingSystem = (
       estimateGasFeeOverrides: Record<string, unknown> = { estimates: {} },
@@ -1803,7 +1810,7 @@ describe('Bridge Status Controller Transaction Utils', () => {
           }
           return undefined;
         }),
-      }) as unknown as BridgeStatusControllerMessenger;
+      } as unknown as BridgeStatusControllerMessenger);
 
     beforeEach(() => {
       jest.clearAllMocks();
@@ -1831,6 +1838,14 @@ describe('Bridge Status Controller Transaction Utils', () => {
       expect(result.transactions).toHaveLength(2);
       expect(result.transactions[0].type).toBe(TransactionType.bridgeApproval);
       expect(result.transactions[1].type).toBe(TransactionType.bridge);
+      expect(result.transactions[1].params).toMatchInlineSnapshot(`
+        {
+          "data": "0xbridgeData",
+          "from": "0xUserAddress",
+          "to": "0xBridgeContract",
+          "value": "0x1000",
+        }
+      `);
     });
 
     it('should handle gasIncluded7702 flag set to false', async () => {
@@ -1851,6 +1866,17 @@ describe('Bridge Status Controller Transaction Utils', () => {
       // Should not use txFee for gas calculation when both gasIncluded and gasIncluded7702 are false
       expect(result.transactions).toHaveLength(1);
       expect(result.transactions[0].type).toBe(TransactionType.swap);
+      expect(result.transactions[0].params).toMatchInlineSnapshot(`
+        {
+          "data": "0xbridgeData",
+          "from": "0xUserAddress",
+          "gas": "0x5208",
+          "maxFeePerGas": "0x0",
+          "maxPriorityFeePerGas": "0x0",
+          "to": "0xBridgeContract",
+          "value": "0x1000",
+        }
+      `);
     });
 
     it('uses swap approval when approval provided and isBridgeTx is false', async () => {
@@ -1869,6 +1895,17 @@ describe('Bridge Status Controller Transaction Utils', () => {
       expect(result.transactions).toHaveLength(2);
       expect(result.transactions[0].type).toBe(TransactionType.swapApproval);
       expect(result.transactions[1].type).toBe(TransactionType.swap);
+      expect(result.transactions[1].params).toMatchInlineSnapshot(`
+        {
+          "data": "0xbridgeData",
+          "from": "0xUserAddress",
+          "gas": "0x5208",
+          "maxFeePerGas": "0x0",
+          "maxPriorityFeePerGas": "0x0",
+          "to": "0xBridgeContract",
+          "value": "0x1000",
+        }
+      `);
     });
 
     it('uses swap approval type for resetApproval when isBridgeTx is false', async () => {
@@ -1911,6 +1948,17 @@ describe('Bridge Status Controller Transaction Utils', () => {
       expect(result.transactions).toHaveLength(2);
       expect(result.transactions[0].type).toBe(TransactionType.bridgeApproval);
       expect(result.transactions[1].type).toBe(TransactionType.bridge);
+      expect(result.transactions[1].params).toMatchInlineSnapshot(`
+        {
+          "data": "0xbridgeData",
+          "from": "0xUserAddress",
+          "gas": "0x5208",
+          "maxFeePerGas": "0xb1a2bc2ec50000",
+          "maxPriorityFeePerGas": "0xb1a2bc2ec50000",
+          "to": "0xBridgeContract",
+          "value": "0x1000",
+        }
+      `);
     });
 
     it('should set isGasFeeIncluded to false and set disable7702 to true when gasIncluded7702 is undefined', async () => {
@@ -1927,6 +1975,36 @@ describe('Bridge Status Controller Transaction Utils', () => {
 
       expect(result.isGasFeeIncluded).toBe(false);
       expect(result.disable7702).toBe(true);
+      expect(result).toMatchInlineSnapshot(`
+        {
+          "disable7702": true,
+          "from": "0xUserAddress",
+          "isGasFeeIncluded": false,
+          "isGasFeeSponsored": false,
+          "isInternal": true,
+          "networkClientId": undefined,
+          "origin": "metamask",
+          "requireApproval": false,
+          "transactions": [
+            {
+              "assetsFiatValues": {
+                "receiving": "200",
+                "sending": "100",
+              },
+              "params": {
+                "data": "0xbridgeData",
+                "from": "0xUserAddress",
+                "gas": "0x5208",
+                "maxFeePerGas": "0x0",
+                "maxPriorityFeePerGas": "0x0",
+                "to": "0xBridgeContract",
+                "value": "0x1000",
+              },
+              "type": "swap",
+            },
+          ],
+        }
+      `);
     });
 
     it('should set isGasFeeIncluded to true and disable7702 to false when gasIncluded7702 is true', async () => {
@@ -1943,6 +2021,33 @@ describe('Bridge Status Controller Transaction Utils', () => {
 
       expect(result.isGasFeeIncluded).toBe(true);
       expect(result.disable7702).toBe(false);
+      expect(result).toMatchInlineSnapshot(`
+        {
+          "disable7702": false,
+          "from": "0xUserAddress",
+          "isGasFeeIncluded": true,
+          "isGasFeeSponsored": false,
+          "isInternal": true,
+          "networkClientId": undefined,
+          "origin": "metamask",
+          "requireApproval": false,
+          "transactions": [
+            {
+              "assetsFiatValues": {
+                "receiving": "200",
+                "sending": "100",
+              },
+              "params": {
+                "data": "0xbridgeData",
+                "from": "0xUserAddress",
+                "to": "0xBridgeContract",
+                "value": "0x1000",
+              },
+              "type": "swap",
+            },
+          ],
+        }
+      `);
     });
 
     it('should set isGasFeeIncluded to false and disable7702 to true when gasIncluded7702 is false', async () => {
@@ -1959,6 +2064,36 @@ describe('Bridge Status Controller Transaction Utils', () => {
 
       expect(result.isGasFeeIncluded).toBe(false);
       expect(result.disable7702).toBe(true);
+      expect(result).toMatchInlineSnapshot(`
+        {
+          "disable7702": true,
+          "from": "0xUserAddress",
+          "isGasFeeIncluded": false,
+          "isGasFeeSponsored": false,
+          "isInternal": true,
+          "networkClientId": undefined,
+          "origin": "metamask",
+          "requireApproval": false,
+          "transactions": [
+            {
+              "assetsFiatValues": {
+                "receiving": "200",
+                "sending": "100",
+              },
+              "params": {
+                "data": "0xbridgeData",
+                "from": "0xUserAddress",
+                "gas": "0x5208",
+                "maxFeePerGas": "0x0",
+                "maxPriorityFeePerGas": "0x0",
+                "to": "0xBridgeContract",
+                "value": "0x1000",
+              },
+              "type": "swap",
+            },
+          ],
+        }
+      `);
     });
 
     it('should enable 7702 but include gas fields when isDelegatedAccount is true and gasIncluded7702 is false', async () => {
@@ -2052,11 +2187,15 @@ describe('Bridge Status Controller Transaction Utils', () => {
       ).toHaveLength(0);
       // Transaction params should NOT include gas fields
       expect(result.transactions).toHaveLength(1);
-      expect(result.transactions[0].params).not.toHaveProperty('gas');
-      expect(result.transactions[0].params).not.toHaveProperty('maxFeePerGas');
-      expect(result.transactions[0].params).not.toHaveProperty(
-        'maxPriorityFeePerGas',
-      );
+      // These are the txFee values from the quote response
+      expect(result.transactions[0].params).toMatchInlineSnapshot(`
+        {
+          "data": "0xbridgeData",
+          "from": "0xUserAddress",
+          "to": "0xBridgeContract",
+          "value": "0x1000",
+        }
+      `);
     });
   });
 
