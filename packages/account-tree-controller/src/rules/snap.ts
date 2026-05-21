@@ -1,5 +1,6 @@
 import { AccountGroupType, AccountWalletType } from '@metamask/account-api';
 import { toAccountWalletId, toAccountGroupId } from '@metamask/account-api';
+import { KeyringType } from '@metamask/keyring-api/v2';
 import { KeyringTypes } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type { SnapId } from '@metamask/snaps-sdk';
@@ -105,10 +106,10 @@ export class SnapRule
       return false;
     }
 
-    return (
-      account.metadata.keyring.type === (KeyringTypes.snap as string) &&
-      snap.enabled &&
-      !snap.blocked
-    );
+    const keyringType = account.metadata.keyring.type;
+    const hasSnapKeyringType =
+      keyringType === KeyringTypes.snap || keyringType === KeyringType.Snap;
+
+    return hasSnapKeyringType && snap.enabled && !snap.blocked;
   }
 }
