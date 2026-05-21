@@ -1,4 +1,3 @@
-import { KeyringController } from '@metamask/keyring-controller';
 import { Messenger } from '@metamask/messenger';
 import { Json } from '@metamask/utils';
 import { webcrypto } from 'crypto';
