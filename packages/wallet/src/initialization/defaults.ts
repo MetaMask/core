@@ -39,7 +39,7 @@ export type DefaultInstances = {
 export type DefaultActions = MessengerActions<AllMessengers>;
 
 export type WalletDestroyedEvent = {
-  type: 'Wallet:destroyed';
+  type: 'Root:destroyed';
   payload: [];
 };
 
@@ -50,7 +50,7 @@ export type DefaultEvents =
 export type RootMessenger<
   AllowedActions extends ActionConstraint,
   AllowedEvents extends EventConstraint,
-> = Messenger<'Wallet', AllowedActions, AllowedEvents>;
+> = Messenger<'Root', AllowedActions, AllowedEvents>;
 
 export type DefaultState = {
   [Key in keyof DefaultInstances]: InstanceState<DefaultInstances[Key]>;

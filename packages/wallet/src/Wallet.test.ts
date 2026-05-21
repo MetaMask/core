@@ -139,12 +139,36 @@ describe('Wallet', () => {
     expect(Object.keys(wallet.state)).toStrictEqual(['WithMeta', 'NoMeta']);
   });
 
+  it('disallows modifying the messenger', async () => {
+    const wallet = await setupWallet();
+
+    expect(() => {
+      wallet.messenger = new Messenger({ namespace: 'Root' });
+    }).toThrow('The messenger cannot be directly mutated.');
+  });
+
+  it('disallows modifying the state', async () => {
+    const wallet = await setupWallet();
+
+    expect(() => {
+      wallet.state = { KeyringController: { isUnlocked: false, keyrings: [] } };
+    }).toThrow('Wallet state cannot be directly mutated.');
+  });
+
+  it('disallows modifying the controller metadata', async () => {
+    const wallet = await setupWallet();
+
+    expect(() => {
+      wallet.controllerMetadata = {};
+    }).toThrow('The controller metadata cannot be directly mutated.');
+  });
+
   describe('lifecycle', () => {
-    it('publishes Wallet:destroyed exactly once on destroy', async () => {
+    it('publishes Root:destroyed exactly once on destroy', async () => {
       const wallet = await setupWallet();
 
       const listener = jest.fn();
-      wallet.messenger.subscribe('Wallet:destroyed', listener);
+      wallet.messenger.subscribe('Root:destroyed', listener);
 
       await wallet.destroy();
       await wallet.destroy();
@@ -152,7 +176,7 @@ describe('Wallet', () => {
       expect(listener).toHaveBeenCalledTimes(1);
     });
 
-    it('publishes Wallet:destroyed even if a controller destroy throws synchronously', async () => {
+    it('publishes Root:destroyed even if a controller destroy throws synchronously', async () => {
       const wallet = await setupWallet();
 
       jest
@@ -162,14 +186,14 @@ describe('Wallet', () => {
         });
 
       const listener = jest.fn();
-      wallet.messenger.subscribe('Wallet:destroyed', listener);
+      wallet.messenger.subscribe('Root:destroyed', listener);
 
       await wallet.destroy();
 
       expect(listener).toHaveBeenCalledTimes(1);
     });
 
-    it('publishes Wallet:destroyed even if a controller destroy rejects', async () => {
+    it('publishes Root:destroyed even if a controller destroy rejects', async () => {
       const wallet = await setupWallet();
 
       jest
@@ -177,7 +201,7 @@ describe('Wallet', () => {
         .mockRejectedValue(new Error('async destroy error') as never);
 
       const listener = jest.fn();
-      wallet.messenger.subscribe('Wallet:destroyed', listener);
+      wallet.messenger.subscribe('Root:destroyed', listener);
 
       await wallet.destroy();
 

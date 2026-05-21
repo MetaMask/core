@@ -6,16 +6,23 @@ import type {
 } from './defaults';
 import { defaultConfigurations, RootMessenger } from './defaults';
 
-export type InitializeArgs = {
-  options: WalletOptions;
+type InitializeOptions = WalletOptions & {
   messenger: RootMessenger<DefaultActions, DefaultEvents>;
 };
 
-export function initialize({
-  options,
-  messenger,
-}: InitializeArgs): DefaultInstances {
-  const { state = {}, initializationConfigurations = [] } = options;
+/**
+ * Initialize all instances based on th default configurations and any additional configurations specified in `options`.
+ *
+ * @param options - The wallet options.
+ * @returns A map containing the instances.
+ */
+export function initialize(options: InitializeOptions): DefaultInstances {
+  const {
+    messenger,
+    state = {},
+    initializationConfigurations = [],
+    instanceOptions,
+  } = options;
 
   const overriddenConfiguration = initializationConfigurations.map(
     (config) => config.name,
@@ -43,7 +50,7 @@ export function initialize({
       // TODO: Consider whether this can be improved
       state: instanceState as never,
       messenger: instanceMessenger,
-      options: options.instanceOptions?.[camelCaseName] ?? {},
+      options: instanceOptions?.[camelCaseName] ?? {},
     });
 
     instances[name] = instance as Record<string, unknown>;

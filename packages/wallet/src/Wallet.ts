@@ -24,15 +24,26 @@ export class Wallet {
 
   #isDestroyed = false;
 
+  /**
+   * Creates a `Wallet` instance, initializing all instances as specified by the passed options.
+   *
+   * @param options - Options bag.
+   * @param options.messenger - An optional messenger to override the default one.
+   * @param options.state - An optional state blob.
+   * @param options.initializationConfigurations - An optional list of additional initialization configurations
+   * required beyond the ones included by default.
+   * @param options.instanceOptions - An optional object containing options that should be passed
+   * to specific instances for additional customization.
+   */
   constructor(options: WalletOptions) {
     this.#messenger =
       options.messenger ??
       new Messenger({
-        namespace: 'Wallet',
+        namespace: 'Root',
       });
 
     this.#instances = initialize({
-      options,
+      ...options,
       messenger: this.#messenger,
     });
 
@@ -43,10 +54,20 @@ export class Wallet {
     );
   }
 
+  /**
+   * @returns The root messenger of the wallet.
+   */
   get messenger(): Readonly<RootMessenger<DefaultActions, DefaultEvents>> {
     return this.#messenger;
   }
 
+  set messenger(_) {
+    throw new Error('The messenger cannot be directly mutated.');
+  }
+
+  /**
+   * @returns The combined state of the wallet.
+   */
   get state(): DefaultState {
     return Object.entries(this.#instances).reduce<Record<string, unknown>>(
       (totalState, [name, instance]) => {
@@ -57,10 +78,21 @@ export class Wallet {
     ) as DefaultState;
   }
 
+  set state(_) {
+    throw new Error('Wallet state cannot be directly mutated.');
+  }
+
+  /**
+   * @returns The controller metadata; containing per-controller information about what properties to persist etc.
+   */
   get controllerMetadata(): Readonly<
     Record<string, Readonly<StateMetadataConstraint>>
   > {
     return this.#controllerMetadata;
+  }
+
+  set controllerMetadata(_) {
+    throw new Error('The controller metadata cannot be directly mutated.');
   }
 
   getInstance<Name extends keyof DefaultInstances>(
@@ -84,6 +116,9 @@ export class Wallet {
     return this.#instances[name as keyof DefaultInstances];
   }
 
+  /**
+   * Destroy the wallet instance.
+   */
   async destroy(): Promise<void> {
     if (this.#isDestroyed) {
       return;
@@ -104,6 +139,6 @@ export class Wallet {
       }),
     );
 
-    this.messenger.publish('Wallet:destroyed');
+    this.messenger.publish('Root:destroyed');
   }
 }
