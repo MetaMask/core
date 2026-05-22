@@ -1092,6 +1092,8 @@ function buildPaymentOverrideStep(
         chainId,
         data: (params.data as Hex) ?? '0x',
         from: params.from as Hex,
+        maxFeePerGas: params.maxFeePerGas as string,
+        maxPriorityFeePerGas: params.maxPriorityFeePerGas as string,
         to: params.to as Hex,
         value: params.value,
       },

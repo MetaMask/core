@@ -3383,6 +3383,8 @@ describe('Relay Quotes Utils', () => {
         to: '0xpaymentoverride' as Hex,
         data: '0xpaymentoverride' as Hex,
         value: '0x0',
+        maxFeePerGas: '1000000000',
+        maxPriorityFeePerGas: '2000000000',
       };
 
       beforeEach(() => {
