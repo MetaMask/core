@@ -1071,18 +1071,15 @@ async function injectPaymentOverrideSteps(
  * Converts an array of TransactionParams into a single RelayTransactionStep
  * so they can be injected into a relay quote's steps array.
  *
- * Each transaction's `chainId` is used when present; `sourceChainId` is the
- * fallback for transactions that do not specify one.
- *
  * @param txParams - Transactions from the paymentOverride callback.
- * @param sourceChainId - Fallback hex chain ID used when a transaction omits its own.
+ * @param sourceChainId - Hex chain ID of the source network.
  * @returns A relay transaction step wrapping the paymentOverride transactions.
  */
 function buildPaymentOverrideStep(
   txParams: TransactionParams[],
   sourceChainId: Hex,
 ): RelayTransactionStep {
-  const fallbackChainId = parseInt(sourceChainId, 16);
+  const chainId = parseInt(sourceChainId, 16);
 
   return {
     id: 'payment-override',
@@ -1092,7 +1089,7 @@ function buildPaymentOverrideStep(
       check: { endpoint: '', method: 'GET' as const },
       status: 'incomplete' as const,
       data: {
-        chainId: params.chainId ? parseInt(params.chainId, 16) : fallbackChainId,
+        chainId,
         data: (params.data as Hex) ?? '0x',
         from: params.from as Hex,
         maxFeePerGas: params.maxFeePerGas as string,
