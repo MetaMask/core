@@ -413,7 +413,7 @@ describe('HyperLiquidWalletService', () => {
       });
 
       await expect(service.getCurrentAccountId()).rejects.toThrow(
-        'Store error',
+        'NO_ACCOUNT_SELECTED',
       );
     });
 

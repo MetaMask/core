@@ -14,7 +14,7 @@ import { HyperLiquidProvider } from '../../../src/providers/HyperLiquidProvider'
 import { HyperLiquidClientService } from '../../../src/services/HyperLiquidClientService';
 import { HyperLiquidSubscriptionService } from '../../../src/services/HyperLiquidSubscriptionService';
 import { HyperLiquidWalletService } from '../../../src/services/HyperLiquidWalletService';
-import { TradingReadinessCache } from '../../../src/services/TradingReadinessCache';
+import { PerpsSigningCache } from '../../../src/services/TradingReadinessCache';
 import type {
   ClosePositionParams,
   DepositParams,
@@ -102,8 +102,9 @@ jest.mock('../../../src/utils/hyperLiquidAdapter', () => {
   };
 });
 
-// Mock TradingReadinessCache - global singleton for signing operation caching
-// Use jest.createMockFromModule for proper mock creation
+// Mock PerpsSigningCache (exported from TradingReadinessCache module) — global
+// singleton for signing operation caching. Use jest.createMockFromModule for
+// proper mock creation.
 jest.mock('../../../src/services/TradingReadinessCache');
 
 const MockedHyperLiquidClientService =
@@ -374,9 +375,9 @@ describe('HyperLiquidProvider', () => {
       true,
     );
 
-    // Reset TradingReadinessCache mock state (using imported mocked module)
-    const mockedCache = TradingReadinessCache as jest.Mocked<
-      typeof TradingReadinessCache
+    // Reset PerpsSigningCache mock state (using imported mocked module)
+    const mockedCache = PerpsSigningCache as jest.Mocked<
+      typeof PerpsSigningCache
     >;
     mockedCache.get.mockReturnValue(undefined);
     mockedCache.getBuilderFee.mockReturnValue(undefined);
@@ -877,9 +878,9 @@ describe('HyperLiquidProvider', () => {
       expect(result.orderId).toBeDefined();
     });
 
-    it('skips builder fee retry after cached approval failure', async () => {
-      const mockedCache = TradingReadinessCache as jest.Mocked<
-        typeof TradingReadinessCache
+    it('retries builder fee approval after a previous attempt failed', async () => {
+      const mockedCache = PerpsSigningCache as jest.Mocked<
+        typeof PerpsSigningCache
       >;
 
       // First order: builder fee approval fails
@@ -922,17 +923,19 @@ describe('HyperLiquidProvider', () => {
         success: false,
       });
 
-      // Second order — cached failure prevents another approval prompt
+      // Second order — cached failure does NOT skip approval; retry so the
+      // builder fee eventually lands (mobile fix #30095).
       const result2 = await provider.placeOrder(orderParams);
       expect(result2.success).toBe(true);
 
-      // approveBuilderFee called once: cached failure avoids a repeated signing prompt.
-      expect(mockApproveBuilderFee).toHaveBeenCalledTimes(1);
+      // approveBuilderFee called twice: cached failure retries instead of
+      // silently leaving the builder fee unapproved.
+      expect(mockApproveBuilderFee).toHaveBeenCalledTimes(2);
     });
 
     it('skips builder fee retry when previous attempt succeeded', async () => {
-      const mockedCache = TradingReadinessCache as jest.Mocked<
-        typeof TradingReadinessCache
+      const mockedCache = PerpsSigningCache as jest.Mocked<
+        typeof PerpsSigningCache
       >;
 
       // Simulate successful cache
@@ -974,7 +977,7 @@ describe('HyperLiquidProvider', () => {
       );
       const mockCompleteInFlight = jest.fn();
       (
-        TradingReadinessCache as jest.Mocked<typeof TradingReadinessCache>
+        PerpsSigningCache as jest.Mocked<typeof PerpsSigningCache>
       ).setInFlight.mockReturnValue(mockCompleteInFlight);
       mockClientService.getInfoClient = jest.fn().mockReturnValue(
         createMockInfoClient({
@@ -1007,7 +1010,7 @@ describe('HyperLiquidProvider', () => {
 
       expect(result.success).toBe(true);
       expect(
-        (TradingReadinessCache as jest.Mocked<typeof TradingReadinessCache>)
+        (PerpsSigningCache as jest.Mocked<typeof PerpsSigningCache>)
           .setBuilderFee,
       ).not.toHaveBeenCalled();
       expect(mockCompleteInFlight).toHaveBeenCalled();
@@ -1058,7 +1061,7 @@ describe('HyperLiquidProvider', () => {
       );
       const mockCompleteInFlight = jest.fn();
       (
-        TradingReadinessCache as jest.Mocked<typeof TradingReadinessCache>
+        PerpsSigningCache as jest.Mocked<typeof PerpsSigningCache>
       ).setInFlight.mockReturnValue(mockCompleteInFlight);
       mockClientService.getInfoClient = jest.fn().mockReturnValue(
         createMockInfoClient({
@@ -1092,7 +1095,7 @@ describe('HyperLiquidProvider', () => {
 
       expect(result.success).toBe(true);
       expect(
-        (TradingReadinessCache as jest.Mocked<typeof TradingReadinessCache>)
+        (PerpsSigningCache as jest.Mocked<typeof PerpsSigningCache>)
           .setReferral,
       ).not.toHaveBeenCalled();
       expect(mockCompleteInFlight).toHaveBeenCalled();
@@ -1215,7 +1218,7 @@ describe('HyperLiquidProvider', () => {
     it('returns early when global cache indicates already attempted', async () => {
       // Arrange - simulate cached state
       (
-        TradingReadinessCache as jest.Mocked<typeof TradingReadinessCache>
+        PerpsSigningCache as jest.Mocked<typeof PerpsSigningCache>
       ).getBuilderFee.mockReturnValue({
         attempted: true,
         success: true,
@@ -1231,7 +1234,7 @@ describe('HyperLiquidProvider', () => {
     it('waits for in-flight operation instead of duplicating request', async () => {
       // Arrange - ensure getBuilderFee returns undefined (not cached)
       (
-        TradingReadinessCache as jest.Mocked<typeof TradingReadinessCache>
+        PerpsSigningCache as jest.Mocked<typeof PerpsSigningCache>
       ).getBuilderFee.mockReturnValue(undefined);
 
       // Simulate in-flight operation from another provider
@@ -1240,7 +1243,7 @@ describe('HyperLiquidProvider', () => {
         resolveInFlight = resolve;
       });
       (
-        TradingReadinessCache as jest.Mocked<typeof TradingReadinessCache>
+        PerpsSigningCache as jest.Mocked<typeof PerpsSigningCache>
       ).isInFlight.mockReturnValue(inFlightPromise);
 
       // Act
@@ -1252,8 +1255,7 @@ describe('HyperLiquidProvider', () => {
 
       // Verify it called isInFlight to check for concurrent operations
       expect(
-        (TradingReadinessCache as jest.Mocked<typeof TradingReadinessCache>)
-          .isInFlight,
+        (PerpsSigningCache as jest.Mocked<typeof PerpsSigningCache>).isInFlight,
       ).toHaveBeenCalledWith(
         'builderFee',
         'mainnet',
@@ -1262,7 +1264,7 @@ describe('HyperLiquidProvider', () => {
 
       // Assert - should not have set its own in-flight lock
       expect(
-        (TradingReadinessCache as jest.Mocked<typeof TradingReadinessCache>)
+        (PerpsSigningCache as jest.Mocked<typeof PerpsSigningCache>)
           .setInFlight,
       ).not.toHaveBeenCalled();
     });
@@ -1271,7 +1273,7 @@ describe('HyperLiquidProvider', () => {
       // Arrange
       const mockCompleteInFlight = jest.fn();
       (
-        TradingReadinessCache as jest.Mocked<typeof TradingReadinessCache>
+        PerpsSigningCache as jest.Mocked<typeof PerpsSigningCache>
       ).setInFlight.mockReturnValue(mockCompleteInFlight);
       mockClientService.getInfoClient = jest.fn().mockReturnValue(
         createMockInfoClient({
@@ -1287,7 +1289,7 @@ describe('HyperLiquidProvider', () => {
 
       // Assert
       expect(
-        (TradingReadinessCache as jest.Mocked<typeof TradingReadinessCache>)
+        (PerpsSigningCache as jest.Mocked<typeof PerpsSigningCache>)
           .setBuilderFee,
       ).toHaveBeenCalledWith(
         'mainnet',
@@ -1301,7 +1303,7 @@ describe('HyperLiquidProvider', () => {
       // Arrange
       const mockCompleteInFlight = jest.fn();
       (
-        TradingReadinessCache as jest.Mocked<typeof TradingReadinessCache>
+        PerpsSigningCache as jest.Mocked<typeof PerpsSigningCache>
       ).setInFlight.mockReturnValue(mockCompleteInFlight);
       mockClientService.getInfoClient = jest.fn().mockReturnValue(
         createMockInfoClient({
@@ -1323,7 +1325,7 @@ describe('HyperLiquidProvider', () => {
 
       // Assert - failure should be cached
       expect(
-        (TradingReadinessCache as jest.Mocked<typeof TradingReadinessCache>)
+        (PerpsSigningCache as jest.Mocked<typeof PerpsSigningCache>)
           .setBuilderFee,
       ).toHaveBeenCalledWith(
         'mainnet',
@@ -1337,7 +1339,7 @@ describe('HyperLiquidProvider', () => {
       // Arrange
       const mockCompleteInFlight = jest.fn();
       (
-        TradingReadinessCache as jest.Mocked<typeof TradingReadinessCache>
+        PerpsSigningCache as jest.Mocked<typeof PerpsSigningCache>
       ).setInFlight.mockReturnValue(mockCompleteInFlight);
       mockClientService.getInfoClient = jest.fn().mockReturnValue(
         createMockInfoClient({
@@ -1357,7 +1359,7 @@ describe('HyperLiquidProvider', () => {
 
       // Assert - cache should NOT be set (so it retries when unlocked)
       expect(
-        (TradingReadinessCache as jest.Mocked<typeof TradingReadinessCache>)
+        (PerpsSigningCache as jest.Mocked<typeof PerpsSigningCache>)
           .setBuilderFee,
       ).not.toHaveBeenCalled();
       // Assert - in-flight lock should be released
@@ -1383,7 +1385,7 @@ describe('HyperLiquidProvider', () => {
     it('returns early when global cache indicates already attempted', async () => {
       // Arrange - simulate cached state
       (
-        TradingReadinessCache as jest.Mocked<typeof TradingReadinessCache>
+        PerpsSigningCache as jest.Mocked<typeof PerpsSigningCache>
       ).getReferral.mockReturnValue({
         attempted: true,
         success: true,
@@ -1399,7 +1401,7 @@ describe('HyperLiquidProvider', () => {
     it('waits for in-flight operation instead of duplicating request', async () => {
       // Arrange - ensure getReferral returns undefined (not cached)
       (
-        TradingReadinessCache as jest.Mocked<typeof TradingReadinessCache>
+        PerpsSigningCache as jest.Mocked<typeof PerpsSigningCache>
       ).getReferral.mockReturnValue(undefined);
 
       // Simulate in-flight operation from another provider
@@ -1408,7 +1410,7 @@ describe('HyperLiquidProvider', () => {
         resolveInFlight = resolve;
       });
       (
-        TradingReadinessCache as jest.Mocked<typeof TradingReadinessCache>
+        PerpsSigningCache as jest.Mocked<typeof PerpsSigningCache>
       ).isInFlight.mockReturnValue(inFlightPromise);
 
       // Act
@@ -1420,8 +1422,7 @@ describe('HyperLiquidProvider', () => {
 
       // Verify it called isInFlight to check for concurrent operations
       expect(
-        (TradingReadinessCache as jest.Mocked<typeof TradingReadinessCache>)
-          .isInFlight,
+        (PerpsSigningCache as jest.Mocked<typeof PerpsSigningCache>).isInFlight,
       ).toHaveBeenCalledWith(
         'referral',
         'mainnet',
@@ -1430,7 +1431,7 @@ describe('HyperLiquidProvider', () => {
 
       // Assert - should not have set its own in-flight lock
       expect(
-        (TradingReadinessCache as jest.Mocked<typeof TradingReadinessCache>)
+        (PerpsSigningCache as jest.Mocked<typeof PerpsSigningCache>)
           .setInFlight,
       ).not.toHaveBeenCalled();
     });
@@ -1439,7 +1440,7 @@ describe('HyperLiquidProvider', () => {
       // Arrange
       const mockCompleteInFlight = jest.fn();
       (
-        TradingReadinessCache as jest.Mocked<typeof TradingReadinessCache>
+        PerpsSigningCache as jest.Mocked<typeof PerpsSigningCache>
       ).setInFlight.mockReturnValue(mockCompleteInFlight);
       mockClientService.getInfoClient = jest.fn().mockReturnValue(
         createMockInfoClient({
@@ -1458,7 +1459,7 @@ describe('HyperLiquidProvider', () => {
 
       // Assert
       expect(
-        (TradingReadinessCache as jest.Mocked<typeof TradingReadinessCache>)
+        (PerpsSigningCache as jest.Mocked<typeof PerpsSigningCache>)
           .setReferral,
       ).toHaveBeenCalledWith(
         'mainnet',
@@ -1472,7 +1473,7 @@ describe('HyperLiquidProvider', () => {
       // Arrange
       const mockCompleteInFlight = jest.fn();
       (
-        TradingReadinessCache as jest.Mocked<typeof TradingReadinessCache>
+        PerpsSigningCache as jest.Mocked<typeof PerpsSigningCache>
       ).setInFlight.mockReturnValue(mockCompleteInFlight);
       mockClientService.getInfoClient = jest.fn().mockReturnValue(
         createMockInfoClient({
@@ -1496,7 +1497,7 @@ describe('HyperLiquidProvider', () => {
 
       // Assert - failure should be cached
       expect(
-        (TradingReadinessCache as jest.Mocked<typeof TradingReadinessCache>)
+        (PerpsSigningCache as jest.Mocked<typeof PerpsSigningCache>)
           .setReferral,
       ).toHaveBeenCalledWith(
         'mainnet',
@@ -1510,7 +1511,7 @@ describe('HyperLiquidProvider', () => {
       // Arrange
       const mockCompleteInFlight = jest.fn();
       (
-        TradingReadinessCache as jest.Mocked<typeof TradingReadinessCache>
+        PerpsSigningCache as jest.Mocked<typeof PerpsSigningCache>
       ).setInFlight.mockReturnValue(mockCompleteInFlight);
       mockClientService.getInfoClient = jest.fn().mockReturnValue(
         createMockInfoClient({
@@ -1529,7 +1530,7 @@ describe('HyperLiquidProvider', () => {
 
       // Assert - should cache success without calling setReferrer
       expect(
-        (TradingReadinessCache as jest.Mocked<typeof TradingReadinessCache>)
+        (PerpsSigningCache as jest.Mocked<typeof PerpsSigningCache>)
           .setReferral,
       ).toHaveBeenCalledWith(
         'mainnet',
@@ -1545,7 +1546,7 @@ describe('HyperLiquidProvider', () => {
       // Arrange
       const mockCompleteInFlight = jest.fn();
       (
-        TradingReadinessCache as jest.Mocked<typeof TradingReadinessCache>
+        PerpsSigningCache as jest.Mocked<typeof PerpsSigningCache>
       ).setInFlight.mockReturnValue(mockCompleteInFlight);
       mockClientService.getInfoClient = jest.fn().mockReturnValue(
         createMockInfoClient({
@@ -1569,7 +1570,7 @@ describe('HyperLiquidProvider', () => {
 
       // Assert - cache should NOT be set (so it retries when unlocked)
       expect(
-        (TradingReadinessCache as jest.Mocked<typeof TradingReadinessCache>)
+        (PerpsSigningCache as jest.Mocked<typeof PerpsSigningCache>)
           .setReferral,
       ).not.toHaveBeenCalled();
       // Assert - ensureReferralSet's catch does NOT call logger.error for KEYRING_LOCKED.

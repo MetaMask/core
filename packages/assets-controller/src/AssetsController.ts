@@ -1689,6 +1689,15 @@ export class AssetsController extends BaseController<
         (state.assetsInfo as Record<string, AssetMetadata>)[normalizedAssetId] =
           assetMetadata;
       }
+
+      // Seed a zero balance so the UI can render the asset immediately,
+      // before the next pipeline fetch returns the real amount.
+      const balances = state.assetsBalance as Record<
+        string,
+        Record<string, AssetBalance>
+      >;
+      balances[accountId] ??= {};
+      balances[accountId][normalizedAssetId] ??= { amount: '0' };
     });
 
     // Fetch data for the newly added custom asset (merge to preserve other chains)
@@ -1697,6 +1706,8 @@ export class AssetsController extends BaseController<
       const chainId = extractChainId(normalizedAssetId);
       await this.getAssets([account], {
         chainIds: [chainId],
+        dataTypes: ['balance', 'metadata', 'price'],
+        assetTypes: ['fungible'],
         forceUpdate: true,
         updateMode: 'merge',
       });
