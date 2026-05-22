@@ -1052,7 +1052,10 @@ async function injectPaymentOverrideSteps(
     return quote;
   }
 
-  const overrideStep = buildPaymentOverrideStep(overrideTxs, request.sourceChainId);
+  const overrideStep = buildPaymentOverrideStep(
+    overrideTxs,
+    request.sourceChainId,
+  );
 
   const steps = request.isPostQuote
     ? [...quote.steps, overrideStep]
@@ -1092,7 +1095,9 @@ function buildPaymentOverrideStep(
       check: { endpoint: '', method: 'GET' as const },
       status: 'incomplete' as const,
       data: {
-        chainId: params.chainId ? parseInt(params.chainId, 16) : fallbackChainId,
+        chainId: params.chainId
+          ? parseInt(params.chainId, 16)
+          : fallbackChainId,
         data: (params.data as Hex) ?? '0x',
         from: params.from as Hex,
         maxFeePerGas: params.maxFeePerGas as string,

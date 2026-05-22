@@ -3400,12 +3400,19 @@ describe('Relay Quotes Utils', () => {
       });
 
       it('prepends paymentOverride step before relay steps for standard (non-post-quote) flow', async () => {
-        getPaymentOverrideDataMock.mockResolvedValue([PAYMENT_OVERRIDE_TX_MOCK]);
+        getPaymentOverrideDataMock.mockResolvedValue([
+          PAYMENT_OVERRIDE_TX_MOCK,
+        ]);
 
         const [quote] = await getRelayQuotes({
           accountSupports7702: true,
           messenger,
-          requests: [{ ...QUOTE_REQUEST_MOCK, paymentOverride: PaymentOverride.MoneyAccount }],
+          requests: [
+            {
+              ...QUOTE_REQUEST_MOCK,
+              paymentOverride: PaymentOverride.MoneyAccount,
+            },
+          ],
           transaction: TRANSACTION_META_MOCK,
         });
 
@@ -3418,13 +3425,19 @@ describe('Relay Quotes Utils', () => {
       });
 
       it('appends paymentOverride step after relay steps for post-quote flow', async () => {
-        getPaymentOverrideDataMock.mockResolvedValue([PAYMENT_OVERRIDE_TX_MOCK]);
+        getPaymentOverrideDataMock.mockResolvedValue([
+          PAYMENT_OVERRIDE_TX_MOCK,
+        ]);
 
         const [quote] = await getRelayQuotes({
           accountSupports7702: true,
           messenger,
           requests: [
-            { ...QUOTE_REQUEST_MOCK, paymentOverride: PaymentOverride.MoneyAccount, isPostQuote: true },
+            {
+              ...QUOTE_REQUEST_MOCK,
+              paymentOverride: PaymentOverride.MoneyAccount,
+              isPostQuote: true,
+            },
           ],
           transaction: TRANSACTION_META_MOCK,
         });
@@ -3456,7 +3469,12 @@ describe('Relay Quotes Utils', () => {
         const [quote] = await getRelayQuotes({
           accountSupports7702: true,
           messenger,
-          requests: [{ ...QUOTE_REQUEST_MOCK, paymentOverride: PaymentOverride.MoneyAccount }],
+          requests: [
+            {
+              ...QUOTE_REQUEST_MOCK,
+              paymentOverride: PaymentOverride.MoneyAccount,
+            },
+          ],
           transaction: TRANSACTION_META_MOCK,
         });
 
@@ -3472,7 +3490,12 @@ describe('Relay Quotes Utils', () => {
         const [quote] = await getRelayQuotes({
           accountSupports7702: true,
           messenger,
-          requests: [{ ...QUOTE_REQUEST_MOCK, paymentOverride: PaymentOverride.MoneyAccount }],
+          requests: [
+            {
+              ...QUOTE_REQUEST_MOCK,
+              paymentOverride: PaymentOverride.MoneyAccount,
+            },
+          ],
           transaction: TRANSACTION_META_MOCK,
         });
 
@@ -3483,12 +3506,19 @@ describe('Relay Quotes Utils', () => {
       });
 
       it('falls back to sourceChainId when transaction chainId is absent', async () => {
-        getPaymentOverrideDataMock.mockResolvedValue([PAYMENT_OVERRIDE_TX_MOCK]);
+        getPaymentOverrideDataMock.mockResolvedValue([
+          PAYMENT_OVERRIDE_TX_MOCK,
+        ]);
 
         const [quote] = await getRelayQuotes({
           accountSupports7702: true,
           messenger,
-          requests: [{ ...QUOTE_REQUEST_MOCK, paymentOverride: PaymentOverride.MoneyAccount }],
+          requests: [
+            {
+              ...QUOTE_REQUEST_MOCK,
+              paymentOverride: PaymentOverride.MoneyAccount,
+            },
+          ],
           transaction: TRANSACTION_META_MOCK,
         });
 

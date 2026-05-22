@@ -472,9 +472,7 @@ describe('TransactionPayController', () => {
   describe('getPaymentOverrideData', () => {
     it('delegates to the callback', async () => {
       const txMock = { from: '0xabc', to: '0xdef' };
-      const getPaymentOverrideDataMock = jest
-        .fn()
-        .mockResolvedValue([txMock]);
+      const getPaymentOverrideDataMock = jest.fn().mockResolvedValue([txMock]);
 
       new TransactionPayController({
         getDelegationTransaction: jest.fn(),
