@@ -1757,7 +1757,7 @@ describe('Bridge Status Controller Transaction Utils', () => {
           valueInCurrency: '200',
           usd: '200',
         },
-      } as never);
+      }) as never;
 
     const createMockMessagingSystem = (
       estimateGasFeeOverrides: Record<string, unknown> = { estimates: {} },
@@ -1778,7 +1778,7 @@ describe('Bridge Status Controller Transaction Utils', () => {
           }
           return undefined;
         }),
-      } as unknown as BridgeStatusControllerMessenger);
+      }) as unknown as BridgeStatusControllerMessenger;
 
     beforeEach(() => {
       jest.clearAllMocks();
