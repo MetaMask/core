@@ -14,6 +14,7 @@ import {
   CHAIN_ID_HYPERCORE,
   CHAIN_ID_POLYGON,
   NATIVE_TOKEN_ADDRESS,
+  PaymentOverride,
   POLYGON_USDCE_ADDRESS,
 } from '../../constants';
 import { getMessengerMock } from '../../tests/messenger-mock';
@@ -3376,7 +3377,7 @@ describe('Relay Quotes Utils', () => {
       });
     });
 
-    describe('money account deposit step injection (useMoneyAccount)', () => {
+    describe('money account deposit step injection (paymentOverride === PaymentOverride.MoneyAccount)', () => {
       const DEPOSIT_TX_MOCK = {
         from: FROM_MOCK,
         to: '0xmoneyaccount' as Hex,
@@ -3405,7 +3406,7 @@ describe('Relay Quotes Utils', () => {
         const [quote] = await getRelayQuotes({
           accountSupports7702: true,
           messenger,
-          requests: [{ ...QUOTE_REQUEST_MOCK, useMoneyAccount: true }],
+          requests: [{ ...QUOTE_REQUEST_MOCK, paymentOverride: PaymentOverride.MoneyAccount }],
           transaction: TRANSACTION_META_MOCK,
         });
 
@@ -3424,7 +3425,7 @@ describe('Relay Quotes Utils', () => {
           accountSupports7702: true,
           messenger,
           requests: [
-            { ...QUOTE_REQUEST_MOCK, useMoneyAccount: true, isPostQuote: true },
+            { ...QUOTE_REQUEST_MOCK, paymentOverride: PaymentOverride.MoneyAccount, isPostQuote: true },
           ],
           transaction: TRANSACTION_META_MOCK,
         });
@@ -3436,7 +3437,7 @@ describe('Relay Quotes Utils', () => {
         expect(txSteps[1].id).toBe('money-account-deposit');
       });
 
-      it('does not inject when useMoneyAccount is false', async () => {
+      it('does not inject when paymentOverride is not PaymentOverride.MoneyAccount', async () => {
         const [quote] = await getRelayQuotes({
           accountSupports7702: true,
           messenger,
@@ -3456,7 +3457,7 @@ describe('Relay Quotes Utils', () => {
         const [quote] = await getRelayQuotes({
           accountSupports7702: true,
           messenger,
-          requests: [{ ...QUOTE_REQUEST_MOCK, useMoneyAccount: true }],
+          requests: [{ ...QUOTE_REQUEST_MOCK, paymentOverride: PaymentOverride.MoneyAccount }],
           transaction: TRANSACTION_META_MOCK,
         });
 
@@ -3470,7 +3471,7 @@ describe('Relay Quotes Utils', () => {
         const [quote] = await getRelayQuotes({
           accountSupports7702: true,
           messenger,
-          requests: [{ ...QUOTE_REQUEST_MOCK, useMoneyAccount: true }],
+          requests: [{ ...QUOTE_REQUEST_MOCK, paymentOverride: PaymentOverride.MoneyAccount }],
           transaction: TRANSACTION_META_MOCK,
         });
 

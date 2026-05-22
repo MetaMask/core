@@ -4,7 +4,7 @@ import type { TransactionMeta } from '@metamask/transaction-controller';
 import type { Hex, Json } from '@metamask/utils';
 import { createModuleLogger } from '@metamask/utils';
 
-import { TransactionPayStrategy } from '../constants';
+import { PaymentOverride, TransactionPayStrategy } from '../constants';
 import { projectLogger } from '../logger';
 import type {
   QuoteRequest,
@@ -86,7 +86,7 @@ export async function updateQuotes(
     isPostQuote,
     isHyperliquidSource,
     isPolymarketDepositWallet,
-    useMoneyAccount,
+    paymentOverride,
     paymentToken: originalPaymentToken,
     refundTo,
     sourceAmounts,
@@ -123,7 +123,7 @@ export async function updateQuotes(
       isPostQuote,
       isHyperliquidSource,
       isPolymarketDepositWallet,
-      useMoneyAccount,
+      paymentOverride,
       paymentToken,
       refundTo,
       sourceAmounts,
@@ -341,7 +341,7 @@ function buildQuoteRequests({
   isPostQuote,
   isHyperliquidSource,
   isPolymarketDepositWallet,
-  useMoneyAccount,
+  paymentOverride,
   paymentToken,
   refundTo,
   sourceAmounts,
@@ -353,7 +353,7 @@ function buildQuoteRequests({
   isPostQuote?: boolean;
   isHyperliquidSource?: boolean;
   isPolymarketDepositWallet?: boolean;
-  useMoneyAccount?: boolean;
+  paymentOverride?: PaymentOverride;
   paymentToken: TransactionPaymentToken | undefined;
   refundTo?: Hex;
   sourceAmounts: TransactionPaySourceAmount[] | undefined;
@@ -370,7 +370,7 @@ function buildQuoteRequests({
       isMaxAmount,
       isHyperliquidSource,
       isPolymarketDepositWallet,
-      useMoneyAccount,
+      paymentOverride,
       destinationToken: paymentToken,
       refundTo,
       sourceAmounts,
@@ -387,7 +387,7 @@ function buildQuoteRequests({
     return {
       from,
       isMaxAmount,
-      useMoneyAccount,
+      paymentOverride,
       sourceBalanceRaw: paymentToken.balanceRaw,
       sourceTokenAmount: sourceAmount.sourceAmountRaw,
       sourceChainId: paymentToken.chainId,
@@ -426,7 +426,7 @@ function buildPostQuoteRequests({
   isMaxAmount,
   isHyperliquidSource,
   isPolymarketDepositWallet,
-  useMoneyAccount,
+  paymentOverride,
   destinationToken,
   refundTo,
   sourceAmounts,
@@ -436,7 +436,7 @@ function buildPostQuoteRequests({
   isMaxAmount: boolean;
   isHyperliquidSource?: boolean;
   isPolymarketDepositWallet?: boolean;
-  useMoneyAccount?: boolean;
+  paymentOverride?: PaymentOverride;
   destinationToken: TransactionPaymentToken;
   refundTo?: Hex;
   sourceAmounts: TransactionPaySourceAmount[] | undefined;
@@ -467,7 +467,7 @@ function buildPostQuoteRequests({
     isPostQuote: true,
     isHyperliquidSource,
     isPolymarketDepositWallet,
-    useMoneyAccount,
+    paymentOverride,
     refundTo,
     sourceBalanceRaw: sourceAmount.sourceBalanceRaw,
     sourceTokenAmount: sourceAmount.sourceAmountRaw,

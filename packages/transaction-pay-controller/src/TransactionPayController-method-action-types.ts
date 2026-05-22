@@ -53,7 +53,7 @@ export type TransactionPayControllerUpdateFiatPaymentAction = {
  * Returns additional transactions for the money account flow.
  *
  * Delegates to the client-supplied callback. Called during quote execution
- * when `useMoneyAccount` is true. Returns an empty array when no callback
+ * when `paymentOverride === PaymentOverride.MoneyAccount` on the transaction. Returns an empty array when no callback
  * is configured.
  *
  * @param args - The arguments forwarded to the {@link GetMoneyAccountTransactionsCallback},

@@ -278,7 +278,7 @@ async function getSingleQuote(
 
     log('Fetched relay quote', quote);
 
-    const quoteWithDeposits = request.useMoneyAccount
+    const quoteWithDeposits = request.paymentOverride === PaymentOverride.MoneyAccount
       ? await injectMoneyAccountDepositSteps(quote, request, fullRequest)
       : quote;
 

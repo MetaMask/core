@@ -146,7 +146,7 @@ export class TransactionPayController extends BaseController<
         isPolymarketDepositWallet: transactionData.isPolymarketDepositWallet,
         refundTo: transactionData.refundTo,
         accountOverride: transactionData.accountOverride,
-        useMoneyAccount: transactionData.useMoneyAccount,
+        paymentOverride: transactionData.paymentOverride,
       };
 
       const previousAccountOverride = config.accountOverride;
@@ -160,7 +160,7 @@ export class TransactionPayController extends BaseController<
       transactionData.isPolymarketDepositWallet =
         config.isPolymarketDepositWallet;
       transactionData.refundTo = config.refundTo;
-      transactionData.useMoneyAccount = config.useMoneyAccount;
+      transactionData.paymentOverride = config.paymentOverride;
 
       if (
         !config.isPostQuote &&
@@ -227,7 +227,7 @@ export class TransactionPayController extends BaseController<
    * Returns additional transactions for the money account flow.
    *
    * Delegates to the client-supplied {@link GetMoneyAccountTransactionsCallback}.
-   * Called during quote execution when `useMoneyAccount` is true on the transaction.
+   * Called during quote execution when `paymentOverride === PaymentOverride.MoneyAccount` on the transaction.
    * Returns an empty array when no callback is configured.
    *
    * @param args - The arguments forwarded to the {@link GetMoneyAccountTransactionsCallback},

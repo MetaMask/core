@@ -59,7 +59,11 @@ import type {
 import type { Hex, Json } from '@metamask/utils';
 import type { Draft } from 'immer';
 
-import type { CONTROLLER_NAME, TransactionPayStrategy } from './constants';
+import type {
+  CONTROLLER_NAME,
+  PaymentOverride,
+  TransactionPayStrategy,
+} from './constants';
 import type { TransactionPayControllerMethodActions } from './TransactionPayController-method-action-types';
 
 export type AllowedActions =
@@ -142,15 +146,15 @@ export type TransactionConfig = {
    */
   accountOverride?: Hex;
 
-  /** Whether to use the Money Account (Money Keyring) as the payment source. */
-  useMoneyAccount?: boolean;
+  /** Overrides the payment source for the transaction. */
+  paymentOverride?: PaymentOverride;
 };
 
 /** Callback to update transaction config. */
 export type TransactionConfigCallback = (config: TransactionConfig) => void;
 
 /**
- * Callback invoked during quote execution when `useMoneyAccount` is true.
+ * Callback invoked during quote execution when `paymentOverride === PaymentOverride.MoneyAccount`.
  * Returns additional transactions to be submitted alongside the quote,
  * ordered before or after the quote batch depending on `isPostQuote`.
  */
@@ -210,7 +214,7 @@ export type TransactionPayControllerOptions = {
   polymarket?: PolymarketCallbacks;
 
   /**
-   * Optional callback invoked during quote execution when `useMoneyAccount` is true.
+   * Optional callback invoked during quote execution when `paymentOverride === PaymentOverride.MoneyAccount`.
    * Returns additional transactions to be submitted alongside the quote batch.
    */
   getMoneyAccountTransactions?: GetMoneyAccountTransactionsCallback;
@@ -265,8 +269,8 @@ export type TransactionData = {
    */
   accountOverride?: Hex;
 
-  /** Whether to use the Money Account (Money Keyring) as the payment source. */
-  useMoneyAccount?: boolean;
+  /** Overrides the payment source for the transaction. */
+  paymentOverride?: PaymentOverride;
 
   /**
    * Token selected for the transaction.
@@ -436,8 +440,8 @@ export type QuoteRequest = {
   /** Whether the source of funds is a Polymarket deposit wallet. */
   isPolymarketDepositWallet?: boolean;
 
-  /** Whether the money account is the source of funds for this quote. */
-  useMoneyAccount?: boolean;
+  /** Overrides the payment source for the transaction. */
+  paymentOverride?: PaymentOverride;
 
   /**
    * Optional address to receive refunds if the quote provider transaction fails.

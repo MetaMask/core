@@ -107,6 +107,17 @@ const prefsFromAddresses = (
   },
 });
 
+const prefsFromAddressesWithMarketingInAppNotifications = (
+  accounts: { address: string; enabled: boolean }[],
+  inAppNotificationsEnabled: boolean,
+): NotificationPreferences => ({
+  ...prefsFromAddresses(accounts),
+  marketing: {
+    inAppNotificationsEnabled,
+    pushNotificationsEnabled: false,
+  },
+});
+
 describe('NotificationServicesController', () => {
   afterEach(() => {
     clearAPICache();
@@ -125,11 +136,9 @@ describe('NotificationServicesController', () => {
         env: { featureAnnouncements: featureAnnouncementsEnv },
         state: {
           ...defaultState,
-          isFeatureAnnouncementsEnabled: true,
           isNotificationServicesEnabled: true,
         },
       });
-      expect(controller2.state.isFeatureAnnouncementsEnabled).toBe(true);
       expect(controller2.state.isNotificationServicesEnabled).toBe(true);
     });
   });
@@ -467,23 +476,6 @@ describe('NotificationServicesController', () => {
         [ADDRESS_1]: true,
         [ADDRESS_2]: false,
       });
-    });
-  });
-
-  describe('setFeatureAnnouncementsEnabled', () => {
-    it('flips state when the method is called', async () => {
-      const { messenger, mockIsSignedIn } = mockNotificationMessenger();
-      mockIsSignedIn.mockReturnValue(true);
-
-      const controller = new NotificationServicesController({
-        messenger,
-        env: { featureAnnouncements: featureAnnouncementsEnv },
-        state: { ...defaultState, isFeatureAnnouncementsEnabled: false },
-      });
-
-      await controller.setFeatureAnnouncementsEnabled(true);
-
-      expect(controller.state.isFeatureAnnouncementsEnabled).toBe(true);
     });
   });
 
@@ -1039,6 +1031,12 @@ describe('NotificationServicesController', () => {
       mockOnChainNotificationsAPI: nock.Scope;
     } => {
       const messengerMocks = mockNotificationMessenger();
+      messengerMocks.mockGetNotificationPreferences.mockResolvedValue(
+        prefsFromAddressesWithMarketingInAppNotifications(
+          [{ address: '0xTestAddress', enabled: true }],
+          true,
+        ),
+      );
 
       const mockFeatureAnnouncementAPIResult =
         createMockFeatureAnnouncementAPIResult();
@@ -1144,11 +1142,30 @@ describe('NotificationServicesController', () => {
       expect(mocks.mockOnChainNotificationsAPI.isDone()).toBe(false);
     });
 
-    it('should not fetch feature announcements if disabled', async () => {
+    it('should fetch feature announcements if AUS marketing in-app notifications are enabled', async () => {
       const { messenger, ...mocks } = arrangeMocks();
-      const controller = arrangeController(messenger, {
-        isFeatureAnnouncementsEnabled: false,
-      });
+      const controller = arrangeController(messenger);
+
+      const result = await controller.fetchAndUpdateMetamaskNotifications();
+
+      expect(
+        result.filter(
+          (notification) =>
+            notification.type === TRIGGER_TYPES.FEATURES_ANNOUNCEMENT,
+        ),
+      ).toHaveLength(1);
+      expect(mocks.mockFeatureAnnouncementsAPI.isDone()).toBe(true);
+    });
+
+    it('should not fetch feature announcements if AUS marketing in-app notifications are disabled', async () => {
+      const { messenger, ...mocks } = arrangeMocks();
+      mocks.mockGetNotificationPreferences.mockResolvedValue(
+        prefsFromAddressesWithMarketingInAppNotifications(
+          [{ address: '0xTestAddress', enabled: true }],
+          false,
+        ),
+      );
+      const controller = arrangeController(messenger);
 
       const result = await controller.fetchAndUpdateMetamaskNotifications();
 
@@ -1165,7 +1182,14 @@ describe('NotificationServicesController', () => {
     });
 
     it('should handle errors gracefully when fetching notifications', async () => {
-      const { messenger } = mockNotificationMessenger();
+      const { messenger, mockGetNotificationPreferences } =
+        mockNotificationMessenger();
+      mockGetNotificationPreferences.mockResolvedValue(
+        prefsFromAddressesWithMarketingInAppNotifications(
+          [{ address: '0xTestAddress', enabled: true }],
+          true,
+        ),
+      );
 
       // Mock APIs to fail
       mockFetchFeatureAnnouncementNotifications({ status: 500 });

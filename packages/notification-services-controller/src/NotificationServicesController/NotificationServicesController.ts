@@ -1255,10 +1255,16 @@ export class NotificationServicesController extends BaseController<
       // This is used by Feature Announcement & On Chain
       // Not used by Snaps
       const isGlobalNotifsEnabled = this.state.isNotificationServicesEnabled;
+      const notificationPreferences = isGlobalNotifsEnabled
+        ? await this.messenger
+            .call('AuthenticatedUserStorageService:getNotificationPreferences')
+            .catch(() => null)
+        : null;
 
       // Raw Feature Notifications
       const rawAnnouncements =
-        isGlobalNotifsEnabled && this.state.isFeatureAnnouncementsEnabled
+        isGlobalNotifsEnabled &&
+        notificationPreferences?.marketing.inAppNotificationsEnabled
           ? await getFeatureAnnouncementNotifications(
               this.#featureAnnouncementEnv,
               previewToken,
@@ -1270,11 +1276,8 @@ export class NotificationServicesController extends BaseController<
       if (isGlobalNotifsEnabled) {
         try {
           const { bearerToken } = await this.#getBearerToken();
-          const preferences = await this.messenger.call(
-            'AuthenticatedUserStorageService:getNotificationPreferences',
-          );
           const addressesWithNotifications = (
-            preferences?.walletActivity.accounts ?? []
+            notificationPreferences?.walletActivity.accounts ?? []
           )
             .filter((account) => account.enabled)
             .map((account) => account.address);
