@@ -791,12 +791,12 @@ export enum TransactionType {
   lendingWithdraw = 'lendingWithdraw',
 
   /**
-   * A transaction that deposits funds when paymentOverride is set.
+   * A transaction that deposits funds into a money account.
    */
   moneyAccountDeposit = 'moneyAccountDeposit',
 
   /**
-   * A transaction that withdraws funds when paymentOverride is set.
+   * A transaction that withdraws funds from a money account.
    */
   moneyAccountWithdraw = 'moneyAccountWithdraw',
 

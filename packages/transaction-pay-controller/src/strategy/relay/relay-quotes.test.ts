@@ -3437,7 +3437,7 @@ describe('Relay Quotes Utils', () => {
         expect(txSteps[1].id).toBe('money-account-deposit');
       });
 
-      it('does not inject when paymentOverride is not PaymentOverride.MoneyAccount', async () => {
+      it('does not inject when paymentOverride is not defined', async () => {
         const [quote] = await getRelayQuotes({
           accountSupports7702: true,
           messenger,
