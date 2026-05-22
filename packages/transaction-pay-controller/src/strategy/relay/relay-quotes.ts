@@ -279,7 +279,7 @@ async function getSingleQuote(
     log('Fetched relay quote', quote);
 
     const quoteWithDeposits = request.paymentOverride
-      ? await injectPaymentOverrideDepositSteps(quote, request, fullRequest)
+      ? await injectPaymentOverrideSteps(quote, request, fullRequest)
       : quote;
 
     return await normalizeQuote(quoteWithDeposits, request, fullRequest);
@@ -1023,45 +1023,45 @@ function getSubsidizedFeeAmountUsd(quote: RelayQuote): BigNumber {
 }
 
 /**
- * Fetches deposit transactions from the paymentOverride callback and injects
+ * Fetches transactions from the paymentOverride callback and injects
  * them into the relay quote's steps so they are submitted alongside the relay
  * transactions and included in gas estimation.
  *
- * For standard flows (`isPostQuote` false) the deposit step is prepended so it
+ * For standard flows (`isPostQuote` false) the step is prepended so it
  * executes before the relay bridge transaction.  For post-quote flows it is
  * appended so it executes after.
  *
  * @param quote - Relay quote to mutate in place.
  * @param request - Quote request, used to determine ordering and chain ID.
  * @param fullRequest - Full quotes request, provides messenger and transaction ID.
- * @returns The relay quote with deposit steps injected, or the original quote if no deposits are returned.
+ * @returns The relay quote with paymentOverride steps injected, or the original quote if the callback returns no transactions.
  */
-async function injectPaymentOverrideDepositSteps(
+async function injectPaymentOverrideSteps(
   quote: RelayQuote,
   request: QuoteRequest,
   fullRequest: PayStrategyGetQuotesRequest,
 ): Promise<RelayQuote> {
   const { messenger, transaction } = fullRequest;
 
-  const depositTxs = await messenger.call(
+  const overrideTxs = await messenger.call(
     'TransactionPayController:getPaymentOverrideData',
     transaction.id,
   );
 
-  if (!depositTxs.length) {
+  if (!overrideTxs.length) {
     return quote;
   }
 
-  const depositStep = buildDepositStep(depositTxs, request.sourceChainId);
+  const overrideStep = buildPaymentOverrideStep(overrideTxs, request.sourceChainId);
 
   const steps = request.isPostQuote
-    ? [...quote.steps, depositStep]
-    : [depositStep, ...quote.steps];
+    ? [...quote.steps, overrideStep]
+    : [overrideStep, ...quote.steps];
 
-  log('Injected paymentOverride deposit step', {
+  log('Injected paymentOverride step', {
     transactionId: transaction.id,
     isPostQuote: request.isPostQuote,
-    depositTxCount: depositTxs.length,
+    txCount: overrideTxs.length,
   });
 
   return { ...quote, steps };
@@ -1071,20 +1071,20 @@ async function injectPaymentOverrideDepositSteps(
  * Converts an array of TransactionParams into a single RelayTransactionStep
  * so they can be injected into a relay quote's steps array.
  *
- * @param txParams - Deposit transactions from the paymentOverride callback.
+ * @param txParams - Transactions from the paymentOverride callback.
  * @param sourceChainId - Hex chain ID of the source network.
- * @returns A relay transaction step wrapping the deposit transactions.
+ * @returns A relay transaction step wrapping the paymentOverride transactions.
  */
-function buildDepositStep(
+function buildPaymentOverrideStep(
   txParams: TransactionParams[],
   sourceChainId: Hex,
 ): RelayTransactionStep {
   const chainId = parseInt(sourceChainId, 16);
 
   return {
-    id: 'money-account-deposit',
+    id: 'payment-override',
     kind: 'transaction',
-    requestId: 'money-account-deposit',
+    requestId: 'payment-override',
     items: txParams.map((params) => ({
       check: { endpoint: '', method: 'GET' as const },
       status: 'incomplete' as const,
@@ -1092,9 +1092,6 @@ function buildDepositStep(
         chainId,
         data: (params.data as Hex) ?? '0x',
         from: params.from as Hex,
-        gas: params.gas,
-        maxFeePerGas: (params.maxFeePerGas as string) ?? '0x0',
-        maxPriorityFeePerGas: (params.maxPriorityFeePerGas as string) ?? '0x0',
         to: params.to as Hex,
         value: params.value,
       },

@@ -3377,15 +3377,12 @@ describe('Relay Quotes Utils', () => {
       });
     });
 
-    describe('paymentOverride deposit step injection (paymentOverride defined)', () => {
-      const DEPOSIT_TX_MOCK = {
+    describe('paymentOverride step injection (paymentOverride defined)', () => {
+      const PAYMENT_OVERRIDE_TX_MOCK = {
         from: FROM_MOCK,
-        to: '0xmoneyaccount' as Hex,
-        data: '0xdeposit' as Hex,
+        to: '0xpaymentoverride' as Hex,
+        data: '0xpaymentoverride' as Hex,
         value: '0x0',
-        gas: '30000',
-        maxFeePerGas: '1000000000',
-        maxPriorityFeePerGas: '2000000000',
       };
 
       beforeEach(() => {
@@ -3400,8 +3397,8 @@ describe('Relay Quotes Utils', () => {
         });
       });
 
-      it('prepends deposit step before relay steps for standard (non-post-quote) flow', async () => {
-        getPaymentOverrideDataMock.mockResolvedValue([DEPOSIT_TX_MOCK]);
+      it('prepends paymentOverride step before relay steps for standard (non-post-quote) flow', async () => {
+        getPaymentOverrideDataMock.mockResolvedValue([PAYMENT_OVERRIDE_TX_MOCK]);
 
         const [quote] = await getRelayQuotes({
           accountSupports7702: true,
@@ -3413,13 +3410,13 @@ describe('Relay Quotes Utils', () => {
         const txSteps = quote.original.steps.filter(
           (step): step is RelayTransactionStep => step.kind === 'transaction',
         );
-        expect(txSteps[0].id).toBe('money-account-deposit');
-        expect(txSteps[0].items[0].data.to).toBe(DEPOSIT_TX_MOCK.to);
+        expect(txSteps[0].id).toBe('payment-override');
+        expect(txSteps[0].items[0].data.to).toBe(PAYMENT_OVERRIDE_TX_MOCK.to);
         expect(txSteps[1].id).toBe(STEP_MOCK.id);
       });
 
-      it('appends deposit step after relay steps for post-quote flow', async () => {
-        getPaymentOverrideDataMock.mockResolvedValue([DEPOSIT_TX_MOCK]);
+      it('appends paymentOverride step after relay steps for post-quote flow', async () => {
+        getPaymentOverrideDataMock.mockResolvedValue([PAYMENT_OVERRIDE_TX_MOCK]);
 
         const [quote] = await getRelayQuotes({
           accountSupports7702: true,
@@ -3434,7 +3431,7 @@ describe('Relay Quotes Utils', () => {
           (step): step is RelayTransactionStep => step.kind === 'transaction',
         );
         expect(txSteps[0].id).toBe(STEP_MOCK.id);
-        expect(txSteps[1].id).toBe('money-account-deposit');
+        expect(txSteps[1].id).toBe('payment-override');
       });
 
       it('does not inject when paymentOverride is not defined', async () => {
@@ -3446,7 +3443,7 @@ describe('Relay Quotes Utils', () => {
         });
 
         expect(
-          quote.original.steps.every((step) => step.id !== 'money-account-deposit'),
+          quote.original.steps.every((step) => step.id !== 'payment-override'),
         ).toBe(true);
         expect(getPaymentOverrideDataMock).not.toHaveBeenCalled();
       });
@@ -3465,8 +3462,8 @@ describe('Relay Quotes Utils', () => {
         expect(quote.original.steps[0].id).toBe(STEP_MOCK.id);
       });
 
-      it('uses sourceChainId to set chainId on deposit step items', async () => {
-        getPaymentOverrideDataMock.mockResolvedValue([DEPOSIT_TX_MOCK]);
+      it('uses sourceChainId to set chainId on paymentOverride step items', async () => {
+        getPaymentOverrideDataMock.mockResolvedValue([PAYMENT_OVERRIDE_TX_MOCK]);
 
         const [quote] = await getRelayQuotes({
           accountSupports7702: true,
@@ -3475,11 +3472,11 @@ describe('Relay Quotes Utils', () => {
           transaction: TRANSACTION_META_MOCK,
         });
 
-        const depositStep = quote.original.steps.find(
-          (step) => step.id === 'money-account-deposit',
+        const overrideStep = quote.original.steps.find(
+          (step) => step.id === 'payment-override',
         ) as RelayTransactionStep;
         // QUOTE_REQUEST_MOCK.sourceChainId is '0x1' → chainId 1
-        expect(depositStep.items[0].data.chainId).toBe(1);
+        expect(overrideStep.items[0].data.chainId).toBe(1);
       });
     });
 

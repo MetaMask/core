@@ -16,7 +16,6 @@ import type {
   TransactionPayQuote,
 } from '../../types';
 import {
-  getFeatureFlags,
   getRelayPollingInterval,
   getRelayPollingTimeout,
 } from '../../utils/feature-flags';
@@ -266,21 +265,14 @@ async function waitForRelayCompletion(
  * Normalize the parameters from a relay quote step to match TransactionParams.
  *
  * @param params - Parameters from a relay quote step.
- * @param messenger - Controller messenger.
  * @returns Normalized transaction parameters.
  */
 function normalizeParams(
   params: RelayTransactionStep['items'][0]['data'],
-  messenger: TransactionPayControllerMessenger,
 ): TransactionParams {
-  const featureFlags = getFeatureFlags(messenger);
-
   return {
     data: params.data,
     from: params.from,
-    gas: toHex(params.gas ?? featureFlags.relayFallbackGas.max),
-    maxFeePerGas: toHex(params.maxFeePerGas),
-    maxPriorityFeePerGas: toHex(params.maxPriorityFeePerGas),
     to: params.to,
     value: toHex(params.value ?? '0'),
   };
@@ -385,7 +377,7 @@ async function submitTransactions(
   }
 
   const normalizedParams = params.map((singleParams) =>
-    normalizeParams(singleParams, messenger),
+    normalizeParams(singleParams),
   );
 
   // For post-quote flows, prepend the original transaction so it gets

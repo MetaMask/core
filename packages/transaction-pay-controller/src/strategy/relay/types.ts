@@ -96,8 +96,8 @@ export type RelayTransactionStep = {
       data: Hex;
       from: Hex;
       gas?: string;
-      maxFeePerGas: string;
-      maxPriorityFeePerGas: string;
+      maxFeePerGas?: string;
+      maxPriorityFeePerGas?: string;
       to: Hex;
       value?: string;
     };
