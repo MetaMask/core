@@ -9,10 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [6.3.0]
 
-### Uncategorized
-
-- test(perps): migrate controller unit tests to core ([#8840](https://github.com/MetaMask/core/pull/8840))
-
 ### Added
 
 - Add slippage controls so users can configure per-order slippage tolerance for market trades ([#8871](https://github.com/MetaMask/core/pull/8871))
