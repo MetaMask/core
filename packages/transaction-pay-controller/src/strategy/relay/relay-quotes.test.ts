@@ -184,7 +184,7 @@ describe('Relay Quotes Utils', () => {
     getDelegationTransactionMock,
     getGasFeeTokensMock,
     getKeyringControllerStateMock,
-    getMoneyAccountTransactionsMock,
+    getPaymentOverrideDataMock,
     getRemoteFeatureFlagControllerStateMock,
     polymarketGetDepositWalletAddressMock,
   } = getMessengerMock();
@@ -3377,7 +3377,7 @@ describe('Relay Quotes Utils', () => {
       });
     });
 
-    describe('money account deposit step injection (paymentOverride === PaymentOverride.MoneyAccount)', () => {
+    describe('paymentOverride deposit step injection (paymentOverride defined)', () => {
       const DEPOSIT_TX_MOCK = {
         from: FROM_MOCK,
         to: '0xmoneyaccount' as Hex,
@@ -3401,7 +3401,7 @@ describe('Relay Quotes Utils', () => {
       });
 
       it('prepends deposit step before relay steps for standard (non-post-quote) flow', async () => {
-        getMoneyAccountTransactionsMock.mockResolvedValue([DEPOSIT_TX_MOCK]);
+        getPaymentOverrideDataMock.mockResolvedValue([DEPOSIT_TX_MOCK]);
 
         const [quote] = await getRelayQuotes({
           accountSupports7702: true,
@@ -3411,7 +3411,7 @@ describe('Relay Quotes Utils', () => {
         });
 
         const txSteps = quote.original.steps.filter(
-          (s): s is RelayTransactionStep => s.kind === 'transaction',
+          (step): step is RelayTransactionStep => step.kind === 'transaction',
         );
         expect(txSteps[0].id).toBe('money-account-deposit');
         expect(txSteps[0].items[0].data.to).toBe(DEPOSIT_TX_MOCK.to);
@@ -3419,7 +3419,7 @@ describe('Relay Quotes Utils', () => {
       });
 
       it('appends deposit step after relay steps for post-quote flow', async () => {
-        getMoneyAccountTransactionsMock.mockResolvedValue([DEPOSIT_TX_MOCK]);
+        getPaymentOverrideDataMock.mockResolvedValue([DEPOSIT_TX_MOCK]);
 
         const [quote] = await getRelayQuotes({
           accountSupports7702: true,
@@ -3431,7 +3431,7 @@ describe('Relay Quotes Utils', () => {
         });
 
         const txSteps = quote.original.steps.filter(
-          (s): s is RelayTransactionStep => s.kind === 'transaction',
+          (step): step is RelayTransactionStep => step.kind === 'transaction',
         );
         expect(txSteps[0].id).toBe(STEP_MOCK.id);
         expect(txSteps[1].id).toBe('money-account-deposit');
@@ -3446,13 +3446,13 @@ describe('Relay Quotes Utils', () => {
         });
 
         expect(
-          quote.original.steps.every((s) => s.id !== 'money-account-deposit'),
+          quote.original.steps.every((step) => step.id !== 'money-account-deposit'),
         ).toBe(true);
-        expect(getMoneyAccountTransactionsMock).not.toHaveBeenCalled();
+        expect(getPaymentOverrideDataMock).not.toHaveBeenCalled();
       });
 
       it('does not inject when callback returns empty array', async () => {
-        getMoneyAccountTransactionsMock.mockResolvedValue([]);
+        getPaymentOverrideDataMock.mockResolvedValue([]);
 
         const [quote] = await getRelayQuotes({
           accountSupports7702: true,
@@ -3466,7 +3466,7 @@ describe('Relay Quotes Utils', () => {
       });
 
       it('uses sourceChainId to set chainId on deposit step items', async () => {
-        getMoneyAccountTransactionsMock.mockResolvedValue([DEPOSIT_TX_MOCK]);
+        getPaymentOverrideDataMock.mockResolvedValue([DEPOSIT_TX_MOCK]);
 
         const [quote] = await getRelayQuotes({
           accountSupports7702: true,
@@ -3476,7 +3476,7 @@ describe('Relay Quotes Utils', () => {
         });
 
         const depositStep = quote.original.steps.find(
-          (s) => s.id === 'money-account-deposit',
+          (step) => step.id === 'money-account-deposit',
         ) as RelayTransactionStep;
         // QUOTE_REQUEST_MOCK.sourceChainId is '0x1' → chainId 1
         expect(depositStep.items[0].data.chainId).toBe(1);

@@ -154,11 +154,11 @@ export type TransactionConfig = {
 export type TransactionConfigCallback = (config: TransactionConfig) => void;
 
 /**
- * Callback invoked during quote execution when `paymentOverride === PaymentOverride.MoneyAccount`.
+ * Callback invoked during quote execution when `paymentOverride` is defined.
  * Returns additional transactions to be submitted alongside the quote,
  * ordered before or after the quote batch depending on `isPostQuote`.
  */
-export type GetMoneyAccountTransactionsCallback = (
+export type GetPaymentOverrideDataCallback = (
   transactionId: string,
 ) => Promise<TransactionParams[]>;
 
@@ -214,10 +214,10 @@ export type TransactionPayControllerOptions = {
   polymarket?: PolymarketCallbacks;
 
   /**
-   * Optional callback invoked during quote execution when `paymentOverride === PaymentOverride.MoneyAccount`.
+   * Optional callback invoked during quote execution when `paymentOverride` is defined.
    * Returns additional transactions to be submitted alongside the quote batch.
    */
-  getMoneyAccountTransactions?: GetMoneyAccountTransactionsCallback;
+  getPaymentOverrideData?: GetPaymentOverrideDataCallback;
 
   /** Initial state of the controller. */
   state?: Partial<TransactionPayControllerState>;

@@ -15,7 +15,7 @@ import { QuoteRefresher } from './helpers/QuoteRefresher';
 import { deriveFiatAssetForFiatPayment } from './strategy/fiat/utils';
 import type {
   GetDelegationTransactionCallback,
-  GetMoneyAccountTransactionsCallback,
+  GetPaymentOverrideDataCallback,
   PolymarketCallbacks,
   TransactionConfigCallback,
   TransactionData,
@@ -37,7 +37,7 @@ import {
 
 const MESSENGER_EXPOSED_METHODS = [
   'getDelegationTransaction',
-  'getMoneyAccountTransactions',
+  'getPaymentOverrideData',
   'getStrategy',
   'polymarketGetDepositWalletAddress',
   'polymarketSubmitDepositWalletBatch',
@@ -66,7 +66,7 @@ export class TransactionPayController extends BaseController<
 > {
   readonly #getDelegationTransaction: GetDelegationTransactionCallback;
 
-  readonly #getMoneyAccountTransactions?: GetMoneyAccountTransactionsCallback;
+  readonly #getPaymentOverrideData?: GetPaymentOverrideDataCallback;
 
   readonly #getStrategy?: (
     transaction: TransactionMeta,
@@ -80,7 +80,7 @@ export class TransactionPayController extends BaseController<
 
   constructor({
     getDelegationTransaction,
-    getMoneyAccountTransactions,
+    getPaymentOverrideData,
     getStrategy,
     getStrategies,
     messenger,
@@ -95,7 +95,7 @@ export class TransactionPayController extends BaseController<
     });
 
     this.#getDelegationTransaction = getDelegationTransaction;
-    this.#getMoneyAccountTransactions = getMoneyAccountTransactions;
+    this.#getPaymentOverrideData = getPaymentOverrideData;
     this.#getStrategy = getStrategy;
     this.#getStrategies = getStrategies;
     this.#polymarket = polymarket;
@@ -224,20 +224,20 @@ export class TransactionPayController extends BaseController<
   }
 
   /**
-   * Returns additional transactions for the money account flow.
+   * Returns additional transactions for the paymentOverride flow.
    *
-   * Delegates to the client-supplied {@link GetMoneyAccountTransactionsCallback}.
-   * Called during quote execution when `paymentOverride === PaymentOverride.MoneyAccount` on the transaction.
+   * Delegates to the client-supplied {@link GetPaymentOverrideDataCallback}.
+   * Called during quote execution when `paymentOverride` is defined on the transaction.
    * Returns an empty array when no callback is configured.
    *
-   * @param args - The arguments forwarded to the {@link GetMoneyAccountTransactionsCallback},
+   * @param args - The arguments forwarded to the {@link GetPaymentOverrideDataCallback},
    * containing the transaction ID.
    * @returns A promise resolving to the additional transactions array.
    */
-  getMoneyAccountTransactions(
-    ...args: Parameters<GetMoneyAccountTransactionsCallback>
-  ): ReturnType<GetMoneyAccountTransactionsCallback> {
-    return this.#getMoneyAccountTransactions?.(...args) ?? Promise.resolve([]);
+  getPaymentOverrideData(
+    ...args: Parameters<GetPaymentOverrideDataCallback>
+  ): ReturnType<GetPaymentOverrideDataCallback> {
+    return this.#getPaymentOverrideData?.(...args) ?? Promise.resolve([]);
   }
 
   /**

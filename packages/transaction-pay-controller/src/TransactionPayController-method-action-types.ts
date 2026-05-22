@@ -50,19 +50,19 @@ export type TransactionPayControllerUpdateFiatPaymentAction = {
 };
 
 /**
- * Returns additional transactions for the money account flow.
+ * Returns additional transactions for the paymentOverride flow.
  *
  * Delegates to the client-supplied callback. Called during quote execution
- * when `paymentOverride === PaymentOverride.MoneyAccount` on the transaction. Returns an empty array when no callback
+ * when paymentOverride is true. Returns an empty array when no callback
  * is configured.
  *
- * @param args - The arguments forwarded to the {@link GetMoneyAccountTransactionsCallback},
+ * @param args - The arguments forwarded to the {@link GetPaymentOverrideDataCallback},
  * containing the transaction ID.
  * @returns A promise resolving to the additional transactions array.
  */
-export type TransactionPayControllerGetMoneyAccountTransactionsAction = {
-  type: `TransactionPayController:getMoneyAccountTransactions`;
-  handler: TransactionPayController['getMoneyAccountTransactions'];
+export type TransactionPayControllerGetPaymentOverrideDataAction = {
+  type: `TransactionPayController:getPaymentOverrideData`;
+  handler: TransactionPayController['getPaymentOverrideData'];
 };
 
 /**
@@ -129,7 +129,7 @@ export type TransactionPayControllerMethodActions =
   | TransactionPayControllerUpdatePaymentTokenAction
   | TransactionPayControllerUpdateFiatPaymentAction
   | TransactionPayControllerGetDelegationTransactionAction
-  | TransactionPayControllerGetMoneyAccountTransactionsAction
+  | TransactionPayControllerGetPaymentOverrideDataAction
   | TransactionPayControllerGetStrategyAction
   | TransactionPayControllerPolymarketGetDepositWalletAddressAction
   | TransactionPayControllerPolymarketSubmitDepositWalletBatchAction;

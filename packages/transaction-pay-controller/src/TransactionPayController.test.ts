@@ -469,25 +469,25 @@ describe('TransactionPayController', () => {
     });
   });
 
-  describe('getMoneyAccountTransactions', () => {
+  describe('getPaymentOverrideData', () => {
     it('delegates to the callback', async () => {
       const txMock = { from: '0xabc', to: '0xdef' };
-      const getMoneyAccountTransactionsMock = jest
+      const getPaymentOverrideDataMock = jest
         .fn()
         .mockResolvedValue([txMock]);
 
       new TransactionPayController({
         getDelegationTransaction: jest.fn(),
-        getMoneyAccountTransactions: getMoneyAccountTransactionsMock,
+        getPaymentOverrideData: getPaymentOverrideDataMock,
         messenger,
       });
 
       const result = await messenger.call(
-        'TransactionPayController:getMoneyAccountTransactions',
+        'TransactionPayController:getPaymentOverrideData',
         TRANSACTION_ID_MOCK,
       );
 
-      expect(getMoneyAccountTransactionsMock).toHaveBeenCalledWith(
+      expect(getPaymentOverrideDataMock).toHaveBeenCalledWith(
         TRANSACTION_ID_MOCK,
       );
       expect(result).toStrictEqual([txMock]);
@@ -500,7 +500,7 @@ describe('TransactionPayController', () => {
       });
 
       const result = await messenger.call(
-        'TransactionPayController:getMoneyAccountTransactions',
+        'TransactionPayController:getPaymentOverrideData',
         TRANSACTION_ID_MOCK,
       );
 

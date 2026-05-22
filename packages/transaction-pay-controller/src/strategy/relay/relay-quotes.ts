@@ -278,8 +278,8 @@ async function getSingleQuote(
 
     log('Fetched relay quote', quote);
 
-    const quoteWithDeposits = request.paymentOverride === PaymentOverride.MoneyAccount
-      ? await injectMoneyAccountDepositSteps(quote, request, fullRequest)
+    const quoteWithDeposits = request.paymentOverride
+      ? await injectPaymentOverrideDepositSteps(quote, request, fullRequest)
       : quote;
 
     return await normalizeQuote(quoteWithDeposits, request, fullRequest);
@@ -1023,7 +1023,7 @@ function getSubsidizedFeeAmountUsd(quote: RelayQuote): BigNumber {
 }
 
 /**
- * Fetches deposit transactions from the money account callback and injects
+ * Fetches deposit transactions from the paymentOverride callback and injects
  * them into the relay quote's steps so they are submitted alongside the relay
  * transactions and included in gas estimation.
  *
@@ -1034,8 +1034,9 @@ function getSubsidizedFeeAmountUsd(quote: RelayQuote): BigNumber {
  * @param quote - Relay quote to mutate in place.
  * @param request - Quote request, used to determine ordering and chain ID.
  * @param fullRequest - Full quotes request, provides messenger and transaction ID.
+ * @returns The relay quote with deposit steps injected, or the original quote if no deposits are returned.
  */
-async function injectMoneyAccountDepositSteps(
+async function injectPaymentOverrideDepositSteps(
   quote: RelayQuote,
   request: QuoteRequest,
   fullRequest: PayStrategyGetQuotesRequest,
@@ -1043,7 +1044,7 @@ async function injectMoneyAccountDepositSteps(
   const { messenger, transaction } = fullRequest;
 
   const depositTxs = await messenger.call(
-    'TransactionPayController:getMoneyAccountTransactions',
+    'TransactionPayController:getPaymentOverrideData',
     transaction.id,
   );
 
@@ -1057,7 +1058,7 @@ async function injectMoneyAccountDepositSteps(
     ? [...quote.steps, depositStep]
     : [depositStep, ...quote.steps];
 
-  log('Injected money account deposit step', {
+  log('Injected paymentOverride deposit step', {
     transactionId: transaction.id,
     isPostQuote: request.isPostQuote,
     depositTxCount: depositTxs.length,
@@ -1070,7 +1071,7 @@ async function injectMoneyAccountDepositSteps(
  * Converts an array of TransactionParams into a single RelayTransactionStep
  * so they can be injected into a relay quote's steps array.
  *
- * @param txParams - Deposit transactions from the money account callback.
+ * @param txParams - Deposit transactions from the paymentOverride callback.
  * @param sourceChainId - Hex chain ID of the source network.
  * @returns A relay transaction step wrapping the deposit transactions.
  */
@@ -1091,11 +1092,11 @@ function buildDepositStep(
         chainId,
         data: (params.data as Hex) ?? '0x',
         from: params.from as Hex,
-        gas: params.gas as string | undefined,
+        gas: params.gas,
         maxFeePerGas: (params.maxFeePerGas as string) ?? '0x0',
         maxPriorityFeePerGas: (params.maxPriorityFeePerGas as string) ?? '0x0',
         to: params.to as Hex,
-        value: params.value as string | undefined,
+        value: params.value,
       },
     })),
   };
