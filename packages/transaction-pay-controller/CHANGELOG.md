@@ -9,8 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add `getPaymentOverrideData` callback (type `GetPaymentOverrideDataCallback`) to `TransactionPayControllerOptions`; when `paymentOverride` is defined on a transaction, this callback is invoked during quote execution and the resulting transactions are injected into the relay quote steps, ordered before or after the quote batch based on `isPostQuote` ([#8858](https://github.com/MetaMask/core/pull/8858))
-  - Exposed as the `TransactionPayController:getPaymentOverrideData` messenger action (type `TransactionPayControllerGetPaymentOverrideDataAction`)
+- Add `getPaymentOverrideData` callback to `TransactionPayControllerOptions`, when `paymentOverride` is defined on a transaction, this callback is invoked the resulting transactions are injected into the relay quote steps ([#8858](https://github.com/MetaMask/core/pull/8858))
 
 ## [22.7.0]
 
