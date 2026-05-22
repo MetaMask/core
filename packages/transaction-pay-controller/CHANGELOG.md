@@ -9,7 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add `getMoneyAccountTransactions` callback to `TransactionPayControllerOptions`; when `paymentOverride` is true on a transaction, the publish hook calls this callback and passes the resulting `additionalTransactions` to the strategy's `execute` request, ordered before or after the quote batch based on `isPostQuote` ([#8858](https://github.com/MetaMask/core/pull/8858))
+- Add `getPaymentOverrideData` callback (type `GetPaymentOverrideDataCallback`) to `TransactionPayControllerOptions`; when `paymentOverride` is defined on a transaction, this callback is invoked during quote execution and the resulting transactions are injected into the relay quote steps, ordered before or after the quote batch based on `isPostQuote` ([#8858](https://github.com/MetaMask/core/pull/8858))
+  - Exposed as the `TransactionPayController:getPaymentOverrideData` messenger action (type `TransactionPayControllerGetPaymentOverrideDataAction`)
 
 ## [22.7.0]
 
