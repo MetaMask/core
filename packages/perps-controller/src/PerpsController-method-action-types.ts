@@ -404,25 +404,18 @@ export type PerpsControllerGetMarketsAction = {
 };
 
 /**
- * Get the list of unique market categories available in HIP-3 markets.
- * Derives the categories from the HIP3_ASSET_MARKET_TYPES config
- * so the UI can render category filter tabs without hard-coding the list.
- *
- * @returns Array of unique MarketType values present in the config.
- */
-export type PerpsControllerGetMarketCategoriesAction = {
-  type: `PerpsController:getMarketCategories`;
-  handler: PerpsController['getMarketCategories'];
-};
-
-/**
- * Get market data with prices (includes price, volume, 24h change)
+ * Get market data with prices (includes price, volume, 24h change).
+ * Optionally filter by category, sort, and limit the results.
  *
  * For standalone mode, bypasses getActiveProvider() to allow market data queries
  * without full perps initialization (e.g., for background preloading on app start)
  *
  * @param params - The operation parameters.
  * @param params.standalone - Whether to use standalone mode.
+ * @param params.categories - Filter to markets matching any of these categories.
+ * @param params.sortBy - Sort results by this field.
+ * @param params.direction - Sort direction (default: desc).
+ * @param params.limit - Maximum number of results to return.
  * @returns A promise that resolves to the market data.
  */
 export type PerpsControllerGetMarketDataWithPricesAction = {
@@ -584,6 +577,18 @@ export type PerpsControllerSwitchProviderAction = {
 export type PerpsControllerGetCurrentNetworkAction = {
   type: `PerpsController:getCurrentNetwork`;
   handler: PerpsController['getCurrentNetwork'];
+};
+
+/**
+ * Get the ordered list of all market categories for HIP-3 markets.
+ * Returns a stable, explicitly ordered array so the UI can render
+ * category filter tabs without deriving order from config insertion.
+ *
+ * @returns Ordered array of {@link MarketTypeFilter} values (includes 'all' and 'new').
+ */
+export type PerpsControllerGetMarketCategoriesAction = {
+  type: `PerpsController:getMarketCategories`;
+  handler: PerpsController['getMarketCategories'];
 };
 
 /**
@@ -1046,7 +1051,6 @@ export type PerpsControllerMethodActions =
   | PerpsControllerGetFundingAction
   | PerpsControllerGetAccountStateAction
   | PerpsControllerGetHistoricalPortfolioAction
-  | PerpsControllerGetMarketCategoriesAction
   | PerpsControllerGetMarketsAction
   | PerpsControllerGetMarketDataWithPricesAction
   | PerpsControllerStartMarketDataPreloadAction
@@ -1063,6 +1067,7 @@ export type PerpsControllerMethodActions =
   | PerpsControllerToggleTestnetAction
   | PerpsControllerSwitchProviderAction
   | PerpsControllerGetCurrentNetworkAction
+  | PerpsControllerGetMarketCategoriesAction
   | PerpsControllerGetWebSocketConnectionStateAction
   | PerpsControllerSubscribeToConnectionStateAction
   | PerpsControllerReconnectAction

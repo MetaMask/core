@@ -137,6 +137,7 @@ export {
   WebSocketConnectionState,
   PerpsAnalyticsEvent,
   MARKET_CATEGORIES,
+  MarketCategory,
 } from './types';
 export type {
   RawLedgerUpdate,
@@ -144,7 +145,6 @@ export type {
   GetUserHistoryParams,
   TradeConfiguration,
   OrderType,
-  MarketCategory,
   MarketType,
   MarketTypeFilter,
   InputMethod,
