@@ -343,11 +343,9 @@ describe('java-tron-up installer', () => {
       javaArchiveContent,
     });
 
-    nock('https://example.test')
-      .get('/java.tar.gz')
-      .reply(301, '', {
-        location: 'https://example.test/java-redirected.tar.gz',
-      });
+    nock('https://example.test').get('/java.tar.gz').reply(301, '', {
+      location: 'https://example.test/java-redirected.tar.gz',
+    });
     nock('https://example.test')
       .get('/java-redirected.tar.gz')
       .reply(200, javaArchiveContent);
@@ -626,7 +624,7 @@ describe('java-tron-up installer', () => {
     ).rejects.toThrow('custom error');
 
     // Expect cleanup
-    const fullNodeCacheDir = join(cacheDirectory, 'java-tron-up', 'full-node');
+    const fullNodeCacheDir = join(cacheDirectory, 'java-tron-up', 'fullnode');
     const entries = existsSync(fullNodeCacheDir)
       ? readdirSync(fullNodeCacheDir)
       : [];
