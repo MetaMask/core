@@ -1,5 +1,4 @@
-/* eslint-disable jest/expect-expect, n/no-sync */
-import assert from 'node:assert/strict';
+/* eslint-disable n/no-sync */
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import {
@@ -37,13 +36,11 @@ describe('java-tron-up installer', () => {
   });
 
   it('pins the current latest java-tron release', () => {
-    assert.equal(JAVA_TRON_DEFAULT_FULL_NODE.version, 'GreatVoyage-v4.8.1');
-    assert.equal(
+    expect(JAVA_TRON_DEFAULT_FULL_NODE.version).toBe('GreatVoyage-v4.8.1');
+    expect(
       JAVA_TRON_DEFAULT_FULL_NODE.platforms['darwin-arm64']?.checksum,
-      '694431860ee76fc986ed495f9ec19f29ed3bd752a394386e7b3b9886b2292f59',
-    );
-    assert.equal(
-      JAVA_TRON_DEFAULT_FULL_NODE.platforms['linux-x64']?.checksum,
+    ).toBe('694431860ee76fc986ed495f9ec19f29ed3bd752a394386e7b3b9886b2292f59');
+    expect(JAVA_TRON_DEFAULT_FULL_NODE.platforms['linux-x64']?.checksum).toBe(
       '0e67b2fe75d7077750e73c4fa20725c6e9824657275d96be256ae5da681f9945',
     );
   });
@@ -52,8 +49,7 @@ describe('java-tron-up installer', () => {
     const cwd = createTempDir();
     writeFileSync(join(cwd, '.yarnrc.yml'), 'enableGlobalCache: false\n');
 
-    assert.equal(
-      getJavaTronCacheDirectory({ cwd }),
+    expect(getJavaTronCacheDirectory({ cwd })).toBe(
       join(cwd, '.metamask', 'cache'),
     );
   });
@@ -77,7 +73,7 @@ describe('java-tron-up installer', () => {
       }),
     );
 
-    assert.deepEqual(readJavaTronInstallOptionsFromPackageJson({ cwd }), {
+    expect(readJavaTronInstallOptionsFromPackageJson({ cwd })).toStrictEqual({
       fullNode: {
         platforms: {
           'linux-x64': {
@@ -91,7 +87,7 @@ describe('java-tron-up installer', () => {
   });
 
   it('parses installer CLI options', () => {
-    assert.deepEqual(
+    expect(
       parseJavaTronInstallCliOptions([
         '--cache-directory',
         '/tmp/cache',
@@ -102,19 +98,18 @@ describe('java-tron-up installer', () => {
         '--full-node-checksum',
         'abc123',
       ]),
-      {
-        binDirectory: '/tmp/bin',
-        cacheDirectory: '/tmp/cache',
-        fullNode: {
-          platforms: {
-            current: {
-              checksum: 'abc123',
-              url: 'https://example.test/FullNode.jar',
-            },
+    ).toStrictEqual({
+      binDirectory: '/tmp/bin',
+      cacheDirectory: '/tmp/cache',
+      fullNode: {
+        platforms: {
+          current: {
+            checksum: 'abc123',
+            url: 'https://example.test/FullNode.jar',
           },
         },
       },
-    );
+    });
   });
 
   it('downloads, verifies, caches, and installs the java-tron wrapper', async () => {
@@ -158,19 +153,16 @@ describe('java-tron-up installer', () => {
       dependencies,
     );
 
-    assert.equal(result.cacheHit, false);
-    assert.equal(result.version, 'test-java-tron');
-    assert.equal(result.binaryPath, join(binDirectory, 'java-tron'));
-    assert.equal(readFileSync(result.fullNodeJar, 'utf8'), fullNodeContent);
-    assert.ok(result.javaBinary.endsWith('/bin/java'));
-    assert.ok(existsSync(result.binaryPath));
-    assert.deepEqual(
-      downloads.map(({ url }) => url),
-      [
-        'https://example.test/java.tar.gz',
-        'https://example.test/FullNode-aarch64.jar',
-      ],
-    );
+    expect(result.cacheHit).toBe(false);
+    expect(result.version).toBe('test-java-tron');
+    expect(result.binaryPath).toBe(join(binDirectory, 'java-tron'));
+    expect(readFileSync(result.fullNodeJar, 'utf8')).toBe(fullNodeContent);
+    expect(result.javaBinary).toMatch(/\/bin\/java$/u);
+    expect(existsSync(result.binaryPath)).toBe(true);
+    expect(downloads.map(({ url }) => url)).toStrictEqual([
+      'https://example.test/java.tar.gz',
+      'https://example.test/FullNode-aarch64.jar',
+    ]);
 
     const wrapperOutput = execFileSync(
       process.execPath,
@@ -179,7 +171,7 @@ describe('java-tron-up installer', () => {
         encoding: 'utf8',
       },
     );
-    assert.equal(wrapperOutput.trim(), 'java -jar FullNode.jar -v');
+    expect(wrapperOutput.trim()).toBe('java -jar FullNode.jar -v');
   });
 
   it('replaces stale bin symlinks without modifying their targets', async () => {
@@ -220,8 +212,8 @@ describe('java-tron-up installer', () => {
       createDependencies({ fullNodeContent, javaArchiveContent }),
     );
 
-    assert.equal(readFileSync(staleTarget, 'utf8'), 'do not overwrite');
-    assert.equal(lstatSync(result.binaryPath).isSymbolicLink(), false);
+    expect(readFileSync(staleTarget, 'utf8')).toBe('do not overwrite');
+    expect(lstatSync(result.binaryPath).isSymbolicLink()).toBe(false);
   });
 
   it('reuses cached artifacts without downloading again', async () => {
@@ -291,8 +283,8 @@ describe('java-tron-up installer', () => {
       },
     );
 
-    assert.equal(result.cacheHit, true);
-    assert.equal(readFileSync(result.fullNodeJar, 'utf8'), fullNodeContent);
+    expect(result.cacheHit).toBe(true);
+    expect(readFileSync(result.fullNodeJar, 'utf8')).toBe(fullNodeContent);
   });
 
   it('cleans only the java-tron-up cache namespace', async () => {
@@ -307,8 +299,8 @@ describe('java-tron-up installer', () => {
 
     await cleanJavaTronCache({ cacheDirectory, cwd });
 
-    assert.equal(existsSync(join(cacheDirectory, 'java-tron-up')), false);
-    assert.equal(existsSync(join(cacheDirectory, 'foundryup', 'kept')), true);
+    expect(existsSync(join(cacheDirectory, 'java-tron-up'))).toBe(false);
+    expect(existsSync(join(cacheDirectory, 'foundryup', 'kept'))).toBe(true);
   });
 
   function createTempDir(): string {
