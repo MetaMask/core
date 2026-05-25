@@ -3505,6 +3505,28 @@ describe('Relay Quotes Utils', () => {
         expect(overrideStep.items[0].data.chainId).toBe(10);
       });
 
+      it('defaults data to 0x when transaction data is absent', async () => {
+        const { data: _data, ...txWithoutData } = PAYMENT_OVERRIDE_TX_MOCK;
+        getPaymentOverrideDataMock.mockResolvedValue([txWithoutData]);
+
+        const [quote] = await getRelayQuotes({
+          accountSupports7702: true,
+          messenger,
+          requests: [
+            {
+              ...QUOTE_REQUEST_MOCK,
+              paymentOverride: PaymentOverride.MoneyAccount,
+            },
+          ],
+          transaction: TRANSACTION_META_MOCK,
+        });
+
+        const overrideStep = quote.original.steps.find(
+          (step) => step.id === 'payment-override',
+        ) as RelayTransactionStep;
+        expect(overrideStep.items[0].data.data).toBe('0x');
+      });
+
       it('falls back to sourceChainId when transaction chainId is absent', async () => {
         getPaymentOverrideDataMock.mockResolvedValue([
           PAYMENT_OVERRIDE_TX_MOCK,
