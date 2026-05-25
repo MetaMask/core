@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `MarketCategory` enum, `MARKET_CATEGORIES` ordered array (includes `'all'` and `'new'` UI sentinel values), and `getMarketCategories` messenger action ([#TBD](https://github.com/MetaMask/core/pull/TBD))
+- Expand `HIP3_ASSET_MARKET_TYPES` with new stock, ETF, pre-IPO, forex, and commodity markets ([#TBD](https://github.com/MetaMask/core/pull/TBD))
+- Add `categories`, `sortBy`, `direction`, and `limit` optional params to `GetMarketsParams` and `getMarketDataWithPrices()` for post-processing filtering, sorting, and pagination of market data ([#TBD](https://github.com/MetaMask/core/pull/TBD))
+- Export `SortField` and `SortDirection` types from the package root ([#TBD](https://github.com/MetaMask/core/pull/TBD))
+
+### Changed
+
+- **BREAKING:** Replace `'equity'` with granular `MarketType` values: `'stock'`, `'pre-ipo'`, `'index'`, and `'etf'` ([#TBD](https://github.com/MetaMask/core/pull/TBD))
+  - Update any code matching `marketType === 'equity'` to use the specific sub-type.
+
 ## [6.3.0]
 
 ### Added

@@ -4,7 +4,7 @@ import type { CandlePeriod } from '../constants/chartConfig';
 import { PerpsMeasurementName } from '../constants/performanceMetrics';
 import { PERPS_CONSTANTS } from '../constants/perpsConfig';
 import { PERPS_ERROR_CODES } from '../perpsErrorCodes';
-import { PerpsTraceNames, PerpsTraceOperations } from '../types';
+import { MarketCategory, PerpsTraceNames, PerpsTraceOperations } from '../types';
 import type {
   PerpsProvider,
   Position,
@@ -30,10 +30,13 @@ import type {
   ClosePositionParams,
   AssetRoute,
   PerpsPlatformDependencies,
+  PerpsMarketData,
+  MarketTypeFilter,
 } from '../types';
 import type { CandleData } from '../types/perps-types';
 import { coalescePerpsRestRequest } from '../utils/coalescePerpsRestRequest';
 import { ensureError, isAbortError } from '../utils/errorUtils';
+import { sortMarkets } from '../utils/sortMarkets';
 import type { ServiceContext } from './ServiceContext';
 
 /**
@@ -800,6 +803,86 @@ export class MarketDataService {
   }
 
   /**
+   * Get market data with prices (includes price, volume, 24h change).
+   * Applies optional category filtering, sorting, and limit after fetching.
+   *
+   * @param options - The configuration options.
+   * @param options.provider - The perps provider instance.
+   * @param options.params - Optional filter/sort/limit params.
+   * @param options.context - The service context for dependencies.
+   * @returns The result of the operation.
+   */
+  async getMarketDataWithPrices(options: {
+    provider: PerpsProvider;
+    params?: Pick<
+      GetMarketsParams,
+      'categories' | 'sortBy' | 'direction' | 'limit'
+    >;
+    context: ServiceContext;
+  }): Promise<PerpsMarketData[]> {
+    const { provider, params, context } = options;
+    const traceId = uuidv4();
+    let traceData: { success: boolean; error?: string } | undefined;
+
+    try {
+      this.#deps.tracer.trace({
+        name: PerpsTraceNames.GetMarkets,
+        id: traceId,
+        op: PerpsTraceOperations.Operation,
+        tags: {
+          provider: context.tracingContext.provider,
+          isTestnet: String(context.tracingContext.isTestnet),
+          ...(params?.categories && {
+            categoryCount: String(params.categories.length),
+          }),
+        },
+      });
+
+      const markets = await provider.getMarketDataWithPrices();
+      const filtered = applyMarketFilters(markets, params);
+
+      traceData = { success: true };
+      return filtered;
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error
+          ? error.message
+          : PERPS_ERROR_CODES.MARKETS_FAILED;
+
+      this.#deps.logger.error(
+        ensureError(error, 'MarketDataService.getMarketDataWithPrices'),
+        {
+          tags: {
+            feature: PERPS_CONSTANTS.FeatureName,
+            provider: context.tracingContext.provider,
+            network: context.tracingContext.isTestnet ? 'testnet' : 'mainnet',
+          },
+          context: {
+            name: context.errorContext.controller,
+            data: {
+              method: context.errorContext.method,
+              params,
+            },
+          },
+        },
+      );
+
+      traceData = {
+        success: false,
+        error: errorMessage,
+      };
+
+      throw error;
+    } finally {
+      this.#deps.tracer.endTrace({
+        name: PerpsTraceNames.GetMarkets,
+        id: traceId,
+        data: traceData,
+      });
+    }
+  }
+
+  /**
    * Get available DEXs (HIP-3 support required)
    *
    * @param options - The configuration options.
@@ -1172,4 +1255,87 @@ export class MarketDataService {
     const { provider, address } = options;
     return provider.getBlockExplorerUrl(address);
   }
+}
+
+// ============================================================================
+// Market filtering helpers (module-level pure functions)
+// These live outside the class because they have no service dependencies —
+// they are pure data transformations that can be tested and reused independently.
+// ============================================================================
+
+/**
+ * Returns true when a market matches the given UI filter category.
+ *
+ * @param market - The market data to test.
+ * @param category - The filter category to test against.
+ * @returns Whether the market matches the category.
+ */
+export function matchesCategory(
+  market: PerpsMarketData,
+  category: MarketTypeFilter | 'watchlist',
+): boolean {
+  switch (category) {
+    case 'all':
+      return true;
+    case 'new':
+      return market.isNewMarket === true;
+    case 'crypto':
+      return !market.isHip3;
+    case 'stocks':
+      return market.marketType === MarketCategory.Stock;
+    case 'pre-ipo':
+      return market.marketType === MarketCategory.PreIpo;
+    case 'indices':
+      return market.marketType === MarketCategory.Index;
+    case 'etfs':
+      return market.marketType === MarketCategory.Etf;
+    case 'commodities':
+      return market.marketType === MarketCategory.Commodity;
+    case 'forex':
+      return market.marketType === MarketCategory.Forex;
+    case 'watchlist':
+      // Watchlist state lives in the calling client; always false here.
+      return false;
+    default:
+      return true;
+  }
+}
+
+/**
+ * Applies optional category filtering, sorting, and limit to a list of markets.
+ *
+ * @param markets - Source market array.
+ * @param params - Optional filter/sort/limit params.
+ * @returns Filtered, sorted, and/or sliced market array.
+ */
+export function applyMarketFilters(
+  markets: PerpsMarketData[],
+  params?: Pick<
+    GetMarketsParams,
+    'categories' | 'sortBy' | 'direction' | 'limit'
+  >,
+): PerpsMarketData[] {
+  let result = markets;
+
+  if (params?.categories?.length) {
+    const { categories } = params;
+    result = result.filter((market) =>
+      // A market is included if it matches ANY of the requested categories.
+      categories.some((category) => matchesCategory(market, category)),
+    );
+  }
+
+  if (params?.sortBy) {
+    result = sortMarkets({
+      markets: result,
+      sortBy: params.sortBy,
+      direction: params.direction,
+    });
+  }
+
+  if (params?.limit !== undefined) {
+    result = result.slice(0, params.limit);
+  }
+
+  return result;
 }

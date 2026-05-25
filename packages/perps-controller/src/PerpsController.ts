@@ -22,7 +22,6 @@ import {
   PERPS_CONSTANTS,
   MARKET_SORTING_CONFIG,
   PROVIDER_CONFIG,
-  PERPS_DISK_CACHE_MARKETS,
   PERPS_DISK_CACHE_USER_DATA,
   buildProviderCacheKey,
   MAX_SLIPPAGE_BOUNDS,
@@ -47,6 +46,7 @@ import {
   PerpsTraceNames,
   PerpsTraceOperations,
   isVersionGatedFeatureFlag,
+  MARKET_CATEGORIES,
   // Platform dependencies interface for core migration (bundles all platform-specific deps)
 } from './types';
 import type {
@@ -110,6 +110,7 @@ import type {
   PerpsRemoteFeatureFlagState,
   PerpsTransactionParams,
   PerpsAddTransactionOptions,
+  MarketTypeFilter,
   MYXCredentials,
 } from './types';
 import type {
@@ -723,6 +724,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'getCurrentNetwork',
   'getFunding',
   'getHistoricalPortfolio',
+  'getMarketCategories',
   'getMarketDataWithPrices',
   'getMarketFilterPreferences',
   'getMarkets',
@@ -2933,28 +2935,44 @@ export class PerpsController extends BaseController<
   }
 
   /**
-   * Get market data with prices (includes price, volume, 24h change)
+   * Get market data with prices (includes price, volume, 24h change).
+   * Optionally filter by category, sort, and limit the results.
    *
    * For standalone mode, bypasses getActiveProvider() to allow market data queries
    * without full perps initialization (e.g., for background preloading on app start)
    *
    * @param params - The operation parameters.
    * @param params.standalone - Whether to use standalone mode.
+   * @param params.categories - Filter to markets matching any of these categories.
+   * @param params.sortBy - Sort results by this field.
+   * @param params.direction - Sort direction (default: desc).
+   * @param params.limit - Maximum number of results to return.
    * @returns A promise that resolves to the market data.
    */
-  async getMarketDataWithPrices(params?: {
-    standalone?: boolean;
-  }): Promise<PerpsMarketData[]> {
+  async getMarketDataWithPrices(
+    params?: Pick<
+      GetMarketsParams,
+      'categories' | 'sortBy' | 'direction' | 'limit' | 'standalone'
+    >,
+  ): Promise<PerpsMarketData[]> {
     if (params?.standalone) {
       // Use activeProviderInstance if available (respects provider abstraction)
       // Fallback to cached standalone provider for pre-initialization discovery
       const provider =
         this.activeProviderInstance ?? this.#getOrCreateStandaloneProvider();
-      return provider.getMarketDataWithPrices();
+      return this.#marketDataService.getMarketDataWithPrices({
+        provider,
+        params,
+        context: this.#createServiceContext('getMarketDataWithPrices'),
+      });
     }
 
     const provider = this.getActiveProvider();
-    return provider.getMarketDataWithPrices();
+    return this.#marketDataService.getMarketDataWithPrices({
+      provider,
+      params,
+      context: this.#createServiceContext('getMarketDataWithPrices'),
+    });
   }
 
   // ============================================================================
@@ -3958,6 +3976,17 @@ export class PerpsController extends BaseController<
    */
   getCurrentNetwork(): 'mainnet' | 'testnet' {
     return this.state.isTestnet ? 'testnet' : 'mainnet';
+  }
+
+  /**
+   * Get the ordered list of all market categories for HIP-3 markets.
+   * Returns a stable, explicitly ordered array so the UI can render
+   * category filter tabs without deriving order from config insertion.
+   *
+   * @returns Ordered array of {@link MarketTypeFilter} values (includes 'all' and 'new').
+   */
+  getMarketCategories(): MarketTypeFilter[] {
+    return MARKET_CATEGORIES;
   }
 
   /**

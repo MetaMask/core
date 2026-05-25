@@ -2,14 +2,9 @@ import {
   MARKET_SORTING_CONFIG,
   PERPS_CONSTANTS,
 } from '../constants/perpsConfig';
-import type { PerpsMarketData } from '../types';
+import type { PerpsMarketData, SortDirection, SortField } from '../types';
 
-export type SortField =
-  | 'volume'
-  | 'priceChange'
-  | 'fundingRate'
-  | 'openInterest';
-export type SortDirection = 'asc' | 'desc';
+export type { SortField, SortDirection };
 
 export type SortMarketsParams = {
   markets: PerpsMarketData[];

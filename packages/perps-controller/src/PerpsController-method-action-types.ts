@@ -404,6 +404,18 @@ export type PerpsControllerGetMarketsAction = {
 };
 
 /**
+ * Get the list of unique market categories available in HIP-3 markets.
+ * Derives the categories from the HIP3_ASSET_MARKET_TYPES config
+ * so the UI can render category filter tabs without hard-coding the list.
+ *
+ * @returns Array of unique MarketType values present in the config.
+ */
+export type PerpsControllerGetMarketCategoriesAction = {
+  type: `PerpsController:getMarketCategories`;
+  handler: PerpsController['getMarketCategories'];
+};
+
+/**
  * Get market data with prices (includes price, volume, 24h change)
  *
  * For standalone mode, bypasses getActiveProvider() to allow market data queries
@@ -1034,6 +1046,7 @@ export type PerpsControllerMethodActions =
   | PerpsControllerGetFundingAction
   | PerpsControllerGetAccountStateAction
   | PerpsControllerGetHistoricalPortfolioAction
+  | PerpsControllerGetMarketCategoriesAction
   | PerpsControllerGetMarketsAction
   | PerpsControllerGetMarketDataWithPricesAction
   | PerpsControllerStartMarketDataPreloadAction

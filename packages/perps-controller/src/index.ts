@@ -72,6 +72,7 @@ export type {
   PerpsControllerGetHistoricalPortfolioAction,
   PerpsControllerGetMarketDataWithPricesAction,
   PerpsControllerGetMarketFilterPreferencesAction,
+  PerpsControllerGetMarketCategoriesAction,
   PerpsControllerGetMarketsAction,
   PerpsControllerGetMaxLeverageAction,
   PerpsControllerGetOpenOrdersAction,
@@ -132,13 +133,14 @@ export type {
 export { HyperLiquidProvider } from './providers/HyperLiquidProvider';
 
 // Type definitions (explicit named exports)
-export { WebSocketConnectionState, PerpsAnalyticsEvent } from './types';
+export { WebSocketConnectionState, PerpsAnalyticsEvent, MARKET_CATEGORIES } from './types';
 export type {
   RawLedgerUpdate,
   UserHistoryItem,
   GetUserHistoryParams,
   TradeConfiguration,
   OrderType,
+  MarketCategory,
   MarketType,
   MarketTypeFilter,
   InputMethod,
