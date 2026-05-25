@@ -50,22 +50,6 @@ export type TransactionPayControllerUpdateFiatPaymentAction = {
 };
 
 /**
- * Returns additional transactions for the paymentOverride flow.
- *
- * Delegates to the client-supplied callback. Called during quote execution
- * when paymentOverride is true. Returns an empty array when no callback
- * is configured.
- *
- * @param args - The arguments forwarded to the {@link GetPaymentOverrideDataCallback},
- * containing the transaction ID.
- * @returns A promise resolving to the additional transactions array.
- */
-export type TransactionPayControllerGetPaymentOverrideDataAction = {
-  type: `TransactionPayController:getPaymentOverrideData`;
-  handler: TransactionPayController['getPaymentOverrideData'];
-};
-
-/**
  * Gets the delegation transaction for a given transaction.
  *
  * Converts the provided transaction into a redeem delegation by delegating
@@ -80,6 +64,22 @@ export type TransactionPayControllerGetPaymentOverrideDataAction = {
 export type TransactionPayControllerGetDelegationTransactionAction = {
   type: `TransactionPayController:getDelegationTransaction`;
   handler: TransactionPayController['getDelegationTransaction'];
+};
+
+/**
+ * Returns additional transactions for the paymentOverride flow.
+ *
+ * Delegates to the client-supplied {@link GetPaymentOverrideDataCallback}.
+ * Called during quote execution when `paymentOverride` is defined on the transaction.
+ * Returns an empty array when no callback is configured.
+ *
+ * @param args - The arguments forwarded to the {@link GetPaymentOverrideDataCallback},
+ * containing the transaction ID.
+ * @returns A promise resolving to the additional transactions array.
+ */
+export type TransactionPayControllerGetPaymentOverrideDataAction = {
+  type: `TransactionPayController:getPaymentOverrideData`;
+  handler: TransactionPayController['getPaymentOverrideData'];
 };
 
 /**
