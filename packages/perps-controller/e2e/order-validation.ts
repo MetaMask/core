@@ -1,3 +1,4 @@
+/* eslint-disable no-restricted-globals */
 /**
  * E2E: Order Validation
  * Tests order parameter validation logic against real market data.
@@ -24,7 +25,7 @@ async function main(): Promise<void> {
   const meta = await client.meta();
   const mids = await client.allMids();
 
-  const btc = meta.universe.find((m) => m.name === 'BTC');
+  const btc = meta.universe.find((market) => market.name === 'BTC');
   runner.assert('BTC market exists for validation', btc !== undefined);
 
   const btcPrice = parseFloat(mids.BTC ?? '0');
@@ -66,7 +67,7 @@ async function main(): Promise<void> {
   for (const code of expectedCodes) {
     runner.assert(
       `error code ${code} exists`,
-      code in PERPS_ERROR_CODES,
+      Object.hasOwn(PERPS_ERROR_CODES, code),
       `missing from PERPS_ERROR_CODES`,
     );
   }
@@ -76,7 +77,7 @@ async function main(): Promise<void> {
     runner.assert('BTC szDecimals is reasonable (1-8)', btc.szDecimals >= 1 && btc.szDecimals <= 8,
       `got ${btc.szDecimals}`);
   }
-  const eth = meta.universe.find((m) => m.name === 'ETH');
+  const eth = meta.universe.find((market) => market.name === 'ETH');
   if (eth) {
     runner.assert('ETH szDecimals is reasonable (1-8)', eth.szDecimals >= 1 && eth.szDecimals <= 8,
       `got ${eth.szDecimals}`);
@@ -86,8 +87,8 @@ async function main(): Promise<void> {
   process.exit(result.status === 'pass' ? 0 : 1);
 }
 
-main().catch((err) => {
-  console.error(err);
-  console.log(JSON.stringify({ scenario: 'order-validation', status: 'fail', assertions: 0, failed: 1, duration_ms: 0, details: [{ name: 'unhandled', ok: false, error: err.message }] }));
+main().catch((caughtError) => {
+  console.error(caughtError);
+  console.log(JSON.stringify({ scenario: 'order-validation', status: 'fail', assertions: 0, failed: 1, durationMs: 0, details: [{ name: 'unhandled', ok: false, error: caughtError instanceof Error ? caughtError.message : String(caughtError) }] }));
   process.exit(1);
 });

@@ -1,3 +1,4 @@
+/* eslint-disable no-restricted-globals */
 /**
  * E2E: Market Data
  * Fetches real market metadata and mid prices from HyperLiquid mainnet.
@@ -16,14 +17,14 @@ async function main(): Promise<void> {
   runner.assertArray('meta.universe', meta.universe, 1);
   runner.assertGt('market count', meta.universe.length, 10);
 
-  const btc = meta.universe.find((m) => m.name === 'BTC');
+  const btc = meta.universe.find((market) => market.name === 'BTC');
   runner.assert('BTC market exists', btc !== undefined);
   if (btc) {
     runner.assertType('BTC szDecimals', btc.szDecimals, 'number');
     runner.assertGt('BTC szDecimals > 0', btc.szDecimals, 0);
   }
 
-  const eth = meta.universe.find((m) => m.name === 'ETH');
+  const eth = meta.universe.find((market) => market.name === 'ETH');
   runner.assert('ETH market exists', eth !== undefined);
 
   // 2. Fetch metaAndAssetCtxs (meta + live context)
@@ -38,7 +39,7 @@ async function main(): Promise<void> {
     `meta=${metaResult.universe.length} assetCtxs=${assetCtxs.length}`,
   );
 
-  const btcIdx = metaResult.universe.findIndex((m) => m.name === 'BTC');
+  const btcIdx = metaResult.universe.findIndex((market) => market.name === 'BTC');
   if (btcIdx >= 0) {
     const btcCtx = assetCtxs[btcIdx];
     runner.assertType('BTC markPx is string', btcCtx?.markPx, 'string');
@@ -63,15 +64,15 @@ async function main(): Promise<void> {
   runner.assertArray('spotMeta.tokens', spotMeta.tokens, 1);
   runner.assertArray('spotMeta.universe', spotMeta.universe, 1);
 
-  const usdcToken = spotMeta.tokens.find((t) => t.name === 'USDC');
+  const usdcToken = spotMeta.tokens.find((token) => token.name === 'USDC');
   runner.assert('USDC token exists in spotMeta', usdcToken !== undefined);
 
   const result = runner.finish();
   process.exit(result.status === 'pass' ? 0 : 1);
 }
 
-main().catch((err) => {
-  console.error(err);
-  console.log(JSON.stringify({ scenario: 'market-data', status: 'fail', assertions: 0, failed: 1, duration_ms: 0, details: [{ name: 'unhandled', ok: false, error: err.message }] }));
+main().catch((caughtError) => {
+  console.error(caughtError);
+  console.log(JSON.stringify({ scenario: 'market-data', status: 'fail', assertions: 0, failed: 1, durationMs: 0, details: [{ name: 'unhandled', ok: false, error: caughtError instanceof Error ? caughtError.message : String(caughtError) }] }));
   process.exit(1);
 });

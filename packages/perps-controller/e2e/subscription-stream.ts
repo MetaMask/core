@@ -1,10 +1,9 @@
+/* eslint-disable no-restricted-globals */
 /**
  * E2E: Subscription Stream
  * Opens a WebSocket to HyperLiquid mainnet, subscribes to allMids,
  * receives N price updates, validates shape, then closes.
  */
-import WebSocket from 'ws';
-
 import { getWebSocketEndpoint } from '../src/constants/hyperLiquidConfig';
 import { E2ERunner } from './helpers';
 
@@ -29,19 +28,19 @@ async function main(): Promise<void> {
       reject(new Error(`Timeout: only received ${updates.length}/${TARGET_UPDATES} updates in ${TIMEOUT_MS}ms`));
     }, TIMEOUT_MS);
 
-    ws.on('open', () => {
+    ws.onopen = (): void => {
       console.error('[e2e] WebSocket connected, subscribing to allMids...');
       ws.send(JSON.stringify({
         method: 'subscribe',
         subscription: { type: 'allMids' },
       }));
-    });
+    };
 
-    ws.on('message', (data: WebSocket.Data) => {
+    ws.onmessage = (event: MessageEvent): void => {
       try {
-        const msg = JSON.parse(data.toString());
-        if (msg.channel === 'allMids' && msg.data?.mids) {
-          updates.push(msg.data.mids);
+        const message = JSON.parse(String(event.data)) as { channel?: string; data?: { mids?: Record<string, string> } };
+        if (message.channel === 'allMids' && message.data?.mids) {
+          updates.push(message.data.mids);
           console.error(`[e2e] Received allMids update ${updates.length}/${TARGET_UPDATES}`);
           if (updates.length >= TARGET_UPDATES) {
             clearTimeout(timer);
@@ -52,12 +51,12 @@ async function main(): Promise<void> {
       } catch {
         // ignore non-JSON or non-allMids messages
       }
-    });
+    };
 
-    ws.on('error', (err) => {
+    ws.onerror = (event: ErrorEvent): void => {
       clearTimeout(timer);
-      reject(err);
-    });
+      reject(new Error(`WebSocket error: ${event.message}`));
+    };
   });
 
   runner.assertGt('received updates', updates.length, TARGET_UPDATES - 1);
@@ -67,8 +66,8 @@ async function main(): Promise<void> {
     runner.assertType('mids is object', firstUpdate, 'object');
     const keys = Object.keys(firstUpdate);
     runner.assertGt('mids has markets', keys.length, 10);
-    runner.assert('BTC in mids', 'BTC' in firstUpdate);
-    runner.assert('ETH in mids', 'ETH' in firstUpdate);
+    runner.assert('BTC in mids', Object.hasOwn(firstUpdate, 'BTC'));
+    runner.assert('ETH in mids', Object.hasOwn(firstUpdate, 'ETH'));
 
     const btcMid = parseFloat(firstUpdate.BTC ?? '0');
     runner.assertGt('BTC WS mid > 1000', btcMid, 1000);
@@ -88,8 +87,8 @@ async function main(): Promise<void> {
   process.exit(result.status === 'pass' ? 0 : 1);
 }
 
-main().catch((err) => {
-  console.error(err);
-  console.log(JSON.stringify({ scenario: 'subscription-stream', status: 'fail', assertions: 0, failed: 1, duration_ms: 0, details: [{ name: 'unhandled', ok: false, error: err.message }] }));
+main().catch((caughtError) => {
+  console.error(caughtError);
+  console.log(JSON.stringify({ scenario: 'subscription-stream', status: 'fail', assertions: 0, failed: 1, durationMs: 0, details: [{ name: 'unhandled', ok: false, error: caughtError instanceof Error ? caughtError.message : String(caughtError) }] }));
   process.exit(1);
 });

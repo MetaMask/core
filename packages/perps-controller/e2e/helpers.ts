@@ -7,7 +7,7 @@ export type E2EResult = {
   status: 'pass' | 'fail';
   assertions: number;
   failed: number;
-  duration_ms: number;
+  durationMs: number;
   details: { name: string; ok: boolean; error?: string }[];
 };
 
@@ -18,9 +18,9 @@ export function createClient(isTestnet = false): InfoClient {
 export class E2ERunner {
   readonly scenario: string;
 
-  #details: E2EResult['details'] = [];
+  readonly #details: E2EResult['details'] = [];
 
-  #startTime = Date.now();
+  readonly #startTime = Date.now();
 
   constructor(scenario: string) {
     this.scenario = scenario;
@@ -51,13 +51,13 @@ export class E2ERunner {
   }
 
   finish(): E2EResult {
-    const failed = this.#details.filter((d) => !d.ok).length;
+    const failed = this.#details.filter((detail) => !detail.ok).length;
     const result: E2EResult = {
       scenario: this.scenario,
       status: failed > 0 ? 'fail' : 'pass',
       assertions: this.#details.length,
       failed,
-      duration_ms: Date.now() - this.#startTime,
+      durationMs: Date.now() - this.#startTime,
       details: this.#details,
     };
     console.log(JSON.stringify(result, null, 2));

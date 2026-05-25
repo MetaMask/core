@@ -1,3 +1,4 @@
+/* eslint-disable no-restricted-globals */
 /**
  * E2E: Error Codes
  * Validates that PERPS_ERROR_CODES are structured correctly and that
@@ -35,11 +36,11 @@ async function main(): Promise<void> {
     const state = await client.clearinghouseState({ user: '0xinvalid' });
     // HyperLiquid may return empty state for invalid addresses rather than error
     runner.assert('invalid address returns object', typeof state === 'object');
-    runner.assert('invalid address has marginSummary', 'marginSummary' in state);
-  } catch (err: unknown) {
+    runner.assert('invalid address has marginSummary', Object.hasOwn(state, 'marginSummary'));
+  } catch (caughtError: unknown) {
     // API error is also acceptable — validates error handling path
     runner.assert('invalid address produces error', true);
-    const message = err instanceof Error ? err.message : String(err);
+    const message = caughtError instanceof Error ? caughtError.message : String(caughtError);
     runner.assert('error is descriptive', message.length > 0, 'empty error message');
   }
 
@@ -48,7 +49,7 @@ async function main(): Promise<void> {
   try {
     const orders = await client.frontendOpenOrders({ user: '0x0000000000000000000000000000000000000000' });
     runner.assertArray('zero address orders', orders, 0);
-  } catch (err: unknown) {
+  } catch {
     runner.assert('zero address produces error or empty', true);
   }
 
@@ -56,8 +57,8 @@ async function main(): Promise<void> {
   process.exit(result.status === 'pass' ? 0 : 1);
 }
 
-main().catch((err) => {
-  console.error(err);
-  console.log(JSON.stringify({ scenario: 'error-codes', status: 'fail', assertions: 0, failed: 1, duration_ms: 0, details: [{ name: 'unhandled', ok: false, error: err.message }] }));
+main().catch((caughtError) => {
+  console.error(caughtError);
+  console.log(JSON.stringify({ scenario: 'error-codes', status: 'fail', assertions: 0, failed: 1, durationMs: 0, details: [{ name: 'unhandled', ok: false, error: caughtError instanceof Error ? caughtError.message : String(caughtError) }] }));
   process.exit(1);
 });

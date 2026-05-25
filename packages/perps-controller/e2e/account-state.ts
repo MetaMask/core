@@ -1,3 +1,4 @@
+/* eslint-disable no-restricted-globals */
 /**
  * E2E: Account State
  * Queries clearinghouseState for a known public address on HyperLiquid mainnet.
@@ -16,9 +17,9 @@ async function main(): Promise<void> {
   const state = await client.clearinghouseState({ user: KNOWN_PUBLIC_ADDRESS });
 
   runner.assertType('state is object', state, 'object');
-  runner.assert('state has marginSummary', 'marginSummary' in state);
-  runner.assert('state has crossMarginSummary', 'crossMarginSummary' in state);
-  runner.assert('state has assetPositions', 'assetPositions' in state);
+  runner.assert('state has marginSummary', Object.hasOwn(state, 'marginSummary'));
+  runner.assert('state has crossMarginSummary', Object.hasOwn(state, 'crossMarginSummary'));
+  runner.assert('state has assetPositions', Object.hasOwn(state, 'assetPositions'));
 
   if (state.marginSummary) {
     runner.assertType('marginSummary.accountValue is string', state.marginSummary.accountValue, 'string');
@@ -46,8 +47,8 @@ async function main(): Promise<void> {
   process.exit(result.status === 'pass' ? 0 : 1);
 }
 
-main().catch((err) => {
-  console.error(err);
-  console.log(JSON.stringify({ scenario: 'account-state', status: 'fail', assertions: 0, failed: 1, duration_ms: 0, details: [{ name: 'unhandled', ok: false, error: err.message }] }));
+main().catch((caughtError) => {
+  console.error(caughtError);
+  console.log(JSON.stringify({ scenario: 'account-state', status: 'fail', assertions: 0, failed: 1, durationMs: 0, details: [{ name: 'unhandled', ok: false, error: caughtError instanceof Error ? caughtError.message : String(caughtError) }] }));
   process.exit(1);
 });
