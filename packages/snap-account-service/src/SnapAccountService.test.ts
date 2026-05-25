@@ -656,6 +656,44 @@ describe('SnapAccountService', () => {
       await expect(service.getLegacySnapKeyring()).rejects.toThrow('boom');
       expect(mocks.KeyringController.withController).not.toHaveBeenCalled();
     });
+
+    it('deduplicates concurrent slow-path calls so withController is only acquired once', async () => {
+      const { service, mocks } = setup();
+      mockLegacySnapKeyringMissing(mocks);
+      const { addNewKeyring } = mockWithController(mocks, []);
+
+      const [result1, result2] = await Promise.all([
+        service.getLegacySnapKeyring(),
+        service.getLegacySnapKeyring(),
+      ]);
+
+      expect(mocks.KeyringController.withController).toHaveBeenCalledTimes(1);
+      expect(addNewKeyring).toHaveBeenCalledTimes(1);
+      expect(result1).toBe(result2);
+    });
+
+    it('clears the in-flight promise on rejection so subsequent calls retry', async () => {
+      const { service, mocks } = setup();
+      mockLegacySnapKeyringMissing(mocks);
+      mocks.KeyringController.withController.mockRejectedValueOnce(
+        new Error('boom'),
+      );
+
+      const [rejection1, rejection2] = await Promise.allSettled([
+        service.getLegacySnapKeyring(),
+        service.getLegacySnapKeyring(),
+      ]);
+
+      expect(rejection1.status).toBe('rejected');
+      expect(rejection2.status).toBe('rejected');
+      expect(mocks.KeyringController.withController).toHaveBeenCalledTimes(1);
+
+      // After rejection, the next call should retry.
+      const { addNewKeyring } = mockWithController(mocks, []);
+      const result = await service.getLegacySnapKeyring();
+      expect(addNewKeyring).toHaveBeenCalledTimes(1);
+      expect(result.type).toBe(KeyringTypes.snap);
+    });
   });
 
   describe('handleKeyringSnapMessage', () => {
