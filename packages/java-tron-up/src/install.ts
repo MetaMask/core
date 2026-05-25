@@ -482,9 +482,10 @@ if (result.error) {
 
 if (result.signal) {
   process.kill(process.pid, result.signal);
+  return;
 }
 
-process.exit(result.status ?? 0);
+process.exit(result.status ?? 1);
 `,
   );
   await chmod(binaryPath, 0o755);
