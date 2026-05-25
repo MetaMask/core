@@ -1,3 +1,7 @@
+import {
+  PERPS_CONSTANTS,
+  MARGIN_ADJUSTMENT_CONFIG,
+} from '../src/constants/perpsConfig';
 /* eslint-disable no-restricted-globals */
 /**
  * E2E: Error Codes
@@ -5,10 +9,6 @@
  * validation functions produce correct error codes for malformed inputs.
  */
 import { PERPS_ERROR_CODES } from '../src/perpsErrorCodes';
-import {
-  PERPS_CONSTANTS,
-  MARGIN_ADJUSTMENT_CONFIG,
-} from '../src/constants/perpsConfig';
 import { createClient, E2ERunner } from './helpers';
 
 async function main(): Promise<void> {

@@ -1,3 +1,7 @@
+import {
+  TRADING_DEFAULTS,
+  USDC_DECIMALS,
+} from '../src/constants/hyperLiquidConfig';
 /* eslint-disable no-restricted-globals */
 /**
  * E2E: Order Validation
@@ -9,10 +13,6 @@ import {
   PERPS_CONSTANTS,
   TP_SL_CONFIG,
 } from '../src/constants/perpsConfig';
-import {
-  TRADING_DEFAULTS,
-  USDC_DECIMALS,
-} from '../src/constants/hyperLiquidConfig';
 import { PERPS_ERROR_CODES } from '../src/perpsErrorCodes';
 import { createClient, E2ERunner } from './helpers';
 
