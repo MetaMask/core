@@ -816,7 +816,11 @@ export type GetSupportedPathsParams = {
 export type GetAvailableDexsParams = Record<string, never>;
 
 /** Field to sort markets by. */
-export type SortField = 'volume' | 'priceChange' | 'fundingRate' | 'openInterest';
+export type SortField =
+  | 'volume'
+  | 'priceChange'
+  | 'fundingRate'
+  | 'openInterest';
 
 /** Direction for market sorting. */
 export type SortDirection = 'asc' | 'desc';
@@ -1041,7 +1045,12 @@ export type PerpsProvider = {
   getPositions(params?: GetPositionsParams): Promise<Position[]>;
   getAccountState(params?: GetAccountStateParams): Promise<AccountState>;
   getMarkets(params?: GetMarketsParams): Promise<MarketInfo[]>;
-  getMarketDataWithPrices(params?: Pick<GetMarketsParams, 'categories' | 'sortBy' | 'direction' | 'limit' | 'standalone'>): Promise<PerpsMarketData[]>;
+  getMarketDataWithPrices(
+    params?: Pick<
+      GetMarketsParams,
+      'categories' | 'sortBy' | 'direction' | 'limit' | 'standalone'
+    >,
+  ): Promise<PerpsMarketData[]>;
   withdraw(params: WithdrawParams): Promise<WithdrawResult>; // API operation - stays in provider
   // Note: deposit() is handled by PerpsController routing (blockchain operation)
   validateDeposit(

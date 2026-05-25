@@ -4,7 +4,11 @@ import type { CandlePeriod } from '../constants/chartConfig';
 import { PerpsMeasurementName } from '../constants/performanceMetrics';
 import { PERPS_CONSTANTS } from '../constants/perpsConfig';
 import { PERPS_ERROR_CODES } from '../perpsErrorCodes';
-import { MarketCategory, PerpsTraceNames, PerpsTraceOperations } from '../types';
+import {
+  MarketCategory,
+  PerpsTraceNames,
+  PerpsTraceOperations,
+} from '../types';
 import type {
   PerpsProvider,
   Position,

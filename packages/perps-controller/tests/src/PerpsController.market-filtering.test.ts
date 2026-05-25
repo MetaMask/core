@@ -6,11 +6,6 @@
 
 /* eslint-disable */
 
-import { createMockHyperLiquidProvider } from '../helpers/providerMocks';
-import {
-  createMockInfrastructure,
-  createMockMessenger,
-} from '../helpers/serviceMocks';
 import {
   PerpsController,
   getDefaultPerpsControllerState,
@@ -24,6 +19,11 @@ import type {
   PerpsMarketData,
 } from '../../src/types';
 import { MARKET_CATEGORIES, MarketCategory } from '../../src/types';
+import { createMockHyperLiquidProvider } from '../helpers/providerMocks';
+import {
+  createMockInfrastructure,
+  createMockMessenger,
+} from '../helpers/serviceMocks';
 
 jest.mock('@nktkas/hyperliquid', () => ({}));
 jest.mock('@myx-trade/sdk', () => ({

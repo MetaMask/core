@@ -2,7 +2,6 @@ import type { CaipAssetId, CaipChainId, Hex } from '@metamask/utils';
 
 import { MarketCategory } from '../types';
 import type { MarketType } from '../types';
-
 import type {
   HyperLiquidNetwork,
   HyperLiquidEndpoints,
