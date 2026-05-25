@@ -32,21 +32,43 @@ async function main(): Promise<void> {
   runner.assertGt('BTC price > 0', btcPrice, 0);
 
   // 2. Validate constants are sane
-  runner.assertGt('DefaultMaxLeverage > 0', PERPS_CONSTANTS.DefaultMaxLeverage, 0);
-  runner.assertGt('TRADING_DEFAULTS.leverage > 0', TRADING_DEFAULTS.leverage, 0);
+  runner.assertGt(
+    'DefaultMaxLeverage > 0',
+    PERPS_CONSTANTS.DefaultMaxLeverage,
+    0,
+  );
+  runner.assertGt(
+    'TRADING_DEFAULTS.leverage > 0',
+    TRADING_DEFAULTS.leverage,
+    0,
+  );
   runner.assertGt('USDC_DECIMALS', USDC_DECIMALS, 0);
-  runner.assert('USDC_DECIMALS is 6', USDC_DECIMALS === 6, `got ${USDC_DECIMALS}`);
+  runner.assert(
+    'USDC_DECIMALS is 6',
+    USDC_DECIMALS === 6,
+    `got ${USDC_DECIMALS}`,
+  );
 
   // 3. Validate slippage config
-  runner.assertGt('DefaultMarketSlippageBps > 0', ORDER_SLIPPAGE_CONFIG.DefaultMarketSlippageBps, 0);
-  runner.assertGt('DefaultTpslSlippageBps > market',
+  runner.assertGt(
+    'DefaultMarketSlippageBps > 0',
+    ORDER_SLIPPAGE_CONFIG.DefaultMarketSlippageBps,
+    0,
+  );
+  runner.assertGt(
+    'DefaultTpslSlippageBps > market',
     ORDER_SLIPPAGE_CONFIG.DefaultTpslSlippageBps,
     ORDER_SLIPPAGE_CONFIG.DefaultMarketSlippageBps,
   );
-  runner.assertGt('DefaultLimitSlippageBps > 0', ORDER_SLIPPAGE_CONFIG.DefaultLimitSlippageBps, 0);
+  runner.assertGt(
+    'DefaultLimitSlippageBps > 0',
+    ORDER_SLIPPAGE_CONFIG.DefaultLimitSlippageBps,
+    0,
+  );
 
   // 4. Validate TP/SL config
-  runner.assert('TP_SL UsePositionBoundTpsl is boolean',
+  runner.assert(
+    'TP_SL UsePositionBoundTpsl is boolean',
     typeof TP_SL_CONFIG.UsePositionBoundTpsl === 'boolean',
     `got ${typeof TP_SL_CONFIG.UsePositionBoundTpsl}`,
   );
@@ -74,13 +96,19 @@ async function main(): Promise<void> {
 
   // 6. Validate szDecimals from live meta match expectations for major assets
   if (btc) {
-    runner.assert('BTC szDecimals is reasonable (1-8)', btc.szDecimals >= 1 && btc.szDecimals <= 8,
-      `got ${btc.szDecimals}`);
+    runner.assert(
+      'BTC szDecimals is reasonable (1-8)',
+      btc.szDecimals >= 1 && btc.szDecimals <= 8,
+      `got ${btc.szDecimals}`,
+    );
   }
   const eth = meta.universe.find((market) => market.name === 'ETH');
   if (eth) {
-    runner.assert('ETH szDecimals is reasonable (1-8)', eth.szDecimals >= 1 && eth.szDecimals <= 8,
-      `got ${eth.szDecimals}`);
+    runner.assert(
+      'ETH szDecimals is reasonable (1-8)',
+      eth.szDecimals >= 1 && eth.szDecimals <= 8,
+      `got ${eth.szDecimals}`,
+    );
   }
 
   const result = runner.finish();
@@ -89,6 +117,24 @@ async function main(): Promise<void> {
 
 main().catch((caughtError) => {
   console.error(caughtError);
-  console.log(JSON.stringify({ scenario: 'order-validation', status: 'fail', assertions: 0, failed: 1, durationMs: 0, details: [{ name: 'unhandled', ok: false, error: caughtError instanceof Error ? caughtError.message : String(caughtError) }] }));
+  console.log(
+    JSON.stringify({
+      scenario: 'order-validation',
+      status: 'fail',
+      assertions: 0,
+      failed: 1,
+      durationMs: 0,
+      details: [
+        {
+          name: 'unhandled',
+          ok: false,
+          error:
+            caughtError instanceof Error
+              ? caughtError.message
+              : String(caughtError),
+        },
+      ],
+    }),
+  );
   process.exit(1);
 });

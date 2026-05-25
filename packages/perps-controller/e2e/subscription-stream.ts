@@ -15,7 +15,10 @@ async function main(): Promise<void> {
   const endpoint = getWebSocketEndpoint(false);
 
   runner.assertType('WS endpoint is string', endpoint, 'string');
-  runner.assert('WS endpoint starts with wss://', endpoint.startsWith('wss://'));
+  runner.assert(
+    'WS endpoint starts with wss://',
+    endpoint.startsWith('wss://'),
+  );
 
   console.error(`[e2e] Connecting to ${endpoint}...`);
 
@@ -25,23 +28,34 @@ async function main(): Promise<void> {
     const ws = new WebSocket(endpoint);
     const timer = setTimeout(() => {
       ws.close();
-      reject(new Error(`Timeout: only received ${updates.length}/${TARGET_UPDATES} updates in ${TIMEOUT_MS}ms`));
+      reject(
+        new Error(
+          `Timeout: only received ${updates.length}/${TARGET_UPDATES} updates in ${TIMEOUT_MS}ms`,
+        ),
+      );
     }, TIMEOUT_MS);
 
     ws.onopen = (): void => {
       console.error('[e2e] WebSocket connected, subscribing to allMids...');
-      ws.send(JSON.stringify({
-        method: 'subscribe',
-        subscription: { type: 'allMids' },
-      }));
+      ws.send(
+        JSON.stringify({
+          method: 'subscribe',
+          subscription: { type: 'allMids' },
+        }),
+      );
     };
 
     ws.onmessage = (event: MessageEvent): void => {
       try {
-        const message = JSON.parse(String(event.data)) as { channel?: string; data?: { mids?: Record<string, string> } };
+        const message = JSON.parse(String(event.data)) as {
+          channel?: string;
+          data?: { mids?: Record<string, string> };
+        };
         if (message.channel === 'allMids' && message.data?.mids) {
           updates.push(message.data.mids);
-          console.error(`[e2e] Received allMids update ${updates.length}/${TARGET_UPDATES}`);
+          console.error(
+            `[e2e] Received allMids update ${updates.length}/${TARGET_UPDATES}`,
+          );
           if (updates.length >= TARGET_UPDATES) {
             clearTimeout(timer);
             ws.close();
@@ -77,7 +91,8 @@ async function main(): Promise<void> {
   if (updates.length >= 2) {
     const keys1 = Object.keys(updates[0] ?? {});
     const keys2 = Object.keys(updates[1] ?? {});
-    runner.assert('consistent market count across updates',
+    runner.assert(
+      'consistent market count across updates',
       Math.abs(keys1.length - keys2.length) <= 5,
       `update1=${keys1.length} update2=${keys2.length}`,
     );
@@ -89,6 +104,24 @@ async function main(): Promise<void> {
 
 main().catch((caughtError) => {
   console.error(caughtError);
-  console.log(JSON.stringify({ scenario: 'subscription-stream', status: 'fail', assertions: 0, failed: 1, durationMs: 0, details: [{ name: 'unhandled', ok: false, error: caughtError instanceof Error ? caughtError.message : String(caughtError) }] }));
+  console.log(
+    JSON.stringify({
+      scenario: 'subscription-stream',
+      status: 'fail',
+      assertions: 0,
+      failed: 1,
+      durationMs: 0,
+      details: [
+        {
+          name: 'unhandled',
+          ok: false,
+          error:
+            caughtError instanceof Error
+              ? caughtError.message
+              : String(caughtError),
+        },
+      ],
+    }),
+  );
   process.exit(1);
 });

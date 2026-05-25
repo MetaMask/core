@@ -17,20 +17,39 @@ async function main(): Promise<void> {
   const state = await client.clearinghouseState({ user: KNOWN_PUBLIC_ADDRESS });
 
   runner.assertType('state is object', state, 'object');
-  runner.assert('state has marginSummary', Object.hasOwn(state, 'marginSummary'));
-  runner.assert('state has crossMarginSummary', Object.hasOwn(state, 'crossMarginSummary'));
-  runner.assert('state has assetPositions', Object.hasOwn(state, 'assetPositions'));
+  runner.assert(
+    'state has marginSummary',
+    Object.hasOwn(state, 'marginSummary'),
+  );
+  runner.assert(
+    'state has crossMarginSummary',
+    Object.hasOwn(state, 'crossMarginSummary'),
+  );
+  runner.assert(
+    'state has assetPositions',
+    Object.hasOwn(state, 'assetPositions'),
+  );
 
   if (state.marginSummary) {
-    runner.assertType('marginSummary.accountValue is string', state.marginSummary.accountValue, 'string');
-    runner.assertType('marginSummary.totalRawUsd is string', state.marginSummary.totalRawUsd, 'string');
+    runner.assertType(
+      'marginSummary.accountValue is string',
+      state.marginSummary.accountValue,
+      'string',
+    );
+    runner.assertType(
+      'marginSummary.totalRawUsd is string',
+      state.marginSummary.totalRawUsd,
+      'string',
+    );
   }
 
   runner.assertArray('assetPositions', state.assetPositions, 0);
 
   // 2. Fetch frontendOpenOrders (should be empty for this address)
   console.error('[e2e] Fetching frontendOpenOrders...');
-  const orders = await client.frontendOpenOrders({ user: KNOWN_PUBLIC_ADDRESS });
+  const orders = await client.frontendOpenOrders({
+    user: KNOWN_PUBLIC_ADDRESS,
+  });
   runner.assertArray('frontendOpenOrders', orders, 0);
 
   // 3. Validate predictedFundings shape
@@ -49,6 +68,24 @@ async function main(): Promise<void> {
 
 main().catch((caughtError) => {
   console.error(caughtError);
-  console.log(JSON.stringify({ scenario: 'account-state', status: 'fail', assertions: 0, failed: 1, durationMs: 0, details: [{ name: 'unhandled', ok: false, error: caughtError instanceof Error ? caughtError.message : String(caughtError) }] }));
+  console.log(
+    JSON.stringify({
+      scenario: 'account-state',
+      status: 'fail',
+      assertions: 0,
+      failed: 1,
+      durationMs: 0,
+      details: [
+        {
+          name: 'unhandled',
+          ok: false,
+          error:
+            caughtError instanceof Error
+              ? caughtError.message
+              : String(caughtError),
+        },
+      ],
+    }),
+  );
   process.exit(1);
 });

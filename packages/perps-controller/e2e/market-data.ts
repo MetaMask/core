@@ -39,7 +39,9 @@ async function main(): Promise<void> {
     `meta=${metaResult.universe.length} assetCtxs=${assetCtxs.length}`,
   );
 
-  const btcIdx = metaResult.universe.findIndex((market) => market.name === 'BTC');
+  const btcIdx = metaResult.universe.findIndex(
+    (market) => market.name === 'BTC',
+  );
   if (btcIdx >= 0) {
     const btcCtx = assetCtxs[btcIdx];
     runner.assertType('BTC markPx is string', btcCtx?.markPx, 'string');
@@ -73,6 +75,24 @@ async function main(): Promise<void> {
 
 main().catch((caughtError) => {
   console.error(caughtError);
-  console.log(JSON.stringify({ scenario: 'market-data', status: 'fail', assertions: 0, failed: 1, durationMs: 0, details: [{ name: 'unhandled', ok: false, error: caughtError instanceof Error ? caughtError.message : String(caughtError) }] }));
+  console.log(
+    JSON.stringify({
+      scenario: 'market-data',
+      status: 'fail',
+      assertions: 0,
+      failed: 1,
+      durationMs: 0,
+      details: [
+        {
+          name: 'unhandled',
+          ok: false,
+          error:
+            caughtError instanceof Error
+              ? caughtError.message
+              : String(caughtError),
+        },
+      ],
+    }),
+  );
   process.exit(1);
 });

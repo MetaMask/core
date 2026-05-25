@@ -27,7 +27,11 @@ export class E2ERunner {
   }
 
   assert(name: string, condition: boolean, error?: string): void {
-    this.#details.push({ name, ok: condition, error: condition ? undefined : error });
+    this.#details.push({
+      name,
+      ok: condition,
+      error: condition ? undefined : error,
+    });
     if (!condition) {
       console.error(`  FAIL: ${name}${error ? ` — ${error}` : ''}`);
     }
@@ -35,7 +39,11 @@ export class E2ERunner {
 
   assertType(name: string, value: unknown, expected: string): void {
     const actual = typeof value;
-    this.assert(name, actual === expected, `expected ${expected}, got ${actual}`);
+    this.assert(
+      name,
+      actual === expected,
+      `expected ${expected}, got ${actual}`,
+    );
   }
 
   assertGt(name: string, value: number, min: number): void {
@@ -46,7 +54,11 @@ export class E2ERunner {
     const isArr = Array.isArray(value);
     this.assert(`${name} is array`, isArr, `got ${typeof value}`);
     if (isArr) {
-      this.assert(`${name} length >= ${minLength}`, value.length >= minLength, `got ${value.length}`);
+      this.assert(
+        `${name} length >= ${minLength}`,
+        value.length >= minLength,
+        `got ${value.length}`,
+      );
     }
   }
 
