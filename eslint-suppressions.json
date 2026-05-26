@@ -83,11 +83,6 @@
       "count": 1
     }
   },
-  "packages/account-tree-controller/src/rules/keyring.ts": {
-    "@typescript-eslint/explicit-function-return-type": {
-      "count": 2
-    }
-  },
   "packages/account-tree-controller/src/type-utils.ts": {
     "@typescript-eslint/naming-convention": {
       "count": 1
