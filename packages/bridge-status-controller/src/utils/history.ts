@@ -82,7 +82,12 @@ export const getMatchingHistoryEntryForTxMeta = (
       key === txMeta.actionId ||
       txMetaId === txMeta.id ||
       (actionId ? actionId === txMeta.actionId : false) ||
-      (batchId ? batchId === txMeta.batchId : false) ||
+      // When the batch is not atomic (BatchSell), ignore batchId matching to prevent txs
+      // in the batch from getting marked complete/failed too early if one fails
+      // Multiple BatchSell STX trades may have the same batchId
+      (Boolean(batchId) &&
+        !isBatchSellHistoryItem(value) &&
+        batchId === txMeta.batchId) ||
       (txHash ? txHash.toLowerCase() === txMeta.hash?.toLowerCase() : false)
     );
   });
@@ -181,11 +186,13 @@ export const getInitialHistoryItem = (
     originalTransactionId,
     actionId,
     tokenSecurityTypeDestination,
+    batchSellData,
+    quoteIds,
   } = args;
 
   // Write all non-status fields to state so we can reference the quote in Activity list without the Bridge API
   // We know it's in progress but not the exact status yet
-  const txHistoryItem = {
+  const txHistoryItem: BridgeHistoryItem = {
     txMetaId: bridgeTxMeta?.id,
     actionId,
     originalTransactionId: originalTransactionId ?? bridgeTxMeta?.id, // Keep original for intent transactions
@@ -230,6 +237,13 @@ export const getInitialHistoryItem = (
       tokenSecurityTypeDestination,
     }),
   };
+
+  if (batchSellData) {
+    txHistoryItem.batchSellData = batchSellData;
+  }
+  if (quoteIds) {
+    txHistoryItem.quoteIds = quoteIds;
+  }
 
   return txHistoryItem;
 };

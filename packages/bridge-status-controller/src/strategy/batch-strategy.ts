@@ -5,6 +5,7 @@ import {
   getAddTransactionBatchParams,
   isApprovalTx,
   isTradeTx,
+  shouldDisable7702,
   toQuoteAndTxMetadata,
 } from '../utils/transaction';
 import { SubmitStep } from './types';
@@ -39,14 +40,11 @@ export async function* submitBatchHandler(
     isDelegatedAccount,
     messenger,
     atomic: true,
-    disable7702:
-      // Enable 7702 batching when the quote includes gasless 7702 support,
-      quoteResponse.quote.gasIncluded7702
-        ? false
-        : // or when the account is already delegated (to avoid the in-flight transaction limit for delegated accounts)
-          !isDelegatedAccount ||
-          // For gasless transactions with STX/sendBundle we keep disabling 7702.
-          quoteResponse.quote.gasIncluded,
+    disable7702: shouldDisable7702(
+      quoteResponse.quote.gasIncluded7702,
+      quoteResponse.quote.gasIncluded,
+      isDelegatedAccount,
+    ),
     isGasFeeSponsored: Boolean(quoteResponse.quote.gasSponsored),
     isGasFeeIncluded: Boolean(quoteResponse.quote.gasIncluded7702),
   });

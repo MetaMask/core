@@ -5,6 +5,7 @@ import type {
   QuoteResponse,
   Trade,
   FeatureId,
+  BatchSellTradesResponse,
 } from '@metamask/bridge-controller';
 import {
   isNonEvmChainId,
@@ -49,7 +50,11 @@ import type { BridgeStatusControllerMessenger } from './types';
 import { BridgeClientId } from './types';
 import { getAccountByAddress } from './utils/accounts';
 import { getJwt } from './utils/authentication';
-import { stopPollingForQuotes, trackMetricsEvent } from './utils/bridge';
+import {
+  getBatchSellTrades,
+  stopPollingForQuotes,
+  trackMetricsEvent,
+} from './utils/bridge';
 import {
   fetchBridgeTxStatus,
   getStatusRequestWithSrcTxHash,
@@ -109,6 +114,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'resetState',
   'submitTx',
   'submitIntent',
+  'submitBatchSell',
   'restartPollingForFailedAttempts',
   'getBridgeHistoryItemByTxMetaId',
 ] as const;
@@ -1036,6 +1042,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
    * @param abTests - Legacy A/B test context for `ab_tests` (backward compatibility)
    * @param activeAbTests - New A/B test context for `active_ab_tests` (migration target). Attributes events to specific experiments.
    * @param tokenSecurityTypeDestination - The security classification of the destination token, supplied by the client (e.g. from token security/scanning data). Pass `null` when no security data is available.
+   * @param batchSellTrades - Contains transaction data for the quotes, provided by the obtainGaslessBatch API
    * @returns The transaction meta
    * @throws An error if transaction submission fails before it gets published
    */
@@ -1050,6 +1057,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     abTests?: Record<string, string>,
     activeAbTests?: { key: string; value: string }[],
     tokenSecurityTypeDestination?: string | null,
+    batchSellTrades?: BatchSellTradesResponse,
   ): Promise<TransactionMeta> => {
     /**
      * If there are multiple quote responses, we assume that they all originate from the same src chain
@@ -1117,6 +1125,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       const strategyParams: SubmitStrategyParams<Trade> = {
         messenger: this.messenger,
         quoteResponses,
+        batchSellTrades,
         isStxEnabled,
         isBridgeTx,
         isDelegatedAccount,
@@ -1201,6 +1210,39 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       abTests,
       activeAbTests,
       tokenSecurityTypeDestination,
+    );
+  };
+
+  submitBatchSell = async (params: {
+    quoteResponses: ((QuoteResponse<Trade, Trade> & QuoteMetadata) | null)[];
+    accountAddress: string;
+    location?: MetaMetricsSwapsEventSource;
+    abTests?: Record<string, string>;
+    activeAbTests?: { key: string; value: string }[];
+    isStxEnabled?: boolean;
+    quotesReceivedContext?: RequiredEventContextFromClient[UnifiedSwapBridgeEventName.QuotesReceived];
+    tokenSecurityTypeDestination?: string | null;
+  }): Promise<TransactionMeta> => {
+    /**
+     * Retrieve the batch sell trades from the BridgeController's state to ensure we submit
+     * the original response data from the bridge-api
+     */
+    const batchSellTrades = getBatchSellTrades(this.messenger);
+    return await this.submitTx(
+      params.accountAddress,
+      params.quoteResponses.filter(
+        (
+          quoteResponse,
+        ): quoteResponse is QuoteResponse<Trade, Trade> & QuoteMetadata =>
+          quoteResponse !== null,
+      ),
+      params.isStxEnabled ?? false,
+      params.quotesReceivedContext,
+      params.location,
+      params.abTests,
+      params.activeAbTests,
+      params.tokenSecurityTypeDestination,
+      batchSellTrades,
     );
   };
 

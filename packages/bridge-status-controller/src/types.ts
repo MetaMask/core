@@ -15,6 +15,8 @@ import type {
   TxFeeGasLimits,
   BridgeControllerStopPollingForQuotesAction,
   BridgeControllerTrackUnifiedSwapBridgeEventAction,
+  BatchSellTradesResponse,
+  BridgeControllerGetStateAction,
 } from '@metamask/bridge-controller';
 import type { KeyringControllerSignTypedMessageAction } from '@metamask/keyring-controller';
 import type { Messenger } from '@metamask/messenger';
@@ -139,6 +141,11 @@ export type BridgeHistoryItem = {
    */
   originalTransactionId?: string; // Keep original transaction ID for intent transactions
   batchId?: string;
+  /**
+   * This is defined when the history item is for a batch sell transaction
+   */
+  batchSellData?: BatchSellTradesResponse;
+  quoteIds?: string[];
   quote: Quote;
   status: StatusResponse;
   startTime: number; // timestamp in ms
@@ -253,6 +260,8 @@ export type QuoteMetadataSerialized = {
 export type StartPollingForBridgeTxStatusArgs = {
   bridgeTxMeta?: Pick<TransactionMeta, 'id' | 'hash' | 'batchId'>;
   actionId?: string;
+  batchSellData?: BridgeHistoryItem['batchSellData'];
+  quoteIds?: BridgeHistoryItem['quoteIds'];
   /**
    * @deprecated the txMeta or orderUid should be used instead
    */
@@ -337,6 +346,7 @@ type AllowedActions =
   | TransactionControllerIsAtomicBatchSupportedAction
   | BridgeControllerTrackUnifiedSwapBridgeEventAction
   | BridgeControllerStopPollingForQuotesAction
+  | BridgeControllerGetStateAction
   | AccountsControllerGetAccountByAddressAction
   | AuthenticationControllerGetBearerTokenAction
   | KeyringControllerSignTypedMessageAction;

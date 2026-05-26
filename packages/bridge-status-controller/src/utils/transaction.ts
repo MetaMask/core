@@ -51,12 +51,26 @@ export const isCrossChainTx = (type: TransactionType) =>
  * @param tx - The transaction meta
  * @returns Whether the transaction is a 7702 transaction
  */
-const is7702Tx = (tx: TransactionMeta) => {
+export const is7702Tx = (tx: TransactionMeta) => {
   return (
     (Array.isArray(tx.txParams.authorizationList) &&
       tx.txParams.authorizationList.length > 0) ||
     Boolean(tx.delegationAddress)
   );
+};
+
+export const shouldDisable7702 = (
+  gasIncluded7702?: boolean,
+  gasIncluded?: boolean,
+  isDelegatedAccount?: boolean,
+) => {
+  // Enable 7702 batching when the quote includes gasless 7702 support
+  return gasIncluded7702
+    ? false
+    : // or when the account is already delegated (to avoid the in-flight transaction limit for delegated accounts)
+      !isDelegatedAccount ||
+        // For gasless transactions with STX/sendBundle we keep disabling 7702.
+        gasIncluded;
 };
 
 export const getGasFeeEstimates = async (

@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/prefer-nullish-coalescing */
 import {
+  BatchSellTradesResponse,
   BitcoinTradeData,
   ChainId,
   isBitcoinTrade,
@@ -16,6 +17,7 @@ import { submitEvmHandler as defaultSubmitHandler } from './evm-strategy';
 import { submitIntentHandler } from './intent-strategy';
 import { submitNonEvmHandler } from './non-evm-strategy';
 import type { SubmitStrategyParams, SubmitStepResult } from './types';
+import { submitBatchSellHandler } from './batch-sell-strategy';
 
 const validateParams = <
   TxDataType extends BitcoinTradeData | TronTradeData | string | TxData,
@@ -42,6 +44,11 @@ const validateParams = <
       return txs.every(isEvmTxData);
   }
 };
+
+const validateBatchSellParams = (
+  params: SubmitStrategyParams,
+): params is SubmitStrategyParams<TxData, BatchSellTradesResponse> =>
+  Boolean(params.batchSellTrades) && params.quoteResponses.length > 1;
 
 /**
  * Selects the appropriate submit strategy based on the quote parameters then executes it
@@ -79,6 +86,11 @@ const executeSubmitStrategy = (
   // Intent transactions
   if (quoteResponse.quote.intent) {
     return submitIntentHandler(params);
+  }
+
+  // Batch sell transactions
+  if (validateBatchSellParams(params)) {
+    return submitBatchSellHandler(params);
   }
 
   // Batched transactions
