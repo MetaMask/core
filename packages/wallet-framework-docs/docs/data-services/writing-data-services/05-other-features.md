@@ -1,0 +1,82 @@
+# How to write a data service (part 4)
+
+## Paginated queries
+
+## Authentication
+
+## Cache invalidation
+
+## Environments
+
+In addition, the API is now deployed under three environments: `dev`, `qa`, and `prod`.
+
+### Declaring the base URL (and its variants)
+
+Next, we need to set the base URL of the API up front (this way we don't need to repeat it each time when we make a request).
+
+In our case, we also need to figure out a way to allow the base URL to be dynamic depending on the environment. To do this, we'll have our constructor take an `env` option and then build the URL in the constructor:
+
+```typescript
+// [!code highlight:22]
+/**
+ * The environments the API is deployed under.
+ */
+// Note that we do not use an enum because they are not supported by Node's
+// type-stripping feature, nor TypeScript's `erasableSyntaxOnly` option
+const Env = {
+  Development: 'dev',
+  QA: 'qa',
+  Production: 'prod'
+} as const;
+
+/**
+ * A deployment environment.
+ */
+type Env = (typeof Env)[typeof keyof Env];
+
+/**
+ * @returns The base URL of the API that the service represents.
+ */
+function getBaseUrl(env: Env): string {
+  return `https://orders.${env}.metamask.io`;
+}
+
+export class OrdersService extends BaseDataService<
+  typeof DATA_SERVICE_NAME,
+  OrdersServiceMessenger
+> {
+  // [!code highlight]
+  readonly #baseUrl: string;
+
+  constructor({
+    messenger,
+    // [!code highlight]
+    env,
+    queryClientConfig = {},
+    policyOptions = {},
+  }: {
+    messenger: OrdersServiceMessenger;
+    // [!code highlight]
+    env: Env;
+    queryClientConfig?: QueryClientConfig;
+    policyOptions?: CreateServicePolicyOptions;
+  }) {
+    super({
+      name: DATA_SERVICE_NAME,
+      messenger,
+      queryClientConfig,
+      policyOptions,
+    });
+
+    // [!code highlight]
+    this.#baseUrl = getBaseUrl(env);
+
+    this.messenger.registerMethodActionHandlers(
+      this,
+      MESSENGER_EXPOSED_METHODS,
+    );
+  }
+}
+```
+
+## Versioned endpoints

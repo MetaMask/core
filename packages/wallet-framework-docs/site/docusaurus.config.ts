@@ -95,7 +95,7 @@ const config: Config = {
     prism: {
       theme: codeTheme,
       defaultLanguage: 'typescript',
-      additionalLanguages: ['bash', 'json'],
+      additionalLanguages: ['bash', 'diff'],
     },
   } satisfies Preset.ThemeConfig,
 };
