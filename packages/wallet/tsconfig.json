@@ -3,6 +3,34 @@
   "compilerOptions": {
     "baseUrl": "./"
   },
-  "references": [],
-  "include": ["../../types", "./src"]
+  "references": [
+    {
+      "path": "../accounts-controller/tsconfig.json"
+    },
+    {
+      "path": "../approval-controller/tsconfig.json"
+    },
+    {
+      "path": "../connectivity-controller/tsconfig.json"
+    },
+    {
+      "path": "../controller-utils/tsconfig.json"
+    },
+    {
+      "path": "../keyring-controller/tsconfig.json"
+    },
+    {
+      "path": "../messenger/tsconfig.json"
+    },
+    {
+      "path": "../network-controller/tsconfig.json"
+    },
+    {
+      "path": "../remote-feature-flag-controller/tsconfig.json"
+    },
+    {
+      "path": "../transaction-controller/tsconfig.json"
+    }
+  ],
+  "include": ["../../types", "./src", "./test"]
 }
