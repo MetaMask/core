@@ -302,10 +302,10 @@ export const SPOT_PRICES_SUPPORT_INFO = {
   '0xa4b1': 'eip155:42161/slip44:60', // Arbitrum One - Native symbol: ETH
   '0xa4ec': 'eip155:42220/slip44:52752', // Celo Mainnet - Native symbol: CELO
   '0xa516': 'eip155:42262/slip44:474', // Oasis Emerald - Native symbol: ROSE
+  '0xa5bf': 'eip155:42431/slip44:60', // Tempo Testnet Moderato - No native asset
   '0xa729': 'eip155:42793/erc20:0x0000000000000000000000000000000000000000', // Etherlink - Native symbol: XTZ (Tezos L2)
   '0xa867': 'eip155:43111/erc20:0x0000000000000000000000000000000000000000', // Hemi - Native symbol: ETH
   '0xa86a': 'eip155:43114/slip44:9005', // Avalanche C-Chain - Native symbol: AVAX
-  '0xa5bf': 'eip155:42431/slip44:60', // Tempo Testnet Moderato - No native asset
   '0xdef1': 'eip155:57073/slip44:60', // Ink Mainnet - Native symbol: ETH
   '0xe708': 'eip155:59144/slip44:60', // Linea Mainnet - Native symbol: ETH
   '0xed88': 'eip155:60808/erc20:0x0000000000000000000000000000000000000000', // BOB - Native symbol: ETH
