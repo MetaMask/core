@@ -1029,7 +1029,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
    * Submits a cross-chain swap transaction
    *
    * @param accountAddress - The address of the account to submit the transaction for
-   * @param quoteResponse - The quote response
+   * @param maybeQuoteResponses - A single quote response or an array of quote responses
    * @param isStxEnabled - Whether smart transactions are enabled on the client, for example the getSmartTransactionsEnabled selector value from the extension
    * @param quotesReceivedContext - The context for the QuotesReceived event
    * @param location - The entry point from which the user initiated the swap or bridge (e.g. Main View, Token View, Trending Explore)
@@ -1041,7 +1041,9 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
    */
   submitTx = async (
     accountAddress: string,
-    quoteResponse: QuoteResponse<Trade, Trade> & QuoteMetadata,
+    maybeQuoteResponses:
+      | (QuoteResponse<Trade, Trade> & QuoteMetadata)
+      | (QuoteResponse<Trade, Trade> & QuoteMetadata)[],
     isStxEnabled: boolean,
     quotesReceivedContext?: RequiredEventContextFromClient[UnifiedSwapBridgeEventName.QuotesReceived],
     location: MetaMetricsSwapsEventSource = MetaMetricsSwapsEventSource.MainView,
@@ -1049,6 +1051,16 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     activeAbTests?: { key: string; value: string }[],
     tokenSecurityTypeDestination?: string | null,
   ): Promise<TransactionMeta> => {
+    /**
+     * If there are multiple quote responses, we assume that they all originate from the same src chain
+     * and the same account. In this case its safe to use the first quote response's properties for
+     * metrics and other pre-submission logic
+     */
+    const quoteResponses = Array.isArray(maybeQuoteResponses)
+      ? maybeQuoteResponses
+      : [maybeQuoteResponses];
+    const quoteResponse = quoteResponses[0];
+
     const { featureId, quote } = quoteResponse;
     const startTime = Date.now();
 
@@ -1104,7 +1116,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
 
       const strategyParams: SubmitStrategyParams<Trade> = {
         messenger: this.messenger,
-        quoteResponse,
+        quoteResponses,
         isStxEnabled,
         isBridgeTx,
         isDelegatedAccount,

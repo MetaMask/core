@@ -34,7 +34,12 @@ const handleSyntheticTx = async (
   orderUid: string,
   args: SubmitStrategyParams,
 ) => {
-  const { quoteResponse, messenger, isBridgeTx, selectedAccount } = args;
+  const {
+    quoteResponses: [quoteResponse],
+    messenger,
+    isBridgeTx,
+    selectedAccount,
+  } = args;
   const {
     quote: { srcChainId },
   } = quoteResponse;
@@ -95,7 +100,7 @@ const handleSyntheticTx = async (
  */
 const handleSubmitIntent = async (args: SubmitStrategyParams<TxData>) => {
   const {
-    quoteResponse,
+    quoteResponses: [quoteResponse],
     messenger,
     selectedAccount,
     clientId,
@@ -188,7 +193,7 @@ export async function* submitIntentHandler(
       approvalTxId,
       // Keep original txId for TransactionController updates
       originalTransactionId: syntheticTxMeta?.id,
-      quoteResponse: args.quoteResponse,
+      quoteResponse: args.quoteResponses[0],
     },
   };
 

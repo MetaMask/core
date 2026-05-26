@@ -22,13 +22,16 @@ const validateParams = <
 >(
   params: SubmitStrategyParams<Trade>,
 ): params is SubmitStrategyParams<TxDataType> => {
-  const txs = [
-    params.quoteResponse.trade,
-    params.quoteResponse.approval,
-    params.quoteResponse.resetApproval,
-  ].filter((tx): tx is TxDataType => tx !== undefined);
+  const txs = params.quoteResponses
+    .flatMap((quoteResponse) => [
+      quoteResponse.trade,
+      quoteResponse.approval,
+      quoteResponse.resetApproval,
+    ])
+    .filter((tx): tx is TxDataType => tx !== undefined);
 
-  switch (params.quoteResponse.quote.srcChainId) {
+  // Assumes all quotes are for the same chain
+  switch (params.quoteResponses[0].quote.srcChainId) {
     case ChainId.SOLANA:
       return txs.every((tx) => typeof tx === 'string');
     case ChainId.BTC:
@@ -50,7 +53,11 @@ const validateParams = <
 const executeSubmitStrategy = (
   params: SubmitStrategyParams<Trade>,
 ): AsyncGenerator<SubmitStepResult, void, void> => {
-  const { quoteResponse, isStxEnabled, isDelegatedAccount } = params;
+  const {
+    quoteResponses: [quoteResponse],
+    isStxEnabled,
+    isDelegatedAccount,
+  } = params;
 
   // Non-EVM transactions
   if (isNonEvmChainId(quoteResponse.quote.srcChainId)) {

@@ -21,7 +21,7 @@ export async function* submitBatchHandler(
 ): AsyncGenerator<SubmitStepResult, void, void> {
   const {
     requireApproval,
-    quoteResponse,
+    quoteResponses: [quoteResponse],
     messenger,
     isBridgeTx,
     addTransactionBatchFn,

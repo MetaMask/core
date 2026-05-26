@@ -90,7 +90,7 @@ export type SubmitStrategyParams<TradeType extends Trade = TxData> = {
   isDelegatedAccount: boolean;
   isStxEnabled: boolean;
   messenger: BridgeStatusControllerMessenger;
-  quoteResponse: QuoteResponse<TradeType, TradeType> & QuoteMetadata;
+  quoteResponses: (QuoteResponse<TradeType, TradeType> & QuoteMetadata)[];
   requireApproval: boolean;
   selectedAccount: AccountsControllerState['internalAccounts']['accounts'][string];
   traceFn: TraceCallback;
