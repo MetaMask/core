@@ -25,6 +25,7 @@ import { AccountId } from '@metamask/keyring-utils';
  * narrow. See the note above.
  */
 export type AccountGroupObject = {
+  id: AccountGroupId;
   accounts: AccountId[];
 };
 
@@ -50,4 +51,28 @@ export type AccountTreeControllerGetSelectedAccountGroupAction = {
 export type AccountTreeControllerSelectedAccountGroupChangeEvent = {
   type: `AccountTreeController:selectedAccountGroupChange`;
   payload: [AccountGroupId | '', AccountGroupId | ''];
+};
+
+/**
+ * Mirror of `AccountTreeControllerAccountGroupCreatedEvent`.
+ */
+export type AccountTreeControllerAccountGroupCreatedEvent = {
+  type: `AccountTreeController:accountGroupCreated`;
+  payload: [AccountGroupObject];
+};
+
+/**
+ * Mirror of `AccountTreeControllerAccountGroupUpdatedEvent`.
+ */
+export type AccountTreeControllerAccountGroupUpdatedEvent = {
+  type: `AccountTreeController:accountGroupUpdated`;
+  payload: [AccountGroupObject];
+};
+
+/**
+ * Mirror of `AccountTreeControllerAccountGroupRemovedEvent`.
+ */
+export type AccountTreeControllerAccountGroupRemovedEvent = {
+  type: `AccountTreeController:accountGroupRemoved`;
+  payload: [AccountGroupId];
 };

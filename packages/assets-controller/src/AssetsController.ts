@@ -46,6 +46,7 @@ import type { PreferencesControllerStateChangeEvent } from '@metamask/preference
 import type {
   SnapControllerGetRunnableSnapsAction,
   SnapControllerHandleRequestAction,
+  SnapControllerSnapInstalledEvent,
 } from '@metamask/snaps-controllers';
 import type {
   TransactionControllerIncomingTransactionsReceivedEvent,
@@ -57,6 +58,7 @@ import type { Hex } from '@metamask/utils';
 import {
   isCaipChainId,
   isStrictHexString,
+  KnownCaipNamespace,
   parseCaipAssetType,
   parseCaipChainId,
 } from '@metamask/utils';
@@ -82,7 +84,10 @@ import type { AccountsControllerAccountBalancesUpdatedEvent } from './data-sourc
 import { SnapDataSource } from './data-sources/SnapDataSource';
 import type { StakedBalanceDataSourceConfig } from './data-sources/StakedBalanceDataSource';
 import { StakedBalanceDataSource } from './data-sources/StakedBalanceDataSource';
-import { TokenDataSource } from './data-sources/TokenDataSource';
+import {
+  CaipAssetNamespace,
+  TokenDataSource,
+} from './data-sources/TokenDataSource';
 import {
   CHAINS_WITH_DEFAULT_TRACKED_ASSETS,
   DEFAULT_TRACKED_ASSETS_BY_CHAIN,
@@ -333,6 +338,7 @@ type AllowedEvents =
   // SnapDataSource
   | AccountsControllerAccountBalancesUpdatedEvent
   | PermissionControllerStateChange
+  | SnapControllerSnapInstalledEvent
   // BackendWebsocketDataSource
   | BackendWebSocketServiceEvents;
 
@@ -1663,7 +1669,10 @@ export class AssetsController extends BaseController<
         let tokenType: FungibleAssetMetadata['type'] = 'erc20';
         if (this.#isNativeAsset(normalizedAssetId)) {
           tokenType = 'native';
-        } else if (parsed.assetNamespace === 'spl') {
+        } else if (
+          parsed.chain.namespace === KnownCaipNamespace.Solana &&
+          parsed.assetNamespace === CaipAssetNamespace.Token
+        ) {
           tokenType = 'spl';
         }
 
@@ -1680,6 +1689,15 @@ export class AssetsController extends BaseController<
         (state.assetsInfo as Record<string, AssetMetadata>)[normalizedAssetId] =
           assetMetadata;
       }
+
+      // Seed a zero balance so the UI can render the asset immediately,
+      // before the next pipeline fetch returns the real amount.
+      const balances = state.assetsBalance as Record<
+        string,
+        Record<string, AssetBalance>
+      >;
+      balances[accountId] ??= {};
+      balances[accountId][normalizedAssetId] ??= { amount: '0' };
     });
 
     // Fetch data for the newly added custom asset (merge to preserve other chains)
@@ -1688,6 +1706,8 @@ export class AssetsController extends BaseController<
       const chainId = extractChainId(normalizedAssetId);
       await this.getAssets([account], {
         chainIds: [chainId],
+        dataTypes: ['balance', 'metadata', 'price'],
+        assetTypes: ['fungible'],
         forceUpdate: true,
         updateMode: 'merge',
       });

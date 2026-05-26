@@ -325,6 +325,9 @@ export type TransactionMeta = {
    */
   origin?: string;
 
+  /** Whether the transaction was added by trusted internal MetaMask code. */
+  isInternal?: boolean;
+
   /**
    * The original dapp proposed token approval amount before edit by user.
    */
@@ -616,6 +619,9 @@ export type TransactionBatchMeta = {
    */
   origin?: string;
 
+  /** Whether the batch was added by trusted internal MetaMask code. */
+  isInternal?: boolean;
+
   /**
    * ID of the JSON-RPC request from DAPP.
    */
@@ -844,6 +850,11 @@ export enum TransactionType {
    * Deposit funds for Across quote via Predict.
    */
   predictAcrossDeposit = 'predictAcrossDeposit',
+
+  /**
+   * Withdraw funds for Across quote via Predict.
+   */
+  predictAcrossWithdraw = 'predictAcrossWithdraw',
 
   /**
    * Buy a position via Predict.
@@ -1869,6 +1880,9 @@ export type TransactionBatchRequest = {
   /** Origin of the request, such as a dApp hostname or `ORIGIN_METAMASK` if internal. */
   origin?: string;
 
+  /** Whether the batch was added by trusted internal MetaMask code. */
+  isInternal?: boolean;
+
   /** Whether to overwrite existing EIP-7702 delegation with MetaMask contract. */
   overwriteUpgrade?: boolean;
 
@@ -2165,6 +2179,14 @@ export type MetamaskPayMetadata = {
   /** Chain ID of the payment token. */
   chainId?: Hex;
 
+  /** Fiat on-ramp metadata (order ID and provider). */
+  fiat?: {
+    /** Order ID (normalized format: /providers/{provider}/orders/{id}). */
+    orderId: string;
+    /** Provider code (e.g. "transak-native"). */
+    provider: string;
+  };
+
   /**
    * Whether this is a post-quote transaction (e.g., withdrawal flow).
    * When true, the token represents the destination rather than source.
@@ -2253,6 +2275,9 @@ export type AddTransactionOptions = {
 
   /** Origin of the transaction request, such as a dApp hostname. */
   origin?: string;
+
+  /** Whether the transaction was added by trusted internal MetaMask code. */
+  isInternal?: boolean;
 
   /** Custom logic to publish the transaction. */
   publishHook?: PublishHook;

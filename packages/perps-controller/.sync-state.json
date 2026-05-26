@@ -1,8 +1,8 @@
 {
-  "lastSyncedMobileCommit": "106369c46bd01ee87faeaf51530fe67ad03ca178",
-  "lastSyncedMobileBranch": "fix/perps/flip-position-tat-2123",
-  "lastSyncedCoreCommit": "db4cc9ec8ff8530d8e9e0e3737b358e3269ce1b2",
-  "lastSyncedCoreBranch": "feat/perps/controller-sync-may-5",
-  "lastSyncedDate": "2026-05-05T20:50:44Z",
-  "sourceChecksum": "894eb0960741e569f1f025dbaaff6e1ffcab2489a80ad71e74cdf43af98aa764"
+  "lastSyncedMobileCommit": "cc154d351581605282f5a70f8749565956d42b36",
+  "lastSyncedMobileBranch": "TAT-3187-perps-controller-removal",
+  "lastSyncedCoreCommit": "fbe58b4cca248101d12df709c0092cd87f15956f",
+  "lastSyncedCoreBranch": "feat/perps/controller-in-core",
+  "lastSyncedDate": "2026-05-21T08:44:09Z",
+  "sourceChecksum": "b05070da67baeb718f1e926ad167863c47efb5240b19e3ac99c31766070d0f91"
 }

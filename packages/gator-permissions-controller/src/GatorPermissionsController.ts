@@ -30,10 +30,10 @@ import type { Hex } from '@metamask/utils';
 import { DELEGATION_FRAMEWORK_VERSION } from './constants';
 import type { DecodedPermission } from './decodePermission';
 import {
-  createPermissionRulesForContracts,
-  findRulesWithMatchingCaveatAddresses,
+  createPermissionDecodersForContracts,
+  findDecodersWithMatchingCaveatAddresses,
   reconstructDecodedPermission,
-  selectUniqueRuleAndDecodedPermission,
+  selectUniqueDecoderAndDecodedPermission,
 } from './decodePermission';
 import {
   GatorPermissionsFetchError,
@@ -592,22 +592,23 @@ export class GatorPermissionsController extends BaseController<
 
     try {
       const enforcers = caveats.map((caveat) => caveat.enforcer);
-      const permissionRules = createPermissionRulesForContracts(contracts);
+      const permissionDecoders =
+        createPermissionDecodersForContracts(contracts);
 
-      // Every rule where enforcer addresses match; multiple types may share the same
-      // caveat pattern and are disambiguated by validateAndDecodePermission.
-      const matchingRules = findRulesWithMatchingCaveatAddresses({
+      // Every decoder where enforcer addresses match; multiple types may share the
+      // same caveat pattern and are disambiguated by validateAndDecodePermission.
+      const matchingDecoders = findDecodersWithMatchingCaveatAddresses({
         enforcers,
-        permissionRules,
+        permissionDecoders,
       });
 
       const {
-        rule: { permissionType },
+        decoder: { permissionType },
         expiry,
         data,
         rules,
-      } = selectUniqueRuleAndDecodedPermission({
-        candidateRules: matchingRules,
+      } = selectUniqueDecoderAndDecodedPermission({
+        candidateDecoders: matchingDecoders,
         caveats,
       });
 

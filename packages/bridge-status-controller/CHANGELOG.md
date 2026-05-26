@@ -7,12 +7,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/bridge-controller` from `^72.0.4` to `^73.0.1` ([#8850](https://github.com/MetaMask/core/pull/8850), [#8866](https://github.com/MetaMask/core/pull/8866))
+- Remove unnecessary type assertions for bridge quotes ([#8805](https://github.com/MetaMask/core/pull/8805))
+
 ## [71.2.0]
 
 ### Changed
 
+- Pass `isInternal: true` to all internal `addTransaction` / `addTransactionBatch` calls to adopt the explicit `isInternal` flag introduced in `@metamask/transaction-controller` ([#8633](https://github.com/MetaMask/core/pull/8633))
+- Bump `@metamask/profile-sync-controller` from `^28.0.2` to `^28.1.0` ([#8783](https://github.com/MetaMask/core/pull/8783))
+- Bump `@metamask/transaction-controller` from `^65.3.0` to `^66.0.0` ([#8796](https://github.com/MetaMask/core/pull/8796), [#8848](https://github.com/MetaMask/core/pull/8848))
+- Bump `@metamask/gas-fee-controller` from `^26.2.1` to `^26.2.2` ([#8834](https://github.com/MetaMask/core/pull/8834))
+- Bump `@metamask/polling-controller` from `^16.0.5` to `^16.0.6` ([#8834](https://github.com/MetaMask/core/pull/8834))
+
+## [71.1.4]
+
+### Changed
+
+- Bump `@metamask/accounts-controller` from `^38.1.0` to `^38.1.1` ([#8774](https://github.com/MetaMask/core/pull/8774))
+- Bump `@metamask/bridge-controller` from `^72.0.3` to `^72.0.4` ([#8774](https://github.com/MetaMask/core/pull/8774))
+- Bump `@metamask/network-controller` from `^31.1.0` to `^32.0.0` ([#8774](https://github.com/MetaMask/core/pull/8774))
+- Bump `@metamask/controller-utils` from `^12.0.0` to `^12.1.0` ([#8774](https://github.com/MetaMask/core/pull/8774))
+
+## [71.1.3]
+
+### Changed
+
 - Bump `@metamask/network-controller` from `^31.0.0` to `^31.1.0` ([#8765](https://github.com/MetaMask/core/pull/8765))
-- Bump `@metamask/bridge-controller` from `^72.0.2` to `^72.1.0` ([#8768](https://github.com/MetaMask/core/pull/8768))
+- Bump `@metamask/bridge-controller` from `^72.0.2` to `^72.0.3` ([#8773](https://github.com/MetaMask/core/pull/8773))
 
 ## [71.1.2]
 
@@ -1182,7 +1206,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Initial release ([#5317](https://github.com/MetaMask/core/pull/5317))
 
 [Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@71.2.0...HEAD
-[71.2.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@71.1.2...@metamask/bridge-status-controller@71.2.0
+[71.2.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@71.1.4...@metamask/bridge-status-controller@71.2.0
+[71.1.4]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@71.1.3...@metamask/bridge-status-controller@71.1.4
+[71.1.3]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@71.1.2...@metamask/bridge-status-controller@71.1.3
 [71.1.2]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@71.1.1...@metamask/bridge-status-controller@71.1.2
 [71.1.1]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@71.1.0...@metamask/bridge-status-controller@71.1.1
 [71.1.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@71.0.0...@metamask/bridge-status-controller@71.1.0

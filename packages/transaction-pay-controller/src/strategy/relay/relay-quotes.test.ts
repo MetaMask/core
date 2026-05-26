@@ -14,6 +14,7 @@ import {
   CHAIN_ID_HYPERCORE,
   CHAIN_ID_POLYGON,
   NATIVE_TOKEN_ADDRESS,
+  POLYGON_USDCE_ADDRESS,
 } from '../../constants';
 import { getMessengerMock } from '../../tests/messenger-mock';
 import type {
@@ -83,7 +84,7 @@ const QUOTE_REQUEST_MOCK: QuoteRequest = {
 };
 
 const STEP_MOCK: RelayTransactionStep = {
-  id: 'swap',
+  id: 'deposit',
   requestId: '0x1',
   kind: 'transaction',
   items: [
@@ -183,6 +184,7 @@ describe('Relay Quotes Utils', () => {
     getGasFeeTokensMock,
     getKeyringControllerStateMock,
     getRemoteFeatureFlagControllerStateMock,
+    polymarketGetDepositWalletAddressMock,
   } = getMessengerMock();
 
   beforeEach(() => {
@@ -1536,6 +1538,93 @@ describe('Relay Quotes Utils', () => {
           from: FROM_MOCK,
         }),
       );
+    });
+
+    it('uses original (EOA) from for predictWithdraw post-quote when route has no deposit step', async () => {
+      // Same-chain swap routes (e.g. Polygon pUSD -> Polygon USDC) only emit
+      // `approve` + `swap` steps. Simulating from the Safe proxy reverts in
+      // the swap step because DEX aggregators reject contract callers, so the
+      // override must be skipped and the relay params' EOA `from` used instead.
+      const quoteMock = cloneDeep(QUOTE_MOCK);
+      quoteMock.steps = [
+        { ...STEP_MOCK, id: 'approve' },
+        { ...STEP_MOCK, id: 'swap' },
+      ];
+
+      successfulFetchMock.mockResolvedValue({
+        ok: true,
+        json: async () => quoteMock,
+      } as never);
+
+      estimateGasBatchMock.mockResolvedValue({
+        totalGasLimit: 100000,
+        gasLimits: [50000, 50000],
+      });
+
+      const proxyAddress = '0xproxyAddress1234567890123456789012345678' as Hex;
+
+      await getRelayQuotes({
+        messenger,
+        requests: [
+          {
+            ...QUOTE_REQUEST_MOCK,
+            targetAmountMinimum: '0',
+            isPostQuote: true,
+            refundTo: proxyAddress,
+          },
+        ],
+        transaction: PREDICT_WITHDRAW_TRANSACTION_MOCK,
+      });
+
+      expect(estimateGasBatchMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          from: FROM_MOCK,
+        }),
+      );
+    });
+
+    it('still uses Safe proxy for gas-fee-token lookup on swap-only predictWithdraw routes', async () => {
+      // The gas-fee-token lookup must always use the Safe proxy for Predict
+      // withdraws (because the source token lives in the Safe, not the EOA),
+      // even when the gas-estimation path falls back to the EOA `from`.
+      const quoteMock = cloneDeep(QUOTE_MOCK);
+      quoteMock.steps = [
+        { ...STEP_MOCK, id: 'approve' },
+        { ...STEP_MOCK, id: 'swap' },
+      ];
+
+      successfulFetchMock.mockResolvedValue({
+        ok: true,
+        json: async () => quoteMock,
+      } as never);
+
+      estimateGasBatchMock.mockResolvedValue({
+        totalGasLimit: 100000,
+        gasLimits: [50000, 50000],
+      });
+
+      getTokenBalanceMock.mockReturnValue('0');
+      getGasFeeTokensMock.mockResolvedValue([GAS_FEE_TOKEN_MOCK]);
+
+      const proxyAddress = '0xproxyAddress1234567890123456789012345678' as Hex;
+
+      const result = await getRelayQuotes({
+        messenger,
+        requests: [
+          {
+            ...QUOTE_REQUEST_MOCK,
+            targetAmountMinimum: '0',
+            isPostQuote: true,
+            refundTo: proxyAddress,
+          },
+        ],
+        transaction: PREDICT_WITHDRAW_TRANSACTION_MOCK,
+      });
+
+      expect(getGasFeeTokensMock).toHaveBeenCalledWith(
+        expect.objectContaining({ from: proxyAddress }),
+      );
+      expect(result[0].fees.isSourceGasFeeToken).toBe(true);
     });
 
     it('sets isSourceGasFeeToken for predictWithdraw post-quote when insufficient native balance', async () => {
@@ -3247,6 +3336,43 @@ describe('Relay Quotes Utils', () => {
           transaction: TRANSACTION_META_MOCK,
         }),
       ).rejects.toThrow('Failed to fetch Relay quotes');
+    });
+
+    describe('Polymarket deposit-wallet source (isPolymarketDepositWallet)', () => {
+      const DEPOSIT_WALLET_MOCK =
+        '0x2222222222222222222222222222222222222222' as Hex;
+      const POLYMARKET_REQUEST: QuoteRequest = {
+        ...QUOTE_REQUEST_MOCK,
+        isPolymarketDepositWallet: true,
+      };
+
+      it('overrides origin currency, user, refundTo and useDepositAddress on the quote body', async () => {
+        polymarketGetDepositWalletAddressMock.mockResolvedValue(
+          DEPOSIT_WALLET_MOCK,
+        );
+
+        successfulFetchMock.mockResolvedValue({
+          ok: true,
+          json: async () => QUOTE_MOCK,
+        } as never);
+
+        await getRelayQuotes({
+          accountSupports7702: true,
+          messenger,
+          requests: [POLYMARKET_REQUEST],
+          transaction: TRANSACTION_META_MOCK,
+        });
+
+        const body = JSON.parse(
+          successfulFetchMock.mock.calls[0][1]?.body as string,
+        );
+
+        expect(body.originCurrency).toBe(POLYGON_USDCE_ADDRESS);
+        expect(body.user).toBe(DEPOSIT_WALLET_MOCK);
+        expect(body.refundTo).toBe(DEPOSIT_WALLET_MOCK);
+        expect(body.useDepositAddress).toBe(true);
+        expect(body.strict).toBe(true);
+      });
     });
 
     describe('gas buffer support', () => {

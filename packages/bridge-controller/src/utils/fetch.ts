@@ -10,6 +10,8 @@ import type {
   BridgeAsset,
   TokenFeature,
   QuoteStreamCompleteData,
+  BatchSellTradesRequest,
+  BatchSellTradesResponse,
 } from '../types';
 import { getEthUsdtResetData } from './bridge';
 import {
@@ -25,6 +27,7 @@ import {
   validateSwapsTokenObject,
   validateTokenFeature,
   validateQuoteStreamComplete,
+  validateBatchSellTradesResponse,
 } from './validators';
 
 export const getClientHeaders = ({
@@ -238,7 +241,7 @@ const fetchAssetPricesForCurrency = async (request: {
   const priceApiResponse = (await fetchFn(url, {
     headers: getClientHeaders({ clientId, clientVersion }),
     signal,
-  })) as Record<CaipAssetType, { [currency: string]: number }>;
+  })) as unknown as Record<CaipAssetType, { [currency: string]: number }>;
   if (!priceApiResponse || typeof priceApiResponse !== 'object') {
     return {};
   }
@@ -488,4 +491,79 @@ export async function fetchBridgeQuoteStream(
     },
     ...sharedFetchOptions,
   });
+}
+
+export const formatBatchSellTradesRequest = (
+  quotes: (QuoteResponse | null)[],
+): BatchSellTradesRequest => ({
+  quotes: quotes
+    .filter((quote): quote is QuoteResponse => quote !== null)
+    .map(
+      ({
+        trade,
+        approval,
+        quote,
+        estimatedProcessingTimeInSeconds,
+        quoteId,
+      }) => ({
+        trade,
+        approval,
+        quote,
+        estimatedProcessingTimeInSeconds,
+        quoteId,
+      }),
+    ),
+});
+
+/**
+ * Fetches quotes from the bridge-api's getQuote endpoint
+ *
+ * @param quotes - The quotes to fetch the gasless transaction data and fees for. May contain null values if a quote is not available for a swap
+ * @param signal - The abort signal
+ * @param clientId - The client ID for metrics
+ * @param jwt - The JWT token for authentication
+ * @param fetchFn - The fetch function to use
+ * @param bridgeApiBaseUrl - The base URL for the bridge API
+ * @param clientVersion - The client version for metrics (optional)
+ * @returns The batch sell trades and the total network fee
+ */
+export async function fetchBatchSellTrades(
+  quotes: (QuoteResponse | null)[],
+  signal: AbortSignal | null,
+  clientId: string,
+  jwt: string | undefined,
+  fetchFn: FetchFunction,
+  bridgeApiBaseUrl: string,
+  clientVersion?: string,
+): Promise<BatchSellTradesResponse> {
+  const url = `${bridgeApiBaseUrl}/obtainGaslessBatch`;
+  const request: BatchSellTradesRequest = formatBatchSellTradesRequest(quotes);
+  const batchSellTradesResponse = await fetchFn(url, {
+    headers: {
+      ...getClientHeaders({
+        clientId,
+        clientVersion,
+        jwt,
+      }),
+      'Content-Type': 'application/json',
+    },
+    signal,
+    method: 'POST',
+    body: JSON.stringify(request),
+  });
+
+  if (!batchSellTradesResponse.ok) {
+    throw new Error(
+      `Failed to fetch batch sell trades. ${batchSellTradesResponse.statusText}`,
+    );
+  }
+
+  try {
+    const data = await batchSellTradesResponse.json();
+    validateBatchSellTradesResponse(data);
+    return data;
+  } catch (error: unknown) {
+    // TODO validation failure event
+    throw new Error(`Invalid batch simulation response. ${error?.toString()}`);
+  }
 }

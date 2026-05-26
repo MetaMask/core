@@ -9,12 +9,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add group naming support for `KeyringType` (v2) ([#8885](https://github.com/MetaMask/core/pull/8885))
+- Add `KeyringType` (v2) in Snap matching rule ([#8885](https://github.com/MetaMask/core/pull/8885))
+
+## [7.4.0]
+
+### Added
+
 - Add `AccountTreeController:accountGroup{Created,Updated,Removed}` events ([#8766](https://github.com/MetaMask/core/pull/8766))
   - None of these events fire during `init`/`reinit`, consumers should bootstrap from `:getState` or `:accountTreeChange`.
 
 ### Changed
 
-- Bump `@metamask/accounts-controller` from `^38.0.0` to `^38.1.0` ([#8755](https://github.com/MetaMask/core/pull/8755))
+- Bump `@metamask/accounts-controller` from `^38.0.0` to `^38.1.1` ([#8755](https://github.com/MetaMask/core/pull/8755), [#8774](https://github.com/MetaMask/core/pull/8774))
+- Bump `@metamask/multichain-account-service` from `^9.0.0` to `^10.0.0` ([#8783](https://github.com/MetaMask/core/pull/8783))
+- Bump `@metamask/profile-sync-controller` from `^28.0.2` to `^28.1.0` ([#8783](https://github.com/MetaMask/core/pull/8783))
 
 ## [7.3.0]
 
@@ -565,7 +574,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Initial release ([#5847](https://github.com/MetaMask/core/pull/5847))
   - Grouping accounts into 3 main categories: Entropy source, Snap ID, keyring types.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/account-tree-controller@7.3.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/account-tree-controller@7.4.0...HEAD
+[7.4.0]: https://github.com/MetaMask/core/compare/@metamask/account-tree-controller@7.3.0...@metamask/account-tree-controller@7.4.0
 [7.3.0]: https://github.com/MetaMask/core/compare/@metamask/account-tree-controller@7.2.0...@metamask/account-tree-controller@7.3.0
 [7.2.0]: https://github.com/MetaMask/core/compare/@metamask/account-tree-controller@7.1.0...@metamask/account-tree-controller@7.2.0
 [7.1.0]: https://github.com/MetaMask/core/compare/@metamask/account-tree-controller@7.0.0...@metamask/account-tree-controller@7.1.0

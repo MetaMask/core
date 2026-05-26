@@ -59,7 +59,7 @@ export async function getGasStationCostInSourceTokenRaw({
   const { data, to, value } = firstStepData;
   const { from, sourceChainId, sourceTokenAddress } = request;
 
-  let gasFeeTokens: GasFeeToken[];
+  let gasFeeTokens: GasFeeToken[] | undefined;
 
   try {
     gasFeeTokens = await messenger.call(
@@ -80,7 +80,7 @@ export async function getGasStationCostInSourceTokenRaw({
     return undefined;
   }
 
-  const gasFeeToken = gasFeeTokens.find(
+  const gasFeeToken = gasFeeTokens?.find(
     (singleGasFeeToken) =>
       singleGasFeeToken.tokenAddress.toLowerCase() ===
       sourceTokenAddress.toLowerCase(),

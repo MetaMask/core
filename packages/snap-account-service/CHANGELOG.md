@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.0]
+
+### Added
+
+- Add `SnapAccountService{GetLegacySnapKeyring,HandleKeyringSnapMessage}Action` ([#8842](https://github.com/MetaMask/core/pull/8842))
+
+## [0.1.0]
+
 ### Added
 
 - Add `SnapAccountService` ([#8414](https://github.com/MetaMask/core/pull/8414))
@@ -28,12 +36,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - The service messenger now requires the `KeyringController:withController` action.
 - Add `handleKeyringSnapMessage` ([#8758](https://github.com/MetaMask/core/pull/8758))
   - This will be the new entry point for consumer that needs to forward keyring events to a account management Snap (instead of using the legacy Snap keyring instance directly).
-- Forward selected account group accounts ([#8763](https://github.com/MetaMask/core/pull/8763))
+- Forward selected account group accounts ([#8763](https://github.com/MetaMask/core/pull/8763)), ([#8770](https://github.com/MetaMask/core/pull/8770))
   - This logic used to live on the clients.
-  - The service messenger now requires the `KeyringController:unlock`, `AccountTreeController:selectedAccountGroupChange` events and `AccountTreeController:getAccountGroupObject` action.
+  - The service messenger now requires the `KeyringController:unlock`, `AccountTreeController:selectedAccountGroupChange`, `AccountTreeController:accountGroup{Created,Updated,Removed}` events.
+  - The service messenger now requires the `AccountTreeController:getSelectedAccountGroup` and `AccountTreeController:getAccountGroupObject` actions.
 
 ### Changed
 
 - Bump `@metamask/messenger` from `^1.1.1` to `^1.2.0` ([#8632](https://github.com/MetaMask/core/pull/8632))
+- Bump `@metamask/account-tree-controller` from `^7.3.0` to `^7.4.0` ([#8783](https://github.com/MetaMask/core/pull/8783))
 
-[Unreleased]: https://github.com/MetaMask/core/
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/snap-account-service@0.2.0...HEAD
+[0.2.0]: https://github.com/MetaMask/core/compare/@metamask/snap-account-service@0.1.0...@metamask/snap-account-service@0.2.0
+[0.1.0]: https://github.com/MetaMask/core/releases/tag/@metamask/snap-account-service@0.1.0
