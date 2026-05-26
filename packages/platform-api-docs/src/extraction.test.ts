@@ -1438,6 +1438,32 @@ export type SecondMessenger = Messenger<'Second', SharedAction, never>;
     });
   });
 
+  it('skips an interface that is referenced by a Messenger but has no `type` property', async () => {
+    expect.assertions(1);
+
+    await withinSandbox(async ({ directoryPath }) => {
+      const filePath = path.join(directoryPath, 'types.ts');
+      // An interface that is missing the `type` property cannot produce a type
+      // string. The literal extractor returns null, and the constructor
+      // extractor also returns null (because it only handles type aliases).
+      await fs.promises.writeFile(
+        filePath,
+        withMessenger(
+          `
+export interface FooAction {
+  handler: () => void;
+}
+`,
+          { actions: ['FooAction'] },
+        ),
+      );
+
+      const items = await extractFromFile(filePath, directoryPath);
+
+      expect(items).toStrictEqual([]);
+    });
+  });
+
   it('ignores capability-type-constructor aliases whose name does not match', async () => {
     expect.assertions(1);
 
@@ -1455,6 +1481,34 @@ export type WeirdAction = SomeUnrelatedHelper<'Weird:do', WeirdState>;
 
 export type WeirdMessenger = Messenger<'Weird', WeirdAction, never>;
 `,
+      );
+
+      const items = await extractFromFile(filePath, directoryPath);
+
+      expect(items).toStrictEqual([]);
+    });
+  });
+
+  it('skips a capability-type-constructor alias whose first type argument is not a string literal', async () => {
+    expect.assertions(1);
+
+    await withinSandbox(async ({ directoryPath }) => {
+      const filePath = path.join(directoryPath, 'types.ts');
+      // The recognized constructor name is used, but the first type argument
+      // resolves to `number` (not a string literal), so nothing is extracted.
+      await fs.promises.writeFile(
+        filePath,
+        withMessenger(
+          `
+type ControllerGetStateAction<T, S> = {
+  type: \`\${T & string}:getState\`;
+  handler: () => S;
+};
+
+export type WeirdAction = ControllerGetStateAction<number, WeirdState>;
+`,
+          { actions: ['WeirdAction'] },
+        ),
       );
 
       const items = await extractFromFile(filePath, directoryPath);
@@ -1572,6 +1626,45 @@ export type FooAction = {
     });
   });
 
+  it('skips qualified-name type references (namespace imports used as Ns.Type)', async () => {
+    expect.assertions(2);
+
+    await withinSandbox(async ({ directoryPath }) => {
+      await fs.promises.writeFile(
+        path.join(directoryPath, 'ns.ts'),
+        `
+export type NsAction = {
+  type: 'Ns:do';
+  handler: () => void;
+};
+`,
+      );
+
+      const filePath = path.join(directoryPath, 'types.ts');
+      // A namespace import produces a qualified-name type reference
+      // (`* as Ns` then `Ns.NsAction`). The walker cannot resolve qualified
+      // names and should skip the slot without crashing, leaving no items.
+      await fs.promises.writeFile(
+        filePath,
+        `
+import * as Ns from './ns';
+
+export type LocalAction = {
+  type: 'Local:do';
+  handler: () => void;
+};
+
+export type LocalMessenger = Messenger<'Local', LocalAction | Ns.NsAction, never>;
+`,
+      );
+
+      const items = await extractFromFile(filePath, directoryPath);
+
+      expect(items).toHaveLength(1);
+      expect(items[0].typeName).toBe('LocalAction');
+    });
+  });
+
   it('skips non-relative imports when resolving constants', async () => {
     expect.assertions(1);
 
@@ -1595,6 +1688,39 @@ export type FooAction = {
       const items = await extractFromFile(filePath, directoryPath);
 
       expect(items).toHaveLength(1);
+    });
+  });
+
+  it('skips a @param tag that has no name', async () => {
+    expect.assertions(2);
+
+    await withinSandbox(async ({ directoryPath }) => {
+      const filePath = path.join(directoryPath, 'types.ts');
+      // A bare `@param - description` with no parameter name is malformed JSDoc.
+      // ts-morph parses it as a JSDocParameterTag whose nameNode.getText() is
+      // an empty string. The extractor should skip it rather than emit a param
+      // entry with an empty name.
+      await fs.promises.writeFile(
+        filePath,
+        withMessenger(
+          `
+/**
+ * Does something.
+ * @param - no name here
+ */
+export type FooAction = {
+  type: 'Foo:do';
+  handler: () => void;
+};
+`,
+          { actions: ['FooAction'] },
+        ),
+      );
+
+      const items = await extractFromFile(filePath, directoryPath);
+
+      expect(items).toHaveLength(1);
+      expect(items[0].params).toStrictEqual([]);
     });
   });
 
@@ -1715,6 +1841,256 @@ export type FooAction = {
       const items = await extractFromFile(filePath, directoryPath);
 
       expect(items[0].jsDoc).toContain('Text after empty asterisk.');
+    });
+  });
+
+  it('handles a capability type body that contains a method signature alongside property signatures', async () => {
+    expect.assertions(2);
+
+    await withinSandbox(async ({ directoryPath }) => {
+      const filePath = path.join(directoryPath, 'types.ts');
+      // A type literal can contain method signatures in addition to property
+      // signatures. The method signature should be skipped while walking the
+      // members, and the `type` property signature should still be found.
+      await fs.promises.writeFile(
+        filePath,
+        withMessenger(
+          `
+export type FooAction = {
+  doSomething(): void;
+  type: 'Foo:do';
+  handler: () => void;
+};
+`,
+          { actions: ['FooAction'] },
+        ),
+      );
+
+      const items = await extractFromFile(filePath, directoryPath);
+
+      expect(items).toHaveLength(1);
+      expect(items[0].typeString).toBe('Foo:do');
+    });
+  });
+
+  it('resolves the type string when the `type` property uses a no-substitution template literal', async () => {
+    expect.assertions(2);
+
+    await withinSandbox(async ({ directoryPath }) => {
+      const filePath = path.join(directoryPath, 'types.ts');
+      // A template literal with no substitutions (e.g. `Foo:bar`) is valid
+      // TypeScript. The extractor should treat it the same as a quoted string.
+      await fs.promises.writeFile(
+        filePath,
+        withMessenger(
+          [
+            'export type FooAction = {',
+            '  type: `Foo:bar`;',
+            '  handler: () => void;',
+            '};',
+          ].join('\n'),
+          { actions: ['FooAction'] },
+        ),
+      );
+
+      const items = await extractFromFile(filePath, directoryPath);
+
+      expect(items).toHaveLength(1);
+      expect(items[0].typeString).toBe('Foo:bar');
+    });
+  });
+
+  it('skips a capability type whose `type` property uses a numeric literal type', async () => {
+    expect.assertions(1);
+
+    await withinSandbox(async ({ directoryPath }) => {
+      const filePath = path.join(directoryPath, 'types.ts');
+      // `type: 42` is valid TypeScript but not a valid messenger type string.
+      // The extractor should return null for this shape and produce no output.
+      await fs.promises.writeFile(
+        filePath,
+        withMessenger(
+          `
+export type FooAction = {
+  type: 42;
+  handler: () => void;
+};
+`,
+          { actions: ['FooAction'] },
+        ),
+      );
+
+      const items = await extractFromFile(filePath, directoryPath);
+
+      expect(items).toStrictEqual([]);
+    });
+  });
+
+  it('skips a capability type whose body has no `type` property', async () => {
+    expect.assertions(1);
+
+    await withinSandbox(async ({ directoryPath }) => {
+      const filePath = path.join(directoryPath, 'types.ts');
+      // A type alias that is referenced by a Messenger but has no `type`
+      // property cannot produce a type string, so it should be skipped.
+      await fs.promises.writeFile(
+        filePath,
+        withMessenger(
+          `
+export type FooAction = {
+  handler: () => void;
+};
+`,
+          { actions: ['FooAction'] },
+        ),
+      );
+
+      const items = await extractFromFile(filePath, directoryPath);
+
+      expect(items).toStrictEqual([]);
+    });
+  });
+
+  it('renders **Deprecated:** without trailing text when @deprecated tag has no comment', async () => {
+    expect.assertions(2);
+
+    await withinSandbox(async ({ directoryPath }) => {
+      const filePath = path.join(directoryPath, 'types.ts');
+      // A bare `@deprecated` tag with no explanatory text is valid JSDoc.
+      // The extractor should still emit the **Deprecated:** marker.
+      await fs.promises.writeFile(
+        filePath,
+        withMessenger(
+          `
+/**
+ * Old action.
+ * @deprecated
+ */
+export type FooAction = {
+  type: 'Foo:old';
+  handler: () => void;
+};
+`,
+          { actions: ['FooAction'] },
+        ),
+      );
+
+      const items = await extractFromFile(filePath, directoryPath);
+
+      expect(items[0].deprecated).toBe(true);
+      expect(items[0].jsDoc).toContain('**Deprecated:**');
+    });
+  });
+
+  it('falls back to `unknown` for a handler parameter that has no explicit type annotation', async () => {
+    expect.assertions(1);
+
+    await withinSandbox(async ({ directoryPath }) => {
+      const filePath = path.join(directoryPath, 'types.ts');
+      // TypeScript allows untyped parameters when `noImplicitAny` is off.
+      // The extractor should fall back to `unknown` rather than crashing.
+      await fs.promises.writeFile(
+        filePath,
+        withMessenger(
+          `
+class FooController {
+  doStuff(x): boolean {
+    return Boolean(x);
+  }
+}
+
+export type FooControllerDoStuffAction = {
+  type: 'FooController:doStuff';
+  handler: FooController['doStuff'];
+};
+`,
+          { actions: ['FooControllerDoStuffAction'] },
+        ),
+      );
+
+      const items = await extractFromFile(filePath, directoryPath);
+
+      expect(items[0].handlerOrPayload).toContain('x: unknown');
+    });
+  });
+
+  it('falls back to `void` for a handler method that has no explicit return type annotation', async () => {
+    expect.assertions(1);
+
+    await withinSandbox(async ({ directoryPath }) => {
+      const filePath = path.join(directoryPath, 'types.ts');
+      // A method with an implicit return type (e.g. inferred from the body)
+      // has no `ReturnTypeNode`. The extractor should fall back to `void`.
+      await fs.promises.writeFile(
+        filePath,
+        withMessenger(
+          `
+class FooController {
+  doStuff() {}
+}
+
+export type FooControllerDoStuffAction = {
+  type: 'FooController:doStuff';
+  handler: FooController['doStuff'];
+};
+`,
+          { actions: ['FooControllerDoStuffAction'] },
+        ),
+      );
+
+      const items = await extractFromFile(filePath, directoryPath);
+
+      expect(items[0].handlerOrPayload).toContain('=> void');
+    });
+  });
+
+  it('skips an inline action type that has a valid `type` string but no `handler` property', async () => {
+    expect.assertions(1);
+
+    await withinSandbox(async ({ directoryPath }) => {
+      const filePath = path.join(directoryPath, 'types.ts');
+      // An action type that is missing the `handler` property cannot be
+      // extracted. The extractor should skip it rather than crash.
+      await fs.promises.writeFile(
+        filePath,
+        withMessenger(
+          `
+export type FooAction = {
+  type: 'Foo:do';
+};
+`,
+          { actions: ['FooAction'] },
+        ),
+      );
+
+      const items = await extractFromFile(filePath, directoryPath);
+
+      expect(items).toStrictEqual([]);
+    });
+  });
+
+  it('skips an inline event type that has a valid `type` string but no `payload` property', async () => {
+    expect.assertions(1);
+
+    await withinSandbox(async ({ directoryPath }) => {
+      const filePath = path.join(directoryPath, 'types.ts');
+      // An event type that is missing the `payload` property cannot be
+      // extracted. The extractor should skip it rather than crash.
+      await fs.promises.writeFile(
+        filePath,
+        withMessenger(
+          `
+export type FooEvent = {
+  type: 'Foo:change';
+};
+`,
+          { events: ['FooEvent'] },
+        ),
+      );
+
+      const items = await extractFromFile(filePath, directoryPath);
+
+      expect(items).toStrictEqual([]);
     });
   });
 });

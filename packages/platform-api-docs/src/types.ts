@@ -8,10 +8,10 @@ export type DocumentedParameter = {
 };
 
 /**
- * One messenger capability — an action or event registered with the platform
- * — distilled from its TypeScript definition.
+ * Information about a messenger action or event extracted from its type
+ * in a source file.
  */
-export type ExtractedMessengerCapabilityType = {
+export type MessengerCapabilityPacket = {
   /** The capability type's TypeScript identifier, e.g. `NetworkControllerGetStateAction`. */
   typeName: string;
   /** The capability's messenger key, e.g. `NetworkController:getState`. */
@@ -43,8 +43,8 @@ export type ExtractedMessengerCapabilityType = {
  */
 export type NamespaceGroup = {
   namespace: string;
-  actions: ExtractedMessengerCapabilityType[];
-  events: ExtractedMessengerCapabilityType[];
+  actions: MessengerCapabilityPacket[];
+  events: MessengerCapabilityPacket[];
 };
 
 /**
