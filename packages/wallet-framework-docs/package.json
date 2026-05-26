@@ -40,12 +40,12 @@
     "registry": "https://registry.npmjs.org/"
   },
   "scripts": {
-    "build-prod": "cd site && docusaurus build",
+    "build-prod": "docusaurus build site",
     "changelog:update": "../../scripts/update-changelog.sh @metamask/wallet-framework-docs",
     "changelog:validate": "../../scripts/validate-changelog.sh @metamask/wallet-framework-docs",
     "since-latest-release": "../../scripts/since-latest-release.sh",
-    "start-dev": "cd site && docusaurus serve",
-    "start-prod": "cd site && docusaurus start",
+    "start-prod": "docusaurus serve site",
+    "start-dev": "docusaurus start site",
     "test": "NODE_OPTIONS=--experimental-vm-modules jest --reporters=jest-silent-reporter",
     "test:clean": "NODE_OPTIONS=--experimental-vm-modules jest --clearCache",
     "test:verbose": "NODE_OPTIONS=--experimental-vm-modules jest --verbose",
