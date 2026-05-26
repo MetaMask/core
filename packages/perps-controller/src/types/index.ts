@@ -1053,9 +1053,7 @@ export type PerpsProvider = {
   getPositions(params?: GetPositionsParams): Promise<Position[]>;
   getAccountState(params?: GetAccountStateParams): Promise<AccountState>;
   getMarkets(params?: GetMarketsParams): Promise<MarketInfo[]>;
-  getMarketDataWithPrices(
-    params?: GetMarketDataWithPricesParams,
-  ): Promise<PerpsMarketData[]>;
+  getMarketDataWithPrices(): Promise<PerpsMarketData[]>;
   withdraw(params: WithdrawParams): Promise<WithdrawResult>; // API operation - stays in provider
   // Note: deposit() is handled by PerpsController routing (blockchain operation)
   validateDeposit(
