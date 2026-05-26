@@ -30,7 +30,10 @@ import {
   getAddTransactionBatchParams,
   toQuoteAndTxMetadata,
   waitForTxConfirmation,
-  findAndUpdateTransactionsInBatch,
+  isTradeTx,
+  findAllTransactionsInBatch,
+  isApprovalTx,
+  updateTransactionsInBatch,
 } from './transaction';
 
 describe('Bridge Status Controller Transaction Utils', () => {
@@ -2237,6 +2240,35 @@ describe('Bridge Status Controller Transaction Utils', () => {
   describe('findAndUpdateTransactionsInBatch', () => {
     const batchId = 'test-batch-id';
 
+    const findAndUpdateTransactionsInBatch = ({
+      messenger,
+      batchId: inputBatchId,
+      tradeData,
+    }: {
+      messenger: BridgeStatusControllerMessenger;
+      batchId: string;
+      tradeData: QuoteAndTxMetadata[];
+    }) => {
+      const quoteAndTxMetas = findAllTransactionsInBatch({
+        messenger,
+        batchId: inputBatchId,
+        tradeData,
+      });
+
+      const updatedQuoteAndTxMetas = updateTransactionsInBatch({
+        messenger,
+        allTradesWithMetadata: quoteAndTxMetas,
+      });
+
+      return {
+        approvalMeta: updatedQuoteAndTxMetas.find(
+          ({ type, txMeta }) => isApprovalTx(type) && txMeta,
+        )?.txMeta,
+        tradeMeta: updatedQuoteAndTxMetas.find(
+          ({ type, txMeta }) => isTradeTx(type) && txMeta,
+        )?.txMeta,
+      };
+    };
     const createMockTransaction = (overrides: {
       id: string;
       batchId?: string;

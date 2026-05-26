@@ -409,25 +409,7 @@ export const getAddTransactionBatchParams = async ({
   };
 };
 
-/**
- * This is a workaround to update the tx type after submission. Batch txs are submitted with
- * the "batch" type, but we need to update to swap/bridge for display purposes.
- *
- * @param params - The parameters for the transaction search
- * @param params.messenger - The messenger to use for the transaction
- * @param params.batchId - The batch ID to filter for
- * @param params.tradeData - The quote, tx data and type for each transaction in the batch
- * @returns A list of transaction metas for each trade in the batch]
- *
- * @example
- * [
- *   {...tradeData[0], tradeMeta: TransactionMeta}
- *   {...tradeData[1], tradeMeta: TransactionMeta}
- *   {...tradeData[2], tradeMeta: TransactionMeta}
- *   {...tradeData[3], tradeMeta: TransactionMeta}
- * ]
- */
-const findAllTransactionsInBatch = ({
+export const findAllTransactionsInBatch = ({
   messenger,
   batchId,
   tradeData,
@@ -467,7 +449,24 @@ const findAllTransactionsInBatch = ({
   });
 };
 
-const updateTransactionsInBatch = ({
+/**
+ * This is a workaround to update the tx type after submission. Batch txs are submitted with
+ * the "batch" type, but we need to update to swap/bridge for display purposes.
+ *
+ * @param params - The parameters for the transaction search
+ * @param params.messenger - The messenger to use for the transaction
+ * @param params.allTradesWithMetadata - The quote, tx data and type for each transaction in the batch
+ * @returns A list of transaction metas for each trade in the batch]
+ *
+ * @example
+ * [
+ *   {...tradeData[0], tradeMeta: TransactionMeta}
+ *   {...tradeData[1], tradeMeta: TransactionMeta}
+ *   {...tradeData[2], tradeMeta: TransactionMeta}
+ *   {...tradeData[3], tradeMeta: TransactionMeta}
+ * ]
+ */
+export const updateTransactionsInBatch = ({
   messenger,
   allTradesWithMetadata,
 }: {
@@ -493,25 +492,16 @@ const updateTransactionsInBatch = ({
   });
 };
 
-/**
- * Finds all transactions in a batch and updates the tx type from batch to swap/bridge
- *
- * @deprecated use findAllTransactionsInBatch and updateTransactionsInBatch separately instead
- * @param options - The parameters for the transaction search
- * @param options.messenger - The messenger to use for the transaction
- * @param options.batchId - The batch ID to filter for
- * @param options.tradeData - The quote, tx data and type for each transaction in the batch
- * @returns The quote, tx data and tx metadata for each transaction in the batch
- */
-export const findAndUpdateTransactionsInBatch = ({
-  messenger,
-  batchId,
-  tradeData,
-}: {
-  messenger: BridgeStatusControllerMessenger;
-  batchId: string;
-  tradeData: QuoteAndTxMetadata[];
-}) => {
+export const addTransactionBatch = async (
+  messenger: BridgeStatusControllerMessenger,
+  addTransactionBatchFn: TransactionController['addTransactionBatch'],
+  tradeData: QuoteAndTxMetadata[],
+  transactionParams: Parameters<
+    TransactionController['addTransactionBatch']
+  >[0],
+) => {
+  const { batchId } = await addTransactionBatchFn(transactionParams);
+
   const quoteAndTxMetas = findAllTransactionsInBatch({
     messenger,
     batchId,
@@ -531,23 +521,6 @@ export const findAndUpdateTransactionsInBatch = ({
       ({ type, txMeta }) => isTradeTx(type) && txMeta,
     )?.txMeta,
   };
-};
-
-export const addTransactionBatch = async (
-  messenger: BridgeStatusControllerMessenger,
-  addTransactionBatchFn: TransactionController['addTransactionBatch'],
-  tradeData: QuoteAndTxMetadata[],
-  transactionParams: Parameters<
-    TransactionController['addTransactionBatch']
-  >[0],
-) => {
-  const { batchId } = await addTransactionBatchFn(transactionParams);
-
-  return findAndUpdateTransactionsInBatch({
-    messenger,
-    batchId,
-    tradeData,
-  });
 };
 
 /**
