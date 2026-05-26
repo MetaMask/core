@@ -14,7 +14,6 @@ import {
   CHAIN_ID_HYPERCORE,
   CHAIN_ID_POLYGON,
   NATIVE_TOKEN_ADDRESS,
-  PaymentOverride,
   POLYGON_USDCE_ADDRESS,
 } from '../../constants';
 import { getMessengerMock } from '../../tests/messenger-mock';
@@ -3373,39 +3372,6 @@ describe('Relay Quotes Utils', () => {
         expect(body.refundTo).toBe(DEPOSIT_WALLET_MOCK);
         expect(body.useDepositAddress).toBe(true);
         expect(body.strict).toBe(true);
-      });
-    });
-
-    describe('paymentOverride (paymentOverride defined)', () => {
-      beforeEach(() => {
-        successfulFetchMock.mockResolvedValue({
-          ok: true,
-          json: async () => QUOTE_MOCK,
-        } as never);
-
-        estimateGasBatchMock.mockResolvedValue({
-          gasLimits: [30000, 21000],
-          totalGasLimit: 51000,
-        });
-      });
-
-      it('skips processTransactions when paymentOverride is defined', async () => {
-        await getRelayQuotes({
-          accountSupports7702: true,
-          messenger,
-          requests: [
-            {
-              ...QUOTE_REQUEST_MOCK,
-              paymentOverride: PaymentOverride.MoneyAccount,
-            },
-          ],
-          transaction: {
-            ...TRANSACTION_META_MOCK,
-            txParams: { data: '0xabc' as Hex },
-          } as TransactionMeta,
-        });
-
-        expect(getDelegationTransactionMock).not.toHaveBeenCalled();
       });
     });
 

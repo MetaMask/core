@@ -260,12 +260,7 @@ async function getSingleQuote(
     // will be included in the batch separately, not as part of the quote.
     // Skip for Polymarket deposit wallet flows - the source is already a
     // bridged token transfer, not a contract call to embed.
-    // Skip for paymentOverride flows - override txs are prepended during submit.
-    if (
-      !request.paymentOverride &&
-      !request.isPostQuote &&
-      !request.isPolymarketDepositWallet
-    ) {
+    if (!request.isPostQuote && !request.isPolymarketDepositWallet) {
       await processTransactions(transaction, request, body, messenger);
     } else if (request.refundTo) {
       // For post-quote flows, honour the caller-specified refund address so that
