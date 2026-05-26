@@ -14,7 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Removed
 
-- Remove unused GasFeeController:getState call result ([#8886](https://github.com/MetaMask/core/pull/8886))
+- **BREAKING**: Remove unused `GasFeeController:getState` call ([#8886](https://github.com/MetaMask/core/pull/8886))
 - Remove unnecessary type assertions for bridge quotes ([#8805](https://github.com/MetaMask/core/pull/8805))
 
 ### Fixed
