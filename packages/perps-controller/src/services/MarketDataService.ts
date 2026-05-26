@@ -24,6 +24,7 @@ import type {
   Order,
   GetOrdersParams,
   MarketInfo,
+  GetMarketDataWithPricesParams,
   GetMarketsParams,
   GetAvailableDexsParams,
   LiquidationPriceParams,
@@ -818,10 +819,7 @@ export class MarketDataService {
    */
   async getMarketDataWithPrices(options: {
     provider: PerpsProvider;
-    params?: Pick<
-      GetMarketsParams,
-      'categories' | 'sortBy' | 'direction' | 'limit'
-    >;
+    params?: GetMarketDataWithPricesParams;
     context: ServiceContext;
   }): Promise<PerpsMarketData[]> {
     const { provider, params, context } = options;
@@ -1312,10 +1310,7 @@ export function matchesCategory(
  */
 export function applyMarketFilters(
   markets: PerpsMarketData[],
-  params?: Pick<
-    GetMarketsParams,
-    'categories' | 'sortBy' | 'direction' | 'limit'
-  >,
+  params?: GetMarketDataWithPricesParams,
 ): PerpsMarketData[] {
   let result = markets;
 

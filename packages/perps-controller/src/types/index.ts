@@ -830,8 +830,16 @@ export type GetMarketsParams = {
   dex?: string; // HyperLiquid HIP-3: DEX name (empty string '' or undefined for main DEX). Other protocols: ignored.
   skipFilters?: boolean; // Skip market filtering (both allowlist and blocklist, default: false). When true, returns all markets without filtering.
   standalone?: boolean; // Lightweight mode: skip full initialization, only fetch market metadata (no wallet/WebSocket needed). Only main DEX markets returned. Use for discovery use cases like checking if a perps market exists.
-  // Category / sort / pagination (applied as post-processing in PerpsController):
-  categories?: MarketTypeFilter[]; // Filter to markets in any of these categories; omit for all markets
+};
+
+/**
+ * Parameters for {@link PerpsController.getMarketDataWithPrices}.
+ * Extends the base market-fetch params with optional category filtering,
+ * sorting, and pagination that are applied as post-processing.
+ */
+export type GetMarketDataWithPricesParams = {
+  standalone?: boolean; // Lightweight mode: see GetMarketsParams.standalone
+  categories?: MarketTypeFilter[]; // Filter to markets matching any of these categories; omit for all markets
   sortBy?: SortField; // Sort results by this field
   direction?: SortDirection; // Sort direction (default: desc)
   limit?: number; // Maximum number of results to return
@@ -1046,10 +1054,7 @@ export type PerpsProvider = {
   getAccountState(params?: GetAccountStateParams): Promise<AccountState>;
   getMarkets(params?: GetMarketsParams): Promise<MarketInfo[]>;
   getMarketDataWithPrices(
-    params?: Pick<
-      GetMarketsParams,
-      'categories' | 'sortBy' | 'direction' | 'limit' | 'standalone'
-    >,
+    params?: GetMarketDataWithPricesParams,
   ): Promise<PerpsMarketData[]>;
   withdraw(params: WithdrawParams): Promise<WithdrawResult>; // API operation - stays in provider
   // Note: deposit() is handled by PerpsController routing (blockchain operation)

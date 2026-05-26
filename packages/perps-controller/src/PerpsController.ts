@@ -68,6 +68,7 @@ import type {
   GetAccountStateParams,
   GetAvailableDexsParams,
   GetFundingParams,
+  GetMarketDataWithPricesParams,
   GetMarketsParams,
   GetOrderFillsParams,
   GetOrdersParams,
@@ -2950,10 +2951,7 @@ export class PerpsController extends BaseController<
    * @returns A promise that resolves to the market data.
    */
   async getMarketDataWithPrices(
-    params?: Pick<
-      GetMarketsParams,
-      'categories' | 'sortBy' | 'direction' | 'limit' | 'standalone'
-    >,
+    params?: GetMarketDataWithPricesParams,
   ): Promise<PerpsMarketData[]> {
     if (params?.standalone) {
       // Use activeProviderInstance if available (respects provider abstraction)

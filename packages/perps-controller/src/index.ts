@@ -201,6 +201,7 @@ export type {
   GetSupportedPathsParams,
   GetAvailableDexsParams,
   GetMarketsParams,
+  GetMarketDataWithPricesParams,
   SubscribePricesParams,
   SubscribePositionsParams,
   SubscribeOrderFillsParams,
