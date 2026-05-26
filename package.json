@@ -9,8 +9,7 @@
   },
   "workspaces": [
     "examples/*",
-    "packages/*",
-    "website"
+    "packages/*"
   ],
   "files": [],
   "scripts": {

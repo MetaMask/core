@@ -4,6 +4,5 @@
     "baseUrl": "./"
   },
   "references": [],
-  "include": ["../../types", "."],
-  "exclude": ["./dist", "./node_modules"]
+  "include": ["../../types", "./site"]
 }
