@@ -22,7 +22,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - Fix incorrect hex key for Blast Mainnet in `SPOT_PRICES_SUPPORT_INFO` (`0x13c31` → `0x13e31`), which previously caused native-token price fetching to silently fail for that chain ([#8887](https://github.com/MetaMask/core/pull/8887))
-- Remove Forma (chain 984122) from `SPOT_PRICES_SUPPORT_INFO` as it is not supported by the price API ([#8887](https://github.com/MetaMask/core/pull/8887))
 
 ## [108.1.0]
 
