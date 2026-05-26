@@ -188,6 +188,7 @@ export async function* submitIntentHandler(
       approvalTxId,
       // Keep original txId for TransactionController updates
       originalTransactionId: syntheticTxMeta?.id,
+      quoteResponse: args.quoteResponse,
     },
   };
 

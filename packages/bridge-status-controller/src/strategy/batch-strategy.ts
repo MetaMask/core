@@ -1,8 +1,10 @@
-import { TxData } from '@metamask/bridge-controller';
+import type { TxData } from '@metamask/bridge-controller';
 
 import {
-  addTransactionBatch,
+  findAllTransactionsInBatch,
   getAddTransactionBatchParams,
+  isApprovalTx,
+  isTradeTx,
   toQuoteAndTxMetadata,
 } from '../utils/transaction';
 import { SubmitStep } from './types';
@@ -49,12 +51,28 @@ export async function* submitBatchHandler(
     isGasFeeIncluded: Boolean(quoteResponse.quote.gasIncluded7702),
   });
 
-  const { approvalMeta, tradeMeta } = await addTransactionBatch(
+  const { batchId } = await addTransactionBatchFn(transactionParams);
+
+  const quoteAndTxMetas = findAllTransactionsInBatch({
     messenger,
-    addTransactionBatchFn,
+    batchId,
     tradeData,
-    transactionParams,
-  );
+  });
+
+  yield {
+    type: SubmitStep.UpdateBatchTransactions,
+    payload: {
+      quoteAndTxMetas,
+    },
+  };
+
+  const tradeMeta = quoteAndTxMetas.find(
+    ({ type, txMeta }) => isTradeTx(type) && txMeta,
+  )?.txMeta;
+
+  const approvalMeta = quoteAndTxMetas.find(
+    ({ type, txMeta }) => isApprovalTx(type) && txMeta,
+  )?.txMeta;
 
   if (!tradeMeta) {
     throw new Error(
@@ -77,6 +95,7 @@ export async function* submitBatchHandler(
         hash: tradeMeta.hash,
         batchId: tradeMeta.batchId,
       },
+      quoteResponse,
     },
   };
 }

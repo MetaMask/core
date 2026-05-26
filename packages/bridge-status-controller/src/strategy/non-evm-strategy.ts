@@ -92,6 +92,7 @@ export async function* submitNonEvmHandler(
         id: tradeMeta.id,
         hash: tradeMeta.hash,
       },
+      quoteResponse,
     },
   };
 

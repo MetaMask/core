@@ -81,6 +81,7 @@ import {
   getTransactions,
   checkIsDelegatedAccount,
   isCrossChainTx,
+  updateTransactionsInBatch,
 } from './utils/transaction';
 
 const metadata: StateMetadata<BridgeStatusControllerState> = {
@@ -975,6 +976,13 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
             );
             break;
 
+          case SubmitStep.UpdateBatchTransactions:
+            updateTransactionsInBatch({
+              messenger: this.messenger,
+              allTradesWithMetadata: payload.quoteAndTxMetas,
+            });
+            break;
+
           case SubmitStep.SetTradeMeta:
             tradeTxMeta = payload.tradeMeta;
             break;
@@ -983,7 +991,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
             this.#addTxToHistory(payload.historyKey, {
               ...payload,
               ...sharedHistoryItemProperties,
-              quoteResponse: params.quoteResponse,
+              quoteResponse: payload.quoteResponse,
               accountAddress: params.selectedAccount.address,
               isStxEnabled: params.isStxEnabled,
               slippagePercentage: 0, // TODO include slippage provided by quote if using dynamic slippage, or slippage from quote request
@@ -1159,7 +1167,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     tokenSecurityTypeDestination?: string | null;
     isStxEnabled?: boolean;
     quotesReceivedContext?: RequiredEventContextFromClient[UnifiedSwapBridgeEventName.QuotesReceived];
-  }): Promise<Pick<TransactionMeta, 'id' | 'chainId' | 'type' | 'status'>> => {
+  }): Promise<TransactionMeta> => {
     const {
       quoteResponse,
       accountAddress,

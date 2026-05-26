@@ -1,44 +1,89 @@
 /* eslint-disable consistent-return */
 /* eslint-disable @typescript-eslint/explicit-function-return-type */
-import { isEvmTxData } from '@metamask/bridge-controller';
+import { formatChainIdToHex, isEvmTxData } from '@metamask/bridge-controller';
 import type { TxData } from '@metamask/bridge-controller';
-import { TransactionType } from '@metamask/transaction-controller';
+import {
+  TransactionMeta,
+  TransactionType,
+} from '@metamask/transaction-controller';
 
+import { BridgeStatusControllerMessenger } from '../types';
+import { getAccountByAddress } from '../utils/accounts';
+import { getNetworkClientIdByChainId } from '../utils/network';
 import { getApprovalTraceParams } from '../utils/trace';
 import {
+  addTransaction,
   generateActionId,
   handleApprovalDelay,
   handleMobileHardwareWalletDelay,
-  submitEvmTransaction,
+  toTransactionParams,
   waitForTxConfirmation,
 } from '../utils/transaction';
 import { SubmitStep } from './types';
 import type { SubmitStrategyParams, SubmitStepResult } from './types';
 
 /**
- * Submits a single trade and returns the txMetaId
+ * Submits a single tx to the TransactionController and returns the txMetaId
  *
  * @param args - The parameters for the transaction
- * @param args.messenger - The messenger
+ * @param args.transactionType - The type of transaction to submit
+ * @param args.trade - The trade data to confirm
  * @param args.requireApproval - Whether to require approval for the transaction
- * @param transactionType - The type of transaction to submit
- * @param trade - The tx to submit
- * @param submitParams - Optional parameters to pass to the submitEvmTransaction function
- * @returns The txMeta of the transaction
+ * @param args.txFee - Optional gas fee parameters from the quote (used when gasIncluded is true)
+ * @param args.txFee.maxFeePerGas - The maximum fee per gas from the quote
+ * @param args.txFee.maxPriorityFeePerGas - The maximum priority fee per gas from the quote
+ * @param args.actionId - Optional actionId for pre-submission history (if not provided, one is generated)
+ * @param args.messenger - The messenger to use for the transaction
+ * @returns The transaction meta
  */
-const handleSingleTx = async (
-  { messenger, requireApproval }: SubmitStrategyParams,
-  transactionType: TransactionType,
-  trade: TxData,
-  submitParams: Partial<Parameters<typeof submitEvmTransaction>[0]> = {},
-) =>
-  await submitEvmTransaction({
+export const handleSingleTx = async ({
+  messenger,
+  trade,
+  transactionType,
+  requireApproval = false,
+  txFee,
+  // Use provided actionId (for pre-submission history) or generate one
+  actionId = generateActionId(),
+}: {
+  messenger: BridgeStatusControllerMessenger;
+  transactionType: TransactionType;
+  trade: TxData;
+  requireApproval?: boolean;
+  txFee?: { maxFeePerGas: string; maxPriorityFeePerGas: string };
+  actionId?: string;
+}): Promise<TransactionMeta> => {
+  const selectedAccount = getAccountByAddress(messenger, trade.from);
+  if (!selectedAccount) {
+    throw new Error(
+      'Failed to submit cross-chain swap transaction: unknown account in trade data',
+    );
+  }
+  const hexChainId = formatChainIdToHex(trade.chainId);
+  const networkClientId = getNetworkClientIdByChainId(messenger, hexChainId);
+
+  const requestOptions = {
+    actionId,
+    networkClientId,
+    requireApproval,
+    type: transactionType,
+    origin: 'metamask',
+    isInternal: true,
+  };
+
+  const transactionParamsWithMaxGas = await toTransactionParams(
     messenger,
     trade,
-    transactionType,
-    requireApproval,
-    ...submitParams,
-  });
+    networkClientId,
+    hexChainId,
+    txFee,
+  );
+
+  return await addTransaction(
+    messenger,
+    { ...transactionParamsWithMaxGas, from: trade.from },
+    requestOptions,
+  );
+};
 
 /**
  * Submits the approval and resetApproval transactions through the TransactionController.
@@ -61,15 +106,19 @@ const approve = async (args: SubmitStrategyParams) => {
     : TransactionType.swapApproval;
 
   if (resetApproval) {
-    await handleSingleTx(args, transactionType, resetApproval);
+    await handleSingleTx({
+      ...args,
+      transactionType,
+      trade: resetApproval,
+    });
   }
 
   if (approval) {
-    const approvalTxMeta = await handleSingleTx(
-      args,
+    const approvalTxMeta = await handleSingleTx({
+      ...args,
       transactionType,
-      approval,
-    );
+      trade: approval,
+    });
     return approvalTxMeta?.id;
   }
 };
@@ -116,26 +165,26 @@ export async function* submitEvmHandler(
       historyKey: actionId,
       approvalTxId,
       actionId,
+      quoteResponse,
     },
   };
 
   const transactionType = isBridgeTx
     ? TransactionType.bridge
     : TransactionType.swap;
-  const tradeMeta = await handleSingleTx(
-    args,
+
+  const tradeMeta = await handleSingleTx({
+    ...args,
     transactionType,
-    quoteResponse.trade,
-    {
-      // TODO figure out if this is needed
-      // Pass txFee when gasIncluded is true to use the quote's gas fees
-      // instead of re-estimating (which would fail for max native token swaps)
-      txFee: quoteResponse.quote.gasIncluded
-        ? quoteResponse.quote.feeData.txFee
-        : undefined,
-      actionId,
-    },
-  );
+    trade: quoteResponse.trade,
+    // TODO figure out if this is needed
+    // Pass txFee when gasIncluded is true to use the quote's gas fees
+    // instead of re-estimating (which would fail for max native token swaps)
+    txFee: quoteResponse.quote.gasIncluded
+      ? quoteResponse.quote.feeData.txFee
+      : undefined,
+    actionId,
+  });
 
   // Use the tradeMeta's id as history key
   yield {

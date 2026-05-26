@@ -15,6 +15,7 @@ import type {
 import type {
   BridgeStatusControllerMessenger,
   FetchFunction,
+  QuoteAndTxMetadata,
   StartPollingForBridgeTxStatusArgs,
 } from '../types';
 
@@ -24,6 +25,7 @@ export enum SubmitStep {
   StartPolling = 'startPolling',
   PublishCompletedEvent = 'publishCompletedEvent',
   SetTradeMeta = 'setTradeMeta',
+  UpdateBatchTransactions = 'updateBatchTransactions',
 }
 
 /**
@@ -37,6 +39,7 @@ export type SubmitStepResult =
         'approvalTxId' | 'bridgeTxMeta' | 'originalTransactionId' | 'actionId'
       > & {
         historyKey: string;
+        quoteResponse: QuoteResponse & QuoteMetadata;
       };
     }
   | {
@@ -69,6 +72,12 @@ export type SubmitStepResult =
       /** The {@link TransactionMeta} for the transaction that has been submitted successfully */
       payload: {
         tradeMeta: TransactionMeta;
+      };
+    }
+  | {
+      type: SubmitStep.UpdateBatchTransactions;
+      payload: {
+        quoteAndTxMetas: QuoteAndTxMetadata[];
       };
     };
 
