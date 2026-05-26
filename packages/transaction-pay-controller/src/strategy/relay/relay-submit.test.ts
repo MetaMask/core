@@ -4,6 +4,7 @@ import type { TransactionMeta } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 import { cloneDeep } from 'lodash';
 
+import { PaymentOverride } from '../../constants';
 import { getMessengerMock } from '../../tests/messenger-mock';
 import type {
   PayStrategyExecuteRequest,
@@ -142,6 +143,7 @@ describe('Relay Submit Utils', () => {
     addTransactionBatchMock,
     getDelegationTransactionMock,
     findNetworkClientIdByChainIdMock,
+    getPaymentOverrideDataMock,
     messenger,
   } = getMessengerMock();
 
@@ -855,6 +857,74 @@ describe('Relay Submit Utils', () => {
       expect(txDraft.requiredTransactionIds).toStrictEqual([
         TRANSACTION_META_MOCK.id,
       ]);
+    });
+
+    describe('paymentOverride flow', () => {
+      const PAYMENT_OVERRIDE_TX_MOCK = {
+        to: '0xpaymentoverride' as Hex,
+        data: '0xpaymentoverride' as Hex,
+        value: '0x0',
+      };
+
+      it('prepends override txs to submit params', async () => {
+        request.quotes[0].request.paymentOverride =
+          PaymentOverride.MoneyAccount;
+        getPaymentOverrideDataMock.mockResolvedValue([
+          PAYMENT_OVERRIDE_TX_MOCK,
+        ]);
+
+        await submitRelayQuotes(request);
+
+        const batchCall = addTransactionBatchMock.mock.calls[0][0];
+        expect(batchCall.transactions[0].params).toStrictEqual(
+          expect.objectContaining({
+            to: PAYMENT_OVERRIDE_TX_MOCK.to,
+            data: PAYMENT_OVERRIDE_TX_MOCK.data,
+            value: PAYMENT_OVERRIDE_TX_MOCK.value,
+          }),
+        );
+      });
+
+      it('does not call getPaymentOverrideData when paymentOverride is not defined', async () => {
+        await submitRelayQuotes(request);
+
+        expect(getPaymentOverrideDataMock).not.toHaveBeenCalled();
+      });
+
+      it('does not prepend when callback returns empty array', async () => {
+        request.quotes[0].request.paymentOverride =
+          PaymentOverride.MoneyAccount;
+        getPaymentOverrideDataMock.mockResolvedValue([]);
+
+        await submitRelayQuotes(request);
+
+        expect(addTransactionBatchMock).not.toHaveBeenCalled();
+        expect(addTransactionMock).toHaveBeenCalledTimes(1);
+      });
+
+      it('defaults data to 0x when transaction data is absent', async () => {
+        request.quotes[0].request.paymentOverride =
+          PaymentOverride.MoneyAccount;
+        const { data: _data, ...txWithoutData } = PAYMENT_OVERRIDE_TX_MOCK;
+        getPaymentOverrideDataMock.mockResolvedValue([txWithoutData]);
+
+        await submitRelayQuotes(request);
+
+        const batchCall = addTransactionBatchMock.mock.calls[0][0];
+        expect(batchCall.transactions[0].params.data).toBe('0x');
+      });
+
+      it('defaults value to 0x0 when transaction value is absent', async () => {
+        request.quotes[0].request.paymentOverride =
+          PaymentOverride.MoneyAccount;
+        const { value: _value, ...txWithoutValue } = PAYMENT_OVERRIDE_TX_MOCK;
+        getPaymentOverrideDataMock.mockResolvedValue([txWithoutValue]);
+
+        await submitRelayQuotes(request);
+
+        const batchCall = addTransactionBatchMock.mock.calls[0][0];
+        expect(batchCall.transactions[0].params.value).toBe('0x0');
+      });
     });
 
     describe('post-quote flow', () => {

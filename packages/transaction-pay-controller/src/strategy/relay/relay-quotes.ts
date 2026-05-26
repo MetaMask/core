@@ -256,27 +256,16 @@ async function getSingleQuote(
       await applyPolymarketDepositWalletOverrides(body, request, messenger);
     }
 
-    // When paymentOverride is defined, fetch the override transactions and
-    // include them in the Relay request body so Relay executes them
-    // atomically alongside the bridge.
-    if (request.paymentOverride) {
-      const overrideTxs = await messenger.call(
-        'TransactionPayController:getPaymentOverrideData',
-        transaction.id,
-      );
-
-      if (overrideTxs.length) {
-        body.txs = overrideTxs.map((tx) => ({
-          to: (tx.to as string) ?? '',
-          data: (tx.data as string) ?? '0x',
-          value: (tx.value as string) ?? '0x0',
-        }));
-      }
-    } else if (!request.isPostQuote && !request.isPolymarketDepositWallet) {
-      // Skip transaction processing for post-quote flows - the original transaction
-      // will be included in the batch separately, not as part of the quote.
-      // Skip for Polymarket deposit wallet flows - the source is already a
-      // bridged token transfer, not a contract call to embed.
+    // Skip transaction processing for post-quote flows - the original transaction
+    // will be included in the batch separately, not as part of the quote.
+    // Skip for Polymarket deposit wallet flows - the source is already a
+    // bridged token transfer, not a contract call to embed.
+    // Skip for paymentOverride flows - override txs are prepended during submit.
+    if (
+      !request.paymentOverride &&
+      !request.isPostQuote &&
+      !request.isPolymarketDepositWallet
+    ) {
       await processTransactions(transaction, request, body, messenger);
     } else if (request.refundTo) {
       // For post-quote flows, honour the caller-specified refund address so that
@@ -1030,8 +1019,6 @@ function getSubsidizedFeeAmountUsd(quote: RelayQuote): BigNumber {
 
   return isSubsidizedStablecoin ? amountFormatted : amountUsd;
 }
-
-
 
 function isStablecoin(chainId: string, tokenAddress: string): boolean {
   return Boolean(

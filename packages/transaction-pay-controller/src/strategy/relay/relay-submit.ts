@@ -402,7 +402,23 @@ async function submitTransactions(
 
   let allParams = normalizedParams;
 
-  if (isPostQuote && transaction.txParams.to) {
+  if (quote.request.paymentOverride) {
+    const overrideTxs = await messenger.call(
+      'TransactionPayController:getPaymentOverrideData',
+      transaction.id,
+    );
+
+    if (overrideTxs.length) {
+      const overrideParams: TransactionParams[] = overrideTxs.map((tx) => ({
+        data: (tx.data as Hex) ?? ('0x' as Hex),
+        from: tx.from,
+        to: tx.to,
+        value: (tx.value as Hex) ?? ('0x0' as Hex),
+      }));
+
+      allParams = [...overrideParams, ...normalizedParams];
+    }
+  } else if (isPostQuote && transaction.txParams.to) {
     const prependedParams = hasAccountOverride
       ? await buildDelegatedOriginalParams(transaction, messenger)
       : ({
