@@ -13,8 +13,8 @@ import type {
   SimulatedGasFeeLimits,
   TxData,
   TxFeeGasLimits,
-  BridgeControllerTrackUnifiedSwapBridgeEventAction,
   BridgeControllerStopPollingForQuotesAction,
+  BridgeControllerTrackUnifiedSwapBridgeEventAction,
 } from '@metamask/bridge-controller';
 import type { KeyringControllerSignTypedMessageAction } from '@metamask/keyring-controller';
 import type { Messenger } from '@metamask/messenger';

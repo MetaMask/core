@@ -547,21 +547,24 @@ export const SimulatedGasFeeLimitsSchema = type({
   maxPriorityFeePerGas: HexStringSchema,
 });
 
-export const BatchSellTradesResponseSchema = type({
-  transactions: array(
-    intersection([
-      TxDataSchema,
-      SimulatedGasFeeLimitsSchema,
-      type({ type: enums(Object.values(BatchSellTransactionType)) }),
-    ]),
-  ),
-  fee: optional(
-    type({
-      asset: BridgeAssetSchema,
-      amount: NumberStringSchema,
-    }),
-  ),
-});
+export const BatchSellTradesResponseSchema = intersection([
+  type({
+    transactions: array(
+      intersection([
+        TxDataSchema,
+        SimulatedGasFeeLimitsSchema,
+        type({ type: enums(Object.values(BatchSellTransactionType)) }),
+      ]),
+    ),
+    fee: optional(
+      type({
+        asset: BridgeAssetSchema,
+        amount: NumberStringSchema,
+      }),
+    ),
+  }),
+  GaslessPropertiesSchema,
+]);
 
 export const validateBatchSellTradesResponse = (
   data: unknown,
