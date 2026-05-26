@@ -32,6 +32,7 @@ import { fetchGenericQuote } from './generic-api';
 import { normalizeGenericPerpsRequest } from './perps';
 import type {
   GenericQuote,
+  GenericQuoteFees,
   GenericQuoteRequest,
   GenericQuoteResult,
   GenericQuoteStep,
@@ -47,10 +48,7 @@ const ZERO_AMOUNT = { fiat: '0', human: '0', raw: '0', usd: '0' };
 const ZERO_FIAT_VALUE = { fiat: '0', usd: '0' };
 
 type FulfilledGenericQuoteResult = GenericQuoteResult & {
-  id: string;
-  input: NonNullable<GenericQuoteResult['input']>;
-  output: NonNullable<GenericQuoteResult['output']>;
-  status: 'fulfilled';
+  quote: NonNullable<GenericQuoteResult['quote']>;
 };
 
 /**
@@ -88,7 +86,7 @@ async function getQuotesForRequest(
       quoteRequest,
       transaction,
       messenger,
-      provider,
+      [provider],
       accountSupports7702,
     );
 
@@ -107,8 +105,7 @@ async function getQuotesForRequest(
       }
 
       log('Provider returned no fulfilled quote results', {
-        error: response.results.find((result) => result.status === 'rejected')
-          ?.error,
+        error: response.results.find((result) => result.error)?.error,
         provider,
       });
     } catch (error) {
@@ -123,7 +120,7 @@ async function buildGenericQuoteRequest(
   quoteRequest: QuoteRequest,
   transaction: TransactionMeta,
   messenger: TransactionPayControllerMessenger,
-  provider: GenericQuoteRequest['provider'],
+  providers: GenericQuoteRequest['providers'],
   accountSupports7702: boolean,
 ): Promise<GenericQuoteRequest> {
   const normalizedRequest = normalizeGenericPerpsRequest(
@@ -160,21 +157,19 @@ async function buildGenericQuoteRequest(
     accountSupports7702 && isEIP7702Chain(messenger, sourceChainId);
 
   const body: GenericQuoteRequest = {
+    source: { chainId: Number(sourceChainId), token: sourceTokenAddress },
+    target: { chainId: Number(targetChainId), token: targetTokenAddress },
     amount: useExactInput ? sourceTokenAmount : targetAmountMinimum,
-    destinationChainId: Number(targetChainId),
-    destinationToken: targetTokenAddress,
-    originChainId: Number(sourceChainId),
-    originToken: sourceTokenAddress,
-    provider,
-    recipient,
-    sender: from,
-    slippageBps: Math.round(
-      getSlippage(messenger, sourceChainId, sourceTokenAddress) * 10000,
-    ),
-    supportsGasless,
     tradeType: useExactInput
       ? GenericTradeType.ExactInput
       : GenericTradeType.ExpectedOutput,
+    sender: from,
+    recipient,
+    slippage: Math.round(
+      getSlippage(messenger, sourceChainId, sourceTokenAddress) * 10000,
+    ),
+    providers,
+    supportsGasless,
   };
 
   const hasNoData = singleData === undefined || singleData === '0x';
@@ -232,17 +227,18 @@ async function normalizeQuote(
   quoteRequest: QuoteRequest,
   messenger: TransactionPayControllerMessenger,
 ): Promise<TransactionPayQuote<GenericQuote>> {
-  const gasless = result.gasless === true;
+  const { quote } = result;
+  const gasless = quote.gasless === true;
   const sourceNetwork = await calculateSourceNetworkCost({
     gasless,
     messenger,
     quoteRequest,
-    steps: result.steps ?? [],
+    steps: quote.steps,
   });
 
   return {
     dust: ZERO_FIAT_VALUE,
-    estimatedDuration: result.duration ?? 0,
+    estimatedDuration: quote.duration,
     fees: {
       ...(sourceNetwork.isSourceGasFeeToken
         ? { isSourceGasFeeToken: true }
@@ -250,7 +246,7 @@ async function normalizeQuote(
       metaMask: ZERO_FIAT_VALUE,
       provider: {
         fiat: '0',
-        usd: result.providerFeeUsd ?? '0',
+        usd: quote.fees.provider,
       },
       sourceNetwork: {
         estimate: sourceNetwork.estimate,
@@ -259,20 +255,20 @@ async function normalizeQuote(
       targetNetwork: ZERO_FIAT_VALUE,
     },
     original: {
-      duration: result.duration ?? 0,
+      duration: quote.duration,
+      fees: quote.fees,
       gasless,
-      id: result.id,
-      input: result.input,
-      output: result.output,
+      id: quote.id,
+      input: quote.input,
+      output: quote.output,
       provider: result.provider,
-      providerFeeUsd: result.providerFeeUsd,
-      steps: result.steps ?? [],
+      steps: quote.steps,
     },
     request: quoteRequest,
     sourceAmount: {
       fiat: '0',
-      human: result.input.formatted,
-      raw: result.input.raw,
+      human: quote.input.formatted,
+      raw: quote.input.raw,
       usd: '0',
     },
     strategy: TransactionPayStrategy.Generic,
@@ -423,10 +419,10 @@ function isFulfilledResult(
   result: GenericQuoteResult,
 ): result is FulfilledGenericQuoteResult {
   return (
-    result.status === 'fulfilled' &&
-    result.id !== undefined &&
-    result.input !== undefined &&
-    result.output !== undefined
+    result.quote !== undefined &&
+    result.quote.id !== undefined &&
+    result.quote.input !== undefined &&
+    result.quote.output !== undefined
   );
 }
 

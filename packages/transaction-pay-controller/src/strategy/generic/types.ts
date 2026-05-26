@@ -12,8 +12,11 @@ export enum GenericTradeType {
   ExpectedOutput = 'EXPECTED_OUTPUT',
 }
 
-/** Raw and formatted token amount. */
+/** Token amount with chain and token context. */
 export type GenericQuoteAmount = {
+  chainId: number;
+  token: string;
+  decimals: number;
   raw: string;
   formatted: string;
 };
@@ -48,16 +51,15 @@ export type GenericAuthorization = {
 
 /** Request body for POST /quote. */
 export type GenericQuoteRequest = {
-  originChainId: number;
-  destinationChainId: number;
-  originToken: Hex;
-  destinationToken: Hex;
+  source: { chainId: number; token: Hex };
+  target: { chainId: number; token: Hex };
   amount: string;
   tradeType: GenericTradeType;
   sender: Hex;
   recipient: Hex;
-  slippageBps?: number;
-  provider?: GenericProviderName;
+  refundTo?: Hex;
+  slippage?: number;
+  providers?: GenericProviderName[];
   calls?: GenericCall[];
   authorizationList?: GenericAuthorization[];
   supportsGasless?: boolean;
@@ -67,20 +69,30 @@ export type GenericQuoteRequest = {
 export type GenericQuoteError = {
   code?: string;
   message: string;
-  upstream?: unknown;
+};
+
+/** A successful quote payload nested inside a GenericQuoteResult. */
+export type GenericQuotePayload = {
+  id: string;
+  input: GenericQuoteAmount;
+  output: GenericQuoteAmount;
+  fees: GenericQuoteFees;
+  duration: number;
+  steps: GenericQuoteStep[];
+  gasless: boolean;
+};
+
+/** Fee breakdown from a quote. */
+export type GenericQuoteFees = {
+  metamask: string;
+  provider: string;
+  subsidized: boolean;
 };
 
 /** A single provider result within the quote response. */
 export type GenericQuoteResult = {
   provider: GenericProviderName;
-  status: 'fulfilled' | 'rejected';
-  id?: string;
-  input?: GenericQuoteAmount;
-  output?: GenericQuoteAmount;
-  providerFeeUsd?: string;
-  duration?: number;
-  steps?: GenericQuoteStep[];
-  gasless?: boolean;
+  quote?: GenericQuotePayload;
   error?: GenericQuoteError;
 };
 
@@ -89,16 +101,13 @@ export type GenericQuoteResponse = {
   results: GenericQuoteResult[];
 };
 
-/**
- * Normalized generic quote stored in TransactionPayQuote.original.
- * Carries the provider name so /submit can target the correct backend provider.
- */
+/** Normalized generic quote stored in TransactionPayQuote.original. */
 export type GenericQuote = {
   id: string;
   provider: GenericProviderName;
   input: GenericQuoteAmount;
   output: GenericQuoteAmount;
-  providerFeeUsd?: string;
+  fees: GenericQuoteFees;
   duration: number;
   steps: GenericQuoteStep[];
   gasless: boolean;

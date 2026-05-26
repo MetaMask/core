@@ -55,24 +55,39 @@ describe('generic-api', () => {
 
   describe('fetchGenericQuote', () => {
     const QUOTE_REQUEST_MOCK: GenericQuoteRequest = {
+      source: { chainId: 137, token: '0xbbb' },
+      target: { chainId: 1, token: '0xaaa' },
       amount: '1000000',
-      destinationChainId: 1,
-      destinationToken: '0xaaa',
-      originChainId: 137,
-      originToken: '0xbbb',
-      recipient: '0xccc',
-      sender: '0xccc',
       tradeType: GenericTradeType.ExpectedOutput,
+      sender: '0xccc',
+      recipient: '0xccc',
     };
 
     const QUOTE_RESPONSE_MOCK = {
       results: [
         {
           provider: GenericProviderName.Relay,
-          status: 'fulfilled' as const,
-          id: '0xid',
-          input: { raw: '1000000', formatted: '1.0' },
-          output: { raw: '999000', formatted: '0.999' },
+          quote: {
+            id: '0xid',
+            input: {
+              chainId: 137,
+              decimals: 6,
+              formatted: '1.0',
+              raw: '1000000',
+              token: '0xbbb',
+            },
+            output: {
+              chainId: 1,
+              decimals: 6,
+              formatted: '0.999',
+              raw: '999000',
+              token: '0xaaa',
+            },
+            fees: { metamask: '0', provider: '0.10', subsidized: false },
+            duration: 30,
+            steps: [],
+            gasless: false,
+          },
         },
       ],
     };
@@ -204,6 +219,20 @@ describe('generic-api', () => {
 
       expect(fetchMock).toHaveBeenCalledWith(
         `${STATUS_URL_MOCK}?provider=relay&id=0xabc`,
+        { method: 'GET' },
+      );
+    });
+
+    it('appends hash to the status URL when provided', async () => {
+      mockOkResponse(STATUS_RESPONSE_MOCK);
+
+      await getGenericStatus(MESSENGER_MOCK, {
+        ...STATUS_PARAMS_MOCK,
+        hash: '0xdeadbeef',
+      });
+
+      expect(fetchMock).toHaveBeenCalledWith(
+        `${STATUS_URL_MOCK}?provider=relay&id=0xabc&hash=0xdeadbeef`,
         { method: 'GET' },
       );
     });

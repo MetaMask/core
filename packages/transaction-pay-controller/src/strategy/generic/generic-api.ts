@@ -76,10 +76,15 @@ export async function submitGenericIntent(
  */
 export async function getGenericStatus(
   messenger: TransactionPayControllerMessenger,
-  params: { provider: GenericProviderName; id: string },
+  params: { provider: GenericProviderName; id: string; hash?: string },
 ): Promise<GenericStatusResponse> {
   const { generic } = getPayStrategiesConfig(messenger);
-  const url = `${generic.statusUrl}?provider=${params.provider}&id=${params.id}`;
+  const query = new URLSearchParams({
+    provider: params.provider,
+    id: params.id,
+    ...(params.hash ? { hash: params.hash } : {}),
+  });
+  const url = `${generic.statusUrl}?${query.toString()}`;
 
   log('Fetching status', { url });
 

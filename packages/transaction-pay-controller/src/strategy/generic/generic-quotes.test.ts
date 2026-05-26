@@ -53,28 +53,40 @@ const QUOTE_REQUEST_MOCK: QuoteRequest = {
 };
 
 const FULFILLED_RESULT_MOCK = {
-  duration: 42,
-  gasless: true,
-  id: 'quote-id',
-  input: { formatted: '1.0', raw: '1000000000000000000' },
-  output: { formatted: '0.123', raw: '123' },
   provider: GenericProviderName.Relay,
-  providerFeeUsd: '0.25',
-  status: 'fulfilled' as const,
-  steps: [
-    {
+  quote: {
+    duration: 42,
+    fees: { metamask: '0', provider: '0.25', subsidized: false },
+    gasless: true,
+    id: 'quote-id',
+    input: {
       chainId: 1,
-      data: '0xdef' as Hex,
-      to: '0x4560000000000000000000000000000000000000' as Hex,
-      value: '0',
+      decimals: 18,
+      formatted: '1.0',
+      raw: '1000000000000000000',
+      token: SOURCE_TOKEN_ADDRESS_MOCK,
     },
-  ],
+    output: {
+      chainId: 2,
+      decimals: 6,
+      formatted: '0.123',
+      raw: '123',
+      token: TARGET_TOKEN_ADDRESS_MOCK,
+    },
+    steps: [
+      {
+        chainId: 1,
+        data: '0xdef' as Hex,
+        to: '0x4560000000000000000000000000000000000000' as Hex,
+        value: '0',
+      },
+    ],
+  },
 };
 
 const REJECTED_RESULT_MOCK = {
   error: { message: 'no route' },
   provider: GenericProviderName.Relay,
-  status: 'rejected' as const,
 };
 
 const DELEGATION_RESULT_MOCK = {
@@ -125,17 +137,15 @@ describe('generic-quotes', () => {
     expect(fetchGenericQuoteMock).toHaveBeenCalledWith(
       messenger,
       {
+        source: { chainId: 1, token: SOURCE_TOKEN_ADDRESS_MOCK },
+        target: { chainId: 2, token: TARGET_TOKEN_ADDRESS_MOCK },
         amount: QUOTE_REQUEST_MOCK.targetAmountMinimum,
-        destinationChainId: 2,
-        destinationToken: TARGET_TOKEN_ADDRESS_MOCK,
-        originChainId: 1,
-        originToken: SOURCE_TOKEN_ADDRESS_MOCK,
-        provider: GenericProviderName.Relay,
-        recipient: FROM_MOCK,
-        sender: FROM_MOCK,
-        slippageBps: 50,
-        supportsGasless: false,
         tradeType: GenericTradeType.ExpectedOutput,
+        sender: FROM_MOCK,
+        recipient: FROM_MOCK,
+        slippage: 50,
+        providers: [GenericProviderName.Relay],
+        supportsGasless: false,
       },
       undefined,
     );
@@ -307,7 +317,7 @@ describe('generic-quotes', () => {
     expect(fetchGenericQuoteMock).toHaveBeenCalledTimes(1);
     expect(fetchGenericQuoteMock).toHaveBeenCalledWith(
       messenger,
-      expect.objectContaining({ provider: GenericProviderName.Relay }),
+      expect.objectContaining({ providers: [GenericProviderName.Relay] }),
       undefined,
     );
   });
@@ -338,13 +348,13 @@ describe('generic-quotes', () => {
     expect(fetchGenericQuoteMock).toHaveBeenNthCalledWith(
       1,
       messenger,
-      expect.objectContaining({ provider: GenericProviderName.Relay }),
+      expect.objectContaining({ providers: [GenericProviderName.Relay] }),
       undefined,
     );
     expect(fetchGenericQuoteMock).toHaveBeenNthCalledWith(
       2,
       messenger,
-      expect.objectContaining({ provider: GenericProviderName.Across }),
+      expect.objectContaining({ providers: [GenericProviderName.Across] }),
       undefined,
     );
     expect(result[0].original.provider).toBe(GenericProviderName.Across);
@@ -352,7 +362,9 @@ describe('generic-quotes', () => {
 
   it('passes gasless through to the normalized quote', async () => {
     fetchGenericQuoteMock.mockResolvedValue({
-      results: [{ ...FULFILLED_RESULT_MOCK, gasless: true }],
+      results: [
+        { ...FULFILLED_RESULT_MOCK, quote: { ...FULFILLED_RESULT_MOCK.quote, gasless: true } },
+      ],
     });
 
     const result = await getGenericQuotes({
@@ -373,13 +385,15 @@ describe('generic-quotes', () => {
       transaction: TRANSACTION_META_MOCK,
     });
 
+    const { quote } = FULFILLED_RESULT_MOCK;
+
     expect(result).toStrictEqual([
       {
         dust: { fiat: '0', usd: '0' },
-        estimatedDuration: FULFILLED_RESULT_MOCK.duration,
+        estimatedDuration: quote.duration,
         fees: {
           metaMask: { fiat: '0', usd: '0' },
-          provider: { fiat: '0', usd: FULFILLED_RESULT_MOCK.providerFeeUsd },
+          provider: { fiat: '0', usd: quote.fees.provider },
           sourceNetwork: {
             estimate: { fiat: '0', human: '0', raw: '0', usd: '0' },
             max: { fiat: '0', human: '0', raw: '0', usd: '0' },
@@ -387,20 +401,20 @@ describe('generic-quotes', () => {
           targetNetwork: { fiat: '0', usd: '0' },
         },
         original: {
-          duration: FULFILLED_RESULT_MOCK.duration,
+          duration: quote.duration,
+          fees: quote.fees,
           gasless: true,
-          id: FULFILLED_RESULT_MOCK.id,
-          input: FULFILLED_RESULT_MOCK.input,
-          output: FULFILLED_RESULT_MOCK.output,
+          id: quote.id,
+          input: quote.input,
+          output: quote.output,
           provider: FULFILLED_RESULT_MOCK.provider,
-          providerFeeUsd: FULFILLED_RESULT_MOCK.providerFeeUsd,
-          steps: FULFILLED_RESULT_MOCK.steps,
+          steps: quote.steps,
         },
         request: QUOTE_REQUEST_MOCK,
         sourceAmount: {
           fiat: '0',
-          human: FULFILLED_RESULT_MOCK.input.formatted,
-          raw: FULFILLED_RESULT_MOCK.input.raw,
+          human: quote.input.formatted,
+          raw: quote.input.raw,
           usd: '0',
         },
         strategy: TransactionPayStrategy.Generic,
