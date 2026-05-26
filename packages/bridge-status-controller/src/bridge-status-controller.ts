@@ -12,8 +12,6 @@ import {
   getAccountHardwareType,
   UnifiedSwapBridgeEventName,
   isCrossChain,
-  isEvmTxData,
-  isHardwareWallet,
   MetricsActionType,
   MetaMetricsSwapsEventSource,
   PollingStatus,
@@ -83,8 +81,6 @@ import {
   getTransactions,
   checkIsDelegatedAccount,
   isCrossChainTx,
-  toQuoteAndTxMetadata,
-  getAddTransactionBatchParams,
 } from './utils/transaction';
 
 const metadata: StateMetadata<BridgeStatusControllerState> = {
@@ -953,108 +949,6 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
    *******************************************************
    */
 
-  readonly #handleApprovalTx = async (
-    quoteResponse: QuoteResponse<Trade, Trade> & QuoteMetadata,
-    isBridgeTx: boolean,
-    srcChainId: QuoteResponse['quote']['srcChainId'],
-    approval?: TxData | TronTradeData,
-    resetApproval?: TxData,
-    requireApproval?: boolean,
-  ): Promise<TransactionMeta | undefined> => {
-    if (approval && isEvmTxData(approval)) {
-      const approveTx = async (): Promise<TransactionMeta> => {
-        if (resetApproval) {
-          await submitEvmTransaction({
-            messenger: this.messenger,
-            transactionType: TransactionType.bridgeApproval,
-            trade: resetApproval,
-          });
-        }
-
-        const approvalTxMeta = await submitEvmTransaction({
-          messenger: this.messenger,
-          transactionType: isBridgeTx
-            ? TransactionType.bridgeApproval
-            : TransactionType.swapApproval,
-          trade: approval,
-          requireApproval,
-        });
-
-        await handleApprovalDelay(srcChainId);
-        return approvalTxMeta;
-      };
-
-      return await this.#trace(
-        getApprovalTraceParams(quoteResponse, false),
-        approveTx,
-      );
-    }
-
-    return undefined;
-  };
-
-  /**
-   * Submits batched EVM transactions to the TransactionController
-   *
-   * @param args - The parameters for the transaction
-   * @param args.isBridgeTx - Whether the transaction is a bridge transaction
-   * @param args.quoteResponse - The quote response containing the approval and trade data
-   * @param args.requireApproval - Whether to require approval for the transaction
-   * @param args.isDelegatedAccount - Whether the account is a delegated account
-   * @returns The approvalMeta and tradeMeta for the batched transaction
-   */
-  readonly #handleEvmTransactionBatch = async ({
-    requireApproval,
-    isDelegatedAccount,
-    isBridgeTx,
-    quoteResponse,
-  }: {
-    requireApproval: boolean;
-    isDelegatedAccount: boolean;
-    isBridgeTx: boolean;
-    quoteResponse: QuoteResponse<Trade, Trade> & QuoteMetadata;
-  }): Promise<{
-    approvalMeta?: TransactionMeta;
-    tradeMeta: TransactionMeta;
-  }> => {
-    const tradeData = toQuoteAndTxMetadata({
-      quoteResponse,
-      isBridgeTx,
-    });
-
-    const transactionParams = await getAddTransactionBatchParams({
-      tradeData,
-      requireApproval,
-      isDelegatedAccount,
-      messenger: this.messenger,
-      atomic: true,
-      disable7702:
-        // Enable 7702 batching when the quote includes gasless 7702 support,
-        quoteResponse.quote.gasIncluded7702
-          ? false
-          : // or when the account is already delegated (to avoid the in-flight transaction limit for delegated accounts)
-            !isDelegatedAccount ||
-            // For gasless transactions with STX/sendBundle we keep disabling 7702.
-            quoteResponse.quote.gasIncluded,
-      isGasFeeSponsored: Boolean(quoteResponse.quote.gasSponsored),
-      isGasFeeIncluded: Boolean(quoteResponse.quote.gasIncluded7702),
-    });
-
-    const { tradeMeta, approvalMeta } = await addTransactionBatch(
-      this.messenger,
-      this.#addTransactionBatchFn,
-      tradeData,
-      transactionParams,
-    );
-
-    if (!tradeMeta) {
-      throw new Error(
-        'Failed to update cross-chain swap transaction batch: tradeMeta not found',
-      );
-    }
-    return { tradeMeta, approvalMeta };
-  };
-
   readonly #executeSubmitStrategy = async (
     params: SubmitStrategyParams<Trade>,
     sharedHistoryItemProperties: {
@@ -1251,7 +1145,6 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
    * @param params.abTests - Legacy A/B test context for `ab_tests` (backward compatibility)
    * @param params.activeAbTests - New A/B test context for `active_ab_tests` (migration target). Attributes events to specific experiments.
    * @param params.tokenSecurityTypeDestination - The security classification of the destination token, supplied by the client (e.g. from token security/scanning data). Pass `null` when no security data is available.
-   * @param params.isStxEnabled - Whether smart transactions are enabled on the client, for example the getSmartTransactionsEnabled selector value from the extension
    * @param params.isStxEnabled - Whether smart transactions are enabled on the client, for example the getSmartTransactionsEnabled selector value from the extension
    * @param params.quotesReceivedContext - The context for the QuotesReceived event
    * @returns A lightweight TransactionMeta-like object for history linking

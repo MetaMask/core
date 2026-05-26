@@ -184,7 +184,6 @@ export const getPriceImpactFromQuote = (
  * @param quoteResponse - The quote response
  * @param isStxEnabled - Whether smart transactions are enabled on the client, for example the getSmartTransactionsEnabled selector value from the extension
  * @param accountHardwareType - The hardware wallet type used to submit the tx, or null if not a hardware wallet
- * @param isHardwareAccount
  * @param location - The entry point from which the user initiated the swap or bridge (e.g. Main View, Token View, Trending Explore)
  * @param abTests - Legacy A/B test context for `ab_tests` (backward compatibility)
  * @param activeAbTests - New A/B test context for `active_ab_tests` (migration target)

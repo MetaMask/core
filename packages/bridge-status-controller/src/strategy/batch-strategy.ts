@@ -1,9 +1,9 @@
 import { TxData } from '@metamask/bridge-controller';
-import { TransactionType } from '@metamask/transaction-controller';
 
 import {
   addTransactionBatch,
   getAddTransactionBatchParams,
+  toQuoteAndTxMetadata,
 } from '../utils/transaction';
 import { SubmitStep } from './types';
 import type { SubmitStrategyParams, SubmitStepResult } from './types';
@@ -26,50 +26,41 @@ export async function* submitBatchHandler(
     isDelegatedAccount,
   } = args;
 
-  const tradeData: Parameters<
-    typeof getAddTransactionBatchParams
-  >[0]['tradeData'] = [];
-
-  const approvalTxType = isBridgeTx
-    ? TransactionType.bridgeApproval
-    : TransactionType.swapApproval;
-
-  if (quoteResponse.resetApproval) {
-    tradeData.push({
-      tx: quoteResponse.resetApproval,
-      type: approvalTxType,
-    });
-  }
-  if (quoteResponse.approval) {
-    tradeData.push({
-      tx: quoteResponse.approval,
-      type: approvalTxType,
-    });
-  }
-  if (quoteResponse.trade) {
-    tradeData.push({
-      tx: quoteResponse.trade,
-      type: isBridgeTx ? TransactionType.bridge : TransactionType.swap,
-      assetsFiatValues: {
-        sending: quoteResponse.sentAmount?.valueInCurrency?.toString(),
-        receiving: quoteResponse.toTokenAmount?.valueInCurrency?.toString(),
-      },
-    });
-  }
+  const tradeData = toQuoteAndTxMetadata({
+    quoteResponse,
+    isBridgeTx,
+  });
 
   const transactionParams = await getAddTransactionBatchParams({
-    messenger,
     tradeData,
-    quote: quoteResponse.quote,
     requireApproval,
     isDelegatedAccount,
+    messenger,
+    atomic: true,
+    disable7702:
+      // Enable 7702 batching when the quote includes gasless 7702 support,
+      quoteResponse.quote.gasIncluded7702
+        ? false
+        : // or when the account is already delegated (to avoid the in-flight transaction limit for delegated accounts)
+          !isDelegatedAccount ||
+          // For gasless transactions with STX/sendBundle we keep disabling 7702.
+          quoteResponse.quote.gasIncluded,
+    isGasFeeSponsored: Boolean(quoteResponse.quote.gasSponsored),
+    isGasFeeIncluded: Boolean(quoteResponse.quote.gasIncluded7702),
   });
 
   const { approvalMeta, tradeMeta } = await addTransactionBatch(
     messenger,
     addTransactionBatchFn,
+    tradeData,
     transactionParams,
   );
+
+  if (!tradeMeta) {
+    throw new Error(
+      'Failed to update cross-chain swap transaction batch: tradeMeta not found',
+    );
+  }
 
   yield {
     type: SubmitStep.SetTradeMeta,
