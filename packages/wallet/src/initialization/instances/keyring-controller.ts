@@ -124,7 +124,7 @@ const isVaultUpdatedFactory =
  * @param iterations - The number of iterations to use for the PBKDF2 algorithm.
  * @returns An encryptor set with the given number of iterations.
  */
-const encryptorFactory = (iterations: number): Encryptor => ({
+export const encryptorFactory = (iterations: number): Encryptor => ({
   encrypt: encryptFactory(iterations),
   encryptWithKey,
   encryptWithDetail: encryptWithDetailFactory(iterations),
