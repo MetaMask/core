@@ -90,7 +90,3 @@ Each script outputs structured JSON to stdout:
 ```
 
 Exit code 0 = pass, non-zero = fail. Diagnostic logs go to stderr.
-
-## Farmslot Integration
-
-These scripts are wrapped by recipes in `projects/core-farm/fixtures/agentic/recipes/` and executed via the headless recipe runner (`validate-recipe.js`). The runner captures stdout as log artifacts per the Recipe Runner Protocol.
