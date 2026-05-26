@@ -81,8 +81,6 @@ import {
   getTransactions,
   checkIsDelegatedAccount,
   isCrossChainTx,
-  toQuoteAndTxMetadata,
-  getAddTransactionBatchParams,
 } from './utils/transaction';
 
 const metadata: StateMetadata<BridgeStatusControllerState> = {
