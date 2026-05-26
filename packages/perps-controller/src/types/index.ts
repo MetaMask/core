@@ -840,6 +840,7 @@ export type GetMarketsParams = {
 export type GetMarketDataWithPricesParams = {
   standalone?: boolean; // Lightweight mode: see GetMarketsParams.standalone
   categories?: MarketTypeFilter[]; // Filter to markets matching any of these categories; omit for all markets
+  excludeSymbols?: string[]; // Symbols to exclude from results (e.g. the currently viewed market)
   sortBy?: SortField; // Sort results by this field
   direction?: SortDirection; // Sort direction (default: desc)
   limit?: number; // Maximum number of results to return
@@ -1358,6 +1359,7 @@ export type PerpsTraceName =
   | 'Perps Get Account State'
   | 'Perps Get Historical Portfolio'
   | 'Perps Get Markets'
+  | 'Perps Get Market Data With Prices'
   | 'Perps Fetch Historical Candles'
   | 'Perps WebSocket Connected'
   | 'Perps WebSocket Disconnected'
@@ -1395,6 +1397,7 @@ export const PerpsTraceNames = {
   GetPositions: 'Perps Get Positions',
   GetAccountState: 'Perps Get Account State',
   GetMarkets: 'Perps Get Markets',
+  GetMarketDataWithPrices: 'Perps Get Market Data With Prices',
   OrderFillsFetch: 'Perps Order Fills Fetch',
   OrdersFetch: 'Perps Orders Fetch',
   FundingFetch: 'Perps Funding Fetch',

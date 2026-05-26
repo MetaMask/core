@@ -828,7 +828,7 @@ export class MarketDataService {
 
     try {
       this.#deps.tracer.trace({
-        name: PerpsTraceNames.GetMarkets,
+        name: PerpsTraceNames.GetMarketDataWithPrices,
         id: traceId,
         op: PerpsTraceOperations.Operation,
         tags: {
@@ -877,7 +877,7 @@ export class MarketDataService {
       throw error;
     } finally {
       this.#deps.tracer.endTrace({
-        name: PerpsTraceNames.GetMarkets,
+        name: PerpsTraceNames.GetMarketDataWithPrices,
         id: traceId,
         data: traceData,
       });
@@ -1283,7 +1283,9 @@ export function matchesCategory(
       return market.isNewMarket === true;
     case 'crypto':
       // Includes non-HIP3 markets AND HIP-3 assets explicitly typed as CryptoCurrency.
-      return !market.isHip3 || market.marketType === MarketCategory.CryptoCurrency;
+      return (
+        !market.isHip3 || market.marketType === MarketCategory.CryptoCurrency
+      );
     case 'stocks':
       return market.marketType === MarketCategory.Stock;
     case 'pre-ipo':
@@ -1320,6 +1322,11 @@ export function applyMarketFilters(
       // A market is included if it matches ANY of the requested categories.
       categories.some((category) => matchesCategory(market, category)),
     );
+  }
+
+  if (params?.excludeSymbols?.length) {
+    const excluded = new Set(params.excludeSymbols);
+    result = result.filter((market) => !excluded.has(market.symbol));
   }
 
   if (params?.sortBy) {

@@ -11,8 +11,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Add `MarketCategory` enum, `MARKET_CATEGORIES` ordered array (7 data-model category pills), and `getMarketCategories` messenger action ([#8892](https://github.com/MetaMask/core/pull/8892))
 - Expand `HIP3_ASSET_MARKET_TYPES` with new stock, ETF, pre-IPO, forex, and commodity markets ([#8892](https://github.com/MetaMask/core/pull/8892))
-- Add `categories`, `sortBy`, `direction`, and `limit` optional params to `GetMarketsParams` and `getMarketDataWithPrices()` for post-processing filtering, sorting, and pagination of market data ([#8892](https://github.com/MetaMask/core/pull/8892))
-- Export `SortField` and `SortDirection` types from the package root ([#8892](https://github.com/MetaMask/core/pull/8892))
+- Add `categories`, `sortBy`, `direction`, `limit`, and `excludeSymbols` optional params to `GetMarketDataWithPricesParams` and `getMarketDataWithPrices()` for post-processing filtering, sorting, and pagination of market data ([#8892](https://github.com/MetaMask/core/pull/8892))
+- Export `SortField`, `SortDirection`, and `GetMarketDataWithPricesParams` types from the package root ([#8892](https://github.com/MetaMask/core/pull/8892))
 
 ### Changed
 

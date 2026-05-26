@@ -325,6 +325,66 @@ describe('PerpsController — market categories & filtering', () => {
   });
 
   // ============================================================================
+  // getMarketDataWithPrices — excludeSymbols
+  // ============================================================================
+
+  describe('getMarketDataWithPrices — excludeSymbols', () => {
+    it('excludes a single symbol from results', async () => {
+      const markets = [
+        buildMarket({ symbol: 'BTC' }),
+        buildMarket({ symbol: 'ETH' }),
+        buildMarket({ symbol: 'SOL' }),
+      ];
+      mockProvider.getMarketDataWithPrices.mockResolvedValue(markets);
+
+      const result = await controller.getMarketDataWithPrices({
+        excludeSymbols: ['ETH'],
+      });
+
+      expect(result.map((m) => m.symbol)).toStrictEqual(['BTC', 'SOL']);
+    });
+
+    it('excludes multiple symbols from results', async () => {
+      const markets = [
+        buildMarket({ symbol: 'BTC' }),
+        buildMarket({ symbol: 'ETH' }),
+        buildMarket({ symbol: 'SOL' }),
+        buildMarket({ symbol: 'AVAX' }),
+      ];
+      mockProvider.getMarketDataWithPrices.mockResolvedValue(markets);
+
+      const result = await controller.getMarketDataWithPrices({
+        excludeSymbols: ['ETH', 'SOL'],
+      });
+
+      expect(result.map((m) => m.symbol)).toStrictEqual(['BTC', 'AVAX']);
+    });
+
+    it('applies excludeSymbols after category filter and before limit', async () => {
+      const markets = [
+        buildMarket({ symbol: 'BTC', isHip3: false }),
+        buildMarket({ symbol: 'ETH', isHip3: false }),
+        buildMarket({ symbol: 'SOL', isHip3: false }),
+        buildMarket({
+          symbol: 'xyz:TSLA',
+          isHip3: true,
+          marketType: MarketCategory.Stock,
+        }),
+      ];
+      mockProvider.getMarketDataWithPrices.mockResolvedValue(markets);
+
+      const result = await controller.getMarketDataWithPrices({
+        categories: ['crypto'],
+        excludeSymbols: ['ETH'],
+        limit: 10,
+      });
+
+      // Stock excluded by category, ETH excluded by excludeSymbols
+      expect(result.map((m) => m.symbol)).toStrictEqual(['BTC', 'SOL']);
+    });
+  });
+
+  // ============================================================================
   // getMarketDataWithPrices — sorting
   // ============================================================================
 
