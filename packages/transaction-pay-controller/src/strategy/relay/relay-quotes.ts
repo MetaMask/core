@@ -2,10 +2,7 @@
 
 import { Interface } from '@ethersproject/abi';
 import { toHex } from '@metamask/controller-utils';
-import type {
-  TransactionMeta,
-  TransactionParams,
-} from '@metamask/transaction-controller';
+import type { TransactionMeta } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 import { createModuleLogger } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
@@ -259,11 +256,27 @@ async function getSingleQuote(
       await applyPolymarketDepositWalletOverrides(body, request, messenger);
     }
 
-    // Skip transaction processing for post-quote flows - the original transaction
-    // will be included in the batch separately, not as part of the quote.
-    // Skip for Polymarket deposit wallet flows - the source is already a
-    // bridged token transfer, not a contract call to embed.
-    if (!request.isPostQuote && !request.isPolymarketDepositWallet) {
+    // When paymentOverride is defined, fetch the override transactions and
+    // include them in the Relay request body so Relay executes them
+    // atomically alongside the bridge.
+    if (request.paymentOverride) {
+      const overrideTxs = await messenger.call(
+        'TransactionPayController:getPaymentOverrideData',
+        transaction.id,
+      );
+
+      if (overrideTxs.length) {
+        body.txs = overrideTxs.map((tx) => ({
+          to: (tx.to as string) ?? '',
+          data: (tx.data as string) ?? '0x',
+          value: (tx.value as string) ?? '0x0',
+        }));
+      }
+    } else if (!request.isPostQuote && !request.isPolymarketDepositWallet) {
+      // Skip transaction processing for post-quote flows - the original transaction
+      // will be included in the batch separately, not as part of the quote.
+      // Skip for Polymarket deposit wallet flows - the source is already a
+      // bridged token transfer, not a contract call to embed.
       await processTransactions(transaction, request, body, messenger);
     } else if (request.refundTo) {
       // For post-quote flows, honour the caller-specified refund address so that
@@ -278,11 +291,7 @@ async function getSingleQuote(
 
     log('Fetched relay quote', quote);
 
-    const quoteWithDeposits = request.paymentOverride
-      ? await injectPaymentOverrideSteps(quote, request, fullRequest)
-      : quote;
-
-    return await normalizeQuote(quoteWithDeposits, request, fullRequest);
+    return await normalizeQuote(quote, request, fullRequest);
   } catch (error) {
     log('Error fetching relay quote', error);
     throw error;
@@ -1022,92 +1031,7 @@ function getSubsidizedFeeAmountUsd(quote: RelayQuote): BigNumber {
   return isSubsidizedStablecoin ? amountFormatted : amountUsd;
 }
 
-/**
- * Fetches transactions from the paymentOverride callback and injects
- * them into the relay quote's steps so they are submitted alongside the relay
- * transactions and included in gas estimation.
- *
- * For standard flows (`isPostQuote` false) the step is prepended so it
- * executes before the relay bridge transaction.  For post-quote flows it is
- * appended so it executes after.
- *
- * @param quote - Relay quote to mutate in place.
- * @param request - Quote request, used to determine ordering and chain ID.
- * @param fullRequest - Full quotes request, provides messenger and transaction ID.
- * @returns The relay quote with paymentOverride steps injected, or the original quote if the callback returns no transactions.
- */
-async function injectPaymentOverrideSteps(
-  quote: RelayQuote,
-  request: QuoteRequest,
-  fullRequest: PayStrategyGetQuotesRequest,
-): Promise<RelayQuote> {
-  const { messenger, transaction } = fullRequest;
 
-  const overrideTxs = await messenger.call(
-    'TransactionPayController:getPaymentOverrideData',
-    transaction.id,
-  );
-
-  if (!overrideTxs.length) {
-    return quote;
-  }
-
-  const overrideStep = buildPaymentOverrideStep(
-    overrideTxs,
-    request.sourceChainId,
-  );
-
-  const steps = request.isPostQuote
-    ? [...quote.steps, overrideStep]
-    : [overrideStep, ...quote.steps];
-
-  log('Injected paymentOverride step', {
-    transactionId: transaction.id,
-    isPostQuote: request.isPostQuote,
-    txCount: overrideTxs.length,
-  });
-
-  return { ...quote, steps };
-}
-
-/**
- * Converts an array of TransactionParams into a single RelayTransactionStep
- * so they can be injected into a relay quote's steps array.
- *
- * Each transaction's `chainId` is used when present; `sourceChainId` is the
- * fallback for transactions that do not specify one.
- *
- * @param txParams - Transactions from the paymentOverride callback.
- * @param sourceChainId - Fallback hex chain ID used when a transaction omits its own.
- * @returns A relay transaction step wrapping the paymentOverride transactions.
- */
-function buildPaymentOverrideStep(
-  txParams: TransactionParams[],
-  sourceChainId: Hex,
-): RelayTransactionStep {
-  const fallbackChainId = parseInt(sourceChainId, 16);
-
-  return {
-    id: 'payment-override',
-    kind: 'transaction',
-    requestId: 'payment-override',
-    items: txParams.map((params) => ({
-      check: { endpoint: '', method: 'GET' as const },
-      status: 'incomplete' as const,
-      data: {
-        chainId: params.chainId
-          ? parseInt(params.chainId, 16)
-          : fallbackChainId,
-        data: (params.data as Hex) ?? '0x',
-        from: params.from as Hex,
-        maxFeePerGas: params.maxFeePerGas as string,
-        maxPriorityFeePerGas: params.maxPriorityFeePerGas as string,
-        to: params.to as Hex,
-        value: params.value,
-      },
-    })),
-  };
-}
 
 function isStablecoin(chainId: string, tokenAddress: string): boolean {
   return Boolean(

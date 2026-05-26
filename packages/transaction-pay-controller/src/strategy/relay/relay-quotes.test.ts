@@ -3377,14 +3377,11 @@ describe('Relay Quotes Utils', () => {
       });
     });
 
-    describe('paymentOverride step injection (paymentOverride defined)', () => {
+    describe('paymentOverride via body.txs (paymentOverride defined)', () => {
       const PAYMENT_OVERRIDE_TX_MOCK = {
-        from: FROM_MOCK,
         to: '0xpaymentoverride' as Hex,
         data: '0xpaymentoverride' as Hex,
         value: '0x0',
-        maxFeePerGas: '1000000000',
-        maxPriorityFeePerGas: '2000000000',
       };
 
       beforeEach(() => {
@@ -3399,12 +3396,12 @@ describe('Relay Quotes Utils', () => {
         });
       });
 
-      it('prepends paymentOverride step before relay steps for standard (non-post-quote) flow', async () => {
+      it('includes override txs in the relay request body.txs', async () => {
         getPaymentOverrideDataMock.mockResolvedValue([
           PAYMENT_OVERRIDE_TX_MOCK,
         ]);
 
-        const [quote] = await getRelayQuotes({
+        await getRelayQuotes({
           accountSupports7702: true,
           messenger,
           requests: [
@@ -3416,57 +3413,34 @@ describe('Relay Quotes Utils', () => {
           transaction: TRANSACTION_META_MOCK,
         });
 
-        const txSteps = quote.original.steps.filter(
-          (step): step is RelayTransactionStep => step.kind === 'transaction',
+        const body = JSON.parse(
+          successfulFetchMock.mock.calls[0][1]?.body as string,
         );
-        expect(txSteps[0].id).toBe('payment-override');
-        expect(txSteps[0].items[0].data.to).toBe(PAYMENT_OVERRIDE_TX_MOCK.to);
-        expect(txSteps[1].id).toBe(STEP_MOCK.id);
-      });
 
-      it('appends paymentOverride step after relay steps for post-quote flow', async () => {
-        getPaymentOverrideDataMock.mockResolvedValue([
-          PAYMENT_OVERRIDE_TX_MOCK,
+        expect(body.txs).toStrictEqual([
+          {
+            to: PAYMENT_OVERRIDE_TX_MOCK.to,
+            data: PAYMENT_OVERRIDE_TX_MOCK.data,
+            value: PAYMENT_OVERRIDE_TX_MOCK.value,
+          },
         ]);
-
-        const [quote] = await getRelayQuotes({
-          accountSupports7702: true,
-          messenger,
-          requests: [
-            {
-              ...QUOTE_REQUEST_MOCK,
-              paymentOverride: PaymentOverride.MoneyAccount,
-              isPostQuote: true,
-            },
-          ],
-          transaction: TRANSACTION_META_MOCK,
-        });
-
-        const txSteps = quote.original.steps.filter(
-          (step): step is RelayTransactionStep => step.kind === 'transaction',
-        );
-        expect(txSteps[0].id).toBe(STEP_MOCK.id);
-        expect(txSteps[1].id).toBe('payment-override');
       });
 
-      it('does not inject when paymentOverride is not defined', async () => {
-        const [quote] = await getRelayQuotes({
+      it('does not call getPaymentOverrideData when paymentOverride is not defined', async () => {
+        await getRelayQuotes({
           accountSupports7702: true,
           messenger,
           requests: [QUOTE_REQUEST_MOCK],
           transaction: TRANSACTION_META_MOCK,
         });
 
-        expect(
-          quote.original.steps.every((step) => step.id !== 'payment-override'),
-        ).toBe(true);
         expect(getPaymentOverrideDataMock).not.toHaveBeenCalled();
       });
 
-      it('does not inject when callback returns empty array', async () => {
+      it('does not set body.txs when callback returns empty array', async () => {
         getPaymentOverrideDataMock.mockResolvedValue([]);
 
-        const [quote] = await getRelayQuotes({
+        await getRelayQuotes({
           accountSupports7702: true,
           messenger,
           requests: [
@@ -3478,38 +3452,18 @@ describe('Relay Quotes Utils', () => {
           transaction: TRANSACTION_META_MOCK,
         });
 
-        expect(quote.original.steps).toHaveLength(1);
-        expect(quote.original.steps[0].id).toBe(STEP_MOCK.id);
-      });
+        const body = JSON.parse(
+          successfulFetchMock.mock.calls[0][1]?.body as string,
+        );
 
-      it('uses the transaction chainId when present', async () => {
-        getPaymentOverrideDataMock.mockResolvedValue([
-          { ...PAYMENT_OVERRIDE_TX_MOCK, chainId: '0xa' },
-        ]);
-
-        const [quote] = await getRelayQuotes({
-          accountSupports7702: true,
-          messenger,
-          requests: [
-            {
-              ...QUOTE_REQUEST_MOCK,
-              paymentOverride: PaymentOverride.MoneyAccount,
-            },
-          ],
-          transaction: TRANSACTION_META_MOCK,
-        });
-
-        const overrideStep = quote.original.steps.find(
-          (step) => step.id === 'payment-override',
-        ) as RelayTransactionStep;
-        expect(overrideStep.items[0].data.chainId).toBe(10);
+        expect(body.txs).toBeUndefined();
       });
 
       it('defaults data to 0x when transaction data is absent', async () => {
         const { data: _data, ...txWithoutData } = PAYMENT_OVERRIDE_TX_MOCK;
         getPaymentOverrideDataMock.mockResolvedValue([txWithoutData]);
 
-        const [quote] = await getRelayQuotes({
+        await getRelayQuotes({
           accountSupports7702: true,
           messenger,
           requests: [
@@ -3521,18 +3475,19 @@ describe('Relay Quotes Utils', () => {
           transaction: TRANSACTION_META_MOCK,
         });
 
-        const overrideStep = quote.original.steps.find(
-          (step) => step.id === 'payment-override',
-        ) as RelayTransactionStep;
-        expect(overrideStep.items[0].data.data).toBe('0x');
+        const body = JSON.parse(
+          successfulFetchMock.mock.calls[0][1]?.body as string,
+        );
+
+        expect(body.txs[0].data).toBe('0x');
       });
 
-      it('falls back to sourceChainId when transaction chainId is absent', async () => {
+      it('skips processTransactions when paymentOverride is defined', async () => {
         getPaymentOverrideDataMock.mockResolvedValue([
           PAYMENT_OVERRIDE_TX_MOCK,
         ]);
 
-        const [quote] = await getRelayQuotes({
+        await getRelayQuotes({
           accountSupports7702: true,
           messenger,
           requests: [
@@ -3541,14 +3496,13 @@ describe('Relay Quotes Utils', () => {
               paymentOverride: PaymentOverride.MoneyAccount,
             },
           ],
-          transaction: TRANSACTION_META_MOCK,
+          transaction: {
+            ...TRANSACTION_META_MOCK,
+            txParams: { data: '0xabc' as Hex },
+          } as TransactionMeta,
         });
 
-        const overrideStep = quote.original.steps.find(
-          (step) => step.id === 'payment-override',
-        ) as RelayTransactionStep;
-        // QUOTE_REQUEST_MOCK.sourceChainId is '0x1' → chainId 1
-        expect(overrideStep.items[0].data.chainId).toBe(1);
+        expect(getDelegationTransactionMock).not.toHaveBeenCalled();
       });
     });
 
