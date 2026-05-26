@@ -1,8 +1,8 @@
 {
-  "lastSyncedMobileCommit": "35953448cf3c32b2867de8fe0599a356925913ef",
-  "lastSyncedMobileBranch": "main",
-  "lastSyncedCoreCommit": "3e549deb97d362c6798a0062dd8b01ac481615c4",
-  "lastSyncedCoreBranch": "main",
-  "lastSyncedDate": "2026-05-13T21:35:30Z",
-  "sourceChecksum": "79a9acc7ad058802b357c6f54774799229b44e9418e802f2f7958e345e16cf59"
+  "lastSyncedMobileCommit": "cc154d351581605282f5a70f8749565956d42b36",
+  "lastSyncedMobileBranch": "TAT-3187-perps-controller-removal",
+  "lastSyncedCoreCommit": "fbe58b4cca248101d12df709c0092cd87f15956f",
+  "lastSyncedCoreBranch": "feat/perps/controller-in-core",
+  "lastSyncedDate": "2026-05-21T08:44:09Z",
+  "sourceChecksum": "b05070da67baeb718f1e926ad167863c47efb5240b19e3ac99c31766070d0f91"
 }
