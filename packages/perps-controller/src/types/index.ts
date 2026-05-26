@@ -831,7 +831,7 @@ export type GetMarketsParams = {
   skipFilters?: boolean; // Skip market filtering (both allowlist and blocklist, default: false). When true, returns all markets without filtering.
   standalone?: boolean; // Lightweight mode: skip full initialization, only fetch market metadata (no wallet/WebSocket needed). Only main DEX markets returned. Use for discovery use cases like checking if a perps market exists.
   // Category / sort / pagination (applied as post-processing in PerpsController):
-  categories?: (MarketTypeFilter | 'watchlist')[]; // Filter to markets in any of these categories; omit for all markets
+  categories?: MarketTypeFilter[]; // Filter to markets in any of these categories; omit for all markets
   sortBy?: SortField; // Sort results by this field
   direction?: SortDirection; // Sort direction (default: desc)
   limit?: number; // Maximum number of results to return

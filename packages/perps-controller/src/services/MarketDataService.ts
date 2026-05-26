@@ -1276,7 +1276,7 @@ export class MarketDataService {
  */
 export function matchesCategory(
   market: PerpsMarketData,
-  category: MarketTypeFilter | 'watchlist',
+  category: MarketTypeFilter,
 ): boolean {
   switch (category) {
     case 'all':
@@ -1284,7 +1284,8 @@ export function matchesCategory(
     case 'new':
       return market.isNewMarket === true;
     case 'crypto':
-      return !market.isHip3;
+      // Includes non-HIP3 markets AND HIP-3 assets explicitly typed as CryptoCurrency.
+      return !market.isHip3 || market.marketType === MarketCategory.CryptoCurrency;
     case 'stocks':
       return market.marketType === MarketCategory.Stock;
     case 'pre-ipo':
@@ -1297,9 +1298,6 @@ export function matchesCategory(
       return market.marketType === MarketCategory.Commodity;
     case 'forex':
       return market.marketType === MarketCategory.Forex;
-    case 'watchlist':
-      // Watchlist state lives in the calling client; always false here.
-      return false;
     default:
       return true;
   }

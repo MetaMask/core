@@ -183,10 +183,15 @@ describe('PerpsController — market categories & filtering', () => {
       expect(result).toHaveLength(2);
     });
 
-    it('filters to only crypto (non-HIP3) markets when categories is ["crypto"]', async () => {
+    it('filters to only crypto markets when categories is ["crypto"]', async () => {
       const markets = [
         buildMarket({ symbol: 'BTC', isHip3: false }),
         buildMarket({ symbol: 'ETH', isHip3: false }),
+        buildMarket({
+          symbol: 'xyz:CRYPTO1',
+          isHip3: true,
+          marketType: MarketCategory.CryptoCurrency,
+        }),
         buildMarket({
           symbol: 'xyz:TSLA',
           isHip3: true,
@@ -199,8 +204,13 @@ describe('PerpsController — market categories & filtering', () => {
         categories: ['crypto'],
       });
 
-      expect(result).toHaveLength(2);
-      expect(result.every((m) => !m.isHip3)).toBe(true);
+      // Non-HIP3 markets + HIP-3 assets explicitly typed CryptoCurrency; excludes Stock
+      expect(result).toHaveLength(3);
+      const symbols = result.map((m) => m.symbol);
+      expect(symbols).toContain('BTC');
+      expect(symbols).toContain('ETH');
+      expect(symbols).toContain('xyz:CRYPTO1');
+      expect(symbols).not.toContain('xyz:TSLA');
     });
 
     it('filters to only stock markets when categories is ["stocks"]', async () => {
