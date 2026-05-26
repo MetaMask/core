@@ -51,6 +51,10 @@ export const rekeyHistoryItemInState = (
   return true;
 };
 
+export const isBatchSellHistoryItem = (
+  historyItem: BridgeHistoryItem,
+): boolean => Boolean(historyItem?.batchSellData);
+
 /**
  * Returns the history entry that matches the txMeta by id, actionId, batchId, or txHash
  *
@@ -100,6 +104,37 @@ export const getMatchingHistoryEntryForApprovalTxMeta = (
   return historyEntries.find(([_, value]) =>
     value.approvalTxId ? value.approvalTxId === txMeta.id : false,
   );
+};
+
+/**
+ * Returns the BatchSell history items for a given tx hash or batchId.
+ *
+ * @param txHashOrBatchId - The tx hash of the STX transaction or the delegation tx for a 7702 batch, or the batchId
+ * @param txHistory - The bridge status controller's history to search for matching history items
+ * @returns The matching history items for the tx hash and a boolean indicating if it's a 7702 batch
+ */
+export const getHistoryItemsForTxHash = (
+  txHashOrBatchId: string,
+  txHistory: BridgeStatusControllerState['txHistory'],
+): { historyItems: BridgeHistoryItem[]; is7702Batch: boolean } => {
+  const historyItems = Object.values(txHistory);
+
+  /**
+   * Either a delegation tx or a list of STX BatchSell trades
+   */
+  const matchingHistoryItems = historyItems.filter(
+    ({ status }) =>
+      status.srcChain.txHash?.toLowerCase() === txHashOrBatchId.toLowerCase(),
+  );
+  const [historyItem] = matchingHistoryItems;
+
+  return {
+    historyItems: (historyItem?.quoteIds?.length
+      ? historyItem.quoteIds.map((quoteId) => txHistory[quoteId])
+      : matchingHistoryItems
+    )?.filter((item) => item !== undefined),
+    is7702Batch: Boolean(historyItem?.quoteIds),
+  };
 };
 
 /**
