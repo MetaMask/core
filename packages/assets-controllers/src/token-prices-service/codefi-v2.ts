@@ -320,6 +320,7 @@ export const SPOT_PRICES_SUPPORT_INFO = {
   '0x518af': 'eip155:333999/slip44:1997', // Polis Mainnet - Native symbol: POLIS
   '0x82750': 'eip155:534352/slip44:60', // Scroll Mainnet - Native symbol: ETH
   '0xb67d2': 'eip155:747474/erc20:0x0000000000000000000000000000000000000000', // katana - Native symbol: ETH
+  '0xf043a': 'eip155:984122/erc20:0x0000000000000000000000000000000000000000', // Forma - Native symbol: TIA (Celestia)
   '0x15f900': 'eip155:1440000/erc20:0x0000000000000000000000000000000000000000', // xrpl-evm - native symbol: XRP
   '0x4e454152': 'eip155:1313161554/slip44:60', // Aurora Mainnet (Ethereum L2 on NEAR) - Native symbol: ETH
   '0x63564c40': 'eip155:1666600000/slip44:1023', // Harmony Mainnet Shard 0 - Native symbol: ONE
