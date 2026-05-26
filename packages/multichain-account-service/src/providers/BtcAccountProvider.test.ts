@@ -1,6 +1,10 @@
 import { isBip44Account } from '@metamask/account-api';
 import type { SnapKeyring } from '@metamask/eth-snap-keyring';
-import { AccountCreationType, BtcAccountType } from '@metamask/keyring-api';
+import {
+  AccountCreationType,
+  BtcAccountType,
+  BtcScope,
+} from '@metamask/keyring-api';
 import type { KeyringMetadata } from '@metamask/keyring-controller';
 import type {
   EthKeyring,
@@ -52,6 +56,8 @@ class MockBtcKeyring {
   constructor(accounts: InternalAccount[]) {
     this.accounts = accounts;
   }
+
+  removeAccount = jest.fn().mockResolvedValue(undefined);
 
   #getIndexFromDerivationPath(derivationPath: string): number {
     // eslint-disable-next-line prefer-regex-literals
@@ -289,6 +295,14 @@ describe('BtcAccountProvider', () => {
 
   it('returns true if an account is compatible', () => {
     const account = MOCK_BTC_P2WPKH_ACCOUNT_1;
+    const { provider } = setup({
+      accounts: [account],
+    });
+    expect(provider.isAccountCompatible(account)).toBe(true);
+  });
+
+  it('returns true if a P2TR account is compatible', () => {
+    const account = MOCK_BTC_P2TR_ACCOUNT_1;
     const { provider } = setup({
       accounts: [account],
     });
@@ -661,6 +675,32 @@ describe('BtcAccountProvider', () => {
     ).toStrictEqual([]);
   });
 
+  it('discovers accounts across all advertised scopes', async () => {
+    const { provider, mocks } = setup({
+      accounts: [],
+    });
+
+    mocks.handleRequest.mockReturnValue([MOCK_BTC_P2TR_DISCOVERED_ACCOUNT_1]);
+
+    await provider.discoverAccounts({
+      entropySource: MOCK_HD_KEYRING_1.metadata.id,
+      groupIndex: 0,
+    });
+
+    // Verify discoverAccounts was called with all three scopes matching
+    // the provider's advertised capabilities.
+    expect(mocks.handleRequest).toHaveBeenCalledWith(
+      expect.objectContaining({
+        request: expect.objectContaining({
+          method: 'keyring_discoverAccounts',
+          params: expect.objectContaining({
+            scopes: [BtcScope.Mainnet, BtcScope.Testnet, BtcScope.Testnet4],
+          }),
+        }),
+      }),
+    );
+  });
+
   describe('trace functionality', () => {
     it('calls trace callback during account discovery', async () => {
       const { provider, mocks } = setup({
@@ -739,6 +779,155 @@ describe('BtcAccountProvider', () => {
       ).rejects.toThrow(mockError);
 
       expect(mocks.trace).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('resyncAccounts', () => {
+    it('re-creates a P2TR account preserving the address type', async () => {
+      const account = {
+        ...MOCK_BTC_P2TR_ACCOUNT_1,
+        metadata: {
+          ...MOCK_BTC_P2TR_ACCOUNT_1.metadata,
+          snap: {
+            ...MOCK_BTC_P2TR_ACCOUNT_1.metadata.snap,
+            id: BtcAccountProvider.BTC_SNAP_ID,
+          },
+        },
+      };
+      const { provider, mocks } = setup({
+        accounts: [account],
+      });
+
+      // Snap reports no accounts — triggers the re-creation path.
+      mocks.handleRequest.mockReturnValue([]);
+
+      await provider.resyncAccounts([account]);
+
+      expect(mocks.keyring.createAccount).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.objectContaining({
+          addressType: BtcAccountType.P2tr,
+          scope: BtcScope.Testnet,
+        }),
+        expect.anything(),
+      );
+    });
+
+    it('re-creates a testnet4 account preserving the scope', async () => {
+      const account = {
+        ...MOCK_BTC_P2WPKH_ACCOUNT_1,
+        scopes: [BtcScope.Testnet4],
+        metadata: {
+          ...MOCK_BTC_P2WPKH_ACCOUNT_1.metadata,
+          snap: {
+            ...MOCK_BTC_P2WPKH_ACCOUNT_1.metadata.snap,
+            id: BtcAccountProvider.BTC_SNAP_ID,
+          },
+        },
+      };
+      const { provider, mocks } = setup({
+        accounts: [account],
+      });
+
+      mocks.handleRequest.mockReturnValue([]);
+
+      await provider.resyncAccounts([account]);
+
+      expect(mocks.keyring.createAccount).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.objectContaining({
+          addressType: BtcAccountType.P2wpkh,
+          scope: BtcScope.Testnet4,
+        }),
+        expect.anything(),
+      );
+    });
+
+    it('does not alter a P2WPKH mainnet account during resync', async () => {
+      const account = {
+        ...MOCK_BTC_P2WPKH_ACCOUNT_1,
+        metadata: {
+          ...MOCK_BTC_P2WPKH_ACCOUNT_1.metadata,
+          snap: {
+            ...MOCK_BTC_P2WPKH_ACCOUNT_1.metadata.snap,
+            id: BtcAccountProvider.BTC_SNAP_ID,
+          },
+        },
+      };
+      const { provider, mocks } = setup({
+        accounts: [account],
+      });
+
+      mocks.handleRequest.mockReturnValue([]);
+
+      await provider.resyncAccounts([account]);
+
+      expect(mocks.keyring.createAccount).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.objectContaining({
+          addressType: BtcAccountType.P2wpkh,
+          scope: BtcScope.Mainnet,
+        }),
+        expect.anything(),
+      );
+    });
+
+    it('reports error when account has no scopes during resync', async () => {
+      const account = {
+        ...MOCK_BTC_P2WPKH_ACCOUNT_1,
+        scopes: [] as string[],
+        metadata: {
+          ...MOCK_BTC_P2WPKH_ACCOUNT_1.metadata,
+          snap: {
+            ...MOCK_BTC_P2WPKH_ACCOUNT_1.metadata.snap,
+            id: BtcAccountProvider.BTC_SNAP_ID,
+          },
+        },
+      };
+      const { provider, mocks } = setup({
+        accounts: [account],
+      });
+
+      // Snap reports no accounts — triggers re-creation path.
+      mocks.handleRequest.mockReturnValue([]);
+
+      // Should not throw — error is reported but swallowed by the outer catch.
+      await provider.resyncAccounts([account]);
+
+      // createAccount should never have been called.
+      expect(mocks.keyring.createAccount).not.toHaveBeenCalled();
+    });
+
+    it('reports error when re-creation fails after keyring removal', async () => {
+      const account = {
+        ...MOCK_BTC_P2TR_ACCOUNT_1,
+        metadata: {
+          ...MOCK_BTC_P2TR_ACCOUNT_1.metadata,
+          snap: {
+            ...MOCK_BTC_P2TR_ACCOUNT_1.metadata.snap,
+            id: BtcAccountProvider.BTC_SNAP_ID,
+          },
+        },
+      };
+      const { provider, keyring, mocks } = setup({
+        accounts: [account],
+      });
+
+      // Snap reports no accounts — triggers re-creation path.
+      mocks.handleRequest.mockReturnValue([]);
+
+      // createAccount will throw after removeAccount succeeds.
+      mocks.keyring.createAccount.mockRejectedValue(
+        new Error('Snap crashed during re-creation'),
+      );
+
+      // Should not throw — the outer catch swallows it.
+      await provider.resyncAccounts([account]);
+
+      // removeAccount was called (account was removed from keyring).
+      expect(keyring.removeAccount).toHaveBeenCalledWith(account.address);
+      // createAccount was attempted.
+      expect(mocks.keyring.createAccount).toHaveBeenCalled();
     });
   });
 
