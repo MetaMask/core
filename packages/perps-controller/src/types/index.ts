@@ -84,7 +84,7 @@ export enum MarketCategory {
   Forex = 'forex',
 }
 
-export type MarketType = MarketCategory;
+export type MarketType = `${MarketCategory}`;
 
 // Market type filter for UI category badges
 // Note: 'stocks' maps to 'stock', 'commodities' maps to 'commodity' in the data model
