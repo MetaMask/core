@@ -102,6 +102,8 @@ import {
   submitEvmTransaction,
   checkIsDelegatedAccount,
   isCrossChainTx,
+  toQuoteAndTxMetadata,
+  getAddTransactionBatchParams,
 } from './utils/transaction';
 
 const metadata: StateMetadata<BridgeStatusControllerState> = {
@@ -1023,7 +1025,12 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
    * @param args.isDelegatedAccount - Whether the account is a delegated account
    * @returns The approvalMeta and tradeMeta for the batched transaction
    */
-  readonly #handleEvmTransactionBatch = async (args: {
+  readonly #handleEvmTransactionBatch = async ({
+    requireApproval,
+    isDelegatedAccount,
+    isBridgeTx,
+    quoteResponse,
+  }: {
     requireApproval: boolean;
     isDelegatedAccount: boolean;
     isBridgeTx: boolean;
@@ -1032,13 +1039,34 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     approvalMeta?: TransactionMeta;
     tradeMeta: TransactionMeta;
   }> => {
+    const tradeData = toQuoteAndTxMetadata({
+      quoteResponse,
+      isBridgeTx,
+    });
+
+    const transactionParams = await getAddTransactionBatchParams({
+      tradeData,
+      requireApproval,
+      isDelegatedAccount,
+      messenger: this.messenger,
+      atomic: true,
+      disable7702:
+        // Enable 7702 batching when the quote includes gasless 7702 support,
+        quoteResponse.quote.gasIncluded7702
+          ? false
+          : // or when the account is already delegated (to avoid the in-flight transaction limit for delegated accounts)
+            !isDelegatedAccount ||
+            // For gasless transactions with STX/sendBundle we keep disabling 7702.
+            quoteResponse.quote.gasIncluded,
+      isGasFeeSponsored: Boolean(quoteResponse.quote.gasSponsored),
+      isGasFeeIncluded: Boolean(quoteResponse.quote.gasIncluded7702),
+    });
+
     const { tradeMeta, approvalMeta } = await addTransactionBatch(
       this.messenger,
       this.#addTransactionBatchFn,
-      args.quoteResponse,
-      args.isBridgeTx,
-      args.requireApproval,
-      args.isDelegatedAccount,
+      tradeData,
+      transactionParams,
     );
 
     if (!tradeMeta) {

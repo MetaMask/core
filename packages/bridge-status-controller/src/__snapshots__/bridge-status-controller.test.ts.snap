@@ -4403,6 +4403,26 @@ exports[`BridgeStatusController submitTx: EVM swap should successfully submit an
 ]
 `;
 
+exports[`BridgeStatusController submitTx: EVM swap should use batch path when account is delegated 1`] = `
+{
+  "batchId": "batchId1",
+  "chainId": "0xa4b1",
+  "hash": "0xevmTxHash",
+  "id": "test-tx-id",
+  "status": "unapproved",
+  "time": 1234567890,
+  "txParams": {
+    "chainId": "0xa4b1",
+    "data": "0xdata",
+    "from": "0xaccount1",
+    "gasLimit": "0x5208",
+    "to": "0xbridgeContract",
+    "value": "0x0",
+  },
+  "type": "swap",
+}
+`;
+
 exports[`BridgeStatusController submitTx: EVM swap should use batch path when gasIncluded7702 is true regardless of STX setting (with approval) 1`] = `
 {
   "batchId": "batchId1",

@@ -364,14 +364,12 @@ export const toTransactionParams = async (
 
 export const getAddTransactionBatchParams = async ({
   messenger,
-  quoteResponse,
   tradeData,
   requireApproval = false,
   isDelegatedAccount,
   ...addTransactionBatchParams
 }: Partial<Parameters<TransactionController['addTransactionBatch']>[0]> & {
   messenger: BridgeStatusControllerMessenger;
-  quoteResponse: QuoteResponse<Trade, Trade> & QuoteMetadata;
   tradeData: QuoteAndTxMetadata[];
   requireApproval?: boolean;
   isDelegatedAccount?: boolean;
@@ -407,17 +405,6 @@ export const getAddTransactionBatchParams = async ({
     from: selectedAccount.address as Hex,
     isInternal: true,
     transactions,
-    atomic: true,
-    disable7702:
-      // Enable 7702 batching when the quote includes gasless 7702 support,
-      quoteResponse.quote.gasIncluded7702
-        ? false
-        : // or when the account is already delegated (to avoid the in-flight transaction limit for delegated accounts)
-          !isDelegatedAccount ||
-          // For gasless transactions with STX/sendBundle we keep disabling 7702.
-          quoteResponse.quote.gasIncluded,
-    isGasFeeSponsored: Boolean(quoteResponse.quote.gasSponsored),
-    isGasFeeIncluded: Boolean(quoteResponse.quote.gasIncluded7702),
     ...addTransactionBatchParams,
   };
 };
@@ -549,24 +536,11 @@ export const findAndUpdateTransactionsInBatch = ({
 export const addTransactionBatch = async (
   messenger: BridgeStatusControllerMessenger,
   addTransactionBatchFn: TransactionController['addTransactionBatch'],
-  quoteResponse: QuoteResponse<Trade, Trade> & QuoteMetadata,
-  isBridgeTx: boolean,
-  requireApproval?: boolean,
-  isDelegatedAccount?: boolean,
+  tradeData: QuoteAndTxMetadata[],
+  transactionParams: Parameters<
+    TransactionController['addTransactionBatch']
+  >[0],
 ) => {
-  const tradeData = toQuoteAndTxMetadata({
-    quoteResponse,
-    isBridgeTx,
-  });
-
-  const transactionParams = await getAddTransactionBatchParams({
-    tradeData,
-    requireApproval,
-    isDelegatedAccount,
-    messenger,
-    quoteResponse,
-  });
-
   const { batchId } = await addTransactionBatchFn(transactionParams);
 
   return findAndUpdateTransactionsInBatch({

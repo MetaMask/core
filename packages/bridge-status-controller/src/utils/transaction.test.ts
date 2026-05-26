@@ -1685,8 +1685,7 @@ describe('Bridge Status Controller Transaction Utils', () => {
         includeApproval?: boolean;
         includeResetApproval?: boolean;
       } = {},
-    ): QuoteResponse<TxData, TxData> &
-      QuoteMetadata & { approval?: TxData; resetApproval?: TxData } =>
+    ): QuoteResponse<TxData, TxData> & QuoteMetadata =>
       ({
         quote: {
           bridgeId: 'bridge1',
@@ -1799,8 +1798,11 @@ describe('Bridge Status Controller Transaction Utils', () => {
       const result = await getAddTransactionBatchParams({
         tradeData,
         requireApproval: false,
-        quoteResponse: mockQuoteResponse,
         messenger: mockMessagingSystem,
+        disable7702: false,
+        isGasFeeSponsored: false,
+        isGasFeeIncluded: true,
+        atomic: true,
       });
 
       expect(result.disable7702).toBe(false);
@@ -1833,9 +1835,12 @@ describe('Bridge Status Controller Transaction Utils', () => {
         isBridgeTx: false,
       });
       const result = await getAddTransactionBatchParams({
-        quoteResponse: mockQuoteResponse,
         messenger: mockMessagingSystem,
         tradeData,
+        disable7702: true,
+        isGasFeeSponsored: false,
+        isGasFeeIncluded: false,
+        atomic: true,
       });
 
       expect(result.disable7702).toBe(true);
@@ -1867,7 +1872,6 @@ describe('Bridge Status Controller Transaction Utils', () => {
         isBridgeTx: false,
       });
       const result = await getAddTransactionBatchParams({
-        quoteResponse: mockQuoteResponse,
         messenger: mockMessagingSystem,
         tradeData,
       });
@@ -1898,7 +1902,6 @@ describe('Bridge Status Controller Transaction Utils', () => {
         isBridgeTx: false,
       });
       const result = await getAddTransactionBatchParams({
-        quoteResponse: mockQuoteResponse,
         messenger: mockMessagingSystem,
         tradeData,
       });
@@ -1921,9 +1924,12 @@ describe('Bridge Status Controller Transaction Utils', () => {
       });
 
       const result = await getAddTransactionBatchParams({
-        quoteResponse: mockQuoteResponse,
         messenger: mockMessagingSystem,
         tradeData,
+        disable7702: true,
+        isGasFeeSponsored: false,
+        isGasFeeIncluded: false,
+        atomic: true,
       });
 
       expect(result.disable7702).toBe(true);
@@ -1956,9 +1962,12 @@ describe('Bridge Status Controller Transaction Utils', () => {
         isBridgeTx: false,
       });
       const result = await getAddTransactionBatchParams({
-        quoteResponse: mockQuoteResponse,
         messenger: mockMessagingSystem,
         tradeData,
+        disable7702: true,
+        isGasFeeSponsored: false,
+        isGasFeeIncluded: false,
+        atomic: true,
       });
 
       expect(result.isGasFeeIncluded).toBe(false);
@@ -2006,9 +2015,12 @@ describe('Bridge Status Controller Transaction Utils', () => {
         isBridgeTx: false,
       });
       const result = await getAddTransactionBatchParams({
-        quoteResponse: mockQuoteResponse,
         messenger: mockMessagingSystem,
         tradeData,
+        disable7702: false,
+        isGasFeeSponsored: false,
+        isGasFeeIncluded: true,
+        atomic: true,
       });
 
       expect(result.isGasFeeIncluded).toBe(true);
@@ -2056,9 +2068,12 @@ describe('Bridge Status Controller Transaction Utils', () => {
         isBridgeTx: false,
       });
       const result = await getAddTransactionBatchParams({
-        quoteResponse: mockQuoteResponse,
         messenger: mockMessagingSystem,
         tradeData,
+        disable7702: true,
+        isGasFeeIncluded: false,
+        isGasFeeSponsored: false,
+        atomic: true,
       });
 
       expect(result.isGasFeeIncluded).toBe(false);
@@ -2117,10 +2132,12 @@ describe('Bridge Status Controller Transaction Utils', () => {
         isBridgeTx: true,
       });
       const result = await getAddTransactionBatchParams({
-        quoteResponse: mockQuoteResponse,
         messenger: mockMessenger,
         isDelegatedAccount: true,
         tradeData,
+        disable7702: false,
+        isGasFeeSponsored: Boolean(mockQuoteResponse.quote.gasSponsored),
+        isGasFeeIncluded: Boolean(mockQuoteResponse.quote.gasIncluded7702),
       });
 
       // 7702 should be enabled for delegated accounts
@@ -2185,7 +2202,9 @@ describe('Bridge Status Controller Transaction Utils', () => {
         tradeData,
         messenger: mockMessagingSystem,
         isDelegatedAccount: true,
-        quoteResponse: mockQuoteResponse,
+        disable7702: false,
+        isGasFeeSponsored: Boolean(mockQuoteResponse.quote.gasSponsored),
+        isGasFeeIncluded: Boolean(mockQuoteResponse.quote.gasIncluded7702),
       });
 
       // 7702 should be enabled

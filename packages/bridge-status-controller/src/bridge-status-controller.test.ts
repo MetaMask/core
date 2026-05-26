@@ -4251,6 +4251,78 @@ describe('BridgeStatusController', () => {
       );
     });
 
+    it('should use batch path when account is delegated', async () => {
+      setupEventTrackingMocks(mockMessengerCall);
+      mockMessengerCall.mockReturnValueOnce(mockSelectedAccount);
+      mockMessengerCall.mockReturnValueOnce('arbitrum');
+      addTransactionBatchFn.mockResolvedValueOnce({
+        batchId: 'batchId1',
+      });
+      mockMessengerCall.mockReturnValueOnce({
+        transactions: [{ ...mockEvmTxMeta, batchId: 'batchId1' }],
+      });
+
+      const checkIsDelegatedAccountSpy = jest
+        .spyOn(transactionUtils, 'checkIsDelegatedAccount')
+        .mockResolvedValueOnce(true);
+
+      const getAddTransactionBatchParamsSpy = jest.spyOn(
+        transactionUtils,
+        'getAddTransactionBatchParams',
+      );
+
+      await withController(
+        { mockMessengerCall },
+        async ({
+          controller,
+          rootMessenger,
+          startPollingForBridgeTxStatusSpy,
+        }) => {
+          const { approval, ...quoteWithoutApproval } = mockEvmQuoteResponse;
+          const result = await rootMessenger.call(
+            'BridgeStatusController:submitTx',
+            (mockEvmQuoteResponse.trade as TxData).from,
+            {
+              ...quoteWithoutApproval,
+              quote: {
+                ...quoteWithoutApproval.quote,
+                gasIncluded: false,
+                gasIncluded7702: false,
+              },
+            },
+            false, // STX off
+          );
+          controller.stopAllPolling();
+
+          // Should use batch path because gasIncluded7702 = true
+          expect(addTransactionBatchFn).toHaveBeenCalledTimes(1);
+          const mockCalls = mockMessengerCall.mock.calls;
+          expect(
+            mockCalls.filter(
+              ([action]) => action === 'TransactionController:addTransaction',
+            ),
+          ).toHaveLength(0);
+          expect(startPollingForBridgeTxStatusSpy).toHaveBeenCalledTimes(0);
+          expect(result).toMatchSnapshot();
+        },
+      );
+
+      expect(checkIsDelegatedAccountSpy).toHaveBeenCalledTimes(1);
+
+      const { messenger, tradeData, ...params } =
+        getAddTransactionBatchParamsSpy.mock.calls[0][0];
+      expect(params).toMatchInlineSnapshot(`
+        {
+          "atomic": true,
+          "disable7702": false,
+          "isDelegatedAccount": true,
+          "isGasFeeIncluded": false,
+          "isGasFeeSponsored": false,
+          "requireApproval": false,
+        }
+      `);
+    });
+
     it('should use batch path when gasIncluded7702 is true regardless of STX setting', async () => {
       setupEventTrackingMocks(mockMessengerCall);
       mockMessengerCall.mockReturnValueOnce(mockSelectedAccount);
