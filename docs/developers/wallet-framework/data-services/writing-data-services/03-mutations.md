@@ -10,13 +10,13 @@ Let's say that our API now allows us to place and cancel orders as needed. Now w
 - **POST `/v1/orders`**: Enqueue a new order for processing.
 - **DELETE `/v1/orders/:id`**: Cancel a pending order.
 
-Up to now, the operations we've supported are read-only, but the new operations are different, because they can change data on the server side. TanStack Query — one of the libraries that data services use the hood — calls these requests "mutations".
+Up to now, the operations we've supported are read-only, but the new operations are different, because they can change data on the server side. <!-- TanStack Query — one of the libraries that data services use the hood — calls these requests "mutations". -->
 
-Let's add these to our data service.
+Let's now add these to our data service.
 
 ## Creating a mutation
 
-First let's add some types:
+First we'll add some types:
 
 ```typescript
 /**
@@ -40,7 +40,11 @@ export type CreateOrderParams = Omit<
 >;
 ```
 
-Now we'll add a new method. Note that whereas we used `fetchQuery` to make requests previously, now we'll want to use `createMutation`. We also pass `method` and `body` to the `fetch` function. Finally, we reuse `FetchOrderResponse` and `FetchOrderResponseStruct`, which we [previously defined for `fetchOrder`](./02-making-requests.md#handling-the-response):
+Now we'll add a new method. <!-- Note that whereas we used `fetchQuery` to make requests previously, now we'll want to use `createMutation`. --> Note the following:
+
+- We pass `method` and `body` to the `fetch` function.
+- We pass a `staleTime` of 0 to `fetchQuery`. This instructs TanStack Query not to cache these kinds of requests.
+- We reuse `FetchOrderResponse` and `FetchOrderResponseStruct`, which we [previously defined for `fetchOrder`](./02-making-requests.md#handling-the-response).
 
 ```typescript
 export class OrdersService extends BaseDataService</* ... */> {
@@ -90,7 +94,7 @@ export class OrdersService extends BaseDataService</* ... */> {
 }
 ```
 
-We'll register an action for this method:
+As with `fetchOrders` and `fetchOrder`, we'll register an action for the new method:
 
 ```diff
   const MESSENGER_EXPOSED_METHODS = [
