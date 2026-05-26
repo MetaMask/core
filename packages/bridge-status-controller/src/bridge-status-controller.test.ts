@@ -3946,6 +3946,11 @@ describe('BridgeStatusController', () => {
         transactions: [{ ...mockEvmTxMeta, batchId: 'batchId1' }],
       });
 
+      const getAddTransactionBatchParamsSpy = jest.spyOn(
+        transactionUtils,
+        'getAddTransactionBatchParams',
+      );
+
       await withController(
         { mockMessengerCall },
         async ({
@@ -3996,6 +4001,19 @@ describe('BridgeStatusController', () => {
           expect(controller.state.txHistory[result.id]).toMatchSnapshot();
         },
       );
+
+      const { messenger, tradeData, ...params } =
+        getAddTransactionBatchParamsSpy.mock.calls[0][0];
+      expect(params).toMatchInlineSnapshot(`
+        {
+          "atomic": true,
+          "disable7702": true,
+          "isDelegatedAccount": false,
+          "isGasFeeIncluded": false,
+          "isGasFeeSponsored": false,
+          "requireApproval": false,
+        }
+      `);
     });
 
     it('should successfully submit an EVM swap transaction with no approval', async () => {
@@ -4203,7 +4221,6 @@ describe('BridgeStatusController', () => {
     it('should estimate gas when gasIncluded is false and STX is off', async () => {
       setupEventTrackingMocks(mockMessengerCall);
       setupBridgeMocks();
-
       await withController(
         { mockMessengerCall },
         async ({
@@ -4392,6 +4409,11 @@ describe('BridgeStatusController', () => {
         ],
       });
 
+      const getAddTransactionBatchParamsSpy = jest.spyOn(
+        transactionUtils,
+        'getAddTransactionBatchParams',
+      );
+
       await withController(
         { mockMessengerCall },
         async ({ controller, rootMessenger }) => {
@@ -4420,6 +4442,19 @@ describe('BridgeStatusController', () => {
           expect(result).toMatchSnapshot();
         },
       );
+
+      const { messenger, tradeData, ...params } =
+        getAddTransactionBatchParamsSpy.mock.calls[0][0];
+      expect(params).toMatchInlineSnapshot(`
+        {
+          "atomic": true,
+          "disable7702": false,
+          "isDelegatedAccount": false,
+          "isGasFeeIncluded": true,
+          "isGasFeeSponsored": false,
+          "requireApproval": false,
+        }
+      `);
     });
 
     it('should handle smart transactions', async () => {
@@ -4434,6 +4469,11 @@ describe('BridgeStatusController', () => {
       mockMessengerCall.mockReturnValueOnce({
         transactions: [{ ...mockEvmTxMeta, batchId: 'batchId1' }],
       });
+
+      const getAddTransactionBatchParamsSpy = jest.spyOn(
+        transactionUtils,
+        'getAddTransactionBatchParams',
+      );
 
       await withController(
         { mockMessengerCall },
@@ -4457,6 +4497,19 @@ describe('BridgeStatusController', () => {
           expect(mockMessengerCall.mock.calls).toMatchSnapshot();
         },
       );
+
+      const { messenger, tradeData, ...params } =
+        getAddTransactionBatchParamsSpy.mock.calls[0][0];
+      expect(params).toMatchInlineSnapshot(`
+        {
+          "atomic": true,
+          "disable7702": true,
+          "isDelegatedAccount": false,
+          "isGasFeeIncluded": false,
+          "isGasFeeSponsored": false,
+          "requireApproval": false,
+        }
+      `);
     });
 
     it('should throw error if account is not found', async () => {
