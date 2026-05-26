@@ -41,11 +41,7 @@ export const DATA_SERVICE_NAME = 'OrdersService';
  * All of the methods within {@link OrdersService} that are exposed via the
  * messenger.
  */
-const MESSENGER_EXPOSED_METHODS = [
-  'fetchOrders',
-  'fetchOrder',
-  'createOrder',
-] as const;
+const MESSENGER_EXPOSED_METHODS = ['fetchOrders', 'fetchOrder'] as const;
 
 /**
  * Invalidates cached queries for {@link OrdersService}.
@@ -172,14 +168,6 @@ const FetchOrderResponseStruct = type({
 export type FetchOrderResponse = Infer<typeof FetchOrderResponseStruct>;
 
 /**
- * The arguments for `createOrder`.
- */
-export type CreateOrderParams = Omit<
-  ResponseOrder,
-  'createdTime' | 'orderId' | 'status' | 'updatedTime'
->;
-
-/**
  * The base URL of the API that the service represents.
  */
 const BASE_URL = 'https://api.example.com';
@@ -295,48 +283,6 @@ export class OrdersService extends BaseDataService<
 
         return response.json();
       },
-    });
-
-    const [error, validatedResponseData] = validate(
-      responseData,
-      FetchOrderResponseStruct,
-    );
-    if (error) {
-      throw new Error(
-        `Malformed response received from Orders API (${error.toString()})`,
-      );
-    }
-
-    return validatedResponseData;
-  }
-
-  /**
-   * Retrieves details about an order.
-   *
-   * @param params - The order ID.
-   * @returns The requested order.
-   */
-  async createOrder(params: CreateOrderParams): Promise<FetchOrderResponse> {
-    const url = new URL(`/v1/orders`, BASE_URL);
-
-    const responseData = await this.fetchQuery({
-      queryKey: [`${this.name}:createOrder`, url.toString()],
-      queryFn: async () => {
-        const response = await fetch(url, {
-          method: 'POST',
-          body: JSON.stringify(params),
-        });
-
-        if (!response.ok) {
-          throw new HttpError(
-            response.status,
-            `Orders API failed with status '${response.status}'`,
-          );
-        }
-
-        return response.json();
-      },
-      staleTime: 0,
     });
 
     const [error, validatedResponseData] = validate(
