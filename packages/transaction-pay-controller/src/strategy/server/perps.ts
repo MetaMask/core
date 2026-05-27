@@ -12,12 +12,12 @@ import {
 import type { QuoteRequest } from '../../types';
 
 /**
- * Shared 20-byte sentinel address emitted by the generic strategy to flag a
+ * Shared 20-byte sentinel address emitted by the server strategy to flag a
  * Hyperliquid perps deposit. Backend providers translate this to their own
  * on-chain destination (e.g. Relay's 16-byte HyperCore USDC sentinel, Across's
  * native USDC-PERPS token at the same address).
  */
-export const GENERIC_HYPERCORE_USDC_PERPS_ADDRESS =
+export const SERVER_HYPERCORE_USDC_PERPS_ADDRESS =
   '0x2100000000000000000000000000000000000000' as Hex;
 
 const HYPERLIQUID_BRIDGE_ADDRESS_LOWER =
@@ -36,7 +36,7 @@ const HYPERLIQUID_BRIDGE_CALLDATA_FRAGMENT =
  * @param transaction - Parent transaction whose calldata is inspected.
  * @returns Whether the request matches a Hyperliquid bridge deposit.
  */
-export function isGenericPerpsDepositRequest(
+export function isServerPerpsDepositRequest(
   request: Pick<
     QuoteRequest,
     'isPostQuote' | 'targetChainId' | 'targetTokenAddress'
@@ -69,11 +69,11 @@ export function isGenericPerpsDepositRequest(
  * @param transaction - Parent transaction whose calldata is inspected.
  * @returns Normalized request, or the original request if not a perps deposit.
  */
-export function normalizeGenericPerpsRequest(
+export function normalizeServerPerpsRequest(
   request: QuoteRequest,
   transaction: Pick<TransactionMeta, 'txParams' | 'nestedTransactions'>,
 ): QuoteRequest {
-  if (!isGenericPerpsDepositRequest(request, transaction)) {
+  if (!isServerPerpsDepositRequest(request, transaction)) {
     return request;
   }
 
@@ -83,7 +83,7 @@ export function normalizeGenericPerpsRequest(
       .shiftedBy(HYPERCORE_USDC_DECIMALS - USDC_DECIMALS)
       .toFixed(0),
     targetChainId: CHAIN_ID_HYPERCORE,
-    targetTokenAddress: GENERIC_HYPERCORE_USDC_PERPS_ADDRESS,
+    targetTokenAddress: SERVER_HYPERCORE_USDC_PERPS_ADDRESS,
   };
 }
 

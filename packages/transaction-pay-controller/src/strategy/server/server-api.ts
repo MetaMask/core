@@ -4,69 +4,69 @@ import { projectLogger } from '../../logger';
 import type { TransactionPayControllerMessenger } from '../../types';
 import { getPayStrategiesConfig } from '../../utils/feature-flags';
 import type {
-  GenericProviderName,
-  GenericQuoteRequest,
-  GenericQuoteResponse,
-  GenericStatusResponse,
-  GenericSubmitRequest,
-  GenericSubmitResponse,
+  ServerProviderName,
+  ServerQuoteRequest,
+  ServerQuoteResponse,
+  ServerStatusResponse,
+  ServerSubmitRequest,
+  ServerSubmitResponse,
 } from './types';
 
-const log = createModuleLogger(projectLogger, 'generic-api');
+const log = createModuleLogger(projectLogger, 'server-api');
 
 /**
- * Fetch a quote from the generic intents API.
+ * Fetch a quote from the server intents API.
  *
  * @param messenger - Controller messenger.
  * @param body - Quote request parameters.
  * @param signal - Optional abort signal that cancels the underlying fetch.
- * @returns The generic quote response.
+ * @returns The server quote response.
  */
-export async function fetchGenericQuote(
+export async function fetchServerQuote(
   messenger: TransactionPayControllerMessenger,
-  body: GenericQuoteRequest,
+  body: ServerQuoteRequest,
   signal?: AbortSignal,
-): Promise<GenericQuoteResponse> {
-  const { generic } = getPayStrategiesConfig(messenger);
+): Promise<ServerQuoteResponse> {
+  const { server } = getPayStrategiesConfig(messenger);
 
-  log('Fetching quote', { url: generic.quoteUrl });
+  log('Fetching quote', { url: server.quoteUrl });
 
-  const response = await genericFetch(generic.quoteUrl, {
+  const response = await serverFetch(server.quoteUrl, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
     signal,
   });
 
-  return (await response.json()) as GenericQuoteResponse;
+  return (await response.json()) as ServerQuoteResponse;
 }
 
 /**
- * Submit a gasless intent via the generic intents API.
+ * Submit a gasless intent via the server intents API.
  *
  * @param messenger - Controller messenger.
  * @param body - Submit request parameters.
  * @returns The submit response.
  */
-export async function submitGenericIntent(
+export async function submitServerIntent(
   messenger: TransactionPayControllerMessenger,
-  body: GenericSubmitRequest,
-): Promise<GenericSubmitResponse> {
-  const { generic } = getPayStrategiesConfig(messenger);
+  body: ServerSubmitRequest,
+): Promise<ServerSubmitResponse> {
+  const { server } = getPayStrategiesConfig(messenger);
 
-  log('Submitting intent', { url: generic.submitUrl });
+  log('Submitting intent', { url: server.submitUrl });
 
-  const response = await genericFetch(generic.submitUrl, {
+  const response = await serverFetch(server.submitUrl, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
   });
 
-  return (await response.json()) as GenericSubmitResponse;
+  return (await response.json()) as ServerSubmitResponse;
 }
 
 /**
- * Fetch the status of a generic intent.
+ * Fetch the status of a server intent.
  *
  * @param messenger - Controller messenger.
  * @param params - Status query parameters.
@@ -74,26 +74,26 @@ export async function submitGenericIntent(
  * @param params.id - The intent ID.
  * @returns The current status of the intent.
  */
-export async function getGenericStatus(
+export async function getServerStatus(
   messenger: TransactionPayControllerMessenger,
-  params: { provider: GenericProviderName; id: string; hash?: string },
-): Promise<GenericStatusResponse> {
-  const { generic } = getPayStrategiesConfig(messenger);
+  params: { provider: ServerProviderName; id: string; hash?: string },
+): Promise<ServerStatusResponse> {
+  const { server } = getPayStrategiesConfig(messenger);
   const query = new URLSearchParams({ provider: params.provider, id: params.id });
   if (params.hash) {
     query.set('hash', params.hash);
   }
-  const url = `${generic.statusUrl}?${query.toString()}`;
+  const url = `${server.statusUrl}?${query.toString()}`;
 
   log('Fetching status', { url });
 
-  const response = await genericFetch(url, { method: 'GET' });
+  const response = await serverFetch(url, { method: 'GET' });
 
-  return (await response.json()) as GenericStatusResponse;
+  return (await response.json()) as ServerStatusResponse;
 }
 
 /**
- * Fetch a generic intents-api endpoint, throwing an error containing the
+ * Fetch a server intents-api endpoint, throwing an error containing the
  * response body's `message` or `error` field (or status code) on non-OK
  * responses so the server's actual reason is preserved without leaking the
  * request URL.
@@ -102,7 +102,7 @@ export async function getGenericStatus(
  * @param init - Fetch init options.
  * @returns The successful response.
  */
-async function genericFetch(
+async function serverFetch(
   url: string,
   init?: RequestInit,
 ): Promise<Response> {

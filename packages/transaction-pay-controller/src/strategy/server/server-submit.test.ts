@@ -9,18 +9,18 @@ import type {
   TransactionPayQuote,
 } from '../../types';
 import {
-  getGenericPollingInterval,
-  getGenericPollingTimeout,
+  getServerPollingInterval,
+  getServerPollingTimeout,
 } from '../../utils/feature-flags';
 import {
   collectTransactionIds,
   getTransaction,
   waitForTransactionConfirmed,
 } from '../../utils/transaction';
-import { getGenericStatus, submitGenericIntent } from './generic-api';
-import { submitGenericQuotes } from './generic-submit';
-import { GenericProviderName, GenericStatus } from './types';
-import type { GenericQuote } from './types';
+import { getServerStatus, submitServerIntent } from './server-api';
+import { submitServerQuotes } from './server-submit';
+import { ServerProviderName, ServerStatus } from './types';
+import type { ServerQuote } from './types';
 
 jest.mock('../../utils/feature-flags');
 jest.mock('../../utils/transaction', () => ({
@@ -29,7 +29,7 @@ jest.mock('../../utils/transaction', () => ({
   getTransaction: jest.fn(),
   waitForTransactionConfirmed: jest.fn(),
 }));
-jest.mock('./generic-api');
+jest.mock('./server-api');
 
 const NETWORK_CLIENT_ID_MOCK = 'networkClientIdMock';
 const ORIGINAL_TRANSACTION_ID_MOCK = 'original-transaction-id';
@@ -53,13 +53,13 @@ const TRANSACTION_META_MOCK = {
   },
 } as TransactionMeta;
 
-const ORIGINAL_QUOTE_MOCK: GenericQuote = {
+const ORIGINAL_QUOTE_MOCK: ServerQuote = {
   duration: 30,
   gasless: true,
-  id: 'generic-intent-id',
+  id: 'server-intent-id',
   input: { formatted: '1.23', raw: '1230000' },
   output: { formatted: '1', raw: '1000000' },
-  provider: GenericProviderName.Relay,
+  provider: ServerProviderName.Relay,
   providerFeeUsd: '0.01',
   steps: [
     {
@@ -95,9 +95,9 @@ const QUOTE_MOCK = {
     targetTokenAddress: '0x6666666666666666666666666666666666666666' as Hex,
   },
   sourceAmount: { fiat: '1', human: '1', raw: '1230000', usd: '1' },
-  strategy: 'generic',
+  strategy: 'server',
   targetAmount: { fiat: '1', usd: '1' },
-} as TransactionPayQuote<GenericQuote>;
+} as TransactionPayQuote<ServerQuote>;
 
 const DELEGATION_MOCK = {
   authorizationList: [
@@ -115,11 +115,11 @@ const DELEGATION_MOCK = {
   value: '0x10' as Hex,
 };
 
-describe('submitGenericQuotes', () => {
-  const getGenericPollingIntervalMock = jest.mocked(getGenericPollingInterval);
-  const getGenericPollingTimeoutMock = jest.mocked(getGenericPollingTimeout);
-  const getGenericStatusMock = jest.mocked(getGenericStatus);
-  const submitGenericIntentMock = jest.mocked(submitGenericIntent);
+describe('submitServerQuotes', () => {
+  const getServerPollingIntervalMock = jest.mocked(getServerPollingInterval);
+  const getServerPollingTimeoutMock = jest.mocked(getServerPollingTimeout);
+  const getServerStatusMock = jest.mocked(getServerStatus);
+  const submitServerIntentMock = jest.mocked(submitServerIntent);
 
   const {
     addTransactionMock: addTxMock,
@@ -132,7 +132,7 @@ describe('submitGenericQuotes', () => {
   } = getMessengerMock();
 
   let currentTransaction: TransactionMeta;
-  let request: PayStrategyExecuteRequest<GenericQuote>;
+  let request: PayStrategyExecuteRequest<ServerQuote>;
 
   beforeEach(() => {
     jest.resetAllMocks();
@@ -148,25 +148,25 @@ describe('submitGenericQuotes', () => {
 
     findNetworkClientIdByChainIdMock.mockReturnValue(NETWORK_CLIENT_ID_MOCK);
     getDelegationTransactionMock.mockResolvedValue(DELEGATION_MOCK);
-    getGenericPollingIntervalMock.mockReturnValue(0);
-    getGenericPollingTimeoutMock.mockReturnValue(undefined);
-    getGenericStatusMock.mockResolvedValue({
-      status: GenericStatus.Confirmed,
+    getServerPollingIntervalMock.mockReturnValue(0);
+    getServerPollingTimeoutMock.mockReturnValue(undefined);
+    getServerStatusMock.mockResolvedValue({
+      status: ServerStatus.Confirmed,
       targetHash: TARGET_HASH_MOCK,
     });
     getTransactionControllerStateMock.mockImplementation(
       () => ({ transactions: [currentTransaction] }) as never,
     );
-    submitGenericIntentMock.mockResolvedValue({ success: true });
+    submitServerIntentMock.mockResolvedValue({ success: true });
     updateTransactionMock.mockImplementation((transaction) => {
       currentTransaction = transaction;
     });
   });
 
   it('submits with mapped fields from the quote and delegation', async () => {
-    await submitGenericQuotes(request);
+    await submitServerQuotes(request);
 
-    expect(submitGenericIntentMock).toHaveBeenCalledWith(messenger, {
+    expect(submitServerIntentMock).toHaveBeenCalledWith(messenger, {
       authorizationList: [
         {
           address: DELEGATION_MOCK.authorizationList[0].address,
@@ -180,14 +180,14 @@ describe('submitGenericQuotes', () => {
       chainId: 137,
       data: DELEGATION_MOCK.data,
       id: ORIGINAL_QUOTE_MOCK.id,
-      provider: GenericProviderName.Relay,
+      provider: ServerProviderName.Relay,
       to: DELEGATION_MOCK.to,
       value: '16',
     });
   });
 
   it('uses quote.request.from for the delegation transaction', async () => {
-    await submitGenericQuotes(request);
+    await submitServerQuotes(request);
 
     expect(getDelegationTransactionMock).toHaveBeenCalledWith({
       transaction: expect.objectContaining({
@@ -206,40 +206,40 @@ describe('submitGenericQuotes', () => {
   });
 
   it('throws when the submit response is unsuccessful', async () => {
-    submitGenericIntentMock.mockResolvedValue({
+    submitServerIntentMock.mockResolvedValue({
       error: 'provider rejected',
       success: false,
     });
 
-    await expect(submitGenericQuotes(request)).rejects.toThrow(
-      'Generic submit failed: provider rejected',
+    await expect(submitServerQuotes(request)).rejects.toThrow(
+      'Server submit failed: provider rejected',
     );
   });
 
   it('polls until confirmed and returns the target hash', async () => {
-    getGenericStatusMock
-      .mockResolvedValueOnce({ status: GenericStatus.Submitted })
+    getServerStatusMock
+      .mockResolvedValueOnce({ status: ServerStatus.Submitted })
       .mockResolvedValueOnce({
-        status: GenericStatus.Confirmed,
+        status: ServerStatus.Confirmed,
         targetHash: TARGET_HASH_MOCK,
       });
 
-    const result = await submitGenericQuotes(request);
+    const result = await submitServerQuotes(request);
 
     expect(result).toStrictEqual({ transactionHash: TARGET_HASH_MOCK });
-    expect(getGenericStatusMock).toHaveBeenCalledTimes(2);
+    expect(getServerStatusMock).toHaveBeenCalledTimes(2);
   });
 
   it('marks the parent transaction isIntentComplete after confirmation', async () => {
-    getGenericStatusMock.mockResolvedValue({
-      status: GenericStatus.Confirmed,
+    getServerStatusMock.mockResolvedValue({
+      status: ServerStatus.Confirmed,
       targetHash: TARGET_HASH_MOCK,
     });
 
-    await submitGenericQuotes(request);
+    await submitServerQuotes(request);
 
     const completionUpdate = updateTransactionMock.mock.calls.find(
-      ([, note]) => note === 'Intent complete after Generic completion',
+      ([, note]) => note === 'Intent complete after Server completion',
     );
     expect(completionUpdate).toBeDefined();
     expect(completionUpdate?.[0]).toStrictEqual(
@@ -248,31 +248,31 @@ describe('submitGenericQuotes', () => {
   });
 
   it('does not mark isIntentComplete when polling fails', async () => {
-    getGenericStatusMock.mockResolvedValue({ status: GenericStatus.Failed });
+    getServerStatusMock.mockResolvedValue({ status: ServerStatus.Failed });
 
-    await expect(submitGenericQuotes(request)).rejects.toThrow(
-      'Generic intent failed',
+    await expect(submitServerQuotes(request)).rejects.toThrow(
+      'Server intent failed',
     );
 
     const completionUpdate = updateTransactionMock.mock.calls.find(
-      ([, note]) => note === 'Intent complete after Generic completion',
+      ([, note]) => note === 'Intent complete after Server completion',
     );
     expect(completionUpdate).toBeUndefined();
   });
 
   it('throws on failed status', async () => {
-    getGenericStatusMock.mockResolvedValue({ status: GenericStatus.Failed });
+    getServerStatusMock.mockResolvedValue({ status: ServerStatus.Failed });
 
-    await expect(submitGenericQuotes(request)).rejects.toThrow(
-      'Generic intent failed',
+    await expect(submitServerQuotes(request)).rejects.toThrow(
+      'Server intent failed',
     );
   });
 
   it('throws on refunded status', async () => {
-    getGenericStatusMock.mockResolvedValue({ status: GenericStatus.Refunded });
+    getServerStatusMock.mockResolvedValue({ status: ServerStatus.Refunded });
 
-    await expect(submitGenericQuotes(request)).rejects.toThrow(
-      'Generic intent refunded',
+    await expect(submitServerQuotes(request)).rejects.toThrow(
+      'Server intent refunded',
     );
   });
 
@@ -282,32 +282,32 @@ describe('submitGenericQuotes', () => {
       .mockReturnValueOnce(100)
       .mockReturnValueOnce(110);
 
-    getGenericPollingTimeoutMock.mockReturnValue(5);
-    getGenericStatusMock.mockResolvedValue({ status: GenericStatus.Pending });
+    getServerPollingTimeoutMock.mockReturnValue(5);
+    getServerStatusMock.mockResolvedValue({ status: ServerStatus.Pending });
 
-    await expect(submitGenericQuotes(request)).rejects.toThrow(
-      'Generic polling timed out (last status: PENDING)',
+    await expect(submitServerQuotes(request)).rejects.toThrow(
+      'Server polling timed out (last status: PENDING)',
     );
 
     dateNowMock.mockRestore();
   });
 
   it('emits the source hash once when it appears in status', async () => {
-    getGenericStatusMock
+    getServerStatusMock
       .mockResolvedValueOnce({
         sourceHash: SOURCE_HASH_MOCK,
-        status: GenericStatus.Submitted,
+        status: ServerStatus.Submitted,
       })
       .mockResolvedValueOnce({
         sourceHash: '0xsecondsource' as Hex,
-        status: GenericStatus.Confirmed,
+        status: ServerStatus.Confirmed,
         targetHash: TARGET_HASH_MOCK,
       });
 
-    await submitGenericQuotes(request);
+    await submitServerQuotes(request);
 
     const sourceHashUpdates = updateTransactionMock.mock.calls.filter(
-      ([, note]) => note === 'Add source hash from generic status',
+      ([, note]) => note === 'Add source hash from server status',
     );
 
     expect(sourceHashUpdates).toHaveLength(1);
@@ -315,7 +315,7 @@ describe('submitGenericQuotes', () => {
   });
 
   it('does not call TransactionController submit actions', async () => {
-    await submitGenericQuotes(request);
+    await submitServerQuotes(request);
 
     expect(addTxMock).not.toHaveBeenCalled();
     expect(addTxBatchMock).not.toHaveBeenCalled();
@@ -350,8 +350,8 @@ describe('submitGenericQuotes', () => {
     });
 
     const buildNonGaslessRequest = (
-      overrides: Partial<GenericQuote> = {},
-    ): PayStrategyExecuteRequest<GenericQuote> => {
+      overrides: Partial<ServerQuote> = {},
+    ): PayStrategyExecuteRequest<ServerQuote> => {
       const quote = cloneDeep(QUOTE_MOCK);
       quote.original = {
         ...quote.original,
@@ -368,15 +368,15 @@ describe('submitGenericQuotes', () => {
     };
 
     it('uses addTransaction when the quote has a single step', async () => {
-      await submitGenericQuotes(buildNonGaslessRequest());
+      await submitServerQuotes(buildNonGaslessRequest());
 
       expect(addTxMock).toHaveBeenCalledTimes(1);
       expect(addTxBatchMock).not.toHaveBeenCalled();
-      expect(submitGenericIntentMock).not.toHaveBeenCalled();
+      expect(submitServerIntentMock).not.toHaveBeenCalled();
     });
 
     it('uses addTransactionBatch when the quote has multiple steps', async () => {
-      await submitGenericQuotes(
+      await submitServerQuotes(
         buildNonGaslessRequest({
           steps: [
             ORIGINAL_QUOTE_MOCK.steps[0],
@@ -398,7 +398,7 @@ describe('submitGenericQuotes', () => {
       const reqWithGasFeeToken = buildNonGaslessRequest();
       reqWithGasFeeToken.quotes[0].fees.isSourceGasFeeToken = true;
 
-      await submitGenericQuotes(reqWithGasFeeToken);
+      await submitServerQuotes(reqWithGasFeeToken);
 
       expect(addTxMock).toHaveBeenCalledWith(
         expect.anything(),
@@ -409,25 +409,25 @@ describe('submitGenericQuotes', () => {
     });
 
     it('records submitted transaction ids onto requiredTransactionIds', async () => {
-      await submitGenericQuotes(buildNonGaslessRequest());
+      await submitServerQuotes(buildNonGaslessRequest());
 
       const requiredUpdate = updateTransactionMock.mock.calls.find(
         ([, note]) =>
-          note === 'Add required transaction ID from generic submission',
+          note === 'Add required transaction ID from server submission',
       );
       expect(requiredUpdate).toBeDefined();
     });
 
     it('still polls /status after submitting via TransactionController', async () => {
-      await submitGenericQuotes(buildNonGaslessRequest());
+      await submitServerQuotes(buildNonGaslessRequest());
 
-      expect(getGenericStatusMock).toHaveBeenCalled();
+      expect(getServerStatusMock).toHaveBeenCalled();
     });
 
     it('throws when the quote has no steps', async () => {
       await expect(
-        submitGenericQuotes(buildNonGaslessRequest({ steps: [] })),
-      ).rejects.toThrow('Generic quote has no steps to submit');
+        submitServerQuotes(buildNonGaslessRequest({ steps: [] })),
+      ).rejects.toThrow('Server quote has no steps to submit');
     });
   });
 });

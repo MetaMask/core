@@ -14,8 +14,8 @@ import type {
   TransactionPayQuote,
 } from '../../types';
 import {
-  getGenericPollingInterval,
-  getGenericPollingTimeout,
+  getServerPollingInterval,
+  getServerPollingTimeout,
 } from '../../utils/feature-flags';
 import {
   collectTransactionIds,
@@ -23,34 +23,34 @@ import {
   updateTransaction,
   waitForTransactionConfirmed,
 } from '../../utils/transaction';
-import { getGenericStatus, submitGenericIntent } from './generic-api';
+import { getServerStatus, submitServerIntent } from './server-api';
 import type {
-  GenericQuote,
-  GenericQuoteStep,
-  GenericStatusResponse,
-  GenericSubmitRequest,
+  ServerQuote,
+  ServerQuoteStep,
+  ServerStatusResponse,
+  ServerSubmitRequest,
 } from './types';
-import { GenericStatus } from './types';
+import { ServerStatus } from './types';
 
-const log = createModuleLogger(projectLogger, 'generic-strategy');
+const log = createModuleLogger(projectLogger, 'server-strategy');
 
 /**
- * Submits generic intent quotes.
+ * Submits server intent quotes.
  *
  * @param request - Request object.
  * @returns An object containing the transaction hash if available.
  */
-export async function submitGenericQuotes(
-  request: PayStrategyExecuteRequest<GenericQuote>,
+export async function submitServerQuotes(
+  request: PayStrategyExecuteRequest<ServerQuote>,
 ): Promise<{ transactionHash?: Hex }> {
-  log('Executing generic quotes', request);
+  log('Executing server quotes', request);
 
   const { quotes, messenger, transaction } = request;
 
   let transactionHash: Hex | undefined;
 
   for (const quote of quotes) {
-    ({ transactionHash } = await executeSingleGenericQuote(
+    ({ transactionHash } = await executeSingleServerQuote(
       quote,
       messenger,
       transaction,
@@ -60,12 +60,12 @@ export async function submitGenericQuotes(
   return { transactionHash };
 }
 
-async function executeSingleGenericQuote(
-  quote: TransactionPayQuote<GenericQuote>,
+async function executeSingleServerQuote(
+  quote: TransactionPayQuote<ServerQuote>,
   messenger: TransactionPayControllerMessenger,
   transaction: TransactionMeta,
 ): Promise<{ transactionHash?: Hex }> {
-  log('Executing single generic quote', quote);
+  log('Executing single server quote', quote);
 
   updateTransaction(
     {
@@ -79,24 +79,24 @@ async function executeSingleGenericQuote(
   );
 
   if (quote.original.gasless) {
-    await submitViaGenericExecute(quote, messenger, transaction);
+    await submitViaServerExecute(quote, messenger, transaction);
   } else {
     await submitViaTransactionController(quote, messenger, transaction);
   }
 
-  const targetHash = await waitForGenericCompletion(
+  const targetHash = await waitForServerCompletion(
     quote.original,
     messenger,
     transaction.id,
   );
 
-  log('Generic request completed', targetHash);
+  log('Server request completed', targetHash);
 
   updateTransaction(
     {
       transactionId: transaction.id,
       messenger,
-      note: 'Intent complete after Generic completion',
+      note: 'Intent complete after Server completion',
     },
     (tx) => {
       tx.isIntentComplete = true;
@@ -106,8 +106,8 @@ async function executeSingleGenericQuote(
   return { transactionHash: targetHash };
 }
 
-async function submitViaGenericExecute(
-  quote: TransactionPayQuote<GenericQuote>,
+async function submitViaServerExecute(
+  quote: TransactionPayQuote<ServerQuote>,
   messenger: TransactionPayControllerMessenger,
   transaction: TransactionMeta,
 ): Promise<void> {
@@ -139,9 +139,9 @@ async function submitViaGenericExecute(
     { transaction: sourceCallTransaction },
   );
 
-  log('Delegation result for generic source calls', delegation);
+  log('Delegation result for server source calls', delegation);
 
-  const submitBody: GenericSubmitRequest = {
+  const submitBody: ServerSubmitRequest = {
     provider: quote.original.provider,
     id: quote.original.id,
     chainId: Number(sourceChainId),
@@ -162,17 +162,17 @@ async function submitViaGenericExecute(
       : {}),
   };
 
-  const submitResponse = await submitGenericIntent(messenger, submitBody);
+  const submitResponse = await submitServerIntent(messenger, submitBody);
 
   if (!submitResponse.success) {
     throw new Error(
-      `Generic submit failed: ${submitResponse.error ?? 'unknown'}`,
+      `Server submit failed: ${submitResponse.error ?? 'unknown'}`,
     );
   }
 }
 
 async function submitViaTransactionController(
-  quote: TransactionPayQuote<GenericQuote>,
+  quote: TransactionPayQuote<ServerQuote>,
   messenger: TransactionPayControllerMessenger,
   transaction: TransactionMeta,
 ): Promise<void> {
@@ -180,7 +180,7 @@ async function submitViaTransactionController(
   const { steps } = quote.original;
 
   if (steps.length === 0) {
-    throw new Error('Generic quote has no steps to submit');
+    throw new Error('Server quote has no steps to submit');
   }
 
   const networkClientId = messenger.call(
@@ -212,7 +212,7 @@ async function submitViaTransactionController(
         {
           transactionId: transaction.id,
           messenger,
-          note: 'Add required transaction ID from generic submission',
+          note: 'Add required transaction ID from server submission',
         },
         (tx) => {
           tx.requiredTransactionIds ??= [];
@@ -258,13 +258,13 @@ async function submitViaTransactionController(
     end();
   }
 
-  log('Generic transactions added', transactionIds);
+  log('Server transactions added', transactionIds);
 
   await Promise.all(
     transactionIds.map((txId) => waitForTransactionConfirmed(txId, messenger)),
   );
 
-  log('Generic transactions confirmed', transactionIds);
+  log('Server transactions confirmed', transactionIds);
 
   const lastId = transactionIds.at(-1);
   const sourceHash = lastId
@@ -276,7 +276,7 @@ async function submitViaTransactionController(
       {
         transactionId: transaction.id,
         messenger,
-        note: 'Add source hash from generic transaction submission',
+        note: 'Add source hash from server transaction submission',
       },
       (tx) => {
         tx.metamaskPay ??= {};
@@ -286,7 +286,7 @@ async function submitViaTransactionController(
   }
 }
 
-function stepToParams(step: GenericQuoteStep, from: Hex): TransactionParams {
+function stepToParams(step: ServerQuoteStep, from: Hex): TransactionParams {
   return {
     data: step.data,
     from,
@@ -300,16 +300,16 @@ function stepToParams(step: GenericQuoteStep, from: Hex): TransactionParams {
   };
 }
 
-async function waitForGenericCompletion(
-  quote: GenericQuote,
+async function waitForServerCompletion(
+  quote: ServerQuote,
   messenger: TransactionPayControllerMessenger,
   transactionId: string,
 ): Promise<Hex | undefined> {
-  const pollingInterval = getGenericPollingInterval(messenger);
-  const pollingTimeout = getGenericPollingTimeout(messenger);
+  const pollingInterval = getServerPollingInterval(messenger);
+  const pollingTimeout = getServerPollingTimeout(messenger);
   const hasTimeout = pollingTimeout !== undefined && pollingTimeout > 0;
 
-  log('Generic polling config', { pollingInterval, pollingTimeout });
+  log('Server polling config', { pollingInterval, pollingTimeout });
 
   const startTime = Date.now();
 
@@ -317,10 +317,10 @@ async function waitForGenericCompletion(
   let sourceHashEmitted = false;
 
   while (true) {
-    let statusResponse: GenericStatusResponse | undefined;
+    let statusResponse: ServerStatusResponse | undefined;
 
     try {
-      statusResponse = await getGenericStatus(messenger, {
+      statusResponse = await getServerStatus(messenger, {
         provider: quote.provider,
         id: quote.id,
       });
@@ -340,7 +340,7 @@ async function waitForGenericCompletion(
           {
             transactionId,
             messenger,
-            note: 'Add source hash from generic status',
+            note: 'Add source hash from server status',
           },
           (tx) => {
             tx.metamaskPay ??= {};
@@ -349,23 +349,23 @@ async function waitForGenericCompletion(
         );
       }
 
-      if (statusResponse.status === GenericStatus.Confirmed) {
+      if (statusResponse.status === ServerStatus.Confirmed) {
         return statusResponse.targetHash;
       }
 
       if (
-        statusResponse.status === GenericStatus.Failed ||
-        statusResponse.status === GenericStatus.Refunded
+        statusResponse.status === ServerStatus.Failed ||
+        statusResponse.status === ServerStatus.Refunded
       ) {
         throw new Error(
-          `Generic intent ${statusResponse.status.toLowerCase()}`,
+          `Server intent ${statusResponse.status.toLowerCase()}`,
         );
       }
     }
 
     if (hasTimeout && Date.now() - startTime >= pollingTimeout) {
       const statusDetail = lastStatus ? ` (last status: ${lastStatus})` : '';
-      throw new Error(`Generic polling timed out${statusDetail}`);
+      throw new Error(`Server polling timed out${statusDetail}`);
     }
 
     await new Promise((resolve) => setTimeout(resolve, pollingInterval));

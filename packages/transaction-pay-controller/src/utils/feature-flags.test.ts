@@ -4,16 +4,16 @@ import type { Hex } from '@metamask/utils';
 import { getDefaultRemoteFeatureFlagControllerState } from '../../../remote-feature-flag-controller/src/remote-feature-flag-controller';
 import { TransactionPayStrategy } from '../constants';
 import type { TransactionPayFiatAsset } from '../strategy/fiat/constants';
-import { GenericProviderName } from '../strategy/generic/types';
+import { ServerProviderName } from '../strategy/server/types';
 import { getMessengerMock } from '../tests/messenger-mock';
 import {
   DEFAULT_ACROSS_API_BASE,
   DEFAULT_FALLBACK_GAS_ESTIMATE,
   DEFAULT_FALLBACK_GAS_MAX,
   DEFAULT_GAS_BUFFER,
-  DEFAULT_GENERIC_QUOTE_URL,
-  DEFAULT_GENERIC_STATUS_URL,
-  DEFAULT_GENERIC_SUBMIT_URL,
+  DEFAULT_SERVER_QUOTE_URL,
+  DEFAULT_SERVER_STATUS_URL,
+  DEFAULT_SERVER_SUBMIT_URL,
   DEFAULT_RELAY_ORIGIN_GAS_OVERHEAD,
   DEFAULT_RELAY_QUOTE_URL,
   DEFAULT_SLIPPAGE,
@@ -21,9 +21,9 @@ import {
   getFallbackGas,
   getFiatAssetPerTransactionType,
   DEFAULT_RELAY_EXECUTE_URL,
-  getGenericPollingInterval,
-  getGenericPollingTimeout,
-  getGenericProviderPriority,
+  getServerPollingInterval,
+  getServerPollingTimeout,
+  getServerProviderPriority,
   getRelayOriginGasOverhead,
   getRelayPollingInterval,
   getRelayPollingTimeout,
@@ -657,28 +657,28 @@ describe('Feature Flags Utils', () => {
     });
   });
 
-  describe('getPayStrategiesConfig - generic', () => {
-    it('returns defaults when generic config is missing', () => {
+  describe('getPayStrategiesConfig - server', () => {
+    it('returns defaults when server config is missing', () => {
       const config = getPayStrategiesConfig(messenger);
 
-      expect(config.generic).toStrictEqual({
+      expect(config.server).toStrictEqual({
         enabled: true,
         pollingInterval: 1000,
         pollingTimeout: undefined,
-        providerPriority: [GenericProviderName.Relay],
-        quoteUrl: DEFAULT_GENERIC_QUOTE_URL,
-        statusUrl: DEFAULT_GENERIC_STATUS_URL,
-        submitUrl: DEFAULT_GENERIC_SUBMIT_URL,
+        providerPriority: [ServerProviderName.Relay],
+        quoteUrl: DEFAULT_SERVER_QUOTE_URL,
+        statusUrl: DEFAULT_SERVER_STATUS_URL,
+        submitUrl: DEFAULT_SERVER_SUBMIT_URL,
       });
     });
 
-    it('returns enabled: true when the flag enables generic', () => {
+    it('returns enabled: true when the flag enables server', () => {
       getRemoteFeatureFlagControllerStateMock.mockReturnValue({
         ...getDefaultRemoteFeatureFlagControllerState(),
         remoteFeatureFlags: {
           confirmations_pay: {
             payStrategies: {
-              generic: {
+              server: {
                 enabled: true,
               },
             },
@@ -686,7 +686,7 @@ describe('Feature Flags Utils', () => {
         },
       });
 
-      expect(getPayStrategiesConfig(messenger).generic.enabled).toBe(true);
+      expect(getPayStrategiesConfig(messenger).server.enabled).toBe(true);
     });
 
     it('returns custom URLs when set by the feature flag', () => {
@@ -695,21 +695,21 @@ describe('Feature Flags Utils', () => {
         remoteFeatureFlags: {
           confirmations_pay: {
             payStrategies: {
-              generic: {
-                quoteUrl: 'https://generic.test/quote',
-                statusUrl: 'https://generic.test/status',
-                submitUrl: 'https://generic.test/submit',
+              server: {
+                quoteUrl: 'https://server.test/quote',
+                statusUrl: 'https://server.test/status',
+                submitUrl: 'https://server.test/submit',
               },
             },
           },
         },
       });
 
-      const { generic } = getPayStrategiesConfig(messenger);
+      const { server } = getPayStrategiesConfig(messenger);
 
-      expect(generic.quoteUrl).toBe('https://generic.test/quote');
-      expect(generic.statusUrl).toBe('https://generic.test/status');
-      expect(generic.submitUrl).toBe('https://generic.test/submit');
+      expect(server.quoteUrl).toBe('https://server.test/quote');
+      expect(server.statusUrl).toBe('https://server.test/status');
+      expect(server.submitUrl).toBe('https://server.test/submit');
     });
 
     it('drops unknown provider names from providerPriority and falls back to default when result is empty', () => {
@@ -718,7 +718,7 @@ describe('Feature Flags Utils', () => {
         remoteFeatureFlags: {
           confirmations_pay: {
             payStrategies: {
-              generic: {
+              server: {
                 providerPriority: ['unknown', 'invalid'],
               },
             },
@@ -727,8 +727,8 @@ describe('Feature Flags Utils', () => {
       });
 
       expect(
-        getPayStrategiesConfig(messenger).generic.providerPriority,
-      ).toStrictEqual([GenericProviderName.Relay]);
+        getPayStrategiesConfig(messenger).server.providerPriority,
+      ).toStrictEqual([ServerProviderName.Relay]);
     });
 
     it('preserves valid provider names in order and drops duplicates', () => {
@@ -737,7 +737,7 @@ describe('Feature Flags Utils', () => {
         remoteFeatureFlags: {
           confirmations_pay: {
             payStrategies: {
-              generic: {
+              server: {
                 providerPriority: [
                   'across',
                   'relay',
@@ -752,14 +752,14 @@ describe('Feature Flags Utils', () => {
       });
 
       expect(
-        getPayStrategiesConfig(messenger).generic.providerPriority,
-      ).toStrictEqual([GenericProviderName.Across, GenericProviderName.Relay]);
+        getPayStrategiesConfig(messenger).server.providerPriority,
+      ).toStrictEqual([ServerProviderName.Across, ServerProviderName.Relay]);
     });
   });
 
-  describe('getGenericPollingInterval', () => {
+  describe('getServerPollingInterval', () => {
     it('returns the default polling interval when no feature flag is set', () => {
-      expect(getGenericPollingInterval(messenger)).toBe(1000);
+      expect(getServerPollingInterval(messenger)).toBe(1000);
     });
 
     it('returns the configured polling interval when set', () => {
@@ -768,7 +768,7 @@ describe('Feature Flags Utils', () => {
         remoteFeatureFlags: {
           confirmations_pay: {
             payStrategies: {
-              generic: {
+              server: {
                 pollingInterval: 7500,
               },
             },
@@ -776,13 +776,13 @@ describe('Feature Flags Utils', () => {
         },
       });
 
-      expect(getGenericPollingInterval(messenger)).toBe(7500);
+      expect(getServerPollingInterval(messenger)).toBe(7500);
     });
   });
 
-  describe('getGenericPollingTimeout', () => {
+  describe('getServerPollingTimeout', () => {
     it('returns undefined when no feature flag is set', () => {
-      expect(getGenericPollingTimeout(messenger)).toBeUndefined();
+      expect(getServerPollingTimeout(messenger)).toBeUndefined();
     });
 
     it('returns the configured polling timeout when set', () => {
@@ -791,7 +791,7 @@ describe('Feature Flags Utils', () => {
         remoteFeatureFlags: {
           confirmations_pay: {
             payStrategies: {
-              generic: {
+              server: {
                 pollingTimeout: 45000,
               },
             },
@@ -799,14 +799,14 @@ describe('Feature Flags Utils', () => {
         },
       });
 
-      expect(getGenericPollingTimeout(messenger)).toBe(45000);
+      expect(getServerPollingTimeout(messenger)).toBe(45000);
     });
   });
 
-  describe('getGenericProviderPriority', () => {
+  describe('getServerProviderPriority', () => {
     it('returns the default provider priority when no feature flag is set', () => {
-      expect(getGenericProviderPriority(messenger)).toStrictEqual([
-        GenericProviderName.Relay,
+      expect(getServerProviderPriority(messenger)).toStrictEqual([
+        ServerProviderName.Relay,
       ]);
     });
 
@@ -816,7 +816,7 @@ describe('Feature Flags Utils', () => {
         remoteFeatureFlags: {
           confirmations_pay: {
             payStrategies: {
-              generic: {
+              server: {
                 providerPriority: ['across', 'relay'],
               },
             },
@@ -824,9 +824,9 @@ describe('Feature Flags Utils', () => {
         },
       });
 
-      expect(getGenericProviderPriority(messenger)).toStrictEqual([
-        GenericProviderName.Across,
-        GenericProviderName.Relay,
+      expect(getServerProviderPriority(messenger)).toStrictEqual([
+        ServerProviderName.Across,
+        ServerProviderName.Relay,
       ]);
     });
   });
@@ -915,7 +915,7 @@ describe('Feature Flags Utils', () => {
       const strategyOrder = getStrategyOrder(messenger);
 
       expect(strategyOrder).toStrictEqual([
-        TransactionPayStrategy.Generic,
+        TransactionPayStrategy.Server,
         TransactionPayStrategy.Relay,
       ]);
     });
@@ -979,7 +979,7 @@ describe('Feature Flags Utils', () => {
       const strategyOrder = getStrategyOrder(messenger);
 
       expect(strategyOrder).toStrictEqual([
-        TransactionPayStrategy.Generic,
+        TransactionPayStrategy.Server,
         TransactionPayStrategy.Relay,
       ]);
     });
@@ -1047,7 +1047,7 @@ describe('Feature Flags Utils', () => {
   describe('getStrategyOrder route-aware resolution', () => {
     it('uses default routing config when confirmations_pay flags are absent', () => {
       expect(getStrategyOrder(messenger)).toStrictEqual([
-        TransactionPayStrategy.Generic,
+        TransactionPayStrategy.Server,
         TransactionPayStrategy.Relay,
       ]);
     });
@@ -1342,16 +1342,16 @@ describe('Feature Flags Utils', () => {
       expect(getStrategyOrder(messenger)).toStrictEqual([]);
     });
 
-    it('filters Generic out of the strategy order when payStrategies.generic is disabled', () => {
+    it('filters Server out of the strategy order when payStrategies.server is disabled', () => {
       getRemoteFeatureFlagControllerStateMock.mockReturnValue({
         ...getDefaultRemoteFeatureFlagControllerState(),
         remoteFeatureFlags: {
           confirmations_pay: {
             payStrategies: {
               relay: { enabled: true },
-              generic: { enabled: false },
+              server: { enabled: false },
             },
-            strategyOrder: ['generic', 'relay'],
+            strategyOrder: ['server', 'relay'],
           },
         },
       });
@@ -1361,22 +1361,22 @@ describe('Feature Flags Utils', () => {
       ]);
     });
 
-    it('includes Generic in the strategy order when payStrategies.generic is enabled', () => {
+    it('includes Server in the strategy order when payStrategies.server is enabled', () => {
       getRemoteFeatureFlagControllerStateMock.mockReturnValue({
         ...getDefaultRemoteFeatureFlagControllerState(),
         remoteFeatureFlags: {
           confirmations_pay: {
             payStrategies: {
               relay: { enabled: true },
-              generic: { enabled: true },
+              server: { enabled: true },
             },
-            strategyOrder: ['generic', 'relay'],
+            strategyOrder: ['server', 'relay'],
           },
         },
       });
 
       expect(getStrategyOrder(messenger)).toStrictEqual([
-        TransactionPayStrategy.Generic,
+        TransactionPayStrategy.Server,
         TransactionPayStrategy.Relay,
       ]);
     });
@@ -1391,7 +1391,7 @@ describe('Feature Flags Utils', () => {
       });
 
       expect(getStrategyOrder(messenger)).toStrictEqual([
-        TransactionPayStrategy.Generic,
+        TransactionPayStrategy.Server,
         TransactionPayStrategy.Relay,
       ]);
     });

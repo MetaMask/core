@@ -11,13 +11,13 @@ import {
   FIAT_ASSET_ID_BY_TX_TYPE,
 } from '../strategy/fiat/constants';
 import {
-  GENERIC_DEFAULT_PROVIDER_PRIORITY,
-  GENERIC_POLLING_INTERVAL,
-  GENERIC_QUOTE_URL,
-  GENERIC_STATUS_URL,
-  GENERIC_SUBMIT_URL,
-} from '../strategy/generic/constants';
-import { GenericProviderName } from '../strategy/generic/types';
+  SERVER_DEFAULT_PROVIDER_PRIORITY,
+  SERVER_POLLING_INTERVAL,
+  SERVER_QUOTE_URL,
+  SERVER_STATUS_URL,
+  SERVER_SUBMIT_URL,
+} from '../strategy/server/constants';
+import { ServerProviderName } from '../strategy/server/types';
 import {
   RELAY_EXECUTE_URL,
   RELAY_POLLING_INTERVAL,
@@ -37,11 +37,11 @@ export const DEFAULT_RELAY_QUOTE_URL = RELAY_QUOTE_URL;
 export const DEFAULT_RELAY_ORIGIN_GAS_OVERHEAD = '300000';
 export const DEFAULT_SLIPPAGE = 0.005;
 export const DEFAULT_ACROSS_API_BASE = 'https://app.across.to/api';
-export const DEFAULT_GENERIC_QUOTE_URL = GENERIC_QUOTE_URL;
-export const DEFAULT_GENERIC_STATUS_URL = GENERIC_STATUS_URL;
-export const DEFAULT_GENERIC_SUBMIT_URL = GENERIC_SUBMIT_URL;
+export const DEFAULT_SERVER_QUOTE_URL = SERVER_QUOTE_URL;
+export const DEFAULT_SERVER_STATUS_URL = SERVER_STATUS_URL;
+export const DEFAULT_SERVER_SUBMIT_URL = SERVER_SUBMIT_URL;
 export const DEFAULT_STRATEGY_ORDER: StrategyOrder = [
-  TransactionPayStrategy.Generic,
+  TransactionPayStrategy.Server,
   TransactionPayStrategy.Relay,
   TransactionPayStrategy.Across,
 ];
@@ -104,7 +104,7 @@ type StrategyRoutingConfig = {
     across: {
       enabled: boolean;
     };
-    generic: {
+    server: {
       enabled: boolean;
     };
     relay: {
@@ -146,7 +146,7 @@ export type AcrossConfig = {
 
 export type PayStrategiesConfigRaw = {
   across?: AcrossConfigRaw;
-  generic?: {
+  server?: {
     enabled?: boolean;
     pollingInterval?: number;
     pollingTimeout?: number;
@@ -173,11 +173,11 @@ type FeatureFlagsExtendedRaw = {
 
 export type PayStrategiesConfig = {
   across: AcrossConfig;
-  generic: {
+  server: {
     enabled: boolean;
     pollingInterval: number;
     pollingTimeout?: number;
-    providerPriority: GenericProviderName[];
+    providerPriority: ServerProviderName[];
     quoteUrl: string;
     statusUrl: string;
     submitUrl: string;
@@ -279,8 +279,8 @@ function normalizeStrategyRoutingConfig(
       across: {
         enabled: featureFlags.payStrategies?.across?.enabled ?? false,
       },
-      generic: {
-        enabled: featureFlags.payStrategies?.generic?.enabled ?? true,
+      server: {
+        enabled: featureFlags.payStrategies?.server?.enabled ?? true,
       },
       relay: {
         enabled: featureFlags.payStrategies?.relay?.enabled ?? true,
@@ -326,8 +326,8 @@ function filterEnabledStrategies(
       return routingConfig.payStrategies.relay.enabled;
     }
 
-    if (strategy === TransactionPayStrategy.Generic) {
-      return routingConfig.payStrategies.generic.enabled;
+    if (strategy === TransactionPayStrategy.Server) {
+      return routingConfig.payStrategies.server.enabled;
     }
 
     return true;
@@ -507,7 +507,7 @@ export function getPayStrategiesConfig(
   const payStrategies = featureFlags.payStrategies ?? {};
 
   const acrossRaw = payStrategies.across ?? {};
-  const genericRaw = payStrategies.generic ?? {};
+  const serverRaw = payStrategies.server ?? {};
   const relayRaw = payStrategies.relay ?? {};
 
   const across = {
@@ -521,28 +521,28 @@ export function getPayStrategiesConfig(
   };
 
   const validProviderNames = new Set<string>(
-    Object.values(GenericProviderName),
+    Object.values(ServerProviderName),
   );
-  const rawPriority = genericRaw.providerPriority ?? [];
+  const rawPriority = serverRaw.providerPriority ?? [];
   const normalizedPriority = [
     ...new Set(
-      rawPriority.filter((providerName): providerName is GenericProviderName =>
+      rawPriority.filter((providerName): providerName is ServerProviderName =>
         validProviderNames.has(providerName),
       ),
     ),
   ];
 
-  const generic = {
-    enabled: genericRaw.enabled ?? true,
-    pollingInterval: genericRaw.pollingInterval ?? GENERIC_POLLING_INTERVAL,
-    pollingTimeout: genericRaw.pollingTimeout,
+  const server = {
+    enabled: serverRaw.enabled ?? true,
+    pollingInterval: serverRaw.pollingInterval ?? SERVER_POLLING_INTERVAL,
+    pollingTimeout: serverRaw.pollingTimeout,
     providerPriority:
       normalizedPriority.length > 0
         ? normalizedPriority
-        : ([...GENERIC_DEFAULT_PROVIDER_PRIORITY] as GenericProviderName[]),
-    quoteUrl: genericRaw.quoteUrl ?? DEFAULT_GENERIC_QUOTE_URL,
-    statusUrl: genericRaw.statusUrl ?? DEFAULT_GENERIC_STATUS_URL,
-    submitUrl: genericRaw.submitUrl ?? DEFAULT_GENERIC_SUBMIT_URL,
+        : ([...SERVER_DEFAULT_PROVIDER_PRIORITY] as ServerProviderName[]),
+    quoteUrl: serverRaw.quoteUrl ?? DEFAULT_SERVER_QUOTE_URL,
+    statusUrl: serverRaw.statusUrl ?? DEFAULT_SERVER_STATUS_URL,
+    submitUrl: serverRaw.submitUrl ?? DEFAULT_SERVER_SUBMIT_URL,
   };
 
   const relay = {
@@ -551,7 +551,7 @@ export function getPayStrategiesConfig(
 
   return {
     across,
-    generic,
+    server,
     relay,
   };
 }
@@ -633,39 +633,39 @@ export function getRelayPollingTimeout(
 }
 
 /**
- * Get the generic strategy status polling interval in milliseconds.
+ * Get the server strategy status polling interval in milliseconds.
  *
  * @param messenger - Controller messenger.
  * @returns Polling interval in milliseconds.
  */
-export function getGenericPollingInterval(
+export function getServerPollingInterval(
   messenger: TransactionPayControllerMessenger,
 ): number {
-  return getPayStrategiesConfig(messenger).generic.pollingInterval;
+  return getPayStrategiesConfig(messenger).server.pollingInterval;
 }
 
 /**
- * Get the generic strategy status polling timeout in milliseconds.
+ * Get the server strategy status polling timeout in milliseconds.
  *
  * @param messenger - Controller messenger.
  * @returns Polling timeout in milliseconds, or undefined when not configured.
  */
-export function getGenericPollingTimeout(
+export function getServerPollingTimeout(
   messenger: TransactionPayControllerMessenger,
 ): number | undefined {
-  return getPayStrategiesConfig(messenger).generic.pollingTimeout;
+  return getPayStrategiesConfig(messenger).server.pollingTimeout;
 }
 
 /**
- * Get the ordered provider priority for the generic strategy.
+ * Get the ordered provider priority for the server strategy.
  *
  * @param messenger - Controller messenger.
  * @returns Ordered list of provider names to try.
  */
-export function getGenericProviderPriority(
+export function getServerProviderPriority(
   messenger: TransactionPayControllerMessenger,
-): GenericProviderName[] {
-  return getPayStrategiesConfig(messenger).generic.providerPriority;
+): ServerProviderName[] {
+  return getPayStrategiesConfig(messenger).server.providerPriority;
 }
 
 /**

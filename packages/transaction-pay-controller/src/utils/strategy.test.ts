@@ -2,7 +2,7 @@ import { TransactionPayStrategy } from '../constants';
 import { AcrossStrategy } from '../strategy/across/AcrossStrategy';
 import { BridgeStrategy } from '../strategy/bridge/BridgeStrategy';
 import { FiatStrategy } from '../strategy/fiat/FiatStrategy';
-import { GenericStrategy } from '../strategy/generic/GenericStrategy';
+import { ServerStrategy } from '../strategy/server/ServerStrategy';
 import { RelayStrategy } from '../strategy/relay/RelayStrategy';
 import { TestStrategy } from '../strategy/test/TestStrategy';
 import type { PayStrategyGetQuotesRequest } from '../types';
@@ -40,9 +40,9 @@ describe('Strategy Utils', () => {
       expect(strategy).toBeInstanceOf(FiatStrategy);
     });
 
-    it('returns GenericStrategy if strategy name is Generic', () => {
-      const strategy = getStrategyByName(TransactionPayStrategy.Generic);
-      expect(strategy).toBeInstanceOf(GenericStrategy);
+    it('returns ServerStrategy if strategy name is Server', () => {
+      const strategy = getStrategyByName(TransactionPayStrategy.Server);
+      expect(strategy).toBeInstanceOf(ServerStrategy);
     });
 
     it('throws if strategy name is unknown', () => {
@@ -59,7 +59,7 @@ describe('Strategy Utils', () => {
         TransactionPayStrategy.Bridge,
         TransactionPayStrategy.Relay,
         TransactionPayStrategy.Fiat,
-        TransactionPayStrategy.Generic,
+        TransactionPayStrategy.Server,
       ]);
 
       expect(strategies).toHaveLength(5);
@@ -67,12 +67,12 @@ describe('Strategy Utils', () => {
       expect(strategies[1].name).toBe(TransactionPayStrategy.Bridge);
       expect(strategies[2].name).toBe(TransactionPayStrategy.Relay);
       expect(strategies[3].name).toBe(TransactionPayStrategy.Fiat);
-      expect(strategies[4].name).toBe(TransactionPayStrategy.Generic);
+      expect(strategies[4].name).toBe(TransactionPayStrategy.Server);
       expect(strategies[0].strategy).toBeInstanceOf(TestStrategy);
       expect(strategies[1].strategy).toBeInstanceOf(BridgeStrategy);
       expect(strategies[2].strategy).toBeInstanceOf(RelayStrategy);
       expect(strategies[3].strategy).toBeInstanceOf(FiatStrategy);
-      expect(strategies[4].strategy).toBeInstanceOf(GenericStrategy);
+      expect(strategies[4].strategy).toBeInstanceOf(ServerStrategy);
     });
 
     it('skips unknown strategies and calls callback', () => {

@@ -8,21 +8,21 @@ import type {
   QuoteRequest,
 } from '../../types';
 import {
-  getGenericProviderPriority,
+  getServerProviderPriority,
   getSlippage,
   isEIP7702Chain,
 } from '../../utils/feature-flags';
-import { fetchGenericQuote } from './generic-api';
-import { getGenericQuotes } from './generic-quotes';
-import { GenericProviderName, GenericTradeType } from './types';
+import { fetchServerQuote } from './server-api';
+import { getServerQuotes } from './server-quotes';
+import { ServerProviderName, ServerTradeType } from './types';
 
 jest.mock('../../utils/feature-flags', () => ({
   ...jest.requireActual('../../utils/feature-flags'),
-  getGenericProviderPriority: jest.fn(),
+  getServerProviderPriority: jest.fn(),
   getSlippage: jest.fn(),
   isEIP7702Chain: jest.fn(),
 }));
-jest.mock('./generic-api');
+jest.mock('./server-api');
 
 const FROM_MOCK = '0x1234567890123456789012345678901234567891' as Hex;
 const SOURCE_TOKEN_ADDRESS_MOCK =
@@ -53,7 +53,7 @@ const QUOTE_REQUEST_MOCK: QuoteRequest = {
 };
 
 const FULFILLED_RESULT_MOCK = {
-  provider: GenericProviderName.Relay,
+  provider: ServerProviderName.Relay,
   quote: {
     duration: 42,
     fees: { metamask: '0', provider: '0.25', subsidized: false },
@@ -86,7 +86,7 @@ const FULFILLED_RESULT_MOCK = {
 
 const REJECTED_RESULT_MOCK = {
   error: { message: 'no route' },
-  provider: GenericProviderName.Relay,
+  provider: ServerProviderName.Relay,
 };
 
 const DELEGATION_RESULT_MOCK = {
@@ -105,10 +105,10 @@ const DELEGATION_RESULT_MOCK = {
   value: '0x333' as Hex,
 } as Awaited<ReturnType<GetDelegationTransactionCallback>>;
 
-describe('generic-quotes', () => {
-  const fetchGenericQuoteMock = jest.mocked(fetchGenericQuote);
-  const getGenericProviderPriorityMock = jest.mocked(
-    getGenericProviderPriority,
+describe('server-quotes', () => {
+  const fetchServerQuoteMock = jest.mocked(fetchServerQuote);
+  const getServerProviderPriorityMock = jest.mocked(
+    getServerProviderPriority,
   );
   const getSlippageMock = jest.mocked(getSlippage);
   const isEIP7702ChainMock = jest.mocked(isEIP7702Chain);
@@ -117,34 +117,34 @@ describe('generic-quotes', () => {
   beforeEach(() => {
     jest.resetAllMocks();
 
-    fetchGenericQuoteMock.mockResolvedValue({
+    fetchServerQuoteMock.mockResolvedValue({
       results: [FULFILLED_RESULT_MOCK],
     });
     getDelegationTransactionMock.mockResolvedValue(DELEGATION_RESULT_MOCK);
-    getGenericProviderPriorityMock.mockReturnValue([GenericProviderName.Relay]);
+    getServerProviderPriorityMock.mockReturnValue([ServerProviderName.Relay]);
     getSlippageMock.mockReturnValue(0.005);
     isEIP7702ChainMock.mockReturnValue(false);
   });
 
   it('maps standard transactions to EXPECTED_OUTPUT quote requests with relay provider', async () => {
-    await getGenericQuotes({
+    await getServerQuotes({
       accountSupports7702: true,
       messenger,
       requests: [QUOTE_REQUEST_MOCK],
       transaction: TRANSACTION_META_MOCK,
     });
 
-    expect(fetchGenericQuoteMock).toHaveBeenCalledWith(
+    expect(fetchServerQuoteMock).toHaveBeenCalledWith(
       messenger,
       {
         source: { chainId: 1, token: SOURCE_TOKEN_ADDRESS_MOCK },
         target: { chainId: 2, token: TARGET_TOKEN_ADDRESS_MOCK },
         amount: QUOTE_REQUEST_MOCK.targetAmountMinimum,
-        tradeType: GenericTradeType.ExpectedOutput,
+        tradeType: ServerTradeType.ExpectedOutput,
         sender: FROM_MOCK,
         recipient: FROM_MOCK,
         slippage: 50,
-        providers: [GenericProviderName.Relay],
+        providers: [ServerProviderName.Relay],
         supportsGasless: false,
       },
       undefined,
@@ -152,25 +152,25 @@ describe('generic-quotes', () => {
   });
 
   it('maps max-amount transactions to EXACT_INPUT quote requests', async () => {
-    await getGenericQuotes({
+    await getServerQuotes({
       accountSupports7702: true,
       messenger,
       requests: [{ ...QUOTE_REQUEST_MOCK, isMaxAmount: true }],
       transaction: TRANSACTION_META_MOCK,
     });
 
-    expect(fetchGenericQuoteMock).toHaveBeenCalledWith(
+    expect(fetchServerQuoteMock).toHaveBeenCalledWith(
       messenger,
       expect.objectContaining({
         amount: QUOTE_REQUEST_MOCK.sourceTokenAmount,
-        tradeType: GenericTradeType.ExactInput,
+        tradeType: ServerTradeType.ExactInput,
       }),
       undefined,
     );
   });
 
   it('decodes ERC-20 transfer calldata and uses the transfer recipient', async () => {
-    await getGenericQuotes({
+    await getServerQuotes({
       accountSupports7702: true,
       messenger,
       requests: [QUOTE_REQUEST_MOCK],
@@ -179,7 +179,7 @@ describe('generic-quotes', () => {
       } as TransactionMeta,
     });
 
-    expect(fetchGenericQuoteMock).toHaveBeenCalledWith(
+    expect(fetchServerQuoteMock).toHaveBeenCalledWith(
       messenger,
       expect.objectContaining({ recipient: TOKEN_TRANSFER_RECIPIENT_MOCK }),
       undefined,
@@ -188,14 +188,14 @@ describe('generic-quotes', () => {
   });
 
   it('builds calls from delegation for complex non-transfer transactions', async () => {
-    await getGenericQuotes({
+    await getServerQuotes({
       accountSupports7702: true,
       messenger,
       requests: [QUOTE_REQUEST_MOCK],
       transaction: COMPLEX_TRANSACTION_META_MOCK,
     });
 
-    expect(fetchGenericQuoteMock).toHaveBeenCalledWith(
+    expect(fetchServerQuoteMock).toHaveBeenCalledWith(
       messenger,
       expect.objectContaining({
         authorizationList: [
@@ -226,7 +226,7 @@ describe('generic-quotes', () => {
   });
 
   it('does not build delegation calls for Hypercore transactions', async () => {
-    await getGenericQuotes({
+    await getServerQuotes({
       accountSupports7702: true,
       messenger,
       requests: [
@@ -238,7 +238,7 @@ describe('generic-quotes', () => {
       transaction: COMPLEX_TRANSACTION_META_MOCK,
     });
 
-    expect(fetchGenericQuoteMock).toHaveBeenCalledWith(
+    expect(fetchServerQuoteMock).toHaveBeenCalledWith(
       messenger,
       expect.not.objectContaining({ calls: expect.any(Array) }),
       undefined,
@@ -249,14 +249,14 @@ describe('generic-quotes', () => {
   it('sets supportsGasless when the account supports 7702 and the source chain is EIP-7702-capable', async () => {
     isEIP7702ChainMock.mockReturnValue(true);
 
-    await getGenericQuotes({
+    await getServerQuotes({
       accountSupports7702: true,
       messenger,
       requests: [QUOTE_REQUEST_MOCK],
       transaction: TRANSACTION_META_MOCK,
     });
 
-    expect(fetchGenericQuoteMock).toHaveBeenCalledWith(
+    expect(fetchServerQuoteMock).toHaveBeenCalledWith(
       messenger,
       expect.objectContaining({ supportsGasless: true }),
       undefined,
@@ -271,14 +271,14 @@ describe('generic-quotes', () => {
     async (_label, supports7702, eip7702Chain) => {
       isEIP7702ChainMock.mockReturnValue(eip7702Chain);
 
-      await getGenericQuotes({
+      await getServerQuotes({
         accountSupports7702: supports7702,
         messenger,
         requests: [QUOTE_REQUEST_MOCK],
         transaction: TRANSACTION_META_MOCK,
       });
 
-      expect(fetchGenericQuoteMock).toHaveBeenCalledWith(
+      expect(fetchServerQuoteMock).toHaveBeenCalledWith(
         messenger,
         expect.objectContaining({ supportsGasless: false }),
         undefined,
@@ -287,11 +287,11 @@ describe('generic-quotes', () => {
   );
 
   it('returns an empty array when all providers return only rejected results', async () => {
-    fetchGenericQuoteMock.mockResolvedValue({
+    fetchServerQuoteMock.mockResolvedValue({
       results: [REJECTED_RESULT_MOCK],
     });
 
-    const result = await getGenericQuotes({
+    const result = await getServerQuotes({
       accountSupports7702: true,
       messenger,
       requests: [QUOTE_REQUEST_MOCK],
@@ -302,72 +302,72 @@ describe('generic-quotes', () => {
   });
 
   it('stops at the first provider with a fulfilled result', async () => {
-    getGenericProviderPriorityMock.mockReturnValue([
-      GenericProviderName.Relay,
-      GenericProviderName.Across,
+    getServerProviderPriorityMock.mockReturnValue([
+      ServerProviderName.Relay,
+      ServerProviderName.Across,
     ]);
 
-    await getGenericQuotes({
+    await getServerQuotes({
       accountSupports7702: true,
       messenger,
       requests: [QUOTE_REQUEST_MOCK],
       transaction: TRANSACTION_META_MOCK,
     });
 
-    expect(fetchGenericQuoteMock).toHaveBeenCalledTimes(1);
-    expect(fetchGenericQuoteMock).toHaveBeenCalledWith(
+    expect(fetchServerQuoteMock).toHaveBeenCalledTimes(1);
+    expect(fetchServerQuoteMock).toHaveBeenCalledWith(
       messenger,
-      expect.objectContaining({ providers: [GenericProviderName.Relay] }),
+      expect.objectContaining({ providers: [ServerProviderName.Relay] }),
       undefined,
     );
   });
 
   it('tries providers in priority order and falls back when the first provider has no fulfilled result', async () => {
-    getGenericProviderPriorityMock.mockReturnValue([
-      GenericProviderName.Relay,
-      GenericProviderName.Across,
+    getServerProviderPriorityMock.mockReturnValue([
+      ServerProviderName.Relay,
+      ServerProviderName.Across,
     ]);
-    fetchGenericQuoteMock
+    fetchServerQuoteMock
       .mockResolvedValueOnce({ results: [REJECTED_RESULT_MOCK] })
       .mockResolvedValueOnce({
         results: [
           {
             ...FULFILLED_RESULT_MOCK,
-            provider: GenericProviderName.Across,
+            provider: ServerProviderName.Across,
           },
         ],
       });
 
-    const result = await getGenericQuotes({
+    const result = await getServerQuotes({
       accountSupports7702: true,
       messenger,
       requests: [QUOTE_REQUEST_MOCK],
       transaction: TRANSACTION_META_MOCK,
     });
 
-    expect(fetchGenericQuoteMock).toHaveBeenNthCalledWith(
+    expect(fetchServerQuoteMock).toHaveBeenNthCalledWith(
       1,
       messenger,
-      expect.objectContaining({ providers: [GenericProviderName.Relay] }),
+      expect.objectContaining({ providers: [ServerProviderName.Relay] }),
       undefined,
     );
-    expect(fetchGenericQuoteMock).toHaveBeenNthCalledWith(
+    expect(fetchServerQuoteMock).toHaveBeenNthCalledWith(
       2,
       messenger,
-      expect.objectContaining({ providers: [GenericProviderName.Across] }),
+      expect.objectContaining({ providers: [ServerProviderName.Across] }),
       undefined,
     );
-    expect(result[0].original.provider).toBe(GenericProviderName.Across);
+    expect(result[0].original.provider).toBe(ServerProviderName.Across);
   });
 
   it('passes gasless through to the normalized quote', async () => {
-    fetchGenericQuoteMock.mockResolvedValue({
+    fetchServerQuoteMock.mockResolvedValue({
       results: [
         { ...FULFILLED_RESULT_MOCK, quote: { ...FULFILLED_RESULT_MOCK.quote, gasless: true } },
       ],
     });
 
-    const result = await getGenericQuotes({
+    const result = await getServerQuotes({
       accountSupports7702: true,
       messenger,
       requests: [QUOTE_REQUEST_MOCK],
@@ -377,8 +377,8 @@ describe('generic-quotes', () => {
     expect(result[0].original.gasless).toBe(true);
   });
 
-  it('normalizes network fees to zero for gasless quotes and uses the generic strategy', async () => {
-    const result = await getGenericQuotes({
+  it('normalizes network fees to zero for gasless quotes and uses the server strategy', async () => {
+    const result = await getServerQuotes({
       accountSupports7702: true,
       messenger,
       requests: [QUOTE_REQUEST_MOCK],
@@ -417,14 +417,14 @@ describe('generic-quotes', () => {
           raw: quote.input.raw,
           usd: '0',
         },
-        strategy: TransactionPayStrategy.Generic,
+        strategy: TransactionPayStrategy.Server,
         targetAmount: { fiat: '0', usd: '0' },
       },
     ]);
   });
 
   it('filters zero target amount requests unless they are post-quote or max amount requests', async () => {
-    await getGenericQuotes({
+    await getServerQuotes({
       accountSupports7702: true,
       messenger,
       requests: [
@@ -435,6 +435,6 @@ describe('generic-quotes', () => {
       transaction: TRANSACTION_META_MOCK,
     });
 
-    expect(fetchGenericQuoteMock).toHaveBeenCalledTimes(2);
+    expect(fetchServerQuoteMock).toHaveBeenCalledTimes(2);
   });
 });

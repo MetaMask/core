@@ -5,20 +5,20 @@ import type {
   TransactionPayQuote,
 } from '../../types';
 import { getPayStrategiesConfig } from '../../utils/feature-flags';
-import { getGenericQuotes } from './generic-quotes';
-import { submitGenericQuotes } from './generic-submit';
-import type { GenericQuote } from './types';
+import { getServerQuotes } from './server-quotes';
+import { submitServerQuotes } from './server-submit';
+import type { ServerQuote } from './types';
 
-export class GenericStrategy implements PayStrategy<GenericQuote> {
+export class ServerStrategy implements PayStrategy<ServerQuote> {
   supports(request: PayStrategyGetQuotesRequest): boolean {
     const config = getPayStrategiesConfig(request.messenger);
-    return config.generic.enabled;
+    return config.server.enabled;
   }
 
   async getQuotes(
     request: PayStrategyGetQuotesRequest,
-  ): Promise<TransactionPayQuote<GenericQuote>[]> {
-    return getGenericQuotes(request);
+  ): Promise<TransactionPayQuote<ServerQuote>[]> {
+    return getServerQuotes(request);
   }
 
   async getBatchTransactions(): Promise<[]> {
@@ -26,13 +26,13 @@ export class GenericStrategy implements PayStrategy<GenericQuote> {
   }
 
   async execute(
-    request: PayStrategyExecuteRequest<GenericQuote>,
-  ): ReturnType<PayStrategy<GenericQuote>['execute']> {
+    request: PayStrategyExecuteRequest<ServerQuote>,
+  ): ReturnType<PayStrategy<ServerQuote>['execute']> {
     try {
-      return await submitGenericQuotes(request);
+      return await submitServerQuotes(request);
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      throw new Error(`Generic submit: ${message}`);
+      throw new Error(`Server submit: ${message}`);
     }
   }
 }

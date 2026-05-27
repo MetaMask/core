@@ -1,12 +1,12 @@
 import type { PayStrategiesConfig } from '../../utils/feature-flags';
 import { getPayStrategiesConfig } from '../../utils/feature-flags';
 import {
-  fetchGenericQuote,
-  getGenericStatus,
-  submitGenericIntent,
-} from './generic-api';
-import { GenericProviderName, GenericStatus, GenericTradeType } from './types';
-import type { GenericQuoteRequest, GenericSubmitRequest } from './types';
+  fetchServerQuote,
+  getServerStatus,
+  submitServerIntent,
+} from './server-api';
+import { ServerProviderName, ServerStatus, ServerTradeType } from './types';
+import type { ServerQuoteRequest, ServerSubmitRequest } from './types';
 
 jest.mock('../../utils/feature-flags');
 
@@ -27,21 +27,21 @@ const mockErrorResponse = (status: number, body: unknown): jest.SpyInstance =>
     json: async () => body,
   } as Response);
 
-const QUOTE_URL_MOCK = 'https://proxy.test/generic/quote';
-const STATUS_URL_MOCK = 'https://proxy.test/generic/status';
-const SUBMIT_URL_MOCK = 'https://proxy.test/generic/submit';
+const QUOTE_URL_MOCK = 'https://proxy.test/server/quote';
+const STATUS_URL_MOCK = 'https://proxy.test/server/status';
+const SUBMIT_URL_MOCK = 'https://proxy.test/server/submit';
 
-const MESSENGER_MOCK = {} as Parameters<typeof fetchGenericQuote>[0];
+const MESSENGER_MOCK = {} as Parameters<typeof fetchServerQuote>[0];
 
-describe('generic-api', () => {
+describe('server-api', () => {
   beforeEach(() => {
     fetchMock = jest.spyOn(global, 'fetch');
 
     getPayStrategiesConfigMock.mockReturnValue({
-      generic: {
+      server: {
         enabled: true,
         pollingInterval: 1000,
-        providerPriority: [GenericProviderName.Relay],
+        providerPriority: [ServerProviderName.Relay],
         quoteUrl: QUOTE_URL_MOCK,
         statusUrl: STATUS_URL_MOCK,
         submitUrl: SUBMIT_URL_MOCK,
@@ -53,12 +53,12 @@ describe('generic-api', () => {
     fetchMock.mockRestore();
   });
 
-  describe('fetchGenericQuote', () => {
-    const QUOTE_REQUEST_MOCK: GenericQuoteRequest = {
+  describe('fetchServerQuote', () => {
+    const QUOTE_REQUEST_MOCK: ServerQuoteRequest = {
       source: { chainId: 137, token: '0xbbb' },
       target: { chainId: 1, token: '0xaaa' },
       amount: '1000000',
-      tradeType: GenericTradeType.ExpectedOutput,
+      tradeType: ServerTradeType.ExpectedOutput,
       sender: '0xccc',
       recipient: '0xccc',
     };
@@ -66,7 +66,7 @@ describe('generic-api', () => {
     const QUOTE_RESPONSE_MOCK = {
       results: [
         {
-          provider: GenericProviderName.Relay,
+          provider: ServerProviderName.Relay,
           quote: {
             id: '0xid',
             input: {
@@ -95,7 +95,7 @@ describe('generic-api', () => {
     it('posts to the quote URL from feature flags', async () => {
       mockOkResponse(QUOTE_RESPONSE_MOCK);
 
-      await fetchGenericQuote(MESSENGER_MOCK, QUOTE_REQUEST_MOCK);
+      await fetchServerQuote(MESSENGER_MOCK, QUOTE_REQUEST_MOCK);
 
       expect(fetchMock).toHaveBeenCalledWith(QUOTE_URL_MOCK, {
         method: 'POST',
@@ -107,7 +107,7 @@ describe('generic-api', () => {
     it('returns the parsed response', async () => {
       mockOkResponse(QUOTE_RESPONSE_MOCK);
 
-      const result = await fetchGenericQuote(
+      const result = await fetchServerQuote(
         MESSENGER_MOCK,
         QUOTE_REQUEST_MOCK,
       );
@@ -119,7 +119,7 @@ describe('generic-api', () => {
       mockOkResponse(QUOTE_RESPONSE_MOCK);
 
       const controller = new AbortController();
-      await fetchGenericQuote(
+      await fetchServerQuote(
         MESSENGER_MOCK,
         QUOTE_REQUEST_MOCK,
         controller.signal,
@@ -135,7 +135,7 @@ describe('generic-api', () => {
       mockErrorResponse(422, { message: 'Insufficient liquidity' });
 
       await expect(
-        fetchGenericQuote(MESSENGER_MOCK, QUOTE_REQUEST_MOCK),
+        fetchServerQuote(MESSENGER_MOCK, QUOTE_REQUEST_MOCK),
       ).rejects.toThrow('422 - Insufficient liquidity');
     });
 
@@ -143,7 +143,7 @@ describe('generic-api', () => {
       mockErrorResponse(429, { error: 'rate limit exceeded' });
 
       await expect(
-        fetchGenericQuote(MESSENGER_MOCK, QUOTE_REQUEST_MOCK),
+        fetchServerQuote(MESSENGER_MOCK, QUOTE_REQUEST_MOCK),
       ).rejects.toThrow('429 - rate limit exceeded');
     });
 
@@ -157,17 +157,17 @@ describe('generic-api', () => {
       } as unknown as Response);
 
       await expect(
-        fetchGenericQuote(MESSENGER_MOCK, QUOTE_REQUEST_MOCK),
+        fetchServerQuote(MESSENGER_MOCK, QUOTE_REQUEST_MOCK),
       ).rejects.toThrow('500');
     });
   });
 
-  describe('submitGenericIntent', () => {
-    const SUBMIT_REQUEST_MOCK: GenericSubmitRequest = {
+  describe('submitServerIntent', () => {
+    const SUBMIT_REQUEST_MOCK: ServerSubmitRequest = {
       chainId: 1,
       data: '0xbbb',
       id: '0xid',
-      provider: GenericProviderName.Relay,
+      provider: ServerProviderName.Relay,
       to: '0xaaa',
       value: '0',
     };
@@ -179,7 +179,7 @@ describe('generic-api', () => {
     it('posts to the submit URL from feature flags', async () => {
       mockOkResponse(SUBMIT_RESPONSE_MOCK);
 
-      await submitGenericIntent(MESSENGER_MOCK, SUBMIT_REQUEST_MOCK);
+      await submitServerIntent(MESSENGER_MOCK, SUBMIT_REQUEST_MOCK);
 
       expect(fetchMock).toHaveBeenCalledWith(SUBMIT_URL_MOCK, {
         method: 'POST',
@@ -191,7 +191,7 @@ describe('generic-api', () => {
     it('returns the parsed response', async () => {
       mockOkResponse(SUBMIT_RESPONSE_MOCK);
 
-      const result = await submitGenericIntent(
+      const result = await submitServerIntent(
         MESSENGER_MOCK,
         SUBMIT_REQUEST_MOCK,
       );
@@ -200,14 +200,14 @@ describe('generic-api', () => {
     });
   });
 
-  describe('getGenericStatus', () => {
+  describe('getServerStatus', () => {
     const STATUS_PARAMS_MOCK = {
-      provider: GenericProviderName.Relay,
+      provider: ServerProviderName.Relay,
       id: '0xabc',
     };
 
     const STATUS_RESPONSE_MOCK = {
-      status: GenericStatus.Confirmed,
+      status: ServerStatus.Confirmed,
       sourceHash: '0xsource' as const,
       targetHash: '0xtarget' as const,
     };
@@ -215,7 +215,7 @@ describe('generic-api', () => {
     it('gets the status URL with provider and id query parameters', async () => {
       mockOkResponse(STATUS_RESPONSE_MOCK);
 
-      await getGenericStatus(MESSENGER_MOCK, STATUS_PARAMS_MOCK);
+      await getServerStatus(MESSENGER_MOCK, STATUS_PARAMS_MOCK);
 
       expect(fetchMock).toHaveBeenCalledWith(
         `${STATUS_URL_MOCK}?provider=relay&id=0xabc`,
@@ -226,7 +226,7 @@ describe('generic-api', () => {
     it('appends hash to the status URL when provided', async () => {
       mockOkResponse(STATUS_RESPONSE_MOCK);
 
-      await getGenericStatus(MESSENGER_MOCK, {
+      await getServerStatus(MESSENGER_MOCK, {
         ...STATUS_PARAMS_MOCK,
         hash: '0xdeadbeef',
       });
@@ -240,7 +240,7 @@ describe('generic-api', () => {
     it('returns the parsed response', async () => {
       mockOkResponse(STATUS_RESPONSE_MOCK);
 
-      const result = await getGenericStatus(MESSENGER_MOCK, STATUS_PARAMS_MOCK);
+      const result = await getServerStatus(MESSENGER_MOCK, STATUS_PARAMS_MOCK);
 
       expect(result).toStrictEqual(STATUS_RESPONSE_MOCK);
     });

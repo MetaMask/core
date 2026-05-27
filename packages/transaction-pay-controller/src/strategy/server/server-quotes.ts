@@ -16,7 +16,7 @@ import type {
 } from '../../types';
 import {
   getFeatureFlags,
-  getGenericProviderPriority,
+  getServerProviderPriority,
   getSlippage,
   isEIP7702Chain,
 } from '../../utils/feature-flags';
@@ -28,18 +28,18 @@ import {
 import { estimateQuoteGasLimits } from '../../utils/quote-gas';
 import type { QuoteGasTransaction } from '../../utils/quote-gas';
 import { getNativeToken, getTokenBalance } from '../../utils/token';
-import { fetchGenericQuote } from './generic-api';
-import { normalizeGenericPerpsRequest } from './perps';
+import { fetchServerQuote } from "./server-api";
+import { normalizeServerPerpsRequest } from './perps';
 import type {
-  GenericQuote,
-  GenericQuoteFees,
-  GenericQuoteRequest,
-  GenericQuoteResult,
-  GenericQuoteStep,
+  ServerQuote,
+  ServerQuoteFees,
+  ServerQuoteRequest,
+  ServerQuoteResult,
+  ServerQuoteStep,
 } from './types';
-import { GenericTradeType } from './types';
+import { ServerTradeType } from './types';
 
-const log = createModuleLogger(projectLogger, 'generic-quotes');
+const log = createModuleLogger(projectLogger, 'server-quotes');
 const TOKEN_TRANSFER_FOUR_BYTE = '0xa9059cbb';
 const TRANSFER_INTERFACE = new Interface([
   'function transfer(address to, uint256 amount)',
@@ -47,20 +47,20 @@ const TRANSFER_INTERFACE = new Interface([
 const ZERO_AMOUNT = { fiat: '0', human: '0', raw: '0', usd: '0' };
 const ZERO_FIAT_VALUE = { fiat: '0', usd: '0' };
 
-type FulfilledGenericQuoteResult = GenericQuoteResult & {
-  quote: NonNullable<GenericQuoteResult['quote']>;
+type FulfilledServerQuoteResult = ServerQuoteResult & {
+  quote: NonNullable<ServerQuoteResult['quote']>;
 };
 
 /**
- * Fetch generic intents-api quotes and normalize them into Transaction Pay quotes.
+ * Fetch server intents-api quotes and normalize them into Transaction Pay quotes.
  *
  * @param request - Quote request context.
- * @returns Normalized generic strategy quotes.
+ * @returns Normalized server strategy quotes.
  */
-export async function getGenericQuotes(
+export async function getServerQuotes(
   request: PayStrategyGetQuotesRequest,
-): Promise<TransactionPayQuote<GenericQuote>[]> {
-  const providerPriority = getGenericProviderPriority(request.messenger);
+): Promise<TransactionPayQuote<ServerQuote>[]> {
+  const providerPriority = getServerProviderPriority(request.messenger);
   const quoteRequests = request.requests.filter(shouldRequestQuote);
 
   log('Fetching quotes', { providerPriority, quoteRequests });
@@ -77,12 +77,12 @@ export async function getGenericQuotes(
 async function getQuotesForRequest(
   quoteRequest: QuoteRequest,
   fullRequest: PayStrategyGetQuotesRequest,
-): Promise<TransactionPayQuote<GenericQuote>[]> {
+): Promise<TransactionPayQuote<ServerQuote>[]> {
   const { accountSupports7702, messenger, signal, transaction } = fullRequest;
-  const providerPriority = getGenericProviderPriority(messenger);
+  const providerPriority = getServerProviderPriority(messenger);
 
   for (const provider of providerPriority) {
-    const body = await buildGenericQuoteRequest(
+    const body = await buildServerQuoteRequest(
       quoteRequest,
       transaction,
       messenger,
@@ -93,7 +93,7 @@ async function getQuotesForRequest(
     try {
       log('Request body', body);
 
-      const response = await fetchGenericQuote(messenger, body, signal);
+      const response = await fetchServerQuote(messenger, body, signal);
       const fulfilledResults = response.results.filter(isFulfilledResult);
 
       if (fulfilledResults.length > 0) {
@@ -116,14 +116,14 @@ async function getQuotesForRequest(
   return [];
 }
 
-async function buildGenericQuoteRequest(
+async function buildServerQuoteRequest(
   quoteRequest: QuoteRequest,
   transaction: TransactionMeta,
   messenger: TransactionPayControllerMessenger,
-  providers: GenericQuoteRequest['providers'],
+  providers: ServerQuoteRequest['providers'],
   accountSupports7702: boolean,
-): Promise<GenericQuoteRequest> {
-  const normalizedRequest = normalizeGenericPerpsRequest(
+): Promise<ServerQuoteRequest> {
+  const normalizedRequest = normalizeServerPerpsRequest(
     quoteRequest,
     transaction,
   );
@@ -154,13 +154,13 @@ async function buildGenericQuoteRequest(
   const supportsGasless =
     accountSupports7702 && isEIP7702Chain(messenger, sourceChainId);
 
-  const body: GenericQuoteRequest = {
+  const body: ServerQuoteRequest = {
     source: { chainId: Number(sourceChainId), token: sourceTokenAddress },
     target: { chainId: Number(targetChainId), token: targetTokenAddress },
     amount: useExactInput ? sourceTokenAmount : targetAmountMinimum,
     tradeType: useExactInput
-      ? GenericTradeType.ExactInput
-      : GenericTradeType.ExpectedOutput,
+      ? ServerTradeType.ExactInput
+      : ServerTradeType.ExpectedOutput,
     sender: from,
     recipient,
     slippage: Math.round(
@@ -221,10 +221,10 @@ function shouldRequestQuote(quoteRequest: QuoteRequest): boolean {
 }
 
 async function normalizeQuote(
-  result: FulfilledGenericQuoteResult,
+  result: FulfilledServerQuoteResult,
   quoteRequest: QuoteRequest,
   messenger: TransactionPayControllerMessenger,
-): Promise<TransactionPayQuote<GenericQuote>> {
+): Promise<TransactionPayQuote<ServerQuote>> {
   const { quote } = result;
   const gasless = quote.gasless === true;
   const sourceNetwork = await calculateSourceNetworkCost({
@@ -269,7 +269,7 @@ async function normalizeQuote(
       raw: quote.input.raw,
       usd: '0',
     },
-    strategy: TransactionPayStrategy.Generic,
+    strategy: TransactionPayStrategy.Server,
     targetAmount: {
       fiat: '0',
       usd: '0',
@@ -293,7 +293,7 @@ async function calculateSourceNetworkCost({
   gasless: boolean;
   messenger: TransactionPayControllerMessenger;
   quoteRequest: QuoteRequest;
-  steps: GenericQuoteStep[];
+  steps: ServerQuoteStep[];
 }): Promise<SourceNetworkCost> {
   if (gasless) {
     log('Zeroing source network fees for gasless quote');
@@ -392,7 +392,7 @@ async function calculateSourceNetworkCost({
 }
 
 function stepToGasTransaction(
-  step: GenericQuoteStep,
+  step: ServerQuoteStep,
   from: Hex,
 ): QuoteGasTransaction {
   return {
@@ -414,8 +414,8 @@ function getSingleTransactionData(
 }
 
 function isFulfilledResult(
-  result: GenericQuoteResult,
-): result is FulfilledGenericQuoteResult {
+  result: ServerQuoteResult,
+): result is FulfilledServerQuoteResult {
   return (
     result.quote !== undefined &&
     result.quote.id !== undefined &&

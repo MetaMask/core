@@ -3,50 +3,50 @@ import type { TransactionMeta } from '@metamask/transaction-controller';
 import type { TransactionPayControllerMessenger } from '../..';
 import type { TransactionPayQuote } from '../../types';
 import { getPayStrategiesConfig } from '../../utils/feature-flags';
-import { getGenericQuotes } from './generic-quotes';
-import { submitGenericQuotes } from './generic-submit';
-import { GenericStrategy } from './GenericStrategy';
-import type { GenericQuote } from './types';
+import { getServerQuotes } from './server-quotes';
+import { submitServerQuotes } from './server-submit';
+import { ServerStrategy } from './ServerStrategy';
+import type { ServerQuote } from './types';
 
-jest.mock('./generic-quotes');
-jest.mock('./generic-submit');
+jest.mock('./server-quotes');
+jest.mock('./server-submit');
 jest.mock('../../utils/feature-flags');
 
 const QUOTE_MOCK = {
   estimatedDuration: 5,
-} as TransactionPayQuote<GenericQuote>;
+} as TransactionPayQuote<ServerQuote>;
 
-describe('GenericStrategy', () => {
-  const getGenericQuotesMock = jest.mocked(getGenericQuotes);
-  const submitGenericQuotesMock = jest.mocked(submitGenericQuotes);
+describe('ServerStrategy', () => {
+  const getServerQuotesMock = jest.mocked(getServerQuotes);
+  const submitServerQuotesMock = jest.mocked(submitServerQuotes);
   const getPayStrategiesConfigMock = jest.mocked(getPayStrategiesConfig);
 
   beforeEach(() => {
     jest.resetAllMocks();
-    getGenericQuotesMock.mockResolvedValue([QUOTE_MOCK]);
+    getServerQuotesMock.mockResolvedValue([QUOTE_MOCK]);
     getPayStrategiesConfigMock.mockReturnValue({
-      generic: { enabled: true },
+      server: { enabled: true },
       relay: { enabled: false },
     } as ReturnType<typeof getPayStrategiesConfig>);
   });
 
   describe('supports', () => {
-    it('returns true when generic strategy is enabled', () => {
+    it('returns true when server strategy is enabled', () => {
       expect(
-        new GenericStrategy().supports({
+        new ServerStrategy().supports({
           messenger: {} as TransactionPayControllerMessenger,
         } as never),
       ).toBe(true);
     });
 
-    it('returns false when generic strategy is disabled', () => {
+    it('returns false when server strategy is disabled', () => {
       getPayStrategiesConfigMock.mockReturnValue({
-        generic: { enabled: false },
+        server: { enabled: false },
         relay: { enabled: true },
       } as ReturnType<typeof getPayStrategiesConfig>);
 
       expect(
-        new GenericStrategy().supports({
+        new ServerStrategy().supports({
           messenger: {} as TransactionPayControllerMessenger,
         } as never),
       ).toBe(false);
@@ -55,7 +55,7 @@ describe('GenericStrategy', () => {
 
   describe('getQuotes', () => {
     it('returns result from util', async () => {
-      const result = new GenericStrategy().getQuotes({
+      const result = new ServerStrategy().getQuotes({
         accountSupports7702: false,
         messenger: {} as TransactionPayControllerMessenger,
         requests: [],
@@ -68,7 +68,7 @@ describe('GenericStrategy', () => {
 
   describe('getBatchTransactions', () => {
     it('returns empty batch list', async () => {
-      expect(await new GenericStrategy().getBatchTransactions()).toStrictEqual(
+      expect(await new ServerStrategy().getBatchTransactions()).toStrictEqual(
         [],
       );
     });
@@ -76,7 +76,7 @@ describe('GenericStrategy', () => {
 
   describe('execute', () => {
     it('calls util', async () => {
-      await new GenericStrategy().execute({
+      await new ServerStrategy().execute({
         accountSupports7702: false,
         isSmartTransaction: () => false,
         quotes: [QUOTE_MOCK],
@@ -84,24 +84,24 @@ describe('GenericStrategy', () => {
         transaction: { txParams: { from: '0x1' } } as TransactionMeta,
       });
 
-      expect(submitGenericQuotesMock).toHaveBeenCalledTimes(1);
+      expect(submitServerQuotesMock).toHaveBeenCalledTimes(1);
       expect(
-        submitGenericQuotesMock.mock.calls[0][0].transaction.txParams.from,
+        submitServerQuotesMock.mock.calls[0][0].transaction.txParams.from,
       ).toBe('0x1');
     });
 
     it('wraps errors', async () => {
-      submitGenericQuotesMock.mockRejectedValue(new Error('boom'));
+      submitServerQuotesMock.mockRejectedValue(new Error('boom'));
 
       await expect(
-        new GenericStrategy().execute({
+        new ServerStrategy().execute({
           accountSupports7702: false,
           isSmartTransaction: () => false,
           quotes: [QUOTE_MOCK],
           messenger: {} as TransactionPayControllerMessenger,
           transaction: { txParams: { from: '0x1' } } as TransactionMeta,
         }),
-      ).rejects.toThrow('Generic submit: boom');
+      ).rejects.toThrow('Server submit: boom');
     });
   });
 });

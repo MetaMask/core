@@ -7,9 +7,9 @@ import {
 } from '../../constants';
 import type { QuoteRequest } from '../../types';
 import {
-  GENERIC_HYPERCORE_USDC_PERPS_ADDRESS,
-  isGenericPerpsDepositRequest,
-  normalizeGenericPerpsRequest,
+  SERVER_HYPERCORE_USDC_PERPS_ADDRESS,
+  isServerPerpsDepositRequest,
+  normalizeServerPerpsRequest,
 } from './perps';
 
 const BRIDGE_ADDRESS_LOWER = '0x2df1c51e09aecf9cacb7bc98cb1742757f163df7';
@@ -46,10 +46,10 @@ const innocuousTransaction = {
   },
 } as unknown as TransactionMeta;
 
-describe('strategy/generic/perps', () => {
-  describe('isGenericPerpsDepositRequest', () => {
+describe('strategy/server/perps', () => {
+  describe('isServerPerpsDepositRequest', () => {
     it('returns true when txParams.data references the Hyperliquid bridge', () => {
-      expect(isGenericPerpsDepositRequest(baseRequest, bridgeTransaction)).toBe(
+      expect(isServerPerpsDepositRequest(baseRequest, bridgeTransaction)).toBe(
         true,
       );
     });
@@ -69,7 +69,7 @@ describe('strategy/generic/perps', () => {
         ],
       } as unknown as TransactionMeta;
 
-      expect(isGenericPerpsDepositRequest(baseRequest, nestedTransaction)).toBe(
+      expect(isServerPerpsDepositRequest(baseRequest, nestedTransaction)).toBe(
         true,
       );
     });
@@ -84,20 +84,20 @@ describe('strategy/generic/perps', () => {
         },
       } as unknown as TransactionMeta;
 
-      expect(isGenericPerpsDepositRequest(baseRequest, upperTransaction)).toBe(
+      expect(isServerPerpsDepositRequest(baseRequest, upperTransaction)).toBe(
         true,
       );
     });
 
     it('returns false when transaction data does not reference the bridge', () => {
       expect(
-        isGenericPerpsDepositRequest(baseRequest, innocuousTransaction),
+        isServerPerpsDepositRequest(baseRequest, innocuousTransaction),
       ).toBe(false);
     });
 
     it('returns false when target chain is not Arbitrum', () => {
       expect(
-        isGenericPerpsDepositRequest(
+        isServerPerpsDepositRequest(
           { ...baseRequest, targetChainId: '0x1' },
           bridgeTransaction,
         ),
@@ -106,7 +106,7 @@ describe('strategy/generic/perps', () => {
 
     it('returns false when target token is not Arbitrum USDC', () => {
       expect(
-        isGenericPerpsDepositRequest(
+        isServerPerpsDepositRequest(
           {
             ...baseRequest,
             targetTokenAddress: '0x0000000000000000000000000000000000000002',
@@ -118,7 +118,7 @@ describe('strategy/generic/perps', () => {
 
     it('returns false on post-quote requests', () => {
       expect(
-        isGenericPerpsDepositRequest(
+        isServerPerpsDepositRequest(
           { ...baseRequest, isPostQuote: true },
           bridgeTransaction,
         ),
@@ -126,22 +126,22 @@ describe('strategy/generic/perps', () => {
     });
   });
 
-  describe('normalizeGenericPerpsRequest', () => {
+  describe('normalizeServerPerpsRequest', () => {
     it('rewrites target chain, token, and amount when the bridge is referenced', () => {
-      const result = normalizeGenericPerpsRequest(
+      const result = normalizeServerPerpsRequest(
         baseRequest,
         bridgeTransaction,
       );
 
       expect(result.targetChainId).toBe(CHAIN_ID_HYPERCORE);
       expect(result.targetTokenAddress).toBe(
-        GENERIC_HYPERCORE_USDC_PERPS_ADDRESS,
+        SERVER_HYPERCORE_USDC_PERPS_ADDRESS,
       );
       expect(result.targetAmountMinimum).toBe('100000000');
     });
 
     it('returns the original request when the bridge is not referenced', () => {
-      const result = normalizeGenericPerpsRequest(
+      const result = normalizeServerPerpsRequest(
         baseRequest,
         innocuousTransaction,
       );

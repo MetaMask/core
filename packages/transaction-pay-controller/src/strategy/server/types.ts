@@ -1,19 +1,19 @@
 import type { Hex } from '@metamask/utils';
 
-/** Provider names supported by the generic intents API. */
-export enum GenericProviderName {
+/** Provider names supported by the server intents API. */
+export enum ServerProviderName {
   Relay = 'relay',
   Across = 'across',
 }
 
-/** Trade type for generic quote requests. */
-export enum GenericTradeType {
+/** Trade type for server quote requests. */
+export enum ServerTradeType {
   ExactInput = 'EXACT_INPUT',
   ExpectedOutput = 'EXPECTED_OUTPUT',
 }
 
 /** Token amount with chain and token context. */
-export type GenericQuoteAmount = {
+export type ServerQuoteAmount = {
   chainId: number;
   token: string;
   decimals: number;
@@ -21,8 +21,8 @@ export type GenericQuoteAmount = {
   formatted: string;
 };
 
-/** A single on-chain step returned by the generic quote endpoint. */
-export type GenericQuoteStep = {
+/** A single on-chain step returned by the server quote endpoint. */
+export type ServerQuoteStep = {
   chainId: number;
   to: Hex;
   data: Hex;
@@ -33,14 +33,14 @@ export type GenericQuoteStep = {
 };
 
 /** A call to include in the quote request (for delegation flows). */
-export type GenericCall = {
+export type ServerCall = {
   to: Hex;
   data: Hex;
   value: Hex;
 };
 
 /** EIP-7702 authorization entry for quote and submit requests. */
-export type GenericAuthorization = {
+export type ServerAuthorization = {
   address: Hex;
   chainId: number;
   nonce: number;
@@ -50,71 +50,71 @@ export type GenericAuthorization = {
 };
 
 /** Request body for POST /quote. */
-export type GenericQuoteRequest = {
+export type ServerQuoteRequest = {
   source: { chainId: number; token: Hex };
   target: { chainId: number; token: Hex };
   amount: string;
-  tradeType: GenericTradeType;
+  tradeType: ServerTradeType;
   sender: Hex;
   recipient: Hex;
   refundTo?: Hex;
   slippage?: number;
-  providers?: GenericProviderName[];
-  calls?: GenericCall[];
-  authorizationList?: GenericAuthorization[];
+  providers?: ServerProviderName[];
+  calls?: ServerCall[];
+  authorizationList?: ServerAuthorization[];
   supportsGasless?: boolean;
 };
 
 /** Error detail from a rejected quote result. */
-export type GenericQuoteError = {
+export type ServerQuoteError = {
   code?: string;
   message: string;
 };
 
-/** A successful quote payload nested inside a GenericQuoteResult. */
-export type GenericQuotePayload = {
+/** A successful quote payload nested inside a ServerQuoteResult. */
+export type ServerQuotePayload = {
   id: string;
-  input: GenericQuoteAmount;
-  output: GenericQuoteAmount;
-  fees: GenericQuoteFees;
+  input: ServerQuoteAmount;
+  output: ServerQuoteAmount;
+  fees: ServerQuoteFees;
   duration: number;
-  steps: GenericQuoteStep[];
+  steps: ServerQuoteStep[];
   gasless: boolean;
 };
 
 /** Fee breakdown from a quote. */
-export type GenericQuoteFees = {
+export type ServerQuoteFees = {
   metamask: string;
   provider: string;
   subsidized: boolean;
 };
 
 /** A single provider result within the quote response. */
-export type GenericQuoteResult = {
-  provider: GenericProviderName;
-  quote?: GenericQuotePayload;
-  error?: GenericQuoteError;
+export type ServerQuoteResult = {
+  provider: ServerProviderName;
+  quote?: ServerQuotePayload;
+  error?: ServerQuoteError;
 };
 
 /** Response body from POST /quote. */
-export type GenericQuoteResponse = {
-  results: GenericQuoteResult[];
+export type ServerQuoteResponse = {
+  results: ServerQuoteResult[];
 };
 
-/** Normalized generic quote stored in TransactionPayQuote.original. */
-export type GenericQuote = {
+/** Normalized server quote stored in TransactionPayQuote.original. */
+export type ServerQuote = {
   id: string;
-  provider: GenericProviderName;
-  input: GenericQuoteAmount;
-  output: GenericQuoteAmount;
-  fees: GenericQuoteFees;
+  provider: ServerProviderName;
+  input: ServerQuoteAmount;
+  output: ServerQuoteAmount;
+  fees: ServerQuoteFees;
   duration: number;
-  steps: GenericQuoteStep[];
+  steps: ServerQuoteStep[];
   gasless: boolean;
 };
 
 /** Status values returned by GET /status. */
-export enum GenericStatus {
+export enum ServerStatus {
   Pending = 'PENDING',
   Submitted = 'SUBMITTED',
   Confirmed = 'CONFIRMED',
@@ -124,16 +124,16 @@ export enum GenericStatus {
 }
 
 /** Response body from GET /status. */
-export type GenericStatusResponse = {
-  status: GenericStatus;
+export type ServerStatusResponse = {
+  status: ServerStatus;
   sourceHash?: Hex;
   targetHash?: Hex;
   error?: string;
 };
 
 /** Request body for POST /submit. */
-export type GenericSubmitRequest = {
-  provider: GenericProviderName;
+export type ServerSubmitRequest = {
+  provider: ServerProviderName;
   id: string;
   chainId: number;
   to: Hex;
@@ -150,7 +150,7 @@ export type GenericSubmitRequest = {
 };
 
 /** Response body from POST /submit. */
-export type GenericSubmitResponse = {
+export type ServerSubmitResponse = {
   success: boolean;
   error?: string;
 };
