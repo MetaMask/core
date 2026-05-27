@@ -4751,10 +4751,7 @@ describe('KeyringController', () => {
         { skipVaultCreation: true },
         async ({ controller }) => {
           await expect(
-            controller.withKeyringV2Unsafe(
-              { type: KeyringType.Hd },
-              jest.fn(),
-            ),
+            controller.withKeyringV2Unsafe({ type: KeyringType.Hd }, jest.fn()),
           ).rejects.toThrow(KeyringControllerErrorMessage.ControllerLocked);
         },
       );
@@ -4934,12 +4931,9 @@ describe('KeyringController', () => {
 
         // withKeyringV2Unsafe does not roll back — errors just propagate.
         await expect(
-          controller.withKeyringV2Unsafe(
-            { type: KeyringType.Hd },
-            async () => {
-              throw new Error('Oops');
-            },
-          ),
+          controller.withKeyringV2Unsafe({ type: KeyringType.Hd }, async () => {
+            throw new Error('Oops');
+          }),
         ).rejects.toThrow('Oops');
 
         // State is unchanged (no rollback to pre-withKeyringV2Unsafe state).
