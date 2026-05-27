@@ -90,13 +90,16 @@ export function normalizeGenericPerpsRequest(
 function transactionDataReferencesBridge(
   transaction: Pick<TransactionMeta, 'txParams' | 'nestedTransactions'>,
 ): boolean {
-  const datas: (string | undefined)[] = [
+  // Include both calldata and `to` fields so that direct calls to the bridge
+  // contract (where the bridge address appears as the destination rather than
+  // inside ERC-20 transfer calldata) are also detected.
+  const fragments: (string | undefined)[] = [
     transaction.txParams?.data,
     transaction.txParams?.to,
     ...(transaction.nestedTransactions ?? []).flatMap((tx) => [tx.data, tx.to]),
   ];
 
-  return datas.some(
+  return fragments.some(
     (value) =>
       typeof value === 'string' &&
       value.toLowerCase().includes(HYPERLIQUID_BRIDGE_CALLDATA_FRAGMENT),

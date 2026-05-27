@@ -121,20 +121,15 @@ describe('submitGenericQuotes', () => {
   const getGenericStatusMock = jest.mocked(getGenericStatus);
   const submitGenericIntentMock = jest.mocked(submitGenericIntent);
 
-  const messengerMocks = getMessengerMock();
   const {
+    addTransactionMock: addTxMock,
+    addTransactionBatchMock: addTxBatchMock,
     findNetworkClientIdByChainIdMock,
     getDelegationTransactionMock,
     getTransactionControllerStateMock,
     messenger,
     updateTransactionMock,
-  } = messengerMocks;
-  const addTxMock = messengerMocks[
-    `add${'Transaction'}Mock` as keyof typeof messengerMocks
-  ] as jest.Mock;
-  const addTxBatchMock = messengerMocks[
-    `add${'TransactionBatch'}Mock` as keyof typeof messengerMocks
-  ] as jest.Mock;
+  } = getMessengerMock();
 
   let currentTransaction: TransactionMeta;
   let request: PayStrategyExecuteRequest<GenericQuote>;

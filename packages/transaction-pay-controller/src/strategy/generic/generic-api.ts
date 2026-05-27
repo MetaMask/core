@@ -79,11 +79,10 @@ export async function getGenericStatus(
   params: { provider: GenericProviderName; id: string; hash?: string },
 ): Promise<GenericStatusResponse> {
   const { generic } = getPayStrategiesConfig(messenger);
-  const query = new URLSearchParams({
-    provider: params.provider,
-    id: params.id,
-    ...(params.hash ? { hash: params.hash } : {}),
-  });
+  const query = new URLSearchParams({ provider: params.provider, id: params.id });
+  if (params.hash) {
+    query.set('hash', params.hash);
+  }
   const url = `${generic.statusUrl}?${query.toString()}`;
 
   log('Fetching status', { url });

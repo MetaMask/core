@@ -266,7 +266,7 @@ async function submitViaTransactionController(
 
   log('Generic transactions confirmed', transactionIds);
 
-  const lastId = transactionIds.slice(-1)[0];
+  const lastId = transactionIds.at(-1);
   const sourceHash = lastId
     ? getTransaction(lastId, messenger)?.hash
     : undefined;

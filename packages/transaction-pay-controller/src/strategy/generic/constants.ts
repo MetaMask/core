@@ -1,11 +1,8 @@
-// packages/transaction-pay-controller/src/strategy/generic/constants.ts
-
 /**
  * Default base URL for the generic intents API.
- * Points to a local development instance by default.
  * Override via `payStrategies.generic.{quoteUrl,statusUrl,submitUrl}` remote feature flags.
  */
-export const GENERIC_URL_BASE = 'http://localhost:3000';
+export const GENERIC_URL_BASE = 'https://intents.api.cx.metamask.io';
 
 export const GENERIC_QUOTE_URL = `${GENERIC_URL_BASE}/quote`;
 

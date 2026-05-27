@@ -539,9 +539,7 @@ export function getPayStrategiesConfig(
     providerPriority:
       normalizedPriority.length > 0
         ? normalizedPriority
-        : [...GENERIC_DEFAULT_PROVIDER_PRIORITY].map(
-            (providerName) => providerName as GenericProviderName,
-          ),
+        : ([...GENERIC_DEFAULT_PROVIDER_PRIORITY] as GenericProviderName[]),
     quoteUrl: genericRaw.quoteUrl ?? DEFAULT_GENERIC_QUOTE_URL,
     statusUrl: genericRaw.statusUrl ?? DEFAULT_GENERIC_STATUS_URL,
     submitUrl: genericRaw.submitUrl ?? DEFAULT_GENERIC_SUBMIT_URL,

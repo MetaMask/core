@@ -139,9 +139,7 @@ async function buildGenericQuoteRequest(
     targetTokenAddress,
   } = normalizedRequest;
 
-  const useExactInput = Boolean(
-    (isMaxAmount ?? false) || (isPostQuote ?? false),
-  );
+  const useExactInput = (isMaxAmount ?? false) || (isPostQuote ?? false);
   const singleData = getSingleTransactionData(transaction);
   const isHypercore = targetChainId === CHAIN_ID_HYPERCORE;
   const isTokenTransfer =
