@@ -20,7 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Match EVM addresses case-insensitively when reading cached wallet compliance statuses ([#8820](https://github.com/MetaMask/core/pull/8820)).
+- Match valid EVM addresses case-insensitively when reading cached wallet compliance statuses ([#8820](https://github.com/MetaMask/core/pull/8820)).
 
 ## [2.0.1]
 
