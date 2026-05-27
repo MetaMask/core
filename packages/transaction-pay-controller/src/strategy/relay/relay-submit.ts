@@ -403,14 +403,24 @@ async function submitTransactions(
   let allParams = normalizedParams;
 
   if (quote.request.paymentOverride) {
-    const overrideTx = await messenger.call(
-      'TransactionPayController:getPaymentOverrideData',
-      transaction.id,
-      quote.sourceAmount.human,
+    const { transactionData } = messenger.call(
+      'TransactionPayController:getState',
     );
 
-    if (overrideTx) {
-      allParams = [overrideTx, ...normalizedParams];
+    const overrideTxs = await messenger.call(
+      'TransactionPayController:getPaymentOverrideData',
+      {
+        amount: quote.sourceAmount.human,
+        transaction,
+        transactionData: transactionData[transaction.id],
+      },
+    );
+
+    if (overrideTxs.length > 0) {
+      allParams = [
+        ...(overrideTxs as TransactionParams[]),
+        ...normalizedParams,
+      ];
     }
   } else if (isPostQuote && transaction.txParams.to) {
     const prependedParams = hasAccountOverride
@@ -674,12 +684,12 @@ async function submitViaTransactionController(
       ? toHex(metamask.gasLimits[0])
       : undefined;
 
-    const hasPaymentOverride =
-      Boolean(quote.request.paymentOverride) &&
-      allParams.length > normalizedParams.length;
+    const overrideCount = quote.request.paymentOverride
+      ? allParams.length - normalizedParams.length
+      : 0;
 
     const transactions = allParams.map((singleParams, index) => {
-      const relayIndex = hasPaymentOverride ? index - 1 : index;
+      const relayIndex = overrideCount > 0 ? index - overrideCount : index;
       const gasLimit = relayIndex >= 0 ? gasLimits[relayIndex] : undefined;
       const gas =
         gasLimit === undefined || gasLimit7702 ? undefined : toHex(gasLimit);
@@ -695,7 +705,7 @@ async function submitViaTransactionController(
         },
         type: getTransactionType(
           isPostQuote,
-          hasPaymentOverride,
+          overrideCount,
           index,
           getEffectiveTransactionType(transaction),
           normalizedParams.length,
@@ -743,28 +753,26 @@ async function submitViaTransactionController(
  * Determine the transaction type for a given index in the batch.
  *
  * @param isPostQuote - Whether this is a post-quote flow.
- * @param hasPaymentOverride - Whether a payment override tx was prepended.
+ * @param overrideCount - Number of payment override txs prepended.
  * @param index - Index of the transaction in the batch.
- * @param originalType - Type of the original transaction (used for prepended index 0).
- * @param relayParamCount - Number of relay-only params (excludes prepended tx).
+ * @param originalType - Type of the original transaction (used for prepended indices).
+ * @param relayParamCount - Number of relay-only params (excludes prepended txs).
  * @returns The transaction type.
  */
 function getTransactionType(
   isPostQuote: boolean | undefined,
-  hasPaymentOverride: boolean,
+  overrideCount: number,
   index: number,
   originalType: TransactionMeta['type'],
   relayParamCount: number,
 ): TransactionMeta['type'] {
-  const hasPrependedTx = isPostQuote ?? hasPaymentOverride;
+  const prependCount = isPostQuote ? 1 : overrideCount;
 
-  // Index 0 is the prepended transaction (original or override)
-  if (hasPrependedTx && index === 0) {
+  if (prependCount > 0 && index < prependCount) {
     return originalType;
   }
 
-  // Adjust index for flows where a transaction is prepended
-  const relayIndex = hasPrependedTx ? index - 1 : index;
+  const relayIndex = index - prependCount;
 
   const depositType = getRelayDepositType(originalType);
 

@@ -1,8 +1,8 @@
 import { ORIGIN_METAMASK } from '@metamask/controller-utils';
 import { TransactionType } from '@metamask/transaction-controller';
 import type {
+  BatchTransactionParams,
   TransactionMeta,
-  TransactionParams,
 } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 import { cloneDeep } from 'lodash';
@@ -863,16 +863,18 @@ describe('Relay Submit Utils', () => {
     });
 
     describe('paymentOverride flow', () => {
-      const PAYMENT_OVERRIDE_TX_MOCK = {
+      const PAYMENT_OVERRIDE_TX_MOCK: BatchTransactionParams = {
         to: '0xpaymentoverride' as Hex,
         data: '0xpaymentoverride' as Hex,
-        value: '0x0',
-      } as TransactionParams;
+        value: '0x0' as Hex,
+      };
 
       it('prepends override tx params to submit batch', async () => {
         request.quotes[0].request.paymentOverride =
           PaymentOverride.MoneyAccount;
-        getPaymentOverrideDataMock.mockResolvedValue(PAYMENT_OVERRIDE_TX_MOCK);
+        getPaymentOverrideDataMock.mockResolvedValue([
+          PAYMENT_OVERRIDE_TX_MOCK,
+        ]);
 
         await submitRelayQuotes(request);
 
@@ -897,10 +899,10 @@ describe('Relay Submit Utils', () => {
         expect(getPaymentOverrideDataMock).not.toHaveBeenCalled();
       });
 
-      it('does not prepend when callback returns undefined', async () => {
+      it('does not prepend when callback returns empty array', async () => {
         request.quotes[0].request.paymentOverride =
           PaymentOverride.MoneyAccount;
-        getPaymentOverrideDataMock.mockResolvedValue(undefined);
+        getPaymentOverrideDataMock.mockResolvedValue([]);
 
         await submitRelayQuotes(request);
 
@@ -911,7 +913,9 @@ describe('Relay Submit Utils', () => {
       it('skips source balance validation', async () => {
         request.quotes[0].request.paymentOverride =
           PaymentOverride.MoneyAccount;
-        getPaymentOverrideDataMock.mockResolvedValue(PAYMENT_OVERRIDE_TX_MOCK);
+        getPaymentOverrideDataMock.mockResolvedValue([
+          PAYMENT_OVERRIDE_TX_MOCK,
+        ]);
         getLiveTokenBalanceMock.mockResolvedValue('0');
 
         await submitRelayQuotes(request);
@@ -933,7 +937,9 @@ describe('Relay Submit Utils', () => {
           },
         });
 
-        getPaymentOverrideDataMock.mockResolvedValue(PAYMENT_OVERRIDE_TX_MOCK);
+        getPaymentOverrideDataMock.mockResolvedValue([
+          PAYMENT_OVERRIDE_TX_MOCK,
+        ]);
 
         await submitRelayQuotes(request);
 
