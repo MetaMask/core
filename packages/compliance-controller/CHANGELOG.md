@@ -7,17 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- Release/1001.0.0 ([#8900](https://github.com/MetaMask/core/pull/8900))
-- chore(compliance-controller): release 2.1.0 ([#8899](https://github.com/MetaMask/core/pull/8899))
-
 ## [2.1.1]
 
 ### Added
 
-- Add `ComplianceService` support for an explicit Compliance API URL. ([#8820](https://github.com/MetaMask/core/pull/8820))
-- Add `selectAreAnyWalletsBlocked`. ([#8820](https://github.com/MetaMask/core/pull/8820))
+- Add `ComplianceService` support for an explicit Compliance API URL ([#8820](https://github.com/MetaMask/core/pull/8820)).
+- Add `selectAreAnyWalletsBlocked` ([#8820](https://github.com/MetaMask/core/pull/8820)).
 
 ### Changed
 
@@ -25,7 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Match valid EVM addresses case-insensitively when reading cached wallet compliance statuses. ([#8820](https://github.com/MetaMask/core/pull/8820))
+- Match valid EVM addresses case-insensitively when reading cached wallet compliance statuses ([#8820](https://github.com/MetaMask/core/pull/8820)).
 
 ## [2.0.1]
 
