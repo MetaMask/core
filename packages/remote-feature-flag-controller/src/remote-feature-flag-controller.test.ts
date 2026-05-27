@@ -625,6 +625,116 @@ describe('RemoteFeatureFlagController', () => {
     });
   });
 
+  describe('metaMetricsId override feature flags', () => {
+    it('uses the value from an exact metaMetricsId override match', async () => {
+      const mockFlags: FeatureFlags = {
+        testFlag: [
+          {
+            name: 'specificUser',
+            scope: { type: 'metaMetricsId', value: MOCK_METRICS_ID },
+            value: { enabled: true, variant: 'override' },
+          },
+          {
+            name: 'default',
+            scope: { type: 'threshold', value: 1.0 },
+            value: { enabled: false, variant: 'default' },
+          },
+        ],
+      };
+      const clientConfigApiService = buildClientConfigApiService({
+        remoteFeatureFlags: mockFlags,
+      });
+      const { controller, messenger } = createController({
+        clientConfigApiService,
+        getMetaMetricsId: () => MOCK_METRICS_ID,
+      });
+
+      await messenger.call(
+        'RemoteFeatureFlagController:updateRemoteFeatureFlags',
+      );
+
+      expect(controller.state.remoteFeatureFlags.testFlag).toStrictEqual({
+        name: 'specificUser',
+        value: { enabled: true, variant: 'override' },
+      });
+      expect(
+        controller.state.thresholdCache?.[`${MOCK_METRICS_ID}:testFlag`],
+      ).toBeUndefined();
+    });
+
+    it('falls back to threshold selection when metaMetricsId override does not match', async () => {
+      const mockFlags: FeatureFlags = {
+        testFlag: [
+          {
+            name: 'specificUser',
+            scope: {
+              type: 'metaMetricsId',
+              value: '00000000-0000-4000-8000-000000000000',
+            },
+            value: { enabled: true, variant: 'override' },
+          },
+          {
+            name: 'default',
+            scope: { type: 'threshold', value: 1.0 },
+            value: { enabled: false, variant: 'default' },
+          },
+        ],
+      };
+      const clientConfigApiService = buildClientConfigApiService({
+        remoteFeatureFlags: mockFlags,
+      });
+      const { controller, messenger } = createController({
+        clientConfigApiService,
+        getMetaMetricsId: () => MOCK_METRICS_ID,
+      });
+
+      await messenger.call(
+        'RemoteFeatureFlagController:updateRemoteFeatureFlags',
+      );
+
+      expect(controller.state.remoteFeatureFlags.testFlag).toStrictEqual({
+        name: 'default',
+        value: { enabled: false, variant: 'default' },
+      });
+      expect(
+        controller.state.thresholdCache?.[`${MOCK_METRICS_ID}:testFlag`],
+      ).toBeDefined();
+    });
+
+    it('uses metaMetricsId override before threshold selection', async () => {
+      const mockFlags: FeatureFlags = {
+        testFlag: [
+          {
+            name: 'specificUser',
+            scope: { type: 'metaMetricsId', value: MOCK_METRICS_ID },
+            value: 'overrideValue',
+          },
+          {
+            name: 'control',
+            scope: { type: 'threshold', value: 1.0 },
+            value: 'thresholdValue',
+          },
+        ],
+      };
+      const clientConfigApiService = buildClientConfigApiService({
+        remoteFeatureFlags: mockFlags,
+      });
+      const { controller, messenger } = createController({
+        clientConfigApiService,
+        getMetaMetricsId: () => MOCK_METRICS_ID,
+      });
+
+      await messenger.call(
+        'RemoteFeatureFlagController:updateRemoteFeatureFlags',
+      );
+
+      expect(controller.state.remoteFeatureFlags.testFlag).toStrictEqual({
+        name: 'specificUser',
+        value: 'overrideValue',
+      });
+    });
+  });
+
   describe('enable and disable', () => {
     it('enables the controller and makes a network request to fetch', async () => {
       const clientConfigApiService = buildClientConfigApiService();
@@ -937,6 +1047,57 @@ describe('RemoteFeatureFlagController', () => {
         value: { feature: 'A', enabled: true },
       });
       expect(regularFlag).toBe(true);
+    });
+
+    it('combines multi-version flags with metaMetricsId overrides', async () => {
+      const mockApiService = buildClientConfigApiService();
+      const mockFlags = {
+        multiVersionOverrideFlag: {
+          versions: {
+            '13.1.0': [
+              {
+                name: 'specificUser',
+                scope: { type: 'metaMetricsId', value: MOCK_METRICS_ID },
+                value: { enabled: true, variant: 'override' },
+              },
+              {
+                name: 'default',
+                scope: { type: 'threshold', value: 1.0 },
+                value: { enabled: false, variant: 'default' },
+              },
+            ],
+            '13.2.0': [
+              {
+                name: 'newDefault',
+                scope: { type: 'threshold', value: 1.0 },
+                value: { enabled: true, variant: 'new-default' },
+              },
+            ],
+          },
+        },
+      };
+
+      jest.spyOn(mockApiService, 'fetchRemoteFeatureFlags').mockResolvedValue({
+        remoteFeatureFlags: mockFlags,
+        cacheTimestamp: Date.now(),
+      });
+
+      const { controller, messenger } = createController({
+        clientConfigApiService: mockApiService,
+        clientVersion: '13.1.5',
+        getMetaMetricsId: () => MOCK_METRICS_ID,
+      });
+
+      await messenger.call(
+        'RemoteFeatureFlagController:updateRemoteFeatureFlags',
+      );
+
+      expect(
+        controller.state.remoteFeatureFlags.multiVersionOverrideFlag,
+      ).toStrictEqual({
+        name: 'specificUser',
+        value: { enabled: true, variant: 'override' },
+      });
     });
   });
 

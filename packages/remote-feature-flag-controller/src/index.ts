@@ -20,8 +20,17 @@ export {
   ClientType,
   DistributionType,
   EnvironmentType,
+  FeatureFlagScopeType,
 } from './remote-feature-flag-controller-types';
 
-export type { FeatureFlags } from './remote-feature-flag-controller-types';
+export type {
+  FeatureFlagMetaMetricsIdScope,
+  FeatureFlagMetaMetricsIdScopeValue,
+  FeatureFlags,
+  FeatureFlagScope,
+  FeatureFlagScopeValue,
+  FeatureFlagThresholdScope,
+  FeatureFlagThresholdScopeValue,
+} from './remote-feature-flag-controller-types';
 export { ClientConfigApiService } from './client-config-api-service/client-config-api-service';
 export { generateDeterministicRandomNumber } from './utils/user-segmentation-utils';

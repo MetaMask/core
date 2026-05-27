@@ -1,8 +1,13 @@
 import type { Json } from '@metamask/utils';
-import { sha256, bytesToHex } from '@metamask/utils';
+import { bytesToHex, hasProperty, sha256 } from '@metamask/utils';
 import { validate as uuidValidate, version as uuidVersion } from 'uuid';
 
-import type { FeatureFlagScopeValue } from '../remote-feature-flag-controller-types';
+import type {
+  FeatureFlagMetaMetricsIdScopeValue,
+  FeatureFlagScopeValue,
+  FeatureFlagThresholdScopeValue,
+} from '../remote-feature-flag-controller-types';
+import { FeatureFlagScopeType } from '../remote-feature-flag-controller-types';
 
 /**
  * Converts a UUID string to a BigInt by removing dashes and converting to hexadecimal.
@@ -124,9 +129,58 @@ export function generateDeterministicRandomNumber(
 export const isFeatureFlagWithScopeValue = (
   featureFlag: Json,
 ): featureFlag is FeatureFlagScopeValue => {
+  if (
+    typeof featureFlag !== 'object' ||
+    featureFlag === null ||
+    Array.isArray(featureFlag) ||
+    !hasProperty(featureFlag, 'scope')
+  ) {
+    return false;
+  }
+
+  const { scope } = featureFlag;
+
   return (
-    typeof featureFlag === 'object' &&
-    featureFlag !== null &&
-    'scope' in featureFlag
+    hasProperty(featureFlag, 'name') &&
+    typeof featureFlag.name === 'string' &&
+    hasProperty(featureFlag, 'value') &&
+    typeof scope === 'object' &&
+    scope !== null &&
+    !Array.isArray(scope) &&
+    hasProperty(scope, 'type') &&
+    typeof scope.type === 'string' &&
+    hasProperty(scope, 'value')
+  );
+};
+
+/**
+ * Type guard to check if a feature flag entry uses threshold-based scoping.
+ *
+ * @param featureFlag - The value to check.
+ * @returns True if the value is a threshold-scoped feature flag entry.
+ */
+export const isFeatureFlagWithThresholdScopeValue = (
+  featureFlag: Json,
+): featureFlag is FeatureFlagThresholdScopeValue => {
+  return (
+    isFeatureFlagWithScopeValue(featureFlag) &&
+    featureFlag.scope.type === FeatureFlagScopeType.Threshold &&
+    typeof featureFlag.scope.value === 'number'
+  );
+};
+
+/**
+ * Type guard to check if a feature flag entry targets a specific MetaMetrics ID.
+ *
+ * @param featureFlag - The value to check.
+ * @returns True if the value is a MetaMetrics ID-scoped feature flag entry.
+ */
+export const isFeatureFlagWithMetaMetricsIdScopeValue = (
+  featureFlag: Json,
+): featureFlag is FeatureFlagMetaMetricsIdScopeValue => {
+  return (
+    isFeatureFlagWithScopeValue(featureFlag) &&
+    featureFlag.scope.type === FeatureFlagScopeType.MetaMetricsId &&
+    typeof featureFlag.scope.value === 'string'
   );
 };

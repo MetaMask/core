@@ -34,15 +34,37 @@ export type FeatureFlags = {
   [key: string]: Json;
 };
 
-export type FeatureFlagScope = {
-  type: string;
+export enum FeatureFlagScopeType {
+  Threshold = 'threshold',
+  MetaMetricsId = 'metaMetricsId',
+}
+
+export type FeatureFlagThresholdScope = {
+  type: FeatureFlagScopeType.Threshold;
   value: number;
 };
+
+export type FeatureFlagMetaMetricsIdScope = {
+  type: FeatureFlagScopeType.MetaMetricsId;
+  value: string;
+};
+
+export type FeatureFlagScope =
+  | FeatureFlagThresholdScope
+  | FeatureFlagMetaMetricsIdScope;
 
 export type FeatureFlagScopeValue = {
   name: string;
   scope: FeatureFlagScope;
   value: Json;
+};
+
+export type FeatureFlagThresholdScopeValue = FeatureFlagScopeValue & {
+  scope: FeatureFlagThresholdScope;
+};
+
+export type FeatureFlagMetaMetricsIdScopeValue = FeatureFlagScopeValue & {
+  scope: FeatureFlagMetaMetricsIdScope;
 };
 
 export type ApiDataResponse = FeatureFlags[];

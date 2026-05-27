@@ -10,13 +10,15 @@ import type { Json, SemVerVersion } from '@metamask/utils';
 import type { AbstractClientConfigApiService } from './client-config-api-service/abstract-client-config-api-service';
 import type { RemoteFeatureFlagControllerMethodActions } from './remote-feature-flag-controller-method-action-types';
 import type {
+  FeatureFlagMetaMetricsIdScopeValue,
   FeatureFlags,
   ServiceResponse,
-  FeatureFlagScopeValue,
+  FeatureFlagThresholdScopeValue,
 } from './remote-feature-flag-controller-types';
 import {
   calculateThresholdForFlag,
-  isFeatureFlagWithScopeValue,
+  isFeatureFlagWithMetaMetricsIdScopeValue,
+  isFeatureFlagWithThresholdScopeValue,
 } from './utils/user-segmentation-utils';
 import { isVersionFeatureFlag, getVersionData } from './utils/version';
 
@@ -329,53 +331,73 @@ export class RemoteFeatureFlagController extends BaseController<
       }
 
       if (Array.isArray(processedValue)) {
-        // Validate array has valid threshold items before doing expensive crypto operation
-        const hasValidThresholds = processedValue.some(
-          isFeatureFlagWithScopeValue,
-        );
+        const selectedMetaMetricsIdOverride = metaMetricsId
+          ? processedValue.find(
+              (
+                featureFlag,
+              ): featureFlag is FeatureFlagMetaMetricsIdScopeValue => {
+                return (
+                  isFeatureFlagWithMetaMetricsIdScopeValue(featureFlag) &&
+                  featureFlag.scope.value === metaMetricsId
+                );
+              },
+            )
+          : undefined;
 
-        if (!hasValidThresholds) {
-          // Not a threshold array - preserve as-is
-          processedFlags[remoteFeatureFlagName] = processedValue;
-          continue;
-        }
-
-        // Skip threshold processing if metaMetricsId is not available
-        if (!metaMetricsId) {
-          // Preserve array as-is when user hasn't opted into MetaMetrics
-          processedFlags[remoteFeatureFlagName] = processedValue;
-          continue;
-        }
-
-        // Check cache first, calculate only if needed
-        const cacheKey = `${metaMetricsId}:${remoteFeatureFlagName}` as const;
-        let thresholdValue = this.state.thresholdCache?.[cacheKey];
-
-        if (thresholdValue === undefined) {
-          thresholdValue = await calculateThresholdForFlag(
-            metaMetricsId,
-            remoteFeatureFlagName,
+        if (selectedMetaMetricsIdOverride) {
+          processedValue = {
+            name: selectedMetaMetricsIdOverride.name,
+            value: selectedMetaMetricsIdOverride.value,
+          };
+        } else {
+          // Validate array has valid threshold items before doing expensive crypto operation
+          const hasValidThresholds = processedValue.some(
+            isFeatureFlagWithThresholdScopeValue,
           );
 
-          // Collect new threshold for batched state update
-          thresholdCacheUpdates[cacheKey] = thresholdValue;
-        }
+          if (!hasValidThresholds) {
+            // Not a supported scoped array - preserve as-is
+            processedFlags[remoteFeatureFlagName] = processedValue;
+            continue;
+          }
 
-        const threshold = thresholdValue;
-        const selectedGroup = processedValue.find(
-          (featureFlag): featureFlag is FeatureFlagScopeValue => {
-            if (!isFeatureFlagWithScopeValue(featureFlag)) {
-              return false;
-            }
+          // Skip threshold processing if metaMetricsId is not available
+          if (!metaMetricsId) {
+            // Preserve array as-is when user hasn't opted into MetaMetrics
+            processedFlags[remoteFeatureFlagName] = processedValue;
+            continue;
+          }
 
-            return threshold <= featureFlag.scope.value;
-          },
-        );
-        if (selectedGroup) {
-          processedValue = {
-            name: selectedGroup.name,
-            value: selectedGroup.value,
-          };
+          // Check cache first, calculate only if needed
+          const cacheKey = `${metaMetricsId}:${remoteFeatureFlagName}` as const;
+          let thresholdValue = this.state.thresholdCache?.[cacheKey];
+
+          if (thresholdValue === undefined) {
+            thresholdValue = await calculateThresholdForFlag(
+              metaMetricsId,
+              remoteFeatureFlagName,
+            );
+
+            // Collect new threshold for batched state update
+            thresholdCacheUpdates[cacheKey] = thresholdValue;
+          }
+
+          const threshold = thresholdValue;
+          const selectedGroup = processedValue.find(
+            (featureFlag): featureFlag is FeatureFlagThresholdScopeValue => {
+              if (!isFeatureFlagWithThresholdScopeValue(featureFlag)) {
+                return false;
+              }
+
+              return threshold <= featureFlag.scope.value;
+            },
+          );
+          if (selectedGroup) {
+            processedValue = {
+              name: selectedGroup.name,
+              value: selectedGroup.value,
+            };
+          }
         }
       }
 

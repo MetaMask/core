@@ -3,7 +3,9 @@ import { v4 as uuidV4 } from 'uuid';
 import {
   calculateThresholdForFlag,
   generateDeterministicRandomNumber,
+  isFeatureFlagWithMetaMetricsIdScopeValue,
   isFeatureFlagWithScopeValue,
+  isFeatureFlagWithThresholdScopeValue,
 } from './user-segmentation-utils';
 
 const MOCK_METRICS_IDS = {
@@ -31,6 +33,22 @@ const MOCK_FEATURE_FLAGS = {
     value: true,
     scope: {
       type: 'threshold',
+      value: 0.5,
+    },
+  },
+  VALID_METAMETRICS_ID_OVERRIDE: {
+    name: 'test-flag',
+    value: true,
+    scope: {
+      type: 'metaMetricsId',
+      value: 'f9e8d7c6-b5a4-4210-9876-543210fedcba',
+    },
+  },
+  INVALID_METAMETRICS_ID_OVERRIDE_NUMBER_VALUE: {
+    name: 'test-flag',
+    value: true,
+    scope: {
+      type: 'metaMetricsId',
       value: 0.5,
     },
   },
@@ -315,6 +333,46 @@ describe('user-segmentation-utils', () => {
     it('returns false for objects without scope', () => {
       expect(
         isFeatureFlagWithScopeValue(MOCK_FEATURE_FLAGS.INVALID_NO_SCOPE),
+      ).toBe(false);
+    });
+  });
+
+  describe('isFeatureFlagWithThresholdScopeValue', () => {
+    it('returns true for valid threshold feature flag scope', () => {
+      expect(
+        isFeatureFlagWithThresholdScopeValue(MOCK_FEATURE_FLAGS.VALID),
+      ).toBe(true);
+    });
+
+    it('returns false for metaMetricsId override scope', () => {
+      expect(
+        isFeatureFlagWithThresholdScopeValue(
+          MOCK_FEATURE_FLAGS.VALID_METAMETRICS_ID_OVERRIDE,
+        ),
+      ).toBe(false);
+    });
+  });
+
+  describe('isFeatureFlagWithMetaMetricsIdScopeValue', () => {
+    it('returns true for valid metaMetricsId override scope', () => {
+      expect(
+        isFeatureFlagWithMetaMetricsIdScopeValue(
+          MOCK_FEATURE_FLAGS.VALID_METAMETRICS_ID_OVERRIDE,
+        ),
+      ).toBe(true);
+    });
+
+    it('returns false for threshold scope', () => {
+      expect(
+        isFeatureFlagWithMetaMetricsIdScopeValue(MOCK_FEATURE_FLAGS.VALID),
+      ).toBe(false);
+    });
+
+    it('returns false when metaMetricsId override value is not a string', () => {
+      expect(
+        isFeatureFlagWithMetaMetricsIdScopeValue(
+          MOCK_FEATURE_FLAGS.INVALID_METAMETRICS_ID_OVERRIDE_NUMBER_VALUE,
+        ),
       ).toBe(false);
     });
   });
