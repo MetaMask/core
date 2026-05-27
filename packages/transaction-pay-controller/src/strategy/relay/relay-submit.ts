@@ -674,8 +674,13 @@ async function submitViaTransactionController(
       ? toHex(metamask.gasLimits[0])
       : undefined;
 
+    const hasPaymentOverride =
+      Boolean(quote.request.paymentOverride) &&
+      allParams.length > normalizedParams.length;
+
     const transactions = allParams.map((singleParams, index) => {
-      const gasLimit = gasLimits[index];
+      const relayIndex = hasPaymentOverride ? index - 1 : index;
+      const gasLimit = relayIndex >= 0 ? gasLimits[relayIndex] : undefined;
       const gas =
         gasLimit === undefined || gasLimit7702 ? undefined : toHex(gasLimit);
 
@@ -690,6 +695,7 @@ async function submitViaTransactionController(
         },
         type: getTransactionType(
           isPostQuote,
+          hasPaymentOverride,
           index,
           getEffectiveTransactionType(transaction),
           normalizedParams.length,
@@ -744,17 +750,20 @@ async function submitViaTransactionController(
  */
 function getTransactionType(
   isPostQuote: boolean | undefined,
+  hasPaymentOverride: boolean,
   index: number,
   originalType: TransactionMeta['type'],
   relayParamCount: number,
 ): TransactionMeta['type'] {
-  // Post-quote index 0 is the original transaction
-  if (isPostQuote && index === 0) {
+  const hasPrependedTx = isPostQuote || hasPaymentOverride;
+
+  // Index 0 is the prepended transaction (original or override)
+  if (hasPrependedTx && index === 0) {
     return originalType;
   }
 
-  // Adjust index for post-quote flows where original tx is prepended
-  const relayIndex = isPostQuote ? index - 1 : index;
+  // Adjust index for flows where a transaction is prepended
+  const relayIndex = hasPrependedTx ? index - 1 : index;
 
   const depositType = getRelayDepositType(originalType);
 
