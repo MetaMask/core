@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add optional `has_sufficient_gas_for_quote` property to `QuotesReceived` event and `getQuotesReceivedProperties` utility to allow clients to pass whether the user has sufficient gas to submit the quote ([#8895](https://github.com/MetaMask/core/pull/8895))
+
 ## [73.1.0]
 
 ### Added
@@ -15,7 +19,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Add optional `has_sufficient_gas_for_quote` property to `QuotesReceived` event and `getQuotesReceivedProperties` utility to allow clients to pass whether the user has sufficient gas to submit the quote ([#8895](https://github.com/MetaMask/core/pull/8895))
 - Bump `@metamask/assets-controller` from `^8.0.0` to `^8.0.2` ([#8874](https://github.com/MetaMask/core/pull/8874), [#8912](https://github.com/MetaMask/core/pull/8912))
 - Bump `@metamask/assets-controllers` from `^108.1.0` to `^108.2.0` ([#8911](https://github.com/MetaMask/core/pull/8911))
 - Bump `@metamask/accounts-controller` from `^38.1.1` to `^38.1.2` ([#8912](https://github.com/MetaMask/core/pull/8912))
