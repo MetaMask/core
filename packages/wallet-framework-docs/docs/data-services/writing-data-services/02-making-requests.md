@@ -1,6 +1,6 @@
 # Writing a Data Service, Part 2: Making Requests
 
-In the [previous section](./01-getting-started.md), we started by creating a data service class and a messenger to go along with it.
+In the [previous section](./01-getting-started.md#summary), we started by creating a data service class and a messenger to go along with it.
 
 Now we're ready to implement the main part of the data service. Recall that our API looks like this:
 
@@ -9,145 +9,9 @@ Now we're ready to implement the main part of the data service. Recall that our 
 
 ## Requesting a list of orders
 
-First, let's add a method to represent `GET /v1/orders`. It looks like this:
-
-```typescript title="packages/orders-service/src/orders-service.ts"
-import { HttpError } from '@metamask/controller-utils';
-import type { Infer } from '@metamask/superstruct';
-import {
-  array,
-  intersection,
-  literal,
-  number,
-  optional,
-  record,
-  refine,
-  string,
-  type,
-  union,
-  unknown,
-  validate,
-} from '@metamask/superstruct';
-import {
-  CaipAccountIdStruct,
-  CaipAssetIdStruct,
-  CaipAssetTypeStruct,
-} from '@metamask/utils';
-
-// ...
-
-/**
- * A struct that represents a timestamp (number of seconds since the UNIX
- * epoch).
- */
-const TimestampStruct = refine(number(), 'timestamp', (value) => {
-  if (new Date(value).toString() === 'Invalid Date') {
-    return 'Expected a valid timestamp';
-  }
-  return true;
-});
-
-/**
- * Struct to validate an order object that the Orders API returns.
- */
-const ResponseOrderStruct = intersection([
-  // Need to list this first, otherwise the inferred type is never
-  // See: <https://github.com/ianstormtaylor/superstruct/issues/1180>
-  union([
-    type({
-      objectId: CaipAssetTypeStruct,
-      type: literal('token'),
-    }),
-    type({
-      objectId: CaipAssetIdStruct,
-      type: literal('asset'),
-    }),
-  ]),
-  type({
-    createdTime: TimestampStruct,
-    details: optional(record(string(), unknown())),
-    from: CaipAccountIdStruct,
-    orderId: string(),
-    status: union([
-      literal('pending'),
-      literal('completed'),
-      literal('canceled'),
-    ]),
-    to: CaipAccountIdStruct,
-    updatedTime: TimestampStruct,
-  }),
-]);
-
-/**
- * Struct to validate what `GET /v1/orders` returns.
- */
-const FetchOrdersResponseStruct = type({
-  orders: array(ResponseOrderStruct),
-});
-/**
- * The data that `GET /v1/orders` returns.
- */
-type FetchOrdersResponse = Infer<typeof FetchOrdersResponseStruct>;
-
-export class OrdersService extends BaseDataService</* ... */> {
-  // ...
-
-  /**
-   * Uses the API to retrieve orders.
-   *
-   * @param params - Parameters to qualify the request.
-   * @param params.sortField - The field by which to sort the list of orders.
-   * @param params.sortOrder - The direction in which to sort the list of
-   * orders.
-   * @returns The orders from the API.
-   */
-  async fetchOrders({
-    sortField = 'createdTime',
-    sortOrder = 'asc',
-  }: {
-    sortField?: 'createdTime' | 'updatedTime';
-    sortOrder?: 'asc' | 'desc';
-  }): Promise<FetchOrdersResponse> {
-    const url = new URL('/v1/orders', BASE_URL);
-    url.searchParams.append('sortField', sortField);
-    url.searchParams.append('sortOrder', sortOrder);
-
-    const jsonResponse = await this.fetchQuery({
-      queryKey: [`${this.name}:fetchOrders`, url.toString()],
-      queryFn: async () => {
-        const response = await fetch(url);
-
-        if (!response.ok) {
-          throw new HttpError(
-            response.status,
-            `Orders API failed with status '${response.status}'`,
-          );
-        }
-
-        return response.json();
-      },
-    });
-
-    const [error, validJsonResponse] = validate(
-      jsonResponse,
-      FetchOrdersResponseStruct,
-    );
-    if (error) {
-      throw new Error(
-        `Malformed response received from Orders API (${error.toString()})`,
-      );
-    }
-
-    return validatedJsonResponse;
-  }
-}
-```
-
-That's a lot, so let's break that down.
-
 ### Building the URL
 
-Our endpoint takes two query parameters, so we have our method take a `params` object. We assign defaults for each key/value pair and map them to query parameters. Then we construct the URL.
+First, let's add a method to represent `GET /v1/orders`. Our endpoint takes two query parameters, so we have our method take a `params` object. We assign defaults for each key/value pair and map them to query parameters. Then we construct the URL.
 
 ```typescript title="packages/orders-service/src/orders-service.ts"
 export class OrdersService extends BaseDataService</* ... */> {
@@ -162,7 +26,7 @@ export class OrdersService extends BaseDataService</* ... */> {
     url.searchParams.append('sortField', sortField);
     url.searchParams.append('sortOrder', sortOrder);
 
-    // ...
+    // ... more to come ...
   }
 }
 ```
