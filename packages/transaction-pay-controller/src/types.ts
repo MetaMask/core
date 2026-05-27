@@ -54,6 +54,7 @@ import type {
   TransactionControllerStateChangeEvent,
   TransactionControllerUpdateTransactionAction,
   TransactionMeta,
+  TransactionParams,
 } from '@metamask/transaction-controller';
 import type { Hex, Json } from '@metamask/utils';
 import type { Draft } from 'immer';
@@ -159,7 +160,7 @@ export type TransactionConfigCallback = (config: TransactionConfig) => void;
  */
 export type GetPaymentOverrideDataCallback = (
   transactionId: string,
-) => Promise<TransactionMeta | undefined>;
+) => Promise<TransactionParams | undefined>;
 
 /** Callback to update fiat payment state. */
 export type TransactionFiatPaymentCallback = (

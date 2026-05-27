@@ -409,20 +409,7 @@ async function submitTransactions(
     );
 
     if (overrideTx) {
-      const delegation = await messenger.call(
-        'TransactionPayController:getDelegationTransaction',
-        { transaction: overrideTx },
-      );
-
-      allParams = [
-        {
-          data: delegation.data,
-          from: overrideTx.txParams.from as Hex,
-          to: delegation.to,
-          value: delegation.value,
-        },
-        ...normalizedParams,
-      ];
+      allParams = [overrideTx, ...normalizedParams];
     }
   } else if (isPostQuote && transaction.txParams.to) {
     const prependedParams = hasAccountOverride

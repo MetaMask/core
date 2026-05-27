@@ -1,6 +1,9 @@
 import { ORIGIN_METAMASK } from '@metamask/controller-utils';
 import { TransactionType } from '@metamask/transaction-controller';
-import type { TransactionMeta } from '@metamask/transaction-controller';
+import type {
+  TransactionMeta,
+  TransactionParams,
+} from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 import { cloneDeep } from 'lodash';
 
@@ -861,39 +864,24 @@ describe('Relay Submit Utils', () => {
 
     describe('paymentOverride flow', () => {
       const PAYMENT_OVERRIDE_TX_MOCK = {
-        id: 'override-tx-id',
-        txParams: {
-          from: FROM_MOCK,
-          to: '0xpaymentoverride' as Hex,
-          data: '0xpaymentoverride' as Hex,
-          value: '0x0',
-        },
-      } as TransactionMeta;
+        to: '0xpaymentoverride' as Hex,
+        data: '0xpaymentoverride' as Hex,
+        value: '0x0',
+      } as TransactionParams;
 
-      const DELEGATION_RESULT_MOCK = {
-        data: '0xdelegationdata' as Hex,
-        to: '0xdelegationto' as Hex,
-        value: '0xdelegationvalue' as Hex,
-      };
-
-      it('builds delegation and prepends to submit params', async () => {
+      it('prepends override tx params to submit batch', async () => {
         request.quotes[0].request.paymentOverride =
           PaymentOverride.MoneyAccount;
         getPaymentOverrideDataMock.mockResolvedValue(PAYMENT_OVERRIDE_TX_MOCK);
-        getDelegationTransactionMock.mockResolvedValue(DELEGATION_RESULT_MOCK);
 
         await submitRelayQuotes(request);
-
-        expect(getDelegationTransactionMock).toHaveBeenCalledWith({
-          transaction: PAYMENT_OVERRIDE_TX_MOCK,
-        });
 
         const batchCall = addTransactionBatchMock.mock.calls[0][0];
         expect(batchCall.transactions[0].params).toStrictEqual(
           expect.objectContaining({
-            data: DELEGATION_RESULT_MOCK.data,
-            to: DELEGATION_RESULT_MOCK.to,
-            value: DELEGATION_RESULT_MOCK.value,
+            data: PAYMENT_OVERRIDE_TX_MOCK.data,
+            to: PAYMENT_OVERRIDE_TX_MOCK.to,
+            value: PAYMENT_OVERRIDE_TX_MOCK.value,
           }),
         );
       });
@@ -919,7 +907,6 @@ describe('Relay Submit Utils', () => {
         request.quotes[0].request.paymentOverride =
           PaymentOverride.MoneyAccount;
         getPaymentOverrideDataMock.mockResolvedValue(PAYMENT_OVERRIDE_TX_MOCK);
-        getDelegationTransactionMock.mockResolvedValue(DELEGATION_RESULT_MOCK);
         getLiveTokenBalanceMock.mockResolvedValue('0');
 
         await submitRelayQuotes(request);
