@@ -1,9 +1,9 @@
-/**
- * Example function that returns a greeting for the given name.
- *
- * @param name - The name to greet.
- * @returns The greeting.
- */
-export default function greeter(name: string): string {
-  return `Hello, ${name}!`;
-}
+export { Wallet } from './Wallet';
+export type { WalletOptions } from './types';
+export type {
+  DefaultActions,
+  DefaultEvents,
+  DefaultInstances,
+  DefaultState,
+  RootMessenger,
+} from './initialization/defaults';
