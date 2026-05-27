@@ -74,17 +74,46 @@ export type TradeConfiguration = {
 };
 
 // Market asset type classification (reusable across components)
-export type MarketType = 'crypto' | 'equity' | 'commodity' | 'forex';
+export enum MarketCategory {
+  CryptoCurrency = 'crypto',
+  Stock = 'stock',
+  PreIpo = 'pre-ipo',
+  Index = 'index',
+  Etf = 'etf',
+  Commodity = 'commodity',
+  Forex = 'forex',
+}
+
+export type MarketType = `${MarketCategory}`;
 
 // Market type filter for UI category badges
-// Note: 'stocks' maps to 'equity' and 'commodities' maps to 'commodity' in the data model
+// Note: 'stocks' maps to 'stock', 'commodities' maps to 'commodity' in the data model
 export type MarketTypeFilter =
   | 'all'
   | 'crypto'
   | 'stocks'
+  | 'pre-ipo'
+  | 'indices'
+  | 'etfs'
   | 'commodities'
   | 'forex'
   | 'new';
+
+/**
+ * Ordered list of the 7 data-model market categories for UI pills.
+ * Does not include the 'all' or 'new' sentinel values — those are applied
+ * via dedicated UI controls, not the category pills.
+ * Kept in sync with {@link MarketTypeFilter} via `satisfies`.
+ */
+export const MARKET_CATEGORIES = [
+  'crypto',
+  'stocks',
+  'pre-ipo',
+  'indices',
+  'etfs',
+  'commodities',
+  'forex',
+] as const satisfies MarketTypeFilter[];
 
 // Input method for amount entry tracking
 export type InputMethod =
@@ -422,7 +451,10 @@ export type PerpsMarketData = {
   /**
    * Market asset type classification (optional)
    * - crypto: Cryptocurrency (default for most markets)
-   * - equity: Stock/equity markets (HIP-3)
+   * - stock: Individual stocks (HIP-3)
+   * - pre-ipo: Pre-IPO assets (HIP-3)
+   * - index: Market indices (HIP-3)
+   * - etf: Exchange-traded funds (HIP-3)
    * - commodity: Commodity markets (HIP-3)
    * - forex: Foreign exchange pairs (HIP-3)
    */
@@ -783,11 +815,35 @@ export type GetSupportedPathsParams = {
 /** Placeholder for future filter/pagination params (e.g., validated, chain). Empty today so the API signature is stable. */
 export type GetAvailableDexsParams = Record<string, never>;
 
+/** Field to sort markets by. */
+export type SortField =
+  | 'volume'
+  | 'priceChange'
+  | 'fundingRate'
+  | 'openInterest';
+
+/** Direction for market sorting. */
+export type SortDirection = 'asc' | 'desc';
+
 export type GetMarketsParams = {
   symbols?: string[]; // Optional symbol filter (e.g., ['BTC', 'xyz:XYZ100'])
   dex?: string; // HyperLiquid HIP-3: DEX name (empty string '' or undefined for main DEX). Other protocols: ignored.
   skipFilters?: boolean; // Skip market filtering (both allowlist and blocklist, default: false). When true, returns all markets without filtering.
   standalone?: boolean; // Lightweight mode: skip full initialization, only fetch market metadata (no wallet/WebSocket needed). Only main DEX markets returned. Use for discovery use cases like checking if a perps market exists.
+};
+
+/**
+ * Parameters for {@link PerpsController.getMarketDataWithPrices}.
+ * Extends the base market-fetch params with optional category filtering,
+ * sorting, and pagination that are applied as post-processing.
+ */
+export type GetMarketDataWithPricesParams = {
+  standalone?: boolean; // Lightweight mode: see GetMarketsParams.standalone
+  categories?: MarketTypeFilter[]; // Filter to markets matching any of these categories; omit for all markets
+  excludeSymbols?: string[]; // Symbols to exclude from results (e.g. the currently viewed market)
+  sortBy?: SortField; // Sort results by this field
+  direction?: SortDirection; // Sort direction (default: desc)
+  limit?: number; // Maximum number of results to return
 };
 
 export type SubscribePricesParams = {
@@ -1303,6 +1359,7 @@ export type PerpsTraceName =
   | 'Perps Get Account State'
   | 'Perps Get Historical Portfolio'
   | 'Perps Get Markets'
+  | 'Perps Get Market Data With Prices'
   | 'Perps Fetch Historical Candles'
   | 'Perps WebSocket Connected'
   | 'Perps WebSocket Disconnected'
@@ -1340,6 +1397,7 @@ export const PerpsTraceNames = {
   GetPositions: 'Perps Get Positions',
   GetAccountState: 'Perps Get Account State',
   GetMarkets: 'Perps Get Markets',
+  GetMarketDataWithPrices: 'Perps Get Market Data With Prices',
   OrderFillsFetch: 'Perps Order Fills Fetch',
   OrdersFetch: 'Perps Orders Fetch',
   FundingFetch: 'Perps Funding Fetch',
