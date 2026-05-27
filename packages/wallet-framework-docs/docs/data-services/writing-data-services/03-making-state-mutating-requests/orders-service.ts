@@ -45,6 +45,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'fetchOrders',
   'fetchOrder',
   'createOrder',
+  'cancelOrder',
 ] as const;
 
 /**
@@ -311,10 +312,17 @@ export class OrdersService extends BaseDataService<
   }
 
   /**
-   * Retrieves details about an order.
+   * Creates an order.
    *
-   * @param params - The order ID.
-   * @returns The requested order.
+   * @param params - The params.
+   * @param params.details - Extra data with which to create the order.
+   * @param params.from - The sender.
+   * @param params.objectId - The ID of the object being sent. If `type` is
+   * "asset", a CAIP-19 asset ID; if `type` is "token", a CAIP-19 asset type.
+   * @param params.to - The recipient.
+   * @param params.type - The type of object being sent (either "asset" or
+   * "token").
+   * @returns The created order.
    */
   async createOrder(params: CreateOrderParams): Promise<FetchOrderResponse> {
     const url = new URL(`/v1/orders`, BASE_URL);
@@ -350,5 +358,33 @@ export class OrdersService extends BaseDataService<
     }
 
     return validatedResponseData;
+  }
+
+  /**
+   * Cancels an order.
+   *
+   * @param id - The order ID.
+   */
+  async cancelOrder(id: string): Promise<void> {
+    const url = new URL(`/v1/orders/${id}`, BASE_URL);
+
+    await this.fetchQuery({
+      queryKey: [`${this.name}:cancelOrder`, url.toString()],
+      queryFn: async () => {
+        const response = await fetch(url, {
+          method: 'DELETE',
+        });
+
+        if (!response.ok) {
+          throw new HttpError(
+            response.status,
+            `Orders API failed with status '${response.status}'`,
+          );
+        }
+
+        return null;
+      },
+      staleTime: 0,
+    });
   }
 }

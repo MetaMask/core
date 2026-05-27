@@ -68,6 +68,11 @@ const config: Config = {
       disableSwitch: false,
       respectPrefersColorScheme: true,
     },
+    docs: {
+      sidebar: {
+        autoCollapseCategories: true,
+      },
+    },
     navbar: {
       hideOnScroll: true,
       items: [
@@ -83,11 +88,6 @@ const config: Config = {
         src: 'images/metamask-dev-logo.svg',
       },
       title: 'Wallet Framework Documentation',
-    },
-    docs: {
-      sidebar: {
-        autoCollapseCategories: true,
-      },
     },
     prism: {
       additionalLanguages: ['bash', 'diff'],
@@ -110,6 +110,10 @@ const config: Config = {
         },
       ],
       theme: codeTheme,
+    },
+    tableOfContents: {
+      minHeadingLevel: 2,
+      maxHeadingLevel: 4,
     },
   } satisfies Preset.ThemeConfig,
 } as const satisfies Config;

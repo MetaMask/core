@@ -33,7 +33,9 @@ Let's now add these to our data service.
 
 ## Creating a new order
 
-First we'll add some types:
+### Implementing the new method
+
+Starting with the `POST` endpoint, we'll add some types:
 
 ```typescript title="packages/orders-service/src/orders-service.ts"
 /**
@@ -63,10 +65,17 @@ export class OrdersService extends BaseDataService</* ... */> {
   // ...
 
   /**
-   * Retrieves details about an order.
+   * Creates an order.
    *
-   * @param params - The order ID.
-   * @returns The requested order.
+   * @param params - The params.
+   * @param params.details - Extra data with which to create the order.
+   * @param params.from - The sender.
+   * @param params.objectId - The ID of the object being sent. If `type` is
+   * "asset", a CAIP-19 asset ID; if `type` is "token", a CAIP-19 asset type.
+   * @param params.to - The recipient.
+   * @param params.type - The type of object being sent (either "asset" or
+   * "token").
+   * @returns The created order.
    */
   async createOrder(params: CreateOrderParams): Promise<FetchOrderResponse> {
     const url = new URL(`/v1/orders`, BASE_URL);
@@ -140,15 +149,15 @@ export type OrdersServiceMethodActions =
   | OrdersServiceFetchOrdersAction
 // ::diff-deleted-next::
   | OrdersServiceFetchOrderAction;
-// ::diff-added-start::
+// ::diff-added-next::
   | OrdersServiceFetchOrderAction
+// ::diff-added-next::
   | OrdersServiceCreateOrderAction;
-// ::diff-added-end::
 ```
 
 Finally, we'll write tests. We'll update the mock objects at the top of the test:
 
-```diff title="packages/orders-service/src/orders-service.test.ts"
+```typescript title="packages/orders-service/src/orders-service.test.ts"
 // ::diff-added-start::
 const MOCK_ORDER = {
   details: {
@@ -184,7 +193,7 @@ const MOCK_VALID_ORDER_RESPONSE_DATA = {
 } satisfies FetchOrderResponse;
 ```
 
-## Adding tests
+### Adding tests
 
 Then we'll add the new tests:
 
@@ -314,7 +323,7 @@ describe('OrdersService', () => {
   });
 
   describe('createOrder', () => {
-    it('requests an order from the API, same as the method', async () => {
+    it('creates an order, same as the messenger action', async () => {
       nock('https://api.example.com')
         .post('/v1/orders')
         .reply(200, MOCK_VALID_ORDER_RESPONSE_DATA);
@@ -323,6 +332,158 @@ describe('OrdersService', () => {
       const responseData = await service.createOrder(MOCK_ORDER);
 
       expect(responseData).toStrictEqual(MOCK_VALID_ORDER_RESPONSE_DATA);
+    });
+  });
+});
+```
+
+## Deleting an order
+
+### Implementing the method
+
+Let's also implement the `DELETE` endpoint. This is similar to `createOrder` except that we don't need to capture the response data (we will assume there is none).
+
+```typescript title="packages/orders-service/src/orders-service.ts"
+export class OrdersService extends BaseDataService</* ... */> {
+  // ...
+
+  /**
+   * Cancels an order.
+   *
+   * @param id - The order ID.
+   */
+  async cancelOrder(id: string): Promise<void> {
+    const url = new URL(`/v1/orders/${id}`, BASE_URL);
+
+    await this.fetchQuery({
+      queryKey: [`${this.name}:cancelOrder`, url.toString()],
+      queryFn: async () => {
+        const response = await fetch(url, {
+          method: 'DELETE',
+        });
+
+        if (!response.ok) {
+          throw new HttpError(
+            response.status,
+            `Orders API failed with status '${response.status}'`,
+          );
+        }
+
+        return response.json();
+      },
+      staleTime: 0,
+    });
+  }
+}
+```
+
+As before we'll update `MESSENGER_EXPOSED_METHODS`:
+
+```typescript title="packages/orders-service/src/orders-service.ts"
+const MESSENGER_EXPOSED_METHODS = [
+  'fetchOrders',
+  'fetchOrder',
+  'createOrder',
+// ::diff-added-next::
+  'cancelOrder',
+] as const;
+```
+
+And we'll update the method action types file:
+
+```typescript title="packages/orders-service/src/orders-service.ts"
+// ::diff-added-start::
+/**
+ * Cancels an order.
+ *
+ * @param id - The order ID.
+ */
+export type OrdersServiceCancelOrderAction = {
+  type: `OrdersService:cancelOrder`;
+  handler: OrdersService['cancelOrder'];
+};
+// ::diff-added-end::
+
+/**
+ * Union of all OrdersService action types.
+ */
+export type OrdersServiceMethodActions =
+  | OrdersServiceFetchOrdersAction
+  | OrdersServiceFetchOrderAction
+// ::diff-deleted-next::
+  | OrdersServiceCreateOrderAction;
+// ::diff-added-next::
+  | OrdersServiceCreateOrderAction
+// ::diff-added-next::
+  | OrdersServiceCancelOrderAction;
+```
+
+### Adding tests
+
+We'll also add tests:
+
+```typescript title="packages/orders-service/src/orders-service.test.ts"
+describe('OrdersService', () => {
+  // ...
+
+  describe('OrdersService:cancelOrder', () => {
+    it('cancels an order', async () => {
+      nock('https://api.example.com')
+        .delete('/v1/orders/0000000000000000001')
+        .reply(200);
+      const { rootMessenger } = createService();
+
+      const responseData = await rootMessenger.call(
+        'OrdersService:cancelOrder',
+        '0000000000000000001',
+      );
+
+      expect(responseData).toBeUndefined();
+    });
+
+    it('throws if the API returns a non-200 status', async () => {
+      nock('https://api.example.com')
+        .delete('/v1/orders/0000000000000000001')
+        .times(DEFAULT_MAX_RETRIES + 1)
+        .reply(500);
+      const { rootMessenger } = createService();
+
+      await expect(
+        rootMessenger.call('OrdersService:cancelOrder', '0000000000000000001'),
+      ).rejects.toThrow("Orders API failed with status '500'");
+    });
+
+    it('does not cache requests', async () => {
+      const scope = nock('https://api.example.com')
+        .delete('/v1/orders/0000000000000000001')
+        .times(2)
+        .reply(200, MOCK_VALID_ORDER_RESPONSE_DATA);
+      const { rootMessenger } = createService();
+
+      await rootMessenger.call(
+        'OrdersService:cancelOrder',
+        '0000000000000000001',
+      );
+      await rootMessenger.call(
+        'OrdersService:cancelOrder',
+        '0000000000000000001',
+      );
+      expect(scope.isDone()).toBe(true);
+    });
+  });
+
+  describe('cancelOrder', () => {
+    it('cancels an order, same as the messenger action', async () => {
+      nock('https://api.example.com')
+        .delete('/v1/orders/0000000000000000001')
+        .reply(200);
+      const { service } = createService();
+
+      const responseData = await service.cancelOrder(
+        '0000000000000000001',
+      );
+
+      expect(responseData).toBeUndefined();
     });
   });
 });

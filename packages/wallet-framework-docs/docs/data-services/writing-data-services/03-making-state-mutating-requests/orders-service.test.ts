@@ -215,7 +215,7 @@ describe('OrdersService', () => {
   });
 
   describe('fetchOrders', () => {
-    it('requests orders from the API, same as the method', async () => {
+    it('requests orders from the API, same as the messenger action', async () => {
       nock('https://api.example.com')
         .get('/v1/orders')
         .query({ sortField: 'createdTime', sortOrder: 'asc' })
@@ -338,7 +338,7 @@ describe('OrdersService', () => {
   });
 
   describe('fetchOrder', () => {
-    it('requests an order from the API, same as the method', async () => {
+    it('requests an order from the API, same as the messenger action', async () => {
       nock('https://api.example.com')
         .get('/v1/orders/AAAA-BBBB-CCCC-DDDD')
         .reply(200, MOCK_VALID_ORDER_RESPONSE_DATA);
@@ -472,7 +472,7 @@ describe('OrdersService', () => {
   });
 
   describe('createOrder', () => {
-    it('requests an order from the API, same as the method', async () => {
+    it('creates an order, same as the messenger action', async () => {
       nock('https://api.example.com')
         .post('/v1/orders')
         .reply(200, MOCK_VALID_ORDER_RESPONSE_DATA);
@@ -481,6 +481,65 @@ describe('OrdersService', () => {
       const responseData = await service.createOrder(MOCK_ORDER);
 
       expect(responseData).toStrictEqual(MOCK_VALID_ORDER_RESPONSE_DATA);
+    });
+  });
+
+  describe('OrdersService:cancelOrder', () => {
+    it('cancels an order', async () => {
+      nock('https://api.example.com')
+        .delete('/v1/orders/0000000000000000001')
+        .reply(200);
+      const { rootMessenger } = createService();
+
+      const responseData = await rootMessenger.call(
+        'OrdersService:cancelOrder',
+        '0000000000000000001',
+      );
+
+      expect(responseData).toBeUndefined();
+    });
+
+    it('throws if the API returns a non-200 status', async () => {
+      nock('https://api.example.com')
+        .delete('/v1/orders/0000000000000000001')
+        .times(DEFAULT_MAX_RETRIES + 1)
+        .reply(500);
+      const { rootMessenger } = createService();
+
+      await expect(
+        rootMessenger.call('OrdersService:cancelOrder', '0000000000000000001'),
+      ).rejects.toThrow("Orders API failed with status '500'");
+    });
+
+    it('does not cache requests', async () => {
+      const scope = nock('https://api.example.com')
+        .delete('/v1/orders/0000000000000000001')
+        .times(2)
+        .reply(200, MOCK_VALID_ORDER_RESPONSE_DATA);
+      const { rootMessenger } = createService();
+
+      await rootMessenger.call(
+        'OrdersService:cancelOrder',
+        '0000000000000000001',
+      );
+      await rootMessenger.call(
+        'OrdersService:cancelOrder',
+        '0000000000000000001',
+      );
+      expect(scope.isDone()).toBe(true);
+    });
+  });
+
+  describe('cancelOrder', () => {
+    it('cancels an order, same as the messenger action', async () => {
+      nock('https://api.example.com')
+        .delete('/v1/orders/0000000000000000001')
+        .reply(200);
+      const { service } = createService();
+
+      const responseData = await service.cancelOrder('0000000000000000001');
+
+      expect(responseData).toBeUndefined();
     });
   });
 });

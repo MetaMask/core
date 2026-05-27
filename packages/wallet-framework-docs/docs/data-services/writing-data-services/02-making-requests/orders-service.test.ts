@@ -210,7 +210,7 @@ describe('OrdersService', () => {
   });
 
   describe('fetchOrders', () => {
-    it('requests orders from the API, same as the method', async () => {
+    it('requests orders from the API, same as the messenger action', async () => {
       nock('https://api.example.com')
         .get('/v1/orders')
         .query({ sortField: 'createdTime', sortOrder: 'asc' })
@@ -333,7 +333,7 @@ describe('OrdersService', () => {
   });
 
   describe('fetchOrder', () => {
-    it('requests an order from the API, same as the method', async () => {
+    it('requests an order from the API, same as the messenger action', async () => {
       nock('https://api.example.com')
         .get('/v1/orders/AAAA-BBBB-CCCC-DDDD')
         .reply(200, MOCK_VALID_ORDER_RESPONSE_DATA);

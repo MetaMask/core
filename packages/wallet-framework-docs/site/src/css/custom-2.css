@@ -6,6 +6,10 @@
   max-height: 600px;
 }
 
+.token-line {
+  border-left: 4px solid transparent;
+}
+
 .code-block-diff-added-line {
   background-color: oklch(from var(--ifm-color-success) l 0.15 h / 25%);
   display: block;

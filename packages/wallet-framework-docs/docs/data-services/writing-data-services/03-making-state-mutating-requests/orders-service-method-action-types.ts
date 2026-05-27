@@ -31,14 +31,31 @@ export type OrdersServiceFetchOrderAction = {
 };
 
 /**
- * Retrieves details about an order.
+ * Creates an order.
  *
- * @param params - The order ID.
- * @returns The requested order.
+ * @param params - The params.
+ * @param params.details - Extra data with which to create the order.
+ * @param params.from - The sender.
+ * @param params.objectId - The ID of the object being sent. If `type` is
+ * "asset", a CAIP-19 asset ID; if `type` is "token", a CAIP-19 asset type.
+ * @param params.to - The recipient.
+ * @param params.type - The type of object being sent (either "asset" or
+ * "token").
+ * @returns The created order.
  */
 export type OrdersServiceCreateOrderAction = {
   type: `OrdersService:createOrder`;
   handler: OrdersService['createOrder'];
+};
+
+/**
+ * Cancels an order.
+ *
+ * @param id - The order ID.
+ */
+export type OrdersServiceCancelOrderAction = {
+  type: `OrdersService:cancelOrder`;
+  handler: OrdersService['cancelOrder'];
 };
 
 /**
@@ -47,4 +64,5 @@ export type OrdersServiceCreateOrderAction = {
 export type OrdersServiceMethodActions =
   | OrdersServiceFetchOrdersAction
   | OrdersServiceFetchOrderAction
-  | OrdersServiceCreateOrderAction;
+  | OrdersServiceCreateOrderAction
+  | OrdersServiceCancelOrderAction;
