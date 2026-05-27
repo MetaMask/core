@@ -2,4 +2,4 @@
 
 This tutorial is divided into 3 parts. You can navigate them below:
 
-- [1. Basics](./01-basics.md)
+- [1. Getting Started](./01-getting-started.md)

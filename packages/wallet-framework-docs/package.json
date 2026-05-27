@@ -46,6 +46,7 @@
     "since-latest-release": "../../scripts/since-latest-release.sh",
     "start-prod": "docusaurus serve site",
     "start-dev": "docusaurus start site",
+    "swizzle": "docusaurus swizzle site",
     "test": "NODE_OPTIONS=--experimental-vm-modules jest --reporters=jest-silent-reporter",
     "test:clean": "NODE_OPTIONS=--experimental-vm-modules jest --clearCache",
     "test:verbose": "NODE_OPTIONS=--experimental-vm-modules jest --verbose",
