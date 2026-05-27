@@ -735,11 +735,6 @@
       "count": 3
     }
   },
-  "packages/bridge-status-controller/src/utils/transaction.ts": {
-    "no-restricted-syntax": {
-      "count": 4
-    }
-  },
   "packages/chain-agnostic-permission/src/caip25Permission.ts": {
     "@typescript-eslint/explicit-function-return-type": {
       "count": 11
