@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Support emitting Unified SwapBridge input currency mode on quote metrics ([#8909](https://github.com/MetaMask/core/pull/8909))
+
 ### Changed
 
 - Bump `@metamask/assets-controller` from `^8.0.0` to `^8.0.1` ([#8874](https://github.com/MetaMask/core/pull/8874))
