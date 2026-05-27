@@ -876,6 +876,11 @@ describe('Relay Submit Utils', () => {
 
         await submitRelayQuotes(request);
 
+        expect(getPaymentOverrideDataMock).toHaveBeenCalledWith(
+          request.transaction.id,
+          request.quotes[0].sourceAmount.human,
+        );
+
         const batchCall = addTransactionBatchMock.mock.calls[0][0];
         expect(batchCall.transactions[0].params).toStrictEqual(
           expect.objectContaining({

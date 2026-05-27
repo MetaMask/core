@@ -483,10 +483,12 @@ describe('TransactionPayController', () => {
       const result = await messenger.call(
         'TransactionPayController:getPaymentOverrideData',
         TRANSACTION_ID_MOCK,
+        '1.5',
       );
 
       expect(getPaymentOverrideDataMock).toHaveBeenCalledWith(
         TRANSACTION_ID_MOCK,
+        '1.5',
       );
       expect(result).toStrictEqual(txMock);
     });
@@ -500,6 +502,7 @@ describe('TransactionPayController', () => {
       const result = await messenger.call(
         'TransactionPayController:getPaymentOverrideData',
         TRANSACTION_ID_MOCK,
+        '1.5',
       );
 
       expect(result).toBeUndefined();

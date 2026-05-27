@@ -160,6 +160,7 @@ export type TransactionConfigCallback = (config: TransactionConfig) => void;
  */
 export type GetPaymentOverrideDataCallback = (
   transactionId: string,
+  amount: string,
 ) => Promise<TransactionParams | undefined>;
 
 /** Callback to update fiat payment state. */

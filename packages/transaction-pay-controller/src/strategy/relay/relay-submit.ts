@@ -406,6 +406,7 @@ async function submitTransactions(
     const overrideTx = await messenger.call(
       'TransactionPayController:getPaymentOverrideData',
       transaction.id,
+      quote.sourceAmount.human,
     );
 
     if (overrideTx) {
