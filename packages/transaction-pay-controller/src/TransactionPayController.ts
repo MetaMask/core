@@ -237,7 +237,9 @@ export class TransactionPayController extends BaseController<
   getPaymentOverrideData(
     ...args: Parameters<GetPaymentOverrideDataCallback>
   ): ReturnType<GetPaymentOverrideDataCallback> {
-    return this.#getPaymentOverrideData?.(...args) ?? Promise.resolve(undefined);
+    return (
+      this.#getPaymentOverrideData?.(...args) ?? Promise.resolve(undefined)
+    );
   }
 
   /**
