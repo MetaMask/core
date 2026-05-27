@@ -73,8 +73,7 @@ export type TransactionPayControllerGetDelegationTransactionAction = {
  * Called during quote execution when `paymentOverride` is defined on the transaction.
  * Returns an empty array when no callback is configured.
  *
- * @param args - The arguments forwarded to the {@link GetPaymentOverrideDataCallback},
- * containing the transaction ID.
+ * @param args - The arguments forwarded to the {@link GetPaymentOverrideDataCallback}.
  * @returns A promise resolving to the additional transactions array.
  */
 export type TransactionPayControllerGetPaymentOverrideDataAction = {
