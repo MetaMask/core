@@ -222,7 +222,9 @@ async function main(): Promise<void> {
 
   // 6. Close position
   console.error('[e2e] Closing position...');
-  const closePrice = isBuy ? midPrice * 0.97 : midPrice * 1.03;
+  const closeMids = await info.allMids();
+  const closeMidPrice = parseFloat(closeMids[params.coin] ?? String(midPrice));
+  const closePrice = isBuy ? closeMidPrice * 0.97 : closeMidPrice * 1.03;
   const closeResult = await exchange.order({
     orders: [
       {
