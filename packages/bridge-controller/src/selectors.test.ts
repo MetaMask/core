@@ -1742,6 +1742,7 @@ describe('Bridge Selectors', () => {
         }
       `);
       expect(result.isBatchSellTradeAvailable).toBe(true);
+      expect(result.isLoading).toBe(false);
     });
 
     it('should return empty data when batch sell trades are not defined', () => {
@@ -1763,6 +1764,7 @@ describe('Bridge Selectors', () => {
 
       expect(result.totalNetworkFee).toMatchInlineSnapshot(`undefined`);
       expect(result.isBatchSellTradeAvailable).toBe(false);
+      expect(result.isLoading).toBe(false);
     });
 
     it.each([
@@ -1782,6 +1784,7 @@ describe('Bridge Selectors', () => {
           },
         ],
         expectedResult: false,
+        expectedLoadingResult: true,
       },
       {
         status: RequestStatus.FETCHED,
@@ -1799,26 +1802,30 @@ describe('Bridge Selectors', () => {
           },
         ],
         expectedResult: true,
+        expectedLoadingResult: false,
       },
       {
         status: RequestStatus.FETCHED,
         transactions: undefined,
         expectedResult: false,
+        expectedLoadingResult: false,
       },
       {
         status: RequestStatus.FETCHED,
         transactions: [],
         expectedResult: false,
+        expectedLoadingResult: false,
       },
       {
         status: RequestStatus.ERROR,
         transactions: undefined,
         expectedResult: false,
+        expectedLoadingResult: false,
       },
     ])(
       'should return loading state when status is $status',
-      ({ status, transactions, expectedResult }) => {
-        const { isBatchSellTradeAvailable } = selectBatchSellTrades({
+      ({ status, transactions, expectedResult, expectedLoadingResult }) => {
+        const { isBatchSellTradeAvailable, isLoading } = selectBatchSellTrades({
           ...mockState,
           batchSellTradesLoadingStatus: status,
           // @ts-expect-error - test data
@@ -1843,6 +1850,7 @@ describe('Bridge Selectors', () => {
         });
 
         expect(isBatchSellTradeAvailable).toBe(expectedResult);
+        expect(isLoading).toBe(expectedLoadingResult);
       },
     );
   });
