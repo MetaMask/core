@@ -743,9 +743,10 @@ async function submitViaTransactionController(
  * Determine the transaction type for a given index in the batch.
  *
  * @param isPostQuote - Whether this is a post-quote flow.
+ * @param hasPaymentOverride - Whether a payment override tx was prepended.
  * @param index - Index of the transaction in the batch.
- * @param originalType - Type of the original transaction (used for post-quote index 0).
- * @param relayParamCount - Number of relay-only params (excludes prepended original tx).
+ * @param originalType - Type of the original transaction (used for prepended index 0).
+ * @param relayParamCount - Number of relay-only params (excludes prepended tx).
  * @returns The transaction type.
  */
 function getTransactionType(
@@ -755,7 +756,7 @@ function getTransactionType(
   originalType: TransactionMeta['type'],
   relayParamCount: number,
 ): TransactionMeta['type'] {
-  const hasPrependedTx = isPostQuote || hasPaymentOverride;
+  const hasPrependedTx = isPostQuote ?? hasPaymentOverride;
 
   // Index 0 is the prepended transaction (original or override)
   if (hasPrependedTx && index === 0) {
