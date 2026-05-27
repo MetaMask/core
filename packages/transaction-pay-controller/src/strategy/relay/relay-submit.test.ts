@@ -866,7 +866,19 @@ describe('Relay Submit Utils', () => {
         value: '0x0',
       };
 
-      it('prepends override txs to submit params', async () => {
+      const DELEGATION_TO_MOCK = '0xdelegationto' as Hex;
+      const DELEGATION_DATA_MOCK = '0xdelegationdata' as Hex;
+      const DELEGATION_VALUE_MOCK = '0x0' as Hex;
+
+      beforeEach(() => {
+        getDelegationTransactionMock.mockResolvedValue({
+          data: DELEGATION_DATA_MOCK,
+          to: DELEGATION_TO_MOCK,
+          value: DELEGATION_VALUE_MOCK,
+        });
+      });
+
+      it('builds delegation for override txs and prepends to submit params', async () => {
         request.quotes[0].request.paymentOverride =
           PaymentOverride.MoneyAccount;
         getPaymentOverrideDataMock.mockResolvedValue([
@@ -875,12 +887,25 @@ describe('Relay Submit Utils', () => {
 
         await submitRelayQuotes(request);
 
+        expect(getDelegationTransactionMock).toHaveBeenCalledWith({
+          transaction: expect.objectContaining({
+            nestedTransactions: [
+              {
+                data: PAYMENT_OVERRIDE_TX_MOCK.data,
+                to: PAYMENT_OVERRIDE_TX_MOCK.to,
+                value: PAYMENT_OVERRIDE_TX_MOCK.value,
+              },
+            ],
+          }),
+        });
+
         const batchCall = addTransactionBatchMock.mock.calls[0][0];
+        expect(batchCall.from).toBe(FROM_MOCK);
         expect(batchCall.transactions[0].params).toStrictEqual(
           expect.objectContaining({
-            to: PAYMENT_OVERRIDE_TX_MOCK.to,
-            data: PAYMENT_OVERRIDE_TX_MOCK.data,
-            value: PAYMENT_OVERRIDE_TX_MOCK.value,
+            data: DELEGATION_DATA_MOCK,
+            to: DELEGATION_TO_MOCK,
+            value: DELEGATION_VALUE_MOCK,
           }),
         );
       });
@@ -898,11 +923,12 @@ describe('Relay Submit Utils', () => {
 
         await submitRelayQuotes(request);
 
+        expect(getDelegationTransactionMock).not.toHaveBeenCalled();
         expect(addTransactionBatchMock).not.toHaveBeenCalled();
         expect(addTransactionMock).toHaveBeenCalledTimes(1);
       });
 
-      it('defaults data to 0x when transaction data is absent', async () => {
+      it('defaults data to 0x when override tx data is absent', async () => {
         request.quotes[0].request.paymentOverride =
           PaymentOverride.MoneyAccount;
         const { data: _data, ...txWithoutData } = PAYMENT_OVERRIDE_TX_MOCK;
@@ -910,11 +936,16 @@ describe('Relay Submit Utils', () => {
 
         await submitRelayQuotes(request);
 
-        const batchCall = addTransactionBatchMock.mock.calls[0][0];
-        expect(batchCall.transactions[0].params.data).toBe('0x');
+        expect(getDelegationTransactionMock).toHaveBeenCalledWith({
+          transaction: expect.objectContaining({
+            nestedTransactions: [
+              expect.objectContaining({ data: '0x' }),
+            ],
+          }),
+        });
       });
 
-      it('defaults value to 0x0 when transaction value is absent', async () => {
+      it('defaults value to 0x0 when override tx value is absent', async () => {
         request.quotes[0].request.paymentOverride =
           PaymentOverride.MoneyAccount;
         const { value: _value, ...txWithoutValue } = PAYMENT_OVERRIDE_TX_MOCK;
@@ -922,8 +953,13 @@ describe('Relay Submit Utils', () => {
 
         await submitRelayQuotes(request);
 
-        const batchCall = addTransactionBatchMock.mock.calls[0][0];
-        expect(batchCall.transactions[0].params.value).toBe('0x0');
+        expect(getDelegationTransactionMock).toHaveBeenCalledWith({
+          transaction: expect.objectContaining({
+            nestedTransactions: [
+              expect.objectContaining({ value: '0x0' }),
+            ],
+          }),
+        });
       });
     });
 

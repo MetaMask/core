@@ -380,7 +380,7 @@ async function submitTransactions(
   // In post-quote flows (e.g. Predict withdraw), the source tokens are held in
   // the Safe — not the EOA — and only become available after the original tx
   // executes as part of the batch. Skip the EOA balance check here.
-  if (!quote.request.isPostQuote) {
+  if (!quote.request.isPostQuote && !quote.request.paymentOverride) {
     await validateSourceBalance(quote, messenger);
   }
 
@@ -409,14 +409,28 @@ async function submitTransactions(
     );
 
     if (overrideTxs.length) {
-      const overrideParams: TransactionParams[] = overrideTxs.map((tx) => ({
-        data: (tx.data as Hex) ?? ('0x' as Hex),
-        from: tx.from,
-        to: tx.to,
-        value: (tx.value as Hex) ?? ('0x0' as Hex),
-      }));
+      const delegationTransaction = {
+        ...transaction,
+        nestedTransactions: overrideTxs.map((tx) => ({
+          data: (tx.data ?? '0x') as Hex,
+          to: tx.to as Hex,
+          value: (tx.value ?? '0x0') as Hex,
+        })),
+      } as TransactionMeta;
 
-      allParams = [...overrideParams, ...normalizedParams];
+      const delegation = await messenger.call(
+        'TransactionPayController:getDelegationTransaction',
+        { transaction: delegationTransaction },
+      );
+
+      const delegatedParams: TransactionParams = {
+        data: delegation.data,
+        from: quote.request.from,
+        to: delegation.to,
+        value: delegation.value,
+      };
+
+      allParams = [delegatedParams, ...normalizedParams];
     }
   } else if (isPostQuote && transaction.txParams.to) {
     const prependedParams = hasAccountOverride
