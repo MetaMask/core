@@ -28,7 +28,6 @@ import {
   TokenAddressTarget,
 } from './token';
 
-
 const TOKEN_ADDRESS_MOCK = '0x559B65722aD62AD6DAC4Fa5a1c6B23A2e8ce57Ec' as Hex;
 const TOKEN_ADDRESS_2_MOCK = '0x123456789abcdef1234567890abcdef12345678' as Hex;
 const CHAIN_ID_MOCK = '0x1' as Hex;
@@ -645,7 +644,9 @@ describe('Token Utils', () => {
     });
 
     it('returns native balance via eth_getBalance', async () => {
-      (PROVIDER_MOCK.request as jest.Mock).mockResolvedValue('0xde0b6b3a7640000');
+      (PROVIDER_MOCK.request as jest.Mock).mockResolvedValue(
+        '0xde0b6b3a7640000',
+      );
 
       const result = await getLiveTokenBalance(
         messenger,
@@ -662,7 +663,9 @@ describe('Token Utils', () => {
     });
 
     it('returns native balance for polygon native address', async () => {
-      (PROVIDER_MOCK.request as jest.Mock).mockResolvedValue('0x1bc16d674ec80000');
+      (PROVIDER_MOCK.request as jest.Mock).mockResolvedValue(
+        '0x1bc16d674ec80000',
+      );
 
       const result = await getLiveTokenBalance(
         messenger,
