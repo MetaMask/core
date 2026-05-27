@@ -382,7 +382,7 @@ export async function installJavaRuntime(
     await mkdir(dirname(cacheRoot), { recursive: true });
     await rename(tempRoot, cacheRoot);
 
-    return javaBinary.replace(tempRoot, cacheRoot);
+    return javaBinary.replace(tempRoot, () => cacheRoot);
   } catch (error) {
     await rm(tempRoot, { force: true, recursive: true });
     await rm(cacheRoot, { force: true, recursive: true });
