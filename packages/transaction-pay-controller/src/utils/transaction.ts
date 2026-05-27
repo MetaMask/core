@@ -400,7 +400,12 @@ export async function getTransferredAmountFromTxHash({
     tokenAddress.toLowerCase() === getNativeToken(chainId).toLowerCase();
 
   if (isNative) {
-    return await getNativeTransferAmount(messenger, chainId, txHash, walletAddress);
+    return await getNativeTransferAmount(
+      messenger,
+      chainId,
+      txHash,
+      walletAddress,
+    );
   }
 
   return await getErc20TransferAmount(

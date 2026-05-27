@@ -138,7 +138,11 @@ describe('provider utils', () => {
         provider: { request: requestMock },
       } as never);
 
-      await rpcRequest({ messenger, chainId: CHAIN_ID_MOCK, method: 'eth_blockNumber' });
+      await rpcRequest({
+        messenger,
+        chainId: CHAIN_ID_MOCK,
+        method: 'eth_blockNumber',
+      });
 
       expect(requestMock).toHaveBeenCalledWith({
         method: 'eth_blockNumber',
@@ -154,7 +158,11 @@ describe('provider utils', () => {
       } as never);
 
       await expect(
-        rpcRequest({ messenger, chainId: CHAIN_ID_MOCK, method: 'eth_blockNumber' }),
+        rpcRequest({
+          messenger,
+          chainId: CHAIN_ID_MOCK,
+          method: 'eth_blockNumber',
+        }),
       ).rejects.toBe(error);
     });
 
