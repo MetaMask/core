@@ -243,7 +243,56 @@ export type LookalikeAction = {
     });
   });
 
-  it('skips bare-TypeReference aliases (plain re-exports) without double-documenting the target', async () => {
+  it('descends into a single-member umbrella alias (e.g. `*MethodActions = OneAction`) to extract the underlying capability', async () => {
+    expect.assertions(2);
+
+    await withinSandbox(async ({ directoryPath }) => {
+      // Mirrors the auto-generated `*-method-action-types.ts` pattern when
+      // a controller exposes exactly one method via the bulk-registration
+      // helper: `type FooControllerMethodActions = FooControllerDoAction;`.
+      // The alias body is a bare TypeReference with no type arguments — the
+      // walker must recurse into it rather than treating it as a plain
+      // re-export, otherwise `FooControllerDoAction` is dropped from the
+      // top-level union and never documented.
+      const filePath = path.join(directoryPath, 'types.ts');
+      await fs.promises.writeFile(
+        filePath,
+        `
+export type FooControllerDoAction = {
+  type: 'FooController:do';
+  handler: () => void;
+};
+
+export type FooControllerMethodActions = FooControllerDoAction;
+
+export type FooControllerGetStateAction = {
+  type: 'FooController:getState';
+  handler: () => Record<string, unknown>;
+};
+
+export type FooControllerActions =
+  | FooControllerGetStateAction
+  | FooControllerMethodActions;
+
+export type FooControllerMessenger = Messenger<
+  'FooController',
+  FooControllerActions,
+  never
+>;
+`,
+      );
+
+      const items = await extractFromFile(filePath, directoryPath);
+
+      expect(items).toHaveLength(2);
+      expect(items.map((item) => item.typeString).sort()).toStrictEqual([
+        'FooController:do',
+        'FooController:getState',
+      ]);
+    });
+  });
+
+  it('descends into a bare-TypeReference alias without double-documenting the target when the same action is reached two ways', async () => {
     expect.assertions(2);
 
     await withinSandbox(async ({ directoryPath }) => {

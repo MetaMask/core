@@ -493,18 +493,31 @@ function recursivelyFindMessengerCapabilityTypeDeclarations(
         continue;
       }
 
-      // TODO: Is this necessary?
-      // A bare TypeReference body with no type arguments (e.g.
-      // `type AllowedActions = ConnectivityControllerGetStateAction`) is a
-      // plain re-export — leave the target to be documented from its home
-      // package, not this one. TypeReferences *with* type arguments are
-      // capability-type-constructor invocations (e.g.
-      // `ControllerGetStateAction<typeof name, State>`) and are recorded.
+      // A bare TypeReference body with no type arguments is a single-member
+      // umbrella or plain re-export — walk into the referenced type so we
+      // still reach the underlying capability. This is what makes
+      // auto-generated `*MethodActions` aliases work when they only wrap a
+      // single action (e.g.
+      // `type DelegationControllerMethodActions = DelegationControllerSignDelegationAction`).
+      // TypeReferences *with* type arguments are capability-type-constructor
+      // invocations (e.g. `ControllerGetStateAction<typeof name, State>`)
+      // and are recorded directly below.
       if (
         body &&
         NodeGuards.isTypeReference(body) &&
         body.getTypeArguments().length === 0
       ) {
+        const innerResult = recursivelyFindMessengerCapabilityTypeDeclarations(
+          body,
+          kind,
+          result.visitedTypeDeclarations,
+        );
+        result.capabilityTypeDeclarations.push(
+          ...innerResult.capabilityTypeDeclarations,
+        );
+        for (const typeDeclaration of innerResult.visitedTypeDeclarations) {
+          result.visitedTypeDeclarations.add(typeDeclaration);
+        }
         continue;
       }
 
