@@ -14,7 +14,11 @@ import { shouldIncludeNativeToken } from '../constants';
 import type { CurrencyRateState } from '../CurrencyRateController';
 import type { MultichainAssetsControllerState } from '../MultichainAssetsController';
 import type { MultichainAssetsRatesControllerState } from '../MultichainAssetsRatesController';
-import type { MultichainBalancesControllerState } from '../MultichainBalancesController';
+import type {
+  MultichainAccountBalance,
+  MultichainBalancesControllerState,
+} from '../MultichainBalancesController';
+import { isStellarClassicTrustlineInactiveForAsset } from '../multichain/stellarAccountAssetInfo';
 import { getNativeTokenAddress } from '../token-prices-service/codefi-v2';
 import type { TokenBalancesControllerState } from '../TokenBalancesController';
 import type { Token, TokenRatesControllerState } from '../TokenRatesController';
@@ -105,7 +109,6 @@ export type AssetListState = {
   currencyRates: CurrencyRateState['currencyRates'];
   accountsAssets: MultichainAssetsControllerState['accountsAssets'];
   allIgnoredAssets: MultichainAssetsControllerState['allIgnoredAssets'];
-  stellarClassicTrustlineInactiveAssetIds: MultichainAssetsControllerState['stellarClassicTrustlineInactiveAssetIds'];
   assetsMetadata: MultichainAssetsControllerState['assetsMetadata'];
   balances: MultichainBalancesControllerState['balances'];
   conversionRates: MultichainAssetsRatesControllerState['conversionRates'];
@@ -142,10 +145,6 @@ const selectAccountsToGroupIdMap = createAssetListSelector(
       for (const { id: accountGroupId, accounts } of Object.values(groups)) {
         for (const accountId of accounts) {
           const internalAccount = internalAccounts.accounts[accountId];
-
-          if (!internalAccount) {
-            continue;
-          }
 
           accountsMap[
             // TODO: We would not need internalAccounts if evmTokens state had the accountId
@@ -359,7 +358,6 @@ const selectAllMultichainAssets = createAssetListSelector(
     selectAccountsToGroupIdMap,
     (state) => state.accountsAssets,
     (state) => state.allIgnoredAssets,
-    (state) => state.stellarClassicTrustlineInactiveAssetIds,
     (state) => state.assetsMetadata,
     (state) => state.balances,
     (state) => state.conversionRates,
@@ -369,7 +367,6 @@ const selectAllMultichainAssets = createAssetListSelector(
     accountsMap,
     multichainTokens,
     ignoredMultichainAssets,
-    stellarTrustlineInactiveByAccount,
     multichainAssetsMetadata,
     multichainBalances,
     multichainConversionRates,
@@ -406,12 +403,8 @@ const selectAllMultichainAssets = createAssetListSelector(
         groupAssets[accountGroupId][chainId] ??= [];
         const groupChainAssets = groupAssets[accountGroupId][chainId];
 
-        const balance:
-          | {
-              amount: string;
-              unit: string;
-            }
-          | undefined = multichainBalances[accountId]?.[assetId];
+        const balance: MultichainAccountBalance | undefined =
+          multichainBalances[accountId]?.[assetId];
 
         const decimals = assetMetadata.units?.find(
           (unit) =>
@@ -419,25 +412,36 @@ const selectAllMultichainAssets = createAssetListSelector(
             unit.symbol === assetMetadata.symbol,
         )?.decimals;
 
-        if (!balance || decimals === undefined) {
+        const isStellarTrustlineInactive =
+          isStellarClassicTrustlineInactiveForAsset(
+            assetId,
+            balance?.extra,
+            balance !== undefined,
+          );
+
+        if ((!balance || decimals === undefined) && !isStellarTrustlineInactive) {
           continue;
         }
 
-        const rawBalance = parseBalanceWithDecimals(balance.amount, decimals);
+        const rawBalanceHex: Hex | undefined =
+          balance && decimals !== undefined
+            ? parseBalanceWithDecimals(balance.amount, decimals)
+            : undefined;
 
-        if (!rawBalance) {
+        if (!rawBalanceHex && !isStellarTrustlineInactive) {
           continue;
         }
 
-        const fiatData = getFiatBalanceForMultichainAsset(
-          balance,
-          multichainConversionRates,
-          assetId,
-        );
+        const effectiveRawBalanceHex: Hex = rawBalanceHex ?? '0x0';
 
-        const isStellarTrustlineInactive = (
-          stellarTrustlineInactiveByAccount[accountId] ?? []
-        ).includes(assetId);
+        const fiatData =
+          effectiveRawBalanceHex !== '0x0' && balance
+            ? getFiatBalanceForMultichainAsset(
+                balance,
+                multichainConversionRates,
+                assetId,
+              )
+            : undefined;
 
         // TODO: We shouldn't have to rely on fallbacks for name and symbol, they should not be optional
         groupChainAssets.push({
@@ -448,9 +452,9 @@ const selectAllMultichainAssets = createAssetListSelector(
           name: assetMetadata.name ?? assetMetadata.symbol ?? asset,
           symbol: assetMetadata.symbol ?? asset,
           accountId,
-          decimals,
-          rawBalance,
-          balance: balance.amount,
+          decimals: decimals ?? 0,
+          rawBalance: effectiveRawBalanceHex,
+          balance: balance?.amount ?? '0',
           fiat: fiatData
             ? {
                 balance: fiatData.balance,

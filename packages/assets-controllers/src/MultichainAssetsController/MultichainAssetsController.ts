@@ -1,20 +1,27 @@
 import type {
   AccountsControllerAccountAddedEvent,
   AccountsControllerAccountAssetListUpdatedEvent,
+  AccountsControllerAccountBalancesUpdatesEvent,
   AccountsControllerAccountRemovedEvent,
   AccountsControllerListMultichainAccountsAction,
 } from '@metamask/accounts-controller';
 import type {
   ControllerGetStateAction,
   ControllerStateChangeEvent,
+  ControllerStateChangedEvent,
   StateMetadata,
 } from '@metamask/base-controller';
 import { isEvmAccountType } from '@metamask/keyring-api';
 import type {
   AccountAssetListUpdatedEventPayload,
+  AccountBalancesUpdatedEventPayload,
   CaipAssetType,
   CaipAssetTypeOrId,
 } from '@metamask/keyring-api';
+import type {
+  KeyringControllerGetStateAction,
+  KeyringControllerState,
+} from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import { KeyringClient } from '@metamask/keyring-snap-client';
 import type { Messenger } from '@metamask/messenger';
@@ -41,7 +48,17 @@ import type { Json, JsonRpcRequest } from '@metamask/utils';
 import type { MutexInterface } from 'async-mutex';
 import { Mutex } from 'async-mutex';
 
+import type { MultichainBalancesControllerMergeAccountBalanceExtrasAction } from '../MultichainBalancesController';
 import type { MultichainAssetsControllerMethodActions } from './MultichainAssetsController-method-action-types';
+import {
+  KEYRING_GET_ACCOUNT_ASSET_INFO_METHOD,
+  isStellarMultichainAccount,
+  stellarAssetInfoExtraToBalanceExtra,
+} from '../multichain/stellarAccountAssetInfo';
+import type {
+  StellarAccountAssetInfoExtra,
+  StellarGetAccountAssetInfoResponse,
+} from '../multichain/stellarAccountAssetInfo';
 import { isStellarClassicAssetCaip19 } from '../multichain/stellarTrustline';
 import { getChainIdsCaveat } from './utils';
 
@@ -53,19 +70,6 @@ export type MultichainAssetsControllerState = {
   };
   accountsAssets: { [account: string]: CaipAssetType[] };
   allIgnoredAssets: { [account: string]: CaipAssetType[] };
-  /**
-   * Stellar classic (`asset:`) CAIP-19 ids added via import and not yet reported
-   * by the Snap in `accountAssetListUpdated` `added` — treated as no trustline for UI.
-   */
-  stellarClassicTrustlineInactiveAssetIds: {
-    [account: string]: CaipAssetType[];
-  };
-  /**
-   * After the first run, `true` means legacy Stellar classic (`asset:`) rows in
-   * `accountsAssets` were merged into `stellarClassicTrustlineInactiveAssetIds`
-   * so pre-feature imports get the “no trustline” flag without re-importing.
-   */
-  stellarTrustlineInactiveBackfillComplete: boolean;
 };
 
 // Represents the response of the asset snap's onAssetLookup handler
@@ -93,8 +97,6 @@ export function getDefaultMultichainAssetsControllerState(): MultichainAssetsCon
     accountsAssets: {},
     assetsMetadata: {},
     allIgnoredAssets: {},
-    stellarClassicTrustlineInactiveAssetIds: {},
-    stellarTrustlineInactiveBackfillComplete: false,
   };
 }
 
@@ -149,7 +151,9 @@ type AllowedActions =
   | SnapControllerHandleRequestAction
   | GetPermissions
   | AccountsControllerListMultichainAccountsAction
-  | PhishingControllerBulkScanTokensAction;
+  | PhishingControllerBulkScanTokensAction
+  | MultichainBalancesControllerMergeAccountBalanceExtrasAction
+  | KeyringControllerGetStateAction;
 
 /**
  * Events that this controller is allowed to subscribe.
@@ -157,7 +161,9 @@ type AllowedActions =
 type AllowedEvents =
   | AccountsControllerAccountAddedEvent
   | AccountsControllerAccountRemovedEvent
-  | AccountsControllerAccountAssetListUpdatedEvent;
+  | AccountsControllerAccountAssetListUpdatedEvent
+  | AccountsControllerAccountBalancesUpdatesEvent
+  | ControllerStateChangedEvent<'KeyringController', KeyringControllerState>;
 
 /**
  * Messenger type for the MultichainAssetsController.
@@ -194,18 +200,6 @@ const assetsControllerMetadata: StateMetadata<MultichainAssetsControllerState> =
       persist: true,
       includeInDebugSnapshot: false,
       usedInUi: true,
-    },
-    stellarClassicTrustlineInactiveAssetIds: {
-      includeInStateLogs: false,
-      persist: true,
-      includeInDebugSnapshot: false,
-      usedInUi: true,
-    },
-    stellarTrustlineInactiveBackfillComplete: {
-      includeInStateLogs: false,
-      persist: true,
-      includeInDebugSnapshot: false,
-      usedInUi: false,
     },
   };
 
@@ -286,39 +280,38 @@ export class MultichainAssetsController extends StaticIntervalPollingController<
       // eslint-disable-next-line @typescript-eslint/no-misused-promises
       async (event) => await this.#handleAccountAssetListUpdatedEvent(event),
     );
+    this.messenger.subscribe(
+      'AccountsController:accountBalancesUpdated',
+      (event) => {
+        // eslint-disable-next-line no-void
+        void this.#handleAccountBalancesUpdatedForEnrichment(event);
+      },
+    );
+
+    // Bootstrap trust-line `extra` after unlock (and when already unlocked on first state event).
+    let previousKeyringIsUnlocked: boolean | undefined;
+    this.messenger.subscribe(
+      'KeyringController:stateChanged',
+      (keyringState: KeyringControllerState) => {
+        const { isUnlocked } = keyringState;
+        if (previousKeyringIsUnlocked === undefined) {
+          previousKeyringIsUnlocked = isUnlocked;
+          if (isUnlocked) {
+            // eslint-disable-next-line no-void
+            void this.#bootstrapStellarTrustlineExtras();
+          }
+          return;
+        }
+        const justUnlocked = isUnlocked && !previousKeyringIsUnlocked;
+        previousKeyringIsUnlocked = isUnlocked;
+        if (justUnlocked) {
+          // eslint-disable-next-line no-void
+          void this.#bootstrapStellarTrustlineExtras();
+        }
+      },
+    );
 
     messenger.registerMethodActionHandlers(this, MESSENGER_EXPOSED_METHODS);
-
-    this.#backfillStellarTrustlineInactiveIfNeeded();
-  }
-
-  /**
-   * One-time merge: Stellar classic ids already present in `accountsAssets` from
-   * before `stellarClassicTrustlineInactiveAssetIds` existed are added to that
-   * map so the UI can show “no trustline” until the keyring clears them.
-   */
-  #backfillStellarTrustlineInactiveIfNeeded(): void {
-    if (this.state.stellarTrustlineInactiveBackfillComplete) {
-      return;
-    }
-    this.update((state) => {
-      for (const [accountId, assets] of Object.entries(state.accountsAssets)) {
-        for (const assetId of assets) {
-          if (!isStellarClassicAssetCaip19(assetId)) {
-            continue;
-          }
-          if (!state.stellarClassicTrustlineInactiveAssetIds[accountId]) {
-            state.stellarClassicTrustlineInactiveAssetIds[accountId] = [];
-          }
-          const inactive =
-            state.stellarClassicTrustlineInactiveAssetIds[accountId];
-          if (!inactive.includes(assetId)) {
-            inactive.push(assetId);
-          }
-        }
-      }
-      state.stellarTrustlineInactiveBackfillComplete = true;
-    });
   }
 
   async _executePoll(_input: null): Promise<void> {
@@ -404,12 +397,6 @@ export class MultichainAssetsController extends StaticIntervalPollingController<
         ].filter((asset) => !assetsToIgnore.includes(asset));
       }
 
-      this.#removeStellarTrustlineInactiveAssetIds(
-        state,
-        accountId,
-        assetsToIgnore,
-      );
-
       if (!state.allIgnoredAssets[accountId]) {
         state.allIgnoredAssets[accountId] = [];
       }
@@ -480,18 +467,6 @@ export class MultichainAssetsController extends StaticIntervalPollingController<
           }
         }
 
-        for (const assetId of addedAssets) {
-          if (isStellarClassicAssetCaip19(assetId)) {
-            if (!state.stellarClassicTrustlineInactiveAssetIds[accountId]) {
-              state.stellarClassicTrustlineInactiveAssetIds[accountId] = [];
-            }
-            const inactive =
-              state.stellarClassicTrustlineInactiveAssetIds[accountId];
-            if (!inactive.includes(assetId)) {
-              inactive.push(assetId);
-            }
-          }
-        }
       });
 
       // Publish event to notify other controllers (balances, rates) about the new assets
@@ -504,12 +479,10 @@ export class MultichainAssetsController extends StaticIntervalPollingController<
             },
           },
         });
+        // Let MultichainBalancesController create balance rows before merging trust-line `extra`.
+        await Promise.resolve();
+        await this.#enrichStellarAccountAssetInfo(accountId, addedAssets);
       }
-
-      await this.#reconcileStellarClassicTrustlineInactiveWithSnap(
-        accountId,
-        addedAssets,
-      );
 
       return this.state.accountsAssets[accountId] || [];
     });
@@ -527,90 +500,6 @@ export class MultichainAssetsController extends StaticIntervalPollingController<
   }
 
   /**
-   * After `addAssets`, Stellar classic (`asset:`) ids are marked trustline-inactive until
-   * the keyring confirms them. Re-fetch the account asset list from the Snap and clear
-   * that flag for any added classic id the Snap already reports (e.g. hide → re-add with
-   * an existing trustline), without relying on a later `accountAssetListUpdated` event.
-   *
-   * @param accountId - Account the assets were added to.
-   * @param addedAssets - Assets that were newly added in this `addAssets` call.
-   */
-  async #reconcileStellarClassicTrustlineInactiveWithSnap(
-    accountId: string,
-    addedAssets: CaipAssetType[],
-  ): Promise<void> {
-    const stellarAdded = addedAssets.filter(isStellarClassicAssetCaip19);
-    if (stellarAdded.length === 0) {
-      return;
-    }
-
-    const accounts = this.messenger.call(
-      'AccountsController:listMultichainAccounts',
-    );
-    const account = accounts.find((a) => a.id === accountId);
-    if (!account || !this.#isNonEvmAccount(account)) {
-      return;
-    }
-
-    const snapId = account.metadata.snap?.id;
-    if (!snapId) {
-      return;
-    }
-
-    let snapAssets: CaipAssetTypeOrId[];
-    try {
-      snapAssets = await this.#getAssetsList(accountId, snapId);
-    } catch {
-      return;
-    }
-
-    const snapAssetSet = new Set(snapAssets.filter(isCaipAssetType));
-    const confirmedTrustline = stellarAdded.filter((asset) =>
-      snapAssetSet.has(asset),
-    );
-
-    if (confirmedTrustline.length === 0) {
-      return;
-    }
-
-    this.update((state) => {
-      this.#removeStellarTrustlineInactiveAssetIds(
-        state,
-        accountId,
-        confirmedTrustline,
-      );
-    });
-  }
-
-  /**
-   * Drops CAIP-19 asset ids from the per-account "Stellar import / no trustline" set.
-   *
-   * @param state - Controller draft state.
-   * @param accountId - Account id.
-   * @param assetIds - Asset ids to remove from the inactive set.
-   */
-  #removeStellarTrustlineInactiveAssetIds(
-    state: MultichainAssetsControllerState,
-    accountId: string,
-    assetIds: readonly CaipAssetType[],
-  ): void {
-    if (assetIds.length === 0) {
-      return;
-    }
-    const list = state.stellarClassicTrustlineInactiveAssetIds[accountId];
-    if (!list) {
-      return;
-    }
-    const drop = new Set<CaipAssetType>(assetIds);
-    const next = list.filter((a) => !drop.has(a));
-    if (next.length === 0) {
-      delete state.stellarClassicTrustlineInactiveAssetIds[accountId];
-    } else {
-      state.stellarClassicTrustlineInactiveAssetIds[accountId] = next;
-    }
-  }
-
-  /**
    * Function to update the assets list for an account
    *
    * @param event - The list of assets to update
@@ -624,13 +513,6 @@ export class MultichainAssetsController extends StaticIntervalPollingController<
     const assetsForMetadataRefresh = new Set<CaipAssetType>([]);
     const accountsAndAssetsToUpdate: AccountAssetListUpdatedEventPayload['assets'] =
       {};
-    /**
-     * When the keyring re-announces a Stellar classic asset id the user had already
-     * imported, `preFiltered` excludes it; we still clear "no trustline" UI state.
-     */
-    const clearStellarTrustlineInactiveByAccount: {
-      [account: string]: CaipAssetType[];
-    } = {};
     for (const [accountId, { added, removed }] of Object.entries(
       event.assets,
     )) {
@@ -649,21 +531,6 @@ export class MultichainAssetsController extends StaticIntervalPollingController<
         // Filter out tokens that cannot be verified or are flagged malicious
         const filteredToBeAddedAssets =
           await this.#filterBlockaidSpamTokensOnAdd(preFilteredToBeAddedAssets);
-
-        const filteredToBeAddedSet = new Set<CaipAssetType>(
-          filteredToBeAddedAssets,
-        );
-        const snapConfirmsStellarTrustline = added.filter(
-          (asset): asset is CaipAssetType =>
-            isCaipAssetType(asset) &&
-            !this.#isAssetIgnored(asset, accountId) &&
-            isStellarClassicAssetCaip19(asset) &&
-            (existing.includes(asset) || filteredToBeAddedSet.has(asset)),
-        );
-        if (snapConfirmsStellarTrustline.length > 0) {
-          clearStellarTrustlineInactiveByAccount[accountId] =
-            snapConfirmsStellarTrustline;
-        }
 
         // In case accountsAndAssetsToUpdate event is fired with "removed" assets that don't exist, we don't want to remove them
         const filteredToBeRemovedAssets = removed.filter(
@@ -692,39 +559,19 @@ export class MultichainAssetsController extends StaticIntervalPollingController<
       }
     }
 
-    const accountIdsToUpdate = new Set<string>([
-      ...Object.keys(accountsAndAssetsToUpdate),
-      ...Object.keys(clearStellarTrustlineInactiveByAccount),
-    ]);
-
     this.update((state) => {
-      for (const accountId of accountIdsToUpdate) {
-        const toMerge = accountsAndAssetsToUpdate[accountId];
-        if (toMerge) {
-          const { added, removed: removedAssets } = toMerge;
-          const assets = new Set([
-            ...(state.accountsAssets[accountId] || []),
-            ...added,
-          ]);
-          for (const asset of removedAssets) {
-            assets.delete(asset);
-          }
-
-          state.accountsAssets[accountId] = Array.from(assets);
+      for (const [accountId, { added, removed: removedAssets }] of Object.entries(
+        accountsAndAssetsToUpdate,
+      )) {
+        const assets = new Set([
+          ...(state.accountsAssets[accountId] || []),
+          ...added,
+        ]);
+        for (const asset of removedAssets) {
+          assets.delete(asset);
         }
 
-        this.#removeStellarTrustlineInactiveAssetIds(
-          state,
-          accountId,
-          clearStellarTrustlineInactiveByAccount[accountId] ?? [],
-        );
-        if (toMerge) {
-          this.#removeStellarTrustlineInactiveAssetIds(
-            state,
-            accountId,
-            toMerge.removed,
-          );
-        }
+        state.accountsAssets[accountId] = Array.from(assets);
       }
     });
 
@@ -778,7 +625,6 @@ export class MultichainAssetsController extends StaticIntervalPollingController<
       await this.#refreshAssetsMetadata(assets);
       this.update((state) => {
         state.accountsAssets[account.id] = assets;
-        delete state.stellarClassicTrustlineInactiveAssetIds[account.id];
       });
       this.messenger.publish(`${controllerName}:accountAssetListUpdated`, {
         assets: {
@@ -788,6 +634,166 @@ export class MultichainAssetsController extends StaticIntervalPollingController<
           },
         },
       });
+
+      await this.#enrichStellarAccountAssetInfo(account.id, filteredCaip);
+    }
+  }
+
+  /**
+   * After unlock, enrich trust-line `extra` for all Stellar classics already in the portfolio.
+   */
+  async #bootstrapStellarTrustlineExtras(): Promise<void> {
+    const { isUnlocked } = this.messenger.call('KeyringController:getState');
+    if (!isUnlocked) {
+      return;
+    }
+
+    const accounts = this.messenger.call(
+      'AccountsController:listMultichainAccounts',
+    );
+    for (const account of accounts) {
+      if (!isStellarMultichainAccount(account)) {
+        continue;
+      }
+      const classics = (this.state.accountsAssets[account.id] ?? []).filter(
+        isStellarClassicAssetCaip19,
+      );
+      if (classics.length > 0) {
+        await this.#enrichStellarAccountAssetInfo(account.id, classics);
+      }
+    }
+  }
+
+  /**
+   * After snap balance events, fetch Stellar asset info (metadata + trust-line `extra`).
+   *
+   * @param payload - Keyring balance update payload.
+   */
+  async #handleAccountBalancesUpdatedForEnrichment(
+    payload: AccountBalancesUpdatedEventPayload,
+  ): Promise<void> {
+    // Yield so MultichainBalancesController applies balance rows first (MAC inits before MBC in extension).
+    await Promise.resolve();
+
+    for (const accountId of Object.keys(payload.balances)) {
+      const classics = (this.state.accountsAssets[accountId] ?? []).filter(
+        isStellarClassicAssetCaip19,
+      );
+      if (classics.length === 0) {
+        continue;
+      }
+      await this.#enrichStellarAccountAssetInfo(accountId, classics);
+    }
+  }
+
+  /**
+   * Fetches Stellar-only `keyring_getAccountAssetInfo` and merges metadata + balance `extra`.
+   *
+   * @param accountId - Account id.
+   * @param assetIds - Assets to enrich.
+   */
+  async #enrichStellarAccountAssetInfo(
+    accountId: string,
+    assetIds: CaipAssetType[],
+  ): Promise<void> {
+    const stellarClassicIds = assetIds.filter(isStellarClassicAssetCaip19);
+    if (stellarClassicIds.length === 0) {
+      return;
+    }
+
+    const accounts = this.messenger.call(
+      'AccountsController:listMultichainAccounts',
+    );
+    const account = accounts.find((a) => a.id === accountId);
+    if (!account || !isStellarMultichainAccount(account)) {
+      return;
+    }
+
+    const snapId = account.metadata.snap?.id;
+    if (!snapId) {
+      return;
+    }
+
+    const info = await this.#getAccountAssetInfoFromSnap(
+      accountId,
+      snapId,
+      stellarClassicIds,
+    );
+    if (!info) {
+      return;
+    }
+
+    const metadataUpdates: Record<CaipAssetType, FungibleAssetMetadata> = {};
+    const extrasByAsset: Record<
+      CaipAssetType,
+      StellarAccountAssetInfoExtra | undefined
+    > = {};
+
+    for (const assetId of stellarClassicIds) {
+      const entry = info[assetId];
+      if (!entry) {
+        // Snap omits assets with no on-chain row (portfolio import without trust line).
+        extrasByAsset[assetId] = { limit: '0' };
+        continue;
+      }
+      metadataUpdates[assetId] = entry.metadata;
+      const balanceExtra = stellarAssetInfoExtraToBalanceExtra(entry.extra);
+      if (balanceExtra === undefined) {
+        // Snap omits extra when there is no on-chain trust line (portfolio import).
+        extrasByAsset[assetId] = { limit: '0' };
+      } else {
+        extrasByAsset[assetId] = balanceExtra;
+      }
+    }
+
+    if (Object.keys(metadataUpdates).length > 0) {
+      this.update((state) => {
+        state.assetsMetadata = {
+          ...state.assetsMetadata,
+          ...metadataUpdates,
+        };
+      });
+    }
+
+    if (Object.keys(extrasByAsset).length > 0) {
+      this.messenger.call(
+        'MultichainBalancesController:mergeAccountBalanceExtras',
+        accountId,
+        extrasByAsset,
+      );
+    }
+  }
+
+  /**
+   * Calls the Stellar snap `keyring_getAccountAssetInfo` handler.
+   *
+   * @param accountId - Account id.
+   * @param snapId - Stellar wallet snap id.
+   * @param assets - CAIP-19 assets to resolve.
+   * @returns Per-asset metadata and optional trust-line extra, or undefined on failure.
+   */
+  async #getAccountAssetInfoFromSnap(
+    accountId: string,
+    snapId: string,
+    assets: CaipAssetType[],
+  ): Promise<StellarGetAccountAssetInfoResponse | undefined> {
+    try {
+      return (await this.messenger.call('SnapController:handleRequest', {
+        snapId: snapId as SnapId,
+        origin: 'metamask',
+        handler: HandlerType.OnKeyringRequest,
+        request: {
+          jsonrpc: '2.0',
+          method: KEYRING_GET_ACCOUNT_ASSET_INFO_METHOD,
+          params: {
+            accountId,
+            assets,
+          },
+        },
+      })) as StellarGetAccountAssetInfoResponse;
+    } catch (error) {
+      console.error(error);
+      return undefined;
     }
   }
 
@@ -803,9 +809,6 @@ export class MultichainAssetsController extends StaticIntervalPollingController<
       }
       if (state.allIgnoredAssets[accountId]) {
         delete state.allIgnoredAssets[accountId];
-      }
-      if (state.stellarClassicTrustlineInactiveAssetIds[accountId]) {
-        delete state.stellarClassicTrustlineInactiveAssetIds[accountId];
       }
       // TODO: We are not deleting the assetsMetadata because we will soon make this controller extends StaticIntervalPollingController
       // and update all assetsMetadata once a day.

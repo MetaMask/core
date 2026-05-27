@@ -7,7 +7,7 @@ import type {
 import type { AccountsControllerState } from '@metamask/accounts-controller';
 import { TrxScope } from '@metamask/keyring-api';
 import type { NetworkState } from '@metamask/network-controller';
-import type { Hex } from '@metamask/utils';
+import type { CaipAssetType, Hex } from '@metamask/utils';
 import { cloneDeep } from 'lodash';
 
 import type { AccountGroupMultichainAccountObject } from '../../../account-tree-controller/src/group';
@@ -278,8 +278,6 @@ const mockMultichainAssetsControllerState: MultichainAssetsControllerState = {
       },
   },
   allIgnoredAssets: {},
-  stellarClassicTrustlineInactiveAssetIds: {},
-  stellarTrustlineInactiveBackfillComplete: true,
 };
 
 const mockAccountTreeControllerState = {
@@ -879,18 +877,6 @@ describe('token-selectors', () => {
       expect(result).toStrictEqual(expectedMockResult);
     });
 
-    it('skips accounts referenced in accountTree but missing from internalAccounts', () => {
-      const state = cloneDeep(mockedMergedState);
-
-      state.accountTree.wallets['entropy:01K1TJY9QPSCKNBSVGZNG510GJ'].groups[
-        'entropy:01K1TJY9QPSCKNBSVGZNG510GJ/0'
-      ].accounts.push('non-existent-account-id');
-
-      const result = selectAssetsBySelectedAccountGroup(state);
-
-      expect(result).toStrictEqual(expectedMockResult);
-    });
-
     it('returns no tokens if there is no selected account group', () => {
       const result = selectAssetsBySelectedAccountGroup({
         ...mockedMergedState,
@@ -1179,6 +1165,197 @@ describe('token-selectors', () => {
       );
       expect(nativeToken).toBeDefined();
       expect(nativeToken?.symbol).toBe('ETH');
+    });
+  });
+
+  describe('Stellar classic trustline inactive', () => {
+    const stellarAccountId = 'stellar-acct-test';
+    const stellarClassic =
+      'stellar:pubnet/asset:USDC-GA5ZSEJYB37JRC5AVCIA5MOP4RHTM335X2KGX3IHOJAPP5RE34K4KZVN' as CaipAssetType;
+    const stellarChainId = 'stellar:pubnet';
+
+    it('marks inactive when balance extra has zero limit', () => {
+      const state = cloneDeep(mockedMergedState);
+      const wallet =
+        state.accountTree.wallets['entropy:01K1TJY9QPSCKNBSVGZNG510GJ'];
+      const group = wallet.groups['entropy:01K1TJY9QPSCKNBSVGZNG510GJ/0'];
+      group.accounts.push(stellarAccountId);
+      state.internalAccounts.accounts[stellarAccountId] = {
+        id: stellarAccountId,
+        type: 'stellar:data-account',
+        address:
+          'GXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX',
+        scopes: [stellarChainId],
+        options: {},
+        methods: [],
+        metadata: {
+          name: 'Stellar',
+          importTime: 0,
+          keyring: { type: 'Snap Keyring' },
+          snap: { id: 'stellar-snap', name: 'Stellar', enabled: true },
+          lastSelected: 0,
+        },
+      };
+      state.accountsAssets[stellarAccountId] = [stellarClassic];
+      state.assetsMetadata[stellarClassic] = {
+        name: 'USDC',
+        symbol: 'USDC',
+        fungible: true,
+        iconUrl: '',
+        units: [{ name: 'USDC', symbol: 'USDC', decimals: 7 }],
+      };
+      state.balances[stellarAccountId] = {
+        [stellarClassic]: {
+          amount: '0',
+          unit: 'USDC',
+          extra: { limit: '0' },
+        },
+      };
+
+      const result = selectAssetsBySelectedAccountGroup(state);
+      const stellarAssets =
+        result[stellarChainId]?.filter(
+          (asset) => asset.assetId === stellarClassic,
+        ) ?? [];
+
+      expect(stellarAssets).toHaveLength(1);
+      expect(stellarAssets[0]?.isStellarTrustlineInactive).toBe(true);
+    });
+
+    it('does not mark inactive for zero placeholder balance before trust-line extra is merged', () => {
+      const state = cloneDeep(mockedMergedState);
+      const wallet =
+        state.accountTree.wallets['entropy:01K1TJY9QPSCKNBSVGZNG510GJ'];
+      const group = wallet.groups['entropy:01K1TJY9QPSCKNBSVGZNG510GJ/0'];
+      group.accounts.push(stellarAccountId);
+      state.internalAccounts.accounts[stellarAccountId] = {
+        id: stellarAccountId,
+        type: 'stellar:data-account',
+        address:
+          'GXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX',
+        scopes: [stellarChainId],
+        options: {},
+        methods: [],
+        metadata: {
+          name: 'Stellar',
+          importTime: 0,
+          keyring: { type: 'Snap Keyring' },
+          snap: { id: 'stellar-snap', name: 'Stellar', enabled: true },
+          lastSelected: 0,
+        },
+      };
+      state.accountsAssets[stellarAccountId] = [stellarClassic];
+      state.assetsMetadata[stellarClassic] = {
+        name: 'USDC',
+        symbol: 'USDC',
+        fungible: true,
+        iconUrl: '',
+        units: [{ name: 'USDC', symbol: 'USDC', decimals: 7 }],
+      };
+      state.balances[stellarAccountId] = {
+        [stellarClassic]: { amount: '0', unit: '' },
+      };
+
+      const result = selectAssetsBySelectedAccountGroup(state);
+      const stellarAssets =
+        result[stellarChainId]?.filter(
+          (asset) => asset.assetId === stellarClassic,
+        ) ?? [];
+
+      expect(stellarAssets).toHaveLength(1);
+      expect(stellarAssets[0]?.isStellarTrustlineInactive).toBeUndefined();
+    });
+
+    it('does not mark inactive when balance is positive before trust-line extra is merged', () => {
+      const state = cloneDeep(mockedMergedState);
+      const wallet =
+        state.accountTree.wallets['entropy:01K1TJY9QPSCKNBSVGZNG510GJ'];
+      const group = wallet.groups['entropy:01K1TJY9QPSCKNBSVGZNG510GJ/0'];
+      group.accounts.push(stellarAccountId);
+      state.internalAccounts.accounts[stellarAccountId] = {
+        id: stellarAccountId,
+        type: 'stellar:data-account',
+        address:
+          'GXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX',
+        scopes: [stellarChainId],
+        options: {},
+        methods: [],
+        metadata: {
+          name: 'Stellar',
+          importTime: 0,
+          keyring: { type: 'Snap Keyring' },
+          snap: { id: 'stellar-snap', name: 'Stellar', enabled: true },
+          lastSelected: 0,
+        },
+      };
+      state.accountsAssets[stellarAccountId] = [stellarClassic];
+      state.assetsMetadata[stellarClassic] = {
+        name: 'USDC',
+        symbol: 'USDC',
+        fungible: true,
+        iconUrl: '',
+        units: [{ name: 'USDC', symbol: 'USDC', decimals: 7 }],
+      };
+      state.balances[stellarAccountId] = {
+        [stellarClassic]: { amount: '10', unit: 'USDC' },
+      };
+
+      const result = selectAssetsBySelectedAccountGroup(state);
+      const stellarAssets =
+        result[stellarChainId]?.filter(
+          (asset) => asset.assetId === stellarClassic,
+        ) ?? [];
+
+      expect(stellarAssets).toHaveLength(1);
+      expect(stellarAssets[0]?.isStellarTrustlineInactive).toBeUndefined();
+    });
+
+    it('clears inactive when balance extra has positive limit', () => {
+      const state = cloneDeep(mockedMergedState);
+      const wallet =
+        state.accountTree.wallets['entropy:01K1TJY9QPSCKNBSVGZNG510GJ'];
+      const group = wallet.groups['entropy:01K1TJY9QPSCKNBSVGZNG510GJ/0'];
+      group.accounts.push(stellarAccountId);
+      state.internalAccounts.accounts[stellarAccountId] = {
+        id: stellarAccountId,
+        type: 'stellar:data-account',
+        address:
+          'GXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX',
+        scopes: [stellarChainId],
+        options: {},
+        methods: [],
+        metadata: {
+          name: 'Stellar',
+          importTime: 0,
+          keyring: { type: 'Snap Keyring' },
+          snap: { id: 'stellar-snap', name: 'Stellar', enabled: true },
+          lastSelected: 0,
+        },
+      };
+      state.accountsAssets[stellarAccountId] = [stellarClassic];
+      state.assetsMetadata[stellarClassic] = {
+        name: 'USDC',
+        symbol: 'USDC',
+        fungible: true,
+        iconUrl: '',
+        units: [{ name: 'USDC', symbol: 'USDC', decimals: 7 }],
+      };
+      state.balances[stellarAccountId] = {
+        [stellarClassic]: {
+          amount: '0',
+          unit: 'USDC',
+          extra: { limit: '1000' },
+        },
+      };
+
+      const result = selectAssetsBySelectedAccountGroup(state);
+      const stellarAssets =
+        result[stellarChainId]?.filter(
+          (asset) => asset.assetId === stellarClassic,
+        ) ?? [];
+
+      expect(stellarAssets).toHaveLength(1);
+      expect(stellarAssets[0]?.isStellarTrustlineInactive).toBeUndefined();
     });
   });
 });

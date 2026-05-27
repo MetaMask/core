@@ -414,6 +414,64 @@ describe('MultichainBalancesController', () => {
     );
   });
 
+  it('preserves balance extra when accountBalancesUpdated overwrites amount', async () => {
+    const assetId = mockBtcNativeAsset;
+    const { controller, messenger } = setupController({
+      state: {
+        balances: {
+          [mockBtcAccount.id]: {
+            [assetId]: {
+              amount: '1',
+              unit: 'BTC',
+              extra: { limit: '500' },
+            },
+          },
+        },
+      },
+    });
+
+    await waitForAllPromises();
+
+    messenger.publish('AccountsController:accountBalancesUpdated', {
+      balances: {
+        [mockBtcAccount.id]: {
+          [assetId]: { amount: '2', unit: 'BTC' },
+        },
+      },
+    });
+
+    await waitForAllPromises();
+
+    expect(controller.state.balances[mockBtcAccount.id][assetId]).toStrictEqual({
+      amount: '2',
+      unit: 'BTC',
+      extra: { limit: '500' },
+    });
+  });
+
+  it('merges balance extra via mergeAccountBalanceExtras', () => {
+    const assetId = mockBtcNativeAsset;
+    const { controller } = setupController({
+      state: {
+        balances: {
+          [mockBtcAccount.id]: {
+            [assetId]: { amount: '1', unit: 'BTC' },
+          },
+        },
+      },
+    });
+
+    controller.mergeAccountBalanceExtras(mockBtcAccount.id, {
+      [assetId]: { limit: '1000', authorized: true },
+    });
+
+    expect(controller.state.balances[mockBtcAccount.id][assetId]).toStrictEqual({
+      amount: '1',
+      unit: 'BTC',
+      extra: { limit: '1000', authorized: true },
+    });
+  });
+
   it('fetches initial balances for existing non-EVM accounts', async () => {
     const { controller } = setupController({
       mocks: {
@@ -731,148 +789,6 @@ describe('MultichainBalancesController', () => {
               unit: '',
             },
         },
-      });
-    });
-
-    it('removes stale balances that are no longer present in MultichainAssetsController state', async () => {
-      const mockSolanaAccountId1 = mockListSolanaAccounts[0].id;
-
-      const existingBalancesState = {
-        [mockSolanaAccountId1]: {
-          'solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1/token:removedToken': {
-            amount: '5.00000000',
-            unit: 'SOL',
-          },
-          'solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1/token:keptToken': {
-            amount: '6.00000000',
-            unit: 'SOL',
-          },
-        },
-      };
-
-      const {
-        controller,
-        messenger,
-        mockGetAssetsState,
-        mockSnapHandleRequest,
-        mockListMultichainAccounts,
-      } = setupController({
-        state: {
-          balances: existingBalancesState,
-        },
-        mocks: {
-          handleMockGetAssetsState: {
-            accountsAssets: {
-              [mockSolanaAccountId1]: [
-                'solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1/token:removedToken',
-                'solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1/token:keptToken',
-              ],
-            },
-          },
-          handleRequestReturnValue: {
-            'solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1/token:keptToken': {
-              amount: '6.00000000',
-              unit: 'SOL',
-            },
-          },
-          listMultichainAccounts: [],
-        },
-      });
-
-      mockSnapHandleRequest.mockReset();
-      mockListMultichainAccounts.mockReset();
-
-      mockListMultichainAccounts.mockReturnValue(mockListSolanaAccounts);
-      mockGetAssetsState.mockReturnValue({
-        accountsAssets: {
-          [mockSolanaAccountId1]: [
-            'solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1/token:keptToken',
-          ],
-        },
-      });
-      mockSnapHandleRequest.mockResolvedValueOnce({
-        'solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1/token:keptToken': {
-          amount: '6.00000000',
-          unit: 'SOL',
-        },
-      });
-
-      messenger.publish('MultichainAssetsController:accountAssetListUpdated', {
-        assets: {
-          [mockSolanaAccountId1]: {
-            added: ['solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1/token:keptToken'],
-            removed: [
-              'solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1/token:removedToken',
-            ],
-          },
-        },
-      });
-
-      await waitForAllPromises();
-
-      expect(controller.state.balances).toStrictEqual({
-        [mockSolanaAccountId1]: {
-          'solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1/token:keptToken': {
-            amount: '6.00000000',
-            unit: 'SOL',
-          },
-        },
-      });
-    });
-
-    it('clears balances when an account no longer has any assets after the update', async () => {
-      const mockSolanaAccountId1 = mockListSolanaAccounts[0].id;
-
-      const {
-        controller,
-        messenger,
-        mockGetAssetsState,
-        mockListMultichainAccounts,
-      } = setupController({
-        state: {
-          balances: {
-            [mockSolanaAccountId1]: {
-              'solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1/token:removedToken': {
-                amount: '5.00000000',
-                unit: 'SOL',
-              },
-            },
-          },
-        },
-        mocks: {
-          listMultichainAccounts: [],
-          handleMockGetAssetsState: {
-            accountsAssets: {
-              [mockSolanaAccountId1]: [],
-            },
-          },
-          handleRequestReturnValue: {},
-        },
-      });
-
-      mockGetAssetsState.mockReturnValue({
-        accountsAssets: {
-          [mockSolanaAccountId1]: [],
-        },
-      });
-      mockListMultichainAccounts.mockReset();
-      mockListMultichainAccounts.mockReturnValue(mockListSolanaAccounts);
-
-      messenger.publish('MultichainAssetsController:accountAssetListUpdated', {
-        assets: {
-          [mockSolanaAccountId1]: {
-            added: [],
-            removed: [
-              'solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1/token:removedToken',
-            ],
-          },
-        },
-      });
-
-      await waitForAllPromises();
-
-      expect(controller.state.balances).toStrictEqual({
-        [mockSolanaAccountId1]: {},
       });
     });
   });

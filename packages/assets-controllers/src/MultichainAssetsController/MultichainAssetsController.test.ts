@@ -10,7 +10,11 @@ import {
   EthScope,
   SolScope,
 } from '@metamask/keyring-api';
-import { KeyringTypes } from '@metamask/keyring-controller';
+import {
+  KeyringTypes
+  
+} from '@metamask/keyring-controller';
+import type {KeyringControllerState} from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
 import type {
@@ -30,12 +34,35 @@ import {
   getDefaultMultichainAssetsControllerState,
   MultichainAssetsController,
 } from '.';
+import { KEYRING_GET_ACCOUNT_ASSET_INFO_METHOD } from '../multichain/stellarAccountAssetInfo';
 import { jestAdvanceTime } from '../../../../tests/helpers';
 import type {
   AssetMetadataResponse,
   MultichainAssetsControllerMessenger,
   MultichainAssetsControllerState,
 } from './MultichainAssetsController';
+
+const mockStellarAccount: InternalAccount = {
+  type: 'stellar:data-account',
+  id: 'stellar-account-uuid',
+  address: 'GXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX',
+  scopes: ['stellar:pubnet'],
+  options: {},
+  methods: [],
+  metadata: {
+    name: 'Stellar Account',
+    importTime: 1737022568097,
+    keyring: {
+      type: 'Snap Keyring',
+    },
+    snap: {
+      id: 'local:stellar-snap',
+      name: 'Stellar',
+      enabled: true,
+    },
+    lastSelected: 0,
+  },
+};
 
 const mockSolanaAccount: InternalAccount = {
   type: 'solana:data-account',
@@ -262,6 +289,7 @@ type SetupControllerResult = {
   mockGetAllSnaps: jest.Mock;
   mockGetPermissions: jest.Mock;
   mockBulkScanTokens: jest.Mock;
+  mockMergeAccountBalanceExtras: jest.Mock;
 };
 
 /** Request shape for `PhishingController:bulkScanTokens` in tests. */
@@ -283,6 +311,7 @@ const setupController = ({
     handleRequestReturnValue?: CaipAssetTypeOrId[];
     getAllReturnValue?: Snap[];
     getPermissionsReturnValue?: SubjectPermissions<PermissionConstraint>;
+    keyringIsUnlocked?: boolean;
   };
 } = {}): SetupControllerResult => {
   const messenger = getRootMessenger();
@@ -300,11 +329,15 @@ const setupController = ({
       'SnapController:getRunnableSnaps',
       'PermissionController:getPermissions',
       'PhishingController:bulkScanTokens',
+      'MultichainBalancesController:mergeAccountBalanceExtras',
+      'KeyringController:getState',
     ],
     events: [
       'AccountsController:accountAdded',
       'AccountsController:accountRemoved',
       'AccountsController:accountAssetListUpdated',
+      'AccountsController:accountBalancesUpdated',
+      'KeyringController:stateChanged',
     ],
   });
 
@@ -361,6 +394,20 @@ const setupController = ({
     mockBulkScanTokens,
   );
 
+  const mockMergeAccountBalanceExtras = jest.fn();
+  messenger.registerActionHandler(
+    'MultichainBalancesController:mergeAccountBalanceExtras',
+    mockMergeAccountBalanceExtras,
+  );
+
+  const mockKeyringGetState = jest.fn();
+  messenger.registerActionHandler(
+    'KeyringController:getState',
+    mockKeyringGetState.mockReturnValue({
+      isUnlocked: mocks?.keyringIsUnlocked ?? false,
+    } as KeyringControllerState),
+  );
+
   const controller = new MultichainAssetsController({
     messenger: multichainAssetsControllerMessenger,
     state,
@@ -375,6 +422,7 @@ const setupController = ({
     mockGetAllSnaps,
     mockGetPermissions,
     mockBulkScanTokens,
+    mockMergeAccountBalanceExtras,
   };
 };
 
@@ -392,49 +440,7 @@ describe('MultichainAssetsController', () => {
       accountsAssets: {},
       assetsMetadata: {},
       allIgnoredAssets: {},
-      stellarClassicTrustlineInactiveAssetIds: {},
-      stellarTrustlineInactiveBackfillComplete: true,
     });
-  });
-
-  it('backfills Stellar classic trustline-inactive for assets already in accountsAssets on first load', () => {
-    const accountId = 'stellar-legacy';
-    const { controller } = setupController({
-      state: {
-        accountsAssets: {
-          [accountId]: [STELLAR_CLASSIC_USDC],
-        },
-        assetsMetadata: {},
-        allIgnoredAssets: {},
-        stellarClassicTrustlineInactiveAssetIds: {},
-      } as MultichainAssetsControllerState,
-    });
-
-    expect(controller.state.stellarTrustlineInactiveBackfillComplete).toBe(
-      true,
-    );
-    expect(
-      controller.state.stellarClassicTrustlineInactiveAssetIds[accountId],
-    ).toStrictEqual([STELLAR_CLASSIC_USDC]);
-  });
-
-  it('skips Stellar trustline backfill when already completed', () => {
-    const accountId = 'stellar-legacy';
-    const { controller } = setupController({
-      state: {
-        accountsAssets: {
-          [accountId]: [STELLAR_CLASSIC_USDC],
-        },
-        assetsMetadata: {},
-        allIgnoredAssets: {},
-        stellarClassicTrustlineInactiveAssetIds: {},
-        stellarTrustlineInactiveBackfillComplete: true,
-      } as MultichainAssetsControllerState,
-    });
-
-    expect(
-      controller.state.stellarClassicTrustlineInactiveAssetIds[accountId],
-    ).toBeUndefined();
   });
 
   it('does not update state when new account added is EVM', async () => {
@@ -451,8 +457,6 @@ describe('MultichainAssetsController', () => {
       accountsAssets: {},
       assetsMetadata: {},
       allIgnoredAssets: {},
-      stellarClassicTrustlineInactiveAssetIds: {},
-      stellarTrustlineInactiveBackfillComplete: true,
     });
   });
 
@@ -486,8 +490,6 @@ describe('MultichainAssetsController', () => {
       },
       assetsMetadata: mockGetMetadataReturnValue.assets,
       allIgnoredAssets: {},
-      stellarClassicTrustlineInactiveAssetIds: {},
-      stellarTrustlineInactiveBackfillComplete: true,
     });
   });
 
@@ -557,8 +559,6 @@ describe('MultichainAssetsController', () => {
         ...mockGetMetadataReturnValue.assets,
       },
       allIgnoredAssets: {},
-      stellarClassicTrustlineInactiveAssetIds: {},
-      stellarTrustlineInactiveBackfillComplete: true,
     });
   });
 
@@ -616,8 +616,6 @@ describe('MultichainAssetsController', () => {
         ...mockGetMetadataReturnValue.assets,
       },
       allIgnoredAssets: {},
-      stellarClassicTrustlineInactiveAssetIds: {},
-      stellarTrustlineInactiveBackfillComplete: true,
     });
   });
 
@@ -653,8 +651,6 @@ describe('MultichainAssetsController', () => {
 
       assetsMetadata: mockGetMetadataReturnValue.assets,
       allIgnoredAssets: {},
-      stellarClassicTrustlineInactiveAssetIds: {},
-      stellarTrustlineInactiveBackfillComplete: true,
     });
     // Remove an EVM account
     messenger.publish('AccountsController:accountRemoved', mockEthAccount.id);
@@ -668,8 +664,6 @@ describe('MultichainAssetsController', () => {
 
       assetsMetadata: mockGetMetadataReturnValue.assets,
       allIgnoredAssets: {},
-      stellarClassicTrustlineInactiveAssetIds: {},
-      stellarTrustlineInactiveBackfillComplete: true,
     });
   });
 
@@ -705,8 +699,6 @@ describe('MultichainAssetsController', () => {
 
       assetsMetadata: mockGetMetadataReturnValue.assets,
       allIgnoredAssets: {},
-      stellarClassicTrustlineInactiveAssetIds: {},
-      stellarTrustlineInactiveBackfillComplete: true,
     });
     // Remove the added solana account
     messenger.publish(
@@ -721,46 +713,10 @@ describe('MultichainAssetsController', () => {
 
       assetsMetadata: mockGetMetadataReturnValue.assets,
       allIgnoredAssets: {},
-      stellarClassicTrustlineInactiveAssetIds: {},
-      stellarTrustlineInactiveBackfillComplete: true,
     });
   });
 
   describe('handleAccountAssetListUpdated', () => {
-    it('clears Stellar trustline-inactive when keyring re-announces an existing classic asset', async () => {
-      const accountId = 'stellar-test-account';
-      const { messenger, controller } = setupController({
-        state: {
-          accountsAssets: {
-            [accountId]: [STELLAR_CLASSIC_USDC],
-          },
-          assetsMetadata: {
-            ...mockGetMetadataReturnValue.assets,
-            [STELLAR_CLASSIC_USDC]: STELLAR_CLASSIC_USDC_METADATA,
-          },
-          allIgnoredAssets: {},
-          stellarClassicTrustlineInactiveAssetIds: {
-            [accountId]: [STELLAR_CLASSIC_USDC],
-          },
-        } as MultichainAssetsControllerState,
-      });
-
-      messenger.publish('AccountsController:accountAssetListUpdated', {
-        assets: {
-          [accountId]: {
-            added: [STELLAR_CLASSIC_USDC],
-            removed: [],
-          },
-        },
-      });
-
-      await jestAdvanceTime({ duration: 1 });
-
-      expect(
-        controller.state.stellarClassicTrustlineInactiveAssetIds[accountId],
-      ).toBeUndefined();
-    });
-
     it('updates the assets list for an account when a new asset is added', async () => {
       const mockSolanaAccountId1 = 'account1';
       const mockSolanaAccountId2 = 'account2';
@@ -1171,53 +1127,258 @@ describe('MultichainAssetsController', () => {
       ).toStrictEqual([assetToAdd]);
     });
 
-    it('adds Stellar classic assets to trustline-inactive when added via addAssets', async () => {
-      const { controller } = setupController({
-        state: {
-          accountsAssets: {},
-          assetsMetadata: {
-            [STELLAR_CLASSIC_USDC]: STELLAR_CLASSIC_USDC_METADATA,
+    it('merges limit zero when snap omits asset from getAccountAssetInfo response', async () => {
+      const { controller, mockSnapHandleRequest, mockMergeAccountBalanceExtras } =
+        setupController({
+          state: {
+            accountsAssets: {},
+            assetsMetadata: {
+              [STELLAR_CLASSIC_USDC]: STELLAR_CLASSIC_USDC_METADATA,
+            },
+            allIgnoredAssets: {},
+          } as MultichainAssetsControllerState,
+          mocks: {
+            listMultichainAccounts: [mockStellarAccount],
           },
-          allIgnoredAssets: {},
-        } as MultichainAssetsControllerState,
-      });
-
-      await controller.addAssets([STELLAR_CLASSIC_USDC], mockSolanaAccount.id);
-
-      expect(
-        controller.state.stellarClassicTrustlineInactiveAssetIds[
-          mockSolanaAccount.id
-        ],
-      ).toStrictEqual([STELLAR_CLASSIC_USDC]);
-    });
-
-    it('clears Stellar classic trustline-inactive when Snap listAccountAssets includes the asset', async () => {
-      const { controller, mockSnapHandleRequest } = setupController({
-        state: {
-          accountsAssets: {},
-          assetsMetadata: {
-            [STELLAR_CLASSIC_USDC]: STELLAR_CLASSIC_USDC_METADATA,
-          },
-          allIgnoredAssets: {},
-        } as MultichainAssetsControllerState,
-      });
+        });
 
       mockSnapHandleRequest.mockImplementation(
-        (params: { handler: string }) => {
-          if (params.handler === HandlerType.OnKeyringRequest) {
-            return Promise.resolve([STELLAR_CLASSIC_USDC]);
+        (params: {
+          handler: string;
+          request?: { method?: string };
+        }) => {
+          if (
+            params.handler === HandlerType.OnKeyringRequest &&
+            params.request?.method === KEYRING_GET_ACCOUNT_ASSET_INFO_METHOD
+          ) {
+            return Promise.resolve({});
           }
           return Promise.resolve(mockHandleRequestOnAssetsLookupReturnValue);
         },
       );
 
-      await controller.addAssets([STELLAR_CLASSIC_USDC], mockSolanaAccount.id);
+      await controller.addAssets([STELLAR_CLASSIC_USDC], mockStellarAccount.id);
 
-      expect(
-        controller.state.stellarClassicTrustlineInactiveAssetIds[
-          mockSolanaAccount.id
-        ],
-      ).toBeUndefined();
+      expect(mockMergeAccountBalanceExtras).toHaveBeenCalledWith(
+        mockStellarAccount.id,
+        {
+          [STELLAR_CLASSIC_USDC]: { limit: '0' },
+        },
+      );
+    });
+
+    it('enriches Stellar classic imports via getAccountAssetInfo without legacy inactive map', async () => {
+      const { controller, mockSnapHandleRequest, mockMergeAccountBalanceExtras } =
+        setupController({
+          state: {
+            accountsAssets: {},
+            assetsMetadata: {
+              [STELLAR_CLASSIC_USDC]: STELLAR_CLASSIC_USDC_METADATA,
+            },
+            allIgnoredAssets: {},
+          } as MultichainAssetsControllerState,
+          mocks: {
+            listMultichainAccounts: [mockStellarAccount],
+          },
+        });
+
+      mockSnapHandleRequest.mockImplementation(
+        (params: {
+          handler: string;
+          request?: { method?: string };
+        }) => {
+          if (
+            params.handler === HandlerType.OnKeyringRequest &&
+            params.request?.method === KEYRING_GET_ACCOUNT_ASSET_INFO_METHOD
+          ) {
+            return Promise.resolve({
+              [STELLAR_CLASSIC_USDC]: {
+                metadata: STELLAR_CLASSIC_USDC_METADATA,
+              },
+            });
+          }
+          return Promise.resolve(mockHandleRequestOnAssetsLookupReturnValue);
+        },
+      );
+
+      await controller.addAssets([STELLAR_CLASSIC_USDC], mockStellarAccount.id);
+
+      expect(mockMergeAccountBalanceExtras).toHaveBeenCalledWith(
+        mockStellarAccount.id,
+        {
+          [STELLAR_CLASSIC_USDC]: { limit: '0' },
+        },
+      );
+    });
+
+    it('merges active trustline extra when getAccountAssetInfo reports a limit', async () => {
+      const { controller, mockSnapHandleRequest, mockMergeAccountBalanceExtras } =
+        setupController({
+          state: {
+            accountsAssets: {},
+            assetsMetadata: {
+              [STELLAR_CLASSIC_USDC]: STELLAR_CLASSIC_USDC_METADATA,
+            },
+            allIgnoredAssets: {},
+          } as MultichainAssetsControllerState,
+          mocks: {
+            listMultichainAccounts: [mockStellarAccount],
+          },
+        });
+
+      mockSnapHandleRequest.mockImplementation(
+        (params: {
+          handler: string;
+          request?: { method?: string };
+        }) => {
+          if (
+            params.handler === HandlerType.OnKeyringRequest &&
+            params.request?.method === KEYRING_GET_ACCOUNT_ASSET_INFO_METHOD
+          ) {
+            return Promise.resolve({
+              [STELLAR_CLASSIC_USDC]: {
+                metadata: STELLAR_CLASSIC_USDC_METADATA,
+                extra: { limit: '1000' },
+              },
+            });
+          }
+          return Promise.resolve(mockHandleRequestOnAssetsLookupReturnValue);
+        },
+      );
+
+      await controller.addAssets([STELLAR_CLASSIC_USDC], mockStellarAccount.id);
+
+      expect(mockMergeAccountBalanceExtras).toHaveBeenCalledWith(
+        mockStellarAccount.id,
+        {
+          [STELLAR_CLASSIC_USDC]: { limit: '1000' },
+        },
+      );
+    });
+
+    it('calls getAccountAssetInfo when accountBalancesUpdated includes a Stellar classic', async () => {
+      const { messenger, mockSnapHandleRequest, mockMergeAccountBalanceExtras } =
+        setupController({
+          state: {
+            accountsAssets: {
+              [mockStellarAccount.id]: [STELLAR_CLASSIC_USDC],
+            },
+            assetsMetadata: {
+              [STELLAR_CLASSIC_USDC]: STELLAR_CLASSIC_USDC_METADATA,
+            },
+            allIgnoredAssets: {},
+          } as MultichainAssetsControllerState,
+          mocks: {
+            listMultichainAccounts: [mockStellarAccount],
+          },
+        });
+
+      mockSnapHandleRequest.mockImplementation(
+        (params: {
+          handler: string;
+          request?: { method?: string; params?: { assets?: CaipAssetType[] } };
+        }) => {
+          if (
+            params.handler === HandlerType.OnKeyringRequest &&
+            params.request?.method === KEYRING_GET_ACCOUNT_ASSET_INFO_METHOD
+          ) {
+            return Promise.resolve({
+              [STELLAR_CLASSIC_USDC]: {
+                metadata: STELLAR_CLASSIC_USDC_METADATA,
+              },
+            });
+          }
+          return Promise.resolve(mockHandleRequestOnAssetsLookupReturnValue);
+        },
+      );
+
+      mockMergeAccountBalanceExtras.mockClear();
+
+      messenger.publish('AccountsController:accountBalancesUpdated', {
+        balances: {
+          [mockStellarAccount.id]: {
+            [STELLAR_CLASSIC_USDC]: { amount: '0', unit: 'USDC' },
+          },
+        },
+      });
+      await jestAdvanceTime({ duration: 1 });
+
+      expect(mockSnapHandleRequest).toHaveBeenCalledWith(
+        expect.objectContaining({
+          handler: HandlerType.OnKeyringRequest,
+          request: expect.objectContaining({
+            method: KEYRING_GET_ACCOUNT_ASSET_INFO_METHOD,
+            params: expect.objectContaining({
+              assets: [STELLAR_CLASSIC_USDC],
+            }),
+          }),
+        }),
+      );
+      expect(mockMergeAccountBalanceExtras).toHaveBeenCalledWith(
+        mockStellarAccount.id,
+        {
+          [STELLAR_CLASSIC_USDC]: { limit: '0' },
+        },
+      );
+    });
+
+    it('bootstraps trust-line extra for portfolio classics when keyring unlocks', async () => {
+      const { messenger, mockSnapHandleRequest, mockMergeAccountBalanceExtras } =
+        setupController({
+          state: {
+            accountsAssets: {
+              [mockStellarAccount.id]: [STELLAR_CLASSIC_USDC],
+            },
+            assetsMetadata: {
+              [STELLAR_CLASSIC_USDC]: STELLAR_CLASSIC_USDC_METADATA,
+            },
+            allIgnoredAssets: {},
+          } as MultichainAssetsControllerState,
+          mocks: {
+            listMultichainAccounts: [mockStellarAccount],
+            keyringIsUnlocked: true,
+          },
+        });
+
+      mockSnapHandleRequest.mockImplementation(
+        (params: {
+          handler: string;
+          request?: { method?: string };
+        }) => {
+          if (
+            params.handler === HandlerType.OnKeyringRequest &&
+            params.request?.method === KEYRING_GET_ACCOUNT_ASSET_INFO_METHOD
+          ) {
+            return Promise.resolve({
+              [STELLAR_CLASSIC_USDC]: {
+                metadata: STELLAR_CLASSIC_USDC_METADATA,
+                extra: { limit: '500' },
+              },
+            });
+          }
+          return Promise.resolve(mockHandleRequestOnAssetsLookupReturnValue);
+        },
+      );
+
+      messenger.publish('KeyringController:stateChanged', {
+        isUnlocked: true,
+      } as KeyringControllerState);
+      await jestAdvanceTime({ duration: 1 });
+
+      expect(mockSnapHandleRequest).toHaveBeenCalledWith(
+        expect.objectContaining({
+          handler: HandlerType.OnKeyringRequest,
+          request: expect.objectContaining({
+            method: KEYRING_GET_ACCOUNT_ASSET_INFO_METHOD,
+          }),
+        }),
+      );
+      expect(mockMergeAccountBalanceExtras).toHaveBeenCalledWith(
+        mockStellarAccount.id,
+        {
+          [STELLAR_CLASSIC_USDC]: { limit: '500' },
+        },
+      );
     });
 
     it('should publish accountAssetListUpdated event when asset is added', async () => {
@@ -1667,7 +1828,7 @@ describe('MultichainAssetsController', () => {
       ]);
     });
 
-    it('adds tokens when bulkScanTokens throws (fail open)', async () => {
+    it('does not add tokens when bulkScanTokens throws (fail closed)', async () => {
       const mockAccountId = 'account1';
       const token = 'solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1/token:SomeAddr';
 
@@ -1689,12 +1850,10 @@ describe('MultichainAssetsController', () => {
 
       await jestAdvanceTime({ duration: 1 });
 
-      expect(controller.state.accountsAssets[mockAccountId]).toStrictEqual([
-        token,
-      ]);
+      expect(controller.state.accountsAssets[mockAccountId]).toStrictEqual([]);
     });
 
-    it('adds tokens when bulkScanTokens returns empty (fail open - no result means not rejected)', async () => {
+    it('does not add tokens when bulkScanTokens returns empty (API error handled internally)', async () => {
       const mockAccountId = 'account1';
       const token = 'solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1/token:SomeAddr';
 
@@ -1717,10 +1876,7 @@ describe('MultichainAssetsController', () => {
 
       await jestAdvanceTime({ duration: 1 });
 
-      // With fail-open blacklist approach, no result means not rejected
-      expect(controller.state.accountsAssets[mockAccountId]).toStrictEqual([
-        token,
-      ]);
+      expect(controller.state.accountsAssets[mockAccountId]).toStrictEqual([]);
     });
 
     it('does not scan native (slip44) assets', async () => {
@@ -1750,7 +1906,7 @@ describe('MultichainAssetsController', () => {
       expect(mockBulkScanTokens).not.toHaveBeenCalled();
     });
 
-    it('adds tokens with no result in the scan response (fail open)', async () => {
+    it('does not add tokens with no result in the scan response (fail closed)', async () => {
       const mockAccountId = 'account1';
       const knownToken =
         'solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1/token:KnownAddr';
@@ -1782,10 +1938,8 @@ describe('MultichainAssetsController', () => {
 
       await jestAdvanceTime({ duration: 1 });
 
-      // With fail-open blacklist approach, tokens without results are not rejected
       expect(controller.state.accountsAssets[mockAccountId]).toStrictEqual([
         knownToken,
-        unknownToken,
       ]);
     });
 
@@ -1927,7 +2081,7 @@ describe('MultichainAssetsController', () => {
       ).toBeUndefined();
     });
 
-    it('keeps tokens from batches that fail (partial fail open)', async () => {
+    it('drops tokens from batches that fail (partial fail closed)', async () => {
       const mockAccountId = 'account1';
       // 120 tokens = batch 1 (100) + batch 2 (20)
       const tokens = Array.from(
@@ -1964,7 +2118,7 @@ describe('MultichainAssetsController', () => {
           }
           return Promise.resolve(results);
         }
-        // Second batch fails — its tokens are allowed through (fail open)
+        // Second batch fails — its tokens must not be added
         return Promise.reject(new Error('API timeout'));
       });
 
@@ -1986,14 +2140,14 @@ describe('MultichainAssetsController', () => {
         ),
       ).toBeUndefined();
 
-      // Tokens from the failed second batch (100-119) should be added (fail open)
       for (let i = 100; i < 120; i++) {
-        const tokenCaip = `solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1/token:Token${String(i).padStart(3, '0')}`;
-        expect(storedAssets).toContain(tokenCaip);
+        const tokenCaip = `solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1/token:Token${String(
+          i,
+        ).padStart(3, '0')}`;
+        expect(storedAssets).not.toContain(tokenCaip);
       }
 
-      // 99 from batch 1 (excluding Token099) + 20 from batch 2 = 119 total
-      expect(storedAssets).toHaveLength(119);
+      expect(storedAssets).toHaveLength(99);
     });
 
     it('periodic rescan ignores SPL tokens that Blockaid later marks malicious', async () => {
@@ -2178,8 +2332,6 @@ describe('MultichainAssetsController', () => {
           "accountsAssets": {},
           "allIgnoredAssets": {},
           "assetsMetadata": {},
-          "stellarClassicTrustlineInactiveAssetIds": {},
-          "stellarTrustlineInactiveBackfillComplete": true,
         }
       `);
     });
@@ -2198,7 +2350,6 @@ describe('MultichainAssetsController', () => {
           "accountsAssets": {},
           "allIgnoredAssets": {},
           "assetsMetadata": {},
-          "stellarClassicTrustlineInactiveAssetIds": {},
         }
       `);
     });
