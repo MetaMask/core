@@ -2,8 +2,8 @@ import { TransactionPayStrategy } from '../constants';
 import { AcrossStrategy } from '../strategy/across/AcrossStrategy';
 import { BridgeStrategy } from '../strategy/bridge/BridgeStrategy';
 import { FiatStrategy } from '../strategy/fiat/FiatStrategy';
-import { ServerStrategy } from '../strategy/server/ServerStrategy';
 import { RelayStrategy } from '../strategy/relay/RelayStrategy';
+import { ServerStrategy } from '../strategy/server/ServerStrategy';
 import { TestStrategy } from '../strategy/test/TestStrategy';
 import type {
   PayStrategy,

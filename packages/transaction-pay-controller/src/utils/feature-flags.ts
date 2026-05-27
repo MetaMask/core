@@ -11,6 +11,11 @@ import {
   FIAT_ASSET_ID_BY_TX_TYPE,
 } from '../strategy/fiat/constants';
 import {
+  RELAY_EXECUTE_URL,
+  RELAY_POLLING_INTERVAL,
+  RELAY_QUOTE_URL,
+} from '../strategy/relay/constants';
+import {
   SERVER_DEFAULT_PROVIDER_PRIORITY,
   SERVER_POLLING_INTERVAL,
   SERVER_QUOTE_URL,
@@ -18,11 +23,6 @@ import {
   SERVER_SUBMIT_URL,
 } from '../strategy/server/constants';
 import { ServerProviderName } from '../strategy/server/types';
-import {
-  RELAY_EXECUTE_URL,
-  RELAY_POLLING_INTERVAL,
-  RELAY_QUOTE_URL,
-} from '../strategy/relay/constants';
 import type { TransactionPayControllerMessenger } from '../types';
 
 const log = createModuleLogger(projectLogger, 'feature-flags');
