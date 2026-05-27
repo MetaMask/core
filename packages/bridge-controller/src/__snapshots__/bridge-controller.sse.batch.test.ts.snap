@@ -107,6 +107,7 @@ exports[`BridgeController BatchSell (multiple quote requests) SSE fetch quotes s
       "chain_id_source": "eip155:10",
       "custom_slippage": true,
       "has_sufficient_funds": true,
+      "input_currency_mode": "crypto",
       "is_hardware_wallet": false,
       "location": "Main View",
       "security_warnings": [],
