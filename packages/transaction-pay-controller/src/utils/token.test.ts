@@ -613,7 +613,7 @@ describe('Token Utils', () => {
 
   describe('getLiveTokenBalance', () => {
     it('returns ERC-20 balance via eth_call', async () => {
-      (PROVIDER_MOCK.request as jest.Mock).mockResolvedValue('0x4C4B40');
+      PROVIDER_MOCK.request.mockResolvedValue('0x4C4B40');
 
       const result = await getLiveTokenBalance(
         messenger,
@@ -644,9 +644,7 @@ describe('Token Utils', () => {
     });
 
     it('returns native balance via eth_getBalance', async () => {
-      (PROVIDER_MOCK.request as jest.Mock).mockResolvedValue(
-        '0xde0b6b3a7640000',
-      );
+      PROVIDER_MOCK.request.mockResolvedValue('0xde0b6b3a7640000');
 
       const result = await getLiveTokenBalance(
         messenger,
@@ -663,9 +661,7 @@ describe('Token Utils', () => {
     });
 
     it('returns native balance for polygon native address', async () => {
-      (PROVIDER_MOCK.request as jest.Mock).mockResolvedValue(
-        '0x1bc16d674ec80000',
-      );
+      PROVIDER_MOCK.request.mockResolvedValue('0x1bc16d674ec80000');
 
       const result = await getLiveTokenBalance(
         messenger,
@@ -682,7 +678,7 @@ describe('Token Utils', () => {
     });
 
     it('treats native address comparison as case-insensitive', async () => {
-      (PROVIDER_MOCK.request as jest.Mock).mockResolvedValue('0x1f4');
+      PROVIDER_MOCK.request.mockResolvedValue('0x1f4');
 
       const result = await getLiveTokenBalance(
         messenger,
@@ -699,7 +695,7 @@ describe('Token Utils', () => {
     });
 
     it('uses Infura network client when Infura endpoint is available', async () => {
-      (PROVIDER_MOCK.request as jest.Mock).mockResolvedValue('0x895440');
+      PROVIDER_MOCK.request.mockResolvedValue('0x895440');
 
       getNetworkConfigurationByChainIdMock.mockReturnValue({
         rpcEndpoints: [
@@ -728,7 +724,7 @@ describe('Token Utils', () => {
     });
 
     it('falls back to default network client when no Infura endpoint is configured', async () => {
-      (PROVIDER_MOCK.request as jest.Mock).mockResolvedValue('0x6ACFC0');
+      PROVIDER_MOCK.request.mockResolvedValue('0x6ACFC0');
 
       getNetworkConfigurationByChainIdMock.mockReturnValue({
         rpcEndpoints: [
@@ -756,7 +752,7 @@ describe('Token Utils', () => {
     });
 
     it('falls back to default network client when getNetworkConfigurationByChainId throws', async () => {
-      (PROVIDER_MOCK.request as jest.Mock).mockResolvedValue('0x2DC6C0');
+      PROVIDER_MOCK.request.mockResolvedValue('0x2DC6C0');
 
       getNetworkConfigurationByChainIdMock.mockImplementation(() => {
         throw new Error('Network configuration not found');

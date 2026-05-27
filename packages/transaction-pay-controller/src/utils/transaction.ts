@@ -18,7 +18,7 @@ import type {
   UpdateTransactionDataCallback,
 } from '../types';
 import { getAssetsUnifyStateFeature } from './feature-flags';
-import { getNetworkClientId, rpcRequest } from './provider';
+import { rpcRequest } from './provider';
 import { parseRequiredTokens } from './required-tokens';
 import { getNativeToken } from './token';
 

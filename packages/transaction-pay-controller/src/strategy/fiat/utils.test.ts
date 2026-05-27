@@ -246,7 +246,7 @@ describe('Fiat Utils', () => {
     });
 
     it('returns on-chain ERC-20 amount from receipt logs', async () => {
-      (PROVIDER_MOCK.request as jest.Mock).mockResolvedValue({
+      PROVIDER_MOCK.request.mockResolvedValue({
         logs: [
           {
             address: ERC20_ADDRESS_MOCK,
@@ -283,7 +283,7 @@ describe('Fiat Utils', () => {
     });
 
     it('falls back to cryptoAmount when receipt is null', async () => {
-      (PROVIDER_MOCK.request as jest.Mock).mockResolvedValue(null);
+      PROVIDER_MOCK.request.mockResolvedValue(null);
 
       const result = await resolveSourceAmountRaw({
         messenger: resolveMessenger,
@@ -296,9 +296,7 @@ describe('Fiat Utils', () => {
     });
 
     it('falls back to cryptoAmount when on-chain read throws', async () => {
-      (PROVIDER_MOCK.request as jest.Mock).mockRejectedValue(
-        new Error('Network error'),
-      );
+      PROVIDER_MOCK.request.mockRejectedValue(new Error('Network error'));
 
       const result = await resolveSourceAmountRaw({
         messenger: resolveMessenger,
@@ -311,7 +309,7 @@ describe('Fiat Utils', () => {
     });
 
     it('returns native amount from debug_traceTransaction', async () => {
-      (PROVIDER_MOCK.request as jest.Mock).mockResolvedValue({
+      PROVIDER_MOCK.request.mockResolvedValue({
         to: WALLET_ADDRESS_MOCK.toLowerCase(),
         value: '0x1bc16d674ec80000',
         calls: [],
@@ -328,7 +326,7 @@ describe('Fiat Utils', () => {
     });
 
     it('falls back to tx.value for native when trace is unsupported', async () => {
-      (PROVIDER_MOCK.request as jest.Mock).mockImplementation(
+      PROVIDER_MOCK.request.mockImplementation(
         ({ method }: { method: string }) => {
           if (method === 'debug_traceTransaction') {
             return Promise.reject(new Error('Method not found'));

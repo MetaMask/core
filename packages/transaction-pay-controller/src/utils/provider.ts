@@ -86,15 +86,20 @@ export function getNetworkClientId(
  * Send an RPC request to the network for the specified chain.
  *
  * @param request - Request parameters.
- * @returns The RPC response typed as `T`.
+ * @param request.messenger - The TransactionPayController messenger.
+ * @param request.chainId - The chain ID to resolve.
+ * @param request.method - The JSON-RPC method name.
+ * @param request.params - Optional parameters for the RPC call.
+ * @param request.options - Resolution options forwarded to {@link getNetworkClientId}.
+ * @returns The RPC response typed as `TResponse`.
  */
-export async function rpcRequest<T = unknown>({
+export async function rpcRequest<TResponse = unknown>({
   messenger,
   chainId,
   method,
   params,
   options,
-}: RpcRequestParams): Promise<T> {
+}: RpcRequestParams): Promise<TResponse> {
   const networkClientId = getNetworkClientId(messenger, chainId, options);
 
   const { provider } = messenger.call(
@@ -106,5 +111,5 @@ export async function rpcRequest<T = unknown>({
 
   log(method, { params, response });
 
-  return response as T;
+  return response as TResponse;
 }
