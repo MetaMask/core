@@ -54,7 +54,6 @@ import type {
   TransactionControllerStateChangeEvent,
   TransactionControllerUpdateTransactionAction,
   TransactionMeta,
-  TransactionParams,
 } from '@metamask/transaction-controller';
 import type { Hex, Json } from '@metamask/utils';
 import type { Draft } from 'immer';
@@ -155,11 +154,12 @@ export type TransactionConfigCallback = (config: TransactionConfig) => void;
 
 /**
  * Callback invoked during submit when `paymentOverride` is defined.
- * Returns a single delegation transaction to prepend to the submit batch.
+ * Returns the override transaction metadata used to build a delegation
+ * transaction that is prepended to the submit batch.
  */
 export type GetPaymentOverrideDataCallback = (
   transactionId: string,
-) => Promise<TransactionParams | undefined>;
+) => Promise<TransactionMeta | undefined>;
 
 /** Callback to update fiat payment state. */
 export type TransactionFiatPaymentCallback = (
