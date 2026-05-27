@@ -1,6 +1,6 @@
 {
   "name": "@metamask/user-operation-controller",
-  "version": "41.2.2",
+  "version": "41.2.3",
   "description": "Creates user operations and manages their life cycle",
   "keywords": [
     "Ethereum",

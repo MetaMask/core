@@ -1,6 +1,6 @@
 {
   "name": "@metamask/money-account-upgrade-controller",
-  "version": "2.0.2",
+  "version": "2.0.3",
   "description": "MetaMask Money account upgrade controller",
   "keywords": [
     "Ethereum",
@@ -56,7 +56,7 @@
     "@metamask/authenticated-user-storage": "^2.0.0",
     "@metamask/base-controller": "^9.1.0",
     "@metamask/chomp-api-service": "^3.1.0",
-    "@metamask/delegation-controller": "^3.0.0",
+    "@metamask/delegation-controller": "^3.0.1",
     "@metamask/delegation-core": "^2.2.1",
     "@metamask/delegation-deployments": "^1.4.0",
     "@metamask/keyring-controller": "^26.0.0",

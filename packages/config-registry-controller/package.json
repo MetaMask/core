@@ -1,6 +1,6 @@
 {
   "name": "@metamask/config-registry-controller",
-  "version": "0.3.1",
+  "version": "0.3.2",
   "description": "Manages configuration registry for MetaMask",
   "keywords": [
     "Ethereum",
@@ -59,7 +59,7 @@
     "@metamask/keyring-controller": "^26.0.0",
     "@metamask/messenger": "^1.2.0",
     "@metamask/polling-controller": "^16.0.6",
-    "@metamask/profile-sync-controller": "^28.1.0",
+    "@metamask/profile-sync-controller": "^28.1.1",
     "@metamask/remote-feature-flag-controller": "^4.2.1",
     "@metamask/superstruct": "^3.1.0",
     "@metamask/utils": "^11.9.0",

@@ -7,10 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [7.5.0]
+
 ### Added
 
 - Add group naming support for `KeyringType` (v2) ([#8885](https://github.com/MetaMask/core/pull/8885))
 - Add `KeyringType` (v2) in Snap matching rule ([#8885](https://github.com/MetaMask/core/pull/8885))
+
+### Changed
+
+- Bump `@metamask/keyring-controller` from `^25.5.0` to `^26.0.0` ([#XXXX](https://github.com/MetaMask/core/pull/XXXX))
 
 ## [7.4.0]
 
@@ -574,7 +580,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Initial release ([#5847](https://github.com/MetaMask/core/pull/5847))
   - Grouping accounts into 3 main categories: Entropy source, Snap ID, keyring types.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/account-tree-controller@7.4.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/account-tree-controller@7.5.0...HEAD
+[7.5.0]: https://github.com/MetaMask/core/compare/@metamask/account-tree-controller@7.4.0...@metamask/account-tree-controller@7.5.0
 [7.4.0]: https://github.com/MetaMask/core/compare/@metamask/account-tree-controller@7.3.0...@metamask/account-tree-controller@7.4.0
 [7.3.0]: https://github.com/MetaMask/core/compare/@metamask/account-tree-controller@7.2.0...@metamask/account-tree-controller@7.3.0
 [7.2.0]: https://github.com/MetaMask/core/compare/@metamask/account-tree-controller@7.1.0...@metamask/account-tree-controller@7.2.0
