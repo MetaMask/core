@@ -482,7 +482,8 @@ describe('submitServerQuotes', () => {
       await submitServerQuotes(buildNonGaslessRequest());
 
       const sourceHashUpdate = updateTransactionMock.mock.calls.find(
-        ([, note]) => note === 'Add source hash from server transaction submission',
+        ([, note]) =>
+          note === 'Add source hash from server transaction submission',
       );
       expect(sourceHashUpdate).toBeDefined();
       expect(sourceHashUpdate?.[0]).toStrictEqual(
@@ -500,7 +501,8 @@ describe('submitServerQuotes', () => {
       await submitServerQuotes(buildNonGaslessRequest());
 
       const sourceHashUpdate = updateTransactionMock.mock.calls.find(
-        ([, note]) => note === 'Add source hash from server transaction submission',
+        ([, note]) =>
+          note === 'Add source hash from server transaction submission',
       );
       expect(sourceHashUpdate).toBeUndefined();
     });

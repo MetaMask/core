@@ -13,11 +13,11 @@ import {
   getSlippage,
   isEIP7702Chain,
 } from '../../utils/feature-flags';
+import { calculateGasCost } from '../../utils/gas';
 import {
   getGasStationCostInSourceTokenRaw,
   getGasStationEligibility,
 } from '../../utils/gas-station';
-import { calculateGasCost } from '../../utils/gas';
 import { estimateQuoteGasLimits } from '../../utils/quote-gas';
 import { getNativeToken, getTokenBalance } from '../../utils/token';
 import { fetchServerQuote } from './server-api';
@@ -138,7 +138,9 @@ describe('server-quotes', () => {
     jest.mocked(getFeatureFlags).mockReturnValue({
       relayFallbackGas: '0x5208',
     } as never);
-    jest.mocked(getNativeToken).mockReturnValue('0x0000000000000000000000000000000000000000' as never);
+    jest
+      .mocked(getNativeToken)
+      .mockReturnValue('0x0000000000000000000000000000000000000000' as never);
     jest.mocked(getTokenBalance).mockReturnValue('0');
     jest.mocked(calculateGasCost).mockReturnValue({
       fiat: '0',
@@ -154,9 +156,9 @@ describe('server-quotes', () => {
       chainSupportsGasStation: false,
       isDisabledChain: false,
     } as never);
-    jest.mocked(getGasStationCostInSourceTokenRaw).mockResolvedValue(
-      undefined as never,
-    );
+    jest
+      .mocked(getGasStationCostInSourceTokenRaw)
+      .mockResolvedValue(undefined as never);
   });
 
   it('maps standard transactions to EXPECTED_OUTPUT quote requests with relay provider', async () => {
@@ -576,9 +578,9 @@ describe('server-quotes', () => {
 
     it('returns estimate and max when gas station cost is unavailable', async () => {
       jest.mocked(getTokenBalance).mockReturnValue('0');
-      jest.mocked(getGasStationCostInSourceTokenRaw).mockResolvedValue(
-        undefined as never,
-      );
+      jest
+        .mocked(getGasStationCostInSourceTokenRaw)
+        .mockResolvedValue(undefined as never);
 
       const result = await getServerQuotes({
         accountSupports7702: true,
