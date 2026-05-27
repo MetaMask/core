@@ -107,10 +107,7 @@ describe('server-api', () => {
     it('returns the parsed response', async () => {
       mockOkResponse(QUOTE_RESPONSE_MOCK);
 
-      const result = await fetchServerQuote(
-        MESSENGER_MOCK,
-        QUOTE_REQUEST_MOCK,
-      );
+      const result = await fetchServerQuote(MESSENGER_MOCK, QUOTE_REQUEST_MOCK);
 
       expect(result).toStrictEqual(QUOTE_RESPONSE_MOCK);
     });

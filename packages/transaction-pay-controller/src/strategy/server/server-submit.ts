@@ -357,9 +357,7 @@ async function waitForServerCompletion(
         statusResponse.status === ServerStatus.Failed ||
         statusResponse.status === ServerStatus.Refunded
       ) {
-        throw new Error(
-          `Server intent ${statusResponse.status.toLowerCase()}`,
-        );
+        throw new Error(`Server intent ${statusResponse.status.toLowerCase()}`);
       }
     }
 

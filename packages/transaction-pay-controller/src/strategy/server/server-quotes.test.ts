@@ -107,9 +107,7 @@ const DELEGATION_RESULT_MOCK = {
 
 describe('server-quotes', () => {
   const fetchServerQuoteMock = jest.mocked(fetchServerQuote);
-  const getServerProviderPriorityMock = jest.mocked(
-    getServerProviderPriority,
-  );
+  const getServerProviderPriorityMock = jest.mocked(getServerProviderPriority);
   const getSlippageMock = jest.mocked(getSlippage);
   const isEIP7702ChainMock = jest.mocked(isEIP7702Chain);
   const { getDelegationTransactionMock, messenger } = getMessengerMock();
@@ -363,7 +361,10 @@ describe('server-quotes', () => {
   it('passes gasless through to the normalized quote', async () => {
     fetchServerQuoteMock.mockResolvedValue({
       results: [
-        { ...FULFILLED_RESULT_MOCK, quote: { ...FULFILLED_RESULT_MOCK.quote, gasless: true } },
+        {
+          ...FULFILLED_RESULT_MOCK,
+          quote: { ...FULFILLED_RESULT_MOCK.quote, gasless: true },
+        },
       ],
     });
 

@@ -79,7 +79,10 @@ export async function getServerStatus(
   params: { provider: ServerProviderName; id: string; hash?: string },
 ): Promise<ServerStatusResponse> {
   const { server } = getPayStrategiesConfig(messenger);
-  const query = new URLSearchParams({ provider: params.provider, id: params.id });
+  const query = new URLSearchParams({
+    provider: params.provider,
+    id: params.id,
+  });
   if (params.hash) {
     query.set('hash', params.hash);
   }
@@ -102,10 +105,7 @@ export async function getServerStatus(
  * @param init - Fetch init options.
  * @returns The successful response.
  */
-async function serverFetch(
-  url: string,
-  init?: RequestInit,
-): Promise<Response> {
+async function serverFetch(url: string, init?: RequestInit): Promise<Response> {
   const response = await fetch(url, init);
 
   if (!response.ok) {

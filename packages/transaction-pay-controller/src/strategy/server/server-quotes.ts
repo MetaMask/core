@@ -28,7 +28,7 @@ import {
 import { estimateQuoteGasLimits } from '../../utils/quote-gas';
 import type { QuoteGasTransaction } from '../../utils/quote-gas';
 import { getNativeToken, getTokenBalance } from '../../utils/token';
-import { fetchServerQuote } from "./server-api";
+import { fetchServerQuote } from './server-api';
 import { normalizeServerPerpsRequest } from './perps';
 import type {
   ServerQuote,

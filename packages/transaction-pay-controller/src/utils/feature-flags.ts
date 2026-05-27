@@ -520,9 +520,7 @@ export function getPayStrategiesConfig(
     },
   };
 
-  const validProviderNames = new Set<string>(
-    Object.values(ServerProviderName),
-  );
+  const validProviderNames = new Set<string>(Object.values(ServerProviderName));
   const rawPriority = serverRaw.providerPriority ?? [];
   const normalizedPriority = [
     ...new Set(
