@@ -433,12 +433,14 @@ async function getNativeTransferAmount(
   walletAddress: Hex,
 ): Promise<string | undefined> {
   try {
-    const trace = await rpcRequest(messenger, chainId, 'debug_traceTransaction', [
-      txHash,
-      { tracer: 'callTracer' },
-    ]);
+    const trace = await rpcRequest<CallTrace>({
+      messenger,
+      chainId,
+      method: 'debug_traceTransaction',
+      params: [txHash, { tracer: 'callTracer' }],
+    });
 
-    const amount = sumNativeValueFromTrace(trace as CallTrace, walletAddress);
+    const amount = sumNativeValueFromTrace(trace, walletAddress);
     if (amount.gt(0)) {
       return amount.toFixed(0);
     }
@@ -446,10 +448,12 @@ async function getNativeTransferAmount(
     // debug_traceTransaction not supported — fall through to tx.value
   }
 
-  const tx = await rpcRequest(messenger, chainId, 'eth_getTransactionByHash', [txHash]) as {
-    to?: string;
-    value: string;
-  } | null;
+  const tx = await rpcRequest<{ to?: string; value: string } | null>({
+    messenger,
+    chainId,
+    method: 'eth_getTransactionByHash',
+    params: [txHash],
+  });
 
   if (!tx) {
     return undefined;
@@ -480,9 +484,14 @@ async function getErc20TransferAmount(
   tokenAddress: Hex,
   walletAddress: Hex,
 ): Promise<string | undefined> {
-  const receipt = await rpcRequest(messenger, chainId, 'eth_getTransactionReceipt', [txHash]) as {
+  const receipt = await rpcRequest<{
     logs: { address: string; topics: string[]; data: string }[];
-  } | null;
+  } | null>({
+    messenger,
+    chainId,
+    method: 'eth_getTransactionReceipt',
+    params: [txHash],
+  });
 
   if (!receipt) {
     return undefined;

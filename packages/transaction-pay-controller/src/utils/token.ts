@@ -327,30 +327,30 @@ export async function getLiveTokenBalance(
     tokenAddress.toLowerCase() === getNativeToken(chainId).toLowerCase();
 
   if (isNative) {
-    const result = await rpcRequest(
+    const result = await rpcRequest<string>({
       messenger,
       chainId,
-      'eth_getBalance',
-      [account, 'pending'],
+      method: 'eth_getBalance',
+      params: [account, 'pending'],
       options,
-    );
+    });
 
-    return new BigNumber(result as string, 16).toString(10);
+    return new BigNumber(result, 16).toString(10);
   }
 
   const calldata = new Interface(abiERC20).encodeFunctionData('balanceOf', [
     account,
   ]) as Hex;
 
-  const result = await rpcRequest(
+  const result = await rpcRequest<string>({
     messenger,
     chainId,
-    'eth_call',
-    [{ to: tokenAddress, data: calldata }, 'pending'],
+    method: 'eth_call',
+    params: [{ to: tokenAddress, data: calldata }, 'pending'],
     options,
-  );
+  });
 
-  return new BigNumber(result as string, 16).toString(10);
+  return new BigNumber(result, 16).toString(10);
 }
 
 /**

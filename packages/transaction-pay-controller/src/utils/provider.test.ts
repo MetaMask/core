@@ -118,9 +118,12 @@ describe('provider utils', () => {
         provider: { request: requestMock },
       } as never);
 
-      const result = await rpcRequest(messenger, CHAIN_ID_MOCK, 'eth_chainId', [
-        'latest',
-      ]);
+      const result = await rpcRequest({
+        messenger,
+        chainId: CHAIN_ID_MOCK,
+        method: 'eth_chainId',
+        params: ['latest'],
+      });
 
       expect(result).toBe('0xabc');
       expect(requestMock).toHaveBeenCalledWith({
@@ -135,7 +138,7 @@ describe('provider utils', () => {
         provider: { request: requestMock },
       } as never);
 
-      await rpcRequest(messenger, CHAIN_ID_MOCK, 'eth_blockNumber');
+      await rpcRequest({ messenger, chainId: CHAIN_ID_MOCK, method: 'eth_blockNumber' });
 
       expect(requestMock).toHaveBeenCalledWith({
         method: 'eth_blockNumber',
@@ -151,7 +154,7 @@ describe('provider utils', () => {
       } as never);
 
       await expect(
-        rpcRequest(messenger, CHAIN_ID_MOCK, 'eth_blockNumber'),
+        rpcRequest({ messenger, chainId: CHAIN_ID_MOCK, method: 'eth_blockNumber' }),
       ).rejects.toBe(error);
     });
 
@@ -170,13 +173,13 @@ describe('provider utils', () => {
         provider: { request: requestMock },
       } as never);
 
-      await rpcRequest(
+      await rpcRequest({
         messenger,
-        CHAIN_ID_MOCK,
-        'eth_chainId',
-        [],
-        { preferInfura: true },
-      );
+        chainId: CHAIN_ID_MOCK,
+        method: 'eth_chainId',
+        params: [],
+        options: { preferInfura: true },
+      });
 
       expect(getNetworkClientByIdMock).toHaveBeenCalledWith(
         INFURA_NETWORK_CLIENT_ID_MOCK,

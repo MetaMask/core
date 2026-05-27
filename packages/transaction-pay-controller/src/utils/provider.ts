@@ -23,6 +23,22 @@ export type GetNetworkClientIdOptions = {
 };
 
 /**
+ * Parameters for {@link rpcRequest}.
+ */
+export type RpcRequestParams = {
+  /** The TransactionPayController messenger. */
+  messenger: TransactionPayControllerMessenger;
+  /** The chain ID to resolve. */
+  chainId: Hex;
+  /** The JSON-RPC method name. */
+  method: string;
+  /** Optional parameters for the RPC call. */
+  params?: ProviderRequestParams;
+  /** Resolution options forwarded to {@link getNetworkClientId}. */
+  options?: GetNetworkClientIdOptions;
+};
+
+/**
  * Resolve the network client ID for a chain.
  *
  * When `preferInfura` is true the method tries to locate an Infura endpoint
@@ -69,20 +85,16 @@ export function getNetworkClientId(
 /**
  * Send an RPC request to the network for the specified chain.
  *
- * @param messenger - The TransactionPayController messenger.
- * @param chainId - The chain ID to resolve.
- * @param method - The JSON-RPC method name.
- * @param params - Optional parameters for the RPC call.
- * @param options - Resolution options (forwarded to {@link getNetworkClientId}).
- * @returns The RPC response.
+ * @param request - Request parameters.
+ * @returns The RPC response typed as `T`.
  */
-export async function rpcRequest(
-  messenger: TransactionPayControllerMessenger,
-  chainId: Hex,
-  method: string,
-  params?: ProviderRequestParams,
-  options?: GetNetworkClientIdOptions,
-): Promise<unknown> {
+export async function rpcRequest<T = unknown>({
+  messenger,
+  chainId,
+  method,
+  params,
+  options,
+}: RpcRequestParams): Promise<T> {
   const networkClientId = getNetworkClientId(messenger, chainId, options);
 
   const { provider } = messenger.call(
@@ -94,5 +106,5 @@ export async function rpcRequest(
 
   log(method, { params, response });
 
-  return response;
+  return response as T;
 }
