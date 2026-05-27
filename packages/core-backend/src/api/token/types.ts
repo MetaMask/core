@@ -26,6 +26,64 @@ export type V1TokenDescriptionResponse = {
 };
 
 // ============================================================================
+// TOKEN SEARCH TYPES
+// ============================================================================
+
+/**
+ * A single token returned by the Token API search endpoint.
+ */
+export type TokenSearchResult = {
+  /** CAIP-19 asset ID, e.g. "eip155:1/erc20:0x...". */
+  assetId: string;
+  /** Asset display name. */
+  name: string;
+  /** Asset symbol. */
+  symbol: string;
+  /** Decimal places. */
+  decimals: number;
+  /** Optional icon URL. */
+  iconUrl?: string;
+  /** Asset labels/tags, e.g. "stable_coin". */
+  labels?: string[];
+  /** Optional security data when requested with includeTokenSecurityData. */
+  securityData?: TokenSecurityData;
+};
+
+/**
+ * Cursor-based page information returned by the Token API search endpoint.
+ */
+export type TokenSearchPageInfo = {
+  hasNextPage: boolean;
+  endCursor: string;
+};
+
+/**
+ * Raw response payload from the Token API search endpoint.
+ */
+export type TokenSearchResponse = {
+  data: TokenSearchResult[];
+  count: number;
+  totalCount: number;
+  pageInfo: TokenSearchPageInfo;
+};
+
+/**
+ * Query options for the Token API search endpoint.
+ */
+export type TokenSearchQueryOptions = {
+  /** User-provided query string, such as a token symbol, name, or address. */
+  query: string;
+  /** CAIP-2 chain IDs to constrain the search to. */
+  networks?: string[];
+  /** Maximum number of results to return. */
+  first?: number;
+  /** Cursor returned by a previous response for paging. */
+  after?: string;
+  /** Whether to include token security data in each result. */
+  includeTokenSecurityData?: boolean;
+};
+
+// ============================================================================
 // NETWORK TYPES
 // ============================================================================
 
