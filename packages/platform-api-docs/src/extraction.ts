@@ -707,8 +707,11 @@ function tryToExtractFromMessengerCapabilityTypeLiteral(
 
   // For actions, if the handler resolves to a class method (e.g.
   // `FooController['method']`), inherit its signature plus any JSDoc fields the
-  // type alias itself doesn't already provide.
-  // TODO: We don't want to do this.
+  // type alias itself doesn't already provide. This is what surfaces rich
+  // Parameters tables for controllers that use the bulk-registration helper —
+  // the auto-generated `*-method-action-types.ts` aliases reference class
+  // methods without restating the JSDoc, so without this inheritance the
+  // rendered action pages would have an empty `Parameters` section.
   if (kind === 'action') {
     const resolvedMethod = resolveIndexedAccessMethod(
       handlerOrPayloadPropertyTypeNode,
