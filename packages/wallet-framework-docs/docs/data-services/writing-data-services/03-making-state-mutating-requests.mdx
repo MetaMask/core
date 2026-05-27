@@ -1,9 +1,23 @@
+import CodeBlock from '@theme/CodeBlock';
+import ordersService2 from "!!raw-loader!./02-making-requests/orders-service.ts";
+import ordersServiceMethodActionTypes2 from "!!raw-loader!./02-making-requests/orders-service-method-action-types.ts";
+import ordersServiceTest2 from "!!raw-loader!./02-making-requests/orders-service.test.ts";
+
 # Writing a Data Service, Part 3: Making State-Mutating Requests
 
-In [part 1](./01-getting-started.md) and [part 2](./02-making-requests.md) of this tutorial we've created a service class that handles the following API:
+In [part 1](./01-getting-started.mdx) and [part 2](./02-making-requests.mdx) of this tutorial we've created a service class that handles the following API:
 
 - **GET `/v1/orders`**: Retrieve a paginated list of orders, limited to 100 at a time (latest first by default).
 - **GET `/v1/orders/:id`**: Retrieve data about an order.
+
+Here's what we have so far:
+
+<details>
+  <summary>View code</summary>
+  <CodeBlock language="typescript" title="packages/orders-service/src/orders-service.ts">{ordersService2}</CodeBlock>
+  <CodeBlock language="typescript" title="packages/orders-service/src/orders-service-method-action-types.ts">{ordersServiceMethodActionTypes2}</CodeBlock>
+  <CodeBlock language="typescript" title="packages/orders-service/src/orders-service.test.ts">{ordersServiceTest2}</CodeBlock>
+</details>
 
 Let's say that our API now allows us to place and cancel orders as needed. Now we have the following operations:
 
@@ -37,7 +51,7 @@ Now we'll add a new method. <!-- Note that whereas we used `fetchQuery` to make 
 
 - We pass `method` and `body` to the `fetch` function.
 - We pass a `staleTime` of 0 to `fetchQuery`. This instructs TanStack Query not to cache these kinds of requests.
-- We reuse `FetchOrderResponse` and `FetchOrderResponseStruct`, which we [previously defined for `fetchOrder`](./02-making-requests.md#handling-the-response).
+- We reuse `FetchOrderResponse` and `FetchOrderResponseStruct`, which we [previously defined for `fetchOrder`](./02-making-requests.mdx#handling-the-response).
 
 ```typescript title="packages/orders-service/src/orders-service.ts"
 export class OrdersService extends BaseDataService</* ... */> {
@@ -668,4 +682,4 @@ What else might we want to add to our data service? In the next section we'll di
 
 ---
 
-Continue to [**Part 4: Real-Time Updates**](./04-real-time-updates.md) →
+Continue to [**Part 4: Real-Time Updates**](./04-real-time-updates.mdx) →

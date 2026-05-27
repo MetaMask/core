@@ -1,3 +1,7 @@
 :root {
   --doc-sidebar-width: 400px !important;
 }
+
+.prism-code {
+  max-height: 600px;
+}

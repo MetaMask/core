@@ -8,6 +8,7 @@ import type {
 import nock from 'nock';
 
 import type {
+  CreateOrderParams,
   FetchOrderResponse,
   FetchOrdersResponse,
   OrdersServiceMessenger,
@@ -43,19 +44,23 @@ const MOCK_VALID_ORDERS_RESPONSE_DATA = {
   ],
 } satisfies FetchOrdersResponse;
 
+const MOCK_ORDER = {
+  details: {
+    amount: '0xde0b6b3a7640000',
+  },
+  from: 'eip155:1:0xab16a96D359eC26a11e2C2b3d8f8B8942d5Bfcdb',
+  objectId: 'eip155:1/erc721:0x06012c8cf97BEaD5deAe237070F9587f8E7A266d',
+  to: 'bip122:000000000019d6689c085ae165831e93:128Lkh3S7CkDTBZ8W7BbpsN3YYizJMp8p6',
+  type: 'token',
+} satisfies CreateOrderParams;
+
 const MOCK_VALID_ORDER_RESPONSE_DATA = {
   order: {
-    createdTime: 1747526400,
-    details: {
-      amount: '0xde0b6b3a7640000',
-    },
-    from: 'eip155:1:0xab16a96D359eC26a11e2C2b3d8f8B8942d5Bfcdb',
-    objectId: 'eip155:1/erc721:0x06012c8cf97BEaD5deAe237070F9587f8E7A266d',
+    ...MOCK_ORDER,
     orderId: '0000000000000000001',
-    status: 'pending',
-    to: 'bip122:000000000019d6689c085ae165831e93:128Lkh3S7CkDTBZ8W7BbpsN3YYizJMp8p6',
-    type: 'token',
+    createdTime: 1747526400,
     updatedTime: 1747526400,
+    status: 'pending',
   },
 } satisfies FetchOrderResponse;
 
@@ -340,6 +345,140 @@ describe('OrdersService', () => {
       const { service } = createService();
 
       const responseData = await service.fetchOrder('AAAA-BBBB-CCCC-DDDD');
+
+      expect(responseData).toStrictEqual(MOCK_VALID_ORDER_RESPONSE_DATA);
+    });
+  });
+
+  describe('OrdersService:createOrder', () => {
+    it('creates an order', async () => {
+      nock('https://api.example.com')
+        .post('/v1/orders')
+        .reply(200, MOCK_VALID_ORDER_RESPONSE_DATA);
+      const { rootMessenger } = createService();
+
+      const responseData = await rootMessenger.call(
+        'OrdersService:createOrder',
+        MOCK_ORDER,
+      );
+
+      expect(responseData).toStrictEqual(MOCK_VALID_ORDER_RESPONSE_DATA);
+    });
+
+    it('throws if the API returns a non-200 status', async () => {
+      nock('https://api.example.com')
+        .post('/v1/orders')
+        .times(DEFAULT_MAX_RETRIES + 1)
+        .reply(500);
+      const { rootMessenger } = createService();
+
+      await expect(
+        rootMessenger.call('OrdersService:createOrder', MOCK_ORDER),
+      ).rejects.toThrow("Orders API failed with status '500'");
+    });
+
+    it.each([
+      'not an object',
+      { missing: 'order' },
+      { order: 'not an array' },
+      { order: ['not an object'] },
+      {
+        order: {
+          ...MOCK_VALID_ORDER_RESPONSE_DATA.order,
+          createdTime: 'not a timestamp',
+        },
+      },
+      {
+        order: {
+          ...MOCK_VALID_ORDER_RESPONSE_DATA.order,
+          createdTime: 2 ** 53 - 1,
+        },
+      },
+      {
+        order: {
+          ...MOCK_VALID_ORDER_RESPONSE_DATA.order,
+          details: 'not an object',
+        },
+      },
+      {
+        order: {
+          ...MOCK_VALID_ORDER_RESPONSE_DATA.order,
+          from: 'not a CAIP account ID',
+        },
+      },
+      {
+        order: {
+          ...MOCK_VALID_ORDER_RESPONSE_DATA.order,
+          orderId: {
+            not: 'a string',
+          },
+        },
+      },
+      {
+        order: {
+          ...MOCK_VALID_ORDER_RESPONSE_DATA.order,
+          status: 'not a valid status',
+        },
+      },
+      {
+        order: {
+          ...MOCK_VALID_ORDER_RESPONSE_DATA.order,
+          to: 'not a CAIP account ID',
+        },
+      },
+      {
+        order: {
+          ...MOCK_VALID_ORDER_RESPONSE_DATA.order,
+          updatedTime: 'not a timestamp',
+        },
+      },
+      {
+        order: {
+          ...MOCK_VALID_ORDER_RESPONSE_DATA.order,
+          objectId: 'not a CAIP asset type',
+        },
+      },
+      {
+        order: {
+          ...MOCK_VALID_ORDER_RESPONSE_DATA.order,
+          type: 'not a valid type',
+        },
+      },
+    ])(
+      'throws if the API returns a malformed response %o',
+      async (response) => {
+        nock('https://api.example.com')
+          .post('/v1/orders')
+          .reply(200, JSON.stringify(response));
+        const { rootMessenger } = createService();
+
+        await expect(
+          rootMessenger.call('OrdersService:createOrder', MOCK_ORDER),
+        ).rejects.toThrow('Malformed response received from Orders API');
+      },
+    );
+
+    it('does not cache requests', async () => {
+      const scope = nock('https://api.example.com')
+        .post('/v1/orders')
+        .times(2)
+        .reply(200, MOCK_VALID_ORDER_RESPONSE_DATA);
+      const { rootMessenger } = createService();
+
+      await rootMessenger.call('OrdersService:createOrder', MOCK_ORDER);
+      await rootMessenger.call('OrdersService:createOrder', MOCK_ORDER);
+      expect(scope.isDone()).toBe(true);
+    });
+  });
+
+  describe('createOrder', () => {
+    it('requests an order from the API, same as the method', async () => {
+      nock('https://api.example.com')
+        .post('/v1/orders')
+        .reply(200, MOCK_VALID_ORDER_RESPONSE_DATA);
+      const { service } = createService();
+
+      const responseData = await service.createOrder(MOCK_ORDER);
 
       expect(responseData).toStrictEqual(MOCK_VALID_ORDER_RESPONSE_DATA);
     });

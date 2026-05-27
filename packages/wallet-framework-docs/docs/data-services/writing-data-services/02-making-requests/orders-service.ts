@@ -26,7 +26,6 @@ import {
   CaipAccountIdStruct,
   CaipAssetIdStruct,
   CaipAssetTypeStruct,
-  StrictHexStruct,
 } from '@metamask/utils';
 import type { QueryClientConfig } from '@tanstack/query-core';
 
@@ -42,7 +41,7 @@ export const DATA_SERVICE_NAME = 'OrdersService';
  * All of the methods within {@link OrdersService} that are exposed via the
  * messenger.
  */
-const MESSENGER_EXPOSED_METHODS = ['fetchOrders'] as const;
+const MESSENGER_EXPOSED_METHODS = ['fetchOrders', 'fetchOrder'] as const;
 
 /**
  * Invalidates cached queries for {@link OrdersService}.
@@ -111,7 +110,7 @@ const TimestampStruct = refine(number(), 'timestamp', (value) => {
 /**
  * Struct to validate an order object that the Orders API returns.
  */
-const OrderStruct = intersection([
+const ResponseOrderStruct = intersection([
   // Need to list this first, otherwise the inferred type is never
   // See: <https://github.com/ianstormtaylor/superstruct/issues/1180>
   union([
@@ -140,11 +139,17 @@ const OrderStruct = intersection([
 ]);
 
 /**
+ * An order object that the Orders API returns.
+ */
+export type ResponseOrder = Infer<typeof ResponseOrderStruct>;
+
+/**
  * Struct to validate what `GET /v1/orders` returns.
  */
 const FetchOrdersResponseStruct = type({
-  orders: array(OrderStruct),
+  orders: array(ResponseOrderStruct),
 });
+
 /**
  * The data that `GET /v1/orders` returns.
  */
@@ -154,13 +159,13 @@ export type FetchOrdersResponse = Infer<typeof FetchOrdersResponseStruct>;
  * Struct to validate what `GET /v1/orders/:id` returns.
  */
 const FetchOrderResponseStruct = type({
-  order: OrderStruct,
+  order: ResponseOrderStruct,
 });
 
 /**
  * The data that `GET /v1/orders/:id` returns.
  */
-type FetchOrderResponse = Infer<typeof FetchOrderResponseStruct>;
+export type FetchOrderResponse = Infer<typeof FetchOrderResponseStruct>;
 
 /**
  * The base URL of the API that the service represents.
@@ -207,7 +212,7 @@ export class OrdersService extends BaseDataService<
   }
 
   /**
-   * Uses the API to retrieve orders.
+   * Retrieves orders.
    *
    * @param params - Parameters to qualify the request.
    * @param params.sortField - The field by which to sort the list of orders.
@@ -256,15 +261,13 @@ export class OrdersService extends BaseDataService<
   }
 
   /**
-   * Uses the API to retrieve details about an order.
+   * Retrieves details about an order.
    *
-   * @param params - Parameters to qualify the request.
-   * @param params.id - The order ID
-   * orders.
+   * @param id - The order ID.
    * @returns The requested order.
    */
-  async fetchOrder({ id }: { id?: string }): Promise<FetchOrderResponse> {
-    const url = new URL(`/v1/order/${id}`, BASE_URL);
+  async fetchOrder(id: string): Promise<FetchOrderResponse> {
+    const url = new URL(`/v1/orders/${id}`, BASE_URL);
 
     const responseData = await this.fetchQuery({
       queryKey: [`${this.name}:fetchOrder`, url.toString()],

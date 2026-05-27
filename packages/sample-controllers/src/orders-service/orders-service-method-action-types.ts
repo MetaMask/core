@@ -46,5 +46,4 @@ export type OrdersServiceCreateOrderAction = {
  */
 export type OrdersServiceMethodActions =
   | OrdersServiceFetchOrdersAction
-  | OrdersServiceFetchOrderAction
-  | OrdersServiceCreateOrderAction;
+  | OrdersServiceFetchOrderAction;
