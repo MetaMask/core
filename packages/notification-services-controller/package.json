@@ -109,7 +109,7 @@
     "@metamask/authenticated-user-storage": "^2.0.0",
     "@metamask/base-controller": "^9.1.0",
     "@metamask/controller-utils": "^12.1.0",
-    "@metamask/keyring-controller": "^25.5.0",
+    "@metamask/keyring-controller": "^26.0.0",
     "@metamask/messenger": "^1.2.0",
     "@metamask/profile-sync-controller": "^28.1.0",
     "@metamask/utils": "^11.9.0",
