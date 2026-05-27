@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **BREAKING:** Change `KeyringSelectorV2` type selectors for `withKeyringV2` and `withKeyringV2Unsafe` to use `KeyringType` (v2 variant) ([#TODO](https://github.com/MetaMask/core/pull/TODO))
+- **BREAKING:** Change `KeyringSelectorV2` type selectors for `withKeyringV2` and `withKeyringV2Unsafe` to use `KeyringType` (v2 variant) ([#8901](https://github.com/MetaMask/core/pull/8901))
   - Use values such as `KeyringType.Hd` instead of legacy `KeyringTypes.hd`.
 
 ## [25.5.0]
