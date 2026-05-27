@@ -14,7 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Create a history item for each STX trade in a batch, with the same batchId (key by `txMeta.id`)
   - Create a history item for each trade submitted through a 7702 batch (key by `quoteId`). These won't have a reference to the batchId, and will only include quote and fee data
   - Create a history item for the 7702 batch's delegation tx (key by `txMeta.id`). BatchSell delegation transactions include a list of `quoteIds` to associate the corresponding BatchSell trades with the delegation tx
-  - Expose `getHistoryItemsForTxHash` util that returns history items matching either a delegation tx hash or an STX hash
+  - Expose `getBatchSellHistoryItemsForTxHash` util that returns history items matching either a delegation tx hash or an STX hash
   - Expose `isBatchSellHistoryItem` util that returns whether a history item is a BatchSell operation
 
 ### Changed

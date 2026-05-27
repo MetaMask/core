@@ -117,7 +117,7 @@ export type RefuelStatusResponse = object & StatusResponse;
  */
 export type QuoteAndTxMetadata = {
   type: TransactionType;
-  quoteResponse: QuoteResponse & QuoteMetadata;
+  quoteResponse: QuoteResponse & Partial<QuoteMetadata>;
   /**
    * The approval or trade object from the quote response
    */
@@ -258,7 +258,10 @@ export type QuoteMetadataSerialized = {
 };
 
 export type StartPollingForBridgeTxStatusArgs = {
-  bridgeTxMeta?: Pick<TransactionMeta, 'id' | 'hash' | 'batchId'>;
+  bridgeTxMeta?: Pick<
+    TransactionMeta,
+    'id' | 'hash' | 'batchId' | 'batchTransactionsOptions'
+  >;
   actionId?: string;
   batchSellData?: BridgeHistoryItem['batchSellData'];
   quoteIds?: BridgeHistoryItem['quoteIds'];

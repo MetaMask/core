@@ -7,14 +7,19 @@ import {
 import {
   findAllTransactionsInBatch,
   getAddTransactionBatchParams,
+  hasNestedSwapTransactions,
   is7702Tx,
-  isApprovalTx,
+  isTradeTx,
   shouldDisable7702,
+  toQuoteAndTxMetadataBatch,
 } from '../utils/transaction';
 import { SubmitStep } from './types';
 import type { SubmitStrategyParams, SubmitStepResult } from './types';
-import { BatchSellTransactionType } from '@metamask/bridge-controller';
 import { QuoteAndTxMetadata } from '../types';
+
+const getHistoryKeyForQuote = ({
+  quoteResponse: { quoteId, quote },
+}: QuoteAndTxMetadata): string => quoteId ?? quote.requestId;
 
 /**
  * Submits batched EVM transactions to the TransactionController
@@ -34,68 +39,12 @@ export async function* submitBatchSellHandler(
     batchSellTrades,
   } = args;
 
-  const tradeData: QuoteAndTxMetadata[] = [];
+  const tradeData = toQuoteAndTxMetadataBatch({
+    quoteResponses,
+    batchSellTrades,
+  });
 
-  const {
-    transactions,
-    fee,
-    gasIncluded7702,
-    gasIncluded,
-    gasSponsored,
-    // Other properties passed by the backend will be directly passed to TransactionController:addTransactionBatch
-    ...rest
-  } = batchSellTrades;
-
-  // Build the trade+quote metadata array for the batch sell transaction
-  // This ties together the quote, the tx params and the txMeta after submission
-  for (const transaction of transactions) {
-    const { type, maxFeePerGas, maxPriorityFeePerGas, ...tx } = transaction;
-    // Match the trade or approval tx data with the quote response
-    const matchingQuoteResponse =
-      quoteResponses.find(
-        ({ approval, trade }) =>
-          trade?.data.toLowerCase() === tx.data.toLowerCase() ||
-          approval?.data.toLowerCase() === tx.data.toLowerCase(),
-      ) ?? quoteResponses[0];
-
-    // Include gasIncluded and gasIncluded7702 from the gasless batch
-    const normalizedQuote = {
-      ...matchingQuoteResponse,
-      quote: {
-        ...matchingQuoteResponse.quote,
-        gasIncluded,
-        gasIncluded7702,
-        gasSponsored: false,
-      },
-    };
-
-    const commonTradeData = {
-      tx,
-      quoteResponse: normalizedQuote,
-      txFee: { maxFeePerGas, maxPriorityFeePerGas },
-    };
-
-    if (type === BatchSellTransactionType.TRADE) {
-      tradeData.push({
-        ...commonTradeData,
-        type: TransactionType.swap,
-        assetsFiatValues: {
-          sending:
-            matchingQuoteResponse.sentAmount?.valueInCurrency?.toString(),
-          receiving:
-            matchingQuoteResponse.toTokenAmount?.valueInCurrency?.toString(),
-        },
-      });
-    } else {
-      tradeData.push({
-        ...commonTradeData,
-        type:
-          type === BatchSellTransactionType.APPROVAL
-            ? TransactionType.swapApproval
-            : TransactionType.tokenMethodTransfer,
-      });
-    }
-  }
+  const { gasIncluded7702, gasIncluded, gasSponsored } = batchSellTrades;
 
   const gasFeeToken = tradeData.find(
     ({ type }) => type === TransactionType.tokenMethodTransfer,
@@ -117,39 +66,41 @@ export async function* submitBatchSellHandler(
     isGasFeeIncluded: Boolean(gasIncluded7702),
     skipInitialGasEstimate: false,
     excludeNativeTokenForFee: Boolean(gasFeeToken),
-    // Properties provided by the obtainGaslessBatch response
-    ...rest,
   });
 
   // Submit the batch to the TransactionController
   const { batchId } = await addTransactionBatchFn(transactionParams);
 
-  const allTradesWithMetadata = findAllTransactionsInBatch({
+  // Find all batch transaction metas and add them to history
+  const allTradesInBatch = findAllTransactionsInBatch({
     messenger,
     batchId,
     tradeData,
-  });
-
-  // The first tradeMeta (will be either the delegation tx or the first STX swap in the batch)
-  const firstTradeWithMetadata = allTradesWithMetadata.find(
-    ({ type, txMeta }) => type === TransactionType.swap && txMeta,
+  }).filter(
+    (metadata): metadata is QuoteAndTxMetadata & { txMeta: TransactionMeta } =>
+      isTradeTx(metadata.type) && metadata.txMeta !== undefined,
   );
 
-  if (!firstTradeWithMetadata?.txMeta) {
+  // This is either the delegation tx or the first STX swap in the batch
+  const firstTradeWithMetadata = allTradesInBatch.find(
+    ({ txMeta }) =>
+      txMeta?.type &&
+      (isTradeTx(txMeta.type) || hasNestedSwapTransactions(txMeta)),
+  );
+  const firstTradeMeta = firstTradeWithMetadata?.txMeta;
+  if (!firstTradeMeta) {
     throw new Error(
-      'Failed to submit batch sell transaction:  tradeMeta not found',
+      'Failed to add BatchSell trade to history: txMeta not found',
     );
   }
 
-  const firstTradeMeta = firstTradeWithMetadata.txMeta;
+  // Nested/7702 batch
+  if (is7702Tx(firstTradeMeta) || hasNestedSwapTransactions(firstTradeMeta)) {
+    const quoteIds = Array.from(
+      new Set(allTradesInBatch.map(getHistoryKeyForQuote)),
+    );
 
-  if (is7702Tx(firstTradeMeta)) {
-    const getHistoryKeyForQuote = ({
-      quoteResponse: { quoteId, quote },
-    }: QuoteAndTxMetadata): string => quoteId ?? quote.requestId;
-    const quoteIds = allTradesWithMetadata.map(getHistoryKeyForQuote);
-
-    // Create 1 history item for the batch sell tx, keyed by the delegation tx's txMeta.id
+    // Create 1 history item for the parent tx, keyed by the txMeta.id
     yield {
       type: SubmitStep.AddHistoryItem,
       payload: {
@@ -160,12 +111,9 @@ export async function* submitBatchSellHandler(
         bridgeTxMeta: firstTradeMeta,
       },
     };
-    // Then create a new history item for each trade submitted via 7702, keyed by quoteId
-    for (const tradeWithMetadata of allTradesWithMetadata) {
-      const { txMeta, type, quoteResponse } = tradeWithMetadata;
-      if (isApprovalTx(type) || !txMeta) {
-        continue;
-      }
+    // Then create a new history item for each nested trade, keyed by quoteId/requestId
+    for (const tradeWithMetadata of allTradesInBatch) {
+      const { quoteResponse } = tradeWithMetadata;
 
       yield {
         type: SubmitStep.AddHistoryItem,
@@ -177,22 +125,15 @@ export async function* submitBatchSellHandler(
       };
     }
   } else {
-    // Assume that each trade has its own txMeta if it's not submitted via 7702
+    // Each trade has its own txMeta if not submitted via 7702
     // Create a new history item for each one, keyed by txMeta.id
-    let approvalTxMeta: TransactionMeta | undefined;
-    for (const tradeWithMetadata of allTradesWithMetadata) {
-      const { txMeta, type, quoteResponse } = tradeWithMetadata;
-      if (isApprovalTx(type) || !txMeta) {
-        approvalTxMeta = txMeta;
-        continue;
-      }
-
+    // Note that the approvalTxId is not tracked in history
+    for (const { txMeta, quoteResponse } of allTradesInBatch) {
       yield {
         type: SubmitStep.AddHistoryItem,
         payload: {
           historyKey: txMeta.id,
           quoteResponse,
-          approvalTxId: approvalTxMeta?.id,
           batchSellData: batchSellTrades,
           bridgeTxMeta: txMeta,
         },

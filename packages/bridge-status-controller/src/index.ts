@@ -41,6 +41,6 @@ export { BridgeId, BridgeStatusAction } from './types';
 export { BridgeStatusController } from './bridge-status-controller';
 
 export {
-  getHistoryItemsForTxHash,
+  getBatchSellHistoryItemsForTxHash,
   isBatchSellHistoryItem,
 } from './utils/history';

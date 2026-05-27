@@ -87,6 +87,7 @@ import {
   checkIsDelegatedAccount,
   isCrossChainTx,
   updateTransactionsInBatch,
+  hasNestedSwapTransactions,
 } from './utils/transaction';
 
 const metadata: StateMetadata<BridgeStatusControllerState> = {
@@ -319,8 +320,11 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       txHash: txMeta.hash,
     });
 
-    switch (txMeta.type) {
-      case TransactionType.swap:
+    const isSwap =
+      txMeta.type === TransactionType.swap || hasNestedSwapTransactions(txMeta);
+
+    switch (isSwap) {
+      case true:
         this.#updateHistoryItem({
           historyKey,
           status: StatusTypes.COMPLETE,
@@ -1057,14 +1061,14 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     accountAddress: string,
     maybeQuoteResponses:
       | (QuoteResponse<Trade, Trade> & QuoteMetadata)
-      | (QuoteResponse<Trade, Trade> & QuoteMetadata)[],
+      | QuoteResponse<Trade, Trade>[],
     isStxEnabled: boolean,
     quotesReceivedContext?: RequiredEventContextFromClient[UnifiedSwapBridgeEventName.QuotesReceived],
     location: MetaMetricsSwapsEventSource = MetaMetricsSwapsEventSource.MainView,
     abTests?: Record<string, string>,
     activeAbTests?: { key: string; value: string }[],
     tokenSecurityTypeDestination?: string | null,
-    batchSellTrades?: BatchSellTradesResponse,
+    batchSellTrades?: BatchSellTradesResponse | null,
   ): Promise<TransactionMeta> => {
     /**
      * If there are multiple quote responses, we assume that they all originate from the same src chain
@@ -1222,7 +1226,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
   };
 
   submitBatchSell = async (params: {
-    quoteResponses: ((QuoteResponse<Trade, Trade> & QuoteMetadata) | null)[];
+    quoteResponses: (QuoteResponse<Trade, Trade> | null)[];
     accountAddress: string;
     location?: MetaMetricsSwapsEventSource;
     abTests?: Record<string, string>;
@@ -1239,9 +1243,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     return await this.submitTx(
       params.accountAddress,
       params.quoteResponses.filter(
-        (
-          quoteResponse,
-        ): quoteResponse is QuoteResponse<Trade, Trade> & QuoteMetadata =>
+        (quoteResponse): quoteResponse is QuoteResponse<Trade, Trade> =>
           quoteResponse !== null,
       ),
       params.isStxEnabled ?? false,

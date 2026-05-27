@@ -24,10 +24,8 @@ export const stopPollingForQuotes = (
 
 export const getBatchSellTrades = (
   messenger: BridgeStatusControllerMessenger,
-): BatchSellTradesResponse | undefined => {
-  return (
-    messenger.call('BridgeController:getState').batchSellTrades ?? undefined
-  );
+): BatchSellTradesResponse | null => {
+  return messenger.call('BridgeController:getState').batchSellTrades;
 };
 
 export const trackMetricsEvent = ({

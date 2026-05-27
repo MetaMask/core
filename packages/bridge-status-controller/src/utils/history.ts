@@ -112,33 +112,50 @@ export const getMatchingHistoryEntryForApprovalTxMeta = (
 };
 
 /**
- * Returns the BatchSell history items for a given tx hash or batchId.
+ * Returns the BatchSell history items in the same batch as the provided tx hash.
  *
- * @param txHashOrBatchId - The tx hash of the STX transaction or the delegation tx for a 7702 batch, or the batchId
  * @param txHistory - The bridge status controller's history to search for matching history items
- * @returns The matching history items for the tx hash and a boolean indicating if it's a 7702 batch
+ * @param txHashOrId - the hash or txMeta.id of a single trade in a BatchSell
+ * @returns The matching history items for the tx hash and a boolean indicating if it's a 7702 batch.
+ * @example
+ * getBatchSellHistoryItemsForTxHash(txHistory, id)
+ * If id is the hash or txMetaId of a BatchSell trade, it will return the history items for
+ * the trade and all other trades in the same batch.
  */
-export const getHistoryItemsForTxHash = (
-  txHashOrBatchId: string,
+export const getBatchSellHistoryItemsForTxHash = (
   txHistory: BridgeStatusControllerState['txHistory'],
+  txHashOrId?: string,
 ): { historyItems: BridgeHistoryItem[]; is7702Batch: boolean } => {
   const historyItems = Object.values(txHistory);
 
+  if (!txHashOrId) {
+    return {
+      historyItems: [],
+      is7702Batch: false,
+    };
+  }
+
   /**
-   * Either a delegation tx or a list of STX BatchSell trades
+   * Either a delegation tx or a single STX BatchSell trade
    */
-  const matchingHistoryItems = historyItems.filter(
-    ({ status }) =>
-      status.srcChain.txHash?.toLowerCase() === txHashOrBatchId.toLowerCase(),
+  const parentHistoryItem = historyItems.find(
+    ({ status, txMetaId }) =>
+      status.srcChain.txHash?.toLowerCase() === txHashOrId.toLowerCase() ||
+      txMetaId === txHashOrId,
   );
-  const [historyItem] = matchingHistoryItems;
+
+  // Match by batchId or by quoteId
+  const matchingHistoryItems =
+    parentHistoryItem?.quoteIds?.map((quoteId) => txHistory[quoteId]) ??
+    historyItems.filter(
+      ({ batchId }) => batchId === parentHistoryItem?.batchId,
+    );
 
   return {
-    historyItems: (historyItem?.quoteIds?.length
-      ? historyItem.quoteIds.map((quoteId) => txHistory[quoteId])
-      : matchingHistoryItems
-    )?.filter((item) => item !== undefined),
-    is7702Batch: Boolean(historyItem?.quoteIds),
+    historyItems: matchingHistoryItems.filter((item) => item !== undefined),
+    is7702Batch:
+      Boolean(parentHistoryItem) &&
+      Boolean(parentHistoryItem?.quoteIds?.length),
   };
 };
 

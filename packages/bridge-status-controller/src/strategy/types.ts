@@ -40,7 +40,7 @@ export type SubmitStepResult =
         'approvalTxId' | 'bridgeTxMeta' | 'originalTransactionId' | 'actionId'
       > & {
         historyKey: string;
-        quoteResponse: QuoteResponse & QuoteMetadata;
+        quoteResponse: QuoteResponse & Partial<QuoteMetadata>;
         batchSellData?: BatchSellTradesResponse;
         quoteIds?: string[];
       };
@@ -89,9 +89,10 @@ export type SubmitStepResult =
  */
 export type SubmitStrategyParams<
   TradeType extends Trade = TxData,
-  BatchSellTradesResponseType extends BatchSellTradesResponse | undefined =
+  BatchSellTradesResponseType extends
     | BatchSellTradesResponse
-    | undefined,
+    | undefined
+    | null = BatchSellTradesResponse | undefined | null,
 > = {
   batchSellTrades: BatchSellTradesResponseType;
   addTransactionBatchFn: TransactionController['addTransactionBatch'];
@@ -99,7 +100,8 @@ export type SubmitStrategyParams<
   isDelegatedAccount: boolean;
   isStxEnabled: boolean;
   messenger: BridgeStatusControllerMessenger;
-  quoteResponses: (QuoteResponse<TradeType, TradeType> & QuoteMetadata)[];
+  quoteResponses: (QuoteResponse<TradeType, TradeType> &
+    Partial<QuoteMetadata>)[];
   requireApproval: boolean;
   selectedAccount: AccountsControllerState['internalAccounts']['accounts'][string];
   traceFn: TraceCallback;
