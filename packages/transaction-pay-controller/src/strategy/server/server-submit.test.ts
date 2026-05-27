@@ -186,6 +186,20 @@ describe('submitServerQuotes', () => {
     });
   });
 
+  it('omits authorizationList when delegation has no authorization entries', async () => {
+    getDelegationTransactionMock.mockResolvedValue({
+      ...DELEGATION_MOCK,
+      authorizationList: [],
+    });
+
+    await submitServerQuotes(request);
+
+    expect(submitServerIntentMock).toHaveBeenCalledWith(
+      messenger,
+      expect.not.objectContaining({ authorizationList: expect.anything() }),
+    );
+  });
+
   it('uses quote.request.from for the delegation transaction', async () => {
     await submitServerQuotes(request);
 
@@ -213,6 +227,14 @@ describe('submitServerQuotes', () => {
 
     await expect(submitServerQuotes(request)).rejects.toThrow(
       'Server submit failed: provider rejected',
+    );
+  });
+
+  it('falls back to unknown when submit response has no error message', async () => {
+    submitServerIntentMock.mockResolvedValue({ success: false });
+
+    await expect(submitServerQuotes(request)).rejects.toThrow(
+      'Server submit failed: unknown',
     );
   });
 
@@ -292,6 +314,22 @@ describe('submitServerQuotes', () => {
     dateNowMock.mockRestore();
   });
 
+  it('omits last status detail when polling times out before any status is received', async () => {
+    const dateNowMock = jest
+      .spyOn(Date, 'now')
+      .mockReturnValueOnce(100)
+      .mockReturnValueOnce(110);
+
+    getServerPollingTimeoutMock.mockReturnValue(5);
+    getServerStatusMock.mockRejectedValue(new Error('network error'));
+
+    await expect(submitServerQuotes(request)).rejects.toThrow(
+      /^Server polling timed out$/u,
+    );
+
+    dateNowMock.mockRestore();
+  });
+
   it('emits the source hash once when it appears in status', async () => {
     getServerStatusMock
       .mockResolvedValueOnce({
@@ -319,6 +357,16 @@ describe('submitServerQuotes', () => {
 
     expect(addTxMock).not.toHaveBeenCalled();
     expect(addTxBatchMock).not.toHaveBeenCalled();
+  });
+
+  it('continues polling when getServerStatus throws a network error', async () => {
+    getServerStatusMock
+      .mockRejectedValueOnce(new Error('network error'))
+      .mockResolvedValue({ status: ServerStatus.Confirmed });
+
+    await submitServerQuotes(request);
+
+    expect(getServerStatusMock).toHaveBeenCalledTimes(2);
   });
 
   describe('non-gasless fallback', () => {
@@ -428,6 +476,57 @@ describe('submitServerQuotes', () => {
       await expect(
         submitServerQuotes(buildNonGaslessRequest({ steps: [] })),
       ).rejects.toThrow('Server quote has no steps to submit');
+    });
+
+    it('records source hash onto transaction after non-gasless submission', async () => {
+      await submitServerQuotes(buildNonGaslessRequest());
+
+      const sourceHashUpdate = updateTransactionMock.mock.calls.find(
+        ([, note]) => note === 'Add source hash from server transaction submission',
+      );
+      expect(sourceHashUpdate).toBeDefined();
+      expect(sourceHashUpdate?.[0]).toStrictEqual(
+        expect.objectContaining({
+          metamaskPay: expect.objectContaining({
+            sourceHash: SUBMITTED_TX_HASH_MOCK,
+          }),
+        }),
+      );
+    });
+
+    it('skips source hash update when no transaction ids were collected', async () => {
+      collectTransactionIdsMock.mockImplementation(() => ({ end: jest.fn() }));
+
+      await submitServerQuotes(buildNonGaslessRequest());
+
+      const sourceHashUpdate = updateTransactionMock.mock.calls.find(
+        ([, note]) => note === 'Add source hash from server transaction submission',
+      );
+      expect(sourceHashUpdate).toBeUndefined();
+    });
+
+    it('includes gas fields in transaction params when step provides them', async () => {
+      await submitServerQuotes(
+        buildNonGaslessRequest({
+          steps: [
+            {
+              ...ORIGINAL_QUOTE_MOCK.steps[0],
+              gasLimit: '21000',
+              maxFeePerGas: '1000000000',
+              maxPriorityFeePerGas: '500000000',
+            },
+          ],
+        }),
+      );
+
+      expect(addTxMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          gas: expect.any(String),
+          maxFeePerGas: expect.any(String),
+          maxPriorityFeePerGas: expect.any(String),
+        }),
+        expect.anything(),
+      );
     });
   });
 });

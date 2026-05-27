@@ -8,21 +8,34 @@ import type {
   QuoteRequest,
 } from '../../types';
 import {
+  getFeatureFlags,
   getServerProviderPriority,
   getSlippage,
   isEIP7702Chain,
 } from '../../utils/feature-flags';
+import {
+  getGasStationCostInSourceTokenRaw,
+  getGasStationEligibility,
+} from '../../utils/gas-station';
+import { calculateGasCost } from '../../utils/gas';
+import { estimateQuoteGasLimits } from '../../utils/quote-gas';
+import { getNativeToken, getTokenBalance } from '../../utils/token';
 import { fetchServerQuote } from './server-api';
 import { getServerQuotes } from './server-quotes';
 import { ServerProviderName, ServerTradeType } from './types';
 
 jest.mock('../../utils/feature-flags', () => ({
   ...jest.requireActual('../../utils/feature-flags'),
+  getFeatureFlags: jest.fn(),
   getServerProviderPriority: jest.fn(),
   getSlippage: jest.fn(),
   isEIP7702Chain: jest.fn(),
 }));
 jest.mock('./server-api');
+jest.mock('../../utils/gas-station');
+jest.mock('../../utils/gas');
+jest.mock('../../utils/quote-gas');
+jest.mock('../../utils/token');
 
 const FROM_MOCK = '0x1234567890123456789012345678901234567891' as Hex;
 const SOURCE_TOKEN_ADDRESS_MOCK =
@@ -122,6 +135,28 @@ describe('server-quotes', () => {
     getServerProviderPriorityMock.mockReturnValue([ServerProviderName.Relay]);
     getSlippageMock.mockReturnValue(0.005);
     isEIP7702ChainMock.mockReturnValue(false);
+    jest.mocked(getFeatureFlags).mockReturnValue({
+      relayFallbackGas: '0x5208',
+    } as never);
+    jest.mocked(getNativeToken).mockReturnValue('0x0000000000000000000000000000000000000000' as never);
+    jest.mocked(getTokenBalance).mockReturnValue('0');
+    jest.mocked(calculateGasCost).mockReturnValue({
+      fiat: '0',
+      human: '0',
+      raw: '0',
+      usd: '0',
+    } as never);
+    jest.mocked(estimateQuoteGasLimits).mockResolvedValue({
+      totalGasEstimate: '0x5208',
+      totalGasLimit: '0x7530',
+    } as never);
+    jest.mocked(getGasStationEligibility).mockReturnValue({
+      chainSupportsGasStation: false,
+      isDisabledChain: false,
+    } as never);
+    jest.mocked(getGasStationCostInSourceTokenRaw).mockResolvedValue(
+      undefined as never,
+    );
   });
 
   it('maps standard transactions to EXPECTED_OUTPUT quote requests with relay provider', async () => {
@@ -183,6 +218,24 @@ describe('server-quotes', () => {
       undefined,
     );
     expect(getDelegationTransactionMock).not.toHaveBeenCalled();
+  });
+
+  it('decodes ERC-20 transfer calldata from a single nested transaction', async () => {
+    await getServerQuotes({
+      accountSupports7702: true,
+      messenger,
+      requests: [QUOTE_REQUEST_MOCK],
+      transaction: {
+        nestedTransactions: [{ data: TOKEN_TRANSFER_DATA_MOCK }],
+        txParams: {},
+      } as TransactionMeta,
+    });
+
+    expect(fetchServerQuoteMock).toHaveBeenCalledWith(
+      messenger,
+      expect.objectContaining({ recipient: TOKEN_TRANSFER_RECIPIENT_MOCK }),
+      undefined,
+    );
   });
 
   it('builds calls from delegation for complex non-transfer transactions', async () => {
@@ -437,5 +490,185 @@ describe('server-quotes', () => {
     });
 
     expect(fetchServerQuoteMock).toHaveBeenCalledTimes(2);
+  });
+
+  it('logs and returns empty array when fetchServerQuote throws', async () => {
+    fetchServerQuoteMock.mockRejectedValue(new Error('network error'));
+
+    const result = await getServerQuotes({
+      accountSupports7702: true,
+      messenger,
+      requests: [QUOTE_REQUEST_MOCK],
+      transaction: TRANSACTION_META_MOCK,
+    });
+
+    expect(result).toStrictEqual([]);
+  });
+
+  describe('non-gasless source network cost', () => {
+    const GAS_ESTIMATE_MOCK = {
+      fiat: '0',
+      human: '0.001',
+      raw: '1000000000000000',
+      usd: '0',
+    };
+
+    const NON_GASLESS_RESULT_MOCK = {
+      ...FULFILLED_RESULT_MOCK,
+      quote: {
+        ...FULFILLED_RESULT_MOCK.quote,
+        gasless: false,
+        steps: [
+          {
+            chainId: 1,
+            data: '0xdef' as Hex,
+            maxFeePerGas: '0x1',
+            maxPriorityFeePerGas: '0x1',
+            to: '0x4560000000000000000000000000000000000000' as Hex,
+            value: '0',
+          },
+        ],
+      },
+    };
+
+    beforeEach(() => {
+      jest.mocked(calculateGasCost).mockReturnValue(GAS_ESTIMATE_MOCK as never);
+      jest.mocked(getTokenBalance).mockReturnValue('999999999999999999999');
+      jest.mocked(getGasStationEligibility).mockReturnValue({
+        chainSupportsGasStation: true,
+        isDisabledChain: false,
+      } as never);
+      fetchServerQuoteMock.mockResolvedValue({
+        results: [NON_GASLESS_RESULT_MOCK],
+      });
+    });
+
+    it('returns gas cost estimate and max when native balance is sufficient', async () => {
+      jest.mocked(getTokenBalance).mockReturnValue('9999999999999999999999');
+
+      const result = await getServerQuotes({
+        accountSupports7702: true,
+        messenger,
+        requests: [QUOTE_REQUEST_MOCK],
+        transaction: TRANSACTION_META_MOCK,
+      });
+
+      expect(result[0].fees.sourceNetwork.estimate).toBe(GAS_ESTIMATE_MOCK);
+      expect(result[0].fees.sourceNetwork.max).toBe(GAS_ESTIMATE_MOCK);
+    });
+
+    it('returns estimate and max when gas station is not supported', async () => {
+      jest.mocked(getTokenBalance).mockReturnValue('0');
+      jest.mocked(getGasStationEligibility).mockReturnValue({
+        chainSupportsGasStation: false,
+        isDisabledChain: false,
+      } as never);
+
+      const result = await getServerQuotes({
+        accountSupports7702: true,
+        messenger,
+        requests: [QUOTE_REQUEST_MOCK],
+        transaction: TRANSACTION_META_MOCK,
+      });
+
+      expect(result[0].fees.sourceNetwork.estimate).toBe(GAS_ESTIMATE_MOCK);
+    });
+
+    it('returns estimate and max when gas station cost is unavailable', async () => {
+      jest.mocked(getTokenBalance).mockReturnValue('0');
+      jest.mocked(getGasStationCostInSourceTokenRaw).mockResolvedValue(
+        undefined as never,
+      );
+
+      const result = await getServerQuotes({
+        accountSupports7702: true,
+        messenger,
+        requests: [QUOTE_REQUEST_MOCK],
+        transaction: TRANSACTION_META_MOCK,
+      });
+
+      expect(result[0].fees.sourceNetwork.estimate).toBe(GAS_ESTIMATE_MOCK);
+    });
+
+    it('returns gas fee token cost when gas station provides a cost', async () => {
+      const GAS_FEE_TOKEN_COST = {
+        fiat: '0',
+        human: '0.5',
+        raw: '500000',
+        usd: '0',
+      };
+
+      jest.mocked(getTokenBalance).mockReturnValue('0');
+
+      jest
+        .mocked(getGasStationCostInSourceTokenRaw)
+        .mockResolvedValue(GAS_FEE_TOKEN_COST as never);
+
+      const result = await getServerQuotes({
+        accountSupports7702: true,
+        messenger,
+        requests: [QUOTE_REQUEST_MOCK],
+        transaction: TRANSACTION_META_MOCK,
+      });
+
+      expect(result[0].fees.sourceNetwork.estimate).toBe(GAS_FEE_TOKEN_COST);
+      expect(result[0].fees.isSourceGasFeeToken).toBe(true);
+    });
+
+    it('zeroes source network fees when steps array is empty', async () => {
+      fetchServerQuoteMock.mockResolvedValue({
+        results: [
+          {
+            ...NON_GASLESS_RESULT_MOCK,
+            quote: { ...NON_GASLESS_RESULT_MOCK.quote, steps: [] },
+          },
+        ],
+      });
+
+      const result = await getServerQuotes({
+        accountSupports7702: true,
+        messenger,
+        requests: [QUOTE_REQUEST_MOCK],
+        transaction: TRANSACTION_META_MOCK,
+      });
+
+      expect(result[0].fees.sourceNetwork.estimate).toStrictEqual({
+        fiat: '0',
+        human: '0',
+        raw: '0',
+        usd: '0',
+      });
+    });
+
+    it('falls back to zero when step does not include gas fee fields', async () => {
+      jest.mocked(getTokenBalance).mockReturnValue('0');
+      fetchServerQuoteMock.mockResolvedValue({
+        results: [
+          {
+            ...NON_GASLESS_RESULT_MOCK,
+            quote: {
+              ...NON_GASLESS_RESULT_MOCK.quote,
+              steps: [
+                {
+                  chainId: 1,
+                  data: '0xdef' as Hex,
+                  to: '0x4560000000000000000000000000000000000000' as Hex,
+                  value: '0',
+                },
+              ],
+            },
+          },
+        ],
+      });
+
+      const result = await getServerQuotes({
+        accountSupports7702: true,
+        messenger,
+        requests: [QUOTE_REQUEST_MOCK],
+        transaction: TRANSACTION_META_MOCK,
+      });
+
+      expect(result[0].fees.sourceNetwork.estimate).toBe(GAS_ESTIMATE_MOCK);
+    });
   });
 });

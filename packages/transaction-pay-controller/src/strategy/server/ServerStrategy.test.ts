@@ -103,5 +103,19 @@ describe('ServerStrategy', () => {
         }),
       ).rejects.toThrow('Server submit: boom');
     });
+
+    it('wraps non-Error throws using String()', async () => {
+      submitServerQuotesMock.mockRejectedValue('plain string error');
+
+      await expect(
+        new ServerStrategy().execute({
+          accountSupports7702: false,
+          isSmartTransaction: () => false,
+          quotes: [QUOTE_MOCK],
+          messenger: {} as TransactionPayControllerMessenger,
+          transaction: { txParams: { from: '0x1' } } as TransactionMeta,
+        }),
+      ).rejects.toThrow('Server submit: plain string error');
+    });
   });
 });
