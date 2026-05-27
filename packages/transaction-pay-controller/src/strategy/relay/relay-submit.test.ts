@@ -144,6 +144,7 @@ describe('Relay Submit Utils', () => {
   const {
     addTransactionMock,
     addTransactionBatchMock,
+    getControllerStateMock,
     getDelegationTransactionMock,
     findNetworkClientIdByChainIdMock,
     getPaymentOverrideDataMock,
@@ -863,11 +864,24 @@ describe('Relay Submit Utils', () => {
     });
 
     describe('paymentOverride flow', () => {
+      const TRANSACTION_DATA_MOCK = {
+        isLoading: false,
+        tokens: [],
+      };
+
       const PAYMENT_OVERRIDE_TX_MOCK: BatchTransactionParams = {
         to: '0xpaymentoverride' as Hex,
         data: '0xpaymentoverride' as Hex,
         value: '0x0' as Hex,
       };
+
+      beforeEach(() => {
+        getControllerStateMock.mockReturnValue({
+          transactionData: {
+            [ORIGINAL_TRANSACTION_ID_MOCK]: TRANSACTION_DATA_MOCK,
+          },
+        });
+      });
 
       it('prepends override tx params to submit batch', async () => {
         request.quotes[0].request.paymentOverride =
@@ -878,10 +892,11 @@ describe('Relay Submit Utils', () => {
 
         await submitRelayQuotes(request);
 
-        expect(getPaymentOverrideDataMock).toHaveBeenCalledWith(
-          request.transaction.id,
-          request.quotes[0].sourceAmount.human,
-        );
+        expect(getPaymentOverrideDataMock).toHaveBeenCalledWith({
+          amount: request.quotes[0].sourceAmount.human,
+          transaction: request.transaction,
+          transactionData: TRANSACTION_DATA_MOCK,
+        });
 
         const batchCall = addTransactionBatchMock.mock.calls[0][0];
         expect(batchCall.transactions[0].params).toStrictEqual(
@@ -972,7 +987,9 @@ describe('Relay Submit Utils', () => {
           },
         });
 
-        getPaymentOverrideDataMock.mockResolvedValue(PAYMENT_OVERRIDE_TX_MOCK);
+        getPaymentOverrideDataMock.mockResolvedValue([
+          PAYMENT_OVERRIDE_TX_MOCK,
+        ]);
 
         await submitRelayQuotes(request);
 

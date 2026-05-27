@@ -471,8 +471,10 @@ describe('TransactionPayController', () => {
 
   describe('getPaymentOverrideData', () => {
     it('delegates to the callback', async () => {
-      const txMock = { from: '0xabc', to: '0xdef' };
-      const getPaymentOverrideDataMock = jest.fn().mockResolvedValue(txMock);
+      const resultMock = [{ to: '0xdef' as const, data: '0xabc' as const }];
+      const getPaymentOverrideDataMock = jest
+        .fn()
+        .mockResolvedValue(resultMock);
 
       new TransactionPayController({
         getDelegationTransaction: jest.fn(),
@@ -480,20 +482,22 @@ describe('TransactionPayController', () => {
         messenger,
       });
 
+      const requestMock = {
+        amount: '1.5',
+        transaction: TRANSACTION_META_MOCK,
+        transactionData: { isLoading: false, tokens: [] },
+      };
+
       const result = await messenger.call(
         'TransactionPayController:getPaymentOverrideData',
-        TRANSACTION_ID_MOCK,
-        '1.5',
+        requestMock,
       );
 
-      expect(getPaymentOverrideDataMock).toHaveBeenCalledWith(
-        TRANSACTION_ID_MOCK,
-        '1.5',
-      );
-      expect(result).toStrictEqual(txMock);
+      expect(getPaymentOverrideDataMock).toHaveBeenCalledWith(requestMock);
+      expect(result).toStrictEqual(resultMock);
     });
 
-    it('returns undefined when no callback is configured', async () => {
+    it('returns empty array when no callback is configured', async () => {
       new TransactionPayController({
         getDelegationTransaction: jest.fn(),
         messenger,
@@ -501,11 +505,14 @@ describe('TransactionPayController', () => {
 
       const result = await messenger.call(
         'TransactionPayController:getPaymentOverrideData',
-        TRANSACTION_ID_MOCK,
-        '1.5',
+        {
+          amount: '1.5',
+          transaction: TRANSACTION_META_MOCK,
+          transactionData: { isLoading: false, tokens: [] },
+        },
       );
 
-      expect(result).toBeUndefined();
+      expect(result).toStrictEqual([]);
     });
   });
 

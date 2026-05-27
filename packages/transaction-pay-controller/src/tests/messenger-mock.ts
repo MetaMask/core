@@ -123,7 +123,7 @@ export function getMessengerMock({
 
   const getPaymentOverrideDataMock: jest.MockedFn<
     TransactionPayControllerGetPaymentOverrideDataAction['handler']
-  > = jest.fn().mockResolvedValue(undefined);
+  > = jest.fn().mockResolvedValue([]);
 
   const polymarketGetDepositWalletAddressMock: jest.MockedFn<
     TransactionPayControllerPolymarketGetDepositWalletAddressAction['handler']
