@@ -15,7 +15,10 @@ import type {
   EthUserOperationPatch,
   KeyringAccount,
 } from '@metamask/keyring-api';
-import type { Keyring as KeyringV2 } from '@metamask/keyring-api/v2';
+import type {
+  Keyring as KeyringV2,
+  KeyringType,
+} from '@metamask/keyring-api/v2';
 import type { EthKeyring } from '@metamask/keyring-internal-api';
 import type { Keyring, KeyringClass } from '@metamask/keyring-utils';
 import type { Messenger } from '@metamask/messenger';
@@ -526,7 +529,7 @@ export type KeyringSelector<SelectedKeyring extends EthKeyring = EthKeyring> =
  */
 export type KeyringSelectorV2<SelectedKeyring extends KeyringV2 = KeyringV2> =
   | {
-      type: string;
+      type: `${KeyringType}`;
       index?: number;
     }
   | {
@@ -1217,12 +1220,27 @@ export class KeyringController<
    */
   getKeyringsByType(type: KeyringTypes | string): unknown[] {
     this.#assertIsUnlocked();
-    return this.#getKeyringEntriesByType(type).map(({ keyring }) => keyring);
+    return this.#getKeyringEntriesByType({ v2: false, type }).map(
+      ({ keyring }) => keyring,
+    );
   }
 
-  #getKeyringEntriesByType(type: KeyringTypes | string): KeyringEntry[] {
+  #getKeyringEntriesByType({
+    v2,
+    type,
+  }:
+    | {
+        v2: false;
+        type: KeyringTypes | string;
+      }
+    | {
+        v2: true;
+        type: `${KeyringType}`;
+      }): KeyringEntry[] {
     this.#assertIsUnlocked();
-    return this.#keyrings.filter(({ keyring }) => keyring.type === type);
+    return this.#keyrings.filter(({ keyring, keyringV2 }) =>
+      v2 ? keyringV2?.type === type : keyring.type === type,
+    );
   }
 
   /**
@@ -2270,7 +2288,10 @@ export class KeyringController<
     if ('address' in selector) {
       entry = await this.#getKeyringEntryForAccount(selector.address);
     } else if ('type' in selector) {
-      entry = this.#getKeyringEntriesByType(selector.type)[selector.index ?? 0];
+      const entries = v2
+        ? this.#getKeyringEntriesByType({ v2: true, type: selector.type })
+        : this.#getKeyringEntriesByType({ v2: false, type: selector.type });
+      entry = entries[selector.index ?? 0];
     } else if ('id' in selector) {
       entry = this.#getKeyringEntryById(selector.id);
     } else if ('filter' in selector) {
