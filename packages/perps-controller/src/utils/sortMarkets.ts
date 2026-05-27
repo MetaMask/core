@@ -4,8 +4,6 @@ import {
 } from '../constants/perpsConfig';
 import type { PerpsMarketData, SortDirection, SortField } from '../types';
 
-export type { SortField, SortDirection };
-
 export type SortMarketsParams = {
   markets: PerpsMarketData[];
   sortBy: SortField;

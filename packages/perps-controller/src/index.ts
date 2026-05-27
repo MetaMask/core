@@ -202,6 +202,8 @@ export type {
   GetAvailableDexsParams,
   GetMarketsParams,
   GetMarketDataWithPricesParams,
+  SortField,
+  SortDirection,
   SubscribePricesParams,
   SubscribePositionsParams,
   SubscribeOrderFillsParams,
@@ -518,7 +520,7 @@ export {
   hasExceededSignificantFigures,
   roundToSignificantFigures,
 } from './utils';
-export type { SortField, SortDirection, SortMarketsParams } from './utils';
+export type { SortMarketsParams } from './utils';
 export { parseVolume, sortMarkets } from './utils';
 export type { StandaloneInfoClientOptions } from './utils';
 export {

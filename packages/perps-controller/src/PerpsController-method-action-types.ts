@@ -584,7 +584,7 @@ export type PerpsControllerGetCurrentNetworkAction = {
  * Returns a stable, explicitly ordered array so the UI can render
  * category filter tabs without deriving order from config insertion.
  *
- * @returns Ordered array of {@link MarketTypeFilter} values (includes 'all' and 'new').
+ * @returns Ordered array of {@link MarketTypeFilter} values. Does not include the 'all' or 'new' sentinels — those are separate UI controls.
  */
 export type PerpsControllerGetMarketCategoriesAction = {
   type: `PerpsController:getMarketCategories`;
