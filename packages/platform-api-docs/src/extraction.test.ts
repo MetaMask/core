@@ -1893,6 +1893,35 @@ export type FooAction = {
     });
   });
 
+  it('skips a type alias whose body is an intersection (not a type literal or constructor invocation)', async () => {
+    expect.assertions(1);
+
+    await withinSandbox(async ({ directoryPath }) => {
+      // The walker captures any non-union, non-bare, non-TypeReference body
+      // under `bodyShape: 'object'` and hands it to the literal extractor.
+      // An intersection type like `Base & { ... }` isn't a `TypeLiteral`, so
+      // the literal extractor can't read members from it and returns null.
+      const filePath = path.join(directoryPath, 'types.ts');
+      await fs.promises.writeFile(
+        filePath,
+        withMessenger(
+          `
+type FooBase = { extra: string };
+export type FooAction = FooBase & {
+  type: 'Foo:get';
+  handler: () => void;
+};
+`,
+          { actions: ['FooAction'] },
+        ),
+      );
+
+      const items = await extractFromFile(filePath, directoryPath);
+
+      expect(items).toStrictEqual([]);
+    });
+  });
+
   it('handles a capability type body that contains a method signature alongside property signatures', async () => {
     expect.assertions(2);
 

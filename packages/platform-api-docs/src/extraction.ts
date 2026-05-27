@@ -10,6 +10,7 @@ import type {
   TypeAliasDeclaration,
   TypeElementTypes,
   TypeNode,
+  TypeReferenceNode,
 } from 'ts-morph';
 import { Node as NodeGuards, Project, ts } from 'ts-morph';
 
@@ -272,13 +273,38 @@ function buildMethodInfo(method: MethodDeclaration): MethodInfo {
 // ---------------------------------------------------------------------------
 
 /**
- * Represents a type declaration (type alias or interface) for an individual
- * messenger action or event.
+ * A messenger capability type whose body invokes a capability-type-constructor
+ * utility such as `ControllerGetStateAction<...>` or
+ * `ControllerStateChangeEvent<...>`. The walker classifies the body once when
+ * it captures the declaration so the extractor can read the body's type name
+ * and type arguments without re-running the AST guards.
  */
-type MessengerCapabilityTypeDeclaration = {
-  declaration: TypeAliasDeclaration | InterfaceDeclaration;
+type ConstructorMessengerCapabilityTypeDeclaration = {
+  bodyShape: 'constructor';
   kind: 'action' | 'event';
+  declaration: TypeAliasDeclaration;
+  body: TypeReferenceNode;
 };
+
+/**
+ * A messenger capability type whose declaration carries the action/event
+ * shape directly — either an interface or a type alias for a type literal.
+ * The extractor reads `type`, `handler`, and `payload` from the members.
+ */
+type ObjectMessengerCapabilityTypeDeclaration = {
+  bodyShape: 'object';
+  kind: 'action' | 'event';
+  declaration: TypeAliasDeclaration | InterfaceDeclaration;
+};
+
+/**
+ * Represents a type declaration (type alias or interface) for an individual
+ * messenger action or event, tagged with the body shape the walker
+ * identified.
+ */
+type MessengerCapabilityTypeDeclaration =
+  | ConstructorMessengerCapabilityTypeDeclaration
+  | ObjectMessengerCapabilityTypeDeclaration;
 
 /**
  * Represents a type alias for a messenger. Only includes nodes representing the
@@ -521,21 +547,47 @@ function recursivelyFindMessengerCapabilityTypeDeclarations(
         continue;
       }
 
-      // We finally found a messenger capability type! Capture the whole thing.
-      // (We will parse the body later.)
+      // A TypeReference body with type arguments is a capability-type-
+      // constructor invocation (e.g. `ControllerGetStateAction<typeof name,
+      // State>`). Tag it so the constructor extractor can read `body`
+      // directly without re-checking its shape.
+      // EXAMPLE:
+      //   type FooControllerSomeAction = ControllerGetStateAction<...>
+      //                                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+      if (body && NodeGuards.isTypeReference(body)) {
+        result.capabilityTypeDeclarations.push({
+          bodyShape: 'constructor',
+          kind,
+          declaration,
+          body,
+        });
+        continue;
+      }
+
+      // Anything else (a type literal, intersection, conditional, …) gets
+      // tagged for the literal extractor, which knows how to read members
+      // off a type literal and rejects exotic shapes.
       // EXAMPLE:
       //   type FooControllerSomeAction = { ... }
       //   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-      result.capabilityTypeDeclarations.push({ declaration, kind });
+      result.capabilityTypeDeclarations.push({
+        bodyShape: 'object',
+        kind,
+        declaration,
+      });
     }
 
-    // If we have an interface, we don't have any scenarios to handle, so
-    // capture it as is.
+    // Interfaces always carry their members directly — tag for the literal
+    // extractor.
     // EXAMPLE:
     //   interface FooControllerSomeAction { ... }
     //   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
     else if (NodeGuards.isInterfaceDeclaration(declaration)) {
-      result.capabilityTypeDeclarations.push({ declaration, kind });
+      result.capabilityTypeDeclarations.push({
+        bodyShape: 'object',
+        kind,
+        declaration,
+      });
     }
   }
 
@@ -561,15 +613,15 @@ function extractFromMessengerCapabilityTypeDeclaration(
   capabilityTypeDeclaration: MessengerCapabilityTypeDeclaration,
   projectPath: string,
 ): MessengerCapabilityPacket | null {
-  return (
-    tryToExtractFromMessengerCapabilityTypeLiteral(
+  if (capabilityTypeDeclaration.bodyShape === 'constructor') {
+    return tryToExtractFromCapabilityTypeConstructor(
       capabilityTypeDeclaration,
       projectPath,
-    ) ??
-    tryToExtractFromCapabilityTypeConstructor(
-      capabilityTypeDeclaration,
-      projectPath,
-    )
+    );
+  }
+  return tryToExtractFromMessengerCapabilityTypeLiteral(
+    capabilityTypeDeclaration,
+    projectPath,
   );
 }
 
@@ -590,7 +642,7 @@ function extractFromMessengerCapabilityTypeDeclaration(
  * doesn't match.
  */
 function tryToExtractFromMessengerCapabilityTypeLiteral(
-  capabilityTypeDeclaration: MessengerCapabilityTypeDeclaration,
+  capabilityTypeDeclaration: ObjectMessengerCapabilityTypeDeclaration,
   projectPath: string,
 ): MessengerCapabilityPacket | null {
   const { declaration, kind } = capabilityTypeDeclaration;
@@ -785,39 +837,19 @@ function findProperty(
  * doesn't match.
  */
 function tryToExtractFromCapabilityTypeConstructor(
-  capabilityTypeDeclaration: MessengerCapabilityTypeDeclaration,
+  capabilityTypeDeclaration: ConstructorMessengerCapabilityTypeDeclaration,
   projectPath: string,
 ): MessengerCapabilityPacket | null {
-  const { declaration, kind } = capabilityTypeDeclaration;
+  const { declaration, kind, body } = capabilityTypeDeclaration;
 
-  // Basic check: we need a type alias, otherwise the rest doesn't make sense.
-  // EXAMPLE:
-  //   type FooControllerSomeAction = ...
-  if (!NodeGuards.isTypeAliasDeclaration(declaration)) {
-    return null;
-  }
-
-  // We want our type alias to be a reference to a utility type.
-  // Non-null assertion: We can assume the type has a body of some kind,
-  // otherwise it wouldn't compile.
-  // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-  const body = declaration.getTypeNode()!;
-  // We already determined in
-  // `recursivelyFindMessengerCapabilityTypeDeclarations` that the declaration
-  // is a type reference.
-  // TODO: Capture the following information ahead of time so we don't need to
-  // check this again.
-  // istanbul ignore next
-  if (!NodeGuards.isTypeReference(body)) {
-    return null;
-  }
+  // `body.getTypeName()` returns an `EntityName` — either an `Identifier`
+  // (the common case, e.g. `ControllerGetStateAction`) or a `QualifiedName`
+  // (a namespace-imported reference, e.g. `someNs.ControllerGetStateAction`).
+  // The latter doesn't appear in MetaMask messenger types in practice, but
+  // we can't recognize the constructor by name without an identifier.
   const typeName = body.getTypeName();
-  // We already determined in
-  // `recursivelyFindMessengerCapabilityTypeDeclarations` that the type is an
-  // identifier.
-  // TODO: Capture the following information ahead of time so we don't need to
-  // check this again.
-  // istanbul ignore next
+  // istanbul ignore next: qualified-name constructor references aren't used
+  // in messenger capability types.
   if (!NodeGuards.isIdentifier(typeName)) {
     return null;
   }
