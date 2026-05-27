@@ -1,11 +1,11 @@
 import CodeBlock from '@theme/CodeBlock';
 import ordersService1 from "!!raw-loader!./01-getting-started/orders-service.ts";
 
-# How to Write a Data Service, Part 1: Getting Started
+# Writing a Data Service, Part 1: Getting Started
 
 In this tutorial, we'll show you how to write a data service.
 
-This tutorial is divided into 3 parts. In the first part, we'll start with a basic example, and then later, we'll demonstrate some more advanced use cases.
+This tutorial is divided into 5 parts. In the first part, we'll start with a basic example, and then later, we'll demonstrate some more advanced use cases.
 
 ## Requirements
 
@@ -43,13 +43,20 @@ yarn create-package --name orders-service --description "Wraps the Orders API"
 
 That should give us a new directory in `packages/orders-service` which has a `src/` directory. We'll remove `index.ts` and `index.test.ts` so we have a clean slate.
 
+```
+packages/
+  orders-service/
+    src/
+      ... to be filled ...
+```
+
 ### Defining the messenger
 
 Every data service has a messenger, an object which acts as a liaison, allowing other parts of the stack to access the data service without a direct reference to it.
 
 So the very first thing we'll do is open a file in `packages/orders-service/src/orders-service.ts` and define the type for the messenger.
 
-:::note
+:::info
 Note that as we add variables, functions, types, etc. throughout this tutorial, we include JSDoc alongside them. In general it's a good idea to document symbols that are part of your package's public API — and even ones that aren't — because it helps other people understand the purpose and intended usage of your code.
 :::
 
@@ -79,14 +86,16 @@ Note that the `Messenger` takes three type parameters:
 - A union type representing all actions that the messenger recognizes, which can be divided into:
   - All internal actions, those that the messenger owns and "exports" to other messengers
   - All external actions, those that the messenger "imports" from other messengers
-- A union type representing all events that the messenger recognizes, which can similarly be divided into
+- A union type representing all events that the messenger recognizes, which can similarly be divided into:
   - All internal actions, those that the messenger owns and "exports" to other messengers
   - All external events, those that the messenger "imports" from other messengers
 
-As it is, what we've added won't compile yet as we're missing some types. Let's start by defining `OrdersServiceActions`. The set of internal actions for a data service must at least include `<DataServiceName>:invalidateQueries`. Since this is standard, we use a utility type to quickly define a type for the action and plug it into `OrdersServiceActions`:
+Now, what we've added won't compile yet, as we're missing some types. Let's fix that, first by defining `OrdersServiceActions`. The set of internal actions for a data service must at least include `<DataServiceName>:invalidateQueries`. Since this is standard, we use a utility type to quickly define a type for the action and plug it into `OrdersServiceActions`:
 
 ```typescript title="packages/orders-service/src/orders-service.ts"
-import type { DataServiceInvalidateQueriesAction } from '@metamask/base-data-service';
+import type {
+  DataServiceInvalidateQueriesAction
+} from '@metamask/base-data-service';
 
 /**
  * Invalidates cached queries for {@link OrdersService}.
@@ -103,15 +112,15 @@ export type OrdersServiceActions = OrdersServiceInvalidateQueriesAction;
 Then we define `OrdersServiceEvents`. The set of events for a data service must at least include `<DataServiceName>:granularCacheUpdated` and `<DataServiceName>:cacheUpdated`, and we follow a similar pattern as for `:invalidateQueries`:
 
 ```typescript title="packages/orders-service/src/orders-service.ts"
-// ::diff-deleted-next::
-import type { DataServiceInvalidateQueriesAction } from '@metamask/base-data-service';
-// ::diff-added-start::
 import type {
+// highlight-next-line
   DataServiceCacheUpdatedEvent,
+// highlight-next-line
   DataServiceGranularCacheUpdatedEvent,
-  DataServiceInvalidateQueriesAction,
+  DataServiceInvalidateQueriesAction
 } from '@metamask/base-data-service';
 
+// highlight-start
 /**
  * Published when {@link OrdersService}'s cache is updated.
  */
@@ -131,7 +140,7 @@ export type OrdersServiceGranularCacheUpdatedEvent =
 export type OrdersServiceEvents =
   | OrdersServiceCacheUpdatedEvent
   | OrdersServiceGranularCacheUpdatedEvent;
-// ::diff-added-end::
+// highlight-end
 ```
 
 Our data service won't use any external actions or events. For completeness, however, we will also define `AllowedActions` and `AllowedEvents`:
