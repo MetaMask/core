@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [108.2.0]
+
+### Added
+
+- Add inEVM Mainnet (chain 2525) and ICB Network (chain 73115) to `SPOT_PRICES_SUPPORT_INFO` ([#8887](https://github.com/MetaMask/core/pull/8887))
+
 ### Changed
 
 - Bump `@metamask/transaction-controller` from `^65.3.0` to `^66.0.0` ([#8796](https://github.com/MetaMask/core/pull/8796), [#8848](https://github.com/MetaMask/core/pull/8848))
@@ -17,6 +23,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Fix incorrect hex key for Blast Mainnet in `SPOT_PRICES_SUPPORT_INFO` (`0x13c31` → `0x13e31`), which previously caused native-token price fetching to silently fail for that chain ([#8887](https://github.com/MetaMask/core/pull/8887))
 - Fixed Forma (chain `984122`) native token price resolution by requesting TIA as the zero-address native asset (`erc20:0x0000000000000000000000000000000000000000`) instead of a non-canonical SLIP-44 reference ([#8873](https://github.com/MetaMask/core/pull/8873))
 
 ## [108.1.0]
@@ -3108,7 +3115,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Use Ethers for AssetsContractController ([#845](https://github.com/MetaMask/core/pull/845))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@108.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@108.2.0...HEAD
+[108.2.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@108.1.0...@metamask/assets-controllers@108.2.0
 [108.1.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@108.0.0...@metamask/assets-controllers@108.1.0
 [108.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@107.0.0...@metamask/assets-controllers@108.0.0
 [107.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@106.0.1...@metamask/assets-controllers@107.0.0
