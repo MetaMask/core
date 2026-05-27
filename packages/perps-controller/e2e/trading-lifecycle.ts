@@ -210,7 +210,7 @@ async function main(): Promise<void> {
     if (tpSlOrders.length > 0) {
       const tpslResult = await exchange.order({
         orders: tpSlOrders,
-        grouping: 'na',
+        grouping: 'positionTpsl',
       });
       runner.assert(
         'tp/sl orders placed',
@@ -222,7 +222,9 @@ async function main(): Promise<void> {
 
   // 6. Close position
   console.error('[e2e] Closing position...');
-  const closePrice = isBuy ? midPrice * 0.97 : midPrice * 1.03;
+  const closeMids = await info.allMids();
+  const closeMidPrice = parseFloat(closeMids[params.coin] ?? '0');
+  const closePrice = isBuy ? closeMidPrice * 0.97 : closeMidPrice * 1.03;
   const closeResult = await exchange.order({
     orders: [
       {
