@@ -11,8 +11,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Bump `@metamask/snap-account-service` from `^0.1.0` to `^0.2.0` ([#8844](https://github.com/MetaMask/core/pull/8844))
+- Bump `@metamask/snap-account-service` from `^0.1.0` to `^0.2.1` ([#8844](https://github.com/MetaMask/core/pull/8844), [#8912](https://github.com/MetaMask/core/pull/8912))
 - Bump `@metamask/keyring-controller` from `^25.5.0` to `^26.0.0` ([#8912](https://github.com/MetaMask/core/pull/8912))
+- Bump `@metamask/accounts-controller` from `^38.1.1` to `^38.1.2` ([#8912](https://github.com/MetaMask/core/pull/8912))
 
 ## [10.0.0]
 
