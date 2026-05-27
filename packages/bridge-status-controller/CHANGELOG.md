@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [71.2.1]
+
 ### Changed
 
 - Bump `@metamask/bridge-controller` from `^72.0.4` to `^73.0.1` ([#8850](https://github.com/MetaMask/core/pull/8850), [#8866](https://github.com/MetaMask/core/pull/8866))
@@ -16,6 +18,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **BREAKING**: Remove unused `GasFeeController:getState` call ([#8886](https://github.com/MetaMask/core/pull/8886))
 - Remove unnecessary type assertions for bridge quotes ([#8805](https://github.com/MetaMask/core/pull/8805))
+- Bump `@metamask/keyring-controller` from `^25.5.0` to `^26.0.0` ([#8912](https://github.com/MetaMask/core/pull/8912))
+- Bump `@metamask/accounts-controller` from `^38.1.1` to `^38.1.2` ([#8912](https://github.com/MetaMask/core/pull/8912))
+- Bump `@metamask/profile-sync-controller` from `^28.1.0` to `^28.1.1` ([#8912](https://github.com/MetaMask/core/pull/8912))
 
 ### Fixed
 
@@ -1214,7 +1219,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#5317](https://github.com/MetaMask/core/pull/5317))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@71.2.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@71.2.1...HEAD
+[71.2.1]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@71.2.0...@metamask/bridge-status-controller@71.2.1
 [71.2.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@71.1.4...@metamask/bridge-status-controller@71.2.0
 [71.1.4]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@71.1.3...@metamask/bridge-status-controller@71.1.4
 [71.1.3]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@71.1.2...@metamask/bridge-status-controller@71.1.3
