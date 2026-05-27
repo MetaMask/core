@@ -3,6 +3,9 @@ export type {
   SnapAccountServiceActions,
   SnapAccountServiceConfig,
   SnapAccountServiceEvents,
+  SnapAccountServiceAccountBalancesUpdatedEvent,
+  SnapAccountServiceAccountTransactionsUpdatedEvent,
+  SnapAccountServiceAccountAssetListUpdatedEvent,
   SnapAccountServiceMessenger,
   SnapAccountServiceOptions,
 } from './SnapAccountService';

@@ -3,7 +3,17 @@ import {
   SnapKeyring as LegacySnapKeyring,
   SnapMessage,
 } from '@metamask/eth-snap-keyring';
-import { KeyringEvent } from '@metamask/keyring-api';
+import type {
+  AccountAssetListUpdatedEventPayload,
+  AccountBalancesUpdatedEventPayload,
+  AccountTransactionsUpdatedEventPayload,
+} from '@metamask/keyring-api';
+import {
+  AccountAssetListUpdatedEventStruct,
+  AccountBalancesUpdatedEventStruct,
+  AccountTransactionsUpdatedEventStruct,
+  KeyringEvent,
+} from '@metamask/keyring-api';
 import type {
   KeyringControllerGetStateAction,
   KeyringControllerStateChangeEvent,
@@ -33,6 +43,7 @@ import type {
 } from '@metamask/snaps-controllers';
 import { SnapId } from '@metamask/snaps-sdk';
 import type { Json } from '@metamask/utils';
+import { assertStruct } from '@metamask/utils';
 
 import { projectLogger as log } from './logger';
 import type {
@@ -96,7 +107,25 @@ type AllowedActions =
 /**
  * Events that {@link SnapAccountService} exposes to other consumers.
  */
-export type SnapAccountServiceEvents = never;
+export type SnapAccountServiceAccountBalancesUpdatedEvent = {
+  type: `${typeof serviceName}:accountBalancesUpdated`;
+  payload: [AccountBalancesUpdatedEventPayload];
+};
+
+export type SnapAccountServiceAccountAssetListUpdatedEvent = {
+  type: `${typeof serviceName}:accountAssetListUpdated`;
+  payload: [AccountAssetListUpdatedEventPayload];
+};
+
+export type SnapAccountServiceAccountTransactionsUpdatedEvent = {
+  type: `${typeof serviceName}:accountTransactionsUpdated`;
+  payload: [AccountTransactionsUpdatedEventPayload];
+};
+
+export type SnapAccountServiceEvents =
+  | SnapAccountServiceAccountAssetListUpdatedEvent
+  | SnapAccountServiceAccountBalancesUpdatedEvent
+  | SnapAccountServiceAccountTransactionsUpdatedEvent;
 
 /**
  * Events from other messengers that {@link SnapAccountService} subscribes to.
@@ -152,6 +181,27 @@ function isLegacySnapKeyring(keyring: {
   type: BaseKeyring['type'];
 }): keyring is LegacySnapKeyring {
   return keyring.type === KeyringTypes.snap;
+}
+
+type AccountDataUpdatedKeyringEvent =
+  | KeyringEvent.AccountAssetListUpdated
+  | KeyringEvent.AccountBalancesUpdated
+  | KeyringEvent.AccountTransactionsUpdated;
+
+/**
+ * Checks if a Snap message method is an account data update event.
+ *
+ * @param method - The Snap message method.
+ * @returns `true` if the method can be forwarded without the legacy Snap keyring.
+ */
+function isAccountDataUpdatedKeyringEvent(
+  method: string,
+): method is AccountDataUpdatedKeyringEvent {
+  return (
+    method === KeyringEvent.AccountAssetListUpdated ||
+    method === KeyringEvent.AccountBalancesUpdated ||
+    method === KeyringEvent.AccountTransactionsUpdated
+  );
 }
 
 /**
@@ -397,6 +447,12 @@ export class SnapAccountService {
     snapId: SnapId,
     message: SnapMessage,
   ): Promise<Json> {
+    const { method } = message;
+
+    if (isAccountDataUpdatedKeyringEvent(method)) {
+      return this.#publishAccountDataUpdatedEvent(snapId, method, message);
+    }
+
     let snapKeyring: LegacySnapKeyring | undefined =
       await this.#getLegacySnapKeyringIfAvailable();
 
@@ -435,6 +491,49 @@ export class SnapAccountService {
     }
 
     return snapKeyring.handleKeyringSnapMessage(snapId, message);
+  }
+
+  /**
+   * Publishes an account data update event from a Snap.
+   *
+   * @param snapId - ID of the Snap.
+   * @param method - Account data update event method.
+   * @param message - Message sent by the Snap.
+   * @returns `null`.
+   */
+  #publishAccountDataUpdatedEvent(
+    snapId: SnapId,
+    method: AccountDataUpdatedKeyringEvent,
+    message: SnapMessage,
+  ): null {
+    log(
+      `Forwarding message "${method}" from Snap "${snapId}" as a SnapAccountService event...`,
+    );
+
+    if (method === KeyringEvent.AccountAssetListUpdated) {
+      assertStruct(message, AccountAssetListUpdatedEventStruct);
+      this.#messenger.publish(
+        'SnapAccountService:accountAssetListUpdated',
+        message.params,
+      );
+      return null;
+    }
+
+    if (method === KeyringEvent.AccountBalancesUpdated) {
+      assertStruct(message, AccountBalancesUpdatedEventStruct);
+      this.#messenger.publish(
+        'SnapAccountService:accountBalancesUpdated',
+        message.params,
+      );
+      return null;
+    }
+
+    assertStruct(message, AccountTransactionsUpdatedEventStruct);
+    this.#messenger.publish(
+      'SnapAccountService:accountTransactionsUpdated',
+      message.params,
+    );
+    return null;
   }
 
   /**

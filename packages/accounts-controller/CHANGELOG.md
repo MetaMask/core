@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **BREAKING:** Now requires `SnapAccountService:account{AssetList,Balances,Transactions}Updated` events to be registered on the messenger.
+
+### Fixed
+
+- Re-publish `SnapAccountService:account{AssetList,Balances,Transactions}Updated` events as `AccountsController:account{AssetList,Balances,Transactions}Updated` events.
+
 ## [38.1.1]
 
 ### Changed

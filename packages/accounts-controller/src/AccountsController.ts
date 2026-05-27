@@ -206,6 +206,21 @@ export type AccountsControllerAccountAssetListUpdatedEvent = {
   payload: SnapKeyringAccountAssetListUpdatedEvent['payload'];
 };
 
+export type SnapAccountServiceAccountBalancesUpdatedEvent = {
+  type: `SnapAccountService:accountBalancesUpdated`;
+  payload: SnapKeyringAccountBalancesUpdatedEvent['payload'];
+};
+
+export type SnapAccountServiceAccountTransactionsUpdatedEvent = {
+  type: `SnapAccountService:accountTransactionsUpdated`;
+  payload: SnapKeyringAccountTransactionsUpdatedEvent['payload'];
+};
+
+export type SnapAccountServiceAccountAssetListUpdatedEvent = {
+  type: `SnapAccountService:accountAssetListUpdated`;
+  payload: SnapKeyringAccountAssetListUpdatedEvent['payload'];
+};
+
 /**
  * @deprecated This type is deprecated and will be removed in a future version.
  * Use `AccountTreeController`, `MultichainAccountService`, or the Keyring API v2 instead.
@@ -215,6 +230,9 @@ export type AllowedEvents =
   | SnapKeyringAccountAssetListUpdatedEvent
   | SnapKeyringAccountBalancesUpdatedEvent
   | SnapKeyringAccountTransactionsUpdatedEvent
+  | SnapAccountServiceAccountAssetListUpdatedEvent
+  | SnapAccountServiceAccountBalancesUpdatedEvent
+  | SnapAccountServiceAccountTransactionsUpdatedEvent
   | MultichainNetworkControllerNetworkDidChangeEvent;
 
 /**
@@ -1288,6 +1306,15 @@ export class AccountsController extends BaseController<
     );
 
     this.messenger.subscribe(
+      'SnapAccountService:accountAssetListUpdated',
+      (snapAccountEvent) =>
+        this.#handleOnSnapKeyringAccountEvent(
+          'AccountsController:accountAssetListUpdated',
+          snapAccountEvent,
+        ),
+    );
+
+    this.messenger.subscribe(
       'SnapKeyring:accountBalancesUpdated',
       (snapAccountEvent) =>
         this.#handleOnSnapKeyringAccountEvent(
@@ -1297,7 +1324,25 @@ export class AccountsController extends BaseController<
     );
 
     this.messenger.subscribe(
+      'SnapAccountService:accountBalancesUpdated',
+      (snapAccountEvent) =>
+        this.#handleOnSnapKeyringAccountEvent(
+          'AccountsController:accountBalancesUpdated',
+          snapAccountEvent,
+        ),
+    );
+
+    this.messenger.subscribe(
       'SnapKeyring:accountTransactionsUpdated',
+      (snapAccountEvent) =>
+        this.#handleOnSnapKeyringAccountEvent(
+          'AccountsController:accountTransactionsUpdated',
+          snapAccountEvent,
+        ),
+    );
+
+    this.messenger.subscribe(
+      'SnapAccountService:accountTransactionsUpdated',
       (snapAccountEvent) =>
         this.#handleOnSnapKeyringAccountEvent(
           'AccountsController:accountTransactionsUpdated',

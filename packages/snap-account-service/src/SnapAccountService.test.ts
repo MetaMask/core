@@ -1,5 +1,10 @@
 import type { AccountGroupId } from '@metamask/account-api';
 import type { SnapKeyring, SnapMessage } from '@metamask/eth-snap-keyring';
+import type {
+  AccountAssetListUpdatedEventPayload,
+  AccountBalancesUpdatedEventPayload,
+  AccountTransactionsUpdatedEventPayload,
+} from '@metamask/keyring-api';
 import { KeyringEvent } from '@metamask/keyring-api';
 import {
   KeyringControllerError,
@@ -663,6 +668,7 @@ describe('SnapAccountService', () => {
       method: KeyringEvent.AccountUpdated,
       params: {},
     } as unknown as SnapMessage;
+    const MOCK_ACCOUNT_ID = '00000000-0000-4000-8000-000000000001';
 
     it('forwards the call to the legacy Snap keyring and returns its result', async () => {
       const { service, mocks } = setup();
@@ -726,6 +732,111 @@ describe('SnapAccountService', () => {
         `Legacy Snap keyring does not exist yet for snap "${MOCK_SNAP_ID}".`,
       );
       expect(mocks.KeyringController.withController).not.toHaveBeenCalled();
+    });
+
+    describe('when the message is an account data update event', () => {
+      const accountBalancesUpdatedPayload: AccountBalancesUpdatedEventPayload =
+        {
+          balances: {
+            [MOCK_ACCOUNT_ID]: {
+              'eip155:1/slip44:60': {
+                amount: '1',
+                unit: 'ETH',
+              },
+            },
+          },
+        };
+      const accountAssetListUpdatedPayload: AccountAssetListUpdatedEventPayload =
+        {
+          assets: {
+            [MOCK_ACCOUNT_ID]: {
+              added: ['eip155:1/slip44:60'],
+              removed: [],
+            },
+          },
+        };
+      const accountTransactionsUpdatedPayload: AccountTransactionsUpdatedEventPayload =
+        {
+          transactions: {
+            [MOCK_ACCOUNT_ID]: [],
+          },
+        };
+
+      it.each([
+        [
+          KeyringEvent.AccountBalancesUpdated,
+          'SnapAccountService:accountBalancesUpdated',
+          accountBalancesUpdatedPayload,
+        ],
+        [
+          KeyringEvent.AccountAssetListUpdated,
+          'SnapAccountService:accountAssetListUpdated',
+          accountAssetListUpdatedPayload,
+        ],
+        [
+          KeyringEvent.AccountTransactionsUpdated,
+          'SnapAccountService:accountTransactionsUpdated',
+          accountTransactionsUpdatedPayload,
+        ],
+      ] as const)(
+        'publishes %s without requiring the legacy Snap keyring',
+        async (method, event, payload) => {
+          const { service, rootMessenger, mocks } = setup();
+          const handleKeyringSnapMessage = jest
+            .fn()
+            .mockResolvedValue({ ok: true });
+          mockLegacySnapKeyring(mocks, { handleKeyringSnapMessage });
+          const listener = jest.fn();
+          rootMessenger.subscribe(event, listener);
+
+          const result = await service.handleKeyringSnapMessage(MOCK_SNAP_ID, {
+            method,
+            params: payload,
+          });
+
+          expect(result).toBeNull();
+          expect(listener).toHaveBeenCalledWith(payload);
+          expect(handleKeyringSnapMessage).not.toHaveBeenCalled();
+          expect(
+            mocks.KeyringController.withKeyringUnsafe,
+          ).not.toHaveBeenCalled();
+          expect(mocks.KeyringController.withController).not.toHaveBeenCalled();
+        },
+      );
+    });
+
+    describe('when the message is a request resolution event', () => {
+      it.each([
+        [
+          KeyringEvent.RequestApproved,
+          { id: '00000000-0000-0000-0000-000000000002', result: true },
+        ],
+        [
+          KeyringEvent.RequestRejected,
+          { id: '00000000-0000-0000-0000-000000000002' },
+        ],
+      ] as const)(
+        'delegates %s to the legacy Snap keyring',
+        async (method, params) => {
+          const { service, mocks } = setup();
+          const message = { method, params };
+          const handleKeyringSnapMessage = jest
+            .fn()
+            .mockResolvedValue({ ok: true });
+          mockLegacySnapKeyring(mocks, { handleKeyringSnapMessage });
+
+          const result = await service.handleKeyringSnapMessage(
+            MOCK_SNAP_ID,
+            message,
+          );
+
+          expect(handleKeyringSnapMessage).toHaveBeenCalledWith(
+            MOCK_SNAP_ID,
+            message,
+          );
+          expect(result).toStrictEqual({ ok: true });
+        },
+      );
     });
 
     it('propagates non-KeyringNotFound errors from withKeyringUnsafe', async () => {

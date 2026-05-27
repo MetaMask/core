@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `SnapAccountService:account{AssetList,Balances,Transactions}Updated` events.
+
 ### Changed
 
 - Faster `:getLegacySnapKeyring` ([#8865](https://github.com/MetaMask/core/pull/8865))
@@ -15,6 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Re-publish account-data update events from `:handleKeyringSnapMessage` without requiring the legacy Snap keyring.
 - Prevent double-lock in `:handleKeyringSnapMessage` for some events/methods ([#8860](https://github.com/MetaMask/core/pull/8860))
   - The service messenger now requires the `KeyringController:withKeyringUnsafe` action.
   - We now check if the keyring is available before delegating those messages.
