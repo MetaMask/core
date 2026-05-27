@@ -64,6 +64,7 @@ import {
   AbortReason,
   MetaMetricsSwapsEventSource,
   MetricsActionType,
+  InputCurrencyMode,
   UnifiedSwapBridgeEventName,
 } from './utils/metrics/constants';
 import {
@@ -1160,6 +1161,9 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
       location: clientProps?.location ?? this.#location,
       action_type: MetricsActionType.SWAPBRIDGE_V1,
     };
+    const inputCurrencyMode =
+      (clientProps?.input_currency_mode as InputCurrencyMode | undefined) ??
+      InputCurrencyMode.CRYPTO;
     const quoteRequest = this.state.quoteRequest[quoteRequestIndex];
     switch (eventName) {
       case UnifiedSwapBridgeEventName.ButtonClicked:
@@ -1198,6 +1202,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
           ...this.#getQuoteFetchData(),
           refresh_count: this.state.quotesRefreshCount,
           ...baseProperties,
+          input_currency_mode: inputCurrencyMode,
         };
       case UnifiedSwapBridgeEventName.QuotesRequested:
         return {
@@ -1208,6 +1213,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
           ...this.#getRequestMetadata(),
           has_sufficient_funds: !quoteRequest.insufficientBal,
           ...baseProperties,
+          input_currency_mode: inputCurrencyMode,
         };
       case UnifiedSwapBridgeEventName.QuotesError:
         return {

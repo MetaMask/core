@@ -4,6 +4,7 @@ export {
   UnifiedSwapBridgeEventName,
   UNIFIED_SWAP_BRIDGE_EVENT_CATEGORY,
   InputAmountPreset,
+  InputCurrencyMode,
   MetaMetricsSwapsEventSource,
   PollingStatus,
 } from './utils/metrics/constants';

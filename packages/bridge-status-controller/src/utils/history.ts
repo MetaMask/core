@@ -137,6 +137,7 @@ export const getInitialHistoryItem = (
     originalTransactionId,
     actionId,
     tokenSecurityTypeDestination,
+    inputCurrencyMode,
   } = args;
   // Determine the key for this history item:
   // - For pre-submission (non-batch EVM): use actionId
@@ -192,6 +193,9 @@ export const getInitialHistoryItem = (
     ...(activeAbTests && { activeAbTests }),
     ...(tokenSecurityTypeDestination !== undefined && {
       tokenSecurityTypeDestination,
+    }),
+    ...(inputCurrencyMode !== undefined && {
+      inputCurrencyMode,
     }),
   };
 

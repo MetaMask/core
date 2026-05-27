@@ -12,6 +12,7 @@ import type {
   QuoteMetadata,
   QuoteResponse,
   MetaMetricsSwapsEventSource,
+  InputCurrencyMode,
 } from '@metamask/bridge-controller';
 import type { GetGasFeeState } from '@metamask/gas-fee-controller';
 import type { KeyringControllerSignTypedMessageAction } from '@metamask/keyring-controller';
@@ -171,6 +172,7 @@ export type BridgeHistoryItem = {
    * available for the destination token.
    */
   tokenSecurityTypeDestination?: string | null;
+  inputCurrencyMode?: InputCurrencyMode;
 };
 
 /**
@@ -248,6 +250,7 @@ export type StartPollingForBridgeTxStatusArgs = {
   // Client-supplied destination token security classification, persisted on
   // the history item for post-submit analytics events.
   tokenSecurityTypeDestination?: BridgeHistoryItem['tokenSecurityTypeDestination'];
+  inputCurrencyMode?: BridgeHistoryItem['inputCurrencyMode'];
 };
 
 /**
