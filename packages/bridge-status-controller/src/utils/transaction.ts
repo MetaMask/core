@@ -333,10 +333,9 @@ export const toTransactionParams = async (
     value: trade.value,
   };
   const transactionParams = {
-    ...trade,
+    ...normalizedTrade,
     // Only add gasLimit and gas if they're truthy
     gas: gasLimit ? toHex(gasLimit) : undefined,
-    ...normalizedTrade,
   };
 
   // Use bridge-api's provided gas fee estimates
