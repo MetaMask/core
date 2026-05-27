@@ -130,7 +130,7 @@ import {
   persistMarketEntriesToDisk,
   persistUserEntriesToDisk,
 } from './utils/perpsDiskPersistence';
-import type { SortDirection } from './utils/sortMarkets';
+import type { SortDirection } from './types';
 import { wait } from './utils/wait';
 
 /** Derived type for logger options from PerpsLogger interface */
