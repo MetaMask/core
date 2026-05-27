@@ -9,8 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add `ComplianceService` support for an explicit Compliance API URL ([#8820](https://github.com/MetaMask/core/pull/8820)).
-- Add `selectAreAnyWalletsBlocked` ([#8820](https://github.com/MetaMask/core/pull/8820)).
+- Add `ComplianceService` support for an explicit Compliance API URL. ([#8820](https://github.com/MetaMask/core/pull/8820))
+- Add `selectAreAnyWalletsBlocked`. ([#8820](https://github.com/MetaMask/core/pull/8820))
 
 ### Changed
 
