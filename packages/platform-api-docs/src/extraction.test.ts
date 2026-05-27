@@ -786,7 +786,7 @@ export type MyCtrlFetchAction = {
     });
   });
 
-  it('inherits @param and @returns from the resolved class method when the type alias has no JSDoc', async () => {
+  it('does not inherit JSDoc from a resolved class method (action page reflects only the type alias)', async () => {
     expect.assertions(3);
 
     await withinSandbox(async ({ directoryPath }) => {
@@ -818,54 +818,9 @@ export type MyCtrlFetchAction = {
 
       const items = await extractFromFile(filePath, directoryPath);
 
-      expect(items[0].jsDoc).toContain('Fetches data.');
-      expect(items[0].params).toStrictEqual([
-        { name: 'id', description: 'The id to fetch.' },
-      ]);
-      expect(items[0].returns).toBe('The fetched data.');
-    });
-  });
-
-  it('prefers the type alias\\u2019s own @param/@returns over the resolved method\\u2019s', async () => {
-    expect.assertions(2);
-
-    await withinSandbox(async ({ directoryPath }) => {
-      const filePath = path.join(directoryPath, 'types.ts');
-      await fs.promises.writeFile(
-        filePath,
-        withMessenger(
-          `
-class MyCtrl {
-  /**
-   * Method doc.
-   *
-   * @param id - From the method.
-   * @returns From the method.
-   */
-  fetchData(id: number): Promise<string> {
-    return Promise.resolve('');
-  }
-}
-
-/**
- * Type-alias doc.
- *
- * @param id - From the alias.
- * @returns From the alias.
- */
-export type MyCtrlFetchAction = {
-  type: 'MyCtrl:fetchData';
-  handler: MyCtrl['fetchData'];
-};
-`,
-          { actions: ['MyCtrlFetchAction'] },
-        ),
-      );
-
-      const items = await extractFromFile(filePath, directoryPath);
-
-      expect(items[0].params[0].description).toBe('From the alias.');
-      expect(items[0].returns).toBe('From the alias.');
+      expect(items[0].jsDoc).toBe('');
+      expect(items[0].params).toStrictEqual([]);
+      expect(items[0].returns).toBe('');
     });
   });
 

@@ -46,20 +46,3 @@ export type NamespaceGroup = {
   actions: MessengerCapabilityPacket[];
   events: MessengerCapabilityPacket[];
 };
-
-/**
- * Info about a class method, used to resolve `ClassName['methodName']`
- * handlers — captures both the textual signature and the documented
- * parameters / return so the capability inherits the method's JSDoc when
- * the type alias itself has none.
- */
-export type MethodInfo = {
-  /** Cleaned description body — content above the first JSDoc tag. */
-  jsDoc: string;
-  /** Documented parameters from the method's `@param` tags. */
-  params: DocumentedParameter[];
-  /** Documented return value from the method's `@returns` tag, if any. */
-  returns: string;
-  /** Method signature in TypeScript syntax, e.g. `(fields: AddNetworkFields) => NetworkConfiguration`. */
-  signature: string;
-};

@@ -16,7 +16,6 @@ import { Node as NodeGuards, Project, ts } from 'ts-morph';
 
 import type {
   MessengerCapabilityPacket,
-  MethodInfo,
   DocumentedParameter,
 } from './types';
 
@@ -238,14 +237,15 @@ function resolveIndexedAccessMethod(
 // ---------------------------------------------------------------------------
 
 /**
- * Build a {@link MethodInfo} record for a class method — its textual
- * signature plus the JSDoc description, `@param`, and `@returns` extracted
- * from the method itself.
+ * Build the textual signature of a class method — its parameter list and
+ * return type expressed as a TypeScript function type — so a handler that
+ * references `Class['method']` can be rendered as `(arg: T) => R` instead of
+ * the bare indexed-access syntax.
  *
  * @param method - The method declaration.
- * @returns The method info.
+ * @returns The signature, e.g. `(id: number) => Promise<string>`.
  */
-function buildMethodInfo(method: MethodDeclaration): MethodInfo {
+function buildMethodSignature(method: MethodDeclaration): string {
   const signatureParams = method
     .getParameters()
     .map((param) => {
@@ -261,11 +261,7 @@ function buildMethodInfo(method: MethodDeclaration): MethodInfo {
   const returnType = returnTypeNode ? returnTypeNode.getText() : 'void';
   // For async methods, the declared return type already includes `Promise<>`,
   // so we don't need to wrap again.
-  const signature = `(${signatureParams}) => ${returnType}`;
-
-  const { description, params, returns } = extractJsDoc(method);
-
-  return { jsDoc: description, params, returns, signature };
+  return `(${signatureParams}) => ${returnType}`;
 }
 
 // ---------------------------------------------------------------------------
@@ -703,31 +699,18 @@ function tryToExtractFromMessengerCapabilityTypeLiteral(
     .getText()
     .trim();
 
-  let { description: jsDoc, params, returns } = extractJsDoc(declaration);
+  const { description: jsDoc, params, returns } = extractJsDoc(declaration);
 
-  // For actions, if the handler resolves to a class method (e.g.
-  // `FooController['method']`), inherit its signature plus any JSDoc fields the
-  // type alias itself doesn't already provide. This is what surfaces rich
-  // Parameters tables for controllers that use the bulk-registration helper —
-  // the auto-generated `*-method-action-types.ts` aliases reference class
-  // methods without restating the JSDoc, so without this inheritance the
-  // rendered action pages would have an empty `Parameters` section.
+  // For actions, render `Class['method']` handlers as the method's actual
+  // signature (e.g. `(id: number) => Promise<string>`) instead of leaving the
+  // raw indexed-access syntax in the docs. JSDoc lives on the type alias
+  // itself, so we don't pull anything else from the class method.
   if (kind === 'action') {
     const resolvedMethod = resolveIndexedAccessMethod(
       handlerOrPayloadPropertyTypeNode,
     );
     if (resolvedMethod) {
-      const info = buildMethodInfo(resolvedMethod);
-      handlerOrPayloadSignature = info.signature;
-      if (!jsDoc && info.jsDoc) {
-        jsDoc = info.jsDoc;
-      }
-      if (params.length === 0 && info.params.length > 0) {
-        params = info.params;
-      }
-      if (!returns && info.returns) {
-        returns = info.returns;
-      }
+      handlerOrPayloadSignature = buildMethodSignature(resolvedMethod);
     }
   }
 
