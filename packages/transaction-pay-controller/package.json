@@ -72,7 +72,7 @@
     "@metamask/transaction-controller": "^66.0.0",
     "@metamask/utils": "^11.9.0",
     "bignumber.js": "^9.1.2",
-    "bn.js": "^5.2.1",
+    "bn.js": "^5.2.3",
     "immer": "^9.0.6",
     "lodash": "^4.17.21"
   },
