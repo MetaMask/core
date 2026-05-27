@@ -1348,6 +1348,25 @@ describe('AssetsController', () => {
         },
       );
     });
+
+    it('re-evaluates isEnabled when active chains change', async () => {
+      let enabled = true;
+
+      await withController(
+        {
+          controllerOptions: { isEnabled: (): boolean => enabled },
+        },
+        async ({ controller }) => {
+          const getAssetsSpy = jest.spyOn(controller, 'getAssets');
+          enabled = false;
+
+          const onActiveChainsUpdated = controller.getOnActiveChainsUpdated();
+          onActiveChainsUpdated('TestDataSource', ['eip155:1'], []);
+
+          expect(getAssetsSpy).not.toHaveBeenCalled();
+        },
+      );
+    });
   });
 
   describe('handleAssetsUpdate - state updates', () => {

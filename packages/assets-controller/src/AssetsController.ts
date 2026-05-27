@@ -566,7 +566,7 @@ export class AssetsController extends BaseController<
   AssetsControllerMessenger
 > {
   /** Whether the controller is enabled */
-  readonly #isEnabled: boolean;
+  readonly #isEnabled: () => boolean;
 
   /** Getter for basic functionality (only balance fetch/subscribe use RPC; token/price API not used). No attribute stored. */
   readonly #isBasicFunctionality: () => boolean;
@@ -786,7 +786,7 @@ export class AssetsController extends BaseController<
       },
     });
 
-    this.#isEnabled = isEnabled();
+    this.#isEnabled = isEnabled;
     this.#isBasicFunctionality = isBasicFunctionality ?? ((): boolean => true);
     this.#defaultUpdateInterval = defaultUpdateInterval;
     this.#trace = trace;
@@ -875,7 +875,7 @@ export class AssetsController extends BaseController<
       rpcDataSource: this.#rpcDataSource,
     });
 
-    if (!this.#isEnabled) {
+    if (!this.#isEnabled()) {
       log('AssetsController is disabled, skipping initialization');
       return;
     }
@@ -1190,7 +1190,7 @@ export class AssetsController extends BaseController<
     activeChains: ChainId[],
     previousChains: ChainId[],
   ): void {
-    if (!this.#isEnabled) {
+    if (!this.#isEnabled()) {
       return;
     }
     log('Data source active chains changed', {
