@@ -102,33 +102,36 @@ export type OrdersServiceActions = OrdersServiceInvalidateQueriesAction;
 
 Then we define `OrdersServiceEvents`. The set of events for a data service must at least include `<DataServiceName>:granularCacheUpdated` and `<DataServiceName>:cacheUpdated`, and we follow a similar pattern as for `:invalidateQueries`:
 
-```diff title="packages/orders-service/src/orders-service.ts"
-- import type { DataServiceInvalidateQueriesAction } from '@metamask/base-data-service';
-+ import type {
-+   DataServiceCacheUpdatedEvent,
-+   DataServiceGranularCacheUpdatedEvent,
-+   DataServiceInvalidateQueriesAction,
-+ } from '@metamask/base-data-service';
-+
-+ /**
-+  * Published when {@link OrdersService}'s cache is updated.
-+  */
-+ export type OrdersServiceCacheUpdatedEvent = DataServiceCacheUpdatedEvent<
-+   typeof DATA_SERVICE_NAME
-+ >;
-+
-+ /**
-+  * Published when a key within {@link OrdersService}'s cache is updated.
-+  */
-+ export type OrdersServiceGranularCacheUpdatedEvent =
-+   DataServiceGranularCacheUpdatedEvent<typeof DATA_SERVICE_NAME>;
-+
-+ /**
-+  * Events that {@link OrdersService} exposes to other consumers.
-+  */
-+ export type OrdersServiceEvents =
-+   | OrdersServiceCacheUpdatedEvent
-+   | OrdersServiceGranularCacheUpdatedEvent;
+```typescript title="packages/orders-service/src/orders-service.ts"
+// ::diff-deleted-next::
+import type { DataServiceInvalidateQueriesAction } from '@metamask/base-data-service';
+// ::diff-added-start::
+import type {
+  DataServiceCacheUpdatedEvent,
+  DataServiceGranularCacheUpdatedEvent,
+  DataServiceInvalidateQueriesAction,
+} from '@metamask/base-data-service';
+
+/**
+ * Published when {@link OrdersService}'s cache is updated.
+ */
+export type OrdersServiceCacheUpdatedEvent = DataServiceCacheUpdatedEvent<
+  typeof DATA_SERVICE_NAME
+>;
+
+/**
+ * Published when a key within {@link OrdersService}'s cache is updated.
+ */
+export type OrdersServiceGranularCacheUpdatedEvent =
+  DataServiceGranularCacheUpdatedEvent<typeof DATA_SERVICE_NAME>;
+
+/**
+ * Events that {@link OrdersService} exposes to other consumers.
+ */
+export type OrdersServiceEvents =
+  | OrdersServiceCacheUpdatedEvent
+  | OrdersServiceGranularCacheUpdatedEvent;
+// ::diff-added-end::
 ```
 
 Our data service won't use any external actions or events. For completeness, however, we will also define `AllowedActions` and `AllowedEvents`:

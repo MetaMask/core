@@ -91,6 +91,24 @@ const config: Config = {
     },
     prism: {
       additionalLanguages: ['bash', 'diff'],
+      magicComments: [
+        {
+          className: 'code-block-diff-added-line',
+          line: '::diff-added-next::',
+          block: {
+            start: '::diff-added-start::',
+            end: '::diff-added-end::',
+          },
+        },
+        {
+          className: 'code-block-diff-deleted-line',
+          line: '::diff-deleted-next::',
+          block: {
+            start: '::diff-deleted-start::',
+            end: '::diff-deleted-end::',
+          },
+        },
+      ],
       theme: codeTheme,
     },
   } satisfies Preset.ThemeConfig,

@@ -9,7 +9,7 @@ In the [previous section](./01-getting-started.mdx), we started by creating a da
 
 <details>
   <summary>View code</summary>
-  <CodeBlock language="typescript" title="packages/orders-service/src/orders-service.ts">{ordersService}</CodeBlock>
+  <CodeBlock language="typescript" title="packages/orders-service/src/orders-service.ts">{ordersService2}</CodeBlock>
 </details>
 
 Now we're ready to implement the main part of the data service. Recall that our API looks like this:
@@ -204,9 +204,11 @@ export class OrdersService extends BaseDataService</* ... */> {
 
 Now that we have a method called `fetchOrders`, we need to make sure to add it to `MESSENGER_EXPOSED_METHODS` so that it will become an action on the messenger:
 
-```diff title="packages/orders-service/src/orders-service.ts"
-- const MESSENGER_EXPOSED_METHODS = [] as const;
-+ const MESSENGER_EXPOSED_METHODS = ['fetchOrders'] as const;
+```typescript title="packages/orders-service/src/orders-service.ts"
+// ::diff-deleted-next::
+const MESSENGER_EXPOSED_METHODS = [] as const;
+// ::diff-added-next::
+const MESSENGER_EXPOSED_METHODS = ['fetchOrders'] as const;
 ```
 
 Then we'll run `yarn workspace @metamask/orders-service run generate-action-types`. This will generate a new file:
@@ -603,37 +605,42 @@ export class OrdersService extends BaseDataService</* ... */> {
 
 We'll also register this method on the messenger:
 
-```diff title="packages/orders-service/src/orders-service.ts"
-  const MESSENGER_EXPOSED_METHODS = [
-    'fetchOrders',
-+   'fetchOrder',
-  ] as const;
+```typescript title="packages/orders-service/src/orders-service.ts"
+const MESSENGER_EXPOSED_METHODS = [
+  'fetchOrders',
+// ::diff-added-next::
+  'fetchOrder',
+] as const;
 ```
 
 We'll run `yarn workspace @metamask/orders-service run generate-action-types` and see that `packages/orders-service/src/orders-service-method-action-types.ts` has this additional content:
 
-```diff title="packages/orders-service/src/orders-service-method-action-types.ts"
-+
-+ /**
-+  * Uses the API to retrieve details about an order.
-+  *
-+  * @param params - Parameters to qualify the request.
-+  * @param params.id - The order ID
-+  * orders.
-+  * @returns The requested order.
-+  */
-+ export type OrdersServiceFetchOrderAction = {
-+   type: `OrdersService:fetchOrder`;
-+   handler: OrdersService['fetchOrder'];
-+ };
+```typescript title="packages/orders-service/src/orders-service-method-action-types.ts"
+// ::diff-added-start::
+/**
+ * Uses the API to retrieve details about an order.
+ *
+ * @param params - Parameters to qualify the request.
+ * @param params.id - The order ID
+ * orders.
+ * @returns The requested order.
+ */
+export type OrdersServiceFetchOrderAction = {
+  type: `OrdersService:fetchOrder`;
+  handler: OrdersService['fetchOrder'];
+};
+// ::diff-added-end::
 
-  /**
-   * Union of all OrdersService action types.
-   */
-- export type OrdersServiceMethodActions = OrdersServiceFetchOrdersAction;
-+ export type OrdersServiceMethodActions =
-+   | OrdersServiceFetchOrdersAction
-+   | OrdersServiceFetchOrderAction;
+/**
+ * Union of all OrdersService action types.
+ */
+// ::diff-deleted-next::
+export type OrdersServiceMethodActions = OrdersServiceFetchOrdersAction;
+// ::diff-added-start::
+export type OrdersServiceMethodActions =
+  | OrdersServiceFetchOrdersAction
+  | OrdersServiceFetchOrderAction;
+// ::diff-added-end::
 ```
 
 Finally we'll write tests.
