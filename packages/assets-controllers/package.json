@@ -98,7 +98,7 @@
     "multiformats": "^9.9.0",
     "reselect": "^5.1.1",
     "single-call-balance-checker-abi": "^1.0.0",
-    "uuid": "^8.3.2"
+    "uuid": "^14.0.0"
   },
   "devDependencies": {
     "@babel/runtime": "^7.23.9",
