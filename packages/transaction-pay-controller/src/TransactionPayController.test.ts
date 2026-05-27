@@ -472,7 +472,7 @@ describe('TransactionPayController', () => {
   describe('getPaymentOverrideData', () => {
     it('delegates to the callback', async () => {
       const txMock = { from: '0xabc', to: '0xdef' };
-      const getPaymentOverrideDataMock = jest.fn().mockResolvedValue([txMock]);
+      const getPaymentOverrideDataMock = jest.fn().mockResolvedValue(txMock);
 
       new TransactionPayController({
         getDelegationTransaction: jest.fn(),
@@ -488,10 +488,10 @@ describe('TransactionPayController', () => {
       expect(getPaymentOverrideDataMock).toHaveBeenCalledWith(
         TRANSACTION_ID_MOCK,
       );
-      expect(result).toStrictEqual([txMock]);
+      expect(result).toStrictEqual(txMock);
     });
 
-    it('returns empty array when no callback is configured', async () => {
+    it('returns undefined when no callback is configured', async () => {
       new TransactionPayController({
         getDelegationTransaction: jest.fn(),
         messenger,
@@ -502,7 +502,7 @@ describe('TransactionPayController', () => {
         TRANSACTION_ID_MOCK,
       );
 
-      expect(result).toStrictEqual([]);
+      expect(result).toBeUndefined();
     });
   });
 

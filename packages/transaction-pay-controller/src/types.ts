@@ -154,13 +154,12 @@ export type TransactionConfig = {
 export type TransactionConfigCallback = (config: TransactionConfig) => void;
 
 /**
- * Callback invoked during quote execution when `paymentOverride` is defined.
- * Returns additional transactions to be submitted alongside the quote,
- * ordered before or after the quote batch depending on `isPostQuote`.
+ * Callback invoked during submit when `paymentOverride` is defined.
+ * Returns a single delegation transaction to prepend to the submit batch.
  */
 export type GetPaymentOverrideDataCallback = (
   transactionId: string,
-) => Promise<TransactionParams[]>;
+) => Promise<TransactionParams | undefined>;
 
 /** Callback to update fiat payment state. */
 export type TransactionFiatPaymentCallback = (

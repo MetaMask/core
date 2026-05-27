@@ -1,6 +1,9 @@
 import { ORIGIN_METAMASK } from '@metamask/controller-utils';
 import { TransactionType } from '@metamask/transaction-controller';
-import type { TransactionMeta } from '@metamask/transaction-controller';
+import type {
+  TransactionMeta,
+  TransactionParams,
+} from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 import { cloneDeep } from 'lodash';
 
@@ -864,48 +867,21 @@ describe('Relay Submit Utils', () => {
         to: '0xpaymentoverride' as Hex,
         data: '0xpaymentoverride' as Hex,
         value: '0x0',
-      };
+      } as TransactionParams;
 
-      const DELEGATION_TO_MOCK = '0xdelegationto' as Hex;
-      const DELEGATION_DATA_MOCK = '0xdelegationdata' as Hex;
-      const DELEGATION_VALUE_MOCK = '0x0' as Hex;
-
-      beforeEach(() => {
-        getDelegationTransactionMock.mockResolvedValue({
-          data: DELEGATION_DATA_MOCK,
-          to: DELEGATION_TO_MOCK,
-          value: DELEGATION_VALUE_MOCK,
-        });
-      });
-
-      it('builds delegation for override txs and prepends to submit params', async () => {
+      it('prepends override tx to submit params', async () => {
         request.quotes[0].request.paymentOverride =
           PaymentOverride.MoneyAccount;
-        getPaymentOverrideDataMock.mockResolvedValue([
-          PAYMENT_OVERRIDE_TX_MOCK,
-        ]);
+        getPaymentOverrideDataMock.mockResolvedValue(PAYMENT_OVERRIDE_TX_MOCK);
 
         await submitRelayQuotes(request);
 
-        expect(getDelegationTransactionMock).toHaveBeenCalledWith({
-          transaction: expect.objectContaining({
-            nestedTransactions: [
-              {
-                data: PAYMENT_OVERRIDE_TX_MOCK.data,
-                to: PAYMENT_OVERRIDE_TX_MOCK.to,
-                value: PAYMENT_OVERRIDE_TX_MOCK.value,
-              },
-            ],
-          }),
-        });
-
         const batchCall = addTransactionBatchMock.mock.calls[0][0];
-        expect(batchCall.from).toBe(FROM_MOCK);
         expect(batchCall.transactions[0].params).toStrictEqual(
           expect.objectContaining({
-            data: DELEGATION_DATA_MOCK,
-            to: DELEGATION_TO_MOCK,
-            value: DELEGATION_VALUE_MOCK,
+            data: PAYMENT_OVERRIDE_TX_MOCK.data,
+            to: PAYMENT_OVERRIDE_TX_MOCK.to,
+            value: PAYMENT_OVERRIDE_TX_MOCK.value,
           }),
         );
       });
@@ -916,50 +892,26 @@ describe('Relay Submit Utils', () => {
         expect(getPaymentOverrideDataMock).not.toHaveBeenCalled();
       });
 
-      it('does not prepend when callback returns empty array', async () => {
+      it('does not prepend when callback returns undefined', async () => {
         request.quotes[0].request.paymentOverride =
           PaymentOverride.MoneyAccount;
-        getPaymentOverrideDataMock.mockResolvedValue([]);
+        getPaymentOverrideDataMock.mockResolvedValue(undefined);
 
         await submitRelayQuotes(request);
 
-        expect(getDelegationTransactionMock).not.toHaveBeenCalled();
         expect(addTransactionBatchMock).not.toHaveBeenCalled();
         expect(addTransactionMock).toHaveBeenCalledTimes(1);
       });
 
-      it('defaults data to 0x when override tx data is absent', async () => {
+      it('skips source balance validation', async () => {
         request.quotes[0].request.paymentOverride =
           PaymentOverride.MoneyAccount;
-        const { data: _data, ...txWithoutData } = PAYMENT_OVERRIDE_TX_MOCK;
-        getPaymentOverrideDataMock.mockResolvedValue([txWithoutData]);
+        getPaymentOverrideDataMock.mockResolvedValue(PAYMENT_OVERRIDE_TX_MOCK);
+        getLiveTokenBalanceMock.mockResolvedValue('0');
 
         await submitRelayQuotes(request);
 
-        expect(getDelegationTransactionMock).toHaveBeenCalledWith({
-          transaction: expect.objectContaining({
-            nestedTransactions: [
-              expect.objectContaining({ data: '0x' }),
-            ],
-          }),
-        });
-      });
-
-      it('defaults value to 0x0 when override tx value is absent', async () => {
-        request.quotes[0].request.paymentOverride =
-          PaymentOverride.MoneyAccount;
-        const { value: _value, ...txWithoutValue } = PAYMENT_OVERRIDE_TX_MOCK;
-        getPaymentOverrideDataMock.mockResolvedValue([txWithoutValue]);
-
-        await submitRelayQuotes(request);
-
-        expect(getDelegationTransactionMock).toHaveBeenCalledWith({
-          transaction: expect.objectContaining({
-            nestedTransactions: [
-              expect.objectContaining({ value: '0x0' }),
-            ],
-          }),
-        });
+        expect(getLiveTokenBalanceMock).not.toHaveBeenCalled();
       });
     });
 
