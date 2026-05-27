@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Expose gasless batch loading state through selectBatchSellTrades's `isLoading` value
+- Expose gasless batch loading state through selectBatchSellTrades's `isLoading` value ([#8913](https://github.com/MetaMask/core/pull/8913))
 
 ### Changed
 
