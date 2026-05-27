@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- `AssetsController` now re-evaluates the `isEnabled` callback when handling data-source active chain updates, instead of snapshotting its return value at construction ([#8914](https://github.com/MetaMask/core/pull/8914))
+
 ## [8.0.2]
 
 ### Changed
