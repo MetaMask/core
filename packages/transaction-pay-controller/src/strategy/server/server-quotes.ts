@@ -32,7 +32,6 @@ import { normalizeServerPerpsRequest } from './perps';
 import { fetchServerQuote } from './server-api';
 import type {
   ServerQuote,
-  ServerQuoteFees,
   ServerQuoteRequest,
   ServerQuoteResult,
   ServerQuoteStep,
@@ -226,7 +225,7 @@ async function normalizeQuote(
   messenger: TransactionPayControllerMessenger,
 ): Promise<TransactionPayQuote<ServerQuote>> {
   const { quote } = result;
-  const gasless = quote.gasless === true;
+  const { gasless } = quote;
   const sourceNetwork = await calculateSourceNetworkCost({
     gasless,
     messenger,
@@ -417,8 +416,7 @@ function isFulfilledResult(
   result: ServerQuoteResult,
 ): result is FulfilledServerQuoteResult {
   return (
-    result.quote !== undefined &&
-    result.quote.id !== undefined &&
+    result.quote?.id !== undefined &&
     result.quote.input !== undefined &&
     result.quote.output !== undefined
   );

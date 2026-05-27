@@ -72,6 +72,7 @@ export async function submitServerIntent(
  * @param params - Status query parameters.
  * @param params.provider - The provider that the intent was submitted to.
  * @param params.id - The intent ID.
+ * @param params.hash - Optional transaction hash to include in the status query.
  * @returns The current status of the intent.
  */
 export async function getServerStatus(
