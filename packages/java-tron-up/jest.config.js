@@ -16,7 +16,6 @@ module.exports = merge(baseConfig, {
 
   // The CLI entrypoint is exercised through package builds and installed-bin smoke tests.
   coveragePathIgnorePatterns: [
-    ...baseConfig.coveragePathIgnorePatterns,
     './src/bin/java-tron-up.ts',
   ],
 
