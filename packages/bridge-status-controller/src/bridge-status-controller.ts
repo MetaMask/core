@@ -278,6 +278,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       historyKey,
       status: StatusTypes.FAILED,
       txHash: isApprovalTxMeta ? undefined : txMeta.hash,
+      completionTime: Date.now(),
     });
 
     if (txMeta.status === TransactionStatus.rejected) {
@@ -323,6 +324,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
         this.#updateHistoryItem({
           historyKey,
           status: StatusTypes.COMPLETE,
+          completionTime: Date.now(),
         });
         this.#trackUnifiedSwapBridgeEvent(
           UnifiedSwapBridgeEventName.Completed,
@@ -879,11 +881,13 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     status,
     txHash,
     attempts,
+    completionTime,
   }: {
     historyKey?: string;
     status?: StatusTypes;
     txHash?: string;
     attempts?: BridgeHistoryItem['attempts'];
+    completionTime?: BridgeHistoryItem['completionTime'];
   }): void => {
     if (!historyKey) {
       return;
@@ -897,6 +901,9 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       }
       if (attempts) {
         currentState.txHistory[historyKey].attempts = attempts;
+      }
+      if (completionTime) {
+        currentState.txHistory[historyKey].completionTime = completionTime;
       }
     });
   };
@@ -1098,6 +1105,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       abTests,
       activeAbTests,
       tokenSecurityTypeDestination,
+      batchSellTrades,
     );
 
     try {

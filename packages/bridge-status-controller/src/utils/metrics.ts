@@ -26,6 +26,7 @@ import type {
   TradeData,
   RequestMetadata,
   PollingStatus,
+  BatchSellTradesResponse,
 } from '@metamask/bridge-controller';
 import {
   TransactionStatus,
@@ -158,11 +159,16 @@ export const getRequestParamFromHistory = (
 
 export const getTradeDataFromQuote = (
   quoteResponse: QuoteResponse & Partial<QuoteMetadata>,
+  batchSellTrades?: BatchSellTradesResponse | null,
 ): TradeData => {
   return {
     usd_quoted_gas: Number(quoteResponse.gasFee?.effective?.usd ?? 0),
-    gas_included: quoteResponse.quote.gasIncluded ?? false,
-    gas_included_7702: quoteResponse.quote.gasIncluded7702 ?? false,
+    gas_included:
+      quoteResponse.quote.gasIncluded ?? batchSellTrades?.gasIncluded ?? false,
+    gas_included_7702:
+      quoteResponse.quote.gasIncluded7702 ??
+      batchSellTrades?.gasIncluded7702 ??
+      false,
     provider: formatProviderLabel(quoteResponse.quote),
     quoted_time_minutes: Number(
       quoteResponse.estimatedProcessingTimeInSeconds / 60,
@@ -188,6 +194,7 @@ export const getPriceImpactFromQuote = (
  * @param abTests - Legacy A/B test context for `ab_tests` (backward compatibility)
  * @param activeAbTests - New A/B test context for `active_ab_tests` (migration target)
  * @param tokenSecurityTypeDestination - The security classification of the destination token, supplied by the client (e.g. from token security/scanning data). Pass `null` when no security data is available.
+ * @param batchSellTrades - The batch sell trades response
  * @returns The properties for the pre-confirmation event
  */
 export const getPreConfirmationPropertiesFromQuote = (
@@ -198,11 +205,12 @@ export const getPreConfirmationPropertiesFromQuote = (
   abTests?: Record<string, string>,
   activeAbTests?: { key: string; value: string }[],
   tokenSecurityTypeDestination?: string | null,
+  batchSellTrades?: BatchSellTradesResponse | null,
 ) => {
   const { quote } = quoteResponse;
   return {
     ...getPriceImpactFromQuote(quote),
-    ...getTradeDataFromQuote(quoteResponse),
+    ...getTradeDataFromQuote(quoteResponse, batchSellTrades),
     chain_id_source: formatChainIdToCaip(quote.srcChainId),
     token_symbol_source: quote.srcAsset.symbol,
     token_address_source: quote.srcAsset.assetId,

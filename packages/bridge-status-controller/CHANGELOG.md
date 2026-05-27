@@ -27,6 +27,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - Use txFee from the bridge-api whenever it's provided ([#8805](https://github.com/MetaMask/core/pull/8805))
+- Save swap failure/completion time to txHistory to populate `actual_time_minutes` event property ([#8805](https://github.com/MetaMask/core/pull/8805))
 
 ## [71.2.1]
 
