@@ -1,6 +1,6 @@
 {
   "name": "@metamask/wallet",
-  "version": "0.0.0",
+  "version": "1.0.0",
   "description": "Provides a shared framework for building MetaMask wallets",
   "keywords": [
     "Ethereum",
@@ -51,6 +51,14 @@
     "test:clean": "NODE_OPTIONS=--experimental-vm-modules jest --clearCache",
     "test:verbose": "NODE_OPTIONS=--experimental-vm-modules jest --verbose",
     "test:watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch"
+  },
+  "dependencies": {
+    "@metamask/base-controller": "^9.1.0",
+    "@metamask/browser-passworder": "^6.0.0",
+    "@metamask/keyring-controller": "^25.5.0",
+    "@metamask/messenger": "^1.2.0",
+    "@metamask/scure-bip39": "^2.1.1",
+    "@metamask/utils": "^11.9.0"
   },
   "devDependencies": {
     "@metamask/auto-changelog": "^6.1.0",
