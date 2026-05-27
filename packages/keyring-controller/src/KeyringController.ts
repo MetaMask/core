@@ -94,6 +94,10 @@ const MESSENGER_EXPOSED_METHODS = [
 
 /**
  * Available keyring types
+ *
+ * @deprecated Use `KeyringType` from `@metamask/keyring-api/v2` instead. This enum will be removed
+ * in a future release once V2 is fully adopted. Only use it if the keyring you are trying to access
+ * has no V2 builder available yet.
  */
 export enum KeyringTypes {
   // Changing this would be a breaking change, and not worth the effort at this

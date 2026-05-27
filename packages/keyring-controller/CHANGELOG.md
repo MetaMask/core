@@ -11,6 +11,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **BREAKING:** Change `KeyringSelectorV2` type selectors for `withKeyringV2` and `withKeyringV2Unsafe` to use `KeyringType` (v2 variant) ([#8901](https://github.com/MetaMask/core/pull/8901))
   - Use values such as `KeyringType.Hd` instead of legacy `KeyringTypes.hd`.
+- Deprecate `KeyringTypes` ([#8907](https://github.com/MetaMask/core/pull/8907))
+  - Use `KeyringTypes` from `@metamask/keyring-api/v2` if your keyring has a v2 builder.
 
 ## [25.5.0]
 
