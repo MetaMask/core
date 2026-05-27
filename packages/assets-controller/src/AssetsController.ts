@@ -875,11 +875,6 @@ export class AssetsController extends BaseController<
       rpcDataSource: this.#rpcDataSource,
     });
 
-    if (!this.#isEnabled()) {
-      log('AssetsController is disabled, skipping initialization');
-      return;
-    }
-
     log('Initializing AssetsController', {
       defaultUpdateInterval: this.#defaultUpdateInterval,
     });
