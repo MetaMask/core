@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.1.0]
+
 ### Added
 
 - Add `ComplianceService` support for an explicit Compliance API URL ([#8820](https://github.com/MetaMask/core/pull/8820)).
@@ -18,7 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Match EVM address casing consistently when reading cached wallet compliance statuses ([#8820](https://github.com/MetaMask/core/pull/8820)).
+- Match EVM addresses case-insensitively when reading cached wallet compliance statuses ([#8820](https://github.com/MetaMask/core/pull/8820)).
 
 ## [2.0.1]
 
@@ -69,7 +71,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Bump `@metamask/controller-utils` from `^11.18.0` to `^11.19.0` ([#7995](https://github.com/MetaMask/core/pull/7995))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/compliance-controller@2.0.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/compliance-controller@2.1.0...HEAD
+[2.1.0]: https://github.com/MetaMask/core/compare/@metamask/compliance-controller@2.0.1...@metamask/compliance-controller@2.1.0
 [2.0.1]: https://github.com/MetaMask/core/compare/@metamask/compliance-controller@2.0.0...@metamask/compliance-controller@2.0.1
 [2.0.0]: https://github.com/MetaMask/core/compare/@metamask/compliance-controller@1.0.2...@metamask/compliance-controller@2.0.0
 [1.0.2]: https://github.com/MetaMask/core/compare/@metamask/compliance-controller@1.0.1...@metamask/compliance-controller@1.0.2
