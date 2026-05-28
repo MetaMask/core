@@ -536,5 +536,77 @@ describe('submitServerQuotes', () => {
         expect.anything(),
       );
     });
+
+    it('uses step.gasLimit when no client gasLimit is provided for the step', async () => {
+      const req = buildNonGaslessRequest({
+        client: {
+          gasLimits: [],
+          is7702: false,
+          maxFeePerGas: '1000000000',
+          maxPriorityFeePerGas: '500000000',
+        },
+        steps: [
+          {
+            ...ORIGINAL_QUOTE_MOCK.steps[0],
+            gasLimit: '30000',
+          },
+        ],
+      });
+
+      await submitServerQuotes(req);
+
+      expect(addTxMock).toHaveBeenCalledWith(
+        expect.objectContaining({ gas: expect.any(String) }),
+        expect.anything(),
+      );
+    });
+
+    it('omits gas fields when neither client gasLimit nor step gasLimit is present', async () => {
+      const req = buildNonGaslessRequest({
+        client: {
+          gasLimits: [],
+          is7702: false,
+          maxFeePerGas: undefined,
+          maxPriorityFeePerGas: undefined,
+        },
+        steps: [{ ...ORIGINAL_QUOTE_MOCK.steps[0] }],
+      });
+
+      await submitServerQuotes(req);
+
+      expect(addTxMock).toHaveBeenCalledWith(
+        expect.objectContaining({ gas: undefined }),
+        expect.anything(),
+      );
+    });
+
+    it('uses is7702 gasLimit7702 and disable7702:false when quote is 7702 with multiple steps', async () => {
+      const req = buildNonGaslessRequest({
+        client: {
+          gasLimits: [21000, 25000],
+          is7702: true,
+          maxFeePerGas: '1000000000',
+          maxPriorityFeePerGas: '500000000',
+        },
+        steps: [
+          ORIGINAL_QUOTE_MOCK.steps[0],
+          {
+            chainId: 137,
+            data: '0xseconddata' as Hex,
+            to: '0x9999999999999999999999999999999999999999' as Hex,
+            value: '0x20',
+          },
+        ],
+      });
+
+      await submitServerQuotes(req);
+
+      expect(addTxBatchMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          disable7702: false,
+          gasLimit7702: expect.any(String),
+        }),
+      );
+    });
   });
 });

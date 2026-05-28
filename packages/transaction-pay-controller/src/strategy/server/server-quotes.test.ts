@@ -620,5 +620,66 @@ describe('server-quotes', () => {
 
       expect(result[0].fees.sourceNetwork.estimate).toBe(GAS_ESTIMATE_MOCK);
     });
+
+    it('trims gasLimits to single entry when is7702 is true', async () => {
+      jest.mocked(getTokenBalance).mockReturnValue('9999999999999999999999');
+      jest.mocked(estimateQuoteGasLimits).mockResolvedValue({
+        gasLimits: [
+          { estimate: 21000, max: 25000 },
+          { estimate: 21000, max: 25000 },
+        ],
+        is7702: true,
+        totalGasEstimate: '0x5208',
+        totalGasLimit: '0x7530',
+      } as never);
+
+      const result = await getServerQuotes({
+        accountSupports7702: true,
+        messenger,
+        requests: [QUOTE_REQUEST_MOCK],
+        transaction: TRANSACTION_META_MOCK,
+      });
+
+      expect(result[0].original.client.gasLimits).toHaveLength(1);
+    });
+
+    it('passes zero maxFeePerGas to calculateGasCost when gas fee estimate returns undefined', async () => {
+      jest.mocked(getTokenBalance).mockReturnValue('9999999999999999999999');
+      jest.mocked(getGasFee).mockReturnValue({
+        estimatedBaseFee: undefined,
+        maxFeePerGas: undefined,
+        maxPriorityFeePerGas: undefined,
+      });
+      fetchServerQuoteMock.mockResolvedValue({
+        results: [
+          {
+            ...NON_GASLESS_RESULT_MOCK,
+            quote: {
+              ...NON_GASLESS_RESULT_MOCK.quote,
+              steps: [
+                {
+                  chainId: 1,
+                  data: '0xdef' as Hex,
+                  to: '0x4560000000000000000000000000000000000000' as Hex,
+                  value: '0',
+                },
+              ],
+            },
+          },
+        ],
+      });
+
+      const result = await getServerQuotes({
+        accountSupports7702: true,
+        messenger,
+        requests: [QUOTE_REQUEST_MOCK],
+        transaction: TRANSACTION_META_MOCK,
+      });
+
+      expect(result[0].fees.sourceNetwork.estimate).toBe(GAS_ESTIMATE_MOCK);
+      expect(jest.mocked(calculateGasCost)).toHaveBeenCalledWith(
+        expect.objectContaining({ maxFeePerGas: '0', maxPriorityFeePerGas: '0' }),
+      );
+    });
   });
 });
