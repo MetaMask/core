@@ -684,9 +684,7 @@ async function submitViaTransactionController(
       ? toHex(metamask.gasLimits[0])
       : undefined;
 
-    const overrideCount = quote.request.paymentOverride
-      ? allParams.length - normalizedParams.length
-      : 0;
+    const prependCount = allParams.length - normalizedParams.length;
 
     const transactions = allParams.map((singleParams, index) => {
       const gasLimit = gasLimits[index];
@@ -703,8 +701,7 @@ async function submitViaTransactionController(
           value: singleParams.value as Hex,
         },
         type: getTransactionType(
-          isPostQuote,
-          overrideCount,
+          prependCount,
           index,
           getEffectiveTransactionType(transaction),
           normalizedParams.length,
@@ -751,22 +748,18 @@ async function submitViaTransactionController(
 /**
  * Determine the transaction type for a given index in the batch.
  *
- * @param isPostQuote - Whether this is a post-quote flow.
- * @param overrideCount - Number of payment override txs prepended.
+ * @param prependCount - Number of non-relay txs prepended to the batch.
  * @param index - Index of the transaction in the batch.
  * @param originalType - Type of the original transaction (used for prepended indices).
  * @param relayParamCount - Number of relay-only params (excludes prepended txs).
  * @returns The transaction type.
  */
 function getTransactionType(
-  isPostQuote: boolean | undefined,
-  overrideCount: number,
+  prependCount: number,
   index: number,
   originalType: TransactionMeta['type'],
   relayParamCount: number,
 ): TransactionMeta['type'] {
-  const prependCount = isPostQuote ? 1 : overrideCount;
-
   if (prependCount > 0 && index < prependCount) {
     return originalType;
   }
