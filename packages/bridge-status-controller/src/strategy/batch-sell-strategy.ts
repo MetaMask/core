@@ -4,6 +4,7 @@ import {
   TransactionType,
 } from '@metamask/transaction-controller';
 
+import { QuoteAndTxMetadata } from '../types';
 import {
   findAllTransactionsInBatch,
   getAddTransactionBatchParams,
@@ -15,17 +16,16 @@ import {
 } from '../utils/transaction';
 import { SubmitStep } from './types';
 import type { SubmitStrategyParams, SubmitStepResult } from './types';
-import { QuoteAndTxMetadata } from '../types';
 
 const getHistoryKeyForQuote = ({
   quoteResponse: { quoteId, quote },
 }: QuoteAndTxMetadata): string => quoteId ?? quote.requestId;
 
 /**
- * Submits batched EVM transactions to the TransactionController
+ * Submits batch-sell transactions to the TransactionController
  *
  * @param args - The parameters for the transaction
- * @yields The approvalMeta and tradeMeta for the batched transaction
+ * @yields The approvalMeta and tradeMeta for the first batch sell transaction
  */
 export async function* submitBatchSellHandler(
   args: SubmitStrategyParams<TxData, BatchSellTradesResponse>,

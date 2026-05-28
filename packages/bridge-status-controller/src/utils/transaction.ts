@@ -348,7 +348,7 @@ export const toQuoteAndTxMetadataBatch = ({
   quoteResponses,
   batchSellTrades,
 }: {
-  quoteResponses: (QuoteResponse<TxData, TxData> & Partial<QuoteMetadata>)[];
+  quoteResponses: (QuoteResponse<TxData, TxData> & QuoteMetadata)[];
   batchSellTrades: BatchSellTradesResponse;
 }): Omit<QuoteAndTxMetadata, 'txMeta'>[] => {
   const tradeData: QuoteAndTxMetadata[] = [];

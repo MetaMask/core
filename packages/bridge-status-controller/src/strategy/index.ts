@@ -12,12 +12,12 @@ import {
   TxData,
 } from '@metamask/bridge-controller';
 
+import { submitBatchSellHandler } from './batch-sell-strategy';
 import { submitBatchHandler } from './batch-strategy';
 import { submitEvmHandler as defaultSubmitHandler } from './evm-strategy';
 import { submitIntentHandler } from './intent-strategy';
 import { submitNonEvmHandler } from './non-evm-strategy';
 import type { SubmitStrategyParams, SubmitStepResult } from './types';
-import { submitBatchSellHandler } from './batch-sell-strategy';
 
 const validateParams = <
   TxDataType extends BitcoinTradeData | TronTradeData | string | TxData,

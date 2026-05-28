@@ -13,8 +13,8 @@ import type {
   SimulatedGasFeeLimits,
   TxData,
   TxFeeGasLimits,
-  BridgeControllerStopPollingForQuotesAction,
   BridgeControllerTrackUnifiedSwapBridgeEventAction,
+  BridgeControllerStopPollingForQuotesAction,
   BatchSellTradesResponse,
   BridgeControllerGetStateAction,
 } from '@metamask/bridge-controller';
@@ -117,7 +117,7 @@ export type RefuelStatusResponse = object & StatusResponse;
  */
 export type QuoteAndTxMetadata = {
   type: TransactionType;
-  quoteResponse: QuoteResponse & Partial<QuoteMetadata>;
+  quoteResponse: QuoteResponse & QuoteMetadata;
   /**
    * The approval or trade object from the quote response
    */
@@ -145,6 +145,11 @@ export type BridgeHistoryItem = {
    * This is defined when the history item is for a batch sell transaction
    */
   batchSellData?: BatchSellTradesResponse;
+  /**
+   * This is defined when the history item corresponds to the 7702 batch's delegation tx.
+   * It contains the list of quoteIds for the BatchSell quotes that are part of the 7702 batch.
+   * Each quote can be retrieved from txHistory as `txHistory[quoteId]`.
+   */
   quoteIds?: string[];
   quote: Quote;
   status: StatusResponse;
@@ -258,10 +263,7 @@ export type QuoteMetadataSerialized = {
 };
 
 export type StartPollingForBridgeTxStatusArgs = {
-  bridgeTxMeta?: Pick<
-    TransactionMeta,
-    'id' | 'hash' | 'batchId' | 'batchTransactionsOptions'
-  >;
+  bridgeTxMeta?: Pick<TransactionMeta, 'id' | 'hash' | 'batchId'>;
   actionId?: string;
   batchSellData?: BridgeHistoryItem['batchSellData'];
   quoteIds?: BridgeHistoryItem['quoteIds'];
@@ -296,7 +298,7 @@ export type StartPollingForBridgeTxStatusArgsSerialized = Omit<
   StartPollingForBridgeTxStatusArgs,
   'quoteResponse'
 > & {
-  quoteResponse: QuoteResponse & Partial<QuoteMetadata>;
+  quoteResponse: QuoteResponse & QuoteMetadata;
 };
 
 export type SourceChainTxMetaId = string;

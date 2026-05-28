@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `gasIncluded` and `gasIncluded7702` to `BatchSellTradesResponseSchema` ([#8775](https://github.com/MetaMask/core/pull/8775))
+
 ## [73.1.0]
 
 ### Added
@@ -20,13 +24,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/accounts-controller` from `^38.1.1` to `^38.1.2` ([#8912](https://github.com/MetaMask/core/pull/8912))
 - Bump `@metamask/profile-sync-controller` from `^28.1.0` to `^28.1.1` ([#8912](https://github.com/MetaMask/core/pull/8912))
 
-### Added
-
-- Add `gasIncluded` and `gasIncluded7702` to `BatchSellTradesResponseSchema`
-
 ### Removed
 
-- **BREAKING**: Deprecate `BridgeUserAction` and `BridgeBackgroundAction` enums
+- **BREAKING**: Deprecate `BridgeUserAction` and `BridgeBackgroundAction` enums ([#8775](https://github.com/MetaMask/core/pull/8775))
 
 ## [73.0.1]
 

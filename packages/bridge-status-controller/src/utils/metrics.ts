@@ -158,7 +158,7 @@ export const getRequestParamFromHistory = (
 };
 
 export const getTradeDataFromQuote = (
-  quoteResponse: QuoteResponse & Partial<QuoteMetadata>,
+  quoteResponse: QuoteResponse & QuoteMetadata,
   batchSellTrades?: BatchSellTradesResponse | null,
 ): TradeData => {
   return {
@@ -198,7 +198,7 @@ export const getPriceImpactFromQuote = (
  * @returns The properties for the pre-confirmation event
  */
 export const getPreConfirmationPropertiesFromQuote = (
-  quoteResponse: QuoteResponse & Partial<QuoteMetadata>,
+  quoteResponse: QuoteResponse & QuoteMetadata,
   isStxEnabled: boolean,
   accountHardwareType: AccountHardwareType,
   location?: MetaMetricsSwapsEventSource,

@@ -155,10 +155,10 @@ export const isCustomSlippage = (slippage: GenericQuoteRequest['slippage']) => {
 };
 
 export const getQuotesReceivedProperties = (
-  activeQuote: null | (QuoteResponse & Partial<QuoteMetadata>),
+  activeQuote: null | (QuoteResponse & QuoteMetadata),
   warnings: QuoteWarning[] = [],
   isSubmittable: boolean = true,
-  recommendedQuote?: null | (QuoteResponse & Partial<QuoteMetadata>),
+  recommendedQuote?: null | (QuoteResponse & QuoteMetadata),
   usdBalanceSource?: number,
 ) => {
   const provider = activeQuote ? formatProviderLabel(activeQuote.quote) : '_';

@@ -1061,7 +1061,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     accountAddress: string,
     maybeQuoteResponses:
       | (QuoteResponse<Trade, Trade> & QuoteMetadata)
-      | QuoteResponse<Trade, Trade>[],
+      | (QuoteResponse<Trade, Trade> & QuoteMetadata)[],
     isStxEnabled: boolean,
     quotesReceivedContext?: RequiredEventContextFromClient[UnifiedSwapBridgeEventName.QuotesReceived],
     location: MetaMetricsSwapsEventSource = MetaMetricsSwapsEventSource.MainView,
@@ -1243,7 +1243,9 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     return await this.submitTx(
       params.accountAddress,
       params.quoteResponses.filter(
-        (quoteResponse): quoteResponse is QuoteResponse<Trade, Trade> =>
+        (
+          quoteResponse,
+        ): quoteResponse is QuoteResponse<Trade, Trade> & QuoteMetadata =>
           quoteResponse !== null,
       ),
       params.isStxEnabled ?? false,

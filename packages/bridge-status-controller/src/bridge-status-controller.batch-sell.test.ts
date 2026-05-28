@@ -5,6 +5,7 @@ import type {
   Quote,
 } from '@metamask/bridge-controller';
 import { BatchSellTransactionType } from '@metamask/bridge-controller';
+import { toHex } from '@metamask/controller-utils';
 import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
 import type {
   MessengerActions,
@@ -16,19 +17,21 @@ import {
   TransactionType,
 } from '@metamask/transaction-controller';
 
-import { BridgeStatusController } from './bridge-status-controller';
-import { BRIDGE_STATUS_CONTROLLER_NAME } from './constants';
-import { BridgeClientId } from './types';
-import type { BridgeStatusControllerMessenger } from './types';
 import {
   getHistoryItem,
   getTxMetasForBatch,
   mockBatchSellErc20Erc20,
   mockBatchSellTradesErc20Erc20,
 } from '../test/mock-batch-sell-erc20-erc20';
-import { toHex } from '../../controller-utils/src';
-import { shouldDisable7702 } from './utils/transaction';
+import { BridgeStatusController } from './bridge-status-controller';
+import { BRIDGE_STATUS_CONTROLLER_NAME } from './constants';
+import { BridgeClientId } from './types';
+import type {
+  BridgeHistoryItem,
+  BridgeStatusControllerMessenger,
+} from './types';
 import { getBatchSellHistoryItemsForTxHash } from './utils/history';
+import { shouldDisable7702 } from './utils/transaction';
 
 type AllBridgeStatusControllerActions =
   MessengerActions<BridgeStatusControllerMessenger>;
@@ -413,7 +416,9 @@ describe('BridgeStatusController', () => {
                     expect(historyItem).toStrictEqual(expectedHistoryItem);
 
                     const expectedHistoryItems = [];
-                    const quoteHistoryItem = (quoteObject: Quote) => ({
+                    const quoteHistoryItem = (
+                      quoteObject: Quote,
+                    ): Partial<BridgeHistoryItem> => ({
                       batchId: undefined,
                       featureId: undefined,
                       slippagePercentage: 0,
