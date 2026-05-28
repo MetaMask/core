@@ -1,10 +1,14 @@
+import { CONNECTIVITY_STATUSES } from '@metamask/connectivity-controller';
 import { Messenger } from '@metamask/messenger';
 import { Json } from '@metamask/utils';
 import { webcrypto } from 'crypto';
 
 import MockEncryptor from '../../keyring-controller/tests/mocks/mockEncryptor';
 import * as initializationModule from './initialization/initialization';
-import { importSecretRecoveryPhrase } from './utilities';
+import {
+  createSecretRecoveryPhrase,
+  importSecretRecoveryPhrase,
+} from './utilities';
 import { Wallet } from './Wallet';
 
 const TEST_SRP = 'test test test test test test test test test test test ball';
@@ -174,6 +178,34 @@ describe('Wallet', () => {
     await wallet.destroy();
 
     expect(spy).toHaveBeenCalledTimes(1);
+  });
+
+  describe('AccountsController', () => {
+    it('tracks accounts created via KeyringController', async () => {
+      const wallet = new Wallet({});
+      await createSecretRecoveryPhrase(wallet, TEST_PASSWORD);
+
+      const keyringAccounts = await wallet.messenger.call(
+        'KeyringController:getAccounts',
+      );
+      const trackedAddresses = Object.values(
+        wallet.state.AccountsController.internalAccounts.accounts,
+      ).map((account) => account.address);
+
+      expect(trackedAddresses).toStrictEqual(keyringAccounts);
+    });
+  });
+
+  describe('ConnectivityController', () => {
+    it('reports online connectivity status', async () => {
+      const wallet = new Wallet({});
+
+      await new Promise<void>((resolve) => process.nextTick(resolve));
+
+      expect(wallet.state.ConnectivityController.connectivityStatus).toBe(
+        CONNECTIVITY_STATUSES.Online,
+      );
+    });
   });
 
   describe('KeyringController', () => {

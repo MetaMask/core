@@ -1,6 +1,7 @@
 import {
   AccountsController,
   AccountsControllerMessenger,
+  AccountsControllerState,
 } from '@metamask/accounts-controller';
 import {
   Messenger,
@@ -26,7 +27,7 @@ export const accountsController: InitializationConfiguration<
   name: 'AccountsController',
   init: ({ state, messenger }) =>
     new AccountsController({
-      state,
+      state: (state ?? {}) as AccountsControllerState,
       messenger,
     }),
   getMessenger: (parent: RootMessenger<DefaultActions, DefaultEvents>) => {
