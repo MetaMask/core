@@ -771,6 +771,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'getRequestState',
   'setUserRegion',
   'setSelectedProvider',
+  'ensureProviderForAsset',
   'init',
   'getCountries',
   'getTokens',
@@ -1350,6 +1351,42 @@ export class RampsController extends BaseController<
         state.providers.selected = provider;
         state.providerAutoSelected = options?.autoSelected ?? false;
       });
+    }
+  }
+
+  /**
+   * Ensures the currently selected provider supports the given asset.
+   *
+   * If no provider is selected, or the selected provider does not list the
+   * asset in its `supportedCryptoCurrencies`, this method searches the
+   * available providers for the first one that does and auto-selects it.
+   *
+   * This is a no-op when the current provider already supports the asset,
+   * when no providers are loaded, or when no provider supports the asset.
+   *
+   * @param assetId - CAIP-19 asset type identifier
+   *   (e.g. `"eip155:42161/erc20:0xaf88d065e77c8cC2239327C5EDb3A432268e5831"`).
+   */
+  ensureProviderForAsset(assetId: string): void {
+    const { selected, data: providers } = this.state.providers;
+    const lowerId = assetId.toLowerCase();
+
+    const supports = (provider: Provider | null): provider is Provider => {
+      const map = provider?.supportedCryptoCurrencies;
+      if (!map) {
+        return false;
+      }
+      return Boolean(map[assetId]) || Boolean(map[lowerId]);
+    };
+
+    if (supports(selected)) {
+      return;
+    }
+
+    const supporting = providers?.find((provider) => supports(provider));
+
+    if (supporting) {
+      this.setSelectedProvider(supporting, { autoSelected: true });
     }
   }
 

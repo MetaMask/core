@@ -12,7 +12,6 @@ import {
   TransactionPayStrategy,
 } from './constants';
 import { QuoteRefresher } from './helpers/QuoteRefresher';
-import { deriveFiatAssetForFiatPayment } from './strategy/fiat/utils';
 import type {
   GetDelegationTransactionCallback,
   PolymarketCallbacks,
@@ -25,11 +24,10 @@ import type {
   UpdatePaymentTokenRequest,
 } from './types';
 import { getStrategyOrder } from './utils/feature-flags';
+import { ensureProviderForFiatAsset, updateFiatAssetId } from './utils/fiat';
 import { updateQuotes } from './utils/quotes';
 import { updateSourceAmounts } from './utils/source-amounts';
-import { buildCaipAssetType } from './utils/token';
 import {
-  getTransaction,
   subscribeAssetChanges,
   subscribeTransactionChanges,
 } from './utils/transaction';
@@ -276,6 +274,7 @@ export class TransactionPayController extends BaseController<
   ): void {
     let shouldUpdateQuotes = false;
     let shouldUpdateFiatToken = false;
+    let isNewTransaction = false;
 
     this.update((state) => {
       const { transactionData } = state;
@@ -297,6 +296,7 @@ export class TransactionPayController extends BaseController<
         };
 
         current = transactionData[transactionId];
+        isNewTransaction = true;
       }
 
       fn(current);
@@ -338,25 +338,19 @@ export class TransactionPayController extends BaseController<
       }
     });
 
-    if (shouldUpdateFiatToken) {
-      const transaction = getTransaction(
+    if (isNewTransaction) {
+      ensureProviderForFiatAsset({
         transactionId,
-        this.messenger,
-      ) as TransactionMeta;
-      const fiatAsset = deriveFiatAssetForFiatPayment(
-        transaction,
-        this.messenger,
-      );
-      if (fiatAsset) {
-        this.#updateTransactionData(transactionId, (data) => {
-          if (data.fiatPayment) {
-            data.fiatPayment.caipAssetId = buildCaipAssetType(
-              fiatAsset.chainId,
-              fiatAsset.address,
-            );
-          }
-        });
-      }
+        messenger: this.messenger,
+      });
+    }
+
+    if (shouldUpdateFiatToken) {
+      updateFiatAssetId({
+        transactionId,
+        messenger: this.messenger,
+        updateTransactionData: this.#updateTransactionData.bind(this),
+      });
     }
 
     if (shouldUpdateQuotes) {

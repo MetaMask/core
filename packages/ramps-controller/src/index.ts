@@ -18,6 +18,7 @@ export type {
   RampsControllerGetRequestStateAction,
   RampsControllerSetUserRegionAction,
   RampsControllerSetSelectedProviderAction,
+  RampsControllerEnsureProviderForAssetAction,
   RampsControllerInitAction,
   RampsControllerGetCountriesAction,
   RampsControllerGetTokensAction,

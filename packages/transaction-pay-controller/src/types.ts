@@ -33,6 +33,7 @@ import type { NetworkControllerFindNetworkClientIdByChainIdAction } from '@metam
 import type { NetworkControllerGetNetworkClientByIdAction } from '@metamask/network-controller';
 import type { Quote as RampsQuote } from '@metamask/ramps-controller';
 import type {
+  RampsControllerEnsureProviderForAssetAction,
   RampsControllerGetOrderAction,
   RampsControllerGetQuotesAction,
   RampsControllerGetStateAction,
@@ -77,6 +78,7 @@ export type AllowedActions =
   | KeyringControllerSignTypedMessageAction
   | NetworkControllerFindNetworkClientIdByChainIdAction
   | NetworkControllerGetNetworkClientByIdAction
+  | RampsControllerEnsureProviderForAssetAction
   | RampsControllerGetOrderAction
   | RampsControllerGetQuotesAction
   | RampsControllerGetStateAction
