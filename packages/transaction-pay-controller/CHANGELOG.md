@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Ensure the selected Ramps provider supports the fiat asset when transaction data is first created, by calling `RampsController:ensureProviderForAsset` with the feature-flag-derived CAIP asset ID ([#8926](https://github.com/MetaMask/core/pull/8926))
+- Extract fiat-related utilities (`ensureProviderForFiatAsset`, `updateFiatAssetId`) into `utils/fiat.ts` ([#8926](https://github.com/MetaMask/core/pull/8926))
+
 ### Changed
 
 - Bump `@metamask/assets-controllers` from `^108.1.0` to `^108.2.0` ([#8911](https://github.com/MetaMask/core/pull/8911))

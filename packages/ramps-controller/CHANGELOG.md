@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `ensureProviderForAsset` method and `RampsController:ensureProviderForAsset` messenger action that auto-selects a provider supporting a given CAIP asset ID when the current provider does not ([#8926](https://github.com/MetaMask/core/pull/8926))
+
 ### Changed
 
 - Bump `@metamask/profile-sync-controller` from `^28.1.0` to `^28.1.1` ([#8912](https://github.com/MetaMask/core/pull/8912))
