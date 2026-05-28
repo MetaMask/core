@@ -65,7 +65,7 @@ export const shouldDisable7702 = (
   gasIncluded7702: boolean = false,
   gasIncluded: boolean = false,
   isDelegatedAccount: boolean = false,
-) => {
+): boolean => {
   // Enable 7702 batching when the quote includes gasless 7702 support
   if (gasIncluded7702) {
     return false;
@@ -78,7 +78,9 @@ export const shouldDisable7702 = (
   if (gasIncluded) {
     return true;
   }
-  // Default value
+  /**
+   * Explicitly return default instead of falsy value (see TransactionBatchRequest.disable7702)
+   */
   return true;
 };
 
