@@ -72,6 +72,7 @@ export type {
   PerpsControllerGetHistoricalPortfolioAction,
   PerpsControllerGetMarketDataWithPricesAction,
   PerpsControllerGetMarketFilterPreferencesAction,
+  PerpsControllerGetMarketCategoriesAction,
   PerpsControllerGetMarketsAction,
   PerpsControllerGetMaxLeverageAction,
   PerpsControllerGetOpenOrdersAction,
@@ -132,7 +133,12 @@ export type {
 export { HyperLiquidProvider } from './providers/HyperLiquidProvider';
 
 // Type definitions (explicit named exports)
-export { WebSocketConnectionState, PerpsAnalyticsEvent } from './types';
+export {
+  WebSocketConnectionState,
+  PerpsAnalyticsEvent,
+  MARKET_CATEGORIES,
+  MarketCategory,
+} from './types';
 export type {
   RawLedgerUpdate,
   UserHistoryItem,
@@ -195,6 +201,9 @@ export type {
   GetSupportedPathsParams,
   GetAvailableDexsParams,
   GetMarketsParams,
+  GetMarketDataWithPricesParams,
+  SortField,
+  SortDirection,
   SubscribePricesParams,
   SubscribePositionsParams,
   SubscribeOrderFillsParams,
@@ -511,7 +520,7 @@ export {
   hasExceededSignificantFigures,
   roundToSignificantFigures,
 } from './utils';
-export type { SortField, SortDirection, SortMarketsParams } from './utils';
+export type { SortMarketsParams } from './utils';
 export { parseVolume, sortMarkets } from './utils';
 export type { StandaloneInfoClientOptions } from './utils';
 export {

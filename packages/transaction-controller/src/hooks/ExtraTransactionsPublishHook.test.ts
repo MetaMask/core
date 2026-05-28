@@ -121,6 +121,7 @@ describe('ExtraTransactionsPublishHook', () => {
       disable7702: true,
       disableHook: false,
       disableSequential: true,
+      isInternal: true,
       requireApproval: false,
     });
   });
