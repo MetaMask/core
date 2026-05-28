@@ -210,7 +210,7 @@ async function main(): Promise<void> {
     if (tpSlOrders.length > 0) {
       const tpslResult = await exchange.order({
         orders: tpSlOrders,
-        grouping: 'na',
+        grouping: 'positionTpsl',
       });
       runner.assert(
         'tp/sl orders placed',
