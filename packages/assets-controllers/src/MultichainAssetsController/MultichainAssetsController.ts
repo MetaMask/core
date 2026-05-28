@@ -51,7 +51,7 @@ import { Mutex } from 'async-mutex';
 import type { MultichainBalancesControllerMergeAccountBalanceExtrasAction } from '../MultichainBalancesController';
 import type { MultichainAssetsControllerMethodActions } from './MultichainAssetsController-method-action-types';
 import {
-  KEYRING_GET_ACCOUNT_ASSET_INFO_METHOD,
+  STELLAR_GET_ACCOUNT_ASSET_INFO_CLIENT_METHOD,
   isStellarMultichainAccount,
   stellarAssetInfoExtraToBalanceExtra,
 } from '../multichain/stellarAccountAssetInfo';
@@ -687,7 +687,7 @@ export class MultichainAssetsController extends StaticIntervalPollingController<
   }
 
   /**
-   * Fetches Stellar-only `keyring_getAccountAssetInfo` and merges metadata + balance `extra`.
+   * Fetches Stellar-only `getAccountAssetInfo` client request and merges metadata + balance `extra`.
    *
    * @param accountId - Account id.
    * @param assetIds - Assets to enrich.
@@ -717,6 +717,7 @@ export class MultichainAssetsController extends StaticIntervalPollingController<
     const info = await this.#getAccountAssetInfoFromSnap(
       accountId,
       snapId,
+      account.scopes[0] as CaipChainId,
       stellarClassicIds,
     );
     if (!info) {
@@ -765,28 +766,31 @@ export class MultichainAssetsController extends StaticIntervalPollingController<
   }
 
   /**
-   * Calls the Stellar snap `keyring_getAccountAssetInfo` handler.
+   * Calls the Stellar snap `getAccountAssetInfo` client request handler.
    *
    * @param accountId - Account id.
    * @param snapId - Stellar wallet snap id.
+   * @param scope - Stellar CAIP-2 chain id.
    * @param assets - CAIP-19 assets to resolve.
    * @returns Per-asset metadata and optional trust-line extra, or undefined on failure.
    */
   async #getAccountAssetInfoFromSnap(
     accountId: string,
     snapId: string,
+    scope: CaipChainId,
     assets: CaipAssetType[],
   ): Promise<StellarGetAccountAssetInfoResponse | undefined> {
     try {
       return (await this.messenger.call('SnapController:handleRequest', {
         snapId: snapId as SnapId,
         origin: 'metamask',
-        handler: HandlerType.OnKeyringRequest,
+        handler: HandlerType.OnClientRequest,
         request: {
           jsonrpc: '2.0',
-          method: KEYRING_GET_ACCOUNT_ASSET_INFO_METHOD,
+          method: STELLAR_GET_ACCOUNT_ASSET_INFO_CLIENT_METHOD,
           params: {
             accountId,
+            scope,
             assets,
           },
         },

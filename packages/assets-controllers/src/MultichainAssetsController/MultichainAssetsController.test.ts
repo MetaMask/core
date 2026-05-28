@@ -34,7 +34,7 @@ import {
   getDefaultMultichainAssetsControllerState,
   MultichainAssetsController,
 } from '.';
-import { KEYRING_GET_ACCOUNT_ASSET_INFO_METHOD } from '../multichain/stellarAccountAssetInfo';
+import { STELLAR_GET_ACCOUNT_ASSET_INFO_CLIENT_METHOD } from '../multichain/stellarAccountAssetInfo';
 import { jestAdvanceTime } from '../../../../tests/helpers';
 import type {
   AssetMetadataResponse,
@@ -1148,8 +1148,9 @@ describe('MultichainAssetsController', () => {
           request?: { method?: string };
         }) => {
           if (
-            params.handler === HandlerType.OnKeyringRequest &&
-            params.request?.method === KEYRING_GET_ACCOUNT_ASSET_INFO_METHOD
+            params.handler === HandlerType.OnClientRequest &&
+            params.request?.method ===
+              STELLAR_GET_ACCOUNT_ASSET_INFO_CLIENT_METHOD
           ) {
             return Promise.resolve({});
           }
@@ -1188,8 +1189,9 @@ describe('MultichainAssetsController', () => {
           request?: { method?: string };
         }) => {
           if (
-            params.handler === HandlerType.OnKeyringRequest &&
-            params.request?.method === KEYRING_GET_ACCOUNT_ASSET_INFO_METHOD
+            params.handler === HandlerType.OnClientRequest &&
+            params.request?.method ===
+              STELLAR_GET_ACCOUNT_ASSET_INFO_CLIENT_METHOD
           ) {
             return Promise.resolve({
               [STELLAR_CLASSIC_USDC]: {
@@ -1232,8 +1234,9 @@ describe('MultichainAssetsController', () => {
           request?: { method?: string };
         }) => {
           if (
-            params.handler === HandlerType.OnKeyringRequest &&
-            params.request?.method === KEYRING_GET_ACCOUNT_ASSET_INFO_METHOD
+            params.handler === HandlerType.OnClientRequest &&
+            params.request?.method ===
+              STELLAR_GET_ACCOUNT_ASSET_INFO_CLIENT_METHOD
           ) {
             return Promise.resolve({
               [STELLAR_CLASSIC_USDC]: {
@@ -1279,8 +1282,9 @@ describe('MultichainAssetsController', () => {
           request?: { method?: string; params?: { assets?: CaipAssetType[] } };
         }) => {
           if (
-            params.handler === HandlerType.OnKeyringRequest &&
-            params.request?.method === KEYRING_GET_ACCOUNT_ASSET_INFO_METHOD
+            params.handler === HandlerType.OnClientRequest &&
+            params.request?.method ===
+              STELLAR_GET_ACCOUNT_ASSET_INFO_CLIENT_METHOD
           ) {
             return Promise.resolve({
               [STELLAR_CLASSIC_USDC]: {
@@ -1305,11 +1309,12 @@ describe('MultichainAssetsController', () => {
 
       expect(mockSnapHandleRequest).toHaveBeenCalledWith(
         expect.objectContaining({
-          handler: HandlerType.OnKeyringRequest,
+          handler: HandlerType.OnClientRequest,
           request: expect.objectContaining({
-            method: KEYRING_GET_ACCOUNT_ASSET_INFO_METHOD,
+            method: STELLAR_GET_ACCOUNT_ASSET_INFO_CLIENT_METHOD,
             params: expect.objectContaining({
               assets: [STELLAR_CLASSIC_USDC],
+              scope: 'stellar:pubnet',
             }),
           }),
         }),
@@ -1346,8 +1351,9 @@ describe('MultichainAssetsController', () => {
           request?: { method?: string };
         }) => {
           if (
-            params.handler === HandlerType.OnKeyringRequest &&
-            params.request?.method === KEYRING_GET_ACCOUNT_ASSET_INFO_METHOD
+            params.handler === HandlerType.OnClientRequest &&
+            params.request?.method ===
+              STELLAR_GET_ACCOUNT_ASSET_INFO_CLIENT_METHOD
           ) {
             return Promise.resolve({
               [STELLAR_CLASSIC_USDC]: {
@@ -1367,9 +1373,9 @@ describe('MultichainAssetsController', () => {
 
       expect(mockSnapHandleRequest).toHaveBeenCalledWith(
         expect.objectContaining({
-          handler: HandlerType.OnKeyringRequest,
+          handler: HandlerType.OnClientRequest,
           request: expect.objectContaining({
-            method: KEYRING_GET_ACCOUNT_ASSET_INFO_METHOD,
+            method: STELLAR_GET_ACCOUNT_ASSET_INFO_CLIENT_METHOD,
           }),
         }),
       );

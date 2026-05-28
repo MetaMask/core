@@ -5,9 +5,9 @@ import BigNumber from 'bignumber.js';
 
 import { isStellarClassicAssetCaip19 } from './stellarTrustline';
 
-/** Stellar snap-only keyring RPC (see snap-stellar-wallet KeyringHandler). */
-export const KEYRING_GET_ACCOUNT_ASSET_INFO_METHOD =
-  'keyring_getAccountAssetInfo' as const;
+/** Stellar snap clientRequest method for trust-line metadata enrichment. */
+export const STELLAR_GET_ACCOUNT_ASSET_INFO_CLIENT_METHOD =
+  'getAccountAssetInfo' as const;
 
 /** Optional balance fields for Stellar classic trust lines (unify-ready `extra`). */
 export type StellarAccountAssetInfoExtra = {
@@ -72,7 +72,7 @@ export function isStellarTrustlineInactiveFromBalanceExtra(
   if (extra?.limit === undefined) {
     return true;
   }
-  const {limit} = extra;
+  const { limit } = extra;
   if (typeof limit !== 'string') {
     return true;
   }
