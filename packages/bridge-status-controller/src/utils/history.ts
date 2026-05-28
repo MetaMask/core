@@ -14,29 +14,40 @@ import type {
 } from '../types';
 import { getMaxPendingHistoryItemAgeMs } from './feature-flags';
 
+const updateHistoryItem = (
+  oldHistoryItem: BridgeHistoryItem,
+  txMeta: { id: string; hash?: string },
+): Partial<BridgeHistoryItem> => {
+  return {
+    ...oldHistoryItem,
+    txMetaId: txMeta.id,
+    originalTransactionId: oldHistoryItem.originalTransactionId ?? txMeta.id,
+    status: {
+      ...oldHistoryItem.status,
+      srcChain: {
+        ...oldHistoryItem.status.srcChain,
+        txHash: txMeta.hash ?? oldHistoryItem.status.srcChain?.txHash,
+      },
+    },
+  };
+};
+
 export const rekeyHistoryItemInState = (
   state: BridgeStatusControllerState,
-  actionId: string,
+  oldKey: string,
+  newKey: string,
   txMeta: { id: string; hash?: string },
 ): boolean => {
-  const historyItem = state.txHistory[actionId];
+  const historyItem = state.txHistory[oldKey];
   if (!historyItem) {
     return false;
   }
 
-  state.txHistory[txMeta.id] = {
+  state.txHistory[newKey] = {
     ...historyItem,
-    txMetaId: txMeta.id,
-    originalTransactionId: historyItem.originalTransactionId ?? txMeta.id,
-    status: {
-      ...historyItem.status,
-      srcChain: {
-        ...historyItem.status.srcChain,
-        txHash: txMeta.hash ?? historyItem.status.srcChain?.txHash,
-      },
-    },
+    ...updateHistoryItem(historyItem, txMeta),
   };
-  delete state.txHistory[actionId];
+  delete state.txHistory[oldKey];
   return true;
 };
 
@@ -95,6 +106,7 @@ export const getMatchingHistoryEntryForApprovalTxMeta = (
  * Determines the key to use for storing a bridge history item.
  * Uses actionId for pre-submission tracking, or bridgeTxMetaId for post-submission.
  *
+ * @deprecated specify an explicit history key instead
  * @param actionId - The action ID used for pre-submission tracking
  * @param bridgeTxMetaId - The transaction meta ID from bridgeTxMeta
  * @param syntheticTransactionId - The transactionId of the intent's placeholder transaction
@@ -117,10 +129,7 @@ export function getHistoryKey(
 
 export const getInitialHistoryItem = (
   args: StartPollingForBridgeTxStatusArgsSerialized,
-): {
-  historyKey: string;
-  txHistoryItem: BridgeHistoryItem;
-} => {
+): BridgeHistoryItem => {
   const {
     bridgeTxMeta,
     quoteResponse,
@@ -138,14 +147,6 @@ export const getInitialHistoryItem = (
     actionId,
     tokenSecurityTypeDestination,
   } = args;
-  // Determine the key for this history item:
-  // - For pre-submission (non-batch EVM): use actionId
-  // - For post-submission or other cases: use bridgeTxMeta.id
-  const historyKey = getHistoryKey(
-    actionId,
-    bridgeTxMeta?.id,
-    originalTransactionId,
-  );
 
   // Write all non-status fields to state so we can reference the quote in Activity list without the Bridge API
   // We know it's in progress but not the exact status yet
@@ -195,7 +196,7 @@ export const getInitialHistoryItem = (
     }),
   };
 
-  return { historyKey, txHistoryItem };
+  return txHistoryItem;
 };
 
 export const shouldPollHistoryItem = (
