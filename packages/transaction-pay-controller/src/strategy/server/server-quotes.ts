@@ -106,7 +106,7 @@ async function getQuotesForRequest(
     log('Normalized quotes', normalized);
     console.log(
       '[server-quotes] normalized gasLimits',
-      normalized.map((q) => q.original.client),
+      normalized.map((quote) => quote.original.client),
     );
 
     return normalized;
@@ -342,7 +342,9 @@ async function calculateSourceNetworkCost({
 
   const { is7702 } = gasResult;
   // TODO: remove — temporary 1.3x buffer to diagnose gas required exceeds allowance
-  const rawGasLimits = gasResult.gasLimits.map((g) => Math.ceil(g.max * 1.3));
+  const rawGasLimits = gasResult.gasLimits.map((gasLimit) =>
+    Math.ceil(gasLimit.max * 1.3),
+  );
   const gasLimits = is7702 ? [rawGasLimits[0]] : rawGasLimits;
 
   const estimate = calculateGasCost({

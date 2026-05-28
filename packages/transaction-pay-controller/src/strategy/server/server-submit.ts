@@ -258,7 +258,7 @@ async function submitViaTransactionController(
 
       const batchTransactions = transactionParams.map((params, i) => {
         const gas = (gasLimit7702 ??
-          (gasLimits[i] !== undefined ? params.gas : undefined)) as
+          (gasLimits[i] === undefined ? undefined : params.gas)) as
           | Hex
           | undefined;
 
@@ -276,14 +276,14 @@ async function submitViaTransactionController(
 
       const addTransactionBatchOptions = {
         from,
-        ...(gasLimit7702 !== undefined
-          ? {
+        ...(gasLimit7702 === undefined
+          ? { disable7702: true }
+          : {
               disable7702: false,
               disableHook: true,
               disableSequential: true,
               gasLimit7702,
-            }
-          : { disable7702: true }),
+            }),
         gasFeeToken,
         isInternal: true,
         networkClientId,
@@ -343,11 +343,12 @@ function stepToParams(
   clientMaxFeePerGas?: string,
   clientMaxPriorityFeePerGas?: string,
 ): TransactionParams {
-  const gas = gasLimit
-    ? toHex(gasLimit)
-    : step.gasLimit
-      ? toHex(step.gasLimit)
-      : undefined;
+  let gas: Hex | undefined;
+  if (gasLimit) {
+    gas = toHex(gasLimit);
+  } else if (step.gasLimit) {
+    gas = toHex(step.gasLimit);
+  }
 
   const resolvedMaxFeePerGas = step.maxFeePerGas ?? clientMaxFeePerGas;
   const resolvedMaxPriorityFeePerGas =
@@ -438,7 +439,7 @@ async function waitForServerCompletion(
       }
 
       if (statusResponse.status === ServerStatus.Confirmed) {
-        return statusResponse.targetHash;
+        return statusResponse.targetHash ?? '0x';
       }
 
       if (
