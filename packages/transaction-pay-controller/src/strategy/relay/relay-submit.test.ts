@@ -886,9 +886,9 @@ describe('Relay Submit Utils', () => {
       it('prepends override tx params to submit batch', async () => {
         request.quotes[0].request.paymentOverride =
           PaymentOverride.MoneyAccount;
-        getPaymentOverrideDataMock.mockResolvedValue([
-          PAYMENT_OVERRIDE_TX_MOCK,
-        ]);
+        getPaymentOverrideDataMock.mockResolvedValue({
+          calls: [PAYMENT_OVERRIDE_TX_MOCK],
+        });
 
         await submitRelayQuotes(request);
 
@@ -917,7 +917,7 @@ describe('Relay Submit Utils', () => {
       it('does not prepend when callback returns empty array', async () => {
         request.quotes[0].request.paymentOverride =
           PaymentOverride.MoneyAccount;
-        getPaymentOverrideDataMock.mockResolvedValue([]);
+        getPaymentOverrideDataMock.mockResolvedValue({ calls: [] });
 
         await submitRelayQuotes(request);
 
@@ -928,9 +928,9 @@ describe('Relay Submit Utils', () => {
       it('skips source balance validation', async () => {
         request.quotes[0].request.paymentOverride =
           PaymentOverride.MoneyAccount;
-        getPaymentOverrideDataMock.mockResolvedValue([
-          PAYMENT_OVERRIDE_TX_MOCK,
-        ]);
+        getPaymentOverrideDataMock.mockResolvedValue({
+          calls: [PAYMENT_OVERRIDE_TX_MOCK],
+        });
         getLiveTokenBalanceMock.mockResolvedValue('0');
 
         await submitRelayQuotes(request);
@@ -938,10 +938,10 @@ describe('Relay Submit Utils', () => {
         expect(getLiveTokenBalanceMock).not.toHaveBeenCalled();
       });
 
-      it('assigns correct gas limits offset by override tx', async () => {
+      it('assigns correct gas limits with override tx', async () => {
         request.quotes[0].request.paymentOverride =
           PaymentOverride.MoneyAccount;
-        request.quotes[0].original.metamask.gasLimits = [30000, 50000];
+        request.quotes[0].original.metamask.gasLimits = [10000, 30000, 50000];
 
         request.quotes[0].original.steps[0].items.push({
           ...request.quotes[0].original.steps[0].items[0],
@@ -952,9 +952,9 @@ describe('Relay Submit Utils', () => {
           },
         });
 
-        getPaymentOverrideDataMock.mockResolvedValue([
-          PAYMENT_OVERRIDE_TX_MOCK,
-        ]);
+        getPaymentOverrideDataMock.mockResolvedValue({
+          calls: [PAYMENT_OVERRIDE_TX_MOCK],
+        });
 
         await submitRelayQuotes(request);
 
@@ -965,9 +965,9 @@ describe('Relay Submit Utils', () => {
         >;
 
         expect(transactions).toHaveLength(3);
-        expect(transactions[0].params.gas).toBeUndefined();
-        expect(transactions[1].params.gas).toBe('0x7530');
-        expect(transactions[2].params.gas).toBe('0xc350');
+        expect(transactions[0].params.gas).toBe('0x7530');
+        expect(transactions[1].params.gas).toBe('0xc350');
+        expect(transactions[2].params.gas).toBeUndefined();
       });
 
       it('assigns correct transaction types with multi-step relay (approve + deposit)', async () => {

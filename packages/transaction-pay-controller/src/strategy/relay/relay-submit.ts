@@ -407,7 +407,7 @@ async function submitTransactions(
       'TransactionPayController:getState',
     );
 
-    const overrideTxs = await messenger.call(
+    const { calls: overrideTxs } = await messenger.call(
       'TransactionPayController:getPaymentOverrideData',
       {
         amount: quote.sourceAmount.human,
@@ -689,8 +689,7 @@ async function submitViaTransactionController(
       : 0;
 
     const transactions = allParams.map((singleParams, index) => {
-      const relayIndex = overrideCount > 0 ? index - overrideCount : index;
-      const gasLimit = relayIndex >= 0 ? gasLimits[relayIndex] : undefined;
+      const gasLimit = gasLimits[index];
       const gas =
         gasLimit === undefined || gasLimit7702 ? undefined : toHex(gasLimit);
 

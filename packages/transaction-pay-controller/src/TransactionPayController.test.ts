@@ -471,7 +471,9 @@ describe('TransactionPayController', () => {
 
   describe('getPaymentOverrideData', () => {
     it('delegates to the callback', async () => {
-      const resultMock = [{ to: '0xdef' as const, data: '0xabc' as const }];
+      const resultMock = {
+        calls: [{ to: '0xdef' as const, data: '0xabc' as const }],
+      };
       const getPaymentOverrideDataMock = jest
         .fn()
         .mockResolvedValue(resultMock);
@@ -512,7 +514,7 @@ describe('TransactionPayController', () => {
         },
       );
 
-      expect(result).toStrictEqual([]);
+      expect(result).toStrictEqual({ calls: [] });
     });
   });
 

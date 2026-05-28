@@ -165,13 +165,19 @@ export type GetPaymentOverrideDataRequest = {
   transactionData: TransactionData;
 };
 
+/** Response returned by {@link GetPaymentOverrideDataCallback}. */
+export type GetPaymentOverrideDataResponse = {
+  /** Batch transaction params to prepend to the submit batch. */
+  calls: BatchTransactionParams[];
+};
+
 /**
  * Callback invoked during submit when `paymentOverride` is defined.
  * Returns batch transaction params to prepend to the submit batch.
  */
 export type GetPaymentOverrideDataCallback = (
   request: GetPaymentOverrideDataRequest,
-) => Promise<BatchTransactionParams[]>;
+) => Promise<GetPaymentOverrideDataResponse>;
 
 /** Callback to update fiat payment state. */
 export type TransactionFiatPaymentCallback = (

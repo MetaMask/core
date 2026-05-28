@@ -65,6 +65,9 @@ import type {
 
 const log = createModuleLogger(projectLogger, 'relay-strategy');
 
+// Hardcoded gas allowance for the prepended payment override transaction(s).
+const PAYMENT_OVERRIDE_GAS = 75_000;
+
 /**
  * Fetches Relay quotes.
  *
@@ -970,9 +973,6 @@ function combinePostQuoteGas(
     is7702: relayGas.is7702,
   };
 }
-
-// Hardcoded gas allowance for the prepended payment override transaction(s).
-const PAYMENT_OVERRIDE_GAS = 75_000;
 
 function addPaymentOverrideGas(relayGas: RelayGasResult): RelayGasResult {
   const gasLimits = relayGas.is7702
