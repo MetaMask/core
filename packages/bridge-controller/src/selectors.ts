@@ -1,4 +1,5 @@
 /* eslint-disable @typescript-eslint/explicit-function-return-type */
+import { getAddress } from '@ethersproject/address';
 import type {
   CurrencyRateState,
   MultichainAssetsRatesControllerState,
@@ -232,7 +233,8 @@ export const selectExchangeRateByAssetId = (
     const evmTokenExchangeRates =
       marketDataByChain[formatChainIdToHex(chainId)];
     const evmTokenExchangeRateForAddress = isStrictHexString(address)
-      ? evmTokenExchangeRates?.[address]
+      ? evmTokenExchangeRates?.[getAddress(address)] ??
+        evmTokenExchangeRates?.[address.toLowerCase()]
       : null;
     const currencyKey = evmTokenExchangeRateForAddress?.currency;
     const nativeCurrencyRate =

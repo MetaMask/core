@@ -1,3 +1,4 @@
+import { getAddress } from '@ethersproject/address';
 import { AddressZero } from '@ethersproject/constants';
 import type { MarketDataDetails } from '@metamask/assets-controllers';
 import { toHex } from '@metamask/controller-utils';
@@ -155,6 +156,17 @@ describe('Bridge Selectors', () => {
       const result = selectExchangeRateByAssetId(
         mockExchangeRateSources,
         formatAddressToAssetId(MOCK_MUSD_ADDRESS.toLowerCase(), '1'),
+      );
+      expect(result).toStrictEqual({
+        exchangeRate: '50.00000000000000162804',
+        usdExchangeRate: '36.4650017017000806',
+      });
+    });
+
+    it('should handle EVM token rates when the asset ID address is lowercase and market data is checksummed', () => {
+      const result = selectExchangeRateByAssetId(
+        mockExchangeRateSources,
+        `eip155:1/erc20:${MOCK_MUSD_ADDRESS.toLowerCase()}`,
       );
       expect(result).toStrictEqual({
         exchangeRate: '50.00000000000000162804',
@@ -1704,6 +1716,45 @@ describe('Bridge Selectors', () => {
           },
           "usd": "0.05",
           "valueInCurrency": "2",
+        }
+      `);
+      expect(result.isBatchSellTradeAvailable).toBe(true);
+    });
+
+    it('should return total network fee value when fee asset ID address is lowercase and market data is checksummed', () => {
+      const result = selectBatchSellTrades({
+        ...mockState,
+        currencyRates: {
+          ETH: {
+            conversionRate: 1,
+            usdConversionRate: 1,
+          },
+        },
+        marketData: {
+          '0x89': {
+            [getAddress(mockBatchSellTrades.fee.asset.address)]: {
+              price: 1,
+              currency: 'ETH',
+            },
+          },
+        },
+        batchSellTradesLoadingStatus: RequestStatus.FETCHED,
+        batchSellTrades: mockBatchSellTrades,
+      });
+
+      expect(result.totalNetworkFee).toMatchInlineSnapshot(`
+        {
+          "amount": "0.01",
+          "asset": {
+            "address": "0x3c499c542cef5e3811e1192ce70d8cc03d5c3359",
+            "assetId": "eip155:137/erc20:0x3c499c542cef5e3811e1192ce70d8cc03d5c3359",
+            "chainId": 137,
+            "decimals": 6,
+            "name": "USD Coin",
+            "symbol": "USDC",
+          },
+          "usd": "0.01",
+          "valueInCurrency": "0.01",
         }
       `);
       expect(result.isBatchSellTradeAvailable).toBe(true);
