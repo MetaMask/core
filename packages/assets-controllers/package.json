@@ -85,7 +85,7 @@
     "@metamask/snaps-sdk": "^11.0.0",
     "@metamask/snaps-utils": "^12.1.2",
     "@metamask/storage-service": "^1.0.1",
-    "@metamask/transaction-controller": "^66.0.0",
+    "@metamask/transaction-controller": "^66.0.1",
     "@metamask/utils": "^11.9.0",
     "@tanstack/query-core": "^5.62.16",
     "@types/bn.js": "^5.1.5",
