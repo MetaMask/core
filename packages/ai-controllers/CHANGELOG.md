@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- `AiDigestService`: do not reject the entire market overview when individual `relatedAsset` entries are missing non-essential fields (`name`, `sourceAssetId`); assets missing `symbol` are filtered out, and trends with zero valid assets are removed ([#TBD](https://github.com/MetaMask/core/pull/TBD)).
+  - `RelatedAsset.name` is now optional (`string | undefined`); clients should fall back to `symbol` when absent.
+  - `RelatedAsset.sourceAssetId` is now optional (`string | undefined`); clients must not use it as a sole React key.
+
 ### Changed
 
 - Bump `@metamask/messenger` from `^1.0.0` to `^1.2.0` ([#8364](https://github.com/MetaMask/core/pull/8364), [#8373](https://github.com/MetaMask/core/pull/8373), [#8632](https://github.com/MetaMask/core/pull/8632))
