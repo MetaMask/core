@@ -25,12 +25,15 @@ type Params = {
 
 function getParams(): Params {
   const args = parseArgs(process.argv.slice(2));
+  const side = (args.side ?? 'long') as 'long' | 'short';
+  const defaultOffsetPct = side === 'long' ? '-2' : '2';
+
   return {
     coin: args.coin ?? 'BTC',
     size: parseFloat(args.size ?? '0.001'),
-    offsetPct: parseFloat(args['offset-pct'] ?? '-2'),
+    offsetPct: parseFloat(args['offset-pct'] ?? defaultOffsetPct),
     leverage: parseInt(args.leverage ?? '5', 10),
-    side: (args.side ?? 'long') as 'long' | 'short',
+    side,
   };
 }
 
