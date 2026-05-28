@@ -965,9 +965,9 @@ describe('Relay Submit Utils', () => {
         >;
 
         expect(transactions).toHaveLength(3);
-        expect(transactions[0].params.gas).toBe('0x7530');
-        expect(transactions[1].params.gas).toBe('0xc350');
-        expect(transactions[2].params.gas).toBeUndefined();
+        expect(transactions[0].params.gas).toBe('0x2710');
+        expect(transactions[1].params.gas).toBe('0x7530');
+        expect(transactions[2].params.gas).toBe('0xc350');
       });
 
       it('assigns correct transaction types with multi-step relay (approve + deposit)', async () => {
@@ -987,9 +987,9 @@ describe('Relay Submit Utils', () => {
           },
         });
 
-        getPaymentOverrideDataMock.mockResolvedValue([
-          PAYMENT_OVERRIDE_TX_MOCK,
-        ]);
+        getPaymentOverrideDataMock.mockResolvedValue({
+          calls: [PAYMENT_OVERRIDE_TX_MOCK],
+        });
 
         await submitRelayQuotes(request);
 
