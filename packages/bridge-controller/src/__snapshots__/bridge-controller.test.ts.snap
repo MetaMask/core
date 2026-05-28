@@ -473,6 +473,7 @@ exports[`BridgeController updateBridgeQuoteRequestParams should only poll once i
     {
       "action_type": "swapbridge-v1",
       "input": "chain_source",
+      "input_currency_mode": "crypto",
       "input_value": "eip155:1",
       "location": "Main View",
     },
@@ -482,6 +483,7 @@ exports[`BridgeController updateBridgeQuoteRequestParams should only poll once i
     {
       "action_type": "swapbridge-v1",
       "input": "chain_destination",
+      "input_currency_mode": "crypto",
       "input_value": "eip155:10",
       "location": "Main View",
     },
@@ -491,6 +493,7 @@ exports[`BridgeController updateBridgeQuoteRequestParams should only poll once i
     {
       "action_type": "swapbridge-v1",
       "input": "token_destination",
+      "input_currency_mode": "crypto",
       "input_value": "eip155:10/erc20:0x123",
       "location": "Main View",
     },
@@ -500,6 +503,7 @@ exports[`BridgeController updateBridgeQuoteRequestParams should only poll once i
     {
       "action_type": "swapbridge-v1",
       "input": "slippage",
+      "input_currency_mode": "crypto",
       "input_value": 0.5,
       "location": "Main View",
     },
@@ -907,6 +911,7 @@ exports[`BridgeController updateBridgeQuoteRequestParams should trigger quote po
     {
       "action_type": "swapbridge-v1",
       "input": "chain_source",
+      "input_currency_mode": "crypto",
       "input_value": "eip155:1",
       "location": "Main View",
     },
@@ -916,6 +921,7 @@ exports[`BridgeController updateBridgeQuoteRequestParams should trigger quote po
     {
       "action_type": "swapbridge-v1",
       "input": "chain_destination",
+      "input_currency_mode": "crypto",
       "input_value": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
       "location": "Main View",
     },
@@ -925,6 +931,7 @@ exports[`BridgeController updateBridgeQuoteRequestParams should trigger quote po
     {
       "action_type": "swapbridge-v1",
       "input": "token_destination",
+      "input_currency_mode": "crypto",
       "input_value": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/token:123d1",
       "location": "Main View",
     },
@@ -934,6 +941,7 @@ exports[`BridgeController updateBridgeQuoteRequestParams should trigger quote po
     {
       "action_type": "swapbridge-v1",
       "input": "slippage",
+      "input_currency_mode": "crypto",
       "input_value": 0.5,
       "location": "Main View",
     },
@@ -1072,6 +1080,7 @@ exports[`BridgeController updateBridgeQuoteRequestParams should update the quote
     {
       "action_type": "swapbridge-v1",
       "input": "chain_source",
+      "input_currency_mode": "crypto",
       "input_value": "eip155:1",
       "location": "Main View",
     },
@@ -1081,6 +1090,7 @@ exports[`BridgeController updateBridgeQuoteRequestParams should update the quote
     {
       "action_type": "swapbridge-v1",
       "input": "chain_destination",
+      "input_currency_mode": "crypto",
       "input_value": "eip155:10",
       "location": "Main View",
     },
@@ -1090,6 +1100,7 @@ exports[`BridgeController updateBridgeQuoteRequestParams should update the quote
     {
       "action_type": "swapbridge-v1",
       "input": "slippage",
+      "input_currency_mode": "crypto",
       "input_value": 0.5,
       "location": "Main View",
     },

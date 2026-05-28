@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Support emitting Unified SwapBridge input currency mode on quote metrics ([#8909](https://github.com/MetaMask/core/pull/8909))
+- Support emitting Unified SwapBridge input currency mode on quote and input changed metrics ([#8909](https://github.com/MetaMask/core/pull/8909))
 
 ### Changed
 

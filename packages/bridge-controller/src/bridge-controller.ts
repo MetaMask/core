@@ -357,7 +357,11 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
     if (quoteRequestIndex >= quoteRequestCount) {
       return;
     }
-    this.#trackInputChangedEvents(paramsToUpdate, quoteRequestIndex);
+    this.#trackInputChangedEvents(
+      paramsToUpdate,
+      context.input_currency_mode,
+      quoteRequestIndex,
+    );
     this.resetState(AbortReason.QuoteRequestUpdated, quoteRequestIndex);
     this.update((state) => {
       // Update only the specified quote request and keep the rest of the quote requests unchanged
@@ -1276,6 +1280,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
 
   readonly #trackInputChangedEvents = (
     paramsToUpdate: Partial<GenericQuoteRequest>,
+    inputCurrencyMode: InputCurrencyMode = InputCurrencyMode.CRYPTO,
     quoteRequestIndex: number = 0,
   ) => {
     Object.entries(paramsToUpdate).forEach(([key, value]) => {
@@ -1298,6 +1303,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
           {
             input: inputKey,
             input_value: inputValue,
+            input_currency_mode: inputCurrencyMode,
             location: this.#location,
           },
         );

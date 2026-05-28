@@ -67,6 +67,7 @@ exports[`BridgeController BatchSell (multiple quote requests) SSE fetch quotes s
     {
       "action_type": "swapbridge-v1",
       "input": "chain_source",
+      "input_currency_mode": "crypto",
       "input_value": "eip155:10",
       "location": "Main View",
     },
@@ -76,6 +77,7 @@ exports[`BridgeController BatchSell (multiple quote requests) SSE fetch quotes s
     {
       "action_type": "swapbridge-v1",
       "input": "chain_destination",
+      "input_currency_mode": "crypto",
       "input_value": "eip155:137",
       "location": "Main View",
     },
@@ -85,6 +87,7 @@ exports[`BridgeController BatchSell (multiple quote requests) SSE fetch quotes s
     {
       "action_type": "swapbridge-v1",
       "input": "token_destination",
+      "input_currency_mode": "crypto",
       "input_value": "eip155:137/erc20:0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359",
       "location": "Main View",
     },
@@ -94,6 +97,7 @@ exports[`BridgeController BatchSell (multiple quote requests) SSE fetch quotes s
     {
       "action_type": "swapbridge-v1",
       "input": "slippage",
+      "input_currency_mode": "crypto",
       "input_value": 0.5,
       "location": "Main View",
     },

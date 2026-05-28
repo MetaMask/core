@@ -217,6 +217,7 @@ exports[`BridgeController SSE should rethrow error from server 3`] = `
     {
       "action_type": "swapbridge-v1",
       "input": "chain_source",
+      "input_currency_mode": "crypto",
       "input_value": "eip155:1",
       "location": "Main View",
     },
@@ -226,6 +227,7 @@ exports[`BridgeController SSE should rethrow error from server 3`] = `
     {
       "action_type": "swapbridge-v1",
       "input": "chain_destination",
+      "input_currency_mode": "crypto",
       "input_value": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
       "location": "Main View",
     },
@@ -235,6 +237,7 @@ exports[`BridgeController SSE should rethrow error from server 3`] = `
     {
       "action_type": "swapbridge-v1",
       "input": "token_destination",
+      "input_currency_mode": "crypto",
       "input_value": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/token:123d1",
       "location": "Main View",
     },
@@ -244,6 +247,7 @@ exports[`BridgeController SSE should rethrow error from server 3`] = `
     {
       "action_type": "swapbridge-v1",
       "input": "slippage",
+      "input_currency_mode": "crypto",
       "input_value": 0.5,
       "location": "Main View",
     },
@@ -344,6 +348,7 @@ exports[`BridgeController SSE should trigger quote polling if request is valid 2
     {
       "action_type": "swapbridge-v1",
       "input": "chain_source",
+      "input_currency_mode": "crypto",
       "input_value": "eip155:1",
       "location": "Main View",
     },
@@ -353,6 +358,7 @@ exports[`BridgeController SSE should trigger quote polling if request is valid 2
     {
       "action_type": "swapbridge-v1",
       "input": "chain_destination",
+      "input_currency_mode": "crypto",
       "input_value": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
       "location": "Main View",
     },
@@ -362,6 +368,7 @@ exports[`BridgeController SSE should trigger quote polling if request is valid 2
     {
       "action_type": "swapbridge-v1",
       "input": "token_destination",
+      "input_currency_mode": "crypto",
       "input_value": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/token:123d1",
       "location": "Main View",
     },
@@ -371,6 +378,7 @@ exports[`BridgeController SSE should trigger quote polling if request is valid 2
     {
       "action_type": "swapbridge-v1",
       "input": "slippage",
+      "input_currency_mode": "crypto",
       "input_value": 0.5,
       "location": "Main View",
     },
