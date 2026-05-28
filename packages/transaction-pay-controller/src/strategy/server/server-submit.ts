@@ -241,7 +241,12 @@ async function submitViaTransactionController(
         params: transactionParams[0],
         options: addTransactionOptions,
       });
-      console.log('[server-submit] addTransaction params', transactionParams[0], 'options', addTransactionOptions);
+      console.log(
+        '[server-submit] addTransaction params',
+        transactionParams[0],
+        'options',
+        addTransactionOptions,
+      );
 
       await messenger.call(
         'TransactionController:addTransaction',
@@ -252,9 +257,10 @@ async function submitViaTransactionController(
       const gasLimit7702 = is7702 ? toHex(gasLimits[0]) : undefined;
 
       const batchTransactions = transactionParams.map((params, i) => {
-        const gas = (
-          gasLimit7702 ?? (gasLimits[i] !== undefined ? params.gas : undefined)
-        ) as Hex | undefined;
+        const gas = (gasLimit7702 ??
+          (gasLimits[i] !== undefined ? params.gas : undefined)) as
+          | Hex
+          | undefined;
 
         return {
           params: {
@@ -288,7 +294,10 @@ async function submitViaTransactionController(
       };
 
       log('Calling addTransactionBatch', addTransactionBatchOptions);
-      console.log('[server-submit] addTransactionBatch options', addTransactionBatchOptions);
+      console.log(
+        '[server-submit] addTransactionBatch options',
+        addTransactionBatchOptions,
+      );
 
       await messenger.call(
         'TransactionController:addTransactionBatch',
@@ -340,8 +349,7 @@ function stepToParams(
       ? toHex(step.gasLimit)
       : undefined;
 
-  const resolvedMaxFeePerGas =
-    step.maxFeePerGas ?? clientMaxFeePerGas;
+  const resolvedMaxFeePerGas = step.maxFeePerGas ?? clientMaxFeePerGas;
   const resolvedMaxPriorityFeePerGas =
     step.maxPriorityFeePerGas ?? clientMaxPriorityFeePerGas;
 
@@ -349,7 +357,9 @@ function stepToParams(
     data: step.data,
     from,
     gas,
-    maxFeePerGas: resolvedMaxFeePerGas ? toHex(resolvedMaxFeePerGas) : undefined,
+    maxFeePerGas: resolvedMaxFeePerGas
+      ? toHex(resolvedMaxFeePerGas)
+      : undefined,
     maxPriorityFeePerGas: resolvedMaxPriorityFeePerGas
       ? toHex(resolvedMaxPriorityFeePerGas)
       : undefined,

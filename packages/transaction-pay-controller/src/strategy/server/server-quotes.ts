@@ -90,7 +90,10 @@ async function getQuotesForRequest(
     const response = await fetchServerQuote(messenger, body, signal);
 
     log('Raw quote response', response);
-    console.log('[server-quotes] raw response', JSON.stringify(response, null, 2));
+    console.log(
+      '[server-quotes] raw response',
+      JSON.stringify(response, null, 2),
+    );
 
     const fulfilledResults = response.results.filter(isFulfilledResult);
 
@@ -101,7 +104,10 @@ async function getQuotesForRequest(
     );
 
     log('Normalized quotes', normalized);
-    console.log('[server-quotes] normalized gasLimits', normalized.map((q) => q.original.client));
+    console.log(
+      '[server-quotes] normalized gasLimits',
+      normalized.map((q) => q.original.client),
+    );
 
     return normalized;
   } catch (error) {

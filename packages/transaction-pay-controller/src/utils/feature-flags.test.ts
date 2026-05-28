@@ -700,7 +700,6 @@ describe('Feature Flags Utils', () => {
 
       expect(server.baseUrl).toBe('https://server.test');
     });
-
   });
 
   describe('getServerPollingInterval', () => {
