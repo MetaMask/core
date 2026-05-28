@@ -113,27 +113,24 @@ const MarketOverviewReportEnvelopeStruct = structType({
   report: MarketOverviewStruct,
 });
 
-const filterAndNormalizeRelatedAssets = (
-  raw: MarketOverview,
-): MarketOverview => ({
+const normalizeRelatedAssets = (raw: MarketOverview): MarketOverview => ({
   ...raw,
-  trends: raw.trends
-    .map((trend) => ({
-      ...trend,
-      relatedAssets: trend.relatedAssets
-        .filter((asset) => Boolean(asset.symbol))
-        .map((asset) => ({ ...asset, caip19: asset.caip19 ?? [] })),
-    }))
-    .filter((trend) => trend.relatedAssets.length > 0),
+  trends: raw.trends.map((trend) => ({
+    ...trend,
+    relatedAssets: trend.relatedAssets.map((asset) => ({
+      ...asset,
+      caip19: asset.caip19 ?? [],
+    })),
+  })),
 });
 
 const getNormalizedMarketOverview = (value: unknown): MarketOverview | null => {
   if (is(value, MarketOverviewStruct)) {
-    return filterAndNormalizeRelatedAssets(value);
+    return normalizeRelatedAssets(value);
   }
 
   if (is(value, MarketOverviewReportEnvelopeStruct)) {
-    return filterAndNormalizeRelatedAssets(value.report);
+    return normalizeRelatedAssets(value.report);
   }
 
   return null;

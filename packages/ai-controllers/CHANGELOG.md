@@ -14,7 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- `AiDigestService.fetchMarketOverview` no longer throws when a `relatedAsset` is missing non-essential fields. `RelatedAsset.name` and `RelatedAsset.sourceAssetId` are now optional; assets missing `symbol` are filtered out and trends with zero valid assets are dropped ([#8920](https://github.com/MetaMask/core/pull/8920)).
+- `RelatedAsset.name` and `RelatedAsset.sourceAssetId` are now optional in both the superstruct schema and TypeScript type, so a `relatedAsset` missing either field no longer causes `fetchMarketOverview` to throw `API_INVALID_RESPONSE` ([#8920](https://github.com/MetaMask/core/pull/8920)).
 
 ## [0.6.3]
 
