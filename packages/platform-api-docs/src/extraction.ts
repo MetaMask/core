@@ -14,10 +14,7 @@ import type {
 } from 'ts-morph';
 import { Node as NodeGuards, Project, ts } from 'ts-morph';
 
-import type {
-  MessengerCapabilityPacket,
-  DocumentedParameter,
-} from './types';
+import type { MessengerCapabilityPacket, DocumentedParameter } from './types';
 
 // ---------------------------------------------------------------------------
 // NOTE: `ts-morph` is used heavily in this file to parse and extract
