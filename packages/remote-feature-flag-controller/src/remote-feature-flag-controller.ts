@@ -24,7 +24,10 @@ import { isVersionFeatureFlag, getVersionData } from './utils/version';
 
 export const controllerName = 'RemoteFeatureFlagController';
 export const DEFAULT_CACHE_DURATION = 24 * 60 * 60 * 1000; // 1 day
-const THRESHOLD_VALUE_VERSION = 2;
+
+enum ThresholdVersion {
+  DirectValue = 2,
+}
 
 type JsonObject = Record<string, Json>;
 
@@ -126,7 +129,7 @@ function isJsonObject(value: Json): value is JsonObject {
 }
 
 function normalizeThresholdValue(featureFlag: FeatureFlagScopeValue): Json {
-  if (featureFlag.thresholdVersion === THRESHOLD_VALUE_VERSION) {
+  if (featureFlag.thresholdVersion === ThresholdVersion.DirectValue) {
     return featureFlag.value;
   }
 
