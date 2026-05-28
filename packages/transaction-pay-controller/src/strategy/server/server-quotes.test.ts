@@ -678,7 +678,10 @@ describe('server-quotes', () => {
 
       expect(result[0].fees.sourceNetwork.estimate).toBe(GAS_ESTIMATE_MOCK);
       expect(jest.mocked(calculateGasCost)).toHaveBeenCalledWith(
-        expect.objectContaining({ maxFeePerGas: '0', maxPriorityFeePerGas: '0' }),
+        expect.objectContaining({
+          maxFeePerGas: '0',
+          maxPriorityFeePerGas: '0',
+        }),
       );
     });
   });
