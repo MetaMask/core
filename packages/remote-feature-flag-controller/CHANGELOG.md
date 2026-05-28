@@ -13,7 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Normalize object-valued feature flag wrappers so `value` contents of threshold entries are exposed at the top level while preserving the `value` property when expected by older selectors ([#8908](https://github.com/MetaMask/core/pull/8908))
+- Normalize object-valued threshold feature flag entries so `value` contents are exposed at the top level while preserving the `value` property, and support `thresholdVersion: 2` entries that return the selected `value` directly ([#8908](https://github.com/MetaMask/core/pull/8908))
 
 ## [4.2.1]
 

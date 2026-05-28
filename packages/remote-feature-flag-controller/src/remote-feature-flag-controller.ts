@@ -28,10 +28,6 @@ const THRESHOLD_VALUE_VERSION = 2;
 
 type JsonObject = Record<string, Json>;
 
-type FeatureFlagValueWrapper = JsonObject & {
-  value: Json;
-};
-
 // === STATE ===
 
 export type RemoteFeatureFlagControllerState = {
@@ -127,27 +123,6 @@ export function getDefaultRemoteFeatureFlagControllerState(): RemoteFeatureFlagC
 
 function isJsonObject(value: Json): value is JsonObject {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
-}
-
-function isFeatureFlagValueWrapper(
-  value: Json,
-): value is FeatureFlagValueWrapper {
-  return (
-    isJsonObject(value) && Object.prototype.hasOwnProperty.call(value, 'value')
-  );
-}
-
-function spreadFeatureFlagValueWrapper(
-  featureFlagValue: FeatureFlagValueWrapper,
-): Json {
-  if (!isJsonObject(featureFlagValue.value)) {
-    return featureFlagValue;
-  }
-
-  return {
-    ...featureFlagValue,
-    ...featureFlagValue.value,
-  };
 }
 
 function normalizeThresholdValue(featureFlag: FeatureFlagScopeValue): Json {
@@ -358,9 +333,7 @@ export class RemoteFeatureFlagController extends BaseController<
       return null;
     }
 
-    return isFeatureFlagValueWrapper(versionData)
-      ? spreadFeatureFlagValueWrapper(versionData)
-      : versionData;
+    return versionData;
   }
 
   async #processRemoteFeatureFlags(remoteFeatureFlags: FeatureFlags): Promise<{
