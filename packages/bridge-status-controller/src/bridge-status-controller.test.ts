@@ -38,7 +38,7 @@ import type {
   TransactionMeta,
   TransactionParams,
 } from '@metamask/transaction-controller';
-import type { CaipAssetType } from '@metamask/utils';
+import type { CaipAssetType, Hex } from '@metamask/utils';
 import { numberToHex } from '@metamask/utils';
 
 import { flushPromises } from '../../../tests/helpers';
@@ -92,6 +92,9 @@ jest.mock('@metamask/bridge-controller', () => ({
 const EMPTY_INIT_STATE: BridgeStatusControllerState = {
   ...DEFAULT_BRIDGE_STATUS_CONTROLLER_STATE,
 };
+
+const TEST_CLIENT_PRODUCT = 'metamask-extension';
+const TEST_CLIENT_VERSION = 'MOCK_VERSION';
 
 const MockStatusResponse = {
   getPending: ({
@@ -296,10 +299,17 @@ const getMockQuote = ({ srcChainId = 42161, destChainId = 10 } = {}) => ({
 const getMockStartPollingForBridgeTxStatusArgs = ({
   txMetaId = 'bridgeTxMetaId1',
   srcTxHash = '0xsrcTxHash1',
-  account = '0xaccount1',
+  account = '0xaccount1' as Hex,
   srcChainId = 42161,
   destChainId = 10,
   isStxEnabled = false,
+}: {
+  txMetaId?: string;
+  srcTxHash?: string;
+  account?: Hex;
+  srcChainId?: number;
+  destChainId?: number;
+  isStxEnabled?: boolean;
 } = {}): StartPollingForBridgeTxStatusArgsSerialized => ({
   bridgeTxMeta: {
     id: txMetaId,
@@ -720,6 +730,8 @@ async function withController<ReturnValue>(
   const controller = new BridgeStatusController({
     messenger,
     clientId: BridgeClientId.EXTENSION,
+    clientProduct: TEST_CLIENT_PRODUCT,
+    clientVersion: TEST_CLIENT_VERSION,
     fetchFn: jest.fn(),
     addTransactionBatchFn,
     ...options,
@@ -754,6 +766,8 @@ const executePollingWithPendingStatus = async () => {
   const bridgeStatusController = new BridgeStatusController({
     messenger,
     clientId: BridgeClientId.EXTENSION,
+    clientProduct: TEST_CLIENT_PRODUCT,
+    clientVersion: TEST_CLIENT_VERSION,
     fetchFn: jest.fn(),
     addTransactionBatchFn: jest.fn(),
     config: {},
@@ -5181,6 +5195,8 @@ describe('BridgeStatusController', () => {
       bridgeStatusController = new BridgeStatusController({
         messenger: mockBridgeStatusMessenger,
         clientId: BridgeClientId.EXTENSION,
+        clientProduct: TEST_CLIENT_PRODUCT,
+        clientVersion: TEST_CLIENT_VERSION,
         fetchFn: mockFetchFn,
         addTransactionBatchFn: jest.fn(),
         state: {
@@ -6245,6 +6261,8 @@ describe('BridgeStatusController', () => {
       const controller = new BridgeStatusController({
         messenger,
         clientId: BridgeClientId.EXTENSION,
+        clientProduct: TEST_CLIENT_PRODUCT,
+        clientVersion: TEST_CLIENT_VERSION,
         fetchFn: jest.fn(),
         addTransactionBatchFn,
         isQuoteStatusUpdateEnabled: () => true,
@@ -6298,6 +6316,8 @@ describe('BridgeStatusController', () => {
       const controller = new BridgeStatusController({
         messenger,
         clientId: BridgeClientId.EXTENSION,
+        clientProduct: TEST_CLIENT_PRODUCT,
+        clientVersion: TEST_CLIENT_VERSION,
         fetchFn: jest.fn(),
         addTransactionBatchFn,
         isQuoteStatusUpdateEnabled: () => true,
@@ -6339,6 +6359,8 @@ describe('BridgeStatusController', () => {
       const controller = new BridgeStatusController({
         messenger,
         clientId: BridgeClientId.EXTENSION,
+        clientProduct: TEST_CLIENT_PRODUCT,
+        clientVersion: TEST_CLIENT_VERSION,
         fetchFn: jest.fn(),
         addTransactionBatchFn,
         isQuoteStatusUpdateEnabled: () => true,
@@ -6377,6 +6399,8 @@ describe('BridgeStatusController', () => {
       const controller = new BridgeStatusController({
         messenger,
         clientId: BridgeClientId.EXTENSION,
+        clientProduct: TEST_CLIENT_PRODUCT,
+        clientVersion: TEST_CLIENT_VERSION,
         fetchFn: jest.fn(),
         addTransactionBatchFn,
         isQuoteStatusUpdateEnabled: () => true,
