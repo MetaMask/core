@@ -54,6 +54,12 @@ const TRANSACTION_META_MOCK = {
 } as TransactionMeta;
 
 const ORIGINAL_QUOTE_MOCK: ServerQuote = {
+  client: {
+    gasLimits: [25000],
+    is7702: false,
+    maxFeePerGas: '1000000000',
+    maxPriorityFeePerGas: '500000000',
+  },
   duration: 30,
   gasless: true,
   id: 'server-intent-id',

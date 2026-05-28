@@ -16,11 +16,10 @@ import type {
 } from '../../types';
 import {
   getFeatureFlags,
-  getServerProviderPriority,
   getSlippage,
   isEIP7702Chain,
 } from '../../utils/feature-flags';
-import { calculateGasCost } from '../../utils/gas';
+import { calculateGasCost, getGasFee } from '../../utils/gas';
 import {
   getGasStationCostInSourceTokenRaw,
   getGasStationEligibility,
@@ -59,10 +58,9 @@ type FulfilledServerQuoteResult = ServerQuoteResult & {
 export async function getServerQuotes(
   request: PayStrategyGetQuotesRequest,
 ): Promise<TransactionPayQuote<ServerQuote>[]> {
-  const providerPriority = getServerProviderPriority(request.messenger);
   const quoteRequests = request.requests.filter(shouldRequestQuote);
 
-  log('Fetching quotes', { providerPriority, quoteRequests });
+  log('Fetching quotes', { quoteRequests });
 
   const quotes = await Promise.all(
     quoteRequests.map((quoteRequest) =>
@@ -78,48 +76,44 @@ async function getQuotesForRequest(
   fullRequest: PayStrategyGetQuotesRequest,
 ): Promise<TransactionPayQuote<ServerQuote>[]> {
   const { accountSupports7702, messenger, signal, transaction } = fullRequest;
-  const providerPriority = getServerProviderPriority(messenger);
 
-  for (const provider of providerPriority) {
-    const body = await buildServerQuoteRequest(
-      quoteRequest,
-      transaction,
-      messenger,
-      [provider],
-      accountSupports7702,
+  const body = await buildServerQuoteRequest(
+    quoteRequest,
+    transaction,
+    messenger,
+    accountSupports7702,
+  );
+
+  try {
+    log('Request body', body);
+
+    const response = await fetchServerQuote(messenger, body, signal);
+
+    log('Raw quote response', response);
+    console.log('[server-quotes] raw response', JSON.stringify(response, null, 2));
+
+    const fulfilledResults = response.results.filter(isFulfilledResult);
+
+    const normalized = await Promise.all(
+      fulfilledResults.map((result) =>
+        normalizeQuote(result, quoteRequest, messenger),
+      ),
     );
 
-    try {
-      log('Request body', body);
+    log('Normalized quotes', normalized);
+    console.log('[server-quotes] normalized gasLimits', normalized.map((q) => q.original.client));
 
-      const response = await fetchServerQuote(messenger, body, signal);
-      const fulfilledResults = response.results.filter(isFulfilledResult);
-
-      if (fulfilledResults.length > 0) {
-        return await Promise.all(
-          fulfilledResults.map((result) =>
-            normalizeQuote(result, quoteRequest, messenger),
-          ),
-        );
-      }
-
-      log('Provider returned no fulfilled quote results', {
-        error: response.results.find((result) => result.error)?.error,
-        provider,
-      });
-    } catch (error) {
-      log('Error fetching provider quote', { error, provider });
-    }
+    return normalized;
+  } catch (error) {
+    log('Error fetching quotes', { error });
+    return [];
   }
-
-  return [];
 }
 
 async function buildServerQuoteRequest(
   quoteRequest: QuoteRequest,
   transaction: TransactionMeta,
   messenger: TransactionPayControllerMessenger,
-  providers: ServerQuoteRequest['providers'],
   accountSupports7702: boolean,
 ): Promise<ServerQuoteRequest> {
   const normalizedRequest = normalizeServerPerpsRequest(
@@ -165,7 +159,6 @@ async function buildServerQuoteRequest(
     slippage: Math.round(
       getSlippage(messenger, sourceChainId, sourceTokenAddress) * 10000,
     ),
-    providers,
     supportsGasless,
   };
 
@@ -252,6 +245,12 @@ async function normalizeQuote(
       targetNetwork: ZERO_FIAT_VALUE,
     },
     original: {
+      client: {
+        gasLimits: sourceNetwork.gasLimits,
+        is7702: sourceNetwork.is7702,
+        maxFeePerGas: sourceNetwork.maxFeePerGas,
+        maxPriorityFeePerGas: sourceNetwork.maxPriorityFeePerGas,
+      },
       duration: quote.duration,
       fees: quote.fees,
       gasless,
@@ -280,7 +279,11 @@ type SourceNetworkCost = Pick<
   TransactionPayFees['sourceNetwork'],
   'estimate' | 'max'
 > & {
+  gasLimits: number[];
+  is7702: boolean;
   isSourceGasFeeToken?: boolean;
+  maxFeePerGas: string | undefined;
+  maxPriorityFeePerGas: string | undefined;
 };
 
 async function calculateSourceNetworkCost({
@@ -294,18 +297,34 @@ async function calculateSourceNetworkCost({
   quoteRequest: QuoteRequest;
   steps: ServerQuoteStep[];
 }): Promise<SourceNetworkCost> {
+  const noFees = {
+    estimate: ZERO_AMOUNT,
+    gasLimits: [],
+    is7702: false,
+    max: ZERO_AMOUNT,
+    maxFeePerGas: undefined,
+    maxPriorityFeePerGas: undefined,
+  };
+
   if (gasless) {
     log('Zeroing source network fees for gasless quote');
-    return { estimate: ZERO_AMOUNT, max: ZERO_AMOUNT };
+    return noFees;
   }
 
   if (steps.length === 0) {
     log('No quote steps; zeroing source network fees');
-    return { estimate: ZERO_AMOUNT, max: ZERO_AMOUNT };
+    return noFees;
   }
 
   const { from, sourceChainId, sourceTokenAddress } = quoteRequest;
   const firstStep = steps[0];
+  const chainIdHex = toHex(firstStep.chainId);
+
+  const gasFeeEstimate = getGasFee(chainIdHex, messenger);
+  const maxFeePerGas = firstStep.maxFeePerGas ?? gasFeeEstimate.maxFeePerGas;
+  const maxPriorityFeePerGas =
+    firstStep.maxPriorityFeePerGas ?? gasFeeEstimate.maxPriorityFeePerGas;
+
   const gasTransactions = steps.map((step) => stepToGasTransaction(step, from));
 
   const gasResult = await estimateQuoteGasLimits({
@@ -315,13 +334,16 @@ async function calculateSourceNetworkCost({
     transactions: gasTransactions,
   });
 
-  const chainIdHex = toHex(firstStep.chainId);
+  const { is7702 } = gasResult;
+  // TODO: remove — temporary 1.3x buffer to diagnose gas required exceeds allowance
+  const rawGasLimits = gasResult.gasLimits.map((g) => Math.ceil(g.max * 1.3));
+  const gasLimits = is7702 ? [rawGasLimits[0]] : rawGasLimits;
 
   const estimate = calculateGasCost({
     chainId: chainIdHex,
     gas: gasResult.totalGasEstimate,
-    maxFeePerGas: firstStep.maxFeePerGas ?? '0',
-    maxPriorityFeePerGas: firstStep.maxPriorityFeePerGas ?? '0',
+    maxFeePerGas: maxFeePerGas ?? '0',
+    maxPriorityFeePerGas: maxPriorityFeePerGas ?? '0',
     messenger,
   });
 
@@ -329,8 +351,8 @@ async function calculateSourceNetworkCost({
     chainId: chainIdHex,
     gas: gasResult.totalGasLimit,
     isMax: true,
-    maxFeePerGas: firstStep.maxFeePerGas ?? '0',
-    maxPriorityFeePerGas: firstStep.maxPriorityFeePerGas ?? '0',
+    maxFeePerGas: maxFeePerGas ?? '0',
+    maxPriorityFeePerGas: maxPriorityFeePerGas ?? '0',
     messenger,
   });
 
@@ -341,8 +363,10 @@ async function calculateSourceNetworkCost({
     getNativeToken(sourceChainId),
   );
 
+  const fees = { maxFeePerGas, maxPriorityFeePerGas };
+
   if (new BigNumber(nativeBalance).isGreaterThanOrEqualTo(max.raw)) {
-    return { estimate, max };
+    return { estimate, gasLimits, is7702, max, ...fees };
   }
 
   const eligibility = getGasStationEligibility(messenger, sourceChainId);
@@ -353,7 +377,7 @@ async function calculateSourceNetworkCost({
       sourceChainId,
       supportsGasStation: eligibility.chainSupportsGasStation,
     });
-    return { estimate, max };
+    return { estimate, gasLimits, is7702, max, ...fees };
   }
 
   log('Checking gas fee tokens due to insufficient native balance', {
@@ -378,15 +402,18 @@ async function calculateSourceNetworkCost({
   });
 
   if (!gasFeeTokenCost) {
-    return { estimate, max };
+    return { estimate, gasLimits, is7702, max, ...fees };
   }
 
   log('Using gas fee token for source network', { gasFeeTokenCost });
 
   return {
     estimate: gasFeeTokenCost,
+    gasLimits,
+    is7702,
     isSourceGasFeeToken: true,
     max: gasFeeTokenCost,
+    ...fees,
   };
 }
 
@@ -398,7 +425,6 @@ function stepToGasTransaction(
     chainId: toHex(step.chainId),
     data: step.data,
     from,
-    gas: step.gasLimit,
     to: step.to,
     value: step.value,
   };

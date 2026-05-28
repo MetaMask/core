@@ -28,10 +28,11 @@ export async function fetchServerQuote(
   signal?: AbortSignal,
 ): Promise<ServerQuoteResponse> {
   const { server } = getPayStrategiesConfig(messenger);
+  const quoteUrl = `${server.baseUrl}/quote`;
 
-  log('Fetching quote', { url: server.quoteUrl });
+  log('Fetching quote', { url: quoteUrl });
 
-  const response = await serverFetch(server.quoteUrl, {
+  const response = await serverFetch(quoteUrl, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
@@ -53,10 +54,11 @@ export async function submitServerIntent(
   body: ServerSubmitRequest,
 ): Promise<ServerSubmitResponse> {
   const { server } = getPayStrategiesConfig(messenger);
+  const submitUrl = `${server.baseUrl}/submit`;
 
-  log('Submitting intent', { url: server.submitUrl });
+  log('Submitting intent', { url: submitUrl });
 
-  const response = await serverFetch(server.submitUrl, {
+  const response = await serverFetch(submitUrl, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
@@ -87,7 +89,7 @@ export async function getServerStatus(
   if (params.hash) {
     query.set('hash', params.hash);
   }
-  const url = `${server.statusUrl}?${query.toString()}`;
+  const url = `${server.baseUrl}/status?${query.toString()}`;
 
   log('Fetching status', { url });
 

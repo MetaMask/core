@@ -291,7 +291,7 @@ function parseEstimatedGas(gasValue: string): number {
  * @param messenger - Controller messenger.
  * @returns Gas fee estimates for the chain.
  */
-function getGasFee(
+export function getGasFee(
   chainId: Hex,
   messenger: TransactionPayControllerMessenger,
 ): {

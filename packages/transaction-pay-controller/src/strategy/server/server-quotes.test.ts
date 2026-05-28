@@ -9,11 +9,10 @@ import type {
 } from '../../types';
 import {
   getFeatureFlags,
-  getServerProviderPriority,
   getSlippage,
   isEIP7702Chain,
 } from '../../utils/feature-flags';
-import { calculateGasCost } from '../../utils/gas';
+import { calculateGasCost, getGasFee } from '../../utils/gas';
 import {
   getGasStationCostInSourceTokenRaw,
   getGasStationEligibility,
@@ -27,7 +26,6 @@ import { ServerProviderName, ServerTradeType } from './types';
 jest.mock('../../utils/feature-flags', () => ({
   ...jest.requireActual('../../utils/feature-flags'),
   getFeatureFlags: jest.fn(),
-  getServerProviderPriority: jest.fn(),
   getSlippage: jest.fn(),
   isEIP7702Chain: jest.fn(),
 }));
@@ -120,7 +118,6 @@ const DELEGATION_RESULT_MOCK = {
 
 describe('server-quotes', () => {
   const fetchServerQuoteMock = jest.mocked(fetchServerQuote);
-  const getServerProviderPriorityMock = jest.mocked(getServerProviderPriority);
   const getSlippageMock = jest.mocked(getSlippage);
   const isEIP7702ChainMock = jest.mocked(isEIP7702Chain);
   const { getDelegationTransactionMock, messenger } = getMessengerMock();
@@ -132,7 +129,6 @@ describe('server-quotes', () => {
       results: [FULFILLED_RESULT_MOCK],
     });
     getDelegationTransactionMock.mockResolvedValue(DELEGATION_RESULT_MOCK);
-    getServerProviderPriorityMock.mockReturnValue([ServerProviderName.Relay]);
     getSlippageMock.mockReturnValue(0.005);
     isEIP7702ChainMock.mockReturnValue(false);
     jest.mocked(getFeatureFlags).mockReturnValue({
@@ -148,7 +144,13 @@ describe('server-quotes', () => {
       raw: '0',
       usd: '0',
     } as never);
+    jest.mocked(getGasFee).mockReturnValue({
+      estimatedBaseFee: undefined,
+      maxFeePerGas: '1000000000',
+      maxPriorityFeePerGas: '500000000',
+    });
     jest.mocked(estimateQuoteGasLimits).mockResolvedValue({
+      gasLimits: [{ estimate: 21000, max: 25000 }],
       totalGasEstimate: '0x5208',
       totalGasLimit: '0x7530',
     } as never);
@@ -161,7 +163,7 @@ describe('server-quotes', () => {
       .mockResolvedValue(undefined as never);
   });
 
-  it('maps standard transactions to EXPECTED_OUTPUT quote requests with relay provider', async () => {
+  it('maps standard transactions to EXPECTED_OUTPUT quote requests', async () => {
     await getServerQuotes({
       accountSupports7702: true,
       messenger,
@@ -179,7 +181,6 @@ describe('server-quotes', () => {
         sender: FROM_MOCK,
         recipient: FROM_MOCK,
         slippage: 50,
-        providers: [ServerProviderName.Relay],
         supportsGasless: false,
       },
       undefined,
@@ -354,65 +355,6 @@ describe('server-quotes', () => {
     expect(result).toStrictEqual([]);
   });
 
-  it('stops at the first provider with a fulfilled result', async () => {
-    getServerProviderPriorityMock.mockReturnValue([
-      ServerProviderName.Relay,
-      ServerProviderName.Across,
-    ]);
-
-    await getServerQuotes({
-      accountSupports7702: true,
-      messenger,
-      requests: [QUOTE_REQUEST_MOCK],
-      transaction: TRANSACTION_META_MOCK,
-    });
-
-    expect(fetchServerQuoteMock).toHaveBeenCalledTimes(1);
-    expect(fetchServerQuoteMock).toHaveBeenCalledWith(
-      messenger,
-      expect.objectContaining({ providers: [ServerProviderName.Relay] }),
-      undefined,
-    );
-  });
-
-  it('tries providers in priority order and falls back when the first provider has no fulfilled result', async () => {
-    getServerProviderPriorityMock.mockReturnValue([
-      ServerProviderName.Relay,
-      ServerProviderName.Across,
-    ]);
-    fetchServerQuoteMock
-      .mockResolvedValueOnce({ results: [REJECTED_RESULT_MOCK] })
-      .mockResolvedValueOnce({
-        results: [
-          {
-            ...FULFILLED_RESULT_MOCK,
-            provider: ServerProviderName.Across,
-          },
-        ],
-      });
-
-    const result = await getServerQuotes({
-      accountSupports7702: true,
-      messenger,
-      requests: [QUOTE_REQUEST_MOCK],
-      transaction: TRANSACTION_META_MOCK,
-    });
-
-    expect(fetchServerQuoteMock).toHaveBeenNthCalledWith(
-      1,
-      messenger,
-      expect.objectContaining({ providers: [ServerProviderName.Relay] }),
-      undefined,
-    );
-    expect(fetchServerQuoteMock).toHaveBeenNthCalledWith(
-      2,
-      messenger,
-      expect.objectContaining({ providers: [ServerProviderName.Across] }),
-      undefined,
-    );
-    expect(result[0].original.provider).toBe(ServerProviderName.Across);
-  });
-
   it('passes gasless through to the normalized quote', async () => {
     fetchServerQuoteMock.mockResolvedValue({
       results: [
@@ -457,6 +399,12 @@ describe('server-quotes', () => {
           targetNetwork: { fiat: '0', usd: '0' },
         },
         original: {
+          client: {
+            gasLimits: [],
+            is7702: false,
+            maxFeePerGas: undefined,
+            maxPriorityFeePerGas: undefined,
+          },
           duration: quote.duration,
           fees: quote.fees,
           gasless: true,

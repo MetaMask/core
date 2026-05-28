@@ -188,7 +188,11 @@ async function submitViaTransactionController(
     sourceChainId,
   );
 
-  const transactionParams = steps.map((step) => stepToParams(step, from));
+  const { gasLimits, is7702, maxFeePerGas, maxPriorityFeePerGas } =
+    quote.original.client;
+  const transactionParams = steps.map((step, i) =>
+    stepToParams(step, from, gasLimits[i], maxFeePerGas, maxPriorityFeePerGas),
+  );
   const gasFeeToken = quote.fees.isSourceGasFeeToken
     ? sourceTokenAddress
     : undefined;
@@ -196,6 +200,7 @@ async function submitViaTransactionController(
   log('Submitting via TransactionController', {
     from,
     gasFeeToken,
+    is7702,
     networkClientId,
     sourceChainId,
     stepCount: steps.length,
@@ -224,35 +229,71 @@ async function submitViaTransactionController(
 
   try {
     if (transactionParams.length === 1) {
+      const addTransactionOptions = {
+        gasFeeToken,
+        isInternal: true,
+        networkClientId,
+        origin: ORIGIN_METAMASK,
+        requireApproval: false,
+      };
+
+      log('Calling addTransaction', {
+        params: transactionParams[0],
+        options: addTransactionOptions,
+      });
+      console.log('[server-submit] addTransaction params', transactionParams[0], 'options', addTransactionOptions);
+
       await messenger.call(
         'TransactionController:addTransaction',
         transactionParams[0],
-        {
-          gasFeeToken,
-          networkClientId,
-          origin: ORIGIN_METAMASK,
-          requireApproval: false,
-        },
+        addTransactionOptions,
       );
     } else {
-      await messenger.call('TransactionController:addTransactionBatch', {
-        from,
-        gasFeeToken,
-        networkClientId,
-        origin: ORIGIN_METAMASK,
-        overwriteUpgrade: true,
-        requireApproval: false,
-        transactions: transactionParams.map((params) => ({
+      const gasLimit7702 = is7702 ? toHex(gasLimits[0]) : undefined;
+
+      const batchTransactions = transactionParams.map((params, i) => {
+        const gas = (
+          gasLimit7702 ?? (gasLimits[i] !== undefined ? params.gas : undefined)
+        ) as Hex | undefined;
+
+        return {
           params: {
             data: params.data as Hex,
-            gas: params.gas as Hex | undefined,
+            gas,
             maxFeePerGas: params.maxFeePerGas as Hex,
             maxPriorityFeePerGas: params.maxPriorityFeePerGas as Hex,
             to: params.to as Hex,
             value: params.value as Hex,
           },
-        })),
+        };
       });
+
+      const addTransactionBatchOptions = {
+        from,
+        ...(gasLimit7702 !== undefined
+          ? {
+              disable7702: false,
+              disableHook: true,
+              disableSequential: true,
+              gasLimit7702,
+            }
+          : { disable7702: true }),
+        gasFeeToken,
+        isInternal: true,
+        networkClientId,
+        origin: ORIGIN_METAMASK,
+        overwriteUpgrade: true,
+        requireApproval: false,
+        transactions: batchTransactions,
+      };
+
+      log('Calling addTransactionBatch', addTransactionBatchOptions);
+      console.log('[server-submit] addTransactionBatch options', addTransactionBatchOptions);
+
+      await messenger.call(
+        'TransactionController:addTransactionBatch',
+        addTransactionBatchOptions,
+      );
     }
   } finally {
     end();
@@ -286,18 +327,52 @@ async function submitViaTransactionController(
   }
 }
 
-function stepToParams(step: ServerQuoteStep, from: Hex): TransactionParams {
-  return {
+function stepToParams(
+  step: ServerQuoteStep,
+  from: Hex,
+  gasLimit?: number,
+  clientMaxFeePerGas?: string,
+  clientMaxPriorityFeePerGas?: string,
+): TransactionParams {
+  const gas = gasLimit
+    ? toHex(gasLimit)
+    : step.gasLimit
+      ? toHex(step.gasLimit)
+      : undefined;
+
+  const resolvedMaxFeePerGas =
+    step.maxFeePerGas ?? clientMaxFeePerGas;
+  const resolvedMaxPriorityFeePerGas =
+    step.maxPriorityFeePerGas ?? clientMaxPriorityFeePerGas;
+
+  const params = {
     data: step.data,
     from,
-    gas: step.gasLimit ? toHex(step.gasLimit) : undefined,
-    maxFeePerGas: step.maxFeePerGas ? toHex(step.maxFeePerGas) : undefined,
-    maxPriorityFeePerGas: step.maxPriorityFeePerGas
-      ? toHex(step.maxPriorityFeePerGas)
+    gas,
+    maxFeePerGas: resolvedMaxFeePerGas ? toHex(resolvedMaxFeePerGas) : undefined,
+    maxPriorityFeePerGas: resolvedMaxPriorityFeePerGas
+      ? toHex(resolvedMaxPriorityFeePerGas)
       : undefined,
     to: step.to,
     value: toHex(step.value),
   };
+
+  log('Step to params', {
+    step: {
+      gasLimit: step.gasLimit,
+      maxFeePerGas: step.maxFeePerGas,
+      maxPriorityFeePerGas: step.maxPriorityFeePerGas,
+      value: step.value,
+    },
+    params: {
+      gas: params.gas,
+      maxFeePerGas: params.maxFeePerGas,
+      maxPriorityFeePerGas: params.maxPriorityFeePerGas,
+      value: params.value,
+    },
+  });
+
+  return params;
 }
 
 async function waitForServerCompletion(
@@ -320,9 +395,12 @@ async function waitForServerCompletion(
     let statusResponse: ServerStatusResponse | undefined;
 
     try {
+      const tx = getTransaction(transactionId, messenger);
+
       statusResponse = await getServerStatus(messenger, {
         provider: quote.provider,
         id: quote.id,
+        hash: tx?.metamaskPay?.sourceHash ?? tx?.hash,
       });
     } catch (error) {
       log('Polling network error', error);

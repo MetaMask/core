@@ -16,13 +16,9 @@ import {
   RELAY_QUOTE_URL,
 } from '../strategy/relay/constants';
 import {
-  SERVER_DEFAULT_PROVIDER_PRIORITY,
   SERVER_POLLING_INTERVAL,
-  SERVER_QUOTE_URL,
-  SERVER_STATUS_URL,
-  SERVER_SUBMIT_URL,
+  SERVER_URL_BASE,
 } from '../strategy/server/constants';
-import { ServerProviderName } from '../strategy/server/types';
 import type { TransactionPayControllerMessenger } from '../types';
 
 const log = createModuleLogger(projectLogger, 'feature-flags');
@@ -37,9 +33,7 @@ export const DEFAULT_RELAY_QUOTE_URL = RELAY_QUOTE_URL;
 export const DEFAULT_RELAY_ORIGIN_GAS_OVERHEAD = '300000';
 export const DEFAULT_SLIPPAGE = 0.005;
 export const DEFAULT_ACROSS_API_BASE = 'https://app.across.to/api';
-export const DEFAULT_SERVER_QUOTE_URL = SERVER_QUOTE_URL;
-export const DEFAULT_SERVER_STATUS_URL = SERVER_STATUS_URL;
-export const DEFAULT_SERVER_SUBMIT_URL = SERVER_SUBMIT_URL;
+export const DEFAULT_SERVER_BASE_URL = SERVER_URL_BASE;
 export const DEFAULT_STRATEGY_ORDER: StrategyOrder = [
   TransactionPayStrategy.Server,
   TransactionPayStrategy.Relay,
@@ -148,12 +142,9 @@ export type PayStrategiesConfigRaw = {
   across?: AcrossConfigRaw;
   server?: {
     enabled?: boolean;
+    baseUrl?: string;
     pollingInterval?: number;
     pollingTimeout?: number;
-    providerPriority?: string[];
-    quoteUrl?: string;
-    statusUrl?: string;
-    submitUrl?: string;
   };
   relay?: {
     enabled?: boolean;
@@ -175,12 +166,9 @@ export type PayStrategiesConfig = {
   across: AcrossConfig;
   server: {
     enabled: boolean;
+    baseUrl: string;
     pollingInterval: number;
     pollingTimeout?: number;
-    providerPriority: ServerProviderName[];
-    quoteUrl: string;
-    statusUrl: string;
-    submitUrl: string;
   };
   relay: {
     enabled: boolean;
@@ -520,27 +508,11 @@ export function getPayStrategiesConfig(
     },
   };
 
-  const validProviderNames = new Set<string>(Object.values(ServerProviderName));
-  const rawPriority = serverRaw.providerPriority ?? [];
-  const normalizedPriority = [
-    ...new Set(
-      rawPriority.filter((providerName): providerName is ServerProviderName =>
-        validProviderNames.has(providerName),
-      ),
-    ),
-  ];
-
   const server = {
     enabled: serverRaw.enabled ?? true,
+    baseUrl: serverRaw.baseUrl ?? DEFAULT_SERVER_BASE_URL,
     pollingInterval: serverRaw.pollingInterval ?? SERVER_POLLING_INTERVAL,
     pollingTimeout: serverRaw.pollingTimeout,
-    providerPriority:
-      normalizedPriority.length > 0
-        ? normalizedPriority
-        : ([...SERVER_DEFAULT_PROVIDER_PRIORITY] as ServerProviderName[]),
-    quoteUrl: serverRaw.quoteUrl ?? DEFAULT_SERVER_QUOTE_URL,
-    statusUrl: serverRaw.statusUrl ?? DEFAULT_SERVER_STATUS_URL,
-    submitUrl: serverRaw.submitUrl ?? DEFAULT_SERVER_SUBMIT_URL,
   };
 
   const relay = {
@@ -652,18 +624,6 @@ export function getServerPollingTimeout(
   messenger: TransactionPayControllerMessenger,
 ): number | undefined {
   return getPayStrategiesConfig(messenger).server.pollingTimeout;
-}
-
-/**
- * Get the ordered provider priority for the server strategy.
- *
- * @param messenger - Controller messenger.
- * @returns Ordered list of provider names to try.
- */
-export function getServerProviderPriority(
-  messenger: TransactionPayControllerMessenger,
-): ServerProviderName[] {
-  return getPayStrategiesConfig(messenger).server.providerPriority;
 }
 
 /**

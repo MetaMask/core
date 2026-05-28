@@ -4,16 +4,13 @@ import type { Hex } from '@metamask/utils';
 import { getDefaultRemoteFeatureFlagControllerState } from '../../../remote-feature-flag-controller/src/remote-feature-flag-controller';
 import { TransactionPayStrategy } from '../constants';
 import type { TransactionPayFiatAsset } from '../strategy/fiat/constants';
-import { ServerProviderName } from '../strategy/server/types';
 import { getMessengerMock } from '../tests/messenger-mock';
 import {
   DEFAULT_ACROSS_API_BASE,
   DEFAULT_FALLBACK_GAS_ESTIMATE,
   DEFAULT_FALLBACK_GAS_MAX,
   DEFAULT_GAS_BUFFER,
-  DEFAULT_SERVER_QUOTE_URL,
-  DEFAULT_SERVER_STATUS_URL,
-  DEFAULT_SERVER_SUBMIT_URL,
+  DEFAULT_SERVER_BASE_URL,
   DEFAULT_RELAY_ORIGIN_GAS_OVERHEAD,
   DEFAULT_RELAY_QUOTE_URL,
   DEFAULT_SLIPPAGE,
@@ -23,7 +20,6 @@ import {
   DEFAULT_RELAY_EXECUTE_URL,
   getServerPollingInterval,
   getServerPollingTimeout,
-  getServerProviderPriority,
   getRelayOriginGasOverhead,
   getRelayPollingInterval,
   getRelayPollingTimeout,
@@ -663,12 +659,9 @@ describe('Feature Flags Utils', () => {
 
       expect(config.server).toStrictEqual({
         enabled: true,
+        baseUrl: DEFAULT_SERVER_BASE_URL,
         pollingInterval: 1000,
         pollingTimeout: undefined,
-        providerPriority: [ServerProviderName.Relay],
-        quoteUrl: DEFAULT_SERVER_QUOTE_URL,
-        statusUrl: DEFAULT_SERVER_STATUS_URL,
-        submitUrl: DEFAULT_SERVER_SUBMIT_URL,
       });
     });
 
@@ -689,16 +682,14 @@ describe('Feature Flags Utils', () => {
       expect(getPayStrategiesConfig(messenger).server.enabled).toBe(true);
     });
 
-    it('returns custom URLs when set by the feature flag', () => {
+    it('returns custom baseUrl when set by the feature flag', () => {
       getRemoteFeatureFlagControllerStateMock.mockReturnValue({
         ...getDefaultRemoteFeatureFlagControllerState(),
         remoteFeatureFlags: {
           confirmations_pay: {
             payStrategies: {
               server: {
-                quoteUrl: 'https://server.test/quote',
-                statusUrl: 'https://server.test/status',
-                submitUrl: 'https://server.test/submit',
+                baseUrl: 'https://server.test',
               },
             },
           },
@@ -707,54 +698,9 @@ describe('Feature Flags Utils', () => {
 
       const { server } = getPayStrategiesConfig(messenger);
 
-      expect(server.quoteUrl).toBe('https://server.test/quote');
-      expect(server.statusUrl).toBe('https://server.test/status');
-      expect(server.submitUrl).toBe('https://server.test/submit');
+      expect(server.baseUrl).toBe('https://server.test');
     });
 
-    it('drops unknown provider names from providerPriority and falls back to default when result is empty', () => {
-      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
-        ...getDefaultRemoteFeatureFlagControllerState(),
-        remoteFeatureFlags: {
-          confirmations_pay: {
-            payStrategies: {
-              server: {
-                providerPriority: ['unknown', 'invalid'],
-              },
-            },
-          },
-        },
-      });
-
-      expect(
-        getPayStrategiesConfig(messenger).server.providerPriority,
-      ).toStrictEqual([ServerProviderName.Relay]);
-    });
-
-    it('preserves valid provider names in order and drops duplicates', () => {
-      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
-        ...getDefaultRemoteFeatureFlagControllerState(),
-        remoteFeatureFlags: {
-          confirmations_pay: {
-            payStrategies: {
-              server: {
-                providerPriority: [
-                  'across',
-                  'relay',
-                  'across',
-                  'unknown',
-                  'relay',
-                ],
-              },
-            },
-          },
-        },
-      });
-
-      expect(
-        getPayStrategiesConfig(messenger).server.providerPriority,
-      ).toStrictEqual([ServerProviderName.Across, ServerProviderName.Relay]);
-    });
   });
 
   describe('getServerPollingInterval', () => {
@@ -800,34 +746,6 @@ describe('Feature Flags Utils', () => {
       });
 
       expect(getServerPollingTimeout(messenger)).toBe(45000);
-    });
-  });
-
-  describe('getServerProviderPriority', () => {
-    it('returns the default provider priority when no feature flag is set', () => {
-      expect(getServerProviderPriority(messenger)).toStrictEqual([
-        ServerProviderName.Relay,
-      ]);
-    });
-
-    it('returns the configured provider priority when set', () => {
-      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
-        ...getDefaultRemoteFeatureFlagControllerState(),
-        remoteFeatureFlags: {
-          confirmations_pay: {
-            payStrategies: {
-              server: {
-                providerPriority: ['across', 'relay'],
-              },
-            },
-          },
-        },
-      });
-
-      expect(getServerProviderPriority(messenger)).toStrictEqual([
-        ServerProviderName.Across,
-        ServerProviderName.Relay,
-      ]);
     });
   });
 

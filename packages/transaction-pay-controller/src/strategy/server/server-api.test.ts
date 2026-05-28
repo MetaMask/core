@@ -27,9 +27,7 @@ const mockErrorResponse = (status: number, body: unknown): jest.SpyInstance =>
     json: async () => body,
   } as Response);
 
-const QUOTE_URL_MOCK = 'https://proxy.test/server/quote';
-const STATUS_URL_MOCK = 'https://proxy.test/server/status';
-const SUBMIT_URL_MOCK = 'https://proxy.test/server/submit';
+const BASE_URL_MOCK = 'https://proxy.test/server';
 
 const MESSENGER_MOCK = {} as Parameters<typeof fetchServerQuote>[0];
 
@@ -40,11 +38,8 @@ describe('server-api', () => {
     getPayStrategiesConfigMock.mockReturnValue({
       server: {
         enabled: true,
+        baseUrl: BASE_URL_MOCK,
         pollingInterval: 1000,
-        providerPriority: [ServerProviderName.Relay],
-        quoteUrl: QUOTE_URL_MOCK,
-        statusUrl: STATUS_URL_MOCK,
-        submitUrl: SUBMIT_URL_MOCK,
       },
     } as PayStrategiesConfig);
   });
@@ -97,7 +92,7 @@ describe('server-api', () => {
 
       await fetchServerQuote(MESSENGER_MOCK, QUOTE_REQUEST_MOCK);
 
-      expect(fetchMock).toHaveBeenCalledWith(QUOTE_URL_MOCK, {
+      expect(fetchMock).toHaveBeenCalledWith(`${BASE_URL_MOCK}/quote`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(QUOTE_REQUEST_MOCK),
@@ -123,7 +118,7 @@ describe('server-api', () => {
       );
 
       expect(fetchMock).toHaveBeenCalledWith(
-        QUOTE_URL_MOCK,
+        `${BASE_URL_MOCK}/quote`,
         expect.objectContaining({ signal: controller.signal }),
       );
     });
@@ -178,7 +173,7 @@ describe('server-api', () => {
 
       await submitServerIntent(MESSENGER_MOCK, SUBMIT_REQUEST_MOCK);
 
-      expect(fetchMock).toHaveBeenCalledWith(SUBMIT_URL_MOCK, {
+      expect(fetchMock).toHaveBeenCalledWith(`${BASE_URL_MOCK}/submit`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(SUBMIT_REQUEST_MOCK),
@@ -215,7 +210,7 @@ describe('server-api', () => {
       await getServerStatus(MESSENGER_MOCK, STATUS_PARAMS_MOCK);
 
       expect(fetchMock).toHaveBeenCalledWith(
-        `${STATUS_URL_MOCK}?provider=relay&id=0xabc`,
+        `${BASE_URL_MOCK}/status?provider=relay&id=0xabc`,
         { method: 'GET' },
       );
     });
@@ -229,7 +224,7 @@ describe('server-api', () => {
       });
 
       expect(fetchMock).toHaveBeenCalledWith(
-        `${STATUS_URL_MOCK}?provider=relay&id=0xabc&hash=0xdeadbeef`,
+        `${BASE_URL_MOCK}/status?provider=relay&id=0xabc&hash=0xdeadbeef`,
         { method: 'GET' },
       );
     });

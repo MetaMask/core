@@ -101,6 +101,13 @@ export type ServerQuoteResponse = {
   results: ServerQuoteResult[];
 };
 
+export type ServerQuoteClient = {
+  gasLimits: number[];
+  is7702: boolean;
+  maxFeePerGas: string | undefined;
+  maxPriorityFeePerGas: string | undefined;
+};
+
 /** Normalized server quote stored in TransactionPayQuote.original. */
 export type ServerQuote = {
   id: string;
@@ -109,6 +116,7 @@ export type ServerQuote = {
   output: ServerQuoteAmount;
   fees: ServerQuoteFees;
   duration: number;
+  client: ServerQuoteClient;
   steps: ServerQuoteStep[];
   gasless: boolean;
 };
