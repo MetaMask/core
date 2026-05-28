@@ -246,11 +246,12 @@ function buildMethodSignature(method: MethodDeclaration): string {
   const signatureParams = method
     .getParameters()
     .map((param) => {
+      const rest = param.isRestParameter() ? '...' : '';
       const paramName = param.getNameNode().getText();
       const optional = param.hasQuestionToken() ? '?' : '';
       const typeNode = param.getTypeNode();
       const paramType = typeNode ? typeNode.getText() : 'unknown';
-      return `${paramName}${optional}: ${paramType}`;
+      return `${rest}${paramName}${optional}: ${paramType}`;
     })
     .join(', ');
 

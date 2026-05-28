@@ -420,6 +420,40 @@ export type FooControllerDoStuffAction = {
     });
   });
 
+  it('preserves the `...` spread on rest parameters in the resolved handler signature', async () => {
+    expect.assertions(1);
+
+    await withinSandbox(async ({ directoryPath }) => {
+      // `param.getNameNode().getText()` returns just the identifier, dropping
+      // the `...` token — without an explicit `isRestParameter` check the
+      // rendered signature is parsed as a positional array argument rather
+      // than varargs.
+      const filePath = path.join(directoryPath, 'types.ts');
+      await fs.promises.writeFile(
+        filePath,
+        withMessenger(
+          `
+class FooController {
+  doStuff(...args: string[]): boolean {
+    return args.length > 0;
+  }
+}
+
+export type FooControllerDoStuffAction = {
+  type: 'FooController:doStuff';
+  handler: FooController['doStuff'];
+};
+`,
+          { actions: ['FooControllerDoStuffAction'] },
+        ),
+      );
+
+      const items = await extractFromFile(filePath, directoryPath);
+
+      expect(items[0].handlerOrPayload).toContain('...args: string[]');
+    });
+  });
+
   it('resolves handler from double-quoted indexed access', async () => {
     expect.assertions(2);
 

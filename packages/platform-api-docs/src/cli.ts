@@ -40,15 +40,18 @@ async function runDocusaurus(
 }
 
 /**
- * Copy site files into the output directory, skipping `node_modules` and
- * `docs` (the latter is owned by the doc generator and shouldn't be carried
- * over from the source `site/` directory).
+ * Copy site files into the output directory, skipping `node_modules`, `docs`,
+ * and `tsconfig.json`. `docs` is owned by the doc generator and shouldn't be
+ * carried over from the source `site/` directory. `tsconfig.json` extends the
+ * monorepo's `tsconfig.base.json` via a relative path that only resolves from
+ * the source location — it's there for IDE / lint inheritance, not for
+ * Docusaurus, which uses `jiti` and doesn't consult the tsconfig at runtime.
  *
  * @param outDir - The output directory to set up.
  */
 async function setupSite(outDir: string): Promise<void> {
   const siteDir = path.resolve(__dirname, '..', 'site');
-  const skip = new Set(['node_modules', 'docs']);
+  const skip = new Set(['node_modules', 'docs', 'tsconfig.json']);
 
   console.log(`\nSetting up Docusaurus site in ${outDir}...`);
 
