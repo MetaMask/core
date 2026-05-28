@@ -321,13 +321,7 @@ export class RemoteFeatureFlagController extends BaseController<
       return flagValue;
     }
 
-    const versionData = getVersionData(flagValue, this.#clientVersion);
-
-    if (versionData === null) {
-      return null;
-    }
-
-    return versionData;
+    return getVersionData(flagValue, this.#clientVersion);
   }
 
   async #processRemoteFeatureFlags(remoteFeatureFlags: FeatureFlags): Promise<{
