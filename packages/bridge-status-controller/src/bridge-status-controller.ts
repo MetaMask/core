@@ -1226,7 +1226,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
   };
 
   submitBatchSell = async (params: {
-    quoteResponses: (QuoteResponse<Trade, Trade> | null)[];
+    quoteResponses: ((QuoteResponse<Trade, Trade> & QuoteMetadata) | null)[];
     accountAddress: string;
     location?: MetaMetricsSwapsEventSource;
     abTests?: Record<string, string>;

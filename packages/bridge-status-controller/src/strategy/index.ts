@@ -48,7 +48,8 @@ const validateParams = <
 const validateBatchSellParams = (
   params: SubmitStrategyParams,
 ): params is SubmitStrategyParams<TxData, BatchSellTradesResponse> =>
-  Boolean(params.batchSellTrades) && params.quoteResponses.length > 1;
+  // A BatchSell payload containing at least 1 trade is considered valid
+  Boolean(params.batchSellTrades) && params.quoteResponses.length >= 1;
 
 /**
  * Selects the appropriate submit strategy based on the quote parameters then executes it

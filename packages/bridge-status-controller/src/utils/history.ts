@@ -148,7 +148,10 @@ export const getBatchSellHistoryItemsForTxHash = (
   const matchingHistoryItems =
     parentHistoryItem?.quoteIds?.map((quoteId) => txHistory[quoteId]) ??
     historyItems.filter(
-      ({ batchId }) => batchId === parentHistoryItem?.batchId,
+      ({ batchId }) =>
+        batchId &&
+        parentHistoryItem?.batchId &&
+        batchId === parentHistoryItem.batchId,
     );
 
   return {
