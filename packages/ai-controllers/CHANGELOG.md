@@ -12,6 +12,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/messenger` from `^1.0.0` to `^1.2.0` ([#8364](https://github.com/MetaMask/core/pull/8364), [#8373](https://github.com/MetaMask/core/pull/8373), [#8632](https://github.com/MetaMask/core/pull/8632))
 - Bump `@metamask/base-controller` from `^9.0.1` to `^9.1.0` ([#8457](https://github.com/MetaMask/core/pull/8457))
 
+### Fixed
+
+- `RelatedAsset.name` and `RelatedAsset.sourceAssetId` are now optional in both the superstruct schema and TypeScript type, so a `relatedAsset` missing either field no longer causes `fetchMarketOverview` to throw `API_INVALID_RESPONSE` ([#8920](https://github.com/MetaMask/core/pull/8920)).
+
 ## [0.6.3]
 
 ### Fixed
