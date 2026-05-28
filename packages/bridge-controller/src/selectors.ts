@@ -672,8 +672,9 @@ export const selectBatchSellTrades = createBridgeSelector(
     (state) => state.batchSellTradesLoadingStatus === RequestStatus.FETCHED,
     (state) => state.batchSellTrades,
     selectBatchSellFees,
+    (state) => state.batchSellTradesLoadingStatus === RequestStatus.LOADING,
   ],
-  (isBatchSellTradeAvailable, batchSellTrades, batchFees) => {
+  (isBatchSellTradeAvailable, batchSellTrades, batchFees, isLoading) => {
     return {
       totalNetworkFee: batchFees,
       /**
@@ -682,6 +683,7 @@ export const selectBatchSellTrades = createBridgeSelector(
       isBatchSellTradeAvailable:
         isBatchSellTradeAvailable &&
         Boolean(batchSellTrades?.transactions?.length),
+      isLoading,
     };
   },
 );

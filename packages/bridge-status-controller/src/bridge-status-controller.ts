@@ -92,7 +92,6 @@ import {
 import { handleNonEvmTx } from './utils/snaps';
 import { getApprovalTraceParams, getTraceParams } from './utils/trace';
 import {
-  getAddTransactionBatchParams,
   handleApprovalDelay,
   handleMobileHardwareWalletDelay,
   generateActionId,
@@ -104,6 +103,8 @@ import {
   submitEvmTransaction,
   checkIsDelegatedAccount,
   isCrossChainTx,
+  toQuoteAndTxMetadata,
+  getAddTransactionBatchParams,
 } from './utils/transaction';
 
 const metadata: StateMetadata<BridgeStatusControllerState> = {
@@ -297,11 +298,6 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     });
 
     if (txMeta.status === TransactionStatus.rejected) {
-      return;
-    }
-
-    // Skip account lookup and tracking when featureId is set (e.g. PERPS)
-    if (historyKey && this.state.txHistory[historyKey]?.featureId) {
       return;
     }
 
@@ -1015,38 +1011,66 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     return undefined;
   };
 
-  // TODO simplify and make more readable
   /**
    * Submits batched EVM transactions to the TransactionController
    *
    * @param args - The parameters for the transaction
    * @param args.isBridgeTx - Whether the transaction is a bridge transaction
-   * @param args.trade - The trade data to confirm
-   * @param args.approval - The approval data to confirm
-   * @param args.resetApproval - The ethereum:USDT reset approval data to confirm
-   * @param args.quoteResponse - The quote response
+   * @param args.quoteResponse - The quote response containing the approval and trade data
    * @param args.requireApproval - Whether to require approval for the transaction
+   * @param args.isDelegatedAccount - Whether the account is a delegated account
    * @returns The approvalMeta and tradeMeta for the batched transaction
    */
-  readonly #handleEvmTransactionBatch = async (
-    args: Omit<
-      Parameters<typeof getAddTransactionBatchParams>[0],
-      'messenger' | 'estimateGasFeeFn'
-    >,
-  ): Promise<{
+  readonly #handleEvmTransactionBatch = async ({
+    requireApproval,
+    isDelegatedAccount,
+    isBridgeTx,
+    quoteResponse,
+  }: {
+    requireApproval: boolean;
+    isDelegatedAccount: boolean;
+    isBridgeTx: boolean;
+    quoteResponse: QuoteResponse<Trade, Trade> & QuoteMetadata;
+  }): Promise<{
     approvalMeta?: TransactionMeta;
     tradeMeta: TransactionMeta;
   }> => {
-    const transactionParams = await getAddTransactionBatchParams({
-      messenger: this.messenger,
-      ...args,
+    const tradeData = toQuoteAndTxMetadata({
+      quoteResponse,
+      isBridgeTx,
     });
 
-    return await addTransactionBatch(
+    const transactionParams = await getAddTransactionBatchParams({
+      tradeData,
+      requireApproval,
+      isDelegatedAccount,
+      messenger: this.messenger,
+      atomic: true,
+      disable7702:
+        // Enable 7702 batching when the quote includes gasless 7702 support,
+        quoteResponse.quote.gasIncluded7702
+          ? false
+          : // or when the account is already delegated (to avoid the in-flight transaction limit for delegated accounts)
+            !isDelegatedAccount ||
+            // For gasless transactions with STX/sendBundle we keep disabling 7702.
+            quoteResponse.quote.gasIncluded,
+      isGasFeeSponsored: Boolean(quoteResponse.quote.gasSponsored),
+      isGasFeeIncluded: Boolean(quoteResponse.quote.gasIncluded7702),
+    });
+
+    const { tradeMeta, approvalMeta } = await addTransactionBatch(
       this.messenger,
       this.#addTransactionBatchFn,
+      tradeData,
       transactionParams,
     );
+
+    if (!tradeMeta) {
+      throw new Error(
+        'Failed to update cross-chain swap transaction batch: tradeMeta not found',
+      );
+    }
+    return { tradeMeta, approvalMeta };
   };
 
   /**
@@ -1203,13 +1227,6 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
               const { tradeMeta, approvalMeta } =
                 await this.#handleEvmTransactionBatch({
                   isBridgeTx,
-                  resetApproval: quoteResponse.resetApproval,
-                  approval:
-                    quoteResponse.approval &&
-                    isEvmTxData(quoteResponse.approval)
-                      ? quoteResponse.approval
-                      : undefined,
-                  trade: quoteResponse.trade,
                   quoteResponse,
                   requireApproval,
                   isDelegatedAccount,

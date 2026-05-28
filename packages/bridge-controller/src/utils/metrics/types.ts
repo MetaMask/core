@@ -142,6 +142,7 @@ type RequiredEventContextFromClientBase = {
     price_impact: QuoteFetchData['price_impact'];
     can_submit: QuoteFetchData['can_submit'];
     usd_balance_source?: number;
+    has_sufficient_gas_for_quote?: boolean | null;
   } & InputCurrencyModeProperties;
   [UnifiedSwapBridgeEventName.QuotesError]: Pick<
     RequestMetadata,

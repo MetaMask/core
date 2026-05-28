@@ -174,18 +174,33 @@ export abstract class OracleLayer1GasFeeFlow implements Layer1GasFeeFlow {
     return toBN(result);
   }
 
+  /**
+   * Returns the gas value to pass to the operator-fee oracle, or undefined
+   * to skip the operator-fee call entirely. Defaults to the simulated
+   * `gasUsed` on the transaction. Subclasses can override to supply a
+   * fallback (e.g. estimated gas limit) when `gasUsed` is unavailable.
+   *
+   * @param transactionMeta - The transaction metadata.
+   * @returns The gas value, or undefined to skip the operator-fee call.
+   */
+  protected getOperatorFeeGas(
+    transactionMeta: TransactionMeta,
+  ): string | undefined {
+    return transactionMeta.gasUsed;
+  }
+
   async #getOperatorLayer1GasFee(
     contract: Contract,
     transactionMeta: TransactionMeta,
   ): Promise<BN> {
-    const { gasUsed } = transactionMeta;
+    const gas = this.getOperatorFeeGas(transactionMeta);
 
-    if (!gasUsed) {
+    if (!gas) {
       return ZERO;
     }
 
     try {
-      const result = await contract.getOperatorFee(gasUsed);
+      const result = await contract.getOperatorFee(gas);
 
       if (result === undefined) {
         return ZERO;

@@ -1,6 +1,6 @@
 {
   "name": "@metamask/wallet",
-  "version": "0.0.0",
+  "version": "1.0.1",
   "description": "Provides a shared framework for building MetaMask wallets",
   "keywords": [
     "Ethereum",
@@ -55,7 +55,7 @@
   "dependencies": {
     "@metamask/base-controller": "^9.1.0",
     "@metamask/browser-passworder": "^6.0.0",
-    "@metamask/keyring-controller": "^25.5.0",
+    "@metamask/keyring-controller": "^26.0.0",
     "@metamask/messenger": "^1.2.0",
     "@metamask/scure-bip39": "^2.1.1",
     "@metamask/utils": "^11.9.0"
