@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Bump `@metamask/assets-controller` from `^8.0.2` to `^8.1.0` ([#8919](https://github.com/MetaMask/core/pull/8919))
+- Bump `@metamask/transaction-controller` from `^66.0.0` to `^66.0.1` ([#8923](https://github.com/MetaMask/core/pull/8923))
 
 ## [73.1.0]
 

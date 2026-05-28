@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Bump `@metamask/bridge-controller` from `^73.0.1` to `^73.1.0` ([#8915](https://github.com/MetaMask/core/pull/8915))
 - Refactor batch transaction utils to handle multiple quote requests within a batch (for BatchSell integration) ([#8886](https://github.com/MetaMask/core/pull/8886))
+- Bump `@metamask/transaction-controller` from `^66.0.0` to `^66.0.1` ([#8923](https://github.com/MetaMask/core/pull/8923))
 
 ### Fixed
 
