@@ -107,7 +107,8 @@
       "gasLimit": 841446,
       "effectiveGas": 641446
     },
-    "estimatedProcessingTimeInSeconds": 64
+    "estimatedProcessingTimeInSeconds": 64,
+    "quoteId": "a63df72a-75ae-4416-a8ab-aff02596c75c"
   },
   {
     "quote": {
@@ -217,7 +218,8 @@
       "gasLimit": 553352,
       "effectiveGas": 203352
     },
-    "estimatedProcessingTimeInSeconds": 53
+    "estimatedProcessingTimeInSeconds": 53,
+    "quoteId": "aad73198-a64d-4310-b12d-9dcc81c412e2"
   },
   {
     "quote": {
@@ -327,7 +329,8 @@
       "gasLimit": 277423,
       "effectiveGas": 177423
     },
-    "estimatedProcessingTimeInSeconds": 15
+    "estimatedProcessingTimeInSeconds": 15,
+    "quoteId": "6cfd4952-c9b2-4aec-9349-af39c212f84b"
   },
   {
     "quote": {
@@ -437,7 +440,8 @@
       "effectiveGas": 547501,
       "gasLimit": 647501
     },
-    "estimatedProcessingTimeInSeconds": 24.159
+    "estimatedProcessingTimeInSeconds": 24.159,
+    "quoteId": "2c2ba7d8-3922-4081-9f27-63b7d5cc1986"
   },
   {
     "quote": {
@@ -542,7 +546,8 @@
       "gasLimit": 282048,
       "effectiveGas": 182048
     },
-    "estimatedProcessingTimeInSeconds": 360
+    "estimatedProcessingTimeInSeconds": 360,
+    "quoteId": "a77bc7b2-e8c8-4463-89db-5dd239d6aacc"
   },
   {
     "quote": {
@@ -936,6 +941,7 @@
       "gasLimit": 910342,
       "effectiveGas": 710342
     },
-    "estimatedProcessingTimeInSeconds": 20
+    "estimatedProcessingTimeInSeconds": 20,
+    "quoteId": "4f2154d9b330221b2ad461adf63acc2c"
   }
 ]

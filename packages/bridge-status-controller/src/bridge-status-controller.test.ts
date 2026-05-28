@@ -38,7 +38,7 @@ import type {
   TransactionMeta,
   TransactionParams,
 } from '@metamask/transaction-controller';
-import type { CaipAssetType } from '@metamask/utils';
+import type { CaipAssetType, Hex } from '@metamask/utils';
 import { numberToHex } from '@metamask/utils';
 
 import { flushPromises } from '../../../tests/helpers';
@@ -92,6 +92,9 @@ jest.mock('@metamask/bridge-controller', () => ({
 const EMPTY_INIT_STATE: BridgeStatusControllerState = {
   ...DEFAULT_BRIDGE_STATUS_CONTROLLER_STATE,
 };
+
+const TEST_CLIENT_PRODUCT = 'metamask-extension';
+const TEST_CLIENT_VERSION = 'MOCK_VERSION';
 
 const MockStatusResponse = {
   getPending: ({
@@ -296,10 +299,17 @@ const getMockQuote = ({ srcChainId = 42161, destChainId = 10 } = {}) => ({
 const getMockStartPollingForBridgeTxStatusArgs = ({
   txMetaId = 'bridgeTxMetaId1',
   srcTxHash = '0xsrcTxHash1',
-  account = '0xaccount1',
+  account = '0xaccount1' as Hex,
   srcChainId = 42161,
   destChainId = 10,
   isStxEnabled = false,
+}: {
+  txMetaId?: string;
+  srcTxHash?: string;
+  account?: Hex;
+  srcChainId?: number;
+  destChainId?: number;
+  isStxEnabled?: boolean;
 } = {}): StartPollingForBridgeTxStatusArgsSerialized => ({
   bridgeTxMeta: {
     id: txMetaId,
@@ -330,6 +340,7 @@ const getMockStartPollingForBridgeTxStatusArgs = ({
     adjustedReturn: { valueInCurrency: null, usd: null },
     swapRate: '1.234',
     cost: { valueInCurrency: null, usd: null },
+    quoteId: '197c402f-cb96-4096-9f8c-54aed84ca776',
   },
   accountAddress: account,
   startTime: 1729964825189,
@@ -354,6 +365,7 @@ const MockTxHistory = {
       actionId,
       originalTransactionId: txMetaId,
       quote: getMockQuote({ srcChainId, destChainId }),
+      quoteId: '197c402f-cb96-4096-9f8c-54aed84ca776',
       startTime: 1729964825189,
       estimatedProcessingTimeInSeconds: 15,
       slippagePercentage: 0,
@@ -382,6 +394,7 @@ const MockTxHistory = {
       actionId,
       originalTransactionId: txMetaId,
       quote: getMockQuote({ srcChainId, destChainId }),
+      quoteId: '197c402f-cb96-4096-9f8c-54aed84ca776',
       startTime: 1729964825189,
       estimatedProcessingTimeInSeconds: 15,
       slippagePercentage: 0,
@@ -415,6 +428,7 @@ const MockTxHistory = {
       originalTransactionId: txMetaId,
       batchId,
       quote: getMockQuote({ srcChainId, destChainId }),
+      quoteId: '197c402f-cb96-4096-9f8c-54aed84ca776',
       startTime,
       estimatedProcessingTimeInSeconds: 15,
       slippagePercentage: 0,
@@ -454,6 +468,7 @@ const MockTxHistory = {
       actionId,
       originalTransactionId: txMetaId,
       quote: getMockQuote({ srcChainId, destChainId }),
+      quoteId: '197c402f-cb96-4096-9f8c-54aed84ca776',
       startTime: 1729964825189,
       estimatedProcessingTimeInSeconds: 15,
       slippagePercentage: 0,
@@ -494,6 +509,7 @@ const MockTxHistory = {
       actionId,
       originalTransactionId: txMetaId,
       quote: getMockQuote({ srcChainId, destChainId }),
+      quoteId: '197c402f-cb96-4096-9f8c-54aed84ca776',
       startTime,
       estimatedProcessingTimeInSeconds: 15,
       slippagePercentage: 0,
@@ -534,6 +550,7 @@ const MockTxHistory = {
       batchId,
       featureId: undefined,
       quote: getMockQuote({ srcChainId, destChainId }),
+      quoteId: '197c402f-cb96-4096-9f8c-54aed84ca776',
       startTime: 1729964825189,
       completionTime: 1736277625746,
       estimatedProcessingTimeInSeconds: 15,
@@ -654,7 +671,6 @@ function registerDefaultActionHandlers(
       configuration: {
         chainId: numberToHex(srcChainId),
       },
-      // @ts-expect-error: Partial mock.
       provider: mockProvider,
     }),
   );
@@ -662,7 +678,6 @@ function registerDefaultActionHandlers(
   rootMessenger.registerActionHandler('TransactionController:getState', () => ({
     transactions: [
       {
-        // @ts-expect-error: this is ok
         id: txMetaId === 'undefined' ? undefined : txMetaId,
         hash: txHash,
         status,
@@ -715,6 +730,8 @@ async function withController<ReturnValue>(
   const controller = new BridgeStatusController({
     messenger,
     clientId: BridgeClientId.EXTENSION,
+    clientProduct: TEST_CLIENT_PRODUCT,
+    clientVersion: TEST_CLIENT_VERSION,
     fetchFn: jest.fn(),
     addTransactionBatchFn,
     ...options,
@@ -749,6 +766,8 @@ const executePollingWithPendingStatus = async () => {
   const bridgeStatusController = new BridgeStatusController({
     messenger,
     clientId: BridgeClientId.EXTENSION,
+    clientProduct: TEST_CLIENT_PRODUCT,
+    clientVersion: TEST_CLIENT_VERSION,
     fetchFn: jest.fn(),
     addTransactionBatchFn: jest.fn(),
     config: {},
@@ -1613,7 +1632,6 @@ describe('BridgeStatusController', () => {
             );
             rootMessenger.registerActionHandler(
               'TransactionController:getState',
-              // @ts-expect-error: Partial mock.
               () => {
                 getStateCallCount += 1;
                 return {
@@ -2006,6 +2024,7 @@ describe('BridgeStatusController', () => {
 
   describe('submitTx: Solana bridge', () => {
     const mockQuoteResponse: QuoteResponse<string> & QuoteMetadata = {
+      quoteId: '197c402f-cb96-4096-9f8c-54aed84ca776',
       quote: {
         requestId: '123',
         srcChainId: ChainId.SOLANA,
@@ -2139,6 +2158,7 @@ describe('BridgeStatusController', () => {
       jest.clearAllTimers();
       jest.spyOn(Date, 'now').mockReturnValueOnce(1234567890);
       jest.spyOn(Date, 'now').mockReturnValueOnce(1234567891);
+      jest.spyOn(Date, 'now').mockReturnValue(1234567899);
       mockMessengerCall = jest.fn();
       mockMessengerCall.mockImplementationOnce(jest.fn()); // stopPollingForQuotes
     });
@@ -2251,6 +2271,7 @@ describe('BridgeStatusController', () => {
 
   describe('submitTx: Solana swap', () => {
     const mockQuoteResponse: QuoteResponse<string> & QuoteMetadata = {
+      quoteId: '197c402f-cb96-4096-9f8c-54aed84ca776',
       quote: {
         requestId: '123',
         srcChainId: ChainId.SOLANA,
@@ -2385,6 +2406,7 @@ describe('BridgeStatusController', () => {
       mockMessengerCall = jest.fn();
       jest.spyOn(Date, 'now').mockReturnValueOnce(1234567890);
       jest.spyOn(Date, 'now').mockReturnValueOnce(1234567891);
+      jest.spyOn(Date, 'now').mockReturnValue(1234567899);
       mockMessengerCall.mockImplementationOnce(jest.fn()); // stopPollingForQuotes
     });
 
@@ -2507,6 +2529,7 @@ describe('BridgeStatusController', () => {
 
     const mockQuoteResponse: QuoteResponse<TronTradeData, TronTradeData> &
       QuoteMetadata = {
+      quoteId: '197c402f-cb96-4096-9f8c-54aed84ca776',
       quote: {
         requestId: '123',
         srcChainId: ChainId.TRON,
@@ -2641,6 +2664,7 @@ describe('BridgeStatusController', () => {
       jest.spyOn(Date, 'now').mockReturnValueOnce(1234567890);
       jest.spyOn(Date, 'now').mockReturnValueOnce(1234567891);
       jest.spyOn(Date, 'now').mockReturnValueOnce(1234567892);
+      jest.spyOn(Date, 'now').mockReturnValue(1234567899);
       mockMessengerCall = jest.fn();
       mockMessengerCall.mockImplementationOnce(jest.fn()); // stopPollingForQuotes
     });
@@ -2742,6 +2766,7 @@ describe('BridgeStatusController', () => {
 
   describe('submitTx: EVM bridge', () => {
     const mockEvmQuoteResponse = {
+      quoteId: '197c402f-cb96-4096-9f8c-54aed84ca776',
       ...getMockQuote(),
       quote: {
         ...getMockQuote(),
@@ -2854,6 +2879,7 @@ describe('BridgeStatusController', () => {
       jest.spyOn(Date, 'now').mockReturnValueOnce(1234567891);
       jest.spyOn(Date, 'now').mockReturnValueOnce(1234567892);
       jest.spyOn(Date, 'now').mockReturnValueOnce(1234567893);
+      jest.spyOn(Date, 'now').mockReturnValue(1234567899);
       jest.spyOn(Math, 'random').mockReturnValueOnce(0.456);
       jest.spyOn(Math, 'random').mockReturnValueOnce(0.457);
       jest.spyOn(Math, 'random').mockReturnValueOnce(0.458);
@@ -3725,6 +3751,7 @@ describe('BridgeStatusController', () => {
 
   describe('submitTx: EVM swap', () => {
     const mockEvmQuoteResponse = {
+      quoteId: '197c402f-cb96-4096-9f8c-54aed84ca776',
       ...getMockQuote(),
       quote: {
         ...getMockQuote(),
@@ -3826,6 +3853,7 @@ describe('BridgeStatusController', () => {
       jest.spyOn(Date, 'now').mockReturnValueOnce(1234567890);
       jest.spyOn(Date, 'now').mockReturnValueOnce(1234567891);
       jest.spyOn(Date, 'now').mockReturnValueOnce(1234567892);
+      jest.spyOn(Date, 'now').mockReturnValue(1234567899);
       jest.spyOn(Math, 'random').mockReturnValueOnce(0.456);
       jest.spyOn(Math, 'random').mockReturnValueOnce(0.457);
       mockMessengerCall.mockImplementationOnce(jest.fn()); // stopPollingForQuotes
@@ -4682,6 +4710,56 @@ describe('BridgeStatusController', () => {
       );
     });
 
+    it('removes the pre-submission history item when batch EVM submission fails', async () => {
+      const mockActionId = '9999999999.000';
+      jest
+        .spyOn(transactionUtils, 'generateActionId')
+        .mockReturnValue(mockActionId);
+
+      setupEventTrackingMocks(mockMessengerCall);
+      mockMessengerCall.mockReturnValueOnce(mockSelectedAccount); // getAccountByAddress (for batch params)
+      mockMessengerCall.mockReturnValueOnce('arbitrum'); // getNetworkClientIdByChainId
+      addTransactionBatchFn.mockRejectedValueOnce(
+        new Error('User rejected the batch transaction'),
+      );
+
+      const { approval, ...quoteWithoutApproval } = mockEvmQuoteResponse;
+      await withController(
+        { mockMessengerCall },
+        async ({ controller, rootMessenger }) => {
+          await expect(
+            rootMessenger.call(
+              'BridgeStatusController:submitTx',
+              (mockEvmQuoteResponse.trade as TxData).from,
+              {
+                ...quoteWithoutApproval,
+                quote: {
+                  ...quoteWithoutApproval.quote,
+                  gasIncluded: true,
+                  gasIncluded7702: true,
+                  feeData: {
+                    ...quoteWithoutApproval.quote.feeData,
+                    txFee: {
+                      maxFeePerGas: '1395348',
+                      maxPriorityFeePerGas: '1000001',
+                    },
+                  },
+                },
+              },
+              false, // STX off, gasIncluded7702=true forces batch path
+            ),
+          ).rejects.toThrow('User rejected the batch transaction');
+
+          // The ghost history item keyed by batchActionId must be deleted on failure.
+          // Without the fix it would linger with txMetaId: undefined and status: PENDING,
+          // skipped forever by restartPollingForIncompleteHistoryItems, and accumulate
+          // on every subsequent failed batch submission.
+          expect(controller.state.txHistory[mockActionId]).toBeUndefined();
+          expect(Object.keys(controller.state.txHistory)).toHaveLength(0);
+        },
+      );
+    });
+
     it('should gracefully handle isAtomicBatchSupported failure', async () => {
       // Manually set up mocks without setupEventTrackingMocks
       // to control the isAtomicBatchSupported mock
@@ -5117,6 +5195,8 @@ describe('BridgeStatusController', () => {
       bridgeStatusController = new BridgeStatusController({
         messenger: mockBridgeStatusMessenger,
         clientId: BridgeClientId.EXTENSION,
+        clientProduct: TEST_CLIENT_PRODUCT,
+        clientVersion: TEST_CLIENT_VERSION,
         fetchFn: mockFetchFn,
         addTransactionBatchFn: jest.fn(),
         state: {
@@ -6025,6 +6105,329 @@ describe('BridgeStatusController', () => {
     });
   });
 
+  describe('TransactionController:transactionStatusUpdated (submitted)', () => {
+    let fetchSpy: jest.SpyInstance;
+
+    beforeEach(() => {
+      fetchSpy = jest
+        .spyOn(globalThis, 'fetch')
+        .mockResolvedValue({ ok: true } as Response);
+    });
+
+    afterEach(() => {
+      fetchSpy.mockRestore();
+    });
+
+    it('calls reportSubmitted and persists deferredStatusUpdates when bridge tx reaches submitted with hash and quoteId', async () => {
+      await withController(
+        {
+          options: {
+            isQuoteStatusUpdateEnabled: () => true,
+            state: {
+              txHistory: MockTxHistory.getPending(),
+            },
+          },
+        },
+        async ({ controller, rootMessenger }) => {
+          rootMessenger.publish(
+            'TransactionController:transactionStatusUpdated',
+            {
+              transactionMeta: {
+                hash: '0xsrcTxHash1',
+                type: TransactionType.bridge,
+                status: TransactionStatus.submitted,
+                id: 'bridgeTxMetaId1',
+                chainId: CHAIN_IDS.ARBITRUM,
+                networkClientId: 'eth-id',
+                time: Date.now(),
+                txParams: {} as unknown as TransactionParams,
+              },
+            },
+          );
+
+          // State is updated synchronously via persistDeferredUpdates before any async work
+          expect(
+            Object.keys(controller.state.deferredStatusUpdates),
+          ).toHaveLength(1);
+          expect(
+            Object.values(controller.state.deferredStatusUpdates)[0]
+              .pendingStatuses,
+          ).toStrictEqual(['SUBMITTED']);
+
+          await flushPromises();
+          controller.stopAllPolling();
+        },
+      );
+    });
+
+    it('does not call reportSubmitted when txMeta has no hash', async () => {
+      await withController(
+        {
+          options: {
+            isQuoteStatusUpdateEnabled: () => true,
+            state: {
+              txHistory: MockTxHistory.getPending(),
+            },
+          },
+        },
+        async ({ controller, rootMessenger }) => {
+          rootMessenger.publish(
+            'TransactionController:transactionStatusUpdated',
+            {
+              transactionMeta: {
+                hash: undefined,
+                type: TransactionType.bridge,
+                status: TransactionStatus.submitted,
+                id: 'bridgeTxMetaId1',
+                chainId: CHAIN_IDS.ARBITRUM,
+                networkClientId: 'eth-id',
+                time: Date.now(),
+                txParams: {} as unknown as TransactionParams,
+              },
+            },
+          );
+
+          expect(controller.state.deferredStatusUpdates).toStrictEqual({});
+
+          await flushPromises();
+          controller.stopAllPolling();
+        },
+      );
+    });
+
+    it('does not call reportSubmitted when historyItem has no quoteId', async () => {
+      const historyWithoutQuoteId: Record<string, BridgeHistoryItem> = {
+        bridgeTxMetaId1: {
+          ...MockTxHistory.getPending().bridgeTxMetaId1,
+          quoteId: undefined as unknown as string,
+        },
+      };
+      await withController(
+        {
+          options: {
+            isQuoteStatusUpdateEnabled: () => true,
+            state: { txHistory: historyWithoutQuoteId },
+          },
+        },
+        async ({ controller, rootMessenger }) => {
+          rootMessenger.publish(
+            'TransactionController:transactionStatusUpdated',
+            {
+              transactionMeta: {
+                hash: '0xsrcTxHash1',
+                type: TransactionType.bridge,
+                status: TransactionStatus.submitted,
+                id: 'bridgeTxMetaId1',
+                chainId: CHAIN_IDS.ARBITRUM,
+                networkClientId: 'eth-id',
+                time: Date.now(),
+                txParams: {} as unknown as TransactionParams,
+              },
+            },
+          );
+
+          expect(controller.state.deferredStatusUpdates).toStrictEqual({});
+
+          await flushPromises();
+          controller.stopAllPolling();
+        },
+      );
+    });
+  });
+
+  describe('TransactionController:transactionSubmitted', () => {
+    let fetchSpy: jest.SpyInstance;
+
+    beforeEach(() => {
+      fetchSpy = jest
+        .spyOn(globalThis, 'fetch')
+        .mockResolvedValue({ ok: true } as Response);
+    });
+
+    afterEach(() => {
+      fetchSpy.mockRestore();
+    });
+
+    it('calls reportSubmitted and persists deferredStatusUpdates when transactionSubmitted fires with hash and quoteId', async () => {
+      const rootMessenger = getRootMessenger();
+      const messenger = getControllerMessenger(rootMessenger);
+      rootMessenger.delegate({
+        messenger,
+        actions: [],
+        events: ['TransactionController:transactionSubmitted'],
+      });
+      registerDefaultActionHandlers(rootMessenger);
+
+      const controller = new BridgeStatusController({
+        messenger,
+        clientId: BridgeClientId.EXTENSION,
+        clientProduct: TEST_CLIENT_PRODUCT,
+        clientVersion: TEST_CLIENT_VERSION,
+        fetchFn: jest.fn(),
+        addTransactionBatchFn,
+        isQuoteStatusUpdateEnabled: () => true,
+        state: { txHistory: MockTxHistory.getPending() },
+      });
+
+      rootMessenger.publish('TransactionController:transactionSubmitted', {
+        transactionMeta: {
+          hash: '0xsrcTxHash1',
+          type: TransactionType.bridge,
+          status: TransactionStatus.submitted,
+          id: 'bridgeTxMetaId1',
+          chainId: CHAIN_IDS.ARBITRUM,
+          networkClientId: 'eth-id',
+          time: Date.now(),
+          txParams: {} as unknown as TransactionParams,
+        },
+      });
+
+      // State is updated synchronously via persistDeferredUpdates before any async work
+      expect(Object.keys(controller.state.deferredStatusUpdates)).toHaveLength(
+        1,
+      );
+      expect(
+        Object.values(controller.state.deferredStatusUpdates)[0]
+          .pendingStatuses,
+      ).toStrictEqual(['SUBMITTED']);
+
+      await flushPromises();
+      controller.stopAllPolling();
+    });
+
+    it('looks up history by actionId when txMetaId is not found', async () => {
+      const rootMessenger = getRootMessenger();
+      const messenger = getControllerMessenger(rootMessenger);
+      rootMessenger.delegate({
+        messenger,
+        actions: [],
+        events: ['TransactionController:transactionSubmitted'],
+      });
+      registerDefaultActionHandlers(rootMessenger);
+
+      const historyKeyedByActionId: Record<string, BridgeHistoryItem> = {
+        'pre-submission-action-id': {
+          ...MockTxHistory.getPending().bridgeTxMetaId1,
+          txMetaId: undefined,
+          actionId: 'pre-submission-action-id',
+        },
+      };
+
+      const controller = new BridgeStatusController({
+        messenger,
+        clientId: BridgeClientId.EXTENSION,
+        clientProduct: TEST_CLIENT_PRODUCT,
+        clientVersion: TEST_CLIENT_VERSION,
+        fetchFn: jest.fn(),
+        addTransactionBatchFn,
+        isQuoteStatusUpdateEnabled: () => true,
+        state: { txHistory: historyKeyedByActionId },
+      });
+
+      rootMessenger.publish('TransactionController:transactionSubmitted', {
+        transactionMeta: {
+          hash: '0xsrcTxHash1',
+          type: TransactionType.bridge,
+          status: TransactionStatus.submitted,
+          id: 'unknown-tx-meta-id',
+          actionId: 'pre-submission-action-id',
+          chainId: CHAIN_IDS.ARBITRUM,
+          networkClientId: 'eth-id',
+          time: Date.now(),
+          txParams: {} as unknown as TransactionParams,
+        },
+      });
+
+      expect(Object.keys(controller.state.deferredStatusUpdates)).toHaveLength(
+        1,
+      );
+
+      await flushPromises();
+      controller.stopAllPolling();
+    });
+
+    it('does not call reportSubmitted when tx has no hash', async () => {
+      const rootMessenger = getRootMessenger();
+      const messenger = getControllerMessenger(rootMessenger);
+      rootMessenger.delegate({
+        messenger,
+        actions: [],
+        events: ['TransactionController:transactionSubmitted'],
+      });
+      registerDefaultActionHandlers(rootMessenger);
+
+      const controller = new BridgeStatusController({
+        messenger,
+        clientId: BridgeClientId.EXTENSION,
+        clientProduct: TEST_CLIENT_PRODUCT,
+        clientVersion: TEST_CLIENT_VERSION,
+        fetchFn: jest.fn(),
+        addTransactionBatchFn,
+        isQuoteStatusUpdateEnabled: () => true,
+        state: { txHistory: MockTxHistory.getPending() },
+      });
+
+      rootMessenger.publish('TransactionController:transactionSubmitted', {
+        transactionMeta: {
+          hash: undefined,
+          type: TransactionType.bridge,
+          status: TransactionStatus.submitted,
+          id: 'bridgeTxMetaId1',
+          chainId: CHAIN_IDS.ARBITRUM,
+          networkClientId: 'eth-id',
+          time: Date.now(),
+          txParams: {} as unknown as TransactionParams,
+        },
+      });
+
+      expect(controller.state.deferredStatusUpdates).toStrictEqual({});
+
+      await flushPromises();
+      controller.stopAllPolling();
+    });
+
+    it('does not call reportSubmitted when txMetaId not in history and actionId is absent', async () => {
+      const rootMessenger = getRootMessenger();
+      const messenger = getControllerMessenger(rootMessenger);
+      rootMessenger.delegate({
+        messenger,
+        actions: [],
+        events: ['TransactionController:transactionSubmitted'],
+      });
+      registerDefaultActionHandlers(rootMessenger);
+
+      const controller = new BridgeStatusController({
+        messenger,
+        clientId: BridgeClientId.EXTENSION,
+        clientProduct: TEST_CLIENT_PRODUCT,
+        clientVersion: TEST_CLIENT_VERSION,
+        fetchFn: jest.fn(),
+        addTransactionBatchFn,
+        isQuoteStatusUpdateEnabled: () => true,
+        state: { txHistory: MockTxHistory.getPending() },
+      });
+
+      // txMetaId ('unknown-id') not in history AND no actionId provided
+      rootMessenger.publish('TransactionController:transactionSubmitted', {
+        transactionMeta: {
+          hash: '0xsrcTxHash1',
+          type: TransactionType.bridge,
+          status: TransactionStatus.submitted,
+          id: 'unknown-id',
+          chainId: CHAIN_IDS.ARBITRUM,
+          networkClientId: 'eth-id',
+          time: Date.now(),
+          txParams: {} as unknown as TransactionParams,
+        },
+      });
+
+      expect(controller.state.deferredStatusUpdates).toStrictEqual({});
+
+      await flushPromises();
+      controller.stopAllPolling();
+    });
+  });
+
   describe('metadata', () => {
     it('includes expected state in debug snapshots', async () => {
       await withController(async ({ controller }) => {
@@ -6064,6 +6467,7 @@ describe('BridgeStatusController', () => {
           ),
         ).toMatchInlineSnapshot(`
           {
+            "deferredStatusUpdates": {},
             "txHistory": {},
           }
         `);

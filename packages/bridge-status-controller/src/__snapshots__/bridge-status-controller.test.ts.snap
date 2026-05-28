@@ -114,6 +114,7 @@ exports[`BridgeStatusController constructor rehydrates the tx history state 1`] 
         },
       ],
     },
+    "quoteId": "197c402f-cb96-4096-9f8c-54aed84ca776",
     "slippagePercentage": 0,
     "startTime": 1729964825189,
     "status": {
@@ -369,6 +370,7 @@ exports[`BridgeStatusController startPollingForBridgeTxStatus sets the inital tx
         },
       ],
     },
+    "quoteId": "197c402f-cb96-4096-9f8c-54aed84ca776",
     "slippagePercentage": 0,
     "startTime": 1729964825189,
     "status": {
@@ -474,7 +476,7 @@ exports[`BridgeStatusController submitTx: EVM bridge should delay after submitti
 exports[`BridgeStatusController submitTx: EVM bridge should delay after submitting base approval 2`] = `
 {
   "account": "0xaccount1",
-  "actionId": "1234567892.457",
+  "actionId": "1234567893.457",
   "approvalTxId": "test-approval-tx-id",
   "batchId": undefined,
   "estimatedProcessingTimeInSeconds": 15,
@@ -582,8 +584,9 @@ exports[`BridgeStatusController submitTx: EVM bridge should delay after submitti
       },
     ],
   },
+  "quoteId": "197c402f-cb96-4096-9f8c-54aed84ca776",
   "slippagePercentage": 0,
-  "startTime": 1234567890,
+  "startTime": 1234567891,
   "status": {
     "srcChain": {
       "chainId": 8453,
@@ -678,7 +681,7 @@ exports[`BridgeStatusController submitTx: EVM bridge should delay after submitti
       "value": "0x0",
     },
     {
-      "actionId": "1234567891.456",
+      "actionId": "1234567892.456",
       "isInternal": true,
       "networkClientId": "arbitrum-client-id",
       "origin": "metamask",
@@ -723,7 +726,7 @@ exports[`BridgeStatusController submitTx: EVM bridge should delay after submitti
       "value": "0x0",
     },
     {
-      "actionId": "1234567892.457",
+      "actionId": "1234567893.457",
       "isInternal": true,
       "networkClientId": "arbitrum",
       "origin": "metamask",
@@ -788,7 +791,7 @@ exports[`BridgeStatusController submitTx: EVM bridge should delay after submitti
 exports[`BridgeStatusController submitTx: EVM bridge should delay after submitting linea approval 2`] = `
 {
   "account": "0xaccount1",
-  "actionId": "1234567892.457",
+  "actionId": "1234567893.457",
   "approvalTxId": "test-approval-tx-id",
   "batchId": undefined,
   "estimatedProcessingTimeInSeconds": 15,
@@ -896,8 +899,9 @@ exports[`BridgeStatusController submitTx: EVM bridge should delay after submitti
       },
     ],
   },
+  "quoteId": "197c402f-cb96-4096-9f8c-54aed84ca776",
   "slippagePercentage": 0,
-  "startTime": 1234567890,
+  "startTime": 1234567891,
   "status": {
     "srcChain": {
       "chainId": 59144,
@@ -992,7 +996,7 @@ exports[`BridgeStatusController submitTx: EVM bridge should delay after submitti
       "value": "0x0",
     },
     {
-      "actionId": "1234567891.456",
+      "actionId": "1234567892.456",
       "isInternal": true,
       "networkClientId": "arbitrum-client-id",
       "origin": "metamask",
@@ -1037,7 +1041,7 @@ exports[`BridgeStatusController submitTx: EVM bridge should delay after submitti
       "value": "0x0",
     },
     {
-      "actionId": "1234567892.457",
+      "actionId": "1234567893.457",
       "isInternal": true,
       "networkClientId": "arbitrum",
       "origin": "metamask",
@@ -1103,7 +1107,7 @@ exports[`BridgeStatusController submitTx: EVM bridge should handle smart transac
 exports[`BridgeStatusController submitTx: EVM bridge should handle smart transactions and include quotesReceivedContext 2`] = `
 {
   "account": "0xaccount1",
-  "actionId": undefined,
+  "actionId": "1234567892.456",
   "approvalTxId": undefined,
   "batchId": "batchId1",
   "estimatedProcessingTimeInSeconds": 15,
@@ -1211,8 +1215,9 @@ exports[`BridgeStatusController submitTx: EVM bridge should handle smart transac
       },
     ],
   },
+  "quoteId": "197c402f-cb96-4096-9f8c-54aed84ca776",
   "slippagePercentage": 0,
-  "startTime": 1234567890,
+  "startTime": 1234567891,
   "status": {
     "srcChain": {
       "chainId": 42161,
@@ -1402,7 +1407,7 @@ exports[`BridgeStatusController submitTx: EVM bridge should not call handleMobil
 exports[`BridgeStatusController submitTx: EVM bridge should not call handleMobileHardwareWalletDelay on extension 2`] = `
 {
   "account": "0xaccount1",
-  "actionId": "1234567892.457",
+  "actionId": "1234567893.457",
   "approvalTxId": "test-approval-tx-id",
   "batchId": undefined,
   "estimatedProcessingTimeInSeconds": 15,
@@ -1510,8 +1515,9 @@ exports[`BridgeStatusController submitTx: EVM bridge should not call handleMobil
       },
     ],
   },
+  "quoteId": "197c402f-cb96-4096-9f8c-54aed84ca776",
   "slippagePercentage": 0,
-  "startTime": 1234567890,
+  "startTime": 1234567891,
   "status": {
     "srcChain": {
       "chainId": 42161,
@@ -1606,7 +1612,7 @@ exports[`BridgeStatusController submitTx: EVM bridge should not call handleMobil
       "value": "0x0",
     },
     {
-      "actionId": "1234567891.456",
+      "actionId": "1234567892.456",
       "isInternal": true,
       "networkClientId": "arbitrum-client-id",
       "origin": "metamask",
@@ -1651,7 +1657,7 @@ exports[`BridgeStatusController submitTx: EVM bridge should not call handleMobil
       "value": "0x0",
     },
     {
-      "actionId": "1234567892.457",
+      "actionId": "1234567893.457",
       "isInternal": true,
       "networkClientId": "arbitrum",
       "origin": "metamask",
@@ -1716,7 +1722,7 @@ exports[`BridgeStatusController submitTx: EVM bridge should not call handleMobil
 exports[`BridgeStatusController submitTx: EVM bridge should not call handleMobileHardwareWalletDelay with true for non-hardware wallet on mobile 2`] = `
 {
   "account": "0xaccount1",
-  "actionId": "1234567892.457",
+  "actionId": "1234567893.457",
   "approvalTxId": "test-approval-tx-id",
   "batchId": undefined,
   "estimatedProcessingTimeInSeconds": 15,
@@ -1824,8 +1830,9 @@ exports[`BridgeStatusController submitTx: EVM bridge should not call handleMobil
       },
     ],
   },
+  "quoteId": "197c402f-cb96-4096-9f8c-54aed84ca776",
   "slippagePercentage": 0,
-  "startTime": 1234567890,
+  "startTime": 1234567891,
   "status": {
     "srcChain": {
       "chainId": 42161,
@@ -1920,7 +1927,7 @@ exports[`BridgeStatusController submitTx: EVM bridge should not call handleMobil
       "value": "0x0",
     },
     {
-      "actionId": "1234567891.456",
+      "actionId": "1234567892.456",
       "isInternal": true,
       "networkClientId": "arbitrum-client-id",
       "origin": "metamask",
@@ -1965,7 +1972,7 @@ exports[`BridgeStatusController submitTx: EVM bridge should not call handleMobil
       "value": "0x0",
     },
     {
-      "actionId": "1234567892.457",
+      "actionId": "1234567893.457",
       "isInternal": true,
       "networkClientId": "arbitrum",
       "origin": "metamask",
@@ -2030,7 +2037,7 @@ exports[`BridgeStatusController submitTx: EVM bridge should reset USDT allowance
 exports[`BridgeStatusController submitTx: EVM bridge should reset USDT allowance 2`] = `
 {
   "account": "0xaccount1",
-  "actionId": "1234567893.458",
+  "actionId": "1234567899.458",
   "approvalTxId": "test-approval-tx-id",
   "batchId": undefined,
   "estimatedProcessingTimeInSeconds": 15,
@@ -2138,8 +2145,9 @@ exports[`BridgeStatusController submitTx: EVM bridge should reset USDT allowance
       },
     ],
   },
+  "quoteId": "197c402f-cb96-4096-9f8c-54aed84ca776",
   "slippagePercentage": 0,
-  "startTime": 1234567890,
+  "startTime": 1234567891,
   "status": {
     "srcChain": {
       "chainId": 42161,
@@ -2234,7 +2242,7 @@ exports[`BridgeStatusController submitTx: EVM bridge should reset USDT allowance
       "value": "0x0",
     },
     {
-      "actionId": "1234567891.456",
+      "actionId": "1234567892.456",
       "isInternal": true,
       "networkClientId": "arbitrum-client-id",
       "origin": "metamask",
@@ -2279,7 +2287,7 @@ exports[`BridgeStatusController submitTx: EVM bridge should reset USDT allowance
       "value": "0x0",
     },
     {
-      "actionId": "1234567892.457",
+      "actionId": "1234567893.457",
       "isInternal": true,
       "networkClientId": "arbitrum-client-id",
       "origin": "metamask",
@@ -2324,7 +2332,7 @@ exports[`BridgeStatusController submitTx: EVM bridge should reset USDT allowance
       "value": "0x0",
     },
     {
-      "actionId": "1234567893.458",
+      "actionId": "1234567899.458",
       "isInternal": true,
       "networkClientId": "arbitrum",
       "origin": "metamask",
@@ -2364,7 +2372,7 @@ exports[`BridgeStatusController submitTx: EVM bridge should successfully submit 
 exports[`BridgeStatusController submitTx: EVM bridge should successfully submit an EVM bridge transaction with approval 2`] = `
 {
   "account": "0xaccount1",
-  "actionId": "1234567892.457",
+  "actionId": "1234567893.457",
   "approvalTxId": "test-approval-tx-id",
   "batchId": undefined,
   "estimatedProcessingTimeInSeconds": 15,
@@ -2472,8 +2480,9 @@ exports[`BridgeStatusController submitTx: EVM bridge should successfully submit 
       },
     ],
   },
+  "quoteId": "197c402f-cb96-4096-9f8c-54aed84ca776",
   "slippagePercentage": 0,
-  "startTime": 1234567890,
+  "startTime": 1234567891,
   "status": {
     "srcChain": {
       "chainId": 42161,
@@ -2568,7 +2577,7 @@ exports[`BridgeStatusController submitTx: EVM bridge should successfully submit 
       "value": "0x0",
     },
     {
-      "actionId": "1234567891.456",
+      "actionId": "1234567892.456",
       "isInternal": true,
       "networkClientId": "arbitrum-client-id",
       "origin": "metamask",
@@ -2613,7 +2622,7 @@ exports[`BridgeStatusController submitTx: EVM bridge should successfully submit 
       "value": "0x0",
     },
     {
-      "actionId": "1234567892.457",
+      "actionId": "1234567893.457",
       "isInternal": true,
       "networkClientId": "arbitrum",
       "origin": "metamask",
@@ -2653,7 +2662,7 @@ exports[`BridgeStatusController submitTx: EVM bridge should successfully submit 
 exports[`BridgeStatusController submitTx: EVM bridge should successfully submit an EVM bridge transaction with no approval 2`] = `
 {
   "account": "0xaccount1",
-  "actionId": "1234567891.456",
+  "actionId": "1234567892.456",
   "approvalTxId": undefined,
   "batchId": undefined,
   "estimatedProcessingTimeInSeconds": 15,
@@ -2761,8 +2770,9 @@ exports[`BridgeStatusController submitTx: EVM bridge should successfully submit 
       },
     ],
   },
+  "quoteId": "197c402f-cb96-4096-9f8c-54aed84ca776",
   "slippagePercentage": 0,
-  "startTime": 1234567890,
+  "startTime": 1234567891,
   "status": {
     "srcChain": {
       "chainId": 42161,
@@ -2857,7 +2867,7 @@ exports[`BridgeStatusController submitTx: EVM bridge should successfully submit 
       "value": "0x0",
     },
     {
-      "actionId": "1234567891.456",
+      "actionId": "1234567892.456",
       "isInternal": true,
       "networkClientId": "arbitrum",
       "origin": "metamask",
@@ -2953,7 +2963,7 @@ exports[`BridgeStatusController submitTx: EVM bridge should throw an error if ap
       "value": "0x0",
     },
     {
-      "actionId": "1234567891.456",
+      "actionId": "1234567892.456",
       "isInternal": true,
       "networkClientId": "arbitrum-client-id",
       "origin": "metamask",
@@ -3075,7 +3085,7 @@ exports[`BridgeStatusController submitTx: EVM bridge should throw an error if ap
       "value": "0x0",
     },
     {
-      "actionId": "1234567891.456",
+      "actionId": "1234567892.456",
       "isInternal": true,
       "networkClientId": "arbitrum-client-id",
       "origin": "metamask",
@@ -3144,7 +3154,7 @@ exports[`BridgeStatusController submitTx: EVM bridge waits for approval tx confi
 exports[`BridgeStatusController submitTx: EVM bridge waits for approval tx confirmation before swap for hardware wallet on mobile 2`] = `
 {
   "account": "0xaccount1",
-  "actionId": "1234567892.457",
+  "actionId": "1234567893.457",
   "approvalTxId": "test-approval-tx-id",
   "batchId": undefined,
   "estimatedProcessingTimeInSeconds": 15,
@@ -3252,8 +3262,9 @@ exports[`BridgeStatusController submitTx: EVM bridge waits for approval tx confi
       },
     ],
   },
+  "quoteId": "197c402f-cb96-4096-9f8c-54aed84ca776",
   "slippagePercentage": 0,
-  "startTime": 1234567890,
+  "startTime": 1234567891,
   "status": {
     "srcChain": {
       "chainId": 42161,
@@ -3348,7 +3359,7 @@ exports[`BridgeStatusController submitTx: EVM bridge waits for approval tx confi
       "value": "0x0",
     },
     {
-      "actionId": "1234567891.456",
+      "actionId": "1234567892.456",
       "isInternal": true,
       "networkClientId": "arbitrum-client-id",
       "origin": "metamask",
@@ -3393,7 +3404,7 @@ exports[`BridgeStatusController submitTx: EVM bridge waits for approval tx confi
       "value": "0x0",
     },
     {
-      "actionId": "1234567892.457",
+      "actionId": "1234567893.457",
       "isInternal": true,
       "networkClientId": "arbitrum",
       "origin": "metamask",
@@ -3533,7 +3544,7 @@ exports[`BridgeStatusController submitTx: EVM swap should gracefully handle isAt
       "value": "0x0",
     },
     {
-      "actionId": "1234567891.456",
+      "actionId": "1234567892.456",
       "isInternal": true,
       "networkClientId": "arbitrum-client-id",
       "origin": "metamask",
@@ -3578,7 +3589,7 @@ exports[`BridgeStatusController submitTx: EVM swap should gracefully handle isAt
       "value": "0x0",
     },
     {
-      "actionId": "1234567892.457",
+      "actionId": "1234567899.457",
       "isInternal": true,
       "networkClientId": "arbitrum",
       "origin": "metamask",
@@ -3595,7 +3606,7 @@ exports[`BridgeStatusController submitTx: EVM swap should gracefully handle isAt
 exports[`BridgeStatusController submitTx: EVM swap should handle a gasless swap transaction with approval 2`] = `
 {
   "account": "0xaccount1",
-  "actionId": undefined,
+  "actionId": "1234567892.456",
   "approvalTxId": undefined,
   "batchId": "batchId1",
   "estimatedProcessingTimeInSeconds": 0,
@@ -3693,8 +3704,9 @@ exports[`BridgeStatusController submitTx: EVM swap should handle a gasless swap 
       },
     ],
   },
+  "quoteId": "197c402f-cb96-4096-9f8c-54aed84ca776",
   "slippagePercentage": 0,
-  "startTime": 1234567890,
+  "startTime": 1234567891,
   "status": {
     "srcChain": {
       "chainId": 42161,
@@ -3730,7 +3742,7 @@ exports[`BridgeStatusController submitTx: EVM swap should handle smart transacti
 exports[`BridgeStatusController submitTx: EVM swap should handle smart transactions 2`] = `
 {
   "account": "0xaccount1",
-  "actionId": undefined,
+  "actionId": "1234567892.456",
   "approvalTxId": undefined,
   "batchId": "batchId1",
   "estimatedProcessingTimeInSeconds": 0,
@@ -3838,8 +3850,9 @@ exports[`BridgeStatusController submitTx: EVM swap should handle smart transacti
       },
     ],
   },
+  "quoteId": "197c402f-cb96-4096-9f8c-54aed84ca776",
   "slippagePercentage": 0,
-  "startTime": 1234567890,
+  "startTime": 1234567891,
   "status": {
     "srcChain": {
       "chainId": 42161,
@@ -4104,7 +4117,7 @@ exports[`BridgeStatusController submitTx: EVM swap should successfully submit an
       "value": "0x0",
     },
     {
-      "actionId": "1234567891.456",
+      "actionId": "1234567892.456",
       "isInternal": true,
       "networkClientId": "arbitrum-client-id",
       "origin": "metamask",
@@ -4149,7 +4162,7 @@ exports[`BridgeStatusController submitTx: EVM swap should successfully submit an
       "value": "0x0",
     },
     {
-      "actionId": "1234567892.457",
+      "actionId": "1234567899.457",
       "isInternal": true,
       "networkClientId": "arbitrum",
       "origin": "metamask",
@@ -4185,7 +4198,7 @@ exports[`BridgeStatusController submitTx: EVM swap should successfully submit an
 exports[`BridgeStatusController submitTx: EVM swap should successfully submit an EVM swap transaction with no approval 2`] = `
 {
   "account": "0xaccount1",
-  "actionId": "1234567891.456",
+  "actionId": "1234567892.456",
   "approvalTxId": undefined,
   "batchId": undefined,
   "estimatedProcessingTimeInSeconds": 0,
@@ -4293,8 +4306,9 @@ exports[`BridgeStatusController submitTx: EVM swap should successfully submit an
       },
     ],
   },
+  "quoteId": "197c402f-cb96-4096-9f8c-54aed84ca776",
   "slippagePercentage": 0,
-  "startTime": 1234567890,
+  "startTime": 1234567891,
   "status": {
     "srcChain": {
       "chainId": 42161,
@@ -4389,7 +4403,7 @@ exports[`BridgeStatusController submitTx: EVM swap should successfully submit an
       "value": "0x0",
     },
     {
-      "actionId": "1234567891.456",
+      "actionId": "1234567892.456",
       "isInternal": true,
       "networkClientId": "arbitrum",
       "origin": "metamask",
@@ -4485,7 +4499,7 @@ exports[`BridgeStatusController submitTx: EVM swap should use quote txFee when g
 exports[`BridgeStatusController submitTx: EVM swap should use quote txFee when gasIncluded is true and STX is off (Max native token swap) 2`] = `
 {
   "account": "0xaccount1",
-  "actionId": "1234567891.456",
+  "actionId": "1234567892.456",
   "approvalTxId": undefined,
   "batchId": undefined,
   "estimatedProcessingTimeInSeconds": 0,
@@ -4599,8 +4613,9 @@ exports[`BridgeStatusController submitTx: EVM swap should use quote txFee when g
       },
     ],
   },
+  "quoteId": "197c402f-cb96-4096-9f8c-54aed84ca776",
   "slippagePercentage": 0,
-  "startTime": 1234567890,
+  "startTime": 1234567891,
   "status": {
     "srcChain": {
       "chainId": 42161,
@@ -4635,7 +4650,7 @@ exports[`BridgeStatusController submitTx: EVM swap should use quote txFee when g
 exports[`BridgeStatusController submitTx: EVM swap should use quote txFee when gasIncluded is true and STX is off (undefined gasLimit) 2`] = `
 {
   "account": "0xaccount1",
-  "actionId": "1234567891.456",
+  "actionId": "1234567892.456",
   "approvalTxId": undefined,
   "batchId": undefined,
   "estimatedProcessingTimeInSeconds": 0,
@@ -4749,8 +4764,9 @@ exports[`BridgeStatusController submitTx: EVM swap should use quote txFee when g
       },
     ],
   },
+  "quoteId": "197c402f-cb96-4096-9f8c-54aed84ca776",
   "slippagePercentage": 0,
-  "startTime": 1234567890,
+  "startTime": 1234567891,
   "status": {
     "srcChain": {
       "chainId": 42161,
@@ -4933,7 +4949,7 @@ exports[`BridgeStatusController submitTx: Solana bridge should successfully subm
   "sourceTokenSymbol": "SOL",
   "status": "submitted",
   "swapTokenValue": "1",
-  "time": 1234567891,
+  "time": 1234567899,
   "txParams": {
     "data": "AQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACAAQAHDXLY8oVRIwA8ZdRSGjM5RIZJW8Wv+Twyw3NqU4Hov+OHoHp/dmeDvstKbICW3ezeGR69t3/PTAvdXgZVdJFJXaxkoKXUTWfEAyQyCCG9nwVoDsd10OFdnM9ldSi+9SLqHpqWVDV+zzkmftkF//DpbXxqeH8obNXHFR7pUlxG9uNVOn64oNsFdeUvD139j1M51iRmUY839Y25ET4jDRscT081oGb+rLnywLjLSrIQx6MkqNBhCFbxqY1YmoGZVORW/QMGRm/lIRcy/+ytunLDm+e8jOW7xfcSayxDmzpAAAAAjJclj04kifG7PRApFI4NgwtaE5na/xCEBI572Nvp+FkAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAbd9uHXZaGT2cvhRs7reawctIXtX1s3kTqM9YV+/wCpBHnVW/IxwG7udMVuzmgVB/2xst6j9I5RArHNola8E4+0P/on9df2SnTAmx8pWHneSwmrNt/J3VFLMhqns4zl6JmXkZ+niuxMhAGrmKBaBo94uMv2Sl+Xh3i+VOO0m5BdNZ1ElenbwQylHQY+VW1ydG1MaUEeNpG+EVgswzPMwPoLBgAFAsBcFQAGAAkDQA0DAAAAAAAHBgABAhMICQAHBgADABYICQEBCAIAAwwCAAAAUEYVOwAAAAAJAQMBEQoUCQADBAETCgsKFw0ODxARAwQACRQj5RfLl3rjrSoBAAAAQ2QAAVBGFTsAAAAAyYZnBwAAAABkAAAJAwMAAAEJDAkAAAIBBBMVCQjGASBMKQwnooTbKNxdBwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAUHTKomh4KXvNgA0ovYKS5F8GIOBgAAAAAAAAAAAAAAAAAQgAAAAAAAAAAAAAAAAAAAAAAAEIF7RFOAwAAAAAAAAAAAAAAaAIAAAAAAAC4CwAAAAAAAOAA2mcAAAAAAAAAAAAAAAAAAAAApapuIXG0FuHSfsU8qME9s/kaic0AAwGCsZdSuxV5eCm+Ria4LEQPgTg4bg65gNrTAefEzpAfPQgCABIMAgAAAAAAAAAAAAAACAIABQwCAAAAsIOFAAAAAAADWk6DVOZO8lMFQg2r0dgfltD6tRL/B1hH3u00UzZdgqkAAxEqIPdq2eRt/F6mHNmFe7iwZpdrtGmHNJMFlK7c6Bc6k6kjBezr6u/tAgvu3OGsJSwSElmcOHZ21imqH/rhJ2KgqDJdBPFH4SYIM1kBAAA=",
     "from": "0x123...",
@@ -5039,8 +5055,9 @@ exports[`BridgeStatusController submitTx: Solana bridge should successfully subm
       },
     ],
   },
+  "quoteId": "197c402f-cb96-4096-9f8c-54aed84ca776",
   "slippagePercentage": 0,
-  "startTime": 1234567890,
+  "startTime": 1234567891,
   "status": {
     "srcChain": {
       "chainId": 1151111081099710,
@@ -5340,7 +5357,7 @@ exports[`BridgeStatusController submitTx: Solana swap should successfully submit
   "sourceTokenSymbol": "SOL",
   "status": "submitted",
   "swapTokenValue": "1",
-  "time": 1234567891,
+  "time": 1234567899,
   "txParams": {
     "data": "AQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACAAQAHDXLY8oVRIwA8ZdRSGjM5RIZJW8Wv+Twyw3NqU4Hov+OHoHp/dmeDvstKbICW3ezeGR69t3/PTAvdXgZVdJFJXaxkoKXUTWfEAyQyCCG9nwVoDsd10OFdnM9ldSi+9SLqHpqWVDV+zzkmftkF//DpbXxqeH8obNXHFR7pUlxG9uNVOn64oNsFdeUvD139j1M51iRmUY839Y25ET4jDRscT081oGb+rLnywLjLSrIQx6MkqNBhCFbxqY1YmoGZVORW/QMGRm/lIRcy/+ytunLDm+e8jOW7xfcSayxDmzpAAAAAjJclj04kifG7PRApFI4NgwtaE5na/xCEBI572Nvp+FkAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAbd9uHXZaGT2cvhRs7reawctIXtX1s3kTqM9YV+/wCpBHnVW/IxwG7udMVuzmgVB/2xst6j9I5RArHNola8E4+0P/on9df2SnTAmx8pWHneSwmrNt/J3VFLMhqns4zl6JmXkZ+niuxMhAGrmKBaBo94uMv2Sl+Xh3i+VOO0m5BdNZ1ElenbwQylHQY+VW1ydG1MaUEeNpG+EVgswzPMwPoLBgAFAsBcFQAGAAkDQA0DAAAAAAAHBgABAhMICQAHBgADABYICQEBCAIAAwwCAAAAUEYVOwAAAAAJAQMBEQoUCQADBAETCgsKFw0ODxARAwQACRQj5RfLl3rjrSoBAAAAQ2QAAVBGFTsAAAAAyYZnBwAAAABkAAAJAwMAAAEJDAkAAAIBBBMVCQjGASBMKQwnooTbKNxdBwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAUHTKomh4KXvNgA0ovYKS5F8GIOBgAAAAAAAAAAAAAAAAAQgAAAAAAAAAAAAAAAAAAAAAAAEIF7RFOAwAAAAAAAAAAAAAAaAIAAAAAAAC4CwAAAAAAAOAA2mcAAAAAAAAAAAAAAAAAAAAApapuIXG0FuHSfsU8qME9s/kaic0AAwGCsZdSuxV5eCm+Ria4LEQPgTg4bg65gNrTAefEzpAfPQgCABIMAgAAAAAAAAAAAAAACAIABQwCAAAAsIOFAAAAAAADWk6DVOZO8lMFQg2r0dgfltD6tRL/B1hH3u00UzZdgqkAAxEqIPdq2eRt/F6mHNmFe7iwZpdrtGmHNJMFlK7c6Bc6k6kjBezr6u/tAgvu3OGsJSwSElmcOHZ21imqH/rhJ2KgqDJdBPFH4SYIM1kBAAA=",
     "from": "0x123...",
@@ -5438,8 +5455,9 @@ exports[`BridgeStatusController submitTx: Solana swap should successfully submit
       },
     ],
   },
+  "quoteId": "197c402f-cb96-4096-9f8c-54aed84ca776",
   "slippagePercentage": 0,
-  "startTime": 1234567890,
+  "startTime": 1234567891,
   "status": {
     "srcChain": {
       "chainId": 1151111081099710,
@@ -5737,7 +5755,7 @@ exports[`BridgeStatusController submitTx: Tron swap with approval should success
   "sourceTokenSymbol": "USDT",
   "status": "submitted",
   "swapTokenValue": "1",
-  "time": 1234567892,
+  "time": 1234567899,
   "txParams": {
     "data": "CgKquyIITd6G0PaK4+VAOmgIAbJjCjF0eXBlLmdvb2dsZWFwaXMuY29tL3Byb3RvY29sLlRyaWdnZXJTbWFydENvbnRyYWN0EjMKFUGPfqjM6fi7pn165ZzUmhll1hfnGxIVQaYU+AO2/XgJhqQseOycf3fm3tE8",
     "from": "TRX123...",
@@ -5841,8 +5859,9 @@ exports[`BridgeStatusController submitTx: Tron swap with approval should success
       },
     ],
   },
+  "quoteId": "197c402f-cb96-4096-9f8c-54aed84ca776",
   "slippagePercentage": 0,
-  "startTime": 1234567890,
+  "startTime": 1234567891,
   "status": {
     "srcChain": {
       "chainId": 728126428,
@@ -5962,7 +5981,7 @@ exports[`BridgeStatusController submitTx: Tron swap with approval should success
   "sourceTokenSymbol": "USDT",
   "status": "submitted",
   "swapTokenValue": "1",
-  "time": 1234567892,
+  "time": 1234567899,
   "txParams": {
     "data": "CgKquyIITd6G0PaK4+VAOmgIAbJjCjF0eXBlLmdvb2dsZWFwaXMuY29tL3Byb3RvY29sLlRyaWdnZXJTbWFydENvbnRyYWN0EjMKFUGPfqjM6fi7pn165ZzUmhll1hfnGxIVQaYU+AO2/XgJhqQseOycf3fm3tE8",
     "from": "TRX123...",
@@ -6060,8 +6079,9 @@ exports[`BridgeStatusController submitTx: Tron swap with approval should success
       },
     ],
   },
+  "quoteId": "197c402f-cb96-4096-9f8c-54aed84ca776",
   "slippagePercentage": 0,
-  "startTime": 1234567890,
+  "startTime": 1234567891,
   "status": {
     "srcChain": {
       "chainId": 728126428,

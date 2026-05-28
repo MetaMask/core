@@ -3764,6 +3764,8 @@ describe('BridgeController', function () {
               bridgeIds: ['bridge1', 'bridge2'],
               fee: 0,
             },
+            [FeatureId.QUICK_BUY]: undefined,
+            [FeatureId.DAPP_SWAP]: undefined,
           },
         });
       messengerCallMock.mockResolvedValueOnce('AUTH_TOKEN');

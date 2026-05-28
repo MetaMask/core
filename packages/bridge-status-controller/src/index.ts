@@ -1,9 +1,13 @@
+// Export custom error classes
+export { QuoteStatusUpdateError } from './errors';
+
 // Export constants
 export {
   REFRESH_INTERVAL_MS,
   DEFAULT_BRIDGE_STATUS_CONTROLLER_STATE,
   BRIDGE_STATUS_CONTROLLER_NAME,
   MAX_ATTEMPTS,
+  QuoteStatusUpdateErrorType,
 } from './constants';
 
 export type {
@@ -15,6 +19,7 @@ export type {
   RefuelStatusResponse,
   BridgeHistoryItem,
   BridgeStatusControllerState,
+  DeferredStatusUpdateEntry,
   BridgeStatusControllerMessenger,
   BridgeStatusControllerActions,
   BridgeStatusControllerGetStateAction,

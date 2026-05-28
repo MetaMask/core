@@ -33,6 +33,7 @@ import type {
   TransactionControllerGetStateAction,
   TransactionControllerIsAtomicBatchSupportedAction,
   TransactionControllerTransactionStatusUpdatedEvent,
+  TransactionControllerTransactionSubmittedEvent,
   TransactionControllerUpdateTransactionAction,
   TransactionMeta,
   TransactionType,
@@ -40,8 +41,14 @@ import type {
 import type { CaipAssetType } from '@metamask/utils';
 
 import type { BridgeStatusControllerMethodActions } from './bridge-status-controller-method-action-types';
-import { BRIDGE_STATUS_CONTROLLER_NAME } from './constants';
-import type { StatusResponseSchema } from './utils/validators';
+import {
+  BRIDGE_STATUS_CONTROLLER_NAME,
+  QuoteStatusUpdateStatus,
+} from './constants';
+import type {
+  QuoteStatusUpdateResponseSchema,
+  StatusResponseSchema,
+} from './utils/validators';
 
 // All fields need to be types not interfaces, same with their children fields
 // o/w you get a type error
@@ -140,6 +147,7 @@ export type BridgeHistoryItem = {
   originalTransactionId?: string; // Keep original transaction ID for intent transactions
   batchId?: string;
   quote: Quote;
+  quoteId?: string; // Optional: absent on history items persisted before this field was introduced
   status: StatusResponse;
   startTime: number; // timestamp in ms
   estimatedProcessingTimeInSeconds: number;
@@ -289,8 +297,18 @@ export type StartPollingForBridgeTxStatusArgsSerialized = Omit<
 
 export type SourceChainTxMetaId = string;
 
+export type DeferredStatusUpdateEntry = {
+  quoteId: string;
+  srcTxHash: string;
+  pendingStatuses: QuoteStatusUpdateStatus[];
+  createdAt: number;
+  lastAttemptAt: number;
+  txMetaId?: string;
+};
+
 export type BridgeStatusControllerState = {
   txHistory: Record<SourceChainTxMetaId, BridgeHistoryItem>;
+  deferredStatusUpdates: Record<string, DeferredStatusUpdateEntry>;
 };
 
 // Actions
@@ -344,7 +362,9 @@ type AllowedActions =
 /**
  * The external events available to the BridgeStatusController.
  */
-type AllowedEvents = TransactionControllerTransactionStatusUpdatedEvent;
+type AllowedEvents =
+  | TransactionControllerTransactionStatusUpdatedEvent
+  | TransactionControllerTransactionSubmittedEvent;
 
 /**
  * The messenger for the BridgeStatusController.
@@ -353,4 +373,8 @@ export type BridgeStatusControllerMessenger = Messenger<
   typeof BRIDGE_STATUS_CONTROLLER_NAME,
   BridgeStatusControllerActions | AllowedActions,
   BridgeStatusControllerEvents | AllowedEvents
+>;
+
+export type QuoteStatusUpdateResponse = Infer<
+  typeof QuoteStatusUpdateResponseSchema
 >;

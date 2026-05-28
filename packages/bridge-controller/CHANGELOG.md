@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add required `quoteId: string` to `QuoteResponseSchema`; quote responses without a `quoteId` will now fail validation ([#8462](https://github.com/MetaMask/core/pull/8462))
 - Add optional `has_sufficient_gas_for_quote` property to `QuotesReceived` event and `getQuotesReceivedProperties` utility to allow clients to pass whether the user has sufficient gas to submit the quote ([#8895](https://github.com/MetaMask/core/pull/8895))
 
 ### Changed

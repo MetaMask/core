@@ -7,13 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **BREAKING:** Add required `quoteId: string` to `BridgeHistoryItem` ([#8462](https://github.com/MetaMask/core/pull/8462))
+- Add `QuoteStatusUpdateManager` for resilient quote-status reporting to the Bridge API; reports `SUBMITTED`/`FINALIZED_SUCCESS`/`FINALIZED_FAILURE`, retries immediately on retryable errors (up to 6×), defers on network failures (every 30 min for up to 12 h), and persists the queue to `deferredStatusUpdates` state across service-worker restarts ([#8462](https://github.com/MetaMask/core/pull/8462))
+- Export `QuoteStatusUpdateError`, `QuoteStatusUpdateErrorType`, `QuoteStatusUpdateStatus`, `QuoteStatusUpdateResponse` and related enums ([#8462](https://github.com/MetaMask/core/pull/8462))
+- Add optional `onQuoteStatusUpdateError` and `isQuoteStatusUpdateEnabled` constructor options to `BridgeStatusController` ([#8462](https://github.com/MetaMask/core/pull/8462))
+
 ### Changed
 
+- `BridgeStatusController` reports quote `SUBMITTED` status via `TransactionController:transactionStatusUpdated` when a swap/bridge tx reaches `submitted` (covers batch EVM / STX / 7702-delegated txs whose hash is unavailable at `submitTx` time) ([#8462](https://github.com/MetaMask/core/pull/8462))
 - Bump `@metamask/bridge-controller` from `^73.0.1` to `^73.1.0` ([#8915](https://github.com/MetaMask/core/pull/8915))
 - Refactor batch transaction utils to handle multiple quote requests within a batch (for BatchSell integration) ([#8886](https://github.com/MetaMask/core/pull/8886))
 
 ### Fixed
 
+- Avoid duplicate quote `SUBMITTED` reports for EVM transactions by handling submission only in `transactionStatusUpdated` (not `transactionSubmitted` or inline `submitIntent`) ([#8462](https://github.com/MetaMask/core/pull/8462))
 - Use txFee from the bridge-api whenever it's provided ([#8805](https://github.com/MetaMask/core/pull/8805))
 
 ## [71.2.1]

@@ -13,6 +13,11 @@ import {
   is,
 } from '@metamask/superstruct';
 
+import {
+  QuoteStatusUpdateErrorType,
+  QuoteStatusUpdateStatus,
+} from '../constants';
+
 const ChainIdSchema = number();
 
 const EmptyObjectSchema = type({});
@@ -86,3 +91,56 @@ export const validateIntentStatusResponse = (
 ): data is IntentStatusResponse => {
   return is(data, IntentStatusResponseSchema);
 };
+
+const onChainMismatchTypes = [
+  QuoteStatusUpdateErrorType.InvalidStatusTransaction,
+  QuoteStatusUpdateErrorType.QuoteStatusOnChainMismatch,
+] as const;
+
+const baseErrorTypes = [
+  QuoteStatusUpdateErrorType.QuoteNotFound,
+  QuoteStatusUpdateErrorType.ConcurrentUpdate,
+  QuoteStatusUpdateErrorType.SrcTxHashRequiredForFinalized,
+  QuoteStatusUpdateErrorType.PersistQuoteStatusFailed,
+  QuoteStatusUpdateErrorType.TransactionNotIndexed,
+  QuoteStatusUpdateErrorType.TxDataMissingHash,
+  QuoteStatusUpdateErrorType.TxDataMissingTrade,
+  QuoteStatusUpdateErrorType.TxDataMismatch,
+  QuoteStatusUpdateErrorType.SvmTradeDeserializeFailed,
+] as const;
+
+const quoteStatusUpdateStatusValues = [
+  QuoteStatusUpdateStatus.Served,
+  QuoteStatusUpdateStatus.Submitted,
+  QuoteStatusUpdateStatus.FinalizedSuccess,
+  QuoteStatusUpdateStatus.FinalizedFailed,
+] as const;
+
+const QuoteStatusUpdateResponseWithCurrentStatusSchema = type({
+  statusCode: number(),
+  message: string(),
+  type: enums(onChainMismatchTypes),
+  currentStatus: enums(quoteStatusUpdateStatusValues),
+  newStatus: enums(quoteStatusUpdateStatusValues),
+});
+
+const QuoteStatusUpdateResponseBaseSchema = type({
+  statusCode: number(),
+  message: string(),
+  type: enums(baseErrorTypes),
+});
+
+export const QuoteStatusUpdateResponseSchema = union([
+  QuoteStatusUpdateResponseWithCurrentStatusSchema,
+  QuoteStatusUpdateResponseBaseSchema,
+]);
+
+export type QuoteStatusUpdateResponse = Infer<
+  typeof QuoteStatusUpdateResponseSchema
+>;
+
+export function validateQuoteStatusUpdateResponse(
+  data: unknown,
+): asserts data is QuoteStatusUpdateResponse {
+  assert(data, QuoteStatusUpdateResponseSchema);
+}
