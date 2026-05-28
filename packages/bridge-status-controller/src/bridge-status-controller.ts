@@ -1696,6 +1696,14 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       (tx: TransactionMeta) => tx.id === approvalTxId,
     );
 
+    const inputCurrencyModeProperties = {
+      input_currency_mode:
+        historyItem.inputCurrencyMode ?? InputCurrencyMode.CRYPTO,
+    };
+    const shouldIncludeInputCurrencyMode =
+      eventName === UnifiedSwapBridgeEventName.Completed ||
+      eventName === UnifiedSwapBridgeEventName.Failed;
+
     const requiredEventProperties = {
       ...baseProperties,
       ...requestParamProperties,
@@ -1704,10 +1712,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       ...getTxStatusesFromHistory(historyItem),
       ...getFinalizedTxProperties(historyItem, txMeta, approvalTxMeta),
       ...getPriceImpactFromQuote(quote),
-      ...(eventName === UnifiedSwapBridgeEventName.Completed && {
-        input_currency_mode:
-          historyItem.inputCurrencyMode ?? InputCurrencyMode.CRYPTO,
-      }),
+      ...(shouldIncludeInputCurrencyMode && inputCurrencyModeProperties),
     };
 
     trackMetricsEvent({

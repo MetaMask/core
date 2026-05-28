@@ -197,7 +197,7 @@ type RequiredEventContextFromClientBase = {
           | 'token_address_source'
           | 'token_address_destination'
           | 'token_security_type_destination'
-        > & { error_message: string }) // Tx failed after confirmation
+        > & { error_message: string } & InputCurrencyModeProperties) // Tx failed after confirmation
     | (RequestParams &
         RequestMetadata &
         Pick<QuoteFetchData, 'price_impact'> &
@@ -205,7 +205,7 @@ type RequiredEventContextFromClientBase = {
         TradeData & {
           actual_time_minutes: number;
           error_message?: string;
-        });
+        } & InputCurrencyModeProperties);
   // Emitted by clients
   [UnifiedSwapBridgeEventName.AllQuotesOpened]: Pick<
     TradeData,
