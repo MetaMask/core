@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Support persisting and emitting Unified SwapBridge input currency mode on submitted/completed/failed metrics ([#8909](https://github.com/MetaMask/core/pull/8909))
+
 ### Changed
 
 - Bump `@metamask/bridge-controller` from `^73.0.1` to `^73.1.0` ([#8915](https://github.com/MetaMask/core/pull/8915))

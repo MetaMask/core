@@ -8,6 +8,7 @@ import type {
   MetricsActionType,
   MetricsSwapType,
   PollingStatus,
+  InputCurrencyMode,
 } from './constants';
 
 /**
@@ -73,7 +74,8 @@ export type InputKeys =
   | 'chain_source'
   | 'chain_destination'
   | 'slippage'
-  | 'token_amount_source';
+  | 'token_amount_source'
+  | 'input_currency_mode';
 
 export type InputValues = {
   token_source: CaipAssetType;
@@ -82,6 +84,11 @@ export type InputValues = {
   chain_destination: CaipChainId;
   slippage: number;
   token_amount_source: string;
+  input_currency_mode: InputCurrencyMode;
+};
+
+type InputCurrencyModeProperties = {
+  input_currency_mode?: InputCurrencyMode;
 };
 
 export type QuoteWarning =
@@ -108,15 +115,10 @@ type RequiredEventContextFromClientBase = {
   // When type is object, the payload can be anything
   [UnifiedSwapBridgeEventName.PageViewed]: object;
   [UnifiedSwapBridgeEventName.InputChanged]: {
-    input:
-      | 'token_source'
-      | 'token_destination'
-      | 'chain_source'
-      | 'chain_destination'
-      | 'slippage'
-      | 'token_amount_source';
+    input: InputKeys;
     input_value: InputValues[keyof InputValues];
     input_amount_preset?: string;
+    input_currency_mode?: InputCurrencyMode;
   };
   [UnifiedSwapBridgeEventName.InputSourceDestinationSwitched]: {
     token_symbol_source: RequestParams['token_symbol_source'];
@@ -133,7 +135,7 @@ type RequiredEventContextFromClientBase = {
   > & {
     token_symbol_source: RequestParams['token_symbol_source'];
     token_symbol_destination: RequestParams['token_symbol_destination'];
-  };
+  } & InputCurrencyModeProperties;
   [UnifiedSwapBridgeEventName.QuotesReceived]: TradeData & {
     warnings: QuoteWarning[];
     best_quote_provider: QuoteFetchData['best_quote_provider'];
@@ -141,7 +143,7 @@ type RequiredEventContextFromClientBase = {
     can_submit: QuoteFetchData['can_submit'];
     usd_balance_source?: number;
     has_sufficient_gas_for_quote?: boolean | null;
-  };
+  } & InputCurrencyModeProperties;
   [UnifiedSwapBridgeEventName.QuotesError]: Pick<
     RequestMetadata,
     'stx_enabled'
@@ -164,7 +166,7 @@ type RequiredEventContextFromClientBase = {
       | 'token_security_type_destination'
     > & {
       action_type: MetricsActionType;
-    };
+    } & InputCurrencyModeProperties;
   [UnifiedSwapBridgeEventName.Completed]: TradeData &
     Pick<QuoteFetchData, 'price_impact'> &
     Omit<RequestMetadata, 'security_warnings'> &
@@ -176,7 +178,7 @@ type RequiredEventContextFromClientBase = {
       quote_vs_execution_ratio: number;
       quoted_vs_used_gas_ratio: number;
       action_type: MetricsActionType;
-    };
+    } & InputCurrencyModeProperties;
   [UnifiedSwapBridgeEventName.Failed]:
     | // Tx failed before confirmation
       (TradeData &
@@ -195,7 +197,7 @@ type RequiredEventContextFromClientBase = {
           | 'token_address_source'
           | 'token_address_destination'
           | 'token_security_type_destination'
-        > & { error_message: string }) // Tx failed after confirmation
+        > & { error_message: string } & InputCurrencyModeProperties) // Tx failed after confirmation
     | (RequestParams &
         RequestMetadata &
         Pick<QuoteFetchData, 'price_impact'> &
@@ -203,7 +205,7 @@ type RequiredEventContextFromClientBase = {
         TradeData & {
           actual_time_minutes: number;
           error_message?: string;
-        });
+        } & InputCurrencyModeProperties);
   // Emitted by clients
   [UnifiedSwapBridgeEventName.AllQuotesOpened]: Pick<
     TradeData,
@@ -299,12 +301,14 @@ export type EventPropertiesFromControllerState = {
   [UnifiedSwapBridgeEventName.QuotesRequested]: RequestParams &
     RequestMetadata & {
       has_sufficient_funds: boolean;
+      input_currency_mode: InputCurrencyMode;
     };
   [UnifiedSwapBridgeEventName.QuotesReceived]: RequestParams &
     RequestMetadata &
     QuoteFetchData &
     TradeData & {
       refresh_count: number; // starts from 0
+      input_currency_mode: InputCurrencyMode;
     };
   [UnifiedSwapBridgeEventName.QuotesError]: RequestParams &
     RequestMetadata & {

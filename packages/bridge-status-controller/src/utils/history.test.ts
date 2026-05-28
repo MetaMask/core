@@ -1,4 +1,4 @@
-import { StatusTypes } from '@metamask/bridge-controller';
+import { InputCurrencyMode, StatusTypes } from '@metamask/bridge-controller';
 import type { Quote } from '@metamask/bridge-controller';
 
 import type {
@@ -135,12 +135,14 @@ describe('History Utils', () => {
       ).toBe(false);
     });
 
-    it('persists a non-null tokenSecurityTypeDestination', () => {
+    it('persists provided optional metadata', () => {
       const { txHistoryItem } = getInitialHistoryItem({
         ...baseArgs,
         tokenSecurityTypeDestination: 'Malicious',
+        inputCurrencyMode: InputCurrencyMode.FIAT,
       });
       expect(txHistoryItem.tokenSecurityTypeDestination).toBe('Malicious');
+      expect(txHistoryItem.inputCurrencyMode).toBe(InputCurrencyMode.FIAT);
     });
 
     it('persists a null tokenSecurityTypeDestination', () => {

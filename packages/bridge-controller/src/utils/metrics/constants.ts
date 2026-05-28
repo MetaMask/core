@@ -51,6 +51,11 @@ export enum MetaMetricsSwapsEventSource {
   Rewards = 'Rewards',
 }
 
+export enum InputCurrencyMode {
+  FIAT = 'fiat',
+  CRYPTO = 'crypto',
+}
+
 export enum InputAmountPreset {
   PERCENT_25 = '25%',
   PERCENT_50 = '50%',

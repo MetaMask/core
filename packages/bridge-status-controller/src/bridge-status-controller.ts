@@ -18,6 +18,7 @@ import {
   isEvmTxData,
   MetricsActionType,
   MetaMetricsSwapsEventSource,
+  InputCurrencyMode,
   isBitcoinTrade,
   isTronTrade,
   PollingStatus,
@@ -1108,6 +1109,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       );
     }
     const accountHardwareType = getAccountHardwareType(selectedAccount);
+    const inputCurrencyMode = quotesReceivedContext?.input_currency_mode;
 
     const preConfirmationProperties = getPreConfirmationPropertiesFromQuote(
       quoteResponse,
@@ -1117,6 +1119,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       abTests,
       activeAbTests,
       tokenSecurityTypeDestination,
+      inputCurrencyMode,
     );
 
     let txMeta: TransactionMeta & Partial<SolanaTransactionMeta>;
@@ -1272,6 +1275,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
               activeAbTests,
               actionId,
               tokenSecurityTypeDestination,
+              inputCurrencyMode,
             });
 
             // Pass txFee when gasIncluded is true to use the quote's gas fees
@@ -1333,6 +1337,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
           abTests,
           activeAbTests,
           tokenSecurityTypeDestination,
+          inputCurrencyMode,
         });
       }
 
@@ -1364,6 +1369,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
    * @param params.abTests - Legacy A/B test context for `ab_tests` (backward compatibility)
    * @param params.activeAbTests - New A/B test context for `active_ab_tests` (migration target). Attributes events to specific experiments.
    * @param params.tokenSecurityTypeDestination - The security classification of the destination token, supplied by the client (e.g. from token security/scanning data). Pass `null` when no security data is available.
+   * @param params.inputCurrencyMode - The fiat/crypto source input mode at submit time.
    * @returns A lightweight TransactionMeta-like object for history linking
    */
   submitIntent = async (params: {
@@ -1373,6 +1379,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     abTests?: Record<string, string>;
     activeAbTests?: { key: string; value: string }[];
     tokenSecurityTypeDestination?: string | null;
+    inputCurrencyMode?: InputCurrencyMode;
   }): Promise<Pick<TransactionMeta, 'id' | 'chainId' | 'type' | 'status'>> => {
     const {
       quoteResponse,
@@ -1381,6 +1388,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       abTests,
       activeAbTests,
       tokenSecurityTypeDestination,
+      inputCurrencyMode,
     } = params;
 
     // TODO add metrics context
@@ -1399,6 +1407,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       abTests,
       activeAbTests,
       tokenSecurityTypeDestination,
+      inputCurrencyMode,
     );
 
     try {
@@ -1529,6 +1538,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
           abTests,
           activeAbTests,
           tokenSecurityTypeDestination,
+          inputCurrencyMode,
         });
 
         // Start polling using the orderId key to route to intent manager
@@ -1686,6 +1696,14 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       (tx: TransactionMeta) => tx.id === approvalTxId,
     );
 
+    const inputCurrencyModeProperties = {
+      input_currency_mode:
+        historyItem.inputCurrencyMode ?? InputCurrencyMode.CRYPTO,
+    };
+    const shouldIncludeInputCurrencyMode =
+      eventName === UnifiedSwapBridgeEventName.Completed ||
+      eventName === UnifiedSwapBridgeEventName.Failed;
+
     const requiredEventProperties = {
       ...baseProperties,
       ...requestParamProperties,
@@ -1694,6 +1712,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       ...getTxStatusesFromHistory(historyItem),
       ...getFinalizedTxProperties(historyItem, txMeta, approvalTxMeta),
       ...getPriceImpactFromQuote(quote),
+      ...(shouldIncludeInputCurrencyMode && inputCurrencyModeProperties),
     };
 
     trackMetricsEvent({

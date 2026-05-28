@@ -441,6 +441,7 @@ exports[`BridgeController trackUnifiedSwapBridgeEvent client-side calls should t
       "gas_included_7702": false,
       "has_gas_included_quote": false,
       "initial_load_time_all_quotes": 0,
+      "input_currency_mode": "crypto",
       "is_hardware_wallet": false,
       "location": "Main View",
       "price_impact": 0,
@@ -472,6 +473,7 @@ exports[`BridgeController updateBridgeQuoteRequestParams should only poll once i
     {
       "action_type": "swapbridge-v1",
       "input": "chain_source",
+      "input_currency_mode": "crypto",
       "input_value": "eip155:1",
       "location": "Main View",
     },
@@ -481,6 +483,7 @@ exports[`BridgeController updateBridgeQuoteRequestParams should only poll once i
     {
       "action_type": "swapbridge-v1",
       "input": "chain_destination",
+      "input_currency_mode": "crypto",
       "input_value": "eip155:10",
       "location": "Main View",
     },
@@ -490,6 +493,7 @@ exports[`BridgeController updateBridgeQuoteRequestParams should only poll once i
     {
       "action_type": "swapbridge-v1",
       "input": "token_destination",
+      "input_currency_mode": "crypto",
       "input_value": "eip155:10/erc20:0x123",
       "location": "Main View",
     },
@@ -499,6 +503,7 @@ exports[`BridgeController updateBridgeQuoteRequestParams should only poll once i
     {
       "action_type": "swapbridge-v1",
       "input": "slippage",
+      "input_currency_mode": "crypto",
       "input_value": 0.5,
       "location": "Main View",
     },
@@ -512,6 +517,7 @@ exports[`BridgeController updateBridgeQuoteRequestParams should only poll once i
       "chain_id_source": "eip155:1",
       "custom_slippage": true,
       "has_sufficient_funds": false,
+      "input_currency_mode": "crypto",
       "is_hardware_wallet": false,
       "location": "Main View",
       "security_warnings": [],
@@ -541,6 +547,7 @@ exports[`BridgeController updateBridgeQuoteRequestParams should only poll once i
       "gas_included_7702": false,
       "has_gas_included_quote": false,
       "initial_load_time_all_quotes": 11000,
+      "input_currency_mode": "crypto",
       "is_hardware_wallet": false,
       "location": "Main View",
       "price_impact": 0,
@@ -904,6 +911,7 @@ exports[`BridgeController updateBridgeQuoteRequestParams should trigger quote po
     {
       "action_type": "swapbridge-v1",
       "input": "chain_source",
+      "input_currency_mode": "crypto",
       "input_value": "eip155:1",
       "location": "Main View",
     },
@@ -913,6 +921,7 @@ exports[`BridgeController updateBridgeQuoteRequestParams should trigger quote po
     {
       "action_type": "swapbridge-v1",
       "input": "chain_destination",
+      "input_currency_mode": "crypto",
       "input_value": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
       "location": "Main View",
     },
@@ -922,6 +931,7 @@ exports[`BridgeController updateBridgeQuoteRequestParams should trigger quote po
     {
       "action_type": "swapbridge-v1",
       "input": "token_destination",
+      "input_currency_mode": "crypto",
       "input_value": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/token:123d1",
       "location": "Main View",
     },
@@ -931,6 +941,7 @@ exports[`BridgeController updateBridgeQuoteRequestParams should trigger quote po
     {
       "action_type": "swapbridge-v1",
       "input": "slippage",
+      "input_currency_mode": "crypto",
       "input_value": 0.5,
       "location": "Main View",
     },
@@ -944,6 +955,7 @@ exports[`BridgeController updateBridgeQuoteRequestParams should trigger quote po
       "chain_id_source": "eip155:1",
       "custom_slippage": true,
       "has_sufficient_funds": true,
+      "input_currency_mode": "crypto",
       "is_hardware_wallet": false,
       "location": "Main View",
       "security_warnings": [],
@@ -968,6 +980,7 @@ exports[`BridgeController updateBridgeQuoteRequestParams should trigger quote po
       "chain_id_source": "eip155:1",
       "custom_slippage": true,
       "has_sufficient_funds": true,
+      "input_currency_mode": "crypto",
       "is_hardware_wallet": false,
       "location": "Main View",
       "security_warnings": [],
@@ -992,6 +1005,7 @@ exports[`BridgeController updateBridgeQuoteRequestParams should trigger quote po
       "chain_id_source": "eip155:1",
       "custom_slippage": true,
       "has_sufficient_funds": true,
+      "input_currency_mode": "crypto",
       "is_hardware_wallet": false,
       "location": "Main View",
       "security_warnings": [],
@@ -1041,6 +1055,7 @@ exports[`BridgeController updateBridgeQuoteRequestParams should trigger quote po
       "chain_id_source": "eip155:1",
       "custom_slippage": true,
       "has_sufficient_funds": true,
+      "input_currency_mode": "crypto",
       "is_hardware_wallet": false,
       "location": "Main View",
       "security_warnings": [],
@@ -1065,6 +1080,7 @@ exports[`BridgeController updateBridgeQuoteRequestParams should update the quote
     {
       "action_type": "swapbridge-v1",
       "input": "chain_source",
+      "input_currency_mode": "crypto",
       "input_value": "eip155:1",
       "location": "Main View",
     },
@@ -1074,6 +1090,7 @@ exports[`BridgeController updateBridgeQuoteRequestParams should update the quote
     {
       "action_type": "swapbridge-v1",
       "input": "chain_destination",
+      "input_currency_mode": "crypto",
       "input_value": "eip155:10",
       "location": "Main View",
     },
@@ -1083,6 +1100,7 @@ exports[`BridgeController updateBridgeQuoteRequestParams should update the quote
     {
       "action_type": "swapbridge-v1",
       "input": "slippage",
+      "input_currency_mode": "crypto",
       "input_value": 0.5,
       "location": "Main View",
     },
