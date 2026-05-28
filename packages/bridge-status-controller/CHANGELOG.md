@@ -16,13 +16,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **BREAKING:** `BridgeStatusControllerMessenger` `AllowedEvents` now requires `TransactionControllerTransactionSubmittedEvent` ([#8462](https://github.com/MetaMask/core/pull/8462))
-- `BridgeStatusController` now subscribes to `TransactionController:transactionSubmitted` and handles `TransactionStatus.submitted` to report quote status for batch EVM (STX / 7702-delegated) transactions whose hash is unavailable at `submitTx` time ([#8462](https://github.com/MetaMask/core/pull/8462))
+- `BridgeStatusController` reports quote `SUBMITTED` status via `TransactionController:transactionStatusUpdated` when a swap/bridge tx reaches `submitted` (covers batch EVM / STX / 7702-delegated txs whose hash is unavailable at `submitTx` time) ([#8462](https://github.com/MetaMask/core/pull/8462))
 - Bump `@metamask/bridge-controller` from `^73.0.1` to `^73.1.0` ([#8915](https://github.com/MetaMask/core/pull/8915))
 - Refactor batch transaction utils to handle multiple quote requests within a batch (for BatchSell integration) ([#8886](https://github.com/MetaMask/core/pull/8886))
 
 ### Fixed
 
+- Avoid duplicate quote `SUBMITTED` reports for EVM transactions by handling submission only in `transactionStatusUpdated` (not `transactionSubmitted` or inline `submitIntent`) ([#8462](https://github.com/MetaMask/core/pull/8462))
 - Use txFee from the bridge-api whenever it's provided ([#8805](https://github.com/MetaMask/core/pull/8805))
 
 ## [71.2.1]

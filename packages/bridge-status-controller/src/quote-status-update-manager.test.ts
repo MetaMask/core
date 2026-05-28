@@ -24,6 +24,8 @@ const SRC_TX_HASH = '0xsrcTxHash123';
 const TX_META_ID = 'tx-meta-id-123';
 const JWT_TOKEN = 'mock-jwt-token';
 const QUEUE_KEY = `${QUOTE_ID}:${SRC_TX_HASH}`;
+const CLIENT_PRODUCT = 'metamask-extension';
+const CLIENT_VERSION = '14.11.0';
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
@@ -91,6 +93,8 @@ function buildManager(
   const manager = new QuoteStatusUpdateManager({
     messenger,
     clientId: BridgeClientId.EXTENSION,
+    clientProduct: CLIENT_PRODUCT,
+    clientVersion: CLIENT_VERSION,
     apiBaseUrl: API_BASE_URL,
     persistDeferredUpdates,
     onError,
@@ -108,9 +112,14 @@ function mockFetchOk(): jest.SpyInstance {
 }
 
 function mockFetchError(body: Record<string, unknown>): jest.SpyInstance {
+  const merged = {
+    statusCode: 400,
+    message: 'error',
+    ...body,
+  };
   return jest.spyOn(globalThis, 'fetch').mockResolvedValue({
     ok: false,
-    json: (): Promise<Record<string, unknown>> => Promise.resolve(body),
+    json: (): Promise<Record<string, unknown>> => Promise.resolve(merged),
   } as unknown as Response);
 }
 
@@ -118,6 +127,15 @@ function mockFetchNetworkError(): jest.SpyInstance {
   return jest
     .spyOn(globalThis, 'fetch')
     .mockRejectedValue(new Error('Network error'));
+}
+
+function mockFetchInvalidErrorBody(
+  body: Record<string, unknown>,
+): jest.SpyInstance {
+  return jest.spyOn(globalThis, 'fetch').mockResolvedValue({
+    ok: false,
+    json: (): Promise<Record<string, unknown>> => Promise.resolve(body),
+  } as unknown as Response);
 }
 
 /**
@@ -420,6 +438,8 @@ describe('QuoteStatusUpdateManager', () => {
       const [, init] = fetchSpy.mock.calls[0];
       expect((init as RequestInit).headers).toMatchObject({
         Authorization: `Bearer ${JWT_TOKEN}`,
+        'x-metamask-clientproduct': CLIENT_PRODUCT,
+        'x-metamask-clientversion': CLIENT_VERSION,
       });
     });
 
@@ -623,6 +643,8 @@ describe('QuoteStatusUpdateManager', () => {
       const manager = new QuoteStatusUpdateManager({
         messenger,
         clientId: BridgeClientId.EXTENSION,
+        clientProduct: CLIENT_PRODUCT,
+        clientVersion: CLIENT_VERSION,
         apiBaseUrl: API_BASE_URL,
         persistDeferredUpdates,
         isEnabled: (): boolean => true,
@@ -636,6 +658,62 @@ describe('QuoteStatusUpdateManager', () => {
       expect(
         (init.headers as Record<string, string>).Authorization,
       ).toBeUndefined();
+    });
+
+    describe('when the error response fails validation', () => {
+      it('calls onError with an unexpected-shape error and keeps the entry for retry', async () => {
+        fetchSpy = mockFetchInvalidErrorBody({
+          type: QuoteStatusUpdateErrorType.ConcurrentUpdate,
+          // Missing statusCode and message required by QuoteStatusUpdateResponseSchema
+        });
+        const { manager, onError, persistDeferredUpdates } = buildManager();
+
+        manager.reportSubmitted(QUOTE_ID, SRC_TX_HASH, TX_META_ID);
+        await flushPromises();
+
+        expect(onError).toHaveBeenCalledTimes(1);
+        const error = onError.mock.calls[0][0] as QuoteStatusUpdateError;
+        expect(error).toBeInstanceOf(QuoteStatusUpdateError);
+        expect(error.message).toContain(
+          'unexpected response shape from quote/updateStatus',
+        );
+        expect(error.details?.quoteId).toBe(QUOTE_ID);
+
+        const lastPersisted =
+          persistDeferredUpdates.mock.calls[
+            persistDeferredUpdates.mock.calls.length - 1
+          ][0];
+        expect(lastPersisted[QUEUE_KEY]).toBeDefined();
+      });
+
+      it('calls onError when the error body has an unknown type', async () => {
+        fetchSpy = mockFetchInvalidErrorBody({
+          statusCode: 400,
+          message: 'error',
+          type: 'not-a-valid-error-type',
+        });
+        const { manager, onError } = buildManager();
+
+        manager.reportSubmitted(QUOTE_ID, SRC_TX_HASH, TX_META_ID);
+        await flushPromises();
+
+        expect(onError).toHaveBeenCalledTimes(1);
+        expect(onError.mock.calls[0][0]).toBeInstanceOf(QuoteStatusUpdateError);
+      });
+
+      it('calls onError when the error body is not an object', async () => {
+        fetchSpy = jest.spyOn(globalThis, 'fetch').mockResolvedValue({
+          ok: false,
+          json: (): Promise<string> => Promise.resolve('not-json-object'),
+        } as unknown as Response);
+        const { manager, onError } = buildManager();
+
+        manager.reportSubmitted(QUOTE_ID, SRC_TX_HASH, TX_META_ID);
+        await flushPromises();
+
+        expect(onError).toHaveBeenCalledTimes(1);
+        expect(onError.mock.calls[0][0]).toBeInstanceOf(QuoteStatusUpdateError);
+      });
     });
   });
 

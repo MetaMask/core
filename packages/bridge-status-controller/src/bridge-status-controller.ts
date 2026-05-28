@@ -171,6 +171,8 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     messenger,
     state,
     clientId,
+    clientProduct,
+    clientVersion,
     fetchFn,
     addTransactionBatchFn,
     config,
@@ -181,6 +183,8 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     messenger: BridgeStatusControllerMessenger;
     state?: Partial<BridgeStatusControllerState>;
     clientId: BridgeClientId;
+    clientProduct: string;
+    clientVersion?: string;
     fetchFn: FetchFunction;
     addTransactionBatchFn: typeof TransactionController.prototype.addTransactionBatch;
     config?: {
@@ -217,6 +221,8 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     this.#quoteStatusUpdateManager = new QuoteStatusUpdateManager({
       messenger: this.messenger,
       clientId: this.#clientId,
+      clientProduct,
+      clientVersion,
       apiBaseUrl: this.#config.customBridgeApiBaseUrl,
       initialDeferredUpdates: this.state.deferredStatusUpdates,
       persistDeferredUpdates: (updates): void => {
@@ -262,8 +268,8 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
 
         switch (status) {
           case TransactionStatus.submitted:
-            // For batch EVM (STX/gasIncluded7702), the hash is not available at submitTx time.
-            // Call reportSubmitted when the transaction reaches 'submitted' status (hash is now available).
+            // EVM txs report SUBMITTED here (not via transactionSubmitted) so hash
+            // replacements before confirmation still reach the Bridge API.
             if (
               txMeta.hash &&
               txMeta.type &&
@@ -316,6 +322,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       },
     );
 
+    // TODO: we might not want that!
     // For batch EVM transactions (STX / gasIncluded7702) the tx hash is not
     // available when submitTx returns, so we report the submitted status here
     // once the TransactionController has broadcast the tx and assigned a hash.
@@ -364,11 +371,6 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       txHash: isApprovalTxMeta ? undefined : txMeta.hash,
     });
 
-    // Report finalized failure for swap/bridge transactions
-    if (txMeta.type && isCrossChainTx(txMeta.type)) {
-      this.#quoteStatusUpdateManager.reportFinalised(txMeta.id, false);
-    }
-
     if (txMeta.status === TransactionStatus.rejected) {
       return;
     }
@@ -377,6 +379,12 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     // This can happen if the transaction includes an approval tx that fails
     if (isHistoryItemAlreadyFailed) {
       return;
+    }
+
+    // Report finalized failure for swap/bridge transactions.
+    // Note: TransactionStatus.rejected means the user cancelled signing, so the tx was never broadcast.
+    if (txMeta.type && isCrossChainTx(txMeta.type)) {
+      this.#quoteStatusUpdateManager.reportFinalised(txMeta.id, false);
     }
 
     this.#trackUnifiedSwapBridgeEvent(
@@ -720,10 +728,6 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       this.stopPollingByPollingToken(pollingToken);
       delete this.#pollingTokensByTxMetaId[bridgeTxMetaId];
 
-      // Finalize the quote status update as a failure since we can no longer
-      // determine the outcome via polling.
-      this.#quoteStatusUpdateManager.reportFinalised(bridgeTxMetaId, false);
-
       // Track max polling reached event
       const historyItem = this.state.txHistory[bridgeTxMetaId];
       if (historyItem && !historyItem.featureId) {
@@ -775,7 +779,11 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       delete this.#pollingTokensByTxMetaId[bridgeTxMetaId];
     }
 
-    // Delete the history item so polling doesn't start over on the next restart
+    // Delete the history item so polling doesn't start over on the next restart.
+    // Report finalization as a failure here, this is the only place that
+    // permanently ends polling, so it's the correct and non-duplicative point
+    // to emit the final status.
+    this.#quoteStatusUpdateManager.reportFinalised(bridgeTxMetaId, false);
     this.#deleteHistoryItem(bridgeTxMetaId);
   };
 
@@ -1320,8 +1328,8 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
               isDelegatedAccount
             ) {
               // For batch EVM (STX/delegated), add history BEFORE transaction submission.
-              // This ensures the transactionStatusUpdated:submitted event handler can find
-              // the history item and call reportSubmitted with the hash.
+              // This ensures the transactionStatusUpdated:submitted handler can find
+              // the history item and call reportSubmitted once the hash is available.
               const batchActionId = generateActionId().toString();
               const batchHistoryKey = this.#addTxToHistory({
                 accountAddress: selectedAccount.address,
@@ -1478,11 +1486,14 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
         });
       }
 
-      // Call reportSubmitted after history is added if hash is available.
-      // For batch EVM (STX/delegated), the hash may or may not be available depending on timing.
-      // If not available here, the transactionStatusUpdated:submitted handler will catch it.
+      // Non-EVM txs do not go through TransactionController status events.
+      // EVM txs report SUBMITTED via transactionStatusUpdated:submitted only.
       const historyItemForSubmit = this.state.txHistory[historyKey];
-      if (historyItemForSubmit && txMeta.hash) {
+      if (
+        historyItemForSubmit?.quoteId &&
+        txMeta.hash &&
+        isNonEvmChainId(quoteResponse.quote.srcChainId)
+      ) {
         this.#quoteStatusUpdateManager.reportSubmitted(
           historyItemForSubmit.quoteId,
           txMeta.hash,

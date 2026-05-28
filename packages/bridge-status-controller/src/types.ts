@@ -43,10 +43,12 @@ import type { CaipAssetType } from '@metamask/utils';
 import type { BridgeStatusControllerMethodActions } from './bridge-status-controller-method-action-types';
 import {
   BRIDGE_STATUS_CONTROLLER_NAME,
-  QuoteStatusUpdateErrorType,
   QuoteStatusUpdateStatus,
 } from './constants';
-import type { StatusResponseSchema } from './utils/validators';
+import type {
+  QuoteStatusUpdateResponseSchema,
+  StatusResponseSchema,
+} from './utils/validators';
 
 // All fields need to be types not interfaces, same with their children fields
 // o/w you get a type error
@@ -145,7 +147,7 @@ export type BridgeHistoryItem = {
   originalTransactionId?: string; // Keep original transaction ID for intent transactions
   batchId?: string;
   quote: Quote;
-  quoteId: string;
+  quoteId?: string; // Optional: absent on history items persisted before this field was introduced
   status: StatusResponse;
   startTime: number; // timestamp in ms
   estimatedProcessingTimeInSeconds: number;
@@ -360,9 +362,7 @@ type AllowedActions =
 /**
  * The external events available to the BridgeStatusController.
  */
-type AllowedEvents =
-  | TransactionControllerTransactionStatusUpdatedEvent
-  | TransactionControllerTransactionSubmittedEvent;
+type AllowedEvents = TransactionControllerTransactionStatusUpdatedEvent | TransactionControllerTransactionSubmittedEvent;
 
 /**
  * The messenger for the BridgeStatusController.
@@ -373,22 +373,6 @@ export type BridgeStatusControllerMessenger = Messenger<
   BridgeStatusControllerEvents | AllowedEvents
 >;
 
-export type QuoteStatusUpdateResponse =
-  | {
-      statusCode: number;
-      message: string;
-      type:
-        | QuoteStatusUpdateErrorType.InvalidStatusTransaction
-        | QuoteStatusUpdateErrorType.QuoteStatusOnChainMismatch;
-      currentStatus: QuoteStatusUpdateStatus;
-      newStatus: QuoteStatusUpdateStatus;
-    }
-  | {
-      statusCode: number;
-      message: string;
-      type: Exclude<
-        QuoteStatusUpdateErrorType,
-        | QuoteStatusUpdateErrorType.QuoteStatusOnChainMismatch
-        | QuoteStatusUpdateErrorType.InvalidStatusTransaction
-      >;
-    };
+export type QuoteStatusUpdateResponse = Infer<
+  typeof QuoteStatusUpdateResponseSchema
+>;

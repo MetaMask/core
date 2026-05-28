@@ -18,6 +18,7 @@ import type {
 } from './types';
 import { getJwt } from './utils/authentication';
 import { sleep } from './utils/helpers';
+import { validateQuoteStatusUpdateResponse } from './utils/validators';
 
 /**
  * Handles reporting quote status updates (SUBMITTED / FINALISED) to the
@@ -49,6 +50,10 @@ export class QuoteStatusUpdateManager {
   readonly #messenger: BridgeStatusControllerMessenger;
 
   readonly #clientId: BridgeClientId;
+
+  readonly #clientProduct: string;
+
+  readonly #clientVersion: string | undefined;
 
   readonly #apiBaseUrl: string;
 
@@ -97,6 +102,8 @@ export class QuoteStatusUpdateManager {
   constructor({
     messenger,
     clientId,
+    clientProduct,
+    clientVersion,
     apiBaseUrl,
     initialDeferredUpdates,
     persistDeferredUpdates,
@@ -105,6 +112,8 @@ export class QuoteStatusUpdateManager {
   }: {
     messenger: BridgeStatusControllerMessenger;
     clientId: BridgeClientId;
+    clientProduct: string;
+    clientVersion?: string;
     apiBaseUrl: string;
     initialDeferredUpdates?: Record<string, DeferredStatusUpdateEntry>;
     persistDeferredUpdates: (
@@ -115,6 +124,8 @@ export class QuoteStatusUpdateManager {
   }) {
     this.#messenger = messenger;
     this.#clientId = clientId;
+    this.#clientProduct = clientProduct;
+    this.#clientVersion = clientVersion;
     this.#apiBaseUrl = apiBaseUrl;
     this.#persistDeferredUpdates = persistDeferredUpdates;
     this.#onError = onError;
@@ -579,6 +590,10 @@ export class QuoteStatusUpdateManager {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'x-metamask-clientproduct': this.#clientProduct,
+          ...(this.#clientVersion
+            ? { 'x-metamask-clientversion': this.#clientVersion }
+            : {}),
           ...getClientHeaders({
             clientId: this.#clientId,
             jwt: await getJwt(this.#messenger),
@@ -596,6 +611,19 @@ export class QuoteStatusUpdateManager {
       return undefined;
     }
 
-    return (await res.json()) as QuoteStatusUpdateResponse;
+    const data = await res.json();
+
+    try {
+      validateQuoteStatusUpdateResponse(data);
+      return data;
+    } catch (error) {
+      this.#onError?.(
+        new QuoteStatusUpdateError(
+          'unexpected response shape from quote/updateStatus',
+          { quoteId },
+        ),
+      );
+      throw error;
+    }
   };
 }

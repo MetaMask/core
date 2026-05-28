@@ -481,7 +481,6 @@ export const QuoteResponseSchema = type({
     TronTradeDataSchema,
     string(),
   ]),
-  quoteId: string(),
 });
 
 export const validateQuoteResponse = (
