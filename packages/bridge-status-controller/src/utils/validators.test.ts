@@ -1,13 +1,13 @@
 import {
+  QuoteStatusUpdateErrorType,
+  QuoteStatusUpdateStatus,
+} from '../constants';
+import {
   IntentOrderStatus,
   validateBridgeStatusResponse,
   validateIntentStatusResponse,
   validateQuoteStatusUpdateResponse,
 } from './validators';
-import {
-  QuoteStatusUpdateErrorType,
-  QuoteStatusUpdateStatus,
-} from '../constants';
 
 const BridgeTxStatusResponses = {
   STATUS_PENDING_VALID: {

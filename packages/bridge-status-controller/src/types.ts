@@ -362,7 +362,9 @@ type AllowedActions =
 /**
  * The external events available to the BridgeStatusController.
  */
-type AllowedEvents = TransactionControllerTransactionStatusUpdatedEvent | TransactionControllerTransactionSubmittedEvent;
+type AllowedEvents =
+  | TransactionControllerTransactionStatusUpdatedEvent
+  | TransactionControllerTransactionSubmittedEvent;
 
 /**
  * The messenger for the BridgeStatusController.
