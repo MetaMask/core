@@ -176,6 +176,15 @@ const mockMarketDataServiceInstance = {
   getPositions: jest.fn(),
   getAccountState: jest.fn(),
   getMarkets: jest.fn(),
+  getMarketDataWithPrices: jest
+    .fn()
+    .mockImplementation(
+      ({
+        provider,
+      }: {
+        provider: { getMarketDataWithPrices: () => Promise<unknown[]> };
+      }) => provider.getMarketDataWithPrices(),
+    ),
   getWithdrawalRoutes: jest.fn().mockReturnValue([]),
   validateClosePosition: jest.fn().mockResolvedValue({ isValid: true }),
   validateOrder: jest.fn(),
@@ -483,6 +492,13 @@ describe('PerpsController', () => {
       returnOnEquity: '0',
     });
     mockMarketDataServiceInstance.getMarkets.mockResolvedValue([]);
+    mockMarketDataServiceInstance.getMarketDataWithPrices.mockImplementation(
+      ({
+        provider,
+      }: {
+        provider: { getMarketDataWithPrices: () => Promise<unknown[]> };
+      }) => provider.getMarketDataWithPrices(),
+    );
     mockMarketDataServiceInstance.getWithdrawalRoutes.mockReturnValue([]);
     mockMarketDataServiceInstance.validateClosePosition.mockResolvedValue({
       isValid: true,
