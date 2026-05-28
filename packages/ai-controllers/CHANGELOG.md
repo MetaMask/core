@@ -7,14 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Fixed
-
-- `AiDigestService.fetchMarketOverview` no longer throws when a `relatedAsset` is missing non-essential fields. `RelatedAsset.name` and `RelatedAsset.sourceAssetId` are now optional; assets missing `symbol` are filtered out and trends with zero valid assets are dropped ([#8920](https://github.com/MetaMask/core/pull/8920)).
-
 ### Changed
 
 - Bump `@metamask/messenger` from `^1.0.0` to `^1.2.0` ([#8364](https://github.com/MetaMask/core/pull/8364), [#8373](https://github.com/MetaMask/core/pull/8373), [#8632](https://github.com/MetaMask/core/pull/8632))
 - Bump `@metamask/base-controller` from `^9.0.1` to `^9.1.0` ([#8457](https://github.com/MetaMask/core/pull/8457))
+
+### Fixed
+
+- `AiDigestService.fetchMarketOverview` no longer throws when a `relatedAsset` is missing non-essential fields. `RelatedAsset.name` and `RelatedAsset.sourceAssetId` are now optional; assets missing `symbol` are filtered out and trends with zero valid assets are dropped ([#8920](https://github.com/MetaMask/core/pull/8920)).
 
 ## [0.6.3]
 
