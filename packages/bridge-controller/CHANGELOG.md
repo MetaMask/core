@@ -17,7 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Fix EVM token exchange-rate lookups when asset ID address casing differs from `marketData` keys, restoring Batch Sell network fee fiat values.
+- Fix EVM token exchange-rate lookups when asset ID address casing differs from `marketData` keys, restoring Batch Sell network fee fiat values ([#8928](https://github.com/MetaMask/core/pull/8928))
 
 ## [73.1.0]
 
