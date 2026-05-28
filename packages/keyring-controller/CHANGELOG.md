@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [26.0.0]
+
+### Changed
+
+- **BREAKING:** Change `KeyringSelectorV2` type selectors for `withKeyringV2` and `withKeyringV2Unsafe` to use `KeyringType` (v2 variant) ([#8901](https://github.com/MetaMask/core/pull/8901))
+  - Use values such as `KeyringType.Hd` instead of legacy `KeyringTypes.hd`.
+- Deprecate `KeyringTypes` ([#8907](https://github.com/MetaMask/core/pull/8907))
+  - Use `KeyringTypes` from `@metamask/keyring-api/v2` if your keyring has a v2 builder.
+
+## [25.5.0]
+
 ### Added
 
 - Expose missing public `KeyringController` methods through its messenger ([#8674](https://github.com/MetaMask/core/pull/8674))
@@ -1006,7 +1017,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@25.4.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@26.0.0...HEAD
+[26.0.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@25.5.0...@metamask/keyring-controller@26.0.0
+[25.5.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@25.4.0...@metamask/keyring-controller@25.5.0
 [25.4.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@25.3.0...@metamask/keyring-controller@25.4.0
 [25.3.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@25.2.0...@metamask/keyring-controller@25.3.0
 [25.2.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@25.1.1...@metamask/keyring-controller@25.2.0

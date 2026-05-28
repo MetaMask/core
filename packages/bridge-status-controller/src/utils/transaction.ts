@@ -3,136 +3,76 @@ import {
   ChainId,
   formatChainIdToHex,
   BRIDGE_PREFERRED_GAS_ESTIMATE,
+  isEvmTxData,
+  FeeType,
 } from '@metamask/bridge-controller';
 import type {
   QuoteMetadata,
   QuoteResponse,
+  SimulatedGasFeeLimits,
+  Trade,
   TxData,
+  TxFeeGasLimits,
 } from '@metamask/bridge-controller';
 import { toHex } from '@metamask/controller-utils';
 import {
+  GasFeeEstimateType,
   TransactionStatus,
   TransactionType,
 } from '@metamask/transaction-controller';
 import type {
-  BatchTransactionParams,
   IsAtomicBatchSupportedResultEntry,
   TransactionController,
   TransactionMeta,
   TransactionBatchSingleRequest,
-  TransactionParams,
+  BatchTransactionParams,
 } from '@metamask/transaction-controller';
-import { createProjectLogger, Hex } from '@metamask/utils';
-import { BigNumber } from 'bignumber.js';
+import { createProjectLogger } from '@metamask/utils';
+import type { Hex } from '@metamask/utils';
 
 import { APPROVAL_DELAY_MS } from '../constants';
 import type { BridgeStatusControllerMessenger } from '../types';
+import type { QuoteAndTxMetadata } from '../types';
 import { getAccountByAddress } from './accounts';
 import { getNetworkClientIdByChainId } from './network';
 
-const isApprovalTx = (type: TransactionType) =>
+export const isApprovalTx = (type: TransactionType) =>
   type === TransactionType.bridgeApproval ||
   type === TransactionType.swapApproval;
-const isTradeTx = (type: TransactionType) =>
+export const isTradeTx = (type: TransactionType) =>
   type === TransactionType.bridge || type === TransactionType.swap;
 export const isCrossChainTx = (type: TransactionType) =>
   isTradeTx(type) || isApprovalTx(type);
 
+/**
+ * For 7702 delegated transactions, check for delegation-specific fields
+ * These transactions might have authorizationList or delegationAddress
+ *
+ * @param tx - The transaction meta
+ * @returns Whether the transaction is a 7702 transaction
+ */
+const is7702Tx = (tx: TransactionMeta) => {
+  return (
+    (Array.isArray(tx.txParams.authorizationList) &&
+      tx.txParams.authorizationList.length > 0) ||
+    Boolean(tx.delegationAddress)
+  );
+};
+
 export const getGasFeeEstimates = async (
   messenger: BridgeStatusControllerMessenger,
   args: Parameters<TransactionController['estimateGasFee']>[0],
-): Promise<{ maxFeePerGas?: string; maxPriorityFeePerGas?: string }> => {
+) => {
   const { estimates } = await messenger.call(
     'TransactionController:estimateGasFee',
     args,
   );
-  if (
-    BRIDGE_PREFERRED_GAS_ESTIMATE in estimates &&
-    typeof estimates[BRIDGE_PREFERRED_GAS_ESTIMATE] === 'object' &&
-    'maxFeePerGas' in estimates[BRIDGE_PREFERRED_GAS_ESTIMATE] &&
-    'maxPriorityFeePerGas' in estimates[BRIDGE_PREFERRED_GAS_ESTIMATE]
-  ) {
+
+  if (estimates?.type === GasFeeEstimateType.FeeMarket) {
     return estimates[BRIDGE_PREFERRED_GAS_ESTIMATE];
   }
-  return {};
-};
 
-/**
- * Get the gas fee estimates for a transaction
- *
- * @param messenger - The messenger for the gas fee estimates
- * @param estimateGasFeeParams - The parameters for the {@link TransactionController.estimateGasFee} method
- 
- * @returns The gas fee estimates for the transaction
- */
-export const getTxGasEstimates = async (
-  messenger: BridgeStatusControllerMessenger,
-  estimateGasFeeParams: Parameters<TransactionController['estimateGasFee']>[0],
-) => {
-  const { gasFeeEstimates } = messenger.call('GasFeeController:getState');
-  const estimatedBaseFee =
-    'estimatedBaseFee' in gasFeeEstimates
-      ? gasFeeEstimates.estimatedBaseFee
-      : '0';
-
-  // Get transaction's 1559 gas fee estimates
-  const { maxFeePerGas, maxPriorityFeePerGas } = await getGasFeeEstimates(
-    messenger,
-    estimateGasFeeParams,
-  );
-
-  /**
-   * @deprecated this is unused
-   */
-  const baseAndPriorityFeePerGas = maxPriorityFeePerGas
-    ? new BigNumber(estimatedBaseFee, 10)
-        .times(10 ** 9)
-        .plus(maxPriorityFeePerGas, 16)
-    : undefined;
-
-  return {
-    baseAndPriorityFeePerGas,
-    maxFeePerGas,
-    maxPriorityFeePerGas,
-  };
-};
-
-export const calculateGasFees = async (
-  skipGasFields: boolean,
-  messenger: BridgeStatusControllerMessenger,
-  { chainId: _, gasLimit, ...trade }: TxData,
-  networkClientId: string,
-  chainId: Hex,
-  txFee?: { maxFeePerGas: string; maxPriorityFeePerGas: string },
-) => {
-  if (skipGasFields) {
-    return {};
-  }
-  if (txFee) {
-    return { ...txFee, gas: gasLimit?.toString() };
-  }
-  const transactionParams = {
-    ...trade,
-    gas: gasLimit?.toString(),
-    data: trade.data as `0x${string}`,
-    to: trade.to as `0x${string}`,
-    value: trade.value as `0x${string}`,
-  };
-  const { maxFeePerGas, maxPriorityFeePerGas } = await getTxGasEstimates(
-    messenger,
-    {
-      transactionParams,
-      networkClientId,
-      chainId,
-    },
-  );
-  const maxGasLimit = toHex(transactionParams.gas ?? 0);
-
-  return {
-    maxFeePerGas,
-    maxPriorityFeePerGas,
-    gas: maxGasLimit,
-  };
+  return undefined;
 };
 
 export const getTransactions = (messenger: BridgeStatusControllerMessenger) => {
@@ -239,6 +179,7 @@ export const addSyntheticTransaction = async (
       origin: 'metamask',
       actionId: generateActionId(),
       isStateOnly: true,
+      isInternal: true,
       ...args[1],
     },
   );
@@ -322,64 +263,117 @@ export const waitForTxConfirmation = async (
   }
 };
 
-export const toBatchTxParams = (
-  skipGasFields: boolean,
-  { chainId, gasLimit, ...trade }: TxData,
-  {
-    maxFeePerGas,
-    maxPriorityFeePerGas,
-    gas,
-  }: { maxFeePerGas?: string; maxPriorityFeePerGas?: string; gas?: string },
-): BatchTransactionParams => {
-  const params = {
+export const toQuoteAndTxMetadata = ({
+  quoteResponse,
+  isBridgeTx,
+}: {
+  quoteResponse: QuoteResponse<Trade, Trade> & QuoteMetadata;
+  isBridgeTx: boolean;
+}) => {
+  const tradeData: QuoteAndTxMetadata[] = [];
+
+  const approvalTxType = isBridgeTx
+    ? TransactionType.bridgeApproval
+    : TransactionType.swapApproval;
+
+  if (quoteResponse.resetApproval) {
+    tradeData.push({
+      quoteResponse,
+      tx: quoteResponse.resetApproval,
+      type: approvalTxType,
+      txFee: quoteResponse.quote.feeData[FeeType.TX_FEE],
+    });
+  }
+  if (quoteResponse.approval && isEvmTxData(quoteResponse.approval)) {
+    tradeData.push({
+      quoteResponse,
+      tx: quoteResponse.approval,
+      type: approvalTxType,
+      txFee: quoteResponse.quote.feeData[FeeType.TX_FEE],
+    });
+  }
+  tradeData.push({
+    quoteResponse,
+    tx: quoteResponse.trade as TxData,
+    type: isBridgeTx ? TransactionType.bridge : TransactionType.swap,
+    assetsFiatValues: {
+      sending: quoteResponse.sentAmount?.valueInCurrency?.toString(),
+      receiving: quoteResponse.toTokenAmount?.valueInCurrency?.toString(),
+    },
+    txFee: quoteResponse.quote.feeData[FeeType.TX_FEE],
+  });
+
+  return tradeData;
+};
+
+/**
+ * Appends the gas fee estimates for a transaction and normalizes the trade data
+ *
+ * @param messenger - The messenger for the gas fee estimates
+ * @param trade - the trade data to append gas fees to
+ * @param trade.chainId - ignored, use chainId instead
+ * @param trade.gasLimit - the gas limit to use for the gas fee estimates
+ * @param networkClientId - the network client ID to use for the gas fee estimates
+ * @param chainId - the chain ID to use for the gas fee estimates
+ * @param simulatedGasFeeLimits - either the txFee from the quote or the simulated gas fee limits for the batch sell
+ * @returns The gas fee estimates for the transaction
+ */
+export const toTransactionParams = async (
+  messenger: BridgeStatusControllerMessenger,
+  { chainId: tradeChainId, gasLimit, ...trade }: TxData,
+  networkClientId: string,
+  chainId: Hex,
+  simulatedGasFeeLimits?: SimulatedGasFeeLimits | TxFeeGasLimits,
+): Promise<BatchTransactionParams> => {
+  const normalizedTrade = {
     ...trade,
-    data: trade.data as Hex,
-    to: trade.to as Hex,
-    value: trade.value as Hex,
+    data: trade.data,
+    to: trade.to,
+    from: trade.from,
+    value: trade.value,
   };
-  if (skipGasFields) {
-    return params;
+  const transactionParams = {
+    ...normalizedTrade,
+    // Only add gasLimit and gas if they're truthy
+    gas: gasLimit ? toHex(gasLimit) : undefined,
+  };
+
+  // Use bridge-api's provided gas fee estimates
+  if (simulatedGasFeeLimits) {
+    return {
+      ...transactionParams,
+      maxFeePerGas: toHex(simulatedGasFeeLimits.maxFeePerGas),
+      maxPriorityFeePerGas: toHex(simulatedGasFeeLimits.maxPriorityFeePerGas),
+    };
   }
 
+  // Get transaction's 1559 gas fee estimates
+  const gasFeeEstimates = await getGasFeeEstimates(messenger, {
+    transactionParams,
+    networkClientId,
+    chainId,
+  });
+
   return {
-    ...params,
-    gas: toHex(gas ?? 0),
-    maxFeePerGas: toHex(maxFeePerGas ?? 0),
-    maxPriorityFeePerGas: toHex(maxPriorityFeePerGas ?? 0),
+    ...transactionParams,
+    maxFeePerGas: gasFeeEstimates?.maxFeePerGas,
+    maxPriorityFeePerGas: gasFeeEstimates?.maxPriorityFeePerGas,
   };
 };
 
 export const getAddTransactionBatchParams = async ({
   messenger,
-  isBridgeTx,
-  approval,
-  resetApproval,
-  trade,
-  quoteResponse: {
-    quote: {
-      feeData: { txFee },
-      gasIncluded,
-      gasIncluded7702,
-      gasSponsored,
-    },
-    sentAmount,
-    toTokenAmount,
-  },
+  tradeData,
   requireApproval = false,
-  isDelegatedAccount = false,
-}: {
+  isDelegatedAccount,
+  ...addTransactionBatchParams
+}: Partial<Parameters<TransactionController['addTransactionBatch']>[0]> & {
   messenger: BridgeStatusControllerMessenger;
-  isBridgeTx: boolean;
-  trade: TxData;
-  quoteResponse: Omit<QuoteResponse, 'approval' | 'trade'> &
-    Partial<QuoteMetadata>;
-  approval?: TxData;
-  resetApproval?: TxData;
+  tradeData: QuoteAndTxMetadata[];
   requireApproval?: boolean;
   isDelegatedAccount?: boolean;
-}) => {
-  // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing
-  const isGasless = gasIncluded || gasIncluded7702;
+}): Promise<Parameters<TransactionController['addTransactionBatch']>[0]> => {
+  const trade = tradeData[0].tx;
   const selectedAccount = getAccountByAddress(messenger, trade.from);
   if (!selectedAccount) {
     throw new Error(
@@ -389,237 +383,147 @@ export const getAddTransactionBatchParams = async ({
   const hexChainId = formatChainIdToHex(trade.chainId);
   const networkClientId = getNetworkClientIdByChainId(messenger, hexChainId);
 
-  // Gas fields should be omitted only when gas is sponsored via 7702
-  const skipGasFields = gasIncluded7702 === true;
-  // Enable 7702 batching when the quote includes gasless 7702 support,
-  // or when the account is already delegated (to avoid the in-flight
-  // transaction limit for delegated accounts)
-  let disable7702 = !skipGasFields && !isDelegatedAccount;
-
-  // For gasless transactions with STX/sendBundle we keep disabling 7702.
-  if (gasIncluded && !gasIncluded7702) {
-    disable7702 = true;
-  }
-
-  const transactions: TransactionBatchSingleRequest[] = [];
-  if (resetApproval) {
-    const gasFees = await calculateGasFees(
-      skipGasFields,
-      messenger,
-      resetApproval,
-      networkClientId,
-      hexChainId,
-      isGasless ? txFee : undefined,
-    );
-    transactions.push({
-      type: isBridgeTx
-        ? TransactionType.bridgeApproval
-        : TransactionType.swapApproval,
-      params: toBatchTxParams(skipGasFields, resetApproval, gasFees),
-    });
-  }
-  if (approval) {
-    const gasFees = await calculateGasFees(
-      skipGasFields,
-      messenger,
-      approval,
-      networkClientId,
-      hexChainId,
-      isGasless ? txFee : undefined,
-    );
-    transactions.push({
-      type: isBridgeTx
-        ? TransactionType.bridgeApproval
-        : TransactionType.swapApproval,
-      params: toBatchTxParams(skipGasFields, approval, gasFees),
-    });
-  }
-  const gasFees = await calculateGasFees(
-    skipGasFields,
-    messenger,
-    trade,
-    networkClientId,
-    hexChainId,
-    isGasless ? txFee : undefined,
+  const transactions: TransactionBatchSingleRequest[] = await Promise.all(
+    tradeData.map(async ({ tx, txFee, assetsFiatValues, type }) => ({
+      params: await toTransactionParams(
+        messenger,
+        tx,
+        networkClientId,
+        hexChainId,
+        txFee,
+      ),
+      assetsFiatValues,
+      type,
+    })),
   );
-  transactions.push({
-    type: isBridgeTx ? TransactionType.bridge : TransactionType.swap,
-    params: toBatchTxParams(skipGasFields, trade, gasFees),
-    assetsFiatValues: {
-      sending: sentAmount?.valueInCurrency?.toString(),
-      receiving: toTokenAmount?.valueInCurrency?.toString(),
-    },
-  });
-  const transactionParams: Parameters<
-    TransactionController['addTransactionBatch']
-  >[0] = {
-    disable7702,
-    isGasFeeIncluded: Boolean(gasIncluded7702),
-    isGasFeeSponsored: Boolean(gasSponsored),
+
+  return {
     networkClientId,
     requireApproval,
     origin: 'metamask',
-    from: trade.from as Hex,
+    from: selectedAccount.address as Hex,
+    isInternal: true,
     transactions,
+    ...addTransactionBatchParams,
   };
-
-  return transactionParams;
 };
 
-export const findAndUpdateTransactionsInBatch = ({
+export const findAllTransactionsInBatch = ({
   messenger,
   batchId,
-  txDataByType,
+  tradeData,
 }: {
   messenger: BridgeStatusControllerMessenger;
   batchId: string;
-  txDataByType: { [key in TransactionType]?: string };
-}) => {
-  const txs = getTransactions(messenger);
-  const txBatch: {
-    approvalMeta?: TransactionMeta;
-    tradeMeta?: TransactionMeta;
-  } = {
-    approvalMeta: undefined,
-    tradeMeta: undefined,
-  };
+  tradeData: QuoteAndTxMetadata[];
+}): QuoteAndTxMetadata[] => {
+  // Filter for transactions with batchId
+  const txs = getTransactions(messenger).filter(
+    (tx: TransactionMeta) => tx.batchId === batchId,
+  );
 
-  // This is a workaround to update the tx type after the tx is signed
-  // TODO: remove this once the tx type for batch txs is preserved in the tx controller
-  const txEntries = Object.entries(txDataByType) as [TransactionType, string][];
-  txEntries.forEach(([txType, txData]) => {
-    // Skip types not present in the batch (e.g. swap entry is undefined for bridge txs)
-    if (txData === undefined) {
-      return;
-    }
-
-    // Find transaction by batchId and either matching data or delegation characteristics
-    const txMeta = txs.find((tx: TransactionMeta) => {
-      if (tx.batchId !== batchId) {
+  return tradeData.map((tradeWithMetadata) => {
+    const { tx, type } = tradeWithMetadata;
+    return {
+      ...tradeWithMetadata,
+      txMeta: txs.find((txMeta: TransactionMeta) => {
+        if (is7702Tx(txMeta)) {
+          // For 7702 transactions, we need to match based on transaction type
+          // since the data field might be different (batch execute call)
+          if (isTradeTx(type) && txMeta.type === TransactionType.batch) {
+            return true;
+          }
+          // Also check if it's an approval transaction for 7702
+          if (isApprovalTx(type) && txMeta.txParams.data === tx.data) {
+            return true;
+          }
+        }
+        // Default matching logic for non-7702 transactions
+        if (txMeta.txParams.data === tx.data) {
+          return true;
+        }
         return false;
-      }
+      }),
+    };
+  });
+};
 
-      // For 7702 delegated transactions, check for delegation-specific fields
-      // These transactions might have authorizationList or delegationAddress
-      const is7702Transaction =
-        (Array.isArray(tx.txParams.authorizationList) &&
-          tx.txParams.authorizationList.length > 0) ||
-        Boolean(tx.delegationAddress);
-
-      if (is7702Transaction) {
-        // For 7702 transactions, we need to match based on transaction type
-        // since the data field might be different (batch execute call)
-        if (isTradeTx(txType) && tx.type === TransactionType.batch) {
-          return true;
-        }
-        // Also check if it's an approval transaction for 7702
-        if (isApprovalTx(txType) && tx.txParams.data === txData) {
-          return true;
-        }
-      }
-
-      // Default matching logic for non-7702 transactions
-      return tx.txParams.data === txData;
-    });
+/**
+ * This is a workaround to update the tx type after submission. Batch txs are submitted with
+ * the "batch" type, but we need to update to swap/bridge for display purposes.
+ *
+ * @param params - The parameters for the transaction search
+ * @param params.messenger - The messenger to use for the transaction
+ * @param params.allTradesWithMetadata - The quote, tx data and type for each transaction in the batch
+ * @returns A list of transaction metas for each trade in the batch]
+ *
+ * @example
+ * [
+ *   {...tradeData[0], tradeMeta: TransactionMeta}
+ *   {...tradeData[1], tradeMeta: TransactionMeta}
+ *   {...tradeData[2], tradeMeta: TransactionMeta}
+ *   {...tradeData[3], tradeMeta: TransactionMeta}
+ * ]
+ */
+export const updateTransactionsInBatch = ({
+  messenger,
+  allTradesWithMetadata,
+}: {
+  messenger: BridgeStatusControllerMessenger;
+  allTradesWithMetadata: QuoteAndTxMetadata[];
+}) => {
+  return allTradesWithMetadata.map((tradeWithMetadata) => {
+    const { txMeta, type } = tradeWithMetadata;
 
     if (txMeta) {
-      const updatedTx = { ...txMeta, type: txType };
+      // Update the tx type from batch to swap/bridge
       updateTransaction(
         messenger,
         txMeta,
-        { type: txType },
-        `Update tx type to ${txType}`,
+        { type },
+        `Update tx type to ${type}`,
       );
-      const txTypes = [
-        TransactionType.bridgeApproval,
-        TransactionType.swapApproval,
-      ] as readonly string[];
-      txBatch[txTypes.includes(txType) ? 'approvalMeta' : 'tradeMeta'] =
-        updatedTx;
+      const updatedTx = { ...txMeta, type };
+      return { ...tradeWithMetadata, txMeta: updatedTx, type };
     }
-  });
 
-  return txBatch;
+    return tradeWithMetadata;
+  });
 };
 
 export const addTransactionBatch = async (
   messenger: BridgeStatusControllerMessenger,
   addTransactionBatchFn: TransactionController['addTransactionBatch'],
-  ...args: Parameters<TransactionController['addTransactionBatch']>
+  tradeData: QuoteAndTxMetadata[],
+  transactionParams: Parameters<
+    TransactionController['addTransactionBatch']
+  >[0],
 ) => {
-  const txDataByType = {
-    [TransactionType.bridgeApproval]: args[0].transactions.find(
-      ({ type }) => type === TransactionType.bridgeApproval,
-    )?.params.data,
-    [TransactionType.swapApproval]: args[0].transactions.find(
-      ({ type }) => type === TransactionType.swapApproval,
-    )?.params.data,
-    [TransactionType.bridge]: args[0].transactions.find(
-      ({ type }) => type === TransactionType.bridge,
-    )?.params.data,
-    [TransactionType.swap]: args[0].transactions.find(
-      ({ type }) => type === TransactionType.swap,
-    )?.params.data,
-  };
+  const { batchId } = await addTransactionBatchFn(transactionParams);
 
-  const { batchId } = await addTransactionBatchFn(...args);
-
-  const { approvalMeta, tradeMeta } = findAndUpdateTransactionsInBatch({
+  const quoteAndTxMetas = findAllTransactionsInBatch({
     messenger,
     batchId,
-    txDataByType,
+    tradeData,
   });
 
-  if (!tradeMeta) {
-    throw new Error(
-      'Failed to update cross-chain swap transaction batch: tradeMeta not found',
-    );
-  }
-
-  return { approvalMeta, tradeMeta };
-};
-
-// TODO rename
-const getGasFeesForSubmission = async (
-  messenger: BridgeStatusControllerMessenger,
-  transactionParams: TransactionParams,
-  networkClientId: string,
-  chainId: Hex,
-  txFee?: { maxFeePerGas: string; maxPriorityFeePerGas: string },
-): Promise<{
-  maxFeePerGas?: string; // Hex
-  maxPriorityFeePerGas?: string; // Hex
-  gas?: Hex;
-}> => {
-  const { gas } = transactionParams;
-  // If txFee is provided (gasIncluded case), use the quote's gas fees
-  // Convert to hex since txFee values from the quote are decimal strings
-  if (txFee) {
-    return {
-      maxFeePerGas: toHex(txFee.maxFeePerGas),
-      maxPriorityFeePerGas: toHex(txFee.maxPriorityFeePerGas),
-      gas: gas ? toHex(gas) : undefined,
-    };
-  }
-
-  const { maxFeePerGas, maxPriorityFeePerGas } = await getTxGasEstimates(
+  const updatedQuoteAndTxMetas = updateTransactionsInBatch({
     messenger,
-    {
-      transactionParams,
-      chainId,
-      networkClientId,
-    },
-  );
+    allTradesWithMetadata: quoteAndTxMetas,
+  });
 
   return {
-    maxFeePerGas,
-    maxPriorityFeePerGas,
-    gas: gas ? toHex(gas) : undefined,
+    approvalMeta: updatedQuoteAndTxMetas.find(
+      ({ type, txMeta }) => isApprovalTx(type) && txMeta,
+    )?.txMeta,
+    tradeMeta: updatedQuoteAndTxMetas.find(
+      ({ type, txMeta }) => isTradeTx(type) && txMeta,
+    )?.txMeta,
   };
 };
 
 /**
- * Submits an EVM transaction to the TransactionController
+ * Submits an single EVM tx to the TransactionController and returns the txMeta
  *
  * @param params - The parameters for the transaction
  * @param params.transactionType - The type of transaction to submit
@@ -663,36 +567,20 @@ export const submitEvmTransaction = async ({
     requireApproval,
     type: transactionType,
     origin: 'metamask',
+    isInternal: true,
   };
-  // Exclude gasLimit from trade to avoid type issues (it can be null)
-  const { gasLimit: tradeGasLimit, ...tradeWithoutGasLimit } = trade;
 
-  const transactionParams: Parameters<
-    TransactionController['addTransaction']
-  >[0] = {
-    ...tradeWithoutGasLimit,
-    chainId: hexChainId,
-    // Only add gasLimit and gas if they're valid (not undefined/null/zero)
-    ...(tradeGasLimit &&
-      tradeGasLimit !== 0 && {
-        gasLimit: tradeGasLimit.toString(),
-        gas: tradeGasLimit.toString(),
-      }),
-  };
-  const transactionParamsWithMaxGas: TransactionParams = {
-    ...transactionParams,
-    ...(await getGasFeesForSubmission(
-      messenger,
-      transactionParams,
-      networkClientId,
-      hexChainId,
-      txFee,
-    )),
-  };
+  const transactionParamsWithMaxGas = await toTransactionParams(
+    messenger,
+    trade,
+    networkClientId,
+    hexChainId,
+    txFee,
+  );
 
   return await addTransaction(
     messenger,
-    transactionParamsWithMaxGas,
+    { ...transactionParamsWithMaxGas, from: trade.from },
     requestOptions,
   );
 };

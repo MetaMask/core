@@ -1,9 +1,15 @@
+import type { TransactionType } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 import { createModuleLogger } from '@metamask/utils';
 import { uniq } from 'lodash';
 
 import { isTransactionPayStrategy, TransactionPayStrategy } from '../constants';
 import { projectLogger } from '../logger';
+import type { TransactionPayFiatAsset } from '../strategy/fiat/constants';
+import {
+  ETH_MAINNET_FIAT_ASSET,
+  FIAT_ASSET_ID_BY_TX_TYPE,
+} from '../strategy/fiat/constants';
 import {
   RELAY_EXECUTE_URL,
   RELAY_POLLING_INTERVAL,
@@ -75,6 +81,12 @@ type StrategyOverrides = {
   transactionTypes: Record<string, StrategyOverride>;
 };
 
+type FiatFlags = {
+  assetPerTransactionType?: Partial<
+    Record<TransactionType, TransactionPayFiatAsset>
+  >;
+};
+
 type StrategyRoutingConfig = {
   payStrategies: {
     across: {
@@ -121,10 +133,17 @@ export type PayStrategiesConfigRaw = {
   across?: AcrossConfigRaw;
   relay?: {
     enabled?: boolean;
-    gaslessEnabled?: boolean;
     originGasOverhead?: string;
     pollingInterval?: number;
     pollingTimeout?: number;
+  };
+};
+
+type FeatureFlagsExtendedRaw = {
+  payStrategies?: {
+    relay?: {
+      gaslessEnabled?: boolean;
+    };
   };
 };
 
@@ -312,6 +331,7 @@ function getDefaultOverrideStrategies(
  * @param tokenAddress - Optional token address used to match route overrides.
  * @param transactionType - Optional transaction type used to match route
  * overrides.
+ * @param fiatPaymentMethodId - Optional fiat payment method ID used to match route overrides.
  * @returns Ordered strategy list.
  */
 export function getStrategyOrder(
@@ -319,7 +339,13 @@ export function getStrategyOrder(
   chainId?: Hex,
   tokenAddress?: Hex,
   transactionType?: string,
+  fiatPaymentMethodId?: string,
 ): StrategyOrder {
+  // If fiat payment method is selected, use Fiat strategy only
+  if (fiatPaymentMethodId) {
+    return [TransactionPayStrategy.Fiat];
+  }
+
   const routingConfig = getStrategyRoutingConfig(messenger);
   const normalizedChainId = normalizeHex(chainId);
   const normalizedTokenAddress = normalizeHex(tokenAddress);
@@ -474,8 +500,8 @@ export function isRelayExecuteEnabled(
 ): boolean {
   const state = messenger.call('RemoteFeatureFlagController:getState');
   const featureFlags =
-    (state.remoteFeatureFlags?.confirmations_pay as
-      | FeatureFlagsRaw
+    (state.remoteFeatureFlags?.confirmations_pay_extended as
+      | FeatureFlagsExtendedRaw
       | undefined) ?? {};
   return featureFlags.payStrategies?.relay?.gaslessEnabled ?? false;
 }
@@ -659,6 +685,38 @@ function getCaseInsensitive<Value>(
   );
 
   return entry?.[1];
+}
+
+/**
+ * Get the fiat asset for a specific transaction type.
+ *
+ * Resolution order:
+ * 1. Feature flag override (`confirmations_pay_fiat.assetPerTransactionType`)
+ * 2. Hardcoded constant (`FIAT_ASSET_ID_BY_TX_TYPE`)
+ * 3. ETH mainnet fallback
+ *
+ * @param messenger - Controller messenger.
+ * @param transactionType - Transaction type to look up.
+ * @returns The fiat asset for the given transaction type.
+ */
+export function getFiatAssetPerTransactionType(
+  messenger: TransactionPayControllerMessenger,
+  transactionType?: TransactionType,
+): TransactionPayFiatAsset {
+  if (!transactionType) {
+    return ETH_MAINNET_FIAT_ASSET;
+  }
+
+  const state = messenger.call('RemoteFeatureFlagController:getState');
+  const fiatFlags = state.remoteFeatureFlags?.confirmations_pay_fiat as
+    | FiatFlags
+    | undefined;
+
+  return (
+    fiatFlags?.assetPerTransactionType?.[transactionType] ??
+    FIAT_ASSET_ID_BY_TX_TYPE[transactionType] ??
+    ETH_MAINNET_FIAT_ASSET
+  );
 }
 
 /**

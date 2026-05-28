@@ -16,6 +16,7 @@ import {
   NetworkNickname,
   BUILT_IN_CUSTOM_NETWORKS_RPC,
   BUILT_IN_NETWORKS,
+  DEFAULT_INFURA_NETWORKS,
 } from '@metamask/controller-utils';
 import type { PollingBlockTrackerOptions } from '@metamask/eth-block-tracker';
 import EthQuery from '@metamask/eth-query';
@@ -518,21 +519,28 @@ export type NetworkControllerRpcEndpointUnavailableEvent = {
  *
  * @param payload - The event payload.
  * @param payload.chainId - The target network's chain ID.
+ * @param payload.duration - The duration in milliseconds of the policy
+ * execution when the request succeeded but was slow. `undefined` when retries
+ * were exhausted.
  * @param payload.error - The last error produced by the endpoint (or
  * `undefined` if the request was slow).
  * @param payload.networkClientId - The target network's client ID.
  * @param payload.rpcMethodName - The JSON-RPC method that was being executed
  * when the chain became degraded.
+ * @param payload.traceId - The value of the `X-Trace-Id` response header from
+ * the last request attempt, or `undefined` if the header was not present.
  */
 export type NetworkControllerRpcEndpointChainDegradedEvent = {
   type: 'NetworkController:rpcEndpointChainDegraded';
   payload: [
     {
       chainId: Hex;
+      duration?: number;
       error: unknown;
       networkClientId: NetworkClientId;
       retryReason?: RetryReason;
       rpcMethodName: string;
+      traceId?: string;
       type: DegradedEventType;
     },
   ];
@@ -553,6 +561,9 @@ export type NetworkControllerRpcEndpointChainDegradedEvent = {
  *
  * @param payload - The event payload.
  * @param payload.chainId - The target network's chain ID.
+ * @param payload.duration - The duration in milliseconds of the policy
+ * execution when the request succeeded but was slow. `undefined` when retries
+ * were exhausted.
  * @param payload.endpointUrl - The URL of the endpoint for which requests
  * failed or were slow to complete. You can compare this to `primaryEndpointUrl`
  * to know whether it was a failover or a primary.
@@ -562,18 +573,22 @@ export type NetworkControllerRpcEndpointChainDegradedEvent = {
  * @param payload.primaryEndpointUrl - The endpoint chain's primary URL.
  * @param payload.rpcMethodName - The JSON-RPC method that was being executed
  * when the endpoint became degraded.
+ * @param payload.traceId - The value of the `X-Trace-Id` response header from
+ * the last request attempt, or `undefined` if the header was not present.
  */
 export type NetworkControllerRpcEndpointDegradedEvent = {
   type: 'NetworkController:rpcEndpointDegraded';
   payload: [
     {
       chainId: Hex;
+      duration?: number;
       endpointUrl: string;
       error: unknown;
       networkClientId: NetworkClientId;
       primaryEndpointUrl: string;
       retryReason?: RetryReason;
       rpcMethodName: string;
+      traceId?: string;
       type: DegradedEventType;
     },
   ];
@@ -793,37 +808,38 @@ function getDefaultInfuraNetworkConfigurationsByChainId(): Record<
   Hex,
   NetworkConfiguration
 > {
-  return Object.values(InfuraNetworkType).reduce<
-    Record<Hex, NetworkConfiguration>
-  >((obj, infuraNetworkType) => {
-    const chainId = ChainId[infuraNetworkType];
+  return DEFAULT_INFURA_NETWORKS.reduce<Record<Hex, NetworkConfiguration>>(
+    (obj, infuraNetworkType) => {
+      const chainId = ChainId[infuraNetworkType];
 
-    // Skip deprecated network as default network.
-    if (DEPRECATED_NETWORKS.has(chainId)) {
-      return obj;
-    }
+      // Skip deprecated network as default network.
+      if (DEPRECATED_NETWORKS.has(chainId)) {
+        return obj;
+      }
 
-    const rpcEndpointUrl =
-      `https://${infuraNetworkType}.infura.io/v3/{infuraProjectId}` as const;
+      const rpcEndpointUrl =
+        `https://${infuraNetworkType}.infura.io/v3/{infuraProjectId}` as const;
 
-    const networkConfiguration: NetworkConfiguration = {
-      blockExplorerUrls: [],
-      chainId,
-      defaultRpcEndpointIndex: 0,
-      name: NetworkNickname[infuraNetworkType],
-      nativeCurrency: NetworksTicker[infuraNetworkType],
-      rpcEndpoints: [
-        {
-          failoverUrls: [],
-          networkClientId: infuraNetworkType,
-          type: RpcEndpointType.Infura,
-          url: rpcEndpointUrl,
-        },
-      ],
-    };
+      const networkConfiguration: NetworkConfiguration = {
+        blockExplorerUrls: [],
+        chainId,
+        defaultRpcEndpointIndex: 0,
+        name: NetworkNickname[infuraNetworkType],
+        nativeCurrency: NetworksTicker[infuraNetworkType],
+        rpcEndpoints: [
+          {
+            failoverUrls: [],
+            networkClientId: infuraNetworkType,
+            type: RpcEndpointType.Infura,
+            url: rpcEndpointUrl,
+          },
+        ],
+      };
 
-    return { ...obj, [chainId]: networkConfiguration };
-  }, {});
+      return { ...obj, [chainId]: networkConfiguration };
+    },
+    {},
+  );
 }
 
 /**

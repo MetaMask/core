@@ -99,7 +99,7 @@
 /packages/preferences-controller       @MetaMask/core-platform
 /packages/rate-limit-controller        @MetaMask/core-platform
 /packages/react-data-query             @MetaMask/core-platform
-/packages/profile-metrics-controller   @MetaMask/core-platform
+/packages/wallet                       @MetaMask/core-platform
 
 ## Web3Auth Team
 /packages/seedless-onboarding-controller @MetaMask/web3auth
@@ -126,6 +126,10 @@
 /packages/remote-feature-flag-controller        @MetaMask/extension-platform @MetaMask/mobile-platform @MetaMask/core-platform
 /packages/storage-service                       @MetaMask/extension-platform @MetaMask/mobile-platform @MetaMask/core-platform
 /packages/client-controller                     @MetaMask/core-platform @MetaMask/extension-platform @MetaMask/mobile-platform
+/packages/profile-metrics-controller            @MetaMask/mobile-platform @MetaMask/extension-platform
+
+## Initialization
+/packages/wallet/src/initialization/instances/keyring-controller.ts @MetaMask/accounts-engineers @MetaMask/core-platform
 
 ## Package Release related
 /packages/account-tree-controller/package.json  @MetaMask/accounts-engineers @MetaMask/core-platform
@@ -194,6 +198,8 @@
 /packages/ramps-controller/CHANGELOG.md       @MetaMask/money-movement @MetaMask/core-platform
 /packages/authenticated-user-storage/package.json  @MetaMask/auth-engineers @MetaMask/core-platform
 /packages/authenticated-user-storage/CHANGELOG.md  @MetaMask/auth-engineers @MetaMask/core-platform
+/packages/profile-metrics-controller/package.json  @MetaMask/mobile-platform @MetaMask/extension-platform @MetaMask/core-platform
+/packages/profile-metrics-controller/CHANGELOG.md  @MetaMask/mobile-platform @MetaMask/extension-platform @MetaMask/core-platform
 /packages/profile-sync-controller/package.json    @MetaMask/accounts-engineers @MetaMask/core-platform
 /packages/profile-sync-controller/CHANGELOG.md    @MetaMask/accounts-engineers @MetaMask/core-platform
 /packages/selected-network-controller/package.json @MetaMask/wallet-integrations @MetaMask/core-platform

@@ -21,6 +21,11 @@ export type {
   PermissionControllerRevokePermissionForAllSubjectsAction,
   PermissionControllerRevokePermissionsAction,
   PermissionControllerUpdateCaveatAction,
+  PermissionControllerGetPermissionAction,
+  PermissionControllerRevokePermissionAction,
+  PermissionControllerUpdatePermissionsByCaveatAction,
+  PermissionControllerAcceptPermissionsRequestAction,
+  PermissionControllerRejectPermissionsRequestAction,
 } from './PermissionController-method-action-types';
 export {
   createPermissionMiddleware,

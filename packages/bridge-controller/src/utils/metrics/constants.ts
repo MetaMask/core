@@ -36,6 +36,7 @@ export enum AbortReason {
   QuoteRequestUpdated = 'Quote Request Updated',
   ResetState = 'Reset controller state',
   TransactionSubmitted = 'Transaction submitted',
+  GaslessTxBatchFetched = 'Gasless transaction batch fetched',
 }
 
 /**

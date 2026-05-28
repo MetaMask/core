@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [28.1.1]
+
+### Changed
+
+- Bump `@metamask/keyring-controller` from `^25.5.0` to `^26.0.0` ([#8912](https://github.com/MetaMask/core/pull/8912))
+
+## [28.1.0]
+
 ### Added
 
 - Add SRP profile pairing support (Accounts ADR 0006) ([#8504](https://github.com/MetaMask/core/pull/8504), [#8642](https://github.com/MetaMask/core/pull/8642))
@@ -28,9 +36,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Bump `@metamask/keyring-controller` from `^25.1.1` to `^25.4.0` ([#8363](https://github.com/MetaMask/core/pull/8363), [#8634](https://github.com/MetaMask/core/pull/8634), [#8665](https://github.com/MetaMask/core/pull/8665))
+- Bump `@metamask/keyring-controller` from `^25.1.1` to `^25.5.0` ([#8363](https://github.com/MetaMask/core/pull/8363), [#8634](https://github.com/MetaMask/core/pull/8634), [#8665](https://github.com/MetaMask/core/pull/8665), [#8722](https://github.com/MetaMask/core/pull/8722))
 - Bump `@metamask/messenger` from `^1.0.0` to `^1.2.0` ([#8364](https://github.com/MetaMask/core/pull/8364), [#8373](https://github.com/MetaMask/core/pull/8373), [#8632](https://github.com/MetaMask/core/pull/8632))
 - Bump `@metamask/base-controller` from `^9.0.1` to `^9.1.0` ([#8457](https://github.com/MetaMask/core/pull/8457))
+- Bump `@metamask/address-book-controller` from `^7.1.1` to `^7.1.2` ([#8755](https://github.com/MetaMask/core/pull/8755))
 
 ## [28.0.2]
 
@@ -864,7 +873,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@28.0.2...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@28.1.1...HEAD
+[28.1.1]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@28.1.0...@metamask/profile-sync-controller@28.1.1
+[28.1.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@28.0.2...@metamask/profile-sync-controller@28.1.0
 [28.0.2]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@28.0.1...@metamask/profile-sync-controller@28.0.2
 [28.0.1]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@28.0.0...@metamask/profile-sync-controller@28.0.1
 [28.0.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@27.1.0...@metamask/profile-sync-controller@28.0.0

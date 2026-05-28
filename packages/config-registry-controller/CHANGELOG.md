@@ -7,9 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.2]
+
 ### Changed
 
-- Bump `@metamask/keyring-controller` from `^25.3.0` to `^25.4.0` ([#8665](https://github.com/MetaMask/core/pull/8665))
+- Bump `@metamask/controller-utils` from `^12.0.0` to `^12.1.0` ([#8774](https://github.com/MetaMask/core/pull/8774))
+- Bump `@metamask/profile-sync-controller` from `^28.0.2` to `^28.1.1` ([#8783](https://github.com/MetaMask/core/pull/8783), [#8912](https://github.com/MetaMask/core/pull/8912))
+- Bump `@metamask/polling-controller` from `^16.0.5` to `^16.0.6` ([#8834](https://github.com/MetaMask/core/pull/8834))
+- Bump `@metamask/keyring-controller` from `^25.5.0` to `^26.0.0` ([#8912](https://github.com/MetaMask/core/pull/8912))
+
+## [0.3.1]
+
+### Changed
+
+- Bump `@metamask/keyring-controller` from `^25.3.0` to `^25.5.0` ([#8665](https://github.com/MetaMask/core/pull/8665), [#8722](https://github.com/MetaMask/core/pull/8722))
+- Bump `@metamask/controller-utils` from `^11.20.0` to `^12.0.0` ([#8755](https://github.com/MetaMask/core/pull/8755))
+- Bump `@metamask/polling-controller` from `^16.0.4` to `^16.0.5` ([#8755](https://github.com/MetaMask/core/pull/8755))
+- Bump `@metamask/remote-feature-flag-controller` from `^4.2.0` to `^4.2.1` ([#8755](https://github.com/MetaMask/core/pull/8755))
 
 ## [0.3.0]
 
@@ -49,7 +63,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#7668](https://github.com/MetaMask/core/pull/7668), [#7809](https://github.com/MetaMask/core/pull/7809))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/config-registry-controller@0.3.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/config-registry-controller@0.3.2...HEAD
+[0.3.2]: https://github.com/MetaMask/core/compare/@metamask/config-registry-controller@0.3.1...@metamask/config-registry-controller@0.3.2
+[0.3.1]: https://github.com/MetaMask/core/compare/@metamask/config-registry-controller@0.3.0...@metamask/config-registry-controller@0.3.1
 [0.3.0]: https://github.com/MetaMask/core/compare/@metamask/config-registry-controller@0.2.0...@metamask/config-registry-controller@0.3.0
 [0.2.0]: https://github.com/MetaMask/core/compare/@metamask/config-registry-controller@0.1.1...@metamask/config-registry-controller@0.2.0
 [0.1.1]: https://github.com/MetaMask/core/compare/@metamask/config-registry-controller@0.1.0...@metamask/config-registry-controller@0.1.1

@@ -234,6 +234,8 @@ type AccountTrackerPollingInput = {
 const MESSENGER_EXPOSED_METHODS = [
   'updateNativeBalances',
   'updateStakedBalances',
+  'refresh',
+  'syncBalanceWithAddresses',
 ] as const;
 
 /**

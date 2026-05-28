@@ -13,6 +13,7 @@ import type {
 const ENFORCER_CONTRACT_NAMES = {
   ERC20PeriodTransferEnforcer: 'ERC20PeriodTransferEnforcer',
   ERC20StreamingEnforcer: 'ERC20StreamingEnforcer',
+  ApprovalRevocationEnforcer: 'ApprovalRevocationEnforcer',
   ExactCalldataEnforcer: 'ExactCalldataEnforcer',
   NativeTokenPeriodTransferEnforcer: 'NativeTokenPeriodTransferEnforcer',
   NativeTokenStreamingEnforcer: 'NativeTokenStreamingEnforcer',
@@ -20,6 +21,7 @@ const ENFORCER_CONTRACT_NAMES = {
   ValueLteEnforcer: 'ValueLteEnforcer',
   NonceEnforcer: 'NonceEnforcer',
   AllowedCalldataEnforcer: 'AllowedCalldataEnforcer',
+  AllowedTargetsEnforcer: 'AllowedTargetsEnforcer',
   RedeemerEnforcer: 'RedeemerEnforcer',
 };
 
@@ -90,6 +92,9 @@ export const getChecksumEnforcersByChainId = (
   const nativeTokenPeriodicEnforcer = getChecksumContractAddress(
     ENFORCER_CONTRACT_NAMES.NativeTokenPeriodTransferEnforcer,
   );
+  const approvalRevocationEnforcer = getChecksumContractAddress(
+    ENFORCER_CONTRACT_NAMES.ApprovalRevocationEnforcer,
+  );
 
   // general enforcers
   const exactCalldataEnforcer = getChecksumContractAddress(
@@ -109,6 +114,10 @@ export const getChecksumEnforcersByChainId = (
     ENFORCER_CONTRACT_NAMES.AllowedCalldataEnforcer,
   );
 
+  const allowedTargetsEnforcer = getChecksumContractAddress(
+    ENFORCER_CONTRACT_NAMES.AllowedTargetsEnforcer,
+  );
+
   const redeemerEnforcer = getChecksumContractAddress(
     ENFORCER_CONTRACT_NAMES.RedeemerEnforcer,
   );
@@ -118,11 +127,13 @@ export const getChecksumEnforcersByChainId = (
     erc20PeriodicEnforcer,
     nativeTokenStreamingEnforcer,
     nativeTokenPeriodicEnforcer,
+    approvalRevocationEnforcer,
     exactCalldataEnforcer,
     valueLteEnforcer,
     timestampEnforcer,
     nonceEnforcer,
     allowedCalldataEnforcer,
+    allowedTargetsEnforcer,
     redeemerEnforcer,
   };
 };

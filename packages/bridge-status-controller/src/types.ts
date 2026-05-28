@@ -12,8 +12,10 @@ import type {
   QuoteMetadata,
   QuoteResponse,
   MetaMetricsSwapsEventSource,
+  SimulatedGasFeeLimits,
+  TxData,
+  TxFeeGasLimits,
 } from '@metamask/bridge-controller';
-import type { GetGasFeeState } from '@metamask/gas-fee-controller';
 import type { KeyringControllerSignTypedMessageAction } from '@metamask/keyring-controller';
 import type { Messenger } from '@metamask/messenger';
 import type {
@@ -34,6 +36,7 @@ import type {
   TransactionControllerTransactionSubmittedEvent,
   TransactionControllerUpdateTransactionAction,
   TransactionMeta,
+  TransactionType,
 } from '@metamask/transaction-controller';
 import type { CaipAssetType } from '@metamask/utils';
 
@@ -110,6 +113,28 @@ export enum BridgeId {
 export type StatusResponse = Infer<typeof StatusResponseSchema>;
 
 export type RefuelStatusResponse = object & StatusResponse;
+
+/**
+ * This type ties together the quote, its tx params and the submitted txMeta.
+ * Each trade/approval will have its own QuoteAndTxMetadata object.
+ */
+export type QuoteAndTxMetadata = {
+  type: TransactionType;
+  quoteResponse: QuoteResponse & QuoteMetadata;
+  /**
+   * The approval or trade object from the quote response
+   */
+  tx: TxData;
+  assetsFiatValues?: { sending?: string; receiving?: string };
+  /**
+   * The simulated gas fee limits for the transaction provided by the bridge-api
+   */
+  txFee?: SimulatedGasFeeLimits | TxFeeGasLimits;
+  /**
+   * Transaction metadata from the TransactionController after submission
+   */
+  txMeta?: TransactionMeta;
+};
 
 export type BridgeHistoryItem = {
   txMetaId?: string; // Optional: not available pre-submission or on sync failure
@@ -328,7 +353,6 @@ type AllowedActions =
   | TransactionControllerIsAtomicBatchSupportedAction
   | BridgeControllerAction<BridgeBackgroundAction.TRACK_METAMETRICS_EVENT>
   | BridgeControllerAction<BridgeBackgroundAction.STOP_POLLING_FOR_QUOTES>
-  | GetGasFeeState
   | AccountsControllerGetAccountByAddressAction
   | AuthenticationControllerGetBearerTokenAction
   | KeyringControllerSignTypedMessageAction;

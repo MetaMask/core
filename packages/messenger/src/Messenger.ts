@@ -969,8 +969,10 @@ export class Messenger<
    */
   delegate<
     Delegatee extends Messenger<string, ActionConstraint, EventConstraint>,
-    DelegatedActions extends (MessengerActions<Delegatee> & Action)['type'][],
-    DelegatedEvents extends (MessengerEvents<Delegatee> & Event)['type'][],
+    DelegatedActions extends (MessengerActions<Delegatee>['type'] &
+      Action['type'])[],
+    DelegatedEvents extends (MessengerEvents<Delegatee>['type'] &
+      Event['type'])[],
   >({
     actions,
     events,
@@ -1084,8 +1086,10 @@ export class Messenger<
    */
   revoke<
     Delegatee extends Messenger<string, ActionConstraint, EventConstraint>,
-    DelegatedActions extends (MessengerActions<Delegatee> & Action)['type'][],
-    DelegatedEvents extends (MessengerEvents<Delegatee> & Event)['type'][],
+    DelegatedActions extends (MessengerActions<Delegatee>['type'] &
+      Action['type'])[],
+    DelegatedEvents extends (MessengerEvents<Delegatee>['type'] &
+      Event['type'])[],
   >({
     actions,
     events,

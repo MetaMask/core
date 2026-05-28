@@ -47,6 +47,10 @@ import type {
   QuoteStreamCompleteSchema,
   TronTradeDataSchema,
   TxDataSchema,
+  BatchSellTradesResponseSchema,
+  GaslessPropertiesSchema,
+  SimulatedGasFeeLimitsSchema,
+  TxFeeGasLimitsSchema,
 } from './utils/validators';
 
 export type FetchFunction = (
@@ -91,7 +95,7 @@ export type TokenAmountValues = {
   /**
    * The amount of the token
    *
-   * @example "1000000000000000000"
+   * @example "1.005"
    */
   amount: string;
   /**
@@ -303,7 +307,28 @@ export type QuoteResponse<
    * If defined, the quote's total network fee will include the reset approval's gas limit.
    */
   resetApproval?: TxData;
+  /**
+   * Appended to the quote if there are multiple quote requests in a batch. This
+   * indicates which quoteRequest the quote is for
+   */
+  quoteRequestIndex?: number;
 };
+
+export type BatchSellTradesRequest = {
+  quotes: QuoteResponse[];
+};
+
+/**
+ * This is the bridge-api response for the obtainGaslessBatch method
+ */
+export type BatchSellTradesResponse = Infer<
+  typeof BatchSellTradesResponseSchema
+>;
+
+export type SimulatedGasFeeLimits = Infer<typeof SimulatedGasFeeLimitsSchema>;
+export type TxFeeGasLimits = Infer<typeof TxFeeGasLimitsSchema>;
+
+export type GaslessProperties = Infer<typeof GaslessPropertiesSchema>;
 
 export enum ChainId {
   ETH = 1,
@@ -331,9 +356,9 @@ export type TokenFeature = Infer<typeof TokenFeatureSchema>;
 export type QuoteStreamCompleteData = Infer<typeof QuoteStreamCompleteSchema>;
 
 export enum RequestStatus {
-  LOADING,
-  FETCHED,
-  ERROR,
+  LOADING = 0,
+  FETCHED = 1,
+  ERROR = 2,
 }
 
 /**
@@ -358,7 +383,7 @@ export enum BridgeBackgroundAction {
 }
 
 export type BridgeControllerState = {
-  quoteRequest: Partial<GenericQuoteRequest>;
+  quoteRequest: Partial<GenericQuoteRequest>[];
   quotes: (QuoteResponse & L1GasFees & NonEvmFees)[];
   /**
    * The time elapsed between the initial quote fetch and when the first valid quote was received
@@ -412,6 +437,14 @@ export type BridgeControllerState = {
    * Set to null at the start of each fetch and updated when the complete event is received.
    */
   quoteStreamComplete: QuoteStreamCompleteData | null;
+  /**
+   * Contains gasless transaction data and fees for BatchSell quotes, provided by the obtainGaslessBatch API
+   */
+  batchSellTrades: BatchSellTradesResponse | null;
+  /**
+   * The status of the batch sell trades fetch, including fee calculations and validations
+   */
+  batchSellTradesLoadingStatus: RequestStatus | null;
 };
 
 /**

@@ -20,6 +20,7 @@ export type VerifiedAuthenticationResponse =
         newCounter: number;
         userVerified: boolean;
         origin: string;
+        /** Matched RP ID, or `""` when `expectedRPIDs` is empty (RP ID hash check skipped). */
         rpID: string;
       };
     };
@@ -46,7 +47,7 @@ export type VerifiedAuthenticationResponse =
  * @param opts.expectedChallenge - The base64url challenge that was issued
  *   for this ceremony.
  * @param opts.expectedOrigin - One or more acceptable origins.
- * @param opts.expectedRPID - The Relying Party ID domain.
+ * @param opts.expectedRPIDs - Relying Party ID strings to match against `rpIdHash`.
  * @param opts.credential - The stored credential record to verify against.
  * @param opts.credential.id - The credential ID (base64url).
  * @param opts.credential.publicKey - The COSE-encoded public key bytes
@@ -62,7 +63,7 @@ export async function verifyAuthenticationResponse(opts: {
   response: PasskeyAuthenticationResponse;
   expectedChallenge: string;
   expectedOrigin: string | string[];
-  expectedRPID: string;
+  expectedRPIDs: string[];
   credential: {
     id: string;
     publicKey: Uint8Array;
@@ -75,7 +76,7 @@ export async function verifyAuthenticationResponse(opts: {
     response,
     expectedChallenge,
     expectedOrigin,
-    expectedRPID,
+    expectedRPIDs,
     credential,
     requireUserVerification = false,
   } = opts;
@@ -157,8 +158,8 @@ export async function verifyAuthenticationResponse(opts: {
     parseAuthenticatorData(authDataBuffer);
   const { rpIdHash, flags, counter } = parsedAuthData;
 
-  // Make sure the response's RP ID is ours
-  const matchedRPID = matchExpectedRPID(rpIdHash, [expectedRPID]);
+  const matchedRPID =
+    expectedRPIDs.length > 0 ? matchExpectedRPID(rpIdHash, expectedRPIDs) : '';
 
   // WebAuthn only requires the user presence flag be true
   if (!flags.up) {

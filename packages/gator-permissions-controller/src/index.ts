@@ -1,6 +1,8 @@
 export { default as GatorPermissionsController } from './GatorPermissionsController';
 export {
   DELEGATION_FRAMEWORK_VERSION,
+  EXECUTION_PERMISSION_EXPIRY_RULE_TYPE,
+  EXECUTION_PERMISSION_PAYEE_RULE_TYPE,
   EXECUTION_PERMISSION_REDEEMER_RULE_TYPE,
 } from './constants';
 export type {
@@ -37,6 +39,7 @@ export type {
   SupportedPermissionType,
 } from './types';
 
+export type { PayeeRule } from './payeeRule';
 export type { RedeemerRule } from './redeemerRule';
 export type {
   NativeTokenStreamPermission,

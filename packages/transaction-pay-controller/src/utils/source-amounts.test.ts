@@ -149,6 +149,34 @@ describe('Source Amounts Utils', () => {
       expect(transactionData.sourceAmounts).toHaveLength(1);
     });
 
+    it('does not return empty array if payment token matches but perps deposit and order and across strategy', () => {
+      getStrategyMock.mockReturnValue(TransactionPayStrategy.Across);
+      getTransactionMock.mockReturnValue({
+        id: TRANSACTION_ID_MOCK,
+        type: TransactionType.perpsDepositAndOrder,
+      } as never);
+
+      const transactionData: TransactionData = {
+        isLoading: false,
+        paymentToken: {
+          ...PAYMENT_TOKEN_MOCK,
+          address: ARBITRUM_USDC_ADDRESS,
+          chainId: CHAIN_ID_ARBITRUM,
+        },
+        tokens: [
+          {
+            ...TRANSACTION_TOKEN_MOCK,
+            address: ARBITRUM_USDC_ADDRESS,
+            chainId: CHAIN_ID_ARBITRUM,
+          },
+        ],
+      };
+
+      updateSourceAmounts(TRANSACTION_ID_MOCK, transactionData, messenger);
+
+      expect(transactionData.sourceAmounts).toHaveLength(1);
+    });
+
     it('returns empty array if skipIfBalance and has balance', () => {
       const transactionData: TransactionData = {
         isLoading: false,
