@@ -29,8 +29,6 @@ enum ThresholdVersion {
   DirectValue = 2,
 }
 
-type JsonObject = Record<string, Json>;
-
 // === STATE ===
 
 export type RemoteFeatureFlagControllerState = {
@@ -124,20 +122,13 @@ export function getDefaultRemoteFeatureFlagControllerState(): RemoteFeatureFlagC
   };
 }
 
-function isJsonObject(value: Json): value is JsonObject {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
-}
-
 function normalizeThresholdValue(featureFlag: FeatureFlagScopeValue): Json {
   if (featureFlag.thresholdVersion === ThresholdVersion.DirectValue) {
     return featureFlag.value;
   }
 
-  const name = featureFlag.thresholdName ?? featureFlag.name;
-
   return {
-    ...(isJsonObject(featureFlag.value) ? featureFlag.value : {}),
-    ...(name === undefined ? {} : { name }),
+    name: featureFlag.name,
     value: featureFlag.value,
   };
 }

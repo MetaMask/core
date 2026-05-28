@@ -40,7 +40,7 @@ export type FeatureFlagScope = {
 };
 
 export type FeatureFlagScopeValue = {
-  name?: string;
+  name: string;
   thresholdName?: string;
   thresholdVersion?: number;
   scope: FeatureFlagScope;

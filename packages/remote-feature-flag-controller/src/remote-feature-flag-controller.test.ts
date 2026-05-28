@@ -473,7 +473,7 @@ describe('RemoteFeatureFlagController', () => {
       });
     });
 
-    it('spreads selected threshold object values while preserving the value property', async () => {
+    it('preserves selected legacy threshold object value wrappers', async () => {
       const thresholdFlagValue = {
         enabled: true,
         minimumVersion: '13.10.0',
@@ -504,9 +504,6 @@ describe('RemoteFeatureFlagController', () => {
         controller.state.remoteFeatureFlags.thresholdObjectFlag,
       ).toStrictEqual({
         name: 'enabled',
-        enabled: true,
-        minimumVersion: '13.10.0',
-        attemptsMax: 5,
         value: thresholdFlagValue,
       });
     });
@@ -542,38 +539,6 @@ describe('RemoteFeatureFlagController', () => {
       expect(
         controller.state.remoteFeatureFlags.thresholdObjectFlag,
       ).toStrictEqual(thresholdFlagValue);
-    });
-
-    it('omits selected threshold name when no name metadata is configured', async () => {
-      const thresholdFlagValue = {
-        enabled: true,
-      };
-      const mockFlags = {
-        thresholdObjectFlag: [
-          {
-            scope: { type: 'threshold', value: 1.0 },
-            value: thresholdFlagValue,
-          },
-        ],
-      };
-      const clientConfigApiService = buildClientConfigApiService({
-        remoteFeatureFlags: mockFlags,
-      });
-      const { controller, messenger } = createController({
-        clientConfigApiService,
-        getMetaMetricsId: () => MOCK_METRICS_ID,
-      });
-
-      await messenger.call(
-        'RemoteFeatureFlagController:updateRemoteFeatureFlags',
-      );
-
-      expect(
-        controller.state.remoteFeatureFlags.thresholdObjectFlag,
-      ).toStrictEqual({
-        enabled: true,
-        value: thresholdFlagValue,
-      });
     });
 
     it('preserves non-threshold feature flags unchanged', async () => {
@@ -1062,8 +1027,6 @@ describe('RemoteFeatureFlagController', () => {
       // Threshold = 0.094878, which falls in groupA range (t <= 0.3)
       expect(multiVersionABFlag).toStrictEqual({
         name: 'groupA',
-        feature: 'A',
-        enabled: true,
         value: { feature: 'A', enabled: true },
       });
       expect(regularFlag).toBe(true);
