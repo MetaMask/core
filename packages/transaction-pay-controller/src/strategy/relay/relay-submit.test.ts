@@ -1275,6 +1275,185 @@ describe('Relay Submit Utils', () => {
       });
     });
 
+    describe('combined post-quote + paymentOverride flow', () => {
+      const TRANSACTION_DATA_MOCK = {
+        isLoading: false,
+        tokens: [],
+      };
+
+      const PAYMENT_OVERRIDE_TX_MOCK: BatchTransactionParams = {
+        to: '0xpaymentoverride' as Hex,
+        data: '0xpaymentoverride' as Hex,
+        value: '0x0' as Hex,
+      };
+
+      beforeEach(() => {
+        request.quotes[0].request.isPostQuote = true;
+        request.quotes[0].request.paymentOverride =
+          PaymentOverride.MoneyAccount;
+        request.transaction = {
+          id: ORIGINAL_TRANSACTION_ID_MOCK,
+          txParams: {
+            from: FROM_MOCK,
+            to: '0xrecipient' as Hex,
+            data: '0xorigdata' as Hex,
+            value: '0x100' as Hex,
+          },
+          type: TransactionType.simpleSend,
+        } as TransactionMeta;
+
+        getControllerStateMock.mockReturnValue({
+          transactionData: {
+            [ORIGINAL_TRANSACTION_ID_MOCK]: TRANSACTION_DATA_MOCK,
+          },
+        });
+
+        getPaymentOverrideDataMock.mockResolvedValue({
+          calls: [PAYMENT_OVERRIDE_TX_MOCK],
+        });
+      });
+
+      it('prepends original tx and appends override tx', async () => {
+        await submitRelayQuotes(request);
+
+        expect(addTransactionBatchMock).toHaveBeenCalledTimes(1);
+
+        const { transactions } = addTransactionBatchMock.mock
+          .calls[0][0] as unknown as Record<string, unknown[]>;
+
+        expect(transactions).toHaveLength(3);
+        expect(transactions[0]).toStrictEqual(
+          expect.objectContaining({
+            params: expect.objectContaining({
+              data: '0xorigdata',
+              to: '0xrecipient',
+              value: '0x100',
+            }),
+          }),
+        );
+        expect(transactions[2]).toStrictEqual(
+          expect.objectContaining({
+            params: expect.objectContaining({
+              data: PAYMENT_OVERRIDE_TX_MOCK.data,
+              to: PAYMENT_OVERRIDE_TX_MOCK.to,
+              value: PAYMENT_OVERRIDE_TX_MOCK.value,
+            }),
+          }),
+        );
+      });
+
+      it('assigns correct transaction types', async () => {
+        await submitRelayQuotes(request);
+
+        const { transactions } = addTransactionBatchMock.mock
+          .calls[0][0] as unknown as Record<string, unknown[]>;
+
+        expect(transactions).toHaveLength(3);
+        expect(transactions[0]).toStrictEqual(
+          expect.objectContaining({
+            type: TransactionType.simpleSend,
+          }),
+        );
+        expect(transactions[1]).toStrictEqual(
+          expect.objectContaining({
+            type: TransactionType.relayDeposit,
+          }),
+        );
+        expect(transactions[2]).toStrictEqual(
+          expect.objectContaining({
+            type: TransactionType.simpleSend,
+          }),
+        );
+      });
+
+      it('assigns correct types with multi-step relay (approve + deposit)', async () => {
+        request.quotes[0].original.steps[0].items.push({
+          ...request.quotes[0].original.steps[0].items[0],
+          data: {
+            ...request.quotes[0].original.steps[0].items[0].data,
+            data: '0xapprove' as Hex,
+            to: '0xapproveTarget' as Hex,
+          },
+        });
+
+        request.quotes[0].original.metamask.gasLimits = [
+          21000, 30000, 50000, 75000,
+        ];
+
+        await submitRelayQuotes(request);
+
+        const { transactions } = addTransactionBatchMock.mock
+          .calls[0][0] as unknown as Record<string, unknown[]>;
+
+        expect(transactions).toHaveLength(4);
+        expect(transactions[0]).toStrictEqual(
+          expect.objectContaining({
+            type: TransactionType.simpleSend,
+          }),
+        );
+        expect(transactions[1]).toStrictEqual(
+          expect.objectContaining({
+            type: TransactionType.tokenMethodApprove,
+          }),
+        );
+        expect(transactions[2]).toStrictEqual(
+          expect.objectContaining({
+            type: TransactionType.relayDeposit,
+          }),
+        );
+        expect(transactions[3]).toStrictEqual(
+          expect.objectContaining({
+            type: TransactionType.simpleSend,
+          }),
+        );
+      });
+
+      it('assigns correct gas limits', async () => {
+        request.quotes[0].original.metamask.gasLimits = [
+          21000, 30000, 75000,
+        ];
+
+        await submitRelayQuotes(request);
+
+        const { transactions } = addTransactionBatchMock.mock
+          .calls[0][0] as unknown as Record<
+          string,
+          { params: { gas?: string } }[]
+        >;
+
+        expect(transactions).toHaveLength(3);
+        expect(transactions[0].params.gas).toBe('0x5208');
+        expect(transactions[1].params.gas).toBe('0x7530');
+        expect(transactions[2].params.gas).toBe('0x124f8');
+      });
+
+      it('skips source balance validation', async () => {
+        getLiveTokenBalanceMock.mockResolvedValue('0');
+
+        await submitRelayQuotes(request);
+
+        expect(getLiveTokenBalanceMock).not.toHaveBeenCalled();
+      });
+
+      it('does not append when callback returns empty array', async () => {
+        getPaymentOverrideDataMock.mockResolvedValue({ calls: [] });
+
+        await submitRelayQuotes(request);
+
+        const { transactions } = addTransactionBatchMock.mock
+          .calls[0][0] as unknown as Record<string, unknown[]>;
+
+        expect(transactions).toHaveLength(2);
+        expect(transactions[0]).toStrictEqual(
+          expect.objectContaining({
+            params: expect.objectContaining({
+              data: '0xorigdata',
+            }),
+          }),
+        );
+      });
+    });
+
     it('adds transaction batch with single gasLimit7702', async () => {
       request.quotes[0].original.steps[0].items.push({
         ...request.quotes[0].original.steps[0].items[0],

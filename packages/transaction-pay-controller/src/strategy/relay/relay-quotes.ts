@@ -914,7 +914,15 @@ function combinePrependedGas(
     ? combinePostQuoteGas(relayOnlyGas, transaction)
     : relayOnlyGas;
 
-  return request.paymentOverride ? addPaymentOverrideGas(gas) : gas;
+  if (!request.paymentOverride) {
+    return gas;
+  }
+
+  // Combined: override gas goes last (appended after relay + original tx)
+  // Override-only: override gas goes first (prepended before relay txs)
+  return request.isPostQuote
+    ? appendPaymentOverrideGas(gas)
+    : prependPaymentOverrideGas(gas);
 }
 
 /**
@@ -974,10 +982,23 @@ function combinePostQuoteGas(
   };
 }
 
-function addPaymentOverrideGas(relayGas: RelayGasResult): RelayGasResult {
+function prependPaymentOverrideGas(relayGas: RelayGasResult): RelayGasResult {
   const gasLimits = relayGas.is7702
     ? [relayGas.gasLimits[0] + PAYMENT_OVERRIDE_GAS]
     : [PAYMENT_OVERRIDE_GAS, ...relayGas.gasLimits];
+
+  return {
+    totalGasEstimate: relayGas.totalGasEstimate + PAYMENT_OVERRIDE_GAS,
+    totalGasLimit: relayGas.totalGasLimit + PAYMENT_OVERRIDE_GAS,
+    gasLimits,
+    is7702: relayGas.is7702,
+  };
+}
+
+function appendPaymentOverrideGas(relayGas: RelayGasResult): RelayGasResult {
+  const gasLimits = relayGas.is7702
+    ? [relayGas.gasLimits[0] + PAYMENT_OVERRIDE_GAS]
+    : [...relayGas.gasLimits, PAYMENT_OVERRIDE_GAS];
 
   return {
     totalGasEstimate: relayGas.totalGasEstimate + PAYMENT_OVERRIDE_GAS,

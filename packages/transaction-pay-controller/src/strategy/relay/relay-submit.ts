@@ -401,7 +401,23 @@ async function submitTransactions(
     (transaction.txParams.from as Hex).toLowerCase();
 
   let allParams = normalizedParams;
+  let appendedParams: TransactionParams[] = [];
 
+  // Post-quote: prepend the original tx so it executes first in the batch
+  if (isPostQuote && transaction.txParams.to) {
+    const prependedParams = hasAccountOverride
+      ? await buildDelegatedOriginalParams(transaction, messenger)
+      : ({
+          data: transaction.txParams.data as Hex | undefined,
+          from: transaction.txParams.from,
+          to: transaction.txParams.to,
+          value: transaction.txParams.value as Hex | undefined,
+        } as TransactionParams);
+
+    allParams = [prependedParams, ...normalizedParams];
+  }
+
+  // Payment override: invoke callback for additional txs
   if (quote.request.paymentOverride) {
     const { transactionData } = messenger.call(
       'TransactionPayController:getState',
@@ -417,22 +433,18 @@ async function submitTransactions(
     );
 
     if (overrideTxs.length > 0) {
-      allParams = [
-        ...(overrideTxs as TransactionParams[]),
-        ...normalizedParams,
-      ];
+      if (isPostQuote) {
+        // Combined: append override txs after relay txs
+        appendedParams = overrideTxs as TransactionParams[];
+        allParams = [...allParams, ...appendedParams];
+      } else {
+        // Override-only: prepend override txs before relay txs
+        allParams = [
+          ...(overrideTxs as TransactionParams[]),
+          ...normalizedParams,
+        ];
+      }
     }
-  } else if (isPostQuote && transaction.txParams.to) {
-    const prependedParams = hasAccountOverride
-      ? await buildDelegatedOriginalParams(transaction, messenger)
-      : ({
-          data: transaction.txParams.data as Hex | undefined,
-          from: transaction.txParams.from,
-          to: transaction.txParams.to,
-          value: transaction.txParams.value as Hex | undefined,
-        } as TransactionParams);
-
-    allParams = [prependedParams, ...normalizedParams];
   }
 
   if (quote.original.metamask.isExecute) {
@@ -450,6 +462,7 @@ async function submitTransactions(
     messenger,
     normalizedParams,
     allParams,
+    appendedParams.length,
   );
 }
 
@@ -586,7 +599,8 @@ async function submitViaRelayExecute(
  * @param transaction - Original transaction meta.
  * @param messenger - Controller messenger.
  * @param normalizedParams - Normalized relay-only params (without prepended original tx).
- * @param allParams - All params including any prepended original tx for post-quote flows.
+ * @param allParams - All params including any prepended/appended txs.
+ * @param appendCount - Number of override txs appended after relay params.
  * @returns Hash of the last submitted transaction.
  */
 async function submitViaTransactionController(
@@ -595,6 +609,7 @@ async function submitViaTransactionController(
   messenger: TransactionPayControllerMessenger,
   normalizedParams: TransactionParams[],
   allParams: TransactionParams[],
+  appendCount: number,
 ): Promise<Hex> {
   const transactionIds: string[] = [];
   const { from, sourceChainId, sourceTokenAddress } = quote.request;
@@ -684,7 +699,7 @@ async function submitViaTransactionController(
       ? toHex(metamask.gasLimits[0])
       : undefined;
 
-    const prependCount = allParams.length - normalizedParams.length;
+    const prependCount = allParams.length - normalizedParams.length - appendCount;
 
     const transactions = allParams.map((singleParams, index) => {
       const gasLimit = gasLimits[index];
@@ -702,6 +717,7 @@ async function submitViaTransactionController(
         },
         type: getTransactionType(
           prependCount,
+          appendCount,
           index,
           getEffectiveTransactionType(transaction),
           normalizedParams.length,
@@ -749,18 +765,24 @@ async function submitViaTransactionController(
  * Determine the transaction type for a given index in the batch.
  *
  * @param prependCount - Number of non-relay txs prepended to the batch.
+ * @param appendCount - Number of non-relay txs appended after relay params.
  * @param index - Index of the transaction in the batch.
- * @param originalType - Type of the original transaction (used for prepended indices).
- * @param relayParamCount - Number of relay-only params (excludes prepended txs).
+ * @param originalType - Type of the original transaction (used for prepended/appended indices).
+ * @param relayParamCount - Number of relay-only params (excludes prepended/appended txs).
  * @returns The transaction type.
  */
 function getTransactionType(
   prependCount: number,
+  appendCount: number,
   index: number,
   originalType: TransactionMeta['type'],
   relayParamCount: number,
 ): TransactionMeta['type'] {
   if (prependCount > 0 && index < prependCount) {
+    return originalType;
+  }
+
+  if (appendCount > 0 && index >= prependCount + relayParamCount) {
     return originalType;
   }
 

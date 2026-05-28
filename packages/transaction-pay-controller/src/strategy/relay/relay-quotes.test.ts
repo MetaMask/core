@@ -2721,6 +2721,102 @@ describe('Relay Quotes Utils', () => {
         ]);
         expect(result[0].original.metamask.is7702).toBe(true);
       });
+
+      it('appends extra gas when both postQuote and paymentOverride are set', async () => {
+        successfulFetchMock.mockResolvedValue({
+          ok: true,
+          json: async () => QUOTE_MOCK,
+        } as never);
+
+        getGasBufferMock.mockReturnValue(1);
+
+        const result = await getRelayQuotes({
+          accountSupports7702: true,
+          messenger,
+          requests: [
+            {
+              ...QUOTE_REQUEST_MOCK,
+              targetAmountMinimum: '0',
+              isPostQuote: true,
+              paymentOverride: PaymentOverride.MoneyAccount,
+            },
+          ],
+          transaction: {
+            ...TRANSACTION_META_MOCK,
+            chainId: '0x1' as Hex,
+            txParams: {
+              from: FROM_MOCK,
+              to: '0x9' as Hex,
+              data: '0xaaa' as Hex,
+              gas: '0x13498',
+              value: '0',
+            },
+          } as TransactionMeta,
+        });
+
+        expect(result[0].original.metamask.gasLimits).toStrictEqual([
+          79000, 21000, 75000,
+        ]);
+      });
+
+      it('appends extra gas to combined 7702 limit when both postQuote and paymentOverride are set', async () => {
+        const multiStepQuote = {
+          ...QUOTE_MOCK,
+          steps: [
+            {
+              ...STEP_MOCK,
+              items: [
+                STEP_MOCK.items[0],
+                {
+                  ...STEP_MOCK.items[0],
+                  data: { ...STEP_MOCK.items[0].data, gas: '30000' },
+                },
+              ],
+            },
+          ],
+        };
+
+        successfulFetchMock.mockResolvedValue({
+          ok: true,
+          json: async () => multiStepQuote,
+        } as never);
+
+        estimateGasBatchMock.mockResolvedValue({
+          totalGasLimit: 51000,
+          gasLimits: [51000],
+        });
+
+        getGasBufferMock.mockReturnValue(1);
+
+        const result = await getRelayQuotes({
+          accountSupports7702: true,
+          messenger,
+          requests: [
+            {
+              ...QUOTE_REQUEST_MOCK,
+              targetAmountMinimum: '0',
+              isPostQuote: true,
+              paymentOverride: PaymentOverride.MoneyAccount,
+            },
+          ],
+          transaction: {
+            ...TRANSACTION_META_MOCK,
+            chainId: '0x1' as Hex,
+            txParams: {
+              from: FROM_MOCK,
+              to: '0x9' as Hex,
+              data: '0xaaa' as Hex,
+              gas: '0x13498',
+              value: '0',
+            },
+          } as TransactionMeta,
+        });
+
+        expect(result[0].original.metamask.gasLimits).toStrictEqual([
+          51000 + 79000 + 75000,
+        ]);
+        expect(result[0].original.metamask.is7702).toBe(true);
+      });
     });
 
     describe('HyperLiquid source (isHyperliquidSource)', () => {
