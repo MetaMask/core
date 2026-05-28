@@ -341,11 +341,9 @@ async function calculateSourceNetworkCost({
   });
 
   const { is7702 } = gasResult;
-  // TODO: remove — temporary 1.3x buffer to diagnose gas required exceeds allowance
-  const rawGasLimits = gasResult.gasLimits.map((gasLimit) =>
-    Math.ceil(gasLimit.max * 1.3),
-  );
-  const gasLimits = is7702 ? [rawGasLimits[0]] : rawGasLimits;
+  const gasLimits = is7702
+    ? [gasResult.gasLimits[0].max]
+    : gasResult.gasLimits.map((gasLimit) => gasLimit.max);
 
   const estimate = calculateGasCost({
     chainId: chainIdHex,
