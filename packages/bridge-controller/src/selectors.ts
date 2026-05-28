@@ -233,8 +233,8 @@ export const selectExchangeRateByAssetId = (
     const evmTokenExchangeRates =
       marketDataByChain[formatChainIdToHex(chainId)];
     const evmTokenExchangeRateForAddress = isStrictHexString(address)
-      ? evmTokenExchangeRates?.[getAddress(address)] ??
-        evmTokenExchangeRates?.[address.toLowerCase()]
+      ? (evmTokenExchangeRates?.[getAddress(address)] ??
+        evmTokenExchangeRates?.[address.toLowerCase()])
       : null;
     const currencyKey = evmTokenExchangeRateForAddress?.currency;
     const nativeCurrencyRate =
