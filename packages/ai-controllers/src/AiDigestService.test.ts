@@ -910,7 +910,9 @@ describe('AiDigestService', () => {
       const goodTrend = {
         ...mockMarketOverview.trends[0],
         title: 'Good trend',
-        relatedAssets: [{ name: 'Bitcoin', symbol: 'BTC', sourceAssetId: 'bitcoin' }],
+        relatedAssets: [
+          { name: 'Bitcoin', symbol: 'BTC', sourceAssetId: 'bitcoin' },
+        ],
       };
       const badTrend = {
         ...mockMarketOverview.trends[0],
@@ -947,7 +949,9 @@ describe('AiDigestService', () => {
             trends: [
               {
                 ...mockMarketOverview.trends[0],
-                relatedAssets: [{ name: 'Bad', symbol: '', sourceAssetId: 'bad' }],
+                relatedAssets: [
+                  { name: 'Bad', symbol: '', sourceAssetId: 'bad' },
+                ],
               },
             ],
           }),
