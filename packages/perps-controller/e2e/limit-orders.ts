@@ -110,6 +110,15 @@ async function main(): Promise<void> {
       orderId = (resting as { resting: { oid: number } }).resting.oid;
     }
   }
+  runner.assert(
+    'resting order id extracted',
+    orderId !== null,
+    'cannot verify cancellation/removal without an order id',
+  );
+  if (orderId === null) {
+    const result = runner.finish();
+    process.exit(result.status === 'pass' ? 0 : 1);
+  }
 
   // 4. Verify order appears in open orders
   console.error('[e2e] Verifying order in open orders...');
@@ -133,17 +142,15 @@ async function main(): Promise<void> {
   }
 
   // 5. Cancel the order
-  if (orderId !== null) {
-    console.error(`[e2e] Canceling order ${orderId}...`);
-    const cancelResult = await exchange.cancel({
-      cancels: [{ a: assetIndex, o: orderId }],
-    });
-    runner.assert(
-      'cancel succeeded',
-      cancelResult.status === 'ok',
-      `status: ${cancelResult.status}`,
-    );
-  }
+  console.error(`[e2e] Canceling order ${orderId}...`);
+  const cancelResult = await exchange.cancel({
+    cancels: [{ a: assetIndex, o: orderId }],
+  });
+  runner.assert(
+    'cancel succeeded',
+    cancelResult.status === 'ok',
+    `status: ${cancelResult.status}`,
+  );
 
   // 6. Verify order removed
   console.error('[e2e] Verifying order removed...');
