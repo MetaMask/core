@@ -1,5 +1,6 @@
 import * as path from 'node:path';
 import type {
+  Identifier,
   InterfaceDeclaration,
   JSDocableNode,
   JSDocTag,
@@ -200,7 +201,8 @@ function findClassMethodDeclaration(
   }
   const methodName = indexLiteral.getLiteralValue();
 
-  // Reject qualified-name type references, as we can't follow those.
+  // Reject qualified-name type names, as we need a plain identifier to
+  // resolve the symbol.
   // EXAMPLE:
   //   import * as somePackage from '...';
   //   somePackage.FooController['someMethod']
@@ -285,6 +287,7 @@ type ConstructorMessengerCapabilityTypeDeclaration = {
   kind: 'action' | 'event';
   declaration: TypeAliasDeclaration;
   body: TypeReferenceNode;
+  typeName: Identifier;
 };
 
 /**
@@ -462,7 +465,8 @@ function recursivelyFindMessengerCapabilityTypeDeclarations(
 
   const nameNode = node.getTypeName();
 
-  // Reject qualified-name type references, as we can't follow those.
+  // Reject qualified-name type names, as we need a plain identifier to
+  // resolve the symbol.
   // EXAMPLE:
   //   import * as somePackage from '...';
   //   type Actions = somePackage.FooControllerSomeAction;
@@ -556,12 +560,23 @@ function recursivelyFindMessengerCapabilityTypeDeclarations(
       //   type FooControllerSomeAction = ControllerGetStateAction<...>
       //                                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
       if (body && NodeGuards.isTypeReference(body)) {
-        result.capabilityTypeDeclarations.push({
-          bodyShape: 'constructor',
-          kind,
-          declaration,
-          body,
-        });
+        // Reject qualified-name constructor type names, as we need a plain
+        // identifier to match the constructor by name.
+        // EXAMPLE:
+        //   // Bad
+        //   import * as somePackage from '...';
+        //   type FooControllerSomeAction = somePackage.ControllerGetStateAction<...>
+        //                                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        const constructorTypeName = body.getTypeName();
+        if (NodeGuards.isIdentifier(constructorTypeName)) {
+          result.capabilityTypeDeclarations.push({
+            bodyShape: 'constructor',
+            kind,
+            declaration,
+            body,
+            typeName: constructorTypeName,
+          });
+        }
         continue;
       }
 
@@ -830,19 +845,7 @@ function tryToExtractFromCapabilityTypeConstructor(
   capabilityTypeDeclaration: ConstructorMessengerCapabilityTypeDeclaration,
   projectPath: string,
 ): MessengerCapabilityPacket | null {
-  const { declaration, kind, body } = capabilityTypeDeclaration;
-
-  // `body.getTypeName()` returns an `EntityName` — either an `Identifier`
-  // (the common case, e.g. `ControllerGetStateAction`) or a `QualifiedName`
-  // (a namespace-imported reference, e.g. `someNs.ControllerGetStateAction`).
-  // The latter doesn't appear in MetaMask messenger types in practice, but
-  // we can't recognize the constructor by name without an identifier.
-  const typeName = body.getTypeName();
-  // istanbul ignore next: qualified-name constructor references aren't used
-  // in messenger capability types.
-  if (!NodeGuards.isIdentifier(typeName)) {
-    return null;
-  }
+  const { declaration, kind, body, typeName } = capabilityTypeDeclaration;
 
   // The name of the utility type should be either `ControllerGetStateAction`
   // (for actions) or `ControllerStateChangeEvent` (for events).
