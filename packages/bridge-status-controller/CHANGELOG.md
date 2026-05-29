@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Refactor tx submission into strategies to reduce quote-specific branching in the controller, and to de-duplicate shared logic between `submitTx` and `submitIntent`. Each strategy yields payloads that the controller uses to update history, poll, and publish metrics ([#8257](https://github.com/MetaMask/core/pull/8257))
 - Bump `@metamask/bridge-controller` from `^73.0.1` to `^73.1.0` ([#8915](https://github.com/MetaMask/core/pull/8915))
 - Refactor batch transaction utils to handle multiple quote requests within a batch (for BatchSell integration) ([#8886](https://github.com/MetaMask/core/pull/8886))
 
