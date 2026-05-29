@@ -71,8 +71,13 @@ export function getNetworkClientId(
       if (infuraEndpoint) {
         return infuraEndpoint.networkClientId;
       }
-    } catch {
-      // empty
+
+      log('No Infura endpoint found for chain', {
+        chainId,
+        rpcEndpoints: networkConfiguration?.rpcEndpoints,
+      });
+    } catch (error) {
+      log('Error looking up Infura endpoint', { chainId, error });
     }
   }
 
@@ -109,7 +114,7 @@ export async function rpcRequest<TResponse = unknown>({
 
   const response = await provider.request({ method, params });
 
-  log(method, { params, response });
+  log(method, { chainId, networkClientId, params, response });
 
   return response as TResponse;
 }
