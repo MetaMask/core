@@ -1105,13 +1105,9 @@ export class AccountTreeController extends BaseController<
       // Map group ID to its containing wallet ID for efficient direct access
       this.#groupIdToWalletId.set(groupId, walletId);
 
-      // Trigger atomic sync for new group (only for entropy wallets).
-      // The group was just created locally and cannot yet exist in user storage,
-      // so skip the pre-emptive GET and push directly.
+      // Trigger atomic sync for new group (only for entropy wallets)
       if (wallet.type === AccountWalletType.Entropy) {
-        this.#backupAndSyncService.enqueueSingleGroupSync(groupId, {
-          isFreshlyCreated: true,
-        });
+        this.#backupAndSyncService.enqueueSingleGroupSync(groupId);
       }
     } else {
       group.accounts.push(id);
@@ -1701,21 +1697,21 @@ export class AccountTreeController extends BaseController<
   }
 
   /**
-   * Bi-directionally syncs a single entropy wallet with user storage, scoped
-   * by entropy source ID. Use this in place of `syncWithUserStorage` when
-   * only one wallet's state has changed (e.g., after an SRP import) to avoid
-   * the per-wallet fanout of fetches that a full sync triggers.
+   * Enqueues a bidirectional sync with user storage for a single entropy
+   * wallet (fire-and-forget), scoped by entropy source ID. Use this in
+   * place of `syncWithUserStorage` when only one wallet's state has changed
+   * (e.g., after an SRP import) to avoid the per-wallet fanout of fetches
+   * that a full sync triggers.
    *
    * IMPORTANT:
-   * If a full sync is already in progress, returns the ongoing full-sync
-   * promise. This call does NOT mark the controller as having completed
-   * its first full sync.
+   * No-ops if a full sync is in progress (the full sync will cover this
+   * wallet). Does NOT mark the controller as having completed its first
+   * full sync.
    *
    * @param entropySourceId - The entropy source ID of the wallet to sync.
-   * @returns A promise that resolves when the sync is complete.
    */
-  async syncWalletWithUserStorage(entropySourceId: string): Promise<void> {
-    return this.#backupAndSyncService.performSyncForWallet(entropySourceId);
+  syncWalletWithUserStorage(entropySourceId: string): void {
+    this.#backupAndSyncService.enqueueSyncForWallet(entropySourceId);
   }
 
   /**
