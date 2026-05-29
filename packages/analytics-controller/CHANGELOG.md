@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Clear persisted analytics event queue entries after the delivery callback runs, including when the callback reports an error. ([#8934](https://github.com/MetaMask/core/pull/8934))
+
 ## [1.1.0]
 
 ### Added
