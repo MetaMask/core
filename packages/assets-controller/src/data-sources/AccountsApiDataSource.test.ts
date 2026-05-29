@@ -244,6 +244,24 @@ describe('AccountsApiDataSource', () => {
     controller.destroy();
   });
 
+  it('filters out non-EVM chains from active chains', async () => {
+    const SOLANA_CHAIN_ID = 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp';
+    const { controller, activeChainsUpdateHandler } = await setupController({
+      supportedChains: [1, SOLANA_CHAIN_ID as unknown as number],
+    });
+
+    expect(activeChainsUpdateHandler).toHaveBeenCalledWith(
+      'AccountsApiDataSource',
+      [CHAIN_MAINNET],
+      [],
+    );
+
+    const chains = await controller.getActiveChains();
+    expect(chains).toStrictEqual([CHAIN_MAINNET]);
+
+    controller.destroy();
+  });
+
   it.each([
     { input: 1, expected: 'eip155:1' },
     { input: '137', expected: 'eip155:137' },

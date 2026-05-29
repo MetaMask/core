@@ -1656,7 +1656,7 @@ describe('TransactionController', () => {
 
         await controller.addTransaction(
           { from: ACCOUNT_MOCK, to: ACCOUNT_MOCK, ...extraTxParamsToSet },
-          { networkClientId: NETWORK_CLIENT_ID_MOCK },
+          { isInternal: true, networkClientId: NETWORK_CLIENT_ID_MOCK },
         );
 
         expect(controller.state.transactions[0].txParams.type).toBe(type);
@@ -3714,7 +3714,7 @@ describe('TransactionController', () => {
         ).rejects.toThrow('Batch ID already exists');
       });
 
-      it('does not throw if duplicate but internal origin', async () => {
+      it('does not throw if duplicate but isInternal', async () => {
         const { controller } = setupController({
           options: {
             state: {
@@ -3735,8 +3735,39 @@ describe('TransactionController', () => {
 
         await controller.addTransaction(txParams, {
           batchId: BATCH_ID_MOCK,
+          isInternal: true,
           networkClientId: NETWORK_CLIENT_ID_MOCK,
         });
+      });
+
+      it('does not throw if duplicate and isInternal is true', async () => {
+        const { controller } = setupController({
+          options: {
+            state: {
+              transactions: [
+                {
+                  batchId: BATCH_ID_MOCK,
+                } as unknown as TransactionMeta,
+              ],
+            },
+          },
+          updateToInitialState: true,
+        });
+
+        const txParams = {
+          from: ACCOUNT_MOCK,
+          to: ACCOUNT_MOCK,
+        };
+
+        const { result } = await controller.addTransaction(txParams, {
+          batchId: BATCH_ID_MOCK,
+          isInternal: true,
+          networkClientId: NETWORK_CLIENT_ID_MOCK,
+          origin: ORIGIN_MOCK,
+          requireApproval: false,
+        });
+
+        await result.catch(() => undefined);
       });
     });
   });

@@ -7,11 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.0.1]
+
 ### Changed
 
 - Bump `@metamask/base-controller` from `^9.0.1` to `^9.1.0` ([#8457](https://github.com/MetaMask/core/pull/8457))
 - Bump `@metamask/messenger` from `^1.1.1` to `^1.2.0` ([#8632](https://github.com/MetaMask/core/pull/8632))
-- Bump `@metamask/keyring-controller` from `^25.2.0` to `^25.4.0` ([#8634](https://github.com/MetaMask/core/pull/8634), [#8665](https://github.com/MetaMask/core/pull/8665))
+- Bump `@metamask/keyring-controller` from `^25.2.0` to `^26.0.0` ([#8634](https://github.com/MetaMask/core/pull/8634), [#8665](https://github.com/MetaMask/core/pull/8665), [#8722](https://github.com/MetaMask/core/pull/8722), [#8912](https://github.com/MetaMask/core/pull/8912))
 
 ## [3.0.0]
 
@@ -141,7 +143,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#5592](https://github.com/MetaMask/core/pull/5592))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/delegation-controller@3.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/delegation-controller@3.0.1...HEAD
+[3.0.1]: https://github.com/MetaMask/core/compare/@metamask/delegation-controller@3.0.0...@metamask/delegation-controller@3.0.1
 [3.0.0]: https://github.com/MetaMask/core/compare/@metamask/delegation-controller@2.1.0...@metamask/delegation-controller@3.0.0
 [2.1.0]: https://github.com/MetaMask/core/compare/@metamask/delegation-controller@2.0.2...@metamask/delegation-controller@2.1.0
 [2.0.2]: https://github.com/MetaMask/core/compare/@metamask/delegation-controller@2.0.1...@metamask/delegation-controller@2.0.2

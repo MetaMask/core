@@ -1,6 +1,6 @@
 {
   "name": "@metamask/react-data-query",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Provides React utilities for consuming data services",
   "keywords": [
     "Ethereum",
@@ -51,7 +51,7 @@
     "test:watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch"
   },
   "dependencies": {
-    "@metamask/base-data-service": "^0.1.1",
+    "@metamask/base-data-service": "^0.1.3",
     "@metamask/utils": "^11.9.0",
     "@tanstack/query-core": "^4.43.0",
     "@tanstack/react-query": "^4.43.0"

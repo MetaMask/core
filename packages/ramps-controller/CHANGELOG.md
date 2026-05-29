@@ -9,12 +9,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Bump `@metamask/profile-sync-controller` from `^28.1.0` to `^28.1.1` ([#8912](https://github.com/MetaMask/core/pull/8912))
+
+## [14.0.0]
+
+### Added
+
+- Authenticate ramps requests by sourcing a bearer token from `AuthenticationController:getBearerToken` and sending it as an `Authorization: Bearer <token>` header for `getBuyWidgetUrl` ([#8843](https://github.com/MetaMask/core/pull/8843))
+- Add `@metamask/profile-sync-controller` `^28.1.0` as a runtime dependency ([#8843](https://github.com/MetaMask/core/pull/8843))
+
+### Changed
+
+- **BREAKING:** `RampsServiceMessenger` now requires the `AuthenticationController:getBearerToken` action to be delegated to it; consumers must register this action handler before calling `getBuyWidgetUrl`, otherwise the call will throw ([#8843](https://github.com/MetaMask/core/pull/8843))
+- Bump `@metamask/controller-utils` from `^12.0.0` to `^12.1.0` ([#8774](https://github.com/MetaMask/core/pull/8774))
+
+## [13.3.1]
+
+### Changed
+
+- Bump `@metamask/controller-utils` from `^11.20.0` to `^12.0.0` ([#8755](https://github.com/MetaMask/core/pull/8755))
+
+## [13.3.0]
+
+### Changed
+
 - Bump `@metamask/messenger` from `^1.1.1` to `^1.2.0` ([#8632](https://github.com/MetaMask/core/pull/8632))
 - `RampsService` routes `RampsEnvironment.Development` to dev-api base URLs; regions requests in development omit the `-cache` hostname segment used in staging and production ([#8574](https://github.com/MetaMask/core/pull/8574))
 
 ### Fixed
 
-- Tag circuit-breaker errors in `RampsController` with a stable `CIRCUIT_BREAKER_OPEN` error key so clients can localize the fallback copy without depending on internal Cockatiel text ([#8596](https://github.com/MetaMask/core/pull/8596)).
+- Tag circuit-breaker errors in `RampsController` with a stable `CIRCUIT_BREAKER_OPEN` error key so clients can localize the fallback copy without depending on internal Cockatiel text. ([#8596](https://github.com/MetaMask/core/pull/8596))
 
 ## [13.2.0]
 
@@ -330,7 +354,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Add `OnRampService` for interacting with the OnRamp API
   - Add geolocation detection via IP address lookup
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@13.2.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@14.0.0...HEAD
+[14.0.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@13.3.1...@metamask/ramps-controller@14.0.0
+[13.3.1]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@13.3.0...@metamask/ramps-controller@13.3.1
+[13.3.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@13.2.0...@metamask/ramps-controller@13.3.0
 [13.2.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@13.1.0...@metamask/ramps-controller@13.2.0
 [13.1.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@13.0.0...@metamask/ramps-controller@13.1.0
 [13.0.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@12.1.0...@metamask/ramps-controller@13.0.0

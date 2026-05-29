@@ -8,13 +8,10 @@ export type ExchangeRateResponse = {
 
 /**
  * Response from {@link MoneyAccountBalanceService.getMusdEquivalentValue}.
- * All values are raw uint256 strings. The `musdEquivalentValue` is
- * `musdSHFvdBalance * exchangeRate / 10^underlyingTokenDecimals` (= 1e6 for mUSD).
+ * Balance of in assets is the raw uint256 string returned by the Lens's `balanceOfInAssets()`.
  */
 export type MusdEquivalentValueResponse = {
-  musdSHFvdBalance: string;
-  exchangeRate: string;
-  musdEquivalentValue: string;
+  balanceOfInAssets: string;
 };
 
 /**

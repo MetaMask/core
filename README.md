@@ -103,6 +103,7 @@ Each package in this repository has its own README where you can find installati
 - [`@metamask/transaction-controller`](packages/transaction-controller)
 - [`@metamask/transaction-pay-controller`](packages/transaction-pay-controller)
 - [`@metamask/user-operation-controller`](packages/user-operation-controller)
+- [`@metamask/wallet`](packages/wallet)
 
 <!-- end package list -->
 
@@ -195,6 +196,7 @@ linkStyle default opacity:0.5
   transaction_controller(["@metamask/transaction-controller"]);
   transaction_pay_controller(["@metamask/transaction-pay-controller"]);
   user_operation_controller(["@metamask/user-operation-controller"]);
+  wallet(["@metamask/wallet"]);
   account_tree_controller --> accounts_controller;
   account_tree_controller --> base_controller;
   account_tree_controller --> keyring_controller;
@@ -375,12 +377,15 @@ linkStyle default opacity:0.5
   money_account_balance_service --> controller_utils;
   money_account_balance_service --> messenger;
   money_account_balance_service --> network_controller;
+  money_account_balance_service --> remote_feature_flag_controller;
   money_account_controller --> accounts_controller;
   money_account_controller --> base_controller;
   money_account_controller --> keyring_controller;
   money_account_controller --> messenger;
+  money_account_upgrade_controller --> authenticated_user_storage;
   money_account_upgrade_controller --> base_controller;
   money_account_upgrade_controller --> chomp_api_service;
+  money_account_upgrade_controller --> delegation_controller;
   money_account_upgrade_controller --> keyring_controller;
   money_account_upgrade_controller --> messenger;
   money_account_upgrade_controller --> network_controller;
@@ -388,6 +393,7 @@ linkStyle default opacity:0.5
   multichain_account_service --> base_controller;
   multichain_account_service --> keyring_controller;
   multichain_account_service --> messenger;
+  multichain_account_service --> snap_account_service;
   multichain_account_service --> controller_utils;
   multichain_api_middleware --> accounts_controller;
   multichain_api_middleware --> chain_agnostic_permission;
@@ -424,6 +430,7 @@ linkStyle default opacity:0.5
   network_enablement_controller --> multichain_network_controller;
   network_enablement_controller --> network_controller;
   network_enablement_controller --> transaction_controller;
+  notification_services_controller --> authenticated_user_storage;
   notification_services_controller --> base_controller;
   notification_services_controller --> controller_utils;
   notification_services_controller --> keyring_controller;
@@ -449,6 +456,7 @@ linkStyle default opacity:0.5
   perps_controller --> profile_sync_controller;
   perps_controller --> remote_feature_flag_controller;
   perps_controller --> transaction_controller;
+  phishing_controller --> address_book_controller;
   phishing_controller --> base_controller;
   phishing_controller --> controller_utils;
   phishing_controller --> messenger;
@@ -474,6 +482,7 @@ linkStyle default opacity:0.5
   ramps_controller --> base_controller;
   ramps_controller --> controller_utils;
   ramps_controller --> messenger;
+  ramps_controller --> profile_sync_controller;
   rate_limit_controller --> base_controller;
   rate_limit_controller --> messenger;
   react_data_query --> base_data_service;
@@ -507,6 +516,8 @@ linkStyle default opacity:0.5
   signature_controller --> logging_controller;
   signature_controller --> messenger;
   signature_controller --> network_controller;
+  snap_account_service --> account_tree_controller;
+  snap_account_service --> keyring_controller;
   snap_account_service --> messenger;
   social_controllers --> base_controller;
   social_controllers --> base_data_service;
@@ -554,6 +565,9 @@ linkStyle default opacity:0.5
   user_operation_controller --> polling_controller;
   user_operation_controller --> transaction_controller;
   user_operation_controller --> eth_block_tracker;
+  wallet --> base_controller;
+  wallet --> keyring_controller;
+  wallet --> messenger;
 ```
 
 <!-- end dependency graph -->

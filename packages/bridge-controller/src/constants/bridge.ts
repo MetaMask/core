@@ -79,9 +79,11 @@ export const DEFAULT_FEATURE_FLAG_CONFIG: FeatureFlagsPlatformConfig = {
 };
 
 export const DEFAULT_BRIDGE_CONTROLLER_STATE: BridgeControllerState = {
-  quoteRequest: {
-    srcTokenAddress: AddressZero,
-  },
+  quoteRequest: [
+    {
+      srcTokenAddress: AddressZero,
+    },
+  ],
   quotesInitialLoadTime: null,
   quotes: [],
   quotesLastFetched: null,
@@ -93,6 +95,8 @@ export const DEFAULT_BRIDGE_CONTROLLER_STATE: BridgeControllerState = {
   tokenWarnings: [],
   tokenSecurityTypeDestination: null,
   quoteStreamComplete: null,
+  batchSellTrades: null,
+  batchSellTradesLoadingStatus: null,
 };
 
 export const METABRIDGE_CHAIN_TO_ADDRESS_MAP: Record<Hex, string> = {

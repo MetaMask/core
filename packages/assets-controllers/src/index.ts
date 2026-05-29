@@ -11,6 +11,8 @@ export { AccountTrackerController } from './AccountTrackerController';
 export type {
   AccountTrackerControllerUpdateNativeBalancesAction,
   AccountTrackerControllerUpdateStakedBalancesAction,
+  AccountTrackerControllerRefreshAction,
+  AccountTrackerControllerSyncBalanceWithAddressesAction,
 } from './AccountTrackerController-method-action-types';
 export type {
   AssetsContractControllerActions,
@@ -95,6 +97,8 @@ export { TokenBalancesController } from './TokenBalancesController';
 export type {
   TokenBalancesControllerUpdateChainPollingConfigsAction,
   TokenBalancesControllerGetChainPollingConfigAction,
+  TokenBalancesControllerUpdateBalancesAction,
+  TokenBalancesControllerResetStateAction,
 } from './TokenBalancesController-method-action-types';
 export type {
   TokenDetectionControllerMessenger,
@@ -124,6 +128,7 @@ export type {
   TokenListControllerMessenger,
 } from './TokenListController';
 export { TokenListController } from './TokenListController';
+export { TokenListService, buildTokenListMap } from './TokenListService';
 export type {
   ContractExchangeRates,
   ContractMarketData,
@@ -287,7 +292,9 @@ export { createFormatters } from './utils/formatters';
 export type {
   SortTrendingBy,
   TrendingAsset,
+  TrendingTokensQueryParams,
   TokenSearchItem,
+  PageInfo,
   TokenAsset,
   TokenRwaData,
   TokenSecurityData,

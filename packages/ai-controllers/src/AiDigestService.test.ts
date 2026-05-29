@@ -784,7 +784,7 @@ describe('AiDigestService', () => {
             trends: [
               {
                 ...mockMarketOverview.trends[0],
-                relatedAssets: [{ name: 'Bitcoin' }], // missing required fields
+                relatedAssets: [{ name: 'Bitcoin' }], // missing required symbol
               },
             ],
           }),
@@ -797,6 +797,76 @@ describe('AiDigestService', () => {
       await expect(service.fetchMarketOverview()).rejects.toThrow(
         AiDigestControllerErrorMessage.API_INVALID_RESPONSE,
       );
+    });
+
+    it('returns overview when an asset is missing sourceAssetId', async () => {
+      const assetWithoutSourceId = {
+        name: 'Bitcoin',
+        symbol: 'BTC',
+        caip19: ['bip122:000000000019d6689c085ae165831e93/slip44:0'],
+        hlPerpsMarket: ['BTC'],
+        // sourceAssetId intentionally absent
+      };
+
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () =>
+          Promise.resolve({
+            ...mockMarketOverview,
+            trends: [
+              {
+                ...mockMarketOverview.trends[0],
+                relatedAssets: [assetWithoutSourceId],
+              },
+            ],
+          }),
+      });
+
+      const service = new AiDigestService({
+        baseUrl: 'http://test.com/api/v1',
+      });
+      const result = await service.fetchMarketOverview();
+
+      expect(result?.trends).toHaveLength(1);
+      expect(result?.trends[0].relatedAssets).toHaveLength(1);
+      expect(result?.trends[0].relatedAssets[0].symbol).toBe('BTC');
+      expect(result?.trends[0].relatedAssets[0].sourceAssetId).toBeUndefined();
+    });
+
+    it('returns overview when an asset is missing name', async () => {
+      const assetWithoutName = {
+        symbol: 'ETH',
+        sourceAssetId: 'ethereum',
+        caip19: ['eip155:1/slip44:60'],
+        hlPerpsMarket: ['ETH'],
+        // name intentionally absent
+      };
+
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () =>
+          Promise.resolve({
+            ...mockMarketOverview,
+            trends: [
+              {
+                ...mockMarketOverview.trends[0],
+                relatedAssets: [assetWithoutName],
+              },
+            ],
+          }),
+      });
+
+      const service = new AiDigestService({
+        baseUrl: 'http://test.com/api/v1',
+      });
+      const result = await service.fetchMarketOverview();
+
+      expect(result?.trends).toHaveLength(1);
+      expect(result?.trends[0].relatedAssets).toHaveLength(1);
+      expect(result?.trends[0].relatedAssets[0].symbol).toBe('ETH');
+      expect(result?.trends[0].relatedAssets[0].name).toBeUndefined();
     });
 
     it('accepts additional unknown fields in payload', async () => {

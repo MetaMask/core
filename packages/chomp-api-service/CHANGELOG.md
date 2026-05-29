@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/controller-utils` from `^12.0.0` to `^12.1.0` ([#8774](https://github.com/MetaMask/core/pull/8774))
+- Bump `@metamask/base-data-service` from `^0.1.2` to `^0.1.3` ([#8799](https://github.com/MetaMask/core/pull/8799))
+
+## [3.1.0]
+
+### Changed
+
+- `ChompApiService` no longer retries HTTP requests that fail with a 4xx response (other than 429), since those responses indicate the request itself is at fault and will not be resolved by re-issuing it. 5xx, 429, and non-HTTP errors (network/timeout) continue to be retried. Consumers can still override this by passing a `retryFilterPolicy` via `policyOptions`. ([#8621](https://github.com/MetaMask/core/pull/8621))
+
+## [3.0.1]
+
+### Changed
+
+- Bump `@metamask/base-data-service` from `^0.1.1` to `^0.1.2` ([#8755](https://github.com/MetaMask/core/pull/8755))
+- Bump `@metamask/controller-utils` from `^11.20.0` to `^12.0.0` ([#8755](https://github.com/MetaMask/core/pull/8755))
+
 ## [3.0.0]
 
 ### Changed
@@ -26,7 +44,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Add `ChompApiService` ([#8413](https://github.com/MetaMask/core/pull/8413))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/chomp-api-service@3.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/chomp-api-service@3.1.0...HEAD
+[3.1.0]: https://github.com/MetaMask/core/compare/@metamask/chomp-api-service@3.0.1...@metamask/chomp-api-service@3.1.0
+[3.0.1]: https://github.com/MetaMask/core/compare/@metamask/chomp-api-service@3.0.0...@metamask/chomp-api-service@3.0.1
 [3.0.0]: https://github.com/MetaMask/core/compare/@metamask/chomp-api-service@2.0.0...@metamask/chomp-api-service@3.0.0
 [2.0.0]: https://github.com/MetaMask/core/compare/@metamask/chomp-api-service@1.0.0...@metamask/chomp-api-service@2.0.0
 [1.0.0]: https://github.com/MetaMask/core/releases/tag/@metamask/chomp-api-service@1.0.0

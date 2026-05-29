@@ -41,7 +41,9 @@ export async function determineTransactionType(
 ): Promise<InferTransactionTypeResult> {
   const { data, to } = txParams;
 
-  if (data && !to) {
+  const hasRealBytecode = Boolean(data && data !== '0x' && data.length > 2);
+
+  if (hasRealBytecode && !to) {
     return { type: TransactionType.deployContract, getCodeResponse: undefined };
   }
 

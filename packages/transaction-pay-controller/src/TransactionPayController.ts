@@ -12,8 +12,10 @@ import {
   TransactionPayStrategy,
 } from './constants';
 import { QuoteRefresher } from './helpers/QuoteRefresher';
+import { deriveFiatAssetForFiatPayment } from './strategy/fiat/utils';
 import type {
   GetDelegationTransactionCallback,
+  PolymarketCallbacks,
   TransactionConfigCallback,
   TransactionData,
   TransactionPayControllerMessenger,
@@ -25,11 +27,18 @@ import type {
 import { getStrategyOrder } from './utils/feature-flags';
 import { updateQuotes } from './utils/quotes';
 import { updateSourceAmounts } from './utils/source-amounts';
-import { pollTransactionChanges } from './utils/transaction';
+import { buildCaipAssetType } from './utils/token';
+import {
+  getTransaction,
+  subscribeAssetChanges,
+  subscribeTransactionChanges,
+} from './utils/transaction';
 
 const MESSENGER_EXPOSED_METHODS = [
   'getDelegationTransaction',
   'getStrategy',
+  'polymarketGetDepositWalletAddress',
+  'polymarketSubmitDepositWalletBatch',
   'setTransactionConfig',
   'updateFiatPayment',
   'updatePaymentToken',
@@ -63,11 +72,14 @@ export class TransactionPayController extends BaseController<
     transaction: TransactionMeta,
   ) => TransactionPayStrategy[];
 
+  readonly #polymarket?: PolymarketCallbacks;
+
   constructor({
     getDelegationTransaction,
     getStrategy,
     getStrategies,
     messenger,
+    polymarket,
     state,
   }: TransactionPayControllerOptions) {
     super({
@@ -80,16 +92,23 @@ export class TransactionPayController extends BaseController<
     this.#getDelegationTransaction = getDelegationTransaction;
     this.#getStrategy = getStrategy;
     this.#getStrategies = getStrategies;
+    this.#polymarket = polymarket;
 
     this.messenger.registerMethodActionHandlers(
       this,
       MESSENGER_EXPOSED_METHODS,
     );
 
-    pollTransactionChanges(
+    subscribeTransactionChanges(
       messenger,
       this.#updateTransactionData.bind(this),
       this.#removeTransactionData.bind(this),
+    );
+
+    subscribeAssetChanges(
+      messenger,
+      () => this.state,
+      this.#updateTransactionData.bind(this),
     );
 
     // eslint-disable-next-line no-new
@@ -118,8 +137,10 @@ export class TransactionPayController extends BaseController<
         isMaxAmount: transactionData.isMaxAmount,
         isPostQuote: transactionData.isPostQuote,
         isHyperliquidSource: transactionData.isHyperliquidSource,
+        isPolymarketDepositWallet: transactionData.isPolymarketDepositWallet,
         refundTo: transactionData.refundTo,
         accountOverride: transactionData.accountOverride,
+        paymentOverride: transactionData.paymentOverride,
       };
 
       const previousAccountOverride = config.accountOverride;
@@ -130,9 +151,15 @@ export class TransactionPayController extends BaseController<
       transactionData.isMaxAmount = config.isMaxAmount;
       transactionData.isPostQuote = config.isPostQuote;
       transactionData.isHyperliquidSource = config.isHyperliquidSource;
+      transactionData.isPolymarketDepositWallet =
+        config.isPolymarketDepositWallet;
       transactionData.refundTo = config.refundTo;
+      transactionData.paymentOverride = config.paymentOverride;
 
-      if (config.accountOverride !== previousAccountOverride) {
+      if (
+        !config.isPostQuote &&
+        config.accountOverride !== previousAccountOverride
+      ) {
         transactionData.paymentToken = undefined;
       }
     });
@@ -204,6 +231,39 @@ export class TransactionPayController extends BaseController<
     return this.#getStrategiesWithFallback(transaction)[0];
   }
 
+  /**
+   * Derives the Polymarket deposit-wallet address for an EOA via the
+   * client-supplied callback.
+   *
+   * @param args - The arguments forwarded to {@link PolymarketCallbacks.getDepositWalletAddress}.
+   * @returns A promise resolving to the deposit-wallet address.
+   */
+  polymarketGetDepositWalletAddress(
+    ...args: Parameters<PolymarketCallbacks['getDepositWalletAddress']>
+  ): ReturnType<PolymarketCallbacks['getDepositWalletAddress']> {
+    return this.#requirePolymarket().getDepositWalletAddress(...args);
+  }
+
+  /**
+   * Signs and broadcasts a Polymarket deposit-wallet batch via the
+   * client-supplied callback.
+   *
+   * @param args - The arguments forwarded to {@link PolymarketCallbacks.submitDepositWalletBatch}.
+   * @returns A promise resolving to the relayer-issued source hash.
+   */
+  polymarketSubmitDepositWalletBatch(
+    ...args: Parameters<PolymarketCallbacks['submitDepositWalletBatch']>
+  ): ReturnType<PolymarketCallbacks['submitDepositWalletBatch']> {
+    return this.#requirePolymarket().submitDepositWalletBatch(...args);
+  }
+
+  #requirePolymarket(): PolymarketCallbacks {
+    if (!this.#polymarket) {
+      throw new Error('TransactionPayController: Polymarket callbacks missing');
+    }
+    return this.#polymarket;
+  }
+
   #removeTransactionData(transactionId: string): void {
     this.update((state) => {
       delete state.transactionData[transactionId];
@@ -215,6 +275,7 @@ export class TransactionPayController extends BaseController<
     fn: (transactionData: Draft<TransactionData>) => void,
   ): void {
     let shouldUpdateQuotes = false;
+    let shouldUpdateFiatToken = false;
 
     this.update((state) => {
       const { transactionData } = state;
@@ -224,6 +285,9 @@ export class TransactionPayController extends BaseController<
       const originalIsMaxAmount = current?.isMaxAmount;
       const originalIsPostQuote = current?.isPostQuote;
       const originalAccountOverride = current?.accountOverride;
+      const originalFiatPaymentAmount = current?.fiatPayment?.amountFiat;
+      const originalFiatPaymentMethodId =
+        current?.fiatPayment?.selectedPaymentMethodId;
 
       if (!current) {
         transactionData[transactionId] = {
@@ -247,6 +311,11 @@ export class TransactionPayController extends BaseController<
       const isPostQuoteUpdated = current.isPostQuote !== originalIsPostQuote;
       const isAccountOverrideUpdated =
         current.accountOverride !== originalAccountOverride;
+      const isFiatAmountUpdated =
+        current.fiatPayment?.amountFiat !== originalFiatPaymentAmount;
+      const isFiatPaymentMethodUpdated =
+        current.fiatPayment?.selectedPaymentMethodId !==
+        originalFiatPaymentMethodId;
 
       if (
         isPaymentTokenUpdated ||
@@ -259,7 +328,36 @@ export class TransactionPayController extends BaseController<
 
         shouldUpdateQuotes = true;
       }
+
+      if (isFiatAmountUpdated || isFiatPaymentMethodUpdated) {
+        shouldUpdateQuotes = true;
+      }
+
+      if (isFiatPaymentMethodUpdated) {
+        shouldUpdateFiatToken = true;
+      }
     });
+
+    if (shouldUpdateFiatToken) {
+      const transaction = getTransaction(
+        transactionId,
+        this.messenger,
+      ) as TransactionMeta;
+      const fiatAsset = deriveFiatAssetForFiatPayment(
+        transaction,
+        this.messenger,
+      );
+      if (fiatAsset) {
+        this.#updateTransactionData(transactionId, (data) => {
+          if (data.fiatPayment) {
+            data.fiatPayment.caipAssetId = buildCaipAssetType(
+              fiatAsset.chainId,
+              fiatAsset.address,
+            );
+          }
+        });
+      }
+    }
 
     if (shouldUpdateQuotes) {
       updateQuotes({
@@ -275,6 +373,8 @@ export class TransactionPayController extends BaseController<
   #getStrategiesWithFallback(
     transaction: TransactionMeta,
   ): TransactionPayStrategy[] {
+    const transactionData = this.state.transactionData[transaction.id];
+
     const strategyCandidates: unknown[] =
       this.#getStrategies?.(transaction) ??
       (this.#getStrategy ? [this.#getStrategy(transaction)] : []);
@@ -288,14 +388,14 @@ export class TransactionPayController extends BaseController<
       return validStrategies;
     }
 
-    const paymentToken =
-      this.state.transactionData[transaction.id]?.paymentToken;
+    const paymentToken = transactionData?.paymentToken;
 
     return getStrategyOrder(
       this.messenger,
       paymentToken?.chainId,
       paymentToken?.address,
       transaction.type,
+      transactionData?.fiatPayment?.selectedPaymentMethodId,
     );
   }
 }

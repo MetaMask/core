@@ -16,3 +16,8 @@ export type {
   MusdEquivalentValueResponse,
   NormalizedVaultApyResponse,
 } from './response.types';
+export {
+  VaultConfigNotAvailableError,
+  VaultConfigValidationError,
+} from './errors';
+export type { VaultConfig } from './types';

@@ -60,6 +60,8 @@ const MESSENGER_EXPOSED_METHODS = [
   'syncWithUserStorage',
   'syncWithUserStorageAtLeastOnce',
   'syncWalletWithUserStorage',
+  'init',
+  'reinit',
 ] as const;
 
 const accountTreeControllerMetadata: StateMetadata<AccountTreeControllerState> =
@@ -907,19 +909,32 @@ export class AccountTreeController extends BaseController<
       return;
     }
 
+    const createdGroups = new Map<AccountGroupId, AccountWalletId>();
+    const updatedGroups = new Map<AccountGroupId, AccountWalletId>();
+
     this.update((state) => {
       for (const account of newAccounts) {
-        this.#insert(state.accountTree.wallets, account);
+        const { walletId, groupId, created } = this.#insert(
+          state.accountTree.wallets,
+          account,
+        );
 
-        const context = this.#accountIdToContext.get(account.id);
-        if (context) {
-          const { walletId, groupId } = context;
+        if (created) {
+          createdGroups.set(groupId, walletId);
+        } else if (!createdGroups.has(groupId)) {
+          // ^ We check that the group has not been created in this same batch before adding it to the `updatedGroups`
+          // map, to avoid sending both created and updated events for the same group:
+          // - Account 1 + Account 2 + Account 3
+          // - Account 1 and 3 belong to the same group
+          // - Account 1 will create the group
+          // - Account 3 will update the group (but we only want to send a created event, not an updated one)
+          updatedGroups.set(groupId, walletId);
+        }
 
-          const wallet = state.accountTree.wallets[walletId];
-          if (wallet) {
-            this.#applyAccountWalletMetadata(state, walletId);
-            this.#applyAccountGroupMetadata(state, walletId, groupId);
-          }
+        const wallet = state.accountTree.wallets[walletId];
+        if (wallet) {
+          this.#applyAccountWalletMetadata(state, walletId);
+          this.#applyAccountGroupMetadata(state, walletId, groupId);
         }
       }
     });
@@ -928,6 +943,13 @@ export class AccountTreeController extends BaseController<
       `${controllerName}:accountTreeChange`,
       this.state.accountTree,
     );
+
+    for (const [groupId, walletId] of createdGroups) {
+      this.#publishAccountGroupCreated(walletId, groupId);
+    }
+    for (const [groupId, walletId] of updatedGroups) {
+      this.#publishAccountGroupUpdated(walletId, groupId);
+    }
   }
 
   /**
@@ -957,6 +979,8 @@ export class AccountTreeController extends BaseController<
     }
 
     const previousSelectedAccountGroup = this.state.selectedAccountGroup;
+    const updatedGroups = new Map<AccountGroupId, AccountWalletId>();
+    const removedGroups = new Set<AccountGroupId>();
 
     this.update((state) => {
       for (const { id: accountId, context } of knownAccounts) {
@@ -980,6 +1004,12 @@ export class AccountTreeController extends BaseController<
           }
           if (accounts.length === 0) {
             this.#pruneEmptyGroupAndWallet(state, walletId, groupId);
+
+            // If the group gets pruned, we should not consider it as updated.
+            updatedGroups.delete(groupId);
+            removedGroups.add(groupId);
+          } else {
+            updatedGroups.set(groupId, walletId);
           }
         }
       }
@@ -994,6 +1024,13 @@ export class AccountTreeController extends BaseController<
       `${controllerName}:accountTreeChange`,
       this.state.accountTree,
     );
+
+    for (const [groupId, walletId] of updatedGroups) {
+      this.#publishAccountGroupUpdated(walletId, groupId);
+    }
+    for (const groupId of removedGroups) {
+      this.#publishAccountGroupRemoved(groupId);
+    }
 
     const newSelectedAccountGroup = this.state.selectedAccountGroup;
     if (newSelectedAccountGroup !== previousSelectedAccountGroup) {
@@ -1039,6 +1076,49 @@ export class AccountTreeController extends BaseController<
   }
 
   /**
+   * Publishes the `:accountGroupCreated` event for a newly added group.
+   * No-op if the group is not in state (defensive).
+   *
+   * @param walletId - The parent wallet ID.
+   * @param groupId - The newly created group's ID.
+   */
+  #publishAccountGroupCreated(
+    walletId: AccountWalletId,
+    groupId: AccountGroupId,
+  ): void {
+    const group = this.state.accountTree.wallets[walletId]?.groups[groupId];
+    if (group) {
+      this.messenger.publish(`${controllerName}:accountGroupCreated`, group);
+    }
+  }
+
+  /**
+   * Publishes the `:accountGroupUpdated` event for an existing group.
+   * No-op if the group is not in state (e.g. it was pruned).
+   *
+   * @param walletId - The parent wallet ID.
+   * @param groupId - The updated group's ID.
+   */
+  #publishAccountGroupUpdated(
+    walletId: AccountWalletId,
+    groupId: AccountGroupId,
+  ): void {
+    const group = this.state.accountTree.wallets[walletId]?.groups[groupId];
+    if (group) {
+      this.messenger.publish(`${controllerName}:accountGroupUpdated`, group);
+    }
+  }
+
+  /**
+   * Publishes the `:accountGroupRemoved` event for a pruned group.
+   *
+   * @param groupId - The removed group's ID.
+   */
+  #publishAccountGroupRemoved(groupId: AccountGroupId): void {
+    this.messenger.publish(`${controllerName}:accountGroupRemoved`, groupId);
+  }
+
+  /**
    * Insert an account inside an account tree.
    *
    * We go over multiple rules to try to "match" the account following
@@ -1047,11 +1127,12 @@ export class AccountTreeController extends BaseController<
    *
    * @param wallets - Account tree.
    * @param account - The account to be inserted.
+   * @returns The wallet ID, group ID, and whether the group has been created or not.
    */
   #insert(
     wallets: AccountTreeControllerState['accountTree']['wallets'],
     account: InternalAccount,
-  ) {
+  ): { walletId: AccountWalletId; groupId: AccountGroupId; created: boolean } {
     const result =
       this.#getEntropyRule().match(account) ??
       this.#getSnapRule().match(account) ??
@@ -1085,6 +1166,7 @@ export class AccountTreeController extends BaseController<
     let group = wallet.groups[groupId];
     const { type, id } = account;
     const sortOrder = ACCOUNT_TYPE_TO_SORT_ORDER[type];
+    const created = !group;
 
     if (!group) {
       log(`[${walletId}] Add new group: [${groupId}]`);
@@ -1142,6 +1224,8 @@ export class AccountTreeController extends BaseController<
       groupId: group.id,
       sortOrder,
     });
+
+    return { walletId: wallet.id, groupId: group.id, created };
   }
 
   /**
@@ -1525,6 +1609,8 @@ export class AccountTreeController extends BaseController<
         finalName;
     });
 
+    this.#publishAccountGroupUpdated(walletId, groupId);
+
     // Trigger atomic sync for group rename (only for groups from entropy wallets)
     if (wallet.type === AccountWalletType.Entropy) {
       this.#backupAndSyncService.enqueueSingleGroupSync(groupId);
@@ -1595,6 +1681,10 @@ export class AccountTreeController extends BaseController<
       }
     });
 
+    if (walletId) {
+      this.#publishAccountGroupUpdated(walletId, groupId);
+    }
+
     // Trigger atomic sync for group pinning (only for groups from entropy wallets)
     if (
       walletId &&
@@ -1636,6 +1726,10 @@ export class AccountTreeController extends BaseController<
           hidden;
       }
     });
+
+    if (walletId) {
+      this.#publishAccountGroupUpdated(walletId, groupId);
+    }
 
     // Trigger atomic sync for group hiding (only for groups from entropy wallets)
     if (
