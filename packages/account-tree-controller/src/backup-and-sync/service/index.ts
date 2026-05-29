@@ -502,6 +502,12 @@ export class BackupAndSyncService {
    * dequeued: locates the matching wallet and runs the per-wallet sync body
    * under the wallet trace.
    *
+   * Sets `isAccountTreeSyncingInProgress` for the duration of the sync so
+   * that `enqueueSingleGroupSync` calls triggered by `#insert` (when
+   * `createLocalGroupsFromUserStorage` materializes remote groups locally)
+   * are gated off and don't fanout per-group GET+PUT roundtrips for data we
+   * just pulled.
+   *
    * @param entropySourceId - The entropy source ID of the wallet to sync.
    */
   async #performSyncForWalletInner(entropySourceId: string): Promise<void> {
@@ -513,12 +519,26 @@ export class BackupAndSyncService {
       return;
     }
 
-    await this.#context.traceFn(
-      {
-        name: TraceName.AccountSyncWallet,
+    this.#context.controllerStateUpdateFn(
+      (state: AccountTreeControllerState) => {
+        state.isAccountTreeSyncingInProgress = true;
       },
-      () => this.#performWalletSyncInner(wallet),
     );
+
+    try {
+      await this.#context.traceFn(
+        {
+          name: TraceName.AccountSyncWallet,
+        },
+        () => this.#performWalletSyncInner(wallet),
+      );
+    } finally {
+      this.#context.controllerStateUpdateFn(
+        (state: AccountTreeControllerState) => {
+          state.isAccountTreeSyncingInProgress = false;
+        },
+      );
+    }
   }
 
   /**
