@@ -1885,7 +1885,7 @@ describe('Token service', () => {
     it('passes unknown query params through to the URL', async () => {
       nock(TOKEN_END_POINT_API)
         .get(
-          '/v1/rwas?chainIds=eip155%3A1&foo=bar&enabled=true&page=2&limit=100',
+          '/v1/rwas?chainIds=eip155%3A1&limit=100&foo=bar&enabled=true&page=2',
         )
         .reply(200, sampleRwasResponse)
         .persist();
