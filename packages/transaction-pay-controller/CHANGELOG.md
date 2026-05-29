@@ -10,7 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Add `getPaymentOverrideData` callback to `TransactionPayControllerOptions`, when `paymentOverride` is defined on a transaction, this callback is invoked the resulting transactions are injected into the relay quote steps ([#8870](https://github.com/MetaMask/core/pull/8870))
-- Add `Server` pay strategy that routes quote, submit, and status requests through the MetaMask intents API, supporting both gasless and non-gasless execution paths; gated by the `payStrategies.server.enabled` feature flag (default: enabled) and the `payStrategies.server.providerPriority` provider list ([#8894](https://github.com/MetaMask/core/pull/8894)).
+- Add `Server` pay strategy that routes quote, submit, and status requests through the MetaMask intents API ([#8894](https://github.com/MetaMask/core/pull/8894)).
 
 ### Changed
 
