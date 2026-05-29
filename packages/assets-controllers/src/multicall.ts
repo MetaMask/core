@@ -315,8 +315,6 @@ const MULTICALL_CONTRACT_BY_CHAINID = {
   '0xa5bf': '0xcA11bde05977b3631167028862bE2a173976CA11',
   // Tempo Mainnet (4217)
   '0x1079': '0xcA11bde05977b3631167028862bE2a173976CA11',
-  // IoTeX Mainnet (4689)
-  '0x1251': '0xcA11bde05977b3631167028862bE2a173976CA11',
 } as Record<Hex, Hex>;
 
 const multicallAbi = [
