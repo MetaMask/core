@@ -68,6 +68,10 @@ export const MOCK_NOTIFICATION_PREFERENCES: NotificationPreferences = {
       'e8f2a1b3-5c4d-4e6f-8a9b-2c3d4e5f6a7b',
     ],
   },
+  agenticCli: {
+    inAppNotificationsEnabled: true,
+    pushNotificationsEnabled: false,
+  },
 };
 
 export const MOCK_ASSETS_WATCHLIST_BLOB: AssetsWatchlistBlob = {
