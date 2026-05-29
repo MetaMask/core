@@ -232,6 +232,7 @@ const chainIdToNativeTokenAddress: Record<Hex, Hex> = {
   '0x64': '0xe91d153e0b41518a2ce8dd3d7944fa863463a97d', // Gnosis
   '0x3dc': '0x779ded0c9e1022225f8e0630b35a9b54be713736', // Stable - Native symbol: USDT0
   '0x440': '0xdeaddeaddeaddeaddeaddeaddeaddeaddead0000', // Metis Andromeda
+  '0x1251': '0xa00744882684c3e4747faefd68d283ea44099d03', // IoTeX Mainnet - native IOTX via WIOTX
   '0x1388': '0xdeaddeaddeaddeaddeaddeaddeaddeaddead0000', // Mantle
 };
 
@@ -292,6 +293,7 @@ export const SPOT_PRICES_SUPPORT_INFO = {
   '0xab5': 'eip155:2741/erc20:0x0000000000000000000000000000000000000000', // Abstract - Native symbol: ETH
   '0x1079': 'eip155:4217/slip44:60', // Tempo Mainnet - No native asset
   '0x10e6': 'eip155:4326/erc20:0x0000000000000000000000000000000000000000', // MegaETH Mainnet - Native symbol: ETH
+  '0x1251': 'eip155:4689/erc20:0xa00744882684c3e4747faefd68d283ea44099d03', // IoTeX Mainnet - native IOTX (via WIOTX, == coingecko "iotex")
   '0x1388': 'eip155:5000/erc20:0xdeaddeaddeaddeaddeaddeaddeaddeaddead0000', // Mantle - Native symbol: MNT
   '0x1b58': 'eip155:7000/slip44:7000', // ZetaChain - Native symbol: ZETA
   '0x2105': 'eip155:8453/slip44:60', // Base - Native symbol: ETH
