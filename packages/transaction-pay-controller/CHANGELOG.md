@@ -20,8 +20,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- `getLiveTokenBalance` now prefers the Infura RPC endpoint for a chain when querying live token balances, falling back to the chain's default endpoint if no Infura endpoint is configured ([#8839](https://github.com/MetaMask/core/pull/8839))
-- `rpcRequest` now accepts a single options object instead of positional parameters, and supports a generic type parameter for typed responses ([#8839](https://github.com/MetaMask/core/pull/8839))
+- `getLiveTokenBalance` now prefers the chain's Infura endpoint when querying live token balances, falling back to the default endpoint if no Infura endpoint is configured ([#8839](https://github.com/MetaMask/core/pull/8839))
+  - Introduces a new `provider` utility module with `getNetworkClientId` and a refactored `rpcRequest` that accepts a single options object and supports a generic response type.
 - Bump `@metamask/assets-controllers` from `^108.1.0` to `^108.2.0` ([#8911](https://github.com/MetaMask/core/pull/8911))
 - Bump `@metamask/assets-controller` from `^8.0.1` to `^8.1.0` ([#8912](https://github.com/MetaMask/core/pull/8912), [#8919](https://github.com/MetaMask/core/pull/8919))
 - Bump `@metamask/bridge-status-controller` from `^71.2.0` to `^72.0.0` ([#8912](https://github.com/MetaMask/core/pull/8912), [#8935](https://github.com/MetaMask/core/pull/8935))
@@ -69,8 +69,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/bridge-status-controller` from `^71.1.4` to `^71.2.0` ([#8848](https://github.com/MetaMask/core/pull/8848))
 - Bump `@metamask/transaction-controller` from `^65.4.0` to `^66.0.0` ([#8848](https://github.com/MetaMask/core/pull/8848))
 - Bump `@metamask/gas-fee-controller` from `^26.2.1` to `^26.2.2` ([#8834](https://github.com/MetaMask/core/pull/8834))
-- `getLiveTokenBalance` now prefers the Infura RPC endpoint for a chain when querying live token balances, falling back to the chain's default endpoint if no Infura endpoint is configured ([#8839](https://github.com/MetaMask/core/pull/8839))
-- `rpcRequest` now accepts a single options object instead of positional parameters, and supports a generic type parameter for typed responses ([#8839](https://github.com/MetaMask/core/pull/8839))
 
 ### Fixed
 
