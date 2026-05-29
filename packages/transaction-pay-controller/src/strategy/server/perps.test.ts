@@ -13,7 +13,6 @@ import {
 } from './perps';
 
 const BRIDGE_ADDRESS_LOWER = '0x2df1c51e09aecf9cacb7bc98cb1742757f163df7';
-const BRIDGE_FRAGMENT = BRIDGE_ADDRESS_LOWER.slice(2);
 
 const baseRequest: QuoteRequest = {
   from: '0x97e298b35d580c080f4a59f1f0fabd09b5add715',
@@ -26,15 +25,11 @@ const baseRequest: QuoteRequest = {
   targetTokenAddress: ARBITRUM_USDC_ADDRESS,
 };
 
-const transferToBridgeData =
-  `0xa9059cbb000000000000000000000000${BRIDGE_FRAGMENT}` +
-  '00000000000000000000000000000000000000000000000000000000000f4240';
-
 const bridgeTransaction = {
   txParams: {
     from: '0x97e298b35d580c080f4a59f1f0fabd09b5add715',
-    to: ARBITRUM_USDC_ADDRESS,
-    data: transferToBridgeData,
+    to: BRIDGE_ADDRESS_LOWER,
+    data: '0x',
   },
 } as unknown as TransactionMeta;
 
@@ -48,7 +43,7 @@ const innocuousTransaction = {
 
 describe('strategy/server/perps', () => {
   describe('isServerPerpsDepositRequest', () => {
-    it('returns true when txParams.data references the Hyperliquid bridge', () => {
+    it('returns true when txParams.to references the Hyperliquid bridge', () => {
       expect(isServerPerpsDepositRequest(baseRequest, bridgeTransaction)).toBe(
         true,
       );
@@ -74,13 +69,11 @@ describe('strategy/server/perps', () => {
       );
     });
 
-    it('matches the bridge address case-insensitively in calldata', () => {
+    it('matches the bridge address case-insensitively in txParams.to', () => {
       const upperTransaction = {
         txParams: {
-          to: ARBITRUM_USDC_ADDRESS,
-          data:
-            `0xa9059cbb000000000000000000000000${BRIDGE_FRAGMENT.toUpperCase()}` +
-            '00000000000000000000000000000000000000000000000000000000000f4240',
+          to: BRIDGE_ADDRESS_LOWER.toUpperCase(),
+          data: '0x',
         },
       } as unknown as TransactionMeta;
 
@@ -89,7 +82,7 @@ describe('strategy/server/perps', () => {
       );
     });
 
-    it('returns false when transaction data does not reference the bridge', () => {
+    it('returns false when transaction to does not reference the bridge', () => {
       expect(
         isServerPerpsDepositRequest(baseRequest, innocuousTransaction),
       ).toBe(false);

@@ -140,12 +140,6 @@ export type AcrossConfig = {
 
 export type PayStrategiesConfigRaw = {
   across?: AcrossConfigRaw;
-  server?: {
-    enabled?: boolean;
-    baseUrl?: string;
-    pollingInterval?: number;
-    pollingTimeout?: number;
-  };
   relay?: {
     enabled?: boolean;
     originGasOverhead?: string;
@@ -158,6 +152,12 @@ type FeatureFlagsExtendedRaw = {
   payStrategies?: {
     relay?: {
       gaslessEnabled?: boolean;
+    };
+    server?: {
+      enabled?: boolean;
+      baseUrl?: string;
+      pollingInterval?: number;
+      pollingTimeout?: number;
     };
   };
 };
@@ -259,6 +259,7 @@ function normalizeStrategyOverride(
 
 function normalizeStrategyRoutingConfig(
   featureFlags: FeatureFlagsRaw,
+  serverEnabled: boolean,
 ): StrategyRoutingConfig {
   const strategyOrder = normalizeStrategyList(featureFlags.strategyOrder);
 
@@ -268,7 +269,7 @@ function normalizeStrategyRoutingConfig(
         enabled: featureFlags.payStrategies?.across?.enabled ?? false,
       },
       server: {
-        enabled: featureFlags.payStrategies?.server?.enabled ?? true,
+        enabled: serverEnabled,
       },
       relay: {
         enabled: featureFlags.payStrategies?.relay?.enabled ?? true,
@@ -297,8 +298,15 @@ function getStrategyRoutingConfig(
   const featureFlags = state.remoteFeatureFlags?.confirmations_pay as
     | FeatureFlagsRaw
     | undefined;
+  const extendedFeatureFlags =
+    (state.remoteFeatureFlags?.confirmations_pay_extended as
+      | FeatureFlagsExtendedRaw
+      | undefined) ?? {};
 
-  return normalizeStrategyRoutingConfig(featureFlags ?? {});
+  const serverEnabled =
+    extendedFeatureFlags.payStrategies?.server?.enabled ?? false;
+
+  return normalizeStrategyRoutingConfig(featureFlags ?? {}, serverEnabled);
 }
 
 function filterEnabledStrategies(
@@ -492,10 +500,15 @@ export function getPayStrategiesConfig(
     (state.remoteFeatureFlags?.confirmations_pay as
       | FeatureFlagsRaw
       | undefined) ?? {};
+  const extendedFeatureFlags =
+    (state.remoteFeatureFlags?.confirmations_pay_extended as
+      | FeatureFlagsExtendedRaw
+      | undefined) ?? {};
   const payStrategies = featureFlags.payStrategies ?? {};
+  const extendedPayStrategies = extendedFeatureFlags.payStrategies ?? {};
 
   const acrossRaw = payStrategies.across ?? {};
-  const serverRaw = payStrategies.server ?? {};
+  const serverRaw = extendedPayStrategies.server ?? {};
   const relayRaw = payStrategies.relay ?? {};
 
   const across = {
@@ -509,7 +522,7 @@ export function getPayStrategiesConfig(
   };
 
   const server = {
-    enabled: serverRaw.enabled ?? true,
+    enabled: serverRaw.enabled ?? false,
     baseUrl: serverRaw.baseUrl ?? DEFAULT_SERVER_BASE_URL,
     pollingInterval: serverRaw.pollingInterval ?? SERVER_POLLING_INTERVAL,
     pollingTimeout: serverRaw.pollingTimeout,

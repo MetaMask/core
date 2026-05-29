@@ -14,6 +14,7 @@ import type {
   TransactionPayFees,
   TransactionPayQuote,
 } from '../../types';
+import { getFiatValueFromUsd } from '../../utils/amounts';
 import {
   getFeatureFlags,
   getSlippage,
@@ -26,7 +27,7 @@ import {
 } from '../../utils/gas-station';
 import { estimateQuoteGasLimits } from '../../utils/quote-gas';
 import type { QuoteGasTransaction } from '../../utils/quote-gas';
-import { getNativeToken, getTokenBalance } from '../../utils/token';
+import { getNativeToken, getTokenBalance, getTokenFiatRate } from '../../utils/token';
 import { normalizeServerPerpsRequest } from './perps';
 import { fetchServerQuote } from './server-api';
 import type {
@@ -47,6 +48,17 @@ const ZERO_FIAT_VALUE = { fiat: '0', usd: '0' };
 
 type FulfilledServerQuoteResult = ServerQuoteResult & {
   quote: NonNullable<ServerQuoteResult['quote']>;
+};
+
+type SourceNetworkCost = Pick<
+  TransactionPayFees['sourceNetwork'],
+  'estimate' | 'max'
+> & {
+  gasLimits: number[];
+  is7702: boolean;
+  isSourceGasFeeToken?: boolean;
+  maxFeePerGas: string | undefined;
+  maxPriorityFeePerGas: string | undefined;
 };
 
 /**
@@ -90,10 +102,6 @@ async function getQuotesForRequest(
     const response = await fetchServerQuote(messenger, body, signal);
 
     log('Raw quote response', response);
-    console.log(
-      '[server-quotes] raw response',
-      JSON.stringify(response, null, 2),
-    );
 
     const fulfilledResults = response.results.filter(isFulfilledResult);
 
@@ -104,10 +112,6 @@ async function getQuotesForRequest(
     );
 
     log('Normalized quotes', normalized);
-    console.log(
-      '[server-quotes] normalized gasLimits',
-      normalized.map((quote) => quote.original.client),
-    );
 
     return normalized;
   } catch (error) {
@@ -232,6 +236,26 @@ async function normalizeQuote(
     steps: quote.steps,
   });
 
+  const sourceFiatRate = getTokenFiatRate(
+    messenger,
+    quoteRequest.sourceTokenAddress,
+    quoteRequest.sourceChainId,
+  );
+
+  const usdToFiatRate = sourceFiatRate
+    ? new BigNumber(sourceFiatRate.fiatRate).dividedBy(sourceFiatRate.usdRate)
+    : new BigNumber(1);
+
+  const metaMask = getFiatValueFromUsd(
+    new BigNumber(quote.fees.metamask),
+    usdToFiatRate,
+  );
+
+  const provider = getFiatValueFromUsd(
+    new BigNumber(quote.fees.provider),
+    usdToFiatRate,
+  );
+
   return {
     dust: ZERO_FIAT_VALUE,
     estimatedDuration: quote.duration,
@@ -239,11 +263,8 @@ async function normalizeQuote(
       ...(sourceNetwork.isSourceGasFeeToken
         ? { isSourceGasFeeToken: true }
         : {}),
-      metaMask: ZERO_FIAT_VALUE,
-      provider: {
-        fiat: '0',
-        usd: quote.fees.provider,
-      },
+      metaMask,
+      provider,
       sourceNetwork: {
         estimate: sourceNetwork.estimate,
         max: sourceNetwork.max,
@@ -268,10 +289,18 @@ async function normalizeQuote(
     },
     request: quoteRequest,
     sourceAmount: {
-      fiat: '0',
+      fiat: sourceFiatRate
+        ? new BigNumber(quote.input.formatted)
+            .multipliedBy(sourceFiatRate.fiatRate)
+            .toString(10)
+        : '0',
       human: quote.input.formatted,
       raw: quote.input.raw,
-      usd: '0',
+      usd: sourceFiatRate
+        ? new BigNumber(quote.input.formatted)
+            .multipliedBy(sourceFiatRate.usdRate)
+            .toString(10)
+        : '0',
     },
     strategy: TransactionPayStrategy.Server,
     targetAmount: {
@@ -280,17 +309,6 @@ async function normalizeQuote(
     },
   };
 }
-
-type SourceNetworkCost = Pick<
-  TransactionPayFees['sourceNetwork'],
-  'estimate' | 'max'
-> & {
-  gasLimits: number[];
-  is7702: boolean;
-  isSourceGasFeeToken?: boolean;
-  maxFeePerGas: string | undefined;
-  maxPriorityFeePerGas: string | undefined;
-};
 
 async function calculateSourceNetworkCost({
   gasless,
@@ -326,7 +344,13 @@ async function calculateSourceNetworkCost({
   const firstStep = steps[0];
   const chainIdHex = toHex(firstStep.chainId);
 
-  const gasFeeEstimate = getGasFee(chainIdHex, messenger);
+  const needsGasFeeEstimate =
+    !firstStep.maxFeePerGas && !firstStep.maxPriorityFeePerGas;
+
+  const gasFeeEstimate = needsGasFeeEstimate
+    ? getGasFee(chainIdHex, messenger)
+    : { maxFeePerGas: undefined, maxPriorityFeePerGas: undefined };
+
   const maxFeePerGas = firstStep.maxFeePerGas ?? gasFeeEstimate.maxFeePerGas;
   const maxPriorityFeePerGas =
     firstStep.maxPriorityFeePerGas ?? gasFeeEstimate.maxPriorityFeePerGas;
@@ -439,9 +463,13 @@ function stepToGasTransaction(
 function getSingleTransactionData(
   transaction: TransactionMeta,
 ): Hex | undefined {
-  return transaction.nestedTransactions?.length === 1
-    ? transaction.nestedTransactions[0].data
-    : (transaction.txParams?.data as Hex | undefined);
+  for (const nested of transaction.nestedTransactions ?? []) {
+    if (nested.data && nested.data !== '0x') {
+      return nested.data as Hex;
+    }
+  }
+
+  return transaction.txParams?.data as Hex | undefined;
 }
 
 function isFulfilledResult(

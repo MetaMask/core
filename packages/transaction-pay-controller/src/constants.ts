@@ -69,8 +69,8 @@ export enum TransactionPayStrategy {
   Across = 'across',
   Bridge = 'bridge',
   Fiat = 'fiat',
-  Server = 'server',
   Relay = 'relay',
+  Server = 'server',
   Test = 'test',
 }
 

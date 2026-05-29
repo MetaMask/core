@@ -241,12 +241,6 @@ async function submitViaTransactionController(
         params: transactionParams[0],
         options: addTransactionOptions,
       });
-      console.log(
-        '[server-submit] addTransaction params',
-        transactionParams[0],
-        'options',
-        addTransactionOptions,
-      );
 
       await messenger.call(
         'TransactionController:addTransaction',
@@ -294,10 +288,6 @@ async function submitViaTransactionController(
       };
 
       log('Calling addTransactionBatch', addTransactionBatchOptions);
-      console.log(
-        '[server-submit] addTransactionBatch options',
-        addTransactionBatchOptions,
-      );
 
       await messenger.call(
         'TransactionController:addTransactionBatch',

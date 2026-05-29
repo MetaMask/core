@@ -9,6 +9,12 @@ import { getServerQuotes } from './server-quotes';
 import { submitServerQuotes } from './server-submit';
 import type { ServerQuote } from './types';
 
+/**
+ * Pay strategy that routes quote, submit, and status requests through the
+ * MetaMask intents API. Supports both gasless (delegated server-execute) and
+ * non-gasless (TransactionController-submitted) execution paths. Gated by the
+ * `payStrategies.server.enabled` remote feature flag.
+ */
 export class ServerStrategy implements PayStrategy<ServerQuote> {
   supports(request: PayStrategyGetQuotesRequest): boolean {
     const config = getPayStrategiesConfig(request.messenger);

@@ -658,9 +658,9 @@ describe('Feature Flags Utils', () => {
       const config = getPayStrategiesConfig(messenger);
 
       expect(config.server).toStrictEqual({
-        enabled: true,
+        enabled: false,
         baseUrl: DEFAULT_SERVER_BASE_URL,
-        pollingInterval: 1000,
+        pollingInterval: 2000,
         pollingTimeout: undefined,
       });
     });
@@ -669,7 +669,7 @@ describe('Feature Flags Utils', () => {
       getRemoteFeatureFlagControllerStateMock.mockReturnValue({
         ...getDefaultRemoteFeatureFlagControllerState(),
         remoteFeatureFlags: {
-          confirmations_pay: {
+          confirmations_pay_extended: {
             payStrategies: {
               server: {
                 enabled: true,
@@ -686,7 +686,7 @@ describe('Feature Flags Utils', () => {
       getRemoteFeatureFlagControllerStateMock.mockReturnValue({
         ...getDefaultRemoteFeatureFlagControllerState(),
         remoteFeatureFlags: {
-          confirmations_pay: {
+          confirmations_pay_extended: {
             payStrategies: {
               server: {
                 baseUrl: 'https://server.test',
@@ -704,14 +704,14 @@ describe('Feature Flags Utils', () => {
 
   describe('getServerPollingInterval', () => {
     it('returns the default polling interval when no feature flag is set', () => {
-      expect(getServerPollingInterval(messenger)).toBe(1000);
+      expect(getServerPollingInterval(messenger)).toBe(2000);
     });
 
     it('returns the configured polling interval when set', () => {
       getRemoteFeatureFlagControllerStateMock.mockReturnValue({
         ...getDefaultRemoteFeatureFlagControllerState(),
         remoteFeatureFlags: {
-          confirmations_pay: {
+          confirmations_pay_extended: {
             payStrategies: {
               server: {
                 pollingInterval: 7500,
@@ -734,7 +734,7 @@ describe('Feature Flags Utils', () => {
       getRemoteFeatureFlagControllerStateMock.mockReturnValue({
         ...getDefaultRemoteFeatureFlagControllerState(),
         remoteFeatureFlags: {
-          confirmations_pay: {
+          confirmations_pay_extended: {
             payStrategies: {
               server: {
                 pollingTimeout: 45000,
@@ -831,10 +831,7 @@ describe('Feature Flags Utils', () => {
     it('returns enabled default strategy order when none is set', () => {
       const strategyOrder = getStrategyOrder(messenger);
 
-      expect(strategyOrder).toStrictEqual([
-        TransactionPayStrategy.Server,
-        TransactionPayStrategy.Relay,
-      ]);
+      expect(strategyOrder).toStrictEqual([TransactionPayStrategy.Relay]);
     });
 
     it('returns strategy order from feature flags', () => {
@@ -895,10 +892,7 @@ describe('Feature Flags Utils', () => {
 
       const strategyOrder = getStrategyOrder(messenger);
 
-      expect(strategyOrder).toStrictEqual([
-        TransactionPayStrategy.Server,
-        TransactionPayStrategy.Relay,
-      ]);
+      expect(strategyOrder).toStrictEqual([TransactionPayStrategy.Relay]);
     });
 
     it('supports undefined local overrides when remote feature flags provide strategy order', () => {
@@ -964,7 +958,6 @@ describe('Feature Flags Utils', () => {
   describe('getStrategyOrder route-aware resolution', () => {
     it('uses default routing config when confirmations_pay flags are absent', () => {
       expect(getStrategyOrder(messenger)).toStrictEqual([
-        TransactionPayStrategy.Server,
         TransactionPayStrategy.Relay,
       ]);
     });
@@ -1285,9 +1278,13 @@ describe('Feature Flags Utils', () => {
           confirmations_pay: {
             payStrategies: {
               relay: { enabled: true },
-              server: { enabled: true },
             },
             strategyOrder: ['server', 'relay'],
+          },
+          confirmations_pay_extended: {
+            payStrategies: {
+              server: { enabled: true },
+            },
           },
         },
       });
@@ -1308,7 +1305,6 @@ describe('Feature Flags Utils', () => {
       });
 
       expect(getStrategyOrder(messenger)).toStrictEqual([
-        TransactionPayStrategy.Server,
         TransactionPayStrategy.Relay,
       ]);
     });

@@ -391,7 +391,7 @@ describe('server-quotes', () => {
         estimatedDuration: quote.duration,
         fees: {
           metaMask: { fiat: '0', usd: '0' },
-          provider: { fiat: '0', usd: quote.fees.provider },
+          provider: { fiat: quote.fees.provider, usd: quote.fees.provider },
           sourceNetwork: {
             estimate: { fiat: '0', human: '0', raw: '0', usd: '0' },
             max: { fiat: '0', human: '0', raw: '0', usd: '0' },

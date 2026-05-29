@@ -4,5 +4,5 @@
  */
 export const SERVER_URL_BASE = 'https://intents.api.cx.metamask.io';
 
-/** Polling interval in milliseconds. Mirrors RELAY_POLLING_INTERVAL. */
-export const SERVER_POLLING_INTERVAL = 1000;
+/** Polling interval in milliseconds. */
+export const SERVER_POLLING_INTERVAL = 2000;
