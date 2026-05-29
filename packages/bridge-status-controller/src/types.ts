@@ -15,6 +15,8 @@ import type {
   TxFeeGasLimits,
   BridgeControllerTrackUnifiedSwapBridgeEventAction,
   BridgeControllerStopPollingForQuotesAction,
+  BatchSellTradesResponse,
+  BridgeControllerGetStateAction,
 } from '@metamask/bridge-controller';
 import type { KeyringControllerSignTypedMessageAction } from '@metamask/keyring-controller';
 import type { Messenger } from '@metamask/messenger';
@@ -139,6 +141,16 @@ export type BridgeHistoryItem = {
    */
   originalTransactionId?: string; // Keep original transaction ID for intent transactions
   batchId?: string;
+  /**
+   * This is defined when the history item is for a batch sell transaction
+   */
+  batchSellData?: BatchSellTradesResponse;
+  /**
+   * This is defined when the history item corresponds to the 7702 batch's delegation tx.
+   * It contains the list of quoteIds for the BatchSell quotes that are part of the 7702 batch.
+   * Each quote can be retrieved from txHistory as `txHistory[quoteId]`.
+   */
+  quoteIds?: string[];
   quote: Quote;
   status: StatusResponse;
   startTime: number; // timestamp in ms
@@ -253,6 +265,8 @@ export type QuoteMetadataSerialized = {
 export type StartPollingForBridgeTxStatusArgs = {
   bridgeTxMeta?: Pick<TransactionMeta, 'id' | 'hash' | 'batchId'>;
   actionId?: string;
+  batchSellData?: BridgeHistoryItem['batchSellData'];
+  quoteIds?: BridgeHistoryItem['quoteIds'];
   /**
    * @deprecated the txMeta or orderUid should be used instead
    */
@@ -284,7 +298,7 @@ export type StartPollingForBridgeTxStatusArgsSerialized = Omit<
   StartPollingForBridgeTxStatusArgs,
   'quoteResponse'
 > & {
-  quoteResponse: QuoteResponse & Partial<QuoteMetadata>;
+  quoteResponse: QuoteResponse & QuoteMetadata;
 };
 
 export type SourceChainTxMetaId = string;
@@ -337,6 +351,7 @@ type AllowedActions =
   | TransactionControllerIsAtomicBatchSupportedAction
   | BridgeControllerTrackUnifiedSwapBridgeEventAction
   | BridgeControllerStopPollingForQuotesAction
+  | BridgeControllerGetStateAction
   | AccountsControllerGetAccountByAddressAction
   | AuthenticationControllerGetBearerTokenAction
   | KeyringControllerSignTypedMessageAction;

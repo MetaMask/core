@@ -222,7 +222,7 @@ async function withController<ReturnValue>(
   const controller = new RpcDataSource({
     messenger: assetsControllerMessenger,
     onActiveChainsUpdated,
-    getNativeAssetForChain: (chainId: ChainId): Caip19AssetId | undefined =>
+    getNativeAssetForChain: (chainId: ChainId): Caip19AssetId =>
       defaultNativeAssetMap[chainId],
     ...options,
   });
@@ -523,14 +523,14 @@ describe('RpcDataSource', () => {
       });
     });
 
-    it('skips native asset call even in the getBalance fallback when Multicall aggregate3 fails', async () => {
+    it('returns empty balances when Multicall aggregate3 fails after retries', async () => {
       const { Web3Provider } = jest.requireMock('@ethersproject/providers');
       jest.mocked(shouldSkipNativeForCaipChainId).mockReturnValue(true);
 
       const mockCall = jest
         .fn()
         .mockRejectedValueOnce(new Error('aggregate3 unavailable'))
-        .mockResolvedValue('0x0');
+        .mockRejectedValueOnce(new Error('aggregate3 unavailable'));
       const mockGetBalance = jest
         .fn()
         .mockResolvedValue({ toString: () => '1000000000000000000' });
@@ -547,12 +547,14 @@ describe('RpcDataSource', () => {
       });
     });
 
-    it('uses getBalance when Multicall aggregate3 fails (#getMulticallProvider getBalance)', async () => {
+    it('uses getBalance when Multicall aggregate3 fails after retries', async () => {
+      const nativeAssetId = 'eip155:1/slip44:60' as Caip19AssetId;
       const { Web3Provider } = jest.requireMock('@ethersproject/providers');
       const mockCall = jest
         .fn()
         .mockRejectedValueOnce(new Error('aggregate3 unavailable'))
-        .mockResolvedValue('0x0');
+        .mockRejectedValueOnce(new Error('aggregate3 unavailable'))
+        .mockRejectedValueOnce(new Error('aggregate3 unavailable'));
       const mockGetBalance = jest
         .fn()
         .mockResolvedValue({ toString: () => '1000000000000000000' });
@@ -564,7 +566,9 @@ describe('RpcDataSource', () => {
       await withController(async ({ controller }) => {
         const response = await controller.fetch(createDataRequest());
         expect(response.assetsBalance).toBeDefined();
-        expect(response.assetsBalance?.[MOCK_ACCOUNT_ID]).toBeDefined();
+        expect(
+          response.assetsBalance?.[MOCK_ACCOUNT_ID]?.[nativeAssetId],
+        ).toStrictEqual({ amount: '1' });
         expect(mockGetBalance).toHaveBeenCalled();
       });
     });

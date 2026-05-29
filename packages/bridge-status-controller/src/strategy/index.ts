@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/prefer-nullish-coalescing */
 import {
+  BatchSellTradesResponse,
   BitcoinTradeData,
   ChainId,
   isBitcoinTrade,
@@ -11,6 +12,7 @@ import {
   TxData,
 } from '@metamask/bridge-controller';
 
+import { submitBatchSellHandler } from './batch-sell-strategy';
 import { submitBatchHandler } from './batch-strategy';
 import { submitEvmHandler as defaultSubmitHandler } from './evm-strategy';
 import { submitIntentHandler } from './intent-strategy';
@@ -22,13 +24,16 @@ const validateParams = <
 >(
   params: SubmitStrategyParams<Trade>,
 ): params is SubmitStrategyParams<TxDataType> => {
-  const txs = [
-    params.quoteResponse.trade,
-    params.quoteResponse.approval,
-    params.quoteResponse.resetApproval,
-  ].filter((tx): tx is TxDataType => tx !== undefined);
+  const txs = params.quoteResponses
+    .flatMap((quoteResponse) => [
+      quoteResponse.trade,
+      quoteResponse.approval,
+      quoteResponse.resetApproval,
+    ])
+    .filter((tx): tx is TxDataType => tx !== undefined);
 
-  switch (params.quoteResponse.quote.srcChainId) {
+  // Assumes all quotes are for the same chain
+  switch (params.quoteResponses[0].quote.srcChainId) {
     case ChainId.SOLANA:
       return txs.every((tx) => typeof tx === 'string');
     case ChainId.BTC:
@@ -40,6 +45,12 @@ const validateParams = <
   }
 };
 
+const validateBatchSellParams = (
+  params: SubmitStrategyParams,
+): params is SubmitStrategyParams<TxData, BatchSellTradesResponse> =>
+  // A BatchSell payload containing at least 1 trade is considered valid
+  Boolean(params.batchSellTrades) && params.quoteResponses.length >= 1;
+
 /**
  * Selects the appropriate submit strategy based on the quote parameters then executes it
  *
@@ -50,7 +61,11 @@ const validateParams = <
 const executeSubmitStrategy = (
   params: SubmitStrategyParams<Trade>,
 ): AsyncGenerator<SubmitStepResult, void, void> => {
-  const { quoteResponse, isStxEnabled, isDelegatedAccount } = params;
+  const {
+    quoteResponses: [quoteResponse],
+    isStxEnabled,
+    isDelegatedAccount,
+  } = params;
 
   // Non-EVM transactions
   if (isNonEvmChainId(quoteResponse.quote.srcChainId)) {
@@ -72,6 +87,11 @@ const executeSubmitStrategy = (
   // Intent transactions
   if (quoteResponse.quote.intent) {
     return submitIntentHandler(params);
+  }
+
+  // Batch sell transactions
+  if (validateBatchSellParams(params)) {
+    return submitBatchSellHandler(params);
   }
 
   // Batched transactions

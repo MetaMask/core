@@ -14,6 +14,7 @@ import {
   CHAIN_ID_HYPERCORE,
   CHAIN_ID_POLYGON,
   NATIVE_TOKEN_ADDRESS,
+  PaymentOverride,
   POLYGON_USDCE_ADDRESS,
 } from '../../constants';
 import { getMessengerMock } from '../../tests/messenger-mock';
@@ -2647,6 +2648,78 @@ describe('Relay Quotes Utils', () => {
         });
 
         expect(result[0].original.metamask.gasLimits).toStrictEqual([]);
+      });
+
+      it('adds extra gas when paymentOverride is set', async () => {
+        successfulFetchMock.mockResolvedValue({
+          ok: true,
+          json: async () => QUOTE_MOCK,
+        } as never);
+
+        const result = await getRelayQuotes({
+          accountSupports7702: true,
+          messenger,
+          requests: [
+            {
+              ...QUOTE_REQUEST_MOCK,
+              paymentOverride: PaymentOverride.MoneyAccount,
+            },
+          ],
+          transaction: TRANSACTION_META_MOCK,
+        });
+
+        expect(calculateGasCostMock).toHaveBeenCalledWith(
+          expect.objectContaining({ gas: 21000 + 75000 }),
+        );
+
+        expect(result[0].original.metamask.gasLimits).toStrictEqual([
+          75000, 21000,
+        ]);
+      });
+
+      it('adds extra gas to combined 7702 limit when paymentOverride is set', async () => {
+        const multiStepQuote = {
+          ...QUOTE_MOCK,
+          steps: [
+            {
+              ...STEP_MOCK,
+              items: [
+                STEP_MOCK.items[0],
+                {
+                  ...STEP_MOCK.items[0],
+                  data: { ...STEP_MOCK.items[0].data, gas: '30000' },
+                },
+              ],
+            },
+          ],
+        };
+
+        successfulFetchMock.mockResolvedValue({
+          ok: true,
+          json: async () => multiStepQuote,
+        } as never);
+
+        estimateGasBatchMock.mockResolvedValue({
+          totalGasLimit: 51000,
+          gasLimits: [51000],
+        });
+
+        const result = await getRelayQuotes({
+          accountSupports7702: true,
+          messenger,
+          requests: [
+            {
+              ...QUOTE_REQUEST_MOCK,
+              paymentOverride: PaymentOverride.MoneyAccount,
+            },
+          ],
+          transaction: TRANSACTION_META_MOCK,
+        });
+
+        expect(result[0].original.metamask.gasLimits).toStrictEqual([
+          51000 + 75000,
+        ]);
+        expect(result[0].original.metamask.is7702).toBe(true);
       });
     });
 
