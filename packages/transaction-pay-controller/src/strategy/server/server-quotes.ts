@@ -27,7 +27,11 @@ import {
 } from '../../utils/gas-station';
 import { estimateQuoteGasLimits } from '../../utils/quote-gas';
 import type { QuoteGasTransaction } from '../../utils/quote-gas';
-import { getNativeToken, getTokenBalance, getTokenFiatRate } from '../../utils/token';
+import {
+  getNativeToken,
+  getTokenBalance,
+  getTokenFiatRate,
+} from '../../utils/token';
 import { normalizeServerPerpsRequest } from './perps';
 import { fetchServerQuote } from './server-api';
 import type {

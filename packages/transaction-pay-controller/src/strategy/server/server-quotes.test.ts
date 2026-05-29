@@ -18,7 +18,11 @@ import {
   getGasStationEligibility,
 } from '../../utils/gas-station';
 import { estimateQuoteGasLimits } from '../../utils/quote-gas';
-import { getNativeToken, getTokenBalance } from '../../utils/token';
+import {
+  getNativeToken,
+  getTokenBalance,
+  getTokenFiatRate,
+} from '../../utils/token';
 import { fetchServerQuote } from './server-api';
 import { getServerQuotes } from './server-quotes';
 import { ServerProviderName, ServerTradeType } from './types';
@@ -425,6 +429,29 @@ describe('server-quotes', () => {
         targetAmount: { fiat: '0', usd: '0' },
       },
     ]);
+  });
+
+  it('computes sourceAmount fiat and usd from token fiat rate when available', async () => {
+    jest.mocked(getTokenFiatRate).mockReturnValue({
+      fiatRate: '2',
+      usdRate: '1.5',
+    });
+
+    const result = await getServerQuotes({
+      accountSupports7702: true,
+      messenger,
+      requests: [QUOTE_REQUEST_MOCK],
+      transaction: TRANSACTION_META_MOCK,
+    });
+
+    const { quote } = FULFILLED_RESULT_MOCK;
+
+    expect(result[0].sourceAmount).toStrictEqual({
+      fiat: '2',
+      human: quote.input.formatted,
+      raw: quote.input.raw,
+      usd: '1.5',
+    });
   });
 
   it('filters zero target amount requests unless they are post-quote or max amount requests', async () => {

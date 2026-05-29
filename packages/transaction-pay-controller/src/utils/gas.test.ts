@@ -611,7 +611,8 @@ describe('Gas Utils', () => {
 
       gasState.gasFeeEstimatesByChainId[
         CHAIN_ID_MOCK
-      ].gasFeeEstimates.medium.suggestedMaxPriorityFeePerGas = undefined as never;
+      ].gasFeeEstimates.medium.suggestedMaxPriorityFeePerGas =
+        undefined as never;
 
       getGasFeeControllerStateMock.mockReturnValue(gasState);
 
