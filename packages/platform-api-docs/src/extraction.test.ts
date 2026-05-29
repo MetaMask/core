@@ -1535,6 +1535,47 @@ export interface FooAction {
     });
   });
 
+  it('skips a capability-type-constructor alias whose body is a qualified-name constructor reference', async () => {
+    expect.assertions(1);
+
+    await withinSandbox(async ({ directoryPath }) => {
+      await fs.promises.writeFile(
+        path.join(directoryPath, 'helpers.ts'),
+        `
+export type ControllerGetStateAction<T, S> = {
+  type: \`\${T & string}:getState\`;
+  handler: () => S;
+};
+`,
+      );
+
+      const filePath = path.join(directoryPath, 'types.ts');
+      // A namespace import produces a qualified-name reference on the right-
+      // hand side of the alias body (`Helpers.ControllerGetStateAction<...>`).
+      // The walker cannot resolve qualified-name constructor references and
+      // should skip the slot without crashing, leaving no items.
+
+      const items = await extractFromWrittenFile(
+        filePath,
+        `
+import * as Helpers from './helpers';
+
+export type LocalAction = {
+  type: 'Local:do';
+  handler: () => void;
+};
+
+export type QualifiedAction = Helpers.ControllerGetStateAction<'Foo', object>;
+
+export type LocalMessenger = Messenger<'Local', LocalAction | QualifiedAction, never>;
+`,
+        directoryPath,
+      );
+
+      expect(items).toHaveLength(1);
+    });
+  });
+
   it('ignores capability-type-constructor aliases whose name does not match', async () => {
     expect.assertions(1);
 
