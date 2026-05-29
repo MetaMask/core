@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- `MulticallClient` no longer falls back to individual RPC calls by default; it retries and returns failed responses when retries are exhausted. Pass `{ fallbackToSingleCalls: true }` to `batchBalanceOf` to opt into per-token RPC fallback after retries (used by balance fetching, not token detection)
+- `MulticallClient` no longer falls back to individual RPC calls by default; it retries and returns failed responses when retries are exhausted. Pass `{ fallbackToSingleCalls: true }` to `batchBalanceOf` to opt into per-token RPC fallback after retries (used by balance fetching, not token detection) ([#8925](https://github.com/MetaMask/core/pull/8925))
 
 ## [8.1.0]
 
