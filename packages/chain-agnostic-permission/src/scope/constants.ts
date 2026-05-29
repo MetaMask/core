@@ -1,4 +1,4 @@
-import MetaMaskOpenRPCDocument from '@metamask/api-specs';
+import { MetaMaskOpenRPCDocument } from '@metamask/api-specs';
 
 import type { NonWalletKnownCaipNamespace } from './types';
 
