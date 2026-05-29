@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add IoTeX Mainnet (chain 4689) support ([#__PRNUM__](https://github.com/MetaMask/core/pull/__PRNUM__))
+  - Add `0x1251` to `SPOT_PRICES_SUPPORT_INFO` in `codefi-v2.ts`
+  - Add `0x1251` to `chainIdToNativeTokenAddress` in `codefi-v2.ts`
+  - Add `0x1251` to `MULTICALL_CONTRACT_BY_CHAINID` in `multicall.ts`
+
 ### Changed
 
 - Bump `@metamask/account-tree-controller` from `^7.4.0` to `^7.5.0` ([#8912](https://github.com/MetaMask/core/pull/8912))
