@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `fetchRwas` to fetch real-world asset tokens from the Token API ([#8931](https://github.com/MetaMask/core/pull/8931))
+
 ### Changed
 
 - Bump `@metamask/account-tree-controller` from `^7.4.0` to `^7.5.0` ([#8912](https://github.com/MetaMask/core/pull/8912))

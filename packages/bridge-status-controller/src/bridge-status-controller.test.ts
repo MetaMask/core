@@ -3334,7 +3334,7 @@ describe('BridgeStatusController', () => {
             quote: { ...mockEvmQuoteResponse.quote, srcChainId: 59144 },
             trade: {
               ...(mockEvmQuoteResponse.trade as TxData),
-              gasLimit: undefined,
+              gasLimit: undefined as never,
             },
           };
 
@@ -3381,7 +3381,7 @@ describe('BridgeStatusController', () => {
             quote: { ...mockEvmQuoteResponse.quote, srcChainId: 8453 },
             trade: {
               ...(mockEvmQuoteResponse.trade as TxData),
-              gasLimit: undefined,
+              gasLimit: undefined as never,
             },
           };
 
@@ -5110,6 +5110,10 @@ describe('BridgeStatusController', () => {
       mockFetchFn = jest
         .fn()
         .mockResolvedValueOnce(MockStatusResponse.getPending());
+
+      jest.spyOn(Date, 'now').mockReturnValueOnce(1779988919705);
+      jest.spyOn(Date, 'now').mockReturnValueOnce(1779988919706);
+      jest.spyOn(Date, 'now').mockReturnValue(1779988919707);
 
       // Create base history item for actionId-keyed entries
       const baseHistoryItem = MockTxHistory.getPending().bridgeTxMetaId1;
