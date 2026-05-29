@@ -699,7 +699,8 @@ async function submitViaTransactionController(
       ? toHex(metamask.gasLimits[0])
       : undefined;
 
-    const prependCount = allParams.length - normalizedParams.length - appendCount;
+    const prependCount =
+      allParams.length - normalizedParams.length - appendCount;
 
     const transactions = allParams.map((singleParams, index) => {
       const gasLimit = gasLimits[index];

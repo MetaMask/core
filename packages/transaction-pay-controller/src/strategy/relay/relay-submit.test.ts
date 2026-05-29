@@ -1409,9 +1409,7 @@ describe('Relay Submit Utils', () => {
       });
 
       it('assigns correct gas limits', async () => {
-        request.quotes[0].original.metamask.gasLimits = [
-          21000, 30000, 75000,
-        ];
+        request.quotes[0].original.metamask.gasLimits = [21000, 30000, 75000];
 
         await submitRelayQuotes(request);
 
