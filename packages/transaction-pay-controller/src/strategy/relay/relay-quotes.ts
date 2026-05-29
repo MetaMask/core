@@ -1003,11 +1003,7 @@ function appendPaymentOverrideGas(relayGas: RelayGasResult): RelayGasResult {
 
   const gasLimits = relayGas.is7702
     ? [relayGas.gasLimits[0] + totalOverrideGas]
-    : [
-        ...relayGas.gasLimits,
-        POST_QUOTE_OVERRIDE_GAS,
-        POST_QUOTE_OVERRIDE_GAS,
-      ];
+    : [...relayGas.gasLimits, POST_QUOTE_OVERRIDE_GAS, POST_QUOTE_OVERRIDE_GAS];
 
   return {
     totalGasEstimate: relayGas.totalGasEstimate + totalOverrideGas,
