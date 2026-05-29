@@ -2755,7 +2755,7 @@ describe('Relay Quotes Utils', () => {
         });
 
         expect(result[0].original.metamask.gasLimits).toStrictEqual([
-          79000, 21000, 75000,
+          79000, 21000, 35000, 35000,
         ]);
       });
 
@@ -2813,7 +2813,7 @@ describe('Relay Quotes Utils', () => {
         });
 
         expect(result[0].original.metamask.gasLimits).toStrictEqual([
-          51000 + 79000 + 75000,
+          51000 + 79000 + 70000,
         ]);
         expect(result[0].original.metamask.is7702).toBe(true);
       });

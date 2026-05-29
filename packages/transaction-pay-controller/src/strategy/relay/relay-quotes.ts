@@ -68,6 +68,9 @@ const log = createModuleLogger(projectLogger, 'relay-strategy');
 // Hardcoded gas allowance for the prepended payment override transaction(s).
 const PAYMENT_OVERRIDE_GAS = 75_000;
 
+// Per-entry gas allowance for each appended payment override in post-quote flows.
+const POST_QUOTE_OVERRIDE_GAS = 35_000;
+
 /**
  * Fetches Relay quotes.
  *
@@ -996,13 +999,19 @@ function prependPaymentOverrideGas(relayGas: RelayGasResult): RelayGasResult {
 }
 
 function appendPaymentOverrideGas(relayGas: RelayGasResult): RelayGasResult {
+  const totalOverrideGas = POST_QUOTE_OVERRIDE_GAS * 2;
+
   const gasLimits = relayGas.is7702
-    ? [relayGas.gasLimits[0] + PAYMENT_OVERRIDE_GAS]
-    : [...relayGas.gasLimits, PAYMENT_OVERRIDE_GAS];
+    ? [relayGas.gasLimits[0] + totalOverrideGas]
+    : [
+        ...relayGas.gasLimits,
+        POST_QUOTE_OVERRIDE_GAS,
+        POST_QUOTE_OVERRIDE_GAS,
+      ];
 
   return {
-    totalGasEstimate: relayGas.totalGasEstimate + PAYMENT_OVERRIDE_GAS,
-    totalGasLimit: relayGas.totalGasLimit + PAYMENT_OVERRIDE_GAS,
+    totalGasEstimate: relayGas.totalGasEstimate + totalOverrideGas,
+    totalGasLimit: relayGas.totalGasLimit + totalOverrideGas,
     gasLimits,
     is7702: relayGas.is7702,
   };
