@@ -2187,7 +2187,9 @@ export type FooAction = {
       const items = await extractFromFile(filePath, directoryPath);
 
       expect(items).toHaveLength(1);
-      expect(items[0].handlerOrPayload).toContain("{ doStuff(): void }['doStuff']");
+      expect(items[0].handlerOrPayload).toContain(
+        "{ doStuff(): void }['doStuff']",
+      );
     });
   });
 
@@ -2220,7 +2222,9 @@ export type FooAction = {
       const items = await extractFromFile(filePath, directoryPath);
 
       expect(items).toHaveLength(1);
-      expect(items[0].handlerOrPayload).toContain('FooController[keyof FooController]');
+      expect(items[0].handlerOrPayload).toContain(
+        'FooController[keyof FooController]',
+      );
     });
   });
 
@@ -2292,7 +2296,9 @@ export type FooAction = {
       const items = await extractFromFile(filePath, directoryPath);
 
       expect(items).toHaveLength(1);
-      expect(items[0].handlerOrPayload).toContain("NS.FooController['doStuff']");
+      expect(items[0].handlerOrPayload).toContain(
+        "NS.FooController['doStuff']",
+      );
     });
   });
 
@@ -2325,7 +2331,9 @@ export type FooAction = {
       const items = await extractFromFile(filePath, directoryPath);
 
       expect(items).toHaveLength(1);
-      expect(items[0].handlerOrPayload).toContain("FooController['nonExistentMethod']");
+      expect(items[0].handlerOrPayload).toContain(
+        "FooController['nonExistentMethod']",
+      );
     });
   });
 });
