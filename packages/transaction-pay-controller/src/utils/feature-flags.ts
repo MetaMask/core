@@ -303,7 +303,10 @@ function getStrategyRoutingConfig(
       | FeatureFlagsExtendedRaw
       | undefined) ?? {};
 
-  return normalizeStrategyRoutingConfig(featureFlags ?? {}, extendedFeatureFlags);
+  return normalizeStrategyRoutingConfig(
+    featureFlags ?? {},
+    extendedFeatureFlags,
+  );
 }
 
 function filterEnabledStrategies(
