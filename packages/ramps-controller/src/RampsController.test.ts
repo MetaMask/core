@@ -3642,6 +3642,79 @@ describe('RampsController', () => {
         },
       );
     });
+
+    it('prefers a Transak provider over others when multiple support the asset', async () => {
+      const transakProvider = createMockProvider({
+        id: '/providers/transak-native',
+        name: 'Transak Native',
+        supportedCryptoCurrencies: { [ASSET_ETH]: true },
+      });
+
+      const otherProvider = createMockProvider({
+        id: '/providers/moonpay',
+        name: 'MoonPay',
+        supportedCryptoCurrencies: { [ASSET_ETH]: true },
+      });
+
+      await withController(
+        {
+          options: {
+            state: {
+              userRegion: createMockUserRegion('us-ca'),
+              providers: createResourceState(
+                [otherProvider, transakProvider],
+                null,
+              ),
+            },
+          },
+        },
+        ({ controller, rootMessenger }) => {
+          rootMessenger.call(
+            'RampsController:ensureProviderForAsset',
+            ASSET_ETH,
+          );
+
+          expect(controller.state.providers.selected).toStrictEqual(
+            transakProvider,
+          );
+          expect(controller.state.providerAutoSelected).toBe(false);
+        },
+      );
+    });
+
+    it('falls back to first supporting provider when no Transak provider supports the asset', async () => {
+      const moonpay = createMockProvider({
+        id: '/providers/moonpay',
+        name: 'MoonPay',
+        supportedCryptoCurrencies: { [ASSET_USDC]: true },
+      });
+
+      const paypal = createMockProvider({
+        id: '/providers/paypal',
+        name: 'PayPal',
+        supportedCryptoCurrencies: { [ASSET_USDC]: true },
+      });
+
+      await withController(
+        {
+          options: {
+            state: {
+              userRegion: createMockUserRegion('us-ca'),
+              providers: createResourceState([moonpay, paypal], null),
+            },
+          },
+        },
+        ({ controller, rootMessenger }) => {
+          rootMessenger.call(
+            'RampsController:ensureProviderForAsset',
+            ASSET_USDC,
+          );
+
+          expect(controller.state.providers.selected).toStrictEqual(moonpay);
+          expect(controller.state.providerAutoSelected).toBe(true);
+        },
+      );
+    });
   });
 
   describe('setSelectedToken', () => {

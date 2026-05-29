@@ -1383,11 +1383,26 @@ export class RampsController extends BaseController<
       return;
     }
 
-    const supporting = providers?.find((provider) => supports(provider));
+    const supportingProviders = providers?.filter((provider) =>
+      supports(provider),
+    );
 
-    if (supporting) {
-      this.setSelectedProvider(supporting, { autoSelected: true });
+    if (!supportingProviders?.length) {
+      return;
     }
+
+    const transakProvider = supportingProviders.find(
+      (provider) =>
+        provider.id?.toLowerCase().includes('transak') ||
+        provider.name?.toLowerCase().includes('transak'),
+    );
+
+    if (transakProvider) {
+      this.setSelectedProvider(transakProvider, { autoSelected: false });
+      return;
+    }
+
+    this.setSelectedProvider(supportingProviders[0], { autoSelected: true });
   }
 
   /**
