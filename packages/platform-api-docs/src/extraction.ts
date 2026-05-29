@@ -158,37 +158,40 @@ function hasDeprecatedJsDocTag(node: JSDocableNode): boolean {
 // ---------------------------------------------------------------------------
 
 /**
- * If `typeNode` is `Class['method']`, resolve `Class` to its declaration
- * (across files if needed via the type checker) and look up the method by
- * name. Returns the method declaration when found.
+ * Locates the type that represents a method on a class (e.g.
+ * `Class['method']`), which itself comes from a messenger action handler.
  *
- * @param typeNode - The handler's type node.
- * @returns The method declaration, or null.
+ * @param typeNode - The node that represents the indexed access.
+ * @returns The found method declaration, or null.
  */
-function resolveIndexedAccessMethod(
+function findClassMethodDeclaration(
   typeNode: TypeNode | undefined,
 ): MethodDeclaration | null {
-  if (!typeNode || !NodeGuards.isIndexedAccessTypeNode(typeNode)) {
+  // Fundamental check: if we don't have `Class['method']`, we can't do anything.
+  if (!NodeGuards.isIndexedAccessTypeNode(typeNode)) {
     return null;
   }
+
+  // The type that represents the class being accessed.
+  // EXAMPLE:
+  //   FooController['someMethod']
+  //   ^^^^^^^^^^^^^
   const objectType = typeNode.getObjectTypeNode();
+  // The type that represents the property being accessed.
+  // EXAMPLE:
+  //   FooController['someMethod']
+  //                 ^^^^^^^^^^^^
   const indexType = typeNode.getIndexTypeNode();
 
-  // istanbul ignore next: handler indexed-access types in messenger fixtures
-  // always reference a class via TypeReference.
-  if (!NodeGuards.isTypeReference(objectType)) {
-    return null;
-  }
-  // istanbul ignore next: the index in `Class['method']` is always a literal
-  // type node in valid handler syntax.
-  if (!NodeGuards.isLiteralTypeNode(indexType)) {
+  // To access a property on a type, it must be a type we can access properties of.
+  if (
+    !NodeGuards.isTypeReference(objectType) ||
+    !NodeGuards.isLiteralTypeNode(indexType)
+  ) {
     return null;
   }
   const indexLiteral = indexType.getLiteral();
-  // The index can be written as `'method'`, `"method"`, or `` `method` ``.
-  // The first two land as `StringLiteral`; the bare template literal is a
-  // `NoSubstitutionTemplateLiteral`.
-  // istanbul ignore next: numeric/boolean indices aren't valid method names.
+  // Names of methods must be static strings; they cannot be template strings.
   if (
     !NodeGuards.isStringLiteral(indexLiteral) &&
     !NodeGuards.isNoSubstitutionTemplateLiteral(indexLiteral)
@@ -197,25 +200,31 @@ function resolveIndexedAccessMethod(
   }
   const methodName = indexLiteral.getLiteralValue();
 
+  // Reject qualified-name type references, as we can't follow those.
+  // EXAMPLE:
+  //   import * as somePackage from '...';
+  //   somePackage.FooController['someMethod']
+  //   ^^^^^^^^^^^^^^^^^^^^^^^^^
   const classNameNode = objectType.getTypeName();
-  // istanbul ignore next: qualified-name class references aren't used in
-  // messenger handler types.
   if (!NodeGuards.isIdentifier(classNameNode)) {
     return null;
   }
-  const localSymbol = classNameNode.getSymbol();
-  // istanbul ignore next: a referenced class name always resolves to a symbol
-  // in a typechecked project.
-  if (!localSymbol) {
-    return null;
-  }
-  // Follow the import alias (if any) so we can find the class declaration in
-  // its home file.
+
+  // Since we know we have a type reference, we can assume that we have a symbol.
+  // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+  const localSymbol = classNameNode.getSymbol()!;
+  // If we have a type imported from another file, ensure that when we access
+  // the declaration, it's the type declaration in the other file, not the
+  // import declaration in this file.
+  // EXAMPLE:
+  //   import { FooController } from '@metamask/foo-controller';
+  //   FooController['someMethod']
+  //   ^^^^^^^^^^^^^
   const symbol = localSymbol.getAliasedSymbol() ?? localSymbol;
 
-  // istanbul ignore next: a resolved symbol always exposes its declarations
-  // array in a typechecked project.
-  for (const declaration of symbol.getDeclarations() ?? []) {
+  for (const declaration of symbol.getDeclarations()) {
+    // We must have a class to treat the property on the object type as a
+    // method.
     if (NodeGuards.isClassDeclaration(declaration)) {
       const method = declaration.getMethod(methodName);
       if (method) {
@@ -223,9 +232,7 @@ function resolveIndexedAccessMethod(
       }
     }
   }
-  // istanbul ignore next: only reached if the indexed method isn't declared
-  // on any of the resolved class declarations, which doesn't happen in valid
-  // handler types.
+
   return null;
 }
 
@@ -468,8 +475,8 @@ function recursivelyFindMessengerCapabilityTypeDeclarations(
   // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
   const localSymbol = nameNode.getSymbol()!;
   // If we have a type imported from another file, ensure that when we access
-  // the declaration, it's the *type* declaration in the other file, not the
-  // *import* declaration in this file.
+  // the declaration, it's the type declaration in the other file, not the
+  // import declaration in this file.
   // EXAMPLE:
   //   import { FooControllerSomeAction } from '@metamask/foo-controller';
   //   type Actions = FooControllerSomeAction;
@@ -641,7 +648,7 @@ function tryToExtractFromMessengerCapabilityTypeLiteral(
 ): MessengerCapabilityPacket | null {
   const { declaration, kind } = capabilityTypeDeclaration;
 
-  // Reject empty type aliases or interfaces.
+  // We must have a object type alias or an interface, and the body must not be empty.
   // EXAMPLES:
   //   // Good
   //   type FooControllerSomeAction = {
@@ -699,16 +706,15 @@ function tryToExtractFromMessengerCapabilityTypeLiteral(
 
   const { description: jsDoc, params, returns } = extractJsDoc(declaration);
 
-  // For actions, render `Class['method']` handlers as the method's actual
-  // signature (e.g. `(id: number) => Promise<string>`) instead of leaving the
-  // raw indexed-access syntax in the docs. JSDoc lives on the type alias
-  // itself, so we don't pull anything else from the class method.
+  // For actions that represent methods (e.g. `Class['method']`), walk the
+  // handler type to find the underlying handler signature
+  // (e.g. `(id: number) => Promise<string>`).
   if (kind === 'action') {
-    const resolvedMethod = resolveIndexedAccessMethod(
+    const methodDeclaration = findClassMethodDeclaration(
       handlerOrPayloadPropertyTypeNode,
     );
-    if (resolvedMethod) {
-      handlerOrPayloadSignature = buildMethodSignature(resolvedMethod);
+    if (methodDeclaration) {
+      handlerOrPayloadSignature = buildMethodSignature(methodDeclaration);
     }
   }
 
