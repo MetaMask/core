@@ -1805,8 +1805,7 @@ describe('Token service', () => {
       data: [
         {
           id: 'eip155:1/erc20:0x1234567890123456789012345678901234567890',
-          assetId:
-            'eip155:1/erc20:0x1234567890123456789012345678901234567890',
+          assetId: 'eip155:1/erc20:0x1234567890123456789012345678901234567890',
           symbol: 'TSLAx',
           decimals: 18,
           name: 'Tesla xStock',
@@ -1885,7 +1884,9 @@ describe('Token service', () => {
 
     it('passes unknown query params through to the URL', async () => {
       nock(TOKEN_END_POINT_API)
-        .get('/v1/rwas?chainIds=eip155%3A1&foo=bar&enabled=true&page=2&limit=100')
+        .get(
+          '/v1/rwas?chainIds=eip155%3A1&foo=bar&enabled=true&page=2&limit=100',
+        )
         .reply(200, sampleRwasResponse)
         .persist();
 
