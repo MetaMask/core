@@ -83,8 +83,6 @@ export {
   SortOrder,
   ChainId,
   RequestStatus,
-  BridgeUserAction,
-  BridgeBackgroundAction,
   type TokenFeature,
   type QuoteStreamCompleteData,
   type BridgeControllerGetStateAction,

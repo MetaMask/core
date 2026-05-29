@@ -51,6 +51,10 @@ export const rekeyHistoryItemInState = (
   return true;
 };
 
+export const isBatchSellHistoryItem = (
+  historyItem: BridgeHistoryItem,
+): boolean => Boolean(historyItem?.batchSellData);
+
 /**
  * Returns the history entry that matches the txMeta by id, actionId, batchId, or txHash
  *
@@ -78,7 +82,12 @@ export const getMatchingHistoryEntryForTxMeta = (
       key === txMeta.actionId ||
       txMetaId === txMeta.id ||
       (actionId ? actionId === txMeta.actionId : false) ||
-      (batchId ? batchId === txMeta.batchId : false) ||
+      // When the batch is not atomic (BatchSell), ignore batchId matching to prevent txs
+      // in the batch from getting marked complete/failed too early if one fails
+      // Multiple BatchSell STX trades may have the same batchId
+      (Boolean(batchId) &&
+        !isBatchSellHistoryItem(value) &&
+        batchId === txMeta.batchId) ||
       (txHash ? txHash.toLowerCase() === txMeta.hash?.toLowerCase() : false)
     );
   });
@@ -100,6 +109,57 @@ export const getMatchingHistoryEntryForApprovalTxMeta = (
   return historyEntries.find(([_, value]) =>
     value.approvalTxId ? value.approvalTxId === txMeta.id : false,
   );
+};
+
+/**
+ * Returns the BatchSell history items in the same batch as the provided tx hash.
+ *
+ * @param txHistory - The bridge status controller's history to search for matching history items
+ * @param txHashOrId - the hash or txMeta.id of a single trade in a BatchSell
+ * @returns The matching history items for the tx hash and a boolean indicating if it's a 7702 batch.
+ * @example
+ * getBatchSellHistoryItemsForTxHash(txHistory, id)
+ * If id is the hash or txMetaId of a BatchSell trade, it will return the history items for
+ * the trade and all other trades in the same batch.
+ */
+export const getBatchSellHistoryItemsForTxHash = (
+  txHistory: BridgeStatusControllerState['txHistory'],
+  txHashOrId?: string,
+): { historyItems: BridgeHistoryItem[]; is7702Batch: boolean } => {
+  const historyItems = Object.values(txHistory);
+
+  if (!txHashOrId) {
+    return {
+      historyItems: [],
+      is7702Batch: false,
+    };
+  }
+
+  /**
+   * Either a delegation tx or a single STX BatchSell trade
+   */
+  const parentHistoryItem = historyItems.find(
+    ({ status, txMetaId }) =>
+      status.srcChain.txHash?.toLowerCase() === txHashOrId.toLowerCase() ||
+      txMetaId === txHashOrId,
+  );
+
+  // Match by batchId or by quoteId
+  const matchingHistoryItems =
+    parentHistoryItem?.quoteIds?.map((quoteId) => txHistory[quoteId]) ??
+    historyItems.filter(
+      ({ batchId }) =>
+        batchId &&
+        parentHistoryItem?.batchId &&
+        batchId === parentHistoryItem.batchId,
+    );
+
+  return {
+    historyItems: matchingHistoryItems.filter((item) => item !== undefined),
+    is7702Batch:
+      Boolean(parentHistoryItem) &&
+      Boolean(parentHistoryItem?.quoteIds?.length),
+  };
 };
 
 /**
@@ -146,11 +206,13 @@ export const getInitialHistoryItem = (
     originalTransactionId,
     actionId,
     tokenSecurityTypeDestination,
+    batchSellData,
+    quoteIds,
   } = args;
 
   // Write all non-status fields to state so we can reference the quote in Activity list without the Bridge API
   // We know it's in progress but not the exact status yet
-  const txHistoryItem = {
+  const txHistoryItem: BridgeHistoryItem = {
     txMetaId: bridgeTxMeta?.id,
     actionId,
     originalTransactionId: originalTransactionId ?? bridgeTxMeta?.id, // Keep original for intent transactions
@@ -195,6 +257,13 @@ export const getInitialHistoryItem = (
       tokenSecurityTypeDestination,
     }),
   };
+
+  if (batchSellData) {
+    txHistoryItem.batchSellData = batchSellData;
+  }
+  if (quoteIds) {
+    txHistoryItem.quoteIds = quoteIds;
+  }
 
   return txHistoryItem;
 };
