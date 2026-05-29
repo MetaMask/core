@@ -525,9 +525,10 @@ export class MulticallClient {
     const multicallAddress = MULTICALL3_ADDRESS_BY_CHAIN[chainId];
     const provider = this.#getProvider(chainId);
 
-    // If Multicall3 is not supported, fall back to individual calls
-    if (!multicallAddress && options.fallbackToSingleCalls) {
-      return this.#fallbackBatchBalanceOf(provider, requests);
+    if (!multicallAddress) {
+      return options.fallbackToSingleCalls
+        ? this.#fallbackBatchBalanceOf(provider, requests)
+        : this.#createFailedResponses(requests);
     }
 
     // Use Multicall3

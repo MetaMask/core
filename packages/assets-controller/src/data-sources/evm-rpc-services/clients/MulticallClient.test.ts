@@ -525,6 +525,32 @@ describe('MulticallClient', () => {
         expect(mockProvider.call).not.toHaveBeenCalled();
         expect(mockProvider.getBalance).not.toHaveBeenCalled();
       });
+
+      it('returns failed ERC-20 responses immediately without multicall RPC calls', async () => {
+        const requests: BalanceOfRequest[] = [
+          { tokenAddress: TEST_TOKEN_1, accountAddress: TEST_ACCOUNT },
+          { tokenAddress: TEST_TOKEN_2, accountAddress: TEST_ACCOUNT },
+        ];
+
+        const result = await client.batchBalanceOf(
+          UNSUPPORTED_CHAIN_ID,
+          requests,
+        );
+
+        expect(result).toStrictEqual([
+          {
+            tokenAddress: TEST_TOKEN_1,
+            accountAddress: TEST_ACCOUNT,
+            success: false,
+          },
+          {
+            tokenAddress: TEST_TOKEN_2,
+            accountAddress: TEST_ACCOUNT,
+            success: false,
+          },
+        ]);
+        expect(mockProvider.call).not.toHaveBeenCalled();
+      });
     });
 
     describe('without Multicall3 support (fallback)', () => {
