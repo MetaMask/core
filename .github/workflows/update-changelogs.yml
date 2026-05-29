@@ -52,7 +52,6 @@ jobs:
   is-release:
     name: Determine whether this PR is a release PR
     needs: get-token
-    if: needs.is-fork.outputs.is-fork == 'false'
     runs-on: ubuntu-latest
     environment: default-branch
     outputs:
