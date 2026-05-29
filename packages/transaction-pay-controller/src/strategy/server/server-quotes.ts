@@ -469,7 +469,7 @@ function getSingleTransactionData(
 ): Hex | undefined {
   for (const nested of transaction.nestedTransactions ?? []) {
     if (nested.data && nested.data !== '0x') {
-      return nested.data as Hex;
+      return nested.data;
     }
   }
 
