@@ -966,35 +966,4 @@ export function extractFromSourceFile(
   return messengerCapabilityPackets;
 }
 
-/**
- * Convenience wrapper: extract from a single file by path. Loads the file
- * and any sibling files in its parent directory into a fresh Project so
- * relative imports resolve.
- *
- * For batch operations across many files, prefer
- * {@link createExtractionProject} + {@link extractFromSourceFile} so one
- * Project amortizes the type-checker setup across the whole run.
- *
- * @param filePath - The absolute path to the TypeScript file.
- * @param projectPath - Base path for computing relative source paths.
- * @returns A promise that resolves to the extracted capability list.
- */
-export async function extractFromFile(
-  filePath: string,
-  projectPath: string,
-): Promise<MessengerCapabilityPacket[]> {
-  const project = createExtractionProject();
-  const parentDir = path.dirname(filePath);
-  // Load the file's directory so single-hop relative imports resolve.
-  project.addSourceFilesAtPaths([
-    path.join(parentDir, '**/*.ts'),
-    path.join(parentDir, '**/*.d.cts'),
-  ]);
-  const sourceFile = project.getSourceFile(filePath);
-  // istanbul ignore next: the path always exists since the caller just
-  // wrote the file or it was scanned from disk.
-  if (!sourceFile) {
-    return [];
-  }
-  return extractFromSourceFile(sourceFile, projectPath);
-}
+
