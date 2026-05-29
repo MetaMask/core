@@ -259,7 +259,7 @@ function normalizeStrategyOverride(
 
 function normalizeStrategyRoutingConfig(
   featureFlags: FeatureFlagsRaw,
-  serverEnabled: boolean,
+  extendedFeatureFlags: FeatureFlagsExtendedRaw,
 ): StrategyRoutingConfig {
   const strategyOrder = normalizeStrategyList(featureFlags.strategyOrder);
 
@@ -269,7 +269,7 @@ function normalizeStrategyRoutingConfig(
         enabled: featureFlags.payStrategies?.across?.enabled ?? false,
       },
       server: {
-        enabled: serverEnabled,
+        enabled: extendedFeatureFlags.payStrategies?.server?.enabled ?? false,
       },
       relay: {
         enabled: featureFlags.payStrategies?.relay?.enabled ?? true,
@@ -303,10 +303,7 @@ function getStrategyRoutingConfig(
       | FeatureFlagsExtendedRaw
       | undefined) ?? {};
 
-  const serverEnabled =
-    extendedFeatureFlags.payStrategies?.server?.enabled ?? false;
-
-  return normalizeStrategyRoutingConfig(featureFlags ?? {}, serverEnabled);
+  return normalizeStrategyRoutingConfig(featureFlags ?? {}, extendedFeatureFlags);
 }
 
 function filterEnabledStrategies(
