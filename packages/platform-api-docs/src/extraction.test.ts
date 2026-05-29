@@ -2160,4 +2160,172 @@ export type FooEvent = {
       expect(items).toStrictEqual([]);
     });
   });
+
+  it('falls back to the raw handler text when the handler object type is not a simple type reference', async () => {
+    expect.assertions(2);
+
+    await withinSandbox(async ({ directoryPath }) => {
+      const filePath = path.join(directoryPath, 'types.ts');
+      // When the object side of an indexed-access handler type is not a plain
+      // type reference (e.g. it is an object-literal type or a built-in keyword
+      // type), `resolveIndexedAccessMethod` cannot walk to a class declaration
+      // and must return null. The extractor should fall back to rendering the
+      // raw syntax instead.
+      await fs.promises.writeFile(
+        filePath,
+        withMessenger(
+          `
+export type FooAction = {
+  type: 'Foo:do';
+  handler: { doStuff(): void }['doStuff'];
+};
+`,
+          { actions: ['FooAction'] },
+        ),
+      );
+
+      const items = await extractFromFile(filePath, directoryPath);
+
+      expect(items).toHaveLength(1);
+      expect(items[0].handlerOrPayload).toContain("{ doStuff(): void }['doStuff']");
+    });
+  });
+
+  it('falls back to the raw handler text when the handler index is not a literal type node', async () => {
+    expect.assertions(2);
+
+    await withinSandbox(async ({ directoryPath }) => {
+      const filePath = path.join(directoryPath, 'types.ts');
+      // When the index side of an indexed-access handler type is not a literal
+      // (e.g. it is `keyof T`), `resolveIndexedAccessMethod` cannot determine
+      // the method name and must return null. The extractor should fall back to
+      // rendering the raw syntax instead.
+      await fs.promises.writeFile(
+        filePath,
+        withMessenger(
+          `
+class FooController {
+  doStuff(): void {}
+}
+
+export type FooAction = {
+  type: 'Foo:do';
+  handler: FooController[keyof FooController];
+};
+`,
+          { actions: ['FooAction'] },
+        ),
+      );
+
+      const items = await extractFromFile(filePath, directoryPath);
+
+      expect(items).toHaveLength(1);
+      expect(items[0].handlerOrPayload).toContain('FooController[keyof FooController]');
+    });
+  });
+
+  it('falls back to the raw handler text when the handler index is a numeric literal', async () => {
+    expect.assertions(2);
+
+    await withinSandbox(async ({ directoryPath }) => {
+      const filePath = path.join(directoryPath, 'types.ts');
+      // When the index of an indexed-access handler type is a numeric literal
+      // (e.g. `Class[0]`), the method name cannot be a valid identifier, so
+      // `resolveIndexedAccessMethod` returns null and the extractor falls back
+      // to the raw type text.
+      await fs.promises.writeFile(
+        filePath,
+        withMessenger(
+          `
+type Tuple = [() => void];
+
+export type FooAction = {
+  type: 'Foo:do';
+  handler: Tuple[0];
+};
+`,
+          { actions: ['FooAction'] },
+        ),
+      );
+
+      const items = await extractFromFile(filePath, directoryPath);
+
+      expect(items).toHaveLength(1);
+      expect(items[0].handlerOrPayload).toContain('Tuple[0]');
+    });
+  });
+
+  it('falls back to the raw handler text when the handler class reference is a qualified name', async () => {
+    expect.assertions(2);
+
+    await withinSandbox(async ({ directoryPath }) => {
+      await fs.promises.writeFile(
+        path.join(directoryPath, 'controller.ts'),
+        `
+export class FooController {
+  doStuff(): void {}
+}
+`,
+      );
+
+      const filePath = path.join(directoryPath, 'types.ts');
+      // When the class side of a handler indexed-access type is accessed via a
+      // namespace import (e.g. `NS.FooController['doStuff']`), the type name is
+      // a qualified name rather than a plain identifier.
+      // `resolveIndexedAccessMethod` cannot follow qualified names and returns
+      // null, so the extractor falls back to the raw syntax.
+      await fs.promises.writeFile(
+        filePath,
+        withMessenger(
+          `
+import * as NS from './controller';
+
+export type FooAction = {
+  type: 'Foo:do';
+  handler: NS.FooController['doStuff'];
+};
+`,
+          { actions: ['FooAction'] },
+        ),
+      );
+
+      const items = await extractFromFile(filePath, directoryPath);
+
+      expect(items).toHaveLength(1);
+      expect(items[0].handlerOrPayload).toContain("NS.FooController['doStuff']");
+    });
+  });
+
+  it('falls back to the raw handler text when the indexed method does not exist on the class', async () => {
+    expect.assertions(2);
+
+    await withinSandbox(async ({ directoryPath }) => {
+      const filePath = path.join(directoryPath, 'types.ts');
+      // When the method name in an indexed-access handler type does not match
+      // any method declared on the class, `resolveIndexedAccessMethod` exhausts
+      // all class declarations and returns null. The extractor falls back to
+      // the raw type text instead of crashing.
+      await fs.promises.writeFile(
+        filePath,
+        withMessenger(
+          `
+class FooController {
+  doStuff(): void {}
+}
+
+export type FooAction = {
+  type: 'Foo:do';
+  handler: FooController['nonExistentMethod'];
+};
+`,
+          { actions: ['FooAction'] },
+        ),
+      );
+
+      const items = await extractFromFile(filePath, directoryPath);
+
+      expect(items).toHaveLength(1);
+      expect(items[0].handlerOrPayload).toContain("FooController['nonExistentMethod']");
+    });
+  });
 });
