@@ -16,7 +16,31 @@ jobs:
         uses: actions/checkout@v5
       - name: Fetch tags
         run: git fetch --prune --unshallow --tags
-      - name: Create issues
-        run: ./scripts/create-update-issues.sh --no-dry-run
+      - name: Get extension token
+        id: extension-token
+        uses: MetaMask/github-tools/.github/actions/get-token@v1
+        with:
+          token-exchange-url: ${{ vars.TOKEN_EXCHANGE_URL }}
+          target-repository: 'MetaMask/metamask-extension'
+          permissions: |
+            contents: read
+            issues: write
+            metadata: read
+      - name: Create issues in extension repository
+        run: ./scripts/create-update-issues.sh --no-dry-run --extension
         env:
-          GH_TOKEN: ${{ secrets.CORE_CREATE_UPDATE_ISSUES_TOKEN }}
+          GH_TOKEN: ${{ steps.extension-token.outputs.token }}
+      - name: Get mobile token
+        id: mobile-token
+        uses: MetaMask/github-tools/.github/actions/get-token@v1
+        with:
+          token-exchange-url: ${{ vars.TOKEN_EXCHANGE_URL }}
+          target-repository: 'MetaMask/metamask-mobile'
+          permissions: |
+            contents: read
+            issues: write
+            metadata: read
+      - name: Create issues in mobile repository
+        run: ./scripts/create-update-issues.sh --no-dry-run --mobile
+        env:
+          GH_TOKEN: ${{ steps.mobile-token.outputs.token }}
