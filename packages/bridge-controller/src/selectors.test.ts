@@ -173,6 +173,21 @@ describe('Bridge Selectors', () => {
         usdExchangeRate: '36.4650017017000806',
       });
     });
+
+    it('should not throw when EVM token rate asset ID has a malformed hex address', () => {
+      expect(() =>
+        selectExchangeRateByAssetId(
+          mockExchangeRateSources,
+          'eip155:1/erc20:0x123',
+        ),
+      ).not.toThrow();
+      expect(
+        selectExchangeRateByAssetId(
+          mockExchangeRateSources,
+          'eip155:1/erc20:0x123',
+        ),
+      ).toStrictEqual({});
+    });
   });
 
   describe('selectIsAssetExchangeRateInState', () => {

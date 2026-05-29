@@ -112,6 +112,9 @@ type BridgeQuotesClientParams = {
   selectedQuote: (QuoteResponse & QuoteMetadata) | null;
 };
 
+type EvmTokenExchangeRate = { price?: number; currency?: string };
+type EvmTokenExchangeRates = Record<string, EvmTokenExchangeRate>;
+
 const createFeatureFlagsSelector =
   createSelector_.withTypes<RemoteFeatureFlagControllerState>();
 
@@ -140,6 +143,20 @@ export const selectBridgeFeatureFlags = createFeatureFlagsSelector(
   [(state) => state.remoteFeatureFlags.bridgeConfig],
   (bridgeConfig: unknown) => processFeatureFlags(bridgeConfig),
 );
+
+const getEvmTokenExchangeRateForAddress = (
+  evmTokenExchangeRates: EvmTokenExchangeRates | undefined,
+  address: string,
+): EvmTokenExchangeRate | null | undefined => {
+  try {
+    return isStrictHexString(address)
+      ? (evmTokenExchangeRates?.[getAddress(address)] ??
+          evmTokenExchangeRates?.[address.toLowerCase()])
+      : null;
+  } catch {
+    return null;
+  }
+};
 
 /**
  * Selects the asset exchange rate for a given chain and address
@@ -227,15 +244,13 @@ export const selectExchangeRateByAssetId = (
   // If the chain is an EVM chain and the asset is not the native asset, use the conversion rate from the token rates controller
   if (!isNonEvmChainId(chainId)) {
     const marketDataByChain =
-      (marketData as
-        | Record<string, Record<string, { price?: number; currency?: string }>>
-        | undefined) ?? {};
+      (marketData as Record<string, EvmTokenExchangeRates> | undefined) ?? {};
     const evmTokenExchangeRates =
       marketDataByChain[formatChainIdToHex(chainId)];
-    const evmTokenExchangeRateForAddress = isStrictHexString(address)
-      ? (evmTokenExchangeRates?.[getAddress(address)] ??
-        evmTokenExchangeRates?.[address.toLowerCase()])
-      : null;
+    const evmTokenExchangeRateForAddress = getEvmTokenExchangeRateForAddress(
+      evmTokenExchangeRates,
+      address,
+    );
     const currencyKey = evmTokenExchangeRateForAddress?.currency;
     const nativeCurrencyRate =
       currencyKey !== undefined && currencyKey !== null
