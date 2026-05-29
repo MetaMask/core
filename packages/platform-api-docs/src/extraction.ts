@@ -457,8 +457,10 @@ function recursivelyFindMessengerCapabilityTypeDeclarations(
   //                  ^^^^^^^
   //   // Good
   //   type Actions = FooControllerSomeAction;
+  //                  ^^^^^^^^^^^^^^^^^^^^^^^
   //   // Good
   //   type Actions = ControllerGetStateAction<...>;
+  //                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
   if (!NodeGuards.isTypeReference(node)) {
     return result;
   }
@@ -501,42 +503,24 @@ function recursivelyFindMessengerCapabilityTypeDeclarations(
     // If we have a type alias, then we have to handle a few scenarios.
     // EXAMPLES:
     //   type FooControllerMethodActions = ...
+    //   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
     //   type FooControllerSomeAction = ...
+    //   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
     if (NodeGuards.isTypeAliasDeclaration(declaration)) {
       const body = declaration.getTypeNode();
 
-      // If we have a union type, then walk each type in the union.
-      // EXAMPLE:
+      // If the body is a union type or a plain type reference (not a utility
+      // type), walk it.
+      // EXAMPLES:
       //   type FooControllerMethodActions = FooControllerSomeAction | FooControllerSomeOtherAction
-      //                                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-      if (body && NodeGuards.isUnionTypeNode(body)) {
-        const innerResult = recursivelyFindMessengerCapabilityTypeDeclarations(
-          body,
-          kind,
-          result.visitedTypeDeclarations,
-        );
-        result.capabilityTypeDeclarations.push(
-          ...innerResult.capabilityTypeDeclarations,
-        );
-        for (const typeDeclaration of innerResult.visitedTypeDeclarations) {
-          result.visitedTypeDeclarations.add(typeDeclaration);
-        }
-        continue;
-      }
-
-      // A bare TypeReference body with no type arguments is a single-member
-      // umbrella or plain re-export — walk into the referenced type so we
-      // still reach the underlying capability. This is what makes
-      // auto-generated `*MethodActions` aliases work when they only wrap a
-      // single action (e.g.
-      // `type DelegationControllerMethodActions = DelegationControllerSignDelegationAction`).
-      // TypeReferences *with* type arguments are capability-type-constructor
-      // invocations (e.g. `ControllerGetStateAction<typeof name, State>`)
-      // and are recorded directly below.
+      //   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+      //   type DelegationControllerMethodActions = DelegationControllerSignDelegationAction
+      //   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
       if (
         body &&
-        NodeGuards.isTypeReference(body) &&
-        body.getTypeArguments().length === 0
+        (NodeGuards.isUnionTypeNode(body) ||
+          (NodeGuards.isTypeReference(body) &&
+            body.getTypeArguments().length === 0))
       ) {
         const innerResult = recursivelyFindMessengerCapabilityTypeDeclarations(
           body,
@@ -784,7 +768,7 @@ function getMessengerCapabilityTypeString(
   //   }
   //   type FooControllerSomeAction = {
   //     type: `${typeof CONTROLLER_NAME}:someAction`;
-  //           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  //           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
   //   }
   const resolvedType = typeNode.getType();
   if (resolvedType.isStringLiteral()) {
