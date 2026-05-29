@@ -4,8 +4,6 @@ import type {
   ControllerStateChangeEvent,
 } from '@metamask/base-controller';
 import type {
-  BridgeBackgroundAction,
-  BridgeControllerAction,
   ChainId,
   FeatureId,
   Quote,
@@ -15,6 +13,8 @@ import type {
   SimulatedGasFeeLimits,
   TxData,
   TxFeeGasLimits,
+  BridgeControllerTrackUnifiedSwapBridgeEventAction,
+  BridgeControllerStopPollingForQuotesAction,
 } from '@metamask/bridge-controller';
 import type { KeyringControllerSignTypedMessageAction } from '@metamask/keyring-controller';
 import type { Messenger } from '@metamask/messenger';
@@ -264,7 +264,7 @@ export type StartPollingForBridgeTxStatusArgs = {
   targetContractAddress?: BridgeHistoryItem['targetContractAddress'];
   approvalTxId?: BridgeHistoryItem['approvalTxId'];
   isStxEnabled?: BridgeHistoryItem['isStxEnabled'];
-  location?: BridgeHistoryItem['location'];
+  location: MetaMetricsSwapsEventSource;
   // Legacy field for `ab_tests` metrics payload.
   abTests?: BridgeHistoryItem['abTests'];
   // New field for `active_ab_tests` metrics payload.
@@ -335,8 +335,8 @@ type AllowedActions =
   | TransactionControllerAddTransactionAction
   | TransactionControllerEstimateGasFeeAction
   | TransactionControllerIsAtomicBatchSupportedAction
-  | BridgeControllerAction<BridgeBackgroundAction.TRACK_METAMETRICS_EVENT>
-  | BridgeControllerAction<BridgeBackgroundAction.STOP_POLLING_FOR_QUOTES>
+  | BridgeControllerTrackUnifiedSwapBridgeEventAction
+  | BridgeControllerStopPollingForQuotesAction
   | AccountsControllerGetAccountByAddressAction
   | AuthenticationControllerGetBearerTokenAction
   | KeyringControllerSignTypedMessageAction;
