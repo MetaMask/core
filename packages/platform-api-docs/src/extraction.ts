@@ -965,5 +965,3 @@ export function extractFromSourceFile(
   }
   return messengerCapabilityPackets;
 }
-
-
