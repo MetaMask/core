@@ -17,6 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Include Mantle operator fee in the displayed L1 gas estimate when simulated `gasUsed` is unavailable, by falling back to the transaction's gas limit ([#8837](https://github.com/MetaMask/core/pull/8837))
   - Adds a `protected getOperatorFeeGas` hook on `OracleLayer1GasFeeFlow` that subclasses can override to supply a fallback value. The default behaviour is unchanged (returns `transactionMeta.gasUsed`).
   - `MantleLayer1GasFeeFlow` overrides the hook with `gasUsed ?? txParams.gas ?? txParams.gasLimit`, so the operator-fee oracle is called with the gas limit when `gasUsed` is missing. Gas limit is an upper bound on actual gas used, so the operator fee is over-estimated rather than under-reported.
+- Fix `ExtraTransactionsPublishHook` not passing `isInternal: true` when calling `addTransactionBatch`, causing the duplicate-batch-ID guard to incorrectly throw `DuplicateBundleId` (error 5720) for nested ERC-20 gas-fee-token transfers that share a `batchId` with their parent batch ([#8884](https://github.com/MetaMask/core/pull/8884))
 
 ## [66.0.0]
 
