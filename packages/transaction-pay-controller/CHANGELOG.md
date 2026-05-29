@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [22.7.1]
+
 ### Added
 
 - Add `getPaymentOverrideData` callback to `TransactionPayControllerOptions`, when `paymentOverride` is defined on a transaction, this callback is invoked the resulting transactions are injected into the relay quote steps ([#8870](https://github.com/MetaMask/core/pull/8870))
@@ -956,7 +958,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#6820](https://github.com/MetaMask/core/pull/6820))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@22.7.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@22.7.1...HEAD
+[22.7.1]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@22.7.0...@metamask/transaction-pay-controller@22.7.1
 [22.7.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@22.6.3...@metamask/transaction-pay-controller@22.7.0
 [22.6.3]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@22.6.2...@metamask/transaction-pay-controller@22.6.3
 [22.6.2]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@22.6.1...@metamask/transaction-pay-controller@22.6.2
