@@ -5,6 +5,7 @@ import nock from 'nock';
 
 import type { SortTrendingBy } from './token-service';
 import {
+  fetchRwas,
   fetchTokenAssets,
   fetchTokenListByChainId,
   fetchTokenMetadata,
@@ -1796,6 +1797,114 @@ describe('Token service', () => {
       setupNock();
       const result = await fetchTokenAssets([oneInchAssetId]);
       expect(result).toStrictEqual([]);
+    });
+  });
+
+  describe('fetchRwas', () => {
+    const sampleRwasResponse = {
+      data: [
+        {
+          id: 'eip155:1/erc20:0x1234567890123456789012345678901234567890',
+          assetId:
+            'eip155:1/erc20:0x1234567890123456789012345678901234567890',
+          symbol: 'TSLAx',
+          decimals: 18,
+          name: 'Tesla xStock',
+          rwaData: {
+            price: '342.13',
+            priceChange: '1.23',
+            marketCap: 1090000000000,
+            aggregatedUsdVolume: 1234567,
+            active: true,
+            ticker: 'TSLA',
+            instrumentType: 'stock',
+            custodians: ['ondo'],
+            industry: ['consumer discretionary'],
+            market: {
+              nextOpen: '2026-05-29T13:30:00.000Z',
+              nextClose: '2026-05-29T20:00:00.000Z',
+            },
+          },
+        },
+      ],
+      count: 1,
+      totalCount: 1,
+      pageInfo: {
+        nextCursor: null,
+        hasNextPage: false,
+      },
+    };
+
+    it('fetches RWAs with default params', async () => {
+      nock(TOKEN_END_POINT_API)
+        .get('/v1/rwas?limit=100')
+        .reply(200, sampleRwasResponse)
+        .persist();
+
+      const result = await fetchRwas();
+
+      expect(result).toStrictEqual(sampleRwasResponse);
+    });
+
+    it('includes supported query params and trims the search query', async () => {
+      nock(TOKEN_END_POINT_API)
+        .get(
+          '/v1/rwas?chainIds=eip155%3A1%2Ceip155%3A137&query=Tesla&active=true&custodian=ondo&type=stock&industry=consumer+discretionary&sortBy=market_cap_desc&limit=25&after=cursor-1',
+        )
+        .reply(200, sampleRwasResponse)
+        .persist();
+
+      const result = await fetchRwas({
+        chainIds: ['eip155:1', 'eip155:137'],
+        query: '  Tesla  ',
+        sortBy: 'market_cap_desc',
+        limit: 25,
+        after: 'cursor-1',
+        active: true,
+        custodian: 'ondo',
+        type: 'stock',
+        industry: 'consumer discretionary',
+      });
+
+      expect(result).toStrictEqual(sampleRwasResponse);
+    });
+
+    it('omits blank and undefined query params', async () => {
+      nock(TOKEN_END_POINT_API)
+        .get('/v1/rwas?active=false&limit=100')
+        .reply(200, sampleRwasResponse)
+        .persist();
+
+      const result = await fetchRwas({
+        query: '   ',
+        active: false,
+      });
+
+      expect(result).toStrictEqual(sampleRwasResponse);
+    });
+
+    it('passes unknown query params through to the URL', async () => {
+      nock(TOKEN_END_POINT_API)
+        .get('/v1/rwas?chainIds=eip155%3A1&foo=bar&enabled=true&page=2&limit=100')
+        .reply(200, sampleRwasResponse)
+        .persist();
+
+      const result = await fetchRwas({
+        chainIds: ['eip155:1'],
+        foo: 'bar',
+        enabled: true,
+        page: 2,
+      });
+
+      expect(result).toStrictEqual(sampleRwasResponse);
+    });
+
+    it('throws if the fetch fails', async () => {
+      nock(TOKEN_END_POINT_API).get('/v1/rwas?limit=100').reply(500);
+
+      await expect(fetchRwas()).rejects.toThrow(
+        "Fetch failed with status '500'",
+      );
     });
   });
 });
