@@ -20,8 +20,8 @@ const config: Config = {
   onBrokenLinks: 'throw',
   title: 'Wallet Framework Documentation',
   tagline: commitSha
-    ? `Generated from commit ${commitSha} — actions and events available for use in clients via the message bus`
-    : 'Actions and events available for use in clients via the message bus',
+    ? `Generated from commit ${commitSha} — Documentation for the Wallet Framework`
+    : 'Documentation for the Wallet Framework',
   url: 'https://metamask.github.io',
 
   i18n: {
