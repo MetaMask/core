@@ -469,36 +469,42 @@ export class BackupAndSyncService {
   }
 
   /**
-   * Enqueues a bidirectional sync with user storage for a single entropy
-   * wallet (fire-and-forget), scoped by entropy source ID.
+   * Performs a bidirectional sync with user storage for a single entropy
+   * wallet, scoped by entropy source ID.
    *
    * Use this in place of {@link performFullSync} when only one wallet's
    * state has changed (e.g., immediately after an SRP import) to avoid the
    * per-wallet fanout of fetches that a full sync triggers.
    *
    * Behavior:
-   * - Returns early if backup and sync is disabled.
-   * - Returns early if a full sync is in progress; the full sync will cover
-   *   this wallet.
+   * - Returns early (resolved) if backup and sync is disabled.
+   * - If a full sync is already in flight, returns the in-flight promise so
+   *   callers cooperatively wait for the broader operation instead of
+   *   racing against it.
    * - Does NOT flip `hasAccountTreeSyncingSyncedAtLeastOnce`. A scoped sync
    *   for one wallet does not satisfy the canonical "first full sync"
    *   contract, since other wallets may still need legacy migration.
    *
    * @param entropySourceId - The entropy source ID of the wallet to sync.
+   * @returns A promise that resolves when the sync is complete.
    */
-  enqueueSyncForWallet(entropySourceId: string): void {
-    if (!this.isBackupAndSyncEnabled || this.isInProgress) {
-      return;
+  async performSyncForWallet(entropySourceId: string): Promise<void> {
+    if (!this.isBackupAndSyncEnabled) {
+      return undefined;
     }
 
-    // eslint-disable-next-line no-void
-    void this.#atomicSyncQueue.enqueue(() =>
+    // Defer to the in-flight full sync so we don't race against it.
+    if (this.#ongoingFullSyncPromise) {
+      return this.#ongoingFullSyncPromise;
+    }
+
+    return this.#atomicSyncQueue.enqueue(() =>
       this.#performSyncForWalletInner(entropySourceId),
     );
   }
 
   /**
-   * Performs the work for {@link enqueueSyncForWallet} once it has been
+   * Performs the work for {@link performSyncForWallet} once it has been
    * dequeued: locates the matching wallet and runs the per-wallet sync body
    * under the wallet trace.
    *
@@ -511,6 +517,10 @@ export class BackupAndSyncService {
    * @param entropySourceId - The entropy source ID of the wallet to sync.
    */
   async #performSyncForWalletInner(entropySourceId: string): Promise<void> {
+    if (this.isInProgress) {
+      return;
+    }
+
     const wallet = getLocalEntropyWallets(this.#context).find(
       (candidate) => candidate.metadata.entropy.id === entropySourceId,
     );

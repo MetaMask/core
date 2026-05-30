@@ -723,31 +723,17 @@ describe('BackupAndSync - Service - BackupAndSyncService', () => {
     }, 15000); // Increase timeout to 15 seconds
   });
 
-  describe('enqueueSyncForWallet', () => {
+  describe('performSyncForWallet', () => {
     beforeEach(() => {
       setupMockUserStorageControllerState(true, true);
       jest.clearAllMocks();
       mockGetLocalEntropyWallets.mockClear();
     });
 
-    it('returns early when backup and sync is disabled', async () => {
+    it('returns early (resolved) when backup and sync is disabled', async () => {
       setupMockUserStorageControllerState(false, true);
 
-      backupAndSyncService.enqueueSyncForWallet('test-entropy-id');
-
-      // Give the queue a chance to run, then assert nothing happened.
-      await new Promise((resolve) => setTimeout(resolve, 10));
-
-      expect(mockGetWalletFromUserStorage).not.toHaveBeenCalled();
-      expect(mockGetLocalEntropyWallets).not.toHaveBeenCalled();
-    });
-
-    it('returns early when a full sync is in progress', async () => {
-      mockContext.controller.state.isAccountTreeSyncingInProgress = true;
-
-      backupAndSyncService.enqueueSyncForWallet('test-entropy-id');
-
-      await new Promise((resolve) => setTimeout(resolve, 10));
+      await backupAndSyncService.performSyncForWallet('test-entropy-id');
 
       expect(mockGetWalletFromUserStorage).not.toHaveBeenCalled();
       expect(mockGetLocalEntropyWallets).not.toHaveBeenCalled();
@@ -767,9 +753,7 @@ describe('BackupAndSync - Service - BackupAndSyncService', () => {
       mockGetWalletFromUserStorage.mockResolvedValue(null);
       mockGetAllGroupsFromUserStorage.mockResolvedValue([]);
 
-      backupAndSyncService.enqueueSyncForWallet('entropy-id-2');
-
-      await new Promise((resolve) => setTimeout(resolve, 10));
+      await backupAndSyncService.performSyncForWallet('entropy-id-2');
 
       // The fetches should target only the requested wallet's entropy source.
       expect(mockGetWalletFromUserStorage).toHaveBeenCalledTimes(1);
@@ -810,9 +794,7 @@ describe('BackupAndSync - Service - BackupAndSyncService', () => {
         },
       );
 
-      backupAndSyncService.enqueueSyncForWallet('entropy-id-1');
-
-      await new Promise((resolve) => setTimeout(resolve, 10));
+      await backupAndSyncService.performSyncForWallet('entropy-id-1');
 
       // Scoped sync must NOT satisfy the first-full-sync contract.
       expect(draft.hasAccountTreeSyncingSyncedAtLeastOnce).toBe(false);
@@ -846,16 +828,14 @@ describe('BackupAndSync - Service - BackupAndSyncService', () => {
       mockGetWalletFromUserStorage.mockResolvedValue(null);
       mockGetAllGroupsFromUserStorage.mockResolvedValue([]);
 
-      backupAndSyncService.enqueueSyncForWallet('entropy-id-1');
-
-      await new Promise((resolve) => setTimeout(resolve, 10));
+      await backupAndSyncService.performSyncForWallet('entropy-id-1');
 
       expect(flagWhileRunning).toBe(true);
       // And reset after the sync completes.
       expect(draft.isAccountTreeSyncingInProgress).toBe(false);
     });
 
-    it('does not touch isAccountTreeSyncingInProgress when the wallet is not found', async () => {
+    it('returns the in-flight full sync promise when one is running', async () => {
       mockGetLocalEntropyWallets.mockReturnValue([
         {
           id: 'entropy:wallet-1',
@@ -863,12 +843,27 @@ describe('BackupAndSync - Service - BackupAndSyncService', () => {
         } as unknown as AccountWalletEntropyObject,
       ]);
 
-      backupAndSyncService.enqueueSyncForWallet('unknown-entropy-id');
+      // Make the full sync hang so we can observe the wallet-scoped call
+      // dedup against it.
+      let resolveTrace: (() => void) | undefined;
+      const tracePromise = new Promise<void>((resolve) => {
+        resolveTrace = resolve;
+      });
+      (mockContext.traceFn as jest.Mock).mockImplementation(
+        (_: unknown, fn: () => unknown) => {
+          fn();
+          return tracePromise;
+        },
+      );
 
-      await new Promise((resolve) => setTimeout(resolve, 10));
+      const fullSyncPromise = backupAndSyncService.performFullSync();
+      const walletSyncPromise =
+        backupAndSyncService.performSyncForWallet('entropy-id-1');
 
-      // No wallet found → no flag toggling, no work.
-      expect(mockContext.controllerStateUpdateFn).not.toHaveBeenCalled();
+      expect(walletSyncPromise).toStrictEqual(fullSyncPromise);
+
+      resolveTrace?.();
+      await Promise.all([fullSyncPromise, walletSyncPromise]);
     });
 
     it('is a no-op when no local wallet matches the entropy source ID', async () => {
@@ -879,13 +874,27 @@ describe('BackupAndSync - Service - BackupAndSyncService', () => {
         } as unknown as AccountWalletEntropyObject,
       ]);
 
-      backupAndSyncService.enqueueSyncForWallet('unknown-entropy-id');
-
-      await new Promise((resolve) => setTimeout(resolve, 10));
+      await backupAndSyncService.performSyncForWallet('unknown-entropy-id');
 
       expect(mockGetWalletFromUserStorage).not.toHaveBeenCalled();
       expect(mockGetAllGroupsFromUserStorage).not.toHaveBeenCalled();
       expect(mockGetProfileId).not.toHaveBeenCalled();
+      // No flag toggle when there's no wallet to sync.
+      expect(mockContext.controllerStateUpdateFn).not.toHaveBeenCalled();
+    });
+
+    it('returns early when the in-progress flag is already set', async () => {
+      mockContext.controller.state.isAccountTreeSyncingInProgress = true;
+      mockGetLocalEntropyWallets.mockReturnValue([
+        {
+          id: 'entropy:wallet-1',
+          metadata: { entropy: { id: 'entropy-id-1' } },
+        } as unknown as AccountWalletEntropyObject,
+      ]);
+
+      await backupAndSyncService.performSyncForWallet('entropy-id-1');
+
+      expect(mockGetWalletFromUserStorage).not.toHaveBeenCalled();
     });
   });
 });
