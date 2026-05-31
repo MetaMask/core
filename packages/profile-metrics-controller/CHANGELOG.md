@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `ProfileMetricsService:fetchNonces` messenger action wrapping `POST /api/v2/nonce/batch`.
+- Add optional `proof` field on accounts submitted via `ProfileMetricsService:submitMetrics` so that the auth API can use it to mark accounts as `verified: true`.
+
 ### Changed
 
 - Bump `@metamask/accounts-controller` from `^38.1.0` to `^38.1.1` ([#8774](https://github.com/MetaMask/core/pull/8774))
