@@ -1,0 +1,12 @@
+{
+  "schema_version": 1,
+  "title": "Perps core trading-lifecycle verification (headless, no UI)",
+  "description": "Runs the perps-controller HyperLiquid trading-lifecycle e2e (open + close a BTC position) and packages its result as Recipe v1 evidence. No UI. REQUIRES HL_E2E_PRIVATE_KEY pointing at a funded HyperLiquid testnet wallet.",
+  "proofTargets": [{ "id": "trading-lifecycle", "claim": "perps-controller can open and close a BTC position end-to-end" }],
+  "validate": { "workflow": { "entry": "run", "nodes": {
+    "run": { "action": "command", "cmd": "npx tsx e2e/trading-lifecycle.ts --coin BTC --size 0.0001 --leverage 10 --side long", "timeout_ms": 120000, "next": "assert-exit", "proofTarget": "trading-lifecycle" },
+    "assert-exit": { "action": "assert_exit_code", "source": "run", "equals": 0, "next": "assert-pass" },
+    "assert-pass": { "action": "assert_output", "source": "run", "stream": "stdout", "contains": "\"status\": \"pass\"", "next": "done" },
+    "done": { "action": "end", "status": "pass" }
+  } } }
+}

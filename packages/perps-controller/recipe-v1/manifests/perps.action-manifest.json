@@ -1,0 +1,7 @@
+{
+  "runner_protocol_version": 1,
+  "action_registry_version": 1,
+  "supported_official_actions": ["command", "assert_exit_code", "assert_output", "end"],
+  "action_metadata": { "command": { "description": "Run a perps-controller e2e validation script headlessly." } },
+  "custom_actions": []
+}
