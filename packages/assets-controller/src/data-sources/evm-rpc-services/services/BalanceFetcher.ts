@@ -291,6 +291,7 @@ export class BalanceFetcher extends StaticIntervalPollingControllerOnly<BalanceP
         const responses = await this.#multicallClient.batchBalanceOf(
           chainId,
           batch,
+          { fallbackToSingleCalls: true },
         );
 
         return this.#processBalanceResponses(

@@ -1,5 +1,6 @@
 import type { AccountsControllerState } from '@metamask/accounts-controller';
 import type {
+  BatchSellTradesResponse,
   BridgeClientId,
   QuoteMetadata,
   QuoteResponse,
@@ -40,6 +41,8 @@ export type SubmitStepResult =
       > & {
         historyKey: string;
         quoteResponse: QuoteResponse & QuoteMetadata;
+        batchSellData?: BatchSellTradesResponse;
+        quoteIds?: string[];
       };
     }
   | {
@@ -84,13 +87,20 @@ export type SubmitStepResult =
 /**
  * The parameters for the submission flow
  */
-export type SubmitStrategyParams<TradeType extends Trade = TxData> = {
+export type SubmitStrategyParams<
+  TradeType extends Trade = TxData,
+  BatchSellTradesResponseType extends
+    | BatchSellTradesResponse
+    | undefined
+    | null = BatchSellTradesResponse | undefined | null,
+> = {
+  batchSellTrades: BatchSellTradesResponseType;
   addTransactionBatchFn: TransactionController['addTransactionBatch'];
   isBridgeTx: boolean;
   isDelegatedAccount: boolean;
   isStxEnabled: boolean;
   messenger: BridgeStatusControllerMessenger;
-  quoteResponse: QuoteResponse<TradeType, TradeType> & QuoteMetadata;
+  quoteResponses: (QuoteResponse<TradeType, TradeType> & QuoteMetadata)[];
   requireApproval: boolean;
   selectedAccount: AccountsControllerState['internalAccounts']['accounts'][string];
   traceFn: TraceCallback;

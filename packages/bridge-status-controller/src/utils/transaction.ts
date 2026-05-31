@@ -5,8 +5,10 @@ import {
   BRIDGE_PREFERRED_GAS_ESTIMATE,
   isEvmTxData,
   FeeType,
+  BatchSellTransactionType,
 } from '@metamask/bridge-controller';
 import type {
+  BatchSellTradesResponse,
   QuoteMetadata,
   QuoteResponse,
   SimulatedGasFeeLimits,
@@ -51,11 +53,40 @@ export const isCrossChainTx = (type: TransactionType) =>
  * @param tx - The transaction meta
  * @returns Whether the transaction is a 7702 transaction
  */
-const is7702Tx = (tx: TransactionMeta) => {
+export const is7702Tx = (tx: TransactionMeta) => {
   return (
     (Array.isArray(tx.txParams.authorizationList) &&
       tx.txParams.authorizationList.length > 0) ||
     Boolean(tx.delegationAddress)
+  );
+};
+
+export const shouldDisable7702 = (
+  gasIncluded7702: boolean = false,
+  gasIncluded: boolean = false,
+  isDelegatedAccount: boolean = false,
+): boolean => {
+  // Enable 7702 batching when the quote includes gasless 7702 support
+  if (gasIncluded7702) {
+    return false;
+  }
+  // Enable batching when the account is already delegated (to avoid the in-flight transaction limit for delegated accounts)
+  if (isDelegatedAccount) {
+    return false;
+  }
+  // For gasless transactions with STX/sendBundle we keep disabling 7702
+  if (gasIncluded) {
+    return true;
+  }
+  /**
+   * Explicitly return default instead of falsy value (see TransactionBatchRequest.disable7702)
+   */
+  return true;
+};
+
+export const hasNestedSwapTransactions = (txMeta: TransactionMeta) => {
+  return Boolean(
+    txMeta?.nestedTransactions?.some((tx) => tx.type === TransactionType.swap),
   );
 };
 
@@ -269,7 +300,7 @@ export const toQuoteAndTxMetadata = ({
 }: {
   quoteResponse: QuoteResponse<Trade, Trade> & QuoteMetadata;
   isBridgeTx: boolean;
-}) => {
+}): Omit<QuoteAndTxMetadata, 'txMeta'>[] => {
   const tradeData: QuoteAndTxMetadata[] = [];
 
   const approvalTxType = isBridgeTx
@@ -302,6 +333,83 @@ export const toQuoteAndTxMetadata = ({
     },
     txFee: quoteResponse.quote.feeData[FeeType.TX_FEE],
   });
+
+  return tradeData;
+};
+
+/**
+ * Build the trade+quote metadata array for the batch sell transaction
+ * This ties together the quote, the tx params and the txMeta after submission
+ *
+ * @param options - The options for the batch sell transaction
+ * @param options.quoteResponses - The quote responses for the batch sell transaction
+ * @param options.batchSellTrades - The batch sell trades for the batch sell transaction
+ * @returns The trade+quote metadata array for the batch sell transaction
+ */
+export const toQuoteAndTxMetadataBatch = ({
+  quoteResponses,
+  batchSellTrades,
+}: {
+  quoteResponses: (QuoteResponse<TxData, TxData> & QuoteMetadata)[];
+  batchSellTrades: BatchSellTradesResponse;
+}): Omit<QuoteAndTxMetadata, 'txMeta'>[] => {
+  const tradeData: QuoteAndTxMetadata[] = [];
+
+  const {
+    transactions,
+    gasIncluded7702,
+    gasIncluded,
+    gasSponsored = false,
+  } = batchSellTrades;
+
+  for (const transaction of transactions) {
+    const { type, maxFeePerGas, maxPriorityFeePerGas, ...tx } = transaction;
+    // Match the trade or approval tx data with the quote response
+    const matchingQuoteResponse =
+      quoteResponses.find(
+        ({ approval, trade }) =>
+          trade?.data.toLowerCase() === tx.data.toLowerCase() ||
+          approval?.data.toLowerCase() === tx.data.toLowerCase(),
+      ) ?? quoteResponses[0];
+
+    // Include gasIncluded and gasIncluded7702 from the gasless batch
+    const normalizedQuote = {
+      ...matchingQuoteResponse,
+      quote: {
+        ...matchingQuoteResponse.quote,
+        gasIncluded,
+        gasIncluded7702,
+        gasSponsored,
+      },
+    };
+
+    const commonTradeData = {
+      tx,
+      quoteResponse: normalizedQuote,
+      txFee: { maxFeePerGas, maxPriorityFeePerGas },
+    };
+
+    if (type === BatchSellTransactionType.TRADE) {
+      tradeData.push({
+        ...commonTradeData,
+        type: TransactionType.swap,
+        assetsFiatValues: {
+          sending:
+            matchingQuoteResponse.sentAmount?.valueInCurrency?.toString(),
+          receiving:
+            matchingQuoteResponse.toTokenAmount?.valueInCurrency?.toString(),
+        },
+      });
+    } else {
+      tradeData.push({
+        ...commonTradeData,
+        type:
+          type === BatchSellTransactionType.APPROVAL
+            ? TransactionType.swapApproval
+            : TransactionType.tokenMethodTransfer,
+      });
+    }
+  }
 
   return tradeData;
 };

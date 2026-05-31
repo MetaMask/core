@@ -95,7 +95,10 @@ export const handleSingleTx = async ({
  * @returns The approvalTxId of the approval transaction
  */
 const approve = async (args: SubmitStrategyParams) => {
-  const { quoteResponse, isBridgeTx } = args;
+  const {
+    quoteResponses: [quoteResponse],
+    isBridgeTx,
+  } = args;
   const { approval, resetApproval } = quoteResponse;
   if (!approval || !isEvmTxData(approval)) {
     return undefined;
@@ -125,7 +128,7 @@ const approve = async (args: SubmitStrategyParams) => {
 
 export const handleEvmApprovals = async (args: SubmitStrategyParams) =>
   await args.traceFn(
-    getApprovalTraceParams(args.quoteResponse, args.isStxEnabled),
+    getApprovalTraceParams(args.quoteResponses[0], args.isStxEnabled),
     async () => await approve(args),
   );
 
@@ -138,7 +141,11 @@ export const handleEvmApprovals = async (args: SubmitStrategyParams) =>
 export async function* submitEvmHandler(
   args: SubmitStrategyParams<TxData>,
 ): AsyncGenerator<SubmitStepResult, void, void> {
-  const { quoteResponse, requireApproval, isBridgeTx } = args;
+  const {
+    quoteResponses: [quoteResponse],
+    requireApproval,
+    isBridgeTx,
+  } = args;
 
   // Submit resetApproval and approval transactions if present
   const approvalTxId = await handleEvmApprovals(args);

@@ -23,7 +23,10 @@ const handleTronApproval = async (
     TronTradeData | BitcoinTradeData | string | TxData
   >,
 ) => {
-  const { quoteResponse, traceFn } = args;
+  const {
+    quoteResponses: [quoteResponse],
+    traceFn,
+  } = args;
 
   const approvalTxId = await traceFn(
     getApprovalTraceParams(quoteResponse, false),
@@ -65,7 +68,10 @@ export async function* submitNonEvmHandler(
     BitcoinTradeData | TronTradeData | string | TxData
   >,
 ): AsyncGenerator<SubmitStepResult, void, void> {
-  const { quoteResponse, isBridgeTx } = args;
+  const {
+    quoteResponses: [quoteResponse],
+    isBridgeTx,
+  } = args;
 
   const approvalTxId = await handleTronApproval(args);
 

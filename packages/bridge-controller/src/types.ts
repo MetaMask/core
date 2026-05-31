@@ -361,27 +361,6 @@ export enum RequestStatus {
   ERROR = 2,
 }
 
-/**
- * @deprecated Use the separate method action types (e.g.,
- * `BridgeControllerFetchQuotesAction`) instead.
- */
-export enum BridgeUserAction {
-  SELECT_DEST_NETWORK = 'selectDestNetwork',
-  UPDATE_QUOTE_PARAMS = 'updateBridgeQuoteRequestParams',
-}
-
-/**
- * @deprecated Use the separate method action types (e.g.,
- * `BridgeControllerFetchQuotesAction`) instead.
- */
-export enum BridgeBackgroundAction {
-  SET_CHAIN_INTERVAL_LENGTH = 'setChainIntervalLength',
-  RESET_STATE = 'resetState',
-  TRACK_METAMETRICS_EVENT = 'trackUnifiedSwapBridgeEvent',
-  STOP_POLLING_FOR_QUOTES = 'stopPollingForQuotes',
-  FETCH_QUOTES = 'fetchQuotes',
-}
-
 export type BridgeControllerState = {
   quoteRequest: Partial<GenericQuoteRequest>[];
   quotes: (QuoteResponse & L1GasFees & NonEvmFees)[];
