@@ -70,9 +70,9 @@ npx tsx e2e/limit-orders.ts --coin ETH --size 0.01 --offset-pct 3 --leverage 3 -
 
 ### Limit Orders
 
-| Flag           | Default             | Description                              |
-| -------------- | ------------------- | ---------------------------------------- |
-| `--offset-pct` | long: -2, short: 2  | Price offset from mid (negative = below) |
+| Flag           | Default            | Description                              |
+| -------------- | ------------------ | ---------------------------------------- |
+| `--offset-pct` | long: -2, short: 2 | Price offset from mid (negative = below) |
 
 ## Output
 
