@@ -74,6 +74,8 @@ export class Wallet {
   get state(): DefaultState {
     return Object.entries(this.#instances).reduce<Record<string, unknown>>(
       (totalState, [name, instance]) => {
+        // We do actually want to check the prototype here.
+        // eslint-disable-next-line no-restricted-syntax
         if ('state' in instance && instance.state) {
           totalState[name] = instance.state;
         }

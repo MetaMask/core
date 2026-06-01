@@ -261,7 +261,7 @@ describe('Wallet', () => {
       expect(
         (await messenger.call('StorageService:getItem', 'TestNamespace', 'foo'))
           .result,
-      ).toStrictEqual('bar');
+      ).toBe('bar');
     });
   });
 });
