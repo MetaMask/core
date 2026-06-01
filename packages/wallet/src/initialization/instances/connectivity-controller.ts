@@ -59,7 +59,7 @@ export const connectivityController: InitializationConfiguration<
         options.connectivityAdapter ?? new AlwaysOnlineAdapter(),
     }),
   getMessenger: (parent: RootMessenger<DefaultActions, DefaultEvents>) =>
-    new Messenger<'ConnectivityController', never, never, typeof parent>({
+    new Messenger({
       namespace: 'ConnectivityController',
       parent,
     }),
