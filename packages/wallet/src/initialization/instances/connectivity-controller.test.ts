@@ -39,7 +39,7 @@ describe('connectivityController', () => {
     const controller = connectivityController.init({
       messenger,
       state: undefined,
-      options: {},
+      options: { connectivityAdapter: new AlwaysOnlineAdapter() },
     });
 
     expect(controller.state.connectivityStatus).toBe(
