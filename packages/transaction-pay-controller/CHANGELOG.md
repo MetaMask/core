@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [23.0.0]
+
 ### Changed
 
 - Live token balance queries now prefer the chain's Infura endpoint, falling back to the default endpoint if no Infura endpoint is configured ([#8839](https://github.com/MetaMask/core/pull/8839))
@@ -964,7 +966,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#6820](https://github.com/MetaMask/core/pull/6820))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@22.8.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@23.0.0...HEAD
+[23.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@22.8.0...@metamask/transaction-pay-controller@23.0.0
 [22.8.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@22.7.0...@metamask/transaction-pay-controller@22.8.0
 [22.7.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@22.6.3...@metamask/transaction-pay-controller@22.7.0
 [22.6.3]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@22.6.2...@metamask/transaction-pay-controller@22.6.3
