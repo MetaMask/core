@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `keyringV2Builders` to the `keyringController` instance options, forwarded to the `KeyringController` constructor ([#XXXX](https://github.com/MetaMask/core/pull/XXXX))
+
 ## [1.0.1]
 
 ### Changed
