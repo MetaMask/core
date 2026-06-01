@@ -771,7 +771,6 @@ const MESSENGER_EXPOSED_METHODS = [
   'getRequestState',
   'setUserRegion',
   'setSelectedProvider',
-  'ensureProviderForAsset',
   'init',
   'getCountries',
   'getTokens',
@@ -1355,57 +1354,6 @@ export class RampsController extends BaseController<
   }
 
   /**
-   * Ensures the currently selected provider supports the given asset.
-   *
-   * If no provider is selected, or the selected provider does not list the
-   * asset in its `supportedCryptoCurrencies`, this method searches the
-   * available providers for the first one that does and auto-selects it.
-   *
-   * This is a no-op when the current provider already supports the asset,
-   * when no providers are loaded, or when no provider supports the asset.
-   *
-   * @param assetId - CAIP-19 asset type identifier
-   *   (e.g. `"eip155:42161/erc20:0xaf88d065e77c8cC2239327C5EDb3A432268e5831"`).
-   */
-  ensureProviderForAsset(assetId: string): void {
-    const { selected, data: providers } = this.state.providers;
-    const lowerId = assetId.toLowerCase();
-
-    const supports = (provider: Provider | null): provider is Provider => {
-      const map = provider?.supportedCryptoCurrencies;
-      if (!map) {
-        return false;
-      }
-      return Boolean(map[assetId]) || Boolean(map[lowerId]);
-    };
-
-    if (supports(selected)) {
-      return;
-    }
-
-    const supportingProviders = providers?.filter((provider) =>
-      supports(provider),
-    );
-
-    if (!supportingProviders?.length) {
-      return;
-    }
-
-    const transakProvider = supportingProviders.find(
-      (provider) =>
-        provider.id?.toLowerCase().includes('transak') ||
-        provider.name?.toLowerCase().includes('transak'),
-    );
-
-    if (transakProvider) {
-      this.setSelectedProvider(transakProvider, { autoSelected: false });
-      return;
-    }
-
-    this.setSelectedProvider(supportingProviders[0], { autoSelected: true });
-  }
-
-  /**
    * Initializes the controller by fetching the user's region from geolocation.
    * This should be called once at app startup to set up the initial region.
    *
@@ -1788,6 +1736,13 @@ export class RampsController extends BaseController<
    * @param options.walletAddress - The destination wallet address.
    * @param options.paymentMethods - Array of payment method IDs. If not provided, uses paymentMethods from state.
    * @param options.providers - Optional provider IDs to filter quotes.
+   * @param options.autoSelectProvider - When true and `providers` is omitted,
+   *   resolves a provider that supports `assetId` for this request only (no
+   *   state mutation). Ignored when `providers` is passed.
+   * @param options.preferredProviderIds - Optional provider IDs to prefer
+   *   during auto-selection, in priority order (e.g. derived by the caller
+   *   from completed-order history). Only used when `autoSelectProvider` is
+   *   true and `providers` is omitted.
    * @param options.redirectUrl - Optional redirect URL after order completion.
    * @param options.action - The ramp action type. Defaults to 'buy'.
    * @param options.forceRefresh - Whether to bypass cache.
@@ -1802,6 +1757,8 @@ export class RampsController extends BaseController<
     walletAddress: string;
     paymentMethods?: string[];
     providers?: string[];
+    autoSelectProvider?: boolean;
+    preferredProviderIds?: string[];
     redirectUrl?: string;
     action?: RampAction;
     forceRefresh?: boolean;
@@ -1812,9 +1769,6 @@ export class RampsController extends BaseController<
     const paymentMethodsToUse =
       options.paymentMethods ??
       this.state.paymentMethods.data.map((pm: PaymentMethod) => pm.id);
-    const providersToUse =
-      options.providers ??
-      this.state.providers.data.map((provider: Provider) => provider.id);
     const action = options.action ?? 'buy';
     const assetIdToUse = options.assetId ?? this.state.tokens.selected?.assetId;
 
@@ -1827,6 +1781,21 @@ export class RampsController extends BaseController<
     const normalizedAssetIdForValidation = (assetIdToUse ?? '').trim();
     if (normalizedAssetIdForValidation === '') {
       throw new Error('assetId is required.');
+    }
+
+    let providersToUse: string[];
+    if (options.providers) {
+      providersToUse = options.providers;
+    } else if (options.autoSelectProvider) {
+      providersToUse = await this.#resolveProviderIdsForQuote({
+        assetId: normalizedAssetIdForValidation,
+        region: regionToUse,
+        preferredProviderIds: options.preferredProviderIds,
+      });
+    } else {
+      providersToUse = this.state.providers.data.map(
+        (provider: Provider) => provider.id,
+      );
     }
 
     if (
@@ -1886,6 +1855,129 @@ export class RampsController extends BaseController<
         ttl: options.ttl ?? DEFAULT_QUOTES_TTL,
       },
     );
+  }
+
+  /**
+   * Resolves the provider IDs to use for a single quote request, scoped to the
+   * given asset and region. Does not mutate `providers.selected` or any other
+   * state.
+   *
+   * Resolves against the provider list for the requested region (using cached
+   * providers only when the request targets the current region), then picks
+   * among those that support the asset using this precedence:
+   * 1. The currently selected provider, if it is in the region's supporting set.
+   * 2. The first preferred provider that supports the asset, where the
+   *    preference is taken from `preferredProviderIds` when supplied, otherwise
+   *    derived from the user's completed-order history (most recent first).
+   * 3. A Transak provider.
+   * 4. The first supporting provider.
+   *
+   * When no provider supports the asset, falls back to all known provider IDs
+   * so the request behaves as if no auto-selection occurred.
+   *
+   * @param options - The options.
+   * @param options.assetId - CAIP-19 asset type identifier to resolve for.
+   * @param options.region - Region to resolve providers for.
+   * @param options.preferredProviderIds - Provider IDs to prefer, in order.
+   * @returns Provider IDs for this request only.
+   */
+  async #resolveProviderIdsForQuote({
+    assetId,
+    region,
+    preferredProviderIds,
+  }: {
+    assetId: string;
+    region: string;
+    preferredProviderIds?: string[];
+  }): Promise<string[]> {
+    const normalizedRegion = region.toLowerCase().trim();
+
+    // Only trust cached providers when the request targets the current region;
+    // otherwise fetch for the requested region and use the returned list
+    // directly, since `getProviders` does not persist results for a non-current
+    // region.
+    let providers: Provider[];
+    if (
+      this.#isRegionCurrent(normalizedRegion) &&
+      this.state.providers.data.length > 0
+    ) {
+      providers = this.state.providers.data;
+    } else {
+      ({ providers } = await this.getProviders(normalizedRegion));
+    }
+
+    const lowerId = assetId.toLowerCase();
+
+    const supports = (provider: Provider | null): provider is Provider => {
+      const map = provider?.supportedCryptoCurrencies;
+      if (!map) {
+        return false;
+      }
+      return Boolean(map[assetId]) || Boolean(map[lowerId]);
+    };
+
+    const supportingProviders = providers.filter(supports);
+
+    if (supportingProviders.length === 0) {
+      return providers.map((provider) => provider.id);
+    }
+
+    const { selected } = this.state.providers;
+    if (
+      selected &&
+      supportingProviders.some((provider) => provider.id === selected.id)
+    ) {
+      return [selected.id];
+    }
+
+    const preferred =
+      preferredProviderIds ?? this.#getPreferredProviderIdsFromOrders();
+
+    for (const preferredId of preferred) {
+      const match = supportingProviders.find(
+        (provider) => provider.id === preferredId,
+      );
+      if (match) {
+        return [match.id];
+      }
+    }
+
+    const transakProvider = supportingProviders.find(
+      (provider) =>
+        provider.id?.toLowerCase().includes('transak') ||
+        provider.name?.toLowerCase().includes('transak'),
+    );
+
+    return [(transakProvider ?? supportingProviders[0]).id];
+  }
+
+  /**
+   * Derives an ordered list of provider IDs from the user's completed-order
+   * history, most recently completed first, with duplicates removed.
+   *
+   * Reads only this controller's own normalized order state, so it carries no
+   * dependency on any client-specific order representation.
+   *
+   * @returns Provider IDs ordered by most recent completed order.
+   */
+  #getPreferredProviderIdsFromOrders(): string[] {
+    const orderedIds: string[] = [];
+
+    const completedOrders = this.state.orders
+      .filter(
+        (order) =>
+          order.status === RampsOrderStatus.Completed && order.provider?.id,
+      )
+      .sort((orderA, orderB) => orderB.createdAt - orderA.createdAt);
+
+    for (const order of completedOrders) {
+      const id = order.provider?.id;
+      if (id && !orderedIds.includes(id)) {
+        orderedIds.push(id);
+      }
+    }
+
+    return orderedIds;
   }
 
   // === ORDER MANAGEMENT ===

@@ -24,7 +24,7 @@ import type {
   UpdatePaymentTokenRequest,
 } from './types';
 import { getStrategyOrder } from './utils/feature-flags';
-import { ensureProviderForFiatAsset, updateFiatAssetId } from './utils/fiat';
+import { updateFiatAssetId } from './utils/fiat';
 import { updateQuotes } from './utils/quotes';
 import { updateSourceAmounts } from './utils/source-amounts';
 import {
@@ -274,7 +274,6 @@ export class TransactionPayController extends BaseController<
   ): void {
     let shouldUpdateQuotes = false;
     let shouldUpdateFiatToken = false;
-    let isNewTransaction = false;
 
     this.update((state) => {
       const { transactionData } = state;
@@ -296,7 +295,6 @@ export class TransactionPayController extends BaseController<
         };
 
         current = transactionData[transactionId];
-        isNewTransaction = true;
       }
 
       fn(current);
@@ -337,13 +335,6 @@ export class TransactionPayController extends BaseController<
         shouldUpdateFiatToken = true;
       }
     });
-
-    if (isNewTransaction) {
-      ensureProviderForFiatAsset({
-        transactionId,
-        messenger: this.messenger,
-      });
-    }
 
     if (shouldUpdateFiatToken) {
       updateFiatAssetId({

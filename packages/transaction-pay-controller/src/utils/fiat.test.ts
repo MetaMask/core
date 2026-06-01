@@ -4,7 +4,7 @@ import type { Hex } from '@metamask/utils';
 import { deriveFiatAssetForFiatPayment } from '../strategy/fiat/utils';
 import { getMessengerMock } from '../tests/messenger-mock';
 import type { TransactionPayControllerMessenger } from '../types';
-import { ensureProviderForFiatAsset, updateFiatAssetId } from './fiat';
+import { updateFiatAssetId } from './fiat';
 import { getTransaction } from './transaction';
 
 jest.mock('../strategy/fiat/utils');
@@ -24,61 +24,11 @@ describe('fiat utils', () => {
   const deriveFiatAssetMock = jest.mocked(deriveFiatAssetForFiatPayment);
   const getTransactionMock = jest.mocked(getTransaction);
   let messenger: TransactionPayControllerMessenger;
-  let ensureProviderForAssetMock: jest.Mock;
 
   beforeEach(() => {
     jest.resetAllMocks();
     const mocks = getMessengerMock();
     messenger = mocks.messenger;
-
-    ensureProviderForAssetMock = jest.fn();
-    jest
-      .spyOn(messenger as never, 'call')
-      .mockImplementation((action: string, ...args: unknown[]) => {
-        if (action === 'RampsController:ensureProviderForAsset') {
-          return ensureProviderForAssetMock(...args) as never;
-        }
-        return undefined as never;
-      });
-  });
-
-  describe('ensureProviderForFiatAsset', () => {
-    it('calls RampsController:ensureProviderForAsset with derived CAIP asset ID', () => {
-      getTransactionMock.mockReturnValue(TRANSACTION_META_MOCK);
-      deriveFiatAssetMock.mockReturnValue(FIAT_ASSET_MOCK);
-
-      ensureProviderForFiatAsset({
-        transactionId: TRANSACTION_ID_MOCK,
-        messenger,
-      });
-
-      expect(ensureProviderForAssetMock).toHaveBeenCalledWith(
-        'eip155:137/slip44:966',
-      );
-    });
-
-    it('does not call RampsController when transaction is not found', () => {
-      getTransactionMock.mockReturnValue(undefined);
-
-      ensureProviderForFiatAsset({
-        transactionId: TRANSACTION_ID_MOCK,
-        messenger,
-      });
-
-      expect(ensureProviderForAssetMock).not.toHaveBeenCalled();
-    });
-
-    it('does not call RampsController when fiat asset cannot be derived', () => {
-      getTransactionMock.mockReturnValue(TRANSACTION_META_MOCK);
-      deriveFiatAssetMock.mockReturnValue(undefined as never);
-
-      ensureProviderForFiatAsset({
-        transactionId: TRANSACTION_ID_MOCK,
-        messenger,
-      });
-
-      expect(ensureProviderForAssetMock).not.toHaveBeenCalled();
-    });
   });
 
   describe('updateFiatAssetId', () => {

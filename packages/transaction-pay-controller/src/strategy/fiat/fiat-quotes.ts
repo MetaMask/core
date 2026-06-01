@@ -166,27 +166,23 @@ async function getRampsQuote({
   messenger: PayStrategyGetQuotesRequest['messenger'];
   walletAddress: string;
 }): Promise<RampsQuote> {
-  const rampsState = messenger.call('RampsController:getState');
-  const selectedProviderId = rampsState.providers.selected?.id;
-
   const quotes = await messenger.call('RampsController:getQuotes', {
     amount: adjustedAmount,
     assetId: buildCaipAssetType(fiatAsset.chainId, fiatAsset.address),
     fiat: DEFAULT_FIAT_CURRENCY,
     paymentMethods: [fiatPaymentMethod],
-    providers: selectedProviderId ? [selectedProviderId] : undefined,
+    autoSelectProvider: true,
     walletAddress,
   });
 
   log('Fetched ramps quotes', {
     quotesCount: quotes.success?.length ?? 0,
-    selectedProviderId,
   });
 
   const quote = quotes.success?.[0];
 
   if (!quote) {
-    throw new Error('No matching ramps quote found for selected provider');
+    throw new Error('No matching ramps quote found for fiat asset');
   }
 
   return quote;

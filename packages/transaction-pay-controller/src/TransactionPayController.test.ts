@@ -14,7 +14,7 @@ import type {
   UpdateTransactionDataCallback,
 } from './types';
 import { getStrategyOrder } from './utils/feature-flags';
-import { ensureProviderForFiatAsset, updateFiatAssetId } from './utils/fiat';
+import { updateFiatAssetId } from './utils/fiat';
 import { updateQuotes } from './utils/quotes';
 import { updateSourceAmounts } from './utils/source-amounts';
 import {
@@ -38,9 +38,6 @@ const CHAIN_ID_MOCK = '0x1' as Hex;
 describe('TransactionPayController', () => {
   const updateFiatPaymentMock = jest.mocked(updateFiatPayment);
   const updatePaymentTokenMock = jest.mocked(updatePaymentToken);
-  const ensureProviderForFiatAssetMock = jest.mocked(
-    ensureProviderForFiatAsset,
-  );
   const updateFiatAssetIdMock = jest.mocked(updateFiatAssetId);
   const updateSourceAmountsMock = jest.mocked(updateSourceAmounts);
   const updateQuotesMock = jest.mocked(updateQuotes);
@@ -910,54 +907,6 @@ describe('TransactionPayController', () => {
       });
 
       expect(updateQuotesMock).toHaveBeenCalledTimes(1);
-    });
-  });
-
-  describe('provider auto-selection on new transaction', () => {
-    function getControllerAndUpdateTransactionData(): {
-      controller: TransactionPayController;
-      updateTransactionData: UpdateTransactionDataCallback;
-    } {
-      const controller = createController();
-      controller.updatePaymentToken({
-        transactionId: TRANSACTION_ID_MOCK,
-        tokenAddress: TOKEN_ADDRESS_MOCK,
-        chainId: CHAIN_ID_MOCK,
-      });
-      return {
-        controller,
-        updateTransactionData:
-          updatePaymentTokenMock.mock.calls[0][1].updateTransactionData,
-      };
-    }
-
-    it('calls ensureProviderForFiatAsset when transaction data is first created', () => {
-      const { updateTransactionData } = getControllerAndUpdateTransactionData();
-
-      updateTransactionData(TRANSACTION_ID_MOCK, (data) => {
-        data.tokens = [];
-      });
-
-      expect(ensureProviderForFiatAssetMock).toHaveBeenCalledWith({
-        transactionId: TRANSACTION_ID_MOCK,
-        messenger,
-      });
-    });
-
-    it('does not call ensureProviderForFiatAsset on subsequent updates', () => {
-      const { updateTransactionData } = getControllerAndUpdateTransactionData();
-
-      updateTransactionData(TRANSACTION_ID_MOCK, (data) => {
-        data.tokens = [];
-      });
-
-      ensureProviderForFiatAssetMock.mockClear();
-
-      updateTransactionData(TRANSACTION_ID_MOCK, (data) => {
-        data.fiatPayment = { amountFiat: '50' };
-      });
-
-      expect(ensureProviderForFiatAssetMock).not.toHaveBeenCalled();
     });
   });
 });

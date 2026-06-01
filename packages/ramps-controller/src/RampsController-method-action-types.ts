@@ -88,24 +88,6 @@ export type RampsControllerSetSelectedProviderAction = {
 };
 
 /**
- * Ensures the currently selected provider supports the given asset.
- *
- * If no provider is selected, or the selected provider does not list the
- * asset in its `supportedCryptoCurrencies`, this method searches the
- * available providers for the first one that does and auto-selects it.
- *
- * This is a no-op when the current provider already supports the asset,
- * when no providers are loaded, or when no provider supports the asset.
- *
- * @param assetId - CAIP-19 asset type identifier
- * (e.g. `"eip155:42161/erc20:0xaf88d065e77c8cC2239327C5EDb3A432268e5831"`).
- */
-export type RampsControllerEnsureProviderForAssetAction = {
-  type: `RampsController:ensureProviderForAsset`;
-  handler: RampsController['ensureProviderForAsset'];
-};
-
-/**
  * Initializes the controller by fetching the user's region from geolocation.
  * This should be called once at app startup to set up the initial region.
  *
@@ -222,6 +204,13 @@ export type RampsControllerSetSelectedPaymentMethodAction = {
  * @param options.walletAddress - The destination wallet address.
  * @param options.paymentMethods - Array of payment method IDs. If not provided, uses paymentMethods from state.
  * @param options.providers - Optional provider IDs to filter quotes.
+ * @param options.autoSelectProvider - When true and `providers` is omitted,
+ * resolves a provider that supports `assetId` for this request only (no
+ * state mutation). Ignored when `providers` is passed.
+ * @param options.preferredProviderIds - Optional provider IDs to prefer
+ * during auto-selection, in priority order (e.g. derived by the caller
+ * from completed-order history). Only used when `autoSelectProvider` is
+ * true and `providers` is omitted.
  * @param options.redirectUrl - Optional redirect URL after order completion.
  * @param options.action - The ramp action type. Defaults to 'buy'.
  * @param options.forceRefresh - Whether to bypass cache.
@@ -639,7 +628,6 @@ export type RampsControllerMethodActions =
   | RampsControllerGetRequestStateAction
   | RampsControllerSetUserRegionAction
   | RampsControllerSetSelectedProviderAction
-  | RampsControllerEnsureProviderForAssetAction
   | RampsControllerInitAction
   | RampsControllerGetCountriesAction
   | RampsControllerGetTokensAction

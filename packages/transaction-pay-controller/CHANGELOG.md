@@ -9,11 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Ensure the selected Ramps provider supports the fiat asset when transaction data is first created, by calling `RampsController:ensureProviderForAsset` with the feature-flag-derived CAIP asset ID ([#8926](https://github.com/MetaMask/core/pull/8926))
-- Extract fiat-related utilities (`ensureProviderForFiatAsset`, `updateFiatAssetId`) into `utils/fiat.ts` ([#8926](https://github.com/MetaMask/core/pull/8926))
+- Extract the `updateFiatAssetId` utility into `utils/fiat.ts` ([#8926](https://github.com/MetaMask/core/pull/8926))
 
 ### Changed
 
+- Fetch MM Pay fiat quotes by requesting `RampsController:getQuotes` with `autoSelectProvider: true` rather than reading and passing the currently selected provider, so provider selection for the quote is resolved by the Ramps controller without mutating its selected-provider state ([#8926](https://github.com/MetaMask/core/pull/8926))
 - Bump `@metamask/assets-controllers` from `^108.1.0` to `^108.2.0` ([#8911](https://github.com/MetaMask/core/pull/8911))
 - Bump `@metamask/assets-controller` from `^8.0.1` to `^8.1.0` ([#8912](https://github.com/MetaMask/core/pull/8912), [#8919](https://github.com/MetaMask/core/pull/8919))
 - Bump `@metamask/bridge-status-controller` from `^71.2.0` to `^71.2.1` ([#8912](https://github.com/MetaMask/core/pull/8912))
