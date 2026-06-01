@@ -1,17 +1,12 @@
 import {
   AccountsController,
   AccountsControllerMessenger,
-  AccountsControllerState,
 } from '@metamask/accounts-controller';
 import { Messenger } from '@metamask/messenger';
 
 import type { DefaultActions, DefaultEvents, RootMessenger } from '../defaults';
 import type { InitializationConfiguration } from '../types';
 
-// TODO: AccountsController is deprecated in favour of AccountTreeController
-// and MultichainAccountService. Migrate once those controllers are wired into
-// the wallet initialization (both still depend on AccountsController at the
-// messenger level, so it must remain present in the meantime).
 export const accountsController: InitializationConfiguration<
   AccountsController,
   AccountsControllerMessenger
@@ -19,7 +14,7 @@ export const accountsController: InitializationConfiguration<
   name: 'AccountsController',
   init: ({ state, messenger }) =>
     new AccountsController({
-      state: (state ?? {}) as AccountsControllerState,
+      state,
       messenger,
     }),
   getMessenger: (parent: RootMessenger<DefaultActions, DefaultEvents>) => {
