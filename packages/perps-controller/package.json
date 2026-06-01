@@ -89,14 +89,11 @@
     "changelog:validate": "../../scripts/validate-changelog.sh @metamask/perps-controller",
     "messenger-action-types:check": "tsx ../../packages/messenger-cli/src/cli.ts --formatter oxfmt --check",
     "messenger-action-types:generate": "tsx ../../packages/messenger-cli/src/cli.ts --formatter oxfmt --generate",
-    "recipe:run": "tsx recipe-v1/runner.ts",
-    "recipe:market-data": "tsx recipe-v1/runner.ts recipe-v1/recipes/market-data.recipe.json",
     "since-latest-release": "../../scripts/since-latest-release.sh",
     "test": "NODE_OPTIONS=--experimental-vm-modules jest --reporters=jest-silent-reporter",
     "test:clean": "NODE_OPTIONS=--experimental-vm-modules jest --clearCache",
     "test:verbose": "NODE_OPTIONS=--experimental-vm-modules jest --verbose",
-    "test:watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch",
-    "recipe:trading-lifecycle": "tsx recipe-v1/runner.ts recipe-v1/recipes/trading-lifecycle.recipe.json"
+    "test:watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch"
   },
   "dependencies": {
     "@metamask/abi-utils": "^2.0.3",

@@ -38,8 +38,3 @@ packages/*/*.tsbuildinfo
 
 # AI
 .sisyphus/
-.omc/
-.omx/
-CLAUDE.local.md
-**/CLAUDE.local.md
-temp/
