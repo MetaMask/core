@@ -254,13 +254,9 @@ describe('getFiatQuotes', () => {
         assetId: FIAT_ASSET_CAIP_ID_MOCK,
         fiat: 'USD',
         paymentMethods: ['/payments/debit-credit-card'],
-        autoSelectProvider: true,
+        providers: [SELECTED_PROVIDER_ID],
         walletAddress: WALLET_ADDRESS,
       }),
-    );
-
-    expect(callMock).not.toHaveBeenCalledWith(
-      'RampsController:getState',
     );
 
     expect(callMock).toHaveBeenCalledWith(
@@ -500,17 +496,19 @@ describe('getFiatQuotes', () => {
     expect(result).toStrictEqual([]);
   });
 
-  it('delegates provider selection to the controller via autoSelectProvider', async () => {
-    const { callMock, request } = getRequest();
+  it('passes undefined providers when no provider is selected', async () => {
+    const { callMock, request } = getRequest({
+      selectedProviderId: null,
+    });
 
     await getFiatQuotes(request);
 
-    const getQuotesCall = callMock.mock.calls.find(
-      ([action]) => action === 'RampsController:getQuotes',
+    expect(callMock).toHaveBeenCalledWith(
+      'RampsController:getQuotes',
+      expect.objectContaining({
+        providers: undefined,
+      }),
     );
-
-    expect(getQuotesCall?.[1]).toMatchObject({ autoSelectProvider: true });
-    expect(getQuotesCall?.[1]).not.toHaveProperty('providers');
   });
 
   it('stores rampsQuote on fiat payment state via updateFiatPayment', async () => {

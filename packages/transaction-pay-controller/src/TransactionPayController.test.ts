@@ -7,6 +7,7 @@ import { TransactionPayController } from '.';
 import { updateFiatPayment } from './actions/update-fiat-payment';
 import { updatePaymentToken } from './actions/update-payment-token';
 import { PaymentOverride, TransactionPayStrategy } from './constants';
+import { deriveFiatAssetForFiatPayment } from './strategy/fiat/utils';
 import { getMessengerMock } from './tests/messenger-mock';
 import type {
   TransactionPayControllerMessenger,
@@ -14,17 +15,17 @@ import type {
   UpdateTransactionDataCallback,
 } from './types';
 import { getStrategyOrder } from './utils/feature-flags';
-import { updateFiatAssetId } from './utils/fiat';
 import { updateQuotes } from './utils/quotes';
 import { updateSourceAmounts } from './utils/source-amounts';
 import {
+  getTransaction,
   subscribeAssetChanges,
   subscribeTransactionChanges,
 } from './utils/transaction';
 
 jest.mock('./actions/update-fiat-payment');
 jest.mock('./actions/update-payment-token');
-jest.mock('./utils/fiat');
+jest.mock('./strategy/fiat/utils');
 jest.mock('./utils/source-amounts');
 jest.mock('./utils/quotes');
 jest.mock('./utils/transaction');
@@ -38,7 +39,10 @@ const CHAIN_ID_MOCK = '0x1' as Hex;
 describe('TransactionPayController', () => {
   const updateFiatPaymentMock = jest.mocked(updateFiatPayment);
   const updatePaymentTokenMock = jest.mocked(updatePaymentToken);
-  const updateFiatAssetIdMock = jest.mocked(updateFiatAssetId);
+  const deriveFiatAssetForFiatPaymentMock = jest.mocked(
+    deriveFiatAssetForFiatPayment,
+  );
+  const getTransactionMock = jest.mocked(getTransaction);
   const updateSourceAmountsMock = jest.mocked(updateSourceAmounts);
   const updateQuotesMock = jest.mocked(updateQuotes);
   const subscribeTransactionChangesMock = jest.mocked(
@@ -846,6 +850,12 @@ describe('TransactionPayController', () => {
   });
 
   describe('fiat token selection', () => {
+    const CAIP_ASSET_ID_MOCK = 'eip155:137/slip44:966';
+    const FIAT_ASSET_MOCK = {
+      address: '0x0000000000000000000000000000000000001010' as Hex,
+      chainId: '0x89' as Hex,
+    };
+
     function getControllerAndUpdateTransactionData(): {
       controller: TransactionPayController;
       updateTransactionData: UpdateTransactionDataCallback;
@@ -863,43 +873,44 @@ describe('TransactionPayController', () => {
       };
     }
 
-    it('calls updateFiatAssetId when payment method changes', () => {
-      const { updateTransactionData } = getControllerAndUpdateTransactionData();
+    it('does not set caipAssetId when only fiat amount changes', () => {
+      getTransactionMock.mockReturnValue(TRANSACTION_META_MOCK);
+      deriveFiatAssetForFiatPaymentMock.mockReturnValue(FIAT_ASSET_MOCK);
 
-      updateTransactionData(TRANSACTION_ID_MOCK, (data) => {
-        data.fiatPayment = { selectedPaymentMethodId: 'card-123' };
-      });
-
-      expect(updateFiatAssetIdMock).toHaveBeenCalledWith({
-        transactionId: TRANSACTION_ID_MOCK,
-        messenger,
-        updateTransactionData: expect.any(Function),
-      });
-    });
-
-    it('does not call updateFiatAssetId when only fiat amount changes', () => {
-      const { updateTransactionData } = getControllerAndUpdateTransactionData();
+      const { controller, updateTransactionData } =
+        getControllerAndUpdateTransactionData();
 
       updateTransactionData(TRANSACTION_ID_MOCK, (data) => {
         data.fiatPayment = { amountFiat: '100' };
       });
 
-      expect(updateFiatAssetIdMock).not.toHaveBeenCalled();
+      expect(
+        controller.state.transactionData[TRANSACTION_ID_MOCK]?.fiatPayment
+          ?.caipAssetId,
+      ).toBeUndefined();
     });
 
-    it('does not call updateFiatAssetId when fiat payment does not change', () => {
-      const { updateTransactionData } = getControllerAndUpdateTransactionData();
+    it('stores caipAssetId in fiatPayment when payment method changes', () => {
+      getTransactionMock.mockReturnValue(TRANSACTION_META_MOCK);
+      deriveFiatAssetForFiatPaymentMock.mockReturnValue(FIAT_ASSET_MOCK);
+
+      const { controller, updateTransactionData } =
+        getControllerAndUpdateTransactionData();
 
       updateTransactionData(TRANSACTION_ID_MOCK, (data) => {
-        data.sourceAmounts = [
-          { sourceAmountHuman: '1.23' } as TransactionPaySourceAmount,
-        ];
+        data.fiatPayment = { selectedPaymentMethodId: 'card-123' };
       });
 
-      expect(updateFiatAssetIdMock).not.toHaveBeenCalled();
+      expect(
+        controller.state.transactionData[TRANSACTION_ID_MOCK]?.fiatPayment
+          ?.caipAssetId,
+      ).toBe(CAIP_ASSET_ID_MOCK);
     });
 
     it('triggers quote update when fiat payment changes', () => {
+      getTransactionMock.mockReturnValue(TRANSACTION_META_MOCK);
+      deriveFiatAssetForFiatPaymentMock.mockReturnValue(FIAT_ASSET_MOCK);
+
       const { updateTransactionData } = getControllerAndUpdateTransactionData();
 
       updateTransactionData(TRANSACTION_ID_MOCK, (data) => {
@@ -907,6 +918,58 @@ describe('TransactionPayController', () => {
       });
 
       expect(updateQuotesMock).toHaveBeenCalledTimes(1);
+    });
+
+    it('does not set caipAssetId when transaction is not found', () => {
+      getTransactionMock.mockReturnValue(undefined);
+
+      const { controller, updateTransactionData } =
+        getControllerAndUpdateTransactionData();
+
+      updateTransactionData(TRANSACTION_ID_MOCK, (data) => {
+        data.fiatPayment = { selectedPaymentMethodId: 'card-123' };
+      });
+
+      expect(
+        controller.state.transactionData[TRANSACTION_ID_MOCK]?.fiatPayment
+          ?.caipAssetId,
+      ).toBeUndefined();
+    });
+
+    it('does not set caipAssetId when fiat asset cannot be derived', () => {
+      getTransactionMock.mockReturnValue(TRANSACTION_META_MOCK);
+      deriveFiatAssetForFiatPaymentMock.mockReturnValue(undefined as never);
+
+      const { controller, updateTransactionData } =
+        getControllerAndUpdateTransactionData();
+
+      updateTransactionData(TRANSACTION_ID_MOCK, (data) => {
+        data.fiatPayment = { selectedPaymentMethodId: 'card-123' };
+      });
+
+      expect(
+        controller.state.transactionData[TRANSACTION_ID_MOCK]?.fiatPayment
+          ?.caipAssetId,
+      ).toBeUndefined();
+    });
+
+    it('does not set caipAssetId when fiat payment does not change', () => {
+      getTransactionMock.mockReturnValue(TRANSACTION_META_MOCK);
+      deriveFiatAssetForFiatPaymentMock.mockReturnValue(FIAT_ASSET_MOCK);
+
+      const { controller, updateTransactionData } =
+        getControllerAndUpdateTransactionData();
+
+      updateTransactionData(TRANSACTION_ID_MOCK, (data) => {
+        data.sourceAmounts = [
+          { sourceAmountHuman: '1.23' } as TransactionPaySourceAmount,
+        ];
+      });
+
+      expect(
+        controller.state.transactionData[TRANSACTION_ID_MOCK]?.fiatPayment
+          ?.caipAssetId,
+      ).toBeUndefined();
     });
   });
 });

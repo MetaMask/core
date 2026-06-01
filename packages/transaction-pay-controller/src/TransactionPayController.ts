@@ -12,6 +12,7 @@ import {
   TransactionPayStrategy,
 } from './constants';
 import { QuoteRefresher } from './helpers/QuoteRefresher';
+import { deriveFiatAssetForFiatPayment } from './strategy/fiat/utils';
 import type {
   GetDelegationTransactionCallback,
   PolymarketCallbacks,
@@ -24,10 +25,11 @@ import type {
   UpdatePaymentTokenRequest,
 } from './types';
 import { getStrategyOrder } from './utils/feature-flags';
-import { updateFiatAssetId } from './utils/fiat';
 import { updateQuotes } from './utils/quotes';
 import { updateSourceAmounts } from './utils/source-amounts';
+import { buildCaipAssetType } from './utils/token';
 import {
+  getTransaction,
   subscribeAssetChanges,
   subscribeTransactionChanges,
 } from './utils/transaction';
@@ -337,11 +339,24 @@ export class TransactionPayController extends BaseController<
     });
 
     if (shouldUpdateFiatToken) {
-      updateFiatAssetId({
+      const transaction = getTransaction(
         transactionId,
-        messenger: this.messenger,
-        updateTransactionData: this.#updateTransactionData.bind(this),
-      });
+        this.messenger,
+      ) as TransactionMeta;
+      const fiatAsset = deriveFiatAssetForFiatPayment(
+        transaction,
+        this.messenger,
+      );
+      if (fiatAsset) {
+        this.#updateTransactionData(transactionId, (data) => {
+          if (data.fiatPayment) {
+            data.fiatPayment.caipAssetId = buildCaipAssetType(
+              fiatAsset.chainId,
+              fiatAsset.address,
+            );
+          }
+        });
+      }
     }
 
     if (shouldUpdateQuotes) {
