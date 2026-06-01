@@ -129,6 +129,7 @@
 /packages/profile-metrics-controller            @MetaMask/mobile-platform @MetaMask/extension-platform
 
 ## Initialization
+/packages/wallet/src/initialization/instances/accounts-controller.ts @MetaMask/accounts-engineers @MetaMask/core-platform
 /packages/wallet/src/initialization/instances/keyring-controller.ts @MetaMask/accounts-engineers @MetaMask/core-platform
 
 ## Package Release related
