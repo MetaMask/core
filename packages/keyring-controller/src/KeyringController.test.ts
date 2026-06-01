@@ -4066,6 +4066,157 @@ describe('KeyringController', () => {
         expect(fn).not.toHaveBeenCalled();
       });
     });
+
+    describe('when the operation drains a keyring of all its accounts', () => {
+      it('removes the now-empty non-primary keyring from state', async () => {
+        await withController(async ({ controller }) => {
+          const importedAccount = await controller.importAccountWithStrategy(
+            AccountImportStrategy.privateKey,
+            [privateKey],
+          );
+          expect(controller.state.keyrings).toHaveLength(2);
+          expect(controller.state.keyrings[1].type).toBe(KeyringTypes.simple);
+
+          await controller.withKeyring(
+            { type: KeyringTypes.simple },
+            async ({ keyring }) => {
+              await keyring.removeAccount?.(importedAccount as Hex);
+            },
+          );
+
+          expect(controller.state.keyrings).toHaveLength(1);
+          expect(controller.state.keyrings[0].type).toBe(KeyringTypes.hd);
+        });
+      });
+
+      it('destroys the drained keyring', async () => {
+        const address = '0x5AC6D462f054690a373FABF8CC28e161003aEB19';
+        stubKeyringClassWithAccount(MockKeyring, address);
+
+        const destroySpy = jest.spyOn(MockKeyring.prototype, 'destroy');
+
+        await withController(
+          { keyringBuilders: [keyringBuilderFactory(MockKeyring)] },
+          async ({ controller }) => {
+            await controller.addNewKeyring(MockKeyring.type);
+            expect(controller.state.keyrings).toHaveLength(2);
+
+            // Drain the mock keyring's accounts via withKeyring.
+            await controller.withKeyring(
+              { type: MockKeyring.type },
+              async ({ keyring }) => {
+                jest
+                  .spyOn(keyring, 'getAccounts')
+                  .mockResolvedValue([] as Hex[]);
+              },
+            );
+
+            expect(controller.state.keyrings).toHaveLength(1);
+            expect(destroySpy).toHaveBeenCalled();
+          },
+        );
+      });
+
+      it('persists the cleanup so the empty keyring does not return on unlock', async () => {
+        await withController(
+          { cacheEncryptionKey: true },
+          async ({ controller }) => {
+            const importedAccount = await controller.importAccountWithStrategy(
+              AccountImportStrategy.privateKey,
+              [privateKey],
+            );
+            expect(controller.state.keyrings).toHaveLength(2);
+
+            await controller.withKeyring(
+              { type: KeyringTypes.simple },
+              async ({ keyring }) => {
+                await keyring.removeAccount?.(importedAccount as Hex);
+              },
+            );
+
+            await controller.setLocked();
+            await controller.submitPassword(password);
+
+            expect(controller.state.keyrings).toHaveLength(1);
+            expect(controller.state.keyrings[0].type).toBe(KeyringTypes.hd);
+          },
+        );
+      });
+
+      it('preserves pre-existing empty keyrings that were not drained by the operation', async () => {
+        await withController(async ({ controller }) => {
+          const importedAccount = await controller.importAccountWithStrategy(
+            AccountImportStrategy.privateKey,
+            [privateKey],
+          );
+          await controller.addNewKeyring(KeyringTypes.simple);
+
+          // HD keyring + Simple-with-account + intentionally empty Simple
+          expect(controller.state.keyrings).toHaveLength(3);
+          expect(controller.state.keyrings[2].accounts).toStrictEqual([]);
+
+          await controller.withKeyring(
+            { address: importedAccount as Hex },
+            async ({ keyring }) => {
+              await keyring.removeAccount?.(importedAccount as Hex);
+            },
+          );
+
+          // The drained keyring is removed; the intentionally empty
+          // keyring (created via addNewKeyring) is preserved.
+          expect(controller.state.keyrings).toHaveLength(2);
+          expect(controller.state.keyrings[0].type).toBe(KeyringTypes.hd);
+          expect(controller.state.keyrings[1].type).toBe(KeyringTypes.simple);
+          expect(controller.state.keyrings[1].accounts).toStrictEqual([]);
+        });
+      });
+
+      it('does not remove the primary keyring even if its last account is removed', async () => {
+        await withController(async ({ controller }) => {
+          const [primaryKeyring] = controller.getKeyringsByType(
+            KeyringTypes.hd,
+          ) as EthKeyring[];
+          const [primaryAccount] = await primaryKeyring.getAccounts();
+
+          await controller.withKeyring(
+            { type: KeyringTypes.hd },
+            async ({ keyring }) => {
+              await keyring.removeAccount?.(primaryAccount as Hex);
+            },
+          );
+
+          expect(controller.state.keyrings).toHaveLength(1);
+          expect(controller.state.keyrings[0].type).toBe(KeyringTypes.hd);
+          expect(controller.state.keyrings[0].accounts).toStrictEqual([]);
+        });
+      });
+
+      it('does not remove keyrings if the operation rolls back', async () => {
+        await withController(async ({ controller }) => {
+          const importedAccount = await controller.importAccountWithStrategy(
+            AccountImportStrategy.privateKey,
+            [privateKey],
+          );
+          expect(controller.state.keyrings).toHaveLength(2);
+
+          await expect(
+            controller.withKeyring(
+              { type: KeyringTypes.simple },
+              async ({ keyring }) => {
+                await keyring.removeAccount?.(importedAccount as Hex);
+                throw new Error('Oops');
+              },
+            ),
+          ).rejects.toThrow('Oops');
+
+          // Rollback restores the original keyrings (still 2).
+          expect(controller.state.keyrings).toHaveLength(2);
+          expect(controller.state.keyrings[1].accounts).toStrictEqual([
+            importedAccount,
+          ]);
+        });
+      });
+    });
   });
 
   describe('withController', () => {
@@ -4722,6 +4873,29 @@ describe('KeyringController', () => {
           );
 
           expect(fn).toHaveBeenCalled();
+        });
+      });
+    });
+
+    describe('when the operation drains a keyring of all its accounts', () => {
+      it('removes the now-empty non-primary keyring from state', async () => {
+        await withController(async ({ controller }) => {
+          await controller.importAccountWithStrategy(
+            AccountImportStrategy.privateKey,
+            [privateKey],
+          );
+          expect(controller.state.keyrings).toHaveLength(2);
+
+          await controller.withKeyringV2(
+            { type: KeyringType.PrivateKey },
+            async ({ keyring }) => {
+              const [account] = await keyring.getAccounts();
+              await keyring.deleteAccount(account.id);
+            },
+          );
+
+          expect(controller.state.keyrings).toHaveLength(1);
+          expect(controller.state.keyrings[0].type).toBe(KeyringTypes.hd);
         });
       });
     });

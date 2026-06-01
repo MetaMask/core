@@ -1904,7 +1904,9 @@ export class KeyringController<
       const keyring = entry.keyring as SelectedKeyring;
 
       return this.#assertNoUnsafeDirectKeyringAccess(
-        await operation({ keyring, metadata }),
+        await this.#cleanUpEmptiedKeyringsAfter(async () =>
+          operation({ keyring, metadata }),
+        ),
         keyring,
       );
     });
@@ -2036,10 +2038,12 @@ export class KeyringController<
       const keyring = entry.keyringV2 as SelectedKeyring;
 
       return this.#assertNoUnsafeDirectKeyringAccess(
-        await operation({
-          keyring,
-          metadata,
-        }),
+        await this.#cleanUpEmptiedKeyringsAfter(async () =>
+          operation({
+            keyring,
+            metadata,
+          }),
+        ),
         keyring,
       );
     });
@@ -2946,6 +2950,76 @@ export class KeyringController<
     }
 
     return { keyring, keyringV2, metadata: keyringMetadata };
+  }
+
+  /**
+   * Run the given operation and afterwards clean up any keyring whose
+   * account list transitioned from non-empty to empty during the operation.
+   *
+   * This mirrors the cleanup behavior of {@link KeyringController.removeAccount}
+   * for code paths where the consumer mutates a keyring directly via
+   * {@link KeyringController.withKeyring} or
+   * {@link KeyringController.withKeyringV2}: if the consumer drains the last
+   * account from a keyring, the now-empty keyring is removed from
+   * {@link KeyringController.#keyrings} and destroyed before persistence runs.
+   *
+   * Pre-existing empty keyrings (e.g. those created intentionally via
+   * {@link KeyringController.addNewKeyring} without subsequent account
+   * creation) are left alone. The primary keyring (index 0) is also
+   * preserved unconditionally to keep `removeAccount`'s primary-keyring
+   * invariant intact.
+   *
+   * @param operation - The operation to execute.
+   * @returns The result of the operation.
+   * @template Result - The type of the value resolved by the operation.
+   */
+  async #cleanUpEmptiedKeyringsAfter<Result>(
+    operation: () => Promise<Result>,
+  ): Promise<Result> {
+    const wasNonEmpty = new WeakSet<EthKeyring>();
+    await Promise.all(
+      this.#keyrings.map(async ({ keyring }) => {
+        if ((await keyring.getAccounts()).length > 0) {
+          wasNonEmpty.add(keyring);
+        }
+      }),
+    );
+
+    const result = await operation();
+
+    const accountCounts = await Promise.all(
+      this.#keyrings.map(
+        async ({ keyring }) => (await keyring.getAccounts()).length,
+      ),
+    );
+
+    const emptied: KeyringEntry[] = [];
+    const remaining: KeyringEntry[] = [];
+    for (let index = 0; index < this.#keyrings.length; index++) {
+      const entry = this.#keyrings[index];
+      const isPrimary = index === 0;
+      const becameEmpty =
+        !isPrimary &&
+        wasNonEmpty.has(entry.keyring) &&
+        accountCounts[index] === 0;
+
+      if (becameEmpty) {
+        emptied.push(entry);
+      } else {
+        remaining.push(entry);
+      }
+    }
+
+    if (emptied.length > 0) {
+      this.#keyrings = remaining;
+      await Promise.all(
+        emptied.map(({ keyring, keyringV2 }) =>
+          this.#destroyKeyring(keyring, keyringV2),
+        ),
+      );
+    }
+
+    return result;
   }
 
   /**
