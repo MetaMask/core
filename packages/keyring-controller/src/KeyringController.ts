@@ -1904,7 +1904,9 @@ export class KeyringController<
       const keyring = entry.keyring as SelectedKeyring;
 
       return this.#assertNoUnsafeDirectKeyringAccess(
-        await operation({ keyring, metadata }),
+        await this.#cleanUpEmptiedKeyringsAfter(async () =>
+          operation({ keyring, metadata }),
+        ),
         keyring,
       );
     });
@@ -2036,10 +2038,12 @@ export class KeyringController<
       const keyring = entry.keyringV2 as SelectedKeyring;
 
       return this.#assertNoUnsafeDirectKeyringAccess(
-        await operation({
-          keyring,
-          metadata,
-        }),
+        await this.#cleanUpEmptiedKeyringsAfter(async () =>
+          operation({
+            keyring,
+            metadata,
+          }),
+        ),
         keyring,
       );
     });
@@ -2949,6 +2953,74 @@ export class KeyringController<
   }
 
   /**
+   * Run the given operation and afterwards clean up any keyring whose
+   * account list transitioned from non-empty to empty during the operation.
+   *
+   * This mirrors the cleanup behavior of {@link KeyringController.removeAccount}
+   * for code paths where the consumer mutates a keyring directly via
+   * {@link KeyringController.withKeyring} or
+   * {@link KeyringController.withKeyringV2}: if the consumer drains the last
+   * account from a keyring, the now-empty keyring is removed from
+   * {@link KeyringController.#keyrings} and destroyed before persistence runs.
+   *
+   * Pre-existing empty keyrings (e.g. those created intentionally via
+   * {@link KeyringController.addNewKeyring} without subsequent account
+   * creation) are left alone, as are keyrings created within the operation
+   * itself (they are not part of the pre-operation snapshot). The primary
+   * keyring (see {@link KeyringController.#isPrimaryKeyring}) is also preserved
+   * unconditionally to keep `removeAccount`'s primary-keyring invariant intact.
+   *
+   * @param operation - The operation to execute.
+   * @returns The result of the operation.
+   * @template Result - The type of the value resolved by the operation.
+   */
+  async #cleanUpEmptiedKeyringsAfter<Result>(
+    operation: () => Promise<Result>,
+  ): Promise<Result> {
+    // Only the primary keyring exists, which is never auto-removed, so there
+    // is nothing to clean up regardless of what the operation does.
+    if (this.#keyrings.length <= 1) {
+      return operation();
+    }
+
+    const wasNonEmpty = new WeakSet<EthKeyring>();
+    await Promise.all(
+      this.#keyrings.map(async ({ keyring }) => {
+        if ((await keyring.getAccounts()).length > 0) {
+          wasNonEmpty.add(keyring);
+        }
+      }),
+    );
+
+    const result = await operation();
+
+    const isNowEmpty = await Promise.all(
+      this.#keyrings.map(
+        async ({ keyring }) => (await keyring.getAccounts()).length === 0,
+      ),
+    );
+
+    const emptied = this.#keyrings.filter(
+      (entry, index) =>
+        !this.#isPrimaryKeyring(entry, this.#keyrings) &&
+        wasNonEmpty.has(entry.keyring) &&
+        isNowEmpty[index],
+    );
+
+    if (emptied.length > 0) {
+      const removed = new Set(emptied);
+      this.#keyrings = this.#keyrings.filter((entry) => !removed.has(entry));
+      await Promise.all(
+        emptied.map(({ keyring, keyringV2 }) =>
+          this.#destroyKeyring(keyring, keyringV2),
+        ),
+      );
+    }
+
+    return result;
+  }
+
+  /**
    * Remove all managed keyrings, destroying all their
    * instances in memory.
    */
@@ -3148,6 +3220,25 @@ export class KeyringController<
   }
 
   /**
+   * Check whether the given keyring entry is the primary keyring.
+   *
+   * The primary keyring is the first HD keyring in the given list. Both the
+   * position (index 0) and the keyring type are checked so that the definition
+   * of "primary" lives in one place and does not rely on positional index
+   * alone, which could misidentify the primary keyring in the event of a bug.
+   *
+   * @param entry - The keyring entry to check.
+   * @param keyrings - The list of keyring entries `entry` belongs to.
+   * @returns Whether the entry is the primary keyring.
+   */
+  #isPrimaryKeyring(entry: KeyringEntry, keyrings: KeyringEntry[]): boolean {
+    return (
+      keyrings[0] === entry &&
+      entry.keyring.type === (KeyringTypes.hd as string)
+    );
+  }
+
+  /**
    * Assert that the given keyring entry is not the primary HD keyring.
    *
    * @param entry - The keyring entry to check.
@@ -3158,10 +3249,7 @@ export class KeyringController<
     entry: KeyringEntry,
     keyrings: KeyringEntry[],
   ): void {
-    if (
-      keyrings[0] === entry &&
-      entry.keyring.type === (KeyringTypes.hd as string)
-    ) {
+    if (this.#isPrimaryKeyring(entry, keyrings)) {
       throw new KeyringControllerError(
         KeyringControllerErrorMessage.CannotRemovePrimaryKeyring,
       );
