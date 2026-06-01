@@ -80,6 +80,17 @@ export type Bip44AccountProvider<
    */
   createAccounts(options: CreateAccountOptions): Promise<Account[]>;
   /**
+   * Delete an account managed by this provider.
+   *
+   * Mirrors the v2 keyring `deleteAccount(accountId)` contract. Each provider
+   * implementation is responsible for resolving any extra information it needs
+   * (e.g. address for snap-based providers) and for performing the underlying
+   * keyring removal.
+   *
+   * @param id - The id of the account to delete.
+   */
+  deleteAccount(id: Account['id']): Promise<void>;
+  /**
    * Re-synchronize MetaMask accounts and the providers accounts if needed.
    *
    * NOTE: This is mostly required if one of the providers (keyrings or Snaps)
@@ -241,6 +252,8 @@ export abstract class BaseBip44AccountProvider<
   abstract isAccountCompatible(account: Bip44Account<KeyringAccount>): boolean;
 
   abstract createAccounts(options: CreateAccountOptions): Promise<Account[]>;
+
+  abstract deleteAccount(id: Account['id']): Promise<void>;
 
   abstract discoverAccounts({
     entropySource,

@@ -534,26 +534,43 @@ export class MultichainAccountService {
   }
 
   /**
-   * Removes a multichain account wallet.
+   * Removes a multichain account wallet, deleting all of its accounts across
+   * every registered provider (EVM and snap-based).
    *
-   * NOTE: This method should only be called in client code as a revert mechanism.
-   * At the point that this code is called, discovery shouldn't have been triggered.
-   * This is meant to be used in the scenario where a seed phrase backup is not successful.
+   * Per-account deletions are best-effort: a single account failure is logged
+   * via `reportError` but does not abort cleanup of the remaining accounts.
+   * The wallet is always removed from the service's internal map at the end.
    *
    * @param entropySource - The entropy source of the multichain account wallet.
-   * @param accountAddress - The address of the account to remove.
-   * @returns The removed multichain account wallet.
    */
   async removeMultichainAccountWallet(
     entropySource: EntropySourceId,
-    accountAddress: string,
   ): Promise<void> {
     const wallet = this.#getWallet(entropySource);
 
-    await this.#messenger.call(
-      'KeyringController:removeAccount',
-      accountAddress,
-    );
+    for (const group of wallet.getMultichainAccountGroups()) {
+      for (const account of group.getAccounts()) {
+        const provider = this.#providers.find((candidate) =>
+          candidate.isAccountCompatible(account),
+        );
+        if (!provider) {
+          continue;
+        }
+        try {
+          await provider.deleteAccount(account.id);
+        } catch (error) {
+          reportError(
+            this.#messenger,
+            `Unable to delete account during wallet removal`,
+            error,
+            {
+              provider: provider.getName(),
+              accountId: account.id,
+            },
+          );
+        }
+      }
+    }
 
     this.#wallets.delete(wallet.id);
   }
