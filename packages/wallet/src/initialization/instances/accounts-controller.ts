@@ -3,11 +3,7 @@ import {
   AccountsControllerMessenger,
   AccountsControllerState,
 } from '@metamask/accounts-controller';
-import {
-  Messenger,
-  MessengerActions,
-  MessengerEvents,
-} from '@metamask/messenger';
+import { Messenger } from '@metamask/messenger';
 
 import type { DefaultActions, DefaultEvents, RootMessenger } from '../defaults';
 import type { InitializationConfiguration } from '../types';
@@ -16,10 +12,6 @@ import type { InitializationConfiguration } from '../types';
 // and MultichainAccountService. Migrate once those controllers are wired into
 // the wallet initialization (both still depend on AccountsController at the
 // messenger level, so it must remain present in the meantime).
-type AllowedActions = MessengerActions<AccountsControllerMessenger>;
-
-type AllowedEvents = MessengerEvents<AccountsControllerMessenger>;
-
 export const accountsController: InitializationConfiguration<
   AccountsController,
   AccountsControllerMessenger
@@ -31,15 +23,11 @@ export const accountsController: InitializationConfiguration<
       messenger,
     }),
   getMessenger: (parent: RootMessenger<DefaultActions, DefaultEvents>) => {
-    const accountsControllerMessenger = new Messenger<
-      'AccountsController',
-      AllowedActions,
-      AllowedEvents,
-      typeof parent
-    >({
-      namespace: 'AccountsController',
-      parent,
-    });
+    const accountsControllerMessenger: AccountsControllerMessenger =
+      new Messenger({
+        namespace: 'AccountsController',
+        parent,
+      });
 
     parent.delegate({
       messenger: accountsControllerMessenger,
