@@ -32,29 +32,10 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PR_NUMBER: ${{ github.event.issue.number || github.event.pull_request.number }}
 
-  get-token:
-    name: Get access token
-    needs: is-fork
-    if: needs.is-fork.outputs.is-fork == 'false'
-    runs-on: ubuntu-latest
-    environment: default-branch
-    permissions:
-      id-token: write
-    outputs:
-      token: ${{ steps.get-token.outputs.token }}
-    steps:
-      - name: Get access token
-        id: get-token
-        uses: MetaMask/github-tools/.github/actions/get-token@v1
-        with:
-          token-exchange-url: ${{ vars.TOKEN_EXCHANGE_URL }}
-          permissions: |
-            contents: write
-            pull_requests: write
-
   is-release:
     name: Determine whether this PR is a release PR
-    needs: get-token
+    needs: is-fork
+    if: needs.is-fork.outputs.is-fork == 'false'
     runs-on: ubuntu-latest
     environment: default-branch
     outputs:
@@ -67,7 +48,7 @@ jobs:
       - name: Get pull request info
         id: pr-info
         env:
-          GH_TOKEN: ${{ needs.get-token.outputs.token }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PR_NUMBER: ${{ github.event.issue.number || github.event.pull_request.number }}
         run: |
           gh pr view "$PR_NUMBER" \
@@ -105,14 +86,22 @@ jobs:
 
   react-to-comment:
     name: React to the comment
-    needs:
-      - get-token
-      - is-release
+    needs: is-release
     if: needs.is-release.outputs.is-release == 'true' && github.event_name == 'issue_comment'
     runs-on: ubuntu-latest
     environment: default-branch
+    permissions:
+      id-token: write
     continue-on-error: true
     steps:
+      - name: Get access token
+        id: get-token
+        uses: MetaMask/github-tools/.github/actions/get-token@v1
+        with:
+          token-exchange-url: ${{ vars.TOKEN_EXCHANGE_URL }}
+          permissions: |
+            contents: write
+            pull_requests: write
       - name: Checkout repository
         uses: actions/checkout@v6
       - name: React to the comment
@@ -125,23 +114,32 @@ jobs:
             -f content='+1'
         env:
           COMMENT_ID: ${{ github.event.comment.id }}
-          GH_TOKEN: ${{ needs.get-token.outputs.token }}
+          GH_TOKEN: ${{ steps.get-token.outputs.token }}
           REPO: ${{ github.repository }}
 
   update-changelogs:
     name: Update changelogs
-    needs:
-      - get-token
-      - is-release
+    needs: is-release
     if: ${{ needs.is-release.outputs.is-release == 'true' }}
     runs-on: ubuntu-latest
     environment: default-branch
+    permissions:
+      id-token: write
     steps:
+      - name: Get access token
+        id: get-token
+        uses: MetaMask/github-tools/.github/actions/get-token@v1
+        with:
+          token-exchange-url: ${{ vars.TOKEN_EXCHANGE_URL }}
+          permissions: |
+            contents: write
+            pull_requests: write
+
       - name: Check out the base branch
         uses: actions/checkout@v6
         with:
           ref: ${{ needs.is-release.outputs.merge-base }}
-          token: ${{ needs.get-token.outputs.token }}
+          token: ${{ steps.get-token.outputs.token }}
 
       - name: Detach HEAD (to prevent accidental pushes)
         run: git checkout --detach HEAD
@@ -229,7 +227,7 @@ jobs:
           UPDATE_CHANGELOGS_OUTCOME: ${{ steps.update-changelogs.outcome }}
           PR_NUMBER: ${{ github.event.issue.number || github.event.pull_request.number }}
         with:
-          github-token: ${{ needs.get-token.outputs.token }}
+          github-token: ${{ steps.get-token.outputs.token }}
           script: |
             const {
               CHANGES_PUSHED,
