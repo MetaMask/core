@@ -2,8 +2,8 @@ import { ApprovalController } from '@metamask/approval-controller';
 import { ApprovalType } from '@metamask/controller-utils';
 import { Messenger } from '@metamask/messenger';
 
-import { approvalController } from './approval-controller';
 import type { DefaultActions, DefaultEvents, RootMessenger } from '../defaults';
+import { approvalController } from './approval-controller';
 
 /**
  * Creates a root messenger for use in tests.
@@ -106,9 +106,7 @@ describe('approvalController', () => {
 
     approvalController.init({ state: undefined, messenger, options: {} });
 
-    expect(
-      rootMessenger.call('ApprovalController:getState'),
-    ).toStrictEqual({
+    expect(rootMessenger.call('ApprovalController:getState')).toStrictEqual({
       pendingApprovals: {},
       pendingApprovalCount: 0,
       approvalFlows: [],

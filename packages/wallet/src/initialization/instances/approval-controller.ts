@@ -41,7 +41,8 @@ export const approvalController: InitializationConfiguration<
       // the user; default to a no-op so the controller works headlessly (this
       // matches mobile, which drives approvals through state; the extension
       // injects its own).
-      showApprovalRequest: options.showApprovalRequest ?? ((): void => undefined),
+      showApprovalRequest:
+        options.showApprovalRequest ?? ((): void => undefined),
       typesExcludedFromRateLimiting:
         options.typesExcludedFromRateLimiting ??
         DEFAULT_TYPES_EXCLUDED_FROM_RATE_LIMITING,
