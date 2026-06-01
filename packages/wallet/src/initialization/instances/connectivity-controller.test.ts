@@ -42,7 +42,7 @@ describe('connectivityController', () => {
       options: {},
     });
 
-    await controller.init();
+    await new Promise<void>((resolve) => process.nextTick(resolve));
 
     expect(controller.state.connectivityStatus).toBe(
       CONNECTIVITY_STATUSES.Online,
