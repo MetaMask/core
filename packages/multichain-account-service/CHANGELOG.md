@@ -13,11 +13,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `EvmAccountProvider.deleteAccount(id)` resolves the account's entropy source and forwards to the v2 HD keyring's `deleteAccount(accountId)`. When this drains the last account on a non-primary HD keyring, the keyring controller automatically prunes the empty keyring.
   - `SnapAccountProvider.deleteAccount(id)` resolves the account's address and forwards to the legacy `SnapKeyring.removeAccount(address)` so that the snap and the host keyring stay in sync.
   - `AccountProviderWrapper.deleteAccount(id)` forwards unconditionally so that wallet-removal flows can clean up snap-backed accounts even when the wrapper has been disabled.
+  - Added a public `wrappedProvider` getter on `AccountProviderWrapper`. This is an escape hatch for cleanup flows (e.g. wallet removal) that need to enumerate the underlying provider's accounts regardless of enabled state, since `getAccounts()` still returns `[]` when the wrapper is disabled.
 
 ### Changed
 
 - **BREAKING:** `MultichainAccountService.removeMultichainAccountWallet` (and the corresponding `MultichainAccountService:removeMultichainAccountWallet` messenger action) now takes a single `entropySource` argument; the previous `accountAddress` parameter has been removed ([#8960](https://github.com/MetaMask/core/pull/8960))
   - The method now iterates every account belonging to the wallet and dispatches `provider.deleteAccount(account.id)` to the matching provider, instead of only removing a single EVM address.
+  - For wrapped providers, enumeration uses the underlying provider so snap-backed accounts are still deleted when basic functionality is off (the wrapper's `getAccounts()` returns `[]` when disabled). Without this, snap-backed accounts would be orphaned in their underlying keyrings.
   - Per-account deletions are best-effort: a single account's failure is reported via the messenger's `captureException` and does not abort cleanup of the remaining accounts. The wallet is always removed from the service's internal map at the end.
 
 ## [10.0.1]

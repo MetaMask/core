@@ -552,7 +552,16 @@ export class MultichainAccountService {
     const wallet = this.#getWallet(entropySource);
 
     for (const provider of this.#providers) {
-      const owned = provider
+      // For wrapped providers, enumerate via the underlying provider so we
+      // also see accounts when the wrapper has been disabled (i.e. basic
+      // functionality is off). The wrapper's `deleteAccount` itself forwards
+      // unconditionally, but its `getAccounts()` returns `[]` when disabled,
+      // which would otherwise leave snap-backed accounts orphaned in their
+      // underlying keyrings.
+      const source = isAccountProviderWrapper(provider)
+        ? provider.wrappedProvider
+        : provider;
+      const owned = source
         .getAccounts()
         .filter((account) => account?.options?.entropy?.id === entropySource);
 

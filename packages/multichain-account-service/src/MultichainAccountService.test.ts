@@ -1065,6 +1065,46 @@ describe('MultichainAccountService', () => {
         }),
       ).toThrow('Unknown wallet, no wallet matching this entropy source');
     });
+
+    it('still deletes snap-backed accounts when basic functionality is disabled', async () => {
+      const mockEvmAccount = MockAccountBuilder.from(MOCK_HD_ACCOUNT_1)
+        .withEntropySource(MOCK_HD_KEYRING_1.metadata.id)
+        .withGroupIndex(0)
+        .get();
+      const mockSolAccount = MockAccountBuilder.from(MOCK_SOL_ACCOUNT_1)
+        .withEntropySource(MOCK_HD_KEYRING_1.metadata.id)
+        .withGroupIndex(0)
+        .get();
+
+      const { service, mocks } = await setup({
+        accounts: [mockEvmAccount, mockSolAccount],
+      });
+
+      // Turning basic functionality off disables the snap-backed provider
+      // wrappers (Sol/Btc/Trx). EVM is intentionally left enabled.
+      await service.setBasicFunctionality(false);
+
+      await service.removeMultichainAccountWallet(
+        MOCK_HD_KEYRING_1.metadata.id,
+      );
+
+      // EVM account must still be deleted.
+      expect(mocks.EvmAccountProvider.deleteAccount).toHaveBeenCalledWith(
+        mockEvmAccount.id,
+      );
+      // Regression check: snap-backed account must NOT be orphaned just
+      // because the wrapper is disabled. The wrapper's `deleteAccount` is
+      // already designed to forward unconditionally; the consumer must also
+      // discover the account in the first place.
+      expect(mocks.SolAccountProvider.deleteAccount).toHaveBeenCalledWith(
+        mockSolAccount.id,
+      );
+      expect(() =>
+        service.getMultichainAccountWallet({
+          entropySource: MOCK_HD_KEYRING_1.metadata.id,
+        }),
+      ).toThrow('Unknown wallet, no wallet matching this entropy source');
+    });
   });
 
   describe('actions', () => {
@@ -1498,6 +1538,15 @@ describe('MultichainAccountService', () => {
       // Test with false return
       (solProvider.isAccountCompatible as jest.Mock).mockReturnValue(false);
       expect(wrapper.isAccountCompatible(MOCK_HD_ACCOUNT_1)).toBe(false);
+    });
+
+    it('exposes the wrapped provider via wrappedProvider regardless of enabled state', () => {
+      expect(wrapper.wrappedProvider).toBe(solProvider);
+
+      // The escape hatch must keep working when the wrapper is disabled,
+      // since cleanup flows rely on it to discover snap-backed accounts.
+      wrapper.setEnabled(false);
+      expect(wrapper.wrappedProvider).toBe(solProvider);
     });
 
     it('forwards deleteAccount() to the wrapped provider regardless of enabled state', async () => {

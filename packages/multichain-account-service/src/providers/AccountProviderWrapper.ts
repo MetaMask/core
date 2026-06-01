@@ -46,6 +46,22 @@ export class AccountProviderWrapper extends BaseBip44AccountProvider {
   }
 
   /**
+   * Returns the underlying (unwrapped) provider.
+   *
+   * Most callers should go through the wrapper's public surface so that the
+   * `disabled` gating is respected. This escape hatch is reserved for
+   * cleanup flows (e.g. wallet removal) that must see the wrapped
+   * provider's accounts regardless of enabled state, so that snap-backed
+   * accounts created while the provider was enabled can still be deleted
+   * after it has been disabled.
+   *
+   * @returns The wrapped provider instance.
+   */
+  get wrappedProvider(): BaseBip44AccountProvider {
+    return this.provider;
+  }
+
+  /**
    * Set the enabled state for this provider.
    *
    * @param enabled - Whether the provider should be enabled.
