@@ -24,6 +24,7 @@ export type InstanceSpecificOptions = {
   keyringController?: {
     encryptor?: GenericEncryptor;
     keyringBuilders?: KeyringControllerOptions['keyringBuilders'];
+    keyringV2Builders?: KeyringControllerOptions['keyringV2Builders'];
   };
   storageService: {
     storage: StorageAdapter;
