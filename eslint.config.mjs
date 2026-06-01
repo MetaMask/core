@@ -111,11 +111,11 @@ const config = createConfig([
     files: [
       '**/*.{js,cjs,mjs}',
       '**/*.test.{js,ts}',
+      '**/docusaurus.config.ts',
       '**/test/**/*.{js,ts}',
       '**/tests/**/*.{js,ts}',
       'scripts/*.ts',
       'scripts/create-package/**/*.ts',
-      'packages/wallet-framework-docs/site/docusaurus.config.ts',
     ],
     extends: [nodejs],
   },
