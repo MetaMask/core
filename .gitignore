@@ -37,7 +37,8 @@ scripts/coverage
 packages/*/*.tsbuildinfo
 
 # AI
-.sisyphus/.omc/
+.sisyphus/
+.omc/
 .omx/
 CLAUDE.local.md
 **/CLAUDE.local.md
