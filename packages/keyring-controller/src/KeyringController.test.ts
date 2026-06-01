@@ -4895,6 +4895,61 @@ describe('KeyringController', () => {
           expect(controller.state.keyrings[0].type).toBe(KeyringTypes.hd);
         });
       });
+
+      it('destroys the drained keyring, including its V2 instance', async () => {
+        await withController(async ({ controller }) => {
+          await controller.importAccountWithStrategy(
+            AccountImportStrategy.privateKey,
+            [privateKey],
+          );
+
+          // The V2 adapter for simple keyrings has no native `destroy`, so we
+          // attach one to assert the cleanup tears down the V2 instance too.
+          const destroyV2 = jest.fn();
+          await controller.withController(async (restrictedController) => {
+            const { keyringV2 } = restrictedController.keyrings[1];
+            (keyringV2 as { destroy?: () => void }).destroy = destroyV2;
+          });
+
+          await controller.withKeyringV2(
+            { type: KeyringType.PrivateKey },
+            async ({ keyring }) => {
+              const [account] = await keyring.getAccounts();
+              await keyring.deleteAccount(account.id);
+            },
+          );
+
+          expect(controller.state.keyrings).toHaveLength(1);
+          expect(destroyV2).toHaveBeenCalled();
+        });
+      });
+
+      it('does not remove keyrings if the operation rolls back', async () => {
+        await withController(async ({ controller }) => {
+          const importedAccount = await controller.importAccountWithStrategy(
+            AccountImportStrategy.privateKey,
+            [privateKey],
+          );
+          expect(controller.state.keyrings).toHaveLength(2);
+
+          await expect(
+            controller.withKeyringV2(
+              { type: KeyringType.PrivateKey },
+              async ({ keyring }) => {
+                const [account] = await keyring.getAccounts();
+                await keyring.deleteAccount(account.id);
+                throw new Error('Oops');
+              },
+            ),
+          ).rejects.toThrow('Oops');
+
+          // Rollback restores the original keyrings (still 2).
+          expect(controller.state.keyrings).toHaveLength(2);
+          expect(controller.state.keyrings[1].accounts).toStrictEqual([
+            importedAccount,
+          ]);
+        });
+      });
     });
   });
 

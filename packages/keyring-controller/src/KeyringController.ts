@@ -2965,9 +2965,10 @@ export class KeyringController<
    *
    * Pre-existing empty keyrings (e.g. those created intentionally via
    * {@link KeyringController.addNewKeyring} without subsequent account
-   * creation) are left alone. The primary keyring (index 0) is also
-   * preserved unconditionally to keep `removeAccount`'s primary-keyring
-   * invariant intact.
+   * creation) are left alone, as are keyrings created within the operation
+   * itself (they are not part of the pre-operation snapshot). The primary
+   * keyring (index 0) is also preserved unconditionally to keep
+   * `removeAccount`'s primary-keyring invariant intact.
    *
    * @param operation - The operation to execute.
    * @returns The result of the operation.
@@ -2976,6 +2977,12 @@ export class KeyringController<
   async #cleanUpEmptiedKeyringsAfter<Result>(
     operation: () => Promise<Result>,
   ): Promise<Result> {
+    // Only the primary keyring exists, which is never auto-removed, so there
+    // is nothing to clean up regardless of what the operation does.
+    if (this.#keyrings.length <= 1) {
+      return operation();
+    }
+
     const wasNonEmpty = new WeakSet<EthKeyring>();
     await Promise.all(
       this.#keyrings.map(async ({ keyring }) => {
@@ -2987,31 +2994,20 @@ export class KeyringController<
 
     const result = await operation();
 
-    const accountCounts = await Promise.all(
+    const isNowEmpty = await Promise.all(
       this.#keyrings.map(
-        async ({ keyring }) => (await keyring.getAccounts()).length,
+        async ({ keyring }) => (await keyring.getAccounts()).length === 0,
       ),
     );
 
-    const emptied: KeyringEntry[] = [];
-    const remaining: KeyringEntry[] = [];
-    for (let index = 0; index < this.#keyrings.length; index++) {
-      const entry = this.#keyrings[index];
-      const isPrimary = index === 0;
-      const becameEmpty =
-        !isPrimary &&
-        wasNonEmpty.has(entry.keyring) &&
-        accountCounts[index] === 0;
-
-      if (becameEmpty) {
-        emptied.push(entry);
-      } else {
-        remaining.push(entry);
-      }
-    }
+    const emptied = this.#keyrings.filter(
+      (entry, index) =>
+        index !== 0 && wasNonEmpty.has(entry.keyring) && isNowEmpty[index],
+    );
 
     if (emptied.length > 0) {
-      this.#keyrings = remaining;
+      const removed = new Set(emptied);
+      this.#keyrings = this.#keyrings.filter((entry) => !removed.has(entry));
       await Promise.all(
         emptied.map(({ keyring, keyringV2 }) =>
           this.#destroyKeyring(keyring, keyringV2),
