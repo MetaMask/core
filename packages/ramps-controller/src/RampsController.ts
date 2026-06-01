@@ -1743,6 +1743,11 @@ export class RampsController extends BaseController<
    *   during auto-selection, in priority order (e.g. derived by the caller
    *   from completed-order history). Only used when `autoSelectProvider` is
    *   true and `providers` is omitted.
+   * @param options.restrictToNativeProviders - Headless-buy v0 gating. When
+   *   true, auto-selection resolves only a native provider, and an explicitly
+   *   passed `providers` list is filtered to those supporting the region and
+   *   asset. If nothing qualifies, `getQuotes` returns an empty response
+   *   instead of quoting other providers.
    * @param options.redirectUrl - Optional redirect URL after order completion.
    * @param options.action - The ramp action type. Defaults to 'buy'.
    * @param options.forceRefresh - Whether to bypass cache.
@@ -1759,6 +1764,7 @@ export class RampsController extends BaseController<
     providers?: string[];
     autoSelectProvider?: boolean;
     preferredProviderIds?: string[];
+    restrictToNativeProviders?: boolean;
     redirectUrl?: string;
     action?: RampAction;
     forceRefresh?: boolean;
@@ -1785,12 +1791,19 @@ export class RampsController extends BaseController<
 
     let providersToUse: string[];
     if (options.providers) {
-      providersToUse = options.providers;
+      providersToUse = options.restrictToNativeProviders
+        ? await this.#filterProviderIdsBySupport({
+            providerIds: options.providers,
+            assetId: normalizedAssetIdForValidation,
+            region: regionToUse,
+          })
+        : options.providers;
     } else if (options.autoSelectProvider) {
       providersToUse = await this.#resolveProviderIdsForQuote({
         assetId: normalizedAssetIdForValidation,
         region: regionToUse,
         preferredProviderIds: options.preferredProviderIds,
+        restrictToNative: options.restrictToNativeProviders,
       });
     } else {
       providersToUse = this.state.providers.data.map(
@@ -1814,6 +1827,14 @@ export class RampsController extends BaseController<
 
     if (!options.walletAddress || options.walletAddress.trim() === '') {
       throw new Error('walletAddress is required.');
+    }
+
+    // Under headless-buy gating, an empty resolved provider list means no
+    // eligible (native/supporting) provider exists. Return an empty response
+    // rather than passing `[]` to the service, which omits the provider filter
+    // and would quote every provider.
+    if (options.restrictToNativeProviders && providersToUse.length === 0) {
+      return { success: [], sorted: [], error: [], customActions: [] };
     }
 
     const normalizedRegion = regionToUse.toLowerCase().trim();
@@ -1858,45 +1879,26 @@ export class RampsController extends BaseController<
   }
 
   /**
-   * Resolves the provider IDs to use for a single quote request, scoped to the
-   * given asset and region. Does not mutate `providers.selected` or any other
-   * state.
-   *
-   * Resolves against the provider list for the requested region (using cached
-   * providers only when the request targets the current region), then picks
-   * among those that support the asset using this precedence:
-   * 1. The currently selected provider, if it is in the region's supporting set.
-   * 2. The first preferred provider that supports the asset, where the
-   *    preference is taken from `preferredProviderIds` when supplied, otherwise
-   *    derived from the user's completed-order history (most recent first).
-   * 3. A Transak Native provider.
-   * 4. A Transak aggregator provider.
-   * 5. The first supporting provider.
-   *
-   * When no provider supports the asset, falls back to all known provider IDs
-   * so the request behaves as if no auto-selection occurred.
+   * Returns the region's providers that support the given asset, plus the full
+   * region provider list. Uses cached providers only when the request targets
+   * the current region; otherwise fetches for the requested region, since
+   * `getProviders` does not persist results for a non-current region. Does not
+   * mutate state.
    *
    * @param options - The options.
    * @param options.assetId - CAIP-19 asset type identifier to resolve for.
    * @param options.region - Region to resolve providers for.
-   * @param options.preferredProviderIds - Provider IDs to prefer, in order.
-   * @returns Provider IDs for this request only.
+   * @returns The supporting providers and the full region provider list.
    */
-  async #resolveProviderIdsForQuote({
+  async #getSupportingProvidersForRegion({
     assetId,
     region,
-    preferredProviderIds,
   }: {
     assetId: string;
     region: string;
-    preferredProviderIds?: string[];
-  }): Promise<string[]> {
+  }): Promise<{ supporting: Provider[]; all: Provider[] }> {
     const normalizedRegion = region.toLowerCase().trim();
 
-    // Only trust cached providers when the request targets the current region;
-    // otherwise fetch for the requested region and use the returned list
-    // directly, since `getProviders` does not persist results for a non-current
-    // region.
     let providers: Provider[];
     if (
       this.#isRegionCurrent(normalizedRegion) &&
@@ -1908,25 +1910,106 @@ export class RampsController extends BaseController<
     }
 
     const lowerId = assetId.toLowerCase();
-
-    const supports = (provider: Provider | null): provider is Provider => {
+    const supporting = providers.filter((provider) => {
       const map = provider?.supportedCryptoCurrencies;
       if (!map) {
         return false;
       }
       return Boolean(map[assetId]) || Boolean(map[lowerId]);
-    };
+    });
 
-    const supportingProviders = providers.filter(supports);
+    return { supporting, all: providers };
+  }
 
-    if (supportingProviders.length === 0) {
-      return providers.map((provider) => provider.id);
+  /**
+   * Filters an explicitly-requested provider ID list down to those that support
+   * the asset in the region. Used for headless-buy gating so an explicitly
+   * passed provider that cannot serve the region/asset yields no providers
+   * rather than being trusted blindly.
+   *
+   * @param options - The options.
+   * @param options.providerIds - Explicitly requested provider IDs.
+   * @param options.assetId - CAIP-19 asset type identifier to resolve for.
+   * @param options.region - Region to resolve providers for.
+   * @returns The subset of `providerIds` supporting the asset in the region.
+   */
+  async #filterProviderIdsBySupport({
+    providerIds,
+    assetId,
+    region,
+  }: {
+    providerIds: string[];
+    assetId: string;
+    region: string;
+  }): Promise<string[]> {
+    const { supporting } = await this.#getSupportingProvidersForRegion({
+      assetId,
+      region,
+    });
+    const supportingIds = new Set(supporting.map((provider) => provider.id));
+    return providerIds.filter((id) => supportingIds.has(id));
+  }
+
+  /**
+   * Resolves the provider IDs to use for a single quote request, scoped to the
+   * given asset and region. Does not mutate `providers.selected` or any other
+   * state.
+   *
+   * When `restrictToNative` is set (headless-buy gating), returns a single
+   * native provider that supports the asset, or no providers when none does.
+   *
+   * Otherwise resolves against the region's supporting providers using this
+   * precedence:
+   * 1. The currently selected provider, if it is in the supporting set.
+   * 2. The first preferred provider that supports the asset, where the
+   *    preference is taken from `preferredProviderIds` when supplied, otherwise
+   *    derived from the user's completed-order history (most recent first).
+   * 3. A native provider (e.g. Transak Native).
+   * 4. The first supporting provider.
+   *
+   * When no provider supports the asset, falls back to all known provider IDs
+   * so the request behaves as if no auto-selection occurred.
+   *
+   * @param options - The options.
+   * @param options.assetId - CAIP-19 asset type identifier to resolve for.
+   * @param options.region - Region to resolve providers for.
+   * @param options.preferredProviderIds - Provider IDs to prefer, in order.
+   * @param options.restrictToNative - When true, resolve only a native provider
+   *   (or no providers when none supports the asset).
+   * @returns Provider IDs for this request only.
+   */
+  async #resolveProviderIdsForQuote({
+    assetId,
+    region,
+    preferredProviderIds,
+    restrictToNative,
+  }: {
+    assetId: string;
+    region: string;
+    preferredProviderIds?: string[];
+    restrictToNative?: boolean;
+  }): Promise<string[]> {
+    const { supporting, all } = await this.#getSupportingProvidersForRegion({
+      assetId,
+      region,
+    });
+
+    // Headless-buy gating: only a native provider is eligible. When none
+    // supports the asset, return no providers so the caller surfaces an
+    // "unavailable" state instead of quoting other providers.
+    if (restrictToNative) {
+      const native = supporting.find((provider) => provider.type === 'native');
+      return native ? [native.id] : [];
+    }
+
+    if (supporting.length === 0) {
+      return all.map((provider) => provider.id);
     }
 
     const { selected } = this.state.providers;
     if (
       selected &&
-      supportingProviders.some((provider) => provider.id === selected.id)
+      supporting.some((provider) => provider.id === selected.id)
     ) {
       return [selected.id];
     }
@@ -1935,32 +2018,19 @@ export class RampsController extends BaseController<
       preferredProviderIds ?? this.#getPreferredProviderIdsFromOrders();
 
     for (const preferredId of preferred) {
-      const match = supportingProviders.find(
-        (provider) => provider.id === preferredId,
-      );
+      const match = supporting.find((provider) => provider.id === preferredId);
       if (match) {
         return [match.id];
       }
     }
 
-    // Among providers that support the asset, prefer Transak — and within
-    // Transak, prefer the native integration over the aggregator. Entries here
-    // already matched "transak", so a "native" check is enough to disambiguate
-    // (e.g. `/providers/transak-native` vs `/providers/transak`).
-    const transakProviders = supportingProviders.filter(
-      (provider) =>
-        provider.id?.toLowerCase().includes('transak') ||
-        provider.name?.toLowerCase().includes('transak'),
+    // Prefer a native provider (e.g. Transak Native). The aggregator and all
+    // other providers are treated equally and fall through to first-supporting.
+    const nativeProvider = supporting.find(
+      (provider) => provider.type === 'native',
     );
 
-    const transakProvider =
-      transakProviders.find(
-        (provider) =>
-          provider.id?.toLowerCase().includes('native') ||
-          provider.name?.toLowerCase().includes('native'),
-      ) ?? transakProviders[0];
-
-    return [(transakProvider ?? supportingProviders[0]).id];
+    return [(nativeProvider ?? supporting[0]).id];
   }
 
   /**

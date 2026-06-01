@@ -5817,21 +5817,25 @@ describe('RampsController', () => {
       const ethOnly = createMockProvider({
         id: '/providers/eth-only',
         name: 'ETH Only',
+        type: 'aggregator',
         supportedCryptoCurrencies: { [ASSET_ETH]: true },
       });
       const moonpay = createMockProvider({
         id: '/providers/moonpay',
         name: 'MoonPay',
+        type: 'aggregator',
         supportedCryptoCurrencies: { [ASSET_USDC]: true },
       });
       const transak = createMockProvider({
         id: '/providers/transak-native',
         name: 'Transak Native',
+        type: 'native',
         supportedCryptoCurrencies: { [ASSET_USDC]: true },
       });
       const noCryptoProvider = createMockProvider({
         id: '/providers/no-crypto',
         name: 'No Crypto',
+        type: 'aggregator',
         supportedCryptoCurrencies: undefined,
       });
 
@@ -5973,10 +5977,11 @@ describe('RampsController', () => {
         );
       });
 
-      it('prefers Transak Native over the Transak aggregator when both support the asset', async () => {
+      it('prefers a native provider over a non-native one via the type field', async () => {
         const transakAggregator = createMockProvider({
           id: '/providers/transak',
           name: 'Transak',
+          type: 'aggregator',
           supportedCryptoCurrencies: { [ASSET_USDC]: true },
         });
 
@@ -6017,10 +6022,11 @@ describe('RampsController', () => {
         );
       });
 
-      it('prefers the Transak aggregator over an unrelated provider when no Transak Native supports the asset', async () => {
+      it('treats the Transak aggregator as an ordinary provider when no native supports the asset', async () => {
         const transakAggregator = createMockProvider({
           id: '/providers/transak',
           name: 'Transak',
+          type: 'aggregator',
           supportedCryptoCurrencies: { [ASSET_USDC]: true },
         });
 
@@ -6054,7 +6060,9 @@ describe('RampsController', () => {
               autoSelectProvider: true,
             });
 
-            expect(capturedProviders).toStrictEqual(['/providers/transak']);
+            // No native present and no selection/preference, so the aggregator
+            // gets no priority — the first supporting provider wins.
+            expect(capturedProviders).toStrictEqual(['/providers/moonpay']);
           },
         );
       });
@@ -6498,6 +6506,182 @@ describe('RampsController', () => {
             expect(capturedProviders).toStrictEqual([
               '/providers/transak-native',
             ]);
+          },
+        );
+      });
+    });
+
+    describe('when restrictToNativeProviders is true', () => {
+      const ASSET_USDC =
+        'eip155:42161/erc20:0xaf88d065e77c8cc2239327c5edb3a432268e5831';
+      const WALLET_ADDRESS = '0x1234567890abcdef1234567890abcdef12345678';
+      const PAYMENT_METHODS = ['/payments/debit-credit-card'];
+      const EMPTY_QUOTES_RESPONSE: QuotesResponse = {
+        success: [],
+        sorted: [],
+        error: [],
+        customActions: [],
+      };
+
+      const moonpay = createMockProvider({
+        id: '/providers/moonpay',
+        name: 'MoonPay',
+        type: 'aggregator',
+        supportedCryptoCurrencies: { [ASSET_USDC]: true },
+      });
+      const transakNative = createMockProvider({
+        id: '/providers/transak-native',
+        name: 'Transak Native',
+        type: 'native',
+        supportedCryptoCurrencies: { [ASSET_USDC]: true },
+      });
+
+      it('auto-selects only the native provider', async () => {
+        await withController(
+          {
+            options: {
+              state: {
+                userRegion: createMockUserRegion('us'),
+                providers: createResourceState([moonpay, transakNative], null),
+              },
+            },
+          },
+          async ({ rootMessenger }) => {
+            let capturedProviders: string[] | undefined;
+            rootMessenger.registerActionHandler(
+              'RampsService:getQuotes',
+              async (params) => {
+                capturedProviders = params.providers;
+                return EMPTY_QUOTES_RESPONSE;
+              },
+            );
+
+            await rootMessenger.call('RampsController:getQuotes', {
+              assetId: ASSET_USDC,
+              amount: 100,
+              walletAddress: WALLET_ADDRESS,
+              paymentMethods: PAYMENT_METHODS,
+              autoSelectProvider: true,
+              restrictToNativeProviders: true,
+            });
+
+            expect(capturedProviders).toStrictEqual([
+              '/providers/transak-native',
+            ]);
+          },
+        );
+      });
+
+      it('returns an empty response without calling the service when no native provider supports the asset', async () => {
+        const getQuotesHandler = jest.fn(async () => EMPTY_QUOTES_RESPONSE);
+
+        await withController(
+          {
+            options: {
+              state: {
+                userRegion: createMockUserRegion('us'),
+                providers: createResourceState([moonpay], null),
+              },
+            },
+          },
+          async ({ rootMessenger }) => {
+            rootMessenger.registerActionHandler(
+              'RampsService:getQuotes',
+              getQuotesHandler,
+            );
+
+            const result = await rootMessenger.call(
+              'RampsController:getQuotes',
+              {
+                assetId: ASSET_USDC,
+                amount: 100,
+                walletAddress: WALLET_ADDRESS,
+                paymentMethods: PAYMENT_METHODS,
+                autoSelectProvider: true,
+                restrictToNativeProviders: true,
+              },
+            );
+
+            expect(result).toStrictEqual(EMPTY_QUOTES_RESPONSE);
+            expect(getQuotesHandler).not.toHaveBeenCalled();
+          },
+        );
+      });
+
+      it('passes through an explicitly requested provider that supports the asset', async () => {
+        await withController(
+          {
+            options: {
+              state: {
+                userRegion: createMockUserRegion('us'),
+                providers: createResourceState([moonpay, transakNative], null),
+              },
+            },
+          },
+          async ({ rootMessenger }) => {
+            let capturedProviders: string[] | undefined;
+            rootMessenger.registerActionHandler(
+              'RampsService:getQuotes',
+              async (params) => {
+                capturedProviders = params.providers;
+                return EMPTY_QUOTES_RESPONSE;
+              },
+            );
+
+            await rootMessenger.call('RampsController:getQuotes', {
+              assetId: ASSET_USDC,
+              amount: 100,
+              walletAddress: WALLET_ADDRESS,
+              paymentMethods: PAYMENT_METHODS,
+              providers: ['/providers/transak-native'],
+              restrictToNativeProviders: true,
+            });
+
+            expect(capturedProviders).toStrictEqual([
+              '/providers/transak-native',
+            ]);
+          },
+        );
+      });
+
+      it('returns an empty response when the explicitly requested provider does not support the asset', async () => {
+        const getQuotesHandler = jest.fn(async () => EMPTY_QUOTES_RESPONSE);
+        const unsupported = createMockProvider({
+          id: '/providers/banxa',
+          name: 'Banxa',
+          type: 'aggregator',
+          supportedCryptoCurrencies: {},
+        });
+
+        await withController(
+          {
+            options: {
+              state: {
+                userRegion: createMockUserRegion('us'),
+                providers: createResourceState([moonpay, unsupported], null),
+              },
+            },
+          },
+          async ({ rootMessenger }) => {
+            rootMessenger.registerActionHandler(
+              'RampsService:getQuotes',
+              getQuotesHandler,
+            );
+
+            const result = await rootMessenger.call(
+              'RampsController:getQuotes',
+              {
+                assetId: ASSET_USDC,
+                amount: 100,
+                walletAddress: WALLET_ADDRESS,
+                paymentMethods: PAYMENT_METHODS,
+                providers: ['/providers/banxa'],
+                restrictToNativeProviders: true,
+              },
+            );
+
+            expect(result).toStrictEqual(EMPTY_QUOTES_RESPONSE);
+            expect(getQuotesHandler).not.toHaveBeenCalled();
           },
         );
       });
