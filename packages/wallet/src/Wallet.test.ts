@@ -5,10 +5,7 @@ import { webcrypto } from 'crypto';
 
 import MockEncryptor from '../../keyring-controller/tests/mocks/mockEncryptor';
 import * as initializationModule from './initialization/initialization';
-import {
-  createSecretRecoveryPhrase,
-  importSecretRecoveryPhrase,
-} from './utilities';
+import { importSecretRecoveryPhrase } from './utilities';
 import { Wallet } from './Wallet';
 
 const TEST_SRP = 'test test test test test test test test test test test ball';
@@ -182,8 +179,7 @@ describe('Wallet', () => {
 
   describe('AccountsController', () => {
     it('tracks accounts created via KeyringController', async () => {
-      const wallet = new Wallet({});
-      await createSecretRecoveryPhrase(wallet, TEST_PASSWORD);
+      const wallet = await setupWallet();
 
       const keyringAccounts = await wallet.messenger.call(
         'KeyringController:getAccounts',
