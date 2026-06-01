@@ -1,0 +1,75 @@
+{
+  "schema_version": 1,
+  "title": "PerpsController client smoke",
+  "description": "Runs a headless Farmslot recipe that simulates a MetaMask Mobile/Extension client calling PerpsController messenger actions. The recipe validates the controller boundary without embedding a package-specific runner or exposing protocol SDK clients directly.",
+  "validate": {
+    "workflow": {
+      "entry": "run-client-smoke",
+      "nodes": {
+        "run-client-smoke": {
+          "action": "command",
+          "description": "Run the client-level smoke test suite against PerpsController messenger actions.",
+          "cmd": "mkdir -p .recipe-output && NODE_OPTIONS=--experimental-vm-modules yarn jest --runInBand --no-coverage --runTestsByPath tests/src/PerpsController.client-smoke.test.ts --reporters=default --json --outputFile=.recipe-output/client-smoke-jest.json",
+          "timeout_ms": 120000,
+          "next": "assert-client-smoke-exit"
+        },
+        "assert-client-smoke-exit": {
+          "action": "assert_exit_code",
+          "description": "The client smoke suite must pass.",
+          "source": "run-client-smoke",
+          "expected": 0,
+          "next": "assert-client-smoke-report"
+        },
+        "assert-client-smoke-report": {
+          "action": "assert_json",
+          "description": "The Jest JSON proof must show the client smoke suite passed without failed tests.",
+          "path": ".recipe-output/client-smoke-jest.json",
+          "assert": {
+            "all": [
+              {
+                "path": "$.success",
+                "operator": "truthy"
+              },
+              {
+                "path": "$.numFailedTests",
+                "operator": "eq",
+                "value": 0
+              },
+              {
+                "path": "$.numTotalTests",
+                "operator": "gte",
+                "value": 1
+              }
+            ]
+          },
+          "next": "index-client-smoke-artifacts"
+        },
+        "index-client-smoke-artifacts": {
+          "action": "index_artifacts",
+          "description": "Publish the client smoke Jest report as recipe evidence.",
+          "artifacts": [
+            {
+              "path": ".recipe-output/client-smoke-jest.json",
+              "type": "json",
+              "label": "PerpsController client smoke Jest report",
+              "proofTarget": "Mobile/Extension-style PerpsController messenger actions",
+              "covers": [
+                "controller-messenger-actions",
+                "client-boundary-smoke"
+              ]
+            }
+          ],
+          "next": "done"
+        },
+        "done": {
+          "action": "end",
+          "status": "pass"
+        }
+      },
+      "teardown": [],
+      "playback": {
+        "mode": "off"
+      }
+    }
+  }
+}
