@@ -1955,20 +1955,20 @@ export class RampsController extends BaseController<
    * given asset and region. Does not mutate `providers.selected` or any other
    * state.
    *
-   * When `restrictToNative` is set (headless-buy gating), returns a single
-   * native provider that supports the asset, or no providers when none does.
-   *
-   * Otherwise resolves against the region's supporting providers using this
-   * precedence:
+   * Resolves against the region's supporting providers using this precedence:
    * 1. The currently selected provider, if it is in the supporting set.
    * 2. The first preferred provider that supports the asset, where the
    *    preference is taken from `preferredProviderIds` when supplied, otherwise
    *    derived from the user's completed-order history (most recent first).
+   *    This takes priority over Transak Native to preserve an existing KYC
+   *    relationship.
    * 3. A native provider (e.g. Transak Native).
-   * 4. The first supporting provider.
+   * 4. The first supporting provider — unless `restrictToNative` is set, in
+   *    which case no further provider is introduced and nothing is returned.
    *
-   * When no provider supports the asset, falls back to all known provider IDs
-   * so the request behaves as if no auto-selection occurred.
+   * When `restrictToNative` is unset and no provider supports the asset, falls
+   * back to all known provider IDs so the request behaves as if no
+   * auto-selection occurred.
    *
    * @param options - The options.
    * @param options.assetId - CAIP-19 asset type identifier to resolve for.
@@ -1994,18 +1994,13 @@ export class RampsController extends BaseController<
       region,
     });
 
-    // Headless-buy gating: only a native provider is eligible. When none
-    // supports the asset, return no providers so the caller surfaces an
-    // "unavailable" state instead of quoting other providers.
-    if (restrictToNative) {
-      const native = supporting.find((provider) => provider.type === 'native');
-      return native ? [native.id] : [];
-    }
-
-    if (supporting.length === 0) {
+    // When not restricted and nothing supports the asset, behave as if no
+    // auto-selection occurred (quote against all known providers).
+    if (!restrictToNative && supporting.length === 0) {
       return all.map((provider) => provider.id);
     }
 
+    // 1. The currently selected provider, if it supports the asset.
     const { selected } = this.state.providers;
     if (
       selected &&
@@ -2014,6 +2009,10 @@ export class RampsController extends BaseController<
       return [selected.id];
     }
 
+    // 2. A provider the user has transacted with before — from
+    //    `preferredProviderIds` when supplied, otherwise completed-order
+    //    history. Takes priority over Transak Native to preserve an existing
+    //    KYC relationship and avoid churn.
     const preferred =
       preferredProviderIds ?? this.#getPreferredProviderIdsFromOrders();
 
@@ -2024,13 +2023,21 @@ export class RampsController extends BaseController<
       }
     }
 
-    // Prefer a native provider (e.g. Transak Native). The aggregator and all
-    // other providers are treated equally and fall through to first-supporting.
+    // 3. A native provider (e.g. Transak Native).
     const nativeProvider = supporting.find(
       (provider) => provider.type === 'native',
     );
+    if (nativeProvider) {
+      return [nativeProvider.id];
+    }
 
-    return [(nativeProvider ?? supporting[0]).id];
+    // 4. Fallback. Under headless gating, introduce no other provider — return
+    //    nothing so the caller surfaces an "unavailable" state. Otherwise the
+    //    aggregator and all other providers are treated equally: first wins.
+    if (restrictToNative) {
+      return [];
+    }
+    return [supporting[0].id];
   }
 
   /**

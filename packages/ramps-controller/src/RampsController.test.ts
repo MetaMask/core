@@ -6572,6 +6572,49 @@ describe('RampsController', () => {
         );
       });
 
+      it('still prefers a completed-order provider over the native provider', async () => {
+        await withController(
+          {
+            options: {
+              state: {
+                userRegion: createMockUserRegion('us'),
+                providers: createResourceState([moonpay, transakNative], null),
+                orders: [
+                  createMockOrder({
+                    provider: moonpay,
+                    createdAt: 1000,
+                    status: RampsOrderStatus.Completed,
+                  }),
+                ],
+              },
+            },
+          },
+          async ({ rootMessenger }) => {
+            let capturedProviders: string[] | undefined;
+            rootMessenger.registerActionHandler(
+              'RampsService:getQuotes',
+              async (params) => {
+                capturedProviders = params.providers;
+                return EMPTY_QUOTES_RESPONSE;
+              },
+            );
+
+            await rootMessenger.call('RampsController:getQuotes', {
+              assetId: ASSET_USDC,
+              amount: 100,
+              walletAddress: WALLET_ADDRESS,
+              paymentMethods: PAYMENT_METHODS,
+              autoSelectProvider: true,
+              restrictToNativeProviders: true,
+            });
+
+            // Order history outranks Transak Native to preserve the existing
+            // KYC relationship, even under headless gating.
+            expect(capturedProviders).toStrictEqual(['/providers/moonpay']);
+          },
+        );
+      });
+
       it('returns an empty response without calling the service when no native provider supports the asset', async () => {
         const getQuotesHandler = jest.fn(async () => EMPTY_QUOTES_RESPONSE);
 
