@@ -12,19 +12,13 @@ print-usage() {
 Detects major-bumped packages in a release commit and creates tickets in clients
 that instructs engineers to upgrade to them.
 
-Usage: $0 [--ref REF] [--no-dry-run] [--extension] [--mobile]
+Usage: $0 [--ref REF] [--no-dry-run]
 
 OPTIONS:
 
 --ref REF, -r REF       The release commit to inspect.
 --no-dry-run            By default, this script won't do anything, to allow you
                         to test it. Pass this option to override that.
---extension             Create issues only in the extension repo. If neither
-                        --extension nor --mobile is passed, issues are created
-                        in both repos.
---mobile                Create issues only in the mobile repo. If neither
-                        --extension nor --mobile is passed, issues are created
-                        in both repos.
 --help, -h              You're looking at it ;)
 EOT
 }
@@ -66,11 +60,12 @@ run-create-issue-command() {
   local title="$3"
   local body="$4"
   local labels="$5"
+  local token="$6"
 
   if [[ $dry_run -eq 1 ]]; then
     echo "> gh issue create --title \"$title\" --body \"$body\" --repo \"$repo\" --label \"$labels\""
   else
-    gh issue create --title "$title" --body "$body" --repo "$repo" --label "$labels"
+    GH_TOKEN="$token" gh issue create --title "$title" --body "$body" --repo "$repo" --label "$labels"
   fi
 }
 
@@ -80,6 +75,7 @@ create-issue() {
   local package_name="$3"
   local version="$4"
   local team_labels="$5"
+  local token="$6"
 
   local title="Upgrade ${package_name} to version ${version}"
   local body="A new major version of \`${package_name}\`, ${version}, is now available. This issue has been assigned to you and your team because you code-own this package in the \`core\` repo. If this package is present in this project, please prioritize upgrading it soon to unblock new features and bugfixes."
@@ -95,7 +91,7 @@ create-issue() {
 
   echo "----------------------------------------"
   set +e
-  run-create-issue-command "$dry_run" "$repo" "$title" "$body" "$labels"
+  run-create-issue-command "$dry_run" "$repo" "$title" "$body" "$labels" "$token"
   exitcode=$?
   set -e
   echo "----------------------------------------"
@@ -132,8 +128,6 @@ main() {
   local exitcode=0
   local dry_run=1
   local ref="$DEFAULT_REF"
-  local create_extension=0
-  local create_mobile=0
 
   while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -150,14 +144,6 @@ main() {
         dry_run=0
         shift
         ;;
-      --extension)
-        create_extension=1
-        shift
-        ;;
-      --mobile)
-        create_mobile=1
-        shift
-        ;;
       --help|-h)
         print-usage
         exit 0
@@ -170,12 +156,6 @@ main() {
         ;;
     esac
   done
-
-  # Default to both repos if neither is specified
-  if [[ $create_extension -eq 0 && $create_mobile -eq 0 ]]; then
-    create_extension=1
-    create_mobile=1
-  fi
 
   if [[ -z "$ref" ]]; then
     echo "ERROR: Missing ref."
@@ -216,24 +196,20 @@ main() {
 
   echo
 
-  local all_issues_extension=""
-  if [[ $create_extension -eq 1 ]]; then
-    echo "Fetching issues on $EXTENSION_REPO with label $DEFAULT_LABEL..."
-    if ! all_issues_extension="$(gh issue list --repo "$EXTENSION_REPO" --label "$DEFAULT_LABEL" --state all --json number,title,url 2>&1)"; then
-      echo "❌ Failed to fetch issues from ${EXTENSION_REPO}"
-      echo "$all_issues_extension"
-      exit 1
-    fi
+  local all_issues_extension
+  echo "Fetching issues on $EXTENSION_REPO with label $DEFAULT_LABEL..."
+  if ! all_issues_extension="$(GH_TOKEN="${EXTENSION_GITHUB_TOKEN:-}" gh issue list --repo "$EXTENSION_REPO" --label "$DEFAULT_LABEL" --state all --json number,title,url 2>&1)"; then
+    echo "❌ Failed to fetch issues from ${EXTENSION_REPO}"
+    echo "$all_issues_extension"
+    exit 1
   fi
 
-  local all_issues_mobile=""
-  if [[ $create_mobile -eq 1 ]]; then
-    echo "Fetching issues on $MOBILE_REPO with label $DEFAULT_LABEL..."
-    if ! all_issues_mobile="$(gh issue list --repo "$MOBILE_REPO" --label "$DEFAULT_LABEL" --state all --json number,title,url 2>&1)"; then
-      echo "❌ Failed to fetch issues from ${MOBILE_REPO}"
-      echo "$all_issues_mobile"
-      exit 1
-    fi
+  local all_issues_mobile
+  echo "Fetching issues on $MOBILE_REPO with label $DEFAULT_LABEL..."
+  if ! all_issues_mobile="$(GH_TOKEN="${MOBILE_GITHUB_TOKEN:-}" gh issue list --repo "$MOBILE_REPO" --label "$DEFAULT_LABEL" --state all --json number,title,url 2>&1)"; then
+    echo "❌ Failed to fetch issues from ${MOBILE_REPO}"
+    echo "$all_issues_mobile"
+    exit 1
   fi
 
   for tag in "${tag_array[@]}"; do
@@ -259,33 +235,29 @@ main() {
     fi
 
     # Create the extension issue, if it doesn't exist yet
-    if [[ $create_extension -eq 1 ]]; then
-      echo
-      echo "Checking for existing issues in ${EXTENSION_REPO}..."
-      if existing-issue-found "${EXTENSION_REPO}" "$package_name" "$version" "$all_issues_extension"; then
-        if [[ $dry_run -eq 1 ]]; then
-          echo "⏭️ Would not have created issue because it already exists"
-        else
-          echo "⏭️ Not creating issue because it already exists"
-        fi
-      elif ! create-issue "$dry_run" "$EXTENSION_REPO" "$package_name" "$version" "$team_labels"; then
-        exitcode=1
+    echo
+    echo "Checking for existing issues in ${EXTENSION_REPO}..."
+    if existing-issue-found "${EXTENSION_REPO}" "$package_name" "$version" "$all_issues_extension"; then
+      if [[ $dry_run -eq 1 ]]; then
+        echo "⏭️ Would not have created issue because it already exists"
+      else
+        echo "⏭️ Not creating issue because it already exists"
       fi
+    elif ! create-issue "$dry_run" "$EXTENSION_REPO" "$package_name" "$version" "$team_labels" "${EXTENSION_GITHUB_TOKEN:-}"; then
+      exitcode=1
     fi
 
     # Create the mobile issue, if it doesn't exist yet
-    if [[ $create_mobile -eq 1 ]]; then
-      echo
-      echo "Checking for existing issues in ${MOBILE_REPO}..."
-      if existing-issue-found "${MOBILE_REPO}" "$package_name" "$version" "$all_issues_mobile"; then
-        if [[ $dry_run -eq 1 ]]; then
-          echo "⏭️ Would not have created issue because it already exists"
-        else
-          echo "⏭️ Not creating issue because it already exists"
-        fi
-      elif ! create-issue "$dry_run" "$MOBILE_REPO" "$package_name" "$version" "$team_labels"; then
-        exitcode=1
+    echo
+    echo "Checking for existing issues in ${MOBILE_REPO}..."
+    if existing-issue-found "${MOBILE_REPO}" "$package_name" "$version" "$all_issues_mobile"; then
+      if [[ $dry_run -eq 1 ]]; then
+        echo "⏭️ Would not have created issue because it already exists"
+      else
+        echo "⏭️ Not creating issue because it already exists"
       fi
+    elif ! create-issue "$dry_run" "$MOBILE_REPO" "$package_name" "$version" "$team_labels" "${MOBILE_GITHUB_TOKEN:-}"; then
+      exitcode=1
     fi
   done
 

@@ -25,10 +25,6 @@ jobs:
             contents: read
             issues: write
             metadata: read
-      - name: Create issues in extension repository
-        run: ./scripts/create-update-issues.sh --no-dry-run --extension
-        env:
-          GH_TOKEN: ${{ steps.extension-token.outputs.token }}
       - name: Get mobile token
         id: mobile-token
         uses: MetaMask/github-tools/.github/actions/get-token@v1
@@ -39,7 +35,8 @@ jobs:
             contents: read
             issues: write
             metadata: read
-      - name: Create issues in mobile repository
-        run: ./scripts/create-update-issues.sh --no-dry-run --mobile
+      - name: Create issues in extension and mobile repositories
+        run: ./scripts/create-update-issues.sh --no-dry-run
         env:
-          GH_TOKEN: ${{ steps.mobile-token.outputs.token }}
+          EXTENSION_GITHUB_TOKEN: ${{ steps.extension-token.outputs.token }}
+          MOBILE_GITHUB_TOKEN: ${{ steps.mobile-token.outputs.token }}
