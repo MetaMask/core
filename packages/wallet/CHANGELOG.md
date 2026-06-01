@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Export `importSecretRecoveryPhrase` from the package root ([#8951](https://github.com/MetaMask/core/pull/8951))
+- Export `importSecretRecoveryPhrase` from the package root ([#8952](https://github.com/MetaMask/core/pull/8952))
 
 ## [1.0.1]
 
