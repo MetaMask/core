@@ -45,6 +45,12 @@ export class Wallet {
     this.#instances = initialize({
       ...options,
       messenger: this.#messenger,
+      instanceOptions: {
+        ...options.instanceOptions,
+        connectivityController: {
+          connectivityAdapter: options.connectivityAdapter,
+        },
+      },
     });
 
     this.#controllerMetadata = Object.fromEntries(

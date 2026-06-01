@@ -55,8 +55,7 @@ export const connectivityController: InitializationConfiguration<
   init: ({ messenger, options }) =>
     new ConnectivityController({
       messenger,
-      connectivityAdapter:
-        options.connectivityAdapter ?? new AlwaysOnlineAdapter(),
+      connectivityAdapter: options.connectivityAdapter,
     }),
   getMessenger: (parent: RootMessenger<DefaultActions, DefaultEvents>) =>
     new Messenger({
