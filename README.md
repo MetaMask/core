@@ -570,6 +570,7 @@ linkStyle default opacity:0.5
   wallet --> connectivity_controller;
   wallet --> keyring_controller;
   wallet --> messenger;
+  wallet --> storage_service;
 ```
 
 <!-- end dependency graph -->

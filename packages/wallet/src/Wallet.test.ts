@@ -1,5 +1,6 @@
 import { CONNECTIVITY_STATUSES } from '@metamask/connectivity-controller';
 import { Messenger } from '@metamask/messenger';
+import { InMemoryStorageAdapter } from '@metamask/storage-service';
 import { Json } from '@metamask/utils';
 import { webcrypto } from 'crypto';
 
@@ -16,7 +17,14 @@ const TEST_SRP = 'test test test test test test test test test test test ball';
 const TEST_PASSWORD = 'testpass';
 
 async function setupWallet(): Promise<Wallet> {
-  const wallet = new Wallet({ connectivityAdapter: new AlwaysOnlineAdapter() });
+  const wallet = new Wallet({
+    connectivityAdapter: new AlwaysOnlineAdapter(),
+    instanceOptions: {
+      storageService: {
+        storage: new InMemoryStorageAdapter(),
+      },
+    },
+  });
 
   await importSecretRecoveryPhrase(wallet, TEST_PASSWORD, TEST_SRP);
 
@@ -69,6 +77,9 @@ describe('Wallet', () => {
         keyringController: {
           encryptor: new MockEncryptor(),
         },
+        storageService: {
+          storage: new InMemoryStorageAdapter(),
+        },
       },
     });
 
@@ -108,6 +119,11 @@ describe('Wallet', () => {
           init: (): DummyService => new DummyService(),
         },
       ],
+      instanceOptions: {
+        storageService: {
+          storage: new InMemoryStorageAdapter(),
+        },
+      },
     });
     const { state } = wallet;
 
@@ -241,6 +257,11 @@ describe('Wallet', () => {
             vault,
           },
         },
+        instanceOptions: {
+          storageService: {
+            storage: new InMemoryStorageAdapter(),
+          },
+        },
       });
 
       await wallet.messenger.call(
@@ -268,6 +289,25 @@ describe('Wallet', () => {
         keyrings: [],
         vault: expect.any(String),
       });
+    });
+  });
+
+  describe('StorageService', () => {
+    it('can set and get items', async () => {
+      const wallet = await setupWallet();
+      const { messenger } = wallet;
+
+      await messenger.call(
+        'StorageService:setItem',
+        'TestNamespace',
+        'foo',
+        'bar',
+      );
+
+      expect(
+        (await messenger.call('StorageService:getItem', 'TestNamespace', 'foo'))
+          .result,
+      ).toBe('bar');
     });
   });
 });
