@@ -196,10 +196,8 @@ describe('Wallet', () => {
   });
 
   describe('ConnectivityController', () => {
-    it('reports online connectivity status', async () => {
+    it('reports online connectivity status', () => {
       const wallet = new Wallet({});
-
-      await new Promise<void>((resolve) => process.nextTick(resolve));
 
       expect(wallet.state.ConnectivityController.connectivityStatus).toBe(
         CONNECTIVITY_STATUSES.Online,

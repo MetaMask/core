@@ -31,7 +31,7 @@ describe('AlwaysOnlineAdapter', () => {
 });
 
 describe('connectivityController', () => {
-  it('reports online status after initialization', async () => {
+  it('reports online status after initialization', () => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const parent = new Messenger<'Root', any, any>({ namespace: 'Root' });
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -41,8 +41,6 @@ describe('connectivityController', () => {
       state: undefined,
       options: {},
     });
-
-    await new Promise<void>((resolve) => process.nextTick(resolve));
 
     expect(controller.state.connectivityStatus).toBe(
       CONNECTIVITY_STATUSES.Online,
