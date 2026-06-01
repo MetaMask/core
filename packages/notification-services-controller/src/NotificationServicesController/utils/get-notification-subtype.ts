@@ -7,14 +7,14 @@ import type { INotification } from '../types/notification/notification';
  * always derivable from an `INotification`, so every consumer (both clients)
  * pulls it from one place rather than recomputing a fallback chain.
  *
- * - on-chain: the trigger kind (already stored on `type`, e.g. `eth_received`).
+ * - on-chain: the trigger kind (`payload.data.kind`, e.g. `eth_received`).
  * - snap: the snap notification type (`snap`, already snake_case).
- * - feature-announcement: a stable label. There is no per-campaign id in the
- *   current shape, so we use `features_announcement` until/if the announcements
- *   team backfills per-campaign ids.
+ * - feature-announcement: §5.3 calls for a stable per-campaign id, pending
+ *   confirmation from the announcements team that one exists. Until confirmed,
+ *   we use the `features_announcement` label as the single value.
  * - platform: the server-set `notification_subtype` carried through from the
- *   platform API. Until that field lands in the API schema, we fall back to
- *   `type` (`platform`).
+ *   platform API (§4.2). That field is not in the generated `schema.ts` yet, so
+ *   until it is regenerated we fall back to `type` (`platform`).
  *
  * @param notification - a processed in-app notification.
  * @returns the normalised subtype string.
@@ -22,12 +22,22 @@ import type { INotification } from '../types/notification/notification';
 export function getNotificationSubtype(notification: INotification): string {
   switch (notification.type) {
     case TRIGGER_TYPES.FEATURES_ANNOUNCEMENT:
+      // §5.3 calls for a stable per-campaign id here, pending confirmation from
+      // the announcements team that one exists. Until confirmed, use the
+      // `features_announcement` label as the single value.
       return TRIGGER_TYPES.FEATURES_ANNOUNCEMENT;
     case TRIGGER_TYPES.SNAP:
+      // Snap notification type, already snake_case in the existing shape.
       return TRIGGER_TYPES.SNAP;
     default:
-      // On-chain notifications store the trigger kind on `type`; platform
-      // notifications store `platform`.
+      // On-chain: the trigger kind (e.g. `eth_received`).
+      if (notification.notification_type === 'on-chain') {
+        return notification.payload.data.kind;
+      }
+      // Platform: §5.3 wants the server-set `notification_subtype` from the
+      // platform API (§4.2). That field is not in the generated `schema.ts`
+      // yet, so until it is regenerated we fall back to `type` (`platform`).
+      // TODO(§4.2): return notification.notification_subtype once available.
       return notification.type;
   }
 }
