@@ -242,7 +242,10 @@ export class UserStorageController extends BaseController<
 
   #isUnlocked = false;
 
-  #storageKeyCache: Record<`metamask:${string}`, string> = {};
+  // Keyed by `${entropySourceId}:${message}` so two SRPs that transiently
+  // resolve to the same `profileId` can never share a cached storage key
+  // and leak data across each other's user storage.
+  #storageKeyCache: Record<string, string> = {};
 
   readonly #keyringController = {
     setupLockedStateSubscriptions: () => {
@@ -323,10 +326,14 @@ export class UserStorageController extends BaseController<
       },
       {
         storage: {
-          getStorageKey: async (message) =>
-            this.#storageKeyCache[message] ?? null,
-          setStorageKey: async (message, key) => {
-            this.#storageKeyCache[message] = key;
+          getStorageKey: async (message, entropySourceId) =>
+            this.#storageKeyCache[
+              this.#scopedCacheKey(message, entropySourceId)
+            ] ?? null,
+          setStorageKey: async (message, key, entropySourceId) => {
+            this.#storageKeyCache[
+              this.#scopedCacheKey(message, entropySourceId)
+            ] = key;
           },
         },
       },
@@ -516,7 +523,23 @@ export class UserStorageController extends BaseController<
       .map((keyring) => keyring.metadata.id);
   }
 
-  #_snapSignMessageCache: Record<`metamask:${string}`, string> = {};
+  #_snapSignMessageCache: Record<string, string> = {};
+
+  /**
+   * Builds a cache key scoped to a specific entropy source, so each SRP's
+   * signature/storage key derivation stays isolated even when two SRPs
+   * transiently resolve to the same `profileId` (see `#storageKeyCache`).
+   *
+   * @param message - The tagged message used for signing.
+   * @param entropySourceId - The entropy source ID (omitted for the primary).
+   * @returns The scoped cache key.
+   */
+  #scopedCacheKey(
+    message: `metamask:${string}`,
+    entropySourceId?: string,
+  ): string {
+    return `${entropySourceId ?? 'primary'}:${message}`;
+  }
 
   /**
    * Signs a specific message using an underlying auth snap.
@@ -530,9 +553,9 @@ export class UserStorageController extends BaseController<
     message: `metamask:${string}`,
     entropySourceId?: string,
   ): Promise<string> {
-    // the message is SRP specific already, so there's no need to use the entropySourceId in the cache
-    if (this.#_snapSignMessageCache[message]) {
-      return this.#_snapSignMessageCache[message];
+    const cacheKey = this.#scopedCacheKey(message, entropySourceId);
+    if (this.#_snapSignMessageCache[cacheKey]) {
+      return this.#_snapSignMessageCache[cacheKey];
     }
 
     if (!this.#isUnlocked) {
@@ -546,7 +569,7 @@ export class UserStorageController extends BaseController<
       createSnapSignMessageRequest(message, entropySourceId),
     )) as string;
 
-    this.#_snapSignMessageCache[message] = result;
+    this.#_snapSignMessageCache[cacheKey] = result;
 
     return result;
   }

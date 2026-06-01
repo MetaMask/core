@@ -714,6 +714,56 @@ describe('UserStorageController', () => {
       expect(await controller.getStorageKey()).toBe(MOCK_STORAGE_KEY);
     });
 
+    it('reuses the cached storage key signature for the same entropy source', async () => {
+      const messengerMocks = mockUserStorageMessenger();
+      const controller = new UserStorageController({
+        messenger: messengerMocks.messenger,
+      });
+
+      const mockAPI1 = await mockEndpointGetUserStorage();
+      const mockAPI2 = await mockEndpointGetUserStorage();
+
+      await controller.performGetStorage(
+        `${USER_STORAGE_FEATURE_NAMES.notifications}.notification_settings`,
+        'entropy-source-1',
+      );
+      await controller.performGetStorage(
+        `${USER_STORAGE_FEATURE_NAMES.notifications}.notification_settings`,
+        'entropy-source-1',
+      );
+
+      mockAPI1.done();
+      mockAPI2.done();
+      expect(messengerMocks.mockSnapSignMessage).toHaveBeenCalledTimes(1);
+    });
+
+    it('does not share the storage key signature across entropy sources resolving to the same profileId', async () => {
+      // Two SRPs can transiently resolve to the SAME `profileId` (e.g. mid
+      // profile-pairing). The caches must stay scoped per `entropySourceId` so
+      // one SRP can never reuse another SRP's storage key and read/write its
+      // user storage. The mocked session profile is identical for both calls.
+      const messengerMocks = mockUserStorageMessenger();
+      const controller = new UserStorageController({
+        messenger: messengerMocks.messenger,
+      });
+
+      const mockAPI1 = await mockEndpointGetUserStorage();
+      const mockAPI2 = await mockEndpointGetUserStorage();
+
+      await controller.performGetStorage(
+        `${USER_STORAGE_FEATURE_NAMES.notifications}.notification_settings`,
+        'entropy-source-1',
+      );
+      await controller.performGetStorage(
+        `${USER_STORAGE_FEATURE_NAMES.notifications}.notification_settings`,
+        'entropy-source-2',
+      );
+
+      mockAPI1.done();
+      mockAPI2.done();
+      expect(messengerMocks.mockSnapSignMessage).toHaveBeenCalledTimes(2);
+    });
+
     it('throws if the wallet is locked', async () => {
       const messengerMocks = mockUserStorageMessenger();
       messengerMocks.mockKeyringGetState.mockReturnValue({
