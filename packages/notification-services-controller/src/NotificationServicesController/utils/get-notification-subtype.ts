@@ -12,9 +12,10 @@ import type { INotification } from '../types/notification/notification';
  * - feature-announcement: §5.3 calls for a stable per-campaign id, pending
  *   confirmation from the announcements team that one exists. Until confirmed,
  *   we use the `features_announcement` label as the single value.
- * - platform: the server-set `notification_subtype` carried through from the
- *   platform API (§4.2). That field is not in the generated `schema.ts` yet, so
- *   until it is regenerated we fall back to `type` (`platform`).
+ * - platform: the server-set `notification_subtype`. The backend stores it
+ *   (notify-notification-services §4.3), but the `/api/v3/notifications` inbox
+ *   response does not expose it yet, so it is absent from the generated
+ *   `schema.ts` and we fall back to `type` (`platform`).
  *
  * @param notification - a processed in-app notification.
  * @returns the normalised subtype string.
@@ -34,10 +35,12 @@ export function getNotificationSubtype(notification: INotification): string {
       if (notification.notification_type === 'on-chain') {
         return notification.payload.data.kind;
       }
-      // Platform: §5.3 wants the server-set `notification_subtype` from the
-      // platform API (§4.2). That field is not in the generated `schema.ts`
-      // yet, so until it is regenerated we fall back to `type` (`platform`).
-      // TODO(§4.2): return notification.notification_subtype once available.
+      // Platform: §5.3 wants the server-set `notification_subtype`. It is
+      // stored backend-side (§4.3) but not returned on the `/api/v3/notifications`
+      // inbox response, so it is absent from `schema.ts`. Fall back to `type`
+      // (`platform`) until the inbox API exposes it.
+      // TODO: return notification.notification_subtype once the inbox API
+      // response includes it (needs a notify-notification-services change).
       return notification.type;
   }
 }
