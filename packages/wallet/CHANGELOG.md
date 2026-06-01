@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Wire `ApprovalController` into the default wallet initialization ([#8953](https://github.com/MetaMask/core/pull/8953))
+  - Adds an `approvalController.showApprovalRequest` slot to `instanceOptions` for supplying the callback that surfaces pending approval requests to the user.
+
 ## [1.0.1]
 
 ### Changed

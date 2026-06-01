@@ -225,4 +225,29 @@ describe('Wallet', () => {
       });
     });
   });
+
+  describe('ApprovalController', () => {
+    it('is wired into the default wallet', () => {
+      const wallet = new Wallet({});
+
+      expect(wallet.state.ApprovalController).toStrictEqual({
+        pendingApprovals: {},
+        pendingApprovalCount: 0,
+        approvalFlows: [],
+      });
+    });
+
+    it('invokes the provided showApprovalRequest when a flow starts', () => {
+      const showApprovalRequest = jest.fn();
+      const wallet = new Wallet({
+        instanceOptions: {
+          approvalController: { showApprovalRequest },
+        },
+      });
+
+      wallet.messenger.call('ApprovalController:startFlow');
+
+      expect(showApprovalRequest).toHaveBeenCalledTimes(1);
+    });
+  });
 });
