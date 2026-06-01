@@ -6572,6 +6572,44 @@ describe('RampsController', () => {
         );
       });
 
+      it('restricts even without autoSelectProvider when the flag is set alone', async () => {
+        await withController(
+          {
+            options: {
+              state: {
+                userRegion: createMockUserRegion('us'),
+                providers: createResourceState([moonpay, transakNative], null),
+              },
+            },
+          },
+          async ({ rootMessenger }) => {
+            let capturedProviders: string[] | undefined;
+            rootMessenger.registerActionHandler(
+              'RampsService:getQuotes',
+              async (params) => {
+                capturedProviders = params.providers;
+                return EMPTY_QUOTES_RESPONSE;
+              },
+            );
+
+            await rootMessenger.call('RampsController:getQuotes', {
+              assetId: ASSET_USDC,
+              amount: 100,
+              walletAddress: WALLET_ADDRESS,
+              paymentMethods: PAYMENT_METHODS,
+              restrictToKnownOrNativeProviders: true,
+            });
+
+            // No autoSelectProvider and no explicit providers, but the flag
+            // alone must still narrow to the native provider rather than
+            // quoting every provider in state.
+            expect(capturedProviders).toStrictEqual([
+              '/providers/transak-native',
+            ]);
+          },
+        );
+      });
+
       it('still prefers a completed-order provider over the native provider', async () => {
         await withController(
           {

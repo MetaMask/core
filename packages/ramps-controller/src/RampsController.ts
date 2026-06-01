@@ -1798,7 +1798,13 @@ export class RampsController extends BaseController<
             region: regionToUse,
           })
         : options.providers;
-    } else if (options.autoSelectProvider) {
+    } else if (
+      options.autoSelectProvider ||
+      options.restrictToKnownOrNativeProviders
+    ) {
+      // The restriction flag implies resolution: it must narrow the provider
+      // set even when `autoSelectProvider` was not explicitly passed, otherwise
+      // it would be silently ignored and every provider quoted.
       providersToUse = await this.#resolveProviderIdsForQuote({
         assetId: normalizedAssetIdForValidation,
         region: regionToUse,
