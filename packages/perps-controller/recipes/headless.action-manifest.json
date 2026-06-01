@@ -1,0 +1,29 @@
+{
+  "runner_protocol_version": 1,
+  "action_registry_version": 1,
+  "supported_official_actions": [
+    "command",
+    "assert_exit_code",
+    "assert_json",
+    "index_artifacts",
+    "end"
+  ],
+  "action_metadata": {
+    "command": {
+      "description": "Run package-native headless validation commands from the project root."
+    },
+    "assert_exit_code": {
+      "description": "Assert a command node exited with the expected status."
+    },
+    "assert_json": {
+      "description": "Assert structured JSON proof emitted by package-native tools."
+    },
+    "index_artifacts": {
+      "description": "Publish recipe evidence artifacts for review."
+    },
+    "end": {
+      "description": "Finish the recipe run."
+    }
+  },
+  "pre_conditions": []
+}
