@@ -6511,7 +6511,7 @@ describe('RampsController', () => {
       });
     });
 
-    describe('when restrictToNativeProviders is true', () => {
+    describe('when restrictToKnownOrNativeProviders is true', () => {
       const ASSET_USDC =
         'eip155:42161/erc20:0xaf88d065e77c8cc2239327c5edb3a432268e5831';
       const WALLET_ADDRESS = '0x1234567890abcdef1234567890abcdef12345678';
@@ -6562,7 +6562,7 @@ describe('RampsController', () => {
               walletAddress: WALLET_ADDRESS,
               paymentMethods: PAYMENT_METHODS,
               autoSelectProvider: true,
-              restrictToNativeProviders: true,
+              restrictToKnownOrNativeProviders: true,
             });
 
             expect(capturedProviders).toStrictEqual([
@@ -6605,7 +6605,7 @@ describe('RampsController', () => {
               walletAddress: WALLET_ADDRESS,
               paymentMethods: PAYMENT_METHODS,
               autoSelectProvider: true,
-              restrictToNativeProviders: true,
+              restrictToKnownOrNativeProviders: true,
             });
 
             // Order history outranks Transak Native to preserve the existing
@@ -6641,7 +6641,7 @@ describe('RampsController', () => {
                 walletAddress: WALLET_ADDRESS,
                 paymentMethods: PAYMENT_METHODS,
                 autoSelectProvider: true,
-                restrictToNativeProviders: true,
+                restrictToKnownOrNativeProviders: true,
               },
             );
 
@@ -6677,7 +6677,7 @@ describe('RampsController', () => {
               walletAddress: WALLET_ADDRESS,
               paymentMethods: PAYMENT_METHODS,
               providers: ['/providers/transak-native'],
-              restrictToNativeProviders: true,
+              restrictToKnownOrNativeProviders: true,
             });
 
             expect(capturedProviders).toStrictEqual([
@@ -6719,7 +6719,7 @@ describe('RampsController', () => {
                 walletAddress: WALLET_ADDRESS,
                 paymentMethods: PAYMENT_METHODS,
                 providers: ['/providers/banxa'],
-                restrictToNativeProviders: true,
+                restrictToKnownOrNativeProviders: true,
               },
             );
 

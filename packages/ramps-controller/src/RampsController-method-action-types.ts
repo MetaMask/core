@@ -211,7 +211,7 @@ export type RampsControllerSetSelectedPaymentMethodAction = {
  * during auto-selection, in priority order (e.g. derived by the caller
  * from completed-order history). Only used when `autoSelectProvider` is
  * true and `providers` is omitted.
- * @param options.restrictToNativeProviders - Headless-buy gating. When true,
+ * @param options.restrictToKnownOrNativeProviders - Headless-buy gating. When true,
  * auto-selection resolves only a native provider and an explicit `providers`
  * list is filtered to those supporting the region/asset; if nothing qualifies,
  * returns an empty response instead of quoting other providers.

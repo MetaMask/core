@@ -1743,7 +1743,7 @@ export class RampsController extends BaseController<
    *   during auto-selection, in priority order (e.g. derived by the caller
    *   from completed-order history). Only used when `autoSelectProvider` is
    *   true and `providers` is omitted.
-   * @param options.restrictToNativeProviders - Headless-buy v0 gating. When
+   * @param options.restrictToKnownOrNativeProviders - Headless-buy v0 gating. When
    *   true, auto-selection resolves only a native provider, and an explicitly
    *   passed `providers` list is filtered to those supporting the region and
    *   asset. If nothing qualifies, `getQuotes` returns an empty response
@@ -1764,7 +1764,7 @@ export class RampsController extends BaseController<
     providers?: string[];
     autoSelectProvider?: boolean;
     preferredProviderIds?: string[];
-    restrictToNativeProviders?: boolean;
+    restrictToKnownOrNativeProviders?: boolean;
     redirectUrl?: string;
     action?: RampAction;
     forceRefresh?: boolean;
@@ -1791,7 +1791,7 @@ export class RampsController extends BaseController<
 
     let providersToUse: string[];
     if (options.providers) {
-      providersToUse = options.restrictToNativeProviders
+      providersToUse = options.restrictToKnownOrNativeProviders
         ? await this.#filterProviderIdsBySupport({
             providerIds: options.providers,
             assetId: normalizedAssetIdForValidation,
@@ -1803,7 +1803,7 @@ export class RampsController extends BaseController<
         assetId: normalizedAssetIdForValidation,
         region: regionToUse,
         preferredProviderIds: options.preferredProviderIds,
-        restrictToNative: options.restrictToNativeProviders,
+        restrictToKnownOrNative: options.restrictToKnownOrNativeProviders,
       });
     } else {
       providersToUse = this.state.providers.data.map(
@@ -1833,7 +1833,7 @@ export class RampsController extends BaseController<
     // eligible (native/supporting) provider exists. Return an empty response
     // rather than passing `[]` to the service, which omits the provider filter
     // and would quote every provider.
-    if (options.restrictToNativeProviders && providersToUse.length === 0) {
+    if (options.restrictToKnownOrNativeProviders && providersToUse.length === 0) {
       return { success: [], sorted: [], error: [], customActions: [] };
     }
 
@@ -1963,10 +1963,10 @@ export class RampsController extends BaseController<
    *    This takes priority over Transak Native to preserve an existing KYC
    *    relationship.
    * 3. A native provider (e.g. Transak Native).
-   * 4. The first supporting provider — unless `restrictToNative` is set, in
+   * 4. The first supporting provider — unless `restrictToKnownOrNative` is set, in
    *    which case no further provider is introduced and nothing is returned.
    *
-   * When `restrictToNative` is unset and no provider supports the asset, falls
+   * When `restrictToKnownOrNative` is unset and no provider supports the asset, falls
    * back to all known provider IDs so the request behaves as if no
    * auto-selection occurred.
    *
@@ -1974,7 +1974,7 @@ export class RampsController extends BaseController<
    * @param options.assetId - CAIP-19 asset type identifier to resolve for.
    * @param options.region - Region to resolve providers for.
    * @param options.preferredProviderIds - Provider IDs to prefer, in order.
-   * @param options.restrictToNative - When true, resolve only a native provider
+   * @param options.restrictToKnownOrNative - When true, resolve only a native provider
    *   (or no providers when none supports the asset).
    * @returns Provider IDs for this request only.
    */
@@ -1982,12 +1982,12 @@ export class RampsController extends BaseController<
     assetId,
     region,
     preferredProviderIds,
-    restrictToNative,
+    restrictToKnownOrNative,
   }: {
     assetId: string;
     region: string;
     preferredProviderIds?: string[];
-    restrictToNative?: boolean;
+    restrictToKnownOrNative?: boolean;
   }): Promise<string[]> {
     const { supporting, all } = await this.#getSupportingProvidersForRegion({
       assetId,
@@ -1996,7 +1996,7 @@ export class RampsController extends BaseController<
 
     // When not restricted and nothing supports the asset, behave as if no
     // auto-selection occurred (quote against all known providers).
-    if (!restrictToNative && supporting.length === 0) {
+    if (!restrictToKnownOrNative && supporting.length === 0) {
       return all.map((provider) => provider.id);
     }
 
@@ -2034,7 +2034,7 @@ export class RampsController extends BaseController<
     // 4. Fallback. Under headless gating, introduce no other provider — return
     //    nothing so the caller surfaces an "unavailable" state. Otherwise the
     //    aggregator and all other providers are treated equally: first wins.
-    if (restrictToNative) {
+    if (restrictToKnownOrNative) {
       return [];
     }
     return [supporting[0].id];
