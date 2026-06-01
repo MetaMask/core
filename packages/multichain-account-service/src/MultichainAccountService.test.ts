@@ -1,4 +1,4 @@
-import { isBip44Account } from '@metamask/account-api';
+import { Bip44Account, isBip44Account } from '@metamask/account-api';
 import { mnemonicPhraseToBytes } from '@metamask/key-tree';
 import type {
   CreateAccountOptions,
@@ -159,6 +159,21 @@ function mockAccountProvider<Provider extends Bip44AccountProvider>(
     mocks.getName.mockReturnValue(TRX_ACCOUNT_PROVIDER_NAME);
     mocks.isAccountCompatible?.mockImplementation(
       (account: KeyringAccount) => account.type === TrxAccountType.Eoa,
+    );
+  }
+
+  // Mirror production behavior: a provider's tracked account IDs are only
+  // those it can manage (per `isAccountCompatible`). `setupBip44AccountProvider`
+  // initially populates every provider with every account, so we re-filter
+  // here once the compatibility predicate has been wired up.
+  const compatiblePredicate = mocks.isAccountCompatible.getMockImplementation();
+  if (compatiblePredicate) {
+    mocks.accounts = new Set(
+      accounts
+        .filter((account) =>
+          compatiblePredicate(account as Bip44Account<KeyringAccount>),
+        )
+        .map((account) => account.id),
     );
   }
 }
@@ -1005,6 +1020,9 @@ describe('MultichainAccountService', () => {
       expect(mocks.SolAccountProvider.deleteAccount).toHaveBeenCalledWith(
         mockSolAccount.id,
       );
+      // Providers that own no accounts for this wallet should be left alone.
+      expect(mocks.BtcAccountProvider.deleteAccount).not.toHaveBeenCalled();
+      expect(mocks.TrxAccountProvider.deleteAccount).not.toHaveBeenCalled();
       expect(() =>
         service.getMultichainAccountWallet({
           entropySource: MOCK_HD_KEYRING_1.metadata.id,

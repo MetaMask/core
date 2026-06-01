@@ -537,9 +537,12 @@ export class MultichainAccountService {
    * Removes a multichain account wallet, deleting all of its accounts across
    * every registered provider (EVM and snap-based).
    *
-   * Per-account deletions are best-effort: a single account failure is logged
-   * via `reportError` but does not abort cleanup of the remaining accounts.
-   * The wallet is always removed from the service's internal map at the end.
+   * The deletion iterates providers (the source of truth for their own
+   * account lists) and filters each provider's accounts to those matching
+   * the wallet's entropy source. Per-account deletions are best-effort:
+   * a single account failure is reported via `reportError` but does not
+   * abort cleanup of the remaining accounts. The wallet is always removed
+   * from the service's internal map at the end.
    *
    * @param entropySource - The entropy source of the multichain account wallet.
    */
@@ -548,14 +551,12 @@ export class MultichainAccountService {
   ): Promise<void> {
     const wallet = this.#getWallet(entropySource);
 
-    for (const group of wallet.getMultichainAccountGroups()) {
-      for (const account of group.getAccounts()) {
-        const provider = this.#providers.find((candidate) =>
-          candidate.isAccountCompatible(account),
-        );
-        if (!provider) {
-          continue;
-        }
+    for (const provider of this.#providers) {
+      const owned = provider
+        .getAccounts()
+        .filter((account) => account?.options?.entropy?.id === entropySource);
+
+      for (const account of owned) {
         try {
           await provider.deleteAccount(account.id);
         } catch (error) {
