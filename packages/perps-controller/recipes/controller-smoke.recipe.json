@@ -1,0 +1,72 @@
+{
+  "schema_version": 1,
+  "title": "PerpsController headless smoke",
+  "description": "Runs the package-native PerpsController trading smoke tests through the reusable Farmslot headless recipe harness. This validates controller public methods without embedding a project-specific runner or calling HyperLiquid directly from the recipe.",
+  "validate": {
+    "workflow": {
+      "entry": "run-controller-smoke",
+      "nodes": {
+        "run-controller-smoke": {
+          "action": "command",
+          "description": "Run the controller-level trading smoke test suite against PerpsController public methods.",
+          "cmd": "mkdir -p .recipe-output && NODE_OPTIONS=--experimental-vm-modules yarn jest --runInBand --no-coverage --runTestsByPath tests/src/PerpsController.trading.test.ts --reporters=default --json --outputFile=.recipe-output/controller-smoke-jest.json",
+          "timeout_ms": 120000,
+          "next": "assert-controller-smoke-exit"
+        },
+        "assert-controller-smoke-exit": {
+          "action": "assert_exit_code",
+          "description": "The controller smoke suite must pass.",
+          "source": "run-controller-smoke",
+          "expected": 0,
+          "next": "assert-controller-smoke-report"
+        },
+        "assert-controller-smoke-report": {
+          "action": "assert_json",
+          "description": "The Jest JSON proof must show the controller smoke suite passed without failed tests.",
+          "path": ".recipe-output/controller-smoke-jest.json",
+          "assert": {
+            "all": [
+              {
+                "path": "$.success",
+                "operator": "truthy"
+              },
+              {
+                "path": "$.numFailedTests",
+                "operator": "eq",
+                "value": 0
+              },
+              {
+                "path": "$.numTotalTests",
+                "operator": "gte",
+                "value": 10
+              }
+            ]
+          },
+          "next": "index-controller-smoke-artifacts"
+        },
+        "index-controller-smoke-artifacts": {
+          "action": "index_artifacts",
+          "description": "Publish the controller smoke Jest report as recipe evidence.",
+          "artifacts": [
+            {
+              "path": ".recipe-output/controller-smoke-jest.json",
+              "type": "json",
+              "label": "PerpsController trading smoke Jest report",
+              "proofTarget": "PerpsController public trading methods",
+              "covers": ["controller-public-methods", "trading-smoke"]
+            }
+          ],
+          "next": "done"
+        },
+        "done": {
+          "action": "end",
+          "status": "pass"
+        }
+      },
+      "teardown": [],
+      "playback": {
+        "mode": "off"
+      }
+    }
+  }
+}

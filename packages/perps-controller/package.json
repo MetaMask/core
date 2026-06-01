@@ -89,6 +89,7 @@
     "changelog:validate": "../../scripts/validate-changelog.sh @metamask/perps-controller",
     "messenger-action-types:check": "tsx ../../packages/messenger-cli/src/cli.ts --formatter oxfmt --check",
     "messenger-action-types:generate": "tsx ../../packages/messenger-cli/src/cli.ts --formatter oxfmt --generate",
+    "recipe:controller-smoke": "farmslot-recipe run recipes/controller-smoke.recipe.json --artifacts-dir ../../.recipe-artifacts/perps-controller/controller-smoke --action-manifest recipes/headless.action-manifest.json --project-root .",
     "since-latest-release": "../../scripts/since-latest-release.sh",
     "test": "NODE_OPTIONS=--experimental-vm-modules jest --reporters=jest-silent-reporter",
     "test:clean": "NODE_OPTIONS=--experimental-vm-modules jest --clearCache",
@@ -107,6 +108,7 @@
     "uuid": "^8.3.2"
   },
   "devDependencies": {
+    "@farmslot/recipe-harness": "^0.1.0",
     "@metamask/account-tree-controller": "^7.5.0",
     "@metamask/auto-changelog": "^6.1.0",
     "@metamask/geolocation-controller": "^0.1.3",
