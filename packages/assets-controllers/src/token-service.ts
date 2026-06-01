@@ -140,6 +140,57 @@ function getTokenAssetsURL(options: {
 }
 
 /**
+ * Get the RWAs URL for the given query params.
+ *
+ * @param options - Options for getting RWAs.
+ * @returns The RWAs URL.
+ */
+function getRwasURL(options: FetchRwasParams): string {
+  const {
+    chainIds,
+    query: searchQuery,
+    active,
+    custodian,
+    type,
+    industry,
+    sortBy,
+    limit = 100,
+    after,
+    ...additionalParams
+  } = options;
+  const trimmedSearchQuery = searchQuery?.trim();
+  const queryParams = new URLSearchParams();
+
+  Object.entries({
+    ...(chainIds?.length ? { chainIds } : {}),
+    ...(trimmedSearchQuery && { query: trimmedSearchQuery }),
+    ...(active === undefined ? {} : { active }),
+    ...(custodian && { custodian }),
+    ...(type && { type }),
+    ...(industry && { industry }),
+    ...(sortBy && { sortBy }),
+    limit,
+    ...(after && { after }),
+    ...additionalParams,
+  }).forEach(([key, value]) => {
+    if (value === undefined || value === '') {
+      return;
+    }
+
+    if (Array.isArray(value)) {
+      if (value.length > 0) {
+        queryParams.append(key, value.join(','));
+      }
+      return;
+    }
+
+    queryParams.append(key, String(value));
+  });
+
+  return `${TOKEN_END_POINT_API}/v1/rwas?${queryParams.toString()}`;
+}
+
+/**
  * Shared query-parameter type for the v3 trending tokens endpoint.
  *
  * Known parameters are explicitly typed for autocomplete and documentation.
@@ -239,6 +290,78 @@ export type TokenRwaData = {
   };
   ticker?: string;
   instrumentType?: string;
+};
+
+export type RwaMarket = {
+  nextOpen?: string;
+  nextClose?: string;
+};
+
+export type RwaTokenData = {
+  price: string;
+  priceChange: string;
+  marketCap: number;
+  aggregatedUsdVolume: number;
+  active: boolean;
+  ticker: string;
+  instrumentType: string;
+  custodians: string[];
+  industry: string[];
+  market?: RwaMarket;
+  nextPause?: Record<string, unknown>;
+  sharesOutstanding?: number;
+  restrictedCountries?: string[];
+  updatedAt?: string;
+  addressType?: string;
+};
+
+export type RwaToken = {
+  id: string;
+  assetId: CaipAssetType;
+  symbol: string;
+  decimals: number;
+  name: string;
+  rwaData: RwaTokenData;
+};
+
+export type RwasResponse = {
+  data: RwaToken[];
+  count: number;
+  totalCount: number;
+  pageInfo: {
+    nextCursor: string | null;
+    hasNextPage: boolean;
+  };
+};
+
+export type RwaSortBy =
+  | 'price_change_asc'
+  | 'price_change_desc'
+  | 'volume_asc'
+  | 'volume_desc'
+  | 'market_cap_asc'
+  | 'market_cap_desc';
+
+export type FetchRwasParams = {
+  chainIds?: CaipChainId[];
+  query?: string;
+  sortBy?: RwaSortBy;
+  limit?: number;
+  after?: string;
+  active?: boolean;
+  custodian?: 'ondo';
+  type?: 'stock' | 'etf';
+  industry?:
+    | 'industrials'
+    | 'technology'
+    | 'healthcare'
+    | 'consumer discretionary'
+    | 'financials'
+    | 'materials'
+    | 'utilities'
+    | 'energy'
+    | 'real estate';
+  [key: string]: string | number | boolean | string[] | undefined;
 };
 
 export type TokenSecurityFeature = {
@@ -543,6 +666,18 @@ export async function fetchTokenAssets(
   } catch {
     return [];
   }
+}
+
+/**
+ * Fetch real-world asset tokens.
+ *
+ * @param params - Query params used to filter, sort, and paginate RWAs.
+ * @returns The paginated RWA response.
+ */
+export async function fetchRwas(
+  params: FetchRwasParams = {},
+): Promise<RwasResponse> {
+  return handleFetch(getRwasURL(params), { headers: { accept: '*/*' } });
 }
 
 /**

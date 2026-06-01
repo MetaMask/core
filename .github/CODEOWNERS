@@ -75,6 +75,7 @@
 /packages/app-metadata-controller @MetaMask/mobile-platform
 /packages/analytics-controller    @MetaMask/mobile-platform @MetaMask/extension-platform
 /packages/analytics-data-regulation-controller @MetaMask/mobile-platform @MetaMask/extension-platform
+/packages/geolocation-controller @MetaMask/mobile-platform
 
 ## Wallet Integrations Team
 /packages/chain-agnostic-permission        @MetaMask/wallet-integrations
@@ -89,7 +90,6 @@
 /packages/build-utils                  @MetaMask/core-platform
 /packages/composable-controller        @MetaMask/core-platform
 /packages/connectivity-controller      @MetaMask/core-platform
-/packages/geolocation-controller       @MetaMask/core-platform
 /packages/controller-utils             @MetaMask/core-platform
 /packages/eth-json-rpc-middleware      @MetaMask/core-platform
 /packages/messenger                    @MetaMask/core-platform
@@ -171,8 +171,8 @@
 /packages/gas-fee-controller/CHANGELOG.md         @MetaMask/confirmations @MetaMask/core-platform
 /packages/gator-permissions-controller/package.json @MetaMask/delegation @MetaMask/core-platform
 /packages/gator-permissions-controller/CHANGELOG.md @MetaMask/delegation @MetaMask/core-platform
-/packages/geolocation-controller/package.json      @MetaMask/core-platform
-/packages/geolocation-controller/CHANGELOG.md      @MetaMask/core-platform
+/packages/geolocation-controller/package.json     @MetaMask/mobile-platform @MetaMask/core-platform
+/packages/geolocation-controller/CHANGELOG.md     @MetaMask/mobile-platform @MetaMask/core-platform
 /packages/keyring-controller/package.json         @MetaMask/accounts-engineers @MetaMask/core-platform
 /packages/keyring-controller/CHANGELOG.md         @MetaMask/accounts-engineers @MetaMask/core-platform
 /packages/passkey-controller/package.json         @MetaMask/web3auth @MetaMask/core-platform

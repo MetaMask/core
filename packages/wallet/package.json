@@ -58,6 +58,7 @@
     "@metamask/keyring-controller": "^26.0.0",
     "@metamask/messenger": "^1.2.0",
     "@metamask/scure-bip39": "^2.1.1",
+    "@metamask/storage-service": "^1.0.1",
     "@metamask/utils": "^11.9.0"
   },
   "devDependencies": {
