@@ -10,7 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Wire `ApprovalController` into the default wallet initialization ([#8953](https://github.com/MetaMask/core/pull/8953))
-  - Adds an `approvalController.showApprovalRequest` slot to `instanceOptions` for supplying the callback that surfaces pending approval requests to the user.
+  - Adds an `approvalController` slot to `instanceOptions` with `showApprovalRequest` (the callback that surfaces pending approval requests to the user; defaults to a no-op) and `typesExcludedFromRateLimiting` (the approval types exempt from per-origin rate limiting; defaults to the EVM signing/transaction types). Both let consumers (extension, mobile, wallet-cli) inject their platform-specific values.
 
 ## [1.0.1]
 

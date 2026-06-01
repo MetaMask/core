@@ -23,6 +23,7 @@ export type WalletOptions = {
 export type InstanceSpecificOptions = {
   approvalController?: {
     showApprovalRequest?: ShowApprovalRequest;
+    typesExcludedFromRateLimiting?: string[];
   };
   keyringController?: {
     encryptor?: GenericEncryptor;

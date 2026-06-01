@@ -1,4 +1,5 @@
 import { ApprovalController } from '@metamask/approval-controller';
+import { ApprovalType } from '@metamask/controller-utils';
 import { Messenger } from '@metamask/messenger';
 
 import { approvalController } from './approval-controller';
@@ -56,6 +57,47 @@ describe('approvalController', () => {
     });
 
     expect(() => instance.startFlow()).not.toThrow();
+  });
+
+  it('excludes EVM signing types from rate limiting by default', () => {
+    const messenger = approvalController.getMessenger(getRootMessenger());
+
+    const instance = approvalController.init({
+      state: undefined,
+      messenger,
+      options: {},
+    });
+
+    // An excluded type allows multiple pending requests from the same origin.
+    // The pending promises never settle here; `.catch` only marks them handled.
+    expect(() => {
+      instance
+        .add({ origin: 'metamask.io', type: ApprovalType.Transaction })
+        .catch(() => undefined);
+      instance
+        .add({ origin: 'metamask.io', type: ApprovalType.Transaction })
+        .catch(() => undefined);
+    }).not.toThrow();
+  });
+
+  it('honors a custom typesExcludedFromRateLimiting list that overrides the default', () => {
+    const messenger = approvalController.getMessenger(getRootMessenger());
+
+    const instance = approvalController.init({
+      state: undefined,
+      messenger,
+      // Empty override: nothing is excluded, not even the default EVM types.
+      options: { typesExcludedFromRateLimiting: [] },
+    });
+
+    instance
+      .add({ origin: 'metamask.io', type: ApprovalType.Transaction })
+      .catch(() => undefined);
+
+    // A second request of the same origin and type is now rate-limited.
+    expect(() =>
+      instance.add({ origin: 'metamask.io', type: ApprovalType.Transaction }),
+    ).toThrow('already pending');
   });
 
   it('exposes its actions through the root messenger', () => {
