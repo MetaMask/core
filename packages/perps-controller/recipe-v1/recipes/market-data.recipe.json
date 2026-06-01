@@ -1,0 +1,40 @@
+{
+  "schema_version": 1,
+  "title": "Perps controller market-data verification (headless, no UI)",
+  "description": "Calls PerpsController.getMarkets through a headless in-memory provider and packages the result as Recipe v1 evidence. No wallet, no UI, no direct HyperLiquid script.",
+  "proofTargets": [
+    {
+      "id": "market-data",
+      "claim": "PerpsController.getMarkets delegates through the controller/service/provider path and returns market data."
+    }
+  ],
+  "validate": {
+    "workflow": {
+      "entry": "get-markets",
+      "nodes": {
+        "get-markets": {
+          "action": "perps_controller.call",
+          "method": "getMarkets",
+          "params": { "symbols": ["BTC"] },
+          "next": "assert-market-count",
+          "proofTarget": "market-data"
+        },
+        "assert-market-count": {
+          "action": "assert_json",
+          "source": "get-markets",
+          "path": "$",
+          "minLength": 1,
+          "next": "assert-market-symbol"
+        },
+        "assert-market-symbol": {
+          "action": "assert_json",
+          "source": "get-markets",
+          "path": "0.name",
+          "equals": "BTC",
+          "next": "done"
+        },
+        "done": { "action": "end", "status": "pass" }
+      }
+    }
+  }
+}

@@ -307,6 +307,21 @@ const config = createConfig([
     },
   },
   {
+    files: ['packages/perps-controller/recipe-v1/**/*.ts'],
+    rules: {
+      // The Recipe v1 reference runner is a package-local Node script that mirrors
+      // the external recipe schema's snake_case field names.
+      'import-x/no-nodejs-modules': 'off',
+      'no-restricted-globals': 'off',
+      '@typescript-eslint/naming-convention': 'off',
+      '@typescript-eslint/explicit-function-return-type': 'off',
+      '@typescript-eslint/no-shadow': 'off',
+      '@typescript-eslint/restrict-template-expressions': 'off',
+      'no-negated-condition': 'off',
+      'promise/param-names': 'off',
+    },
+  },
+  {
     files: [
       'packages/notification-services-controller/src/NotificationServicesPushController/services/push/*-web.ts',
       'packages/notification-services-controller/src/NotificationServicesPushController/web/**/*.ts',
