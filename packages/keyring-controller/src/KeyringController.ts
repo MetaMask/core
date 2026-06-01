@@ -2967,8 +2967,8 @@ export class KeyringController<
    * {@link KeyringController.addNewKeyring} without subsequent account
    * creation) are left alone, as are keyrings created within the operation
    * itself (they are not part of the pre-operation snapshot). The primary
-   * keyring (index 0) is also preserved unconditionally to keep
-   * `removeAccount`'s primary-keyring invariant intact.
+   * keyring (see {@link KeyringController.#isPrimaryKeyring}) is also preserved
+   * unconditionally to keep `removeAccount`'s primary-keyring invariant intact.
    *
    * @param operation - The operation to execute.
    * @returns The result of the operation.
@@ -3002,7 +3002,9 @@ export class KeyringController<
 
     const emptied = this.#keyrings.filter(
       (entry, index) =>
-        index !== 0 && wasNonEmpty.has(entry.keyring) && isNowEmpty[index],
+        !this.#isPrimaryKeyring(entry, this.#keyrings) &&
+        wasNonEmpty.has(entry.keyring) &&
+        isNowEmpty[index],
     );
 
     if (emptied.length > 0) {
@@ -3218,6 +3220,25 @@ export class KeyringController<
   }
 
   /**
+   * Check whether the given keyring entry is the primary keyring.
+   *
+   * The primary keyring is the first HD keyring in the given list. Both the
+   * position (index 0) and the keyring type are checked so that the definition
+   * of "primary" lives in one place and does not rely on positional index
+   * alone, which could misidentify the primary keyring in the event of a bug.
+   *
+   * @param entry - The keyring entry to check.
+   * @param keyrings - The list of keyring entries `entry` belongs to.
+   * @returns Whether the entry is the primary keyring.
+   */
+  #isPrimaryKeyring(entry: KeyringEntry, keyrings: KeyringEntry[]): boolean {
+    return (
+      keyrings[0] === entry &&
+      entry.keyring.type === (KeyringTypes.hd as string)
+    );
+  }
+
+  /**
    * Assert that the given keyring entry is not the primary HD keyring.
    *
    * @param entry - The keyring entry to check.
@@ -3228,10 +3249,7 @@ export class KeyringController<
     entry: KeyringEntry,
     keyrings: KeyringEntry[],
   ): void {
-    if (
-      keyrings[0] === entry &&
-      entry.keyring.type === (KeyringTypes.hd as string)
-    ) {
+    if (this.#isPrimaryKeyring(entry, keyrings)) {
       throw new KeyringControllerError(
         KeyringControllerErrorMessage.CannotRemovePrimaryKeyring,
       );
