@@ -52,11 +52,15 @@ export const connectivityController: InitializationConfiguration<
   ConnectivityControllerMessenger
 > = {
   name: 'ConnectivityController',
-  init: ({ messenger }) =>
-    new ConnectivityController({
+  init: ({ messenger, options }) => {
+    const controller = new ConnectivityController({
       messenger,
-      connectivityAdapter: new AlwaysOnlineAdapter(),
-    }),
+      connectivityAdapter:
+        options.connectivityAdapter ?? new AlwaysOnlineAdapter(),
+    });
+    controller.init().catch(console.error);
+    return controller;
+  },
   getMessenger: (parent: RootMessenger<DefaultActions, DefaultEvents>) =>
     new Messenger<'ConnectivityController', never, never, typeof parent>({
       namespace: 'ConnectivityController',

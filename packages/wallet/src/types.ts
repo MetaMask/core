@@ -1,3 +1,4 @@
+import type { ConnectivityAdapter } from '@metamask/connectivity-controller';
 import { KeyringControllerOptions } from '@metamask/keyring-controller';
 import type { Json } from '@metamask/utils';
 
@@ -20,6 +21,9 @@ export type WalletOptions = {
 };
 
 export type InstanceSpecificOptions = {
+  connectivityController?: {
+    connectivityAdapter?: ConnectivityAdapter;
+  };
   keyringController?: {
     encryptor?: GenericEncryptor;
     keyringBuilders?: KeyringControllerOptions['keyringBuilders'];
