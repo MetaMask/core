@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **BREAKING:** `TransactionPayControllerMessenger` now requires the `NetworkController:getNetworkConfigurationByChainId` action to be allowed. Consumers must add this action to the messenger permissions in their `TransactionPayController` and `TransactionControllerInit` messenger setup ([#8839](https://github.com/MetaMask/core/pull/8839))
 - Live token balance queries now prefer the chain's Infura endpoint, falling back to the default endpoint if no Infura endpoint is configured ([#8839](https://github.com/MetaMask/core/pull/8839))
 - Bump `@metamask/assets-controllers` from `^108.2.0` to `^108.3.0` ([#8941](https://github.com/MetaMask/core/pull/8941))
 - Bump `@metamask/assets-controller` from `^8.1.0` to `^8.2.0` ([#8943](https://github.com/MetaMask/core/pull/8943))
