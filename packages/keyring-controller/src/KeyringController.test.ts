@@ -4080,7 +4080,7 @@ describe('KeyringController', () => {
           await controller.withKeyring(
             { type: KeyringTypes.simple },
             async ({ keyring }) => {
-              await keyring.removeAccount?.(importedAccount as Hex);
+              keyring.removeAccount?.(importedAccount as Hex);
             },
           );
 
@@ -4118,29 +4118,26 @@ describe('KeyringController', () => {
       });
 
       it('persists the cleanup so the empty keyring does not return on unlock', async () => {
-        await withController(
-          { cacheEncryptionKey: true },
-          async ({ controller }) => {
-            const importedAccount = await controller.importAccountWithStrategy(
-              AccountImportStrategy.privateKey,
-              [privateKey],
-            );
-            expect(controller.state.keyrings).toHaveLength(2);
+        await withController(async ({ controller }) => {
+          const importedAccount = await controller.importAccountWithStrategy(
+            AccountImportStrategy.privateKey,
+            [privateKey],
+          );
+          expect(controller.state.keyrings).toHaveLength(2);
 
-            await controller.withKeyring(
-              { type: KeyringTypes.simple },
-              async ({ keyring }) => {
-                await keyring.removeAccount?.(importedAccount as Hex);
-              },
-            );
+          await controller.withKeyring(
+            { type: KeyringTypes.simple },
+            async ({ keyring }) => {
+              keyring.removeAccount?.(importedAccount as Hex);
+            },
+          );
 
-            await controller.setLocked();
-            await controller.submitPassword(password);
+          await controller.setLocked();
+          await controller.submitPassword(password);
 
-            expect(controller.state.keyrings).toHaveLength(1);
-            expect(controller.state.keyrings[0].type).toBe(KeyringTypes.hd);
-          },
-        );
+          expect(controller.state.keyrings).toHaveLength(1);
+          expect(controller.state.keyrings[0].type).toBe(KeyringTypes.hd);
+        });
       });
 
       it('preserves pre-existing empty keyrings that were not drained by the operation', async () => {
@@ -4158,7 +4155,7 @@ describe('KeyringController', () => {
           await controller.withKeyring(
             { address: importedAccount as Hex },
             async ({ keyring }) => {
-              await keyring.removeAccount?.(importedAccount as Hex);
+              keyring.removeAccount?.(importedAccount as Hex);
             },
           );
 
@@ -4181,7 +4178,7 @@ describe('KeyringController', () => {
           await controller.withKeyring(
             { type: KeyringTypes.hd },
             async ({ keyring }) => {
-              await keyring.removeAccount?.(primaryAccount as Hex);
+              keyring.removeAccount?.(primaryAccount);
             },
           );
 
@@ -4203,7 +4200,7 @@ describe('KeyringController', () => {
             controller.withKeyring(
               { type: KeyringTypes.simple },
               async ({ keyring }) => {
-                await keyring.removeAccount?.(importedAccount as Hex);
+                keyring.removeAccount?.(importedAccount as Hex);
                 throw new Error('Oops');
               },
             ),
