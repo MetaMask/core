@@ -17,7 +17,7 @@ export type WalletOptions = {
     unknown,
     unknown
   >[];
-  instanceOptions?: InstanceSpecificOptions;
+  instanceOptions: InstanceSpecificOptions;
 };
 
 export type InstanceSpecificOptions = {

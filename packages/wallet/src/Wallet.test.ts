@@ -1,4 +1,5 @@
 import { Messenger } from '@metamask/messenger';
+import { InMemoryStorageAdapter } from '@metamask/storage-service';
 import { Json } from '@metamask/utils';
 import { webcrypto } from 'crypto';
 
@@ -11,7 +12,13 @@ const TEST_SRP = 'test test test test test test test test test test test ball';
 const TEST_PASSWORD = 'testpass';
 
 async function setupWallet(): Promise<Wallet> {
-  const wallet = new Wallet({});
+  const wallet = new Wallet({
+    instanceOptions: {
+      storageService: {
+        storage: new InMemoryStorageAdapter(),
+      },
+    },
+  });
 
   await importSecretRecoveryPhrase(wallet, TEST_PASSWORD, TEST_SRP);
 
@@ -63,6 +70,9 @@ describe('Wallet', () => {
         keyringController: {
           encryptor: new MockEncryptor(),
         },
+        storageService: {
+          storage: new InMemoryStorageAdapter(),
+        },
       },
     });
 
@@ -101,6 +111,11 @@ describe('Wallet', () => {
           init: (): DummyService => new DummyService(),
         },
       ],
+      instanceOptions: {
+        storageService: {
+          storage: new InMemoryStorageAdapter(),
+        },
+      },
     });
     const { state } = wallet;
 
@@ -194,6 +209,11 @@ describe('Wallet', () => {
         state: {
           KeyringController: {
             vault,
+          },
+        },
+        instanceOptions: {
+          storageService: {
+            storage: new InMemoryStorageAdapter(),
           },
         },
       });
