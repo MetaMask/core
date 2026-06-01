@@ -245,4 +245,23 @@ describe('Wallet', () => {
       });
     });
   });
+
+  describe('StorageService', () => {
+    it('can set and get items', async () => {
+      const wallet = await setupWallet();
+      const { messenger } = wallet;
+
+      await messenger.call(
+        'StorageService:setItem',
+        'TestNamespace',
+        'foo',
+        'bar',
+      );
+
+      expect(
+        (await messenger.call('StorageService:getItem', 'TestNamespace', 'foo'))
+          .result,
+      ).toStrictEqual('bar');
+    });
+  });
 });

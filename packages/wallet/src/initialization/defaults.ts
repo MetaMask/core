@@ -23,7 +23,10 @@ type ExtractInstance<Config> =
  * Utility type for inferring and extracting an instance messenger type from an initialization configuration.
  */
 type ExtractInstanceMessenger<Config> =
-  Config extends InitializationConfiguration<infer _Instance, infer InferredMessenger>
+  Config extends InitializationConfiguration<
+    infer _Instance,
+    infer InferredMessenger
+  >
     ? InferredMessenger
     : never;
 
