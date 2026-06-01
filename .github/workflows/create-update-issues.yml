@@ -10,6 +10,9 @@ jobs:
   create-update-issues:
     environment: default-branch
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
     steps:
       - name: Checkout head
         uses: actions/checkout@v5

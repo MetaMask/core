@@ -38,6 +38,8 @@ jobs:
     if: needs.is-fork.outputs.is-fork == 'false'
     runs-on: ubuntu-latest
     environment: default-branch
+    permissions:
+      id-token: write
     outputs:
       token: ${{ steps.get-token.outputs.token }}
     steps:
