@@ -73,11 +73,12 @@ const config = createConfig([
   ...base,
   {
     ignores: [
+      '**/.docusaurus',
+      '**/coverage/**',
       '**/dist/**',
       '**/docs/**',
-      '**/coverage/**',
-      'merged-packages/**',
       '.yarn/**',
+      'merged-packages/**',
       'scripts/create-package/package-template/**',
     ],
   },
