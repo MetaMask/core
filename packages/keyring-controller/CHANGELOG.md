@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Automatically remove and destroy non-primary keyrings whose last account is removed during a `withKeyring` or `withKeyringV2` callback ([#XXX](https://github.com/MetaMask/core/pull/XXXX))
+  - Previously, draining a keyring of all its accounts via these APIs left an empty keyring entry in `state.keyrings` and persisted it in the vault.
+  - Pre-existing empty keyrings (e.g. those created intentionally via `addNewKeyring` without subsequent account creation) are still preserved, matching the behavior of `removeAccount`.
+  - The primary keyring is never auto-removed, even if drained; this preserves the existing `removeAccount` invariant against losing the primary keyring.
+
 ## [26.0.0]
 
 ### Changed
