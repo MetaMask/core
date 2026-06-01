@@ -154,7 +154,9 @@ describe('Wallet', () => {
       NoMeta: { state: {} },
     });
 
-    const wallet = new Wallet({ connectivityAdapter: new AlwaysOnlineAdapter() });
+    const wallet = new Wallet({
+      connectivityAdapter: new AlwaysOnlineAdapter(),
+    });
 
     expect(wallet.controllerMetadata).toStrictEqual({
       WithMeta: fakeMetadata,
@@ -216,7 +218,9 @@ describe('Wallet', () => {
 
   describe('ConnectivityController', () => {
     it('reports online connectivity status', () => {
-      const wallet = new Wallet({ connectivityAdapter: new AlwaysOnlineAdapter() });
+      const wallet = new Wallet({
+        connectivityAdapter: new AlwaysOnlineAdapter(),
+      });
 
       expect(wallet.state.ConnectivityController.connectivityStatus).toBe(
         CONNECTIVITY_STATUSES.Online,
@@ -226,7 +230,9 @@ describe('Wallet', () => {
 
   describe('createSecretRecoveryPhrase', () => {
     it('creates a vault and populates accounts', async () => {
-      const wallet = new Wallet({ connectivityAdapter: new AlwaysOnlineAdapter() });
+      const wallet = new Wallet({
+        connectivityAdapter: new AlwaysOnlineAdapter(),
+      });
 
       await createSecretRecoveryPhrase(wallet, TEST_PASSWORD);
 
