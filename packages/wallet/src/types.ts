@@ -22,7 +22,7 @@ export type WalletOptions = {
 
 export type InstanceSpecificOptions = {
   connectivityController?: {
-    connectivityAdapter?: ConnectivityAdapter;
+    connectivityAdapter: ConnectivityAdapter;
   };
   keyringController?: {
     encryptor?: GenericEncryptor;
