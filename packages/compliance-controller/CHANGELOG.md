@@ -9,15 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [2.1.0]
 
-### Uncategorized
-
-- Revert "Update Release 1005.0.0" ([#8918](https://github.com/MetaMask/core/pull/8918))
-- Update Release 1005.0.0 ([#8917](https://github.com/MetaMask/core/pull/8917))
-- Revert "chore(compliance-controller): release 2.1.0 (#8899)" ([#8899](https://github.com/MetaMask/core/pull/8899))
-- Revert "Release/1001.0.0" ([#8904](https://github.com/MetaMask/core/pull/8904))
-- Release/1001.0.0 ([#8900](https://github.com/MetaMask/core/pull/8900))
-- chore(compliance-controller): release 2.1.0 ([#8899](https://github.com/MetaMask/core/pull/8899))
-
 ### Added
 
 - Add `ComplianceService` support for an explicit Compliance API URL ([#8820](https://github.com/MetaMask/core/pull/8820))
