@@ -50,7 +50,7 @@ export class Wallet {
     this.#controllerMetadata = Object.fromEntries(
       Object.entries(this.#instances)
         .filter(([_, instance]) => hasProperty(instance, 'metadata'))
-        .map(([name, instance]) => [name, instance.metadata]),
+        .map(([name, instance]) => [name, (instance as { metadata: StateMetadataConstraint }).metadata]),
     );
   }
 
@@ -71,7 +71,7 @@ export class Wallet {
   get state(): DefaultState {
     return Object.entries(this.#instances).reduce<Record<string, unknown>>(
       (totalState, [name, instance]) => {
-        if (instance.state) {
+        if (hasProperty(instance, 'state') && instance.state) {
           totalState[name] = instance.state;
         }
         return totalState;
