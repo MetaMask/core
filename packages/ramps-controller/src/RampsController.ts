@@ -1869,8 +1869,9 @@ export class RampsController extends BaseController<
    * 2. The first preferred provider that supports the asset, where the
    *    preference is taken from `preferredProviderIds` when supplied, otherwise
    *    derived from the user's completed-order history (most recent first).
-   * 3. A Transak provider.
-   * 4. The first supporting provider.
+   * 3. A Transak Native provider.
+   * 4. A Transak aggregator provider.
+   * 5. The first supporting provider.
    *
    * When no provider supports the asset, falls back to all known provider IDs
    * so the request behaves as if no auto-selection occurred.
@@ -1942,11 +1943,22 @@ export class RampsController extends BaseController<
       }
     }
 
-    const transakProvider = supportingProviders.find(
+    // Among providers that support the asset, prefer Transak — and within
+    // Transak, prefer the native integration over the aggregator. Entries here
+    // already matched "transak", so a "native" check is enough to disambiguate
+    // (e.g. `/providers/transak-native` vs `/providers/transak`).
+    const transakProviders = supportingProviders.filter(
       (provider) =>
         provider.id?.toLowerCase().includes('transak') ||
         provider.name?.toLowerCase().includes('transak'),
     );
+
+    const transakProvider =
+      transakProviders.find(
+        (provider) =>
+          provider.id?.toLowerCase().includes('native') ||
+          provider.name?.toLowerCase().includes('native'),
+      ) ?? transakProviders[0];
 
     return [(transakProvider ?? supportingProviders[0]).id];
   }

@@ -5973,6 +5973,92 @@ describe('RampsController', () => {
         );
       });
 
+      it('prefers Transak Native over the Transak aggregator when both support the asset', async () => {
+        const transakAggregator = createMockProvider({
+          id: '/providers/transak',
+          name: 'Transak',
+          supportedCryptoCurrencies: { [ASSET_USDC]: true },
+        });
+
+        await withController(
+          {
+            options: {
+              state: {
+                userRegion: createMockUserRegion('us'),
+                providers: createResourceState(
+                  [moonpay, transakAggregator, transak],
+                  null,
+                ),
+              },
+            },
+          },
+          async ({ rootMessenger }) => {
+            let capturedProviders: string[] | undefined;
+            rootMessenger.registerActionHandler(
+              'RampsService:getQuotes',
+              async (params) => {
+                capturedProviders = params.providers;
+                return mockQuotesResponse;
+              },
+            );
+
+            await rootMessenger.call('RampsController:getQuotes', {
+              assetId: ASSET_USDC,
+              amount: 100,
+              walletAddress: WALLET_ADDRESS,
+              paymentMethods: PAYMENT_METHODS,
+              autoSelectProvider: true,
+            });
+
+            expect(capturedProviders).toStrictEqual([
+              '/providers/transak-native',
+            ]);
+          },
+        );
+      });
+
+      it('prefers the Transak aggregator over an unrelated provider when no Transak Native supports the asset', async () => {
+        const transakAggregator = createMockProvider({
+          id: '/providers/transak',
+          name: 'Transak',
+          supportedCryptoCurrencies: { [ASSET_USDC]: true },
+        });
+
+        await withController(
+          {
+            options: {
+              state: {
+                userRegion: createMockUserRegion('us'),
+                providers: createResourceState(
+                  [moonpay, transakAggregator],
+                  null,
+                ),
+              },
+            },
+          },
+          async ({ rootMessenger }) => {
+            let capturedProviders: string[] | undefined;
+            rootMessenger.registerActionHandler(
+              'RampsService:getQuotes',
+              async (params) => {
+                capturedProviders = params.providers;
+                return mockQuotesResponse;
+              },
+            );
+
+            await rootMessenger.call('RampsController:getQuotes', {
+              assetId: ASSET_USDC,
+              amount: 100,
+              walletAddress: WALLET_ADDRESS,
+              paymentMethods: PAYMENT_METHODS,
+              autoSelectProvider: true,
+            });
+
+            expect(capturedProviders).toStrictEqual(['/providers/transak']);
+          },
+        );
+      });
+
       it('falls back to the first supporting provider when no Transak provider supports the asset', async () => {
         const paypal = createMockProvider({
           id: '/providers/paypal',
