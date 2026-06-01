@@ -211,10 +211,11 @@ export type RampsControllerSetSelectedPaymentMethodAction = {
  * during auto-selection, in priority order (e.g. derived by the caller
  * from completed-order history). Only used when `autoSelectProvider` is
  * true and `providers` is omitted.
- * @param options.restrictToKnownOrNativeProviders - Headless-buy gating. When true,
- * auto-selection resolves only a native provider and an explicit `providers`
- * list is filtered to those supporting the region/asset; if nothing qualifies,
- * returns an empty response instead of quoting other providers.
+ * @param options.restrictToKnownOrNativeProviders - Headless-buy v0 gating. When
+ * true, auto-selection resolves only a native provider, and an explicitly
+ * passed `providers` list is filtered to those supporting the region and
+ * asset. If nothing qualifies, `getQuotes` returns an empty response
+ * instead of quoting other providers.
  * @param options.redirectUrl - Optional redirect URL after order completion.
  * @param options.action - The ramp action type. Defaults to 'buy'.
  * @param options.forceRefresh - Whether to bypass cache.

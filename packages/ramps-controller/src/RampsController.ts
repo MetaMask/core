@@ -1839,7 +1839,10 @@ export class RampsController extends BaseController<
     // eligible (native/supporting) provider exists. Return an empty response
     // rather than passing `[]` to the service, which omits the provider filter
     // and would quote every provider.
-    if (options.restrictToKnownOrNativeProviders && providersToUse.length === 0) {
+    if (
+      options.restrictToKnownOrNativeProviders &&
+      providersToUse.length === 0
+    ) {
       return { success: [], sorted: [], error: [], customActions: [] };
     }
 
