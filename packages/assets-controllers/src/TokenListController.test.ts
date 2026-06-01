@@ -2273,9 +2273,7 @@ describe('TokenListController', () => {
       // First poll: enabled — should fetch and populate state
       await controller._executePoll({ chainId: ChainId.mainnet });
       expect(fetchTokenListByChainIdSpy).toHaveBeenCalledTimes(1);
-      expect(
-        controller.state.tokensChainsCache[ChainId.mainnet],
-      ).toBeDefined();
+      expect(controller.state.tokensChainsCache[ChainId.mainnet]).toBeDefined();
 
       // Toggle to disabled and poll again — should skip fetch and clear state
       disabled = true;
@@ -2329,9 +2327,7 @@ describe('TokenListController', () => {
       // First call: enabled — should fetch and write state
       await controller.fetchTokenList(ChainId.mainnet);
       expect(fetchTokenListByChainIdSpy).toHaveBeenCalledTimes(1);
-      expect(
-        controller.state.tokensChainsCache[ChainId.mainnet],
-      ).toBeDefined();
+      expect(controller.state.tokensChainsCache[ChainId.mainnet]).toBeDefined();
 
       // Toggle to disabled — a subsequent fetchTokenList must not hit the API
       // and must clear the existing in-memory data.
@@ -2388,9 +2384,7 @@ describe('TokenListController', () => {
       });
       // initialize() runs enabled — loads from storage and wires the persistence subscription.
       await controller.initialize();
-      expect(
-        controller.state.tokensChainsCache[ChainId.mainnet],
-      ).toBeDefined();
+      expect(controller.state.tokensChainsCache[ChainId.mainnet]).toBeDefined();
 
       // Toggle disabled and hit any fetching entry point.
       disabled = true;
@@ -2434,9 +2428,7 @@ describe('TokenListController', () => {
 
       // Enabled fetch — populates state and schedules a debounced persist (500ms).
       await controller.fetchTokenList(ChainId.mainnet);
-      expect(
-        controller.state.tokensChainsCache[ChainId.mainnet],
-      ).toBeDefined();
+      expect(controller.state.tokensChainsCache[ChainId.mainnet]).toBeDefined();
 
       // Flip disabled BEFORE the debounce timer fires, then hit a polling entry.
       disabled = true;
