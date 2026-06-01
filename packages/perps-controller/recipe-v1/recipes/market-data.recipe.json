@@ -1,12 +1,40 @@
 {
   "schema_version": 1,
-  "title": "Perps core market-data verification (headless, no UI)",
-  "description": "Runs the perps-controller read-only HyperLiquid market-data e2e and packages its result as Recipe v1 evidence. No wallet, no UI.",
-  "proofTargets": [{ "id": "market-data", "claim": "perps-controller reads live HyperLiquid market data correctly" }],
-  "validate": { "workflow": { "entry": "run", "nodes": {
-    "run": { "action": "command", "cmd": "npx tsx e2e/market-data.ts", "timeout_ms": 120000, "next": "assert-exit", "proofTarget": "market-data" },
-    "assert-exit": { "action": "assert_exit_code", "source": "run", "equals": 0, "next": "assert-pass" },
-    "assert-pass": { "action": "assert_output", "source": "run", "stream": "stdout", "contains": "\"status\": \"pass\"", "next": "done" },
-    "done": { "action": "end", "status": "pass" }
-  } } }
+  "title": "Perps controller market-data verification (headless, no UI)",
+  "description": "Calls PerpsController.getMarkets through a headless in-memory provider and packages the result as Recipe v1 evidence. No wallet, no UI, no direct HyperLiquid script.",
+  "proofTargets": [
+    {
+      "id": "market-data",
+      "claim": "PerpsController.getMarkets delegates through the controller/service/provider path and returns market data."
+    }
+  ],
+  "validate": {
+    "workflow": {
+      "entry": "get-markets",
+      "nodes": {
+        "get-markets": {
+          "action": "perps_controller.call",
+          "method": "getMarkets",
+          "params": { "symbols": ["BTC"] },
+          "next": "assert-market-count",
+          "proofTarget": "market-data"
+        },
+        "assert-market-count": {
+          "action": "assert_json",
+          "source": "get-markets",
+          "path": "$",
+          "minLength": 1,
+          "next": "assert-market-symbol"
+        },
+        "assert-market-symbol": {
+          "action": "assert_json",
+          "source": "get-markets",
+          "path": "0.name",
+          "equals": "BTC",
+          "next": "done"
+        },
+        "done": { "action": "end", "status": "pass" }
+      }
+    }
+  }
 }

@@ -1,42 +1,69 @@
-/* eslint-disable no-restricted-globals */
 /**
- * Recipe v1 — standalone headless runner.
+ * Recipe v1 — standalone headless runner for the perps controller.
  *
  * This is the ADR-58 non-UI verification example for MetaMask core. It executes
- * a Recipe v1 workflow graph that wraps the perps-controller `e2e/` scripts and
+ * Recipe v1 workflow nodes that call PerpsController public methods directly and
  * emits the standard Recipe v1 artifact package (recipe.json / summary.json /
  * trace.json / artifact-manifest.json).
  *
- * ZERO dependencies: only Node built-ins (`node:child_process`, `node:fs`,
- * `node:path`) + TypeScript. No Farmslot, no UI, no controller logic — the
- * controller behaviour is verified by the existing `e2e/` scripts; this runner
- * only orchestrates and packages their result as portable evidence.
- *
- * Usage:
- *   npx tsx recipe-v1/runner.ts [recipe-path]
- *
- * Default recipe-path: recipe-v1/recipes/market-data.recipe.json
+ * No Farmslot dependency: this reference runner uses only Node built-ins and the
+ * package under test.
  */
-import { spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { dirname, join, resolve } from 'node:path';
+import { spawn } from 'node:child_process';
+import { access, mkdir, readFile, writeFile } from 'node:fs/promises';
+import { join, resolve } from 'node:path';
+
+import { InitializationState, PerpsController } from '../src';
+import type {
+  AccountState,
+  ClosePositionParams,
+  GetMarketsParams,
+  MarketInfo,
+  OrderParams,
+  OrderResult,
+  PerpsControllerMessenger,
+  PerpsPlatformDependencies,
+  PerpsProvider,
+  PerpsProviderType,
+  Position,
+  UpdatePositionTPSLParams,
+} from '../src';
 
 const HARNESS_NAME = '@metamask/perps-recipe-runner';
 const HARNESS_VERSION = '0.1.0';
 const SOURCE_PACKAGE = '@metamask/perps-controller';
 const MAX_OUTPUT_BYTES = 4096;
-
-/** The perps-controller package root — all `e2e/` commands run from here. */
 const PROJECT_ROOT = resolve(__dirname, '..');
-/** This runner's own directory (`recipe-v1/`). */
 const RECIPE_V1_DIR = __dirname;
 
 type RunStatus = 'pass' | 'fail';
+
+type JsonValue =
+  | null
+  | boolean
+  | number
+  | string
+  | JsonValue[]
+  | { [key: string]: JsonValue };
+
+type CommandOutput = {
+  exitCode: number;
+  stdout: string;
+  stderr: string;
+};
 
 type CommandNode = {
   action: 'command';
   cmd: string;
   timeout_ms?: number;
+  next?: string;
+  proofTarget?: string;
+};
+
+type PerpsControllerCallNode = {
+  action: 'perps_controller.call';
+  method: PerpsControllerMethod;
+  params?: JsonValue;
   next?: string;
   proofTarget?: string;
 };
@@ -56,6 +83,16 @@ type AssertOutputNode = {
   next?: string;
 };
 
+type AssertJsonNode = {
+  action: 'assert_json';
+  source: string;
+  path: string;
+  equals?: JsonValue;
+  includes?: JsonValue;
+  minLength?: number;
+  next?: string;
+};
+
 type EndNode = {
   action: 'end';
   status: RunStatus;
@@ -63,8 +100,10 @@ type EndNode = {
 
 type WorkflowNode =
   | CommandNode
+  | PerpsControllerCallNode
   | AssertExitCodeNode
   | AssertOutputNode
+  | AssertJsonNode
   | EndNode;
 
 type Recipe = {
@@ -84,13 +123,12 @@ type Manifest = {
   runner_protocol_version: number;
   action_registry_version: number;
   supported_official_actions: string[];
+  custom_actions: string[];
 };
 
-/** Output captured from a `command` node, referenced by later assert nodes. */
-type CommandOutput = {
-  exitCode: number;
-  stdout: string;
-  stderr: string;
+type NodeResult = {
+  output?: CommandOutput;
+  result?: JsonValue;
 };
 
 type TraceEntry = {
@@ -101,16 +139,34 @@ type TraceEntry = {
   endedAt: string;
   durationMs: number;
   output?: CommandOutput;
+  result?: JsonValue;
   error?: string;
 };
 
-/**
- * Truncate a string to roughly `MAX_OUTPUT_BYTES`, appending a marker so the
- * artifact reader knows the value was clipped.
- *
- * @param value - The raw stream contents.
- * @returns The original string, or a truncated copy with a marker appended.
- */
+type PerpsControllerMethod =
+  | 'getMarkets'
+  | 'getPositions'
+  | 'getAccountState'
+  | 'placeOrder'
+  | 'updatePositionTPSL'
+  | 'closePosition';
+
+class RecipePerpsController extends PerpsController {
+  public markInitialized(): void {
+    this.isInitialized = true;
+    this.update((state) => {
+      state.initializationState = InitializationState.Initialized;
+    });
+  }
+
+  public setProvider(provider: PerpsProvider): void {
+    this.providers = new Map<PerpsProviderType, PerpsProvider>([
+      ['hyperliquid', provider],
+    ]);
+    this.activeProviderInstance = provider;
+  }
+}
+
 function truncate(value: string): string {
   if (Buffer.byteLength(value, 'utf8') <= MAX_OUTPUT_BYTES) {
     return value;
@@ -118,12 +174,6 @@ function truncate(value: string): string {
   return `${value.slice(0, MAX_OUTPUT_BYTES)}\n…[truncated]`;
 }
 
-/**
- * Derive a filesystem-friendly slug from a recipe title.
- *
- * @param title - The recipe title.
- * @returns A lowercase, hyphenated slug.
- */
 function slugify(title: string): string {
   return (
     title
@@ -134,78 +184,429 @@ function slugify(title: string): string {
   );
 }
 
-/**
- * Resolve the current git ref of the source package, falling back to `'local'`
- * when git is unavailable (e.g. exported tarball).
- *
- * @returns The HEAD commit hash, or `'local'`.
- */
-function resolveGitRef(): string {
-  const result = spawnSync('git', ['rev-parse', 'HEAD'], {
-    cwd: PROJECT_ROOT,
-    encoding: 'utf8',
+async function fileExists(filePath: string): Promise<boolean> {
+  try {
+    await access(filePath);
+    return true;
+  } catch (error) {
+    if (error instanceof Error) {
+      return false;
+    }
+    throw error;
+  }
+}
+
+async function readJson<Type>(filePath: string): Promise<Type> {
+  return JSON.parse(await readFile(filePath, 'utf8')) as Type;
+}
+
+function runProcess(
+  command: string,
+  options: { cwd: string; timeoutMs?: number },
+): Promise<CommandOutput> {
+  return new Promise((fulfill) => {
+    const child = spawn(command, {
+      cwd: options.cwd,
+      shell: true,
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
+
+    let stdout = '';
+    let stderr = '';
+    let timedOut = false;
+    const timeout = options.timeoutMs
+      ? setTimeout(() => {
+          timedOut = true;
+          child.kill('SIGTERM');
+        }, options.timeoutMs)
+      : undefined;
+
+    child.stdout.on('data', (chunk: Buffer) => {
+      stdout += chunk.toString('utf8');
+    });
+    child.stderr.on('data', (chunk: Buffer) => {
+      stderr += chunk.toString('utf8');
+    });
+    child.on('close', (code) => {
+      if (timeout) {
+        clearTimeout(timeout);
+      }
+      fulfill({
+        exitCode: timedOut ? 124 : (code ?? 1),
+        stdout,
+        stderr: timedOut ? `${stderr}\n[recipe] command timed out` : stderr,
+      });
+    });
   });
-  if (result.status === 0 && typeof result.stdout === 'string') {
+}
+
+async function resolveGitRef(): Promise<string> {
+  const result = await runProcess('git rev-parse HEAD', { cwd: PROJECT_ROOT });
+  if (result.exitCode === 0) {
     return result.stdout.trim() || 'local';
   }
   return 'local';
 }
 
-/**
- * Read and parse a JSON file from disk.
- *
- * @param filePath - Absolute path to the JSON file.
- * @returns The parsed value, typed as `Type`.
- */
-function readJson<Type>(filePath: string): Type {
-  return JSON.parse(readFileSync(filePath, 'utf8')) as Type;
+function createMessenger(): PerpsControllerMessenger {
+  const messenger = {
+    call(action: string) {
+      if (action === 'RemoteFeatureFlagController:getState') {
+        return { remoteFeatureFlags: {} };
+      }
+      if (
+        action === 'AccountTreeController:getAccountsFromSelectedAccountGroup'
+      ) {
+        return [
+          {
+            address: '0x1234567890abcdef1234567890abcdef12345678',
+            type: 'eip155:eoa',
+          },
+        ];
+      }
+      if (action === 'NetworkController:getNetworkClientById') {
+        return { configuration: { chainId: '0x1' } };
+      }
+      if (action === 'NetworkController:getState') {
+        return { selectedNetworkClientId: 'mainnet' };
+      }
+      if (action === 'AuthenticationController:getBearerToken') {
+        return Promise.resolve('recipe-bearer-token');
+      }
+      return undefined;
+    },
+    publish() {
+      return undefined;
+    },
+    subscribe() {
+      return undefined;
+    },
+    unsubscribe() {
+      return undefined;
+    },
+    registerActionHandler() {
+      return undefined;
+    },
+    registerMethodActionHandlers() {
+      return undefined;
+    },
+    unregisterActionHandler() {
+      return undefined;
+    },
+    registerEventHandler() {
+      return undefined;
+    },
+    registerInitialEventPayload() {
+      return undefined;
+    },
+    unregisterEventHandler() {
+      return undefined;
+    },
+    clearEventSubscriptions() {
+      return undefined;
+    },
+  };
+  return messenger as unknown as PerpsControllerMessenger;
 }
 
-/**
- * Execute a `command` node by spawning its shell command from the project root.
- *
- * @param node - The command node to run.
- * @returns The captured stdout/stderr and exit code.
- */
-function runCommand(node: CommandNode): CommandOutput {
-  const result = spawnSync(node.cmd, {
-    shell: true,
-    cwd: PROJECT_ROOT,
-    encoding: 'utf8',
-    timeout: node.timeout_ms,
-    maxBuffer: 64 * 1024 * 1024,
-  });
+function createInfrastructure(): PerpsPlatformDependencies {
+  const noOperation = () => undefined;
   return {
-    exitCode: result.status ?? 1,
-    stdout: result.stdout ?? '',
-    stderr: result.stderr ?? '',
+    logger: {
+      error: noOperation,
+    },
+    debugLogger: {
+      log: noOperation,
+    },
+    metrics: {
+      trackEvent: noOperation,
+      isEnabled: () => true,
+      trackPerpsEvent: noOperation,
+    },
+    performance: {
+      now: () => Date.now(),
+    },
+    tracer: {
+      trace: noOperation,
+      endTrace: noOperation,
+      setMeasurement: noOperation,
+      addBreadcrumb: noOperation,
+    },
+    streamManager: {
+      pauseChannel: noOperation,
+      resumeChannel: noOperation,
+      clearAllChannels: noOperation,
+    },
+    featureFlags: {
+      validateVersionGated: noOperation,
+    },
+    marketDataFormatters: {
+      formatVolume: (value: number) => `$${value.toFixed(0)}`,
+      formatPerpsFiat: (value: number) => `$${value.toFixed(2)}`,
+      formatPercentage: (value: number) => `${value.toFixed(2)}%`,
+      priceRangesUniversal: [],
+    },
+    cacheInvalidator: {
+      invalidate: noOperation,
+      invalidateAll: noOperation,
+    },
+    rewards: {
+      getPerpsDiscountForAccount: async () => 0,
+    },
+    diskCache: {
+      getItem: async () => null,
+      getItemSync: () => null,
+      setItem: async () => undefined,
+      removeItem: async () => undefined,
+    },
+  } as PerpsPlatformDependencies;
+}
+
+function createPosition(): Position {
+  return {
+    symbol: 'BTC',
+    size: '0.01',
+    entryPrice: '50000',
+    positionValue: '500',
+    unrealizedPnl: '0',
+    marginUsed: '50',
+    leverage: { type: 'cross', value: 10 },
+    liquidationPrice: '45000',
+    maxLeverage: 50,
+    returnOnEquity: '0',
+    cumulativeFunding: {
+      allTime: '0',
+      sinceOpen: '0',
+      sinceChange: '0',
+    },
+    roi: '0',
+    takeProfitPrice: '55000',
+    stopLossPrice: '47500',
+    takeProfitCount: 1,
+    stopLossCount: 1,
+    marketPrice: '50100',
+    timestamp: Date.now(),
   };
 }
 
-/**
- * Execute the linear workflow graph, following each node's `next` pointer.
- *
- * Walks from `entry`, runs `command` nodes, evaluates `assert_*` nodes against
- * earlier command output, and stops at the first failing assert or the `end`
- * node. Returns the final run status and the full execution trace.
- *
- * @param recipe - The recipe whose workflow should be executed.
- * @returns The terminal run status and the ordered trace entries.
- */
-function executeWorkflow(recipe: Recipe): {
+function createProvider(): PerpsProvider {
+  const markets: MarketInfo[] = [
+    { name: 'BTC', szDecimals: 5, maxLeverage: 50, marginTableId: 1 },
+    { name: 'ETH', szDecimals: 4, maxLeverage: 25, marginTableId: 2 },
+  ];
+  const positions = [createPosition()];
+  const accountState: AccountState = {
+    totalBalance: '1000',
+    spendableBalance: '950',
+    withdrawableBalance: '950',
+    marginUsed: '50',
+    unrealizedPnl: '0',
+    returnOnEquity: '0',
+  };
+
+  return {
+    protocolId: 'hyperliquid',
+    initialize: async () => undefined,
+    isReadyToTrade: () => true,
+    toggleTestnet: async () => ({ success: true }),
+    getPositions: async () => positions,
+    getAccountState: async () => accountState,
+    getHistoricalPortfolio: async () => ({
+      totalBalance24hAgo: '1000',
+      totalBalance7dAgo: '1000',
+      totalBalance30dAgo: '1000',
+    }),
+    getMarkets: async (params?: GetMarketsParams) => {
+      if (!params?.symbols?.length) {
+        return markets;
+      }
+      return markets.filter((market) => params.symbols?.includes(market.name));
+    },
+    placeOrder: async (params: OrderParams): Promise<OrderResult> => ({
+      success: true,
+      orderId: `recipe-open-${params.symbol}`,
+      filledSize: params.size,
+      averagePrice: String(
+        params.currentPrice ?? params.priceAtCalculation ?? 50000,
+      ),
+    }),
+    editOrder: async (): Promise<OrderResult> => ({ success: true }),
+    cancelOrder: async () => ({ success: true }),
+    cancelOrders: async () => ({
+      success: true,
+      successCount: 1,
+      failureCount: 0,
+    }),
+    closePosition: async (
+      params: ClosePositionParams,
+    ): Promise<OrderResult> => ({
+      success: true,
+      orderId: `recipe-close-${params.symbol}`,
+      filledSize: params.size ?? positions[0].size,
+      averagePrice: String(params.currentPrice ?? 50100),
+    }),
+    closePositions: async () => ({
+      success: true,
+      successCount: 1,
+      failureCount: 0,
+    }),
+    withdraw: async () => ({ success: true, txHash: '0xrecipe' }),
+    getDepositRoutes: async () => [],
+    getWithdrawalRoutes: () => [],
+    validateDeposit: async () => ({ isValid: true }),
+    validateOrder: async () => ({ isValid: true }),
+    validateClosePosition: async () => ({ isValid: true }),
+    validateWithdrawal: async () => ({ isValid: true }),
+    subscribeToPrices: () => noOpUnsubscribe,
+    subscribeToPositions: () => noOpUnsubscribe,
+    subscribeToOrderFills: () => noOpUnsubscribe,
+    setLiveDataConfig: noOperation,
+    disconnect: async () => undefined,
+    updatePositionTPSL: async (
+      params: UpdatePositionTPSLParams,
+    ): Promise<OrderResult> => ({
+      success: true,
+      orderId: `recipe-tpsl-${params.symbol}`,
+    }),
+    calculateLiquidationPrice: async () => '45000',
+    calculateMaintenanceMargin: async () => 50,
+    getMaxLeverage: async () => 50,
+    calculateFees: async () => ({ totalFee: 0 }),
+    getMarketDataWithPrices: async () => [],
+    getBlockExplorerUrl: () => 'https://app.hyperliquid.xyz',
+    getOrderFills: async () => [],
+    getOrders: async () => [],
+    getFunding: async () => [],
+    getCurrentAccountId: async () =>
+      'eip155:1:0x1234567890abcdef1234567890abcdef12345678',
+    getIsFirstTimeUser: async () => false,
+    getOpenOrders: async () => [],
+    subscribeToOrders: () => noOpUnsubscribe,
+    subscribeToAccount: () => noOpUnsubscribe,
+    setUserFeeDiscount: noOperation,
+    getWebSocketConnectionState: () => 'disconnected',
+    subscribeToConnectionState: () => noOpUnsubscribe,
+    reconnect: async () => undefined,
+  } as PerpsProvider;
+}
+
+function noOperation(): void {
+  return undefined;
+}
+
+function noOpUnsubscribe(): void {
+  return undefined;
+}
+
+function createController(): RecipePerpsController {
+  const controller = new RecipePerpsController({
+    messenger: createMessenger(),
+    infrastructure: createInfrastructure(),
+    deferEligibilityCheck: true,
+  });
+  controller.setProvider(createProvider());
+  controller.markInitialized();
+  return controller;
+}
+
+async function callControllerMethod(
+  controller: RecipePerpsController,
+  method: PerpsControllerMethod,
+  params?: JsonValue,
+): Promise<JsonValue> {
+  switch (method) {
+    case 'getMarkets':
+      return (await controller.getMarkets(
+        params as GetMarketsParams,
+      )) as JsonValue;
+    case 'getPositions':
+      return (await controller.getPositions()) as JsonValue;
+    case 'getAccountState':
+      return (await controller.getAccountState()) as JsonValue;
+    case 'placeOrder':
+      return (await controller.placeOrder(params as OrderParams)) as JsonValue;
+    case 'updatePositionTPSL':
+      return (await controller.updatePositionTPSL(
+        params as UpdatePositionTPSLParams,
+      )) as JsonValue;
+    case 'closePosition':
+      return (await controller.closePosition(
+        params as ClosePositionParams,
+      )) as JsonValue;
+    default: {
+      const unsupported: never = method;
+      throw new Error(`Unsupported PerpsController method: ${unsupported}`);
+    }
+  }
+}
+
+function readPath(
+  value: JsonValue | undefined,
+  path: string,
+): JsonValue | undefined {
+  if (value === undefined) {
+    return undefined;
+  }
+  if (path === '$') {
+    return value;
+  }
+  return path.split('.').reduce<JsonValue | undefined>((current, segment) => {
+    if (current === undefined || current === null) {
+      return undefined;
+    }
+    const arrayIndex = Number(segment);
+    if (Array.isArray(current) && Number.isInteger(arrayIndex)) {
+      return current[arrayIndex];
+    }
+    if (typeof current === 'object' && !Array.isArray(current)) {
+      return current[segment];
+    }
+    return undefined;
+  }, value);
+}
+
+function assertJson(
+  node: AssertJsonNode,
+  result: JsonValue | undefined,
+): string | undefined {
+  const actual = readPath(result, node.path);
+  if (node.equals !== undefined) {
+    if (JSON.stringify(actual) !== JSON.stringify(node.equals)) {
+      return `expected ${node.path} to equal ${JSON.stringify(
+        node.equals,
+      )}, got ${JSON.stringify(actual)}`;
+    }
+  }
+  if (node.includes !== undefined) {
+    if (!Array.isArray(actual) || !actual.includes(node.includes)) {
+      return `expected ${node.path} to include ${JSON.stringify(node.includes)}`;
+    }
+  }
+  if (node.minLength !== undefined) {
+    if (!Array.isArray(actual) || actual.length < node.minLength) {
+      return `expected ${node.path} length >= ${node.minLength}, got ${
+        Array.isArray(actual) ? actual.length : 'non-array'
+      }`;
+    }
+  }
+  return undefined;
+}
+
+async function executeWorkflow(recipe: Recipe): Promise<{
   status: RunStatus;
   trace: TraceEntry[];
-} {
+}> {
   const { entry, nodes } = recipe.validate.workflow;
   const trace: TraceEntry[] = [];
-  const outputs: Record<string, CommandOutput> = {};
+  const nodeResults: Record<string, NodeResult> = {};
+  const controller = createController();
 
   let currentId: string | undefined = entry;
   let status: RunStatus = 'fail';
   let failed = false;
 
   while (currentId) {
-    const node: WorkflowNode | undefined = nodes[currentId];
+    const node = nodes[currentId];
     if (!node) {
       throw new Error(`Workflow references unknown node: ${currentId}`);
     }
@@ -214,24 +615,36 @@ function executeWorkflow(recipe: Recipe): {
     const startMs = Date.now();
     let ok = false;
     let output: CommandOutput | undefined;
+    let result: JsonValue | undefined;
     let error: string | undefined;
     let next: string | undefined;
 
     switch (node.action) {
-      case 'command': {
-        output = runCommand(node);
-        outputs[currentId] = output;
-        // A command node is "ok" simply because it executed; the assertions
-        // that follow decide whether its result satisfies the proof target.
+      case 'command':
+        output = await runProcess(node.cmd, {
+          cwd: PROJECT_ROOT,
+          timeoutMs: node.timeout_ms,
+        });
+        nodeResults[currentId] = { output };
         ok = true;
         next = node.next;
         break;
-      }
+
+      case 'perps_controller.call':
+        result = await callControllerMethod(
+          controller,
+          node.method,
+          node.params,
+        );
+        nodeResults[currentId] = { result };
+        ok = true;
+        next = node.next;
+        break;
 
       case 'assert_exit_code': {
-        const source = outputs[node.source];
+        const source = nodeResults[node.source]?.output;
         if (!source) {
-          error = `assert_exit_code references node without output: ${node.source}`;
+          error = `assert_exit_code references node without command output: ${node.source}`;
         } else {
           ok = source.exitCode === node.equals;
           if (!ok) {
@@ -243,10 +656,10 @@ function executeWorkflow(recipe: Recipe): {
       }
 
       case 'assert_output': {
-        const source = outputs[node.source];
+        const source = nodeResults[node.source]?.output;
         const stream = node.stream ?? 'stdout';
         if (!source) {
-          error = `assert_output references node without output: ${node.source}`;
+          error = `assert_output references node without command output: ${node.source}`;
         } else {
           ok = source[stream].includes(node.contains);
           if (!ok) {
@@ -259,17 +672,20 @@ function executeWorkflow(recipe: Recipe): {
         break;
       }
 
-      case 'end': {
-        ok = true;
-        // The terminal status is the declared status only if no prior assert
-        // failed; otherwise the run has already failed.
-        status = failed ? 'fail' : node.status;
-        next = undefined;
+      case 'assert_json': {
+        error = assertJson(node, nodeResults[node.source]?.result);
+        ok = error === undefined;
+        next = ok ? node.next : undefined;
         break;
       }
 
+      case 'end':
+        ok = true;
+        status = failed ? 'fail' : node.status;
+        next = undefined;
+        break;
+
       default: {
-        // Exhaustive guard — unknown actions are a recipe authoring error.
         const unknown = node as { action: string };
         throw new Error(`Unsupported action: ${unknown.action}`);
       }
@@ -292,11 +708,11 @@ function executeWorkflow(recipe: Recipe): {
             },
           }
         : {}),
+      ...(result ? { result } : {}),
       ...(error ? { error } : {}),
     });
 
     if (!ok) {
-      // Any failing assert (or missing-output error) fails the whole run.
       failed = true;
       status = 'fail';
       break;
@@ -308,16 +724,12 @@ function executeWorkflow(recipe: Recipe): {
   return { status, trace };
 }
 
-/**
- * Entry point: load the recipe + manifest, execute the workflow, and write the
- * Recipe v1 artifact package to `recipe-v1/runs/<slug>-<timestamp>/`.
- */
-function main(): void {
-  const recipeArg = process.argv[2] ?? 'recipe-v1/recipes/market-data.recipe.json';
+async function main(): Promise<void> {
+  const recipeArg =
+    process.argv[2] ?? 'recipe-v1/recipes/market-data.recipe.json';
   const recipePath = resolve(PROJECT_ROOT, recipeArg);
-  if (!existsSync(recipePath)) {
-    console.error(`[recipe] Recipe not found: ${recipePath}`);
-    process.exit(1);
+  if (!(await fileExists(recipePath))) {
+    throw new Error(`Recipe not found: ${recipePath}`);
   }
 
   const manifestPath = join(
@@ -325,18 +737,18 @@ function main(): void {
     'manifests',
     'perps.action-manifest.json',
   );
-  const recipe = readJson<Recipe>(recipePath);
-  const manifest = readJson<Manifest>(manifestPath);
+  const recipe = await readJson<Recipe>(recipePath);
+  const manifest = await readJson<Manifest>(manifestPath);
 
-  console.error(`[recipe] Running: ${recipe.title}`);
+  process.stderr.write(`[recipe] Running: ${recipe.title}\n`);
 
   const startedAt = new Date().toISOString();
   const startMs = Date.now();
-  const { status, trace } = executeWorkflow(recipe);
+  const { status, trace } = await executeWorkflow(recipe);
   const endedAt = new Date().toISOString();
   const durationMs = Date.now() - startMs;
 
-  const gitRef = resolveGitRef();
+  const gitRef = await resolveGitRef();
   const passed = trace.filter((entry) => entry.ok).length;
   const failedCount = trace.filter((entry) => !entry.ok).length;
 
@@ -345,7 +757,7 @@ function main(): void {
     'runs',
     `${slugify(recipe.title)}-${new Date().toISOString().replace(/[:.]/gu, '-')}`,
   );
-  mkdirSync(runDir, { recursive: true });
+  await mkdir(runDir, { recursive: true });
 
   const summary = {
     status,
@@ -394,29 +806,32 @@ function main(): void {
     ],
   };
 
-  writeFileSync(
+  await writeFile(
     join(runDir, 'recipe.json'),
     `${JSON.stringify(recipe, null, 2)}\n`,
   );
-  writeFileSync(
+  await writeFile(
     join(runDir, 'summary.json'),
     `${JSON.stringify(summary, null, 2)}\n`,
   );
-  writeFileSync(
+  await writeFile(
     join(runDir, 'trace.json'),
     `${JSON.stringify(trace, null, 2)}\n`,
   );
-  writeFileSync(
+  await writeFile(
     join(runDir, 'artifact-manifest.json'),
     `${JSON.stringify(artifactManifest, null, 2)}\n`,
   );
 
-  console.error(`[recipe] Artifacts written to: ${runDir}`);
-  console.error(
-    `[recipe] Status: ${status} (${passed}/${trace.length} steps ok)`,
+  process.stderr.write(`[recipe] Artifacts written to: ${runDir}\n`);
+  process.stderr.write(
+    `[recipe] Status: ${status} (${passed}/${trace.length} steps ok)\n`,
   );
-
-  process.exit(status === 'pass' ? 0 : 1);
+  process.exitCode = status === 'pass' ? 0 : 1;
 }
 
-main();
+main().catch((error: unknown) => {
+  const message = error instanceof Error ? error.message : String(error);
+  process.stderr.write(`[recipe] ${message}\n`);
+  process.exitCode = 1;
+});

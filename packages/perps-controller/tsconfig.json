@@ -38,5 +38,5 @@
       "path": "../transaction-controller"
     }
   ],
-  "include": ["../../types", "./src", "./tests", "./e2e"]
+  "include": ["../../types", "./src", "./tests", "./e2e", "./recipe-v1"]
 }

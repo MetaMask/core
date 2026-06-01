@@ -1,33 +1,31 @@
-# Recipe v1 — headless verification example (ADR-58)
+# Recipe v1 — headless controller verification example (ADR-58)
 
-A self-contained, **zero-dependency** Recipe v1 runner that proves the recipe
-contract works for **non-UI / backend** verification — here, MetaMask core with
-**zero UI**.
-
-It wraps the existing perps-controller `e2e/` scripts (from PR #8893) in a
-Recipe v1 workflow graph and emits the standard portable artifact package:
+A self-contained Recipe v1 runner that proves the recipe contract works for a
+**non-UI / core controller** package. It exercises **PerpsController public
+methods** through a headless in-memory provider and emits the standard portable
+artifact package:
 
 - `recipe.json` — copy of the executed recipe
 - `summary.json` — run status, counts, harness + runner provenance
-- `trace.json` — per-node execution trace (stdout/stderr captured, truncated)
+- `trace.json` — per-node execution trace and controller method results
 - `artifact-manifest.json` — index of the artifacts above
 
-**No Farmslot dependency.** The runner uses only Node built-ins
-(`node:child_process`, `node:fs`, `node:path`). Any compliant runner can execute
-the same contract — this one is just a reference implementation living next to
-the code it verifies.
+This intentionally does **not** call the PR #8893 HyperLiquid e2e scripts. Those
+scripts hit HyperLiquid directly; this example is specifically for proving a
+headless Recipe v1 integration around the actual controller/service/provider
+path without requiring UI, a wallet, or live exchange credentials.
 
 ## Run
 
 From `packages/perps-controller/`:
 
 ```bash
-# read-only, no wallet, hits the live HyperLiquid public API
 npx tsx recipe-v1/runner.ts recipe-v1/recipes/market-data.recipe.json
+npx tsx recipe-v1/runner.ts recipe-v1/recipes/trading-lifecycle.recipe.json
 
 # or via package scripts
 yarn recipe:market-data
-yarn recipe:run recipe-v1/recipes/market-data.recipe.json
+yarn recipe:trading-lifecycle
 ```
 
 Artifacts land in `recipe-v1/runs/<recipe-slug>-<timestamp>/`. Exit code is `0`
@@ -35,26 +33,23 @@ on pass, `1` on fail.
 
 ## Recipes
 
-| Recipe                          | Wallet?                       | Proves                                                  |
-| ------------------------------- | ----------------------------- | ------------------------------------------------------- |
-| `market-data.recipe.json`       | No                            | reads live HyperLiquid market data correctly            |
-| `trading-lifecycle.recipe.json` | Yes — `HL_E2E_PRIVATE_KEY`    | can open and close a BTC position end-to-end            |
-
-The trading-lifecycle recipe requires `HL_E2E_PRIVATE_KEY` pointing at a funded
-HyperLiquid testnet wallet (see `../e2e/README.md`).
+| Recipe                          | Wallet? | Proves                                                                  |
+| ------------------------------- | ------- | ----------------------------------------------------------------------- |
+| `market-data.recipe.json`       | No      | `PerpsController.getMarkets` returns market data through controller API |
+| `trading-lifecycle.recipe.json` | No      | open order → TP/SL update → close position via controller methods       |
 
 ## How it works
 
-The runner reads the recipe's `validate.workflow`, walks the linear graph from
-`entry` following each node's `next`, and supports exactly the actions declared
-in `manifests/perps.action-manifest.json`:
+The runner reads the recipe's `validate.workflow`, walks the graph from `entry`
+following each node's `next`, and supports the actions declared in
+`manifests/perps.action-manifest.json`:
 
-- `command` — spawns a shell command from the package root, capturing
-  stdout/stderr/exitCode
-- `assert_exit_code` — checks a prior command's exit code
-- `assert_output` — checks a prior command's stdout/stderr for a substring
+- `perps_controller.call` — custom action that invokes a public
+  `PerpsController` method through a headless in-memory provider
+- `assert_json` — checks a prior controller result at a dotted JSON path
+- `command`, `assert_exit_code`, `assert_output` — generic headless actions kept
+  for parity with Recipe v1 core/headless runners
 - `end` — terminal node carrying the declared pass/fail status
 
-The controller logic itself is **not** reimplemented; it is exercised by the
-`e2e/` scripts, and this runner only orchestrates them and packages the result
-as evidence.
+No Farmslot runtime dependency is required; the runner is a small project-owned
+adapter that writes the standard Recipe v1 artifact contract.
