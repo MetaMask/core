@@ -1,6 +1,9 @@
 import { TRIGGER_TYPES } from '../constants/notification-schema';
 import { createMockFeatureAnnouncementRaw } from '../mocks/mock-feature-announcements';
-import { createMockNotificationEthReceived } from '../mocks/mock-raw-notifications';
+import {
+  createMockNotificationEthReceived,
+  createMockPlatformNotification,
+} from '../mocks/mock-raw-notifications';
 import { createMockSnapNotification } from '../mocks/mock-snap-notification';
 import { processNotification } from '../processors/process-notifications';
 import { getNotificationSubtype } from './get-notification-subtype';
@@ -13,6 +16,11 @@ describe('getNotificationSubtype', () => {
     expect(getNotificationSubtype(notification)).toBe(
       TRIGGER_TYPES.ETH_RECEIVED,
     );
+  });
+
+  it('falls back to the type label for platform notifications', () => {
+    const notification = processNotification(createMockPlatformNotification());
+    expect(getNotificationSubtype(notification)).toBe(TRIGGER_TYPES.PLATFORM);
   });
 
   it('returns the snap subtype for snap notifications', () => {
