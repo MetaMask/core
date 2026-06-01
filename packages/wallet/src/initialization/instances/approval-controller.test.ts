@@ -2,6 +2,7 @@ import { ApprovalController } from '@metamask/approval-controller';
 import { ApprovalType } from '@metamask/controller-utils';
 import { Messenger } from '@metamask/messenger';
 
+import { defaultConfigurations } from '../defaults';
 import type { DefaultActions, DefaultEvents, RootMessenger } from '../defaults';
 import { approvalController } from './approval-controller';
 
@@ -15,6 +16,13 @@ function getRootMessenger(): RootMessenger<DefaultActions, DefaultEvents> {
 }
 
 describe('approvalController', () => {
+  it('is registered as a default initialization configuration', () => {
+    // Proves the controller is part of the default ensemble that `initialize()`
+    // wires, without constructing a `Wallet` (which keeps this PR independent of
+    // the constructor-options shape).
+    expect(Object.values(defaultConfigurations)).toContain(approvalController);
+  });
+
   it('initializes an ApprovalController with default state', () => {
     const messenger = approvalController.getMessenger(getRootMessenger());
 
