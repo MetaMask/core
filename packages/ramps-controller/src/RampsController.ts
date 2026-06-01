@@ -1918,13 +1918,19 @@ export class RampsController extends BaseController<
       ({ providers } = await this.getProviders(normalizedRegion));
     }
 
-    const lowerId = assetId.toLowerCase();
+    // EVM CAIP-19 asset IDs may arrive checksummed or lowercased, and the
+    // providers API returns both forms, so match case-insensitively on both
+    // sides. Only the lowercased forms are compared (the original IDs are never
+    // returned), so case-sensitive non-EVM asset IDs are not corrupted.
+    const normalizedAssetId = assetId.toLowerCase();
     const supporting = providers.filter((provider) => {
       const map = provider?.supportedCryptoCurrencies;
       if (!map) {
         return false;
       }
-      return Boolean(map[assetId]) || Boolean(map[lowerId]);
+      return Object.keys(map).some(
+        (key) => key.toLowerCase() === normalizedAssetId,
+      );
     });
 
     return { supporting, all: providers };

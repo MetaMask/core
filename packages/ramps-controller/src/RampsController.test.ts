@@ -5875,6 +5875,51 @@ describe('RampsController', () => {
         );
       });
 
+      it('matches the asset case-insensitively when the API key is checksummed and the request is lowercased', async () => {
+        const checksummedAssetId =
+          'eip155:42161/erc20:0xaF88d065e77c8cC2239327C5EDb3A432268e5831';
+        const checksumProvider = createMockProvider({
+          id: '/providers/checksum-native',
+          name: 'Checksum Native',
+          type: 'native',
+          supportedCryptoCurrencies: { [checksummedAssetId]: true },
+        });
+
+        await withController(
+          {
+            options: {
+              state: {
+                userRegion: createMockUserRegion('us'),
+                providers: createResourceState([checksumProvider], null),
+              },
+            },
+          },
+          async ({ rootMessenger }) => {
+            let capturedProviders: string[] | undefined;
+            rootMessenger.registerActionHandler(
+              'RampsService:getQuotes',
+              async (params) => {
+                capturedProviders = params.providers;
+                return mockQuotesResponse;
+              },
+            );
+
+            await rootMessenger.call('RampsController:getQuotes', {
+              // Lowercased request against a checksummed provider key.
+              assetId: checksummedAssetId.toLowerCase(),
+              amount: 100,
+              walletAddress: WALLET_ADDRESS,
+              paymentMethods: PAYMENT_METHODS,
+              autoSelectProvider: true,
+            });
+
+            expect(capturedProviders).toStrictEqual([
+              '/providers/checksum-native',
+            ]);
+          },
+        );
+      });
+
       it('prefers the currently selected provider when it supports the asset', async () => {
         await withController(
           {
