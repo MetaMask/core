@@ -1,6 +1,6 @@
 import { KeyringControllerOptions } from '@metamask/keyring-controller';
-import type { Json } from '@metamask/utils';
 import { StorageAdapter } from '@metamask/storage-service';
+import type { Json } from '@metamask/utils';
 
 import type {
   DefaultActions,
@@ -27,5 +27,5 @@ export type InstanceSpecificOptions = {
   };
   storageService: {
     storage: StorageAdapter;
-  }
+  };
 };
