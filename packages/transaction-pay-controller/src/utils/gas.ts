@@ -272,18 +272,6 @@ export async function estimateGasLimit({
   };
 }
 
-function parseEstimatedGas(gasValue: string): number {
-  const parsedGas = gasValue.startsWith('0x')
-    ? new BigNumber(gasValue.slice(2), 16)
-    : new BigNumber(gasValue);
-
-  if (!parsedGas.isFinite() || parsedGas.isNaN()) {
-    throw new Error(`Invalid gas estimate returned: ${gasValue}`);
-  }
-
-  return parsedGas.toNumber();
-}
-
 /**
  * Get gas fee estimates for a given chain.
  *
@@ -291,7 +279,7 @@ function parseEstimatedGas(gasValue: string): number {
  * @param messenger - Controller messenger.
  * @returns Gas fee estimates for the chain.
  */
-function getGasFee(
+export function getGasFee(
   chainId: Hex,
   messenger: TransactionPayControllerMessenger,
 ): {
@@ -322,6 +310,18 @@ function getGasFee(
     : undefined;
 
   return { estimatedBaseFee, maxFeePerGas, maxPriorityFeePerGas };
+}
+
+function parseEstimatedGas(gasValue: string): number {
+  const parsedGas = gasValue.startsWith('0x')
+    ? new BigNumber(gasValue.slice(2), 16)
+    : new BigNumber(gasValue);
+
+  if (!parsedGas.isFinite() || parsedGas.isNaN()) {
+    throw new Error(`Invalid gas estimate returned: ${gasValue}`);
+  }
+
+  return parsedGas.toNumber();
 }
 
 /**

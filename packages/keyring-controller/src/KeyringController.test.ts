@@ -4499,7 +4499,7 @@ describe('KeyringController', () => {
     it('should wrap the V1 keyring using the default builder and call the operation', async () => {
       await withController(async ({ controller }) => {
         const fn = jest.fn();
-        await controller.withKeyringV2({ type: KeyringTypes.hd }, fn);
+        await controller.withKeyringV2({ type: KeyringType.Hd }, fn);
 
         expect(fn).toHaveBeenCalledWith(
           expect.objectContaining({
@@ -4513,7 +4513,7 @@ describe('KeyringController', () => {
     it('should return the result of the operation', async () => {
       await withController(async ({ controller }) => {
         const result = await controller.withKeyringV2(
-          { type: KeyringTypes.hd },
+          { type: KeyringType.Hd },
           async () => 'result-value',
         );
 
@@ -4526,24 +4526,26 @@ describe('KeyringController', () => {
         const fn = jest.fn();
 
         await expect(
-          controller.withKeyringV2({ type: 'non-existent' }, fn),
+          controller.withKeyringV2({ type: KeyringType.Snap }, fn),
         ).rejects.toThrow(KeyringControllerErrorMessage.KeyringNotFound);
 
         expect(fn).not.toHaveBeenCalled();
       });
     });
 
-    it('should throw KeyringV2NotSupported when no builder is registered for the type', async () => {
+    it('should throw KeyringV2NotSupported when the selected keyring has no V2 adapter', async () => {
       await withController(
         {
           keyringBuilders: [keyringBuilderFactory(MockShallowKeyring)],
         },
         async ({ controller }) => {
-          await controller.addNewKeyring(MockShallowKeyring.type);
+          const metadata = await controller.addNewKeyring(
+            MockShallowKeyring.type,
+          );
 
           const fn = jest.fn();
           await expect(
-            controller.withKeyringV2({ type: MockShallowKeyring.type }, fn),
+            controller.withKeyringV2({ id: metadata.id }, fn),
           ).rejects.toThrow(
             KeyringControllerErrorMessage.KeyringV2NotSupported,
           );
@@ -4557,7 +4559,7 @@ describe('KeyringController', () => {
       await withController(async ({ controller }) => {
         await expect(
           controller.withKeyringV2(
-            { type: KeyringTypes.hd },
+            { type: KeyringType.Hd },
             async ({ keyring }) => keyring,
           ),
         ).rejects.toThrow(
@@ -4571,8 +4573,23 @@ describe('KeyringController', () => {
         await controller.setLocked();
 
         await expect(
-          controller.withKeyringV2({ type: KeyringTypes.hd }, jest.fn()),
+          controller.withKeyringV2({ type: KeyringType.Hd }, jest.fn()),
         ).rejects.toThrow(KeyringControllerErrorMessage.ControllerLocked);
+      });
+    });
+
+    it('should not match legacy KeyringTypes values in V2 type selectors', async () => {
+      await withController(async ({ controller }) => {
+        const fn = jest.fn();
+
+        await expect(
+          controller.withKeyringV2(
+            { type: KeyringTypes.hd } as unknown as KeyringSelectorV2,
+            fn,
+          ),
+        ).rejects.toThrow(KeyringControllerErrorMessage.KeyringNotFound);
+
+        expect(fn).not.toHaveBeenCalled();
       });
     });
 
@@ -4681,7 +4698,7 @@ describe('KeyringController', () => {
       it('should rollback the underlying V1 keyring if the operation throws', async () => {
         await withController(async ({ controller, initialState }) => {
           await expect(
-            controller.withKeyringV2({ type: KeyringTypes.hd }, async () => {
+            controller.withKeyringV2({ type: KeyringType.Hd }, async () => {
               throw new Error('Rollback test');
             }),
           ).rejects.toThrow('Rollback test');
@@ -4700,7 +4717,7 @@ describe('KeyringController', () => {
 
           await messenger.call(
             'KeyringController:withKeyringV2',
-            { type: KeyringTypes.hd },
+            { type: KeyringType.Hd },
             fn,
           );
 
@@ -4715,7 +4732,7 @@ describe('KeyringController', () => {
       await withController(async ({ controller, initialState }) => {
         const acquireSpy = jest.spyOn(Mutex.prototype, 'acquire');
         const fn = jest.fn().mockResolvedValue('result');
-        const selector = { type: KeyringTypes.hd };
+        const selector = { type: KeyringType.Hd };
         const { metadata } = initialState.keyrings[0];
 
         const result = await controller.withKeyringV2Unsafe(selector, fn);
@@ -4734,10 +4751,7 @@ describe('KeyringController', () => {
         { skipVaultCreation: true },
         async ({ controller }) => {
           await expect(
-            controller.withKeyringV2Unsafe(
-              { type: KeyringTypes.hd },
-              jest.fn(),
-            ),
+            controller.withKeyringV2Unsafe({ type: KeyringType.Hd }, jest.fn()),
           ).rejects.toThrow(KeyringControllerErrorMessage.ControllerLocked);
         },
       );
@@ -4748,25 +4762,24 @@ describe('KeyringController', () => {
         const fn = jest.fn();
 
         await expect(
-          controller.withKeyringV2Unsafe({ type: 'NonExistentType' }, fn),
+          controller.withKeyringV2Unsafe({ type: KeyringType.Snap }, fn),
         ).rejects.toThrow(KeyringControllerErrorMessage.KeyringNotFound);
 
         expect(fn).not.toHaveBeenCalled();
       });
     });
 
-    it('throws KeyringV2NotSupported when no v2 builder is registered for the type', async () => {
+    it('throws KeyringV2NotSupported when the selected keyring has no V2 adapter', async () => {
       await withController(
         { keyringBuilders: [keyringBuilderFactory(MockShallowKeyring)] },
         async ({ controller }) => {
-          await controller.addNewKeyring(MockShallowKeyring.type);
+          const metadata = await controller.addNewKeyring(
+            MockShallowKeyring.type,
+          );
 
           const fn = jest.fn();
           await expect(
-            controller.withKeyringV2Unsafe(
-              { type: MockShallowKeyring.type },
-              fn,
-            ),
+            controller.withKeyringV2Unsafe({ id: metadata.id }, fn),
           ).rejects.toThrow(
             KeyringControllerErrorMessage.KeyringV2NotSupported,
           );
@@ -4780,12 +4793,27 @@ describe('KeyringController', () => {
       await withController(async ({ controller }) => {
         await expect(
           controller.withKeyringV2Unsafe(
-            { type: KeyringTypes.hd },
+            { type: KeyringType.Hd },
             async ({ keyring }) => keyring,
           ),
         ).rejects.toThrow(
           KeyringControllerErrorMessage.UnsafeDirectKeyringAccess,
         );
+      });
+    });
+
+    it('does not match legacy KeyringTypes values in V2 type selectors', async () => {
+      await withController(async ({ controller }) => {
+        const fn = jest.fn();
+
+        await expect(
+          controller.withKeyringV2Unsafe(
+            { type: KeyringTypes.hd } as unknown as KeyringSelectorV2,
+            fn,
+          ),
+        ).rejects.toThrow(KeyringControllerErrorMessage.KeyringNotFound);
+
+        expect(fn).not.toHaveBeenCalled();
       });
     });
 
@@ -4903,12 +4931,9 @@ describe('KeyringController', () => {
 
         // withKeyringV2Unsafe does not roll back — errors just propagate.
         await expect(
-          controller.withKeyringV2Unsafe(
-            { type: KeyringTypes.hd },
-            async () => {
-              throw new Error('Oops');
-            },
-          ),
+          controller.withKeyringV2Unsafe({ type: KeyringType.Hd }, async () => {
+            throw new Error('Oops');
+          }),
         ).rejects.toThrow('Oops');
 
         // State is unchanged (no rollback to pre-withKeyringV2Unsafe state).
@@ -4928,7 +4953,7 @@ describe('KeyringController', () => {
 
           await messenger.call(
             'KeyringController:withKeyringV2Unsafe',
-            { type: KeyringTypes.hd },
+            { type: KeyringType.Hd },
             fn,
           );
 

@@ -319,56 +319,6 @@ describe('AssetsController', () => {
       });
     });
 
-    it('skips initialization when isEnabled returns false', () => {
-      const messenger: RootMessenger = new Messenger({
-        namespace: MOCK_ANY_NAMESPACE,
-      });
-
-      (
-        messenger as {
-          registerActionHandler: (a: string, h: () => unknown) => void;
-        }
-      ).registerActionHandler('NetworkController:getState', () => ({
-        networkConfigurationsByChainId: {},
-        networksMetadata: {},
-      }));
-      (
-        messenger as {
-          registerActionHandler: (a: string, h: () => unknown) => void;
-        }
-      ).registerActionHandler('NetworkController:getNetworkClientById', () => ({
-        provider: {},
-      }));
-
-      const controller = new AssetsController({
-        messenger: messenger as unknown as AssetsControllerMessenger,
-        isEnabled: (): boolean => false,
-        queryApiClient: createMockQueryApiClient(),
-        subscribeToBasicFunctionalityChange: (): void => {
-          /* no-op for tests */
-        },
-      });
-
-      // Controller should still have default state (from super() call)
-      expect(controller.state).toStrictEqual({
-        assetPreferences: {},
-        assetsInfo: buildDefaultAssetsInfo(),
-        assetsBalance: {},
-        assetsPrice: {},
-        customAssets: {},
-        selectedCurrency: 'usd',
-      });
-
-      // Action handlers should NOT be registered when disabled
-      expect(() => {
-        (messenger.call as CallableFunction)('AssetsController:getAssets', [
-          createMockInternalAccount(),
-        ]);
-      }).toThrow(
-        'A handler for AssetsController:getAssets has not been registered',
-      );
-    });
-
     it('initializes normally when isEnabled returns true', async () => {
       await withController(({ controller, messenger }) => {
         // Controller should have default state
@@ -396,28 +346,13 @@ describe('AssetsController', () => {
         namespace: MOCK_ANY_NAMESPACE,
       });
 
-      expect(
-        () =>
-          new AssetsController({
-            messenger: messenger as unknown as AssetsControllerMessenger,
-            isEnabled: (): boolean => false,
-            queryApiClient: createMockQueryApiClient(),
-            subscribeToBasicFunctionalityChange: (): void => {
-              /* no-op */
-            },
-            accountsApiDataSourceConfig: {
-              pollInterval: 15_000,
-              tokenDetectionEnabled: (): boolean => false,
-            },
-          }),
-      ).not.toThrow();
-    });
-
-    it('accepts priceDataSourceConfig option', () => {
-      const messenger: RootMessenger = new Messenger({
-        namespace: MOCK_ANY_NAMESPACE,
-      });
-
+      messenger.registerActionHandler(
+        'NetworkEnablementController:getState',
+        () => ({
+          enabledNetworkMap: {},
+          nativeAssetIdentifiers: {},
+        }),
+      );
       (
         messenger as {
           registerActionHandler: (a: string, h: () => unknown) => void;
@@ -438,7 +373,50 @@ describe('AssetsController', () => {
         () =>
           new AssetsController({
             messenger: messenger as unknown as AssetsControllerMessenger,
-            isEnabled: (): boolean => false,
+            queryApiClient: createMockQueryApiClient(),
+            subscribeToBasicFunctionalityChange: (): void => {
+              /* no-op */
+            },
+            accountsApiDataSourceConfig: {
+              pollInterval: 15_000,
+              tokenDetectionEnabled: (): boolean => false,
+            },
+          }),
+      ).not.toThrow();
+    });
+
+    it('accepts priceDataSourceConfig option', () => {
+      const messenger: RootMessenger = new Messenger({
+        namespace: MOCK_ANY_NAMESPACE,
+      });
+
+      messenger.registerActionHandler(
+        'NetworkEnablementController:getState',
+        () => ({
+          enabledNetworkMap: {},
+          nativeAssetIdentifiers: {},
+        }),
+      );
+      (
+        messenger as {
+          registerActionHandler: (a: string, h: () => unknown) => void;
+        }
+      ).registerActionHandler('NetworkController:getState', () => ({
+        networkConfigurationsByChainId: {},
+        networksMetadata: {},
+      }));
+      (
+        messenger as {
+          registerActionHandler: (a: string, h: () => unknown) => void;
+        }
+      ).registerActionHandler('NetworkController:getNetworkClientById', () => ({
+        provider: {},
+      }));
+
+      expect(
+        () =>
+          new AssetsController({
+            messenger: messenger as unknown as AssetsControllerMessenger,
             queryApiClient: createMockQueryApiClient(),
             subscribeToBasicFunctionalityChange: (): void => {
               /* no-op */
@@ -1342,6 +1320,25 @@ describe('AssetsController', () => {
           const getAssetsSpy = jest.spyOn(controller, 'getAssets');
           const onActiveChainsUpdated = controller.getOnActiveChainsUpdated();
 
+          onActiveChainsUpdated('TestDataSource', ['eip155:1'], []);
+
+          expect(getAssetsSpy).not.toHaveBeenCalled();
+        },
+      );
+    });
+
+    it('re-evaluates isEnabled when active chains change', async () => {
+      let enabled = true;
+
+      await withController(
+        {
+          controllerOptions: { isEnabled: (): boolean => enabled },
+        },
+        async ({ controller }) => {
+          const getAssetsSpy = jest.spyOn(controller, 'getAssets');
+          enabled = false;
+
+          const onActiveChainsUpdated = controller.getOnActiveChainsUpdated();
           onActiveChainsUpdated('TestDataSource', ['eip155:1'], []);
 
           expect(getAssetsSpy).not.toHaveBeenCalled();

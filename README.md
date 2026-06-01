@@ -567,6 +567,9 @@ linkStyle default opacity:0.5
   user_operation_controller --> polling_controller;
   user_operation_controller --> transaction_controller;
   user_operation_controller --> eth_block_tracker;
+  wallet --> base_controller;
+  wallet --> keyring_controller;
+  wallet --> messenger;
 ```
 
 <!-- end dependency graph -->

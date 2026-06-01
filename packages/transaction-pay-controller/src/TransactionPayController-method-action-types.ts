@@ -67,6 +67,21 @@ export type TransactionPayControllerGetDelegationTransactionAction = {
 };
 
 /**
+ * Returns additional transactions for the paymentOverride flow.
+ *
+ * Delegates to the client-supplied {@link GetPaymentOverrideDataCallback}.
+ * Called during quote execution when `paymentOverride` is defined on the transaction.
+ * Returns an empty array when no callback is configured.
+ *
+ * @param args - The arguments forwarded to the {@link GetPaymentOverrideDataCallback}.
+ * @returns A promise resolving to the additional transactions array.
+ */
+export type TransactionPayControllerGetPaymentOverrideDataAction = {
+  type: `TransactionPayController:getPaymentOverrideData`;
+  handler: TransactionPayController['getPaymentOverrideData'];
+};
+
+/**
  * Gets the preferred strategy for a transaction.
  *
  * Returns the first strategy from the ordered list of strategies applicable
@@ -113,6 +128,7 @@ export type TransactionPayControllerMethodActions =
   | TransactionPayControllerUpdatePaymentTokenAction
   | TransactionPayControllerUpdateFiatPaymentAction
   | TransactionPayControllerGetDelegationTransactionAction
+  | TransactionPayControllerGetPaymentOverrideDataAction
   | TransactionPayControllerGetStrategyAction
   | TransactionPayControllerPolymarketGetDepositWalletAddressAction
   | TransactionPayControllerPolymarketSubmitDepositWalletBatchAction;
