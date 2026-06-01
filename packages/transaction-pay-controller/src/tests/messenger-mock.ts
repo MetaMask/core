@@ -15,6 +15,7 @@ import type {
 import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
 import type { NetworkControllerGetNetworkClientByIdAction } from '@metamask/network-controller';
 import type { NetworkControllerFindNetworkClientIdByChainIdAction } from '@metamask/network-controller';
+import type { NetworkControllerGetNetworkConfigurationByChainIdAction } from '@metamask/network-controller';
 import type { RemoteFeatureFlagControllerGetStateAction } from '@metamask/remote-feature-flag-controller';
 import type {
   TransactionControllerAddTransactionAction,
@@ -115,6 +116,10 @@ export function getMessengerMock({
 
   const getNetworkClientByIdMock: jest.MockedFn<
     NetworkControllerGetNetworkClientByIdAction['handler']
+  > = jest.fn();
+
+  const getNetworkConfigurationByChainIdMock: jest.MockedFn<
+    NetworkControllerGetNetworkConfigurationByChainIdAction['handler']
   > = jest.fn();
 
   const getDelegationTransactionMock: jest.MockedFn<
@@ -256,6 +261,11 @@ export function getMessengerMock({
     );
 
     messenger.registerActionHandler(
+      'NetworkController:getNetworkConfigurationByChainId',
+      getNetworkConfigurationByChainIdMock,
+    );
+
+    messenger.registerActionHandler(
       'TransactionPayController:getDelegationTransaction',
       getDelegationTransactionMock,
     );
@@ -321,6 +331,7 @@ export function getMessengerMock({
     getGasFeeTokensMock,
     getKeyringControllerStateMock,
     getNetworkClientByIdMock,
+    getNetworkConfigurationByChainIdMock,
     getRemoteFeatureFlagControllerStateMock,
     getStrategyMock,
     getTokenBalanceControllerStateMock,
