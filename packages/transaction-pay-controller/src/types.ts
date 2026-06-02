@@ -36,8 +36,6 @@ import type { Quote as RampsQuote } from '@metamask/ramps-controller';
 import type {
   RampsControllerGetOrderAction,
   RampsControllerGetQuotesAction,
-  RampsControllerGetStateAction,
-  RampsControllerSetSelectedTokenAction,
 } from '@metamask/ramps-controller';
 import type { RemoteFeatureFlagControllerGetStateAction } from '@metamask/remote-feature-flag-controller';
 import type {
@@ -82,8 +80,6 @@ export type AllowedActions =
   | NetworkControllerGetNetworkConfigurationByChainIdAction
   | RampsControllerGetOrderAction
   | RampsControllerGetQuotesAction
-  | RampsControllerGetStateAction
-  | RampsControllerSetSelectedTokenAction
   | RemoteFeatureFlagControllerGetStateAction
   | TokenBalancesControllerGetStateAction
   | TokenRatesControllerGetStateAction
