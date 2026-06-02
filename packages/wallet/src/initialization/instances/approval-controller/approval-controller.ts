@@ -8,17 +8,14 @@ import { Messenger } from '@metamask/messenger';
 import { InitializationConfiguration } from '../../types';
 
 /**
- * The baseline of approval types whose pending requests are exempt from
- * per-origin rate limiting, so multiple requests of the same type can be queued
- * from one origin. Covers the EVM signing (`personal_sign`,
- * `eth_signTypedData`), transaction, asset-watch (`wallet_watchAsset`), and
- * encryption (`eth_getEncryptionPublicKey`, `eth_decrypt`) approval types, plus
- * `snap_dialog` — the union of what the extension and mobile exempt that is
- * stable across both. Their smart-transaction status type is intentionally left
- * out: its string differs per platform, so clients inject it themselves.
+ * Approval types that are exempt from per-origin rate limiting, so more than one
+ * request of the same type can be pending at once. These are the common EVM
+ * types: signing, transactions, watch-asset, and encryption.
  *
- * Clients can override this entirely via
- * `instanceOptions.approvalController.typesExcludedFromRateLimiting`.
+ * Clients can replace this list via
+ * `instanceOptions.approvalController.typesExcludedFromRateLimiting` — the
+ * extension and mobile pass their own. `snap_dialog` will be added here once the
+ * wallet wires `SnapController`.
  */
 const DEFAULT_TYPES_EXCLUDED_FROM_RATE_LIMITING = [
   ApprovalType.PersonalSign,
@@ -27,11 +24,6 @@ const DEFAULT_TYPES_EXCLUDED_FROM_RATE_LIMITING = [
   ApprovalType.WatchAsset,
   ApprovalType.EthGetEncryptionPublicKey,
   ApprovalType.EthDecrypt,
-  // `snap_dialog` (the `DIALOG_APPROVAL_TYPES.default` value from
-  // `@metamask/snaps-rpc-methods`); hardcoded as a literal to avoid depending on
-  // the snaps package for a single constant while `SnapController` isn't wired
-  // into the wallet yet.
-  'snap_dialog',
 ];
 
 export const approvalController: InitializationConfiguration<

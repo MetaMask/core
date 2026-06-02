@@ -15,7 +15,7 @@ export type ApprovalControllerInstanceOptions = {
   showApprovalRequest?: ShowApprovalRequest;
   /**
    * Approval types exempt from per-origin rate limiting. Defaults to a baseline
-   * of EVM approval types plus `snap_dialog`.
+   * of EVM approval types.
    */
   typesExcludedFromRateLimiting?: NonNullable<
     ApprovalControllerOptions['typesExcludedFromRateLimiting']

@@ -97,7 +97,6 @@ describe('approvalController', () => {
     ApprovalType.WatchAsset,
     ApprovalType.EthGetEncryptionPublicKey,
     ApprovalType.EthDecrypt,
-    'snap_dialog',
   ])('excludes %s from rate limiting by default', (type) => {
     const messenger = approvalController.getMessenger(getRootMessenger());
 
