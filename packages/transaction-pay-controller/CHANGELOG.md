@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `processMoneyAccountPostQuote` to relay quote flow, enabling post-quote transactions with `PaymentOverride.MoneyAccount` to include delegation calls, authorization list, and funding token transfer in the Relay quote request ([#8967](https://github.com/MetaMask/core/pull/8967))
+- Add optional `recipient` field to `GetPaymentOverrideDataResponse` for specifying the funding token transfer recipient ([#8967](https://github.com/MetaMask/core/pull/8967))
+
 ## [23.1.0]
 
 ### Changed
