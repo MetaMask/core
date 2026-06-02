@@ -16,5 +16,5 @@
     { "path": "../profile-sync-controller" },
     { "path": "../gas-fee-controller" }
   ],
-  "include": ["../../types", "./src"]
+  "include": ["../../types", "./src", "./test"]
 }

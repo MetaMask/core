@@ -31,12 +31,11 @@ import type {
 import type { Messenger } from '@metamask/messenger';
 import type { NetworkControllerFindNetworkClientIdByChainIdAction } from '@metamask/network-controller';
 import type { NetworkControllerGetNetworkClientByIdAction } from '@metamask/network-controller';
+import type { NetworkControllerGetNetworkConfigurationByChainIdAction } from '@metamask/network-controller';
 import type { Quote as RampsQuote } from '@metamask/ramps-controller';
 import type {
   RampsControllerGetOrderAction,
   RampsControllerGetQuotesAction,
-  RampsControllerGetStateAction,
-  RampsControllerSetSelectedTokenAction,
 } from '@metamask/ramps-controller';
 import type { RemoteFeatureFlagControllerGetStateAction } from '@metamask/remote-feature-flag-controller';
 import type {
@@ -48,6 +47,7 @@ import type {
 } from '@metamask/transaction-controller';
 import type {
   BatchTransaction,
+  BatchTransactionParams,
   TransactionControllerAddTransactionAction,
   TransactionControllerGetGasFeeTokensAction,
   TransactionControllerGetStateAction,
@@ -77,10 +77,9 @@ export type AllowedActions =
   | KeyringControllerSignTypedMessageAction
   | NetworkControllerFindNetworkClientIdByChainIdAction
   | NetworkControllerGetNetworkClientByIdAction
+  | NetworkControllerGetNetworkConfigurationByChainIdAction
   | RampsControllerGetOrderAction
   | RampsControllerGetQuotesAction
-  | RampsControllerGetStateAction
-  | RampsControllerSetSelectedTokenAction
   | RemoteFeatureFlagControllerGetStateAction
   | TokenBalancesControllerGetStateAction
   | TokenRatesControllerGetStateAction
@@ -110,6 +109,13 @@ export type TransactionPayControllerGetStateAction = ControllerGetStateAction<
 /** Configurable properties of a transaction. */
 export type TransactionConfig = {
   /**
+   * Optional address to override the default account used by the transaction.
+   * When `isPostQuote` is true, used as the recipient of the MM Pay transfer.
+   * When `isPostQuote` is false, it provides the funds and pays for gas.
+   */
+  accountOverride?: Hex;
+
+  /**
    * Whether the source of funds is HyperLiquid (HyperCore).
    * When true, the Relay strategy uses the HyperLiquid 2-step withdrawal
    * flow: (1) authorize nonce-mapping, (2) sendAsset to Relay solver.
@@ -129,6 +135,9 @@ export type TransactionConfig = {
    */
   isPostQuote?: boolean;
 
+  /** Overrides the payment source for the transaction. */
+  paymentOverride?: PaymentOverride;
+
   /**
    * Optional address to receive refunds if the quote provider transaction fails.
    * When set, overrides the default refund recipient (EOA) in the quote
@@ -137,20 +146,36 @@ export type TransactionConfig = {
    * go back to that account rather than the EOA.
    */
   refundTo?: Hex;
-
-  /**
-   * Optional address to override the default account used by the transaction.
-   * When `isPostQuote` is true, used as the recipient of the MM Pay transfer.
-   * When `isPostQuote` is false, it provides the funds and pays for gas.
-   */
-  accountOverride?: Hex;
-
-  /** Overrides the payment source for the transaction. */
-  paymentOverride?: PaymentOverride;
 };
 
 /** Callback to update transaction config. */
 export type TransactionConfigCallback = (config: TransactionConfig) => void;
+
+/** Request passed to {@link GetPaymentOverrideDataCallback}. */
+export type GetPaymentOverrideDataRequest = {
+  /** Amount of the source token in human-readable format. */
+  amount: string;
+
+  /** Metadata of the original transaction. */
+  transaction: TransactionMeta;
+
+  /** Pay-controller state for the transaction. */
+  transactionData: TransactionData;
+};
+
+/** Response returned by {@link GetPaymentOverrideDataCallback}. */
+export type GetPaymentOverrideDataResponse = {
+  /** Batch transaction params to prepend to the submit batch. */
+  calls: BatchTransactionParams[];
+};
+
+/**
+ * Callback invoked during submit when `paymentOverride` is defined.
+ * Returns batch transaction params to prepend to the submit batch.
+ */
+export type GetPaymentOverrideDataCallback = (
+  request: GetPaymentOverrideDataRequest,
+) => Promise<GetPaymentOverrideDataResponse>;
 
 /** Callback to update fiat payment state. */
 export type TransactionFiatPaymentCallback = (
@@ -191,6 +216,12 @@ export type TransactionPayControllerOptions = {
   /** Callback to convert a transaction into a redeem delegation. */
   getDelegationTransaction: GetDelegationTransactionCallback;
 
+  /**
+   * Optional callback invoked during quote execution when `paymentOverride` is defined.
+   * Returns additional transactions to be submitted alongside the quote batch.
+   */
+  getPaymentOverrideData?: GetPaymentOverrideDataCallback;
+
   /** Callback to select the PayStrategy for a transaction. */
   getStrategy?: (transaction: TransactionMeta) => TransactionPayStrategy;
 
@@ -215,6 +246,13 @@ export type TransactionPayControllerState = {
 
 /** State relating to a single transaction. */
 export type TransactionData = {
+  /**
+   * Optional address to override the default account used by the transaction.
+   * When `isPostQuote` is true, used as the recipient of the MM Pay transfer.
+   * When `isPostQuote` is false, it provides the funds and pays for gas.
+   */
+  accountOverride?: Hex;
+
   /** Fiat payment method state. */
   fiatPayment?: TransactionFiatPayment;
 
@@ -239,22 +277,15 @@ export type TransactionData = {
   /** Whether the source of funds is a Polymarket deposit wallet. */
   isPolymarketDepositWallet?: boolean;
 
+  /** Overrides the payment source for the transaction. */
+  paymentOverride?: PaymentOverride;
+
   /**
    * Optional address to receive refunds if the quote provider transaction fails.
    * When set, overrides the default refund recipient (EOA) in the quote
    * request.
    */
   refundTo?: Hex;
-
-  /**
-   * Optional address to override the default account used by the transaction.
-   * When `isPostQuote` is true, used as the recipient of the MM Pay transfer.
-   * When `isPostQuote` is false, it provides the funds and pays for gas.
-   */
-  accountOverride?: Hex;
-
-  /** Overrides the payment source for the transaction. */
-  paymentOverride?: PaymentOverride;
 
   /**
    * Token selected for the transaction.
@@ -423,6 +454,9 @@ export type QuoteRequest = {
 
   /** Whether the source of funds is a Polymarket deposit wallet. */
   isPolymarketDepositWallet?: boolean;
+
+  /** Overrides the payment source for the transaction. */
+  paymentOverride?: PaymentOverride;
 
   /**
    * Optional address to receive refunds if the quote provider transaction fails.

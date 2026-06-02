@@ -7,4 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-[Unreleased]: https://github.com/MetaMask/core/
+## [2.0.0]
+
+### Added
+
+- Add `keyringV2Builders` to the `keyringController` instance options, forwarded to the `KeyringController` constructor ([#8956](https://github.com/MetaMask/core/pull/8956))
+- **BREAKING:** Add `StorageService` initialization ([#8946](https://github.com/MetaMask/core/pull/8946))
+  - Passing `instanceOptions.storageService.storage` is now required.
+- Export `importSecretRecoveryPhrase` from the package root ([#8952](https://github.com/MetaMask/core/pull/8952))
+
+## [1.0.1]
+
+### Changed
+
+- Bump `@metamask/keyring-controller` from `^25.5.0` to `^26.0.0` ([#8912](https://github.com/MetaMask/core/pull/8912))
+
+## [1.0.0]
+
+### Added
+
+- Initial release ([#8838](https://github.com/MetaMask/core/pull/8838))
+
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/wallet@2.0.0...HEAD
+[2.0.0]: https://github.com/MetaMask/core/compare/@metamask/wallet@1.0.1...@metamask/wallet@2.0.0
+[1.0.1]: https://github.com/MetaMask/core/compare/@metamask/wallet@1.0.0...@metamask/wallet@1.0.1
+[1.0.0]: https://github.com/MetaMask/core/releases/tag/@metamask/wallet@1.0.0
