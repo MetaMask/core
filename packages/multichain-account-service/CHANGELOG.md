@@ -20,7 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **BREAKING:** `MultichainAccountService.removeMultichainAccountWallet` (and the corresponding `MultichainAccountService:removeMultichainAccountWallet` messenger action) now takes a single `entropySource` argument; the previous `accountAddress` parameter has been removed ([#8960](https://github.com/MetaMask/core/pull/8960))
   - The method now iterates every account belonging to the wallet and dispatches `provider.deleteAccount(account.id)` to the matching provider, instead of only removing a single EVM address.
   - For wrapped providers, enumeration uses the underlying provider so snap-backed accounts are still deleted when basic functionality is off (the wrapper's `getAccounts()` returns `[]` when disabled). Without this, snap-backed accounts would be orphaned in their underlying keyrings.
-  - Per-account deletions are best-effort: a single account's failure is reported via the messenger's `captureException` and does not abort cleanup of the remaining accounts. The wallet is always removed from the service's internal map at the end.
+  - Per-account deletions are best-effort: a single account's failure does not abort cleanup of the remaining accounts. If one or more deletions fail, a single aggregated error is reported via the messenger's `captureException` with the per-account failure details (`provider`, `accountId`, error message, stack) in its `context`. The wallet is always removed from the service's internal map at the end.
 
 ## [10.0.1]
 
