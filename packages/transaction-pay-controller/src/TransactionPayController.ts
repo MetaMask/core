@@ -15,6 +15,7 @@ import { QuoteRefresher } from './helpers/QuoteRefresher';
 import { deriveFiatAssetForFiatPayment } from './strategy/fiat/utils';
 import type {
   GetDelegationTransactionCallback,
+  GetPaymentOverrideDataCallback,
   PolymarketCallbacks,
   TransactionConfigCallback,
   TransactionData,
@@ -36,6 +37,7 @@ import {
 
 const MESSENGER_EXPOSED_METHODS = [
   'getDelegationTransaction',
+  'getPaymentOverrideData',
   'getStrategy',
   'polymarketGetDepositWalletAddress',
   'polymarketSubmitDepositWalletBatch',
@@ -64,6 +66,8 @@ export class TransactionPayController extends BaseController<
 > {
   readonly #getDelegationTransaction: GetDelegationTransactionCallback;
 
+  readonly #getPaymentOverrideData?: GetPaymentOverrideDataCallback;
+
   readonly #getStrategy?: (
     transaction: TransactionMeta,
   ) => TransactionPayStrategy;
@@ -76,6 +80,7 @@ export class TransactionPayController extends BaseController<
 
   constructor({
     getDelegationTransaction,
+    getPaymentOverrideData,
     getStrategy,
     getStrategies,
     messenger,
@@ -90,6 +95,7 @@ export class TransactionPayController extends BaseController<
     });
 
     this.#getDelegationTransaction = getDelegationTransaction;
+    this.#getPaymentOverrideData = getPaymentOverrideData;
     this.#getStrategy = getStrategy;
     this.#getStrategies = getStrategies;
     this.#polymarket = polymarket;
@@ -140,6 +146,7 @@ export class TransactionPayController extends BaseController<
         isPolymarketDepositWallet: transactionData.isPolymarketDepositWallet,
         refundTo: transactionData.refundTo,
         accountOverride: transactionData.accountOverride,
+        paymentOverride: transactionData.paymentOverride,
       };
 
       const previousAccountOverride = config.accountOverride;
@@ -153,6 +160,7 @@ export class TransactionPayController extends BaseController<
       transactionData.isPolymarketDepositWallet =
         config.isPolymarketDepositWallet;
       transactionData.refundTo = config.refundTo;
+      transactionData.paymentOverride = config.paymentOverride;
 
       if (
         !config.isPostQuote &&
@@ -213,6 +221,24 @@ export class TransactionPayController extends BaseController<
     ...args: Parameters<GetDelegationTransactionCallback>
   ): ReturnType<GetDelegationTransactionCallback> {
     return this.#getDelegationTransaction(...args);
+  }
+
+  /**
+   * Returns additional transactions for the paymentOverride flow.
+   *
+   * Delegates to the client-supplied {@link GetPaymentOverrideDataCallback}.
+   * Called during quote execution when `paymentOverride` is defined on the transaction.
+   * Returns an empty array when no callback is configured.
+   *
+   * @param args - The arguments forwarded to the {@link GetPaymentOverrideDataCallback}.
+   * @returns A promise resolving to the additional transactions array.
+   */
+  getPaymentOverrideData(
+    ...args: Parameters<GetPaymentOverrideDataCallback>
+  ): ReturnType<GetPaymentOverrideDataCallback> {
+    return (
+      this.#getPaymentOverrideData?.(...args) ?? Promise.resolve({ calls: [] })
+    );
   }
 
   /**

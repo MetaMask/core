@@ -1,4 +1,5 @@
 import { Interface } from '@ethersproject/abi';
+import { createServicePolicy } from '@metamask/controller-utils';
 import type { Hex } from '@metamask/utils';
 
 import { ZERO_ADDRESS } from '../../../utils/constants';
@@ -465,6 +466,9 @@ function decodeUint256(data: Hex): string {
 // MULTICALL CLIENT
 // =============================================================================
 
+/** Retries after the initial multicall attempt before returning failed responses. */
+const MULTICALL_MAX_RETRIES = 2;
+
 export type MulticallClientConfig = {
   maxCallsPerBatch?: number;
   timeoutMs?: number;
@@ -506,11 +510,13 @@ export class MulticallClient {
    *
    * @param chainId - The chain ID.
    * @param requests - Array of balance requests.
+   * @param options - Optional batch options (e.g. single-call fallback).
    * @returns Array of balance responses.
    */
   async batchBalanceOf(
     chainId: ChainId,
     requests: BalanceOfRequest[],
+    options = { fallbackToSingleCalls: false },
   ): Promise<BalanceOfResponse[]> {
     if (requests.length === 0) {
       return [];
@@ -519,13 +525,19 @@ export class MulticallClient {
     const multicallAddress = MULTICALL3_ADDRESS_BY_CHAIN[chainId];
     const provider = this.#getProvider(chainId);
 
-    // If Multicall3 is not supported, fall back to individual calls
     if (!multicallAddress) {
-      return this.#fallbackBatchBalanceOf(provider, requests);
+      return options.fallbackToSingleCalls
+        ? this.#fallbackBatchBalanceOf(provider, requests)
+        : this.#createFailedResponses(requests);
     }
 
     // Use Multicall3
-    return this.#multicallBatchBalanceOf(provider, multicallAddress, requests);
+    return this.#multicallBatchBalanceOf(
+      provider,
+      multicallAddress,
+      requests,
+      options.fallbackToSingleCalls,
+    );
   }
 
   /**
@@ -534,12 +546,14 @@ export class MulticallClient {
    * @param provider - The RPC provider.
    * @param multicallAddress - The Multicall3 contract address.
    * @param requests - Array of balance requests.
+   * @param fallbackToSingleCalls - Whether to fall back to individual RPC calls on batch failure.
    * @returns Array of balance responses.
    */
   async #multicallBatchBalanceOf(
     provider: Provider,
     multicallAddress: Hex,
     requests: BalanceOfRequest[],
+    fallbackToSingleCalls: boolean,
   ): Promise<BalanceOfResponse[]> {
     const batchSize = this.#config.maxCallsPerBatch;
 
@@ -552,59 +566,70 @@ export class MulticallClient {
       initialResult: [],
       eachBatch: async (workingResult, batch) => {
         try {
-          // Build aggregate3 calls
-          const calls = batch.map((req) => {
-            const isNative = req.tokenAddress === ZERO_ADDRESS;
-            const target = isNative ? multicallAddress : req.tokenAddress;
-            return {
-              target,
-              allowFailure: true,
-              callData: isNative
-                ? encodeGetEthBalance(req.accountAddress)
-                : encodeBalanceOf(req.accountAddress),
-            };
-          });
+          await createServicePolicy({
+            maxRetries: MULTICALL_MAX_RETRIES,
+          }).execute(async () => {
+            // Build aggregate3 calls
+            const calls = batch.map((req) => {
+              const isNative = req.tokenAddress === ZERO_ADDRESS;
+              const target = isNative ? multicallAddress : req.tokenAddress;
+              return {
+                target,
+                allowFailure: true,
+                callData: isNative
+                  ? encodeGetEthBalance(req.accountAddress)
+                  : encodeBalanceOf(req.accountAddress),
+              };
+            });
 
-          // Encode and send aggregate3 call
-          const callData = encodeAggregate3(calls);
-          const result = await provider.call({
-            to: multicallAddress,
-            data: callData,
-          });
+            // Encode and send aggregate3 call
+            const callData = encodeAggregate3(calls);
+            const result = await provider.call({
+              to: multicallAddress,
+              data: callData,
+            });
 
-          // Decode response
-          const decoded = decodeAggregate3Response(result as Hex, batch.length);
+            // Decode response
+            const decoded = decodeAggregate3Response(
+              result as Hex,
+              batch.length,
+            );
 
-          // Map results back to responses
-          for (let i = 0; i < batch.length; i++) {
-            const { tokenAddress, accountAddress } = batch[i];
-            const { success, returnData } = decoded[i];
+            // Map results back to responses
+            for (let i = 0; i < batch.length; i++) {
+              const { tokenAddress, accountAddress } = batch[i];
+              const { success, returnData } = decoded[i];
 
-            if (success && returnData && returnData.length > 2) {
-              workingResult.push({
-                tokenAddress,
-                accountAddress,
-                success: true,
-                balance: decodeUint256(returnData),
-              });
-            } else {
-              workingResult.push({
-                tokenAddress,
-                accountAddress,
-                success: false,
-              });
+              if (success && returnData && returnData.length > 2) {
+                workingResult.push({
+                  tokenAddress,
+                  accountAddress,
+                  success: true,
+                  balance: decodeUint256(returnData),
+                });
+              } else {
+                workingResult.push({
+                  tokenAddress,
+                  accountAddress,
+                  success: false,
+                });
+              }
             }
-          }
+          });
         } catch {
-          // On aggregate3 error, fall back to individual calls for this batch.
-          // #fetchSingleBalance never rejects - it catches all errors internally
-          // and returns a failed response, so we use Promise.all here.
-          const fallbackResults = await Promise.all(
-            batch.map((req) => this.#fetchSingleBalance(provider, req)),
-          );
+          if (fallbackToSingleCalls) {
+            // On aggregate3 error, fall back to individual calls for this batch.
+            // #fetchSingleBalance never rejects - it catches all errors internally
+            // and returns a failed response, so we use Promise.all here.
+            const fallbackResults = await Promise.all(
+              batch.map((req) => this.#fetchSingleBalance(provider, req)),
+            );
 
-          for (const result of fallbackResults) {
-            workingResult.push(result);
+            for (const result of fallbackResults) {
+              workingResult.push(result);
+            }
+          } else {
+            workingResult.push(...this.#createFailedResponses(batch));
           }
         }
 
@@ -696,11 +721,19 @@ export class MulticallClient {
         balance,
       };
     } catch {
-      return {
-        tokenAddress: request.tokenAddress,
-        accountAddress: request.accountAddress,
-        success: false,
-      };
+      return this.#createFailedResponse(request);
     }
+  }
+
+  #createFailedResponses(requests: BalanceOfRequest[]): BalanceOfResponse[] {
+    return requests.map((request) => this.#createFailedResponse(request));
+  }
+
+  #createFailedResponse(request: BalanceOfRequest): BalanceOfResponse {
+    return {
+      tokenAddress: request.tokenAddress,
+      accountAddress: request.accountAddress,
+      success: false,
+    };
   }
 }

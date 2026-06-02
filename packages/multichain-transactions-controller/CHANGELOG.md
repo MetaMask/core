@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Bump `@metamask/accounts-controller` from `^38.0.0` to `^38.1.1` ([#8755](https://github.com/MetaMask/core/pull/8755), [#8774](https://github.com/MetaMask/core/pull/8774))
+- Bump `@metamask/accounts-controller` from `^38.0.0` to `^38.1.2` ([#8755](https://github.com/MetaMask/core/pull/8755), [#8774](https://github.com/MetaMask/core/pull/8774), [#8912](https://github.com/MetaMask/core/pull/8912))
 - Bump `@metamask/polling-controller` from `^16.0.4` to `^16.0.6` ([#8755](https://github.com/MetaMask/core/pull/8755), [#8834](https://github.com/MetaMask/core/pull/8834))
 
 ## [7.1.0]

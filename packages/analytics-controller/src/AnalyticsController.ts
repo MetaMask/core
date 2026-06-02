@@ -5,12 +5,17 @@ import type {
 } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
 import type { Messenger } from '@metamask/messenger';
+import type { Json } from '@metamask/utils';
+import { cloneDeep } from 'lodash';
+import { v4 as uuid } from 'uuid';
 
 import type { AnalyticsControllerMethodActions } from './AnalyticsController-method-action-types';
 import { validateAnalyticsControllerState } from './analyticsControllerStateValidator';
 import { projectLogger as log } from './AnalyticsLogger';
 import type {
   AnalyticsPlatformAdapter,
+  AnalyticsDeliveryOptions,
+  AnalyticsContext,
   AnalyticsEventProperties,
   AnalyticsUserTraits,
   AnalyticsTrackingEvent,
@@ -43,7 +48,81 @@ export type AnalyticsControllerState = {
    * Must be provided by the platform - the controller does not generate it.
    */
   analyticsId: string;
+
+  /**
+   * Persisted queue of analytics events waiting for delivery acknowledgement.
+   * This is only used when event queue persistence is enabled.
+   */
+  eventQueue?: Record<string, Json>;
 };
+
+/**
+ * Event types supported by the persisted analytics event queue.
+ */
+export type AnalyticsQueuedEventType = 'track' | 'identify' | 'view';
+
+/**
+ * Base persisted event queue entry.
+ */
+export type AnalyticsQueuedEventBase = {
+  /**
+   * Event type used to replay the payload with the platform adapter.
+   */
+  type: AnalyticsQueuedEventType;
+
+  /**
+   * Stable identifier for the analytics payload.
+   */
+  messageId: string;
+
+  /**
+   * Original payload timestamp serialized for persistence.
+   */
+  timestamp: string;
+};
+
+/**
+ * Persisted track event queue entry.
+ */
+export type AnalyticsQueuedTrackEvent = AnalyticsQueuedEventBase & {
+  type: 'track';
+  eventName: string;
+  properties?: AnalyticsEventProperties;
+  context?: AnalyticsContext;
+};
+
+/**
+ * Persisted identify event queue entry.
+ */
+export type AnalyticsQueuedIdentifyEvent = AnalyticsQueuedEventBase & {
+  type: 'identify';
+  userId: string;
+  traits?: AnalyticsUserTraits;
+  context?: AnalyticsContext;
+};
+
+/**
+ * Persisted view event queue entry.
+ */
+export type AnalyticsQueuedViewEvent = AnalyticsQueuedEventBase & {
+  type: 'view';
+  name: string;
+  properties?: AnalyticsEventProperties;
+  context?: AnalyticsContext;
+};
+
+/**
+ * Persisted analytics event queue entry.
+ */
+export type AnalyticsQueuedEvent =
+  | AnalyticsQueuedTrackEvent
+  | AnalyticsQueuedIdentifyEvent
+  | AnalyticsQueuedViewEvent;
+
+/**
+ * Persisted analytics event queue keyed by message ID.
+ */
+export type AnalyticsEventQueue = Record<string, AnalyticsQueuedEvent>;
 
 /**
  * Returns default values for AnalyticsController state.
@@ -79,6 +158,12 @@ const analyticsControllerMetadata = {
     includeInStateLogs: true,
     persist: true,
     includeInDebugSnapshot: true,
+    usedInUi: false,
+  },
+  eventQueue: {
+    includeInStateLogs: false,
+    persist: true,
+    includeInDebugSnapshot: false,
     usedInUi: false,
   },
 } satisfies StateMetadata<AnalyticsControllerState>;
@@ -168,7 +253,72 @@ export type AnalyticsControllerOptions = {
    * @default false
    */
   isAnonymousEventsFeatureEnabled?: boolean;
+
+  /**
+   * Whether analytics event queue persistence is enabled.
+   *
+   * When enabled, AnalyticsController persists each platform adapter payload
+   * until the adapter reports successful delivery.
+   *
+   * @default false
+   */
+  isEventQueuePersistenceEnabled?: boolean;
 };
+
+/**
+ * Returns whether a value is a non-array object.
+ *
+ * @param value - The value to check.
+ * @returns True if the value is a record.
+ */
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === 'object' && !Array.isArray(value);
+}
+
+/**
+ * Returns whether a value is a valid persisted analytics event.
+ *
+ * @param value - The value to check.
+ * @returns True if the value is a queued analytics event.
+ */
+function isAnalyticsQueuedEvent(value: unknown): value is AnalyticsQueuedEvent {
+  if (!isRecord(value)) {
+    return false;
+  }
+
+  if (
+    typeof value.messageId !== 'string' ||
+    typeof value.timestamp !== 'string'
+  ) {
+    return false;
+  }
+
+  if (value.type === 'track') {
+    return (
+      typeof value.eventName === 'string' &&
+      (value.properties === undefined || isRecord(value.properties)) &&
+      (value.context === undefined || isRecord(value.context))
+    );
+  }
+
+  if (value.type === 'identify') {
+    return (
+      typeof value.userId === 'string' &&
+      (value.traits === undefined || isRecord(value.traits)) &&
+      (value.context === undefined || isRecord(value.context))
+    );
+  }
+
+  if (value.type === 'view') {
+    return (
+      typeof value.name === 'string' &&
+      (value.properties === undefined || isRecord(value.properties)) &&
+      (value.context === undefined || isRecord(value.context))
+    );
+  }
+
+  return false;
+}
 
 /**
  * The AnalyticsController manages analytics tracking across platforms (Mobile/Extension).
@@ -192,6 +342,8 @@ export class AnalyticsController extends BaseController<
 
   readonly #isAnonymousEventsFeatureEnabled: boolean;
 
+  readonly #isEventQueuePersistenceEnabled: boolean;
+
   #initialized: boolean;
 
   /**
@@ -203,6 +355,7 @@ export class AnalyticsController extends BaseController<
    * @param options.messenger - Messenger used to communicate with BaseController
    * @param options.platformAdapter - Platform adapter implementation for tracking
    * @param options.isAnonymousEventsFeatureEnabled - Whether the anonymous events feature is enabled
+   * @param options.isEventQueuePersistenceEnabled - Whether analytics event queue persistence is enabled
    * @throws Error if state.analyticsId is missing or not a valid UUIDv4
    * @remarks After construction, call {@link AnalyticsController.init} to complete initialization.
    */
@@ -211,6 +364,7 @@ export class AnalyticsController extends BaseController<
     messenger,
     platformAdapter,
     isAnonymousEventsFeatureEnabled = false,
+    isEventQueuePersistenceEnabled = false,
   }: AnalyticsControllerOptions) {
     const initialState: AnalyticsControllerState = {
       ...getDefaultAnalyticsControllerState(),
@@ -230,6 +384,7 @@ export class AnalyticsController extends BaseController<
     });
 
     this.#isAnonymousEventsFeatureEnabled = isAnonymousEventsFeatureEnabled;
+    this.#isEventQueuePersistenceEnabled = isEventQueuePersistenceEnabled;
     this.#platformAdapter = platformAdapter;
     this.#initialized = false;
 
@@ -242,6 +397,7 @@ export class AnalyticsController extends BaseController<
       enabled: analyticsControllerSelectors.selectEnabled(this.state),
       optedIn: this.state.optedIn,
       analyticsId: this.state.analyticsId,
+      eventQueuePersistenceEnabled: this.#isEventQueuePersistenceEnabled,
     });
   }
 
@@ -265,6 +421,243 @@ export class AnalyticsController extends BaseController<
       // Log error but don't throw - adapter setup failure shouldn't break controller
       log('Error calling platformAdapter.onSetupCompleted', error);
     }
+
+    this.#replayQueuedEvents();
+  }
+
+  /**
+   * Send final track payload through the platform adapter or queue it if persistence is enabled.
+   *
+   * @param eventName - The name of the event.
+   * @param properties - Optional event properties.
+   * @param context - Optional platform-specific context.
+   */
+  #sendOrQueueTrackEvent(
+    eventName: string,
+    properties?: AnalyticsEventProperties,
+    context?: AnalyticsContext,
+  ): void {
+    if (!this.#isEventQueuePersistenceEnabled) {
+      this.#platformAdapter.track(eventName, properties, context);
+      return;
+    }
+
+    const queuedEvent: AnalyticsQueuedTrackEvent = {
+      type: 'track',
+      eventName,
+      messageId: uuid(),
+      timestamp: new Date().toISOString(),
+      ...(properties === undefined ? {} : { properties }),
+      ...(context === undefined ? {} : { context }),
+    };
+
+    this.#enqueueEvent(queuedEvent);
+  }
+
+  /**
+   * Send final identify payload through the platform adapter or queue it if persistence is enabled.
+   *
+   * @param userId - The user ID.
+   * @param traits - Optional user traits.
+   * @param context - Optional platform-specific context.
+   */
+  #sendOrQueueIdentifyEvent(
+    userId: string,
+    traits?: AnalyticsUserTraits,
+    context?: AnalyticsContext,
+  ): void {
+    if (!this.#isEventQueuePersistenceEnabled) {
+      this.#platformAdapter.identify(userId, traits, context);
+      return;
+    }
+
+    const queuedEvent: AnalyticsQueuedIdentifyEvent = {
+      type: 'identify',
+      userId,
+      messageId: uuid(),
+      timestamp: new Date().toISOString(),
+      ...(traits === undefined ? {} : { traits }),
+      ...(context === undefined ? {} : { context }),
+    };
+
+    this.#enqueueEvent(queuedEvent);
+  }
+
+  /**
+   * Send final view payload through the platform adapter or queue it if persistence is enabled.
+   *
+   * @param name - The view name.
+   * @param properties - Optional view properties.
+   * @param context - Optional platform-specific context.
+   */
+  #sendOrQueueViewEvent(
+    name: string,
+    properties?: AnalyticsEventProperties,
+    context?: AnalyticsContext,
+  ): void {
+    if (!this.#isEventQueuePersistenceEnabled) {
+      this.#platformAdapter.view(name, properties, context);
+      return;
+    }
+
+    const queuedEvent: AnalyticsQueuedViewEvent = {
+      type: 'view',
+      name,
+      messageId: uuid(),
+      timestamp: new Date().toISOString(),
+      ...(properties === undefined ? {} : { properties }),
+      ...(context === undefined ? {} : { context }),
+    };
+
+    this.#enqueueEvent(queuedEvent);
+  }
+
+  /**
+   * Add an analytics event to the queue and send it.
+   *
+   * @param queuedEvent - The event to enqueue and deliver.
+   */
+  #enqueueEvent(queuedEvent: AnalyticsQueuedEvent): void {
+    const eventQueue: Record<string, Json> = {
+      ...(this.state.eventQueue ?? {}),
+      [queuedEvent.messageId]: queuedEvent as unknown as Json,
+    };
+
+    this.update((state) => {
+      state.eventQueue = eventQueue as never;
+    });
+
+    this.#sendQueuedEvent(queuedEvent);
+  }
+
+  /**
+   * Send a queued event through the platform adapter.
+   *
+   * @param queuedEvent - The queued event to deliver.
+   */
+  #sendQueuedEvent(queuedEvent: AnalyticsQueuedEvent): void {
+    const timestamp = new Date(queuedEvent.timestamp);
+
+    if (Number.isNaN(timestamp.getTime())) {
+      log('Dropping queued analytics event with invalid timestamp', {
+        messageId: queuedEvent.messageId,
+      });
+      this.#removeQueuedEvent(queuedEvent.messageId);
+      return;
+    }
+
+    const options: AnalyticsDeliveryOptions = {
+      messageId: queuedEvent.messageId,
+      timestamp,
+      callback: (error?: unknown) => {
+        if (error) {
+          log('Queued analytics event delivery failed', {
+            messageId: queuedEvent.messageId,
+            error,
+          });
+          return;
+        }
+
+        this.#removeQueuedEvent(queuedEvent.messageId);
+      },
+    };
+
+    try {
+      if (queuedEvent.type === 'track') {
+        this.#platformAdapter.track(
+          queuedEvent.eventName,
+          cloneDeep(queuedEvent.properties),
+          cloneDeep(queuedEvent.context),
+          options,
+        );
+      } else if (queuedEvent.type === 'identify') {
+        this.#platformAdapter.identify(
+          queuedEvent.userId,
+          cloneDeep(queuedEvent.traits),
+          cloneDeep(queuedEvent.context),
+          options,
+        );
+      } else {
+        this.#platformAdapter.view(
+          queuedEvent.name,
+          cloneDeep(queuedEvent.properties),
+          cloneDeep(queuedEvent.context),
+          options,
+        );
+      }
+    } catch (error) {
+      log('Error sending queued analytics event', {
+        messageId: queuedEvent.messageId,
+        error,
+      });
+    }
+  }
+
+  /**
+   * Replay persisted analytics events.
+   */
+  #replayQueuedEvents(): void {
+    if (!this.#isEventQueuePersistenceEnabled || !this.state.eventQueue) {
+      return;
+    }
+
+    if (!analyticsControllerSelectors.selectEnabled(this.state)) {
+      this.#clearQueuedEvents();
+      return;
+    }
+
+    for (const [messageId, queuedEvent] of Object.entries(
+      this.state.eventQueue,
+    )) {
+      if (
+        !isAnalyticsQueuedEvent(queuedEvent) ||
+        queuedEvent.messageId !== messageId
+      ) {
+        log('Dropping invalid queued analytics event', { messageId });
+        this.#removeQueuedEvent(messageId);
+        continue;
+      }
+
+      this.#sendQueuedEvent(queuedEvent);
+    }
+  }
+
+  /**
+   * Remove a queued analytics event.
+   *
+   * @param messageId - The queued event message ID.
+   */
+  #removeQueuedEvent(messageId: string): void {
+    const currentEventQueue = this.state.eventQueue;
+
+    if (
+      !currentEventQueue ||
+      !Object.prototype.hasOwnProperty.call(currentEventQueue, messageId)
+    ) {
+      return;
+    }
+
+    const { [messageId]: _deletedEvent, ...eventQueue } = currentEventQueue;
+
+    this.update((state) => {
+      state.eventQueue = eventQueue as never;
+    });
+  }
+
+  /**
+   * Clear all queued analytics events.
+   */
+  #clearQueuedEvents(): void {
+    if (
+      !this.state.eventQueue ||
+      Object.keys(this.state.eventQueue).length === 0
+    ) {
+      return;
+    }
+
+    this.update((state) => {
+      state.eventQueue = {} as never;
+    });
   }
 
   /**
@@ -273,8 +666,9 @@ export class AnalyticsController extends BaseController<
    * Events are only tracked if analytics is enabled.
    *
    * @param event - Analytics event with properties and sensitive properties
+   * @param context - Optional platform-specific context forwarded to the platform adapter.
    */
-  trackEvent(event: AnalyticsTrackingEvent): void {
+  trackEvent(event: AnalyticsTrackingEvent, context?: AnalyticsContext): void {
     // Don't track if analytics is disabled
     if (!analyticsControllerSelectors.selectEnabled(this.state)) {
       return;
@@ -283,7 +677,7 @@ export class AnalyticsController extends BaseController<
     // if event does not have properties, send event without properties
     // and return to prevent any additional processing
     if (!event.hasProperties) {
-      this.#platformAdapter.track(event.name);
+      this.#sendOrQueueTrackEvent(event.name, undefined, context);
       return;
     }
 
@@ -291,20 +685,28 @@ export class AnalyticsController extends BaseController<
     if (this.#isAnonymousEventsFeatureEnabled) {
       // Note: Even if regular properties object is empty, we still send it to ensure
       // an event with user ID is tracked.
-      this.#platformAdapter.track(event.name, {
-        ...event.properties,
-      });
+      this.#sendOrQueueTrackEvent(
+        event.name,
+        {
+          ...event.properties,
+        },
+        context,
+      );
     }
 
     const hasSensitiveProperties =
       Object.keys(event.sensitiveProperties).length > 0;
 
     if (!this.#isAnonymousEventsFeatureEnabled || hasSensitiveProperties) {
-      this.#platformAdapter.track(event.name, {
-        ...event.properties,
-        ...event.sensitiveProperties,
-        ...(hasSensitiveProperties && { anonymous: true }),
-      });
+      this.#sendOrQueueTrackEvent(
+        event.name,
+        {
+          ...event.properties,
+          ...event.sensitiveProperties,
+          ...(hasSensitiveProperties && { anonymous: true }),
+        },
+        context,
+      );
     }
   }
 
@@ -312,14 +714,15 @@ export class AnalyticsController extends BaseController<
    * Identify a user for analytics.
    *
    * @param traits - User traits/properties
+   * @param context - Optional platform-specific context forwarded to the platform adapter.
    */
-  identify(traits?: AnalyticsUserTraits): void {
+  identify(traits?: AnalyticsUserTraits, context?: AnalyticsContext): void {
     if (!analyticsControllerSelectors.selectEnabled(this.state)) {
       return;
     }
 
     // Delegate to platform adapter using the current analytics ID
-    this.#platformAdapter.identify(this.state.analyticsId, traits);
+    this.#sendOrQueueIdentifyEvent(this.state.analyticsId, traits, context);
   }
 
   /**
@@ -327,14 +730,19 @@ export class AnalyticsController extends BaseController<
    *
    * @param name - The identifier/name of the page or screen being viewed (e.g., "home", "settings", "wallet")
    * @param properties - Optional properties associated with the view
+   * @param context - Optional platform-specific context forwarded to the platform adapter.
    */
-  trackView(name: string, properties?: AnalyticsEventProperties): void {
+  trackView(
+    name: string,
+    properties?: AnalyticsEventProperties,
+    context?: AnalyticsContext,
+  ): void {
     if (!analyticsControllerSelectors.selectEnabled(this.state)) {
       return;
     }
 
     // Delegate to platform adapter
-    this.#platformAdapter.view(name, properties);
+    this.#sendOrQueueViewEvent(name, properties, context);
   }
 
   /**
@@ -353,5 +761,7 @@ export class AnalyticsController extends BaseController<
     this.update((state) => {
       state.optedIn = false;
     });
+
+    this.#clearQueuedEvents();
   }
 }

@@ -59,6 +59,33 @@ export type AuthenticatedUserStorageServicePutNotificationPreferencesAction = {
 };
 
 /**
+ * Returns the assets-watchlist for the authenticated user.
+ *
+ * @returns The assets-watchlist blob, or `null` if none has been set (404).
+ */
+export type AuthenticatedUserStorageServiceGetAssetsWatchlistAction = {
+  type: `AuthenticatedUserStorageService:getAssetsWatchlist`;
+  handler: AuthenticatedUserStorageService['getAssetsWatchlist'];
+};
+
+/**
+ * Creates or updates the assets-watchlist for the authenticated user.
+ *
+ * @param blob - The full assets-watchlist blob. The `assets` array may
+ * contain at most `ASSETS_WATCHLIST_MAX_ASSETS` CAIP-19 asset identifiers;
+ * this is enforced by `assertAssetsWatchlistBlobForWrite` before the
+ * request is sent.
+ * @param clientType - Optional client type header.
+ * @throws A `StructError` from `@metamask/superstruct` if `blob` is
+ * structurally invalid or `assets` exceeds the cap; an `HttpError` from
+ * `@metamask/controller-utils` if the API responds with a non-2xx status.
+ */
+export type AuthenticatedUserStorageServiceSetAssetsWatchlistAction = {
+  type: `AuthenticatedUserStorageService:setAssetsWatchlist`;
+  handler: AuthenticatedUserStorageService['setAssetsWatchlist'];
+};
+
+/**
  * Union of all AuthenticatedUserStorageService action types.
  */
 export type AuthenticatedUserStorageServiceMethodActions =
@@ -66,4 +93,6 @@ export type AuthenticatedUserStorageServiceMethodActions =
   | AuthenticatedUserStorageServiceCreateDelegationAction
   | AuthenticatedUserStorageServiceRevokeDelegationAction
   | AuthenticatedUserStorageServiceGetNotificationPreferencesAction
-  | AuthenticatedUserStorageServicePutNotificationPreferencesAction;
+  | AuthenticatedUserStorageServicePutNotificationPreferencesAction
+  | AuthenticatedUserStorageServiceGetAssetsWatchlistAction
+  | AuthenticatedUserStorageServiceSetAssetsWatchlistAction;

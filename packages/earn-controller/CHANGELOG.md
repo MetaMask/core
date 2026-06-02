@@ -9,9 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Bump `@metamask/account-tree-controller` from `^7.4.0` to `^7.5.0` ([#8912](https://github.com/MetaMask/core/pull/8912))
+
+## [12.2.0]
+
+### Changed
+
 - Pass `isInternal: true` to `addTransactionFn` in `executeLendingDeposit`, `executeLendingWithdraw`, and `executeLendingTokenApprove` so lending transactions bypass dapp-origin restrictions ([#8633](https://github.com/MetaMask/core/pull/8633))
 - Bump `@metamask/account-tree-controller` from `^7.3.0` to `^7.4.0` ([#8783](https://github.com/MetaMask/core/pull/8783))
-- Bump `@metamask/transaction-controller` from `^65.3.0` to `^65.4.0` ([#8796](https://github.com/MetaMask/core/pull/8796))
+- Bump `@metamask/transaction-controller` from `^65.3.0` to `^66.0.0` ([#8796](https://github.com/MetaMask/core/pull/8796), [#8848](https://github.com/MetaMask/core/pull/8848))
 
 ## [12.1.2]
 
@@ -455,7 +461,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#5271](https://github.com/MetaMask/core/pull/5271))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/earn-controller@12.1.2...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/earn-controller@12.2.0...HEAD
+[12.2.0]: https://github.com/MetaMask/core/compare/@metamask/earn-controller@12.1.2...@metamask/earn-controller@12.2.0
 [12.1.2]: https://github.com/MetaMask/core/compare/@metamask/earn-controller@12.1.1...@metamask/earn-controller@12.1.2
 [12.1.1]: https://github.com/MetaMask/core/compare/@metamask/earn-controller@12.1.0...@metamask/earn-controller@12.1.1
 [12.1.0]: https://github.com/MetaMask/core/compare/@metamask/earn-controller@12.0.0...@metamask/earn-controller@12.1.0

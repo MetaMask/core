@@ -1,6 +1,7 @@
 import { AccountGroupType } from '@metamask/account-api';
 import { AccountWalletType } from '@metamask/account-api';
 import { toAccountGroupId, toAccountWalletId } from '@metamask/account-api';
+import { KeyringType } from '@metamask/keyring-api/v2';
 import { KeyringTypes } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 
@@ -15,31 +16,41 @@ import type { AccountWalletObjectOf } from '../wallet';
  * @param type - Keyring's type.
  * @returns Wallet name.
  */
-export function getAccountWalletNameFromKeyringType(type: KeyringTypes) {
+export function getAccountWalletNameFromKeyringType(
+  type: KeyringTypes | KeyringType,
+): string {
   switch (type) {
+    case KeyringType.PrivateKey:
     case KeyringTypes.simple: {
       return 'Imported accounts';
     }
+    case KeyringType.Trezor:
     case KeyringTypes.trezor: {
       return 'Trezor';
     }
+    case KeyringType.OneKey:
     case KeyringTypes.oneKey: {
       return 'OneKey';
     }
+    case KeyringType.Ledger:
     case KeyringTypes.ledger: {
       return 'Ledger';
     }
+    case KeyringType.Lattice:
     case KeyringTypes.lattice: {
       return 'Lattice';
     }
+    case KeyringType.Qr:
     case KeyringTypes.qr: {
       return 'QR';
     }
     // Those keyrings should never really be used in such context since they
     // should be used by other grouping rules.
+    case KeyringType.Hd:
     case KeyringTypes.hd: {
       return 'HD Wallet';
     }
+    case KeyringType.Snap:
     case KeyringTypes.snap: {
       return 'Snap Wallet';
     }
@@ -56,31 +67,41 @@ export function getAccountWalletNameFromKeyringType(type: KeyringTypes) {
  * @param type - Keyring's type.
  * @returns Wallet name.
  */
-export function getAccountGroupPrefixFromKeyringType(type: KeyringTypes) {
+export function getAccountGroupPrefixFromKeyringType(
+  type: KeyringTypes | KeyringType,
+): string {
   switch (type) {
+    case KeyringType.PrivateKey:
     case KeyringTypes.simple: {
       return 'Imported Account';
     }
+    case KeyringType.Trezor:
     case KeyringTypes.trezor: {
       return 'Trezor Account';
     }
+    case KeyringType.OneKey:
     case KeyringTypes.oneKey: {
       return 'OneKey Account';
     }
+    case KeyringType.Ledger:
     case KeyringTypes.ledger: {
       return 'Ledger Account';
     }
+    case KeyringType.Lattice:
     case KeyringTypes.lattice: {
       return 'Lattice Account';
     }
+    case KeyringType.Qr:
     case KeyringTypes.qr: {
       return 'QR Account';
     }
     // Those keyrings should never really be used in such context since they
     // should be used by other grouping rules.
+    case KeyringType.Hd:
     case KeyringTypes.hd: {
       return 'Account';
     }
+    case KeyringType.Snap:
     case KeyringTypes.snap: {
       return 'Snap Account';
     }

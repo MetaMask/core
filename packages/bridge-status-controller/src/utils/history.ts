@@ -14,31 +14,46 @@ import type {
 } from '../types';
 import { getMaxPendingHistoryItemAgeMs } from './feature-flags';
 
+const updateHistoryItem = (
+  oldHistoryItem: BridgeHistoryItem,
+  txMeta: { id: string; hash?: string },
+): Partial<BridgeHistoryItem> => {
+  return {
+    ...oldHistoryItem,
+    txMetaId: txMeta.id,
+    originalTransactionId: oldHistoryItem.originalTransactionId ?? txMeta.id,
+    status: {
+      ...oldHistoryItem.status,
+      srcChain: {
+        ...oldHistoryItem.status.srcChain,
+        txHash: txMeta.hash ?? oldHistoryItem.status.srcChain?.txHash,
+      },
+    },
+  };
+};
+
 export const rekeyHistoryItemInState = (
   state: BridgeStatusControllerState,
-  actionId: string,
+  oldKey: string,
+  newKey: string,
   txMeta: { id: string; hash?: string },
 ): boolean => {
-  const historyItem = state.txHistory[actionId];
+  const historyItem = state.txHistory[oldKey];
   if (!historyItem) {
     return false;
   }
 
-  state.txHistory[txMeta.id] = {
+  state.txHistory[newKey] = {
     ...historyItem,
-    txMetaId: txMeta.id,
-    originalTransactionId: historyItem.originalTransactionId ?? txMeta.id,
-    status: {
-      ...historyItem.status,
-      srcChain: {
-        ...historyItem.status.srcChain,
-        txHash: txMeta.hash ?? historyItem.status.srcChain?.txHash,
-      },
-    },
+    ...updateHistoryItem(historyItem, txMeta),
   };
-  delete state.txHistory[actionId];
+  delete state.txHistory[oldKey];
   return true;
 };
+
+export const isBatchSellHistoryItem = (
+  historyItem: BridgeHistoryItem,
+): boolean => Boolean(historyItem?.batchSellData);
 
 /**
  * Returns the history entry that matches the txMeta by id, actionId, batchId, or txHash
@@ -67,7 +82,12 @@ export const getMatchingHistoryEntryForTxMeta = (
       key === txMeta.actionId ||
       txMetaId === txMeta.id ||
       (actionId ? actionId === txMeta.actionId : false) ||
-      (batchId ? batchId === txMeta.batchId : false) ||
+      // When the batch is not atomic (BatchSell), ignore batchId matching to prevent txs
+      // in the batch from getting marked complete/failed too early if one fails
+      // Multiple BatchSell STX trades may have the same batchId
+      (Boolean(batchId) &&
+        !isBatchSellHistoryItem(value) &&
+        batchId === txMeta.batchId) ||
       (txHash ? txHash.toLowerCase() === txMeta.hash?.toLowerCase() : false)
     );
   });
@@ -92,9 +112,61 @@ export const getMatchingHistoryEntryForApprovalTxMeta = (
 };
 
 /**
+ * Returns the BatchSell history items in the same batch as the provided tx hash.
+ *
+ * @param txHistory - The bridge status controller's history to search for matching history items
+ * @param txHashOrId - the hash or txMeta.id of a single trade in a BatchSell
+ * @returns The matching history items for the tx hash and a boolean indicating if it's a 7702 batch.
+ * @example
+ * getBatchSellHistoryItemsForTxHash(txHistory, id)
+ * If id is the hash or txMetaId of a BatchSell trade, it will return the history items for
+ * the trade and all other trades in the same batch.
+ */
+export const getBatchSellHistoryItemsForTxHash = (
+  txHistory: BridgeStatusControllerState['txHistory'],
+  txHashOrId?: string,
+): { historyItems: BridgeHistoryItem[]; is7702Batch: boolean } => {
+  const historyItems = Object.values(txHistory);
+
+  if (!txHashOrId) {
+    return {
+      historyItems: [],
+      is7702Batch: false,
+    };
+  }
+
+  /**
+   * Either a delegation tx or a single STX BatchSell trade
+   */
+  const parentHistoryItem = historyItems.find(
+    ({ status, txMetaId }) =>
+      status.srcChain.txHash?.toLowerCase() === txHashOrId.toLowerCase() ||
+      txMetaId === txHashOrId,
+  );
+
+  // Match by batchId or by quoteId
+  const matchingHistoryItems =
+    parentHistoryItem?.quoteIds?.map((quoteId) => txHistory[quoteId]) ??
+    historyItems.filter(
+      ({ batchId }) =>
+        batchId &&
+        parentHistoryItem?.batchId &&
+        batchId === parentHistoryItem.batchId,
+    );
+
+  return {
+    historyItems: matchingHistoryItems.filter((item) => item !== undefined),
+    is7702Batch:
+      Boolean(parentHistoryItem) &&
+      Boolean(parentHistoryItem?.quoteIds?.length),
+  };
+};
+
+/**
  * Determines the key to use for storing a bridge history item.
  * Uses actionId for pre-submission tracking, or bridgeTxMetaId for post-submission.
  *
+ * @deprecated specify an explicit history key instead
  * @param actionId - The action ID used for pre-submission tracking
  * @param bridgeTxMetaId - The transaction meta ID from bridgeTxMeta
  * @param syntheticTransactionId - The transactionId of the intent's placeholder transaction
@@ -117,10 +189,7 @@ export function getHistoryKey(
 
 export const getInitialHistoryItem = (
   args: StartPollingForBridgeTxStatusArgsSerialized,
-): {
-  historyKey: string;
-  txHistoryItem: BridgeHistoryItem;
-} => {
+): BridgeHistoryItem => {
   const {
     bridgeTxMeta,
     quoteResponse,
@@ -137,19 +206,13 @@ export const getInitialHistoryItem = (
     originalTransactionId,
     actionId,
     tokenSecurityTypeDestination,
+    batchSellData,
+    quoteIds,
   } = args;
-  // Determine the key for this history item:
-  // - For pre-submission (non-batch EVM): use actionId
-  // - For post-submission or other cases: use bridgeTxMeta.id
-  const historyKey = getHistoryKey(
-    actionId,
-    bridgeTxMeta?.id,
-    originalTransactionId,
-  );
 
   // Write all non-status fields to state so we can reference the quote in Activity list without the Bridge API
   // We know it's in progress but not the exact status yet
-  const txHistoryItem = {
+  const txHistoryItem: BridgeHistoryItem = {
     txMetaId: bridgeTxMeta?.id,
     actionId,
     originalTransactionId: originalTransactionId ?? bridgeTxMeta?.id, // Keep original for intent transactions
@@ -195,7 +258,14 @@ export const getInitialHistoryItem = (
     }),
   };
 
-  return { historyKey, txHistoryItem };
+  if (batchSellData) {
+    txHistoryItem.batchSellData = batchSellData;
+  }
+  if (quoteIds) {
+    txHistoryItem.quoteIds = quoteIds;
+  }
+
+  return txHistoryItem;
 };
 
 export const shouldPollHistoryItem = (
