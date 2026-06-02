@@ -227,9 +227,6 @@ export type SnapAccountServiceAccountAssetListUpdatedEvent = {
  */
 export type AllowedEvents =
   | KeyringControllerStateChangeEvent
-  | SnapKeyringAccountAssetListUpdatedEvent
-  | SnapKeyringAccountBalancesUpdatedEvent
-  | SnapKeyringAccountTransactionsUpdatedEvent
   | SnapAccountServiceAccountAssetListUpdatedEvent
   | SnapAccountServiceAccountBalancesUpdatedEvent
   | SnapAccountServiceAccountTransactionsUpdatedEvent
@@ -1297,15 +1294,6 @@ export class AccountsController extends BaseController<
     );
 
     this.messenger.subscribe(
-      'SnapKeyring:accountAssetListUpdated',
-      (snapAccountEvent) =>
-        this.#handleOnSnapKeyringAccountEvent(
-          'AccountsController:accountAssetListUpdated',
-          snapAccountEvent,
-        ),
-    );
-
-    this.messenger.subscribe(
       'SnapAccountService:accountAssetListUpdated',
       (snapAccountEvent) =>
         this.#handleOnSnapKeyringAccountEvent(
@@ -1315,28 +1303,10 @@ export class AccountsController extends BaseController<
     );
 
     this.messenger.subscribe(
-      'SnapKeyring:accountBalancesUpdated',
-      (snapAccountEvent) =>
-        this.#handleOnSnapKeyringAccountEvent(
-          'AccountsController:accountBalancesUpdated',
-          snapAccountEvent,
-        ),
-    );
-
-    this.messenger.subscribe(
       'SnapAccountService:accountBalancesUpdated',
       (snapAccountEvent) =>
         this.#handleOnSnapKeyringAccountEvent(
           'AccountsController:accountBalancesUpdated',
-          snapAccountEvent,
-        ),
-    );
-
-    this.messenger.subscribe(
-      'SnapKeyring:accountTransactionsUpdated',
-      (snapAccountEvent) =>
-        this.#handleOnSnapKeyringAccountEvent(
-          'AccountsController:accountTransactionsUpdated',
           snapAccountEvent,
         ),
     );

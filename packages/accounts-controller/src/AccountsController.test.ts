@@ -328,9 +328,6 @@ function buildAccountsControllerMessenger(
     ],
     events: [
       'KeyringController:stateChange',
-      'SnapKeyring:accountAssetListUpdated',
-      'SnapKeyring:accountBalancesUpdated',
-      'SnapKeyring:accountTransactionsUpdated',
       'SnapAccountService:accountAssetListUpdated',
       'SnapAccountService:accountBalancesUpdated',
       'SnapAccountService:accountTransactionsUpdated',
@@ -2147,29 +2144,6 @@ describe('AccountsController', () => {
       return { messenger, account, accountsController };
     };
 
-    it('re-publishes keyring events: SnapKeyring:accountBalancesUpdated', () => {
-      const { account, messenger } = setupTest();
-
-      const payload: AccountBalancesUpdatedEventPayload = {
-        balances: {
-          [account.id]: {
-            'bip122:000000000019d6689c085ae165831e93/slip44:0': {
-              amount: '0.1',
-              unit: 'BTC',
-            },
-          },
-        },
-      };
-
-      const mockRePublishedCallback = jest.fn();
-      messenger.subscribe(
-        'AccountsController:accountBalancesUpdated',
-        mockRePublishedCallback,
-      );
-      messenger.publish('SnapKeyring:accountBalancesUpdated', payload);
-      expect(mockRePublishedCallback).toHaveBeenCalledWith(payload);
-    });
-
     it('re-publishes keyring events: SnapAccountService:accountBalancesUpdated', () => {
       const { account, messenger } = setupTest();
 
@@ -2193,27 +2167,6 @@ describe('AccountsController', () => {
       expect(mockRePublishedCallback).toHaveBeenCalledWith(payload);
     });
 
-    it('re-publishes keyring events: SnapKeyring:accountAssetListUpdated', () => {
-      const { account, messenger } = setupTest();
-
-      const payload: AccountAssetListUpdatedEventPayload = {
-        assets: {
-          [account.id]: {
-            added: ['bip122:000000000019d6689c085ae165831e93/slip44:0'],
-            removed: ['bip122:000000000933ea01ad0ee984209779ba/slip44:0'],
-          },
-        },
-      };
-
-      const mockRePublishedCallback = jest.fn();
-      messenger.subscribe(
-        'AccountsController:accountAssetListUpdated',
-        mockRePublishedCallback,
-      );
-      messenger.publish('SnapKeyring:accountAssetListUpdated', payload);
-      expect(mockRePublishedCallback).toHaveBeenCalledWith(payload);
-    });
-
     it('re-publishes keyring events: SnapAccountService:accountAssetListUpdated', () => {
       const { account, messenger } = setupTest();
 
@@ -2232,47 +2185,6 @@ describe('AccountsController', () => {
         mockRePublishedCallback,
       );
       messenger.publish('SnapAccountService:accountAssetListUpdated', payload);
-      expect(mockRePublishedCallback).toHaveBeenCalledWith(payload);
-    });
-
-    it('re-publishes keyring events: SnapKeyring:accountTransactionsUpdated', () => {
-      const { account, messenger } = setupTest();
-
-      const payload: AccountTransactionsUpdatedEventPayload = {
-        transactions: {
-          [account.id]: [
-            {
-              id: 'f5d8ee39a430901c91a5917b9f2dc19d6d1a0e9cea205b009ca73dd04470b9a6',
-              timestamp: null,
-              chain: 'bip122:000000000019d6689c085ae165831e93',
-              status: 'submitted',
-              type: 'receive',
-              account: account.id,
-              from: [],
-              to: [],
-              fees: [
-                {
-                  type: 'base',
-                  asset: {
-                    fungible: true,
-                    type: 'bip122:000000000019d6689c085ae165831e93/slip44:0',
-                    unit: 'BTC',
-                    amount: '0.0001',
-                  },
-                },
-              ],
-              events: [],
-            },
-          ],
-        },
-      };
-
-      const mockRePublishedCallback = jest.fn();
-      messenger.subscribe(
-        'AccountsController:accountTransactionsUpdated',
-        mockRePublishedCallback,
-      );
-      messenger.publish('SnapKeyring:accountTransactionsUpdated', payload);
       expect(mockRePublishedCallback).toHaveBeenCalledWith(payload);
     });
 
