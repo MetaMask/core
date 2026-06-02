@@ -24,20 +24,3 @@ export async function importSecretRecoveryPhrase(
     mnemonic,
   );
 }
-
-/**
- * Initialize the wallet object with a randomly generated secret recovery phrase.
- *
- * @param wallet - The wallet object.
- * @param password - The password to the MetaMask wallet (not the SRP).
- */
-export async function createSecretRecoveryPhrase(
-  wallet: Wallet,
-  password: string,
-): Promise<void> {
-  // TODO: This should use the new MultichainAccountService.
-  await wallet.messenger.call(
-    'KeyringController:createNewVaultAndKeychain',
-    password,
-  );
-}

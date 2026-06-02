@@ -7,10 +7,7 @@ import { webcrypto } from 'crypto';
 import MockEncryptor from '../../keyring-controller/tests/mocks/mockEncryptor';
 import * as initializationModule from './initialization/initialization';
 import { AlwaysOnlineAdapter } from './initialization/instances/connectivity-controller';
-import {
-  createSecretRecoveryPhrase,
-  importSecretRecoveryPhrase,
-} from './utilities';
+import { importSecretRecoveryPhrase } from './utilities';
 import { Wallet } from './Wallet';
 
 const TEST_SRP = 'test test test test test test test test test test test ball';
@@ -225,20 +222,6 @@ describe('Wallet', () => {
       expect(wallet.state.ConnectivityController.connectivityStatus).toBe(
         CONNECTIVITY_STATUSES.Online,
       );
-    });
-  });
-
-  describe('createSecretRecoveryPhrase', () => {
-    it('creates a vault and populates accounts', async () => {
-      const wallet = new Wallet({
-        connectivityAdapter: new AlwaysOnlineAdapter(),
-      });
-
-      await createSecretRecoveryPhrase(wallet, TEST_PASSWORD);
-
-      expect(
-        await wallet.messenger.call('KeyringController:getAccounts'),
-      ).toHaveLength(1);
     });
   });
 
