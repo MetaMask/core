@@ -9,13 +9,78 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Bump `@metamask/assets-controllers` from `^108.2.0` to `^108.3.0` ([#8941](https://github.com/MetaMask/core/pull/8941))
+- Bump `@metamask/assets-controller` from `^8.1.0` to `^8.2.0` ([#8943](https://github.com/MetaMask/core/pull/8943))
+
+## [73.2.0]
+
+### Added
+
+- Add `gasIncluded` and `gasIncluded7702` to `BatchSellTradesResponseSchema` ([#8775](https://github.com/MetaMask/core/pull/8775))
+- Add optional `has_sufficient_gas_for_quote` property to `QuotesReceived` event and `getQuotesReceivedProperties` utility to allow clients to pass whether the user has sufficient gas to submit the quote ([#8895](https://github.com/MetaMask/core/pull/8895))
+
+### Changed
+
+- Bump `@metamask/assets-controller` from `^8.0.2` to `^8.1.0` ([#8919](https://github.com/MetaMask/core/pull/8919))
+
+### Fixed
+
+- Fix EVM token exchange-rate lookups when asset ID address casing differs from `marketData` keys, restoring Batch Sell network fee fiat values ([#8928](https://github.com/MetaMask/core/pull/8928))
+
+## [73.1.0]
+
+### Added
+
+- Expose gasless batch loading state through selectBatchSellTrades's `isLoading` value ([#8913](https://github.com/MetaMask/core/pull/8913))
+
+### Changed
+
+- Bump `@metamask/assets-controller` from `^8.0.0` to `^8.0.2` ([#8874](https://github.com/MetaMask/core/pull/8874), [#8912](https://github.com/MetaMask/core/pull/8912))
+- Bump `@metamask/assets-controllers` from `^108.1.0` to `^108.2.0` ([#8911](https://github.com/MetaMask/core/pull/8911))
+- Bump `@metamask/accounts-controller` from `^38.1.1` to `^38.1.2` ([#8912](https://github.com/MetaMask/core/pull/8912))
+- Bump `@metamask/profile-sync-controller` from `^28.1.0` to `^28.1.1` ([#8912](https://github.com/MetaMask/core/pull/8912))
+
+### Removed
+
+- **BREAKING**: Deprecate `BridgeUserAction` and `BridgeBackgroundAction` enums ([#8775](https://github.com/MetaMask/core/pull/8775))
+
+## [73.0.1]
+
+### Changed
+
+- Bump `@metamask/assets-controller` from `^7.1.2` to `^8.0.0` ([#8866](https://github.com/MetaMask/core/pull/8866))
+
+### Fixed
+
+- Fix `calcSentAmount` double-counting fees for intent-based swap quotes ([#8845](https://github.com/MetaMask/core/pull/8845))
+
+## [73.0.0]
+
+### Added
+
+- Implement transaction batch and fee fetching for BatchSell quotes ([#8805](https://github.com/MetaMask/core/pull/8805))
+  - add new states `batchSellTrades` and `batchSellTradesLoadingStatus` to contain transaction data and its fetch status
+  - support transaction batch data fetching with the new `updateBatchSellTrades` handler. Clients will need to call this whenever the recommended quotes update
+  - implement `selectBatchSellTrades` selector which returns whether a batch is submittable, and the `totalNetworkFee` provided by the `obtainGaslessBatch` endpoint and its converted values
+
+### Changed
+
+- **BREAKING**: Narrow TxData validation from generic string to Hex ([#8805](https://github.com/MetaMask/core/pull/
 - Bump `@metamask/assets-controller` from `^7.1.1` to `^7.1.2` ([#8783](https://github.com/MetaMask/core/pull/8783))
 - Bump `@metamask/assets-controllers` from `^108.0.0` to `^108.1.0` ([#8783](https://github.com/MetaMask/core/pull/8783))
 - Bump `@metamask/profile-sync-controller` from `^28.0.2` to `^28.1.0` ([#8783](https://github.com/MetaMask/core/pull/8783))
-- Bump `@metamask/transaction-controller` from `^65.3.0` to `^65.4.0` ([#8796](https://github.com/MetaMask/core/pull/8796))
+- Bump `@metamask/transaction-controller` from `^65.3.0` to `^66.0.0` ([#8796](https://github.com/MetaMask/core/pull/8796), [#8848](https://github.com/MetaMask/core/pull/8848))
 - Bump `@metamask/gas-fee-controller` from `^26.2.1` to `^26.2.2` ([#8834](https://github.com/MetaMask/core/pull/8834))
 - Bump `@metamask/multichain-network-controller` from `^3.1.1` to `^3.1.2` ([#8834](https://github.com/MetaMask/core/pull/8834))
 - Bump `@metamask/polling-controller` from `^16.0.5` to `^16.0.6` ([#8834](https://github.com/MetaMask/core/pull/8834))
+
+### Removed
+
+- **BREAKING**: Remove `totalNetworkFee` from the `selectBatchSellQuotes`'s results. Clients should use `selectBatchSellTrades` instead ([#8805](https://github.com/MetaMask/core/pull/8805))
+
+### Fixed
+
+- fix non-evm token type detection ([#8811](https://github.com/MetaMask/core/pull/8811))
 
 ## [72.0.4]
 
@@ -1482,7 +1547,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#5317](https://github.com/MetaMask/core/pull/5317))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@72.0.4...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@73.2.0...HEAD
+[73.2.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@73.1.0...@metamask/bridge-controller@73.2.0
+[73.1.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@73.0.1...@metamask/bridge-controller@73.1.0
+[73.0.1]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@73.0.0...@metamask/bridge-controller@73.0.1
+[73.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@72.0.4...@metamask/bridge-controller@73.0.0
 [72.0.4]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@72.0.3...@metamask/bridge-controller@72.0.4
 [72.0.3]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@72.0.2...@metamask/bridge-controller@72.0.3
 [72.0.2]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@72.0.1...@metamask/bridge-controller@72.0.2

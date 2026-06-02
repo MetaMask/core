@@ -8,6 +8,7 @@ import { makePermissionDecoder } from './makePermissionDecoder';
 import { makeNativeTokenAllowanceDecoderConfig } from './nativeTokenAllowance';
 import { makeNativeTokenPeriodicDecoderConfig } from './nativeTokenPeriodic';
 import { makeNativeTokenStreamDecoderConfig } from './nativeTokenStream';
+import { makeTokenApprovalRevocationDecoderConfig } from './tokenApprovalRevocation';
 
 /**
  * Builds the canonical set of permission decoders for a chain.
@@ -32,5 +33,6 @@ export const createPermissionDecodersForContracts = (
     makeErc20TokenPeriodicDecoderConfig(contractAddresses),
     makeErc20TokenAllowanceDecoderConfig(contractAddresses),
     makeErc20TokenRevocationDecoderConfig(contractAddresses),
+    makeTokenApprovalRevocationDecoderConfig(contractAddresses),
   ].map(makePermissionDecoder);
 };

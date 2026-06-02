@@ -1,6 +1,17 @@
+import { TransactionType } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 
 export const CONTROLLER_NAME = 'TransactionPayController';
+
+/**
+ * Parent transaction types that represent a Hyperliquid perps deposit and
+ * share the same Arbitrum-USDC → Hypercore handling in pay strategies.
+ */
+export const PERPS_DEPOSIT_TYPES: TransactionType[] = [
+  TransactionType.perpsDeposit,
+  TransactionType.perpsDepositAndOrder,
+];
+
 export const CHAIN_ID_ARBITRUM = '0xa4b1' as Hex;
 export const CHAIN_ID_MAINNET = '0x1' as Hex;
 export const CHAIN_ID_POLYGON = '0x89' as Hex;
@@ -48,11 +59,18 @@ export const STABLECOINS: Record<Hex, Hex[]> = {
   [CHAIN_ID_HYPERCORE]: [HYPERCORE_USDC_ADDRESS], // USDC
 };
 
+export enum PaymentOverride {
+  MoneyAccount = 'moneyAccount',
+  Perps = 'perps',
+  Predict = 'predict',
+}
+
 export enum TransactionPayStrategy {
   Across = 'across',
   Bridge = 'bridge',
   Fiat = 'fiat',
   Relay = 'relay',
+  Server = 'server',
   Test = 'test',
 }
 

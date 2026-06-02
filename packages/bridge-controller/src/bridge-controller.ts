@@ -58,6 +58,7 @@ import {
   fetchAssetPrices,
   fetchBridgeQuotes,
   fetchBridgeQuoteStream,
+  fetchBatchSellTrades,
 } from './utils/fetch';
 import {
   AbortReason,
@@ -162,6 +163,18 @@ const metadata: StateMetadata<BridgeControllerState> = {
     includeInDebugSnapshot: false,
     usedInUi: true,
   },
+  batchSellTrades: {
+    includeInStateLogs: true,
+    persist: false,
+    includeInDebugSnapshot: false,
+    usedInUi: true,
+  },
+  batchSellTradesLoadingStatus: {
+    includeInStateLogs: true,
+    persist: false,
+    includeInDebugSnapshot: false,
+    usedInUi: true,
+  },
 };
 
 /**
@@ -197,6 +210,7 @@ type BridgePollingInput = {
 const MESSENGER_EXPOSED_METHODS = [
   'updateBridgeQuoteRequestParams',
   'fetchQuotes',
+  'updateBatchSellTrades',
   'stopPollingForQuotes',
   'setLocation',
   'resetState',
@@ -210,6 +224,8 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
   BridgeControllerMessenger
 > {
   #abortController: AbortController | undefined;
+
+  #batchSellTradesAbortController: AbortController | undefined;
 
   #quotesFirstFetched: number | undefined;
 
@@ -428,6 +444,70 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
     return sortQuotes(quotesWithFees, featureId);
   };
 
+  /**
+   * Fetches gasless transaction data and fees for BatchSell quotes.
+   * To use this in the clients, add a listener for the recommendedQuotes and call
+   * this handler whenever they change.
+   *
+   * @param quotes - The quotes to fetch the gasless transaction data and fees for
+   */
+  updateBatchSellTrades = async (
+    quotes: (QuoteResponse | null)[],
+  ): Promise<void> => {
+    this.#batchSellTradesAbortController?.abort(
+      AbortReason.GaslessTxBatchFetched,
+    );
+    this.#batchSellTradesAbortController = new AbortController();
+
+    this.update((state) => {
+      // Set loading status again if recommended quotes are re-ordered
+      state.batchSellTradesLoadingStatus = RequestStatus.LOADING;
+    });
+
+    try {
+      const batchSellTradesResponse = await fetchBatchSellTrades(
+        quotes,
+        this.#batchSellTradesAbortController.signal,
+        this.#clientId,
+        await this.#getJwt(),
+        this.#fetchFn,
+        this.#config.customBridgeApiBaseUrl ?? BRIDGE_PROD_API_BASE_URL,
+        this.#clientVersion,
+      );
+
+      this.update((state) => {
+        state.batchSellTrades = batchSellTradesResponse;
+        state.batchSellTradesLoadingStatus = RequestStatus.FETCHED;
+      });
+
+      // TODO if fee.asset.assetId is not in exchange rates, fetch the exchange rate and update the state
+    } catch (error) {
+      // Ignore abort errors
+      if (
+        (error as Error).toString().includes('AbortError') ||
+        (error as Error).toString().includes('FetchRequestCanceledException') ||
+        [
+          AbortReason.ResetState,
+          AbortReason.NewQuoteRequest,
+          AbortReason.QuoteRequestUpdated,
+          AbortReason.TransactionSubmitted,
+          AbortReason.GaslessTxBatchFetched,
+        ].includes(error as AbortReason)
+      ) {
+        // Exit the function early to prevent other state updates
+        return;
+      }
+
+      this.update((state) => {
+        // Reset the batch sell trades if the fetch fails to avoid showing stale data
+        state.batchSellTrades = DEFAULT_BRIDGE_CONTROLLER_STATE.batchSellTrades;
+        // Update loading status
+        state.batchSellTradesLoadingStatus = RequestStatus.ERROR;
+      });
+      console.log(`Failed to fetch batch sell trades`, error);
+    }
+  };
+
   readonly #trackQuoteValidationFailures = (validationFailures: string[]) => {
     if (validationFailures.length === 0) {
       return;
@@ -628,6 +708,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
     }
     // Clears quotes list in state
     this.#abortController?.abort(reason);
+    this.#batchSellTradesAbortController?.abort(reason);
   };
 
   /**
@@ -677,6 +758,9 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
         DEFAULT_BRIDGE_CONTROLLER_STATE.tokenSecurityTypeDestination;
       state.quoteStreamComplete =
         DEFAULT_BRIDGE_CONTROLLER_STATE.quoteStreamComplete;
+      state.batchSellTrades = DEFAULT_BRIDGE_CONTROLLER_STATE.batchSellTrades;
+      state.batchSellTradesLoadingStatus =
+        DEFAULT_BRIDGE_CONTROLLER_STATE.batchSellTradesLoadingStatus;
     });
   };
 
@@ -702,6 +786,8 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
     context,
   }: BridgePollingInput) => {
     this.#abortController?.abort(AbortReason.NewQuoteRequest);
+    this.#batchSellTradesAbortController?.abort(AbortReason.NewQuoteRequest);
+
     this.#abortController = new AbortController();
 
     this.#fetchAssetExchangeRates(quoteRequests).catch((error) =>
@@ -726,6 +812,11 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
         DEFAULT_BRIDGE_CONTROLLER_STATE.quoteStreamComplete;
       state.quotesLastFetched = Date.now();
       state.quotesLoadingStatus = RequestStatus.LOADING;
+      // Prevent clients from displaying stale batch sell fees
+      if (quoteRequests.length > 1) {
+        state.batchSellTradesLoadingStatus = RequestStatus.LOADING;
+        state.batchSellTrades = DEFAULT_BRIDGE_CONTROLLER_STATE.batchSellTrades;
+      }
     });
 
     const jwt = await this.#getJwt();

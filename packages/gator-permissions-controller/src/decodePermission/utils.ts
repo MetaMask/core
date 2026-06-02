@@ -13,6 +13,7 @@ import type {
 const ENFORCER_CONTRACT_NAMES = {
   ERC20PeriodTransferEnforcer: 'ERC20PeriodTransferEnforcer',
   ERC20StreamingEnforcer: 'ERC20StreamingEnforcer',
+  ApprovalRevocationEnforcer: 'ApprovalRevocationEnforcer',
   ExactCalldataEnforcer: 'ExactCalldataEnforcer',
   NativeTokenPeriodTransferEnforcer: 'NativeTokenPeriodTransferEnforcer',
   NativeTokenStreamingEnforcer: 'NativeTokenStreamingEnforcer',
@@ -91,6 +92,9 @@ export const getChecksumEnforcersByChainId = (
   const nativeTokenPeriodicEnforcer = getChecksumContractAddress(
     ENFORCER_CONTRACT_NAMES.NativeTokenPeriodTransferEnforcer,
   );
+  const approvalRevocationEnforcer = getChecksumContractAddress(
+    ENFORCER_CONTRACT_NAMES.ApprovalRevocationEnforcer,
+  );
 
   // general enforcers
   const exactCalldataEnforcer = getChecksumContractAddress(
@@ -123,6 +127,7 @@ export const getChecksumEnforcersByChainId = (
     erc20PeriodicEnforcer,
     nativeTokenStreamingEnforcer,
     nativeTokenPeriodicEnforcer,
+    approvalRevocationEnforcer,
     exactCalldataEnforcer,
     valueLteEnforcer,
     timestampEnforcer,
