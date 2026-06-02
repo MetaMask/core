@@ -626,7 +626,7 @@ describe('ProfileMetricsService', () => {
       );
     });
 
-    it('throws after exhausting retries when the response contains a duplicate identifier', async () => {
+    it('throws after exhausting retries when the response duplicates one identifier in place of another', async () => {
       const identifiers = ['0xAddressOne', '0xAddressTwo'];
       nock(defaultBaseEndpoint)
         .post('/nonce/batch')
@@ -641,6 +641,42 @@ describe('ProfileMetricsService', () => {
             expires_in: 300,
             identifier: '0xAddressOne',
             nonce: 'nonce-for-one-b',
+          },
+        ]);
+      const { service, rootMessenger } = getService();
+      service.onRetry(({ delay }: { delay: number }) => {
+        jest.advanceTimersByTime(delay);
+      });
+
+      await expect(
+        rootMessenger.call('ProfileMetricsService:fetchNonces', {
+          identifiers,
+        }),
+      ).rejects.toThrow(
+        `Fetching '${defaultBaseEndpoint}/nonce/batch' returned a response whose identifier set does not match the request`,
+      );
+    });
+
+    it('throws after exhausting retries when the response duplicates an identifier alongside a full set (preventing silent overwrite)', async () => {
+      const identifiers = ['0xAddressOne', '0xAddressTwo'];
+      nock(defaultBaseEndpoint)
+        .post('/nonce/batch')
+        .times(4)
+        .reply(200, [
+          {
+            expires_in: 300,
+            identifier: '0xAddressOne',
+            nonce: 'nonce-for-one-a',
+          },
+          {
+            expires_in: 300,
+            identifier: '0xAddressOne',
+            nonce: 'nonce-for-one-b',
+          },
+          {
+            expires_in: 300,
+            identifier: '0xAddressTwo',
+            nonce: 'nonce-for-two',
           },
         ]);
       const { service, rootMessenger } = getService();

@@ -349,7 +349,7 @@ export class ProfileMetricsService {
         result[entry.identifier] = entry.nonce;
       }
       const echoesRequest =
-        Object.keys(result).length === identifiers.length &&
+        body.length === identifiers.length &&
         identifiers.every((id) =>
           Object.prototype.hasOwnProperty.call(result, id),
         );
