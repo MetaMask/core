@@ -268,17 +268,6 @@ export class SnapAccountService {
   }
 
   /**
-   * Initializes the snap account service.
-   *
-   * Seeds the internal set of account-management Snaps from
-   * `SnapController:getRunnableSnaps`, then starts processing lifecycle
-   * events.
-   */
-  async init(): Promise<void> {
-    await this.#tracker.init();
-  }
-
-  /**
    * Returns the IDs of all currently tracked account-management Snaps —
    * Snaps that are installed, enabled, not blocked, and have the
    * `endowment:keyring` permission.
