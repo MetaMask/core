@@ -1,4 +1,5 @@
 import { deriveStateFromMetadata } from '@metamask/base-controller';
+import { KeyringTypes } from '@metamask/keyring-controller';
 import nock from 'nock';
 
 import { Env, getEnvUrls } from '../../sdk';
@@ -720,6 +721,43 @@ describe('UserStorageController', () => {
       expect(await controller.getStorageKey()).toBe(MOCK_STORAGE_KEY);
     });
 
+    it('does not serve the cached primary key to a new primary after a vault restore regenerates the entropy source id', async () => {
+      const messengerMocks = mockUserStorageMessenger();
+      // The signed message (`metamask:${profileId}`) is identical across both
+      // calls, so the only thing that can isolate the two vaults is the entropy
+      // scope. The HD keyring metadata id is randomly regenerated on restore.
+      messengerMocks.mockSnapSignMessage
+        .mockResolvedValueOnce('signature-before-restore')
+        .mockResolvedValueOnce('signature-after-restore');
+
+      const controller = new UserStorageController({
+        messenger: messengerMocks.messenger,
+      });
+
+      const keyBeforeRestore = await controller.getStorageKey();
+
+      // Simulate a vault restore: same primary slot, brand-new entropy id.
+      messengerMocks.mockKeyringGetState.mockReturnValue({
+        isUnlocked: true,
+        keyrings: [
+          {
+            type: KeyringTypes.hd,
+            accounts: [],
+            metadata: { id: 'restored-entropy-source-id', name: '' },
+          },
+        ],
+      });
+
+      const keyAfterRestore = await controller.getStorageKey();
+
+      // The regenerated id changes the cache scope, so the new primary must
+      // re-derive its own key instead of inheriting the previous vault's cached
+      // key — proving no `'primary'`-style stable key carries across restores.
+      expect(messengerMocks.mockSnapSignMessage).toHaveBeenCalledTimes(2);
+      expect(keyAfterRestore).not.toBe(keyBeforeRestore);
+      expect(keyAfterRestore).toBe(createSHA256Hash('signature-after-restore'));
+    });
+
     it('serves the snap signature from the entropy-scoped cache for the same entropy source, even after the storage-key cache is flushed', async () => {
       const messengerMocks = mockUserStorageMessenger();
       const controller = new UserStorageController({
@@ -826,7 +864,13 @@ describe('UserStorageController', () => {
 
       messengerMocks.mockKeyringGetState.mockReturnValue({
         isUnlocked: true,
-        keyrings: [],
+        keyrings: [
+          {
+            type: KeyringTypes.hd,
+            accounts: [],
+            metadata: { id: 'primary-entropy-source-id', name: '' },
+          },
+        ],
       });
 
       const controller = new UserStorageController({

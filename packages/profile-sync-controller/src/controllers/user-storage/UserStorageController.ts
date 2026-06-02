@@ -242,9 +242,10 @@ export class UserStorageController extends BaseController<
 
   #isUnlocked = false;
 
-  // Keyed by `${entropySourceId}:${message}` so two SRPs that transiently
-  // resolve to the same `profileId` can never share a cached storage key
-  // and leak data across each other's user storage.
+  // Keyed by `${entropySourceId}:${message}` (the primary SRP resolves to its
+  // HD keyring metadata ID) so two SRPs that transiently resolve to the same
+  // `profileId` can never share a cached storage key and leak data across each
+  // other's user storage.
   #storageKeyCache: Record<string, string> = {};
 
   readonly #keyringController = {
@@ -326,10 +327,19 @@ export class UserStorageController extends BaseController<
       },
       {
         storage: {
-          getStorageKey: async (message, entropySourceId) =>
-            this.#storageKeyCache[
-              this.#scopedCacheKey(message, entropySourceId)
-            ] ?? null,
+          getStorageKey: async (message, entropySourceId) => {
+            // No derived key can exist while locked (the KeyringController
+            // clears its keyrings on lock, so the scope is unresolvable).
+            if (!this.#isUnlocked) {
+              return null;
+            }
+            return (
+              this.#storageKeyCache[
+                this.#scopedCacheKey(message, entropySourceId)
+              ] ?? null
+            );
+          },
+          // Only ever reached after a successful signature, i.e. while unlocked.
           setStorageKey: async (message, key, entropySourceId) => {
             this.#storageKeyCache[
               this.#scopedCacheKey(message, entropySourceId)
@@ -517,10 +527,39 @@ export class UserStorageController extends BaseController<
       );
     }
 
+    return this.#getHdKeyringEntropySourceIds();
+  }
+
+  /**
+   * Reads the HD keyring entropy source IDs (metadata IDs) from the
+   * KeyringController, primary first. Returns an empty array when none are
+   * available (e.g. the wallet is locked, where `keyrings` is cleared).
+   *
+   * @returns The HD keyring metadata IDs, primary first.
+   */
+  #getHdKeyringEntropySourceIds(): string[] {
     const { keyrings } = this.messenger.call('KeyringController:getState');
-    return keyrings
+    return (keyrings ?? [])
       .filter((keyring) => keyring.type === KeyringTypes.hd.toString())
       .map((keyring) => keyring.metadata.id);
+  }
+
+  /**
+   * Resolves the primary SRP's entropy source ID (the first HD keyring's
+   * metadata ID), used to scope the primary's cache entries. The ID is randomly
+   * regenerated whenever the vault is recreated (e.g. on restore), so a new
+   * primary can never inherit a previous vault's cached key.
+   *
+   * @returns The primary HD keyring metadata ID.
+   * @throws If no HD keyring is available; callers must only resolve the scope
+   * while the wallet is unlocked.
+   */
+  #getPrimaryEntropySourceId(): string {
+    const [primaryEntropySourceId] = this.#getHdKeyringEntropySourceIds();
+    if (!primaryEntropySourceId) {
+      throw new Error('#getPrimaryEntropySourceId - no HD keyring available');
+    }
+    return primaryEntropySourceId;
   }
 
   #_snapSignMessageCache: Record<string, string> = {};
@@ -530,15 +569,21 @@ export class UserStorageController extends BaseController<
    * signature/storage key derivation stays isolated even when two SRPs
    * transiently resolve to the same `profileId` (see `#storageKeyCache`).
    *
+   * When `entropySourceId` is omitted (primary SRP), it is resolved to the
+   * primary HD keyring's metadata ID rather than a stable literal. Because that
+   * ID is randomly regenerated whenever the vault is recreated (e.g. on
+   * restore), the cached entry is naturally invalidated across vaults — a
+   * different SRP can never inherit the previous primary's cached key.
+   *
    * @param message - The tagged message used for signing.
-   * @param entropySourceId - The entropy source ID (omitted for the primary).
+   * @param entropySourceId - The entropy source ID. Omit for the primary SRP.
    * @returns The scoped cache key.
    */
   #scopedCacheKey(
     message: `metamask:${string}`,
     entropySourceId?: string,
   ): string {
-    return `${entropySourceId ?? 'primary'}:${message}`;
+    return `${entropySourceId ?? this.#getPrimaryEntropySourceId()}:${message}`;
   }
 
   /**
@@ -553,15 +598,15 @@ export class UserStorageController extends BaseController<
     message: `metamask:${string}`,
     entropySourceId?: string,
   ): Promise<string> {
-    const cacheKey = this.#scopedCacheKey(message, entropySourceId);
-    if (this.#_snapSignMessageCache[cacheKey]) {
-      return this.#_snapSignMessageCache[cacheKey];
-    }
-
     if (!this.#isUnlocked) {
       throw new Error(
         '#snapSignMessage - unable to call snap, wallet is locked',
       );
+    }
+
+    const cacheKey = this.#scopedCacheKey(message, entropySourceId);
+    if (this.#_snapSignMessageCache[cacheKey]) {
+      return this.#_snapSignMessageCache[cacheKey];
     }
 
     const result = (await this.messenger.call(
