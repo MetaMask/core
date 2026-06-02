@@ -35,10 +35,6 @@ export const approvalController: InitializationConfiguration<
     new ApprovalController({
       state,
       messenger,
-      // The consumer supplies the callback that surfaces a pending request to
-      // the user; default to a no-op so the controller works headlessly (this
-      // matches mobile, which drives approvals through state; the extension
-      // injects its own).
       showApprovalRequest:
         options.showApprovalRequest ?? ((): void => undefined),
       typesExcludedFromRateLimiting:
