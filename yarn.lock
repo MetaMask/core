@@ -1192,23 +1192,23 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@farmslot/protocol@npm:0.5.0":
-  version: 0.5.0
-  resolution: "@farmslot/protocol@npm:0.5.0"
-  checksum: 10/c74ef9a979d86e68ad96aa0c66a063ebd04f37d4f788881a40f2a8b423444ff663cfe9a25033c902ed7b332febc77057ca93649a15bc5330312cec85c768d9d9
+"@farmslot/protocol@npm:0.6.0":
+  version: 0.6.0
+  resolution: "@farmslot/protocol@npm:0.6.0"
+  checksum: 10/93d3c51506f50e2dad42c8d0c684ff01804fb7139578a97b839289b25810b448035613eb1f629bbbb57dec55e4302602137ebd9cebc3509b4a4fb536e835375b
   languageName: node
   linkType: hard
 
-"@farmslot/recipe-harness@npm:^0.1.0":
-  version: 0.1.0
-  resolution: "@farmslot/recipe-harness@npm:0.1.0"
+"@farmslot/recipe-harness@npm:^0.2.0":
+  version: 0.2.0
+  resolution: "@farmslot/recipe-harness@npm:0.2.0"
   dependencies:
-    "@farmslot/protocol": "npm:0.5.0"
+    "@farmslot/protocol": "npm:0.6.0"
     commander: "npm:^12.0.0"
     ws: "npm:^8.18.0"
   bin:
-    farmslot-recipe: bin/farmslot-recipe.mjs
-  checksum: 10/2eff614a2f9bf2331844a1ea5535ae941446a2a7a8bddaa582348fdab7c4da5fc6211a633064d005d08354bbbba055e004183908cdf19b04cd9061c84d54c63b
+    farmslot-recipe: ./bin/farmslot-recipe.mjs
+  checksum: 10/0ccaf42909e17849c31b1e457a0e417d010e2679def0282594d86fe5ff1519161fa3327ca1851bb00987e6edbd4dbf5fc0f20ed410fcf80816a30417ca95e9c2
   languageName: node
   linkType: hard
 
@@ -5000,7 +5000,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@metamask/perps-controller@workspace:packages/perps-controller"
   dependencies:
-    "@farmslot/recipe-harness": "npm:^0.1.0"
+    "@farmslot/recipe-harness": "npm:^0.2.0"
     "@metamask/abi-utils": "npm:^2.0.3"
     "@metamask/account-tree-controller": "npm:^7.5.0"
     "@metamask/auto-changelog": "npm:^6.1.0"

@@ -107,7 +107,7 @@
     "uuid": "^8.3.2"
   },
   "devDependencies": {
-    "@farmslot/recipe-harness": "^0.1.0",
+    "@farmslot/recipe-harness": "^0.2.0",
     "@metamask/account-tree-controller": "^7.5.0",
     "@metamask/auto-changelog": "^6.1.0",
     "@metamask/geolocation-controller": "^0.1.3",
