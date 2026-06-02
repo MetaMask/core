@@ -121,9 +121,10 @@ jobs:
     name: Create update issues
     needs: [is-release, publish-release]
     if: needs.is-release.outputs.IS_RELEASE == 'true'
-    uses: ./.github/workflows/create-update-issues.yaml
-    secrets:
-      CORE_CREATE_UPDATE_ISSUES_TOKEN: ${{ secrets.CORE_CREATE_UPDATE_ISSUES_TOKEN }}
+    uses: ./.github/workflows/create-update-issues.yml
+    permissions:
+      contents: read
+      id-token: write
 
   all-jobs-complete:
     name: All jobs complete

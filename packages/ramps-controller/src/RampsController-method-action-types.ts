@@ -204,6 +204,18 @@ export type RampsControllerSetSelectedPaymentMethodAction = {
  * @param options.walletAddress - The destination wallet address.
  * @param options.paymentMethods - Array of payment method IDs. If not provided, uses paymentMethods from state.
  * @param options.providers - Optional provider IDs to filter quotes.
+ * @param options.autoSelectProvider - When true and `providers` is omitted,
+ * resolves a provider that supports `assetId` for this request only (no
+ * state mutation). Ignored when `providers` is passed.
+ * @param options.preferredProviderIds - Optional provider IDs to prefer
+ * during auto-selection, in priority order (e.g. derived by the caller
+ * from completed-order history). Only used when `autoSelectProvider` is
+ * true and `providers` is omitted.
+ * @param options.restrictToKnownOrNativeProviders - Headless-buy v0 gating. When
+ * true, auto-selection resolves only a native provider, and an explicitly
+ * passed `providers` list is filtered to those supporting the region and
+ * asset. If nothing qualifies, `getQuotes` returns an empty response
+ * instead of quoting other providers.
  * @param options.redirectUrl - Optional redirect URL after order completion.
  * @param options.action - The ramp action type. Defaults to 'buy'.
  * @param options.forceRefresh - Whether to bypass cache.
