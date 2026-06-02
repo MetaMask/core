@@ -1,5 +1,6 @@
 import { getAuthenticatedStorageUrl } from '../../src/authenticated-user-storage';
 import type {
+  AssetsWatchlistBlob,
   DelegationResponse,
   DelegationSubmission,
   NotificationPreferences,
@@ -7,6 +8,7 @@ import type {
 
 export const MOCK_DELEGATIONS_URL = `${getAuthenticatedStorageUrl('prod')}/delegations`;
 export const MOCK_NOTIFICATION_PREFERENCES_URL = `${getAuthenticatedStorageUrl('prod')}/preferences/notifications`;
+export const MOCK_ASSETS_WATCHLIST_URL = `${getAuthenticatedStorageUrl('prod')}/assets-watchlist`;
 
 export const MOCK_DELEGATION_SUBMISSION: DelegationSubmission = {
   signedDelegation: {
@@ -67,3 +69,16 @@ export const MOCK_NOTIFICATION_PREFERENCES: NotificationPreferences = {
     ],
   },
 };
+
+export const MOCK_ASSETS_WATCHLIST_BLOB: AssetsWatchlistBlob = {
+  version: 1,
+  assets: [
+    'eip155:1/erc20:0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48',
+    'eip155:1/slip44:60',
+  ],
+};
+
+export const MOCK_INVALID_ASSETS_WATCHLIST_BLOB = {
+  version: 2,
+  assets: 'not-an-array',
+} as const;

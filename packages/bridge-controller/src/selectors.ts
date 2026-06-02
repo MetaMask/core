@@ -1,4 +1,5 @@
 /* eslint-disable @typescript-eslint/explicit-function-return-type */
+import { getAddress } from '@ethersproject/address';
 import type {
   CurrencyRateState,
   MultichainAssetsRatesControllerState,
@@ -51,6 +52,7 @@ import {
   calcToAmount,
   calcTotalEstimatedNetworkFee,
   calcTotalMaxNetworkFee,
+  calcBatchFees,
 } from './utils/quote';
 import { getDefaultSlippagePercentage } from './utils/slippage';
 
@@ -110,6 +112,9 @@ type BridgeQuotesClientParams = {
   selectedQuote: (QuoteResponse & QuoteMetadata) | null;
 };
 
+type EvmTokenExchangeRate = { price?: number; currency?: string };
+type EvmTokenExchangeRates = Record<string, EvmTokenExchangeRate>;
+
 const createFeatureFlagsSelector =
   createSelector_.withTypes<RemoteFeatureFlagControllerState>();
 
@@ -138,6 +143,20 @@ export const selectBridgeFeatureFlags = createFeatureFlagsSelector(
   [(state) => state.remoteFeatureFlags.bridgeConfig],
   (bridgeConfig: unknown) => processFeatureFlags(bridgeConfig),
 );
+
+const getEvmTokenExchangeRateForAddress = (
+  evmTokenExchangeRates: EvmTokenExchangeRates | undefined,
+  address: string,
+): EvmTokenExchangeRate | null | undefined => {
+  try {
+    return isStrictHexString(address)
+      ? (evmTokenExchangeRates?.[getAddress(address)] ??
+          evmTokenExchangeRates?.[address.toLowerCase()])
+      : null;
+  } catch {
+    return null;
+  }
+};
 
 /**
  * Selects the asset exchange rate for a given chain and address
@@ -225,14 +244,13 @@ export const selectExchangeRateByAssetId = (
   // If the chain is an EVM chain and the asset is not the native asset, use the conversion rate from the token rates controller
   if (!isNonEvmChainId(chainId)) {
     const marketDataByChain =
-      (marketData as
-        | Record<string, Record<string, { price?: number; currency?: string }>>
-        | undefined) ?? {};
+      (marketData as Record<string, EvmTokenExchangeRates> | undefined) ?? {};
     const evmTokenExchangeRates =
       marketDataByChain[formatChainIdToHex(chainId)];
-    const evmTokenExchangeRateForAddress = isStrictHexString(address)
-      ? evmTokenExchangeRates?.[address]
-      : null;
+    const evmTokenExchangeRateForAddress = getEvmTokenExchangeRateForAddress(
+      evmTokenExchangeRates,
+      address,
+    );
     const currencyKey = evmTokenExchangeRateForAddress?.currency;
     const nativeCurrencyRate =
       currencyKey !== undefined && currencyKey !== null
@@ -615,7 +633,7 @@ const selectMetadataSum = createBridgeSelector(
  *
  * @example
  * ```ts
- * const quotes = useSelector(state => selectBridgeQuotesBatch(
+ * const quotes = useSelector(state => selectBatchSellQuotes(
  *   { ...state.metamask },
  *   {
  *     sortOrder: state.bridge.sortOrder,
@@ -630,9 +648,6 @@ export const selectBatchSellQuotes = createStructuredBridgeSelector({
     selectMetadataSum(state, { ...opts, key: 'toTokenAmount' }),
   minimumReceived: (state, opts) =>
     selectMetadataSum(state, { ...opts, key: 'minToTokenAmount' }),
-  // TODO call estimation API
-  totalNetworkFee: (state, opts) =>
-    selectMetadataSum(state, { ...opts, key: 'totalNetworkFee' }),
   quotesLastFetchedMs: (state) => state.quotesLastFetched,
   isLoading: (state) => state.quotesLoadingStatus === RequestStatus.LOADING,
   quoteFetchError: (state) => state.quoteFetchError,
@@ -640,6 +655,55 @@ export const selectBatchSellQuotes = createStructuredBridgeSelector({
   quotesInitialLoadTimeMs: (state) => state.quotesInitialLoadTime,
   isQuoteGoingToRefresh: selectIsQuoteGoingToRefresh,
 });
+
+const selectBatchSellFees = createBridgeSelector(
+  [
+    (state) => state.batchSellTrades?.fee?.amount,
+    (state) => state.batchSellTrades?.fee?.asset,
+    (state) =>
+      selectExchangeRateByAssetId(
+        state,
+        state.batchSellTrades?.fee?.asset?.assetId,
+      ),
+  ],
+  (feeAmount, feeAsset, exchangeRate) => {
+    return feeAmount && feeAsset && exchangeRate
+      ? calcBatchFees(feeAmount, feeAsset, exchangeRate)
+      : undefined;
+  },
+);
+
+/**
+ * Selects the batch transactions and fees for a batch of quotes
+ *
+ * @param state - The state of the bridge controller and its dependency controllers
+ * @returns The total transaction fees and whether the batch sell trades are submittable.
+ *
+ * @example
+ * ```ts
+ * const { totalNetworkFee, isBatchSellTradeAvailable } = useSelector(state => selectBatchSellTrades(state.metamask));
+ * ```
+ */
+export const selectBatchSellTrades = createBridgeSelector(
+  [
+    (state) => state.batchSellTradesLoadingStatus === RequestStatus.FETCHED,
+    (state) => state.batchSellTrades,
+    selectBatchSellFees,
+    (state) => state.batchSellTradesLoadingStatus === RequestStatus.LOADING,
+  ],
+  (isBatchSellTradeAvailable, batchSellTrades, batchFees, isLoading) => {
+    return {
+      totalNetworkFee: batchFees,
+      /**
+       * Whether the batch sell trades have been fetched and transactions are ready to be submitted
+       */
+      isBatchSellTradeAvailable:
+        isBatchSellTradeAvailable &&
+        Boolean(batchSellTrades?.transactions?.length),
+      isLoading,
+    };
+  },
+);
 
 export const selectMinimumBalanceForRentExemptionInSOL = (
   state: BridgeAppState,

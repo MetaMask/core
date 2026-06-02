@@ -4,12 +4,15 @@ import type { CaipAssetType } from '@metamask/utils';
 import mockBridgeQuotesErc20Erc20 from '../../tests/mock-quotes-erc20-erc20.json';
 import mockBridgeQuotesNativeErc20 from '../../tests/mock-quotes-native-erc20.json';
 import { BridgeClientId, BRIDGE_PROD_API_BASE_URL } from '../constants/bridge';
+import { QuoteResponse } from '../types';
 import {
   fetchBridgeQuotes,
   fetchBridgeTokens,
   fetchAssetPrices,
+  fetchBatchSellTrades,
+  formatBatchSellTradesRequest,
 } from './fetch';
-import { FeatureId } from './validators';
+import { BatchSellTransactionType, FeatureId } from './validators';
 
 const mockFetchFn = jest.fn();
 
@@ -693,6 +696,239 @@ describe('fetch', () => {
 
       expect(result).toStrictEqual({});
       expect(mockFetchFn).toHaveBeenCalledTimes(3);
+    });
+  });
+
+  describe('fetchBatchSellTrades', () => {
+    const mockConsoleWarn = jest
+      .spyOn(console, 'warn')
+      .mockImplementation(jest.fn());
+    const mockBatchSellTrades = {
+      transactions: mockBridgeQuotesErc20Erc20.flatMap(
+        ({ trade, approval }) => [
+          {
+            ...trade,
+            type: BatchSellTransactionType.TRADE,
+            maxFeePerGas: '0x123',
+            maxPriorityFeePerGas: '0x456',
+          },
+          {
+            ...approval,
+            type: BatchSellTransactionType.APPROVAL,
+            maxFeePerGas: '0x123',
+            maxPriorityFeePerGas: '0x456',
+          },
+        ],
+      ),
+      fee: {
+        amount: '100',
+        asset: {
+          symbol: 'USDC',
+          chainId: 10,
+          address: '0x1f9840a85d5af5bf1d1762f925bdaddc4201f984',
+          name: 'USD Coin',
+          decimals: 6,
+          assetId: 'eip155:10/erc20:0x0b2c639c533813f4aa9d7837caf62653d097ff85',
+        } as const,
+      },
+    };
+
+    it('should fetch batch sell trades', async () => {
+      mockFetchFn.mockResolvedValue({
+        ok: true,
+        json: jest.fn().mockResolvedValue(mockBatchSellTrades),
+      });
+      const { signal } = new AbortController();
+
+      const result = await fetchBatchSellTrades(
+        mockBridgeQuotesErc20Erc20 as unknown as QuoteResponse[],
+        signal,
+        BridgeClientId.EXTENSION,
+        'AUTH_TOKEN',
+        mockFetchFn,
+        BRIDGE_PROD_API_BASE_URL,
+        '1.0.0',
+      );
+
+      expect(mockFetchFn).toHaveBeenCalledWith(
+        'https://bridge.api.cx.metamask.io/obtainGaslessBatch',
+        {
+          headers: {
+            'X-Client-Id': 'extension',
+            'Client-Version': '1.0.0',
+            Authorization: 'Bearer AUTH_TOKEN',
+            'Content-Type': 'application/json',
+          },
+          signal,
+          method: 'POST',
+          body: JSON.stringify(
+            formatBatchSellTradesRequest(
+              mockBridgeQuotesErc20Erc20 as unknown as QuoteResponse[],
+            ),
+          ),
+        },
+      );
+
+      expect(result).toStrictEqual(mockBatchSellTrades);
+      expect(mockConsoleWarn).not.toHaveBeenCalled();
+      mockConsoleWarn.mockRestore();
+    });
+
+    it('should rethrow fetch error', async () => {
+      mockFetchFn.mockResolvedValue({
+        ok: false,
+        statusText: 'Fetch error',
+      });
+      const { signal } = new AbortController();
+
+      await expect(
+        fetchBatchSellTrades(
+          mockBridgeQuotesErc20Erc20 as unknown as QuoteResponse[],
+          signal,
+          BridgeClientId.EXTENSION,
+          'AUTH_TOKEN',
+          mockFetchFn,
+          BRIDGE_PROD_API_BASE_URL,
+          '1.0.0',
+        ),
+      ).rejects.toThrow('Fetch error');
+
+      expect(mockFetchFn).toHaveBeenCalledWith(
+        'https://bridge.api.cx.metamask.io/obtainGaslessBatch',
+        {
+          headers: {
+            'X-Client-Id': 'extension',
+            'Client-Version': '1.0.0',
+            Authorization: 'Bearer AUTH_TOKEN',
+            'Content-Type': 'application/json',
+          },
+          signal,
+          method: 'POST',
+          body: JSON.stringify(
+            formatBatchSellTradesRequest(
+              mockBridgeQuotesErc20Erc20 as unknown as QuoteResponse[],
+            ),
+          ),
+        },
+      );
+
+      expect(mockConsoleWarn).not.toHaveBeenCalled();
+      mockConsoleWarn.mockRestore();
+    });
+
+    it('should fetch batch sell trades (malformed response)', async () => {
+      mockFetchFn.mockResolvedValueOnce({
+        ok: true,
+        json: jest.fn().mockResolvedValue({
+          ...mockBatchSellTrades,
+          transactions: mockBatchSellTrades.transactions.map(
+            ({ maxFeePerGas, maxPriorityFeePerGas, ...rest }) => rest,
+          ),
+        }),
+      });
+      mockFetchFn.mockResolvedValueOnce({
+        ok: true,
+        json: jest.fn().mockResolvedValue({
+          ...mockBatchSellTrades,
+          transactions: mockBatchSellTrades.transactions.map((trade) => ({
+            ...trade,
+            maxFeePerGas: 1000,
+            maxPriorityFeePerGas: 1000,
+          })),
+        }),
+      });
+      mockFetchFn.mockResolvedValueOnce({
+        ok: true,
+        json: jest.fn().mockResolvedValue({
+          ...mockBatchSellTrades,
+          transactions: mockBatchSellTrades.transactions.map((trade) => ({
+            ...trade,
+            maxFeePerGas: '1000',
+            maxPriorityFeePerGas: '1000',
+          })),
+        }),
+      });
+      mockFetchFn.mockResolvedValueOnce({
+        ok: true,
+        json: jest.fn().mockResolvedValue({
+          ...mockBatchSellTrades,
+          transactions: mockBatchSellTrades.transactions.map((trade) => ({
+            ...trade,
+            maxFeePerGas: 0x123,
+            maxPriorityFeePerGas: 0x456,
+          })),
+        }),
+      });
+
+      const { signal } = new AbortController();
+
+      await expect(
+        fetchBatchSellTrades(
+          [...(mockBridgeQuotesErc20Erc20 as unknown as QuoteResponse[]), null],
+          signal,
+          BridgeClientId.EXTENSION,
+          'AUTH_TOKEN',
+          mockFetchFn,
+          BRIDGE_PROD_API_BASE_URL,
+          '1.0.0',
+        ),
+      ).rejects.toThrow('Invalid batch simulation response');
+
+      const result = await Promise.allSettled(
+        Array.from({ length: 3 }, () =>
+          fetchBatchSellTrades(
+            mockBridgeQuotesErc20Erc20 as unknown as QuoteResponse[],
+            signal,
+            BridgeClientId.EXTENSION,
+            'AUTH_TOKEN',
+            mockFetchFn,
+            BRIDGE_PROD_API_BASE_URL,
+            '1.0.0',
+          ),
+        ),
+      );
+
+      expect(mockFetchFn).toHaveBeenCalledTimes(4);
+      expect(mockFetchFn).toHaveBeenCalledWith(
+        'https://bridge.api.cx.metamask.io/obtainGaslessBatch',
+        {
+          headers: {
+            'X-Client-Id': 'extension',
+            'Client-Version': '1.0.0',
+            Authorization: 'Bearer AUTH_TOKEN',
+            'Content-Type': 'application/json',
+          },
+          signal,
+          method: 'POST',
+          body: JSON.stringify(
+            formatBatchSellTradesRequest(
+              mockBridgeQuotesErc20Erc20 as unknown as QuoteResponse[],
+            ),
+          ),
+        },
+      );
+
+      expect(
+        // @ts-expect-error - reason is not in type
+        result.map((error) => ({ ...error, reason: error.reason?.message })),
+      ).toMatchInlineSnapshot(`
+        [
+          {
+            "reason": "Invalid batch simulation response. StructError: At path: transactions.0.maxFeePerGas -- Expected a value of type \`HexString\`, but received: \`1000\`",
+            "status": "rejected",
+          },
+          {
+            "reason": "Invalid batch simulation response. StructError: At path: transactions.0.maxFeePerGas -- Expected a value of type \`HexString\`, but received: \`"1000"\`",
+            "status": "rejected",
+          },
+          {
+            "reason": "Invalid batch simulation response. StructError: At path: transactions.0.maxFeePerGas -- Expected a value of type \`HexString\`, but received: \`291\`",
+            "status": "rejected",
+          },
+        ]
+      `);
+      expect(mockConsoleWarn).not.toHaveBeenCalled();
+      mockConsoleWarn.mockRestore();
     });
   });
 });
