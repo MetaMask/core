@@ -191,16 +191,16 @@ type AccountDataUpdatedKeyringEvent =
 /**
  * Checks if a Snap message method is an account data update event.
  *
- * @param method - The Snap message method.
+ * @param event - The Snap message event.
  * @returns `true` if the method can be forwarded without the legacy Snap keyring.
  */
 function isAccountDataUpdatedKeyringEvent(
-  method: string,
-): method is AccountDataUpdatedKeyringEvent {
+  event: string,
+): event is AccountDataUpdatedKeyringEvent {
   return (
-    method === KeyringEvent.AccountAssetListUpdated ||
-    method === KeyringEvent.AccountBalancesUpdated ||
-    method === KeyringEvent.AccountTransactionsUpdated
+    event === KeyringEvent.AccountAssetListUpdated ||
+    event === KeyringEvent.AccountBalancesUpdated ||
+    event === KeyringEvent.AccountTransactionsUpdated
   );
 }
 
@@ -447,17 +447,17 @@ export class SnapAccountService {
     snapId: SnapId,
     message: SnapMessage,
   ): Promise<Json> {
-    const { method } = message;
-
-    if (isAccountDataUpdatedKeyringEvent(method)) {
-      return this.#publishAccountDataUpdatedEvent(snapId, method, message);
+    const { method: event } = message;
+    if (isAccountDataUpdatedKeyringEvent(event)) {
+      return this.#publishAccountDataUpdatedEvent(snapId, event, message);
     }
 
     let snapKeyring: LegacySnapKeyring | undefined =
       await this.#getLegacySnapKeyringIfAvailable();
 
     // Handle specific methods first.
-    if (message.method === SnapManageAccountsMethod.GetSelectedAccounts) {
+    const { method } = message;
+    if (method === SnapManageAccountsMethod.GetSelectedAccounts) {
       if (snapKeyring) {
         // The legacy Snap keyring already maintain a local list of selected accounts per Snaps, so we
         // just delegate the call.
@@ -469,7 +469,6 @@ export class SnapAccountService {
       return [];
     }
 
-    const event = message.method as KeyringEvent; // We assume the Snap platform always sends a valid `KeyringEvent` here.
     log(
       `Forwarding message "${event}" from Snap "${snapId}" to its keyring...`,
     );
@@ -497,42 +496,40 @@ export class SnapAccountService {
    * Publishes an account data update event from a Snap.
    *
    * @param snapId - ID of the Snap.
-   * @param method - Account data update event method.
+   * @param event - Account data update event.
    * @param message - Message sent by the Snap.
    * @returns `null`.
    */
   #publishAccountDataUpdatedEvent(
     snapId: SnapId,
-    method: AccountDataUpdatedKeyringEvent,
+    event: AccountDataUpdatedKeyringEvent,
     message: SnapMessage,
   ): null {
     log(
-      `Forwarding message "${method}" from Snap "${snapId}" as a SnapAccountService event...`,
+      `Forwarding message "${event}" from Snap "${snapId}" as a SnapAccountService event...`,
     );
 
-    if (method === KeyringEvent.AccountAssetListUpdated) {
+    if (event === KeyringEvent.AccountAssetListUpdated) {
       assertStruct(message, AccountAssetListUpdatedEventStruct);
       this.#messenger.publish(
         'SnapAccountService:accountAssetListUpdated',
         message.params,
       );
-      return null;
-    }
-
-    if (method === KeyringEvent.AccountBalancesUpdated) {
+    } else if (event === KeyringEvent.AccountBalancesUpdated) {
       assertStruct(message, AccountBalancesUpdatedEventStruct);
       this.#messenger.publish(
         'SnapAccountService:accountBalancesUpdated',
         message.params,
       );
-      return null;
+    } else if (event === KeyringEvent.AccountTransactionsUpdated) {
+      assertStruct(message, AccountTransactionsUpdatedEventStruct);
+      this.#messenger.publish(
+        'SnapAccountService:accountTransactionsUpdated',
+        message.params,
+      );
     }
 
-    assertStruct(message, AccountTransactionsUpdatedEventStruct);
-    this.#messenger.publish(
-      'SnapAccountService:accountTransactionsUpdated',
-      message.params,
-    );
+    // We need to return a valid JSON value, so we cannot use `undefined` here.
     return null;
   }
 
