@@ -35,13 +35,33 @@ jobs:
           path: .platform-api-docs/build/
           retention-days: ${{ github.ref == 'refs/heads/main' && github.event_name == 'push' && 1 || 7 }}
 
-  deploy:
-    name: Deploy to GitHub Pages
+  get-token:
+    name: Get access token
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     needs: build-docs
     runs-on: ubuntu-latest
+    environment: github-pages
     permissions:
-      contents: write
+      id-token: write
+    outputs:
+      token: ${{ steps.get-token.outputs.token }}
+    steps:
+      - name: Get access token
+        id: get-token
+        uses: MetaMask/github-tools/.github/actions/get-token@v1
+        with:
+          token-exchange-url: ${{ vars.TOKEN_EXCHANGE_URL }}
+          permissions: |
+            contents: write
+
+  deploy:
+    name: Deploy to GitHub Pages
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    needs:
+      - build-docs
+      - get-token
+    runs-on: ubuntu-latest
+    environment: github-pages
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -57,7 +77,11 @@ jobs:
       - name: Deploy to GitHub Pages
         uses: peaceiris/actions-gh-pages@4f9cc6602d3f66b9c108549d475ec49e8ef4d45e # v4.0.0
         with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
+          # Use a PAT obtained via Token Exchange Service rather than the
+          # default `GITHUB_TOKEN`. `GITHUB_TOKEN` can't be granted branch
+          # protections that disallow direct human pushes while still letting
+          # this workflow publish, which is what we want for `gh-pages`.
+          personal_token: ${{ needs.get-token.outputs.token }}
           publish_dir: ./build
           destination_dir: platform-api
           # Preserve sibling subdirectories (e.g. /package-api/) so this
