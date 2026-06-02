@@ -965,8 +965,7 @@ describe('SnapAccountProvider', () => {
       const { provider, keyring, messenger } = setup({ accounts: [account] });
       messenger.registerActionHandler(
         'AccountsController:getAccount',
-        (id: string) =>
-          [account].find((candidate) => candidate.id === id) as never,
+        (id) => (id === account.id ? (account as InternalAccount) : undefined),
       );
       provider.init([account.id]);
 

@@ -17,7 +17,10 @@ import type { KeyringObject } from '@metamask/keyring-controller';
 
 import { traceFallback } from './analytics';
 import { isPerfEnabled, withLocalPerfTrace } from './analytics/perf';
-import type { MultichainAccountServiceOptions } from './MultichainAccountService';
+import type {
+  MultichainAccountServiceOptions,
+  RemoveMultichainAccountWalletFailureContext,
+} from './MultichainAccountService';
 import { MultichainAccountService } from './MultichainAccountService';
 import type { Bip44AccountProvider } from './providers';
 import { TimeoutError } from './providers';
@@ -58,6 +61,7 @@ import {
   setupBip44AccountProvider,
 } from './tests';
 import type { MultichainAccountServiceMessenger } from './types';
+import type { SentryError } from './utils';
 
 // Mock perf helpers so tests can control isPerfEnabled() without setting DEBUG env var.
 jest.mock('./analytics/perf', () => ({
@@ -961,11 +965,16 @@ describe('MultichainAccountService', () => {
   });
 
   describe('removeMultichainAccountWallet', () => {
-    it('calls deleteAccount on the EVM provider for an EVM-only wallet and removes the wallet', async () => {
-      const mockEvmAccount = MockAccountBuilder.from(MOCK_HD_ACCOUNT_1)
+    const makeWalletAccount = <Account extends KeyringAccount>(
+      template: Account,
+    ): Account =>
+      MockAccountBuilder.from(template)
         .withEntropySource(MOCK_HD_KEYRING_1.metadata.id)
         .withGroupIndex(0)
         .get();
+
+    it('calls deleteAccount on the EVM provider for an EVM-only wallet and removes the wallet', async () => {
+      const mockEvmAccount = makeWalletAccount(MOCK_HD_ACCOUNT_1);
 
       const { service, mocks } = await setup({
         accounts: [mockEvmAccount],
@@ -995,14 +1004,8 @@ describe('MultichainAccountService', () => {
     });
 
     it('dispatches deleteAccount per provider for a wallet with EVM and Sol accounts', async () => {
-      const mockEvmAccount = MockAccountBuilder.from(MOCK_HD_ACCOUNT_1)
-        .withEntropySource(MOCK_HD_KEYRING_1.metadata.id)
-        .withGroupIndex(0)
-        .get();
-      const mockSolAccount = MockAccountBuilder.from(MOCK_SOL_ACCOUNT_1)
-        .withEntropySource(MOCK_HD_KEYRING_1.metadata.id)
-        .withGroupIndex(0)
-        .get();
+      const mockEvmAccount = makeWalletAccount(MOCK_HD_ACCOUNT_1);
+      const mockSolAccount = makeWalletAccount(MOCK_SOL_ACCOUNT_1);
 
       const { service, mocks } = await setup({
         accounts: [mockEvmAccount, mockSolAccount],
@@ -1031,14 +1034,8 @@ describe('MultichainAccountService', () => {
     });
 
     it('continues with remaining accounts and removes the wallet when one provider deleteAccount call throws', async () => {
-      const mockEvmAccount = MockAccountBuilder.from(MOCK_HD_ACCOUNT_1)
-        .withEntropySource(MOCK_HD_KEYRING_1.metadata.id)
-        .withGroupIndex(0)
-        .get();
-      const mockSolAccount = MockAccountBuilder.from(MOCK_SOL_ACCOUNT_1)
-        .withEntropySource(MOCK_HD_KEYRING_1.metadata.id)
-        .withGroupIndex(0)
-        .get();
+      const mockEvmAccount = makeWalletAccount(MOCK_HD_ACCOUNT_1);
+      const mockSolAccount = makeWalletAccount(MOCK_SOL_ACCOUNT_1);
 
       const { service, messenger, mocks } = await setup({
         accounts: [mockEvmAccount, mockSolAccount],
@@ -1058,7 +1055,25 @@ describe('MultichainAccountService', () => {
       expect(mocks.SolAccountProvider.deleteAccount).toHaveBeenCalledWith(
         mockSolAccount.id,
       );
-      expect(captureExceptionSpy).toHaveBeenCalled();
+      // A single aggregated Sentry report is fired even though only one
+      // account failed: the wallet-removal action is treated as one
+      // coherent incident.
+      expect(captureExceptionSpy).toHaveBeenCalledTimes(1);
+      const sentryError = captureExceptionSpy.mock
+        .calls[0]?.[0] as SentryError<RemoveMultichainAccountWalletFailureContext>;
+      expect(sentryError.message).toBe(
+        'Failed to delete one or more accounts during wallet removal',
+      );
+      expect(sentryError.context?.entropySource).toBe(
+        MOCK_HD_KEYRING_1.metadata.id,
+      );
+      expect(sentryError.context?.failureCount).toBe(1);
+      expect(sentryError.context?.failures).toStrictEqual([
+        expect.objectContaining({
+          provider: SOL_ACCOUNT_PROVIDER_NAME,
+          accountId: mockSolAccount.id,
+        }),
+      ]);
       expect(() =>
         service.getMultichainAccountWallet({
           entropySource: MOCK_HD_KEYRING_1.metadata.id,
@@ -1066,15 +1081,98 @@ describe('MultichainAccountService', () => {
       ).toThrow('Unknown wallet, no wallet matching this entropy source');
     });
 
+    it('aggregates multiple per-account failures into one report', async () => {
+      const mockEvmAccount = makeWalletAccount(MOCK_HD_ACCOUNT_1);
+      const mockSolAccount = makeWalletAccount(MOCK_SOL_ACCOUNT_1);
+
+      const { service, messenger, mocks } = await setup({
+        accounts: [mockEvmAccount, mockSolAccount],
+      });
+      const captureExceptionSpy = jest.spyOn(messenger, 'captureException');
+      mocks.EvmAccountProvider.deleteAccount.mockRejectedValueOnce(
+        new Error('evm keyring locked'),
+      );
+      mocks.SolAccountProvider.deleteAccount.mockRejectedValueOnce(
+        new Error('snap is unavailable'),
+      );
+
+      await service.removeMultichainAccountWallet(
+        MOCK_HD_KEYRING_1.metadata.id,
+      );
+
+      expect(captureExceptionSpy).toHaveBeenCalledTimes(1);
+      const sentryError = captureExceptionSpy.mock
+        .calls[0]?.[0] as SentryError<RemoveMultichainAccountWalletFailureContext>;
+      expect(sentryError.context?.failureCount).toBe(2);
+      expect(sentryError.context?.failures).toStrictEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            provider: EVM_ACCOUNT_PROVIDER_NAME,
+            accountId: mockEvmAccount.id,
+            error: 'evm keyring locked',
+          }),
+          expect.objectContaining({
+            provider: SOL_ACCOUNT_PROVIDER_NAME,
+            accountId: mockSolAccount.id,
+            error: 'snap is unavailable',
+          }),
+        ]),
+      );
+      expect(() =>
+        service.getMultichainAccountWallet({
+          entropySource: MOCK_HD_KEYRING_1.metadata.id,
+        }),
+      ).toThrow('Unknown wallet, no wallet matching this entropy source');
+    });
+
+    it('handles non-Error rejections in the aggregated report', async () => {
+      const mockEvmAccount = makeWalletAccount(MOCK_HD_ACCOUNT_1);
+
+      const { service, messenger, mocks } = await setup({
+        accounts: [mockEvmAccount],
+      });
+      const captureExceptionSpy = jest.spyOn(messenger, 'captureException');
+      // Real keyring code only rejects with `Error`s, but downstream
+      // messenger handlers can in principle reject with any value. The
+      // aggregator should handle that without throwing.
+      mocks.EvmAccountProvider.deleteAccount.mockRejectedValueOnce(
+        'plain string failure',
+      );
+
+      await service.removeMultichainAccountWallet(
+        MOCK_HD_KEYRING_1.metadata.id,
+      );
+
+      expect(captureExceptionSpy).toHaveBeenCalledTimes(1);
+      const sentryError = captureExceptionSpy.mock
+        .calls[0]?.[0] as SentryError<RemoveMultichainAccountWalletFailureContext>;
+      expect(sentryError.context?.failures[0]).toStrictEqual(
+        expect.objectContaining({
+          error: 'plain string failure',
+          stack: undefined,
+        }),
+      );
+    });
+
+    it('does not call captureException when all deletes succeed', async () => {
+      const mockEvmAccount = makeWalletAccount(MOCK_HD_ACCOUNT_1);
+      const mockSolAccount = makeWalletAccount(MOCK_SOL_ACCOUNT_1);
+
+      const { service, messenger } = await setup({
+        accounts: [mockEvmAccount, mockSolAccount],
+      });
+      const captureExceptionSpy = jest.spyOn(messenger, 'captureException');
+
+      await service.removeMultichainAccountWallet(
+        MOCK_HD_KEYRING_1.metadata.id,
+      );
+
+      expect(captureExceptionSpy).not.toHaveBeenCalled();
+    });
+
     it('still deletes snap-backed accounts when basic functionality is disabled', async () => {
-      const mockEvmAccount = MockAccountBuilder.from(MOCK_HD_ACCOUNT_1)
-        .withEntropySource(MOCK_HD_KEYRING_1.metadata.id)
-        .withGroupIndex(0)
-        .get();
-      const mockSolAccount = MockAccountBuilder.from(MOCK_SOL_ACCOUNT_1)
-        .withEntropySource(MOCK_HD_KEYRING_1.metadata.id)
-        .withGroupIndex(0)
-        .get();
+      const mockEvmAccount = makeWalletAccount(MOCK_HD_ACCOUNT_1);
+      const mockSolAccount = makeWalletAccount(MOCK_SOL_ACCOUNT_1);
 
       const { service, mocks } = await setup({
         accounts: [mockEvmAccount, mockSolAccount],

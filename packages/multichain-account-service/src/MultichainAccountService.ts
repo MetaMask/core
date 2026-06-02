@@ -44,6 +44,32 @@ import type {
   MultichainAccountServiceConfig,
   MultichainAccountServiceMessenger,
 } from './types';
+import { toErrorMessage } from './utils';
+
+/**
+ * Per-account failure detail attached to the aggregated Sentry report
+ * produced by {@link MultichainAccountService.removeMultichainAccountWallet}.
+ *
+ * Names the on-the-wire shape so consumers reading the Sentry context (and
+ * tests asserting on it) have one place to look.
+ */
+export type RemoveMultichainAccountWalletFailure = {
+  provider: string;
+  accountId: Bip44Account<KeyringAccount>['id'];
+  error: string;
+  stack?: string;
+};
+
+/**
+ * Aggregated context payload attached to the Sentry report produced by
+ * {@link MultichainAccountService.removeMultichainAccountWallet} when one
+ * or more per-account deletions fail.
+ */
+export type RemoveMultichainAccountWalletFailureContext = {
+  entropySource: EntropySourceId;
+  failureCount: number;
+  failures: RemoveMultichainAccountWalletFailure[];
+};
 
 export const serviceName = 'MultichainAccountService';
 
@@ -539,10 +565,12 @@ export class MultichainAccountService {
    *
    * The deletion iterates providers (the source of truth for their own
    * account lists) and filters each provider's accounts to those matching
-   * the wallet's entropy source. Per-account deletions are best-effort:
-   * a single account failure is reported via `reportError` but does not
-   * abort cleanup of the remaining accounts. The wallet is always removed
-   * from the service's internal map at the end.
+   * the wallet's entropy source. Per-account deletions are best-effort: a
+   * single account failure does not abort cleanup of the remaining
+   * accounts. If one or more deletions fail, a single aggregated error is
+   * reported via `reportError` with all per-account failure details in its
+   * context. The wallet is always removed from the service's internal map
+   * at the end.
    *
    * @param entropySource - The entropy source of the multichain account wallet.
    */
@@ -550,6 +578,11 @@ export class MultichainAccountService {
     entropySource: EntropySourceId,
   ): Promise<void> {
     const wallet = this.#getWallet(entropySource);
+    const failures: {
+      provider: string;
+      accountId: Bip44Account<KeyringAccount>['id'];
+      error: unknown;
+    }[] = [];
 
     for (const provider of this.#providers) {
       // For wrapped providers, enumerate via the underlying provider so we
@@ -569,17 +602,36 @@ export class MultichainAccountService {
         try {
           await provider.deleteAccount(account.id);
         } catch (error) {
-          reportError(
-            this.#messenger,
-            `Unable to delete account during wallet removal`,
+          failures.push({
+            provider: provider.getName(),
+            accountId: account.id,
             error,
-            {
-              provider: provider.getName(),
-              accountId: account.id,
-            },
-          );
+          });
         }
       }
+    }
+
+    if (failures.length > 0) {
+      // One aggregated report per wallet-removal action: keeps the Sentry
+      // message stable for grouping while still surfacing every per-account
+      // failure in `context`. The shape is pinned by
+      // `RemoveMultichainAccountWalletFailureContext`.
+      const context: RemoveMultichainAccountWalletFailureContext = {
+        entropySource,
+        failureCount: failures.length,
+        failures: failures.map(({ provider, accountId, error }) => ({
+          provider,
+          accountId,
+          error: toErrorMessage(error),
+          stack: error instanceof Error ? error.stack : undefined,
+        })),
+      };
+      reportError(
+        this.#messenger,
+        `Failed to delete one or more accounts during wallet removal`,
+        new Error('Wallet removal partially failed'),
+        context,
+      );
     }
 
     this.#wallets.delete(wallet.id);
