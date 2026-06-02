@@ -344,7 +344,9 @@ export class ProfileMetricsService {
       }
       const echoesRequest =
         Object.keys(result).length === identifiers.length &&
-        identifiers.every((id) => Object.hasOwn(result, id));
+        identifiers.every((id) =>
+          Object.prototype.hasOwnProperty.call(result, id),
+        );
       if (!echoesRequest) {
         throw new Error(
           `Fetching '${url.toString()}' returned a response whose identifier set does not match the request`,
