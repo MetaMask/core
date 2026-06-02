@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- `RegistryNetworkConfigSchema.assets.native.coingeckoCoinId` is now optional ([#8970](https://github.com/MetaMask/core/pull/8970))
+- **BREAKING:** `RegistryNetworkConfigSchema.assets.native.coingeckoCoinId` is now optional ([#8970](https://github.com/MetaMask/core/pull/8970))
   - The controller now accepts chains with no `assets.native.coingeckoCoinId` property in their configuration.
 
 ## [0.3.2]
