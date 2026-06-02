@@ -22,6 +22,10 @@ function statGitDir(existing: boolean): typeof import('fs').statSync {
   }) as unknown as typeof import('fs').statSync;
 }
 
+function readSkillsLocal(content: string): typeof import('fs').readFileSync {
+  return (() => content) as unknown as typeof import('fs').readFileSync;
+}
+
 function spawnWithStatuses(
   statuses: number[],
 ): typeof import('child_process').spawnSync {
@@ -50,14 +54,14 @@ describe('skills-postinstall', () => {
   });
 
   it('only auto-updates generated skills when explicitly opted in', () => {
-    expect(shouldAutoUpdateSkills({})).toBe(false);
+    expect(shouldAutoUpdateSkills({}, readSkillsLocal(''))).toBe(false);
     expect(shouldAutoUpdateSkills({ SKILLS_AUTO_UPDATE: '0' })).toBe(false);
     expect(shouldAutoUpdateSkills({ SKILLS_AUTO_UPDATE: '1' })).toBe(true);
     expect(shouldAutoUpdateSkills({ SKILLS_AUTO_UPDATE: 'true' })).toBe(true);
     expect(shouldAutoUpdateSkills({ SKILLS_AUTO_UPDATE: 'YES' })).toBe(true);
-    expect(shouldAutoUpdateSkills({}, () => 'SKILLS_AUTO_UPDATE=1\n')).toBe(
-      true,
-    );
+    expect(
+      shouldAutoUpdateSkills({}, readSkillsLocal('SKILLS_AUTO_UPDATE=1\n')),
+    ).toBe(true);
     expect(
       shouldAutoUpdateSkills(
         { SKILLS_AUTO_UPDATE: '0' },
@@ -105,7 +109,14 @@ describe('skills-postinstall', () => {
   it('does not run yarn skills by default', () => {
     const spawn = spawnWithStatuses([0, 0]);
 
-    expect(postinstall({ env: {}, spawn, stat: statGitDir(true) })).toBe(0);
+    expect(
+      postinstall({
+        env: {},
+        readFile: readSkillsLocal(''),
+        spawn,
+        stat: statGitDir(true),
+      }),
+    ).toBe(0);
 
     expect(spawn).toHaveBeenCalledTimes(2);
   });
@@ -132,8 +143,9 @@ describe('skills-postinstall', () => {
     expect(
       postinstall({
         env: {},
-        readFile: () =>
+        readFile: readSkillsLocal(
           'SKILLS_AUTO_UPDATE=1\nMETAMASK_SKILLS_DIR=/tmp/metamask-skills\n',
+        ),
         spawn,
         stat: statGitDir(false),
       }),
