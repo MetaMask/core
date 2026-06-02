@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [108.3.0]
+
+### Added
+
+- Add `fetchRwas` to fetch real-world asset tokens from the Token API ([#8931](https://github.com/MetaMask/core/pull/8931))
+
+### Changed
+
+- Bump `@metamask/account-tree-controller` from `^7.4.0` to `^7.5.0` ([#8912](https://github.com/MetaMask/core/pull/8912))
+- Bump `@metamask/accounts-controller` from `^38.1.1` to `^38.1.2` ([#8912](https://github.com/MetaMask/core/pull/8912))
+- Bump `@metamask/core-backend` from `^6.3.0` to `^6.3.1` ([#8912](https://github.com/MetaMask/core/pull/8912))
+- Bump `@metamask/keyring-controller` from `^25.5.0` to `^26.0.0` ([#8912](https://github.com/MetaMask/core/pull/8912))
+- Bump `@metamask/multichain-account-service` from `^10.0.0` to `^10.0.1` ([#8912](https://github.com/MetaMask/core/pull/8912))
+- Bump `@metamask/profile-sync-controller` from `^28.1.0` to `^28.1.1` ([#8912](https://github.com/MetaMask/core/pull/8912))
+
+## [108.2.0]
+
 ### Added
 
 - Add inEVM Mainnet (chain 2525) and ICB Network (chain 73115) to `SPOT_PRICES_SUPPORT_INFO` ([#8887](https://github.com/MetaMask/core/pull/8887))
@@ -3113,7 +3130,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Use Ethers for AssetsContractController ([#845](https://github.com/MetaMask/core/pull/845))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@108.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@108.3.0...HEAD
+[108.3.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@108.2.0...@metamask/assets-controllers@108.3.0
+[108.2.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@108.1.0...@metamask/assets-controllers@108.2.0
 [108.1.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@108.0.0...@metamask/assets-controllers@108.1.0
 [108.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@107.0.0...@metamask/assets-controllers@108.0.0
 [107.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@106.0.1...@metamask/assets-controllers@107.0.0

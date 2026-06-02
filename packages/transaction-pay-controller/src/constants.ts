@@ -70,6 +70,7 @@ export enum TransactionPayStrategy {
   Bridge = 'bridge',
   Fiat = 'fiat',
   Relay = 'relay',
+  Server = 'server',
   Test = 'test',
 }
 

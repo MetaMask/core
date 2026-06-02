@@ -4,16 +4,20 @@ import type {
   ControllerStateChangeEvent,
 } from '@metamask/base-controller';
 import type {
-  BridgeBackgroundAction,
-  BridgeControllerAction,
   ChainId,
   FeatureId,
   Quote,
   QuoteMetadata,
   QuoteResponse,
   MetaMetricsSwapsEventSource,
+  SimulatedGasFeeLimits,
+  TxData,
+  TxFeeGasLimits,
+  BridgeControllerTrackUnifiedSwapBridgeEventAction,
+  BridgeControllerStopPollingForQuotesAction,
+  BatchSellTradesResponse,
+  BridgeControllerGetStateAction,
 } from '@metamask/bridge-controller';
-import type { GetGasFeeState } from '@metamask/gas-fee-controller';
 import type { KeyringControllerSignTypedMessageAction } from '@metamask/keyring-controller';
 import type { Messenger } from '@metamask/messenger';
 import type {
@@ -33,6 +37,7 @@ import type {
   TransactionControllerTransactionStatusUpdatedEvent,
   TransactionControllerUpdateTransactionAction,
   TransactionMeta,
+  TransactionType,
 } from '@metamask/transaction-controller';
 import type { CaipAssetType } from '@metamask/utils';
 
@@ -106,6 +111,28 @@ export type StatusResponse = Infer<typeof StatusResponseSchema>;
 
 export type RefuelStatusResponse = object & StatusResponse;
 
+/**
+ * This type ties together the quote, its tx params and the submitted txMeta.
+ * Each trade/approval will have its own QuoteAndTxMetadata object.
+ */
+export type QuoteAndTxMetadata = {
+  type: TransactionType;
+  quoteResponse: QuoteResponse & QuoteMetadata;
+  /**
+   * The approval or trade object from the quote response
+   */
+  tx: TxData;
+  assetsFiatValues?: { sending?: string; receiving?: string };
+  /**
+   * The simulated gas fee limits for the transaction provided by the bridge-api
+   */
+  txFee?: SimulatedGasFeeLimits | TxFeeGasLimits;
+  /**
+   * Transaction metadata from the TransactionController after submission
+   */
+  txMeta?: TransactionMeta;
+};
+
 export type BridgeHistoryItem = {
   txMetaId?: string; // Optional: not available pre-submission or on sync failure
   actionId?: string; // Only for non-batch EVM transactions
@@ -114,6 +141,16 @@ export type BridgeHistoryItem = {
    */
   originalTransactionId?: string; // Keep original transaction ID for intent transactions
   batchId?: string;
+  /**
+   * This is defined when the history item is for a batch sell transaction
+   */
+  batchSellData?: BatchSellTradesResponse;
+  /**
+   * This is defined when the history item corresponds to the 7702 batch's delegation tx.
+   * It contains the list of quoteIds for the BatchSell quotes that are part of the 7702 batch.
+   * Each quote can be retrieved from txHistory as `txHistory[quoteId]`.
+   */
+  quoteIds?: string[];
   quote: Quote;
   status: StatusResponse;
   startTime: number; // timestamp in ms
@@ -228,6 +265,8 @@ export type QuoteMetadataSerialized = {
 export type StartPollingForBridgeTxStatusArgs = {
   bridgeTxMeta?: Pick<TransactionMeta, 'id' | 'hash' | 'batchId'>;
   actionId?: string;
+  batchSellData?: BridgeHistoryItem['batchSellData'];
+  quoteIds?: BridgeHistoryItem['quoteIds'];
   /**
    * @deprecated the txMeta or orderUid should be used instead
    */
@@ -239,7 +278,7 @@ export type StartPollingForBridgeTxStatusArgs = {
   targetContractAddress?: BridgeHistoryItem['targetContractAddress'];
   approvalTxId?: BridgeHistoryItem['approvalTxId'];
   isStxEnabled?: BridgeHistoryItem['isStxEnabled'];
-  location?: BridgeHistoryItem['location'];
+  location: MetaMetricsSwapsEventSource;
   // Legacy field for `ab_tests` metrics payload.
   abTests?: BridgeHistoryItem['abTests'];
   // New field for `active_ab_tests` metrics payload.
@@ -259,7 +298,7 @@ export type StartPollingForBridgeTxStatusArgsSerialized = Omit<
   StartPollingForBridgeTxStatusArgs,
   'quoteResponse'
 > & {
-  quoteResponse: QuoteResponse & Partial<QuoteMetadata>;
+  quoteResponse: QuoteResponse & QuoteMetadata;
 };
 
 export type SourceChainTxMetaId = string;
@@ -310,9 +349,9 @@ type AllowedActions =
   | TransactionControllerAddTransactionAction
   | TransactionControllerEstimateGasFeeAction
   | TransactionControllerIsAtomicBatchSupportedAction
-  | BridgeControllerAction<BridgeBackgroundAction.TRACK_METAMETRICS_EVENT>
-  | BridgeControllerAction<BridgeBackgroundAction.STOP_POLLING_FOR_QUOTES>
-  | GetGasFeeState
+  | BridgeControllerTrackUnifiedSwapBridgeEventAction
+  | BridgeControllerStopPollingForQuotesAction
+  | BridgeControllerGetStateAction
   | AccountsControllerGetAccountByAddressAction
   | AuthenticationControllerGetBearerTokenAction
   | KeyringControllerSignTypedMessageAction;

@@ -469,6 +469,55 @@ describe('TransactionPayController', () => {
     });
   });
 
+  describe('getPaymentOverrideData', () => {
+    it('delegates to the callback', async () => {
+      const resultMock = {
+        calls: [{ to: '0xdef' as const, data: '0xabc' as const }],
+      };
+      const getPaymentOverrideDataMock = jest
+        .fn()
+        .mockResolvedValue(resultMock);
+
+      new TransactionPayController({
+        getDelegationTransaction: jest.fn(),
+        getPaymentOverrideData: getPaymentOverrideDataMock,
+        messenger,
+      });
+
+      const requestMock = {
+        amount: '1.5',
+        transaction: TRANSACTION_META_MOCK,
+        transactionData: { isLoading: false, tokens: [] },
+      };
+
+      const result = await messenger.call(
+        'TransactionPayController:getPaymentOverrideData',
+        requestMock,
+      );
+
+      expect(getPaymentOverrideDataMock).toHaveBeenCalledWith(requestMock);
+      expect(result).toStrictEqual(resultMock);
+    });
+
+    it('returns empty array when no callback is configured', async () => {
+      new TransactionPayController({
+        getDelegationTransaction: jest.fn(),
+        messenger,
+      });
+
+      const result = await messenger.call(
+        'TransactionPayController:getPaymentOverrideData',
+        {
+          amount: '1.5',
+          transaction: TRANSACTION_META_MOCK,
+          transactionData: { isLoading: false, tokens: [] },
+        },
+      );
+
+      expect(result).toStrictEqual({ calls: [] });
+    });
+  });
+
   describe('polymarket callbacks', () => {
     const EOA_MOCK = '0x1111111111111111111111111111111111111111' as Hex;
     const DEPOSIT_WALLET_MOCK =

@@ -3,6 +3,11 @@
   "compilerOptions": {
     "baseUrl": "./"
   },
-  "references": [],
+  "references": [
+    { "path": "../base-controller/tsconfig.json" },
+    { "path": "../keyring-controller/tsconfig.json" },
+    { "path": "../messenger/tsconfig.json" },
+    { "path": "../storage-service/tsconfig.json" }
+  ],
   "include": ["../../types", "./src"]
 }
