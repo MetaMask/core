@@ -1,14 +1,8 @@
 import {
   CONNECTIVITY_STATUSES,
   ConnectivityAdapter,
-  ConnectivityController,
-  ConnectivityControllerMessenger,
   ConnectivityStatus,
 } from '@metamask/connectivity-controller';
-import { Messenger } from '@metamask/messenger';
-
-import type { DefaultActions, DefaultEvents, RootMessenger } from '../defaults';
-import type { InitializationConfiguration } from '../types';
 
 /**
  * A connectivity adapter that unconditionally reports the device as online.
@@ -46,20 +40,3 @@ export class AlwaysOnlineAdapter implements ConnectivityAdapter {
     // no-op
   }
 }
-
-export const connectivityController: InitializationConfiguration<
-  ConnectivityController,
-  ConnectivityControllerMessenger
-> = {
-  name: 'ConnectivityController',
-  init: ({ messenger, options }) =>
-    new ConnectivityController({
-      messenger,
-      connectivityAdapter: options.connectivityAdapter,
-    }),
-  getMessenger: (parent: RootMessenger<DefaultActions, DefaultEvents>) =>
-    new Messenger({
-      namespace: 'ConnectivityController',
-      parent,
-    }),
-};

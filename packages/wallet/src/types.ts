@@ -1,4 +1,3 @@
-import type { ConnectivityAdapter } from '@metamask/connectivity-controller';
 import { KeyringControllerOptions } from '@metamask/keyring-controller';
 import { StorageAdapter } from '@metamask/storage-service';
 import type { Json } from '@metamask/utils';
@@ -9,6 +8,7 @@ import type {
   RootMessenger,
 } from './initialization/defaults';
 import type { ApprovalControllerInstanceOptions } from './initialization/instances/approval-controller/types';
+import type { ConnectivityControllerInstanceOptions } from './initialization/instances/connectivity-controller/types';
 import { GenericEncryptor } from './initialization/instances/keyring-controller';
 import { InitializationConfiguration } from './initialization/types';
 
@@ -24,9 +24,7 @@ export type WalletOptions = {
 
 export type InstanceSpecificOptions = {
   approvalController?: ApprovalControllerInstanceOptions;
-  connectivityController: {
-    connectivityAdapter: ConnectivityAdapter;
-  };
+  connectivityController: ConnectivityControllerInstanceOptions;
   keyringController?: {
     encryptor?: GenericEncryptor;
     keyringBuilders?: KeyringControllerOptions['keyringBuilders'];

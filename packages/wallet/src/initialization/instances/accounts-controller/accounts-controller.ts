@@ -4,8 +4,12 @@ import {
 } from '@metamask/accounts-controller';
 import { Messenger } from '@metamask/messenger';
 
-import type { DefaultActions, DefaultEvents, RootMessenger } from '../defaults';
-import type { InitializationConfiguration } from '../types';
+import type {
+  DefaultActions,
+  DefaultEvents,
+  RootMessenger,
+} from '../../defaults';
+import type { InitializationConfiguration } from '../../types';
 
 export const accountsController: InitializationConfiguration<
   AccountsController,

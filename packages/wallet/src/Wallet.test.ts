@@ -6,7 +6,7 @@ import { webcrypto } from 'crypto';
 
 import MockEncryptor from '../../keyring-controller/tests/mocks/mockEncryptor';
 import * as initializationModule from './initialization/initialization';
-import { AlwaysOnlineAdapter } from './initialization/instances/connectivity-controller';
+import { AlwaysOnlineAdapter } from './initialization/instances/connectivity-controller/always-online-adapter';
 import { importSecretRecoveryPhrase } from './utilities';
 import { Wallet } from './Wallet';
 
