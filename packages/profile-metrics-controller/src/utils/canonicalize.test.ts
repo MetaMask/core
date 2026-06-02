@@ -15,7 +15,10 @@ describe('canonicalizeAddress', () => {
 
     it('returns the EIP-55 checksum of an all-uppercase address', () => {
       expect(
-        canonicalizeAddress(`0x${checksummed.slice(2).toUpperCase()}`, 'eip155'),
+        canonicalizeAddress(
+          `0x${checksummed.slice(2).toUpperCase()}`,
+          'eip155',
+        ),
       ).toBe(checksummed);
     });
 

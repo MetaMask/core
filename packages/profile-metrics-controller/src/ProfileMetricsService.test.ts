@@ -456,9 +456,7 @@ describe('ProfileMetricsService', () => {
         entropySourceId: 'mock-entropy-source-id',
       });
 
-      expect(bearerTokenHandler).toHaveBeenCalledWith(
-        'mock-entropy-source-id',
-      );
+      expect(bearerTokenHandler).toHaveBeenCalledWith('mock-entropy-source-id');
       const [calledUrl, calledInit] = mockFetch.mock.calls[0];
       expect(calledUrl.toString()).toBe(`${defaultBaseEndpoint}/nonce/batch`);
       expect(calledInit).toMatchObject({
@@ -521,16 +519,19 @@ describe('ProfileMetricsService', () => {
       // The chunker slices into 50 + 50 + 20. Order of completion across
       // chunks is not guaranteed (Promise.all), so we match every chunk by
       // its request body and respond with a one-to-one nonce per identifier.
-      scope.post('/nonce/batch').times(3).reply(200, (_uri, requestBody) => {
-        const { identifiers: chunkIdentifiers } = requestBody as {
-          identifiers: string[];
-        };
-        return chunkIdentifiers.map((identifier) => ({
-          expires_in: 300,
-          identifier,
-          nonce: `nonce-for-${identifier}`,
-        }));
-      });
+      scope
+        .post('/nonce/batch')
+        .times(3)
+        .reply(200, (_uri, requestBody) => {
+          const { identifiers: chunkIdentifiers } = requestBody as {
+            identifiers: string[];
+          };
+          return chunkIdentifiers.map((identifier) => ({
+            expires_in: 300,
+            identifier,
+            nonce: `nonce-for-${identifier}`,
+          }));
+        });
       const { rootMessenger } = getService();
 
       const nonces = await rootMessenger.call(
@@ -811,9 +812,7 @@ function getService({
   bearerTokenHandler,
 }: {
   options?: Partial<ConstructorParameters<typeof ProfileMetricsService>[0]>;
-  bearerTokenHandler?: (
-    entropySourceId: string | undefined,
-  ) => Promise<string>;
+  bearerTokenHandler?: (entropySourceId: string | undefined) => Promise<string>;
 } = {}): {
   service: ProfileMetricsService;
   rootMessenger: RootMessenger;

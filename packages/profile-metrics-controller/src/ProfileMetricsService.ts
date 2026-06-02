@@ -336,9 +336,7 @@ export class ProfileMetricsService {
       }
       const body: unknown = await localResponse.json();
       if (!NonceBatchResponseStruct.is(body)) {
-        throw new Error(
-          `Malformed response received from '${url.toString()}'`,
-        );
+        throw new Error(`Malformed response received from '${url.toString()}'`);
       }
       const result: Record<string, string> = {};
       for (const entry of body) {
