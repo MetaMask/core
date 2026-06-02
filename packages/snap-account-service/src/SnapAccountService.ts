@@ -1,8 +1,9 @@
 import { AccountGroupId } from '@metamask/account-api';
-import type {
+import {
   SnapKeyring as LegacySnapKeyring,
   SnapMessage,
 } from '@metamask/eth-snap-keyring';
+import { KeyringEvent } from '@metamask/keyring-api';
 import type {
   KeyringControllerGetStateAction,
   KeyringControllerStateChangeEvent,
@@ -10,7 +11,12 @@ import type {
   KeyringControllerWithControllerAction,
   KeyringEntry,
 } from '@metamask/keyring-controller';
-import { KeyringTypes } from '@metamask/keyring-controller';
+import {
+  isKeyringNotFoundError,
+  KeyringTypes,
+} from '@metamask/keyring-controller';
+import { KeyringControllerWithKeyringUnsafeAction } from '@metamask/keyring-controller';
+import { SnapManageAccountsMethod } from '@metamask/keyring-snap-sdk';
 import type { AccountId, BaseKeyring } from '@metamask/keyring-utils';
 import type { Messenger } from '@metamask/messenger';
 import type {
@@ -83,6 +89,7 @@ type AllowedActions =
   | SnapControllerGetRunnableSnapsAction
   | KeyringControllerGetStateAction
   | KeyringControllerWithControllerAction
+  | KeyringControllerWithKeyringUnsafeAction
   | AccountTreeControllerGetAccountGroupObjectAction
   | AccountTreeControllerGetSelectedAccountGroupAction;
 
@@ -349,6 +356,39 @@ export class SnapAccountService {
   }
 
   /**
+   * Gets the legacy (v1) Snap keyring but do not auto-create it if it doesn't exist.
+   *
+   * @returns The existing Snap keyring instance, or undefined if it doesn't exist.
+   */
+  async #getLegacySnapKeyringIfAvailable(): Promise<
+    LegacySnapKeyring | undefined
+  > {
+    type Result = {
+      snapKeyring: LegacySnapKeyring;
+    };
+
+    try {
+      const result = await this.#messenger.call(
+        'KeyringController:withKeyringUnsafe',
+        { filter: isLegacySnapKeyring },
+        async ({ keyring }): Promise<Result> => {
+          // The legacy Snap keyring is not compatible with `EthKeyring`, so we need to cast here.
+          return { snapKeyring: keyring } as unknown as Result;
+        },
+      );
+
+      return (result as Result).snapKeyring;
+    } catch (error) {
+      if (isKeyringNotFoundError(error)) {
+        log('Legacy Snap keyring not available yet.');
+        return undefined;
+      }
+
+      throw error;
+    }
+  }
+
+  /**
    * Handle a message from a Snap.
    *
    * @param snapId - ID of the Snap.
@@ -359,7 +399,43 @@ export class SnapAccountService {
     snapId: SnapId,
     message: SnapMessage,
   ): Promise<Json> {
-    const snapKeyring = await this.getLegacySnapKeyring();
+    let snapKeyring: LegacySnapKeyring | undefined =
+      await this.#getLegacySnapKeyringIfAvailable();
+
+    // Handle specific methods first.
+    if (message.method === SnapManageAccountsMethod.GetSelectedAccounts) {
+      if (snapKeyring) {
+        // The legacy Snap keyring already maintain a local list of selected accounts per Snaps, so we
+        // just delegate the call.
+        return snapKeyring.handleKeyringSnapMessage(snapId, message);
+      }
+
+      // Some Snaps might be using `getSelectedAccounts` early in their lifecycle, before the keyring is created. So we
+      // do not throw in that case to avoid disrupting their initialization process.
+      return [];
+    }
+
+    const event = message.method as KeyringEvent; // We assume the Snap platform always sends a valid `KeyringEvent` here.
+    log(
+      `Forwarding message "${event}" from Snap "${snapId}" to its keyring...`,
+    );
+
+    // We can create a new keyring if the message is an AccountCreated event.
+    const isAccountCreatedMessage = event === KeyringEvent.AccountCreated;
+
+    // Create the Snap keyring if it doesn't exist yet (in an atomic way). We cannot assume
+    // the keyring exists (e.g for the MMI Snap).
+    // NOTE: We only auto-create it for v1 account creation flows.
+    if (isAccountCreatedMessage && !snapKeyring) {
+      snapKeyring = await this.getLegacySnapKeyring();
+    }
+
+    if (!snapKeyring) {
+      throw new Error(
+        `Legacy Snap keyring does not exist yet for snap "${snapId}".`,
+      );
+    }
+
     return snapKeyring.handleKeyringSnapMessage(snapId, message);
   }
 
@@ -397,7 +473,14 @@ export class SnapAccountService {
         log(`Clearing selected accounts (from "${groupId}")`);
       }
 
-      const snapKeyring = await this.getLegacySnapKeyring();
+      const snapKeyring = await this.#getLegacySnapKeyringIfAvailable();
+      if (!snapKeyring) {
+        log(
+          'No legacy Snap keyring available, skipping forwarding selected accounts.',
+        );
+        return;
+      }
+
       await snapKeyring.setSelectedAccounts(accounts);
     };
 
