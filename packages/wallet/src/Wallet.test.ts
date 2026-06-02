@@ -324,4 +324,54 @@ describe('Wallet', () => {
       ).toBe('bar');
     });
   });
+
+  describe('RemoteFeatureFlagController', () => {
+    it('is wired and exposes its state on the wallet messenger', async () => {
+      const wallet = await setupWallet();
+      const { messenger } = wallet;
+
+      expect(
+        messenger.call('RemoteFeatureFlagController:getState'),
+      ).toStrictEqual({
+        remoteFeatureFlags: {},
+        localOverrides: {},
+        rawRemoteFeatureFlags: {},
+        cacheTimestamp: 0,
+      });
+    });
+
+    it('routes injected instanceOptions through to the controller', async () => {
+      // Proves the end-to-end path: the camelCased `remoteFeatureFlagController`
+      // option key reaches `initialize` -> `init` -> the controller. An injected
+      // service returns a known flag, which then appears in state fetched over
+      // the shared messenger.
+      const wallet = new Wallet({
+        instanceOptions: {
+          keyringController: { encryptor: new MockEncryptor() },
+          storageService: { storage: new InMemoryStorageAdapter() },
+          remoteFeatureFlagController: {
+            clientConfigApiService: {
+              fetchRemoteFeatureFlags: async (): Promise<{
+                remoteFeatureFlags: Record<string, boolean>;
+                cacheTimestamp: number;
+              }> => ({
+                remoteFeatureFlags: { testFlag: true },
+                cacheTimestamp: Date.now(),
+              }),
+            },
+          },
+        },
+      });
+      const { messenger } = wallet;
+
+      await messenger.call(
+        'RemoteFeatureFlagController:updateRemoteFeatureFlags',
+      );
+
+      expect(
+        messenger.call('RemoteFeatureFlagController:getState')
+          .remoteFeatureFlags,
+      ).toStrictEqual({ testFlag: true });
+    });
+  });
 });
