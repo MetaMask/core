@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `@metamask/keyring-controller` `^26.0.0` as a dependency ([#8972](https://github.com/MetaMask/core/pull/8972))
+  - The package was already imported at runtime by `src/strategy/relay/hyperliquid-withdraw.ts` but wasn't declared in `package.json`; this PR fixes the omission.
+
+## [23.1.0]
+
+### Changed
+
+- Fiat quote flow now uses `autoSelectProvider` and `restrictToKnownOrNativeProviders` instead of manually reading the selected provider from `RampsController` state ([#8963](https://github.com/MetaMask/core/pull/8963))
+- Remove `RampsControllerGetStateAction` and `RampsControllerSetSelectedTokenAction` from `AllowedActions` as they are no longer used ([#8963](https://github.com/MetaMask/core/pull/8963))
+- Bump `@metamask/ramps-controller` from `^14.0.0` to `^14.1.0` ([#8968](https://github.com/MetaMask/core/pull/8968))
+
 ## [23.0.0]
 
 ### Changed
@@ -967,7 +980,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#6820](https://github.com/MetaMask/core/pull/6820))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@23.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@23.1.0...HEAD
+[23.1.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@23.0.0...@metamask/transaction-pay-controller@23.1.0
 [23.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@22.8.0...@metamask/transaction-pay-controller@23.0.0
 [22.8.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@22.7.0...@metamask/transaction-pay-controller@22.8.0
 [22.7.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@22.6.3...@metamask/transaction-pay-controller@22.7.0
