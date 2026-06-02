@@ -77,6 +77,11 @@ jobs:
     needs: check-workflows
     uses: ./.github/workflows/lint-build-test.yml
 
+  deploy-platform-api-docs:
+    name: Deploy Platform API Docs
+    needs: lint-build-test
+    uses: ./.github/workflows/deploy-platform-api-docs.yml
+
   check-release:
     name: Check release
     needs: check-workflows
@@ -132,6 +137,7 @@ jobs:
     needs:
       - analyse-code
       - check-release
+      - deploy-platform-api-docs
       - lint-build-test
     outputs:
       passed: ${{ steps.set-output.outputs.passed }}
