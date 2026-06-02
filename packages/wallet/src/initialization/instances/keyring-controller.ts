@@ -171,6 +171,7 @@ export const keyringController: InitializationConfiguration<
       state,
       messenger,
       keyringBuilders: options.keyringBuilders,
+      keyringV2Builders: options.keyringV2Builders,
       encryptor: (options.encryptor ?? encryptorFactory(600_000)) as Encryptor<
         EncryptionKey | CryptoKey
       >,
