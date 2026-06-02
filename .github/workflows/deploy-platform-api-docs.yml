@@ -4,21 +4,15 @@ on:
   push:
     branches: [main]
   pull_request:
-    branches: [main]
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
-
-permissions:
-  contents: read
+  group: ${{ github.workflow }}-${{ github.ref == 'refs/heads/main' && github.sha || github.ref }}
+  cancel-in-progress: ${{ !contains(github.ref, 'refs/heads/main') }}
 
 jobs:
   build-docs:
     name: Build Platform API docs
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
     steps:
       - name: Checkout and setup environment
         uses: MetaMask/action-checkout-and-setup@v3
@@ -34,21 +28,12 @@ jobs:
             --site-url "https://${{ github.repository_owner }}.github.io" \
             --site-base-url "/${{ github.event.repository.name }}/platform-api/"
 
-      - name: Upload build artifact (PR)
-        if: github.event_name == 'pull_request'
+      - name: Upload build artifact
         uses: actions/upload-artifact@v7
         with:
-          name: platform-api-docs
+          name: ${{ github.ref == 'refs/heads/main' && github.event_name == 'push' && 'platform-api-docs-build' || 'platform-api-docs' }}
           path: .platform-api-docs/build/
-          retention-days: 7
-
-      - name: Upload build artifact for deploy job
-        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-        uses: actions/upload-artifact@v7
-        with:
-          name: platform-api-docs-build
-          path: .platform-api-docs/build/
-          retention-days: 1
+          retention-days: ${{ github.ref == 'refs/heads/main' && github.event_name == 'push' && 1 || 7 }}
 
   deploy:
     name: Deploy to GitHub Pages
@@ -58,6 +43,11 @@ jobs:
     permissions:
       contents: write
     steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 1
+
       - name: Download build artifact
         uses: actions/download-artifact@v8
         with:
@@ -65,7 +55,7 @@ jobs:
           path: build/
 
       - name: Deploy to GitHub Pages
-        uses: peaceiris/actions-gh-pages@v4.1.0
+        uses: peaceiris/actions-gh-pages@4f9cc6602d3f66b9c108549d475ec49e8ef4d45e # v4.0.0
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: ./build
