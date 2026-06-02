@@ -5,6 +5,7 @@ import type { Compute } from '../type-utils';
 
 export type BaseNotification = {
   id: string;
+  notification_subtype: string;
   createdAt: string;
   isRead: boolean;
 };
@@ -21,6 +22,7 @@ export type RawNotificationUnion =
  * - `data` field (declared in the Raw shapes)
  */
 export type INotification = Compute<
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   | (FeatureAnnouncementRawNotification & BaseNotification)
   | (NormalisedAPINotification & BaseNotification)
   | (RawSnapNotification & BaseNotification & { readDate?: string | null })

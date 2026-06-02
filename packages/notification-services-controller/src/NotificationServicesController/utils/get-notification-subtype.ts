@@ -1,5 +1,5 @@
 import { TRIGGER_TYPES } from '../constants/notification-schema';
-import type { INotification } from '../types/notification/notification';
+import type { RawNotificationUnion } from '../types/notification/notification';
 
 /**
  * Derives the normalised `notification_subtype` for a processed in-app
@@ -17,10 +17,12 @@ import type { INotification } from '../types/notification/notification';
  *   response does not expose it yet, so it is absent from the generated
  *   `schema.ts` and we fall back to `type` (`platform`).
  *
- * @param notification - a processed in-app notification.
+ * @param notification - a raw or processed notification.
  * @returns the normalised subtype string.
  */
-export function getNotificationSubtype(notification: INotification): string {
+export function getNotificationSubtype(
+  notification: RawNotificationUnion,
+): string {
   switch (notification.type) {
     case TRIGGER_TYPES.FEATURES_ANNOUNCEMENT:
       // §5.3 calls for a stable per-campaign id here, pending confirmation from
