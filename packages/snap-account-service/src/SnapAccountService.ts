@@ -319,6 +319,15 @@ export class SnapAccountService {
       snapKeyring: LegacySnapKeyring;
     };
 
+    // This is a fast-path for the common case where the keyring already exists, to avoid the
+    // overhead of acquiring the `KeyringController` mutex if we don't need to.
+    // NOTE: If it doesn't exist, we'll create it **safely** with `:withController` (which was
+    // not the case with the previous client's implementation).
+    const exists = await this.#getLegacySnapKeyringIfAvailable();
+    if (exists) {
+      return exists;
+    }
+
     // `KeyringController:withController` forbids returning a direct keyring
     // reference (it checks the result via `Object.is`), so we smuggle the
     // instance out wrapped in an object and unwrap it after the call.
