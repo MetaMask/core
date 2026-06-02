@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add `SnapAccountService:account{AssetList,Balances,Transactions}Updated` events.
+- Add `SnapAccountService:account{AssetList,Balances,Transactions}Updated` events ([#8916](https://github.com/MetaMask/core/pull/8916))
 
 ### Changed
 
