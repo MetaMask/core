@@ -12,7 +12,6 @@ import { GenericEncryptor } from './initialization/instances/keyring-controller'
 import { InitializationConfiguration } from './initialization/types';
 
 export type WalletOptions = {
-  connectivityAdapter: ConnectivityAdapter;
   messenger?: RootMessenger<DefaultActions, DefaultEvents>;
   state?: Record<string, Record<string, Json> | undefined>;
   initializationConfigurations?: InitializationConfiguration<
@@ -23,7 +22,7 @@ export type WalletOptions = {
 };
 
 export type InstanceSpecificOptions = {
-  connectivityController?: {
+  connectivityController: {
     connectivityAdapter: ConnectivityAdapter;
   };
   keyringController?: {

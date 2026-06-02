@@ -15,8 +15,10 @@ const TEST_PASSWORD = 'testpass';
 
 async function setupWallet(): Promise<Wallet> {
   const wallet = new Wallet({
-    connectivityAdapter: new AlwaysOnlineAdapter(),
     instanceOptions: {
+      connectivityController: {
+        connectivityAdapter: new AlwaysOnlineAdapter(),
+      },
       storageService: {
         storage: new InMemoryStorageAdapter(),
       },
@@ -69,8 +71,10 @@ describe('Wallet', () => {
 
   it('supports passing instance options', async () => {
     const wallet = new Wallet({
-      connectivityAdapter: new AlwaysOnlineAdapter(),
       instanceOptions: {
+        connectivityController: {
+          connectivityAdapter: new AlwaysOnlineAdapter(),
+        },
         keyringController: {
           encryptor: new MockEncryptor(),
         },
@@ -101,7 +105,6 @@ describe('Wallet', () => {
     class DummyService {}
 
     const wallet = new Wallet({
-      connectivityAdapter: new AlwaysOnlineAdapter(),
       initializationConfigurations: [
         {
           name: 'KeyringController',
@@ -117,6 +120,9 @@ describe('Wallet', () => {
         },
       ],
       instanceOptions: {
+        connectivityController: {
+          connectivityAdapter: new AlwaysOnlineAdapter(),
+        },
         storageService: {
           storage: new InMemoryStorageAdapter(),
         },
@@ -152,7 +158,14 @@ describe('Wallet', () => {
     });
 
     const wallet = new Wallet({
-      connectivityAdapter: new AlwaysOnlineAdapter(),
+      instanceOptions: {
+        connectivityController: {
+          connectivityAdapter: new AlwaysOnlineAdapter(),
+        },
+        storageService: {
+          storage: new InMemoryStorageAdapter(),
+        },
+      },
     });
 
     expect(wallet.controllerMetadata).toStrictEqual({
@@ -216,7 +229,14 @@ describe('Wallet', () => {
   describe('ConnectivityController', () => {
     it('reports online connectivity status', () => {
       const wallet = new Wallet({
-        connectivityAdapter: new AlwaysOnlineAdapter(),
+        instanceOptions: {
+          connectivityController: {
+            connectivityAdapter: new AlwaysOnlineAdapter(),
+          },
+          storageService: {
+            storage: new InMemoryStorageAdapter(),
+          },
+        },
       });
 
       expect(wallet.state.ConnectivityController.connectivityStatus).toBe(
@@ -240,13 +260,15 @@ describe('Wallet', () => {
         '{"data":"iOD5pIcPeRZYQ4WdEMsNYoZ3xBxWBafIU8Cr4nD0X4zBvrOA06tGen3sKQ/ValasXSweLnzH9Fk2frkPYmqeJWBtTNYFwdHPe7P970ThZwreSXN1Sqrx9Ad+YzmIN0y89Yg3KrUodPWaRgIZmgWbfDon6ADPgeEDkX0/GAEYET39O7Rx/gL+rcaTpxnpHPTgHiLbhRHWGsS3z+JVomSqoLAO5XVvrJWenO6R3Nzm62BaJaSPrf/pwstZqhSvxTq8hnQf7aR81hWfwYTxNBVG7TC/dniSQ8K5So6PvUN5nzAqvtzzHT2TagOuxQkX88Zi17P8os21jNmNdA90IGYroD+b/mppyRIgRYWtAUQZH9ji36atEuFupszbg8Qw1iaL3EQyUogC30Cpj9ko5bbqhYgqmFHF0J/kflhPHKuO6d4tgSmhYpTumydQRjxaPnlghIS5YI4W+7p9HVBpb+c6IPUz9y/x3Ngbp+ukJwOnXt2U/eZhXrJzi2z1x/nzPg4fzDJoM7k=","iv":"yrZsyC7dso/q7pQ48YX3vw==","keyMetadata":{"algorithm":"PBKDF2","params":{"iterations":600000}},"salt":"s7nIrMWK1lcZVjfdmES1DBML8Uz4ja2fpm8zUz1lWI0="}';
 
       const wallet = new Wallet({
-        connectivityAdapter: new AlwaysOnlineAdapter(),
         state: {
           KeyringController: {
             vault,
           },
         },
         instanceOptions: {
+          connectivityController: {
+            connectivityAdapter: new AlwaysOnlineAdapter(),
+          },
           storageService: {
             storage: new InMemoryStorageAdapter(),
           },
