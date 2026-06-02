@@ -18,7 +18,6 @@ export function processAPINotifications(
   return {
     ...notification,
     id: notification.id,
-    // eslint-disable-next-line @typescript-eslint/naming-convention
     notification_subtype: getNotificationSubtype(notification),
     createdAt: createdAtDate.toISOString(),
     isRead: expired || !notification.unread,

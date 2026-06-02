@@ -1236,7 +1236,6 @@ describe('NotificationServicesController', () => {
       expect(filteredNotifications).toStrictEqual([
         {
           type: TRIGGER_TYPES.SNAP,
-          // eslint-disable-next-line @typescript-eslint/naming-convention
           notification_subtype: TRIGGER_TYPES.SNAP,
           id: expect.any(String),
           createdAt: expect.any(String),
@@ -1607,7 +1606,6 @@ describe('NotificationServicesController', () => {
       expect(controller.state.metamaskNotificationsList).toStrictEqual([
         {
           type: TRIGGER_TYPES.SNAP,
-          // eslint-disable-next-line @typescript-eslint/naming-convention
           notification_subtype: TRIGGER_TYPES.SNAP,
           id: expect.any(String),
           createdAt: expect.any(String),

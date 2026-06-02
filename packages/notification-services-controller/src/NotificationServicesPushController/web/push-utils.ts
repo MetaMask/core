@@ -129,10 +129,6 @@ async function listenToPushNotificationsReceived(
     // eslint-disable-next-line @typescript-eslint/no-misused-promises
     async (payload: MessagePayload): Promise<void> => {
       try {
-        // Read the first-class fields written at the top level of the FCM
-        // payload by push-services. The raw notification body is no longer
-        // shipped in the FCM map, so there is no nested `data["data"]` blob or
-        // `metadata` to parse.
         const analyticsPayload = toPushAnalyticsPayload(payload?.data);
 
         if (!analyticsPayload) {
@@ -174,7 +170,6 @@ export function toPushAnalyticsPayload(
     notification_id: data.notification_id,
     notification_type: data.notification_type,
     notification_subtype: data.notification_subtype ?? '',
-    // Empty values are omitted by push-services, so treat blanks as absent.
     profile_id: data.profile_id || undefined,
     chain_id: data.chain_id ? Number(data.chain_id) : undefined,
     deeplink: data.deeplink || undefined,

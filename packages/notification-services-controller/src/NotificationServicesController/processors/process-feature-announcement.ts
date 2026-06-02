@@ -33,7 +33,6 @@ export function processFeatureAnnouncement(
   return {
     type: notification.type,
     id: notification.data.id,
-    // eslint-disable-next-line @typescript-eslint/naming-convention
     notification_subtype: getNotificationSubtype(notification),
     createdAt: new Date(notification.createdAt).toISOString(),
     data: notification.data,

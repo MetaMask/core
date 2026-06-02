@@ -26,7 +26,6 @@ const mockEnv = {
   vapidKey: 'test-vapidKey',
 };
 
-// The top-level FCM `data` map written by push-services (all values strings).
 const mockFcmData = {
   notification_id: 'test-notification-id',
   notification_type: 'wallet_activity',
@@ -36,7 +35,6 @@ const mockFcmData = {
   deeplink: 'https://example.com/deeplink',
 };
 
-// The parsed analytics payload the events should publish for `mockFcmData`.
 const expectedAnalyticsPayload: PushAnalyticsPayload = {
   notification_id: 'test-notification-id',
   notification_type: 'wallet_activity',

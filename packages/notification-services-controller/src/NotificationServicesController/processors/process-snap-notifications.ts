@@ -16,7 +16,6 @@ export const processSnapNotification = (
   const { data, type, readDate } = snapNotification;
   return {
     id: uuid(),
-    // eslint-disable-next-line @typescript-eslint/naming-convention
     notification_subtype: getNotificationSubtype(snapNotification),
     readDate,
     createdAt: new Date().toISOString(),
