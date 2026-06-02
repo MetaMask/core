@@ -40,6 +40,22 @@ describe('approvalController', () => {
     });
   });
 
+  it('forwards the provided state to the controller', () => {
+    const messenger = approvalController.getMessenger(getRootMessenger());
+
+    const instance = approvalController.init({
+      state: {
+        pendingApprovals: {},
+        pendingApprovalCount: 3,
+        approvalFlows: [],
+      },
+      messenger,
+      options: {},
+    });
+
+    expect(instance.state.pendingApprovalCount).toBe(3);
+  });
+
   it('uses the provided showApprovalRequest callback', () => {
     const messenger = approvalController.getMessenger(getRootMessenger());
     const showApprovalRequest = jest.fn();
@@ -67,7 +83,18 @@ describe('approvalController', () => {
     expect(() => instance.startFlow()).not.toThrow();
   });
 
-  it('excludes EVM signing types from rate limiting by default', () => {
+  // Pins the exact default exclusion set (independent of the source constant):
+  // each of these EVM types must allow multiple pending requests from one
+  // origin. The pending promises never settle here; `.catch` only marks them
+  // handled.
+  it.each([
+    ApprovalType.PersonalSign,
+    ApprovalType.EthSignTypedData,
+    ApprovalType.Transaction,
+    ApprovalType.WatchAsset,
+    ApprovalType.EthGetEncryptionPublicKey,
+    ApprovalType.EthDecrypt,
+  ])('excludes %s from rate limiting by default', (type) => {
     const messenger = approvalController.getMessenger(getRootMessenger());
 
     const instance = approvalController.init({
@@ -76,16 +103,11 @@ describe('approvalController', () => {
       options: {},
     });
 
-    // An excluded type allows multiple pending requests from the same origin.
-    // The pending promises never settle here; `.catch` only marks them handled.
-    expect(() => {
-      instance
-        .add({ origin: 'metamask.io', type: ApprovalType.Transaction })
-        .catch(() => undefined);
-      instance
-        .add({ origin: 'metamask.io', type: ApprovalType.Transaction })
-        .catch(() => undefined);
-    }).not.toThrow();
+    instance.add({ origin: 'metamask.io', type }).catch(() => undefined);
+    instance.add({ origin: 'metamask.io', type }).catch(() => undefined);
+
+    // Both requests are queued rather than the second being rejected.
+    expect(instance.state.pendingApprovalCount).toBe(2);
   });
 
   it('honors a custom typesExcludedFromRateLimiting list that overrides the default', () => {

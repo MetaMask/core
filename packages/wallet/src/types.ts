@@ -1,4 +1,7 @@
-import type { ShowApprovalRequest } from '@metamask/approval-controller';
+import type {
+  ApprovalControllerOptions,
+  ShowApprovalRequest,
+} from '@metamask/approval-controller';
 import { KeyringControllerOptions } from '@metamask/keyring-controller';
 import { StorageAdapter } from '@metamask/storage-service';
 import type { Json } from '@metamask/utils';
@@ -24,7 +27,9 @@ export type WalletOptions = {
 export type InstanceSpecificOptions = {
   approvalController?: {
     showApprovalRequest?: ShowApprovalRequest;
-    typesExcludedFromRateLimiting?: string[];
+    typesExcludedFromRateLimiting?: NonNullable<
+      ApprovalControllerOptions['typesExcludedFromRateLimiting']
+    >;
   };
   keyringController?: {
     encryptor?: GenericEncryptor;

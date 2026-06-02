@@ -10,10 +10,11 @@ import { InitializationConfiguration } from '../types';
 /**
  * The platform-agnostic baseline of EVM approval types whose pending requests
  * are exempt from per-origin rate limiting, so multiple requests of the same
- * type can be queued from one origin. Covers the common EVM signing
+ * type can be queued from one origin. Covers the EVM signing
  * (`personal_sign`, `eth_signTypedData`), transaction, asset-watch
  * (`wallet_watchAsset`), and encryption (`eth_getEncryptionPublicKey`,
- * `eth_decrypt`) approval types — the set the clients exempt today.
+ * `eth_decrypt`) approval types. This mirrors the extension's baseline; mobile
+ * exempts only a subset (transaction and asset-watch).
  *
  * Clients can override this entirely via
  * `instanceOptions.approvalController.typesExcludedFromRateLimiting`. The full

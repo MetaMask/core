@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Wire `ApprovalController` into the default wallet initialization ([#8953](https://github.com/MetaMask/core/pull/8953))
+  - Adds an `approvalController` slot to `instanceOptions` with `showApprovalRequest` (the callback that surfaces pending approval requests to the user; defaults to a no-op) and `typesExcludedFromRateLimiting` (the approval types exempt from per-origin rate limiting; defaults to a baseline of EVM approval types). Both let consumers (extension, mobile, wallet-cli) inject their platform-specific values.
+
 ## [2.0.0]
 
 ### Added
@@ -15,8 +20,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **BREAKING:** Add `StorageService` initialization ([#8946](https://github.com/MetaMask/core/pull/8946))
   - Passing `instanceOptions.storageService.storage` is now required.
 - Export `importSecretRecoveryPhrase` from the package root ([#8952](https://github.com/MetaMask/core/pull/8952))
-- Wire `ApprovalController` into the default wallet initialization ([#8953](https://github.com/MetaMask/core/pull/8953))
-  - Adds an `approvalController` slot to `instanceOptions` with `showApprovalRequest` (the callback that surfaces pending approval requests to the user; defaults to a no-op) and `typesExcludedFromRateLimiting` (the approval types exempt from per-origin rate limiting; defaults to the EVM signing/transaction types). Both let consumers (extension, mobile, wallet-cli) inject their platform-specific values.
 
 ## [1.0.1]
 
