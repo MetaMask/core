@@ -963,9 +963,8 @@ describe('SnapAccountProvider', () => {
     it('forwards to SnapKeyring.removeAccount(address) using the tracked account address', async () => {
       const account = MOCK_HD_ACCOUNT_1;
       const { provider, keyring, messenger } = setup({ accounts: [account] });
-      messenger.registerActionHandler(
-        'AccountsController:getAccount',
-        (id) => (id === account.id ? (account as InternalAccount) : undefined),
+      messenger.registerActionHandler('AccountsController:getAccount', (id) =>
+        id === account.id ? (account as InternalAccount) : undefined,
       );
       provider.init([account.id]);
 
