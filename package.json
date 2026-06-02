@@ -36,13 +36,15 @@
     "prepare-preview-builds": "./scripts/prepare-preview-builds.sh",
     "readme-content:check": "tsx scripts/update-readme-content.ts --check",
     "readme-content:update": "tsx scripts/update-readme-content.ts",
-    "setup": "yarn install",
+    "setup": "yarn install && yarn skills:postinstall && (yarn skills || echo 'skills setup skipped; run `yarn skills` for details')",
     "test": "yarn test:scripts --silent --collectCoverage=false --reporters=jest-silent-reporter && yarn test:packages",
     "test:clean": "yarn workspaces foreach --all --parallel --verbose run test:clean && yarn test",
     "test:packages": "yarn test:verbose --silent --collectCoverage=false --reporters=jest-silent-reporter",
     "test:scripts": "NODE_OPTIONS=--experimental-vm-modules yarn jest --config ./jest.config.scripts.js --silent",
     "test:verbose": "yarn workspaces foreach --all --parallel --verbose run test:verbose",
-    "workspaces:list-versions": "./scripts/list-workspace-versions.sh"
+    "workspaces:list-versions": "./scripts/list-workspace-versions.sh",
+    "skills": "tsx scripts/skills-sync.ts",
+    "skills:postinstall": "tsx scripts/skills-postinstall.ts"
   },
   "devDependencies": {
     "@lavamoat/allow-scripts": "^3.0.4",

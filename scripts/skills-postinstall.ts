@@ -1,0 +1,134 @@
+/* eslint-disable n/no-process-env, n/no-process-exit */
+// Auto-update the public MetaMask skills cache. Best-effort: never fails setup.
+//
+// Core disables package lifecycle scripts (`enableScripts: false`), so this is
+// invoked explicitly by `yarn setup` and can also be run as
+// `yarn skills:postinstall`.
+//
+// - Skipped on CI, or when SKILLS_SKIP_POSTINSTALL=1.
+// - Override CI skip with SKILLS_FORCE_POSTINSTALL=1 (for CI jobs that
+//   actually need skills installed, e.g. agent-driven review bots).
+// - Clones https://github.com/MetaMask/skills (public, no auth) into
+//   .skills-cache/metamask-skills if absent.
+// - `git fetch + reset` to origin/main if present.
+// - Leaves installation/domain selection to `yarn skills`, which reads
+//   .skills.local and SKILLS_DOMAINS.
+// - All errors are swallowed with a one-line warning. Engineers can run
+//   `yarn skills` manually for interactive feedback.
+
+import { spawnSync } from 'node:child_process';
+import type { SpawnSyncReturns } from 'node:child_process';
+import { mkdirSync, statSync } from 'node:fs';
+import path from 'node:path';
+
+export const CACHE_DIR = '.skills-cache/metamask-skills';
+export const PUBLIC_REPO = 'https://github.com/MetaMask/skills.git';
+
+type SpawnSync = typeof spawnSync;
+type StatSync = typeof statSync;
+type MkdirSync = typeof mkdirSync;
+type Stderr = Pick<NodeJS.WriteStream, 'write'>;
+
+type CacheDeps = {
+  mkdir?: MkdirSync;
+  spawn?: SpawnSync;
+  stat?: StatSync;
+  stderr?: Stderr;
+};
+
+type PostinstallDeps = CacheDeps & {
+  env?: NodeJS.ProcessEnv;
+};
+
+export function warn(message: string, stderr?: Stderr): void {
+  const writer = stderr ?? process.stderr;
+  writer.write(`skills cache: ${message} (run \`yarn skills\` for details)\n`);
+}
+
+export function run(
+  cmd: string,
+  args: string[],
+  spawn?: SpawnSync,
+): SpawnSyncReturns<Buffer> {
+  const spawnFn = spawn ?? spawnSync;
+  return spawnFn(cmd, args, { stdio: 'ignore' });
+}
+
+export function isGitDir(dir: string, stat?: StatSync): boolean {
+  const statFn = stat ?? statSync;
+  try {
+    return statFn(path.join(dir, '.git')).isDirectory();
+  } catch {
+    return false;
+  }
+}
+
+export function shouldSkipPostinstall(env: NodeJS.ProcessEnv): boolean {
+  return Boolean(
+    env.SKILLS_SKIP_POSTINSTALL ?? (env.CI && !env.SKILLS_FORCE_POSTINSTALL),
+  );
+}
+
+export function ensurePublicSkillsCache(deps?: CacheDeps): boolean {
+  const mkdir = deps?.mkdir ?? mkdirSync;
+  const spawn = deps?.spawn ?? spawnSync;
+  const stat = deps?.stat ?? statSync;
+  const stderr = deps?.stderr ?? process.stderr;
+
+  try {
+    const hasCache = isGitDir(CACHE_DIR, stat);
+    if (hasCache) {
+      const fetchResult = run(
+        'git',
+        ['-C', CACHE_DIR, 'fetch', '--depth', '1', 'origin', 'main'],
+        spawn,
+      );
+      if (fetchResult.status !== 0) {
+        warn('fetch failed (offline?)', stderr);
+        return false;
+      }
+      const resetResult = run(
+        'git',
+        ['-C', CACHE_DIR, 'reset', '--hard', 'origin/main'],
+        spawn,
+      );
+      if (resetResult.status !== 0) {
+        warn('reset failed', stderr);
+        return false;
+      }
+    } else {
+      mkdir(path.dirname(CACHE_DIR), { recursive: true });
+      const cloneResult = run(
+        'git',
+        ['clone', '--depth', '1', '--branch', 'main', PUBLIC_REPO, CACHE_DIR],
+        spawn,
+      );
+      if (cloneResult.status !== 0) {
+        warn('clone failed (offline?)', stderr);
+        return false;
+      }
+    }
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    warn(`unexpected error: ${message}`, stderr);
+    return false;
+  }
+
+  return true;
+}
+
+export function postinstall(deps?: PostinstallDeps): number {
+  const env = deps?.env ?? process.env;
+
+  if (shouldSkipPostinstall(env)) {
+    return 0;
+  }
+
+  ensurePublicSkillsCache(deps);
+  return 0;
+}
+
+/* istanbul ignore next */
+if (process.argv[1]?.endsWith(`${path.sep}skills-postinstall.ts`)) {
+  process.exit(postinstall());
+}
