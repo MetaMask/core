@@ -1,9 +1,13 @@
 import { ORIGIN_METAMASK } from '@metamask/controller-utils';
 import { TransactionType } from '@metamask/transaction-controller';
-import type { TransactionMeta } from '@metamask/transaction-controller';
+import type {
+  BatchTransactionParams,
+  TransactionMeta,
+} from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 import { cloneDeep } from 'lodash';
 
+import { PaymentOverride } from '../../constants';
 import { getMessengerMock } from '../../tests/messenger-mock';
 import type {
   PayStrategyExecuteRequest,
@@ -140,8 +144,10 @@ describe('Relay Submit Utils', () => {
   const {
     addTransactionMock,
     addTransactionBatchMock,
+    getControllerStateMock,
     getDelegationTransactionMock,
     findNetworkClientIdByChainIdMock,
+    getPaymentOverrideDataMock,
     messenger,
   } = getMessengerMock();
 
@@ -855,6 +861,158 @@ describe('Relay Submit Utils', () => {
       expect(txDraft.requiredTransactionIds).toStrictEqual([
         TRANSACTION_META_MOCK.id,
       ]);
+    });
+
+    describe('paymentOverride flow', () => {
+      const TRANSACTION_DATA_MOCK = {
+        isLoading: false,
+        tokens: [],
+      };
+
+      const PAYMENT_OVERRIDE_TX_MOCK: BatchTransactionParams = {
+        to: '0xpaymentoverride' as Hex,
+        data: '0xpaymentoverride' as Hex,
+        value: '0x0' as Hex,
+      };
+
+      beforeEach(() => {
+        getControllerStateMock.mockReturnValue({
+          transactionData: {
+            [ORIGINAL_TRANSACTION_ID_MOCK]: TRANSACTION_DATA_MOCK,
+          },
+        });
+      });
+
+      it('prepends override tx params to submit batch', async () => {
+        request.quotes[0].request.paymentOverride =
+          PaymentOverride.MoneyAccount;
+        getPaymentOverrideDataMock.mockResolvedValue({
+          calls: [PAYMENT_OVERRIDE_TX_MOCK],
+        });
+
+        await submitRelayQuotes(request);
+
+        expect(getPaymentOverrideDataMock).toHaveBeenCalledWith({
+          amount: request.quotes[0].sourceAmount.human,
+          transaction: request.transaction,
+          transactionData: TRANSACTION_DATA_MOCK,
+        });
+
+        const batchCall = addTransactionBatchMock.mock.calls[0][0];
+        expect(batchCall.transactions[0].params).toStrictEqual(
+          expect.objectContaining({
+            data: PAYMENT_OVERRIDE_TX_MOCK.data,
+            to: PAYMENT_OVERRIDE_TX_MOCK.to,
+            value: PAYMENT_OVERRIDE_TX_MOCK.value,
+          }),
+        );
+      });
+
+      it('does not call getPaymentOverrideData when paymentOverride is not defined', async () => {
+        await submitRelayQuotes(request);
+
+        expect(getPaymentOverrideDataMock).not.toHaveBeenCalled();
+      });
+
+      it('does not prepend when callback returns empty array', async () => {
+        request.quotes[0].request.paymentOverride =
+          PaymentOverride.MoneyAccount;
+        getPaymentOverrideDataMock.mockResolvedValue({ calls: [] });
+
+        await submitRelayQuotes(request);
+
+        expect(addTransactionBatchMock).not.toHaveBeenCalled();
+        expect(addTransactionMock).toHaveBeenCalledTimes(1);
+      });
+
+      it('skips source balance validation', async () => {
+        request.quotes[0].request.paymentOverride =
+          PaymentOverride.MoneyAccount;
+        getPaymentOverrideDataMock.mockResolvedValue({
+          calls: [PAYMENT_OVERRIDE_TX_MOCK],
+        });
+        getLiveTokenBalanceMock.mockResolvedValue('0');
+
+        await submitRelayQuotes(request);
+
+        expect(getLiveTokenBalanceMock).not.toHaveBeenCalled();
+      });
+
+      it('assigns correct gas limits with override tx', async () => {
+        request.quotes[0].request.paymentOverride =
+          PaymentOverride.MoneyAccount;
+        request.quotes[0].original.metamask.gasLimits = [10000, 30000, 50000];
+
+        request.quotes[0].original.steps[0].items.push({
+          ...request.quotes[0].original.steps[0].items[0],
+          data: {
+            ...request.quotes[0].original.steps[0].items[0].data,
+            data: '0xapprove' as Hex,
+            to: '0xapproveTarget' as Hex,
+          },
+        });
+
+        getPaymentOverrideDataMock.mockResolvedValue({
+          calls: [PAYMENT_OVERRIDE_TX_MOCK],
+        });
+
+        await submitRelayQuotes(request);
+
+        const { transactions } = addTransactionBatchMock.mock
+          .calls[0][0] as unknown as Record<
+          string,
+          { params: { gas?: string } }[]
+        >;
+
+        expect(transactions).toHaveLength(3);
+        expect(transactions[0].params.gas).toBe('0x2710');
+        expect(transactions[1].params.gas).toBe('0x7530');
+        expect(transactions[2].params.gas).toBe('0xc350');
+      });
+
+      it('assigns correct transaction types with multi-step relay (approve + deposit)', async () => {
+        request.quotes[0].request.paymentOverride =
+          PaymentOverride.MoneyAccount;
+        request.transaction = {
+          ...request.transaction,
+          type: TransactionType.simpleSend,
+        } as TransactionMeta;
+
+        request.quotes[0].original.steps[0].items.push({
+          ...request.quotes[0].original.steps[0].items[0],
+          data: {
+            ...request.quotes[0].original.steps[0].items[0].data,
+            data: '0xapprove' as Hex,
+            to: '0xapproveTarget' as Hex,
+          },
+        });
+
+        getPaymentOverrideDataMock.mockResolvedValue({
+          calls: [PAYMENT_OVERRIDE_TX_MOCK],
+        });
+
+        await submitRelayQuotes(request);
+
+        const { transactions } = addTransactionBatchMock.mock
+          .calls[0][0] as unknown as Record<string, unknown[]>;
+
+        expect(transactions).toHaveLength(3);
+        expect(transactions[0]).toStrictEqual(
+          expect.objectContaining({
+            type: TransactionType.simpleSend,
+          }),
+        );
+        expect(transactions[1]).toStrictEqual(
+          expect.objectContaining({
+            type: TransactionType.tokenMethodApprove,
+          }),
+        );
+        expect(transactions[2]).toStrictEqual(
+          expect.objectContaining({
+            type: TransactionType.relayDeposit,
+          }),
+        );
+      });
     });
 
     describe('post-quote flow', () => {

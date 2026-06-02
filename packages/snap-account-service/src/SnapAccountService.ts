@@ -409,7 +409,7 @@ export class SnapAccountService {
       }
 
       // Some Snaps might be using `getSelectedAccounts` early in their lifecycle, before the keyring is created. So we
-      // do not throw in that case to avoid messing up their lifecycle.
+      // do not throw in that case to avoid disrupting their initialization process.
       return [];
     }
 

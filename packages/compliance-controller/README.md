@@ -7,7 +7,7 @@ Manages OFAC compliance checks for wallet addresses by interfacing with the Comp
 This package provides:
 
 - **`ComplianceService`** — A data service that communicates with the Compliance API to check whether wallet addresses are sanctioned under OFAC regulations.
-- **`ComplianceController`** — A controller that manages compliance state, caching wallet compliance results and blocked wallet lists.
+- **`ComplianceController`** — A controller that manages compliance state, caching wallet compliance results.
 
 ## Installation
 
@@ -47,7 +47,7 @@ const serviceMessenger = new Messenger({
 new ComplianceService({
   messenger: serviceMessenger,
   fetch,
-  env: 'production',
+  apiUrl: 'https://compliance.api.cx.metamask.io',
 });
 
 // Create controller messenger and controller
@@ -70,9 +70,6 @@ await rootMessenger.call('ComplianceController:checkWalletsCompliance', [
   '0x1234...',
   '0x5678...',
 ]);
-
-// Fetch the full blocked wallets list
-await rootMessenger.call('ComplianceController:updateBlockedWallets');
 ```
 
 ## Contributing

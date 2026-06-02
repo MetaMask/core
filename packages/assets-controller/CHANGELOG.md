@@ -7,9 +7,42 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [8.2.0]
+
 ### Changed
 
-- Bump `@metamask/transaction-controller` from `^65.3.0` to `^65.4.0` ([#8796](https://github.com/MetaMask/core/pull/8796))
+- `MulticallClient` no longer falls back to individual RPC calls by default; it retries and returns failed responses when retries are exhausted. Pass `{ fallbackToSingleCalls: true }` to `batchBalanceOf` to opt into per-token RPC fallback after retries (used by balance fetching, not token detection) ([#8925](https://github.com/MetaMask/core/pull/8925))
+- Bump `@metamask/assets-controllers` from `^108.2.0` to `^108.3.0` ([#8941](https://github.com/MetaMask/core/pull/8941))
+
+## [8.1.0]
+
+### Changed
+
+- `AssetsController` now re-evaluates the `isEnabled` callback when handling data-source active chain updates, instead of snapshotting its return value at construction ([#8914](https://github.com/MetaMask/core/pull/8914))
+- `AssetsController` no longer skips constructor initialization when `isEnabled` returns false at construction time, so the controller can handle active chain updates after `isEnabled` later becomes true ([#8914](https://github.com/MetaMask/core/pull/8914))
+
+## [8.0.2]
+
+### Changed
+
+- Bump `@metamask/keyring-controller` from `^25.5.0` to `^26.0.0` ([#8912](https://github.com/MetaMask/core/pull/8912))
+- Bump `@metamask/assets-controllers` from `^108.1.0` to `^108.2.0` ([#8911](https://github.com/MetaMask/core/pull/8911))
+- Bump `@metamask/account-tree-controller` from `^7.4.0` to `^7.5.0` ([#8912](https://github.com/MetaMask/core/pull/8912))
+- Bump `@metamask/accounts-controller` from `^38.1.1` to `^38.1.2` ([#8912](https://github.com/MetaMask/core/pull/8912))
+- Bump `@metamask/core-backend` from `^6.3.0` to `^6.3.1` ([#8912](https://github.com/MetaMask/core/pull/8912))
+
+## [8.0.1]
+
+### Fixed
+
+- Add the previously declared `SnapControllerSnapInstalledEvent` to the `AssetsControllerMessenger` allowed events ([#8868](https://github.com/MetaMask/core/pull/8868))
+- `addCustomAsset` now immediately seeds `assetsBalance` with a zero amount for the newly added asset, so the UI can render it before the next pipeline fetch ([#8872](https://github.com/MetaMask/core/pull/8872))
+
+## [8.0.0]
+
+### Changed
+
+- Bump `@metamask/transaction-controller` from `^65.3.0` to `^66.0.0` ([#8796](https://github.com/MetaMask/core/pull/8796), [#8848](https://github.com/MetaMask/core/pull/8848))
 - Bump `@metamask/core-backend` from `^6.2.2` to `^6.3.0` ([#8813](https://github.com/MetaMask/core/pull/8813))
 - Bump `@metamask/phishing-controller` from `^17.1.2` to `^17.2.0` ([#8819](https://github.com/MetaMask/core/pull/8819))
 - Bump `@metamask/network-enablement-controller` from `^5.1.1` to `^5.2.0` ([#8834](https://github.com/MetaMask/core/pull/8834))
@@ -17,6 +50,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `AccountsApiDataSource` no longer treats non-EVM chains (e.g. Solana) returned by the Accounts API as active chains; only `eip155:` networks are now included ([#8864](https://github.com/MetaMask/core/pull/8864))
+- **BREAKING:** **SnapDataSource:** `SnapControllerSnapInstalledEvent` has been added to `SnapDataSourceAllowedEvents`. Hosts that restrict which events flow through the `AssetsController` messenger must now also delegate `SnapController:snapInstalled`; failing to do so will prevent snap chain re-discovery after install. Re-run keyring snap discovery when a new snap is installed so that snap-backed chains (Bitcoin, Solana, Tron, etc.) become available immediately after install ([#8862](https://github.com/MetaMask/core/pull/8862))
 - Non-EVM assets with a `slip44` asset namespace (e.g. Bitcoin, Solana native, TRON) are now correctly typed as `native` instead of `erc20` in `assetsInfo` ([#8811](https://github.com/MetaMask/core/pull/8811))
 - Solana SPL tokens (CAIP-19 `solana:.../token:<address>`) are now correctly typed as `spl` instead of `erc20` in `assetsInfo` ([#8811](https://github.com/MetaMask/core/pull/8811))
 
@@ -35,7 +70,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `decimals: 0` is treated as valid; `name` and `symbol` are not required.
   - Decimals resolution in `#handleBalanceUpdate` and the manual-fetch path no longer relies on `??` to fall through from state to pipeline metadata. A new `#pickValidDecimals` helper picks the first source whose `decimals` is finite and non-negative, so a stale `decimals: NaN` (or `decimals: -1`) in state can no longer shadow the chain-status stub's `decimals: 18` and silently produce `amount: '0'` while `assetsInfo` reports `decimals: 18`.
   - `#convertToHumanReadable` now defensively returns `'0'` when `decimals` isn't a finite non-negative number or when the raw balance can't be parsed, matching the existing safe fallback used in the error path.
-- The mUSD (`MetaMask USD`) contract address stored in `defaults.ts` is now EIP-55 checksummed (`0xacA92E438df0B2401fF60dA7E4337B687a2435DA`) ([#8786](https://github.com/MetaMask/core/pull/8786)). Previously the address was all-lowercase, causing the CAIP-19 keys pre-seeded into `assetsInfo` by `buildDefaultAssetsInfo()` to differ from the checksummed keys written by data sources (which always normalise asset IDs via `normalizeAssetId`). The mismatch resulted in two separate `assetsInfo` entries for the same token after the first balance or token-data poll.
+- The mUSD (`MetaMask USD`) contract address stored in `defaults.ts` is now EIP-55 checksummed (`0xacA92E438df0B2401fF60dA7E4337B687a2435DA`). Previously the address was all-lowercase, causing the CAIP-19 keys pre-seeded into `assetsInfo` by `buildDefaultAssetsInfo()` to differ from the checksummed keys written by data sources (which always normalise asset IDs via `normalizeAssetId`). The mismatch resulted in two separate `assetsInfo` entries for the same token after the first balance or token-data poll. ([#8786](https://github.com/MetaMask/core/pull/8786))
 
 ## [7.1.1]
 
@@ -510,7 +545,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Refactor `RpcDataSource` to delegate polling to `BalanceFetcher` and `TokenDetector` services ([#7709](https://github.com/MetaMask/core/pull/7709))
 - Refactor `BalanceFetcher` and `TokenDetector` to extend `StaticIntervalPollingControllerOnly` for independent polling management ([#7709](https://github.com/MetaMask/core/pull/7709))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@7.1.2...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@8.2.0...HEAD
+[8.2.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@8.1.0...@metamask/assets-controller@8.2.0
+[8.1.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@8.0.2...@metamask/assets-controller@8.1.0
+[8.0.2]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@8.0.1...@metamask/assets-controller@8.0.2
+[8.0.1]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@8.0.0...@metamask/assets-controller@8.0.1
+[8.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@7.1.2...@metamask/assets-controller@8.0.0
 [7.1.2]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@7.1.1...@metamask/assets-controller@7.1.2
 [7.1.1]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@7.1.0...@metamask/assets-controller@7.1.1
 [7.1.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@7.0.1...@metamask/assets-controller@7.1.0

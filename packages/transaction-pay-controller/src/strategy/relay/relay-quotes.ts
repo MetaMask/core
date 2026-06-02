@@ -2,7 +2,6 @@
 
 import { Interface } from '@ethersproject/abi';
 import { toHex } from '@metamask/controller-utils';
-import { TransactionType } from '@metamask/transaction-controller';
 import type { TransactionMeta } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 import { createModuleLogger } from '@metamask/utils';
@@ -17,6 +16,7 @@ import {
   HYPERCORE_USDC_ADDRESS,
   HYPERCORE_USDC_DECIMALS,
   NATIVE_TOKEN_ADDRESS,
+  PERPS_DEPOSIT_TYPES,
   USDC_DECIMALS,
   STABLECOINS,
 } from '../../constants';
@@ -64,6 +64,9 @@ import type {
 } from './types';
 
 const log = createModuleLogger(projectLogger, 'relay-strategy');
+
+// Hardcoded gas allowance for the prepended payment override transaction(s).
+const PAYMENT_OVERRIDE_GAS = 75_000;
 
 /**
  * Fetches Relay quotes.
@@ -391,7 +394,9 @@ function normalizeRequest(
     ...request,
   };
 
-  const isPerpsDeposit = transaction.type === TransactionType.perpsDeposit;
+  const isPerpsDeposit =
+    transaction.type !== undefined &&
+    PERPS_DEPOSIT_TYPES.includes(transaction.type);
 
   const isHyperliquidDeposit =
     isPerpsDeposit &&
@@ -695,9 +700,7 @@ async function calculateSourceNetworkCost(
   );
 
   const { gasLimits, is7702, totalGasEstimate, totalGasLimit } =
-    request.isPostQuote
-      ? combinePostQuoteGas(relayOnlyGas, transaction)
-      : relayOnlyGas;
+    combinePrependedGas(relayOnlyGas, request, transaction);
 
   log('Gas limit', {
     is7702,
@@ -895,6 +898,25 @@ function toRelayQuoteGasTransaction(
   };
 }
 
+type RelayGasResult = {
+  totalGasEstimate: number;
+  totalGasLimit: number;
+  gasLimits: number[];
+  is7702: boolean;
+};
+
+function combinePrependedGas(
+  relayOnlyGas: RelayGasResult,
+  request: QuoteRequest,
+  transaction: TransactionMeta,
+): RelayGasResult {
+  const gas = request.isPostQuote
+    ? combinePostQuoteGas(relayOnlyGas, transaction)
+    : relayOnlyGas;
+
+  return request.paymentOverride ? addPaymentOverrideGas(gas) : gas;
+}
+
 /**
  * Combine the original transaction's gas with relay gas for post-quote flows.
  *
@@ -911,19 +933,9 @@ function toRelayQuoteGasTransaction(
  * @returns Combined gas estimates including the original transaction.
  */
 function combinePostQuoteGas(
-  relayGas: {
-    totalGasEstimate: number;
-    totalGasLimit: number;
-    gasLimits: number[];
-    is7702: boolean;
-  },
+  relayGas: RelayGasResult,
   transaction: TransactionMeta,
-): {
-  totalGasEstimate: number;
-  totalGasLimit: number;
-  gasLimits: number[];
-  is7702: boolean;
-} {
+): RelayGasResult {
   const nestedGas = transaction.nestedTransactions?.find((tx) => tx.gas)?.gas;
   const rawGas = nestedGas ?? transaction.txParams.gas;
   const originalTxGas = rawGas ? new BigNumber(rawGas).toNumber() : undefined;
@@ -957,6 +969,19 @@ function combinePostQuoteGas(
   return {
     totalGasEstimate,
     totalGasLimit,
+    gasLimits,
+    is7702: relayGas.is7702,
+  };
+}
+
+function addPaymentOverrideGas(relayGas: RelayGasResult): RelayGasResult {
+  const gasLimits = relayGas.is7702
+    ? [relayGas.gasLimits[0] + PAYMENT_OVERRIDE_GAS]
+    : [PAYMENT_OVERRIDE_GAS, ...relayGas.gasLimits];
+
+  return {
+    totalGasEstimate: relayGas.totalGasEstimate + PAYMENT_OVERRIDE_GAS,
+    totalGasLimit: relayGas.totalGasLimit + PAYMENT_OVERRIDE_GAS,
     gasLimits,
     is7702: relayGas.is7702,
   };
