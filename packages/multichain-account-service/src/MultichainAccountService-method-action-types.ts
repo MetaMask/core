@@ -82,10 +82,12 @@ export type MultichainAccountServiceCreateMultichainAccountWalletAction = {
  *
  * The deletion iterates providers (the source of truth for their own
  * account lists) and filters each provider's accounts to those matching
- * the wallet's entropy source. Per-account deletions are best-effort:
- * a single account failure is reported via `reportError` but does not
- * abort cleanup of the remaining accounts. The wallet is always removed
- * from the service's internal map at the end.
+ * the wallet's entropy source. Per-account deletions are best-effort: a
+ * single account failure does not abort cleanup of the remaining
+ * accounts. If one or more deletions fail, a single aggregated error is
+ * reported via `reportError` with all per-account failure details in its
+ * context. The wallet is always removed from the service's internal map
+ * at the end.
  *
  * @param entropySource - The entropy source of the multichain account wallet.
  */
