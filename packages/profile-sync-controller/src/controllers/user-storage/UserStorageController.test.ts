@@ -3,10 +3,10 @@ import nock from 'nock';
 
 import { Env, getEnvUrls } from '../../sdk';
 import { createSHA256Hash } from '../../shared/encryption';
+import type { UserStorageGenericPathWithFeatureAndKey } from '../../shared/storage-schema';
 import {
   createEntryPath,
   USER_STORAGE_FEATURE_NAMES,
-  type UserStorageGenericPathWithFeatureAndKey,
 } from '../../shared/storage-schema';
 import { mockUserStorageMessenger } from './__fixtures__/mockMessenger';
 import {
