@@ -348,8 +348,9 @@ describe('BridgeStatusController', () => {
 
                     // addTransactionBatch options
                     expect(batchParams).toStrictEqual({
-                      disable7702: !is7702,
-                      excludeNativeTokenForFee: Boolean(transferTx),
+                      disable7702: !is7702 || stxEnabled,
+                      excludeNativeTokenForFee:
+                        Boolean(transferTx) || gasIncluded,
                       atomic: false,
                       from: '0xaccount1',
                       isGasFeeIncluded: gasIncluded7702,
@@ -358,7 +359,7 @@ describe('BridgeStatusController', () => {
                       networkClientId: 'networkClientId',
                       origin: 'metamask',
                       requireApproval: false,
-                      skipInitialGasEstimate: false,
+                      skipInitialGasEstimate: !transferTx,
                     });
 
                     expect(transactions).toStrictEqual(

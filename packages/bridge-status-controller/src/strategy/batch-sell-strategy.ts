@@ -37,6 +37,7 @@ export async function* submitBatchSellHandler(
     addTransactionBatchFn,
     isDelegatedAccount,
     batchSellTrades,
+    isStxEnabled,
   } = args;
 
   const tradeData = toQuoteAndTxMetadataBatch({
@@ -57,15 +58,13 @@ export async function* submitBatchSellHandler(
     isDelegatedAccount,
     // Tx success/failure is independent of other txs in the batch
     atomic: false,
-    disable7702: shouldDisable7702(
-      gasIncluded7702,
-      gasIncluded,
-      isDelegatedAccount,
-    ),
+    disable7702:
+      isStxEnabled ||
+      shouldDisable7702(gasIncluded7702, gasIncluded, isDelegatedAccount),
     isGasFeeSponsored: gasSponsored,
     isGasFeeIncluded: Boolean(gasIncluded7702),
-    skipInitialGasEstimate: false,
-    excludeNativeTokenForFee: Boolean(gasFeeToken),
+    skipInitialGasEstimate: !gasFeeToken,
+    excludeNativeTokenForFee: Boolean(gasFeeToken) || gasIncluded,
   });
 
   // Submit the batch to the TransactionController
