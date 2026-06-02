@@ -111,7 +111,7 @@
     "typescript": "~5.0.4",
     "web3": "^4.16.0"
   },
-  "packageManager": "yarn@3.8.5",
+  "packageManager": "yarn@4.16.0",
   "engines": {
     "node": "^18.18 || ^20.14 || >=22"
   },
