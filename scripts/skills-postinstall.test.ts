@@ -1,3 +1,4 @@
+/* eslint-disable n/no-sync -- Tests mock the synchronous postinstall spawn API. */
 import type { Stats } from 'fs';
 
 import {
@@ -154,6 +155,25 @@ describe('skills-postinstall', () => {
     expect(spawn).toHaveBeenNthCalledWith(2, 'yarn', ['skills'], {
       stdio: 'inherit',
     });
+  });
+
+  it('warns without failing when auto-update throws unexpectedly', () => {
+    const stderr = { write: jest.fn() };
+
+    expect(
+      postinstall({
+        env: { SKILLS_AUTO_UPDATE: '1' },
+        readFile: readSkillsLocal(''),
+        spawn: (() => {
+          throw new Error('spawn unavailable');
+        }) as unknown as typeof import('child_process').spawnSync,
+        stat: statGitDir(true),
+        stderr,
+      }),
+    ).toBe(0);
+    expect(stderr.write).toHaveBeenCalledWith(
+      expect.stringContaining('unexpected error: spawn unavailable'),
+    );
   });
 
   it('warns but does not fail when auto-update sync fails', () => {
