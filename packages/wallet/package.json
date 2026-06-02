@@ -54,9 +54,11 @@
   },
   "dependencies": {
     "@metamask/accounts-controller": "^38.1.2",
+    "@metamask/approval-controller": "^9.0.1",
     "@metamask/base-controller": "^9.1.0",
     "@metamask/browser-passworder": "^6.0.0",
     "@metamask/connectivity-controller": "^0.2.0",
+    "@metamask/controller-utils": "^12.1.0",
     "@metamask/keyring-controller": "^26.0.0",
     "@metamask/messenger": "^1.2.0",
     "@metamask/scure-bip39": "^2.1.1",

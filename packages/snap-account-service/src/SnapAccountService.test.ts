@@ -1,6 +1,9 @@
 import type { AccountGroupId } from '@metamask/account-api';
 import type { SnapKeyring, SnapMessage } from '@metamask/eth-snap-keyring';
+import { KeyringEvent } from '@metamask/keyring-api';
 import {
+  KeyringControllerError,
+  KeyringControllerErrorMessage,
   KeyringControllerState,
   KeyringTypes,
 } from '@metamask/keyring-controller';
@@ -8,6 +11,7 @@ import type {
   KeyringEntry,
   RestrictedController,
 } from '@metamask/keyring-controller';
+import { SnapManageAccountsMethod } from '@metamask/keyring-snap-sdk';
 import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
 import type {
   MockAnyNamespace,
@@ -62,6 +66,7 @@ type Mocks = {
   KeyringController: {
     getState: jest.MockedFunction<() => { keyrings: { type: string }[] }>;
     withController: jest.Mock;
+    withKeyringUnsafe: jest.Mock;
   };
   // eslint-disable-next-line @typescript-eslint/naming-convention
   AccountTreeController: {
@@ -103,6 +108,7 @@ function getMessenger(
       'SnapController:getRunnableSnaps',
       'KeyringController:getState',
       'KeyringController:withController',
+      'KeyringController:withKeyringUnsafe',
       'AccountTreeController:getAccountGroupObject',
       'AccountTreeController:getSelectedAccountGroup',
     ],
@@ -323,6 +329,7 @@ function mockWithController(
  * @param keyring - The mocked Snap keyring methods.
  * @param keyring.handleKeyringSnapMessage - The mocked implementation.
  * @param keyring.setSelectedAccounts - The mocked implementation.
+ * @returns The mocked Snap keyring for assertions.
  */
 function mockLegacySnapKeyring(
   mocks: Mocks,
@@ -337,7 +344,7 @@ function mockLegacySnapKeyring(
       SnapKeyring['setSelectedAccounts']
     >;
   },
-): void {
+): MockSnapKeyring {
   const snapKeyring: MockSnapKeyring = {
     type: KeyringTypes.snap,
     handleKeyringSnapMessage,
@@ -357,6 +364,28 @@ function mockLegacySnapKeyring(
       removeKeyring: jest.fn(),
     }),
   );
+  mocks.KeyringController.withKeyringUnsafe.mockImplementation(
+    async (_selector, operation) =>
+      operation({
+        keyring: snapKeyring as KeyringEntry['keyring'],
+        metadata: { id: 'id-snap', name: KeyringTypes.snap },
+      }),
+  );
+  return snapKeyring;
+}
+
+/**
+ * Configures `mocks.KeyringController.withKeyringUnsafe` to reject as if the
+ * legacy Snap keyring did not exist yet.
+ *
+ * @param mocks - The mocks object from {@link setup}.
+ */
+function mockLegacySnapKeyringMissing(mocks: Mocks): void {
+  mocks.KeyringController.withKeyringUnsafe.mockImplementation(async () => {
+    throw new KeyringControllerError(
+      KeyringControllerErrorMessage.KeyringNotFound,
+    );
+  });
 }
 
 /**
@@ -398,6 +427,7 @@ function setup({
     KeyringController: {
       getState: jest.fn().mockReturnValue({ keyrings }),
       withController: jest.fn(),
+      withKeyringUnsafe: jest.fn(),
     },
     AccountTreeController: {
       getAccountGroupObject: jest.fn().mockReturnValue(undefined),
@@ -420,6 +450,10 @@ function setup({
   rootMessenger.registerActionHandler(
     'KeyringController:withController',
     mocks.KeyringController.withController,
+  );
+  rootMessenger.registerActionHandler(
+    'KeyringController:withKeyringUnsafe',
+    mocks.KeyringController.withKeyringUnsafe,
   );
   rootMessenger.registerActionHandler(
     'AccountTreeController:getAccountGroupObject',
@@ -596,8 +630,33 @@ describe('SnapAccountService', () => {
   });
 
   describe('getLegacySnapKeyring', () => {
-    it('returns the existing Snap keyring when one is already present', async () => {
+    it('returns the existing Snap keyring via the fast-path without acquiring the KeyringController mutex', async () => {
       const { service, mocks } = setup();
+      const existing = mockLegacySnapKeyring(mocks, {});
+
+      const result = await service.getLegacySnapKeyring();
+
+      expect(result).toBe(existing as unknown as SnapKeyring);
+      expect(mocks.KeyringController.withController).not.toHaveBeenCalled();
+    });
+
+    it('falls back to withController and creates a new Snap keyring when the fast-path reports it missing', async () => {
+      const { service, mocks } = setup();
+      mockLegacySnapKeyringMissing(mocks);
+      const { addNewKeyring } = mockWithController(mocks, [
+        buildKeyringEntry(KeyringTypes.hd),
+      ]);
+
+      const result = await service.getLegacySnapKeyring();
+
+      expect(mocks.KeyringController.withKeyringUnsafe).toHaveBeenCalled();
+      expect(addNewKeyring).toHaveBeenCalledWith(KeyringTypes.snap);
+      expect(result.type).toBe(KeyringTypes.snap);
+    });
+
+    it('returns the existing Snap keyring found within withController when the fast-path reports it missing', async () => {
+      const { service, mocks } = setup();
+      mockLegacySnapKeyringMissing(mocks);
       const existing = buildKeyringEntry(KeyringTypes.snap);
       const { addNewKeyring } = mockWithController(mocks, [
         buildKeyringEntry(KeyringTypes.hd),
@@ -610,31 +669,30 @@ describe('SnapAccountService', () => {
       expect(addNewKeyring).not.toHaveBeenCalled();
     });
 
-    it('creates a new Snap keyring when none exists', async () => {
-      const { service, mocks } = setup();
-      const { addNewKeyring } = mockWithController(mocks, [
-        buildKeyringEntry(KeyringTypes.hd),
-      ]);
-
-      const result = await service.getLegacySnapKeyring();
-
-      expect(addNewKeyring).toHaveBeenCalledWith(KeyringTypes.snap);
-      expect(result.type).toBe(KeyringTypes.snap);
-    });
-
     it('propagates errors thrown by withController', async () => {
       const { service, mocks } = setup();
+      mockLegacySnapKeyringMissing(mocks);
       mocks.KeyringController.withController.mockImplementation(async () => {
         throw new Error('boom');
       });
 
       await expect(service.getLegacySnapKeyring()).rejects.toThrow('boom');
     });
+
+    it('propagates non-KeyringNotFound errors thrown by the fast-path', async () => {
+      const { service, mocks } = setup();
+      mocks.KeyringController.withKeyringUnsafe.mockImplementation(async () => {
+        throw new Error('boom');
+      });
+
+      await expect(service.getLegacySnapKeyring()).rejects.toThrow('boom');
+      expect(mocks.KeyringController.withController).not.toHaveBeenCalled();
+    });
   });
 
   describe('handleKeyringSnapMessage', () => {
     const MOCK_MESSAGE = {
-      method: 'keyring_listAccounts',
+      method: KeyringEvent.AccountUpdated,
       params: {},
     } as unknown as SnapMessage;
 
@@ -688,6 +746,133 @@ describe('SnapAccountService', () => {
         MOCK_MESSAGE,
       );
       expect(result).toBe('pong');
+    });
+
+    it('throws when the legacy Snap keyring does not exist yet for a non-AccountCreated message', async () => {
+      const { service, mocks } = setup();
+      mockLegacySnapKeyringMissing(mocks);
+
+      await expect(
+        service.handleKeyringSnapMessage(MOCK_SNAP_ID, MOCK_MESSAGE),
+      ).rejects.toThrow(
+        `Legacy Snap keyring does not exist yet for snap "${MOCK_SNAP_ID}".`,
+      );
+      expect(mocks.KeyringController.withController).not.toHaveBeenCalled();
+    });
+
+    it('propagates non-KeyringNotFound errors from withKeyringUnsafe', async () => {
+      const { service, mocks } = setup();
+      mocks.KeyringController.withKeyringUnsafe.mockImplementation(async () => {
+        throw new Error('boom');
+      });
+
+      await expect(
+        service.handleKeyringSnapMessage(MOCK_SNAP_ID, MOCK_MESSAGE),
+      ).rejects.toThrow('boom');
+    });
+
+    describe('when the message is an AccountCreated event', () => {
+      const ACCOUNT_CREATED_MESSAGE = {
+        method: KeyringEvent.AccountCreated,
+        params: {},
+      } as unknown as SnapMessage;
+
+      it('auto-creates the legacy Snap keyring when it does not exist yet', async () => {
+        const { service, mocks } = setup();
+        mockLegacySnapKeyringMissing(mocks);
+        const handleKeyringSnapMessage = jest
+          .fn()
+          .mockResolvedValue({ ok: true });
+        // `getLegacySnapKeyring` goes through `withController` and creates the
+        // keyring if missing.
+        mocks.KeyringController.withController.mockImplementation(
+          async (operation) =>
+            operation({
+              get keyrings() {
+                return Object.freeze([]);
+              },
+              addNewKeyring: jest.fn(async () => ({
+                keyring: {
+                  type: KeyringTypes.snap,
+                  handleKeyringSnapMessage,
+                } as unknown as KeyringEntry['keyring'],
+                metadata: { id: 'id-snap', name: KeyringTypes.snap },
+              })),
+              removeKeyring: jest.fn(),
+            }),
+        );
+
+        const result = await service.handleKeyringSnapMessage(
+          MOCK_SNAP_ID,
+          ACCOUNT_CREATED_MESSAGE,
+        );
+
+        expect(mocks.KeyringController.withController).toHaveBeenCalled();
+        expect(handleKeyringSnapMessage).toHaveBeenCalledWith(
+          MOCK_SNAP_ID,
+          ACCOUNT_CREATED_MESSAGE,
+        );
+        expect(result).toStrictEqual({ ok: true });
+      });
+
+      it('uses the existing legacy Snap keyring when it is already available', async () => {
+        const { service, mocks } = setup();
+        const handleKeyringSnapMessage = jest
+          .fn()
+          .mockResolvedValue({ ok: true });
+        mockLegacySnapKeyring(mocks, { handleKeyringSnapMessage });
+
+        const result = await service.handleKeyringSnapMessage(
+          MOCK_SNAP_ID,
+          ACCOUNT_CREATED_MESSAGE,
+        );
+
+        expect(mocks.KeyringController.withController).not.toHaveBeenCalled();
+        expect(handleKeyringSnapMessage).toHaveBeenCalledWith(
+          MOCK_SNAP_ID,
+          ACCOUNT_CREATED_MESSAGE,
+        );
+        expect(result).toStrictEqual({ ok: true });
+      });
+    });
+
+    describe('when the message is a GetSelectedAccounts request', () => {
+      const GET_SELECTED_ACCOUNTS_MESSAGE = {
+        method: SnapManageAccountsMethod.GetSelectedAccounts,
+        params: {},
+      } as unknown as SnapMessage;
+
+      it('delegates to the legacy Snap keyring when it is available', async () => {
+        const { service, mocks } = setup();
+        const handleKeyringSnapMessage = jest
+          .fn()
+          .mockResolvedValue(['account-1']);
+        mockLegacySnapKeyring(mocks, { handleKeyringSnapMessage });
+
+        const result = await service.handleKeyringSnapMessage(
+          MOCK_SNAP_ID,
+          GET_SELECTED_ACCOUNTS_MESSAGE,
+        );
+
+        expect(handleKeyringSnapMessage).toHaveBeenCalledWith(
+          MOCK_SNAP_ID,
+          GET_SELECTED_ACCOUNTS_MESSAGE,
+        );
+        expect(result).toStrictEqual(['account-1']);
+      });
+
+      it('returns an empty list when the legacy Snap keyring does not exist yet', async () => {
+        const { service, mocks } = setup();
+        mockLegacySnapKeyringMissing(mocks);
+
+        const result = await service.handleKeyringSnapMessage(
+          MOCK_SNAP_ID,
+          GET_SELECTED_ACCOUNTS_MESSAGE,
+        );
+
+        expect(result).toStrictEqual([]);
+        expect(mocks.KeyringController.withController).not.toHaveBeenCalled();
+      });
     });
   });
 
@@ -770,6 +955,28 @@ describe('SnapAccountService', () => {
         'Error forwarding selected accounts:',
         error,
       );
+
+      consoleErrorSpy.mockRestore();
+    });
+
+    it('skips silently when the legacy Snap keyring does not exist yet', async () => {
+      const { service, rootMessenger, mocks } = setup();
+      mockLegacySnapKeyringMissing(mocks);
+      mocks.AccountTreeController.getAccountGroupObject.mockReturnValue(
+        buildGroup(MOCK_GROUP_ID, MOCK_ACCOUNTS),
+      );
+      const consoleErrorSpy = jest
+        .spyOn(console, 'error')
+        .mockImplementation(() => undefined);
+      expect(service).toBeDefined();
+
+      publishSelectedAccountGroupChange(rootMessenger, MOCK_GROUP_ID);
+      await flushMicrotasks();
+
+      // The forwarder must NOT auto-create the keyring through `withController`.
+      expect(mocks.KeyringController.withController).not.toHaveBeenCalled();
+      // And it must NOT bubble the "keyring not found" condition as an error.
+      expect(consoleErrorSpy).not.toHaveBeenCalled();
 
       consoleErrorSpy.mockRestore();
     });
