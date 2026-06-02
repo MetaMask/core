@@ -400,6 +400,29 @@ describe('ProfileMetricsService', () => {
       });
     });
 
+    it('tolerates unknown additive fields in the response (forward-compatible schema)', async () => {
+      const identifiers = ['0xAddressOne'];
+      nock(defaultBaseEndpoint)
+        .post('/nonce/batch', { identifiers })
+        .reply(200, [
+          {
+            expires_in: 300,
+            identifier: '0xAddressOne',
+            nonce: 'nonce-for-one',
+            created_at: '2026-06-01T00:00:00Z',
+            schema_version: 2,
+          },
+        ]);
+      const { rootMessenger } = getService();
+
+      const nonces = await rootMessenger.call(
+        'ProfileMetricsService:fetchNonces',
+        { identifiers },
+      );
+
+      expect(nonces).toStrictEqual({ '0xAddressOne': 'nonce-for-one' });
+    });
+
     it('tolerates the response being out of order relative to the request', async () => {
       const identifiers = ['0xAddressOne', '0xAddressTwo'];
       nock(defaultBaseEndpoint)

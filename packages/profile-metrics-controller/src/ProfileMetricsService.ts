@@ -6,7 +6,12 @@ import { createServicePolicy, HttpError } from '@metamask/controller-utils';
 import type { Messenger } from '@metamask/messenger';
 import { SDK } from '@metamask/profile-sync-controller';
 import type { AuthenticationController } from '@metamask/profile-sync-controller';
-import { array, number, object, string } from '@metamask/superstruct';
+import {
+  array,
+  number,
+  string,
+  type as structType,
+} from '@metamask/superstruct';
 import type { IDisposable } from 'cockatiel';
 
 import type { ProfileMetricsServiceMethodActions } from '.';
@@ -16,10 +21,11 @@ import type { ProfileMetricsServiceMethodActions } from '.';
  *
  * `identifier` echoes the request identifier verbatim, mirroring the
  * documented behavior of the single-account `GET /api/v2/nonce` endpoint on
- * the same auth service.
+ * the same auth service. Defined with `type()` (not `object()`) so the
+ * client tolerates additive server-side schema changes.
  */
 const NonceBatchResponseStruct = array(
-  object({
+  structType({
     expires_in: number(),
     identifier: string(),
     nonce: string(),
