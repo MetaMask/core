@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `@metamask/keyring-controller` `^26.0.0` as a dependency
+
 ## [23.1.0]
 
 ### Changed
