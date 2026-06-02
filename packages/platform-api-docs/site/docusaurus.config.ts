@@ -6,6 +6,11 @@ const codeTheme = themes.dracula;
 
 const projectLabel = process.env.DOCS_PROJECT_LABEL;
 const commitSha = process.env.DOCS_COMMIT_SHA;
+// The CLI discovers the project's `origin` remote and passes it through so
+// navbar links point at the actual repo the docs were generated from, not
+// hardcoded MetaMask/core. Falls back to MetaMask/core when running outside a
+// git checkout (e.g. local smoke tests).
+const repoUrl = process.env.DOCS_REPO_URL ?? 'https://github.com/MetaMask/core';
 const projectSuffix = projectLabel ? ` (${projectLabel})` : '';
 
 const config: Config = {
@@ -76,12 +81,12 @@ const config: Config = {
               {
                 label: `commit ${commitSha}`,
                 position: 'right' as const,
-                href: 'https://github.com/MetaMask/core',
+                href: `${repoUrl}/commit/${commitSha}`,
               },
             ]
           : []),
         {
-          href: 'https://github.com/MetaMask/core',
+          href: repoUrl,
           label: 'GitHub',
           position: 'right',
         },

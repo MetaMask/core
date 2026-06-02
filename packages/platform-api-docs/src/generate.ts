@@ -67,13 +67,16 @@ async function resolveDefaultBranch(projectPath: string): Promise<string> {
 }
 
 /**
- * Resolve the GitHub blob base URL for a project by reading its git remote
- * and default branch.
+ * Resolve the bare GitHub repository URL for a project by reading its
+ * `origin` remote.
  *
  * @param projectPath - Absolute path to the project root.
- * @returns A base URL like "https://github.com/Owner/Repo/blob/<branch>/" or null.
+ * @returns A URL like "https://github.com/Owner/Repo" or null when the remote
+ * isn't a GitHub URL or can't be read.
  */
-async function resolveRepoBaseUrl(projectPath: string): Promise<string | null> {
+export async function resolveRepoUrl(
+  projectPath: string,
+): Promise<string | null> {
   try {
     const { stdout: remoteRaw } = await execFileAsync(
       'git',
@@ -92,11 +95,34 @@ async function resolveRepoBaseUrl(projectPath: string): Promise<string | null> {
       return null;
     }
 
-    const branch = await resolveDefaultBranch(projectPath);
-    return `https://github.com/${match[1]}/blob/${branch}/`;
+    return `https://github.com/${match[1]}`;
   } catch {
     return null;
   }
+}
+
+/**
+ * Resolve the GitHub blob base URL used for per-line source links.
+ *
+ * Prefers the documented commit SHA when one is available so the links point
+ * at the exact revision the docs were generated from; falls back to the
+ * default branch otherwise.
+ *
+ * @param projectPath - Absolute path to the project root.
+ * @param commitSha - Optional commit SHA to use as the ref. When null, the
+ * default branch is used instead.
+ * @returns A base URL like "https://github.com/Owner/Repo/blob/<ref>/" or null.
+ */
+async function resolveRepoBaseUrl(
+  projectPath: string,
+  commitSha: string | null,
+): Promise<string | null> {
+  const repoUrl = await resolveRepoUrl(projectPath);
+  if (!repoUrl) {
+    return null;
+  }
+  const ref = commitSha ?? (await resolveDefaultBranch(projectPath));
+  return `${repoUrl}/blob/${ref}/`;
 }
 
 /**
@@ -512,7 +538,7 @@ export async function generate(
   );
 
   const namespaces = groupByNamespace(allItems);
-  const repoBaseUrl = await resolveRepoBaseUrl(projectPath);
+  const repoBaseUrl = await resolveRepoBaseUrl(projectPath, commitSha ?? null);
 
   await writeOutput(namespaces, outputDir, repoBaseUrl, {
     projectLabel,

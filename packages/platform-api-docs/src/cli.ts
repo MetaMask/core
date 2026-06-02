@@ -6,7 +6,7 @@ import * as path from 'node:path';
 import npmWhich from 'npm-which';
 import yargs from 'yargs';
 
-import { generate } from './generate';
+import { generate, resolveRepoUrl } from './generate';
 
 /**
  * Locate the Docusaurus binary in this package's `node_modules/.bin`. Using
@@ -25,7 +25,8 @@ function resolveDocusaurus(): string {
  * @param command - The docusaurus command (start, build, serve).
  * @param cwd - The site directory.
  * @param extraEnv - Extra environment variables passed through to the
- * Docusaurus process (e.g. `DOCS_PROJECT_LABEL`, `DOCS_COMMIT_SHA`).
+ * Docusaurus process (e.g. `DOCS_PROJECT_LABEL`, `DOCS_COMMIT_SHA`,
+ * `DOCS_REPO_URL`).
  */
 async function runDocusaurus(
   command: string,
@@ -177,6 +178,7 @@ async function main(): Promise<void> {
       ? argv['project-label']
       : null;
   const commitSha = await resolveCommitSha(resolvedProjectPath);
+  const repoUrl = await resolveRepoUrl(resolvedProjectPath);
 
   // Step 1: Generate docs
   await generate({
@@ -201,6 +203,9 @@ async function main(): Promise<void> {
     }
     if (commitSha) {
       docusaurusEnv.DOCS_COMMIT_SHA = commitSha;
+    }
+    if (repoUrl) {
+      docusaurusEnv.DOCS_REPO_URL = repoUrl;
     }
     if (typeof argv['site-url'] === 'string' && argv['site-url'].length > 0) {
       docusaurusEnv.DOCS_URL = argv['site-url'];

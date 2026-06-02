@@ -3,7 +3,7 @@ import execa from 'execa';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 
-import { generate } from './generate';
+import { generate, resolveRepoUrl } from './generate';
 
 const { withinSandbox } = createSandbox('platform-api-docs/generate');
 
@@ -347,6 +347,49 @@ export type GitMessenger = Messenger<'Git', GitGetAction, never>;
         'https://github.com/test-owner/test-repo/blob/main/',
       );
       expect(actionsMd).toContain('src/GitController.ts');
+    });
+  });
+
+  it('uses the documented commit SHA in source links when provided', async () => {
+    expect.assertions(1);
+
+    await withinSandbox(async ({ directoryPath }) => {
+      await initGitRepo(
+        directoryPath,
+        'https://github.com/test-owner/test-repo.git',
+      );
+
+      const srcDir = path.join(directoryPath, 'src');
+      await fs.promises.mkdir(srcDir, { recursive: true });
+      await fs.promises.writeFile(
+        path.join(srcDir, 'GitController.ts'),
+        `
+export type GitGetAction = {
+  type: 'Git:get';
+  handler: () => string;
+};
+
+export type GitMessenger = Messenger<'Git', GitGetAction, never>;
+`,
+      );
+
+      const outputDir = path.join(directoryPath, '.docs');
+      await generate({
+        projectPath: directoryPath,
+        outputDir,
+        scanDirs: ['src'],
+        commitSha: 'abc1234',
+      });
+
+      const actionsMd = await fs.promises.readFile(
+        path.join(outputDir, 'docs', 'Git', 'actions.md'),
+        'utf8',
+      );
+
+      // The link should pin to the documented commit, not the default branch.
+      expect(actionsMd).toContain(
+        'https://github.com/test-owner/test-repo/blob/abc1234/',
+      );
     });
   });
 
@@ -814,6 +857,49 @@ export type NonGhMessenger = Messenger<'NonGh', NonGhGetAction, never>;
       expect(actionsMd).not.toContain('github.com');
       // Source path is rendered plain (no link) when there's no recognized remote.
       expect(actionsMd).toContain('`src/NonGhController.ts');
+    });
+  });
+});
+
+describe('resolveRepoUrl', () => {
+  it('returns the bare repo URL for a GitHub origin remote', async () => {
+    expect.assertions(1);
+
+    await withinSandbox(async ({ directoryPath }) => {
+      await initGitRepo(
+        directoryPath,
+        'https://github.com/test-owner/test-repo.git',
+      );
+
+      const url = await resolveRepoUrl(directoryPath);
+
+      expect(url).toBe('https://github.com/test-owner/test-repo');
+    });
+  });
+
+  it('returns null for a non-GitHub origin remote', async () => {
+    expect.assertions(1);
+
+    await withinSandbox(async ({ directoryPath }) => {
+      await initGitRepo(
+        directoryPath,
+        'https://gitlab.com/test-owner/test-repo.git',
+      );
+
+      const url = await resolveRepoUrl(directoryPath);
+
+      expect(url).toBeNull();
+    });
+  });
+
+  it('returns null when git is not available or the directory is not a repo', async () => {
+    expect.assertions(1);
+
+    await withinSandbox(async ({ directoryPath }) => {
+      // No `git init` — `git remote get-url origin` will fail.
+      const url = await resolveRepoUrl(directoryPath);
+
+      expect(url).toBeNull();
     });
   });
 });
