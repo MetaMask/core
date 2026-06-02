@@ -19,10 +19,10 @@ Each package in this repository has its own README where you can find installati
 ## Agent skills
 
 This repo can install MetaMask agent skills for Claude, Cursor, and Codex/OpenAI.
-`yarn setup` best-effort refreshes the public [`MetaMask/skills`](https://github.com/MetaMask/skills)
-cache and runs `yarn skills`; `yarn skills` can also be run any time to refresh the
-gitignored generated skills under `.claude/skills/`, `.cursor/rules/`, and
-`.agents/skills/`.
+`yarn install` keeps the public [`MetaMask/skills`](https://github.com/MetaMask/skills)
+cache available through the postinstall hook. Run `yarn skills` any time to
+install or refresh the gitignored generated skills under `.claude/skills/`,
+`.cursor/rules/`, and `.agents/skills/`.
 
 By default, all stable skills that support Core are installed. To persist a local
 selection, copy `.skills.local.example` to `.skills.local` and set values such as
