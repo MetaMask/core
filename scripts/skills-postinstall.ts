@@ -1,5 +1,5 @@
 /* eslint-disable n/no-process-env, n/no-process-exit */
-// Auto-update the public MetaMask skills cache. Best-effort: never fails setup.
+// Refresh the public MetaMask skills cache. Best-effort: never fails setup.
 //
 // Core disables package lifecycle scripts (`enableScripts: false`), so this is
 // invoked explicitly by `yarn setup` and can also be run as
@@ -11,9 +11,12 @@
 // - Clones https://github.com/MetaMask/skills (public, no auth) into
 //   .skills-cache/metamask-skills if absent.
 // - `git fetch + reset` to origin/main if present.
+// - When SKILLS_AUTO_UPDATE=1, also runs `yarn skills` after the cache
+//   refresh so generated skills stay current. Off by default for backward
+//   compatibility.
 // - Leaves installation/domain selection to `yarn skills`, which reads
 //   .skills.local and SKILLS_DOMAINS.
-// - All errors are swallowed with a one-line warning. Engineers can run
+// - Failures are reported with a one-line warning. Engineers can run
 //   `yarn skills` manually for interactive feedback.
 
 import { spawnSync } from 'node:child_process';
@@ -69,6 +72,10 @@ export function shouldSkipPostinstall(env: NodeJS.ProcessEnv): boolean {
   );
 }
 
+export function shouldAutoUpdateSkills(env: NodeJS.ProcessEnv): boolean {
+  return /^(1|true|yes)$/iu.test(env.SKILLS_AUTO_UPDATE ?? '');
+}
+
 export function ensurePublicSkillsCache(deps?: CacheDeps): boolean {
   const mkdir = deps?.mkdir ?? mkdirSync;
   const spawn = deps?.spawn ?? spawnSync;
@@ -117,6 +124,17 @@ export function ensurePublicSkillsCache(deps?: CacheDeps): boolean {
   return true;
 }
 
+export function autoUpdateSkills(deps?: PostinstallDeps): boolean {
+  const spawn = deps?.spawn ?? spawnSync;
+  const stderr = deps?.stderr ?? process.stderr;
+  const result = run('yarn', ['skills'], spawn);
+  if (result.status !== 0) {
+    warn('skills sync failed', stderr);
+    return false;
+  }
+  return true;
+}
+
 export function postinstall(deps?: PostinstallDeps): number {
   const env = deps?.env ?? process.env;
 
@@ -124,7 +142,17 @@ export function postinstall(deps?: PostinstallDeps): number {
     return 0;
   }
 
-  ensurePublicSkillsCache(deps);
+  const cacheReady = ensurePublicSkillsCache(deps);
+  if (shouldAutoUpdateSkills(env)) {
+    if (cacheReady || env.METAMASK_SKILLS_DIR || env.CONSENSYS_SKILLS_DIR) {
+      autoUpdateSkills(deps);
+    } else {
+      warn(
+        'auto-update skipped because skills cache is unavailable',
+        deps?.stderr,
+      );
+    }
+  }
   return 0;
 }
 
