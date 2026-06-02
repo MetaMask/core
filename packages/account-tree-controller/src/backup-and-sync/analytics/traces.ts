@@ -6,6 +6,7 @@ import type {
 
 export const TraceName = {
   AccountSyncFull: 'Multichain Account Syncing - Full',
+  AccountSyncWallet: 'Multichain Account Syncing - Wallet',
 } as const;
 
 /**

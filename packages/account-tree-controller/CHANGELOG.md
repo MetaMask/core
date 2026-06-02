@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `AccountTreeController.syncWalletWithUserStorage(entropySourceId)` and the corresponding `AccountTreeController:syncWalletWithUserStorage` messenger action, which performs a bidirectional user-storage sync for a single entropy wallet (wallet metadata + groups) without iterating every local wallet. Use this in place of `syncWithUserStorage` after operations that only affect one wallet (e.g., SRP import) ([#8929](https://github.com/MetaMask/core/pull/8929))
+
 ## [7.5.0]
 
 ### Added

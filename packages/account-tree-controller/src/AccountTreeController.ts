@@ -59,6 +59,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'clearState',
   'syncWithUserStorage',
   'syncWithUserStorageAtLeastOnce',
+  'syncWalletWithUserStorage',
   'init',
   'reinit',
 ] as const;
@@ -1787,6 +1788,24 @@ export class AccountTreeController extends BaseController<
    */
   async syncWithUserStorageAtLeastOnce(): Promise<void> {
     return this.#backupAndSyncService.performFullSyncAtLeastOnce();
+  }
+
+  /**
+   * Bi-directionally syncs a single entropy wallet with user storage, scoped
+   * by entropy source ID. Use this in place of `syncWithUserStorage` when
+   * only one wallet's state has changed (e.g., after an SRP import) to
+   * avoid the per-wallet fanout of fetches that a full sync triggers.
+   *
+   * IMPORTANT:
+   * If a full sync is already in progress, returns the ongoing full-sync
+   * promise so callers cooperatively wait for it instead of racing. Does
+   * NOT mark the controller as having completed its first full sync.
+   *
+   * @param entropySourceId - The entropy source ID of the wallet to sync.
+   * @returns A promise that resolves when the sync is complete.
+   */
+  async syncWalletWithUserStorage(entropySourceId: string): Promise<void> {
+    return this.#backupAndSyncService.performSyncForWallet(entropySourceId);
   }
 
   /**

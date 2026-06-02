@@ -314,123 +314,7 @@ export class BackupAndSyncService {
 
         // 2. Iterate over each local wallet
         for (const wallet of localSyncableWallets) {
-          const entropySourceId = wallet.metadata.entropy.id;
-
-          let walletProfileId: ProfileId;
-          let walletFromUserStorage: UserStorageSyncedWallet | null;
-          let groupsFromUserStorage: UserStorageSyncedWalletGroup[];
-
-          try {
-            walletProfileId = await getProfileId(
-              this.#context,
-              entropySourceId,
-            );
-
-            [walletFromUserStorage, groupsFromUserStorage] = await Promise.all([
-              getWalletFromUserStorage(this.#context, entropySourceId),
-              getAllGroupsFromUserStorage(this.#context, entropySourceId),
-            ]);
-
-            // 2.1 Decide if we need to perform legacy account syncing
-            if (
-              !walletFromUserStorage ||
-              !walletFromUserStorage.isLegacyAccountSyncingDisabled
-            ) {
-              // 2.2 Perform legacy account syncing
-              // This will migrate legacy account data to the new structure.
-              // This operation will only be performed once.
-              await performLegacyAccountSyncing(
-                this.#context,
-                entropySourceId,
-                walletProfileId,
-              );
-            }
-          } catch (error) {
-            const errorMessage = toErrorMessage(error);
-
-            backupAndSyncLogger(
-              `Legacy syncing failed for wallet ${wallet.id}: ${errorMessage}`,
-            );
-            throw new Error(
-              `Legacy syncing failed for wallet: ${errorMessage}`,
-            );
-          }
-
-          // 3. Execute multichain account syncing
-          let stateSnapshot: StateSnapshot | undefined;
-
-          try {
-            // 3.1 Wallet syncing
-            // Create a state snapshot before processing each wallet for potential rollback
-            stateSnapshot = createStateSnapshot(this.#context);
-
-            // Sync wallet metadata bidirectionally
-            await syncWalletMetadata(
-              this.#context,
-              wallet,
-              walletFromUserStorage,
-              walletProfileId,
-            );
-
-            // 3.2 Groups syncing
-            // If groups data does not exist in user storage yet, create it
-            if (!groupsFromUserStorage.length) {
-              // If no groups exist in user storage, we can push all groups from the wallet to the user storage and exit
-              await pushGroupToUserStorageBatch(
-                this.#context,
-                getLocalGroupsForEntropyWallet(this.#context, wallet.id),
-                entropySourceId,
-              );
-
-              continue; // No need to proceed with metadata comparison if groups are new
-            }
-
-            // Create local groups for each group from user storage if they do not exist
-            // This will ensure that we have all groups available locally before syncing metadata
-            await createLocalGroupsFromUserStorage(
-              this.#context,
-              groupsFromUserStorage,
-              entropySourceId,
-              walletProfileId,
-            );
-
-            // Sync group metadata bidirectionally
-            await syncGroupsMetadata(
-              this.#context,
-              wallet,
-              groupsFromUserStorage,
-              entropySourceId,
-              walletProfileId,
-            );
-          } catch (error) {
-            const errorMessage = toErrorMessage(error);
-            const errorString = `Error during multichain account syncing for wallet ${wallet.id}: ${errorMessage}`;
-
-            backupAndSyncLogger(errorString);
-
-            // Attempt to rollback state changes for this wallet
-            try {
-              if (!stateSnapshot) {
-                throw new Error(
-                  `State snapshot is missing for wallet ${wallet.id}`,
-                );
-              }
-              restoreStateFromSnapshot(this.#context, stateSnapshot);
-              backupAndSyncLogger(
-                `Rolled back state changes for wallet ${wallet.id}`,
-              );
-            } catch (rollbackError) {
-              backupAndSyncLogger(
-                `Failed to rollback state for wallet ${wallet.id}:`,
-                rollbackError instanceof Error
-                  ? rollbackError.message
-                  : String(rollbackError),
-              );
-            }
-
-            // Continue with next wallet instead of failing the entire sync
-            continue;
-          }
+          await this.#performWalletSyncInner(wallet);
         }
       } catch (error) {
         backupAndSyncLogger('Error during multichain account syncing:', error);
@@ -452,6 +336,213 @@ export class BackupAndSyncService {
       );
     } finally {
       // Always reset state, regardless of success or failure
+      this.#context.controllerStateUpdateFn(
+        (state: AccountTreeControllerState) => {
+          state.isAccountTreeSyncingInProgress = false;
+        },
+      );
+    }
+  }
+
+  /**
+   * Performs the bidirectional sync work for a single entropy wallet:
+   * legacy account syncing (when needed), wallet metadata sync, and group
+   * metadata sync. Mirrors the per-wallet body of {@link #performFullSyncInner}.
+   *
+   * Per-wallet errors are isolated: legacy sync failures bubble up, but
+   * multichain sync failures trigger a state rollback for that wallet only,
+   * allowing the caller to continue with the next wallet (full sync) or
+   * resolve cleanly (single-wallet sync).
+   *
+   * @param wallet - The local entropy wallet to sync.
+   */
+  async #performWalletSyncInner(
+    wallet: AccountWalletEntropyObject,
+  ): Promise<void> {
+    const entropySourceId = wallet.metadata.entropy.id;
+
+    let walletProfileId: ProfileId;
+    let walletFromUserStorage: UserStorageSyncedWallet | null;
+    let groupsFromUserStorage: UserStorageSyncedWalletGroup[];
+
+    try {
+      walletProfileId = await getProfileId(this.#context, entropySourceId);
+
+      [walletFromUserStorage, groupsFromUserStorage] = await Promise.all([
+        getWalletFromUserStorage(this.#context, entropySourceId),
+        getAllGroupsFromUserStorage(this.#context, entropySourceId),
+      ]);
+
+      // Decide if we need to perform legacy account syncing
+      if (
+        !walletFromUserStorage ||
+        !walletFromUserStorage.isLegacyAccountSyncingDisabled
+      ) {
+        // Perform legacy account syncing.
+        // This will migrate legacy account data to the new structure.
+        // This operation will only be performed once.
+        await performLegacyAccountSyncing(
+          this.#context,
+          entropySourceId,
+          walletProfileId,
+        );
+      }
+    } catch (error) {
+      const errorMessage = toErrorMessage(error);
+
+      backupAndSyncLogger(
+        `Legacy syncing failed for wallet ${wallet.id}: ${errorMessage}`,
+      );
+      throw new Error(`Legacy syncing failed for wallet: ${errorMessage}`);
+    }
+
+    // Execute multichain account syncing
+    let stateSnapshot: StateSnapshot | undefined;
+
+    try {
+      // Wallet syncing.
+      // Create a state snapshot before processing each wallet for potential rollback
+      stateSnapshot = createStateSnapshot(this.#context);
+
+      // Sync wallet metadata bidirectionally
+      await syncWalletMetadata(
+        this.#context,
+        wallet,
+        walletFromUserStorage,
+        walletProfileId,
+      );
+
+      // Groups syncing.
+      // If groups data does not exist in user storage yet, create it
+      if (!groupsFromUserStorage.length) {
+        // If no groups exist in user storage, we can push all groups from the wallet to the user storage and exit
+        await pushGroupToUserStorageBatch(
+          this.#context,
+          getLocalGroupsForEntropyWallet(this.#context, wallet.id),
+          entropySourceId,
+        );
+
+        return; // No need to proceed with metadata comparison if groups are new
+      }
+
+      // Create local groups for each group from user storage if they do not exist
+      // This will ensure that we have all groups available locally before syncing metadata
+      await createLocalGroupsFromUserStorage(
+        this.#context,
+        groupsFromUserStorage,
+        entropySourceId,
+        walletProfileId,
+      );
+
+      // Sync group metadata bidirectionally
+      await syncGroupsMetadata(
+        this.#context,
+        wallet,
+        groupsFromUserStorage,
+        entropySourceId,
+        walletProfileId,
+      );
+    } catch (error) {
+      const errorMessage = toErrorMessage(error);
+      const errorString = `Error during multichain account syncing for wallet ${wallet.id}: ${errorMessage}`;
+
+      backupAndSyncLogger(errorString);
+
+      // Attempt to rollback state changes for this wallet
+      try {
+        if (!stateSnapshot) {
+          throw new Error(`State snapshot is missing for wallet ${wallet.id}`);
+        }
+        restoreStateFromSnapshot(this.#context, stateSnapshot);
+        backupAndSyncLogger(
+          `Rolled back state changes for wallet ${wallet.id}`,
+        );
+      } catch (rollbackError) {
+        backupAndSyncLogger(
+          `Failed to rollback state for wallet ${wallet.id}:`,
+          rollbackError instanceof Error
+            ? rollbackError.message
+            : String(rollbackError),
+        );
+      }
+    }
+  }
+
+  /**
+   * Performs a bidirectional sync with user storage for a single entropy
+   * wallet, scoped by entropy source ID.
+   *
+   * Use this in place of {@link performFullSync} when only one wallet's
+   * state has changed (e.g., immediately after an SRP import) to avoid the
+   * per-wallet fanout of fetches that a full sync triggers.
+   *
+   * Behavior:
+   * - Returns early (resolved) if backup and sync is disabled.
+   * - If a full sync is already in flight, returns the in-flight promise so
+   *   callers cooperatively wait for the broader operation instead of
+   *   racing against it.
+   * - Does NOT flip `hasAccountTreeSyncingSyncedAtLeastOnce`. A scoped sync
+   *   for one wallet does not satisfy the canonical "first full sync"
+   *   contract, since other wallets may still need legacy migration.
+   *
+   * @param entropySourceId - The entropy source ID of the wallet to sync.
+   * @returns A promise that resolves when the sync is complete.
+   */
+  async performSyncForWallet(entropySourceId: string): Promise<void> {
+    if (!this.isBackupAndSyncEnabled) {
+      return undefined;
+    }
+
+    // Defer to the in-flight full sync so we don't race against it.
+    if (this.#ongoingFullSyncPromise) {
+      return this.#ongoingFullSyncPromise;
+    }
+
+    return this.#atomicSyncQueue.enqueue(() =>
+      this.#performSyncForWalletInner(entropySourceId),
+    );
+  }
+
+  /**
+   * Performs the work for {@link performSyncForWallet} once it has been
+   * dequeued: locates the matching wallet and runs the per-wallet sync body
+   * under the wallet trace.
+   *
+   * Sets `isAccountTreeSyncingInProgress` for the duration of the sync so
+   * that `enqueueSingleGroupSync` calls triggered by `#insert` (when
+   * `createLocalGroupsFromUserStorage` materializes remote groups locally)
+   * are gated off and don't fanout per-group GET+PUT roundtrips for data we
+   * just pulled.
+   *
+   * @param entropySourceId - The entropy source ID of the wallet to sync.
+   */
+  async #performSyncForWalletInner(entropySourceId: string): Promise<void> {
+    if (this.isInProgress) {
+      return;
+    }
+
+    const wallet = getLocalEntropyWallets(this.#context).find(
+      (candidate) => candidate.metadata.entropy.id === entropySourceId,
+    );
+
+    if (!wallet) {
+      return;
+    }
+
+    this.#context.controllerStateUpdateFn(
+      (state: AccountTreeControllerState) => {
+        state.isAccountTreeSyncingInProgress = true;
+      },
+    );
+
+    try {
+      await this.#context.traceFn(
+        {
+          name: TraceName.AccountSyncWallet,
+        },
+        () => this.#performWalletSyncInner(wallet),
+      );
+    } finally {
       this.#context.controllerStateUpdateFn(
         (state: AccountTreeControllerState) => {
           state.isAccountTreeSyncingInProgress = false;

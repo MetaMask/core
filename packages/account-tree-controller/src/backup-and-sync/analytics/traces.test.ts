@@ -7,6 +7,7 @@ describe('BackupAndSyncAnalytics - Traces', () => {
     it('contains expected trace names', () => {
       expect(TraceName).toStrictEqual({
         AccountSyncFull: 'Multichain Account Syncing - Full',
+        AccountSyncWallet: 'Multichain Account Syncing - Wallet',
       });
     });
   });

@@ -36,6 +36,7 @@ export type {
   AccountTreeControllerClearStateAction,
   AccountTreeControllerSyncWithUserStorageAction,
   AccountTreeControllerSyncWithUserStorageAtLeastOnceAction,
+  AccountTreeControllerSyncWalletWithUserStorageAction,
   AccountTreeControllerInitAction,
   AccountTreeControllerReinitAction,
 } from './AccountTreeController-method-action-types';
