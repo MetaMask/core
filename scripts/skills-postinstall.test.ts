@@ -7,6 +7,7 @@ import {
   isGitDir,
   postinstall,
   PUBLIC_REPO,
+  parseSkillsLocal,
   shouldAutoUpdateSkills,
   shouldSkipPostinstall,
   warn,
@@ -54,6 +55,26 @@ describe('skills-postinstall', () => {
     expect(shouldAutoUpdateSkills({ SKILLS_AUTO_UPDATE: '1' })).toBe(true);
     expect(shouldAutoUpdateSkills({ SKILLS_AUTO_UPDATE: 'true' })).toBe(true);
     expect(shouldAutoUpdateSkills({ SKILLS_AUTO_UPDATE: 'YES' })).toBe(true);
+    expect(shouldAutoUpdateSkills({}, () => 'SKILLS_AUTO_UPDATE=1\n')).toBe(
+      true,
+    );
+    expect(
+      shouldAutoUpdateSkills(
+        { SKILLS_AUTO_UPDATE: '0' },
+        () => 'SKILLS_AUTO_UPDATE=1\n',
+      ),
+    ).toBe(false);
+  });
+
+  it('parses .skills.local shell-style assignments', () => {
+    expect(
+      parseSkillsLocal(
+        '# comment\nexport SKILLS_AUTO_UPDATE="yes"\nSKILLS_DOMAINS=perps\n',
+      ),
+    ).toStrictEqual({
+      SKILLS_AUTO_UPDATE: 'yes',
+      SKILLS_DOMAINS: 'perps',
+    });
   });
 
   it('detects whether the public cache is a git checkout', () => {
@@ -101,7 +122,7 @@ describe('skills-postinstall', () => {
     ).toBe(0);
 
     expect(spawn).toHaveBeenNthCalledWith(3, 'yarn', ['skills'], {
-      stdio: 'ignore',
+      stdio: 'inherit',
     });
   });
 
