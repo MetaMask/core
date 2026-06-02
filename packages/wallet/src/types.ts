@@ -1,7 +1,3 @@
-import type {
-  ApprovalControllerOptions,
-  ShowApprovalRequest,
-} from '@metamask/approval-controller';
 import { KeyringControllerOptions } from '@metamask/keyring-controller';
 import { StorageAdapter } from '@metamask/storage-service';
 import type { Json } from '@metamask/utils';
@@ -11,6 +7,7 @@ import type {
   DefaultEvents,
   RootMessenger,
 } from './initialization/defaults';
+import type { ApprovalControllerInstanceOptions } from './initialization/instances/approval-controller/types';
 import { GenericEncryptor } from './initialization/instances/keyring-controller';
 import { InitializationConfiguration } from './initialization/types';
 
@@ -25,12 +22,7 @@ export type WalletOptions = {
 };
 
 export type InstanceSpecificOptions = {
-  approvalController?: {
-    showApprovalRequest?: ShowApprovalRequest;
-    typesExcludedFromRateLimiting?: NonNullable<
-      ApprovalControllerOptions['typesExcludedFromRateLimiting']
-    >;
-  };
+  approvalController?: ApprovalControllerInstanceOptions;
   keyringController?: {
     encryptor?: GenericEncryptor;
     keyringBuilders?: KeyringControllerOptions['keyringBuilders'];

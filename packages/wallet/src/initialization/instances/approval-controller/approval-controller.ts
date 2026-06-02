@@ -5,23 +5,20 @@ import {
 import { ApprovalType } from '@metamask/controller-utils';
 import { Messenger } from '@metamask/messenger';
 
-import { InitializationConfiguration } from '../types';
+import { InitializationConfiguration } from '../../types';
 
 /**
- * The platform-agnostic baseline of EVM approval types whose pending requests
- * are exempt from per-origin rate limiting, so multiple requests of the same
- * type can be queued from one origin. Covers the EVM signing
- * (`personal_sign`, `eth_signTypedData`), transaction, asset-watch
- * (`wallet_watchAsset`), and encryption (`eth_getEncryptionPublicKey`,
- * `eth_decrypt`) approval types. This mirrors the extension's baseline; mobile
- * exempts only a subset (transaction and asset-watch).
+ * The baseline of approval types whose pending requests are exempt from
+ * per-origin rate limiting, so multiple requests of the same type can be queued
+ * from one origin. Covers the EVM signing (`personal_sign`,
+ * `eth_signTypedData`), transaction, asset-watch (`wallet_watchAsset`), and
+ * encryption (`eth_getEncryptionPublicKey`, `eth_decrypt`) approval types, plus
+ * `snap_dialog` — the union of what the extension and mobile exempt that is
+ * stable across both. Their smart-transaction status type is intentionally left
+ * out: its string differs per platform, so clients inject it themselves.
  *
  * Clients can override this entirely via
- * `instanceOptions.approvalController.typesExcludedFromRateLimiting`. The full
- * set differs per platform — the extension and mobile each append client-specific
- * types (e.g. their smart-transaction status page and `snap_dialog`), and even
- * use different string values for the same concept — so there is no single
- * correct list to hardcode here.
+ * `instanceOptions.approvalController.typesExcludedFromRateLimiting`.
  */
 const DEFAULT_TYPES_EXCLUDED_FROM_RATE_LIMITING = [
   ApprovalType.PersonalSign,
@@ -30,6 +27,11 @@ const DEFAULT_TYPES_EXCLUDED_FROM_RATE_LIMITING = [
   ApprovalType.WatchAsset,
   ApprovalType.EthGetEncryptionPublicKey,
   ApprovalType.EthDecrypt,
+  // `snap_dialog` (the `DIALOG_APPROVAL_TYPES.default` value from
+  // `@metamask/snaps-rpc-methods`); hardcoded as a literal to avoid depending on
+  // the snaps package for a single constant while `SnapController` isn't wired
+  // into the wallet yet.
+  'snap_dialog',
 ];
 
 export const approvalController: InitializationConfiguration<

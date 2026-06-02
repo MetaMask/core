@@ -2,8 +2,12 @@ import { ApprovalController } from '@metamask/approval-controller';
 import { ApprovalType } from '@metamask/controller-utils';
 import { Messenger } from '@metamask/messenger';
 
-import { defaultConfigurations } from '../defaults';
-import type { DefaultActions, DefaultEvents, RootMessenger } from '../defaults';
+import { defaultConfigurations } from '../../defaults';
+import type {
+  DefaultActions,
+  DefaultEvents,
+  RootMessenger,
+} from '../../defaults';
 import { approvalController } from './approval-controller';
 
 /**
@@ -84,9 +88,8 @@ describe('approvalController', () => {
   });
 
   // Pins the exact default exclusion set (independent of the source constant):
-  // each of these EVM types must allow multiple pending requests from one
-  // origin. The pending promises never settle here; `.catch` only marks them
-  // handled.
+  // each of these types must allow multiple pending requests from one origin.
+  // The pending promises never settle here; `.catch` only marks them handled.
   it.each([
     ApprovalType.PersonalSign,
     ApprovalType.EthSignTypedData,
@@ -94,6 +97,7 @@ describe('approvalController', () => {
     ApprovalType.WatchAsset,
     ApprovalType.EthGetEncryptionPublicKey,
     ApprovalType.EthDecrypt,
+    'snap_dialog',
   ])('excludes %s from rate limiting by default', (type) => {
     const messenger = approvalController.getMessenger(getRootMessenger());
 
@@ -116,7 +120,7 @@ describe('approvalController', () => {
     const instance = approvalController.init({
       state: undefined,
       messenger,
-      // Empty override: nothing is excluded, not even the default EVM types.
+      // Empty override: nothing is excluded, not even the default types.
       options: { typesExcludedFromRateLimiting: [] },
     });
 
