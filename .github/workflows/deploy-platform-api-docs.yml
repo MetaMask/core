@@ -7,6 +7,8 @@ jobs:
   build-docs:
     name: Build Platform API docs
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
       - name: Checkout and setup environment
         uses: MetaMask/action-checkout-and-setup@v3
@@ -56,6 +58,10 @@ jobs:
       - get-token
     runs-on: ubuntu-latest
     environment: github-pages
+    permissions:
+      # Just for the initial `actions/checkout` — the actual push to
+      # `gh-pages` uses the PAT from the `get-token` job, not GITHUB_TOKEN.
+      contents: read
     steps:
       - name: Checkout
         uses: actions/checkout@v6
