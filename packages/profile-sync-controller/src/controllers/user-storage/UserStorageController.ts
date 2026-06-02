@@ -242,11 +242,13 @@ export class UserStorageController extends BaseController<
 
   #isUnlocked = false;
 
-  // Keyed by `${entropySourceId}:${message}` (the primary SRP resolves to its
-  // HD keyring metadata ID) so two SRPs that transiently resolve to the same
-  // `profileId` can never share a cached storage key and leak data across each
-  // other's user storage.
+  // Both caches are keyed by `${entropySourceId}:${message}` (the primary SRP
+  // resolves to its HD keyring metadata ID) so two SRPs that transiently
+  // resolve to the same `profileId` can never share a cached storage key /
+  // signature and leak data across each other's user storage.
   #storageKeyCache: Record<string, string> = {};
+
+  #snapSignMessageCache: Record<string, string> = {};
 
   readonly #keyringController = {
     setupLockedStateSubscriptions: () => {
@@ -562,8 +564,6 @@ export class UserStorageController extends BaseController<
     return primaryEntropySourceId;
   }
 
-  #_snapSignMessageCache: Record<string, string> = {};
-
   /**
    * Builds a cache key scoped to a specific entropy source, so each SRP's
    * signature/storage key derivation stays isolated even when two SRPs
@@ -605,8 +605,8 @@ export class UserStorageController extends BaseController<
     }
 
     const cacheKey = this.#scopedCacheKey(message, entropySourceId);
-    if (this.#_snapSignMessageCache[cacheKey]) {
-      return this.#_snapSignMessageCache[cacheKey];
+    if (this.#snapSignMessageCache[cacheKey]) {
+      return this.#snapSignMessageCache[cacheKey];
     }
 
     const result = (await this.messenger.call(
@@ -614,7 +614,7 @@ export class UserStorageController extends BaseController<
       createSnapSignMessageRequest(message, entropySourceId),
     )) as string;
 
-    this.#_snapSignMessageCache[cacheKey] = result;
+    this.#snapSignMessageCache[cacheKey] = result;
 
     return result;
   }
