@@ -19,6 +19,7 @@ import {
   PERPS_DEPOSIT_TYPES,
   USDC_DECIMALS,
   STABLECOINS,
+  PaymentOverride,
 } from '../../constants';
 import { projectLogger } from '../../logger';
 import type {
@@ -265,6 +266,11 @@ async function getSingleQuote(
     // bridged token transfer, not a contract call to embed.
     if (!request.isPostQuote && !request.isPolymarketDepositWallet) {
       await processTransactions(transaction, request, body, messenger);
+    } else if (
+      request.isPostQuote &&
+      request.paymentOverride === PaymentOverride.MoneyAccount
+    ) {
+      await processMoneyAccountPostQuote(transaction, request, body, messenger);
     } else if (request.refundTo) {
       // For post-quote flows, honour the caller-specified refund address so that
       // failed Relay transactions refund to the correct account (e.g. the Predict
@@ -376,6 +382,75 @@ async function processTransactions(
       value: delegation.value,
     },
   ];
+}
+
+async function processMoneyAccountPostQuote(
+  transaction: TransactionMeta,
+  request: QuoteRequest,
+  requestBody: RelayQuoteRequest,
+  messenger: TransactionPayControllerMessenger,
+): Promise<void> {
+  const { transactionData: transactionDataList } = messenger.call(
+    'TransactionPayController:getState',
+  );
+
+  const transactionData = transactionDataList[transaction.id];
+  const amountHuman = transactionData?.tokens?.[0]?.amountHuman ?? '0';
+
+  const { calls: overrideCalls, recipient } = await messenger.call(
+    'TransactionPayController:getPaymentOverrideData',
+    {
+      amount: amountHuman,
+      transaction,
+      transactionData,
+    },
+  );
+
+  if (!overrideCalls.length) {
+    log('No payment override calls for money account post-quote');
+    return;
+  }
+
+  const amountRaw =
+    transactionData?.tokens?.[0]?.amountRaw ?? request.sourceTokenAmount;
+  const fundingRecipient = recipient ?? request.from;
+
+  const delegation = await messenger.call(
+    'TransactionPayController:getDelegationTransaction',
+    { transaction },
+  );
+
+  const normalizedAuthorizationList = delegation.authorizationList?.map(
+    (a) => ({
+      ...a,
+      chainId: Number(a.chainId),
+      nonce: Number(a.nonce),
+      r: a.r as Hex,
+      s: a.s as Hex,
+      yParity: Number(a.yParity),
+    }),
+  );
+
+  requestBody.authorizationList = normalizedAuthorizationList;
+  requestBody.tradeType = 'EXACT_OUTPUT';
+  requestBody.amount = amountRaw;
+
+  requestBody.txs = [
+    {
+      to: request.targetTokenAddress,
+      data: buildTokenTransferData(fundingRecipient, amountRaw),
+      value: '0x0',
+    },
+    ...overrideCalls.map((call) => ({
+      to: call.to as Hex,
+      data: call.data as Hex,
+      value: (call.value as Hex) ?? '0x0',
+    })),
+  ];
+
+  log('Added money account deposit calls to quote body', {
+    callCount: overrideCalls.length,
+  });
 }
 
 /**
