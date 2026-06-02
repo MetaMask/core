@@ -1,8 +1,12 @@
 import { Messenger } from '@metamask/messenger';
 import { RemoteFeatureFlagController } from '@metamask/remote-feature-flag-controller';
 
-import { defaultConfigurations } from '../defaults';
-import type { DefaultActions, DefaultEvents, RootMessenger } from '../defaults';
+import { defaultConfigurations } from '../../defaults';
+import type {
+  DefaultActions,
+  DefaultEvents,
+  RootMessenger,
+} from '../../defaults';
 import { remoteFeatureFlagController } from './remote-feature-flag-controller';
 
 /**

@@ -4,11 +4,8 @@ import {
   RemoteFeatureFlagControllerMessenger,
 } from '@metamask/remote-feature-flag-controller';
 
-import { InitializationConfiguration } from '../types';
-
-type RemoteFeatureFlagControllerOptions = ConstructorParameters<
-  typeof RemoteFeatureFlagController
->[0];
+import { InitializationConfiguration } from '../../types';
+import type { RemoteFeatureFlagControllerInstanceOptions } from './types';
 
 /**
  * A platform-agnostic, network-free client-config API service used when a
@@ -25,13 +22,14 @@ type RemoteFeatureFlagControllerOptions = ConstructorParameters<
  * mobile always inject a real service (see the PR's per-environment table), so
  * this only affects deliberately headless consumers.
  */
-const defaultClientConfigApiService: RemoteFeatureFlagControllerOptions['clientConfigApiService'] =
-  {
-    fetchRemoteFeatureFlags: async () => ({
-      remoteFeatureFlags: {},
-      cacheTimestamp: Date.now(),
-    }),
-  };
+const defaultClientConfigApiService: NonNullable<
+  RemoteFeatureFlagControllerInstanceOptions['clientConfigApiService']
+> = {
+  fetchRemoteFeatureFlags: async () => ({
+    remoteFeatureFlags: {},
+    cacheTimestamp: Date.now(),
+  }),
+};
 
 export const remoteFeatureFlagController: InitializationConfiguration<
   RemoteFeatureFlagController,
