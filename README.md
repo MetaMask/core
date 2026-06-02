@@ -551,6 +551,7 @@ linkStyle default opacity:0.5
   transaction_pay_controller --> bridge_status_controller;
   transaction_pay_controller --> controller_utils;
   transaction_pay_controller --> gas_fee_controller;
+  transaction_pay_controller --> keyring_controller;
   transaction_pay_controller --> messenger;
   transaction_pay_controller --> network_controller;
   transaction_pay_controller --> ramps_controller;
