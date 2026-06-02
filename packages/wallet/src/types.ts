@@ -1,4 +1,5 @@
 import { KeyringControllerOptions } from '@metamask/keyring-controller';
+import { StorageAdapter } from '@metamask/storage-service';
 import type { Json } from '@metamask/utils';
 
 import type {
@@ -16,12 +17,16 @@ export type WalletOptions = {
     unknown,
     unknown
   >[];
-  instanceOptions?: InstanceSpecificOptions;
+  instanceOptions: InstanceSpecificOptions;
 };
 
 export type InstanceSpecificOptions = {
   keyringController?: {
     encryptor?: GenericEncryptor;
     keyringBuilders?: KeyringControllerOptions['keyringBuilders'];
+    keyringV2Builders?: KeyringControllerOptions['keyringV2Builders'];
+  };
+  storageService: {
+    storage: StorageAdapter;
   };
 };

@@ -50,7 +50,10 @@ export class Wallet {
     this.#controllerMetadata = Object.fromEntries(
       Object.entries(this.#instances)
         .filter(([_, instance]) => hasProperty(instance, 'metadata'))
-        .map(([name, instance]) => [name, instance.metadata]),
+        .map(([name, instance]) => [
+          name,
+          (instance as { metadata: StateMetadataConstraint }).metadata,
+        ]),
     );
   }
 
@@ -71,7 +74,9 @@ export class Wallet {
   get state(): DefaultState {
     return Object.entries(this.#instances).reduce<Record<string, unknown>>(
       (totalState, [name, instance]) => {
-        if (instance.state) {
+        // We do actually want to check the prototype here.
+        // eslint-disable-next-line no-restricted-syntax
+        if ('state' in instance && instance.state) {
           totalState[name] = instance.state;
         }
         return totalState;
@@ -133,7 +138,6 @@ export class Wallet {
         // @ts-expect-error Accessing protected property.
         if (typeof instance.destroy === 'function') {
           // @ts-expect-error Accessing protected property.
-          // eslint-disable-next-line @typescript-eslint/await-thenable
           return await instance.destroy();
         }
         /* istanbul ignore next */

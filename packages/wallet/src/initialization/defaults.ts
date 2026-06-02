@@ -15,7 +15,11 @@ export { defaultConfigurations };
  * Utility type for inferring and extracting an instance type from an initialization configuration.
  */
 type ExtractInstance<Config> =
-  Config extends InitializationConfiguration<infer Instance, unknown>
+  Config extends InitializationConfiguration<
+    infer Instance,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    infer _Messenger
+  >
     ? Instance
     : never;
 
@@ -23,7 +27,11 @@ type ExtractInstance<Config> =
  * Utility type for inferring and extracting an instance messenger type from an initialization configuration.
  */
 type ExtractInstanceMessenger<Config> =
-  Config extends InitializationConfiguration<unknown, infer InferredMessenger>
+  Config extends InitializationConfiguration<
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    infer _Instance,
+    infer InferredMessenger
+  >
     ? InferredMessenger
     : never;
 

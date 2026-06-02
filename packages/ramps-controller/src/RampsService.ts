@@ -109,6 +109,12 @@ export type ProviderLimits = {
 export type Provider = {
   id: string;
   name: string;
+  /**
+   * Provider classification from the v2 API: 'native' (first-party
+   * integration, e.g. Transak Native) or 'aggregator' (third-party redirect).
+   * May be absent on responses that predate the v2 type field.
+   */
+  type?: 'aggregator' | 'native';
   environmentType: string;
   description: string;
   hqAddress: string;
