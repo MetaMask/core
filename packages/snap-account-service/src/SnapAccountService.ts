@@ -183,6 +183,11 @@ function isLegacySnapKeyring(keyring: {
   return keyring.type === KeyringTypes.snap;
 }
 
+/**
+ * Account data update events that can be forwarded from Snaps.
+ *
+ * These events are then re-emitted by the service for other consumers.
+ */
 type AccountDataUpdatedKeyringEvent =
   | KeyringEvent.AccountAssetListUpdated
   | KeyringEvent.AccountBalancesUpdated
