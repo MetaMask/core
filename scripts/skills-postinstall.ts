@@ -96,6 +96,8 @@ export function parseSkillsLocal(content: string): Record<string, string> {
       (value.startsWith("'") && value.endsWith("'"))
     ) {
       value = value.slice(1, -1);
+    } else {
+      value = value.replace(/\s+#.*$/u, '').trim();
     }
     config[key] = value;
   }
@@ -119,6 +121,8 @@ export function getConfigValue(
   key: string,
   readFile?: ReadFileSync,
 ): string | undefined {
+  // A shell/CI value intentionally wins even when empty, so developers can
+  // override a persistent .skills.local opt-in for one install.
   if (Object.prototype.hasOwnProperty.call(env, key)) {
     return env[key];
   }
@@ -202,7 +206,11 @@ export function postinstall(deps?: PostinstallDeps): number {
 
   const cacheReady = ensurePublicSkillsCache(deps);
   if (shouldAutoUpdateSkills(env, deps?.readFile)) {
-    if (cacheReady || env.METAMASK_SKILLS_DIR || env.CONSENSYS_SKILLS_DIR) {
+    if (
+      cacheReady ||
+      getConfigValue(env, 'METAMASK_SKILLS_DIR', deps?.readFile) ||
+      getConfigValue(env, 'CONSENSYS_SKILLS_DIR', deps?.readFile)
+    ) {
       autoUpdateSkills(deps);
     } else {
       warn(
