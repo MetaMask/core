@@ -79,7 +79,6 @@ import {
   getEVMTxPropertiesFromTransactionMeta,
   getTxStatusesFromHistory,
   getPreConfirmationPropertiesFromQuote,
-  getPollingStatusUpdatedProperties,
 } from './utils/metrics';
 import { getSelectedChainId } from './utils/network';
 import { getTraceParams } from './utils/trace';
@@ -1295,7 +1294,6 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
 
     if (
       !(
-        featureId === FeatureId.UNIFIED_SWAP_BRIDGE ||
         ALLOWED_FEATURE_IDS_FOR_STATUS_EVENTS.includes(featureId) ||
         eventName === UnifiedSwapBridgeEventName.StatusValidationFailed
       )

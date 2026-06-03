@@ -12,6 +12,7 @@ import type {
   TransactionController,
   TransactionMeta,
 } from '@metamask/transaction-controller';
+import type { Hex } from '@metamask/utils';
 
 import type {
   BridgeStatusControllerMessenger,
@@ -19,7 +20,6 @@ import type {
   QuoteAndTxMetadata,
   StartPollingForBridgeTxStatusArgs,
 } from '../types';
-import type { Hex } from '@metamask/utils';
 
 export enum SubmitStep {
   /**

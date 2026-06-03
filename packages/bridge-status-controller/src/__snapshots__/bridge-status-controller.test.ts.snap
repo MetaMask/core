@@ -6173,9 +6173,6 @@ exports[`BridgeStatusController subscription handlers TransactionController:tran
     "AuthenticationController:getBearerToken",
   ],
   [
-    "AuthenticationController:getBearerToken",
-  ],
-  [
     "BridgeController:trackUnifiedSwapBridgeEvent",
     "Unified SwapBridge Status Failed Validation",
     {
@@ -6186,24 +6183,6 @@ exports[`BridgeStatusController subscription handlers TransactionController:tran
         "across|status",
       ],
       "feature_id": "perps",
-      "location": "Main View",
-      "refresh_count": 0,
-      "token_address_destination": "eip155:10/slip44:60",
-      "token_address_source": "eip155:42161/slip44:60",
-      "token_security_type_destination": null,
-    },
-  ],
-  [
-    "BridgeController:trackUnifiedSwapBridgeEvent",
-    "Unified SwapBridge Status Failed Validation",
-    {
-      "action_type": "swapbridge-v1",
-      "chain_id_destination": "eip155:10",
-      "chain_id_source": "eip155:42161",
-      "failures": [
-        "across|unknown",
-      ],
-      "feature_id": "quick_buy_follow_trading",
       "location": "Main View",
       "refresh_count": 0,
       "token_address_destination": "eip155:10/slip44:60",
@@ -6247,32 +6226,48 @@ exports[`BridgeStatusController subscription handlers TransactionController:tran
 
 exports[`BridgeStatusController subscription handlers TransactionController:transactionStatusUpdated (confirmed) should start polling for completed bridge tx with featureId=perps 2`] = `
 {
+  "bridge": "across",
   "destChain": {
+    "amount": "990654755978611",
     "chainId": 10,
-    "token": {},
+    "token": {
+      "address": "0x0000000000000000000000000000000000000000",
+      "chainId": 10,
+      "coinKey": "ETH",
+      "decimals": 18,
+      "icon": "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2/logo.png",
+      "logoURI": "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2/logo.png",
+      "name": "ETH",
+      "priceUSD": "2478.63",
+      "symbol": "ETH",
+    },
+    "txHash": "0xdestTxHash1",
   },
+  "isExpectedToken": true,
   "srcChain": {
     "amount": "991250000000000",
     "chainId": 42161,
     "token": {
       "address": "0x0000000000000000000000000000000000000000",
+      "assetId": "eip155:42161/slip44:60",
       "chainId": 42161,
       "coinKey": "ETH",
       "decimals": 18,
       "icon": "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2/logo.png",
       "logoURI": "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2/logo.png",
       "name": "ETH",
-      "priceUSD": "2518.47",
+      "priceUSD": "2478.7",
       "symbol": "ETH",
     },
     "txHash": "0xperpsSrcTxHash1",
   },
-  "status": "PENDING",
+  "status": "COMPLETE",
 }
 `;
 
 exports[`BridgeStatusController subscription handlers TransactionController:transactionStatusUpdated (confirmed) should start polling for failed bridge tx with featureId=perps 2`] = `
 {
+  "bridge": "debridge",
   "destChain": {
     "chainId": 10,
     "token": {},
@@ -6282,18 +6277,18 @@ exports[`BridgeStatusController subscription handlers TransactionController:tran
     "chainId": 42161,
     "token": {
       "address": "0x0000000000000000000000000000000000000000",
+      "assetId": "eip155:42161/slip44:60",
       "chainId": 42161,
       "coinKey": "ETH",
       "decimals": 18,
       "icon": "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2/logo.png",
-      "logoURI": "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2/logo.png",
+      "iconUrl": "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2/logo.png",
       "name": "ETH",
-      "priceUSD": "2518.47",
       "symbol": "ETH",
     },
     "txHash": "0xperpsSrcTxHash1",
   },
-  "status": "PENDING",
+  "status": "FAILED",
 }
 `;
 

@@ -1474,7 +1474,7 @@ describe('BridgeController SSE', function () {
 
       expect(bridgeController.state.tokenWarnings).toStrictEqual([mockWarning]);
 
-      bridgeController.resetState(FeatureId.UNIFIED_SWAP_BRIDGE);
+      bridgeController.resetState();
       expect(bridgeController.state.tokenWarnings).toStrictEqual([]);
     });
   });
@@ -1672,7 +1672,7 @@ describe('BridgeController SSE', function () {
         mockComplete,
       );
 
-      bridgeController.resetState(FeatureId.UNIFIED_SWAP_BRIDGE);
+      bridgeController.resetState();
       expect(bridgeController.state.quoteStreamComplete).toBeNull();
     });
   });

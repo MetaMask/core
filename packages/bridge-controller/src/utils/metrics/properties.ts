@@ -9,6 +9,7 @@ import type {
   QuoteResponse,
   TxData,
 } from '../../types';
+import { FeatureId } from '../../types';
 import { getNativeAssetForChainId, isCrossChain } from '../bridge';
 import {
   formatAddressToAssetId,
@@ -22,7 +23,6 @@ import type {
   QuoteWarning,
   RequestParams,
 } from './types';
-import { FeatureId } from '../../types';
 
 export const toInputChangedPropertyKey: Partial<
   Record<keyof QuoteRequest, InputKeys>
