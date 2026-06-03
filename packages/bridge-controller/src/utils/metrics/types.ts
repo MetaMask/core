@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/naming-convention */
 import type { CaipAssetType, CaipChainId, Hex } from '@metamask/utils';
 
-import type { SortOrder, StatusTypes } from '../../types';
+import type { FeatureId, SortOrder, StatusTypes } from '../../types';
 import type {
   UnifiedSwapBridgeEventName,
   MetaMetricsSwapsEventSource,
@@ -181,7 +181,7 @@ type RequiredEventContextFromClientBase = {
     };
   [UnifiedSwapBridgeEventName.Failed]:
     | // Tx failed before confirmation
-      (TradeData &
+    (TradeData &
         Pick<QuoteFetchData, 'price_impact'> &
         Pick<
           RequestMetadata,
@@ -357,6 +357,7 @@ export type CrossChainSwapsEventProperties<
   T extends UnifiedSwapBridgeEventName,
 > =
   | {
+      feature_id: FeatureId;
       action_type: MetricsActionType;
       location: MetaMetricsSwapsEventSource;
       ab_tests?: Record<string, string>;
