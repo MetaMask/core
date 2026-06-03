@@ -45,7 +45,7 @@
     "workspaces:list-versions": "./scripts/list-workspace-versions.sh",
     "skills": "metamask-skills sync",
     "skills:postinstall": "metamask-skills postinstall",
-    "postinstall": "yarn skills:postinstall"
+    "postinstall": "if [ -x ./node_modules/.bin/metamask-skills ]; then ./node_modules/.bin/metamask-skills postinstall; else echo \"metamask-skills not installed; skipping skills cache refresh\"; fi"
   },
   "devDependencies": {
     "@lavamoat/allow-scripts": "^3.0.4",
