@@ -4,7 +4,10 @@ import type {
   BatchSellTradesResponse,
   Quote,
 } from '@metamask/bridge-controller';
-import { BatchSellTransactionType } from '@metamask/bridge-controller';
+import {
+  BatchSellTransactionType,
+  FeatureId,
+} from '@metamask/bridge-controller';
 import { toHex } from '@metamask/controller-utils';
 import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
 import type {
@@ -33,7 +36,7 @@ import type {
 import { getBatchSellHistoryItemsForTxHash } from './utils/history';
 import { shouldDisable7702 } from './utils/transaction';
 
-const mockGenerateBatchId = jest.fn().mockReturnValue('0xBatchId1');
+const mockGenerateBatchId = jest.fn();
 jest.mock('@metamask/transaction-controller', () => ({
   ...jest.requireActual('@metamask/transaction-controller'),
   generateBatchId: (): string => mockGenerateBatchId(),
@@ -203,7 +206,7 @@ describe('BridgeStatusController', () => {
               dateNowSpy.mockReturnValueOnce(1779922719705);
               dateNowSpy.mockReturnValueOnce(1779988819705);
               dateNowSpy.mockReturnValueOnce(1779988919705);
-              mockGenerateBatchId.mockReturnValueOnce('0xBatchId1');
+              mockGenerateBatchId.mockReturnValueOnce('0xGeneratedBatchId1');
             });
 
             it.each([true, false])(
@@ -298,8 +301,8 @@ describe('BridgeStatusController', () => {
                       ['BridgeController:getState'],
                       [
                         'BridgeController:stopPollingForQuotes',
-                        'Transaction submitted',
                         undefined,
+                        'Transaction submitted',
                       ],
                       [
                         'AccountsController:getAccountByAddress',
@@ -314,6 +317,7 @@ describe('BridgeStatusController', () => {
                           chain_id_destination: 'eip155:10',
                           chain_id_source: 'eip155:10',
                           custom_slippage: false,
+                          feature_id: FeatureId.BATCH_SELL,
                           gas_included: gasIncluded,
                           gas_included_7702: gasIncluded7702,
                           is_hardware_wallet: false,
@@ -333,7 +337,7 @@ describe('BridgeStatusController', () => {
                           usd_amount_source: 100,
                           usd_quoted_gas: 0,
                           usd_quoted_return: 0,
-                          batch_id: '0xBatchId1',
+                          batch_id: '0xGeneratedBatchId1',
                         },
                       ],
                       [
@@ -367,7 +371,7 @@ describe('BridgeStatusController', () => {
                       origin: 'metamask',
                       requireApproval: false,
                       skipInitialGasEstimate: false,
-                      batchId: '0xBatchId1',
+                      batchId: '0xGeneratedBatchId1',
                     });
 
                     expect(transactions).toStrictEqual(
@@ -406,6 +410,7 @@ describe('BridgeStatusController', () => {
                       isStxEnabled: stxEnabled,
                       batchSellData: mockBatchSellTrades,
                       txMetaId: result.id,
+                      featureId: FeatureId.BATCH_SELL,
                       quote: {
                         ...mockQuotes[0].quote,
                         // Gas params should be merged to the initial quote
@@ -429,7 +434,7 @@ describe('BridgeStatusController', () => {
                       quoteObject: Quote,
                     ): Partial<BridgeHistoryItem> => ({
                       batchId: undefined,
-                      featureId: undefined,
+                      featureId: FeatureId.BATCH_SELL,
                       slippagePercentage: 0,
                       txMetaId: undefined,
                       actionId: undefined,
@@ -533,6 +538,8 @@ describe('BridgeStatusController', () => {
                         {
                           account_hardware_type: null,
                           action_type: 'swapbridge-v1',
+                          batch_id: '0xBatchId1',
+                          feature_id: FeatureId.BATCH_SELL,
                           // actual_time_minutes: expect.closeTo(29644790, -1),
                           actual_time_minutes: expect.any(Number),
                           allowance_reset_transaction: undefined,
@@ -615,11 +622,13 @@ describe('BridgeStatusController', () => {
                         ),
                         allowance_reset_transaction: undefined,
                         approval_transaction: 'COMPLETE',
+                        batch_id: '0xBatchId1',
                         chain_id_destination: 'eip155:10',
                         chain_id_source: 'eip155:10',
                         custom_slippage: true,
                         destination_transaction: 'FAILED',
                         error_message: 'Transaction failed',
+                        feature_id: FeatureId.BATCH_SELL,
                         gas_included: gasIncluded,
                         gas_included_7702: gasIncluded7702,
                         is_hardware_wallet: false,
@@ -722,7 +731,10 @@ describe('BridgeStatusController', () => {
           const result = await expect(
             rootMessenger.call('BridgeStatusController:submitBatchSell', {
               accountAddress: (mockQuotes[0].trade as TxData).from,
-              quoteResponses: mockQuotes,
+              quoteResponses: mockQuotes.map((quote) => ({
+                ...quote,
+                featureId: FeatureId.BATCH_SELL,
+              })),
               isStxEnabled: stxEnabled,
             }),
           ).rejects.toThrow(
@@ -738,8 +750,8 @@ describe('BridgeStatusController', () => {
             ['BridgeController:getState'],
             [
               'BridgeController:stopPollingForQuotes',
-              'Transaction submitted',
               undefined,
+              'Transaction submitted',
             ],
             [
               'AccountsController:getAccountByAddress',
@@ -754,6 +766,7 @@ describe('BridgeStatusController', () => {
                 chain_id_destination: 'eip155:10',
                 chain_id_source: 'eip155:10',
                 custom_slippage: false,
+                feature_id: FeatureId.BATCH_SELL,
                 gas_included: gasIncluded,
                 gas_included_7702: gasIncluded7702,
                 is_hardware_wallet: false,
@@ -796,6 +809,7 @@ describe('BridgeStatusController', () => {
                 custom_slippage: false,
                 error_message:
                   'Failed to add BatchSell trade to history: txMeta not found',
+                feature_id: FeatureId.BATCH_SELL,
                 gas_included: false,
                 gas_included_7702: true,
                 is_hardware_wallet: false,

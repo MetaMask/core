@@ -1,6 +1,5 @@
 import {
   AbortReason,
-  FeatureId,
   UnifiedSwapBridgeEventName,
   BatchSellTradesResponse,
   RequiredEventContextFromClient,
@@ -10,15 +9,12 @@ import { BridgeStatusControllerMessenger } from '../types';
 
 export const stopPollingForQuotes = (
   messenger: BridgeStatusControllerMessenger,
-  featureId?: FeatureId,
   metricsContext?: RequiredEventContextFromClient[UnifiedSwapBridgeEventName.QuotesReceived],
 ): void => {
   messenger.call(
     'BridgeController:stopPollingForQuotes',
+    metricsContext,
     AbortReason.TransactionSubmitted,
-    // If trade is submitted before all quotes are loaded, the QuotesReceived event is published
-    // If the trade has a featureId, it means it was submitted outside of the Unified Swap and Bridge experience, so no QuotesReceived event is published
-    featureId ? undefined : metricsContext,
   );
 };
 

@@ -15,6 +15,7 @@ import {
   MetricsActionType,
   MetricsSwapType,
   MetaMetricsSwapsEventSource,
+  FeatureId,
 } from '@metamask/bridge-controller';
 import type {
   AccountHardwareType,
@@ -25,7 +26,6 @@ import type {
   RequestParams,
   TradeData,
   RequestMetadata,
-  PollingStatus,
   BatchSellTradesResponse,
 } from '@metamask/bridge-controller';
 import {
@@ -36,11 +36,7 @@ import type { TransactionMeta } from '@metamask/transaction-controller';
 import type { CaipAssetType, Hex } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
 
-import type {
-  BridgeHistoryItem,
-  BridgeStatusControllerMessenger,
-} from '../types';
-import { getAccountByAddress } from './accounts';
+import type { BridgeHistoryItem } from '../types';
 import { calcActualGasUsed } from './gas';
 import {
   getActualBridgeReceivedAmount,
@@ -239,7 +235,8 @@ export const getPreConfirmationPropertiesFromQuote = (
       activeAbTests.length > 0 && {
         active_ab_tests: activeAbTests,
       }),
-    ...(batchId && { batch_id: batchId }),
+    ...(batchId ? { batch_id: batchId } : {}),
+    feature_id: quoteResponse.featureId ?? FeatureId.UNIFIED_SWAP_BRIDGE,
   };
 };
 
@@ -345,33 +342,6 @@ export const getEVMTxPropertiesFromTransactionMeta = (
     usd_actual_return: 0,
     usd_actual_gas: 0,
     action_type: MetricsActionType.SWAPBRIDGE_V1,
-  };
-};
-
-export const getPollingStatusUpdatedProperties = (
-  messenger: BridgeStatusControllerMessenger,
-  pollingStatus: PollingStatus,
-  historyItem: BridgeHistoryItem,
-) => {
-  const selectedAccount = getAccountByAddress(messenger, historyItem.account);
-  const requestParams = getRequestParamFromHistory(historyItem);
-  const requestMetadata = getRequestMetadataFromHistory(
-    historyItem,
-    selectedAccount,
-  );
-  const { security_warnings: _, ...metadataWithoutWarnings } = requestMetadata;
-
-  return {
-    ...getTradeDataFromHistory(historyItem),
-    ...getPriceImpactFromQuote(historyItem.quote),
-    ...metadataWithoutWarnings,
-    chain_id_source: requestParams.chain_id_source,
-    chain_id_destination: requestParams.chain_id_destination,
-    token_symbol_source: requestParams.token_symbol_source,
-    token_symbol_destination: requestParams.token_symbol_destination,
-    action_type: MetricsActionType.SWAPBRIDGE_V1,
-    polling_status: pollingStatus,
-    retry_attempts: historyItem.attempts?.counter ?? 0,
-    ...(historyItem.batchId ? { batch_id: historyItem.batchId } : {}),
+    ...(transactionMeta.batchId ? { batch_id: transactionMeta.batchId } : {}),
   };
 };
