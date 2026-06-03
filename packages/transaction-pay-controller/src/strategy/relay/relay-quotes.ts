@@ -403,33 +403,28 @@ async function processMoneyAccountPostQuote(
 
   const transactionData = transactionDataList[transaction.id];
   const amountHuman = transactionData?.tokens?.[0]?.amountHuman ?? '0';
+  const amountRaw =
+    transactionData?.tokens?.[0]?.amountRaw ?? request.sourceTokenAmount;
 
   const {
     calls: overrideCalls,
     recipient,
     authorizationList,
-  } = await messenger.call(
-    'TransactionPayController:getPaymentOverrideData',
-    {
-      amount: amountHuman,
-      transaction,
-      transactionData,
-    },
-  );
+  } = await messenger.call('TransactionPayController:getPaymentOverrideData', {
+    amount: amountHuman,
+    transaction,
+    transactionData,
+  });
 
   if (!overrideCalls.length) {
     log('No payment override calls for money account post-quote');
     return;
   }
 
-  const amountRaw =
-    transactionData?.tokens?.[0]?.amountRaw ?? request.sourceTokenAmount;
   const fundingRecipient = recipient ?? request.from;
 
   requestBody.authorizationList = normalizeAuthorizationList(authorizationList);
   requestBody.tradeType = 'EXACT_OUTPUT';
-  requestBody.amount = amountRaw;
-
   requestBody.txs = [
     {
       to: request.targetTokenAddress,
