@@ -296,7 +296,7 @@ async function getSingleQuote(
 
 function normalizeAuthorizationList(
   authorizationList: AuthorizationList | undefined,
-) {
+): RelayQuoteRequest['authorizationList'] {
   return authorizationList?.map((a) => ({
     ...a,
     chainId: Number(a.chainId),
