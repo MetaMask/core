@@ -35,6 +35,7 @@ export type {
   PerpsWatchlistMarkets,
   PerpsPreference,
   SocialAIPreference,
+  AgenticCliPreference,
   NotificationPreferences,
   AssetsWatchlistBlob,
   ClientType,

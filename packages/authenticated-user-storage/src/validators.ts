@@ -91,11 +91,17 @@ const SocialAIPreferenceSchema = type({
   mutedTraderProfileIds: array(string()),
 });
 
+const AgenticCliPreferenceSchema = type({
+  inAppNotificationsEnabled: boolean(),
+  pushNotificationsEnabled: boolean(),
+});
+
 const NotificationPreferencesSchema = type({
   walletActivity: WalletActivityPreferenceSchema,
   marketing: MarketingPreferenceSchema,
   perps: PerpsPreferenceSchema,
   socialAI: SocialAIPreferenceSchema,
+  agenticCli: AgenticCliPreferenceSchema,
 });
 
 /**
