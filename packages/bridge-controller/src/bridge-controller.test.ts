@@ -27,10 +27,17 @@ import {
   BridgeClientId,
   BRIDGE_PROD_API_BASE_URL,
   DEFAULT_BRIDGE_CONTROLLER_STATE,
+  ETH_USDT_ADDRESS,
 } from './constants/bridge';
 import { SWAPS_API_V2_BASE_URL } from './constants/swaps';
 import * as selectors from './selectors';
-import { ChainId, RequestStatus, SortOrder, StatusTypes } from './types';
+import {
+  ChainId,
+  RequestStatus,
+  SortOrder,
+  StatusTypes,
+  FeatureId,
+} from './types';
 import type {
   BridgeControllerMessenger,
   QuoteResponse,
@@ -51,7 +58,6 @@ import {
   MetricsSwapType,
   UnifiedSwapBridgeEventName,
 } from './utils/metrics/constants';
-import { FeatureId } from './utils/validators';
 
 const EMPTY_INIT_STATE = DEFAULT_BRIDGE_CONTROLLER_STATE;
 
@@ -94,6 +100,7 @@ const bridgeConfig = {
 };
 
 const metricsContext = {
+  feature_id: FeatureId.UNIFIED_SWAP_BRIDGE,
   token_symbol_source: 'ETH',
   token_symbol_destination: 'USDC',
   usd_amount_source: 100,
@@ -166,7 +173,10 @@ async function withController<ReturnValue>(
     ...options,
   });
   if (!options.state) {
-    newRootMessenger.call('BridgeController:resetState');
+    newRootMessenger.call(
+      'BridgeController:resetState',
+      FeatureId.UNIFIED_SWAP_BRIDGE,
+    );
   }
   return await testFunction({ controller, rootMessenger: newRootMessenger });
 }
@@ -623,7 +633,10 @@ describe('BridgeController', function () {
           srcTokenAddress: '0x2ABC',
         });
 
-        rootMessenger.call('BridgeController:resetState');
+        rootMessenger.call(
+          'BridgeController:resetState',
+          FeatureId.UNIFIED_SWAP_BRIDGE,
+        );
         expect(bridgeController.state.quoteRequest[0]).toStrictEqual({
           srcTokenAddress: '0x0000000000000000000000000000000000000000',
         });
@@ -669,7 +682,10 @@ describe('BridgeController', function () {
           'Warning',
         );
 
-        rootMessenger.call('BridgeController:resetState');
+        rootMessenger.call(
+          'BridgeController:resetState',
+          FeatureId.UNIFIED_SWAP_BRIDGE,
+        );
         expect(bridgeController.state.tokenSecurityTypeDestination).toBeNull();
       },
     );
@@ -927,7 +943,7 @@ describe('BridgeController', function () {
           'AUTH_TOKEN',
           mockFetchFn,
           BRIDGE_PROD_API_BASE_URL,
-          null,
+          FeatureId.UNIFIED_SWAP_BRIDGE,
           '13.7.0',
         );
         expect(bridgeController.state.quotesLastFetched).toBeCloseTo(
@@ -1036,6 +1052,7 @@ describe('BridgeController', function () {
             security_warnings: [],
             usd_amount_source: 100,
             token_security_type_destination: null,
+            feature_id: FeatureId.UNIFIED_SWAP_BRIDGE,
           },
         );
         await flushPromises();
@@ -1530,7 +1547,7 @@ describe('BridgeController', function () {
           'AUTH_TOKEN',
           mockFetchFn,
           BRIDGE_PROD_API_BASE_URL,
-          null,
+          FeatureId.UNIFIED_SWAP_BRIDGE,
           '13.7.0',
         );
         expect(bridgeController.state.quotesLastFetched).toBeCloseTo(
@@ -1588,6 +1605,7 @@ describe('BridgeController', function () {
             best_quote_provider: 'provider_bridge2',
             can_submit: true,
             usd_balance_source: 0,
+            feature_id: FeatureId.DAPP_SWAP,
           },
         );
 
@@ -1932,7 +1950,6 @@ describe('BridgeController', function () {
   });
 
   it('updateBridgeQuoteRequestParams should include auth token as Authentication header', async function () {
-    jest.useFakeTimers();
     await withController(
       async ({ controller: bridgeController, rootMessenger }) => {
         const startPollingSpy = jest.spyOn(bridgeController, 'startPolling');
@@ -1957,26 +1974,23 @@ describe('BridgeController', function () {
           .spyOn(selectors, 'selectIsAssetExchangeRateInState')
           .mockReturnValue(true);
 
+        jest
+          .spyOn(balanceUtils, 'hasSufficientBalance')
+          .mockResolvedValue(true);
         const fetchBridgeQuotesSpy = jest
           .spyOn(fetchUtils, 'fetchBridgeQuotes')
-          .mockImplementationOnce(async () => {
-            return await new Promise((resolve) => {
-              return setTimeout(() => {
-                resolve({
-                  quotes: mockBridgeQuotesNativeErc20Eth as never,
-                  validationFailures: [],
-                });
-              }, 5000);
-            });
+          .mockResolvedValueOnce({
+            quotes: mockBridgeQuotesNativeErc20Eth as never,
+            validationFailures: [],
           });
 
         const quoteParams = {
           srcChainId: '0x1',
           destChainId: '0xa',
           srcTokenAddress: '0x0000000000000000000000000000000000000000',
-          destTokenAddress: '0x123',
+          destTokenAddress: ETH_USDT_ADDRESS,
           srcTokenAmount: '1000000000000000000',
-          walletAddress: '0x123',
+          walletAddress: ETH_USDT_ADDRESS,
           slippage: 0.5,
         };
 
@@ -1989,6 +2003,7 @@ describe('BridgeController', function () {
         await advanceToNthTimerThenFlush();
 
         expect(startPollingSpy).toHaveBeenCalledTimes(1);
+        expect(fetchBridgeQuotesSpy).toHaveBeenCalledTimes(1);
         expect(fetchBridgeQuotesSpy.mock.calls[0][3]).toBe('AUTH_TOKEN');
       },
     );
@@ -2155,7 +2170,7 @@ describe('BridgeController', function () {
             'AUTH_TOKEN',
             mockFetchFn,
             BRIDGE_PROD_API_BASE_URL,
-            null,
+            FeatureId.UNIFIED_SWAP_BRIDGE,
             '13.7.0',
           );
           expect(bridgeController.state.quotesLastFetched).toBeCloseTo(
@@ -2296,7 +2311,10 @@ describe('BridgeController', function () {
         expect(bridgeController.state.quotes).toStrictEqual([]);
 
         // Verify state is reset
-        rootMessenger.call('BridgeController:resetState');
+        rootMessenger.call(
+          'BridgeController:resetState',
+          FeatureId.UNIFIED_SWAP_BRIDGE,
+        );
         expect(bridgeController.state.quoteFetchError).toBeNull();
         expect(bridgeController.state.quotesLoadingStatus).toBeNull();
         expect(bridgeController.state.quotes).toStrictEqual([]);
@@ -2967,6 +2985,7 @@ describe('BridgeController', function () {
             token_symbol_destination: 'USDC',
             usd_amount_source: 100,
             token_security_type_destination: null,
+            feature_id: FeatureId.QUICK_BUY_FOLLOW_TRADING,
           },
         );
         jest.clearAllMocks();
@@ -2977,6 +2996,7 @@ describe('BridgeController', function () {
             location: MetaMetricsSwapsEventSource.MainView,
             token_symbol_source: 'ETH',
             token_symbol_destination: null,
+            feature_id: FeatureId.QUICK_BUY_FOLLOW_TRADING,
           },
         );
         expect(trackMetaMetricsFn).toHaveBeenCalledTimes(1);
@@ -3002,13 +3022,14 @@ describe('BridgeController', function () {
             token_symbol_destination: 'USDC',
             usd_amount_source: 100,
             token_security_type_destination: null,
+            feature_id: FeatureId.QUICK_BUY_FOLLOW_TRADING,
           },
         );
         jest.clearAllMocks();
         rootMessenger.call(
           'BridgeController:trackUnifiedSwapBridgeEvent',
           UnifiedSwapBridgeEventName.PageViewed,
-          {},
+          { feature_id: FeatureId.QUICK_BUY_TOKEN_DETAILS },
         );
         expect(trackMetaMetricsFn).toHaveBeenCalledTimes(1);
 
@@ -3033,6 +3054,7 @@ describe('BridgeController', function () {
             token_symbol_destination: 'USDC',
             usd_amount_source: 100,
             token_security_type_destination: null,
+            feature_id: FeatureId.QUICK_BUY_FOLLOW_TRADING,
           },
         );
         jest.clearAllMocks();
@@ -3043,6 +3065,7 @@ describe('BridgeController', function () {
             input: 'token_amount_source',
             input_value: '1',
             input_amount_preset: InputAmountPreset.PERCENT_90,
+            feature_id: FeatureId.QUICK_BUY_FOLLOW_TRADING,
           },
         );
 
@@ -3054,6 +3077,7 @@ describe('BridgeController', function () {
             input: 'token_amount_source',
             input_value: '1',
             input_amount_preset: InputAmountPreset.PERCENT_90,
+            feature_id: FeatureId.QUICK_BUY_FOLLOW_TRADING,
           }),
         );
       });
@@ -3076,6 +3100,7 @@ describe('BridgeController', function () {
             token_symbol_destination: 'USDC',
             usd_amount_source: 100,
             token_security_type_destination: null,
+            feature_id: FeatureId.QUICK_BUY_FOLLOW_TRADING,
           },
         );
         jest.clearAllMocks();
@@ -3086,6 +3111,7 @@ describe('BridgeController', function () {
             input: 'token_amount_source',
             input_value: '1',
             input_amount_preset: '85%',
+            feature_id: FeatureId.QUICK_BUY_FOLLOW_TRADING,
           },
         );
         rootMessenger.call(
@@ -3095,6 +3121,7 @@ describe('BridgeController', function () {
             input: 'token_amount_source',
             input_value: '1',
             input_amount_preset: '95%',
+            feature_id: FeatureId.UNIFIED_SWAP_BRIDGE,
           },
         );
 
@@ -3133,6 +3160,7 @@ describe('BridgeController', function () {
             token_symbol_destination: 'USDC',
             usd_amount_source: 100,
             token_security_type_destination: null,
+            feature_id: FeatureId.UNIFIED_SWAP_BRIDGE,
           },
         );
         jest.clearAllMocks();
@@ -3147,6 +3175,7 @@ describe('BridgeController', function () {
             token_address_source: getNativeAssetForChainId(1).assetId,
             chain_id_destination: formatChainIdToCaip(10),
             token_address_destination: getNativeAssetForChainId(10).assetId,
+            feature_id: FeatureId.UNIFIED_SWAP_BRIDGE,
           },
         );
         expect(trackMetaMetricsFn).toHaveBeenCalledTimes(1);
@@ -3172,6 +3201,7 @@ describe('BridgeController', function () {
             token_symbol_destination: 'USDC',
             usd_amount_source: 100,
             token_security_type_destination: null,
+            feature_id: FeatureId.UNIFIED_SWAP_BRIDGE,
           },
         );
         jest.clearAllMocks();
@@ -3185,6 +3215,7 @@ describe('BridgeController', function () {
             gas_included: false,
             stx_enabled: false,
             can_submit: true,
+            feature_id: FeatureId.UNIFIED_SWAP_BRIDGE,
           },
         );
         expect(trackMetaMetricsFn).toHaveBeenCalledTimes(1);
@@ -3210,6 +3241,7 @@ describe('BridgeController', function () {
             token_symbol_destination: 'USDC',
             usd_amount_source: 100,
             token_security_type_destination: null,
+            feature_id: FeatureId.UNIFIED_SWAP_BRIDGE,
           },
         );
         jest.clearAllMocks();
@@ -3225,6 +3257,7 @@ describe('BridgeController', function () {
             best_quote_provider: 'provider_bridge2',
             token_symbol_destination: 'USDC',
             can_submit: true,
+            feature_id: FeatureId.UNIFIED_SWAP_BRIDGE,
           },
         );
         expect(trackMetaMetricsFn).toHaveBeenCalledTimes(1);
@@ -3250,6 +3283,7 @@ describe('BridgeController', function () {
             token_symbol_destination: 'USDC',
             usd_amount_source: 100,
             token_security_type_destination: null,
+            feature_id: FeatureId.UNIFIED_SWAP_BRIDGE,
           },
         );
         jest.clearAllMocks();
@@ -3267,6 +3301,7 @@ describe('BridgeController', function () {
             provider: 'provider_bridge',
             best_quote_provider: 'provider_bridge2',
             can_submit: false,
+            feature_id: FeatureId.UNIFIED_SWAP_BRIDGE,
           },
         );
         expect(trackMetaMetricsFn).toHaveBeenCalledTimes(1);
@@ -3292,6 +3327,7 @@ describe('BridgeController', function () {
             token_symbol_destination: 'USDC',
             usd_amount_source: 100,
             token_security_type_destination: null,
+            feature_id: FeatureId.UNIFIED_SWAP_BRIDGE,
           },
         );
         jest.clearAllMocks();
@@ -3310,6 +3346,7 @@ describe('BridgeController', function () {
             best_quote_provider: 'provider_bridge2',
             can_submit: true,
             usd_balance_source: 0,
+            feature_id: FeatureId.UNIFIED_SWAP_BRIDGE,
           },
         );
         expect(messengerCallMock.mock.calls).toMatchSnapshot();
@@ -3332,6 +3369,7 @@ describe('BridgeController', function () {
             token_symbol_destination: 'USDC',
             usd_amount_source: 100,
             token_security_type_destination: 'Malicious',
+            feature_id: FeatureId.UNIFIED_SWAP_BRIDGE,
           },
         );
         jest.clearAllMocks();
@@ -3350,6 +3388,7 @@ describe('BridgeController', function () {
             best_quote_provider: 'provider_bridge2',
             can_submit: true,
             usd_balance_source: 0,
+            feature_id: FeatureId.UNIFIED_SWAP_BRIDGE,
           },
         );
         expect(trackMetaMetricsFn).toHaveBeenCalledTimes(1);
@@ -3378,6 +3417,7 @@ describe('BridgeController', function () {
             token_symbol_destination: 'USDC',
             usd_amount_source: 100,
             token_security_type_destination: null,
+            feature_id: FeatureId.UNIFIED_SWAP_BRIDGE,
           },
         );
         jest.clearAllMocks();
@@ -3390,6 +3430,7 @@ describe('BridgeController', function () {
             token_contract: '0x123',
             chain_name: 'Ethereum',
             chain_id: '1',
+            feature_id: FeatureId.UNIFIED_SWAP_BRIDGE,
           },
         );
         expect(trackMetaMetricsFn).toHaveBeenCalledTimes(1);
@@ -3442,6 +3483,7 @@ describe('BridgeController', function () {
               token_symbol_destination: 'USDC',
               stx_enabled: false,
               usd_amount_source: 100,
+              feature_id: FeatureId.UNIFIED_SWAP_BRIDGE,
             },
           );
           expect(trackMetaMetricsFn).toHaveBeenCalledTimes(1);
@@ -3485,6 +3527,7 @@ describe('BridgeController', function () {
             chain_id_destination: formatChainIdToCaip(10),
             token_symbol_destination: 'USDC',
             token_address_destination: getNativeAssetForChainId(10).assetId,
+            feature_id: FeatureId.UNIFIED_SWAP_BRIDGE,
           },
         );
         expect(trackMetaMetricsFn).toHaveBeenCalledTimes(1);
@@ -3526,6 +3569,7 @@ describe('BridgeController', function () {
             token_address_destination: getNativeAssetForChainId(ChainId.SOLANA)
               .assetId,
             security_warnings: [],
+            feature_id: FeatureId.UNIFIED_SWAP_BRIDGE,
           },
         );
         expect(messengerCallMock).toHaveBeenCalledTimes(0);
@@ -3574,6 +3618,7 @@ describe('BridgeController', function () {
               token_symbol_destination: 'USDC',
               stx_enabled: false,
               usd_amount_source: 100,
+              feature_id: FeatureId.UNIFIED_SWAP_BRIDGE,
             },
           );
           expect(trackMetaMetricsFn).toHaveBeenCalledTimes(1);
@@ -3611,6 +3656,7 @@ describe('BridgeController', function () {
             {
               failures: ['Failed to submit tx'],
               refresh_count: 0,
+              feature_id: FeatureId.PERPS,
             },
           );
           expect(trackMetaMetricsFn).toHaveBeenCalledTimes(1);
@@ -3682,6 +3728,7 @@ describe('BridgeController', function () {
             usd_amount_source: 100,
             token_symbol_destination: 'USDC',
             token_security_type_destination: null,
+            feature_id: FeatureId.UNIFIED_SWAP_BRIDGE,
           },
         );
         rootMessenger.call(
@@ -3699,6 +3746,7 @@ describe('BridgeController', function () {
             best_quote_provider: 'provider_bridge2',
             can_submit: true,
             usd_balance_source: 0,
+            feature_id: FeatureId.UNIFIED_SWAP_BRIDGE,
           },
         );
         expect(trackMetaMetricsFn).toHaveBeenCalledTimes(0);
@@ -3752,9 +3800,11 @@ describe('BridgeController', function () {
       ...overrides,
     });
 
+    let getBridgeFeatureFlagsSpy: jest.SpyInstance;
+
     beforeEach(() => {
       jest.clearAllMocks();
-      jest
+      getBridgeFeatureFlagsSpy = jest
         .spyOn(featureFlagUtils, 'getBridgeFeatureFlags')
         .mockReturnValueOnce({
           ...defaultFlags,
@@ -3766,6 +3816,7 @@ describe('BridgeController', function () {
             },
           },
         });
+      messengerCallMock.mockResolvedValueOnce('AUTH_TOKEN');
       messengerCallMock.mockResolvedValueOnce('AUTH_TOKEN');
       messengerCallMock.mockReturnValueOnce(() => ({
         address: '0x123',
@@ -3799,8 +3850,8 @@ describe('BridgeController', function () {
               gasIncluded7702: false,
               fee: 0,
             },
-            null,
             FeatureId.PERPS,
+            null,
           );
 
           expect(fetchBridgeQuotesSpy).toHaveBeenCalledTimes(1);
@@ -3871,8 +3922,8 @@ describe('BridgeController', function () {
                 gasIncluded: false,
                 gasIncluded7702: false,
               } as never,
-              null,
               FeatureId.PERPS,
+              null,
             ),
           ).rejects.toThrow('Account address is required');
 
@@ -3906,8 +3957,8 @@ describe('BridgeController', function () {
               gasIncluded: false,
               gasIncluded7702: false,
             },
-            null,
             FeatureId.PERPS,
+            null,
           );
 
           expect(fetchBridgeQuotesSpy).toHaveBeenCalledTimes(1);
@@ -3975,35 +4026,102 @@ describe('BridgeController', function () {
               gasIncluded: false,
               gasIncluded7702: false,
             },
+            FeatureId.UNIFIED_SWAP_BRIDGE,
             null,
           );
 
           expect(fetchBridgeQuotesSpy).toHaveBeenCalledTimes(1);
           expect(fetchBridgeQuotesSpy.mock.calls).toMatchInlineSnapshot(`
-                    [
-                      [
-                        {
-                          "destChainId": "1",
-                          "destTokenAddress": "0x1234",
-                          "gasIncluded": false,
-                          "gasIncluded7702": false,
-                          "resetApproval": false,
-                          "slippage": 0.5,
-                          "srcChainId": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
-                          "srcTokenAddress": "NATIVE",
-                          "srcTokenAmount": "1000000",
-                          "walletAddress": "0x123",
-                        },
-                        null,
-                        "extension",
-                        "AUTH_TOKEN",
-                        [Function],
-                        "https://bridge.api.cx.metamask.io",
-                        null,
-                        "13.7.0",
-                      ],
-                    ]
-                `);
+            [
+              [
+                {
+                  "destChainId": "1",
+                  "destTokenAddress": "0x1234",
+                  "gasIncluded": false,
+                  "gasIncluded7702": false,
+                  "resetApproval": false,
+                  "slippage": 0.5,
+                  "srcChainId": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
+                  "srcTokenAddress": "NATIVE",
+                  "srcTokenAmount": "1000000",
+                  "walletAddress": "0x123",
+                },
+                null,
+                "extension",
+                "AUTH_TOKEN",
+                [Function],
+                "https://bridge.api.cx.metamask.io",
+                "unified_swap_bridge",
+                "13.7.0",
+              ],
+            ]
+          `);
+          expect(quotes).toStrictEqual(mockBridgeQuotesSolErc20);
+          expect(bridgeController.state).toStrictEqual(expectedControllerState);
+        },
+      );
+    });
+
+    it('should not add aggIds and fee if quoteRequestOverrides is not set', async () => {
+      await withController(
+        async ({ controller: bridgeController, rootMessenger }) => {
+          getBridgeFeatureFlagsSpy.mockRestore();
+          getBridgeFeatureFlagsSpy.mockReturnValueOnce({
+            ...defaultFlags,
+            quoteRequestOverrides: undefined,
+          });
+
+          const fetchBridgeQuotesSpy = jest
+            .spyOn(fetchUtils, 'fetchBridgeQuotes')
+            .mockResolvedValueOnce({
+              quotes: mockBridgeQuotesSolErc20 as never,
+              validationFailures: [],
+            });
+          const expectedControllerState = bridgeController.state;
+
+          const quotes = await rootMessenger.call(
+            'BridgeController:fetchQuotes',
+            {
+              srcChainId: SolScope.Mainnet,
+              destChainId: '1',
+              srcTokenAddress: 'NATIVE',
+              destTokenAddress: '0x1234',
+              srcTokenAmount: '1000000',
+              walletAddress: '0x123',
+              slippage: 0.5,
+              gasIncluded: false,
+              gasIncluded7702: false,
+            },
+            FeatureId.PERPS,
+            null,
+          );
+
+          expect(fetchBridgeQuotesSpy).toHaveBeenCalledTimes(1);
+          expect(fetchBridgeQuotesSpy.mock.calls).toMatchInlineSnapshot(`
+            [
+              [
+                {
+                  "destChainId": "1",
+                  "destTokenAddress": "0x1234",
+                  "gasIncluded": false,
+                  "gasIncluded7702": false,
+                  "resetApproval": false,
+                  "slippage": 0.5,
+                  "srcChainId": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
+                  "srcTokenAddress": "NATIVE",
+                  "srcTokenAmount": "1000000",
+                  "walletAddress": "0x123",
+                },
+                null,
+                "extension",
+                "AUTH_TOKEN",
+                [Function],
+                "https://bridge.api.cx.metamask.io",
+                "perps",
+                "13.7.0",
+              ],
+            ]
+          `);
           expect(quotes).toStrictEqual(mockBridgeQuotesSolErc20);
           expect(bridgeController.state).toStrictEqual(expectedControllerState);
         },
@@ -4036,6 +4154,7 @@ describe('BridgeController', function () {
         const quotes = await rootMessenger.call(
           'BridgeController:fetchQuotes',
           makeQuoteRequest(),
+          FeatureId.UNIFIED_SWAP_BRIDGE,
         );
 
         expect(fetchBridgeQuotesSpy).toHaveBeenCalledTimes(1);

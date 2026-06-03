@@ -325,6 +325,7 @@ const getQuoteResponseId = ({
  * @param fetchFn - The fetch function to use
  * @param quoteRequests - An array of GenericQuoteRequest objects
  * @param signal - The abort signal
+ * @param featureId - The {@link FeatureId} for the experience that's requesting the quotes
  * @param clientId - The client ID for metrics
  * @param jwt - The JWT token for authentication
  * @param bridgeApiBaseUrl - The base URL for the bridge API
@@ -341,6 +342,7 @@ export async function fetchBridgeQuoteStream(
   fetchFn: FetchFunction,
   quoteRequests: GenericQuoteRequest[],
   signal: AbortSignal | undefined,
+  featureId: FeatureId,
   clientId: string,
   jwt: string | undefined,
   bridgeApiBaseUrl: string,
@@ -380,6 +382,7 @@ export async function fetchBridgeQuoteStream(
 
         return await serverEventHandlers.onValidQuoteReceived({
           ...quoteResponse,
+          featureId,
           // Append the reset approval data to the quote response if the request has resetApproval set to true and the quote has an approval
           resetApproval:
             matchingQuoteRequest.resetApproval &&

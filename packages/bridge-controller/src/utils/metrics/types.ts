@@ -20,6 +20,13 @@ export type RequestParams = {
   token_symbol_destination: string | null;
   token_address_source: CaipAssetType;
   token_address_destination: CaipAssetType | null;
+  /**
+   * Client-supplied security classification for the destination token
+   * (e.g. from token security/scanning data). Stored on the controller
+   * and merged into every analytics event that includes
+   * `token_address_destination`. Pass `null` when no security data is
+   * available for the selected destination token.
+   */
   token_security_type_destination: string | null;
 };
 
@@ -133,6 +140,7 @@ type RequiredEventContextFromClientBase = {
   > & {
     token_symbol_source: RequestParams['token_symbol_source'];
     token_symbol_destination: RequestParams['token_symbol_destination'];
+    token_security_type_destination: RequestParams['token_security_type_destination'];
   };
   [UnifiedSwapBridgeEventName.QuotesReceived]: TradeData & {
     warnings: QuoteWarning[];
@@ -283,6 +291,7 @@ export type RequiredEventContextFromClient = {
     location?: MetaMetricsSwapsEventSource;
     ab_tests?: Record<string, string>;
     active_ab_tests?: { key: string; value: string }[];
+    feature_id: FeatureId;
   };
 };
 
