@@ -119,7 +119,8 @@ module.exports = defineConfig({
         // exports correctly.
         if (
           workspace.ident !== '@metamask/foundryup' &&
-          workspace.ident !== '@metamask/messenger-cli'
+          workspace.ident !== '@metamask/messenger-cli' &&
+          workspace.ident !== '@metamask/java-tron-up'
         ) {
           expectCorrectWorkspaceExports(workspace);
         }
