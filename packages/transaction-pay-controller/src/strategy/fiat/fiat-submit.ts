@@ -51,14 +51,16 @@ export async function submitFiatQuotes(
 ): ReturnType<PayStrategy<FiatQuote>['execute']> {
   const { messenger, transaction } = request;
   const transactionId = transaction.id;
-  const walletAddress = transaction.txParams.from as Hex | undefined;
+  const state = messenger.call('TransactionPayController:getState');
+  const transactionData = state.transactionData[transactionId];
+  const walletAddress = (transactionData?.accountOverride ??
+    transaction.txParams.from) as Hex | undefined;
 
   if (!walletAddress) {
     throw new Error('Missing wallet address for fiat submission');
   }
 
-  const state = messenger.call('TransactionPayController:getState');
-  const fiatPayment = state.transactionData[transactionId]?.fiatPayment;
+  const fiatPayment = transactionData?.fiatPayment;
   const orderId = fiatPayment?.orderId;
 
   if (!orderId) {
@@ -272,7 +274,8 @@ async function submitRelayAfterFiatCompletion({
     transactionId,
   });
 
-  const walletAddress = transaction.txParams.from as Hex;
+  const baseRequest = quotes[0].request;
+  const walletAddress = baseRequest.from;
 
   const sourceAmountRaw = await resolveSourceAmountRaw({
     messenger,
@@ -280,8 +283,6 @@ async function submitRelayAfterFiatCompletion({
     fiatAsset,
     walletAddress,
   });
-
-  const baseRequest = quotes[0].request;
 
   // Phase 1: Discovery quote with EXACT_INPUT to find the actual target
   // token output for the settled source amount.

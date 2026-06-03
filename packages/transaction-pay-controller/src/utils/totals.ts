@@ -1,7 +1,6 @@
 import type { TransactionMeta } from '@metamask/transaction-controller';
 import { BigNumber } from 'bignumber.js';
 
-import { TransactionPayStrategy } from '../constants';
 import type {
   FiatValue,
   TransactionPayControllerMessenger,
@@ -41,9 +40,6 @@ export function calculateTotals({
   const providerFiatFee = sumFiat(
     quotes.map((quote) => quote.fees.providerFiat ?? { fiat: '0', usd: '0' }),
   );
-  const hasFiatStrategy = quotes.some(
-    (quote) => quote.strategy === TransactionPayStrategy.Fiat,
-  );
 
   const sourceNetworkFeeMax = sumAmounts(
     quotes.map((quote) => quote.fees.sourceNetwork.max),
@@ -80,22 +76,14 @@ export function calculateTotals({
     .plus(metaMaskFee.fiat)
     .plus(sourceNetworkFeeEstimate.fiat)
     .plus(targetNetworkFee.fiat)
-    .plus(
-      (hasFiatStrategy || isMaxAmount) && hasQuotes
-        ? targetAmount.fiat
-        : amountFiat,
-    )
+    .plus(isMaxAmount && hasQuotes ? targetAmount.fiat : amountFiat)
     .toString(10);
 
   const totalUsd = new BigNumber(providerFee.usd)
     .plus(metaMaskFee.usd)
     .plus(sourceNetworkFeeEstimate.usd)
     .plus(targetNetworkFee.usd)
-    .plus(
-      (hasFiatStrategy || isMaxAmount) && hasQuotes
-        ? targetAmount.usd
-        : amountUsd,
-    )
+    .plus(isMaxAmount && hasQuotes ? targetAmount.usd : amountUsd)
     .toString(10);
 
   const estimatedDuration = Number(
