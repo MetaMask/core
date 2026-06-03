@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Authenticate `RampsService.getPaymentMethods` and `RampsService.getQuotes` by sourcing a bearer token from `AuthenticationController:getBearerToken` and sending it as an `Authorization: Bearer <token>` header ([#8888](https://github.com/MetaMask/core/pull/8888))
+
 ## [14.1.1]
 
 ### Fixed
