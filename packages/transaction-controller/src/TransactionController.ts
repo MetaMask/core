@@ -1,4 +1,5 @@
-import type { TypedTransaction, TypedTxData } from '@ethereumjs/tx';
+/* eslint-disable no-restricted-syntax */
+import type { TypedTxData } from '@ethereumjs/tx';
 import type {
   AccountsController,
   AccountsControllerGetSelectedAccountAction,
@@ -27,7 +28,11 @@ import type {
   AccountActivityServiceTransactionUpdatedEvent,
   BackendWebSocketServiceConnectionStateChangedEvent,
 } from '@metamask/core-backend';
-import type { GasFeeControllerFetchGasFeeEstimatesAction } from '@metamask/gas-fee-controller';
+import type {
+  FetchGasFeeEstimateOptions,
+  GasFeeControllerFetchGasFeeEstimatesAction,
+  GasFeeState,
+} from '@metamask/gas-fee-controller';
 import type {
   KeyringControllerGetStateAction,
   KeyringControllerSignEip7702AuthorizationAction,
@@ -866,8 +871,10 @@ export class TransactionController extends BaseController<
           networkClientId,
         );
       }) as NetworkController['getNetworkClientById'],
-      getNetworkClientRegistry: () =>
-        this.messenger.call('NetworkController:getNetworkClientRegistry'),
+      getNetworkClientRegistry: (() =>
+        this.messenger.call(
+          'NetworkController:getNetworkClientRegistry',
+        )) as NetworkController['getNetworkClientRegistry'],
       removePendingTransactionTrackerListeners:
         this.#removePendingTransactionTrackerListeners.bind(this),
       createNonceTracker: this.#createNonceTracker.bind(this),
@@ -884,15 +891,20 @@ export class TransactionController extends BaseController<
 
     const gasFeePoller = new GasFeePoller({
       gasFeeFlows: this.#gasFeeFlows,
-      getGasFeeControllerEstimates: (options) =>
-        this.messenger.call('GasFeeController:fetchGasFeeEstimates', options),
+      getGasFeeControllerEstimates: (
+        gasFeeOpts: FetchGasFeeEstimateOptions,
+      ): Promise<GasFeeState> =>
+        this.messenger.call(
+          'GasFeeController:fetchGasFeeEstimates',
+          gasFeeOpts,
+        ),
       getTransactions: (): TransactionMeta[] => this.state.transactions,
       getTransactionBatches: (): TransactionBatchMeta[] =>
         this.state.transactionBatches,
       layer1GasFeeFlows: this.#layer1GasFeeFlows,
       messenger: this.messenger,
       onStateChange: (listener): void => {
-        this.messenger.subscribe('TransactionController:stateChange', listener);
+        this.messenger.subscribe('TransactionController:stateChanged', listener);
       },
     });
 
@@ -942,7 +954,7 @@ export class TransactionController extends BaseController<
     // when transactionsController state changes
     // check for pending transactions and start polling if there are any
     this.messenger.subscribe(
-      'TransactionController:stateChange',
+      'TransactionController:stateChanged',
       this.#checkForPendingTransactionAndStartPolling,
     );
 
@@ -951,7 +963,7 @@ export class TransactionController extends BaseController<
       simulateTransaction: this.#updateSimulationData.bind(this),
       onTransactionsUpdate: (listener): void => {
         this.messenger.subscribe(
-          'TransactionController:stateChange',
+          'TransactionController:stateChanged',
           listener,
           (controllerState) => controllerState.transactions,
         );
@@ -1069,7 +1081,6 @@ export class TransactionController extends BaseController<
       isGasFeeSponsored,
       isInternal = false,
       isStateOnly,
-      method,
       nestedTransactions,
       networkClientId,
       origin,
@@ -3749,6 +3760,7 @@ export class TransactionController extends BaseController<
     log('Signing transaction', finalTxParams);
 
     const signedTxData = await new Promise<TypedTxData>((resolve, reject) => {
+      // eslint-disable-next-line promise/catch-or-return
       this.messenger
         .call('KeyringController:signTransaction', unsignedEthTx, from)
         .then(resolve, reject);
