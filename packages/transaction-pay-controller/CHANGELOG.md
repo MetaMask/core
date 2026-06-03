@@ -31,11 +31,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/assets-controllers` from `^108.3.0` to `^108.5.0` ([#8981](https://github.com/MetaMask/core/pull/8981), [#8999](https://github.com/MetaMask/core/pull/8999))
 - Bump `@metamask/assets-controller` from `^8.0.2` to `^8.3.2` ([#8981](https://github.com/MetaMask/core/pull/8981), [#8985](https://github.com/MetaMask/core/pull/8985), [#8999](https://github.com/MetaMask/core/pull/8999))
 
-### Removed
-
-- Remove `validateRelaySlippage` and `MAX_SLIPPAGE_PERCENT` from fiat submit ([#8987](https://github.com/MetaMask/core/pull/8987))
-  - The previous check compared relay outputs from quotes made with different source amounts, producing false positives. Relay's own `slippageTolerance` parameter already guards on-chain execution.
-
 ### Fixed
 
 - Fix fiat `moneyAccountDeposit` failing with `"Max amount quotes do not support included transactions"` by using `isMaxAmount: false` in the re-quote ([#8987](https://github.com/MetaMask/core/pull/8987))
