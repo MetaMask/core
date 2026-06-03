@@ -14,7 +14,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Removed hooks: `afterSign`, `afterSimulate`, `getAdditionalSignArguments`
   - Moved hook: `isTimeoutEnabled` is now a root constructor option instead of a hook
   - Removed types: `AfterSimulateHook`, `PendingTransactionOptions`, `SecurityProviderRequest`; `AfterAddHook` parameter `skipSimulation` removed
-  - `serializeTransaction` now accepts `TypedTxData` instead of `TypedTransaction`
   - Added required `AllowedActions`: `GasFeeController:fetchGasFeeEstimates`, `KeyringController:signTransaction`, `NetworkController:getEIP1559Compatibility`, `NetworkController:getNetworkClientRegistry`, `NetworkController:getState`
   - Removed resubmit logic from `PendingTransactionTracker`
 
