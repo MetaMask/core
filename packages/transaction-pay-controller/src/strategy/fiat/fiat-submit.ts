@@ -414,8 +414,12 @@ function validateRelayRateDrift({
   transactionId: string;
 }): void {
   const originalIn = new BigNumber(originalQuote.details.currencyIn.amountUsd);
-  const originalOut = new BigNumber(originalQuote.details.currencyOut.amountUsd);
-  const discoveryIn = new BigNumber(discoveryQuote.details.currencyIn.amountUsd);
+  const originalOut = new BigNumber(
+    originalQuote.details.currencyOut.amountUsd,
+  );
+  const discoveryIn = new BigNumber(
+    discoveryQuote.details.currencyIn.amountUsd,
+  );
   const discoveryOut = new BigNumber(
     discoveryQuote.details.currencyOut.amountUsd,
   );

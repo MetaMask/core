@@ -242,9 +242,7 @@ export class TransactionPayController extends BaseController<
   getAmountData(
     ...args: Parameters<GetAmountDataCallback>
   ): ReturnType<GetAmountDataCallback> {
-    return (
-      this.#getAmountData?.(...args) ?? Promise.resolve({ updates: [] })
-    );
+    return this.#getAmountData?.(...args) ?? Promise.resolve({ updates: [] });
   }
 
   getPaymentOverrideData(
