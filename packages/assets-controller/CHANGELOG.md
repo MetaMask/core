@@ -13,15 +13,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Add `normalizeAmountString` utility that coerces balance amounts to a plain decimal string truncated to the asset's `decimals`, falling back to natural precision when metadata is unknown ([#8982](https://github.com/MetaMask/core/pull/8982))
 
-### Fixed
-
-- `AssetsController` now normalizes every `assetsBalance.amount` written to state into plain decimal form, preventing `BigInt()`-based consumers from crashing on scientific-notation strings such as `"1e-18"` ([#8982](https://github.com/MetaMask/core/pull/8982))
-- `BackendWebsocketDataSource` now emits `humanReadableAmount` via `BigNumber.toFixed()` instead of `.toString()`, so sub-`1e-7` dust balances (e.g. `1` wei of an 18-decimal token) are serialized as `"0.000000000000000001"` rather than `"1e-18"` ([#8982](https://github.com/MetaMask/core/pull/8982))
-- `getAggregatedBalances` selector now emits `amount` via `BigNumber.toFixed()` instead of `.toString()` for the same reason ([#8982](https://github.com/MetaMask/core/pull/8982))
-
 ### Changed
 
 - Bump `@metamask/assets-controllers` from `^108.3.0` to `^108.4.0` ([#8981](https://github.com/MetaMask/core/pull/8981))
+
+### Fixed
+
+- Fix sub-`1e-7` dust balance amounts being serialized in scientific-notation form (e.g. `"1e-18"`) instead of plain decimal, which caused crashes in downstream `BigInt()`-based consumers ([#8982](https://github.com/MetaMask/core/pull/8982))
 
 ## [8.2.0]
 
