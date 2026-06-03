@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `batch_id` property to BatchSell events ([#8964](https://github.com/MetaMask/core/pull/8964))
+  - pre-generate the batchId using transaction controller's `generateBatchId` util
+  - attach batchId to the `Submitted`, `Completed` and `Failed` events
+  - provide batchId to the `TransactionController:addTransactionBatch` to propagate it the TransactionMeta
+- Publish tx submission metrics for `BatchSell`, `QuickBuy` and `UnifiedSwapBridge` actions ([#8964](https://github.com/MetaMask/core/pull/8964))
+
 ## [72.0.1]
 
 ### Fixed

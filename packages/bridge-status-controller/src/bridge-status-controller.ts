@@ -1271,12 +1271,10 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       | typeof UnifiedSwapBridgeEventName.PollingStatusUpdated,
     EventProperties extends Omit<
       RequiredEventContextFromClient[EventName],
-      'feature_id' | 'batch_id'
+      'feature_id'
     > & {
       // eslint-disable-next-line @typescript-eslint/naming-convention
       feature_id?: FeatureId;
-      // eslint-disable-next-line @typescript-eslint/naming-convention
-      batch_id?: string;
     },
   >(
     eventName: EventName,
@@ -1317,12 +1315,10 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
         ? this.state.txHistory?.[txHistoryKey]?.location
         : undefined) ?? MetaMetricsSwapsEventSource.MainView;
 
-    const batchId = eventProperties?.batch_id ?? historyItem?.batchId;
-
     const baseProperties = {
       action_type: MetricsActionType.SWAPBRIDGE_V1,
       feature_id: featureId ?? FeatureId.UNIFIED_SWAP_BRIDGE,
-      ...(batchId ? { batch_id: batchId } : {}),
+      ...(historyItem?.batchId ? { batch_id: historyItem.batchId } : {}),
       ...(eventProperties ?? {}),
       location,
       ...(resolvedAbTests &&
