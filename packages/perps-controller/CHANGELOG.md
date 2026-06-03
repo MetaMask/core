@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add observational hard timeout for order submission: tag the `Perps Order Submission` trace and emit a breadcrumb when a provider round-trip exceeds `PlaceOrderTimeoutMs` (60s), without cancelling the in-flight order ([#NNNN](https://github.com/MetaMask/core/pull/NNNN))
+
+### Changed
+
+- Surface late order completions via trace `reason: 'late_success' | 'late_error'` ([#NNNN](https://github.com/MetaMask/core/pull/NNNN))
+
+### Removed
+
+- Remove unused `Perps Order Submission Toast` trace name from the `PerpsTraceName` union ([#NNNN](https://github.com/MetaMask/core/pull/NNNN))
+
 ## [7.0.0]
 
 ### Added
