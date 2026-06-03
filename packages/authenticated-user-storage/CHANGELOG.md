@@ -13,6 +13,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `getAssetsWatchlist` returns the assets-watchlist blob or `null` on 404, mirroring `getNotificationPreferences`.
   - `setAssetsWatchlist` writes the full blob and enforces a maximum of `ASSETS_WATCHLIST_MAX_ASSETS` (100) assets before sending the request, via a superstruct `size` constraint on the write-side schema.
 
+### Changed
+
+- **BREAKING:** Add required `agenticCli` field to `NotificationPreferences`, along with the `AgenticCliPreference` type and `NotificationPreferencesSchema` validation for Agentic CLI notification preferences ([#8933](https://github.com/MetaMask/core/pull/8933))
+
 ## [2.0.0]
 
 ### Changed

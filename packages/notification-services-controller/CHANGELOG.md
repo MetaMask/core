@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `DEFAULT_AGENTIC_CLI_PREFERENCES` and initialize `agenticCli` when building fresh notification preferences via `NotificationServicesController` ([#8933](https://github.com/MetaMask/core/pull/8933))
+
 ## [24.1.2]
 
 ### Changed
