@@ -18,6 +18,7 @@ import type {
   RemoteFeatureFlagControllerMessenger,
   RemoteFeatureFlagControllerState,
 } from './remote-feature-flag-controller';
+import { ThresholdVersion } from './remote-feature-flag-controller-types';
 import type { FeatureFlags } from './remote-feature-flag-controller-types';
 
 const MOCK_FLAGS: FeatureFlags = {
@@ -518,7 +519,7 @@ describe('RemoteFeatureFlagController', () => {
         thresholdObjectFlag: [
           {
             thresholdName: 'enabled',
-            thresholdVersion: 2,
+            thresholdVersion: ThresholdVersion.DirectValue,
             scope: { type: 'threshold', value: 1.0 },
             value: thresholdFlagValue,
           },
@@ -539,6 +540,40 @@ describe('RemoteFeatureFlagController', () => {
       expect(
         controller.state.remoteFeatureFlags.thresholdObjectFlag,
       ).toStrictEqual(thresholdFlagValue);
+    });
+
+    it('falls back to legacy threshold wrappers for unrecognized threshold versions', async () => {
+      const thresholdFlagValue = {
+        enabled: true,
+      };
+      const mockFlags = {
+        thresholdObjectFlag: [
+          {
+            name: 'enabled',
+            thresholdVersion: 3,
+            scope: { type: 'threshold', value: 1.0 },
+            value: thresholdFlagValue,
+          },
+        ],
+      };
+      const clientConfigApiService = buildClientConfigApiService({
+        remoteFeatureFlags: mockFlags,
+      });
+      const { controller, messenger } = createController({
+        clientConfigApiService,
+        getMetaMetricsId: () => MOCK_METRICS_ID,
+      });
+
+      await messenger.call(
+        'RemoteFeatureFlagController:updateRemoteFeatureFlags',
+      );
+
+      expect(
+        controller.state.remoteFeatureFlags.thresholdObjectFlag,
+      ).toStrictEqual({
+        name: 'enabled',
+        value: thresholdFlagValue,
+      });
     });
 
     it('preserves non-threshold feature flags unchanged', async () => {

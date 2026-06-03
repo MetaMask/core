@@ -39,10 +39,22 @@ export type FeatureFlagScope = {
   value: number;
 };
 
+export enum ThresholdVersion {
+  DirectValue = 2,
+}
+
 export type FeatureFlagScopeValue = {
   name: string;
+  /**
+   * Optional label for direct-value threshold entries. This replaces `name` in
+   * v2 configurations and is not emitted in processed controller state.
+   */
   thresholdName?: string;
-  thresholdVersion?: number;
+  /**
+   * Selects the threshold entry output shape. Unrecognized versions fall back
+   * to the legacy `{ name, value }` wrapper for backwards compatibility.
+   */
+  thresholdVersion?: ThresholdVersion;
   scope: FeatureFlagScope;
   value: Json;
 };

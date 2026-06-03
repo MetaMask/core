@@ -9,6 +9,7 @@ import type { Json, SemVerVersion } from '@metamask/utils';
 
 import type { AbstractClientConfigApiService } from './client-config-api-service/abstract-client-config-api-service';
 import type { RemoteFeatureFlagControllerMethodActions } from './remote-feature-flag-controller-method-action-types';
+import { ThresholdVersion } from './remote-feature-flag-controller-types';
 import type {
   FeatureFlags,
   ServiceResponse,
@@ -24,10 +25,6 @@ import { isVersionFeatureFlag, getVersionData } from './utils/version';
 
 export const controllerName = 'RemoteFeatureFlagController';
 export const DEFAULT_CACHE_DURATION = 24 * 60 * 60 * 1000; // 1 day
-
-enum ThresholdVersion {
-  DirectValue = 2,
-}
 
 // === STATE ===
 
@@ -127,6 +124,8 @@ function normalizeThresholdValue(featureFlag: FeatureFlagScopeValue): Json {
     return featureFlag.value;
   }
 
+  // Unknown threshold versions fall back to the legacy wrapper shape for
+  // backwards compatibility with existing threshold feature flag configs.
   return {
     name: featureFlag.name,
     value: featureFlag.value,

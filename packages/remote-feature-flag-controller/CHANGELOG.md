@@ -13,7 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Support `thresholdVersion: 2` threshold feature flag entries that return the selected `value` directly while preserving the existing threshold wrapper shape for unversioned entries ([#8908](https://github.com/MetaMask/core/pull/8908))
+- Support `ThresholdVersion.DirectValue` (`thresholdVersion: 2`) threshold feature flag entries that return the selected `value` directly while preserving the existing threshold wrapper shape for unversioned entries ([#8908](https://github.com/MetaMask/core/pull/8908))
 
 ## [4.2.1]
 
