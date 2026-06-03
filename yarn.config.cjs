@@ -278,7 +278,7 @@ module.exports = defineConfig({
 
       if (isChildWorkspace) {
         // All non-root packages must have a valid README.md file.
-        await expectReadme(workspace, workspaceBasename);
+        await expectReadme(workspace, workspaceBasename, isPrivate);
 
         await expectCodeowner(workspace, workspaceBasename);
       }
@@ -918,18 +918,19 @@ function expectConsistentDependenciesAndDevDependencies(Yarn) {
 }
 
 /**
- * Expect that the workspace has a README.md file, and that it is a non-empty
- * string. The README.md is expected to:
+ * Expects the README.md:
  *
- * - Not contain template instructions (unless the workspace is the module
+ * - To not contain template instructions (unless the workspace is the module
  * template itself).
- * - Match the version of Node.js specified in the `.nvmrc` file.
+ * - To contain installation instructions (if it is not private)
+ * - To match the version of Node.js specified in the `.nvmrc` file.
  *
  * @param {Workspace} workspace - The workspace to check.
  * @param {string} workspaceBasename - The name of the workspace.
+ * @param {boolean} isPrivate - Whether the package is private.
  * @returns {Promise<void>}
  */
-async function expectReadme(workspace, workspaceBasename) {
+async function expectReadme(workspace, workspaceBasename, isPrivate) {
   const readme = await getWorkspaceFile(workspace, 'README.md');
 
   if (
@@ -941,13 +942,19 @@ async function expectReadme(workspace, workspaceBasename) {
     );
   }
 
-  if (!readme.includes(`yarn add @metamask/${workspaceBasename}`)) {
+  if (
+    !isPrivate &&
+    !readme.includes(`yarn add @metamask/${workspaceBasename}`)
+  ) {
     workspace.error(
       `The README.md does not contain an example of how to install the package using Yarn (\`yarn add @metamask/${workspaceBasename}\`). Please add an example.`,
     );
   }
 
-  if (!readme.includes(`npm install @metamask/${workspaceBasename}`)) {
+  if (
+    !isPrivate &&
+    !readme.includes(`npm install @metamask/${workspaceBasename}`)
+  ) {
     workspace.error(
       `The README.md does not contain an example of how to install the package using npm (\`npm install @metamask/${workspaceBasename}\`). Please add an example.`,
     );
