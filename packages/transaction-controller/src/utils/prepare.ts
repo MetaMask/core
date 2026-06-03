@@ -42,6 +42,16 @@ export function serializeTransaction(transaction: TypedTransaction): Hex {
   return bytesToHex(transaction.serialize());
 }
 
+export function txDataToTransaction(
+  chainId: Hex,
+  txData: TypedTxData,
+): TypedTransaction {
+  return TransactionFactory.fromTxData(txData, {
+    freeze: false,
+    common: getCommonConfiguration(chainId),
+  });
+}
+
 /**
  * Generates the configuration used to prepare transactions.
  *
