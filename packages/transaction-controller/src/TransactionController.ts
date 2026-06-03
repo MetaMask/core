@@ -904,7 +904,10 @@ export class TransactionController extends BaseController<
       layer1GasFeeFlows: this.#layer1GasFeeFlows,
       messenger: this.messenger,
       onStateChange: (listener): void => {
-        this.messenger.subscribe('TransactionController:stateChanged', listener);
+        this.messenger.subscribe(
+          'TransactionController:stateChanged',
+          listener,
+        );
       },
     });
 
