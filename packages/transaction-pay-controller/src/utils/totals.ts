@@ -15,6 +15,7 @@ import { calculateTransactionGasCost } from './gas';
  * Calculate totals for a list of quotes and tokens.
  *
  * @param request - Request parameters.
+ * @param request.fiatPaymentAmount - The amount of the transaction in fiat.
  * @param request.isMaxAmount - Whether the transaction is a maximum amount transaction.
  * @param request.quotes - List of bridge quotes.
  * @param request.messenger - Controller messenger.
@@ -23,12 +24,14 @@ import { calculateTransactionGasCost } from './gas';
  * @returns The calculated totals in USD and fiat currency.
  */
 export function calculateTotals({
+  fiatPaymentAmount,
   isMaxAmount,
   quotes,
   messenger,
   tokens,
   transaction,
 }: {
+  fiatPaymentAmount?: string;
   isMaxAmount?: boolean;
   quotes: TransactionPayQuote<unknown>[];
   messenger: TransactionPayControllerMessenger;
@@ -76,14 +79,21 @@ export function calculateTotals({
     .plus(metaMaskFee.fiat)
     .plus(sourceNetworkFeeEstimate.fiat)
     .plus(targetNetworkFee.fiat)
-    .plus(isMaxAmount && hasQuotes ? targetAmount.fiat : amountFiat)
+    .plus(
+      fiatPaymentAmount ??
+        (isMaxAmount && hasQuotes ? targetAmount.fiat : amountFiat),
+    )
     .toString(10);
 
   const totalUsd = new BigNumber(providerFee.usd)
     .plus(metaMaskFee.usd)
     .plus(sourceNetworkFeeEstimate.usd)
     .plus(targetNetworkFee.usd)
-    .plus(isMaxAmount && hasQuotes ? targetAmount.usd : amountUsd)
+    .plus(
+      (fiatPaymentAmount ?? (isMaxAmount && hasQuotes))
+        ? targetAmount.usd
+        : amountUsd,
+    )
     .toString(10);
 
   const estimatedDuration = Number(

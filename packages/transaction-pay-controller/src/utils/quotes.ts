@@ -91,6 +91,7 @@ export async function updateQuotes(
     refundTo,
     sourceAmounts,
     tokens,
+    fiatPayment,
   } = transactionData;
 
   const from = accountOverride ?? (transaction.txParams.from as Hex);
@@ -139,7 +140,7 @@ export async function updateQuotes(
       supports7702,
       getStrategies,
       messenger,
-      transactionData.fiatPayment?.selectedPaymentMethodId,
+      fiatPayment?.selectedPaymentMethodId,
       signal,
     );
 
@@ -149,6 +150,7 @@ export async function updateQuotes(
     }
 
     const totals = calculateTotals({
+      fiatPaymentAmount: fiatPayment?.amountFiat,
       isMaxAmount,
       messenger,
       quotes: quotes as TransactionPayQuote<unknown>[],
