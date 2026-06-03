@@ -36,15 +36,15 @@
     "prepare-preview-builds": "./scripts/prepare-preview-builds.sh",
     "readme-content:check": "tsx scripts/update-readme-content.ts --check",
     "readme-content:update": "tsx scripts/update-readme-content.ts",
-    "setup": "yarn install",
+    "setup": "yarn install && yarn skills:postinstall",
     "test": "yarn test:scripts --silent --collectCoverage=false --reporters=jest-silent-reporter && yarn test:packages",
     "test:clean": "yarn workspaces foreach --all --parallel --verbose run test:clean && yarn test",
     "test:packages": "yarn test:verbose --silent --collectCoverage=false --reporters=jest-silent-reporter",
     "test:scripts": "NODE_OPTIONS=--experimental-vm-modules yarn jest --config ./jest.config.scripts.js --silent",
     "test:verbose": "yarn workspaces foreach --all --parallel --verbose run test:verbose",
     "workspaces:list-versions": "./scripts/list-workspace-versions.sh",
-    "skills": "tsx scripts/skills-sync.ts",
-    "postinstall": "tsx scripts/skills-postinstall.ts"
+    "skills": "metamask-skills sync",
+    "skills:postinstall": "metamask-skills postinstall"
   },
   "devDependencies": {
     "@lavamoat/allow-scripts": "^3.0.4",
@@ -58,6 +58,7 @@
     "@metamask/eth-json-rpc-provider": "^6.0.1",
     "@metamask/json-rpc-engine": "^10.5.0",
     "@metamask/network-controller": "^32.0.0",
+    "@metamask/skills": "^0.1.0",
     "@metamask/utils": "^11.9.0",
     "@ts-bridge/cli": "^0.6.4",
     "@types/jest": "^29.5.14",
