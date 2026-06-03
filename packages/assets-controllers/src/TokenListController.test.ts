@@ -2095,8 +2095,8 @@ describe('TokenListController', () => {
       controller.destroy();
     });
   });
-  describe('isDisabled', () => {
-    it('resets tokensChainsCache to {} at construction when isDisabled() returns true', () => {
+  describe('isDeprecated', () => {
+    it('resets tokensChainsCache to {} at construction when isDeprecated() returns true', () => {
       const messenger = getMessenger();
       const restrictedMessenger = getRestrictedMessenger(messenger);
 
@@ -2104,7 +2104,7 @@ describe('TokenListController', () => {
         chainId: ChainId.mainnet,
         messenger: restrictedMessenger,
         state: existingState,
-        isDisabled: (): boolean => true,
+        isDeprecated: (): boolean => true,
       });
 
       expect(controller.state.tokensChainsCache).toStrictEqual({});
@@ -2112,7 +2112,7 @@ describe('TokenListController', () => {
       controller.destroy();
     });
 
-    it('preserves initial state when isDisabled() returns false', () => {
+    it('preserves initial state when isDeprecated() returns false', () => {
       const messenger = getMessenger();
       const restrictedMessenger = getRestrictedMessenger(messenger);
 
@@ -2120,7 +2120,7 @@ describe('TokenListController', () => {
         chainId: ChainId.mainnet,
         messenger: restrictedMessenger,
         state: existingState,
-        isDisabled: (): boolean => false,
+        isDeprecated: (): boolean => false,
       });
 
       expect(
@@ -2159,7 +2159,7 @@ describe('TokenListController', () => {
       const controller = new TokenListController({
         chainId: ChainId.mainnet,
         messenger: restrictedMessenger,
-        isDisabled: (): boolean => true,
+        isDeprecated: (): boolean => true,
       });
 
       await controller.initialize();
@@ -2196,7 +2196,7 @@ describe('TokenListController', () => {
       const controller = new TokenListController({
         chainId: ChainId.mainnet,
         messenger: restrictedMessenger,
-        isDisabled: (): boolean => true,
+        isDeprecated: (): boolean => true,
       });
 
       await controller.initialize();
@@ -2218,7 +2218,7 @@ describe('TokenListController', () => {
         chainId: ChainId.mainnet,
         messenger: restrictedMessenger,
         state: existingState,
-        isDisabled: (): boolean => true,
+        isDeprecated: (): boolean => true,
       });
 
       await controller.start();
@@ -2242,7 +2242,7 @@ describe('TokenListController', () => {
         chainId: ChainId.mainnet,
         messenger: restrictedMessenger,
         state: existingState,
-        isDisabled: (): boolean => true,
+        isDeprecated: (): boolean => true,
       });
 
       await controller._executePoll({ chainId: ChainId.mainnet });
@@ -2254,7 +2254,7 @@ describe('TokenListController', () => {
       fetchTokenListByChainIdSpy.mockRestore();
     });
 
-    it('re-evaluates isDisabled() on each polling entry so it can be toggled at runtime', async () => {
+    it('re-evaluates isDeprecated() on each polling entry so it can be toggled at runtime', async () => {
       let disabled = false;
       const fetchTokenListByChainIdSpy = jest
         .spyOn(tokenService, 'fetchTokenListByChainId')
@@ -2266,7 +2266,7 @@ describe('TokenListController', () => {
       const controller = new TokenListController({
         chainId: ChainId.mainnet,
         messenger: restrictedMessenger,
-        isDisabled: (): boolean => disabled,
+        isDeprecated: (): boolean => disabled,
       });
       await controller.initialize();
 
@@ -2297,7 +2297,7 @@ describe('TokenListController', () => {
         chainId: ChainId.mainnet,
         messenger: restrictedMessenger,
         state: existingState,
-        isDisabled: (): boolean => true,
+        isDeprecated: (): boolean => true,
       });
 
       await controller.fetchTokenList(ChainId.mainnet);
@@ -2309,7 +2309,7 @@ describe('TokenListController', () => {
       fetchTokenListByChainIdSpy.mockRestore();
     });
 
-    it('stops fetching when isDisabled toggles to true after polling already started', async () => {
+    it('stops fetching when isDeprecated toggles to true after polling already started', async () => {
       let disabled = false;
       const fetchTokenListByChainIdSpy = jest
         .spyOn(tokenService, 'fetchTokenListByChainId')
@@ -2321,7 +2321,7 @@ describe('TokenListController', () => {
       const controller = new TokenListController({
         chainId: ChainId.mainnet,
         messenger: restrictedMessenger,
-        isDisabled: (): boolean => disabled,
+        isDeprecated: (): boolean => disabled,
       });
 
       // First call: enabled — should fetch and write state
@@ -2352,7 +2352,7 @@ describe('TokenListController', () => {
         chainId: ChainId.mainnet,
         messenger: restrictedMessenger,
         state: existingState,
-        isDisabled: (): boolean => true,
+        isDeprecated: (): boolean => true,
       });
 
       await controller.restart();
@@ -2364,7 +2364,7 @@ describe('TokenListController', () => {
       fetchTokenListMock.mockRestore();
     });
 
-    it('clears persisted storage at runtime when isDisabled toggles to true after initialize ran enabled', async () => {
+    it('clears persisted storage at runtime when isDeprecated toggles to true after initialize ran enabled', async () => {
       let disabled = false;
 
       // Pre-populate storage as if a prior session had fetched mainnet tokens.
@@ -2380,7 +2380,7 @@ describe('TokenListController', () => {
       const controller = new TokenListController({
         chainId: ChainId.mainnet,
         messenger: restrictedMessenger,
-        isDisabled: (): boolean => disabled,
+        isDeprecated: (): boolean => disabled,
       });
       // initialize() runs enabled — loads from storage and wires the persistence subscription.
       await controller.initialize();
@@ -2402,7 +2402,7 @@ describe('TokenListController', () => {
       controller.destroy();
     });
 
-    it('does not let a pending debounced persist write old data after isDisabled toggles to true', async () => {
+    it('does not let a pending debounced persist write old data after isDeprecated toggles to true', async () => {
       const fetchTokenListByChainIdSpy = jest
         .spyOn(tokenService, 'fetchTokenListByChainId')
         .mockResolvedValue(sampleMainnetTokenList);
@@ -2422,7 +2422,7 @@ describe('TokenListController', () => {
       const controller = new TokenListController({
         chainId: ChainId.mainnet,
         messenger: restrictedMessenger,
-        isDisabled: (): boolean => disabled,
+        isDeprecated: (): boolean => disabled,
       });
       await controller.initialize();
 
