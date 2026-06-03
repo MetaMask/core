@@ -15,7 +15,7 @@ import type {
   TransactionPayControllerMessenger,
 } from '../../types';
 import { buildCaipAssetType } from '../../utils/token';
-import { updateTransaction } from '../../utils/transaction';
+import { getTransaction, updateTransaction } from '../../utils/transaction';
 import { getRelayQuotes } from '../relay/relay-quotes';
 import { submitRelayQuotes } from '../relay/relay-submit';
 import type { RelayQuote } from '../relay/types';
@@ -27,7 +27,7 @@ const log = createModuleLogger(projectLogger, 'fiat-submit');
 
 const ORDER_POLL_INTERVAL_MS = 1000;
 const ORDER_POLL_TIMEOUT_MS = 10 * 60 * 1000;
-const MAX_SLIPPAGE_PERCENT = 5;
+const MAX_RATE_DRIFT_PERCENT = 10;
 
 const TERMINAL_FAILURE_STATUSES: RampsOrderStatus[] = [
   RampsOrderStatus.Cancelled,
@@ -170,51 +170,6 @@ function validateOrderAsset({
 }
 
 /**
- * Validates that the re-quoted relay target output hasn't drifted beyond the
- * acceptable slippage threshold compared to the original quote shown to the user.
- *
- * @param options - The validation options.
- * @param options.originalTargetRaw - Raw target amount from the original relay quote.
- * @param options.reQuotedTargetRaw - Raw target amount from the re-quoted relay.
- * @param options.transactionId - Transaction ID for error reporting.
- */
-function validateRelaySlippage({
-  originalTargetRaw,
-  reQuotedTargetRaw,
-  transactionId,
-}: {
-  originalTargetRaw: string;
-  reQuotedTargetRaw: string;
-  transactionId: string;
-}): void {
-  const original = new BigNumber(originalTargetRaw);
-  const reQuoted = new BigNumber(reQuotedTargetRaw);
-
-  if (!original.gt(0) || !reQuoted.gt(0)) {
-    return;
-  }
-
-  const slippagePercent = original
-    .minus(reQuoted)
-    .dividedBy(original)
-    .multipliedBy(100);
-
-  log('Relay slippage check', {
-    originalTargetRaw,
-    reQuotedTargetRaw,
-    slippagePercent: slippagePercent.toFixed(2),
-    transactionId,
-  });
-
-  if (slippagePercent.gt(MAX_SLIPPAGE_PERCENT)) {
-    throw new Error(
-      `Relay re-quote slippage too high for transaction ` +
-        `${slippagePercent.toFixed(2)}% exceeds ${MAX_SLIPPAGE_PERCENT}% max`,
-    );
-  }
-}
-
-/**
  * Polls the on-ramp order until it reaches a terminal status.
  *
  * @param options - The polling options.
@@ -327,38 +282,90 @@ async function submitRelayAfterFiatCompletion({
   });
 
   const baseRequest = quotes[0].request;
-  const relayRequest: QuoteRequest = {
+
+  // Phase 1: Discovery quote with EXACT_INPUT to find the actual target
+  // token output for the settled source amount.
+  const discoveryRequest: QuoteRequest = {
     ...baseRequest,
-    isMaxAmount: true,
-    isPostQuote: false,
+    isMaxAmount: false,
+    isPostQuote: true,
     sourceBalanceRaw: sourceAmountRaw,
     sourceTokenAmount: sourceAmountRaw,
   };
 
-  log('Re-quoting relay from completed fiat order', {
-    completedOrderAmount: order.cryptoAmount,
-    relayRequest,
-    sourceAmountRaw,
+  const discoveryQuotes = await getRelayQuotes({
+    accountSupports7702: request.accountSupports7702,
+    messenger,
+    requests: [discoveryRequest],
+    transaction,
+  });
+
+  if (!discoveryQuotes.length) {
+    throw new Error('No relay quotes returned for fiat discovery');
+  }
+
+  const discoveryRelay = discoveryQuotes[0].original;
+  const settledTargetRaw = discoveryRelay.details.currencyOut.minimumAmount;
+
+  const originalRelayQuote = quotes[0].original.relayQuote;
+  validateRelayRateDrift({
+    originalQuote: originalRelayQuote,
+    discoveryQuote: discoveryRelay,
     transactionId,
   });
+
+  // Phase 2: Delegate calldata re-encoding to the client via getAmountData.
+  const { updates } = await messenger.call(
+    'TransactionPayController:getAmountData',
+    { amount: settledTargetRaw, transaction },
+  );
+
+  const hasNestedCalldata = (transaction.nestedTransactions?.length ?? 0) >= 2;
+  if (hasNestedCalldata && !updates.length) {
+    throw new Error(
+      'getAmountData returned no updates for transaction with nested calldata',
+    );
+  }
+
+  if (updates.length) {
+    updateTransaction(
+      { transactionId, messenger, note: 'Fiat deposit: update settled amount' },
+      (tx) => {
+        for (const { nestedTransactionIndex, data } of updates) {
+          if (tx.nestedTransactions?.[nestedTransactionIndex]) {
+            tx.nestedTransactions[nestedTransactionIndex].data = data;
+          }
+        }
+        if (tx.requiredAssets?.[0]) {
+          tx.requiredAssets[0].amount = `0x${new BigNumber(settledTargetRaw).toString(16)}` as Hex;
+        }
+      },
+    );
+  }
+
+  const updatedTransaction =
+    getTransaction(transactionId, messenger) ?? transaction;
+
+  // Phase 3: Real relay quote with delegation (standard crypto-like flow).
+  const relayRequest: QuoteRequest = {
+    ...baseRequest,
+    isMaxAmount: false,
+    isPostQuote: false,
+    sourceBalanceRaw: sourceAmountRaw,
+    sourceTokenAmount: sourceAmountRaw,
+    targetAmountMinimum: settledTargetRaw,
+  };
 
   const relayQuotes = await getRelayQuotes({
     accountSupports7702: request.accountSupports7702,
     messenger,
     requests: [relayRequest],
-    transaction,
+    transaction: updatedTransaction,
   });
 
   if (!relayQuotes.length) {
     throw new Error('No relay quotes returned for completed fiat order');
   }
-
-  const originalRelayQuote = quotes[0].original.relayQuote;
-  validateRelaySlippage({
-    originalTargetRaw: originalRelayQuote.details.currencyOut.amount,
-    reQuotedTargetRaw: relayQuotes[0].original.details.currencyOut.amount,
-    transactionId,
-  });
 
   log('Received relay quotes for completed fiat order', {
     relayQuoteCount: relayQuotes.length,
@@ -370,7 +377,7 @@ async function submitRelayAfterFiatCompletion({
     isSmartTransaction: request.isSmartTransaction,
     messenger,
     quotes: relayQuotes,
-    transaction,
+    transaction: updatedTransaction,
   };
 
   const relayResult = await submitRelayQuotes(relaySubmitRequest);
@@ -381,4 +388,61 @@ async function submitRelayAfterFiatCompletion({
   });
 
   return relayResult;
+}
+
+/**
+ * Validates that the relay exchange rate hasn't drifted significantly between
+ * the original quoting phase and the post-settlement discovery quote.
+ *
+ * Compares the USD output/input ratio from both quotes. This normalises for
+ * different source amounts (quoting phase uses a theoretical amount, discovery
+ * uses the actual settled amount) so the comparison reflects genuine rate
+ * movement rather than amount differences.
+ */
+function validateRelayRateDrift({
+  originalQuote,
+  discoveryQuote,
+  transactionId,
+}: {
+  originalQuote: RelayQuote;
+  discoveryQuote: RelayQuote;
+  transactionId: string;
+}): void {
+  const originalIn = new BigNumber(originalQuote.details.currencyIn.amountUsd);
+  const originalOut = new BigNumber(originalQuote.details.currencyOut.amountUsd);
+  const discoveryIn = new BigNumber(discoveryQuote.details.currencyIn.amountUsd);
+  const discoveryOut = new BigNumber(
+    discoveryQuote.details.currencyOut.amountUsd,
+  );
+
+  if (
+    !originalIn.gt(0) ||
+    !originalOut.gt(0) ||
+    !discoveryIn.gt(0) ||
+    !discoveryOut.gt(0)
+  ) {
+    return;
+  }
+
+  const originalRate = originalOut.dividedBy(originalIn);
+  const discoveryRate = discoveryOut.dividedBy(discoveryIn);
+
+  const driftPercent = originalRate
+    .minus(discoveryRate)
+    .dividedBy(originalRate)
+    .multipliedBy(100);
+
+  log('Relay rate drift check', {
+    originalRate: originalRate.toFixed(6),
+    discoveryRate: discoveryRate.toFixed(6),
+    driftPercent: driftPercent.toFixed(2),
+    transactionId,
+  });
+
+  if (driftPercent.abs().gt(MAX_RATE_DRIFT_PERCENT)) {
+    throw new Error(
+      `Relay rate drift too high for transaction ` +
+        `${driftPercent.toFixed(2)}% exceeds ${MAX_RATE_DRIFT_PERCENT}% max`,
+    );
+  }
 }
