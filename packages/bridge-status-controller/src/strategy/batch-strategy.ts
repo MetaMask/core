@@ -1,5 +1,6 @@
 import { FeeType, isNativeAddress } from '@metamask/bridge-controller';
 import type { TxData } from '@metamask/bridge-controller';
+import type { Hex } from '@metamask/utils';
 
 import {
   findAllTransactionsInBatch,
@@ -11,7 +12,6 @@ import {
 } from '../utils/transaction';
 import { SubmitStep } from './types';
 import type { SubmitStrategyParams, SubmitStepResult } from './types';
-import type { Hex } from '@metamask/utils';
 
 /**
  * Submits batched EVM transactions to the TransactionController
@@ -56,8 +56,8 @@ export async function* submitBatchHandler(
     isGasFeeSponsored: Boolean(quoteResponse.quote.gasSponsored),
     isGasFeeIncluded: Boolean(quoteResponse.quote.gasIncluded7702),
     gasFeeToken,
-    excludeNativeTokenForFee: !gasFeeToken,
     skipInitialGasEstimate: Boolean(gasFeeToken),
+    excludeNativeTokenForFee: !gasFeeToken,
   });
 
   const { batchId } = await addTransactionBatchFn(transactionParams);
