@@ -1272,16 +1272,14 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     EventProperties extends Omit<
       RequiredEventContextFromClient[EventName],
       'feature_id'
-    >,
-    // eslint-disable-next-line @typescript-eslint/naming-convention
-    FeatureIdType extends { feature_id?: FeatureId } = {
+    > & {
       // eslint-disable-next-line @typescript-eslint/naming-convention
       feature_id?: FeatureId;
     },
   >(
     eventName: EventName,
     txHistoryKey?: string,
-    eventProperties?: EventProperties & FeatureIdType,
+    eventProperties?: EventProperties,
   ): void => {
     const historyItem: BridgeHistoryItem | undefined = txHistoryKey
       ? this.state.txHistory[txHistoryKey]
