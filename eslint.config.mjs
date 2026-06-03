@@ -2,6 +2,13 @@ import base, { createConfig } from '@metamask/eslint-config';
 import jest from '@metamask/eslint-config-jest';
 import nodejs from '@metamask/eslint-config-nodejs';
 import typescript from '@metamask/eslint-config-typescript';
+import { dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+// `import.meta.dirname` is only stable in Node 22.16+/24+, but the repo
+// supports `^18.18 || >=20`. Resolve the dirname through the URL helper so it
+// works across the supported range without tripping `n/no-unsupported-features`.
+const eslintConfigDir = dirname(fileURLToPath(import.meta.url));
 
 const NODE_LTS_VERSION = 22;
 
@@ -129,7 +136,7 @@ const config = createConfig([
     extends: [typescript],
     languageOptions: {
       parserOptions: {
-        tsconfigRootDir: import.meta.dirname,
+        tsconfigRootDir: eslintConfigDir,
       },
     },
     rules: {
