@@ -455,10 +455,6 @@ export function getAggregatedBalanceForAccount(
     const { amount } = row;
     const entry: AggregatedBalanceEntry = {
       assetId,
-      // `.toFixed()` — not `.toString()` — because BigNumber's default
-      // `EXPONENTIAL_AT: [-7, 21]` makes `.toString()` emit scientific notation
-      // for sub-1e-7 values (e.g. `"1e-18"`), which downstream `BigInt()`
-      // parsers reject (MMBUGS-772).
       amount: amount.toFixed(),
       ...(row.decimals === undefined ? {} : { decimals: row.decimals }),
       ...(row.symbol === undefined ? {} : { symbol: row.symbol }),
