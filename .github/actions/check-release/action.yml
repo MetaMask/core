@@ -40,7 +40,7 @@ runs:
       run: |
         set -euo pipefail
 
-        mapfile -t PACKAGES < <(find packages -maxdepth 2 -name "package.json" -not -path "*/node_modules/*")
+        mapfile -t PACKAGES < <(yarn workspaces list --json --no-private | jq --raw-output '.location' | xargs -I{} cat '{}/package.json')
         HAS_VERSION_BUMP=false
 
         for package in "${PACKAGES[@]}"; do
