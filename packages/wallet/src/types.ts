@@ -8,6 +8,7 @@ import type {
 import type { ApprovalControllerInstanceOptions } from './initialization/instances/approval-controller/types';
 import type { KeyringControllerInstanceOptions } from './initialization/instances/keyring-controller/types';
 import type { StorageServiceInstanceOptions } from './initialization/instances/storage-service/types';
+import type { TransactionControllerInstanceOptions } from './initialization/instances/transaction-controller/types';
 import { InitializationConfiguration } from './initialization/types';
 
 export type WalletOptions = {
@@ -24,4 +25,5 @@ export type InstanceSpecificOptions = {
   approvalController?: ApprovalControllerInstanceOptions;
   keyringController?: KeyringControllerInstanceOptions;
   storageService: StorageServiceInstanceOptions;
+  transactionController?: TransactionControllerInstanceOptions;
 };

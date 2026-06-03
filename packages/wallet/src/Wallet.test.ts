@@ -8,6 +8,20 @@ import * as initializationModule from './initialization/initialization';
 import { importSecretRecoveryPhrase } from './utilities';
 import { Wallet } from './Wallet';
 
+jest.mock('@metamask/transaction-controller', () => ({
+  TransactionController: jest
+    .fn()
+    .mockImplementation(function (this: { state: unknown }) {
+      this.state = {
+        methodData: {},
+        transactions: [],
+        transactionBatches: [],
+        lastFetchedBlockNumbers: {},
+        submitHistory: [],
+      };
+    }),
+}));
+
 const TEST_SRP = 'test test test test test test test test test test test ball';
 const TEST_PASSWORD = 'testpass';
 
