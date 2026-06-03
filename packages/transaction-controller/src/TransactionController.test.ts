@@ -3,7 +3,6 @@
 /* eslint-disable camelcase */
 /* eslint-disable jest/expect-expect */
 
-
 import type {
   ApprovalControllerAddRequestAction,
   AddResult,
