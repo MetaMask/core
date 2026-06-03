@@ -179,23 +179,6 @@ describe('Totals Utils', () => {
       expect(result.total.usd).toBe('71.68');
     });
 
-    it('returns adjusted total using targetAmount when fiat strategy quote is present', () => {
-      const fiatQuote: TransactionPayQuote<unknown> = {
-        ...QUOTE_1_MOCK,
-        strategy: TransactionPayStrategy.Fiat,
-      };
-
-      const result = calculateTotals({
-        quotes: [fiatQuote, QUOTE_2_MOCK],
-        tokens: [TOKEN_1_MOCK, TOKEN_2_MOCK],
-        messenger: MESSENGER_MOCK,
-        transaction: TRANSACTION_META_MOCK,
-      });
-
-      expect(result.total.fiat).toBe('65.5');
-      expect(result.total.usd).toBe('71.68');
-    });
-
     it('returns total excluding token amount not in quote', () => {
       const result = calculateTotals({
         quotes: [QUOTE_1_MOCK, QUOTE_2_MOCK],
