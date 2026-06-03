@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Fix Transak Native deposits failing on staging/UAT with a 400 `paymentMethod is required parameter` error by mapping canonical payment method IDs supplied without the `/payments/` prefix (e.g. `apple-pay`) to their deposit-format equivalents, in addition to the prefixed forms (e.g. `/payments/apple-pay`) ([#8980](https://github.com/MetaMask/core/pull/8980))
+
 ## [14.1.0]
 
 ### Added
