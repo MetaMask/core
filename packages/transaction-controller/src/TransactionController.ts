@@ -3663,7 +3663,9 @@ export class TransactionController extends BaseController<
         continue;
       }
 
-      transactionMetaWithRsv[key] = add0x(BigInt(value as bigint).toString(16));
+      transactionMetaWithRsv[key] = add0x(
+        BigInt(value as bigint | number | string).toString(16),
+      );
     }
 
     return transactionMetaWithRsv;
