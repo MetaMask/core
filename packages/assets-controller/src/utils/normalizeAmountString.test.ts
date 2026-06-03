@@ -31,7 +31,7 @@ describe('normalizeAmountString', () => {
     });
   });
 
-  describe('with decimals=0 (fallback when metadata is missing)', () => {
+  describe('with decimals=0 (e.g. ERC721, integer-only assets)', () => {
     it('truncates any fractional part to the integer portion', () => {
       expect(normalizeAmountString('1.5', 0)).toBe('1');
       expect(normalizeAmountString('1e-18', 0)).toBe('0');
@@ -40,11 +40,6 @@ describe('normalizeAmountString', () => {
 
     it('preserves integer amounts unchanged', () => {
       expect(normalizeAmountString('1000000000', 0)).toBe('1000000000');
-      expect(normalizeAmountString('1000000000', 0)).not.toBe('1');
-    });
-
-    it('uses 0 by default when decimals is omitted', () => {
-      expect(normalizeAmountString('1.5')).toBe('1');
     });
   });
 
@@ -56,6 +51,27 @@ describe('normalizeAmountString', () => {
     it('expands tiny exponent form to 6-digit precision', () => {
       expect(normalizeAmountString('5e-6', 6)).toBe('0.000005');
       expect(normalizeAmountString('5e-7', 6)).toBe('0');
+    });
+  });
+
+  describe('without decimals (metadata unknown)', () => {
+    it('preserves fractional balances at their natural precision', () => {
+      // Regression: balances seeded before metadata arrived must not be
+      // truncated to integers when other updates trigger a re-pass.
+      expect(normalizeAmountString('0.5')).toBe('0.5');
+      expect(normalizeAmountString('1.234567890123456789')).toBe(
+        '1.234567890123456789',
+      );
+    });
+
+    it('still defeats scientific notation', () => {
+      expect(normalizeAmountString('1e-18')).toBe('0.000000000000000001');
+      expect(normalizeAmountString('1E+5')).toBe('100000');
+    });
+
+    it('passes integers through unchanged', () => {
+      expect(normalizeAmountString('1000000000')).toBe('1000000000');
+      expect(normalizeAmountString('0')).toBe('0');
     });
   });
 
@@ -73,8 +89,13 @@ describe('normalizeAmountString', () => {
       expect(normalizeAmountString('', 18)).toBe('0');
     });
 
-    it('clamps negative or fractional decimals to a sane integer', () => {
-      expect(normalizeAmountString('1.5', -3)).toBe('1');
+    it('treats negative or non-finite decimals as unknown precision', () => {
+      // No truncation — same behavior as omitting the argument.
+      expect(normalizeAmountString('1.5', -3)).toBe('1.5');
+      expect(normalizeAmountString('1.5', NaN)).toBe('1.5');
+    });
+
+    it('floors fractional decimals to an integer precision', () => {
       expect(normalizeAmountString('1.234567', 2.9)).toBe('1.23');
     });
   });

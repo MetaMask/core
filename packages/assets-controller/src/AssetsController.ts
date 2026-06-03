@@ -2211,14 +2211,16 @@ export class AssetsController extends BaseController<
               const previousBalance = previousBalances[
                 assetId as Caip19AssetId
               ] as { amount: string } | undefined;
-              // Coerce amounts (e.g. "1e-18" from snaps stringifying a JS
-              // Number) into a plain decimal truncated to the asset's
-              // precision so downstream BigInt() consumers don't crash.
-              // Decimals are read from the freshest merged metadata; fall
-              // back to 0 (integer-only) when none is known yet.
-              const assetDecimals =
-                (metadata[assetId] as { decimals?: number } | undefined)
-                  ?.decimals ?? 0;
+              // Coerce amounts (e.g. "1e-18" from a data source stringifying
+              // a JS Number) into a plain decimal so downstream BigInt()
+              // consumers don't crash. Decimals are read from the freshest
+              // merged metadata when available; when metadata is not yet
+              // known, the amount is left at its natural precision (only
+              // exponent form is rewritten) so balances arriving before
+              // their metadata aren't lossily truncated.
+              const assetDecimals = (
+                metadata[assetId] as { decimals?: number } | undefined
+              )?.decimals;
               const newAmount = normalizeAmountString(
                 (balance as { amount: unknown }).amount,
                 assetDecimals,

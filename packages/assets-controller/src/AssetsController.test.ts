@@ -1443,10 +1443,11 @@ describe('AssetsController', () => {
       });
     });
 
-    it('falls back to 0 decimals when no metadata is known for the asset', async () => {
+    it('still converts scientific notation to plain decimal when metadata is unknown', async () => {
       // No assetsInfo entry for this assetId, in state or in the response —
-      // normalization truncates to the integer portion to avoid producing
-      // garbage precision we can't validate against the asset's real decimals.
+      // normalization keeps the amount at its natural precision (just defeats
+      // exponent form). Truncating to integer here would silently drop
+      // fractional balances that arrived before their metadata.
       await withController(async ({ controller }) => {
         await controller.handleAssetsUpdate(
           {
@@ -1461,7 +1462,7 @@ describe('AssetsController', () => {
 
         expect(
           controller.state.assetsBalance[MOCK_ACCOUNT_ID]?.[MOCK_ASSET_ID],
-        ).toStrictEqual({ amount: '0' });
+        ).toStrictEqual({ amount: '0.000000000000000001' });
       });
     });
 
