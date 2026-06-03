@@ -16,15 +16,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Adding processing for postQuote transactions with paymentOverride defined ([#8967](https://github.com/MetaMask/core/pull/8967))
+- Add optional `getAmountData` callback to `TransactionPayControllerOptions` for client-side nested calldata re-encoding ([#8987](https://github.com/MetaMask/core/pull/8987))
+- Add `TransactionPayController:getAmountData` messenger action ([#8987](https://github.com/MetaMask/core/pull/8987))
+- Add `GetAmountDataCallback`, `GetAmountDataRequest`, and `GetAmountDataResponse` exported types ([#8987](https://github.com/MetaMask/core/pull/8987))
 - Add `@metamask/keyring-controller` `^26.0.0` as a dependency ([#8972](https://github.com/MetaMask/core/pull/8972))
   - The package was already imported at runtime by `src/strategy/relay/hyperliquid-withdraw.ts` but wasn't declared in `package.json`; this PR fixes the omission.
 
 ### Changed
 
+- Fiat submit now uses a three-phase relay flow after on-ramp settlement: discovery quote, calldata update via `getAmountData`, then delegation quote ([#8987](https://github.com/MetaMask/core/pull/8987))
+- Replace `validateRelaySlippage` with `validateRelayRateDrift` which compares USD exchange rates instead of absolute output amounts ([#8987](https://github.com/MetaMask/core/pull/8987))
 - Fiat quote submission now treats the provider code (e.g. `transak-native`) as the canonical form when resolving the provider from a ramps quote, while continuing to accept the legacy path form (e.g. `/providers/transak-native`) for backwards compatibility ([#9004](https://github.com/MetaMask/core/pull/9004))
 - Live token balance queries now respect the `confirmations_pay_extended.excludeChainIdsFromInfura` feature flag, skipping the Infura endpoint preference for excluded chains ([#8992](https://github.com/MetaMask/core/pull/8992))
 - Bump `@metamask/assets-controllers` from `^108.3.0` to `^108.5.0` ([#8981](https://github.com/MetaMask/core/pull/8981), [#8999](https://github.com/MetaMask/core/pull/8999))
 - Bump `@metamask/assets-controller` from `^8.0.2` to `^8.3.2` ([#8981](https://github.com/MetaMask/core/pull/8981), [#8985](https://github.com/MetaMask/core/pull/8985), [#8999](https://github.com/MetaMask/core/pull/8999))
+
+### Removed
+
+- Remove `validateRelaySlippage` and `MAX_SLIPPAGE_PERCENT` from fiat submit ([#8987](https://github.com/MetaMask/core/pull/8987))
+  - The previous check compared relay outputs from quotes made with different source amounts, producing false positives. Relay's own `slippageTolerance` parameter already guards on-chain execution.
+
+### Fixed
+
+- Fix fiat `moneyAccountDeposit` failing with `"Max amount quotes do not support included transactions"` by using `isMaxAmount: false` in the re-quote ([#8987](https://github.com/MetaMask/core/pull/8987))
 - Bump `@metamask/remote-feature-flag-controller` from `^4.2.1` to `^4.2.2` ([#8986](https://github.com/MetaMask/core/pull/8986))
 - Bump `@metamask/ramps-controller` from `^14.1.0` to `^14.1.1` ([#8989](https://github.com/MetaMask/core/pull/8989))
 - Bump `@metamask/bridge-status-controller` from `^72.0.0` to `^72.0.2` ([#8990](https://github.com/MetaMask/core/pull/8990), [#8999](https://github.com/MetaMask/core/pull/8999))
