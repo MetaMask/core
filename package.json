@@ -45,7 +45,7 @@
     "workspaces:list-versions": "./scripts/list-workspace-versions.sh",
     "skills": "metamask-skills sync",
     "skills:postinstall": "metamask-skills postinstall",
-    "postinstall": "metamask-skills postinstall"
+    "postinstall": "yarn skills:postinstall"
   },
   "devDependencies": {
     "@lavamoat/allow-scripts": "^3.0.4",
