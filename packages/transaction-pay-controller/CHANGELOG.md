@@ -9,8 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add `processMoneyAccountPostQuote` to relay quote flow, enabling post-quote transactions with `PaymentOverride.MoneyAccount` to include delegation calls, authorization list, and funding token transfer in the Relay quote request ([#8967](https://github.com/MetaMask/core/pull/8967))
-- Add optional `recipient` field to `GetPaymentOverrideDataResponse` for specifying the funding token transfer recipient ([#8967](https://github.com/MetaMask/core/pull/8967))
+- Adding processing for postQuote transactions with paymentProvider defined ([#8967](https://github.com/MetaMask/core/pull/8967))
+- Add `@metamask/keyring-controller` `^26.0.0` as a dependency ([#8972](https://github.com/MetaMask/core/pull/8972))
+  - The package was already imported at runtime by `src/strategy/relay/hyperliquid-withdraw.ts` but wasn't declared in `package.json`; this PR fixes the omission.
 
 ## [23.1.0]
 

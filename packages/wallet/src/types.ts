@@ -7,6 +7,7 @@ import type {
   DefaultEvents,
   RootMessenger,
 } from './initialization/defaults';
+import type { ApprovalControllerInstanceOptions } from './initialization/instances/approval-controller/types';
 import { GenericEncryptor } from './initialization/instances/keyring-controller';
 import { InitializationConfiguration } from './initialization/types';
 
@@ -21,6 +22,7 @@ export type WalletOptions = {
 };
 
 export type InstanceSpecificOptions = {
+  approvalController?: ApprovalControllerInstanceOptions;
   keyringController?: {
     encryptor?: GenericEncryptor;
     keyringBuilders?: KeyringControllerOptions['keyringBuilders'];
