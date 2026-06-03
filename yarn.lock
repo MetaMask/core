@@ -8806,7 +8806,6 @@ __metadata:
     "@metamask/superstruct": "npm:^3.1.0"
     "@metamask/utils": "npm:^11.9.0"
     "@tanstack/query-core": "npm:^4.43.0"
-    "@ts-bridge/cli": "npm:^0.6.4"
     "@types/jest": "npm:^29.5.14"
     "@types/react": "npm:^19.0.0"
     deepmerge: "npm:^4.2.2"
@@ -8817,8 +8816,6 @@ __metadata:
     react-dom: "npm:^19.0.0"
     ts-jest: "npm:^29.2.5"
     tsx: "npm:^4.20.5"
-    typedoc: "npm:^0.25.13"
-    typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:~5.3.3"
   languageName: unknown
   linkType: soft

@@ -67,7 +67,6 @@
     "@easyops-cn/docusaurus-search-local": "^0.55.1",
     "@mdx-js/react": "^3.1.1",
     "@metamask/auto-changelog": "^6.1.0",
-    "@ts-bridge/cli": "^0.6.4",
     "@types/jest": "^29.5.14",
     "@types/react": "^19.0.0",
     "deepmerge": "^4.2.2",
@@ -78,8 +77,6 @@
     "react-dom": "^19.0.0",
     "ts-jest": "^29.2.5",
     "tsx": "^4.20.5",
-    "typedoc": "^0.25.13",
-    "typedoc-plugin-missing-exports": "^2.0.0",
     "typescript": "~5.3.3"
   },
   "engines": {
