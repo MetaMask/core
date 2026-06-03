@@ -7,10 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- chore(react-data-query): declare @metamask/messenger as a devDep ([#8971](https://github.com/MetaMask/core/pull/8971))
-
 ## [0.2.1]
 
 ### Changed
