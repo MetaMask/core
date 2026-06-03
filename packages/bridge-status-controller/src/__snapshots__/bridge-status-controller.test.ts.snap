@@ -1231,13 +1231,16 @@ exports[`BridgeStatusController submitTx: EVM bridge should handle smart transac
     {
       "atomic": true,
       "disable7702": true,
+      "excludeNativeTokenForFee": true,
       "from": "0xaccount1",
+      "gasFeeToken": undefined,
       "isGasFeeIncluded": false,
       "isGasFeeSponsored": false,
       "isInternal": true,
       "networkClientId": "arbitrum",
       "origin": "metamask",
       "requireApproval": false,
+      "skipInitialGasEstimate": false,
       "transactions": [
         {
           "assetsFiatValues": {
@@ -3633,6 +3636,15 @@ exports[`BridgeStatusController submitTx: EVM swap should handle a gasless swap 
     "destTokenAmount": "990654755978612",
     "feeData": {
       "txFee": {
+        "asset": {
+          "address": "0x0000000000000000000000000000000000000000",
+          "assetId": "eip155:42161/slip44:60",
+          "chainId": 42161,
+          "decimals": 18,
+          "iconUrl": "",
+          "name": "Ether",
+          "symbol": "ETH",
+        },
         "maxFeePerGas": "123",
         "maxPriorityFeePerGas": "123",
       },
@@ -3692,6 +3704,40 @@ exports[`BridgeStatusController submitTx: EVM swap should handle a gasless swap 
         "srcChainId": 42161,
       },
     ],
+  },
+  "slippagePercentage": 0,
+  "startTime": 1234567890,
+  "status": {
+    "srcChain": {
+      "chainId": 42161,
+      "txHash": undefined,
+    },
+    "status": "PENDING",
+  },
+  "targetContractAddress": undefined,
+  "txMetaId": "test-tx-id",
+}
+`;
+
+exports[`BridgeStatusController submitTx: EVM swap should handle a gasless swap transaction with fees paid in ERC20 1`] = `
+{
+  "account": "0xaccount1",
+  "actionId": undefined,
+  "approvalTxId": undefined,
+  "batchId": "batchId1",
+  "estimatedProcessingTimeInSeconds": 0,
+  "featureId": undefined,
+  "hasApprovalTx": true,
+  "initialDestAssetBalance": undefined,
+  "isStxEnabled": true,
+  "location": "Main View",
+  "originalTransactionId": "test-tx-id",
+  "pricingData": {
+    "amountSent": "1.234",
+    "amountSentInUsd": "1.01",
+    "quotedGasAmount": ".00055",
+    "quotedGasInUsd": "2.5778",
+    "quotedReturnInUsd": "0.134214",
   },
   "slippagePercentage": 0,
   "startTime": 1234567890,
@@ -3858,13 +3904,16 @@ exports[`BridgeStatusController submitTx: EVM swap should handle smart transacti
     {
       "atomic": true,
       "disable7702": true,
+      "excludeNativeTokenForFee": true,
       "from": "0xaccount1",
+      "gasFeeToken": undefined,
       "isGasFeeIncluded": false,
       "isGasFeeSponsored": false,
       "isInternal": true,
       "networkClientId": "arbitrum",
       "origin": "metamask",
       "requireApproval": false,
+      "skipInitialGasEstimate": false,
       "transactions": [
         {
           "assetsFiatValues": undefined,

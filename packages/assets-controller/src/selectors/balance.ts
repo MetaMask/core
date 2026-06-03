@@ -455,7 +455,7 @@ export function getAggregatedBalanceForAccount(
     const { amount } = row;
     const entry: AggregatedBalanceEntry = {
       assetId,
-      amount: amount.toString(),
+      amount: amount.toFixed(),
       ...(row.decimals === undefined ? {} : { decimals: row.decimals }),
       ...(row.symbol === undefined ? {} : { symbol: row.symbol }),
       ...(row.name === undefined ? {} : { name: row.name }),

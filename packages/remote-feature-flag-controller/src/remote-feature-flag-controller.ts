@@ -9,6 +9,7 @@ import type { Json, SemVerVersion } from '@metamask/utils';
 
 import type { AbstractClientConfigApiService } from './client-config-api-service/abstract-client-config-api-service';
 import type { RemoteFeatureFlagControllerMethodActions } from './remote-feature-flag-controller-method-action-types';
+import { ThresholdVersion } from './remote-feature-flag-controller-types';
 import type {
   FeatureFlags,
   ServiceResponse,
@@ -115,6 +116,19 @@ export function getDefaultRemoteFeatureFlagControllerState(): RemoteFeatureFlagC
     localOverrides: {},
     rawRemoteFeatureFlags: {},
     cacheTimestamp: 0,
+  };
+}
+
+function normalizeThresholdValue(featureFlag: FeatureFlagScopeValue): Json {
+  if (featureFlag.thresholdVersion === ThresholdVersion.DirectValue) {
+    return featureFlag.value;
+  }
+
+  // Unknown threshold versions fall back to the legacy wrapper shape for
+  // backwards compatibility with existing threshold feature flag configs.
+  return {
+    name: featureFlag.name,
+    value: featureFlag.value,
   };
 }
 
@@ -371,11 +385,9 @@ export class RemoteFeatureFlagController extends BaseController<
             return threshold <= featureFlag.scope.value;
           },
         );
+
         if (selectedGroup) {
-          processedValue = {
-            name: selectedGroup.name,
-            value: selectedGroup.value,
-          };
+          processedValue = normalizeThresholdValue(selectedGroup);
         }
       }
 

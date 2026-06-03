@@ -206,24 +206,8 @@ const MOCK_SNAP_ID = 'npm:@metamask/mock-snap' as SnapId;
 const MOCK_OTHER_SNAP_ID = 'npm:@metamask/other-snap' as SnapId;
 
 describe('SnapTracker', () => {
-  describe('init', () => {
-    it('resolves without throwing', async () => {
-      const { tracker } = setup();
-
-      expect(await tracker.init()).toBeUndefined();
-    });
-
-    it('does not re-init if already initialized', async () => {
-      const { tracker, mocks } = setup();
-
-      expect(await tracker.init()).toBeUndefined();
-      expect(mocks.SnapController.getRunnableSnaps).toHaveBeenCalledTimes(1);
-
-      expect(await tracker.init()).toBeUndefined();
-      expect(mocks.SnapController.getRunnableSnaps).toHaveBeenCalledTimes(1); // Still only called once.
-    });
-
-    it('seeds tracked Snaps from getRunnableSnaps, filtering out non-keyring Snaps', async () => {
+  describe('getSnaps', () => {
+    it('returns seeded Snaps from construction, filtering out non-keyring Snaps', () => {
       const { tracker } = setup({
         runnableSnaps: [
           buildSnap(MOCK_SNAP_ID, true),
@@ -231,106 +215,62 @@ describe('SnapTracker', () => {
         ],
       });
 
-      await tracker.init();
-
       expect(tracker.getSnaps()).toStrictEqual([MOCK_SNAP_ID]);
     });
-  });
 
-  describe('getSnaps', () => {
-    it('returns an empty array before init', () => {
-      const { tracker } = setup({
-        runnableSnaps: [buildSnap(MOCK_SNAP_ID, true)],
-      });
+    it('returns an empty array when there are no runnable account-management Snaps', () => {
+      const { tracker } = setup();
 
       expect(tracker.getSnaps()).toStrictEqual([]);
     });
   });
 
   describe('canUse', () => {
-    it('returns false before init', () => {
+    it('returns true for a Snap seeded during construction', () => {
       const { tracker } = setup({
         runnableSnaps: [buildSnap(MOCK_SNAP_ID, true)],
       });
-
-      expect(tracker.canUse(MOCK_SNAP_ID)).toBe(false);
-    });
-
-    it('returns true for a tracked Snap', async () => {
-      const { tracker } = setup({
-        runnableSnaps: [buildSnap(MOCK_SNAP_ID, true)],
-      });
-
-      await tracker.init();
 
       expect(tracker.canUse(MOCK_SNAP_ID)).toBe(true);
     });
 
-    it('returns false for an untracked Snap', async () => {
+    it('returns false for an untracked Snap', () => {
       const { tracker } = setup();
-
-      await tracker.init();
 
       expect(tracker.canUse(MOCK_SNAP_ID)).toBe(false);
     });
   });
 
   describe('lifecycle events', () => {
-    it('ignores add events received before init', async () => {
+    it('adds a Snap on snapInstalled when it has the keyring endowment', () => {
       const { tracker, rootMessenger } = setup();
 
-      publishSnapInstalled(rootMessenger, buildSnap(MOCK_SNAP_ID, true));
-
-      await tracker.init();
-
-      expect(tracker.getSnaps()).toStrictEqual([]);
-    });
-
-    it('ignores remove events received before init', async () => {
-      const { tracker, rootMessenger } = setup({
-        runnableSnaps: [buildSnap(MOCK_SNAP_ID, true)],
-      });
-
-      publishSnapUninstalled(rootMessenger, buildSnap(MOCK_SNAP_ID, true));
-
-      await tracker.init();
-
-      expect(tracker.getSnaps()).toStrictEqual([MOCK_SNAP_ID]);
-    });
-
-    it('adds a Snap on snapInstalled when it has the keyring endowment', async () => {
-      const { tracker, rootMessenger } = setup();
-
-      await tracker.init();
       publishSnapInstalled(rootMessenger, buildSnap(MOCK_SNAP_ID, true));
 
       expect(tracker.getSnaps()).toStrictEqual([MOCK_SNAP_ID]);
     });
 
-    it('does not add a Snap on snapInstalled when it lacks the keyring endowment', async () => {
+    it('does not add a Snap on snapInstalled when it lacks the keyring endowment', () => {
       const { tracker, rootMessenger } = setup();
 
-      await tracker.init();
       publishSnapInstalled(rootMessenger, buildSnap(MOCK_SNAP_ID, false));
 
       expect(tracker.getSnaps()).toStrictEqual([]);
     });
 
-    it('adds a Snap on snapEnabled when it has the keyring endowment', async () => {
+    it('adds a Snap on snapEnabled when it has the keyring endowment', () => {
       const { tracker, rootMessenger } = setup();
 
-      await tracker.init();
       publishSnapEnabled(rootMessenger, buildSnap(MOCK_SNAP_ID, true));
 
       expect(tracker.getSnaps()).toStrictEqual([MOCK_SNAP_ID]);
     });
 
-    it('removes a Snap on snapDisabled', async () => {
+    it('removes a Snap on snapDisabled', () => {
       const { tracker, rootMessenger } = setup({
         runnableSnaps: [buildSnap(MOCK_SNAP_ID, true)],
       });
 
-      await tracker.init();
       expect(tracker.getSnaps()).toStrictEqual([MOCK_SNAP_ID]);
 
       publishSnapDisabled(rootMessenger, buildSnap(MOCK_SNAP_ID, true));
@@ -338,36 +278,19 @@ describe('SnapTracker', () => {
       expect(tracker.getSnaps()).toStrictEqual([]);
     });
 
-    it('removes a Snap on snapBlocked', async () => {
+    it('removes a Snap on snapBlocked', () => {
       const { tracker, rootMessenger } = setup({
         runnableSnaps: [buildSnap(MOCK_SNAP_ID, true)],
       });
 
-      await tracker.init();
       publishSnapBlocked(rootMessenger, MOCK_SNAP_ID);
 
       expect(tracker.getSnaps()).toStrictEqual([]);
     });
 
-    it('ignores snapUnblocked received before init', async () => {
+    it('re-adds a Snap on snapUnblocked when it is enabled and has the keyring endowment', () => {
       const { tracker, rootMessenger, mocks } = setup();
 
-      mocks.SnapController.getSnap.mockReturnValue({
-        ...buildSnap(MOCK_SNAP_ID, true),
-        enabled: true,
-        blocked: false,
-      } as TruncatedSnap);
-      publishSnapUnblocked(rootMessenger, MOCK_SNAP_ID);
-
-      await tracker.init();
-
-      expect(tracker.getSnaps()).toStrictEqual([]);
-    });
-
-    it('re-adds a Snap on snapUnblocked when it is enabled and has the keyring endowment', async () => {
-      const { tracker, rootMessenger, mocks } = setup();
-
-      await tracker.init();
       mocks.SnapController.getSnap.mockReturnValue({
         ...buildSnap(MOCK_SNAP_ID, true),
         enabled: true,
@@ -379,10 +302,9 @@ describe('SnapTracker', () => {
       expect(tracker.getSnaps()).toStrictEqual([MOCK_SNAP_ID]);
     });
 
-    it('does not re-add a Snap on snapUnblocked when it is disabled', async () => {
+    it('does not re-add a Snap on snapUnblocked when it is disabled', () => {
       const { tracker, rootMessenger, mocks } = setup();
 
-      await tracker.init();
       mocks.SnapController.getSnap.mockReturnValue({
         ...buildSnap(MOCK_SNAP_ID, true),
         enabled: false,
@@ -394,10 +316,9 @@ describe('SnapTracker', () => {
       expect(tracker.getSnaps()).toStrictEqual([]);
     });
 
-    it('does not re-add a Snap on snapUnblocked when it lacks the keyring endowment', async () => {
+    it('does not re-add a Snap on snapUnblocked when it lacks the keyring endowment', () => {
       const { tracker, rootMessenger, mocks } = setup();
 
-      await tracker.init();
       mocks.SnapController.getSnap.mockReturnValue({
         ...buildSnap(MOCK_SNAP_ID, false),
         enabled: true,
@@ -409,21 +330,19 @@ describe('SnapTracker', () => {
       expect(tracker.getSnaps()).toStrictEqual([]);
     });
 
-    it('does not re-add a Snap on snapUnblocked when getSnap returns null', async () => {
+    it('does not re-add a Snap on snapUnblocked when getSnap returns null', () => {
       const { tracker, rootMessenger } = setup();
 
-      await tracker.init();
       publishSnapUnblocked(rootMessenger, MOCK_SNAP_ID);
 
       expect(tracker.getSnaps()).toStrictEqual([]);
     });
 
-    it('removes a Snap on snapUninstalled', async () => {
+    it('removes a Snap on snapUninstalled', () => {
       const { tracker, rootMessenger } = setup({
         runnableSnaps: [buildSnap(MOCK_SNAP_ID, true)],
       });
 
-      await tracker.init();
       publishSnapUninstalled(rootMessenger, buildSnap(MOCK_SNAP_ID, true));
 
       expect(tracker.getSnaps()).toStrictEqual([]);
