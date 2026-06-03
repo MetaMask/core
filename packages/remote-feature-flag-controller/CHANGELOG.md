@@ -54,7 +54,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **BREAKING:** Improve threshold-based feature flag processing to ensure independent user assignment across different flags: ([#7511](https://github.com/MetaMask/core/pull/7511))
+- **BREAKING:** Improve threshold-based feature flag processing to ensure independent user assignment across different flags ([#7511](https://github.com/MetaMask/core/pull/7511))
   - Persist threshold values in controller state to avoid recalculating on app restart
   - Skip cryptographic operations for non-threshold arrays
   - Batch cache updates and cleanup into single state change
