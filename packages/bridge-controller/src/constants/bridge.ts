@@ -1,5 +1,5 @@
 import { AddressZero } from '@ethersproject/constants';
-import { BtcScope, SolScope, TrxScope } from '@metamask/keyring-api';
+import { BtcScope, SolScope, TrxScope, XlmScope } from '@metamask/keyring-api';
 import type { Hex } from '@metamask/utils';
 
 import type {
@@ -24,6 +24,7 @@ export const ALLOWED_BRIDGE_CHAIN_IDS = [
   CHAIN_IDS.MEGAETH,
   SolScope.Mainnet,
   BtcScope.Mainnet,
+  XlmScope.Pubnet,
   TrxScope.Mainnet,
 ] as const;
 
@@ -55,6 +56,7 @@ export const DEFAULT_CHAIN_RANKING = [
   { chainId: 'eip155:56', name: 'BNB' },
   { chainId: 'bip122:000000000019d6689c085ae165831e93', name: 'BTC' },
   { chainId: 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp', name: 'Solana' },
+  { chainId: 'stellar:pubnet', name: 'Stellar' },
   { chainId: 'tron:728126428', name: 'Tron' },
   { chainId: 'eip155:8453', name: 'Base' },
   { chainId: 'eip155:42161', name: 'Arbitrum' },

@@ -1,4 +1,4 @@
-import { BtcScope, SolScope, TrxScope } from '@metamask/keyring-api';
+import { BtcScope, SolScope, TrxScope, XlmScope } from '@metamask/keyring-api';
 
 import type { AllowedBridgeChainIds } from './bridge';
 import { CHAIN_IDS } from './chains';
@@ -55,6 +55,7 @@ const CURRENCY_SYMBOLS = {
   SOL: 'SOL',
   SEI: 'SEI',
   BTC: 'BTC',
+  XLM: 'XLM',
   TRX: 'TRX',
   MON: 'MON',
   HYPE: 'HYPE',
@@ -153,6 +154,14 @@ const BTC_SWAPS_TOKEN_OBJECT = {
   iconUrl: '',
 } as const;
 
+const XLM_SWAPS_TOKEN_OBJECT = {
+  symbol: CURRENCY_SYMBOLS.XLM,
+  name: 'Stellar Lumens',
+  address: DEFAULT_TOKEN_ADDRESS,
+  decimals: 7,
+  iconUrl: '',
+} as const;
+
 const SEI_SWAPS_TOKEN_OBJECT = {
   symbol: CURRENCY_SYMBOLS.SEI,
   name: 'Sei',
@@ -209,6 +218,7 @@ export const SWAPS_CHAINID_DEFAULT_TOKEN_MAP = {
   [SolScope.Mainnet]: SOLANA_SWAPS_TOKEN_OBJECT,
   [SolScope.Devnet]: SOLANA_SWAPS_TOKEN_OBJECT,
   [BtcScope.Mainnet]: BTC_SWAPS_TOKEN_OBJECT,
+  [XlmScope.Pubnet]: XLM_SWAPS_TOKEN_OBJECT,
   [TrxScope.Mainnet]: TRX_SWAPS_TOKEN_OBJECT,
 } as const;
 
@@ -227,6 +237,7 @@ export const SYMBOL_TO_SLIP44_MAP: Record<
 > = {
   SOL: 'slip44:501',
   BTC: 'slip44:0',
+  XLM: 'slip44:148',
   ETH: 'slip44:60',
   POL: 'slip44:966',
   BNB: 'slip44:714',

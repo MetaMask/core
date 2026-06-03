@@ -50,6 +50,10 @@ describe('feature-flags', () => {
             isActiveSrc: true,
             isActiveDest: true,
           },
+          '20000000000002': {
+            isActiveSrc: true,
+            isActiveDest: true,
+          },
         },
         chainRanking: [],
       };
@@ -92,6 +96,10 @@ describe('feature-flags', () => {
             isActiveDest: true,
           },
           'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp': {
+            isActiveSrc: true,
+            isActiveDest: true,
+          },
+          'stellar:pubnet': {
             isActiveSrc: true,
             isActiveDest: true,
           },
@@ -231,6 +239,10 @@ describe('feature-flags', () => {
             isActiveSrc: true,
             isActiveDest: true,
           },
+          '20000000000002': {
+            isActiveSrc: true,
+            isActiveDest: true,
+          },
         },
       };
 
@@ -317,6 +329,10 @@ describe('feature-flags', () => {
             isActiveSrc: true,
           },
           'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp': {
+            isActiveDest: true,
+            isActiveSrc: true,
+          },
+          'stellar:pubnet': {
             isActiveDest: true,
             isActiveSrc: true,
           },

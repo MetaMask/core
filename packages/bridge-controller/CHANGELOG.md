@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add Stellar network support for bridge quotes and non-EVM fee calculation ([#8625](https://github.com/MetaMask/core/pull/8625))
+
 ### Changed
 
 - Bump `@metamask/assets-controllers` from `^108.2.0` to `^108.4.0` ([#8941](https://github.com/MetaMask/core/pull/8941), [#8981](https://github.com/MetaMask/core/pull/8981))
