@@ -250,8 +250,11 @@
     },
     {
       "path": "./packages/wallet"
+    },
+    {
+      "path": "./packages/wallet-framework-docs"
     }
   ],
   "files": [],
-  "include": ["./types", "./scripts"]
+  "include": ["./docs", "./types", "./scripts"]
 }

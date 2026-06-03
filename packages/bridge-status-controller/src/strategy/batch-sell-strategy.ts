@@ -64,8 +64,10 @@ export async function* submitBatchSellHandler(
     ),
     isGasFeeSponsored: gasSponsored,
     isGasFeeIncluded: Boolean(gasIncluded7702),
-    skipInitialGasEstimate: false,
-    excludeNativeTokenForFee: Boolean(gasFeeToken),
+    skipInitialGasEstimate: gasIncluded7702
+      ? isDelegatedAccount
+      : Boolean(gasFeeToken),
+    excludeNativeTokenForFee: !gasFeeToken,
   });
 
   // Submit the batch to the TransactionController

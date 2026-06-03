@@ -5679,7 +5679,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/assets-controller@npm:^8.2.0, @metamask/assets-controller@workspace:packages/assets-controller":
+"@metamask/assets-controller@npm:^8.3.1, @metamask/assets-controller@workspace:packages/assets-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/assets-controller@workspace:packages/assets-controller"
   dependencies:
@@ -5688,7 +5688,7 @@ __metadata:
     "@ethersproject/providers": "npm:^5.7.0"
     "@metamask/account-tree-controller": "npm:^7.5.0"
     "@metamask/accounts-controller": "npm:^38.1.2"
-    "@metamask/assets-controllers": "npm:^108.3.0"
+    "@metamask/assets-controllers": "npm:^108.4.0"
     "@metamask/auto-changelog": "npm:^6.1.0"
     "@metamask/base-controller": "npm:^9.1.0"
     "@metamask/client-controller": "npm:^1.0.1"
@@ -5726,7 +5726,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/assets-controllers@npm:^108.3.0, @metamask/assets-controllers@workspace:packages/assets-controllers":
+"@metamask/assets-controllers@npm:^108.4.0, @metamask/assets-controllers@workspace:packages/assets-controllers":
   version: 0.0.0-use.local
   resolution: "@metamask/assets-controllers@workspace:packages/assets-controllers"
   dependencies:
@@ -5936,8 +5936,8 @@ __metadata:
     "@ethersproject/contracts": "npm:^5.7.0"
     "@ethersproject/providers": "npm:^5.7.0"
     "@metamask/accounts-controller": "npm:^38.1.2"
-    "@metamask/assets-controller": "npm:^8.2.0"
-    "@metamask/assets-controllers": "npm:^108.3.0"
+    "@metamask/assets-controller": "npm:^8.3.1"
+    "@metamask/assets-controllers": "npm:^108.4.0"
     "@metamask/auto-changelog": "npm:^6.1.0"
     "@metamask/base-controller": "npm:^9.1.0"
     "@metamask/controller-utils": "npm:^12.1.0"
@@ -5950,7 +5950,7 @@ __metadata:
     "@metamask/network-controller": "npm:^32.0.0"
     "@metamask/polling-controller": "npm:^16.0.6"
     "@metamask/profile-sync-controller": "npm:^28.1.1"
-    "@metamask/remote-feature-flag-controller": "npm:^4.2.1"
+    "@metamask/remote-feature-flag-controller": "npm:^4.2.2"
     "@metamask/snaps-controllers": "npm:^19.0.0"
     "@metamask/superstruct": "npm:^3.1.0"
     "@metamask/transaction-controller": "npm:^66.0.0"
@@ -5973,7 +5973,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/bridge-status-controller@npm:^72.0.0, @metamask/bridge-status-controller@workspace:packages/bridge-status-controller":
+"@metamask/bridge-status-controller@npm:^72.0.1, @metamask/bridge-status-controller@workspace:packages/bridge-status-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/bridge-status-controller@workspace:packages/bridge-status-controller"
   dependencies:
@@ -6181,7 +6181,7 @@ __metadata:
     "@metamask/messenger": "npm:^1.2.0"
     "@metamask/polling-controller": "npm:^16.0.6"
     "@metamask/profile-sync-controller": "npm:^28.1.1"
-    "@metamask/remote-feature-flag-controller": "npm:^4.2.1"
+    "@metamask/remote-feature-flag-controller": "npm:^4.2.2"
     "@metamask/superstruct": "npm:^3.1.0"
     "@metamask/utils": "npm:^11.9.0"
     "@ts-bridge/cli": "npm:^0.6.4"
@@ -7406,7 +7406,7 @@ __metadata:
     "@metamask/messenger": "npm:^1.2.0"
     "@metamask/metamask-eth-abis": "npm:^3.1.1"
     "@metamask/network-controller": "npm:^32.0.0"
-    "@metamask/remote-feature-flag-controller": "npm:^4.2.1"
+    "@metamask/remote-feature-flag-controller": "npm:^4.2.2"
     "@metamask/superstruct": "npm:^3.1.0"
     "@metamask/utils": "npm:^11.9.0"
     "@ts-bridge/cli": "npm:^0.6.4"
@@ -7899,7 +7899,7 @@ __metadata:
     "@metamask/messenger": "npm:^1.2.0"
     "@metamask/network-controller": "npm:^32.0.0"
     "@metamask/profile-sync-controller": "npm:^28.1.1"
-    "@metamask/remote-feature-flag-controller": "npm:^4.2.1"
+    "@metamask/remote-feature-flag-controller": "npm:^4.2.2"
     "@metamask/transaction-controller": "npm:^66.0.0"
     "@metamask/utils": "npm:^11.9.0"
     "@myx-trade/sdk": "npm:^0.1.265"
@@ -8134,7 +8134,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/ramps-controller@npm:^14.1.0, @metamask/ramps-controller@workspace:packages/ramps-controller":
+"@metamask/ramps-controller@npm:^14.1.1, @metamask/ramps-controller@workspace:packages/ramps-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/ramps-controller@workspace:packages/ramps-controller"
   dependencies:
@@ -8201,7 +8201,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/remote-feature-flag-controller@npm:^4.2.1, @metamask/remote-feature-flag-controller@workspace:packages/remote-feature-flag-controller":
+"@metamask/remote-feature-flag-controller@npm:^4.2.2, @metamask/remote-feature-flag-controller@workspace:packages/remote-feature-flag-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/remote-feature-flag-controller@workspace:packages/remote-feature-flag-controller"
   dependencies:
@@ -8686,7 +8686,7 @@ __metadata:
     "@metamask/metamask-eth-abis": "npm:^3.1.1"
     "@metamask/network-controller": "npm:^32.0.0"
     "@metamask/nonce-tracker": "npm:^6.0.0"
-    "@metamask/remote-feature-flag-controller": "npm:^4.2.1"
+    "@metamask/remote-feature-flag-controller": "npm:^4.2.2"
     "@metamask/rpc-errors": "npm:^7.0.2"
     "@metamask/utils": "npm:^11.9.0"
     "@ts-bridge/cli": "npm:^0.6.4"
@@ -8723,20 +8723,20 @@ __metadata:
     "@ethersproject/abi": "npm:^5.7.0"
     "@ethersproject/contracts": "npm:^5.7.0"
     "@ethersproject/providers": "npm:^5.7.0"
-    "@metamask/assets-controller": "npm:^8.2.0"
-    "@metamask/assets-controllers": "npm:^108.3.0"
+    "@metamask/assets-controller": "npm:^8.3.1"
+    "@metamask/assets-controllers": "npm:^108.4.0"
     "@metamask/auto-changelog": "npm:^6.1.0"
     "@metamask/base-controller": "npm:^9.1.0"
     "@metamask/bridge-controller": "npm:^73.2.0"
-    "@metamask/bridge-status-controller": "npm:^72.0.0"
+    "@metamask/bridge-status-controller": "npm:^72.0.1"
     "@metamask/controller-utils": "npm:^12.1.0"
     "@metamask/gas-fee-controller": "npm:^26.2.2"
     "@metamask/keyring-controller": "npm:^26.0.0"
     "@metamask/messenger": "npm:^1.2.0"
     "@metamask/metamask-eth-abis": "npm:^3.1.1"
     "@metamask/network-controller": "npm:^32.0.0"
-    "@metamask/ramps-controller": "npm:^14.1.0"
-    "@metamask/remote-feature-flag-controller": "npm:^4.2.1"
+    "@metamask/ramps-controller": "npm:^14.1.1"
+    "@metamask/remote-feature-flag-controller": "npm:^4.2.2"
     "@metamask/transaction-controller": "npm:^66.0.0"
     "@metamask/utils": "npm:^11.9.0"
     "@ts-bridge/cli": "npm:^0.6.4"
@@ -8827,6 +8827,32 @@ __metadata:
   checksum: 10/ed6648cd973bbf3b4eb0e862903b795a99d27784c820e19f62f0bc0ddf353e98c2858d7e9aaebc0249a586391b344e35b9249d13c08e3ea0c74b23dc1c6b1558
   languageName: node
   linkType: hard
+
+"@metamask/wallet-framework-docs@workspace:packages/wallet-framework-docs":
+  version: 0.0.0-use.local
+  resolution: "@metamask/wallet-framework-docs@workspace:packages/wallet-framework-docs"
+  dependencies:
+    "@docusaurus/core": "npm:^3.10.1"
+    "@docusaurus/plugin-content-docs": "npm:^3.10.1"
+    "@docusaurus/preset-classic": "npm:^3.10.1"
+    "@docusaurus/theme-common": "npm:^3.10.1"
+    "@docusaurus/types": "npm:^3.10.1"
+    "@easyops-cn/docusaurus-search-local": "npm:^0.55.1"
+    "@mdx-js/react": "npm:^3.1.1"
+    "@metamask/auto-changelog": "npm:^6.1.0"
+    "@types/jest": "npm:^29.5.14"
+    "@types/react": "npm:^19.0.0"
+    deepmerge: "npm:^4.2.2"
+    jest: "npm:^29.7.0"
+    prism-react-renderer: "npm:^2.4.1"
+    raw-loader: "npm:^4.0.2"
+    react: "npm:^19.0.0"
+    react-dom: "npm:^19.0.0"
+    ts-jest: "npm:^29.2.5"
+    tsx: "npm:^4.20.5"
+    typescript: "npm:~5.3.3"
+  languageName: unknown
+  linkType: soft
 
 "@metamask/wallet@workspace:packages/wallet":
   version: 0.0.0-use.local
@@ -10927,7 +10953,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@types/react@npm:*, @types/react@npm:^19.2.14":
+"@types/react@npm:*, @types/react@npm:^19.0.0, @types/react@npm:^19.2.14":
   version: 19.2.15
   resolution: "@types/react@npm:19.2.15"
   dependencies:
@@ -22189,6 +22215,18 @@ __metadata:
   languageName: node
   linkType: hard
 
+"raw-loader@npm:^4.0.2":
+  version: 4.0.2
+  resolution: "raw-loader@npm:4.0.2"
+  dependencies:
+    loader-utils: "npm:^2.0.0"
+    schema-utils: "npm:^3.0.0"
+  peerDependencies:
+    webpack: ^4.0.0 || ^5.0.0
+  checksum: 10/51cc1b0d0e8c37c4336b5318f3b2c9c51d6998ad6f56ea09612afcfefc9c1f596341309e934a744ae907177f28efc9f1654eacd62151e82853fcc6d37450e795
+  languageName: node
+  linkType: hard
+
 "rc@npm:1.2.8":
   version: 1.2.8
   resolution: "rc@npm:1.2.8"
@@ -22203,7 +22241,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"react-dom@npm:^19.2.6":
+"react-dom@npm:^19.0.0, react-dom@npm:^19.2.6":
   version: 19.2.6
   resolution: "react-dom@npm:19.2.6"
   dependencies:
@@ -22331,7 +22369,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"react@npm:^19.2.6":
+"react@npm:^19.0.0, react@npm:^19.2.6":
   version: 19.2.6
   resolution: "react@npm:19.2.6"
   checksum: 10/205f0db93bd6c6485f94471d1c3437ae1d410f322297c76186fe4f658f88a6786bb0805e3cf8f330f24d1daa923b6b610ec63960d2461e9201bca64ca8361db9

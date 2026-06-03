@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [72.0.1]
+
+### Fixed
+
+- Fix gas-related transaction options for batch and batch-sell swaps ([#8979](https://github.com/MetaMask/core/pull/8979))
+  - When the fee is paid in an ERC20 token, set it as the `gasFeeToken`
+  - Set `excludeNativeTokenForFee=true` when `gasFeeToken` is set, which tells the TransactionController to use the gasFeeToken for payment regardless of whether the user has enough native assets
+  - Set `skipInitialGasEstimate=false` if submitting gasIncluded7702 quotes and account has not been upgraded to a smart account
+
 ## [72.0.0]
 
 ### Added
@@ -1238,7 +1247,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#5317](https://github.com/MetaMask/core/pull/5317))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@72.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@72.0.1...HEAD
+[72.0.1]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@72.0.0...@metamask/bridge-status-controller@72.0.1
 [72.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@71.2.1...@metamask/bridge-status-controller@72.0.0
 [71.2.1]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@71.2.0...@metamask/bridge-status-controller@71.2.1
 [71.2.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@71.1.4...@metamask/bridge-status-controller@71.2.0

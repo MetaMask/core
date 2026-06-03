@@ -73,13 +73,14 @@ const config = createConfig([
   ...base,
   {
     ignores: [
+      '**/.docusaurus',
+      '**/coverage/**',
       '**/dist/**',
       '**/docs/**',
-      '**/coverage/**',
-      '.platform-api-docs/**',
-      'merged-packages/**',
       '.yarn/**',
+      'merged-packages/**',
       'scripts/create-package/package-template/**',
+      '.platform-api-docs/**',
     ],
   },
   {
@@ -111,6 +112,7 @@ const config = createConfig([
     files: [
       '**/*.{js,cjs,mjs}',
       '**/*.test.{js,ts}',
+      '**/docusaurus.config.ts',
       '**/test/**/*.{js,ts}',
       '**/tests/**/*.{js,ts}',
       'scripts/*.ts',
@@ -351,6 +353,12 @@ const config = createConfig([
       // for types that don't follow TSDoc properly.
       // See https://github.com/gajus/eslint-plugin-jsdoc/issues/1054
       'jsdoc/check-tag-names': 'off',
+    },
+  },
+  {
+    files: ['packages/wallet-framework-docs/site/docusaurus.config.ts'],
+    rules: {
+      'n/no-process-env': 'off',
     },
   },
 ]);
