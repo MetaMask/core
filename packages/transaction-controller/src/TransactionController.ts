@@ -172,11 +172,7 @@ import {
   getAndFormatTransactionsForNonceTracker,
   getNextNonce,
 } from './utils/nonce';
-import {
-  prepareTransaction,
-  serializeTransaction,
-  txDataToTransaction,
-} from './utils/prepare';
+import { prepareTransaction, serializeTransaction } from './utils/prepare';
 import { getChainId, getNetworkClientId, rpcRequest } from './utils/provider';
 import { getTransactionParamsWithIncreasedGasFee } from './utils/retry';
 import {
@@ -363,6 +359,9 @@ export type TransactionControllerOptions = {
   /** Whether new transactions will be automatically simulated. */
   isSimulationEnabled?: () => boolean;
 
+  /** Whether timeout checking is enabled for a transaction. */
+  isTimeoutEnabled?: (transactionMeta: TransactionMeta) => boolean;
+
   /** The controller messenger. */
   messenger: TransactionControllerMessenger;
 
@@ -379,12 +378,6 @@ export type TransactionControllerOptions = {
   hooks: {
     /** Additional logic to execute after adding a transaction. */
     afterAdd?: AfterAddHook;
-
-    /** Additional logic to execute after signing a transaction. Return false to not change the status to signed. */
-    afterSign?: (
-      transactionMeta: TransactionMeta,
-      signedTx: TypedTransaction,
-    ) => boolean;
 
     /**
      * Additional logic to execute before checking pending transactions.
@@ -404,17 +397,6 @@ export type TransactionControllerOptions = {
      * Additional logic to execute before signing a transaction.
      */
     beforeSign?: BeforeSignHook;
-
-    /** Returns additional arguments required to sign a transaction. */
-    getAdditionalSignArguments?: (
-      transactionMeta: TransactionMeta,
-    ) => (TransactionMeta | undefined)[];
-
-    /**
-     * Callback to determine whether timeout checking should be enabled for a transaction.
-     * Return false to disable timeout for the transaction.
-     */
-    isTimeoutEnabled?: (transactionMeta: TransactionMeta) => boolean;
 
     /** Alternate logic to publish a transaction. */
     publish?: (
@@ -727,11 +709,6 @@ export class TransactionController extends BaseController<
 > {
   readonly #afterAdd: AfterAddHook;
 
-  readonly #afterSign: (
-    transactionMeta: TransactionMeta,
-    signedTx: TypedTransaction,
-  ) => boolean;
-
   readonly #approvingTransactionIds: Set<string> = new Set();
 
   readonly #beforeCheckPendingTransaction: (
@@ -745,10 +722,6 @@ export class TransactionController extends BaseController<
   readonly #beforeSign: BeforeSignHook;
 
   readonly #gasFeeFlows: GasFeeFlow[];
-
-  readonly #getAdditionalSignArguments: (
-    transactionMeta: TransactionMeta,
-  ) => (TransactionMeta | undefined)[];
 
   readonly #getPermittedAccounts?: (origin?: string) => Promise<string[]>;
 
@@ -820,6 +793,7 @@ export class TransactionController extends BaseController<
       isEIP7702GasFeeTokensEnabled,
       isFirstTimeInteractionEnabled,
       isSimulationEnabled,
+      isTimeoutEnabled,
       messenger,
       publicKeyEIP7702,
       state,
@@ -841,7 +815,6 @@ export class TransactionController extends BaseController<
 
     this.#afterAdd =
       hooks?.afterAdd ?? ((): ReturnType<AfterAddHook> => Promise.resolve({}));
-    this.#afterSign = hooks?.afterSign ?? ((): boolean => true);
     this.#beforeCheckPendingTransaction =
       /* istanbul ignore next */
       hooks?.beforeCheckPendingTransaction ??
@@ -851,9 +824,6 @@ export class TransactionController extends BaseController<
     this.#beforeSign =
       hooks?.beforeSign ??
       ((): ReturnType<BeforeSignHook> => Promise.resolve({}));
-    this.#getAdditionalSignArguments =
-      hooks?.getAdditionalSignArguments ??
-      ((): (TransactionMeta | undefined)[] => []);
     this.#getPermittedAccounts = getPermittedAccounts;
     this.#getSavedGasFees =
       getSavedGasFees ?? ((_chainId): SavedGasFees | undefined => undefined);
@@ -871,7 +841,7 @@ export class TransactionController extends BaseController<
       isFirstTimeInteractionEnabled ?? ((): boolean => true);
     this.#isSimulationEnabled = isSimulationEnabled ?? ((): boolean => true);
     this.#isSwapsDisabled = disableSwaps ?? false;
-    this.#isTimeoutEnabled = hooks?.isTimeoutEnabled ?? ((): boolean => true);
+    this.#isTimeoutEnabled = isTimeoutEnabled ?? ((): boolean => true);
     this.#publicKeyEIP7702 = publicKeyEIP7702;
     this.#publish =
       hooks?.publish ??
@@ -1507,14 +1477,12 @@ export class TransactionController extends BaseController<
       unsignedEthTx,
       transactionMeta.txParams.from,
     );
-    const signedTx = txDataToTransaction(transactionMeta.chainId, signedTxData);
-
     const transactionMetaWithRsv = this.#updateTransactionMetaRSV(
       transactionMeta,
-      signedTx,
+      signedTxData,
     );
 
-    const rawTx = serializeTransaction(signedTx);
+    const rawTx = serializeTransaction(signedTxData);
     const newFee = newTxParams.maxFeePerGas ?? newTxParams.gasPrice;
 
     const oldFee = newTxParams.maxFeePerGas
@@ -2544,8 +2512,7 @@ export class TransactionController extends BaseController<
       unsignedTransaction,
       from,
     );
-    const signedTransaction = txDataToTransaction(chainId, signedTxData);
-    const rawTransaction = serializeTransaction(signedTransaction);
+    const rawTransaction = serializeTransaction(signedTxData);
 
     return rawTransaction;
   }
@@ -3685,7 +3652,7 @@ export class TransactionController extends BaseController<
    */
   #updateTransactionMetaRSV(
     transactionMeta: TransactionMeta,
-    signedTx: TypedTransaction,
+    signedTx: TypedTxData,
   ): TransactionMeta {
     const transactionMetaWithRsv = cloneDeep(transactionMeta);
 
@@ -3696,7 +3663,7 @@ export class TransactionController extends BaseController<
         continue;
       }
 
-      transactionMetaWithRsv[key] = add0x(value.toString(16));
+      transactionMetaWithRsv[key] = add0x(BigInt(value as bigint).toString(16));
     }
 
     return transactionMetaWithRsv;
@@ -3791,23 +3758,10 @@ export class TransactionController extends BaseController<
 
     this.#signAbortCallbacks.delete(transactionId);
 
-    const signedTx = txDataToTransaction(chainId, signedTxData);
-
     const transactionMetaFromHook = cloneDeep(finalTransactionMeta);
 
-    if (!this.#afterSign(transactionMetaFromHook, signedTx)) {
-      this.updateTransaction(
-        transactionMetaFromHook,
-        'TransactionController#signTransaction - Update after sign',
-      );
-
-      log('Skipping signed status based on hook');
-
-      return undefined;
-    }
-
     const transactionMetaWithRsv = {
-      ...this.#updateTransactionMetaRSV(transactionMetaFromHook, signedTx),
+      ...this.#updateTransactionMetaRSV(transactionMetaFromHook, signedTxData),
       status: TransactionStatus.signed as const,
       txParams: finalTxParams,
     };
@@ -3819,7 +3773,7 @@ export class TransactionController extends BaseController<
 
     this.#onTransactionStatusChange(transactionMetaWithRsv);
 
-    const rawTx = serializeTransaction(signedTx);
+    const rawTx = serializeTransaction(signedTxData);
 
     const transactionMetaWithRawTx = merge({}, transactionMetaWithRsv, {
       rawTx,

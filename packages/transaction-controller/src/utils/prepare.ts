@@ -33,23 +33,13 @@ export function prepareTransaction(
 }
 
 /**
- * Serializes a transaction object into a hex string.
+ * Serializes transaction data into a hex string.
  *
- * @param transaction - The transaction object.
+ * @param txData - The signed transaction data.
  * @returns The prefixed hex string.
  */
-export function serializeTransaction(transaction: TypedTransaction): Hex {
-  return bytesToHex(transaction.serialize());
-}
-
-export function txDataToTransaction(
-  chainId: Hex,
-  txData: TypedTxData,
-): TypedTransaction {
-  return TransactionFactory.fromTxData(txData, {
-    freeze: false,
-    common: getCommonConfiguration(chainId),
-  });
+export function serializeTransaction(txData: TypedTxData): Hex {
+  return bytesToHex(TransactionFactory.fromTxData(txData).serialize());
 }
 
 /**
