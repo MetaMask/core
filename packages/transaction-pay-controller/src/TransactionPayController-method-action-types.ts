@@ -120,6 +120,11 @@ export type TransactionPayControllerPolymarketSubmitDepositWalletBatchAction = {
   handler: TransactionPayController['polymarketSubmitDepositWalletBatch'];
 };
 
+export type TransactionPayControllerGetAmountDataAction = {
+  type: `TransactionPayController:getAmountData`;
+  handler: TransactionPayController['getAmountData'];
+};
+
 /**
  * Union of all TransactionPayController action types.
  */
@@ -127,6 +132,7 @@ export type TransactionPayControllerMethodActions =
   | TransactionPayControllerSetTransactionConfigAction
   | TransactionPayControllerUpdatePaymentTokenAction
   | TransactionPayControllerUpdateFiatPaymentAction
+  | TransactionPayControllerGetAmountDataAction
   | TransactionPayControllerGetDelegationTransactionAction
   | TransactionPayControllerGetPaymentOverrideDataAction
   | TransactionPayControllerGetStrategyAction

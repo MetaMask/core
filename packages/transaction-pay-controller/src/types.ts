@@ -183,6 +183,29 @@ export type GetPaymentOverrideDataCallback = (
   request: GetPaymentOverrideDataRequest,
 ) => Promise<GetPaymentOverrideDataResponse>;
 
+export type GetAmountDataRequest = {
+  /** Raw token amount (atomic units) to encode into calldata. */
+  amount: string;
+
+  /** Metadata of the transaction whose nested calls need updating. */
+  transaction: TransactionMeta;
+};
+
+export type GetAmountDataResponse = {
+  /** Per-nested-call data updates; empty when no update is needed. */
+  updates: { nestedTransactionIndex: number; data: Hex }[];
+};
+
+/**
+ * Optional callback that re-encodes nested transaction calldata for a given
+ * token amount. Used by transaction types with non-standard nested data
+ * (e.g. vault approve + deposit) that cannot be derived from the amount alone
+ * without client-side context (vault config, RPC providers, etc.).
+ */
+export type GetAmountDataCallback = (
+  request: GetAmountDataRequest,
+) => Promise<GetAmountDataResponse>;
+
 /** Callback to update fiat payment state. */
 export type TransactionFiatPaymentCallback = (
   fiatPayment: TransactionFiatPayment,
@@ -219,6 +242,9 @@ export const KEYRING_TYPES_SUPPORTING_7702: `${KeyringTypes}`[] = [
 
 /** Options for the TransactionPayController. */
 export type TransactionPayControllerOptions = {
+  /** Optional callback to re-encode nested transaction calldata for a given amount. */
+  getAmountData?: GetAmountDataCallback;
+
   /** Callback to convert a transaction into a redeem delegation. */
   getDelegationTransaction: GetDelegationTransactionCallback;
 
