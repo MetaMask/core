@@ -14,7 +14,7 @@ const navbarItemsDependentOnCommit = commitSha
     ]
   : [];
 
-const config: Config = {
+const config = {
   baseUrl: '/core/wallet-framework-docs',
   favicon: 'images/metamask-dev-logo.svg',
   onBrokenLinks: 'throw',
