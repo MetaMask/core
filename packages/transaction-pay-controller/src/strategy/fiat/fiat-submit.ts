@@ -337,7 +337,7 @@ async function submitRelayAfterFiatCompletion({
           }
         }
         if (tx.requiredAssets?.[0]) {
-          tx.requiredAssets[0].amount = `0x${new BigNumber(settledTargetRaw).toString(16)}` as Hex;
+          tx.requiredAssets[0].amount = `0x${new BigNumber(settledTargetRaw).toString(16)}`;
         }
       },
     );
@@ -398,6 +398,11 @@ async function submitRelayAfterFiatCompletion({
  * different source amounts (quoting phase uses a theoretical amount, discovery
  * uses the actual settled amount) so the comparison reflects genuine rate
  * movement rather than amount differences.
+ *
+ * @param options - The validation options.
+ * @param options.originalQuote - Relay quote from the original quoting phase.
+ * @param options.discoveryQuote - Relay quote from the post-settlement discovery.
+ * @param options.transactionId - Transaction ID for error reporting.
  */
 function validateRelayRateDrift({
   originalQuote,

@@ -15,7 +15,7 @@ import type {
   TransactionPayQuote,
 } from '../../types';
 import { buildCaipAssetType } from '../../utils/token';
-import { updateTransaction } from '../../utils/transaction';
+import { getTransaction, updateTransaction } from '../../utils/transaction';
 import { getRelayQuotes } from '../relay/relay-quotes';
 import { submitRelayQuotes } from '../relay/relay-submit';
 import type { RelayQuote } from '../relay/types';
@@ -96,7 +96,12 @@ const RELAY_QUOTE_RESULT_MOCK = {
   },
   original: {
     details: {
-      currencyOut: { amount: '12000000' },
+      currencyIn: { amount: '1000000000000000000', amountUsd: '5.00' },
+      currencyOut: {
+        amount: '12000000',
+        amountUsd: '4.85',
+        minimumAmount: '11900000',
+      },
     },
   } as unknown as RelayQuote,
   request: BASE_QUOTE_REQUEST_MOCK,
@@ -163,7 +168,12 @@ function getFiatQuoteMock({
       rampsQuote: RAMPS_QUOTE_MOCK,
       relayQuote: {
         details: {
-          currencyOut: { amount: '12000000' },
+          currencyIn: { amount: '1000000000000000000', amountUsd: '5.00' },
+          currencyOut: {
+            amount: '12000000',
+            amountUsd: '4.85',
+            minimumAmount: '11900000',
+          },
         },
       } as unknown as RelayQuote,
     },
@@ -218,6 +228,10 @@ function getRequest({
       return order;
     }
 
+    if (action === 'TransactionPayController:getAmountData') {
+      return Promise.resolve({ updates: [] });
+    }
+
     throw new Error(`Unexpected action: ${action}`);
   });
 
@@ -240,6 +254,7 @@ describe('submitFiatQuotes', () => {
     deriveFiatAssetForFiatPayment,
   );
   const resolveSourceAmountRawMock = jest.mocked(resolveSourceAmountRaw);
+  const getTransactionMock = jest.mocked(getTransaction);
   const updateTransactionMock = jest.mocked(updateTransaction);
   const getRelayQuotesMock = jest.mocked(getRelayQuotes);
   const submitRelayQuotesMock = jest.mocked(submitRelayQuotes);
@@ -251,6 +266,7 @@ describe('submitFiatQuotes', () => {
     buildCaipAssetTypeMock.mockReturnValue(FIAT_ASSET_CAIP_ID_MOCK);
     deriveFiatAssetForFiatPaymentMock.mockReturnValue(FIAT_ASSET_MOCK);
     resolveSourceAmountRawMock.mockResolvedValue('1000000000000000000');
+    getTransactionMock.mockReturnValue(TRANSACTION_MOCK);
     getRelayQuotesMock.mockResolvedValue([RELAY_QUOTE_RESULT_MOCK]);
     submitRelayQuotesMock.mockResolvedValue({
       transactionHash: '0x1234',
@@ -284,21 +300,24 @@ describe('submitFiatQuotes', () => {
       fiatAsset: FIAT_ASSET_MOCK,
       walletAddress: WALLET_ADDRESS_MOCK,
     });
-    expect(getRelayQuotesMock).toHaveBeenCalledTimes(1);
+    expect(getRelayQuotesMock).toHaveBeenCalledTimes(2);
     expect(getRelayQuotesMock.mock.calls[0][0].requests).toStrictEqual([
       expect.objectContaining({
-        isMaxAmount: true,
-        isPostQuote: false,
+        isMaxAmount: false,
+        isPostQuote: true,
         sourceBalanceRaw: '1234500000000000000',
         sourceTokenAmount: '1234500000000000000',
       }),
     ]);
-    expect(
-      getRelayQuotesMock.mock.calls[0][0].transaction.txParams.data,
-    ).toBeUndefined();
-    expect(
-      getRelayQuotesMock.mock.calls[0][0].transaction.nestedTransactions,
-    ).toBeUndefined();
+    expect(getRelayQuotesMock.mock.calls[1][0].requests).toStrictEqual([
+      expect.objectContaining({
+        isMaxAmount: false,
+        isPostQuote: false,
+        sourceBalanceRaw: '1234500000000000000',
+        sourceTokenAmount: '1234500000000000000',
+        targetAmountMinimum: '11900000',
+      }),
+    ]);
     expect(submitRelayQuotesMock).toHaveBeenCalledWith(
       expect.objectContaining({
         quotes: [RELAY_QUOTE_RESULT_MOCK],
@@ -496,6 +515,10 @@ describe('submitFiatQuotes', () => {
         return getOrderCallCount === 1 ? pendingOrder : completedOrder;
       }
 
+      if (action === 'TransactionPayController:getAmountData') {
+        return Promise.resolve({ updates: [] });
+      }
+
       throw new Error(`Unexpected action: ${action}`);
     });
 
@@ -547,6 +570,10 @@ describe('submitFiatQuotes', () => {
           throw new Error('Network error');
         }
         return completedOrder;
+      }
+
+      if (action === 'TransactionPayController:getAmountData') {
+        return Promise.resolve({ updates: [] });
       }
 
       throw new Error(`Unexpected action: ${action}`);
@@ -668,10 +695,13 @@ describe('submitFiatQuotes', () => {
     );
   });
 
-  it('skips slippage check when original relay target amount is zero', async () => {
+  it('skips rate drift check when original relay amounts are zero', async () => {
     const { request } = getRequest();
     request.quotes[0].original.relayQuote = {
-      details: { currencyOut: { amount: '0' } },
+      details: {
+        currencyIn: { amount: '0', amountUsd: '0' },
+        currencyOut: { amount: '0', amountUsd: '0', minimumAmount: '11900000' },
+      },
     } as unknown as RelayQuote;
 
     const result = await submitFiatQuotes(request);
@@ -679,13 +709,18 @@ describe('submitFiatQuotes', () => {
     expect(result).toStrictEqual({ transactionHash: '0x1234' });
   });
 
-  it('throws if relay re-quote slippage exceeds threshold', async () => {
+  it('throws if relay rate drift exceeds threshold', async () => {
     getRelayQuotesMock.mockResolvedValue([
       {
         ...RELAY_QUOTE_RESULT_MOCK,
         original: {
           details: {
-            currencyOut: { amount: '10000000' },
+            currencyIn: { amount: '1000000000000000000', amountUsd: '5.00' },
+            currencyOut: {
+              amount: '10000000',
+              amountUsd: '2.00',
+              minimumAmount: '9800000',
+            },
           },
         } as unknown as RelayQuote,
       },
@@ -693,17 +728,142 @@ describe('submitFiatQuotes', () => {
     const { request } = getRequest();
 
     await expect(submitFiatQuotes(request)).rejects.toThrow(
-      /Relay re-quote slippage too high/u,
+      /Relay rate drift too high/u,
     );
   });
 
-  it('throws if relay re-quote returns no quotes', async () => {
+  it('throws if discovery relay quote returns no quotes', async () => {
     getRelayQuotesMock.mockResolvedValue([]);
+    const { request } = getRequest();
+
+    await expect(submitFiatQuotes(request)).rejects.toThrow(
+      'No relay quotes returned for fiat discovery',
+    );
+  });
+
+  it('throws if final relay re-quote returns no quotes', async () => {
+    getRelayQuotesMock
+      .mockResolvedValueOnce([RELAY_QUOTE_RESULT_MOCK])
+      .mockResolvedValueOnce([]);
     const { request } = getRequest();
 
     await expect(submitFiatQuotes(request)).rejects.toThrow(
       'No relay quotes returned for completed fiat order',
     );
+  });
+
+  it('throws if getAmountData returns no updates for transaction with nested calldata', async () => {
+    const { callMock, request } = getRequest({
+      transaction: {
+        ...TRANSACTION_MOCK,
+        nestedTransactions: [
+          { to: '0xaaa', data: '0x1234' },
+          { to: '0xbbb', data: '0x5678' },
+        ],
+      } as unknown as TransactionMeta,
+    });
+
+    callMock.mockImplementation((action: string) => {
+      if (action === 'TransactionPayController:getState') {
+        return {
+          transactionData: {
+            [TRANSACTION_ID_MOCK]: {
+              fiatPayment: {
+                orderId: ORDER_ID_MOCK,
+                rampsQuote: RAMPS_QUOTE_MOCK,
+              },
+              isLoading: false,
+              tokens: [],
+            },
+          },
+        };
+      }
+      if (action === 'RampsController:getOrder') {
+        return getFiatOrderMock();
+      }
+      if (action === 'TransactionPayController:getAmountData') {
+        return Promise.resolve({ updates: [] });
+      }
+      throw new Error(`Unexpected action: ${action}`);
+    });
+
+    await expect(submitFiatQuotes(request)).rejects.toThrow(
+      'getAmountData returned no updates for transaction with nested calldata',
+    );
+  });
+
+  it('applies getAmountData updates to nested calldata and requiredAssets', async () => {
+    const nestedTransaction = {
+      ...TRANSACTION_MOCK,
+      nestedTransactions: [
+        { to: '0xaaa' as Hex, data: '0x1111' as Hex },
+        { to: '0xbbb' as Hex, data: '0x2222' as Hex },
+      ],
+      requiredAssets: [{ address: '0xaaa' as Hex, amount: '0x0' as Hex }],
+    } as unknown as TransactionMeta;
+
+    const { callMock, request } = getRequest({
+      transaction: nestedTransaction,
+    });
+
+    callMock.mockImplementation((action: string, ...args: unknown[]) => {
+      if (action === 'TransactionPayController:getState') {
+        return {
+          transactionData: {
+            [TRANSACTION_ID_MOCK]: {
+              fiatPayment: {
+                orderId: ORDER_ID_MOCK,
+                rampsQuote: RAMPS_QUOTE_MOCK,
+              },
+              isLoading: false,
+              tokens: [],
+            },
+          },
+        };
+      }
+      if (action === 'RampsController:getOrder') {
+        return getFiatOrderMock();
+      }
+      if (action === 'TransactionPayController:getAmountData') {
+        return Promise.resolve({
+          updates: [
+            { nestedTransactionIndex: 0, data: '0xNewApprove' },
+            { nestedTransactionIndex: 1, data: '0xNewDeposit' },
+          ],
+        });
+      }
+      throw new Error(`Unexpected action: ${action}`);
+    });
+
+    await submitFiatQuotes(request);
+
+    const settledAmountCall = updateTransactionMock.mock.calls.find(
+      ([opts]) => opts.note === 'Fiat deposit: update settled amount',
+    );
+    expect(settledAmountCall).toBeDefined();
+
+    const txDraft = {
+      nestedTransactions: [
+        { to: '0xaaa', data: '0x1111' },
+        { to: '0xbbb', data: '0x2222' },
+      ],
+      requiredAssets: [{ address: '0xaaa', amount: '0x0' }],
+    } as unknown as TransactionMeta;
+
+    settledAmountCall![1](txDraft);
+
+    expect(txDraft.nestedTransactions![0].data).toBe('0xNewApprove');
+    expect(txDraft.nestedTransactions![1].data).toBe('0xNewDeposit');
+    expect(txDraft.requiredAssets![0].amount).toBe('0xb59460');
+  });
+
+  it('falls back to original transaction when getTransaction returns undefined', async () => {
+    getTransactionMock.mockReturnValue(undefined);
+    const { request } = getRequest();
+
+    const result = await submitFiatQuotes(request);
+
+    expect(result).toStrictEqual({ transactionHash: '0x1234' });
   });
 
   it('throws if relay submit fails', async () => {
