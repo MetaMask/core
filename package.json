@@ -36,7 +36,7 @@
     "prepare-preview-builds": "./scripts/prepare-preview-builds.sh",
     "readme-content:check": "tsx scripts/update-readme-content.ts --check",
     "readme-content:update": "tsx scripts/update-readme-content.ts",
-    "setup": "yarn install && yarn skills:postinstall",
+    "setup": "yarn install",
     "test": "yarn test:scripts --silent --collectCoverage=false --reporters=jest-silent-reporter && yarn test:packages",
     "test:clean": "yarn workspaces foreach --all --parallel --verbose run test:clean && yarn test",
     "test:packages": "yarn test:verbose --silent --collectCoverage=false --reporters=jest-silent-reporter",
@@ -44,7 +44,8 @@
     "test:verbose": "yarn workspaces foreach --all --parallel --verbose run test:verbose",
     "workspaces:list-versions": "./scripts/list-workspace-versions.sh",
     "skills": "metamask-skills sync",
-    "skills:postinstall": "metamask-skills postinstall"
+    "skills:postinstall": "metamask-skills postinstall",
+    "postinstall": "metamask-skills postinstall"
   },
   "devDependencies": {
     "@lavamoat/allow-scripts": "^3.0.4",
@@ -111,12 +112,13 @@
   "packageManager": "yarn@4.14.1",
   "lavamoat": {
     "allowScripts": {
-      "@lavamoat/preinstall-always-fail": false,
+      "$root$": true,
       "@keystonehq/bc-ur-registry-eth>hdkey>secp256k1": true,
+      "@lavamoat/preinstall-always-fail": false,
       "babel-runtime>core-js": false,
+      "eslint-plugin-import-x>unrs-resolver": false,
       "simple-git-hooks": false,
-      "tsx>esbuild": false,
-      "eslint-plugin-import-x>unrs-resolver": false
+      "tsx>esbuild": false
     }
   }
 }
