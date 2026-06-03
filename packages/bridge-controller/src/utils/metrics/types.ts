@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/naming-convention */
-import type { CaipAssetType, CaipChainId } from '@metamask/utils';
+import type { CaipAssetType, CaipChainId, Hex } from '@metamask/utils';
 
 import type { SortOrder, StatusTypes } from '../../types';
 import type {
@@ -164,6 +164,7 @@ type RequiredEventContextFromClientBase = {
       | 'token_security_type_destination'
     > & {
       action_type: MetricsActionType;
+      batch_id: Hex;
     };
   [UnifiedSwapBridgeEventName.Completed]: TradeData &
     Pick<QuoteFetchData, 'price_impact'> &
@@ -176,6 +177,7 @@ type RequiredEventContextFromClientBase = {
       quote_vs_execution_ratio: number;
       quoted_vs_used_gas_ratio: number;
       action_type: MetricsActionType;
+      batch_id: Hex;
     };
   [UnifiedSwapBridgeEventName.Failed]:
     | // Tx failed before confirmation
@@ -203,6 +205,7 @@ type RequiredEventContextFromClientBase = {
         TradeData & {
           actual_time_minutes: number;
           error_message?: string;
+          batch_id: Hex;
         });
   // Emitted by clients
   [UnifiedSwapBridgeEventName.AllQuotesOpened]: Pick<
@@ -240,6 +243,7 @@ type RequiredEventContextFromClientBase = {
   };
   [UnifiedSwapBridgeEventName.QuotesValidationFailed]: {
     failures: string[];
+    // TODO optional batch_id
   };
   [UnifiedSwapBridgeEventName.StatusValidationFailed]: {
     failures: string[];
@@ -261,6 +265,7 @@ type RequiredEventContextFromClientBase = {
       action_type: MetricsActionType;
       polling_status: PollingStatus;
       retry_attempts: number;
+      batch_id: Hex;
     };
 };
 
