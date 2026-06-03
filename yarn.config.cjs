@@ -34,6 +34,20 @@ const ALLOWED_INCONSISTENT_DEPENDENCIES = {
 const ALLOWED_PEER_DEPENDENCIES = ['react', 'react-dom', 'react-native'];
 
 /**
+ * These packages are tools and do not ship with APIs.
+ */
+const TOOLS = [
+  '@metamask/foundryup',
+  '@metamask/messenger-cli',
+  '@metamask/wallet-framework-docs',
+];
+
+/**
+ * These packages deploy documentation sites and use a different build script.
+ */
+const DOCSITE_PACKAGES = ['@metamask/wallet-framework-docs'];
+
+/**
  * Aliases for the Yarn type definitions, to make the code more readable.
  *
  * @typedef {import('@yarnpkg/types').Yarn.Constraints.Yarn} Yarn
@@ -116,30 +130,33 @@ module.exports = defineConfig({
         }
 
         // All non-root packages must set up ESM- and CommonJS-compatible
-        // exports correctly.
-        if (
-          workspace.ident !== '@metamask/foundryup' &&
-          workspace.ident !== '@metamask/messenger-cli'
-        ) {
+        // exports correctly (aside from tools).
+        if (!TOOLS.includes(workspace.ident)) {
           expectCorrectWorkspaceExports(workspace);
         }
 
-        // All non-root packages must have the same "build" script.
-        expectWorkspaceField(
-          workspace,
-          'scripts.build',
-          'ts-bridge --project tsconfig.build.json --verbose --clean --no-references',
-        );
+        // All non-root packages must have a "build" script. All packages that
+        // do not exclusively deploy documentation sites must use `ts-bridge`.
+        if (DOCSITE_PACKAGES.includes(workspace.ident)) {
+          expectWorkspaceField(workspace, 'scripts.build');
+        } else {
+          expectWorkspaceField(
+            workspace,
+            'scripts.build',
+            'ts-bridge --project tsconfig.build.json --verbose --clean --no-references',
+          );
 
-        // All non-root packages must have the same "build:all" script.
-        expectWorkspaceField(
-          workspace,
-          'scripts.build:all',
-          'ts-bridge --project tsconfig.build.json --verbose --clean',
-        );
+          // All non-root packages must have the same "build:all" script.
+          expectWorkspaceField(
+            workspace,
+            'scripts.build:all',
+            'ts-bridge --project tsconfig.build.json --verbose --clean',
+          );
+        }
 
-        // All non-root packages must have the same "build:docs" script.
-        if (workspace.ident !== '@metamask/messenger-cli') {
+        // All non-root packages must have the same "build:docs" script (aside
+        // from tools).
+        if (!TOOLS.includes(workspace.ident)) {
           expectWorkspaceField(workspace, 'scripts.build:docs', 'typedoc');
         }
 
