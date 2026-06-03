@@ -155,11 +155,12 @@ export const isCustomSlippage = (slippage: GenericQuoteRequest['slippage']) => {
 };
 
 export const getQuotesReceivedProperties = (
-  activeQuote: null | (QuoteResponse & Partial<QuoteMetadata>),
+  activeQuote: null | (QuoteResponse & QuoteMetadata),
   warnings: QuoteWarning[] = [],
   isSubmittable: boolean = true,
-  recommendedQuote?: null | (QuoteResponse & Partial<QuoteMetadata>),
+  recommendedQuote?: null | (QuoteResponse & QuoteMetadata),
   usdBalanceSource?: number,
+  hasSufficientGasForQuote?: boolean | null,
 ) => {
   const provider = activeQuote ? formatProviderLabel(activeQuote.quote) : '_';
   return {
@@ -178,5 +179,8 @@ export const getQuotesReceivedProperties = (
     provider,
     warnings,
     price_impact: Number(activeQuote?.quote.priceData?.priceImpact ?? 0),
+    ...(hasSufficientGasForQuote !== undefined && {
+      has_sufficient_gas_for_quote: hasSufficientGasForQuote,
+    }),
   };
 };

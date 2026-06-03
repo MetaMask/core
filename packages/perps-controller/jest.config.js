@@ -18,18 +18,16 @@ module.exports = {
     // An object that configures minimum threshold enforcement for coverage results
     coverageThreshold: {
       global: {
-        branches: 100,
-        functions: 100,
-        lines: 100,
-        statements: 100,
+        branches: 69,
+        functions: 78,
+        lines: 80,
+        statements: 80,
       },
     },
   }),
 
-  // Coverage is scoped to the placeholder test file only (not synced source).
-  // The real source files are synced from Mobile and tested there.
-  // When tests are migrated from Mobile to Core, restore this to
-  // the default ('./src/**/*.ts') and raise thresholds accordingly.
+  // Coverage is collected from real source files. Barrel files are excluded
+  // because they only re-export the tested modules.
   // Applied after merge to fully replace (not concat) the base array.
-  collectCoverageFrom: ['./tests/placeholder.test.ts'],
+  collectCoverageFrom: ['./src/**/*.ts', '!./src/**/index.ts'],
 };

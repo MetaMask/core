@@ -7,6 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/accounts-controller` from `^38.1.1` to `^38.1.2` ([#8912](https://github.com/MetaMask/core/pull/8912))
+- Bump `@metamask/core-backend` from `^6.3.0` to `^6.3.1` ([#8912](https://github.com/MetaMask/core/pull/8912))
+
+### Fixed
+
+- Include Mantle operator fee in the displayed L1 gas estimate when simulated `gasUsed` is unavailable, by falling back to the transaction's gas limit ([#8837](https://github.com/MetaMask/core/pull/8837))
+  - Adds a `protected getOperatorFeeGas` hook on `OracleLayer1GasFeeFlow` that subclasses can override to supply a fallback value. The default behaviour is unchanged (returns `transactionMeta.gasUsed`).
+  - `MantleLayer1GasFeeFlow` overrides the hook with `gasUsed ?? txParams.gas ?? txParams.gasLimit`, so the operator-fee oracle is called with the gas limit when `gasUsed` is missing. Gas limit is an upper bound on actual gas used, so the operator fee is over-estimated rather than under-reported.
+- Fix `ExtraTransactionsPublishHook` not passing `isInternal: true` when calling `addTransactionBatch`, causing the duplicate-batch-ID guard to incorrectly throw `DuplicateBundleId` (error 5720) for nested ERC-20 gas-fee-token transfers that share a `batchId` with their parent batch ([#8884](https://github.com/MetaMask/core/pull/8884))
+
+## [66.0.0]
+
+### Changed
+
+- **BREAKING:** Replace implicit `origin === 'metamask'` trust checks with an explicit `isInternal` flag on `AddTransactionOptions`, `TransactionBatchRequest`, `TransactionMeta`, and `TransactionBatchMeta`; internal callers must now pass `isInternal: true` ([#8633](https://github.com/MetaMask/core/pull/8633))
+- Bump `@metamask/core-backend` from `^6.2.2` to `^6.3.0` ([#8813](https://github.com/MetaMask/core/pull/8813))
+- Bump `@metamask/gas-fee-controller` from `^26.2.1` to `^26.2.2` ([#8834](https://github.com/MetaMask/core/pull/8834))
+
+### Fixed
+
+- Respect `excludeNativeTokenForFee` when publishing transactions with a selected gas fee token ([#8762](https://github.com/MetaMask/core/pull/8762))
+
 ## [65.4.0]
 
 ### Added
@@ -2431,7 +2455,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@65.4.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@66.0.0...HEAD
+[66.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@65.4.0...@metamask/transaction-controller@66.0.0
 [65.4.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@65.3.0...@metamask/transaction-controller@65.4.0
 [65.3.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@65.2.0...@metamask/transaction-controller@65.3.0
 [65.2.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@65.1.0...@metamask/transaction-controller@65.2.0

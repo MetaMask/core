@@ -6,7 +6,7 @@ import type { Hex } from '@metamask/utils';
 import { TransactionPayController } from '.';
 import { updateFiatPayment } from './actions/update-fiat-payment';
 import { updatePaymentToken } from './actions/update-payment-token';
-import { TransactionPayStrategy } from './constants';
+import { PaymentOverride, TransactionPayStrategy } from './constants';
 import { deriveFiatAssetForFiatPayment } from './strategy/fiat/utils';
 import { getMessengerMock } from './tests/messenger-mock';
 import type {
@@ -204,6 +204,18 @@ describe('TransactionPayController', () => {
         controller.state.transactionData[TRANSACTION_ID_MOCK]
           .isHyperliquidSource,
       ).toBe(true);
+    });
+
+    it('updates paymentOverride in state', () => {
+      const controller = createController();
+
+      controller.setTransactionConfig(TRANSACTION_ID_MOCK, (config) => {
+        config.paymentOverride = PaymentOverride.MoneyAccount;
+      });
+
+      expect(
+        controller.state.transactionData[TRANSACTION_ID_MOCK].paymentOverride,
+      ).toBe(PaymentOverride.MoneyAccount);
     });
 
     it('triggers source amounts and quotes update when only isPostQuote changes', () => {
@@ -454,6 +466,143 @@ describe('TransactionPayController', () => {
         transaction: TRANSACTION_META_MOCK,
       });
       expect(result).toBe(resultMock);
+    });
+  });
+
+  describe('getPaymentOverrideData', () => {
+    it('delegates to the callback', async () => {
+      const resultMock = {
+        calls: [{ to: '0xdef' as const, data: '0xabc' as const }],
+      };
+      const getPaymentOverrideDataMock = jest
+        .fn()
+        .mockResolvedValue(resultMock);
+
+      new TransactionPayController({
+        getDelegationTransaction: jest.fn(),
+        getPaymentOverrideData: getPaymentOverrideDataMock,
+        messenger,
+      });
+
+      const requestMock = {
+        amount: '1.5',
+        transaction: TRANSACTION_META_MOCK,
+        transactionData: { isLoading: false, tokens: [] },
+      };
+
+      const result = await messenger.call(
+        'TransactionPayController:getPaymentOverrideData',
+        requestMock,
+      );
+
+      expect(getPaymentOverrideDataMock).toHaveBeenCalledWith(requestMock);
+      expect(result).toStrictEqual(resultMock);
+    });
+
+    it('returns empty array when no callback is configured', async () => {
+      new TransactionPayController({
+        getDelegationTransaction: jest.fn(),
+        messenger,
+      });
+
+      const result = await messenger.call(
+        'TransactionPayController:getPaymentOverrideData',
+        {
+          amount: '1.5',
+          transaction: TRANSACTION_META_MOCK,
+          transactionData: { isLoading: false, tokens: [] },
+        },
+      );
+
+      expect(result).toStrictEqual({ calls: [] });
+    });
+  });
+
+  describe('polymarket callbacks', () => {
+    const EOA_MOCK = '0x1111111111111111111111111111111111111111' as Hex;
+    const DEPOSIT_WALLET_MOCK =
+      '0x2222222222222222222222222222222222222222' as Hex;
+    const SOURCE_HASH_MOCK: Hex = `0x${'aa'.repeat(32)}`;
+
+    it('delegates polymarketGetDepositWalletAddress to the callback', async () => {
+      const getDepositWalletAddressMock = jest
+        .fn()
+        .mockResolvedValue(DEPOSIT_WALLET_MOCK);
+
+      new TransactionPayController({
+        getDelegationTransaction: jest.fn(),
+        messenger,
+        polymarket: {
+          getDepositWalletAddress: getDepositWalletAddressMock,
+          submitDepositWalletBatch: jest.fn(),
+        },
+      });
+
+      const result = await messenger.call(
+        'TransactionPayController:polymarketGetDepositWalletAddress',
+        { eoa: EOA_MOCK },
+      );
+
+      expect(getDepositWalletAddressMock).toHaveBeenCalledWith({
+        eoa: EOA_MOCK,
+      });
+      expect(result).toBe(DEPOSIT_WALLET_MOCK);
+    });
+
+    it('delegates polymarketSubmitDepositWalletBatch to the callback', async () => {
+      const submitDepositWalletBatchMock = jest
+        .fn()
+        .mockResolvedValue({ sourceHash: SOURCE_HASH_MOCK });
+
+      new TransactionPayController({
+        getDelegationTransaction: jest.fn(),
+        messenger,
+        polymarket: {
+          getDepositWalletAddress: jest.fn(),
+          submitDepositWalletBatch: submitDepositWalletBatchMock,
+        },
+      });
+
+      const params = {
+        eoa: EOA_MOCK,
+        depositWallet: DEPOSIT_WALLET_MOCK,
+        calls: [],
+      };
+      const result = await messenger.call(
+        'TransactionPayController:polymarketSubmitDepositWalletBatch',
+        params,
+      );
+
+      expect(submitDepositWalletBatchMock).toHaveBeenCalledWith(params);
+      expect(result).toStrictEqual({ sourceHash: SOURCE_HASH_MOCK });
+    });
+
+    it('throws if polymarketGetDepositWalletAddress is invoked without callbacks supplied', () => {
+      new TransactionPayController({
+        getDelegationTransaction: jest.fn(),
+        messenger,
+      });
+
+      expect(() =>
+        messenger.call(
+          'TransactionPayController:polymarketGetDepositWalletAddress',
+          { eoa: EOA_MOCK },
+        ),
+      ).toThrow('Polymarket callbacks missing');
+    });
+
+    it('throws if polymarketSubmitDepositWalletBatch is invoked without callbacks supplied', () => {
+      new TransactionPayController({
+        getDelegationTransaction: jest.fn(),
+        messenger,
+      });
+
+      expect(() =>
+        messenger.call(
+          'TransactionPayController:polymarketSubmitDepositWalletBatch',
+          { eoa: EOA_MOCK, depositWallet: DEPOSIT_WALLET_MOCK, calls: [] },
+        ),
+      ).toThrow('Polymarket callbacks missing');
     });
   });
 

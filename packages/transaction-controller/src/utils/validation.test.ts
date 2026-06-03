@@ -1,4 +1,3 @@
-import { ORIGIN_METAMASK } from '@metamask/controller-utils';
 import { rpcErrors } from '@metamask/rpc-errors';
 import type { Hex } from '@metamask/utils';
 
@@ -854,6 +853,25 @@ describe('validation', () => {
         }),
       ).toBeUndefined();
     });
+
+    it('does not throw if isInternal is true regardless of origin', async () => {
+      expect(
+        await validateTransactionOrigin({
+          data: DATA_MOCK,
+          from: FROM_MOCK,
+          internalAccounts: [TO_MOCK],
+          isInternal: true,
+          origin: ORIGIN_MOCK,
+          permittedAddresses: ['0x123'],
+          selectedAddress: '0x123',
+          txParams: {
+            authorizationList: [],
+            to: TO_MOCK,
+            type: TransactionEnvelopeType.setCode,
+          } as TransactionParams,
+        }),
+      ).toBeUndefined();
+    });
   });
 
   describe('validateParamTo', () => {
@@ -904,7 +922,7 @@ describe('validation', () => {
       ).not.toThrow();
     });
 
-    it('does not throw if no origin and any transaction target is internal account with data', () => {
+    it('throws if no origin and any transaction target is internal account with data', () => {
       expect(() =>
         validateBatchRequest({
           ...VALIDATE_BATCH_REQUEST_MOCK,
@@ -914,18 +932,19 @@ describe('validation', () => {
             origin: undefined,
           },
         }),
-      ).not.toThrow();
+      ).toThrow(
+        rpcErrors.invalidParams(
+          'External calls to internal accounts cannot include data',
+        ),
+      );
     });
 
-    it('does not throw if internal origin and any transaction target is internal account with data', () => {
+    it('does not throw if internal and any transaction target is internal account with data', () => {
       expect(() =>
         validateBatchRequest({
           ...VALIDATE_BATCH_REQUEST_MOCK,
           internalAccounts: ['0x123', TO_MOCK],
-          request: {
-            ...VALIDATE_BATCH_REQUEST_MOCK.request,
-            origin: ORIGIN_METAMASK,
-          },
+          isInternal: true,
         }),
       ).not.toThrow();
     });
@@ -939,14 +958,11 @@ describe('validation', () => {
       ).toThrow(rpcErrors.invalidParams('Batch size cannot exceed 1. got: 2'));
     });
 
-    it('does not throw if transaction count is internal and greater than limit', () => {
+    it('does not throw if internal and transaction count is greater than limit', () => {
       expect(() =>
         validateBatchRequest({
           ...VALIDATE_BATCH_REQUEST_MOCK,
-          request: {
-            ...VALIDATE_BATCH_REQUEST_MOCK.request,
-            origin: ORIGIN_METAMASK,
-          },
+          isInternal: true,
           sizeLimit: 1,
         }),
       ).not.toThrow();

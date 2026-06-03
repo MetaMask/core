@@ -1,4 +1,3 @@
-import { Web3Provider } from '@ethersproject/providers';
 import type { RampsOrder } from '@metamask/ramps-controller';
 import type { TransactionMeta } from '@metamask/transaction-controller';
 import { TransactionType } from '@metamask/transaction-controller';
@@ -14,11 +13,6 @@ import {
   getRawSourceAmountFromOrderCryptoAmount,
   resolveSourceAmountRaw,
 } from './utils';
-
-jest.mock('@ethersproject/providers', () => ({
-  ...jest.requireActual('@ethersproject/providers'),
-  Web3Provider: jest.fn(),
-}));
 
 const TX_HASH_MOCK = '0xabc123';
 const WALLET_ADDRESS_MOCK = '0x1111111111111111111111111111111111111111' as Hex;
@@ -210,23 +204,17 @@ describe('Fiat Utils', () => {
       messenger: resolveMessenger,
       findNetworkClientIdByChainIdMock,
       getNetworkClientByIdMock,
+      getNetworkConfigurationByChainIdMock,
       getTokensControllerStateMock,
       getRemoteFeatureFlagControllerStateMock:
         resolveRemoteFeatureFlagControllerStateMock,
     } = getMessengerMock();
 
-    let mockGetTransactionReceipt: jest.Mock;
-    let mockSend: jest.Mock;
-    let mockGetTransaction: jest.Mock;
-
     beforeEach(() => {
       jest.resetAllMocks();
 
-      mockGetTransactionReceipt = jest.fn();
-      mockSend = jest.fn();
-      mockGetTransaction = jest.fn();
-
       findNetworkClientIdByChainIdMock.mockReturnValue(NETWORK_CLIENT_ID_MOCK);
+      getNetworkConfigurationByChainIdMock.mockReturnValue(undefined);
       getNetworkClientByIdMock.mockReturnValue({
         provider: PROVIDER_MOCK,
       } as never);
@@ -255,16 +243,10 @@ describe('Fiat Utils', () => {
         allIgnoredTokens: {},
         allDetectedTokens: {},
       } as never);
-
-      (Web3Provider as unknown as jest.Mock).mockImplementation(() => ({
-        getTransactionReceipt: mockGetTransactionReceipt,
-        send: mockSend,
-        getTransaction: mockGetTransaction,
-      }));
     });
 
     it('returns on-chain ERC-20 amount from receipt logs', async () => {
-      mockGetTransactionReceipt.mockResolvedValue({
+      PROVIDER_MOCK.request.mockResolvedValue({
         logs: [
           {
             address: ERC20_ADDRESS_MOCK,
@@ -297,11 +279,11 @@ describe('Fiat Utils', () => {
       });
 
       expect(result).toBe('1500000');
-      expect(mockGetTransactionReceipt).not.toHaveBeenCalled();
+      expect(PROVIDER_MOCK.request).not.toHaveBeenCalled();
     });
 
     it('falls back to cryptoAmount when receipt is null', async () => {
-      mockGetTransactionReceipt.mockResolvedValue(null);
+      PROVIDER_MOCK.request.mockResolvedValue(null);
 
       const result = await resolveSourceAmountRaw({
         messenger: resolveMessenger,
@@ -314,7 +296,7 @@ describe('Fiat Utils', () => {
     });
 
     it('falls back to cryptoAmount when on-chain read throws', async () => {
-      mockGetTransactionReceipt.mockRejectedValue(new Error('Network error'));
+      PROVIDER_MOCK.request.mockRejectedValue(new Error('Network error'));
 
       const result = await resolveSourceAmountRaw({
         messenger: resolveMessenger,
@@ -327,7 +309,7 @@ describe('Fiat Utils', () => {
     });
 
     it('returns native amount from debug_traceTransaction', async () => {
-      mockSend.mockResolvedValue({
+      PROVIDER_MOCK.request.mockResolvedValue({
         to: WALLET_ADDRESS_MOCK.toLowerCase(),
         value: '0x1bc16d674ec80000',
         calls: [],
@@ -344,11 +326,17 @@ describe('Fiat Utils', () => {
     });
 
     it('falls back to tx.value for native when trace is unsupported', async () => {
-      mockSend.mockRejectedValue(new Error('Method not found'));
-      mockGetTransaction.mockResolvedValue({
-        to: WALLET_ADDRESS_MOCK.toLowerCase(),
-        value: { toString: () => '2000000000000000000' },
-      });
+      PROVIDER_MOCK.request.mockImplementation(
+        ({ method }: { method: string }) => {
+          if (method === 'debug_traceTransaction') {
+            return Promise.reject(new Error('Method not found'));
+          }
+          return Promise.resolve({
+            to: WALLET_ADDRESS_MOCK.toLowerCase(),
+            value: '0x1bc16d674ec80000',
+          });
+        },
+      );
 
       const result = await resolveSourceAmountRaw({
         messenger: resolveMessenger,

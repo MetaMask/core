@@ -46,6 +46,7 @@ import type { PreferencesControllerStateChangeEvent } from '@metamask/preference
 import type {
   SnapControllerGetRunnableSnapsAction,
   SnapControllerHandleRequestAction,
+  SnapControllerSnapInstalledEvent,
 } from '@metamask/snaps-controllers';
 import type {
   TransactionControllerIncomingTransactionsReceivedEvent,
@@ -57,6 +58,7 @@ import type { Hex } from '@metamask/utils';
 import {
   isCaipChainId,
   isStrictHexString,
+  KnownCaipNamespace,
   parseCaipAssetType,
   parseCaipChainId,
 } from '@metamask/utils';
@@ -82,7 +84,10 @@ import type { AccountsControllerAccountBalancesUpdatedEvent } from './data-sourc
 import { SnapDataSource } from './data-sources/SnapDataSource';
 import type { StakedBalanceDataSourceConfig } from './data-sources/StakedBalanceDataSource';
 import { StakedBalanceDataSource } from './data-sources/StakedBalanceDataSource';
-import { TokenDataSource } from './data-sources/TokenDataSource';
+import {
+  CaipAssetNamespace,
+  TokenDataSource,
+} from './data-sources/TokenDataSource';
 import {
   CHAINS_WITH_DEFAULT_TRACKED_ASSETS,
   DEFAULT_TRACKED_ASSETS_BY_CHAIN,
@@ -123,6 +128,7 @@ import type {
   Asset,
 } from './types';
 import {
+  normalizeAmountString,
   normalizeAssetId,
   formatExchangeRatesForBridge,
   formatStateForTransactionPay,
@@ -333,6 +339,7 @@ type AllowedEvents =
   // SnapDataSource
   | AccountsControllerAccountBalancesUpdatedEvent
   | PermissionControllerStateChange
+  | SnapControllerSnapInstalledEvent
   // BackendWebsocketDataSource
   | BackendWebSocketServiceEvents;
 
@@ -560,7 +567,7 @@ export class AssetsController extends BaseController<
   AssetsControllerMessenger
 > {
   /** Whether the controller is enabled */
-  readonly #isEnabled: boolean;
+  readonly #isEnabled: () => boolean;
 
   /** Getter for basic functionality (only balance fetch/subscribe use RPC; token/price API not used). No attribute stored. */
   readonly #isBasicFunctionality: () => boolean;
@@ -780,7 +787,7 @@ export class AssetsController extends BaseController<
       },
     });
 
-    this.#isEnabled = isEnabled();
+    this.#isEnabled = isEnabled;
     this.#isBasicFunctionality = isBasicFunctionality ?? ((): boolean => true);
     this.#defaultUpdateInterval = defaultUpdateInterval;
     this.#trace = trace;
@@ -868,11 +875,6 @@ export class AssetsController extends BaseController<
     this.#rpcFallbackMiddleware = new RpcFallbackMiddleware({
       rpcDataSource: this.#rpcDataSource,
     });
-
-    if (!this.#isEnabled) {
-      log('AssetsController is disabled, skipping initialization');
-      return;
-    }
 
     log('Initializing AssetsController', {
       defaultUpdateInterval: this.#defaultUpdateInterval,
@@ -1184,7 +1186,7 @@ export class AssetsController extends BaseController<
     activeChains: ChainId[],
     previousChains: ChainId[],
   ): void {
-    if (!this.#isEnabled) {
+    if (!this.#isEnabled()) {
       return;
     }
     log('Data source active chains changed', {
@@ -1663,7 +1665,10 @@ export class AssetsController extends BaseController<
         let tokenType: FungibleAssetMetadata['type'] = 'erc20';
         if (this.#isNativeAsset(normalizedAssetId)) {
           tokenType = 'native';
-        } else if (parsed.assetNamespace === 'spl') {
+        } else if (
+          parsed.chain.namespace === KnownCaipNamespace.Solana &&
+          parsed.assetNamespace === CaipAssetNamespace.Token
+        ) {
           tokenType = 'spl';
         }
 
@@ -1680,6 +1685,15 @@ export class AssetsController extends BaseController<
         (state.assetsInfo as Record<string, AssetMetadata>)[normalizedAssetId] =
           assetMetadata;
       }
+
+      // Seed a zero balance so the UI can render the asset immediately,
+      // before the next pipeline fetch returns the real amount.
+      const balances = state.assetsBalance as Record<
+        string,
+        Record<string, AssetBalance>
+      >;
+      balances[accountId] ??= {};
+      balances[accountId][normalizedAssetId] ??= { amount: '0' };
     });
 
     // Fetch data for the newly added custom asset (merge to preserve other chains)
@@ -1688,6 +1702,8 @@ export class AssetsController extends BaseController<
       const chainId = extractChainId(normalizedAssetId);
       await this.getAssets([account], {
         chainIds: [chainId],
+        dataTypes: ['balance', 'metadata', 'price'],
+        assetTypes: ['fungible'],
         forceUpdate: true,
         updateMode: 'merge',
       });
@@ -2195,7 +2211,21 @@ export class AssetsController extends BaseController<
               const previousBalance = previousBalances[
                 assetId as Caip19AssetId
               ] as { amount: string } | undefined;
-              const newAmount = (balance as { amount: string }).amount;
+              // Coerce amounts (e.g. "1e-18" from a data source stringifying
+              // a JS Number) into a plain decimal so downstream BigInt()
+              // consumers don't crash. Decimals are read from the freshest
+              // merged metadata when available; when metadata is not yet
+              // known, the amount is left at its natural precision (only
+              // exponent form is rewritten) so balances arriving before
+              // their metadata aren't lossily truncated.
+              const assetDecimals = (
+                metadata[assetId] as { decimals?: number } | undefined
+              )?.decimals;
+              const newAmount = normalizeAmountString(
+                (balance as { amount: unknown }).amount,
+                assetDecimals,
+              );
+              effective[assetId] = { ...balance, amount: newAmount };
               const oldAmount = previousBalance?.amount;
               const isNewDefaultNativeZero =
                 oldAmount === undefined &&

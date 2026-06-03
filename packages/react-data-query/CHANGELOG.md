@@ -7,9 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.1]
+
 ### Changed
 
-- Bump `@metamask/base-data-service` from `^0.1.0` to `^0.1.2` ([#8317](https://github.com/MetaMask/core/pull/8317), [#8755](https://github.com/MetaMask/core/pull/8755))
+- Bump `@metamask/base-data-service` from `^0.1.0` to `^0.1.3` ([#8317](https://github.com/MetaMask/core/pull/8317), [#8755](https://github.com/MetaMask/core/pull/8755), [#8799](https://github.com/MetaMask/core/pull/8799))
 
 ## [0.2.0]
 
@@ -24,6 +26,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#8039](https://github.com/MetaMask/core/pull/8039), [#8292](https://github.com/MetaMask/core/pull/8292))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/react-data-query@0.2.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/react-data-query@0.2.1...HEAD
+[0.2.1]: https://github.com/MetaMask/core/compare/@metamask/react-data-query@0.2.0...@metamask/react-data-query@0.2.1
 [0.2.0]: https://github.com/MetaMask/core/compare/@metamask/react-data-query@0.1.0...@metamask/react-data-query@0.2.0
 [0.1.0]: https://github.com/MetaMask/core/releases/tag/@metamask/react-data-query@0.1.0

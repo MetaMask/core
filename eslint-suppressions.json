@@ -83,11 +83,6 @@
       "count": 1
     }
   },
-  "packages/account-tree-controller/src/rules/keyring.ts": {
-    "@typescript-eslint/explicit-function-return-type": {
-      "count": 2
-    }
-  },
   "packages/account-tree-controller/src/type-utils.ts": {
     "@typescript-eslint/naming-convention": {
       "count": 1
@@ -641,11 +636,6 @@
       "count": 3
     }
   },
-  "packages/bridge-controller/src/types.ts": {
-    "@typescript-eslint/prefer-enum-initializers": {
-      "count": 3
-    }
-  },
   "packages/bridge-controller/src/utils/assets.ts": {
     "@typescript-eslint/explicit-function-return-type": {
       "count": 2
@@ -727,14 +717,6 @@
       "count": 5
     }
   },
-  "packages/bridge-controller/src/utils/validators.ts": {
-    "@typescript-eslint/explicit-function-return-type": {
-      "count": 1
-    },
-    "id-length": {
-      "count": 4
-    }
-  },
   "packages/bridge-controller/tests/mock-sse.ts": {
     "id-length": {
       "count": 2
@@ -748,11 +730,6 @@
   "packages/bridge-status-controller/src/utils/swap-received-amount.ts": {
     "@typescript-eslint/explicit-function-return-type": {
       "count": 3
-    }
-  },
-  "packages/bridge-status-controller/src/utils/transaction.ts": {
-    "no-restricted-syntax": {
-      "count": 4
     }
   },
   "packages/chain-agnostic-permission/src/caip25Permission.ts": {
@@ -1578,9 +1555,6 @@
     }
   },
   "packages/perps-controller/src/PerpsController.ts": {
-    "@typescript-eslint/no-unused-vars": {
-      "count": 1
-    },
     "no-restricted-syntax": {
       "count": 3
     }
@@ -1631,26 +1605,15 @@
       "count": 2
     }
   },
-  "packages/phishing-controller/src/PhishingController.test.ts": {
-    "jest/unbound-method": {
-      "count": 7
-    },
-    "no-restricted-syntax": {
-      "count": 1
-    }
-  },
   "packages/phishing-controller/src/PhishingController.ts": {
     "@typescript-eslint/explicit-function-return-type": {
-      "count": 19
+      "count": 14
     },
     "@typescript-eslint/naming-convention": {
       "count": 1
     },
     "@typescript-eslint/prefer-nullish-coalescing": {
       "count": 6
-    },
-    "no-restricted-syntax": {
-      "count": 10
     }
   },
   "packages/phishing-controller/src/PhishingDetector.test.ts": {

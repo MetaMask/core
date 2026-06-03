@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [6.3.1]
+
+### Changed
+
+- Bump `@metamask/keyring-controller` from `^25.5.0` to `^26.0.0` ([#8912](https://github.com/MetaMask/core/pull/8912))
+- Bump `@metamask/accounts-controller` from `^38.1.1` to `^38.1.2` ([#8912](https://github.com/MetaMask/core/pull/8912))
+- Bump `@metamask/profile-sync-controller` from `^28.1.0` to `^28.1.1` ([#8912](https://github.com/MetaMask/core/pull/8912))
+
+## [6.3.0]
+
 ### Added
 
 - Add `OHLCVService` for real-time OHLCV (candlestick) data streaming via WebSocket ([#8695](https://github.com/MetaMask/core/pull/8695))
@@ -20,6 +30,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/accounts-controller` from `^38.1.0` to `^38.1.1` ([#8774](https://github.com/MetaMask/core/pull/8774))
 - Bump `@metamask/controller-utils` from `^12.0.0` to `^12.1.0` ([#8774](https://github.com/MetaMask/core/pull/8774))
 - Bump `@metamask/profile-sync-controller` from `^28.0.2` to `^28.1.0` ([#8783](https://github.com/MetaMask/core/pull/8783))
+
+### Fixed
+
+- Update HTTP headers from `X-Client-Product`/`X-Client-Version` to `x-metamask-clientproduct`/`x-metamask-clientversion` ([#8798](https://github.com/MetaMask/core/pull/8798))
+- Remove default `clientVersion` value of `1.0.0`; the `x-metamask-clientversion` header is now only sent when `clientVersion` is explicitly provided ([#8798](https://github.com/MetaMask/core/pull/8798))
 
 ## [6.2.2]
 
@@ -63,7 +78,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Bump `@metamask/accounts-controller` from `^36.0.0` to `^37.0.0` ([#7996](https://github.com/MetaMask/core/pull/7996)), ([#8140](https://github.com/MetaMask/core/pull/8140))
+- Bump `@metamask/accounts-controller` from `^36.0.0` to `^37.0.0` ([#7996](https://github.com/MetaMask/core/pull/7996), [#8140](https://github.com/MetaMask/core/pull/8140))
 - Bump `@metamask/controller-utils` from `^11.18.0` to `^11.19.0` ([#7995](https://github.com/MetaMask/core/pull/7995))
 
 ## [6.0.0]
@@ -277,7 +292,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Type definitions** - Comprehensive TypeScript types for transactions, balances, WebSocket messages, and service configurations
 - **Logging infrastructure** - Structured logging with module-specific loggers for debugging and monitoring
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/core-backend@6.2.2...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/core-backend@6.3.1...HEAD
+[6.3.1]: https://github.com/MetaMask/core/compare/@metamask/core-backend@6.3.0...@metamask/core-backend@6.3.1
+[6.3.0]: https://github.com/MetaMask/core/compare/@metamask/core-backend@6.2.2...@metamask/core-backend@6.3.0
 [6.2.2]: https://github.com/MetaMask/core/compare/@metamask/core-backend@6.2.1...@metamask/core-backend@6.2.2
 [6.2.1]: https://github.com/MetaMask/core/compare/@metamask/core-backend@6.2.0...@metamask/core-backend@6.2.1
 [6.2.0]: https://github.com/MetaMask/core/compare/@metamask/core-backend@6.1.1...@metamask/core-backend@6.2.0

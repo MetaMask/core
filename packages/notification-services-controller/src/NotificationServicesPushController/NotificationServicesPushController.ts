@@ -11,6 +11,7 @@ import log from 'loglevel';
 import type { Types } from '../NotificationServicesController';
 import type { NotificationServicesPushControllerMethodActions } from './NotificationServicesPushController-method-action-types';
 import type { ENV } from './services/endpoints';
+import type { RegToken } from './services/services';
 import {
   activatePushNotifications,
   deleteLinksAPI,
@@ -121,6 +122,11 @@ export type ControllerConfig = {
   getLocale?: () => string;
 
   /**
+   * App or extension version to include when registering push tokens.
+   */
+  appVersion?: string;
+
+  /**
    * Global switch to determine to use push notifications
    * Allows us to control Builds on extension (MV2 vs MV3)
    */
@@ -130,6 +136,11 @@ export type ControllerConfig = {
    * determine the config used for push notification services
    */
   platform: 'extension' | 'mobile';
+
+  /**
+   * Mobile operating system to include when registering push tokens.
+   */
+  os?: 'android' | 'ios';
 
   /**
    * Push Service Interface
@@ -146,6 +157,11 @@ type StateCommand =
   | { type: 'enable'; fcmToken: string }
   | { type: 'disable' }
   | { type: 'update'; fcmToken: string };
+
+type RegistrationTokenMetadata = Pick<
+  RegToken,
+  'appVersion' | 'locale' | 'os' | 'platform'
+>;
 
 /**
  * Manages push notifications for the application, including enabling, disabling, and updating triggers for push notifications.
@@ -239,6 +255,23 @@ export class NotificationServicesPushController extends BaseController<
     }
   }
 
+  #getRegistrationTokenMetadata(): RegistrationTokenMetadata {
+    const tokenMetadata: RegistrationTokenMetadata = {
+      platform: this.#config.platform,
+      locale: this.#config.getLocale?.() ?? 'en',
+    };
+
+    if (this.#config.os) {
+      tokenMetadata.os = this.#config.os;
+    }
+
+    if (this.#config.appVersion) {
+      tokenMetadata.appVersion = this.#config.appVersion;
+    }
+
+    return tokenMetadata;
+  }
+
   public async subscribeToPushNotifications(): Promise<void> {
     if (!this.#config.isPushFeatureEnabled) {
       return;
@@ -293,8 +326,7 @@ export class NotificationServicesPushController extends BaseController<
           env: this.#env,
           createRegToken: this.#config.pushService.createRegToken,
           regToken: {
-            platform: this.#config.platform,
-            locale: this.#config.getLocale?.() ?? 'en',
+            ...this.#getRegistrationTokenMetadata(),
             oldToken: this.state.fcmToken,
           },
           controllerEnv: this.#config.env ?? 'prd',
@@ -383,8 +415,7 @@ export class NotificationServicesPushController extends BaseController<
         addresses,
         regToken: {
           token: this.state.fcmToken,
-          platform: this.#config.platform,
-          locale: this.#config.getLocale?.() ?? 'en',
+          ...this.#getRegistrationTokenMetadata(),
         },
         env: this.#config.env ?? 'prd',
       });
@@ -453,8 +484,7 @@ export class NotificationServicesPushController extends BaseController<
         env: this.#env,
         createRegToken: this.#config.pushService.createRegToken,
         regToken: {
-          platform: this.#config.platform,
-          locale: this.#config.getLocale?.() ?? 'en',
+          ...this.#getRegistrationTokenMetadata(),
           oldToken: this.state.fcmToken,
         },
         controllerEnv: this.#config.env ?? 'prd',

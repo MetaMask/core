@@ -290,6 +290,41 @@ describe('Quote Metadata Utils', () => {
       expect(result.valueInCurrency).toBe('2.2');
       expect(result.usd).toBe('1.65');
     });
+
+    it('should not add feeData fees for intent-based quotes', () => {
+      // For intent-based swaps (e.g. CoW Protocol), srcTokenAmount is already
+      // the total fixed commitment including protocol fees. Adding feeData fees
+      // on top would double-count them.
+      const intentQuote = {
+        srcTokenAmount: '10000000', // 10 USDT (6 decimals), fee already included
+        srcAsset: {
+          decimals: 6,
+          assetId: 'eip155:1/erc20:0xdAC17F958D2ee523a2206206994597C13D831ec7',
+        },
+        feeData: {
+          metabridge: {
+            amount: '500000', // 0.5 USDT protocol fee — already inside srcTokenAmount
+            asset: {
+              assetId:
+                'eip155:1/erc20:0xdAC17F958D2ee523a2206206994597C13D831ec7',
+              address: '0xdAC17F958D2ee523a2206206994597C13D831ec7',
+              decimals: 6,
+            },
+          },
+        },
+        intent: { protocol: 'cow', order: {} },
+      } as unknown as Quote;
+
+      const result = calcSentAmount(intentQuote, {
+        exchangeRate: '1',
+        usdExchangeRate: '1',
+      });
+
+      // Should be exactly 10 USDT — not 10.5 (which would double-count the fee)
+      expect(result.amount).toBe('10');
+      expect(result.valueInCurrency).toBe('10');
+      expect(result.usd).toBe('10');
+    });
   });
 
   describe('calcNonEvmTotalNetworkFee', () => {

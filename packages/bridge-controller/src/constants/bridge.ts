@@ -97,6 +97,8 @@ export const DEFAULT_BRIDGE_CONTROLLER_STATE: BridgeControllerState = {
   tokenWarnings: [],
   tokenSecurityTypeDestination: null,
   quoteStreamComplete: null,
+  batchSellTrades: null,
+  batchSellTradesLoadingStatus: null,
 };
 
 export const METABRIDGE_CHAIN_TO_ADDRESS_MAP: Record<Hex, string> = {

@@ -86,10 +86,10 @@ const MarketInsightsDigestEnvelopeStruct = structType({
 // Market Overview structs
 
 const RelatedAssetStruct = structType({
-  name: string(),
+  name: optional(string()),
   symbol: string(),
   caip19: optional(array(string())),
-  sourceAssetId: string(),
+  sourceAssetId: optional(string()),
   hlPerpsMarket: optional(array(string())),
 });
 
