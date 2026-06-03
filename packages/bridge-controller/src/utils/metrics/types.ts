@@ -172,7 +172,7 @@ type RequiredEventContextFromClientBase = {
       | 'token_security_type_destination'
     > & {
       action_type: MetricsActionType;
-      batch_id?: string;
+      batch_id: string;
     };
   [UnifiedSwapBridgeEventName.Completed]: TradeData &
     Pick<QuoteFetchData, 'price_impact'> &
@@ -185,11 +185,11 @@ type RequiredEventContextFromClientBase = {
       quote_vs_execution_ratio: number;
       quoted_vs_used_gas_ratio: number;
       action_type: MetricsActionType;
-      batch_id?: string;
+      batch_id: string;
     };
   [UnifiedSwapBridgeEventName.Failed]: (
     | // Tx failed before confirmation
-      (Pick<
+    (Pick<
         RequestMetadata,
         | 'stx_enabled'
         | 'usd_amount_source'
@@ -214,12 +214,12 @@ type RequiredEventContextFromClientBase = {
     TradeData &
     Pick<QuoteFetchData, 'price_impact'> & {
       error_message: string;
-      batch_id?: string;
+      batch_id: string;
     };
   [UnifiedSwapBridgeEventName.PollingStatusUpdated]: {
     polling_status: PollingStatus;
     retry_attempts: number;
-    batch_id?: string;
+    batch_id: string;
   };
   [UnifiedSwapBridgeEventName.StatusValidationFailed]: {
     failures: string[];
@@ -352,7 +352,7 @@ export type EventPropertiesFromControllerState = {
       | 'chain_id_source'
       | 'chain_id_destination'
     > & {
-      batch_id?: string;
+      batch_id: string;
     };
 };
 

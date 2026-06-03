@@ -681,8 +681,8 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
   };
 
   stopPollingForQuotes = (
-    context?: RequiredEventContextFromClient[UnifiedSwapBridgeEventName.QuotesReceived],
     reason?: AbortReason,
+    context?: RequiredEventContextFromClient[UnifiedSwapBridgeEventName.QuotesReceived],
   ) => {
     this.stopAllPolling();
     // If polling is stopped before quotes finish loading, track QuotesReceived
@@ -713,7 +713,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
     quoteRequestIndex: number | null = null,
     context?: RequiredEventContextFromClient[UnifiedSwapBridgeEventName.QuotesReceived],
   ) => {
-    this.stopPollingForQuotes(context, reason);
+    this.stopPollingForQuotes(reason, context);
     this.update((state) => {
       // Cannot do direct assignment to state, i.e. state = {... }, need to manually assign each field
       if (quoteRequestIndex === null) {

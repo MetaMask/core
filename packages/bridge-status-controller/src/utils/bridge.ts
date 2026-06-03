@@ -13,8 +13,8 @@ export const stopPollingForQuotes = (
 ): void => {
   messenger.call(
     'BridgeController:stopPollingForQuotes',
-    metricsContext,
     AbortReason.TransactionSubmitted,
+    metricsContext,
   );
 };
 

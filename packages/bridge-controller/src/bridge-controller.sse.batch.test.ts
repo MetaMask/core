@@ -753,10 +753,7 @@ describe('BridgeController BatchSell (multiple quote requests) SSE', function ()
             'BridgeController:updateBatchSellTrades',
             [],
           );
-          rootMessenger.call(
-            'BridgeController:resetState',
-            FeatureId.BATCH_SELL,
-          );
+          rootMessenger.call('BridgeController:resetState');
 
           await jest.advanceTimersByTimeAsync(1000);
           await flushPromises();

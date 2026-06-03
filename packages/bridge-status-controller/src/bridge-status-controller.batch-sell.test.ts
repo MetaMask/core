@@ -301,8 +301,8 @@ describe('BridgeStatusController', () => {
                       ['BridgeController:getState'],
                       [
                         'BridgeController:stopPollingForQuotes',
-                        undefined,
                         'Transaction submitted',
+                        undefined,
                       ],
                       [
                         'AccountsController:getAccountByAddress',
@@ -733,10 +733,7 @@ describe('BridgeStatusController', () => {
           const result = await expect(
             rootMessenger.call('BridgeStatusController:submitBatchSell', {
               accountAddress: (mockQuotes[0].trade as TxData).from,
-              quoteResponses: mockQuotes.map((quote) => ({
-                ...quote,
-                featureId: FeatureId.BATCH_SELL,
-              })),
+              quoteResponses: mockQuotes,
               isStxEnabled: stxEnabled,
             }),
           ).rejects.toThrow(
@@ -752,8 +749,8 @@ describe('BridgeStatusController', () => {
             ['BridgeController:getState'],
             [
               'BridgeController:stopPollingForQuotes',
-              undefined,
               'Transaction submitted',
+              undefined,
             ],
             [
               'AccountsController:getAccountByAddress',

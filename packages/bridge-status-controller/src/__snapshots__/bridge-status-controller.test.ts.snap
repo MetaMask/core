@@ -602,8 +602,8 @@ exports[`BridgeStatusController submitTx: EVM bridge should delay after submitti
 [
   [
     "BridgeController:stopPollingForQuotes",
-    undefined,
     "Transaction submitted",
+    undefined,
   ],
   [
     "AccountsController:getAccountByAddress",
@@ -917,8 +917,8 @@ exports[`BridgeStatusController submitTx: EVM bridge should delay after submitti
 [
   [
     "BridgeController:stopPollingForQuotes",
-    undefined,
     "Transaction submitted",
+    undefined,
   ],
   [
     "AccountsController:getAccountByAddress",
@@ -1272,6 +1272,7 @@ exports[`BridgeStatusController submitTx: EVM bridge should handle smart transac
 [
   [
     "BridgeController:stopPollingForQuotes",
+    "Transaction submitted",
     {
       "best_quote_provider": "lifi_across",
       "can_submit": true,
@@ -1288,7 +1289,6 @@ exports[`BridgeStatusController submitTx: EVM bridge should handle smart transac
         "low_return",
       ],
     },
-    "Transaction submitted",
   ],
   [
     "AccountsController:getAccountByAddress",
@@ -1537,8 +1537,8 @@ exports[`BridgeStatusController submitTx: EVM bridge should not call handleMobil
 [
   [
     "BridgeController:stopPollingForQuotes",
-    undefined,
     "Transaction submitted",
+    undefined,
   ],
   [
     "AccountsController:getAccountByAddress",
@@ -1852,8 +1852,8 @@ exports[`BridgeStatusController submitTx: EVM bridge should not call handleMobil
 [
   [
     "BridgeController:stopPollingForQuotes",
-    undefined,
     "Transaction submitted",
+    undefined,
   ],
   [
     "AccountsController:getAccountByAddress",
@@ -2167,8 +2167,8 @@ exports[`BridgeStatusController submitTx: EVM bridge should reset USDT allowance
 [
   [
     "BridgeController:stopPollingForQuotes",
-    undefined,
     "Transaction submitted",
+    undefined,
   ],
   [
     "AccountsController:getAccountByAddress",
@@ -2502,8 +2502,8 @@ exports[`BridgeStatusController submitTx: EVM bridge should successfully submit 
 [
   [
     "BridgeController:stopPollingForQuotes",
-    undefined,
     "Transaction submitted",
+    undefined,
   ],
   [
     "AccountsController:getAccountByAddress",
@@ -2792,8 +2792,8 @@ exports[`BridgeStatusController submitTx: EVM bridge should successfully submit 
 [
   [
     "BridgeController:stopPollingForQuotes",
-    undefined,
     "Transaction submitted",
+    undefined,
   ],
   [
     "AccountsController:getAccountByAddress",
@@ -2889,8 +2889,8 @@ exports[`BridgeStatusController submitTx: EVM bridge should throw an error if ap
 [
   [
     "BridgeController:stopPollingForQuotes",
-    undefined,
     "Transaction submitted",
+    undefined,
   ],
   [
     "AccountsController:getAccountByAddress",
@@ -3013,8 +3013,8 @@ exports[`BridgeStatusController submitTx: EVM bridge should throw an error if ap
 [
   [
     "BridgeController:stopPollingForQuotes",
-    undefined,
     "Transaction submitted",
+    undefined,
   ],
   [
     "AccountsController:getAccountByAddress",
@@ -3288,8 +3288,8 @@ exports[`BridgeStatusController submitTx: EVM bridge waits for approval tx confi
 [
   [
     "BridgeController:stopPollingForQuotes",
-    undefined,
     "Transaction submitted",
+    undefined,
   ],
   [
     "AccountsController:getAccountByAddress",
@@ -3474,8 +3474,8 @@ exports[`BridgeStatusController submitTx: EVM swap should gracefully handle isAt
 [
   [
     "BridgeController:stopPollingForQuotes",
-    undefined,
     "Transaction submitted",
+    undefined,
   ],
   [
     "AccountsController:getAccountByAddress",
@@ -3971,8 +3971,8 @@ exports[`BridgeStatusController submitTx: EVM swap should handle smart transacti
 [
   [
     "BridgeController:stopPollingForQuotes",
-    undefined,
     "Transaction submitted",
+    undefined,
   ],
   [
     "AccountsController:getAccountByAddress",
@@ -4121,8 +4121,8 @@ exports[`BridgeStatusController submitTx: EVM swap should successfully submit an
 [
   [
     "BridgeController:stopPollingForQuotes",
-    undefined,
     "Transaction submitted",
+    undefined,
   ],
   [
     "AccountsController:getAccountByAddress",
@@ -4378,8 +4378,8 @@ exports[`BridgeStatusController submitTx: EVM swap should successfully submit an
 [
   [
     "BridgeController:stopPollingForQuotes",
-    undefined,
     "Transaction submitted",
+    undefined,
   ],
   [
     "AccountsController:getAccountByAddress",
@@ -4835,8 +4835,8 @@ exports[`BridgeStatusController submitTx: Solana bridge should handle snap contr
 [
   [
     "BridgeController:stopPollingForQuotes",
-    undefined,
     "Transaction submitted",
+    undefined,
   ],
   [
     "AccountsController:getAccountByAddress",
@@ -4926,8 +4926,8 @@ exports[`BridgeStatusController submitTx: Solana bridge should successfully subm
 [
   [
     "BridgeController:stopPollingForQuotes",
-    undefined,
     "Transaction submitted",
+    undefined,
   ],
   [
     "AccountsController:getAccountByAddress",
@@ -5128,8 +5128,8 @@ exports[`BridgeStatusController submitTx: Solana bridge should throw error when 
 [
   [
     "BridgeController:stopPollingForQuotes",
-    undefined,
     "Transaction submitted",
+    undefined,
   ],
   [
     "AccountsController:getAccountByAddress",
@@ -5201,8 +5201,8 @@ exports[`BridgeStatusController submitTx: Solana swap should handle snap control
 [
   [
     "BridgeController:stopPollingForQuotes",
-    undefined,
     "Transaction submitted",
+    undefined,
   ],
   [
     "AccountsController:getAccountByAddress",
@@ -5292,8 +5292,8 @@ exports[`BridgeStatusController submitTx: Solana swap should successfully submit
 [
   [
     "BridgeController:stopPollingForQuotes",
-    undefined,
     "Transaction submitted",
+    undefined,
   ],
   [
     "AccountsController:getAccountByAddress",
@@ -5533,8 +5533,8 @@ exports[`BridgeStatusController submitTx: Solana swap should throw error when ac
 [
   [
     "BridgeController:stopPollingForQuotes",
-    undefined,
     "Transaction submitted",
+    undefined,
   ],
   [
     "AccountsController:getAccountByAddress",
@@ -5547,8 +5547,8 @@ exports[`BridgeStatusController submitTx: Solana swap should throw error when sn
 [
   [
     "BridgeController:stopPollingForQuotes",
-    undefined,
     "Transaction submitted",
+    undefined,
   ],
   [
     "AccountsController:getAccountByAddress",
@@ -5620,8 +5620,8 @@ exports[`BridgeStatusController submitTx: Tron swap with approval should handle 
 [
   [
     "BridgeController:stopPollingForQuotes",
-    undefined,
     "Transaction submitted",
+    undefined,
   ],
   [
     "AccountsController:getAccountByAddress",
@@ -5715,8 +5715,8 @@ exports[`BridgeStatusController submitTx: Tron swap with approval should success
 [
   [
     "BridgeController:stopPollingForQuotes",
-    undefined,
     "Transaction submitted",
+    undefined,
   ],
   [
     "AccountsController:getAccountByAddress",
@@ -5941,8 +5941,8 @@ exports[`BridgeStatusController submitTx: Tron swap with approval should success
 [
   [
     "BridgeController:stopPollingForQuotes",
-    undefined,
     "Transaction submitted",
+    undefined,
   ],
   [
     "AccountsController:getAccountByAddress",
