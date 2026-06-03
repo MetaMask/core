@@ -40,11 +40,16 @@ runs:
       run: |
         set -euo pipefail
 
-        mapfile -t PACKAGES < <(yarn workspaces list --json --no-private | jq --raw-output '.location' | xargs -I{} cat '{}/package.json')
+        mapfile -t PACKAGES < <(yarn workspaces list --json --no-private | jq --raw-output '.location + "/package.json"')
         ANY_PACKAGE_BUMPED=false
 
         for package in "${PACKAGES[@]}"; do
-          CURRENT_VERSION=$(git show "$MERGE_BASE:$package" 2>/dev/null | jq -r .version || echo "")
+          if ! PACKAGE_JSON_AT_BASE=$(git show "$MERGE_BASE:$package" 2>/dev/null); then
+            # Package didn't exist at the merge base; it's newly added, not a
+            # version bump.
+            continue
+          fi
+          CURRENT_VERSION=$(echo "$PACKAGE_JSON_AT_BASE" | jq -r .version)
           NEW_VERSION=$(jq -r .version "$package")
 
           if [ "$NEW_VERSION" != "$CURRENT_VERSION" ]; then
