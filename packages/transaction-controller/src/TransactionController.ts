@@ -904,10 +904,7 @@ export class TransactionController extends BaseController<
       layer1GasFeeFlows: this.#layer1GasFeeFlows,
       messenger: this.messenger,
       onStateChange: (listener): void => {
-        this.messenger.subscribe(
-          'TransactionController:stateChanged',
-          listener,
-        );
+        this.messenger.subscribe('TransactionController:stateChange', listener);
       },
     });
 
@@ -957,7 +954,7 @@ export class TransactionController extends BaseController<
     // when transactionsController state changes
     // check for pending transactions and start polling if there are any
     this.messenger.subscribe(
-      'TransactionController:stateChanged',
+      'TransactionController:stateChange',
       this.#checkForPendingTransactionAndStartPolling,
     );
 
@@ -966,7 +963,7 @@ export class TransactionController extends BaseController<
       simulateTransaction: this.#updateSimulationData.bind(this),
       onTransactionsUpdate: (listener): void => {
         this.messenger.subscribe(
-          'TransactionController:stateChanged',
+          'TransactionController:stateChange',
           listener,
           (controllerState) => controllerState.transactions,
         );
@@ -3921,10 +3918,6 @@ export class TransactionController extends BaseController<
       isTimeoutEnabled: this.#isTimeoutEnabled,
       messenger: this.messenger,
       networkClientId,
-      publishTransaction: (transactionMeta): Promise<string> =>
-        this.#publishTransaction(transactionMeta, {
-          skipSubmitHistory: true,
-        }),
     });
 
     this.#addPendingTransactionTrackerListeners(pendingTransactionTracker);
