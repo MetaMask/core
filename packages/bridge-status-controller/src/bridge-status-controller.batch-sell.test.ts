@@ -358,7 +358,9 @@ describe('BridgeStatusController', () => {
                       networkClientId: 'networkClientId',
                       origin: 'metamask',
                       requireApproval: false,
-                      skipInitialGasEstimate: Boolean(transferTx),
+                      skipInitialGasEstimate: gasIncluded7702
+                        ? isDelegatedAccount
+                        : Boolean(transferTx),
                     });
 
                     expect(transactions).toStrictEqual(

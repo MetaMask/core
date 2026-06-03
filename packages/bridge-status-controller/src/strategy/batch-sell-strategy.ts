@@ -64,7 +64,9 @@ export async function* submitBatchSellHandler(
     ),
     isGasFeeSponsored: gasSponsored,
     isGasFeeIncluded: Boolean(gasIncluded7702),
-    skipInitialGasEstimate: Boolean(gasFeeToken),
+    skipInitialGasEstimate: gasIncluded7702
+      ? isDelegatedAccount
+      : Boolean(gasFeeToken),
     excludeNativeTokenForFee: !gasFeeToken,
   });
 
