@@ -13,7 +13,10 @@ import {
   STABLECOINS,
 } from '../constants';
 import type { FiatRates, TransactionPayControllerMessenger } from '../types';
-import { getAssetsUnifyStateFeature, isChainExcludedFromInfura } from './feature-flags';
+import {
+  getAssetsUnifyStateFeature,
+  isChainExcludedFromInfura,
+} from './feature-flags';
 import { getNetworkClientId, rpcRequest } from './provider';
 
 /**
@@ -322,7 +325,9 @@ export async function getLiveTokenBalance(
   chainId: Hex,
   tokenAddress: Hex,
 ): Promise<string> {
-  const options = { preferInfura: !isChainExcludedFromInfura(messenger, chainId) };
+  const options = {
+    preferInfura: !isChainExcludedFromInfura(messenger, chainId),
+  };
   const isNative =
     tokenAddress.toLowerCase() === getNativeToken(chainId).toLowerCase();
 
