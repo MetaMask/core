@@ -19,6 +19,7 @@ import type {
   QuoteAndTxMetadata,
   StartPollingForBridgeTxStatusArgs,
 } from '../types';
+import type { Hex } from '@metamask/utils';
 
 export enum SubmitStep {
   AddHistoryItem = 'addHistoryItem',
@@ -108,4 +109,9 @@ export type SubmitStrategyParams<
   fetchFn: FetchFunction;
   clientId: BridgeClientId;
   bridgeApiBaseUrl: string;
+  /**
+   * The batch ID of the transaction batch.
+   * This is only used for batched transactions.
+   */
+  batchId?: Hex;
 };

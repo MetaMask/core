@@ -24,6 +24,7 @@ import {
   TransactionStatus,
   TransactionType,
   TransactionController,
+  generateBatchId,
 } from '@metamask/transaction-controller';
 import type { TransactionMeta } from '@metamask/transaction-controller';
 import { numberToHex } from '@metamask/utils';
@@ -459,6 +460,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
               action_type: MetricsActionType.SWAPBRIDGE_V1,
               polling_status: PollingStatus.ManuallyRestarted,
               retry_attempts: previousAttempts,
+              batch_id: historyItem.batchId,
             },
           );
         }
@@ -1101,6 +1103,13 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       this.#clientId === BridgeClientId.MOBILE && accountHardwareType !== null;
     const isBridgeTx = isCrossChain(quote.srcChainId, quote.destChainId);
 
+    const batchId = quoteResponses.some(
+      ({ featureId: quoteFeatureId }) =>
+        quoteFeatureId === FeatureId.BATCH_SELL,
+    )
+      ? generateBatchId()
+      : undefined;
+
     const preConfirmationProperties = getPreConfirmationPropertiesFromQuote(
       quoteResponse,
       isStxEnabled,
@@ -1110,6 +1119,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       activeAbTests,
       tokenSecurityTypeDestination,
       batchSellTrades,
+      batchId,
     );
 
     try {
@@ -1148,6 +1158,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
         addTransactionBatchFn: this.#addTransactionBatchFn,
         fetchFn: this.#fetchFn,
         traceFn: this.#trace,
+        batchId,
       };
 
       return await this.#trace(

@@ -33,7 +33,7 @@ import {
   TransactionType,
 } from '@metamask/transaction-controller';
 import type { TransactionMeta } from '@metamask/transaction-controller';
-import type { CaipAssetType } from '@metamask/utils';
+import type { CaipAssetType, Hex } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
 
 import type {
@@ -195,6 +195,7 @@ export const getPriceImpactFromQuote = (
  * @param activeAbTests - New A/B test context for `active_ab_tests` (migration target)
  * @param tokenSecurityTypeDestination - The security classification of the destination token, supplied by the client (e.g. from token security/scanning data). Pass `null` when no security data is available.
  * @param batchSellTrades - The batch sell trades response
+ * @param batchId - The batch ID of the transaction batch.
  * @returns The properties for the pre-confirmation event
  */
 export const getPreConfirmationPropertiesFromQuote = (
@@ -206,6 +207,7 @@ export const getPreConfirmationPropertiesFromQuote = (
   activeAbTests?: { key: string; value: string }[],
   tokenSecurityTypeDestination?: string | null,
   batchSellTrades?: BatchSellTradesResponse | null,
+  batchId?: Hex,
 ) => {
   const { quote } = quoteResponse;
   return {
@@ -237,6 +239,7 @@ export const getPreConfirmationPropertiesFromQuote = (
       activeAbTests.length > 0 && {
         active_ab_tests: activeAbTests,
       }),
+    ...(batchId && { batch_id: batchId }),
   };
 };
 
@@ -369,5 +372,6 @@ export const getPollingStatusUpdatedProperties = (
     action_type: MetricsActionType.SWAPBRIDGE_V1,
     polling_status: pollingStatus,
     retry_attempts: historyItem.attempts?.counter ?? 0,
+    ...(historyItem.batchId ? { batch_id: historyItem.batchId } : {}),
   };
 };

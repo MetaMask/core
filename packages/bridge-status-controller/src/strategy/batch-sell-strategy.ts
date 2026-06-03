@@ -37,6 +37,7 @@ export async function* submitBatchSellHandler(
     addTransactionBatchFn,
     isDelegatedAccount,
     batchSellTrades,
+    batchId: batchIdParam,
   } = args;
 
   const tradeData = toQuoteAndTxMetadataBatch({
@@ -66,6 +67,7 @@ export async function* submitBatchSellHandler(
     isGasFeeIncluded: Boolean(gasIncluded7702),
     skipInitialGasEstimate: false,
     excludeNativeTokenForFee: Boolean(gasFeeToken),
+    batchId: batchIdParam,
   });
 
   // Submit the batch to the TransactionController

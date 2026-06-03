@@ -33,6 +33,12 @@ import type {
 import { getBatchSellHistoryItemsForTxHash } from './utils/history';
 import { shouldDisable7702 } from './utils/transaction';
 
+const mockGenerateBatchId = jest.fn().mockReturnValue('0xBatchId1');
+jest.mock('@metamask/transaction-controller', () => ({
+  ...jest.requireActual('@metamask/transaction-controller'),
+  generateBatchId: (): string => mockGenerateBatchId(),
+}));
+
 type AllBridgeStatusControllerActions =
   MessengerActions<BridgeStatusControllerMessenger>;
 
@@ -197,6 +203,7 @@ describe('BridgeStatusController', () => {
               dateNowSpy.mockReturnValueOnce(1779922719705);
               dateNowSpy.mockReturnValueOnce(1779988819705);
               dateNowSpy.mockReturnValueOnce(1779988919705);
+              mockGenerateBatchId.mockReturnValueOnce('0xBatchId1');
             });
 
             it.each([true, false])(
@@ -326,6 +333,7 @@ describe('BridgeStatusController', () => {
                           usd_amount_source: 100,
                           usd_quoted_gas: 0,
                           usd_quoted_return: 0,
+                          batch_id: '0xBatchId1',
                         },
                       ],
                       [
@@ -359,6 +367,7 @@ describe('BridgeStatusController', () => {
                       origin: 'metamask',
                       requireApproval: false,
                       skipInitialGasEstimate: false,
+                      batchId: '0xBatchId1',
                     });
 
                     expect(transactions).toStrictEqual(
