@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `isDeprecated` option to `TokenListController` constructor, a function that returns whether the controller should be disabled ([#8945](https://github.com/MetaMask/core/pull/8945))
+  - When `isDeprecated()` returns `true`, every fetching entry point (`initialize()`, `start()`, `restart()`, `_executePoll()`, and `fetchTokenList()`) resets `tokensChainsCache` to `{}`, cancels any pending debounced persist (so a stale entry can't write old data after the in-memory reset), and overwrites every persisted `tokensChainsCache:*` entry in `StorageService` with `{ data: {}, timestamp: 0 }`. No HTTP calls are issued to the token API.
+  - The function is re-evaluated on each entry point so it can be toggled at runtime without reconstructing the controller — including from inside any deprecated `setInterval` already running from a prior `start()`.
+
 ## [108.4.0]
 
 ### Added
