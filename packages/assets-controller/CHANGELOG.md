@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add ARC mainnet (`5042`/`0x13b2`) in `MulticallClient` ([#8973](https://github.com/MetaMask/core/pull/8973))
+
 ## [8.2.0]
 
 ### Changed

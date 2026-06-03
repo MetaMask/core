@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add ARC mainnet (`5042`/`0x13b2`) entries in `multicall.ts` and `codefi-v2.ts` ([#8973](https://github.com/MetaMask/core/pull/8973))
+
 ## [108.3.0]
 
 ### Added
