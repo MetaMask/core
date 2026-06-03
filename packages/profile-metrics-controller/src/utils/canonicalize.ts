@@ -49,11 +49,13 @@ export function canonicalizeAddress(
     case KnownCaipNamespace.Solana:
     case KnownCaipNamespace.Tron:
       return address;
-    case KnownCaipNamespace.Bip122:
-      if (address.toLowerCase().startsWith(BECH32_BITCOIN_MAINNET_PREFIX)) {
-        return address.toLowerCase();
+    case KnownCaipNamespace.Bip122: {
+      const lowercased = address.toLowerCase();
+      if (lowercased.startsWith(BECH32_BITCOIN_MAINNET_PREFIX)) {
+        return lowercased;
       }
       return address;
+    }
     default:
       throw new ProofUnsupportedNamespaceError(namespace);
   }
