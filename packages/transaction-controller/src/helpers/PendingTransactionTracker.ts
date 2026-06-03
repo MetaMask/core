@@ -6,7 +6,7 @@ import type { Json } from '@metamask/utils';
 // This package purposefully relies on Node's EventEmitter module.
 // eslint-disable-next-line import-x/no-nodejs-modules
 import EventEmitter from 'events';
-import { cloneDeep, merge } from 'lodash';
+import { cloneDeep } from 'lodash';
 
 import { createModuleLogger, projectLogger } from '../logger';
 import type { TransactionControllerMessenger } from '../TransactionController';
@@ -87,10 +87,6 @@ export class PendingTransactionTracker {
 
   readonly #messenger: TransactionControllerMessenger;
 
-  readonly #publishTransaction: (
-    transactionMeta: TransactionMeta,
-  ) => Promise<string>;
-
   #running: boolean;
 
   readonly #transactionPoller: TransactionPoller;
@@ -105,7 +101,6 @@ export class PendingTransactionTracker {
     hooks,
     messenger,
     networkClientId,
-    publishTransaction,
   }: {
     blockTracker: BlockTracker;
     getGlobalLock: () => Promise<() => void>;
@@ -118,7 +113,6 @@ export class PendingTransactionTracker {
     isTimeoutEnabled: (transactionMeta: TransactionMeta) => boolean;
     messenger: TransactionControllerMessenger;
     networkClientId: NetworkClientId;
-    publishTransaction: (transactionMeta: TransactionMeta) => Promise<string>;
   }) {
     this.hub = new EventEmitter() as PendingTransactionTrackerEventEmitter;
 
@@ -132,7 +126,6 @@ export class PendingTransactionTracker {
     this.#lastSeenTimestampByHash = new Map();
     this.#listener = this.#onLatestBlock.bind(this);
     this.#messenger = messenger;
-    this.#publishTransaction = publishTransaction;
     this.#running = false;
     this.#transactionToForcePoll = undefined;
 
@@ -220,7 +213,7 @@ export class PendingTransactionTracker {
     this.#log('Stopped polling');
   }
 
-  async #onLatestBlock(latestBlockNumber: string): Promise<void> {
+  async #onLatestBlock(_latestBlockNumber: string): Promise<void> {
     const releaseLock = await this.#getGlobalLock();
 
     try {

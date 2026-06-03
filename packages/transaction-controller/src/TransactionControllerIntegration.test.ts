@@ -12,7 +12,6 @@ import {
   BUILT_IN_NETWORKS,
   ChainId,
   InfuraNetworkType,
-  NetworkType,
 } from '@metamask/controller-utils';
 import type { GasFeeControllerFetchGasFeeEstimatesAction } from '@metamask/gas-fee-controller';
 import type { KeyringControllerSignTransactionAction } from '@metamask/keyring-controller';
@@ -30,7 +29,6 @@ import type {
   NetworkClientConfiguration,
   NetworkControllerActions,
   NetworkControllerEvents,
-  NetworkClientId,
   NetworkControllerOptions,
 } from '@metamask/network-controller';
 import type { RemoteFeatureFlagControllerGetStateAction } from '@metamask/remote-feature-flag-controller';

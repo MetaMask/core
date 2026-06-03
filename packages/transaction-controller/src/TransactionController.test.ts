@@ -3,7 +3,7 @@
 /* eslint-disable camelcase */
 /* eslint-disable jest/expect-expect */
 
-import { TransactionFactory } from '@ethereumjs/tx';
+
 import type {
   ApprovalControllerAddRequestAction,
   AddResult,
@@ -814,15 +814,6 @@ describe('TransactionController', () => {
       reject: rejectTransaction,
       actionHandlerMock,
     };
-  }
-
-  /**
-   * Wait for a specified number of milliseconds.
-   *
-   * @param ms - The number of milliseconds to wait.
-   */
-  async function wait(ms: number): Promise<void> {
-    await new Promise((resolve) => setTimeout(resolve, ms));
   }
 
   beforeEach(() => {
@@ -5979,15 +5970,6 @@ describe('TransactionController', () => {
     const paramsMock: TransactionParams = {
       from: ACCOUNT_MOCK,
       to: ACCOUNT_MOCK,
-    };
-
-    const metadataMock: TransactionMeta = {
-      txParams: paramsMock,
-      chainId: '0x1' as const,
-      networkClientId: NETWORK_CLIENT_ID_MOCK,
-      id: '1',
-      time: 0,
-      status: TransactionStatus.approved,
     };
 
     it('gets transaction hash from publish hook and does not submit to provider', async () => {
