@@ -173,10 +173,7 @@ async function withController<ReturnValue>(
     ...options,
   });
   if (!options.state) {
-    newRootMessenger.call(
-      'BridgeController:resetState',
-      FeatureId.UNIFIED_SWAP_BRIDGE,
-    );
+    newRootMessenger.call('BridgeController:resetState');
   }
   return await testFunction({ controller, rootMessenger: newRootMessenger });
 }
@@ -633,10 +630,7 @@ describe('BridgeController', function () {
           srcTokenAddress: '0x2ABC',
         });
 
-        rootMessenger.call(
-          'BridgeController:resetState',
-          FeatureId.UNIFIED_SWAP_BRIDGE,
-        );
+        rootMessenger.call('BridgeController:resetState');
         expect(bridgeController.state.quoteRequest[0]).toStrictEqual({
           srcTokenAddress: '0x0000000000000000000000000000000000000000',
         });
@@ -682,10 +676,7 @@ describe('BridgeController', function () {
           'Warning',
         );
 
-        rootMessenger.call(
-          'BridgeController:resetState',
-          FeatureId.UNIFIED_SWAP_BRIDGE,
-        );
+        rootMessenger.call('BridgeController:resetState');
         expect(bridgeController.state.tokenSecurityTypeDestination).toBeNull();
       },
     );
@@ -2311,10 +2302,7 @@ describe('BridgeController', function () {
         expect(bridgeController.state.quotes).toStrictEqual([]);
 
         // Verify state is reset
-        rootMessenger.call(
-          'BridgeController:resetState',
-          FeatureId.UNIFIED_SWAP_BRIDGE,
-        );
+        rootMessenger.call('BridgeController:resetState');
         expect(bridgeController.state.quoteFetchError).toBeNull();
         expect(bridgeController.state.quotesLoadingStatus).toBeNull();
         expect(bridgeController.state.quotes).toStrictEqual([]);
