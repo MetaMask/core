@@ -12,6 +12,7 @@ import type {
   QuoteStreamCompleteData,
   BatchSellTradesRequest,
   BatchSellTradesResponse,
+  FeatureId,
 } from '../types';
 import { getEthUsdtResetData } from './bridge';
 import {
@@ -21,7 +22,6 @@ import {
 } from './caip-formatters';
 import { fetchServerEvents } from './fetch-server-events';
 import { isEvmTxData } from './trade-utils';
-import type { FeatureId } from './validators';
 import {
   validateQuoteResponse,
   validateSwapsTokenObject,

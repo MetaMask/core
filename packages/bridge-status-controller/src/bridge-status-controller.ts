@@ -1,5 +1,5 @@
 import type { StateMetadata } from '@metamask/base-controller';
-import type {
+import {
   QuoteMetadata,
   RequiredEventContextFromClient,
   QuoteResponse,

@@ -22,6 +22,7 @@ import type {
   QuoteWarning,
   RequestParams,
 } from './types';
+import { FeatureId } from '../../types';
 
 export const toInputChangedPropertyKey: Partial<
   Record<keyof QuoteRequest, InputKeys>
@@ -182,5 +183,6 @@ export const getQuotesReceivedProperties = (
     ...(hasSufficientGasForQuote !== undefined && {
       has_sufficient_gas_for_quote: hasSufficientGasForQuote,
     }),
+    feature_id: activeQuote?.featureId ?? FeatureId.UNIFIED_SWAP_BRIDGE,
   };
 };
