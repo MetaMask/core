@@ -1423,15 +1423,6 @@ describe('Relay Submit Utils', () => {
       );
     });
 
-    it('skips balance check when isExecute is true', async () => {
-      getLiveTokenBalanceMock.mockResolvedValue('0');
-      request.quotes[0].original.metamask.isExecute = true;
-
-      await submitRelayQuotes(request);
-
-      expect(getLiveTokenBalanceMock).not.toHaveBeenCalled();
-    });
-
     describe('HyperLiquid source', () => {
       it('calls submitHyperliquidWithdraw instead of submitTransactions', async () => {
         const { submitHyperliquidWithdraw: hlWithdrawMock } = jest.requireMock(
@@ -1852,12 +1843,14 @@ describe('Relay Submit Utils', () => {
         expect(addTransactionBatchMock).not.toHaveBeenCalled();
       });
 
-      it('skips source balance validation for execute flow', async () => {
-        getLiveTokenBalanceMock.mockResolvedValue('0');
+      it('still validates source balance', async () => {
+        getLiveTokenBalanceMock.mockResolvedValue('500000');
 
-        await submitRelayQuotes(request);
+        await expect(submitRelayQuotes(request)).rejects.toThrow(
+          'Insufficient source token balance for relay deposit',
+        );
 
-        expect(getLiveTokenBalanceMock).not.toHaveBeenCalled();
+        expect(getDelegationTransactionMock).not.toHaveBeenCalled();
       });
 
       it('polls relay status after execute', async () => {
