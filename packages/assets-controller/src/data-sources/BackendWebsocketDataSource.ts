@@ -657,10 +657,14 @@ export class BackendWebsocketDataSource extends AbstractDataSource<
         ? BigInt(postBalance.amount).toString()
         : postBalance.amount;
 
-      // Convert to human-readable using asset decimals (match RpcDataSource / pipeline format)
+      // Convert to human-readable using asset decimals (match RpcDataSource / pipeline format).
+      // `.toFixed()` (no args) — not `.toString()` — because BigNumber's default
+      // `EXPONENTIAL_AT: [-7, 21]` makes `.toString()` emit scientific notation
+      // for sub-1e-7 values (e.g. `"1e-18"`), which downstream `BigInt()` parsers
+      // reject and crash on (MMBUGS-772).
       const humanReadableAmount = new BigNumberJS(rawBalanceStr)
         .dividedBy(new BigNumberJS(10).pow(asset.decimals))
-        .toString();
+        .toFixed();
 
       assetsBalance[accountId][assetId] = {
         amount: humanReadableAmount,

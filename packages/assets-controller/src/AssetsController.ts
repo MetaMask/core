@@ -128,6 +128,7 @@ import type {
   Asset,
 } from './types';
 import {
+  normalizeAmountString,
   normalizeAssetId,
   formatExchangeRatesForBridge,
   formatStateForTransactionPay,
@@ -2210,7 +2211,19 @@ export class AssetsController extends BaseController<
               const previousBalance = previousBalances[
                 assetId as Caip19AssetId
               ] as { amount: string } | undefined;
-              const newAmount = (balance as { amount: string }).amount;
+              // Coerce amounts (e.g. "1e-18" from snaps stringifying a JS
+              // Number) into a plain decimal truncated to the asset's
+              // precision so downstream BigInt() consumers don't crash.
+              // Decimals are read from the freshest merged metadata; fall
+              // back to 0 (integer-only) when none is known yet.
+              const assetDecimals =
+                (metadata[assetId] as { decimals?: number } | undefined)
+                  ?.decimals ?? 0;
+              const newAmount = normalizeAmountString(
+                (balance as { amount: unknown }).amount,
+                assetDecimals,
+              );
+              effective[assetId] = { ...balance, amount: newAmount };
               const oldAmount = previousBalance?.amount;
               const isNewDefaultNativeZero =
                 oldAmount === undefined &&

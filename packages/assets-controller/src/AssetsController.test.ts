@@ -1412,6 +1412,59 @@ describe('AssetsController', () => {
       });
     });
 
+    it('coerces scientific-notation balance amounts using the asset decimals', async () => {
+      // Prevents downstream BigInt() consumers (e.g. extension's
+      // parseBalanceWithDecimals) from crashing on "1e-18"-style amounts that
+      // arrive from snaps or APIs that stringified a JS Number. Decimals come
+      // from the same-batch assetsInfo (18 here = 18 fractional digits).
+      await withController(async ({ controller }) => {
+        await controller.handleAssetsUpdate(
+          {
+            assetsInfo: {
+              [MOCK_ASSET_ID]: {
+                type: 'erc20',
+                symbol: 'TEST',
+                name: 'Test',
+                decimals: 18,
+              },
+            },
+            assetsBalance: {
+              [MOCK_ACCOUNT_ID]: {
+                [MOCK_ASSET_ID]: { amount: '1e-18' },
+              },
+            },
+          },
+          'TestSource',
+        );
+
+        expect(
+          controller.state.assetsBalance[MOCK_ACCOUNT_ID]?.[MOCK_ASSET_ID],
+        ).toStrictEqual({ amount: '0.000000000000000001' });
+      });
+    });
+
+    it('falls back to 0 decimals when no metadata is known for the asset', async () => {
+      // No assetsInfo entry for this assetId, in state or in the response —
+      // normalization truncates to the integer portion to avoid producing
+      // garbage precision we can't validate against the asset's real decimals.
+      await withController(async ({ controller }) => {
+        await controller.handleAssetsUpdate(
+          {
+            assetsBalance: {
+              [MOCK_ACCOUNT_ID]: {
+                [MOCK_ASSET_ID]: { amount: '1e-18' },
+              },
+            },
+          },
+          'TestSource',
+        );
+
+        expect(
+          controller.state.assetsBalance[MOCK_ACCOUNT_ID]?.[MOCK_ASSET_ID],
+        ).toStrictEqual({ amount: '0' });
+      });
+    });
+
     it('handles empty response', async () => {
       await withController(async ({ controller }) => {
         await controller.handleAssetsUpdate({}, 'TestSource');
