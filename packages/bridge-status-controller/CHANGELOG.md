@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Fix gas-related transaction options for batch and batch-sell swaps ((8979)[https://github.com/MetaMask/core/pull/8979])
+  - When the fee is paid in an ERC20 token, set it as the `gasFeeToken`
+  - Set `excludeNativeTokenForFee=true` when `gasFeeToken` is set, which tells the TransactionController to use the gasFeeToken for payment regardless of whether the user has enough native assets
+  - Set `skipInitialGasEstimate=false` if submitting gasIncluded7702 quotes and account has not been upgraded to a smart account
+
 ## [72.0.0]
 
 ### Added
