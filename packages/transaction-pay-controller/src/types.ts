@@ -170,6 +170,9 @@ export type GetPaymentOverrideDataResponse = {
 
   /** Optional recipient address for the funding token transfer. */
   recipient?: Hex;
+
+  /** Optional EIP-7702 authorization list from delegation. */
+  authorizationList?: AuthorizationList;
 };
 
 /**

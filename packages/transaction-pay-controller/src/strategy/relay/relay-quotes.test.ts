@@ -2753,11 +2753,13 @@ describe('Relay Quotes Utils', () => {
         amountRaw = AMOUNT_RAW_MOCK,
         overrideCalls = [OVERRIDE_CALL_MOCK],
         recipient,
+        authorizationList = DELEGATION_RESULT_MOCK.authorizationList,
       }: {
         amountHuman?: string;
         amountRaw?: string;
         overrideCalls?: { to: Hex; data: Hex; value: Hex }[];
         recipient?: Hex;
+        authorizationList?: typeof DELEGATION_RESULT_MOCK.authorizationList;
       } = {}): void {
         getControllerStateMock.mockReturnValue({
           transactionData: {
@@ -2770,6 +2772,7 @@ describe('Relay Quotes Utils', () => {
         getPaymentOverrideDataMock.mockResolvedValue({
           calls: overrideCalls,
           ...(recipient ? { recipient } : {}),
+          ...(authorizationList ? { authorizationList } : {}),
         });
       }
 
@@ -2887,7 +2890,7 @@ describe('Relay Quotes Utils', () => {
         expect(body.tradeType).not.toBe('EXACT_OUTPUT');
       });
 
-      it('normalizes authorization list from delegation', async () => {
+      it('normalizes authorization list from payment override data', async () => {
         setupMoneyAccountMocks();
         successfulFetchMock.mockResolvedValue({
           ok: true,

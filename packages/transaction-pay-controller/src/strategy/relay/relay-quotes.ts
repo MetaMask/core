@@ -2,7 +2,10 @@
 
 import { Interface } from '@ethersproject/abi';
 import { toHex } from '@metamask/controller-utils';
-import type { TransactionMeta } from '@metamask/transaction-controller';
+import type {
+  AuthorizationList,
+  TransactionMeta,
+} from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 import { createModuleLogger } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
@@ -291,6 +294,19 @@ async function getSingleQuote(
   }
 }
 
+function normalizeAuthorizationList(
+  authorizationList: AuthorizationList | undefined,
+) {
+  return authorizationList?.map((a) => ({
+    ...a,
+    chainId: Number(a.chainId),
+    nonce: Number(a.nonce),
+    r: a.r as Hex,
+    s: a.s as Hex,
+    yParity: Number(a.yParity),
+  }));
+}
+
 /**
  * Add tranasction data to request body if needed.
  *
@@ -340,18 +356,9 @@ async function processTransactions(
     { transaction },
   );
 
-  const normalizedAuthorizationList = delegation.authorizationList?.map(
-    (a) => ({
-      ...a,
-      chainId: Number(a.chainId),
-      nonce: Number(a.nonce),
-      r: a.r as Hex,
-      s: a.s as Hex,
-      yParity: Number(a.yParity),
-    }),
+  requestBody.authorizationList = normalizeAuthorizationList(
+    delegation.authorizationList,
   );
-
-  requestBody.authorizationList = normalizedAuthorizationList;
   requestBody.tradeType = 'EXACT_OUTPUT';
 
   const tokenTransferData = nestedTransactions?.find((nestedTx) =>
@@ -397,7 +404,11 @@ async function processMoneyAccountPostQuote(
   const transactionData = transactionDataList[transaction.id];
   const amountHuman = transactionData?.tokens?.[0]?.amountHuman ?? '0';
 
-  const { calls: overrideCalls, recipient } = await messenger.call(
+  const {
+    calls: overrideCalls,
+    recipient,
+    authorizationList,
+  } = await messenger.call(
     'TransactionPayController:getPaymentOverrideData',
     {
       amount: amountHuman,
@@ -415,23 +426,7 @@ async function processMoneyAccountPostQuote(
     transactionData?.tokens?.[0]?.amountRaw ?? request.sourceTokenAmount;
   const fundingRecipient = recipient ?? request.from;
 
-  const delegation = await messenger.call(
-    'TransactionPayController:getDelegationTransaction',
-    { transaction },
-  );
-
-  const normalizedAuthorizationList = delegation.authorizationList?.map(
-    (a) => ({
-      ...a,
-      chainId: Number(a.chainId),
-      nonce: Number(a.nonce),
-      r: a.r as Hex,
-      s: a.s as Hex,
-      yParity: Number(a.yParity),
-    }),
-  );
-
-  requestBody.authorizationList = normalizedAuthorizationList;
+  requestBody.authorizationList = normalizeAuthorizationList(authorizationList);
   requestBody.tradeType = 'EXACT_OUTPUT';
   requestBody.amount = amountRaw;
 
