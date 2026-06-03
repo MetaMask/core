@@ -33,6 +33,41 @@ runs:
         MERGE_BASE=$(git merge-base HEAD "refs/remotes/origin/$BASE_REF")
         echo "MERGE_BASE=$MERGE_BASE" >> "$GITHUB_OUTPUT"
 
+    - name: Check that root package.json is bumped for release PRs
+      shell: bash
+      env:
+        MERGE_BASE: ${{ steps.merge-base.outputs.MERGE_BASE }}
+      run: |
+        set -euo pipefail
+
+        mapfile -t PACKAGES < <(find packages -maxdepth 2 -name "package.json" -not -path "*/node_modules/*")
+        HAS_VERSION_BUMP=false
+
+        for package in "${PACKAGES[@]}"; do
+          MAIN_VERSION=$(git show "$MERGE_BASE:$package" 2>/dev/null | jq -r .version || echo "")
+          HEAD_VERSION=$(jq -r .version "$package")
+
+          if [ "$HEAD_VERSION" != "$MAIN_VERSION" ]; then
+            HAS_VERSION_BUMP=true
+            package_name=$(jq -r ".name" "$package")
+            echo "📦 Package \`$package_name\` has a version bump (\`$MAIN_VERSION\` -> \`$HEAD_VERSION\`)"
+          fi
+        done
+
+        if [ "$HAS_VERSION_BUMP" = "true" ]; then
+          ROOT_MAIN_VERSION=$(git show "$MERGE_BASE:package.json" | jq -r .version)
+          ROOT_HEAD_VERSION=$(jq -r .version package.json)
+
+          if [ "$ROOT_MAIN_VERSION" = "$ROOT_HEAD_VERSION" ]; then
+            echo "::error::This pull request is a release (one or more packages have a version bump), but the root package.json version was not bumped. Please bump the root package.json version."
+            exit 1
+          else
+            echo "✅ Root package.json is bumped (\`$ROOT_MAIN_VERSION\` -> \`$ROOT_HEAD_VERSION\`)"
+          fi
+        else
+          echo "✅ No package version bumps detected; skipping root package.json check."
+        fi
+
     - name: Check if the commit or pull request is a release
       id: is-release
       uses: MetaMask/action-is-release@v2
