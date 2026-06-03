@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `@metamask/keyring-controller` `^26.0.0` as a dependency ([#8972](https://github.com/MetaMask/core/pull/8972))
+  - The package was already imported at runtime by `src/strategy/relay/hyperliquid-withdraw.ts` but wasn't declared in `package.json`; this PR fixes the omission.
+
+### Changed
+
+- Bump `@metamask/assets-controllers` from `^108.3.0` to `^108.4.0` ([#8981](https://github.com/MetaMask/core/pull/8981))
+- Bump `@metamask/assets-controller` from `^8.0.2` to `^8.3.1` ([#8981](https://github.com/MetaMask/core/pull/8981), [#8985](https://github.com/MetaMask/core/pull/8985))
+- Bump `@metamask/remote-feature-flag-controller` from `^4.2.1` to `^4.2.2` ([#8986](https://github.com/MetaMask/core/pull/8986))
+- Bump `@metamask/ramps-controller` from `^14.1.0` to `^14.1.1` ([#8989](https://github.com/MetaMask/core/pull/8989))
+- Bump `@metamask/bridge-status-controller` from `^72.0.0` to `^72.0.1` ([#8990](https://github.com/MetaMask/core/pull/8990))
+
+## [23.1.0]
+
+### Changed
+
+- Fiat quote flow now uses `autoSelectProvider` and `restrictToKnownOrNativeProviders` instead of manually reading the selected provider from `RampsController` state ([#8963](https://github.com/MetaMask/core/pull/8963))
+- Remove `RampsControllerGetStateAction` and `RampsControllerSetSelectedTokenAction` from `AllowedActions` as they are no longer used ([#8963](https://github.com/MetaMask/core/pull/8963))
+- Bump `@metamask/ramps-controller` from `^14.0.0` to `^14.1.0` ([#8968](https://github.com/MetaMask/core/pull/8968))
+
 ## [23.0.0]
 
 ### Changed
@@ -967,7 +988,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#6820](https://github.com/MetaMask/core/pull/6820))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@23.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@23.1.0...HEAD
+[23.1.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@23.0.0...@metamask/transaction-pay-controller@23.1.0
 [23.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@22.8.0...@metamask/transaction-pay-controller@23.0.0
 [22.8.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@22.7.0...@metamask/transaction-pay-controller@22.8.0
 [22.7.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@22.6.3...@metamask/transaction-pay-controller@22.7.0

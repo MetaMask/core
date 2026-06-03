@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `isDeprecated` option to `TokenListController` constructor, a function that returns whether the controller should be disabled ([#8945](https://github.com/MetaMask/core/pull/8945))
+  - When `isDeprecated()` returns `true`, every fetching entry point (`initialize()`, `start()`, `restart()`, `_executePoll()`, and `fetchTokenList()`) resets `tokensChainsCache` to `{}`, cancels any pending debounced persist (so a stale entry can't write old data after the in-memory reset), and overwrites every persisted `tokensChainsCache:*` entry in `StorageService` with `{ data: {}, timestamp: 0 }`. No HTTP calls are issued to the token API.
+  - The function is re-evaluated on each entry point so it can be toggled at runtime without reconstructing the controller — including from inside any deprecated `setInterval` already running from a prior `start()`.
+
+## [108.4.0]
+
+### Added
+
+- Add ARC mainnet (`5042`/`0x13b2`) entries in `multicall.ts` and `codefi-v2.ts` ([#8973](https://github.com/MetaMask/core/pull/8973))
+
 ## [108.3.0]
 
 ### Added
@@ -3130,7 +3142,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Use Ethers for AssetsContractController ([#845](https://github.com/MetaMask/core/pull/845))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@108.3.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@108.4.0...HEAD
+[108.4.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@108.3.0...@metamask/assets-controllers@108.4.0
 [108.3.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@108.2.0...@metamask/assets-controllers@108.3.0
 [108.2.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@108.1.0...@metamask/assets-controllers@108.2.0
 [108.1.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@108.0.0...@metamask/assets-controllers@108.1.0
