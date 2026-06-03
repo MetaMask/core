@@ -22,11 +22,31 @@ import type {
 import type { Hex } from '@metamask/utils';
 
 export enum SubmitStep {
+  /**
+   * Adds quote and submission data to BridgeStatusController's `txHistory`
+   */
   AddHistoryItem = 'addHistoryItem',
+  /**
+   * Rekeys the history item keyed by the old history key to the new history key,
+   * and merges in the tradeMeta's id and hash
+   */
   RekeyHistoryItem = 'rekeyHistoryItem',
+  /**
+   * Triggers polling for the transaction's status
+   */
   StartPolling = 'startPolling',
+  /**
+   * Publishes the Unified SwapBridge Completed metrics event
+   */
   PublishCompletedEvent = 'publishCompletedEvent',
+  /**
+   * Sets the tradeMeta returned to the client after submission
+   */
   SetTradeMeta = 'setTradeMeta',
+  /**
+   * Updates the transaction type of batch transactions to swap/bridge/swapApproval/bridgeApproval
+   * for display purposes.
+   */
   UpdateBatchTransactions = 'updateBatchTransactions',
 }
 
@@ -95,13 +115,26 @@ export type SubmitStrategyParams<
     | undefined
     | null = BatchSellTradesResponse | undefined | null,
 > = {
+  /**
+   * The response from obtainGaslessBatch API containing submittable transactions and their fees
+   */
   batchSellTrades: BatchSellTradesResponseType;
+  /**
+   * The function to add a transaction batch to the {@link TransactionControllers}
+   */
   addTransactionBatchFn: TransactionController['addTransactionBatch'];
   isBridgeTx: boolean;
   isDelegatedAccount: boolean;
+  /**
+   * Whether the STX is enabled in the wallet. Does not necessarily mean that
+   * STX will be used to submit the transaction.
+   */
   isStxEnabled: boolean;
   messenger: BridgeStatusControllerMessenger;
   quoteResponses: (QuoteResponse<TradeType, TradeType> & QuoteMetadata)[];
+  /**
+   * Set to true so hardware wallets get prompted for approval on mobile
+   */
   requireApproval: boolean;
   selectedAccount: AccountsControllerState['internalAccounts']['accounts'][string];
   traceFn: TraceCallback;
@@ -110,8 +143,8 @@ export type SubmitStrategyParams<
   clientId: BridgeClientId;
   bridgeApiBaseUrl: string;
   /**
-   * The batch ID of the transaction batch.
-   * This is only used for batched transactions.
+   * The batch ID of the transaction batch passed to the addTransactionBatchFn
+   * This is only used for batch-sell transactions.
    */
   batchId?: Hex;
 };

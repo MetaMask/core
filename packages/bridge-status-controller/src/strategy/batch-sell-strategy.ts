@@ -96,6 +96,13 @@ export async function* submitBatchSellHandler(
     );
   }
 
+  yield {
+    type: SubmitStep.SetTradeMeta,
+    payload: {
+      tradeMeta: firstTradeMeta,
+    },
+  };
+
   // Nested/7702 batch
   if (is7702Tx(firstTradeMeta) || hasNestedSwapTransactions(firstTradeMeta)) {
     const quoteIds = Array.from(
@@ -142,11 +149,4 @@ export async function* submitBatchSellHandler(
       };
     }
   }
-
-  yield {
-    type: SubmitStep.SetTradeMeta,
-    payload: {
-      tradeMeta: firstTradeMeta,
-    },
-  };
 }
