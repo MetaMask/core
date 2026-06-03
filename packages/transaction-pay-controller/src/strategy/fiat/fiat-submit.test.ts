@@ -829,7 +829,7 @@ describe('submitFiatQuotes', () => {
       transaction: nestedTransaction,
     });
 
-    callMock.mockImplementation((action: string, ...args: unknown[]) => {
+    callMock.mockImplementation((action: string) => {
       if (action === 'TransactionPayController:getState') {
         return {
           transactionData: {
@@ -873,11 +873,13 @@ describe('submitFiatQuotes', () => {
       requiredAssets: [{ address: '0xaaa', amount: '0x0' }],
     } as unknown as TransactionMeta;
 
-    settledAmountCall![1](txDraft);
+    const updateFn = settledAmountCall?.[1];
+    expect(updateFn).toBeDefined();
+    (updateFn as (tx: TransactionMeta) => void)(txDraft);
 
-    expect(txDraft.nestedTransactions![0].data).toBe('0xNewApprove');
-    expect(txDraft.nestedTransactions![1].data).toBe('0xNewDeposit');
-    expect(txDraft.requiredAssets![0].amount).toBe('0xb59460');
+    expect(txDraft.nestedTransactions?.[0].data).toBe('0xNewApprove');
+    expect(txDraft.nestedTransactions?.[1].data).toBe('0xNewDeposit');
+    expect(txDraft.requiredAssets?.[0].amount).toBe('0xb59460');
   });
 
   it('falls back to original transaction when getTransaction returns undefined', async () => {
