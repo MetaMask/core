@@ -1,6 +1,7 @@
 import type { TransactionMeta } from '@metamask/transaction-controller';
 import { BigNumber } from 'bignumber.js';
 
+import { TransactionPayStrategy } from '../constants';
 import type {
   FiatValue,
   TransactionPayControllerMessenger,
@@ -43,6 +44,9 @@ export function calculateTotals({
   const providerFiatFee = sumFiat(
     quotes.map((quote) => quote.fees.providerFiat ?? { fiat: '0', usd: '0' }),
   );
+  const hasFiatStrategy = quotes.some(
+    (quote) => quote.strategy === TransactionPayStrategy.Fiat,
+  );
 
   const sourceNetworkFeeMax = sumAmounts(
     quotes.map((quote) => quote.fees.sourceNetwork.max),
@@ -75,25 +79,36 @@ export function calculateTotals({
   const amountUsd = sumProperty(quoteTokens, (token) => token.amountUsd);
   const hasQuotes = quotes.length > 0;
 
+  const paymentAmountFiat = getPaymentAmount({
+    hasFiatStrategy,
+    fiatPaymentAmount,
+    isMaxAmount,
+    hasQuotes,
+    targetAmount: targetAmount.fiat,
+    tokenAmount: amountFiat,
+  });
+
+  const paymentAmountUsd = getPaymentAmount({
+    hasFiatStrategy,
+    fiatPaymentAmount,
+    isMaxAmount,
+    hasQuotes,
+    targetAmount: targetAmount.usd,
+    tokenAmount: amountUsd,
+  });
+
   const totalFiat = new BigNumber(providerFee.fiat)
     .plus(metaMaskFee.fiat)
     .plus(sourceNetworkFeeEstimate.fiat)
     .plus(targetNetworkFee.fiat)
-    .plus(
-      fiatPaymentAmount ??
-        (isMaxAmount && hasQuotes ? targetAmount.fiat : amountFiat),
-    )
+    .plus(paymentAmountFiat)
     .toString(10);
 
   const totalUsd = new BigNumber(providerFee.usd)
     .plus(metaMaskFee.usd)
     .plus(sourceNetworkFeeEstimate.usd)
     .plus(targetNetworkFee.usd)
-    .plus(
-      (fiatPaymentAmount ?? (isMaxAmount && hasQuotes))
-        ? targetAmount.usd
-        : amountUsd,
-    )
+    .plus(paymentAmountUsd)
     .toString(10);
 
   const estimatedDuration = Number(
@@ -129,6 +144,44 @@ export function calculateTotals({
       usd: totalUsd,
     },
   };
+}
+
+/**
+ * Get the payment amount to include in totals.
+ *
+ * @param request - Request parameters.
+ * @param request.hasFiatStrategy - Whether a fiat strategy quote is present.
+ * @param request.fiatPaymentAmount - The fiat payment amount, if applicable.
+ * @param request.isMaxAmount - Whether the transaction is a maximum amount transaction.
+ * @param request.hasQuotes - Whether any quotes are present.
+ * @param request.targetAmount - The target amount from quotes.
+ * @param request.tokenAmount - The summed token amount.
+ * @returns The payment amount to include in totals.
+ */
+function getPaymentAmount({
+  hasFiatStrategy,
+  fiatPaymentAmount,
+  isMaxAmount,
+  hasQuotes,
+  targetAmount,
+  tokenAmount,
+}: {
+  hasFiatStrategy: boolean;
+  fiatPaymentAmount?: string;
+  isMaxAmount?: boolean;
+  hasQuotes: boolean;
+  targetAmount: string;
+  tokenAmount: string;
+}): string {
+  if (hasFiatStrategy) {
+    return fiatPaymentAmount ?? '0';
+  }
+
+  if (isMaxAmount && hasQuotes) {
+    return targetAmount;
+  }
+
+  return tokenAmount;
 }
 
 /**
