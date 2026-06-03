@@ -40,6 +40,10 @@ type JwtBearerAuth_SRP_Options = {
   };
 };
 
+// How long a successful pairing result stays cached so identical payloads
+// (concurrent or sequential retries) reuse it instead of re-hitting the endpoint.
+const PAIR_DEDUPE_TTL_MS = 30_000;
+
 const getDefaultEIP6963Provider = async () => {
   const provider = await getMetaMaskProviderEIP6963();
   if (!provider) {
@@ -83,6 +87,14 @@ export class SRPJwtBearerAuth implements IBaseAuth {
   readonly #ongoingLogins = new Map<
     string | undefined,
     Promise<LoginResponse>
+  >();
+
+  // Map to dedupe pairing calls by an order-insensitive token-set key.
+  // Holds the in-flight promise (coalescing concurrent callers) and keeps it
+  // for a short TTL after success (collapsing sequential retries).
+  readonly #ongoingPairings = new Map<
+    string,
+    { promise: Promise<PairProfilesResponse>; expiresAt: number }
   >();
 
   // Default cooldown when 429 has no Retry-After header
@@ -157,7 +169,42 @@ export class SRPJwtBearerAuth implements IBaseAuth {
     accessTokens: string[],
     authAccessToken: string,
   ): Promise<PairProfilesResponse> {
-    return await pairProfiles(accessTokens, authAccessToken, this.#config.env);
+    // Order-insensitive key: the same token set in any order maps to the same
+    // entry. Sort a copy so the request payload itself stays primary-first.
+    const key = JSON.stringify([...accessTokens].sort());
+
+    const cached = this.#ongoingPairings.get(key);
+    if (cached && cached.expiresAt > Date.now()) {
+      return await cached.promise;
+    }
+
+    const promise = pairProfiles(
+      accessTokens,
+      authAccessToken,
+      this.#config.env,
+    );
+    // Store the in-flight promise immediately so concurrent callers coalesce
+    // regardless of how long the request takes.
+    this.#ongoingPairings.set(key, {
+      promise,
+      expiresAt: Number.MAX_SAFE_INTEGER,
+    });
+
+    try {
+      const result = await promise;
+      // Keep the resolved result cached for a short window so sequential
+      // retries with the same payload reuse it.
+      this.#ongoingPairings.set(key, {
+        promise,
+        expiresAt: Date.now() + PAIR_DEDUPE_TTL_MS,
+      });
+      return result;
+    } catch (error) {
+      // Never cache failures: the pairing retry loop must be able to re-hit
+      // the endpoint on the next attempt.
+      this.#ongoingPairings.delete(key);
+      throw error;
+    }
   }
 
   async signMessage(

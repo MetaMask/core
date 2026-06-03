@@ -20,12 +20,14 @@ const mockDelay = timeUtils.delay as jest.MockedFunction<
 const mockGetNonce = jest.fn();
 const mockAuthenticate = jest.fn();
 const mockAuthorizeOIDC = jest.fn();
+const mockPairProfiles = jest.fn();
 
 jest.mock('./services', () => ({
   authenticate: (...args: unknown[]): unknown => mockAuthenticate(...args),
   authorizeOIDC: (...args: unknown[]): unknown => mockAuthorizeOIDC(...args),
   getNonce: (...args: unknown[]): unknown => mockGetNonce(...args),
   getUserProfileLineage: jest.fn(),
+  pairProfiles: (...args: unknown[]): unknown => mockPairProfiles(...args),
 }));
 
 // Mock computeIdentifierId
@@ -514,5 +516,119 @@ describe('SRPJwtBearerAuth profileId resolution', () => {
     expect(store.value?.profile.profileId).toBe('original-id');
     expect(store.value?.profile.canonicalProfileId).toBe('canonical-id');
     expect(store.value?.token.accessToken).toBe('access-token');
+  });
+});
+
+describe('SRPJwtBearerAuth pairSrpProfiles deduplication', () => {
+  const config: AuthConfig & { type: AuthType.SRP } = {
+    type: AuthType.SRP,
+    env: Env.DEV,
+    platform: Platform.EXTENSION,
+  };
+
+  const MOCK_PAIR_RESPONSE = {
+    profile: {
+      profileId: 'p1',
+      canonicalProfileId: 'p1',
+      metaMetricsId: 'm1',
+      identifierId: 'i1',
+    },
+    profileAliases: [],
+  };
+
+  const createAuth = (): { auth: SRPJwtBearerAuth } => {
+    const store: { value: LoginResponse | null } = { value: null };
+    const auth = new SRPJwtBearerAuth(config, {
+      storage: {
+        getLoginResponse: async (): Promise<LoginResponse | null> =>
+          store.value,
+        setLoginResponse: async (val): Promise<void> => {
+          store.value = val;
+        },
+      },
+      signing: {
+        getIdentifier: async (): Promise<string> => 'identifier-1',
+        signMessage: async (): Promise<string> => 'signature-1',
+      },
+    });
+    return { auth };
+  };
+
+  beforeEach((): void => {
+    jest.clearAllMocks();
+    mockPairProfiles.mockResolvedValue(MOCK_PAIR_RESPONSE);
+  });
+
+  it('coalesces concurrent calls with the same payload into one request', async () => {
+    const { auth } = createAuth();
+
+    const [r1, r2, r3] = await Promise.all([
+      auth.pairSrpProfiles(['a', 'b', 'c'], 'a'),
+      auth.pairSrpProfiles(['a', 'b', 'c'], 'a'),
+      auth.pairSrpProfiles(['a', 'b', 'c'], 'a'),
+    ]);
+
+    expect(r1).toStrictEqual(MOCK_PAIR_RESPONSE);
+    expect(r2).toStrictEqual(MOCK_PAIR_RESPONSE);
+    expect(r3).toStrictEqual(MOCK_PAIR_RESPONSE);
+    expect(mockPairProfiles).toHaveBeenCalledTimes(1);
+  });
+
+  it('dedupes the same token set provided in a different order', async () => {
+    const { auth } = createAuth();
+
+    await auth.pairSrpProfiles(['a', 'b', 'c'], 'a');
+    await auth.pairSrpProfiles(['c', 'a', 'b'], 'c');
+
+    expect(mockPairProfiles).toHaveBeenCalledTimes(1);
+  });
+
+  it('serves sequential identical calls from cache within the TTL', async () => {
+    const { auth } = createAuth();
+
+    await auth.pairSrpProfiles(['a', 'b'], 'a');
+    await auth.pairSrpProfiles(['a', 'b'], 'a');
+
+    expect(mockPairProfiles).toHaveBeenCalledTimes(1);
+  });
+
+  it('re-pairs once the cache TTL has expired', async () => {
+    jest.useFakeTimers();
+    try {
+      const { auth } = createAuth();
+
+      await auth.pairSrpProfiles(['a', 'b'], 'a');
+      // Advance beyond the 30s dedupe window.
+      jest.setSystemTime(Date.now() + 30_001);
+      await auth.pairSrpProfiles(['a', 'b'], 'a');
+
+      expect(mockPairProfiles).toHaveBeenCalledTimes(2);
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  it('does not cache failures so retries re-hit the endpoint', async () => {
+    const { auth } = createAuth();
+    mockPairProfiles
+      .mockRejectedValueOnce(new Error('pair failed'))
+      .mockResolvedValueOnce(MOCK_PAIR_RESPONSE);
+
+    await expect(auth.pairSrpProfiles(['a', 'b'], 'a')).rejects.toThrow(
+      'pair failed',
+    );
+    const result = await auth.pairSrpProfiles(['a', 'b'], 'a');
+
+    expect(result).toStrictEqual(MOCK_PAIR_RESPONSE);
+    expect(mockPairProfiles).toHaveBeenCalledTimes(2);
+  });
+
+  it('does not dedupe different token sets', async () => {
+    const { auth } = createAuth();
+
+    await auth.pairSrpProfiles(['a', 'b'], 'a');
+    await auth.pairSrpProfiles(['a', 'c'], 'a');
+
+    expect(mockPairProfiles).toHaveBeenCalledTimes(2);
   });
 });
