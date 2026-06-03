@@ -231,7 +231,6 @@ export class PendingTransactionTracker {
     } finally {
       releaseLock();
     }
-
   }
 
   async #checkTransactions(): Promise<void> {
