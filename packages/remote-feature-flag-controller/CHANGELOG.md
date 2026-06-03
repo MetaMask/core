@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Bump `@metamask/controller-utils` from `^12.0.0` to `^12.1.0` ([#8774](https://github.com/MetaMask/core/pull/8774))
 
+### Fixed
+
+- Support `ThresholdVersion.DirectValue` (`thresholdVersion: 2`) threshold feature flag entries that return the selected `value` directly while preserving the existing threshold wrapper shape for unversioned entries ([#8908](https://github.com/MetaMask/core/pull/8908))
+
 ## [4.2.1]
 
 ### Changed
