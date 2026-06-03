@@ -2119,7 +2119,6 @@ export type AfterAddHook = (request: {
   updateTransaction?: (transaction: TransactionMeta) => void;
 }>;
 
-
 /**
  * Custom logic to be executed before a transaction is signed.
  * Can optionally update the transaction by returning the `updateTransaction` callback.
