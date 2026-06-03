@@ -448,7 +448,7 @@ function validateRelayRateDrift({
     transactionId,
   });
 
-  if (driftPercent.abs().gt(MAX_RATE_DRIFT_PERCENT)) {
+  if (driftPercent.gt(MAX_RATE_DRIFT_PERCENT)) {
     throw new Error(
       `Relay rate drift too high for transaction ` +
         `${driftPercent.toFixed(2)}% exceeds ${MAX_RATE_DRIFT_PERCENT}% max`,

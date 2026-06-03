@@ -732,6 +732,29 @@ describe('submitFiatQuotes', () => {
     );
   });
 
+  it('allows rate drift when discovery rate is better than original', async () => {
+    getRelayQuotesMock.mockResolvedValue([
+      {
+        ...RELAY_QUOTE_RESULT_MOCK,
+        original: {
+          details: {
+            currencyIn: { amount: '1000000000000000000', amountUsd: '5.00' },
+            currencyOut: {
+              amount: '14000000',
+              amountUsd: '6.00',
+              minimumAmount: '13800000',
+            },
+          },
+        } as unknown as RelayQuote,
+      },
+    ]);
+    const { request } = getRequest();
+
+    const result = await submitFiatQuotes(request);
+
+    expect(result).toStrictEqual({ transactionHash: '0x1234' });
+  });
+
   it('throws if discovery relay quote returns no quotes', async () => {
     getRelayQuotesMock.mockResolvedValue([]);
     const { request } = getRequest();
