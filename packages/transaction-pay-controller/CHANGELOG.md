@@ -12,6 +12,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add `@metamask/keyring-controller` `^26.0.0` as a dependency ([#8972](https://github.com/MetaMask/core/pull/8972))
   - The package was already imported at runtime by `src/strategy/relay/hyperliquid-withdraw.ts` but wasn't declared in `package.json`; this PR fixes the omission.
 
+### Changed
+
+- Bump `@metamask/assets-controllers` from `^108.3.0` to `^108.4.0` ([#8981](https://github.com/MetaMask/core/pull/8981))
+- Bump `@metamask/assets-controller` from `^8.0.2` to `^8.3.0` ([#8981](https://github.com/MetaMask/core/pull/8981))
+
 ## [23.1.0]
 
 ### Changed
