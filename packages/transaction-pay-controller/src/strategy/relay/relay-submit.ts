@@ -378,10 +378,17 @@ async function submitTransactions(
     throw new Error(`Unsupported step kind: ${invalidKind}`);
   }
 
-  // In post-quote flows (e.g. Predict withdraw), the source tokens are held in
-  // the Safe — not the EOA — and only become available after the original tx
-  // executes as part of the batch. Skip the EOA balance check here.
-  if (!quote.request.isPostQuote && !quote.request.paymentOverride) {
+  // Skip the EOA balance check when the source tokens are not expected to be
+  // in the user's wallet at submit time:
+  // - isPostQuote: tokens are in a Safe/proxy, available after batch execution
+  // - paymentOverride: tokens come from a different source (e.g. money account)
+  // - isExecute: Relay's relayer handles the source-side transaction
+  const skipBalanceCheck =
+    quote.request.isPostQuote ||
+    quote.request.paymentOverride ||
+    quote.original.metamask.isExecute;
+
+  if (!skipBalanceCheck) {
     await validateSourceBalance(quote, messenger);
   }
 
