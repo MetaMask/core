@@ -38,7 +38,12 @@ import { cloneDeep } from 'lodash';
 
 import { AccountsControllerMethodActions } from './AccountsController-method-action-types';
 import { projectLogger as log } from './logger';
-import type { MultichainNetworkControllerNetworkDidChangeEvent } from './types';
+import type {
+  MultichainNetworkControllerNetworkDidChangeEvent,
+  SnapAccountServiceAccountAssetListUpdatedEvent,
+  SnapAccountServiceAccountBalancesUpdatedEvent,
+  SnapAccountServiceAccountTransactionsUpdatedEvent,
+} from './types';
 import type { AccountsControllerStrictState } from './typing';
 import type { HdSnapKeyringAccount } from './utils';
 import {
@@ -203,21 +208,6 @@ export type AccountsControllerAccountTransactionsUpdatedEvent = {
  */
 export type AccountsControllerAccountAssetListUpdatedEvent = {
   type: `${typeof controllerName}:accountAssetListUpdated`;
-  payload: SnapKeyringAccountAssetListUpdatedEvent['payload'];
-};
-
-export type SnapAccountServiceAccountBalancesUpdatedEvent = {
-  type: `SnapAccountService:accountBalancesUpdated`;
-  payload: SnapKeyringAccountBalancesUpdatedEvent['payload'];
-};
-
-export type SnapAccountServiceAccountTransactionsUpdatedEvent = {
-  type: `SnapAccountService:accountTransactionsUpdated`;
-  payload: SnapKeyringAccountTransactionsUpdatedEvent['payload'];
-};
-
-export type SnapAccountServiceAccountAssetListUpdatedEvent = {
-  type: `SnapAccountService:accountAssetListUpdated`;
   payload: SnapKeyringAccountAssetListUpdatedEvent['payload'];
 };
 
