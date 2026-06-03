@@ -665,7 +665,7 @@ export class MultichainAssetsController extends StaticIntervalPollingController<
   }
 
   /**
-   * After snap balance events, fetch Stellar asset info (metadata + trust-line `extra`).
+   * After snap balance events, fetch Stellar trust-line `extra` via `getAccountAssetInfo`.
    *
    * @param payload - Keyring balance update payload.
    */
@@ -687,7 +687,7 @@ export class MultichainAssetsController extends StaticIntervalPollingController<
   }
 
   /**
-   * Fetches Stellar-only `getAccountAssetInfo` client request and merges metadata + balance `extra`.
+   * Fetches Stellar-only `getAccountAssetInfo` client request and merges trust-line `extra` into balances.
    *
    * @param accountId - Account id.
    * @param assetIds - Assets to enrich.
@@ -724,36 +724,20 @@ export class MultichainAssetsController extends StaticIntervalPollingController<
       return;
     }
 
-    const metadataUpdates: Record<CaipAssetType, FungibleAssetMetadata> = {};
     const extrasByAsset: Record<
       CaipAssetType,
       StellarAccountAssetInfoExtra | undefined
     > = {};
 
     for (const assetId of stellarClassicIds) {
-      const entry = info[assetId];
-      if (!entry) {
+      const snapExtra = info[assetId];
+      if (snapExtra === undefined) {
         // Snap omits assets with no on-chain row (portfolio import without trust line).
         extrasByAsset[assetId] = { limit: '0' };
         continue;
       }
-      metadataUpdates[assetId] = entry.metadata;
-      const balanceExtra = stellarAssetInfoExtraToBalanceExtra(entry.extra);
-      if (balanceExtra === undefined) {
-        // Snap omits extra when there is no on-chain trust line (portfolio import).
-        extrasByAsset[assetId] = { limit: '0' };
-      } else {
-        extrasByAsset[assetId] = balanceExtra;
-      }
-    }
-
-    if (Object.keys(metadataUpdates).length > 0) {
-      this.update((state) => {
-        state.assetsMetadata = {
-          ...state.assetsMetadata,
-          ...metadataUpdates,
-        };
-      });
+      const balanceExtra = stellarAssetInfoExtraToBalanceExtra(snapExtra);
+      extrasByAsset[assetId] = balanceExtra ?? { limit: '0' };
     }
 
     if (Object.keys(extrasByAsset).length > 0) {
@@ -772,7 +756,7 @@ export class MultichainAssetsController extends StaticIntervalPollingController<
    * @param snapId - Stellar wallet snap id.
    * @param scope - Stellar CAIP-2 chain id.
    * @param assets - CAIP-19 assets to resolve.
-   * @returns Per-asset metadata and optional trust-line extra, or undefined on failure.
+   * @returns Per-asset trust-line fields, or undefined on failure.
    */
   async #getAccountAssetInfoFromSnap(
     accountId: string,

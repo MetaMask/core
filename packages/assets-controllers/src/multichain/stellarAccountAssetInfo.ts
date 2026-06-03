@@ -1,11 +1,10 @@
 import type { InternalAccount } from '@metamask/keyring-internal-api';
-import type { FungibleAssetMetadata } from '@metamask/snaps-sdk';
 import type { CaipAssetType } from '@metamask/utils';
 import BigNumber from 'bignumber.js';
 
 import { isStellarClassicAssetCaip19 } from './stellarTrustline';
 
-/** Stellar snap clientRequest method for trust-line metadata enrichment. */
+/** Stellar snap clientRequest method for trust-line enrichment. */
 export const STELLAR_GET_ACCOUNT_ASSET_INFO_CLIENT_METHOD =
   'getAccountAssetInfo' as const;
 
@@ -16,14 +15,9 @@ export type StellarAccountAssetInfoExtra = {
   sponsored?: boolean;
 };
 
-export type StellarAccountAssetInfoEntry = {
-  metadata: FungibleAssetMetadata;
-  extra?: StellarAccountAssetInfoExtra;
-};
-
 export type StellarGetAccountAssetInfoResponse = Record<
   CaipAssetType,
-  StellarAccountAssetInfoEntry
+  StellarAccountAssetInfoExtra
 >;
 
 /**

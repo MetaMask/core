@@ -1194,9 +1194,7 @@ describe('MultichainAssetsController', () => {
               STELLAR_GET_ACCOUNT_ASSET_INFO_CLIENT_METHOD
           ) {
             return Promise.resolve({
-              [STELLAR_CLASSIC_USDC]: {
-                metadata: STELLAR_CLASSIC_USDC_METADATA,
-              },
+              [STELLAR_CLASSIC_USDC]: {},
             });
           }
           return Promise.resolve(mockHandleRequestOnAssetsLookupReturnValue);
@@ -1239,10 +1237,7 @@ describe('MultichainAssetsController', () => {
               STELLAR_GET_ACCOUNT_ASSET_INFO_CLIENT_METHOD
           ) {
             return Promise.resolve({
-              [STELLAR_CLASSIC_USDC]: {
-                metadata: STELLAR_CLASSIC_USDC_METADATA,
-                extra: { limit: '1000' },
-              },
+              [STELLAR_CLASSIC_USDC]: { limit: '1000' },
             });
           }
           return Promise.resolve(mockHandleRequestOnAssetsLookupReturnValue);
@@ -1287,9 +1282,7 @@ describe('MultichainAssetsController', () => {
               STELLAR_GET_ACCOUNT_ASSET_INFO_CLIENT_METHOD
           ) {
             return Promise.resolve({
-              [STELLAR_CLASSIC_USDC]: {
-                metadata: STELLAR_CLASSIC_USDC_METADATA,
-              },
+              [STELLAR_CLASSIC_USDC]: {},
             });
           }
           return Promise.resolve(mockHandleRequestOnAssetsLookupReturnValue);
@@ -1356,10 +1349,7 @@ describe('MultichainAssetsController', () => {
               STELLAR_GET_ACCOUNT_ASSET_INFO_CLIENT_METHOD
           ) {
             return Promise.resolve({
-              [STELLAR_CLASSIC_USDC]: {
-                metadata: STELLAR_CLASSIC_USDC_METADATA,
-                extra: { limit: '500' },
-              },
+              [STELLAR_CLASSIC_USDC]: { limit: '500' },
             });
           }
           return Promise.resolve(mockHandleRequestOnAssetsLookupReturnValue);
