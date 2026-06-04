@@ -273,7 +273,7 @@ describe('submitFiatQuotes', () => {
     });
   });
 
-  it('polls completed fiat order then requotes and submits relay', async () => {
+  it('polls completed fiat order then submits single EXACT_INPUT relay for simple deposits', async () => {
     const order = getFiatOrderMock({
       cryptoAmount: '1.2345',
       cryptoCurrency: {
@@ -300,6 +300,69 @@ describe('submitFiatQuotes', () => {
       fiatAsset: FIAT_ASSET_MOCK,
       walletAddress: WALLET_ADDRESS_MOCK,
     });
+    expect(getRelayQuotesMock).toHaveBeenCalledTimes(1);
+    expect(getRelayQuotesMock.mock.calls[0][0].requests).toStrictEqual([
+      expect.objectContaining({
+        isMaxAmount: false,
+        isPostQuote: true,
+        sourceBalanceRaw: '1234500000000000000',
+        sourceTokenAmount: '1234500000000000000',
+      }),
+    ]);
+    expect(submitRelayQuotesMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        quotes: [RELAY_QUOTE_RESULT_MOCK],
+      }),
+    );
+    expect(result).toStrictEqual({ transactionHash: '0x1234' });
+  });
+
+  it('uses three-phase flow with discovery and delegation for nested calldata transactions', async () => {
+    const nestedTransaction = {
+      ...TRANSACTION_MOCK,
+      nestedTransactions: [
+        { to: '0xaaa' as Hex, data: '0x1111' as Hex },
+        { to: '0xbbb' as Hex, data: '0x2222' as Hex },
+      ],
+    } as unknown as TransactionMeta;
+
+    resolveSourceAmountRawMock.mockResolvedValue('1234500000000000000');
+
+    const { callMock, request } = getRequest({
+      transaction: nestedTransaction,
+    });
+
+    callMock.mockImplementation((action: string) => {
+      if (action === 'TransactionPayController:getState') {
+        return {
+          transactionData: {
+            [TRANSACTION_ID_MOCK]: {
+              fiatPayment: {
+                orderId: ORDER_ID_MOCK,
+                rampsQuote: RAMPS_QUOTE_MOCK,
+              },
+              isLoading: false,
+              tokens: [],
+            },
+          },
+        };
+      }
+      if (action === 'RampsController:getOrder') {
+        return getFiatOrderMock();
+      }
+      if (action === 'TransactionPayController:getAmountData') {
+        return Promise.resolve({
+          updates: [
+            { nestedTransactionIndex: 0, data: '0xNewApprove' },
+            { nestedTransactionIndex: 1, data: '0xNewDeposit' },
+          ],
+        });
+      }
+      throw new Error(`Unexpected action: ${action}`);
+    });
+
+    const result = await submitFiatQuotes(request);
+
     expect(getRelayQuotesMock).toHaveBeenCalledTimes(2);
     expect(getRelayQuotesMock.mock.calls[0][0].requests).toStrictEqual([
       expect.objectContaining({
@@ -318,10 +381,9 @@ describe('submitFiatQuotes', () => {
         targetAmountMinimum: '11900000',
       }),
     ]);
-    expect(submitRelayQuotesMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        quotes: [RELAY_QUOTE_RESULT_MOCK],
-      }),
+    expect(callMock).toHaveBeenCalledWith(
+      'TransactionPayController:getAmountData',
+      expect.objectContaining({ amount: '11900000' }),
     );
     expect(result).toStrictEqual({ transactionHash: '0x1234' });
   });
@@ -755,9 +817,26 @@ describe('submitFiatQuotes', () => {
     expect(result).toStrictEqual({ transactionHash: '0x1234' });
   });
 
-  it('throws if discovery relay quote returns no quotes', async () => {
+  it('throws if simple relay quote returns no quotes', async () => {
     getRelayQuotesMock.mockResolvedValue([]);
     const { request } = getRequest();
+
+    await expect(submitFiatQuotes(request)).rejects.toThrow(
+      'No relay quotes returned for completed fiat order',
+    );
+  });
+
+  it('throws if discovery relay quote returns no quotes', async () => {
+    getRelayQuotesMock.mockResolvedValue([]);
+    const { request } = getRequest({
+      transaction: {
+        ...TRANSACTION_MOCK,
+        nestedTransactions: [
+          { to: '0xaaa', data: '0x1111' },
+          { to: '0xbbb', data: '0x2222' },
+        ],
+      } as unknown as TransactionMeta,
+    });
 
     await expect(submitFiatQuotes(request)).rejects.toThrow(
       'No relay quotes returned for fiat discovery',
@@ -768,10 +847,61 @@ describe('submitFiatQuotes', () => {
     getRelayQuotesMock
       .mockResolvedValueOnce([RELAY_QUOTE_RESULT_MOCK])
       .mockResolvedValueOnce([]);
-    const { request } = getRequest();
+
+    const nestedTransaction = {
+      ...TRANSACTION_MOCK,
+      nestedTransactions: [
+        { to: '0xaaa' as Hex, data: '0x1111' as Hex },
+        { to: '0xbbb' as Hex, data: '0x2222' as Hex },
+      ],
+    } as unknown as TransactionMeta;
+
+    const { callMock, request } = getRequest({
+      transaction: nestedTransaction,
+    });
+
+    callMock.mockImplementation((action: string) => {
+      if (action === 'TransactionPayController:getState') {
+        return {
+          transactionData: {
+            [TRANSACTION_ID_MOCK]: {
+              fiatPayment: {
+                orderId: ORDER_ID_MOCK,
+                rampsQuote: RAMPS_QUOTE_MOCK,
+              },
+              isLoading: false,
+              tokens: [],
+            },
+          },
+        };
+      }
+      if (action === 'RampsController:getOrder') {
+        return getFiatOrderMock();
+      }
+      if (action === 'TransactionPayController:getAmountData') {
+        return Promise.resolve({
+          updates: [
+            { nestedTransactionIndex: 0, data: '0xNewApprove' },
+            { nestedTransactionIndex: 1, data: '0xNewDeposit' },
+          ],
+        });
+      }
+      throw new Error(`Unexpected action: ${action}`);
+    });
 
     await expect(submitFiatQuotes(request)).rejects.toThrow(
       'No relay quotes returned for completed fiat order',
+    );
+  });
+
+  it('does not call getAmountData for simple deposits without nested calldata', async () => {
+    const { callMock, request } = getRequest();
+
+    await submitFiatQuotes(request);
+
+    expect(callMock).not.toHaveBeenCalledWith(
+      'TransactionPayController:getAmountData',
+      expect.anything(),
     );
   });
 
@@ -882,13 +1012,67 @@ describe('submitFiatQuotes', () => {
     expect(txDraft.requiredAssets?.[0].amount).toBe('0xb59460');
   });
 
-  it('falls back to original transaction when getTransaction returns undefined', async () => {
+  it('falls back to original transaction when getTransaction returns undefined on simple path', async () => {
     getTransactionMock.mockReturnValue(undefined);
     const { request } = getRequest();
 
     const result = await submitFiatQuotes(request);
 
     expect(result).toStrictEqual({ transactionHash: '0x1234' });
+  });
+
+  it('falls back to original transaction when getTransaction returns undefined on three-phase path', async () => {
+    getTransactionMock.mockReturnValue(undefined);
+
+    const nestedTransaction = {
+      ...TRANSACTION_MOCK,
+      nestedTransactions: [
+        { to: '0xaaa' as Hex, data: '0x1111' as Hex },
+        { to: '0xbbb' as Hex, data: '0x2222' as Hex },
+      ],
+    } as unknown as TransactionMeta;
+
+    const { callMock, request } = getRequest({
+      transaction: nestedTransaction,
+    });
+
+    callMock.mockImplementation((action: string) => {
+      if (action === 'TransactionPayController:getState') {
+        return {
+          transactionData: {
+            [TRANSACTION_ID_MOCK]: {
+              fiatPayment: {
+                orderId: ORDER_ID_MOCK,
+                rampsQuote: RAMPS_QUOTE_MOCK,
+              },
+              isLoading: false,
+              tokens: [],
+            },
+          },
+        };
+      }
+      if (action === 'RampsController:getOrder') {
+        return getFiatOrderMock();
+      }
+      if (action === 'TransactionPayController:getAmountData') {
+        return Promise.resolve({
+          updates: [
+            { nestedTransactionIndex: 0, data: '0xNewApprove' },
+            { nestedTransactionIndex: 1, data: '0xNewDeposit' },
+          ],
+        });
+      }
+      throw new Error(`Unexpected action: ${action}`);
+    });
+
+    const result = await submitFiatQuotes(request);
+
+    expect(result).toStrictEqual({ transactionHash: '0x1234' });
+    expect(submitRelayQuotesMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        transaction: nestedTransaction,
+      }),
+    );
   });
 
   it('throws if relay submit fails', async () => {

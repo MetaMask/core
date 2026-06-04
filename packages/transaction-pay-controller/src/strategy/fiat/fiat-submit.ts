@@ -284,8 +284,125 @@ async function submitRelayAfterFiatCompletion({
     walletAddress,
   });
 
-  // Phase 1: Discovery quote with EXACT_INPUT to find the actual target
-  // token output for the settled source amount.
+  const hasNestedCalldata = (transaction.nestedTransactions?.length ?? 0) >= 2;
+
+  // Transactions with nested calldata (e.g. moneyAccountDeposit with
+  // approve + deposit) need a three-phase flow: discovery quote to learn
+  // the target amount, calldata re-encoding, then a delegation quote.
+  // Simple deposits (Perps, Predict) skip straight to a single EXACT_INPUT
+  // relay quote — cheaper fees, no leftover dust, one fewer request.
+  if (hasNestedCalldata) {
+    return await submitWithCalldataReEncoding({
+      baseRequest,
+      request,
+      sourceAmountRaw,
+      transaction,
+    });
+  }
+
+  return await submitSimpleRelay({
+    baseRequest,
+    request,
+    sourceAmountRaw,
+    transaction,
+  });
+}
+
+/**
+ * Submits a single EXACT_INPUT relay quote for simple deposits
+ * that don't require nested calldata re-encoding or delegation.
+ *
+ * @param options - The submission options.
+ * @param options.baseRequest - The base quote request from the original fiat quote.
+ * @param options.request - The original fiat strategy execute request.
+ * @param options.sourceAmountRaw - The settled source amount in atomic units.
+ * @param options.transaction - The transaction metadata.
+ * @returns An object containing the relay transaction hash if available.
+ */
+async function submitSimpleRelay({
+  baseRequest,
+  request,
+  sourceAmountRaw,
+  transaction,
+}: {
+  baseRequest: QuoteRequest;
+  request: PayStrategyExecuteRequest<FiatQuote>;
+  sourceAmountRaw: string;
+  transaction: PayStrategyExecuteRequest<FiatQuote>['transaction'];
+}): Promise<{ transactionHash?: Hex }> {
+  const { messenger } = request;
+  const transactionId = transaction.id;
+
+  const originalRelayQuote = request.quotes[0].original.relayQuote;
+
+  const relayRequest: QuoteRequest = {
+    ...baseRequest,
+    isMaxAmount: false,
+    isPostQuote: true,
+    sourceBalanceRaw: sourceAmountRaw,
+    sourceTokenAmount: sourceAmountRaw,
+  };
+
+  const relayQuotes = await getRelayQuotes({
+    accountSupports7702: request.accountSupports7702,
+    messenger,
+    requests: [relayRequest],
+    transaction,
+  });
+
+  if (!relayQuotes.length) {
+    throw new Error('No relay quotes returned for completed fiat order');
+  }
+
+  validateRelayRateDrift({
+    originalQuote: originalRelayQuote,
+    discoveryQuote: relayQuotes[0].original,
+    transactionId,
+  });
+
+  log('Submitting simple relay after fiat settlement', {
+    relayQuoteCount: relayQuotes.length,
+    transactionId,
+  });
+
+  return await submitRelayQuotes({
+    accountSupports7702: request.accountSupports7702,
+    isSmartTransaction: request.isSmartTransaction,
+    messenger,
+    quotes: relayQuotes,
+    transaction,
+  });
+}
+
+/**
+ * Submits relay quotes using the three-phase flow for transactions with nested
+ * calldata that needs re-encoding (e.g. moneyAccountDeposit with approve + deposit).
+ *
+ * Phase 1: Discovery quote (EXACT_INPUT) to learn the target token output.
+ * Phase 2: Delegate calldata re-encoding to the client via getAmountData.
+ * Phase 3: Delegation quote (EXACT_OUTPUT) with updated nested transaction data.
+ *
+ * @param options - The submission options.
+ * @param options.baseRequest - The base quote request from the original fiat quote.
+ * @param options.request - The original fiat strategy execute request.
+ * @param options.sourceAmountRaw - The settled source amount in atomic units.
+ * @param options.transaction - The transaction metadata.
+ * @returns An object containing the relay transaction hash if available.
+ */
+async function submitWithCalldataReEncoding({
+  baseRequest,
+  request,
+  sourceAmountRaw,
+  transaction,
+}: {
+  baseRequest: QuoteRequest;
+  request: PayStrategyExecuteRequest<FiatQuote>;
+  sourceAmountRaw: string;
+  transaction: PayStrategyExecuteRequest<FiatQuote>['transaction'];
+}): Promise<{ transactionHash?: Hex }> {
+  const { messenger } = request;
+  const transactionId = transaction.id;
+
   const discoveryRequest: QuoteRequest = {
     ...baseRequest,
     isMaxAmount: false,
@@ -308,46 +425,41 @@ async function submitRelayAfterFiatCompletion({
   const discoveryRelay = discoveryQuotes[0].original;
   const settledTargetRaw = discoveryRelay.details.currencyOut.minimumAmount;
 
-  const originalRelayQuote = quotes[0].original.relayQuote;
+  const originalRelayQuote = request.quotes[0].original.relayQuote;
   validateRelayRateDrift({
     originalQuote: originalRelayQuote,
     discoveryQuote: discoveryRelay,
     transactionId,
   });
 
-  // Phase 2: Delegate calldata re-encoding to the client via getAmountData.
   const { updates } = await messenger.call(
     'TransactionPayController:getAmountData',
     { amount: settledTargetRaw, transaction },
   );
 
-  const hasNestedCalldata = (transaction.nestedTransactions?.length ?? 0) >= 2;
-  if (hasNestedCalldata && !updates.length) {
+  if (!updates.length) {
     throw new Error(
       'getAmountData returned no updates for transaction with nested calldata',
     );
   }
 
-  if (updates.length) {
-    updateTransaction(
-      { transactionId, messenger, note: 'Fiat deposit: update settled amount' },
-      (tx) => {
-        for (const { nestedTransactionIndex, data } of updates) {
-          if (tx.nestedTransactions?.[nestedTransactionIndex]) {
-            tx.nestedTransactions[nestedTransactionIndex].data = data;
-          }
+  updateTransaction(
+    { transactionId, messenger, note: 'Fiat deposit: update settled amount' },
+    (tx) => {
+      for (const { nestedTransactionIndex, data } of updates) {
+        if (tx.nestedTransactions?.[nestedTransactionIndex]) {
+          tx.nestedTransactions[nestedTransactionIndex].data = data;
         }
-        if (tx.requiredAssets?.[0]) {
-          tx.requiredAssets[0].amount = `0x${new BigNumber(settledTargetRaw).toString(16)}`;
-        }
-      },
-    );
-  }
+      }
+      if (tx.requiredAssets?.[0]) {
+        tx.requiredAssets[0].amount = `0x${new BigNumber(settledTargetRaw).toString(16)}`;
+      }
+    },
+  );
 
   const updatedTransaction =
     getTransaction(transactionId, messenger) ?? transaction;
 
-  // Phase 3: Real relay quote with delegation (standard crypto-like flow).
   const relayRequest: QuoteRequest = {
     ...baseRequest,
     isMaxAmount: false,
@@ -373,22 +485,13 @@ async function submitRelayAfterFiatCompletion({
     transactionId,
   });
 
-  const relaySubmitRequest: PayStrategyExecuteRequest<RelayQuote> = {
+  return await submitRelayQuotes({
     accountSupports7702: request.accountSupports7702,
     isSmartTransaction: request.isSmartTransaction,
     messenger,
     quotes: relayQuotes,
     transaction: updatedTransaction,
-  };
-
-  const relayResult = await submitRelayQuotes(relaySubmitRequest);
-
-  log('Relay submission completed after fiat order', {
-    relayResult,
-    transactionId,
   });
-
-  return relayResult;
 }
 
 /**
