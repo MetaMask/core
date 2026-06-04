@@ -30,6 +30,15 @@ import type {
 } from './shared';
 
 /**
+ * Options for the RpcService constructor with some properties omitted and made optional as they have defaults.
+ */
+export type RpcServiceOptionsWithDefaults = Omit<
+  RpcServiceOptions,
+  'failoverService' | 'endpointUrl' | 'isOffline' | 'btoa' | 'fetch'
+> &
+  Partial<Pick<RpcServiceOptions, 'isOffline' | 'btoa' | 'fetch'>>;
+
+/**
  * Options for the RpcService constructor.
  */
 export type RpcServiceOptions = {

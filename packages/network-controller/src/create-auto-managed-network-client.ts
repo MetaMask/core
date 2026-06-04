@@ -8,7 +8,7 @@ import type {
   NetworkClientId,
   NetworkControllerMessenger,
 } from './NetworkController';
-import type { RpcServiceOptions } from './rpc-service/rpc-service';
+import type { RpcServiceOptionsWithDefaults } from './rpc-service/rpc-service';
 import type {
   BlockTracker,
   NetworkClientConfiguration,
@@ -102,7 +102,7 @@ export function createAutoManagedNetworkClient<
   networkClientConfiguration: Configuration;
   getRpcServiceOptions: (
     rpcEndpointUrl: string,
-  ) => Omit<RpcServiceOptions, 'failoverService' | 'endpointUrl'>;
+  ) => RpcServiceOptionsWithDefaults;
   getBlockTrackerOptions?: (
     rpcEndpointUrl: string,
   ) => Omit<PollingBlockTrackerOptions, 'provider'>;
