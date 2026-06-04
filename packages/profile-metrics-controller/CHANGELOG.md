@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add proof of ownership API wiring pre-requisites ([#8974](https://github.com/MetaMask/core/pull/8974))
+  - Add `ProfileMetricsService:fetchNonces` messenger action wrapping `POST /api/v2/nonce/batch`.
+  - Add optional `proof` field on accounts submitted via `ProfileMetricsService:submitMetrics` so that the auth API can use it to mark accounts as `verified: true`.
+
 ## [3.1.6]
 
 ### Changed
