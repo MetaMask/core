@@ -38,7 +38,12 @@ import { cloneDeep } from 'lodash';
 
 import { AccountsControllerMethodActions } from './AccountsController-method-action-types';
 import { projectLogger as log } from './logger';
-import type { MultichainNetworkControllerNetworkDidChangeEvent } from './types';
+import type {
+  MultichainNetworkControllerNetworkDidChangeEvent,
+  SnapAccountServiceAccountAssetListUpdatedEvent,
+  SnapAccountServiceAccountBalancesUpdatedEvent,
+  SnapAccountServiceAccountTransactionsUpdatedEvent,
+} from './types';
 import type { AccountsControllerStrictState } from './typing';
 import type { HdSnapKeyringAccount } from './utils';
 import {
@@ -212,9 +217,9 @@ export type AccountsControllerAccountAssetListUpdatedEvent = {
  */
 export type AllowedEvents =
   | KeyringControllerStateChangeEvent
-  | SnapKeyringAccountAssetListUpdatedEvent
-  | SnapKeyringAccountBalancesUpdatedEvent
-  | SnapKeyringAccountTransactionsUpdatedEvent
+  | SnapAccountServiceAccountAssetListUpdatedEvent
+  | SnapAccountServiceAccountBalancesUpdatedEvent
+  | SnapAccountServiceAccountTransactionsUpdatedEvent
   | MultichainNetworkControllerNetworkDidChangeEvent;
 
 /**
@@ -1279,7 +1284,7 @@ export class AccountsController extends BaseController<
     );
 
     this.messenger.subscribe(
-      'SnapKeyring:accountAssetListUpdated',
+      'SnapAccountService:accountAssetListUpdated',
       (snapAccountEvent) =>
         this.#handleOnSnapKeyringAccountEvent(
           'AccountsController:accountAssetListUpdated',
@@ -1288,7 +1293,7 @@ export class AccountsController extends BaseController<
     );
 
     this.messenger.subscribe(
-      'SnapKeyring:accountBalancesUpdated',
+      'SnapAccountService:accountBalancesUpdated',
       (snapAccountEvent) =>
         this.#handleOnSnapKeyringAccountEvent(
           'AccountsController:accountBalancesUpdated',
@@ -1297,7 +1302,7 @@ export class AccountsController extends BaseController<
     );
 
     this.messenger.subscribe(
-      'SnapKeyring:accountTransactionsUpdated',
+      'SnapAccountService:accountTransactionsUpdated',
       (snapAccountEvent) =>
         this.#handleOnSnapKeyringAccountEvent(
           'AccountsController:accountTransactionsUpdated',
