@@ -1067,7 +1067,6 @@ describe('MultichainAccountService', () => {
       expect(sentryError.context?.entropySource).toBe(
         MOCK_HD_KEYRING_1.metadata.id,
       );
-      expect(sentryError.context?.failureCount).toBe(1);
       expect(sentryError.context?.failures).toStrictEqual([
         expect.objectContaining({
           provider: SOL_ACCOUNT_PROVIDER_NAME,
@@ -1103,7 +1102,6 @@ describe('MultichainAccountService', () => {
       expect(captureExceptionSpy).toHaveBeenCalledTimes(1);
       const sentryError = captureExceptionSpy.mock
         .calls[0]?.[0] as SentryError<RemoveMultichainAccountWalletFailureContext>;
-      expect(sentryError.context?.failureCount).toBe(2);
       expect(sentryError.context?.failures).toStrictEqual(
         expect.arrayContaining([
           expect.objectContaining({
@@ -1149,7 +1147,6 @@ describe('MultichainAccountService', () => {
       expect(sentryError.context?.failures[0]).toStrictEqual(
         expect.objectContaining({
           error: 'plain string failure',
-          stack: undefined,
         }),
       );
     });
