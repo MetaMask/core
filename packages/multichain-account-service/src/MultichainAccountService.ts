@@ -55,7 +55,9 @@ import { toErrorMessage } from './utils';
  */
 export type RemoveMultichainAccountWalletFailure = {
   provider: string;
-  accountId: Bip44Account<KeyringAccount>['id'];
+  // Omitted for provider-level failures (e.g. enumerating a provider's
+  // accounts threw before any specific account could be targeted).
+  accountId?: Bip44Account<KeyringAccount>['id'];
   error: unknown;
 };
 
@@ -563,12 +565,12 @@ export class MultichainAccountService {
    *
    * The deletion iterates providers (the source of truth for their own
    * account lists) and filters each provider's accounts to those matching
-   * the wallet's entropy source. Per-account deletions are best-effort: a
-   * single account failure does not abort cleanup of the remaining
-   * accounts. If one or more deletions fail, a single aggregated error is
-   * reported via `reportError` with all per-account failure details in its
-   * context. The wallet is always removed from the service's internal map
-   * at the end.
+   * the wallet's entropy source. Cleanup is best-effort end-to-end: neither
+   * a single account deletion failure nor a failure to enumerate a given
+   * provider's accounts aborts cleanup of the remaining providers. If one or
+   * more operations fail, a single aggregated error is reported via
+   * `reportError` with all per-failure details in its context. The wallet is
+   * always removed from the service's internal map at the end.
    *
    * @param entropySource - The entropy source of the multichain account wallet.
    */
@@ -579,18 +581,31 @@ export class MultichainAccountService {
     const failures: RemoveMultichainAccountWalletFailure[] = [];
 
     for (const provider of this.#providers) {
-      // For wrapped providers, enumerate via the underlying provider so we
-      // also see accounts when the wrapper has been disabled (i.e. basic
-      // functionality is off). The wrapper's `deleteAccount` itself forwards
-      // unconditionally, but its `getAccounts()` returns `[]` when disabled,
-      // which would otherwise leave snap-backed accounts orphaned in their
-      // underlying keyrings.
-      const source = isAccountProviderWrapper(provider)
-        ? provider.unwrap()
-        : provider;
-      const owned = source
-        .getAccounts()
-        .filter((account) => account.options.entropy.id === entropySource);
+      // Enumerating a provider's owned accounts can itself throw (e.g.
+      // `unwrap()`, `getAccounts()`, or reading account options). Catch it as
+      // a provider-level failure and move on so one bad provider does not
+      // abort cleanup of the others or skip the always-remove step below.
+      let owned: Bip44Account<KeyringAccount>[];
+      try {
+        // For wrapped providers, enumerate via the underlying provider so we
+        // also see accounts when the wrapper has been disabled (i.e. basic
+        // functionality is off). The wrapper's `deleteAccount` itself forwards
+        // unconditionally, but its `getAccounts()` returns `[]` when disabled,
+        // which would otherwise leave snap-backed accounts orphaned in their
+        // underlying keyrings.
+        const source = isAccountProviderWrapper(provider)
+          ? provider.unwrap()
+          : provider;
+        owned = source
+          .getAccounts()
+          .filter((account) => account.options.entropy.id === entropySource);
+      } catch (error) {
+        failures.push({
+          provider: provider.getName(),
+          error,
+        });
+        continue;
+      }
 
       for (const account of owned) {
         try {

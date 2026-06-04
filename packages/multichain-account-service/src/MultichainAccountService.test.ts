@@ -1123,6 +1123,50 @@ describe('MultichainAccountService', () => {
       ).toThrow('Unknown wallet, no wallet matching this entropy source');
     });
 
+    it('continues with remaining providers and removes the wallet when enumerating one provider throws', async () => {
+      const mockEvmAccount = makeWalletAccount(MOCK_HD_ACCOUNT_1);
+      const mockSolAccount = makeWalletAccount(MOCK_SOL_ACCOUNT_1);
+
+      const { service, messenger, mocks } = await setup({
+        accounts: [mockEvmAccount, mockSolAccount],
+      });
+      const captureExceptionSpy = jest.spyOn(messenger, 'captureException');
+      // Enumerating the Sol provider's accounts throws before any specific
+      // account can be targeted. This must not abort cleanup of the other
+      // providers nor skip the always-remove step.
+      mocks.SolAccountProvider.getAccounts.mockImplementationOnce(() => {
+        throw new Error('snap keyring unavailable');
+      });
+
+      await service.removeMultichainAccountWallet(
+        MOCK_HD_KEYRING_1.metadata.id,
+      );
+
+      // EVM account must still be deleted even though the Sol provider failed
+      // to enumerate.
+      expect(mocks.EvmAccountProvider.deleteAccount).toHaveBeenCalledWith(
+        mockEvmAccount.id,
+      );
+      // The Sol provider failure is reported as a provider-level failure with
+      // no specific `accountId`.
+      expect(captureExceptionSpy).toHaveBeenCalledTimes(1);
+      const sentryError = captureExceptionSpy.mock
+        .calls[0]?.[0] as SentryError<RemoveMultichainAccountWalletFailureContext>;
+      expect(sentryError.context?.failures).toStrictEqual([
+        {
+          provider: SOL_ACCOUNT_PROVIDER_NAME,
+          accountId: undefined,
+          error: 'snap keyring unavailable',
+        },
+      ]);
+      // The wallet is always removed at the end.
+      expect(() =>
+        service.getMultichainAccountWallet({
+          entropySource: MOCK_HD_KEYRING_1.metadata.id,
+        }),
+      ).toThrow('Unknown wallet, no wallet matching this entropy source');
+    });
+
     it('handles non-Error rejections in the aggregated report', async () => {
       const mockEvmAccount = makeWalletAccount(MOCK_HD_ACCOUNT_1);
 
