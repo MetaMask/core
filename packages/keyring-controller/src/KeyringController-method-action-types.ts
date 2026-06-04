@@ -82,7 +82,8 @@ export type KeyringControllerIsUnlockedAction = {
 /**
  * Gets the seed phrase of the HD keyring.
  *
- * @param password - Password of the keyring.
+ * @param credentials - The wallet password, or an object holding either the
+ * `password` or the vault `encryptionKey`.
  * @param keyringId - The id of the keyring.
  * @returns Promise resolving to the seed phrase.
  */

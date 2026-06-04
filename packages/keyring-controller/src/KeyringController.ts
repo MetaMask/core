@@ -1046,6 +1046,23 @@ export class KeyringController<
   }
 
   /**
+   * Method to verify a given encryption key validity. Throws an error if the
+   * encryption key is invalid, i.e. it cannot decrypt the vault.
+   *
+   * @param encryptionKey - Serialized vault encryption key.
+   */
+  async verifyEncryptionKey(encryptionKey: string): Promise<void> {
+    if (!this.state.vault) {
+      throw new KeyringControllerError(
+        KeyringControllerErrorMessage.VaultError,
+      );
+    }
+
+    const key = await this.#encryptor.importKey(encryptionKey);
+    await this.#encryptor.decryptWithKey(key, JSON.parse(this.state.vault));
+  }
+
+  /**
    * Returns the status of the vault.
    *
    * @returns Boolean returning true if the vault is unlocked.
@@ -1057,16 +1074,34 @@ export class KeyringController<
   /**
    * Gets the seed phrase of the HD keyring.
    *
-   * @param password - Password of the keyring.
+   * The keyring can be re-authenticated with the wallet password (passed either
+   * as a bare string or as `{ password }`) or with the vault `{ encryptionKey }`.
+   * The bare-string form is kept for backwards compatibility.
+   *
+   * @param credentials - The wallet password, or an object holding either the
+   * `password` or the vault `encryptionKey`.
    * @param keyringId - The id of the keyring.
    * @returns Promise resolving to the seed phrase.
    */
   async exportSeedPhrase(
-    password: string,
+    credentials: string | { password: string } | { encryptionKey: string },
     keyringId?: string,
   ): Promise<Uint8Array> {
     this.#assertIsUnlocked();
-    await this.verifyPassword(password);
+
+    if (typeof credentials === 'string') {
+      await this.verifyPassword(credentials);
+    } else {
+      const { encryptionKey } = credentials as { encryptionKey?: string };
+      if (typeof encryptionKey === 'string') {
+        await this.verifyEncryptionKey(encryptionKey);
+      } else {
+        await this.verifyPassword(
+          (credentials as { password: string }).password,
+        );
+      }
+    }
+
     const selectedKeyring = this.#getKeyringByIdOrDefault(keyringId);
     if (!selectedKeyring) {
       throw new KeyringControllerError('Keyring not found');
