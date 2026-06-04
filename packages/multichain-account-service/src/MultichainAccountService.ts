@@ -596,7 +596,7 @@ export class MultichainAccountService {
         : provider;
       const owned = source
         .getAccounts()
-        .filter((account) => account?.options?.entropy?.id === entropySource);
+        .filter((account) => account.options.entropy.id === entropySource);
 
       for (const account of owned) {
         try {
