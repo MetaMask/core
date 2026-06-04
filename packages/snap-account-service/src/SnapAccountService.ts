@@ -9,7 +9,6 @@ import {
   isSnapKeyring,
 } from '@metamask/eth-snap-keyring/v2';
 import { KeyringEvent } from '@metamask/keyring-api';
-import { KeyringType } from '@metamask/keyring-api/v2';
 import type {
   AccountAssetListUpdatedEventPayload,
   AccountBalancesUpdatedEventPayload,
@@ -21,6 +20,7 @@ import {
   AccountTransactionsUpdatedEventStruct,
   KeyringEvent,
 } from '@metamask/keyring-api';
+import { KeyringType } from '@metamask/keyring-api/v2';
 import type {
   KeyringControllerGetStateAction,
   KeyringControllerStateChangeEvent,

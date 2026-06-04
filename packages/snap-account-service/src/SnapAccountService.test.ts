@@ -944,7 +944,9 @@ describe('SnapAccountService', () => {
 
         expect(result).toBeNull();
         expect(listener).toHaveBeenCalledWith(payload);
-        expect(mocks.KeyringController.withKeyringV2Unsafe).not.toHaveBeenCalled();
+        expect(
+          mocks.KeyringController.withKeyringV2Unsafe,
+        ).not.toHaveBeenCalled();
         expect(mocks.KeyringController.withController).not.toHaveBeenCalled();
       },
     );
