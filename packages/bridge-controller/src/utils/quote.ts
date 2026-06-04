@@ -15,9 +15,9 @@ import type {
   QuoteMetadata,
   QuoteResponseV1,
   NonEvmFees,
-  TxData,
 } from '../types';
 import { FeatureId } from '../validators/feature-flags';
+import type { TxData } from '../validators/trade';
 import { isNativeAddress, isNonEvmChainId } from './bridge';
 
 export const isValidQuoteRequest = (

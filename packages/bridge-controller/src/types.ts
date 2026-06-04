@@ -40,21 +40,23 @@ import type {
   PlatformConfigSchema,
 } from './validators/feature-flags';
 import type {
-  BitcoinTradeDataSchema,
   FeeDataSchema,
   IntentSchema,
   ProtocolSchema,
   QuoteResponseSchema,
   QuoteSchema,
   StepSchema,
-  StellarTradeDataSchema,
-  TronTradeDataSchema,
-  TxDataSchema,
   GaslessPropertiesSchema,
   TxFeeGasLimitsSchema,
 } from './validators/quote-response';
 import type { QuoteStreamCompleteSchema } from './validators/quote-stream-complete';
 import type { TokenFeatureSchema } from './validators/token-feature';
+import type {
+  BitcoinTradeData,
+  StellarTradeData,
+  TronTradeData,
+  TxData,
+} from './validators/trade';
 
 export type FetchFunction = (
   input: RequestInfo | URL | string,
@@ -284,16 +286,9 @@ export type FeeData = Infer<typeof FeeDataSchema>;
 
 export type Quote = Infer<typeof QuoteSchema>;
 
-export type TxData = Infer<typeof TxDataSchema>;
-
 export type Intent = Infer<typeof IntentSchema>;
 export type IntentOrderLike = Intent['order'];
 
-export type BitcoinTradeData = Infer<typeof BitcoinTradeDataSchema>;
-
-export type TronTradeData = Infer<typeof TronTradeDataSchema>;
-
-export type StellarTradeData = Infer<typeof StellarTradeDataSchema>;
 /**
  * This is the type for the quote response from the bridge-api
  * TxDataType can be overriden to be a string when the quote is non-evm

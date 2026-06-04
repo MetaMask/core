@@ -22,9 +22,9 @@ import type {
   BridgeControllerState,
   GenericQuoteRequest,
   QuoteResponseV1,
-  TxData,
 } from '../types';
 import { ChainId } from '../types';
+import type { TxData } from '../validators/trade';
 import {
   formatChainIdToCaip,
   formatChainIdToDec,

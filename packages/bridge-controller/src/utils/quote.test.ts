@@ -8,8 +8,8 @@ import type {
   Quote,
   NonEvmFees,
   L1GasFees,
-  TxData,
 } from '../types';
+import type { TxData } from '../validators/trade';
 import {
   isValidQuoteRequest,
   getQuoteIdentifier,

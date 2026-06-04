@@ -19,6 +19,7 @@ import type { FeatureId } from '../validators/feature-flags';
 import { validateQuoteResponseV1 } from '../validators/quote-response';
 import { validateQuoteStreamComplete } from '../validators/quote-stream-complete';
 import { validateTokenFeature } from '../validators/token-feature';
+import { isEvmTxData } from '../validators/trade';
 import { getEthUsdtResetData } from './bridge';
 import {
   formatAddressToAssetId,
@@ -26,7 +27,6 @@ import {
   formatChainIdToDec,
 } from './caip-formatters';
 import { fetchServerEvents } from './fetch-server-events';
-import { isEvmTxData } from './trade-utils';
 
 export const getClientHeaders = ({
   clientId,

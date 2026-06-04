@@ -8,7 +8,6 @@ import {
   type,
   record,
   array,
-  nullable,
   optional,
   enums,
   define,
@@ -16,14 +15,18 @@ import {
   assert,
   pattern,
   intersection,
+  nullable,
 } from '@metamask/superstruct';
-import {
-  HexAddressStruct,
-  HexChecksumAddressStruct,
-  StrictHexStruct,
-} from '@metamask/utils';
+import { StrictHexStruct } from '@metamask/utils';
 
 import { BridgeAssetSchema, ChainIdSchema } from './bridge-asset';
+import {
+  TxDataSchema,
+  TronTradeDataSchema,
+  BitcoinTradeDataSchema,
+  HexAddressOrChecksumAddressSchema,
+  StellarTradeDataSchema,
+} from './trade';
 
 export enum FeeType {
   METABRIDGE = 'metabridge',
@@ -42,11 +45,6 @@ export enum ActionTypes {
   SWAP = 'swap',
   REFUEL = 'refuel',
 }
-
-const HexAddressOrChecksumAddressSchema = union([
-  HexAddressStruct,
-  HexChecksumAddressStruct,
-]);
 
 export const NumberStringSchema = define<string>(
   'NumberString',
@@ -281,48 +279,6 @@ export const QuoteSchema = intersection([
     ),
     intent: optional(IntentSchema),
   }),
-]);
-
-export const TxDataSchema = type({
-  chainId: number(),
-  to: HexAddressOrChecksumAddressSchema,
-  from: HexAddressOrChecksumAddressSchema,
-  value: StrictHexStruct,
-  data: StrictHexStruct,
-  gasLimit: nullable(number()),
-  effectiveGas: optional(number()),
-});
-
-export const BitcoinTradeDataSchema = type({
-  unsignedPsbtBase64: string(),
-  inputsToSign: nullable(array(type({}))),
-});
-
-export const TronTradeDataSchema = type({
-  raw_data_hex: string(),
-  visible: optional(boolean()),
-  raw_data: optional(
-    nullable(
-      type({
-        contract: optional(
-          array(
-            type({
-              type: optional(string()),
-            }),
-          ),
-        ),
-        fee_limit: optional(number()),
-      }),
-    ),
-  ),
-});
-
-/**
- * Stellar bridge quote: unsigned transaction envelope as XDR (base64).
- */
-export const StellarTradeDataSchema = union([
-  type({ xdrBase64: string() }),
-  type({ xdr: string() }),
 ]);
 
 export const QuoteResponseSchema = type({
