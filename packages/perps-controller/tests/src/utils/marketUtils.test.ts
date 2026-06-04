@@ -74,7 +74,9 @@ describe('marketUtils category helpers', () => {
     });
 
     it('returns forex for forex marketType', () => {
-      expect(getMarketTypeFilter(market({ marketType: 'forex' }))).toBe('forex');
+      expect(getMarketTypeFilter(market({ marketType: 'forex' }))).toBe(
+        'forex',
+      );
     });
 
     it('returns crypto for main-DEX markets without a marketType', () => {
@@ -93,7 +95,9 @@ describe('marketUtils category helpers', () => {
 
     it('returns all for new markets without a marketType', () => {
       expect(
-        getMarketTypeFilter(market({ marketType: undefined, isNewMarket: true })),
+        getMarketTypeFilter(
+          market({ marketType: undefined, isNewMarket: true }),
+        ),
       ).toBe('all');
     });
 
