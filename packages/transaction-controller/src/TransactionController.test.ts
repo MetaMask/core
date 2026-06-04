@@ -4239,7 +4239,7 @@ describe('TransactionController', () => {
           ...transaction.toJSON(),
           r: 128n,
           s: 256n,
-          v: 512n,
+          v: 22310257n, // valid EIP-155 V for Sepolia (chainId 11155111): 2 * 11155111 + 35
         }),
       );
 
@@ -4264,7 +4264,7 @@ describe('TransactionController', () => {
       expect(speedUpTransaction).toMatchObject({
         r: '0x80',
         s: '0x100',
-        v: '0x200',
+        v: '0x1546d71',
       });
     });
 
