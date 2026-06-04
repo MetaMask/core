@@ -56,7 +56,7 @@ import { toErrorMessage } from './utils';
 export type RemoveMultichainAccountWalletFailure = {
   provider: string;
   accountId: Bip44Account<KeyringAccount>['id'];
-  error: string;
+  error: unknown;
   stack?: string;
 };
 
