@@ -7,10 +7,60 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [72.0.2]
+
+### Changed
+
+- Bump `@metamask/accounts-controller` from `^38.1.2` to `^39.0.0` ([#8999](https://github.com/MetaMask/core/pull/8999))
+- Bump `@metamask/bridge-controller` from `^73.2.0` to `^73.2.1` ([#8999](https://github.com/MetaMask/core/pull/8999))
+- Bump `@metamask/transaction-controller` from `^66.0.0` to `^66.0.1` ([#8999](https://github.com/MetaMask/core/pull/8999))
+
+## [72.0.1]
+
+### Fixed
+
+- Fix gas-related transaction options for batch and batch-sell swaps ([#8979](https://github.com/MetaMask/core/pull/8979))
+  - When the fee is paid in an ERC20 token, set it as the `gasFeeToken`
+  - Set `excludeNativeTokenForFee=true` when `gasFeeToken` is set, which tells the TransactionController to use the gasFeeToken for payment regardless of whether the user has enough native assets
+  - Set `skipInitialGasEstimate=false` if submitting gasIncluded7702 quotes and account has not been upgraded to a smart account
+
+## [72.0.0]
+
+### Added
+
+- **BREAKING:** Implement `submitBatchSell` method to submit BatchSell transactions to the TransactionController via STX or 7702. This requires clients to add `BridgeControllerGetStateAction` as an allowed action ([#8775](https://github.com/MetaMask/core/pull/8775))
+- Wire up post-submission BatchSell history ([#8775](https://github.com/MetaMask/core/pull/8775))
+  - Create a history item for each STX trade in a batch, with the same batchId (key by `txMeta.id`)
+  - Create a history item for each trade submitted through a 7702 batch (key by `quoteId`). These won't have a reference to the batchId, and will only include quote and fee data
+  - Create a history item for the 7702 batch's delegation tx (key by `txMeta.id`). BatchSell delegation transactions include a list of `quoteIds` to associate the corresponding BatchSell trades with the delegation tx
+  - Expose `getBatchSellHistoryItemsForTxHash` util that returns history items matching either a delegation tx hash or an STX hash
+  - Expose `isBatchSellHistoryItem` util that returns whether a history item is a BatchSell operation
+
+### Changed
+
+- Update controller and submit strategies to support an array of quotes instead of a single one ([#8775](https://github.com/MetaMask/core/pull/8775))
+- Refactor tx submission into strategies to reduce quote-specific branching in the controller, and to de-duplicate shared logic between `submitTx` and `submitIntent`. Each strategy yields payloads that the controller uses to update history, poll, and publish metrics ([#8257](https://github.com/MetaMask/core/pull/8257))
+- Bump `@metamask/bridge-controller` from `^73.0.1` to `^73.2.0` ([#8915](https://github.com/MetaMask/core/pull/8915), [#8935](https://github.com/MetaMask/core/pull/8935))
+- Refactor batch transaction utils to handle multiple quote requests within a batch (for BatchSell integration) ([#8886](https://github.com/MetaMask/core/pull/8886))
+
+### Fixed
+
+- Use txFee from the bridge-api whenever it's provided ([#8805](https://github.com/MetaMask/core/pull/8805))
+- Save swap failure/completion time to txHistory to populate `actual_time_minutes` event property ([#8805](https://github.com/MetaMask/core/pull/8805))
+
+## [71.2.1]
+
 ### Changed
 
 - Bump `@metamask/bridge-controller` from `^72.0.4` to `^73.0.1` ([#8850](https://github.com/MetaMask/core/pull/8850), [#8866](https://github.com/MetaMask/core/pull/8866))
+
+### Removed
+
+- **BREAKING**: Remove unused `GasFeeController:getState` call ([#8886](https://github.com/MetaMask/core/pull/8886))
 - Remove unnecessary type assertions for bridge quotes ([#8805](https://github.com/MetaMask/core/pull/8805))
+- Bump `@metamask/keyring-controller` from `^25.5.0` to `^26.0.0` ([#8912](https://github.com/MetaMask/core/pull/8912))
+- Bump `@metamask/accounts-controller` from `^38.1.1` to `^38.1.2` ([#8912](https://github.com/MetaMask/core/pull/8912))
+- Bump `@metamask/profile-sync-controller` from `^28.1.0` to `^28.1.1` ([#8912](https://github.com/MetaMask/core/pull/8912))
 
 ## [71.2.0]
 
@@ -1205,7 +1255,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#5317](https://github.com/MetaMask/core/pull/5317))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@71.2.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@72.0.2...HEAD
+[72.0.2]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@72.0.1...@metamask/bridge-status-controller@72.0.2
+[72.0.1]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@72.0.0...@metamask/bridge-status-controller@72.0.1
+[72.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@71.2.1...@metamask/bridge-status-controller@72.0.0
+[71.2.1]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@71.2.0...@metamask/bridge-status-controller@71.2.1
 [71.2.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@71.1.4...@metamask/bridge-status-controller@71.2.0
 [71.1.4]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@71.1.3...@metamask/bridge-status-controller@71.1.4
 [71.1.3]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@71.1.2...@metamask/bridge-status-controller@71.1.3

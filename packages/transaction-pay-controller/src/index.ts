@@ -1,4 +1,6 @@
 export type {
+  GetPaymentOverrideDataRequest,
+  GetPaymentOverrideDataResponse,
   TransactionConfig,
   TransactionConfigCallback,
   TransactionData,
@@ -29,7 +31,7 @@ export type {
   TransactionPayControllerUpdatePaymentTokenAction,
   TransactionPayControllerUpdateFiatPaymentAction,
 } from './TransactionPayController-method-action-types';
-export { TransactionPayStrategy } from './constants';
+export { PaymentOverride, TransactionPayStrategy } from './constants';
 export { TransactionPayController } from './TransactionPayController';
 export { TransactionPayPublishHook } from './helpers/TransactionPayPublishHook';
 export type { TransactionPayBridgeQuote } from './strategy/bridge/types';

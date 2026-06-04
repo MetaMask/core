@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Scope the storage-key and snap-signature caches in `UserStorageController` per `entropySourceId` ([#8948](https://github.com/MetaMask/core/pull/8948))
+  - In the edge case where two SRPs resolve to the same `profileId` (e.g. a shared canonical profile after pairing), the previously message-keyed caches could hand one SRP the other's cached key — letting it read/decrypt the other SRP's user storage (which surfaced as a second SRP inheriting the first SRP's account names) or write under its key. Scoping by `entropySourceId` keeps each SRP's key isolated even then; the signed `metamask:${profileId}` message is unchanged, so existing storage keys are preserved.
+
+## [28.1.1]
+
+### Changed
+
+- Bump `@metamask/keyring-controller` from `^25.5.0` to `^26.0.0` ([#8912](https://github.com/MetaMask/core/pull/8912))
+
 ## [28.1.0]
 
 ### Added
@@ -867,7 +878,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@28.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@28.1.1...HEAD
+[28.1.1]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@28.1.0...@metamask/profile-sync-controller@28.1.1
 [28.1.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@28.0.2...@metamask/profile-sync-controller@28.1.0
 [28.0.2]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@28.0.1...@metamask/profile-sync-controller@28.0.2
 [28.0.1]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@28.0.0...@metamask/profile-sync-controller@28.0.1

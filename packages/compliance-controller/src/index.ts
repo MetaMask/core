@@ -3,6 +3,7 @@ export type {
   ComplianceServiceEnvironment,
   ComplianceServiceEvents,
   ComplianceServiceMessenger,
+  ComplianceServiceOptions,
 } from './ComplianceService';
 export type {
   ComplianceServiceCheckWalletComplianceAction,
@@ -26,5 +27,5 @@ export {
   ComplianceController,
   getDefaultComplianceControllerState,
 } from './ComplianceController';
-export { selectIsWalletBlocked } from './selectors';
+export { selectAreAnyWalletsBlocked, selectIsWalletBlocked } from './selectors';
 export type { WalletComplianceStatus } from './types';

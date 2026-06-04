@@ -7,6 +7,49 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [108.5.0]
+
+### Added
+
+- Add `isDeprecated` option to `TokenListController` constructor, a function that returns whether the controller should be disabled ([#8945](https://github.com/MetaMask/core/pull/8945))
+  - When `isDeprecated()` returns `true`, every fetching entry point (`initialize()`, `start()`, `restart()`, `_executePoll()`, and `fetchTokenList()`) resets `tokensChainsCache` to `{}`, cancels any pending debounced persist (so a stale entry can't write old data after the in-memory reset), and overwrites every persisted `tokensChainsCache:*` entry in `StorageService` with `{ data: {}, timestamp: 0 }`. No HTTP calls are issued to the token API.
+  - The function is re-evaluated on each entry point so it can be toggled at runtime without reconstructing the controller — including from inside any deprecated `setInterval` already running from a prior `start()`.
+
+### Changed
+
+- Bump `@metamask/account-tree-controller` from `^7.5.0` to `^7.5.1` ([#8999](https://github.com/MetaMask/core/pull/8999))
+- Bump `@metamask/accounts-controller` from `^38.1.2` to `^39.0.0` ([#8999](https://github.com/MetaMask/core/pull/8999))
+- Bump `@metamask/core-backend` from `^6.3.1` to `^6.3.2` ([#8999](https://github.com/MetaMask/core/pull/8999))
+- Bump `@metamask/multichain-account-service` from `^10.0.1` to `^10.0.2` ([#8999](https://github.com/MetaMask/core/pull/8999))
+- Bump `@metamask/transaction-controller` from `^66.0.0` to `^66.0.1` ([#8999](https://github.com/MetaMask/core/pull/8999))
+
+## [108.4.0]
+
+### Added
+
+- Add ARC mainnet (`5042`/`0x13b2`) entries in `multicall.ts` and `codefi-v2.ts` ([#8973](https://github.com/MetaMask/core/pull/8973))
+
+## [108.3.0]
+
+### Added
+
+- Add `fetchRwas` to fetch real-world asset tokens from the Token API ([#8931](https://github.com/MetaMask/core/pull/8931))
+
+### Changed
+
+- Bump `@metamask/account-tree-controller` from `^7.4.0` to `^7.5.0` ([#8912](https://github.com/MetaMask/core/pull/8912))
+- Bump `@metamask/accounts-controller` from `^38.1.1` to `^38.1.2` ([#8912](https://github.com/MetaMask/core/pull/8912))
+- Bump `@metamask/core-backend` from `^6.3.0` to `^6.3.1` ([#8912](https://github.com/MetaMask/core/pull/8912))
+- Bump `@metamask/keyring-controller` from `^25.5.0` to `^26.0.0` ([#8912](https://github.com/MetaMask/core/pull/8912))
+- Bump `@metamask/multichain-account-service` from `^10.0.0` to `^10.0.1` ([#8912](https://github.com/MetaMask/core/pull/8912))
+- Bump `@metamask/profile-sync-controller` from `^28.1.0` to `^28.1.1` ([#8912](https://github.com/MetaMask/core/pull/8912))
+
+## [108.2.0]
+
+### Added
+
+- Add inEVM Mainnet (chain 2525) and ICB Network (chain 73115) to `SPOT_PRICES_SUPPORT_INFO` ([#8887](https://github.com/MetaMask/core/pull/8887))
+
 ### Changed
 
 - Bump `@metamask/transaction-controller` from `^65.3.0` to `^66.0.0` ([#8796](https://github.com/MetaMask/core/pull/8796), [#8848](https://github.com/MetaMask/core/pull/8848))
@@ -14,6 +57,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/phishing-controller` from `^17.1.2` to `^17.2.0` ([#8819](https://github.com/MetaMask/core/pull/8819))
 - Bump `@metamask/network-enablement-controller` from `^5.1.1` to `^5.2.0` ([#8834](https://github.com/MetaMask/core/pull/8834))
 - Bump `@metamask/polling-controller` from `^16.0.5` to `^16.0.6` ([#8834](https://github.com/MetaMask/core/pull/8834))
+
+### Fixed
+
+- Fix incorrect hex key for Blast Mainnet in `SPOT_PRICES_SUPPORT_INFO` (`0x13c31` → `0x13e31`), which previously caused native-token price fetching to silently fail for that chain ([#8887](https://github.com/MetaMask/core/pull/8887))
+- Fixed Forma (chain `984122`) native token price resolution by requesting TIA as the zero-address native asset (`erc20:0x0000000000000000000000000000000000000000`) instead of a non-canonical SLIP-44 reference ([#8873](https://github.com/MetaMask/core/pull/8873))
 
 ## [108.1.0]
 
@@ -3104,7 +3152,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Use Ethers for AssetsContractController ([#845](https://github.com/MetaMask/core/pull/845))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@108.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@108.5.0...HEAD
+[108.5.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@108.4.0...@metamask/assets-controllers@108.5.0
+[108.4.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@108.3.0...@metamask/assets-controllers@108.4.0
+[108.3.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@108.2.0...@metamask/assets-controllers@108.3.0
+[108.2.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@108.1.0...@metamask/assets-controllers@108.2.0
 [108.1.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@108.0.0...@metamask/assets-controllers@108.1.0
 [108.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@107.0.0...@metamask/assets-controllers@108.0.0
 [107.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@106.0.1...@metamask/assets-controllers@107.0.0

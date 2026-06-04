@@ -1,5 +1,5 @@
 import { AccountGroupId } from '@metamask/account-api';
-import type {
+import {
   SnapKeyring as LegacySnapKeyring,
   SnapMessage,
 } from '@metamask/eth-snap-keyring';
@@ -10,6 +10,17 @@ import {
 } from '@metamask/eth-snap-keyring/v2';
 import { KeyringEvent } from '@metamask/keyring-api';
 import { KeyringType } from '@metamask/keyring-api/v2';
+import type {
+  AccountAssetListUpdatedEventPayload,
+  AccountBalancesUpdatedEventPayload,
+  AccountTransactionsUpdatedEventPayload,
+} from '@metamask/keyring-api';
+import {
+  AccountAssetListUpdatedEventStruct,
+  AccountBalancesUpdatedEventStruct,
+  AccountTransactionsUpdatedEventStruct,
+  KeyringEvent,
+} from '@metamask/keyring-api';
 import type {
   KeyringControllerGetStateAction,
   KeyringControllerStateChangeEvent,
@@ -22,6 +33,7 @@ import {
   isKeyringNotFoundError,
   KeyringTypes,
 } from '@metamask/keyring-controller';
+import { KeyringControllerWithKeyringUnsafeAction } from '@metamask/keyring-controller';
 import { SnapManageAccountsMethod } from '@metamask/keyring-snap-sdk';
 import type { AccountId, BaseKeyring } from '@metamask/keyring-utils';
 import type { Messenger } from '@metamask/messenger';
@@ -39,6 +51,7 @@ import type {
 } from '@metamask/snaps-controllers';
 import { SnapId } from '@metamask/snaps-sdk';
 import type { Json } from '@metamask/utils';
+import { assertStruct } from '@metamask/utils';
 
 import { projectLogger as log } from './logger';
 import type {
@@ -103,7 +116,25 @@ type AllowedActions =
 /**
  * Events that {@link SnapAccountService} exposes to other consumers.
  */
-export type SnapAccountServiceEvents = never;
+export type SnapAccountServiceAccountBalancesUpdatedEvent = {
+  type: `${typeof serviceName}:accountBalancesUpdated`;
+  payload: [AccountBalancesUpdatedEventPayload];
+};
+
+export type SnapAccountServiceAccountAssetListUpdatedEvent = {
+  type: `${typeof serviceName}:accountAssetListUpdated`;
+  payload: [AccountAssetListUpdatedEventPayload];
+};
+
+export type SnapAccountServiceAccountTransactionsUpdatedEvent = {
+  type: `${typeof serviceName}:accountTransactionsUpdated`;
+  payload: [AccountTransactionsUpdatedEventPayload];
+};
+
+export type SnapAccountServiceEvents =
+  | SnapAccountServiceAccountAssetListUpdatedEvent
+  | SnapAccountServiceAccountBalancesUpdatedEvent
+  | SnapAccountServiceAccountTransactionsUpdatedEvent;
 
 /**
  * Events from other messengers that {@link SnapAccountService} subscribes to.
@@ -159,6 +190,32 @@ function isLegacySnapKeyring(keyring: {
   type: BaseKeyring['type'];
 }): keyring is LegacySnapKeyring {
   return keyring.type === KeyringTypes.snap;
+}
+
+/**
+ * Account data update events that can be forwarded from Snaps.
+ *
+ * These events are then re-emitted by the service for other consumers.
+ */
+type AccountDataUpdatedKeyringEvent =
+  | KeyringEvent.AccountAssetListUpdated
+  | KeyringEvent.AccountBalancesUpdated
+  | KeyringEvent.AccountTransactionsUpdated;
+
+/**
+ * Checks if a Snap message method is an account data update event.
+ *
+ * @param event - The Snap message event.
+ * @returns `true` if the method can be forwarded without the legacy Snap keyring.
+ */
+function isAccountDataUpdatedKeyringEvent(
+  event: string,
+): event is AccountDataUpdatedKeyringEvent {
+  return (
+    event === KeyringEvent.AccountAssetListUpdated ||
+    event === KeyringEvent.AccountBalancesUpdated ||
+    event === KeyringEvent.AccountTransactionsUpdated
+  );
 }
 
 /**
@@ -276,17 +333,6 @@ export class SnapAccountService {
         [], // Clearing accounts since the group is removed
       );
     }
-  }
-
-  /**
-   * Initializes the snap account service.
-   *
-   * Seeds the internal set of account-management Snaps from
-   * `SnapController:getRunnableSnaps`, then starts processing lifecycle
-   * events.
-   */
-  async init(): Promise<void> {
-    await this.#tracker.init();
   }
 
   /**
@@ -505,6 +551,39 @@ export class SnapAccountService {
   }
 
   /**
+   * Gets the legacy (v1) Snap keyring but do not auto-create it if it doesn't exist.
+   *
+   * @returns The existing Snap keyring instance, or undefined if it doesn't exist.
+   */
+  async #getLegacySnapKeyringIfAvailable(): Promise<
+    LegacySnapKeyring | undefined
+  > {
+    type Result = {
+      snapKeyring: LegacySnapKeyring;
+    };
+
+    try {
+      const result = await this.#messenger.call(
+        'KeyringController:withKeyringUnsafe',
+        { filter: isLegacySnapKeyring },
+        async ({ keyring }): Promise<Result> => {
+          // The legacy Snap keyring is not compatible with `EthKeyring`, so we need to cast here.
+          return { snapKeyring: keyring } as unknown as Result;
+        },
+      );
+
+      return (result as Result).snapKeyring;
+    } catch (error) {
+      if (isKeyringNotFoundError(error)) {
+        log('Legacy Snap keyring not available yet.');
+        return undefined;
+      }
+
+      throw error;
+    }
+  }
+
+  /**
    * Handle a message from a Snap.
    *
    * @param snapId - ID of the Snap.
@@ -515,17 +594,31 @@ export class SnapAccountService {
     snapId: SnapId,
     message: SnapMessage,
   ): Promise<Json> {
-    // Handle specific methods first.
+    const { method: event } = message;
+    if (isAccountDataUpdatedKeyringEvent(event)) {
+      return this.#publishAccountDataUpdatedEvent(snapId, event, message);
+    }
+
+    // Handle specific methods.
     if (message.method === SnapManageAccountsMethod.GetSelectedAccounts) {
       const groupId = this.#getSelectedAccountGroupId();
       const accounts = this.#getAccountGroup(groupId)?.accounts ?? [];
 
-      return await this.#withKeyringV2Unsafe(snapId, async (keyring) =>
-        accounts.filter((id) => keyring.hasAccount(id)),
-      );
+      try {
+        return await this.#withKeyringV2Unsafe(snapId, async (keyring) =>
+          accounts.filter((id) => keyring.hasAccount(id)),
+        );
+      } catch (error) {
+        if (isKeyringNotFoundError(error)) {
+          // Some Snaps might be using `getSelectedAccounts` early in their lifecycle, before the keyring is created. So we
+          // do not throw in that case to avoid disrupting their initialization process.
+          return [];
+        }
+
+        throw error;
+      }
     }
 
-    const event = message.method as KeyringEvent; // We assume the Snap platform always sends a valid `KeyringEvent` here.
     log(
       `Forwarding message "${event}" from Snap "${snapId}" to its keyring...`,
     );
@@ -567,6 +660,47 @@ export class SnapAccountService {
 
       throw error;
     }
+  }
+
+  /**
+   * Publishes an account data update event from a Snap.
+   *
+   * @param snapId - ID of the Snap.
+   * @param event - Account data update event.
+   * @param message - Message sent by the Snap.
+   * @returns `null`.
+   */
+  #publishAccountDataUpdatedEvent(
+    snapId: SnapId,
+    event: AccountDataUpdatedKeyringEvent,
+    message: SnapMessage,
+  ): null {
+    log(
+      `Forwarding message "${event}" from Snap "${snapId}" as a SnapAccountService event...`,
+    );
+
+    if (event === KeyringEvent.AccountAssetListUpdated) {
+      assertStruct(message, AccountAssetListUpdatedEventStruct);
+      this.#messenger.publish(
+        'SnapAccountService:accountAssetListUpdated',
+        message.params,
+      );
+    } else if (event === KeyringEvent.AccountBalancesUpdated) {
+      assertStruct(message, AccountBalancesUpdatedEventStruct);
+      this.#messenger.publish(
+        'SnapAccountService:accountBalancesUpdated',
+        message.params,
+      );
+    } else if (event === KeyringEvent.AccountTransactionsUpdated) {
+      assertStruct(message, AccountTransactionsUpdatedEventStruct);
+      this.#messenger.publish(
+        'SnapAccountService:accountTransactionsUpdated',
+        message.params,
+      );
+    }
+
+    // We need to return a valid JSON value, so we cannot use `undefined` here.
+    return null;
   }
 
   /**

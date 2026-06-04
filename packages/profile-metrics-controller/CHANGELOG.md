@@ -7,13 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.1.6]
+
 ### Changed
 
-- Bump `@metamask/accounts-controller` from `^38.1.0` to `^38.1.1` ([#8774](https://github.com/MetaMask/core/pull/8774))
+- Bump `@metamask/accounts-controller` from `^38.1.2` to `^39.0.0` ([#8999](https://github.com/MetaMask/core/pull/8999))
+- Bump `@metamask/transaction-controller` from `^66.0.0` to `^66.0.1` ([#8999](https://github.com/MetaMask/core/pull/8999))
+
+## [3.1.5]
+
+### Changed
+
+- Bump `@metamask/accounts-controller` from `^38.1.0` to `^38.1.2` ([#8774](https://github.com/MetaMask/core/pull/8774), [#8912](https://github.com/MetaMask/core/pull/8912))
 - Bump `@metamask/controller-utils` from `^12.0.0` to `^12.1.0` ([#8774](https://github.com/MetaMask/core/pull/8774))
-- Bump `@metamask/profile-sync-controller` from `^28.0.2` to `^28.1.0` ([#8783](https://github.com/MetaMask/core/pull/8783))
+- Bump `@metamask/profile-sync-controller` from `^28.0.2` to `^28.1.1` ([#8783](https://github.com/MetaMask/core/pull/8783), [#8912](https://github.com/MetaMask/core/pull/8912))
 - Bump `@metamask/transaction-controller` from `^65.3.0` to `^66.0.0` ([#8796](https://github.com/MetaMask/core/pull/8796), [#8848](https://github.com/MetaMask/core/pull/8848))
 - Bump `@metamask/polling-controller` from `^16.0.5` to `^16.0.6` ([#8834](https://github.com/MetaMask/core/pull/8834))
+- Bump `@metamask/keyring-controller` from `^25.5.0` to `^26.0.0` ([#8912](https://github.com/MetaMask/core/pull/8912))
 
 ## [3.1.4]
 
@@ -136,7 +146,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#7194](https://github.com/MetaMask/core/pull/7194), [#7196](https://github.com/MetaMask/core/pull/7196), [#7263](https://github.com/MetaMask/core/pull/7263))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/profile-metrics-controller@3.1.4...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/profile-metrics-controller@3.1.6...HEAD
+[3.1.6]: https://github.com/MetaMask/core/compare/@metamask/profile-metrics-controller@3.1.5...@metamask/profile-metrics-controller@3.1.6
+[3.1.5]: https://github.com/MetaMask/core/compare/@metamask/profile-metrics-controller@3.1.4...@metamask/profile-metrics-controller@3.1.5
 [3.1.4]: https://github.com/MetaMask/core/compare/@metamask/profile-metrics-controller@3.1.3...@metamask/profile-metrics-controller@3.1.4
 [3.1.3]: https://github.com/MetaMask/core/compare/@metamask/profile-metrics-controller@3.1.2...@metamask/profile-metrics-controller@3.1.3
 [3.1.2]: https://github.com/MetaMask/core/compare/@metamask/profile-metrics-controller@3.1.1...@metamask/profile-metrics-controller@3.1.2

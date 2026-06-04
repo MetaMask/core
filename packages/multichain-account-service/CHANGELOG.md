@@ -10,8 +10,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - **BREAKING:** Replace `KeyringController:withKeyring` with `KeyringController:withKeyringV2` for the Snap account providers ([#8732](https://github.com/MetaMask/core/pull/8732))
-- Bump `@metamask/snap-account-service` from `^0.1.0` to `^0.2.0` ([#8844](https://github.com/MetaMask/core/pull/8844))
 - Bump `@metamask/eth-snap-keyring` from `^22.0.1` to `^22.1.0` ([#8732](https://github.com/MetaMask/core/pull/8732))
+
+## [10.0.2]
+
+### Changed
+
+- Bump `@metamask/accounts-controller` from `^38.1.2` to `^39.0.0` ([#8999](https://github.com/MetaMask/core/pull/8999))
+- Bump `@metamask/snap-account-service` from `^0.2.1` to `^0.3.0` ([#8999](https://github.com/MetaMask/core/pull/8999))
+
+## [10.0.1]
+
+### Changed
+
+- Bump `@metamask/snap-account-service` from `^0.1.0` to `^0.2.1` ([#8844](https://github.com/MetaMask/core/pull/8844), [#8912](https://github.com/MetaMask/core/pull/8912))
+- Bump `@metamask/keyring-controller` from `^25.5.0` to `^26.0.0` ([#8912](https://github.com/MetaMask/core/pull/8912))
+- Bump `@metamask/accounts-controller` from `^38.1.1` to `^38.1.2` ([#8912](https://github.com/MetaMask/core/pull/8912))
 
 ## [10.0.0]
 
@@ -491,7 +505,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add `MultichainAccountService` ([#6141](https://github.com/MetaMask/core/pull/6141), [#6165](https://github.com/MetaMask/core/pull/6165))
   - This service manages multichain accounts/wallets.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/multichain-account-service@10.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/multichain-account-service@10.0.2...HEAD
+[10.0.2]: https://github.com/MetaMask/core/compare/@metamask/multichain-account-service@10.0.1...@metamask/multichain-account-service@10.0.2
+[10.0.1]: https://github.com/MetaMask/core/compare/@metamask/multichain-account-service@10.0.0...@metamask/multichain-account-service@10.0.1
 [10.0.0]: https://github.com/MetaMask/core/compare/@metamask/multichain-account-service@9.0.0...@metamask/multichain-account-service@10.0.0
 [9.0.0]: https://github.com/MetaMask/core/compare/@metamask/multichain-account-service@8.0.1...@metamask/multichain-account-service@9.0.0
 [8.0.1]: https://github.com/MetaMask/core/compare/@metamask/multichain-account-service@8.0.0...@metamask/multichain-account-service@8.0.1

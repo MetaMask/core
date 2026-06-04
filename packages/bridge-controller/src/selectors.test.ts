@@ -1,3 +1,4 @@
+import { getAddress } from '@ethersproject/address';
 import { AddressZero } from '@ethersproject/constants';
 import type { MarketDataDetails } from '@metamask/assets-controllers';
 import { toHex } from '@metamask/controller-utils';
@@ -160,6 +161,32 @@ describe('Bridge Selectors', () => {
         exchangeRate: '50.00000000000000162804',
         usdExchangeRate: '36.4650017017000806',
       });
+    });
+
+    it('should handle EVM token rates when the asset ID address is lowercase and market data is checksummed', () => {
+      const result = selectExchangeRateByAssetId(
+        mockExchangeRateSources,
+        `eip155:1/erc20:${MOCK_MUSD_ADDRESS.toLowerCase()}`,
+      );
+      expect(result).toStrictEqual({
+        exchangeRate: '50.00000000000000162804',
+        usdExchangeRate: '36.4650017017000806',
+      });
+    });
+
+    it('should not throw when EVM token rate asset ID has a malformed hex address', () => {
+      expect(() =>
+        selectExchangeRateByAssetId(
+          mockExchangeRateSources,
+          'eip155:1/erc20:0x123',
+        ),
+      ).not.toThrow();
+      expect(
+        selectExchangeRateByAssetId(
+          mockExchangeRateSources,
+          'eip155:1/erc20:0x123',
+        ),
+      ).toStrictEqual({});
     });
   });
 
@@ -1709,6 +1736,45 @@ describe('Bridge Selectors', () => {
       expect(result.isBatchSellTradeAvailable).toBe(true);
     });
 
+    it('should return total network fee value when fee asset ID address is lowercase and market data is checksummed', () => {
+      const result = selectBatchSellTrades({
+        ...mockState,
+        currencyRates: {
+          ETH: {
+            conversionRate: 1,
+            usdConversionRate: 1,
+          },
+        },
+        marketData: {
+          '0x89': {
+            [getAddress(mockBatchSellTrades.fee.asset.address)]: {
+              price: 1,
+              currency: 'ETH',
+            },
+          },
+        },
+        batchSellTradesLoadingStatus: RequestStatus.FETCHED,
+        batchSellTrades: mockBatchSellTrades,
+      });
+
+      expect(result.totalNetworkFee).toMatchInlineSnapshot(`
+        {
+          "amount": "0.01",
+          "asset": {
+            "address": "0x3c499c542cef5e3811e1192ce70d8cc03d5c3359",
+            "assetId": "eip155:137/erc20:0x3c499c542cef5e3811e1192ce70d8cc03d5c3359",
+            "chainId": 137,
+            "decimals": 6,
+            "name": "USD Coin",
+            "symbol": "USDC",
+          },
+          "usd": "0.01",
+          "valueInCurrency": "0.01",
+        }
+      `);
+      expect(result.isBatchSellTradeAvailable).toBe(true);
+    });
+
     it('should return total network fee (exchange rates are not available)', () => {
       const result = selectBatchSellTrades({
         ...mockState,
@@ -1742,6 +1808,7 @@ describe('Bridge Selectors', () => {
         }
       `);
       expect(result.isBatchSellTradeAvailable).toBe(true);
+      expect(result.isLoading).toBe(false);
     });
 
     it('should return empty data when batch sell trades are not defined', () => {
@@ -1763,6 +1830,7 @@ describe('Bridge Selectors', () => {
 
       expect(result.totalNetworkFee).toMatchInlineSnapshot(`undefined`);
       expect(result.isBatchSellTradeAvailable).toBe(false);
+      expect(result.isLoading).toBe(false);
     });
 
     it.each([
@@ -1782,6 +1850,7 @@ describe('Bridge Selectors', () => {
           },
         ],
         expectedResult: false,
+        expectedLoadingResult: true,
       },
       {
         status: RequestStatus.FETCHED,
@@ -1799,26 +1868,30 @@ describe('Bridge Selectors', () => {
           },
         ],
         expectedResult: true,
+        expectedLoadingResult: false,
       },
       {
         status: RequestStatus.FETCHED,
         transactions: undefined,
         expectedResult: false,
+        expectedLoadingResult: false,
       },
       {
         status: RequestStatus.FETCHED,
         transactions: [],
         expectedResult: false,
+        expectedLoadingResult: false,
       },
       {
         status: RequestStatus.ERROR,
         transactions: undefined,
         expectedResult: false,
+        expectedLoadingResult: false,
       },
     ])(
       'should return loading state when status is $status',
-      ({ status, transactions, expectedResult }) => {
-        const { isBatchSellTradeAvailable } = selectBatchSellTrades({
+      ({ status, transactions, expectedResult, expectedLoadingResult }) => {
+        const { isBatchSellTradeAvailable, isLoading } = selectBatchSellTrades({
           ...mockState,
           batchSellTradesLoadingStatus: status,
           // @ts-expect-error - test data
@@ -1843,6 +1916,7 @@ describe('Bridge Selectors', () => {
         });
 
         expect(isBatchSellTradeAvailable).toBe(expectedResult);
+        expect(isLoading).toBe(expectedLoadingResult);
       },
     );
   });
