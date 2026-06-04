@@ -10,7 +10,8 @@ import type { ConnectivityControllerInstanceOptions } from './initialization/ins
 import type { KeyringControllerInstanceOptions } from './initialization/instances/keyring-controller/types';
 import type { RemoteFeatureFlagControllerInstanceOptions } from './initialization/instances/remote-feature-flag-controller/types';
 import type { StorageServiceInstanceOptions } from './initialization/instances/storage-service/types';
-import { InitializationConfiguration } from './initialization/types';
+import type { NetworkControllerInstanceOptions } from './initialization/instances/network-controller/types';
+import type { InitializationConfiguration } from './initialization/types';
 
 export type WalletOptions = {
   messenger?: RootMessenger<DefaultActions, DefaultEvents>;
@@ -26,6 +27,7 @@ export type InstanceSpecificOptions = {
   approvalController?: ApprovalControllerInstanceOptions;
   connectivityController: ConnectivityControllerInstanceOptions;
   keyringController?: KeyringControllerInstanceOptions;
+  networkController: NetworkControllerInstanceOptions;
   remoteFeatureFlagController: RemoteFeatureFlagControllerInstanceOptions;
   storageService: StorageServiceInstanceOptions;
 };
