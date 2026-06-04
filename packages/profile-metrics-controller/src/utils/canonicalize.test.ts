@@ -72,6 +72,33 @@ describe('canonicalizeAddress', () => {
       const mixed = 'Bc1Qw508D6Qejxtdg4Y5R3Zarvary0C5Xw7Kv8F3T4';
       expect(canonicalizeAddress(mixed, 'bip122')).toBe(mixed.toLowerCase());
     });
+
+    it('lowercases testnet bech32 P2WPKH addresses (tb1q…)', () => {
+      const testnet = 'TB1QW508D6QEJXTDG4Y5R3ZARVARY0C5XW7KXPJZSX';
+      expect(canonicalizeAddress(testnet, 'bip122')).toBe(
+        testnet.toLowerCase(),
+      );
+    });
+
+    it('lowercases testnet bech32m P2TR addresses (tb1p…)', () => {
+      const testnetTaproot =
+        'TB1P0XLXVLHEMJA6C4DQV22UAPCTQUPFHLXM9H8Z3K2E72Q4K9HCZ7VQ4QPSGD';
+      expect(canonicalizeAddress(testnetTaproot, 'bip122')).toBe(
+        testnetTaproot.toLowerCase(),
+      );
+    });
+
+    it('lowercases regtest bech32 addresses (bcrt1…)', () => {
+      const regtest = 'BCRT1QW508D6QEJXTDG4Y5R3ZARVARY0C5XW7KYGT080';
+      expect(canonicalizeAddress(regtest, 'bip122')).toBe(
+        regtest.toLowerCase(),
+      );
+    });
+
+    it('returns legacy testnet P2PKH addresses (starting with m/n) unchanged', () => {
+      const testnetLegacy = 'mipcBbFg9gMiCh81Kj8tqqdgoZub1ZJRfn';
+      expect(canonicalizeAddress(testnetLegacy, 'bip122')).toBe(testnetLegacy);
+    });
   });
 
   describe('unsupported namespaces', () => {
