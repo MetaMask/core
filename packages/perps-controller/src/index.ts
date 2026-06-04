@@ -137,6 +137,7 @@ export {
   WebSocketConnectionState,
   PerpsAnalyticsEvent,
   MARKET_CATEGORIES,
+  MARKET_TYPE_FILTER,
   MarketCategory,
 } from './types';
 export type {
@@ -494,6 +495,8 @@ export {
   matchesCategory,
   getMarketTypeFilter,
   applyMarketFilters,
+  isEquityAsset,
+  STOCK_LIKE_MARKET_TYPES,
 } from './utils';
 export type { MarketPatternMatcher, CompiledMarketPattern } from './utils';
 export type {

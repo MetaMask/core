@@ -9,7 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Export `matchesCategory`, `getMarketTypeFilter`, and `applyMarketFilters` so consumers share one market-category classification (the `MarketTypeFilter` model) instead of re-deriving it per client; `getMarketTypeFilter` is the inverse of `matchesCategory` ([#9009](https://github.com/MetaMask/core/pull/9009))
+- Centralise market category classification so consumers share one model instead of re-deriving it per client ([#9009](https://github.com/MetaMask/core/pull/9009))
+  - Export `getMarketTypeFilter` (resolves a market to its UI category filter, collapsing stock-like categories into `stocks`), `isEquityAsset`, and `STOCK_LIKE_MARKET_TYPES`.
+  - Export the pure `matchesCategory` and `applyMarketFilters` helpers (moved from `MarketDataService`).
+  - Add `MARKET_TYPE_FILTER` named constants for the `MarketTypeFilter` values.
 
 ## [7.0.0]
 

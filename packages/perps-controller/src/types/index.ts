@@ -100,6 +100,22 @@ export type MarketTypeFilter =
   | 'new';
 
 /**
+ * Named constants for the {@link MarketTypeFilter} values, so consumers
+ * reference `MARKET_TYPE_FILTER.Stocks` instead of bare string literals.
+ */
+export const MARKET_TYPE_FILTER = {
+  All: 'all',
+  Crypto: 'crypto',
+  Stocks: 'stocks',
+  PreIpo: 'pre-ipo',
+  Indices: 'indices',
+  Etfs: 'etfs',
+  Commodities: 'commodities',
+  Forex: 'forex',
+  New: 'new',
+} as const satisfies Record<string, MarketTypeFilter>;
+
+/**
  * Ordered list of the 7 data-model market categories for UI pills.
  * Does not include the 'all' or 'new' sentinel values — those are applied
  * via dedicated UI controls, not the category pills.

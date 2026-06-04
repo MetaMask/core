@@ -1,6 +1,7 @@
-import { MARKET_CATEGORIES, MarketCategory } from '../types';
+import { MARKET_TYPE_FILTER, MarketCategory } from '../types';
 import type {
   GetMarketDataWithPricesParams,
+  MarketType,
   MarketTypeFilter,
   PerpsMarketData,
 } from '../types';
@@ -15,6 +16,21 @@ import { sortMarkets } from './sortMarkets';
 // ============================================================================
 
 /**
+ * Maps each data-model {@link MarketCategory} to its UI {@link MarketTypeFilter}
+ * (e.g. `stock` → `stocks`). Exhaustive: adding a `MarketCategory` is a compile
+ * error here until it is mapped, so the model can't silently drift.
+ */
+const MARKET_CATEGORY_TO_FILTER: Record<MarketCategory, MarketTypeFilter> = {
+  [MarketCategory.CryptoCurrency]: MARKET_TYPE_FILTER.Crypto,
+  [MarketCategory.Stock]: MARKET_TYPE_FILTER.Stocks,
+  [MarketCategory.PreIpo]: MARKET_TYPE_FILTER.PreIpo,
+  [MarketCategory.Index]: MARKET_TYPE_FILTER.Indices,
+  [MarketCategory.Etf]: MARKET_TYPE_FILTER.Etfs,
+  [MarketCategory.Commodity]: MARKET_TYPE_FILTER.Commodities,
+  [MarketCategory.Forex]: MARKET_TYPE_FILTER.Forex,
+};
+
+/**
  * Returns true when a market matches the given UI filter category.
  *
  * @param market - The market data to test.
@@ -26,51 +42,77 @@ export function matchesCategory(
   category: MarketTypeFilter,
 ): boolean {
   switch (category) {
-    case 'all':
+    case MARKET_TYPE_FILTER.All:
       return true;
-    case 'new':
+    case MARKET_TYPE_FILTER.New:
       return market.isNewMarket === true;
-    case 'crypto':
-      // Includes non-HIP3 markets AND HIP-3 assets explicitly typed as CryptoCurrency.
+    case MARKET_TYPE_FILTER.Crypto:
+      // Non-HIP3 markets, plus HIP-3 assets explicitly typed as CryptoCurrency.
       return (
         !market.isHip3 || market.marketType === MarketCategory.CryptoCurrency
       );
-    case 'stocks':
-      return market.marketType === MarketCategory.Stock;
-    case 'pre-ipo':
-      return market.marketType === MarketCategory.PreIpo;
-    case 'indices':
-      return market.marketType === MarketCategory.Index;
-    case 'etfs':
-      return market.marketType === MarketCategory.Etf;
-    case 'commodities':
-      return market.marketType === MarketCategory.Commodity;
-    case 'forex':
-      return market.marketType === MarketCategory.Forex;
     default:
-      return true;
+      // Every other filter is a 1:1 data-model category match.
+      return (
+        market.marketType !== undefined &&
+        MARKET_CATEGORY_TO_FILTER[market.marketType] === category
+      );
   }
 }
 
 /**
- * Resolve the category filter pill for a given market — the inverse of
- * {@link matchesCategory}. Returns the granular data-model filter (e.g. 'etfs',
- * 'indices', 'pre-ipo', 'stocks', 'commodities', 'forex', 'crypto'); markets
- * with no matching category (uncategorized HIP-3 / new markets) fall back to
- * 'all' so the opened tab always contains the market.
+ * Stock-like market categories (stock, pre-ipo, index, etf). Clients collapse
+ * these into the single 'stocks' filter, and they share traditional market
+ * hours. Single source of truth for the equity bucket.
+ */
+export const STOCK_LIKE_MARKET_TYPES: ReadonlySet<MarketType> = new Set([
+  MarketCategory.Stock,
+  MarketCategory.PreIpo,
+  MarketCategory.Index,
+  MarketCategory.Etf,
+]);
+
+/**
+ * Check whether a market type is stock-like (stock, pre-ipo, index, etf).
+ *
+ * @param marketType - The market type from {@link PerpsMarketData}.
+ * @returns True if the asset is stock-like.
+ */
+export const isEquityAsset = (marketType?: string): boolean =>
+  marketType !== undefined &&
+  STOCK_LIKE_MARKET_TYPES.has(marketType as MarketType);
+
+/**
+ * Resolve the user-facing category bucket for a market — one of `crypto`,
+ * `stocks`, `commodities`, `forex`, or `new`. Stock-like categories (stock,
+ * pre-ipo, index, etf) collapse into the single `stocks` bucket (see
+ * {@link isEquityAsset}); the remaining categories map 1:1. A market with no
+ * data-model category is `crypto` when it is main-DEX, or `new` when it is an
+ * uncategorized HIP-3 market (`isHip3`, or a `marketSource` DEX id when `isHip3`
+ * is unset, e.g. minimal route params). Never returns the `all` sentinel.
  *
  * Centralised as the single source of truth so consumers (e.g. category
  * shortcuts, related markets) share one classification instead of re-deriving
  * it per client and drifting as new categories are added.
  *
  * @param market - The market data to classify.
- * @returns The market type filter to apply.
+ * @returns The market type filter bucket.
  */
 export function getMarketTypeFilter(market: PerpsMarketData): MarketTypeFilter {
-  return (
-    MARKET_CATEGORIES.find((category) => matchesCategory(market, category)) ??
-    'all'
-  );
+  const { marketType } = market;
+  // Stock-like categories (stock, pre-ipo, index, etf) collapse into one pill.
+  if (isEquityAsset(marketType)) {
+    return MARKET_TYPE_FILTER.Stocks;
+  }
+  // Every other data-model category maps 1:1 (commodity, forex, crypto).
+  if (marketType) {
+    return MARKET_CATEGORY_TO_FILTER[marketType];
+  }
+  // No data-model category: a HIP-3 market (isHip3, or a marketSource DEX id) is
+  // uncategorized → the 'new' bucket; otherwise it's a main-DEX crypto market.
+  return market.isHip3 || market.marketSource
+    ? MARKET_TYPE_FILTER.New
+    : MARKET_TYPE_FILTER.Crypto;
 }
 
 /**
