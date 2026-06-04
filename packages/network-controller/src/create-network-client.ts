@@ -297,21 +297,25 @@ function createRpcServiceChain({
   // activate the "cooldown" accidentally.
   const maxConsecutiveFailuresFailover = (DEFAULT_MAX_RETRIES + 1) * 10;
 
-  const rpcServiceConfigurations = availableEndpoints.map((endpoint) => ({
-    fetch: globalThis.fetch.bind(globalThis),
-    btoa: globalThis.btoa.bind(globalThis),
-    isOffline,
-    policyOptions: {
-      maxRetries: DEFAULT_MAX_RETRIES,
-      circuitBreakDuration: inMilliseconds(30, Duration.Second),
-      maxConsecutiveFailures: endpoint.isFailover
-        ? maxConsecutiveFailuresFailover
-        : maxConsecutiveFailures,
-    },
-    ...(getRpcServiceOptions?.(endpoint.url) ?? {}),
-    endpointUrl: endpoint.url,
-    logger,
-  }));
+  const rpcServiceConfigurations = availableEndpoints.map((endpoint) => {
+    const overriddenOptions = getRpcServiceOptions?.(endpoint.url) ?? {};
+    return {
+      fetch: globalThis.fetch.bind(globalThis),
+      btoa: globalThis.btoa.bind(globalThis),
+      isOffline,
+      policyOptions: {
+        maxRetries: DEFAULT_MAX_RETRIES,
+        circuitBreakDuration: inMilliseconds(30, Duration.Second),
+        maxConsecutiveFailures: endpoint.isFailover
+          ? maxConsecutiveFailuresFailover
+          : maxConsecutiveFailures,
+        ...(overriddenOptions.policyOptions ?? {}),
+      },
+      ...overriddenOptions,
+      endpointUrl: endpoint.url,
+      logger,
+    };
+  });
 
   /**
    * Extracts the error from Cockatiel's `FailureReason` type received in
