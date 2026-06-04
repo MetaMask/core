@@ -28,7 +28,6 @@ import type {
   MiddlewareContext,
 } from '@metamask/json-rpc-engine/v2';
 import type { Hex, Json, JsonRpcRequest } from '@metamask/utils';
-import { inMilliseconds, Duration } from '@metamask/utils';
 import type { Logger } from 'loglevel';
 
 import type {
