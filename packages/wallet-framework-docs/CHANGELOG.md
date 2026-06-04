@@ -7,4 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- Initialize Wallet Framework documentation ([#8927](https://github.com/MetaMask/core/pull/8927))
+
 [Unreleased]: https://github.com/MetaMask/core/
