@@ -1,3 +1,7 @@
+import type {
+  NotificationPreferences,
+  PerpsWatchlistMarkets,
+} from '@metamask/authenticated-user-storage';
 import {
   BaseController,
   ControllerGetStateAction,
@@ -6,10 +10,6 @@ import {
 } from '@metamask/base-controller';
 import type { StateChangeListener } from '@metamask/base-controller';
 import { ORIGIN_METAMASK } from '@metamask/controller-utils';
-import type {
-  NotificationPreferences,
-  PerpsWatchlistMarkets,
-} from '@metamask/authenticated-user-storage';
 import type { Messenger } from '@metamask/messenger';
 import type { Json } from '@metamask/utils';
 import { v4 as uuidv4 } from 'uuid';
@@ -168,7 +168,9 @@ export function firstNonEmpty(...vals: (string | undefined)[]): string {
 export function resolveWatchlistExchangeKey(
   activeProvider: PerpsActiveProviderMode,
 ): keyof PerpsWatchlistMarkets | null {
-  const map: Partial<Record<PerpsActiveProviderMode, keyof PerpsWatchlistMarkets>> = {
+  const map: Partial<
+    Record<PerpsActiveProviderMode, keyof PerpsWatchlistMarkets>
+  > = {
     hyperliquid: 'hyperliquid',
     myx: 'myx',
   };
@@ -5231,7 +5233,8 @@ export class PerpsController extends BaseController<
         return;
       }
 
-      const remoteExchangeWatchlist = prefs.perps.watchlistMarkets?.[exchangeKey];
+      const remoteExchangeWatchlist =
+        prefs.perps.watchlistMarkets?.[exchangeKey];
 
       if (remoteExchangeWatchlist) {
         // AUS has data for this exchange — hydrate local state from it.
@@ -5239,14 +5242,11 @@ export class PerpsController extends BaseController<
           state.watchlistMarkets.testnet = remoteExchangeWatchlist.testnet;
           state.watchlistMarkets.mainnet = remoteExchangeWatchlist.mainnet;
         });
-        this.#debugLog(
-          'PerpsController: Watchlist hydrated from AUS',
-          {
-            exchangeKey,
-            testnetCount: remoteExchangeWatchlist.testnet.length,
-            mainnetCount: remoteExchangeWatchlist.mainnet.length,
-          },
-        );
+        this.#debugLog('PerpsController: Watchlist hydrated from AUS', {
+          exchangeKey,
+          testnetCount: remoteExchangeWatchlist.testnet.length,
+          mainnetCount: remoteExchangeWatchlist.mainnet.length,
+        });
       } else {
         // Blob exists but has no watchlist for this exchange yet.
         // If local state has any markets, push them up as a one-time migration.
@@ -5254,10 +5254,11 @@ export class PerpsController extends BaseController<
         const hasLocalMarkets = testnet.length > 0 || mainnet.length > 0;
 
         if (hasLocalMarkets) {
-          this.#debugLog(
-            'PerpsController: Migrating local watchlist to AUS',
-            { exchangeKey, testnetCount: testnet.length, mainnetCount: mainnet.length },
-          );
+          this.#debugLog('PerpsController: Migrating local watchlist to AUS', {
+            exchangeKey,
+            testnetCount: testnet.length,
+            mainnetCount: mainnet.length,
+          });
           // Push testnet and mainnet together via a single read-merge-write.
           // #persistWatchlistToRemote writes the network passed to it; call it
           // for whichever networks have data (or both — duplicate writes are

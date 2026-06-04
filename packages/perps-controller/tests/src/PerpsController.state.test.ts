@@ -1127,9 +1127,7 @@ describe('PerpsController', () => {
       await ausController.toggleWatchlistMarket('BTC');
 
       expect(ausController.getWatchlistMarkets()).toContain('BTC');
-      expect(
-        mockAusCall,
-      ).toHaveBeenCalledWith(
+      expect(mockAusCall).toHaveBeenCalledWith(
         'AuthenticatedUserStorageService:getNotificationPreferences',
       );
       expect(mockAusCall).not.toHaveBeenCalledWith(
