@@ -694,15 +694,15 @@ export class SnapAccountService {
       return;
     }
 
-    if (accounts.length) {
-      log(
-        `Forwarding selected accounts (from "${groupId}"): ${accounts.join(', ')}`,
-      );
-    } else {
-      log(`Clearing selected accounts (from "${groupId}")`);
-    }
-
     const forwardSelectedAccounts = async (): Promise<void> => {
+      if (accounts.length) {
+        log(
+          `Forwarding selected accounts (from "${groupId}"): ${accounts.join(', ')}`,
+        );
+      } else {
+        log(`Clearing selected accounts (from "${groupId}")`);
+      }
+
       await Promise.all(
         this.#tracker.getSnaps().map(async (snapId) => {
           try {
