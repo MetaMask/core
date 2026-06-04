@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `ARC` network support ([#9006](https://github.com/MetaMask/core/pull/9006))
+  - Add account address relationship API support
+  - Add incoming transactions API support
+
 ## [66.0.1]
 
 ### Changed
