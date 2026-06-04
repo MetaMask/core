@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add defaults for `policyOptions` ([#9002](https://github.com/MetaMask/core/pull/9002))
+  - The `NetworkController` constructor argument `getRpcServiceOptions` is now optional.
+  - The default `policyOptions.maxRetries` is now `3`.
+  - The default `policyOptions.maxConsecutiveFailures` is now `12` for regular RPC endpoints and `40` for fallback RPC endpoints.
+  - The default `policyOptions.circuitBreakDuration` is now `30` seconds.
+  - The default `pollingInterval` for the block tracker is now `20` seconds.
+  - The default `retryTimeout` for the block tracker is now `20` seconds.
+
 ### Fixed
 
 - Add defaults for `fetch`, `btoa` and `isOffline` in `RpcServiceOptions` ([#9000](https://github.com/MetaMask/core/pull/9000))
