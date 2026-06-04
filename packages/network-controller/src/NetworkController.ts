@@ -54,7 +54,7 @@ import type {
   NetworkControllerGetNetworkConfigurationByNetworkClientIdAction,
   NetworkControllerMethodActions,
 } from './NetworkController-method-action-types';
-import type { RpcServiceOptions } from './rpc-service/rpc-service';
+import type { RpcServiceOptionsWithDefaults } from './rpc-service/rpc-service';
 import { NetworkClientType } from './types';
 import type {
   BlockTracker,
@@ -748,12 +748,12 @@ export type NetworkControllerOptions = {
   /**
    * A function that can be used to customize a RPC service constructed for an
    * RPC endpoint. The function takes the URL of the endpoint and should return
-   * an object with type {@link RpcServiceOptions}, minus `failoverService`
+   * an object with type {@link RpcServiceOptionsWithDefaults}, minus `failoverService`
    * and `endpointUrl` (as they are filled in automatically).
    */
-  getRpcServiceOptions: (
+  getRpcServiceOptions?: (
     rpcEndpointUrl: string,
-  ) => Omit<RpcServiceOptions, 'failoverService' | 'endpointUrl'>;
+  ) => RpcServiceOptionsWithDefaults;
   /**
    * A function that can be used to customize a block tracker constructed for an
    * RPC endpoint. The function takes the URL of the endpoint and should return
