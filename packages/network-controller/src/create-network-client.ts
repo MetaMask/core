@@ -490,9 +490,9 @@ function createBlockTracker({
   provider: InternalProvider;
 }): PollingBlockTracker {
   const defaultOptions = {
-    // Needed for testing.
-    // eslint-disable-next-line no-restricted-globals
     pollingInterval:
+      // Needed for testing.
+      // eslint-disable-next-line no-restricted-globals
       process.env.IN_TEST && networkClientType === NetworkClientType.Custom
         ? inMilliseconds(1, Duration.Second)
         : inMilliseconds(20, Duration.Second),
