@@ -42,7 +42,7 @@ type JwtBearerAuth_SRP_Options = {
 
 // How long a successful pairing result stays cached so identical payloads
 // (concurrent or sequential retries) reuse it instead of re-hitting the endpoint.
-const PAIR_DEDUPE_TTL_MS = 30_000;
+export const PAIR_DEDUPE_TTL_MS = 30_000;
 
 const getDefaultEIP6963Provider = async () => {
   const provider = await getMetaMaskProviderEIP6963();

@@ -1,6 +1,6 @@
 import { Env, Platform } from '../../shared/env';
 import { RateLimitedError } from '../errors';
-import { SRPJwtBearerAuth } from './flow-srp';
+import { PAIR_DEDUPE_TTL_MS, SRPJwtBearerAuth } from './flow-srp';
 import { AuthType } from './types';
 import type { AuthConfig, LoginResponse, UserProfile } from './types';
 import * as timeUtils from './utils/time';
@@ -598,8 +598,8 @@ describe('SRPJwtBearerAuth pairSrpProfiles deduplication', () => {
       const { auth } = createAuth();
 
       await auth.pairSrpProfiles(['a', 'b'], 'a');
-      // Advance beyond the 30s dedupe window.
-      jest.setSystemTime(Date.now() + 30_001);
+      // Advance just beyond the dedupe window.
+      jest.setSystemTime(Date.now() + PAIR_DEDUPE_TTL_MS + 1);
       await auth.pairSrpProfiles(['a', 'b'], 'a');
 
       expect(mockPairProfiles).toHaveBeenCalledTimes(2);
