@@ -28,6 +28,9 @@ async function setupWallet(): Promise<Wallet> {
       connectivityController: {
         connectivityAdapter: new AlwaysOnlineAdapter(),
       },
+      networkController: {
+        infuraProjectId: 'fake-infura-project-id',
+      },
       storageService: {
         storage: new InMemoryStorageAdapter(),
       },
@@ -88,6 +91,9 @@ describe('Wallet', () => {
         keyringController: {
           encryptor: new MockEncryptor(),
         },
+        networkController: {
+          infuraProjectId: 'fake-infura-project-id',
+        },
         storageService: {
           storage: new InMemoryStorageAdapter(),
         },
@@ -134,6 +140,9 @@ describe('Wallet', () => {
         connectivityController: {
           connectivityAdapter: new AlwaysOnlineAdapter(),
         },
+        networkController: {
+          infuraProjectId: 'fake-infura-project-id',
+        },
         storageService: {
           storage: new InMemoryStorageAdapter(),
         },
@@ -173,6 +182,9 @@ describe('Wallet', () => {
       instanceOptions: {
         connectivityController: {
           connectivityAdapter: new AlwaysOnlineAdapter(),
+        },
+        networkController: {
+          infuraProjectId: 'fake-infura-project-id',
         },
         storageService: {
           storage: new InMemoryStorageAdapter(),
@@ -249,6 +261,9 @@ describe('Wallet', () => {
           connectivityController: {
             connectivityAdapter: new AlwaysOnlineAdapter(),
           },
+          networkController: {
+            infuraProjectId: 'fake-infura-project-id',
+          },
           storageService: {
             storage: new InMemoryStorageAdapter(),
           },
@@ -285,6 +300,9 @@ describe('Wallet', () => {
         instanceOptions: {
           connectivityController: {
             connectivityAdapter: new AlwaysOnlineAdapter(),
+          },
+          networkController: {
+            infuraProjectId: 'fake-infura-project-id',
           },
           storageService: {
             storage: new InMemoryStorageAdapter(),
@@ -360,6 +378,9 @@ describe('Wallet', () => {
         instanceOptions: {
           connectivityController: {
             connectivityAdapter: new AlwaysOnlineAdapter(),
+          },
+          networkController: {
+            infuraProjectId: 'fake-infura-project-id',
           },
           keyringController: { encryptor: new MockEncryptor() },
           storageService: { storage: new InMemoryStorageAdapter() },
