@@ -1412,6 +1412,60 @@ describe('AssetsController', () => {
       });
     });
 
+    it('coerces scientific-notation balance amounts using the asset decimals', async () => {
+      // Prevents downstream BigInt() consumers (e.g. extension's
+      // parseBalanceWithDecimals) from crashing on "1e-18"-style amounts that
+      // arrive from snaps or APIs that stringified a JS Number. Decimals come
+      // from the same-batch assetsInfo (18 here = 18 fractional digits).
+      await withController(async ({ controller }) => {
+        await controller.handleAssetsUpdate(
+          {
+            assetsInfo: {
+              [MOCK_ASSET_ID]: {
+                type: 'erc20',
+                symbol: 'TEST',
+                name: 'Test',
+                decimals: 18,
+              },
+            },
+            assetsBalance: {
+              [MOCK_ACCOUNT_ID]: {
+                [MOCK_ASSET_ID]: { amount: '1e-18' },
+              },
+            },
+          },
+          'TestSource',
+        );
+
+        expect(
+          controller.state.assetsBalance[MOCK_ACCOUNT_ID]?.[MOCK_ASSET_ID],
+        ).toStrictEqual({ amount: '0.000000000000000001' });
+      });
+    });
+
+    it('still converts scientific notation to plain decimal when metadata is unknown', async () => {
+      // No assetsInfo entry for this assetId, in state or in the response —
+      // normalization keeps the amount at its natural precision (just defeats
+      // exponent form). Truncating to integer here would silently drop
+      // fractional balances that arrived before their metadata.
+      await withController(async ({ controller }) => {
+        await controller.handleAssetsUpdate(
+          {
+            assetsBalance: {
+              [MOCK_ACCOUNT_ID]: {
+                [MOCK_ASSET_ID]: { amount: '1e-18' },
+              },
+            },
+          },
+          'TestSource',
+        );
+
+        expect(
+          controller.state.assetsBalance[MOCK_ACCOUNT_ID]?.[MOCK_ASSET_ID],
+        ).toStrictEqual({ amount: '0.000000000000000001' });
+      });
+    });
+
     it('handles empty response', async () => {
       await withController(async ({ controller }) => {
         await controller.handleAssetsUpdate({}, 'TestSource');

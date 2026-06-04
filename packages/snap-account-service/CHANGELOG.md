@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.0]
+
 ### Added
 
 - Add `SnapAccountService:account{AssetList,Balances,Transactions}Updated` events ([#8916](https://github.com/MetaMask/core/pull/8916))
@@ -16,6 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Faster `:getLegacySnapKeyring` ([#8865](https://github.com/MetaMask/core/pull/8865))
   - We now check if the keyring exists with `:withKeyringUnsafe` and returns it right away.
   - If the keyring does not exist yet, we do create it with `:withController` (next calls will then be faster thanks to `:withKeyringUnsafe` pre-check).
+- Bump `@metamask/account-tree-controller` from `^7.5.0` to `^7.5.1` ([#8999](https://github.com/MetaMask/core/pull/8999))
 
 ### Fixed
 
@@ -47,7 +50,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Add `SnapAccountService` ([#8414](https://github.com/MetaMask/core/pull/8414))
-- Add `SnapPlatformWatcher` and `SnapAccountService.ensureReady` ([#8715](https://github.com/MetaMask/core/pull/8715)), ([#8725](https://github.com/MetaMask/core/pull/8725))
+- Add `SnapPlatformWatcher` and `SnapAccountService.ensureReady` ([#8715](https://github.com/MetaMask/core/pull/8715), [#8725](https://github.com/MetaMask/core/pull/8725))
   - Waits for the Snap platform to be ready and for a Snap keyring to appear in `KeyringController` state before allowing Snap account operations.
   - Callers must ensure `init()` has run and the Snap is currently installed, enabled, non-blocked, and declares `endowment:keyring`.
   - `SnapAccountService.ensureReady` now awaits the watcher, so it only resolves once both conditions hold (or rejects if the Snap keyring does not appear within the configured timeout).
@@ -65,7 +68,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - The service messenger now requires the `KeyringController:withController` action.
 - Add `handleKeyringSnapMessage` ([#8758](https://github.com/MetaMask/core/pull/8758))
   - This will be the new entry point for consumer that needs to forward keyring events to a account management Snap (instead of using the legacy Snap keyring instance directly).
-- Forward selected account group accounts ([#8763](https://github.com/MetaMask/core/pull/8763)), ([#8770](https://github.com/MetaMask/core/pull/8770))
+- Forward selected account group accounts ([#8763](https://github.com/MetaMask/core/pull/8763), [#8770](https://github.com/MetaMask/core/pull/8770))
   - This logic used to live on the clients.
   - The service messenger now requires the `KeyringController:unlock`, `AccountTreeController:selectedAccountGroupChange`, `AccountTreeController:accountGroup{Created,Updated,Removed}` events.
   - The service messenger now requires the `AccountTreeController:getSelectedAccountGroup` and `AccountTreeController:getAccountGroupObject` actions.
@@ -75,7 +78,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/messenger` from `^1.1.1` to `^1.2.0` ([#8632](https://github.com/MetaMask/core/pull/8632))
 - Bump `@metamask/account-tree-controller` from `^7.3.0` to `^7.4.0` ([#8783](https://github.com/MetaMask/core/pull/8783))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/snap-account-service@0.2.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/snap-account-service@0.3.0...HEAD
+[0.3.0]: https://github.com/MetaMask/core/compare/@metamask/snap-account-service@0.2.1...@metamask/snap-account-service@0.3.0
 [0.2.1]: https://github.com/MetaMask/core/compare/@metamask/snap-account-service@0.2.0...@metamask/snap-account-service@0.2.1
 [0.2.0]: https://github.com/MetaMask/core/compare/@metamask/snap-account-service@0.1.0...@metamask/snap-account-service@0.2.0
 [0.1.0]: https://github.com/MetaMask/core/releases/tag/@metamask/snap-account-service@0.1.0

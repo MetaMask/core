@@ -773,6 +773,79 @@ describe('Token Utils', () => {
         NETWORK_CLIENT_ID_MOCK,
       );
     });
+
+    it('skips Infura when chain is in excludeChainIdsFromInfura flag', async () => {
+      PROVIDER_MOCK.request.mockResolvedValue('0x4C4B40');
+
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_pay_extended: {
+            excludeChainIdsFromInfura: [CHAIN_ID_MOCK],
+          },
+        },
+      });
+
+      getNetworkConfigurationByChainIdMock.mockReturnValue({
+        rpcEndpoints: [
+          {
+            type: RpcEndpointType.Infura,
+            networkClientId: INFURA_NETWORK_CLIENT_ID_MOCK,
+          },
+        ],
+      } as NetworkConfiguration);
+
+      const result = await getLiveTokenBalance(
+        messenger,
+        ACCOUNT_MOCK,
+        CHAIN_ID_MOCK,
+        ERC20_ADDRESS_MOCK,
+      );
+
+      expect(result).toBe('5000000');
+      expect(getNetworkConfigurationByChainIdMock).not.toHaveBeenCalled();
+      expect(findNetworkClientIdByChainIdMock).toHaveBeenCalledWith(
+        CHAIN_ID_MOCK,
+      );
+      expect(getNetworkClientByIdMock).toHaveBeenCalledWith(
+        NETWORK_CLIENT_ID_MOCK,
+      );
+    });
+
+    it('uses Infura when chain is not in excludeChainIdsFromInfura flag', async () => {
+      PROVIDER_MOCK.request.mockResolvedValue('0x895440');
+
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_pay_extended: {
+            excludeChainIdsFromInfura: ['0x89' as Hex],
+          },
+        },
+      });
+
+      getNetworkConfigurationByChainIdMock.mockReturnValue({
+        rpcEndpoints: [
+          {
+            type: RpcEndpointType.Infura,
+            networkClientId: INFURA_NETWORK_CLIENT_ID_MOCK,
+          },
+        ],
+      } as NetworkConfiguration);
+
+      const result = await getLiveTokenBalance(
+        messenger,
+        ACCOUNT_MOCK,
+        CHAIN_ID_MOCK,
+        ERC20_ADDRESS_MOCK,
+      );
+
+      expect(result).toBe('9000000');
+      expect(getNetworkClientByIdMock).toHaveBeenCalledWith(
+        INFURA_NETWORK_CLIENT_ID_MOCK,
+      );
+      expect(findNetworkClientIdByChainIdMock).not.toHaveBeenCalled();
+    });
   });
 
   describe('computeTokenAmounts', () => {
