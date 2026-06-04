@@ -5,29 +5,29 @@ import type {
 import { RampsOrderStatus } from '@metamask/ramps-controller';
 import type { Hex } from '@metamask/utils';
 import { createModuleLogger } from '@metamask/utils';
-import { BigNumber } from 'bignumber.js';
 
 import { projectLogger } from '../../logger';
 import type {
   PayStrategy,
   PayStrategyExecuteRequest,
-  QuoteRequest,
   TransactionPayControllerMessenger,
 } from '../../types';
 import { buildCaipAssetType } from '../../utils/token';
-import { getTransaction, updateTransaction } from '../../utils/transaction';
-import { getRelayQuotes } from '../relay/relay-quotes';
-import { submitRelayQuotes } from '../relay/relay-submit';
-import type { RelayQuote } from '../relay/types';
+import { updateTransaction } from '../../utils/transaction';
 import type { TransactionPayFiatAsset } from './constants';
+import { submitSimpleRelay } from './fiat-submit-simple';
+import { submitWithCalldataReEncoding } from './fiat-submit-with-calldata';
 import type { FiatQuote } from './types';
-import { deriveFiatAssetForFiatPayment, resolveSourceAmountRaw } from './utils';
+import {
+  deriveFiatAssetForFiatPayment,
+  extractProviderCode,
+  resolveSourceAmountRaw,
+} from './utils';
 
 const log = createModuleLogger(projectLogger, 'fiat-submit');
 
 const ORDER_POLL_INTERVAL_MS = 1000;
 const ORDER_POLL_TIMEOUT_MS = 10 * 60 * 1000;
-const MAX_RATE_DRIFT_PERCENT = 10;
 
 const TERMINAL_FAILURE_STATUSES: RampsOrderStatus[] = [
   RampsOrderStatus.Cancelled,
@@ -106,29 +106,6 @@ export async function submitFiatQuotes(
   });
 
   return await submitRelayAfterFiatCompletion({ order, request });
-}
-
-/**
- * Extracts the provider code from a ramps provider string.
- *
- * Accepts the canonical provider code (e.g. `transak-native`) and, for
- * backwards compatibility, the legacy path form (e.g. `/providers/transak-native`).
- *
- * @param provider - Canonical provider code, or legacy provider path.
- * @returns The provider code, or `null` if the format is invalid.
- */
-function extractProviderCode(provider: string | undefined): string | null {
-  if (!provider) {
-    return null;
-  }
-
-  const parts = provider.split('/').filter(Boolean);
-
-  if (parts[0] === 'providers') {
-    return parts[1] ?? null;
-  }
-
-  return parts.length === 1 ? parts[0] : null;
 }
 
 /**
@@ -306,256 +283,4 @@ async function submitRelayAfterFiatCompletion({
     sourceAmountRaw,
     transaction,
   });
-}
-
-/**
- * Submits a single EXACT_INPUT relay quote for simple deposits
- * that don't require nested calldata re-encoding or delegation.
- *
- * @param options - The submission options.
- * @param options.baseRequest - The base quote request from the original fiat quote.
- * @param options.request - The original fiat strategy execute request.
- * @param options.sourceAmountRaw - The settled source amount in atomic units.
- * @param options.transaction - The transaction metadata.
- * @returns An object containing the relay transaction hash if available.
- */
-async function submitSimpleRelay({
-  baseRequest,
-  request,
-  sourceAmountRaw,
-  transaction,
-}: {
-  baseRequest: QuoteRequest;
-  request: PayStrategyExecuteRequest<FiatQuote>;
-  sourceAmountRaw: string;
-  transaction: PayStrategyExecuteRequest<FiatQuote>['transaction'];
-}): Promise<{ transactionHash?: Hex }> {
-  const { messenger } = request;
-  const transactionId = transaction.id;
-
-  const originalRelayQuote = request.quotes[0].original.relayQuote;
-
-  const relayRequest: QuoteRequest = {
-    ...baseRequest,
-    isMaxAmount: false,
-    isPostQuote: true,
-    sourceBalanceRaw: sourceAmountRaw,
-    sourceTokenAmount: sourceAmountRaw,
-  };
-
-  const relayQuotes = await getRelayQuotes({
-    accountSupports7702: request.accountSupports7702,
-    messenger,
-    requests: [relayRequest],
-    transaction,
-  });
-
-  if (!relayQuotes.length) {
-    throw new Error('No relay quotes returned for completed fiat order');
-  }
-
-  validateRelayRateDrift({
-    originalQuote: originalRelayQuote,
-    discoveryQuote: relayQuotes[0].original,
-    transactionId,
-  });
-
-  log('Submitting simple relay after fiat settlement', {
-    relayQuoteCount: relayQuotes.length,
-    transactionId,
-  });
-
-  return await submitRelayQuotes({
-    accountSupports7702: request.accountSupports7702,
-    isSmartTransaction: request.isSmartTransaction,
-    messenger,
-    quotes: relayQuotes,
-    transaction,
-  });
-}
-
-/**
- * Submits relay quotes using the three-phase flow for transactions with nested
- * calldata that needs re-encoding (e.g. moneyAccountDeposit with approve + deposit).
- *
- * Phase 1: Discovery quote (EXACT_INPUT) to learn the target token output.
- * Phase 2: Delegate calldata re-encoding to the client via getAmountData.
- * Phase 3: Delegation quote (EXACT_OUTPUT) with updated nested transaction data.
- *
- * @param options - The submission options.
- * @param options.baseRequest - The base quote request from the original fiat quote.
- * @param options.request - The original fiat strategy execute request.
- * @param options.sourceAmountRaw - The settled source amount in atomic units.
- * @param options.transaction - The transaction metadata.
- * @returns An object containing the relay transaction hash if available.
- */
-async function submitWithCalldataReEncoding({
-  baseRequest,
-  request,
-  sourceAmountRaw,
-  transaction,
-}: {
-  baseRequest: QuoteRequest;
-  request: PayStrategyExecuteRequest<FiatQuote>;
-  sourceAmountRaw: string;
-  transaction: PayStrategyExecuteRequest<FiatQuote>['transaction'];
-}): Promise<{ transactionHash?: Hex }> {
-  const { messenger } = request;
-  const transactionId = transaction.id;
-
-  const discoveryRequest: QuoteRequest = {
-    ...baseRequest,
-    isMaxAmount: false,
-    isPostQuote: true,
-    sourceBalanceRaw: sourceAmountRaw,
-    sourceTokenAmount: sourceAmountRaw,
-  };
-
-  const discoveryQuotes = await getRelayQuotes({
-    accountSupports7702: request.accountSupports7702,
-    messenger,
-    requests: [discoveryRequest],
-    transaction,
-  });
-
-  if (!discoveryQuotes.length) {
-    throw new Error('No relay quotes returned for fiat discovery');
-  }
-
-  const discoveryRelay = discoveryQuotes[0].original;
-  const settledTargetRaw = discoveryRelay.details.currencyOut.minimumAmount;
-
-  const originalRelayQuote = request.quotes[0].original.relayQuote;
-  validateRelayRateDrift({
-    originalQuote: originalRelayQuote,
-    discoveryQuote: discoveryRelay,
-    transactionId,
-  });
-
-  const { updates } = await messenger.call(
-    'TransactionPayController:getAmountData',
-    { amount: settledTargetRaw, transaction },
-  );
-
-  if (!updates.length) {
-    throw new Error(
-      'getAmountData returned no updates for transaction with nested calldata',
-    );
-  }
-
-  updateTransaction(
-    { transactionId, messenger, note: 'Fiat deposit: update settled amount' },
-    (tx) => {
-      for (const { nestedTransactionIndex, data } of updates) {
-        if (tx.nestedTransactions?.[nestedTransactionIndex]) {
-          tx.nestedTransactions[nestedTransactionIndex].data = data;
-        }
-      }
-      if (tx.requiredAssets?.[0]) {
-        tx.requiredAssets[0].amount = `0x${new BigNumber(settledTargetRaw).toString(16)}`;
-      }
-    },
-  );
-
-  const updatedTransaction =
-    getTransaction(transactionId, messenger) ?? transaction;
-
-  const relayRequest: QuoteRequest = {
-    ...baseRequest,
-    isMaxAmount: false,
-    isPostQuote: false,
-    sourceBalanceRaw: sourceAmountRaw,
-    sourceTokenAmount: sourceAmountRaw,
-    targetAmountMinimum: settledTargetRaw,
-  };
-
-  const relayQuotes = await getRelayQuotes({
-    accountSupports7702: request.accountSupports7702,
-    messenger,
-    requests: [relayRequest],
-    transaction: updatedTransaction,
-  });
-
-  if (!relayQuotes.length) {
-    throw new Error('No relay quotes returned for completed fiat order');
-  }
-
-  log('Received relay quotes for completed fiat order', {
-    relayQuoteCount: relayQuotes.length,
-    transactionId,
-  });
-
-  return await submitRelayQuotes({
-    accountSupports7702: request.accountSupports7702,
-    isSmartTransaction: request.isSmartTransaction,
-    messenger,
-    quotes: relayQuotes,
-    transaction: updatedTransaction,
-  });
-}
-
-/**
- * Validates that the relay exchange rate hasn't drifted significantly between
- * the original quoting phase and the post-settlement discovery quote.
- *
- * Compares the USD output/input ratio from both quotes. This normalises for
- * different source amounts (quoting phase uses a theoretical amount, discovery
- * uses the actual settled amount) so the comparison reflects genuine rate
- * movement rather than amount differences.
- *
- * @param options - The validation options.
- * @param options.originalQuote - Relay quote from the original quoting phase.
- * @param options.discoveryQuote - Relay quote from the post-settlement discovery.
- * @param options.transactionId - Transaction ID for error reporting.
- */
-function validateRelayRateDrift({
-  originalQuote,
-  discoveryQuote,
-  transactionId,
-}: {
-  originalQuote: RelayQuote;
-  discoveryQuote: RelayQuote;
-  transactionId: string;
-}): void {
-  const originalIn = new BigNumber(originalQuote.details.currencyIn.amountUsd);
-  const originalOut = new BigNumber(
-    originalQuote.details.currencyOut.amountUsd,
-  );
-  const discoveryIn = new BigNumber(
-    discoveryQuote.details.currencyIn.amountUsd,
-  );
-  const discoveryOut = new BigNumber(
-    discoveryQuote.details.currencyOut.amountUsd,
-  );
-
-  if (
-    !originalIn.gt(0) ||
-    !originalOut.gt(0) ||
-    !discoveryIn.gt(0) ||
-    !discoveryOut.gt(0)
-  ) {
-    return;
-  }
-
-  const originalRate = originalOut.dividedBy(originalIn);
-  const discoveryRate = discoveryOut.dividedBy(discoveryIn);
-
-  const driftPercent = originalRate
-    .minus(discoveryRate)
-    .dividedBy(originalRate)
-    .multipliedBy(100);
-
-  log('Relay rate drift check', {
-    originalRate: originalRate.toFixed(6),
-    discoveryRate: discoveryRate.toFixed(6),
-    driftPercent: driftPercent.toFixed(2),
-    transactionId,
-  });
-
-  if (driftPercent.gt(MAX_RATE_DRIFT_PERCENT)) {
-    throw new Error(
-      `Relay rate drift too high for transaction ` +
-        `${driftPercent.toFixed(2)}% exceeds ${MAX_RATE_DRIFT_PERCENT}% max`,
-    );
-  }
 }
