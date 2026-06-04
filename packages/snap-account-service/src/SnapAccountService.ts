@@ -33,7 +33,6 @@ import {
   isKeyringNotFoundError,
   KeyringTypes,
 } from '@metamask/keyring-controller';
-import { KeyringControllerWithKeyringUnsafeAction } from '@metamask/keyring-controller';
 import { SnapManageAccountsMethod } from '@metamask/keyring-snap-sdk';
 import type { AccountId, BaseKeyring } from '@metamask/keyring-utils';
 import type { Messenger } from '@metamask/messenger';
@@ -548,39 +547,6 @@ export class SnapAccountService {
       snapId,
       operation,
     );
-  }
-
-  /**
-   * Gets the legacy (v1) Snap keyring but do not auto-create it if it doesn't exist.
-   *
-   * @returns The existing Snap keyring instance, or undefined if it doesn't exist.
-   */
-  async #getLegacySnapKeyringIfAvailable(): Promise<
-    LegacySnapKeyring | undefined
-  > {
-    type Result = {
-      snapKeyring: LegacySnapKeyring;
-    };
-
-    try {
-      const result = await this.#messenger.call(
-        'KeyringController:withKeyringUnsafe',
-        { filter: isLegacySnapKeyring },
-        async ({ keyring }): Promise<Result> => {
-          // The legacy Snap keyring is not compatible with `EthKeyring`, so we need to cast here.
-          return { snapKeyring: keyring } as unknown as Result;
-        },
-      );
-
-      return (result as Result).snapKeyring;
-    } catch (error) {
-      if (isKeyringNotFoundError(error)) {
-        log('Legacy Snap keyring not available yet.');
-        return undefined;
-      }
-
-      throw error;
-    }
   }
 
   /**
