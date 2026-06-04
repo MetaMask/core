@@ -88,10 +88,10 @@ export async function updateQuotes(
     isPolymarketDepositWallet,
     paymentOverride,
     paymentToken: originalPaymentToken,
+    fiatPayment,
     refundTo,
     sourceAmounts,
     tokens,
-    fiatPayment,
   } = transactionData;
 
   const from = accountOverride ?? (transaction.txParams.from as Hex);

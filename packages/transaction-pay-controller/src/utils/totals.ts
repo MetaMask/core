@@ -79,7 +79,7 @@ export function calculateTotals({
   const amountUsd = sumProperty(quoteTokens, (token) => token.amountUsd);
   const hasQuotes = quotes.length > 0;
 
-  const paymentAmountFiat = getPaymentAmount({
+  const sourceAmountFiat = getSourceAmount({
     hasFiatStrategy,
     fiatPaymentAmount,
     isMaxAmount,
@@ -88,7 +88,7 @@ export function calculateTotals({
     tokenAmount: amountFiat,
   });
 
-  const paymentAmountUsd = getPaymentAmount({
+  const sourceAmountUsd = getSourceAmount({
     hasFiatStrategy,
     fiatPaymentAmount,
     isMaxAmount,
@@ -101,14 +101,14 @@ export function calculateTotals({
     .plus(metaMaskFee.fiat)
     .plus(sourceNetworkFeeEstimate.fiat)
     .plus(targetNetworkFee.fiat)
-    .plus(paymentAmountFiat)
+    .plus(sourceAmountFiat)
     .toString(10);
 
   const totalUsd = new BigNumber(providerFee.usd)
     .plus(metaMaskFee.usd)
     .plus(sourceNetworkFeeEstimate.usd)
     .plus(targetNetworkFee.usd)
-    .plus(paymentAmountUsd)
+    .plus(sourceAmountUsd)
     .toString(10);
 
   const estimatedDuration = Number(
@@ -147,7 +147,7 @@ export function calculateTotals({
 }
 
 /**
- * Get the payment amount to include in totals.
+ * Get the source amount to include in totals.
  *
  * @param request - Request parameters.
  * @param request.hasFiatStrategy - Whether a fiat strategy quote is present.
@@ -158,7 +158,7 @@ export function calculateTotals({
  * @param request.tokenAmount - The summed token amount.
  * @returns The payment amount to include in totals.
  */
-function getPaymentAmount({
+function getSourceAmount({
   hasFiatStrategy,
   fiatPaymentAmount,
   isMaxAmount,

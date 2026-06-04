@@ -49,8 +49,7 @@ export async function getFiatQuotes(
   const state = messenger.call('TransactionPayController:getState');
   const transactionData = state.transactionData[transactionId];
   const amountFiat = transactionData?.fiatPayment?.amountFiat;
-  const walletAddress =
-    transactionData?.accountOverride ?? (transaction.txParams.from as Hex);
+  const walletAddress = transaction.txParams.from as Hex;
   const requiredTokens = getRequiredTokens(transactionData?.tokens);
   const fiatAsset = deriveFiatAssetForFiatPayment(transaction, messenger);
 

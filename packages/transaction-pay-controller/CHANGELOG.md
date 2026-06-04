@@ -16,8 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Adding processing for postQuote transactions with paymentOverride defined ([#8967](https://github.com/MetaMask/core/pull/8967))
-- Add optional `getAmountData` callback to `TransactionPayControllerOptions` for client-side nested calldata re-encoding ([#8987](https://github.com/MetaMask/core/pull/8987))
-- Add `TransactionPayController:getAmountData` messenger action ([#8987](https://github.com/MetaMask/core/pull/8987))
+- Add optional `getAmountData` callback and `TransactionPayController:getAmountData` messenger action for client-side nested calldata re-encoding ([#8987](https://github.com/MetaMask/core/pull/8987))
 - Add `@metamask/keyring-controller` `^26.0.0` as a dependency ([#8972](https://github.com/MetaMask/core/pull/8972))
   - The package was already imported at runtime by `src/strategy/relay/hyperliquid-withdraw.ts` but wasn't declared in `package.json`; this PR fixes the omission.
 
