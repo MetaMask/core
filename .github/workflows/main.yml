@@ -112,6 +112,7 @@ jobs:
     if: needs.is-release.outputs.IS_RELEASE == 'true'
     permissions:
       contents: write
+      id-token: write
     uses: ./.github/workflows/publish-release.yml
     secrets:
       NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
