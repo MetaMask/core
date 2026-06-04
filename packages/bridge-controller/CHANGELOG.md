@@ -12,6 +12,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/assets-controllers` from `^108.2.0` to `^108.3.0` ([#8941](https://github.com/MetaMask/core/pull/8941))
 - Bump `@metamask/assets-controller` from `^8.1.0` to `^8.2.0` ([#8943](https://github.com/MetaMask/core/pull/8943))
 
+### Fixed
+
+- `selectExchangeRateByAssetId` now resolves fungible asset fiat rates from the unified `AssetsController` `assetsPrice` source, so held tokens (e.g. USDC) produce a fiat value when `useAssetsControllerForRates` is enabled instead of resolving no rate
+
 ## [73.2.0]
 
 ### Added

@@ -1,5 +1,7 @@
 /* eslint-disable @typescript-eslint/explicit-function-return-type */
 import { getAddress } from '@ethersproject/address';
+import { normalizeAssetId } from '@metamask/assets-controller';
+import type { AssetsControllerState } from '@metamask/assets-controller';
 import type {
   CurrencyRateState,
   MultichainAssetsRatesControllerState,
@@ -62,7 +64,8 @@ import { getDefaultSlippagePercentage } from './utils/slippage';
 type ExchangeRateControllerState = MultichainAssetsRatesControllerState &
   TokenRatesControllerState &
   CurrencyRateState &
-  Pick<BridgeControllerState, 'assetExchangeRates'>;
+  Pick<BridgeControllerState, 'assetExchangeRates'> &
+  Partial<Pick<AssetsControllerState, 'assetsPrice'>>;
 /**
  * The state of the bridge controller and all its dependency controllers
  */
@@ -81,7 +84,8 @@ export type ExchangeRateSourcesForLookup = Pick<
   'assetExchangeRates'
 > &
   Partial<Pick<CurrencyRateState, 'currencyRates'>> &
-  Partial<Pick<MultichainAssetsRatesControllerState, 'historicalPrices'>> & {
+  Partial<Pick<MultichainAssetsRatesControllerState, 'historicalPrices'>> &
+  Partial<Pick<AssetsControllerState, 'assetsPrice'>> & {
     marketData?:
       | TokenRatesControllerState['marketData']
       | Record<string, Record<string, { price?: number; currency?: string }>>;
@@ -173,8 +177,13 @@ export const selectExchangeRateByAssetId = (
     return {};
   }
 
-  const { assetExchangeRates, currencyRates, marketData, conversionRates } =
-    exchangeRateSources;
+  const {
+    assetExchangeRates,
+    currencyRates,
+    marketData,
+    conversionRates,
+    assetsPrice,
+  } = exchangeRateSources;
 
   // If the asset exchange rate is available in the bridge controller, use it
   // This is defined if the token's rate is not available from the assets controllers
@@ -186,6 +195,24 @@ export const selectExchangeRateByAssetId = (
     bridgeControllerRate?.usdExchangeRate
   ) {
     return bridgeControllerRate;
+  }
+
+  // When the unified assets system is active, held-token fiat rates live in
+  // `assetsPrice` (keyed by checksummed CAIP-19 asset ID) rather than the
+  // legacy market/currency-rate slices. Resolve fungible prices directly so
+  // held tokens (e.g. USDC) produce a fiat value. `normalizeAssetId` checksums
+  // EVM ERC-20 references so a lower-cased input matches the stored key.
+  const assetPrice =
+    assetsPrice?.[normalizeAssetId(assetId)] ?? assetsPrice?.[assetId];
+  if (
+    assetPrice?.assetPriceType === 'fungible' &&
+    Number.isFinite(assetPrice.price) &&
+    Number.isFinite(assetPrice.usdPrice)
+  ) {
+    return {
+      exchangeRate: String(assetPrice.price),
+      usdExchangeRate: String(assetPrice.usdPrice),
+    };
   }
 
   const { chainId } = parseCaipAssetType(assetId);

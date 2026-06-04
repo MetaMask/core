@@ -3,6 +3,7 @@ import { AddressZero } from '@ethersproject/constants';
 import type { MarketDataDetails } from '@metamask/assets-controllers';
 import { toHex } from '@metamask/controller-utils';
 import { SolScope } from '@metamask/keyring-api';
+import type { CaipAssetType } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
 
 import mockQuotesErc20Erc20 from '../tests/mock-quotes-erc20-erc20.json';
@@ -187,6 +188,113 @@ describe('Bridge Selectors', () => {
           'eip155:1/erc20:0x123',
         ),
       ).toStrictEqual({});
+    });
+
+    describe('assetsPrice resolution (unified assets)', () => {
+      // DAI, not present in any other rate source in mockExchangeRateSources.
+      const DAI_ADDRESS = '0x6B175474E89094C44Da98b954EedeAC495271d0F';
+      const daiAssetIdChecksummed = formatAddressToAssetId(
+        DAI_ADDRESS,
+        '1',
+      ) as CaipAssetType;
+
+      it('resolves a fungible rate from assetsPrice when legacy slices lack it', () => {
+        const result = selectExchangeRateByAssetId(
+          {
+            ...mockExchangeRateSources,
+            assetsPrice: {
+              [daiAssetIdChecksummed]: {
+                assetPriceType: 'fungible',
+                price: 1.23,
+                usdPrice: 1.5,
+              },
+            },
+          } as unknown as BridgeAppState,
+          daiAssetIdChecksummed,
+        );
+        expect(result).toStrictEqual({
+          exchangeRate: '1.23',
+          usdExchangeRate: '1.5',
+        });
+      });
+
+      it('matches a checksummed assetsPrice key when the asset ID is lowercased', () => {
+        const result = selectExchangeRateByAssetId(
+          {
+            ...mockExchangeRateSources,
+            assetsPrice: {
+              [daiAssetIdChecksummed]: {
+                assetPriceType: 'fungible',
+                price: 1.23,
+                usdPrice: 1.5,
+              },
+            },
+          } as unknown as BridgeAppState,
+          `eip155:1/erc20:${DAI_ADDRESS.toLowerCase()}`,
+        );
+        expect(result).toStrictEqual({
+          exchangeRate: '1.23',
+          usdExchangeRate: '1.5',
+        });
+      });
+
+      it('ignores non-fungible (NFT) assetsPrice entries', () => {
+        const result = selectExchangeRateByAssetId(
+          {
+            ...mockExchangeRateSources,
+            assetsPrice: {
+              [daiAssetIdChecksummed]: {
+                assetPriceType: 'nft',
+                floorPrice: 1.23,
+              },
+            },
+          } as unknown as BridgeAppState,
+          daiAssetIdChecksummed,
+        );
+        expect(result).toStrictEqual({});
+      });
+
+      it('ignores assetsPrice entries with non-finite price or usdPrice', () => {
+        const result = selectExchangeRateByAssetId(
+          {
+            ...mockExchangeRateSources,
+            assetsPrice: {
+              [daiAssetIdChecksummed]: {
+                assetPriceType: 'fungible',
+                price: Number.NaN,
+                usdPrice: undefined,
+              },
+            },
+          } as unknown as BridgeAppState,
+          daiAssetIdChecksummed,
+        );
+        expect(result).toStrictEqual({});
+      });
+
+      it('prefers bridge controller assetExchangeRates over assetsPrice', () => {
+        const usdcAssetId = formatAddressToAssetId(
+          MOCK_USDC_ADDRESS,
+          '1',
+        ) as CaipAssetType;
+        const result = selectExchangeRateByAssetId(
+          {
+            ...mockExchangeRateSources,
+            assetsPrice: {
+              [usdcAssetId]: {
+                assetPriceType: 'fungible',
+                price: 9.99,
+                usdPrice: 9.99,
+              },
+            },
+          } as unknown as BridgeAppState,
+          usdcAssetId,
+        );
+        // assetExchangeRates entry for USDC (2.5 / 1.5) wins.
+        expect(result).toStrictEqual({
+          exchangeRate: '2.5',
+          usdExchangeRate: '1.5',
+        });
+      });
     });
   });
 
