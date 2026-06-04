@@ -22,8 +22,15 @@ export type UserStorageConfig = {
 };
 
 export type StorageOptions = {
-  getStorageKey: (message: `metamask:${string}`) => Promise<string | null>;
-  setStorageKey: (message: `metamask:${string}`, val: string) => Promise<void>;
+  getStorageKey: (
+    message: `metamask:${string}`,
+    entropySourceId?: string,
+  ) => Promise<string | null>;
+  setStorageKey: (
+    message: `metamask:${string}`,
+    val: string,
+    entropySourceId?: string,
+  ) => Promise<void>;
 };
 
 export type UserStorageOptions = {
@@ -122,7 +129,10 @@ export class UserStorage {
     const userProfile = await this.config.auth.getUserProfile(entropySourceId);
     const message = `metamask:${userProfile.profileId}` as const;
 
-    const storageKey = await this.options.storage?.getStorageKey(message);
+    const storageKey = await this.options.storage?.getStorageKey(
+      message,
+      entropySourceId,
+    );
     if (storageKey) {
       return storageKey;
     }
@@ -135,6 +145,7 @@ export class UserStorage {
     await this.options.storage?.setStorageKey(
       message,
       hashedStorageKeySignature,
+      entropySourceId,
     );
     return hashedStorageKeySignature;
   }

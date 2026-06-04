@@ -369,6 +369,8 @@ const MULTICALL3_ADDRESS_BY_CHAIN: Record<Hex, Hex> = {
   '0x1079': '0xcA11bde05977b3631167028862bE2a173976CA11',
   // Tempo Testnet Moderato
   '0xa5bf': '0xcA11bde05977b3631167028862bE2a173976CA11',
+  // Arc (5042)
+  '0x13b2': '0xcA11bde05977b3631167028862bE2a173976CA11',
 };
 
 // =============================================================================

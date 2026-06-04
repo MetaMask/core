@@ -313,12 +313,9 @@ describe('createNetworkClient - RPC endpoint events', () => {
                       failoverRpcUrls: [failoverEndpointUrl],
                       messenger: rootMessenger,
                       getRpcServiceOptions: () => ({
-                        fetch,
-                        btoa,
                         policyOptions: {
                           backoff: new ConstantBackoff(backoffDuration),
                         },
-                        isOffline: (): boolean => false,
                       }),
                     },
                     async ({ makeRpcCall }) => {
@@ -399,12 +396,9 @@ describe('createNetworkClient - RPC endpoint events', () => {
                       failoverRpcUrls: [failoverEndpointUrl],
                       messenger: rootMessenger,
                       getRpcServiceOptions: () => ({
-                        fetch,
-                        btoa,
                         policyOptions: {
                           backoff: new ConstantBackoff(backoffDuration),
                         },
-                        isOffline: (): boolean => false,
                       }),
                     },
                     async ({ makeRpcCall }) => {
@@ -1422,12 +1416,9 @@ describe('createNetworkClient - RPC endpoint events', () => {
                   networkClientId: 'AAAA-AAAA-AAAA-AAAA',
                   messenger: rootMessenger,
                   getRpcServiceOptions: () => ({
-                    fetch,
-                    btoa,
                     policyOptions: {
                       backoff: new ConstantBackoff(backoffDuration),
                     },
-                    isOffline: (): boolean => false,
                   }),
                 },
                 async ({ makeRpcCall }) => {
@@ -1485,12 +1476,9 @@ describe('createNetworkClient - RPC endpoint events', () => {
                   networkClientId: 'AAAA-AAAA-AAAA-AAAA',
                   messenger: rootMessenger,
                   getRpcServiceOptions: () => ({
-                    fetch,
-                    btoa,
                     policyOptions: {
                       backoff: new ConstantBackoff(backoffDuration),
                     },
-                    isOffline: (): boolean => false,
                   }),
                 },
                 async ({ makeRpcCall }) => {

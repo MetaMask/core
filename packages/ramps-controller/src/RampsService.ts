@@ -1240,8 +1240,10 @@ export class RampsService {
     url.searchParams.set('crypto', options.assetId);
     url.searchParams.set('provider', options.provider);
 
+    const headers = await this.#getRequestHeaders();
+
     const response = await this.#policy.execute(async () => {
-      const fetchResponse = await this.#fetch(url);
+      const fetchResponse = await this.#fetch(url, { headers });
       if (!fetchResponse.ok) {
         throw new HttpError(
           fetchResponse.status,
@@ -1296,6 +1298,8 @@ export class RampsService {
     url.searchParams.set('amount', String(params.amount));
     url.searchParams.set('walletAddress', params.walletAddress);
 
+    const headers = await this.#getRequestHeaders();
+
     // Add payment methods as array parameters
     params.paymentMethods.forEach((paymentMethod) => {
       url.searchParams.append('payments', paymentMethod);
@@ -1312,7 +1316,7 @@ export class RampsService {
     }
 
     const response = await this.#policy.execute(async () => {
-      const fetchResponse = await this.#fetch(url);
+      const fetchResponse = await this.#fetch(url, { headers });
       if (!fetchResponse.ok) {
         throw new HttpError(
           fetchResponse.status,
