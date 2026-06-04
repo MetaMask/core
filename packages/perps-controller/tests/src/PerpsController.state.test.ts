@@ -998,27 +998,27 @@ describe('PerpsController', () => {
       expect(watchlist).toEqual([]);
     });
 
-    it('toggles watchlist market (add)', () => {
-      controller.toggleWatchlistMarket('BTC');
+    it('toggles watchlist market (add)', async () => {
+      await controller.toggleWatchlistMarket('BTC');
 
       const watchlist = controller.getWatchlistMarkets();
       expect(watchlist).toContain('BTC');
       expect(controller.isWatchlistMarket('BTC')).toBe(true);
     });
 
-    it('toggles watchlist market (remove)', () => {
-      controller.toggleWatchlistMarket('BTC');
-      controller.toggleWatchlistMarket('BTC');
+    it('toggles watchlist market (remove)', async () => {
+      await controller.toggleWatchlistMarket('BTC');
+      await controller.toggleWatchlistMarket('BTC');
 
       const watchlist = controller.getWatchlistMarkets();
       expect(watchlist).not.toContain('BTC');
       expect(controller.isWatchlistMarket('BTC')).toBe(false);
     });
 
-    it('handles multiple watchlist markets', () => {
-      controller.toggleWatchlistMarket('BTC');
-      controller.toggleWatchlistMarket('ETH');
-      controller.toggleWatchlistMarket('SOL');
+    it('handles multiple watchlist markets', async () => {
+      await controller.toggleWatchlistMarket('BTC');
+      await controller.toggleWatchlistMarket('ETH');
+      await controller.toggleWatchlistMarket('SOL');
 
       const watchlist = controller.getWatchlistMarkets();
       expect(watchlist).toHaveLength(3);
@@ -1027,12 +1027,12 @@ describe('PerpsController', () => {
       expect(watchlist).toContain('SOL');
     });
 
-    it('persist watchlist per network', () => {
+    it('persist watchlist per network', async () => {
       // Add to watchlist on mainnet (default is testnet in dev, so set to false)
       controller.testUpdate((state) => {
         state.isTestnet = false;
       });
-      controller.toggleWatchlistMarket('BTC');
+      await controller.toggleWatchlistMarket('BTC');
 
       const mainnetWatchlist = controller.getWatchlistMarkets();
       expect(mainnetWatchlist).toContain('BTC');
@@ -1045,7 +1045,7 @@ describe('PerpsController', () => {
       expect(testnetWatchlist).toEqual([]);
 
       // Add to watchlist on testnet
-      controller.toggleWatchlistMarket('ETH');
+      await controller.toggleWatchlistMarket('ETH');
       expect(controller.getWatchlistMarkets()).toContain('ETH');
       expect(controller.isWatchlistMarket('ETH')).toBe(true);
 
@@ -1055,6 +1055,410 @@ describe('PerpsController', () => {
       });
       expect(controller.getWatchlistMarkets()).toContain('BTC');
       expect(controller.getWatchlistMarkets()).not.toContain('ETH');
+    });
+  });
+
+  describe('AUS watchlist sync', () => {
+    /**
+     * Minimal valid NotificationPreferences blob used across these tests.
+     * `watchlistMarkets` is intentionally absent so individual tests can
+     * control whether the field is present or not.
+     */
+    const MOCK_PREFS_BASE = {
+      walletActivity: {
+        inAppNotificationsEnabled: true,
+        pushNotificationsEnabled: true,
+        accounts: [],
+      },
+      marketing: {
+        inAppNotificationsEnabled: false,
+        pushNotificationsEnabled: false,
+      },
+      perps: {
+        inAppNotificationsEnabled: true,
+        pushNotificationsEnabled: true,
+      },
+      socialAI: {
+        inAppNotificationsEnabled: false,
+        pushNotificationsEnabled: false,
+        mutedTraderProfileIds: [],
+      },
+    } as const;
+
+    let ausController: TestablePerpsController;
+    let mockAusCall: jest.Mock;
+    let mockAusInfrastructure: jest.Mocked<PerpsPlatformDependencies>;
+
+    beforeEach(() => {
+      mockAusCall = jest.fn().mockImplementation((action: string) => {
+        if (action === 'RemoteFeatureFlagController:getState') {
+          return {
+            remoteFeatureFlags: {
+              perpsPerpTradingGeoBlockedCountriesV2: { blockedRegions: [] },
+            },
+          };
+        }
+        // By default, behave as if no blob exists (unauthenticated / 404).
+        if (
+          action ===
+          'AuthenticatedUserStorageService:getNotificationPreferences'
+        ) {
+          return Promise.resolve(null);
+        }
+        if (
+          action ===
+          'AuthenticatedUserStorageService:putNotificationPreferences'
+        ) {
+          return Promise.resolve(undefined);
+        }
+        return undefined;
+      });
+
+      mockAusInfrastructure = createMockInfrastructure();
+      ausController = new TestablePerpsController({
+        messenger: createMockMessenger({ call: mockAusCall }),
+        state: getDefaultPerpsControllerState(),
+        infrastructure: mockAusInfrastructure,
+      });
+    });
+
+    it('local state updates immediately (optimistic) when AUS returns null blob', async () => {
+      // AUS returns null → no remote write, but local state should still change.
+      await ausController.toggleWatchlistMarket('BTC');
+
+      expect(ausController.getWatchlistMarkets()).toContain('BTC');
+      expect(
+        mockAusCall,
+      ).toHaveBeenCalledWith(
+        'AuthenticatedUserStorageService:getNotificationPreferences',
+      );
+      expect(mockAusCall).not.toHaveBeenCalledWith(
+        'AuthenticatedUserStorageService:putNotificationPreferences',
+        expect.anything(),
+      );
+    });
+
+    it('writes merged watchlist to AUS when a preferences blob exists', async () => {
+      const existingPrefs = {
+        ...MOCK_PREFS_BASE,
+        perps: {
+          ...MOCK_PREFS_BASE.perps,
+          watchlistMarkets: {
+            hyperliquid: { testnet: [], mainnet: [] },
+            myx: { testnet: [], mainnet: [] },
+          },
+        },
+      };
+
+      mockAusCall.mockImplementation((action: string) => {
+        if (action === 'RemoteFeatureFlagController:getState') {
+          return { remoteFeatureFlags: {} };
+        }
+        if (
+          action ===
+          'AuthenticatedUserStorageService:getNotificationPreferences'
+        ) {
+          return Promise.resolve(existingPrefs);
+        }
+        if (
+          action ===
+          'AuthenticatedUserStorageService:putNotificationPreferences'
+        ) {
+          return Promise.resolve(undefined);
+        }
+        return undefined;
+      });
+
+      // Default state is testnet; toggle on testnet.
+      ausController.testUpdate((state) => {
+        state.isTestnet = true;
+        state.activeProvider = 'hyperliquid';
+      });
+
+      await ausController.toggleWatchlistMarket('BTC');
+
+      expect(ausController.getWatchlistMarkets()).toContain('BTC');
+
+      // Verify put was called with merged prefs.
+      expect(mockAusCall).toHaveBeenCalledWith(
+        'AuthenticatedUserStorageService:putNotificationPreferences',
+        expect.objectContaining({
+          perps: expect.objectContaining({
+            watchlistMarkets: expect.objectContaining({
+              hyperliquid: expect.objectContaining({
+                testnet: expect.arrayContaining(['BTC']),
+              }),
+            }),
+          }),
+        }),
+      );
+    });
+
+    it('reverts local state when AUS PUT fails', async () => {
+      const existingPrefs = {
+        ...MOCK_PREFS_BASE,
+        perps: {
+          ...MOCK_PREFS_BASE.perps,
+          watchlistMarkets: {
+            hyperliquid: { testnet: [], mainnet: [] },
+            myx: { testnet: [], mainnet: [] },
+          },
+        },
+      };
+
+      mockAusCall.mockImplementation((action: string) => {
+        if (action === 'RemoteFeatureFlagController:getState') {
+          return { remoteFeatureFlags: {} };
+        }
+        if (
+          action ===
+          'AuthenticatedUserStorageService:getNotificationPreferences'
+        ) {
+          return Promise.resolve(existingPrefs);
+        }
+        if (
+          action ===
+          'AuthenticatedUserStorageService:putNotificationPreferences'
+        ) {
+          return Promise.reject(new Error('AUS server error'));
+        }
+        return undefined;
+      });
+
+      ausController.testUpdate((state) => {
+        state.isTestnet = false;
+        state.activeProvider = 'hyperliquid';
+      });
+
+      // After toggle, local state should optimistically contain BTC.
+      // After PUT fails, it should be reverted.
+      await ausController.toggleWatchlistMarket('BTC');
+
+      expect(ausController.getWatchlistMarkets()).not.toContain('BTC');
+      expect(mockAusInfrastructure.logger.error).toHaveBeenCalled();
+    });
+
+    it('skips AUS sync when activeProvider is aggregated', async () => {
+      ausController.testUpdate((state) => {
+        (state as any).activeProvider = 'aggregated';
+      });
+
+      await ausController.toggleWatchlistMarket('BTC');
+
+      // Local state changes.
+      expect(ausController.getWatchlistMarkets()).toContain('BTC');
+      // AUS is never contacted.
+      expect(mockAusCall).not.toHaveBeenCalledWith(
+        'AuthenticatedUserStorageService:getNotificationPreferences',
+      );
+      expect(mockAusCall).not.toHaveBeenCalledWith(
+        'AuthenticatedUserStorageService:putNotificationPreferences',
+        expect.anything(),
+      );
+    });
+
+    it('does not throw when AUS GET throws (unauthenticated)', async () => {
+      mockAusCall.mockImplementation((action: string) => {
+        if (action === 'RemoteFeatureFlagController:getState') {
+          return { remoteFeatureFlags: {} };
+        }
+        if (
+          action ===
+          'AuthenticatedUserStorageService:getNotificationPreferences'
+        ) {
+          return Promise.reject(new Error('Unauthenticated'));
+        }
+        return undefined;
+      });
+
+      ausController.testUpdate((state) => {
+        state.isTestnet = false;
+      });
+
+      // Should not throw — failure is handled internally.
+      await expect(
+        ausController.toggleWatchlistMarket('BTC'),
+      ).resolves.toBeUndefined();
+
+      // Local state is reverted since the AUS path failed.
+      expect(ausController.getWatchlistMarkets()).not.toContain('BTC');
+    });
+
+    it('tracks analytics event when toggling watchlist market', async () => {
+      ausController.testUpdate((state) => {
+        state.isTestnet = false;
+        state.activeProvider = 'hyperliquid';
+      });
+
+      await ausController.toggleWatchlistMarket('ETH');
+
+      expect(
+        mockAusInfrastructure.metrics.trackPerpsEvent,
+      ).toHaveBeenCalledWith(
+        PerpsAnalyticsEvent.UiInteraction,
+        expect.objectContaining({
+          interaction_type: 'favorite_toggled',
+          asset: 'ETH',
+        }),
+      );
+    });
+
+    describe('init hydration from AUS', () => {
+      it('hydrates local watchlist from AUS on successful init', async () => {
+        const remotePrefs = {
+          ...MOCK_PREFS_BASE,
+          perps: {
+            ...MOCK_PREFS_BASE.perps,
+            watchlistMarkets: {
+              hyperliquid: {
+                testnet: ['BTC', 'ETH'],
+                mainnet: ['SOL'],
+              },
+              myx: { testnet: [], mainnet: [] },
+            },
+          },
+        };
+
+        mockAusCall.mockImplementation((action: string) => {
+          if (action === 'RemoteFeatureFlagController:getState') {
+            return {
+              remoteFeatureFlags: {
+                perpsPerpTradingGeoBlockedCountriesV2: { blockedRegions: [] },
+              },
+            };
+          }
+          if (
+            action ===
+            'AuthenticatedUserStorageService:getNotificationPreferences'
+          ) {
+            return Promise.resolve(remotePrefs);
+          }
+          return undefined;
+        });
+
+        ausController.testUpdate((state) => {
+          state.activeProvider = 'hyperliquid';
+        });
+
+        await ausController.init();
+
+        // Allow the non-blocking #syncWatchlistFromRemote promise to settle.
+        await new Promise((resolve) => setTimeout(resolve, 0));
+
+        expect(ausController.state.watchlistMarkets.testnet).toEqual([
+          'BTC',
+          'ETH',
+        ]);
+        expect(ausController.state.watchlistMarkets.mainnet).toEqual(['SOL']);
+      });
+
+      it('performs one-time migration when blob exists but has no watchlist for the active provider', async () => {
+        const remotePrefsWithoutWatchlist = { ...MOCK_PREFS_BASE };
+
+        mockAusCall.mockImplementation((action: string) => {
+          if (action === 'RemoteFeatureFlagController:getState') {
+            return {
+              remoteFeatureFlags: {
+                perpsPerpTradingGeoBlockedCountriesV2: { blockedRegions: [] },
+              },
+            };
+          }
+          if (
+            action ===
+            'AuthenticatedUserStorageService:getNotificationPreferences'
+          ) {
+            return Promise.resolve(remotePrefsWithoutWatchlist);
+          }
+          if (
+            action ===
+            'AuthenticatedUserStorageService:putNotificationPreferences'
+          ) {
+            return Promise.resolve(undefined);
+          }
+          return undefined;
+        });
+
+        // Local state has some markets saved before AUS was introduced.
+        const initialState = getDefaultPerpsControllerState();
+        initialState.watchlistMarkets.testnet = ['BTC'];
+        initialState.watchlistMarkets.mainnet = ['ETH', 'SOL'];
+        initialState.activeProvider = 'hyperliquid';
+
+        const migrationController = new TestablePerpsController({
+          messenger: createMockMessenger({ call: mockAusCall }),
+          state: initialState,
+          infrastructure: mockAusInfrastructure,
+        });
+
+        await migrationController.init();
+        await new Promise((resolve) => setTimeout(resolve, 0));
+
+        // Verify local markets were pushed to AUS.
+        expect(mockAusCall).toHaveBeenCalledWith(
+          'AuthenticatedUserStorageService:putNotificationPreferences',
+          expect.objectContaining({
+            perps: expect.objectContaining({
+              watchlistMarkets: expect.objectContaining({
+                hyperliquid: expect.objectContaining({
+                  testnet: ['BTC'],
+                  mainnet: ['ETH', 'SOL'],
+                }),
+              }),
+            }),
+          }),
+        );
+      });
+
+      it('skips hydration when AUS blob is null', async () => {
+        // AUS returns null — local state is untouched.
+        const localState = getDefaultPerpsControllerState();
+        localState.watchlistMarkets.mainnet = ['BTC'];
+        localState.activeProvider = 'hyperliquid';
+
+        const nullBlobController = new TestablePerpsController({
+          messenger: createMockMessenger({ call: mockAusCall }),
+          state: localState,
+          infrastructure: mockAusInfrastructure,
+        });
+
+        await nullBlobController.init();
+        await new Promise((resolve) => setTimeout(resolve, 0));
+
+        // Local state unchanged.
+        expect(nullBlobController.state.watchlistMarkets.mainnet).toEqual([
+          'BTC',
+        ]);
+        expect(mockAusCall).not.toHaveBeenCalledWith(
+          'AuthenticatedUserStorageService:putNotificationPreferences',
+          expect.anything(),
+        );
+      });
+
+      it('does not throw when AUS GET throws during init', async () => {
+        mockAusCall.mockImplementation((action: string) => {
+          if (action === 'RemoteFeatureFlagController:getState') {
+            return {
+              remoteFeatureFlags: {
+                perpsPerpTradingGeoBlockedCountriesV2: { blockedRegions: [] },
+              },
+            };
+          }
+          if (
+            action ===
+            'AuthenticatedUserStorageService:getNotificationPreferences'
+          ) {
+            return Promise.reject(new Error('Network error'));
+          }
+          return undefined;
+        });
+
+        // init() should still succeed; the watchlist sync error is handled internally.
+        await expect(ausController.init()).resolves.toBeUndefined();
+
+        await new Promise((resolve) => setTimeout(resolve, 0));
+
+        expect(mockAusInfrastructure.logger.error).toHaveBeenCalled();
+      });
     });
   });
 
