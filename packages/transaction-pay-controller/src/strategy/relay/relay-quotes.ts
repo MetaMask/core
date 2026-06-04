@@ -403,8 +403,6 @@ async function processMoneyAccountPostQuote(
 
   const transactionData = transactionDataList[transaction.id];
   const amountHuman = transactionData?.tokens?.[0]?.amountHuman ?? '0';
-  const amountRaw =
-    transactionData?.tokens?.[0]?.amountRaw ?? request.sourceTokenAmount;
 
   const {
     calls: overrideCalls,
@@ -425,11 +423,11 @@ async function processMoneyAccountPostQuote(
 
   requestBody.authorizationList = normalizeAuthorizationList(authorizationList);
   requestBody.tradeType = 'EXACT_OUTPUT';
-  requestBody.amount = amountRaw;
+  requestBody.amount = request.sourceTokenAmount;
   requestBody.txs = [
     {
       to: request.targetTokenAddress,
-      data: buildTokenTransferData(fundingRecipient, amountRaw),
+      data: buildTokenTransferData(fundingRecipient, request.sourceTokenAmount),
       value: '0x0',
     },
     ...overrideCalls.map((call) => ({

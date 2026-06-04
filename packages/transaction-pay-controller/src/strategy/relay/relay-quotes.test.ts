@@ -2750,13 +2750,11 @@ describe('Relay Quotes Utils', () => {
 
       function setupMoneyAccountMocks({
         amountHuman = AMOUNT_HUMAN_MOCK,
-        amountRaw = AMOUNT_RAW_MOCK,
         overrideCalls = [OVERRIDE_CALL_MOCK],
         recipient,
         authorizationList = DELEGATION_RESULT_MOCK.authorizationList,
       }: {
         amountHuman?: string;
-        amountRaw?: string;
         overrideCalls?: { to: Hex; data: Hex; value: Hex }[];
         recipient?: Hex;
         authorizationList?: typeof DELEGATION_RESULT_MOCK.authorizationList;
@@ -2764,7 +2762,7 @@ describe('Relay Quotes Utils', () => {
         getControllerStateMock.mockReturnValue({
           transactionData: {
             [TRANSACTION_ID_MOCK]: {
-              tokens: [{ amountHuman, amountRaw }],
+              tokens: [{ amountHuman }],
             },
           },
         } as never);
@@ -2776,7 +2774,7 @@ describe('Relay Quotes Utils', () => {
         });
       }
 
-      it('sets tradeType to EXACT_OUTPUT and amount from transactionData', async () => {
+      it('sets tradeType to EXACT_OUTPUT and amount from request sourceTokenAmount', async () => {
         setupMoneyAccountMocks();
         successfulFetchMock.mockResolvedValue({
           ok: true,
@@ -2795,7 +2793,7 @@ describe('Relay Quotes Utils', () => {
         );
 
         expect(body.tradeType).toBe('EXACT_OUTPUT');
-        expect(body.amount).toBe(AMOUNT_RAW_MOCK);
+        expect(body.amount).toBe(QUOTE_REQUEST_MOCK.sourceTokenAmount);
       });
 
       it('includes token transfer and override calls in txs', async () => {
@@ -2915,38 +2913,6 @@ describe('Relay Quotes Utils', () => {
             yParity: 1,
           }),
         ]);
-      });
-
-      it('falls back to sourceTokenAmount when transactionData has no amountRaw', async () => {
-        getControllerStateMock.mockReturnValue({
-          transactionData: {
-            [TRANSACTION_ID_MOCK]: {
-              tokens: [{ amountHuman: '10' }],
-            },
-          },
-        } as never);
-
-        getPaymentOverrideDataMock.mockResolvedValue({
-          calls: [OVERRIDE_CALL_MOCK],
-        });
-
-        successfulFetchMock.mockResolvedValue({
-          ok: true,
-          json: async () => QUOTE_MOCK,
-        } as never);
-
-        await getRelayQuotes({
-          accountSupports7702: true,
-          messenger,
-          requests: [MONEY_ACCOUNT_REQUEST_MOCK],
-          transaction: MONEY_ACCOUNT_TX_MOCK,
-        });
-
-        const body = JSON.parse(
-          successfulFetchMock.mock.calls[0][1]?.body as string,
-        );
-
-        expect(body.amount).toBe(QUOTE_REQUEST_MOCK.sourceTokenAmount);
       });
 
       it('passes amountHuman and transactionData to getPaymentOverrideData', async () => {
