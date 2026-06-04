@@ -1493,7 +1493,7 @@ export class TransactionController extends BaseController<
       signedTxData,
     );
 
-    const rawTx = serializeTransaction(signedTxData);
+    const rawTx = serializeTransaction(transactionMeta.chainId, signedTxData);
     const newFee = newTxParams.maxFeePerGas ?? newTxParams.gasPrice;
 
     const oldFee = newTxParams.maxFeePerGas
@@ -2172,7 +2172,10 @@ export class TransactionController extends BaseController<
       chainId,
     });
     const initialTxAsEthTx = prepareTransaction(chainId, initialTx);
-    const initialTxAsSerializedHex = serializeTransaction(initialTxAsEthTx);
+    const initialTxAsSerializedHex = serializeTransaction(
+      chainId,
+      initialTxAsEthTx,
+    );
 
     if (this.#approvingTransactionIds.has(initialTxAsSerializedHex)) {
       return '';
@@ -2523,7 +2526,7 @@ export class TransactionController extends BaseController<
       unsignedTransaction,
       from,
     );
-    const rawTransaction = serializeTransaction(signedTxData);
+    const rawTransaction = serializeTransaction(chainId, signedTxData);
 
     return rawTransaction;
   }
@@ -3787,7 +3790,7 @@ export class TransactionController extends BaseController<
 
     this.#onTransactionStatusChange(transactionMetaWithRsv);
 
-    const rawTx = serializeTransaction(signedTxData);
+    const rawTx = serializeTransaction(chainId, signedTxData);
 
     const transactionMetaWithRawTx = merge({}, transactionMetaWithRsv, {
       rawTx,

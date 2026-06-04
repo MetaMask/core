@@ -35,11 +35,17 @@ export function prepareTransaction(
 /**
  * Serializes transaction data into a hex string.
  *
+ * @param chainId - Chain ID of the transaction.
  * @param txData - The signed transaction data.
  * @returns The prefixed hex string.
  */
-export function serializeTransaction(txData: TypedTxData): Hex {
-  return bytesToHex(TransactionFactory.fromTxData(txData).serialize());
+export function serializeTransaction(chainId: Hex, txData: TypedTxData): Hex {
+  return bytesToHex(
+    TransactionFactory.fromTxData(txData, {
+      freeze: false,
+      common: getCommonConfiguration(chainId),
+    }).serialize(),
+  );
 }
 
 /**
