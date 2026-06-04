@@ -18,6 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Faster `:getLegacySnapKeyring` ([#8865](https://github.com/MetaMask/core/pull/8865))
   - We now check if the keyring exists with `:withKeyringUnsafe` and returns it right away.
   - If the keyring does not exist yet, we do create it with `:withController` (next calls will then be faster thanks to `:withKeyringUnsafe` pre-check).
+- Bump `@metamask/account-tree-controller` from `^7.5.0` to `^7.5.1` ([#8999](https://github.com/MetaMask/core/pull/8999))
 
 ### Fixed
 

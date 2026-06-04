@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [10.0.2]
 
+### Changed
+
+- Bump `@metamask/accounts-controller` from `^38.1.2` to `^39.0.0` ([#8999](https://github.com/MetaMask/core/pull/8999))
+- Bump `@metamask/snap-account-service` from `^0.2.1` to `^0.3.0` ([#8999](https://github.com/MetaMask/core/pull/8999))
+
 ## [10.0.1]
 
 ### Changed
