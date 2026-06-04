@@ -28,13 +28,14 @@ import type {
   MiddlewareContext,
 } from '@metamask/json-rpc-engine/v2';
 import type { Hex, Json, JsonRpcRequest } from '@metamask/utils';
+import { inMilliseconds, Duration } from '@metamask/utils';
 import type { Logger } from 'loglevel';
 
 import type {
   NetworkClientId,
   NetworkControllerMessenger,
 } from './NetworkController';
-import type { RpcServiceOptions } from './rpc-service/rpc-service';
+import type { RpcServiceOptionsWithDefaults } from './rpc-service/rpc-service';
 import {
   isConnectionError,
   isConnectionResetError,
@@ -146,7 +147,7 @@ export function createNetworkClient({
   configuration: NetworkClientConfiguration;
   getRpcServiceOptions: (
     rpcEndpointUrl: string,
-  ) => Omit<RpcServiceOptions, 'failoverService' | 'endpointUrl'>;
+  ) => RpcServiceOptionsWithDefaults;
   getBlockTrackerOptions: (
     rpcEndpointUrl: string,
   ) => Omit<PollingBlockTrackerOptions, 'provider'>;
@@ -254,7 +255,7 @@ function createRpcServiceChain({
   configuration: NetworkClientConfiguration;
   getRpcServiceOptions: (
     rpcEndpointUrl: string,
-  ) => Omit<RpcServiceOptions, 'failoverService' | 'endpointUrl'>;
+  ) => RpcServiceOptionsWithDefaults;
   messenger: NetworkControllerMessenger;
   isRpcFailoverEnabled: boolean;
   logger?: Logger;
@@ -271,10 +272,12 @@ function createRpcServiceChain({
   };
 
   const rpcServiceConfigurations = availableEndpointUrls.map((endpointUrl) => ({
+    fetch: globalThis.fetch.bind(globalThis),
+    btoa: globalThis.btoa.bind(globalThis),
+    isOffline,
     ...getRpcServiceOptions(endpointUrl),
     endpointUrl,
     logger,
-    isOffline,
   }));
 
   /**
