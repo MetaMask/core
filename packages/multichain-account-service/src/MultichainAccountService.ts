@@ -578,11 +578,7 @@ export class MultichainAccountService {
     entropySource: EntropySourceId,
   ): Promise<void> {
     const wallet = this.#getWallet(entropySource);
-    const failures: {
-      provider: string;
-      accountId: Bip44Account<KeyringAccount>['id'];
-      error: unknown;
-    }[] = [];
+    const failures: RemoveMultichainAccountWalletFailure[] = [];
 
     for (const provider of this.#providers) {
       // For wrapped providers, enumerate via the underlying provider so we
