@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Add defaults for `fetch`, `btoa` and `isOffline` in `RpcServiceOptions` ([#9000](https://github.com/MetaMask/core/pull/9000))
+
 ## [32.0.0]
 
 ### Changed
