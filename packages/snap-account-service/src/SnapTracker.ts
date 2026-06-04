@@ -25,8 +25,6 @@ export class SnapTracker {
 
   readonly #snaps: Set<SnapId> = new Set();
 
-  #initialized = false;
-
   constructor(messenger: SnapAccountServiceMessenger) {
     this.#messenger = messenger;
 
@@ -48,22 +46,15 @@ export class SnapTracker {
     this.#messenger.subscribe('SnapController:snapUnblocked', (snapId) =>
       this.#handleSnapUnblocked(snapId as SnapId),
     );
+
+    this.#init();
   }
 
   /**
    * Seeds the internal set of account-management Snaps from
-   * `SnapController:getRunnableSnaps`, then starts processing lifecycle
-   * events.
+   * `SnapController:getRunnableSnaps`.
    */
-  async init(): Promise<void> {
-    if (this.#initialized) {
-      // Do not re-init, once setup we only rely on lifecycle events to update the set of
-      // tracked Snaps.
-      return;
-    }
-
-    this.#snaps.clear();
-
+  #init(): void {
     const runnable = this.#messenger.call('SnapController:getRunnableSnaps');
     for (const snap of runnable) {
       if (isAccountManagementSnap(snap)) {
@@ -71,8 +62,6 @@ export class SnapTracker {
         this.#snaps.add(snap.id);
       }
     }
-
-    this.#initialized = true;
   }
 
   /**
@@ -102,10 +91,6 @@ export class SnapTracker {
    * @param reason - The reason the Snap was added.
    */
   #handleSnapAdded(snap: TruncatedSnap, reason: string): void {
-    if (!this.#initialized) {
-      return;
-    }
-
     if (!snap.enabled || snap.blocked) {
       return;
     }
@@ -124,10 +109,6 @@ export class SnapTracker {
    * @param snapId - The Snap ID that was unblocked.
    */
   #handleSnapUnblocked(snapId: SnapId): void {
-    if (!this.#initialized) {
-      return;
-    }
-
     const snap = this.#messenger.call('SnapController:getSnap', snapId);
     if (snap) {
       this.#handleSnapAdded(snap, 'unblocked');
@@ -142,10 +123,6 @@ export class SnapTracker {
    * @param reason - The reason the Snap was removed.
    */
   #handleSnapRemoved(snapId: SnapId, reason: string): void {
-    if (!this.#initialized) {
-      return;
-    }
-
     if (this.#snaps.has(snapId)) {
       log(`Removed account management Snap: ${snapId} (${reason})`);
 

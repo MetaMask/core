@@ -29,7 +29,7 @@ import type {
   TransactionBatchSingleRequest,
   BatchTransactionParams,
 } from '@metamask/transaction-controller';
-import { createProjectLogger } from '@metamask/utils';
+import { createProjectLogger, isStrictHexString } from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
 
 import { APPROVAL_DELAY_MS } from '../constants';
@@ -71,12 +71,9 @@ export const shouldDisable7702 = (
     return false;
   }
   // Enable batching when the account is already delegated (to avoid the in-flight transaction limit for delegated accounts)
-  if (isDelegatedAccount) {
-    return false;
-  }
   // For gasless transactions with STX/sendBundle we keep disabling 7702
-  if (gasIncluded) {
-    return true;
+  if (isDelegatedAccount && !gasIncluded) {
+    return false;
   }
   /**
    * Explicitly return default instead of falsy value (see TransactionBatchRequest.disable7702)
@@ -433,16 +430,12 @@ export const toTransactionParams = async (
   chainId: Hex,
   simulatedGasFeeLimits?: SimulatedGasFeeLimits | TxFeeGasLimits,
 ): Promise<BatchTransactionParams> => {
-  const normalizedTrade = {
-    ...trade,
+  const transactionParams = {
     data: trade.data,
     to: trade.to,
     from: trade.from,
     value: trade.value,
-  };
-  const transactionParams = {
-    ...normalizedTrade,
-    // Only add gasLimit and gas if they're truthy
+    // Only add gas if it's truthy
     gas: gasLimit ? toHex(gasLimit) : undefined,
   };
 
@@ -450,8 +443,15 @@ export const toTransactionParams = async (
   if (simulatedGasFeeLimits) {
     return {
       ...transactionParams,
-      maxFeePerGas: toHex(simulatedGasFeeLimits.maxFeePerGas),
-      maxPriorityFeePerGas: toHex(simulatedGasFeeLimits.maxPriorityFeePerGas),
+      // Sometimes estimates are hex, somethings numeric strings
+      maxFeePerGas: isStrictHexString(simulatedGasFeeLimits.maxFeePerGas)
+        ? simulatedGasFeeLimits.maxFeePerGas
+        : toHex(simulatedGasFeeLimits.maxFeePerGas),
+      maxPriorityFeePerGas: isStrictHexString(
+        simulatedGasFeeLimits.maxPriorityFeePerGas,
+      )
+        ? simulatedGasFeeLimits.maxPriorityFeePerGas
+        : toHex(simulatedGasFeeLimits.maxPriorityFeePerGas),
     };
   }
 
