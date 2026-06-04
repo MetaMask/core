@@ -820,8 +820,11 @@ function getDefaultInfuraNetworkConfigurationsByChainId(): Record<
       const rpcEndpointUrl =
         `https://${infuraNetworkType}.infura.io/v3/{infuraProjectId}` as const;
 
+      const { rpcPrefs } = BUILT_IN_NETWORKS[infuraNetworkType];
+
       const networkConfiguration: NetworkConfiguration = {
-        blockExplorerUrls: [],
+        blockExplorerUrls: [rpcPrefs.blockExplorerUrl],
+        defaultBlockExplorerUrlIndex: 0,
         chainId,
         defaultRpcEndpointIndex: 0,
         name: NetworkNickname[infuraNetworkType],
