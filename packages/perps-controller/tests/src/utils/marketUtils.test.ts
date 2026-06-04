@@ -1,8 +1,7 @@
-import type { MarketType, PerpsMarketData } from '../../../src/types';
+import type { PerpsMarketData } from '../../../src/types';
 import {
-  STOCK_LIKE_MARKET_TYPES,
   getMarketTypeFilter,
-  isEquityAsset,
+  matchesCategory,
 } from '../../../src/utils/marketUtils';
 
 const market = (overrides: Partial<PerpsMarketData>): PerpsMarketData =>
@@ -17,91 +16,90 @@ const market = (overrides: Partial<PerpsMarketData>): PerpsMarketData =>
     ...overrides,
   }) as PerpsMarketData;
 
-describe('marketUtils category helpers', () => {
-  describe('STOCK_LIKE_MARKET_TYPES', () => {
-    it('contains the four stock-like categories', () => {
-      expect([...STOCK_LIKE_MARKET_TYPES].sort()).toStrictEqual([
-        'etf',
-        'index',
-        'pre-ipo',
-        'stock',
-      ]);
-    });
-  });
-
-  describe('isEquityAsset', () => {
-    it.each(['stock', 'pre-ipo', 'index', 'etf'] as const)(
-      'returns true for stock-like %s',
-      (marketType) => {
-        expect(isEquityAsset(marketType)).toBe(true);
-      },
-    );
-
-    it.each(['crypto', 'commodity', 'forex'] as const)(
-      'returns false for non-equity %s',
-      (marketType) => {
-        expect(isEquityAsset(marketType)).toBe(false);
-      },
-    );
-
-    it('returns false for undefined marketType', () => {
-      expect(isEquityAsset(undefined)).toBe(false);
+describe('marketUtils category classification', () => {
+  describe('matchesCategory', () => {
+    it("matches every market for 'all'", () => {
+      expect(matchesCategory(market({ marketType: 'etf' }), 'all')).toBe(true);
     });
 
-    it('returns false for an unknown marketType', () => {
-      expect(isEquityAsset('bond')).toBe(false);
+    it("matches only new markets for 'new'", () => {
+      expect(matchesCategory(market({ isNewMarket: true }), 'new')).toBe(true);
+      expect(matchesCategory(market({ isNewMarket: false }), 'new')).toBe(
+        false,
+      );
+    });
+
+    it("matches non-HIP3 markets for 'crypto'", () => {
+      expect(matchesCategory(market({ isHip3: false }), 'crypto')).toBe(true);
+    });
+
+    it("matches HIP-3 markets explicitly typed crypto for 'crypto'", () => {
+      expect(
+        matchesCategory(
+          market({ isHip3: true, marketType: 'crypto' }),
+          'crypto',
+        ),
+      ).toBe(true);
+    });
+
+    it("excludes other HIP-3 markets from 'crypto'", () => {
+      expect(
+        matchesCategory(market({ isHip3: true, marketType: 'etf' }), 'crypto'),
+      ).toBe(false);
+    });
+
+    it.each([
+      ['stock', 'stocks'],
+      ['pre-ipo', 'pre-ipo'],
+      ['index', 'indices'],
+      ['etf', 'etfs'],
+      ['commodity', 'commodities'],
+      ['forex', 'forex'],
+    ] as const)('matches marketType %s for filter %s', (marketType, filter) => {
+      expect(matchesCategory(market({ marketType }), filter)).toBe(true);
+    });
+
+    it('keeps stock-like categories distinct (stock !== etf filter)', () => {
+      expect(matchesCategory(market({ marketType: 'stock' }), 'etfs')).toBe(
+        false,
+      );
+      expect(matchesCategory(market({ marketType: 'etf' }), 'stocks')).toBe(
+        false,
+      );
     });
   });
 
   describe('getMarketTypeFilter', () => {
-    it('returns stocks for stock marketType', () => {
-      expect(getMarketTypeFilter(market({ marketType: 'stock' }))).toBe(
-        'stocks',
-      );
-    });
-
-    it.each(['pre-ipo', 'index', 'etf'] as const)(
-      'returns stocks for stock-like %s marketType',
-      (marketType) => {
-        expect(getMarketTypeFilter(market({ marketType }))).toBe('stocks');
+    // HIP-3 markets carry a marketType; main-DEX crypto does not.
+    it.each([
+      ['stock', 'stocks'],
+      ['pre-ipo', 'pre-ipo'],
+      ['index', 'indices'],
+      ['etf', 'etfs'],
+      ['commodity', 'commodities'],
+      ['forex', 'forex'],
+    ] as const)(
+      'resolves HIP-3 marketType %s to the %s filter',
+      (marketType, expected) => {
+        expect(getMarketTypeFilter(market({ marketType, isHip3: true }))).toBe(
+          expected,
+        );
       },
     );
 
-    it('returns commodities for commodity marketType', () => {
-      expect(getMarketTypeFilter(market({ marketType: 'commodity' }))).toBe(
-        'commodities',
-      );
-    });
-
-    it('returns forex for forex marketType', () => {
-      expect(getMarketTypeFilter(market({ marketType: 'forex' }))).toBe(
-        'forex',
-      );
-    });
-
-    it('returns crypto for main-DEX markets without a marketType', () => {
-      expect(
-        getMarketTypeFilter(
-          market({ marketType: undefined, isHip3: false, isNewMarket: false }),
-        ),
-      ).toBe('crypto');
-    });
-
-    it('returns crypto for explicit crypto marketType', () => {
+    it('resolves an explicit crypto marketType to crypto', () => {
       expect(getMarketTypeFilter(market({ marketType: 'crypto' }))).toBe(
         'crypto',
       );
     });
 
-    it('returns all for new markets without a marketType', () => {
+    it('resolves a main-DEX market without a marketType to crypto', () => {
       expect(
-        getMarketTypeFilter(
-          market({ marketType: undefined, isNewMarket: true }),
-        ),
-      ).toBe('all');
+        getMarketTypeFilter(market({ marketType: undefined, isHip3: false })),
+      ).toBe('crypto');
     });
 
-    it('returns all for uncategorized HIP-3 markets (not in the crypto pill)', () => {
+    it('falls back to all for uncategorized HIP-3 markets', () => {
       expect(
         getMarketTypeFilter(
           market({ marketType: undefined, isHip3: true, isNewMarket: false }),
@@ -109,33 +107,19 @@ describe('marketUtils category helpers', () => {
       ).toBe('all');
     });
 
-    it('returns all when only marketSource marks a HIP-3 market', () => {
+    it('falls back to all for new markets without a marketType', () => {
       expect(
         getMarketTypeFilter(
-          market({
-            marketType: undefined,
-            isHip3: undefined,
-            isNewMarket: false,
-            marketSource: 'xyz',
-          }),
+          market({ marketType: undefined, isHip3: true, isNewMarket: true }),
         ),
       ).toBe('all');
     });
 
-    it('prioritizes marketType over the HIP-3 / new fallbacks', () => {
-      expect(
-        getMarketTypeFilter(
-          market({ marketType: 'stock', isHip3: true, isNewMarket: true }),
-        ),
-      ).toBe('stocks');
-    });
-
-    it('treats an unknown HIP-3 category as all, never crypto', () => {
-      expect(
-        getMarketTypeFilter(
-          market({ marketType: 'bond' as MarketType, isHip3: true }),
-        ),
-      ).toBe('all');
+    it('is the inverse of matchesCategory for the resolved filter', () => {
+      const etfMarket = market({ marketType: 'etf', isHip3: true });
+      const filter = getMarketTypeFilter(etfMarket);
+      expect(filter).toBe('etfs');
+      expect(matchesCategory(etfMarket, filter)).toBe(true);
     });
   });
 });

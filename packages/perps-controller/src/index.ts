@@ -491,9 +491,9 @@ export {
   calculateFundingCountdown,
   calculate24hHighLow,
   filterMarketsByQuery,
-  isEquityAsset,
+  matchesCategory,
   getMarketTypeFilter,
-  STOCK_LIKE_MARKET_TYPES,
+  applyMarketFilters,
 } from './utils';
 export type { MarketPatternMatcher, CompiledMarketPattern } from './utils';
 export type {

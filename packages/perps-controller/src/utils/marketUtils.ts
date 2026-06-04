@@ -1,68 +1,118 @@
-import { MarketCategory } from '../types';
-import type { MarketType, MarketTypeFilter, PerpsMarketData } from '../types';
+import { MARKET_CATEGORIES, MarketCategory } from '../types';
+import type {
+  GetMarketDataWithPricesParams,
+  MarketTypeFilter,
+  PerpsMarketData,
+} from '../types';
 import type { CandleData, CandleStick } from '../types/perps-types';
+import { sortMarkets } from './sortMarkets';
+
+// ============================================================================
+// Market category classification (pure functions)
+// No service dependencies — pure data transformations that can be tested and
+// reused independently. `matchesCategory` is the single source of truth for the
+// UI category model; `getMarketTypeFilter` is its inverse.
+// ============================================================================
 
 /**
- * Stock-like market categories that share the 'stocks' UI filter and follow
- * traditional market hours. These replaced the former 'equity' `MarketType`.
+ * Returns true when a market matches the given UI filter category.
+ *
+ * @param market - The market data to test.
+ * @param category - The filter category to test against.
+ * @returns Whether the market matches the category.
  */
-export const STOCK_LIKE_MARKET_TYPES: ReadonlySet<MarketType> = new Set([
-  MarketCategory.Stock,
-  MarketCategory.PreIpo,
-  MarketCategory.Index,
-  MarketCategory.Etf,
-]);
+export function matchesCategory(
+  market: PerpsMarketData,
+  category: MarketTypeFilter,
+): boolean {
+  switch (category) {
+    case 'all':
+      return true;
+    case 'new':
+      return market.isNewMarket === true;
+    case 'crypto':
+      // Includes non-HIP3 markets AND HIP-3 assets explicitly typed as CryptoCurrency.
+      return (
+        !market.isHip3 || market.marketType === MarketCategory.CryptoCurrency
+      );
+    case 'stocks':
+      return market.marketType === MarketCategory.Stock;
+    case 'pre-ipo':
+      return market.marketType === MarketCategory.PreIpo;
+    case 'indices':
+      return market.marketType === MarketCategory.Index;
+    case 'etfs':
+      return market.marketType === MarketCategory.Etf;
+    case 'commodities':
+      return market.marketType === MarketCategory.Commodity;
+    case 'forex':
+      return market.marketType === MarketCategory.Forex;
+    default:
+      return true;
+  }
+}
 
 /**
- * Check whether a market type is a stock-like asset (stock, pre-ipo, index,
- * etf). Stock-like assets share the 'stocks' category filter and follow
- * traditional market hours.
+ * Resolve the category filter pill for a given market — the inverse of
+ * {@link matchesCategory}. Returns the granular data-model filter (e.g. 'etfs',
+ * 'indices', 'pre-ipo', 'stocks', 'commodities', 'forex', 'crypto'); markets
+ * with no matching category (uncategorized HIP-3 / new markets) fall back to
+ * 'all' so the opened tab always contains the market.
  *
- * @param marketType - The market type from {@link PerpsMarketData}.
- * @returns True if the asset is a stock, pre-ipo, index, or etf.
- */
-export const isEquityAsset = (marketType?: string): boolean =>
-  marketType !== undefined &&
-  STOCK_LIKE_MARKET_TYPES.has(marketType as MarketType);
-
-/**
- * Resolve the category filter pill to pre-select for a given market.
+ * Centralised as the single source of truth so consumers (e.g. category
+ * shortcuts, related markets) share one classification instead of re-deriving
+ * it per client and drifting as new categories are added.
  *
- * Maps the {@link MarketCategory} data model onto the UI {@link MarketTypeFilter}
- * pills. Stock-like categories (stock, pre-ipo, index, etf) collapse to the
- * single 'stocks' pill via {@link isEquityAsset}. Any HIP-3 signal — `isHip3`,
- * `isNewMarket`, or a `marketSource` DEX id — on an otherwise-uncategorized
- * market resolves to 'all' rather than 'crypto', because the crypto pill only
- * contains main-DEX (non-HIP-3) markets. Only true main-DEX markets resolve to
- * 'crypto'.
- *
- * Centralised here so consumers (e.g. category shortcuts, related markets) share
- * one classification instead of re-deriving it per client and drifting as new
- * categories are added.
- *
- * @param market - Market data (marketType, isNewMarket, isHip3, marketSource).
+ * @param market - The market data to classify.
  * @returns The market type filter to apply.
  */
-export const getMarketTypeFilter = (
-  market: Pick<
-    PerpsMarketData,
-    'marketType' | 'isNewMarket' | 'isHip3' | 'marketSource'
-  >,
-): MarketTypeFilter => {
-  if (isEquityAsset(market.marketType)) {
-    return 'stocks';
+export function getMarketTypeFilter(market: PerpsMarketData): MarketTypeFilter {
+  return (
+    MARKET_CATEGORIES.find((category) => matchesCategory(market, category)) ??
+    'all'
+  );
+}
+
+/**
+ * Applies optional category filtering, sorting, and limit to a list of markets.
+ *
+ * @param markets - Source market array.
+ * @param params - Optional filter/sort/limit params.
+ * @returns Filtered, sorted, and/or sliced market array.
+ */
+export function applyMarketFilters(
+  markets: PerpsMarketData[],
+  params?: GetMarketDataWithPricesParams,
+): PerpsMarketData[] {
+  let result = markets;
+
+  if (params?.categories?.length) {
+    const { categories } = params;
+    result = result.filter((market) =>
+      // A market is included if it matches ANY of the requested categories.
+      categories.some((category) => matchesCategory(market, category)),
+    );
   }
-  if (market.marketType === MarketCategory.Commodity) {
-    return 'commodities';
+
+  if (params?.excludeSymbols?.length) {
+    const excluded = new Set(params.excludeSymbols);
+    result = result.filter((market) => !excluded.has(market.symbol));
   }
-  if (market.marketType === MarketCategory.Forex) {
-    return 'forex';
+
+  if (params?.sortBy) {
+    result = sortMarkets({
+      markets: result,
+      sortBy: params.sortBy,
+      direction: params.direction,
+    });
   }
-  if (market.isNewMarket || market.isHip3 || market.marketSource) {
-    return 'all';
+
+  if (params?.limit !== undefined) {
+    result = result.slice(0, params.limit);
   }
-  return 'crypto';
-};
+
+  return result;
+}
 
 /**
  * Maximum length for market filter patterns (prevents DoS attacks)
