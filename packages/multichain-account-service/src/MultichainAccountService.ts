@@ -57,7 +57,6 @@ export type RemoveMultichainAccountWalletFailure = {
   provider: string;
   accountId: Bip44Account<KeyringAccount>['id'];
   error: unknown;
-  stack?: string;
 };
 
 /**
@@ -67,7 +66,6 @@ export type RemoveMultichainAccountWalletFailure = {
  */
 export type RemoveMultichainAccountWalletFailureContext = {
   entropySource: EntropySourceId;
-  failureCount: number;
   failures: RemoveMultichainAccountWalletFailure[];
 };
 
@@ -614,12 +612,10 @@ export class MultichainAccountService {
       // `RemoveMultichainAccountWalletFailureContext`.
       const context: RemoveMultichainAccountWalletFailureContext = {
         entropySource,
-        failureCount: failures.length,
         failures: failures.map(({ provider, accountId, error }) => ({
           provider,
           accountId,
           error: toErrorMessage(error),
-          stack: error instanceof Error ? error.stack : undefined,
         })),
       };
       reportError(
