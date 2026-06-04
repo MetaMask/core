@@ -8,7 +8,6 @@ import {
   SnapKeyringState,
   isSnapKeyring,
 } from '@metamask/eth-snap-keyring/v2';
-import { KeyringEvent } from '@metamask/keyring-api';
 import type {
   AccountAssetListUpdatedEventPayload,
   AccountBalancesUpdatedEventPayload,
