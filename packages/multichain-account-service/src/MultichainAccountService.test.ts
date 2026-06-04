@@ -1638,13 +1638,13 @@ describe('MultichainAccountService', () => {
       expect(wrapper.isAccountCompatible(MOCK_HD_ACCOUNT_1)).toBe(false);
     });
 
-    it('exposes the wrapped provider via wrappedProvider regardless of enabled state', () => {
-      expect(wrapper.wrappedProvider).toBe(solProvider);
+    it('exposes the wrapped provider via unwrap() regardless of enabled state', () => {
+      expect(wrapper.unwrap()).toBe(solProvider);
 
       // The escape hatch must keep working when the wrapper is disabled,
       // since cleanup flows rely on it to discover snap-backed accounts.
       wrapper.setEnabled(false);
-      expect(wrapper.wrappedProvider).toBe(solProvider);
+      expect(wrapper.unwrap()).toBe(solProvider);
     });
 
     it('forwards deleteAccount() to the wrapped provider regardless of enabled state', async () => {

@@ -592,7 +592,7 @@ export class MultichainAccountService {
       // which would otherwise leave snap-backed accounts orphaned in their
       // underlying keyrings.
       const source = isAccountProviderWrapper(provider)
-        ? provider.wrappedProvider
+        ? provider.unwrap()
         : provider;
       const owned = source
         .getAccounts()

@@ -13,7 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `EvmAccountProvider.deleteAccount(id)` resolves the account's entropy source and forwards to the v2 HD keyring's `deleteAccount(accountId)`. When this drains the last account on a non-primary HD keyring, the keyring controller automatically prunes the empty keyring.
   - `SnapAccountProvider.deleteAccount(id)` resolves the account's address and forwards to the legacy `SnapKeyring.removeAccount(address)` so that the snap and the host keyring stay in sync.
   - `AccountProviderWrapper.deleteAccount(id)` forwards unconditionally so that wallet-removal flows can clean up snap-backed accounts even when the wrapper has been disabled.
-  - Added a public `wrappedProvider` getter on `AccountProviderWrapper`. This is an escape hatch for cleanup flows (e.g. wallet removal) that need to enumerate the underlying provider's accounts regardless of enabled state, since `getAccounts()` still returns `[]` when the wrapper is disabled.
+  - Added a public `unwrap` method on `AccountProviderWrapper`. This is an escape hatch for cleanup flows (e.g. wallet removal) that need to enumerate the underlying provider's accounts regardless of enabled state, since `getAccounts()` still returns `[]` when the wrapper is disabled.
 
 ### Changed
 

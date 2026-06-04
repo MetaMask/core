@@ -57,7 +57,7 @@ export class AccountProviderWrapper extends BaseBip44AccountProvider {
    *
    * @returns The wrapped provider instance.
    */
-  get wrappedProvider(): BaseBip44AccountProvider {
+  unwrap(): BaseBip44AccountProvider {
     return this.provider;
   }
 
