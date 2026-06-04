@@ -3,7 +3,11 @@ import type {
   CockatielFailureReason,
   InfuraNetworkType,
 } from '@metamask/controller-utils';
-import { ChainId } from '@metamask/controller-utils';
+import {
+  ChainId,
+  DEFAULT_MAX_CONSECUTIVE_FAILURES,
+  DEFAULT_MAX_RETRIES,
+} from '@metamask/controller-utils';
 import type { PollingBlockTrackerOptions } from '@metamask/eth-block-tracker';
 import { PollingBlockTracker } from '@metamask/eth-block-tracker';
 import { createInfuraMiddleware } from '@metamask/eth-json-rpc-infura';
@@ -27,6 +31,7 @@ import type {
   JsonRpcMiddleware,
   MiddlewareContext,
 } from '@metamask/json-rpc-engine/v2';
+import { inMilliseconds, Duration } from '@metamask/utils';
 import type { Hex, Json, JsonRpcRequest } from '@metamask/utils';
 import type { Logger } from 'loglevel';
 
@@ -144,7 +149,7 @@ export function createNetworkClient({
 }: {
   id: NetworkClientId;
   configuration: NetworkClientConfiguration;
-  getRpcServiceOptions: (
+  getRpcServiceOptions?: (
     rpcEndpointUrl: string,
   ) => RpcServiceOptionsWithDefaults;
   getBlockTrackerOptions: (
@@ -252,16 +257,22 @@ function createRpcServiceChain({
   id: NetworkClientId;
   primaryEndpointUrl: string;
   configuration: NetworkClientConfiguration;
-  getRpcServiceOptions: (
+  getRpcServiceOptions?: (
     rpcEndpointUrl: string,
   ) => RpcServiceOptionsWithDefaults;
   messenger: NetworkControllerMessenger;
   isRpcFailoverEnabled: boolean;
   logger?: Logger;
 }): RpcServiceChain {
-  const availableEndpointUrls: [string, ...string[]] = isRpcFailoverEnabled
-    ? [primaryEndpointUrl, ...(configuration.failoverRpcUrls ?? [])]
-    : [primaryEndpointUrl];
+  const availableEndpoints = isRpcFailoverEnabled
+    ? [
+        { url: primaryEndpointUrl, isFailover: false },
+        ...(configuration.failoverRpcUrls ?? []).map((url) => ({
+          url,
+          isFailover: true,
+        })),
+      ]
+    : [{ url: primaryEndpointUrl, isFailover: false }];
 
   const isOffline = (): boolean => {
     const connectivityState = messenger.call('ConnectivityController:getState');
@@ -270,14 +281,41 @@ function createRpcServiceChain({
     );
   };
 
-  const rpcServiceConfigurations = availableEndpointUrls.map((endpointUrl) => ({
-    fetch: globalThis.fetch.bind(globalThis),
-    btoa: globalThis.btoa.bind(globalThis),
-    isOffline,
-    ...getRpcServiceOptions(endpointUrl),
-    endpointUrl,
-    logger,
-  }));
+  // Ensure that if the endpoint continually responds with errors, we
+  // break the circuit relatively fast (but not prematurely).
+  //
+  // Note that the circuit will break much faster if the errors are
+  // retriable (e.g. 503) than if not (e.g. 500), so we attempt to strike
+  // a balance here.
+  const maxConsecutiveFailures = DEFAULT_MAX_CONSECUTIVE_FAILURES;
+
+  // The number of rounds of retries that will break the circuit,
+  // triggering a "cooldown".
+  //
+  // When we fail over to QuickNode, we expect it to be down at first
+  // while it is being automatically activated, and we don't want to
+  // activate the "cooldown" accidentally.
+  const maxConsecutiveFailuresFailover = (DEFAULT_MAX_RETRIES + 1) * 10;
+
+  const rpcServiceConfigurations = availableEndpoints.map((endpoint) => {
+    const overriddenOptions = getRpcServiceOptions?.(endpoint.url) ?? {};
+    return {
+      fetch: globalThis.fetch.bind(globalThis),
+      btoa: globalThis.btoa.bind(globalThis),
+      isOffline,
+      policyOptions: {
+        maxRetries: DEFAULT_MAX_RETRIES,
+        circuitBreakDuration: inMilliseconds(30, Duration.Second),
+        maxConsecutiveFailures: endpoint.isFailover
+          ? maxConsecutiveFailuresFailover
+          : maxConsecutiveFailures,
+        ...(overriddenOptions.policyOptions ?? {}),
+      },
+      ...overriddenOptions,
+      endpointUrl: endpoint.url,
+      logger,
+    };
+  });
 
   /**
    * Extracts the error from Cockatiel's `FailureReason` type received in
@@ -451,15 +489,18 @@ function createBlockTracker({
   ) => Omit<PollingBlockTrackerOptions, 'provider'>;
   provider: InternalProvider;
 }): PollingBlockTracker {
-  const testOptions =
-    // Needed for testing.
-    // eslint-disable-next-line no-restricted-globals
-    process.env.IN_TEST && networkClientType === NetworkClientType.Custom
-      ? { pollingInterval: SECOND }
-      : {};
+  const defaultOptions = {
+    pollingInterval:
+      // Needed for testing.
+      // eslint-disable-next-line no-restricted-globals
+      process.env.IN_TEST && networkClientType === NetworkClientType.Custom
+        ? inMilliseconds(1, Duration.Second)
+        : inMilliseconds(20, Duration.Second),
+    retryTimeout: inMilliseconds(20, Duration.Second),
+  };
 
   return new PollingBlockTracker({
-    ...testOptions,
+    ...defaultOptions,
     ...getOptions(endpointUrl),
     provider,
   });

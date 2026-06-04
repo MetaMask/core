@@ -84,6 +84,8 @@ const log = createModuleLogger(projectLogger, 'RpcService');
 /**
  * The maximum number of times that a failing service should be re-run before
  * giving up.
+ *
+ * Note: This is not used in production and should be removed.
  */
 export const DEFAULT_MAX_RETRIES = 4;
 
