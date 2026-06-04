@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add defaults for `policyOptions` ([#9002](https://github.com/MetaMask/core/pull/9002))
+- Add defaults for policy and block tracker options ([#9002](https://github.com/MetaMask/core/pull/9002))
   - The `NetworkController` constructor argument `getRpcServiceOptions` is now optional.
   - The default `policyOptions.maxRetries` is now `3`.
   - The default `policyOptions.maxConsecutiveFailures` is now `12` for regular RPC endpoints and `40` for fallback RPC endpoints.
