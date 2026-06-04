@@ -497,6 +497,9 @@ export type QuoteRequest = {
    */
   refundTo?: Hex;
 
+  /** Whether to skip processTransactions in relay-quotes. Defaults to `isPostQuote`. */
+  skipProcessTransactions?: boolean;
+
   /** Balance of the source token in atomic format without factoring token decimals. */
   sourceBalanceRaw: string;
 

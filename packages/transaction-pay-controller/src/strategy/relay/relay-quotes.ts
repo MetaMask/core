@@ -263,11 +263,16 @@ async function getSingleQuote(
       await applyPolymarketDepositWalletOverrides(body, request, messenger);
     }
 
-    // Skip transaction processing for post-quote flows - the original transaction
-    // will be included in the batch separately, not as part of the quote.
-    // Skip for Polymarket deposit wallet flows - the source is already a
+    // Skip transaction processing when skipProcessTransactions (defaulting to
+    // isPostQuote) is true — the original transaction will be included in the
+    // batch separately, not as part of the quote.
+    // Skip for Polymarket deposit wallet flows — the source is already a
     // bridged token transfer, not a contract call to embed.
-    if (!request.isPostQuote && !request.isPolymarketDepositWallet) {
+    const shouldProcessTransactions =
+      !(request.skipProcessTransactions ?? request.isPostQuote) &&
+      !request.isPolymarketDepositWallet;
+
+    if (shouldProcessTransactions) {
       await processTransactions(transaction, request, body, messenger);
     } else if (
       request.isPostQuote &&
