@@ -1,5 +1,68 @@
-import type { PerpsMarketData } from '../types';
+import { MarketCategory } from '../types';
+import type { MarketType, MarketTypeFilter, PerpsMarketData } from '../types';
 import type { CandleData, CandleStick } from '../types/perps-types';
+
+/**
+ * Stock-like market categories that share the 'stocks' UI filter and follow
+ * traditional market hours. These replaced the former 'equity' `MarketType`.
+ */
+export const STOCK_LIKE_MARKET_TYPES: ReadonlySet<MarketType> = new Set([
+  MarketCategory.Stock,
+  MarketCategory.PreIpo,
+  MarketCategory.Index,
+  MarketCategory.Etf,
+]);
+
+/**
+ * Check whether a market type is a stock-like asset (stock, pre-ipo, index,
+ * etf). Stock-like assets share the 'stocks' category filter and follow
+ * traditional market hours.
+ *
+ * @param marketType - The market type from {@link PerpsMarketData}.
+ * @returns True if the asset is a stock, pre-ipo, index, or etf.
+ */
+export const isEquityAsset = (marketType?: string): boolean =>
+  marketType !== undefined &&
+  STOCK_LIKE_MARKET_TYPES.has(marketType as MarketType);
+
+/**
+ * Resolve the category filter pill to pre-select for a given market.
+ *
+ * Maps the {@link MarketCategory} data model onto the UI {@link MarketTypeFilter}
+ * pills. Stock-like categories (stock, pre-ipo, index, etf) collapse to the
+ * single 'stocks' pill via {@link isEquityAsset}. Any HIP-3 signal — `isHip3`,
+ * `isNewMarket`, or a `marketSource` DEX id — on an otherwise-uncategorized
+ * market resolves to 'all' rather than 'crypto', because the crypto pill only
+ * contains main-DEX (non-HIP-3) markets. Only true main-DEX markets resolve to
+ * 'crypto'.
+ *
+ * Centralised here so consumers (e.g. category shortcuts, related markets) share
+ * one classification instead of re-deriving it per client and drifting as new
+ * categories are added.
+ *
+ * @param market - Market data (marketType, isNewMarket, isHip3, marketSource).
+ * @returns The market type filter to apply.
+ */
+export const getMarketTypeFilter = (
+  market: Pick<
+    PerpsMarketData,
+    'marketType' | 'isNewMarket' | 'isHip3' | 'marketSource'
+  >,
+): MarketTypeFilter => {
+  if (isEquityAsset(market.marketType)) {
+    return 'stocks';
+  }
+  if (market.marketType === MarketCategory.Commodity) {
+    return 'commodities';
+  }
+  if (market.marketType === MarketCategory.Forex) {
+    return 'forex';
+  }
+  if (market.isNewMarket || market.isHip3 || market.marketSource) {
+    return 'all';
+  }
+  return 'crypto';
+};
 
 /**
  * Maximum length for market filter patterns (prevents DoS attacks)
