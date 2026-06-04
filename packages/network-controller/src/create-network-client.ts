@@ -3,7 +3,11 @@ import type {
   CockatielFailureReason,
   InfuraNetworkType,
 } from '@metamask/controller-utils';
-import { ChainId, DEFAULT_MAX_CONSECUTIVE_FAILURES, DEFAULT_MAX_RETRIES } from '@metamask/controller-utils';
+import {
+  ChainId,
+  DEFAULT_MAX_CONSECUTIVE_FAILURES,
+  DEFAULT_MAX_RETRIES,
+} from '@metamask/controller-utils';
 import type { PollingBlockTrackerOptions } from '@metamask/eth-block-tracker';
 import { PollingBlockTracker } from '@metamask/eth-block-tracker';
 import { createInfuraMiddleware } from '@metamask/eth-json-rpc-infura';
@@ -298,6 +302,7 @@ function createRpcServiceChain({
     btoa: globalThis.btoa.bind(globalThis),
     isOffline,
     policyOptions: {
+      maxRetries: DEFAULT_MAX_RETRIES,
       circuitBreakDuration: inMilliseconds(30, Duration.Second),
       maxConsecutiveFailures: endpoint.isFailover
         ? maxConsecutiveFailuresFailover
