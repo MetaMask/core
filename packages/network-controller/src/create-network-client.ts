@@ -485,19 +485,17 @@ function createBlockTracker({
   ) => Omit<PollingBlockTrackerOptions, 'provider'>;
   provider: InternalProvider;
 }): PollingBlockTracker {
-  const testOptions =
+  const defaultOptions = {
     // Needed for testing.
     // eslint-disable-next-line no-restricted-globals
-    process.env.IN_TEST && networkClientType === NetworkClientType.Custom
-      ? { pollingInterval: SECOND }
-      : {};
-  const defaultOptions = {
-    pollingInterval: inMilliseconds(20, Duration.Second),
+    pollingInterval:
+      process.env.IN_TEST && networkClientType === NetworkClientType.Custom
+        ? inMilliseconds(1, Duration.Second)
+        : inMilliseconds(20, Duration.Second),
     retryTimeout: inMilliseconds(20, Duration.Second),
   };
 
   return new PollingBlockTracker({
-    ...testOptions,
     ...defaultOptions,
     ...getOptions(endpointUrl),
     provider,
