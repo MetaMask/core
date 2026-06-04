@@ -42,6 +42,7 @@ export async function submitSimpleRelay({
     ...baseRequest,
     isMaxAmount: false,
     isPostQuote: true,
+    skipProcessTransactions: false,
     sourceBalanceRaw: sourceAmountRaw,
     sourceTokenAmount: sourceAmountRaw,
   };

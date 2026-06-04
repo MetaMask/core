@@ -311,6 +311,7 @@ describe('submitFiatQuotes', () => {
       expect.objectContaining({
         isMaxAmount: false,
         isPostQuote: true,
+        skipProcessTransactions: false,
         sourceBalanceRaw: '1234500000000000000',
         sourceTokenAmount: '1234500000000000000',
       }),

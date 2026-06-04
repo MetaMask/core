@@ -120,6 +120,7 @@ describe('submitSimpleRelay', () => {
       expect.objectContaining({
         isMaxAmount: false,
         isPostQuote: true,
+        skipProcessTransactions: false,
         sourceBalanceRaw: '5000000000000000000',
         sourceTokenAmount: '5000000000000000000',
       }),
