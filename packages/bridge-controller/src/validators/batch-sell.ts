@@ -5,17 +5,13 @@ import {
   enums,
   optional,
   assert,
-  union,
 } from '@metamask/superstruct';
 import type { Infer } from '@metamask/superstruct';
 import { StrictHexStruct } from '@metamask/utils';
 
 import { BridgeAssetSchema } from './bridge-asset';
-import {
-  TxDataSchema,
-  NumberStringSchema,
-  GaslessPropertiesSchema,
-} from './quote-response';
+import { NumberStringSchema, GaslessPropertiesSchema } from './quote-response';
+import { TxDataSchema } from './trade';
 
 export enum BatchSellTransactionType {
   TRADE = 'trade',

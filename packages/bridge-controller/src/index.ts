@@ -49,11 +49,8 @@ export type {
   Quote,
   QuoteResponseV1 as QuoteResponse,
   FeeData,
-  TxData,
   Intent,
   IntentOrderLike,
-  BitcoinTradeData,
-  TronTradeData,
   BridgeControllerState,
   BridgeControllerAction,
   BridgeControllerActions,
@@ -89,6 +86,13 @@ export {
   type BridgeControllerStateChangeEvent,
 } from './types';
 
+export type {
+  TxData,
+  BitcoinTradeData,
+  TronTradeData,
+  Trade,
+} from './validators/trade';
+export { isBitcoinTrade, isTronTrade, isEvmTxData } from './validators/trade';
 export { FeeType, ActionTypes } from './validators/quote-response';
 export {
   validateQuoteStreamComplete,
@@ -167,13 +171,7 @@ export {
   formatAddressToAssetId,
 } from './utils/caip-formatters';
 
-export {
-  extractTradeData,
-  isBitcoinTrade,
-  isTronTrade,
-  isEvmTxData,
-  type Trade,
-} from './utils/trade-utils';
+export { extractTradeData } from './utils/trade-utils';
 
 export {
   selectBridgeQuotes,

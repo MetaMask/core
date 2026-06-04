@@ -7,8 +7,8 @@ import type {
   QuoteMetadata,
   QuoteRequest,
   QuoteResponseV1,
-  TxData,
 } from '../../types';
+import type { TxData } from '../../validators/trade';
 import { getNativeAssetForChainId, isCrossChain } from '../bridge';
 import {
   formatAddressToAssetId,
