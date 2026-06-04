@@ -30,27 +30,30 @@ import type {
 import type { BridgeController } from './bridge-controller';
 import type { BridgeControllerMethodActions } from './bridge-controller-method-action-types';
 import type { BRIDGE_CONTROLLER_NAME } from './constants/bridge';
+import type { SimulatedGasFeeLimitsSchema } from './validators/batch-sell';
+import type { BatchSellTradesResponseSchema } from './validators/batch-sell';
+import type { BridgeAssetSchema } from './validators/bridge-asset';
+import type { FeatureId } from './validators/feature-flags';
 import type {
-  BitcoinTradeDataSchema,
-  BridgeAssetSchema,
   ChainConfigurationSchema,
   ChainRankingSchema,
+  PlatformConfigSchema,
+} from './validators/feature-flags';
+import type {
+  BitcoinTradeDataSchema,
   FeeDataSchema,
   IntentSchema,
-  PlatformConfigSchema,
   ProtocolSchema,
   QuoteResponseSchema,
   QuoteSchema,
   StepSchema,
-  TokenFeatureSchema,
-  QuoteStreamCompleteSchema,
   TronTradeDataSchema,
   TxDataSchema,
-  BatchSellTradesResponseSchema,
   GaslessPropertiesSchema,
-  SimulatedGasFeeLimitsSchema,
   TxFeeGasLimitsSchema,
-} from './utils/validators';
+} from './validators/quote-response';
+import type { QuoteStreamCompleteSchema } from './validators/quote-stream-complete';
+import type { TokenFeatureSchema } from './validators/token-feature';
 
 export type FetchFunction = (
   input: RequestInfo | URL | string,
@@ -256,16 +259,6 @@ export enum StatusTypes {
   FAILED = 'FAILED',
   PENDING = 'PENDING',
   COMPLETE = 'COMPLETE',
-}
-
-export enum FeatureId {
-  UNKNOWN = 'unknown',
-  PERPS = 'perps',
-  QUICK_BUY_FOLLOW_TRADING = 'quick_buy_follow_trading',
-  QUICK_BUY_TOKEN_DETAILS = 'quick_buy_token_details',
-  DAPP_SWAP = 'dapp_swap',
-  BATCH_SELL = 'batch_sell',
-  UNIFIED_SWAP_BRIDGE = 'unified_swap_bridge',
 }
 
 /**

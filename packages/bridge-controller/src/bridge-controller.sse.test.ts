@@ -29,16 +29,15 @@ import {
   DEFAULT_BRIDGE_CONTROLLER_STATE,
   ETH_USDT_ADDRESS,
 } from './constants/bridge';
-import { ChainId, RequestStatus, FeatureId } from './types';
+import { ChainId, RequestStatus } from './types';
 import type { BridgeControllerMessenger, TxData } from './types';
 import * as balanceUtils from './utils/balance';
 import { formatChainIdToDec } from './utils/caip-formatters';
 import * as featureFlagUtils from './utils/feature-flags';
 import * as fetchUtils from './utils/fetch';
-import {
-  TokenFeatureType,
-  QuoteStreamCompleteReason,
-} from './utils/validators';
+import { QuoteStreamCompleteReason } from './validators/quote-stream-complete';
+import { TokenFeatureType } from './validators/token-feature';
+import { FeatureId } from './validators/feature-flags';
 
 type RootMessenger = Messenger<
   MockAnyNamespace,

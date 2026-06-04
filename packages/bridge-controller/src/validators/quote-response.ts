@@ -1,5 +1,4 @@
 /* eslint-disable @typescript-eslint/naming-convention */
-import { isValidHexAddress } from '@metamask/controller-utils';
 import type { Infer } from '@metamask/superstruct';
 import {
   any,
@@ -7,7 +6,6 @@ import {
   boolean,
   number,
   type,
-  is,
   record,
   array,
   nullable,
@@ -20,10 +18,12 @@ import {
   intersection,
 } from '@metamask/superstruct';
 import {
-  CaipAssetTypeStruct,
-  CaipChainIdStruct,
-  isStrictHexString,
+  HexAddressStruct,
+  HexChecksumAddressStruct,
+  StrictHexStruct,
 } from '@metamask/utils';
+
+import { BridgeAssetSchema, ChainIdSchema } from './bridge-asset';
 
 export enum FeeType {
   METABRIDGE = 'metabridge',
@@ -37,170 +37,18 @@ export enum ActionTypes {
   REFUEL = 'refuel',
 }
 
-const HexAddressSchema = define<`0x${string}`>('HexAddress', (value: unknown) =>
-  isValidHexAddress(value as string, { allowNonPrefixed: false }),
-);
+const HexAddressOrChecksumAddressSchema = union([
+  HexAddressStruct,
+  HexChecksumAddressStruct,
+]);
 
-const HexStringSchema = define<`0x${string}`>('HexString', isStrictHexString);
-
-const NumberStringSchema = define<string>(
+export const NumberStringSchema = define<string>(
   'NumberString',
   (value: unknown) => typeof value === 'string' && /^\d+$/u.test(value),
 );
 
-const VersionStringSchema = define<string>(
-  'VersionString',
-  (value: unknown) =>
-    typeof value === 'string' &&
-    /^(\d+\.*){2}\d+$/u.test(value) &&
-    value.split('.').length === 3,
-);
-
 export const truthyString = (value: string): boolean => Boolean(value?.length);
 const TruthyDigitStringSchema = pattern(string(), /^\d+$/u);
-
-const ChainIdSchema = number();
-
-export const BridgeAssetSchema = type({
-  /**
-   * The chainId of the token
-   */
-  chainId: ChainIdSchema,
-  /**
-   * An address that the metaswap-api recognizes as the default token
-   */
-  address: string(),
-  /**
-   * The assetId of the token
-   */
-  assetId: CaipAssetTypeStruct,
-  /**
-   * The symbol of token object
-   */
-  symbol: string(),
-  /**
-   * The name for the network
-   */
-  name: string(),
-  decimals: number(),
-  /**
-   * URL for token icon
-   */
-  icon: optional(nullable(string())),
-  /**
-   * URL for token icon
-   */
-  iconUrl: optional(nullable(string())),
-});
-
-const DefaultPairSchema = type({
-  /**
-   * The standard default pairs. Use this if the pair is only set once.
-   * The key is the CAIP asset type of the src token and the value is the CAIP asset type of the dest token.
-   */
-  standard: record(string(), string()),
-  /**
-   * The other default pairs. Use this if the dest token depends on the src token and can be set multiple times.
-   * The key is the CAIP asset type of the src token and the value is the CAIP asset type of the dest token.
-   */
-  other: record(string(), string()),
-});
-
-export const ChainRankingItemSchema = type({
-  /**
-   * The CAIP-2 chain identifier (e.g., "eip155:1" for Ethereum mainnet)
-   */
-  chainId: CaipChainIdStruct,
-  /**
-   * The display name of the chain (e.g., "Ethereum")
-   */
-  name: string(),
-});
-
-export const ChainRankingSchema = optional(array(ChainRankingItemSchema));
-
-export const ChainConfigurationSchema = type({
-  isActiveSrc: boolean(),
-  isActiveDest: boolean(),
-  refreshRate: optional(number()),
-  topAssets: optional(array(string())),
-  stablecoins: optional(array(string())),
-  batchSellDestStablecoins: optional(array(CaipAssetTypeStruct)),
-  isUnifiedUIEnabled: optional(boolean()),
-  isSingleSwapBridgeButtonEnabled: optional(boolean()),
-  isGaslessSwapEnabled: optional(boolean()),
-  noFeeAssets: optional(array(string())),
-  defaultPairs: optional(DefaultPairSchema),
-});
-
-export const PriceImpactThresholdSchema = type({
-  // TODO:
-  // We are moving into a unified approach where
-  // price impact thresholds will be segmented by
-  // importance rather than transaction type.
-  // The introduction of warning/danger will first be handled
-  // by mobile, followed by extension and then removal of gasless/normal
-  // from LD configs.
-  // To make the migration easier, we define all fields as optional for now.
-  // After the migration takes place, gasless/normal will be removed
-  // and warning/danger will be set as required fields.
-  gasless: number(), // Percentage value in decimal format (eg 0.02 is 2%)
-  normal: number(), // Percentage value in decimal format
-  warning: optional(number()), // Percentage value in decimal format
-  error: optional(number()), // Percentage value in decimal format
-});
-
-const GenericQuoteRequestSchema = type({
-  aggIds: optional(array(string())),
-  bridgeIds: optional(array(string())),
-  fee: optional(number()),
-});
-
-/**
- * This is the schema for the feature flags response from the RemoteFeatureFlagController
- */
-export const PlatformConfigSchema = type({
-  priceImpactThreshold: optional(PriceImpactThresholdSchema),
-  quoteRequestOverrides: optional(
-    record(string(), optional(GenericQuoteRequestSchema)),
-  ),
-  minimumVersion: string(),
-  refreshRate: number(),
-  maxRefreshCount: number(),
-  support: boolean(),
-  chains: record(string(), ChainConfigurationSchema),
-  /**
-   * The bip44 default pairs for the chains
-   * Key is the CAIP chainId namespace
-   */
-  bip44DefaultPairs: optional(record(string(), optional(DefaultPairSchema))),
-  sse: optional(
-    type({
-      enabled: boolean(),
-      /**
-       * The minimum version of the client required to enable SSE, for example 13.8.0
-       */
-      minimumVersion: VersionStringSchema,
-    }),
-  ),
-  /**
-   * Array of chain objects ordered by preference/ranking
-   */
-  chainRanking: ChainRankingSchema,
-  maxPendingHistoryItemAgeMs: optional(number()),
-});
-
-export const validateFeatureFlagsResponse = (
-  data: unknown,
-): data is Infer<typeof PlatformConfigSchema> => {
-  return is(data, PlatformConfigSchema);
-};
-
-export const validateSwapsTokenObject = (
-  data: unknown,
-): data is Infer<typeof BridgeAssetSchema> => {
-  return is(data, BridgeAssetSchema);
-};
 
 export const FeeDataSchema = type({
   amount: TruthyDigitStringSchema,
@@ -248,18 +96,18 @@ export const IntentOrderSchema = type({
   /**
    * Address of the token being sold.
    */
-  sellToken: HexAddressSchema,
+  sellToken: HexAddressOrChecksumAddressSchema,
 
   /**
    * Address of the token being bought.
    */
-  buyToken: HexAddressSchema,
+  buyToken: HexAddressOrChecksumAddressSchema,
 
   /**
    * Optional receiver of the bought tokens.
    * If omitted, defaults to the signer / order owner.
    */
-  receiver: optional(HexAddressSchema),
+  receiver: optional(HexAddressOrChecksumAddressSchema),
 
   /**
    * Order expiration time.
@@ -277,7 +125,7 @@ export const IntentOrderSchema = type({
   /**
    * Hash of the `appData` field, used for EIP-712 signing.
    */
-  appDataHash: HexStringSchema,
+  appDataHash: StrictHexStruct,
 
   /**
    * Fee amount paid for order execution, expressed as a digit string.
@@ -316,7 +164,7 @@ export const IntentOrderSchema = type({
    *
    * Provided for convenience when building the EIP-712 domain and message.
    */
-  from: optional(HexAddressSchema),
+  from: optional(HexAddressOrChecksumAddressSchema),
 });
 
 /**
@@ -339,7 +187,7 @@ export const IntentSchema = type({
   /**
    * Optional settlement contract address used for execution.
    */
-  settlementContract: optional(HexAddressSchema),
+  settlementContract: optional(HexAddressOrChecksumAddressSchema),
 
   /**
    * Optional EIP-712 typed data payload for signing.
@@ -430,10 +278,10 @@ export const QuoteSchema = intersection([
 
 export const TxDataSchema = type({
   chainId: number(),
-  to: HexAddressSchema,
-  from: HexAddressSchema,
-  value: HexStringSchema,
-  data: HexStringSchema,
+  to: HexAddressOrChecksumAddressSchema,
+  from: HexAddressOrChecksumAddressSchema,
+  value: StrictHexStruct,
+  data: StrictHexStruct,
   gasLimit: nullable(number()),
   effectiveGas: optional(number()),
 });
@@ -479,88 +327,5 @@ export const validateQuoteResponseV1 = (
   data: unknown,
 ): data is Infer<typeof QuoteResponseSchema> => {
   assert(data, QuoteResponseSchema);
-  return true;
-};
-
-export enum TokenFeatureType {
-  MALICIOUS = 'Malicious',
-  WARNING = 'Warning',
-  INFO = 'Info',
-  BENIGN = 'Benign',
-}
-
-export const TokenFeatureSchema = type({
-  feature_id: string(),
-  type: enums(Object.values(TokenFeatureType)),
-  description: string(),
-});
-
-export const validateTokenFeature = (
-  data: unknown,
-): data is Infer<typeof TokenFeatureSchema> => {
-  assert(data, TokenFeatureSchema);
-  return true;
-};
-
-export enum QuoteStreamCompleteReason {
-  RETRY = 'RETRY',
-  AMOUNT_TOO_HIGH = 'AMOUNT_TOO_HIGH',
-  AMOUNT_TOO_LOW = 'AMOUNT_TOO_LOW',
-  SLIPPAGE_TOO_HIGH = 'SLIPPAGE_TOO_HIGH',
-  SLIPPAGE_TOO_LOW = 'SLIPPAGE_TOO_LOW',
-  TOKEN_NOT_SUPPORTED = 'TOKEN_NOT_SUPPORTED',
-  RWA_GEO_RESTRICTED = 'RWA_GEO_RESTRICTED',
-  RWA_NATIVE_TOKEN_UNSUPPORTED = 'RWA_NATIVE_TOKEN_UNSUPPORTED',
-  RWA_MARKET_UNAVAILABLE = 'RWA_MARKET_UNAVAILABLE',
-}
-
-export const QuoteStreamCompleteSchema = type({
-  quoteCount: number(),
-  hasQuotes: boolean(),
-  reason: optional(enums(Object.values(QuoteStreamCompleteReason))),
-  context: optional(record(string(), any())),
-});
-
-export const validateQuoteStreamComplete = (
-  data: unknown,
-): data is Infer<typeof QuoteStreamCompleteSchema> => {
-  assert(data, QuoteStreamCompleteSchema);
-  return true;
-};
-
-export enum BatchSellTransactionType {
-  TRADE = 'trade',
-  APPROVAL = 'approval',
-  TRANSFER = 'transfer',
-}
-
-export const SimulatedGasFeeLimitsSchema = type({
-  maxFeePerGas: HexStringSchema,
-  maxPriorityFeePerGas: HexStringSchema,
-});
-
-export const BatchSellTradesResponseSchema = intersection([
-  type({
-    transactions: array(
-      intersection([
-        TxDataSchema,
-        SimulatedGasFeeLimitsSchema,
-        type({ type: enums(Object.values(BatchSellTransactionType)) }),
-      ]),
-    ),
-    fee: optional(
-      type({
-        asset: BridgeAssetSchema,
-        amount: NumberStringSchema,
-      }),
-    ),
-  }),
-  GaslessPropertiesSchema,
-]);
-
-export const validateBatchSellTradesResponse = (
-  data: unknown,
-): data is Infer<typeof BatchSellTradesResponseSchema> => {
-  assert(data, BatchSellTradesResponseSchema);
   return true;
 };

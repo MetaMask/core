@@ -12,8 +12,13 @@ import type {
   QuoteStreamCompleteData,
   BatchSellTradesRequest,
   BatchSellTradesResponse,
-  FeatureId,
 } from '../types';
+import { validateBatchSellTradesResponse } from '../validators/batch-sell';
+import { validateBridgeAsset } from '../validators/bridge-asset';
+import type { FeatureId } from '../validators/feature-flags';
+import { validateQuoteResponseV1 } from '../validators/quote-response';
+import { validateQuoteStreamComplete } from '../validators/quote-stream-complete';
+import { validateTokenFeature } from '../validators/token-feature';
 import { getEthUsdtResetData } from './bridge';
 import {
   formatAddressToAssetId,
@@ -22,13 +27,6 @@ import {
 } from './caip-formatters';
 import { fetchServerEvents } from './fetch-server-events';
 import { isEvmTxData } from './trade-utils';
-import {
-  validateQuoteResponseV1,
-  validateSwapsTokenObject,
-  validateTokenFeature,
-  validateQuoteStreamComplete,
-  validateBatchSellTradesResponse,
-} from './validators';
 
 export const getClientHeaders = ({
   clientId,
@@ -76,7 +74,7 @@ export async function fetchBridgeTokens(
 
   const transformedTokens: Record<string, BridgeAsset> = {};
   tokens.forEach((token: unknown) => {
-    if (validateSwapsTokenObject(token)) {
+    if (validateBridgeAsset(token)) {
       transformedTokens[token.address] = token;
     }
   });
