@@ -733,8 +733,7 @@ export class SnapAccountService {
       );
     };
 
-    // There is nothing we can do if forwarding fails. This will auto-recover on
-    // the next relevant event.
+    // There is nothing we can do if forwarding fails. This will auto-recover on the next relevant event.
     forwardSelectedAccounts().catch((error) => {
       console.error('Error forwarding selected accounts:', error);
     });
