@@ -1091,15 +1091,10 @@ export class KeyringController<
 
     if (typeof credentials === 'string') {
       await this.verifyPassword(credentials);
+    } else if (hasProperty(credentials, 'password')) {
+      await this.verifyPassword(credentials.password as string);
     } else {
-      const { encryptionKey } = credentials as { encryptionKey?: string };
-      if (typeof encryptionKey === 'string') {
-        await this.verifyEncryptionKey(encryptionKey);
-      } else {
-        await this.verifyPassword(
-          (credentials as { password: string }).password,
-        );
-      }
+      await this.verifyEncryptionKey(credentials.encryptionKey);
     }
 
     const selectedKeyring = this.#getKeyringByIdOrDefault(keyringId);
