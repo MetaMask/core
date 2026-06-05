@@ -205,9 +205,15 @@ export function generateEIP7702BatchTransaction(
 
   log('Transaction data', data);
 
+  const totalValue = transactions.reduce(
+    (sum, tx) => sum + BigInt(tx.value ?? '0x0'),
+    BigInt(0),
+  );
+
   return {
     data,
     to: from,
+    ...(totalValue > BigInt(0) ? { value: toHex(totalValue) } : {}),
   };
 }
 
