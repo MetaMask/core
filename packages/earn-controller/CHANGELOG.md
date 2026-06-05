@@ -7,11 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- Revert "Release 1023.0.0" ([#9018](https://github.com/MetaMask/core/pull/9018))
-- Release 1023.0.0 ([#9017](https://github.com/MetaMask/core/pull/9017))
-
 ### Changed
 
 - Bump `@metamask/account-tree-controller` from `^7.4.0` to `^7.5.1` ([#8912](https://github.com/MetaMask/core/pull/8912), [#8999](https://github.com/MetaMask/core/pull/8999))
