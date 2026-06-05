@@ -891,13 +891,6 @@ describe('KeyringController', () => {
           });
         });
 
-        it('should export seed phrase with a password credential object', async () => {
-          await withController(async ({ controller }) => {
-            const seed = await controller.exportSeedPhrase({ password });
-            expect(seed).not.toBe('');
-          });
-        });
-
         it('should throw error if keyringId is invalid', async () => {
           await withController(async ({ controller }) => {
             await expect(

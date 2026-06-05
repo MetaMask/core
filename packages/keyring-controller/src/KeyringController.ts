@@ -1090,9 +1090,6 @@ export class KeyringController<
   /**
    * Gets the seed phrase of the HD keyring.
    *
-   * The keyring can be re-authenticated with the wallet `{ password }` or with
-   * the vault `{ encryptionKey }`.
-   *
    * @param credentials - Object holding either the `password` or the vault
    * `encryptionKey`.
    * @param keyringId - The id of the keyring.
@@ -1117,9 +1114,6 @@ export class KeyringController<
 
   /**
    * Gets the private key from the keyring controlling an address.
-   *
-   * The keyring can be re-authenticated with the wallet `{ password }` or with
-   * the vault `{ encryptionKey }`.
    *
    * @param credentials - Object holding either the `password` or the vault
    * `encryptionKey`.
