@@ -1073,6 +1073,7 @@ export class KeyringController<
   async #verifyCredentials(
     credentials: VerificationCredentials,
   ): Promise<void> {
+    // eslint-disable-next-line no-restricted-syntax
     if ('password' in credentials) {
       await this.verifyPassword(credentials.password);
     } else {
