@@ -3,6 +3,7 @@ import {
   STOCK_LIKE_MARKET_TYPES,
   getMarketTypeFilter,
   isEquityAsset,
+  isHip3Market,
   matchesCategory,
 } from '../../../src/utils/marketUtils';
 
@@ -46,6 +47,24 @@ describe('marketUtils category classification', () => {
     );
   });
 
+  describe('isHip3Market', () => {
+    it('is true when isHip3 is set', () => {
+      expect(isHip3Market(market({ isHip3: true }))).toBe(true);
+    });
+
+    it('is true when only marketSource is set', () => {
+      expect(
+        isHip3Market(market({ isHip3: undefined, marketSource: 'xyz' })),
+      ).toBe(true);
+    });
+
+    it('is false for a main-DEX market', () => {
+      expect(
+        isHip3Market(market({ isHip3: false, marketSource: undefined })),
+      ).toBe(false);
+    });
+  });
+
   describe('matchesCategory', () => {
     it("matches every market for 'all'", () => {
       expect(matchesCategory(market({ marketType: 'etf' }), 'all')).toBe(true);
@@ -75,6 +94,17 @@ describe('marketUtils category classification', () => {
       expect(
         matchesCategory(market({ isHip3: true, marketType: 'etf' }), 'crypto'),
       ).toBe(false);
+    });
+
+    it("treats a marketSource-only partial market as 'new', not 'crypto'", () => {
+      const partial = market({
+        marketType: undefined,
+        isHip3: undefined,
+        isNewMarket: undefined,
+        marketSource: 'xyz',
+      });
+      expect(matchesCategory(partial, 'crypto')).toBe(false);
+      expect(matchesCategory(partial, 'new')).toBe(true);
     });
 
     it.each([
@@ -157,6 +187,19 @@ describe('marketUtils category classification', () => {
       samples.forEach((sample) =>
         expect(getMarketTypeFilter(sample)).not.toBe('all'),
       );
+    });
+
+    // The resolved bucket must agree with matchesCategory (stock-like is the one
+    // intentional exception: it collapses to 'stocks' while matchesCategory keeps
+    // stock/pre-ipo/index/etf granular).
+    it.each([
+      market({ marketType: 'commodity', isHip3: true }),
+      market({ marketType: 'forex', isHip3: true }),
+      market({ marketType: undefined, isHip3: false }),
+      market({ marketType: undefined, isHip3: true }),
+      market({ marketType: undefined, marketSource: 'xyz' }),
+    ])('is consistent with matchesCategory for %o', (sample) => {
+      expect(matchesCategory(sample, getMarketTypeFilter(sample))).toBe(true);
     });
   });
 });

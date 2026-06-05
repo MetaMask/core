@@ -31,6 +31,19 @@ const MARKET_CATEGORY_TO_FILTER: Record<MarketCategory, MarketTypeFilter> = {
 };
 
 /**
+ * Whether a market is a HIP-3 (non-main-DEX) market. A `marketSource` DEX id
+ * marks a HIP-3 market even when the `isHip3` flag is unset (e.g. partial route
+ * params), so both signals are checked. Used as the single HIP-3 signal so the
+ * classifiers stay consistent.
+ *
+ * @param market - The market data to test.
+ * @returns True if the market is HIP-3.
+ */
+export const isHip3Market = (
+  market: Pick<PerpsMarketData, 'isHip3' | 'marketSource'>,
+): boolean => Boolean(market.isHip3) || Boolean(market.marketSource);
+
+/**
  * Returns true when a market matches the given UI filter category.
  *
  * @param market - The market data to test.
@@ -45,11 +58,17 @@ export function matchesCategory(
     case MARKET_TYPE_FILTER.All:
       return true;
     case MARKET_TYPE_FILTER.New:
-      return market.isNewMarket === true;
-    case MARKET_TYPE_FILTER.Crypto:
-      // Non-HIP3 markets, plus HIP-3 assets explicitly typed as CryptoCurrency.
+      // Explicitly flagged, or an uncategorized HIP-3 market (kept in sync with
+      // getMarketTypeFilter's 'new' bucket).
       return (
-        !market.isHip3 || market.marketType === MarketCategory.CryptoCurrency
+        market.isNewMarket === true ||
+        (isHip3Market(market) && market.marketType === undefined)
+      );
+    case MARKET_TYPE_FILTER.Crypto:
+      // Main-DEX markets, plus HIP-3 assets explicitly typed as CryptoCurrency.
+      return (
+        !isHip3Market(market) ||
+        market.marketType === MarketCategory.CryptoCurrency
       );
     default:
       // Every other filter is a 1:1 data-model category match.
@@ -108,9 +127,9 @@ export function getMarketTypeFilter(market: PerpsMarketData): MarketTypeFilter {
   if (marketType) {
     return MARKET_CATEGORY_TO_FILTER[marketType];
   }
-  // No data-model category: a HIP-3 market (isHip3, or a marketSource DEX id) is
-  // uncategorized → the 'new' bucket; otherwise it's a main-DEX crypto market.
-  return market.isHip3 || market.marketSource
+  // No data-model category: an uncategorized HIP-3 market is the 'new' bucket;
+  // otherwise it's a main-DEX crypto market.
+  return isHip3Market(market)
     ? MARKET_TYPE_FILTER.New
     : MARKET_TYPE_FILTER.Crypto;
 }

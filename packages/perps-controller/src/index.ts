@@ -496,6 +496,7 @@ export {
   getMarketTypeFilter,
   applyMarketFilters,
   isEquityAsset,
+  isHip3Market,
   STOCK_LIKE_MARKET_TYPES,
 } from './utils';
 export type { MarketPatternMatcher, CompiledMarketPattern } from './utils';

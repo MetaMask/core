@@ -10,7 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Centralise market category classification so consumers share one model instead of re-deriving it per client ([#9009](https://github.com/MetaMask/core/pull/9009))
-  - Export `getMarketTypeFilter` (resolves a market to its UI category filter, collapsing stock-like categories into `stocks`), `isEquityAsset`, and `STOCK_LIKE_MARKET_TYPES`.
+  - Export `getMarketTypeFilter` (resolves a market to its UI category filter, collapsing stock-like categories into `stocks`), `isEquityAsset`, `isHip3Market`, and `STOCK_LIKE_MARKET_TYPES`. `getMarketTypeFilter` and `matchesCategory` treat a `marketSource` DEX id as a HIP-3 signal consistently, so partial (route-param) markets classify the same way in both.
   - Export the pure `matchesCategory` and `applyMarketFilters` helpers (moved from `MarketDataService`).
   - Add `MARKET_TYPE_FILTER` named constants for the `MarketTypeFilter` values.
 
