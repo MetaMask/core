@@ -388,7 +388,6 @@ export class TradingService {
       | ReturnType<typeof setTimeout>
       | undefined;
     let didExceedOrderSubmissionThreshold = false;
-    let providerCallSucceeded = false;
 
     const paymentToken =
       params.trackingData?.tradeWithToken === true
@@ -483,7 +482,6 @@ export class TradingService {
         feeDiscountBips,
         operation: () => provider.placeOrder(params),
       });
-      providerCallSucceeded = result.success ?? false;
       if (orderSubmissionThresholdTimeoutId !== undefined) {
         clearTimeout(orderSubmissionThresholdTimeoutId);
         orderSubmissionThresholdTimeoutId = undefined;
@@ -566,9 +564,7 @@ export class TradingService {
 
       traceData = {
         success: false,
-        reason: !providerCallSucceeded && didExceedOrderSubmissionThreshold
-          ? 'late_error'
-          : 'error',
+        reason: didExceedOrderSubmissionThreshold ? 'late_error' : 'error',
         error: error instanceof Error ? error.message : 'Unknown error',
       };
       throw error;
