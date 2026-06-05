@@ -9,16 +9,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add `migrate` ([#8732](https://github.com/MetaMask/core/pull/8732))
-  - The migration is guaranteed to be run when using `ensureReady`.
-  - If the migration is not successful, it will get retried everytime we need to interact with any Snap keyring (v2) instances.
-  - It is conccurent-free and can safely be called by multiple execution flows.
-  - Once the migration has ran, the legacy Snap keyring will be emptied, thus, consumers are expected to use the new per-Snap keyring (v2) instances instead.
+- Add `ensureMigrated` ([#8732](https://github.com/MetaMask/core/pull/8732))
+  - Migrates the legacy global Snap keyring (v1) to per-Snap keyrings (v2).
+  - The migration is triggered automatically at `KeyringController:unlock` time.
+  - If the migration is not successful, it will get retried on the next call.
+  - It is concurrent-free and can safely be called by multiple execution flows.
+  - Once the migration has run, the legacy Snap keyring will be removed.
   - Selected-account forwarding now targets v2 Snap keyrings.
   - The service messenger now requires the `KeyringController:withKeyringV2Unsafe`.
 
 ### Changed
 
+- **BREAKING:** `SnapAccountService:migrate` messenger action renamed to `SnapAccountService:ensureMigrated` ([#8732](https://github.com/MetaMask/core/pull/8732))
+- **BREAKING:** `SnapAccountService.ensureReady` now throws if called before the wallet is unlocked ([#8732](https://github.com/MetaMask/core/pull/8732))
+  - Previously, `ensureReady` triggered migration itself. Now migration is expected to be triggered at `KeyringController:unlock` time via `ensureMigrated`.
 - `SnapAccountService.ensureReady` now automatically creates the Snap keyring (v2) for a given Snap ID if it was not available ([#8732](https://github.com/MetaMask/core/pull/8732))
 - Bump `@metamask/eth-snap-keyring` from `^22.0.1` to `^22.1.0` ([#8732](https://github.com/MetaMask/core/pull/8732))
 

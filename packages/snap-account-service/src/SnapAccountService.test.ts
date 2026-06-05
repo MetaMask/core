@@ -455,12 +455,12 @@ describe('SnapAccountService', () => {
     });
   });
 
-  describe('migrate', () => {
+  describe('ensureMigrated', () => {
     it('runs the migration only once when called concurrently', async () => {
       const { service, mocks } = await setup();
       mocks.KeyringController.withController.mockResolvedValue(undefined);
 
-      await Promise.all([service.migrate(), service.migrate()]);
+      await Promise.all([service.ensureMigrated(), service.ensureMigrated()]);
 
       expect(mocks.KeyringController.withController).toHaveBeenCalledTimes(1);
     });
@@ -474,7 +474,7 @@ describe('SnapAccountService', () => {
           operation({ keyrings: [], addNewKeyring, removeKeyring }),
       );
 
-      await service.migrate();
+      await service.ensureMigrated();
 
       expect(addNewKeyring).not.toHaveBeenCalled();
       expect(removeKeyring).not.toHaveBeenCalled();
@@ -522,7 +522,7 @@ describe('SnapAccountService', () => {
           }),
       );
 
-      await service.migrate();
+      await service.ensureMigrated();
 
       expect(addNewKeyring).toHaveBeenCalledTimes(2);
       expect(addNewKeyring).toHaveBeenCalledWith(KeyringType.Snap, {
@@ -545,8 +545,8 @@ describe('SnapAccountService', () => {
       const { service, mocks } = await setup();
       mocks.KeyringController.withController.mockResolvedValue(undefined);
 
-      await service.migrate();
-      await service.migrate();
+      await service.ensureMigrated();
+      await service.ensureMigrated();
 
       expect(mocks.KeyringController.withController).toHaveBeenCalledTimes(1);
     });
@@ -558,8 +558,8 @@ describe('SnapAccountService', () => {
         .mockRejectedValueOnce(error)
         .mockResolvedValueOnce(undefined);
 
-      await expect(service.migrate()).rejects.toThrow(error);
-      expect(await service.migrate()).toBeUndefined();
+      await expect(service.ensureMigrated()).rejects.toThrow(error);
+      expect(await service.ensureMigrated()).toBeUndefined();
 
       expect(mocks.KeyringController.withController).toHaveBeenCalledTimes(2);
     });
@@ -572,14 +572,14 @@ describe('SnapAccountService', () => {
         .mockResolvedValueOnce(undefined);
 
       const [first, second] = await Promise.allSettled([
-        service.migrate(),
-        service.migrate(),
+        service.ensureMigrated(),
+        service.ensureMigrated(),
       ]);
       expect(first).toStrictEqual({ status: 'rejected', reason: error });
       expect(second).toStrictEqual({ status: 'rejected', reason: error });
       expect(mocks.KeyringController.withController).toHaveBeenCalledTimes(1);
 
-      expect(await service.migrate()).toBeUndefined();
+      expect(await service.ensureMigrated()).toBeUndefined();
       expect(mocks.KeyringController.withController).toHaveBeenCalledTimes(2);
     });
   });
@@ -597,21 +597,69 @@ describe('SnapAccountService', () => {
       const { service } = await setup({
         runnableSnaps: [buildSnap(MOCK_SNAP_ID)],
       });
+      await service.ensureMigrated();
 
       expect(await service.ensureReady(MOCK_SNAP_ID)).toBeUndefined();
     });
 
-    it('runs the migration before checking platform readiness', async () => {
+    it('throws when migration has not been triggered', async () => {
+      const { service } = await setup({
+        runnableSnaps: [buildSnap(MOCK_SNAP_ID)],
+      });
+
+      await expect(service.ensureReady(MOCK_SNAP_ID)).rejects.toThrow(
+        'Snap account service migration has not been triggered',
+      );
+    });
+
+    it('awaits in-flight migration triggered at unlock time', async () => {
+      const { service, rootMessenger, mocks } = await setup({
+        runnableSnaps: [buildSnap(MOCK_SNAP_ID)],
+      });
+
+      let resolveMigration!: () => void;
+      mocks.KeyringController.withController
+        .mockReturnValueOnce(
+          new Promise<void>((resolve) => {
+            resolveMigration = resolve;
+          }),
+        )
+        .mockResolvedValue(undefined);
+
+      publishUnlock(rootMessenger);
+      // Migration is in-flight (#migratePromise is set synchronously)
+
+      let resolved = false;
+      const ensurePromise = service.ensureReady(MOCK_SNAP_ID).then(() => {
+        resolved = true;
+        return undefined;
+      });
+
+      await flushMicrotasks();
+      expect(resolved).toBe(false);
+
+      resolveMigration();
+      await flushMicrotasks();
+
+      await ensurePromise;
+      expect(resolved).toBe(true);
+    });
+
+    it('does not invoke migration itself', async () => {
       const { service, mocks } = await setup({
         runnableSnaps: [buildSnap(MOCK_SNAP_ID)],
       });
       mocks.KeyringController.withController.mockResolvedValue(undefined);
 
-      // `migrate` is invoked once + `#createKeyringForSnap` is invoked once
-      // (the cached migrate call is a no-op on subsequent calls).
+      await service.ensureMigrated();
+      // Reset the call count so we can assert ensureReady doesn't add to it
+      mocks.KeyringController.withController.mockClear();
+      mocks.KeyringController.withController.mockResolvedValue(undefined);
+
       await service.ensureReady(MOCK_SNAP_ID);
 
-      expect(mocks.KeyringController.withController).toHaveBeenCalledTimes(2);
+      // Only `#ensureKeyringIsReady` should call withController, not migration
+      expect(mocks.KeyringController.withController).toHaveBeenCalledTimes(1);
     });
 
     it('creates a v2 keyring for the Snap when one does not exist yet', async () => {
@@ -625,6 +673,7 @@ describe('SnapAccountService', () => {
           operation({ keyrings: [], addNewKeyring, removeKeyring }),
       );
 
+      await service.ensureMigrated();
       await service.ensureReady(MOCK_SNAP_ID);
 
       expect(addNewKeyring).toHaveBeenCalledWith(KeyringType.Snap, {
@@ -639,7 +688,7 @@ describe('SnapAccountService', () => {
       const { service, mocks } = await setup({
         runnableSnaps: [buildSnap(MOCK_SNAP_ID)],
       });
-      // First call: migration (no legacy snap keyring → early return).
+      // First call: ensureMigrated (no legacy snap keyring → early return).
       // Second call: ensureReady keyring check (snap keyring already exists).
       mocks.KeyringController.withController
         .mockImplementationOnce(async (operation) =>
@@ -660,6 +709,7 @@ describe('SnapAccountService', () => {
           }),
         );
 
+      await service.ensureMigrated();
       await service.ensureReady(MOCK_SNAP_ID);
 
       expect(addNewKeyring).not.toHaveBeenCalled();
@@ -670,6 +720,7 @@ describe('SnapAccountService', () => {
         snapIsReady: false,
         runnableSnaps: [buildSnap(MOCK_SNAP_ID)],
       });
+      await service.ensureMigrated();
 
       let resolved = false;
       const ensurePromise = service.ensureReady(MOCK_SNAP_ID).then(() => {
@@ -698,6 +749,7 @@ describe('SnapAccountService', () => {
         runnableSnaps: [buildSnap(MOCK_SNAP_ID)],
         config: { snapPlatformWatcher: { ensureOnboardingComplete } },
       });
+      await service.ensureMigrated();
 
       let resolved = false;
       const ensurePromise = service.ensureReady(MOCK_SNAP_ID).then(() => {
@@ -1163,6 +1215,36 @@ describe('SnapAccountService', () => {
       '00000000-0000-0000-0000-000000000001',
       '00000000-0000-0000-0000-000000000002',
     ];
+
+    it('triggers migration', async () => {
+      const { service, rootMessenger, mocks } = await setup();
+      mocks.KeyringController.withController.mockResolvedValue(undefined);
+
+      publishUnlock(rootMessenger);
+      await flushMicrotasks();
+
+      expect(mocks.KeyringController.withController).toHaveBeenCalledTimes(1);
+      expect(service).toBeDefined();
+    });
+
+    it('logs an error when migration fails', async () => {
+      const { service, rootMessenger, mocks } = await setup();
+      const error = new Error('migration boom');
+      mocks.KeyringController.withController.mockRejectedValueOnce(error);
+      const consoleErrorSpy = jest
+        .spyOn(console, 'error')
+        .mockImplementation(() => undefined);
+
+      publishUnlock(rootMessenger);
+      await flushMicrotasks();
+
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
+        'Migration failed after unlock:',
+        error,
+      );
+      expect(service).toBeDefined();
+      consoleErrorSpy.mockRestore();
+    });
 
     it('forwards the currently selected account group to every tracked v2 Snap keyring', async () => {
       const { service, rootMessenger, mocks } = await setup({

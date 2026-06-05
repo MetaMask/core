@@ -20,8 +20,8 @@ export type SnapAccountServiceGetSnapsAction = {
 /**
  * Ensures everything is ready to use Snap accounts for the given Snap.
  * 1. Validates that `snapId` is a tracked account-management Snap.
- * 2. Runs the legacy -> v2 Snap keyring migration (cached — no-op if
- * already done).
+ * 2. Asserts that the legacy -> v2 migration has been triggered (expected to
+ * happen at `KeyringController:unlock` time).
  * 3. Atomically creates the v2 keyring for this Snap if it doesn't exist
  * yet.
  * 4. Waits for the Snap platform to be fully started.
@@ -30,6 +30,7 @@ export type SnapAccountServiceGetSnapsAction = {
  *
  * @param snapId - ID of the Snap to ensure readiness for.
  * @throws If `snapId` is not a tracked account-management Snap.
+ * @throws If the migration has not been triggered yet (wallet not unlocked).
  */
 export type SnapAccountServiceEnsureReadyAction = {
   type: `SnapAccountService:ensureReady`;
@@ -38,14 +39,15 @@ export type SnapAccountServiceEnsureReadyAction = {
 
 /**
  * Migrate the legacy Snap keyring to the new (per-snap) Snap keyring v2.
+ * Expected to be triggered at `KeyringController:unlock` time.
  * Safe to call concurrently — the migration runs only once; all callers
  * await the same promise.
  *
  * @returns A promise that resolves when the migration is complete.
  */
-export type SnapAccountServiceMigrateAction = {
-  type: `SnapAccountService:migrate`;
-  handler: SnapAccountService['migrate'];
+export type SnapAccountServiceEnsureMigratedAction = {
+  type: `SnapAccountService:ensureMigrated`;
+  handler: SnapAccountService['ensureMigrated'];
 };
 
 /**
@@ -66,5 +68,5 @@ export type SnapAccountServiceHandleKeyringSnapMessageAction = {
 export type SnapAccountServiceMethodActions =
   | SnapAccountServiceGetSnapsAction
   | SnapAccountServiceEnsureReadyAction
-  | SnapAccountServiceMigrateAction
+  | SnapAccountServiceEnsureMigratedAction
   | SnapAccountServiceHandleKeyringSnapMessageAction;

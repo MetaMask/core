@@ -54,9 +54,9 @@ import { assertStruct } from '@metamask/utils';
 import { projectLogger as log } from './logger';
 import type {
   SnapAccountServiceEnsureReadyAction,
+  SnapAccountServiceEnsureMigratedAction,
   SnapAccountServiceGetSnapsAction,
   SnapAccountServiceHandleKeyringSnapMessageAction,
-  SnapAccountServiceMigrateAction,
 } from './SnapAccountService-method-action-types';
 import { SnapPlatformWatcher } from './SnapPlatformWatcher';
 import type { SnapPlatformWatcherConfig } from './SnapPlatformWatcher';
@@ -82,20 +82,20 @@ export const serviceName = 'SnapAccountService';
  * the messenger.
  */
 const MESSENGER_EXPOSED_METHODS = [
+  'ensureMigrated',
   'ensureReady',
   'getSnaps',
   'handleKeyringSnapMessage',
-  'migrate',
 ] as const;
 
 /**
  * Actions that {@link SnapAccountService} exposes to other consumers.
  */
 export type SnapAccountServiceActions =
+  | SnapAccountServiceEnsureMigratedAction
   | SnapAccountServiceEnsureReadyAction
   | SnapAccountServiceGetSnapsAction
-  | SnapAccountServiceHandleKeyringSnapMessageAction
-  | SnapAccountServiceMigrateAction;
+  | SnapAccountServiceHandleKeyringSnapMessageAction;
 
 /**
  * Actions from other messengers that {@link SnapAccountService} calls.
@@ -295,10 +295,15 @@ export class SnapAccountService {
   }
 
   /**
-   * Handles the keyring controller unlock event by forwarding the currently
-   * selected account group's accounts to the Snap keyring.
+   * Handles the keyring controller unlock event by triggering the migration
+   * and forwarding the currently selected account group's accounts to the Snap
+   * keyring.
    */
   #handleUnlock(): void {
+    this.ensureMigrated().catch((error) => {
+      console.error('Migration failed after unlock:', error);
+    });
+
     const groupId = this.#getSelectedAccountGroupId();
     this.#forwardSelectedAccounts(
       groupId,
@@ -347,8 +352,8 @@ export class SnapAccountService {
   /**
    * Ensures everything is ready to use Snap accounts for the given Snap.
    * 1. Validates that `snapId` is a tracked account-management Snap.
-   * 2. Runs the legacy -> v2 Snap keyring migration (cached — no-op if
-   *    already done).
+   * 2. Asserts that the legacy -> v2 migration has been triggered (expected to
+   *    happen at `KeyringController:unlock` time).
    * 3. Atomically creates the v2 keyring for this Snap if it doesn't exist
    *    yet.
    * 4. Waits for the Snap platform to be fully started.
@@ -357,15 +362,14 @@ export class SnapAccountService {
    *
    * @param snapId - ID of the Snap to ensure readiness for.
    * @throws If `snapId` is not a tracked account-management Snap.
+   * @throws If the migration has not been triggered yet (wallet not unlocked).
    */
   async ensureReady(snapId: SnapId): Promise<void> {
     if (!this.#tracker.canUse(snapId)) {
       throw new Error(`Unknown snap: "${snapId}"`);
     }
 
-    // Migrate from the global v1 Snap keyring to the per-Snap v2 keyring
-    // before doing anything else.
-    await this.migrate();
+    await this.#ensureHasBeenMigrated();
 
     // We still try to create the keyring for the Snap here, since we might
     // want to use a new Snap that never had accounts before.
@@ -377,13 +381,35 @@ export class SnapAccountService {
   }
 
   /**
+   * Asserts that the migration has been triggered and waits for it to complete
+   * if it is still in-flight. The migration is expected to be triggered at
+   * `KeyringController:unlock` time.
+   *
+   * @throws If the migration has not been triggered yet.
+   */
+  async #ensureHasBeenMigrated(): Promise<void> {
+    if (this.#migrated) {
+      return;
+    }
+    if (this.#migratePromise) {
+      await this.#migratePromise;
+    } else {
+      throw new Error(
+        'Snap account service migration has not been triggered. ' +
+          'The wallet must be unlocked before using Snap accounts.',
+      );
+    }
+  }
+
+  /**
    * Migrate the legacy Snap keyring to the new (per-snap) Snap keyring v2.
+   * Expected to be triggered at `KeyringController:unlock` time.
    * Safe to call concurrently — the migration runs only once; all callers
    * await the same promise.
    *
    * @returns A promise that resolves when the migration is complete.
    */
-  async migrate(): Promise<void> {
+  async ensureMigrated(): Promise<void> {
     if (this.#migrated) {
       return;
     }
