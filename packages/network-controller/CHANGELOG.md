@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **BREAKING:** Automatically populate `isRpcFailoverEnabled` using `RemoteFeatureFlagController` ([#9013](https://github.com/MetaMask/core/pull/9013))
+  - `NetworkController.init` must now be called to fully initialize the controller.
+  - The constructor argument `isRpcFailoverEnabled` is no longer available.
+  - `RemoteFeatureFlagController:stateChange` and `RemoteFeatureFlagController:getState` are now required.
+
 ### Added
 
 - Add defaults for policy and block tracker options ([#9002](https://github.com/MetaMask/core/pull/9002))
