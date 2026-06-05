@@ -50,3 +50,7 @@ packages/*/*.tsbuildinfo
 .claude/skills/
 .agents/skills/
 .cursor/rules/
+
+# Docusaurus
+**/.docusaurus
+packages/wallet-framework-docs/site/build

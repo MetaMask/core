@@ -149,6 +149,7 @@ export type PayStrategiesConfigRaw = {
 };
 
 type FeatureFlagsExtendedRaw = {
+  excludeChainIdsFromInfura?: Hex[];
   payStrategies?: {
     relay?: {
       gaslessEnabled?: boolean;
@@ -554,6 +555,33 @@ export function isRelayExecuteEnabled(
       | FeatureFlagsExtendedRaw
       | undefined) ?? {};
   return featureFlags.payStrategies?.relay?.gaslessEnabled ?? false;
+}
+
+/**
+ * Whether a chain is excluded from preferring Infura for balance queries.
+ *
+ * When a chain ID appears in the `confirmations_pay_extended.excludeChainIdsFromInfura`
+ * feature flag array, the Infura RPC endpoint should not be forced for that chain.
+ *
+ * @param messenger - Controller messenger.
+ * @param chainId - Chain ID to check.
+ * @returns True if the chain should skip the Infura preference.
+ */
+export function isChainExcludedFromInfura(
+  messenger: TransactionPayControllerMessenger,
+  chainId: Hex,
+): boolean {
+  const state = messenger.call('RemoteFeatureFlagController:getState');
+  const featureFlags =
+    (state.remoteFeatureFlags?.confirmations_pay_extended as
+      | FeatureFlagsExtendedRaw
+      | undefined) ?? {};
+
+  const excludedChains = featureFlags.excludeChainIdsFromInfura ?? [];
+
+  return excludedChains.some(
+    (excluded) => excluded.toLowerCase() === chainId.toLowerCase(),
+  );
 }
 
 /**

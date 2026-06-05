@@ -2,7 +2,10 @@
 
 import { Interface } from '@ethersproject/abi';
 import { toHex } from '@metamask/controller-utils';
-import type { TransactionMeta } from '@metamask/transaction-controller';
+import type {
+  AuthorizationList,
+  TransactionMeta,
+} from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 import { createModuleLogger } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
@@ -19,6 +22,7 @@ import {
   PERPS_DEPOSIT_TYPES,
   USDC_DECIMALS,
   STABLECOINS,
+  PaymentOverride,
 } from '../../constants';
 import { projectLogger } from '../../logger';
 import type {
@@ -265,6 +269,11 @@ async function getSingleQuote(
     // bridged token transfer, not a contract call to embed.
     if (!request.isPostQuote && !request.isPolymarketDepositWallet) {
       await processTransactions(transaction, request, body, messenger);
+    } else if (
+      request.isPostQuote &&
+      request.paymentOverride === PaymentOverride.MoneyAccount
+    ) {
+      await processMoneyAccountPostQuote(transaction, request, body, messenger);
     } else if (request.refundTo) {
       // For post-quote flows, honour the caller-specified refund address so that
       // failed Relay transactions refund to the correct account (e.g. the Predict
@@ -283,6 +292,19 @@ async function getSingleQuote(
     log('Error fetching relay quote', error);
     throw error;
   }
+}
+
+function normalizeAuthorizationList(
+  authorizationList: AuthorizationList | undefined,
+): RelayQuoteRequest['authorizationList'] {
+  return authorizationList?.map((a) => ({
+    ...a,
+    chainId: Number(a.chainId),
+    nonce: Number(a.nonce),
+    r: a.r as Hex,
+    s: a.s as Hex,
+    yParity: Number(a.yParity),
+  }));
 }
 
 /**
@@ -334,18 +356,9 @@ async function processTransactions(
     { transaction },
   );
 
-  const normalizedAuthorizationList = delegation.authorizationList?.map(
-    (a) => ({
-      ...a,
-      chainId: Number(a.chainId),
-      nonce: Number(a.nonce),
-      r: a.r as Hex,
-      s: a.s as Hex,
-      yParity: Number(a.yParity),
-    }),
+  requestBody.authorizationList = normalizeAuthorizationList(
+    delegation.authorizationList,
   );
-
-  requestBody.authorizationList = normalizedAuthorizationList;
   requestBody.tradeType = 'EXACT_OUTPUT';
 
   const tokenTransferData = nestedTransactions?.find((nestedTx) =>
@@ -376,6 +389,57 @@ async function processTransactions(
       value: delegation.value,
     },
   ];
+}
+
+async function processMoneyAccountPostQuote(
+  transaction: TransactionMeta,
+  request: QuoteRequest,
+  requestBody: RelayQuoteRequest,
+  messenger: TransactionPayControllerMessenger,
+): Promise<void> {
+  const { transactionData: transactionDataList } = messenger.call(
+    'TransactionPayController:getState',
+  );
+
+  const transactionData = transactionDataList[transaction.id];
+  const amountHuman = transactionData?.tokens?.[0]?.amountHuman ?? '0';
+
+  const {
+    calls: overrideCalls,
+    recipient,
+    authorizationList,
+  } = await messenger.call('TransactionPayController:getPaymentOverrideData', {
+    amount: amountHuman,
+    transaction,
+    transactionData,
+  });
+
+  if (!overrideCalls.length) {
+    log('No payment override calls for money account post-quote');
+    return;
+  }
+
+  const fundingRecipient = recipient ?? request.from;
+
+  requestBody.authorizationList = normalizeAuthorizationList(authorizationList);
+  requestBody.tradeType = 'EXACT_OUTPUT';
+  requestBody.amount = request.sourceTokenAmount;
+  requestBody.txs = [
+    {
+      to: request.targetTokenAddress,
+      data: buildTokenTransferData(fundingRecipient, request.sourceTokenAmount),
+      value: '0x0',
+    },
+    ...overrideCalls.map((call) => ({
+      to: call.to as Hex,
+      data: call.data as Hex,
+      value: (call.value as Hex) ?? '0x0',
+    })),
+  ];
+
+  log('Added money account deposit calls to quote body', {
+    callCount: overrideCalls.length,
+  });
 }
 
 /**

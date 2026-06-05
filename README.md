@@ -444,6 +444,7 @@ linkStyle default opacity:0.5
   network_controller --> eth_json_rpc_provider;
   network_controller --> json_rpc_engine;
   network_controller --> messenger;
+  network_controller --> remote_feature_flag_controller;
   network_enablement_controller --> base_controller;
   network_enablement_controller --> controller_utils;
   network_enablement_controller --> messenger;
@@ -506,6 +507,7 @@ linkStyle default opacity:0.5
   rate_limit_controller --> base_controller;
   rate_limit_controller --> messenger;
   react_data_query --> base_data_service;
+  react_data_query --> messenger;
   remote_feature_flag_controller --> base_controller;
   remote_feature_flag_controller --> controller_utils;
   remote_feature_flag_controller --> messenger;
@@ -570,6 +572,7 @@ linkStyle default opacity:0.5
   transaction_pay_controller --> bridge_status_controller;
   transaction_pay_controller --> controller_utils;
   transaction_pay_controller --> gas_fee_controller;
+  transaction_pay_controller --> keyring_controller;
   transaction_pay_controller --> messenger;
   transaction_pay_controller --> network_controller;
   transaction_pay_controller --> ramps_controller;
@@ -585,7 +588,9 @@ linkStyle default opacity:0.5
   user_operation_controller --> polling_controller;
   user_operation_controller --> transaction_controller;
   user_operation_controller --> eth_block_tracker;
+  wallet --> approval_controller;
   wallet --> base_controller;
+  wallet --> controller_utils;
   wallet --> keyring_controller;
   wallet --> messenger;
   wallet --> storage_service;

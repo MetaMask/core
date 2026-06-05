@@ -657,10 +657,9 @@ export class BackendWebsocketDataSource extends AbstractDataSource<
         ? BigInt(postBalance.amount).toString()
         : postBalance.amount;
 
-      // Convert to human-readable using asset decimals (match RpcDataSource / pipeline format)
       const humanReadableAmount = new BigNumberJS(rawBalanceStr)
         .dividedBy(new BigNumberJS(10).pow(asset.decimals))
-        .toString();
+        .toFixed();
 
       assetsBalance[accountId][assetId] = {
         amount: humanReadableAmount,

@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **BREAKING:** Wire `ApprovalController` into the default wallet initialization ([#8953](https://github.com/MetaMask/core/pull/8953))
+  - The default `Wallet` now constructs an `ApprovalController` and registers its `ApprovalController:*` messenger actions. Consumers that pass their own `messenger` and already wire an `ApprovalController` must remove their own before upgrading, or the duplicate registration will collide.
+  - Adds an `approvalController` slot to `instanceOptions` with `showApprovalRequest` (the callback that surfaces pending approval requests to the user; defaults to a no-op) and `typesExcludedFromRateLimiting` (the approval types exempt from per-origin rate limiting; defaults to a baseline of EVM approval types). Both let consumers (extension, mobile, wallet-cli) inject their platform-specific values.
+
+## [2.0.0]
+
+### Added
+
 - Add `keyringV2Builders` to the `keyringController` instance options, forwarded to the `KeyringController` constructor ([#8956](https://github.com/MetaMask/core/pull/8956))
 - **BREAKING:** Add `StorageService` initialization ([#8946](https://github.com/MetaMask/core/pull/8946))
   - Passing `instanceOptions.storageService.storage` is now required.
@@ -26,6 +34,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#8838](https://github.com/MetaMask/core/pull/8838))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/wallet@1.0.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/wallet@2.0.0...HEAD
+[2.0.0]: https://github.com/MetaMask/core/compare/@metamask/wallet@1.0.1...@metamask/wallet@2.0.0
 [1.0.1]: https://github.com/MetaMask/core/compare/@metamask/wallet@1.0.0...@metamask/wallet@1.0.1
 [1.0.0]: https://github.com/MetaMask/core/releases/tag/@metamask/wallet@1.0.0

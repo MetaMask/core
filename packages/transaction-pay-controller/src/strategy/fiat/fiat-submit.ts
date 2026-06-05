@@ -109,7 +109,10 @@ export async function submitFiatQuotes(
 /**
  * Extracts the provider code from a ramps provider string.
  *
- * @param provider - Provider string (e.g. `/providers/transak-native`).
+ * Accepts the canonical provider code (e.g. `transak-native`) and, for
+ * backwards compatibility, the legacy path form (e.g. `/providers/transak-native`).
+ *
+ * @param provider - Canonical provider code, or legacy provider path.
  * @returns The provider code, or `null` if the format is invalid.
  */
 function extractProviderCode(provider: string | undefined): string | null {
@@ -118,7 +121,12 @@ function extractProviderCode(provider: string | undefined): string | null {
   }
 
   const parts = provider.split('/').filter(Boolean);
-  return parts.length >= 2 && parts[0] === 'providers' ? parts[1] : null;
+
+  if (parts[0] === 'providers') {
+    return parts[1] ?? null;
+  }
+
+  return parts.length === 1 ? parts[0] : null;
 }
 
 /**
