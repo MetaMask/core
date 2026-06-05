@@ -1272,6 +1272,44 @@ describe('Relay Quotes Utils', () => {
       expect(result[0].original.metamask.is7702).toBe(true);
     });
 
+    it('defaults data and value for original tx when not present on txParams', async () => {
+      successfulFetchMock.mockResolvedValue({
+        ok: true,
+        json: async () => QUOTE_MOCK,
+      } as never);
+
+      estimateGasBatchMock.mockResolvedValue({
+        gasLimits: [80000],
+        totalGasEstimate: 80000,
+        totalGasLimit: 80000,
+      });
+
+      await getRelayQuotes({
+        accountSupports7702: true,
+        messenger,
+        requests: [
+          {
+            ...QUOTE_REQUEST_MOCK,
+            targetAmountMinimum: '0',
+            isPostQuote: true,
+          },
+        ],
+        transaction: {
+          ...TRANSACTION_META_MOCK,
+          chainId: '0x1' as Hex,
+          txParams: {
+            from: FROM_MOCK,
+            to: '0x9' as Hex,
+          },
+        } as TransactionMeta,
+      });
+
+      const batchCall = estimateGasBatchMock.mock.calls[0][0];
+      const originalTxParams = batchCall.transactions[0];
+      expect(originalTxParams.data).toBe('0x');
+      expect(originalTxParams.value).toBe('0');
+    });
+
     it('does not prepend original transaction for post-quote when txParams.to is missing', async () => {
       successfulFetchMock.mockResolvedValue({
         ok: true,
@@ -1291,9 +1329,96 @@ describe('Relay Quotes Utils', () => {
         transaction: TRANSACTION_META_MOCK,
       });
 
-      // With no txParams.to the original tx should be skipped, so only
-      // the relay step params are sent to gas estimation (single path).
       expect(estimateGasBatchMock).not.toHaveBeenCalled();
+    });
+
+    it('falls back to legacy gas combining when txParams.to is missing but gas is present for post-quote', async () => {
+      successfulFetchMock.mockResolvedValue({
+        ok: true,
+        json: async () => QUOTE_MOCK,
+      } as never);
+
+      getGasBufferMock.mockReturnValue(1);
+
+      const result = await getRelayQuotes({
+        accountSupports7702: true,
+        messenger,
+        requests: [
+          {
+            ...QUOTE_REQUEST_MOCK,
+            targetAmountMinimum: '0',
+            isPostQuote: true,
+          },
+        ],
+        transaction: {
+          ...TRANSACTION_META_MOCK,
+          txParams: {
+            from: FROM_MOCK,
+            gas: '0x13498',
+          },
+        } as TransactionMeta,
+      });
+
+      expect(estimateGasBatchMock).not.toHaveBeenCalled();
+      expect(result[0].original.metamask.gasLimits).toStrictEqual([
+        79000, 21000,
+      ]);
+      expect(result[0].original.metamask.is7702).toBe(false);
+    });
+
+    it('falls back to legacy 7702 gas combining when txParams.to is missing for post-quote with multi-step relay', async () => {
+      const multiStepQuote = {
+        ...QUOTE_MOCK,
+        steps: [
+          {
+            ...STEP_MOCK,
+            items: [
+              STEP_MOCK.items[0],
+              {
+                ...STEP_MOCK.items[0],
+                data: {
+                  ...STEP_MOCK.items[0].data,
+                  gas: '30000',
+                },
+              },
+            ],
+          },
+        ],
+      } as RelayQuote;
+
+      successfulFetchMock.mockResolvedValue({
+        ok: true,
+        json: async () => multiStepQuote,
+      } as never);
+
+      getGasBufferMock.mockReturnValue(1);
+
+      estimateGasBatchMock.mockResolvedValue({
+        totalGasLimit: 51000,
+        gasLimits: [51000],
+      });
+
+      const result = await getRelayQuotes({
+        accountSupports7702: true,
+        messenger,
+        requests: [
+          {
+            ...QUOTE_REQUEST_MOCK,
+            targetAmountMinimum: '0',
+            isPostQuote: true,
+          },
+        ],
+        transaction: {
+          ...TRANSACTION_META_MOCK,
+          txParams: {
+            from: FROM_MOCK,
+            gas: '0x13498',
+          },
+        } as TransactionMeta,
+      });
+
+      expect(result[0].original.metamask.gasLimits).toStrictEqual([130000]);
+      expect(result[0].original.metamask.is7702).toBe(true);
     });
 
     it('uses refundTo as from for single gas estimation in predictWithdraw post-quote', async () => {

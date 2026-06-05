@@ -19,6 +19,7 @@ import {
   getFiatAssetPerTransactionType,
   getFiatFeeReserveMultiplier,
   getFiatMaxRateDriftPercent,
+  getPostQuoteGasBuffer,
   DEFAULT_RELAY_EXECUTE_URL,
   getServerPollingInterval,
   getServerPollingTimeout,
@@ -1603,6 +1604,50 @@ describe('Feature Flags Utils', () => {
       });
 
       expect(getFiatMaxRateDriftPercent(messenger)).toBe(10);
+    });
+  });
+
+  describe('getPostQuoteGasBuffer', () => {
+    it('returns 1.1 when feature flag is not set', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {},
+      });
+
+      expect(getPostQuoteGasBuffer(messenger)).toBe(1.1);
+    });
+
+    it('returns the configured value from feature flag', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_pay_post_quote: { gasBuffer: 1.5 },
+        },
+      });
+
+      expect(getPostQuoteGasBuffer(messenger)).toBe(1.5);
+    });
+
+    it('returns 1.1 when value is zero', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_pay_post_quote: { gasBuffer: 0 },
+        },
+      });
+
+      expect(getPostQuoteGasBuffer(messenger)).toBe(1.1);
+    });
+
+    it('returns 1.1 when value is negative', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_pay_post_quote: { gasBuffer: -1 },
+        },
+      });
+
+      expect(getPostQuoteGasBuffer(messenger)).toBe(1.1);
     });
   });
 });

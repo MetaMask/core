@@ -8,6 +8,7 @@ import {
   getFiatFeeReserveMultiplier,
   getFiatMaxRateDriftPercent,
 } from '../../utils/feature-flags';
+import { getNetworkClientId } from '../../utils/provider';
 import { getTransaction, updateTransaction } from '../../utils/transaction';
 import { getRelayQuotes } from '../relay/relay-quotes';
 import { submitRelayQuotes } from '../relay/relay-submit';
@@ -137,11 +138,22 @@ export async function submitWithCalldataReEncoding({
     targetAmountMinimum: adjustedTargetRaw,
   };
 
+  // The transaction's chainId is the target chain (e.g. Monad 0x8f), but the
+  // relay deposit executes on the source chain (e.g. Ethereum 0x1).
+  // Override chainId and networkClientId so that processTransactions /
+  // getDelegationTransaction operate on the correct (source) chain.
+  const { sourceChainId } = baseRequest;
+  const sourceNetworkClientId = getNetworkClientId(messenger, sourceChainId);
+
   const relayQuotes = await getRelayQuotes({
     accountSupports7702: request.accountSupports7702,
     messenger,
     requests: [relayRequest],
-    transaction: updatedTransaction,
+    transaction: {
+      ...updatedTransaction,
+      chainId: sourceChainId,
+      networkClientId: sourceNetworkClientId,
+    },
   });
 
   if (!relayQuotes.length) {
