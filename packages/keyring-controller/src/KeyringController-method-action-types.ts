@@ -82,12 +82,11 @@ export type KeyringControllerIsUnlockedAction = {
 /**
  * Gets the seed phrase of the HD keyring.
  *
- * The keyring can be re-authenticated with the wallet password (passed either
- * as a bare string or as `{ password }`) or with the vault `{ encryptionKey }`.
- * The bare-string form is kept for backwards compatibility.
+ * The keyring can be re-authenticated with the wallet `{ password }` or with
+ * the vault `{ encryptionKey }`.
  *
- * @param credentials - The wallet password, or an object holding either the
- * `password` or the vault `encryptionKey`.
+ * @param credentials - Object holding either the `password` or the vault
+ * `encryptionKey`.
  * @param keyringId - The id of the keyring.
  * @returns Promise resolving to the seed phrase.
  */
@@ -99,7 +98,8 @@ export type KeyringControllerExportSeedPhraseAction = {
 /**
  * Gets the private key from the keyring controlling an address.
  *
- * @param password - Password of the keyring.
+ * @param credentials - Object holding either the `password` or the vault
+ * `encryptionKey`.
  * @param address - Address to export.
  * @returns Promise resolving to the private key for an address.
  */
