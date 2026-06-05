@@ -18,7 +18,7 @@ import type {
   MultichainAccountBalance,
   MultichainBalancesControllerState,
 } from '../MultichainBalancesController';
-import { isStellarClassicTrustlineInactiveForAsset } from '../multichain/stellarAccountAssetInfo';
+import type { AccountAssetInfoExtra } from '../multichain/accountAssetEnrichment';
 import { getNativeTokenAddress } from '../token-prices-service/codefi-v2';
 import type { TokenBalancesControllerState } from '../TokenBalancesController';
 import type { Token, TokenRatesControllerState } from '../TokenRatesController';
@@ -93,8 +93,8 @@ export type Asset = (
         conversionRate: number;
       }
     | undefined;
-  /** Stellar classic `asset:` row added via import only (no keyring confirmation yet). */
-  isStellarTrustlineInactive?: boolean;
+  /** Chain-specific snap enrichment fields from balance `extra`. */
+  extra?: AccountAssetInfoExtra;
   rwaData?: TokenRwaData;
 };
 
@@ -412,25 +412,13 @@ const selectAllMultichainAssets = createAssetListSelector(
             unit.symbol === assetMetadata.symbol,
         )?.decimals;
 
-        const isStellarTrustlineInactive =
-          isStellarClassicTrustlineInactiveForAsset(
-            assetId,
-            balance?.extra,
-            balance !== undefined,
-          );
-
-        if ((!balance || decimals === undefined) && !isStellarTrustlineInactive) {
+        if (decimals === undefined) {
           continue;
         }
 
-        const rawBalanceHex: Hex | undefined =
-          balance && decimals !== undefined
-            ? parseBalanceWithDecimals(balance.amount, decimals)
-            : undefined;
-
-        if (!rawBalanceHex && !isStellarTrustlineInactive) {
-          continue;
-        }
+        const rawBalanceHex: Hex | undefined = balance
+          ? parseBalanceWithDecimals(balance.amount, decimals)
+          : undefined;
 
         const effectiveRawBalanceHex: Hex = rawBalanceHex ?? '0x0';
 
@@ -452,7 +440,7 @@ const selectAllMultichainAssets = createAssetListSelector(
           name: assetMetadata.name ?? assetMetadata.symbol ?? asset,
           symbol: assetMetadata.symbol ?? asset,
           accountId,
-          decimals: decimals ?? 0,
+          decimals,
           rawBalance: effectiveRawBalanceHex,
           balance: balance?.amount ?? '0',
           fiat: fiatData
@@ -463,7 +451,7 @@ const selectAllMultichainAssets = createAssetListSelector(
               }
             : undefined,
           chainId,
-          ...(isStellarTrustlineInactive && { isStellarTrustlineInactive: true }),
+          ...(balance?.extra !== undefined && { extra: balance.extra }),
         });
       }
     }

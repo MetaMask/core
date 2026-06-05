@@ -8,7 +8,6 @@ import type {
 import type {
   ControllerGetStateAction,
   ControllerStateChangeEvent,
-  ControllerStateChangedEvent,
   StateMetadata,
 } from '@metamask/base-controller';
 import { isEvmAccountType } from '@metamask/keyring-api';
@@ -18,10 +17,6 @@ import type {
   CaipAssetType,
   CaipAssetTypeOrId,
 } from '@metamask/keyring-api';
-import type {
-  KeyringControllerGetStateAction,
-  KeyringControllerState,
-} from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import { KeyringClient } from '@metamask/keyring-snap-client';
 import type { Messenger } from '@metamask/messenger';
@@ -51,15 +46,14 @@ import { Mutex } from 'async-mutex';
 import type { MultichainBalancesControllerMergeAccountBalanceExtrasAction } from '../MultichainBalancesController';
 import type { MultichainAssetsControllerMethodActions } from './MultichainAssetsController-method-action-types';
 import {
-  STELLAR_GET_ACCOUNT_ASSET_INFO_CLIENT_METHOD,
-  isStellarMultichainAccount,
-  stellarAssetInfoExtraToBalanceExtra,
-} from '../multichain/stellarAccountAssetInfo';
+  filterAssetsForAccountAssetEnrichment,
+  GET_ACCOUNT_ASSET_INFO_CLIENT_METHOD,
+  isAccountAssetInfoEnrichmentAvailable,
+} from '../multichain/accountAssetEnrichment';
 import type {
-  StellarAccountAssetInfoExtra,
-  StellarGetAccountAssetInfoResponse,
-} from '../multichain/stellarAccountAssetInfo';
-import { isStellarClassicAssetCaip19 } from '../multichain/stellarTrustline';
+  AccountAssetInfoExtra,
+  GetAccountAssetInfoResponse,
+} from '../multichain/accountAssetEnrichment';
 import { getChainIdsCaveat } from './utils';
 
 const controllerName = 'MultichainAssetsController';
@@ -152,8 +146,7 @@ type AllowedActions =
   | GetPermissions
   | AccountsControllerListMultichainAccountsAction
   | PhishingControllerBulkScanTokensAction
-  | MultichainBalancesControllerMergeAccountBalanceExtrasAction
-  | KeyringControllerGetStateAction;
+  | MultichainBalancesControllerMergeAccountBalanceExtrasAction;
 
 /**
  * Events that this controller is allowed to subscribe.
@@ -162,8 +155,7 @@ type AllowedEvents =
   | AccountsControllerAccountAddedEvent
   | AccountsControllerAccountRemovedEvent
   | AccountsControllerAccountAssetListUpdatedEvent
-  | AccountsControllerAccountBalancesUpdatesEvent
-  | ControllerStateChangedEvent<'KeyringController', KeyringControllerState>;
+  | AccountsControllerAccountBalancesUpdatesEvent;
 
 /**
  * Messenger type for the MultichainAssetsController.
@@ -285,29 +277,6 @@ export class MultichainAssetsController extends StaticIntervalPollingController<
       (event) => {
         // eslint-disable-next-line no-void
         void this.#handleAccountBalancesUpdatedForEnrichment(event);
-      },
-    );
-
-    // Bootstrap trust-line `extra` after unlock (and when already unlocked on first state event).
-    let previousKeyringIsUnlocked: boolean | undefined;
-    this.messenger.subscribe(
-      'KeyringController:stateChanged',
-      (keyringState: KeyringControllerState) => {
-        const { isUnlocked } = keyringState;
-        if (previousKeyringIsUnlocked === undefined) {
-          previousKeyringIsUnlocked = isUnlocked;
-          if (isUnlocked) {
-            // eslint-disable-next-line no-void
-            void this.#bootstrapStellarTrustlineExtras();
-          }
-          return;
-        }
-        const justUnlocked = isUnlocked && !previousKeyringIsUnlocked;
-        previousKeyringIsUnlocked = isUnlocked;
-        if (justUnlocked) {
-          // eslint-disable-next-line no-void
-          void this.#bootstrapStellarTrustlineExtras();
-        }
       },
     );
 
@@ -479,9 +448,16 @@ export class MultichainAssetsController extends StaticIntervalPollingController<
             },
           },
         });
-        // Let MultichainBalancesController create balance rows before merging trust-line `extra`.
+        // Let MultichainBalancesController create balance rows before merging `extra`.
         await Promise.resolve();
-        await this.#enrichStellarAccountAssetInfo(accountId, addedAssets);
+        const accounts = this.messenger.call(
+          'AccountsController:listMultichainAccounts',
+        );
+        const account = accounts.find((a) => a.id === accountId);
+        const chainId = account?.scopes[0];
+        if (chainId) {
+          await this.#enrichAccountAssetInfo(accountId, chainId, addedAssets);
+        }
       }
 
       return this.state.accountsAssets[accountId] || [];
@@ -581,6 +557,22 @@ export class MultichainAssetsController extends StaticIntervalPollingController<
     this.messenger.publish(`${controllerName}:accountAssetListUpdated`, {
       assets: accountsAndAssetsToUpdate,
     });
+
+    const accounts = this.messenger.call(
+      'AccountsController:listMultichainAccounts',
+    );
+    for (const [accountId, { added }] of Object.entries(
+      accountsAndAssetsToUpdate,
+    )) {
+      if (added.length === 0) {
+        continue;
+      }
+      const account = accounts.find((a) => a.id === accountId);
+      const chainId = account?.scopes[0];
+      if (chainId) {
+        await this.#enrichAccountAssetInfo(accountId, chainId, added);
+      }
+    }
   }
 
   /**
@@ -635,37 +627,16 @@ export class MultichainAssetsController extends StaticIntervalPollingController<
         },
       });
 
-      await this.#enrichStellarAccountAssetInfo(account.id, filteredCaip);
-    }
-  }
-
-  /**
-   * After unlock, enrich trust-line `extra` for all Stellar classics already in the portfolio.
-   */
-  async #bootstrapStellarTrustlineExtras(): Promise<void> {
-    const { isUnlocked } = this.messenger.call('KeyringController:getState');
-    if (!isUnlocked) {
-      return;
-    }
-
-    const accounts = this.messenger.call(
-      'AccountsController:listMultichainAccounts',
-    );
-    for (const account of accounts) {
-      if (!isStellarMultichainAccount(account)) {
-        continue;
-      }
-      const classics = (this.state.accountsAssets[account.id] ?? []).filter(
-        isStellarClassicAssetCaip19,
+      await this.#enrichAccountAssetInfo(
+        account.id,
+        account.scopes[0],
+        filteredCaip,
       );
-      if (classics.length > 0) {
-        await this.#enrichStellarAccountAssetInfo(account.id, classics);
-      }
     }
   }
 
   /**
-   * After snap balance events, fetch Stellar trust-line `extra` via `getAccountAssetInfo`.
+   * After snap balance events, fetch per-asset enrichment via snap client request.
    *
    * @param payload - Keyring balance update payload.
    */
@@ -675,29 +646,42 @@ export class MultichainAssetsController extends StaticIntervalPollingController<
     // Yield so MultichainBalancesController applies balance rows first (MAC inits before MBC in extension).
     await Promise.resolve();
 
+    const accounts = this.messenger.call(
+      'AccountsController:listMultichainAccounts',
+    );
+
     for (const accountId of Object.keys(payload.balances)) {
-      const classics = (this.state.accountsAssets[accountId] ?? []).filter(
-        isStellarClassicAssetCaip19,
-      );
-      if (classics.length === 0) {
+      const account = accounts.find((a) => a.id === accountId);
+      const chainId = account?.scopes[0];
+      if (!chainId) {
         continue;
       }
-      await this.#enrichStellarAccountAssetInfo(accountId, classics);
+      const portfolioAssets = this.state.accountsAssets[accountId] ?? [];
+      await this.#enrichAccountAssetInfo(accountId, chainId, portfolioAssets);
     }
   }
 
   /**
-   * Fetches Stellar-only `getAccountAssetInfo` client request and merges trust-line `extra` into balances.
+   * Fetches snap account-asset enrichment and merges `extra` into balance rows.
    *
    * @param accountId - Account id.
+   * @param chainId - CAIP-2 chain id for enrichment.
    * @param assetIds - Assets to enrich.
    */
-  async #enrichStellarAccountAssetInfo(
+  async #enrichAccountAssetInfo(
     accountId: string,
+    chainId: CaipChainId,
     assetIds: CaipAssetType[],
   ): Promise<void> {
-    const stellarClassicIds = assetIds.filter(isStellarClassicAssetCaip19);
-    if (stellarClassicIds.length === 0) {
+    if (!isAccountAssetInfoEnrichmentAvailable(chainId)) {
+      return;
+    }
+
+    const enrichmentAssets = filterAssetsForAccountAssetEnrichment(
+      assetIds,
+      chainId,
+    );
+    if (enrichmentAssets.length === 0) {
       return;
     }
 
@@ -705,39 +689,24 @@ export class MultichainAssetsController extends StaticIntervalPollingController<
       'AccountsController:listMultichainAccounts',
     );
     const account = accounts.find((a) => a.id === accountId);
-    if (!account || !isStellarMultichainAccount(account)) {
+    const snapId = account?.metadata.snap?.id;
+    if (!account || !snapId) {
       return;
     }
 
-    const snapId = account.metadata.snap?.id;
-    if (!snapId) {
-      return;
-    }
-
-    const info = await this.#getAccountAssetInfoFromSnap(
+    const info = await this.#fetchAccountAssetInfoFromSnap(
       accountId,
       snapId,
-      account.scopes[0] as CaipChainId,
-      stellarClassicIds,
+      chainId,
+      enrichmentAssets,
     );
     if (!info) {
       return;
     }
 
-    const extrasByAsset: Record<
-      CaipAssetType,
-      StellarAccountAssetInfoExtra | undefined
-    > = {};
-
-    for (const assetId of stellarClassicIds) {
-      const snapExtra = info[assetId];
-      if (snapExtra === undefined) {
-        // Snap omits assets with no on-chain row (portfolio import without trust line).
-        extrasByAsset[assetId] = { limit: '0' };
-        continue;
-      }
-      const balanceExtra = stellarAssetInfoExtraToBalanceExtra(snapExtra);
-      extrasByAsset[assetId] = balanceExtra ?? { limit: '0' };
+    const extrasByAsset: Record<CaipAssetType, AccountAssetInfoExtra> = {};
+    for (const [assetId, extra] of Object.entries(info)) {
+      extrasByAsset[assetId as CaipAssetType] = extra;
     }
 
     if (Object.keys(extrasByAsset).length > 0) {
@@ -750,20 +719,20 @@ export class MultichainAssetsController extends StaticIntervalPollingController<
   }
 
   /**
-   * Calls the Stellar snap `getAccountAssetInfo` client request handler.
+   * Calls the snap account-asset enrichment client request handler.
    *
    * @param accountId - Account id.
-   * @param snapId - Stellar wallet snap id.
-   * @param scope - Stellar CAIP-2 chain id.
+   * @param snapId - Wallet snap id.
+   * @param chainId - CAIP-2 chain id.
    * @param assets - CAIP-19 assets to resolve.
-   * @returns Per-asset trust-line fields, or undefined on failure.
+   * @returns Per-asset enrichment fields, or undefined on failure.
    */
-  async #getAccountAssetInfoFromSnap(
+  async #fetchAccountAssetInfoFromSnap(
     accountId: string,
     snapId: string,
-    scope: CaipChainId,
+    chainId: CaipChainId,
     assets: CaipAssetType[],
-  ): Promise<StellarGetAccountAssetInfoResponse | undefined> {
+  ): Promise<GetAccountAssetInfoResponse | undefined> {
     try {
       return (await this.messenger.call('SnapController:handleRequest', {
         snapId: snapId as SnapId,
@@ -771,14 +740,14 @@ export class MultichainAssetsController extends StaticIntervalPollingController<
         handler: HandlerType.OnClientRequest,
         request: {
           jsonrpc: '2.0',
-          method: STELLAR_GET_ACCOUNT_ASSET_INFO_CLIENT_METHOD,
+          method: GET_ACCOUNT_ASSET_INFO_CLIENT_METHOD,
           params: {
             accountId,
-            scope,
+            scope: chainId,
             assets,
           },
         },
-      })) as StellarGetAccountAssetInfoResponse;
+      })) as GetAccountAssetInfoResponse;
     } catch (error) {
       console.error(error);
       return undefined;

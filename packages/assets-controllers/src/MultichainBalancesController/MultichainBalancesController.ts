@@ -9,7 +9,6 @@ import type {
   StateMetadata,
   ControllerGetStateAction,
   ControllerStateChangeEvent,
-  ControllerStateChangedEvent,
 } from '@metamask/base-controller';
 import { isEvmAccountType } from '@metamask/keyring-api';
 import type {
@@ -18,7 +17,6 @@ import type {
 } from '@metamask/keyring-api';
 import type {
   KeyringControllerGetStateAction,
-  KeyringControllerState,
 } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import { KeyringClient } from '@metamask/keyring-snap-client';
@@ -33,15 +31,15 @@ import type {
   MultichainAssetsControllerGetStateAction,
   MultichainAssetsControllerAccountAssetListUpdatedEvent,
 } from '../MultichainAssetsController';
-import type { StellarAccountAssetInfoExtra } from '../multichain/stellarAccountAssetInfo';
+import type { AccountAssetInfoExtra } from '../multichain/accountAssetEnrichment';
 
 const controllerName = 'MultichainBalancesController';
 
-/** Per-asset balance row; `extra` carries chain-specific fields (e.g. Stellar trust line `limit`). */
+/** Per-asset balance row; `extra` carries chain-specific snap enrichment fields. */
 export type MultichainAccountBalance = {
   amount: string;
   unit: string;
-  extra?: StellarAccountAssetInfoExtra;
+  extra?: AccountAssetInfoExtra;
 };
 
 /**
@@ -86,7 +84,7 @@ export type MultichainBalancesControllerStateChange =
   >;
 
 /**
- * Merges trust-line (or other) `extra` fields onto existing balance rows.
+ * Merges snap enrichment `extra` fields onto existing balance rows.
  */
 export type MultichainBalancesControllerMergeAccountBalanceExtrasAction = {
   type: `MultichainBalancesController:mergeAccountBalanceExtras`;
@@ -122,8 +120,7 @@ type AllowedEvents =
   | AccountsControllerAccountAddedEvent
   | AccountsControllerAccountRemovedEvent
   | AccountsControllerAccountBalancesUpdatesEvent
-  | MultichainAssetsControllerAccountAssetListUpdatedEvent
-  | ControllerStateChangedEvent<'KeyringController', KeyringControllerState>;
+  | MultichainAssetsControllerAccountAssetListUpdatedEvent;
 /**
  * Messenger type for the MultichainBalancesController.
  */
@@ -185,7 +182,10 @@ export class MultichainBalancesController extends BaseController<
 
     this.messenger.subscribe(
       'AccountsController:accountRemoved',
-      (account: string) => this.#handleOnAccountRemoved(account),
+      (account: string) => {
+        // eslint-disable-next-line no-void
+        void this.#handleOnAccountRemoved(account);
+      },
     );
     this.messenger.subscribe(
       'AccountsController:accountBalancesUpdated',
@@ -195,62 +195,22 @@ export class MultichainBalancesController extends BaseController<
 
     this.messenger.subscribe(
       'MultichainAssetsController:accountAssetListUpdated',
-      async ({ assets }) => {
+      ({ assets }) => {
         const newAccountAssets = Object.entries(assets).map(
           ([accountId, { added }]) => ({
             accountId,
             assets: [...added],
           }),
         );
-        await this.#handleOnAccountAssetListUpdated(newAccountAssets);
+        // eslint-disable-next-line no-void
+        void this.#handleOnAccountAssetListUpdated(newAccountAssets);
       },
     );
 
-    // When the keyring transitions from locked → unlocked, fetch balances for
-    // any non-EVM account that had its balance fetch skipped while locked.
-    // We cannot read KeyringController state in the constructor (restricted),
-    // so the first `stateChanged` establishes the baseline; if the vault is
-    // already unlocked on that first event, we refetch once (covers unlock as
-    // the only keyring update after construction).
-    let previousKeyringIsUnlocked: boolean | undefined;
     this.messenger.registerActionHandler(
       'MultichainBalancesController:mergeAccountBalanceExtras',
       this.mergeAccountBalanceExtras.bind(this),
     );
-
-    this.messenger.subscribe(
-      'KeyringController:stateChanged',
-      (keyringState: KeyringControllerState) => {
-        const { isUnlocked } = keyringState;
-        if (previousKeyringIsUnlocked === undefined) {
-          previousKeyringIsUnlocked = isUnlocked;
-          if (isUnlocked) {
-            this.#refetchBalancesForAccountsMissingFromState();
-          }
-          return;
-        }
-        const justUnlocked = isUnlocked && !previousKeyringIsUnlocked;
-        previousKeyringIsUnlocked = isUnlocked;
-        if (justUnlocked) {
-          this.#refetchBalancesForAccountsMissingFromState();
-        }
-      },
-    );
-  }
-
-  /**
-   * Fetches balances for non-EVM accounts that have no cached balances yet.
-   */
-  #refetchBalancesForAccountsMissingFromState(): void {
-    for (const account of this.#listAccounts()) {
-      const hasBalance =
-        this.state.balances[account.id] &&
-        Object.keys(this.state.balances[account.id]).length > 0;
-      if (!hasBalance) {
-        // eslint-disable-next-line no-void
-        void this.updateBalance(account.id);
-      }
-    }
   }
 
   /**
@@ -301,7 +261,7 @@ export class MultichainBalancesController extends BaseController<
         } else {
           const acc = accountsMap.get(accountId);
 
-          const assetsWithoutBalance = new Set(acc?.assets || []);
+          const assetsWithoutBalance = new Set(acc?.assets ?? []);
 
           for (const assetId of Object.keys(accountBalances)) {
             if (!state.balances[accountId][assetId]) {
@@ -475,6 +435,7 @@ export class MultichainBalancesController extends BaseController<
    *
    * @param fetched - Balances returned by the snap keyring client.
    * @param previous - Prior cached balances for the account.
+   * @returns Merged balance rows with preserved enrichment extras.
    */
   #withPreservedBalanceExtras(
     fetched: Record<CaipAssetType, Balance>,
@@ -487,7 +448,7 @@ export class MultichainBalancesController extends BaseController<
       merged[assetId] = {
         amount: row.amount,
         unit: row.unit,
-        ...(prevExtra !== undefined ? { extra: prevExtra } : {}),
+        ...(prevExtra === undefined ? {} : { extra: prevExtra }),
       };
     }
     return merged;
@@ -495,7 +456,7 @@ export class MultichainBalancesController extends BaseController<
 
   mergeAccountBalanceExtras(
     accountId: string,
-    extrasByAsset: Record<CaipAssetType, StellarAccountAssetInfoExtra | undefined>,
+    extrasByAsset: Record<CaipAssetType, AccountAssetInfoExtra>,
   ): void {
     this.update((state: Draft<MultichainBalancesControllerState>) => {
       const accountBalances = state.balances[accountId];

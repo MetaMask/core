@@ -1168,13 +1168,13 @@ describe('token-selectors', () => {
     });
   });
 
-  describe('Stellar classic trustline inactive', () => {
+  describe('balance extra passthrough', () => {
     const stellarAccountId = 'stellar-acct-test';
     const stellarClassic =
       'stellar:pubnet/asset:USDC-GA5ZSEJYB37JRC5AVCIA5MOP4RHTM335X2KGX3IHOJAPP5RE34K4KZVN' as CaipAssetType;
     const stellarChainId = 'stellar:pubnet';
 
-    it('marks inactive when balance extra has zero limit', () => {
+    it('passes balance extra through to asset list items', () => {
       const state = cloneDeep(mockedMergedState);
       const wallet =
         state.accountTree.wallets['entropy:01K1TJY9QPSCKNBSVGZNG510GJ'];
@@ -1219,10 +1219,10 @@ describe('token-selectors', () => {
         ) ?? [];
 
       expect(stellarAssets).toHaveLength(1);
-      expect(stellarAssets[0]?.isStellarTrustlineInactive).toBe(true);
+      expect(stellarAssets[0]?.extra).toStrictEqual({ limit: '0' });
     });
 
-    it('does not mark inactive for zero placeholder balance before trust-line extra is merged', () => {
+    it('includes portfolio assets without a balance row when metadata exists', () => {
       const state = cloneDeep(mockedMergedState);
       const wallet =
         state.accountTree.wallets['entropy:01K1TJY9QPSCKNBSVGZNG510GJ'];
@@ -1252,9 +1252,6 @@ describe('token-selectors', () => {
         iconUrl: '',
         units: [{ name: 'USDC', symbol: 'USDC', decimals: 7 }],
       };
-      state.balances[stellarAccountId] = {
-        [stellarClassic]: { amount: '0', unit: '' },
-      };
 
       const result = selectAssetsBySelectedAccountGroup(state);
       const stellarAssets =
@@ -1263,54 +1260,12 @@ describe('token-selectors', () => {
         ) ?? [];
 
       expect(stellarAssets).toHaveLength(1);
-      expect(stellarAssets[0]?.isStellarTrustlineInactive).toBeUndefined();
+      expect(stellarAssets[0]?.balance).toBe('0');
+      expect(stellarAssets[0]?.rawBalance).toBe('0x0');
+      expect(stellarAssets[0]?.extra).toBeUndefined();
     });
 
-    it('does not mark inactive when balance is positive before trust-line extra is merged', () => {
-      const state = cloneDeep(mockedMergedState);
-      const wallet =
-        state.accountTree.wallets['entropy:01K1TJY9QPSCKNBSVGZNG510GJ'];
-      const group = wallet.groups['entropy:01K1TJY9QPSCKNBSVGZNG510GJ/0'];
-      group.accounts.push(stellarAccountId);
-      state.internalAccounts.accounts[stellarAccountId] = {
-        id: stellarAccountId,
-        type: 'stellar:data-account',
-        address:
-          'GXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX',
-        scopes: [stellarChainId],
-        options: {},
-        methods: [],
-        metadata: {
-          name: 'Stellar',
-          importTime: 0,
-          keyring: { type: 'Snap Keyring' },
-          snap: { id: 'stellar-snap', name: 'Stellar', enabled: true },
-          lastSelected: 0,
-        },
-      };
-      state.accountsAssets[stellarAccountId] = [stellarClassic];
-      state.assetsMetadata[stellarClassic] = {
-        name: 'USDC',
-        symbol: 'USDC',
-        fungible: true,
-        iconUrl: '',
-        units: [{ name: 'USDC', symbol: 'USDC', decimals: 7 }],
-      };
-      state.balances[stellarAccountId] = {
-        [stellarClassic]: { amount: '10', unit: 'USDC' },
-      };
-
-      const result = selectAssetsBySelectedAccountGroup(state);
-      const stellarAssets =
-        result[stellarChainId]?.filter(
-          (asset) => asset.assetId === stellarClassic,
-        ) ?? [];
-
-      expect(stellarAssets).toHaveLength(1);
-      expect(stellarAssets[0]?.isStellarTrustlineInactive).toBeUndefined();
-    });
-
-    it('clears inactive when balance extra has positive limit', () => {
+    it('passes positive limit extra through to asset list items', () => {
       const state = cloneDeep(mockedMergedState);
       const wallet =
         state.accountTree.wallets['entropy:01K1TJY9QPSCKNBSVGZNG510GJ'];
@@ -1355,7 +1310,7 @@ describe('token-selectors', () => {
         ) ?? [];
 
       expect(stellarAssets).toHaveLength(1);
-      expect(stellarAssets[0]?.isStellarTrustlineInactive).toBeUndefined();
+      expect(stellarAssets[0]?.extra).toStrictEqual({ limit: '1000' });
     });
   });
 });

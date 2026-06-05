@@ -10,11 +10,8 @@ import {
   EthScope,
   SolScope,
 } from '@metamask/keyring-api';
-import {
-  KeyringTypes
-  
-} from '@metamask/keyring-controller';
-import type {KeyringControllerState} from '@metamask/keyring-controller';
+import { KeyringTypes } from '@metamask/keyring-controller';
+import { GET_ACCOUNT_ASSET_INFO_CLIENT_METHOD } from '../multichain/accountAssetEnrichment';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
 import type {
@@ -34,7 +31,6 @@ import {
   getDefaultMultichainAssetsControllerState,
   MultichainAssetsController,
 } from '.';
-import { STELLAR_GET_ACCOUNT_ASSET_INFO_CLIENT_METHOD } from '../multichain/stellarAccountAssetInfo';
 import { jestAdvanceTime } from '../../../../tests/helpers';
 import type {
   AssetMetadataResponse,
@@ -311,7 +307,6 @@ const setupController = ({
     handleRequestReturnValue?: CaipAssetTypeOrId[];
     getAllReturnValue?: Snap[];
     getPermissionsReturnValue?: SubjectPermissions<PermissionConstraint>;
-    keyringIsUnlocked?: boolean;
   };
 } = {}): SetupControllerResult => {
   const messenger = getRootMessenger();
@@ -330,14 +325,12 @@ const setupController = ({
       'PermissionController:getPermissions',
       'PhishingController:bulkScanTokens',
       'MultichainBalancesController:mergeAccountBalanceExtras',
-      'KeyringController:getState',
     ],
     events: [
       'AccountsController:accountAdded',
       'AccountsController:accountRemoved',
       'AccountsController:accountAssetListUpdated',
       'AccountsController:accountBalancesUpdated',
-      'KeyringController:stateChanged',
     ],
   });
 
@@ -398,14 +391,6 @@ const setupController = ({
   messenger.registerActionHandler(
     'MultichainBalancesController:mergeAccountBalanceExtras',
     mockMergeAccountBalanceExtras,
-  );
-
-  const mockKeyringGetState = jest.fn();
-  messenger.registerActionHandler(
-    'KeyringController:getState',
-    mockKeyringGetState.mockReturnValue({
-      isUnlocked: mocks?.keyringIsUnlocked ?? false,
-    } as KeyringControllerState),
   );
 
   const controller = new MultichainAssetsController({
@@ -1127,7 +1112,7 @@ describe('MultichainAssetsController', () => {
       ).toStrictEqual([assetToAdd]);
     });
 
-    it('merges limit zero when snap omits asset from getAccountAssetInfo response', async () => {
+    it('does not merge when snap omits all assets from getAccountAssetInfo response', async () => {
       const { controller, mockSnapHandleRequest, mockMergeAccountBalanceExtras } =
         setupController({
           state: {
@@ -1149,8 +1134,7 @@ describe('MultichainAssetsController', () => {
         }) => {
           if (
             params.handler === HandlerType.OnClientRequest &&
-            params.request?.method ===
-              STELLAR_GET_ACCOUNT_ASSET_INFO_CLIENT_METHOD
+            params.request?.method === GET_ACCOUNT_ASSET_INFO_CLIENT_METHOD
           ) {
             return Promise.resolve({});
           }
@@ -1160,15 +1144,10 @@ describe('MultichainAssetsController', () => {
 
       await controller.addAssets([STELLAR_CLASSIC_USDC], mockStellarAccount.id);
 
-      expect(mockMergeAccountBalanceExtras).toHaveBeenCalledWith(
-        mockStellarAccount.id,
-        {
-          [STELLAR_CLASSIC_USDC]: { limit: '0' },
-        },
-      );
+      expect(mockMergeAccountBalanceExtras).not.toHaveBeenCalled();
     });
 
-    it('enriches Stellar classic imports via getAccountAssetInfo without legacy inactive map', async () => {
+    it('merges snap extra as-is when getAccountAssetInfo returns empty extra', async () => {
       const { controller, mockSnapHandleRequest, mockMergeAccountBalanceExtras } =
         setupController({
           state: {
@@ -1190,8 +1169,7 @@ describe('MultichainAssetsController', () => {
         }) => {
           if (
             params.handler === HandlerType.OnClientRequest &&
-            params.request?.method ===
-              STELLAR_GET_ACCOUNT_ASSET_INFO_CLIENT_METHOD
+            params.request?.method === GET_ACCOUNT_ASSET_INFO_CLIENT_METHOD
           ) {
             return Promise.resolve({
               [STELLAR_CLASSIC_USDC]: {},
@@ -1206,7 +1184,7 @@ describe('MultichainAssetsController', () => {
       expect(mockMergeAccountBalanceExtras).toHaveBeenCalledWith(
         mockStellarAccount.id,
         {
-          [STELLAR_CLASSIC_USDC]: { limit: '0' },
+          [STELLAR_CLASSIC_USDC]: {},
         },
       );
     });
@@ -1233,8 +1211,7 @@ describe('MultichainAssetsController', () => {
         }) => {
           if (
             params.handler === HandlerType.OnClientRequest &&
-            params.request?.method ===
-              STELLAR_GET_ACCOUNT_ASSET_INFO_CLIENT_METHOD
+            params.request?.method === GET_ACCOUNT_ASSET_INFO_CLIENT_METHOD
           ) {
             return Promise.resolve({
               [STELLAR_CLASSIC_USDC]: { limit: '1000' },
@@ -1278,8 +1255,7 @@ describe('MultichainAssetsController', () => {
         }) => {
           if (
             params.handler === HandlerType.OnClientRequest &&
-            params.request?.method ===
-              STELLAR_GET_ACCOUNT_ASSET_INFO_CLIENT_METHOD
+            params.request?.method === GET_ACCOUNT_ASSET_INFO_CLIENT_METHOD
           ) {
             return Promise.resolve({
               [STELLAR_CLASSIC_USDC]: {},
@@ -1304,7 +1280,7 @@ describe('MultichainAssetsController', () => {
         expect.objectContaining({
           handler: HandlerType.OnClientRequest,
           request: expect.objectContaining({
-            method: STELLAR_GET_ACCOUNT_ASSET_INFO_CLIENT_METHOD,
+            method: GET_ACCOUNT_ASSET_INFO_CLIENT_METHOD,
             params: expect.objectContaining({
               assets: [STELLAR_CLASSIC_USDC],
               scope: 'stellar:pubnet',
@@ -1315,64 +1291,7 @@ describe('MultichainAssetsController', () => {
       expect(mockMergeAccountBalanceExtras).toHaveBeenCalledWith(
         mockStellarAccount.id,
         {
-          [STELLAR_CLASSIC_USDC]: { limit: '0' },
-        },
-      );
-    });
-
-    it('bootstraps trust-line extra for portfolio classics when keyring unlocks', async () => {
-      const { messenger, mockSnapHandleRequest, mockMergeAccountBalanceExtras } =
-        setupController({
-          state: {
-            accountsAssets: {
-              [mockStellarAccount.id]: [STELLAR_CLASSIC_USDC],
-            },
-            assetsMetadata: {
-              [STELLAR_CLASSIC_USDC]: STELLAR_CLASSIC_USDC_METADATA,
-            },
-            allIgnoredAssets: {},
-          } as MultichainAssetsControllerState,
-          mocks: {
-            listMultichainAccounts: [mockStellarAccount],
-            keyringIsUnlocked: true,
-          },
-        });
-
-      mockSnapHandleRequest.mockImplementation(
-        (params: {
-          handler: string;
-          request?: { method?: string };
-        }) => {
-          if (
-            params.handler === HandlerType.OnClientRequest &&
-            params.request?.method ===
-              STELLAR_GET_ACCOUNT_ASSET_INFO_CLIENT_METHOD
-          ) {
-            return Promise.resolve({
-              [STELLAR_CLASSIC_USDC]: { limit: '500' },
-            });
-          }
-          return Promise.resolve(mockHandleRequestOnAssetsLookupReturnValue);
-        },
-      );
-
-      messenger.publish('KeyringController:stateChanged', {
-        isUnlocked: true,
-      } as KeyringControllerState);
-      await jestAdvanceTime({ duration: 1 });
-
-      expect(mockSnapHandleRequest).toHaveBeenCalledWith(
-        expect.objectContaining({
-          handler: HandlerType.OnClientRequest,
-          request: expect.objectContaining({
-            method: STELLAR_GET_ACCOUNT_ASSET_INFO_CLIENT_METHOD,
-          }),
-        }),
-      );
-      expect(mockMergeAccountBalanceExtras).toHaveBeenCalledWith(
-        mockStellarAccount.id,
-        {
-          [STELLAR_CLASSIC_USDC]: { limit: '500' },
+          [STELLAR_CLASSIC_USDC]: {},
         },
       );
     });

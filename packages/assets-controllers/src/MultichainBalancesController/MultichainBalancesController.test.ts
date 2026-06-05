@@ -158,7 +158,6 @@ function getRestrictedMessenger(
       'AccountsController:accountRemoved',
       'AccountsController:accountBalancesUpdated',
       'MultichainAssetsController:accountAssetListUpdated',
-      'KeyringController:stateChanged',
     ],
   });
   return multichainBalancesControllerMessenger;

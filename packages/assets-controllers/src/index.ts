@@ -218,6 +218,16 @@ export type {
   MultichainAssetsControllerMessenger,
 } from './MultichainAssetsController';
 export {
+  GET_ACCOUNT_ASSET_INFO_CLIENT_METHOD,
+  ACCOUNT_ASSET_INFO_ENRICHMENT_BY_CHAIN,
+  isAccountAssetInfoEnrichmentAvailable,
+  filterAssetsForAccountAssetEnrichment,
+} from './multichain/accountAssetEnrichment';
+export type {
+  AccountAssetInfoExtra,
+  GetAccountAssetInfoResponse,
+} from './multichain/accountAssetEnrichment';
+export {
   isStellarCaipChain,
   isStellarClassicAssetCaip19,
   isStellarTrustlineTrackedAsset,
