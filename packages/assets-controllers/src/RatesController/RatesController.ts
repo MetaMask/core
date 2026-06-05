@@ -62,6 +62,9 @@ const defaultState = {
   cryptocurrencies: [Cryptocurrency.Btc, Cryptocurrency.Solana],
 };
 
+/**
+ * @deprecated This is deprecated and will be removed in a future version. Use `AssetsController` from `@metamask/assets-controller` instead.
+ */
 export class RatesController extends BaseController<
   typeof name,
   RatesControllerState,
@@ -172,6 +175,7 @@ export class RatesController extends BaseController<
   }
 
   /**
+   * @deprecated This is deprecated and will be removed in a future version. Use `AssetsController` from `@metamask/assets-controller` instead.
    * Starts the polling process.
    */
   async start(): Promise<void> {
@@ -189,6 +193,7 @@ export class RatesController extends BaseController<
   }
 
   /**
+   * @deprecated This is deprecated and will be removed in a future version. Use `AssetsController` from `@metamask/assets-controller` instead.
    * Stops the polling process.
    */
   async stop(): Promise<void> {
@@ -202,6 +207,7 @@ export class RatesController extends BaseController<
   }
 
   /**
+   * @deprecated This is deprecated and will be removed in a future version. Use `AssetsController` from `@metamask/assets-controller` instead.
    * Returns the current list of cryptocurrency.
    *
    * @returns The cryptocurrency list.
@@ -212,6 +218,7 @@ export class RatesController extends BaseController<
   }
 
   /**
+   * @deprecated This is deprecated and will be removed in a future version. Use `AssetsController` from `@metamask/assets-controller` instead.
    * Sets the list of supported cryptocurrencies.
    *
    * @param cryptocurrencies - The list of supported cryptocurrencies.
@@ -232,6 +239,7 @@ export class RatesController extends BaseController<
   }
 
   /**
+   * @deprecated This is deprecated and will be removed in a future version. Use `AssetsController` from `@metamask/assets-controller` instead.
    * Sets the internal fiat currency and update rates accordingly.
    *
    * @param fiatCurrency - The fiat currency.

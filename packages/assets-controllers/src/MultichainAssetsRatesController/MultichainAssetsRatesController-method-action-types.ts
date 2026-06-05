@@ -6,6 +6,7 @@
 import type { MultichainAssetsRatesController } from './MultichainAssetsRatesController';
 
 /**
+ * @deprecated This is deprecated and will be removed in a future version. Use `AssetsController` from `@metamask/assets-controller` instead.
  * Updates token conversion rates for each non-EVM account.
  *
  * @returns A promise that resolves when the rates are updated.
@@ -16,6 +17,7 @@ export type MultichainAssetsRatesControllerUpdateAssetsRatesAction = {
 };
 
 /**
+ * @deprecated This is deprecated and will be removed in a future version. Use `AssetsController` from `@metamask/assets-controller` instead.
  * Fetches historical prices for the current account
  *
  * @param asset - The asset to fetch historical prices for.

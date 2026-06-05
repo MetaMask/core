@@ -11,6 +11,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Bump `@metamask/network-enablement-controller` from `^5.2.0` to `^5.3.0` ([#9003](https://github.com/MetaMask/core/pull/9003))
 
+### Deprecated
+
+- Mark legacy assets controllers, their state types, and public methods as deprecated in favor of `AssetsController` from `@metamask/assets-controller`
+  - Affected controllers: `AccountTrackerController`, `CurrencyRateController`, `MultichainAssetsController`, `MultichainAssetsRatesController`, `MultichainBalancesController`, `RatesController`, `TokenBalancesController`, `TokenListController`, `TokenRatesController`, and `TokensController`.
+
 ## [108.5.0]
 
 ### Added

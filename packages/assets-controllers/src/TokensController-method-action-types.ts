@@ -6,6 +6,7 @@
 import type { TokensController } from './TokensController';
 
 /**
+ * @deprecated This is deprecated and will be removed in a future version. Use `AssetsController` from `@metamask/assets-controller` instead.
  * Adds a token to the stored token list.
  *
  * @param options - The method argument object.
@@ -25,6 +26,7 @@ export type TokensControllerAddTokenAction = {
 };
 
 /**
+ * @deprecated This is deprecated and will be removed in a future version. Use `AssetsController` from `@metamask/assets-controller` instead.
  * Add a batch of tokens.
  *
  * @param tokensToImport - Array of tokens to import.
@@ -36,6 +38,7 @@ export type TokensControllerAddTokensAction = {
 };
 
 /**
+ * @deprecated This is deprecated and will be removed in a future version. Use `AssetsController` from `@metamask/assets-controller` instead.
  * Ignore a batch of tokens.
  *
  * @param tokenAddressesToIgnore - Array of token addresses to ignore.
@@ -47,6 +50,7 @@ export type TokensControllerIgnoreTokensAction = {
 };
 
 /**
+ * @deprecated This is deprecated and will be removed in a future version. Use `AssetsController` from `@metamask/assets-controller` instead.
  * Adds a batch of detected tokens to the stored token list.
  *
  * @param incomingDetectedTokens - Array of detected tokens to be added or updated.
@@ -60,6 +64,7 @@ export type TokensControllerAddDetectedTokensAction = {
 };
 
 /**
+ * @deprecated This is deprecated and will be removed in a future version. Use `AssetsController` from `@metamask/assets-controller` instead.
  * Adds isERC721 field to token object. This is called when a user attempts to add tokens that
  * were previously added which do not yet had isERC721 field.
  *
@@ -73,6 +78,7 @@ export type TokensControllerUpdateTokenTypeAction = {
 };
 
 /**
+ * @deprecated This is deprecated and will be removed in a future version. Use `AssetsController` from `@metamask/assets-controller` instead.
  * Adds a new suggestedAsset to the list of watched assets.
  * Parameters will be validated according to the asset type being watched.
  *
@@ -92,6 +98,7 @@ export type TokensControllerWatchAssetAction = {
 };
 
 /**
+ * @deprecated This is deprecated and will be removed in a future version. Use `AssetsController` from `@metamask/assets-controller` instead.
  * Removes all tokens from the ignored list.
  */
 export type TokensControllerClearIgnoredTokensAction = {
@@ -100,6 +107,7 @@ export type TokensControllerClearIgnoredTokensAction = {
 };
 
 /**
+ * @deprecated This is deprecated and will be removed in a future version. Use `AssetsController` from `@metamask/assets-controller` instead.
  * Reset the controller state to the default state.
  */
 export type TokensControllerResetStateAction = {
