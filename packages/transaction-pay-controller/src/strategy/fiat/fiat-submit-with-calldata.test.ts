@@ -12,7 +12,6 @@ import {
   getFiatFeeReserveMultiplier,
   getFiatMaxRateDriftPercent,
 } from '../../utils/feature-flags';
-import { getNetworkClientId } from '../../utils/provider';
 import { getTransaction, updateTransaction } from '../../utils/transaction';
 import { getRelayQuotes } from '../relay/relay-quotes';
 import { submitRelayQuotes } from '../relay/relay-submit';
@@ -21,7 +20,6 @@ import { submitWithCalldataReEncoding } from './fiat-submit-with-calldata';
 import type { FiatQuote } from './types';
 
 jest.mock('../../utils/feature-flags');
-jest.mock('../../utils/provider');
 jest.mock('../../utils/transaction');
 jest.mock('../relay/relay-quotes');
 jest.mock('../relay/relay-submit');
@@ -135,7 +133,6 @@ describe('submitWithCalldataReEncoding', () => {
   const getRelayQuotesMock = jest.mocked(getRelayQuotes);
   const submitRelayQuotesMock = jest.mocked(submitRelayQuotes);
   const getTransactionMock = jest.mocked(getTransaction);
-  const getNetworkClientIdMock = jest.mocked(getNetworkClientId);
   const updateTransactionMock = jest.mocked(updateTransaction);
   const getFiatFeeReserveMultiplierMock = jest.mocked(
     getFiatFeeReserveMultiplier,
@@ -149,7 +146,6 @@ describe('submitWithCalldataReEncoding', () => {
     getRelayQuotesMock.mockResolvedValue([RELAY_QUOTE_MOCK]);
     submitRelayQuotesMock.mockResolvedValue({ transactionHash: '0xabc' });
     getTransactionMock.mockReturnValue(TRANSACTION_MOCK);
-    getNetworkClientIdMock.mockReturnValue('polygon-mainnet');
     getFiatFeeReserveMultiplierMock.mockReturnValue(1);
     getFiatMaxRateDriftPercentMock.mockReturnValue(10);
   });
