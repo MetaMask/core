@@ -3,6 +3,7 @@ import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type { Messenger } from '@metamask/messenger';
 import type { SnapControllerHandleRequestAction } from '@metamask/snaps-controllers';
 import type { SnapId } from '@metamask/snaps-sdk';
+import { HandlerType } from '@metamask/snaps-utils';
 import { string, type as structType } from '@metamask/superstruct';
 import { KnownCaipNamespace, parseCaipChainId } from '@metamask/utils';
 import { v4 as uuid } from 'uuid';
@@ -257,7 +258,7 @@ export class ProofOfOwnershipService {
       {
         snapId: snapId as SnapId,
         origin: 'metamask',
-        handler: 'onClientRequest' as never,
+        handler: HandlerType.OnClientRequest,
         request: {
           id: uuid(),
           jsonrpc: '2.0',
