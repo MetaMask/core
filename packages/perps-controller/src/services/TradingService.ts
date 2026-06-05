@@ -483,7 +483,7 @@ export class TradingService {
         feeDiscountBips,
         operation: () => provider.placeOrder(params),
       });
-      providerCallSucceeded = result.success;
+      providerCallSucceeded = result.success ?? false;
       if (orderSubmissionThresholdTimeoutId !== undefined) {
         clearTimeout(orderSubmissionThresholdTimeoutId);
         orderSubmissionThresholdTimeoutId = undefined;
@@ -566,11 +566,9 @@ export class TradingService {
 
       traceData = {
         success: false,
-        reason: providerCallSucceeded
-          ? 'error'
-          : didExceedOrderSubmissionThreshold
-            ? 'late_error'
-            : 'error',
+        reason: !providerCallSucceeded && didExceedOrderSubmissionThreshold
+          ? 'late_error'
+          : 'error',
         error: error instanceof Error ? error.message : 'Unknown error',
       };
       throw error;
