@@ -1017,6 +1017,13 @@ function getOriginalTxGasParams(
     return undefined;
   }
 
+  const hasAccountOverride =
+    request.from.toLowerCase() !== (txParams.from as Hex).toLowerCase();
+
+  if (hasAccountOverride) {
+    return undefined;
+  }
+
   const nestedGas = transaction.nestedTransactions?.find((tx) => tx.gas)?.gas;
   const gas = nestedGas ?? txParams.gas;
 

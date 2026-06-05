@@ -1311,6 +1311,39 @@ describe('Relay Quotes Utils', () => {
       expect(originalTxParams.value).toBe('0x0');
     });
 
+    it('skips original tx in batch estimation when accountOverride diverges from txParams.from', async () => {
+      successfulFetchMock.mockResolvedValue({
+        ok: true,
+        json: async () => QUOTE_MOCK,
+      } as never);
+
+      await getRelayQuotes({
+        accountSupports7702: true,
+        messenger,
+        requests: [
+          {
+            ...QUOTE_REQUEST_MOCK,
+            from: '0xOverrideEOA' as Hex,
+            targetAmountMinimum: '0',
+            isPostQuote: true,
+          },
+        ],
+        transaction: {
+          ...TRANSACTION_META_MOCK,
+          chainId: '0x1' as Hex,
+          txParams: {
+            from: '0xMoneyAccount' as Hex,
+            to: '0x9' as Hex,
+            data: '0xaaa' as Hex,
+            gas: '0x13498',
+            value: '0',
+          },
+        } as TransactionMeta,
+      });
+
+      expect(estimateGasBatchMock).not.toHaveBeenCalled();
+    });
+
     it('does not prepend original transaction for post-quote when txParams.to is missing', async () => {
       successfulFetchMock.mockResolvedValue({
         ok: true,
