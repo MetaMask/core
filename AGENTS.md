@@ -219,3 +219,33 @@ When adding or updating data services in packages, follow these guidelines:
 - Make sure to write comprehensive tests for the service class.
 
 Use the `sample-gas-prices-service/` directory in the `sample-controllers` package as examples for implementation and tests.
+
+## Cursor Cloud specific instructions
+
+This is a **library monorepo** (shared npm packages for MetaMask Extension/Mobile), not a deployable application. There are no long-running services, Docker Compose stacks, or in-repo E2E apps to start. Verification is done via build, test, and lint.
+
+### Prerequisites
+
+- **Node.js** `^18.18 || >=20` (see `.nvmrc` for LTS)
+- **Yarn 4.16.0** via Corepack: run `corepack enable` before `yarn install`
+
+If a global Yarn 1.x install is on `PATH`, Corepack must be enabled so the repo's `packageManager` field pins Yarn 4.
+
+### Common commands
+
+See `docs/getting-started/setting-up-your-environment.md` and the root `package.json` scripts. Typical workflow:
+
+| Task | Command |
+|------|---------|
+| Install deps | `yarn install` |
+| Build all packages | `yarn build` |
+| Test one package | `yarn workspace <package-name> run test` |
+| Test all packages | `yarn test` |
+| Lint | `yarn lint` |
+
+### Non-obvious caveats
+
+- **`yarn lint:eslint` deletes `dist/`** before linting (`yarn build:only-clean`). Re-run `yarn build` after lint if you need compiled output for runtime imports.
+- **Tests mock external HTTP/RPC** via nock (see `tests/setupAfterEnv/nock.ts`). No Infura, profile-sync, or other live APIs are required.
+- **Package builds use project references.** Building a single workspace package after a clean may fail until dependencies are built; prefer `yarn build` at the repo root.
+- **`@metamask/ramps-controller`** has an optional `dev` script (`node dev-watch.js`) for local rebuild watching; it is not required for tests or CI.
