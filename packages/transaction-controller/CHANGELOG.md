@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Fix EIP-7702 batch transactions not forwarding native value from nested calls ([#8987](https://github.com/MetaMask/core/pull/8987))
+  - `generateEIP7702BatchTransaction` now sums the `value` fields of all nested calls and sets the total as the top-level transaction value. Previously the top-level value was always omitted, causing batches that include native token transfers (e.g. POL swaps) to revert.
+
 ## [67.0.0]
 
 ### Changed

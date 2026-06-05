@@ -627,6 +627,7 @@ describe('EIP-7702 Utils', () => {
       expect(result).toStrictEqual({
         data: DATA_MOCK,
         to: ADDRESS_MOCK,
+        value: '0x13568',
       });
     });
 
@@ -665,6 +666,7 @@ describe('EIP-7702 Utils', () => {
       expect(result).toStrictEqual({
         data: DATA_MOCK,
         to: ADDRESS_MOCK,
+        value: '0x13568',
       });
     });
 
@@ -689,7 +691,45 @@ describe('EIP-7702 Utils', () => {
       expect(result).toStrictEqual({
         data: DATA_MOCK,
         to: ADDRESS_MOCK,
+        value: '0x13568',
       });
+    });
+
+    it('omits value when all nested calls have zero value', () => {
+      const result = generateEIP7702BatchTransaction(ADDRESS_MOCK, [
+        {
+          data: '0x1234',
+          to: ADDRESS_2_MOCK,
+          value: '0x0',
+        },
+        {
+          data: '0x9abc',
+          to: ADDRESS_3_MOCK,
+        },
+      ]);
+
+      expect(result).toStrictEqual({
+        data: expect.any(String),
+        to: ADDRESS_MOCK,
+      });
+      expect(result.value).toBeUndefined();
+    });
+
+    it('sums values from nested calls with mixed zero and non-zero values', () => {
+      const result = generateEIP7702BatchTransaction(ADDRESS_MOCK, [
+        {
+          data: '0x1234',
+          to: ADDRESS_2_MOCK,
+          value: '0x0',
+        },
+        {
+          data: '0x9abc',
+          to: ADDRESS_3_MOCK,
+          value: '0x5678',
+        },
+      ]);
+
+      expect(result.value).toBe('0x5678');
     });
 
     it('uses non-atomic mode when atomic is false', () => {
@@ -713,6 +753,7 @@ describe('EIP-7702 Utils', () => {
       expect(result).toStrictEqual({
         data: DATA_NON_ATOMIC_MOCK,
         to: ADDRESS_MOCK,
+        value: '0x13568',
       });
     });
   });
