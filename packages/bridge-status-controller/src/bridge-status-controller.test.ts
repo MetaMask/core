@@ -3968,6 +3968,7 @@ describe('BridgeStatusController', () => {
                 gasIncluded: true,
                 feeData: {
                   txFee: {
+                    asset: getNativeAssetForChainId(42161),
                     maxFeePerGas: '123',
                     maxPriorityFeePerGas: '123',
                   },
@@ -4008,10 +4009,94 @@ describe('BridgeStatusController', () => {
         {
           "atomic": true,
           "disable7702": true,
+          "excludeNativeTokenForFee": true,
+          "gasFeeToken": undefined,
           "isDelegatedAccount": false,
           "isGasFeeIncluded": false,
           "isGasFeeSponsored": false,
           "requireApproval": false,
+          "skipInitialGasEstimate": false,
+        }
+      `);
+    });
+
+    it('should handle a gasless swap transaction with fees paid in ERC20', async () => {
+      setupEventTrackingMocks(mockMessengerCall);
+      mockMessengerCall.mockReturnValueOnce(mockSelectedAccount);
+      mockMessengerCall.mockReturnValueOnce('arbitrum');
+      addTransactionBatchFn.mockResolvedValueOnce({
+        batchId: 'batchId1',
+      });
+      mockMessengerCall.mockReturnValueOnce({
+        transactions: [{ ...mockEvmTxMeta, batchId: 'batchId1' }],
+      });
+
+      const getAddTransactionBatchParamsSpy = jest.spyOn(
+        transactionUtils,
+        'getAddTransactionBatchParams',
+      );
+
+      await withController(
+        { mockMessengerCall },
+        async ({
+          controller,
+          rootMessenger,
+          startPollingForBridgeTxStatusSpy,
+        }) => {
+          const result = await rootMessenger.call(
+            'BridgeStatusController:submitTx',
+            (mockEvmQuoteResponse.trade as TxData).from,
+            {
+              ...mockEvmQuoteResponse,
+              quote: {
+                ...mockEvmQuoteResponse.quote,
+                gasIncluded: true,
+                feeData: {
+                  txFee: {
+                    asset: {
+                      address: '0x0000000000000000000000000000000000000032',
+                      symbol: 'WETH',
+                      chainId: 10,
+                      assetId: 'eip155:10/slip44:60',
+                      name: 'WETH',
+                      decimals: 18,
+                    },
+                    maxFeePerGas: '123',
+                    maxPriorityFeePerGas: '123',
+                  },
+                },
+              },
+            },
+            true,
+          );
+          controller.stopAllPolling();
+
+          expect(startPollingForBridgeTxStatusSpy).toHaveBeenCalledTimes(0);
+          expect(addTransactionBatchFn).toHaveBeenCalledTimes(1);
+          expect(
+            mockMessengerCall.mock.calls.filter(
+              ([action]) => action === 'TransactionController:addTransaction',
+            ),
+          ).toHaveLength(0);
+          expect(mockMessengerCall).toHaveBeenCalledTimes(8);
+          const { quote, ...history } = controller.state.txHistory[result.id];
+          expect(history).toMatchSnapshot();
+        },
+      );
+
+      const { messenger, tradeData, ...params } =
+        getAddTransactionBatchParamsSpy.mock.calls[0][0];
+      expect(params).toMatchInlineSnapshot(`
+        {
+          "atomic": true,
+          "disable7702": true,
+          "excludeNativeTokenForFee": false,
+          "gasFeeToken": "0x0000000000000000000000000000000000000032",
+          "isDelegatedAccount": false,
+          "isGasFeeIncluded": false,
+          "isGasFeeSponsored": false,
+          "requireApproval": false,
+          "skipInitialGasEstimate": true,
         }
       `);
     });
@@ -4332,10 +4417,13 @@ describe('BridgeStatusController', () => {
         {
           "atomic": true,
           "disable7702": false,
+          "excludeNativeTokenForFee": true,
+          "gasFeeToken": undefined,
           "isDelegatedAccount": true,
           "isGasFeeIncluded": false,
           "isGasFeeSponsored": false,
           "requireApproval": false,
+          "skipInitialGasEstimate": false,
         }
       `);
     });
@@ -4449,10 +4537,13 @@ describe('BridgeStatusController', () => {
         {
           "atomic": true,
           "disable7702": false,
+          "excludeNativeTokenForFee": true,
+          "gasFeeToken": undefined,
           "isDelegatedAccount": false,
           "isGasFeeIncluded": true,
           "isGasFeeSponsored": false,
           "requireApproval": false,
+          "skipInitialGasEstimate": false,
         }
       `);
     });
@@ -4504,10 +4595,13 @@ describe('BridgeStatusController', () => {
         {
           "atomic": true,
           "disable7702": true,
+          "excludeNativeTokenForFee": true,
+          "gasFeeToken": undefined,
           "isDelegatedAccount": false,
           "isGasFeeIncluded": false,
           "isGasFeeSponsored": false,
           "requireApproval": false,
+          "skipInitialGasEstimate": false,
         }
       `);
     });

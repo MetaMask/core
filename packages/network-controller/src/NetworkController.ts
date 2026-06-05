@@ -21,6 +21,10 @@ import {
 import type { PollingBlockTrackerOptions } from '@metamask/eth-block-tracker';
 import EthQuery from '@metamask/eth-query';
 import type { Messenger } from '@metamask/messenger';
+import {
+  RemoteFeatureFlagControllerGetStateAction,
+  RemoteFeatureFlagControllerStateChangeEvent,
+} from '@metamask/remote-feature-flag-controller';
 import { errorCodes } from '@metamask/rpc-errors';
 import {
   createEventEmitterProxy,
@@ -54,7 +58,8 @@ import type {
   NetworkControllerGetNetworkConfigurationByNetworkClientIdAction,
   NetworkControllerMethodActions,
 } from './NetworkController-method-action-types';
-import type { RpcServiceOptions } from './rpc-service/rpc-service';
+import type { RpcServiceOptionsWithDefaults } from './rpc-service/rpc-service';
+import { getIsRpcFailoverEnabled } from './selectors';
 import { NetworkClientType } from './types';
 import type {
   BlockTracker,
@@ -663,7 +668,7 @@ export type NetworkControllerEvents =
 /**
  * All events that {@link NetworkController} calls internally.
  */
-type AllowedEvents = never;
+type AllowedEvents = RemoteFeatureFlagControllerStateChangeEvent;
 
 const MESSENGER_EXPOSED_METHODS = [
   'addNetwork',
@@ -714,7 +719,9 @@ export type NetworkControllerGetNetworkConfigurationByNetworkClientId =
 /**
  * All actions that {@link NetworkController} calls internally.
  */
-type AllowedActions = ConnectivityControllerGetStateAction;
+type AllowedActions =
+  | ConnectivityControllerGetStateAction
+  | RemoteFeatureFlagControllerGetStateAction;
 
 export type NetworkControllerMessenger = Messenger<
   typeof controllerName,
@@ -748,12 +755,12 @@ export type NetworkControllerOptions = {
   /**
    * A function that can be used to customize a RPC service constructed for an
    * RPC endpoint. The function takes the URL of the endpoint and should return
-   * an object with type {@link RpcServiceOptions}, minus `failoverService`
+   * an object with type {@link RpcServiceOptionsWithDefaults}, minus `failoverService`
    * and `endpointUrl` (as they are filled in automatically).
    */
-  getRpcServiceOptions: (
+  getRpcServiceOptions?: (
     rpcEndpointUrl: string,
-  ) => Omit<RpcServiceOptions, 'failoverService' | 'endpointUrl'>;
+  ) => RpcServiceOptionsWithDefaults;
   /**
    * A function that can be used to customize a block tracker constructed for an
    * RPC endpoint. The function takes the URL of the endpoint and should return
@@ -767,11 +774,6 @@ export type NetworkControllerOptions = {
    * An array of Hex Chain IDs representing the additional networks to be included as default.
    */
   additionalDefaultNetworks?: AdditionalDefaultNetwork[];
-  /**
-   * Whether or not requests sent to unavailable RPC endpoints should be
-   * automatically diverted to configured failover RPC endpoints.
-   */
-  isRpcFailoverEnabled?: boolean;
 };
 
 /**
@@ -820,8 +822,11 @@ function getDefaultInfuraNetworkConfigurationsByChainId(): Record<
       const rpcEndpointUrl =
         `https://${infuraNetworkType}.infura.io/v3/{infuraProjectId}` as const;
 
+      const { rpcPrefs } = BUILT_IN_NETWORKS[infuraNetworkType];
+
       const networkConfiguration: NetworkConfiguration = {
-        blockExplorerUrls: [],
+        blockExplorerUrls: [rpcPrefs.blockExplorerUrl],
+        defaultBlockExplorerUrlIndex: 0,
         chainId,
         defaultRpcEndpointIndex: 0,
         name: NetworkNickname[infuraNetworkType],
@@ -1292,10 +1297,7 @@ export class NetworkController extends BaseController<
     NetworkConfiguration
   >;
 
-  #isRpcFailoverEnabled: Exclude<
-    NetworkControllerOptions['isRpcFailoverEnabled'],
-    undefined
-  >;
+  #isRpcFailoverEnabled = false;
 
   /**
    * Constructs a NetworkController.
@@ -1311,7 +1313,6 @@ export class NetworkController extends BaseController<
       getRpcServiceOptions,
       getBlockTrackerOptions,
       additionalDefaultNetworks,
-      isRpcFailoverEnabled = false,
     } = options;
     const initialState = {
       ...getDefaultNetworkControllerState(additionalDefaultNetworks),
@@ -1354,7 +1355,6 @@ export class NetworkController extends BaseController<
     this.#log = log;
     this.#getRpcServiceOptions = getRpcServiceOptions;
     this.#getBlockTrackerOptions = getBlockTrackerOptions;
-    this.#isRpcFailoverEnabled = isRpcFailoverEnabled;
 
     this.#previouslySelectedNetworkClientId =
       this.state.selectedNetworkClientId;
@@ -1391,6 +1391,15 @@ export class NetworkController extends BaseController<
           networkStatus: NetworkStatus.Available,
         });
       },
+    );
+
+    this.messenger.subscribe(
+      // eslint-disable-next-line no-restricted-syntax
+      'RemoteFeatureFlagController:stateChange',
+      (isRpcFailoverEnabled) => {
+        this.#updateRpcFailoverEnabled(isRpcFailoverEnabled);
+      },
+      getIsRpcFailoverEnabled,
     );
   }
 
@@ -1621,6 +1630,14 @@ export class NetworkController extends BaseController<
     this.#applyNetworkSelection(networkClientId, options);
     this.messenger.publish('NetworkController:networkDidChange', this.state);
     await this.lookupNetwork();
+  }
+
+  /**
+   * Initialize the NetworkController, updating the RPC failover feature flag.
+   */
+  init(): void {
+    const state = this.messenger.call('RemoteFeatureFlagController:getState');
+    this.#updateRpcFailoverEnabled(getIsRpcFailoverEnabled(state));
   }
 
   /**

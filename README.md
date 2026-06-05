@@ -424,6 +424,7 @@ linkStyle default opacity:0.5
   network_controller --> eth_json_rpc_provider;
   network_controller --> json_rpc_engine;
   network_controller --> messenger;
+  network_controller --> remote_feature_flag_controller;
   network_enablement_controller --> base_controller;
   network_enablement_controller --> controller_utils;
   network_enablement_controller --> messenger;

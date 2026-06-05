@@ -38,3 +38,7 @@ packages/*/*.tsbuildinfo
 
 # AI
 .sisyphus/
+
+# Docusaurus
+**/.docusaurus
+packages/wallet-framework-docs/site/build

@@ -181,9 +181,11 @@ describe('Relay Quotes Utils', () => {
     estimateGasMock,
     estimateGasBatchMock,
     findNetworkClientIdByChainIdMock,
+    getControllerStateMock,
     getDelegationTransactionMock,
     getGasFeeTokensMock,
     getKeyringControllerStateMock,
+    getPaymentOverrideDataMock,
     getRemoteFeatureFlagControllerStateMock,
     polymarketGetDepositWalletAddressMock,
   } = getMessengerMock();
@@ -2720,6 +2722,284 @@ describe('Relay Quotes Utils', () => {
           51000 + 75000,
         ]);
         expect(result[0].original.metamask.is7702).toBe(true);
+      });
+    });
+
+    describe('Money Account post-quote (processMoneyAccountPostQuote)', () => {
+      const TRANSACTION_ID_MOCK = 'money-account-tx-1';
+      const MONEY_ACCOUNT_RECIPIENT_MOCK =
+        '0xaa00000000000000000000000000000000000001' as Hex;
+      const AMOUNT_HUMAN_MOCK = '100.5';
+      const AMOUNT_RAW_MOCK = '100500000';
+      const OVERRIDE_CALL_MOCK = {
+        to: '0xbb00000000000000000000000000000000000001' as Hex,
+        data: '0xcc' as Hex,
+        value: '0x0' as Hex,
+      };
+
+      const MONEY_ACCOUNT_TX_MOCK = {
+        ...TRANSACTION_META_MOCK,
+        id: TRANSACTION_ID_MOCK,
+      } as TransactionMeta;
+
+      const MONEY_ACCOUNT_REQUEST_MOCK: QuoteRequest = {
+        ...QUOTE_REQUEST_MOCK,
+        isPostQuote: true,
+        paymentOverride: PaymentOverride.MoneyAccount,
+      };
+
+      function setupMoneyAccountMocks({
+        amountHuman = AMOUNT_HUMAN_MOCK,
+        overrideCalls = [OVERRIDE_CALL_MOCK],
+        recipient,
+        authorizationList = DELEGATION_RESULT_MOCK.authorizationList,
+      }: {
+        amountHuman?: string;
+        overrideCalls?: { to: Hex; data: Hex; value: Hex }[];
+        recipient?: Hex;
+        authorizationList?: typeof DELEGATION_RESULT_MOCK.authorizationList;
+      } = {}): void {
+        getControllerStateMock.mockReturnValue({
+          transactionData: {
+            [TRANSACTION_ID_MOCK]: {
+              tokens: [{ amountHuman }],
+            },
+          },
+        } as never);
+
+        getPaymentOverrideDataMock.mockResolvedValue({
+          calls: overrideCalls,
+          ...(recipient ? { recipient } : {}),
+          ...(authorizationList ? { authorizationList } : {}),
+        });
+      }
+
+      it('sets tradeType to EXACT_OUTPUT and amount from request sourceTokenAmount', async () => {
+        setupMoneyAccountMocks();
+        successfulFetchMock.mockResolvedValue({
+          ok: true,
+          json: async () => QUOTE_MOCK,
+        } as never);
+
+        await getRelayQuotes({
+          accountSupports7702: true,
+          messenger,
+          requests: [MONEY_ACCOUNT_REQUEST_MOCK],
+          transaction: MONEY_ACCOUNT_TX_MOCK,
+        });
+
+        const body = JSON.parse(
+          successfulFetchMock.mock.calls[0][1]?.body as string,
+        );
+
+        expect(body.tradeType).toBe('EXACT_OUTPUT');
+        expect(body.amount).toBe(QUOTE_REQUEST_MOCK.sourceTokenAmount);
+      });
+
+      it('includes token transfer and override calls in txs', async () => {
+        setupMoneyAccountMocks({ recipient: MONEY_ACCOUNT_RECIPIENT_MOCK });
+        successfulFetchMock.mockResolvedValue({
+          ok: true,
+          json: async () => QUOTE_MOCK,
+        } as never);
+
+        await getRelayQuotes({
+          accountSupports7702: true,
+          messenger,
+          requests: [MONEY_ACCOUNT_REQUEST_MOCK],
+          transaction: MONEY_ACCOUNT_TX_MOCK,
+        });
+
+        const body = JSON.parse(
+          successfulFetchMock.mock.calls[0][1]?.body as string,
+        );
+
+        expect(body.txs).toHaveLength(2);
+        expect(body.txs[0].to).toBe(QUOTE_REQUEST_MOCK.targetTokenAddress);
+        expect(body.txs[1].to).toBe(OVERRIDE_CALL_MOCK.to);
+        expect(body.txs[1].data).toBe(OVERRIDE_CALL_MOCK.data);
+      });
+
+      it('uses request.from as funding recipient when override provides no recipient', async () => {
+        setupMoneyAccountMocks();
+        successfulFetchMock.mockResolvedValue({
+          ok: true,
+          json: async () => QUOTE_MOCK,
+        } as never);
+
+        await getRelayQuotes({
+          accountSupports7702: true,
+          messenger,
+          requests: [MONEY_ACCOUNT_REQUEST_MOCK],
+          transaction: MONEY_ACCOUNT_TX_MOCK,
+        });
+
+        const body = JSON.parse(
+          successfulFetchMock.mock.calls[0][1]?.body as string,
+        );
+
+        expect(body.txs[0].data).toContain(
+          QUOTE_REQUEST_MOCK.from.slice(2).toLowerCase(),
+        );
+      });
+
+      it('uses override recipient as funding recipient when provided', async () => {
+        setupMoneyAccountMocks({ recipient: MONEY_ACCOUNT_RECIPIENT_MOCK });
+        successfulFetchMock.mockResolvedValue({
+          ok: true,
+          json: async () => QUOTE_MOCK,
+        } as never);
+
+        await getRelayQuotes({
+          accountSupports7702: true,
+          messenger,
+          requests: [MONEY_ACCOUNT_REQUEST_MOCK],
+          transaction: MONEY_ACCOUNT_TX_MOCK,
+        });
+
+        const body = JSON.parse(
+          successfulFetchMock.mock.calls[0][1]?.body as string,
+        );
+
+        expect(body.txs[0].data).toContain(
+          MONEY_ACCOUNT_RECIPIENT_MOCK.slice(2).toLowerCase(),
+        );
+      });
+
+      it('does not set txs when payment override returns no calls', async () => {
+        setupMoneyAccountMocks({ overrideCalls: [] });
+        successfulFetchMock.mockResolvedValue({
+          ok: true,
+          json: async () => QUOTE_MOCK,
+        } as never);
+
+        await getRelayQuotes({
+          accountSupports7702: true,
+          messenger,
+          requests: [MONEY_ACCOUNT_REQUEST_MOCK],
+          transaction: MONEY_ACCOUNT_TX_MOCK,
+        });
+
+        const body = JSON.parse(
+          successfulFetchMock.mock.calls[0][1]?.body as string,
+        );
+
+        expect(body.txs).toBeUndefined();
+        expect(body.tradeType).not.toBe('EXACT_OUTPUT');
+      });
+
+      it('normalizes authorization list from payment override data', async () => {
+        setupMoneyAccountMocks();
+        successfulFetchMock.mockResolvedValue({
+          ok: true,
+          json: async () => QUOTE_MOCK,
+        } as never);
+
+        await getRelayQuotes({
+          accountSupports7702: true,
+          messenger,
+          requests: [MONEY_ACCOUNT_REQUEST_MOCK],
+          transaction: MONEY_ACCOUNT_TX_MOCK,
+        });
+
+        const body = JSON.parse(
+          successfulFetchMock.mock.calls[0][1]?.body as string,
+        );
+
+        expect(body.authorizationList).toStrictEqual([
+          expect.objectContaining({
+            chainId: 1,
+            nonce: 2,
+            yParity: 1,
+          }),
+        ]);
+      });
+
+      it('passes amountHuman and transactionData to getPaymentOverrideData', async () => {
+        setupMoneyAccountMocks();
+        successfulFetchMock.mockResolvedValue({
+          ok: true,
+          json: async () => QUOTE_MOCK,
+        } as never);
+
+        await getRelayQuotes({
+          accountSupports7702: true,
+          messenger,
+          requests: [MONEY_ACCOUNT_REQUEST_MOCK],
+          transaction: MONEY_ACCOUNT_TX_MOCK,
+        });
+
+        expect(getPaymentOverrideDataMock).toHaveBeenCalledWith(
+          expect.objectContaining({
+            amount: AMOUNT_HUMAN_MOCK,
+            transaction: MONEY_ACCOUNT_TX_MOCK,
+          }),
+        );
+      });
+
+      it('defaults amountHuman to 0 when transactionData has no tokens', async () => {
+        getControllerStateMock.mockReturnValue({
+          transactionData: {
+            [TRANSACTION_ID_MOCK]: {},
+          },
+        } as never);
+
+        getPaymentOverrideDataMock.mockResolvedValue({
+          calls: [OVERRIDE_CALL_MOCK],
+        });
+
+        successfulFetchMock.mockResolvedValue({
+          ok: true,
+          json: async () => QUOTE_MOCK,
+        } as never);
+
+        await getRelayQuotes({
+          accountSupports7702: true,
+          messenger,
+          requests: [MONEY_ACCOUNT_REQUEST_MOCK],
+          transaction: MONEY_ACCOUNT_TX_MOCK,
+        });
+
+        expect(getPaymentOverrideDataMock).toHaveBeenCalledWith(
+          expect.objectContaining({ amount: '0' }),
+        );
+      });
+
+      it('defaults call value to 0x0 when override call omits value', async () => {
+        getControllerStateMock.mockReturnValue({
+          transactionData: {
+            [TRANSACTION_ID_MOCK]: {
+              tokens: [
+                {
+                  amountHuman: AMOUNT_HUMAN_MOCK,
+                  amountRaw: AMOUNT_RAW_MOCK,
+                },
+              ],
+            },
+          },
+        } as never);
+
+        getPaymentOverrideDataMock.mockResolvedValue({
+          calls: [{ to: OVERRIDE_CALL_MOCK.to, data: OVERRIDE_CALL_MOCK.data }],
+        });
+
+        successfulFetchMock.mockResolvedValue({
+          ok: true,
+          json: async () => QUOTE_MOCK,
+        } as never);
+
+        await getRelayQuotes({
+          accountSupports7702: true,
+          messenger,
+          requests: [MONEY_ACCOUNT_REQUEST_MOCK],
+          transaction: MONEY_ACCOUNT_TX_MOCK,
+        });
+
+        const body = JSON.parse(
+          successfulFetchMock.mock.calls[0][1]?.body as string,
+        );
+
+        expect(body.txs[1].value).toBe('0x0');
       });
     });
 

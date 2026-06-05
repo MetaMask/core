@@ -167,6 +167,12 @@ export type GetPaymentOverrideDataRequest = {
 export type GetPaymentOverrideDataResponse = {
   /** Batch transaction params to prepend to the submit batch. */
   calls: BatchTransactionParams[];
+
+  /** Optional recipient address for the funding token transfer. */
+  recipient?: Hex;
+
+  /** Optional EIP-7702 authorization list from delegation. */
+  authorizationList?: AuthorizationList;
 };
 
 /**

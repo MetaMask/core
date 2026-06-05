@@ -39,9 +39,9 @@ export const accountsController: InitializationConfiguration<
         // delegation must match until that package migrates to :stateChanged.
         // eslint-disable-next-line no-restricted-syntax
         'KeyringController:stateChange',
-        'SnapKeyring:accountAssetListUpdated',
-        'SnapKeyring:accountBalancesUpdated',
-        'SnapKeyring:accountTransactionsUpdated',
+        'SnapAccountService:accountAssetListUpdated',
+        'SnapAccountService:accountBalancesUpdated',
+        'SnapAccountService:accountTransactionsUpdated',
         'MultichainNetworkController:networkDidChange',
       ],
     });
