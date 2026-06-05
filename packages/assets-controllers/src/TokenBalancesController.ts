@@ -524,8 +524,6 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
         });
       },
     );
-
-
   }
 
   /**
