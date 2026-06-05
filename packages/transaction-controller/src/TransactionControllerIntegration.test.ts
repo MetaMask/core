@@ -325,13 +325,11 @@ const setupController = async (
     getPermittedAccounts: async () => [ACCOUNT_MOCK],
     hooks: {},
     messenger,
-    pendingTransactions: {
-      isResubmitEnabled: () => false,
-    },
     ...givenOptions,
   };
 
   const transactionController = new TransactionController(options);
+  transactionController.initialize();
 
   return {
     transactionController,

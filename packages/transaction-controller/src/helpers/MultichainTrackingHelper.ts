@@ -68,6 +68,8 @@ export class MultichainTrackingHelper {
     networkClientId: NetworkClientId;
   }) => PendingTransactionTracker;
 
+  #initialized = false;
+
   readonly #nonceMutexesByChainId = new Map<Hex, Map<string, Mutex>>();
 
   readonly #trackingMap: Map<
@@ -97,6 +99,10 @@ export class MultichainTrackingHelper {
     this.#createPendingTransactionTracker = createPendingTransactionTracker;
 
     onNetworkStateChange((_, patches) => {
+      if (!this.#initialized) {
+        return;
+      }
+
       const networkClients = this.#getNetworkClientRegistry();
 
       patches.forEach(({ op, path }) => {
@@ -114,6 +120,7 @@ export class MultichainTrackingHelper {
     const networkClients = this.#getNetworkClientRegistry();
 
     this.#refreshTrackingMap(networkClients);
+    this.#initialized = true;
 
     log('Initialized');
   }

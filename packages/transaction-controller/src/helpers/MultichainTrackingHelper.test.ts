@@ -240,9 +240,10 @@ describe('MultichainTrackingHelper', () => {
     it('refreshes the tracking map', () => {
       const { options, helper } = newMultichainTrackingHelper();
 
+      helper.initialize();
       options.onNetworkStateChange.mock.calls[0][0]({} as NetworkState, []);
 
-      expect(options.getNetworkClientRegistry).toHaveBeenCalledTimes(1);
+      expect(options.getNetworkClientRegistry).toHaveBeenCalledTimes(2);
       expect(helper.has('mainnet')).toBe(true);
       expect(helper.has('goerli')).toBe(true);
       expect(helper.has('sepolia')).toBe(true);
@@ -252,6 +253,7 @@ describe('MultichainTrackingHelper', () => {
     it('refreshes the tracking map and excludes removed networkClientIds in the patches', () => {
       const { options, helper } = newMultichainTrackingHelper();
 
+      helper.initialize();
       options.onNetworkStateChange.mock.calls[0][0]({} as NetworkState, [
         {
           op: 'remove',
@@ -260,7 +262,7 @@ describe('MultichainTrackingHelper', () => {
         },
       ]);
 
-      expect(options.getNetworkClientRegistry).toHaveBeenCalledTimes(1);
+      expect(options.getNetworkClientRegistry).toHaveBeenCalledTimes(2);
       expect(helper.has('mainnet')).toBe(false);
       expect(helper.has('goerli')).toBe(true);
       expect(helper.has('sepolia')).toBe(true);
