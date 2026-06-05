@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- Revert "Release/1022.0.0" ([#9019](https://github.com/MetaMask/core/pull/9019))
+- Revert "Release 1023.0.0" ([#9018](https://github.com/MetaMask/core/pull/9018))
+- Release 1023.0.0 ([#9017](https://github.com/MetaMask/core/pull/9017))
+- Release/1022.0.0 ([#9015](https://github.com/MetaMask/core/pull/9015))
+
 ### Added
 
 - Adding processing for postQuote transactions with paymentOverride defined ([#8967](https://github.com/MetaMask/core/pull/8967))

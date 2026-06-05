@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- Revert "Release 1023.0.0" ([#9018](https://github.com/MetaMask/core/pull/9018))
+- Release 1023.0.0 ([#9017](https://github.com/MetaMask/core/pull/9017))
+
 ### Changed
 
 - **BREAKING:** Remove deprecated `TransactionController` constructor options and unused hooks, and replace them with direct messenger calls ([#8983](https://github.com/MetaMask/core/pull/8983))
