@@ -35,6 +35,7 @@ export type SeedlessOnboardingControllerPreloadToprfNodeDetailsAction = {
  * @param params.accessToken - Access token for pairing with profile sync auth service and to access other services.
  * @param params.metadataAccessToken - Metadata access token for accessing the metadata service before the vault is created or unlocked.
  * @param params.skipLock - Optional flag to skip acquiring the controller lock. (to prevent deadlock in case the caller already acquired the lock)
+ * @param params.profilePairingToken - The profile pairing token used to pair the user social profile with the profile sync auth service later after the onboarding is complete.
  * @returns A promise that resolves to the authentication result.
  */
 export type SeedlessOnboardingControllerAuthenticateAction = {
@@ -164,6 +165,18 @@ export type SeedlessOnboardingControllerSetLockedAction = {
   type: `SeedlessOnboardingController:setLocked`;
   handler: SeedlessOnboardingController['setLocked'];
 };
+
+/**
+ * Pair the user social profile with the profile sync auth service.
+ *
+ * @param profileSvcToken - The token from the profile service to pair the user social profile with the profile sync auth service.
+ * @returns A promise that resolves to the success of the operation.
+ */
+export type SeedlessOnboardingControllerPairProfileServiceWithSocialLoginAction =
+  {
+    type: `SeedlessOnboardingController:pairProfileServiceWithSocialLogin`;
+    handler: SeedlessOnboardingController['pairProfileServiceWithSocialLogin'];
+  };
 
 /**
  * Sync the latest global password to the controller.
@@ -357,6 +370,7 @@ export type SeedlessOnboardingControllerMethodActions =
   | SeedlessOnboardingControllerGetSecretDataBackupStateAction
   | SeedlessOnboardingControllerSubmitPasswordAction
   | SeedlessOnboardingControllerSetLockedAction
+  | SeedlessOnboardingControllerPairProfileServiceWithSocialLoginAction
   | SeedlessOnboardingControllerSyncLatestGlobalPasswordAction
   | SeedlessOnboardingControllerSubmitGlobalPasswordAction
   | SeedlessOnboardingControllerCheckIsPasswordOutdatedAction

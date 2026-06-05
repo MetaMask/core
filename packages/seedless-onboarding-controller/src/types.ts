@@ -1,7 +1,19 @@
+import type * as encryptionUtils from '@metamask/browser-passworder';
+import {
+  DefaultEncryptionResult,
+  EncryptionResultConstraint,
+  Encryptor,
+} from '@metamask/keyring-controller';
 import type { KeyPair, NodeAuthTokens } from '@metamask/toprf-secure-backup';
 import type { MutexInterface } from 'async-mutex';
 
-import type { AuthConnection, SecretType } from './constants';
+import {
+  AuthConnection,
+  ProfilePairingStatus,
+  SecretType,
+  Web3AuthNetwork,
+} from './constants';
+import type { SeedlessOnboardingControllerMessenger } from './SeedlessOnboardingController';
 
 /**
  * The backup state of the secret data.
@@ -26,6 +38,11 @@ export type SocialBackupsMetadata = {
    * This is only required for `Mnemonic` secret data.
    */
   keyringId?: string;
+
+  /**
+   * The optional profile pairing status to determine if the secret data is paired with the profile sync service.
+   */
+  profilePairingStatus?: ProfilePairingStatus;
 };
 
 export type AuthenticatedUserDetails = {
@@ -65,6 +82,22 @@ export type AuthenticatedUserDetails = {
    * The refresh token used to refresh expired nodeAuthTokens.
    */
   refreshToken: string;
+
+  /**
+   * The revoke token used to revoke refresh token and get new refresh token and new revoke token.
+   */
+  revokeToken: string;
+
+  /**
+   * The metadata access token used to authenticate with metadata service.
+   */
+  metadataAccessToken: string;
+
+  /**
+   * The profile pairing token used to pair Telegram social logins with the
+   * profile sync auth service.
+   */
+  profilePairingToken?: string;
 };
 
 export type SRPBackedUpUserDetails = {
@@ -156,6 +189,7 @@ export type SeedlessOnboardingControllerState =
 
       /**
        * The access token used for pairing with profile sync auth service and to access other services.
+       * TODO: To be removed after the profile pairing token is implemented for other social logins.
        */
       accessToken?: string;
 
@@ -176,6 +210,12 @@ export type SeedlessOnboardingControllerState =
        * Used to prevent re-running migrations.
        */
       migrationVersion: number;
+
+      /**
+       * The profile pairing token used to pair the user social profile (telegram for now) with the profile sync auth service later after the onboarding is complete.
+       * This is temporarily stored in state during authentication and then persisted in the vault for the later use.
+       */
+      profilePairingToken?: string;
     };
 
 /**
@@ -221,6 +261,90 @@ export type RenewRefreshToken = (params: {
 }>;
 
 /**
+ * Seedless Onboarding Controller Options.
+ *
+ * @param messenger - The messenger to use for this controller.
+ * @param state - The initial state to set on this controller.
+ * @param encryptor - The encryptor to use for encrypting and decrypting seedless onboarding vault.
+ */
+export type SeedlessOnboardingControllerOptions<
+  EncryptionKey = encryptionUtils.EncryptionKey,
+  SupportedKeyDerivationParams = encryptionUtils.KeyDerivationOptions,
+  EncryptionResult extends
+    EncryptionResultConstraint<SupportedKeyDerivationParams> =
+    DefaultEncryptionResult<SupportedKeyDerivationParams>,
+> = {
+  messenger: SeedlessOnboardingControllerMessenger;
+
+  /**
+   * Initial state to set on this controller.
+   */
+  state?: Partial<SeedlessOnboardingControllerState>;
+
+  /**
+   * Encryptor to use for encrypting and decrypting seedless onboarding vault.
+   *
+   * @default browser-passworder @link https://github.com/MetaMask/browser-passworder
+   */
+  encryptor: Encryptor<
+    EncryptionKey,
+    SupportedKeyDerivationParams,
+    EncryptionResult
+  >;
+
+  /**
+   * The base URL of the profile service, which is used to pair the user social profile with the profile sync auth service.
+   */
+  profilePairingEndpoint: string;
+
+  /**
+   * A function to get a new jwt token using refresh token.
+   */
+  refreshJWTToken: RefreshJWTToken;
+
+  /**
+   * A function to revoke the refresh token.
+   */
+  revokeRefreshToken: RevokeRefreshToken;
+
+  /**
+   * A function to renew the refresh token and get new revoke token.
+   */
+  renewRefreshToken: RenewRefreshToken;
+
+  /**
+   * A function to make an HTTP request. e.g. Fetch API.
+   */
+  fetchFunction: typeof fetch;
+
+  /**
+   * Optional key derivation interface for the TOPRF client.
+   *
+   * If provided, it will be used as an additional step during
+   * key derivation. This can be used, for example, to inject a slow key
+   * derivation step to protect against local brute force attacks on the
+   * password.
+   *
+   * @default browser-passworder @link https://github.com/MetaMask/browser-passworder
+   */
+  toprfKeyDeriver?: ToprfKeyDeriver;
+
+  /**
+   * Type of Web3Auth network to be used for the Seedless Onboarding flow.
+   *
+   * @default Web3AuthNetwork.Mainnet
+   */
+  network?: Web3AuthNetwork;
+
+  /**
+   * The TTL of the password outdated cache in milliseconds.
+   *
+   * @default PASSWORD_OUTDATED_CACHE_TTL_MS
+   */
+  passwordOutdatedCacheTTL?: number;
+};
+
+/**
  * A function executed within a mutually exclusive lock, with
  * a mutex releaser in its option bag.
  *
@@ -257,11 +381,15 @@ export type VaultData = {
    * The access token used for pairing with profile sync auth service and to access other services.
    */
   accessToken: string;
+  /**
+   * The profile pairing token used to pair the user social profile with the profile sync auth service later after the onboarding is complete.
+   */
+  profilePairingToken?: string;
 };
 
 export type DeserializedVaultData = Pick<
   VaultData,
-  'accessToken' | 'revokeToken'
+  'accessToken' | 'revokeToken' | 'profilePairingToken'
 > & {
   toprfEncryptionKey: Uint8Array;
   toprfPwEncryptionKey: Uint8Array;

@@ -3,7 +3,6 @@ export {
   getInitialSeedlessOnboardingControllerStateWithDefaults as getDefaultSeedlessOnboardingControllerState,
 } from './SeedlessOnboardingController';
 export type {
-  SeedlessOnboardingControllerOptions,
   SeedlessOnboardingControllerMessenger,
   SeedlessOnboardingControllerGetStateAction,
   SeedlessOnboardingControllerStateChangeEvent,
@@ -37,8 +36,10 @@ export type {
   SeedlessOnboardingControllerCheckNodeAuthTokenExpiredAction,
   SeedlessOnboardingControllerCheckMetadataAccessTokenExpiredAction,
   SeedlessOnboardingControllerCheckAccessTokenExpiredAction,
+  SeedlessOnboardingControllerPairProfileServiceWithSocialLoginAction,
 } from './SeedlessOnboardingController-method-action-types';
 export type {
+  SeedlessOnboardingControllerOptions,
   AuthenticatedUserDetails,
   SocialBackupsMetadata,
   SeedlessOnboardingControllerState,
@@ -51,6 +52,7 @@ export {
   SeedlessOnboardingMigrationVersion,
   AuthConnection,
   SecretType,
+  ProfilePairingStatus,
 } from './constants';
 export { SecretMetadata } from './SecretMetadata';
 export { RecoveryError, SeedlessOnboardingError } from './errors';

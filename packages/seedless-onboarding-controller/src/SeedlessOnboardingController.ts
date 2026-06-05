@@ -43,7 +43,7 @@ import {
   assertIsValidPassword,
   assertIsValidVaultData,
 } from './assertions';
-import type { AuthConnection } from './constants';
+import { AuthConnection, ProfilePairingStatus } from './constants';
 import {
   controllerName,
   PASSWORD_OUTDATED_CACHE_TTL_MS,
@@ -70,7 +70,7 @@ import type {
   RenewRefreshToken,
   VaultData,
   DeserializedVaultData,
-  ToprfKeyDeriver,
+  SeedlessOnboardingControllerOptions,
 } from './types';
 import {
   compareAndGetLatestToken,
@@ -109,6 +109,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'checkNodeAuthTokenExpired',
   'checkMetadataAccessTokenExpired',
   'checkAccessTokenExpired',
+  'pairProfileServiceWithSocialLogin',
 ] as const;
 
 // Actions
@@ -141,80 +142,6 @@ export type SeedlessOnboardingControllerMessenger = Messenger<
   SeedlessOnboardingControllerActions | AllowedActions,
   SeedlessOnboardingControllerEvents | AllowedEvents
 >;
-
-/**
- * Seedless Onboarding Controller Options.
- *
- * @param messenger - The messenger to use for this controller.
- * @param state - The initial state to set on this controller.
- * @param encryptor - The encryptor to use for encrypting and decrypting seedless onboarding vault.
- */
-export type SeedlessOnboardingControllerOptions<
-  EncryptionKey = encryptionUtils.EncryptionKey,
-  SupportedKeyDerivationParams = encryptionUtils.KeyDerivationOptions,
-  EncryptionResult extends
-    EncryptionResultConstraint<SupportedKeyDerivationParams> =
-    DefaultEncryptionResult<SupportedKeyDerivationParams>,
-> = {
-  messenger: SeedlessOnboardingControllerMessenger;
-
-  /**
-   * Initial state to set on this controller.
-   */
-  state?: Partial<SeedlessOnboardingControllerState>;
-
-  /**
-   * Encryptor to use for encrypting and decrypting seedless onboarding vault.
-   *
-   * @default browser-passworder @link https://github.com/MetaMask/browser-passworder
-   */
-  encryptor: Encryptor<
-    EncryptionKey,
-    SupportedKeyDerivationParams,
-    EncryptionResult
-  >;
-
-  /**
-   * A function to get a new jwt token using refresh token.
-   */
-  refreshJWTToken: RefreshJWTToken;
-
-  /**
-   * A function to revoke the refresh token.
-   */
-  revokeRefreshToken: RevokeRefreshToken;
-
-  /**
-   * A function to renew the refresh token and get new revoke token.
-   */
-  renewRefreshToken: RenewRefreshToken;
-
-  /**
-   * Optional key derivation interface for the TOPRF client.
-   *
-   * If provided, it will be used as an additional step during
-   * key derivation. This can be used, for example, to inject a slow key
-   * derivation step to protect against local brute force attacks on the
-   * password.
-   *
-   * @default browser-passworder @link https://github.com/MetaMask/browser-passworder
-   */
-  toprfKeyDeriver?: ToprfKeyDeriver;
-
-  /**
-   * Type of Web3Auth network to be used for the Seedless Onboarding flow.
-   *
-   * @default Web3AuthNetwork.Mainnet
-   */
-  network?: Web3AuthNetwork;
-
-  /**
-   * The TTL of the password outdated cache in milliseconds.
-   *
-   * @default PASSWORD_OUTDATED_CACHE_TTL_MS
-   */
-  passwordOutdatedCacheTTL?: number;
-};
 
 /**
  * Get the initial state for the Seedless Onboarding Controller with defaults.
@@ -383,6 +310,12 @@ const seedlessOnboardingMetadata: StateMetadata<SeedlessOnboardingControllerStat
       includeInDebugSnapshot: true,
       usedInUi: false,
     },
+    profilePairingToken: {
+      includeInStateLogs: false,
+      persist: false,
+      includeInDebugSnapshot: false,
+      usedInUi: false,
+    },
   };
 
 export class SeedlessOnboardingController<
@@ -414,6 +347,10 @@ export class SeedlessOnboardingController<
   #pendingRefreshPromise: Promise<void> | undefined;
 
   readonly toprfClient: ToprfSecureBackup;
+
+  readonly #fetch: typeof fetch;
+
+  readonly #profilePairingEndpoint: string;
 
   readonly #refreshJWTToken: RefreshJWTToken;
 
@@ -447,6 +384,8 @@ export class SeedlessOnboardingController<
    * @param options.messenger - A restricted messenger.
    * @param options.state - Initial state to set on this controller.
    * @param options.encryptor - An optional encryptor to use for encrypting and decrypting seedless onboarding vault.
+   * @param options.fetchFunction - A function to make an HTTP request. e.g. Fetch API.
+   * @param options.profilePairingEndpoint - The base URL of the profile service, which is used to pair the user social profile with the profile sync auth service.
    * @param options.toprfKeyDeriver - An optional key derivation interface for the TOPRF client.
    * @param options.network - The network to be used for the Seedless Onboarding flow.
    * @param options.refreshJWTToken - A function to get a new jwt token using refresh token.
@@ -463,6 +402,8 @@ export class SeedlessOnboardingController<
     refreshJWTToken,
     revokeRefreshToken,
     renewRefreshToken,
+    fetchFunction,
+    profilePairingEndpoint,
     passwordOutdatedCacheTTL = PASSWORD_OUTDATED_CACHE_TTL_MS,
   }: SeedlessOnboardingControllerOptions<
     EncryptionKey,
@@ -486,6 +427,8 @@ export class SeedlessOnboardingController<
       keyDeriver: toprfKeyDeriver,
       fetchMetadataAccessCreds: this.fetchMetadataAccessCreds.bind(this),
     });
+    this.#fetch = fetchFunction;
+    this.#profilePairingEndpoint = profilePairingEndpoint;
     this.#refreshJWTToken = refreshJWTToken;
     this.#revokeRefreshToken = revokeRefreshToken;
     this.#renewRefreshToken = renewRefreshToken;
@@ -552,6 +495,7 @@ export class SeedlessOnboardingController<
    * @param params.accessToken - Access token for pairing with profile sync auth service and to access other services.
    * @param params.metadataAccessToken - Metadata access token for accessing the metadata service before the vault is created or unlocked.
    * @param params.skipLock - Optional flag to skip acquiring the controller lock. (to prevent deadlock in case the caller already acquired the lock)
+   * @param params.profilePairingToken - The profile pairing token used to pair the user social profile with the profile sync auth service later after the onboarding is complete.
    * @returns A promise that resolves to the authentication result.
    */
   async authenticate(params: {
@@ -566,6 +510,7 @@ export class SeedlessOnboardingController<
     refreshToken: string;
     revokeToken?: string;
     skipLock?: boolean;
+    profilePairingToken?: string;
   }): Promise<AuthenticateResult> {
     const doAuthenticateWithNodes = async (): Promise<AuthenticateResult> => {
       try {
@@ -580,6 +525,7 @@ export class SeedlessOnboardingController<
           revokeToken,
           accessToken,
           metadataAccessToken,
+          profilePairingToken,
         } = params;
 
         const authenticationResult = await this.toprfClient.authenticate({
@@ -603,6 +549,14 @@ export class SeedlessOnboardingController<
             state.revokeToken = revokeToken;
           }
           state.accessToken = accessToken;
+          if (authConnection === AuthConnection.Telegram) {
+            if (!profilePairingToken) {
+              throw new Error(
+                SeedlessOnboardingControllerErrorMessage.InvalidProfilePairingToken,
+              );
+            }
+            state.profilePairingToken = profilePairingToken;
+          }
 
           // we will check if the controller state is properly set with the authenticated user info
           // before setting the isSeedlessOnboardingUserAuthenticated to true
@@ -1143,10 +1097,97 @@ export class SeedlessOnboardingController<
         delete state.vaultEncryptionSalt;
         delete state.revokeToken;
         delete state.accessToken;
+        delete state.profilePairingToken;
       });
 
       this.#cachedDecryptedVaultData = undefined;
       this.#isUnlocked = false;
+    });
+  }
+
+  /**
+   * Pair the user social profile with the profile sync auth service.
+   *
+   * @param profileSvcToken - The token from the profile service to pair the user social profile with the profile sync auth service.
+   * @returns A promise that resolves to the success of the operation.
+   */
+  async pairProfileServiceWithSocialLogin(
+    profileSvcToken: string,
+  ): Promise<void> {
+    return await this.#withControllerLock(async () => {
+      this.#assertIsUnlocked();
+
+      try {
+        const { profilePairingToken, authConnection, socialBackupsMetadata } =
+          this.state;
+
+        if (authConnection !== AuthConnection.Telegram) {
+          // We only support profile pairing for Telegram right now, so other
+          // social logins should always be treated as a no-op.
+          log(
+            `warning: skipping profile pairing for ${authConnection} social login`,
+          );
+          return;
+        }
+
+        if (socialBackupsMetadata.length < 1) {
+          throw new Error(
+            SeedlessOnboardingControllerErrorMessage.NoSocialBackups,
+          );
+        }
+
+        // For now, we only support profile pairing for the primary SRP.
+        const profilePairingStatus =
+          socialBackupsMetadata[0]?.profilePairingStatus;
+        if (profilePairingStatus === ProfilePairingStatus.Paired) {
+          log('Profile pairing already completed');
+          return;
+        }
+
+        if (!profilePairingToken) {
+          log(
+            'Error: profile pairing token is not available for Telegram social login',
+          );
+          throw new Error(
+            SeedlessOnboardingControllerErrorMessage.InvalidProfilePairingToken,
+          );
+        }
+
+        const response = await this.#fetch(this.#profilePairingEndpoint, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${profileSvcToken}`,
+          },
+          body: JSON.stringify({
+            jwts: [profilePairingToken],
+          }),
+        });
+
+        if (!response.ok) {
+          throw new Error(
+            SeedlessOnboardingControllerErrorMessage.FailedToPairSocialLoginWithIdentityProfileService,
+          );
+        }
+
+        this.update((state) => {
+          const primarySocialBackup = state.socialBackupsMetadata[0];
+          if (primarySocialBackup) {
+            primarySocialBackup.profilePairingStatus =
+              ProfilePairingStatus.Paired;
+          }
+        });
+      } catch (error) {
+        log('Error pairing profile service with social login', error);
+        this.update((state) => {
+          const primarySocialBackup = state.socialBackupsMetadata[0];
+          if (primarySocialBackup) {
+            primarySocialBackup.profilePairingStatus =
+              ProfilePairingStatus.PairingFailed;
+          }
+        });
+        throw error;
+      }
     });
   }
 
@@ -1374,7 +1415,15 @@ export class SeedlessOnboardingController<
   async getIsUserAuthenticated(): Promise<boolean> {
     try {
       this.#assertIsAuthenticatedUser(this.state);
-      return Boolean(this.state.accessToken) && Boolean(this.state.revokeToken);
+      const accessTokenAndRevokeTokenAreSet =
+        Boolean(this.state.accessToken) && Boolean(this.state.revokeToken);
+      if (this.state.authConnection === AuthConnection.Telegram) {
+        return (
+          accessTokenAndRevokeTokenAreSet &&
+          Boolean(this.state.profilePairingToken)
+        );
+      }
+      return accessTokenAndRevokeTokenAreSet;
     } catch {
       return false;
     }
@@ -1816,15 +1865,22 @@ export class SeedlessOnboardingController<
 
       const { vaultData, vaultEncryptionKey, vaultEncryptionSalt } =
         await this.#decryptAndParseVaultData(params);
+      const profilePairingToken =
+        this.state.profilePairingToken ?? vaultData.profilePairingToken;
+      const unlockedVaultData = {
+        ...vaultData,
+        profilePairingToken,
+      };
 
       this.update((state) => {
         state.vaultEncryptionKey = vaultEncryptionKey;
         state.vaultEncryptionSalt = vaultEncryptionSalt;
         state.revokeToken = vaultData.revokeToken;
         state.accessToken = vaultData.accessToken;
+        state.profilePairingToken = profilePairingToken;
       });
 
-      const deserializedVaultData = deserializeVaultData(vaultData);
+      const deserializedVaultData = deserializeVaultData(unlockedVaultData);
       this.#cachedDecryptedVaultData = deserializedVaultData;
       return deserializedVaultData;
     });
@@ -2017,8 +2073,8 @@ export class SeedlessOnboardingController<
   }): Promise<void> {
     this.#assertIsAuthenticatedUser(this.state);
 
-    const { accessToken, revokeToken } =
-      await this.#getAccessTokenAndRevokeToken(password);
+    const { accessToken, revokeToken, profilePairingToken } =
+      await this.#getRevokeTokenAndProfilePairingTokens(password);
 
     const vaultData: DeserializedVaultData = {
       toprfAuthKeyPair: rawToprfAuthKeyPair,
@@ -2026,6 +2082,7 @@ export class SeedlessOnboardingController<
       toprfPwEncryptionKey: rawToprfPwEncryptionKey,
       revokeToken,
       accessToken,
+      profilePairingToken,
     };
 
     await this.#updateVault({
@@ -2148,19 +2205,21 @@ export class SeedlessOnboardingController<
   }
 
   /**
-   * Get the access token and revoke token from the state or the vault.
+   * Get the revoke token and profile pairing tokens (accessToken and profilePairingToken) from the state or the vault.
    *
    * @param password - The password to decrypt the vault.
    * @returns The access token and revoke token.
    */
-  async #getAccessTokenAndRevokeToken(
-    password: string,
-  ): Promise<{ accessToken: string; revokeToken: string }> {
-    let { accessToken, revokeToken } = this.state;
+  async #getRevokeTokenAndProfilePairingTokens(password: string): Promise<{
+    revokeToken: string;
+    accessToken: string;
+    profilePairingToken?: string;
+  }> {
+    let { accessToken, revokeToken, profilePairingToken } = this.state;
     // `accessToken` and `revokeToken` are both available in the state, `ONLY` when the wallet (vault) is unlocked
     // or during the period between the social authentication and the vault creation during the onboarding flow.
     if (accessToken && revokeToken) {
-      return { accessToken, revokeToken };
+      return { accessToken, profilePairingToken, revokeToken };
     }
 
     // if `password` is provided to decrypt the vault, decrypt the vault and get the access token and revoke token from the vault
@@ -2169,6 +2228,8 @@ export class SeedlessOnboardingController<
       const { vaultData } = await this.#decryptAndParseVaultData({ password });
       accessToken = accessToken ?? vaultData.accessToken;
       revokeToken = revokeToken ?? vaultData.revokeToken;
+      profilePairingToken =
+        profilePairingToken ?? vaultData.profilePairingToken;
     }
 
     // we should always throw an error if the access token or revoke token is not available
@@ -2186,7 +2247,7 @@ export class SeedlessOnboardingController<
       );
     }
 
-    return { accessToken, revokeToken };
+    return { accessToken, profilePairingToken, revokeToken };
   }
 
   /**
@@ -2791,7 +2852,7 @@ export class SeedlessOnboardingController<
       this.#assertIsAuthenticatedUser(this.state);
       const { metadataAccessToken } = this.state;
       // assertIsAuthenticatedUser will throw if metadataAccessToken is missing
-      const decodedToken = decodeJWTToken(metadataAccessToken as string);
+      const decodedToken = decodeJWTToken(metadataAccessToken);
       return isTokenNearExpiry(decodedToken.exp, decodedToken.iat);
     } catch {
       return true; // Consider unauthenticated user as having expired tokens

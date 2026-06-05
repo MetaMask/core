@@ -13,6 +13,7 @@ export enum Web3AuthNetwork {
 export enum AuthConnection {
   Google = 'google',
   Apple = 'apple',
+  Telegram = 'telegram',
 }
 
 export enum SecretType {
@@ -22,6 +23,12 @@ export enum SecretType {
 
 export enum SeedlessOnboardingMigrationVersion {
   V1 = 1,
+}
+
+export enum ProfilePairingStatus {
+  NotPaired = 'not_paired',
+  Paired = 'paired',
+  PairingFailed = 'pairing_failed',
 }
 
 export enum SeedlessOnboardingControllerErrorMessage {
@@ -36,6 +43,7 @@ export enum SeedlessOnboardingControllerErrorMessage {
   InvalidRevokeToken = `${controllerName} - Invalid revoke token`,
   InvalidAccessToken = `${controllerName} - Invalid access token`,
   InvalidMetadataAccessToken = `${controllerName} - Invalid metadata access token`,
+  InvalidProfilePairingToken = `${controllerName} - Invalid profile pairing token`,
   MissingCredentials = `${controllerName} - Cannot unlock vault without password and encryption key`,
   ExpiredCredentials = `${controllerName} - Encryption key and salt provided are expired`,
   InvalidEmptyPassword = `${controllerName} - Password cannot be empty.`,
@@ -45,6 +53,7 @@ export enum SeedlessOnboardingControllerErrorMessage {
   VaultError = `${controllerName} - Cannot unlock without a previous vault.`,
   InvalidSecretMetadata = `${controllerName} - Invalid secret metadata`,
   MissingKeyringId = `${controllerName} - Keyring ID is required to store SRP backups.`,
+  NoSocialBackups = `${controllerName} - No social backups found`,
   FailedToEncryptAndStoreSecretData = `${controllerName} - Failed to encrypt and store secret data`,
   FailedToFetchSecretMetadata = `${controllerName} - Failed to fetch secret metadata`,
   NoSecretDataFound = `${controllerName} - No secret data found`,
@@ -62,4 +71,5 @@ export enum SeedlessOnboardingControllerErrorMessage {
   InvalidPasswordOutdatedCache = `${controllerName} - Invalid password outdated cache provided.`,
   FailedToRefreshJWTTokens = `${controllerName} - Failed to refresh JWT tokens`,
   PrimarySrpCannotBeAddedViaAddNewSecretData = `${controllerName} - PrimarySrp cannot be added via addNewSecretData. Use createToprfKeyAndBackupSeedPhrase instead.`,
+  FailedToPairSocialLoginWithIdentityProfileService = `${controllerName} - Failed to pair social login with identity profile service`,
 }
