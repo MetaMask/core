@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Update `NetworkNickname` to match latest client overrides ([#9005](https://github.com/MetaMask/core/pull/9005))
+
 ## [12.1.0]
 
 ### Added
