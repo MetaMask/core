@@ -679,8 +679,9 @@ describe('KeyringController', () => {
           async ({ controller }) => {
             await controller.createNewVaultAndKeychain(password);
 
-            const currentSeedPhrase =
-              await controller.exportSeedPhrase({ password });
+            const currentSeedPhrase = await controller.exportSeedPhrase({
+              password,
+            });
 
             expect(currentSeedPhrase.length).toBeGreaterThan(0);
             expect(
@@ -794,13 +795,17 @@ describe('KeyringController', () => {
     describe('when there is an existing vault', () => {
       it('should not create a new vault or keychain', async () => {
         await withController(async ({ controller, initialState }) => {
-          const initialSeedWord = await controller.exportSeedPhrase({ password });
+          const initialSeedWord = await controller.exportSeedPhrase({
+            password,
+          });
           expect(initialSeedWord).toBeDefined();
           const initialVault = controller.state.vault;
 
           await controller.createNewVaultAndKeychain(password);
 
-          const currentSeedWord = await controller.exportSeedPhrase({ password });
+          const currentSeedWord = await controller.exportSeedPhrase({
+            password,
+          });
           expect(initialState).toStrictEqual(controller.state);
           expect(initialSeedWord).toBe(currentSeedWord);
           expect(initialVault).toStrictEqual(controller.state.vault);
@@ -867,9 +872,9 @@ describe('KeyringController', () => {
 
           primaryKeyring.mnemonic = '';
 
-          await expect(controller.exportSeedPhrase({ password })).rejects.toThrow(
-            "Can't get mnemonic bytes from keyring",
-          );
+          await expect(
+            controller.exportSeedPhrase({ password }),
+          ).rejects.toThrow("Can't get mnemonic bytes from keyring");
         });
       });
     });
@@ -886,7 +891,10 @@ describe('KeyringController', () => {
         it('should export seed phrase with valid keyringId', async () => {
           await withController(async ({ controller, initialState }) => {
             const keyringId = initialState.keyrings[0].metadata.id;
-            const seed = await controller.exportSeedPhrase({ password }, keyringId);
+            const seed = await controller.exportSeedPhrase(
+              { password },
+              keyringId,
+            );
             expect(seed).not.toBe('');
           });
         });
@@ -906,9 +914,9 @@ describe('KeyringController', () => {
             jest
               .spyOn(encryptor, 'decrypt')
               .mockRejectedValueOnce(new Error('Invalid password'));
-            await expect(controller.exportSeedPhrase({ password: '' })).rejects.toThrow(
-              'Invalid password',
-            );
+            await expect(
+              controller.exportSeedPhrase({ password: '' }),
+            ).rejects.toThrow('Invalid password');
           });
         });
 
@@ -1004,15 +1012,17 @@ describe('KeyringController', () => {
 
       describe('when wrong password is provided', () => {
         it('should throw error', async () => {
-          await withController(async ({ controller, initialState, encryptor }) => {
-            const account = initialState.keyrings[0].accounts[0];
-            jest
-              .spyOn(encryptor, 'decrypt')
-              .mockRejectedValueOnce(new Error('Invalid password'));
-            await expect(
-              controller.exportAccount({ password: '' }, account),
-            ).rejects.toThrow('Invalid password');
-          });
+          await withController(
+            async ({ controller, initialState, encryptor }) => {
+              const account = initialState.keyrings[0].accounts[0];
+              jest
+                .spyOn(encryptor, 'decrypt')
+                .mockRejectedValueOnce(new Error('Invalid password'));
+              await expect(
+                controller.exportAccount({ password: '' }, account),
+              ).rejects.toThrow('Invalid password');
+            },
+          );
         });
       });
 
@@ -1032,16 +1042,18 @@ describe('KeyringController', () => {
 
       describe('when wrong encryption key is provided', () => {
         it('should throw the decryption error', async () => {
-          await withController(async ({ controller, initialState, encryptor }) => {
-            const account = initialState.keyrings[0].accounts[0];
-            const encryptionKey = await controller.exportEncryptionKey();
-            jest
-              .spyOn(encryptor, 'decryptWithKey')
-              .mockRejectedValueOnce(new Error('Invalid key'));
-            await expect(
-              controller.exportAccount({ encryptionKey }, account),
-            ).rejects.toThrow('Invalid key');
-          });
+          await withController(
+            async ({ controller, initialState, encryptor }) => {
+              const account = initialState.keyrings[0].accounts[0];
+              const encryptionKey = await controller.exportEncryptionKey();
+              jest
+                .spyOn(encryptor, 'decryptWithKey')
+                .mockRejectedValueOnce(new Error('Invalid key'));
+              await expect(
+                controller.exportAccount({ encryptionKey }, account),
+              ).rejects.toThrow('Invalid key');
+            },
+          );
         });
       });
     });

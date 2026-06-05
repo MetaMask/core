@@ -1070,7 +1070,9 @@ export class KeyringController<
    * @param credentials - Object holding either the `password` or the vault
    * `encryptionKey`.
    */
-  async #verifyCredentials(credentials: VerificationCredentials): Promise<void> {
+  async #verifyCredentials(
+    credentials: VerificationCredentials,
+  ): Promise<void> {
     if ('password' in credentials) {
       await this.verifyPassword(credentials.password);
     } else {
