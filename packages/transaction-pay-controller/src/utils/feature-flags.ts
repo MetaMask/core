@@ -95,6 +95,10 @@ type FiatFlags = {
   maxRateDriftPercent?: number;
 };
 
+type PostQuoteFlags = {
+  gasBuffer?: number;
+};
+
 type StrategyRoutingConfig = {
   payStrategies: {
     across: {
@@ -825,6 +829,7 @@ export function getFiatAssetPerTransactionType(
 
 const DEFAULT_FEE_RESERVE_MULTIPLIER = 1;
 const DEFAULT_MAX_RATE_DRIFT_PERCENT = 10;
+const DEFAULT_POST_QUOTE_GAS_BUFFER = 1.1;
 
 /**
  * Returns the fee reserve multiplier for fiat three-phase submit.
@@ -874,6 +879,26 @@ export function getFiatMaxRateDriftPercent(
   return typeof maxDrift === 'number' && maxDrift > 0
     ? maxDrift
     : DEFAULT_MAX_RATE_DRIFT_PERCENT;
+}
+
+/**
+ * Returns the gas buffer multiplier for post-quote gas reservations.
+ *
+ * @param messenger - Controller messenger.
+ * @returns The gas buffer multiplier.
+ */
+export function getPostQuoteGasBuffer(
+  messenger: TransactionPayControllerMessenger,
+): number {
+  const state = messenger.call('RemoteFeatureFlagController:getState');
+  const postQuoteFlags = state.remoteFeatureFlags
+    ?.confirmations_pay_post_quote as PostQuoteFlags | undefined;
+
+  const buffer = postQuoteFlags?.gasBuffer;
+
+  return typeof buffer === 'number' && buffer > 0
+    ? buffer
+    : DEFAULT_POST_QUOTE_GAS_BUFFER;
 }
 
 /**

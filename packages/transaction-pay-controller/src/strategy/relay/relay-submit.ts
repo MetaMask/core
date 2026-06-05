@@ -429,6 +429,8 @@ async function submitTransactions(
       : ({
           data: transaction.txParams.data as Hex | undefined,
           from: transaction.txParams.from,
+          maxFeePerGas: normalizedParams[0]?.maxFeePerGas,
+          maxPriorityFeePerGas: normalizedParams[0]?.maxPriorityFeePerGas,
           to: transaction.txParams.to,
           value: transaction.txParams.value as Hex | undefined,
         } as TransactionParams);

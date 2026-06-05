@@ -931,11 +931,17 @@ describe('Relay Quotes Utils', () => {
       expect(body.refundTo).toBeUndefined();
     });
 
-    it('estimates only relay transactions for post-quote', async () => {
+    it('includes original transaction in batch gas estimation for post-quote', async () => {
       successfulFetchMock.mockResolvedValue({
         ok: true,
         json: async () => QUOTE_MOCK,
       } as never);
+
+      estimateGasBatchMock.mockResolvedValue({
+        gasLimits: [100000],
+        totalGasEstimate: 100000,
+        totalGasLimit: 100000,
+      });
 
       const postQuoteTransaction = {
         ...TRANSACTION_META_MOCK,
@@ -962,18 +968,28 @@ describe('Relay Quotes Utils', () => {
         transaction: postQuoteTransaction,
       });
 
-      // Original transaction should NOT be included in gas estimation.
-      // Only relay step params are estimated.
-      expect(estimateGasBatchMock).not.toHaveBeenCalled();
+      expect(estimateGasBatchMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          transactions: expect.arrayContaining([
+            expect.objectContaining({ data: '0xaaa' }),
+          ]),
+        }),
+      );
     });
 
-    it('adds original transaction gas to single relay gas limit for post-quote', async () => {
+    it('returns combined 7702 gas limit for post-quote with original tx', async () => {
       successfulFetchMock.mockResolvedValue({
         ok: true,
         json: async () => QUOTE_MOCK,
       } as never);
 
       getGasBufferMock.mockReturnValue(1);
+
+      estimateGasBatchMock.mockResolvedValue({
+        gasLimits: [100000],
+        totalGasEstimate: 100000,
+        totalGasLimit: 100000,
+      });
 
       const result = await getRelayQuotes({
         accountSupports7702: true,
@@ -998,19 +1014,23 @@ describe('Relay Quotes Utils', () => {
         } as TransactionMeta,
       });
 
-      expect(result[0].original.metamask.gasLimits).toStrictEqual([
-        79000, 21000,
-      ]);
-      expect(result[0].original.metamask.is7702).toBe(false);
+      expect(result[0].original.metamask.gasLimits).toStrictEqual([100000]);
+      expect(result[0].original.metamask.is7702).toBe(true);
     });
 
-    it('prefers nestedTransactions gas over txParams.gas for post-quote', async () => {
+    it('prefers nestedTransactions gas over txParams.gas for post-quote batch estimation', async () => {
       successfulFetchMock.mockResolvedValue({
         ok: true,
         json: async () => QUOTE_MOCK,
       } as never);
 
       getGasBufferMock.mockReturnValue(1);
+
+      estimateGasBatchMock.mockResolvedValue({
+        gasLimits: [71000],
+        totalGasEstimate: 71000,
+        totalGasLimit: 71000,
+      });
 
       const result = await getRelayQuotes({
         accountSupports7702: true,
@@ -1036,13 +1056,19 @@ describe('Relay Quotes Utils', () => {
         } as TransactionMeta,
       });
 
-      expect(result[0].original.metamask.gasLimits).toStrictEqual([
-        50000, 21000,
-      ]);
-      expect(result[0].original.metamask.is7702).toBe(false);
+      expect(estimateGasBatchMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          transactions: expect.arrayContaining([
+            expect.objectContaining({ gas: '0xC350' }),
+          ]),
+        }),
+      );
+
+      expect(result[0].original.metamask.gasLimits).toStrictEqual([71000]);
+      expect(result[0].original.metamask.is7702).toBe(true);
     });
 
-    it('adds original transaction gas to EIP-7702 combined gas limit for post-quote', async () => {
+    it('returns combined 7702 gas limit for post-quote with multi-step relay', async () => {
       const multiStepQuote = {
         ...QUOTE_MOCK,
         steps: [
@@ -1069,10 +1095,9 @@ describe('Relay Quotes Utils', () => {
 
       getGasBufferMock.mockReturnValue(1);
 
-      // EIP-7702: batch returns single combined gas for multiple relay txs
       estimateGasBatchMock.mockResolvedValue({
-        totalGasLimit: 51000,
-        gasLimits: [51000],
+        totalGasLimit: 130000,
+        gasLimits: [130000],
       });
 
       const result = await getRelayQuotes({
@@ -1098,12 +1123,11 @@ describe('Relay Quotes Utils', () => {
         } as TransactionMeta,
       });
 
-      // EIP-7702: original tx gas (79000) added to combined relay gas (51000)
       expect(result[0].original.metamask.gasLimits).toStrictEqual([130000]);
       expect(result[0].original.metamask.is7702).toBe(true);
     });
 
-    it('prepends original transaction gas to multiple relay gas limits for post-quote', async () => {
+    it('returns per-tx gas limits for post-quote with multi-step non-7702 relay', async () => {
       const multiStepQuote = {
         ...QUOTE_MOCK,
         steps: [
@@ -1130,10 +1154,9 @@ describe('Relay Quotes Utils', () => {
 
       getGasBufferMock.mockReturnValue(1);
 
-      // Multiple gas limits (not 7702 combined): batch returns per-tx limits
       estimateGasBatchMock.mockResolvedValue({
-        totalGasLimit: 51000,
-        gasLimits: [21000, 30000],
+        totalGasLimit: 130000,
+        gasLimits: [79000, 21000, 30000],
       });
 
       const result = await getRelayQuotes({
@@ -1159,18 +1182,23 @@ describe('Relay Quotes Utils', () => {
         } as TransactionMeta,
       });
 
-      // Original tx gas (79000) prepended to relay gas limits [21000, 30000]
       expect(result[0].original.metamask.gasLimits).toStrictEqual([
         79000, 21000, 30000,
       ]);
       expect(result[0].original.metamask.is7702).toBe(false);
     });
 
-    it('skips original transaction gas when txParams.gas is missing for post-quote', async () => {
+    it('includes original tx without gas in batch estimation for post-quote', async () => {
       successfulFetchMock.mockResolvedValue({
         ok: true,
         json: async () => QUOTE_MOCK,
       } as never);
+
+      estimateGasBatchMock.mockResolvedValue({
+        gasLimits: [80000],
+        totalGasEstimate: 80000,
+        totalGasLimit: 80000,
+      });
 
       const result = await getRelayQuotes({
         accountSupports7702: true,
@@ -1194,15 +1222,12 @@ describe('Relay Quotes Utils', () => {
         } as TransactionMeta,
       });
 
-      // No gas on txParams or nestedTransactions — only relay gas limits
-      expect(result[0].original.metamask.gasLimits).toStrictEqual([21000]);
-      expect(result[0].original.metamask.is7702).toBe(false);
+      expect(estimateGasBatchMock).toHaveBeenCalled();
+      expect(result[0].original.metamask.gasLimits).toStrictEqual([80000]);
+      expect(result[0].original.metamask.is7702).toBe(true);
     });
 
-    it('preserves estimate vs limit distinction when using fallback gas for post-quote', async () => {
-      // Use a quote whose relay step has NO gas param so the single-path
-      // estimation is attempted; make it fail to trigger the fallback path
-      // where estimate (900 000) != max (1 500 000).
+    it('uses batch estimation with original tx for post-quote even when relay step has no gas', async () => {
       const noGasQuote = cloneDeep(QUOTE_MOCK);
       delete noGasQuote.steps[0].items[0].data.gas;
 
@@ -1211,9 +1236,15 @@ describe('Relay Quotes Utils', () => {
         json: async () => noGasQuote,
       } as never);
 
-      estimateGasMock.mockRejectedValue(new Error('Estimation failed'));
+      estimateGasBatchMock.mockResolvedValue({
+        gasLimits: [1000000],
+        totalGasEstimate: 1000000,
+        totalGasLimit: 1000000,
+      });
 
-      await getRelayQuotes({
+      getGasBufferMock.mockReturnValue(1);
+
+      const result = await getRelayQuotes({
         accountSupports7702: true,
         messenger,
         requests: [
@@ -1230,25 +1261,15 @@ describe('Relay Quotes Utils', () => {
             from: FROM_MOCK,
             to: '0x9' as Hex,
             data: '0xaaa' as Hex,
-            gas: '0x13498', // 79 000
+            gas: '0x13498',
             value: '0',
           },
         } as TransactionMeta,
       });
 
-      // Fallback: estimate=900000, max=1500000.
-      // With originalTxGas=79000 added independently:
-      //   estimate call should receive 900000+79000 = 979000
-      //   max call should receive      1500000+79000 = 1579000
-      const estimateCall = calculateGasCostMock.mock.calls.find(
-        ([args]) => !args.isMax,
-      );
-      const maxCall = calculateGasCostMock.mock.calls.find(
-        ([args]) => args.isMax,
-      );
-
-      expect(estimateCall?.[0].gas).toBe(979000);
-      expect(maxCall?.[0].gas).toBe(1579000);
+      expect(estimateGasBatchMock).toHaveBeenCalled();
+      expect(result[0].original.metamask.gasLimits).toStrictEqual([1000000]);
+      expect(result[0].original.metamask.is7702).toBe(true);
     });
 
     it('does not prepend original transaction for post-quote when txParams.to is missing', async () => {
@@ -1795,9 +1816,11 @@ describe('Relay Quotes Utils', () => {
       const secondBody = JSON.parse(
         (secondCall[1] as RequestInit).body as string,
       );
+      // Gas cost is buffered by the default postQuoteGasBuffer (1.1)
+      // ceil(2725000000000000 * 1.1) = 2997500000000000
+      const bufferedGas = BigInt('2997500000000000');
       const adjustedAmount = (
-        BigInt(QUOTE_REQUEST_MOCK.sourceTokenAmount) -
-        BigInt('2725000000000000')
+        BigInt(QUOTE_REQUEST_MOCK.sourceTokenAmount) - bufferedGas
       ).toString();
       expect(secondBody.amount).toBe(adjustedAmount);
 
@@ -2321,6 +2344,12 @@ describe('Relay Quotes Utils', () => {
           ok: true,
           json: async () => QUOTE_MOCK,
         } as never);
+
+        estimateGasBatchMock.mockResolvedValue({
+          gasLimits: [42000],
+          totalGasEstimate: 42000,
+          totalGasLimit: 42000,
+        });
 
         getTokenBalanceMock.mockReturnValue('1724999999999999');
         getGasFeeTokensMock.mockResolvedValue([GAS_FEE_TOKEN_MOCK]);
