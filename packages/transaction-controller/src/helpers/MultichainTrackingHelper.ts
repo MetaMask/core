@@ -70,6 +70,8 @@ export class MultichainTrackingHelper {
 
   #initialized = false;
 
+  #initInterval?: ReturnType<typeof setInterval>;
+
   readonly #nonceMutexesByChainId = new Map<Hex, Map<string, Mutex>>();
 
   readonly #trackingMap: Map<
@@ -114,15 +116,25 @@ export class MultichainTrackingHelper {
 
       this.#refreshTrackingMap(networkClients);
     });
+
+    this.#waitForNetworkController();
   }
 
-  initialize(): void {
-    const networkClients = this.#getNetworkClientRegistry();
+  #waitForNetworkController(): void {
+    log('Waiting for NetworkController to be available');
 
-    this.#refreshTrackingMap(networkClients);
-    this.#initialized = true;
-
-    log('Initialized');
+    this.#initInterval = setInterval(() => {
+      try {
+        const networkClients = this.#getNetworkClientRegistry();
+        clearInterval(this.#initInterval);
+        this.#initInterval = undefined;
+        this.#refreshTrackingMap(networkClients);
+        this.#initialized = true;
+        log('Initialized');
+      } catch {
+        log('NetworkController not yet available, retrying');
+      }
+    }, 10);
   }
 
   has(networkClientId: NetworkClientId): boolean {
@@ -214,6 +226,11 @@ export class MultichainTrackingHelper {
   };
 
   stopAllTracking(): void {
+    if (this.#initInterval) {
+      clearInterval(this.#initInterval);
+      this.#initInterval = undefined;
+    }
+
     for (const [networkClientId] of this.#trackingMap) {
       this.#stopTrackingByNetworkClientId(networkClientId);
     }

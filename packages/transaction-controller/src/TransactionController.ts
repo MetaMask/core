@@ -919,14 +919,6 @@ export class TransactionController extends BaseController<
   }
 
   /**
-   * Initializes the controller by setting up network client tracking.
-   * Must be called after all dependent controllers are registered on the messenger.
-   */
-  initialize(): void {
-    this.#multichainTrackingHelper.initialize();
-  }
-
-  /**
    * Stops polling and removes listeners to prepare the controller for garbage collection.
    */
   destroy(): void {
