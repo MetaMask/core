@@ -48,7 +48,7 @@ import { KeyringControllerError } from './errors';
 import type { KeyringControllerMethodActions } from './KeyringController-method-action-types';
 import type {
   Eip7702AuthorizationParams,
-  VerificationCredentials,
+  Credentials,
   PersonalMessageParams,
   TypedMessageParams,
 } from './types';
@@ -1052,7 +1052,7 @@ export class KeyringController<
    *
    * @param encryptionKey - Serialized vault encryption key.
    */
-  async verifyEncryptionKey(encryptionKey: string): Promise<void> {
+  async #verifyEncryptionKey(encryptionKey: string): Promise<void> {
     if (!this.state.vault) {
       throw new KeyringControllerError(
         KeyringControllerErrorMessage.VaultError,
@@ -1070,14 +1070,12 @@ export class KeyringController<
    * @param credentials - Object holding either the `password` or the vault
    * `encryptionKey`.
    */
-  async #verifyCredentials(
-    credentials: VerificationCredentials,
-  ): Promise<void> {
+  async #verifyCredentials(credentials: Credentials): Promise<void> {
     // eslint-disable-next-line no-restricted-syntax
     if ('password' in credentials) {
       await this.verifyPassword(credentials.password);
     } else {
-      await this.verifyEncryptionKey(credentials.encryptionKey);
+      await this.#verifyEncryptionKey(credentials.encryptionKey);
     }
   }
 
@@ -1099,7 +1097,7 @@ export class KeyringController<
    * @returns Promise resolving to the seed phrase.
    */
   async exportSeedPhrase(
-    credentials: VerificationCredentials,
+    credentials: Credentials,
     keyringId?: string,
   ): Promise<Uint8Array> {
     this.#assertIsUnlocked();
@@ -1124,7 +1122,7 @@ export class KeyringController<
    * @returns Promise resolving to the private key for an address.
    */
   async exportAccount(
-    credentials: VerificationCredentials,
+    credentials: Credentials,
     address: string,
   ): Promise<string> {
     this.#assertIsUnlocked();

@@ -3706,44 +3706,6 @@ describe('KeyringController', () => {
     });
   });
 
-  describe('verifyEncryptionKey', () => {
-    describe('when correct encryption key is provided', () => {
-      it('should not throw any error', async () => {
-        await withController(async ({ controller }) => {
-          const encryptionKey = await controller.exportEncryptionKey();
-          expect(
-            await controller.verifyEncryptionKey(encryptionKey),
-          ).toBeUndefined();
-        });
-      });
-
-      it('should throw error if vault is missing', async () => {
-        await withController(
-          { skipVaultCreation: true },
-          async ({ controller }) => {
-            await expect(
-              controller.verifyEncryptionKey('encryption-key'),
-            ).rejects.toThrow(KeyringControllerErrorMessage.VaultError);
-          },
-        );
-      });
-    });
-
-    describe('when wrong encryption key is provided', () => {
-      it('should throw the decryption error', async () => {
-        await withController(async ({ controller, encryptor }) => {
-          const encryptionKey = await controller.exportEncryptionKey();
-          jest
-            .spyOn(encryptor, 'decryptWithKey')
-            .mockRejectedValueOnce(new Error('Decryption failed'));
-          await expect(
-            controller.verifyEncryptionKey(encryptionKey),
-          ).rejects.toThrow('Decryption failed');
-        });
-      });
-    });
-  });
-
   describe('withKeyring', () => {
     it('should rollback if an error is thrown', async () => {
       await withController(async ({ controller, initialState }) => {
