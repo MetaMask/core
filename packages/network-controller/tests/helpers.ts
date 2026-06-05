@@ -149,6 +149,7 @@ export function buildNetworkControllerMessenger(
       'ConnectivityController:getState',
       'RemoteFeatureFlagController:getState',
     ],
+    events: ['RemoteFeatureFlagController:stateChange'],
   });
 
   return networkControllerMessenger;
