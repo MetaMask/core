@@ -156,6 +156,33 @@ describe('TokenRatesController', () => {
       );
     });
 
+    it('does not fetch or update state when isDeprecated returns true', async () => {
+      const tokenPricesService = buildMockTokenPricesService();
+      jest.spyOn(tokenPricesService, 'fetchTokenPrices');
+
+      await withController(
+        {
+          options: {
+            tokenPricesService,
+            isDeprecated: () => true,
+          },
+        },
+        async ({ controller }) => {
+          const stateBefore = controller.state.marketData;
+
+          await controller.updateExchangeRates([
+            {
+              chainId: '0x1',
+              nativeCurrency: 'ETH',
+            },
+          ]);
+
+          expect(tokenPricesService.fetchTokenPrices).not.toHaveBeenCalled();
+          expect(controller.state.marketData).toBe(stateBefore);
+        },
+      );
+    });
+
     it('fetches rates for tokens in one batch', async () => {
       const chainId = '0x1';
       const nativeCurrency = 'ETH';
@@ -712,6 +739,23 @@ describe('TokenRatesController', () => {
         },
       );
     });
+
+    it('does nothing when isDeprecated returns true', async () => {
+      await withController(
+        {
+          options: {
+            isDeprecated: () => true,
+          },
+        },
+        async ({ controller }) => {
+          jest.spyOn(controller, 'updateExchangeRates');
+
+          await controller._executePoll({ chainIds: ['0x1'] });
+
+          expect(controller.updateExchangeRates).not.toHaveBeenCalled();
+        },
+      );
+    });
   });
 
   describe('TokensController:stateChange', () => {
@@ -816,6 +860,43 @@ describe('TokenRatesController', () => {
         {
           options: {
             disabled: true,
+          },
+        },
+        async ({ controller, triggerTokensStateChange }) => {
+          jest.spyOn(controller, 'updateExchangeRates');
+
+          triggerTokensStateChange({
+            allTokens: {
+              [chainId]: {
+                [defaultSelectedAddress]: [
+                  {
+                    address: '0x0000000000000000000000000000000000000001',
+                    decimals: 0,
+                    symbol: 'TOK1',
+                  },
+                ],
+              },
+            },
+            allDetectedTokens: {},
+            allIgnoredTokens: {},
+          });
+
+          jest.advanceTimersToNextTimer();
+          await flushPromises();
+
+          expect(controller.updateExchangeRates).not.toHaveBeenCalled();
+        },
+      );
+    });
+
+    it('does not fetch when isDeprecated returns true', async () => {
+      jest.useFakeTimers();
+      const chainId = '0x1';
+
+      await withController(
+        {
+          options: {
+            isDeprecated: () => true,
           },
         },
         async ({ controller, triggerTokensStateChange }) => {
@@ -991,6 +1072,46 @@ describe('TokenRatesController', () => {
               } as unknown as MarketDataDetails,
             },
           });
+        },
+      );
+    });
+
+    it('does not update state when isDeprecated returns true', async () => {
+      const chainId = '0x1';
+      const nativeCurrency = 'ETH';
+      const initialMarketData = {
+        [chainId]: {
+          '0x0000000000000000000000000000000000000000': {
+            currency: nativeCurrency,
+            price: 0.001,
+          } as unknown as MarketDataDetails,
+        },
+      };
+
+      await withController(
+        {
+          options: {
+            isDeprecated: () => true,
+            state: { marketData: initialMarketData },
+          },
+        },
+        async ({ controller, triggerNetworkStateChange }) => {
+          triggerNetworkStateChange(
+            {
+              ...getDefaultNetworkControllerState(),
+              networkConfigurationsByChainId: {},
+            },
+            [
+              {
+                op: 'remove',
+                path: ['networkConfigurationsByChainId', chainId],
+              },
+            ],
+          );
+
+          await flushPromises();
+
+          expect(controller.state.marketData).toStrictEqual(initialMarketData);
         },
       );
     });
