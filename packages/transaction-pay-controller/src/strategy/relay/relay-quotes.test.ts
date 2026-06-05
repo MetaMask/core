@@ -229,6 +229,7 @@ describe('Relay Quotes Utils', () => {
       ...getDefaultRemoteFeatureFlagControllerState(),
     });
 
+    getNativeTokenMock.mockReturnValue(NATIVE_TOKEN_ADDRESS);
     isEIP7702ChainMock.mockReturnValue(true);
     isRelayExecuteEnabledMock.mockReturnValue(false);
     getGasBufferMock.mockReturnValue(1.0);
@@ -1307,7 +1308,7 @@ describe('Relay Quotes Utils', () => {
       const batchCall = estimateGasBatchMock.mock.calls[0][0];
       const originalTxParams = batchCall.transactions[0];
       expect(originalTxParams.data).toBe('0x');
-      expect(originalTxParams.value).toBe('0');
+      expect(originalTxParams.value).toBe('0x0');
     });
 
     it('does not prepend original transaction for post-quote when txParams.to is missing', async () => {
@@ -1949,6 +1950,58 @@ describe('Relay Quotes Utils', () => {
       ).toString();
       expect(secondBody.amount).toBe(adjustedAmount);
 
+      expect(result[0].targetAmount).toStrictEqual(
+        expect.objectContaining({ usd: expect.any(String) }),
+      );
+    });
+
+    it('subtracts gas for Polygon native token address (0x1010) in post-quote flows', async () => {
+      const phase2Mock = {
+        ...QUOTE_MOCK,
+        details: {
+          ...QUOTE_MOCK.details,
+          currencyOut: {
+            ...QUOTE_MOCK.details.currencyOut,
+            amountFormatted: '0.8',
+            amountUsd: '0.80',
+          },
+        },
+      };
+
+      successfulFetchMock
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => QUOTE_MOCK,
+        } as never)
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => phase2Mock,
+        } as never);
+
+      calculateGasCostMock.mockReturnValue({
+        fiat: '0.50',
+        human: '0.5',
+        raw: '500000000000000',
+        usd: '0.50',
+      });
+
+      const result = await getRelayQuotes({
+        accountSupports7702: true,
+        messenger,
+        requests: [
+          {
+            ...QUOTE_REQUEST_MOCK,
+            sourceChainId: '0x89' as Hex,
+            sourceTokenAddress:
+              '0x0000000000000000000000000000000000001010' as Hex,
+            targetAmountMinimum: '0',
+            isPostQuote: true,
+          },
+        ],
+        transaction: TRANSACTION_META_MOCK,
+      });
+
+      expect(successfulFetchMock).toHaveBeenCalledTimes(2);
       expect(result[0].targetAmount).toStrictEqual(
         expect.objectContaining({ usd: expect.any(String) }),
       );
