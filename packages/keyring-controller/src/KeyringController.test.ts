@@ -970,6 +970,26 @@ describe('KeyringController', () => {
           });
         });
       });
+
+      describe('when vault is missing', () => {
+        it('should throw error', async () => {
+          await withController(
+            {
+              skipVaultCreation: true,
+              state: {
+                isUnlocked: true,
+              } as KeyringControllerState,
+            },
+            async ({ controller }) => {
+              await expect(
+                controller.exportSeedPhrase({
+                  encryptionKey: 'encryption-key',
+                }),
+              ).rejects.toThrow(KeyringControllerErrorMessage.VaultError);
+            },
+          );
+        });
+      });
     });
 
     it('should throw error when the controller is locked', async () => {
