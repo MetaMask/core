@@ -89,6 +89,7 @@ export const TESTNET = {
  * @param options - Optional configuration.
  * @param options.connectivityStatus - The connectivity status to return by default.
  * If not provided, defaults to Online.
+ * @param options.isRpcFailoverEnabled - The RPC failover feature flag to return, defaults to false.
  * @returns The messenger.
  */
 export function buildRootMessenger({
@@ -149,6 +150,7 @@ export function buildNetworkControllerMessenger(
       'ConnectivityController:getState',
       'RemoteFeatureFlagController:getState',
     ],
+    // eslint-disable-next-line no-restricted-syntax
     events: ['RemoteFeatureFlagController:stateChange'],
   });
 

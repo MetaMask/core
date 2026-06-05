@@ -1394,6 +1394,7 @@ export class NetworkController extends BaseController<
     );
 
     this.messenger.subscribe(
+      // eslint-disable-next-line no-restricted-syntax
       'RemoteFeatureFlagController:stateChange',
       (isRpcFailoverEnabled) => {
         this.#updateRpcFailoverEnabled(isRpcFailoverEnabled);
@@ -1634,7 +1635,7 @@ export class NetworkController extends BaseController<
   /**
    * Initialize the NetworkController, updating the RPC failover feature flag.
    */
-  init() {
+  init(): void {
     const state = this.messenger.call('RemoteFeatureFlagController:getState');
     this.#updateRpcFailoverEnabled(getIsRpcFailoverEnabled(state));
   }
