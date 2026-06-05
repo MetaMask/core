@@ -1520,13 +1520,13 @@ describe('Feature Flags Utils', () => {
   });
 
   describe('getFiatFeeReserveMultiplier', () => {
-    it('returns 1 when feature flag is not set', () => {
+    it('returns 1.2 when feature flag is not set', () => {
       getRemoteFeatureFlagControllerStateMock.mockReturnValue({
         ...getDefaultRemoteFeatureFlagControllerState(),
         remoteFeatureFlags: {},
       });
 
-      expect(getFiatFeeReserveMultiplier(messenger)).toBe(1);
+      expect(getFiatFeeReserveMultiplier(messenger)).toBe(1.2);
     });
 
     it('returns the configured multiplier from feature flag', () => {
@@ -1540,7 +1540,7 @@ describe('Feature Flags Utils', () => {
       expect(getFiatFeeReserveMultiplier(messenger)).toBe(1.5);
     });
 
-    it('returns 1 when multiplier is zero', () => {
+    it('returns 1.2 when multiplier is zero', () => {
       getRemoteFeatureFlagControllerStateMock.mockReturnValue({
         ...getDefaultRemoteFeatureFlagControllerState(),
         remoteFeatureFlags: {
@@ -1548,10 +1548,10 @@ describe('Feature Flags Utils', () => {
         },
       });
 
-      expect(getFiatFeeReserveMultiplier(messenger)).toBe(1);
+      expect(getFiatFeeReserveMultiplier(messenger)).toBe(1.2);
     });
 
-    it('returns 1 when multiplier is negative', () => {
+    it('returns 1.2 when multiplier is negative', () => {
       getRemoteFeatureFlagControllerStateMock.mockReturnValue({
         ...getDefaultRemoteFeatureFlagControllerState(),
         remoteFeatureFlags: {
@@ -1559,7 +1559,7 @@ describe('Feature Flags Utils', () => {
         },
       });
 
-      expect(getFiatFeeReserveMultiplier(messenger)).toBe(1);
+      expect(getFiatFeeReserveMultiplier(messenger)).toBe(1.2);
     });
   });
 

@@ -84,14 +84,6 @@ export async function submitWithCalldataReEncoding({
 
   const discoveryRelay = discoveryQuotes[0].original;
 
-  const originalRelayQuote = request.quotes[0].original.relayQuote;
-  validateRelayRateDrift({
-    originalQuote: originalRelayQuote,
-    discoveryQuote: discoveryRelay,
-    maxRateDriftPercent: getFiatMaxRateDriftPercent(messenger),
-    transactionId,
-  });
-
   const adjustedTargetRaw = calculateAdjustedTarget(discoveryRelay);
 
   log('Adjusted target for final quote', {
@@ -147,6 +139,14 @@ export async function submitWithCalldataReEncoding({
   if (!relayQuotes.length) {
     throw new Error('No relay quotes returned for completed fiat order');
   }
+
+  const originalRelayQuote = request.quotes[0].original.relayQuote;
+  validateRelayRateDrift({
+    originalQuote: originalRelayQuote,
+    discoveryQuote: relayQuotes[0].original,
+    maxRateDriftPercent: getFiatMaxRateDriftPercent(messenger),
+    transactionId,
+  });
 
   log('Received relay quotes for completed fiat order', {
     relayQuoteCount: relayQuotes.length,

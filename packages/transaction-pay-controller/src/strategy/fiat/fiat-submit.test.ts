@@ -379,7 +379,7 @@ describe('submitFiatQuotes', () => {
         isMaxAmount: false,
         isPostQuote: true,
         sourceBalanceRaw: '1234500000000000000',
-        sourceTokenAmount: '1204500000000000000',
+        sourceTokenAmount: '1198500000000000000',
       }),
     ]);
     expect(getRelayQuotesMock.mock.calls[1][0].requests).toStrictEqual([

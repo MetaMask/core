@@ -827,7 +827,7 @@ export function getFiatAssetPerTransactionType(
   );
 }
 
-const DEFAULT_FEE_RESERVE_MULTIPLIER = 1;
+const DEFAULT_FEE_RESERVE_MULTIPLIER = 1.2;
 const DEFAULT_MAX_RATE_DRIFT_PERCENT = 10;
 const DEFAULT_POST_QUOTE_GAS_BUFFER = 1.1;
 
