@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- Revert "Release 1023.0.0" ([#9018](https://github.com/MetaMask/core/pull/9018))
+- Release 1023.0.0 ([#9017](https://github.com/MetaMask/core/pull/9017))
+
 ### Changed
 
 - Bump `@metamask/transaction-controller` from `^66.0.0` to `^66.0.1` ([#8999](https://github.com/MetaMask/core/pull/8999))
