@@ -1669,6 +1669,11 @@
       "count": 1
     }
   },
+  "packages/profile-metrics-controller/src/index.ts": {
+    "no-restricted-syntax": {
+      "count": 2
+    }
+  },
   "packages/profile-sync-controller/src/controllers/authentication/AuthenticationController.test.ts": {
     "@typescript-eslint/explicit-function-return-type": {
       "count": 5

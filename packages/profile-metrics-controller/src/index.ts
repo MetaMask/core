@@ -18,8 +18,10 @@ export type {
 } from './ProfileMetricsService';
 export {
   ProfileMetricsService,
+  serviceName,
   serviceName as profileMetricsServiceName,
 } from './ProfileMetricsService';
+export type { ProfileMetricsServiceMethodActions } from './ProfileMetricsService-method-action-types';
 export type {
   ProofOfOwnershipServiceActions,
   ProofOfOwnershipServiceEvents,
@@ -29,4 +31,7 @@ export {
   ProofOfOwnershipService,
   serviceName as proofOfOwnershipServiceName,
 } from './ProofOfOwnershipService';
-export type { ProfileMetricsControllerSkipInitialDelayAction } from './ProfileMetricsController-method-action-types';
+export type {
+  ProfileMetricsControllerMethodActions,
+  ProfileMetricsControllerSkipInitialDelayAction,
+} from './ProfileMetricsController-method-action-types';

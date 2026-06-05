@@ -13,14 +13,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Exposes `ProofOfOwnershipService:sign({ account, nonce })`, dispatching by the CAIP-2 namespace of the account's first scope.
   - EVM accounts are signed via `KeyringController:signPersonalMessage` (EIP-191); Solana, Tron, and Bitcoin accounts are signed via `SnapController:handleRequest` with the `onClientRequest` handler against the snap declared in `account.metadata.snap.id`, which keeps the request silent and client-internal.
   - The non-EVM snaps are expected to implement a `signProofOfOwnership` JSON-RPC method that validates the message prefix `metamask:proof-of-ownership:` before signing.
+  - Add `profileMetricsServiceName` alias for the existing `serviceName` export, to disambiguate it from the new `proofOfOwnershipServiceName`. The original `serviceName` export is unchanged.
 - Add proof of ownership API wiring pre-requisites ([#8974](https://github.com/MetaMask/core/pull/8974))
   - Add `ProfileMetricsService:fetchNonces` messenger action wrapping `POST /api/v2/nonce/batch`.
   - Add optional `proof` field on accounts submitted via `ProfileMetricsService:submitMetrics` so that the auth API can use it to mark accounts as `verified: true`.
 
 ### Changed
 
-- The package-level `serviceName` export is now exported as `profileMetricsServiceName` to disambiguate it from the new `proofOfOwnershipServiceName` export.
-- The `*MethodActions` aggregate types (`ProfileMetricsServiceMethodActions`, `ProfileMetricsControllerMethodActions`) are no longer re-exported from the package index. Consumers should depend on the `*Actions` umbrella types instead, which expose the same set of actions.
 - Bump `@metamask/transaction-controller` from `^66.0.1` to `^67.0.0` ([#9021](https://github.com/MetaMask/core/pull/9021))
 
 ## [3.1.6]
