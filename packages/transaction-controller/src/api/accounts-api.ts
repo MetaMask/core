@@ -109,5 +109,3 @@ export async function getAccountAddressRelationship(
 
   return responseJson;
 }
-
-

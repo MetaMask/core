@@ -843,6 +843,4 @@ describe('Feature Flags Utils', () => {
       expect(getTimeoutAttempts(CHAIN_ID_MOCK, controllerMessenger)).toBe(0);
     });
   });
-
 });
-

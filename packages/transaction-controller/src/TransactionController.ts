@@ -21,7 +21,6 @@ import {
   convertHexToDecimal,
 } from '@metamask/controller-utils';
 import type { TraceCallback, TraceContext } from '@metamask/controller-utils';
-
 import type { AccountActivityServiceTransactionUpdatedEvent } from '@metamask/core-backend';
 import type {
   FetchGasFeeEstimateOptions,
