@@ -9,10 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add `ProofOfOwnershipService` for signing chain-native proofs of account ownership.
+- Add `ProofOfOwnershipService` for signing chain-native proofs of account ownership ([#9016](https://github.com/MetaMask/core/pull/9016))
   - Exposes `ProofOfOwnershipService:sign({ account, nonce })`, dispatching by the CAIP-2 namespace of the account's first scope.
   - EVM accounts are signed via `KeyringController:signPersonalMessage` (EIP-191); Solana, Tron, and Bitcoin accounts are signed via `SnapController:handleRequest` with the `onClientRequest` handler against the snap declared in `account.metadata.snap.id`, which keeps the request silent and client-internal.
-  - The non-EVM snap is expected to implement a `signProofOfOwnership` JSON-RPC method that validates the message prefix `metamask:proof-of-ownership:` before signing.
+  - The non-EVM snaps are expected to implement a `signProofOfOwnership` JSON-RPC method that validates the message prefix `metamask:proof-of-ownership:` before signing.
 - Add proof of ownership API wiring pre-requisites ([#8974](https://github.com/MetaMask/core/pull/8974))
   - Add `ProfileMetricsService:fetchNonces` messenger action wrapping `POST /api/v2/nonce/batch`.
   - Add optional `proof` field on accounts submitted via `ProfileMetricsService:submitMetrics` so that the auth API can use it to mark accounts as `verified: true`.
