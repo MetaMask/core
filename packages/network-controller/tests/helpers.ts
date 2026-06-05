@@ -93,8 +93,10 @@ export const TESTNET = {
  */
 export function buildRootMessenger({
   connectivityStatus = CONNECTIVITY_STATUSES.Online,
+  isRpcFailoverEnabled = false,
 }: {
   connectivityStatus?: ConnectivityStatus;
+  isRpcFailoverEnabled?: boolean;
 } = {}): RootMessenger {
   const rootMessenger = new Messenger<
     MockAnyNamespace,
@@ -106,6 +108,16 @@ export function buildRootMessenger({
     'ConnectivityController:getState',
     () => ({
       connectivityStatus,
+    }),
+  );
+
+  rootMessenger.registerActionHandler(
+    'RemoteFeatureFlagController:getState',
+    () => ({
+      remoteFeatureFlags: {
+        walletFrameworkRpcFailoverEnabled: isRpcFailoverEnabled,
+      },
+      cacheTimestamp: 0,
     }),
   );
 
@@ -133,7 +145,10 @@ export function buildNetworkControllerMessenger(
 
   rootMessenger.delegate({
     messenger: networkControllerMessenger,
-    actions: ['ConnectivityController:getState'],
+    actions: [
+      'ConnectivityController:getState',
+      'RemoteFeatureFlagController:getState',
+    ],
   });
 
   return networkControllerMessenger;
@@ -612,7 +627,9 @@ type WithControllerCallback<ReturnValue> = ({
   networkControllerMessenger: NetworkControllerMessenger;
 }) => Promise<ReturnValue> | ReturnValue;
 
-type WithControllerOptions = Partial<NetworkControllerOptions>;
+type WithControllerOptions = Partial<NetworkControllerOptions> & {
+  isRpcFailoverEnabled?: boolean;
+};
 
 type WithControllerArgs<ReturnValue> =
   | [WithControllerCallback<ReturnValue>]
@@ -632,7 +649,8 @@ export async function withController<ReturnValue>(
   ...args: WithControllerArgs<ReturnValue>
 ): Promise<ReturnValue> {
   const [{ ...rest }, fn] = args.length === 2 ? args : [{}, args[0]];
-  const messenger = buildRootMessenger();
+  const { isRpcFailoverEnabled, ...controllerOptions } = rest;
+  const messenger = buildRootMessenger({ isRpcFailoverEnabled });
   const networkControllerMessenger = buildNetworkControllerMessenger(messenger);
   const controller = new NetworkController({
     messenger: networkControllerMessenger,
@@ -645,8 +663,11 @@ export async function withController<ReturnValue>(
       btoa,
       isOffline: (): boolean => false,
     }),
-    ...rest,
+    ...controllerOptions,
   });
+
+  controller.init();
+
   try {
     return await fn({ controller, messenger, networkControllerMessenger });
   } finally {
