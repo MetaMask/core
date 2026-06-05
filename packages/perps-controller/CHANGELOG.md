@@ -19,6 +19,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Remove unused `Perps Order Submission Toast` trace name from the `PerpsTraceName` union ([#NNNN](https://github.com/MetaMask/core/pull/NNNN))
 
+### Fixed
+
+- Fix `late_error` never being emitted in the `placeOrder` catch path when a provider call succeeded past `PlaceOrderTimeoutMs` but a subsequent step threw; the trace `reason` now correctly reflects `'late_error'` whenever the submission threshold was exceeded, regardless of where the exception originated ([#NNNN](https://github.com/MetaMask/core/pull/NNNN))
+
 ## [7.0.0]
 
 ### Added
