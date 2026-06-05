@@ -2161,11 +2161,6 @@
       "count": 2
     }
   },
-  "packages/transaction-controller/src/TransactionController.ts": {
-    "no-restricted-syntax": {
-      "count": 7
-    }
-  },
   "packages/transaction-controller/src/TransactionControllerIntegration.test.ts": {
     "no-restricted-syntax": {
       "count": 1
