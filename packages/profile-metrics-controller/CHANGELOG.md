@@ -21,6 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - The package-level `serviceName` export is now exported as `profileMetricsServiceName` to disambiguate it from the new `proofOfOwnershipServiceName` export.
 - The `*MethodActions` aggregate types (`ProfileMetricsServiceMethodActions`, `ProfileMetricsControllerMethodActions`) are no longer re-exported from the package index. Consumers should depend on the `*Actions` umbrella types instead, which expose the same set of actions.
+- Bump `@metamask/transaction-controller` from `^66.0.1` to `^67.0.0` ([#9021](https://github.com/MetaMask/core/pull/9021))
 
 ## [3.1.6]
 

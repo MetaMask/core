@@ -17,6 +17,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - The default `pollingInterval` for the block tracker is now `20` seconds.
   - The default `retryTimeout` for the block tracker is now `20` seconds.
 
+### Changed
+
+- **BREAKING:** Automatically populate `isRpcFailoverEnabled` using `RemoteFeatureFlagController` ([#9013](https://github.com/MetaMask/core/pull/9013))
+  - `NetworkController.init` must now be called to fully initialize the controller.
+  - The constructor argument `isRpcFailoverEnabled` is no longer available.
+  - `RemoteFeatureFlagController:stateChange` and `RemoteFeatureFlagController:getState` are now required.
+
 ### Fixed
 
 - Add defaults for `fetch`, `btoa` and `isOffline` in `RpcServiceOptions` ([#9000](https://github.com/MetaMask/core/pull/9000))

@@ -1131,6 +1131,23 @@ describe('NetworkController', () => {
   describe('disableRpcFailover', () => {
     describe('if the controller was initialized with isRpcFailoverEnabled = true', () => {
       it('calls disableRpcFailover on only the network clients whose RPC endpoints have configured failover URLs', async () => {
+        const originalCreateAutoManagedNetworkClient =
+          createAutoManagedNetworkClientModule.createAutoManagedNetworkClient;
+        const autoManagedNetworkClients: AutoManagedNetworkClient<NetworkClientConfiguration>[] =
+          [];
+        jest
+          .spyOn(
+            createAutoManagedNetworkClientModule,
+            'createAutoManagedNetworkClient',
+          )
+          .mockImplementation((...args) => {
+            const autoManagedNetworkClient =
+              originalCreateAutoManagedNetworkClient(...args);
+            jest.spyOn(autoManagedNetworkClient, 'disableRpcFailover');
+            autoManagedNetworkClients.push(autoManagedNetworkClient);
+            return autoManagedNetworkClient;
+          });
+
         await withController(
           {
             isRpcFailoverEnabled: true,
@@ -1171,23 +1188,6 @@ describe('NetworkController', () => {
             },
           },
           async ({ controller }) => {
-            const originalCreateAutoManagedNetworkClient =
-              createAutoManagedNetworkClientModule.createAutoManagedNetworkClient;
-            const autoManagedNetworkClients: AutoManagedNetworkClient<NetworkClientConfiguration>[] =
-              [];
-            jest
-              .spyOn(
-                createAutoManagedNetworkClientModule,
-                'createAutoManagedNetworkClient',
-              )
-              .mockImplementation((...args) => {
-                const autoManagedNetworkClient =
-                  originalCreateAutoManagedNetworkClient(...args);
-                jest.spyOn(autoManagedNetworkClient, 'disableRpcFailover');
-                autoManagedNetworkClients.push(autoManagedNetworkClient);
-                return autoManagedNetworkClient;
-              });
-
             controller.disableRpcFailover();
 
             expect(autoManagedNetworkClients).toHaveLength(3);
