@@ -156,10 +156,10 @@ describe('ProofOfOwnershipService', () => {
           scopes: [scope as `${string}:${string}`],
         });
 
-        const proof = await rootMessenger.call(
-          'ProofOfOwnershipService:sign',
-          { account, nonce: 'n42' },
-        );
+        const proof = await rootMessenger.call('ProofOfOwnershipService:sign', {
+          account,
+          nonce: 'n42',
+        });
 
         expect(snapHandle).toHaveBeenCalledTimes(1);
         const [request] = snapHandle.mock.calls[0] as [
@@ -253,11 +253,13 @@ describe('ProofOfOwnershipService', () => {
     });
 
     it('tolerates additional fields in the snap response (forward-compatible schema)', async () => {
-      const snapHandle = jest.fn<Promise<unknown>, [unknown]>().mockResolvedValue({
-        signature: '0xsnapsig',
-        publicKey: '0xpub',
-        algorithm: 'ed25519',
-      });
+      const snapHandle = jest
+        .fn<Promise<unknown>, [unknown]>()
+        .mockResolvedValue({
+          signature: '0xsnapsig',
+          publicKey: '0xpub',
+          algorithm: 'ed25519',
+        });
       const { rootMessenger } = getService({ snapHandle });
       const account = createMockAccount({
         scopes: ['solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp'],

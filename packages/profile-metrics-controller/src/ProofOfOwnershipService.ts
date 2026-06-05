@@ -196,7 +196,9 @@ export class ProofOfOwnershipService {
    * @throws if the underlying signer (keyring or snap) rejects, or if the
    * snap returns a malformed response.
    */
-  async sign(data: ProofOfOwnershipSignRequest): Promise<AccountOwnershipProof> {
+  async sign(
+    data: ProofOfOwnershipSignRequest,
+  ): Promise<AccountOwnershipProof> {
     const { account, nonce } = data;
     const namespace = getAccountNamespace(account);
     const canonicalAddress = canonicalizeAddress(account.address, namespace);
@@ -223,10 +225,10 @@ export class ProofOfOwnershipService {
    * @returns The 0x-prefixed signature.
    */
   async #signEvm(address: string, message: string): Promise<string> {
-    return await this.#messenger.call(
-      'KeyringController:signPersonalMessage',
-      { data: message, from: address },
-    );
+    return await this.#messenger.call('KeyringController:signPersonalMessage', {
+      data: message,
+      from: address,
+    });
   }
 
   /**
