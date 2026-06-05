@@ -132,9 +132,12 @@ export type MarketOverviewEntry = {
  * Returned by the `/market-overview` API as a rich object.
  */
 export type RelatedAsset = {
-  /** Human-readable asset name (e.g. "Bitcoin") */
-  name: string;
-  /** Ticker symbol (e.g. "BTC") */
+  /**
+   * Human-readable asset name (e.g. "Bitcoin"). Optional — clients must fall
+   * back to `symbol` when absent.
+   */
+  name?: string;
+  /** Ticker symbol (e.g. "BTC"). The only field guaranteed to be present. */
   symbol: string;
   /**
    * CAIP-19 identifiers for this asset across chains. May be absent for
@@ -142,8 +145,11 @@ export type RelatedAsset = {
    * normalises missing values to `[]`.
    */
   caip19?: string[];
-  /** Canonical source asset identifier (e.g. "bitcoin") */
-  sourceAssetId: string;
+  /**
+   * Canonical source asset identifier (e.g. "bitcoin"). Optional — may be
+   * absent when the API pipeline cannot enrich the asset record.
+   */
+  sourceAssetId?: string;
   /**
    * Optional HyperLiquid market identifiers for this asset (e.g. `BTC`, `ETH`,
    * `xyz:TSLA`). Covers both regular crypto tokens that trade on HyperLiquid

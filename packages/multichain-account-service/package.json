@@ -1,6 +1,6 @@
 {
   "name": "@metamask/multichain-account-service",
-  "version": "10.0.0",
+  "version": "10.0.2",
   "description": "Service to manage multichain accounts",
   "keywords": [
     "Ethereum",
@@ -54,17 +54,17 @@
   },
   "dependencies": {
     "@ethereumjs/util": "^9.1.0",
-    "@metamask/accounts-controller": "^38.1.1",
+    "@metamask/accounts-controller": "^39.0.0",
     "@metamask/base-controller": "^9.1.0",
     "@metamask/eth-snap-keyring": "^22.0.1",
     "@metamask/key-tree": "^10.1.1",
     "@metamask/keyring-api": "^23.1.0",
-    "@metamask/keyring-controller": "^25.5.0",
+    "@metamask/keyring-controller": "^26.0.0",
     "@metamask/keyring-internal-api": "^11.0.1",
     "@metamask/keyring-snap-client": "^9.0.2",
     "@metamask/keyring-utils": "^3.2.1",
     "@metamask/messenger": "^1.2.0",
-    "@metamask/snap-account-service": "^0.2.0",
+    "@metamask/snap-account-service": "^0.3.0",
     "@metamask/snaps-controllers": "^19.0.0",
     "@metamask/snaps-sdk": "^11.0.0",
     "@metamask/snaps-utils": "^12.1.2",

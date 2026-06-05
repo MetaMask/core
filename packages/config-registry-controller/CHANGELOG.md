@@ -9,9 +9,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Bump `@metamask/remote-feature-flag-controller` from `^4.2.1` to `^4.2.2` ([#8986](https://github.com/MetaMask/core/pull/8986))
+
+## [0.4.0]
+
+### Changed
+
+- **BREAKING:** `RegistryNetworkConfigSchema.assets.native.coingeckoCoinId` is now optional ([#8970](https://github.com/MetaMask/core/pull/8970))
+  - The controller now accepts chains with no `assets.native.coingeckoCoinId` property in their configuration.
+
+## [0.3.2]
+
+### Changed
+
 - Bump `@metamask/controller-utils` from `^12.0.0` to `^12.1.0` ([#8774](https://github.com/MetaMask/core/pull/8774))
-- Bump `@metamask/profile-sync-controller` from `^28.0.2` to `^28.1.0` ([#8783](https://github.com/MetaMask/core/pull/8783))
+- Bump `@metamask/profile-sync-controller` from `^28.0.2` to `^28.1.1` ([#8783](https://github.com/MetaMask/core/pull/8783), [#8912](https://github.com/MetaMask/core/pull/8912))
 - Bump `@metamask/polling-controller` from `^16.0.5` to `^16.0.6` ([#8834](https://github.com/MetaMask/core/pull/8834))
+- Bump `@metamask/keyring-controller` from `^25.5.0` to `^26.0.0` ([#8912](https://github.com/MetaMask/core/pull/8912))
 
 ## [0.3.1]
 
@@ -60,7 +74,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#7668](https://github.com/MetaMask/core/pull/7668), [#7809](https://github.com/MetaMask/core/pull/7809))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/config-registry-controller@0.3.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/config-registry-controller@0.4.0...HEAD
+[0.4.0]: https://github.com/MetaMask/core/compare/@metamask/config-registry-controller@0.3.2...@metamask/config-registry-controller@0.4.0
+[0.3.2]: https://github.com/MetaMask/core/compare/@metamask/config-registry-controller@0.3.1...@metamask/config-registry-controller@0.3.2
 [0.3.1]: https://github.com/MetaMask/core/compare/@metamask/config-registry-controller@0.3.0...@metamask/config-registry-controller@0.3.1
 [0.3.0]: https://github.com/MetaMask/core/compare/@metamask/config-registry-controller@0.2.0...@metamask/config-registry-controller@0.3.0
 [0.2.0]: https://github.com/MetaMask/core/compare/@metamask/config-registry-controller@0.1.1...@metamask/config-registry-controller@0.2.0

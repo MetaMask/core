@@ -735,11 +735,6 @@
       "count": 3
     }
   },
-  "packages/bridge-status-controller/src/utils/transaction.ts": {
-    "no-restricted-syntax": {
-      "count": 4
-    }
-  },
   "packages/chain-agnostic-permission/src/caip25Permission.ts": {
     "@typescript-eslint/explicit-function-return-type": {
       "count": 11
@@ -1563,9 +1558,6 @@
     }
   },
   "packages/perps-controller/src/PerpsController.ts": {
-    "@typescript-eslint/no-unused-vars": {
-      "count": 1
-    },
     "no-restricted-syntax": {
       "count": 3
     }
@@ -2172,11 +2164,6 @@
   "packages/subscription-controller/src/index.ts": {
     "no-restricted-syntax": {
       "count": 2
-    }
-  },
-  "packages/transaction-controller/src/TransactionController.ts": {
-    "no-restricted-syntax": {
-      "count": 7
     }
   },
   "packages/transaction-controller/src/TransactionControllerIntegration.test.ts": {

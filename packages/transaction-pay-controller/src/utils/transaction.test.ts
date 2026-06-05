@@ -1,5 +1,4 @@
 import { Interface } from '@ethersproject/abi';
-import { Web3Provider } from '@ethersproject/providers';
 import { abiERC20 } from '@metamask/metamask-eth-abis';
 import {
   TransactionStatus,
@@ -33,10 +32,6 @@ import {
 
 jest.mock('./feature-flags');
 jest.mock('./required-tokens');
-jest.mock('@ethersproject/providers', () => ({
-  ...jest.requireActual('@ethersproject/providers'),
-  Web3Provider: jest.fn(),
-}));
 
 const TRANSACTION_ID_MOCK = '123-456';
 const ERROR_MESSAGE_MOCK = 'Test error';
@@ -707,32 +702,18 @@ describe('getTransferredAmountFromTxHash', () => {
     getNetworkClientByIdMock: receiptGetNetworkMock,
   } = getMessengerMock();
 
-  let mockGetTransactionReceipt: jest.Mock;
-  let mockSend: jest.Mock;
-  let mockGetTx: jest.Mock;
-
   beforeEach(() => {
     jest.resetAllMocks();
-
-    mockGetTransactionReceipt = jest.fn();
-    mockSend = jest.fn();
-    mockGetTx = jest.fn();
 
     receiptFindNetworkMock.mockReturnValue(NETWORK_CLIENT_ID_RECEIPT_MOCK);
     receiptGetNetworkMock.mockReturnValue({
       provider: PROVIDER_RECEIPT_MOCK,
     } as never);
-
-    (Web3Provider as unknown as jest.Mock).mockImplementation(() => ({
-      getTransactionReceipt: mockGetTransactionReceipt,
-      send: mockSend,
-      getTransaction: mockGetTx,
-    }));
   });
 
   describe('native token', () => {
     it('returns amount from debug_traceTransaction for direct transfer', async () => {
-      mockSend.mockResolvedValue({
+      PROVIDER_RECEIPT_MOCK.request.mockResolvedValue({
         to: WALLET_ADDRESS_RECEIPT_MOCK.toLowerCase(),
         value: '0xde0b6b3a7640000',
         calls: [],
@@ -747,14 +728,14 @@ describe('getTransferredAmountFromTxHash', () => {
       });
 
       expect(result).toBe('1000000000000000000');
-      expect(mockSend).toHaveBeenCalledWith('debug_traceTransaction', [
-        TX_HASH_MOCK,
-        { tracer: 'callTracer' },
-      ]);
+      expect(PROVIDER_RECEIPT_MOCK.request).toHaveBeenCalledWith({
+        method: 'debug_traceTransaction',
+        params: [TX_HASH_MOCK, { tracer: 'callTracer' }],
+      });
     });
 
     it('sums native value from nested internal calls', async () => {
-      mockSend.mockResolvedValue({
+      PROVIDER_RECEIPT_MOCK.request.mockResolvedValue({
         to: '0xcontract',
         value: '0x0',
         calls: [
@@ -788,11 +769,17 @@ describe('getTransferredAmountFromTxHash', () => {
     });
 
     it('falls back to tx.value when debug_traceTransaction is unsupported', async () => {
-      mockSend.mockRejectedValue(new Error('Method not found'));
-      mockGetTx.mockResolvedValue({
-        to: WALLET_ADDRESS_RECEIPT_MOCK.toLowerCase(),
-        value: { toString: () => '1500000000000000000' },
-      });
+      PROVIDER_RECEIPT_MOCK.request.mockImplementation(
+        ({ method }: { method: string }) => {
+          if (method === 'debug_traceTransaction') {
+            return Promise.reject(new Error('Method not found'));
+          }
+          return Promise.resolve({
+            to: WALLET_ADDRESS_RECEIPT_MOCK.toLowerCase(),
+            value: '0x14d1120d7b160000',
+          });
+        },
+      );
 
       const result = await getTransferredAmountFromTxHash({
         messenger: receiptMessenger,
@@ -806,14 +793,17 @@ describe('getTransferredAmountFromTxHash', () => {
     });
 
     it('returns undefined when trace returns zero value and tx.to does not match wallet', async () => {
-      mockSend.mockResolvedValue({
-        to: '0xcontract',
-        value: '0x0',
-      });
-      mockGetTx.mockResolvedValue({
-        to: '0xcontract',
-        value: { toString: () => '1000000000000000000' },
-      });
+      PROVIDER_RECEIPT_MOCK.request.mockImplementation(
+        ({ method }: { method: string }) => {
+          if (method === 'debug_traceTransaction') {
+            return Promise.resolve({ to: '0xcontract', value: '0x0' });
+          }
+          return Promise.resolve({
+            to: '0xcontract',
+            value: '0xde0b6b3a7640000',
+          });
+        },
+      );
 
       const result = await getTransferredAmountFromTxHash({
         messenger: receiptMessenger,
@@ -827,8 +817,14 @@ describe('getTransferredAmountFromTxHash', () => {
     });
 
     it('returns undefined when trace is unsupported and transaction is not found', async () => {
-      mockSend.mockRejectedValue(new Error('Method not found'));
-      mockGetTx.mockResolvedValue(null);
+      PROVIDER_RECEIPT_MOCK.request.mockImplementation(
+        ({ method }: { method: string }) => {
+          if (method === 'debug_traceTransaction') {
+            return Promise.reject(new Error('Method not found'));
+          }
+          return Promise.resolve(null);
+        },
+      );
 
       const result = await getTransferredAmountFromTxHash({
         messenger: receiptMessenger,
@@ -842,11 +838,17 @@ describe('getTransferredAmountFromTxHash', () => {
     });
 
     it('returns undefined when trace is unsupported and native tx.value is zero', async () => {
-      mockSend.mockRejectedValue(new Error('Method not found'));
-      mockGetTx.mockResolvedValue({
-        to: WALLET_ADDRESS_RECEIPT_MOCK.toLowerCase(),
-        value: { toString: () => '0' },
-      });
+      PROVIDER_RECEIPT_MOCK.request.mockImplementation(
+        ({ method }: { method: string }) => {
+          if (method === 'debug_traceTransaction') {
+            return Promise.reject(new Error('Method not found'));
+          }
+          return Promise.resolve({
+            to: WALLET_ADDRESS_RECEIPT_MOCK.toLowerCase(),
+            value: '0x0',
+          });
+        },
+      );
 
       const result = await getTransferredAmountFromTxHash({
         messenger: receiptMessenger,
@@ -860,14 +862,20 @@ describe('getTransferredAmountFromTxHash', () => {
     });
 
     it('ignores trace value with 0x0', async () => {
-      mockSend.mockResolvedValue({
-        to: WALLET_ADDRESS_RECEIPT_MOCK.toLowerCase(),
-        value: '0x0',
-      });
-      mockGetTx.mockResolvedValue({
-        to: WALLET_ADDRESS_RECEIPT_MOCK.toLowerCase(),
-        value: { toString: () => '500' },
-      });
+      PROVIDER_RECEIPT_MOCK.request.mockImplementation(
+        ({ method }: { method: string }) => {
+          if (method === 'debug_traceTransaction') {
+            return Promise.resolve({
+              to: WALLET_ADDRESS_RECEIPT_MOCK.toLowerCase(),
+              value: '0x0',
+            });
+          }
+          return Promise.resolve({
+            to: WALLET_ADDRESS_RECEIPT_MOCK.toLowerCase(),
+            value: '0x1f4',
+          });
+        },
+      );
 
       const result = await getTransferredAmountFromTxHash({
         messenger: receiptMessenger,
@@ -883,7 +891,7 @@ describe('getTransferredAmountFromTxHash', () => {
 
   describe('ERC-20 token', () => {
     it('decodes transfer amount from receipt logs', async () => {
-      mockGetTransactionReceipt.mockResolvedValue({
+      PROVIDER_RECEIPT_MOCK.request.mockResolvedValue({
         logs: [encodeTransferLog(WALLET_ADDRESS_RECEIPT_MOCK, '5000000')],
       });
 
@@ -899,7 +907,7 @@ describe('getTransferredAmountFromTxHash', () => {
     });
 
     it('sums multiple Transfer events to the same wallet', async () => {
-      mockGetTransactionReceipt.mockResolvedValue({
+      PROVIDER_RECEIPT_MOCK.request.mockResolvedValue({
         logs: [
           encodeTransferLog(WALLET_ADDRESS_RECEIPT_MOCK, '3000000'),
           encodeTransferLog(WALLET_ADDRESS_RECEIPT_MOCK, '2000000'),
@@ -919,7 +927,7 @@ describe('getTransferredAmountFromTxHash', () => {
 
     it('ignores Transfer events to other addresses', async () => {
       const otherAddress = '0x3333333333333333333333333333333333333333' as Hex;
-      mockGetTransactionReceipt.mockResolvedValue({
+      PROVIDER_RECEIPT_MOCK.request.mockResolvedValue({
         logs: [
           encodeTransferLog(otherAddress, '9000000'),
           encodeTransferLog(WALLET_ADDRESS_RECEIPT_MOCK, '1000000'),
@@ -943,7 +951,7 @@ describe('getTransferredAmountFromTxHash', () => {
         WALLET_ADDRESS_RECEIPT_MOCK,
         '5000000',
       );
-      mockGetTransactionReceipt.mockResolvedValue({
+      PROVIDER_RECEIPT_MOCK.request.mockResolvedValue({
         logs: [
           { ...transferLog, address: otherToken },
           encodeTransferLog(WALLET_ADDRESS_RECEIPT_MOCK, '1000000'),
@@ -962,7 +970,7 @@ describe('getTransferredAmountFromTxHash', () => {
     });
 
     it('ignores logs with non-Transfer event topics', async () => {
-      mockGetTransactionReceipt.mockResolvedValue({
+      PROVIDER_RECEIPT_MOCK.request.mockResolvedValue({
         logs: [
           {
             address: ERC20_ADDRESS_RECEIPT_MOCK,
@@ -989,7 +997,7 @@ describe('getTransferredAmountFromTxHash', () => {
     });
 
     it('returns undefined when receipt is not found', async () => {
-      mockGetTransactionReceipt.mockResolvedValue(null);
+      PROVIDER_RECEIPT_MOCK.request.mockResolvedValue(null);
 
       const result = await getTransferredAmountFromTxHash({
         messenger: receiptMessenger,
@@ -1003,9 +1011,7 @@ describe('getTransferredAmountFromTxHash', () => {
     });
 
     it('returns undefined when no matching Transfer logs exist', async () => {
-      mockGetTransactionReceipt.mockResolvedValue({
-        logs: [],
-      });
+      PROVIDER_RECEIPT_MOCK.request.mockResolvedValue({ logs: [] });
 
       const result = await getTransferredAmountFromTxHash({
         messenger: receiptMessenger,
@@ -1019,7 +1025,7 @@ describe('getTransferredAmountFromTxHash', () => {
     });
 
     it('skips malformed log entries gracefully', async () => {
-      mockGetTransactionReceipt.mockResolvedValue({
+      PROVIDER_RECEIPT_MOCK.request.mockResolvedValue({
         logs: [
           {
             address: ERC20_ADDRESS_RECEIPT_MOCK,
@@ -1042,7 +1048,7 @@ describe('getTransferredAmountFromTxHash', () => {
     });
 
     it('returns undefined when all Transfer amounts are zero', async () => {
-      mockGetTransactionReceipt.mockResolvedValue({
+      PROVIDER_RECEIPT_MOCK.request.mockResolvedValue({
         logs: [encodeTransferLog(WALLET_ADDRESS_RECEIPT_MOCK, '0')],
       });
 
@@ -1059,7 +1065,7 @@ describe('getTransferredAmountFromTxHash', () => {
   });
 
   it('propagates provider errors for ERC-20', async () => {
-    mockGetTransactionReceipt.mockRejectedValue(new Error('RPC error'));
+    PROVIDER_RECEIPT_MOCK.request.mockRejectedValue(new Error('RPC error'));
 
     await expect(
       getTransferredAmountFromTxHash({
@@ -1073,8 +1079,7 @@ describe('getTransferredAmountFromTxHash', () => {
   });
 
   it('propagates provider errors for native when both trace and getTransaction fail', async () => {
-    mockSend.mockRejectedValue(new Error('Trace failed'));
-    mockGetTx.mockRejectedValue(new Error('RPC error'));
+    PROVIDER_RECEIPT_MOCK.request.mockRejectedValue(new Error('RPC error'));
 
     await expect(
       getTransferredAmountFromTxHash({

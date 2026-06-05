@@ -402,11 +402,36 @@ describe('submitFiatQuotes', () => {
 
   it('throws if provider string format is invalid', async () => {
     const { request } = getRequest({
-      rampsQuote: { ...RAMPS_QUOTE_MOCK, provider: 'invalid' },
+      rampsQuote: { ...RAMPS_QUOTE_MOCK, provider: '/unexpected/path' },
     });
 
     await expect(submitFiatQuotes(request)).rejects.toThrow(
       'Missing provider code for fiat submission',
+    );
+  });
+
+  it('throws if the legacy providers path prefix has no provider code', async () => {
+    const { request } = getRequest({
+      rampsQuote: { ...RAMPS_QUOTE_MOCK, provider: '/providers' },
+    });
+
+    await expect(submitFiatQuotes(request)).rejects.toThrow(
+      'Missing provider code for fiat submission',
+    );
+  });
+
+  it('accepts the canonical provider code without the legacy providers path prefix', async () => {
+    const { callMock, request } = getRequest({
+      rampsQuote: { ...RAMPS_QUOTE_MOCK, provider: 'transak-native-staging' },
+    });
+
+    await submitFiatQuotes(request);
+
+    expect(callMock).toHaveBeenCalledWith(
+      'RampsController:getOrder',
+      'transak-native-staging',
+      ORDER_ID_MOCK,
+      WALLET_ADDRESS_MOCK,
     );
   });
 
