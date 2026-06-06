@@ -7316,6 +7316,83 @@ describe('RampsController', () => {
         },
       );
     });
+
+    it('returns the region-resolved selected provider, not the stale state object, under a region override', async () => {
+      // The selected provider in state carries limits scoped to the user's
+      // region (fr). The override region (us) returns the same provider id but
+      // with distinct, region-specific limits. The selected-step must return the
+      // region-resolved entry so callers get the correct region's data.
+      const selectedFrLimits = {
+        fiat: {
+          eur: {
+            '/payments/debit-credit-card': {
+              minAmount: 10,
+              maxAmount: 100,
+              feeFixedRate: 1,
+              feeDynamicRate: 0.01,
+            },
+          },
+        },
+      };
+      const moonpayFr = createMockProvider({
+        id: '/providers/moonpay',
+        name: 'MoonPay',
+        type: 'aggregator',
+        supportedCryptoCurrencies: { [ASSET_USDC]: true },
+        limits: selectedFrLimits,
+      });
+      const usLimits = {
+        fiat: {
+          usd: {
+            '/payments/debit-credit-card': {
+              minAmount: 20,
+              maxAmount: 500,
+              feeFixedRate: 2,
+              feeDynamicRate: 0.02,
+            },
+          },
+        },
+      };
+      const moonpayUs = createMockProvider({
+        id: '/providers/moonpay',
+        name: 'MoonPay',
+        type: 'aggregator',
+        supportedCryptoCurrencies: { [ASSET_USDC]: true },
+        limits: usLimits,
+      });
+
+      await withController(
+        {
+          options: {
+            state: {
+              userRegion: createMockUserRegion('fr'),
+              // Selected object reflects the fr region's limits.
+              providers: createResourceState([moonpayFr], moonpayFr),
+            },
+          },
+        },
+        async ({ controller, rootMessenger }) => {
+          rootMessenger.registerActionHandler(
+            'RampsService:getProviders',
+            async () => {
+              return { providers: [moonpayUs] };
+            },
+          );
+
+          const result = await controller.getBestProviderForAsset({
+            assetId: ASSET_USDC,
+            region: 'us',
+          });
+
+          // Same id as state.providers.selected, but must be the region-resolved
+          // entry with the us limits — never the stale fr selected object.
+          expect(result?.id).toBe('/providers/moonpay');
+          expect(result?.limits).toStrictEqual(usLimits);
+          expect(result).toBe(moonpayUs);
+          expect(result).not.toBe(moonpayFr);
+        },
+      );
+    });
   });
 
   describe('getOrder', () => {

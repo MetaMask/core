@@ -1996,10 +1996,16 @@ export class RampsController extends BaseController<
       return null;
     }
 
-    // 1. The currently selected provider, if it supports the asset.
+    // 1. The currently selected provider, if it supports the asset. Return the
+    //    region-resolved entry from `supporting` (not `state.providers.selected`),
+    //    since the selected object may carry region-specific data (e.g. limits)
+    //    for a different region than the one resolved here.
     const { selected } = this.state.providers;
-    if (selected && supporting.some((provider) => provider.id === selected.id)) {
-      return selected;
+    if (selected) {
+      const match = supporting.find((provider) => provider.id === selected.id);
+      if (match) {
+        return match;
+      }
     }
 
     // 2. A provider the user has transacted with before — from
