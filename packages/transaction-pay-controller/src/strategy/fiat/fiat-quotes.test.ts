@@ -10,6 +10,7 @@ import { TransactionPayStrategy } from '../../constants';
 import type {
   PayStrategyGetQuotesRequest,
   TransactionFiatPayment,
+  TransactionFiatQuoteError,
   TransactionPayQuote,
   TransactionPayRequiredToken,
 } from '../../types';
@@ -137,8 +138,11 @@ function getRequest({
   throwsOnRampsQuotes?: Error;
 } = {}): {
   callMock: jest.Mock;
+  capturedFiatPayment: TransactionFiatPayment;
   request: PayStrategyGetQuotesRequest;
 } {
+  const capturedFiatPayment: TransactionFiatPayment = {};
+
   const callMock = jest.fn(
     (action: string, requestArg?: Record<string, unknown>) => {
       if (action === 'TransactionPayController:getState') {
@@ -167,8 +171,7 @@ function getRequest({
         const { callback } = requestArg as unknown as {
           callback: (fiatPayment: TransactionFiatPayment) => void;
         };
-        const fiatPayment: TransactionFiatPayment = {};
-        callback(fiatPayment);
+        callback(capturedFiatPayment);
         return undefined;
       }
 
@@ -178,6 +181,7 @@ function getRequest({
 
   return {
     callMock,
+    capturedFiatPayment,
     request: {
       accountSupports7702: false,
       fiatPaymentMethod,
@@ -584,5 +588,175 @@ describe('getFiatQuotes', () => {
     });
     // provider = relay(1) + ramps(0) = 1
     expect(result[0].fees.provider).toStrictEqual({ fiat: '1', usd: '1' });
+  });
+
+  describe('quoteError surfacing', () => {
+    it('sets quoteError with LIMIT_EXCEEDED code when provider error message contains "minimum"', async () => {
+      const { capturedFiatPayment, request } = getRequest({
+        rampsQuotes: {
+          customActions: [],
+          error: [
+            {
+              provider: '/providers/transak-native-staging',
+              error: 'Minimum purchase is $20',
+            },
+          ],
+          sorted: [],
+          success: [],
+        },
+      });
+
+      await getFiatQuotes(request);
+
+      expect(capturedFiatPayment.quoteError).toStrictEqual<TransactionFiatQuoteError>(
+        {
+          code: 'LIMIT_EXCEEDED',
+          message: 'Minimum purchase is $20',
+        },
+      );
+    });
+
+    it('sets quoteError with LIMIT_EXCEEDED code when provider error message contains "maximum"', async () => {
+      const { capturedFiatPayment, request } = getRequest({
+        rampsQuotes: {
+          customActions: [],
+          error: [
+            {
+              provider: '/providers/transak-native-staging',
+              error: 'Maximum purchase limit exceeded',
+            },
+          ],
+          sorted: [],
+          success: [],
+        },
+      });
+
+      await getFiatQuotes(request);
+
+      expect(capturedFiatPayment.quoteError).toStrictEqual<TransactionFiatQuoteError>(
+        {
+          code: 'LIMIT_EXCEEDED',
+          message: 'Maximum purchase limit exceeded',
+        },
+      );
+    });
+
+    it('sets quoteError with LIMIT_EXCEEDED code when provider error message contains "limit"', async () => {
+      const { capturedFiatPayment, request } = getRequest({
+        rampsQuotes: {
+          customActions: [],
+          error: [
+            {
+              provider: '/providers/transak-native-staging',
+              error: 'Transaction limit reached for today',
+            },
+          ],
+          sorted: [],
+          success: [],
+        },
+      });
+
+      await getFiatQuotes(request);
+
+      expect(capturedFiatPayment.quoteError).toStrictEqual<TransactionFiatQuoteError>(
+        {
+          code: 'LIMIT_EXCEEDED',
+          message: 'Transaction limit reached for today',
+        },
+      );
+    });
+
+    it('sets quoteError with QUOTE_FAILED when provider error message does not match limit keywords', async () => {
+      const { capturedFiatPayment, request } = getRequest({
+        rampsQuotes: {
+          customActions: [],
+          error: [
+            {
+              provider: '/providers/transak-native-staging',
+              error: 'Provider is temporarily unavailable',
+            },
+          ],
+          sorted: [],
+          success: [],
+        },
+      });
+
+      await getFiatQuotes(request);
+
+      expect(capturedFiatPayment.quoteError).toStrictEqual<TransactionFiatQuoteError>(
+        {
+          code: 'QUOTE_FAILED',
+          message: 'Provider is temporarily unavailable',
+        },
+      );
+    });
+
+    it('sets quoteError with QUOTE_FAILED and no message when error array is empty', async () => {
+      const { capturedFiatPayment, request } = getRequest({
+        rampsQuotes: {
+          customActions: [],
+          error: [],
+          sorted: [],
+          success: [],
+        },
+      });
+
+      await getFiatQuotes(request);
+
+      expect(capturedFiatPayment.quoteError).toStrictEqual<TransactionFiatQuoteError>(
+        {
+          code: 'QUOTE_FAILED',
+          message: undefined,
+        },
+      );
+    });
+
+    it('sets quoteError with QUOTE_FAILED and no message when first error entry has no error field', async () => {
+      const { capturedFiatPayment, request } = getRequest({
+        rampsQuotes: {
+          customActions: [],
+          error: [{ provider: '/providers/transak-native-staging' }],
+          sorted: [],
+          success: [],
+        },
+      });
+
+      await getFiatQuotes(request);
+
+      expect(capturedFiatPayment.quoteError).toStrictEqual<TransactionFiatQuoteError>(
+        {
+          code: 'QUOTE_FAILED',
+          message: undefined,
+        },
+      );
+    });
+
+    it('clears quoteError on the fiat payment state when quote succeeds', async () => {
+      const { capturedFiatPayment, request } = getRequest();
+
+      await getFiatQuotes(request);
+
+      expect(capturedFiatPayment.quoteError).toBeUndefined();
+    });
+
+    it('does not treat rate-related messages as LIMIT_EXCEEDED', async () => {
+      const { capturedFiatPayment, request } = getRequest({
+        rampsQuotes: {
+          customActions: [],
+          error: [
+            {
+              provider: '/providers/transak-native-staging',
+              error: 'Exchange rate request failed',
+            },
+          ],
+          sorted: [],
+          success: [],
+        },
+      });
+
+      await getFiatQuotes(request);
+
+      expect(capturedFiatPayment.quoteError?.code).toBe('QUOTE_FAILED');
+    });
   });
 });

@@ -10,7 +10,7 @@ const baseConfig = require('../../jest.config.packages');
 
 const displayName = path.basename(__dirname);
 
-module.exports = merge(baseConfig, {
+const merged = merge(baseConfig, {
   // The display name when running multiple projects
   displayName,
 
@@ -24,3 +24,22 @@ module.exports = merge(baseConfig, {
     },
   },
 });
+
+// Prepend a specific mapping for @metamask/eth-hd-keyring/v2 before the
+// generic @metamask/(.+) catch-all so that Jest picks it up first.
+// deepmerge appends keys, but Jest evaluates moduleNameMapper in insertion
+// order, so the generic pattern would win otherwise.
+module.exports = {
+  ...merged,
+  moduleNameMapper: {
+    '^@metamask/eth-hd-keyring/v2$': path.resolve(
+      __dirname,
+      '../../node_modules/@metamask/eth-hd-keyring/dist/hd-keyring-v2.cjs',
+    ),
+    '^@metamask/eth-simple-keyring/v2$': path.resolve(
+      __dirname,
+      '../../node_modules/@metamask/eth-simple-keyring/dist/simple-keyring-v2.cjs',
+    ),
+    ...merged.moduleNameMapper,
+  },
+};

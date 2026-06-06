@@ -342,6 +342,19 @@ export type TransactionData = {
   totals?: TransactionPayTotals;
 };
 
+/**
+ * Structured error surfaced when a ramps quote attempt fails.
+ * `LIMIT_EXCEEDED` is used when the provider message indicates a minimum or
+ * maximum purchase limit; `QUOTE_FAILED` covers all other failures.
+ */
+export type TransactionFiatQuoteError = {
+  /** Broad classification of the failure reason. */
+  code: 'LIMIT_EXCEEDED' | 'QUOTE_FAILED';
+
+  /** Human-readable message returned by the provider, if available. */
+  message?: string;
+};
+
 /** Fiat payment state stored per transaction. */
 export type TransactionFiatPayment = {
   /** Entered fiat amount for the selected payment method. */
@@ -352,6 +365,12 @@ export type TransactionFiatPayment = {
 
   /** Order identifier in normalized format (/providers/{provider}/orders/{id}). */
   orderId?: string;
+
+  /**
+   * Structured error from the last failed ramps quote attempt.
+   * Present when the most recent quote fetch failed; cleared on success.
+   */
+  quoteError?: TransactionFiatQuoteError;
 
   /** The ramps quote received from the ramps provider. */
   rampsQuote?: RampsQuote;
