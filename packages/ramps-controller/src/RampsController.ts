@@ -1966,6 +1966,68 @@ export class RampsController extends BaseController<
   }
 
   /**
+   * Picks the single best provider from the supporting set using this
+   * precedence (without any list-level fallbacks):
+   * 1. The currently selected provider, if it is in the supporting set.
+   * 2. The first preferred provider that supports the asset, where the
+   *    preference is taken from `preferredProviderIds` when supplied, otherwise
+   *    derived from the user's completed-order history (most recent first).
+   *    This takes priority over Transak Native to preserve an existing KYC
+   *    relationship.
+   * 3. A native provider (e.g. Transak Native).
+   * 4. The first supporting provider.
+   *
+   * Returns `null` when `supporting` is empty.
+   *
+   * @param options - The options.
+   * @param options.supporting - Providers that support the asset in this region.
+   * @param options.preferredProviderIds - Provider IDs to prefer, in order.
+   * @returns The best provider, or null if supporting is empty.
+   */
+  #resolveBestSupportingProvider({
+    supporting,
+    preferredProviderIds,
+  }: {
+    supporting: Provider[];
+    preferredProviderIds?: string[];
+  }): Provider | null {
+    if (supporting.length === 0) {
+      return null;
+    }
+
+    // 1. The currently selected provider, if it supports the asset.
+    const { selected } = this.state.providers;
+    if (selected && supporting.some((provider) => provider.id === selected.id)) {
+      return selected;
+    }
+
+    // 2. A provider the user has transacted with before — from
+    //    `preferredProviderIds` when supplied, otherwise completed-order
+    //    history. Takes priority over Transak Native to preserve an existing
+    //    KYC relationship and avoid churn.
+    const preferred =
+      preferredProviderIds ?? this.#getPreferredProviderIdsFromOrders();
+
+    for (const preferredId of preferred) {
+      const match = supporting.find((provider) => provider.id === preferredId);
+      if (match) {
+        return match;
+      }
+    }
+
+    // 3. A native provider (e.g. Transak Native).
+    const nativeProvider = supporting.find(
+      (provider) => provider.type === 'native',
+    );
+    if (nativeProvider) {
+      return nativeProvider;
+    }
+
+    // 4. Fallback: first supporting provider.
+    return supporting[0];
+  }
+
+  /**
    * Resolves the provider IDs to use for a single quote request, scoped to the
    * given asset and region. Does not mutate `providers.selected` or any other
    * state.
@@ -2015,44 +2077,35 @@ export class RampsController extends BaseController<
       return all.map((provider) => provider.id);
     }
 
-    // 1. The currently selected provider, if it supports the asset.
-    const { selected } = this.state.providers;
-    if (
-      selected &&
-      supporting.some((provider) => provider.id === selected.id)
-    ) {
-      return [selected.id];
+    const best = this.#resolveBestSupportingProvider({
+      supporting,
+      preferredProviderIds,
+    });
+
+    // Under headless gating with no best provider (empty supporting set),
+    // return nothing so the caller surfaces an "unavailable" state.
+    if (!best) {
+      return [];
     }
 
-    // 2. A provider the user has transacted with before — from
-    //    `preferredProviderIds` when supplied, otherwise completed-order
-    //    history. Takes priority over Transak Native to preserve an existing
-    //    KYC relationship and avoid churn.
-    const preferred =
-      preferredProviderIds ?? this.#getPreferredProviderIdsFromOrders();
-
-    for (const preferredId of preferred) {
-      const match = supporting.find((provider) => provider.id === preferredId);
-      if (match) {
-        return [match.id];
+    // Under headless gating, only a native provider is accepted — any non-native
+    // fallback (step 4) is rejected.
+    if (restrictToKnownOrNative && best.type !== 'native') {
+      // Check if the best was chosen because of selected/preferred/native logic.
+      // The only case where we must block is when #resolveBestSupportingProvider
+      // fell through to step 4 (first-supporting). That happens iff best is not
+      // selected, not preferred, and not native.
+      const { selected } = this.state.providers;
+      const isSelected = selected?.id === best.id;
+      const preferred =
+        preferredProviderIds ?? this.#getPreferredProviderIdsFromOrders();
+      const isPreferred = preferred.includes(best.id);
+      if (!isSelected && !isPreferred) {
+        return [];
       }
     }
 
-    // 3. A native provider (e.g. Transak Native).
-    const nativeProvider = supporting.find(
-      (provider) => provider.type === 'native',
-    );
-    if (nativeProvider) {
-      return [nativeProvider.id];
-    }
-
-    // 4. Fallback. Under headless gating, introduce no other provider — return
-    //    nothing so the caller surfaces an "unavailable" state. Otherwise the
-    //    aggregator and all other providers are treated equally: first wins.
-    if (restrictToKnownOrNative) {
-      return [];
-    }
-    return [supporting[0].id];
+    return [best.id];
   }
 
   /**
