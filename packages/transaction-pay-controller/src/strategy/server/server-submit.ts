@@ -1,4 +1,5 @@
-import { ORIGIN_METAMASK, toHex } from '@metamask/controller-utils';
+import { ORIGIN_METAMASK, successfulFetch, toHex } from '@metamask/controller-utils';
+import { SignTypedDataVersion } from '@metamask/keyring-controller';
 import type {
   TransactionMeta,
   TransactionParams,
@@ -26,13 +27,26 @@ import {
 import { getServerStatus, submitServerIntent } from './server-api';
 import type {
   ServerQuote,
-  ServerQuoteStep,
+  ServerSignatureStep,
+  ServerTransactionStep,
   ServerStatusResponse,
   ServerSubmitRequest,
 } from './types';
 import { ServerStatus } from './types';
 
 const log = createModuleLogger(projectLogger, 'server-strategy');
+
+function isSignatureStep(
+  step: ServerQuote['steps'][number],
+): step is ServerSignatureStep {
+  return step.type === 'signature';
+}
+
+function isTransactionStep(
+  step: ServerQuote['steps'][number],
+): step is ServerTransactionStep {
+  return step.type === 'transaction';
+}
 
 /**
  * Submits server intent quotes.
@@ -78,10 +92,20 @@ async function executeSingleServerQuote(
     },
   );
 
-  if (quote.original.gasless) {
-    await submitViaServerExecute(quote, messenger, transaction);
-  } else {
-    await submitViaTransactionController(quote, messenger, transaction);
+  const { steps } = quote.original;
+  const signatureSteps = steps.filter(isSignatureStep);
+  const transactionSteps = steps.filter(isTransactionStep);
+
+  for (const step of signatureSteps) {
+    await submitSignatureStep(step, transaction.txParams.from as Hex, messenger);
+  }
+
+  if (transactionSteps.length > 0) {
+    if (quote.original.gasless) {
+      await submitViaServerExecute(quote, messenger, transaction);
+    } else {
+      await submitViaTransactionController(quote, messenger, transaction);
+    }
   }
 
   const targetHash = await waitForServerCompletion(
@@ -117,11 +141,13 @@ async function submitViaServerExecute(
     sourceChainId,
   );
 
-  const nestedTransactions = quote.original.steps.map((step) => ({
-    data: step.data,
-    to: step.to,
-    value: step.value as Hex,
-  }));
+  const nestedTransactions = quote.original.steps
+    .filter(isTransactionStep)
+    .map((step) => ({
+      data: step.data,
+      to: step.to,
+      value: step.value as Hex,
+    }));
 
   const sourceCallTransaction = {
     ...transaction,
@@ -177,7 +203,7 @@ async function submitViaTransactionController(
   transaction: TransactionMeta,
 ): Promise<void> {
   const { from, sourceChainId, sourceTokenAddress } = quote.request;
-  const { steps } = quote.original;
+  const steps = quote.original.steps.filter(isTransactionStep);
 
   if (steps.length === 0) {
     throw new Error('Server quote has no steps to submit');
@@ -326,8 +352,96 @@ async function submitViaTransactionController(
   }
 }
 
+async function submitSignatureStep(
+  step: ServerSignatureStep,
+  from: Hex,
+  messenger: TransactionPayControllerMessenger,
+): Promise<void> {
+  const { sign, post } = step;
+
+  const typedData = {
+    domain: sign.domain,
+    types: {
+      ...sign.types,
+      EIP712Domain: deriveEIP712DomainType(sign.domain),
+    },
+    primaryType: sign.primaryType,
+    message: sign.value,
+  };
+
+  log('Signing typed data for signature step', { stepId: step.id, primaryType: sign.primaryType });
+
+  const signature = await messenger.call(
+    'KeyringController:signTypedMessage',
+    { from, data: JSON.stringify(typedData) },
+    SignTypedDataVersion.V4,
+  );
+
+  await postSignatureStepResult(post.endpoint, post.method, post.body, signature, post.signatureFormat);
+}
+
+async function postSignatureStepResult(
+  endpoint: string,
+  method: string,
+  body: Record<string, unknown>,
+  signature: string,
+  signatureFormat: 'queryParam' | 'rsv',
+): Promise<void> {
+  let url = endpoint;
+  let postBody: Record<string, unknown>;
+
+  if (signatureFormat === 'queryParam') {
+    url = `${endpoint}?signature=${signature}`;
+    postBody = body;
+  } else {
+    // eslint-disable-next-line id-length
+    const r = signature.slice(0, 66);
+    // eslint-disable-next-line id-length
+    const s = `0x${signature.slice(66, 130)}`;
+    // eslint-disable-next-line id-length
+    const v = parseInt(signature.slice(130, 132), 16);
+    postBody = { ...body, signature: { r, s, v } };
+  }
+
+  log('Posting signature step result', { url, signatureFormat });
+
+  let result: unknown;
+
+  try {
+    const response = await successfulFetch(url, {
+      method,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(postBody),
+    });
+
+    result = await response.json();
+  } catch (error) {
+    throw new Error(
+      `Signature step POST failed: ${(error as Error).message}`,
+    );
+  }
+
+  log('Signature step POST response', result);
+}
+
+const DOMAIN_FIELD_MAP: Record<string, { name: string; type: string }> = {
+  name: { name: 'name', type: 'string' },
+  version: { name: 'version', type: 'string' },
+  chainId: { name: 'chainId', type: 'uint256' },
+  verifyingContract: { name: 'verifyingContract', type: 'address' },
+  salt: { name: 'salt', type: 'bytes32' },
+};
+
+function deriveEIP712DomainType(
+  domain: Record<string, unknown>,
+): { name: string; type: string }[] {
+  return Object.keys(DOMAIN_FIELD_MAP)
+    .filter((key) => key in domain)
+    .map((key) => DOMAIN_FIELD_MAP[key]);
+}
+
 function stepToParams(
-  step: ServerQuoteStep,
+  step: ServerTransactionStep,
   from: Hex,
   gasLimit?: number,
   clientMaxFeePerGas?: string,

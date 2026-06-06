@@ -38,7 +38,7 @@ import type {
   ServerQuote,
   ServerQuoteRequest,
   ServerQuoteResult,
-  ServerQuoteStep,
+  ServerTransactionStep,
 } from './types';
 import { ServerTradeType } from './types';
 
@@ -64,6 +64,12 @@ type SourceNetworkCost = Pick<
   maxFeePerGas: string | undefined;
   maxPriorityFeePerGas: string | undefined;
 };
+
+function isTransactionStep(
+  step: ServerQuote['steps'][number],
+): step is ServerTransactionStep {
+  return step.type === 'transaction';
+}
 
 /**
  * Fetch server intents-api quotes and normalize them into Transaction Pay quotes.
@@ -146,7 +152,10 @@ async function buildServerQuoteRequest(
     targetTokenAddress,
   } = normalizedRequest;
 
-  const useExactInput = (isMaxAmount ?? false) || (isPostQuote ?? false);
+  const useExactInput =
+    (isMaxAmount ?? false) ||
+    (isPostQuote ?? false) ||
+    Boolean(normalizedRequest.isHyperliquidSource);
   const singleData = getSingleTransactionData(transaction);
   const isHypercore = targetChainId === CHAIN_ID_HYPERCORE;
   const isTokenTransfer =
@@ -158,8 +167,11 @@ async function buildServerQuoteRequest(
     recipient = decodeTransferRecipient(singleData);
   }
 
+  const isHypercoreSource = sourceChainId === CHAIN_ID_HYPERCORE;
   const supportsGasless =
-    accountSupports7702 && isEIP7702Chain(messenger, sourceChainId);
+    !isHypercoreSource &&
+    accountSupports7702 &&
+    isEIP7702Chain(messenger, sourceChainId);
 
   const body: ServerQuoteRequest = {
     source: { chainId: Number(sourceChainId), token: sourceTokenAddress },
@@ -181,6 +193,7 @@ async function buildServerQuoteRequest(
     hasNoData ||
     isTokenTransfer ||
     isHypercore ||
+    isHypercoreSource ||
     (isPostQuote ?? false) ||
     (isMaxAmount ?? false);
 
@@ -222,7 +235,8 @@ function shouldRequestQuote(quoteRequest: QuoteRequest): boolean {
   return (
     quoteRequest.targetAmountMinimum !== '0' ||
     Boolean(quoteRequest.isPostQuote) ||
-    Boolean(quoteRequest.isMaxAmount)
+    Boolean(quoteRequest.isMaxAmount) ||
+    Boolean(quoteRequest.isHyperliquidSource)
   );
 }
 
@@ -233,11 +247,13 @@ async function normalizeQuote(
 ): Promise<TransactionPayQuote<ServerQuote>> {
   const { quote } = result;
   const { gasless } = quote;
+  const transactionSteps = quote.steps.filter(isTransactionStep);
+  const isSignatureOnly = transactionSteps.length === 0;
   const sourceNetwork = await calculateSourceNetworkCost({
-    gasless,
+    gasless: gasless || isSignatureOnly,
     messenger,
     quoteRequest,
-    steps: quote.steps,
+    steps: transactionSteps,
   });
 
   const sourceFiatRate = getTokenFiatRate(
@@ -323,7 +339,7 @@ async function calculateSourceNetworkCost({
   gasless: boolean;
   messenger: TransactionPayControllerMessenger;
   quoteRequest: QuoteRequest;
-  steps: ServerQuoteStep[];
+  steps: ServerTransactionStep[];
 }): Promise<SourceNetworkCost> {
   const noFees = {
     estimate: ZERO_AMOUNT,
@@ -452,7 +468,7 @@ async function calculateSourceNetworkCost({
 }
 
 function stepToGasTransaction(
-  step: ServerQuoteStep,
+  step: ServerTransactionStep,
   from: Hex,
 ): QuoteGasTransaction {
   return {
