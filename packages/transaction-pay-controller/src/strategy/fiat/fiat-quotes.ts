@@ -8,6 +8,8 @@ import { projectLogger } from '../../logger';
 import type {
   PayStrategyGetQuotesRequest,
   QuoteRequest,
+  TransactionFiatPayment,
+  TransactionFiatQuoteError,
   TransactionPayRequiredToken,
   TransactionPayQuote,
 } from '../../types';
@@ -127,8 +129,9 @@ export async function getFiatQuotes(
     });
 
     messenger.call('TransactionPayController:updateFiatPayment', {
-      callback: (fiatPayment) => {
+      callback: (fiatPayment: TransactionFiatPayment) => {
         fiatPayment.rampsQuote = fiatQuote;
+        fiatPayment.quoteError = undefined;
       },
       transactionId,
     });
@@ -143,6 +146,17 @@ export async function getFiatQuotes(
     ];
   } catch (error) {
     log('Failed to fetch fiat quotes', { error, transactionId });
+
+    const quoteError = isRampsQuoteError(error)
+      ? error.quoteError
+      : { code: 'QUOTE_FAILED' as const };
+
+    messenger.call('TransactionPayController:updateFiatPayment', {
+      callback: (fiatPayment: TransactionFiatPayment) => {
+        fiatPayment.quoteError = quoteError;
+      },
+      transactionId,
+    });
   }
 
   return [];
@@ -184,10 +198,57 @@ async function getRampsQuote({
   const quote = quotes.success?.[0];
 
   if (!quote) {
-    throw new Error('No matching ramps quote found for selected provider');
+    const errorEntry = quotes.error?.[0];
+    const message = errorEntry?.error;
+    const code = classifyRampsError(message);
+
+    const err = new Error('No matching ramps quote found for selected provider') as Error & {
+      quoteError: TransactionFiatQuoteError;
+    };
+    err.quoteError = { code, message };
+    throw err;
   }
 
   return quote;
+}
+
+/**
+ * Returns true if the thrown value is an Error with an attached `quoteError`
+ * property produced by {@link getRampsQuote}.
+ *
+ * @param error - The caught value to inspect.
+ * @returns Whether the error carries structured ramps quote error metadata.
+ */
+function isRampsQuoteError(
+  error: unknown,
+): error is Error & { quoteError: TransactionFiatQuoteError } {
+  return (
+    error instanceof Error &&
+    'quoteError' in error &&
+    error.quoteError !== null &&
+    typeof error.quoteError === 'object'
+  );
+}
+
+/**
+ * Classifies a provider error message into a structured error code.
+ * Messages that mention purchase/transaction limits are classified as
+ * `LIMIT_EXCEEDED`; all other failures fall back to `QUOTE_FAILED`.
+ *
+ * @param message - The raw error string from the provider, if any.
+ * @returns The error code to surface in `TransactionFiatPayment.quoteError`.
+ */
+function classifyRampsError(
+  message: string | undefined,
+): TransactionFiatQuoteError['code'] {
+  if (
+    message &&
+    /\b(minimum|maximum|limit)\b/iu.test(message) &&
+    !/\b(rate|request)\b/iu.test(message)
+  ) {
+    return 'LIMIT_EXCEEDED';
+  }
+  return 'QUOTE_FAILED';
 }
 
 function buildRelayRequestFromAmountFiat({
