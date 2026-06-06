@@ -9,7 +9,7 @@
         "run-client-smoke": {
           "action": "command",
           "description": "Run the client-level smoke test suite against PerpsController messenger actions.",
-          "cmd": "mkdir -p .recipe-output && NODE_OPTIONS=--experimental-vm-modules yarn jest --watchman=false --runInBand --no-coverage --runTestsByPath tests/src/PerpsController.client-smoke.test.ts --reporters=default --json --outputFile=.recipe-output/client-smoke-jest.json",
+          "cmd": "mkdir -p ../../temp/perps-controller/client-smoke && NODE_OPTIONS=--experimental-vm-modules yarn jest --watchman=false --runInBand --no-coverage --runTestsByPath tests/src/PerpsController.client-smoke.test.ts --reporters=default --json --outputFile=../../temp/perps-controller/client-smoke/client-smoke-jest.json",
           "timeout_ms": 120000,
           "next": "assert-client-smoke-exit"
         },
@@ -23,7 +23,7 @@
         "assert-client-smoke-report": {
           "action": "assert_json",
           "description": "The Jest JSON proof must show the client smoke suite passed without failed tests.",
-          "path": ".recipe-output/client-smoke-jest.json",
+          "path": "../../temp/perps-controller/client-smoke/client-smoke-jest.json",
           "assert": {
             "all": [
               {
@@ -49,7 +49,7 @@
           "description": "Publish the client smoke Jest report as recipe evidence.",
           "artifacts": [
             {
-              "path": ".recipe-output/client-smoke-jest.json",
+              "path": "../../temp/perps-controller/client-smoke/client-smoke-jest.json",
               "type": "json",
               "label": "PerpsController client smoke Jest report",
               "proofTarget": "Mobile/Extension-style PerpsController messenger actions",

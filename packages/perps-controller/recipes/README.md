@@ -12,12 +12,15 @@ the package: a client calls `PerpsController:*` messenger actions, and the
 controller delegates to its services/providers. The recipe must not call
 protocol SDKs such as HyperLiquid directly.
 
+Recipe evidence is written under the repo-root `temp/` directory (gitignored).
+From `packages/perps-controller`, that path is `../../temp/perps-controller/...`.
+
 Run manually from the repository root with:
 
 ```bash
 yarn workspace @metamask/perps-controller exec farmslot-recipe run \
   recipes/client-smoke.recipe.json \
-  --artifacts-dir .recipe-artifacts/client-smoke \
+  --artifacts-dir ../../temp/perps-controller/client-smoke \
   --action-manifest recipes/headless.action-manifest.json \
   --project-root .
 ```

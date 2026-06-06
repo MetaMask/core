@@ -39,6 +39,9 @@ packages/*/*.tsbuildinfo
 # AI
 .sisyphus/
 
+# Local scratch (orchestrator workspaces, recipe validation artifacts, etc.)
+temp/
+
 # Docusaurus
 **/.docusaurus
 packages/wallet-framework-docs/site/build
