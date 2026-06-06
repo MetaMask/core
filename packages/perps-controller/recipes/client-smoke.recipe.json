@@ -9,7 +9,7 @@
         "run-client-smoke": {
           "action": "command",
           "description": "Run the client-level smoke test suite against PerpsController messenger actions.",
-          "cmd": "mkdir -p .recipe-output && NODE_OPTIONS=--experimental-vm-modules yarn jest --runInBand --no-coverage --runTestsByPath tests/src/PerpsController.client-smoke.test.ts --reporters=default --json --outputFile=.recipe-output/client-smoke-jest.json",
+          "cmd": "mkdir -p .recipe-output && NODE_OPTIONS=--experimental-vm-modules yarn jest --watchman=false --runInBand --no-coverage --runTestsByPath tests/src/PerpsController.client-smoke.test.ts --reporters=default --json --outputFile=.recipe-output/client-smoke-jest.json",
           "timeout_ms": 120000,
           "next": "assert-client-smoke-exit"
         },
