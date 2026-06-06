@@ -2030,7 +2030,11 @@ export class RampsController extends BaseController<
       return nativeProvider;
     }
 
-    // 4. Fallback: first supporting provider.
+    // 4. Fallback: first supporting provider. This is the most reliable
+    //    supporting provider ONLY because the backend returns providers in
+    //    reliability order (regions-v2 default sort) and the controller
+    //    preserves that order (no re-sort). If the backend stops sorting,
+    //    this becomes an arbitrary first rather than "most reliable".
     return supporting[0];
   }
 
