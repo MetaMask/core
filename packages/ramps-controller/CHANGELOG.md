@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add `getBestProviderForAsset` public method (and `RampsController:getBestProviderForAsset` messenger action) that returns the best `Provider` supporting a given CAIP-19 asset in the current (or supplied) region, using the same cascade as quote auto-selection (selected → preferred from order history → native → first supporting), without mutating any controller state ([#XXXX](https://github.com/MetaMask/core/pull/XXXX))
 - Authenticate `RampsService.getPaymentMethods` and `RampsService.getQuotes` by sourcing a bearer token from `AuthenticationController:getBearerToken` and sending it as an `Authorization: Bearer <token>` header ([#8888](https://github.com/MetaMask/core/pull/8888))
 
 ## [14.1.1]

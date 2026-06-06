@@ -7131,6 +7131,137 @@ describe('RampsController', () => {
     });
   });
 
+  describe('getBestProviderForAsset', () => {
+    const ASSET_ETH = 'eip155:1/slip44:60';
+    const ASSET_USDC =
+      'eip155:42161/erc20:0xaf88d065e77c8cc2239327c5edb3a432268e5831';
+
+    const moonpay = createMockProvider({
+      id: '/providers/moonpay',
+      name: 'MoonPay',
+      type: 'aggregator',
+      supportedCryptoCurrencies: { [ASSET_USDC]: true },
+    });
+    const transakNative = createMockProvider({
+      id: '/providers/transak-native',
+      name: 'Transak Native',
+      type: 'native',
+      supportedCryptoCurrencies: { [ASSET_USDC]: true },
+    });
+
+    it('returns the best supporting provider for the given asset', async () => {
+      await withController(
+        {
+          options: {
+            state: {
+              userRegion: createMockUserRegion('us'),
+              providers: createResourceState([moonpay, transakNative], null),
+            },
+          },
+        },
+        async ({ controller }) => {
+          const result = await controller.getBestProviderForAsset({
+            assetId: ASSET_USDC,
+          });
+
+          // moonpay is first-supporting (step 4), transakNative is native (step 3)
+          // step 3 (native) takes priority over step 4 (first-supporting)
+          expect(result).toStrictEqual(transakNative);
+        },
+      );
+    });
+
+    it('returns null when no provider supports the asset', async () => {
+      const ethOnly = createMockProvider({
+        id: '/providers/eth-only',
+        name: 'ETH Only',
+        type: 'aggregator',
+        supportedCryptoCurrencies: { [ASSET_ETH]: true },
+      });
+
+      await withController(
+        {
+          options: {
+            state: {
+              userRegion: createMockUserRegion('us'),
+              providers: createResourceState([ethOnly], null),
+            },
+          },
+        },
+        async ({ controller }) => {
+          const result = await controller.getBestProviderForAsset({
+            assetId: ASSET_USDC,
+          });
+
+          expect(result).toBeNull();
+        },
+      );
+    });
+
+    it('returns null when no user region is set', async () => {
+      await withController(
+        {
+          options: {
+            state: {
+              userRegion: null,
+              providers: createResourceState([moonpay], null),
+            },
+          },
+        },
+        async ({ controller }) => {
+          const result = await controller.getBestProviderForAsset({
+            assetId: ASSET_USDC,
+          });
+
+          expect(result).toBeNull();
+        },
+      );
+    });
+
+    it('is callable via messenger.call', async () => {
+      await withController(
+        {
+          options: {
+            state: {
+              userRegion: createMockUserRegion('us'),
+              providers: createResourceState([moonpay, transakNative], null),
+            },
+          },
+        },
+        async ({ rootMessenger }) => {
+          const result = await rootMessenger.call(
+            'RampsController:getBestProviderForAsset',
+            { assetId: ASSET_USDC },
+          );
+
+          expect(result).toStrictEqual(transakNative);
+        },
+      );
+    });
+
+    it('does not mutate providers.selected after the call', async () => {
+      const preSetSelected = moonpay;
+
+      await withController(
+        {
+          options: {
+            state: {
+              userRegion: createMockUserRegion('us'),
+              providers: createResourceState([moonpay, transakNative], preSetSelected),
+            },
+          },
+        },
+        async ({ controller }) => {
+          await controller.getBestProviderForAsset({ assetId: ASSET_USDC });
+
+          expect(controller.state.providers.selected).toStrictEqual(
+            preSetSelected,
+          );
+        },
+      );
+    });
+  });
+
   describe('getOrder', () => {
     const mockOrder = {
       id: '/providers/transak-staging/orders/abc-123',

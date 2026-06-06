@@ -34,6 +34,7 @@ export type {
   RampsControllerAddPrecreatedOrderAction,
   RampsControllerGetOrderAction,
   RampsControllerGetOrderFromCallbackAction,
+  RampsControllerGetBestProviderForAssetAction,
   RampsControllerTransakSetApiKeyAction,
   RampsControllerTransakSetAccessTokenAction,
   RampsControllerTransakClearAccessTokenAction,
