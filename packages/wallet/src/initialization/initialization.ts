@@ -5,6 +5,7 @@ import type {
   DefaultInstances,
 } from './defaults';
 import { defaultConfigurations, RootMessenger } from './defaults';
+import { InitializationConfiguration } from './types';
 
 type InitializeOptions = WalletOptions & {
   messenger: RootMessenger<DefaultActions, DefaultEvents>;
@@ -31,7 +32,7 @@ export function initialize(options: InitializeOptions): DefaultInstances {
   const configurationEntries = initializationConfigurations.concat(
     Object.values(defaultConfigurations).filter(
       (config) => !overriddenConfiguration.includes(config.name),
-    ),
+    ) as InitializationConfiguration<unknown, unknown>[],
   );
 
   const instances: Record<string, unknown> = {};
@@ -53,7 +54,7 @@ export function initialize(options: InitializeOptions): DefaultInstances {
       options: instanceOptions?.[camelCaseName] ?? {},
     });
 
-    instances[name] = instance as Record<string, unknown>;
+    instances[name] = instance;
   }
 
   return instances as DefaultInstances;

@@ -23,6 +23,7 @@ import {
   getRelayOriginGasOverhead,
   getRelayPollingInterval,
   getRelayPollingTimeout,
+  isChainExcludedFromInfura,
   isEIP7702Chain,
   isRelayExecuteEnabled,
   getFeatureFlags,
@@ -499,6 +500,64 @@ describe('Feature Flags Utils', () => {
       });
 
       expect(isRelayExecuteEnabled(messenger)).toBe(false);
+    });
+  });
+
+  describe('isChainExcludedFromInfura', () => {
+    it('returns false when no feature flags are set', () => {
+      expect(isChainExcludedFromInfura(messenger, CHAIN_ID_MOCK)).toBe(false);
+    });
+
+    it('returns false when excludeChainIdsFromInfura is empty', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_pay_extended: {
+            excludeChainIdsFromInfura: [],
+          },
+        },
+      });
+
+      expect(isChainExcludedFromInfura(messenger, CHAIN_ID_MOCK)).toBe(false);
+    });
+
+    it('returns true when chainId is in the exclusion list', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_pay_extended: {
+            excludeChainIdsFromInfura: [CHAIN_ID_MOCK],
+          },
+        },
+      });
+
+      expect(isChainExcludedFromInfura(messenger, CHAIN_ID_MOCK)).toBe(true);
+    });
+
+    it('returns false when chainId is not in the exclusion list', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_pay_extended: {
+            excludeChainIdsFromInfura: [CHAIN_ID_DIFFERENT_MOCK],
+          },
+        },
+      });
+
+      expect(isChainExcludedFromInfura(messenger, CHAIN_ID_MOCK)).toBe(false);
+    });
+
+    it('performs case-insensitive comparison', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_pay_extended: {
+            excludeChainIdsFromInfura: ['0xA' as Hex],
+          },
+        },
+      });
+
+      expect(isChainExcludedFromInfura(messenger, '0xa' as Hex)).toBe(true);
     });
   });
 

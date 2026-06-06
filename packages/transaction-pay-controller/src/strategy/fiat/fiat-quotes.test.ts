@@ -71,8 +71,6 @@ const FIAT_QUOTE_MOCK: RampsQuote = {
   },
 };
 
-const SELECTED_PROVIDER_ID = '/providers/transak-native-staging';
-
 const FIAT_QUOTES_RESPONSE_MOCK: RampsQuotesResponse = {
   customActions: [],
   error: [],
@@ -129,14 +127,12 @@ function getRequest({
   amountFiat = '10',
   fiatPaymentMethod = '/payments/debit-credit-card',
   rampsQuotes = FIAT_QUOTES_RESPONSE_MOCK,
-  selectedProviderId = SELECTED_PROVIDER_ID as string | null,
   tokens = [REQUIRED_TOKEN_MOCK],
   throwsOnRampsQuotes,
 }: {
   amountFiat?: string;
   fiatPaymentMethod?: string;
   rampsQuotes?: RampsQuotesResponse;
-  selectedProviderId?: string | null;
   tokens?: TransactionPayRequiredToken[];
   throwsOnRampsQuotes?: Error;
 } = {}): {
@@ -155,14 +151,6 @@ function getRequest({
               isLoading: false,
               tokens,
             },
-          },
-        };
-      }
-
-      if (action === 'RampsController:getState') {
-        return {
-          providers: {
-            selected: selectedProviderId ? { id: selectedProviderId } : null,
           },
         };
       }
@@ -252,9 +240,10 @@ describe('getFiatQuotes', () => {
       expect.objectContaining({
         amount: 20,
         assetId: FIAT_ASSET_CAIP_ID_MOCK,
+        autoSelectProvider: true,
         fiat: 'USD',
         paymentMethods: ['/payments/debit-credit-card'],
-        providers: [SELECTED_PROVIDER_ID],
+        restrictToKnownOrNativeProviders: true,
         walletAddress: WALLET_ADDRESS,
       }),
     );
@@ -496,21 +485,6 @@ describe('getFiatQuotes', () => {
     expect(result).toStrictEqual([]);
   });
 
-  it('passes undefined providers when no provider is selected', async () => {
-    const { callMock, request } = getRequest({
-      selectedProviderId: null,
-    });
-
-    await getFiatQuotes(request);
-
-    expect(callMock).toHaveBeenCalledWith(
-      'RampsController:getQuotes',
-      expect.objectContaining({
-        providers: undefined,
-      }),
-    );
-  });
-
   it('stores rampsQuote on fiat payment state via updateFiatPayment', async () => {
     const fiatPaymentState: TransactionFiatPayment = {};
     const callMock = jest.fn(
@@ -524,12 +498,6 @@ describe('getFiatQuotes', () => {
                 tokens: [REQUIRED_TOKEN_MOCK],
               },
             },
-          };
-        }
-
-        if (action === 'RampsController:getState') {
-          return {
-            providers: { selected: { id: SELECTED_PROVIDER_ID } },
           };
         }
 

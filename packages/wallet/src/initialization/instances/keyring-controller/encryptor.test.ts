@@ -1,6 +1,6 @@
 import { webcrypto } from 'crypto';
 
-import { encryptorFactory } from './keyring-controller';
+import { encryptorFactory } from './encryptor';
 
 describe('encryptorFactory', () => {
   beforeAll(() => {

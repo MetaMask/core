@@ -31,12 +31,11 @@ import type {
 import type { Messenger } from '@metamask/messenger';
 import type { NetworkControllerFindNetworkClientIdByChainIdAction } from '@metamask/network-controller';
 import type { NetworkControllerGetNetworkClientByIdAction } from '@metamask/network-controller';
+import type { NetworkControllerGetNetworkConfigurationByChainIdAction } from '@metamask/network-controller';
 import type { Quote as RampsQuote } from '@metamask/ramps-controller';
 import type {
   RampsControllerGetOrderAction,
   RampsControllerGetQuotesAction,
-  RampsControllerGetStateAction,
-  RampsControllerSetSelectedTokenAction,
 } from '@metamask/ramps-controller';
 import type { RemoteFeatureFlagControllerGetStateAction } from '@metamask/remote-feature-flag-controller';
 import type {
@@ -78,10 +77,9 @@ export type AllowedActions =
   | KeyringControllerSignTypedMessageAction
   | NetworkControllerFindNetworkClientIdByChainIdAction
   | NetworkControllerGetNetworkClientByIdAction
+  | NetworkControllerGetNetworkConfigurationByChainIdAction
   | RampsControllerGetOrderAction
   | RampsControllerGetQuotesAction
-  | RampsControllerGetStateAction
-  | RampsControllerSetSelectedTokenAction
   | RemoteFeatureFlagControllerGetStateAction
   | TokenBalancesControllerGetStateAction
   | TokenRatesControllerGetStateAction
@@ -169,6 +167,12 @@ export type GetPaymentOverrideDataRequest = {
 export type GetPaymentOverrideDataResponse = {
   /** Batch transaction params to prepend to the submit batch. */
   calls: BatchTransactionParams[];
+
+  /** Optional recipient address for the funding token transfer. */
+  recipient?: Hex;
+
+  /** Optional EIP-7702 authorization list from delegation. */
+  authorizationList?: AuthorizationList;
 };
 
 /**

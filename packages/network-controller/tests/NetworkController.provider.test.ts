@@ -1,7 +1,5 @@
-import {
-  DEFAULT_CIRCUIT_BREAK_DURATION,
-  DEFAULT_DEGRADED_THRESHOLD,
-} from '@metamask/controller-utils';
+import { DEFAULT_DEGRADED_THRESHOLD } from '@metamask/controller-utils';
+import { Duration, inMilliseconds } from '@metamask/utils';
 import nock from 'nock';
 
 import { NetworkStatus } from '../src/constants';
@@ -559,7 +557,7 @@ describe('NetworkController provider tests', () => {
         method: 'eth_blockNumber',
         params: [],
       })
-      .times(15)
+      .times(12)
       .reply(503);
     nock(secondaryEndpointUrl)
       .post('/', {
@@ -568,7 +566,7 @@ describe('NetworkController provider tests', () => {
         method: 'eth_blockNumber',
         params: [],
       })
-      .times(15)
+      .times(40)
       .reply(503);
 
     await withController(
@@ -617,8 +615,14 @@ describe('NetworkController provider tests', () => {
         // Hit the primary, break the circuit, fail over to the secondary,
         // run out of retries.
         await expect(provider.request(request)).rejects.toThrow(expectedError);
-        // Hit the secondary, run out of retries.
-        await expect(provider.request(request)).rejects.toThrow(expectedError);
+
+        for (let i = 0; i < 8; i++) {
+          // Hit the secondary, run out of retries.
+          await expect(provider.request(request)).rejects.toThrow(
+            expectedError,
+          );
+        }
+
         // Hit the secondary, break the circuit.
         await expect(provider.request(request)).rejects.toThrow(expectedError);
 
@@ -641,7 +645,7 @@ describe('NetworkController provider tests', () => {
         method: 'eth_blockNumber',
         params: [],
       })
-      .times(15)
+      .times(12)
       .reply(503)
       .post('/', {
         id: /^\d+$/u,
@@ -717,7 +721,7 @@ describe('NetworkController provider tests', () => {
         await expect(provider.request(request)).rejects.toThrow(expectedError);
         // Wait until the circuit break duration passes and hit the endpoint
         // again.
-        jest.advanceTimersByTime(DEFAULT_CIRCUIT_BREAK_DURATION);
+        jest.advanceTimersByTime(inMilliseconds(30, Duration.Second));
         await provider.request(request);
 
         expect(stateChangeListener).toHaveBeenCalledTimes(3);
@@ -781,7 +785,7 @@ describe('NetworkController provider tests', () => {
         method: 'eth_blockNumber',
         params: [],
       })
-      .times(15)
+      .times(12)
       .reply(503)
       .post('/', {
         id: 1,
