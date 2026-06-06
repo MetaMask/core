@@ -7260,6 +7260,62 @@ describe('RampsController', () => {
         },
       );
     });
+
+    it('uses the explicit region override instead of the user region', async () => {
+      await withController(
+        {
+          options: {
+            state: {
+              // User region differs from the requested region, and its
+              // providers are not cached, so the explicit region must drive a
+              // fresh fetch.
+              userRegion: createMockUserRegion('fr'),
+            },
+          },
+        },
+        async ({ controller, rootMessenger }) => {
+          let requestedRegion: string | undefined;
+          rootMessenger.registerActionHandler(
+            'RampsService:getProviders',
+            async (region) => {
+              requestedRegion = region;
+              return { providers: [moonpay, transakNative] };
+            },
+          );
+
+          const result = await controller.getBestProviderForAsset({
+            assetId: ASSET_USDC,
+            region: 'us',
+          });
+
+          expect(requestedRegion).toBe('us');
+          expect(result).toStrictEqual(transakNative);
+        },
+      );
+    });
+
+    it('returns the selected provider when it supports the asset', async () => {
+      await withController(
+        {
+          options: {
+            state: {
+              userRegion: createMockUserRegion('us'),
+              // moonpay is selected; transakNative would otherwise win via the
+              // native step, so this proves the selected provider takes
+              // precedence.
+              providers: createResourceState([moonpay, transakNative], moonpay),
+            },
+          },
+        },
+        async ({ controller }) => {
+          const result = await controller.getBestProviderForAsset({
+            assetId: ASSET_USDC,
+          });
+
+          expect(result).toStrictEqual(moonpay);
+        },
+      );
+    });
   });
 
   describe('getOrder', () => {

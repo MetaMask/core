@@ -232,8 +232,7 @@ export type RampsControllerGetQuotesAction = {
  * region (defaulting to the current user region), using the same selection
  * cascade as quote auto-selection:
  * 1. The currently selected provider, if it supports the asset.
- * 2. The first provider from the user's completed-order history that
- * supports the asset.
+ * 2. The first order-history provider that supports the asset.
  * 3. A native provider (e.g. Transak Native).
  * 4. The first supporting provider.
  *
@@ -242,10 +241,8 @@ export type RampsControllerGetQuotesAction = {
  *
  * @param options - The options.
  * @param options.assetId - CAIP-19 asset type identifier to resolve for.
- * @param options.region - Region code to resolve against. Defaults to the
- * current user region's region code. Returns null if no region available.
- * @returns The best supporting Provider, or null if none supports the asset
- * or no region is available.
+ * @param options.region - Region code to resolve against; defaults to the current user region's region code. Returns null if no region available.
+ * @returns The best supporting Provider, or null if none supports the asset or no region is available.
  */
 export type RampsControllerGetBestProviderForAssetAction = {
   type: `RampsController:getBestProviderForAsset`;

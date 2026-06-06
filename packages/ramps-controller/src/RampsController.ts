@@ -2078,9 +2078,14 @@ export class RampsController extends BaseController<
       return all.map((provider) => provider.id);
     }
 
+    // Resolve the preference list once and reuse it both for the pick and the
+    // restriction guard below, avoiding a duplicate order-history derivation.
+    const preferred =
+      preferredProviderIds ?? this.#getPreferredProviderIdsFromOrders();
+
     const best = this.#resolveBestSupportingProvider({
       supporting,
-      preferredProviderIds,
+      preferredProviderIds: preferred,
     });
 
     // Under headless gating with no best provider (empty supporting set),
@@ -2092,14 +2097,11 @@ export class RampsController extends BaseController<
     // Under headless gating, only a native provider is accepted — any non-native
     // fallback (step 4) is rejected.
     if (restrictToKnownOrNative && best.type !== 'native') {
-      // Check if the best was chosen because of selected/preferred/native logic.
       // The only case where we must block is when #resolveBestSupportingProvider
       // fell through to step 4 (first-supporting). That happens iff best is not
       // selected, not preferred, and not native.
       const { selected } = this.state.providers;
       const isSelected = selected?.id === best.id;
-      const preferred =
-        preferredProviderIds ?? this.#getPreferredProviderIdsFromOrders();
       const isPreferred = preferred.includes(best.id);
       if (!isSelected && !isPreferred) {
         return [];
@@ -2114,8 +2116,7 @@ export class RampsController extends BaseController<
    * region (defaulting to the current user region), using the same selection
    * cascade as quote auto-selection:
    * 1. The currently selected provider, if it supports the asset.
-   * 2. The first provider from the user's completed-order history that
-   *    supports the asset.
+   * 2. The first order-history provider that supports the asset.
    * 3. A native provider (e.g. Transak Native).
    * 4. The first supporting provider.
    *
@@ -2124,10 +2125,8 @@ export class RampsController extends BaseController<
    *
    * @param options - The options.
    * @param options.assetId - CAIP-19 asset type identifier to resolve for.
-   * @param options.region - Region code to resolve against. Defaults to the
-   *   current user region's region code. Returns null if no region available.
-   * @returns The best supporting Provider, or null if none supports the asset
-   *   or no region is available.
+   * @param options.region - Region code to resolve against; defaults to the current user region's region code. Returns null if no region available.
+   * @returns The best supporting Provider, or null if none supports the asset or no region is available.
    */
   async getBestProviderForAsset({
     assetId,
