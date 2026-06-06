@@ -248,7 +248,7 @@ describe('getFiatQuotes', () => {
         autoSelectProvider: true,
         fiat: 'USD',
         paymentMethods: ['/payments/debit-credit-card'],
-        restrictToKnownOrNativeProviders: true,
+        restrictToKnownOrNativeProviders: false,
         walletAddress: WALLET_ADDRESS,
       }),
     );
