@@ -187,7 +187,12 @@ async function getRampsQuote({
     autoSelectProvider: true,
     fiat: DEFAULT_FIAT_CURRENCY,
     paymentMethods: [fiatPaymentMethod],
-    restrictToKnownOrNativeProviders: true,
+    // Do not restrict to native-only providers — the fiat strategy is used for
+    // moneyAccountDeposit which may be served by aggregator providers (e.g.
+    // onramp.money in regions where Transak is unavailable). The gate
+    // (RampsController:getBestProviderForAsset) already verified that a
+    // supporting provider exists for the asset in the user's region.
+    restrictToKnownOrNativeProviders: false,
     walletAddress,
   });
 
