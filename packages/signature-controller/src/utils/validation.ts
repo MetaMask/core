@@ -189,6 +189,7 @@ function validateTypedSignatureRequestV3V4({
     data,
     internalAccounts,
     origin,
+    signerAddress: messageData.from,
   });
 
   validateDelegation({
@@ -220,23 +221,38 @@ function validateAddress(address: string, propertyName: string) {
  * @param options.data - The typed data to validate.
  * @param options.internalAccounts - The internal accounts.
  * @param options.origin - The origin of the request.
+ * @param options.signerAddress - The address that will sign the message.
  */
 function validateVerifyingContract({
   data,
   internalAccounts,
   origin,
+  signerAddress,
 }: {
   data: MessageParamsTypedData;
   internalAccounts: Hex[];
   origin: string | undefined;
+  signerAddress?: string;
 }) {
   const verifyingContract = data?.domain?.verifyingContract;
   const isExternal = origin && origin !== ORIGIN_METAMASK;
+
+  // EIP-7702 exception: When a user's EOA is delegated to a smart contract via EIP-7702,
+  // the EOA itself becomes the verifying contract. In this case, signatures where the
+  // verifyingContract matches the signer's address are legitimate and should be allowed.
+  // This enables protocols like account abstraction and sponsored transactions where
+  // the user signs messages verified by their own (temporarily upgraded) address.
+  const isEIP7702SelfSignature =
+    signerAddress &&
+    verifyingContract &&
+    typeof verifyingContract === 'string' &&
+    signerAddress.toLowerCase() === verifyingContract.toLowerCase();
 
   if (
     verifyingContract &&
     typeof verifyingContract === 'string' &&
     isExternal &&
+    !isEIP7702SelfSignature &&
     internalAccounts.some(
       (internalAccount) =>
         internalAccount.toLowerCase() === verifyingContract.toLowerCase(),
