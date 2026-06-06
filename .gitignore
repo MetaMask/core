@@ -39,13 +39,6 @@ packages/*/*.tsbuildinfo
 # AI
 .sisyphus/
 
-# Farmslot recipe run artifacts
-.recipe-artifacts/
-packages/perps-controller/.recipe-output/
-.omc/
-.omx/
-CLAUDE.local.md
-
 # Docusaurus
 **/.docusaurus
 packages/wallet-framework-docs/site/build

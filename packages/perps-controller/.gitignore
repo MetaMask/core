@@ -1,0 +1,3 @@
+# Farmslot recipe run artifacts (package-local)
+.recipe-output/
+.recipe-artifacts/

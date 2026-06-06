@@ -17,7 +17,7 @@ Run manually from the repository root with:
 ```bash
 yarn workspace @metamask/perps-controller exec farmslot-recipe run \
   recipes/client-smoke.recipe.json \
-  --artifacts-dir ../../.recipe-artifacts/perps-controller/client-smoke \
+  --artifacts-dir .recipe-artifacts/client-smoke \
   --action-manifest recipes/headless.action-manifest.json \
   --project-root .
 ```
