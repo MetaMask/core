@@ -288,7 +288,6 @@ export type PerpsControllerState = {
     transactionId?: string;
     withdrawalId?: string;
     depositId?: string;
-    destinationSubAccount?: string;
   }[];
 
   // Eligibility (Geo-Blocking)
@@ -2211,7 +2210,7 @@ export class PerpsController extends BaseController<
   async depositWithConfirmation(
     params: DepositWithConfirmationParams = {},
   ): Promise<{ result: Promise<string> }> {
-    const { amount, placeOrder, destinationSubAccount } = params;
+    const { amount, placeOrder } = params;
 
     let currentDepositId: string | undefined;
 
@@ -2225,16 +2224,11 @@ export class PerpsController extends BaseController<
         transaction,
         assetChainId,
         currentDepositId: depositId,
-      } = await this.#depositService.prepareTransaction({
-        provider,
-        destinationSubAccount,
-      });
+      } = await this.#depositService.prepareTransaction({ provider });
       currentDepositId = depositId;
 
-      const accountAddress =
-        destinationSubAccount ??
-        getSelectedEvmAccountFromMessenger(this.messenger)?.address ??
-        'unknown';
+      const evmAccount = getSelectedEvmAccountFromMessenger(this.messenger);
+      const accountAddress = evmAccount?.address ?? 'unknown';
 
       this.update((state) => {
         state.lastDepositResult = null;
@@ -2251,7 +2245,6 @@ export class PerpsController extends BaseController<
           status: 'pending' as TransactionStatus,
           source: undefined,
           transactionId: undefined, // Will be set to depositId when available
-          destinationSubAccount,
         };
 
         state.depositRequests.unshift(depositRequest); // Add to beginning of array
@@ -2498,16 +2491,10 @@ export class PerpsController extends BaseController<
   /**
    * Same as depositWithConfirmation - prepares transaction for confirmation screen.
    *
-   * @param params - Optional parameters including destinationSubAccount.
    * @returns A promise that resolves to the string result.
    */
-  async depositWithOrder(
-    params?: Pick<DepositWithConfirmationParams, 'destinationSubAccount'>,
-  ): Promise<{ result: Promise<string> }> {
-    return this.depositWithConfirmation({
-      placeOrder: true,
-      destinationSubAccount: params?.destinationSubAccount,
-    });
+  async depositWithOrder(): Promise<{ result: Promise<string> }> {
+    return this.depositWithConfirmation({ placeOrder: true });
   }
 
   /**
@@ -3657,6 +3644,27 @@ export class PerpsController extends BaseController<
     );
 
     return results;
+  }
+
+  /**
+   * Updates the destination sub-account for a pending deposit.
+   * Called after the confirmation UI is shown and the user picks a target account.
+   *
+   * @param depositId - The deposit request ID to update.
+   * @param destinationAddress - The EVM address of the target sub-account.
+   */
+  updateDepositDestination(
+    depositId: string,
+    destinationAddress: string,
+  ): void {
+    this.update((state) => {
+      const request = state.depositRequests.find(
+        (r) => r.id === depositId || r.transactionId === depositId,
+      );
+      if (request) {
+        request.accountAddress = destinationAddress;
+      }
+    });
   }
 
   /**

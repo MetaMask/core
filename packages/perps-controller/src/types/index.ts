@@ -571,15 +571,6 @@ export type DepositWithConfirmationParams = {
   amount?: string;
   /** If true, uses addTransaction instead of submit to avoid navigation (e.g. deposit + place order flow) */
   placeOrder?: boolean;
-  /**
-   * Target sub-account for the deposit (protocol-specific identifier).
-   * When omitted, deposits go to the default/main account.
-   *
-   * Protocol examples:
-   * - HyperLiquid HIP-3: '' (main DEX) or builder DEX name (e.g. 'xyz')
-   * - dYdX: Sub-account number string (e.g. '0', '1')
-   */
-  destinationSubAccount?: string;
 };
 
 export type DepositResult = {

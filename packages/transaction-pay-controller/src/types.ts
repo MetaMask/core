@@ -139,13 +139,6 @@ export type TransactionConfig = {
   paymentOverride?: PaymentOverride;
 
   /**
-   * Optional address to override the deposit recipient for the transaction.
-   * Used by perps deposits to route funds to a specific sub-account without
-   * changing the signer (`from`) or affecting token/balance lookups.
-   */
-  recipientOverride?: Hex;
-
-  /**
    * Optional address to receive refunds if the quote provider transaction fails.
    * When set, overrides the default refund recipient (EOA) in the quote
    * request. Use this for post-quote flows where the user's funds originate
