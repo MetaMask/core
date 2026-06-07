@@ -302,6 +302,14 @@ export type AccountState = {
   providerId?: PerpsProviderType; // Multi-provider: which provider this account state is from (injected by aggregator)
 };
 
+export type SubAccountInfo = {
+  id: string; // Protocol-specific sub-account identifier ('' for main)
+  name: string; // Display name (e.g. 'Account 1 (Perps)')
+  spendableBalance: string;
+  withdrawableBalance: string;
+  totalBalance: string;
+};
+
 export type ClosePositionParams = {
   symbol: string; // Asset identifier to close (e.g., 'ETH', 'BTC', 'xyz:TSLA')
   size?: string; // Size to close (omit for full close)
@@ -563,6 +571,15 @@ export type DepositWithConfirmationParams = {
   amount?: string;
   /** If true, uses addTransaction instead of submit to avoid navigation (e.g. deposit + place order flow) */
   placeOrder?: boolean;
+  /**
+   * Target sub-account for the deposit (protocol-specific identifier).
+   * When omitted, deposits go to the default/main account.
+   *
+   * Protocol examples:
+   * - HyperLiquid HIP-3: '' (main DEX) or builder DEX name (e.g. 'xyz')
+   * - dYdX: Sub-account number string (e.g. '0', '1')
+   */
+  destinationSubAccount?: string;
 };
 
 export type DepositResult = {

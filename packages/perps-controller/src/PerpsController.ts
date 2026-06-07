@@ -67,6 +67,7 @@ import type {
   Funding,
   GetAccountStateParams,
   GetAvailableDexsParams,
+  SubAccountInfo,
   GetFundingParams,
   GetMarketDataWithPricesParams,
   GetMarketsParams,
@@ -287,6 +288,7 @@ export type PerpsControllerState = {
     transactionId?: string;
     withdrawalId?: string;
     depositId?: string;
+    destinationSubAccount?: string;
   }[];
 
   // Eligibility (Geo-Blocking)
@@ -2209,7 +2211,7 @@ export class PerpsController extends BaseController<
   async depositWithConfirmation(
     params: DepositWithConfirmationParams = {},
   ): Promise<{ result: Promise<string> }> {
-    const { amount, placeOrder } = params;
+    const { amount, placeOrder, destinationSubAccount } = params;
 
     let currentDepositId: string | undefined;
 
@@ -2223,12 +2225,16 @@ export class PerpsController extends BaseController<
         transaction,
         assetChainId,
         currentDepositId: depositId,
-      } = await this.#depositService.prepareTransaction({ provider });
+      } = await this.#depositService.prepareTransaction({
+        provider,
+        destinationSubAccount,
+      });
       currentDepositId = depositId;
 
-      // Get current account address via messenger (outside of update() for proper typing)
-      const evmAccount = getSelectedEvmAccountFromMessenger(this.messenger);
-      const accountAddress = evmAccount?.address ?? 'unknown';
+      const accountAddress =
+        destinationSubAccount ??
+        getSelectedEvmAccountFromMessenger(this.messenger)?.address ??
+        'unknown';
 
       this.update((state) => {
         state.lastDepositResult = null;
@@ -2245,6 +2251,7 @@ export class PerpsController extends BaseController<
           status: 'pending' as TransactionStatus,
           source: undefined,
           transactionId: undefined, // Will be set to depositId when available
+          destinationSubAccount,
         };
 
         state.depositRequests.unshift(depositRequest); // Add to beginning of array
@@ -2491,10 +2498,16 @@ export class PerpsController extends BaseController<
   /**
    * Same as depositWithConfirmation - prepares transaction for confirmation screen.
    *
+   * @param params - Optional parameters including destinationSubAccount.
    * @returns A promise that resolves to the string result.
    */
-  async depositWithOrder(): Promise<{ result: Promise<string> }> {
-    return this.depositWithConfirmation({ placeOrder: true });
+  async depositWithOrder(
+    params?: Pick<DepositWithConfirmationParams, 'destinationSubAccount'>,
+  ): Promise<{ result: Promise<string> }> {
+    return this.depositWithConfirmation({
+      placeOrder: true,
+      destinationSubAccount: params?.destinationSubAccount,
+    });
   }
 
   /**
@@ -3592,6 +3605,58 @@ export class PerpsController extends BaseController<
       params,
       context,
     });
+  }
+
+  /**
+   * Get EVM accounts with their perps balances for the account picker.
+   * Fetches balances in parallel for each account via standalone mode.
+   *
+   * @returns Array of sub-account info with wallet name and perps balances.
+   */
+  async getSubAccounts(): Promise<SubAccountInfo[]> {
+    const accounts = this.messenger.call(
+      'AccountTreeController:getAccountsFromSelectedAccountGroup',
+    ) as Array<{ address: string; type: string; metadata?: { name?: string } }>;
+
+    const evmAccounts = (accounts ?? []).filter(
+      (a) => a.type?.startsWith('eip155:'),
+    );
+
+    if (evmAccounts.length === 0) {
+      return [];
+    }
+
+    const zeroBal = {
+      spendableBalance: '0',
+      withdrawableBalance: '0',
+      totalBalance: '0',
+    };
+
+    const results = await Promise.all(
+      evmAccounts.map(async (account) => {
+        try {
+          const state = await this.getAccountState({
+            standalone: true,
+            userAddress: account.address,
+          });
+          return {
+            id: account.address,
+            name: `${account.metadata?.name ?? account.address} (Perps)`,
+            spendableBalance: state.spendableBalance,
+            withdrawableBalance: state.withdrawableBalance,
+            totalBalance: state.totalBalance,
+          };
+        } catch {
+          return {
+            id: account.address,
+            name: `${account.metadata?.name ?? account.address} (Perps)`,
+            ...zeroBal,
+          };
+        }
+      }),
+    );
+
+    return results;
   }
 
   /**

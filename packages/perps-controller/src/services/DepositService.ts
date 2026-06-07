@@ -51,14 +51,19 @@ export class DepositService {
    *
    * @param options - Configuration object
    * @param options.provider - Active provider instance
+   * @param options.destinationSubAccount - Target sub-account identifier
    * @returns Transaction data ready for TransactionController.addTransaction
    */
-  async prepareTransaction(options: { provider: PerpsProvider }): Promise<{
+  async prepareTransaction(options: {
+    provider: PerpsProvider;
+    destinationSubAccount?: string;
+  }): Promise<{
     transaction: PerpsTransactionParams;
     assetChainId: Hex;
     currentDepositId: string;
+    destinationSubAccount?: string;
   }> {
-    const { provider } = options;
+    const { provider, destinationSubAccount } = options;
 
     this.#deps.debugLogger.log('DepositService: Preparing deposit transaction');
 
@@ -110,6 +115,7 @@ export class DepositService {
       transaction,
       assetChainId,
       currentDepositId,
+      destinationSubAccount,
     };
   }
 }

@@ -178,6 +178,7 @@ export type {
   DepositParams,
   DepositWithConfirmationParams,
   DepositResult,
+  SubAccountInfo,
   DepositStatus,
   DepositFlowType,
   DepositStepInfo,
