@@ -9,7 +9,6 @@ import type { Hex } from '@metamask/utils';
 import { createModuleLogger } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
 
-import { PERPS_DEPOSIT_TYPES } from '../../constants';
 import { projectLogger } from '../../logger';
 import type {
   PayStrategyExecuteRequest,
@@ -109,72 +108,18 @@ async function executeSingleServerQuote(
     },
   );
 
-  const { from, isHyperliquidSource, isPostQuote, paymentOverride } =
-    quote.request;
+  // Phase 1: off-chain signature steps (e.g. Relay authorize, HyperLiquid deposit).
+  // Use quote.request.from (resolved accountOverride) not transaction.txParams.from.
+  const signatureSteps = quote.original.steps.filter(isSignatureStep);
 
-  const { steps } = quote.original;
-  const signatureSteps = steps.filter(isSignatureStep);
-  const transactionSteps = steps.filter(isTransactionStep);
-
-  // Sign and POST any off-chain signature steps before on-chain submission.
-  // Use quote.request.from (which is already resolved to accountOverride when
-  // set) rather than transaction.txParams.from (the original EOA).
   for (const step of signatureSteps) {
-    await submitSignatureStep(step, from, messenger);
+    await submitSignatureStep(step, quote.request.from, messenger);
   }
 
-  if (transactionSteps.length > 0) {
-    // Skip balance check for gasless signature-only or HyperLiquid source flows
-    // (no on-chain debit on source side) and post-quote flows (funds come from
-    // the Safe after the original tx executes as part of the batch).
-    if (!isHyperliquidSource && !isPostQuote) {
-      await validateSourceBalance(quote, messenger);
-    }
+  // Phase 2: on-chain transaction steps (if any).
+  await submitTransactionSteps(quote, messenger, transaction);
 
-    // Build allParams: start with relay-provided transaction steps, then
-    // optionally prepend payment override or post-quote original tx calls.
-    let allParams = buildTransactionParams(
-      transactionSteps,
-      from,
-      quote.original.client.gasLimits,
-      quote.original.client.maxFeePerGas,
-      quote.original.client.maxPriorityFeePerGas,
-      getEffectiveTransactionType(transaction),
-    );
-
-    if (paymentOverride) {
-      allParams = await prependPaymentOverrideParams(
-        allParams,
-        quote,
-        transaction,
-        messenger,
-      );
-    } else if (isPostQuote && transaction.txParams.to) {
-      allParams = await prependPostQuoteParams(
-        allParams,
-        quote,
-        transaction,
-        messenger,
-      );
-    }
-
-    if (quote.original.gasless) {
-      await submitViaServerExecute(
-        quote,
-        allParams,
-        messenger,
-        transaction,
-      );
-    } else {
-      await submitViaTransactionController(
-        quote,
-        allParams,
-        messenger,
-        transaction,
-      );
-    }
-  }
-
+  // Phase 3: poll until the intent is confirmed on the target chain.
   const targetHash = await waitForServerCompletion(
     quote.original,
     messenger,
@@ -198,74 +143,160 @@ async function executeSingleServerQuote(
 }
 
 /**
- * Build a flat array of TransactionParams from server transaction steps.
+ * Submit the on-chain transaction steps for a server quote.
  *
- * Pure function — no messenger calls, no side effects.
+ * Validates the source balance, builds the complete set of params (including
+ * any post-quote or payment-override prepends), then dispatches to the
+ * gasless execute path or TransactionController depending on the quote.
  *
- * @param steps - Transaction steps from the server quote.
- * @param from - Sender address (resolved accountOverride when set).
+ * No-ops when the quote has no transaction steps (signature-only flows).
+ *
+ * @param quote - Server quote.
+ * @param messenger - Controller messenger.
+ * @param transaction - Original transaction meta.
+ */
+async function submitTransactionSteps(
+  quote: TransactionPayQuote<ServerQuote>,
+  messenger: TransactionPayControllerMessenger,
+  transaction: TransactionMeta,
+): Promise<void> {
+  const transactionSteps = quote.original.steps.filter(isTransactionStep);
+
+  if (transactionSteps.length === 0) {
+    return;
+  }
+
+  const { isHyperliquidSource, isPostQuote } = quote.request;
+
+  // Skip balance check for HyperLiquid source flows (no on-chain debit) and
+  // post-quote flows (funds come from the Safe after the original tx executes).
+  if (!isHyperliquidSource && !isPostQuote) {
+    await validateSourceBalance(quote, messenger);
+  }
+
+  const allParams = await buildTransactionParams(
+    quote,
+    transactionSteps,
+    transaction,
+    messenger,
+  );
+
+  if (quote.original.gasless) {
+    await submitViaServerExecute(quote, allParams, messenger, transaction);
+  } else {
+    await submitViaTransactionController(quote, allParams, messenger, transaction);
+  }
+}
+
+/**
+ * Build the complete flat array of TransactionParams for on-chain submission.
+ *
+ * Converts server transaction steps to params, then prepends any additional
+ * calls required by the payment override or post-quote flow. The returned
+ * array is ready to pass directly to submitViaServerExecute or
+ * submitViaTransactionController.
+ *
+ * @param quote - Server quote.
+ * @param transactionSteps - Transaction steps from the quote (pre-filtered).
+ * @param transaction - Original transaction meta.
+ * @param messenger - Controller messenger.
+ * @returns Complete ordered array of TransactionParams for submission.
+ */
+async function buildTransactionParams(
+  quote: TransactionPayQuote<ServerQuote>,
+  transactionSteps: ServerTransactionStep[],
+  transaction: TransactionMeta,
+  messenger: TransactionPayControllerMessenger,
+): Promise<TransactionParams[]> {
+  const { from, isPostQuote, paymentOverride } = quote.request;
+  const { gasLimits, maxFeePerGas, maxPriorityFeePerGas } =
+    quote.original.client;
+  const originalType = getEffectiveTransactionType(transaction);
+
+  const relayParams = transactionSteps.map((step, i) =>
+    stepToParams(step, i, transactionSteps.length, from, gasLimits, maxFeePerGas, maxPriorityFeePerGas, originalType),
+  );
+
+  if (paymentOverride) {
+    return prependPaymentOverrideParams(relayParams, quote, transaction, messenger);
+  }
+
+  if (isPostQuote && transaction.txParams.to) {
+    return prependPostQuoteParams(relayParams, quote, transaction, messenger);
+  }
+
+  return relayParams;
+}
+
+/**
+ * Convert a single server transaction step to TransactionParams.
+ *
+ * @param step - The transaction step.
+ * @param index - Zero-based position within the transaction steps array.
+ * @param totalSteps - Total number of transaction steps (for type mapping).
+ * @param from - Sender address.
  * @param gasLimits - Per-step gas limits from client-side estimation.
  * @param clientMaxFeePerGas - Client-side max fee per gas fallback.
  * @param clientMaxPriorityFeePerGas - Client-side max priority fee per gas fallback.
- * @param originalType - Effective type of the parent transaction (for relay deposit type mapping).
- * @returns Array of normalized TransactionParams, one per step.
+ * @param originalType - Effective type of the parent transaction.
+ * @returns Normalized TransactionParams for this step.
  */
-function buildTransactionParams(
-  steps: ServerTransactionStep[],
+function stepToParams(
+  step: ServerTransactionStep,
+  index: number,
+  totalSteps: number,
   from: Hex,
   gasLimits: number[],
   clientMaxFeePerGas: string | undefined,
   clientMaxPriorityFeePerGas: string | undefined,
   originalType: TransactionMeta['type'],
-): TransactionParams[] {
-  return steps.map((step, i) => {
-    let gas: Hex | undefined;
-    const gasLimit = gasLimits[i];
+): TransactionParams {
+  let gas: Hex | undefined;
+  const gasLimit = gasLimits[index];
 
-    if (gasLimit) {
-      gas = toHex(gasLimit);
-    } else if (step.gasLimit) {
-      gas = toHex(step.gasLimit);
-    }
+  if (gasLimit) {
+    gas = toHex(gasLimit);
+  } else if (step.gasLimit) {
+    gas = toHex(step.gasLimit);
+  }
 
-    const resolvedMaxFeePerGas = step.maxFeePerGas ?? clientMaxFeePerGas;
-    const resolvedMaxPriorityFeePerGas =
-      step.maxPriorityFeePerGas ?? clientMaxPriorityFeePerGas;
+  const resolvedMaxFeePerGas = step.maxFeePerGas ?? clientMaxFeePerGas;
+  const resolvedMaxPriorityFeePerGas =
+    step.maxPriorityFeePerGas ?? clientMaxPriorityFeePerGas;
 
-    const params: TransactionParams = {
-      data: step.data,
-      from,
-      gas,
-      maxFeePerGas: resolvedMaxFeePerGas
-        ? toHex(resolvedMaxFeePerGas)
-        : undefined,
-      maxPriorityFeePerGas: resolvedMaxPriorityFeePerGas
-        ? toHex(resolvedMaxPriorityFeePerGas)
-        : undefined,
-      to: step.to,
-      type: getTransactionType(i, steps.length, originalType),
-      value: toHex(step.value),
-    };
+  const params: TransactionParams = {
+    data: step.data,
+    from,
+    gas,
+    maxFeePerGas: resolvedMaxFeePerGas
+      ? toHex(resolvedMaxFeePerGas)
+      : undefined,
+    maxPriorityFeePerGas: resolvedMaxPriorityFeePerGas
+      ? toHex(resolvedMaxPriorityFeePerGas)
+      : undefined,
+    to: step.to,
+    type: getTransactionType(index, totalSteps, originalType),
+    value: toHex(step.value),
+  };
 
-    log('Built transaction params for step', {
-      index: i,
-      step: {
-        gasLimit: step.gasLimit,
-        maxFeePerGas: step.maxFeePerGas,
-        maxPriorityFeePerGas: step.maxPriorityFeePerGas,
-        value: step.value,
-      },
-      params: {
-        gas: params.gas,
-        maxFeePerGas: params.maxFeePerGas,
-        maxPriorityFeePerGas: params.maxPriorityFeePerGas,
-        type: params.type,
-        value: params.value,
-      },
-    });
-
-    return params;
+  log('Built transaction params for step', {
+    index,
+    step: {
+      gasLimit: step.gasLimit,
+      maxFeePerGas: step.maxFeePerGas,
+      maxPriorityFeePerGas: step.maxPriorityFeePerGas,
+      value: step.value,
+    },
+    params: {
+      gas: params.gas,
+      maxFeePerGas: params.maxFeePerGas,
+      maxPriorityFeePerGas: params.maxPriorityFeePerGas,
+      type: params.type,
+      value: params.value,
+    },
   });
+
+  return params;
 }
 
 /**
