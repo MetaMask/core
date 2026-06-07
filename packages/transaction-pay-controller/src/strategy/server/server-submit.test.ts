@@ -12,6 +12,7 @@ import {
   getServerPollingInterval,
   getServerPollingTimeout,
 } from '../../utils/feature-flags';
+import { getLiveTokenBalance } from '../../utils/token';
 import {
   collectTransactionIds,
   getTransaction,
@@ -23,6 +24,10 @@ import { ServerProviderName, ServerStatus } from './types';
 import type { ServerQuote } from './types';
 
 jest.mock('../../utils/feature-flags');
+jest.mock('../../utils/token', () => ({
+  ...jest.requireActual('../../utils/token'),
+  getLiveTokenBalance: jest.fn(),
+}));
 jest.mock('../../utils/transaction', () => ({
   ...jest.requireActual('../../utils/transaction'),
   collectTransactionIds: jest.fn(),
@@ -61,14 +66,27 @@ const ORIGINAL_QUOTE_MOCK: ServerQuote = {
     maxPriorityFeePerGas: '500000000',
   },
   duration: 30,
+  fees: { metamask: '0', provider: '0', subsidized: false },
   gasless: true,
   id: 'server-intent-id',
-  input: { formatted: '1.23', raw: '1230000' },
-  output: { formatted: '1', raw: '1000000' },
+  input: {
+    chainId: 137,
+    decimals: 6,
+    formatted: '1.23',
+    raw: '1230000',
+    token: '0x5555555555555555555555555555555555555555' as Hex,
+  },
+  output: {
+    chainId: 1,
+    decimals: 6,
+    formatted: '1',
+    raw: '1000000',
+    token: '0x6666666666666666666666666666666666666666' as Hex,
+  },
   provider: ServerProviderName.Relay,
-  providerFeeUsd: '0.01',
   steps: [
     {
+      type: 'transaction' as const,
       chainId: 137,
       data: '0xstepdata' as Hex,
       to: '0x4444444444444444444444444444444444444444' as Hex,
@@ -122,6 +140,7 @@ const DELEGATION_MOCK = {
 };
 
 describe('submitServerQuotes', () => {
+  const getLiveTokenBalanceMock = jest.mocked(getLiveTokenBalance);
   const getServerPollingIntervalMock = jest.mocked(getServerPollingInterval);
   const getServerPollingTimeoutMock = jest.mocked(getServerPollingTimeout);
   const getServerStatusMock = jest.mocked(getServerStatus);
@@ -154,6 +173,7 @@ describe('submitServerQuotes', () => {
 
     findNetworkClientIdByChainIdMock.mockReturnValue(NETWORK_CLIENT_ID_MOCK);
     getDelegationTransactionMock.mockResolvedValue(DELEGATION_MOCK);
+    getLiveTokenBalanceMock.mockResolvedValue('999999999999999999');
     getServerPollingIntervalMock.mockReturnValue(0);
     getServerPollingTimeoutMock.mockReturnValue(undefined);
     getServerStatusMock.mockResolvedValue({
@@ -435,6 +455,7 @@ describe('submitServerQuotes', () => {
           steps: [
             ORIGINAL_QUOTE_MOCK.steps[0],
             {
+              type: 'transaction' as const,
               chainId: 137,
               data: '0xseconddata' as Hex,
               to: '0x9999999999999999999999999999999999999999' as Hex,
@@ -591,6 +612,7 @@ describe('submitServerQuotes', () => {
         steps: [
           ORIGINAL_QUOTE_MOCK.steps[0],
           {
+            type: 'transaction' as const,
             chainId: 137,
             data: '0xseconddata' as Hex,
             to: '0x9999999999999999999999999999999999999999' as Hex,

@@ -90,6 +90,7 @@ const FULFILLED_RESULT_MOCK = {
     },
     steps: [
       {
+        type: 'transaction' as const,
         chainId: 1,
         data: '0xdef' as Hex,
         to: '0x4560000000000000000000000000000000000000' as Hex,
@@ -497,6 +498,7 @@ describe('server-quotes', () => {
         gasless: false,
         steps: [
           {
+            type: 'transaction' as const,
             chainId: 1,
             data: '0xdef' as Hex,
             maxFeePerGas: '0x1',
@@ -627,6 +629,7 @@ describe('server-quotes', () => {
               ...NON_GASLESS_RESULT_MOCK.quote,
               steps: [
                 {
+                  type: 'transaction' as const,
                   chainId: 1,
                   data: '0xdef' as Hex,
                   to: '0x4560000000000000000000000000000000000000' as Hex,
@@ -685,6 +688,7 @@ describe('server-quotes', () => {
               ...NON_GASLESS_RESULT_MOCK.quote,
               steps: [
                 {
+                  type: 'transaction' as const,
                   chainId: 1,
                   data: '0xdef' as Hex,
                   to: '0x4560000000000000000000000000000000000000' as Hex,

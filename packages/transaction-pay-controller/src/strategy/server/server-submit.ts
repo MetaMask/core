@@ -163,6 +163,9 @@ async function submitTransactionSteps(
   const transactionSteps = quote.original.steps.filter(isTransactionStep);
 
   if (transactionSteps.length === 0) {
+    if (!quote.original.gasless) {
+      throw new Error('Server quote has no steps to submit');
+    }
     return;
   }
 
@@ -214,7 +217,7 @@ async function buildTransactionParams(
   const originalType = getEffectiveTransactionType(transaction);
 
   const relayParams = transactionSteps.map((step, i) =>
-    stepToParams(step, i, transactionSteps.length, from, gasLimits, maxFeePerGas, maxPriorityFeePerGas, originalType),
+    transactionStepToParams(step, i, transactionSteps.length, from, gasLimits, maxFeePerGas, maxPriorityFeePerGas, originalType),
   );
 
   if (paymentOverride) {
@@ -229,7 +232,7 @@ async function buildTransactionParams(
 }
 
 /**
- * Convert a single server transaction step to TransactionParams.
+ * Converts a single server transaction step to TransactionParams.
  *
  * @param step - The transaction step.
  * @param index - Zero-based position within the transaction steps array.
@@ -241,7 +244,7 @@ async function buildTransactionParams(
  * @param originalType - Effective type of the parent transaction.
  * @returns Normalized TransactionParams for this step.
  */
-function stepToParams(
+function transactionStepToParams(
   step: ServerTransactionStep,
   index: number,
   totalSteps: number,
