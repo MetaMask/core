@@ -684,7 +684,7 @@ async function submitViaTransactionController(
             to: params.to as Hex,
             value: params.value as Hex,
           },
-          type: params.type,
+          type: params.type as TransactionType | undefined,
         };
       });
 
