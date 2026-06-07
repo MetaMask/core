@@ -1,11 +1,18 @@
 import { Interface } from '@ethersproject/abi';
 import { toHex } from '@metamask/controller-utils';
-import type { TransactionMeta } from '@metamask/transaction-controller';
+import type {
+  AuthorizationList,
+  TransactionMeta,
+} from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 import { createModuleLogger } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
 
-import { CHAIN_ID_HYPERCORE, TransactionPayStrategy } from '../../constants';
+import {
+  CHAIN_ID_HYPERCORE,
+  PaymentOverride,
+  TransactionPayStrategy,
+} from '../../constants';
 import { projectLogger } from '../../logger';
 import type {
   PayStrategyGetQuotesRequest,
@@ -144,6 +151,7 @@ async function buildServerQuoteRequest(
     from,
     isMaxAmount,
     isPostQuote,
+    paymentOverride,
     sourceChainId,
     sourceTokenAddress,
     sourceTokenAmount,
@@ -197,7 +205,17 @@ async function buildServerQuoteRequest(
     (isPostQuote ?? false) ||
     (isMaxAmount ?? false);
 
-  if (!skipDelegation) {
+  if (
+    isPostQuote &&
+    paymentOverride === PaymentOverride.MoneyAccount
+  ) {
+    await processMoneyAccountPostQuote(
+      transaction,
+      normalizedRequest,
+      body,
+      messenger,
+    );
+  } else if (!skipDelegation) {
     const delegation = await messenger.call(
       'TransactionPayController:getDelegationTransaction',
       { transaction },
@@ -217,18 +235,81 @@ async function buildServerQuoteRequest(
     ];
 
     if (delegation.authorizationList?.length) {
-      body.authorizationList = delegation.authorizationList.map((entry) => ({
-        address: entry.address,
-        chainId: Number(entry.chainId),
-        nonce: Number(entry.nonce),
-        r: entry.r as Hex,
-        s: entry.s as Hex,
-        yParity: Number(entry.yParity),
-      }));
+      body.authorizationList = normalizeAuthorizationList(
+        delegation.authorizationList,
+      );
     }
   }
 
   return body;
+}
+
+function normalizeAuthorizationList(
+  authorizationList: AuthorizationList,
+): NonNullable<ServerQuoteRequest['authorizationList']> {
+  return authorizationList.map((entry) => ({
+    address: entry.address as Hex,
+    chainId: Number(entry.chainId),
+    nonce: Number(entry.nonce),
+    r: entry.r as Hex,
+    s: entry.s as Hex,
+    yParity: Number(entry.yParity),
+  }));
+}
+
+async function processMoneyAccountPostQuote(
+  transaction: TransactionMeta,
+  request: QuoteRequest,
+  body: ServerQuoteRequest,
+  messenger: TransactionPayControllerMessenger,
+): Promise<void> {
+  const { transactionData: transactionDataList } = messenger.call(
+    'TransactionPayController:getState',
+  );
+
+  const transactionData = transactionDataList[transaction.id];
+  const amountHuman = transactionData?.tokens?.[0]?.amountHuman ?? '0';
+
+  const {
+    calls: overrideCalls,
+    recipient,
+    authorizationList,
+  } = await messenger.call('TransactionPayController:getPaymentOverrideData', {
+    amount: amountHuman,
+    transaction,
+    transactionData,
+  });
+
+  if (!overrideCalls.length) {
+    log('No payment override calls for money account post-quote');
+    return;
+  }
+
+  const fundingRecipient = recipient ?? request.from;
+
+  body.tradeType = ServerTradeType.ExactInput;
+  body.amount = request.sourceTokenAmount;
+
+  body.calls = [
+    {
+      data: buildTransferData(fundingRecipient, request.sourceTokenAmount),
+      to: request.targetTokenAddress,
+      value: '0x0',
+    },
+    ...overrideCalls.map((call) => ({
+      data: call.data as Hex,
+      to: call.to as Hex,
+      value: ((call.value ?? '0x0') as Hex),
+    })),
+  ];
+
+  if (authorizationList?.length) {
+    body.authorizationList = normalizeAuthorizationList(authorizationList);
+  }
+
+  log('Added money account post-quote calls to server quote body', {
+    callCount: overrideCalls.length,
+  });
 }
 
 function shouldRequestQuote(quoteRequest: QuoteRequest): boolean {
