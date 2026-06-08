@@ -237,8 +237,8 @@ const setupController = async (
       isOffline: (): boolean => false,
     }),
   });
-  await networkController.lookupNetwork();
   networkController.init();
+  await networkController.lookupNetwork();
   const { provider, blockTracker } =
     networkController.getProviderAndBlockTracker();
   assert(provider, 'Provider must be available');
