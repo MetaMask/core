@@ -24,6 +24,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - The constructor argument `isRpcFailoverEnabled` is no longer available.
   - `RemoteFeatureFlagController:stateChange` and `RemoteFeatureFlagController:getState` are now required.
 
+### Removed
+
+- **BREAKING:** Remove `initializeProvider` in favor of `init` ([#9034](https://github.com/MetaMask/core/pull/9034))
+  - `init` does not call `lookupNetwork`, if this is required it must be called manually.
+
 ### Fixed
 
 - Add defaults for `fetch`, `btoa` and `isOffline` in `RpcServiceOptions` ([#9000](https://github.com/MetaMask/core/pull/9000))
