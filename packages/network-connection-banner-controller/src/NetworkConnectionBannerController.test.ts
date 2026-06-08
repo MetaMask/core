@@ -11,10 +11,7 @@ import type {
   NetworkConfiguration,
   NetworkState,
 } from '@metamask/network-controller';
-import {
-  NetworkStatus,
-  RpcEndpointType,
-} from '@metamask/network-controller';
+import { NetworkStatus, RpcEndpointType } from '@metamask/network-controller';
 import type { NetworkEnablementControllerState } from '@metamask/network-enablement-controller';
 import { KnownCaipNamespace } from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
@@ -52,7 +49,8 @@ function buildCustomEndpoint(
 }
 
 function buildConfiguration(
-  overrides: Partial<NetworkConfiguration> & Pick<NetworkConfiguration, 'chainId'>,
+  overrides: Partial<NetworkConfiguration> &
+    Pick<NetworkConfiguration, 'chainId'>,
 ): NetworkConfiguration {
   return {
     name: 'Ethereum Mainnet',
@@ -993,7 +991,7 @@ function buildNetworkState({
   metadata = {},
   enabledChainIds,
 }: BuildNetworkStateArgs): StubbedState {
-  const allChainIds = (enabledChainIds ?? (Object.keys(configurations) as Hex[]));
+  const allChainIds = enabledChainIds ?? (Object.keys(configurations) as Hex[]);
   return {
     network: {
       networkConfigurationsByChainId: configurations,
@@ -1024,7 +1022,9 @@ type WithControllerCallback<ReturnValue> = (payload: {
   controllerMessenger: NetworkConnectionBannerControllerMessenger;
   setNetworkState: (state: StubbedState) => void;
   setNetworkStateSilently: (state: StubbedState) => void;
-  setConnectivityStatus: (status: ConnectivityControllerState['connectivityStatus']) => void;
+  setConnectivityStatus: (
+    status: ConnectivityControllerState['connectivityStatus'],
+  ) => void;
   updateNetwork: jest.Mock;
 }) => Promise<ReturnValue> | ReturnValue;
 
@@ -1052,8 +1052,7 @@ async function withController<ReturnValue>(
   );
   rootMessenger.registerActionHandler(
     'NetworkController:getNetworkConfigurationByChainId',
-    (chainId) =>
-      currentState.network.networkConfigurationsByChainId?.[chainId],
+    (chainId) => currentState.network.networkConfigurationsByChainId?.[chainId],
   );
   const updateNetwork = jest.fn(async () => undefined);
   rootMessenger.registerActionHandler(

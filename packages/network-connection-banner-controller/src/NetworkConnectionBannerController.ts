@@ -272,11 +272,7 @@ export class NetworkConnectionBannerController extends BaseController<
    * @throws If the chain configuration cannot be found, or if it has no
    * Infura endpoint to switch to, or if the default is already Infura.
    */
-  async switchToDefaultInfuraRpc({
-    chainId,
-  }: {
-    chainId: Hex;
-  }): Promise<void> {
+  async switchToDefaultInfuraRpc({ chainId }: { chainId: Hex }): Promise<void> {
     const networkConfiguration = this.messenger.call(
       'NetworkController:getNetworkConfigurationByChainId',
       chainId,
@@ -442,8 +438,7 @@ export class NetworkConnectionBannerController extends BaseController<
       if (!endpointIsInfura) {
         const otherInfura = rpcEndpoints.find(
           (endpoint, index) =>
-            index !== defaultRpcEndpointIndex &&
-            isInfuraEndpoint(endpoint.url),
+            index !== defaultRpcEndpointIndex && isInfuraEndpoint(endpoint.url),
         );
         infuraNetworkClientId = otherInfura?.networkClientId ?? null;
       }
@@ -471,8 +466,7 @@ export class NetworkConnectionBannerController extends BaseController<
         .map((entry) => entry.domain)
         .filter((domain): domain is string => domain !== null),
     ).size;
-    const areAllEnabledNetworksFailed =
-      failedNetworks.length === totalEnabled;
+    const areAllEnabledNetworksFailed = failedNetworks.length === totalEnabled;
 
     if (
       !firstCustomFailed &&
