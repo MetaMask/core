@@ -100,17 +100,33 @@ async function setupAssetContractControllers({
   const messenger: RootMessenger = new Messenger({
     namespace: MOCK_ANY_NAMESPACE,
   });
+
+  messenger.registerActionHandler(
+    'RemoteFeatureFlagController:getState',
+    () => ({
+      remoteFeatureFlags: {
+        walletFrameworkRpcFailoverEnabled: false,
+      },
+      cacheTimestamp: 0,
+    }),
+  );
+
+  const networkControllerMessenger: NetworkControllerMessenger = new Messenger({
+    namespace: 'NetworkController',
+    parent: messenger,
+  });
+
+  messenger.delegate({
+    messenger: networkControllerMessenger,
+    actions: [
+      'ConnectivityController:getState',
+      'RemoteFeatureFlagController:getState',
+    ],
+  });
+
   const networkController = new NetworkController({
     infuraProjectId,
-    messenger: new Messenger<
-      'NetworkController',
-      MessengerActions<NetworkControllerMessenger>,
-      MessengerEvents<NetworkControllerMessenger>,
-      RootMessenger
-    >({
-      namespace: 'NetworkController',
-      parent: messenger,
-    }),
+    messenger: networkControllerMessenger,
     getRpcServiceOptions: () => ({
       fetch,
       btoa,
@@ -118,7 +134,7 @@ async function setupAssetContractControllers({
     }),
   });
   if (useNetworkControllerProvider) {
-    await networkController.initializeProvider();
+    networkController.init();
     const selectedNetworkClient = networkController.getSelectedNetworkClient();
     assert(selectedNetworkClient, 'No network is selected');
     provider = selectedNetworkClient.provider;

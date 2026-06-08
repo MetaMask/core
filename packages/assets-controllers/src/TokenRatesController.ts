@@ -207,8 +207,11 @@ export class TokenRatesController extends StaticIntervalPollingController<TokenR
    * @param options.interval - The polling interval in ms
    * @param options.disabled - Boolean to track if network requests are blocked
    * @param options.isDeprecated - Optional function that returns true to completely
-   * disable this controller (no requests, no state updates). Intended for use
-   * when a higher-level controller (e.g. AssetsController) supersedes this one.
+   * disable this controller (no requests, no state updates). When it returns
+   * `true`, `marketData` is reset to `{}` at construction and at every polling
+   * entry point, so no stale rates remain in state. The function is evaluated
+   * dynamically on each entry point so it can be toggled at runtime. Intended for
+   * use when a higher-level controller (e.g. AssetsController) supersedes this one.
    * @param options.tokenPricesService - An object in charge of retrieving token price
    * @param options.messenger - The messenger instance for communication
    * @param options.state - Initial state to set on this controller
@@ -240,6 +243,10 @@ export class TokenRatesController extends StaticIntervalPollingController<TokenR
     this.#disabled = disabled;
     this.#isDeprecated = isDeprecated;
 
+    if (this.#isDeprecated()) {
+      this.#enforceDisabledState();
+    }
+
     const { allTokens, allDetectedTokens } = this.#getTokensControllerState();
     this.#allTokens = allTokens;
     this.#allDetectedTokens = allDetectedTokens;
@@ -252,13 +259,34 @@ export class TokenRatesController extends StaticIntervalPollingController<TokenR
     this.#subscribeToNetworkStateChange();
   }
 
+  /**
+   * Clears all persisted `marketData` so that no stale rates remain in state.
+   *
+   * Called from every polling entry point when `isDeprecated()` is true so that
+   * a runtime toggle propagates to state immediately, even if the controller was
+   * originally constructed while it was enabled. The update is skipped when
+   * `marketData` is already empty to avoid emitting redundant state changes.
+   */
+  #enforceDisabledState(): void {
+    if (Object.keys(this.state.marketData).length === 0) {
+      return;
+    }
+    this.update((state) => {
+      state.marketData = {};
+    });
+  }
+
   #subscribeToTokensStateChange() {
     this.messenger.subscribe(
       'TokensController:stateChange',
       // TODO: Either fix this lint violation or explain why it's necessary to ignore.
       // eslint-disable-next-line @typescript-eslint/no-misused-promises
       async ({ allTokens, allDetectedTokens }) => {
-        if (this.#disabled || this.#isDeprecated()) {
+        if (this.#isDeprecated()) {
+          this.#enforceDisabledState();
+          return;
+        }
+        if (this.#disabled) {
           return;
         }
 
@@ -315,6 +343,7 @@ export class TokenRatesController extends StaticIntervalPollingController<TokenR
       'NetworkController:stateChange',
       (_state, patches) => {
         if (this.#isDeprecated()) {
+          this.#enforceDisabledState();
           return;
         }
         // Remove state for deleted networks
@@ -408,7 +437,11 @@ export class TokenRatesController extends StaticIntervalPollingController<TokenR
   async updateExchangeRates(
     chainIdAndNativeCurrency: ChainIdAndNativeCurrency[],
   ): Promise<void> {
-    if (this.#disabled || this.#isDeprecated()) {
+    if (this.#isDeprecated()) {
+      this.#enforceDisabledState();
+      return;
+    }
+    if (this.#disabled) {
       return;
     }
 
@@ -597,6 +630,7 @@ export class TokenRatesController extends StaticIntervalPollingController<TokenR
    */
   async _executePoll({ chainIds }: TokenRatesPollingInput): Promise<void> {
     if (this.#isDeprecated()) {
+      this.#enforceDisabledState();
       return;
     }
 
