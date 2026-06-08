@@ -202,6 +202,8 @@ export class MultichainAssetsRatesController extends StaticIntervalPollingContro
 
   #isUnlocked = true;
 
+  readonly #isDeprecated: () => boolean;
+
   /**
    * Creates an instance of MultichainAssetsRatesController.
    *
@@ -209,15 +211,24 @@ export class MultichainAssetsRatesController extends StaticIntervalPollingContro
    * @param options.interval - The polling interval in milliseconds.
    * @param options.state - The initial state.
    * @param options.messenger - A reference to the messenger.
+   * @param options.isDeprecated - Optional function that returns true to completely
+   * disable this controller (no requests, no state updates). When it returns
+   * `true`, `conversionRates` and `historicalPrices` are reset to `{}` at
+   * construction and at every polling entry point, so no stale rates remain in
+   * state. The function is evaluated dynamically on each entry point so it can
+   * be toggled at runtime. Intended for use when a higher-level controller
+   * (e.g. AssetsController) supersedes this one.
    */
   constructor({
     interval = 18000,
     state = {},
     messenger,
+    isDeprecated = (): boolean => false,
   }: {
     interval?: number;
     state?: Partial<MultichainAssetsRatesControllerState>;
     messenger: MultichainAssetsRatesControllerMessenger;
+    isDeprecated?: () => boolean;
   }) {
     super({
       name: controllerName,
@@ -230,6 +241,11 @@ export class MultichainAssetsRatesController extends StaticIntervalPollingContro
     });
 
     this.setIntervalLength(interval);
+    this.#isDeprecated = isDeprecated;
+
+    if (this.#isDeprecated()) {
+      this.#enforceDisabledState();
+    }
 
     messenger.registerMethodActionHandlers(this, MESSENGER_EXPOSED_METHODS);
 
@@ -249,6 +265,10 @@ export class MultichainAssetsRatesController extends StaticIntervalPollingContro
       'CurrencyRateController:stateChange',
       // eslint-disable-next-line @typescript-eslint/no-misused-promises
       async (currentCurrency: string) => {
+        if (this.#isDeprecated()) {
+          this.#enforceDisabledState();
+          return;
+        }
         this.#currentCurrency = currentCurrency;
         await this.updateAssetsRates();
       },
@@ -260,6 +280,10 @@ export class MultichainAssetsRatesController extends StaticIntervalPollingContro
       'MultichainAssetsController:accountAssetListUpdated',
       // eslint-disable-next-line @typescript-eslint/no-misused-promises
       async ({ assets }) => {
+        if (this.#isDeprecated()) {
+          this.#enforceDisabledState();
+          return;
+        }
         // Treat the event payload as a per-account delta so we can fetch only
         // newly added assets and independently clean up removed ones.
         const updatedAccountAssets = Object.entries(assets).map(
@@ -275,11 +299,37 @@ export class MultichainAssetsRatesController extends StaticIntervalPollingContro
   }
 
   /**
+   * Clears all persisted `conversionRates` and `historicalPrices` so that no
+   * stale rates remain in state.
+   *
+   * Called from every entry point when `isDeprecated()` is true so that a
+   * runtime toggle propagates to state immediately, even if the controller was
+   * originally constructed while it was enabled. The update is skipped when
+   * both fields are already empty to avoid emitting redundant state changes.
+   */
+  #enforceDisabledState(): void {
+    if (
+      Object.keys(this.state.conversionRates).length === 0 &&
+      Object.keys(this.state.historicalPrices).length === 0
+    ) {
+      return;
+    }
+    this.update((state) => {
+      state.conversionRates = {};
+      state.historicalPrices = {};
+    });
+  }
+
+  /**
    * Executes a poll by updating token conversion rates for the current account.
    *
    * @returns A promise that resolves when the polling completes.
    */
   async _executePoll(): Promise<void> {
+    if (this.#isDeprecated()) {
+      this.#enforceDisabledState();
+      return;
+    }
     await this.updateAssetsRates();
   }
 
@@ -365,6 +415,11 @@ export class MultichainAssetsRatesController extends StaticIntervalPollingContro
    * @returns A promise that resolves when the rates are updated.
    */
   async updateAssetsRates(): Promise<void> {
+    if (this.#isDeprecated()) {
+      this.#enforceDisabledState();
+      return;
+    }
+
     const releaseLock = await this.#mutex.acquire();
 
     return (async (): Promise<void> => {
@@ -559,6 +614,11 @@ export class MultichainAssetsRatesController extends StaticIntervalPollingContro
     asset: CaipAssetType,
     account?: InternalAccount,
   ): Promise<void> {
+    if (this.#isDeprecated()) {
+      this.#enforceDisabledState();
+      return;
+    }
+
     const releaseLock = await this.#mutex.acquire();
     return (async () => {
       const currentCaipCurrency =
@@ -643,6 +703,11 @@ export class MultichainAssetsRatesController extends StaticIntervalPollingContro
       removed: CaipAssetType[];
     }[],
   ): Promise<void> {
+    if (this.#isDeprecated()) {
+      this.#enforceDisabledState();
+      return;
+    }
+
     const releaseLock = await this.#mutex.acquire();
 
     return (async () => {
