@@ -417,7 +417,7 @@ export class MultichainAssetsRatesController extends StaticIntervalPollingContro
   async updateAssetsRates(): Promise<void> {
     if (this.#isDeprecated()) {
       this.#enforceDisabledState();
-      return;
+      return Promise.resolve();
     }
 
     const releaseLock = await this.#mutex.acquire();
@@ -616,7 +616,7 @@ export class MultichainAssetsRatesController extends StaticIntervalPollingContro
   ): Promise<void> {
     if (this.#isDeprecated()) {
       this.#enforceDisabledState();
-      return;
+      return Promise.resolve();
     }
 
     const releaseLock = await this.#mutex.acquire();
@@ -705,7 +705,7 @@ export class MultichainAssetsRatesController extends StaticIntervalPollingContro
   ): Promise<void> {
     if (this.#isDeprecated()) {
       this.#enforceDisabledState();
-      return;
+      return Promise.resolve();
     }
 
     const releaseLock = await this.#mutex.acquire();
