@@ -501,8 +501,10 @@ describe('NetworkController', () => {
     });
 
     it('initializes the state with some defaults', async () => {
-      await withController({ initializeController: false }, ({ controller }) => {
-        expect(controller.state).toMatchInlineSnapshot(`
+      await withController(
+        { initializeController: false },
+        ({ controller }) => {
+          expect(controller.state).toMatchInlineSnapshot(`
           {
             "networkConfigurationsByChainId": {
               "0x1": {
@@ -690,7 +692,8 @@ describe('NetworkController', () => {
             "selectedNetworkClientId": "mainnet",
           }
         `);
-      });
+        },
+      );
     });
 
     it('initializes the state with the specified additional networks from the option `additionalDefaultNetworks` if provided', async () => {
@@ -989,6 +992,23 @@ describe('NetworkController', () => {
   describe('enableRpcFailover', () => {
     describe('if the controller was initialized with isRpcFailoverEnabled = false', () => {
       it('calls enableRpcFailover on only the network clients whose RPC endpoints have configured failover URLs', async () => {
+        const originalCreateAutoManagedNetworkClient =
+          createAutoManagedNetworkClientModule.createAutoManagedNetworkClient;
+        const autoManagedNetworkClients: AutoManagedNetworkClient<NetworkClientConfiguration>[] =
+          [];
+        jest
+          .spyOn(
+            createAutoManagedNetworkClientModule,
+            'createAutoManagedNetworkClient',
+          )
+          .mockImplementation((...args) => {
+            const autoManagedNetworkClient =
+              originalCreateAutoManagedNetworkClient(...args);
+            jest.spyOn(autoManagedNetworkClient, 'enableRpcFailover');
+            autoManagedNetworkClients.push(autoManagedNetworkClient);
+            return autoManagedNetworkClient;
+          });
+
         await withController(
           {
             isRpcFailoverEnabled: false,
@@ -1029,23 +1049,6 @@ describe('NetworkController', () => {
             },
           },
           async ({ controller }) => {
-            const originalCreateAutoManagedNetworkClient =
-              createAutoManagedNetworkClientModule.createAutoManagedNetworkClient;
-            const autoManagedNetworkClients: AutoManagedNetworkClient<NetworkClientConfiguration>[] =
-              [];
-            jest
-              .spyOn(
-                createAutoManagedNetworkClientModule,
-                'createAutoManagedNetworkClient',
-              )
-              .mockImplementation((...args) => {
-                const autoManagedNetworkClient =
-                  originalCreateAutoManagedNetworkClient(...args);
-                jest.spyOn(autoManagedNetworkClient, 'enableRpcFailover');
-                autoManagedNetworkClients.push(autoManagedNetworkClient);
-                return autoManagedNetworkClient;
-              });
-
             controller.enableRpcFailover();
 
             expect(autoManagedNetworkClients).toHaveLength(3);
@@ -3597,17 +3600,20 @@ describe('NetworkController', () => {
   describe('getEIP1559Compatibility', () => {
     describe('if no provider has been set yet', () => {
       it('does not make any state changes', async () => {
-        await withController(async ({ controller, messenger }) => {
-          const promiseForNoStateChanges = waitForStateChanges({
-            messenger,
-            count: 0,
-            operation: async () => {
-              await controller.getEIP1559Compatibility();
-            },
-          });
+        await withController(
+          { initializeController: false },
+          async ({ controller, messenger }) => {
+            const promiseForNoStateChanges = waitForStateChanges({
+              messenger,
+              count: 0,
+              operation: async () => {
+                await controller.getEIP1559Compatibility();
+              },
+            });
 
-          expect(Boolean(promiseForNoStateChanges)).toBe(true);
-        });
+            expect(Boolean(promiseForNoStateChanges)).toBe(true);
+          },
+        );
       });
 
       it('returns false', async () => {
@@ -13834,6 +13840,7 @@ describe('NetworkController', () => {
 
           await withController(
             {
+              initializeController: false,
               state: {
                 selectedNetworkClientId: infuraNetworkType,
                 networkConfigurationsByChainId: {
@@ -14190,6 +14197,7 @@ describe('NetworkController', () => {
 
           await withController(
             {
+              initializeController: false,
               state: {
                 selectedNetworkClientId: infuraNetworkType,
                 networkConfigurationsByChainId: {
@@ -14421,6 +14429,7 @@ describe('NetworkController', () => {
 
         await withController(
           {
+            initializeController: false,
             state: {
               selectedNetworkClientId: 'AAAA-AAAA-AAAA-AAAA',
               networkConfigurationsByChainId: {
@@ -14963,14 +14972,16 @@ describe('NetworkController', () => {
     });
 
     it('includes expected state in state logs', async () => {
-      await withController({ initializeController: false }, ({ controller }) => {
-        expect(
-          deriveStateFromMetadata(
-            controller.state,
-            controller.metadata,
-            'includeInStateLogs',
-          ),
-        ).toMatchInlineSnapshot(`
+      await withController(
+        { initializeController: false },
+        ({ controller }) => {
+          expect(
+            deriveStateFromMetadata(
+              controller.state,
+              controller.metadata,
+              'includeInStateLogs',
+            ),
+          ).toMatchInlineSnapshot(`
           {
             "networkConfigurationsByChainId": {
               "0x1": {
@@ -15158,18 +15169,21 @@ describe('NetworkController', () => {
             "selectedNetworkClientId": "mainnet",
           }
         `);
-      });
+        },
+      );
     });
 
     it('persists expected state', async () => {
-      await withController({ initializeController: false }, ({ controller }) => {
-        expect(
-          deriveStateFromMetadata(
-            controller.state,
-            controller.metadata,
-            'persist',
-          ),
-        ).toMatchInlineSnapshot(`
+      await withController(
+        { initializeController: false },
+        ({ controller }) => {
+          expect(
+            deriveStateFromMetadata(
+              controller.state,
+              controller.metadata,
+              'persist',
+            ),
+          ).toMatchInlineSnapshot(`
           {
             "networkConfigurationsByChainId": {
               "0x1": {
@@ -15357,18 +15371,21 @@ describe('NetworkController', () => {
             "selectedNetworkClientId": "mainnet",
           }
         `);
-      });
+        },
+      );
     });
 
     it('exposes expected state to UI', async () => {
-      await withController({ initializeController: false }, ({ controller }) => {
-        expect(
-          deriveStateFromMetadata(
-            controller.state,
-            controller.metadata,
-            'usedInUi',
-          ),
-        ).toMatchInlineSnapshot(`
+      await withController(
+        { initializeController: false },
+        ({ controller }) => {
+          expect(
+            deriveStateFromMetadata(
+              controller.state,
+              controller.metadata,
+              'usedInUi',
+            ),
+          ).toMatchInlineSnapshot(`
           {
             "networkConfigurationsByChainId": {
               "0x1": {
@@ -15556,7 +15573,8 @@ describe('NetworkController', () => {
             "selectedNetworkClientId": "mainnet",
           }
         `);
-      });
+        },
+      );
     });
   });
 });
