@@ -13,18 +13,17 @@ import type {
 import { isEvmAccountType } from '@metamask/keyring-api';
 import type {
   Balance,
+  CaipAssetType,
   AccountBalancesUpdatedEventPayload,
 } from '@metamask/keyring-api';
-import type {
-  KeyringControllerGetStateAction,
-} from '@metamask/keyring-controller';
+import type { KeyringControllerGetStateAction } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import { KeyringClient } from '@metamask/keyring-snap-client';
 import type { Messenger } from '@metamask/messenger';
 import type { SnapControllerHandleRequestAction } from '@metamask/snaps-controllers';
 import type { SnapId } from '@metamask/snaps-sdk';
 import { HandlerType } from '@metamask/snaps-utils';
-import type { CaipAssetType, CaipChainId, Json, JsonRpcRequest } from '@metamask/utils';
+import type { CaipChainId, Json, JsonRpcRequest } from '@metamask/utils';
 import type { Draft } from 'immer';
 
 import type {
@@ -178,39 +177,44 @@ export class MultichainBalancesController extends BaseController<
 
     this.messenger.subscribe(
       'AccountsController:accountRemoved',
-      (account: string) => {
-        // eslint-disable-next-line no-void
-        void this.#handleOnAccountRemoved(account);
-      },
+      (account: string) => this.#handleOnAccountRemoved(account),
     );
     this.messenger.subscribe(
       'AccountsController:accountBalancesUpdated',
       (balanceUpdate: AccountBalancesUpdatedEventPayload) => {
+        this.#handleOnAccountBalancesUpdated(balanceUpdate);
         // eslint-disable-next-line no-void
-        void this.#handleOnAccountBalancesUpdatedAsync(balanceUpdate);
+        void this.#enrichBalancesAfterAccountBalancesUpdated(balanceUpdate);
       },
     );
 
     this.messenger.subscribe(
       'MultichainAssetsController:accountAssetListUpdated',
-      ({ assets }) => {
-        const accountAssetUpdates = Object.entries(assets).map(
+      // eslint-disable-next-line @typescript-eslint/no-misused-promises
+      async ({ assets }) => {
+        const updatedAccountAssets = Object.entries(assets).map(
           ([accountId, { added, removed }]) => ({
             accountId,
             added: [...added],
             removed: [...removed],
           }),
         );
-        // eslint-disable-next-line no-void
-        void this.#handleOnAccountAssetListUpdated(accountAssetUpdates);
+
+        await this.#handleOnAccountAssetListUpdated(updatedAccountAssets);
       },
     );
   }
 
   /**
-   * Updates the balances for the given accounts after an asset-list change.
+   * Reconciles cached balances after a multichain asset-list update event.
    *
-   * @param accounts - Per-account asset deltas from the asset-list update event.
+   * The event payload is treated as a delta:
+   * - balances for `removed` assets are deleted so stale entries cannot remain
+   * - balances for `added` assets are fetched from the snap and merged in
+   * - if an added asset is not returned by the snap, a zero placeholder is stored
+   *   so the asset can still be represented in state
+   *
+   * @param accounts - The per-account asset deltas from the asset-list update event.
    */
   async #handleOnAccountAssetListUpdated(
     accounts: {
@@ -224,8 +228,7 @@ export class MultichainBalancesController extends BaseController<
     if (!isUnlocked) {
       return;
     }
-
-    const balancesToUpdate: MultichainBalancesControllerState['balances'] = {};
+    const balancesToAdd: MultichainBalancesControllerState['balances'] = {};
 
     for (const { accountId, added } of accounts) {
       if (added.length === 0) {
@@ -239,38 +242,35 @@ export class MultichainBalancesController extends BaseController<
           account.metadata.snap.id,
           added,
         );
-        balancesToUpdate[accountId] = accountBalance;
+
+        balancesToAdd[accountId] = accountBalance;
       }
     }
 
-    const accountsMap = new Map(accounts.map((acc) => [acc.accountId, acc]));
-
     this.update((state: Draft<MultichainBalancesControllerState>) => {
-      for (const { accountId, removed } of accounts) {
-        if (!state.balances[accountId]) {
-          state.balances[accountId] = {};
-        }
+      for (const { accountId, added, removed } of accounts) {
+        const accountBalances = state.balances[accountId] ?? {};
+        const addedBalances = balancesToAdd[accountId] ?? {};
 
+        state.balances[accountId] = accountBalances;
+
+        // Remove balances for assets that disappeared from the account asset list
+        // so stale entries cannot remain in state.
         for (const assetId of removed) {
           delete state.balances[accountId][assetId];
         }
-      }
 
-      for (const [accountId, accountBalances] of Object.entries(
-        balancesToUpdate,
-      )) {
-        const acc = accountsMap.get(accountId);
-        const assetsWithoutBalance = new Set(acc?.added ?? []);
-
-        for (const assetId of Object.keys(accountBalances)) {
-          if (!state.balances[accountId][assetId]) {
-            state.balances[accountId][assetId] = accountBalances[assetId];
-          }
-          assetsWithoutBalance.delete(assetId as CaipAssetType);
+        // Merge the balances returned by the snap for the newly added assets.
+        for (const [assetId, balance] of Object.entries(addedBalances)) {
+          state.balances[accountId][assetId] = balance;
         }
 
-        for (const assetId of assetsWithoutBalance) {
-          state.balances[accountId][assetId] = { amount: '0', unit: '' };
+        // If the asset list was updated but the snap did not return a balance for
+        // one of the added assets, keep the asset visible with an explicit zero.
+        for (const assetId of added) {
+          if (!state.balances[accountId][assetId]) {
+            state.balances[accountId][assetId] = { amount: '0', unit: '' };
+          }
         }
       }
     });
@@ -415,15 +415,41 @@ export class MultichainBalancesController extends BaseController<
   }
 
   /**
-   * Applies balance sync updates and enriches balances when the chain supports it.
+   * Handles balance updates received from the AccountsController.
    *
    * @param balanceUpdate - The balance update event containing new balances.
    */
-  async #handleOnAccountBalancesUpdatedAsync(
+  #handleOnAccountBalancesUpdated(
+    balanceUpdate: AccountBalancesUpdatedEventPayload,
+  ): void {
+    this.update((state: Draft<MultichainBalancesControllerState>) => {
+      Object.entries(balanceUpdate.balances).forEach(
+        ([accountId, assetBalances]) => {
+          if (accountId in state.balances) {
+            Object.entries(assetBalances).forEach(([assetId, incoming]) => {
+              const existing = state.balances[accountId][assetId];
+              state.balances[accountId][assetId] = {
+                amount: incoming.amount,
+                unit: incoming.unit,
+                ...(existing?.extra === undefined
+                  ? {}
+                  : { extra: existing.extra }),
+              };
+            });
+          }
+        },
+      );
+    });
+  }
+
+  /**
+   * Enriches balance rows from the snap when the account chain supports it.
+   *
+   * @param balanceUpdate - The balance update event containing new balances.
+   */
+  async #enrichBalancesAfterAccountBalancesUpdated(
     balanceUpdate: AccountBalancesUpdatedEventPayload,
   ): Promise<void> {
-    this.#handleOnAccountBalancesUpdated(balanceUpdate);
-
     for (const accountId of Object.keys(balanceUpdate.balances)) {
       const assetBalances = balanceUpdate.balances[accountId];
       if (!assetBalances) {
@@ -448,35 +474,6 @@ export class MultichainBalancesController extends BaseController<
         Object.keys(assetBalances) as CaipAssetType[],
       );
     }
-  }
-
-  /**
-   * Applies incoming balance amounts while preserving existing `extra` fields.
-   *
-   * @param balanceUpdate - The balance update event containing new balances.
-   */
-  #handleOnAccountBalancesUpdated(
-    balanceUpdate: AccountBalancesUpdatedEventPayload,
-  ): void {
-    this.update((state: Draft<MultichainBalancesControllerState>) => {
-      for (const [accountId, assetBalances] of Object.entries(
-        balanceUpdate.balances,
-      )) {
-        if (!state.balances[accountId]) {
-          state.balances[accountId] = {};
-        }
-        for (const [assetId, incoming] of Object.entries(assetBalances)) {
-          const existing = state.balances[accountId][assetId];
-          state.balances[accountId][assetId] = {
-            amount: incoming.amount,
-            unit: incoming.unit,
-            ...(existing?.extra === undefined
-              ? {}
-              : { extra: existing.extra }),
-          };
-        }
-      }
-    });
   }
 
   /**
@@ -580,9 +577,7 @@ export class MultichainBalancesController extends BaseController<
    * @param accountId - The account ID being removed.
    */
   async #handleOnAccountRemoved(accountId: string): Promise<void> {
-    if (
-      Object.prototype.hasOwnProperty.call(this.state.balances, accountId)
-    ) {
+    if (accountId in this.state.balances) {
       this.update((state: Draft<MultichainBalancesControllerState>) => {
         delete state.balances[accountId];
       });
