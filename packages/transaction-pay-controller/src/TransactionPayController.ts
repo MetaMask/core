@@ -14,6 +14,7 @@ import {
 import { QuoteRefresher } from './helpers/QuoteRefresher';
 import { deriveFiatAssetForFiatPayment } from './strategy/fiat/utils';
 import type {
+  GetAmountDataCallback,
   GetDelegationTransactionCallback,
   GetPaymentOverrideDataCallback,
   PolymarketCallbacks,
@@ -36,6 +37,7 @@ import {
 } from './utils/transaction';
 
 const MESSENGER_EXPOSED_METHODS = [
+  'getAmountData',
   'getDelegationTransaction',
   'getPaymentOverrideData',
   'getStrategy',
@@ -64,6 +66,8 @@ export class TransactionPayController extends BaseController<
   TransactionPayControllerState,
   TransactionPayControllerMessenger
 > {
+  readonly #getAmountData?: GetAmountDataCallback;
+
   readonly #getDelegationTransaction: GetDelegationTransactionCallback;
 
   readonly #getPaymentOverrideData?: GetPaymentOverrideDataCallback;
@@ -79,6 +83,7 @@ export class TransactionPayController extends BaseController<
   readonly #polymarket?: PolymarketCallbacks;
 
   constructor({
+    getAmountData,
     getDelegationTransaction,
     getPaymentOverrideData,
     getStrategy,
@@ -94,6 +99,7 @@ export class TransactionPayController extends BaseController<
       state: { ...getDefaultState(), ...state },
     });
 
+    this.#getAmountData = getAmountData;
     this.#getDelegationTransaction = getDelegationTransaction;
     this.#getPaymentOverrideData = getPaymentOverrideData;
     this.#getStrategy = getStrategy;
@@ -233,6 +239,12 @@ export class TransactionPayController extends BaseController<
    * @param args - The arguments forwarded to the {@link GetPaymentOverrideDataCallback}.
    * @returns A promise resolving to the additional transactions array.
    */
+  getAmountData(
+    ...args: Parameters<GetAmountDataCallback>
+  ): ReturnType<GetAmountDataCallback> {
+    return this.#getAmountData?.(...args) ?? Promise.resolve({ updates: [] });
+  }
+
   getPaymentOverrideData(
     ...args: Parameters<GetPaymentOverrideDataCallback>
   ): ReturnType<GetPaymentOverrideDataCallback> {

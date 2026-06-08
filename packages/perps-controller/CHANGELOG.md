@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Centralise market category classification so consumers share one model instead of re-deriving it per client ([#9009](https://github.com/MetaMask/core/pull/9009))
+  - Export `getMarketTypeFilter` (resolves a market to its UI category filter with singular values aligned to `MarketCategory`) and `isHip3Market`. `getMarketTypeFilter` and `matchesCategory` treat a `marketSource` DEX id as a HIP-3 signal consistently, so partial (route-param) markets classify the same way in both.
+  - Export the pure `matchesCategory` and `applyMarketFilters` helpers (moved from `MarketDataService`).
+
+### Changed
+
+- **BREAKING:** Align `MarketTypeFilter` and `MARKET_CATEGORIES` values with `MarketCategory` singular values ([#9009](https://github.com/MetaMask/core/pull/9009))
+  - Replace `stocks` with `stock`, `indices` with `index`, `etfs` with `etf`, and `commodities` with `commodity`.
+- Reclassify `xyz:CBRS` (Cerebras) from `stock` to `pre-ipo` and add `xyz:IPOP` (Quantinuum) as `pre-ipo` in `HIP3_ASSET_MARKET_TYPES`, so all three Pre-IPO Perpetual markets on trade.xyz (CBRS, SPCX, IPOP) display under the Pre-IPO category ([#9038](https://github.com/MetaMask/core/pull/9038))
+
 ## [7.0.0]
 
 ### Added

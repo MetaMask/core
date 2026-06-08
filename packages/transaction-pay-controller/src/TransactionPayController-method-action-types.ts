@@ -76,6 +76,11 @@ export type TransactionPayControllerGetDelegationTransactionAction = {
  * @param args - The arguments forwarded to the {@link GetPaymentOverrideDataCallback}.
  * @returns A promise resolving to the additional transactions array.
  */
+export type TransactionPayControllerGetAmountDataAction = {
+  type: `TransactionPayController:getAmountData`;
+  handler: TransactionPayController['getAmountData'];
+};
+
 export type TransactionPayControllerGetPaymentOverrideDataAction = {
   type: `TransactionPayController:getPaymentOverrideData`;
   handler: TransactionPayController['getPaymentOverrideData'];
@@ -128,6 +133,7 @@ export type TransactionPayControllerMethodActions =
   | TransactionPayControllerUpdatePaymentTokenAction
   | TransactionPayControllerUpdateFiatPaymentAction
   | TransactionPayControllerGetDelegationTransactionAction
+  | TransactionPayControllerGetAmountDataAction
   | TransactionPayControllerGetPaymentOverrideDataAction
   | TransactionPayControllerGetStrategyAction
   | TransactionPayControllerPolymarketGetDepositWalletAddressAction

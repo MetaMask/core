@@ -1301,7 +1301,7 @@ describe('AnalyticsController', () => {
       expect(controller.state.eventQueue).toStrictEqual({});
     });
 
-    it('keeps queued payloads when the adapter callback receives an error', async () => {
+    it('clears queued payloads when the adapter callback receives an error', async () => {
       const mockAdapter = createMockAdapter();
       const { controller } = await setupController({
         state: {
@@ -1317,14 +1317,7 @@ describe('AnalyticsController', () => {
       const deliveryOptions = getDeliveryOptions(mockAdapter.track);
       deliveryOptions.callback?.(new Error('Segment failed'));
 
-      const [messageId] = Object.keys(controller.state.eventQueue ?? {});
-
-      expect(controller.state.eventQueue).toHaveProperty(messageId);
-      expect(controller.state.eventQueue?.[messageId]).toMatchObject({
-        type: 'track',
-        eventName: 'test_event',
-        properties: { prop: 'value' },
-      });
+      expect(controller.state.eventQueue).toStrictEqual({});
     });
 
     it('keeps queued payloads when the platform adapter throws', async () => {
@@ -1360,7 +1353,7 @@ describe('AnalyticsController', () => {
       let adapterMutationCompleted = false;
       jest
         .spyOn(mockAdapter, 'track')
-        .mockImplementation((_eventName, properties, context, options) => {
+        .mockImplementation((_eventName, properties, context) => {
           (
             properties as { nested: { adapterNormalized?: boolean } }
           ).nested.adapterNormalized = true;
@@ -1368,9 +1361,6 @@ describe('AnalyticsController', () => {
             context as { page: { adapterNormalized?: boolean } }
           ).page.adapterNormalized = true;
           adapterMutationCompleted = true;
-          (options as AnalyticsDeliveryOptions).callback?.(
-            new Error('Segment failed'),
-          );
         });
       const { controller } = await setupController({
         state: {

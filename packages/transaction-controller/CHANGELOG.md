@@ -13,6 +13,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Add account address relationship API support
   - Add incoming transactions API support
 
+## [67.0.0]
+
+### Changed
+
+- **BREAKING:** Remove deprecated `TransactionController` constructor options and unused hooks, and replace them with direct messenger calls ([#8983](https://github.com/MetaMask/core/pull/8983))
+  - Removed options: `disableHistory`, `disableSendFlowHistory`, `getCurrentAccountEIP1559Compatibility`, `getCurrentNetworkEIP1559Compatibility`, `getExternalPendingTransactions`, `getGasFeeEstimates`, `getNetworkClientRegistry`, `getNetworkState`, `pendingTransactions`, `securityProviderRequest`, `sign`, `transactionHistoryLimit`
+  - Removed hooks: `afterSign`, `afterSimulate`, `getAdditionalSignArguments`
+  - Moved hook: `isTimeoutEnabled` is now a root constructor option instead of a hook
+  - Removed types: `AfterSimulateHook`, `PendingTransactionOptions`, `SecurityProviderRequest`; `AfterAddHook` parameter `skipSimulation` removed
+  - Added required `AllowedActions`: `GasFeeController:fetchGasFeeEstimates`, `KeyringController:signTransaction`, `NetworkController:getEIP1559Compatibility`, `NetworkController:getNetworkClientRegistry`, `NetworkController:getState`
+  - Removed resubmit logic from `PendingTransactionTracker`
+
 ## [66.0.1]
 
 ### Changed

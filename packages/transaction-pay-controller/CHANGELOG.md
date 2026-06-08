@@ -7,8 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Fix fiat `moneyAccountDeposit` failing after on-ramp settlement by adding `getAmountData` callback for calldata re-encoding, correcting wallet address, quote amount, slippage validation, and switching to a three-phase relay flow with fee-as-buffer strategy; simple deposits (Perps, Predict) skip to a single EXACT_INPUT relay quote for cheaper fees ([#8987](https://github.com/MetaMask/core/pull/8987))
+
+## [23.2.0]
+
 ### Added
 
+- Adding processing for postQuote transactions with paymentOverride defined ([#8967](https://github.com/MetaMask/core/pull/8967))
 - Add `@metamask/keyring-controller` `^26.0.0` as a dependency ([#8972](https://github.com/MetaMask/core/pull/8972))
   - The package was already imported at runtime by `src/strategy/relay/hyperliquid-withdraw.ts` but wasn't declared in `package.json`; this PR fixes the omission.
 
@@ -22,7 +29,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/ramps-controller` from `^14.1.0` to `^14.1.1` ([#8989](https://github.com/MetaMask/core/pull/8989))
 - Bump `@metamask/bridge-status-controller` from `^72.0.0` to `^72.0.2` ([#8990](https://github.com/MetaMask/core/pull/8990), [#8999](https://github.com/MetaMask/core/pull/8999))
 - Bump `@metamask/bridge-controller` from `^73.2.0` to `^73.2.1` ([#8999](https://github.com/MetaMask/core/pull/8999))
-- Bump `@metamask/transaction-controller` from `^66.0.0` to `^66.0.1` ([#8999](https://github.com/MetaMask/core/pull/8999))
+- Bump `@metamask/transaction-controller` from `^66.0.0` to `^67.0.0` ([#8999](https://github.com/MetaMask/core/pull/8999), [#9021](https://github.com/MetaMask/core/pull/9021), [#9027](https://github.com/MetaMask/core/pull/9027))
 
 ## [23.1.0]
 
@@ -992,7 +999,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#6820](https://github.com/MetaMask/core/pull/6820))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@23.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@23.2.0...HEAD
+[23.2.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@23.1.0...@metamask/transaction-pay-controller@23.2.0
 [23.1.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@23.0.0...@metamask/transaction-pay-controller@23.1.0
 [23.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@22.8.0...@metamask/transaction-pay-controller@23.0.0
 [22.8.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@22.7.0...@metamask/transaction-pay-controller@22.8.0
