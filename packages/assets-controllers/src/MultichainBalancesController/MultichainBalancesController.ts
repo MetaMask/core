@@ -176,10 +176,7 @@ export class MultichainBalancesController extends BaseController<
 
     this.messenger.subscribe(
       'AccountsController:accountRemoved',
-      (account: string) => {
-        // eslint-disable-next-line no-void
-        void this.#handleOnAccountRemoved(account);
-      },
+      (account: string) => this.#handleOnAccountRemoved(account),
     );
     this.messenger.subscribe(
       'AccountsController:accountBalancesUpdated',
@@ -200,6 +197,7 @@ export class MultichainBalancesController extends BaseController<
             removed: [...removed],
           }),
         );
+
         await this.#handleOnAccountAssetListUpdated(updatedAccountAssets);
       },
     );
@@ -502,7 +500,7 @@ export class MultichainBalancesController extends BaseController<
    * @param accountId - The account ID being removed.
    */
   async #handleOnAccountRemoved(accountId: string): Promise<void> {
-    if (Object.prototype.hasOwnProperty.call(this.state.balances, accountId)) {
+    if (accountId in this.state.balances) {
       this.update((state: Draft<MultichainBalancesControllerState>) => {
         delete state.balances[accountId];
       });
