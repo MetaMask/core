@@ -10,7 +10,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Add `isDeprecated` option to `TokenRatesController` constructor ([#9022](https://github.com/MetaMask/core/pull/9022))
-  - When `isDeprecated()` returns `true`, all entry points (`updateExchangeRates`, `_executePoll`, `TokensController:stateChange`, and `NetworkController:stateChange`) become no-ops: no network requests are sent and no state is updated.
+  - When `isDeprecated()` returns `true`, no network requests are sent and `marketData` is reset to `{}` at construction and at every entry point (`updateExchangeRates`, `_executePoll`, `TokensController:stateChange`, and `NetworkController:stateChange`), so no stale rates remain in state.
+  - The function is re-evaluated on each entry point so it can be toggled at runtime without reconstructing the controller.
 
 ### Changed
 
