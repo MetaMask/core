@@ -1137,6 +1137,7 @@ describe('SnapAccountService', () => {
       mockWithKeyringV2Unsafe(mocks, {
         [MOCK_SNAP_ID]: { setSelectedAccounts: jest.fn() },
       });
+      await triggerMigration(service, mocks);
 
       publishSelectedAccountGroupChange(rootMessenger, '');
       await flushMicrotasks();
@@ -1160,6 +1161,7 @@ describe('SnapAccountService', () => {
       mocks.AccountTreeController.getAccountGroupObject.mockReturnValue(
         undefined,
       );
+      await triggerMigration(service, mocks);
 
       publishSelectedAccountGroupChange(rootMessenger, MOCK_GROUP_ID);
       await flushMicrotasks();
