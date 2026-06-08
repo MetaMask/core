@@ -1639,6 +1639,48 @@ describe('HyperLiquidClientService', () => {
       ).toBeGreaterThan(subscriptionClientCallsBefore);
     });
 
+    it('reconnect() recreates exchangeClient and isInitialized() returns true', async () => {
+      const { ExchangeClient, InfoClient } = require('@nktkas/hyperliquid');
+      await service.initialize(mockWallet);
+
+      expect(service.isInitialized()).toBe(true);
+
+      const exchangeCallsBefore = (ExchangeClient as jest.Mock).mock.calls
+        .length;
+      const infoCallsBefore = (InfoClient as jest.Mock).mock.calls.length;
+
+      await service.reconnect();
+
+      // ExchangeClient should have been recreated with HTTP transport
+      expect((ExchangeClient as jest.Mock).mock.calls.length).toBeGreaterThan(
+        exchangeCallsBefore,
+      );
+      // InfoClient should have additional calls (WS + HTTP fallback)
+      expect((InfoClient as jest.Mock).mock.calls.length).toBeGreaterThan(
+        infoCallsBefore,
+      );
+      // isInitialized() must return true after reconnection
+      expect(service.isInitialized()).toBe(true);
+    });
+
+    it('reconnect() skips exchangeClient when wallet was never provided', async () => {
+      const { ExchangeClient } = require('@nktkas/hyperliquid');
+
+      // Create a fresh service without calling initialize() — no wallet stored
+      const freshService = new HyperLiquidClientService(mockDeps);
+      const exchangeCallsBefore = (ExchangeClient as jest.Mock).mock.calls
+        .length;
+
+      await freshService.reconnect();
+
+      // ExchangeClient should NOT be created since no wallet params exist
+      expect((ExchangeClient as jest.Mock).mock.calls.length).toBe(
+        exchangeCallsBefore,
+      );
+      // isInitialized() must be false — exchangeClient was never created
+      expect(freshService.isInitialized()).toBe(false);
+    });
+
     it('performDisconnection resets isReconnecting flag', async () => {
       const {
         WebSocketConnectionState,
