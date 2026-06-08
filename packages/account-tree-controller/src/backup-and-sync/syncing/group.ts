@@ -38,6 +38,10 @@ export const createMultichainAccountGroupsBatch = async (
   profileId: ProfileId,
   analyticsAction: BackupAndSyncAnalyticsAction,
 ): Promise<void> => {
+  console.log(`[PERFORMANCE DEBUG] createMultichainAccountGroupsBatch - Creating ${maxGroupIndex + 1} account groups (batch) for entropy source: ${entropySourceId}`);
+  console.log(`[PERFORMANCE DEBUG] createMultichainAccountGroupsBatch - Max group index: ${maxGroupIndex}`);
+  console.log(`[PERFORMANCE DEBUG] createMultichainAccountGroupsBatch - Context: ${JSON.stringify(context)}`);
+
   const numberOfAccountGroupsToCreate = maxGroupIndex + 1; // maxGroupIndex is zero-based, so we add 1 to get the count.
   backupAndSyncLogger(
     `Creating ${numberOfAccountGroupsToCreate} account groups (batch) for entropy source: ${entropySourceId}`,

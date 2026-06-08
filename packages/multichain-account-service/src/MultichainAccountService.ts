@@ -656,10 +656,16 @@ export class MultichainAccountService {
     toGroupIndex: number;
     entropySource: EntropySourceId;
   }): Promise<MultichainAccountGroup<Bip44Account<KeyringAccount>>[]> {
-    return await this.#getWallet(entropySource).createMultichainAccountGroups(
+    console.log(`[PERFORMANCE DEBUG] MultichainAccountService - Creating multichain account groups from ${fromGroupIndex} to ${toGroupIndex} for entropy source: ${entropySource}`);
+    const start = performance.now();
+    const result = await this.#getWallet(entropySource).createMultichainAccountGroups(
       { from: fromGroupIndex, to: toGroupIndex },
-      { waitForAllProvidersToFinishCreatingAccounts: false },
+      { waitForAllProvidersToFinishCreatingAccounts: true },
     );
+    const end = performance.now();
+    console.log(`[PERFORMANCE DEBUG] MultichainAccountService - Time taken to create multichain account groups: ${end - start}ms`);
+    console.log(`[PERFORMANCE DEBUG] MultichainAccountService - Result: ${result.length} groups created`);
+    return result;
   }
 
   /**

@@ -327,6 +327,7 @@ export class MultichainAccountWallet<
     const results = await Promise.allSettled(
       providers.map(async (provider) => {
         const providerName = provider.getName();
+        console.log(`[PERFORMANCE DEBUG] MultichainAccountWallet - Execution of buildGroupStateForRange. Start accounts creation for provider: ${providerName} from ${from} to ${to}`);
         const accounts = await this.#createAccountsRangeForProvider(
           provider,
           from,
