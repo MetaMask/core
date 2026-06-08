@@ -238,6 +238,7 @@ const setupController = async (
     }),
   });
   networkController.init();
+  await networkController.lookupNetwork();
   const { provider, blockTracker } =
     networkController.getProviderAndBlockTracker();
   assert(provider, 'Provider must be available');
