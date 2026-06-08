@@ -1,12 +1,8 @@
 import { XlmScope } from '@metamask/keyring-api';
-import {
-  parseCaipAssetType
-  
-  
-} from '@metamask/utils';
-import type {CaipAssetType, CaipChainId} from '@metamask/utils';
+import { parseCaipAssetType } from '@metamask/utils';
+import type { CaipAssetType, CaipChainId } from '@metamask/utils';
 
-import type { AccountAssetInfoExtra } from '../multichain/accountAssetEnrichment';
+import type { AccountAssetInfoExtra } from '../MultichainBalancesController/utils';
 
 /**
  * Whether a Stellar classic asset should show the inactive trustline state from

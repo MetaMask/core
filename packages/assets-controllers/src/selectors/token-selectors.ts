@@ -18,7 +18,7 @@ import type {
   MultichainAccountBalance,
   MultichainBalancesControllerState,
 } from '../MultichainBalancesController';
-import type { AccountAssetInfoExtra } from '../multichain/accountAssetEnrichment';
+import type { AccountAssetInfoExtra } from '../MultichainBalancesController/utils';
 import { getNativeTokenAddress } from '../token-prices-service/codefi-v2';
 import type { TokenBalancesControllerState } from '../TokenBalancesController';
 import type { Token, TokenRatesControllerState } from '../TokenRatesController';

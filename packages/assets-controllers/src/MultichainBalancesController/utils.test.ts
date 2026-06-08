@@ -1,60 +1,216 @@
-import { mergeAccountBalances, mergeBalanceRow } from './utils';
+import { HandlerType } from '@metamask/snaps-utils';
+import type { CaipAssetType, CaipChainId } from '@metamask/utils';
 
-describe('mergeBalanceRow', () => {
-  it('applies incoming amount and unit onto an existing row', () => {
-    expect(
-      mergeBalanceRow(
-        { amount: '0', unit: '' },
-        { amount: '1', unit: 'BTC' },
-      ),
-    ).toStrictEqual({
-      amount: '1',
-      unit: 'BTC',
+import {
+  buildBalanceRowsWithExtra,
+  createGetAccountAssetInfoClientRequest,
+  fetchAccountAssetInfoFromSnap,
+  filterAssetsForAccountAssetEnrichment,
+  GET_ACCOUNT_ASSET_INFO_CLIENT_METHOD,
+  isAccountAssetInfoEnrichmentAvailable,
+  mergeAccountBalances,
+} from './utils';
+
+const stellarClassic =
+  'stellar:pubnet/asset:USDC-GA5ZSEJYB37JRC5AVCIA5MOP4RHTM335X2KGX3IHOJAPP5RE34K4KZVN' as CaipAssetType;
+
+describe('MultichainBalancesController utils', () => {
+  describe('isAccountAssetInfoEnrichmentAvailable', () => {
+    it('returns true for Stellar pubnet', () => {
+      expect(
+        isAccountAssetInfoEnrichmentAvailable('stellar:pubnet' as CaipChainId),
+      ).toBe(true);
+    });
+
+    it('returns true for Stellar testnet', () => {
+      expect(
+        isAccountAssetInfoEnrichmentAvailable('stellar:testnet' as CaipChainId),
+      ).toBe(true);
+    });
+
+    it('returns false for unsupported chains', () => {
+      expect(
+        isAccountAssetInfoEnrichmentAvailable(
+          'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp' as CaipChainId,
+        ),
+      ).toBe(false);
     });
   });
 
-  it('preserves extra when incoming omits it', () => {
-    expect(
-      mergeBalanceRow(
-        { amount: '1', unit: 'BTC', extra: { limit: '500' } },
-        { amount: '2', unit: 'BTC' },
-      ),
-    ).toStrictEqual({
-      amount: '2',
-      unit: 'BTC',
-      extra: { limit: '500' },
+  describe('filterAssetsForAccountAssetEnrichment', () => {
+    it('returns assets on the enrichment-enabled chain', () => {
+      expect(
+        filterAssetsForAccountAssetEnrichment(
+          [stellarClassic],
+          'stellar:pubnet' as CaipChainId,
+        ),
+      ).toStrictEqual([stellarClassic]);
+    });
+
+    it('returns empty when chain does not support enrichment', () => {
+      expect(
+        filterAssetsForAccountAssetEnrichment(
+          [stellarClassic],
+          'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp' as CaipChainId,
+        ),
+      ).toStrictEqual([]);
+    });
+
+    it('excludes assets on a different chain than the caller scope', () => {
+      expect(
+        filterAssetsForAccountAssetEnrichment(
+          [stellarClassic],
+          'stellar:testnet' as CaipChainId,
+        ),
+      ).toStrictEqual([]);
+    });
+
+    it('includes native slip44 assets on an enrichment-enabled chain', () => {
+      const native = 'stellar:pubnet/slip44:148' as CaipAssetType;
+      expect(
+        filterAssetsForAccountAssetEnrichment(
+          [native],
+          'stellar:pubnet' as CaipChainId,
+        ),
+      ).toStrictEqual([native]);
     });
   });
 
-  it('overwrites extra when incoming provides it', () => {
-    expect(
-      mergeBalanceRow(
-        { amount: '0', unit: 'USDC', extra: { limit: '0' } },
-        { extra: { limit: '1000' } },
-      ),
-    ).toStrictEqual({
-      amount: '0',
-      unit: 'USDC',
-      extra: { limit: '1000' },
-    });
-  });
-});
-
-describe('mergeAccountBalances', () => {
-  it('merges incoming rows while preserving untouched assets', () => {
-    expect(
-      mergeAccountBalances(
+  describe('createGetAccountAssetInfoClientRequest', () => {
+    it('builds a snap client request with getAccountAssetInfo params', () => {
+      const request = createGetAccountAssetInfoClientRequest(
+        'local:stellar-snap' as never,
         {
-          assetA: { amount: '1', unit: 'A', extra: { limit: '1' } },
-          assetB: { amount: '2', unit: 'B' },
+          accountId: 'account-1',
+          scope: 'stellar:pubnet' as CaipChainId,
+          assets: [stellarClassic],
         },
-        {
-          assetA: { amount: '3', unit: 'A' },
+      );
+
+      expect(request).toStrictEqual({
+        snapId: 'local:stellar-snap',
+        origin: 'metamask',
+        handler: HandlerType.OnClientRequest,
+        request: {
+          jsonrpc: '2.0',
+          method: GET_ACCOUNT_ASSET_INFO_CLIENT_METHOD,
+          params: {
+            accountId: 'account-1',
+            scope: 'stellar:pubnet',
+            assets: [stellarClassic],
+          },
         },
-      ),
-    ).toStrictEqual({
-      assetA: { amount: '3', unit: 'A', extra: { limit: '1' } },
-      assetB: { amount: '2', unit: 'B' },
+      });
+    });
+  });
+
+  describe('fetchAccountAssetInfoFromSnap', () => {
+    it('delegates to the request builder and caller', async () => {
+      const handleSnapRequest = jest.fn().mockResolvedValue({
+        [stellarClassic]: { limit: '1000' },
+      });
+
+      const result = await fetchAccountAssetInfoFromSnap(handleSnapRequest, {
+        accountId: 'account-1',
+        snapId: 'local:stellar-snap' as never,
+        chainId: 'stellar:pubnet' as CaipChainId,
+        assets: [stellarClassic],
+      });
+
+      expect(handleSnapRequest).toHaveBeenCalledWith(
+        createGetAccountAssetInfoClientRequest('local:stellar-snap' as never, {
+          accountId: 'account-1',
+          scope: 'stellar:pubnet' as CaipChainId,
+          assets: [stellarClassic],
+        }),
+      );
+      expect(result).toStrictEqual({
+        [stellarClassic]: { limit: '1000' },
+      });
+    });
+
+    it('returns undefined when assets list is empty', async () => {
+      const handleSnapRequest = jest.fn();
+
+      const result = await fetchAccountAssetInfoFromSnap(handleSnapRequest, {
+        accountId: 'account-1',
+        snapId: 'local:stellar-snap' as never,
+        chainId: 'stellar:pubnet' as CaipChainId,
+        assets: [],
+      });
+
+      expect(handleSnapRequest).not.toHaveBeenCalled();
+      expect(result).toBeUndefined();
+    });
+
+    it('returns undefined when the snap request fails', async () => {
+      const handleSnapRequest = jest
+        .fn()
+        .mockRejectedValue(new Error('snap failed'));
+
+      const result = await fetchAccountAssetInfoFromSnap(handleSnapRequest, {
+        accountId: 'account-1',
+        snapId: 'local:stellar-snap' as never,
+        chainId: 'stellar:pubnet' as CaipChainId,
+        assets: [stellarClassic],
+      });
+
+      expect(result).toBeUndefined();
+    });
+  });
+
+  describe('buildBalanceRowsWithExtra', () => {
+    it('merges balance rows with enrichment extra fields', () => {
+      expect(
+        buildBalanceRowsWithExtra(
+          [stellarClassic],
+          {
+            [stellarClassic]: { amount: '5', unit: 'USDC' },
+          },
+          {
+            [stellarClassic]: { limit: '1000' },
+          },
+        ),
+      ).toStrictEqual({
+        [stellarClassic]: {
+          amount: '5',
+          unit: 'USDC',
+          extra: { limit: '1000' },
+        },
+      });
+    });
+
+    it('uses zero placeholder when balance is missing', () => {
+      expect(
+        buildBalanceRowsWithExtra([stellarClassic], {}, undefined),
+      ).toStrictEqual({
+        [stellarClassic]: { amount: '0', unit: '' },
+      });
+    });
+  });
+
+  describe('mergeAccountBalances', () => {
+    it('preserves existing extra when incoming row omits it', () => {
+      expect(
+        mergeAccountBalances(
+          {
+            [stellarClassic]: {
+              amount: '1',
+              unit: 'USDC',
+              extra: { limit: '500' },
+            },
+          },
+          {
+            [stellarClassic]: { amount: '2', unit: 'USDC' },
+          },
+        ),
+      ).toStrictEqual({
+        [stellarClassic]: {
+          amount: '2',
+          unit: 'USDC',
+          extra: { limit: '500' },
+        },
+      });
     });
   });
 });

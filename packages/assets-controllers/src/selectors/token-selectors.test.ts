@@ -1183,8 +1183,7 @@ describe('token-selectors', () => {
       state.internalAccounts.accounts[stellarAccountId] = {
         id: stellarAccountId,
         type: 'stellar:data-account',
-        address:
-          'GXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX',
+        address: 'GXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX',
         scopes: [stellarChainId],
         options: {},
         methods: [],
@@ -1231,8 +1230,7 @@ describe('token-selectors', () => {
       state.internalAccounts.accounts[stellarAccountId] = {
         id: stellarAccountId,
         type: 'stellar:data-account',
-        address:
-          'GXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX',
+        address: 'GXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX',
         scopes: [stellarChainId],
         options: {},
         methods: [],
@@ -1274,8 +1272,7 @@ describe('token-selectors', () => {
       state.internalAccounts.accounts[stellarAccountId] = {
         id: stellarAccountId,
         type: 'stellar:data-account',
-        address:
-          'GXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX',
+        address: 'GXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX',
         scopes: [stellarChainId],
         options: {},
         methods: [],

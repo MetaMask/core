@@ -22,13 +22,13 @@ import type {
 import { HandlerType } from '@metamask/snaps-utils';
 import { v4 as uuidv4 } from 'uuid';
 
-import { GET_ACCOUNT_ASSET_INFO_CLIENT_METHOD } from '../multichain/accountAssetEnrichment';
 import { MultichainBalancesController } from '.';
 import type {
   MultichainBalancesControllerMessenger,
   MultichainBalancesControllerState,
 } from '.';
 import { getDefaultMultichainBalancesControllerState } from './MultichainBalancesController';
+import { GET_ACCOUNT_ASSET_INFO_CLIENT_METHOD } from './utils';
 
 const mockBtcAccount = {
   address: 'bc1qssdcp5kvwh6nghzg9tuk99xsflwkdv4hgvq58q',
@@ -129,9 +129,10 @@ const mockStellarAccount: InternalAccount = {
 const STELLAR_CLASSIC_USDC =
   'stellar:pubnet/asset:USDC-GA5ZSEJYB37JRC5AVCIA5MOP4RHTM335X2KGX3IHOJAPP5RE34K4KZVN' as CaipAssetType;
 
-function isGetAccountAssetInfoCall(
-  params: { handler: string; request?: { method?: string } },
-): boolean {
+function isGetAccountAssetInfoCall(params: {
+  handler: string;
+  request?: { method?: string };
+}): boolean {
   return (
     params.handler === HandlerType.OnClientRequest &&
     params.request?.method === GET_ACCOUNT_ASSET_INFO_CLIENT_METHOD
@@ -477,11 +478,13 @@ describe('MultichainBalancesController', () => {
 
     await waitForAllPromises();
 
-    expect(controller.state.balances[mockBtcAccount.id][assetId]).toStrictEqual({
-      amount: '2',
-      unit: 'BTC',
-      extra: { limit: '500' },
-    });
+    expect(controller.state.balances[mockBtcAccount.id][assetId]).toStrictEqual(
+      {
+        amount: '2',
+        unit: 'BTC',
+        extra: { limit: '500' },
+      },
+    );
   });
 
   it('fetches initial balances for existing non-EVM accounts', async () => {
@@ -843,10 +846,7 @@ describe('MultichainBalancesController', () => {
       });
 
       mockSnapHandleRequest.mockImplementation(
-        (params: {
-          handler: string;
-          request?: { method?: string };
-        }) => {
+        (params: { handler: string; request?: { method?: string } }) => {
           if (isGetAccountAssetInfoCall(params)) {
             return Promise.reject(new Error('snap enrichment failed'));
           }
@@ -869,11 +869,12 @@ describe('MultichainBalancesController', () => {
 
       await waitForAllPromises();
 
-      expect(controller.state.balances[mockStellarAccount.id][STELLAR_CLASSIC_USDC])
-        .toStrictEqual({
-          amount: '5',
-          unit: 'USDC',
-        });
+      expect(
+        controller.state.balances[mockStellarAccount.id][STELLAR_CLASSIC_USDC],
+      ).toStrictEqual({
+        amount: '5',
+        unit: 'USDC',
+      });
     });
 
     it('enriches added Stellar classics after accountAssetListUpdated', async () => {
@@ -895,10 +896,7 @@ describe('MultichainBalancesController', () => {
       });
 
       mockSnapHandleRequest.mockImplementation(
-        (params: {
-          handler: string;
-          request?: { method?: string };
-        }) => {
+        (params: { handler: string; request?: { method?: string } }) => {
           if (isGetAccountAssetInfoCall(params)) {
             return Promise.resolve({
               [STELLAR_CLASSIC_USDC]: { limit: '0' },
@@ -921,12 +919,13 @@ describe('MultichainBalancesController', () => {
 
       await waitForAllPromises();
 
-      expect(controller.state.balances[mockStellarAccount.id][STELLAR_CLASSIC_USDC])
-        .toStrictEqual({
-          amount: '0',
-          unit: '',
-          extra: { limit: '0' },
-        });
+      expect(
+        controller.state.balances[mockStellarAccount.id][STELLAR_CLASSIC_USDC],
+      ).toStrictEqual({
+        amount: '0',
+        unit: '',
+        extra: { limit: '0' },
+      });
     });
 
     it('enriches extra when accountBalancesUpdated fires on an enrichment-enabled chain', async () => {
@@ -948,10 +947,7 @@ describe('MultichainBalancesController', () => {
       });
 
       mockSnapHandleRequest.mockImplementation(
-        (params: {
-          handler: string;
-          request?: { method?: string };
-        }) => {
+        (params: { handler: string; request?: { method?: string } }) => {
           if (isGetAccountAssetInfoCall(params)) {
             return Promise.resolve({
               [STELLAR_CLASSIC_USDC]: { limit: '1000' },
@@ -979,12 +975,13 @@ describe('MultichainBalancesController', () => {
           isGetAccountAssetInfoCall(params),
         ),
       ).toBe(true);
-      expect(controller.state.balances[mockStellarAccount.id][STELLAR_CLASSIC_USDC])
-        .toStrictEqual({
-          amount: '0',
-          unit: 'USDC',
-          extra: { limit: '1000' },
-        });
+      expect(
+        controller.state.balances[mockStellarAccount.id][STELLAR_CLASSIC_USDC],
+      ).toStrictEqual({
+        amount: '0',
+        unit: 'USDC',
+        extra: { limit: '1000' },
+      });
     });
 
     it('calls getAccountAssetInfo on balance sync for enrichment-enabled chains', async () => {
@@ -1011,10 +1008,7 @@ describe('MultichainBalancesController', () => {
       });
 
       mockSnapHandleRequest.mockImplementation(
-        (params: {
-          handler: string;
-          request?: { method?: string };
-        }) => {
+        (params: { handler: string; request?: { method?: string } }) => {
           if (isGetAccountAssetInfoCall(params)) {
             return Promise.resolve({
               [STELLAR_CLASSIC_USDC]: { limit: '1000' },

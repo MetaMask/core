@@ -220,14 +220,15 @@ export type {
 export {
   GET_ACCOUNT_ASSET_INFO_CLIENT_METHOD,
   ACCOUNT_ASSET_INFO_ENRICHMENT_BY_CHAIN,
+  createGetAccountAssetInfoClientRequest,
   filterAssetsForAccountAssetEnrichment,
   isAccountAssetInfoEnrichmentAvailable,
   fetchAccountAssetInfoFromSnap,
-} from './multichain/accountAssetEnrichment';
+} from './MultichainBalancesController/utils';
 export type {
   AccountAssetInfoExtra,
   GetAccountAssetInfoResponse,
-} from './multichain/accountAssetEnrichment';
+} from './MultichainBalancesController/utils';
 export {
   isStellarClassicAssetCaip19,
   isStellarClassicTrustlineInactiveForDisplay,
