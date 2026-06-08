@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Fix fiat `moneyAccountDeposit` failing after on-ramp settlement by adding `getAmountData` callback for calldata re-encoding, correcting wallet address, quote amount, slippage validation, and switching to a three-phase relay flow with fee-as-buffer strategy; simple deposits (Perps, Predict) skip to a single EXACT_INPUT relay quote for cheaper fees ([#8987](https://github.com/MetaMask/core/pull/8987))
+
 ## [23.2.0]
 
 ### Added
