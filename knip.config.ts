@@ -24,11 +24,11 @@ const config: KnipConfig = {
   },
   ignoreDependencies: [
     // Dependencies used by Yarn binaries in `.yarn`
-    /^@yarnpkg\//,
+    /^@yarnpkg\//u,
     'clipanion',
     'typanion',
     // Dependencies imported implicitly by TypeScript
-    /^@types\//,
+    /^@types\//u,
     // Tools (packages which we use as executables and not libraries)
     '@lavamoat/allow-scripts',
     '@metamask/auto-changelog',
@@ -39,9 +39,9 @@ const config: KnipConfig = {
     'ts-node',
     'typedoc',
     // Plugins for tools
-    /^@typescript-eslint\//,
-    /^eslint-config-/,
-    /^eslint-plugin-/,
+    /^@typescript-eslint\//u,
+    /^eslint-config-/u,
+    /^eslint-plugin-/u,
     'jest-silent-reporter',
     'prettier-plugin-packagejson',
     'typescript-eslint',
