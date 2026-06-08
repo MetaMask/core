@@ -36,7 +36,8 @@ import type {
 import type { FungibleAssetMetadata, Snap, SnapId } from '@metamask/snaps-sdk';
 import { HandlerType } from '@metamask/snaps-utils';
 import { isCaipAssetType, parseCaipAssetType } from '@metamask/utils';
-import type { CaipChainId, Json, JsonRpcRequest } from '@metamask/utils';
+import type { CaipChainId } from '@metamask/utils';
+import type { Json, JsonRpcRequest } from '@metamask/utils';
 import type { MutexInterface } from 'async-mutex';
 import { Mutex } from 'async-mutex';
 
@@ -74,11 +75,7 @@ export type MultichainAssetsControllerAccountAssetListUpdatedEvent = {
  * @returns The default {@link MultichainAssetsController} state.
  */
 export function getDefaultMultichainAssetsControllerState(): MultichainAssetsControllerState {
-  return {
-    accountsAssets: {},
-    assetsMetadata: {},
-    allIgnoredAssets: {},
-  };
+  return { accountsAssets: {}, assetsMetadata: {}, allIgnoredAssets: {} };
 }
 
 /**
@@ -413,7 +410,6 @@ export class MultichainAssetsController extends StaticIntervalPollingController<
             delete state.allIgnoredAssets[accountId];
           }
         }
-
       });
 
       // Publish event to notify other controllers (balances, rates) about the new assets
@@ -504,14 +500,14 @@ export class MultichainAssetsController extends StaticIntervalPollingController<
     }
 
     this.update((state) => {
-      for (const [accountId, { added, removed: removedAssets }] of Object.entries(
+      for (const [accountId, { added, removed }] of Object.entries(
         accountsAndAssetsToUpdate,
       )) {
         const assets = new Set([
           ...(state.accountsAssets[accountId] || []),
           ...added,
         ]);
-        for (const asset of removedAssets) {
+        for (const asset of removed) {
           assets.delete(asset);
         }
 
@@ -746,7 +742,7 @@ export class MultichainAssetsController extends StaticIntervalPollingController<
     snapId: string,
   ): Promise<AssetMetadataResponse | undefined> {
     try {
-      const response = (await this.messenger.call('SnapController:handleRequest', {
+      return (await this.messenger.call('SnapController:handleRequest', {
         snapId: snapId as SnapId,
         origin: 'metamask',
         handler: HandlerType.OnAssetsLookup,
@@ -757,8 +753,7 @@ export class MultichainAssetsController extends StaticIntervalPollingController<
             assets,
           },
         },
-      })) as AssetMetadataResponse;
-      return response;
+      })) as Promise<AssetMetadataResponse>;
     } catch (error) {
       // Ignore
       console.error(error);

@@ -26,7 +26,7 @@ export const MAP_CAIP_CURRENCIES: {
   // XRP mainnet
   xrp: 'xrpl:mainnet/slip44:144',
 
-  // Stellar Lumens (spot/fiat map uses pubnet; per-chain testnet balances use stellar:testnet/slip44:148 when wired)
+  // Stellar Lumens mainnet
   xlm: 'stellar:pubnet/slip44:148',
 
   // Chainlink (ERC20 on Ethereum mainnet)
