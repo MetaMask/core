@@ -19,6 +19,7 @@ export type MockAccountProvider = {
   createAccounts: jest.Mock;
   discoverAccounts: jest.Mock;
   isAccountCompatible: jest.Mock;
+  isAligned: jest.Mock;
   getName: jest.Mock;
   isEnabled: boolean;
   isDisabled: jest.Mock;
@@ -50,6 +51,7 @@ export function makeMockAccountProvider(
     createAccounts: jest.fn(),
     discoverAccounts: jest.fn(),
     isAccountCompatible: jest.fn(),
+    isAligned: jest.fn().mockReturnValue(false),
     getName: jest.fn(),
     isDisabled: jest.fn(),
     setEnabled: jest.fn(),
@@ -97,6 +99,15 @@ export function setupBip44AccountProvider({
     (accountIds: Bip44Account<KeyringAccount>['id'][]) => {
       accountIds.forEach((id) => mocks.accounts.add(id));
     },
+  );
+
+  mocks.isAligned.mockImplementation(
+    (
+      _context: { entropySource: string; groupIndex: number },
+      accountIds: string[],
+    ) =>
+      accountIds.length >= 1 &&
+      accountIds.every((id) => mocks.accounts.has(id)),
   );
 
   if (index === 0) {
