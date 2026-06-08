@@ -412,24 +412,21 @@ const selectAllMultichainAssets = createAssetListSelector(
             unit.symbol === assetMetadata.symbol,
         )?.decimals;
 
-        if (decimals === undefined) {
+        if (!balance || decimals === undefined) {
           continue;
         }
 
-        const rawBalanceHex: Hex | undefined = balance
-          ? parseBalanceWithDecimals(balance.amount, decimals)
-          : undefined;
+        const rawBalance = parseBalanceWithDecimals(balance.amount, decimals);
 
-        const effectiveRawBalanceHex: Hex = rawBalanceHex ?? '0x0';
+        if (!rawBalance) {
+          continue;
+        }
 
-        const fiatData =
-          effectiveRawBalanceHex !== '0x0' && balance
-            ? getFiatBalanceForMultichainAsset(
-                balance,
-                multichainConversionRates,
-                assetId,
-              )
-            : undefined;
+        const fiatData = getFiatBalanceForMultichainAsset(
+          balance,
+          multichainConversionRates,
+          assetId,
+        );
 
         // TODO: We shouldn't have to rely on fallbacks for name and symbol, they should not be optional
         groupChainAssets.push({
@@ -441,8 +438,8 @@ const selectAllMultichainAssets = createAssetListSelector(
           symbol: assetMetadata.symbol ?? asset,
           accountId,
           decimals,
-          rawBalance: effectiveRawBalanceHex,
-          balance: balance?.amount ?? '0',
+          rawBalance,
+          balance: balance.amount,
           fiat: fiatData
             ? {
                 balance: fiatData.balance,
