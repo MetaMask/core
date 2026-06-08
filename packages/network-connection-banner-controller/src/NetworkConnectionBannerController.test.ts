@@ -654,6 +654,23 @@ describe('NetworkConnectionBannerController', () => {
       });
     });
 
+    it('keeps the banner hidden when the enablement map has no EVM namespace at all', async () => {
+      await withController(({ controller, setNetworkState }) => {
+        setNetworkState({
+          network: {
+            networkConfigurationsByChainId: {},
+            networksMetadata: {},
+          },
+          enablement: {
+            enabledNetworkMap: {},
+          } as NetworkEnablementControllerState,
+          connectivity: { connectivityStatus: CONNECTIVITY_STATUSES.Online },
+        });
+        jest.advanceTimersByTime(30_000);
+        expect(controller.state.status).toBe('available');
+      });
+    });
+
     it('skips configurations whose default RPC endpoint is missing', async () => {
       await withController(({ controller, setNetworkState }) => {
         setNetworkState(

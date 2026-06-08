@@ -4,7 +4,7 @@ import type {
   StateMetadata,
 } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
-import { connectivityControllerSelectors } from '@metamask/connectivity-controller';
+import { CONNECTIVITY_STATUSES } from '@metamask/connectivity-controller';
 import type {
   ConnectivityControllerGetStateAction,
   ConnectivityControllerState,
@@ -21,8 +21,8 @@ import type {
   NetworkEnablementControllerGetStateAction,
   NetworkEnablementControllerState,
 } from '@metamask/network-enablement-controller';
-import { selectEnabledEvmNetworks } from '@metamask/network-enablement-controller';
 import type { Hex } from '@metamask/utils';
+import { KnownCaipNamespace } from '@metamask/utils';
 
 import type { NetworkConnectionBannerControllerMethodActions } from './NetworkConnectionBannerController-method-action-types';
 import { getDomain } from './url-utils';
@@ -312,10 +312,10 @@ export class NetworkConnectionBannerController extends BaseController<
   }
 
   #evaluate(): void {
-    const isOffline = connectivityControllerSelectors.selectIsOffline(
-      this.messenger.call('ConnectivityController:getState'),
+    const { connectivityStatus } = this.messenger.call(
+      'ConnectivityController:getState',
     );
-    if (isOffline) {
+    if (connectivityStatus === CONNECTIVITY_STATUSES.Offline) {
       this.#clearTimers();
       if (this.state.status !== 'available' || this.state.network !== null) {
         this.update((draft) => {
@@ -394,9 +394,14 @@ export class NetworkConnectionBannerController extends BaseController<
   }
 
   #findFailedNetworkForBanner(): NetworkConnectionBannerFailedNetwork | null {
-    const enabledEvmChainIds = selectEnabledEvmNetworks(
-      this.messenger.call('NetworkEnablementController:getState'),
-    ) as Hex[];
+    const { enabledNetworkMap } = this.messenger.call(
+      'NetworkEnablementController:getState',
+    );
+    const enabledEvmChainIds = Object.entries(
+      enabledNetworkMap[KnownCaipNamespace.Eip155] ?? {},
+    )
+      .filter(([, enabled]) => enabled)
+      .map(([chainId]) => chainId as Hex);
     const { networkConfigurationsByChainId, networksMetadata } =
       this.messenger.call('NetworkController:getState');
 
