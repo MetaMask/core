@@ -1,8 +1,6 @@
 import type { PerpsMarketData } from '../../../src/types';
 import {
-  STOCK_LIKE_MARKET_TYPES,
   getMarketTypeFilter,
-  isEquityAsset,
   isHip3Market,
   matchesCategory,
 } from '../../../src/utils/marketUtils';
@@ -20,33 +18,6 @@ const market = (overrides: Partial<PerpsMarketData>): PerpsMarketData =>
   }) as PerpsMarketData;
 
 describe('marketUtils category classification', () => {
-  describe('STOCK_LIKE_MARKET_TYPES', () => {
-    it('contains the four stock-like categories', () => {
-      expect([...STOCK_LIKE_MARKET_TYPES].sort()).toStrictEqual([
-        'etf',
-        'index',
-        'pre-ipo',
-        'stock',
-      ]);
-    });
-  });
-
-  describe('isEquityAsset', () => {
-    it.each(['stock', 'pre-ipo', 'index', 'etf'])(
-      'returns true for stock-like %s',
-      (marketType) => {
-        expect(isEquityAsset(marketType)).toBe(true);
-      },
-    );
-
-    it.each(['crypto', 'commodity', 'forex', 'bond', undefined])(
-      'returns false for non-equity %s',
-      (marketType) => {
-        expect(isEquityAsset(marketType)).toBe(false);
-      },
-    );
-  });
-
   describe('isHip3Market', () => {
     it('is true when isHip3 is set', () => {
       expect(isHip3Market(market({ isHip3: true }))).toBe(true);
@@ -108,38 +79,31 @@ describe('marketUtils category classification', () => {
     });
 
     it.each([
-      ['stock', 'stocks'],
+      ['stock', 'stock'],
       ['pre-ipo', 'pre-ipo'],
-      ['index', 'indices'],
-      ['etf', 'etfs'],
-      ['commodity', 'commodities'],
+      ['index', 'index'],
+      ['etf', 'etf'],
+      ['commodity', 'commodity'],
       ['forex', 'forex'],
     ] as const)(
-      'matches marketType %s for the granular filter %s',
+      'matches marketType %s for the aligned filter %s',
       (marketType, filter) => {
         expect(matchesCategory(market({ marketType }), filter)).toBe(true);
       },
     );
-
-    it('keeps stock-like categories distinct in the granular model', () => {
-      expect(matchesCategory(market({ marketType: 'etf' }), 'stocks')).toBe(
-        false,
-      );
-    });
   });
 
   describe('getMarketTypeFilter', () => {
-    // HIP-3 markets carry a marketType; main-DEX crypto does not. Stock-like
-    // categories collapse into the single 'stocks' filter.
+    // HIP-3 markets carry a marketType; main-DEX crypto does not.
     it.each([
-      ['stock', 'stocks'],
-      ['pre-ipo', 'stocks'],
-      ['index', 'stocks'],
-      ['etf', 'stocks'],
-      ['commodity', 'commodities'],
+      ['stock', 'stock'],
+      ['pre-ipo', 'pre-ipo'],
+      ['index', 'index'],
+      ['etf', 'etf'],
+      ['commodity', 'commodity'],
       ['forex', 'forex'],
     ] as const)(
-      'collapses HIP-3 marketType %s to the %s filter',
+      'resolves HIP-3 marketType %s to the %s filter',
       (marketType, expected) => {
         expect(getMarketTypeFilter(market({ marketType, isHip3: true }))).toBe(
           expected,
@@ -189,10 +153,12 @@ describe('marketUtils category classification', () => {
       );
     });
 
-    // The resolved bucket must agree with matchesCategory (stock-like is the one
-    // intentional exception: it collapses to 'stocks' while matchesCategory keeps
-    // stock/pre-ipo/index/etf granular).
+    // The resolved bucket must agree with matchesCategory.
     it.each([
+      market({ marketType: 'stock', isHip3: true }),
+      market({ marketType: 'pre-ipo', isHip3: true }),
+      market({ marketType: 'index', isHip3: true }),
+      market({ marketType: 'etf', isHip3: true }),
       market({ marketType: 'commodity', isHip3: true }),
       market({ marketType: 'forex', isHip3: true }),
       market({ marketType: undefined, isHip3: false }),
