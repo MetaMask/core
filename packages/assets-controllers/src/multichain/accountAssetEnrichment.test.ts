@@ -1,7 +1,9 @@
 import type { CaipAssetType, CaipChainId } from '@metamask/utils';
 
 import {
+  accountAssetExtraNeedsRefresh,
   filterAssetsForAccountAssetEnrichment,
+  filterStellarClassicAssetsForEnrichment,
   isAccountAssetInfoEnrichmentAvailable,
 } from './accountAssetEnrichment';
 
@@ -59,6 +61,41 @@ describe('accountAssetEnrichment', () => {
           'stellar:testnet' as CaipChainId,
         ),
       ).toStrictEqual([]);
+    });
+  });
+
+  describe('filterStellarClassicAssetsForEnrichment', () => {
+    it('includes Stellar classic assets on an enrichment-enabled chain', () => {
+      expect(
+        filterStellarClassicAssetsForEnrichment(
+          [stellarClassic],
+          'stellar:pubnet' as CaipChainId,
+        ),
+      ).toStrictEqual([stellarClassic]);
+    });
+
+    it('excludes native XLM slip44 assets', () => {
+      expect(
+        filterStellarClassicAssetsForEnrichment(
+          ['stellar:pubnet/slip44:148' as CaipAssetType],
+          'stellar:pubnet' as CaipChainId,
+        ),
+      ).toStrictEqual([]);
+    });
+  });
+
+  describe('accountAssetExtraNeedsRefresh', () => {
+    it('returns true when extra is undefined', () => {
+      expect(accountAssetExtraNeedsRefresh(undefined)).toBe(true);
+    });
+
+    it('returns true when limit is missing or zero', () => {
+      expect(accountAssetExtraNeedsRefresh({})).toBe(true);
+      expect(accountAssetExtraNeedsRefresh({ limit: '0' })).toBe(true);
+    });
+
+    it('returns false when limit is positive', () => {
+      expect(accountAssetExtraNeedsRefresh({ limit: '1000' })).toBe(false);
     });
   });
 });

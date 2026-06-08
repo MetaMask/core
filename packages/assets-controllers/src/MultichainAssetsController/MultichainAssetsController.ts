@@ -1,7 +1,6 @@
 import type {
   AccountsControllerAccountAddedEvent,
   AccountsControllerAccountAssetListUpdatedEvent,
-  AccountsControllerAccountBalancesUpdatesEvent,
   AccountsControllerAccountRemovedEvent,
   AccountsControllerListMultichainAccountsAction,
 } from '@metamask/accounts-controller';
@@ -13,7 +12,6 @@ import type {
 import { isEvmAccountType } from '@metamask/keyring-api';
 import type {
   AccountAssetListUpdatedEventPayload,
-  AccountBalancesUpdatedEventPayload,
   CaipAssetType,
   CaipAssetTypeOrId,
 } from '@metamask/keyring-api';
@@ -38,22 +36,11 @@ import type {
 import type { FungibleAssetMetadata, Snap, SnapId } from '@metamask/snaps-sdk';
 import { HandlerType } from '@metamask/snaps-utils';
 import { isCaipAssetType, parseCaipAssetType } from '@metamask/utils';
-import type { CaipChainId } from '@metamask/utils';
-import type { Json, JsonRpcRequest } from '@metamask/utils';
+import type { CaipChainId, Json, JsonRpcRequest } from '@metamask/utils';
 import type { MutexInterface } from 'async-mutex';
 import { Mutex } from 'async-mutex';
 
-import type { MultichainBalancesControllerMergeAccountBalanceExtrasAction } from '../MultichainBalancesController';
 import type { MultichainAssetsControllerMethodActions } from './MultichainAssetsController-method-action-types';
-import {
-  filterAssetsForAccountAssetEnrichment,
-  GET_ACCOUNT_ASSET_INFO_CLIENT_METHOD,
-  isAccountAssetInfoEnrichmentAvailable,
-} from '../multichain/accountAssetEnrichment';
-import type {
-  AccountAssetInfoExtra,
-  GetAccountAssetInfoResponse,
-} from '../multichain/accountAssetEnrichment';
 import { getChainIdsCaveat } from './utils';
 
 const controllerName = 'MultichainAssetsController';
@@ -145,8 +132,7 @@ type AllowedActions =
   | SnapControllerHandleRequestAction
   | GetPermissions
   | AccountsControllerListMultichainAccountsAction
-  | PhishingControllerBulkScanTokensAction
-  | MultichainBalancesControllerMergeAccountBalanceExtrasAction;
+  | PhishingControllerBulkScanTokensAction;
 
 /**
  * Events that this controller is allowed to subscribe.
@@ -154,8 +140,7 @@ type AllowedActions =
 type AllowedEvents =
   | AccountsControllerAccountAddedEvent
   | AccountsControllerAccountRemovedEvent
-  | AccountsControllerAccountAssetListUpdatedEvent
-  | AccountsControllerAccountBalancesUpdatesEvent;
+  | AccountsControllerAccountAssetListUpdatedEvent;
 
 /**
  * Messenger type for the MultichainAssetsController.
@@ -271,13 +256,6 @@ export class MultichainAssetsController extends StaticIntervalPollingController<
       'AccountsController:accountAssetListUpdated',
       // eslint-disable-next-line @typescript-eslint/no-misused-promises
       async (event) => await this.#handleAccountAssetListUpdatedEvent(event),
-    );
-    this.messenger.subscribe(
-      'AccountsController:accountBalancesUpdated',
-      (event) => {
-        // eslint-disable-next-line no-void
-        void this.#handleAccountBalancesUpdatedForEnrichment(event);
-      },
     );
 
     messenger.registerMethodActionHandlers(this, MESSENGER_EXPOSED_METHODS);
@@ -448,16 +426,6 @@ export class MultichainAssetsController extends StaticIntervalPollingController<
             },
           },
         });
-        // Let MultichainBalancesController create balance rows before merging `extra`.
-        await Promise.resolve();
-        const accounts = this.messenger.call(
-          'AccountsController:listMultichainAccounts',
-        );
-        const account = accounts.find((a) => a.id === accountId);
-        const chainId = account?.scopes[0];
-        if (chainId) {
-          await this.#enrichAccountAssetInfo(accountId, chainId, addedAssets);
-        }
       }
 
       return this.state.accountsAssets[accountId] || [];
@@ -557,22 +525,6 @@ export class MultichainAssetsController extends StaticIntervalPollingController<
     this.messenger.publish(`${controllerName}:accountAssetListUpdated`, {
       assets: accountsAndAssetsToUpdate,
     });
-
-    const accounts = this.messenger.call(
-      'AccountsController:listMultichainAccounts',
-    );
-    for (const [accountId, { added }] of Object.entries(
-      accountsAndAssetsToUpdate,
-    )) {
-      if (added.length === 0) {
-        continue;
-      }
-      const account = accounts.find((a) => a.id === accountId);
-      const chainId = account?.scopes[0];
-      if (chainId) {
-        await this.#enrichAccountAssetInfo(accountId, chainId, added);
-      }
-    }
   }
 
   /**
@@ -626,131 +578,6 @@ export class MultichainAssetsController extends StaticIntervalPollingController<
           },
         },
       });
-
-      await this.#enrichAccountAssetInfo(
-        account.id,
-        account.scopes[0],
-        filteredCaip,
-      );
-    }
-  }
-
-  /**
-   * After snap balance events, fetch per-asset enrichment via snap client request.
-   *
-   * @param payload - Keyring balance update payload.
-   */
-  async #handleAccountBalancesUpdatedForEnrichment(
-    payload: AccountBalancesUpdatedEventPayload,
-  ): Promise<void> {
-    // Yield so MultichainBalancesController applies balance rows first (MAC inits before MBC in extension).
-    await Promise.resolve();
-
-    const accounts = this.messenger.call(
-      'AccountsController:listMultichainAccounts',
-    );
-
-    for (const accountId of Object.keys(payload.balances)) {
-      const account = accounts.find((a) => a.id === accountId);
-      const chainId = account?.scopes[0];
-      if (!chainId) {
-        continue;
-      }
-      const portfolioAssets = this.state.accountsAssets[accountId] ?? [];
-      await this.#enrichAccountAssetInfo(accountId, chainId, portfolioAssets);
-    }
-  }
-
-  /**
-   * Fetches snap account-asset enrichment and merges `extra` into balance rows.
-   *
-   * @param accountId - Account id.
-   * @param chainId - CAIP-2 chain id for enrichment.
-   * @param assetIds - Assets to enrich.
-   */
-  async #enrichAccountAssetInfo(
-    accountId: string,
-    chainId: CaipChainId,
-    assetIds: CaipAssetType[],
-  ): Promise<void> {
-    if (!isAccountAssetInfoEnrichmentAvailable(chainId)) {
-      return;
-    }
-
-    const enrichmentAssets = filterAssetsForAccountAssetEnrichment(
-      assetIds,
-      chainId,
-    );
-    if (enrichmentAssets.length === 0) {
-      return;
-    }
-
-    const accounts = this.messenger.call(
-      'AccountsController:listMultichainAccounts',
-    );
-    const account = accounts.find((a) => a.id === accountId);
-    const snapId = account?.metadata.snap?.id;
-    if (!account || !snapId) {
-      return;
-    }
-
-    const info = await this.#fetchAccountAssetInfoFromSnap(
-      accountId,
-      snapId,
-      chainId,
-      enrichmentAssets,
-    );
-    if (!info) {
-      return;
-    }
-
-    const extrasByAsset: Record<CaipAssetType, AccountAssetInfoExtra> = {};
-    for (const [assetId, extra] of Object.entries(info)) {
-      extrasByAsset[assetId as CaipAssetType] = extra;
-    }
-
-    if (Object.keys(extrasByAsset).length > 0) {
-      this.messenger.call(
-        'MultichainBalancesController:mergeAccountBalanceExtras',
-        accountId,
-        extrasByAsset,
-      );
-    }
-  }
-
-  /**
-   * Calls the snap account-asset enrichment client request handler.
-   *
-   * @param accountId - Account id.
-   * @param snapId - Wallet snap id.
-   * @param chainId - CAIP-2 chain id.
-   * @param assets - CAIP-19 assets to resolve.
-   * @returns Per-asset enrichment fields, or undefined on failure.
-   */
-  async #fetchAccountAssetInfoFromSnap(
-    accountId: string,
-    snapId: string,
-    chainId: CaipChainId,
-    assets: CaipAssetType[],
-  ): Promise<GetAccountAssetInfoResponse | undefined> {
-    try {
-      return (await this.messenger.call('SnapController:handleRequest', {
-        snapId: snapId as SnapId,
-        origin: 'metamask',
-        handler: HandlerType.OnClientRequest,
-        request: {
-          jsonrpc: '2.0',
-          method: GET_ACCOUNT_ASSET_INFO_CLIENT_METHOD,
-          params: {
-            accountId,
-            scope: chainId,
-            assets,
-          },
-        },
-      })) as GetAccountAssetInfoResponse;
-    } catch (error) {
-      console.error(error);
-      return undefined;
     }
   }
 

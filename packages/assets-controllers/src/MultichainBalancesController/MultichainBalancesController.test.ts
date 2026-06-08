@@ -19,8 +19,10 @@ import type {
   MessengerEvents,
   MockAnyNamespace,
 } from '@metamask/messenger';
+import { HandlerType } from '@metamask/snaps-utils';
 import { v4 as uuidv4 } from 'uuid';
 
+import { GET_ACCOUNT_ASSET_INFO_CLIENT_METHOD } from '../multichain/accountAssetEnrichment';
 import { MultichainBalancesController } from '.';
 import type {
   MultichainBalancesControllerMessenger,
@@ -101,6 +103,40 @@ const mockBalanceResult = {
     unit: 'BTC',
   },
 };
+
+const mockStellarAccount: InternalAccount = {
+  type: 'stellar:data-account',
+  id: 'stellar-account-uuid',
+  address: 'GXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX',
+  scopes: ['stellar:pubnet'],
+  options: {},
+  methods: [],
+  metadata: {
+    name: 'Stellar Account',
+    importTime: 1737022568097,
+    keyring: {
+      type: KeyringTypes.snap,
+    },
+    snap: {
+      id: 'local:stellar-snap',
+      name: 'Stellar',
+      enabled: true,
+    },
+    lastSelected: 0,
+  },
+};
+
+const STELLAR_CLASSIC_USDC =
+  'stellar:pubnet/asset:USDC-GA5ZSEJYB37JRC5AVCIA5MOP4RHTM335X2KGX3IHOJAPP5RE34K4KZVN' as CaipAssetType;
+
+function isGetAccountAssetInfoCall(
+  params: { handler: string; request?: { method?: string } },
+): boolean {
+  return (
+    params.handler === HandlerType.OnClientRequest &&
+    params.request?.method === GET_ACCOUNT_ASSET_INFO_CLIENT_METHOD
+  );
+}
 
 /**
  * The union of actions that the root messenger allows.
@@ -806,6 +842,162 @@ describe('MultichainBalancesController', () => {
     expect(controller.state.balances[mockBtcAccount.id]).toStrictEqual(
       mockBalanceResult,
     );
+  });
+
+  describe('Stellar account-asset enrichment', () => {
+    it('enriches added Stellar classics after accountAssetListUpdated', async () => {
+      const { controller, messenger, mockSnapHandleRequest } = setupController({
+        state: {
+          balances: {
+            [mockStellarAccount.id]: {},
+          },
+        },
+        mocks: {
+          listMultichainAccounts: [mockStellarAccount],
+          handleRequestReturnValue: {},
+          handleMockGetAssetsState: {
+            accountsAssets: {
+              [mockStellarAccount.id]: [STELLAR_CLASSIC_USDC],
+            },
+          },
+        },
+      });
+
+      mockSnapHandleRequest.mockImplementation(
+        (params: {
+          handler: string;
+          request?: { method?: string };
+        }) => {
+          if (isGetAccountAssetInfoCall(params)) {
+            return Promise.resolve({
+              [STELLAR_CLASSIC_USDC]: { limit: '0' },
+            });
+          }
+          return Promise.resolve({});
+        },
+      );
+
+      await waitForAllPromises();
+
+      messenger.publish('MultichainAssetsController:accountAssetListUpdated', {
+        assets: {
+          [mockStellarAccount.id]: {
+            added: [STELLAR_CLASSIC_USDC],
+            removed: [],
+          },
+        },
+      });
+
+      await waitForAllPromises();
+
+      expect(controller.state.balances[mockStellarAccount.id][STELLAR_CLASSIC_USDC])
+        .toStrictEqual({
+          amount: '0',
+          unit: '',
+          extra: { limit: '0' },
+        });
+    });
+
+    it('refreshes stale extra when accountBalancesUpdated includes a classic needing refresh', async () => {
+      const { controller, messenger, mockSnapHandleRequest } = setupController({
+        state: {
+          balances: {
+            [mockStellarAccount.id]: {
+              [STELLAR_CLASSIC_USDC]: {
+                amount: '0',
+                unit: 'USDC',
+                extra: { limit: '0' },
+              },
+            },
+          },
+        },
+        mocks: {
+          listMultichainAccounts: [mockStellarAccount],
+        },
+      });
+
+      mockSnapHandleRequest.mockImplementation(
+        (params: {
+          handler: string;
+          request?: { method?: string };
+        }) => {
+          if (isGetAccountAssetInfoCall(params)) {
+            return Promise.resolve({
+              [STELLAR_CLASSIC_USDC]: { limit: '1000' },
+            });
+          }
+          return Promise.resolve(mockBalanceResult);
+        },
+      );
+
+      await waitForAllPromises();
+      mockSnapHandleRequest.mockClear();
+
+      messenger.publish('AccountsController:accountBalancesUpdated', {
+        balances: {
+          [mockStellarAccount.id]: {
+            [STELLAR_CLASSIC_USDC]: { amount: '0', unit: 'USDC' },
+          },
+        },
+      });
+
+      await waitForAllPromises();
+
+      expect(
+        mockSnapHandleRequest.mock.calls.some(([params]) =>
+          isGetAccountAssetInfoCall(params),
+        ),
+      ).toBe(true);
+      expect(controller.state.balances[mockStellarAccount.id][STELLAR_CLASSIC_USDC])
+        .toStrictEqual({
+          amount: '0',
+          unit: 'USDC',
+          extra: { limit: '1000' },
+        });
+    });
+
+    it('skips getAccountAssetInfo on balance sync when extra is already active', async () => {
+      const { messenger, mockSnapHandleRequest } = setupController({
+        state: {
+          balances: {
+            [mockStellarAccount.id]: {
+              [STELLAR_CLASSIC_USDC]: {
+                amount: '10',
+                unit: 'USDC',
+                extra: { limit: '1000' },
+              },
+            },
+          },
+        },
+        mocks: {
+          listMultichainAccounts: [mockStellarAccount],
+          handleMockGetAssetsState: {
+            accountsAssets: {
+              [mockStellarAccount.id]: [],
+            },
+          },
+        },
+      });
+
+      await waitForAllPromises();
+      await waitForAllPromises();
+      const callsBefore = mockSnapHandleRequest.mock.calls.length;
+
+      messenger.publish('AccountsController:accountBalancesUpdated', {
+        balances: {
+          [mockStellarAccount.id]: {
+            [STELLAR_CLASSIC_USDC]: { amount: '10', unit: 'USDC' },
+          },
+        },
+      });
+
+      await waitForAllPromises();
+
+      const callsAfter = mockSnapHandleRequest.mock.calls.slice(callsBefore);
+      expect(
+        callsAfter.some(([params]) => isGetAccountAssetInfoCall(params)),
+      ).toBe(false);
+    });
   });
 
   describe('metadata', () => {

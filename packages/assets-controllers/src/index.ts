@@ -222,6 +222,9 @@ export {
   ACCOUNT_ASSET_INFO_ENRICHMENT_BY_CHAIN,
   isAccountAssetInfoEnrichmentAvailable,
   filterAssetsForAccountAssetEnrichment,
+  filterStellarClassicAssetsForEnrichment,
+  accountAssetExtraNeedsRefresh,
+  fetchAccountAssetInfoFromSnap,
 } from './multichain/accountAssetEnrichment';
 export type {
   AccountAssetInfoExtra,

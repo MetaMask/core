@@ -24,13 +24,18 @@ import type { Messenger } from '@metamask/messenger';
 import type { SnapControllerHandleRequestAction } from '@metamask/snaps-controllers';
 import type { SnapId } from '@metamask/snaps-sdk';
 import { HandlerType } from '@metamask/snaps-utils';
-import type { CaipAssetType, Json, JsonRpcRequest } from '@metamask/utils';
+import type { CaipAssetType, CaipChainId, Json, JsonRpcRequest } from '@metamask/utils';
 import type { Draft } from 'immer';
 
 import type {
   MultichainAssetsControllerGetStateAction,
   MultichainAssetsControllerAccountAssetListUpdatedEvent,
 } from '../MultichainAssetsController';
+import {
+  accountAssetExtraNeedsRefresh,
+  fetchAccountAssetInfoFromSnap,
+  filterStellarClassicAssetsForEnrichment,
+} from '../multichain/accountAssetEnrichment';
 import type { AccountAssetInfoExtra } from '../multichain/accountAssetEnrichment';
 
 const controllerName = 'MultichainBalancesController';
@@ -189,8 +194,10 @@ export class MultichainBalancesController extends BaseController<
     );
     this.messenger.subscribe(
       'AccountsController:accountBalancesUpdated',
-      (balanceUpdate: AccountBalancesUpdatedEventPayload) =>
-        this.#handleOnAccountBalancesUpdated(balanceUpdate),
+      (balanceUpdate: AccountBalancesUpdatedEventPayload) => {
+        // eslint-disable-next-line no-void
+        void this.#handleOnAccountBalancesUpdatedAsync(balanceUpdate);
+      },
     );
 
     this.messenger.subscribe(
@@ -253,30 +260,42 @@ export class MultichainBalancesController extends BaseController<
       for (const [accountId, accountBalances] of Object.entries(
         balancesToUpdate,
       )) {
-        if (
-          !state.balances[accountId] ||
-          Object.keys(state.balances[accountId]).length === 0
-        ) {
-          state.balances[accountId] = accountBalances;
-        } else {
-          const acc = accountsMap.get(accountId);
+        const acc = accountsMap.get(accountId);
+        const assetsWithoutBalance = new Set(acc?.assets ?? []);
 
-          const assetsWithoutBalance = new Set(acc?.assets ?? []);
+        if (!state.balances[accountId]) {
+          state.balances[accountId] = {};
+        }
 
-          for (const assetId of Object.keys(accountBalances)) {
-            if (!state.balances[accountId][assetId]) {
-              state.balances[accountId][assetId] = accountBalances[assetId];
-            }
-            assetsWithoutBalance.delete(assetId as CaipAssetType);
+        for (const assetId of Object.keys(accountBalances)) {
+          if (!state.balances[accountId][assetId]) {
+            state.balances[accountId][assetId] = accountBalances[assetId];
           }
+          assetsWithoutBalance.delete(assetId as CaipAssetType);
+        }
 
-          // Triggered when an asset is added to the accountAssets list manually
-          for (const assetId of assetsWithoutBalance) {
-            state.balances[accountId][assetId] = { amount: '0', unit: '' };
-          }
+        // Triggered when an asset is added to the accountAssets list manually
+        for (const assetId of assetsWithoutBalance) {
+          state.balances[accountId][assetId] = { amount: '0', unit: '' };
         }
       }
     });
+
+    for (const { accountId, assets } of accounts) {
+      if (assets.length === 0) {
+        continue;
+      }
+      try {
+        const account = this.#getAccount(accountId);
+        const chainId = account.scopes[0];
+        if (!chainId) {
+          continue;
+        }
+        await this.#enrichAccountAssetInfo(accountId, chainId, assets);
+      } catch {
+        // Account may not exist yet; skip enrichment for this entry.
+      }
+    }
   }
 
   /**
@@ -402,7 +421,55 @@ export class MultichainBalancesController extends BaseController<
   }
 
   /**
-   * Handles balance updates received from the AccountsController.
+   * Applies balance sync updates and refreshes stale Stellar classic `extra` fields.
+   *
+   * @param balanceUpdate - The balance update event containing new balances.
+   */
+  async #handleOnAccountBalancesUpdatedAsync(
+    balanceUpdate: AccountBalancesUpdatedEventPayload,
+  ): Promise<void> {
+    this.#handleOnAccountBalancesUpdated(balanceUpdate);
+
+    for (const accountId of Object.keys(balanceUpdate.balances)) {
+      const assetBalances = balanceUpdate.balances[accountId];
+      if (!assetBalances) {
+        continue;
+      }
+
+      let account: InternalAccount;
+      try {
+        account = this.#getAccount(accountId);
+      } catch {
+        continue;
+      }
+
+      const chainId = account.scopes[0];
+      if (!chainId || !account.metadata.snap?.id) {
+        continue;
+      }
+
+      const accountBalanceRows = this.state.balances[accountId] ?? {};
+      const assetsToRefresh = filterStellarClassicAssetsForEnrichment(
+        Object.keys(assetBalances) as CaipAssetType[],
+        chainId as CaipChainId,
+      ).filter((assetId) =>
+        accountAssetExtraNeedsRefresh(accountBalanceRows[assetId]?.extra),
+      );
+
+      if (assetsToRefresh.length === 0) {
+        continue;
+      }
+
+      await this.#enrichAccountAssetInfo(
+        accountId,
+        chainId as CaipChainId,
+        assetsToRefresh,
+      );
+    }
+  }
+
+  /**
+   * Applies incoming balance amounts while preserving existing `extra` fields.
    *
    * @param balanceUpdate - The balance update event containing new balances.
    */
@@ -428,6 +495,55 @@ export class MultichainBalancesController extends BaseController<
         }
       }
     });
+  }
+
+  /**
+   * Fetches snap account-asset enrichment and merges `extra` into balance rows.
+   *
+   * @param accountId - Account id.
+   * @param chainId - CAIP-2 chain id for enrichment.
+   * @param assetIds - Assets to enrich.
+   */
+  async #enrichAccountAssetInfo(
+    accountId: string,
+    chainId: CaipChainId,
+    assetIds: CaipAssetType[],
+  ): Promise<void> {
+    const enrichmentAssets = filterStellarClassicAssetsForEnrichment(
+      assetIds,
+      chainId,
+    );
+    if (enrichmentAssets.length === 0) {
+      return;
+    }
+
+    const account = this.#getAccount(accountId);
+    const snapId = account.metadata.snap?.id;
+    if (!snapId) {
+      return;
+    }
+
+    const info = await fetchAccountAssetInfoFromSnap(
+      (params) => this.messenger.call('SnapController:handleRequest', params),
+      {
+        accountId,
+        snapId: snapId as SnapId,
+        chainId,
+        assets: enrichmentAssets,
+      },
+    );
+    if (!info) {
+      return;
+    }
+
+    const extrasByAsset: Record<CaipAssetType, AccountAssetInfoExtra> = {};
+    for (const [assetId, extra] of Object.entries(info)) {
+      extrasByAsset[assetId as CaipAssetType] = extra;
+    }
+
+    if (Object.keys(extrasByAsset).length > 0) {
+      this.mergeAccountBalanceExtras(accountId, extrasByAsset);
+    }
   }
 
   /**
