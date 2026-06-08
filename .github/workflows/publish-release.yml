@@ -91,6 +91,7 @@ jobs:
         uses: MetaMask/action-checkout-and-setup@v2
         with:
           is-high-risk-environment: true
+          ref: ${{ github.sha }}
       - uses: MetaMask/action-publish-release@v3
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
