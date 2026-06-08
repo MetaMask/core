@@ -414,6 +414,22 @@ export class MultichainBalancesController extends BaseController<
   async #handleOnAccountBalancesUpdated(
     balanceUpdate: AccountBalancesUpdatedEventPayload,
   ): Promise<void> {
+    this.update((state: Draft<MultichainBalancesControllerState>) => {
+      for (const [accountId, assetBalances] of Object.entries(
+        balanceUpdate.balances,
+      )) {
+        if (!(accountId in state.balances)) {
+          continue;
+        }
+        state.balances[accountId] = mergeAccountBalances(
+          state.balances[accountId],
+          assetBalances,
+        );
+      }
+    });
+
+    const enrichments: Record<string, GetAccountAssetInfoResponse> = {};
+
     for (const [accountId, assetBalances] of Object.entries(
       balanceUpdate.balances,
     )) {
@@ -424,13 +440,13 @@ export class MultichainBalancesController extends BaseController<
       try {
         account = this.#getAccount(accountId);
       } catch {
-        return;
+        continue;
       }
 
       const chainId = account.scopes[0];
       const snapId = account.metadata.snap?.id;
       if (!chainId || !snapId) {
-        return;
+        continue;
       }
 
       const info = await this.#fetchAccountAssetInfo(
@@ -439,13 +455,19 @@ export class MultichainBalancesController extends BaseController<
         snapId as SnapId,
         assetIds,
       );
-      if (!info) {
-        return;
+      if (info) {
+        enrichments[accountId] = info;
       }
+    }
 
-      this.update((state: Draft<MultichainBalancesControllerState>) => {
+    if (Object.keys(enrichments).length === 0) {
+      return;
+    }
+
+    this.update((state: Draft<MultichainBalancesControllerState>) => {
+      for (const [accountId, info] of Object.entries(enrichments)) {
         if (!state.balances[accountId]) {
-          return;
+          continue;
         }
         state.balances[accountId] = mergeAccountBalances(
           state.balances[accountId],
@@ -456,8 +478,8 @@ export class MultichainBalancesController extends BaseController<
             ]),
           ),
         );
-      });
-    }
+      }
+    });
   }
 
   /**
