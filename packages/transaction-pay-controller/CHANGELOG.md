@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Fall back to `FeatureId.PERPS` when calling `BridgeController:fetchQuotes` and the quote does not have a `featureId` ([#8964](https://github.com/MetaMask/core/pull/8964))
 - Bump `@metamask/bridge-controller` from `^73.2.1` to `^74.0.0` ([#9045](https://github.com/MetaMask/core/pull/9045))
 
 ## [23.3.0]
@@ -27,7 +28,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Fall back to `FeatureId.PERPS` when calling `BridgeController:fetchQuotes` and the quote does not have a `featureId` ([#8964](https://github.com/MetaMask/core/pull/8964))
 - Fiat quote submission now treats the provider code (e.g. `transak-native`) as the canonical form when resolving the provider from a ramps quote, while continuing to accept the legacy path form (e.g. `/providers/transak-native`) for backwards compatibility ([#9004](https://github.com/MetaMask/core/pull/9004))
 - Live token balance queries now respect the `confirmations_pay_extended.excludeChainIdsFromInfura` feature flag, skipping the Infura endpoint preference for excluded chains ([#8992](https://github.com/MetaMask/core/pull/8992))
 - Bump `@metamask/assets-controllers` from `^108.3.0` to `^108.5.0` ([#8981](https://github.com/MetaMask/core/pull/8981), [#8999](https://github.com/MetaMask/core/pull/8999))
