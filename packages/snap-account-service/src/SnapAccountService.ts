@@ -627,7 +627,7 @@ export class SnapAccountService {
     // the keyring exists (e.g for the MMI Snap).
     // NOTE: We only auto-create it for v1 account creation flows.
     if (isAccountCreatedMessage) {
-      await this.#ensureKeyringIsReady(snapId);
+      await this.ensureReady(snapId);
     }
 
     // This part of the flow relies on v1 flows, but v2 keyrings are compatible with those messages

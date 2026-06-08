@@ -906,7 +906,9 @@ describe('SnapAccountService', () => {
     });
 
     it('ensures the v2 keyring exists before forwarding an AccountCreated event', async () => {
-      const { service, mocks } = await setup();
+      const { service, mocks } = await setup({
+        runnableSnaps: [buildSnap(MOCK_SNAP_ID)],
+      });
       // `#ensureKeyringIsReady` uses `withController` — start with no keyring
       // so it must create one.
       const { addNewKeyring } = mockWithController(mocks, []);
@@ -915,6 +917,7 @@ describe('SnapAccountService', () => {
         [MOCK_SNAP_ID]: { handleKeyringSnapMessage },
       });
 
+      await service.ensureMigrated();
       await service.handleKeyringSnapMessage(
         MOCK_SNAP_ID,
         MOCK_ACCOUNT_CREATED_MESSAGE,
