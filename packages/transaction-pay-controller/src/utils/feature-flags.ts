@@ -98,8 +98,6 @@ type FiatFlags = {
   maxRateDriftPercent?: number;
 };
 
-
-
 type StrategyRoutingConfig = {
   payStrategies: {
     across: {
@@ -827,7 +825,6 @@ export function getFiatAssetPerTransactionType(
     ETH_MAINNET_FIAT_ASSET
   );
 }
-
 
 /**
  * Returns the fee reserve multiplier for fiat three-phase submit.

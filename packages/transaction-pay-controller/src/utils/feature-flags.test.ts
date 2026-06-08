@@ -1605,5 +1605,4 @@ describe('Feature Flags Utils', () => {
       expect(getFiatMaxRateDriftPercent(messenger)).toBe(10);
     });
   });
-
 });
