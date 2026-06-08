@@ -51,6 +51,7 @@
         {
           "action": "swap",
           "srcChainId": 10,
+          "destChainId": 10,
           "protocol": {
             "name": "zerox",
             "displayName": "0x",
@@ -208,6 +209,7 @@
         {
           "action": "swap",
           "srcChainId": 10,
+          "destChainId": 137,
           "protocol": {
             "name": "zerox",
             "displayName": "0x",

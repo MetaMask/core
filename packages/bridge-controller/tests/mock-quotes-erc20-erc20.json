@@ -1,6 +1,10 @@
 [
   {
     "quote": {
+      "gasIncluded": false,
+      "gasIncluded7702": false,
+      "gasSponsored": false,
+      "slippage": 2,
       "requestId": "90ae8e69-f03a-4cf6-bab7-ed4e3431eb37",
       "srcChainId": 10,
       "srcAsset": {
@@ -47,6 +51,7 @@
       },
       "bridgeId": "socket",
       "bridges": ["across"],
+      "protocols": ["across"],
       "steps": [
         {
           "action": "bridge",
