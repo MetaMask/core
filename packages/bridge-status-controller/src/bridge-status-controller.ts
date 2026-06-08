@@ -1259,7 +1259,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
    * Tracks post-submission events for a cross-chain swap based on the history item
    *
    * @param eventName - The name of the event to track
-   * @param txHistoryKey - The txMetaId of the history item to track the event for
+   * @param txHistoryKey - The txMetaId, actionId or intentUid of the history item to track the event for
    * @param eventProperties - The properties for the event
    */
   readonly #trackUnifiedSwapBridgeEvent = <
