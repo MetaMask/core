@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [8.0.0]
+
 ### Added
 
 - Centralise market category classification so consumers share one model instead of re-deriving it per client ([#9009](https://github.com/MetaMask/core/pull/9009))
@@ -346,7 +348,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Bump `@metamask/controller-utils` from `^11.18.0` to `^11.19.0` ([#7995](https://github.com/MetaMask/core/pull/7995))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@7.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@8.0.0...HEAD
+[8.0.0]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@7.0.0...@metamask/perps-controller@8.0.0
 [7.0.0]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@6.3.0...@metamask/perps-controller@7.0.0
 [6.3.0]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@6.2.0...@metamask/perps-controller@6.3.0
 [6.2.0]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@6.1.0...@metamask/perps-controller@6.2.0
