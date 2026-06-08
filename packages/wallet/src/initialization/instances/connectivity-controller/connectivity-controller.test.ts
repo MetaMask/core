@@ -6,9 +6,7 @@ import { connectivityController } from './connectivity-controller';
 
 describe('connectivityController', () => {
   it('reports online status after initialization', () => {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const parent = new Messenger<'Root', any, any>({ namespace: 'Root' });
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const parent: RootMessenger<DefaultActions, DefaultEvents> = new Messenger({ namespace: 'Root' });
     const messenger = connectivityController.getMessenger(parent as any);
     const controller = connectivityController.init({
       messenger,
