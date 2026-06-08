@@ -1,4 +1,3 @@
-import { MarketCategory } from '../types';
 import type {
   GetMarketDataWithPricesParams,
   MarketTypeFilter,
@@ -13,21 +12,6 @@ import { sortMarkets } from './sortMarkets';
 // reused independently. `matchesCategory` and `getMarketTypeFilter` share the
 // same category model.
 // ============================================================================
-
-/**
- * Maps each data-model {@link MarketCategory} to its UI {@link MarketTypeFilter}
- * with matching singular values. Exhaustive: adding a `MarketCategory` is a
- * compile error here until it is mapped, so the model can't silently drift.
- */
-const MARKET_CATEGORY_TO_FILTER: Record<MarketCategory, MarketTypeFilter> = {
-  [MarketCategory.CryptoCurrency]: 'crypto',
-  [MarketCategory.Stock]: 'stock',
-  [MarketCategory.PreIpo]: 'pre-ipo',
-  [MarketCategory.Index]: 'index',
-  [MarketCategory.Etf]: 'etf',
-  [MarketCategory.Commodity]: 'commodity',
-  [MarketCategory.Forex]: 'forex',
-};
 
 /**
  * Whether a market is a HIP-3 (non-main-DEX) market. A `marketSource` DEX id
@@ -65,16 +49,10 @@ export function matchesCategory(
       );
     case 'crypto':
       // Main-DEX markets, plus HIP-3 assets explicitly typed as CryptoCurrency.
-      return (
-        !isHip3Market(market) ||
-        market.marketType === MarketCategory.CryptoCurrency
-      );
+      return !isHip3Market(market) || market.marketType === 'crypto';
     default:
       // Every other filter is a 1:1 data-model category match.
-      return (
-        market.marketType !== undefined &&
-        MARKET_CATEGORY_TO_FILTER[market.marketType] === category
-      );
+      return market.marketType !== undefined && market.marketType === category;
   }
 }
 
@@ -96,7 +74,7 @@ export function matchesCategory(
 export function getMarketTypeFilter(market: PerpsMarketData): MarketTypeFilter {
   const { marketType } = market;
   if (marketType) {
-    return MARKET_CATEGORY_TO_FILTER[marketType];
+    return marketType;
   }
   // No data-model category: an uncategorized HIP-3 market is the 'new' bucket;
   // otherwise it's a main-DEX crypto market.
