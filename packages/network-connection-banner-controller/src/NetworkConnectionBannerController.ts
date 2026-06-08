@@ -254,13 +254,7 @@ export class NetworkConnectionBannerController extends BaseController<
    * still hold.
    */
   dismissBanner(): void {
-    this.#clearTimers();
-    if (this.state.status !== 'available' || this.state.network !== null) {
-      this.update((draft) => {
-        draft.status = 'available';
-        draft.network = null;
-      });
-    }
+    this.#resetBanner();
   }
 
   /**
@@ -312,26 +306,14 @@ export class NetworkConnectionBannerController extends BaseController<
       'ConnectivityController:getState',
     );
     if (connectivityStatus === CONNECTIVITY_STATUSES.Offline) {
-      this.#clearTimers();
-      if (this.state.status !== 'available' || this.state.network !== null) {
-        this.update((draft) => {
-          draft.status = 'available';
-          draft.network = null;
-        });
-      }
+      this.#resetBanner();
       return;
     }
 
     const failed = this.#findFailedNetworkForBanner();
 
     if (!failed) {
-      this.#clearTimers();
-      if (this.state.status !== 'available' || this.state.network !== null) {
-        this.update((draft) => {
-          draft.status = 'available';
-          draft.network = null;
-        });
-      }
+      this.#resetBanner();
       return;
     }
 
@@ -376,6 +358,20 @@ export class NetworkConnectionBannerController extends BaseController<
         });
       }, UNAVAILABLE_BANNER_TIMEOUT_MS - DEGRADED_BANNER_TIMEOUT_MS);
     }, DEGRADED_BANNER_TIMEOUT_MS);
+  }
+
+  /**
+   * Clears timers and resets banner state to {@link NetworkConnectionBannerStatus|`available`}
+   * if it isn't there already.
+   */
+  #resetBanner(): void {
+    this.#clearTimers();
+    if (this.state.status !== 'available' || this.state.network !== null) {
+      this.update((draft) => {
+        draft.status = 'available';
+        draft.network = null;
+      });
+    }
   }
 
   #clearTimers(): void {
