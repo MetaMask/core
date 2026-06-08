@@ -1632,7 +1632,7 @@ export class NetworkController extends BaseController<
   }
 
   /**
-   * Initialize the NetworkController, updating the RPC failover feature flag 
+   * Initialize the NetworkController, updating the RPC failover feature flag
    * and applying the network selection.
    */
   init(): void {

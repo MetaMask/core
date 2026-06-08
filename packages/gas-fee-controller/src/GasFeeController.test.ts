@@ -67,6 +67,16 @@ const getRootMessenger = (): RootMessenger => {
     MessengerEvents<NetworkControllerMessenger>
   >({ namespace: MOCK_ANY_NAMESPACE });
 
+  rootMessenger.registerActionHandler(
+    'RemoteFeatureFlagController:getState',
+    () => ({
+      remoteFeatureFlags: {
+        walletFrameworkRpcFailoverEnabled: false,
+      },
+      cacheTimestamp: 0,
+    }),
+  );
+
   return rootMessenger;
 };
 
@@ -88,6 +98,14 @@ const setupNetworkController = async ({
     namespace: 'NetworkController',
     parent: rootMessenger,
     captureException: jest.fn(),
+  });
+
+  rootMessenger.delegate({
+    messenger: networkControllerMessenger,
+    actions: [
+      'ConnectivityController:getState',
+      'RemoteFeatureFlagController:getState',
+    ],
   });
 
   const infuraProjectId = '123';
@@ -120,8 +138,6 @@ const setupNetworkController = async ({
   if (initializeProvider) {
     // Call this without awaiting to simulate what the extension or mobile app
     // might do
-    // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-    // eslint-disable-next-line @typescript-eslint/no-floating-promises
     networkController.init();
     // Ensure that the request for eth_getBlockByNumber made by the PollingBlockTracker
     // inside the NetworkController goes through

@@ -193,9 +193,26 @@ const setupController = async (
     }),
   );
 
+  const remoteFeatureFlagControllerMessenger = new Messenger<
+    'RemoteFeatureFlagController',
+    RemoteFeatureFlagControllerGetStateAction,
+    never,
+    typeof rootMessenger
+  >({
+    namespace: 'RemoteFeatureFlagController',
+    parent: rootMessenger,
+  });
+
+  remoteFeatureFlagControllerMessenger.registerActionHandler(
+    'RemoteFeatureFlagController:getState',
+    () => getDefaultRemoteFeatureFlagControllerState(),
+  );
+
   const networkControllerMessenger = new Messenger<
     'NetworkController',
-    NetworkControllerActions | ConnectivityControllerGetStateAction,
+    | NetworkControllerActions
+    | ConnectivityControllerGetStateAction
+    | RemoteFeatureFlagControllerGetStateAction,
     NetworkControllerEvents,
     typeof rootMessenger
   >({
@@ -204,7 +221,10 @@ const setupController = async (
   });
   rootMessenger.delegate({
     messenger: networkControllerMessenger,
-    actions: ['ConnectivityController:getState'],
+    actions: [
+      'ConnectivityController:getState',
+      'RemoteFeatureFlagController:getState',
+    ],
   });
   const networkController = new NetworkController({
     messenger: networkControllerMessenger,
@@ -285,21 +305,6 @@ const setupController = async (
   accountsControllerMessenger.registerActionHandler(
     'AccountsController:getState',
     () => ({}) as never,
-  );
-
-  const remoteFeatureFlagControllerMessenger = new Messenger<
-    'RemoteFeatureFlagController',
-    RemoteFeatureFlagControllerGetStateAction,
-    never,
-    typeof rootMessenger
-  >({
-    namespace: 'RemoteFeatureFlagController',
-    parent: rootMessenger,
-  });
-
-  remoteFeatureFlagControllerMessenger.registerActionHandler(
-    'RemoteFeatureFlagController:getState',
-    () => getDefaultRemoteFeatureFlagControllerState(),
   );
 
   rootMessenger.registerActionHandler(
