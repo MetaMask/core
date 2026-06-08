@@ -17,7 +17,10 @@ import type { Nft, NftMetadata } from './NftController';
 import { getNativeTokenAddress } from './token-prices-service';
 import type { AbstractTokenPricesService } from './token-prices-service';
 import type { EvmAssetWithMarketData } from './token-prices-service/abstract-token-prices-service';
-import type { ContractExchangeRates } from './TokenRatesController';
+import type {
+  ContractExchangeRates,
+  ContractMarketData,
+} from './TokenRatesController';
 
 /**
  * The maximum number of token addresses that should be sent to the Price API in
@@ -349,19 +352,23 @@ export async function reduceInBatchesSerially<Value, Result>({
  * @param args.nativeCurrency - The native currency to request price in.
  * @param args.tokenAddresses - The list of contract addresses.
  * @param args.chainId - The chainId of the tokens.
- * @returns The prices for the requested tokens.
+ * @param args.includeMarketData - When true, returns full market data (price,
+ * percentage changes, market cap, etc.) per token instead of just the price.
+ * @returns The prices (or full market data) for the requested tokens.
  */
 export async function fetchTokenContractExchangeRates({
   tokenPricesService,
   nativeCurrency,
   tokenAddresses,
   chainId,
+  includeMarketData = false,
 }: {
   tokenPricesService: AbstractTokenPricesService;
   nativeCurrency: string;
   tokenAddresses: Hex[];
   chainId: Hex;
-}): Promise<ContractExchangeRates> {
+  includeMarketData?: boolean;
+}): Promise<ContractExchangeRates | ContractMarketData> {
   const isChainIdSupported =
     tokenPricesService.validateChainIdSupported(chainId);
   const isCurrencySupported =
@@ -398,6 +405,21 @@ export async function fetchTokenContractExchangeRates({
     },
     initialResult: {},
   });
+
+  if (includeMarketData) {
+    return Object.entries(tokenPricesByTokenAddress).reduce<ContractMarketData>(
+      (obj, [tokenAddress, tokenPrice]) => {
+        if (tokenPrice) {
+          return {
+            ...obj,
+            [toChecksumHexAddress(tokenAddress)]: tokenPrice,
+          };
+        }
+        return obj;
+      },
+      {},
+    );
+  }
 
   return Object.entries(tokenPricesByTokenAddress).reduce(
     (obj, [tokenAddress, tokenPrice]) => {
