@@ -217,7 +217,6 @@ export type {
   MultichainAssetsControllerAccountAssetListUpdatedEvent,
   MultichainAssetsControllerMessenger,
 } from './MultichainAssetsController';
-export type { AccountAssetInfoExtra } from './MultichainBalancesController/utils';
 export { isStellarClassicTrustlineInactiveForDisplay } from './utils/stellar';
 export type {
   MultichainAssetsControllerGetAssetMetadataAction,
