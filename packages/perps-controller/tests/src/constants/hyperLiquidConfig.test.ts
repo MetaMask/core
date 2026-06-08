@@ -20,7 +20,6 @@ describe('HIP3_ASSET_MARKET_TYPES', () => {
     expect(HIP3_ASSET_MARKET_TYPES['xyz:MRVL']).toBe('stock');
     expect(HIP3_ASSET_MARKET_TYPES['xyz:ZM']).toBe('stock');
     expect(HIP3_ASSET_MARKET_TYPES['xyz:EBAY']).toBe('stock');
-    expect(HIP3_ASSET_MARKET_TYPES['xyz:CBRS']).toBe('stock');
     expect(HIP3_ASSET_MARKET_TYPES['xyz:PURRDAT']).toBe('stock');
     expect(HIP3_ASSET_MARKET_TYPES['xyz:ARM']).toBe('stock');
     expect(HIP3_ASSET_MARKET_TYPES['xyz:BX']).toBe('stock');
@@ -38,7 +37,9 @@ describe('HIP3_ASSET_MARKET_TYPES', () => {
   });
 
   it('classifies pre-IPO markets correctly', () => {
+    expect(HIP3_ASSET_MARKET_TYPES['xyz:CBRS']).toBe('pre-ipo');
     expect(HIP3_ASSET_MARKET_TYPES['xyz:SPCX']).toBe('pre-ipo');
+    expect(HIP3_ASSET_MARKET_TYPES['xyz:IPOP']).toBe('pre-ipo');
   });
 
   it('classifies known indices correctly', () => {
