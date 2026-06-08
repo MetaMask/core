@@ -1,0 +1,30 @@
+{
+  "schema_version": 1,
+  "title": "E2E: WebSocket subscription stream",
+  "description": "Opens WebSocket to HyperLiquid, subscribes to allMids, validates live price updates.",
+  "validate": {
+    "workflow": {
+      "entry": "run-subscription",
+      "nodes": {
+        "run-subscription": {
+          "action": "command",
+          "cmd": "cd packages/perps-controller && npx tsx e2e/subscription-stream.ts 2>&1",
+          "next": "check-pass",
+          "intent": "Subscribe to allMids WebSocket and receive price updates"
+        },
+        "check-pass": {
+          "action": "assert_stdout",
+          "source": "run-subscription",
+          "json_path": "$.status",
+          "expected": "pass",
+          "next": "done",
+          "intent": "Verify the WebSocket subscription scenario completed without failures"
+        },
+        "done": {
+          "action": "end",
+          "status": "pass"
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,30 @@
+{
+  "schema_version": 1,
+  "title": "Perps controller unit test smoke",
+  "description": "Runs perps-controller unit tests and asserts all pass. Headless \u2014 no browser or simulator.",
+  "validate": {
+    "workflow": {
+      "entry": "run-tests",
+      "nodes": {
+        "run-tests": {
+          "action": "command",
+          "cmd": "yarn workspace @metamask/perps-controller test:verbose --bail 2>&1",
+          "next": "check-passed",
+          "intent": "Run perps-controller unit tests (verbose for summary line)"
+        },
+        "check-passed": {
+          "action": "assert_stdout",
+          "source": "run-tests",
+          "contains": "Tests:.*passed",
+          "not_contains": "Tests:.*failed",
+          "next": "done",
+          "intent": "Verify all tests passed with zero failures"
+        },
+        "done": {
+          "action": "end",
+          "status": "pass"
+        }
+      }
+    }
+  }
+}

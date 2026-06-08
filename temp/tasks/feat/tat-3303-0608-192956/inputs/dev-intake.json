@@ -1,0 +1,17 @@
+{
+  "kind": "interactive-dev-intake",
+  "profile": "lightweight",
+  "runId": "bd13368c-085f-4d77-9c39-e2716fd77cb8",
+  "ticketOrPr": "TAT-3303",
+  "initialContext": "https://consensyssoftware.atlassian.net/browse/TAT-3303",
+  "branch": "TAT-3303-feat-update-dev-flow",
+  "title": "TAT-3303",
+  "description": "",
+  "checklist": [
+    "Clarify the target outcome with the operator",
+    "Implement the smallest useful change on the selected branch",
+    "Run focused validation or capture why validation was skipped",
+    "Choose an interactive completion action in Farmslot"
+  ],
+  "createdAt": "2026-06-08T11:29:56.436Z"
+}

@@ -1,0 +1,30 @@
+{
+  "schema_version": 1,
+  "title": "E2E: Order validation against live data",
+  "description": "Validates order constants, slippage config, and error codes against real market metadata.",
+  "validate": {
+    "workflow": {
+      "entry": "run-order-validation",
+      "nodes": {
+        "run-order-validation": {
+          "action": "command",
+          "cmd": "cd packages/perps-controller && npx tsx e2e/order-validation.ts 2>&1",
+          "next": "check-pass",
+          "intent": "Validate order params and constants against live markets"
+        },
+        "check-pass": {
+          "action": "assert_stdout",
+          "source": "run-order-validation",
+          "json_path": "$.status",
+          "expected": "pass",
+          "next": "done",
+          "intent": "Verify the order validation scenario completed without failures"
+        },
+        "done": {
+          "action": "end",
+          "status": "pass"
+        }
+      }
+    }
+  }
+}

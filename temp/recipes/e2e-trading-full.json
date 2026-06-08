@@ -1,0 +1,46 @@
+{
+  "schema_version": 1,
+  "title": "E2E: Full trading validation (testnet)",
+  "description": "Runs trading lifecycle and limit order scenarios with different coins, sides, and parameters against HyperLiquid testnet.",
+  "validate": {
+    "workflow": {
+      "entry": "btc-long-tpsl",
+      "nodes": {
+        "btc-long-tpsl": {
+          "action": "command",
+          "cmd": "cd packages/perps-controller && npx tsx e2e/trading-lifecycle.ts --coin BTC --size 0.001 --leverage 5 --side long --tp-pct 5 --sl-pct 3 2>&1",
+          "next": "eth-short-tpsl",
+          "intent": "BTC long $10+ with TP 5% / SL 3%"
+        },
+        "eth-short-tpsl": {
+          "action": "command",
+          "cmd": "cd packages/perps-controller && npx tsx e2e/trading-lifecycle.ts --coin ETH --size 0.01 --leverage 3 --side short --tp-pct 10 --sl-pct 5 2>&1",
+          "next": "btc-long-no-tpsl",
+          "intent": "ETH short with TP 10% / SL 5%"
+        },
+        "btc-long-no-tpsl": {
+          "action": "command",
+          "cmd": "cd packages/perps-controller && npx tsx e2e/trading-lifecycle.ts --coin BTC --size 0.0001 --leverage 10 --side long 2>&1",
+          "next": "limit-btc-buy",
+          "intent": "BTC long minimal size, no TP/SL"
+        },
+        "limit-btc-buy": {
+          "action": "command",
+          "cmd": "cd packages/perps-controller && npx tsx e2e/limit-orders.ts --coin BTC --size 0.001 --offset-pct -2 --leverage 5 --side long 2>&1",
+          "next": "limit-eth-sell",
+          "intent": "BTC buy limit 2% below mid"
+        },
+        "limit-eth-sell": {
+          "action": "command",
+          "cmd": "cd packages/perps-controller && npx tsx e2e/limit-orders.ts --coin ETH --size 0.01 --offset-pct 3 --leverage 3 --side short 2>&1",
+          "next": "done",
+          "intent": "ETH sell limit 3% above mid"
+        },
+        "done": {
+          "action": "end",
+          "status": "pass"
+        }
+      }
+    }
+  }
+}

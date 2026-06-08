@@ -1,0 +1,20 @@
+{
+  "kind": "task-template",
+  "flowType": "dev",
+  "taskProfile": "dev",
+  "project": "metamask-core-farm",
+  "role": "worker",
+  "templatePath": "/Users/deeeed/dev/farmslot/projects/metamask-core-farm/templates/worker/dev-interactive.md",
+  "templateName": "dev-interactive.md",
+  "templateVariant": "interactive",
+  "templateIsDefault": false,
+  "templateSelectionSource": "explicit",
+  "templateSelectionReason": "explicit taskTemplate selection",
+  "contentHash": "14d9f9d58c5835bfda228b963ae41d3103ccbcf4ce07026348d99e7d29b34c94",
+  "projectRepoPath": "/Users/deeeed/dev/farmslot/projects/metamask-core-farm/templates",
+  "projectRepoHeadSha": "481e853fe83a642cd67bfb454dfca8202318deb2",
+  "projectRepoDirty": true,
+  "farmslotHeadSha": "97926c34f3adf0ba4ecf2663f8bb421e8c379b52",
+  "source": "current-project",
+  "renderedAt": "2026-06-08T11:29:56.436Z"
+}

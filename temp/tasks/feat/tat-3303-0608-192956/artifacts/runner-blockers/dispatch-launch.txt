@@ -1,0 +1,33 @@
+runner=cursor
+target=core-6:dev
+repo=/Users/deeeed/dev/metamask/core-6
+kind=prompt-delivery-failed
+summary=Prompt sent 3 times but the pane did not show marker/progress acceptance.
+capturedAt=2026-06-08T11:54:05.476Z
+
+  Cursor Agent
+  v2026.06.04-5fd875e
+
+
+  Read temp/tasks/feat/tat-3303-0608-192956/TASK.md and execute all steps. Mark each checkbox as you complete it.
+
+
+  I'll read the task file first, then work through each step and mark checkboxes as they're completed.
+
+    Read temp/tasks/feat/tat-3303-0608-192956/TASK.md
+
+ ┌─ follow-ups ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┐
+ │ ○ Read temp/tasks/feat/tat-3303-0608-192956/TASK.md and execute all steps. Mark each checkbox as you complete it.                                                                                                                                       │
+ │ ○ Read temp/tasks/feat/tat-3303-0608-192956/TASK.md and execute all steps. Mark each checkbox as you complete it.                                                                                                                                       │
+ │ enter send now · ↑ edit · esc cancel                                                                                                                                                                                                                    │
+ └─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
+
+ ⠀⠞ Reading  487 tokens
+
+
+  → Read temp/tasks/feat/tat-3303-0608-192956/TASK.md and execute all steps. Mark each checkbox as you complete it.
+
+
+  Composer 2.5                                                                                                                                                                                                                                       Auto-run
+  ~/dev/metamask/core-6 · TAT-3303-feat-update-dev-flow
+

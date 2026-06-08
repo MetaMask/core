@@ -1,0 +1,30 @@
+{
+  "schema_version": 1,
+  "title": "E2E: Error codes and edge cases",
+  "description": "Validates PERPS_ERROR_CODES structure and API behavior for invalid/edge-case inputs.",
+  "validate": {
+    "workflow": {
+      "entry": "run-error-codes",
+      "nodes": {
+        "run-error-codes": {
+          "action": "command",
+          "cmd": "cd packages/perps-controller && npx tsx e2e/error-codes.ts 2>&1",
+          "next": "check-pass",
+          "intent": "Validate error codes and edge-case API responses"
+        },
+        "check-pass": {
+          "action": "assert_stdout",
+          "source": "run-error-codes",
+          "json_path": "$.status",
+          "expected": "pass",
+          "next": "done",
+          "intent": "Verify error-code edge-case assertions completed without failures"
+        },
+        "done": {
+          "action": "end",
+          "status": "pass"
+        }
+      }
+    }
+  }
+}
