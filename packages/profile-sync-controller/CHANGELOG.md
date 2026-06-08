@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Deduplicate SRP profile pairing calls by payload in `SRPJwtBearerAuth.pairSrpProfiles` ([#8984](https://github.com/MetaMask/core/pull/8984))
+  - Concurrent and short-interval sequential `performSignIn` triggers (multiple UI surfaces, unlock-time effects, pairing retries) previously each issued their own `POST /api/v2/profile/pair`. A promise cache keyed by the token set now coalesces in-flight calls and reuses a successful result for a short TTL, collapsing the redundant calls into one. The key is order-insensitive (the same token set in any order dedupes), and failures are never cached so the existing `needsProfilePairing` retry loop still re-hits the endpoint.
 - Scope the storage-key and snap-signature caches in `UserStorageController` per `entropySourceId` ([#8948](https://github.com/MetaMask/core/pull/8948))
   - In the edge case where two SRPs resolve to the same `profileId` (e.g. a shared canonical profile after pairing), the previously message-keyed caches could hand one SRP the other's cached key — letting it read/decrypt the other SRP's user storage (which surfaced as a second SRP inheriting the first SRP's account names) or write under its key. Scoping by `entropySourceId` keeps each SRP's key isolated even then; the signed `metamask:${profileId}` message is unchanged, so existing storage keys are preserved.
 

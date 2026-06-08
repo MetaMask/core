@@ -30,6 +30,15 @@ import type {
 } from './shared';
 
 /**
+ * Options for the RpcService constructor with some properties omitted and made optional as they have defaults.
+ */
+export type RpcServiceOptionsWithDefaults = Omit<
+  RpcServiceOptions,
+  'failoverService' | 'endpointUrl' | 'isOffline' | 'btoa' | 'fetch'
+> &
+  Partial<Pick<RpcServiceOptions, 'isOffline' | 'btoa' | 'fetch'>>;
+
+/**
  * Options for the RpcService constructor.
  */
 export type RpcServiceOptions = {
@@ -75,6 +84,8 @@ const log = createModuleLogger(projectLogger, 'RpcService');
 /**
  * The maximum number of times that a failing service should be re-run before
  * giving up.
+ *
+ * Note: This is not used in production and should be removed.
  */
 export const DEFAULT_MAX_RETRIES = 4;
 

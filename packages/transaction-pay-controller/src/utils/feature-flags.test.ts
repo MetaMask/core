@@ -17,12 +17,15 @@ import {
   getAssetsUnifyStateFeature,
   getFallbackGas,
   getFiatAssetPerTransactionType,
+  getFiatFeeReserveMultiplier,
+  getFiatMaxRateDriftPercent,
   DEFAULT_RELAY_EXECUTE_URL,
   getServerPollingInterval,
   getServerPollingTimeout,
   getRelayOriginGasOverhead,
   getRelayPollingInterval,
   getRelayPollingTimeout,
+  isChainExcludedFromInfura,
   isEIP7702Chain,
   isRelayExecuteEnabled,
   getFeatureFlags,
@@ -499,6 +502,64 @@ describe('Feature Flags Utils', () => {
       });
 
       expect(isRelayExecuteEnabled(messenger)).toBe(false);
+    });
+  });
+
+  describe('isChainExcludedFromInfura', () => {
+    it('returns false when no feature flags are set', () => {
+      expect(isChainExcludedFromInfura(messenger, CHAIN_ID_MOCK)).toBe(false);
+    });
+
+    it('returns false when excludeChainIdsFromInfura is empty', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_pay_extended: {
+            excludeChainIdsFromInfura: [],
+          },
+        },
+      });
+
+      expect(isChainExcludedFromInfura(messenger, CHAIN_ID_MOCK)).toBe(false);
+    });
+
+    it('returns true when chainId is in the exclusion list', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_pay_extended: {
+            excludeChainIdsFromInfura: [CHAIN_ID_MOCK],
+          },
+        },
+      });
+
+      expect(isChainExcludedFromInfura(messenger, CHAIN_ID_MOCK)).toBe(true);
+    });
+
+    it('returns false when chainId is not in the exclusion list', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_pay_extended: {
+            excludeChainIdsFromInfura: [CHAIN_ID_DIFFERENT_MOCK],
+          },
+        },
+      });
+
+      expect(isChainExcludedFromInfura(messenger, CHAIN_ID_MOCK)).toBe(false);
+    });
+
+    it('performs case-insensitive comparison', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_pay_extended: {
+            excludeChainIdsFromInfura: ['0xA' as Hex],
+          },
+        },
+      });
+
+      expect(isChainExcludedFromInfura(messenger, '0xa' as Hex)).toBe(true);
     });
   });
 
@@ -1454,6 +1515,94 @@ describe('Feature Flags Utils', () => {
       );
 
       expect(result).toStrictEqual(FIAT_ASSET_MOCK);
+    });
+  });
+
+  describe('getFiatFeeReserveMultiplier', () => {
+    it('returns 1.2 when feature flag is not set', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {},
+      });
+
+      expect(getFiatFeeReserveMultiplier(messenger)).toBe(1.2);
+    });
+
+    it('returns the configured multiplier from feature flag', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_pay_fiat: { feeReserveMultiplier: 1.5 },
+        },
+      });
+
+      expect(getFiatFeeReserveMultiplier(messenger)).toBe(1.5);
+    });
+
+    it('returns 1.2 when multiplier is zero', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_pay_fiat: { feeReserveMultiplier: 0 },
+        },
+      });
+
+      expect(getFiatFeeReserveMultiplier(messenger)).toBe(1.2);
+    });
+
+    it('returns 1.2 when multiplier is negative', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_pay_fiat: { feeReserveMultiplier: -2 },
+        },
+      });
+
+      expect(getFiatFeeReserveMultiplier(messenger)).toBe(1.2);
+    });
+  });
+
+  describe('getFiatMaxRateDriftPercent', () => {
+    it('returns 10 when feature flag is not set', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {},
+      });
+
+      expect(getFiatMaxRateDriftPercent(messenger)).toBe(10);
+    });
+
+    it('returns the configured value from feature flag', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_pay_fiat: { maxRateDriftPercent: 25 },
+        },
+      });
+
+      expect(getFiatMaxRateDriftPercent(messenger)).toBe(25);
+    });
+
+    it('returns 10 when value is zero', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_pay_fiat: { maxRateDriftPercent: 0 },
+        },
+      });
+
+      expect(getFiatMaxRateDriftPercent(messenger)).toBe(10);
+    });
+
+    it('returns 10 when value is negative', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_pay_fiat: { maxRateDriftPercent: -5 },
+        },
+      });
+
+      expect(getFiatMaxRateDriftPercent(messenger)).toBe(10);
     });
   });
 });

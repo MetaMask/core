@@ -9,9 +9,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add `isDeprecated` option to `TokenRatesController` constructor ([#9033](https://github.com/MetaMask/core/pull/9033))
+  - When `isDeprecated()` returns `true`, no network requests are sent and `marketData` is reset to `{}` at construction and at every entry point (`updateExchangeRates`, `_executePoll`, `TokensController:stateChange`, and `NetworkController:stateChange`), so no stale rates remain in state.
+  - The function is re-evaluated on each entry point so it can be toggled at runtime without reconstructing the controller.
+- Add `isDeprecated` option to `TokenBalancesController` constructor ([#9033](https://github.com/MetaMask/core/pull/9033))
+  - When `isDeprecated()` returns `true`, no network requests are sent and `tokenBalances` is reset to `{}` at construction and at every entry point (`updateBalances`, `_executePoll`, `TokensController:stateChange`, `NetworkController:stateChange`, `KeyringController:accountRemoved`, `AccountsController:selectedEvmAccountChange`, and the `AccountActivityService` events), so no stale balances remain in state.
+  - The function is re-evaluated on each entry point so it can be toggled at runtime without reconstructing the controller.
+- Add `isDeprecated` option to `AccountTrackerController` constructor ([#9033](https://github.com/MetaMask/core/pull/9033))
+  - When `isDeprecated()` returns `true`, no network requests are sent and `accountsByChainId` is reset to `{}` at construction and at every entry point (`refresh`, `refreshAddresses`, `_executePoll`, `syncBalanceWithAddresses`, `updateNativeBalances`, and `updateStakedBalances`), so no stale balances remain in state.
+  - The function is re-evaluated on each entry point so it can be toggled at runtime without reconstructing the controller.
+
+### Changed
+
+- Bump `@metamask/network-enablement-controller` from `^5.2.0` to `^5.3.0` ([#9003](https://github.com/MetaMask/core/pull/9003))
+- Bump `@metamask/transaction-controller` from `^66.0.1` to `^67.0.0` ([#9021](https://github.com/MetaMask/core/pull/9021))
+
+## [108.5.0]
+
+### Added
+
 - Add `isDeprecated` option to `TokenListController` constructor, a function that returns whether the controller should be disabled ([#8945](https://github.com/MetaMask/core/pull/8945))
   - When `isDeprecated()` returns `true`, every fetching entry point (`initialize()`, `start()`, `restart()`, `_executePoll()`, and `fetchTokenList()`) resets `tokensChainsCache` to `{}`, cancels any pending debounced persist (so a stale entry can't write old data after the in-memory reset), and overwrites every persisted `tokensChainsCache:*` entry in `StorageService` with `{ data: {}, timestamp: 0 }`. No HTTP calls are issued to the token API.
   - The function is re-evaluated on each entry point so it can be toggled at runtime without reconstructing the controller — including from inside any deprecated `setInterval` already running from a prior `start()`.
+
+### Changed
+
+- Bump `@metamask/account-tree-controller` from `^7.5.0` to `^7.5.1` ([#8999](https://github.com/MetaMask/core/pull/8999))
+- Bump `@metamask/accounts-controller` from `^38.1.2` to `^39.0.0` ([#8999](https://github.com/MetaMask/core/pull/8999))
+- Bump `@metamask/core-backend` from `^6.3.1` to `^6.3.2` ([#8999](https://github.com/MetaMask/core/pull/8999))
+- Bump `@metamask/multichain-account-service` from `^10.0.1` to `^10.0.2` ([#8999](https://github.com/MetaMask/core/pull/8999))
+- Bump `@metamask/transaction-controller` from `^66.0.0` to `^66.0.1` ([#8999](https://github.com/MetaMask/core/pull/8999))
 
 ## [108.4.0]
 
@@ -3142,7 +3169,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Use Ethers for AssetsContractController ([#845](https://github.com/MetaMask/core/pull/845))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@108.4.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@108.5.0...HEAD
+[108.5.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@108.4.0...@metamask/assets-controllers@108.5.0
 [108.4.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@108.3.0...@metamask/assets-controllers@108.4.0
 [108.3.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@108.2.0...@metamask/assets-controllers@108.3.0
 [108.2.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@108.1.0...@metamask/assets-controllers@108.2.0

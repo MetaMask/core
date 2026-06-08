@@ -1,6 +1,6 @@
 {
   "name": "@metamask/core-monorepo",
-  "version": "1019.0.0",
+  "version": "1026.0.0",
   "private": true,
   "description": "Monorepo for packages shared between MetaMask clients",
   "repository": {
@@ -105,7 +105,7 @@
   "engines": {
     "node": "^18.18 || >=20"
   },
-  "packageManager": "yarn@4.14.1",
+  "packageManager": "yarn@4.16.0",
   "lavamoat": {
     "allowScripts": {
       "@lavamoat/preinstall-always-fail": false,

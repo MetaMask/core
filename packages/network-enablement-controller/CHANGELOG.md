@@ -9,7 +9,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Bump `@metamask/transaction-controller` from `^65.4.0` to `^66.0.0` ([#8848](https://github.com/MetaMask/core/pull/8848))
+- Bump `@metamask/transaction-controller` from `^66.0.1` to `^67.0.0` ([#9021](https://github.com/MetaMask/core/pull/9021))
+
+## [5.3.0]
+
+### Added
+
+- Added Arc (`0x13b2`) to `POPULAR_NETWORKS` ([#8997](https://github.com/MetaMask/core/pull/8997))
+
+### Changed
+
+- Bump `@metamask/transaction-controller` from `^65.4.0` to `^66.0.1` ([#8848](https://github.com/MetaMask/core/pull/8848), [#8999](https://github.com/MetaMask/core/pull/8999))
+- Bump `@metamask/multichain-network-controller` from `^3.1.2` to `^3.1.3` ([#8999](https://github.com/MetaMask/core/pull/8999))
 
 ## [5.2.0]
 
@@ -301,7 +312,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#6028](https://github.com/MetaMask/core/pull/6028))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/network-enablement-controller@5.2.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/network-enablement-controller@5.3.0...HEAD
+[5.3.0]: https://github.com/MetaMask/core/compare/@metamask/network-enablement-controller@5.2.0...@metamask/network-enablement-controller@5.3.0
 [5.2.0]: https://github.com/MetaMask/core/compare/@metamask/network-enablement-controller@5.1.1...@metamask/network-enablement-controller@5.2.0
 [5.1.1]: https://github.com/MetaMask/core/compare/@metamask/network-enablement-controller@5.1.0...@metamask/network-enablement-controller@5.1.1
 [5.1.0]: https://github.com/MetaMask/core/compare/@metamask/network-enablement-controller@5.0.2...@metamask/network-enablement-controller@5.1.0

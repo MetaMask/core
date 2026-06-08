@@ -518,6 +518,51 @@ describe('TransactionPayController', () => {
     });
   });
 
+  describe('getAmountData', () => {
+    it('delegates to the callback', async () => {
+      const resultMock = {
+        updates: [{ nestedTransactionIndex: 0, data: '0xabc' as const }],
+      };
+      const getAmountDataMock = jest.fn().mockResolvedValue(resultMock);
+
+      new TransactionPayController({
+        getAmountData: getAmountDataMock,
+        getDelegationTransaction: jest.fn(),
+        messenger,
+      });
+
+      const requestMock = {
+        amount: '5000000',
+        transaction: TRANSACTION_META_MOCK,
+      };
+
+      const result = await messenger.call(
+        'TransactionPayController:getAmountData',
+        requestMock,
+      );
+
+      expect(getAmountDataMock).toHaveBeenCalledWith(requestMock);
+      expect(result).toStrictEqual(resultMock);
+    });
+
+    it('returns empty updates when no callback is configured', async () => {
+      new TransactionPayController({
+        getDelegationTransaction: jest.fn(),
+        messenger,
+      });
+
+      const result = await messenger.call(
+        'TransactionPayController:getAmountData',
+        {
+          amount: '5000000',
+          transaction: TRANSACTION_META_MOCK,
+        },
+      );
+
+      expect(result).toStrictEqual({ updates: [] });
+    });
+  });
+
   describe('polymarket callbacks', () => {
     const EOA_MOCK = '0x1111111111111111111111111111111111111111' as Hex;
     const DEPOSIT_WALLET_MOCK =

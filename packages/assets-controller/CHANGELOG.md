@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/network-enablement-controller` from `^5.2.0` to `^5.3.0` ([#9003](https://github.com/MetaMask/core/pull/9003))
+- Bump `@metamask/transaction-controller` from `^66.0.1` to `^67.0.0` ([#9021](https://github.com/MetaMask/core/pull/9021))
+
+## [8.3.2]
+
+### Changed
+
+- Bump `@metamask/account-tree-controller` from `^7.5.0` to `^7.5.1` ([#8999](https://github.com/MetaMask/core/pull/8999))
+- Bump `@metamask/accounts-controller` from `^38.1.2` to `^39.0.0` ([#8999](https://github.com/MetaMask/core/pull/8999))
+- Bump `@metamask/assets-controllers` from `^108.4.0` to `^108.5.0` ([#8999](https://github.com/MetaMask/core/pull/8999))
+- Bump `@metamask/core-backend` from `^6.3.1` to `^6.3.2` ([#8999](https://github.com/MetaMask/core/pull/8999))
+- Bump `@metamask/transaction-controller` from `^66.0.0` to `^66.0.1` ([#8999](https://github.com/MetaMask/core/pull/8999))
+
 ## [8.3.1]
 
 ### Fixed
@@ -561,7 +576,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Refactor `RpcDataSource` to delegate polling to `BalanceFetcher` and `TokenDetector` services ([#7709](https://github.com/MetaMask/core/pull/7709))
 - Refactor `BalanceFetcher` and `TokenDetector` to extend `StaticIntervalPollingControllerOnly` for independent polling management ([#7709](https://github.com/MetaMask/core/pull/7709))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@8.3.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@8.3.2...HEAD
+[8.3.2]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@8.3.1...@metamask/assets-controller@8.3.2
 [8.3.1]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@8.3.0...@metamask/assets-controller@8.3.1
 [8.3.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@8.2.0...@metamask/assets-controller@8.3.0
 [8.2.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@8.1.0...@metamask/assets-controller@8.2.0
