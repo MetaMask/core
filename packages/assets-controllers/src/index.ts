@@ -222,19 +222,12 @@ export {
   ACCOUNT_ASSET_INFO_ENRICHMENT_BY_CHAIN,
   isAccountAssetInfoEnrichmentAvailable,
   filterAssetsForAccountAssetEnrichment,
-  filterStellarClassicAssetsForEnrichment,
-  accountAssetExtraNeedsRefresh,
   fetchAccountAssetInfoFromSnap,
 } from './multichain/accountAssetEnrichment';
 export type {
   AccountAssetInfoExtra,
   GetAccountAssetInfoResponse,
 } from './multichain/accountAssetEnrichment';
-export {
-  isStellarCaipChain,
-  isStellarClassicAssetCaip19,
-  isStellarTrustlineTrackedAsset,
-} from './multichain/stellarTrustline';
 export type {
   MultichainAssetsControllerGetAssetMetadataAction,
   MultichainAssetsControllerIgnoreAssetsAction,

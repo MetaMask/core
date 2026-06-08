@@ -4,7 +4,6 @@ export type {
   MultichainBalancesControllerState,
   MultichainBalancesControllerGetStateAction,
   MultichainBalancesControllerStateChange,
-  MultichainBalancesControllerMergeAccountBalanceExtrasAction,
   MultichainBalancesControllerActions,
   MultichainBalancesControllerEvents,
   MultichainBalancesControllerMessenger,

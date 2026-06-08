@@ -484,29 +484,6 @@ describe('MultichainBalancesController', () => {
     });
   });
 
-  it('merges balance extra via mergeAccountBalanceExtras', () => {
-    const assetId = mockBtcNativeAsset;
-    const { controller } = setupController({
-      state: {
-        balances: {
-          [mockBtcAccount.id]: {
-            [assetId]: { amount: '1', unit: 'BTC' },
-          },
-        },
-      },
-    });
-
-    controller.mergeAccountBalanceExtras(mockBtcAccount.id, {
-      [assetId]: { limit: '1000', authorized: true },
-    });
-
-    expect(controller.state.balances[mockBtcAccount.id][assetId]).toStrictEqual({
-      amount: '1',
-      unit: 'BTC',
-      extra: { limit: '1000', authorized: true },
-    });
-  });
-
   it('fetches initial balances for existing non-EVM accounts', async () => {
     const { controller } = setupController({
       mocks: {
@@ -898,7 +875,7 @@ describe('MultichainBalancesController', () => {
         });
     });
 
-    it('refreshes stale extra when accountBalancesUpdated includes a classic needing refresh', async () => {
+    it('enriches extra when accountBalancesUpdated fires on an enrichment-enabled chain', async () => {
       const { controller, messenger, mockSnapHandleRequest } = setupController({
         state: {
           balances: {
@@ -956,7 +933,7 @@ describe('MultichainBalancesController', () => {
         });
     });
 
-    it('skips getAccountAssetInfo on balance sync when extra is already active', async () => {
+    it('calls getAccountAssetInfo on balance sync for enrichment-enabled chains', async () => {
       const { messenger, mockSnapHandleRequest } = setupController({
         state: {
           balances: {
@@ -979,9 +956,22 @@ describe('MultichainBalancesController', () => {
         },
       });
 
+      mockSnapHandleRequest.mockImplementation(
+        (params: {
+          handler: string;
+          request?: { method?: string };
+        }) => {
+          if (isGetAccountAssetInfoCall(params)) {
+            return Promise.resolve({
+              [STELLAR_CLASSIC_USDC]: { limit: '1000' },
+            });
+          }
+          return Promise.resolve(mockBalanceResult);
+        },
+      );
+
       await waitForAllPromises();
-      await waitForAllPromises();
-      const callsBefore = mockSnapHandleRequest.mock.calls.length;
+      mockSnapHandleRequest.mockClear();
 
       messenger.publish('AccountsController:accountBalancesUpdated', {
         balances: {
@@ -993,10 +983,11 @@ describe('MultichainBalancesController', () => {
 
       await waitForAllPromises();
 
-      const callsAfter = mockSnapHandleRequest.mock.calls.slice(callsBefore);
       expect(
-        callsAfter.some(([params]) => isGetAccountAssetInfoCall(params)),
-      ).toBe(false);
+        mockSnapHandleRequest.mock.calls.some(([params]) =>
+          isGetAccountAssetInfoCall(params),
+        ),
+      ).toBe(true);
     });
   });
 

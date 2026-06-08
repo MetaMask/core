@@ -32,9 +32,9 @@ import type {
   MultichainAssetsControllerAccountAssetListUpdatedEvent,
 } from '../MultichainAssetsController';
 import {
-  accountAssetExtraNeedsRefresh,
   fetchAccountAssetInfoFromSnap,
-  filterStellarClassicAssetsForEnrichment,
+  filterAssetsForAccountAssetEnrichment,
+  isAccountAssetInfoEnrichmentAvailable,
 } from '../multichain/accountAssetEnrichment';
 import type { AccountAssetInfoExtra } from '../multichain/accountAssetEnrichment';
 
@@ -89,19 +89,10 @@ export type MultichainBalancesControllerStateChange =
   >;
 
 /**
- * Merges snap enrichment `extra` fields onto existing balance rows.
- */
-export type MultichainBalancesControllerMergeAccountBalanceExtrasAction = {
-  type: `MultichainBalancesController:mergeAccountBalanceExtras`;
-  handler: MultichainBalancesController['mergeAccountBalanceExtras'];
-};
-
-/**
  * Actions exposed by the {@link MultichainBalancesController}.
  */
 export type MultichainBalancesControllerActions =
-  | MultichainBalancesControllerGetStateAction
-  | MultichainBalancesControllerMergeAccountBalanceExtrasAction;
+  MultichainBalancesControllerGetStateAction;
 
 /**
  * Events emitted by {@link MultichainBalancesController}.
@@ -203,32 +194,29 @@ export class MultichainBalancesController extends BaseController<
     this.messenger.subscribe(
       'MultichainAssetsController:accountAssetListUpdated',
       ({ assets }) => {
-        const newAccountAssets = Object.entries(assets).map(
-          ([accountId, { added }]) => ({
+        const accountAssetUpdates = Object.entries(assets).map(
+          ([accountId, { added, removed }]) => ({
             accountId,
-            assets: [...added],
+            added: [...added],
+            removed: [...removed],
           }),
         );
         // eslint-disable-next-line no-void
-        void this.#handleOnAccountAssetListUpdated(newAccountAssets);
+        void this.#handleOnAccountAssetListUpdated(accountAssetUpdates);
       },
-    );
-
-    this.messenger.registerActionHandler(
-      'MultichainBalancesController:mergeAccountBalanceExtras',
-      this.mergeAccountBalanceExtras.bind(this),
     );
   }
 
   /**
-   * Updates the balances for the given accounts.
+   * Updates the balances for the given accounts after an asset-list change.
    *
-   * @param accounts - The accounts to update the balances for.
+   * @param accounts - Per-account asset deltas from the asset-list update event.
    */
   async #handleOnAccountAssetListUpdated(
     accounts: {
       accountId: string;
-      assets: CaipAssetType[];
+      added: CaipAssetType[];
+      removed: CaipAssetType[];
     }[],
   ): Promise<void> {
     const { isUnlocked } = this.messenger.call('KeyringController:getState');
@@ -236,36 +224,43 @@ export class MultichainBalancesController extends BaseController<
     if (!isUnlocked) {
       return;
     }
+
     const balancesToUpdate: MultichainBalancesControllerState['balances'] = {};
 
-    for (const { accountId, assets } of accounts) {
+    for (const { accountId, added } of accounts) {
+      if (added.length === 0) {
+        continue;
+      }
+
       const account = this.#getAccount(accountId);
       if (account.metadata.snap) {
         const accountBalance = await this.#getBalances(
           account.id,
           account.metadata.snap.id,
-          assets,
+          added,
         );
         balancesToUpdate[accountId] = accountBalance;
       }
     }
 
-    if (Object.keys(balancesToUpdate).length === 0) {
-      return;
-    }
-
     const accountsMap = new Map(accounts.map((acc) => [acc.accountId, acc]));
 
     this.update((state: Draft<MultichainBalancesControllerState>) => {
+      for (const { accountId, removed } of accounts) {
+        if (!state.balances[accountId]) {
+          state.balances[accountId] = {};
+        }
+
+        for (const assetId of removed) {
+          delete state.balances[accountId][assetId];
+        }
+      }
+
       for (const [accountId, accountBalances] of Object.entries(
         balancesToUpdate,
       )) {
         const acc = accountsMap.get(accountId);
-        const assetsWithoutBalance = new Set(acc?.assets ?? []);
-
-        if (!state.balances[accountId]) {
-          state.balances[accountId] = {};
-        }
+        const assetsWithoutBalance = new Set(acc?.added ?? []);
 
         for (const assetId of Object.keys(accountBalances)) {
           if (!state.balances[accountId][assetId]) {
@@ -274,15 +269,14 @@ export class MultichainBalancesController extends BaseController<
           assetsWithoutBalance.delete(assetId as CaipAssetType);
         }
 
-        // Triggered when an asset is added to the accountAssets list manually
         for (const assetId of assetsWithoutBalance) {
           state.balances[accountId][assetId] = { amount: '0', unit: '' };
         }
       }
     });
 
-    for (const { accountId, assets } of accounts) {
-      if (assets.length === 0) {
+    for (const { accountId, added } of accounts) {
+      if (added.length === 0) {
         continue;
       }
       try {
@@ -291,7 +285,7 @@ export class MultichainBalancesController extends BaseController<
         if (!chainId) {
           continue;
         }
-        await this.#enrichAccountAssetInfo(accountId, chainId, assets);
+        await this.#enrichAccountAssetInfo(accountId, chainId, added);
       } catch {
         // Account may not exist yet; skip enrichment for this entry.
       }
@@ -421,7 +415,7 @@ export class MultichainBalancesController extends BaseController<
   }
 
   /**
-   * Applies balance sync updates and refreshes stale Stellar classic `extra` fields.
+   * Applies balance sync updates and enriches balances when the chain supports it.
    *
    * @param balanceUpdate - The balance update event containing new balances.
    */
@@ -448,22 +442,10 @@ export class MultichainBalancesController extends BaseController<
         continue;
       }
 
-      const accountBalanceRows = this.state.balances[accountId] ?? {};
-      const assetsToRefresh = filterStellarClassicAssetsForEnrichment(
-        Object.keys(assetBalances) as CaipAssetType[],
-        chainId as CaipChainId,
-      ).filter((assetId) =>
-        accountAssetExtraNeedsRefresh(accountBalanceRows[assetId]?.extra),
-      );
-
-      if (assetsToRefresh.length === 0) {
-        continue;
-      }
-
       await this.#enrichAccountAssetInfo(
         accountId,
-        chainId as CaipChainId,
-        assetsToRefresh,
+        chainId,
+        Object.keys(assetBalances) as CaipAssetType[],
       );
     }
   }
@@ -509,7 +491,11 @@ export class MultichainBalancesController extends BaseController<
     chainId: CaipChainId,
     assetIds: CaipAssetType[],
   ): Promise<void> {
-    const enrichmentAssets = filterStellarClassicAssetsForEnrichment(
+    if (!isAccountAssetInfoEnrichmentAvailable(chainId)) {
+      return;
+    }
+
+    const enrichmentAssets = filterAssetsForAccountAssetEnrichment(
       assetIds,
       chainId,
     );
@@ -536,14 +522,7 @@ export class MultichainBalancesController extends BaseController<
       return;
     }
 
-    const extrasByAsset: Record<CaipAssetType, AccountAssetInfoExtra> = {};
-    for (const [assetId, extra] of Object.entries(info)) {
-      extrasByAsset[assetId as CaipAssetType] = extra;
-    }
-
-    if (Object.keys(extrasByAsset).length > 0) {
-      this.mergeAccountBalanceExtras(accountId, extrasByAsset);
-    }
+    this.#mergeAccountBalanceExtras(accountId, info);
   }
 
   /**
@@ -570,7 +549,13 @@ export class MultichainBalancesController extends BaseController<
     return merged;
   }
 
-  mergeAccountBalanceExtras(
+  /**
+   * Merges snap enrichment `extra` fields onto existing balance rows.
+   *
+   * @param accountId - Account id.
+   * @param extrasByAsset - Per-asset enrichment fields from the snap.
+   */
+  #mergeAccountBalanceExtras(
     accountId: string,
     extrasByAsset: Record<CaipAssetType, AccountAssetInfoExtra>,
   ): void {
@@ -581,10 +566,7 @@ export class MultichainBalancesController extends BaseController<
       }
       for (const [assetId, extra] of Object.entries(extrasByAsset)) {
         const row = accountBalances[assetId];
-        if (!row) {
-          continue;
-        }
-        if (extra === undefined) {
+        if (!row || extra === undefined) {
           continue;
         }
         row.extra = extra;

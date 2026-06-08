@@ -23,7 +23,6 @@ import type { SubjectPermissions } from '@metamask/permission-controller';
 import type { BulkTokenScanResponse } from '@metamask/phishing-controller';
 import { TokenScanResultType } from '@metamask/phishing-controller';
 import type { Snap } from '@metamask/snaps-utils';
-import { HandlerType } from '@metamask/snaps-utils';
 import { v4 as uuidv4 } from 'uuid';
 
 import {
