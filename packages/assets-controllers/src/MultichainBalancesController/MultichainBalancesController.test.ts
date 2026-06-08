@@ -937,6 +937,9 @@ describe('MultichainBalancesController', () => {
         isDeprecated: () => deprecated,
       });
 
+      await waitForAllPromises();
+      mockSnapHandleRequest.mockClear();
+
       deprecated = true;
 
       await controller.updateBalance(mockBtcAccount.id);
@@ -951,6 +954,8 @@ describe('MultichainBalancesController', () => {
         state: initialState,
         isDeprecated: () => deprecated,
       });
+
+      await waitForAllPromises();
 
       deprecated = true;
 
