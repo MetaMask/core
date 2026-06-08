@@ -154,6 +154,8 @@ describe('NetworkController', () => {
       return uuid;
     });
 
+    createNetworkClientMock.mockReturnValue(buildFakeClient());
+
     jest.spyOn(Date, 'now').mockReturnValue(FAKE_DATE_NOW_MS);
   });
 
@@ -499,7 +501,7 @@ describe('NetworkController', () => {
     });
 
     it('initializes the state with some defaults', async () => {
-      await withController(({ controller }) => {
+      await withController({ initializeController: false }, ({ controller }) => {
         expect(controller.state).toMatchInlineSnapshot(`
           {
             "networkConfigurationsByChainId": {
@@ -694,6 +696,7 @@ describe('NetworkController', () => {
     it('initializes the state with the specified additional networks from the option `additionalDefaultNetworks` if provided', async () => {
       await withController(
         {
+          initializeController: false,
           additionalDefaultNetworks: [
             ChainId[BuiltInNetworkName.MegaETHTestnet],
           ],
@@ -1608,13 +1611,16 @@ describe('NetworkController', () => {
     });
 
     it("returns undefined for both the provider and block tracker if the provider hasn't been initialized yet", async () => {
-      await withController(async ({ controller }) => {
-        const { provider, blockTracker } =
-          controller.getProviderAndBlockTracker();
+      await withController(
+        { initializeController: false },
+        async ({ controller }) => {
+          const { provider, blockTracker } =
+            controller.getProviderAndBlockTracker();
 
-        expect(provider).toBeUndefined();
-        expect(blockTracker).toBeUndefined();
-      });
+          expect(provider).toBeUndefined();
+          expect(blockTracker).toBeUndefined();
+        },
+      );
     });
 
     for (const infuraNetworkType of INFURA_NETWORKS) {
@@ -2290,6 +2296,7 @@ describe('NetworkController', () => {
             it('does not update state', async () => {
               await withController(
                 {
+                  initializeController: false,
                   state: {
                     selectedNetworkClientId: infuraNetworkType,
                     networkConfigurationsByChainId: {
@@ -2315,6 +2322,7 @@ describe('NetworkController', () => {
             it('does not publish NetworkController:infuraIsUnblocked', async () => {
               await withController(
                 {
+                  initializeController: false,
                   state: {
                     selectedNetworkClientId: infuraNetworkType,
                     networkConfigurationsByChainId: {
@@ -2340,6 +2348,7 @@ describe('NetworkController', () => {
             it('does not publish NetworkController:infuraIsBlocked', async () => {
               await withController(
                 {
+                  initializeController: false,
                   state: {
                     selectedNetworkClientId: infuraNetworkType,
                     networkConfigurationsByChainId: {
@@ -2763,6 +2772,7 @@ describe('NetworkController', () => {
           it('does not update state', async () => {
             await withController(
               {
+                initializeController: false,
                 state: {
                   selectedNetworkClientId: 'AAAA-AAAA-AAAA-AAAA',
                   networkConfigurationsByChainId: {
@@ -2794,6 +2804,7 @@ describe('NetworkController', () => {
           it('does not publish NetworkController:infuraIsUnblocked', async () => {
             await withController(
               {
+                initializeController: false,
                 state: {
                   selectedNetworkClientId: 'AAAA-AAAA-AAAA-AAAA',
                   networkConfigurationsByChainId: {
@@ -2825,6 +2836,7 @@ describe('NetworkController', () => {
           it('does not publish NetworkController:infuraIsBlocked', async () => {
             await withController(
               {
+                initializeController: false,
                 state: {
                   selectedNetworkClientId: 'AAAA-AAAA-AAAA-AAAA',
                   networkConfigurationsByChainId: {
@@ -3326,23 +3338,26 @@ describe('NetworkController', () => {
       });
 
       it("doesn't set a provider", async () => {
-        await withController(async ({ controller }) => {
-          const fakeProvider = buildFakeProvider();
-          const fakeNetworkClient = buildFakeClient(fakeProvider);
-          createNetworkClientMock.mockReturnValue(fakeNetworkClient);
+        await withController(
+          { initializeController: false },
+          async ({ controller }) => {
+            const fakeProvider = buildFakeProvider();
+            const fakeNetworkClient = buildFakeClient(fakeProvider);
+            createNetworkClientMock.mockReturnValue(fakeNetworkClient);
 
-          try {
-            // @ts-expect-error Intentionally passing invalid type
-            await controller.setProviderType(NetworkType.rpc);
-          } catch {
-            // catch the rejection (it is tested above)
-          }
+            try {
+              // @ts-expect-error Intentionally passing invalid type
+              await controller.setProviderType(NetworkType.rpc);
+            } catch {
+              // catch the rejection (it is tested above)
+            }
 
-          expect(createNetworkClientMock).not.toHaveBeenCalled();
-          expect(
-            controller.getProviderAndBlockTracker().provider,
-          ).toBeUndefined();
-        });
+            expect(createNetworkClientMock).not.toHaveBeenCalled();
+            expect(
+              controller.getProviderAndBlockTracker().provider,
+            ).toBeUndefined();
+          },
+        );
       });
 
       it('does not update networksMetadata[...].EIPS in state', async () => {
@@ -4074,7 +4089,7 @@ describe('NetworkController', () => {
     });
 
     it('returns undefined if the provider has not been set yet', async () => {
-      await withController(({ messenger }) => {
+      await withController({ initializeController: false }, ({ messenger }) => {
         const ethQuery = messenger.call('NetworkController:getEthQuery');
 
         expect(ethQuery).toBeUndefined();
@@ -14924,10 +14939,13 @@ describe('NetworkController', () => {
     });
 
     it('returns undefined when the selected network provider and blockTracker proxy are not initialized', async () => {
-      await withController(async ({ controller }) => {
-        const selectedNetworkClient = controller.getSelectedNetworkClient();
-        expect(selectedNetworkClient).toBeUndefined();
-      });
+      await withController(
+        { initializeController: false },
+        async ({ controller }) => {
+          const selectedNetworkClient = controller.getSelectedNetworkClient();
+          expect(selectedNetworkClient).toBeUndefined();
+        },
+      );
     });
   });
 
@@ -14945,7 +14963,7 @@ describe('NetworkController', () => {
     });
 
     it('includes expected state in state logs', async () => {
-      await withController(({ controller }) => {
+      await withController({ initializeController: false }, ({ controller }) => {
         expect(
           deriveStateFromMetadata(
             controller.state,
@@ -15144,7 +15162,7 @@ describe('NetworkController', () => {
     });
 
     it('persists expected state', async () => {
-      await withController(({ controller }) => {
+      await withController({ initializeController: false }, ({ controller }) => {
         expect(
           deriveStateFromMetadata(
             controller.state,
@@ -15343,7 +15361,7 @@ describe('NetworkController', () => {
     });
 
     it('exposes expected state to UI', async () => {
-      await withController(({ controller }) => {
+      await withController({ initializeController: false }, ({ controller }) => {
         expect(
           deriveStateFromMetadata(
             controller.state,

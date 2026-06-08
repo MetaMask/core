@@ -1638,6 +1638,8 @@ export class NetworkController extends BaseController<
   init(): void {
     const state = this.messenger.call('RemoteFeatureFlagController:getState');
     this.#updateRpcFailoverEnabled(getIsRpcFailoverEnabled(state));
+
+    this.#applyNetworkSelection(this.state.selectedNetworkClientId);
   }
 
   /**
