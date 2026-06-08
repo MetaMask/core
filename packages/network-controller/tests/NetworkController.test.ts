@@ -1,6 +1,5 @@
 import { deriveStateFromMetadata } from '@metamask/base-controller';
 import {
-  BuiltInNetworkName,
   ChainId,
   InfuraNetworkType,
   isInfuraNetworkType,
