@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **BREAKING**: Add required `stxEnabled` parameter to `updateBatchSellTrades`, `fetchBatchSellTrades`, and `formatBatchSellTradesRequest`. The flag is sent to the obtainGaslessBatch API so the backend can estimate gas costs more precisely when Smart Transactions are enabled.
+- **BREAKING**: Add required `stxEnabled` parameter to `updateBatchSellTrades`, `fetchBatchSellTrades`, and `formatBatchSellTradesRequest`. The flag is sent to the obtainGaslessBatch API so the backend can estimate gas costs more precisely when Smart Transactions are enabled. ([#9036](https://github.com/MetaMask/core/pull/9036))
 
 ### Changed
 
