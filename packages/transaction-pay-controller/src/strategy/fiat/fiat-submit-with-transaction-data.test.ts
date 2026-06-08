@@ -70,6 +70,7 @@ const RELAY_QUOTE_MOCK = {
         amountUsd: '4.85',
         minimumAmount: '11900000',
       },
+      totalImpact: { usd: '-0.15' },
     },
   } as unknown as RelayQuote,
   request: BASE_QUOTE_REQUEST_MOCK,
@@ -244,6 +245,7 @@ describe('submitWithCalldataReEncoding', () => {
           amountUsd: '0',
           minimumAmount: '11900000',
         },
+        totalImpact: { usd: '0' },
       },
     } as unknown as Partial<RelayQuote>);
 
@@ -270,6 +272,7 @@ describe('submitWithCalldataReEncoding', () => {
           amountUsd: '5.00',
           minimumAmount: '11900000',
         },
+        totalImpact: { usd: '0.15' },
       },
     } as unknown as Partial<RelayQuote>);
 

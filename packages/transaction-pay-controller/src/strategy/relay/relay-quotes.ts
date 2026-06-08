@@ -36,7 +36,6 @@ import type {
 import { getFiatValueFromUsd } from '../../utils/amounts';
 import {
   getFeatureFlags,
-  getPostQuoteGasBuffer,
   getRelayOriginGasOverhead,
   getSlippage,
   isEIP7702Chain,
@@ -69,6 +68,10 @@ import type {
 } from './types';
 
 const log = createModuleLogger(projectLogger, 'relay-strategy');
+
+// Buffer applied to the gas cost when reserving native tokens for gas in
+// post-quote flows, accounting for gas limit re-estimation variance.
+const POST_QUOTE_GAS_BUFFER = 1.1;
 
 // Hardcoded gas allowance for the prepended payment override transaction(s).
 const PAYMENT_OVERRIDE_GAS = 75_000;
@@ -148,22 +151,39 @@ async function getQuoteWithPostQuoteGasHandling(
     return phase1Quote;
   }
 
+  if (phase1Quote.original.metamask?.isExecute) {
+    return phase1Quote;
+  }
+
   // Gas must be subtracted from the source amount when the user's balance
   // is fully committed to the swap. This applies when gas is paid via an
   // ERC-20 fee token (isSourceGasFeeToken) OR when the source itself is
   // the native gas token (gas comes from the same pool as the swap value).
   const isSourceNative =
     request.sourceTokenAddress.toLowerCase() ===
-    getNativeToken(request.sourceChainId).toLowerCase();
+      NATIVE_TOKEN_ADDRESS.toLowerCase() ||
+    request.sourceTokenAddress.toLowerCase() ===
+      getNativeToken(request.sourceChainId).toLowerCase();
 
   if (!phase1Quote.fees.isSourceGasFeeToken && !isSourceNative) {
     return phase1Quote;
   }
 
-  const gasBuffer = getPostQuoteGasBuffer(fullRequest.messenger);
   const gasCostRaw = new BigNumber(phase1Quote.fees.sourceNetwork.max.raw)
-    .multipliedBy(gasBuffer)
+    .multipliedBy(POST_QUOTE_GAS_BUFFER)
     .integerValue(BigNumber.ROUND_UP);
+
+  const existingHeadroom = new BigNumber(request.sourceBalanceRaw).minus(
+    request.sourceTokenAmount,
+  );
+
+  if (existingHeadroom.isGreaterThanOrEqualTo(gasCostRaw)) {
+    log('Sufficient existing balance for gas, skipping subtraction', {
+      existingHeadroom: existingHeadroom.toString(10),
+      gasCostRaw: gasCostRaw.toString(10),
+    });
+    return phase1Quote;
+  }
 
   const adjustedSourceAmount = new BigNumber(request.sourceTokenAmount)
     .minus(gasCostRaw)

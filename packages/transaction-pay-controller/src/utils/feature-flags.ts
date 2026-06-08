@@ -27,7 +27,7 @@ type StrategyOrder = TransactionPayStrategy[];
 
 export const DEFAULT_FEE_RESERVE_MULTIPLIER = 1.2;
 export const DEFAULT_MAX_RATE_DRIFT_PERCENT = 10;
-export const DEFAULT_POST_QUOTE_GAS_BUFFER = 1.1;
+
 export const DEFAULT_GAS_BUFFER = 1.0;
 export const DEFAULT_FALLBACK_GAS_ESTIMATE = 900000;
 export const DEFAULT_FALLBACK_GAS_MAX = 1500000;
@@ -98,9 +98,7 @@ type FiatFlags = {
   maxRateDriftPercent?: number;
 };
 
-type PostQuoteFlags = {
-  gasBuffer?: number;
-};
+
 
 type StrategyRoutingConfig = {
   payStrategies: {
@@ -879,26 +877,6 @@ export function getFiatMaxRateDriftPercent(
   return typeof maxDrift === 'number' && maxDrift > 0
     ? maxDrift
     : DEFAULT_MAX_RATE_DRIFT_PERCENT;
-}
-
-/**
- * Returns the gas buffer multiplier for post-quote gas reservations.
- *
- * @param messenger - Controller messenger.
- * @returns The gas buffer multiplier.
- */
-export function getPostQuoteGasBuffer(
-  messenger: TransactionPayControllerMessenger,
-): number {
-  const state = messenger.call('RemoteFeatureFlagController:getState');
-  const postQuoteFlags = state.remoteFeatureFlags
-    ?.confirmations_pay_post_quote as PostQuoteFlags | undefined;
-
-  const buffer = postQuoteFlags?.gasBuffer;
-
-  return typeof buffer === 'number' && buffer > 0
-    ? buffer
-    : DEFAULT_POST_QUOTE_GAS_BUFFER;
 }
 
 /**

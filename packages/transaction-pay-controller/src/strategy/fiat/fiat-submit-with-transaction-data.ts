@@ -184,20 +184,12 @@ function calculateFeeReserve({
 }): BigNumber {
   const sourceRaw = new BigNumber(feeQuote.details.currencyIn.amount);
   const sourceUsd = new BigNumber(feeQuote.details.currencyIn.amountUsd);
-  const targetUsd = new BigNumber(feeQuote.details.currencyOut.amountUsd);
+  const feeUsd = new BigNumber(feeQuote.details.totalImpact.usd).abs();
 
-  if (!sourceUsd.gt(0) || !sourceRaw.gt(0)) {
+  if (!sourceUsd.gt(0) || !sourceRaw.gt(0) || !feeUsd.gt(0)) {
     return new BigNumber(0);
   }
 
-  // Fee in USD = what the relay consumed beyond the target value
-  const feeUsd = sourceUsd.minus(targetUsd);
-
-  if (!feeUsd.gt(0)) {
-    return new BigNumber(0);
-  }
-
-  // Convert USD fee to raw source token units using the quote's own rate
   const usdPerSourceRaw = sourceUsd.dividedBy(sourceRaw);
 
   return feeUsd
