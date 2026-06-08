@@ -11,7 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Add `ensureMigrated` ([#8732](https://github.com/MetaMask/core/pull/8732))
   - Migrates the legacy global Snap keyring (v1) to per-Snap keyrings (v2).
-  - The migration is triggered automatically at `KeyringController:unlock` time.
+  - The migration is triggered automatically whenever a consumer request access to any Snap keyring (v2).
   - If the migration is not successful, it will get retried on the next call.
   - It is concurrent-free and can safely be called by multiple execution flows.
   - Once the migration has run, the legacy Snap keyring will be removed.
