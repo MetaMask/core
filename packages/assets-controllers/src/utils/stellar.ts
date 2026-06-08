@@ -4,14 +4,7 @@ import type { CaipAssetType, CaipChainId } from '@metamask/utils';
 
 import type { AccountAssetInfoExtra } from '../MultichainBalancesController/utils';
 
-/**
- * Whether a Stellar classic asset should show the inactive trustline state from
- * balance `extra`. Missing `extra` or zero/absent `limit` means inactive.
- *
- * @param extra - Balance `extra` from MultichainBalancesController.
- * @returns True when the trustline should be treated as inactive.
- */
-export function isStellarTrustlineInactiveFromExtra(
+function isStellarTrustlineInactiveFromExtra(
   extra: AccountAssetInfoExtra | undefined,
 ): boolean {
   if (extra?.limit === undefined) {
@@ -35,13 +28,7 @@ function isStellarChainId(chainId: CaipChainId | string): boolean {
   return chainId === XlmScope.Pubnet || chainId === XlmScope.Testnet;
 }
 
-/**
- * Returns true when a CAIP-19 id is a Stellar classic `asset:` token.
- *
- * @param assetId - CAIP-19 asset id.
- * @returns True for Stellar classic fungible assets.
- */
-export function isStellarClassicAssetCaip19(assetId: CaipAssetType): boolean {
+function isStellarClassicAssetCaip19(assetId: CaipAssetType): boolean {
   try {
     const parsed = parseCaipAssetType(assetId);
     return (

@@ -218,11 +218,7 @@ export type {
   MultichainAssetsControllerMessenger,
 } from './MultichainAssetsController';
 export type { AccountAssetInfoExtra } from './MultichainBalancesController/utils';
-export {
-  isStellarClassicAssetCaip19,
-  isStellarClassicTrustlineInactiveForDisplay,
-  isStellarTrustlineInactiveFromExtra,
-} from './utils/stellar';
+export { isStellarClassicTrustlineInactiveForDisplay } from './utils/stellar';
 export type {
   MultichainAssetsControllerGetAssetMetadataAction,
   MultichainAssetsControllerIgnoreAssetsAction,
