@@ -694,7 +694,8 @@ export class SnapAccountService {
     groupId: AccountGroupId | '',
     accounts: AccountId[] | undefined,
   ): Promise<void> {
-    const skipping = (reason: string): void => log(`${reason}, skipping forwarding selected accounts to Snap keyring`);
+    const skipping = (reason: string): void =>
+      log(`${reason}, skipping forwarding selected accounts to Snap keyring`);
 
     if (!this.#migrated) {
       return skipping('Not migrated yet');
