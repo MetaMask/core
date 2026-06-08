@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **BREAKING:** `exportSeedPhrase` and `exportAccount` now take `VerificationCredentials` (`{ password }` | `{ encryptionKey }`) instead of a bare password string ([#8996](https://github.com/MetaMask/core/pull/8996))
+- **BREAKING:** `exportSeedPhrase` and `exportAccount` now take `Credentials` (`{ password }` | `{ encryptionKey, encryptionSalt? }`) instead of a bare password string ([#8996](https://github.com/MetaMask/core/pull/8996))
 
 ### Fixed
 

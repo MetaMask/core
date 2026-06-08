@@ -77,4 +77,6 @@ export type TypedMessageParams = {
  * Credentials for re-authenticating the keyring during sensitive operations
  * such as `exportSeedPhrase` and `exportAccount`.
  */
-export type Credentials = { password: string } | { encryptionKey: string };
+export type Credentials =
+  | { password: string }
+  | { encryptionKey: string; encryptionSalt?: string };

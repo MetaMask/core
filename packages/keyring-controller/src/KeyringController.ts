@@ -1051,16 +1051,30 @@ export class KeyringController<
    * encryption key is invalid, i.e. it cannot decrypt the vault.
    *
    * @param encryptionKey - Serialized vault encryption key.
+   * @param encryptionSalt - Optional salt to verify against the vault. When
+   * omitted, the salt serialized alongside the vault is used.
    */
-  async #verifyEncryptionKey(encryptionKey: string): Promise<void> {
+  async #verifyEncryptionKey(
+    encryptionKey: string,
+    encryptionSalt?: string,
+  ): Promise<void> {
     if (!this.state.vault) {
       throw new KeyringControllerError(
         KeyringControllerErrorMessage.VaultError,
       );
     }
 
+    const parsedEncryptedVault = JSON.parse(this.state.vault);
+    const salt = encryptionSalt ?? parsedEncryptedVault.salt;
+
+    if (parsedEncryptedVault.salt !== salt) {
+      throw new KeyringControllerError(
+        KeyringControllerErrorMessage.ExpiredCredentials,
+      );
+    }
+
     const key = await this.#encryptor.importKey(encryptionKey);
-    await this.#encryptor.decryptWithKey(key, JSON.parse(this.state.vault));
+    await this.#encryptor.decryptWithKey(key, parsedEncryptedVault);
   }
 
   /**
@@ -1075,7 +1089,10 @@ export class KeyringController<
     if ('password' in credentials) {
       await this.verifyPassword(credentials.password);
     } else {
-      await this.#verifyEncryptionKey(credentials.encryptionKey);
+      await this.#verifyEncryptionKey(
+        credentials.encryptionKey,
+        credentials.encryptionSalt,
+      );
     }
   }
 
@@ -2712,16 +2729,7 @@ export class KeyringController<
    * @param credentials - The credentials to unlock the keyrings.
    * @returns A promise resolving to the deserialized keyrings array.
    */
-  async #unlockKeyrings(
-    credentials:
-      | {
-          password: string;
-        }
-      | {
-          encryptionKey: string;
-          encryptionSalt?: string;
-        },
-  ): Promise<{
+  async #unlockKeyrings(credentials: Credentials): Promise<{
     keyrings: { keyring: EthKeyring; metadata: KeyringMetadata }[];
     hasChanged: boolean;
   }> {

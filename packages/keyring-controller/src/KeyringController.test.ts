@@ -955,6 +955,31 @@ describe('KeyringController', () => {
             expect(seed).not.toBe('');
           });
         });
+
+        it('should export seed phrase with an encryption key and matching encryptionSalt', async () => {
+          await withController(async ({ controller, initialState }) => {
+            const encryptionKey = await controller.exportEncryptionKey();
+            const seed = await controller.exportSeedPhrase({
+              encryptionKey,
+              encryptionSalt: initialState.encryptionSalt,
+            });
+            expect(seed).not.toBe('');
+          });
+        });
+      });
+
+      describe('when encryptionSalt does not match the vault', () => {
+        it('should throw error', async () => {
+          await withController(async ({ controller }) => {
+            const encryptionKey = await controller.exportEncryptionKey();
+            await expect(
+              controller.exportSeedPhrase({
+                encryptionKey,
+                encryptionSalt: '0x1234',
+              }),
+            ).rejects.toThrow(KeyringControllerErrorMessage.ExpiredCredentials);
+          });
+        });
       });
 
       describe('when wrong encryption key is provided', () => {
