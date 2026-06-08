@@ -1843,12 +1843,12 @@ describe('Relay Submit Utils', () => {
         expect(addTransactionBatchMock).not.toHaveBeenCalled();
       });
 
-      it('skips source balance validation for execute flow', async () => {
+      it('validates source balance for execute flow', async () => {
         getLiveTokenBalanceMock.mockResolvedValue('500000');
 
-        await submitRelayQuotes(request);
-
-        expect(getDelegationTransactionMock).toHaveBeenCalled();
+        await expect(submitRelayQuotes(request)).rejects.toThrow(
+          'Insufficient source token balance for relay deposit. Required: 1000000, Available: 500000',
+        );
       });
 
       it('polls relay status after execute', async () => {

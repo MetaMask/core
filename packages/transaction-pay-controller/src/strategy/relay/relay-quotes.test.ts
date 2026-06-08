@@ -1922,6 +1922,32 @@ describe('Relay Quotes Utils', () => {
       expect(result[0].fees.isSourceGasFeeToken).toBeUndefined();
     });
 
+    it('skips gas subtraction phase 2 for post-quote execute flows', async () => {
+      const quoteMock = cloneDeep(QUOTE_MOCK);
+      quoteMock.metamask.isExecute = true;
+
+      successfulFetchMock.mockResolvedValue({
+        ok: true,
+        json: async () => quoteMock,
+      } as never);
+
+      await getRelayQuotes({
+        accountSupports7702: true,
+        messenger,
+        requests: [
+          {
+            ...QUOTE_REQUEST_MOCK,
+            sourceBalanceRaw: QUOTE_REQUEST_MOCK.sourceTokenAmount,
+            targetAmountMinimum: '0',
+            isPostQuote: true,
+          },
+        ],
+        transaction: TRANSACTION_META_MOCK,
+      });
+
+      expect(successfulFetchMock).toHaveBeenCalledTimes(1);
+    });
+
     it('subtracts gas cost and fetches phase 2 quote for post-quote flows', async () => {
       const phase2Mock = {
         ...QUOTE_MOCK,
@@ -1961,6 +1987,7 @@ describe('Relay Quotes Utils', () => {
         requests: [
           {
             ...QUOTE_REQUEST_MOCK,
+            sourceBalanceRaw: QUOTE_REQUEST_MOCK.sourceTokenAmount,
             targetAmountMinimum: '0',
             isPostQuote: true,
             refundTo: '0xproxy' as Hex,
@@ -2024,6 +2051,7 @@ describe('Relay Quotes Utils', () => {
         requests: [
           {
             ...QUOTE_REQUEST_MOCK,
+            sourceBalanceRaw: QUOTE_REQUEST_MOCK.sourceTokenAmount,
             sourceChainId: '0x89' as Hex,
             sourceTokenAddress:
               '0x0000000000000000000000000000000000001010' as Hex,
@@ -2125,6 +2153,7 @@ describe('Relay Quotes Utils', () => {
         requests: [
           {
             ...QUOTE_REQUEST_MOCK,
+            sourceBalanceRaw: QUOTE_REQUEST_MOCK.sourceTokenAmount,
             targetAmountMinimum: '0',
             isPostQuote: true,
             refundTo: '0xproxy' as Hex,
@@ -2171,6 +2200,7 @@ describe('Relay Quotes Utils', () => {
         requests: [
           {
             ...QUOTE_REQUEST_MOCK,
+            sourceBalanceRaw: QUOTE_REQUEST_MOCK.sourceTokenAmount,
             targetAmountMinimum: '0',
             isPostQuote: true,
             refundTo: '0xproxy' as Hex,

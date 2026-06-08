@@ -184,7 +184,8 @@ function calculateFeeReserve({
 }): BigNumber {
   const sourceRaw = new BigNumber(feeQuote.details.currencyIn.amount);
   const sourceUsd = new BigNumber(feeQuote.details.currencyIn.amountUsd);
-  const feeUsd = new BigNumber(feeQuote.details.totalImpact.usd).abs();
+  const rawImpact = new BigNumber(feeQuote.details.totalImpact.usd);
+  const feeUsd = rawImpact.isNegative() ? rawImpact.abs() : new BigNumber(0);
 
   if (!sourceUsd.gt(0) || !sourceRaw.gt(0) || !feeUsd.gt(0)) {
     return new BigNumber(0);

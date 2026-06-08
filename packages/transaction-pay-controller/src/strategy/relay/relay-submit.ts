@@ -382,11 +382,9 @@ async function submitTransactions(
   // in the user's wallet at submit time:
   // - isPostQuote: tokens are in a Safe/proxy, available after batch execution
   // - paymentOverride: tokens come from a different source
-  // - isExecute: Relay's relayer handles the source-side transaction
   const skipBalanceCheck =
     Boolean(quote.request.isPostQuote) ||
-    Boolean(quote.request.paymentOverride) ||
-    Boolean(quote.original.metamask.isExecute);
+    Boolean(quote.request.paymentOverride);
 
   if (!skipBalanceCheck) {
     await validateSourceBalance(quote, messenger);
