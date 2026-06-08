@@ -181,10 +181,10 @@ export class MultichainBalancesController extends BaseController<
     );
     this.messenger.subscribe(
       'AccountsController:accountBalancesUpdated',
-      (balanceUpdate: AccountBalancesUpdatedEventPayload) => {
+      // eslint-disable-next-line @typescript-eslint/no-misused-promises
+      async (balanceUpdate: AccountBalancesUpdatedEventPayload) => {
         this.#handleOnAccountBalancesUpdated(balanceUpdate);
-        // eslint-disable-next-line no-void
-        void this.#enrichBalancesAfterAccountBalancesUpdated(balanceUpdate);
+        await this.#enrichBalancesAfterAccountBalancesUpdated(balanceUpdate);
       },
     );
 
@@ -275,6 +275,8 @@ export class MultichainBalancesController extends BaseController<
       }
     });
 
+    // After balances are merged, fetch snap metadata (e.g. trustline state) for
+    // newly added assets on chains that support account-asset enrichment.
     for (const { accountId, added } of accounts) {
       if (added.length === 0) {
         continue;
