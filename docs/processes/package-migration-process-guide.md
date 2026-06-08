@@ -73,7 +73,7 @@ This document outlines the process for migrating a MetaMask library into the cor
 
 ### **[PR#8]** 3. Remove files and directories that will be replaced by files in the monorepo root directory
 
-- **Remove**: `.github/`, `.git*`, `scripts/`, `.depcheckrc.json`, `.yarn/`, `.yarnrc.yml`, `yarn.lock`, `.editorconfig`, `.eslint*`, `.prettier*`, `.nvm*`.
+- **Remove**: `.github/`, `.git*`, `scripts/`, `knip.config.ts`, `.yarn/`, `.yarnrc.yml`, `yarn.lock`, `.editorconfig`, `.eslint*`, `.prettier*`, `.nvm*`.
 - **Keep**: `src/`, `tests/`, `CHANGELOG.md`, `LICENSE`, `package.json`, `README.md`, `jest.config.js`, `tsconfig*.json`, `typedoc.json`
 - [Example PR](https://github.com/MetaMask/core/pull/1764)
 
