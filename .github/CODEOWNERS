@@ -94,6 +94,7 @@
 /packages/eth-json-rpc-middleware      @MetaMask/core-platform
 /packages/messenger                    @MetaMask/core-platform
 /packages/messenger-cli                @MetaMask/core-platform
+/packages/platform-api-docs               @MetaMask/core-platform
 /packages/sample-controllers           @MetaMask/core-platform
 /packages/polling-controller           @MetaMask/core-platform
 /packages/preferences-controller       @MetaMask/core-platform

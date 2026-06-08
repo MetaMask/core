@@ -40,6 +40,7 @@ const TOOLS = [
   '@metamask/foundryup',
   '@metamask/messenger-cli',
   '@metamask/wallet-framework-docs',
+  '@metamask/platform-api-docs',
 ];
 
 /**
@@ -947,7 +948,7 @@ async function expectReadme(workspace, workspaceBasename, isPrivate) {
     !readme.includes(`yarn add @metamask/${workspaceBasename}`)
   ) {
     workspace.error(
-      `The README.md does not contain an example of how to install the package using Yarn (\`yarn add @metamask/${workspaceBasename}\`). Please add an example.`,
+      `The README.md does not contain an example of how to install the package using Yarn (e.g., \`yarn add @metamask/${workspaceBasename}\`). Please add an example.`,
     );
   }
 
@@ -956,7 +957,7 @@ async function expectReadme(workspace, workspaceBasename, isPrivate) {
     !readme.includes(`npm install @metamask/${workspaceBasename}`)
   ) {
     workspace.error(
-      `The README.md does not contain an example of how to install the package using npm (\`npm install @metamask/${workspaceBasename}\`). Please add an example.`,
+      `The README.md does not contain an example of how to install the package using npm (e.g., \`npm install @metamask/${workspaceBasename}\`). Please add an example.`,
     );
   }
 }

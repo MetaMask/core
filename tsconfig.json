@@ -141,6 +141,9 @@
       "path": "./packages/messenger-cli"
     },
     {
+      "path": "./packages/platform-api-docs"
+    },
+    {
       "path": "./packages/money-account-balance-service"
     },
     {

@@ -146,6 +146,9 @@
       "path": "./packages/messenger-cli/tsconfig.build.json"
     },
     {
+      "path": "./packages/platform-api-docs/tsconfig.build.json"
+    },
+    {
       "path": "./packages/messenger/tsconfig.build.json"
     },
     {

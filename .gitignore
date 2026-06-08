@@ -39,6 +39,9 @@ packages/*/*.tsbuildinfo
 # AI
 .sisyphus/
 
+# Platform API docs (generated)
+.platform-api-docs/
+
 # Docusaurus
 **/.docusaurus
 packages/wallet-framework-docs/site/build

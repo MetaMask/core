@@ -22,10 +22,13 @@
     "changelog:validate": "yarn workspaces foreach --all --no-private --parallel --interlaced --verbose run changelog:validate",
     "create-release-branch": "create-release-branch --formatter oxfmt",
     "create-package": "tsx scripts/create-package",
+    "docs:platform-api:build": "yarn workspace @metamask/platform-api-docs cli ../.. --build --project-label Core",
+    "docs:platform-api:dev": "yarn workspace @metamask/platform-api-docs cli ../.. --dev --project-label Core",
+    "docs:platform-api:serve": "yarn workspace @metamask/platform-api-docs cli ../.. --serve --project-label Core",
     "lint": "yarn lint:eslint && echo && yarn lint:misc --check && yarn constraints && yarn lint:dependencies && yarn lint:teams && yarn messenger-action-types:check && yarn readme-content:check",
     "lint:dependencies": "depcheck && yarn dedupe --check",
     "lint:dependencies:fix": "depcheck && yarn dedupe",
-    "lint:eslint": "yarn build:only-clean && NODE_OPTIONS='--max-old-space-size=6144' yarn eslint",
+    "lint:eslint": "yarn build:only-clean && NODE_OPTIONS='--max-old-space-size=8192' yarn eslint",
     "lint:fix": "yarn lint:eslint --fix --prune-suppressions && echo && yarn lint:misc --write && yarn constraints --fix && yarn lint:dependencies:fix && yarn messenger-action-types:generate && yarn readme-content:update",
     "lint:misc": "oxfmt --ignore-path .gitignore",
     "lint:misc:check": "yarn lint:misc --check",
@@ -111,9 +114,10 @@
       "@lavamoat/preinstall-always-fail": false,
       "@keystonehq/bc-ur-registry-eth>hdkey>secp256k1": true,
       "babel-runtime>core-js": false,
+      "eslint-import-resolver-typescript>unrs-resolver": false,
+      "eslint-plugin-import-x>unrs-resolver": false,
       "simple-git-hooks": false,
-      "tsx>esbuild": false,
-      "eslint-plugin-import-x>unrs-resolver": false
+      "tsx>esbuild": false
     }
   }
 }
