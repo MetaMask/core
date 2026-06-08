@@ -21990,14 +21990,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"psl@npm:^1.1.33":
-  version: 1.9.0
-  resolution: "psl@npm:1.9.0"
-  checksum: 10/d07879d4bfd0ac74796306a8e5a36a93cfb9c4f4e8ee8e63fbb909066c192fe1008cd8f12abd8ba2f62ca28247949a20c8fb32e1d18831d9e71285a1569720f9
-  languageName: node
-  linkType: hard
-
-"psl@npm:^1.15.0":
+"psl@npm:^1.1.33, psl@npm:^1.15.0":
   version: 1.15.0
   resolution: "psl@npm:1.15.0"
   dependencies:
