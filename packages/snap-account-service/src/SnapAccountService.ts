@@ -700,6 +700,7 @@ export class SnapAccountService {
     return null;
   }
 
+  // eslint-disable-next-line jsdoc/require-returns
   /**
    * Forwards the accounts of the given account group to the Snap keyring.
    *
@@ -711,18 +712,18 @@ export class SnapAccountService {
     groupId: AccountGroupId | '',
     accounts: AccountId[] | undefined,
   ): Promise<void> {
+    const skipping = (reason: string): void => log(`${reason}, skipping forwarding selected accounts to Snap keyring`);
+
+    if (!this.#migrated) {
+      return skipping('Not migrated yet');
+    }
+
     if (!groupId) {
-      log(
-        'No selected account group, skipping forwarding selected accounts to Snap keyring.',
-      );
-      return;
+      return skipping('No selected account group');
     }
 
     if (!accounts) {
-      log(
-        `Account group ("${groupId}") has no accounts, skipping forwarding selected accounts to Snap keyring.`,
-      );
-      return;
+      return skipping(`Account group ("${groupId}") has no accounts`);
     }
 
     const forwardSelectedAccounts = async (): Promise<void> => {
@@ -765,7 +766,7 @@ export class SnapAccountService {
     };
 
     // There is nothing we can do if forwarding fails. This will auto-recover on the next relevant event.
-    await forwardSelectedAccounts().catch((error) => {
+    return await forwardSelectedAccounts().catch((error) => {
       console.error('Error forwarding selected accounts:', error);
     });
   }

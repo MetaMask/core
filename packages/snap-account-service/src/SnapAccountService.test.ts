@@ -258,6 +258,22 @@ function publishAccountGroupRemoved(
 }
 
 /**
+ * Triggers the migration on the given service by mocking the controller call
+ * to resolve immediately (no legacy keyring present) and calling
+ * {@link SnapAccountService.ensureMigrated}.
+ *
+ * @param service - The service under test.
+ * @param mocks - The mocks object from {@link setup}.
+ */
+async function triggerMigration(
+  service: SnapAccountService,
+  mocks: Mocks,
+): Promise<void> {
+  mocks.KeyringController.withController.mockResolvedValue(undefined);
+  await service.ensureMigrated();
+}
+
+/**
  * Builds a fake {@link KeyringEntry} with the given type.
  *
  * @param type - The keyring type.
@@ -1015,7 +1031,7 @@ describe('SnapAccountService', () => {
     ];
 
     it('forwards owned accounts to every tracked v2 Snap keyring in parallel', async () => {
-      const { rootMessenger, mocks } = await setup({
+      const { service, rootMessenger, mocks } = await setup({
         runnableSnaps: [buildSnap(MOCK_SNAP_ID), buildSnap(MOCK_OTHER_SNAP_ID)],
       });
       const setSelectedAccounts1 = jest.fn().mockResolvedValue(undefined);
@@ -1034,6 +1050,7 @@ describe('SnapAccountService', () => {
       mocks.AccountTreeController.getAccountGroupObject.mockReturnValue(
         buildGroup(MOCK_GROUP_ID, MOCK_ACCOUNTS),
       );
+      await triggerMigration(service, mocks);
 
       publishSelectedAccountGroupChange(rootMessenger, MOCK_GROUP_ID);
       await flushMicrotasks();
@@ -1046,7 +1063,7 @@ describe('SnapAccountService', () => {
     });
 
     it('forwards an empty list to a tracked Snap that owns none of the selected accounts', async () => {
-      const { rootMessenger, mocks } = await setup({
+      const { service, rootMessenger, mocks } = await setup({
         runnableSnaps: [buildSnap(MOCK_SNAP_ID)],
       });
       const setSelectedAccounts = jest.fn().mockResolvedValue(undefined);
@@ -1059,11 +1076,31 @@ describe('SnapAccountService', () => {
       mocks.AccountTreeController.getAccountGroupObject.mockReturnValue(
         buildGroup(MOCK_GROUP_ID, MOCK_ACCOUNTS),
       );
+      await triggerMigration(service, mocks);
 
       publishSelectedAccountGroupChange(rootMessenger, MOCK_GROUP_ID);
       await flushMicrotasks();
 
       expect(setSelectedAccounts).toHaveBeenCalledWith([]);
+    });
+
+    it('does nothing when not yet migrated', async () => {
+      const { service, rootMessenger, mocks } = await setup({
+        runnableSnaps: [buildSnap(MOCK_SNAP_ID)],
+      });
+      const setSelectedAccounts = jest.fn().mockResolvedValue(undefined);
+      mockWithKeyringV2Unsafe(mocks, {
+        [MOCK_SNAP_ID]: { setSelectedAccounts },
+      });
+      mocks.AccountTreeController.getAccountGroupObject.mockReturnValue(
+        buildGroup(MOCK_GROUP_ID, MOCK_ACCOUNTS),
+      );
+
+      publishSelectedAccountGroupChange(rootMessenger, MOCK_GROUP_ID);
+      await flushMicrotasks();
+
+      expect(setSelectedAccounts).not.toHaveBeenCalled();
+      expect(service).toBeDefined();
     });
 
     it('does nothing when no Snap is tracked', async () => {
@@ -1090,6 +1127,7 @@ describe('SnapAccountService', () => {
       mocks.AccountTreeController.getAccountGroupObject.mockReturnValue(
         buildGroup(MOCK_GROUP_ID, MOCK_ACCOUNTS),
       );
+      await triggerMigration(service, mocks);
       const consoleErrorSpy = jest
         .spyOn(console, 'error')
         .mockImplementation(() => undefined);
@@ -1159,6 +1197,7 @@ describe('SnapAccountService', () => {
       mocks.AccountTreeController.getAccountGroupObject.mockReturnValue(
         buildGroup(MOCK_GROUP_ID, MOCK_ACCOUNTS),
       );
+      await triggerMigration(service, mocks);
       const consoleErrorSpy = jest
         .spyOn(console, 'error')
         .mockImplementation(() => undefined);
@@ -1189,6 +1228,7 @@ describe('SnapAccountService', () => {
       mocks.AccountTreeController.getAccountGroupObject.mockReturnValue(
         buildGroup(MOCK_GROUP_ID, MOCK_ACCOUNTS),
       );
+      await triggerMigration(service, mocks);
       // Force the per-Snap error handler itself to throw on its first
       // invocation, so the rejection escapes the inner try/catch and reaches
       // the outer `.catch` (the top-level fallback). Subsequent calls
@@ -1387,6 +1427,7 @@ describe('SnapAccountService', () => {
       mocks.AccountTreeController.getSelectedAccountGroup.mockReturnValue(
         MOCK_GROUP_ID,
       );
+      await triggerMigration(service, mocks);
 
       publishEvent(rootMessenger, buildGroup(MOCK_GROUP_ID, MOCK_ACCOUNTS));
       await flushMicrotasks();
@@ -1458,6 +1499,7 @@ describe('SnapAccountService', () => {
       mocks.AccountTreeController.getSelectedAccountGroup.mockReturnValue(
         MOCK_GROUP_ID,
       );
+      await triggerMigration(service, mocks);
 
       publishAccountGroupRemoved(rootMessenger, MOCK_GROUP_ID);
       await flushMicrotasks();
