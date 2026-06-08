@@ -16,7 +16,10 @@ import type {
   CaipAssetType,
   AccountBalancesUpdatedEventPayload,
 } from '@metamask/keyring-api';
-import type { KeyringControllerGetStateAction } from '@metamask/keyring-controller';
+import type {
+  KeyringControllerGetStateAction,
+  KeyringControllerStateChangeEvent,
+} from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import { KeyringClient } from '@metamask/keyring-snap-client';
 import type { Messenger } from '@metamask/messenger';
@@ -105,7 +108,8 @@ type AllowedEvents =
   | AccountsControllerAccountAddedEvent
   | AccountsControllerAccountRemovedEvent
   | AccountsControllerAccountBalancesUpdatesEvent
-  | MultichainAssetsControllerAccountAssetListUpdatedEvent;
+  | MultichainAssetsControllerAccountAssetListUpdatedEvent
+  | KeyringControllerStateChangeEvent;
 /**
  * Messenger type for the MultichainBalancesController.
  */
@@ -188,6 +192,31 @@ export class MultichainBalancesController extends BaseController<
         );
 
         await this.#handleOnAccountAssetListUpdated(updatedAccountAssets);
+      },
+    );
+
+    // When the keyring transitions from locked → unlocked, fetch balances for
+    // any non-EVM account that had its balance fetch skipped while locked.
+    let previouslyUnlocked = this.messenger.call(
+      'KeyringController:getState',
+    ).isUnlocked;
+    this.messenger.subscribe(
+      'KeyringController:stateChange',
+      ({ isUnlocked }) => {
+        const justUnlocked = isUnlocked && !previouslyUnlocked;
+        previouslyUnlocked = isUnlocked;
+        if (!justUnlocked) {
+          return;
+        }
+        for (const account of this.#listAccounts()) {
+          const hasBalance =
+            this.state.balances[account.id] &&
+            Object.keys(this.state.balances[account.id]).length > 0;
+          if (!hasBalance) {
+            // eslint-disable-next-line no-void
+            void this.updateBalance(account.id);
+          }
+        }
       },
     );
   }

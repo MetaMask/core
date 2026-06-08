@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Fixed `MultichainBalancesController` not retrying balance fetches after unlock, leaving token lists empty; now retries after unlock. ([#8579](https://github.com/MetaMask/core/pull/8579))
+
 ### Added
 
 - Add `isDeprecated` option to `TokenRatesController` constructor ([#9033](https://github.com/MetaMask/core/pull/9033))
