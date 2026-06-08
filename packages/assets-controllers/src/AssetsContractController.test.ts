@@ -118,7 +118,7 @@ async function setupAssetContractControllers({
     }),
   });
   if (useNetworkControllerProvider) {
-    await networkController.initializeProvider();
+    networkController.init();
     const selectedNetworkClient = networkController.getSelectedNetworkClient();
     assert(selectedNetworkClient, 'No network is selected');
     provider = selectedNetworkClient.provider;

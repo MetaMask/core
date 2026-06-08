@@ -122,7 +122,7 @@ const setupNetworkController = async ({
     // might do
     // TODO: Either fix this lint violation or explain why it's necessary to ignore.
     // eslint-disable-next-line @typescript-eslint/no-floating-promises
-    networkController.initializeProvider();
+    networkController.init();
     // Ensure that the request for eth_getBlockByNumber made by the PollingBlockTracker
     // inside the NetworkController goes through
     await jest.advanceTimersToNextTimerAsync();

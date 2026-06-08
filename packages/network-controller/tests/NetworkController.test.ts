@@ -1296,7 +1296,7 @@ describe('NetworkController', () => {
         ]);
         const fakeNetworkClient = buildFakeClient(fakeProvider);
         mockCreateNetworkClient().mockReturnValue(fakeNetworkClient);
-        await controller.initializeProvider();
+        await controller.lookupNetwork();
         const { blockTracker } = controller.getProviderAndBlockTracker();
         assert(blockTracker, 'Block tracker is somehow unset');
         // The block tracker starts running after a listener is attached
@@ -1312,298 +1312,13 @@ describe('NetworkController', () => {
     });
   });
 
-  describe('initializeProvider', () => {
-    describe.each([
-      ['given no options', []],
-      ['given lookupNetwork = true', [{ lookupNetwork: true }]],
-      ['given lookupNetwork = false', [{ lookupNetwork: false }]],
-    ])('%s', (_description, args) => {
-      for (const infuraNetworkType of INFURA_NETWORKS) {
-        const infuraChainId = ChainId[infuraNetworkType];
-
-        describe(`when the selected network client represents the Infura network "${infuraNetworkType}"`, () => {
-          it('sets the globally selected provider to the one from the corresponding network client', async () => {
-            const infuraProjectId = 'some-infura-project-id';
-
-            await withController(
-              {
-                state: {
-                  selectedNetworkClientId: infuraNetworkType,
-                  networkConfigurationsByChainId: {
-                    [infuraChainId]:
-                      buildInfuraNetworkConfiguration(infuraNetworkType),
-                  },
-                },
-                infuraProjectId,
-              },
-              async ({ controller }) => {
-                const fakeProvider = buildFakeProvider([
-                  {
-                    request: {
-                      method: 'test_method',
-                      params: [],
-                    },
-                    response: {
-                      result: 'test response',
-                    },
-                  },
-                ]);
-                const fakeNetworkClient = buildFakeClient(fakeProvider);
-                createNetworkClientMock.mockReturnValue(fakeNetworkClient);
-                await controller.initializeProvider(...args);
-
-                const networkClient = controller.getSelectedNetworkClient();
-                assert(networkClient, 'Network client not set');
-                const result = await networkClient.provider.request({
-                  id: 1,
-                  jsonrpc: '2.0',
-                  method: 'test_method',
-                  params: [],
-                });
-                expect(result).toBe('test response');
-              },
-            );
-          });
-
-          if (args.length === 0 || args[0].lookupNetwork) {
-            lookupNetworkTests({
-              expectedNetworkClientType: NetworkClientType.Infura,
-              expectedNetworkClientId: infuraNetworkType,
-              initialState: {
-                selectedNetworkClientId: infuraNetworkType,
-              },
-              operation: async (controller: NetworkController) => {
-                await controller.initializeProvider(...args);
-              },
-            });
-          } else {
-            it('does not update networksMetadata even if network details request would have resolved successfully', async () => {
-              await withController(
-                {
-                  state: {
-                    selectedNetworkClientId: infuraNetworkType,
-                    networksMetadata: {
-                      [infuraNetworkType]: {
-                        EIPS: { 1559: false },
-                        status: NetworkStatus.Unknown,
-                      },
-                    },
-                  },
-                },
-                async ({ controller }) => {
-                  await setFakeProvider(controller, {
-                    stubs: [
-                      {
-                        request: {
-                          method: 'eth_getBlockByNumber',
-                          params: ['latest', false],
-                        },
-                        response: {
-                          result: {
-                            baseFeePerGas: '0x1',
-                          },
-                        },
-                      },
-                    ],
-                    stubLookupNetworkWhileSetting: true,
-                  });
-
-                  await controller.initializeProvider(...args);
-
-                  expect(
-                    controller.state.networksMetadata[infuraNetworkType],
-                  ).toStrictEqual({
-                    EIPS: { 1559: false },
-                    status: NetworkStatus.Unknown,
-                  });
-                },
-              );
-            });
-          }
-        });
-      }
-
-      describe('when the selected network client represents a custom RPC endpoint', () => {
-        it('sets the globally selected provider to the one from the corresponding network client', async () => {
-          await withController(
-            {
-              state: {
-                selectedNetworkClientId: 'AAAA-AAAA-AAAA-AAAA',
-                networkConfigurationsByChainId: {
-                  '0x1337': buildCustomNetworkConfiguration({
-                    chainId: '0x1337',
-                    rpcEndpoints: [
-                      buildCustomRpcEndpoint({
-                        networkClientId: 'AAAA-AAAA-AAAA-AAAA',
-                      }),
-                    ],
-                  }),
-                },
-              },
-            },
-            async ({ controller }) => {
-              const fakeProvider = buildFakeProvider([
-                {
-                  request: {
-                    method: 'test_method',
-                    params: [],
-                  },
-                  response: {
-                    result: 'test response',
-                  },
-                },
-              ]);
-              const fakeNetworkClient = buildFakeClient(fakeProvider);
-              createNetworkClientMock.mockReturnValue(fakeNetworkClient);
-              await controller.initializeProvider(...args);
-
-              const networkClient = controller.getSelectedNetworkClient();
-              assert(networkClient, 'Network client not set');
-              const { result } = await promisify(
-                networkClient.provider.sendAsync,
-              ).call(networkClient.provider, {
-                id: 1,
-                jsonrpc: '2.0',
-                method: 'test_method',
-                params: [],
-              });
-              expect(result).toBe('test response');
-            },
-          );
-        });
-
-        if (args.length === 0 || args[0].lookupNetwork) {
-          lookupNetworkTests({
-            expectedNetworkClientType: NetworkClientType.Custom,
-            expectedNetworkClientId: 'AAAA-AAAA-AAAA-AAAA',
-            initialState: {
-              selectedNetworkClientId: 'AAAA-AAAA-AAAA-AAAA',
-              networkConfigurationsByChainId: {
-                '0x1337': buildCustomNetworkConfiguration({
-                  chainId: '0x1337',
-                  nativeCurrency: 'TEST',
-                  rpcEndpoints: [
-                    buildCustomRpcEndpoint({
-                      networkClientId: 'AAAA-AAAA-AAAA-AAAA',
-                      url: 'https://test.network',
-                    }),
-                  ],
-                }),
-              },
-            },
-            operation: async (controller: NetworkController) => {
-              await controller.initializeProvider(...args);
-            },
-          });
-        } else {
-          it('does not update networksMetadata even if network details request would have resolved successfully', async () => {
-            await withController(
-              {
-                state: {
-                  selectedNetworkClientId: 'AAAA-AAAA-AAAA-AAAA',
-                  networkConfigurationsByChainId: {
-                    '0x1337': buildCustomNetworkConfiguration({
-                      chainId: '0x1337',
-                      nativeCurrency: 'TEST',
-                      rpcEndpoints: [
-                        buildCustomRpcEndpoint({
-                          networkClientId: 'AAAA-AAAA-AAAA-AAAA',
-                          url: 'https://test.network',
-                        }),
-                      ],
-                    }),
-                  },
-                  networksMetadata: {
-                    'AAAA-AAAA-AAAA-AAAA': {
-                      EIPS: { 1559: false },
-                      status: NetworkStatus.Unknown,
-                    },
-                  },
-                },
-              },
-              async ({ controller }) => {
-                await setFakeProvider(controller, {
-                  stubs: [
-                    {
-                      request: {
-                        method: 'eth_getBlockByNumber',
-                        params: ['latest', false],
-                      },
-                      response: {
-                        result: {
-                          baseFeePerGas: '0x1',
-                        },
-                      },
-                    },
-                  ],
-                  stubLookupNetworkWhileSetting: true,
-                });
-
-                await controller.initializeProvider(...args);
-
-                expect(
-                  controller.state.networksMetadata['AAAA-AAAA-AAAA-AAAA'],
-                ).toStrictEqual({
-                  EIPS: { 1559: false },
-                  status: NetworkStatus.Unknown,
-                });
-              },
-            );
-          });
-        }
-      });
-    });
-
-    it('initializes the provider synchronously if lookupNetwork is false', async () => {
-      await withController(
-        {
-          state: {
-            selectedNetworkClientId: 'AAAA-AAAA-AAAA-AAAA',
-            networkConfigurationsByChainId: {
-              '0x1337': buildCustomNetworkConfiguration({
-                chainId: '0x1337',
-                rpcEndpoints: [
-                  buildCustomRpcEndpoint({
-                    networkClientId: 'AAAA-AAAA-AAAA-AAAA',
-                  }),
-                ],
-              }),
-            },
-          },
-        },
-        async ({ controller }) => {
-          const fakeProvider = buildFakeProvider([
-            {
-              request: {
-                method: 'test_method',
-                params: [],
-              },
-              response: {
-                result: 'test response',
-              },
-            },
-          ]);
-
-          const fakeNetworkClient = buildFakeClient(fakeProvider);
-          createNetworkClientMock.mockReturnValue(fakeNetworkClient);
-
-          const result = controller.initializeProvider({
-            lookupNetwork: false,
-          });
-
-          expect(result).toBeUndefined();
-        },
-      );
-    });
-  });
-
   describe('getProviderAndBlockTracker', () => {
     it('returns objects that proxy to the provider and block tracker as long as the provider has been initialized', async () => {
       await withController(async ({ controller }) => {
         const fakeProvider = buildFakeProvider();
         const fakeNetworkClient = buildFakeClient(fakeProvider);
         mockCreateNetworkClient().mockReturnValue(fakeNetworkClient);
-        await controller.initializeProvider();
+        await controller.lookupNetwork();
 
         const { provider, blockTracker } =
           controller.getProviderAndBlockTracker();
@@ -1694,7 +1409,7 @@ describe('NetworkController', () => {
                   );
                 },
               );
-              await controller.initializeProvider();
+              await controller.lookupNetwork();
               const { provider } = controller.getProviderAndBlockTracker();
               assert(provider, 'Provider not set');
 
@@ -1781,7 +1496,7 @@ describe('NetworkController', () => {
                 )}`,
               );
             });
-            await controller.initializeProvider();
+            await controller.lookupNetwork();
             const { provider } = controller.getProviderAndBlockTracker();
             assert(provider, 'Provider not set');
 
@@ -2449,7 +2164,7 @@ describe('NetworkController', () => {
                       );
                     },
                   );
-                  await controller.initializeProvider();
+                  await controller.lookupNetwork();
                   expect(
                     controller.state.networksMetadata[infuraNetworkType].status,
                   ).toBe('available');
@@ -2543,7 +2258,7 @@ describe('NetworkController', () => {
                       );
                     },
                   );
-                  await controller.initializeProvider();
+                  await controller.lookupNetwork();
                   expect(
                     controller.state.networksMetadata[infuraNetworkType]
                       .EIPS[1559],
@@ -2634,7 +2349,7 @@ describe('NetworkController', () => {
                       );
                     },
                   );
-                  await controller.initializeProvider();
+                  await controller.lookupNetwork();
                   const promiseForInfuraIsUnblockedEvents =
                     waitForPublishedEvents({
                       messenger,
@@ -2700,7 +2415,7 @@ describe('NetworkController', () => {
                   ]);
                   const fakeNetworkClient = buildFakeClient(fakeProvider);
                   createNetworkClientMock.mockReturnValue(fakeNetworkClient);
-                  await controller.initializeProvider();
+                  await controller.lookupNetwork();
 
                   const lookupNetworkPromise = controller.lookupNetwork();
                   messenger.clearSubscriptions();
@@ -2740,7 +2455,7 @@ describe('NetworkController', () => {
                   ]);
                   const fakeNetworkClient = buildFakeClient(fakeProvider);
                   createNetworkClientMock.mockReturnValue(fakeNetworkClient);
-                  await controller.initializeProvider();
+                  await controller.lookupNetwork();
 
                   const lookupNetworkPromise = controller.lookupNetwork();
                   const error = new Error('oops');
@@ -2946,7 +2661,7 @@ describe('NetworkController', () => {
                     );
                   },
                 );
-                await controller.initializeProvider();
+                await controller.lookupNetwork();
                 expect(
                   controller.state.networksMetadata['AAAA-AAAA-AAAA-AAAA']
                     .status,
@@ -3043,7 +2758,7 @@ describe('NetworkController', () => {
                     );
                   },
                 );
-                await controller.initializeProvider();
+                await controller.lookupNetwork();
                 expect(
                   controller.state.networksMetadata['AAAA-AAAA-AAAA-AAAA']
                     .EIPS[1559],
@@ -3139,7 +2854,7 @@ describe('NetworkController', () => {
                     );
                   },
                 );
-                await controller.initializeProvider();
+                await controller.lookupNetwork();
                 const promiseForNoInfuraIsUnblockedEvents =
                   waitForPublishedEvents({
                     messenger,
@@ -3202,7 +2917,7 @@ describe('NetworkController', () => {
                 ]);
                 const fakeNetworkClient = buildFakeClient(fakeProvider);
                 createNetworkClientMock.mockReturnValue(fakeNetworkClient);
-                await controller.initializeProvider();
+                await controller.lookupNetwork();
 
                 const lookupNetworkPromise = controller.lookupNetwork();
                 messenger.clearSubscriptions();
@@ -3252,7 +2967,7 @@ describe('NetworkController', () => {
                 ]);
                 const fakeNetworkClient = buildFakeClient(fakeProvider);
                 createNetworkClientMock.mockReturnValue(fakeNetworkClient);
-                await controller.initializeProvider();
+                await controller.lookupNetwork();
 
                 const lookupNetworkPromise = controller.lookupNetwork();
                 const error = new Error('oops');
@@ -6873,7 +6588,7 @@ describe('NetworkController', () => {
                         );
                       },
                     );
-                    await controller.initializeProvider();
+                    await controller.lookupNetwork();
                     expect(controller.state.selectedNetworkClientId).toBe(
                       'AAAA-AAAA-AAAA-AAAA',
                     );
@@ -6982,7 +6697,7 @@ describe('NetworkController', () => {
                         );
                       },
                     );
-                    await controller.initializeProvider();
+                    await controller.lookupNetwork();
 
                     const promiseForStateChanges = waitForStateChanges({
                       messenger,
@@ -7115,7 +6830,7 @@ describe('NetworkController', () => {
                         );
                       },
                     );
-                    await controller.initializeProvider();
+                    await controller.lookupNetwork();
                     expect(controller.state.selectedNetworkClientId).toBe(
                       'AAAA-AAAA-AAAA-AAAA',
                     );
@@ -7244,7 +6959,7 @@ describe('NetworkController', () => {
                         );
                       },
                     );
-                    await controller.initializeProvider();
+                    await controller.lookupNetwork();
 
                     const promiseForStateChanges = waitForStateChanges({
                       messenger,
@@ -7665,7 +7380,7 @@ describe('NetworkController', () => {
                       );
                     },
                   );
-                  await controller.initializeProvider();
+                  await controller.lookupNetwork();
                   expect(controller.state.selectedNetworkClientId).toBe(
                     'AAAA-AAAA-AAAA-AAAA',
                   );
@@ -7768,7 +7483,7 @@ describe('NetworkController', () => {
                       );
                     },
                   );
-                  await controller.initializeProvider();
+                  await controller.lookupNetwork();
 
                   const promiseForStateChanges = waitForStateChanges({
                     messenger,
@@ -8758,7 +8473,7 @@ describe('NetworkController', () => {
                       );
                     },
                   );
-                  await controller.initializeProvider();
+                  await controller.lookupNetwork();
                   expect(controller.state.selectedNetworkClientId).toBe(
                     'AAAA-AAAA-AAAA-AAAA',
                   );
@@ -8867,7 +8582,7 @@ describe('NetworkController', () => {
                       );
                     },
                   );
-                  await controller.initializeProvider();
+                  await controller.lookupNetwork();
 
                   const promiseForStateChanges = waitForStateChanges({
                     messenger,
@@ -8999,7 +8714,7 @@ describe('NetworkController', () => {
                       );
                     },
                   );
-                  await controller.initializeProvider();
+                  await controller.lookupNetwork();
                   expect(controller.state.selectedNetworkClientId).toBe(
                     'AAAA-AAAA-AAAA-AAAA',
                   );
@@ -9128,7 +8843,7 @@ describe('NetworkController', () => {
                       );
                     },
                   );
-                  await controller.initializeProvider();
+                  await controller.lookupNetwork();
 
                   const promiseForStateChanges = waitForStateChanges({
                     messenger,
@@ -9574,7 +9289,7 @@ describe('NetworkController', () => {
                     );
                   },
                 );
-                await controller.initializeProvider();
+                await controller.lookupNetwork();
                 expect(controller.state.selectedNetworkClientId).toBe(
                   'AAAA-AAAA-AAAA-AAAA',
                 );
@@ -9679,7 +9394,7 @@ describe('NetworkController', () => {
                     );
                   },
                 );
-                await controller.initializeProvider();
+                await controller.lookupNetwork();
 
                 const promiseForStateChanges = waitForStateChanges({
                   messenger,
@@ -10687,7 +10402,7 @@ describe('NetworkController', () => {
                       );
                     },
                   );
-                  await controller.initializeProvider();
+                  await controller.lookupNetwork();
                   expect(controller.state.selectedNetworkClientId).toBe(
                     'AAAA-AAAA-AAAA-AAAA',
                   );
@@ -10780,7 +10495,7 @@ describe('NetworkController', () => {
                       );
                     },
                   );
-                  await controller.initializeProvider();
+                  await controller.lookupNetwork();
 
                   const promiseForStateChanges = waitForStateChanges({
                     messenger,
@@ -11420,7 +11135,7 @@ describe('NetworkController', () => {
                       );
                     },
                   );
-                  await controller.initializeProvider();
+                  await controller.lookupNetwork();
                   expect(controller.state.selectedNetworkClientId).toBe(
                     'AAAA-AAAA-AAAA-AAAA',
                   );
@@ -11513,7 +11228,7 @@ describe('NetworkController', () => {
                       );
                     },
                   );
-                  await controller.initializeProvider();
+                  await controller.lookupNetwork();
 
                   const promiseForStateChanges = waitForStateChanges({
                     messenger,
@@ -12163,7 +11878,7 @@ describe('NetworkController', () => {
                       );
                     },
                   );
-                  await controller.initializeProvider();
+                  await controller.lookupNetwork();
                   expect(controller.state.selectedNetworkClientId).toBe(
                     'AAAA-AAAA-AAAA-AAAA',
                   );
@@ -12258,7 +11973,7 @@ describe('NetworkController', () => {
                       );
                     },
                   );
-                  await controller.initializeProvider();
+                  await controller.lookupNetwork();
 
                   const promiseForStateChanges = waitForStateChanges({
                     messenger,
@@ -12848,7 +12563,7 @@ describe('NetworkController', () => {
                   );
                 },
               );
-              await controller.initializeProvider();
+              await controller.lookupNetwork();
               expect(controller.state.selectedNetworkClientId).toBe(
                 'AAAA-AAAA-AAAA-AAAA',
               );
@@ -12940,7 +12655,7 @@ describe('NetworkController', () => {
                   );
                 },
               );
-              await controller.initializeProvider();
+              await controller.lookupNetwork();
 
               const promiseForStateChanges = waitForStateChanges({
                 messenger,
@@ -14934,7 +14649,7 @@ describe('NetworkController', () => {
         const fakeProvider = buildFakeProvider();
         const fakeNetworkClient = buildFakeClient(fakeProvider);
         mockCreateNetworkClient().mockReturnValue(fakeNetworkClient);
-        await controller.initializeProvider();
+        await controller.lookupNetwork();
         const defaultNetworkClient = controller.getProviderAndBlockTracker();
 
         const selectedNetworkClient = controller.getSelectedNetworkClient();
@@ -15939,7 +15654,7 @@ function refreshNetworkTests({
             )}`,
           );
         });
-        await controller.initializeProvider();
+        await controller.lookupNetwork();
         const { provider: providerBefore } =
           controller.getProviderAndBlockTracker();
 
@@ -16977,7 +16692,7 @@ async function setFakeProvider(
     lookupNetworkMock.mockResolvedValue(undefined);
   }
 
-  await controller.initializeProvider();
+  await controller.lookupNetwork();
   assert(controller.getProviderAndBlockTracker().provider);
 
   if (stubLookupNetworkWhileSetting) {
