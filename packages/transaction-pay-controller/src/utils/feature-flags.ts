@@ -829,7 +829,6 @@ export function getFiatAssetPerTransactionType(
 }
 
 
-
 /**
  * Returns the fee reserve multiplier for fiat three-phase submit.
  *

@@ -161,9 +161,7 @@ async function getQuoteWithPostQuoteGasHandling(
   // the native gas token (gas comes from the same pool as the swap value).
   const isSourceNative =
     request.sourceTokenAddress.toLowerCase() ===
-      NATIVE_TOKEN_ADDRESS.toLowerCase() ||
-    request.sourceTokenAddress.toLowerCase() ===
-      getNativeToken(request.sourceChainId).toLowerCase();
+    getNativeToken(request.sourceChainId).toLowerCase();
 
   if (!phase1Quote.fees.isSourceGasFeeToken && !isSourceNative) {
     return phase1Quote;
