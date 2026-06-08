@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Expose `runMigrations` as a messenger action (`SeedlessOnboardingController:runMigrations`) ([#9031](https://github.com/MetaMask/core/pull/9031))
+
 ## [10.0.0]
 
 ### Added
