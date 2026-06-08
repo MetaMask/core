@@ -220,14 +220,19 @@ export type {
 export {
   GET_ACCOUNT_ASSET_INFO_CLIENT_METHOD,
   ACCOUNT_ASSET_INFO_ENRICHMENT_BY_CHAIN,
-  isAccountAssetInfoEnrichmentAvailable,
   filterAssetsForAccountAssetEnrichment,
+  isAccountAssetInfoEnrichmentAvailable,
   fetchAccountAssetInfoFromSnap,
 } from './multichain/accountAssetEnrichment';
 export type {
   AccountAssetInfoExtra,
   GetAccountAssetInfoResponse,
 } from './multichain/accountAssetEnrichment';
+export {
+  isStellarClassicAssetCaip19,
+  isStellarClassicTrustlineInactiveForDisplay,
+  isStellarTrustlineInactiveFromExtra,
+} from './utils/stellar';
 export type {
   MultichainAssetsControllerGetAssetMetadataAction,
   MultichainAssetsControllerIgnoreAssetsAction,
