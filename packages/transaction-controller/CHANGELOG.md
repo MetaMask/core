@@ -17,11 +17,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Added required `AllowedActions`: `GasFeeController:fetchGasFeeEstimates`, `KeyringController:signTransaction`, `NetworkController:getEIP1559Compatibility`, `NetworkController:getNetworkClientRegistry`, `NetworkController:getState`
   - Removed resubmit logic from `PendingTransactionTracker`
 
-### Fixed
-
-- Fix EIP-7702 batch transactions not forwarding native value from nested calls ([#8987](https://github.com/MetaMask/core/pull/8987))
-  - `generateEIP7702BatchTransaction` now sums the `value` fields of all nested calls and sets the total as the top-level transaction value. Previously the top-level value was always omitted, causing batches that include native token transfers (e.g. POL swaps) to revert.
-
 ## [66.0.1]
 
 ### Changed
