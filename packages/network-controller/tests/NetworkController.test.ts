@@ -525,6 +525,42 @@ describe('NetworkController', () => {
                   },
                 ],
               },
+              "0x18c6": {
+                "blockExplorerUrls": [
+                  "https://megaexplorer.xyz",
+                ],
+                "chainId": "0x18c6",
+                "defaultBlockExplorerUrlIndex": 0,
+                "defaultRpcEndpointIndex": 0,
+                "name": "Mega Testnet",
+                "nativeCurrency": "MegaETH",
+                "rpcEndpoints": [
+                  {
+                    "failoverUrls": [],
+                    "networkClientId": "megaeth-testnet",
+                    "type": "custom",
+                    "url": "https://carrot.megaeth.com/rpc",
+                  },
+                ],
+              },
+              "0x18c7": {
+                "blockExplorerUrls": [
+                  "https://megaeth-testnet-v2.blockscout.com",
+                ],
+                "chainId": "0x18c7",
+                "defaultBlockExplorerUrlIndex": 0,
+                "defaultRpcEndpointIndex": 0,
+                "name": "MegaETH Testnet",
+                "nativeCurrency": "MegaETH",
+                "rpcEndpoints": [
+                  {
+                    "failoverUrls": [],
+                    "networkClientId": "megaeth-testnet-v2",
+                    "type": "custom",
+                    "url": "https://carrot.megaeth.com/rpc",
+                  },
+                ],
+              },
               "0x2105": {
                 "blockExplorerUrls": [
                   "https://basescan.org",
@@ -540,6 +576,24 @@ describe('NetworkController', () => {
                     "networkClientId": "base-mainnet",
                     "type": "infura",
                     "url": "https://base-mainnet.infura.io/v3/{infuraProjectId}",
+                  },
+                ],
+              },
+              "0x279f": {
+                "blockExplorerUrls": [
+                  "https://testnet.monadexplorer.com",
+                ],
+                "chainId": "0x279f",
+                "defaultBlockExplorerUrlIndex": 0,
+                "defaultRpcEndpointIndex": 0,
+                "name": "Monad Testnet",
+                "nativeCurrency": "MON",
+                "rpcEndpoints": [
+                  {
+                    "failoverUrls": [],
+                    "networkClientId": "monad-testnet",
+                    "type": "custom",
+                    "url": "https://testnet-rpc.monad.xyz",
                   },
                 ],
               },
@@ -744,6 +798,24 @@ describe('NetworkController', () => {
                     },
                   ],
                 },
+                "0x18c7": {
+                  "blockExplorerUrls": [
+                    "https://megaeth-testnet-v2.blockscout.com",
+                  ],
+                  "chainId": "0x18c7",
+                  "defaultBlockExplorerUrlIndex": 0,
+                  "defaultRpcEndpointIndex": 0,
+                  "name": "MegaETH Testnet",
+                  "nativeCurrency": "MegaETH",
+                  "rpcEndpoints": [
+                    {
+                      "failoverUrls": [],
+                      "networkClientId": "megaeth-testnet-v2",
+                      "type": "custom",
+                      "url": "https://carrot.megaeth.com/rpc",
+                    },
+                  ],
+                },
                 "0x2105": {
                   "blockExplorerUrls": [
                     "https://basescan.org",
@@ -759,6 +831,24 @@ describe('NetworkController', () => {
                       "networkClientId": "base-mainnet",
                       "type": "infura",
                       "url": "https://base-mainnet.infura.io/v3/{infuraProjectId}",
+                    },
+                  ],
+                },
+                "0x279f": {
+                  "blockExplorerUrls": [
+                    "https://testnet.monadexplorer.com",
+                  ],
+                  "chainId": "0x279f",
+                  "defaultBlockExplorerUrlIndex": 0,
+                  "defaultRpcEndpointIndex": 0,
+                  "name": "Monad Testnet",
+                  "nativeCurrency": "MON",
+                  "rpcEndpoints": [
+                    {
+                      "failoverUrls": [],
+                      "networkClientId": "monad-testnet",
+                      "type": "custom",
+                      "url": "https://testnet-rpc.monad.xyz",
                     },
                   ],
                 },
@@ -1810,6 +1900,34 @@ describe('NetworkController', () => {
                 enableRpcFailover: expect.any(Function),
                 disableRpcFailover: expect.any(Function),
               },
+              'megaeth-testnet': {
+                blockTracker: expect.anything(),
+                configuration: {
+                  type: NetworkClientType.Custom,
+                  failoverRpcUrls: [],
+                  chainId: '0x18c6',
+                  ticker: 'MegaETH',
+                  rpcUrl: 'https://carrot.megaeth.com/rpc',
+                },
+                provider: expect.anything(),
+                destroy: expect.any(Function),
+                enableRpcFailover: expect.any(Function),
+                disableRpcFailover: expect.any(Function),
+              },
+              'megaeth-testnet-v2': {
+                blockTracker: expect.anything(),
+                configuration: {
+                  type: NetworkClientType.Custom,
+                  failoverRpcUrls: [],
+                  chainId: '0x18c7',
+                  ticker: 'MegaETH',
+                  rpcUrl: 'https://carrot.megaeth.com/rpc',
+                },
+                provider: expect.anything(),
+                destroy: expect.any(Function),
+                enableRpcFailover: expect.any(Function),
+                disableRpcFailover: expect.any(Function),
+              },
               'monad-mainnet': {
                 blockTracker: expect.anything(),
                 configuration: {
@@ -1819,6 +1937,20 @@ describe('NetworkController', () => {
                   chainId: '0x8f',
                   ticker: 'MON',
                   network: InfuraNetworkType['monad-mainnet'],
+                },
+                provider: expect.anything(),
+                destroy: expect.any(Function),
+                enableRpcFailover: expect.any(Function),
+                disableRpcFailover: expect.any(Function),
+              },
+              'monad-testnet': {
+                blockTracker: expect.anything(),
+                configuration: {
+                  type: NetworkClientType.Custom,
+                  failoverRpcUrls: [],
+                  chainId: '0x279f',
+                  ticker: 'MON',
+                  rpcUrl: 'https://testnet-rpc.monad.xyz',
                 },
                 provider: expect.anything(),
                 destroy: expect.any(Function),
@@ -14717,6 +14849,42 @@ describe('NetworkController', () => {
                   },
                 ],
               },
+              "0x18c6": {
+                "blockExplorerUrls": [
+                  "https://megaexplorer.xyz",
+                ],
+                "chainId": "0x18c6",
+                "defaultBlockExplorerUrlIndex": 0,
+                "defaultRpcEndpointIndex": 0,
+                "name": "Mega Testnet",
+                "nativeCurrency": "MegaETH",
+                "rpcEndpoints": [
+                  {
+                    "failoverUrls": [],
+                    "networkClientId": "megaeth-testnet",
+                    "type": "custom",
+                    "url": "https://carrot.megaeth.com/rpc",
+                  },
+                ],
+              },
+              "0x18c7": {
+                "blockExplorerUrls": [
+                  "https://megaeth-testnet-v2.blockscout.com",
+                ],
+                "chainId": "0x18c7",
+                "defaultBlockExplorerUrlIndex": 0,
+                "defaultRpcEndpointIndex": 0,
+                "name": "MegaETH Testnet",
+                "nativeCurrency": "MegaETH",
+                "rpcEndpoints": [
+                  {
+                    "failoverUrls": [],
+                    "networkClientId": "megaeth-testnet-v2",
+                    "type": "custom",
+                    "url": "https://carrot.megaeth.com/rpc",
+                  },
+                ],
+              },
               "0x2105": {
                 "blockExplorerUrls": [
                   "https://basescan.org",
@@ -14732,6 +14900,24 @@ describe('NetworkController', () => {
                     "networkClientId": "base-mainnet",
                     "type": "infura",
                     "url": "https://base-mainnet.infura.io/v3/{infuraProjectId}",
+                  },
+                ],
+              },
+              "0x279f": {
+                "blockExplorerUrls": [
+                  "https://testnet.monadexplorer.com",
+                ],
+                "chainId": "0x279f",
+                "defaultBlockExplorerUrlIndex": 0,
+                "defaultRpcEndpointIndex": 0,
+                "name": "Monad Testnet",
+                "nativeCurrency": "MON",
+                "rpcEndpoints": [
+                  {
+                    "failoverUrls": [],
+                    "networkClientId": "monad-testnet",
+                    "type": "custom",
+                    "url": "https://testnet-rpc.monad.xyz",
                   },
                 ],
               },
@@ -14919,6 +15105,42 @@ describe('NetworkController', () => {
                   },
                 ],
               },
+              "0x18c6": {
+                "blockExplorerUrls": [
+                  "https://megaexplorer.xyz",
+                ],
+                "chainId": "0x18c6",
+                "defaultBlockExplorerUrlIndex": 0,
+                "defaultRpcEndpointIndex": 0,
+                "name": "Mega Testnet",
+                "nativeCurrency": "MegaETH",
+                "rpcEndpoints": [
+                  {
+                    "failoverUrls": [],
+                    "networkClientId": "megaeth-testnet",
+                    "type": "custom",
+                    "url": "https://carrot.megaeth.com/rpc",
+                  },
+                ],
+              },
+              "0x18c7": {
+                "blockExplorerUrls": [
+                  "https://megaeth-testnet-v2.blockscout.com",
+                ],
+                "chainId": "0x18c7",
+                "defaultBlockExplorerUrlIndex": 0,
+                "defaultRpcEndpointIndex": 0,
+                "name": "MegaETH Testnet",
+                "nativeCurrency": "MegaETH",
+                "rpcEndpoints": [
+                  {
+                    "failoverUrls": [],
+                    "networkClientId": "megaeth-testnet-v2",
+                    "type": "custom",
+                    "url": "https://carrot.megaeth.com/rpc",
+                  },
+                ],
+              },
               "0x2105": {
                 "blockExplorerUrls": [
                   "https://basescan.org",
@@ -14934,6 +15156,24 @@ describe('NetworkController', () => {
                     "networkClientId": "base-mainnet",
                     "type": "infura",
                     "url": "https://base-mainnet.infura.io/v3/{infuraProjectId}",
+                  },
+                ],
+              },
+              "0x279f": {
+                "blockExplorerUrls": [
+                  "https://testnet.monadexplorer.com",
+                ],
+                "chainId": "0x279f",
+                "defaultBlockExplorerUrlIndex": 0,
+                "defaultRpcEndpointIndex": 0,
+                "name": "Monad Testnet",
+                "nativeCurrency": "MON",
+                "rpcEndpoints": [
+                  {
+                    "failoverUrls": [],
+                    "networkClientId": "monad-testnet",
+                    "type": "custom",
+                    "url": "https://testnet-rpc.monad.xyz",
                   },
                 ],
               },
@@ -15121,6 +15361,42 @@ describe('NetworkController', () => {
                   },
                 ],
               },
+              "0x18c6": {
+                "blockExplorerUrls": [
+                  "https://megaexplorer.xyz",
+                ],
+                "chainId": "0x18c6",
+                "defaultBlockExplorerUrlIndex": 0,
+                "defaultRpcEndpointIndex": 0,
+                "name": "Mega Testnet",
+                "nativeCurrency": "MegaETH",
+                "rpcEndpoints": [
+                  {
+                    "failoverUrls": [],
+                    "networkClientId": "megaeth-testnet",
+                    "type": "custom",
+                    "url": "https://carrot.megaeth.com/rpc",
+                  },
+                ],
+              },
+              "0x18c7": {
+                "blockExplorerUrls": [
+                  "https://megaeth-testnet-v2.blockscout.com",
+                ],
+                "chainId": "0x18c7",
+                "defaultBlockExplorerUrlIndex": 0,
+                "defaultRpcEndpointIndex": 0,
+                "name": "MegaETH Testnet",
+                "nativeCurrency": "MegaETH",
+                "rpcEndpoints": [
+                  {
+                    "failoverUrls": [],
+                    "networkClientId": "megaeth-testnet-v2",
+                    "type": "custom",
+                    "url": "https://carrot.megaeth.com/rpc",
+                  },
+                ],
+              },
               "0x2105": {
                 "blockExplorerUrls": [
                   "https://basescan.org",
@@ -15136,6 +15412,24 @@ describe('NetworkController', () => {
                     "networkClientId": "base-mainnet",
                     "type": "infura",
                     "url": "https://base-mainnet.infura.io/v3/{infuraProjectId}",
+                  },
+                ],
+              },
+              "0x279f": {
+                "blockExplorerUrls": [
+                  "https://testnet.monadexplorer.com",
+                ],
+                "chainId": "0x279f",
+                "defaultBlockExplorerUrlIndex": 0,
+                "defaultRpcEndpointIndex": 0,
+                "name": "Monad Testnet",
+                "nativeCurrency": "MON",
+                "rpcEndpoints": [
+                  {
+                    "failoverUrls": [],
+                    "networkClientId": "monad-testnet",
+                    "type": "custom",
+                    "url": "https://testnet-rpc.monad.xyz",
                   },
                 ],
               },
