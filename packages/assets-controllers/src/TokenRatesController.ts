@@ -194,6 +194,8 @@ export class TokenRatesController extends StaticIntervalPollingController<TokenR
 
   #disabled: boolean;
 
+  readonly #isDeprecated: () => boolean;
+
   #allTokens: TokensControllerState['allTokens'];
 
   #allDetectedTokens: TokensControllerState['allDetectedTokens'];
@@ -204,6 +206,9 @@ export class TokenRatesController extends StaticIntervalPollingController<TokenR
    * @param options - The controller options.
    * @param options.interval - The polling interval in ms
    * @param options.disabled - Boolean to track if network requests are blocked
+   * @param options.isDeprecated - Optional function that returns true to completely
+   * disable this controller (no requests, no state updates). Intended for use
+   * when a higher-level controller (e.g. AssetsController) supersedes this one.
    * @param options.tokenPricesService - An object in charge of retrieving token price
    * @param options.messenger - The messenger instance for communication
    * @param options.state - Initial state to set on this controller
@@ -211,12 +216,14 @@ export class TokenRatesController extends StaticIntervalPollingController<TokenR
   constructor({
     interval = DEFAULT_INTERVAL,
     disabled = false,
+    isDeprecated = (): boolean => false,
     tokenPricesService,
     messenger,
     state,
   }: {
     interval?: number;
     disabled?: boolean;
+    isDeprecated?: () => boolean;
     tokenPricesService: AbstractTokenPricesService;
     messenger: TokenRatesControllerMessenger;
     state?: Partial<TokenRatesControllerState>;
@@ -231,6 +238,7 @@ export class TokenRatesController extends StaticIntervalPollingController<TokenR
     this.setIntervalLength(interval);
     this.#tokenPricesService = tokenPricesService;
     this.#disabled = disabled;
+    this.#isDeprecated = isDeprecated;
 
     const { allTokens, allDetectedTokens } = this.#getTokensControllerState();
     this.#allTokens = allTokens;
@@ -250,7 +258,7 @@ export class TokenRatesController extends StaticIntervalPollingController<TokenR
       // TODO: Either fix this lint violation or explain why it's necessary to ignore.
       // eslint-disable-next-line @typescript-eslint/no-misused-promises
       async ({ allTokens, allDetectedTokens }) => {
-        if (this.#disabled) {
+        if (this.#disabled || this.#isDeprecated()) {
           return;
         }
 
@@ -306,6 +314,9 @@ export class TokenRatesController extends StaticIntervalPollingController<TokenR
     this.messenger.subscribe(
       'NetworkController:stateChange',
       (_state, patches) => {
+        if (this.#isDeprecated()) {
+          return;
+        }
         // Remove state for deleted networks
         for (const patch of patches) {
           if (
@@ -397,7 +408,7 @@ export class TokenRatesController extends StaticIntervalPollingController<TokenR
   async updateExchangeRates(
     chainIdAndNativeCurrency: ChainIdAndNativeCurrency[],
   ): Promise<void> {
-    if (this.#disabled) {
+    if (this.#disabled || this.#isDeprecated()) {
       return;
     }
 
@@ -585,6 +596,10 @@ export class TokenRatesController extends StaticIntervalPollingController<TokenR
    * @param input.chainIds - The chain ids to poll token rates on.
    */
   async _executePoll({ chainIds }: TokenRatesPollingInput): Promise<void> {
+    if (this.#isDeprecated()) {
+      return;
+    }
+
     const { networkConfigurationsByChainId } = this.messenger.call(
       'NetworkController:getState',
     );

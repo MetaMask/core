@@ -7,9 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `isDeprecated` option to `TokenRatesController` constructor ([#9022](https://github.com/MetaMask/core/pull/9022))
+  - When `isDeprecated()` returns `true`, all entry points (`updateExchangeRates`, `_executePoll`, `TokensController:stateChange`, and `NetworkController:stateChange`) become no-ops: no network requests are sent and no state is updated.
+
 ### Changed
 
 - Bump `@metamask/network-enablement-controller` from `^5.2.0` to `^5.3.0` ([#9003](https://github.com/MetaMask/core/pull/9003))
+- Bump `@metamask/transaction-controller` from `^66.0.1` to `^67.0.0` ([#9021](https://github.com/MetaMask/core/pull/9021))
 
 ## [108.5.0]
 
