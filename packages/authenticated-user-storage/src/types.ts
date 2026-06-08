@@ -69,6 +69,11 @@ export type WalletActivityAccount = {
   enabled: boolean;
 };
 
+export type AgenticCliPreference = {
+  inAppNotificationsEnabled: boolean;
+  pushNotificationsEnabled: boolean;
+};
+
 export type WalletActivityPreference = {
   inAppNotificationsEnabled: boolean;
   pushNotificationsEnabled: boolean;
@@ -109,6 +114,7 @@ export type NotificationPreferences = {
   marketing: MarketingPreference;
   perps: PerpsPreference;
   socialAI: SocialAIPreference;
+  agenticCli: AgenticCliPreference;
 };
 
 // ---------------------------------------------------------------------------

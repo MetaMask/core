@@ -1,4 +1,5 @@
 import type {
+  AgenticCliPreference,
   AuthenticatedUserStorageServiceGetNotificationPreferencesAction,
   AuthenticatedUserStorageServicePutNotificationPreferencesAction,
   NotificationPreferences,
@@ -245,6 +246,15 @@ export const DEFAULT_SOCIAL_AI_PREFERENCES: Required<SocialAIPreference> = {
 };
 
 /**
+ * Hardcoded default Agentic CLI notification preferences. Applied when
+ * notification preferences are initialized for the first time.
+ */
+export const DEFAULT_AGENTIC_CLI_PREFERENCES: AgenticCliPreference = {
+  inAppNotificationsEnabled: true,
+  pushNotificationsEnabled: true,
+};
+
+/**
  * Builds wallet-activity preferences from the keyring's current accounts.
  *
  * @param accounts - The keyring accounts to build wallet-activity entries for.
@@ -325,6 +335,7 @@ const buildFreshPreferences = (
   },
   perps: { ...DEFAULT_PERPS_PREFERENCES },
   socialAI: { ...DEFAULT_SOCIAL_AI_PREFERENCES },
+  agenticCli: { ...DEFAULT_AGENTIC_CLI_PREFERENCES },
 });
 
 const MESSENGER_EXPOSED_METHODS = [
