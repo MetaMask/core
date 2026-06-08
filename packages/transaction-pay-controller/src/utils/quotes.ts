@@ -136,6 +136,7 @@ export async function updateQuotes(
 
     const { batchTransactions, quotes } = await getQuotes(
       transaction,
+      from,
       requests,
       supports7702,
       getStrategies,
@@ -563,6 +564,7 @@ async function refreshPaymentTokenBalance({
  * Retrieve quotes for a transaction.
  *
  * @param transaction - Transaction metadata.
+ * @param from - Resolved wallet address (`accountOverride ?? txParams.from`).
  * @param requests - Quote requests.
  * @param isAccountEIP7702Compatible - Whether the account supports EIP-7702.
  * @param getStrategies - Callback to get ordered strategy names for a transaction.
@@ -573,6 +575,7 @@ async function refreshPaymentTokenBalance({
  */
 async function getQuotes(
   transaction: TransactionMeta,
+  from: Hex,
   requests: QuoteRequest[],
   isAccountEIP7702Compatible: boolean,
   getStrategies: (transaction: TransactionMeta) => TransactionPayStrategy[],
@@ -604,6 +607,7 @@ async function getQuotes(
   const request = {
     accountSupports7702: isAccountEIP7702Compatible,
     fiatPaymentMethod,
+    from,
     messenger,
     requests,
     signal,

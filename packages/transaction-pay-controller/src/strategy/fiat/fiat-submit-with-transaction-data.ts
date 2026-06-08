@@ -32,7 +32,7 @@ const log = createModuleLogger(projectLogger, 'fiat-submit-calldata');
  * @param options.transaction - The transaction metadata.
  * @returns An object containing the relay transaction hash if available.
  */
-export async function submitWithCalldataReEncoding({
+export async function submitWithTransactionData({
   baseRequest,
   request,
   sourceAmountRaw,
@@ -73,6 +73,7 @@ export async function submitWithCalldataReEncoding({
 
   const discoveryQuotes = await getRelayQuotes({
     accountSupports7702: request.accountSupports7702,
+    from: baseRequest.from,
     messenger,
     requests: [discoveryRequest],
     transaction,
@@ -131,6 +132,7 @@ export async function submitWithCalldataReEncoding({
 
   const relayQuotes = await getRelayQuotes({
     accountSupports7702: request.accountSupports7702,
+    from: baseRequest.from,
     messenger,
     requests: [relayRequest],
     transaction: updatedTransaction,
@@ -242,7 +244,7 @@ function calculateAdjustedTarget(discoveryQuote: RelayQuote): string {
 
   const adjusted = targetMinRaw.plus(discoveryFeeInTargetRaw);
 
-  log('calculateAdjustedTarget', {
+  log('Adjusted target', {
     targetMinRaw: targetMinRaw.toFixed(0),
     discoveryFeeUsd: discoveryFeeUsd.toFixed(6),
     discoveryFeeInTargetRaw: discoveryFeeInTargetRaw.toFixed(0),

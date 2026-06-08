@@ -17,7 +17,7 @@ import { getTransaction, updateTransaction } from '../../utils/transaction';
 import { getRelayQuotes } from '../relay/relay-quotes';
 import { submitRelayQuotes } from '../relay/relay-submit';
 import type { RelayQuote } from '../relay/types';
-import { submitWithCalldataReEncoding } from './fiat-submit-with-calldata';
+import { submitWithTransactionData } from './fiat-submit-with-transaction-data';
 import type { FiatQuote } from './types';
 
 jest.mock('../../utils/feature-flags');
@@ -157,7 +157,7 @@ describe('submitWithCalldataReEncoding', () => {
   it('performs three-phase flow: discovery, calldata re-encoding, delegation quote', async () => {
     const request = buildRequest();
 
-    const result = await submitWithCalldataReEncoding({
+    const result = await submitWithTransactionData({
       baseRequest: BASE_QUOTE_REQUEST_MOCK,
       request,
       sourceAmountRaw: '1000000000000000000',
@@ -188,7 +188,7 @@ describe('submitWithCalldataReEncoding', () => {
   it('reserves original relay fee from discovery source amount', async () => {
     const request = buildRequest();
 
-    await submitWithCalldataReEncoding({
+    await submitWithTransactionData({
       baseRequest: BASE_QUOTE_REQUEST_MOCK,
       request,
       sourceAmountRaw: '1000000000000000000',
@@ -207,7 +207,7 @@ describe('submitWithCalldataReEncoding', () => {
     getFiatFeeReserveMultiplierMock.mockReturnValue(1.5);
     const request = buildRequest();
 
-    await submitWithCalldataReEncoding({
+    await submitWithTransactionData({
       baseRequest: BASE_QUOTE_REQUEST_MOCK,
       request,
       sourceAmountRaw: '1000000000000000000',
@@ -223,7 +223,7 @@ describe('submitWithCalldataReEncoding', () => {
   it('clamps discovery source to minimum 1 when fee reserve exceeds settled amount', async () => {
     const request = buildRequest();
 
-    await submitWithCalldataReEncoding({
+    await submitWithTransactionData({
       baseRequest: BASE_QUOTE_REQUEST_MOCK,
       request,
       sourceAmountRaw: '10000000000000000',
@@ -249,7 +249,7 @@ describe('submitWithCalldataReEncoding', () => {
 
     const request = buildRequest({ quotes: [fiatQuote] });
 
-    await submitWithCalldataReEncoding({
+    await submitWithTransactionData({
       baseRequest: BASE_QUOTE_REQUEST_MOCK,
       request,
       sourceAmountRaw: '1000000000000000000',
@@ -275,7 +275,7 @@ describe('submitWithCalldataReEncoding', () => {
 
     const request = buildRequest({ quotes: [fiatQuote] });
 
-    await submitWithCalldataReEncoding({
+    await submitWithTransactionData({
       baseRequest: BASE_QUOTE_REQUEST_MOCK,
       request,
       sourceAmountRaw: '1000000000000000000',
@@ -289,7 +289,7 @@ describe('submitWithCalldataReEncoding', () => {
   it('adds discovery fee back to adjusted target amount', async () => {
     const request = buildRequest();
 
-    await submitWithCalldataReEncoding({
+    await submitWithTransactionData({
       baseRequest: BASE_QUOTE_REQUEST_MOCK,
       request,
       sourceAmountRaw: '1000000000000000000',
@@ -308,7 +308,7 @@ describe('submitWithCalldataReEncoding', () => {
     const callMock = buildCallMock();
     const request = buildRequest({ callMock });
 
-    await submitWithCalldataReEncoding({
+    await submitWithTransactionData({
       baseRequest: BASE_QUOTE_REQUEST_MOCK,
       request,
       sourceAmountRaw: '1000000000000000000',
@@ -324,7 +324,7 @@ describe('submitWithCalldataReEncoding', () => {
   it('updates nested calldata and requiredAssets with adjusted amount', async () => {
     const request = buildRequest();
 
-    await submitWithCalldataReEncoding({
+    await submitWithTransactionData({
       baseRequest: BASE_QUOTE_REQUEST_MOCK,
       request,
       sourceAmountRaw: '1000000000000000000',
@@ -357,7 +357,7 @@ describe('submitWithCalldataReEncoding', () => {
     const request = buildRequest();
 
     await expect(
-      submitWithCalldataReEncoding({
+      submitWithTransactionData({
         baseRequest: BASE_QUOTE_REQUEST_MOCK,
         request,
         sourceAmountRaw: '1000000000000000000',
@@ -373,7 +373,7 @@ describe('submitWithCalldataReEncoding', () => {
     const request = buildRequest();
 
     await expect(
-      submitWithCalldataReEncoding({
+      submitWithTransactionData({
         baseRequest: BASE_QUOTE_REQUEST_MOCK,
         request,
         sourceAmountRaw: '1000000000000000000',
@@ -387,7 +387,7 @@ describe('submitWithCalldataReEncoding', () => {
     const request = buildRequest({ callMock });
 
     await expect(
-      submitWithCalldataReEncoding({
+      submitWithTransactionData({
         baseRequest: BASE_QUOTE_REQUEST_MOCK,
         request,
         sourceAmountRaw: '1000000000000000000',
@@ -402,7 +402,7 @@ describe('submitWithCalldataReEncoding', () => {
     getTransactionMock.mockReturnValue(undefined);
     const request = buildRequest();
 
-    const result = await submitWithCalldataReEncoding({
+    const result = await submitWithTransactionData({
       baseRequest: BASE_QUOTE_REQUEST_MOCK,
       request,
       sourceAmountRaw: '1000000000000000000',
@@ -435,7 +435,7 @@ describe('submitWithCalldataReEncoding', () => {
     const callMock = buildCallMock();
     const request = buildRequest({ callMock });
 
-    await submitWithCalldataReEncoding({
+    await submitWithTransactionData({
       baseRequest: BASE_QUOTE_REQUEST_MOCK,
       request,
       sourceAmountRaw: '1000000000000000000',
@@ -468,7 +468,7 @@ describe('submitWithCalldataReEncoding', () => {
     const callMock = buildCallMock();
     const request = buildRequest({ callMock });
 
-    await submitWithCalldataReEncoding({
+    await submitWithTransactionData({
       baseRequest: BASE_QUOTE_REQUEST_MOCK,
       request,
       sourceAmountRaw: '1000000000000000000',
@@ -485,7 +485,7 @@ describe('submitWithCalldataReEncoding', () => {
     getFiatMaxRateDriftPercentMock.mockReturnValue(15);
     const request = buildRequest();
 
-    await submitWithCalldataReEncoding({
+    await submitWithTransactionData({
       baseRequest: BASE_QUOTE_REQUEST_MOCK,
       request,
       sourceAmountRaw: '1000000000000000000',

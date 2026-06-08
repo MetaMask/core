@@ -584,6 +584,13 @@ export type PayStrategyGetQuotesRequest = {
   /** Selected fiat payment method ID, if applicable. */
   fiatPaymentMethod?: string;
 
+  /**
+   * Resolved wallet address for the transaction.
+   * This is `accountOverride ?? txParams.from`, pre-computed by the quote
+   * orchestrator so that individual strategies do not need to re-derive it.
+   */
+  from: Hex;
+
   /** Controller messenger. */
   messenger: TransactionPayControllerMessenger;
 

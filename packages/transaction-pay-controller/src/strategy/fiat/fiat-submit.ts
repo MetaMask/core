@@ -16,7 +16,7 @@ import { buildCaipAssetType } from '../../utils/token';
 import { updateTransaction } from '../../utils/transaction';
 import type { TransactionPayFiatAsset } from './constants';
 import { submitSimpleRelay } from './fiat-submit-simple';
-import { submitWithCalldataReEncoding } from './fiat-submit-with-calldata';
+import { submitWithTransactionData } from './fiat-submit-with-transaction-data';
 import type { FiatQuote } from './types';
 import {
   deriveFiatAssetForFiatPayment,
@@ -269,7 +269,7 @@ async function submitRelayAfterFiatCompletion({
   // Simple deposits (Perps, Predict) skip straight to a single EXACT_INPUT
   // relay quote — cheaper fees, no leftover dust, one fewer request.
   if (hasNestedCalldata) {
-    return await submitWithCalldataReEncoding({
+    return await submitWithTransactionData({
       baseRequest,
       request,
       sourceAmountRaw,

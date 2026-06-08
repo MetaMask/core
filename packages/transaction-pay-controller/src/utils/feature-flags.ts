@@ -25,6 +25,9 @@ const log = createModuleLogger(projectLogger, 'feature-flags');
 
 type StrategyOrder = TransactionPayStrategy[];
 
+export const DEFAULT_FEE_RESERVE_MULTIPLIER = 1.2;
+export const DEFAULT_MAX_RATE_DRIFT_PERCENT = 10;
+export const DEFAULT_POST_QUOTE_GAS_BUFFER = 1.1;
 export const DEFAULT_GAS_BUFFER = 1.0;
 export const DEFAULT_FALLBACK_GAS_ESTIMATE = 900000;
 export const DEFAULT_FALLBACK_GAS_MAX = 1500000;
@@ -827,16 +830,13 @@ export function getFiatAssetPerTransactionType(
   );
 }
 
-const DEFAULT_FEE_RESERVE_MULTIPLIER = 1.2;
-const DEFAULT_MAX_RATE_DRIFT_PERCENT = 10;
-const DEFAULT_POST_QUOTE_GAS_BUFFER = 1.1;
+
 
 /**
  * Returns the fee reserve multiplier for fiat three-phase submit.
  *
  * Controls how much of the original relay fee is reserved from the discovery
  * quote source amount to prevent EXACT_OUTPUT cost overruns.
- * Defaults to 1 (100% of the original fee).
  *
  * @param messenger - Controller messenger.
  * @returns The fee reserve multiplier.
