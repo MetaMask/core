@@ -7,6 +7,7 @@ import type {
 import type { AccountsControllerState } from '@metamask/accounts-controller';
 import { TrxScope } from '@metamask/keyring-api';
 import type { NetworkState } from '@metamask/network-controller';
+import { hexToNumber } from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
 import { cloneDeep } from 'lodash';
 
@@ -310,7 +311,7 @@ const mockAccountTreeControllerState = {
   selectedAccountGroup: 'entropy:01K1TJY9QPSCKNBSVGZNG510GJ/0',
 } as unknown as AccountTreeControllerState;
 
-const mockAccountControllerState: AccountsControllerState = {
+const mockAccountControllerState = {
   internalAccounts: {
     accounts: {
       'd7f11451-9d79-4df4-a012-afd253443639': {
@@ -467,7 +468,7 @@ const mockAccountControllerState: AccountsControllerState = {
     },
     selectedAccount: 'd7f11451-9d79-4df4-a012-afd253443639',
   },
-};
+} as unknown as AccountsControllerState;
 
 const mockMultichainBalancesControllerState = {
   balances: {
@@ -580,7 +581,7 @@ const expectedMockResult = {
       accountType: 'eip155:eoa',
       accountId: 'd7f11451-9d79-4df4-a012-afd253443639',
       chainId: '0x1',
-      assetId: '0x40D16FC0246aD3160Ccc09B8D0D3A2cD28aE6C2f',
+      assetId: 'eip155:1/erc20:0x40D16FC0246aD3160Ccc09B8D0D3A2cD28aE6C2f',
       address: '0x40D16FC0246aD3160Ccc09B8D0D3A2cD28aE6C2f',
       image:
         'https://static.cx.metamask.io/api/v1/tokenIcons/1/0x40d16fc0246ad3160ccc09b8d0d3a2cd28ae6c2f.png',
@@ -600,7 +601,7 @@ const expectedMockResult = {
       accountType: 'eip155:eoa',
       accountId: 'd7f11451-9d79-4df4-a012-afd253443639',
       chainId: '0x1',
-      assetId: '0x6B3595068778DD592e39A122f4f5a5cF09C90fE2',
+      assetId: 'eip155:1/erc20:0x6B3595068778DD592e39A122f4f5a5cF09C90fE2',
       address: '0x6B3595068778DD592e39A122f4f5a5cF09C90fE2',
       image:
         'https://static.cx.metamask.io/api/v1/tokenIcons/1/0x6b3595068778dd592e39a122f4f5a5cf09c90fe2.png',
@@ -620,7 +621,7 @@ const expectedMockResult = {
       accountType: 'eip155:eoa',
       accountId: 'd7f11451-9d79-4df4-a012-afd253443639',
       chainId: '0x1',
-      assetId: '0x0000000000000000000000000000000000000000',
+      assetId: 'eip155:1/slip44:60',
       address: '0x0000000000000000000000000000000000000000',
       image: '',
       name: 'Ethereum',
@@ -641,7 +642,7 @@ const expectedMockResult = {
       accountType: 'eip155:eoa',
       accountId: 'd7f11451-9d79-4df4-a012-afd253443639',
       chainId: '0xa',
-      assetId: '0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85',
+      assetId: 'eip155:10/erc20:0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85',
       address: '0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85',
       image:
         'https://static.cx.metamask.io/api/v1/tokenIcons/10/0x0b2c639c533813f4aa9d7837caf62653d097ff85.png',
@@ -661,7 +662,7 @@ const expectedMockResult = {
       accountType: 'eip155:eoa',
       accountId: 'd7f11451-9d79-4df4-a012-afd253443639',
       chainId: '0xa',
-      assetId: '0x0000000000000000000000000000000000000000',
+      assetId: 'eip155:10/slip44:60',
       address: '0x0000000000000000000000000000000000000000',
       image: '',
       name: 'Ethereum',
@@ -683,6 +684,7 @@ const expectedMockResult = {
       accountId: '2d89e6a0-b4e6-45a8-a707-f10cef143b42',
       chainId: 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp',
       assetId: 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501',
+      address: 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501',
       image:
         'https://static.cx.metamask.io/api/v2/tokenIcons/assets/solana/5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44/501.png',
       name: 'Solana',
@@ -702,6 +704,8 @@ const expectedMockResult = {
       accountId: '2d89e6a0-b4e6-45a8-a707-f10cef143b42',
       chainId: 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp',
       assetId:
+        'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/token:JUPyiwrYJFskUPiHa7hkeR8VUtAeFoSYbKedZNsDvCN',
+      address:
         'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/token:JUPyiwrYJFskUPiHa7hkeR8VUtAeFoSYbKedZNsDvCN',
       image:
         'https://static.cx.metamask.io/api/v2/tokenIcons/assets/solana/5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/token/JUPyiwrYJFskUPiHa7hkeR8VUtAeFoSYbKedZNsDvCN.png',
@@ -728,7 +732,7 @@ describe('token-selectors', () => {
       const ignoredTokenAddress = '0xCd5fE23C85820F7B72D0926FC9b05b43E359b7ee';
 
       expect(
-        result['0x1'].find((asset) => asset.assetId === ignoredTokenAddress),
+        result['0x1'].find((asset) => asset.address === ignoredTokenAddress),
       ).toBeUndefined();
     });
 
@@ -738,7 +742,7 @@ describe('token-selectors', () => {
       const tokenWithNoBalance = '0x6B175474E89094C44Da98b954EedeAC495271d0F';
 
       expect(
-        result['0x1'].find((asset) => asset.assetId === tokenWithNoBalance),
+        result['0x1'].find((asset) => asset.address === tokenWithNoBalance),
       ).toBeUndefined();
     });
 
@@ -750,13 +754,13 @@ describe('token-selectors', () => {
 
       const tokenWithNoFiatBalance = result['0x1'].find(
         (asset) =>
-          asset.assetId === '0xae7ab96520de3a18e5e111b5eaab095312d7fe84',
+          asset.address === '0xae7ab96520de3a18e5e111b5eaab095312d7fe84',
       );
 
       expect(tokenWithNoFiatBalance).toStrictEqual({
         accountId: '2c311cc8-eeeb-48c7-a629-bb1d9c146b47',
         address: '0xae7ab96520de3a18e5e111b5eaab095312d7fe84',
-        assetId: '0xae7ab96520de3a18e5e111b5eaab095312d7fe84',
+        assetId: 'eip155:1/erc20:0xae7ab96520de3a18e5e111b5eaab095312d7fe84',
         rawBalance: '0x56BC75E2D63100000',
         balance: '100',
         chainId: '0x1',
@@ -780,13 +784,13 @@ describe('token-selectors', () => {
 
       const tokenWithNoFiatBalance = result['0x1'].find(
         (asset) =>
-          asset.assetId === '0x514910771AF9Ca656af840dff83E8264EcF986CA',
+          asset.address === '0x514910771AF9Ca656af840dff83E8264EcF986CA',
       );
 
       expect(tokenWithNoFiatBalance).toStrictEqual({
         accountId: '2c311cc8-eeeb-48c7-a629-bb1d9c146b47',
         address: '0x514910771AF9Ca656af840dff83E8264EcF986CA',
-        assetId: '0x514910771AF9Ca656af840dff83E8264EcF986CA',
+        assetId: 'eip155:1/erc20:0x514910771AF9Ca656af840dff83E8264EcF986CA',
         rawBalance: '0x56BC75E2D63100000',
         balance: '100',
         chainId: '0x1',
@@ -832,6 +836,8 @@ describe('token-selectors', () => {
         accountId: '40fe5e20-525a-4434-bb83-c51ce5560a8c',
         assetId:
           'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/token:2zMMhcVQEXDtdE6vsFS7S7D5oUodfJHE8vd1gnBouauv',
+        address:
+          'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/token:2zMMhcVQEXDtdE6vsFS7S7D5oUodfJHE8vd1gnBouauv',
         rawBalance: '0x5f5e100',
         balance: '100',
         chainId: 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp',
@@ -856,7 +862,7 @@ describe('token-selectors', () => {
 
       expect(nativeToken).toStrictEqual({
         accountId: '2c311cc8-eeeb-48c7-a629-bb1d9c146b47',
-        assetId: '0x0000000000000000000000000000000000001010',
+        assetId: 'eip155:137/slip44:966',
         address: '0x0000000000000000000000000000000000001010',
         rawBalance: '0x8AC7230489E80000',
         chainId: '0x89',
@@ -919,7 +925,7 @@ describe('token-selectors', () => {
       expect(result).toStrictEqual(expectedMockResult);
     });
 
-    const arrangeTronState = () => {
+    const arrangeTronState = (): typeof mockedMergedState => {
       const state = cloneDeep(mockedMergedState);
 
       // Add Tron account to the selected account group
@@ -1024,7 +1030,7 @@ describe('token-selectors', () => {
 
     it('calculates fiat for native token using currency rate fallback when market data is missing', () => {
       // Setup: Add a new chain (Ink chain 0xdef1) with native balance but NO market data
-      const inkChainId = '0xdef1' as Hex;
+      const inkChainId: Hex = '0xdef1';
       const stateWithInkChain = {
         ...mockedMergedState,
         // Add Ink chain to network configuration
@@ -1059,7 +1065,7 @@ describe('token-selectors', () => {
         accountType: 'eip155:eoa',
         accountId: 'd7f11451-9d79-4df4-a012-afd253443639',
         chainId: inkChainId,
-        assetId: '0x0000000000000000000000000000000000000000',
+        assetId: `eip155:${hexToNumber(inkChainId)}/slip44:60`,
         address: '0x0000000000000000000000000000000000000000',
         image: '',
         name: 'Ethereum',
@@ -1077,7 +1083,7 @@ describe('token-selectors', () => {
     });
 
     it('returns undefined fiat for native token when both market data and currency rate are missing', () => {
-      const inkChainId = '0xdef1' as Hex;
+      const inkChainId: Hex = '0xdef1';
       const stateWithMissingCurrencyRate = {
         ...mockedMergedState,
         networkConfigurationsByChainId: {
@@ -1110,7 +1116,7 @@ describe('token-selectors', () => {
     });
 
     it('hides native tokens on Tempo testnet (0xa5bf)', () => {
-      const tempoTestnetChainId = '0xa5bf' as Hex; // 42431 in decimal
+      const tempoTestnetChainId: Hex = '0xa5bf'; // 42431 in decimal
       const stateWithTempoTestnet = {
         ...mockedMergedState,
         networkConfigurationsByChainId: {
@@ -1139,7 +1145,7 @@ describe('token-selectors', () => {
     });
 
     it('hides native tokens on Tempo mainnet (0x1079)', () => {
-      const tempoMainnetChainId = '0x1079' as Hex; // 4217 in decimal
+      const tempoMainnetChainId: Hex = '0x1079'; // 4217 in decimal
       const stateWithTempoMainnet = {
         ...mockedMergedState,
         networkConfigurationsByChainId: {
@@ -1168,7 +1174,7 @@ describe('token-selectors', () => {
     });
 
     it('does not hide native tokens on non-Tempo networks', () => {
-      const ethereumChainId = '0x1' as Hex;
+      const ethereumChainId: Hex = '0x1';
       const result = selectAssetsBySelectedAccountGroup(mockedMergedState);
 
       // Native token should still be visible on Ethereum
