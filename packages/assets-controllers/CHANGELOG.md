@@ -9,14 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- `MultichainAssetsController`: track Stellar classic (`asset:`) CAIP-19 tokens added via `addAssets` in `stellarClassicTrustlineInactiveAssetIds` until the keyring lists the same id in `AccountsController:accountAssetListUpdated` `added` (or the asset is removed); one-time backfill for classic ids already in `accountsAssets` when `stellarTrustlineInactiveBackfillComplete` is false (legacy imports before this feature) ([#TODO](https://github.com/MetaMask/core/pull/TODO))
-- `selectAllMultichainAssets`: optional `isStellarTrustlineInactive` on multichain `Asset` when the id is in that map ([#TODO](https://github.com/MetaMask/core/pull/TODO))
-- `isStellarClassicAssetCaip19` helper; `isStellarTrustlineTrackedAsset` now applies only to classic `asset:` ids, not `sep41:` ([#TODO](https://github.com/MetaMask/core/pull/TODO))
+- Snap account-asset enrichment via `getAccountAssetInfo`; balance rows and `Asset.extra` carry chain-specific fields; export `isStellarClassicTrustlineInactiveForDisplay` for Stellar trustline UX ([#8828](https://github.com/MetaMask/core/pull/8828))
 
-### Fixed
+### Changed
 
-- `MultichainAssetsController`: after `addAssets`, re-fetch the Snap `listAccountAssets` list for Stellar classic (`asset:`) ids and clear `stellarClassicTrustlineInactiveAssetIds` when the keyring already reports the same CAIP-19 id (e.g. hide token then re-add while trustline is still active) ([#TODO](https://github.com/MetaMask/core/pull/TODO))
-- `MultichainBalancesController`: when `MultichainAssetsController:accountAssetListUpdated` fires while the vault is locked, balance fetches are skipped and were never retried after unlock, leaving multichain token lists empty despite assets in state; subscribe to `KeyringController:stateChange` and refetch balances for snap-backed accounts that still have no cached balances after unlock. ([#TODO](https://github.com/MetaMask/core/pull/TODO))
+- **BREAKING:** Replace `Asset.isStellarTrustlineInactive` with balance `extra`; clients derive chain-specific trustline UX from enriched data ([#8828](https://github.com/MetaMask/core/pull/8828))
+
+### Removed
+
+- **BREAKING:** `MultichainAssetsController` state `stellarClassicTrustlineInactiveAssetIds` and `stellarTrustlineInactiveBackfillComplete` ([#8828](https://github.com/MetaMask/core/pull/8828))
 
 ## [106.0.0]
 
