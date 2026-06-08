@@ -33,6 +33,10 @@ runs:
         MERGE_BASE=$(git merge-base HEAD "refs/remotes/origin/$BASE_REF")
         echo "MERGE_BASE=$MERGE_BASE" >> "$GITHUB_OUTPUT"
 
+    - name: Enable Corepack
+      shell: bash
+      run: corepack enable
+
     - name: Check that root package.json is bumped for release PRs
       shell: bash
       env:
