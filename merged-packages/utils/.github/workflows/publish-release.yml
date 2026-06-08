@@ -9,6 +9,10 @@ on:
         required: true
       PUBLISH_DOCS_TOKEN:
         required: true
+
+permissions:
+  contents: read
+
 jobs:
   publish-release:
     permissions:
