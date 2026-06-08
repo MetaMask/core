@@ -376,7 +376,8 @@ export class SnapAccountService {
       throw new Error(`Unknown snap: "${snapId}"`);
     }
 
-    await this.#ensureHasBeenMigrated();
+    // The migration is required to ensure the v2 keyring exists.
+    await this.ensureMigrated();
 
     // We still try to create the keyring for the Snap here, since we might
     // want to use a new Snap that never had accounts before.
@@ -385,27 +386,6 @@ export class SnapAccountService {
     // Before doing anything with our Snap, we need to make sure the platform
     // is ready to process requests.
     await this.#watcher.ensureCanUseSnapPlatform();
-  }
-
-  /**
-   * Asserts that the migration has been triggered and waits for it to complete
-   * if it is still in-flight. The migration is expected to be triggered at
-   * `KeyringController:unlock` time.
-   *
-   * @throws If the migration has not been triggered yet.
-   */
-  async #ensureHasBeenMigrated(): Promise<void> {
-    if (this.#migrated) {
-      return;
-    }
-    if (this.#migratePromise) {
-      await this.#migratePromise;
-    } else {
-      throw new Error(
-        'Snap account service migration has not been triggered. ' +
-          'The wallet must be unlocked before using Snap accounts.',
-      );
-    }
   }
 
   /**
@@ -420,6 +400,7 @@ export class SnapAccountService {
     if (this.#migrated) {
       return;
     }
+
     if (!this.#migratePromise) {
       this.#migratePromise = this.#migrate()
         .then(() => {
@@ -432,6 +413,7 @@ export class SnapAccountService {
           throw error;
         });
     }
+
     await this.#migratePromise;
   }
 

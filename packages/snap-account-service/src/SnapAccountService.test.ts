@@ -618,16 +618,6 @@ describe('SnapAccountService', () => {
       expect(await service.ensureReady(MOCK_SNAP_ID)).toBeUndefined();
     });
 
-    it('throws when migration has not been triggered', async () => {
-      const { service } = await setup({
-        runnableSnaps: [buildSnap(MOCK_SNAP_ID)],
-      });
-
-      await expect(service.ensureReady(MOCK_SNAP_ID)).rejects.toThrow(
-        'Snap account service migration has not been triggered',
-      );
-    });
-
     it('awaits in-flight migration triggered at unlock time', async () => {
       const { service, rootMessenger, mocks } = await setup({
         runnableSnaps: [buildSnap(MOCK_SNAP_ID)],
