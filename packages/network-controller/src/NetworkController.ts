@@ -67,7 +67,6 @@ import type {
   CustomNetworkClientConfiguration,
   InfuraNetworkClientConfiguration,
   NetworkClientConfiguration,
-  AdditionalDefaultNetwork,
 } from './types';
 
 const debugLog = createModuleLogger(projectLogger, 'NetworkController');
