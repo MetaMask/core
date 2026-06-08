@@ -6159,7 +6159,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/connectivity-controller@npm:^0.2.0, @metamask/connectivity-controller@workspace:^, @metamask/connectivity-controller@workspace:packages/connectivity-controller":
+"@metamask/connectivity-controller@npm:^0.2.0, @metamask/connectivity-controller@workspace:packages/connectivity-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/connectivity-controller@workspace:packages/connectivity-controller"
   dependencies:
@@ -7603,10 +7603,10 @@ __metadata:
   dependencies:
     "@metamask/auto-changelog": "npm:^6.1.0"
     "@metamask/base-controller": "npm:^9.1.0"
-    "@metamask/connectivity-controller": "workspace:^"
+    "@metamask/connectivity-controller": "npm:^0.2.0"
     "@metamask/messenger": "npm:^1.2.0"
-    "@metamask/network-controller": "workspace:^"
-    "@metamask/network-enablement-controller": "workspace:^"
+    "@metamask/network-controller": "npm:^32.0.0"
+    "@metamask/network-enablement-controller": "npm:^5.3.0"
     "@metamask/utils": "npm:^11.11.0"
     "@ts-bridge/cli": "npm:^0.6.4"
     "@types/jest": "npm:^29.5.14"
@@ -7619,14 +7619,10 @@ __metadata:
     typedoc: "npm:^0.25.13"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:~5.3.3"
-  peerDependencies:
-    "@metamask/connectivity-controller": ^0.2.0
-    "@metamask/network-controller": ^25.0.0
-    "@metamask/network-enablement-controller": ^0.4.0
   languageName: unknown
   linkType: soft
 
-"@metamask/network-controller@npm:^32.0.0, @metamask/network-controller@workspace:^, @metamask/network-controller@workspace:packages/network-controller":
+"@metamask/network-controller@npm:^32.0.0, @metamask/network-controller@workspace:packages/network-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/network-controller@workspace:packages/network-controller"
   dependencies:
@@ -7675,7 +7671,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/network-enablement-controller@npm:^5.3.0, @metamask/network-enablement-controller@workspace:^, @metamask/network-enablement-controller@workspace:packages/network-enablement-controller":
+"@metamask/network-enablement-controller@npm:^5.3.0, @metamask/network-enablement-controller@workspace:packages/network-enablement-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/network-enablement-controller@workspace:packages/network-enablement-controller"
   dependencies:
