@@ -2068,6 +2068,59 @@ describe('Relay Quotes Utils', () => {
       );
     });
 
+    it('subtracts gas for Polygon native zero address (0x0) in post-quote flows', async () => {
+      const phase2Mock = {
+        ...QUOTE_MOCK,
+        details: {
+          ...QUOTE_MOCK.details,
+          currencyOut: {
+            ...QUOTE_MOCK.details.currencyOut,
+            amountFormatted: '0.8',
+            amountUsd: '0.80',
+          },
+        },
+      };
+
+      successfulFetchMock
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => QUOTE_MOCK,
+        } as never)
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => phase2Mock,
+        } as never);
+
+      calculateGasCostMock.mockReturnValue({
+        fiat: '0.50',
+        human: '0.5',
+        raw: '500000000000000',
+        usd: '0.50',
+      });
+
+      const result = await getRelayQuotes({
+        accountSupports7702: true,
+        messenger,
+        requests: [
+          {
+            ...QUOTE_REQUEST_MOCK,
+            sourceBalanceRaw: QUOTE_REQUEST_MOCK.sourceTokenAmount,
+            sourceChainId: '0x89' as Hex,
+            sourceTokenAddress:
+              '0x0000000000000000000000000000000000000000' as Hex,
+            targetAmountMinimum: '0',
+            isPostQuote: true,
+          },
+        ],
+        transaction: TRANSACTION_META_MOCK,
+      });
+
+      expect(successfulFetchMock).toHaveBeenCalledTimes(2);
+      expect(result[0].targetAmount).toStrictEqual(
+        expect.objectContaining({ usd: expect.any(String) }),
+      );
+    });
+
     it('returns phase 1 quote when gas cost exceeds source amount for post-quote flows', async () => {
       successfulFetchMock.mockResolvedValue({
         ok: true,
