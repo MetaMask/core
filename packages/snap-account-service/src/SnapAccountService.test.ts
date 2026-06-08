@@ -1246,6 +1246,41 @@ describe('SnapAccountService', () => {
       consoleErrorSpy.mockRestore();
     });
 
+    it('does not forward the selected account group when migration fails', async () => {
+      const { service, rootMessenger, mocks } = await setup({
+        runnableSnaps: [buildSnap(MOCK_SNAP_ID)],
+      });
+      const setSelectedAccounts = jest.fn().mockResolvedValue(undefined);
+      mockWithKeyringV2Unsafe(mocks, {
+        [MOCK_SNAP_ID]: { setSelectedAccounts },
+      });
+      mocks.AccountTreeController.getSelectedAccountGroup.mockReturnValue(
+        MOCK_GROUP_ID,
+      );
+      mocks.AccountTreeController.getAccountGroupObject.mockReturnValue(
+        buildGroup(MOCK_GROUP_ID, MOCK_ACCOUNTS),
+      );
+      const error = new Error('migration boom');
+      mocks.KeyringController.withController.mockRejectedValueOnce(error);
+      const consoleErrorSpy = jest
+        .spyOn(console, 'error')
+        .mockImplementation(() => undefined);
+
+      publishUnlock(rootMessenger);
+      await flushMicrotasks();
+
+      expect(setSelectedAccounts).not.toHaveBeenCalled();
+      expect(
+        mocks.KeyringController.withKeyringV2Unsafe,
+      ).not.toHaveBeenCalled();
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
+        'Migration failed after unlock:',
+        error,
+      );
+      expect(service).toBeDefined();
+      consoleErrorSpy.mockRestore();
+    });
+
     it('forwards the currently selected account group to every tracked v2 Snap keyring', async () => {
       const { service, rootMessenger, mocks } = await setup({
         runnableSnaps: [buildSnap(MOCK_SNAP_ID)],

@@ -288,7 +288,8 @@ export class SnapAccountService {
    * @param groupId - The ID of the newly selected account group.
    */
   #handleSelectedAccountGroupChange(groupId: AccountGroupId | ''): void {
-    this.#forwardSelectedAccounts(
+    // eslint-disable-next-line no-void
+    void this.#forwardSelectedAccounts(
       groupId,
       this.#getAccountGroup(groupId)?.accounts,
     );
@@ -300,15 +301,19 @@ export class SnapAccountService {
    * keyring.
    */
   #handleUnlock(): void {
-    this.ensureMigrated().catch((error) => {
-      console.error('Migration failed after unlock:', error);
-    });
-
-    const groupId = this.#getSelectedAccountGroupId();
-    this.#forwardSelectedAccounts(
-      groupId,
-      this.#getAccountGroup(groupId)?.accounts,
-    );
+    // eslint-disable-next-line no-void
+    void this.ensureMigrated()
+      .then(async () => {
+        // If the migration is successful, we re-forward the current groups to each new keyrings!
+        const groupId = this.#getSelectedAccountGroupId();
+        return await this.#forwardSelectedAccounts(
+          groupId,
+          this.#getAccountGroup(groupId)?.accounts,
+        );
+      })
+      .catch((error) => {
+        console.error('Migration failed after unlock:', error);
+      });
   }
 
   /**
@@ -319,7 +324,8 @@ export class SnapAccountService {
    */
   #handleAccountGroupCreatedOrUpdated(group: AccountGroupObject): void {
     if (group.id === this.#getSelectedAccountGroupId()) {
-      this.#forwardSelectedAccounts(group.id, group.accounts);
+      // eslint-disable-next-line no-void
+      void this.#forwardSelectedAccounts(group.id, group.accounts);
     }
   }
 
@@ -331,7 +337,8 @@ export class SnapAccountService {
    */
   #handleAccountGroupRemoved(groupId: AccountGroupId): void {
     if (groupId === this.#getSelectedAccountGroupId()) {
-      this.#forwardSelectedAccounts(
+      // eslint-disable-next-line no-void
+      void this.#forwardSelectedAccounts(
         groupId,
         [], // Clearing accounts since the group is removed
       );
@@ -700,10 +707,10 @@ export class SnapAccountService {
    * forwarded. If empty, this is a no-op.
    * @param accounts - The accounts to forward. If not defined, this is a no-op.
    */
-  #forwardSelectedAccounts(
+  async #forwardSelectedAccounts(
     groupId: AccountGroupId | '',
     accounts: AccountId[] | undefined,
-  ): void {
+  ): Promise<void> {
     if (!groupId) {
       log(
         'No selected account group, skipping forwarding selected accounts to Snap keyring.',
@@ -758,7 +765,7 @@ export class SnapAccountService {
     };
 
     // There is nothing we can do if forwarding fails. This will auto-recover on the next relevant event.
-    forwardSelectedAccounts().catch((error) => {
+    await forwardSelectedAccounts().catch((error) => {
       console.error('Error forwarding selected accounts:', error);
     });
   }
