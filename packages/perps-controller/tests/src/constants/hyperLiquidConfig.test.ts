@@ -121,11 +121,11 @@ describe('MARKET_CATEGORIES', () => {
   it('includes all 7 MarketTypeFilter data categories', () => {
     const dataCategories: MarketTypeFilter[] = [
       'crypto',
-      'stocks',
+      'stock',
       'pre-ipo',
-      'indices',
-      'etfs',
-      'commodities',
+      'index',
+      'etf',
+      'commodity',
       'forex',
     ];
     for (const category of dataCategories) {
@@ -138,11 +138,11 @@ describe('MARKET_CATEGORIES', () => {
     // The runtime check here mirrors that constraint.
     const validValues: readonly string[] = [
       'crypto',
-      'stocks',
+      'stock',
       'pre-ipo',
-      'indices',
-      'etfs',
-      'commodities',
+      'index',
+      'etf',
+      'commodity',
       'forex',
     ];
     for (const entry of MARKET_CATEGORIES) {

@@ -491,6 +491,10 @@ export {
   calculateFundingCountdown,
   calculate24hHighLow,
   filterMarketsByQuery,
+  matchesCategory,
+  getMarketTypeFilter,
+  applyMarketFilters,
+  isHip3Market,
 } from './utils';
 export type { MarketPatternMatcher, CompiledMarketPattern } from './utils';
 export type {
