@@ -68,7 +68,6 @@ export {
 export type {
   AddTransactionOptions,
   AfterAddHook,
-  AfterSimulateHook,
   Authorization,
   AuthorizationList,
   BatchTransaction,
@@ -102,7 +101,6 @@ export type {
   RequiredAsset,
   SavedGasFees,
   SecurityAlertResponse,
-  SecurityProviderRequest,
   SendFlowHistoryEntry,
   SimulationBalanceChange,
   SimulationData,

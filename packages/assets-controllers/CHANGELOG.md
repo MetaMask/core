@@ -7,9 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `isDeprecated` option to `TokenRatesController` constructor ([#9033](https://github.com/MetaMask/core/pull/9033))
+  - When `isDeprecated()` returns `true`, no network requests are sent and `marketData` is reset to `{}` at construction and at every entry point (`updateExchangeRates`, `_executePoll`, `TokensController:stateChange`, and `NetworkController:stateChange`), so no stale rates remain in state.
+  - The function is re-evaluated on each entry point so it can be toggled at runtime without reconstructing the controller.
+- Add `isDeprecated` option to `TokenBalancesController` constructor ([#9033](https://github.com/MetaMask/core/pull/9033))
+  - When `isDeprecated()` returns `true`, no network requests are sent and `tokenBalances` is reset to `{}` at construction and at every entry point (`updateBalances`, `_executePoll`, `TokensController:stateChange`, `NetworkController:stateChange`, `KeyringController:accountRemoved`, `AccountsController:selectedEvmAccountChange`, and the `AccountActivityService` events), so no stale balances remain in state.
+  - The function is re-evaluated on each entry point so it can be toggled at runtime without reconstructing the controller.
+- Add `isDeprecated` option to `AccountTrackerController` constructor ([#9033](https://github.com/MetaMask/core/pull/9033))
+  - When `isDeprecated()` returns `true`, no network requests are sent and `accountsByChainId` is reset to `{}` at construction and at every entry point (`refresh`, `refreshAddresses`, `_executePoll`, `syncBalanceWithAddresses`, `updateNativeBalances`, and `updateStakedBalances`), so no stale balances remain in state.
+  - The function is re-evaluated on each entry point so it can be toggled at runtime without reconstructing the controller.
+
 ### Changed
 
 - Bump `@metamask/network-enablement-controller` from `^5.2.0` to `^5.3.0` ([#9003](https://github.com/MetaMask/core/pull/9003))
+- Bump `@metamask/transaction-controller` from `^66.0.1` to `^67.0.0` ([#9021](https://github.com/MetaMask/core/pull/9021))
 
 ## [108.5.0]
 

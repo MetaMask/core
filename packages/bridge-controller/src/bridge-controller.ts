@@ -436,9 +436,11 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
    * this handler whenever they change.
    *
    * @param quotes - The quotes to fetch the gasless transaction data and fees for
+   * @param stxEnabled - Flag to estimate gas cost more precisely for the batch sell feature.
    */
   updateBatchSellTrades = async (
     quotes: (QuoteResponse | null)[],
+    stxEnabled: boolean,
   ): Promise<void> => {
     this.#batchSellTradesAbortController?.abort(
       AbortReason.GaslessTxBatchFetched,
@@ -453,6 +455,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
     try {
       const batchSellTradesResponse = await fetchBatchSellTrades(
         quotes,
+        stxEnabled,
         this.#batchSellTradesAbortController.signal,
         this.#clientId,
         await this.#getJwt(),

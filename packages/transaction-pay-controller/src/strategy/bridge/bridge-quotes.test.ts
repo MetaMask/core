@@ -144,6 +144,7 @@ describe('Bridge Quotes Utils', () => {
 
     request = {
       accountSupports7702: true,
+      from: '0x0000000000000000000000000000000000000000',
       requests: [QUOTE_REQUEST_1_MOCK, QUOTE_REQUEST_2_MOCK],
       messenger,
       transaction: TRANSACTION_META_MOCK,

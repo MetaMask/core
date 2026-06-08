@@ -15,6 +15,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - provide batchId to the `TransactionController:addTransactionBatch` to propagate it the TransactionMeta
 - Publish tx submission metrics for `BatchSell`, `QuickBuy` and `UnifiedSwapBridge` actions ([#8964](https://github.com/MetaMask/core/pull/8964))
 
+### Changed
+
+- Bump `@metamask/transaction-controller` from `^66.0.1` to `^67.0.0` ([#9021](https://github.com/MetaMask/core/pull/9021))
+- Bump `@metamask/bridge-controller` from `^73.2.1` to `^74.0.0` ([#9045](https://github.com/MetaMask/core/pull/9045))
+
 ## [72.0.2]
 
 ### Changed

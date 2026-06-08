@@ -530,6 +530,7 @@ describe('BridgeController BatchSell (multiple quote requests) SSE', function ()
           await rootMessenger.call(
             'BridgeController:updateBatchSellTrades',
             [],
+            false,
           );
 
           await jest.advanceTimersByTimeAsync(1000);
@@ -641,10 +642,12 @@ describe('BridgeController BatchSell (multiple quote requests) SSE', function ()
           await rootMessenger.call(
             'BridgeController:updateBatchSellTrades',
             [],
+            false,
           );
           await rootMessenger.call(
             'BridgeController:updateBatchSellTrades',
             mockBridgeQuotesErc20Erc20 as unknown as QuoteResponse[],
+            false,
           );
 
           await jest.advanceTimersByTimeAsync(1000);
@@ -674,6 +677,7 @@ describe('BridgeController BatchSell (multiple quote requests) SSE', function ()
           expect(fetchBatchSellTradesSpy).toHaveBeenCalledTimes(2);
           expect(fetchBatchSellTradesSpy.mock.calls[0]).toStrictEqual([
             [],
+            false,
             expect.any(AbortSignal),
             'extension',
             'AUTH_TOKEN',
@@ -683,6 +687,7 @@ describe('BridgeController BatchSell (multiple quote requests) SSE', function ()
           ]);
           expect(fetchBatchSellTradesSpy.mock.calls[1]).toStrictEqual([
             mockBridgeQuotesErc20Erc20,
+            false,
             expect.any(AbortSignal),
             'extension',
             'AUTH_TOKEN',
@@ -752,6 +757,7 @@ describe('BridgeController BatchSell (multiple quote requests) SSE', function ()
           await rootMessenger.call(
             'BridgeController:updateBatchSellTrades',
             [],
+            false,
           );
           rootMessenger.call('BridgeController:resetState');
 
@@ -778,6 +784,7 @@ describe('BridgeController BatchSell (multiple quote requests) SSE', function ()
           expect(fetchBatchSellTradesSpy).toHaveBeenCalledTimes(1);
           expect(fetchBatchSellTradesSpy.mock.calls[0]).toStrictEqual([
             [],
+            false,
             expect.any(AbortSignal),
             'extension',
             'AUTH_TOKEN',
@@ -849,6 +856,7 @@ describe('BridgeController BatchSell (multiple quote requests) SSE', function ()
           await rootMessenger.call(
             'BridgeController:updateBatchSellTrades',
             [],
+            false,
           );
 
           await jest.advanceTimersByTimeAsync(1000);
@@ -876,6 +884,7 @@ describe('BridgeController BatchSell (multiple quote requests) SSE', function ()
           await rootMessenger.call(
             'BridgeController:updateBatchSellTrades',
             mockBridgeQuotesErc20Erc20 as unknown as QuoteResponse[],
+            false,
           );
 
           await jest.advanceTimersByTimeAsync(2000);

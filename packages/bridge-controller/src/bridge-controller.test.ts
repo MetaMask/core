@@ -3802,6 +3802,8 @@ describe('BridgeController', function () {
               bridgeIds: ['bridge1', 'bridge2'],
               fee: 0,
             },
+            [FeatureId.QUICK_BUY]: undefined,
+            [FeatureId.DAPP_SWAP]: undefined,
           },
         });
       messengerCallMock.mockResolvedValueOnce('AUTH_TOKEN');
@@ -4149,6 +4151,179 @@ describe('BridgeController', function () {
         expect(quotes).toHaveLength(2);
         expect(quotes[0].quote.gasSponsored).toBe(true);
         expect(quotes[1].quote.gasSponsored).toBeUndefined();
+      });
+    });
+  });
+
+  describe('updateBatchSellTrades', () => {
+    const mockBatchSellTradesResponse = {
+      transactions: [
+        {
+          chainId: 1,
+          to: '0xabc' as `0x${string}`,
+          from: '0x123' as `0x${string}`,
+          value: '0x0' as `0x${string}`,
+          data: '0x' as `0x${string}`,
+          gasLimit: null,
+          maxFeePerGas: '0x1' as `0x${string}`,
+          maxPriorityFeePerGas: '0x1' as `0x${string}`,
+          type: 'trade' as const,
+        },
+      ],
+    };
+
+    const mockQuote = mockBridgeQuotesNativeErc20Eth[0] as QuoteResponse;
+
+    beforeEach(() => {
+      jest.clearAllMocks();
+      messengerCallMock.mockImplementation((actionType: string) => {
+        if (actionType === 'AuthenticationController:getBearerToken') {
+          return Promise.resolve('AUTH_TOKEN');
+        }
+        return undefined;
+      });
+    });
+
+    it('sets loading status, fetches trades, and updates state on success', async () => {
+      await withController(async ({ rootMessenger, controller }) => {
+        const fetchBatchSellTradesSpy = jest
+          .spyOn(fetchUtils, 'fetchBatchSellTrades')
+          .mockResolvedValueOnce(mockBatchSellTradesResponse as never);
+
+        await rootMessenger.call(
+          'BridgeController:updateBatchSellTrades',
+          [mockQuote],
+          true,
+        );
+
+        expect(fetchBatchSellTradesSpy).toHaveBeenCalledTimes(1);
+        expect(fetchBatchSellTradesSpy).toHaveBeenCalledWith(
+          [mockQuote],
+          true,
+          expect.any(AbortSignal),
+          BridgeClientId.EXTENSION,
+          'AUTH_TOKEN',
+          mockFetchFn,
+          BRIDGE_PROD_API_BASE_URL,
+          '13.7.0',
+        );
+        expect(controller.state.batchSellTrades).toStrictEqual(
+          mockBatchSellTradesResponse,
+        );
+        expect(controller.state.batchSellTradesLoadingStatus).toBe(
+          RequestStatus.FETCHED,
+        );
+      });
+    });
+
+    it('filters out null quotes before sending the request', async () => {
+      await withController(async ({ rootMessenger }) => {
+        const fetchBatchSellTradesSpy = jest
+          .spyOn(fetchUtils, 'fetchBatchSellTrades')
+          .mockResolvedValueOnce(mockBatchSellTradesResponse as never);
+
+        await rootMessenger.call(
+          'BridgeController:updateBatchSellTrades',
+          [null, mockQuote, null],
+          false,
+        );
+
+        expect(fetchBatchSellTradesSpy).toHaveBeenCalledWith(
+          [null, mockQuote, null],
+          false,
+          expect.any(AbortSignal),
+          BridgeClientId.EXTENSION,
+          'AUTH_TOKEN',
+          mockFetchFn,
+          BRIDGE_PROD_API_BASE_URL,
+          '13.7.0',
+        );
+      });
+    });
+
+    it('sets ERROR status and resets batchSellTrades on non-abort error', async () => {
+      await withController(async ({ rootMessenger, controller }) => {
+        const fetchError = new Error('Network failure');
+        jest
+          .spyOn(fetchUtils, 'fetchBatchSellTrades')
+          .mockRejectedValueOnce(fetchError);
+
+        await rootMessenger.call(
+          'BridgeController:updateBatchSellTrades',
+          [mockQuote],
+          false,
+        );
+
+        expect(controller.state.batchSellTrades).toBeNull();
+        expect(controller.state.batchSellTradesLoadingStatus).toBe(
+          RequestStatus.ERROR,
+        );
+      });
+    });
+
+    it('ignores AbortError and leaves state unchanged', async () => {
+      await withController(async ({ rootMessenger, controller }) => {
+        const abortError = new Error('AbortError: The operation was aborted');
+        abortError.name = 'AbortError';
+        jest
+          .spyOn(fetchUtils, 'fetchBatchSellTrades')
+          .mockRejectedValueOnce(abortError);
+
+        await rootMessenger.call(
+          'BridgeController:updateBatchSellTrades',
+          [mockQuote],
+          false,
+        );
+
+        // State should remain in its initial form — no ERROR status written
+        expect(controller.state.batchSellTrades).toBeNull();
+        expect(controller.state.batchSellTradesLoadingStatus).toBe(
+          RequestStatus.LOADING,
+        );
+      });
+    });
+
+    it('aborts the previous call when called again before it resolves', async () => {
+      await withController(async ({ rootMessenger, controller }) => {
+        let resolveFirst!: (value: unknown) => void;
+        const firstCallPromise = new Promise((resolve) => {
+          resolveFirst = resolve;
+        });
+
+        const fetchBatchSellTradesSpy = jest
+          .spyOn(fetchUtils, 'fetchBatchSellTrades')
+          // First call hangs until we resolve manually
+          .mockImplementationOnce(() => firstCallPromise as never)
+          // Second call resolves immediately
+          .mockResolvedValueOnce(mockBatchSellTradesResponse as never);
+
+        // Start first call (do not await yet)
+        const firstCall = rootMessenger.call(
+          'BridgeController:updateBatchSellTrades',
+          [mockQuote],
+          false,
+        );
+
+        // Start second call while first is still pending — this should abort the first
+        const secondCall = rootMessenger.call(
+          'BridgeController:updateBatchSellTrades',
+          [mockQuote],
+          true,
+        );
+
+        // Let the first call resolve (the abort has already been fired)
+        resolveFirst(mockBatchSellTradesResponse);
+
+        await Promise.all([firstCall, secondCall]);
+
+        expect(fetchBatchSellTradesSpy).toHaveBeenCalledTimes(2);
+        // Final state reflects the second (successful) call
+        expect(controller.state.batchSellTrades).toStrictEqual(
+          mockBatchSellTradesResponse,
+        );
+        expect(controller.state.batchSellTradesLoadingStatus).toBe(
+          RequestStatus.FETCHED,
+        );
       });
     });
   });

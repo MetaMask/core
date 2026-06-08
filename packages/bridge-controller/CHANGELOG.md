@@ -20,6 +20,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `quickBuy` to `quick_buy_follow_trading` and `quick_buy_token_details`
   - `dappSwap` to `dapp_swap`
 
+## [74.0.0]
+
+### Added
+
+- **BREAKING**: Add required `stxEnabled` parameter to `updateBatchSellTrades`, `fetchBatchSellTrades`, and `formatBatchSellTradesRequest`. The flag is sent to the obtainGaslessBatch API so the backend can estimate gas costs more precisely when Smart Transactions are enabled. ([#9036](https://github.com/MetaMask/core/pull/9036))
+
+### Changed
+
+- Bump `@metamask/transaction-controller` from `^66.0.1` to `^67.0.0` ([#9021](https://github.com/MetaMask/core/pull/9021))
+
 ## [73.2.1]
 
 ### Changed
@@ -1566,7 +1576,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#5317](https://github.com/MetaMask/core/pull/5317))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@73.2.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@74.0.0...HEAD
+[74.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@73.2.1...@metamask/bridge-controller@74.0.0
 [73.2.1]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@73.2.0...@metamask/bridge-controller@73.2.1
 [73.2.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@73.1.0...@metamask/bridge-controller@73.2.0
 [73.1.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@73.0.1...@metamask/bridge-controller@73.1.0

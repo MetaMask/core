@@ -324,6 +324,7 @@ export type QuoteResponse<
 
 export type BatchSellTradesRequest = {
   quotes: QuoteResponse[];
+  stxEnabled: boolean;
 };
 
 /**
