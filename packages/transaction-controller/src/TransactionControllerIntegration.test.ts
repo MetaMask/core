@@ -237,6 +237,7 @@ const setupController = async (
       isOffline: (): boolean => false,
     }),
   });
+  await networkController.lookupNetwork();
   networkController.init();
   const { provider, blockTracker } =
     networkController.getProviderAndBlockTracker();
