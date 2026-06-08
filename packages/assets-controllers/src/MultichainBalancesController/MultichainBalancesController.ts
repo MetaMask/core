@@ -414,20 +414,6 @@ export class MultichainBalancesController extends BaseController<
   async #handleOnAccountBalancesUpdated(
     balanceUpdate: AccountBalancesUpdatedEventPayload,
   ): Promise<void> {
-    this.update((state: Draft<MultichainBalancesControllerState>) => {
-      for (const [accountId, assetBalances] of Object.entries(
-        balanceUpdate.balances,
-      )) {
-        if (!(accountId in state.balances)) {
-          continue;
-        }
-        state.balances[accountId] = mergeAccountBalances(
-          state.balances[accountId],
-          assetBalances,
-        );
-      }
-    });
-
     const enrichments: Record<string, GetAccountAssetInfoResponse> = {};
 
     for (const [accountId, assetBalances] of Object.entries(
