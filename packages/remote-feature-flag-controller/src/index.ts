@@ -11,6 +11,7 @@ export type {
   RemoteFeatureFlagControllerClearAllFlagOverridesAction,
   RemoteFeatureFlagControllerDisableAction,
   RemoteFeatureFlagControllerEnableAction,
+  RemoteFeatureFlagControllerGetFeatureFlagsAction,
   RemoteFeatureFlagControllerMethodActions,
   RemoteFeatureFlagControllerRemoveFlagOverrideAction,
   RemoteFeatureFlagControllerSetFlagOverrideAction,

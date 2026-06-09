@@ -1235,6 +1235,86 @@ describe('RemoteFeatureFlagController', () => {
         });
       });
     });
+
+    describe('getFeatureFlags', () => {
+      it('returns remote flags when no overrides exist', async () => {
+        const clientConfigApiService = buildClientConfigApiService({
+          remoteFeatureFlags: MOCK_FLAGS,
+        });
+        const { messenger } = createController({
+          clientConfigApiService,
+        });
+
+        await messenger.call(
+          'RemoteFeatureFlagController:updateRemoteFeatureFlags',
+        );
+
+        const result = messenger.call(
+          'RemoteFeatureFlagController:getFeatureFlags',
+        );
+
+        expect(result).toStrictEqual(MOCK_FLAGS);
+      });
+
+      it('returns overrides merged on top of remote flags', async () => {
+        const clientConfigApiService = buildClientConfigApiService({
+          remoteFeatureFlags: {
+            feature1: true,
+            feature2: { chrome: '<109' },
+          },
+        });
+        const { messenger } = createController({
+          clientConfigApiService,
+        });
+
+        await messenger.call(
+          'RemoteFeatureFlagController:updateRemoteFeatureFlags',
+        );
+
+        messenger.call(
+          'RemoteFeatureFlagController:setFlagOverride',
+          'feature1',
+          false,
+        );
+
+        const result = messenger.call(
+          'RemoteFeatureFlagController:getFeatureFlags',
+        );
+
+        expect(result).toStrictEqual({
+          feature1: false,
+          feature2: { chrome: '<109' },
+        });
+      });
+
+      it('includes override-only flags not present in remote flags', () => {
+        const { messenger } = createController();
+
+        messenger.call(
+          'RemoteFeatureFlagController:setFlagOverride',
+          'localOnly',
+          'localValue',
+        );
+
+        const result = messenger.call(
+          'RemoteFeatureFlagController:getFeatureFlags',
+        );
+
+        expect(result).toStrictEqual({
+          localOnly: 'localValue',
+        });
+      });
+
+      it('returns empty object when no flags or overrides exist', () => {
+        const { messenger } = createController();
+
+        const result = messenger.call(
+          'RemoteFeatureFlagController:getFeatureFlags',
+        );
+
+        expect(result).toStrictEqual({});
+      });
+    });
   });
 
   describe('threshold cache cleanup', () => {

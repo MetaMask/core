@@ -75,6 +75,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'clearAllFlagOverrides',
   'disable',
   'enable',
+  'getFeatureFlags',
   'removeFlagOverride',
   'setFlagOverride',
   'updateRemoteFeatureFlags',
@@ -455,5 +456,18 @@ export class RemoteFeatureFlagController extends BaseController<
         localOverrides: {},
       };
     });
+  }
+
+  /**
+   * Returns the effective feature flags by merging remote feature flags
+   * with local overrides. Local overrides take precedence over remote flags.
+   *
+   * @returns The merged feature flags.
+   */
+  getFeatureFlags(): FeatureFlags {
+    return {
+      ...this.state.remoteFeatureFlags,
+      ...this.state.localOverrides,
+    };
   }
 }

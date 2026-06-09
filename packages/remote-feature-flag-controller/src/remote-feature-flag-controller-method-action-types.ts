@@ -62,6 +62,17 @@ export type RemoteFeatureFlagControllerClearAllFlagOverridesAction = {
 };
 
 /**
+ * Returns the effective feature flags by merging remote feature flags
+ * with local overrides. Local overrides take precedence over remote flags.
+ *
+ * @returns The merged feature flags.
+ */
+export type RemoteFeatureFlagControllerGetFeatureFlagsAction = {
+  type: `RemoteFeatureFlagController:getFeatureFlags`;
+  handler: RemoteFeatureFlagController['getFeatureFlags'];
+};
+
+/**
  * Union of all RemoteFeatureFlagController action types.
  */
 export type RemoteFeatureFlagControllerMethodActions =
@@ -70,4 +81,5 @@ export type RemoteFeatureFlagControllerMethodActions =
   | RemoteFeatureFlagControllerDisableAction
   | RemoteFeatureFlagControllerSetFlagOverrideAction
   | RemoteFeatureFlagControllerRemoveFlagOverrideAction
-  | RemoteFeatureFlagControllerClearAllFlagOverridesAction;
+  | RemoteFeatureFlagControllerClearAllFlagOverridesAction
+  | RemoteFeatureFlagControllerGetFeatureFlagsAction;
