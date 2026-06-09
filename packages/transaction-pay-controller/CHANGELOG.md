@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Fix money-account EXACT_OUTPUT quote using origin-currency decimals instead of destination-currency decimals for the requested amount ([#TBD](https://github.com/MetaMask/core/pull/TBD))
+  - The relay quote now reads `amountRaw` from `transactionData` (which carries the destination token's native precision) instead of `sourceTokenAmount` (which uses the origin token's decimals). This prevents over-quoting when the two tokens have different decimal places (e.g. 8-decimal USDC vs 6-decimal mUSD).
+
 ## [23.2.0]
 
 ### Added
