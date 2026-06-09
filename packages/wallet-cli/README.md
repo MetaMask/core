@@ -14,7 +14,7 @@ or
 
 ### Rebuilding `better-sqlite3`
 
-This package depends on `better-sqlite3`, which ships a native C addon. The monorepo runs Yarn with `enableScripts: false`, so the addon is **not** fetched automatically during `yarn install`. Instead, the package's `test:prepare` script (`scripts/install-binaries.sh`) downloads the matching prebuild on demand the first time you run tests.
+This package depends on `better-sqlite3`, which ships a native C addon. The monorepo runs Yarn with `enableScripts: false`, so the addon is **not** fetched automatically during `yarn install`. Instead, the package's `test:prepare` script (`scripts/install-binaries.sh`) downloads the matching prebuild on demand the first time you run tests, falling back to compiling the addon from source (via `node-gyp`) when no prebuild is published for your Node ABI/platform.
 
 If you switch Node versions or branches and the binding is missing, re-run:
 
