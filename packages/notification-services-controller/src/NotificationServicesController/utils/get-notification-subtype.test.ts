@@ -18,9 +18,9 @@ describe('getNotificationSubtype', () => {
     );
   });
 
-  it('falls back to the type label for platform notifications', () => {
+  it('returns the server-set notification_subtype for platform notifications', () => {
     const notification = processNotification(createMockPlatformNotification());
-    expect(getNotificationSubtype(notification)).toBe(TRIGGER_TYPES.PLATFORM);
+    expect(getNotificationSubtype(notification)).toBe('position_liquidated');
   });
 
   it('returns the snap subtype for snap notifications', () => {
