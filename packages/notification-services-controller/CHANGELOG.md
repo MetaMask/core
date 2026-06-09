@@ -24,6 +24,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Removed
 
 - **BREAKING:** Remove the nested `data["data"]` / `metadata` FCM payload parsing path; push payloads are now read from the top-level FCM fields written by push-services. ([#8944](https://github.com/MetaMask/core/pull/8944))
+
 ## [24.1.3]
 
 ### Changed
