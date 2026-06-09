@@ -26,13 +26,13 @@ const EXPECTED_BASE_URL = 'https://token.api.cx.metamask.io/tokens';
  */
 const DEFAULT_SUPPORTED_NETWORKS = {
   fullSupport: [
-    'eip155:1',     // MAINNET_CHAIN_ID    (0x1)
-    'eip155:137',   // POLYGON_CHAIN_ID    (0x89)
+    'eip155:1', // MAINNET_CHAIN_ID    (0x1)
+    'eip155:137', // POLYGON_CHAIN_ID    (0x89)
     'eip155:59144', // LINEA_MAINNET_CHAIN_ID (0xe708)
   ],
   partialSupport: [
-    'eip155:4326',  // MEGAETH_MAINNET_CHAIN_ID (0x10e6)
-    'eip155:4217',  // TEMPO_MAINNET_CHAIN_ID   (0x1079)
+    'eip155:4326', // MEGAETH_MAINNET_CHAIN_ID (0x10e6)
+    'eip155:4217', // TEMPO_MAINNET_CHAIN_ID   (0x1079)
   ],
 };
 
@@ -525,7 +525,9 @@ describe('TokensApiClient', () => {
         const calledUrls = (mockFetch.mock.calls as [string][]).map(
           ([url]) => url,
         );
-        expect(calledUrls.every((url) => url.includes('/v2/supportedNetworks'))).toBe(true);
+        expect(
+          calledUrls.every((url) => url.includes('/v2/supportedNetworks')),
+        ).toBe(true);
       });
 
       it('returns token list for a chain in fullSupport', async () => {
@@ -606,9 +608,7 @@ describe('TokensApiClient', () => {
       it('deduplicates concurrent supported-networks requests', async () => {
         // Both concurrent fetchTokenList calls should share the single
         // in-flight /v2/supportedNetworks request.
-        let resolveSupportedNetworks:
-          | ((value: Response) => void)
-          | undefined;
+        let resolveSupportedNetworks: ((value: Response) => void) | undefined;
 
         const mockFetch = jest.fn((url: string | URL) => {
           if (url.toString().includes('/v2/supportedNetworks')) {
@@ -625,7 +625,9 @@ describe('TokensApiClient', () => {
         const b = client.fetchTokenList(MAINNET_CHAIN_ID);
 
         // Resolve the one shared in-flight request.
-        resolveSupportedNetworks?.(createMockResponse(DEFAULT_SUPPORTED_NETWORKS));
+        resolveSupportedNetworks?.(
+          createMockResponse(DEFAULT_SUPPORTED_NETWORKS),
+        );
         await Promise.all([a, b]);
 
         const supportedNetworksCalls = (
