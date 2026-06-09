@@ -863,7 +863,7 @@ function deriveEIP712DomainType(
   domain: Record<string, unknown>,
 ): { name: string; type: string }[] {
   return Object.keys(DOMAIN_FIELD_MAP)
-    .filter((key) => Object.hasOwn(domain, key))
+    .filter((key) => Object.prototype.hasOwnProperty.call(domain, key))
     .map((key) => DOMAIN_FIELD_MAP[key]);
 }
 
