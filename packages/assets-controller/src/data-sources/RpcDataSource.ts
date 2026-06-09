@@ -396,29 +396,26 @@ export class RpcDataSource extends AbstractDataSource<
       const isNative =
         existingMeta?.type === 'native' ||
         balance.assetId.toLowerCase() === nativeAssetId?.toLowerCase();
-      if (isNative) {
-        // Prefer existing (richer) metadata in state — it may have been
-        // enriched by the price/info API with image, description, etc.
-        // Only emit a minimal stub when there's nothing in state yet,
-        // so we don't clobber that richer metadata on every balance refresh.
-        if (this.#hasValidDecimals(existingMeta)) {
-          assetsInfo[balance.assetId] = existingMeta;
-        } else {
-          const chainStatus = this.#chainStatuses[chainId];
-          if (chainStatus) {
-            assetsInfo[balance.assetId] = {
-              type: 'native',
-              symbol: chainStatus.nativeCurrency,
-              name: chainStatus.nativeCurrency,
-              decimals: 18,
-            };
-          }
+
+      if (isNative && !this.#hasValidDecimals(existingMeta)) {
+        // Only emit a stub when no valid metadata exists in state yet.
+        // Re-emitting existing metadata into the response would overwrite
+        // richer entries (e.g. image/description added by AccountsAPI) with
+        // a simpler stub on every balance poll cycle.
+        const chainStatus = this.#chainStatuses[chainId];
+        if (chainStatus) {
+          assetsInfo[balance.assetId] = {
+            type: 'native',
+            symbol: chainStatus.nativeCurrency,
+            name: chainStatus.nativeCurrency,
+            decimals: 18,
+          };
         }
-      } else if (existingMeta) {
-        // For ERC20 tokens, use existing metadata from state if available.
-        // Unknown ERC-20s are omitted until TokenDataSource enriches them.
-        assetsInfo[balance.assetId] = existingMeta;
       }
+      // For ERC-20 tokens and native tokens with existing valid metadata:
+      // do not re-emit — the existing state entry is already correct.
+      // Decimals for balance conversion are resolved via stateMetadata in
+      // the callers (pickValidDecimals(stateMetadata, pipelineMetadata)).
     }
 
     return assetsInfo;
@@ -1112,15 +1109,12 @@ export class RpcDataSource extends AbstractDataSource<
           if (!shouldSkipNative) {
             assetsBalance[accountId][nativeAssetId] = { amount: '0' };
           }
-          // Even on error, include native token metadata. Prefer the richer
-          // metadata already in state (e.g. enriched with image/description
-          // by the price/info API) and fall back to a minimal stub only when
-          // nothing is in state yet, so we don't clobber that richer metadata.
+          // On error, emit a stub only when no valid metadata exists in state
+          // yet. Re-emitting existing metadata would overwrite richer entries
+          // (e.g. image/description added by AccountsAPI) with a simpler stub.
           const existingNativeMeta =
             this.#getExistingAssetsMetadata()[nativeAssetId];
-          if (this.#hasValidDecimals(existingNativeMeta)) {
-            assetsInfo[nativeAssetId] = existingNativeMeta;
-          } else {
+          if (!this.#hasValidDecimals(existingNativeMeta)) {
             const chainStatus = this.#chainStatuses[chainId];
             if (chainStatus) {
               assetsInfo[nativeAssetId] = {

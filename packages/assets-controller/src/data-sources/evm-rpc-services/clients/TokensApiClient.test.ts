@@ -18,8 +18,6 @@ const TEMPO_MAINNET_CHAIN_ID = '0x1079' as ChainId;
 const UNSUPPORTED_CHAIN_ID = '0xDEF1' as ChainId;
 
 const EXPECTED_BASE_URL = 'https://token.api.cx.metamask.io/tokens';
-const SUPPORTED_NETWORKS_URL =
-  'https://token.api.cx.metamask.io/v2/supportedNetworks';
 
 /**
  * The default supported-networks payload used by `createMockFetch`.
@@ -42,20 +40,6 @@ const DEFAULT_SUPPORTED_NETWORKS = {
 // HELPERS
 // =============================================================================
 
-/**
- * Mirrors the response shape returned by `token.api.cx.metamask.io/tokens/{chainId}`,
- * matching what `TokenListController` consumes via `fetchTokenListByChainId`.
- */
-type MockApiToken = {
-  address: string;
-  symbol?: string;
-  name?: string;
-  decimals?: number;
-  occurrences?: number;
-  aggregators?: string[];
-  iconUrl?: string;
-};
-
 function createMockResponse(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   data: any,
@@ -73,6 +57,12 @@ function createMockResponse(
  * `DEFAULT_SUPPORTED_NETWORKS` and every other URL to `tokenListResponse`.
  * This mirrors production behaviour and avoids breaking existing tests that
  * only care about the token-list response.
+ *
+ * @param tokenListResponse - The mocked response for token-list requests.
+ * @param supportedNetworks - Override for the supported-networks payload.
+ * @param supportedNetworks.fullSupport - Chains with full support.
+ * @param supportedNetworks.partialSupport - Chains with partial support.
+ * @returns A Jest mock of the global `fetch` function.
  */
 function createMockFetch(
   tokenListResponse: jest.Mocked<Response>,
@@ -81,8 +71,8 @@ function createMockFetch(
     partialSupport?: string[];
   } = DEFAULT_SUPPORTED_NETWORKS,
 ): jest.MockedFunction<typeof globalThis.fetch> {
-  return jest.fn((url: RequestInfo | URL) => {
-    if (String(url).includes('/v2/supportedNetworks')) {
+  return jest.fn((url: string | URL) => {
+    if (url.toString().includes('/v2/supportedNetworks')) {
       return Promise.resolve(createMockResponse(supportedNetworks));
     }
     return Promise.resolve(tokenListResponse);
@@ -464,27 +454,21 @@ describe('TokensApiClient', () => {
         const mockFetch = createMockFetch(createMockResponse([], 404));
         const client = buildClient({ fetch: mockFetch });
 
-        await expect(
-          client.fetchTokenList(MAINNET_CHAIN_ID),
-        ).resolves.toStrictEqual([]);
+        expect(await client.fetchTokenList(MAINNET_CHAIN_ID)).toStrictEqual([]);
       });
 
       it('returns an empty array when the API returns a 500', async () => {
         const mockFetch = createMockFetch(createMockResponse([], 500));
         const client = buildClient({ fetch: mockFetch });
 
-        await expect(
-          client.fetchTokenList(MAINNET_CHAIN_ID),
-        ).resolves.toStrictEqual([]);
+        expect(await client.fetchTokenList(MAINNET_CHAIN_ID)).toStrictEqual([]);
       });
 
       it('returns an empty array when the API returns a non-2xx status', async () => {
         const mockFetch = createMockFetch(createMockResponse([], 503));
         const client = buildClient({ fetch: mockFetch });
 
-        await expect(
-          client.fetchTokenList(POLYGON_CHAIN_ID),
-        ).resolves.toStrictEqual([]);
+        expect(await client.fetchTokenList(POLYGON_CHAIN_ID)).toStrictEqual([]);
       });
 
       it('returns an empty array when fetch throws a network error', async () => {
@@ -496,9 +480,7 @@ describe('TokensApiClient', () => {
           fetch: mockFetch as unknown as typeof globalThis.fetch,
         });
 
-        await expect(
-          client.fetchTokenList(MAINNET_CHAIN_ID),
-        ).resolves.toStrictEqual([]);
+        expect(await client.fetchTokenList(MAINNET_CHAIN_ID)).toStrictEqual([]);
       });
 
       it('returns an empty array if the token-list response is not a JSON array', async () => {
@@ -579,8 +561,8 @@ describe('TokensApiClient', () => {
       });
 
       it('returns empty array when the supported-networks endpoint returns non-2xx', async () => {
-        const mockFetch = jest.fn((url: RequestInfo | URL) => {
-          if (String(url).includes('/v2/supportedNetworks')) {
+        const mockFetch = jest.fn((url: string | URL) => {
+          if (url.toString().includes('/v2/supportedNetworks')) {
             return Promise.resolve(createMockResponse({}, 503));
           }
           return Promise.resolve(createMockResponse([]));
@@ -593,8 +575,8 @@ describe('TokensApiClient', () => {
       });
 
       it('returns empty array when the supported-networks endpoint throws', async () => {
-        const mockFetch = jest.fn((url: RequestInfo | URL) => {
-          if (String(url).includes('/v2/supportedNetworks')) {
+        const mockFetch = jest.fn((url: string | URL) => {
+          if (url.toString().includes('/v2/supportedNetworks')) {
             return Promise.reject(new Error('Network error'));
           }
           return Promise.resolve(createMockResponse([]));
@@ -628,8 +610,8 @@ describe('TokensApiClient', () => {
           | ((value: Response) => void)
           | undefined;
 
-        const mockFetch = jest.fn((url: RequestInfo | URL) => {
-          if (String(url).includes('/v2/supportedNetworks')) {
+        const mockFetch = jest.fn((url: string | URL) => {
+          if (url.toString().includes('/v2/supportedNetworks')) {
             return new Promise<Response>((resolve) => {
               resolveSupportedNetworks = resolve;
             });
@@ -719,8 +701,8 @@ describe('TokensApiClient', () => {
         // The supported-networks call resolves immediately; the token-list
         // response is held pending so we can assert deduplication.
         let resolveTokenList: ((value: Response) => void) | undefined;
-        const mockFetch = jest.fn((url: RequestInfo | URL) => {
-          if (String(url).includes('/v2/supportedNetworks')) {
+        const mockFetch = jest.fn((url: string | URL) => {
+          if (url.toString().includes('/v2/supportedNetworks')) {
             return Promise.resolve(
               createMockResponse(DEFAULT_SUPPORTED_NETWORKS),
             );

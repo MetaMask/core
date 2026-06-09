@@ -224,13 +224,14 @@ export class TokensApiClient {
    * (the chain will be treated as unsupported this cycle).
    *
    * @param now - Current timestamp used to stamp the cache entry.
+   * @returns A promise that resolves once the cache has been refreshed.
    */
   async #refreshSupportedChainIds(now: number): Promise<void> {
     if (this.#supportedChainIdsRefreshPromise !== undefined) {
       return this.#supportedChainIdsRefreshPromise;
     }
 
-    this.#supportedChainIdsRefreshPromise = (async () => {
+    this.#supportedChainIdsRefreshPromise = (async (): Promise<void> => {
       try {
         const response = await this.#fetch(SUPPORTED_NETWORKS_URL);
         if (response.ok) {
