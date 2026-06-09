@@ -17,7 +17,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Add direct mUSD fiat injection flow for Money Account deposits behind `useFiatMUSDQuoteToInjectForMoneyAccount` feature flag. When enabled, probes fiat providers for mUSD on Monad availability and, if viable, purchases mUSD directly to the Money Account, skipping the ETH-to-mUSD bridge. Falls back to the existing flow when no provider supports the direct route. Also moves `fiatPayment.caipAssetId` assignment into fiat quote functions so the asset ID always matches the quote that succeeded. ([#9080](https://github.com/MetaMask/core/pull/9080))
 - Add generic signature steps to the server pay strategy ([#9051](https://github.com/MetaMask/core/pull/9051))
-  - Added types: `ServerStep`, `ServerTransactionStep`, `ServerSignatureStep`
 - Make fiat order polling interval and timeout remotely configurable via `confirmations_pay_fiat.orderPollIntervalMs` and `confirmations_pay_fiat.orderPollTimeoutMs` feature flags ([#9090](https://github.com/MetaMask/core/pull/9090))
 
 ### Changed
