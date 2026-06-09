@@ -7,6 +7,42 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `UNKNOWN` to `FeatureId` enum ([#9071](https://github.com/MetaMask/core/pull/9071))
+
+## [75.0.0]
+
+### Added
+
+- Add `QUICK_BUY_FOLLOW_TRADING`, `QUICK_BUY_TOKEN_DETAILS`, `BATCH_SELL` and `UNIFIED_SWAP_BRIDGE` to FeatureId enum ([#8964](https://github.com/MetaMask/core/pull/8964))
+- Update metrics schema with `batch_id` property ([#8964](https://github.com/MetaMask/core/pull/8964))
+- Add `ARC` network support ([#9007](https://github.com/MetaMask/core/pull/9007))
+  - Add `ARC` into constants `ALLOWED_BRIDGE_CHAIN_IDS`, `SWAPS_TOKEN_OBJECT` and `NETWORK_TO_NAME_MAP`
+
+### Changed
+
+- **BREAKING**: require all events to have the `feature_id` property ([#8964](https://github.com/MetaMask/core/pull/8964))
+- **BREAKING**: require FeatureId argument when calling `BridgeController:fetchQuotes` ([#8964](https://github.com/MetaMask/core/pull/8964))
+- Rename FeatureIds to match segment property conventions ([#8964](https://github.com/MetaMask/core/pull/8964))
+  - `quickBuy` to `quick_buy_follow_trading` and `quick_buy_token_details`
+  - `dappSwap` to `dapp_swap`
+- Bump `@metamask/accounts-controller` from `^39.0.0` to `^39.0.1` ([#9058](https://github.com/MetaMask/core/pull/9058))
+- Bump `@metamask/assets-controller` from `^8.3.2` to `^8.3.3` ([#9058](https://github.com/MetaMask/core/pull/9058))
+- Bump `@metamask/assets-controllers` from `^108.5.0` to `^108.6.0` ([#9058](https://github.com/MetaMask/core/pull/9058))
+- Bump `@metamask/controller-utils` from `^12.1.0` to `^12.1.1` ([#9058](https://github.com/MetaMask/core/pull/9058))
+- Bump `@metamask/transaction-controller` from `^67.0.0` to `^67.1.0` ([#9066](https://github.com/MetaMask/core/pull/9066))
+
+## [74.0.0]
+
+### Added
+
+- **BREAKING**: Add required `stxEnabled` parameter to `updateBatchSellTrades`, `fetchBatchSellTrades`, and `formatBatchSellTradesRequest`. The flag is sent to the obtainGaslessBatch API so the backend can estimate gas costs more precisely when Smart Transactions are enabled. ([#9036](https://github.com/MetaMask/core/pull/9036))
+
+### Changed
+
+- Bump `@metamask/transaction-controller` from `^66.0.1` to `^67.0.0` ([#9021](https://github.com/MetaMask/core/pull/9021))
+
 ## [73.2.1]
 
 ### Changed
@@ -1553,7 +1589,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#5317](https://github.com/MetaMask/core/pull/5317))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@73.2.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@75.0.0...HEAD
+[75.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@74.0.0...@metamask/bridge-controller@75.0.0
+[74.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@73.2.1...@metamask/bridge-controller@74.0.0
 [73.2.1]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@73.2.0...@metamask/bridge-controller@73.2.1
 [73.2.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@73.1.0...@metamask/bridge-controller@73.2.0
 [73.1.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@73.0.1...@metamask/bridge-controller@73.1.0
