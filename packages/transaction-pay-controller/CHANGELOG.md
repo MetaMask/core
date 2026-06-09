@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add generic signature steps to the server pay strategy ([#9051](https://github.com/MetaMask/core/pull/9051))
+  - `ServerTransactionStep` and `ServerSignatureStep` discriminated union replaces the previous flat step shape; steps array is now typed as `ServerStep[]`.
+  - Signature steps (type `'signature'`) carry EIP-712 sign parameters and a `post` descriptor (`endpoint`, `method`, `body`, `signatureFormat`); supported formats are `'queryParam'` and `'rsv'`.
+  - `submitServerQuotes` now executes a three-phase sequence per quote: off-chain signature steps → on-chain transaction steps → status polling; signature steps are signed with `quote.request.from` so account-override flows work correctly.
+  - Source token balance is validated against live RPC before on-chain submission, skipping the check for HyperLiquid source and post-quote flows.
+  - Quote refresh is now triggered when `txParams.to` or `requiredAssets` changes on a transaction, in addition to the existing `txParams.data` trigger.
 - Make fiat order polling interval and timeout remotely configurable via `confirmations_pay_fiat.orderPollIntervalMs` and `confirmations_pay_fiat.orderPollTimeoutMs` feature flags ([#9090](https://github.com/MetaMask/core/pull/9090))
 
 ### Changed
