@@ -4,10 +4,10 @@ import {
   concatBytes,
   hexToBytes,
   bytesToHex,
-  type Hex,
   getChecksumAddress,
   add0x,
 } from '@metamask/utils';
+import type { Hex } from '@metamask/utils';
 
 import { ZERO_ADDRESS } from '../../../utils/constants';
 import type {
@@ -392,8 +392,11 @@ type Reader = Parameters<Coder['decode']>[0];
 // FastAddressCoder that skips checksumming addresses when encoding and uses the memoized `getChecksumAddress` for decoding.
 class FastAddressCoder {
   name = 'address';
+
   type = 'address';
+
   dynamic = false;
+
   localName: string;
 
   constructor(localName: string) {
@@ -406,8 +409,8 @@ class FastAddressCoder {
 
   decode(reader: Reader): unknown {
     const value = reader.readValue();
-    const hex = value.toHexString().slice(2).padStart(40);
-    return getChecksumAddress(add0x(hex));
+    const paddedHex = value.toHexString().slice(2).padStart(40);
+    return getChecksumAddress(add0x(paddedHex));
   }
 
   defaultValue(): string {
@@ -444,9 +447,7 @@ function encodeFunctionData(
  * @returns The encoded call data.
  */
 function encodeBalanceOf(accountAddress: Address): Hex {
-  return encodeFunctionData(erc20Interface, 'balanceOf', [
-    accountAddress,
-  ]) as Hex;
+  return encodeFunctionData(erc20Interface, 'balanceOf', [accountAddress]);
 }
 
 /**
@@ -458,7 +459,7 @@ function encodeBalanceOf(accountAddress: Address): Hex {
 function encodeGetEthBalance(accountAddress: Address): Hex {
   return encodeFunctionData(multicall3Interface, 'getEthBalance', [
     accountAddress,
-  ]) as Hex;
+  ]);
 }
 
 /**
@@ -476,7 +477,7 @@ export function encodeAggregate3(
       allowFailure: call.allowFailure,
       callData: call.callData,
     })),
-  ]) as Hex;
+  ]);
 }
 
 /**
