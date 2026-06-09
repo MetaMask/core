@@ -18,6 +18,21 @@ function getRootMessenger(): RootMessenger<DefaultActions, DefaultEvents> {
   return new Messenger({ namespace: 'Root' });
 }
 
+/**
+ * Creates a stub client-config API service whose `fetchRemoteFeatureFlags`
+ * resolves to an empty flag set.
+ *
+ * @returns A stub client-config API service.
+ */
+function getClientConfigApiService(): { fetchRemoteFeatureFlags: jest.Mock } {
+  return {
+    fetchRemoteFeatureFlags: jest.fn().mockResolvedValue({
+      remoteFeatureFlags: {},
+      cacheTimestamp: Date.now(),
+    }),
+  };
+}
+
 describe('remoteFeatureFlagController', () => {
   it('is registered as a default initialization configuration', () => {
     // Proves the controller is part of the default ensemble that `initialize()`
@@ -35,7 +50,7 @@ describe('remoteFeatureFlagController', () => {
     const instance = remoteFeatureFlagController.init({
       state: undefined,
       messenger,
-      options: {},
+      options: { clientConfigApiService: getClientConfigApiService() },
     });
 
     expect(instance).toBeInstanceOf(RemoteFeatureFlagController);
@@ -57,27 +72,31 @@ describe('remoteFeatureFlagController', () => {
         cacheTimestamp: 12345,
       },
       messenger,
-      options: {},
+      options: { clientConfigApiService: getClientConfigApiService() },
     });
 
     expect(instance.state.remoteFeatureFlags).toStrictEqual({ testFlag: true });
   });
 
-  it('falls back to inert defaults that fetch no flags when no options are provided', async () => {
+  it('applies default getMetaMetricsId and clientVersion when omitted', async () => {
+    const clientConfigApiService = getClientConfigApiService();
     const messenger =
       remoteFeatureFlagController.getMessenger(getRootMessenger());
 
     const instance = remoteFeatureFlagController.init({
       state: undefined,
       messenger,
-      options: {},
+      options: { clientConfigApiService },
     });
 
-    // Exercises the default `clientConfigApiService` and `getMetaMetricsId`:
-    // the cache is expired (timestamp 0), so this fetches via the inert default
-    // service, which returns an empty flag set.
+    // Exercises the default `getMetaMetricsId` (`() => ''`, invoked while
+    // processing flags) and the default `clientVersion` ('0.0.0', a valid SemVer
+    // so construction does not throw).
     await instance.updateRemoteFeatureFlags();
 
+    expect(
+      clientConfigApiService.fetchRemoteFeatureFlags,
+    ).toHaveBeenCalledTimes(1);
     expect(instance.state.remoteFeatureFlags).toStrictEqual({});
   });
 
@@ -108,22 +127,21 @@ describe('remoteFeatureFlagController', () => {
   });
 
   it('does not fetch flags when initialized as disabled', async () => {
-    const fetchRemoteFeatureFlags = jest.fn();
+    const clientConfigApiService = getClientConfigApiService();
     const messenger =
       remoteFeatureFlagController.getMessenger(getRootMessenger());
 
     const instance = remoteFeatureFlagController.init({
       state: undefined,
       messenger,
-      options: {
-        clientConfigApiService: { fetchRemoteFeatureFlags },
-        disabled: true,
-      },
+      options: { clientConfigApiService, disabled: true },
     });
 
     await instance.updateRemoteFeatureFlags();
 
-    expect(fetchRemoteFeatureFlags).not.toHaveBeenCalled();
+    expect(
+      clientConfigApiService.fetchRemoteFeatureFlags,
+    ).not.toHaveBeenCalled();
   });
 
   it('invalidates the cache when prevClientVersion differs from clientVersion', () => {
@@ -136,7 +154,11 @@ describe('remoteFeatureFlagController', () => {
         cacheTimestamp: Date.now(),
       },
       messenger,
-      options: { clientVersion: '2.0.0', prevClientVersion: '1.0.0' },
+      options: {
+        clientConfigApiService: getClientConfigApiService(),
+        clientVersion: '2.0.0',
+        prevClientVersion: '1.0.0',
+      },
     });
 
     // A version change resets the cache timestamp to 0 so the next update
@@ -157,25 +179,14 @@ describe('remoteFeatureFlagController', () => {
       // Same version: invalidation must be conditional, so the timestamp is
       // preserved (this proves both versions are forwarded to the right slots,
       // not that the controller always zeroes the cache).
-      options: { clientVersion: '2.0.0', prevClientVersion: '2.0.0' },
+      options: {
+        clientConfigApiService: getClientConfigApiService(),
+        clientVersion: '2.0.0',
+        prevClientVersion: '2.0.0',
+      },
     });
 
     expect(instance.state.cacheTimestamp).toBe(5000);
-  });
-
-  it('does not throw with the default clientVersion', () => {
-    const messenger =
-      remoteFeatureFlagController.getMessenger(getRootMessenger());
-
-    // The default '0.0.0' is a valid SemVer; the controller throws on invalid
-    // versions, so this proves a headless consumer can construct it.
-    expect(() =>
-      remoteFeatureFlagController.init({
-        state: undefined,
-        messenger,
-        options: {},
-      }),
-    ).not.toThrow();
   });
 
   it('surfaces the controller throw on an invalid clientVersion', () => {
@@ -186,33 +197,32 @@ describe('remoteFeatureFlagController', () => {
       remoteFeatureFlagController.init({
         state: undefined,
         messenger,
-        options: { clientVersion: 'not-semver' },
+        options: {
+          clientConfigApiService: getClientConfigApiService(),
+          clientVersion: 'not-semver',
+        },
       }),
     ).toThrow('Invalid clientVersion');
   });
 
   it('forwards a custom fetchInterval to the controller', async () => {
-    const fetchRemoteFeatureFlags = jest.fn().mockResolvedValue({
-      remoteFeatureFlags: {},
-      cacheTimestamp: Date.now(),
-    });
+    const clientConfigApiService = getClientConfigApiService();
     const messenger =
       remoteFeatureFlagController.getMessenger(getRootMessenger());
 
     const instance = remoteFeatureFlagController.init({
-      // A non-expired cache (recent timestamp) combined with a very large
-      // fetchInterval means the cache is considered fresh, so no fetch happens.
+      // A recent cache timestamp combined with a large fetchInterval keeps the
+      // cache fresh, so no fetch happens.
       state: { remoteFeatureFlags: {}, cacheTimestamp: Date.now() },
       messenger,
-      options: {
-        clientConfigApiService: { fetchRemoteFeatureFlags },
-        fetchInterval: 60 * 60 * 1000,
-      },
+      options: { clientConfigApiService, fetchInterval: 60 * 60 * 1000 },
     });
 
     await instance.updateRemoteFeatureFlags();
 
-    expect(fetchRemoteFeatureFlags).not.toHaveBeenCalled();
+    expect(
+      clientConfigApiService.fetchRemoteFeatureFlags,
+    ).not.toHaveBeenCalled();
   });
 
   it('exposes its state through the root messenger', () => {
@@ -222,7 +232,7 @@ describe('remoteFeatureFlagController', () => {
     remoteFeatureFlagController.init({
       state: undefined,
       messenger,
-      options: {},
+      options: { clientConfigApiService: getClientConfigApiService() },
     });
 
     expect(

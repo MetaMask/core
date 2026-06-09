@@ -13,6 +13,17 @@ import { Wallet } from './Wallet';
 const TEST_SRP = 'test test test test test test test test test test test ball';
 const TEST_PASSWORD = 'testpass';
 
+// `clientConfigApiService` is a required `remoteFeatureFlagController` option;
+// this stub fetches no flags, for constructions that don't exercise it.
+const REMOTE_FEATURE_FLAG_OPTIONS = {
+  clientConfigApiService: {
+    fetchRemoteFeatureFlags: async (): Promise<{
+      remoteFeatureFlags: Record<string, boolean>;
+      cacheTimestamp: number;
+    }> => ({ remoteFeatureFlags: {}, cacheTimestamp: Date.now() }),
+  },
+};
+
 async function setupWallet(): Promise<Wallet> {
   const wallet = new Wallet({
     instanceOptions: {
@@ -22,6 +33,7 @@ async function setupWallet(): Promise<Wallet> {
       storageService: {
         storage: new InMemoryStorageAdapter(),
       },
+      remoteFeatureFlagController: REMOTE_FEATURE_FLAG_OPTIONS,
     },
   });
 
@@ -81,6 +93,7 @@ describe('Wallet', () => {
         storageService: {
           storage: new InMemoryStorageAdapter(),
         },
+        remoteFeatureFlagController: REMOTE_FEATURE_FLAG_OPTIONS,
       },
     });
 
@@ -126,6 +139,7 @@ describe('Wallet', () => {
         storageService: {
           storage: new InMemoryStorageAdapter(),
         },
+        remoteFeatureFlagController: REMOTE_FEATURE_FLAG_OPTIONS,
       },
     });
     const { state } = wallet;
@@ -275,6 +289,7 @@ describe('Wallet', () => {
           storageService: {
             storage: new InMemoryStorageAdapter(),
           },
+          remoteFeatureFlagController: REMOTE_FEATURE_FLAG_OPTIONS,
         },
       });
 
@@ -341,10 +356,6 @@ describe('Wallet', () => {
     });
 
     it('routes injected instanceOptions through to the controller', async () => {
-      // Proves the end-to-end path: the camelCased `remoteFeatureFlagController`
-      // option key reaches `initialize` -> `init` -> the controller. An injected
-      // service returns a known flag, which then appears in state fetched over
-      // the shared messenger.
       const wallet = new Wallet({
         instanceOptions: {
           keyringController: { encryptor: new MockEncryptor() },

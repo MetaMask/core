@@ -26,6 +26,6 @@ export type InstanceSpecificOptions = {
   approvalController?: ApprovalControllerInstanceOptions;
   connectivityController: ConnectivityControllerInstanceOptions;
   keyringController?: KeyringControllerInstanceOptions;
-  remoteFeatureFlagController?: RemoteFeatureFlagControllerInstanceOptions;
+  remoteFeatureFlagController: RemoteFeatureFlagControllerInstanceOptions;
   storageService: StorageServiceInstanceOptions;
 };
