@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.3]
+
 ## [0.5.2]
 
 ### Changed
@@ -130,7 +132,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `generateMessageForClaimSignature`: generate message to sign for the claim signature.
   - `verifyClaimSignature`: verify claim signature produced by user.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/claims-controller@0.5.2...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/claims-controller@0.5.3...HEAD
+[0.5.3]: https://github.com/MetaMask/core/compare/@metamask/claims-controller@0.5.2...@metamask/claims-controller@0.5.3
 [0.5.2]: https://github.com/MetaMask/core/compare/@metamask/claims-controller@0.5.1...@metamask/claims-controller@0.5.2
 [0.5.1]: https://github.com/MetaMask/core/compare/@metamask/claims-controller@0.5.0...@metamask/claims-controller@0.5.1
 [0.5.0]: https://github.com/MetaMask/core/compare/@metamask/claims-controller@0.4.3...@metamask/claims-controller@0.5.0

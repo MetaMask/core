@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.0.4]
+
 ## [2.0.3]
 
 ### Changed
@@ -100,7 +102,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Add `MoneyAccountUpgradeController` with `upgradeAccount` method ([#8426](https://github.com/MetaMask/core/pull/8426))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/money-account-upgrade-controller@2.0.3...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/money-account-upgrade-controller@2.0.4...HEAD
+[2.0.4]: https://github.com/MetaMask/core/compare/@metamask/money-account-upgrade-controller@2.0.3...@metamask/money-account-upgrade-controller@2.0.4
 [2.0.3]: https://github.com/MetaMask/core/compare/@metamask/money-account-upgrade-controller@2.0.2...@metamask/money-account-upgrade-controller@2.0.3
 [2.0.2]: https://github.com/MetaMask/core/compare/@metamask/money-account-upgrade-controller@2.0.1...@metamask/money-account-upgrade-controller@2.0.2
 [2.0.1]: https://github.com/MetaMask/core/compare/@metamask/money-account-upgrade-controller@2.0.0...@metamask/money-account-upgrade-controller@2.0.1

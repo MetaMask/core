@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [23.3.1]
+
 ### Changed
 
 - Bump `@metamask/bridge-controller` from `^73.2.1` to `^74.0.0` ([#9045](https://github.com/MetaMask/core/pull/9045))
@@ -1005,7 +1007,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#6820](https://github.com/MetaMask/core/pull/6820))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@23.3.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@23.3.1...HEAD
+[23.3.1]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@23.3.0...@metamask/transaction-pay-controller@23.3.1
 [23.3.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@23.2.0...@metamask/transaction-pay-controller@23.3.0
 [23.2.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@23.1.0...@metamask/transaction-pay-controller@23.2.0
 [23.1.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@23.0.0...@metamask/transaction-pay-controller@23.1.0

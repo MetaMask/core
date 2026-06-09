@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [9.0.2]
+
 ### Uncategorized
 
 - chore: Enable Oxfmt for generating method action types files ([#8498](https://github.com/MetaMask/core/pull/8498))
@@ -338,7 +340,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/approval-controller@9.0.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/approval-controller@9.0.2...HEAD
+[9.0.2]: https://github.com/MetaMask/core/compare/@metamask/approval-controller@9.0.1...@metamask/approval-controller@9.0.2
 [9.0.1]: https://github.com/MetaMask/core/compare/@metamask/approval-controller@9.0.0...@metamask/approval-controller@9.0.1
 [9.0.0]: https://github.com/MetaMask/core/compare/@metamask/approval-controller@8.0.0...@metamask/approval-controller@9.0.0
 [8.0.0]: https://github.com/MetaMask/core/compare/@metamask/approval-controller@7.2.1...@metamask/approval-controller@8.0.0

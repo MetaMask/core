@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.0.0]
+
 ### Uncategorized
 
 - refactor(wallet): migrate keyring + storage instances to directory convention ([#8977](https://github.com/MetaMask/core/pull/8977))
@@ -38,7 +40,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#8838](https://github.com/MetaMask/core/pull/8838))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/wallet@2.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/wallet@3.0.0...HEAD
+[3.0.0]: https://github.com/MetaMask/core/compare/@metamask/wallet@2.0.0...@metamask/wallet@3.0.0
 [2.0.0]: https://github.com/MetaMask/core/compare/@metamask/wallet@1.0.1...@metamask/wallet@2.0.0
 [1.0.1]: https://github.com/MetaMask/core/compare/@metamask/wallet@1.0.0...@metamask/wallet@1.0.1
 [1.0.0]: https://github.com/MetaMask/core/releases/tag/@metamask/wallet@1.0.0
