@@ -427,6 +427,7 @@ describe('properties', () => {
         {
           "best_quote_provider": "bridge2_bridge2",
           "can_submit": false,
+          "feature_id": "unified_swap_bridge",
           "gas_included": false,
           "gas_included_7702": false,
           "price_impact": 0,

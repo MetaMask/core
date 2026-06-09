@@ -29,7 +29,7 @@ import {
   DEFAULT_BRIDGE_CONTROLLER_STATE,
   ETH_USDT_ADDRESS,
 } from './constants/bridge';
-import { ChainId, RequestStatus } from './types';
+import { ChainId, RequestStatus, FeatureId } from './types';
 import type { BridgeControllerMessenger, QuoteResponse, TxData } from './types';
 import * as balanceUtils from './utils/balance';
 import { formatChainIdToDec } from './utils/caip-formatters';
@@ -81,6 +81,7 @@ const quoteRequest = {
   resetApproval: false,
 };
 const metricsContext = {
+  feature_id: FeatureId.UNIFIED_SWAP_BRIDGE,
   token_symbol_source: 'ETH',
   token_symbol_destination: 'USDC',
   usd_amount_source: 100,
@@ -285,6 +286,7 @@ describe('BridgeController SSE', function () {
             },
           ],
           expect.any(AbortSignal),
+          FeatureId.UNIFIED_SWAP_BRIDGE,
           BridgeClientId.EXTENSION,
           'AUTH_TOKEN',
           BRIDGE_PROD_API_BASE_URL,
@@ -321,6 +323,7 @@ describe('BridgeController SSE', function () {
             ...quote,
             l1GasFeesInHexWei: '0x1',
             resetApproval: undefined,
+            featureId: FeatureId.UNIFIED_SWAP_BRIDGE,
           })),
           quotesRefreshCount: 1,
           quotesLoadingStatus: 1,
@@ -450,6 +453,7 @@ describe('BridgeController SSE', function () {
               },
             ],
             expect.any(AbortSignal),
+            FeatureId.UNIFIED_SWAP_BRIDGE,
             BridgeClientId.EXTENSION,
             'AUTH_TOKEN',
             BRIDGE_PROD_API_BASE_URL,
@@ -488,6 +492,7 @@ describe('BridgeController SSE', function () {
             ],
             quotes: mockUSDTQuoteResponse.map((quote) => ({
               ...quote,
+              featureId: FeatureId.UNIFIED_SWAP_BRIDGE,
               resetApproval: tradeData
                 ? {
                     ...quote.approval,
@@ -609,6 +614,7 @@ describe('BridgeController SSE', function () {
             },
           ],
           expect.any(AbortSignal),
+          FeatureId.UNIFIED_SWAP_BRIDGE,
           BridgeClientId.EXTENSION,
           'AUTH_TOKEN',
           BRIDGE_PROD_API_BASE_URL,
@@ -645,6 +651,7 @@ describe('BridgeController SSE', function () {
           ],
           quotes: mockUSDTQuoteResponse.map((quote) => ({
             ...quote,
+            featureId: FeatureId.UNIFIED_SWAP_BRIDGE,
             resetApproval: {
               ...quote.approval,
               data: '0x095ea7b30000000000000000000000000439e60f02a8900a951603950d8d4527f400c3f10000000000000000000000000000000000000000000000000000000000000000',
@@ -701,6 +708,7 @@ describe('BridgeController SSE', function () {
             ...quote,
             l1GasFeesInHexWei: '0x1',
             resetApproval: undefined,
+            featureId: FeatureId.UNIFIED_SWAP_BRIDGE,
           })),
         );
         const t1 = bridgeController.state.quotesLastFetched;
@@ -724,6 +732,7 @@ describe('BridgeController SSE', function () {
           quotes: [mockBridgeQuotesNativeErc20Eth[0]].map((quote) => ({
             ...quote,
             resetApproval: undefined,
+            featureId: FeatureId.UNIFIED_SWAP_BRIDGE,
           })),
           quotesLoadingStatus: RequestStatus.LOADING,
           quotesRefreshCount: 1,
@@ -750,6 +759,7 @@ describe('BridgeController SSE', function () {
           quotes: mockBridgeQuotesNativeErc20Eth.map((quote) => ({
             ...quote,
             resetApproval: undefined,
+            featureId: FeatureId.UNIFIED_SWAP_BRIDGE,
           })),
           quotesLastFetched: t2,
           quotesRefreshCount: 2,
@@ -819,6 +829,7 @@ describe('BridgeController SSE', function () {
           mockBridgeQuotesNativeErc20Eth.map((quote) => ({
             ...quote,
             resetApproval: undefined,
+            featureId: FeatureId.UNIFIED_SWAP_BRIDGE,
           })),
         );
         const t2 = bridgeController.state.quotesLastFetched;
@@ -958,6 +969,7 @@ describe('BridgeController SSE', function () {
             security_warnings: [],
             usd_amount_source: 100,
             token_security_type_destination: null,
+            feature_id: FeatureId.UNIFIED_SWAP_BRIDGE,
           },
         );
         // Right after state update, before fetch has started
@@ -989,6 +1001,7 @@ describe('BridgeController SSE', function () {
               ...mockBridgeQuotesNativeErc20[0],
               l1GasFeesInHexWei: '0x1',
               resetApproval: undefined,
+              featureId: FeatureId.UNIFIED_SWAP_BRIDGE,
             },
           ],
           quotesRefreshCount: 0,
@@ -1026,6 +1039,7 @@ describe('BridgeController SSE', function () {
             ...quote,
             l1GasFeesInHexWei: '0x1',
             resetApproval: undefined,
+            featureId: FeatureId.UNIFIED_SWAP_BRIDGE,
           })),
           assetExchangeRates,
         });
@@ -1142,6 +1156,7 @@ describe('BridgeController SSE', function () {
             security_warnings: [],
             usd_amount_source: 100,
             token_security_type_destination: 'test',
+            feature_id: FeatureId.UNIFIED_SWAP_BRIDGE,
           },
         );
 
@@ -1168,6 +1183,7 @@ describe('BridgeController SSE', function () {
           [...mockBridgeQuotesNativeErc20, ...mockBridgeQuotesNativeErc20].map(
             (quote) => ({
               ...quote,
+              featureId: FeatureId.UNIFIED_SWAP_BRIDGE,
               l1GasFeesInHexWei: '0x1',
               resetApproval: undefined,
             }),
@@ -1198,6 +1214,7 @@ describe('BridgeController SSE', function () {
           quotes: [mockBridgeQuotesNativeErc20Eth[0]].map((quote) => ({
             ...quote,
             resetApproval: undefined,
+            featureId: FeatureId.UNIFIED_SWAP_BRIDGE,
           })),
           quotesRefreshCount: 1,
           quoteFetchError: null,
@@ -1344,6 +1361,7 @@ describe('BridgeController SSE', function () {
             },
           ],
           expect.any(AbortSignal),
+          FeatureId.UNIFIED_SWAP_BRIDGE,
           BridgeClientId.EXTENSION,
           'AUTH_TOKEN',
           BRIDGE_PROD_API_BASE_URL,

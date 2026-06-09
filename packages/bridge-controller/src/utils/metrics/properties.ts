@@ -9,6 +9,7 @@ import type {
   QuoteResponse,
   TxData,
 } from '../../types';
+import { FeatureId } from '../../types';
 import { getNativeAssetForChainId, isCrossChain } from '../bridge';
 import {
   formatAddressToAssetId,
@@ -182,5 +183,6 @@ export const getQuotesReceivedProperties = (
     ...(hasSufficientGasForQuote !== undefined && {
       has_sufficient_gas_for_quote: hasSufficientGasForQuote,
     }),
+    feature_id: activeQuote?.featureId ?? FeatureId.UNIFIED_SWAP_BRIDGE,
   };
 };
