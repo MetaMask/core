@@ -16,8 +16,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- `AssetsController` no longer wipes balances on chains a `'full'` update doesn't cover, fixing tokens disappearing on unlock and network switch. Previously a `'full'` response (e.g. from `AccountsApiDataSource` subscription polls) replaced an account's entire balance map across all chains, clearing tokens on chains the source doesn't serve (custom/RPC-only chains) or that came back `unprocessed`. `'full'` replacement is now scoped to `fullReplaceChainIds`, and user custom assets are always preserved
-- `AccountsApiDataSource` now scopes its `'full'` responses to the chains it processed (excluding `unprocessedNetworks`) via `fullReplaceChainIds`, so the controller never clears balances on chains it didn't fetch
+- `AssetsController` no longer wipes balances on chains a `'full'` update doesn't cover, fixing tokens disappearing on unlock and network switch. Previously a `'full'` response (e.g. from `AccountsApiDataSource` subscription polls) replaced an account's entire balance map across all chains, clearing tokens on chains the source doesn't serve (custom/RPC-only chains) or that came back `unprocessed`. `'full'` replacement is now scoped to `fullReplaceChainIds`, and user custom assets are always preserved ([#9062](https://github.com/MetaMask/core/pull/9062))
+  - `AccountsApiDataSource` now sets `fullReplaceChainIds` to processed chains (excluding `unprocessedNetworks`) so `'full'` updates never clear balances on unfetched chains
 
 ## [8.3.2]
 
