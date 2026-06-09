@@ -101,7 +101,7 @@ function normalizePerpsWithdrawRequest(request: QuoteRequest): QuoteRequest {
     sourceChainId: CHAIN_ID_HYPERCORE,
     sourceTokenAddress: SERVER_HYPERCORE_USDC_PERPS_ADDRESS,
     sourceTokenAmount: new BigNumber(request.sourceTokenAmount)
-      .shiftedBy(HYPERCORE_USDC_DECIMALS - USDC_DECIMALS)
+      .shiftedBy(USDC_DECIMALS - HYPERCORE_USDC_DECIMALS)
       .toFixed(0),
   };
 }
