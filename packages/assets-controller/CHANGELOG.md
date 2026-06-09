@@ -7,12 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [8.3.3]
-
 ### Changed
 
 - **BREAKING:** `DataResponse.updateMode` (`AssetsUpdateMode`) changed from `'merge' | 'full'` to `{ type: 'merge' } | { type: 'full'; fullReplaceChainIds: ChainId[] }`. `'full'` now replaces balances only for listed chains. Update all `updateMode` reads/writes to the object form ([#9062](https://github.com/MetaMask/core/pull/9062))
   - `mergeDataResponses` preserves `'full'` updates by unioning `fullReplaceChainIds` during merges.
+
+### Fixed
+
+- `AssetsController` no longer wipes balances on chains a `'full'` update doesn't cover, fixing tokens disappearing on unlock and network switch. Previously a `'full'` response (e.g. from `AccountsApiDataSource` subscription polls) replaced an account's entire balance map across all chains, clearing tokens on chains the source doesn't serve (custom/RPC-only chains) or that came back `unprocessed`. `'full'` replacement is now scoped to `fullReplaceChainIds`, and user custom assets are always preserved ([#9062](https://github.com/MetaMask/core/pull/9062))
+- `AccountsApiDataSource` now sets `fullReplaceChainIds` to processed chains (excluding `unprocessedNetworks`) so `'full'` updates never clear balances on unfetched chains ([#9062](https://github.com/MetaMask/core/pull/9062))
+
+## [8.3.3]
+
+### Changed
+
 - Bump `@metamask/network-enablement-controller` from `^5.2.0` to `^5.3.0` ([#9003](https://github.com/MetaMask/core/pull/9003))
 - Bump `@metamask/transaction-controller` from `^66.0.1` to `^67.0.0` ([#9021](https://github.com/MetaMask/core/pull/9021))
 - Bump `@metamask/account-tree-controller` from `^7.5.1` to `^7.5.2` ([#9058](https://github.com/MetaMask/core/pull/9058))
@@ -21,11 +29,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/controller-utils` from `^12.1.0` to `^12.1.1` ([#9058](https://github.com/MetaMask/core/pull/9058))
 - Bump `@metamask/core-backend` from `^6.3.2` to `^6.3.3` ([#9058](https://github.com/MetaMask/core/pull/9058))
 - Bump `@metamask/keyring-controller` from `^26.0.0` to `^27.0.0` ([#9058](https://github.com/MetaMask/core/pull/9058))
-
-### Fixed
-
-- `AssetsController` no longer wipes balances on chains a `'full'` update doesn't cover, fixing tokens disappearing on unlock and network switch. Previously a `'full'` response (e.g. from `AccountsApiDataSource` subscription polls) replaced an account's entire balance map across all chains, clearing tokens on chains the source doesn't serve (custom/RPC-only chains) or that came back `unprocessed`. `'full'` replacement is now scoped to `fullReplaceChainIds`, and user custom assets are always preserved ([#9062](https://github.com/MetaMask/core/pull/9062))
-  - `AccountsApiDataSource` now sets `fullReplaceChainIds` to processed chains (excluding `unprocessedNetworks`) so `'full'` updates never clear balances on unfetched chains
 
 ## [8.3.2]
 
