@@ -107,10 +107,6 @@ jobs:
           permissions: |
             contents: write
             pull_requests: write
-      - name: Checkout repository
-        uses: actions/checkout@v6
-        with:
-          persist-credentials: false
       - name: React to the comment
         run: |
           gh api \
