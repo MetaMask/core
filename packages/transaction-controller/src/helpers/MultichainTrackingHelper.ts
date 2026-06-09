@@ -44,6 +44,7 @@ export type MultichainTrackingHelperOptions = {
       ...payload: NetworkControllerStateChangeEvent['payload']
     ) => void,
   ) => void;
+  onInitialized: () => void;
 };
 
 export class MultichainTrackingHelper {
@@ -90,6 +91,7 @@ export class MultichainTrackingHelper {
     createNonceTracker,
     createPendingTransactionTracker,
     onNetworkStateChange,
+    onInitialized,
   }: MultichainTrackingHelperOptions) {
     this.#findNetworkClientIdByChainId = findNetworkClientIdByChainId;
     this.#getNetworkClientById = getNetworkClientById;
@@ -117,10 +119,10 @@ export class MultichainTrackingHelper {
       this.#refreshTrackingMap(networkClients);
     });
 
-    this.#waitForNetworkController();
+    this.#waitForNetworkController(onInitialized);
   }
 
-  #waitForNetworkController(): void {
+  #waitForNetworkController(onInitialized: () => void): void {
     log('Waiting for NetworkController to be available');
 
     this.#initInterval = setInterval(() => {
@@ -131,6 +133,7 @@ export class MultichainTrackingHelper {
         this.#refreshTrackingMap(networkClients);
         this.#initialized = true;
         log('Initialized');
+        onInitialized();
       } catch {
         log('NetworkController not yet available, retrying');
       }

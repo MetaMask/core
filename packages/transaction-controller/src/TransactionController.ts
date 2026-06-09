@@ -844,6 +844,9 @@ export class TransactionController extends BaseController<
       onNetworkStateChange: (listener): void => {
         this.messenger.subscribe('NetworkController:stateChange', listener);
       },
+      onInitialized: (): void => {
+        this.#checkForPendingTransactionAndStartPolling();
+      },
     });
 
     this.#gasFeeFlows = this.#getGasFeeFlows();

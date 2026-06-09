@@ -209,6 +209,7 @@ function newMultichainTrackingHelper(
     createNonceTracker: mockCreateNonceTracker,
     createPendingTransactionTracker: mockCreatePendingTransactionTracker,
     onNetworkStateChange: jest.fn(),
+    onInitialized: jest.fn(),
     ...opts,
   };
 
