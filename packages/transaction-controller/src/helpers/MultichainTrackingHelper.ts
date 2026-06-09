@@ -125,16 +125,28 @@ export class MultichainTrackingHelper {
   #waitForNetworkController(onInitialized: () => void): void {
     log('Waiting for NetworkController to be available');
 
-    this.#initInterval = setInterval(() => {
+    const tryInit = (): boolean => {
       try {
         const networkClients = this.#getNetworkClientRegistry();
-        clearInterval(this.#initInterval);
-        this.#initInterval = undefined;
         this.#refreshTrackingMap(networkClients);
         this.#initialized = true;
         log('Initialized');
         onInitialized();
+        return true;
       } catch {
+        return false;
+      }
+    };
+
+    if (tryInit()) {
+      return;
+    }
+
+    this.#initInterval = setInterval(() => {
+      if (tryInit()) {
+        clearInterval(this.#initInterval);
+        this.#initInterval = undefined;
+      } else {
         log('NetworkController not yet available, retrying');
       }
     }, 10);

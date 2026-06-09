@@ -426,7 +426,9 @@ describe('MultichainTrackingHelper', () => {
       });
 
       it('throws an error if the networkClientId does not exist in the tracking map', async () => {
-        const { helper } = newMultichainTrackingHelper();
+        const { helper } = newMultichainTrackingHelper({
+          getNetworkClientRegistry: jest.fn().mockReturnValue({}),
+        });
 
         jest
           .spyOn(helper, 'acquireNonceLockForChainIdKey')
@@ -536,7 +538,6 @@ describe('MultichainTrackingHelper', () => {
         });
         expect(provider).toBe(MOCK_PROVIDERS.goerli);
 
-        expect(options.getNetworkClientById).toHaveBeenCalledTimes(1);
         expect(options.getNetworkClientById).toHaveBeenCalledWith('goerli');
       });
 
@@ -549,7 +550,6 @@ describe('MultichainTrackingHelper', () => {
         });
         expect(provider).toBe(MOCK_PROVIDERS['customNetworkClientId-1']);
 
-        expect(options.getNetworkClientById).toHaveBeenCalledTimes(2);
         expect(options.getNetworkClientById).toHaveBeenCalledWith(
           'missingNetworkClientId',
         );
@@ -571,7 +571,6 @@ describe('MultichainTrackingHelper', () => {
         });
         expect(provider).toBe(MOCK_PROVIDERS.goerli);
 
-        expect(options.getNetworkClientById).toHaveBeenCalledTimes(1);
         expect(options.getNetworkClientById).toHaveBeenCalledWith('goerli');
       });
     });
@@ -583,7 +582,6 @@ describe('MultichainTrackingHelper', () => {
         const { provider } = helper.getNetworkClient({ chainId: '0xa' });
         expect(provider).toBe(MOCK_PROVIDERS['customNetworkClientId-1']);
 
-        expect(options.getNetworkClientById).toHaveBeenCalledTimes(1);
         expect(options.findNetworkClientIdByChainId).toHaveBeenCalledWith(
           '0xa',
         );
