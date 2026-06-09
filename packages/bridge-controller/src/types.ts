@@ -35,7 +35,6 @@ import type {
   BridgeAssetSchema,
   ChainConfigurationSchema,
   ChainRankingSchema,
-  FeatureId,
   FeeDataSchema,
   IntentSchema,
   PlatformConfigSchema,
@@ -259,6 +258,15 @@ export enum StatusTypes {
   COMPLETE = 'COMPLETE',
 }
 
+export enum FeatureId {
+  PERPS = 'perps',
+  QUICK_BUY_FOLLOW_TRADING = 'quick_buy_follow_trading',
+  QUICK_BUY_TOKEN_DETAILS = 'quick_buy_token_details',
+  DAPP_SWAP = 'dapp_swap',
+  BATCH_SELL = 'batch_sell',
+  UNIFIED_SWAP_BRIDGE = 'unified_swap_bridge',
+}
+
 /**
  * These are types that components pass in. Since data is a mix of types when coming from the redux store, we need to use a generic type that can cover all the types.
  * Payloads with this type are transformed into QuoteRequest by fetchBridgeQuotes right before fetching quotes
@@ -348,6 +356,7 @@ export enum ChainId {
   MONAD = 143,
   HYPEREVM = 999,
   MEGAETH = 4326,
+  ARC = 5042,
 }
 
 export type FeatureFlagsPlatformConfig = Infer<typeof PlatformConfigSchema>;

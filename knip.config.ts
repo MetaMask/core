@@ -1,0 +1,231 @@
+import type { KnipConfig } from 'knip';
+
+const config: KnipConfig = {
+  workspaces: {
+    '.': {
+      entry: [
+        'scripts/**/*.{ts,js,sh}',
+        'tests/**/*.ts',
+        '*.config.{js,cjs,mjs,ts}',
+        '.prettierrc.js',
+      ],
+      project: ['scripts/**/*.ts', 'tests/**/*.ts', '*.{js,cjs,mjs,ts}'],
+      ignore: ['scripts/create-package/package-template/**'],
+      // The `preset: 'ts-jest'` shorthand expands to `ts-jest/jest-preset`,
+      // which knip can't resolve to an actual file even though `ts-jest` is
+      // listed in `devDependencies`.
+      ignoreUnresolved: ['ts-jest/jest-preset'],
+    },
+    'packages/perps-controller': {
+      // The mobile client provides `core/Engine`; tests mock it via a
+      // relative path that doesn't resolve inside this monorepo.
+      ignoreUnresolved: [/^\.\.\/\.\.\/\.\.\/core\/Engine$/u],
+    },
+
+    // -- Per-workspace `ignoreDependencies` snapshots --
+    //
+    // The entries below were captured when knip's scope expanded from "root
+    // only" to the whole monorepo. Each one is a real signal — either a
+    // missing direct dep (relying on transitive resolution), a dead dep, or a
+    // knip blind spot — and should be re-evaluated by the owning team. Drop
+    // an entry once you've either fixed the issue or confirmed it's a
+    // permanent false positive worth recording.
+    'packages/account-tree-controller': {
+      ignoreDependencies: ['@metamask/keyring-internal-api', 'lodash'],
+    },
+    'packages/analytics-data-regulation-controller': {
+      ignoreDependencies: ['cockatiel'],
+    },
+    'packages/assets-controller': {
+      ignoreDependencies: ['@metamask/snaps-sdk'],
+    },
+    'packages/assets-controllers': {
+      ignoreDependencies: [
+        '@metamask/multichain-account-service',
+        'bitcoin-address-validation',
+      ],
+    },
+    'packages/base-controller': {
+      ignoreDependencies: ['@metamask/json-rpc-engine'],
+    },
+    'packages/bridge-controller': {
+      ignoreDependencies: [
+        '@metamask/eth-json-rpc-provider',
+        '@metamask/keyring-internal-api',
+      ],
+    },
+    'packages/bridge-status-controller': {
+      ignoreDependencies: ['@metamask/gas-fee-controller', 'lodash', 'nock'],
+    },
+    'packages/compliance-controller': {
+      ignoreDependencies: ['cockatiel'],
+    },
+    'packages/config-registry-controller': {
+      ignoreDependencies: ['cockatiel'],
+    },
+    'packages/core-backend': {
+      ignoreDependencies: ['@metamask/keyring-internal-api'],
+    },
+    'packages/earn-controller': {
+      ignoreDependencies: ['@metamask/keyring-internal-api'],
+    },
+    'packages/eip-5792-middleware': {
+      ignoreDependencies: ['@metamask/keyring-internal-api'],
+    },
+    'packages/eip-7702-internal-rpc-middleware': {
+      ignoreDependencies: ['@metamask/controller-utils'],
+    },
+    'packages/eip1193-permission-middleware': {
+      ignoreDependencies: ['@metamask/rpc-errors'],
+    },
+    'packages/ens-controller': {
+      ignoreDependencies: ['punycode'],
+    },
+    'packages/eth-json-rpc-middleware': {
+      ignoreDependencies: ['@metamask/network-controller', 'pify', 'tsd'],
+    },
+    'packages/foundryup': {
+      // `anvil` and `sysctl` are external system binaries, not npm packages.
+      ignoreBinaries: ['anvil', 'sysctl'],
+      ignoreDependencies: ['yargs-parser'],
+    },
+    'packages/gas-fee-controller': {
+      ignoreDependencies: ['@metamask/ethjs-unit', 'jest-when'],
+    },
+    'packages/geolocation-controller': {
+      ignoreDependencies: ['cockatiel'],
+    },
+    'packages/logging-controller': {
+      ignoreDependencies: ['@metamask/controller-utils'],
+    },
+    'packages/message-manager': {
+      ignoreDependencies: ['@metamask/eth-sig-util', 'immer', 'jsonschema'],
+    },
+    'packages/messenger-cli': {
+      ignoreDependencies: ['eslint'],
+    },
+    'packages/multichain-account-service': {
+      ignoreDependencies: [
+        '@metamask/base-controller',
+        '@metamask/superstruct',
+        'lodash',
+      ],
+    },
+    'packages/multichain-network-controller': {
+      ignoreDependencies: ['@solana/addresses', 'immer', 'nock'],
+    },
+    'packages/multichain-transactions-controller': {
+      ignoreDependencies: ['@metamask/polling-controller'],
+    },
+    'packages/network-controller': {
+      ignoreDependencies: ['async-mutex'],
+    },
+    'packages/phishing-controller': {
+      ignoreDependencies: ['immer', 'punycode'],
+    },
+    'packages/polling-controller': {
+      ignoreDependencies: ['@metamask/controller-utils'],
+    },
+    'packages/profile-metrics-controller': {
+      ignoreDependencies: ['cockatiel'],
+    },
+    'packages/profile-sync-controller': {
+      ignoreDependencies: [
+        '@metamask/keyring-api',
+        '@metamask/keyring-internal-api',
+        '@metamask/snaps-utils',
+        'immer',
+        'loglevel',
+      ],
+    },
+    'packages/ramps-controller': {
+      ignoreDependencies: ['immer'],
+    },
+    'packages/remote-feature-flag-controller': {
+      ignoreDependencies: ['cockatiel', 'nock'],
+    },
+    'packages/selected-network-controller': {
+      ignoreDependencies: ['immer', 'lodash', 'nock'],
+    },
+    'packages/signature-controller': {
+      ignoreDependencies: ['lodash'],
+    },
+    'packages/snap-account-service': {
+      ignoreDependencies: [
+        '@metamask/account-tree-controller',
+        '@metamask/snaps-utils',
+      ],
+    },
+    'packages/subscription-controller': {
+      ignoreDependencies: ['@metamask/controller-utils'],
+    },
+    'packages/transaction-controller': {
+      ignoreDependencies: ['@ethereumjs/util', 'nock'],
+    },
+    'packages/transaction-pay-controller': {
+      ignoreDependencies: [
+        '@ethersproject/contracts',
+        '@ethersproject/providers',
+        'bn.js',
+      ],
+    },
+    'packages/user-operation-controller': {
+      ignoreDependencies: ['immer'],
+    },
+    'packages/wallet-framework-docs': {
+      ignoreDependencies: [
+        '@docusaurus/plugin-content-docs',
+        '@docusaurus/preset-classic',
+        '@docusaurus/theme-common',
+        '@docusaurus/types',
+        '@easyops-cn/docusaurus-search-local',
+        'prism-react-renderer',
+        'raw-loader',
+      ],
+    },
+  },
+  ignoreDependencies: [
+    // -- Dependencies used implicitly by the tooling stack --
+
+    // Used by Yarn binaries vendored under `.yarn/`.
+    /^@yarnpkg\//u,
+    'clipanion',
+    'typanion',
+    // Implicitly imported by TypeScript via triple-slash references or
+    // ambient module declarations.
+    /^@types\//u,
+    // CLI tools we invoke as binaries via shell wrappers or root scripts;
+    // knip can't always trace shell invocations or `yarn <bin>` shims.
+    '@lavamoat/allow-scripts',
+    '@lavamoat/preinstall-always-fail',
+    '@metamask/auto-changelog',
+    '@metamask/create-release-branch',
+    'eslint-interactive',
+    'rimraf',
+    'simple-git-hooks',
+    'ts-node',
+    'typedoc',
+    // ESLint plugins / configs / parsers loaded by name via the eslint config.
+    /^@typescript-eslint\//u,
+    /^eslint-config-/u,
+    /^eslint-plugin-/u,
+    'eslint-import-resolver-typescript',
+    'jest-silent-reporter',
+    'prettier-plugin-packagejson',
+    'typescript-eslint',
+    // Jest test environments referenced as strings in jest configs.
+    'jest-environment-node',
+    'jest-environment-jsdom',
+    // Only `client-controller` actually loads `typedoc-plugin-missing-exports`
+    // via its `typedoc.json`; the other packages declare it as a devDep but
+    // never use it. Cleanup is a per-package follow-up.
+    'typedoc-plugin-missing-exports',
+    // Pulled in by jest setup files / mocks; many consumer packages list
+    // these as devDeps "just in case". Real cleanup is a per-package
+    // follow-up.
+    '@metamask/providers',
+    'webextension-polyfill',
+  ],
+};
+
+export default config;

@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.0.4]
+
+### Changed
+
+- Bump `@metamask/delegation-controller` from `^3.0.1` to `^3.0.2` ([#9058](https://github.com/MetaMask/core/pull/9058))
+- Bump `@metamask/keyring-controller` from `^26.0.0` to `^27.0.0` ([#9058](https://github.com/MetaMask/core/pull/9058))
+
 ## [2.0.3]
 
 ### Changed
@@ -100,7 +107,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Add `MoneyAccountUpgradeController` with `upgradeAccount` method ([#8426](https://github.com/MetaMask/core/pull/8426))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/money-account-upgrade-controller@2.0.3...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/money-account-upgrade-controller@2.0.4...HEAD
+[2.0.4]: https://github.com/MetaMask/core/compare/@metamask/money-account-upgrade-controller@2.0.3...@metamask/money-account-upgrade-controller@2.0.4
 [2.0.3]: https://github.com/MetaMask/core/compare/@metamask/money-account-upgrade-controller@2.0.2...@metamask/money-account-upgrade-controller@2.0.3
 [2.0.2]: https://github.com/MetaMask/core/compare/@metamask/money-account-upgrade-controller@2.0.1...@metamask/money-account-upgrade-controller@2.0.2
 [2.0.1]: https://github.com/MetaMask/core/compare/@metamask/money-account-upgrade-controller@2.0.0...@metamask/money-account-upgrade-controller@2.0.1

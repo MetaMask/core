@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/naming-convention */
 import type { CaipAssetType, CaipChainId } from '@metamask/utils';
 
-import type { SortOrder, StatusTypes } from '../../types';
+import type { FeatureId, SortOrder, StatusTypes } from '../../types';
 import type {
   UnifiedSwapBridgeEventName,
   MetaMetricsSwapsEventSource,
@@ -20,6 +20,13 @@ export type RequestParams = {
   token_symbol_destination: string | null;
   token_address_source: CaipAssetType;
   token_address_destination: CaipAssetType | null;
+  /**
+   * Client-supplied security classification for the destination token
+   * (e.g. from token security/scanning data). Stored on the controller
+   * and merged into every analytics event that includes
+   * `token_address_destination`. Pass `null` when no security data is
+   * available for the selected destination token.
+   */
   token_security_type_destination: string | null;
 };
 
@@ -133,6 +140,7 @@ type RequiredEventContextFromClientBase = {
   > & {
     token_symbol_source: RequestParams['token_symbol_source'];
     token_symbol_destination: RequestParams['token_symbol_destination'];
+    token_security_type_destination: RequestParams['token_security_type_destination'];
   };
   [UnifiedSwapBridgeEventName.QuotesReceived]: TradeData & {
     warnings: QuoteWarning[];
@@ -164,6 +172,7 @@ type RequiredEventContextFromClientBase = {
       | 'token_security_type_destination'
     > & {
       action_type: MetricsActionType;
+      batch_id?: string;
     };
   [UnifiedSwapBridgeEventName.Completed]: TradeData &
     Pick<QuoteFetchData, 'price_impact'> &
@@ -176,18 +185,17 @@ type RequiredEventContextFromClientBase = {
       quote_vs_execution_ratio: number;
       quoted_vs_used_gas_ratio: number;
       action_type: MetricsActionType;
+      batch_id?: string;
     };
-  [UnifiedSwapBridgeEventName.Failed]:
+  [UnifiedSwapBridgeEventName.Failed]: (
     | // Tx failed before confirmation
-      (TradeData &
-        Pick<QuoteFetchData, 'price_impact'> &
-        Pick<
-          RequestMetadata,
-          | 'stx_enabled'
-          | 'usd_amount_source'
-          | 'is_hardware_wallet'
-          | 'account_hardware_type'
-        > &
+      (Pick<
+        RequestMetadata,
+        | 'stx_enabled'
+        | 'usd_amount_source'
+        | 'is_hardware_wallet'
+        | 'account_hardware_type'
+      > &
         Pick<
           RequestParams,
           | 'token_symbol_source'
@@ -195,15 +203,27 @@ type RequiredEventContextFromClientBase = {
           | 'token_address_source'
           | 'token_address_destination'
           | 'token_security_type_destination'
-        > & { error_message: string }) // Tx failed after confirmation
+        >)
+    // Tx failed after confirmation
     | (RequestParams &
         RequestMetadata &
-        Pick<QuoteFetchData, 'price_impact'> &
-        TxStatusData &
-        TradeData & {
+        TxStatusData & {
           actual_time_minutes: number;
-          error_message?: string;
-        });
+        })
+  ) &
+    TradeData &
+    Pick<QuoteFetchData, 'price_impact'> & {
+      error_message: string;
+      batch_id?: string;
+    };
+  [UnifiedSwapBridgeEventName.PollingStatusUpdated]: {
+    polling_status: PollingStatus;
+    retry_attempts: number;
+  };
+  [UnifiedSwapBridgeEventName.StatusValidationFailed]: {
+    failures: string[];
+    refresh_count: number;
+  };
   // Emitted by clients
   [UnifiedSwapBridgeEventName.AllQuotesOpened]: Pick<
     TradeData,
@@ -241,27 +261,9 @@ type RequiredEventContextFromClientBase = {
   [UnifiedSwapBridgeEventName.QuotesValidationFailed]: {
     failures: string[];
   };
-  [UnifiedSwapBridgeEventName.StatusValidationFailed]: {
-    failures: string[];
-    refresh_count: number;
-  };
   [UnifiedSwapBridgeEventName.AssetPickerOpened]: {
     asset_location: 'source' | 'destination';
   };
-  [UnifiedSwapBridgeEventName.PollingStatusUpdated]: TradeData &
-    Pick<QuoteFetchData, 'price_impact'> &
-    Omit<RequestMetadata, 'security_warnings'> &
-    Pick<
-      RequestParams,
-      | 'token_symbol_source'
-      | 'token_symbol_destination'
-      | 'chain_id_source'
-      | 'chain_id_destination'
-    > & {
-      action_type: MetricsActionType;
-      polling_status: PollingStatus;
-      retry_attempts: number;
-    };
 };
 
 /**
@@ -278,6 +280,7 @@ export type RequiredEventContextFromClient = {
     location?: MetaMetricsSwapsEventSource;
     ab_tests?: Record<string, string>;
     active_ab_tests?: { key: string; value: string }[];
+    feature_id: FeatureId;
   };
 };
 
@@ -338,7 +341,18 @@ export type EventPropertiesFromControllerState = {
   };
   [UnifiedSwapBridgeEventName.StatusValidationFailed]: RequestParams;
   [UnifiedSwapBridgeEventName.AssetPickerOpened]: null;
-  [UnifiedSwapBridgeEventName.PollingStatusUpdated]: null;
+  [UnifiedSwapBridgeEventName.PollingStatusUpdated]: TradeData &
+    Pick<QuoteFetchData, 'price_impact'> &
+    Omit<RequestMetadata, 'security_warnings'> &
+    Pick<
+      RequestParams,
+      | 'token_symbol_source'
+      | 'token_symbol_destination'
+      | 'chain_id_source'
+      | 'chain_id_destination'
+    > & {
+      batch_id?: string;
+    };
 };
 
 /**
@@ -352,6 +366,7 @@ export type CrossChainSwapsEventProperties<
   T extends UnifiedSwapBridgeEventName,
 > =
   | {
+      feature_id: FeatureId;
       action_type: MetricsActionType;
       location: MetaMetricsSwapsEventSource;
       ab_tests?: Record<string, string>;
