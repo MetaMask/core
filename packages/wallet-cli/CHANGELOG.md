@@ -9,6 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Initial package scaffold for `@metamask/wallet-cli`, an [oclif](https://oclif.io)-based `mm` CLI for `@metamask/wallet`.
+- Initial package scaffold for `@metamask/wallet-cli`, an [oclif](https://oclif.io)-based `mm` CLI for `@metamask/wallet` ([#9065](https://github.com/MetaMask/core/pull/9065)).
 
 [Unreleased]: https://github.com/MetaMask/core/
