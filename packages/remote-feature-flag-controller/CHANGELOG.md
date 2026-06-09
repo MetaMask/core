@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `RemoteFeatureFlagController:getFeatureFlags` messenger action that returns feature flags with local overrides merged on top of remote flags ([#9053](https://github.com/MetaMask/core/pull/9053))
+
 ## [4.2.2]
 
 ### Changed
