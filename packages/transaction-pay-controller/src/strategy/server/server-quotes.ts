@@ -436,11 +436,6 @@ async function calculateSourceNetworkCost({
     return noFees;
   }
 
-  if (steps.length === 0) {
-    log('No quote steps; zeroing source network fees');
-    return noFees;
-  }
-
   const { from, sourceChainId, sourceTokenAddress } = quoteRequest;
   const firstStep = steps[0];
   const chainIdHex = toHex(firstStep.chainId);
