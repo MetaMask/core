@@ -421,7 +421,8 @@ class FastAddressCoder {
 class FastAbiCoder extends AbiCoder {
   _getCoder(param: ParamType): Coder {
     if (param.type === 'address') {
-      return new FastAddressCoder(param.name);
+      // Casting since we are missing internal unused methods, such _throwError.
+      return new FastAddressCoder(param.name) as unknown as Coder;
     }
     return super._getCoder(param);
   }
