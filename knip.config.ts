@@ -84,9 +84,6 @@ const config: KnipConfig = {
     'packages/eth-json-rpc-middleware': {
       ignoreDependencies: ['@metamask/network-controller', 'pify', 'tsd'],
     },
-    'packages/eth-json-rpc-provider': {
-      ignoreDependencies: ['jest-it-up'],
-    },
     'packages/foundryup': {
       // `anvil` and `sysctl` are external system binaries, not npm packages.
       ignoreBinaries: ['anvil', 'sysctl'],
@@ -97,12 +94,6 @@ const config: KnipConfig = {
     },
     'packages/geolocation-controller': {
       ignoreDependencies: ['cockatiel'],
-    },
-    'packages/json-rpc-engine': {
-      ignoreDependencies: ['jest-it-up'],
-    },
-    'packages/json-rpc-middleware-stream': {
-      ignoreDependencies: ['jest-it-up'],
     },
     'packages/logging-controller': {
       ignoreDependencies: ['@metamask/controller-utils'],
