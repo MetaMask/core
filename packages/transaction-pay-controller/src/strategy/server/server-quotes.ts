@@ -296,7 +296,7 @@ async function processMoneyAccountPostQuote(
     ...overrideCalls.map((call) => ({
       data: call.data as Hex,
       to: call.to as Hex,
-      value: (call.value ?? '0x0'),
+      value: call.value ?? '0x0',
     })),
   ];
 
