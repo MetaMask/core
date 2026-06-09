@@ -762,7 +762,7 @@ describe('server-quotes', () => {
     beforeEach(() => {
       getControllerStateMock.mockReturnValue({
         transactionData: {
-          [TRANSACTION_META_MOCK.id as string]: {
+          [TRANSACTION_META_MOCK.id]: {
             tokens: [{ amountHuman: '1.5' }],
           },
         },

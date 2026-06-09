@@ -673,7 +673,7 @@ describe('submitServerQuotes', () => {
   });
 
   describe('signature steps', () => {
-    const SIGNATURE_MOCK = '0x' + 'a'.repeat(64) + 'b'.repeat(64) + '1c';
+    const SIGNATURE_MOCK = `0x${'a'.repeat(64)}${'b'.repeat(64)}1c`;
     const SIGNATURE_STEP_MOCK: ServerSignatureStep = {
       type: 'signature' as const,
       id: 'sig-step-1',
@@ -761,7 +761,7 @@ describe('submitServerQuotes', () => {
 
     it('throws when rsv POST response status is not ok', async () => {
       successfulFetchMock.mockResolvedValue({
-        json: jest.fn().mockResolvedValue({ status: 'error', msg: 'rejected' }),
+        json: jest.fn().mockResolvedValue({ status: 'error', message: 'rejected' }),
       } as never);
 
       const rsvStep: ServerSignatureStep = {
