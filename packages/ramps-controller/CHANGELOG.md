@@ -13,7 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- No longer send an `Authorization` bearer token header for `RampsService.getPaymentMethods`; payment methods are now fetched as an unauthenticated request so the endpoint can be called before sign-in without triggering a login ([#XXXX](https://github.com/MetaMask/core/pull/XXXX))
+- No longer send an `Authorization` bearer token header for `RampsService.getPaymentMethods`; payment methods are now fetched as an unauthenticated request so the endpoint can be called before sign-in without triggering a login ([#9060](https://github.com/MetaMask/core/pull/9060))
 
 ## [14.1.1]
 
