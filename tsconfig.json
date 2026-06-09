@@ -253,5 +253,5 @@
     }
   ],
   "files": [],
-  "include": ["./docs", "./types", "./scripts"]
+  "include": ["./docs", "./types", "./scripts", "./knip.config.ts"]
 }
