@@ -9,15 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [108.6.0]
 
-### Uncategorized
-
-- refactor(network-controller)!: Remove `initializeProvider` in favor of `init` ([#9034](https://github.com/MetaMask/core/pull/9034))
-- Release 1022.0.0 ([#9027](https://github.com/MetaMask/core/pull/9027))
-- Revert "Release 1022.0.0" ([#9025](https://github.com/MetaMask/core/pull/9025))
-- feat: add isDeprecated option to TokenRatesController ([#9022](https://github.com/MetaMask/core/pull/9022))
-- Revert "Release 1023.0.0" ([#9018](https://github.com/MetaMask/core/pull/9018))
-- Release 1023.0.0 ([#9017](https://github.com/MetaMask/core/pull/9017))
-
 ### Added
 
 - Add `isDeprecated` option to `TokenRatesController` constructor ([#9033](https://github.com/MetaMask/core/pull/9033))
