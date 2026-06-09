@@ -1,4 +1,8 @@
-import { ORIGIN_METAMASK, successfulFetch, toHex } from '@metamask/controller-utils';
+import {
+  ORIGIN_METAMASK,
+  successfulFetch,
+  toHex,
+} from '@metamask/controller-utils';
 import { SignTypedDataVersion } from '@metamask/keyring-controller';
 import type {
   TransactionMeta,
@@ -187,7 +191,12 @@ async function submitTransactionSteps(
   if (quote.original.gasless) {
     await submitViaServerExecute(quote, allParams, messenger, transaction);
   } else {
-    await submitViaTransactionController(quote, allParams, messenger, transaction);
+    await submitViaTransactionController(
+      quote,
+      allParams,
+      messenger,
+      transaction,
+    );
   }
 }
 
@@ -217,11 +226,25 @@ async function buildTransactionParams(
   const originalType = getEffectiveTransactionType(transaction);
 
   const relayParams = transactionSteps.map((step, i) =>
-    transactionStepToParams(step, i, transactionSteps.length, from, gasLimits, maxFeePerGas, maxPriorityFeePerGas, originalType),
+    transactionStepToParams(
+      step,
+      i,
+      transactionSteps.length,
+      from,
+      gasLimits,
+      maxFeePerGas,
+      maxPriorityFeePerGas,
+      originalType,
+    ),
   );
 
   if (paymentOverride) {
-    return prependPaymentOverrideParams(relayParams, quote, transaction, messenger);
+    return prependPaymentOverrideParams(
+      relayParams,
+      quote,
+      transaction,
+      messenger,
+    );
   }
 
   if (isPostQuote && transaction.txParams.to) {
@@ -325,9 +348,7 @@ function getTransactionType(
     return depositType;
   }
 
-  return index === 0
-    ? ('tokenMethodApprove' as TransactionType)
-    : depositType;
+  return index === 0 ? ('tokenMethodApprove' as TransactionType) : depositType;
 }
 
 /**
@@ -819,9 +840,7 @@ async function postSignatureStepResult(
 
     result = await response.json();
   } catch (error) {
-    throw new Error(
-      `Signature step POST failed: ${(error as Error).message}`,
-    );
+    throw new Error(`Signature step POST failed: ${(error as Error).message}`);
   }
 
   log('Signature step POST response', result);

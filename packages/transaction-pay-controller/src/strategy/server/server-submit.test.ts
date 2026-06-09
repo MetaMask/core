@@ -1,11 +1,11 @@
+import { successfulFetch } from '@metamask/controller-utils';
 import { TransactionStatus } from '@metamask/transaction-controller';
 import type { TransactionMeta } from '@metamask/transaction-controller';
-import { successfulFetch } from '@metamask/controller-utils';
 import type { Hex } from '@metamask/utils';
 import { cloneDeep } from 'lodash';
 
-import { getMessengerMock } from '../../tests/messenger-mock';
 import { PaymentOverride } from '../../constants';
+import { getMessengerMock } from '../../tests/messenger-mock';
 import type {
   PayStrategyExecuteRequest,
   TransactionPayQuote,
@@ -777,9 +777,9 @@ describe('submitServerQuotes', () => {
     it('throws when signature POST fails', async () => {
       successfulFetchMock.mockRejectedValue(new Error('network error'));
 
-      await expect(
-        submitServerQuotes(buildSignatureRequest()),
-      ).rejects.toThrow('Signature step POST failed: network error');
+      await expect(submitServerQuotes(buildSignatureRequest())).rejects.toThrow(
+        'Signature step POST failed: network error',
+      );
     });
 
     it('no-ops transaction phase when gasless quote has only signature steps', async () => {
@@ -848,12 +848,12 @@ describe('submitServerQuotes', () => {
     };
 
     beforeEach(() => {
-      jest.mocked(collectTransactionIds).mockImplementation(
-        (_chainId, _from, _messenger, onTransactionId) => {
+      jest
+        .mocked(collectTransactionIds)
+        .mockImplementation((_chainId, _from, _messenger, onTransactionId) => {
           onTransactionId('submitted-tx-id');
           return { end: jest.fn() };
-        },
-      );
+        });
       jest.mocked(getTransaction).mockReturnValue({
         hash: '0xsubmitted' as Hex,
       } as TransactionMeta);
@@ -912,7 +912,9 @@ describe('submitServerQuotes', () => {
       expect(addTxBatchMock).toHaveBeenCalledWith(
         expect.objectContaining({
           transactions: expect.arrayContaining([
-            expect.objectContaining({ params: expect.objectContaining({ to: overrideCall.to }) }),
+            expect.objectContaining({
+              params: expect.objectContaining({ to: overrideCall.to }),
+            }),
           ]),
         }),
       );
@@ -992,7 +994,12 @@ describe('submitServerQuotes', () => {
         accountSupports7702: true,
         isSmartTransaction: (): boolean => false,
         messenger,
-        quotes: [{ ...cloneDeep(QUOTE_MOCK), original: { ...ORIGINAL_QUOTE_MOCK, gasless: false } }],
+        quotes: [
+          {
+            ...cloneDeep(QUOTE_MOCK),
+            original: { ...ORIGINAL_QUOTE_MOCK, gasless: false },
+          },
+        ],
         transaction: batchTransaction,
       };
 
