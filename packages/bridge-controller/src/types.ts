@@ -356,6 +356,7 @@ export enum ChainId {
   MONAD = 143,
   HYPEREVM = 999,
   MEGAETH = 4326,
+  ARC = 5042,
 }
 
 export type FeatureFlagsPlatformConfig = Infer<typeof PlatformConfigSchema>;
