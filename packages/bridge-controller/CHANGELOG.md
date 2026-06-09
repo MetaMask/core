@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [75.0.0]
+
 ### Added
 
 - Add `QUICK_BUY_FOLLOW_TRADING`, `QUICK_BUY_TOKEN_DETAILS`, `BATCH_SELL` and `UNIFIED_SWAP_BRIDGE` to FeatureId enum ([#8964](https://github.com/MetaMask/core/pull/8964))
@@ -1582,7 +1584,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#5317](https://github.com/MetaMask/core/pull/5317))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@74.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@75.0.0...HEAD
+[75.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@74.0.0...@metamask/bridge-controller@75.0.0
 [74.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@73.2.1...@metamask/bridge-controller@74.0.0
 [73.2.1]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@73.2.0...@metamask/bridge-controller@73.2.1
 [73.2.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@73.1.0...@metamask/bridge-controller@73.2.0
