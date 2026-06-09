@@ -9,11 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [67.1.0]
 
-### Uncategorized
-
-- feat(perps): pre-ipo classification ([#9038](https://github.com/MetaMask/core/pull/9038))
-- refactor(network-controller)!: Remove `initializeProvider` in favor of `init` ([#9034](https://github.com/MetaMask/core/pull/9034))
-
 ### Changed
 
 - Export `generateBatchId` utility ([#8964](https://github.com/MetaMask/core/pull/8964))
@@ -2479,7 +2474,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Initial release
+
   - As a result of converting our shared controllers repo into a monorepo ([#831](https://github.com/MetaMask/core/pull/831)), we've created this package from select parts of [`@metamask/controllers` v33.0.0](https://github.com/MetaMask/core/tree/v33.0.0), namely:
+
     - Everything in `src/transaction`
     - Transaction-related functions from `src/util.ts` and accompanying tests
 
