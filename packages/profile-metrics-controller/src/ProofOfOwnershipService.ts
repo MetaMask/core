@@ -4,7 +4,11 @@ import type { Messenger } from '@metamask/messenger';
 import type { SnapControllerHandleRequestAction } from '@metamask/snaps-controllers';
 import type { SnapId } from '@metamask/snaps-sdk';
 import { HandlerType } from '@metamask/snaps-utils';
-import { string, type as structType } from '@metamask/superstruct';
+import {
+  assert as assertStruct,
+  string,
+  type as structType,
+} from '@metamask/superstruct';
 import { KnownCaipNamespace, parseCaipChainId } from '@metamask/utils';
 import { v4 as uuid } from 'uuid';
 
@@ -84,15 +88,22 @@ function buildProofMessage(nonce: string, canonicalAddress: string): string {
  *
  * @param account - The internal account to inspect.
  * @returns The namespace portion of the first scope.
- * @throws {ProofUnsupportedNamespaceError} if the account has no scopes.
+ * @throws {ProofUnsupportedNamespaceError} if the account has no scopes,
+ * or if its first scope does not parse as a CAIP-2 chain ID.
  */
 function getAccountNamespace(account: InternalAccount): string {
   const [firstScope] = account.scopes;
   if (!firstScope) {
     throw new ProofUnsupportedNamespaceError('<no scope>');
   }
-  // `parseCaipChainId` validates the `<namespace>:<reference>` shape.
-  return parseCaipChainId(firstScope).namespace;
+  try {
+    // `parseCaipChainId` validates the `<namespace>:<reference>` shape; it
+    // throws on malformed input. We funnel that into the same error type as
+    // an unknown namespace so callers only have one failure mode to handle.
+    return parseCaipChainId(firstScope).namespace;
+  } catch {
+    throw new ProofUnsupportedNamespaceError(firstScope);
+  }
 }
 
 // === MESSENGER ===
@@ -273,9 +284,12 @@ export class ProofOfOwnershipService {
       },
     );
 
-    if (!SnapSignProofResponseStruct.is(response)) {
+    try {
+      assertStruct(response, SnapSignProofResponseStruct);
+    } catch (error) {
+      const detail = error instanceof Error ? `: ${error.message}` : '';
       throw new Error(
-        `ProofOfOwnershipService: snap '${snapId}' returned a malformed response to '${SNAP_SIGN_PROOF_OF_OWNERSHIP_METHOD}'.`,
+        `ProofOfOwnershipService: snap '${snapId}' returned a malformed response to '${SNAP_SIGN_PROOF_OF_OWNERSHIP_METHOD}'${detail}`,
       );
     }
 

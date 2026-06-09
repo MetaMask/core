@@ -230,7 +230,10 @@ describe('ProofOfOwnershipService', () => {
           nonce: 'n',
         }),
       ).rejects.toThrow(
-        `ProofOfOwnershipService: snap 'npm:@metamask/test-wallet-snap' returned a malformed response to '${SNAP_SIGN_PROOF_OF_OWNERSHIP_METHOD}'.`,
+        new RegExp(
+          `ProofOfOwnershipService: snap 'npm:@metamask/test-wallet-snap' returned a malformed response to '${SNAP_SIGN_PROOF_OF_OWNERSHIP_METHOD}':.*signature`,
+          'u',
+        ),
       );
     });
 
@@ -312,6 +315,20 @@ describe('ProofOfOwnershipService', () => {
     it('throws ProofUnsupportedNamespaceError when the account has no scopes', async () => {
       const { rootMessenger } = getService();
       const account = createMockAccount({ scopes: [] });
+
+      await expect(
+        rootMessenger.call('ProofOfOwnershipService:sign', {
+          account,
+          nonce: 'n',
+        }),
+      ).rejects.toThrow(ProofUnsupportedNamespaceError);
+    });
+
+    it('throws ProofUnsupportedNamespaceError when the first scope is not a parseable CAIP-2 chain ID', async () => {
+      const { rootMessenger } = getService();
+      const account = createMockAccount({
+        scopes: ['not-a-caip-chain-id' as `${string}:${string}`],
+      });
 
       await expect(
         rootMessenger.call('ProofOfOwnershipService:sign', {
