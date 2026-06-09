@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **BREAKING:** `exportSeedPhrase` and `exportAccount` now take `Credentials` (`{ password }` | `{ encryptionKey, encryptionSalt? }`) instead of a bare password string ([#8996](https://github.com/MetaMask/core/pull/8996))
+
 ### Fixed
 
 - Automatically remove and destroy non-primary keyrings whose last account is removed during a `withKeyring` or `withKeyringV2` callback ([#8951](https://github.com/MetaMask/core/pull/8951))
