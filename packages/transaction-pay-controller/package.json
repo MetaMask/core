@@ -62,7 +62,7 @@
     "@metamask/base-controller": "^9.1.0",
     "@metamask/bridge-controller": "^74.0.0",
     "@metamask/bridge-status-controller": "^72.0.3",
-    "@metamask/controller-utils": "^12.2.0",
+    "@metamask/controller-utils": "^12.1.1",
     "@metamask/gas-fee-controller": "^26.2.2",
     "@metamask/keyring-controller": "^27.0.0",
     "@metamask/messenger": "^1.2.0",

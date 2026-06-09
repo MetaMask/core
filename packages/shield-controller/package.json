@@ -54,7 +54,7 @@
   },
   "dependencies": {
     "@metamask/base-controller": "^9.1.0",
-    "@metamask/controller-utils": "^12.2.0",
+    "@metamask/controller-utils": "^12.1.1",
     "@metamask/messenger": "^1.2.0",
     "@metamask/signature-controller": "^39.2.5",
     "@metamask/transaction-controller": "^67.0.0",
