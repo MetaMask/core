@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Added Tempo (`0x1079`) to `POPULAR_NETWORKS`, so that `enableAllPopularNetworks()` enables it alongside the other popular networks and keeps the controller in sync with the client's popular networks list ([#XXXX](https://github.com/MetaMask/core/pull/XXXX))
+- Added Tempo (`0x1079`) to `POPULAR_NETWORKS`, so that `enableAllPopularNetworks()` enables it alongside the other popular networks and keeps the controller in sync with the client's popular networks list ([#9069](https://github.com/MetaMask/core/pull/9069))
 
 ## [5.3.0]
 
