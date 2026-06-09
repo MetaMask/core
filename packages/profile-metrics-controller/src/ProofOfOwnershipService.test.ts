@@ -230,10 +230,7 @@ describe('ProofOfOwnershipService', () => {
           nonce: 'n',
         }),
       ).rejects.toThrow(
-        new RegExp(
-          `ProofOfOwnershipService: snap 'npm:@metamask/test-wallet-snap' returned a malformed response to '${SNAP_SIGN_PROOF_OF_OWNERSHIP_METHOD}':.*signature`,
-          'u',
-        ),
+        `ProofOfOwnershipService: snap 'npm:@metamask/test-wallet-snap' returned a malformed response to '${SNAP_SIGN_PROOF_OF_OWNERSHIP_METHOD}'.`,
       );
     });
 

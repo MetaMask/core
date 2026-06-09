@@ -4,16 +4,8 @@ import type { Messenger } from '@metamask/messenger';
 import type { SnapControllerHandleRequestAction } from '@metamask/snaps-controllers';
 import type { SnapId } from '@metamask/snaps-sdk';
 import { HandlerType } from '@metamask/snaps-utils';
-import {
-  assert as assertStruct,
-  string,
-  type as structType,
-} from '@metamask/superstruct';
-import {
-  getErrorMessage,
-  KnownCaipNamespace,
-  parseCaipChainId,
-} from '@metamask/utils';
+import { string, type as structType } from '@metamask/superstruct';
+import { KnownCaipNamespace, parseCaipChainId } from '@metamask/utils';
 import { v4 as uuid } from 'uuid';
 
 import type { AccountOwnershipProof } from './ProfileMetricsService';
@@ -288,11 +280,12 @@ export class ProofOfOwnershipService {
       },
     );
 
-    try {
-      assertStruct(response, SnapSignProofResponseStruct);
-    } catch (error) {
+    if (!SnapSignProofResponseStruct.is(response)) {
+      // Intentionally generic — a malformed snap response may still carry
+      // a partial signature, and we don't want fragments of secret material
+      // landing in error logs.
       throw new Error(
-        `ProofOfOwnershipService: snap '${snapId}' returned a malformed response to '${SNAP_SIGN_PROOF_OF_OWNERSHIP_METHOD}': ${getErrorMessage(error)}`,
+        `ProofOfOwnershipService: snap '${snapId}' returned a malformed response to '${SNAP_SIGN_PROOF_OF_OWNERSHIP_METHOD}'.`,
       );
     }
 
