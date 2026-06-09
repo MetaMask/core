@@ -325,10 +325,9 @@ export class AccountsApiDataSource extends AbstractDataSource<
       );
 
       // Handle unprocessed networks - these will be passed to next middleware
+      const unprocessedChainIds =
+        apiResponse.unprocessedNetworks.map(caipChainIdToChainId);
       if (apiResponse.unprocessedNetworks.length > 0) {
-        const unprocessedChainIds =
-          apiResponse.unprocessedNetworks.map(caipChainIdToChainId);
-
         // Add unprocessed chains to errors so middleware passes them to next data source
         response.errors = response.errors ?? {};
         for (const chainId of unprocessedChainIds) {
@@ -342,7 +341,13 @@ export class AccountsApiDataSource extends AbstractDataSource<
       );
 
       response.assetsBalance = assetsBalance;
-      response.updateMode = 'full';
+      const unprocessedChainsSet = new Set(unprocessedChainIds);
+      response.updateMode = {
+        type: 'full',
+        fullReplaceChainIds: chainsToFetch.filter(
+          (chainId) => !unprocessedChainsSet.has(chainId),
+        ),
+      };
     } catch (error) {
       log('Fetch FAILED', { error, chains: chainsToFetch });
 

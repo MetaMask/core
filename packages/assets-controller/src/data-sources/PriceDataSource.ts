@@ -495,7 +495,7 @@ export class PriceDataSource {
         ) {
           await subscription.onAssetsUpdate({
             ...fetchResponse,
-            updateMode: 'merge',
+            updateMode: { type: 'merge' },
           });
         }
       } catch (error) {

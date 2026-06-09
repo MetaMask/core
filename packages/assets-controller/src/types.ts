@@ -368,20 +368,29 @@ export type DataResponse = {
   detectedAssets?: Record<AccountId, Caip19AssetId[]>;
   /**
    * How to apply this response to state. See {@link AssetsUpdateMode}.
-   * Defaults to `'merge'` if omitted.
+   * Defaults to `{ type: 'merge' }` if omitted.
    */
   updateMode?: AssetsUpdateMode;
 };
 
 /**
- * Type of {@link DataResponse.updateMode}: how the controller applies the response to state.
+ * How the controller applies a {@link DataResponse} to state.
  *
- * - **full**: Response is the full set for the scope. Assets in state but not in the
- *   response are cleared (except custom assets). Use for initial fetch or full refresh.
- * - **merge**: Only assets present in the response are updated; nothing is removed.
- *   Use for event-driven or incremental updates.
+ * - **merge**: Only assets present in the response are updated; nothing is
+ *   removed. Use for event-driven or incremental updates.
+ * - **full**: The response is authoritative for `fullReplaceChainIds`. On those
+ *   chains, assets in state but not in the response are cleared (except custom
+ *   assets); balances on every other chain are preserved. A source that only
+ *   covers a subset of chains (e.g. the Accounts API, which does not serve
+ *   custom/RPC-only chains) MUST list exactly the chains it fetched so its
+ *   response can never wipe balances on chains it never served.
+ *
+ * Modeled as a discriminated union so the authoritative chain list can only be
+ * expressed in `'full'` mode.
  */
-export type AssetsUpdateMode = 'full' | 'merge';
+export type AssetsUpdateMode =
+  | { type: 'merge' }
+  | { type: 'full'; fullReplaceChainIds: ChainId[] };
 
 // ============================================================================
 // DATA SOURCE <-> CONTROLLER (DIRECT CALLS, NO MESSENGER PER SOURCE)

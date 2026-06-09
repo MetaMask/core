@@ -59,11 +59,20 @@ export function mergeDataResponses(responses: DataResponse[]): DataResponse {
         ...response.detectedAssets,
       };
     }
-    if (response.updateMode === 'full') {
-      merged.updateMode = 'full';
+    if (response.updateMode?.type === 'full') {
+      const existing =
+        merged.updateMode?.type === 'full'
+          ? merged.updateMode.fullReplaceChainIds
+          : [];
+      const dedupedChains = new Set<ChainId>([
+        ...existing,
+        ...response.updateMode.fullReplaceChainIds,
+      ]);
+      const fullReplaceChainIds = [...dedupedChains];
+      merged.updateMode = { type: 'full', fullReplaceChainIds };
     }
   }
-  merged.updateMode ??= 'merge';
+  merged.updateMode ??= { type: 'merge' };
 
   return merged;
 }

@@ -343,6 +343,52 @@ describe('AccountsApiDataSource', () => {
     controller.destroy();
   });
 
+  it('fetch reports a full update authoritative for the chains it processed', async () => {
+    const { controller } = await setupController({
+      supportedChains: [1, 137],
+      balances: [
+        createMockBalanceItem(
+          `eip155:1:${MOCK_ADDRESS}`,
+          'eip155:1/slip44:60',
+          '1',
+        ),
+      ],
+    });
+
+    const response = await controller.fetch(
+      createDataRequest({ chainIds: [CHAIN_MAINNET, CHAIN_POLYGON] }),
+    );
+
+    // The full response is authoritative only for the chains it processed,
+    // so the controller never wipes balances on chains it didn't fetch.
+    expect(response.updateMode).toStrictEqual({
+      type: 'full',
+      fullReplaceChainIds: [CHAIN_MAINNET, CHAIN_POLYGON],
+    });
+
+    controller.destroy();
+  });
+
+  it('fetch excludes unprocessed networks from fullReplaceChainIds', async () => {
+    const { controller } = await setupController({
+      supportedChains: [1, 137],
+      unprocessedNetworks: ['eip155:1'],
+    });
+
+    const response = await controller.fetch(
+      createDataRequest({ chainIds: [CHAIN_MAINNET, CHAIN_POLYGON] }),
+    );
+
+    // Mainnet was unprocessed this cycle, so it is not authoritative and its
+    // existing balances must be preserved by the controller.
+    expect(response.updateMode).toStrictEqual({
+      type: 'full',
+      fullReplaceChainIds: [CHAIN_POLYGON],
+    });
+
+    controller.destroy();
+  });
+
   it('fetch handles API errors', async () => {
     const { controller, apiClient } = await setupController();
 

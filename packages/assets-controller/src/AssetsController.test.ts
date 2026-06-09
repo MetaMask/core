@@ -24,6 +24,7 @@ import { buildDefaultAssetsInfo } from './defaults';
 import type {
   Caip19AssetId,
   AccountId,
+  ChainId,
   DataRequest,
   DataResponse,
   FungibleAssetMetadata,
@@ -1282,7 +1283,7 @@ describe('AssetsController', () => {
           expect.objectContaining({
             chainIds: ['eip155:1'],
             forceUpdate: true,
-            updateMode: 'merge',
+            updateMode: { type: 'merge' },
           }),
         );
       });
@@ -1534,7 +1535,7 @@ describe('AssetsController', () => {
       await withController({ state: initialState }, async ({ controller }) => {
         await controller.handleAssetsUpdate(
           {
-            updateMode: 'merge',
+            updateMode: { type: 'merge' },
             assetsBalance: {
               [MOCK_ACCOUNT_ID]: {
                 [polygonNative]: { amount: '10' },
@@ -1571,7 +1572,10 @@ describe('AssetsController', () => {
       await withController({ state: initialState }, async ({ controller }) => {
         await controller.handleAssetsUpdate(
           {
-            updateMode: 'full',
+            updateMode: {
+              type: 'full',
+              fullReplaceChainIds: ['eip155:1' as ChainId],
+            },
             assetsBalance: {
               [MOCK_ACCOUNT_ID]: {
                 [MOCK_NATIVE_ASSET_ID]: { amount: '2' },
@@ -1590,6 +1594,145 @@ describe('AssetsController', () => {
             MOCK_NATIVE_ASSET_ID
           ],
         ).toStrictEqual({ amount: '2' });
+      });
+    });
+
+    it('full update preserves balances on chains absent from the response', async () => {
+      const polygonAsset =
+        'eip155:137/erc20:0x0000000000000000000000000000000000000001' as Caip19AssetId;
+      const initialState: Partial<AssetsControllerState> = {
+        assetsBalance: {
+          [MOCK_ACCOUNT_ID]: {
+            [MOCK_ASSET_ID]: { amount: '1' },
+            [MOCK_NATIVE_ASSET_ID]: { amount: '0.5' },
+            [polygonAsset]: { amount: '7' },
+          },
+        },
+      };
+
+      await withController({ state: initialState }, async ({ controller }) => {
+        await controller.handleAssetsUpdate(
+          {
+            updateMode: {
+              type: 'full',
+              fullReplaceChainIds: ['eip155:1' as ChainId],
+            },
+            assetsBalance: {
+              [MOCK_ACCOUNT_ID]: {
+                [MOCK_NATIVE_ASSET_ID]: { amount: '2' },
+              },
+            },
+          },
+          'TestSource',
+        );
+
+        // eip155:1 is authoritative (declared in fullReplaceChainIds) — its
+        // stale ERC20 is removed and its native is updated.
+        expect(
+          controller.state.assetsBalance[MOCK_ACCOUNT_ID]?.[MOCK_ASSET_ID],
+        ).toBeUndefined();
+        expect(
+          controller.state.assetsBalance[MOCK_ACCOUNT_ID]?.[
+            MOCK_NATIVE_ASSET_ID
+          ],
+        ).toStrictEqual({ amount: '2' });
+        // eip155:137 is not in the response, so its balance is preserved
+        // rather than wiped (the unlock / network-switch disappearing bug).
+        expect(
+          controller.state.assetsBalance[MOCK_ACCOUNT_ID]?.[polygonAsset],
+        ).toStrictEqual({ amount: '7' });
+      });
+    });
+
+    it('full update with fullReplaceChainIds clears those chains even when absent, and preserves the rest', async () => {
+      const polygonNative = 'eip155:137/slip44:966' as Caip19AssetId;
+      const polygonAsset =
+        'eip155:137/erc20:0x0000000000000000000000000000000000000001' as Caip19AssetId;
+      const arbitrumAsset =
+        'eip155:42161/erc20:0x0000000000000000000000000000000000000002' as Caip19AssetId;
+      const initialState: Partial<AssetsControllerState> = {
+        assetsBalance: {
+          [MOCK_ACCOUNT_ID]: {
+            [MOCK_ASSET_ID]: { amount: '1' }, // eip155:1 (covered, absent)
+            [polygonAsset]: { amount: '7' }, // eip155:137 (covered, absent)
+            [arbitrumAsset]: { amount: '3' }, // eip155:42161 (not covered)
+          },
+        },
+      };
+
+      await withController({ state: initialState }, async ({ controller }) => {
+        await controller.handleAssetsUpdate(
+          {
+            updateMode: {
+              type: 'full',
+              fullReplaceChainIds: [
+                'eip155:1' as ChainId,
+                'eip155:137' as ChainId,
+              ],
+            },
+            assetsBalance: {
+              [MOCK_ACCOUNT_ID]: {
+                // Only the polygon native is returned this cycle.
+                [polygonNative]: { amount: '5' },
+              },
+            },
+          },
+          'TestSource',
+        );
+
+        // eip155:1 is covered but absent from the response → its stale ERC20
+        // is cleared.
+        expect(
+          controller.state.assetsBalance[MOCK_ACCOUNT_ID]?.[MOCK_ASSET_ID],
+        ).toBeUndefined();
+        // eip155:137 is covered → the stale ERC20 not in the response is
+        // cleared and the returned native is applied.
+        expect(
+          controller.state.assetsBalance[MOCK_ACCOUNT_ID]?.[polygonAsset],
+        ).toBeUndefined();
+        expect(
+          controller.state.assetsBalance[MOCK_ACCOUNT_ID]?.[polygonNative],
+        ).toStrictEqual({ amount: '5' });
+        // eip155:42161 is not covered → preserved.
+        expect(
+          controller.state.assetsBalance[MOCK_ACCOUNT_ID]?.[arbitrumAsset],
+        ).toStrictEqual({ amount: '3' });
+      });
+    });
+
+    it('full update never drops user custom assets, even on a covered chain', async () => {
+      const initialState: Partial<AssetsControllerState> = {
+        assetsBalance: {
+          [MOCK_ACCOUNT_ID]: {
+            [MOCK_ASSET_ID]: { amount: '5' },
+          },
+        },
+        customAssets: {
+          [MOCK_ACCOUNT_ID]: [MOCK_ASSET_ID],
+        },
+      };
+
+      await withController({ state: initialState }, async ({ controller }) => {
+        await controller.handleAssetsUpdate(
+          {
+            updateMode: {
+              type: 'full',
+              fullReplaceChainIds: ['eip155:1' as ChainId],
+            },
+            assetsBalance: {
+              [MOCK_ACCOUNT_ID]: {
+                [MOCK_NATIVE_ASSET_ID]: { amount: '1' },
+              },
+            },
+          },
+          'TestSource',
+        );
+
+        // The custom asset survives even though eip155:1 is authoritative and
+        // the asset was not in the response.
+        expect(
+          controller.state.assetsBalance[MOCK_ACCOUNT_ID]?.[MOCK_ASSET_ID],
+        ).toStrictEqual({ amount: '5' });
       });
     });
 

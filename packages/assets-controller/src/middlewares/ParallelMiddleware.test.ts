@@ -1,6 +1,9 @@
 import type { AssetsDataSource } from '../types';
-import type { Context, DataResponse } from '../types';
-import { createParallelMiddleware } from './ParallelMiddleware';
+import type { ChainId, Context, DataResponse } from '../types';
+import {
+  createParallelMiddleware,
+  mergeDataResponses,
+} from './ParallelMiddleware';
 
 const MOCK_ASSET = 'eip155:1/erc20:0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48';
 
@@ -35,6 +38,60 @@ function createMockSource(
     },
   };
 }
+
+describe('mergeDataResponses', () => {
+  it('unions fullReplaceChainIds across full responses', () => {
+    const merged = mergeDataResponses([
+      {
+        updateMode: {
+          type: 'full',
+          fullReplaceChainIds: ['eip155:1', 'eip155:137'] as ChainId[],
+        },
+      },
+      {
+        updateMode: {
+          type: 'full',
+          fullReplaceChainIds: ['eip155:137', 'eip155:42161'] as ChainId[],
+        },
+      },
+    ]);
+
+    expect(merged.updateMode?.type).toBe('full');
+    const fullReplaceChainIds =
+      merged.updateMode?.type === 'full'
+        ? merged.updateMode.fullReplaceChainIds
+        : [];
+    expect(new Set(fullReplaceChainIds)).toStrictEqual(
+      new Set(['eip155:1', 'eip155:137', 'eip155:42161']),
+    );
+  });
+
+  it('preserves fullReplaceChainIds when merging with a response that omits it', () => {
+    const merged = mergeDataResponses([
+      {
+        updateMode: {
+          type: 'full',
+          fullReplaceChainIds: ['eip155:1'] as ChainId[],
+        },
+      },
+      // e.g. a token/price response that carries no balances or update mode.
+      { assetsPrice: {} },
+    ]);
+
+    expect(merged.updateMode).toStrictEqual({
+      type: 'full',
+      fullReplaceChainIds: ['eip155:1'],
+    });
+  });
+
+  it('defaults to merge when no response declares full', () => {
+    const merged = mergeDataResponses([
+      { updateMode: { type: 'merge' }, assetsBalance: {} },
+    ]);
+
+    expect(merged.updateMode).toStrictEqual({ type: 'merge' });
+  });
+});
 
 describe('createParallelMiddleware', () => {
   describe('getName', () => {

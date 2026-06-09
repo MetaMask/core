@@ -1216,7 +1216,7 @@ export class AssetsController extends BaseController<
         this.getAssets(this.#getSelectedAccounts(), {
           chainIds: addedEnabledChains,
           forceUpdate: true,
-          updateMode: 'merge',
+          updateMode: { type: 'merge' },
         }).catch((error) => {
           log('Failed to fetch balance for added chains', { error });
         });
@@ -1440,7 +1440,7 @@ export class AssetsController extends BaseController<
       // The fast pipeline only contains a subset of data sources (AccountsApi +
       // StakedBalance), so it must always merge to avoid wiping Snap/RPC
       // balances that the background pipeline hasn't yet replaced.
-      await this.#updateState({ ...response, updateMode: 'merge' });
+      await this.#updateState({ ...response, updateMode: { type: 'merge' } });
 
       // Background pipeline: snap and RPC run in parallel after the fast path
       // commits to state. Their balances are merged together before detection.
@@ -1466,7 +1466,7 @@ export class AssetsController extends BaseController<
         request,
       )
         .then(({ response: slowResponse }) =>
-          this.#updateState({ ...slowResponse, updateMode: 'merge' }),
+          this.#updateState({ ...slowResponse, updateMode: { type: 'merge' } }),
         )
         .catch((error) => log('Background pipeline failed', { error }));
 
@@ -1705,7 +1705,7 @@ export class AssetsController extends BaseController<
         dataTypes: ['balance', 'metadata', 'price'],
         assetTypes: ['fungible'],
         forceUpdate: true,
-        updateMode: 'merge',
+        updateMode: { type: 'merge' },
       });
     }
 
@@ -2099,9 +2099,61 @@ export class AssetsController extends BaseController<
     });
   }
 
+  /**
+   * Build the next per-account balance map for a `'full'` update.
+   *
+   * The response replaces balances only on `fullReplaceChains`; balances on
+   * other chains and user custom assets are always preserved.
+   *
+   * @param args - The inputs for the merge.
+   * @param args.previousBalances - The account's balances currently in state.
+   * @param args.accountBalances - The account's balances from the response.
+   * @param args.customAssetIds - The account's custom asset IDs (never dropped).
+   * @param args.fullReplaceChains - Chains the response is authoritative for.
+   * @returns The next balance map for the account.
+   */
+  #buildFullBalances({
+    previousBalances,
+    accountBalances,
+    customAssetIds,
+    fullReplaceChains,
+  }: {
+    previousBalances: Record<string, AssetBalance>;
+    accountBalances: Record<string, AssetBalance>;
+    customAssetIds: Caip19AssetId[];
+    fullReplaceChains: Set<ChainId>;
+  }): Record<string, AssetBalance> {
+    const next: Record<string, AssetBalance> = { ...previousBalances };
+    const customAssetIdSet = new Set<string>(customAssetIds);
+
+    // Drop stale balance entries on the authoritative chains so the response is the
+    // source of truth there — but never drop user custom assets.
+    for (const assetId of Object.keys(next)) {
+      if (customAssetIdSet.has(assetId)) {
+        continue;
+      }
+      if (fullReplaceChains.has(extractChainId(assetId as Caip19AssetId))) {
+        delete next[assetId];
+      }
+    }
+
+    // Apply the response (authoritative on its replaced chains).
+    Object.assign(next, accountBalances);
+
+    // Custom assets must survive a full refresh even when the source omits them.
+    for (const customId of customAssetIds) {
+      next[customId] ??=
+        previousBalances[customId] ?? ({ amount: '0' } as AssetBalance);
+    }
+
+    return next;
+  }
+
   async #updateState(response: DataResponse): Promise<void> {
     const normalizedResponse = normalizeResponse(response);
-    const mode: AssetsUpdateMode = normalizedResponse.updateMode ?? 'merge';
+    const mode: AssetsUpdateMode = normalizedResponse.updateMode ?? {
+      type: 'merge',
+    };
 
     const releaseLock = await this.#controllerMutex.acquire();
 
@@ -2174,25 +2226,31 @@ export class AssetsController extends BaseController<
                 accountId
               ] ?? [];
 
-            // Full: response is authoritative; preserve custom assets not in response.
+            /*
+            
+            const updateMode: AssetsUpdateMode = normalizedResponse.updateMode ?? {
+              type: 'merge',
+            };
+            const fullReplaceChains: Set<ChainId> | null =
+              updateMode.type === 'full'
+                ? new Set(updateMode.fullReplaceChainIds)
+                : null;
+            
+            */
+
+            // Full: response is authoritative, but only for the chains it declares
+            // balances on every other chain are preserved.
             // Merge: response overlays previous balances.
-            // Callers that fetch partial data (e.g. newly added chains) must set updateMode: 'merge'.
+            // Callers that fetch partial data (e.g. newly added chains) must use { type: 'merge' }.
             const effective: Record<string, AssetBalance> =
-              mode === 'merge'
+              mode.type === 'merge'
                 ? { ...previousBalances, ...accountBalances }
-                : ((): Record<string, AssetBalance> => {
-                    const next: Record<string, AssetBalance> = {
-                      ...accountBalances,
-                    };
-                    for (const customId of customAssetIds) {
-                      if (!(customId in next)) {
-                        const prev = previousBalances[customId];
-                        next[customId] =
-                          prev ?? ({ amount: '0' } as AssetBalance);
-                      }
-                    }
-                    return next;
-                  })();
+                : this.#buildFullBalances({
+                    previousBalances,
+                    accountBalances,
+                    customAssetIds,
+                    fullReplaceChains: new Set(mode.fullReplaceChainIds),
+                  });
 
             // Ensure native tokens have an entry (0 if missing) for chains this account supports
             const account = this.#getSelectedAccounts().find(
@@ -2202,9 +2260,7 @@ export class AssetsController extends BaseController<
               ? this.#getNativeAssetIdsForAccount(account)
               : this.#getNativeAssetIdsForEnabledChains();
             for (const nativeAssetId of nativeAssetIdsForAccount) {
-              if (!(nativeAssetId in effective)) {
-                effective[nativeAssetId] = { amount: '0' } as AssetBalance;
-              }
+              effective[nativeAssetId] ??= { amount: '0' } as AssetBalance;
             }
 
             for (const [assetId, balance] of Object.entries(effective)) {
@@ -3018,7 +3074,7 @@ export class AssetsController extends BaseController<
       await this.getAssets(this.#getSelectedAccounts(), {
         chainIds: addedChains,
         forceUpdate: true,
-        updateMode: 'merge',
+        updateMode: { type: 'merge' },
       });
     }
 

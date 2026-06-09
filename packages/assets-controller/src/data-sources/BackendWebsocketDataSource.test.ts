@@ -879,7 +879,9 @@ describe('BackendWebsocketDataSource', () => {
     await new Promise(process.nextTick);
 
     // No valid updates → response has only updateMode, no assetsBalance
-    expect(assetsUpdateHandler).toHaveBeenCalledWith({ updateMode: 'merge' });
+    expect(assetsUpdateHandler).toHaveBeenCalledWith({
+      updateMode: { type: 'merge' },
+    });
 
     controller.destroy();
   });

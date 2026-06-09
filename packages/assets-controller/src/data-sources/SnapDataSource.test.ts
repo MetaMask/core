@@ -435,7 +435,7 @@ describe('SnapDataSource', () => {
     expect(response).toStrictEqual({
       assetsBalance: {},
       assetsInfo: {},
-      updateMode: 'full',
+      updateMode: { type: 'full', fullReplaceChainIds: [SOLANA_MAINNET] },
     });
 
     cleanup();
@@ -470,7 +470,7 @@ describe('SnapDataSource', () => {
     expect(response).toStrictEqual({
       assetsBalance: {},
       assetsInfo: {},
-      updateMode: 'full',
+      updateMode: { type: 'full', fullReplaceChainIds: [SOLANA_MAINNET] },
     });
 
     cleanup();
