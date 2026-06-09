@@ -60,6 +60,24 @@ jobs:
             exit 1
           fi
 
+  lint-workflows:
+    name: Lint workflows
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node-version: [24.x]
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - name: Lint workflows
+        uses: zizmorcore/zizmor-action@5f14fd08f7cf1cb1609c1e344975f152c7ee938d
+        with:
+          advanced-security: false
+          annotations: true
+          version: v1.25.2
+
   validate-changelog:
     name: Validate changelog
     runs-on: ubuntu-latest
