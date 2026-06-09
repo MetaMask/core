@@ -67,7 +67,6 @@ import type {
   CustomNetworkClientConfiguration,
   InfuraNetworkClientConfiguration,
   NetworkClientConfiguration,
-  AdditionalDefaultNetwork,
 } from './types';
 
 const debugLog = createModuleLogger(projectLogger, 'NetworkController');
@@ -685,7 +684,6 @@ const MESSENGER_EXPOSED_METHODS = [
   'getProviderAndBlockTracker',
   'getSelectedChainId',
   'getSelectedNetworkClient',
-  'initializeProvider',
   'loadBackup',
   'lookupNetwork',
   'lookupNetworkByClientId',
@@ -770,35 +768,22 @@ export type NetworkControllerOptions = {
   getBlockTrackerOptions?: (
     rpcEndpointUrl: string,
   ) => Omit<PollingBlockTrackerOptions, 'provider'>;
-  /**
-   * An array of Hex Chain IDs representing the additional networks to be included as default.
-   */
-  additionalDefaultNetworks?: AdditionalDefaultNetwork[];
 };
 
 /**
  * Constructs a value for the state property `networkConfigurationsByChainId`
  * which will be used if it has not been provided to the constructor.
  *
- * @param [additionalDefaultNetworks] - An array of Hex Chain IDs representing the additional networks to be included as default.
  * @returns The default value for `networkConfigurationsByChainId`.
  */
-function getDefaultNetworkConfigurationsByChainId(
-  additionalDefaultNetworks: AdditionalDefaultNetwork[] = [],
-): Record<Hex, NetworkConfiguration> {
+function getDefaultNetworkConfigurationsByChainId(): Record<
+  Hex,
+  NetworkConfiguration
+> {
   const infuraNetworks = getDefaultInfuraNetworkConfigurationsByChainId();
   const customNetworks = getDefaultCustomNetworkConfigurationsByChainId();
 
-  return additionalDefaultNetworks.reduce<Record<Hex, NetworkConfiguration>>(
-    (obj, chainId) => {
-      if (hasProperty(customNetworks, chainId)) {
-        obj[chainId] = customNetworks[chainId];
-      }
-      return obj;
-    },
-    // Always include the infura networks in the default networks
-    infuraNetworks,
-  );
+  return { ...customNetworks, ...infuraNetworks };
 }
 
 /**
@@ -906,15 +891,12 @@ function getCustomNetworkConfiguration(
  * Constructs properties for the NetworkController state whose values will be
  * used if not provided to the constructor.
  *
- * @param [additionalDefaultNetworks] - An array of Hex Chain IDs representing the additional networks to be included as default.
  * @returns The default NetworkController state.
  */
-export function getDefaultNetworkControllerState(
-  additionalDefaultNetworks?: AdditionalDefaultNetwork[],
-): NetworkState {
+export function getDefaultNetworkControllerState(): NetworkState {
   const networksMetadata = {};
   const networkConfigurationsByChainId =
-    getDefaultNetworkConfigurationsByChainId(additionalDefaultNetworks);
+    getDefaultNetworkConfigurationsByChainId();
 
   return {
     selectedNetworkClientId: InfuraNetworkType.mainnet,
@@ -1312,10 +1294,9 @@ export class NetworkController extends BaseController<
       log,
       getRpcServiceOptions,
       getBlockTrackerOptions,
-      additionalDefaultNetworks,
     } = options;
     const initialState = {
-      ...getDefaultNetworkControllerState(additionalDefaultNetworks),
+      ...getDefaultNetworkControllerState(),
       ...state,
     };
     validateInitialState(initialState);
@@ -1633,66 +1614,14 @@ export class NetworkController extends BaseController<
   }
 
   /**
-   * Initialize the NetworkController, updating the RPC failover feature flag.
+   * Initialize the NetworkController, updating the RPC failover feature flag
+   * and applying the network selection.
    */
   init(): void {
     const state = this.messenger.call('RemoteFeatureFlagController:getState');
     this.#updateRpcFailoverEnabled(getIsRpcFailoverEnabled(state));
-  }
 
-  /**
-   * Creates proxies for accessing the global network client and its block
-   * tracker. You must call this method in order to use
-   * `getProviderAndBlockTracker` (or its replacement,
-   * `getSelectedNetworkClient`).
-   *
-   * @param options - Optional arguments.
-   * @param options.lookupNetwork - Usually, metadata for the global network
-   * will be populated via a call to `lookupNetwork` after creating the provider
-   * and block tracker proxies. This allows for responding to the status of the
-   * global network after initializing this controller; however, it requires
-   * making a request to the network to do so. In the clients, where controllers
-   * are initialized before the UI is shown, this may be undesirable, as it
-   * means that if the user has just installed MetaMask, their IP address may be
-   * shared with a third party before they have a chance to finish onboarding.
-   * You can pass `false` if you'd like to disable this request and call
-   * `lookupNetwork` yourself.
-   */
-  initializeProvider(options: { lookupNetwork: false }): void;
-
-  /**
-   * Creates proxies for accessing the global network client and its block
-   * tracker. You must call this method in order to use
-   * `getProviderAndBlockTracker` (or its replacement,
-   * `getSelectedNetworkClient`).
-   *
-   * @param options - Optional arguments.
-   * @param options.lookupNetwork - Usually, metadata for the global network
-   * will be populated via a call to `lookupNetwork` after creating the provider
-   * and block tracker proxies. This allows for responding to the status of the
-   * global network after initializing this controller; however, it requires
-   * making a request to the network to do so. In the clients, where controllers
-   * are initialized before the UI is shown, this may be undesirable, as it
-   * means that if the user has just installed MetaMask, their IP address may be
-   * shared with a third party before they have a chance to finish onboarding.
-   * You can pass `false` if you'd like to disable this request and call
-   * `lookupNetwork` yourself.
-   * @returns A promise that resolves when the network lookup completes.
-   */
-  initializeProvider(options?: { lookupNetwork?: boolean }): Promise<void>;
-
-  initializeProvider({
-    lookupNetwork = true,
-  }: {
-    lookupNetwork?: boolean;
-  } = {}): Promise<void> | undefined {
     this.#applyNetworkSelection(this.state.selectedNetworkClientId);
-
-    if (lookupNetwork) {
-      return this.lookupNetwork();
-    }
-
-    return undefined;
   }
 
   /**

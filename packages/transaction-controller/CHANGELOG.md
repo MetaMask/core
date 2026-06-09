@@ -9,6 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Export `generateBatchId` utility ([#8964](https://github.com/MetaMask/core/pull/8964))
+- Bump `@metamask/accounts-controller` from `^39.0.0` to `^39.0.1` ([#9058](https://github.com/MetaMask/core/pull/9058))
+- Bump `@metamask/approval-controller` from `^9.0.1` to `^9.0.2` ([#9058](https://github.com/MetaMask/core/pull/9058))
+- Bump `@metamask/controller-utils` from `^12.1.0` to `^12.1.1` ([#9058](https://github.com/MetaMask/core/pull/9058))
+- Bump `@metamask/core-backend` from `^6.3.2` to `^6.3.3` ([#9058](https://github.com/MetaMask/core/pull/9058))
+
+## [67.0.0]
+
+### Changed
+
 - **BREAKING:** Remove deprecated `TransactionController` constructor options and unused hooks, and replace them with direct messenger calls ([#8983](https://github.com/MetaMask/core/pull/8983))
   - Removed options: `disableHistory`, `disableSendFlowHistory`, `getCurrentAccountEIP1559Compatibility`, `getCurrentNetworkEIP1559Compatibility`, `getExternalPendingTransactions`, `getGasFeeEstimates`, `getNetworkClientRegistry`, `getNetworkState`, `pendingTransactions`, `securityProviderRequest`, `sign`, `transactionHistoryLimit`
   - Removed hooks: `afterSign`, `afterSimulate`, `getAdditionalSignArguments`
@@ -2468,7 +2478,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@66.0.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@67.0.0...HEAD
+[67.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@66.0.1...@metamask/transaction-controller@67.0.0
 [66.0.1]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@66.0.0...@metamask/transaction-controller@66.0.1
 [66.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@65.4.0...@metamask/transaction-controller@66.0.0
 [65.4.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@65.3.0...@metamask/transaction-controller@65.4.0

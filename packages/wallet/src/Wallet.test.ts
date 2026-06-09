@@ -222,7 +222,10 @@ describe('Wallet', () => {
         wallet.state.AccountsController.internalAccounts.accounts,
       ).map((account) => account.address);
 
-      expect(trackedAddresses).toStrictEqual(keyringAccounts);
+      // Sort both arrays so the assertion does not depend on account ordering.
+      expect([...trackedAddresses].sort()).toStrictEqual(
+        [...keyringAccounts].sort(),
+      );
     });
   });
 
