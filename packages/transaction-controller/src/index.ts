@@ -145,3 +145,4 @@ export type {
   GetAccountAddressRelationshipRequest,
   AccountAddressRelationshipResult,
 } from './api/accounts-api';
+export { generateBatchId } from './utils/batch';

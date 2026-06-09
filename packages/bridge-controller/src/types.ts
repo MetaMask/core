@@ -35,7 +35,6 @@ import type {
   BridgeAssetSchema,
   ChainConfigurationSchema,
   ChainRankingSchema,
-  FeatureId,
   FeeDataSchema,
   IntentSchema,
   PlatformConfigSchema,
@@ -257,6 +256,15 @@ export enum StatusTypes {
   FAILED = 'FAILED',
   PENDING = 'PENDING',
   COMPLETE = 'COMPLETE',
+}
+
+export enum FeatureId {
+  PERPS = 'perps',
+  QUICK_BUY_FOLLOW_TRADING = 'quick_buy_follow_trading',
+  QUICK_BUY_TOKEN_DETAILS = 'quick_buy_token_details',
+  DAPP_SWAP = 'dapp_swap',
+  BATCH_SELL = 'batch_sell',
+  UNIFIED_SWAP_BRIDGE = 'unified_swap_bridge',
 }
 
 /**

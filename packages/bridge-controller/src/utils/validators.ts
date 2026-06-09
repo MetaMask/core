@@ -31,12 +31,6 @@ export enum FeeType {
   TX_FEE = 'txFee',
 }
 
-export enum FeatureId {
-  PERPS = 'perps',
-  QUICK_BUY = 'quickBuy',
-  DAPP_SWAP = 'dappSwap',
-}
-
 export enum ActionTypes {
   BRIDGE = 'bridge',
   SWAP = 'swap',
@@ -162,15 +156,13 @@ const GenericQuoteRequestSchema = type({
   fee: optional(number()),
 });
 
-const FeatureIdSchema = enums(Object.values(FeatureId));
-
 /**
  * This is the schema for the feature flags response from the RemoteFeatureFlagController
  */
 export const PlatformConfigSchema = type({
   priceImpactThreshold: optional(PriceImpactThresholdSchema),
   quoteRequestOverrides: optional(
-    record(FeatureIdSchema, optional(GenericQuoteRequestSchema)),
+    record(string(), optional(GenericQuoteRequestSchema)),
   ),
   minimumVersion: string(),
   refreshRate: number(),
