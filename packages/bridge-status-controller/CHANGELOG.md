@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [72.1.0]
+
 ### Added
 
 - Add `batch_id` property to BatchSell events ([#8964](https://github.com/MetaMask/core/pull/8964))
@@ -14,6 +16,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - attach batchId to the `Submitted`, `Completed` and `Failed` events
   - provide batchId to the `TransactionController:addTransactionBatch` to propagate it the TransactionMeta
 - Publish tx submission metrics for `BatchSell`, `QuickBuy` and `UnifiedSwapBridge` actions ([#8964](https://github.com/MetaMask/core/pull/8964))
+
+### Changed
+
+- Bump `@metamask/bridge-controller` from `^74.0.0` to `^75.0.0` ([#9066](https://github.com/MetaMask/core/pull/9066))
+- Bump `@metamask/transaction-controller` from `^67.0.0` to `^67.1.0` ([#9066](https://github.com/MetaMask/core/pull/9066))
 
 ## [72.0.3]
 
@@ -1273,7 +1280,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#5317](https://github.com/MetaMask/core/pull/5317))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@72.0.3...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@72.1.0...HEAD
+[72.1.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@72.0.3...@metamask/bridge-status-controller@72.1.0
 [72.0.3]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@72.0.2...@metamask/bridge-status-controller@72.0.3
 [72.0.2]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@72.0.1...@metamask/bridge-status-controller@72.0.2
 [72.0.1]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@72.0.0...@metamask/bridge-status-controller@72.0.1
