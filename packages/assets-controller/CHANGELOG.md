@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [8.3.3]
+
 ### Changed
 
 - **BREAKING:** `DataResponse.updateMode` (`AssetsUpdateMode`) changed from `'merge' | 'full'` to `{ type: 'merge' } | { type: 'full'; fullReplaceChainIds: ChainId[] }`. `'full'` now replaces balances only for listed chains. Update all `updateMode` reads/writes to the object form ([#9062](https://github.com/MetaMask/core/pull/9062))
