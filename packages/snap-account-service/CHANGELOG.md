@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `ensureMigrated` ([#8732](https://github.com/MetaMask/core/pull/8732))
+  - Migrates the legacy global Snap keyring (v1) to per-Snap keyrings (v2).
+  - The migration is triggered automatically whenever a consumer request access to any Snap keyring (v2).
+  - If the migration is not successful, it will get retried on the next call.
+  - It is concurrent-free and can safely be called by multiple execution flows.
+  - Once the migration has run, the legacy Snap keyring will be removed.
+  - Selected-account forwarding now targets v2 Snap keyrings.
+  - The service messenger now requires the `KeyringController:withKeyringV2Unsafe`.
+
+### Changed
+
+- `SnapAccountService.ensureReady` now automatically creates the Snap keyring (v2) for a given Snap ID if it was not available ([#8732](https://github.com/MetaMask/core/pull/8732))
+- Bump `@metamask/eth-snap-keyring` from `^22.0.1` to `^22.1.0` ([#8732](https://github.com/MetaMask/core/pull/8732))
+
+### Removed
+
+- **BREAKING:** Removed `getLegacySnapKeyring` ([#8732](https://github.com/MetaMask/core/pull/8732))
+  - The legacy Snap keyring should not be used anymore after the migration has completed.
+
 ## [0.3.1]
 
 ### Changed
