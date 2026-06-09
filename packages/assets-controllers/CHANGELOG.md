@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `ARC` support ([#9006](https://github.com/MetaMask/core/pull/9006))
+  - Add `ARC` in `SupportedTokenDetectionNetworks`
+  - Add `ARC` in `SUPPORTED_NETWORKS_ACCOUNTS_API_V4`
+
 ## [108.6.0]
 
 ### Added
@@ -20,9 +26,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add `isDeprecated` option to `AccountTrackerController` constructor ([#9033](https://github.com/MetaMask/core/pull/9033))
   - When `isDeprecated()` returns `true`, no network requests are sent and `accountsByChainId` is reset to `{}` at construction and at every entry point (`refresh`, `refreshAddresses`, `_executePoll`, `syncBalanceWithAddresses`, `updateNativeBalances`, and `updateStakedBalances`), so no stale balances remain in state.
   - The function is re-evaluated on each entry point so it can be toggled at runtime without reconstructing the controller.
-- Add `ARC` support ([#9006](https://github.com/MetaMask/core/pull/9006))
-  - Add `ARC` in `SupportedTokenDetectionNetworks`
-  - Add `ARC` in `SUPPORTED_NETWORKS_ACCOUNTS_API_V4`
 
 ### Changed
 
