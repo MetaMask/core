@@ -1309,16 +1309,6 @@ export type InferTransactionTypeResult = {
 };
 
 /**
- * A function for verifying a transaction, whether it is malicious or not.
- */
-export type SecurityProviderRequest = (
-  requestData: TransactionMeta,
-  messageType: string,
-  // TODO: Replace `any` with type
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-) => Promise<any>;
-
-/**
  * Specifies the shape of the base transaction parameters.
  * Added in EIP-2718.
  */
@@ -2128,20 +2118,6 @@ export type AfterAddHook = (request: {
 }) => Promise<{
   updateTransaction?: (transaction: TransactionMeta) => void;
 }>;
-
-/**
- * Custom logic to be executed after a transaction is simulated.
- * Can optionally update the transaction by returning the `updateTransaction` callback.
- */
-export type AfterSimulateHook = (request: {
-  transactionMeta: TransactionMeta;
-}) => Promise<
-  | {
-      skipSimulation?: boolean;
-      updateTransaction?: (transaction: TransactionMeta) => void;
-    }
-  | undefined
->;
 
 /**
  * Custom logic to be executed before a transaction is signed.

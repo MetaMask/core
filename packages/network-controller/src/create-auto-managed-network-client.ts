@@ -100,7 +100,7 @@ export function createAutoManagedNetworkClient<
 }: {
   networkClientId: NetworkClientId;
   networkClientConfiguration: Configuration;
-  getRpcServiceOptions: (
+  getRpcServiceOptions?: (
     rpcEndpointUrl: string,
   ) => RpcServiceOptionsWithDefaults;
   getBlockTrackerOptions?: (

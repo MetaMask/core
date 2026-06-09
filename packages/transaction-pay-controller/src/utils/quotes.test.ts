@@ -630,6 +630,7 @@ describe('Quotes Utils', () => {
 
       expect(getQuotesMock).toHaveBeenCalledWith({
         accountSupports7702: true,
+        from: TRANSACTION_META_MOCK.txParams.from,
         messenger,
         requests: [
           {
@@ -674,6 +675,7 @@ describe('Quotes Utils', () => {
 
       expect(getQuotesMock).toHaveBeenCalledWith({
         accountSupports7702: true,
+        from: TRANSACTION_META_MOCK.txParams.from,
         messenger,
         requests: [
           expect.objectContaining({
@@ -1275,6 +1277,7 @@ describe('Quotes Utils', () => {
 
       expect(getQuotesMock).toHaveBeenCalledWith({
         accountSupports7702: true,
+        from: TRANSACTION_META_MOCK.txParams.from,
         messenger,
         requests: [
           {

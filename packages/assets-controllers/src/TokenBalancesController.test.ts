@@ -1781,6 +1781,263 @@ describe('TokenBalancesController', () => {
     });
   });
 
+  describe('isDeprecated', () => {
+    const initialState: TokenBalancesControllerState = {
+      tokenBalances: {
+        '0x0000000000000000000000000000000000000001': {
+          '0x1': {
+            '0x86fa049857e0209aa7d9e616f7eb3b3b78ecfdb0': toHex(new BN(1)),
+          },
+        },
+      },
+    };
+
+    it('clears persisted tokenBalances at construction when isDeprecated() returns true', () => {
+      const { controller } = setupController({
+        config: { state: initialState, isDeprecated: () => true },
+      });
+
+      expect(controller.state.tokenBalances).toStrictEqual({});
+    });
+
+    it('preserves persisted tokenBalances at construction when isDeprecated() returns false', () => {
+      const { controller } = setupController({
+        config: { state: initialState, isDeprecated: () => false },
+      });
+
+      expect(controller.state.tokenBalances).toStrictEqual(
+        initialState.tokenBalances,
+      );
+    });
+
+    it('does not fetch and clears stale tokenBalances when isDeprecated returns true', async () => {
+      let deprecated = false;
+      const { controller } = setupController({
+        config: { state: initialState, isDeprecated: () => deprecated },
+      });
+
+      expect(controller.state.tokenBalances).toStrictEqual(
+        initialState.tokenBalances,
+      );
+
+      const fetchSpy = jest.spyOn(
+        multicall,
+        'getTokenBalancesForMultipleAddresses',
+      );
+
+      deprecated = true;
+
+      await controller.updateBalances({ chainIds: ['0x1'] });
+
+      expect(fetchSpy).not.toHaveBeenCalled();
+      expect(controller.state.tokenBalances).toStrictEqual({});
+    });
+
+    it('clears stale tokenBalances on _executePoll when isDeprecated toggles to true at runtime', async () => {
+      let deprecated = false;
+      const { controller } = setupController({
+        config: { state: initialState, isDeprecated: () => deprecated },
+      });
+
+      expect(controller.state.tokenBalances).toStrictEqual(
+        initialState.tokenBalances,
+      );
+
+      const fetchSpy = jest.spyOn(
+        multicall,
+        'getTokenBalancesForMultipleAddresses',
+      );
+
+      deprecated = true;
+
+      await controller._executePoll({ chainIds: ['0x1'] });
+
+      expect(fetchSpy).not.toHaveBeenCalled();
+      expect(controller.state.tokenBalances).toStrictEqual({});
+    });
+
+    it('clears stale tokenBalances on NetworkController:stateChange when isDeprecated toggles to true at runtime', () => {
+      let deprecated = false;
+      const { controller, messenger } = setupController({
+        config: { state: initialState, isDeprecated: () => deprecated },
+      });
+
+      expect(controller.state.tokenBalances).toStrictEqual(
+        initialState.tokenBalances,
+      );
+
+      deprecated = true;
+
+      messenger.publish(
+        'NetworkController:stateChange',
+        {
+          networkConfigurationsByChainId: {},
+        } as NetworkState,
+        [
+          {
+            op: 'remove',
+            path: ['networkConfigurationsByChainId', '0x1'],
+          },
+        ],
+      );
+
+      expect(controller.state.tokenBalances).toStrictEqual({});
+    });
+
+    it('does not throw at construction when isDeprecated() is true and state is already empty', () => {
+      const { controller } = setupController({
+        config: { isDeprecated: () => true },
+      });
+
+      expect(controller.state.tokenBalances).toStrictEqual({});
+    });
+
+    it('clears stale tokenBalances when a queued batched update flushes after isDeprecated toggles to true', async () => {
+      jest.useFakeTimers();
+      let deprecated = false;
+      const { controller } = setupController({
+        config: { state: initialState, isDeprecated: () => deprecated },
+      });
+
+      const fetchSpy = jest.spyOn(
+        multicall,
+        'getTokenBalancesForMultipleAddresses',
+      );
+
+      // Schedule a batched update while still enabled.
+      const promise = controller.updateBalances({ chainIds: ['0x1'] });
+
+      // Toggle deprecation before the batch flushes.
+      deprecated = true;
+
+      await jest.advanceTimersByTimeAsync(UPDATE_BALANCES_BATCH_MS);
+      await promise;
+
+      expect(fetchSpy).not.toHaveBeenCalled();
+      expect(controller.state.tokenBalances).toStrictEqual({});
+    });
+
+    it('clears stale tokenBalances on TokensController:stateChange when isDeprecated toggles to true at runtime', async () => {
+      let deprecated = false;
+      const { controller, messenger } = setupController({
+        config: { state: initialState, isDeprecated: () => deprecated },
+      });
+
+      deprecated = true;
+
+      messenger.publish(
+        'TokensController:stateChange',
+        {
+          allDetectedTokens: {},
+          allIgnoredTokens: {},
+          allTokens: {
+            '0x1': {
+              '0x0000000000000000000000000000000000000001': [
+                { address: '0xtoken', decimals: 0, symbol: 'S' },
+              ],
+            },
+          },
+        } as unknown as TokensControllerState,
+        [],
+      );
+
+      await flushPromises();
+
+      expect(controller.state.tokenBalances).toStrictEqual({});
+    });
+
+    it('clears stale tokenBalances on KeyringController:accountRemoved when isDeprecated toggles to true at runtime', () => {
+      let deprecated = false;
+      const { controller, messenger } = setupController({
+        config: { state: initialState, isDeprecated: () => deprecated },
+      });
+
+      deprecated = true;
+
+      messenger.publish(
+        'KeyringController:accountRemoved',
+        '0x0000000000000000000000000000000000000001',
+      );
+
+      expect(controller.state.tokenBalances).toStrictEqual({});
+    });
+
+    it('clears stale tokenBalances on AccountsController:selectedEvmAccountChange when isDeprecated toggles to true at runtime', () => {
+      let deprecated = false;
+      const { controller, messenger } = setupController({
+        config: { state: initialState, isDeprecated: () => deprecated },
+        tokens: {
+          allTokens: {
+            '0x1': {
+              '0x0000000000000000000000000000000000000001': [
+                { address: '0xtoken', decimals: 0, symbol: 'S' },
+              ],
+            },
+          },
+          allDetectedTokens: {},
+          allIgnoredTokens: {},
+        },
+      });
+
+      deprecated = true;
+
+      messenger.publish(
+        'AccountsController:selectedEvmAccountChange',
+        createMockInternalAccount({
+          address: '0x0000000000000000000000000000000000000001',
+        }),
+      );
+
+      expect(controller.state.tokenBalances).toStrictEqual({});
+    });
+
+    it('clears stale tokenBalances on AccountActivityService:balanceUpdated when isDeprecated toggles to true at runtime', async () => {
+      let deprecated = false;
+      const { controller, messenger } = setupController({
+        config: { state: initialState, isDeprecated: () => deprecated },
+      });
+
+      deprecated = true;
+
+      messenger.publish('AccountActivityService:balanceUpdated', {
+        address: '0x0000000000000000000000000000000000000001',
+        chain: 'eip155:1',
+        updates: [
+          {
+            asset: {
+              type: 'eip155:1/slip44:60',
+              unit: 'ETH',
+              fungible: true,
+              decimals: 18,
+            },
+            postBalance: { amount: '0x1' },
+            transfers: [],
+          },
+        ],
+      });
+
+      await flushPromises();
+
+      expect(controller.state.tokenBalances).toStrictEqual({});
+    });
+
+    it('clears stale tokenBalances on AccountActivityService:statusChanged when isDeprecated toggles to true at runtime', () => {
+      let deprecated = false;
+      const { controller, messenger } = setupController({
+        config: { state: initialState, isDeprecated: () => deprecated },
+      });
+
+      deprecated = true;
+
+      messenger.publish('AccountActivityService:statusChanged', {
+        chainIds: ['eip155:1'],
+        status: 'up',
+      });
+
+      expect(controller.state.tokenBalances).toStrictEqual({});
+    });
+  });
+
   describe('when accountRemoved is published', () => {
     it('does not update state if account removed is EVM account', async () => {
       const { controller, messenger, updateSpy } = setupController();
