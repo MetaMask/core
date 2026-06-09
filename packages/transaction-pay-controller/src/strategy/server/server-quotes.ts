@@ -245,7 +245,7 @@ function normalizeAuthorizationList(
   authorizationList: AuthorizationList,
 ): NonNullable<ServerQuoteRequest['authorizationList']> {
   return authorizationList.map((entry) => ({
-    address: entry.address as Hex,
+    address: entry.address,
     chainId: Number(entry.chainId),
     nonce: Number(entry.nonce),
     r: entry.r as Hex,
@@ -296,7 +296,7 @@ async function processMoneyAccountPostQuote(
     ...overrideCalls.map((call) => ({
       data: call.data as Hex,
       to: call.to as Hex,
-      value: (call.value ?? '0x0') as Hex,
+      value: (call.value ?? '0x0'),
     })),
   ];
 
