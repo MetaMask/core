@@ -11,6 +11,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Token detection via `TokensApiClient` is now gated behind the `/v2/supportedNetworks` endpoint; chains absent from the supported-networks list are skipped and return an empty token list, and token-list request failures return an empty array instead of throwing ([#9063](https://github.com/MetaMask/core/pull/9063))
 
+- Bump `@metamask/transaction-controller` from `^67.0.0` to `^67.1.0` ([#9066](https://github.com/MetaMask/core/pull/9066))
+
 ## [8.3.3]
 
 ### Changed

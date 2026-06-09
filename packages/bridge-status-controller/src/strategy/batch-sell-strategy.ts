@@ -37,6 +37,7 @@ export async function* submitBatchSellHandler(
     addTransactionBatchFn,
     isDelegatedAccount,
     batchSellTrades,
+    batchId: batchIdParam,
   } = args;
 
   const tradeData = toQuoteAndTxMetadataBatch({
@@ -64,6 +65,7 @@ export async function* submitBatchSellHandler(
     ),
     isGasFeeSponsored: gasSponsored,
     isGasFeeIncluded: Boolean(gasIncluded7702),
+    batchId: batchIdParam,
     skipInitialGasEstimate: gasIncluded7702
       ? isDelegatedAccount
       : Boolean(gasFeeToken),
@@ -95,6 +97,13 @@ export async function* submitBatchSellHandler(
       'Failed to add BatchSell trade to history: txMeta not found',
     );
   }
+
+  yield {
+    type: SubmitStep.SetTradeMeta,
+    payload: {
+      tradeMeta: firstTradeMeta,
+    },
+  };
 
   // Nested/7702 batch
   if (is7702Tx(firstTradeMeta) || hasNestedSwapTransactions(firstTradeMeta)) {
@@ -142,11 +151,4 @@ export async function* submitBatchSellHandler(
       };
     }
   }
-
-  yield {
-    type: SubmitStep.SetTradeMeta,
-    payload: {
-      tradeMeta: firstTradeMeta,
-    },
-  };
 }
