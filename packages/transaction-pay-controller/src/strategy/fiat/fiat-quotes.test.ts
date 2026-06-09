@@ -181,6 +181,7 @@ function getRequest({
     request: {
       accountSupports7702: false,
       fiatPaymentMethod,
+      from: WALLET_ADDRESS,
       messenger: {
         call: callMock,
       } as unknown as PayStrategyGetQuotesRequest['messenger'],
@@ -336,6 +337,7 @@ describe('getFiatQuotes', () => {
     const result = await getFiatQuotes({
       accountSupports7702: false,
       fiatPaymentMethod: '/payments/debit-credit-card',
+      from: WALLET_ADDRESS,
       messenger: {
         call: callMock,
       } as unknown as PayStrategyGetQuotesRequest['messenger'],
@@ -520,6 +522,7 @@ describe('getFiatQuotes', () => {
     await getFiatQuotes({
       accountSupports7702: false,
       fiatPaymentMethod: '/payments/debit-credit-card',
+      from: WALLET_ADDRESS,
       messenger: {
         call: callMock,
       } as unknown as PayStrategyGetQuotesRequest['messenger'],

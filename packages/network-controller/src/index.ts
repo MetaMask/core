@@ -73,7 +73,6 @@ export type {
   NetworkControllerDisableRpcFailoverAction,
   NetworkControllerGetProviderAndBlockTrackerAction,
   NetworkControllerGetNetworkClientRegistryAction,
-  NetworkControllerInitializeProviderAction,
   NetworkControllerLookupNetworkAction,
   NetworkControllerLookupNetworkByClientIdAction,
   NetworkControllerGet1559CompatibilityWithNetworkClientIdAction,

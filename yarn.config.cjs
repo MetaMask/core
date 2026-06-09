@@ -34,6 +34,20 @@ const ALLOWED_INCONSISTENT_DEPENDENCIES = {
 const ALLOWED_PEER_DEPENDENCIES = ['react', 'react-dom', 'react-native'];
 
 /**
+ * These packages are tools and do not ship with APIs.
+ */
+const TOOLS = [
+  '@metamask/foundryup',
+  '@metamask/messenger-cli',
+  '@metamask/wallet-framework-docs',
+];
+
+/**
+ * These packages deploy documentation sites and use a different build script.
+ */
+const DOCSITE_PACKAGES = ['@metamask/wallet-framework-docs'];
+
+/**
  * Aliases for the Yarn type definitions, to make the code more readable.
  *
  * @typedef {import('@yarnpkg/types').Yarn.Constraints.Yarn} Yarn
@@ -116,30 +130,33 @@ module.exports = defineConfig({
         }
 
         // All non-root packages must set up ESM- and CommonJS-compatible
-        // exports correctly.
-        if (
-          workspace.ident !== '@metamask/foundryup' &&
-          workspace.ident !== '@metamask/messenger-cli'
-        ) {
+        // exports correctly (aside from tools).
+        if (!TOOLS.includes(workspace.ident)) {
           expectCorrectWorkspaceExports(workspace);
         }
 
-        // All non-root packages must have the same "build" script.
-        expectWorkspaceField(
-          workspace,
-          'scripts.build',
-          'ts-bridge --project tsconfig.build.json --verbose --clean --no-references',
-        );
+        // All non-root packages must have a "build" script. All packages that
+        // do not exclusively deploy documentation sites must use `ts-bridge`.
+        if (DOCSITE_PACKAGES.includes(workspace.ident)) {
+          expectWorkspaceField(workspace, 'scripts.build');
+        } else {
+          expectWorkspaceField(
+            workspace,
+            'scripts.build',
+            'ts-bridge --project tsconfig.build.json --verbose --clean --no-references',
+          );
 
-        // All non-root packages must have the same "build:all" script.
-        expectWorkspaceField(
-          workspace,
-          'scripts.build:all',
-          'ts-bridge --project tsconfig.build.json --verbose --clean',
-        );
+          // All non-root packages must have the same "build:all" script.
+          expectWorkspaceField(
+            workspace,
+            'scripts.build:all',
+            'ts-bridge --project tsconfig.build.json --verbose --clean',
+          );
+        }
 
-        // All non-root packages must have the same "build:docs" script.
-        if (workspace.ident !== '@metamask/messenger-cli') {
+        // All non-root packages must have the same "build:docs" script (aside
+        // from tools).
+        if (!TOOLS.includes(workspace.ident)) {
           expectWorkspaceField(workspace, 'scripts.build:docs', 'typedoc');
         }
 
@@ -240,7 +257,7 @@ module.exports = defineConfig({
       if (isChildWorkspace) {
         workspace.unset('packageManager');
       } else {
-        expectWorkspaceField(workspace, 'packageManager', 'yarn@4.14.1');
+        expectWorkspaceField(workspace, 'packageManager', 'yarn@4.16.0');
       }
 
       // All packages must specify a minimum Node.js version of 18.18.
@@ -261,7 +278,7 @@ module.exports = defineConfig({
 
       if (isChildWorkspace) {
         // All non-root packages must have a valid README.md file.
-        await expectReadme(workspace, workspaceBasename);
+        await expectReadme(workspace, workspaceBasename, isPrivate);
 
         await expectCodeowner(workspace, workspaceBasename);
       }
@@ -901,18 +918,19 @@ function expectConsistentDependenciesAndDevDependencies(Yarn) {
 }
 
 /**
- * Expect that the workspace has a README.md file, and that it is a non-empty
- * string. The README.md is expected to:
+ * Expects the README.md:
  *
- * - Not contain template instructions (unless the workspace is the module
+ * - To not contain template instructions (unless the workspace is the module
  * template itself).
- * - Match the version of Node.js specified in the `.nvmrc` file.
+ * - To contain installation instructions (if it is not private)
+ * - To match the version of Node.js specified in the `.nvmrc` file.
  *
  * @param {Workspace} workspace - The workspace to check.
  * @param {string} workspaceBasename - The name of the workspace.
+ * @param {boolean} isPrivate - Whether the package is private.
  * @returns {Promise<void>}
  */
-async function expectReadme(workspace, workspaceBasename) {
+async function expectReadme(workspace, workspaceBasename, isPrivate) {
   const readme = await getWorkspaceFile(workspace, 'README.md');
 
   if (
@@ -924,13 +942,19 @@ async function expectReadme(workspace, workspaceBasename) {
     );
   }
 
-  if (!readme.includes(`yarn add @metamask/${workspaceBasename}`)) {
+  if (
+    !isPrivate &&
+    !readme.includes(`yarn add @metamask/${workspaceBasename}`)
+  ) {
     workspace.error(
       `The README.md does not contain an example of how to install the package using Yarn (\`yarn add @metamask/${workspaceBasename}\`). Please add an example.`,
     );
   }
 
-  if (!readme.includes(`npm install @metamask/${workspaceBasename}`)) {
+  if (
+    !isPrivate &&
+    !readme.includes(`npm install @metamask/${workspaceBasename}`)
+  ) {
     workspace.error(
       `The README.md does not contain an example of how to install the package using npm (\`npm install @metamask/${workspaceBasename}\`). Please add an example.`,
     );

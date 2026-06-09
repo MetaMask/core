@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.3]
+
+### Changed
+
+- Bump `@metamask/accounts-controller` from `^39.0.0` to `^39.0.1` ([#9058](https://github.com/MetaMask/core/pull/9058))
+- Bump `@metamask/keyring-controller` from `^26.0.0` to `^27.0.0` ([#9058](https://github.com/MetaMask/core/pull/9058))
+
+## [0.3.2]
+
+### Changed
+
+- Bump `@metamask/accounts-controller` from `^38.1.2` to `^39.0.0` ([#8999](https://github.com/MetaMask/core/pull/8999))
+
 ## [0.3.1]
 
 ### Changed
@@ -42,7 +55,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Add `MoneyAccountController` ([#8361](https://github.com/MetaMask/core/pull/8361))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/money-account-controller@0.3.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/money-account-controller@0.3.3...HEAD
+[0.3.3]: https://github.com/MetaMask/core/compare/@metamask/money-account-controller@0.3.2...@metamask/money-account-controller@0.3.3
+[0.3.2]: https://github.com/MetaMask/core/compare/@metamask/money-account-controller@0.3.1...@metamask/money-account-controller@0.3.2
 [0.3.1]: https://github.com/MetaMask/core/compare/@metamask/money-account-controller@0.3.0...@metamask/money-account-controller@0.3.1
 [0.3.0]: https://github.com/MetaMask/core/compare/@metamask/money-account-controller@0.2.0...@metamask/money-account-controller@0.3.0
 [0.2.0]: https://github.com/MetaMask/core/compare/@metamask/money-account-controller@0.1.0...@metamask/money-account-controller@0.2.0

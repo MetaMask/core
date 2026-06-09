@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [6.3.3]
+
+### Changed
+
+- Bump `@metamask/accounts-controller` from `^39.0.0` to `^39.0.1` ([#9058](https://github.com/MetaMask/core/pull/9058))
+- Bump `@metamask/controller-utils` from `^12.1.0` to `^12.1.1` ([#9058](https://github.com/MetaMask/core/pull/9058))
+- Bump `@metamask/keyring-controller` from `^26.0.0` to `^27.0.0` ([#9058](https://github.com/MetaMask/core/pull/9058))
+
+## [6.3.2]
+
+### Changed
+
+- Bump `@metamask/accounts-controller` from `^38.1.2` to `^39.0.0` ([#8999](https://github.com/MetaMask/core/pull/8999))
+
 ## [6.3.1]
 
 ### Changed
@@ -292,7 +306,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Type definitions** - Comprehensive TypeScript types for transactions, balances, WebSocket messages, and service configurations
 - **Logging infrastructure** - Structured logging with module-specific loggers for debugging and monitoring
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/core-backend@6.3.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/core-backend@6.3.3...HEAD
+[6.3.3]: https://github.com/MetaMask/core/compare/@metamask/core-backend@6.3.2...@metamask/core-backend@6.3.3
+[6.3.2]: https://github.com/MetaMask/core/compare/@metamask/core-backend@6.3.1...@metamask/core-backend@6.3.2
 [6.3.1]: https://github.com/MetaMask/core/compare/@metamask/core-backend@6.3.0...@metamask/core-backend@6.3.1
 [6.3.0]: https://github.com/MetaMask/core/compare/@metamask/core-backend@6.2.2...@metamask/core-backend@6.3.0
 [6.2.2]: https://github.com/MetaMask/core/compare/@metamask/core-backend@6.2.1...@metamask/core-backend@6.2.2
