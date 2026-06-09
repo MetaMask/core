@@ -14,9 +14,10 @@ jobs:
       child-workspace-package-names: ${{ steps.workspace-package-names.outputs.child-workspace-package-names }}
     steps:
       - name: Checkout and setup environment
-        uses: MetaMask/action-checkout-and-setup@v2
+        uses: MetaMask/action-checkout-and-setup@v3
         with:
           is-high-risk-environment: false
+          persist-credentials: false
           cache-node-modules: true
           node-version: ${{ matrix.node-version }}
       - name: Fetch workspace package names
@@ -42,9 +43,10 @@ jobs:
           - readme-content:check
     steps:
       - name: Checkout and setup environment
-        uses: MetaMask/action-checkout-and-setup@v2
+        uses: MetaMask/action-checkout-and-setup@v3
         with:
           is-high-risk-environment: false
+          persist-credentials: false
           node-version: ${{ matrix.node-version }}
       - name: Run yarn ${{ matrix.script }}
         run: yarn "$SCRIPT"
@@ -68,11 +70,14 @@ jobs:
         package-name: ${{ fromJson(needs.prepare.outputs.child-workspace-package-names) }}
     steps:
       - name: Checkout and setup environment
-        uses: MetaMask/action-checkout-and-setup@v2
+        uses: MetaMask/action-checkout-and-setup@v3
         with:
           is-high-risk-environment: false
+          persist-credentials: false
           node-version: ${{ matrix.node-version }}
-      - run: yarn workspace ${{ matrix.package-name }} changelog:validate
+      - run: yarn workspace "$PACKAGE_NAME" changelog:validate
+        env:
+          PACKAGE_NAME: ${{ matrix.package-name }}
       - name: Require clean working directory
         shell: bash
         run: |
@@ -88,6 +93,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
+        with:
+          persist-credentials: false
       - name: Validate changelog diffs
         uses: ./.github/actions/check-merge-queue-changelogs
 
@@ -100,9 +107,10 @@ jobs:
         node-version: [24.x]
     steps:
       - name: Checkout and setup environment
-        uses: MetaMask/action-checkout-and-setup@v2
+        uses: MetaMask/action-checkout-and-setup@v3
         with:
           is-high-risk-environment: false
+          persist-credentials: false
           node-version: ${{ matrix.node-version }}
       - run: yarn build
       - name: Require clean working directory
@@ -122,9 +130,10 @@ jobs:
         node-version: [24.x]
     steps:
       - name: Checkout and setup environment
-        uses: MetaMask/action-checkout-and-setup@v2
+        uses: MetaMask/action-checkout-and-setup@v3
         with:
           is-high-risk-environment: false
+          persist-credentials: false
           node-version: ${{ matrix.node-version }}
       - run: yarn test:scripts
       - name: Require clean working directory
@@ -147,9 +156,10 @@ jobs:
         package-name: ${{ fromJson(needs.prepare.outputs.child-workspace-package-names) }}
     steps:
       - name: Checkout and setup environment
-        uses: MetaMask/action-checkout-and-setup@v2
+        uses: MetaMask/action-checkout-and-setup@v3
         with:
           is-high-risk-environment: false
+          persist-credentials: false
           node-version: 18.x
       - run: yarn workspace ${{ matrix.package-name }} run test
       - name: Require clean working directory
@@ -172,6 +182,7 @@ jobs:
         uses: MetaMask/action-checkout-and-setup@v2
         with:
           is-high-risk-environment: false
+          persist-credentials: false
           node-version: 20.x
       - run: yarn workspace ${{ matrix.package-name }} run test
       - name: Require clean working directory
@@ -191,9 +202,10 @@ jobs:
         package-name: ${{ fromJson(needs.prepare.outputs.child-workspace-package-names) }}
     steps:
       - name: Checkout and setup environment
-        uses: MetaMask/action-checkout-and-setup@v2
+        uses: MetaMask/action-checkout-and-setup@v3
         with:
           is-high-risk-environment: false
+          persist-credentials: false
           node-version: 22.x
       - run: yarn workspace ${{ matrix.package-name }} run test
       - name: Require clean working directory
