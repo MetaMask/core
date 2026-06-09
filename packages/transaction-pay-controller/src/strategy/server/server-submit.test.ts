@@ -676,7 +676,6 @@ describe('submitServerQuotes', () => {
     const SIGNATURE_MOCK = `0x${'a'.repeat(64)}${'b'.repeat(64)}1c`;
     const SIGNATURE_STEP_MOCK: ServerSignatureStep = {
       type: 'signature' as const,
-      id: 'sig-step-1',
       sign: {
         domain: { name: 'Test', chainId: 137 },
         types: { Order: [{ name: 'amount', type: 'uint256' }] },
