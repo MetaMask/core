@@ -11,6 +11,12 @@ import {
 } from '../../constants';
 import type { QuoteRequest } from '../../types';
 
+/**
+ * Shared 20-byte sentinel address emitted by the server strategy to flag a
+ * Hyperliquid perps deposit. Backend providers translate this to their own
+ * on-chain destination (e.g. Relay's 16-byte HyperCore USDC sentinel, Across's
+ * native USDC-PERPS token at the same address).
+ */
 export const SERVER_HYPERCORE_USDC_PERPS_ADDRESS =
   '0x2100000000000000000000000000000000000000' as Hex;
 
@@ -20,6 +26,16 @@ const HYPERLIQUID_BRIDGE_ADDRESS_LOWER =
 const HYPERLIQUID_BRIDGE_CALLDATA_FRAGMENT =
   HYPERLIQUID_BRIDGE_ADDRESS_LOWER.slice(2);
 
+/**
+ * Detect whether a quote request represents a Hyperliquid perps deposit by
+ * sniffing the parent transaction calldata for a reference to the Hyperliquid
+ * bridge contract. Transaction type is intentionally NOT consulted so that any
+ * caller funnelling a bridge deposit through Pay is supported.
+ *
+ * @param request - Quote request from the transaction-pay controller.
+ * @param transaction - Parent transaction whose calldata is inspected.
+ * @returns Whether the request matches a Hyperliquid bridge deposit.
+ */
 export function isServerPerpsDepositRequest(
   request: Pick<
     QuoteRequest,
@@ -39,6 +55,24 @@ export function isServerPerpsDepositRequest(
   return transactionDataReferencesBridge(transaction);
 }
 
+/**
+ * Translate a Hyperliquid perps-deposit quote request into the HyperCore
+ * direct-deposit shape with a provider-agnostic sentinel destination. Backend
+ * providers detect the sentinel and rewrite it to their respective on-chain
+ * destinations.
+ *
+ * Transaction pay starts from the parent on-chain asset (Arbitrum USDC,
+ * 6 decimals); HyperCore expects an 8-decimal amount, so the target amount is
+ * shifted accordingly.
+ *
+ * Also handles the perps-withdraw direction: when `request.isHyperliquidSource`
+ * is set the source is rewritten to the HyperCore sentinel and the amount is
+ * shifted from 8 to 6 decimals.
+ *
+ * @param request - Quote request from the transaction-pay controller.
+ * @param transaction - Parent transaction whose calldata is inspected.
+ * @returns Normalized request, or the original request if not a perps flow.
+ */
 export function normalizeServerPerpsRequest(
   request: QuoteRequest,
   transaction: Pick<TransactionMeta, 'txParams' | 'nestedTransactions'>,
