@@ -343,21 +343,20 @@ export class RemoteFeatureFlagController extends BaseController<
       }
 
       if (Array.isArray(processedValue)) {
-        // Validate array has valid threshold items before doing expensive crypto operation
-        const hasValidThresholds = processedValue.some(
+        const thresholdValues = processedValue.filter(
           isFeatureFlagWithScopeValue,
         );
 
-        if (!hasValidThresholds) {
+        if (thresholdValues.length === 0) {
           // Not a threshold array - preserve as-is
           processedFlags[remoteFeatureFlagName] = processedValue;
           continue;
         }
 
-        // Skip threshold processing if metaMetricsId is not available
         if (!metaMetricsId) {
-          // Preserve array as-is when user hasn't opted into MetaMetrics
-          processedFlags[remoteFeatureFlagName] = processedValue;
+          processedFlags[remoteFeatureFlagName] = normalizeThresholdValue(
+            thresholdValues[0],
+          );
           continue;
         }
 
@@ -376,15 +375,9 @@ export class RemoteFeatureFlagController extends BaseController<
         }
 
         const threshold = thresholdValue;
-        const selectedGroup = processedValue.find(
-          (featureFlag): featureFlag is FeatureFlagScopeValue => {
-            if (!isFeatureFlagWithScopeValue(featureFlag)) {
-              return false;
-            }
-
-            return threshold <= featureFlag.scope.value;
-          },
-        );
+        const selectedGroup = thresholdValues.find((featureFlag) => {
+          return threshold <= featureFlag.scope.value;
+        });
 
         if (selectedGroup) {
           processedValue = normalizeThresholdValue(selectedGroup);

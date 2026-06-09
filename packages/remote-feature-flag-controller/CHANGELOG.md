@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Process threshold feature flags without a MetaMetrics ID by selecting the first valid threshold entry instead of preserving the raw threshold array ([#9059](https://github.com/MetaMask/core/pull/9059))
+
 ## [4.2.2]
 
 ### Changed

@@ -1474,7 +1474,7 @@ describe('RemoteFeatureFlagController', () => {
       jest.useRealTimers();
     });
 
-    it('preserves threshold arrays when metaMetricsId is empty', async () => {
+    it('selects the first threshold group when metaMetricsId is empty', async () => {
       // Arrange
       const mockFlags = {
         thresholdFlag: [
@@ -1503,10 +1503,53 @@ describe('RemoteFeatureFlagController', () => {
         'RemoteFeatureFlagController:updateRemoteFeatureFlags',
       );
 
-      // Assert - Array preserved as-is without processing
+      // Assert - First threshold group selected without calculating a bucket
       expect(controller.state.remoteFeatureFlags.thresholdFlag).toStrictEqual(
-        mockFlags.thresholdFlag,
+        {
+          name: 'groupA',
+          value: 'A',
+        },
       );
+      expect(controller.state.thresholdCache).toStrictEqual({});
+    });
+
+    it('selects the first direct threshold value when metaMetricsId is empty', async () => {
+      // Arrange
+      const thresholdFlagValue = {
+        payStrategies: {
+          relay: {
+            gaslessEnabled: true,
+          },
+        },
+      };
+      const mockFlags = {
+        thresholdFlag: [
+          {
+            thresholdName: 'enabled',
+            thresholdVersion: ThresholdVersion.DirectValue,
+            scope: { type: 'threshold', value: 1.0 },
+            value: thresholdFlagValue,
+          },
+        ],
+      };
+      const clientConfigApiService = buildClientConfigApiService({
+        remoteFeatureFlags: mockFlags,
+      });
+      const { controller, messenger } = createController({
+        clientConfigApiService,
+        getMetaMetricsId: () => '',
+      });
+
+      // Act
+      await messenger.call(
+        'RemoteFeatureFlagController:updateRemoteFeatureFlags',
+      );
+
+      // Assert
+      expect(controller.state.remoteFeatureFlags.thresholdFlag).toStrictEqual(
+        thresholdFlagValue,
+      );
+      expect(controller.state.thresholdCache).toStrictEqual({});
     });
 
     it('handles flag names containing colons correctly', async () => {
