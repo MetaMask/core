@@ -13,8 +13,6 @@ import { Wallet } from './Wallet';
 const TEST_SRP = 'test test test test test test test test test test test ball';
 const TEST_PASSWORD = 'testpass';
 
-// `clientConfigApiService` is a required `remoteFeatureFlagController` option;
-// this stub fetches no flags, for constructions that don't exercise it.
 const REMOTE_FEATURE_FLAG_OPTIONS = {
   clientConfigApiService: {
     fetchRemoteFeatureFlags: async (): Promise<{

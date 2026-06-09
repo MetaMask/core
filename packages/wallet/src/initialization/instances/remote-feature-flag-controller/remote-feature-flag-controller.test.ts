@@ -35,9 +35,6 @@ function getClientConfigApiService(): { fetchRemoteFeatureFlags: jest.Mock } {
 
 describe('remoteFeatureFlagController', () => {
   it('is registered as a default initialization configuration', () => {
-    // Proves the controller is part of the default ensemble that `initialize()`
-    // wires, without constructing a `Wallet` (which keeps this PR independent of
-    // the constructor-options shape).
     expect(Object.values(defaultConfigurations)).toContain(
       remoteFeatureFlagController,
     );
@@ -89,9 +86,6 @@ describe('remoteFeatureFlagController', () => {
       options: { clientConfigApiService },
     });
 
-    // Exercises the default `getMetaMetricsId` (`() => ''`, invoked while
-    // processing flags) and the default `clientVersion` ('0.0.0', a valid SemVer
-    // so construction does not throw).
     await instance.updateRemoteFeatureFlags();
 
     expect(
@@ -161,8 +155,6 @@ describe('remoteFeatureFlagController', () => {
       },
     });
 
-    // A version change resets the cache timestamp to 0 so the next update
-    // refetches rather than serving stale flags from a previous version.
     expect(instance.state.cacheTimestamp).toBe(0);
   });
 
@@ -176,9 +168,6 @@ describe('remoteFeatureFlagController', () => {
         cacheTimestamp: 5000,
       },
       messenger,
-      // Same version: invalidation must be conditional, so the timestamp is
-      // preserved (this proves both versions are forwarded to the right slots,
-      // not that the controller always zeroes the cache).
       options: {
         clientConfigApiService: getClientConfigApiService(),
         clientVersion: '2.0.0',
@@ -211,8 +200,6 @@ describe('remoteFeatureFlagController', () => {
       remoteFeatureFlagController.getMessenger(getRootMessenger());
 
     const instance = remoteFeatureFlagController.init({
-      // A recent cache timestamp combined with a large fetchInterval keeps the
-      // cache fresh, so no fetch happens.
       state: { remoteFeatureFlags: {}, cacheTimestamp: Date.now() },
       messenger,
       options: { clientConfigApiService, fetchInterval: 60 * 60 * 1000 },
