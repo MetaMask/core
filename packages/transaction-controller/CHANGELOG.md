@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- feat(perps): pre-ipo classification ([#9038](https://github.com/MetaMask/core/pull/9038))
+- refactor(network-controller)!: Remove `initializeProvider` in favor of `init` ([#9034](https://github.com/MetaMask/core/pull/9034))
+
 ### Changed
 
 - Export `generateBatchId` utility ([#8964](https://github.com/MetaMask/core/pull/8964))
