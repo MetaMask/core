@@ -336,5 +336,4 @@ export const DAYS = DAY;
 export const CHAIN_IDS_WITH_NO_NATIVE_TOKEN = [
   'eip155:42431', // Tempo Testnet
   'eip155:4217', // Tempo Mainnet
-  'eip155:5042', // Arc Mainnet
 ] as const;

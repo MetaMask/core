@@ -7,10 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Added
-
-- Add ARC mainnet (`eip155:5042`) to `CHAIN_IDS_WITH_NO_NATIVE_TOKEN` to hide native USDC from assets list ([#9007](https://github.com/MetaMask/core/pull/9007))
-
 ## [12.1.1]
 
 ### Changed
