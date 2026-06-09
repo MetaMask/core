@@ -1,7 +1,6 @@
 export const CHAIN_IDS = {
   MAINNET: '0x1',
   GOERLI: '0x5',
-  ARC: '0x13b2',
   BASE: '0x2105',
   BASE_TESTNET: '0x14a33',
   BSC: '0x38',

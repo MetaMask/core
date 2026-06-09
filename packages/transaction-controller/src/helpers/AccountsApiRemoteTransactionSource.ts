@@ -31,7 +31,6 @@ export const SUPPORTED_CHAIN_IDS: Hex[] = [
   CHAIN_IDS.SEI,
   CHAIN_IDS.MONAD,
   CHAIN_IDS.HYPEREVM,
-  CHAIN_IDS.ARC,
 ];
 
 const log = createModuleLogger(
@@ -42,7 +41,9 @@ const log = createModuleLogger(
 /**
  * A RemoteTransactionSource that fetches incoming transactions using the Accounts API.
  */
-export class AccountsApiRemoteTransactionSource implements RemoteTransactionSource {
+export class AccountsApiRemoteTransactionSource
+  implements RemoteTransactionSource
+{
   getSupportedChains(): Hex[] {
     return SUPPORTED_CHAIN_IDS;
   }
