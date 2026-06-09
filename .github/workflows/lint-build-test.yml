@@ -63,9 +63,6 @@ jobs:
   lint-workflows:
     name: Lint workflows
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        node-version: [24.x]
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
