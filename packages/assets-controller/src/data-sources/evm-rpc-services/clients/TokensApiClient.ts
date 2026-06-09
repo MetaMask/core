@@ -14,6 +14,21 @@ import type { ChainId, TokenListEntry } from '../types';
 const TOKEN_END_POINT_API = 'https://token.api.cx.metamask.io';
 
 /**
+ * Endpoint that returns which CAIP chain IDs the Tokens API supports.
+ * Used to skip detection (and avoid unnecessary network requests) for chains
+ * that are not in the supported-networks list.
+ */
+const SUPPORTED_NETWORKS_URL = `${TOKEN_END_POINT_API}/v2/supportedNetworks`;
+
+/**
+ * How long to keep the supported-networks response in the instance-level
+ * cache before refreshing it. One hour is sufficient — the list rarely
+ * changes and a stale cache just means we may do an unnecessary token-list
+ * fetch for a newly-unsupported chain (harmless).
+ */
+const SUPPORTED_NETWORKS_CACHE_TTL_MS = 60 * 60_000;
+
+/**
  * Tempo Mainnet — not yet present in `@metamask/controller-utils`'s `ChainId`
  * map at the time of writing, so it's spelled out as a literal here exactly as
  * `TokenListController` does (see `token-service.ts:getTokensURL`).
@@ -50,6 +65,14 @@ function getOccurrenceFloor(hexChainId: ChainId): number {
  */
 const TOKEN_LIST_STALE_TIME_MS = 5 * 60_000;
 const TOKEN_LIST_GC_TIME_MS = 60 * 60_000;
+
+/**
+ * Shape of the `/v2/supportedNetworks` response.
+ */
+type SupportedNetworksResponse = {
+  fullSupport?: string[];
+  partialSupport?: string[];
+};
 
 /**
  * Shape of a single item returned by the Tokens API `/tokens/{chainId}`
@@ -102,14 +125,32 @@ export type TokensApiClientConfig = {
  * Linea aggregator filter. This keeps RPC token detection in lockstep with
  * the wallet's primary token list.
  *
- * When constructed with a `queryClient`, results are cached and deduped via
- * TanStack Query (5 min staleTime, 1 h gcTime), so concurrent detection cycles
- * for the same chain coalesce into a single network request.
+ * Before fetching a chain's token list, the client checks
+ * `/v2/supportedNetworks` and returns `[]` immediately for chains that are
+ * not in the supported list, avoiding unnecessary API calls. The supported-
+ * networks response is cached in-memory for one hour.
+ *
+ * When constructed with a `queryClient`, token-list results are cached and
+ * deduped via TanStack Query (5 min staleTime, 1 h gcTime), so concurrent
+ * detection cycles for the same chain coalesce into a single network request.
  */
 export class TokensApiClient {
   readonly #fetch: typeof globalThis.fetch;
 
   readonly #queryClient: TokenListQueryClient | undefined;
+
+  /** CAIP chain IDs returned by `/v2/supportedNetworks` (both tiers). */
+  #supportedChainIds: Set<string> | undefined;
+
+  /** Timestamp of the last successful `/v2/supportedNetworks` fetch. */
+  #supportedChainIdsCachedAt = 0;
+
+  /**
+   * In-flight `/v2/supportedNetworks` request shared across concurrent callers
+   * so only one network request is made even when multiple `fetchTokenList`
+   * calls arrive before the first one resolves.
+   */
+  #supportedChainIdsRefreshPromise: Promise<void> | undefined;
 
   constructor(config?: TokensApiClientConfig) {
     this.#fetch = config?.fetch ?? globalThis.fetch.bind(globalThis);
@@ -119,11 +160,21 @@ export class TokensApiClient {
   /**
    * Fetch the list of ERC-20 tokens for a chain from the Tokens API.
    *
+   * Returns `[]` immediately (without hitting the token-list endpoint) when
+   * the chain is not in the `/v2/supportedNetworks` response, or when the
+   * supported-networks check fails for any reason.
+   *
    * @param hexChainId - Chain ID in hex format (e.g. `'0x1'` for Ethereum mainnet).
-   * @returns Array of token list entries with address and metadata.
-   * @throws If the API responds with a non-2xx status.
+   * @returns Array of token list entries with address and metadata, or an empty
+   * array if the chain is unsupported or the request fails.
    */
   async fetchTokenList(hexChainId: ChainId): Promise<TokenListEntry[]> {
+    // Treat any error from the supported-networks check as "not supported":
+    // the token-list endpoint is only contacted for known-supported chains.
+    if (!(await this.#isSupportedChain(hexChainId).catch(() => false))) {
+      return [];
+    }
+
     const queryClient = this.#queryClient;
     if (queryClient === undefined) {
       return this.#fetchTokenListUncached(hexChainId);
@@ -142,6 +193,60 @@ export class TokensApiClient {
       staleTime: TOKEN_LIST_STALE_TIME_MS,
       gcTime: TOKEN_LIST_GC_TIME_MS,
     });
+  }
+
+  /**
+   * Check whether the given chain is present in the supported-networks list.
+   *
+   * Uses an instance-level cache (1 h TTL). Throws if the network request
+   * fails — callers should handle this (e.g. via `.catch(() => false)`).
+   *
+   * @param hexChainId - Hex chain ID to check.
+   * @returns `true` when the chain is in the supported-networks list.
+   */
+  async #isSupportedChain(hexChainId: ChainId): Promise<boolean> {
+    const now = Date.now();
+    if (
+      this.#supportedChainIds === undefined ||
+      now - this.#supportedChainIdsCachedAt >= SUPPORTED_NETWORKS_CACHE_TTL_MS
+    ) {
+      await this.#refreshSupportedChainIds(now);
+    }
+
+    const caipChainId = `eip155:${convertHexToDecimal(hexChainId)}`;
+    return this.#supportedChainIds?.has(caipChainId) ?? false;
+  }
+
+  /**
+   * Fetch `/v2/supportedNetworks` and update the instance cache.
+   * Concurrent callers share the same in-flight Promise so only one network
+   * request is made. If the response is not 2xx the cache is left unchanged
+   * (the chain will be treated as unsupported this cycle).
+   *
+   * @param now - Current timestamp used to stamp the cache entry.
+   */
+  async #refreshSupportedChainIds(now: number): Promise<void> {
+    if (this.#supportedChainIdsRefreshPromise !== undefined) {
+      return this.#supportedChainIdsRefreshPromise;
+    }
+
+    this.#supportedChainIdsRefreshPromise = (async () => {
+      try {
+        const response = await this.#fetch(SUPPORTED_NETWORKS_URL);
+        if (response.ok) {
+          const data = (await response.json()) as SupportedNetworksResponse;
+          this.#supportedChainIds = new Set([
+            ...(data.fullSupport ?? []),
+            ...(data.partialSupport ?? []),
+          ]);
+          this.#supportedChainIdsCachedAt = now;
+        }
+      } finally {
+        this.#supportedChainIdsRefreshPromise = undefined;
+      }
+    })();
+
+    return this.#supportedChainIdsRefreshPromise;
   }
 
   async #fetchTokenListUncached(
@@ -163,11 +268,22 @@ export class TokensApiClient {
       `&includeStorage=false` +
       `&includeRwaData=true`;
 
-    const response = await this.#fetch(url);
+    let response: Response;
+    try {
+      response = await this.#fetch(url);
+    } catch (error) {
+      console.error(
+        `Tokens API request failed for chain ${hexChainId}:`,
+        error,
+      );
+      return [];
+    }
+
     if (!response.ok) {
-      throw new Error(
+      console.error(
         `Tokens API responded with ${response.status} for chain ${hexChainId}`,
       );
+      return [];
     }
 
     const raw = (await response.json()) as unknown;
