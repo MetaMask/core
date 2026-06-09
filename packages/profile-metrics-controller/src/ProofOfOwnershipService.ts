@@ -9,7 +9,11 @@ import {
   string,
   type as structType,
 } from '@metamask/superstruct';
-import { KnownCaipNamespace, parseCaipChainId } from '@metamask/utils';
+import {
+  getErrorMessage,
+  KnownCaipNamespace,
+  parseCaipChainId,
+} from '@metamask/utils';
 import { v4 as uuid } from 'uuid';
 
 import type { AccountOwnershipProof } from './ProfileMetricsService';
@@ -287,9 +291,8 @@ export class ProofOfOwnershipService {
     try {
       assertStruct(response, SnapSignProofResponseStruct);
     } catch (error) {
-      const detail = error instanceof Error ? `: ${error.message}` : '';
       throw new Error(
-        `ProofOfOwnershipService: snap '${snapId}' returned a malformed response to '${SNAP_SIGN_PROOF_OF_OWNERSHIP_METHOD}'${detail}`,
+        `ProofOfOwnershipService: snap '${snapId}' returned a malformed response to '${SNAP_SIGN_PROOF_OF_OWNERSHIP_METHOD}': ${getErrorMessage(error)}`,
       );
     }
 
