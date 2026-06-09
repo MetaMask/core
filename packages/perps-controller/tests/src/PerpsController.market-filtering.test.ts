@@ -153,11 +153,11 @@ describe('PerpsController — market categories & filtering', () => {
     it('includes all 7 data categories', () => {
       const categories = controller.getMarketCategories();
       expect(categories).toContain('crypto');
-      expect(categories).toContain('stocks');
+      expect(categories).toContain('stock');
       expect(categories).toContain('pre-ipo');
-      expect(categories).toContain('indices');
-      expect(categories).toContain('etfs');
-      expect(categories).toContain('commodities');
+      expect(categories).toContain('index');
+      expect(categories).toContain('etf');
+      expect(categories).toContain('commodity');
       expect(categories).toContain('forex');
     });
   });
@@ -213,7 +213,7 @@ describe('PerpsController — market categories & filtering', () => {
       expect(symbols).not.toContain('xyz:TSLA');
     });
 
-    it('filters to only stock markets when categories is ["stocks"]', async () => {
+    it('filters to only stock markets when categories is ["stock"]', async () => {
       const markets = [
         buildMarket({ symbol: 'BTC', isHip3: false }),
         buildMarket({
@@ -235,7 +235,7 @@ describe('PerpsController — market categories & filtering', () => {
       mockProvider.getMarketDataWithPrices.mockResolvedValue(markets);
 
       const result = await controller.getMarketDataWithPrices({
-        categories: ['stocks'],
+        categories: ['stock'],
       });
 
       expect(result).toHaveLength(2);
@@ -266,7 +266,7 @@ describe('PerpsController — market categories & filtering', () => {
       mockProvider.getMarketDataWithPrices.mockResolvedValue(markets);
 
       const result = await controller.getMarketDataWithPrices({
-        categories: ['stocks', 'etfs'],
+        categories: ['stock', 'etf'],
       });
 
       expect(result).toHaveLength(2);
@@ -483,7 +483,7 @@ describe('PerpsController — market categories & filtering', () => {
       mockProvider.getMarketDataWithPrices.mockResolvedValue(markets);
 
       const result = await controller.getMarketDataWithPrices({
-        categories: ['stocks'],
+        categories: ['stock'],
         sortBy: 'openInterest',
         direction: 'desc',
         limit: 2,
