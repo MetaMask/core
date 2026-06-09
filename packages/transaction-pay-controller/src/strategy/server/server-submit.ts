@@ -173,11 +173,12 @@ async function submitTransactionSteps(
     return;
   }
 
-  const { isHyperliquidSource, isPostQuote } = quote.request;
+  const { isHyperliquidSource, isPostQuote, paymentOverride } = quote.request;
 
-  // Skip balance check for HyperLiquid source flows (no on-chain debit) and
-  // post-quote flows (funds come from the Safe after the original tx executes).
-  if (!isHyperliquidSource && !isPostQuote) {
+  // Skip balance check for HyperLiquid source flows (no on-chain debit),
+  // post-quote flows (funds come from the Safe after the original tx executes),
+  // and payment-override flows (funds are supplied by the override account).
+  if (!isHyperliquidSource && !isPostQuote && !paymentOverride) {
     await validateSourceBalance(quote, messenger);
   }
 
@@ -690,11 +691,12 @@ async function submitViaTransactionController(
     } else {
       const gasLimit7702 = is7702 ? toHex(gasLimits[0]) : undefined;
 
-      const batchTransactions = allParams.map((params, i) => {
-        const gas = (gasLimit7702 ??
-          (gasLimits[i] === undefined ? undefined : params.gas)) as
-          | Hex
-          | undefined;
+      const batchTransactions = allParams.map((params) => {
+        // params.gas was already resolved correctly by transactionStepToParams
+        // (indexed by relay-step position), so use it directly. Indexing
+        // allParams position into gasLimits would be wrong when payment-
+        // override or post-quote params are prepended.
+        const gas = (gasLimit7702 ?? params.gas) as Hex | undefined;
 
         return {
           params: {
@@ -785,7 +787,6 @@ async function submitSignatureStep(
   };
 
   log('Signing typed data for signature step', {
-    stepId: step.id,
     primaryType: sign.primaryType,
   });
 

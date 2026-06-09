@@ -34,9 +34,7 @@ export type ServerTransactionStep = {
 
 export type ServerSignatureStep = {
   type: 'signature';
-  id: string;
   sign: {
-    signatureKind: string;
     domain: Record<string, unknown>;
     types: Record<string, unknown>;
     primaryType: string;
