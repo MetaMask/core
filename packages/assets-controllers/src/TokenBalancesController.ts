@@ -234,6 +234,15 @@ export type TokenBalancesControllerOptions = {
   websocketActivePollingInterval?: number;
   /** Whether the user has completed onboarding. If false, balance updates are skipped. */
   isOnboarded?: () => boolean;
+  /**
+   * Optional function that returns true to completely disable this controller
+   * (no requests, no state updates). When it returns `true`, `tokenBalances` is
+   * reset to `{}` at construction and at every entry point, so no stale balances
+   * remain in state. The function is evaluated dynamically on each entry point so
+   * it can be toggled at runtime. Intended for use when a higher-level controller
+   * (e.g. AssetsController) supersedes this one.
+   */
+  isDeprecated?: () => boolean;
 };
 
 const draft = <State>(base: State, fn: (draftState: State) => void): State =>
@@ -317,6 +326,8 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
 
   readonly #isOnboarded: () => boolean;
 
+  readonly #isDeprecated: () => boolean;
+
   readonly #balanceFetchers: { fetcher: BalanceFetcher; name: string }[];
 
   #allTokens: TokensControllerState['allTokens'] = {};
@@ -370,6 +381,7 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
     allowExternalServices = (): boolean => true,
     platform,
     isOnboarded = (): boolean => true,
+    isDeprecated = (): boolean => false,
   }: TokenBalancesControllerOptions) {
     super({
       name: CONTROLLER,
@@ -385,6 +397,7 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
     this.#accountsApiChainIds = accountsApiChainIds;
     this.#allowExternalServices = allowExternalServices;
     this.#isOnboarded = isOnboarded;
+    this.#isDeprecated = isDeprecated;
     this.#defaultInterval = interval;
     this.#websocketActivePollingInterval = websocketActivePollingInterval;
     this.#chainPollingConfig = { ...chainPollingIntervals };
@@ -434,8 +447,28 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
         this.#executeUpdateBalances(merged),
     );
 
+    if (this.#isDeprecated()) {
+      this.#enforceDisabledState();
+    }
+
     this.#subscribeToControllers();
     messenger.registerMethodActionHandlers(this, MESSENGER_EXPOSED_METHODS);
+  }
+
+  /**
+   * Clears all persisted `tokenBalances` so that no stale balances remain in
+   * state.
+   *
+   * Called from every entry point when `isDeprecated()` is true so that a runtime
+   * toggle propagates to state immediately, even if the controller was originally
+   * constructed while it was enabled. The update is skipped when `tokenBalances`
+   * is already empty to avoid emitting redundant state changes.
+   */
+  #enforceDisabledState(): void {
+    if (Object.keys(this.state.tokenBalances).length === 0) {
+      return;
+    }
+    this.update(() => ({ tokenBalances: {} }));
   }
 
   #subscribeToControllers(): void {
@@ -730,6 +763,10 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
     chainIds: ChainIdHex[];
     queryAllAccounts?: boolean;
   }): Promise<void> {
+    if (this.#isDeprecated()) {
+      this.#enforceDisabledState();
+      return;
+    }
     await this.#executeUpdateBalances({ chainIds, queryAllAccounts });
   }
 
@@ -748,6 +785,10 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
   }
 
   async updateBalances(options: UpdateBalancesOptions = {}): Promise<void> {
+    if (this.#isDeprecated()) {
+      this.#enforceDisabledState();
+      return;
+    }
     if (!this.isActive) {
       return;
     }
@@ -759,6 +800,10 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
     tokenAddresses,
     queryAllAccounts = false,
   }: UpdateBalancesOptions = {}): Promise<void> {
+    if (this.#isDeprecated()) {
+      this.#enforceDisabledState();
+      return;
+    }
     if (!this.isActive) {
       return;
     }
@@ -1261,6 +1306,10 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
   readonly #onTokensChanged = async (
     state: TokensControllerState,
   ): Promise<void> => {
+    if (this.#isDeprecated()) {
+      this.#enforceDisabledState();
+      return;
+    }
     const changed: ChainIdHex[] = [];
     let hasChanges = false;
 
@@ -1342,6 +1391,10 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
   };
 
   readonly #onNetworkChanged = (state: NetworkState): void => {
+    if (this.#isDeprecated()) {
+      this.#enforceDisabledState();
+      return;
+    }
     const currentNetworks = new Set(
       Object.keys(state.networkConfigurationsByChainId),
     );
@@ -1378,6 +1431,10 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
   };
 
   readonly #onAccountRemoved = (addr: string): void => {
+    if (this.#isDeprecated()) {
+      this.#enforceDisabledState();
+      return;
+    }
     if (!isStrictHexString(addr) || !isValidHexAddress(addr)) {
       return;
     }
@@ -1387,6 +1444,10 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
   };
 
   readonly #onAccountChanged = (): void => {
+    if (this.#isDeprecated()) {
+      this.#enforceDisabledState();
+      return;
+    }
     const chainIds = this.#chainIdsWithTokens();
     if (!chainIds.length) {
       return;
@@ -1470,6 +1531,10 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
     chain: string;
     updates: BalanceUpdate[];
   }): Promise<void> => {
+    if (this.#isDeprecated()) {
+      this.#enforceDisabledState();
+      return;
+    }
     const chainId = caipChainIdToHex(chain);
     const checksummedAccount = checksum(address);
 
@@ -1527,6 +1592,10 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
     chainIds: string[];
     status: 'up' | 'down';
   }): void => {
+    if (this.#isDeprecated()) {
+      this.#enforceDisabledState();
+      return;
+    }
     for (const chainId of chainIds) {
       this.#statusChangeDebouncer.pendingChanges.set(chainId, status);
     }

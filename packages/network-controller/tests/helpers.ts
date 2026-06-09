@@ -632,6 +632,7 @@ type WithControllerCallback<ReturnValue> = ({
 
 type WithControllerOptions = Partial<NetworkControllerOptions> & {
   isRpcFailoverEnabled?: boolean;
+  initializeController?: boolean;
 };
 
 type WithControllerArgs<ReturnValue> =
@@ -652,7 +653,11 @@ export async function withController<ReturnValue>(
   ...args: WithControllerArgs<ReturnValue>
 ): Promise<ReturnValue> {
   const [{ ...rest }, fn] = args.length === 2 ? args : [{}, args[0]];
-  const { isRpcFailoverEnabled, ...controllerOptions } = rest;
+  const {
+    isRpcFailoverEnabled,
+    initializeController = true,
+    ...controllerOptions
+  } = rest;
   const messenger = buildRootMessenger({ isRpcFailoverEnabled });
   const networkControllerMessenger = buildNetworkControllerMessenger(messenger);
   const controller = new NetworkController({
@@ -669,12 +674,14 @@ export async function withController<ReturnValue>(
     ...controllerOptions,
   });
 
-  controller.init();
+  if (initializeController) {
+    controller.init();
+  }
 
   try {
     return await fn({ controller, messenger, networkControllerMessenger });
   } finally {
     const { blockTracker } = controller.getProviderAndBlockTracker();
-    await blockTracker?.destroy();
+    await blockTracker?.__target__?.destroy();
   }
 }

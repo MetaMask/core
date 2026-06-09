@@ -69,6 +69,10 @@ import type {
 
 const log = createModuleLogger(projectLogger, 'relay-strategy');
 
+// Buffer applied to the gas cost when reserving native tokens for gas in
+// post-quote flows, accounting for gas limit re-estimation variance.
+const POST_QUOTE_GAS_BUFFER = 1.1;
+
 // Hardcoded gas allowance for the prepended payment override transaction(s).
 const PAYMENT_OVERRIDE_GAS = 75_000;
 
@@ -143,11 +147,43 @@ async function getQuoteWithPostQuoteGasHandling(
 ): Promise<TransactionPayQuote<RelayQuote>> {
   const phase1Quote = await getSingleQuote(request, fullRequest);
 
-  if (!request.isPostQuote || !phase1Quote.fees.isSourceGasFeeToken) {
+  if (!request.isPostQuote) {
     return phase1Quote;
   }
 
-  const gasCostRaw = phase1Quote.fees.sourceNetwork.max.raw;
+  if (phase1Quote.original.metamask?.isExecute) {
+    return phase1Quote;
+  }
+
+  // Gas must be subtracted from the source amount when the user's balance
+  // is fully committed to the swap. This applies when gas is paid via an
+  // ERC-20 fee token (isSourceGasFeeToken) OR when the source itself is
+  // the native gas token (gas comes from the same pool as the swap value).
+  const isSourceNative =
+    request.sourceTokenAddress.toLowerCase() ===
+      getNativeToken(request.sourceChainId).toLowerCase() ||
+    request.sourceTokenAddress.toLowerCase() ===
+      NATIVE_TOKEN_ADDRESS.toLowerCase();
+
+  if (!phase1Quote.fees.isSourceGasFeeToken && !isSourceNative) {
+    return phase1Quote;
+  }
+
+  const gasCostRaw = new BigNumber(phase1Quote.fees.sourceNetwork.max.raw)
+    .multipliedBy(POST_QUOTE_GAS_BUFFER)
+    .integerValue(BigNumber.ROUND_UP);
+
+  const existingHeadroom = new BigNumber(request.sourceBalanceRaw).minus(
+    request.sourceTokenAmount,
+  );
+
+  if (existingHeadroom.isGreaterThanOrEqualTo(gasCostRaw)) {
+    log('Sufficient existing balance for gas, skipping subtraction', {
+      existingHeadroom: existingHeadroom.toString(10),
+      gasCostRaw: gasCostRaw.toString(10),
+    });
+    return phase1Quote;
+  }
 
   const adjustedSourceAmount = new BigNumber(request.sourceTokenAmount)
     .minus(gasCostRaw)
@@ -263,11 +299,16 @@ async function getSingleQuote(
       await applyPolymarketDepositWalletOverrides(body, request, messenger);
     }
 
-    // Skip transaction processing for post-quote flows - the original transaction
-    // will be included in the batch separately, not as part of the quote.
-    // Skip for Polymarket deposit wallet flows - the source is already a
+    // Skip transaction processing when skipProcessTransactions (defaulting to
+    // isPostQuote) is true — the original transaction will be included in the
+    // batch separately, not as part of the quote.
+    // Skip for Polymarket deposit wallet flows — the source is already a
     // bridged token transfer, not a contract call to embed.
-    if (!request.isPostQuote && !request.isPolymarketDepositWallet) {
+    const shouldProcessTransactions =
+      !(request.skipProcessTransactions ?? request.isPostQuote) &&
+      !request.isPolymarketDepositWallet;
+
+    if (shouldProcessTransactions) {
       await processTransactions(transaction, request, body, messenger);
     } else if (
       request.isPostQuote &&
@@ -757,14 +798,29 @@ async function calculateSourceNetworkCost(
   const useFromOverride = isPredictWithdraw && hasDepositStep;
   const fromOverride = useFromOverride ? request.refundTo : undefined;
 
-  const relayOnlyGas = await calculateSourceNetworkGasLimit(
-    relayParams,
+  // For post-quote flows the original transaction will be prepended to the
+  // batch at submission time. Include it in the gas estimation so
+  // estimateGasBatch sees the full batch and can detect EIP-7702 support.
+  // Without this, a single relay step is estimated alone, gets is7702=false,
+  // and the batch falls back to separate type-0x2 transactions that each
+  // need native gas — breaking zero-balance fiat-funded accounts.
+  const originalTxGasParams = getOriginalTxGasParams(request, transaction);
+  const allGasParams = originalTxGasParams
+    ? [originalTxGasParams, ...relayParams]
+    : relayParams;
+
+  const gasResult = await calculateSourceNetworkGasLimit(
+    allGasParams,
     messenger,
     fromOverride,
   );
 
+  // When the original tx was NOT included in gas estimation (no gas params
+  // available), fall back to the legacy prepend-after-the-fact approach.
   const { gasLimits, is7702, totalGasEstimate, totalGasLimit } =
-    combinePrependedGas(relayOnlyGas, request, transaction);
+    originalTxGasParams
+      ? gasResult
+      : combinePrependedGas(gasResult, request, transaction);
 
   log('Gas limit', {
     is7702,
@@ -959,6 +1015,45 @@ function toRelayQuoteGasTransaction(
     gas: fromOverride ? undefined : singleParams.gas,
     to: singleParams.to,
     value: singleParams.value ?? '0',
+  };
+}
+
+type RelayStepData = RelayTransactionStep['items'][0]['data'];
+
+function getOriginalTxGasParams(
+  request: QuoteRequest,
+  transaction: TransactionMeta,
+): RelayStepData | undefined {
+  if (!request.isPostQuote) {
+    return undefined;
+  }
+
+  const { txParams } = transaction;
+  const to = txParams.to as Hex | undefined;
+
+  if (!to) {
+    return undefined;
+  }
+
+  const hasAccountOverride =
+    request.from.toLowerCase() !== (txParams.from as Hex).toLowerCase();
+
+  if (hasAccountOverride) {
+    return undefined;
+  }
+
+  const nestedGas = transaction.nestedTransactions?.find((tx) => tx.gas)?.gas;
+  const gas = nestedGas ?? txParams.gas;
+
+  return {
+    chainId: Number(transaction.chainId),
+    data: (txParams.data as Hex) ?? ('0x' as Hex),
+    from: txParams.from as Hex,
+    gas: gas ? String(gas) : undefined,
+    maxFeePerGas: '0',
+    maxPriorityFeePerGas: '0',
+    to,
+    value: (txParams.value as string) ?? '0',
   };
 }
 
