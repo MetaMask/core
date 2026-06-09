@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Fix request amount used for cases when paymentOverride is defined and also isPostQuote is true ([#9070](https://github.com/MetaMask/core/pull/9070))
+
 ## [23.4.0]
 
 ### Changed
