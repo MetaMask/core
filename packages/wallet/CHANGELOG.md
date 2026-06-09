@@ -9,10 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [3.0.0]
 
-### Uncategorized
-
-- refactor(wallet): migrate keyring + storage instances to directory convention ([#8977](https://github.com/MetaMask/core/pull/8977))
-
 ### Added
 
 - **BREAKING:** Wire `ApprovalController` into the default wallet initialization ([#8953](https://github.com/MetaMask/core/pull/8953))

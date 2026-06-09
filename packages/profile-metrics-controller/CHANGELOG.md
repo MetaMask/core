@@ -9,13 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [3.2.0]
 
-### Uncategorized
-
-- Release 1022.0.0 ([#9027](https://github.com/MetaMask/core/pull/9027))
-- Revert "Release 1022.0.0" ([#9025](https://github.com/MetaMask/core/pull/9025))
-- Revert "Release 1023.0.0" ([#9018](https://github.com/MetaMask/core/pull/9018))
-- Release 1023.0.0 ([#9017](https://github.com/MetaMask/core/pull/9017))
-
 ### Added
 
 - Add proof of ownership API wiring pre-requisites ([#8974](https://github.com/MetaMask/core/pull/8974))
