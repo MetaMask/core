@@ -205,10 +205,7 @@ async function buildServerQuoteRequest(
     (isPostQuote ?? false) ||
     (isMaxAmount ?? false);
 
-  if (
-    isPostQuote &&
-    paymentOverride === PaymentOverride.MoneyAccount
-  ) {
+  if (isPostQuote && paymentOverride === PaymentOverride.MoneyAccount) {
     await processMoneyAccountPostQuote(
       transaction,
       normalizedRequest,
@@ -299,7 +296,7 @@ async function processMoneyAccountPostQuote(
     ...overrideCalls.map((call) => ({
       data: call.data as Hex,
       to: call.to as Hex,
-      value: ((call.value ?? '0x0') as Hex),
+      value: (call.value ?? '0x0') as Hex,
     })),
   ];
 

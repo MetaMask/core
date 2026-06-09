@@ -156,7 +156,9 @@ describe('strategy/server/perps', () => {
       );
 
       expect(result.sourceChainId).toBe(CHAIN_ID_HYPERCORE);
-      expect(result.sourceTokenAddress).toBe(SERVER_HYPERCORE_USDC_PERPS_ADDRESS);
+      expect(result.sourceTokenAddress).toBe(
+        SERVER_HYPERCORE_USDC_PERPS_ADDRESS,
+      );
       expect(result.sourceTokenAmount).toBe('1000000');
     });
   });

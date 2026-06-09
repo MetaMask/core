@@ -204,7 +204,9 @@ describe('Transaction Utils', () => {
           transactions: [
             {
               ...TRANSACTION_META_MOCK,
-              requiredAssets: [{ address: '0xtoken' as Hex, chainId: '0x1' as Hex }],
+              requiredAssets: [
+                { address: '0xtoken' as Hex, chainId: '0x1' as Hex },
+              ],
             },
           ],
         } as TransactionControllerState,

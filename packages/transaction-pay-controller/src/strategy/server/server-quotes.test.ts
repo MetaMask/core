@@ -871,7 +871,9 @@ describe('server-quotes', () => {
         messenger,
         expect.objectContaining({
           authorizationList: expect.arrayContaining([
-            expect.objectContaining({ address: '0xaaaa000000000000000000000000000000000000' }),
+            expect.objectContaining({
+              address: '0xaaaa000000000000000000000000000000000000',
+            }),
           ]),
         }),
         undefined,
@@ -903,7 +905,12 @@ describe('server-quotes', () => {
 
     it('defaults override call value to 0x0 when call.value is undefined', async () => {
       getPaymentOverrideDataMock.mockResolvedValue({
-        calls: [{ to: '0xcccc000000000000000000000000000000000000' as Hex, data: '0xdata' as Hex }],
+        calls: [
+          {
+            to: '0xcccc000000000000000000000000000000000000' as Hex,
+            data: '0xdata' as Hex,
+          },
+        ],
         recipient: TOKEN_TRANSFER_RECIPIENT_MOCK,
         authorizationList: undefined,
       } as never);
@@ -925,7 +932,10 @@ describe('server-quotes', () => {
         messenger,
         expect.objectContaining({
           calls: expect.arrayContaining([
-            expect.objectContaining({ to: '0xcccc000000000000000000000000000000000000', value: '0x0' }),
+            expect.objectContaining({
+              to: '0xcccc000000000000000000000000000000000000',
+              value: '0x0',
+            }),
           ]),
         }),
         undefined,
