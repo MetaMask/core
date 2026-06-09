@@ -1,6 +1,13 @@
-import { Interface } from '@ethersproject/abi';
+import { AbiCoder, Interface, ParamType } from '@ethersproject/abi';
 import { createServicePolicy } from '@metamask/controller-utils';
-import type { Hex } from '@metamask/utils';
+import {
+  concatBytes,
+  hexToBytes,
+  bytesToHex,
+  type Hex,
+  getChecksumAddress,
+  add0x,
+} from '@metamask/utils';
 
 import { ZERO_ADDRESS } from '../../../utils/constants';
 import type {
@@ -377,6 +384,59 @@ const MULTICALL3_ADDRESS_BY_CHAIN: Record<Hex, Hex> = {
 // ENCODING/DECODING UTILITIES (using @ethersproject/abi)
 // =============================================================================
 
+// Ethers does not export these unfortunately.
+type Coder = ReturnType<AbiCoder['_getCoder']>;
+type Writer = Parameters<Coder['encode']>[0];
+type Reader = Parameters<Coder['decode']>[0];
+
+// FastAddressCoder that skips checksumming addresses when encoding and uses the memoized `getChecksumAddress` for decoding.
+class FastAddressCoder {
+  name = 'address';
+  type = 'address';
+  dynamic = false;
+  localName: string;
+
+  constructor(localName: string) {
+    this.localName = localName;
+  }
+
+  encode(writer: Writer, value: string): number {
+    return writer.writeValue(value);
+  }
+
+  decode(reader: Reader): unknown {
+    const value = reader.readValue();
+    const hex = value.toHexString().slice(2).padStart(40);
+    return getChecksumAddress(add0x(hex));
+  }
+
+  defaultValue(): string {
+    return ZERO_ADDRESS;
+  }
+}
+
+class FastAbiCoder extends AbiCoder {
+  _getCoder(param: ParamType): Coder {
+    if (param.type === 'address') {
+      return new FastAddressCoder(param.name);
+    }
+    return super._getCoder(param);
+  }
+}
+
+const fastAbiCoder = new FastAbiCoder();
+
+function encodeFunctionData(
+  abi: Interface,
+  functionName: string,
+  values: unknown[],
+): Hex {
+  const func = abi.getFunction(functionName);
+  const sigHash = hexToBytes(abi.getSighash(func));
+  const encodedParams = fastAbiCoder.encode(func.inputs, values);
+  return bytesToHex(concatBytes([sigHash, encodedParams]));
+}
+
 /**
  * Encode a balanceOf call for an ERC-20 token.
  *
@@ -384,7 +444,7 @@ const MULTICALL3_ADDRESS_BY_CHAIN: Record<Hex, Hex> = {
  * @returns The encoded call data.
  */
 function encodeBalanceOf(accountAddress: Address): Hex {
-  return erc20Interface.encodeFunctionData('balanceOf', [
+  return encodeFunctionData(erc20Interface, 'balanceOf', [
     accountAddress,
   ]) as Hex;
 }
@@ -396,7 +456,7 @@ function encodeBalanceOf(accountAddress: Address): Hex {
  * @returns The encoded call data.
  */
 function encodeGetEthBalance(accountAddress: Address): Hex {
-  return multicall3Interface.encodeFunctionData('getEthBalance', [
+  return encodeFunctionData(multicall3Interface, 'getEthBalance', [
     accountAddress,
   ]) as Hex;
 }
@@ -410,7 +470,7 @@ function encodeGetEthBalance(accountAddress: Address): Hex {
 export function encodeAggregate3(
   calls: readonly { target: Address; allowFailure: boolean; callData: Hex }[],
 ): Hex {
-  return multicall3Interface.encodeFunctionData('aggregate3', [
+  return encodeFunctionData(multicall3Interface, 'aggregate3', [
     calls.map((call) => ({
       target: call.target,
       allowFailure: call.allowFailure,
