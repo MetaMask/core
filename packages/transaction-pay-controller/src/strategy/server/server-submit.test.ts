@@ -761,7 +761,9 @@ describe('submitServerQuotes', () => {
 
     it('throws when rsv POST response status is not ok', async () => {
       successfulFetchMock.mockResolvedValue({
-        json: jest.fn().mockResolvedValue({ status: 'error', message: 'rejected' }),
+        json: jest
+          .fn()
+          .mockResolvedValue({ status: 'error', message: 'rejected' }),
       } as never);
 
       const rsvStep: ServerSignatureStep = {
