@@ -423,7 +423,7 @@ async function processMoneyAccountPostQuote(
 
   requestBody.authorizationList = normalizeAuthorizationList(authorizationList);
   requestBody.tradeType = 'EXACT_OUTPUT';
-  requestBody.amount = request.sourceTokenAmount;
+  requestBody.amount = transactionData?.tokens?.[0]?.amountRaw ?? '0';
   requestBody.txs = [
     {
       to: request.targetTokenAddress,
