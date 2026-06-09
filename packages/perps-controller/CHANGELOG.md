@@ -11,6 +11,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Add `HYPERLIQUID_ASSET_NAMES` (a curated `symbol → human-readable name` map, e.g. `BTC → 'Bitcoin'`, `xyz:AAPL → 'Apple'`, `xyz:GOLD → 'Gold'`) and the `getHyperLiquidAssetName(symbol, names?)` helper, both exported from `@metamask/perps-controller/constants`, so clients can match and display markets by full name (TAT-2413)
   - HyperLiquid does not expose a per-asset human-readable name; this map is maintained client-side and keyed like `HIP3_ASSET_MARKET_TYPES` (bare `SYMBOL` for crypto, `dex:SYMBOL` for HIP-3). Unmapped assets fall back to their ticker.
+- Add `rankMarketsByQuery(markets, query)` and `getMarketMatchRank(market, query)` helpers (and the `MarketMatchRank` enum) for relevance-ranked market search by ticker symbol or human-readable name (exact > prefix > substring, stable within a rank) (TAT-2413)
+  - Complements the existing unranked `filterMarketsByQuery`; same match semantics (case-insensitive substring on `symbol` and `name`), but ordered by relevance. No fuzzy/phonetic matching.
 
 ### Changed
 
