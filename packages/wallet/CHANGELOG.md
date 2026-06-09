@@ -19,6 +19,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - The default `Wallet` now constructs an `ApprovalController` and registers its `ApprovalController:*` messenger actions. Consumers that pass their own `messenger` and already wire an `ApprovalController` must remove their own before upgrading, or the duplicate registration will collide.
   - Adds an `approvalController` slot to `instanceOptions` with `showApprovalRequest` (the callback that surfaces pending approval requests to the user; defaults to a no-op) and `typesExcludedFromRateLimiting` (the approval types exempt from per-origin rate limiting; defaults to a baseline of EVM approval types). Both let consumers (extension, mobile, wallet-cli) inject their platform-specific values.
 
+### Changed
+
+- Bump `@metamask/approval-controller` from `^9.0.1` to `^9.0.2` ([#9058](https://github.com/MetaMask/core/pull/9058))
+- Bump `@metamask/controller-utils` from `^12.1.0` to `^12.2.0` ([#9058](https://github.com/MetaMask/core/pull/9058))
+- Bump `@metamask/keyring-controller` from `^26.0.0` to `^27.0.0` ([#9058](https://github.com/MetaMask/core/pull/9058))
+- Bump `@metamask/storage-service` from `^1.0.1` to `^1.0.2` ([#9058](https://github.com/MetaMask/core/pull/9058))
+
 ## [2.0.0]
 
 ### Added
