@@ -87,15 +87,14 @@ export enum MarketCategory {
 export type MarketType = `${MarketCategory}`;
 
 // Market type filter for UI category badges
-// Note: 'stocks' maps to 'stock', 'commodities' maps to 'commodity' in the data model
 export type MarketTypeFilter =
   | 'all'
   | 'crypto'
-  | 'stocks'
+  | 'stock'
   | 'pre-ipo'
-  | 'indices'
-  | 'etfs'
-  | 'commodities'
+  | 'index'
+  | 'etf'
+  | 'commodity'
   | 'forex'
   | 'new';
 
@@ -107,11 +106,11 @@ export type MarketTypeFilter =
  */
 export const MARKET_CATEGORIES = [
   'crypto',
-  'stocks',
+  'stock',
   'pre-ipo',
-  'indices',
-  'etfs',
-  'commodities',
+  'index',
+  'etf',
+  'commodity',
   'forex',
 ] as const satisfies MarketTypeFilter[];
 

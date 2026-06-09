@@ -20,7 +20,7 @@ import {
   DEFAULT_BRIDGE_CONTROLLER_STATE,
 } from './constants/bridge';
 import * as selectors from './selectors';
-import { ChainId, RequestStatus } from './types';
+import { ChainId, RequestStatus, FeatureId } from './types';
 import type { BridgeControllerMessenger, QuoteResponse } from './types';
 import * as balanceUtils from './utils/balance';
 import * as featureFlagUtils from './utils/feature-flags';
@@ -62,6 +62,7 @@ const quoteRequest = {
   resetApproval: false,
 };
 const metricsContext = {
+  feature_id: FeatureId.BATCH_SELL,
   token_symbol_source: 'ETH',
   token_symbol_destination: 'USDC',
   usd_amount_source: 100,
@@ -375,6 +376,7 @@ describe('BridgeController BatchSell (multiple quote requests) SSE', function ()
               },
             ],
             expect.any(AbortSignal),
+            FeatureId.BATCH_SELL,
             BridgeClientId.EXTENSION,
             'AUTH_TOKEN',
             BRIDGE_PROD_API_BASE_URL,
@@ -423,6 +425,7 @@ describe('BridgeController BatchSell (multiple quote requests) SSE', function ()
                 l1GasFeesInHexWei: '0x1',
                 resetApproval: undefined,
                 quoteRequestIndex: 0,
+                featureId: FeatureId.BATCH_SELL,
               }))
               .concat(
                 mockBridgeQuotesErc20Erc20.map(
@@ -432,6 +435,7 @@ describe('BridgeController BatchSell (multiple quote requests) SSE', function ()
                       l1GasFeesInHexWei: '0x2',
                       resetApproval: undefined,
                       quoteRequestIndex: 1,
+                      featureId: FeatureId.BATCH_SELL,
                     }) as never,
                 ),
               ),
@@ -526,6 +530,7 @@ describe('BridgeController BatchSell (multiple quote requests) SSE', function ()
           await rootMessenger.call(
             'BridgeController:updateBatchSellTrades',
             [],
+            false,
           );
 
           await jest.advanceTimersByTimeAsync(1000);
@@ -637,10 +642,12 @@ describe('BridgeController BatchSell (multiple quote requests) SSE', function ()
           await rootMessenger.call(
             'BridgeController:updateBatchSellTrades',
             [],
+            false,
           );
           await rootMessenger.call(
             'BridgeController:updateBatchSellTrades',
             mockBridgeQuotesErc20Erc20 as unknown as QuoteResponse[],
+            false,
           );
 
           await jest.advanceTimersByTimeAsync(1000);
@@ -670,6 +677,7 @@ describe('BridgeController BatchSell (multiple quote requests) SSE', function ()
           expect(fetchBatchSellTradesSpy).toHaveBeenCalledTimes(2);
           expect(fetchBatchSellTradesSpy.mock.calls[0]).toStrictEqual([
             [],
+            false,
             expect.any(AbortSignal),
             'extension',
             'AUTH_TOKEN',
@@ -679,6 +687,7 @@ describe('BridgeController BatchSell (multiple quote requests) SSE', function ()
           ]);
           expect(fetchBatchSellTradesSpy.mock.calls[1]).toStrictEqual([
             mockBridgeQuotesErc20Erc20,
+            false,
             expect.any(AbortSignal),
             'extension',
             'AUTH_TOKEN',
@@ -748,6 +757,7 @@ describe('BridgeController BatchSell (multiple quote requests) SSE', function ()
           await rootMessenger.call(
             'BridgeController:updateBatchSellTrades',
             [],
+            false,
           );
           rootMessenger.call('BridgeController:resetState');
 
@@ -774,6 +784,7 @@ describe('BridgeController BatchSell (multiple quote requests) SSE', function ()
           expect(fetchBatchSellTradesSpy).toHaveBeenCalledTimes(1);
           expect(fetchBatchSellTradesSpy.mock.calls[0]).toStrictEqual([
             [],
+            false,
             expect.any(AbortSignal),
             'extension',
             'AUTH_TOKEN',
@@ -845,6 +856,7 @@ describe('BridgeController BatchSell (multiple quote requests) SSE', function ()
           await rootMessenger.call(
             'BridgeController:updateBatchSellTrades',
             [],
+            false,
           );
 
           await jest.advanceTimersByTimeAsync(1000);
@@ -872,6 +884,7 @@ describe('BridgeController BatchSell (multiple quote requests) SSE', function ()
           await rootMessenger.call(
             'BridgeController:updateBatchSellTrades',
             mockBridgeQuotesErc20Erc20 as unknown as QuoteResponse[],
+            false,
           );
 
           await jest.advanceTimersByTimeAsync(2000);
