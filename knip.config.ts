@@ -45,9 +45,6 @@ const config: KnipConfig = {
         'bitcoin-address-validation',
       ],
     },
-    'packages/base-controller': {
-      ignoreDependencies: ['@metamask/json-rpc-engine'],
-    },
     'packages/bridge-controller': {
       ignoreDependencies: [
         '@metamask/eth-json-rpc-provider',
@@ -81,9 +78,6 @@ const config: KnipConfig = {
     'packages/ens-controller': {
       ignoreDependencies: ['punycode'],
     },
-    'packages/eth-json-rpc-middleware': {
-      ignoreDependencies: ['@metamask/network-controller', 'pify', 'tsd'],
-    },
     'packages/foundryup': {
       // `anvil` and `sysctl` are external system binaries, not npm packages.
       ignoreBinaries: ['anvil', 'sysctl'],
@@ -101,9 +95,6 @@ const config: KnipConfig = {
     'packages/message-manager': {
       ignoreDependencies: ['@metamask/eth-sig-util', 'immer', 'jsonschema'],
     },
-    'packages/messenger-cli': {
-      ignoreDependencies: ['eslint'],
-    },
     'packages/multichain-account-service': {
       ignoreDependencies: [
         '@metamask/base-controller',
@@ -117,14 +108,8 @@ const config: KnipConfig = {
     'packages/multichain-transactions-controller': {
       ignoreDependencies: ['@metamask/polling-controller'],
     },
-    'packages/network-controller': {
-      ignoreDependencies: ['async-mutex'],
-    },
     'packages/phishing-controller': {
       ignoreDependencies: ['immer', 'punycode'],
-    },
-    'packages/polling-controller': {
-      ignoreDependencies: ['@metamask/controller-utils'],
     },
     'packages/profile-metrics-controller': {
       ignoreDependencies: ['cockatiel'],
@@ -173,13 +158,21 @@ const config: KnipConfig = {
       ignoreDependencies: ['immer'],
     },
     'packages/wallet-framework-docs': {
+      // Docusaurus loads these files at runtime; they're outside knip's
+      // default `src/**` project scope, so without explicit entries the
+      // package's docusaurus deps look unused.
+      entry: ['site/docusaurus.config.ts', 'site/sidebars.ts'],
+      project: ['site/**/*.{ts,tsx}'],
       ignoreDependencies: [
-        '@docusaurus/plugin-content-docs',
-        '@docusaurus/preset-classic',
-        '@docusaurus/theme-common',
-        '@docusaurus/types',
+        // Loaded by docusaurus as a plugin name string (themes[0]); knip
+        // doesn't trace string-referenced plugins.
         '@easyops-cn/docusaurus-search-local',
-        'prism-react-renderer',
+        // Pulled in transitively by `@docusaurus/preset-classic`; pinned
+        // here so the framework's webpack/theme resolution finds a single
+        // matching version.
+        '@docusaurus/theme-common',
+        // Webpack loader used by docusaurus' build pipeline; never imported
+        // by source.
         'raw-loader',
       ],
     },
