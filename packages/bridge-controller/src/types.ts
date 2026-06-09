@@ -259,6 +259,7 @@ export enum StatusTypes {
 }
 
 export enum FeatureId {
+  UNKNOWN = 'unknown',
   PERPS = 'perps',
   QUICK_BUY_FOLLOW_TRADING = 'quick_buy_follow_trading',
   QUICK_BUY_TOKEN_DETAILS = 'quick_buy_token_details',
