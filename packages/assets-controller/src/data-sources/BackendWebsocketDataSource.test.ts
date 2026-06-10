@@ -173,15 +173,24 @@ function setupController(
     },
   };
 
-  const isNativeAssetFn = (assetId: Caip19AssetId): boolean =>
-    assetId.includes('/slip44:');
+  const getAssetTypeFn = (
+    assetId: Caip19AssetId,
+  ): 'native' | 'erc20' | 'spl' => {
+    if (assetId.includes('/slip44:')) {
+      return 'native';
+    }
+    if (assetId.startsWith('solana:') && assetId.includes('/token:')) {
+      return 'spl';
+    }
+    return 'erc20';
+  };
 
   const controller = new BackendWebsocketDataSource({
     messenger: controllerMessenger as unknown as AssetsControllerMessenger,
     queryApiClient: queryApiClient as unknown as ApiPlatformClient,
     onActiveChainsUpdated: (dataSourceName, chains, previousChains): void =>
       activeChainsUpdateHandler(dataSourceName, chains, previousChains),
-    isNativeAsset: isNativeAssetFn,
+    getAssetType: getAssetTypeFn,
     state: { activeChains: initialActiveChains },
   });
 
