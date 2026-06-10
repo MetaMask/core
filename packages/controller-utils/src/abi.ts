@@ -38,7 +38,7 @@ class FastAddressCoder {
   }
 
   defaultValue(): string {
-    return "0x0000000000000000000000000000000000000000";
+    return '0x0000000000000000000000000000000000000000';
   }
 }
 
@@ -56,9 +56,9 @@ const fastAbiCoder = new FastAbiCoder();
 
 /**
  * Encode the data required for a function call.
- * 
+ *
  * Note: This uses `@ethersproject/abi` under the hood, but with some performance optimizations.
- * 
+ *
  * @param abi - The ABI instance.
  * @param functionName - The function name.
  * @param values - The parameters to encode.

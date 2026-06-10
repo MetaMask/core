@@ -1,5 +1,8 @@
 import { Interface } from '@ethersproject/abi';
-import { createServicePolicy, encodeFunctionData } from '@metamask/controller-utils';
+import {
+  createServicePolicy,
+  encodeFunctionData,
+} from '@metamask/controller-utils';
 import type { Hex } from '@metamask/utils';
 
 import { ZERO_ADDRESS } from '../../../utils/constants';
