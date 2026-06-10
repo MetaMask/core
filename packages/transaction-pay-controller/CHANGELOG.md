@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Clear stale `fiatPayment.rampsQuote` when a fiat quote fetch fails, preventing the "No quotes" alert from being silently suppressed after a prior successful fetch ([#XXXX](https://github.com/MetaMask/core/pull/XXXX))
+- Clear stale `fiatPayment.rampsQuote` when a fiat quote fetch fails, preventing the "No quotes" alert from being silently suppressed after a prior successful fetch ([#9073](https://github.com/MetaMask/core/pull/9073))
 
 ## [23.4.0]
 
