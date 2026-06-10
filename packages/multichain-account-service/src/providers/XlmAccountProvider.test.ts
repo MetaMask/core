@@ -13,8 +13,10 @@ import deepmerge from 'deepmerge';
 import {
   getMultichainAccountServiceMessenger,
   getRootMessenger,
+  MOCK_HD_ACCOUNT_1,
   MOCK_HD_KEYRING_2,
   MOCK_XLM_ACCOUNT_1,
+  MOCK_XLM_DISCOVERED_ACCOUNT_1,
   MockAccountBuilder,
   toGroupIndexRangeArray,
 } from '../tests';
@@ -106,10 +108,12 @@ class MockStellarKeyring {
         return account;
       });
     });
+
+  discoverAccounts = jest.fn().mockResolvedValue([]);
 }
 
 class MockXlmAccountProvider extends XlmAccountProvider {
-  override async ensureCanUseSnapPlatform(): Promise<void> {
+  override async ensureReady(): Promise<void> {
     // Override to avoid waiting during tests.
   }
 }
@@ -131,6 +135,7 @@ function setup({
     keyring: {
       createAccount: jest.Mock;
       createAccounts: jest.Mock;
+      discoverAccounts: jest.Mock;
     };
     trace: jest.Mock;
   };
@@ -162,9 +167,15 @@ function setup({
 
   const mockHandleRequest = jest
     .fn()
-    .mockImplementation((address: string) =>
-      keyring.accounts.find((account) => account.address === address),
-    );
+    .mockImplementation((request) => {
+      if (request.request?.method === 'keyring_discoverAccounts') {
+        return keyring.discoverAccounts();
+      }
+
+      return keyring.accounts.find(
+        (account) => account.address === request.address,
+      );
+    });
 
   const mockTrace = jest.fn().mockImplementation(async (_request, fn) => {
     return await fn();
@@ -203,6 +214,7 @@ function setup({
       keyring: {
         createAccount: keyring.createAccount as jest.Mock,
         createAccounts: keyring.createAccounts as jest.Mock,
+        discoverAccounts: keyring.discoverAccounts,
       },
       trace: mockTrace,
     },
@@ -213,6 +225,78 @@ describe('XlmAccountProvider', () => {
   it('getName returns Stellar', () => {
     const { provider } = setup({ accounts: [] });
     expect(provider.getName()).toBe(XLM_ACCOUNT_PROVIDER_NAME);
+  });
+
+  it('uses default config and trace callback', () => {
+    const messenger = getMultichainAccountServiceMessenger(getRootMessenger());
+    const provider = new XlmAccountProvider(messenger);
+    expect(provider.getName()).toBe(XLM_ACCOUNT_PROVIDER_NAME);
+  });
+
+  it('returns true if an account is compatible', () => {
+    const account = MOCK_XLM_ACCOUNT_1;
+    const { provider } = setup({
+      accounts: [account],
+    });
+    expect(provider.isAccountCompatible(account)).toBe(true);
+  });
+
+  it('returns false if an account is not compatible', () => {
+    const account = MOCK_HD_ACCOUNT_1;
+    const { provider } = setup({
+      accounts: [account],
+    });
+    expect(provider.isAccountCompatible(account)).toBe(false);
+  });
+
+  it('returns existing account if it already exists at index', async () => {
+    const { provider, mocks } = setup({
+      accounts: [MOCK_XLM_ACCOUNT_1],
+    });
+
+    mocks.keyring.discoverAccounts.mockResolvedValue([
+      MOCK_XLM_DISCOVERED_ACCOUNT_1,
+    ]);
+
+    const discovered = await provider.discoverAccounts({
+      entropySource: MOCK_HD_KEYRING_2.metadata.id,
+      groupIndex: 0,
+    });
+
+    expect(discovered).toStrictEqual([MOCK_XLM_ACCOUNT_1]);
+  });
+
+  it('does not return any accounts if no account is discovered', async () => {
+    const { provider, mocks } = setup({
+      accounts: [],
+    });
+
+    mocks.keyring.discoverAccounts.mockResolvedValue([]);
+
+    const discovered = await provider.discoverAccounts({
+      entropySource: MOCK_HD_KEYRING_2.metadata.id,
+      groupIndex: 0,
+    });
+
+    expect(discovered).toStrictEqual([]);
+  });
+
+  it('does not run discovery if disabled', async () => {
+    const { provider } = setup({
+      accounts: [MOCK_XLM_ACCOUNT_1],
+      config: asConfig({
+        discovery: {
+          enabled: false,
+        },
+      }),
+    });
+
+    expect(
+      await provider.discoverAccounts({
+        entropySource: MOCK_HD_KEYRING_2.metadata.id,
+        groupIndex: 0,
+      }),
+    ).toStrictEqual([]);
   });
 
   describe('v1', () => {
