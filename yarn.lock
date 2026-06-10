@@ -7614,6 +7614,7 @@ __metadata:
     ip-regex: "npm:^4.3.0"
     jest: "npm:^29.7.0"
     psl: "npm:^1.15.0"
+    reselect: "npm:^5.1.1"
     ts-jest: "npm:^29.2.5"
     tsx: "npm:^4.20.5"
     typedoc: "npm:^0.25.13"
