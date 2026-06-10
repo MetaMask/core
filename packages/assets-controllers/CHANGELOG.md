@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `ARC` support ([#9006](https://github.com/MetaMask/core/pull/9006))
+  - Add `ARC` in `SupportedTokenDetectionNetworks`
+  - Add `ARC` in `SUPPORTED_NETWORKS_ACCOUNTS_API_V4`
+
 ### Changed
 
 - Bump `@metamask/transaction-controller` from `^67.0.0` to `^67.1.0` ([#9066](https://github.com/MetaMask/core/pull/9066))
@@ -14,6 +20,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - Add Immutable zkEVM (chain `0x343b` / 13371) and Arc Testnet (chain `0x4cef52` / 5042002) to `SPOT_PRICES_SUPPORT_INFO` so their native tokens (identified by non-standard ERC-20 addresses rather than the zero address) are correctly resolved and priced ([#9063](https://github.com/MetaMask/core/pull/9063))
+
+### Removed
+
+- **BREAKING:** Remove `TransactionController:incomingTransactionsReceived` from `TokenBalancesControllerMessenger` allowed events ([#9012](https://github.com/MetaMask/core/pull/9012))
 
 ## [108.6.0]
 

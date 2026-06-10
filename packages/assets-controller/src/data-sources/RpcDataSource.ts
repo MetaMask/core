@@ -9,7 +9,6 @@ import type {
   NetworkStatus,
 } from '@metamask/network-controller';
 import type {
-  TransactionControllerIncomingTransactionsReceivedEvent,
   TransactionControllerTransactionConfirmedEvent,
   TransactionMeta,
 } from '@metamask/transaction-controller';
@@ -78,8 +77,7 @@ export type RpcDataSourceAllowedActions =
 // Allowed events that RpcDataSource can subscribe to
 export type RpcDataSourceAllowedEvents =
   | NetworkControllerStateChangeEvent
-  | TransactionControllerTransactionConfirmedEvent
-  | TransactionControllerIncomingTransactionsReceivedEvent;
+  | TransactionControllerTransactionConfirmedEvent;
 
 /** Network status for each chain */
 export type ChainStatus = {
@@ -236,8 +234,6 @@ export class RpcDataSource extends AbstractDataSource<
   readonly #activeSubscriptions: Map<string, SubscriptionData> = new Map();
 
   #unsubscribeTransactionConfirmed: (() => void) | undefined = undefined;
-
-  #unsubscribeIncomingTransactions: (() => void) | undefined = undefined;
 
   // Rpc-datasource components
   readonly #multicallClient: MulticallClient;
@@ -642,13 +638,6 @@ export class RpcDataSource extends AbstractDataSource<
     );
     this.#unsubscribeTransactionConfirmed =
       typeof unsubConfirmed === 'function' ? unsubConfirmed : undefined;
-
-    const unsubIncoming = this.#messenger.subscribe(
-      'TransactionController:incomingTransactionsReceived',
-      this.#onIncomingTransactions.bind(this),
-    );
-    this.#unsubscribeIncomingTransactions =
-      typeof unsubIncoming === 'function' ? unsubIncoming : undefined;
   }
 
   #onTransactionConfirmed(payload: TransactionMeta): void {
@@ -659,24 +648,6 @@ export class RpcDataSource extends AbstractDataSource<
     const caipChainId = `eip155:${parseInt(hexChainId, 16)}` as ChainId;
     this.#refreshBalanceForChains([caipChainId]).catch((error) => {
       log('Failed to refresh balance after transaction confirmed', { error });
-    });
-  }
-
-  #onIncomingTransactions(payload: TransactionMeta[]): void {
-    const chainIds = Array.from(
-      new Set(
-        (payload ?? [])
-          .map((item) => item?.chainId)
-          .filter((id): id is Hex => Boolean(id)),
-      ),
-    );
-    const caipChainIds = chainIds.map(
-      (hexChainId) => `eip155:${parseInt(hexChainId, 16)}` as ChainId,
-    );
-    const toRefresh =
-      caipChainIds.length > 0 ? caipChainIds : [...this.#activeChains];
-    this.#refreshBalanceForChains(toRefresh).catch((error) => {
-      log('Failed to refresh balance after incoming transactions', { error });
     });
   }
 
@@ -1504,7 +1475,6 @@ export class RpcDataSource extends AbstractDataSource<
     log('Destroying RpcDataSource');
 
     this.#unsubscribeTransactionConfirmed?.();
-    this.#unsubscribeIncomingTransactions?.();
 
     // Stop all polling
     this.#balanceFetcher.stopAllPolling();
