@@ -1904,42 +1904,6 @@ describe('RpcDataSource', () => {
         expect(true).toBe(true);
       });
     });
-
-    it('refreshes balance when incoming transactions received', async () => {
-      await withController(async ({ controller, rootMessenger }) => {
-        await controller.subscribe({
-          request: createDataRequest(),
-          subscriptionId: 'test-sub',
-          isUpdate: false,
-          onAssetsUpdate: jest.fn(),
-        });
-
-        rootMessenger.publish(
-          'TransactionController:incomingTransactionsReceived',
-          [{ chainId: MOCK_CHAIN_ID_HEX }] as unknown as TransactionMeta[],
-        );
-        await new Promise(process.nextTick);
-        expect(controller).toBeDefined();
-      });
-    });
-
-    it('refreshes all active chains when incoming transactions empty', async () => {
-      await withController(async ({ controller, rootMessenger }) => {
-        await controller.subscribe({
-          request: createDataRequest(),
-          subscriptionId: 'test-sub',
-          isUpdate: false,
-          onAssetsUpdate: jest.fn(),
-        });
-
-        rootMessenger.publish(
-          'TransactionController:incomingTransactionsReceived',
-          [] as TransactionMeta[],
-        );
-        await new Promise(process.nextTick);
-        expect(controller).toBeDefined();
-      });
-    });
   });
 
   describe('network state change', () => {
