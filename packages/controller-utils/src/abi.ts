@@ -14,7 +14,7 @@ type Writer = Parameters<Coder['encode']>[0];
 type Reader = Parameters<Coder['decode']>[0];
 
 // FastAddressCoder that skips checksumming addresses when encoding and uses the memoized `getChecksumAddress` for decoding.
-class FastAddressCoder {
+class FastAddressCoder implements Coder {
   name = 'address';
 
   type = 'address';
@@ -40,13 +40,16 @@ class FastAddressCoder {
   defaultValue(): string {
     return '0x0000000000000000000000000000000000000000';
   }
+
+  _throwError(_message: string, _value: unknown): void {
+    throw new Error('Method not implemented.');
+  }
 }
 
 class FastAbiCoder extends AbiCoder {
   _getCoder(param: ParamType): Coder {
     if (param.type === 'address') {
-      // Casting since we are missing internal unused methods, such _throwError.
-      return new FastAddressCoder(param.name) as unknown as Coder;
+      return new FastAddressCoder(param.name);
     }
     return super._getCoder(param);
   }
