@@ -826,9 +826,9 @@ describe('MultichainAssetsController', () => {
       });
       await jestAdvanceTime({ duration: 1 });
 
-      expect(controller.state.accountsAssets[mockSolanaAccountId1]).toStrictEqual(
-        mockHandleRequestOnAssetsLookupReturnValue,
-      );
+      expect(
+        controller.state.accountsAssets[mockSolanaAccountId1],
+      ).toStrictEqual(mockHandleRequestOnAssetsLookupReturnValue);
       expect(eventListener).toHaveBeenCalledWith({
         assets: {
           [mockSolanaAccountId1]: {

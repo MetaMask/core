@@ -180,10 +180,8 @@ export class MultichainBalancesController extends BaseController<
     );
     this.messenger.subscribe(
       'AccountsController:accountBalancesUpdated',
-      // eslint-disable-next-line @typescript-eslint/no-misused-promises
-      async (balanceUpdate: AccountBalancesUpdatedEventPayload) => {
-        await this.#handleOnAccountBalancesUpdated(balanceUpdate);
-      },
+      (balanceUpdate: AccountBalancesUpdatedEventPayload) =>
+        this.#handleOnAccountBalancesUpdated(balanceUpdate),
     );
 
     this.messenger.subscribe(
@@ -418,9 +416,9 @@ export class MultichainBalancesController extends BaseController<
    *
    * @param balanceUpdate - The balance update event containing new balances.
    */
-  async #handleOnAccountBalancesUpdated(
+  #handleOnAccountBalancesUpdated(
     balanceUpdate: AccountBalancesUpdatedEventPayload,
-  ): Promise<void> {
+  ): void {
     this.update((state: Draft<MultichainBalancesControllerState>) => {
       for (const [accountId, assetBalances] of Object.entries(
         balanceUpdate.balances,
