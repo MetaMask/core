@@ -41,6 +41,7 @@ class FastAddressCoder implements Coder {
     return '0x0000000000000000000000000000000000000000';
   }
 
+  /* istanbul ignore next */
   _throwError(_message: string, _value: unknown): void {
     throw new Error('Method not implemented.');
   }
