@@ -224,6 +224,13 @@ async function withController<ReturnValue>(
     onActiveChainsUpdated,
     getNativeAssetForChain: (chainId: ChainId): Caip19AssetId =>
       defaultNativeAssetMap[chainId],
+    getAssetType: (assetId: Caip19AssetId): 'native' | 'erc20' | 'spl' => {
+      const isNative =
+        Object.values(defaultNativeAssetMap).some(
+          (id) => id.toLowerCase() === assetId.toLowerCase(),
+        ) || assetId.includes('/slip44:');
+      return isNative ? 'native' : 'erc20';
+    },
     ...options,
   });
 
@@ -2019,6 +2026,7 @@ describe('RpcDataSource', () => {
         messenger: assetsControllerMessenger,
         onActiveChainsUpdated: jest.fn(),
         getNativeAssetForChain: jest.fn(),
+        getAssetType: jest.fn().mockReturnValue('erc20'),
       });
       controller.destroy();
       expect(controller).toBeDefined();

@@ -62,6 +62,8 @@ export type TokenDataSourceOptions = {
   queryApiClient: ApiPlatformClient;
   /** Returns CAIP-19 native asset IDs from NetworkEnablementController state */
   getNativeAssetIds: () => string[];
+  /** Returns the asset type ('native' | 'erc20' | 'spl') for a given CAIP-19 asset ID */
+  getAssetType: (assetId: Caip19AssetId) => 'native' | 'erc20' | 'spl';
   /**
    * Timeout in ms for a single Tokens API call (default: 15000). When it
    * fires, the batch rejects so metadata enrichment proceeds without it.
@@ -91,33 +93,16 @@ export type TokenDataSourceAllowedActions =
  *
  * @param assetId - CAIP-19 asset ID used to derive token type.
  * @param assetData - V3 API response data.
- * @param nativeAssetIds - Set of known native asset IDs (lowercased) for membership checks.
+ * @param getAssetType - Returns the asset type for a given CAIP-19 asset ID.
  * @returns FungibleAssetMetadata for state storage.
  */
 function transformV3AssetResponseToMetadata(
   assetId: Caip19AssetId,
   assetData: V3AssetResponse,
-  nativeAssetIds: ReadonlySet<string>,
+  getAssetType: (id: Caip19AssetId) => 'native' | 'erc20' | 'spl',
 ): AssetMetadata {
-  const parsed = parseCaipAssetType(assetId);
-  let tokenType: 'native' | 'erc20' | 'spl' = 'erc20';
-
-  if (
-    nativeAssetIds.has(assetId.toLowerCase()) ||
-    parsed.assetNamespace === CaipAssetNamespace.Slip44
-  ) {
-    tokenType = 'native';
-  } else if (
-    parsed.chain.namespace === KnownCaipNamespace.Solana &&
-    parsed.assetNamespace === CaipAssetNamespace.Token
-  ) {
-    tokenType = 'spl';
-  }
-  // TODO: Add support for Tron trc20 standard
-
   const metadata: FungibleAssetMetadata = {
-    // Type derived from assetId
-    type: tokenType,
+    type: getAssetType(assetId),
     // BaseAssetMetadata fields
     name: assetData.name,
     symbol: assetData.symbol,
@@ -167,6 +152,9 @@ export class TokenDataSource {
   /** Returns CAIP-19 native asset IDs from NetworkEnablementController state */
   readonly #getNativeAssetIds: () => string[];
 
+  /** Returns the asset type for a given CAIP-19 asset ID */
+  readonly #getAssetType: (assetId: Caip19AssetId) => 'native' | 'erc20' | 'spl';
+
   /** Shared controller messenger — used for `PhishingController:bulkScanTokens`. */
   readonly #messenger: AssetsControllerMessenger;
 
@@ -179,6 +167,7 @@ export class TokenDataSource {
     this.#messenger = messenger;
     this.#apiClient = options.queryApiClient;
     this.#getNativeAssetIds = options.getNativeAssetIds;
+    this.#getAssetType = options.getAssetType;
     this.#fetchTimeoutMs = options.fetchTimeoutMs ?? DEFAULT_FETCH_TIMEOUT_MS;
   }
 
@@ -499,7 +488,7 @@ export class TokenDataSource {
           response.assetsInfo[caipAssetId] = transformV3AssetResponseToMetadata(
             caipAssetId,
             assetData,
-            nativeAssetIds,
+            this.#getAssetType,
           );
         }
 

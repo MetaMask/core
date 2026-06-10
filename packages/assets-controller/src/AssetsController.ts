@@ -841,6 +841,8 @@ export class AssetsController extends BaseController<
       queryClient: queryApiClient.queryClient,
       ...rpcConfig,
       isOnboarded: rpcConfig.isOnboarded ?? isOnboarded,
+      getAssetType: (assetId: Caip19AssetId): 'native' | 'erc20' | 'spl' =>
+        this.#getAssetType(assetId),
     });
     this.#stakedBalanceDataSource = new StakedBalanceDataSource({
       messenger: this.messenger,
@@ -852,6 +854,8 @@ export class AssetsController extends BaseController<
       getNativeAssetIds: (): Caip19AssetId[] => {
         return this.#getNativeAssetIdsForEnabledChains();
       },
+      getAssetType: (assetId: Caip19AssetId): 'native' | 'erc20' | 'spl' =>
+        this.#getAssetType(assetId),
     });
     this.#priceDataSource = new PriceDataSource({
       queryApiClient,
@@ -1948,6 +1952,29 @@ export class AssetsController extends BaseController<
     }
 
     return false;
+  }
+
+  /**
+   * Determines the asset type for a given CAIP-19 asset ID.
+   *
+   * @param assetId - The CAIP-19 asset ID.
+   * @returns The asset type: 'native', 'erc20', or 'spl'.
+   */
+  #getAssetType(assetId: Caip19AssetId): 'native' | 'erc20' | 'spl' {
+    const parsed = parseCaipAssetType(assetId);
+
+    if (this.#isNativeAsset(assetId)) {
+      return 'native';
+    }
+
+    if (
+      parsed.chain.namespace === KnownCaipNamespace.Solana &&
+      parsed.assetNamespace === CaipAssetNamespace.Token
+    ) {
+      return 'spl';
+    }
+
+    return 'erc20';
   }
 
   /**

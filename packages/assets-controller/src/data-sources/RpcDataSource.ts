@@ -141,6 +141,9 @@ export type RpcDataSourceOptions = {
    * token-list responses across detector polls.
    */
   queryClient?: TokenListQueryClient;
+
+  /** Returns the asset type ('native' | 'erc20' | 'spl') for the given CAIP-19 asset ID */
+  getAssetType: (assetId: Caip19AssetId) => 'native' | 'erc20' | 'spl';
 };
 
 /**
@@ -243,11 +246,16 @@ export class RpcDataSource extends AbstractDataSource<
 
   readonly #tokenDetector: TokenDetector;
 
+  readonly #getAssetType: (
+    assetId: Caip19AssetId,
+  ) => 'native' | 'erc20' | 'spl';
+
   constructor(options: RpcDataSourceOptions) {
     super(CONTROLLER_NAME, { activeChains: [] });
     this.#messenger = options.messenger;
     this.#onActiveChainsUpdated = options.onActiveChainsUpdated;
     this.#getNativeAssetForChain = options.getNativeAssetForChain;
+    this.#getAssetType = options.getAssetType;
     this.#timeout = options.timeout ?? 10_000;
     this.#tokenDetectionEnabled =
       options.tokenDetectionEnabled ?? ((): boolean => true);
@@ -556,7 +564,7 @@ export class RpcDataSource extends AbstractDataSource<
         // Only include if we have metadata (symbol and decimals at minimum)
         if (asset.symbol && asset.decimals !== undefined) {
           newMetadata[asset.assetId] = {
-            type: 'erc20',
+            type: this.#getAssetType(asset.assetId),
             symbol: asset.symbol,
             name: asset.name ?? asset.symbol,
             decimals: asset.decimals,
@@ -1019,7 +1027,7 @@ export class RpcDataSource extends AbstractDataSource<
               const assetChainId = `${parsed.chain.namespace}:${parsed.chain.reference}`;
               if (
                 assetChainId === chainId &&
-                parsed.assetNamespace === 'erc20'
+                this.#getAssetType(assetId) === 'erc20'
               ) {
                 const tokenAddress =
                   parsed.assetReference.toLowerCase() as Address;
@@ -1078,7 +1086,7 @@ export class RpcDataSource extends AbstractDataSource<
 
             if (decimals === undefined) {
               const parsed = parseCaipAssetType(balance.assetId);
-              if (parsed.assetNamespace === 'erc20') {
+              if (this.#getAssetType(balance.assetId) === 'erc20') {
                 decimals = await this.#fetchDecimalsViaRpc(
                   chainId,
                   parsed.assetReference,
@@ -1212,7 +1220,7 @@ export class RpcDataSource extends AbstractDataSource<
       for (const asset of result.detectedAssets) {
         if (asset.symbol && asset.decimals !== undefined) {
           assetsInfo[asset.assetId] = {
-            type: 'erc20',
+            type: this.#getAssetType(asset.assetId),
             symbol: asset.symbol,
             name: asset.name ?? asset.symbol,
             decimals: asset.decimals,
