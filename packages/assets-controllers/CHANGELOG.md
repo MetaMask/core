@@ -21,10 +21,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **BREAKING:** Remove `TransactionController:incomingTransactionsReceived` from `TokenBalancesControllerMessenger` allowed events ([#9012](https://github.com/MetaMask/core/pull/9012))
 
-### Fixed
-
-- Add Immutable zkEVM (chain `0x343b` / 13371) and Arc Testnet (chain `0x4cef52` / 5042002) to `SPOT_PRICES_SUPPORT_INFO` so their native tokens (identified by non-standard ERC-20 addresses rather than the zero address) are correctly resolved and priced ([#9063](https://github.com/MetaMask/core/pull/9063))
-
 ## [108.6.0]
 
 ### Added
