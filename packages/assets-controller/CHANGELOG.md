@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Use `encodeFunctionData` from `@metamask/controller-utils` for improved performance ([#9057](https://github.com/MetaMask/core/pull/9057))
 - Bump `@metamask/transaction-controller` from `^67.0.0` to `^67.1.0` ([#9066](https://github.com/MetaMask/core/pull/9066))
 
 ### Removed
@@ -19,7 +20,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Use `encodeFunctionData` from `@metamask/controller-utils` for improved performance ([#9057](https://github.com/MetaMask/core/pull/9057))
 - Bump `@metamask/network-enablement-controller` from `^5.2.0` to `^5.3.0` ([#9003](https://github.com/MetaMask/core/pull/9003))
 - Bump `@metamask/transaction-controller` from `^66.0.1` to `^67.0.0` ([#9021](https://github.com/MetaMask/core/pull/9021))
 - Bump `@metamask/account-tree-controller` from `^7.5.1` to `^7.5.2` ([#9058](https://github.com/MetaMask/core/pull/9058))
