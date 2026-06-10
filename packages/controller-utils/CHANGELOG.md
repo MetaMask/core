@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [12.2.0]
+
 ### Added
 
 - Add `encodeFunctionData` to improve ABI encoding speed for addresses ([#9057](https://github.com/MetaMask/core/pull/9057))
@@ -678,7 +680,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@12.1.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@12.2.0...HEAD
+[12.2.0]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@12.1.1...@metamask/controller-utils@12.2.0
 [12.1.1]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@12.1.0...@metamask/controller-utils@12.1.1
 [12.1.0]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@12.0.0...@metamask/controller-utils@12.1.0
 [12.0.0]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@11.20.0...@metamask/controller-utils@12.0.0
