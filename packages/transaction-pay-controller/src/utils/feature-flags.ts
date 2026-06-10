@@ -9,6 +9,7 @@ import type { TransactionPayFiatAsset } from '../strategy/fiat/constants';
 import {
   ETH_MAINNET_FIAT_ASSET,
   FIAT_ASSET_ID_BY_TX_TYPE,
+  FIAT_ENABLED_TYPES,
 } from '../strategy/fiat/constants';
 import {
   RELAY_EXECUTE_URL,
@@ -94,6 +95,7 @@ type FiatFlags = {
   assetPerTransactionType?: Partial<
     Record<TransactionType, TransactionPayFiatAsset>
   >;
+  enabledTransactionTypes: TransactionType[];
   feeReserveMultiplier?: number;
   maxRateDriftPercent?: number;
 };
@@ -824,6 +826,23 @@ export function getFiatAssetPerTransactionType(
     FIAT_ASSET_ID_BY_TX_TYPE[transactionType] ??
     ETH_MAINNET_FIAT_ASSET
   );
+}
+
+/**
+ * Get the enabled fiat transaction types.
+ *
+ * @param messenger - Controller messenger.
+ * @returns The enabled fiat transaction types.
+ */
+export function getFiatEnabledTypes(
+  messenger: TransactionPayControllerMessenger,
+): TransactionType[] {
+  const state = messenger.call('RemoteFeatureFlagController:getState');
+  const fiatFlags = state.remoteFeatureFlags?.confirmations_pay_fiat as
+    | FiatFlags
+    | undefined;
+
+  return fiatFlags?.enabledTransactionTypes ?? FIAT_ENABLED_TYPES;
 }
 
 /**

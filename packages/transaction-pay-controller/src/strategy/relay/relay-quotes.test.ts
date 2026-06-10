@@ -3073,11 +3073,13 @@ describe('Relay Quotes Utils', () => {
 
       function setupMoneyAccountMocks({
         amountHuman = AMOUNT_HUMAN_MOCK,
+        amountRaw = AMOUNT_RAW_MOCK,
         overrideCalls = [OVERRIDE_CALL_MOCK],
         recipient,
         authorizationList = DELEGATION_RESULT_MOCK.authorizationList,
       }: {
         amountHuman?: string;
+        amountRaw?: string;
         overrideCalls?: { to: Hex; data: Hex; value: Hex }[];
         recipient?: Hex;
         authorizationList?: typeof DELEGATION_RESULT_MOCK.authorizationList;
@@ -3085,7 +3087,7 @@ describe('Relay Quotes Utils', () => {
         getControllerStateMock.mockReturnValue({
           transactionData: {
             [TRANSACTION_ID_MOCK]: {
-              tokens: [{ amountHuman }],
+              tokens: [{ amountHuman, amountRaw }],
             },
           },
         } as never);
@@ -3097,7 +3099,7 @@ describe('Relay Quotes Utils', () => {
         });
       }
 
-      it('sets tradeType to EXACT_OUTPUT and amount from request sourceTokenAmount', async () => {
+      it('sets tradeType to EXACT_OUTPUT and amount from transactionData amountRaw', async () => {
         setupMoneyAccountMocks();
         successfulFetchMock.mockResolvedValue({
           ok: true,
@@ -3116,7 +3118,95 @@ describe('Relay Quotes Utils', () => {
         );
 
         expect(body.tradeType).toBe('EXACT_OUTPUT');
-        expect(body.amount).toBe(QUOTE_REQUEST_MOCK.sourceTokenAmount);
+        expect(body.amount).toBe(AMOUNT_RAW_MOCK);
+      });
+
+      it('uses amountRaw rather than sourceTokenAmount when decimals differ', async () => {
+        const destinationAmountRaw = '100000';
+        const sourceTokenAmountWithDifferentDecimals = '10000000';
+
+        setupMoneyAccountMocks({ amountRaw: destinationAmountRaw });
+        successfulFetchMock.mockResolvedValue({
+          ok: true,
+          json: async () => QUOTE_MOCK,
+        } as never);
+
+        await getRelayQuotes({
+          accountSupports7702: true,
+          messenger,
+          requests: [
+            {
+              ...MONEY_ACCOUNT_REQUEST_MOCK,
+              sourceTokenAmount: sourceTokenAmountWithDifferentDecimals,
+            },
+          ],
+          transaction: MONEY_ACCOUNT_TX_MOCK,
+        });
+
+        const body = JSON.parse(
+          successfulFetchMock.mock.calls[0][1]?.body as string,
+        );
+
+        expect(body.amount).toBe(destinationAmountRaw);
+        expect(body.amount).not.toBe(sourceTokenAmountWithDifferentDecimals);
+      });
+
+      it('defaults amount to 0 when transactionData has no tokens', async () => {
+        getControllerStateMock.mockReturnValue({
+          transactionData: {
+            [TRANSACTION_ID_MOCK]: {},
+          },
+        } as never);
+
+        getPaymentOverrideDataMock.mockResolvedValue({
+          calls: [OVERRIDE_CALL_MOCK],
+        });
+
+        successfulFetchMock.mockResolvedValue({
+          ok: true,
+          json: async () => QUOTE_MOCK,
+        } as never);
+
+        await getRelayQuotes({
+          accountSupports7702: true,
+          messenger,
+          requests: [MONEY_ACCOUNT_REQUEST_MOCK],
+          transaction: MONEY_ACCOUNT_TX_MOCK,
+        });
+
+        const body = JSON.parse(
+          successfulFetchMock.mock.calls[0][1]?.body as string,
+        );
+
+        expect(body.amount).toBe('0');
+      });
+
+      it('defaults amount to 0 when transactionData is missing', async () => {
+        getControllerStateMock.mockReturnValue({
+          transactionData: {},
+        } as never);
+
+        getPaymentOverrideDataMock.mockResolvedValue({
+          calls: [OVERRIDE_CALL_MOCK],
+        });
+
+        successfulFetchMock.mockResolvedValue({
+          ok: true,
+          json: async () => QUOTE_MOCK,
+        } as never);
+
+        await getRelayQuotes({
+          accountSupports7702: true,
+          messenger,
+          requests: [MONEY_ACCOUNT_REQUEST_MOCK],
+          transaction: MONEY_ACCOUNT_TX_MOCK,
+        });
+
+        const body = JSON.parse(
+          successfulFetchMock.mock.calls[0][1]?.body as string,
+        );
+
+        expect(body.amount).toBe('0');
       });
 
       it('includes token transfer and override calls in txs', async () => {
