@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add USDC on ARC mainnet (`eip155:5042/erc20:0x3600000000000000000000000000000000000000`) to default tokens to display on ARC ([#9011](https://github.com/MetaMask/core/pull/9011))
+
 ### Changed
 
 - Use `encodeFunctionData` from `@metamask/controller-utils` for improved performance ([#9057](https://github.com/MetaMask/core/pull/9057))
