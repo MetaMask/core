@@ -15,7 +15,7 @@ const AssetSchema = type({
   name: string(),
   symbol: string(),
   decimals: number(),
-  coingeckoCoinId: string(),
+  coingeckoCoinId: optional(string()),
 });
 
 const AssetsSchema = type({

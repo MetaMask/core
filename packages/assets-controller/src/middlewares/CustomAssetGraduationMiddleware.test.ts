@@ -156,6 +156,115 @@ describe('CustomAssetGraduationMiddleware', () => {
     );
   });
 
+  it('does not graduate when AccountsAPI returns a zero balance', async () => {
+    // The API may include zero entries for tokens it indexes but the user
+    // no longer holds. Keeping them in customAssets ensures RPC keeps
+    // polling so a future incoming transfer is reflected immediately.
+    const { middleware, context, removeCustomAsset } = setup({
+      [MOCK_ACCOUNT_ID]: [EVM_CUSTOM_ASSET],
+    });
+    context.response = {
+      assetsBalance: {
+        [MOCK_ACCOUNT_ID]: {
+          [EVM_CUSTOM_ASSET]: { amount: '0' },
+        },
+      },
+    };
+    const next = jest.fn().mockImplementation((ctx) => Promise.resolve(ctx));
+
+    await middleware.assetsMiddleware(context, next);
+
+    expect(removeCustomAsset).not.toHaveBeenCalled();
+  });
+
+  it('does not graduate when the decimal amount is zero', async () => {
+    // Both AccountsApi and BackendWebsocketDataSource emit human-readable
+    // decimal strings, so "0.0" must be treated the same as "0".
+    const { middleware, context, removeCustomAsset } = setup({
+      [MOCK_ACCOUNT_ID]: [EVM_CUSTOM_ASSET],
+    });
+    context.response = {
+      assetsBalance: {
+        [MOCK_ACCOUNT_ID]: {
+          [EVM_CUSTOM_ASSET]: { amount: '0.0' },
+        },
+      },
+    };
+    const next = jest.fn().mockImplementation((ctx) => Promise.resolve(ctx));
+
+    await middleware.assetsMiddleware(context, next);
+
+    expect(removeCustomAsset).not.toHaveBeenCalled();
+  });
+
+  it('graduates when AccountsAPI returns a small positive decimal balance (V5 format)', async () => {
+    // V5 returns amounts already divided by decimals, e.g. WETH:
+    // { balance: "0.283549083429656057", decimals: 18 }. The middleware
+    // must recognise these as positive without any further unit handling.
+    const { middleware, context, removeCustomAsset } = setup({
+      [MOCK_ACCOUNT_ID]: [EVM_CUSTOM_ASSET],
+    });
+    context.response = {
+      assetsBalance: {
+        [MOCK_ACCOUNT_ID]: {
+          [EVM_CUSTOM_ASSET]: { amount: '0.283549083429656057' },
+        },
+      },
+    };
+    const next = jest.fn().mockImplementation((ctx) => Promise.resolve(ctx));
+
+    await middleware.assetsMiddleware(context, next);
+
+    expect(removeCustomAsset).toHaveBeenCalledTimes(1);
+    expect(removeCustomAsset).toHaveBeenCalledWith(
+      MOCK_ACCOUNT_ID,
+      EVM_CUSTOM_ASSET,
+    );
+  });
+
+  it('graduates only custom assets whose balance is positive', async () => {
+    // Mixed response: one asset has zero balance, another has a real
+    // balance. Only the latter should graduate.
+    const { middleware, context, removeCustomAsset } = setup({
+      [MOCK_ACCOUNT_ID]: [EVM_CUSTOM_ASSET, EVM_OTHER_ASSET],
+    });
+    context.response = {
+      assetsBalance: {
+        [MOCK_ACCOUNT_ID]: {
+          [EVM_CUSTOM_ASSET]: { amount: '0' },
+          [EVM_OTHER_ASSET]: { amount: '500' },
+        },
+      },
+    };
+    const next = jest.fn().mockImplementation((ctx) => Promise.resolve(ctx));
+
+    await middleware.assetsMiddleware(context, next);
+
+    expect(removeCustomAsset).toHaveBeenCalledTimes(1);
+    expect(removeCustomAsset).toHaveBeenCalledWith(
+      MOCK_ACCOUNT_ID,
+      EVM_OTHER_ASSET,
+    );
+  });
+
+  it('does not graduate when the balance amount is malformed', async () => {
+    const { middleware, context, removeCustomAsset } = setup({
+      [MOCK_ACCOUNT_ID]: [EVM_CUSTOM_ASSET],
+    });
+    context.response = {
+      assetsBalance: {
+        [MOCK_ACCOUNT_ID]: {
+          [EVM_CUSTOM_ASSET]: { amount: 'not-a-number' },
+        },
+      },
+    };
+    const next = jest.fn().mockImplementation((ctx) => Promise.resolve(ctx));
+
+    await middleware.assetsMiddleware(context, next);
+
+    expect(removeCustomAsset).not.toHaveBeenCalled();
+  });
+
   it('does not graduate non-EVM (Solana) custom assets', async () => {
     const { middleware, context, removeCustomAsset } = setup({
       [MOCK_ACCOUNT_ID]: [SOLANA_CUSTOM_ASSET],

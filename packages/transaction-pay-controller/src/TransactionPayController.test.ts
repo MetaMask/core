@@ -6,7 +6,7 @@ import type { Hex } from '@metamask/utils';
 import { TransactionPayController } from '.';
 import { updateFiatPayment } from './actions/update-fiat-payment';
 import { updatePaymentToken } from './actions/update-payment-token';
-import { TransactionPayStrategy } from './constants';
+import { PaymentOverride, TransactionPayStrategy } from './constants';
 import { deriveFiatAssetForFiatPayment } from './strategy/fiat/utils';
 import { getMessengerMock } from './tests/messenger-mock';
 import type {
@@ -206,6 +206,18 @@ describe('TransactionPayController', () => {
       ).toBe(true);
     });
 
+    it('updates paymentOverride in state', () => {
+      const controller = createController();
+
+      controller.setTransactionConfig(TRANSACTION_ID_MOCK, (config) => {
+        config.paymentOverride = PaymentOverride.MoneyAccount;
+      });
+
+      expect(
+        controller.state.transactionData[TRANSACTION_ID_MOCK].paymentOverride,
+      ).toBe(PaymentOverride.MoneyAccount);
+    });
+
     it('triggers source amounts and quotes update when only isPostQuote changes', () => {
       const controller = createController();
 
@@ -372,6 +384,49 @@ describe('TransactionPayController', () => {
       ).toBeDefined();
     });
 
+    it('does not clear paymentToken when accountOverride changes if isPostQuote is true', () => {
+      const controller = createController();
+      const accountOverride =
+        '0xdeadbeef00000000000000000000000000000002' as Hex;
+
+      controller.setTransactionConfig(TRANSACTION_ID_MOCK, (config) => {
+        config.isPostQuote = true;
+      });
+
+      controller.updatePaymentToken({
+        transactionId: TRANSACTION_ID_MOCK,
+        tokenAddress: TOKEN_ADDRESS_MOCK,
+        chainId: CHAIN_ID_MOCK,
+      });
+
+      const { updateTransactionData } = updatePaymentTokenMock.mock.calls[0][1];
+
+      updateTransactionData(TRANSACTION_ID_MOCK, (data) => {
+        data.paymentToken = {
+          address: TOKEN_ADDRESS_MOCK,
+          balanceFiat: '1',
+          balanceHuman: '1',
+          balanceRaw: '1',
+          balanceUsd: '1',
+          chainId: CHAIN_ID_MOCK,
+          decimals: 6,
+          symbol: 'USDC',
+        };
+      });
+
+      expect(
+        controller.state.transactionData[TRANSACTION_ID_MOCK].paymentToken,
+      ).toBeDefined();
+
+      controller.setTransactionConfig(TRANSACTION_ID_MOCK, (config) => {
+        config.accountOverride = accountOverride;
+      });
+
+      expect(
+        controller.state.transactionData[TRANSACTION_ID_MOCK].paymentToken,
+      ).toBeDefined();
+    });
+
     it('updates multiple config properties at once', () => {
       const controller = createController();
       const refundTo = '0xdeadbeef00000000000000000000000000000001' as Hex;
@@ -411,6 +466,188 @@ describe('TransactionPayController', () => {
         transaction: TRANSACTION_META_MOCK,
       });
       expect(result).toBe(resultMock);
+    });
+  });
+
+  describe('getPaymentOverrideData', () => {
+    it('delegates to the callback', async () => {
+      const resultMock = {
+        calls: [{ to: '0xdef' as const, data: '0xabc' as const }],
+      };
+      const getPaymentOverrideDataMock = jest
+        .fn()
+        .mockResolvedValue(resultMock);
+
+      new TransactionPayController({
+        getDelegationTransaction: jest.fn(),
+        getPaymentOverrideData: getPaymentOverrideDataMock,
+        messenger,
+      });
+
+      const requestMock = {
+        amount: '1.5',
+        transaction: TRANSACTION_META_MOCK,
+        transactionData: { isLoading: false, tokens: [] },
+      };
+
+      const result = await messenger.call(
+        'TransactionPayController:getPaymentOverrideData',
+        requestMock,
+      );
+
+      expect(getPaymentOverrideDataMock).toHaveBeenCalledWith(requestMock);
+      expect(result).toStrictEqual(resultMock);
+    });
+
+    it('returns empty array when no callback is configured', async () => {
+      new TransactionPayController({
+        getDelegationTransaction: jest.fn(),
+        messenger,
+      });
+
+      const result = await messenger.call(
+        'TransactionPayController:getPaymentOverrideData',
+        {
+          amount: '1.5',
+          transaction: TRANSACTION_META_MOCK,
+          transactionData: { isLoading: false, tokens: [] },
+        },
+      );
+
+      expect(result).toStrictEqual({ calls: [] });
+    });
+  });
+
+  describe('getAmountData', () => {
+    it('delegates to the callback', async () => {
+      const resultMock = {
+        updates: [{ nestedTransactionIndex: 0, data: '0xabc' as const }],
+      };
+      const getAmountDataMock = jest.fn().mockResolvedValue(resultMock);
+
+      new TransactionPayController({
+        getAmountData: getAmountDataMock,
+        getDelegationTransaction: jest.fn(),
+        messenger,
+      });
+
+      const requestMock = {
+        amount: '5000000',
+        transaction: TRANSACTION_META_MOCK,
+      };
+
+      const result = await messenger.call(
+        'TransactionPayController:getAmountData',
+        requestMock,
+      );
+
+      expect(getAmountDataMock).toHaveBeenCalledWith(requestMock);
+      expect(result).toStrictEqual(resultMock);
+    });
+
+    it('returns empty updates when no callback is configured', async () => {
+      new TransactionPayController({
+        getDelegationTransaction: jest.fn(),
+        messenger,
+      });
+
+      const result = await messenger.call(
+        'TransactionPayController:getAmountData',
+        {
+          amount: '5000000',
+          transaction: TRANSACTION_META_MOCK,
+        },
+      );
+
+      expect(result).toStrictEqual({ updates: [] });
+    });
+  });
+
+  describe('polymarket callbacks', () => {
+    const EOA_MOCK = '0x1111111111111111111111111111111111111111' as Hex;
+    const DEPOSIT_WALLET_MOCK =
+      '0x2222222222222222222222222222222222222222' as Hex;
+    const SOURCE_HASH_MOCK: Hex = `0x${'aa'.repeat(32)}`;
+
+    it('delegates polymarketGetDepositWalletAddress to the callback', async () => {
+      const getDepositWalletAddressMock = jest
+        .fn()
+        .mockResolvedValue(DEPOSIT_WALLET_MOCK);
+
+      new TransactionPayController({
+        getDelegationTransaction: jest.fn(),
+        messenger,
+        polymarket: {
+          getDepositWalletAddress: getDepositWalletAddressMock,
+          submitDepositWalletBatch: jest.fn(),
+        },
+      });
+
+      const result = await messenger.call(
+        'TransactionPayController:polymarketGetDepositWalletAddress',
+        { eoa: EOA_MOCK },
+      );
+
+      expect(getDepositWalletAddressMock).toHaveBeenCalledWith({
+        eoa: EOA_MOCK,
+      });
+      expect(result).toBe(DEPOSIT_WALLET_MOCK);
+    });
+
+    it('delegates polymarketSubmitDepositWalletBatch to the callback', async () => {
+      const submitDepositWalletBatchMock = jest
+        .fn()
+        .mockResolvedValue({ sourceHash: SOURCE_HASH_MOCK });
+
+      new TransactionPayController({
+        getDelegationTransaction: jest.fn(),
+        messenger,
+        polymarket: {
+          getDepositWalletAddress: jest.fn(),
+          submitDepositWalletBatch: submitDepositWalletBatchMock,
+        },
+      });
+
+      const params = {
+        eoa: EOA_MOCK,
+        depositWallet: DEPOSIT_WALLET_MOCK,
+        calls: [],
+      };
+      const result = await messenger.call(
+        'TransactionPayController:polymarketSubmitDepositWalletBatch',
+        params,
+      );
+
+      expect(submitDepositWalletBatchMock).toHaveBeenCalledWith(params);
+      expect(result).toStrictEqual({ sourceHash: SOURCE_HASH_MOCK });
+    });
+
+    it('throws if polymarketGetDepositWalletAddress is invoked without callbacks supplied', () => {
+      new TransactionPayController({
+        getDelegationTransaction: jest.fn(),
+        messenger,
+      });
+
+      expect(() =>
+        messenger.call(
+          'TransactionPayController:polymarketGetDepositWalletAddress',
+          { eoa: EOA_MOCK },
+        ),
+      ).toThrow('Polymarket callbacks missing');
+    });
+
+    it('throws if polymarketSubmitDepositWalletBatch is invoked without callbacks supplied', () => {
+      new TransactionPayController({
+        getDelegationTransaction: jest.fn(),
+        messenger,
+      });
+
+      expect(() =>
+        messenger.call(
+          'TransactionPayController:polymarketSubmitDepositWalletBatch',
+          { eoa: EOA_MOCK, depositWallet: DEPOSIT_WALLET_MOCK, calls: [] },
+        ),
+      ).toThrow('Polymarket callbacks missing');
     });
   });
 
@@ -710,62 +947,65 @@ describe('TransactionPayController', () => {
     const CAIP_ASSET_ID_MOCK = 'eip155:137/slip44:966';
     const FIAT_ASSET_MOCK = {
       address: '0x0000000000000000000000000000000000001010' as Hex,
-      caipAssetId: CAIP_ASSET_ID_MOCK,
       chainId: '0x89' as Hex,
-      decimals: 18,
     };
 
-    let setSelectedTokenMock: jest.Mock;
-
-    beforeEach(() => {
-      setSelectedTokenMock = jest.fn();
-      messenger.registerActionHandler(
-        'RampsController:setSelectedToken' as never,
-        setSelectedTokenMock as never,
-      );
-    });
-
-    function getUpdateTransactionData(): UpdateTransactionDataCallback {
+    function getControllerAndUpdateTransactionData(): {
+      controller: TransactionPayController;
+      updateTransactionData: UpdateTransactionDataCallback;
+    } {
       const controller = createController();
       controller.updatePaymentToken({
         transactionId: TRANSACTION_ID_MOCK,
         tokenAddress: TOKEN_ADDRESS_MOCK,
         chainId: CHAIN_ID_MOCK,
       });
-      return updatePaymentTokenMock.mock.calls[0][1].updateTransactionData;
+      return {
+        controller,
+        updateTransactionData:
+          updatePaymentTokenMock.mock.calls[0][1].updateTransactionData,
+      };
     }
 
-    it('does not call setSelectedToken when only fiat amount changes', () => {
+    it('does not set caipAssetId when only fiat amount changes', () => {
       getTransactionMock.mockReturnValue(TRANSACTION_META_MOCK);
       deriveFiatAssetForFiatPaymentMock.mockReturnValue(FIAT_ASSET_MOCK);
 
-      const updateTransactionData = getUpdateTransactionData();
+      const { controller, updateTransactionData } =
+        getControllerAndUpdateTransactionData();
 
       updateTransactionData(TRANSACTION_ID_MOCK, (data) => {
         data.fiatPayment = { amountFiat: '100' };
       });
 
-      expect(setSelectedTokenMock).not.toHaveBeenCalled();
+      expect(
+        controller.state.transactionData[TRANSACTION_ID_MOCK]?.fiatPayment
+          ?.caipAssetId,
+      ).toBeUndefined();
     });
 
-    it('calls RampsController:setSelectedToken when payment method changes', () => {
+    it('stores caipAssetId in fiatPayment when payment method changes', () => {
       getTransactionMock.mockReturnValue(TRANSACTION_META_MOCK);
       deriveFiatAssetForFiatPaymentMock.mockReturnValue(FIAT_ASSET_MOCK);
 
-      const updateTransactionData = getUpdateTransactionData();
+      const { controller, updateTransactionData } =
+        getControllerAndUpdateTransactionData();
 
       updateTransactionData(TRANSACTION_ID_MOCK, (data) => {
         data.fiatPayment = { selectedPaymentMethodId: 'card-123' };
       });
 
-      expect(setSelectedTokenMock).toHaveBeenCalledWith(CAIP_ASSET_ID_MOCK);
+      expect(
+        controller.state.transactionData[TRANSACTION_ID_MOCK]?.fiatPayment
+          ?.caipAssetId,
+      ).toBe(CAIP_ASSET_ID_MOCK);
     });
 
     it('triggers quote update when fiat payment changes', () => {
       getTransactionMock.mockReturnValue(TRANSACTION_META_MOCK);
       deriveFiatAssetForFiatPaymentMock.mockReturnValue(FIAT_ASSET_MOCK);
 
-      const updateTransactionData = getUpdateTransactionData();
+      const { updateTransactionData } = getControllerAndUpdateTransactionData();
 
       updateTransactionData(TRANSACTION_ID_MOCK, (data) => {
         data.fiatPayment = { amountFiat: '100' };
@@ -774,36 +1014,45 @@ describe('TransactionPayController', () => {
       expect(updateQuotesMock).toHaveBeenCalledTimes(1);
     });
 
-    it('does not call setSelectedToken when transaction is not found', () => {
+    it('does not set caipAssetId when transaction is not found', () => {
       getTransactionMock.mockReturnValue(undefined);
 
-      const updateTransactionData = getUpdateTransactionData();
+      const { controller, updateTransactionData } =
+        getControllerAndUpdateTransactionData();
 
       updateTransactionData(TRANSACTION_ID_MOCK, (data) => {
         data.fiatPayment = { selectedPaymentMethodId: 'card-123' };
       });
 
-      expect(setSelectedTokenMock).not.toHaveBeenCalled();
+      expect(
+        controller.state.transactionData[TRANSACTION_ID_MOCK]?.fiatPayment
+          ?.caipAssetId,
+      ).toBeUndefined();
     });
 
-    it('does not call setSelectedToken when fiat asset cannot be derived', () => {
+    it('does not set caipAssetId when fiat asset cannot be derived', () => {
       getTransactionMock.mockReturnValue(TRANSACTION_META_MOCK);
-      deriveFiatAssetForFiatPaymentMock.mockReturnValue(undefined);
+      deriveFiatAssetForFiatPaymentMock.mockReturnValue(undefined as never);
 
-      const updateTransactionData = getUpdateTransactionData();
+      const { controller, updateTransactionData } =
+        getControllerAndUpdateTransactionData();
 
       updateTransactionData(TRANSACTION_ID_MOCK, (data) => {
         data.fiatPayment = { selectedPaymentMethodId: 'card-123' };
       });
 
-      expect(setSelectedTokenMock).not.toHaveBeenCalled();
+      expect(
+        controller.state.transactionData[TRANSACTION_ID_MOCK]?.fiatPayment
+          ?.caipAssetId,
+      ).toBeUndefined();
     });
 
-    it('does not call setSelectedToken when fiat payment does not change', () => {
+    it('does not set caipAssetId when fiat payment does not change', () => {
       getTransactionMock.mockReturnValue(TRANSACTION_META_MOCK);
       deriveFiatAssetForFiatPaymentMock.mockReturnValue(FIAT_ASSET_MOCK);
 
-      const updateTransactionData = getUpdateTransactionData();
+      const { controller, updateTransactionData } =
+        getControllerAndUpdateTransactionData();
 
       updateTransactionData(TRANSACTION_ID_MOCK, (data) => {
         data.sourceAmounts = [
@@ -811,23 +1060,10 @@ describe('TransactionPayController', () => {
         ];
       });
 
-      expect(setSelectedTokenMock).not.toHaveBeenCalled();
-    });
-
-    it('does not throw when setSelectedToken throws', () => {
-      getTransactionMock.mockReturnValue(TRANSACTION_META_MOCK);
-      deriveFiatAssetForFiatPaymentMock.mockReturnValue(FIAT_ASSET_MOCK);
-      setSelectedTokenMock.mockImplementation(() => {
-        throw new Error('Tokens not loaded');
-      });
-
-      const updateTransactionData = getUpdateTransactionData();
-
-      expect(() => {
-        updateTransactionData(TRANSACTION_ID_MOCK, (data) => {
-          data.fiatPayment = { selectedPaymentMethodId: 'card-123' };
-        });
-      }).not.toThrow();
+      expect(
+        controller.state.transactionData[TRANSACTION_ID_MOCK]?.fiatPayment
+          ?.caipAssetId,
+      ).toBeUndefined();
     });
   });
 });

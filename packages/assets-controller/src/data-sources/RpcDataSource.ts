@@ -52,6 +52,7 @@ import {
 import type {
   BalancePollingInput,
   DetectionPollingInput,
+  TokenListQueryClient,
 } from './evm-rpc-services';
 import type {
   Address,
@@ -60,6 +61,7 @@ import type {
   BalanceFetchResult,
   TokenDetectionResult,
 } from './evm-rpc-services/types';
+import { shouldSkipNativeForCaipChainId } from './evm-rpc-services/utils/assets';
 
 const CONTROLLER_NAME = 'RpcDataSource';
 const DEFAULT_BALANCE_INTERVAL = 30_000; // 30 seconds
@@ -103,6 +105,12 @@ export type RpcDataSourceConfig = {
   /** Function returning whether onboarding is complete. When false, fetch and subscribe are no-ops. Defaults to () => true. */
   isOnboarded?: () => boolean;
   timeout?: number;
+  /**
+   * Optional shared TanStack Query client used by `TokensApiClient` to cache
+   * token-list responses across detector polls. Pass `apiPlatformClient.queryClient`
+   * to share the cache with other API clients in the host app.
+   */
+  queryClient?: TokenListQueryClient;
 };
 
 export type RpcDataSourceOptions = {
@@ -128,6 +136,11 @@ export type RpcDataSourceOptions = {
   useExternalService?: () => boolean;
   /** Function returning whether onboarding is complete. When false, fetch and subscribe are no-ops. Defaults to () => true. */
   isOnboarded?: () => boolean;
+  /**
+   * Optional shared TanStack Query client used by `TokensApiClient` to cache
+   * token-list responses across detector polls.
+   */
+  queryClient?: TokenListQueryClient;
 };
 
 /**
@@ -300,8 +313,13 @@ export class RpcDataSource extends AbstractDataSource<
       }
     });
 
-    // Initialize TokenDetector with polling interval
-    const tokensApiClient = new TokensApiClient();
+    // Initialize TokenDetector with polling interval. The TokensApiClient is
+    // configured with the shared TanStack Query client (when the controller
+    // provides one) so concurrent detector polls/accounts/instances share a
+    // single in-flight request and cached result per chain.
+    const tokensApiClient = new TokensApiClient({
+      queryClient: options.queryClient,
+    });
     this.#tokenDetector = new TokenDetector(
       this.#multicallClient,
       tokensApiClient,
@@ -328,12 +346,30 @@ export class RpcDataSource extends AbstractDataSource<
   /**
    * Convert a raw balance to human-readable format using decimals.
    *
+   * Returns `'0'` when either input is invalid (e.g. `decimals` is `null`,
+   * `NaN`, negative or non-finite, or `rawBalance` cannot be parsed as a
+   * number). Defaulting to a fixed decimals value would silently produce
+   * wrong amounts; `'0'` keeps state safe and never lets `NaN` leak in.
+   *
    * @param rawBalance - The raw balance string.
    * @param decimals - The number of decimals for the token.
-   * @returns The human-readable balance string.
+   * @returns The human-readable balance string, or `'0'` when inputs are invalid.
    */
   #convertToHumanReadable(rawBalance: string, decimals: number): string {
+    if (!Number.isFinite(decimals) || decimals < 0) {
+      log('Invalid decimals — defaulting balance to "0"', {
+        rawBalance,
+        decimals,
+      });
+      return '0';
+    }
+
     const rawAmount = new BigNumberJS(rawBalance);
+    if (!rawAmount.isFinite()) {
+      log('Invalid raw balance — defaulting to "0"', { rawBalance, decimals });
+      return '0';
+    }
+
     const divisor = new BigNumberJS(10).pow(decimals);
     return rawAmount.dividedBy(divisor).toFixed();
   }
@@ -356,31 +392,80 @@ export class RpcDataSource extends AbstractDataSource<
 
     const nativeAssetId = this.#getNativeAssetForChain(chainId);
     for (const balance of balances) {
+      const existingMeta = existingMetadata[balance.assetId];
       const isNative =
-        existingMetadata[balance.assetId]?.type === 'native' ||
+        existingMeta?.type === 'native' ||
         balance.assetId.toLowerCase() === nativeAssetId?.toLowerCase();
       if (isNative) {
-        const chainStatus = this.#chainStatuses[chainId];
-
-        if (chainStatus) {
-          assetsInfo[balance.assetId] = {
-            type: 'native',
-            symbol: chainStatus.nativeCurrency,
-            name: chainStatus.nativeCurrency,
-            decimals: 18,
-          };
+        // Prefer existing (richer) metadata in state — it may have been
+        // enriched by the price/info API with image, description, etc.
+        // Only emit a minimal stub when there's nothing in state yet,
+        // so we don't clobber that richer metadata on every balance refresh.
+        if (this.#hasValidDecimals(existingMeta)) {
+          assetsInfo[balance.assetId] = existingMeta;
+        } else {
+          const chainStatus = this.#chainStatuses[chainId];
+          if (chainStatus) {
+            assetsInfo[balance.assetId] = {
+              type: 'native',
+              symbol: chainStatus.nativeCurrency,
+              name: chainStatus.nativeCurrency,
+              decimals: 18,
+            };
+          }
         }
-      } else {
+      } else if (existingMeta) {
         // For ERC20 tokens, use existing metadata from state if available.
         // Unknown ERC-20s are omitted until TokenDataSource enriches them.
-        const existingMeta = existingMetadata[balance.assetId];
-        if (existingMeta) {
-          assetsInfo[balance.assetId] = existingMeta;
-        }
+        assetsInfo[balance.assetId] = existingMeta;
       }
     }
 
     return assetsInfo;
+  }
+
+  /**
+   * Type guard for metadata whose `decimals` is safe to use for balance
+   * conversion.
+   *
+   * Mirrors the validity rules in `#convertToHumanReadable` (finite and
+   * non-negative). Keeping these in sync ensures that whenever the metadata
+   * guard accepts a value, the balance guard will also accept it — so we
+   * never end up emitting metadata with `decimals: -1` while silently
+   * defaulting the balance to `'0'`.
+   *
+   * @param metadata - The metadata to check.
+   * @returns `true` if `decimals` is a finite, non-negative number.
+   */
+  #hasValidDecimals(
+    metadata: AssetMetadata | undefined,
+  ): metadata is AssetMetadata {
+    return Boolean(
+      metadata && Number.isFinite(metadata.decimals) && metadata.decimals >= 0,
+    );
+  }
+
+  /**
+   * Pick the first valid `decimals` value from a list of metadata sources.
+   *
+   * `??` only short-circuits on `null`/`undefined`, so a stale state entry
+   * with `decimals: NaN` would otherwise win over a later source that holds
+   * a correct value (e.g. the chain-status stub produced by
+   * `#collectMetadataForBalances`). This helper treats `NaN`, negative, and
+   * non-finite values as missing so the next source can supply a usable one.
+   *
+   * @param metadatas - Metadata candidates in priority order.
+   * @returns The first finite `decimals` value, or `undefined` if none are valid.
+   */
+  #pickValidDecimals(
+    ...metadatas: (AssetMetadata | undefined)[]
+  ): number | undefined {
+    for (const metadata of metadatas) {
+      if (this.#hasValidDecimals(metadata)) {
+        return metadata.decimals;
+      }
+    }
+    return undefined;
   }
 
   /**
@@ -413,7 +498,7 @@ export class RpcDataSource extends AbstractDataSource<
     for (const balance of normalizedBalances) {
       const stateMetadata = existingMetadata[balance.assetId];
       const pipelineMetadata = assetsInfo[balance.assetId];
-      const decimals = stateMetadata?.decimals ?? pipelineMetadata?.decimals;
+      const decimals = this.#pickValidDecimals(stateMetadata, pipelineMetadata);
 
       if (decimals === undefined) {
         continue;
@@ -919,12 +1004,14 @@ export class RpcDataSource extends AbstractDataSource<
 
       for (const chainId of chainsForAccount) {
         const hexChainId = caipChainIdToHex(chainId);
-
-        // Build a single AssetFetchEntry[] for native + custom ERC-20s
         const nativeAssetId = this.#getNativeAssetForChain(chainId);
-        const assetsToFetch: AssetFetchEntry[] = [
-          { assetId: nativeAssetId, address: ZERO_ADDRESS },
-        ];
+
+        const shouldSkipNative = shouldSkipNativeForCaipChainId(chainId);
+        const assetsToFetch: AssetFetchEntry[] = [];
+        if (!shouldSkipNative) {
+          // Build a single AssetFetchEntry[] for native + custom ERC-20s
+          assetsToFetch.push({ assetId: nativeAssetId, address: ZERO_ADDRESS });
+        }
 
         if (request.customAssets) {
           const existingMetadata = this.#getExistingAssetsMetadata();
@@ -987,8 +1074,10 @@ export class RpcDataSource extends AbstractDataSource<
           for (const balance of normalizedBalances) {
             const stateMetadata = existingMetadata[balance.assetId];
             const pipelineMetadata = assetsInfo[balance.assetId];
-            let decimals: number | undefined =
-              stateMetadata?.decimals ?? pipelineMetadata?.decimals;
+            let decimals: number | undefined = this.#pickValidDecimals(
+              stateMetadata,
+              pipelineMetadata,
+            );
 
             if (decimals === undefined) {
               const parsed = parseCaipAssetType(balance.assetId);
@@ -1019,17 +1108,28 @@ export class RpcDataSource extends AbstractDataSource<
           if (!assetsBalance[accountId]) {
             assetsBalance[accountId] = {};
           }
-          assetsBalance[accountId][nativeAssetId] = { amount: '0' };
 
-          // Even on error, include native token metadata
-          const chainStatus = this.#chainStatuses[chainId];
-          if (chainStatus) {
-            assetsInfo[nativeAssetId] = {
-              type: 'native',
-              symbol: chainStatus.nativeCurrency,
-              name: chainStatus.nativeCurrency,
-              decimals: 18,
-            };
+          if (!shouldSkipNative) {
+            assetsBalance[accountId][nativeAssetId] = { amount: '0' };
+          }
+          // Even on error, include native token metadata. Prefer the richer
+          // metadata already in state (e.g. enriched with image/description
+          // by the price/info API) and fall back to a minimal stub only when
+          // nothing is in state yet, so we don't clobber that richer metadata.
+          const existingNativeMeta =
+            this.#getExistingAssetsMetadata()[nativeAssetId];
+          if (this.#hasValidDecimals(existingNativeMeta)) {
+            assetsInfo[nativeAssetId] = existingNativeMeta;
+          } else {
+            const chainStatus = this.#chainStatuses[chainId];
+            if (chainStatus) {
+              assetsInfo[nativeAssetId] = {
+                type: 'native',
+                symbol: chainStatus.nativeCurrency,
+                name: chainStatus.nativeCurrency,
+                decimals: 18,
+              };
+            }
           }
 
           if (!failedChains.includes(chainId)) {

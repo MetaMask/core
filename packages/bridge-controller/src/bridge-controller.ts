@@ -25,7 +25,7 @@ import {
   ExchangeRateSourcesForLookup,
   selectIsAssetExchangeRateInState,
 } from './selectors';
-import { RequestStatus } from './types';
+import { FeatureId, RequestStatus } from './types';
 import type {
   L1GasFees,
   GenericQuoteRequest,
@@ -58,6 +58,7 @@ import {
   fetchAssetPrices,
   fetchBridgeQuotes,
   fetchBridgeQuoteStream,
+  fetchBatchSellTrades,
 } from './utils/fetch';
 import {
   AbortReason,
@@ -87,7 +88,6 @@ import {
 } from './utils/quote';
 import { appendFeesToQuotes } from './utils/quote-fees';
 import { getMinimumBalanceForRentExemptionInLamports } from './utils/snaps';
-import type { FeatureId } from './utils/validators';
 
 const metadata: StateMetadata<BridgeControllerState> = {
   quoteRequest: {
@@ -162,6 +162,18 @@ const metadata: StateMetadata<BridgeControllerState> = {
     includeInDebugSnapshot: false,
     usedInUi: true,
   },
+  batchSellTrades: {
+    includeInStateLogs: true,
+    persist: false,
+    includeInDebugSnapshot: false,
+    usedInUi: true,
+  },
+  batchSellTradesLoadingStatus: {
+    includeInStateLogs: true,
+    persist: false,
+    includeInDebugSnapshot: false,
+    usedInUi: true,
+  },
 };
 
 /**
@@ -173,30 +185,14 @@ const metadata: StateMetadata<BridgeControllerState> = {
  */
 type BridgePollingInput = {
   quoteRequests: GenericQuoteRequest[];
-  context: Pick<
-    RequiredEventContextFromClient,
-    UnifiedSwapBridgeEventName.QuotesError
-  >[UnifiedSwapBridgeEventName.QuotesError] &
-    Pick<
-      RequiredEventContextFromClient,
-      UnifiedSwapBridgeEventName.QuotesRequested
-    >[UnifiedSwapBridgeEventName.QuotesRequested] &
-    /**
-     * Client-supplied security classification for the destination token
-     * (e.g. from token security/scanning data). Stored on the controller
-     * and merged into every analytics event that includes
-     * `token_address_destination`. Pass `null` when no security data is
-     * available for the selected destination token.
-     */
-    Pick<
-      RequiredEventContextFromClient[UnifiedSwapBridgeEventName.InputSourceDestinationSwitched],
-      'token_security_type_destination'
-    >;
+  context: RequiredEventContextFromClient[UnifiedSwapBridgeEventName.QuotesError] &
+    RequiredEventContextFromClient[UnifiedSwapBridgeEventName.QuotesRequested];
 };
 
 const MESSENGER_EXPOSED_METHODS = [
   'updateBridgeQuoteRequestParams',
   'fetchQuotes',
+  'updateBatchSellTrades',
   'stopPollingForQuotes',
   'setLocation',
   'resetState',
@@ -210,6 +206,8 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
   BridgeControllerMessenger
 > {
   #abortController: AbortController | undefined;
+
+  #batchSellTradesAbortController: AbortController | undefined;
 
   #quotesFirstFetched: number | undefined;
 
@@ -340,7 +338,11 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
     if (quoteRequestIndex >= quoteRequestCount) {
       return;
     }
-    this.#trackInputChangedEvents(paramsToUpdate, quoteRequestIndex);
+    this.#trackInputChangedEvents(
+      paramsToUpdate,
+      context.feature_id,
+      quoteRequestIndex,
+    );
     this.resetState(AbortReason.QuoteRequestUpdated, quoteRequestIndex);
     this.update((state) => {
       // Update only the specified quote request and keep the rest of the quote requests unchanged
@@ -385,14 +387,14 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
    * This method does not start polling for quotes and does not emit UnifiedSwapBridge events
    *
    * @param quoteRequest - The parameters for quote requests to fetch
-   * @param abortSignal - The abort signal to cancel all the requests
    * @param featureId - The feature ID that maps to quoteParam overrides from LD
+   * @param abortSignal - The abort signal to cancel all the requests
    * @returns A list of validated quotes
    */
   fetchQuotes = async (
     quoteRequest: GenericQuoteRequest,
+    featureId: FeatureId,
     abortSignal: AbortSignal | null = null,
-    featureId: FeatureId | null = null,
   ): Promise<(QuoteResponse & L1GasFees & NonEvmFees)[]> => {
     const bridgeFeatureFlags = getBridgeFeatureFlags(this.messenger);
     const jwt = await this.#getJwt();
@@ -416,7 +418,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
       this.#clientVersion,
     );
 
-    this.#trackQuoteValidationFailures(validationFailures);
+    this.#trackQuoteValidationFailures(validationFailures, featureId);
 
     const quotesWithFees = await appendFeesToQuotes(
       baseQuotes,
@@ -428,13 +430,84 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
     return sortQuotes(quotesWithFees, featureId);
   };
 
-  readonly #trackQuoteValidationFailures = (validationFailures: string[]) => {
+  /**
+   * Fetches gasless transaction data and fees for BatchSell quotes.
+   * To use this in the clients, add a listener for the recommendedQuotes and call
+   * this handler whenever they change.
+   *
+   * @param quotes - The quotes to fetch the gasless transaction data and fees for
+   * @param stxEnabled - Flag to estimate gas cost more precisely for the batch sell feature.
+   */
+  updateBatchSellTrades = async (
+    quotes: (QuoteResponse | null)[],
+    stxEnabled: boolean,
+  ): Promise<void> => {
+    this.#batchSellTradesAbortController?.abort(
+      AbortReason.GaslessTxBatchFetched,
+    );
+    this.#batchSellTradesAbortController = new AbortController();
+
+    this.update((state) => {
+      // Set loading status again if recommended quotes are re-ordered
+      state.batchSellTradesLoadingStatus = RequestStatus.LOADING;
+    });
+
+    try {
+      const batchSellTradesResponse = await fetchBatchSellTrades(
+        quotes,
+        stxEnabled,
+        this.#batchSellTradesAbortController.signal,
+        this.#clientId,
+        await this.#getJwt(),
+        this.#fetchFn,
+        this.#config.customBridgeApiBaseUrl ?? BRIDGE_PROD_API_BASE_URL,
+        this.#clientVersion,
+      );
+
+      this.update((state) => {
+        state.batchSellTrades = batchSellTradesResponse;
+        state.batchSellTradesLoadingStatus = RequestStatus.FETCHED;
+      });
+
+      // TODO if fee.asset.assetId is not in exchange rates, fetch the exchange rate and update the state
+    } catch (error) {
+      // Ignore abort errors
+      if (
+        (error as Error).toString().includes('AbortError') ||
+        (error as Error).toString().includes('FetchRequestCanceledException') ||
+        [
+          AbortReason.ResetState,
+          AbortReason.NewQuoteRequest,
+          AbortReason.QuoteRequestUpdated,
+          AbortReason.TransactionSubmitted,
+          AbortReason.GaslessTxBatchFetched,
+        ].includes(error as AbortReason)
+      ) {
+        // Exit the function early to prevent other state updates
+        return;
+      }
+
+      this.update((state) => {
+        // Reset the batch sell trades if the fetch fails to avoid showing stale data
+        state.batchSellTrades = DEFAULT_BRIDGE_CONTROLLER_STATE.batchSellTrades;
+        // Update loading status
+        state.batchSellTradesLoadingStatus = RequestStatus.ERROR;
+      });
+      console.log(`Failed to fetch batch sell trades`, error);
+    }
+  };
+
+  readonly #trackQuoteValidationFailures = (
+    validationFailures: string[],
+    featureId: FeatureId,
+  ) => {
     if (validationFailures.length === 0) {
       return;
     }
     this.trackUnifiedSwapBridgeEvent(
       UnifiedSwapBridgeEventName.QuotesValidationFailed,
       {
+        feature_id: featureId,
         failures: validationFailures,
         location: this.#location,
       },
@@ -464,7 +537,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
    * @param quoteRequests - The quote requests to fetch the exchange rates for
    */
   readonly #fetchAssetExchangeRates = async (
-    quoteRequests: Partial<GenericQuoteRequest>[],
+    quoteRequests: GenericQuoteRequest[],
   ) => {
     const exchangeRateSources = this.#getExchangeRateSources();
 
@@ -473,18 +546,14 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
       quoteRequests
         .flatMap((quoteRequest) =>
           [
-            quoteRequest.srcTokenAddress && quoteRequest.srcChainId
-              ? getAssetIdsForToken(
-                  quoteRequest.srcTokenAddress,
-                  quoteRequest.srcChainId,
-                )
-              : undefined,
-            quoteRequest.destTokenAddress && quoteRequest.destChainId
-              ? getAssetIdsForToken(
-                  quoteRequest.destTokenAddress,
-                  quoteRequest.destChainId,
-                )
-              : undefined,
+            getAssetIdsForToken(
+              quoteRequest.srcTokenAddress,
+              quoteRequest.srcChainId,
+            ),
+            getAssetIdsForToken(
+              quoteRequest.destTokenAddress,
+              quoteRequest.destChainId,
+            ),
           ].flat(),
         )
         .filter(
@@ -628,6 +697,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
     }
     // Clears quotes list in state
     this.#abortController?.abort(reason);
+    this.#batchSellTradesAbortController?.abort(reason);
   };
 
   /**
@@ -644,8 +714,9 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
   resetState = (
     reason = AbortReason.ResetState,
     quoteRequestIndex: number | null = null,
+    context?: RequiredEventContextFromClient[UnifiedSwapBridgeEventName.QuotesReceived],
   ) => {
-    this.stopPollingForQuotes(reason);
+    this.stopPollingForQuotes(reason, context);
     this.update((state) => {
       // Cannot do direct assignment to state, i.e. state = {... }, need to manually assign each field
       if (quoteRequestIndex === null) {
@@ -677,6 +748,9 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
         DEFAULT_BRIDGE_CONTROLLER_STATE.tokenSecurityTypeDestination;
       state.quoteStreamComplete =
         DEFAULT_BRIDGE_CONTROLLER_STATE.quoteStreamComplete;
+      state.batchSellTrades = DEFAULT_BRIDGE_CONTROLLER_STATE.batchSellTrades;
+      state.batchSellTradesLoadingStatus =
+        DEFAULT_BRIDGE_CONTROLLER_STATE.batchSellTradesLoadingStatus;
     });
   };
 
@@ -702,6 +776,8 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
     context,
   }: BridgePollingInput) => {
     this.#abortController?.abort(AbortReason.NewQuoteRequest);
+    this.#batchSellTradesAbortController?.abort(AbortReason.NewQuoteRequest);
+
     this.#abortController = new AbortController();
 
     this.#fetchAssetExchangeRates(quoteRequests).catch((error) =>
@@ -726,6 +802,11 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
         DEFAULT_BRIDGE_CONTROLLER_STATE.quoteStreamComplete;
       state.quotesLastFetched = Date.now();
       state.quotesLoadingStatus = RequestStatus.LOADING;
+      // Prevent clients from displaying stale batch sell fees
+      if (quoteRequests.length > 1) {
+        state.batchSellTradesLoadingStatus = RequestStatus.LOADING;
+        state.batchSellTrades = DEFAULT_BRIDGE_CONTROLLER_STATE.batchSellTrades;
+      }
     });
 
     const jwt = await this.#getJwt();
@@ -764,6 +845,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
           if (shouldStream || isBatchSellRequest) {
             await this.#handleQuoteStreaming(
               quoteRequests,
+              context.feature_id,
               jwt,
               selectedAccount,
             );
@@ -772,6 +854,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
           // Otherwise use regular fetch
           const quotes = await this.fetchQuotes(
             firstQuoteRequest,
+            context.feature_id,
             this.#abortController?.signal,
           );
           this.update((state) => {
@@ -857,6 +940,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
 
   readonly #handleQuoteStreaming = async (
     quoteRequests: GenericQuoteRequest[],
+    featureId: FeatureId,
     jwt?: string,
     selectedAccount?: InternalAccount,
   ) => {
@@ -875,11 +959,13 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
       this.#fetchFn,
       quoteRequests,
       this.#abortController?.signal,
+      featureId,
       this.#clientId,
       jwt,
       this.#config.customBridgeApiBaseUrl ?? BRIDGE_PROD_API_BASE_URL,
       {
-        onQuoteValidationFailure: this.#trackQuoteValidationFailures,
+        onQuoteValidationFailure: (validationFailures) =>
+          this.#trackQuoteValidationFailures(validationFailures, featureId),
         onValidQuoteReceived: async (quote: QuoteResponse) => {
           const feeAppendPromise = (async () => {
             const quotesWithFees = await appendFeesToQuotes(
@@ -1179,6 +1265,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
 
   readonly #trackInputChangedEvents = (
     paramsToUpdate: Partial<GenericQuoteRequest>,
+    featureId: FeatureId,
     quoteRequestIndex: number = 0,
   ) => {
     Object.entries(paramsToUpdate).forEach(([key, value]) => {
@@ -1202,6 +1289,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
             input: inputKey,
             input_value: inputValue,
             location: this.#location,
+            feature_id: featureId,
           },
         );
       }

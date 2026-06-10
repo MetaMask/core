@@ -65,6 +65,7 @@ describe('KnownSessionProperties', () => {
     expect(KnownSessionProperties).toMatchInlineSnapshot(`
       {
         "Bip122AccountChangedNotifications": "bip122_accountChanged_notifications",
+        "Eip1193Compatible": "eip1193-compatible",
         "SolanaAccountChangedNotifications": "solana_accountChanged_notifications",
         "TronAccountChangedNotifications": "tron_accountChanged_notifications",
       }
@@ -74,6 +75,7 @@ describe('KnownSessionProperties', () => {
 
 describe('isKnownSessionPropertyValue', () => {
   it('should return true for known session property values', () => {
+    expect(isKnownSessionPropertyValue('eip1193-compatible')).toBe(true);
     expect(
       isKnownSessionPropertyValue('solana_accountChanged_notifications'),
     ).toBe(true);

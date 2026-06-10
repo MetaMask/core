@@ -178,6 +178,7 @@ export {
   SPOT_PRICES_SUPPORT_INFO,
 } from './token-prices-service';
 export {
+  fetchRwas,
   searchTokens,
   getTrendingTokens,
   fetchTokenAssets,
@@ -292,7 +293,9 @@ export { createFormatters } from './utils/formatters';
 export type {
   SortTrendingBy,
   TrendingAsset,
+  TrendingTokensQueryParams,
   TokenSearchItem,
+  PageInfo,
   TokenAsset,
   TokenRwaData,
   TokenSecurityData,
@@ -302,4 +305,10 @@ export type {
   TokenSecurityFees,
   TokenSecurityFinancialStats,
   TokenSecurityMetadata,
+  RwaMarket,
+  RwaTokenData,
+  RwaToken,
+  RwasResponse,
+  RwaSortBy,
+  FetchRwasParams,
 } from './token-service';
