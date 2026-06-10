@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Bump `@metamask/utils` from `^11.9.0` to `^11.11.0` ([#9074](https://github.com/MetaMask/core/pull/9074))
+- Bump `@metamask/bridge-controller` from `^75.0.0` to `^75.1.0` ([#9072](https://github.com/MetaMask/core/pull/9072))
 
 ## [23.4.0]
 
