@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- Release 1028.0.0 ([#9066](https://github.com/MetaMask/core/pull/9066))
+- feat(perps): pre-ipo classification ([#9038](https://github.com/MetaMask/core/pull/9038))
+- refactor(network-controller)!: Remove `initializeProvider` in favor of `init` ([#9034](https://github.com/MetaMask/core/pull/9034))
+
 ### Changed
 
 - `TransactionController` can now be constructed before `NetworkController` is registered on the messenger ([#9012](https://github.com/MetaMask/core/pull/9012))

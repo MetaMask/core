@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- refactor(wallet): migrate keyring + storage instances to directory convention ([#8977](https://github.com/MetaMask/core/pull/8977))
+
 ### Added
 
 - **BREAKING:** Add `AccountsController` and `ConnectivityController` as default initialized controllers ([#8924](https://github.com/MetaMask/core/pull/8924))
