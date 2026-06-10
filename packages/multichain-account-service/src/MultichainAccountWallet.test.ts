@@ -300,7 +300,7 @@ describe('MultichainAccountWallet', () => {
       ).rejects.toThrow('Unable to create accounts');
       expect(captureExceptionSpy).toHaveBeenCalledWith(
         new Error(
-          'Unable to create accounts with provider "Mocked Provider 0" (group indices 1–1)',
+          'Unable to create some accounts with provider "Mocked Provider 0"',
         ),
       );
       expect(captureExceptionSpy.mock.lastCall[0]).toHaveProperty(
@@ -609,7 +609,7 @@ describe('MultichainAccountWallet', () => {
       ).rejects.toThrow(`Bad range, to (${badIndex}) must be >= 0`);
     });
 
-    it('captures an error with group index range message when EVM provider fails', async () => {
+    it('captures an error with batch mode message when EVM provider fails', async () => {
       const { wallet, providers, messenger } = setup({
         accounts: [[]],
       });
@@ -626,7 +626,7 @@ describe('MultichainAccountWallet', () => {
 
       expect(captureExceptionSpy).toHaveBeenCalledWith(
         new Error(
-          'Unable to create accounts with provider "Mocked Provider 0" (group indices 0–2)',
+          'Unable to create some accounts (batch) with provider "Mocked Provider 0"',
         ),
       );
       expect(captureExceptionSpy.mock.lastCall[0]).toHaveProperty(
