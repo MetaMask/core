@@ -7,15 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Changed
-
-- Bump `@metamask/utils` from `^11.9.0` to `^11.11.0` ([#9074](https://github.com/MetaMask/core/pull/9074))
-
 ### Added
 
 - **BREAKING:** Add `AccountsController` and `ConnectivityController` as default initialized controllers ([#8924](https://github.com/MetaMask/core/pull/8924))
   - Passing `instanceOptions.connectivityController.connectivityAdapter` is now required.
   - Export `AlwaysOnlineAdapter` from the package root for environments without a platform-specific network API (e.g. Node/tests).
+
+### Changed
+
+- Bump `@metamask/utils` from `^11.9.0` to `^11.11.0` ([#9074](https://github.com/MetaMask/core/pull/9074))
 
 ## [3.0.0]
 
