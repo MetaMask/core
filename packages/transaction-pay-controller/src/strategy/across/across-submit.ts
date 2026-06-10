@@ -26,6 +26,7 @@ import {
   collectTransactionIds,
   getTransaction,
   updateTransaction,
+  isPerpsWithdrawTransaction,
   isPredictWithdrawTransaction,
   waitForTransactionConfirmed,
 } from '../../utils/transaction';
@@ -133,6 +134,7 @@ async function submitTransactions(
   });
   const shouldPrependOriginalTransaction =
     quote.request.isPostQuote === true &&
+    quote.request.isHyperliquidSource !== true &&
     parentTransaction.txParams.to !== undefined;
   const hasPrependedOriginalGasLimit =
     shouldPrependOriginalTransaction &&
@@ -567,6 +569,10 @@ function hasOriginalTransactionGas(transaction: TransactionMeta): boolean {
  * @returns Across-specific transaction type for known flows, or the original type.
  */
 function getAcrossDepositType(transaction: TransactionMeta): TransactionType {
+  if (isPerpsWithdrawTransaction(transaction)) {
+    return TransactionType.perpsAcrossWithdraw;
+  }
+
   if (isPredictWithdrawTransaction(transaction)) {
     return TransactionType.predictAcrossWithdraw;
   }

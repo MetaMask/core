@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `perpsAcrossWithdraw` to the `TransactionType` enum ([#8841](https://github.com/MetaMask/core/pull/8841))
+
 ### Changed
 
 - `TransactionController` can now be constructed before `NetworkController` is registered on the messenger ([#9012](https://github.com/MetaMask/core/pull/9012))

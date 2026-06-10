@@ -13,7 +13,10 @@ import { getAcrossDestination } from './across-actions';
 import { getAcrossQuotes } from './across-quotes';
 import { submitAcrossQuotes } from './across-submit';
 import { hasUnsupportedTransactionAuthorizationList } from './authorization-list';
-import { isSupportedAcrossPerpsDepositRequest } from './perps';
+import {
+  isSupportedAcrossPerpsDepositRequest,
+  isSupportedAcrossPerpsWithdrawRequest,
+} from './perps';
 import { isAcrossQuoteRequest } from './requests';
 import type { AcrossQuote } from './types';
 
@@ -46,7 +49,10 @@ export class AcrossStrategy implements PayStrategy<AcrossQuote> {
       // Across doesn't support same-chain swaps (e.g. mUSD conversions).
       const hasSameChainRequest = actionableRequests.some(
         (singleRequest) =>
-          singleRequest.sourceChainId === singleRequest.targetChainId,
+          !isSupportedAcrossPerpsWithdrawRequest(
+            singleRequest,
+            request.transaction,
+          ) && singleRequest.sourceChainId === singleRequest.targetChainId,
       );
 
       if (hasSameChainRequest) {
@@ -65,7 +71,13 @@ export class AcrossStrategy implements PayStrategy<AcrossQuote> {
 
     return actionableRequests.every((singleRequest) => {
       if (singleRequest.isPostQuote) {
-        return isPredictWithdrawTransaction(request.transaction);
+        return (
+          isPredictWithdrawTransaction(request.transaction) ||
+          isSupportedAcrossPerpsWithdrawRequest(
+            singleRequest,
+            request.transaction,
+          )
+        );
       }
 
       try {

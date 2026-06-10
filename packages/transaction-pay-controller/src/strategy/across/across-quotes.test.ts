@@ -1556,6 +1556,74 @@ describe('Across Quotes', () => {
       expect(getRequestBody().actions).toStrictEqual([]);
     });
 
+    it('converts post-quote perps withdraws from HyperLiquid source to Across HyperCore source quotes', async () => {
+      successfulFetchMock.mockResolvedValue({
+        json: async () => ({
+          ...QUOTE_MOCK,
+          inputAmount: '10000000000',
+          inputToken: {
+            address: ACROSS_HYPERCORE_USDC_PERPS_ADDRESS,
+            chainId: parseInt(CHAIN_ID_HYPERCORE, 16),
+            decimals: 8,
+            symbol: 'USDC',
+          },
+          outputToken: {
+            address: ARBITRUM_USDC_ADDRESS,
+            chainId: parseInt(CHAIN_ID_ARBITRUM, 16),
+            decimals: 6,
+            symbol: 'USDC',
+          },
+        }),
+      } as Response);
+
+      const result = await getAcrossQuotes({
+        accountSupports7702: true,
+        messenger,
+        requests: [
+          {
+            ...QUOTE_REQUEST_MOCK,
+            isHyperliquidSource: true,
+            isPostQuote: true,
+            sourceBalanceRaw: '100000000',
+            sourceChainId: CHAIN_ID_ARBITRUM,
+            sourceTokenAddress: ARBITRUM_USDC_ADDRESS,
+            sourceTokenAmount: '100000000',
+            targetAmountMinimum: '0',
+            targetChainId: CHAIN_ID_ARBITRUM,
+            targetTokenAddress: ARBITRUM_USDC_ADDRESS,
+          },
+        ],
+        transaction: {
+          ...TRANSACTION_META_MOCK,
+          type: TransactionType.perpsWithdraw,
+        } as TransactionMeta,
+      });
+
+      const [url] = successfulFetchMock.mock.calls[0];
+      const params = new URL(url as string).searchParams;
+
+      expect(params.get('amount')).toBe('10000000000');
+      expect(params.get('tradeType')).toBe('exactInput');
+      expect(params.get('originChainId')).toBe(
+        String(parseInt(CHAIN_ID_HYPERCORE, 16)),
+      );
+      expect(params.get('inputToken')).toBe(
+        ACROSS_HYPERCORE_USDC_PERPS_ADDRESS,
+      );
+      expect(params.get('recipient')).toBe(FROM_MOCK);
+      expect(getRequestBody().actions).toStrictEqual([]);
+      expect(result[0].request.sourceBalanceRaw).toBe('10000000000');
+      expect(result[0].request.sourceChainId).toBe(CHAIN_ID_HYPERCORE);
+      expect(result[0].request.sourceTokenAddress).toBe(
+        ACROSS_HYPERCORE_USDC_PERPS_ADDRESS,
+      );
+      expect(getTokenFiatRateMock).toHaveBeenCalledWith(
+        expect.anything(),
+        ARBITRUM_USDC_ADDRESS,
+        CHAIN_ID_ARBITRUM,
+      );
+    });
+
     it('uses transfer recipient for token transfer transactions', async () => {
       const transferData = buildTransferData(TRANSFER_RECIPIENT);
 

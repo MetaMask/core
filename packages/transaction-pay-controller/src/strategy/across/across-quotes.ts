@@ -4,7 +4,11 @@ import type { Hex } from '@metamask/utils';
 import { createModuleLogger } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
 
-import { TransactionPayStrategy } from '../../constants';
+import {
+  ARBITRUM_USDC_ADDRESS,
+  CHAIN_ID_ARBITRUM,
+  TransactionPayStrategy,
+} from '../../constants';
 import { projectLogger } from '../../logger';
 import type {
   Amount,
@@ -98,7 +102,7 @@ async function getSingleQuote(
   fullRequest: PayStrategyGetQuotesRequest,
 ): Promise<TransactionPayQuote<AcrossQuote>> {
   const { messenger, signal, transaction } = fullRequest;
-  const normalizedRequest = normalizeAcrossRequest(request, transaction.type);
+  const normalizedRequest = normalizeAcrossRequest(request, transaction);
   const {
     from,
     isMaxAmount,
@@ -350,6 +354,7 @@ async function normalizeQuote(
   const { usdToFiatRate, sourceFiatRate, targetFiatRate } = getFiatRates(
     messenger,
     quote,
+    request,
   );
 
   const dustUsd = calculateDustUsd(quote, request, targetFiatRate);
@@ -434,15 +439,26 @@ async function normalizeQuote(
 function getFiatRates(
   messenger: TransactionPayControllerMessenger,
   quote: AcrossSwapApprovalResponse,
+  request: QuoteRequest,
 ): {
   sourceFiatRate: FiatRates;
   targetFiatRate: FiatRates;
   usdToFiatRate: BigNumber;
 } {
+  // HyperLiquid source requests are normalized to HyperCore USDC-PERPS, which
+  // may not have a local fiat-rate entry. Use Arbitrum USDC as the 1:1 price
+  // anchor, matching the Relay HyperLiquid-source flow.
+  const sourceChainId = request.isHyperliquidSource
+    ? CHAIN_ID_ARBITRUM
+    : toHex(quote.inputToken.chainId);
+  const sourceTokenAddress = request.isHyperliquidSource
+    ? ARBITRUM_USDC_ADDRESS
+    : quote.inputToken.address;
+
   const sourceFiatRate = getTokenFiatRate(
     messenger,
-    quote.inputToken.address,
-    toHex(quote.inputToken.chainId),
+    sourceTokenAddress,
+    sourceChainId,
   );
 
   if (!sourceFiatRate) {
@@ -678,7 +694,9 @@ async function calculateSourceNetworkCost(
     totalGasLimit: gasEstimates.totalGasLimit,
   };
 
-  const finalResult = request.isPostQuote
+  const shouldIncludeOriginalPostQuoteGas =
+    request.isPostQuote === true && request.isHyperliquidSource !== true;
+  const finalResult = shouldIncludeOriginalPostQuoteGas
     ? combinePostQuoteGas(result, transaction, swapTx, messenger)
     : result;
 
@@ -733,7 +751,7 @@ async function calculateSourceNetworkCost(
     },
     totalGasEstimate: finalResult.totalGasEstimate,
     totalItemCount: Math.max(
-      orderedTransactions.length + (request.isPostQuote ? 1 : 0),
+      orderedTransactions.length + (shouldIncludeOriginalPostQuoteGas ? 1 : 0),
       finalResult.gasLimits.length,
     ),
   });
