@@ -165,17 +165,15 @@ function setup({
     mockGetAccount,
   );
 
-  const mockHandleRequest = jest
-    .fn()
-    .mockImplementation((request) => {
-      if (request.request?.method === 'keyring_discoverAccounts') {
-        return keyring.discoverAccounts();
-      }
+  const mockHandleRequest = jest.fn().mockImplementation((request) => {
+    if (request.request?.method === 'keyring_discoverAccounts') {
+      return keyring.discoverAccounts();
+    }
 
-      return keyring.accounts.find(
-        (account) => account.address === request.address,
-      );
-    });
+    return keyring.accounts.find(
+      (account) => account.address === request.address,
+    );
+  });
 
   const mockTrace = jest.fn().mockImplementation(async (_request, fn) => {
     return await fn();
