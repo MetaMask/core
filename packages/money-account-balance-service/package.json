@@ -59,7 +59,7 @@
     "@metamask/controller-utils": "^12.1.1",
     "@metamask/messenger": "^1.2.0",
     "@metamask/metamask-eth-abis": "^3.1.1",
-    "@metamask/network-controller": "^32.0.0",
+    "@metamask/network-controller": "^32.1.0",
     "@metamask/remote-feature-flag-controller": "^4.2.2",
     "@metamask/superstruct": "^3.1.0",
     "@metamask/utils": "^11.9.0"

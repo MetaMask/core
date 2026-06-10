@@ -59,11 +59,11 @@
     "@metamask/delegation-core": "^2.2.1",
     "@metamask/delegation-deployments": "^1.4.0",
     "@metamask/messenger": "^1.2.0",
-    "@metamask/network-controller": "^32.0.0",
+    "@metamask/network-controller": "^32.1.0",
     "@metamask/snaps-controllers": "^19.0.0",
     "@metamask/snaps-sdk": "^11.0.0",
     "@metamask/snaps-utils": "^12.1.2",
-    "@metamask/transaction-controller": "^67.1.0",
+    "@metamask/transaction-controller": "^67.2.0",
     "@metamask/utils": "^11.9.0"
   },
   "devDependencies": {

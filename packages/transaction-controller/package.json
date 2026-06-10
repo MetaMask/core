@@ -1,6 +1,6 @@
 {
   "name": "@metamask/transaction-controller",
-  "version": "67.1.0",
+  "version": "67.2.0",
   "description": "Stores transactions alongside their periodically updated statuses and manages interactions such as approval and cancellation",
   "keywords": [
     "Ethereum",
@@ -68,7 +68,7 @@
     "@metamask/gas-fee-controller": "^26.2.2",
     "@metamask/messenger": "^1.2.0",
     "@metamask/metamask-eth-abis": "^3.1.1",
-    "@metamask/network-controller": "^32.0.0",
+    "@metamask/network-controller": "^32.1.0",
     "@metamask/nonce-tracker": "^6.0.0",
     "@metamask/remote-feature-flag-controller": "^4.2.2",
     "@metamask/rpc-errors": "^7.0.2",
