@@ -55,7 +55,7 @@
     "@metamask/controller-utils": "^12.1.1",
     "@metamask/permission-controller": "^13.1.1",
     "@metamask/rpc-errors": "^7.0.2",
-    "@metamask/utils": "^11.9.0",
+    "@metamask/utils": "^11.11.0",
     "lodash": "^4.17.21"
   },
   "devDependencies": {

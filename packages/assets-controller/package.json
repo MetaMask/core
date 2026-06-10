@@ -77,7 +77,7 @@
     "@metamask/snaps-controllers": "^19.0.0",
     "@metamask/snaps-utils": "^12.1.2",
     "@metamask/transaction-controller": "^67.1.0",
-    "@metamask/utils": "^11.9.0",
+    "@metamask/utils": "^11.11.0",
     "async-mutex": "^0.5.0",
     "bignumber.js": "^9.1.2",
     "lodash": "^4.17.21",
