@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Scope the `register-intents` step to the currently-configured token addresses (deposit mUSD / withdrawal vmUSD) so that stale delegations for previously-configured tokens are no longer registered as intents
+
 ## [2.0.4]
 
 ### Changed
