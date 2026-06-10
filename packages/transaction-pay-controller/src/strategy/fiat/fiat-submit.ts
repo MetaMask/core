@@ -284,13 +284,19 @@ async function submitRelayAfterFiatCompletion({
   });
 
   const baseRequest = quotes[0].request;
-  const walletAddress = baseRequest.from;
+
+  // For the direct mUSD flow, the fiat provider delivered to the money
+  // account (txParams.from), so on-chain amount resolution must look there.
+  // For the standard flow, it delivered to the user's account (baseRequest.from).
+  const sourceAmountWalletAddress = isDirectMusdToMA
+    ? (transaction.txParams.from as Hex)
+    : baseRequest.from;
 
   const sourceAmountRaw = await resolveSourceAmountRaw({
     messenger,
     order,
     fiatAsset,
-    walletAddress,
+    walletAddress: sourceAmountWalletAddress,
   });
 
   const hasNestedCalldata = (transaction.nestedTransactions?.length ?? 0) >= 2;

@@ -821,7 +821,8 @@ describe('submitFiatQuotes', () => {
     it('uses MUSD_MONAD_FIAT_ASSET for order validation when quote is direct mUSD', async () => {
       const order = getFiatOrderMock({
         cryptoCurrency: {
-          assetId: 'eip155:143/erc20:0xaca92e438df0b2401ff60da7e4337b687a2435da',
+          assetId:
+            'eip155:143/erc20:0xaca92e438df0b2401ff60da7e4337b687a2435da',
           chainId: 'eip155:143',
           symbol: 'MUSD',
         },
@@ -836,7 +837,7 @@ describe('submitFiatQuotes', () => {
         transaction: MUSD_TRANSACTION_MOCK,
       });
 
-      await expect(submitFiatQuotes(request)).resolves.not.toThrow();
+      await submitFiatQuotes(request);
       expect(deriveFiatAssetForFiatPaymentMock).not.toHaveBeenCalled();
     });
 

@@ -38,8 +38,7 @@ jest.mock('./fiat-quotes', () => ({
 }));
 
 const TRANSACTION_ID = 'tx-id';
-const USER_WALLET_ADDRESS =
-  '0x1111111111111111111111111111111111111111' as Hex;
+const USER_WALLET_ADDRESS = '0x1111111111111111111111111111111111111111' as Hex;
 const MONEY_ACCOUNT_ADDRESS =
   '0x2222222222222222222222222222222222222222' as Hex;
 
@@ -102,7 +101,8 @@ const AMOUNT_MOCK = {
   usd: '0',
 };
 
-const MUSD_CAIP_ID_MOCK = 'eip155:143/erc20:0xaca92e438df0b2401ff60da7e4337b687a2435da';
+const MUSD_CAIP_ID_MOCK =
+  'eip155:143/erc20:0xaca92e438df0b2401ff60da7e4337b687a2435da';
 
 const COMBINED_QUOTE_MOCK = {
   dust: { fiat: '0', usd: '0' },
@@ -143,56 +143,52 @@ function getRelayQuoteMock(): TransactionPayQuote<RelayQuote> {
 
 function buildCallMock({
   amountFiat = '10',
-  fiatPaymentMethod = '/payments/debit-credit-card',
   probeResponse = PROBE_SUCCESS_RESPONSE,
   tokens = [REQUIRED_TOKEN_MOCK],
   probeThrows,
 }: {
   amountFiat?: string;
-  fiatPaymentMethod?: string;
   probeResponse?: RampsQuotesResponse;
   tokens?: TransactionPayRequiredToken[];
   probeThrows?: Error;
 } = {}): jest.Mock {
   let probeCallCount = 0;
 
-  return jest.fn(
-    (action: string, requestArg?: Record<string, unknown>) => {
-      if (action === 'TransactionPayController:getState') {
-        return {
-          transactionData: {
-            [TRANSACTION_ID]: {
-              fiatPayment: { amountFiat },
-              isLoading: false,
-              tokens,
-            },
+  return jest.fn((action: string, requestArg?: Record<string, unknown>) => {
+    if (action === 'TransactionPayController:getState') {
+      return {
+        transactionData: {
+          [TRANSACTION_ID]: {
+            fiatPayment: { amountFiat },
+            isLoading: false,
+            tokens,
           },
-        };
-      }
+        },
+      };
+    }
 
-      if (action === 'RampsController:getQuotes') {
-        probeCallCount += 1;
-        if (probeCallCount === 1) {
-          if (probeThrows) {
-            throw probeThrows;
-          }
-          return probeResponse;
+    if (action === 'RampsController:getQuotes') {
+      probeCallCount += 1;
+      if (probeCallCount === 1) {
+        if (probeThrows) {
+          throw probeThrows;
         }
         return probeResponse;
       }
+      return probeResponse;
+    }
 
-      if (action === 'TransactionPayController:updateFiatPayment') {
-        const { callback } = requestArg as unknown as {
-          callback: (fiatPayment: TransactionFiatPayment) => void;
-        };
-        const fiatPayment: TransactionFiatPayment = {};
-        callback(fiatPayment);
-        return undefined;
-      }
+    if (action === 'TransactionPayController:updateFiatPayment') {
+      const { callback } = requestArg as unknown as {
+        callback: (fiatPayment: TransactionFiatPayment) => void;
+      };
+      const fiatPayment: TransactionFiatPayment = {};
+      callback(fiatPayment);
+      return undefined;
+    }
 
-      throw new Error(`Unexpected action: ${action}`);
-    },
-  );
+    throw new Error(`Unexpected action: ${action}`);
+  });
 }
 
 function getRequest({
@@ -213,7 +209,6 @@ function getRequest({
 } {
   const callMock = buildCallMock({
     amountFiat,
-    fiatPaymentMethod,
     probeResponse,
     tokens,
     probeThrows,
@@ -254,14 +249,11 @@ describe('getDirectMusdToMoneyAccountQuotes', () => {
       sourceTokenAmount: '10000000',
       targetAmountMinimum: '10000000',
       targetChainId: '0x8f' as Hex,
-      targetTokenAddress:
-        '0x3333333333333333333333333333333333333333' as Hex,
+      targetTokenAddress: '0x3333333333333333333333333333333333333333' as Hex,
     });
     getRelayQuotesMock.mockResolvedValue([getRelayQuoteMock()]);
     getRampsQuoteMock.mockResolvedValue(FIAT_QUOTE_MOCK);
-    combineQuotesMock.mockReturnValue(
-      COMBINED_QUOTE_MOCK as never,
-    );
+    combineQuotesMock.mockReturnValue(COMBINED_QUOTE_MOCK as never);
   });
 
   describe('probe', () => {
@@ -522,8 +514,7 @@ describe('getDirectMusdToMoneyAccountQuotes', () => {
           adjustedAmount: expect.any(Number),
         }),
       );
-      const adjustedAmount = getRampsQuoteMock.mock.calls[0][0]
-        .adjustedAmount as number;
+      const { adjustedAmount } = getRampsQuoteMock.mock.calls[0][0];
       expect(adjustedAmount).toBeGreaterThan(100);
     });
   });

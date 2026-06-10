@@ -29,7 +29,6 @@ import { getStrategyOrder } from './utils/feature-flags';
 import { updateQuotes } from './utils/quotes';
 import { updateSourceAmounts } from './utils/source-amounts';
 import {
-  getTransaction,
   subscribeAssetChanges,
   subscribeTransactionChanges,
 } from './utils/transaction';
@@ -365,7 +364,6 @@ export class TransactionPayController extends BaseController<
       if (isFiatAmountUpdated || isFiatPaymentMethodUpdated) {
         shouldUpdateQuotes = true;
       }
-
     });
 
     if (shouldUpdateQuotes) {

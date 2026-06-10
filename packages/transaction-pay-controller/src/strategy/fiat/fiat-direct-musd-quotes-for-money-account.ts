@@ -2,6 +2,7 @@ import type { Hex } from '@metamask/utils';
 import { createModuleLogger } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
 
+import { PaymentOverride } from '../../constants';
 import { projectLogger } from '../../logger';
 import type {
   PayStrategyGetQuotesRequest,
@@ -131,7 +132,7 @@ export async function getDirectMusdToMoneyAccountQuotes(
     const requiredToken = requiredTokens[0];
     const fiatAsset = MUSD_MONAD_FIAT_ASSET;
 
-    const relayRequest = buildRelayRequestFromAmountFiat({
+    const baseRelayRequest = buildRelayRequestFromAmountFiat({
       amountFiat,
       fiatAsset,
       messenger,
@@ -139,9 +140,14 @@ export async function getDirectMusdToMoneyAccountQuotes(
       walletAddress: userWalletAddress,
     });
 
-    if (!relayRequest) {
+    if (!baseRelayRequest) {
       throw new Error('Failed to build relay request for direct mUSD flow');
     }
+
+    const relayRequest = {
+      ...baseRelayRequest,
+      paymentOverride: PaymentOverride.MoneyAccount,
+    };
 
     const relayQuotes = await getRelayQuotes({
       accountSupports7702,

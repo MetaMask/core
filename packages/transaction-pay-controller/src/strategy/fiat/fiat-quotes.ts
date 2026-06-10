@@ -224,7 +224,9 @@ export async function getRampsQuote({
  *
  * @param options - Build parameters.
  * @param options.amountFiat - User-entered fiat amount in USD.
- * @param options.fiatAsset - The source asset for the relay (address + chainId).
+ * @param options.fiatAsset - The source asset for the relay.
+ * @param options.fiatAsset.address - Token address of the source asset.
+ * @param options.fiatAsset.chainId - Chain ID of the source asset.
  * @param options.messenger - Controller messenger for token info access.
  * @param options.requiredToken - The target token the relay should deliver.
  * @param options.walletAddress - Address of the user's wallet.

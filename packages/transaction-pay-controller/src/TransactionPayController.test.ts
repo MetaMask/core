@@ -944,7 +944,6 @@ describe('TransactionPayController', () => {
   });
 
   describe('fiat token selection', () => {
-    const CAIP_ASSET_ID_MOCK = 'eip155:137/slip44:966';
     const FIAT_ASSET_MOCK = {
       address: '0x0000000000000000000000000000000000001010' as Hex,
       chainId: '0x89' as Hex,

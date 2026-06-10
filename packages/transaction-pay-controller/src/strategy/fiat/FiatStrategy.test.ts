@@ -116,7 +116,9 @@ describe('FiatStrategy', () => {
       await new FiatStrategy().getQuotes({
         messenger: MESSENGER_MOCK,
         requests: [],
-        transaction: { type: TransactionType.predictDeposit } as TransactionMeta,
+        transaction: {
+          type: TransactionType.predictDeposit,
+        } as TransactionMeta,
       });
 
       expect(getDirectMusdQuotesMock).not.toHaveBeenCalled();

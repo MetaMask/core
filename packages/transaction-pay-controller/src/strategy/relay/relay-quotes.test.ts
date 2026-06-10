@@ -3414,6 +3414,34 @@ describe('Relay Quotes Utils', () => {
 
         expect(body.txs[1].value).toBe('0x0');
       });
+
+      it('overrides recipient with txParams.from for same-chain money account flows', async () => {
+        const moneyAccountAddress =
+          '0xdd00000000000000000000000000000000000001' as Hex;
+
+        setupMoneyAccountMocks({ overrideCalls: [] });
+        successfulFetchMock.mockResolvedValue({
+          ok: true,
+          json: async () => QUOTE_MOCK,
+        } as never);
+
+        await getRelayQuotes({
+          accountSupports7702: true,
+          messenger,
+          requests: [MONEY_ACCOUNT_REQUEST_MOCK],
+          transaction: {
+            ...MONEY_ACCOUNT_TX_MOCK,
+            txParams: { from: moneyAccountAddress },
+          } as TransactionMeta,
+        });
+
+        const body = JSON.parse(
+          successfulFetchMock.mock.calls[0][1]?.body as string,
+        );
+
+        expect(body.recipient).toBe(moneyAccountAddress);
+        expect(body.user).toBe(FROM_MOCK);
+      });
     });
 
     describe('HyperLiquid source (isHyperliquidSource)', () => {
