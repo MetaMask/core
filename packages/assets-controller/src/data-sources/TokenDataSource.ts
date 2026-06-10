@@ -153,7 +153,9 @@ export class TokenDataSource {
   readonly #getNativeAssetIds: () => string[];
 
   /** Returns the asset type for a given CAIP-19 asset ID */
-  readonly #getAssetType: (assetId: Caip19AssetId) => 'native' | 'erc20' | 'spl';
+  readonly #getAssetType: (
+    assetId: Caip19AssetId,
+  ) => 'native' | 'erc20' | 'spl';
 
   /** Shared controller messenger — used for `PhishingController:bulkScanTokens`. */
   readonly #messenger: AssetsControllerMessenger;

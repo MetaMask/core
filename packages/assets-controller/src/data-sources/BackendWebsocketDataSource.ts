@@ -226,7 +226,9 @@ export class BackendWebsocketDataSource extends AbstractDataSource<
     previousChains: ChainId[],
   ) => void;
 
-  readonly #getAssetType: (assetId: Caip19AssetId) => 'native' | 'erc20' | 'spl';
+  readonly #getAssetType: (
+    assetId: Caip19AssetId,
+  ) => 'native' | 'erc20' | 'spl';
 
   /** Chains refresh timer */
   #chainsRefreshTimer: ReturnType<typeof setInterval> | null = null;

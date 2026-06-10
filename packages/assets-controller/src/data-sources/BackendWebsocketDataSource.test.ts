@@ -173,7 +173,9 @@ function setupController(
     },
   };
 
-  const getAssetTypeFn = (assetId: Caip19AssetId): 'native' | 'erc20' | 'spl' => {
+  const getAssetTypeFn = (
+    assetId: Caip19AssetId,
+  ): 'native' | 'erc20' | 'spl' => {
     if (assetId.includes('/slip44:')) {
       return 'native';
     }
