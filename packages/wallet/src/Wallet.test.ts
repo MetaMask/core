@@ -177,6 +177,7 @@ describe('Wallet', () => {
         storageService: {
           storage: new InMemoryStorageAdapter(),
         },
+        remoteFeatureFlagController: REMOTE_FEATURE_FLAG_OPTIONS,
       },
     });
 
@@ -251,6 +252,7 @@ describe('Wallet', () => {
           storageService: {
             storage: new InMemoryStorageAdapter(),
           },
+          remoteFeatureFlagController: REMOTE_FEATURE_FLAG_OPTIONS,
         },
       });
 
@@ -356,6 +358,9 @@ describe('Wallet', () => {
     it('routes injected instanceOptions through to the controller', async () => {
       const wallet = new Wallet({
         instanceOptions: {
+          connectivityController: {
+            connectivityAdapter: new AlwaysOnlineAdapter(),
+          },
           keyringController: { encryptor: new MockEncryptor() },
           storageService: { storage: new InMemoryStorageAdapter() },
           remoteFeatureFlagController: {
