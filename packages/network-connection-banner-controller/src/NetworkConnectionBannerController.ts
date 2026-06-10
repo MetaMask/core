@@ -7,19 +7,19 @@ import { BaseController } from '@metamask/base-controller';
 import { CONNECTIVITY_STATUSES } from '@metamask/connectivity-controller';
 import type {
   ConnectivityControllerGetStateAction,
-  ConnectivityControllerState,
+  ConnectivityControllerStateChangeEvent,
 } from '@metamask/connectivity-controller';
 import type { Messenger } from '@metamask/messenger';
 import type {
   NetworkControllerGetNetworkConfigurationByChainIdAction,
   NetworkControllerGetStateAction,
   NetworkControllerUpdateNetworkAction,
-  NetworkState,
+  NetworkControllerStateChangeEvent,
 } from '@metamask/network-controller';
 import { NetworkStatus } from '@metamask/network-controller';
 import type {
   NetworkEnablementControllerGetStateAction,
-  NetworkEnablementControllerState,
+  NetworkEnablementControllerStateChangeEvent,
 } from '@metamask/network-enablement-controller';
 import type { Hex } from '@metamask/utils';
 import { KnownCaipNamespace } from '@metamask/utils';
@@ -32,7 +32,7 @@ import { getDomain } from './url-utils';
  * the controller's actions and events and to namespace the controller's state
  * data when composed with other controllers.
  */
-export const controllerName = 'NetworkConnectionBannerController';
+const controllerName = 'NetworkConnectionBannerController';
 
 /**
  * Status the banner can be in. `available` means no banner is shown; the
@@ -155,15 +155,9 @@ export type NetworkConnectionBannerControllerEvents =
  * {@link NetworkConnectionBannerControllerMessenger} subscribes to.
  */
 type AllowedEvents =
-  | ControllerStateChangedEvent<'NetworkController', NetworkState>
-  | ControllerStateChangedEvent<
-      'NetworkEnablementController',
-      NetworkEnablementControllerState
-    >
-  | ControllerStateChangedEvent<
-      'ConnectivityController',
-      ConnectivityControllerState
-    >;
+  | NetworkControllerStateChangeEvent
+  | NetworkEnablementControllerStateChangeEvent
+  | ConnectivityControllerStateChangeEvent;
 
 /**
  * The messenger restricted to actions and events accessed by
@@ -232,15 +226,19 @@ export class NetworkConnectionBannerController extends BaseController<
     });
 
     const onStateChange = (): void => this.#evaluate();
-    this.messenger.subscribe('NetworkController:stateChanged', onStateChange);
+    // Upstream controllers still expose :stateChange; switch to :stateChanged
+    // once those packages migrate their event types.
+    /* eslint-disable no-restricted-syntax -- awaiting upstream :stateChanged migration */
+    this.messenger.subscribe('NetworkController:stateChange', onStateChange);
     this.messenger.subscribe(
-      'NetworkEnablementController:stateChanged',
+      'NetworkEnablementController:stateChange',
       onStateChange,
     );
     this.messenger.subscribe(
-      'ConnectivityController:stateChanged',
+      'ConnectivityController:stateChange',
       onStateChange,
     );
+    /* eslint-enable no-restricted-syntax */
 
     this.messenger.registerMethodActionHandlers(
       this,

@@ -8,6 +8,8 @@ import type {
   MessengerEvents,
 } from '@metamask/messenger';
 import type {
+  BuiltInNetworkClientId,
+  InfuraRpcEndpoint,
   NetworkConfiguration,
   NetworkState,
 } from '@metamask/network-controller';
@@ -19,21 +21,19 @@ import type { Hex } from '@metamask/utils';
 import type { NetworkConnectionBannerControllerMessenger } from './NetworkConnectionBannerController';
 import { NetworkConnectionBannerController } from './NetworkConnectionBannerController';
 
-const INFURA_PROJECT_ID = 'test-infura-project-id';
-
-const MAINNET_CLIENT_ID = 'mainnet';
-const SEPOLIA_CLIENT_ID = 'sepolia';
+const MAINNET_CLIENT_ID = 'mainnet' satisfies BuiltInNetworkClientId;
+const SEPOLIA_CLIENT_ID = 'sepolia' satisfies BuiltInNetworkClientId;
 const POLYGON_CUSTOM_CLIENT_ID = 'polygon-custom';
 const ALCHEMY_CLIENT_ID = 'eth-alchemy';
 
 function buildInfuraEndpoint(
-  networkClientId: string,
-  subdomain: string,
-): NetworkConfiguration['rpcEndpoints'][number] {
+  networkClientId: BuiltInNetworkClientId,
+  infuraNetworkType: BuiltInNetworkClientId,
+): InfuraRpcEndpoint {
   return {
     networkClientId,
     type: RpcEndpointType.Infura,
-    url: `https://${subdomain}.infura.io/v3/${INFURA_PROJECT_ID}`,
+    url: `https://${infuraNetworkType}.infura.io/v3/{infuraProjectId}`,
   };
 }
 
@@ -121,7 +121,7 @@ describe('NetworkConnectionBannerController', () => {
     });
   });
 
-  describe('rule evaluation on NetworkController:stateChanged', () => {
+  describe('rule evaluation on NetworkController:stateChange', () => {
     it('does not show the banner when only one Infura network is failing alongside healthy peers (single-provider blip)', async () => {
       await withController(({ controller, setNetworkState }) => {
         setNetworkState(
@@ -566,13 +566,13 @@ describe('NetworkConnectionBannerController', () => {
             networkConfigurationsByChainId: {},
             networksMetadata: {},
           },
-          enablement: {
+          enablement: buildEnablementState({
             enabledNetworkMap: {
               [KnownCaipNamespace.Eip155]: {
                 '0x1': true,
               },
-            } as NetworkEnablementControllerState['enabledNetworkMap'],
-          },
+            },
+          }),
           connectivity: { connectivityStatus: CONNECTIVITY_STATUSES.Online },
         });
         jest.advanceTimersByTime(30_000);
@@ -659,9 +659,7 @@ describe('NetworkConnectionBannerController', () => {
             networkConfigurationsByChainId: {},
             networksMetadata: {},
           },
-          enablement: {
-            enabledNetworkMap: {},
-          } as NetworkEnablementControllerState,
+          enablement: buildEnablementState(),
           connectivity: { connectivityStatus: CONNECTIVITY_STATUSES.Online },
         });
         jest.advanceTimersByTime(30_000);
@@ -986,6 +984,16 @@ type StubbedState = {
   connectivity: ConnectivityControllerState;
 };
 
+function buildEnablementState(
+  overrides: Partial<NetworkEnablementControllerState> = {},
+): NetworkEnablementControllerState {
+  return {
+    enabledNetworkMap: {},
+    nativeAssetIdentifiers: {},
+    ...overrides,
+  };
+}
+
 function buildNetworkState({
   configurations,
   metadata = {},
@@ -995,20 +1003,25 @@ function buildNetworkState({
   return {
     network: {
       networkConfigurationsByChainId: configurations,
-      networksMetadata: metadata as NetworkState['networksMetadata'],
+      networksMetadata: metadata,
     },
-    enablement: {
+    enablement: buildEnablementState({
       enabledNetworkMap: {
         [KnownCaipNamespace.Eip155]: Object.fromEntries(
           allChainIds.map((chainId) => [chainId, true]),
         ),
-      } as NetworkEnablementControllerState['enabledNetworkMap'],
-    },
+      },
+    }),
     connectivity: {
       connectivityStatus: CONNECTIVITY_STATUSES.Online,
     },
   };
 }
+
+type AllNetworkConnectionBannerControllerActions =
+  MessengerActions<NetworkConnectionBannerControllerMessenger>;
+type AllNetworkConnectionBannerControllerEvents =
+  MessengerEvents<NetworkConnectionBannerControllerMessenger>;
 
 type RootMessenger = Messenger<
   MockAnyNamespace,
@@ -1040,9 +1053,7 @@ async function withController<ReturnValue>(
       networkConfigurationsByChainId: {},
       networksMetadata: {},
     },
-    enablement: {
-      enabledNetworkMap: {},
-    } as NetworkEnablementControllerState,
+    enablement: buildEnablementState(),
     connectivity: { connectivityStatus: CONNECTIVITY_STATUSES.Online },
   };
 
@@ -1054,7 +1065,11 @@ async function withController<ReturnValue>(
     'NetworkController:getNetworkConfigurationByChainId',
     (chainId) => currentState.network.networkConfigurationsByChainId?.[chainId],
   );
-  const updateNetwork = jest.fn(async () => undefined);
+  const updateNetwork = jest.fn(
+    async (chainId: Hex): Promise<NetworkConfiguration> =>
+      currentState.network.networkConfigurationsByChainId?.[chainId] ??
+      buildConfiguration({ chainId }),
+  );
   rootMessenger.registerActionHandler(
     'NetworkController:updateNetwork',
     updateNetwork,
@@ -1070,13 +1085,18 @@ async function withController<ReturnValue>(
     () => currentState.connectivity,
   );
 
-  const controllerMessenger = new Messenger({
+  const messenger = new Messenger<
+    'NetworkConnectionBannerController',
+    AllNetworkConnectionBannerControllerActions,
+    AllNetworkConnectionBannerControllerEvents,
+    RootMessenger
+  >({
     namespace: 'NetworkConnectionBannerController',
     parent: rootMessenger,
   });
 
   rootMessenger.delegate({
-    messenger: controllerMessenger,
+    messenger,
     actions: [
       'NetworkController:getState',
       'NetworkController:getNetworkConfigurationByChainId',
@@ -1085,25 +1105,28 @@ async function withController<ReturnValue>(
       'ConnectivityController:getState',
     ],
     events: [
-      'NetworkController:stateChanged',
-      'NetworkEnablementController:stateChanged',
-      'ConnectivityController:stateChanged',
+      // eslint-disable-next-line no-restricted-syntax -- awaiting upstream :stateChanged migration
+      'NetworkController:stateChange',
+      // eslint-disable-next-line no-restricted-syntax -- awaiting upstream :stateChanged migration
+      'NetworkEnablementController:stateChange',
+      // eslint-disable-next-line no-restricted-syntax -- awaiting upstream :stateChanged migration
+      'ConnectivityController:stateChange',
     ],
   });
 
   const controller = new NetworkConnectionBannerController({
-    messenger: controllerMessenger,
+    messenger,
   });
 
   const setNetworkState = (state: StubbedState): void => {
     currentState = state;
     rootMessenger.publish(
-      'NetworkController:stateChanged',
+      'NetworkController:stateChange',
       currentState.network as NetworkState,
       [],
     );
     rootMessenger.publish(
-      'NetworkEnablementController:stateChanged',
+      'NetworkEnablementController:stateChange',
       currentState.enablement,
       [],
     );
@@ -1124,7 +1147,7 @@ async function withController<ReturnValue>(
       connectivity: { connectivityStatus: status },
     };
     rootMessenger.publish(
-      'ConnectivityController:stateChanged',
+      'ConnectivityController:stateChange',
       currentState.connectivity,
       [],
     );
@@ -1133,7 +1156,7 @@ async function withController<ReturnValue>(
   return await testFunction({
     controller,
     rootMessenger,
-    controllerMessenger,
+    controllerMessenger: messenger,
     setNetworkState,
     setNetworkStateSilently,
     setConnectivityStatus,
