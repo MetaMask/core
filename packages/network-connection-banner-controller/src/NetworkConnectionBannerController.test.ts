@@ -424,9 +424,7 @@ describe('NetworkConnectionBannerController', () => {
           },
           enabledChainIds: ['0x89'],
           metadata: {
-            [POLYGON_CUSTOM_CLIENT_ID]: makeMetadata(
-              NetworkStatus.Unavailable,
-            ),
+            [POLYGON_CUSTOM_CLIENT_ID]: makeMetadata(NetworkStatus.Unavailable),
           },
         });
 
