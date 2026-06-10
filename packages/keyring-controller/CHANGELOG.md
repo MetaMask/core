@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [27.0.0]
+
+### Changed
+
+- **BREAKING:** `exportSeedPhrase` and `exportAccount` now take `Credentials` (`{ password }` | `{ encryptionKey, encryptionSalt? }`) instead of a bare password string ([#8996](https://github.com/MetaMask/core/pull/8996))
+
 ### Fixed
 
 - Automatically remove and destroy non-primary keyrings whose last account is removed during a `withKeyring` or `withKeyringV2` callback ([#8951](https://github.com/MetaMask/core/pull/8951))
@@ -1024,7 +1030,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@26.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@27.0.0...HEAD
+[27.0.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@26.0.0...@metamask/keyring-controller@27.0.0
 [26.0.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@25.5.0...@metamask/keyring-controller@26.0.0
 [25.5.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@25.4.0...@metamask/keyring-controller@25.5.0
 [25.4.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@25.3.0...@metamask/keyring-controller@25.4.0

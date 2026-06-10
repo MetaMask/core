@@ -4,11 +4,7 @@ import type { CandlePeriod } from '../constants/chartConfig';
 import { PerpsMeasurementName } from '../constants/performanceMetrics';
 import { PERPS_CONSTANTS } from '../constants/perpsConfig';
 import { PERPS_ERROR_CODES } from '../perpsErrorCodes';
-import {
-  MarketCategory,
-  PerpsTraceNames,
-  PerpsTraceOperations,
-} from '../types';
+import { PerpsTraceNames, PerpsTraceOperations } from '../types';
 import type {
   PerpsProvider,
   Position,
@@ -36,12 +32,11 @@ import type {
   AssetRoute,
   PerpsPlatformDependencies,
   PerpsMarketData,
-  MarketTypeFilter,
 } from '../types';
 import type { CandleData } from '../types/perps-types';
 import { coalescePerpsRestRequest } from '../utils/coalescePerpsRestRequest';
 import { ensureError, isAbortError } from '../utils/errorUtils';
-import { sortMarkets } from '../utils/sortMarkets';
+import { applyMarketFilters } from '../utils/marketUtils';
 import type { ServiceContext } from './ServiceContext';
 
 /**
@@ -1257,89 +1252,4 @@ export class MarketDataService {
     const { provider, address } = options;
     return provider.getBlockExplorerUrl(address);
   }
-}
-
-// ============================================================================
-// Market filtering helpers (module-level pure functions)
-// These live outside the class because they have no service dependencies —
-// they are pure data transformations that can be tested and reused independently.
-// ============================================================================
-
-/**
- * Returns true when a market matches the given UI filter category.
- *
- * @param market - The market data to test.
- * @param category - The filter category to test against.
- * @returns Whether the market matches the category.
- */
-export function matchesCategory(
-  market: PerpsMarketData,
-  category: MarketTypeFilter,
-): boolean {
-  switch (category) {
-    case 'all':
-      return true;
-    case 'new':
-      return market.isNewMarket === true;
-    case 'crypto':
-      // Includes non-HIP3 markets AND HIP-3 assets explicitly typed as CryptoCurrency.
-      return (
-        !market.isHip3 || market.marketType === MarketCategory.CryptoCurrency
-      );
-    case 'stocks':
-      return market.marketType === MarketCategory.Stock;
-    case 'pre-ipo':
-      return market.marketType === MarketCategory.PreIpo;
-    case 'indices':
-      return market.marketType === MarketCategory.Index;
-    case 'etfs':
-      return market.marketType === MarketCategory.Etf;
-    case 'commodities':
-      return market.marketType === MarketCategory.Commodity;
-    case 'forex':
-      return market.marketType === MarketCategory.Forex;
-    default:
-      return true;
-  }
-}
-
-/**
- * Applies optional category filtering, sorting, and limit to a list of markets.
- *
- * @param markets - Source market array.
- * @param params - Optional filter/sort/limit params.
- * @returns Filtered, sorted, and/or sliced market array.
- */
-export function applyMarketFilters(
-  markets: PerpsMarketData[],
-  params?: GetMarketDataWithPricesParams,
-): PerpsMarketData[] {
-  let result = markets;
-
-  if (params?.categories?.length) {
-    const { categories } = params;
-    result = result.filter((market) =>
-      // A market is included if it matches ANY of the requested categories.
-      categories.some((category) => matchesCategory(market, category)),
-    );
-  }
-
-  if (params?.excludeSymbols?.length) {
-    const excluded = new Set(params.excludeSymbols);
-    result = result.filter((market) => !excluded.has(market.symbol));
-  }
-
-  if (params?.sortBy) {
-    result = sortMarkets({
-      markets: result,
-      sortBy: params.sortBy,
-      direction: params.direction,
-    });
-  }
-
-  if (params?.limit !== undefined) {
-    result = result.slice(0, params.limit);
-  }
-
-  return result;
 }

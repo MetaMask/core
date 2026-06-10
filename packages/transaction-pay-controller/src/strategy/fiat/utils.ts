@@ -7,11 +7,14 @@ import { BigNumber } from 'bignumber.js';
 
 import { projectLogger } from '../../logger';
 import type { TransactionPayControllerMessenger } from '../../types';
-import { getFiatAssetPerTransactionType } from '../../utils/feature-flags';
+import {
+  getFiatAssetPerTransactionType,
+  getFiatEnabledTypes,
+} from '../../utils/feature-flags';
 import { getTokenInfo } from '../../utils/token';
 import { getTransferredAmountFromTxHash } from '../../utils/transaction';
+import type { RelayQuote } from '../relay/types';
 import type { TransactionPayFiatAsset } from './constants';
-import { FIAT_ASSET_ID_BY_TX_TYPE } from './constants';
 
 const log = createModuleLogger(projectLogger, 'fiat-utils');
 
@@ -19,21 +22,25 @@ export function deriveFiatAssetForFiatPayment(
   transaction: TransactionMeta,
   messenger: TransactionPayControllerMessenger,
 ): TransactionPayFiatAsset {
-  const txType = resolveTransactionType(transaction);
+  const enabledTypes = getFiatEnabledTypes(messenger);
+  const txType = resolveTransactionType(transaction, enabledTypes);
 
   return getFiatAssetPerTransactionType(messenger, txType);
 }
 
 function resolveTransactionType(
   transaction: TransactionMeta,
+  enabledTypes: TransactionType[],
 ): TransactionType | undefined {
   if (transaction.type !== TransactionType.batch) {
     return transaction.type;
   }
 
-  return transaction.nestedTransactions?.find(
-    (tx) => tx.type && FIAT_ASSET_ID_BY_TX_TYPE[tx.type] !== undefined,
+  const nestedType = transaction.nestedTransactions?.find(
+    (tx) => tx.type && enabledTypes.includes(tx.type),
   )?.type;
+
+  return nestedType ?? transaction.type;
 }
 
 /**
@@ -137,4 +144,99 @@ export function getRawSourceAmountFromOrderCryptoAmount({
   }
 
   return rawAmount;
+}
+
+/**
+ * Validates that the relay exchange rate hasn't drifted significantly between
+ * the original quoting phase and the post-settlement discovery quote.
+ *
+ * Compares the USD output/input ratio from both quotes. This normalises for
+ * different source amounts (quoting phase uses a theoretical amount, discovery
+ * uses the actual settled amount) so the comparison reflects genuine rate
+ * movement rather than amount differences.
+ *
+ * @param options - The validation options.
+ * @param options.originalQuote - Relay quote from the original quoting phase.
+ * @param options.discoveryQuote - Relay quote from the post-settlement discovery.
+ * @param options.maxRateDriftPercent - Maximum allowed rate drift percentage.
+ * @param options.transactionId - Transaction ID for error reporting.
+ */
+export function validateRelayRateDrift({
+  originalQuote,
+  discoveryQuote,
+  maxRateDriftPercent,
+  transactionId,
+}: {
+  originalQuote: RelayQuote;
+  discoveryQuote: RelayQuote;
+  maxRateDriftPercent: number;
+  transactionId: string;
+}): void {
+  const originalIn = new BigNumber(originalQuote.details.currencyIn.amountUsd);
+  const originalOut = new BigNumber(
+    originalQuote.details.currencyOut.amountUsd,
+  );
+  const discoveryIn = new BigNumber(
+    discoveryQuote.details.currencyIn.amountUsd,
+  );
+  const discoveryOut = new BigNumber(
+    discoveryQuote.details.currencyOut.amountUsd,
+  );
+
+  if (
+    !originalIn.gt(0) ||
+    !originalOut.gt(0) ||
+    !discoveryIn.gt(0) ||
+    !discoveryOut.gt(0)
+  ) {
+    return;
+  }
+
+  const originalRate = originalOut.dividedBy(originalIn);
+  const discoveryRate = discoveryOut.dividedBy(discoveryIn);
+
+  const driftPercent = originalRate
+    .minus(discoveryRate)
+    .dividedBy(originalRate)
+    .multipliedBy(100);
+
+  log('Relay rate drift check', {
+    originalRate: originalRate.toFixed(6),
+    discoveryRate: discoveryRate.toFixed(6),
+    driftPercent: driftPercent.toFixed(2),
+    maxRateDriftPercent,
+    transactionId,
+  });
+
+  if (driftPercent.gt(maxRateDriftPercent)) {
+    throw new Error(
+      `Relay rate drift too high for transaction ` +
+        `${driftPercent.toFixed(2)}% exceeds ${maxRateDriftPercent}% max`,
+    );
+  }
+}
+
+/**
+ * Extracts the provider code from a ramps provider string.
+ *
+ * Accepts the canonical provider code (e.g. `transak-native`) and, for
+ * backwards compatibility, the legacy path form (e.g. `/providers/transak-native`).
+ *
+ * @param provider - Canonical provider code, or legacy provider path.
+ * @returns The provider code, or `null` if the format is invalid.
+ */
+export function extractProviderCode(
+  provider: string | undefined,
+): string | null {
+  if (!provider) {
+    return null;
+  }
+
+  const parts = provider.split('/').filter(Boolean);
+
+  if (parts[0] === 'providers') {
+    return parts[1] ?? null;
+  }
+
+  return parts.length === 1 ? parts[0] : null;
 }

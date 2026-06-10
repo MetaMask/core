@@ -22,6 +22,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - For wrapped providers, enumeration uses the underlying provider so snap-backed accounts are still deleted when basic functionality is off (the wrapper's `getAccounts()` returns `[]` when disabled). Without this, snap-backed accounts would be orphaned in their underlying keyrings.
   - Per-account deletions are best-effort: a single account's failure does not abort cleanup of the remaining accounts. If one or more deletions fail, a single aggregated error is reported via the messenger's `captureException` with the per-account failure details (`provider`, `accountId`, error message, stack) in its `context`. The wallet is always removed from the service's internal map at the end.
 
+## [10.0.3]
+
+### Changed
+
+- Bump `@metamask/accounts-controller` from `^39.0.0` to `^39.0.1` ([#9058](https://github.com/MetaMask/core/pull/9058))
+- Bump `@metamask/keyring-controller` from `^26.0.0` to `^27.0.0` ([#9058](https://github.com/MetaMask/core/pull/9058))
+- Bump `@metamask/snap-account-service` from `^0.3.0` to `^0.3.1` ([#9058](https://github.com/MetaMask/core/pull/9058))
+
 ## [10.0.2]
 
 ### Changed
@@ -515,7 +523,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add `MultichainAccountService` ([#6141](https://github.com/MetaMask/core/pull/6141), [#6165](https://github.com/MetaMask/core/pull/6165))
   - This service manages multichain accounts/wallets.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/multichain-account-service@10.0.2...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/multichain-account-service@10.0.3...HEAD
+[10.0.3]: https://github.com/MetaMask/core/compare/@metamask/multichain-account-service@10.0.2...@metamask/multichain-account-service@10.0.3
 [10.0.2]: https://github.com/MetaMask/core/compare/@metamask/multichain-account-service@10.0.1...@metamask/multichain-account-service@10.0.2
 [10.0.1]: https://github.com/MetaMask/core/compare/@metamask/multichain-account-service@10.0.0...@metamask/multichain-account-service@10.0.1
 [10.0.0]: https://github.com/MetaMask/core/compare/@metamask/multichain-account-service@9.0.0...@metamask/multichain-account-service@10.0.0

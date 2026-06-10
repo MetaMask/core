@@ -555,7 +555,6 @@ export class AnalyticsController extends BaseController<
             messageId: queuedEvent.messageId,
             error,
           });
-          return;
         }
 
         this.#removeQueuedEvent(queuedEvent.messageId);
