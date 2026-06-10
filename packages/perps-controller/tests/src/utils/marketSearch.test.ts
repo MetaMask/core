@@ -68,13 +68,19 @@ describe('getMarketMatchRank', () => {
 
 describe('rankMarketsByQuery', () => {
   it('returns the markets unchanged for an empty or whitespace query', () => {
-    const markets = [makeMarket('BTC', 'Bitcoin'), makeMarket('ETH', 'Ethereum')];
+    const markets = [
+      makeMarket('BTC', 'Bitcoin'),
+      makeMarket('ETH', 'Ethereum'),
+    ];
     expect(rankMarketsByQuery(markets, '')).toBe(markets);
     expect(rankMarketsByQuery(markets, '   ')).toBe(markets);
   });
 
   it('drops non-matching markets', () => {
-    const markets = [makeMarket('BTC', 'Bitcoin'), makeMarket('ETH', 'Ethereum')];
+    const markets = [
+      makeMarket('BTC', 'Bitcoin'),
+      makeMarket('ETH', 'Ethereum'),
+    ];
     const result = rankMarketsByQuery(markets, 'bitcoin');
     expect(result).toHaveLength(1);
     expect(result[0].symbol).toBe('BTC');
@@ -86,7 +92,9 @@ describe('rankMarketsByQuery', () => {
       makeMarket('ETHFI', 'Ether.fi'), // prefix of "ethfi"
       makeMarket('ETH', 'Ethereum'), // exact symbol
     ];
-    const result = rankMarketsByQuery(markets, 'eth').map((market) => market.symbol);
+    const result = rankMarketsByQuery(markets, 'eth').map(
+      (market) => market.symbol,
+    );
     expect(result).toStrictEqual(['ETH', 'ETHFI', 'WETH']);
   });
 
@@ -95,7 +103,9 @@ describe('rankMarketsByQuery', () => {
       makeMarket('BTC', 'Bitcoin'), // name prefix "bit"
       makeMarket('BCH', 'Bitcoin Cash'), // name prefix "bit"
     ];
-    const result = rankMarketsByQuery(markets, 'bit').map((market) => market.symbol);
+    const result = rankMarketsByQuery(markets, 'bit').map(
+      (market) => market.symbol,
+    );
     expect(result).toStrictEqual(['BTC', 'BCH']);
   });
 
@@ -105,11 +115,11 @@ describe('rankMarketsByQuery', () => {
       makeMarket('xyz:AAPL', 'Apple'),
       makeMarket('xyz:GOLD', 'Gold'),
     ];
-    expect(rankMarketsByQuery(markets, 'apple').map((market) => market.symbol)).toStrictEqual(
-      ['xyz:AAPL'],
-    );
-    expect(rankMarketsByQuery(markets, 'gold').map((market) => market.symbol)).toStrictEqual(
-      ['xyz:GOLD'],
-    );
+    expect(
+      rankMarketsByQuery(markets, 'apple').map((market) => market.symbol),
+    ).toStrictEqual(['xyz:AAPL']);
+    expect(
+      rankMarketsByQuery(markets, 'gold').map((market) => market.symbol),
+    ).toStrictEqual(['xyz:GOLD']);
   });
 });
