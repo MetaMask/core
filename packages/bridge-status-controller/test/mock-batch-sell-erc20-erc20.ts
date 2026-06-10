@@ -7,6 +7,7 @@ import {
   QuoteResponse,
   StatusTypes,
   TxData,
+  FeatureId,
 } from '@metamask/bridge-controller';
 import { toHex } from '@metamask/controller-utils';
 import {
@@ -19,6 +20,7 @@ import { BridgeHistoryItem } from '../src';
 
 export const mockBatchSellErc20Erc20: QuoteResponse<TxData, TxData>[] = [
   {
+    featureId: FeatureId.BATCH_SELL,
     quote: {
       requestId: '90ae8e69-f03a-4cf6-bab7-ed4e3431eb37',
       srcChainId: 10,
@@ -82,6 +84,7 @@ export const mockBatchSellErc20Erc20: QuoteResponse<TxData, TxData>[] = [
     estimatedProcessingTimeInSeconds: 60,
   },
   {
+    featureId: FeatureId.BATCH_SELL,
     quote: {
       requestId: '0b6caac9-456d-47e6-8982-1945ae81ae82',
       srcChainId: 10,
@@ -263,13 +266,14 @@ export const getTxMetasForBatch = ({
 export const getHistoryItem = (
   params: Partial<BridgeHistoryItem>,
 ): BridgeHistoryItem => {
-  const { isStxEnabled, batchSellData, txMetaId, quote, quoteIds } = params;
+  const { isStxEnabled, batchSellData, txMetaId, quote, quoteIds, featureId } =
+    params;
 
   return {
     account: '0xaccount1',
     actionId: undefined,
     batchId: '0xBatchId1',
-    featureId: undefined,
+    featureId,
     hasApprovalTx: true,
     isStxEnabled,
     initialDestAssetBalance: undefined,
