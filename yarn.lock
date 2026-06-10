@@ -5641,7 +5641,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/assets-controller@npm:^9.0.0, @metamask/assets-controller@workspace:packages/assets-controller":
+"@metamask/assets-controller@npm:^9.1.0, @metamask/assets-controller@workspace:packages/assets-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/assets-controller@workspace:packages/assets-controller"
   dependencies:
@@ -5897,7 +5897,7 @@ __metadata:
     "@ethersproject/contracts": "npm:^5.7.0"
     "@ethersproject/providers": "npm:^5.7.0"
     "@metamask/accounts-controller": "npm:^39.0.1"
-    "@metamask/assets-controller": "npm:^9.0.0"
+    "@metamask/assets-controller": "npm:^9.1.0"
     "@metamask/assets-controllers": "npm:^109.0.0"
     "@metamask/auto-changelog": "npm:^6.1.0"
     "@metamask/base-controller": "npm:^9.1.0"
@@ -8654,7 +8654,7 @@ __metadata:
     "@ethersproject/abi": "npm:^5.7.0"
     "@ethersproject/contracts": "npm:^5.7.0"
     "@ethersproject/providers": "npm:^5.7.0"
-    "@metamask/assets-controller": "npm:^9.0.0"
+    "@metamask/assets-controller": "npm:^9.1.0"
     "@metamask/assets-controllers": "npm:^109.0.0"
     "@metamask/auto-changelog": "npm:^6.1.0"
     "@metamask/base-controller": "npm:^9.1.0"
