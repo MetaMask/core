@@ -1,7 +1,6 @@
 import { Interface } from '@ethersproject/abi';
-import { Hex } from '@metamask/utils';
 
-import { encodeFunctionData, decodeFunctionResult } from './abi';
+import { encodeFunctionData } from './abi';
 
 const ERC20_ABI = [
   {
@@ -21,14 +20,6 @@ const ERC20_ABI = [
     name: 'transfer',
     outputs: [{ name: '', type: 'bool' }],
     stateMutability: 'nonpayable',
-    type: 'function',
-  },
-  {
-    constant: true,
-    inputs: [],
-    name: 'owner',
-    outputs: [{ name: '', type: 'address' }],
-    stateMutability: 'view',
     type: 'function',
   },
 ] as const;
@@ -79,60 +70,7 @@ describe('encodeFunctionData', () => {
       expect(() =>
         encodeFunctionData(erc20Interface, 'nonExistentFunction', []),
       ).toThrow(
-        'no matching function (argument="name", value="nonExistentFunction", code=INVALID_ARGUMENT, version=abi/5.7.0)',
-      );
-    });
-  });
-});
-
-describe('decodeFunctionResult', () => {
-  describe('with the ERC-20 ABI', () => {
-    const erc20Interface = new Interface(ERC20_ABI);
-
-    it('decodes a single uint256 output', () => {
-      const data = erc20Interface.encodeFunctionResult('balanceOf', [
-        '1000000000000000000',
-      ]) as Hex;
-
-      const result = decodeFunctionResult(erc20Interface, 'balanceOf', data);
-
-      expect(result[0].toString()).toBe('1000000000000000000');
-      expect(result).toStrictEqual(
-        erc20Interface.decodeFunctionResult('balanceOf', data),
-      );
-    });
-
-    it('decodes an address output and returns it checksummed', () => {
-      const data = erc20Interface.encodeFunctionResult('owner', [
-        ACCOUNT_ADDRESS.toLowerCase(),
-      ]) as Hex;
-
-      const result = decodeFunctionResult(erc20Interface, 'owner', data);
-
-      expect(result[0]).toBe(ACCOUNT_ADDRESS);
-      expect(result).toStrictEqual(
-        erc20Interface.decodeFunctionResult('owner', data),
-      );
-    });
-
-    it('decodes a boolean output', () => {
-      const data = erc20Interface.encodeFunctionResult('transfer', [
-        true,
-      ]) as Hex;
-
-      const result = decodeFunctionResult(erc20Interface, 'transfer', data);
-
-      expect(result[0]).toBe(true);
-      expect(result).toStrictEqual(
-        erc20Interface.decodeFunctionResult('transfer', data),
-      );
-    });
-
-    it('throws when the function does not exist', () => {
-      expect(() =>
-        decodeFunctionResult(erc20Interface, 'nonExistentFunction', '0x'),
-      ).toThrow(
-        'no matching function (argument="name", value="nonExistentFunction", code=INVALID_ARGUMENT, version=abi/5.7.0)',
+        'no matching function (argument=\"name\", value=\"nonExistentFunction\", code=INVALID_ARGUMENT, version=abi/5.7.0)',
       );
     });
   });

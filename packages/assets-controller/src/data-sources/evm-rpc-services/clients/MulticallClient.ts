@@ -1,7 +1,6 @@
 import { Interface } from '@ethersproject/abi';
 import {
   createServicePolicy,
-  decodeFunctionResult,
   encodeFunctionData,
 } from '@metamask/controller-utils';
 import type { Hex } from '@metamask/utils';
@@ -433,7 +432,7 @@ export function decodeAggregate3Response(
   data: Hex,
   callCount: number,
 ): { success: boolean; returnData: Hex }[] {
-  const decoded = decodeFunctionResult(multicall3Interface, 'aggregate3', data);
+  const decoded = multicall3Interface.decodeFunctionResult('aggregate3', data);
 
   // decoded[0] is the array of (success, returnData) tuples
   const results = decoded[0] as readonly {
@@ -462,7 +461,7 @@ function decodeUint256(data: Hex): string {
     // Empty or invalid data; treat as 0
     return '0';
   }
-  const decoded = decodeFunctionResult(erc20Interface, 'balanceOf', data);
+  const decoded = erc20Interface.decodeFunctionResult('balanceOf', data);
   return decoded[0].toString();
 }
 
