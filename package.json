@@ -1,6 +1,6 @@
 {
   "name": "@metamask/core-monorepo",
-  "version": "1026.0.0",
+  "version": "1030.0.0",
   "private": true,
   "description": "Monorepo for packages shared between MetaMask clients",
   "repository": {
@@ -23,8 +23,8 @@
     "create-release-branch": "create-release-branch --formatter oxfmt",
     "create-package": "tsx scripts/create-package",
     "lint": "yarn lint:eslint && echo && yarn lint:misc --check && yarn constraints && yarn lint:dependencies && yarn lint:teams && yarn messenger-action-types:check && yarn readme-content:check",
-    "lint:dependencies": "knip --workspace . --dependencies && yarn dedupe --check",
-    "lint:dependencies:fix": "knip --workspace . --dependencies && yarn dedupe",
+    "lint:dependencies": "knip --dependencies && yarn dedupe --check",
+    "lint:dependencies:fix": "knip --dependencies && yarn dedupe",
     "lint:eslint": "yarn build:only-clean && NODE_OPTIONS='--max-old-space-size=6144' yarn eslint",
     "lint:fix": "yarn lint:eslint --fix --prune-suppressions && echo && yarn lint:misc --write && yarn constraints --fix && yarn lint:dependencies:fix && yarn messenger-action-types:generate && yarn readme-content:update",
     "lint:misc": "oxfmt --ignore-path .gitignore",
@@ -42,7 +42,10 @@
     "test:packages": "yarn test:verbose --silent --collectCoverage=false --reporters=jest-silent-reporter",
     "test:scripts": "NODE_OPTIONS=--experimental-vm-modules yarn jest --config ./jest.config.scripts.js --silent",
     "test:verbose": "yarn workspaces foreach --all --parallel --verbose run test:verbose",
-    "workspaces:list-versions": "./scripts/list-workspace-versions.sh"
+    "workspaces:list-versions": "./scripts/list-workspace-versions.sh",
+    "skills": "metamask-skills sync",
+    "skills:postinstall": "metamask-skills postinstall",
+    "postinstall": "yarn skills:postinstall"
   },
   "devDependencies": {
     "@lavamoat/allow-scripts": "^3.0.4",
@@ -56,6 +59,7 @@
     "@metamask/eth-json-rpc-provider": "^6.0.1",
     "@metamask/json-rpc-engine": "^10.5.0",
     "@metamask/network-controller": "^32.0.0",
+    "@metamask/skills": "^0.1.0",
     "@metamask/utils": "^11.9.0",
     "@ts-bridge/cli": "^0.6.4",
     "@types/jest": "^29.5.14",
@@ -108,12 +112,13 @@
   "packageManager": "yarn@4.16.0",
   "lavamoat": {
     "allowScripts": {
-      "@lavamoat/preinstall-always-fail": false,
+      "$root$": true,
       "@keystonehq/bc-ur-registry-eth>hdkey>secp256k1": true,
+      "@lavamoat/preinstall-always-fail": false,
       "babel-runtime>core-js": false,
+      "eslint-plugin-import-x>unrs-resolver": false,
       "simple-git-hooks": false,
-      "tsx>esbuild": false,
-      "eslint-plugin-import-x>unrs-resolver": false
+      "tsx>esbuild": false
     }
   }
 }

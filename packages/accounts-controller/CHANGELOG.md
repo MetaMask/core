@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- The `state` option of the `AccountsController` constructor is now optional, defaulting to the controller's default state when omitted ([#8924](https://github.com/MetaMask/core/pull/8924))
+
+## [39.0.1]
+
+### Changed
+
+- Bump `@metamask/keyring-controller` from `^26.0.0` to `^27.0.0` ([#9058](https://github.com/MetaMask/core/pull/9058))
+
 ## [39.0.0]
 
 ### Changed
@@ -813,7 +823,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#1637](https://github.com/MetaMask/core/pull/1637))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@39.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@39.0.1...HEAD
+[39.0.1]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@39.0.0...@metamask/accounts-controller@39.0.1
 [39.0.0]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@38.1.2...@metamask/accounts-controller@39.0.0
 [38.1.2]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@38.1.1...@metamask/accounts-controller@38.1.2
 [38.1.1]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@38.1.0...@metamask/accounts-controller@38.1.1

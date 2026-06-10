@@ -185,8 +185,7 @@ describe('Bridge Quotes Utils', () => {
           slippage: 0.5,
           insufficientBal: false,
         }),
-        undefined,
-        undefined,
+        FeatureId.PERPS,
       );
 
       expect(fetchQuotesMock).toHaveBeenCalledWith(
@@ -200,8 +199,7 @@ describe('Bridge Quotes Utils', () => {
           slippage: 0.5,
           insufficientBal: false,
         }),
-        undefined,
-        undefined,
+        FeatureId.PERPS,
       );
     });
 
@@ -365,16 +363,14 @@ describe('Bridge Quotes Utils', () => {
         expect.objectContaining({
           srcTokenAmount: '1000000000000000000',
         }),
-        undefined,
-        undefined,
+        FeatureId.PERPS,
       );
 
       expect(fetchQuotesMock).toHaveBeenCalledWith(
         expect.objectContaining({
           srcTokenAmount: '1500000000000000000',
         }),
-        undefined,
-        undefined,
+        FeatureId.PERPS,
       );
     });
 
@@ -529,16 +525,14 @@ describe('Bridge Quotes Utils', () => {
         expect.objectContaining({
           srcTokenAmount: '1000000000000000000',
         }),
-        undefined,
-        undefined,
+        FeatureId.PERPS,
       );
 
       expect(fetchQuotesMock).toHaveBeenCalledWith(
         expect.objectContaining({
           srcTokenAmount: '1400000000000000000',
         }),
-        undefined,
-        undefined,
+        FeatureId.PERPS,
       );
     });
 
@@ -595,8 +589,7 @@ describe('Bridge Quotes Utils', () => {
         expect.objectContaining({
           srcTokenAmount: '1000000000000000000',
         }),
-        undefined,
-        undefined,
+        FeatureId.PERPS,
       );
 
       expect(fetchQuotesMock).toHaveBeenNthCalledWith(
@@ -604,8 +597,7 @@ describe('Bridge Quotes Utils', () => {
         expect.objectContaining({
           srcTokenAmount: '1000000000000000000',
         }),
-        undefined,
-        undefined,
+        FeatureId.PERPS,
       );
     });
 
@@ -676,8 +668,7 @@ describe('Bridge Quotes Utils', () => {
           srcTokenAmount: '1000000000000000000',
           destTokenAddress: QUOTE_REQUEST_1_MOCK.targetTokenAddress,
         }),
-        undefined,
-        undefined,
+        FeatureId.PERPS,
       );
 
       expect(fetchQuotesMock).toHaveBeenNthCalledWith(
@@ -686,8 +677,7 @@ describe('Bridge Quotes Utils', () => {
           srcTokenAmount: '1000000000000000000',
           destTokenAddress: QUOTE_REQUEST_2_MOCK.targetTokenAddress,
         }),
-        undefined,
-        undefined,
+        FeatureId.PERPS,
       );
 
       expect(fetchQuotesMock).toHaveBeenNthCalledWith(
@@ -696,8 +686,7 @@ describe('Bridge Quotes Utils', () => {
           srcTokenAmount: '1400000000000000000',
           destTokenAddress: QUOTE_REQUEST_1_MOCK.targetTokenAddress,
         }),
-        undefined,
-        undefined,
+        FeatureId.PERPS,
       );
     });
 
@@ -874,8 +863,7 @@ describe('Bridge Quotes Utils', () => {
         expect.objectContaining({
           slippage: 0.5,
         }),
-        undefined,
-        undefined,
+        FeatureId.PERPS,
       );
 
       expect(quotes.map((quote) => quote.original)).toStrictEqual([
@@ -895,7 +883,6 @@ describe('Bridge Quotes Utils', () => {
 
       expect(fetchQuotesMock).toHaveBeenCalledWith(
         expect.anything(),
-        undefined,
         FeatureId.PERPS,
       );
     });
@@ -1009,7 +996,10 @@ describe('Bridge Quotes Utils', () => {
 
       const newQuote = await refreshQuote(
         {
-          original: { ...QUOTE_2_MOCK, request: QUOTE_REQUEST_2_MOCK },
+          original: {
+            ...QUOTE_2_MOCK,
+            request: QUOTE_REQUEST_2_MOCK,
+          },
         } as TransactionPayQuote<TransactionPayBridgeQuote>,
         messenger,
         TRANSACTION_META_MOCK,
@@ -1025,8 +1015,7 @@ describe('Bridge Quotes Utils', () => {
           destTokenAddress: QUOTE_REQUEST_2_MOCK.targetTokenAddress,
           insufficientBal: false,
         }),
-        undefined,
-        undefined,
+        FeatureId.PERPS,
       );
 
       expect(newQuote).toMatchObject(QUOTE_2_MOCK);

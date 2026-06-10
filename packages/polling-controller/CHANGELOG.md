@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Drop `@metamask/controller-utils` dependency, which was no longer used in source ([#9058](https://github.com/MetaMask/core/pull/9058), [#9064](https://github.com/MetaMask/core/pull/9064))
+
 ## [16.0.6]
 
 ### Changed
