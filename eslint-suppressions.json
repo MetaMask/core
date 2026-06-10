@@ -1282,6 +1282,11 @@
       "count": 2
     }
   },
+  "packages/multichain-account-service/src/providers/XlmAccountProvider.ts": {
+    "@typescript-eslint/naming-convention": {
+      "count": 2
+    }
+  },
   "packages/multichain-account-service/src/providers/utils.ts": {
     "@typescript-eslint/naming-convention": {
       "count": 2

@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `XlmAccountProvider` for Stellar account support ([#8830](https://github.com/MetaMask/core/pull/8830))
+  - Register `XlmAccountProvider` as a default provider in `MultichainAccountService`.
+  - Export `XlmAccountProvider`, `XLM_ACCOUNT_PROVIDER_NAME`, and `XlmAccountProviderConfig`.
+
 ## [10.0.3]
 
 ### Changed
