@@ -16,6 +16,26 @@ See the [Contributor Documentation](./docs) for help on:
 
 Each package in this repository has its own README where you can find installation and usage instructions. See `packages/` for more.
 
+## Agent skills
+
+This repo can install MetaMask agent skills for Claude, Cursor, and Codex/OpenAI.
+`yarn setup` keeps the public [`MetaMask/skills`](https://github.com/MetaMask/skills)
+cache available through the shared `@metamask/skills` CLI. Run `yarn skills` any
+time to install or refresh the gitignored generated skills under `.claude/skills/`,
+`.cursor/rules/`, and `.agents/skills/`.
+
+By default, all stable skills that support Core are installed when you run `yarn skills`.
+Set `SKILLS_AUTO_UPDATE=1` to opt into best-effort regeneration during setup. The shared package keeps sync/cache behavior uniform with Mobile and Extension.
+To persist a local selection, copy `.skills.local.example` to `.skills.local` and
+set values such as `SKILLS_DOMAINS=perps`.
+
+```bash
+yarn skills                         # refresh default stable Core skills
+yarn skills --domain perps          # install only the perps domain
+yarn skills --select                # interactively choose domains
+yarn skills --reset                 # clear saved local selection
+```
+
 ## Packages
 
 <!-- start package list -->
@@ -103,6 +123,7 @@ Each package in this repository has its own README where you can find installati
 - [`@metamask/transaction-controller`](packages/transaction-controller)
 - [`@metamask/transaction-pay-controller`](packages/transaction-pay-controller)
 - [`@metamask/user-operation-controller`](packages/user-operation-controller)
+- [`@metamask/wallet`](packages/wallet)
 
 <!-- end package list -->
 
@@ -195,6 +216,7 @@ linkStyle default opacity:0.5
   transaction_controller(["@metamask/transaction-controller"]);
   transaction_pay_controller(["@metamask/transaction-pay-controller"]);
   user_operation_controller(["@metamask/user-operation-controller"]);
+  wallet(["@metamask/wallet"]);
   account_tree_controller --> accounts_controller;
   account_tree_controller --> base_controller;
   account_tree_controller --> keyring_controller;
@@ -375,12 +397,15 @@ linkStyle default opacity:0.5
   money_account_balance_service --> controller_utils;
   money_account_balance_service --> messenger;
   money_account_balance_service --> network_controller;
+  money_account_balance_service --> remote_feature_flag_controller;
   money_account_controller --> accounts_controller;
   money_account_controller --> base_controller;
   money_account_controller --> keyring_controller;
   money_account_controller --> messenger;
+  money_account_upgrade_controller --> authenticated_user_storage;
   money_account_upgrade_controller --> base_controller;
   money_account_upgrade_controller --> chomp_api_service;
+  money_account_upgrade_controller --> delegation_controller;
   money_account_upgrade_controller --> keyring_controller;
   money_account_upgrade_controller --> messenger;
   money_account_upgrade_controller --> network_controller;
@@ -388,6 +413,7 @@ linkStyle default opacity:0.5
   multichain_account_service --> base_controller;
   multichain_account_service --> keyring_controller;
   multichain_account_service --> messenger;
+  multichain_account_service --> snap_account_service;
   multichain_account_service --> controller_utils;
   multichain_api_middleware --> accounts_controller;
   multichain_api_middleware --> chain_agnostic_permission;
@@ -418,12 +444,14 @@ linkStyle default opacity:0.5
   network_controller --> eth_json_rpc_provider;
   network_controller --> json_rpc_engine;
   network_controller --> messenger;
+  network_controller --> remote_feature_flag_controller;
   network_enablement_controller --> base_controller;
   network_enablement_controller --> controller_utils;
   network_enablement_controller --> messenger;
   network_enablement_controller --> multichain_network_controller;
   network_enablement_controller --> network_controller;
   network_enablement_controller --> transaction_controller;
+  notification_services_controller --> authenticated_user_storage;
   notification_services_controller --> base_controller;
   notification_services_controller --> controller_utils;
   notification_services_controller --> keyring_controller;
@@ -449,6 +477,7 @@ linkStyle default opacity:0.5
   perps_controller --> profile_sync_controller;
   perps_controller --> remote_feature_flag_controller;
   perps_controller --> transaction_controller;
+  phishing_controller --> address_book_controller;
   phishing_controller --> base_controller;
   phishing_controller --> controller_utils;
   phishing_controller --> messenger;
@@ -474,9 +503,11 @@ linkStyle default opacity:0.5
   ramps_controller --> base_controller;
   ramps_controller --> controller_utils;
   ramps_controller --> messenger;
+  ramps_controller --> profile_sync_controller;
   rate_limit_controller --> base_controller;
   rate_limit_controller --> messenger;
   react_data_query --> base_data_service;
+  react_data_query --> messenger;
   remote_feature_flag_controller --> base_controller;
   remote_feature_flag_controller --> controller_utils;
   remote_feature_flag_controller --> messenger;
@@ -507,6 +538,8 @@ linkStyle default opacity:0.5
   signature_controller --> logging_controller;
   signature_controller --> messenger;
   signature_controller --> network_controller;
+  snap_account_service --> account_tree_controller;
+  snap_account_service --> keyring_controller;
   snap_account_service --> messenger;
   social_controllers --> base_controller;
   social_controllers --> base_data_service;
@@ -539,6 +572,7 @@ linkStyle default opacity:0.5
   transaction_pay_controller --> bridge_status_controller;
   transaction_pay_controller --> controller_utils;
   transaction_pay_controller --> gas_fee_controller;
+  transaction_pay_controller --> keyring_controller;
   transaction_pay_controller --> messenger;
   transaction_pay_controller --> network_controller;
   transaction_pay_controller --> ramps_controller;
@@ -554,6 +588,12 @@ linkStyle default opacity:0.5
   user_operation_controller --> polling_controller;
   user_operation_controller --> transaction_controller;
   user_operation_controller --> eth_block_tracker;
+  wallet --> approval_controller;
+  wallet --> base_controller;
+  wallet --> controller_utils;
+  wallet --> keyring_controller;
+  wallet --> messenger;
+  wallet --> storage_service;
 ```
 
 <!-- end dependency graph -->

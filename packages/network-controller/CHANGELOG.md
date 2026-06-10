@@ -7,9 +7,62 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add defaults for policy and block tracker options ([#9002](https://github.com/MetaMask/core/pull/9002))
+  - The `NetworkController` constructor argument `getRpcServiceOptions` is now optional.
+  - The default `policyOptions.maxRetries` is now `3`.
+  - The default `policyOptions.maxConsecutiveFailures` is now `12` for regular RPC endpoints and `40` for fallback RPC endpoints.
+  - The default `policyOptions.circuitBreakDuration` is now `30` seconds.
+  - The default `pollingInterval` for the block tracker is now `20` seconds.
+  - The default `retryTimeout` for the block tracker is now `20` seconds.
+
 ### Changed
 
-- Bump `@metamask/json-rpc-engine` from `^10.2.4` to `^10.3.0` ([#8661](https://github.com/MetaMask/core/pull/8661))
+- **BREAKING:** Automatically populate `isRpcFailoverEnabled` using `RemoteFeatureFlagController` ([#9013](https://github.com/MetaMask/core/pull/9013))
+  - `NetworkController.init` must now be called to fully initialize the controller.
+  - The constructor argument `isRpcFailoverEnabled` is no longer available.
+  - `RemoteFeatureFlagController:stateChange` and `RemoteFeatureFlagController:getState` are now required.
+- Bump `@metamask/controller-utils` from `^12.1.0` to `^12.1.1` ([#9058](https://github.com/MetaMask/core/pull/9058))
+
+### Removed
+
+- **BREAKING:** Remove `initializeProvider` in favor of `init` ([#9034](https://github.com/MetaMask/core/pull/9034))
+  - `init` does not call `lookupNetwork`, if this is required it must be called manually.
+- **BREAKING:** Remove `additionalDefaultNetworks` constructor option ([#9035](https://github.com/MetaMask/core/pull/9035))
+
+### Fixed
+
+- Add defaults for `fetch`, `btoa` and `isOffline` in `RpcServiceOptions` ([#9000](https://github.com/MetaMask/core/pull/9000))
+- Ensure block explorer URLs are populated for default networks ([#9005](https://github.com/MetaMask/core/pull/9005))
+
+## [32.0.0]
+
+### Changed
+
+- **BREAKING:** Remove Sei, MegaETH, Avalanche, and ZKSync from list of default networks ([#8767](https://github.com/MetaMask/core/pull/8767))
+  - You will need to add them as network configurations first before switching to them.
+- Bump `@metamask/controller-utils` from `^12.0.0` to `^12.1.0` ([#8774](https://github.com/MetaMask/core/pull/8774))
+
+## [31.1.0]
+
+### Added
+
+- Add export for `AddNetworkCustomRpcEndpointFields` and `InfuraRpcEndpoint` types ([#8764](https://github.com/MetaMask/core/pull/8764))
+
+## [31.0.0]
+
+### Added
+
+- **BREAKING:** Add `duration` and `traceId` to `NetworkController:rpcEndpointDegraded` and `NetworkController:rpcEndpointChainDegraded` event payloads ([#8455](https://github.com/MetaMask/core/pull/8455))
+  - `duration` contains the policy execution time in milliseconds when the request succeeded but was slow. It is `undefined` when retries were exhausted.
+  - `traceId` contains the value of the `x-trace-id` response header from the last request attempt, or `undefined` if the header was not present.
+  - This is breaking because if you're calling `messenger.subscribe` with a handler function you've explicitly typed, you will need to make sure to update that type to cover these two additional payload properties.
+
+### Changed
+
+- Bump `@metamask/json-rpc-engine` from `^10.2.4` to `^10.5.0` ([#8661](https://github.com/MetaMask/core/pull/8661), [#8746](https://github.com/MetaMask/core/pull/8746), [#8753](https://github.com/MetaMask/core/pull/8753))
+- Bump `@metamask/controller-utils` from `^11.20.0` to `^12.0.0` ([#8755](https://github.com/MetaMask/core/pull/8755))
 
 ## [30.1.0]
 
@@ -43,10 +96,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `NetworkControllerGetNetworkConfigurationByNetworkClientId` type is deprecated in favor of `NetworkControllerGetNetworkConfigurationByNetworkClientIdAction` ([#8350](https://github.com/MetaMask/core/pull/8350))
 - Deprecate `AbstractRpcService` and `RpcServiceRequestable` ([#8475](https://github.com/MetaMask/core/pull/8475))
   - There are no equivalents to these interfaces. If you need to take an "RPC-service-like" argument, it's best to declare which properties you're interested in rather than accepting the entire RPC service interface.
-
-### Fixed
-
-- Restore retries for failed requests even if the user is offline, preventing a bad user experience if the reported offline status is inaccurate or stuck ([#8623](https://github.com/MetaMask/core/pull/8623))
 
 ## [30.0.1]
 
@@ -1165,7 +1214,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/network-controller@30.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/network-controller@32.0.0...HEAD
+[32.0.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@31.1.0...@metamask/network-controller@32.0.0
+[31.1.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@31.0.0...@metamask/network-controller@31.1.0
+[31.0.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@30.1.0...@metamask/network-controller@31.0.0
 [30.1.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@30.0.1...@metamask/network-controller@30.1.0
 [30.0.1]: https://github.com/MetaMask/core/compare/@metamask/network-controller@30.0.0...@metamask/network-controller@30.0.1
 [30.0.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@29.0.0...@metamask/network-controller@30.0.0

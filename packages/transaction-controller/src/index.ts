@@ -54,6 +54,11 @@ export type {
   TransactionControllerAbortTransactionSigningAction,
   TransactionControllerUpdateAtomicBatchDataAction,
   TransactionControllerWipeTransactionsAction,
+  TransactionControllerUpdateSecurityAlertResponseAction,
+  TransactionControllerUpdateTransactionGasFeesAction,
+  TransactionControllerUpdatePreviousGasParamsAction,
+  TransactionControllerUpdateSelectedGasFeeTokenAction,
+  TransactionControllerUpdateRequiredTransactionIdsAction,
 } from './TransactionController-method-action-types';
 export {
   CANCEL_RATE,
@@ -63,7 +68,6 @@ export {
 export type {
   AddTransactionOptions,
   AfterAddHook,
-  AfterSimulateHook,
   Authorization,
   AuthorizationList,
   BatchTransaction,
@@ -97,7 +101,6 @@ export type {
   RequiredAsset,
   SavedGasFees,
   SecurityAlertResponse,
-  SecurityProviderRequest,
   SendFlowHistoryEntry,
   SimulationBalanceChange,
   SimulationData,
@@ -142,3 +145,4 @@ export type {
   GetAccountAddressRelationshipRequest,
   AccountAddressRelationshipResult,
 } from './api/accounts-api';
+export { generateBatchId } from './utils/batch';

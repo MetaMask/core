@@ -15,9 +15,21 @@ export type TokenBalancesControllerUpdateChainPollingConfigsAction = {
   handler: TokenBalancesController['updateChainPollingConfigs'];
 };
 
+export type TokenBalancesControllerUpdateBalancesAction = {
+  type: `TokenBalancesController:updateBalances`;
+  handler: TokenBalancesController['updateBalances'];
+};
+
+export type TokenBalancesControllerResetStateAction = {
+  type: `TokenBalancesController:resetState`;
+  handler: TokenBalancesController['resetState'];
+};
+
 /**
  * Union of all TokenBalancesController action types.
  */
 export type TokenBalancesControllerMethodActions =
   | TokenBalancesControllerGetChainPollingConfigAction
-  | TokenBalancesControllerUpdateChainPollingConfigsAction;
+  | TokenBalancesControllerUpdateChainPollingConfigsAction
+  | TokenBalancesControllerUpdateBalancesAction
+  | TokenBalancesControllerResetStateAction;

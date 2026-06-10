@@ -14,6 +14,9 @@ export type {
   AccountTreeControllerStateChangeEvent,
   AccountTreeControllerAccountTreeChangeEvent,
   AccountTreeControllerSelectedAccountGroupChangeEvent,
+  AccountTreeControllerAccountGroupCreatedEvent,
+  AccountTreeControllerAccountGroupUpdatedEvent,
+  AccountTreeControllerAccountGroupRemovedEvent,
   AccountTreeControllerEvents,
   AccountTreeControllerMessenger,
 } from './types';
@@ -33,6 +36,8 @@ export type {
   AccountTreeControllerClearStateAction,
   AccountTreeControllerSyncWithUserStorageAction,
   AccountTreeControllerSyncWithUserStorageAtLeastOnceAction,
+  AccountTreeControllerInitAction,
+  AccountTreeControllerReinitAction,
 } from './AccountTreeController-method-action-types';
 
 export type { AccountContext } from './AccountTreeController';

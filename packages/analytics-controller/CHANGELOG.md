@@ -7,8 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.1.1]
+
+### Fixed
+
+- Clear persisted analytics event queue entries after the delivery callback runs, including when the callback reports an error. ([#8934](https://github.com/MetaMask/core/pull/8934))
+
+## [1.1.0]
+
+### Added
+
+- Optional persisted event queue support in `AnalyticsController`, disabled by default. ([#8797](https://github.com/MetaMask/core/pull/8797))
+- Add optional analytics context on `trackEvent`, `identify`, and `trackView` to forward platform-specific context to `AnalyticsPlatformAdapter` implementations ([#8835](https://github.com/MetaMask/core/pull/8835))
+- Optional `skipUUIDv4Check` on `AnalyticsPlatformAdapter` to allow non-UUIDv4 `analyticsId` strings when constructing `AnalyticsController` ([#8543](https://github.com/MetaMask/core/pull/8543))
+
 ### Changed
 
+- Mark `analyticsId` as persisted (`persist: true`) in `AnalyticsController` state metadata so it is saved and restored with `optedIn` when using a persisted controller composition ([#8542](https://github.com/MetaMask/core/pull/8542))
 - Bump `@metamask/messenger` from `^1.0.0` to `^1.2.0` ([#8364](https://github.com/MetaMask/core/pull/8364), [#8373](https://github.com/MetaMask/core/pull/8373), [#8632](https://github.com/MetaMask/core/pull/8632))
 - Bump `@metamask/base-controller` from `^9.0.1` to `^9.1.0` ([#8457](https://github.com/MetaMask/core/pull/8457))
 
@@ -26,6 +41,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release of @metamask/analytics-controller. ([#7017](https://github.com/MetaMask/core/pull/7017), [#7202](https://github.com/MetaMask/core/pull/7202))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/analytics-controller@1.0.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/analytics-controller@1.1.1...HEAD
+[1.1.1]: https://github.com/MetaMask/core/compare/@metamask/analytics-controller@1.1.0...@metamask/analytics-controller@1.1.1
+[1.1.0]: https://github.com/MetaMask/core/compare/@metamask/analytics-controller@1.0.1...@metamask/analytics-controller@1.1.0
 [1.0.1]: https://github.com/MetaMask/core/compare/@metamask/analytics-controller@1.0.0...@metamask/analytics-controller@1.0.1
 [1.0.0]: https://github.com/MetaMask/core/releases/tag/@metamask/analytics-controller@1.0.0

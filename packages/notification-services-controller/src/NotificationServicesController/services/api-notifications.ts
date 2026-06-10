@@ -9,13 +9,6 @@ import type {
 import { makeApiCall } from '../utils/utils';
 import { notificationsConfigCache } from './notification-config-cache';
 
-export type NotificationTrigger = {
-  id: string;
-  chainId: string;
-  kind: string;
-  address: string;
-};
-
 export type ENV = 'prd' | 'uat' | 'dev';
 
 const TRIGGER_API_ENV = {
@@ -41,11 +34,7 @@ export const TRIGGER_API_NOTIFICATIONS_QUERY_ENDPOINT = (
   env: ENV = 'prd',
 ): string => `${TRIGGER_API(env)}/api/v2/notifications/query`;
 
-// Used to create/update account notifications for each account provided
-export const TRIGGER_API_NOTIFICATIONS_ENDPOINT = (env: ENV = 'prd'): string =>
-  `${TRIGGER_API(env)}/api/v2/notifications`;
-
-// Lists notifications for each account provided
+// Lists notifications for each address provided
 export const NOTIFICATION_API_LIST_ENDPOINT = (env: ENV = 'prd'): string =>
   `${NOTIFICATION_API(env)}/api/v3/notifications`;
 
@@ -102,40 +91,6 @@ export async function getNotificationsApiConfigCached(
 }
 
 /**
- * updates notifications for a given addresses
- *
- * @param bearerToken - jwt
- * @param addresses - list of addresses to check
- * @param env - the environment to use for the API call
- * @returns void
- */
-export async function updateOnChainNotifications(
-  bearerToken: string,
-  addresses: { address: string; enabled: boolean }[],
-  env: ENV = 'prd',
-): Promise<void> {
-  if (addresses.length === 0) {
-    return;
-  }
-
-  const normalizedAddresses = addresses.map((item) => ({
-    ...item,
-    address: item.address.toLowerCase(),
-  }));
-
-  type RequestBody = { address: string; enabled: boolean }[];
-  const body: RequestBody = normalizedAddresses;
-  await makeApiCall(
-    bearerToken,
-    TRIGGER_API_NOTIFICATIONS_ENDPOINT(env),
-    'POST',
-    body,
-  )
-    .then(() => notificationsConfigCache.set(normalizedAddresses))
-    .catch(() => null);
-}
-
-/**
  * Fetches on-chain notifications for the given addresses
  *
  * @param bearerToken - The JSON Web Token used for authentication in the API call.
@@ -143,7 +98,7 @@ export async function updateOnChainNotifications(
  * @param locale - to generate translated notifications
  * @param platform - filter notifications for specific platforms ('extension' | 'mobile')
  * @param env - the environment to use for the API call
- * @returns A promise that resolves to an array of NormalisedAPINotification objects. If no notifications are enabled or an error occurs, it may return an empty array.
+ * @returns An array of {@link NormalisedAPINotification}. Returns an empty array on transport or parse errors.
  */
 export async function getAPINotifications(
   bearerToken: string,

@@ -1,5 +1,6 @@
 import { TransactionType } from '@metamask/transaction-controller';
 
+import { PERPS_DEPOSIT_TYPES } from '../../constants';
 import type { RelayStatus } from './types';
 
 export const RELAY_URL_BASE = 'https://api.relay.link';
@@ -28,5 +29,10 @@ export const RELAY_PENDING_STATUSES: RelayStatus[] = [
 export const RELAY_DEPOSIT_TYPES: Record<string, TransactionType> = {
   [TransactionType.musdConversion]: TransactionType.musdRelayDeposit,
   [TransactionType.predictDeposit]: TransactionType.predictRelayDeposit,
-  [TransactionType.perpsDeposit]: TransactionType.perpsRelayDeposit,
+  ...Object.fromEntries(
+    PERPS_DEPOSIT_TYPES.map((type) => [
+      type,
+      TransactionType.perpsRelayDeposit,
+    ]),
+  ),
 };

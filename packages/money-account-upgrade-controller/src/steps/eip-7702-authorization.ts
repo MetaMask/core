@@ -67,19 +67,39 @@ export const eip7702AuthorizationStep: Step = {
 
     const { r, s, v, yParity } = splitEip7702Signature(signature);
 
-    await messenger.call('ChompApiService:createUpgrade', {
-      r,
-      s,
-      v,
-      yParity,
-      address: delegatorImplAddress,
-      chainId,
-      nonce: add0x(nonce.toString(16)),
-    });
+    try {
+      await messenger.call('ChompApiService:createUpgrade', {
+        r,
+        s,
+        v,
+        yParity,
+        address: delegatorImplAddress,
+        chainId,
+        nonce: add0x(nonce.toString(16)),
+      });
+    } catch (error) {
+      // CHOMP returns 409 when an authorization for this address already
+      // exists with the same or higher nonce — typically on retry when a
+      // previous submission was accepted but hasn't yet been observed
+      // on-chain (so `fetchDelegationAddress` returned undefined above).
+      // Treat as already-done so the upgrade sequence is retry-safe.
+      if (isHttp409(error)) {
+        return 'already-done';
+      }
+      throw error;
+    }
 
     return 'completed';
   },
 };
+
+function isHttp409(error: unknown): boolean {
+  if (typeof error !== 'object' || error === null) {
+    return false;
+  }
+  const { httpStatus } = error as { httpStatus?: unknown };
+  return httpStatus === 409;
+}
 
 /**
  * Splits a 65-byte ECDSA signature produced by

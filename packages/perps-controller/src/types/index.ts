@@ -74,17 +74,45 @@ export type TradeConfiguration = {
 };
 
 // Market asset type classification (reusable across components)
-export type MarketType = 'crypto' | 'equity' | 'commodity' | 'forex';
+export enum MarketCategory {
+  CryptoCurrency = 'crypto',
+  Stock = 'stock',
+  PreIpo = 'pre-ipo',
+  Index = 'index',
+  Etf = 'etf',
+  Commodity = 'commodity',
+  Forex = 'forex',
+}
+
+export type MarketType = `${MarketCategory}`;
 
 // Market type filter for UI category badges
-// Note: 'stocks' maps to 'equity' and 'commodities' maps to 'commodity' in the data model
 export type MarketTypeFilter =
   | 'all'
   | 'crypto'
-  | 'stocks'
-  | 'commodities'
+  | 'stock'
+  | 'pre-ipo'
+  | 'index'
+  | 'etf'
+  | 'commodity'
   | 'forex'
   | 'new';
+
+/**
+ * Ordered list of the 7 data-model market categories for UI pills.
+ * Does not include the 'all' or 'new' sentinel values — those are applied
+ * via dedicated UI controls, not the category pills.
+ * Kept in sync with {@link MarketTypeFilter} via `satisfies`.
+ */
+export const MARKET_CATEGORIES = [
+  'crypto',
+  'stock',
+  'pre-ipo',
+  'index',
+  'etf',
+  'commodity',
+  'forex',
+] as const satisfies MarketTypeFilter[];
 
 // Input method for amount entry tracking
 export type InputMethod =
@@ -125,6 +153,10 @@ export type TrackingData = {
   mmPayTokenSelected?: string; // Token symbol when tradeWithToken is true
   mmPayNetworkSelected?: string; // chainId when tradeWithToken is true
 
+  // VIP tier and discount for rewards tracking
+  vipTier?: number; // User's VIP tier level
+  vipDiscount?: number; // VIP discount percentage applied
+
   // A/B test context to attribute trade events to specific experiments
   abTests?: Record<string, string>;
 };
@@ -155,12 +187,18 @@ export type OrderParams = {
   usdAmount?: string; // USD amount (primary source of truth, provider calculates size from this)
   priceAtCalculation?: number; // Price snapshot when size was calculated (for slippage validation)
   maxSlippageBps?: number; // Slippage tolerance in basis points (e.g., 100 = 1%, default if not provided)
+  /**
+   * @deprecated Use `maxSlippageBps` instead. Retained for one release so that
+   * existing publisher consumers (extension, core) that still pass slippage as
+   * a decimal (e.g. 0.03 for 3%) continue to work; the provider normalizes the
+   * value to basis points when `maxSlippageBps` is absent.
+   */
+  slippage?: number;
 
   // Advanced order features
   takeProfitPrice?: string; // Take profit price
   stopLossPrice?: string; // Stop loss price
   clientOrderId?: string; // Optional client-provided order ID
-  slippage?: number; // Slippage tolerance for market orders (default: ORDER_SLIPPAGE_CONFIG.DefaultMarketSlippageBps / 10000 = 3%)
   grouping?: 'na' | 'normalTpsl' | 'positionTpsl'; // Override grouping (defaults: 'na' without TP/SL, 'normalTpsl' with TP/SL)
   currentPrice?: number; // Current market price (avoids extra API call if provided)
   leverage?: number; // Leverage to apply for the order (e.g., 10 for 10x leverage)
@@ -212,12 +250,34 @@ export type Position = {
 
 // Using 'type' instead of 'interface' for BaseController Json compatibility
 export type AccountState = {
-  availableBalance: string; // Based on HyperLiquid: withdrawable
-  availableToTradeBalance?: string; // withdrawable + unreserved spot collateral (order-entry path)
-  totalBalance: string; // Based on HyperLiquid: accountValue
-  marginUsed: string; // Based on HyperLiquid: marginUsed
-  unrealizedPnl: string; // Based on HyperLiquid: unrealizedPnl
-  returnOnEquity: string; // Based on HyperLiquid: returnOnEquity adjusted for weighted margin
+  /**
+   * Total USD equity on this venue — collateral + unrealized PnL. Live MTM.
+   * HL: crossMarginSummary.accountValue + spot(USDC) − spot.hold
+   * MYX: walletBalance + marginUsed + unrealizedPnl
+   */
+  totalBalance: string;
+  /**
+   * Max USD that can immediately collateralize a new position on this venue,
+   * with no internal transfer required.
+   * HL Unified: withdrawable + freeSpotUSDC
+   * HL Standard: withdrawable
+   * MYX: walletBalance
+   */
+  spendableBalance: string;
+  /**
+   * Max USD that can leave this venue to the user's external wallet.
+   * UI reads this value without branching on provider; the provider
+   * contract guarantees HL's own abstraction (Unified) or the direct
+   * perps-clearinghouse (Standard) is what actually settles the
+   * withdraw — no client-side spot→perps sweep is performed.
+   * HL Unified: withdrawable + freeSpotUSDC (USDC only; `freeSpotUSDC = spot.total - spot.hold`, and HL withdraw3 draws from the unified ledger server-side)
+   * HL Standard: withdrawable (perps-clearinghouse only; spot is a separate ledger)
+   * MYX: walletBalance
+   */
+  withdrawableBalance: string;
+  marginUsed: string;
+  unrealizedPnl: string;
+  returnOnEquity: string;
   /**
    * Per-sub-account balance breakdown (protocol-specific, optional)
    * Maps sub-account identifier to its balance details.
@@ -233,7 +293,8 @@ export type AccountState = {
   subAccountBreakdown?: Record<
     string,
     {
-      availableBalance: string;
+      spendableBalance: string;
+      withdrawableBalance: string;
       totalBalance: string;
     }
   >;
@@ -296,6 +357,9 @@ export type MarginResult = {
 export type FlipPositionParams = {
   symbol: string; // Asset identifier to flip (e.g., 'BTC', 'ETH', 'xyz:TSLA')
   position: Position; // Current position to flip
+
+  // Optional tracking data for MetaMetrics events
+  trackingData?: TrackingData;
 };
 
 export type InitializeResult = {
@@ -386,7 +450,10 @@ export type PerpsMarketData = {
   /**
    * Market asset type classification (optional)
    * - crypto: Cryptocurrency (default for most markets)
-   * - equity: Stock/equity markets (HIP-3)
+   * - stock: Individual stocks (HIP-3)
+   * - pre-ipo: Pre-IPO assets (HIP-3)
+   * - index: Market indices (HIP-3)
+   * - etf: Exchange-traded funds (HIP-3)
    * - commodity: Commodity markets (HIP-3)
    * - forex: Foreign exchange pairs (HIP-3)
    */
@@ -747,11 +814,35 @@ export type GetSupportedPathsParams = {
 /** Placeholder for future filter/pagination params (e.g., validated, chain). Empty today so the API signature is stable. */
 export type GetAvailableDexsParams = Record<string, never>;
 
+/** Field to sort markets by. */
+export type SortField =
+  | 'volume'
+  | 'priceChange'
+  | 'fundingRate'
+  | 'openInterest';
+
+/** Direction for market sorting. */
+export type SortDirection = 'asc' | 'desc';
+
 export type GetMarketsParams = {
   symbols?: string[]; // Optional symbol filter (e.g., ['BTC', 'xyz:XYZ100'])
   dex?: string; // HyperLiquid HIP-3: DEX name (empty string '' or undefined for main DEX). Other protocols: ignored.
   skipFilters?: boolean; // Skip market filtering (both allowlist and blocklist, default: false). When true, returns all markets without filtering.
   standalone?: boolean; // Lightweight mode: skip full initialization, only fetch market metadata (no wallet/WebSocket needed). Only main DEX markets returned. Use for discovery use cases like checking if a perps market exists.
+};
+
+/**
+ * Parameters for {@link PerpsController.getMarketDataWithPrices}.
+ * Extends the base market-fetch params with optional category filtering,
+ * sorting, and pagination that are applied as post-processing.
+ */
+export type GetMarketDataWithPricesParams = {
+  standalone?: boolean; // Lightweight mode: see GetMarketsParams.standalone
+  categories?: MarketTypeFilter[]; // Filter to markets matching any of these categories; omit for all markets
+  excludeSymbols?: string[]; // Symbols to exclude from results (e.g. the currently viewed market)
+  sortBy?: SortField; // Sort results by this field
+  direction?: SortDirection; // Sort direction (default: desc)
+  limit?: number; // Maximum number of results to return
 };
 
 export type SubscribePricesParams = {
@@ -1231,6 +1322,7 @@ export enum PerpsAnalyticsEvent {
   UiInteraction = 'Perp UI Interaction',
   RiskManagement = 'Perp Risk Management',
   PerpsError = 'Perp Error',
+  AccountSetup = 'Perp Account Setup',
 }
 
 /**
@@ -1266,6 +1358,7 @@ export type PerpsTraceName =
   | 'Perps Get Account State'
   | 'Perps Get Historical Portfolio'
   | 'Perps Get Markets'
+  | 'Perps Get Market Data With Prices'
   | 'Perps Fetch Historical Candles'
   | 'Perps WebSocket Connected'
   | 'Perps WebSocket Disconnected'
@@ -1303,6 +1396,7 @@ export const PerpsTraceNames = {
   GetPositions: 'Perps Get Positions',
   GetAccountState: 'Perps Get Account State',
   GetMarkets: 'Perps Get Markets',
+  GetMarketDataWithPrices: 'Perps Get Market Data With Prices',
   OrderFillsFetch: 'Perps Order Fills Fetch',
   OrdersFetch: 'Perps Orders Fetch',
   FundingFetch: 'Perps Funding Fetch',
@@ -1565,11 +1659,17 @@ export type PerpsPlatformDependencies = {
   rewards: {
     /**
      * Get fee discount for an account from the RewardsController.
-     * Returns discount in basis points (e.g., 6500 = 65% discount)
+     * Returns discount in basis points (e.g., 6500 = 65% discount), or null
+     * when subscription state hasn't hydrated yet — callers should skip
+     * caching null results and retry on the next fee calculation.
+     *
+     * Pass the perps MetaMask builder base fee in bips so the rewards
+     * controller can convert an absolute VIP fee into a discount fraction.
      */
     getPerpsDiscountForAccount(
       caipAccountId: `${string}:${string}:${string}`,
-    ): Promise<number>;
+      baseFeeBips: number,
+    ): Promise<number | null>;
   };
 };
 

@@ -13,12 +13,15 @@ import type { AuthenticatedUserStorageServiceMethodActions } from './authenticat
 import type { Environment } from './env';
 import { getUserStorageApiUrl } from './env';
 import type {
+  AssetsWatchlistBlob,
   ClientType,
   DelegationResponse,
   DelegationSubmission,
   NotificationPreferences,
 } from './types';
 import {
+  assertAssetsWatchlistBlob,
+  assertAssetsWatchlistBlobForWrite,
   assertDelegationResponseArray,
   assertNotificationPreferences,
 } from './validators';
@@ -49,6 +52,8 @@ const MESSENGER_EXPOSED_METHODS = [
   'revokeDelegation',
   'getNotificationPreferences',
   'putNotificationPreferences',
+  'getAssetsWatchlist',
+  'setAssetsWatchlist',
 ] as const;
 
 /**
@@ -340,6 +345,90 @@ export class AuthenticatedUserStorageService extends BaseDataService<
 
     await this.invalidateQueries({
       queryKey: [`${this.name}:getNotificationPreferences`],
+    });
+  }
+
+  /**
+   * Returns the assets-watchlist for the authenticated user.
+   *
+   * @returns The assets-watchlist blob, or `null` if none has been set (404).
+   */
+  async getAssetsWatchlist(): Promise<AssetsWatchlistBlob | null> {
+    const url = `${getAuthenticatedStorageUrl(this.#environment)}/assets-watchlist`;
+
+    const data = await this.fetchQuery({
+      queryKey: [`${this.name}:getAssetsWatchlist`],
+      queryFn: async () => {
+        const headers = await this.#getHeaders();
+        const response = await fetch(url, { headers });
+
+        if (response.status === 404) {
+          return null;
+        }
+
+        if (!response.ok) {
+          throw new HttpError(
+            response.status,
+            `Failed to get assets watchlist: ${response.status}`,
+          );
+        }
+
+        return response.json();
+      },
+    });
+
+    if (data === null) {
+      return null;
+    }
+
+    assertAssetsWatchlistBlob(data);
+    return data;
+  }
+
+  /**
+   * Creates or updates the assets-watchlist for the authenticated user.
+   *
+   * @param blob - The full assets-watchlist blob. The `assets` array may
+   * contain at most `ASSETS_WATCHLIST_MAX_ASSETS` CAIP-19 asset identifiers;
+   * this is enforced by `assertAssetsWatchlistBlobForWrite` before the
+   * request is sent.
+   * @param clientType - Optional client type header.
+   * @throws A `StructError` from `@metamask/superstruct` if `blob` is
+   * structurally invalid or `assets` exceeds the cap; an `HttpError` from
+   * `@metamask/controller-utils` if the API responds with a non-2xx status.
+   */
+  async setAssetsWatchlist(
+    blob: AssetsWatchlistBlob,
+    clientType?: ClientType,
+  ): Promise<void> {
+    assertAssetsWatchlistBlobForWrite(blob);
+
+    const url = `${getAuthenticatedStorageUrl(this.#environment)}/assets-watchlist`;
+
+    await this.fetchQuery({
+      queryKey: [`${this.name}:setAssetsWatchlist`, blob as unknown as Json],
+      staleTime: 0,
+      queryFn: async () => {
+        const headers = await this.#getHeaders(clientType);
+        const response = await fetch(url, {
+          method: 'PUT',
+          headers,
+          body: JSON.stringify(blob),
+        });
+
+        if (!response.ok) {
+          throw new HttpError(
+            response.status,
+            `Failed to put assets watchlist: ${response.status}`,
+          );
+        }
+
+        return null;
+      },
+    });
+
+    await this.invalidateQueries({
+      queryKey: [`${this.name}:getAssetsWatchlist`],
     });
   }
 

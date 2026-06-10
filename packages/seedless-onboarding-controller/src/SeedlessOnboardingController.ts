@@ -109,6 +109,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'checkNodeAuthTokenExpired',
   'checkMetadataAccessTokenExpired',
   'checkAccessTokenExpired',
+  'runMigrations',
 ] as const;
 
 // Actions

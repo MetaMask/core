@@ -354,8 +354,10 @@ export type TransakServiceMessenger = Messenger<
  * (e.g., "credit_debit_card").
  *
  * The translation endpoint only understands the deposit-format IDs.
- * If no mapping exists, the input is returned as-is (it may already be
- * in the deposit format).
+ * Canonical IDs may arrive either with the "/payments/" prefix
+ * (e.g., "/payments/apple-pay") or without it (e.g., "apple-pay"), so both
+ * forms are accepted. If no mapping exists, the input is returned as-is (it
+ * may already be in the deposit format).
  */
 const RAMPS_TO_DEPOSIT_PAYMENT_METHOD: Record<string, string> = {
   '/payments/debit-credit-card': 'credit_debit_card',
@@ -366,13 +368,22 @@ const RAMPS_TO_DEPOSIT_PAYMENT_METHOD: Record<string, string> = {
   '/payments/gbp-bank-transfer': 'gbp_bank_transfer',
 };
 
+const PAYMENTS_PREFIX = '/payments/';
+
 function normalizePaymentMethodForTranslation(
   paymentMethod: string | undefined,
 ): string | undefined {
   if (!paymentMethod) {
     return undefined;
   }
-  return RAMPS_TO_DEPOSIT_PAYMENT_METHOD[paymentMethod] ?? paymentMethod;
+  const prefixed = paymentMethod.startsWith(PAYMENTS_PREFIX)
+    ? paymentMethod
+    : `${PAYMENTS_PREFIX}${paymentMethod}`;
+  return (
+    RAMPS_TO_DEPOSIT_PAYMENT_METHOD[paymentMethod] ??
+    RAMPS_TO_DEPOSIT_PAYMENT_METHOD[prefixed] ??
+    paymentMethod
+  );
 }
 
 function getTransakApiBaseUrl(environment: TransakEnvironment): string {

@@ -75,6 +75,36 @@ export const mockSseEventSource = (
  *
  * @param mockQuotes - a list of quotes to stream
  * @param delay - the delay in milliseconds
+ * @returns a delayed stream of quotes
+ */
+export const mockSseBatchSellEventSource = (
+  mockQuotes: QuoteResponse[][],
+  delay: number = 3000,
+): MockSseResponse => {
+  return {
+    status: 200,
+    ok: true,
+    body: new ReadableStream({
+      start(controller): void {
+        setTimeout(() => {
+          mockQuotes.forEach((quotes) => {
+            quotes.forEach((quote, quoteIndex) => {
+              emitLine(controller, `event: quote\n`);
+              emitLine(controller, `id: ${getEventId(quoteIndex + 1)}\n`);
+              emitLine(controller, `data: ${JSON.stringify(quote)}\n\n`);
+            });
+          });
+          controller.close();
+        }, delay);
+      },
+    }),
+  };
+};
+/**
+ * This simulates responses from the fetch function for unit tests
+ *
+ * @param mockQuotes - a list of quotes to stream
+ * @param delay - the delay in milliseconds
  * @returns a stream of quotes with multiple delays in between each quote
  */
 export const mockSseEventSourceWithMultipleDelays = async (

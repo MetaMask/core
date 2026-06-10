@@ -196,6 +196,7 @@ describe('NetworkEnablementController', () => {
           [ChainId[BuiltInNetworkName.OptimismMainnet]]: true,
           [ChainId[BuiltInNetworkName.PolygonMainnet]]: true,
           [ChainId[BuiltInNetworkName.SeiMainnet]]: true,
+          [ChainId[BuiltInNetworkName.MonadMainnet]]: true,
         },
         [KnownCaipNamespace.Solana]: {
           [SolScope.Mainnet]: true,
@@ -255,6 +256,7 @@ describe('NetworkEnablementController', () => {
           [ChainId[BuiltInNetworkName.OptimismMainnet]]: true,
           [ChainId[BuiltInNetworkName.PolygonMainnet]]: true,
           [ChainId[BuiltInNetworkName.SeiMainnet]]: true,
+          [ChainId[BuiltInNetworkName.MonadMainnet]]: true,
           '0xa86a': true, // Avalanche network added and enabled (keeps current selection)
         },
         [KnownCaipNamespace.Solana]: {
@@ -323,6 +325,7 @@ describe('NetworkEnablementController', () => {
           [ChainId[BuiltInNetworkName.OptimismMainnet]]: true,
           [ChainId[BuiltInNetworkName.PolygonMainnet]]: true,
           [ChainId[BuiltInNetworkName.SeiMainnet]]: true,
+          [ChainId[BuiltInNetworkName.MonadMainnet]]: true,
         },
         [KnownCaipNamespace.Solana]: {
           [SolScope.Mainnet]: true,
@@ -431,6 +434,7 @@ describe('NetworkEnablementController', () => {
     controller.disableNetwork('0xa'); // Optimism Mainnet
     controller.disableNetwork('0x89'); // Polygon Mainnet
     controller.disableNetwork('0x531'); // Sei Mainnet
+    controller.disableNetwork('0x8f'); // Monad Mainnet
 
     // Publish an update with linea network removed
     rootMessenger.publish('NetworkController:networkRemoved', {
@@ -468,6 +472,7 @@ describe('NetworkEnablementController', () => {
           [ChainId[BuiltInNetworkName.OptimismMainnet]]: false,
           [ChainId[BuiltInNetworkName.PolygonMainnet]]: false,
           [ChainId[BuiltInNetworkName.SeiMainnet]]: false,
+          [ChainId[BuiltInNetworkName.MonadMainnet]]: false,
         },
         [KnownCaipNamespace.Solana]: {
           [SolScope.Mainnet]: true,
@@ -572,6 +577,7 @@ describe('NetworkEnablementController', () => {
             [ChainId[BuiltInNetworkName.OptimismMainnet]]: true,
             [ChainId[BuiltInNetworkName.PolygonMainnet]]: true,
             [ChainId[BuiltInNetworkName.SeiMainnet]]: true,
+            [ChainId[BuiltInNetworkName.MonadMainnet]]: true,
           },
           [KnownCaipNamespace.Solana]: {
             [SolScope.Mainnet]: true, // Solana Mainnet (exists in multichain config)
@@ -1222,6 +1228,7 @@ describe('NetworkEnablementController', () => {
             [ChainId[BuiltInNetworkName.OptimismMainnet]]: true,
             [ChainId[BuiltInNetworkName.PolygonMainnet]]: true,
             [ChainId[BuiltInNetworkName.SeiMainnet]]: true,
+            [ChainId[BuiltInNetworkName.MonadMainnet]]: true,
           },
           [KnownCaipNamespace.Solana]: {
             [SolScope.Mainnet]: true,
@@ -1260,6 +1267,7 @@ describe('NetworkEnablementController', () => {
             [ChainId[BuiltInNetworkName.OptimismMainnet]]: false, // Not in mocked config
             [ChainId[BuiltInNetworkName.PolygonMainnet]]: false, // Not in mocked config
             [ChainId[BuiltInNetworkName.SeiMainnet]]: false, // Not in mocked config
+            [ChainId[BuiltInNetworkName.MonadMainnet]]: false, // Not in mocked config
           },
           [KnownCaipNamespace.Solana]: {
             [SolScope.Mainnet]: true, // Solana
@@ -1531,6 +1539,7 @@ describe('NetworkEnablementController', () => {
             [ChainId[BuiltInNetworkName.OptimismMainnet]]: true,
             [ChainId[BuiltInNetworkName.PolygonMainnet]]: true,
             [ChainId[BuiltInNetworkName.SeiMainnet]]: true,
+            [ChainId[BuiltInNetworkName.MonadMainnet]]: true,
           },
           [KnownCaipNamespace.Solana]: {
             [SolScope.Mainnet]: true,
@@ -1569,6 +1578,7 @@ describe('NetworkEnablementController', () => {
             [ChainId[BuiltInNetworkName.OptimismMainnet]]: false,
             [ChainId[BuiltInNetworkName.PolygonMainnet]]: false,
             [ChainId[BuiltInNetworkName.SeiMainnet]]: false,
+            [ChainId[BuiltInNetworkName.MonadMainnet]]: false,
           },
           [KnownCaipNamespace.Solana]: {
             [SolScope.Mainnet]: false, // Now disabled (cross-namespace behavior)
@@ -1627,6 +1637,7 @@ describe('NetworkEnablementController', () => {
             [ChainId[BuiltInNetworkName.OptimismMainnet]]: false,
             [ChainId[BuiltInNetworkName.PolygonMainnet]]: false,
             [ChainId[BuiltInNetworkName.SeiMainnet]]: false,
+            [ChainId[BuiltInNetworkName.MonadMainnet]]: false,
           },
           [KnownCaipNamespace.Solana]: {
             [SolScope.Mainnet]: false, // Disabled due to cross-namespace behavior
@@ -1669,6 +1680,7 @@ describe('NetworkEnablementController', () => {
             [ChainId[BuiltInNetworkName.OptimismMainnet]]: false,
             [ChainId[BuiltInNetworkName.PolygonMainnet]]: false,
             [ChainId[BuiltInNetworkName.SeiMainnet]]: false,
+            [ChainId[BuiltInNetworkName.MonadMainnet]]: false,
           },
           [KnownCaipNamespace.Solana]: {
             [SolScope.Mainnet]: false, // Now disabled (cross-namespace behavior)
@@ -1711,6 +1723,7 @@ describe('NetworkEnablementController', () => {
             [ChainId[BuiltInNetworkName.OptimismMainnet]]: false,
             [ChainId[BuiltInNetworkName.PolygonMainnet]]: false,
             [ChainId[BuiltInNetworkName.SeiMainnet]]: false,
+            [ChainId[BuiltInNetworkName.MonadMainnet]]: false,
           },
           [KnownCaipNamespace.Solana]: {
             [SolScope.Mainnet]: false, // Now disabled (cross-namespace behavior)
@@ -1764,6 +1777,7 @@ describe('NetworkEnablementController', () => {
             [ChainId[BuiltInNetworkName.OptimismMainnet]]: false,
             [ChainId[BuiltInNetworkName.PolygonMainnet]]: false,
             [ChainId[BuiltInNetworkName.SeiMainnet]]: false,
+            [ChainId[BuiltInNetworkName.MonadMainnet]]: false,
           },
           [KnownCaipNamespace.Solana]: {
             [SolScope.Mainnet]: false, // Disabled due to cross-namespace behavior
@@ -1814,6 +1828,7 @@ describe('NetworkEnablementController', () => {
             [ChainId[BuiltInNetworkName.OptimismMainnet]]: false,
             [ChainId[BuiltInNetworkName.PolygonMainnet]]: false,
             [ChainId[BuiltInNetworkName.SeiMainnet]]: false,
+            [ChainId[BuiltInNetworkName.MonadMainnet]]: false,
           },
           [KnownCaipNamespace.Solana]: {
             [SolScope.Mainnet]: false,
@@ -1867,6 +1882,7 @@ describe('NetworkEnablementController', () => {
             [ChainId[BuiltInNetworkName.OptimismMainnet]]: false,
             [ChainId[BuiltInNetworkName.PolygonMainnet]]: false,
             [ChainId[BuiltInNetworkName.SeiMainnet]]: false,
+            [ChainId[BuiltInNetworkName.MonadMainnet]]: false,
           },
           [KnownCaipNamespace.Solana]: {
             [SolScope.Mainnet]: false, // Disabled due to cross-namespace behavior
@@ -1917,6 +1933,7 @@ describe('NetworkEnablementController', () => {
             [ChainId[BuiltInNetworkName.OptimismMainnet]]: true,
             [ChainId[BuiltInNetworkName.PolygonMainnet]]: true,
             [ChainId[BuiltInNetworkName.SeiMainnet]]: true,
+            [ChainId[BuiltInNetworkName.MonadMainnet]]: true,
           },
           [KnownCaipNamespace.Solana]: {
             [SolScope.Mainnet]: true,
@@ -1969,6 +1986,7 @@ describe('NetworkEnablementController', () => {
             [ChainId[BuiltInNetworkName.OptimismMainnet]]: true,
             [ChainId[BuiltInNetworkName.PolygonMainnet]]: true,
             [ChainId[BuiltInNetworkName.SeiMainnet]]: true,
+            [ChainId[BuiltInNetworkName.MonadMainnet]]: true,
           },
           [KnownCaipNamespace.Solana]: {
             [SolScope.Mainnet]: true,

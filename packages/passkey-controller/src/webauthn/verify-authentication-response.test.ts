@@ -64,12 +64,29 @@ const assertionFirstTimeUsedChallenge = decodeClientDataJSON(
 ).challenge;
 
 describe('verifyAuthenticationResponse', () => {
+  it('verifies when expectedRPIDs is empty', async () => {
+    const verification = await verifyAuthenticationResponse({
+      response: assertionResponse,
+      expectedChallenge: assertionChallenge,
+      expectedOrigin: EXPECTED_ORIGIN,
+      expectedRPIDs: [],
+      credential,
+      requireUserVerification: false,
+    });
+
+    expect(verification.verified).toBe(true);
+    if (!verification.verified) {
+      return;
+    }
+    expect(verification.authenticationInfo.rpID).toBe('');
+  });
+
   it('verifies an assertion response', async () => {
     const verification = await verifyAuthenticationResponse({
       response: assertionResponse,
       expectedChallenge: assertionChallenge,
       expectedOrigin: EXPECTED_ORIGIN,
-      expectedRPID: EXPECTED_RP_ID,
+      expectedRPIDs: [EXPECTED_RP_ID],
       credential,
       requireUserVerification: false,
     });
@@ -82,7 +99,7 @@ describe('verifyAuthenticationResponse', () => {
       response: assertionResponse,
       expectedChallenge: assertionChallenge,
       expectedOrigin: EXPECTED_ORIGIN,
-      expectedRPID: EXPECTED_RP_ID,
+      expectedRPIDs: [EXPECTED_RP_ID],
       credential,
       requireUserVerification: false,
     });
@@ -103,7 +120,7 @@ describe('verifyAuthenticationResponse', () => {
         response: assertionResponse,
         expectedChallenge: 'shouldhavebeenthisvalue',
         expectedOrigin: EXPECTED_ORIGIN,
-        expectedRPID: EXPECTED_RP_ID,
+        expectedRPIDs: [EXPECTED_RP_ID],
         credential,
       }),
     ).rejects.toThrow('Unexpected authentication response challenge');
@@ -115,7 +132,7 @@ describe('verifyAuthenticationResponse', () => {
         response: assertionResponse,
         expectedChallenge: assertionChallenge,
         expectedOrigin: 'https://different.address',
-        expectedRPID: EXPECTED_RP_ID,
+        expectedRPIDs: [EXPECTED_RP_ID],
         credential,
       }),
     ).rejects.toThrow('Unexpected authentication response origin');
@@ -137,7 +154,7 @@ describe('verifyAuthenticationResponse', () => {
       },
       expectedChallenge: assertionChallenge,
       expectedOrigin: EXPECTED_ORIGIN,
-      expectedRPID: EXPECTED_RP_ID,
+      expectedRPIDs: [EXPECTED_RP_ID],
       credential,
     });
 
@@ -166,7 +183,7 @@ describe('verifyAuthenticationResponse', () => {
         },
         expectedChallenge: assertionChallenge,
         expectedOrigin: EXPECTED_ORIGIN,
-        expectedRPID: EXPECTED_RP_ID,
+        expectedRPIDs: [EXPECTED_RP_ID],
         credential,
       }),
     ).rejects.toThrow('Unexpected authentication response type');
@@ -178,7 +195,7 @@ describe('verifyAuthenticationResponse', () => {
         response: assertionResponse,
         expectedChallenge: assertionChallenge,
         expectedOrigin: EXPECTED_ORIGIN,
-        expectedRPID: 'wrong-rp.com',
+        expectedRPIDs: ['wrong-rp.com'],
         credential,
       }),
     ).rejects.toThrow('Unexpected RP ID hash');
@@ -194,7 +211,7 @@ describe('verifyAuthenticationResponse', () => {
         },
         expectedChallenge: assertionChallenge,
         expectedOrigin: EXPECTED_ORIGIN,
-        expectedRPID: EXPECTED_RP_ID,
+        expectedRPIDs: [EXPECTED_RP_ID],
         credential,
       }),
     ).rejects.toThrow('Missing credential ID');
@@ -209,7 +226,7 @@ describe('verifyAuthenticationResponse', () => {
         },
         expectedChallenge: assertionChallenge,
         expectedOrigin: EXPECTED_ORIGIN,
-        expectedRPID: EXPECTED_RP_ID,
+        expectedRPIDs: [EXPECTED_RP_ID],
         credential,
       }),
     ).rejects.toThrow('Credential ID was not base64url-encoded');
@@ -224,7 +241,7 @@ describe('verifyAuthenticationResponse', () => {
         } as unknown as PasskeyAuthenticationResponse,
         expectedChallenge: assertionChallenge,
         expectedOrigin: EXPECTED_ORIGIN,
-        expectedRPID: EXPECTED_RP_ID,
+        expectedRPIDs: [EXPECTED_RP_ID],
         credential,
       }),
     ).rejects.toThrow('Unexpected credential type');
@@ -247,7 +264,7 @@ describe('verifyAuthenticationResponse', () => {
         },
         expectedChallenge: assertionChallenge,
         expectedOrigin: EXPECTED_ORIGIN,
-        expectedRPID: EXPECTED_RP_ID,
+        expectedRPIDs: [EXPECTED_RP_ID],
         credential,
       }),
     ).rejects.toThrow('User not present during authentication');
@@ -259,7 +276,7 @@ describe('verifyAuthenticationResponse', () => {
         response: assertionResponse,
         expectedChallenge: assertionChallenge,
         expectedOrigin: EXPECTED_ORIGIN,
-        expectedRPID: EXPECTED_RP_ID,
+        expectedRPIDs: [EXPECTED_RP_ID],
         credential: {
           ...credential,
           counter: 144,
@@ -277,7 +294,7 @@ describe('verifyAuthenticationResponse', () => {
         response: assertionResponse,
         expectedChallenge: assertionChallenge,
         expectedOrigin: EXPECTED_ORIGIN,
-        expectedRPID: EXPECTED_RP_ID,
+        expectedRPIDs: [EXPECTED_RP_ID],
         credential: {
           ...credential,
           counter: 200,
@@ -294,7 +311,7 @@ describe('verifyAuthenticationResponse', () => {
       response: assertionFirstTimeUsedResponse,
       expectedChallenge: assertionFirstTimeUsedChallenge,
       expectedOrigin: EXPECTED_ORIGIN,
-      expectedRPID: EXPECTED_RP_ID,
+      expectedRPIDs: [EXPECTED_RP_ID],
       credential: authenticatorFirstTimeUsed,
       requireUserVerification: false,
     });
@@ -308,7 +325,7 @@ describe('verifyAuthenticationResponse', () => {
         response: assertionResponse,
         expectedChallenge: assertionChallenge,
         expectedOrigin: EXPECTED_ORIGIN,
-        expectedRPID: EXPECTED_RP_ID,
+        expectedRPIDs: [EXPECTED_RP_ID],
         credential,
         requireUserVerification: true,
       }),
@@ -322,7 +339,7 @@ describe('verifyAuthenticationResponse', () => {
       response: assertionResponse,
       expectedChallenge: assertionChallenge,
       expectedOrigin: ['https://other.com', EXPECTED_ORIGIN],
-      expectedRPID: EXPECTED_RP_ID,
+      expectedRPIDs: [EXPECTED_RP_ID],
       credential,
       requireUserVerification: false,
     });
@@ -342,7 +359,7 @@ describe('verifyAuthenticationResponse', () => {
         },
         expectedChallenge: assertionChallenge,
         expectedOrigin: EXPECTED_ORIGIN,
-        expectedRPID: EXPECTED_RP_ID,
+        expectedRPIDs: [EXPECTED_RP_ID],
         credential,
       }),
     ).rejects.toThrow('Credential response clientDataJSON was not a string');
@@ -360,7 +377,7 @@ describe('verifyAuthenticationResponse', () => {
         },
         expectedChallenge: assertionChallenge,
         expectedOrigin: EXPECTED_ORIGIN,
-        expectedRPID: EXPECTED_RP_ID,
+        expectedRPIDs: [EXPECTED_RP_ID],
         credential,
       }),
     ).rejects.toThrow('Credential response userHandle was not a string');
@@ -387,7 +404,7 @@ describe('verifyAuthenticationResponse', () => {
         },
         expectedChallenge: assertionChallenge,
         expectedOrigin: EXPECTED_ORIGIN,
-        expectedRPID: EXPECTED_RP_ID,
+        expectedRPIDs: [EXPECTED_RP_ID],
         credential,
       }),
     ).rejects.toThrow('ClientDataJSON tokenBinding was not an object');
@@ -414,7 +431,7 @@ describe('verifyAuthenticationResponse', () => {
         },
         expectedChallenge: assertionChallenge,
         expectedOrigin: EXPECTED_ORIGIN,
-        expectedRPID: EXPECTED_RP_ID,
+        expectedRPIDs: [EXPECTED_RP_ID],
         credential,
       }),
     ).rejects.toThrow('Unexpected tokenBinding status');

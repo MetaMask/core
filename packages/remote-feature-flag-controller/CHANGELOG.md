@@ -9,7 +9,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Bump `@metamask/controller-utils` from `^11.19.0` to `^11.20.0` ([#8344](https://github.com/MetaMask/core/pull/8344))
+- Bump `@metamask/controller-utils` from `^12.1.0` to `^12.1.1` ([#9058](https://github.com/MetaMask/core/pull/9058))
+
+## [4.2.2]
+
+### Changed
+
+- Bump `@metamask/controller-utils` from `^12.0.0` to `^12.1.0` ([#8774](https://github.com/MetaMask/core/pull/8774))
+
+### Fixed
+
+- Support `ThresholdVersion.DirectValue` (`thresholdVersion: 2`) threshold feature flag entries that return the selected `value` directly while preserving the existing threshold wrapper shape for unversioned entries ([#8908](https://github.com/MetaMask/core/pull/8908))
+
+## [4.2.1]
+
+### Changed
+
+- Bump `@metamask/controller-utils` from `^11.19.0` to `^12.0.0` ([#8344](https://github.com/MetaMask/core/pull/8344), [#8755](https://github.com/MetaMask/core/pull/8755))
 - Bump `@metamask/messenger` from `^1.0.0` to `^1.2.0` ([#8364](https://github.com/MetaMask/core/pull/8364), [#8373](https://github.com/MetaMask/core/pull/8373), [#8632](https://github.com/MetaMask/core/pull/8632))
 - Bump `@metamask/base-controller` from `^9.0.1` to `^9.1.0` ([#8457](https://github.com/MetaMask/core/pull/8457))
 
@@ -42,14 +58,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **BREAKING:** Improve threshold-based feature flag processing to ensure independent user assignment across different flags ([#7511](https://github.com/MetaMask/core/pull/7511)):
+- **BREAKING:** Improve threshold-based feature flag processing to ensure independent user assignment across different flags ([#7511](https://github.com/MetaMask/core/pull/7511))
   - Persist threshold values in controller state to avoid recalculating on app restart
   - Skip cryptographic operations for non-threshold arrays
   - Batch cache updates and cleanup into single state change
   - Automatically remove stale cache entries when flags are deleted
-- Upgrade `@metamask/utils` from `^11.8.1` to `^11.9.0` ([#7511](https://github.com/MetaMask/core/pull/7511)) for native `crypto.subtle.digest` optimization ([#7511](https://github.com/MetaMask/core/pull/7511))
+- Upgrade `@metamask/utils` from `^11.8.1` to `^11.9.0` for native `crypto.subtle.digest` optimization ([#7511](https://github.com/MetaMask/core/pull/7511))
 - Remove `@noble/hashes` dependency since hashing utilities are now available in upgraded `@metamask/utils` ([#7511](https://github.com/MetaMask/core/pull/7511))
-- Changes to exported types ([#7511](https://github.com/MetaMask/core/pull/7511)):
+- Changes to exported types ([#7511](https://github.com/MetaMask/core/pull/7511))
   - Add optional field `thresholdCache` to `RemoteFeatureFlagControllerState`
 - Bump `@metamask/controller-utils` from `^11.16.0` to `^11.17.0` ([#7534](https://github.com/MetaMask/core/pull/7534))
 
@@ -169,9 +185,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Deprecate `ClientConfigApiService` constructor options `onBreak` and `onDegraded` in favor of methods ([#5109](https://github.com/MetaMask/core/pull/5109))
-- Add `@metamask/controller-utils@^11.5.0` as a dependency ([#5109](https://github.com/MetaMask/core/pull/5109)), ([#5272](https://github.com/MetaMask/core/pull/5272))
+- Add `@metamask/controller-utils@^11.5.0` as a dependency ([#5109](https://github.com/MetaMask/core/pull/5109), [#5272](https://github.com/MetaMask/core/pull/5272))
   - `cockatiel` should still be in the dependency tree because it's now a dependency of `@metamask/controller-utils`
-- Bump `@metamask/base-controller` from `^7.1.0` to `^8.0.0` ([#5135](https://github.com/MetaMask/core/pull/5135)), ([#5305](https://github.com/MetaMask/core/pull/5305))
+- Bump `@metamask/base-controller` from `^7.1.0` to `^8.0.0` ([#5135](https://github.com/MetaMask/core/pull/5135), [#5305](https://github.com/MetaMask/core/pull/5305))
 - Bump `@metamask/utils` from `^11.0.1` to `^11.1.0` ([#5223](https://github.com/MetaMask/core/pull/5223))
 
 ## [1.3.0]
@@ -209,7 +225,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Initial release of the RemoteFeatureFlagController. ([#4931](https://github.com/MetaMask/core/pull/4931))
   - This controller manages the retrieval and caching of remote feature flags. It fetches feature flags from a remote API, caches them, and provides methods to access and manage these flags. The controller ensures that feature flags are refreshed based on a specified interval and handles cases where the controller is disabled or the network is unavailable.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/remote-feature-flag-controller@4.2.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/remote-feature-flag-controller@4.2.2...HEAD
+[4.2.2]: https://github.com/MetaMask/core/compare/@metamask/remote-feature-flag-controller@4.2.1...@metamask/remote-feature-flag-controller@4.2.2
+[4.2.1]: https://github.com/MetaMask/core/compare/@metamask/remote-feature-flag-controller@4.2.0...@metamask/remote-feature-flag-controller@4.2.1
 [4.2.0]: https://github.com/MetaMask/core/compare/@metamask/remote-feature-flag-controller@4.1.0...@metamask/remote-feature-flag-controller@4.2.0
 [4.1.0]: https://github.com/MetaMask/core/compare/@metamask/remote-feature-flag-controller@4.0.0...@metamask/remote-feature-flag-controller@4.1.0
 [4.0.0]: https://github.com/MetaMask/core/compare/@metamask/remote-feature-flag-controller@3.1.0...@metamask/remote-feature-flag-controller@4.0.0

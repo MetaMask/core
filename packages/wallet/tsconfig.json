@@ -1,0 +1,15 @@
+{
+  "extends": "../../tsconfig.packages.json",
+  "compilerOptions": {
+    "baseUrl": "./"
+  },
+  "references": [
+    { "path": "../approval-controller/tsconfig.json" },
+    { "path": "../base-controller/tsconfig.json" },
+    { "path": "../controller-utils/tsconfig.json" },
+    { "path": "../keyring-controller/tsconfig.json" },
+    { "path": "../messenger/tsconfig.json" },
+    { "path": "../storage-service/tsconfig.json" }
+  ],
+  "include": ["../../types", "./src"]
+}

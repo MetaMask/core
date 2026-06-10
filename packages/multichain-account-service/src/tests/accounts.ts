@@ -72,7 +72,7 @@ export const MOCK_HD_KEYRING_2 = {
   accounts: ['0x456'],
 };
 
-/** Used when tests need ensureCanUseSnapPlatform to resolve (SnapPlatformWatcher waits for Snap keyring). */
+/** Used when tests need ensureReady to resolve (SnapAccountService waits for Snap keyring). */
 export const MOCK_SNAP_KEYRING = {
   type: KeyringTypes.snap,
   metadata: { id: 'snap-keyring', name: 'Snap Keyring' },
@@ -324,6 +324,11 @@ export class MockAccountBuilder<Account extends KeyringAccount> {
 
   withUuid() {
     this.#account.id = uuid();
+    return this;
+  }
+
+  withAddress(address: string): this {
+    this.#account.address = address;
     return this;
   }
 
