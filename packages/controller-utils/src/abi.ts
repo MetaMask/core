@@ -57,7 +57,9 @@ const fastAbiCoder = new FastAbiCoder();
 /**
  * Encode the data required for a function call.
  *
- * Note: This uses `@ethersproject/abi` under the hood, but with some performance optimizations.
+ * Note: This uses `@ethersproject/abi` under the hood, but for improved
+ * performance, does not verify checksums of addresses. Make sure addresses
+ * passed to this function are valid and checksummed if necessary.
  *
  * @param abi - The ABI instance.
  * @param functionName - The function name.
