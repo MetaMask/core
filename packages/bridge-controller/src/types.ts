@@ -305,7 +305,12 @@ export type StellarTradeData = Infer<typeof StellarTradeDataSchema>;
  * ApprovalType can be overriden when you know the specific approval type (e.g., TxData for EVM-only contexts)
  */
 export type QuoteResponse<
-  TxDataType = TxData | string | BitcoinTradeData | TronTradeData | StellarTradeData,
+  TxDataType =
+    | TxData
+    | string
+    | BitcoinTradeData
+    | TronTradeData
+    | StellarTradeData,
   ApprovalType = TxData | TronTradeData,
 > = Infer<typeof QuoteResponseSchema> & {
   trade: TxDataType;
