@@ -69,7 +69,9 @@ class MockStellarKeyring {
       const account = MockAccountBuilder.from(MOCK_XLM_ACCOUNT_1)
         .withUuid()
         .withAddressSuffix(`${this.accounts.length}`)
-        .withGroupIndex(typeof index === 'number' ? index : this.accounts.length)
+        .withGroupIndex(
+          typeof index === 'number' ? index : this.accounts.length,
+        )
         .get();
       this.accounts.push(account);
 
