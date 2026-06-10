@@ -211,6 +211,8 @@ export class NetworkConnectionBannerController extends BaseController<
 
   #unavailableTimer: ReturnType<typeof setTimeout> | undefined;
 
+  #pendingNetworkClientId: string | undefined;
+
   /**
    * Constructs a new {@link NetworkConnectionBannerController}.
    *
@@ -315,9 +317,6 @@ export class NetworkConnectionBannerController extends BaseController<
       return;
     }
 
-    // If the banner is currently showing for a different network or status,
-    // restart the escalation timeline for the new one. Otherwise let the
-    // existing timers continue.
     if (
       this.state.status !== 'available' &&
       this.state.network?.networkClientId === failed.networkClientId
@@ -328,14 +327,20 @@ export class NetworkConnectionBannerController extends BaseController<
       return;
     }
 
+    if (this.#pendingNetworkClientId === failed.networkClientId) {
+      return;
+    }
+
     this.#clearTimers();
     this.update((draft) => {
       draft.status = 'available';
       draft.network = null;
     });
 
+    this.#pendingNetworkClientId = failed.networkClientId;
     this.#degradedTimer = setTimeout(() => {
       this.#degradedTimer = undefined;
+      this.#pendingNetworkClientId = undefined;
       const stillFailed = this.#findFailedNetworkForBanner();
       if (!stillFailed) {
         return;
@@ -373,6 +378,7 @@ export class NetworkConnectionBannerController extends BaseController<
   }
 
   #clearTimers(): void {
+    this.#pendingNetworkClientId = undefined;
     if (this.#degradedTimer !== undefined) {
       clearTimeout(this.#degradedTimer);
       this.#degradedTimer = undefined;

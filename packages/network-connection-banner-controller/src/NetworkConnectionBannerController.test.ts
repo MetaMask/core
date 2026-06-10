@@ -406,6 +406,40 @@ describe('NetworkConnectionBannerController', () => {
       });
     });
 
+    it('does not restart the degraded timer when the same network fails across re-evaluations', async () => {
+      await withController(({ controller, setNetworkState }) => {
+        const failingState = buildNetworkState({
+          configurations: {
+            '0x89': buildConfiguration({
+              chainId: '0x89',
+              name: 'Polygon Mainnet',
+              nativeCurrency: 'MATIC',
+              rpcEndpoints: [
+                buildCustomEndpoint(
+                  POLYGON_CUSTOM_CLIENT_ID,
+                  'https://polygon-rpc.com',
+                ),
+              ],
+            }),
+          },
+          enabledChainIds: ['0x89'],
+          metadata: {
+            [POLYGON_CUSTOM_CLIENT_ID]: makeMetadata(
+              NetworkStatus.Unavailable,
+            ),
+          },
+        });
+
+        setNetworkState(failingState);
+        jest.advanceTimersByTime(4_000);
+
+        setNetworkState(failingState);
+        jest.advanceTimersByTime(1_000);
+
+        expect(controller.state.status).toBe('degraded');
+      });
+    });
+
     it('cancels the banner if the network recovers between the degraded-timer scheduling and its firing', async () => {
       await withController(({ controller, setNetworkState }) => {
         setNetworkState(
