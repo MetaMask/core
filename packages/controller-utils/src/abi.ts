@@ -1,10 +1,11 @@
-import { AbiCoder, Interface, ParamType } from '@ethersproject/abi';
+import { AbiCoder, Interface, ParamType, Result } from '@ethersproject/abi';
 import {
   concatBytes,
   hexToBytes,
   bytesToHex,
   getChecksumAddress,
   add0x,
+  assert,
 } from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
 
@@ -73,4 +74,32 @@ export function encodeFunctionData(
   const sigHash = hexToBytes(abi.getSighash(func));
   const encodedParams = fastAbiCoder.encode(func.inputs, values);
   return bytesToHex(concatBytes([sigHash, encodedParams]));
+}
+
+/**
+ * Decode the data returned from a function call.
+ *
+ * Note: This uses `@ethersproject/abi` under the hood, but with some performance optimizations.
+ *
+ * @param abi - The ABI instance.
+ * @param functionName - The function name.
+ * @param data - The data to decode.
+ * @returns The decoded data for the function call.
+ */
+export function decodeFunctionResult(
+  abi: Interface,
+  functionName: string,
+  data: Hex,
+): Result {
+  const func = abi.getFunction(functionName);
+  assert(
+    func.outputs,
+    'ABI outputs are required when using decodeFunctionResult.',
+  );
+  try {
+    return fastAbiCoder.decode(func.outputs, data);
+  } catch {
+    // In case of failure, fallback to slower Ethers implementation.
+    return abi.decodeFunctionData(func, data);
+  }
 }

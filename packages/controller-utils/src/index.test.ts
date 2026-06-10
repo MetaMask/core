@@ -5,6 +5,7 @@ describe('@metamask/controller-utils', () => {
     expect(Object.keys(allExports)).toMatchInlineSnapshot(`
       [
         "encodeFunctionData",
+        "decodeFunctionResult",
         "BrokenCircuitError",
         "CircuitState",
         "CockatielEventEmitter",
