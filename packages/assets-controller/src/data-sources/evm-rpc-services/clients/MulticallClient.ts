@@ -1,12 +1,5 @@
-import { AbiCoder, Interface, ParamType } from '@ethersproject/abi';
-import { createServicePolicy } from '@metamask/controller-utils';
-import {
-  concatBytes,
-  hexToBytes,
-  bytesToHex,
-  getChecksumAddress,
-  add0x,
-} from '@metamask/utils';
+import { Interface } from '@ethersproject/abi';
+import { createServicePolicy, encodeFunctionData } from '@metamask/controller-utils';
 import type { Hex } from '@metamask/utils';
 
 import { ZERO_ADDRESS } from '../../../utils/constants';
@@ -383,63 +376,6 @@ const MULTICALL3_ADDRESS_BY_CHAIN: Record<Hex, Hex> = {
 // =============================================================================
 // ENCODING/DECODING UTILITIES (using @ethersproject/abi)
 // =============================================================================
-
-// Ethers does not export these unfortunately.
-type Coder = ReturnType<AbiCoder['_getCoder']>;
-type Writer = Parameters<Coder['encode']>[0];
-type Reader = Parameters<Coder['decode']>[0];
-
-// FastAddressCoder that skips checksumming addresses when encoding and uses the memoized `getChecksumAddress` for decoding.
-class FastAddressCoder {
-  name = 'address';
-
-  type = 'address';
-
-  dynamic = false;
-
-  localName: string;
-
-  constructor(localName: string) {
-    this.localName = localName;
-  }
-
-  encode(writer: Writer, value: string): number {
-    return writer.writeValue(value);
-  }
-
-  decode(reader: Reader): unknown {
-    const value = reader.readValue();
-    const paddedHex = value.toHexString().slice(2).padStart(40);
-    return getChecksumAddress(add0x(paddedHex));
-  }
-
-  defaultValue(): string {
-    return ZERO_ADDRESS;
-  }
-}
-
-class FastAbiCoder extends AbiCoder {
-  _getCoder(param: ParamType): Coder {
-    if (param.type === 'address') {
-      // Casting since we are missing internal unused methods, such _throwError.
-      return new FastAddressCoder(param.name) as unknown as Coder;
-    }
-    return super._getCoder(param);
-  }
-}
-
-const fastAbiCoder = new FastAbiCoder();
-
-function encodeFunctionData(
-  abi: Interface,
-  functionName: string,
-  values: unknown[],
-): Hex {
-  const func = abi.getFunction(functionName);
-  const sigHash = hexToBytes(abi.getSighash(func));
-  const encodedParams = fastAbiCoder.encode(func.inputs, values);
-  return bytesToHex(concatBytes([sigHash, encodedParams]));
-}
 
 /**
  * Encode a balanceOf call for an ERC-20 token.
