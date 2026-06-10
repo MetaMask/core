@@ -9,7 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Export `NetworkEnablementControllerStateChangeEvent` type from the package root ([#9084](https://github.com/MetaMask/core/pull/9084))
 - Added Tempo (`0x1079`) to `POPULAR_NETWORKS`, so that `enableAllPopularNetworks()` enables it alongside the other popular networks and keeps the controller in sync with the client's popular networks list ([#9069](https://github.com/MetaMask/core/pull/9069))
+
+### Changed
+
+- Bump `@metamask/controller-utils` from `^12.1.0` to `^12.2.0` ([#9058](https://github.com/MetaMask/core/pull/9058), [#9083](https://github.com/MetaMask/core/pull/9083))
+- Bump `@metamask/transaction-controller` from `^66.0.1` to `^67.1.0` ([#9021](https://github.com/MetaMask/core/pull/9021), [#9066](https://github.com/MetaMask/core/pull/9066))
 
 ## [5.3.0]
 

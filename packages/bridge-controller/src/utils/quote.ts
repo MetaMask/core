@@ -17,8 +17,8 @@ import type {
   NonEvmFees,
   TxData,
 } from '../types';
+import { FeatureId } from '../types';
 import { isNativeAddress, isNonEvmChainId } from './bridge';
-import { FeatureId } from './validators';
 
 export const isValidQuoteRequest = (
   partialRequest: Partial<GenericQuoteRequest>,

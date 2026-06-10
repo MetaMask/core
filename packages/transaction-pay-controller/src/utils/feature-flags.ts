@@ -9,6 +9,7 @@ import type { TransactionPayFiatAsset } from '../strategy/fiat/constants';
 import {
   ETH_MAINNET_FIAT_ASSET,
   FIAT_ASSET_ID_BY_TX_TYPE,
+  FIAT_ENABLED_TYPES,
 } from '../strategy/fiat/constants';
 import {
   RELAY_EXECUTE_URL,
@@ -24,6 +25,9 @@ import type { TransactionPayControllerMessenger } from '../types';
 const log = createModuleLogger(projectLogger, 'feature-flags');
 
 type StrategyOrder = TransactionPayStrategy[];
+
+export const DEFAULT_FEE_RESERVE_MULTIPLIER = 1.2;
+export const DEFAULT_MAX_RATE_DRIFT_PERCENT = 10;
 
 export const DEFAULT_GAS_BUFFER = 1.0;
 export const DEFAULT_FALLBACK_GAS_ESTIMATE = 900000;
@@ -91,6 +95,9 @@ type FiatFlags = {
   assetPerTransactionType?: Partial<
     Record<TransactionType, TransactionPayFiatAsset>
   >;
+  enabledTransactionTypes: TransactionType[];
+  feeReserveMultiplier?: number;
+  maxRateDriftPercent?: number;
 };
 
 type StrategyRoutingConfig = {
@@ -819,6 +826,72 @@ export function getFiatAssetPerTransactionType(
     FIAT_ASSET_ID_BY_TX_TYPE[transactionType] ??
     ETH_MAINNET_FIAT_ASSET
   );
+}
+
+/**
+ * Get the enabled fiat transaction types.
+ *
+ * @param messenger - Controller messenger.
+ * @returns The enabled fiat transaction types.
+ */
+export function getFiatEnabledTypes(
+  messenger: TransactionPayControllerMessenger,
+): TransactionType[] {
+  const state = messenger.call('RemoteFeatureFlagController:getState');
+  const fiatFlags = state.remoteFeatureFlags?.confirmations_pay_fiat as
+    | FiatFlags
+    | undefined;
+
+  return fiatFlags?.enabledTransactionTypes ?? FIAT_ENABLED_TYPES;
+}
+
+/**
+ * Returns the fee reserve multiplier for fiat three-phase submit.
+ *
+ * Controls how much of the original relay fee is reserved from the discovery
+ * quote source amount to prevent EXACT_OUTPUT cost overruns.
+ *
+ * @param messenger - Controller messenger.
+ * @returns The fee reserve multiplier.
+ */
+export function getFiatFeeReserveMultiplier(
+  messenger: TransactionPayControllerMessenger,
+): number {
+  const state = messenger.call('RemoteFeatureFlagController:getState');
+  const fiatFlags = state.remoteFeatureFlags?.confirmations_pay_fiat as
+    | FiatFlags
+    | undefined;
+
+  const multiplier = fiatFlags?.feeReserveMultiplier;
+
+  return typeof multiplier === 'number' && multiplier > 0
+    ? multiplier
+    : DEFAULT_FEE_RESERVE_MULTIPLIER;
+}
+
+/**
+ * Returns the maximum allowed relay rate drift percentage for fiat submit.
+ *
+ * Controls how much the relay exchange rate can drift between the original
+ * quoting phase and the post-settlement discovery quote before failing.
+ * Defaults to 10%.
+ *
+ * @param messenger - Controller messenger.
+ * @returns The maximum rate drift percentage.
+ */
+export function getFiatMaxRateDriftPercent(
+  messenger: TransactionPayControllerMessenger,
+): number {
+  const state = messenger.call('RemoteFeatureFlagController:getState');
+  const fiatFlags = state.remoteFeatureFlags?.confirmations_pay_fiat as
+    | FiatFlags
+    | undefined;
+
+  const maxDrift = fiatFlags?.maxRateDriftPercent;
+
+  return typeof maxDrift === 'number' && maxDrift > 0
+    ? maxDrift
+    : DEFAULT_MAX_RATE_DRIFT_PERCENT;
 }
 
 /**

@@ -33,7 +33,13 @@ export const ETH_MAINNET_FIAT_ASSET: TransactionPayFiatAsset = {
 export const FIAT_ASSET_ID_BY_TX_TYPE: Partial<
   Record<TransactionType, TransactionPayFiatAsset>
 > = {
-  [TransactionType.predictDeposit]: POLYGON_POL_FIAT_ASSET,
+  [TransactionType.moneyAccountDeposit]: ETH_MAINNET_FIAT_ASSET,
   [TransactionType.perpsDeposit]: ARBITRUM_ETH_FIAT_ASSET,
-  [TransactionType.perpsDepositAndOrder]: ARBITRUM_ETH_FIAT_ASSET,
+  [TransactionType.predictDeposit]: POLYGON_POL_FIAT_ASSET,
 };
+
+export const FIAT_ENABLED_TYPES: TransactionType[] = [
+  TransactionType.moneyAccountDeposit,
+  TransactionType.perpsDeposit,
+  TransactionType.predictDeposit,
+];
