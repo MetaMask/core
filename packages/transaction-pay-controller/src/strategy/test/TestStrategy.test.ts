@@ -19,6 +19,7 @@ describe('TestStrategy', () => {
     it('returns quote', async () => {
       const quotesPromise = new TestStrategy().getQuotes({
         accountSupports7702: true,
+        from: '0x0000000000000000000000000000000000000000',
         messenger: {} as TransactionPayControllerMessenger,
         requests: [REQUEST_MOCK],
         transaction: TRANSACTION_META_MOCK,

@@ -589,11 +589,48 @@ describe('Quotes Utils', () => {
       });
     });
 
+    it('still invokes strategies when no payment token but fiat payment method is set', async () => {
+      await run({
+        transactionData: {
+          ...TRANSACTION_DATA_MOCK,
+          paymentToken: undefined,
+          fiatPayment: { selectedPaymentMethodId: 'card-123' },
+        },
+      });
+
+      expect(getQuotesMock).toHaveBeenCalled();
+    });
+
+    it('does not invoke strategies when no payment token and no fiat payment method', async () => {
+      await run({
+        transactionData: {
+          ...TRANSACTION_DATA_MOCK,
+          paymentToken: undefined,
+          fiatPayment: {},
+        },
+      });
+
+      const transactionDataMock = {
+        quotes: [QUOTE_MOCK],
+        quotesLastUpdated: undefined,
+      };
+
+      updateTransactionDataMock.mock.calls.map((call) =>
+        call[1](transactionDataMock),
+      );
+
+      expect(transactionDataMock).toMatchObject({
+        quotes: [],
+        quotesLastUpdated: expect.any(Number),
+      });
+    });
+
     it('gets quotes from strategy', async () => {
       await run();
 
       expect(getQuotesMock).toHaveBeenCalledWith({
         accountSupports7702: true,
+        from: TRANSACTION_META_MOCK.txParams.from,
         messenger,
         requests: [
           {
@@ -638,6 +675,7 @@ describe('Quotes Utils', () => {
 
       expect(getQuotesMock).toHaveBeenCalledWith({
         accountSupports7702: true,
+        from: TRANSACTION_META_MOCK.txParams.from,
         messenger,
         requests: [
           expect.objectContaining({
@@ -1239,6 +1277,7 @@ describe('Quotes Utils', () => {
 
       expect(getQuotesMock).toHaveBeenCalledWith({
         accountSupports7702: true,
+        from: TRANSACTION_META_MOCK.txParams.from,
         messenger,
         requests: [
           {

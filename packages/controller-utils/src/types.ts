@@ -24,6 +24,27 @@ export type InfuraNetworkType =
   (typeof InfuraNetworkType)[keyof typeof InfuraNetworkType];
 
 /**
+ * The default set of Infura networks to include in the wallet.
+ *
+ * This is a subset of the full list of {@link InfuraNetworkType}, and can be used to determine
+ * which Infura networks to enable by default.
+ */
+export const DEFAULT_INFURA_NETWORKS = [
+  InfuraNetworkType.mainnet,
+  InfuraNetworkType.goerli,
+  InfuraNetworkType.sepolia,
+  InfuraNetworkType['linea-goerli'],
+  InfuraNetworkType['linea-sepolia'],
+  InfuraNetworkType['linea-mainnet'],
+  InfuraNetworkType['base-mainnet'],
+  InfuraNetworkType['arbitrum-mainnet'],
+  InfuraNetworkType['bsc-mainnet'],
+  InfuraNetworkType['optimism-mainnet'],
+  InfuraNetworkType['polygon-mainnet'],
+  InfuraNetworkType['monad-mainnet'],
+] as const satisfies InfuraNetworkType[];
+
+/**
  * Custom network types that are not part of Infura.
  */
 export const CustomNetworkType = {
@@ -206,7 +227,7 @@ export type BlockExplorerUrl =
   (typeof BlockExplorerUrl)[keyof typeof BlockExplorerUrl];
 
 export const NetworkNickname = {
-  [BuiltInNetworkName.Mainnet]: 'Ethereum Mainnet',
+  [BuiltInNetworkName.Mainnet]: 'Ethereum',
   [BuiltInNetworkName.Goerli]: 'Goerli',
   [BuiltInNetworkName.Sepolia]: 'Sepolia',
   [BuiltInNetworkName.LineaGoerli]: 'Linea Goerli',
@@ -218,14 +239,14 @@ export const NetworkNickname = {
   [BuiltInNetworkName.MegaETHTestnet]: 'Mega Testnet',
   [BuiltInNetworkName.MegaETHTestnetV2]: 'MegaETH Testnet',
   [BuiltInNetworkName.MonadTestnet]: 'Monad Testnet',
-  [BuiltInNetworkName.BaseMainnet]: 'Base Mainnet',
-  [BuiltInNetworkName.ArbitrumOne]: 'Arbitrum One',
-  [BuiltInNetworkName.BscMainnet]: 'BSC Mainnet',
-  [BuiltInNetworkName.OptimismMainnet]: 'Optimism Mainnet',
-  [BuiltInNetworkName.PolygonMainnet]: 'Polygon Mainnet',
+  [BuiltInNetworkName.BaseMainnet]: 'Base',
+  [BuiltInNetworkName.ArbitrumOne]: 'Arbitrum',
+  [BuiltInNetworkName.BscMainnet]: 'BNB Chain',
+  [BuiltInNetworkName.OptimismMainnet]: 'OP',
+  [BuiltInNetworkName.PolygonMainnet]: 'Polygon',
   [BuiltInNetworkName.SeiMainnet]: 'Sei Mainnet',
   [BuiltInNetworkName.MegaETHMainnet]: 'MegaETH Mainnet',
-  [BuiltInNetworkName.MonadMainnet]: 'Monad Mainnet',
+  [BuiltInNetworkName.MonadMainnet]: 'Monad',
   [BuiltInNetworkName.AvalancheMainnet]: 'Avalanche Mainnet',
   [BuiltInNetworkName.ZksyncMainnet]: 'ZKsync Era',
 } as const satisfies Record<BuiltInNetworkType, string>;

@@ -14,7 +14,10 @@ import {
 import { QuoteRefresher } from './helpers/QuoteRefresher';
 import { deriveFiatAssetForFiatPayment } from './strategy/fiat/utils';
 import type {
+  GetAmountDataCallback,
   GetDelegationTransactionCallback,
+  GetPaymentOverrideDataCallback,
+  PolymarketCallbacks,
   TransactionConfigCallback,
   TransactionData,
   TransactionPayControllerMessenger,
@@ -26,11 +29,20 @@ import type {
 import { getStrategyOrder } from './utils/feature-flags';
 import { updateQuotes } from './utils/quotes';
 import { updateSourceAmounts } from './utils/source-amounts';
-import { getTransaction, pollTransactionChanges } from './utils/transaction';
+import { buildCaipAssetType } from './utils/token';
+import {
+  getTransaction,
+  subscribeAssetChanges,
+  subscribeTransactionChanges,
+} from './utils/transaction';
 
 const MESSENGER_EXPOSED_METHODS = [
+  'getAmountData',
   'getDelegationTransaction',
+  'getPaymentOverrideData',
   'getStrategy',
+  'polymarketGetDepositWalletAddress',
+  'polymarketSubmitDepositWalletBatch',
   'setTransactionConfig',
   'updateFiatPayment',
   'updatePaymentToken',
@@ -54,7 +66,11 @@ export class TransactionPayController extends BaseController<
   TransactionPayControllerState,
   TransactionPayControllerMessenger
 > {
+  readonly #getAmountData?: GetAmountDataCallback;
+
   readonly #getDelegationTransaction: GetDelegationTransactionCallback;
+
+  readonly #getPaymentOverrideData?: GetPaymentOverrideDataCallback;
 
   readonly #getStrategy?: (
     transaction: TransactionMeta,
@@ -64,11 +80,16 @@ export class TransactionPayController extends BaseController<
     transaction: TransactionMeta,
   ) => TransactionPayStrategy[];
 
+  readonly #polymarket?: PolymarketCallbacks;
+
   constructor({
+    getAmountData,
     getDelegationTransaction,
+    getPaymentOverrideData,
     getStrategy,
     getStrategies,
     messenger,
+    polymarket,
     state,
   }: TransactionPayControllerOptions) {
     super({
@@ -78,19 +99,28 @@ export class TransactionPayController extends BaseController<
       state: { ...getDefaultState(), ...state },
     });
 
+    this.#getAmountData = getAmountData;
     this.#getDelegationTransaction = getDelegationTransaction;
+    this.#getPaymentOverrideData = getPaymentOverrideData;
     this.#getStrategy = getStrategy;
     this.#getStrategies = getStrategies;
+    this.#polymarket = polymarket;
 
     this.messenger.registerMethodActionHandlers(
       this,
       MESSENGER_EXPOSED_METHODS,
     );
 
-    pollTransactionChanges(
+    subscribeTransactionChanges(
       messenger,
       this.#updateTransactionData.bind(this),
       this.#removeTransactionData.bind(this),
+    );
+
+    subscribeAssetChanges(
+      messenger,
+      () => this.state,
+      this.#updateTransactionData.bind(this),
     );
 
     // eslint-disable-next-line no-new
@@ -119,8 +149,10 @@ export class TransactionPayController extends BaseController<
         isMaxAmount: transactionData.isMaxAmount,
         isPostQuote: transactionData.isPostQuote,
         isHyperliquidSource: transactionData.isHyperliquidSource,
+        isPolymarketDepositWallet: transactionData.isPolymarketDepositWallet,
         refundTo: transactionData.refundTo,
         accountOverride: transactionData.accountOverride,
+        paymentOverride: transactionData.paymentOverride,
       };
 
       const previousAccountOverride = config.accountOverride;
@@ -131,9 +163,15 @@ export class TransactionPayController extends BaseController<
       transactionData.isMaxAmount = config.isMaxAmount;
       transactionData.isPostQuote = config.isPostQuote;
       transactionData.isHyperliquidSource = config.isHyperliquidSource;
+      transactionData.isPolymarketDepositWallet =
+        config.isPolymarketDepositWallet;
       transactionData.refundTo = config.refundTo;
+      transactionData.paymentOverride = config.paymentOverride;
 
-      if (config.accountOverride !== previousAccountOverride) {
+      if (
+        !config.isPostQuote &&
+        config.accountOverride !== previousAccountOverride
+      ) {
         transactionData.paymentToken = undefined;
       }
     });
@@ -192,6 +230,30 @@ export class TransactionPayController extends BaseController<
   }
 
   /**
+   * Returns additional transactions for the paymentOverride flow.
+   *
+   * Delegates to the client-supplied {@link GetPaymentOverrideDataCallback}.
+   * Called during quote execution when `paymentOverride` is defined on the transaction.
+   * Returns an empty array when no callback is configured.
+   *
+   * @param args - The arguments forwarded to the {@link GetPaymentOverrideDataCallback}.
+   * @returns A promise resolving to the additional transactions array.
+   */
+  getAmountData(
+    ...args: Parameters<GetAmountDataCallback>
+  ): ReturnType<GetAmountDataCallback> {
+    return this.#getAmountData?.(...args) ?? Promise.resolve({ updates: [] });
+  }
+
+  getPaymentOverrideData(
+    ...args: Parameters<GetPaymentOverrideDataCallback>
+  ): ReturnType<GetPaymentOverrideDataCallback> {
+    return (
+      this.#getPaymentOverrideData?.(...args) ?? Promise.resolve({ calls: [] })
+    );
+  }
+
+  /**
    * Gets the preferred strategy for a transaction.
    *
    * Returns the first strategy from the ordered list of strategies applicable
@@ -203,6 +265,39 @@ export class TransactionPayController extends BaseController<
    */
   getStrategy(transaction: TransactionMeta): TransactionPayStrategy {
     return this.#getStrategiesWithFallback(transaction)[0];
+  }
+
+  /**
+   * Derives the Polymarket deposit-wallet address for an EOA via the
+   * client-supplied callback.
+   *
+   * @param args - The arguments forwarded to {@link PolymarketCallbacks.getDepositWalletAddress}.
+   * @returns A promise resolving to the deposit-wallet address.
+   */
+  polymarketGetDepositWalletAddress(
+    ...args: Parameters<PolymarketCallbacks['getDepositWalletAddress']>
+  ): ReturnType<PolymarketCallbacks['getDepositWalletAddress']> {
+    return this.#requirePolymarket().getDepositWalletAddress(...args);
+  }
+
+  /**
+   * Signs and broadcasts a Polymarket deposit-wallet batch via the
+   * client-supplied callback.
+   *
+   * @param args - The arguments forwarded to {@link PolymarketCallbacks.submitDepositWalletBatch}.
+   * @returns A promise resolving to the relayer-issued source hash.
+   */
+  polymarketSubmitDepositWalletBatch(
+    ...args: Parameters<PolymarketCallbacks['submitDepositWalletBatch']>
+  ): ReturnType<PolymarketCallbacks['submitDepositWalletBatch']> {
+    return this.#requirePolymarket().submitDepositWalletBatch(...args);
+  }
+
+  #requirePolymarket(): PolymarketCallbacks {
+    if (!this.#polymarket) {
+      throw new Error('TransactionPayController: Polymarket callbacks missing');
+    }
+    return this.#polymarket;
   }
 
   #removeTransactionData(transactionId: string): void {
@@ -284,16 +379,19 @@ export class TransactionPayController extends BaseController<
         transactionId,
         this.messenger,
       ) as TransactionMeta;
-      const fiatAsset = deriveFiatAssetForFiatPayment(transaction);
+      const fiatAsset = deriveFiatAssetForFiatPayment(
+        transaction,
+        this.messenger,
+      );
       if (fiatAsset) {
-        try {
-          this.messenger.call(
-            'RampsController:setSelectedToken',
-            fiatAsset.caipAssetId,
-          );
-        } catch {
-          // Intentionally no-op — tokens may not be loaded in RampsController yet.
-        }
+        this.#updateTransactionData(transactionId, (data) => {
+          if (data.fiatPayment) {
+            data.fiatPayment.caipAssetId = buildCaipAssetType(
+              fiatAsset.chainId,
+              fiatAsset.address,
+            );
+          }
+        });
       }
     }
 
@@ -311,6 +409,8 @@ export class TransactionPayController extends BaseController<
   #getStrategiesWithFallback(
     transaction: TransactionMeta,
   ): TransactionPayStrategy[] {
+    const transactionData = this.state.transactionData[transaction.id];
+
     const strategyCandidates: unknown[] =
       this.#getStrategies?.(transaction) ??
       (this.#getStrategy ? [this.#getStrategy(transaction)] : []);
@@ -324,14 +424,14 @@ export class TransactionPayController extends BaseController<
       return validStrategies;
     }
 
-    const paymentToken =
-      this.state.transactionData[transaction.id]?.paymentToken;
+    const paymentToken = transactionData?.paymentToken;
 
     return getStrategyOrder(
       this.messenger,
       paymentToken?.chainId,
       paymentToken?.address,
       transaction.type,
+      transactionData?.fiatPayment?.selectedPaymentMethodId,
     );
   }
 }

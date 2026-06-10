@@ -131,6 +131,7 @@ export async function addTransactionBatch(
 
   validateBatchRequest({
     internalAccounts: getInternalAccounts(),
+    isInternal: transactionBatchRequest.isInternal,
     request: transactionBatchRequest,
     sizeLimit,
   });
@@ -231,7 +232,7 @@ export async function isAtomicBatchSupported(
  *
  * @returns  A unique batch ID as a hexadecimal string.
  */
-function generateBatchId(): Hex {
+export function generateBatchId(): Hex {
   const idString = v4();
   const idBytes = new Uint8Array(parse(idString));
   return bytesToHex(idBytes);
@@ -296,6 +297,7 @@ async function addTransactionBatchWith7702(
     from,
     gasFeeToken,
     gasLimit7702,
+    isInternal,
     networkClientId,
     origin,
     overwriteUpgrade,
@@ -438,6 +440,7 @@ async function addTransactionBatchWith7702(
     excludeNativeTokenForFee,
     isGasFeeIncluded,
     isGasFeeSponsored,
+    isInternal,
     nestedTransactions,
     networkClientId,
     origin,
@@ -724,7 +727,7 @@ async function processTransactionWithHook(
     updateTransaction,
   } = request;
 
-  const { from, networkClientId, origin } = userRequest;
+  const { from, isInternal, networkClientId, origin } = userRequest;
 
   if (existingTransaction) {
     const { id, onPublish } = existingTransaction;
@@ -797,6 +800,7 @@ async function processTransactionWithHook(
       assetsFiatValues,
       batchId,
       disableGasBuffer: true,
+      isInternal,
       networkClientId,
       origin,
       publishHook,
@@ -941,6 +945,7 @@ async function prepareApprovalData({
 
   const {
     from,
+    isInternal,
     origin,
     networkClientId,
     transactions: nestedTransactions,
@@ -966,6 +971,7 @@ async function prepareApprovalData({
     from,
     gas: gasLimit,
     id: batchId,
+    isInternal,
     networkClientId,
     origin,
     transactions: nestedTransactions,

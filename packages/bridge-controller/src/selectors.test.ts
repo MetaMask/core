@@ -1,13 +1,16 @@
+import { getAddress } from '@ethersproject/address';
 import { AddressZero } from '@ethersproject/constants';
 import type { MarketDataDetails } from '@metamask/assets-controllers';
 import { toHex } from '@metamask/controller-utils';
 import { SolScope } from '@metamask/keyring-api';
 import { BigNumber } from 'bignumber.js';
 
+import mockQuotesErc20Erc20 from '../tests/mock-quotes-erc20-erc20.json';
+import mockQuotesNativeErc20 from '../tests/mock-quotes-native-erc20.json';
 import { DEFAULT_CHAIN_RANKING, ETH_USDT_ADDRESS } from './constants/bridge';
 import type { BridgeAppState } from './selectors';
 import {
-  selectExchangeRateByChainIdAndAddress,
+  selectExchangeRateByAssetId,
   selectIsAssetExchangeRateInState,
   selectBridgeQuotes,
   selectIsQuoteExpired,
@@ -15,6 +18,8 @@ import {
   selectMinimumBalanceForRentExemptionInSOL,
   selectDefaultSlippagePercentage,
   selectTokenWarnings,
+  selectBatchSellQuotes,
+  selectBatchSellTrades,
 } from './selectors';
 import type { BridgeAsset, QuoteResponse } from './types';
 import { SortOrder, RequestStatus, ChainId } from './types';
@@ -23,12 +28,13 @@ import {
   formatAddressToAssetId,
   formatChainIdToHex,
 } from './utils/caip-formatters';
+import { BatchSellTransactionType } from './utils/validators';
 
 const MOCK_USDC_ADDRESS = '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48';
 const MOCK_MUSD_ADDRESS = '0x12345A7890123456789012345678901234567890';
 
 describe('Bridge Selectors', () => {
-  describe('selectExchangeRateByChainIdAndAddress', () => {
+  describe('selectExchangeRateByAssetId', () => {
     const mockExchangeRateSources = {
       assetExchangeRates: {
         [formatAddressToAssetId(MOCK_USDC_ADDRESS, '1')?.toLowerCase() ??
@@ -36,7 +42,7 @@ describe('Bridge Selectors', () => {
           exchangeRate: '2.5',
           usdExchangeRate: '1.5',
         },
-        'solana:101/spl:456': {
+        'solana:101/token:456': {
           exchangeRate: '3.0',
         },
       },
@@ -61,34 +67,22 @@ describe('Bridge Selectors', () => {
       },
     } as unknown as BridgeAppState;
 
-    it('should return empty object if chainId is missing', () => {
+    it('should return empty object if chainId or address is missing', () => {
       expect(
-        selectExchangeRateByChainIdAndAddress(
-          mockExchangeRateSources,
-          undefined,
-          undefined,
-        ),
+        selectExchangeRateByAssetId(mockExchangeRateSources, undefined),
       ).toStrictEqual({});
       expect(
-        selectExchangeRateByChainIdAndAddress(mockExchangeRateSources, '1'),
-      ).toStrictEqual({
-        exchangeRate: '2468.12',
-        usdExchangeRate: '1800',
-      });
-      expect(
-        selectExchangeRateByChainIdAndAddress(
+        selectExchangeRateByAssetId(
           mockExchangeRateSources,
-          undefined,
-          MOCK_USDC_ADDRESS,
+          formatAddressToAssetId(MOCK_USDC_ADDRESS),
         ),
       ).toStrictEqual({});
     });
 
     it('should return bridge controller rate if available', () => {
-      const result = selectExchangeRateByChainIdAndAddress(
+      const result = selectExchangeRateByAssetId(
         mockExchangeRateSources,
-        '1',
-        MOCK_USDC_ADDRESS,
+        formatAddressToAssetId(MOCK_USDC_ADDRESS, '1'),
       );
       expect(result).toStrictEqual({
         exchangeRate: '2.5',
@@ -97,10 +91,9 @@ describe('Bridge Selectors', () => {
     });
 
     it('should handle Solana chain rates', () => {
-      const result = selectExchangeRateByChainIdAndAddress(
+      const result = selectExchangeRateByAssetId(
         mockExchangeRateSources,
-        SolScope.Mainnet,
-        '789',
+        formatAddressToAssetId('789', SolScope.Mainnet),
       );
       // usdExchangeRate = rate * (usdConversionRate / conversionRate) = 4.0 * (1800 / 2468.12)
       expect(result).toStrictEqual({
@@ -112,13 +105,12 @@ describe('Bridge Selectors', () => {
     });
 
     it('should return undefined usdExchangeRate for Solana when currencyRates is empty', () => {
-      const result = selectExchangeRateByChainIdAndAddress(
+      const result = selectExchangeRateByAssetId(
         {
           ...mockExchangeRateSources,
           currencyRates: {},
         } as unknown as BridgeAppState,
-        SolScope.Mainnet,
-        '789',
+        formatAddressToAssetId('789', SolScope.Mainnet),
       );
       expect(result).toStrictEqual({
         exchangeRate: '4.0',
@@ -127,7 +119,7 @@ describe('Bridge Selectors', () => {
     });
 
     it('should return rate as usdExchangeRate for Solana when user currency is USD', () => {
-      const result = selectExchangeRateByChainIdAndAddress(
+      const result = selectExchangeRateByAssetId(
         {
           ...mockExchangeRateSources,
           currencyRates: {
@@ -137,8 +129,7 @@ describe('Bridge Selectors', () => {
             },
           },
         } as unknown as BridgeAppState,
-        SolScope.Mainnet,
-        '789',
+        formatAddressToAssetId('789', SolScope.Mainnet),
       );
       // When user currency is USD, conversionRate === usdConversionRate, ratio is 1
       expect(result).toStrictEqual({
@@ -148,10 +139,12 @@ describe('Bridge Selectors', () => {
     });
 
     it('should handle EVM native asset rates', () => {
-      const result = selectExchangeRateByChainIdAndAddress(
+      const result = selectExchangeRateByAssetId(
         mockExchangeRateSources,
-        '1',
-        '0x0000000000000000000000000000000000000000',
+        formatAddressToAssetId(
+          '0x0000000000000000000000000000000000000000',
+          '1',
+        ),
       );
       expect(result).toStrictEqual({
         exchangeRate: '2468.12',
@@ -160,15 +153,40 @@ describe('Bridge Selectors', () => {
     });
 
     it('should handle EVM token rates', () => {
-      const result = selectExchangeRateByChainIdAndAddress(
+      const result = selectExchangeRateByAssetId(
         mockExchangeRateSources,
-        '1',
-        MOCK_MUSD_ADDRESS.toLowerCase(),
+        formatAddressToAssetId(MOCK_MUSD_ADDRESS.toLowerCase(), '1'),
       );
       expect(result).toStrictEqual({
         exchangeRate: '50.00000000000000162804',
         usdExchangeRate: '36.4650017017000806',
       });
+    });
+
+    it('should handle EVM token rates when the asset ID address is lowercase and market data is checksummed', () => {
+      const result = selectExchangeRateByAssetId(
+        mockExchangeRateSources,
+        `eip155:1/erc20:${MOCK_MUSD_ADDRESS.toLowerCase()}`,
+      );
+      expect(result).toStrictEqual({
+        exchangeRate: '50.00000000000000162804',
+        usdExchangeRate: '36.4650017017000806',
+      });
+    });
+
+    it('should not throw when EVM token rate asset ID has a malformed hex address', () => {
+      expect(() =>
+        selectExchangeRateByAssetId(
+          mockExchangeRateSources,
+          'eip155:1/erc20:0x123',
+        ),
+      ).not.toThrow();
+      expect(
+        selectExchangeRateByAssetId(
+          mockExchangeRateSources,
+          'eip155:1/erc20:0x123',
+        ),
+      ).toStrictEqual({});
     });
   });
 
@@ -200,8 +218,7 @@ describe('Bridge Selectors', () => {
               },
             },
           },
-          '1',
-          MOCK_USDC_ADDRESS,
+          formatAddressToAssetId(MOCK_USDC_ADDRESS, '1'),
         ),
       ).toBe(true);
     });
@@ -210,8 +227,7 @@ describe('Bridge Selectors', () => {
       expect(
         selectIsAssetExchangeRateInState(
           mockExchangeRateSources,
-          '1',
-          MOCK_USDC_ADDRESS,
+          formatAddressToAssetId(MOCK_USDC_ADDRESS, '1'),
         ),
       ).toBe(false);
     });
@@ -220,8 +236,7 @@ describe('Bridge Selectors', () => {
       expect(
         selectIsAssetExchangeRateInState(
           mockExchangeRateSources,
-          '1',
-          ETH_USDT_ADDRESS,
+          formatAddressToAssetId(ETH_USDT_ADDRESS, '1'),
         ),
       ).toBe(false);
     });
@@ -231,7 +246,7 @@ describe('Bridge Selectors', () => {
         false,
       );
       expect(
-        selectIsAssetExchangeRateInState(mockExchangeRateSources, '1'),
+        selectIsAssetExchangeRateInState(mockExchangeRateSources, undefined),
       ).toBe(false);
     });
   });
@@ -239,13 +254,15 @@ describe('Bridge Selectors', () => {
   describe('selectIsQuoteExpired', () => {
     const mockState = {
       quotes: [],
-      quoteRequest: {
-        srcChainId: '1',
-        destChainId: '137',
-        srcTokenAddress: '0x0000000000000000000000000000000000000000',
-        destTokenAddress: '0x0000000000000000000000000000000000000000',
-        insufficientBal: false,
-      },
+      quoteRequest: [
+        {
+          srcChainId: '1',
+          destChainId: '137',
+          srcTokenAddress: '0x0000000000000000000000000000000000000000',
+          destTokenAddress: '0x0000000000000000000000000000000000000000',
+          insufficientBal: false,
+        },
+      ],
       quotesLastFetched: Date.now(),
       quotesLoadingStatus: RequestStatus.FETCHED,
       quoteFetchError: null,
@@ -344,10 +361,12 @@ describe('Bridge Selectors', () => {
     it('should handle quote expiration when srcChainId is unset', () => {
       const stateWithOldQuote = {
         ...mockState,
-        quoteRequest: {
-          ...mockState.quoteRequest,
-          srcChainId: undefined,
-        },
+        quoteRequest: [
+          {
+            ...mockState.quoteRequest[0],
+            srcChainId: undefined,
+          },
+        ],
         quotesRefreshCount: 5,
         quotesLastFetched: Date.now() - 40000, // 40 seconds ago
         remoteFeatureFlags: {
@@ -432,13 +451,15 @@ describe('Bridge Selectors', () => {
             },
           },
         ],
-        quoteRequest: {
-          srcChainId: '1',
-          destChainId: '137',
-          srcTokenAddress: '0x0000000000000000000000000000000000000000',
-          destTokenAddress: '0x0000000000000000000000000000000000000000',
-          insufficientBal: false,
-        },
+        quoteRequest: [
+          {
+            srcChainId: '1',
+            destChainId: '137',
+            srcTokenAddress: '0x0000000000000000000000000000000000000000',
+            destTokenAddress: '0x0000000000000000000000000000000000000000',
+            insufficientBal: false,
+          },
+        ],
         quotesLastFetched: Date.now(),
         quotesLoadingStatus: RequestStatus.FETCHED,
         quoteFetchError: null,
@@ -516,6 +537,46 @@ describe('Bridge Selectors', () => {
       // eslint-disable-next-line jest/no-restricted-matchers
       expect(result).toMatchSnapshot();
       expect(result.sortedQuotes[0].cost.valueInCurrency).toBe('-419.985546');
+    });
+
+    it('should return metadata when quotes are empty', () => {
+      const { quotesInitialLoadTimeMs, quotesLastFetchedMs, ...result } =
+        selectBridgeQuotes(
+          {
+            ...mockState,
+            quotes: [],
+            assetExchangeRates: {
+              [formatAddressToAssetId(
+                mockQuote.quote.srcAsset.address,
+                mockQuote.quote.srcChainId,
+              ) ?? '']: {
+                exchangeRate: '1980',
+                usdExchangeRate: '10',
+              },
+              [formatAddressToAssetId(
+                mockQuote.quote.destAsset.address,
+                mockQuote.quote.destChainId,
+              ) ?? '']: {
+                exchangeRate: '200',
+                usdExchangeRate: '1',
+              },
+            },
+          },
+          mockClientParams,
+        );
+
+      expect(result).toMatchInlineSnapshot(`
+        {
+          "activeQuote": null,
+          "isLoading": false,
+          "isQuoteGoingToRefresh": true,
+          "quoteFetchError": null,
+          "quotesRefreshCount": 0,
+          "recommendedQuote": null,
+          "sortedQuotes": [],
+        }
+      `);
+      expect(result.sortedQuotes).toHaveLength(0);
     });
 
     it('should use destTokenAmount to sort quotes if exchange rate is not available', () => {
@@ -658,13 +719,15 @@ describe('Bridge Selectors', () => {
           ],
           currencyRates,
           marketData,
-          quoteRequest: {
-            ...mockState.quoteRequest,
-            srcChainId: chainId,
-            destChainId: chainId,
-            srcTokenAddress: srcAsset.address,
-            destTokenAddress: destAsset.address,
-          },
+          quoteRequest: [
+            {
+              ...mockState.quoteRequest,
+              srcChainId: chainId,
+              destChainId: chainId,
+              srcTokenAddress: srcAsset.address,
+              destTokenAddress: destAsset.address,
+            },
+          ],
         };
       };
 
@@ -1217,7 +1280,9 @@ describe('Bridge Selectors', () => {
       const result = selectBridgeQuotes(
         {
           ...mockState,
-          quoteRequest: { ...mockState.quoteRequest, insufficientBal: true },
+          quoteRequest: [
+            { ...mockState.quoteRequest[0], insufficientBal: true },
+          ],
         },
         mockClientParams,
       );
@@ -1339,16 +1404,521 @@ describe('Bridge Selectors', () => {
       const solanaState = {
         ...mockState,
         quotes: [solanaQuote],
-        quoteRequest: {
-          ...mockState.quoteRequest,
-          srcChainId: ChainId.SOLANA,
-          srcTokenAddress: 'solanaNativeAddress',
-        },
+        quoteRequest: [
+          {
+            ...mockState.quoteRequest[0],
+            srcChainId: ChainId.SOLANA,
+            srcTokenAddress: 'solanaNativeAddress',
+          },
+        ],
       } as unknown as BridgeAppState;
 
       const result = selectBridgeQuotes(solanaState, mockClientParams);
       expect(result.sortedQuotes).toHaveLength(1);
     });
+  });
+
+  describe('selectBatchSellQuotes', () => {
+    const getMockState = (chainId: string): BridgeAppState =>
+      ({
+        quotes: [
+          ...mockQuotesErc20Erc20.map((quote) => ({
+            ...quote,
+            quoteRequestIndex: 1,
+          })),
+          ...mockQuotesNativeErc20.map((quote) => ({
+            ...quote,
+            quoteRequestIndex: 0,
+          })),
+        ],
+        quoteRequest: [
+          {
+            srcChainId: '10',
+            destChainId: '137',
+            srcTokenAddress: '0x0000000000000000000000000000000000000000',
+            destTokenAddress: '0x3c499c542cef5e3811e1192ce70d8cc03d5c3359',
+            insufficientBal: false,
+          },
+          {
+            srcChainId: '10',
+            destChainId: '137',
+            srcTokenAddress: '0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85',
+            destTokenAddress: '0x3c499c542cef5e3811e1192ce70d8cc03d5c3359',
+            insufficientBal: false,
+          },
+        ],
+        quotesLastFetched: Date.now(),
+        quotesLoadingStatus: RequestStatus.FETCHED,
+        quoteFetchError: null,
+        quotesRefreshCount: 0,
+        quotesInitialLoadTime: Date.now(),
+        remoteFeatureFlags: {
+          bridgeConfig: {
+            minimumVersion: '0.0.0',
+            maxRefreshCount: 5,
+            refreshRate: 30000,
+            chainRanking: [],
+            chains: {},
+            support: true,
+          },
+        },
+        assetExchangeRates: {},
+        currencyRates: {
+          ETH: {
+            conversionRate: 1800,
+            usdConversionRate: 1800,
+          },
+        },
+        marketData: {},
+        conversionRates: {},
+        participateInMetaMetrics: true,
+        gasFeeEstimatesByChainId: {
+          [formatChainIdToHex(chainId)]: {
+            gasFeeEstimates: {
+              estimatedBaseFee: '0',
+              medium: {
+                suggestedMaxPriorityFeePerGas: '.1',
+                suggestedMaxFeePerGas: '.1',
+              },
+              high: {
+                suggestedMaxPriorityFeePerGas: '.1',
+                suggestedMaxFeePerGas: '.2',
+              },
+            },
+          },
+        },
+      }) as unknown as BridgeAppState;
+
+    const mockState = getMockState('10');
+
+    const mockClientParams = {
+      sortOrder: SortOrder.COST_ASC,
+      selectedQuote: null,
+    };
+
+    it('should return sorted quotes with metadata', () => {
+      const { quotesInitialLoadTimeMs, quotesLastFetchedMs, ...result } =
+        selectBatchSellQuotes(
+          {
+            ...mockState,
+            assetExchangeRates: {
+              'eip155:10/erc20:0x0b2c639c533813f4aa9d7837caf62653d097ff85': {
+                exchangeRate: '1980',
+                usdExchangeRate: '10',
+              },
+              'eip155:137/erc20:0x3c499c542cef5e3811e1192ce70d8cc03d5c3359': {
+                exchangeRate: '200',
+                usdExchangeRate: '1',
+              },
+            },
+          },
+          { ...mockClientParams, requestCount: 2 },
+        );
+
+      const { totalReceived, minimumReceived, recommendedQuotes, ...rest } =
+        result;
+
+      expect(totalReceived).toMatchInlineSnapshot(`
+        {
+          "amount": "38.423182",
+          "usd": "38.423182",
+          "valueInCurrency": "7684.6364",
+        }
+      `);
+      expect(minimumReceived).toMatchInlineSnapshot(`
+        {
+          "amount": "37.6",
+          "usd": "37.6",
+          "valueInCurrency": "7520",
+        }
+      `);
+      expect(rest).toMatchInlineSnapshot(`
+        {
+          "isLoading": false,
+          "isQuoteGoingToRefresh": true,
+          "quoteFetchError": null,
+          "quotesRefreshCount": 0,
+        }
+      `);
+      expect(recommendedQuotes.map((quote) => quote?.quote.requestId))
+        .toMatchInlineSnapshot(`
+        [
+          "381c23bc-e3e4-48fe-bc53-257471e388ad",
+          "90ae8e69-f03a-4cf6-bab7-ed4e3431eb37",
+        ]
+      `);
+    });
+
+    it('should return metadata when quotes are empty', () => {
+      const { quotesInitialLoadTimeMs, quotesLastFetchedMs, ...result } =
+        selectBatchSellQuotes(
+          {
+            ...mockState,
+            quotes: [],
+            assetExchangeRates: {
+              'eip155:10/erc20:0x0b2c639c533813f4aa9d7837caf62653d097ff85': {
+                exchangeRate: '1980',
+                usdExchangeRate: '10',
+              },
+              'eip155:137/erc20:0x3c499c542cef5e3811e1192ce70d8cc03d5c3359': {
+                exchangeRate: '200',
+                usdExchangeRate: '1',
+              },
+            },
+          },
+          { ...mockClientParams, requestCount: 2 },
+        );
+
+      const { totalReceived, minimumReceived, recommendedQuotes, ...rest } =
+        result;
+
+      expect(totalReceived).toMatchInlineSnapshot(`
+        {
+          "amount": "0",
+          "usd": "0",
+          "valueInCurrency": "0",
+        }
+      `);
+      expect(minimumReceived).toMatchInlineSnapshot(`
+        {
+          "amount": "0",
+          "usd": "0",
+          "valueInCurrency": "0",
+        }
+      `);
+      expect(rest).toMatchInlineSnapshot(`
+        {
+          "isLoading": false,
+          "isQuoteGoingToRefresh": true,
+          "quoteFetchError": null,
+          "quotesRefreshCount": 0,
+        }
+      `);
+      expect(mockState.quoteRequest).toHaveLength(2);
+      expect(recommendedQuotes).toStrictEqual([null, null]);
+    });
+  });
+
+  describe('selectBatchSellTrades', () => {
+    const getMockState = (chainId: string): BridgeAppState =>
+      ({
+        quotes: [
+          ...mockQuotesErc20Erc20.map((quote) => ({
+            ...quote,
+            quoteRequestIndex: 1,
+          })),
+          ...mockQuotesNativeErc20.map((quote) => ({
+            ...quote,
+            quoteRequestIndex: 0,
+          })),
+        ],
+        quoteRequest: [
+          {
+            srcChainId: '10',
+            destChainId: '137',
+            srcTokenAddress: '0x0000000000000000000000000000000000000000',
+            destTokenAddress: '0x3c499c542cef5e3811e1192ce70d8cc03d5c3359',
+            insufficientBal: false,
+          },
+          {
+            srcChainId: '10',
+            destChainId: '137',
+            srcTokenAddress: '0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85',
+            destTokenAddress: '0x3c499c542cef5e3811e1192ce70d8cc03d5c3359',
+            insufficientBal: false,
+          },
+        ],
+        quotesLastFetched: Date.now(),
+        quotesLoadingStatus: RequestStatus.FETCHED,
+        quoteFetchError: null,
+        quotesRefreshCount: 0,
+        quotesInitialLoadTime: Date.now(),
+        remoteFeatureFlags: {
+          bridgeConfig: {
+            minimumVersion: '0.0.0',
+            maxRefreshCount: 5,
+            refreshRate: 30000,
+            chainRanking: [],
+            chains: {},
+            support: true,
+          },
+        },
+        assetExchangeRates: {},
+        currencyRates: {
+          ETH: {
+            conversionRate: 1800,
+            usdConversionRate: 1800,
+          },
+        },
+        marketData: {},
+        conversionRates: {},
+        participateInMetaMetrics: true,
+        gasFeeEstimatesByChainId: {
+          [formatChainIdToHex(chainId)]: {
+            gasFeeEstimates: {
+              estimatedBaseFee: '0',
+              medium: {
+                suggestedMaxPriorityFeePerGas: '.1',
+                suggestedMaxFeePerGas: '.1',
+              },
+              high: {
+                suggestedMaxPriorityFeePerGas: '.1',
+                suggestedMaxFeePerGas: '.2',
+              },
+            },
+          },
+        },
+      }) as unknown as BridgeAppState;
+
+    const mockState = getMockState('10');
+
+    const mockBatchSellTrades = {
+      transactions: [
+        {
+          chainId: 137,
+          to: '0x3c499c542cef5e3811e1192ce70d8cc03d5c3359',
+          from: '0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85',
+          value: '0x0',
+          data: '0x',
+          gasLimit: 21000,
+          effectiveGas: 21000,
+          maxFeePerGas: '0x5d21dba00',
+          maxPriorityFeePerGas: '0x5d21dba00',
+          type: BatchSellTransactionType.TRANSFER,
+        } as const,
+      ],
+      fee: {
+        amount: '10000',
+        asset: {
+          assetId:
+            'eip155:137/erc20:0x3c499c542cef5e3811e1192ce70d8cc03d5c3359' as const,
+          symbol: 'USDC',
+          chainId: 137,
+          address: '0x3c499c542cef5e3811e1192ce70d8cc03d5c3359',
+          name: 'USD Coin',
+          decimals: 6,
+        },
+      },
+    };
+
+    it('should return total network fee', () => {
+      const result = selectBatchSellTrades({
+        ...mockState,
+        assetExchangeRates: {
+          'eip155:10/erc20:0x0b2c639c533813f4aa9d7837caf62653d097ff85': {
+            exchangeRate: '1980',
+            usdExchangeRate: '10',
+          },
+          'eip155:137/erc20:0x3c499c542cef5e3811e1192ce70d8cc03d5c3359': {
+            exchangeRate: '200',
+            usdExchangeRate: '5',
+          },
+        },
+        batchSellTradesLoadingStatus: RequestStatus.FETCHED,
+        batchSellTrades: mockBatchSellTrades,
+      });
+
+      expect(result.totalNetworkFee).toMatchInlineSnapshot(`
+        {
+          "amount": "0.01",
+          "asset": {
+            "address": "0x3c499c542cef5e3811e1192ce70d8cc03d5c3359",
+            "assetId": "eip155:137/erc20:0x3c499c542cef5e3811e1192ce70d8cc03d5c3359",
+            "chainId": 137,
+            "decimals": 6,
+            "name": "USD Coin",
+            "symbol": "USDC",
+          },
+          "usd": "0.05",
+          "valueInCurrency": "2",
+        }
+      `);
+      expect(result.isBatchSellTradeAvailable).toBe(true);
+    });
+
+    it('should return total network fee value when fee asset ID address is lowercase and market data is checksummed', () => {
+      const result = selectBatchSellTrades({
+        ...mockState,
+        currencyRates: {
+          ETH: {
+            conversionRate: 1,
+            usdConversionRate: 1,
+          },
+        },
+        marketData: {
+          '0x89': {
+            [getAddress(mockBatchSellTrades.fee.asset.address)]: {
+              price: 1,
+              currency: 'ETH',
+            },
+          },
+        },
+        batchSellTradesLoadingStatus: RequestStatus.FETCHED,
+        batchSellTrades: mockBatchSellTrades,
+      });
+
+      expect(result.totalNetworkFee).toMatchInlineSnapshot(`
+        {
+          "amount": "0.01",
+          "asset": {
+            "address": "0x3c499c542cef5e3811e1192ce70d8cc03d5c3359",
+            "assetId": "eip155:137/erc20:0x3c499c542cef5e3811e1192ce70d8cc03d5c3359",
+            "chainId": 137,
+            "decimals": 6,
+            "name": "USD Coin",
+            "symbol": "USDC",
+          },
+          "usd": "0.01",
+          "valueInCurrency": "0.01",
+        }
+      `);
+      expect(result.isBatchSellTradeAvailable).toBe(true);
+    });
+
+    it('should return total network fee (exchange rates are not available)', () => {
+      const result = selectBatchSellTrades({
+        ...mockState,
+        assetExchangeRates: {
+          'eip155:10/erc20:0x0b2c639c533813f4aa9d7837caf62653d097ff84': {
+            exchangeRate: '1980',
+            usdExchangeRate: '10',
+          },
+          'eip155:137/erc20:0x3c499c542cef5e3811e1192ce70d8cc03d5c3354': {
+            exchangeRate: '200',
+            usdExchangeRate: '5',
+          },
+        },
+        batchSellTradesLoadingStatus: RequestStatus.FETCHED,
+        batchSellTrades: mockBatchSellTrades,
+      });
+
+      expect(result.totalNetworkFee).toMatchInlineSnapshot(`
+        {
+          "amount": "0.01",
+          "asset": {
+            "address": "0x3c499c542cef5e3811e1192ce70d8cc03d5c3359",
+            "assetId": "eip155:137/erc20:0x3c499c542cef5e3811e1192ce70d8cc03d5c3359",
+            "chainId": 137,
+            "decimals": 6,
+            "name": "USD Coin",
+            "symbol": "USDC",
+          },
+          "usd": null,
+          "valueInCurrency": null,
+        }
+      `);
+      expect(result.isBatchSellTradeAvailable).toBe(true);
+      expect(result.isLoading).toBe(false);
+    });
+
+    it('should return empty data when batch sell trades are not defined', () => {
+      const result = selectBatchSellTrades({
+        ...mockState,
+        assetExchangeRates: {
+          'eip155:10/erc20:0x0b2c639c533813f4aa9d7837caf62653d097ff85': {
+            exchangeRate: '1980',
+            usdExchangeRate: '10',
+          },
+          'eip155:137/erc20:0x3c499c542cef5e3811e1192ce70d8cc03d5c3359': {
+            exchangeRate: '200',
+            usdExchangeRate: '5',
+          },
+        },
+        batchSellTradesLoadingStatus: RequestStatus.FETCHED,
+        batchSellTrades: null,
+      });
+
+      expect(result.totalNetworkFee).toMatchInlineSnapshot(`undefined`);
+      expect(result.isBatchSellTradeAvailable).toBe(false);
+      expect(result.isLoading).toBe(false);
+    });
+
+    it.each([
+      {
+        status: RequestStatus.LOADING,
+        transactions: [
+          {
+            chainId: 137,
+            to: '0x3c499c542cef5e3811e1192ce70d8cc03d5c3359',
+            from: '0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85',
+            value: '0x0',
+            data: '0x',
+            gasLimit: 21000,
+            effectiveGas: 21000,
+            maxFeePerGas: '0x5d21dba00',
+            maxPriorityFeePerGas: '0x5d21dba00',
+          },
+        ],
+        expectedResult: false,
+        expectedLoadingResult: true,
+      },
+      {
+        status: RequestStatus.FETCHED,
+        transactions: [
+          {
+            chainId: 137,
+            to: '0x3c499c542cef5e3811e1192ce70d8cc03d5c3359',
+            from: '0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85',
+            value: '0x0',
+            data: '0x',
+            gasLimit: 21000,
+            effectiveGas: 21000,
+            maxFeePerGas: '0x5d21dba00',
+            maxPriorityFeePerGas: '0x5d21dba00',
+          },
+        ],
+        expectedResult: true,
+        expectedLoadingResult: false,
+      },
+      {
+        status: RequestStatus.FETCHED,
+        transactions: undefined,
+        expectedResult: false,
+        expectedLoadingResult: false,
+      },
+      {
+        status: RequestStatus.FETCHED,
+        transactions: [],
+        expectedResult: false,
+        expectedLoadingResult: false,
+      },
+      {
+        status: RequestStatus.ERROR,
+        transactions: undefined,
+        expectedResult: false,
+        expectedLoadingResult: false,
+      },
+    ])(
+      'should return loading state when status is $status',
+      ({ status, transactions, expectedResult, expectedLoadingResult }) => {
+        const { isBatchSellTradeAvailable, isLoading } = selectBatchSellTrades({
+          ...mockState,
+          batchSellTradesLoadingStatus: status,
+          // @ts-expect-error - test data
+          batchSellTrades: transactions
+            ? {
+                fee: {
+                  amount: '10000',
+                },
+                transactions,
+              }
+            : null,
+          assetExchangeRates: {
+            'eip155:10/erc20:0x0b2c639c533813f4aa9d7837caf62653d097ff85': {
+              exchangeRate: '1980',
+              usdExchangeRate: '10',
+            },
+            'eip155:137/erc20:0x3c499c542cef5e3811e1192ce70d8cc03d5c3359': {
+              exchangeRate: '200',
+              usdExchangeRate: '1',
+            },
+          },
+        });
+
+        expect(isBatchSellTradeAvailable).toBe(expectedResult);
+        expect(isLoading).toBe(expectedLoadingResult);
+      },
+    );
   });
 
   describe('selectBridgeFeatureFlags', () => {

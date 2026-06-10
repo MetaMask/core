@@ -1,5 +1,7 @@
 import type { CaipAssetId, CaipChainId, Hex } from '@metamask/utils';
 
+import { MarketCategory } from '../types';
+import type { MarketType } from '../types';
 import type {
   HyperLiquidNetwork,
   HyperLiquidEndpoints,
@@ -292,79 +294,108 @@ export const SPOT_ASSET_ID_OFFSET = 10000;
  * Maps asset symbols (e.g., "xyz:TSLA") to their market type for badge display.
  *
  * Market type determines the badge shown in the UI:
- * - 'equity': STOCK badge (stocks like TSLA, NVDA)
- * - 'commodity': COMMODITY badge (commodities like GOLD)
- * - 'forex': FOREX badge (forex pairs)
- * - undefined: No badge for crypto or unmapped assets
+ * - 'stock': Individual stocks (TSLA, NVDA, AAPL, etc.)
+ * - 'pre-ipo': Pre-IPO assets not yet publicly listed
+ * - 'index': Market indices (SP500, JP225, VIX, etc.)
+ * - 'etf': Exchange-traded funds (EWY, EWJ, USAR, etc.)
+ * - 'commodity': Commodities (GOLD, SILVER, CL, etc.)
+ * - 'forex': Forex pairs (EUR, JPY, DXY)
+ * - 'crypto': Explicitly categorized crypto assets
+ * - undefined: No badge for unmapped assets
  *
  * Format: 'dex:SYMBOL' → MarketType
  * This allows flexible per-asset classification.
  * Assets not listed here will have no market type (undefined).
  */
-export const HIP3_ASSET_MARKET_TYPES: Record<
-  string,
-  'equity' | 'commodity' | 'forex' | 'crypto'
-> = {
-  // xyz DEX - Equities
-  'xyz:TSLA': 'equity',
-  'xyz:NVDA': 'equity',
-  'xyz:XYZ100': 'equity',
-  'xyz:INTC': 'equity',
-  'xyz:MU': 'equity',
-  'xyz:CRCL': 'equity',
-  'xyz:HOOD': 'equity',
-  'xyz:SNDK': 'equity',
-  'xyz:GOOGL': 'equity',
-  'xyz:COIN': 'equity',
-  'xyz:ORCL': 'equity',
-  'xyz:AMZN': 'equity',
-  'xyz:PLTR': 'equity',
-  'xyz:AAPL': 'equity',
-  'xyz:META': 'equity',
-  'xyz:AMD': 'equity',
-  'xyz:MSFT': 'equity',
-  'xyz:BABA': 'equity',
-  'xyz:RIVN': 'equity',
-  'xyz:NFLX': 'equity',
-  'xyz:COST': 'equity',
-  'xyz:LLY': 'equity',
-  'xyz:TSM': 'equity',
-  'xyz:SKHX': 'equity',
-  'xyz:MSTR': 'equity',
-  'xyz:CRWV': 'equity',
-  'xyz:SMSN': 'equity',
+export const HIP3_ASSET_MARKET_TYPES: Record<string, MarketType> = {
+  // xyz DEX - Stocks (US)
+  'xyz:TSLA': MarketCategory.Stock,
+  'xyz:NVDA': MarketCategory.Stock,
+  'xyz:INTC': MarketCategory.Stock,
+  'xyz:MU': MarketCategory.Stock,
+  'xyz:CRCL': MarketCategory.Stock,
+  'xyz:HOOD': MarketCategory.Stock,
+  'xyz:SNDK': MarketCategory.Stock,
+  'xyz:GOOGL': MarketCategory.Stock,
+  'xyz:COIN': MarketCategory.Stock,
+  'xyz:ORCL': MarketCategory.Stock,
+  'xyz:AMZN': MarketCategory.Stock,
+  'xyz:PLTR': MarketCategory.Stock,
+  'xyz:AAPL': MarketCategory.Stock,
+  'xyz:META': MarketCategory.Stock,
+  'xyz:AMD': MarketCategory.Stock,
+  'xyz:MSFT': MarketCategory.Stock,
+  'xyz:BABA': MarketCategory.Stock,
+  'xyz:RIVN': MarketCategory.Stock,
+  'xyz:NFLX': MarketCategory.Stock,
+  'xyz:COST': MarketCategory.Stock,
+  'xyz:LLY': MarketCategory.Stock,
+  'xyz:TSM': MarketCategory.Stock,
+  'xyz:MSTR': MarketCategory.Stock,
+  'xyz:CRWV': MarketCategory.Stock,
+  'xyz:GME': MarketCategory.Stock,
+  'xyz:HIMS': MarketCategory.Stock,
+  'xyz:USAR': MarketCategory.Stock,
+  'xyz:DKNG': MarketCategory.Stock,
+  'xyz:BIRD': MarketCategory.Stock,
+  'xyz:RKLB': MarketCategory.Stock,
+  'xyz:MRVL': MarketCategory.Stock,
+  'xyz:ZM': MarketCategory.Stock,
+  'xyz:EBAY': MarketCategory.Stock,
+  'xyz:PURRDAT': MarketCategory.Stock,
+  'xyz:ARM': MarketCategory.Stock,
+  'xyz:BX': MarketCategory.Stock,
+  'xyz:LITE': MarketCategory.Stock,
 
-  'xyz:GME': 'equity',
-  'xyz:SOFTBANK': 'equity',
-  'xyz:HYUNDAI': 'equity',
-  'xyz:KIOXIA': 'equity',
-  'xyz:HIMS': 'equity',
-  'xyz:EWY': 'equity',
-  'xyz:EWJ': 'equity',
-  'xyz:SP500': 'equity',
-  'xyz:JP225': 'equity',
-  'xyz:KR200': 'equity',
-  'xyz:VIX': 'equity',
-  'xyz:USAR': 'equity',
+  // xyz DEX - Stocks (Korea)
+  'xyz:SKHX': MarketCategory.Stock,
+  'xyz:SMSN': MarketCategory.Stock,
+  'xyz:HYUNDAI': MarketCategory.Stock,
+
+  // xyz DEX - Stocks (Japan)
+  'xyz:SOFTBANK': MarketCategory.Stock,
+  'xyz:KIOXIA': MarketCategory.Stock,
+
+  // xyz DEX - Pre-IPO
+  'xyz:CBRS': MarketCategory.PreIpo,
+  'xyz:SPCX': MarketCategory.PreIpo,
+  'xyz:IPOP': MarketCategory.PreIpo,
+
+  // xyz DEX - Indices
+  'xyz:SP500': MarketCategory.Index,
+  'xyz:XYZ100': MarketCategory.Index,
+  'xyz:JP225': MarketCategory.Index,
+  'xyz:KR200': MarketCategory.Index,
+  'xyz:VIX': MarketCategory.Index,
+
+  // xyz DEX - ETFs
+  'xyz:EWY': MarketCategory.Etf,
+  'xyz:EWJ': MarketCategory.Etf,
+  'xyz:EWT': MarketCategory.Etf,
+  'xyz:EWZ': MarketCategory.Etf,
+  'xyz:URNM': MarketCategory.Etf,
+  'xyz:DRAM': MarketCategory.Etf,
+  'xyz:XLE': MarketCategory.Etf,
 
   // xyz DEX - Commodities
-  'xyz:GOLD': 'commodity',
-  'xyz:SILVER': 'commodity',
-  'xyz:CL': 'commodity',
-  'xyz:COPPER': 'commodity',
-  'xyz:ALUMINIUM': 'commodity',
-  'xyz:URANIUM': 'commodity',
-  'xyz:URNM': 'commodity',
-  'xyz:NATGAS': 'commodity',
-  'xyz:PLATINUM': 'commodity',
-  'xyz:PALLADIUM': 'commodity',
-  'xyz:BRENTOIL': 'commodity',
+  'xyz:GOLD': MarketCategory.Commodity,
+  'xyz:SILVER': MarketCategory.Commodity,
+  'xyz:CL': MarketCategory.Commodity,
+  'xyz:WTIOIL': MarketCategory.Commodity,
+  'xyz:COPPER': MarketCategory.Commodity,
+  'xyz:ALUMINIUM': MarketCategory.Commodity,
+  'xyz:URANIUM': MarketCategory.Commodity,
+  'xyz:NATGAS': MarketCategory.Commodity,
+  'xyz:PLATINUM': MarketCategory.Commodity,
+  'xyz:PALLADIUM': MarketCategory.Commodity,
+  'xyz:BRENTOIL': MarketCategory.Commodity,
 
   // xyz DEX - Forex
-  'xyz:EUR': 'forex',
-  'xyz:JPY': 'forex',
-  'xyz:DXY': 'forex',
-} as const;
+  'xyz:EUR': MarketCategory.Forex,
+  'xyz:JPY': MarketCategory.Forex,
+  'xyz:GBP': MarketCategory.Forex,
+  'xyz:DXY': MarketCategory.Forex,
+};
 
 /**
  * Testnet-specific HIP-3 DEX configuration
