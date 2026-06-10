@@ -21,6 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - The method now iterates every account belonging to the wallet and dispatches `provider.deleteAccount(account.id)` to the matching provider, instead of only removing a single EVM address.
   - For wrapped providers, enumeration uses the underlying provider so snap-backed accounts are still deleted when basic functionality is off (the wrapper's `getAccounts()` returns `[]` when disabled). Without this, snap-backed accounts would be orphaned in their underlying keyrings.
   - Per-account deletions are best-effort: a single account's failure does not abort cleanup of the remaining accounts. If one or more deletions fail, a single aggregated error is reported via the messenger's `captureException` with the per-account failure details (`provider`, `accountId`, error message, stack) in its `context`. The wallet is always removed from the service's internal map at the end.
+- Bump `@metamask/controller-utils` from `^12.1.1` to `^12.2.0` ([#9083](https://github.com/MetaMask/core/pull/9083))
 
 ## [10.0.3]
 
