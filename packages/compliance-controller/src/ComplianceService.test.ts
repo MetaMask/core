@@ -11,6 +11,8 @@ import type { ComplianceServiceMessenger } from './ComplianceService';
 import { ComplianceService } from './ComplianceService';
 
 const MOCK_API_URL = 'https://compliance.dev-api.cx.metamask.io';
+const MOCK_PRODUCTION_API_URL = 'https://compliance.api.cx.metamask.io';
+const MOCK_CONFIGURED_API_URL = 'https://configured-compliance.example.com';
 
 describe('ComplianceService', () => {
   beforeEach(() => {
@@ -171,6 +173,89 @@ describe('ComplianceService', () => {
         error: expect.any(HttpError),
       });
     });
+
+    it('uses the configured API URL when provided', async () => {
+      nock(MOCK_CONFIGURED_API_URL).get('/v1/wallet/0xABC123').reply(200, {
+        address: '0xABC123',
+        blocked: false,
+      });
+      const { rootMessenger } = getService({
+        options: { apiUrl: MOCK_CONFIGURED_API_URL, env: 'development' },
+      });
+
+      const result = await rootMessenger.call(
+        'ComplianceService:checkWalletCompliance',
+        '0xABC123',
+      );
+
+      expect(result).toStrictEqual({
+        address: '0xABC123',
+        blocked: false,
+      });
+    });
+
+    it('preserves path components in the configured API URL', async () => {
+      nock(MOCK_CONFIGURED_API_URL)
+        .get('/compliance/v1/wallet/0xABC123')
+        .reply(200, {
+          address: '0xABC123',
+          blocked: false,
+        });
+      const { rootMessenger } = getService({
+        options: { apiUrl: `${MOCK_CONFIGURED_API_URL}/compliance` },
+      });
+
+      const result = await rootMessenger.call(
+        'ComplianceService:checkWalletCompliance',
+        '0xABC123',
+      );
+
+      expect(result).toStrictEqual({
+        address: '0xABC123',
+        blocked: false,
+      });
+    });
+
+    it('defaults to the production API URL when no API URL or environment is provided', async () => {
+      nock(MOCK_PRODUCTION_API_URL).get('/v1/wallet/0xABC123').reply(200, {
+        address: '0xABC123',
+        blocked: false,
+      });
+      const { rootMessenger } = getService({ useDefaultEnvironment: true });
+
+      const result = await rootMessenger.call(
+        'ComplianceService:checkWalletCompliance',
+        '0xABC123',
+      );
+
+      expect(result).toStrictEqual({
+        address: '0xABC123',
+        blocked: false,
+      });
+    });
+
+    it('throws if the configured API URL is invalid', () => {
+      expect(() =>
+        getService({ options: { apiUrl: 'not-a-valid-url' } }),
+      ).toThrow('Invalid Compliance API URL: not-a-valid-url');
+    });
+
+    it('throws if the configured API URL includes a query string or fragment', () => {
+      expect(() =>
+        getService({
+          options: { apiUrl: `${MOCK_CONFIGURED_API_URL}?foo=bar` },
+        }),
+      ).toThrow(
+        `Invalid Compliance API URL: ${MOCK_CONFIGURED_API_URL}?foo=bar. Query strings and fragments are not supported.`,
+      );
+      expect(() =>
+        getService({
+          options: { apiUrl: `${MOCK_CONFIGURED_API_URL}#anchor` },
+        }),
+      ).toThrow(
+        `Invalid Compliance API URL: ${MOCK_CONFIGURED_API_URL}#anchor. Query strings and fragments are not supported.`,
+      );
+    });
   });
 
   describe('ComplianceService:checkWalletsCompliance', () => {
@@ -306,12 +391,16 @@ function getMessenger(
  * @param args.options - The options that the service constructor takes. All are
  * optional and will be filled in with defaults as needed (including
  * `messenger`).
+ * @param args.useDefaultEnvironment - Whether to omit the default test
+ * environment and use the service constructor default.
  * @returns The new service, root messenger, and service messenger.
  */
 function getService({
   options = {},
+  useDefaultEnvironment = false,
 }: {
   options?: Partial<ConstructorParameters<typeof ComplianceService>[0]>;
+  useDefaultEnvironment?: boolean;
 } = {}): {
   service: ComplianceService;
   rootMessenger: RootMessenger;
@@ -322,7 +411,7 @@ function getService({
   const service = new ComplianceService({
     fetch,
     messenger,
-    env: 'development',
+    ...(useDefaultEnvironment ? {} : { env: 'development' as const }),
     ...options,
   });
 

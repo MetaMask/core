@@ -8,7 +8,6 @@ export type {
 } from './types';
 export type {
   MultichainAccountServiceResyncAccountsAction,
-  MultichainAccountServiceEnsureCanUseSnapPlatformAction,
   MultichainAccountServiceGetMultichainAccountWalletAction,
   MultichainAccountServiceGetMultichainAccountWalletsAction,
   MultichainAccountServiceCreateMultichainAccountWalletAction,
@@ -21,6 +20,7 @@ export type {
   MultichainAccountServiceSetBasicFunctionalityAction,
   MultichainAccountServiceAlignWalletsAction,
   MultichainAccountServiceAlignWalletAction,
+  MultichainAccountServiceInitAction,
 } from './MultichainAccountService-method-action-types';
 export {
   AccountProviderWrapper,

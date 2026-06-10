@@ -51,6 +51,7 @@ import type {
 import type { TransactionBatchResult, TransactionParams } from '../types';
 import {
   ERROR_MESSGE_PUBLIC_KEY,
+  doesAccountSupportEIP7702,
   doesChainSupportEIP7702,
   generateEIP7702BatchTransaction,
   isAccountUpgradedToEIP7702,
@@ -130,13 +131,19 @@ export async function addTransactionBatch(
 
   validateBatchRequest({
     internalAccounts: getInternalAccounts(),
+    isInternal: transactionBatchRequest.isInternal,
     request: transactionBatchRequest,
     sizeLimit,
   });
 
   log('Adding', transactionBatchRequest);
 
-  if (!transactionBatchRequest.disable7702) {
+  const accountCanUse7702 = doesAccountSupportEIP7702(
+    messenger,
+    transactionBatchRequest.from,
+  );
+
+  if (!transactionBatchRequest.disable7702 && accountCanUse7702) {
     try {
       return await addTransactionBatchWith7702(request);
     } catch (error: unknown) {
@@ -225,7 +232,7 @@ export async function isAtomicBatchSupported(
  *
  * @returns  A unique batch ID as a hexadecimal string.
  */
-function generateBatchId(): Hex {
+export function generateBatchId(): Hex {
   const idString = v4();
   const idBytes = new Uint8Array(parse(idString));
   return bytesToHex(idBytes);
@@ -290,6 +297,7 @@ async function addTransactionBatchWith7702(
     from,
     gasFeeToken,
     gasLimit7702,
+    isInternal,
     networkClientId,
     origin,
     overwriteUpgrade,
@@ -432,6 +440,7 @@ async function addTransactionBatchWith7702(
     excludeNativeTokenForFee,
     isGasFeeIncluded,
     isGasFeeSponsored,
+    isInternal,
     nestedTransactions,
     networkClientId,
     origin,
@@ -450,6 +459,72 @@ async function addTransactionBatchWith7702(
   return {
     batchId,
   };
+}
+
+/**
+ * Wait for a transaction to reach one of the specified statuses.
+ * Checks the current state first to avoid race conditions, then subscribes to
+ * state changes for ongoing updates.
+ *
+ * @param transactionId - The ID of the transaction to monitor.
+ * @param targetStatuses - The statuses that indicate success.
+ * @param request - The batch request containing messenger and getTransaction.
+ */
+function waitForTransactionStatus(
+  transactionId: string,
+  targetStatuses: TransactionStatus[],
+  request: Pick<AddTransactionBatchRequest, 'getTransaction' | 'messenger'>,
+): Promise<void> {
+  const { getTransaction, messenger } = request;
+  const failureStatuses = [
+    TransactionStatus.failed,
+    TransactionStatus.rejected,
+  ];
+
+  return new Promise<void>((resolve, reject) => {
+    const checkStatus = (
+      tx?: TransactionMeta,
+      unsubscribe?: () => void,
+    ): boolean => {
+      if (targetStatuses.includes(tx?.status as TransactionStatus)) {
+        unsubscribe?.();
+        resolve();
+        return true;
+      }
+
+      if (failureStatuses.includes(tx?.status as TransactionStatus)) {
+        unsubscribe?.();
+        reject(
+          new Error(
+            tx?.error?.message ?? `Transaction ${transactionId} ${tx?.status}`,
+          ),
+        );
+        return true;
+      }
+
+      return false;
+    };
+
+    const initialTx = getTransaction(transactionId);
+
+    if (checkStatus(initialTx)) {
+      return;
+    }
+
+    const handler = (tx?: TransactionMeta): void => {
+      const unsubscribe = (): void =>
+        messenger.unsubscribe('TransactionController:stateChange', handler);
+
+      checkStatus(tx, unsubscribe);
+    };
+
+    messenger.subscribe(
+      'TransactionController:stateChange', // eslint-disable-line no-restricted-syntax
+      handler,
+      (state: TransactionControllerState) =>
+        state.transactions.find((tx) => tx.id === transactionId),
+    );
+  });
 }
 
 /**
@@ -555,6 +630,16 @@ async function addTransactionBatchWithHook(
 
       hookTransactions.push(hookTransaction);
       index += 1;
+
+      await waitForTransactionStatus(
+        String(hookTransaction.id),
+        [
+          TransactionStatus.signed,
+          TransactionStatus.submitted,
+          TransactionStatus.confirmed,
+        ],
+        request,
+      );
     }
 
     const { signedTransactions } = await collectHook.ready();
@@ -642,7 +727,7 @@ async function processTransactionWithHook(
     updateTransaction,
   } = request;
 
-  const { from, networkClientId, origin } = userRequest;
+  const { from, isInternal, networkClientId, origin } = userRequest;
 
   if (existingTransaction) {
     const { id, onPublish } = existingTransaction;
@@ -678,7 +763,10 @@ async function processTransactionWithHook(
     }
 
     publishHook(transactionMeta, signedTransaction)
-      .then(onPublish)
+      .then((hookResult) => {
+        onPublish?.(hookResult);
+        return undefined;
+      })
       .catch(() => {
         // Intentionally empty
       });
@@ -712,6 +800,7 @@ async function processTransactionWithHook(
       assetsFiatValues,
       batchId,
       disableGasBuffer: true,
+      isInternal,
       networkClientId,
       origin,
       publishHook,
@@ -856,6 +945,7 @@ async function prepareApprovalData({
 
   const {
     from,
+    isInternal,
     origin,
     networkClientId,
     transactions: nestedTransactions,
@@ -881,6 +971,7 @@ async function prepareApprovalData({
     from,
     gas: gasLimit,
     id: batchId,
+    isInternal,
     networkClientId,
     origin,
     transactions: nestedTransactions,

@@ -3,6 +3,7 @@ import {
   InfuraNetworkType,
   toChecksumHexAddress,
 } from '@metamask/controller-utils';
+import { SnapKeyring as SnapKeyringV2 } from '@metamask/eth-snap-keyring/v2';
 import type {
   AccountAssetListUpdatedEventPayload,
   AccountBalancesUpdatedEventPayload,
@@ -16,11 +17,13 @@ import {
   EthScope,
   KeyringAccountEntropyTypeOption,
 } from '@metamask/keyring-api';
+import { KeyringType } from '@metamask/keyring-api/v2';
 import {
   KeyringControllerState,
   KeyringTypes,
 } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
+import { KeyringV1Adapter } from '@metamask/keyring-sdk/v2';
 import { MOCK_ANY_NAMESPACE, Messenger } from '@metamask/messenger';
 import type {
   MessengerActions,
@@ -28,8 +31,6 @@ import type {
   MockAnyNamespace,
 } from '@metamask/messenger';
 import type { NetworkClientId } from '@metamask/network-controller';
-import type { SnapControllerState } from '@metamask/snaps-controllers';
-import { SnapStatus } from '@metamask/snaps-utils';
 import type { CaipChainId } from '@metamask/utils';
 import type { V4Options } from 'uuid';
 import { v4 as uuidV4 } from 'uuid';
@@ -253,6 +254,41 @@ function setExpectedLastSelectedAsAny(
 }
 
 /**
+ * Builds a mock SnapKeyringV2 instance with the given `snapId` and overrides.
+ *
+ * @param snapId - The snap ID to use for the mock instance.
+ * @param overrides - Optional overrides for the mock instance.
+ * @returns A mock SnapKeyringV2 instance.
+ */
+function buildMockSnapKeyringV2(
+  snapId: string,
+  overrides: Partial<SnapKeyringV2> = {},
+): SnapKeyringV2 {
+  const instance = Object.create(SnapKeyringV2.prototype) as SnapKeyringV2;
+
+  // The `snapId` is usually injected via `deserialize`, but here we just mock the getter directly.
+  Object.defineProperty(instance, 'snapId', {
+    value: snapId,
+    configurable: true,
+  });
+
+  return Object.assign(instance, overrides);
+}
+
+/**
+ * Wraps a mock SnapKeyringV2 in a KeyringV1Adapter so it passes the
+ * `instanceof KeyringV1Adapter` check in AccountsController.
+ *
+ * @param inner - The mock SnapKeyringV2 instance to wrap.
+ * @returns A KeyringV1Adapter wrapping the mock instance.
+ */
+function buildMockKeyringV1Adapter(
+  inner: SnapKeyringV2,
+): KeyringV1Adapter<SnapKeyringV2> {
+  return new KeyringV1Adapter(inner);
+}
+
+/**
  * Builds a new instance of the root messenger.
  *
  * @returns A new instance of the root messenger.
@@ -291,11 +327,10 @@ function buildAccountsControllerMessenger(
       'KeyringController:getKeyringsByType',
     ],
     events: [
-      'SnapController:stateChange',
       'KeyringController:stateChange',
-      'SnapKeyring:accountAssetListUpdated',
-      'SnapKeyring:accountBalancesUpdated',
-      'SnapKeyring:accountTransactionsUpdated',
+      'SnapAccountService:accountAssetListUpdated',
+      'SnapAccountService:accountBalancesUpdated',
+      'SnapAccountService:accountTransactionsUpdated',
       'MultichainNetworkController:networkDidChange',
     ],
   });
@@ -396,240 +431,6 @@ describe('AccountsController', () => {
       // No accounts, no accountIdByAddress
       // Initial state
       expect(accountsController.state.accountIdByAddress).toStrictEqual({});
-    });
-  });
-
-  describe('onSnapStateChange', () => {
-    it('enables an account if the Snap is enabled and not blocked', async () => {
-      const messenger = buildMessenger();
-      const mockSnapAccount = createMockInternalAccount({
-        id: 'mock-id',
-        name: 'Snap Account 1',
-        address: '0x0',
-        keyringType: KeyringTypes.snap,
-        snap: {
-          id: 'mock-snap',
-          name: 'mock-snap-name',
-          enabled: false,
-        },
-      });
-      const mockSnapChangeState = {
-        snaps: {
-          'mock-snap': {
-            enabled: true,
-            id: 'mock-snap',
-            blocked: false,
-            status: SnapStatus.Running,
-          },
-        },
-      } as unknown as SnapControllerState;
-      const { accountsController } = setupAccountsController({
-        initialState: {
-          internalAccounts: {
-            accounts: {
-              [mockSnapAccount.id]: mockSnapAccount,
-            },
-            selectedAccount: mockSnapAccount.id,
-          },
-          accountIdByAddress: {
-            [mockSnapAccount.address]: mockSnapAccount.id,
-          },
-        },
-        messenger,
-      });
-
-      messenger.publish('SnapController:stateChange', mockSnapChangeState, []);
-
-      const updatedAccount = accountsController.getAccount(mockSnapAccount.id);
-
-      expect(updatedAccount?.metadata.snap?.enabled).toBe(true);
-    });
-
-    it('disables an account if the Snap is disabled', async () => {
-      const messenger = buildMessenger();
-      const mockSnapAccount = createMockInternalAccount({
-        id: 'mock-id',
-        name: 'Snap Account 1',
-        address: '0x0',
-        keyringType: KeyringTypes.snap,
-        snap: {
-          id: 'mock-snap',
-          name: 'mock-snap-name',
-          enabled: true,
-        },
-      });
-      const mockSnapChangeState = {
-        snaps: {
-          'mock-snap': {
-            enabled: false,
-            id: 'mock-snap',
-            blocked: false,
-            status: SnapStatus.Running,
-          },
-        },
-      } as unknown as SnapControllerState;
-      const { accountsController } = setupAccountsController({
-        initialState: {
-          internalAccounts: {
-            accounts: {
-              [mockSnapAccount.id]: mockSnapAccount,
-            },
-            selectedAccount: mockSnapAccount.id,
-          },
-          accountIdByAddress: {
-            [mockSnapAccount.address]: mockSnapAccount.id,
-          },
-        },
-        messenger,
-      });
-
-      messenger.publish('SnapController:stateChange', mockSnapChangeState, []);
-
-      const updatedAccount = accountsController.getAccount(mockSnapAccount.id);
-
-      expect(updatedAccount?.metadata.snap?.enabled).toBe(false);
-    });
-
-    it('disables an account if the Snap is blocked', async () => {
-      const messenger = buildMessenger();
-      const mockSnapAccount = createMockInternalAccount({
-        id: 'mock-id',
-        name: 'Snap Account 1',
-        address: '0x0',
-        keyringType: KeyringTypes.snap,
-        snap: {
-          id: 'mock-snap',
-          name: 'mock-snap-name',
-          enabled: true,
-        },
-      });
-      const mockSnapChangeState = {
-        snaps: {
-          'mock-snap': {
-            enabled: true,
-            id: 'mock-snap',
-            blocked: true,
-            status: SnapStatus.Running,
-          },
-        },
-      } as unknown as SnapControllerState;
-      const { accountsController } = setupAccountsController({
-        initialState: {
-          internalAccounts: {
-            accounts: {
-              [mockSnapAccount.id]: mockSnapAccount,
-            },
-            selectedAccount: mockSnapAccount.id,
-          },
-          accountIdByAddress: {
-            [mockSnapAccount.address]: mockSnapAccount.id,
-          },
-        },
-        messenger,
-      });
-
-      messenger.publish('SnapController:stateChange', mockSnapChangeState, []);
-
-      const updatedAccount = accountsController.getAccount(mockSnapAccount.id);
-
-      expect(updatedAccount?.metadata.snap?.enabled).toBe(false);
-    });
-
-    it('does not trigger any unnecessary updates', async () => {
-      const messenger = buildMessenger();
-      const mockSnapAccount = createMockInternalAccount({
-        id: 'mock-id',
-        name: 'Snap Account 1',
-        address: '0x0',
-        keyringType: KeyringTypes.snap,
-        snap: {
-          id: 'mock-snap',
-          name: 'mock-snap-name',
-          enabled: false, // Will be enabled later by a `SnapController:stateChange`.
-        },
-      });
-      const mockSnapChangeState = {
-        snaps: {
-          'mock-snap': {
-            enabled: true,
-            id: 'mock-snap',
-            blocked: false,
-            status: SnapStatus.Running,
-          },
-        },
-      } as unknown as SnapControllerState;
-      const mockStateChange = jest.fn();
-      const { accountsController } = setupAccountsController({
-        initialState: {
-          internalAccounts: {
-            accounts: {
-              [mockSnapAccount.id]: mockSnapAccount,
-            },
-            selectedAccount: mockSnapAccount.id,
-          },
-          accountIdByAddress: {
-            [mockSnapAccount.address]: mockSnapAccount.id,
-          },
-        },
-        messenger,
-      });
-
-      messenger.subscribe('AccountsController:stateChange', mockStateChange);
-
-      // First update will update the account's metadata, thus triggering a `AccountsController:stateChange`.
-      messenger.publish('SnapController:stateChange', mockSnapChangeState, []);
-      const updatedAccount = accountsController.getAccount(mockSnapAccount.id);
-      expect(updatedAccount?.metadata.snap?.enabled).toBe(true);
-      expect(mockStateChange).toHaveBeenCalled();
-
-      // Second update is the same, thus the account does not need any update, and SHOULD NOT trigger a `AccountsController:stateChange`.
-      mockStateChange.mockReset();
-      messenger.publish('SnapController:stateChange', mockSnapChangeState, []);
-      expect(updatedAccount?.metadata.snap?.enabled).toBe(true);
-      expect(mockStateChange).not.toHaveBeenCalled();
-    });
-
-    it('considers the Snap disabled if it cannot be found on the SnapController state', () => {
-      const messenger = buildMessenger();
-      const mockSnapAccount = createMockInternalAccount({
-        id: 'mock-id',
-        name: 'Snap Account 1',
-        address: '0x0',
-        keyringType: KeyringTypes.snap,
-        snap: {
-          id: 'mock-snap',
-          name: 'mock-snap-name',
-          enabled: true, // This Snap was enabled initially.
-        },
-      });
-      const mockSnapChangeState = {
-        snaps: {
-          // No `mock-snap` on the state, the Snap will be considered "disabled".
-        },
-      } as unknown as SnapControllerState;
-      const { accountsController } = setupAccountsController({
-        initialState: {
-          internalAccounts: {
-            accounts: {
-              [mockSnapAccount.id]: mockSnapAccount,
-            },
-            selectedAccount: mockSnapAccount.id,
-          },
-          accountIdByAddress: {
-            [mockSnapAccount.address]: mockSnapAccount.id,
-          },
-        },
-        messenger,
-      });
-
-      // Initial state
-      const account = accountsController.getAccount(mockSnapAccount.id);
-      expect(account?.metadata.snap?.enabled).toBe(true);
-
-      // The Snap 'mock-snap' won't be found, so we will automatically consider it disabled.
-      messenger.publish('SnapController:stateChange', mockSnapChangeState, []);
-      const updatedAccount = accountsController.getAccount(mockSnapAccount.id);
-      expect(updatedAccount?.metadata.snap?.enabled).toBe(false);
     });
   });
 
@@ -1066,6 +867,182 @@ describe('AccountsController', () => {
         expect(accounts).toStrictEqual([
           setExpectedLastSelectedAsAny(mockAccount),
         ]);
+      });
+
+      it('add Snap v2 accounts', () => {
+        const mockSnapV2Address = '0xabcdef1234567890abcdef1234567890abcdef12';
+        const mockSnapV2SnapId = 'mock-snap-v2-id';
+        const mockSnapV2AccountId = 'mock-snap-v2-account-id';
+
+        const mockSnapV2KeyringAccount = {
+          id: mockSnapV2AccountId,
+          address: mockSnapV2Address,
+          options: {},
+          methods: [...ETH_EOA_METHODS],
+          type: EthAccountType.Eoa,
+          scopes: [EthScope.Eoa],
+        };
+
+        const mockSnapKeyringV2Instance = buildMockSnapKeyringV2(
+          mockSnapV2SnapId,
+          {
+            lookupByAddress: jest
+              .fn()
+              .mockReturnValue(mockSnapV2KeyringAccount),
+          },
+        );
+
+        const messenger = buildMessenger();
+        messenger.registerActionHandler(
+          'KeyringController:getKeyringsByType',
+          mockGetKeyringByType.mockReturnValue([
+            buildMockKeyringV1Adapter(mockSnapKeyringV2Instance),
+          ]),
+        );
+
+        const mockNewKeyringState = {
+          isUnlocked: true,
+          keyrings: [
+            {
+              type: KeyringType.Snap,
+              accounts: [mockSnapV2Address],
+              metadata: {
+                id: 'mock-keyring-v2-id',
+                name: 'mock-keyring-v2-name',
+              },
+            },
+          ],
+        };
+
+        const { accountsController } = setupAccountsController({
+          initialState: {
+            internalAccounts: {
+              accounts: {},
+              selectedAccount: '',
+            },
+            accountIdByAddress: {},
+          },
+          messenger,
+        });
+
+        messenger.publish(
+          'KeyringController:stateChange',
+          mockNewKeyringState,
+          [],
+        );
+
+        const accounts = accountsController.listMultichainAccounts();
+
+        expect(accounts).toHaveLength(1);
+        expect(accounts[0]).toMatchObject({
+          id: mockSnapV2AccountId,
+          address: mockSnapV2Address,
+          metadata: {
+            keyring: { type: KeyringType.Snap },
+            snap: {
+              id: mockSnapV2SnapId,
+            },
+            importTime: expect.any(Number),
+          },
+        });
+      });
+
+      it('handles the event when a Snap v2 deleted the account before it was added', () => {
+        const mockSnapV2Address = '0xabcdef1234567890abcdef1234567890abcdef12';
+
+        const mockSnapKeyringV2Instance = buildMockSnapKeyringV2(
+          'mock-snap-v2-id',
+          {
+            lookupByAddress: jest.fn().mockReturnValue(undefined),
+          },
+        );
+
+        const messenger = buildMessenger();
+        messenger.registerActionHandler(
+          'KeyringController:getKeyringsByType',
+          mockGetKeyringByType.mockReturnValue([
+            buildMockKeyringV1Adapter(mockSnapKeyringV2Instance),
+          ]),
+        );
+
+        const mockNewKeyringState = {
+          isUnlocked: true,
+          keyrings: [
+            {
+              type: KeyringType.Snap,
+              accounts: [mockSnapV2Address],
+              metadata: {
+                id: 'mock-keyring-v2-id',
+                name: 'mock-keyring-v2-name',
+              },
+            },
+          ],
+        };
+
+        const { accountsController } = setupAccountsController({
+          initialState: {
+            internalAccounts: {
+              accounts: {},
+              selectedAccount: '',
+            },
+            accountIdByAddress: {},
+          },
+          messenger,
+        });
+
+        messenger.publish(
+          'KeyringController:stateChange',
+          mockNewKeyringState,
+          [],
+        );
+
+        expect(accountsController.listMultichainAccounts()).toStrictEqual([]);
+      });
+
+      it('handles when no SnapKeyringV2 instance matches for a Snap v2 keyring type', () => {
+        const mockSnapV2Address = '0xabcdef1234567890abcdef1234567890abcdef12';
+
+        const messenger = buildMessenger();
+        messenger.registerActionHandler(
+          'KeyringController:getKeyringsByType',
+          mockGetKeyringByType.mockReturnValue([
+            // Plain object — does NOT pass instanceof KeyringV1Adapter
+            { lookupByAddress: jest.fn() },
+          ]),
+        );
+
+        const mockNewKeyringState = {
+          isUnlocked: true,
+          keyrings: [
+            {
+              type: KeyringType.Snap,
+              accounts: [mockSnapV2Address],
+              metadata: {
+                id: 'mock-keyring-v2-id',
+                name: 'mock-keyring-v2-name',
+              },
+            },
+          ],
+        };
+
+        const { accountsController } = setupAccountsController({
+          initialState: {
+            internalAccounts: {
+              accounts: {},
+              selectedAccount: '',
+            },
+            accountIdByAddress: {},
+          },
+          messenger,
+        });
+
+        messenger.publish(
+          'KeyringController:stateChange',
+          mockNewKeyringState,
+          [],
+        );
+
+        expect(accountsController.listMultichainAccounts()).toStrictEqual([]);
       });
 
       it('increment the default account number when adding an account', async () => {
@@ -2167,7 +2144,7 @@ describe('AccountsController', () => {
       return { messenger, account, accountsController };
     };
 
-    it('re-publishes keyring events: SnapKeyring:accountBalancesUpdated', () => {
+    it('re-publishes keyring events: SnapAccountService:accountBalancesUpdated', () => {
       const { account, messenger } = setupTest();
 
       const payload: AccountBalancesUpdatedEventPayload = {
@@ -2186,11 +2163,11 @@ describe('AccountsController', () => {
         'AccountsController:accountBalancesUpdated',
         mockRePublishedCallback,
       );
-      messenger.publish('SnapKeyring:accountBalancesUpdated', payload);
+      messenger.publish('SnapAccountService:accountBalancesUpdated', payload);
       expect(mockRePublishedCallback).toHaveBeenCalledWith(payload);
     });
 
-    it('re-publishes keyring events: SnapKeyring:accountAssetListUpdated', () => {
+    it('re-publishes keyring events: SnapAccountService:accountAssetListUpdated', () => {
       const { account, messenger } = setupTest();
 
       const payload: AccountAssetListUpdatedEventPayload = {
@@ -2207,11 +2184,11 @@ describe('AccountsController', () => {
         'AccountsController:accountAssetListUpdated',
         mockRePublishedCallback,
       );
-      messenger.publish('SnapKeyring:accountAssetListUpdated', payload);
+      messenger.publish('SnapAccountService:accountAssetListUpdated', payload);
       expect(mockRePublishedCallback).toHaveBeenCalledWith(payload);
     });
 
-    it('re-publishes keyring events: SnapKeyring:accountTransactionsUpdated', () => {
+    it('re-publishes keyring events: SnapAccountService:accountTransactionsUpdated', () => {
       const { account, messenger } = setupTest();
 
       const payload: AccountTransactionsUpdatedEventPayload = {
@@ -2248,7 +2225,10 @@ describe('AccountsController', () => {
         'AccountsController:accountTransactionsUpdated',
         mockRePublishedCallback,
       );
-      messenger.publish('SnapKeyring:accountTransactionsUpdated', payload);
+      messenger.publish(
+        'SnapAccountService:accountTransactionsUpdated',
+        payload,
+      );
       expect(mockRePublishedCallback).toHaveBeenCalledWith(payload);
     });
   });
@@ -3293,6 +3273,118 @@ describe('AccountsController', () => {
         accountsController.getAccount(mockHdSnapAccount.id),
       ).toBeUndefined();
       expect(mockGetKeyringByType).toHaveBeenCalledTimes(1);
+    });
+
+    it('update accounts with Snap v2 accounts', async () => {
+      const mockSnapV2Address = '0xabcdef1234567890abcdef1234567890abcdef12';
+      const mockSnapV2SnapId = 'mock-snap-v2-id';
+      const mockSnapV2AccountId = 'mock-snap-v2-account-id';
+
+      const mockSnapV2KeyringAccount = {
+        id: mockSnapV2AccountId,
+        address: mockSnapV2Address,
+        options: {},
+        methods: [...ETH_EOA_METHODS],
+        type: EthAccountType.Eoa,
+        scopes: [EthScope.Eoa],
+      };
+
+      const mockSnapKeyringV2Instance = buildMockSnapKeyringV2(
+        mockSnapV2SnapId,
+        {
+          lookupByAddress: jest.fn().mockReturnValue(mockSnapV2KeyringAccount),
+        },
+      );
+
+      const messenger = buildMessenger();
+      messenger.registerActionHandler(
+        'KeyringController:getState',
+        mockGetState.mockReturnValue({
+          keyrings: [
+            {
+              type: KeyringType.Snap,
+              accounts: [mockSnapV2Address],
+              metadata: {
+                id: 'mock-keyring-v2-id',
+                name: 'mock-keyring-v2-name',
+              },
+            },
+          ],
+        }),
+      );
+      messenger.registerActionHandler(
+        'KeyringController:getKeyringsByType',
+        mockGetKeyringByType.mockReturnValue([
+          buildMockKeyringV1Adapter(mockSnapKeyringV2Instance),
+        ]),
+      );
+
+      const { accountsController } = setupAccountsController({
+        initialState: {
+          internalAccounts: {
+            accounts: {},
+            selectedAccount: '',
+          },
+          accountIdByAddress: {},
+        },
+        messenger,
+      });
+
+      await accountsController.updateAccounts();
+
+      const accounts = accountsController.listMultichainAccounts();
+      expect(accounts).toHaveLength(1);
+      expect(accounts[0]).toMatchObject({
+        id: mockSnapV2AccountId,
+        address: mockSnapV2Address,
+        metadata: {
+          name: 'Snap Account 1',
+          keyring: { type: KeyringType.Snap },
+          snap: {
+            id: mockSnapV2SnapId,
+          },
+        },
+      });
+    });
+
+    it('skips Snap v2 account if no SnapKeyringV2 instance is found', async () => {
+      const mockSnapV2Address = '0xabcdef1234567890abcdef1234567890abcdef12';
+
+      const messenger = buildMessenger();
+      messenger.registerActionHandler(
+        'KeyringController:getState',
+        mockGetState.mockReturnValue({
+          keyrings: [
+            {
+              type: KeyringType.Snap,
+              accounts: [mockSnapV2Address],
+              metadata: {
+                id: 'mock-keyring-v2-id',
+                name: 'mock-keyring-v2-name',
+              },
+            },
+          ],
+        }),
+      );
+      messenger.registerActionHandler(
+        'KeyringController:getKeyringsByType',
+        mockGetKeyringByType.mockReturnValue([]),
+      );
+
+      const { accountsController } = setupAccountsController({
+        initialState: {
+          internalAccounts: {
+            accounts: {},
+            selectedAccount: '',
+          },
+          accountIdByAddress: {},
+        },
+        messenger,
+      });
+
+      await accountsController.updateAccounts();
+
+      expect(accountsController.listMultichainAccounts()).toStrictEqual([]);
     });
 
     it.todo(

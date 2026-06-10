@@ -30,9 +30,10 @@ import type { Hex } from '@metamask/utils';
 import { DELEGATION_FRAMEWORK_VERSION } from './constants';
 import type { DecodedPermission } from './decodePermission';
 import {
-  createPermissionRulesForContracts,
-  findRuleWithMatchingCaveatAddresses,
+  createPermissionDecodersForContracts,
+  findDecodersWithMatchingCaveatAddresses,
   reconstructDecodedPermission,
+  selectUniqueDecoderAndDecodedPermission,
 } from './decodePermission';
 import {
   GatorPermissionsFetchError,
@@ -561,7 +562,9 @@ export class GatorPermissionsController extends BaseController<
    *
    * @returns A decoded permission object suitable for UI consumption and follow-up actions.
    * @throws If the origin is not allowed, the context cannot be decoded into exactly one delegation,
-   * or the enforcers/terms do not match a supported permission type.
+   * the enforcers do not match any supported permission type, no candidate type validates
+   * the caveat terms, or more than one permission type successfully validates
+   * (ambiguous delegation).
    */
   public decodePermissionFromPermissionContextForOrigin({
     origin,
@@ -589,36 +592,36 @@ export class GatorPermissionsController extends BaseController<
 
     try {
       const enforcers = caveats.map((caveat) => caveat.enforcer);
-      const permissionRules = createPermissionRulesForContracts(contracts);
+      const permissionDecoders =
+        createPermissionDecodersForContracts(contracts);
 
-      // find the single rule where the specified enforcers contain all the required enforcers
-      // and no forbidden enforcers
-      const matchingRule = findRuleWithMatchingCaveatAddresses({
+      // Every decoder where enforcer addresses match; multiple types may share the
+      // same caveat pattern and are disambiguated by validateAndDecodePermission.
+      const matchingDecoders = findDecodersWithMatchingCaveatAddresses({
         enforcers,
-        permissionRules,
+        permissionDecoders,
       });
 
-      // validate the terms of each caveat against the matching rule, returning the decoded result
-      // this happens in a single function, as decoding is an inherent part of validation.
-      const decodeResult = matchingRule.validateAndDecodePermission(caveats);
-
-      if (!decodeResult.isValid) {
-        throw new PermissionDecodingError({
-          cause: decodeResult.error,
-        });
-      }
-
-      const { expiry, data } = decodeResult;
+      const {
+        decoder: { permissionType },
+        expiry,
+        data,
+        rules,
+      } = selectUniqueDecoderAndDecodedPermission({
+        candidateDecoders: matchingDecoders,
+        caveats,
+      });
 
       const permission = reconstructDecodedPermission({
         chainId,
-        permissionType: matchingRule.permissionType,
+        permissionType,
         delegator,
         delegate,
         authority,
         expiry,
         data,
         justification,
+        rules,
         specifiedOrigin,
       });
 

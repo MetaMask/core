@@ -22,6 +22,7 @@ export const ALLOWED_BRIDGE_CHAIN_IDS = [
   CHAIN_IDS.MONAD,
   CHAIN_IDS.HYPEREVM,
   CHAIN_IDS.MEGAETH,
+  CHAIN_IDS.ARC,
   SolScope.Mainnet,
   BtcScope.Mainnet,
   TrxScope.Mainnet,
@@ -66,6 +67,7 @@ export const DEFAULT_CHAIN_RANKING = [
   { chainId: 'eip155:1329', name: 'Sei' },
   { chainId: 'eip155:999', name: 'HyperEVM' },
   { chainId: 'eip155:4326', name: 'MegaETH' },
+  { chainId: 'eip155:5042', name: 'Arc' },
   { chainId: 'eip155:324', name: 'zkSync' },
 ] as const;
 
@@ -79,9 +81,11 @@ export const DEFAULT_FEATURE_FLAG_CONFIG: FeatureFlagsPlatformConfig = {
 };
 
 export const DEFAULT_BRIDGE_CONTROLLER_STATE: BridgeControllerState = {
-  quoteRequest: {
-    srcTokenAddress: AddressZero,
-  },
+  quoteRequest: [
+    {
+      srcTokenAddress: AddressZero,
+    },
+  ],
   quotesInitialLoadTime: null,
   quotes: [],
   quotesLastFetched: null,
@@ -91,7 +95,10 @@ export const DEFAULT_BRIDGE_CONTROLLER_STATE: BridgeControllerState = {
   assetExchangeRates: {},
   minimumBalanceForRentExemptionInLamports: '0',
   tokenWarnings: [],
+  tokenSecurityTypeDestination: null,
   quoteStreamComplete: null,
+  batchSellTrades: null,
+  batchSellTradesLoadingStatus: null,
 };
 
 export const METABRIDGE_CHAIN_TO_ADDRESS_MAP: Record<Hex, string> = {

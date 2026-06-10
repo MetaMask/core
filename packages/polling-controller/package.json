@@ -1,6 +1,6 @@
 {
   "name": "@metamask/polling-controller",
-  "version": "16.0.4",
+  "version": "16.0.6",
   "description": "Polling Controller is the base for controllers that polling by networkClientId",
   "keywords": [
     "Ethereum",
@@ -52,8 +52,8 @@
   },
   "dependencies": {
     "@metamask/base-controller": "^9.1.0",
-    "@metamask/controller-utils": "^11.20.0",
-    "@metamask/network-controller": "^30.0.1",
+    "@metamask/controller-utils": "^12.1.1",
+    "@metamask/network-controller": "^32.0.0",
     "@metamask/utils": "^11.9.0",
     "@types/uuid": "^8.3.0",
     "fast-json-stable-stringify": "^2.1.0",
@@ -61,7 +61,7 @@
   },
   "devDependencies": {
     "@metamask/auto-changelog": "^6.1.0",
-    "@metamask/messenger": "^1.1.1",
+    "@metamask/messenger": "^1.2.0",
     "@ts-bridge/cli": "^0.6.4",
     "@types/jest": "^29.5.14",
     "deepmerge": "^4.2.2",

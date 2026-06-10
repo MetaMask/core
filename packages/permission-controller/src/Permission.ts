@@ -484,15 +484,19 @@ export type PermissionSpecificationConstraint =
  * Options for {@link PermissionSpecificationBuilder} functions.
  */
 type PermissionSpecificationBuilderOptions<
-  FactoryHooks extends Record<string, unknown>,
   MethodHooks extends Record<string, unknown>,
-  ValidatorHooks extends Record<string, unknown>,
+  SpecMessenger = unknown,
 > = {
   targetName?: string;
   allowedCaveats?: Readonly<NonEmptyArray<string>> | null;
-  factoryHooks?: FactoryHooks;
   methodHooks?: MethodHooks;
-  validatorHooks?: ValidatorHooks;
+  /**
+   * A messenger scoped to this permission specification. The messenger is
+   * expected to have exactly the actions declared by the spec's `actionNames`
+   * delegated to it; {@link createRestrictedMethodMessenger} is the canonical
+   * way to construct it.
+   */
+  messenger?: SpecMessenger;
 };
 
 /**
@@ -504,34 +508,12 @@ type PermissionSpecificationBuilderOptions<
 export type PermissionSpecificationBuilder<
   Type extends PermissionType,
   Options extends PermissionSpecificationBuilderOptions<
-    Record<string, unknown>,
-    Record<string, unknown>,
     Record<string, unknown>
   >,
   Specification extends PermissionSpecificationConstraint & {
     permissionType: Type;
   },
 > = (options: Options) => Specification;
-
-/**
- * A restricted method permission export object, containing the
- * {@link PermissionSpecificationBuilder} function and "hook name" objects.
- */
-export type PermissionSpecificationBuilderExportConstraint = {
-  targetName: string;
-  specificationBuilder: PermissionSpecificationBuilder<
-    PermissionType,
-    PermissionSpecificationBuilderOptions<
-      Record<string, unknown>,
-      Record<string, unknown>,
-      Record<string, unknown>
-    >,
-    PermissionSpecificationConstraint
-  >;
-  factoryHookNames?: Record<string, true>;
-  methodHookNames?: Record<string, true>;
-  validatorHookNames?: Record<string, true>;
-};
 
 type ValidRestrictedMethodSpecification<
   Specification extends RestrictedMethodSpecificationConstraint,

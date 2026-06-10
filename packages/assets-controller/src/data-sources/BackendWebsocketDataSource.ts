@@ -76,6 +76,8 @@ export type BackendWebsocketDataSourceOptions = {
     chains: ChainId[],
     previousChains: ChainId[],
   ) => void;
+  /** Determines whether a CAIP-19 asset ID represents a native asset. */
+  isNativeAsset: (assetId: Caip19AssetId) => boolean;
   state?: Partial<BackendWebsocketDataSourceState>;
 };
 
@@ -224,6 +226,8 @@ export class BackendWebsocketDataSource extends AbstractDataSource<
     previousChains: ChainId[],
   ) => void;
 
+  readonly #isNativeAsset: (assetId: Caip19AssetId) => boolean;
+
   /** Chains refresh timer */
   #chainsRefreshTimer: ReturnType<typeof setInterval> | null = null;
 
@@ -251,6 +255,7 @@ export class BackendWebsocketDataSource extends AbstractDataSource<
     this.#messenger = options.messenger;
     this.#apiClient = options.queryApiClient;
     this.#onActiveChainsUpdated = options.onActiveChainsUpdated;
+    this.#isNativeAsset = options.isNativeAsset;
 
     this.#subscribeToEvents();
     this.#initializeActiveChains().catch(console.error);
@@ -639,7 +644,7 @@ export class BackendWebsocketDataSource extends AbstractDataSource<
       const assetId = asset.type as Caip19AssetId;
 
       // Determine token type from asset type string
-      const isNative = asset.type.includes('/slip44:');
+      const isNative = this.#isNativeAsset(assetId);
       const tokenType = isNative ? 'native' : 'erc20';
 
       // We assume decimals are always present; skip malformed updates
@@ -652,10 +657,9 @@ export class BackendWebsocketDataSource extends AbstractDataSource<
         ? BigInt(postBalance.amount).toString()
         : postBalance.amount;
 
-      // Convert to human-readable using asset decimals (match RpcDataSource / pipeline format)
       const humanReadableAmount = new BigNumberJS(rawBalanceStr)
         .dividedBy(new BigNumberJS(10).pow(asset.decimals))
-        .toString();
+        .toFixed();
 
       assetsBalance[accountId][assetId] = {
         amount: humanReadableAmount,

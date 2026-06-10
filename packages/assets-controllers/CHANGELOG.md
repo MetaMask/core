@@ -9,7 +9,265 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add `ARC` support ([#9006](https://github.com/MetaMask/core/pull/9006))
+  - Add `ARC` in `SupportedTokenDetectionNetworks`
+  - Add `ARC` in `SUPPORTED_NETWORKS_ACCOUNTS_API_V4`
+
+### Changed
+
+- Bump `@metamask/transaction-controller` from `^67.0.0` to `^67.1.0` ([#9066](https://github.com/MetaMask/core/pull/9066))
+
+## [108.6.0]
+
+### Added
+
+- Add `isDeprecated` option to `TokenRatesController` constructor ([#9033](https://github.com/MetaMask/core/pull/9033))
+  - When `isDeprecated()` returns `true`, no network requests are sent and `marketData` is reset to `{}` at construction and at every entry point (`updateExchangeRates`, `_executePoll`, `TokensController:stateChange`, and `NetworkController:stateChange`), so no stale rates remain in state.
+  - The function is re-evaluated on each entry point so it can be toggled at runtime without reconstructing the controller.
+- Add `isDeprecated` option to `TokenBalancesController` constructor ([#9033](https://github.com/MetaMask/core/pull/9033))
+  - When `isDeprecated()` returns `true`, no network requests are sent and `tokenBalances` is reset to `{}` at construction and at every entry point (`updateBalances`, `_executePoll`, `TokensController:stateChange`, `NetworkController:stateChange`, `KeyringController:accountRemoved`, `AccountsController:selectedEvmAccountChange`, and the `AccountActivityService` events), so no stale balances remain in state.
+  - The function is re-evaluated on each entry point so it can be toggled at runtime without reconstructing the controller.
+- Add `isDeprecated` option to `AccountTrackerController` constructor ([#9033](https://github.com/MetaMask/core/pull/9033))
+  - When `isDeprecated()` returns `true`, no network requests are sent and `accountsByChainId` is reset to `{}` at construction and at every entry point (`refresh`, `refreshAddresses`, `_executePoll`, `syncBalanceWithAddresses`, `updateNativeBalances`, and `updateStakedBalances`), so no stale balances remain in state.
+  - The function is re-evaluated on each entry point so it can be toggled at runtime without reconstructing the controller.
+
+### Changed
+
+- Bump `@metamask/network-enablement-controller` from `^5.2.0` to `^5.3.0` ([#9003](https://github.com/MetaMask/core/pull/9003))
+- Bump `@metamask/transaction-controller` from `^66.0.1` to `^67.0.0` ([#9021](https://github.com/MetaMask/core/pull/9021))
+- Bump `@metamask/account-tree-controller` from `^7.5.1` to `^7.5.2` ([#9058](https://github.com/MetaMask/core/pull/9058))
+- Bump `@metamask/accounts-controller` from `^39.0.0` to `^39.0.1` ([#9058](https://github.com/MetaMask/core/pull/9058))
+- Bump `@metamask/approval-controller` from `^9.0.1` to `^9.0.2` ([#9058](https://github.com/MetaMask/core/pull/9058))
+- Bump `@metamask/controller-utils` from `^12.1.0` to `^12.1.1` ([#9058](https://github.com/MetaMask/core/pull/9058))
+- Bump `@metamask/core-backend` from `^6.3.2` to `^6.3.3` ([#9058](https://github.com/MetaMask/core/pull/9058))
+- Bump `@metamask/keyring-controller` from `^26.0.0` to `^27.0.0` ([#9058](https://github.com/MetaMask/core/pull/9058))
+- Bump `@metamask/multichain-account-service` from `^10.0.2` to `^10.0.3` ([#9058](https://github.com/MetaMask/core/pull/9058))
+- Bump `@metamask/storage-service` from `^1.0.1` to `^1.0.2` ([#9058](https://github.com/MetaMask/core/pull/9058))
+
+## [108.5.0]
+
+### Added
+
+- Add `isDeprecated` option to `TokenListController` constructor, a function that returns whether the controller should be disabled ([#8945](https://github.com/MetaMask/core/pull/8945))
+  - When `isDeprecated()` returns `true`, every fetching entry point (`initialize()`, `start()`, `restart()`, `_executePoll()`, and `fetchTokenList()`) resets `tokensChainsCache` to `{}`, cancels any pending debounced persist (so a stale entry can't write old data after the in-memory reset), and overwrites every persisted `tokensChainsCache:*` entry in `StorageService` with `{ data: {}, timestamp: 0 }`. No HTTP calls are issued to the token API.
+  - The function is re-evaluated on each entry point so it can be toggled at runtime without reconstructing the controller — including from inside any deprecated `setInterval` already running from a prior `start()`.
+
+### Changed
+
+- Bump `@metamask/account-tree-controller` from `^7.5.0` to `^7.5.1` ([#8999](https://github.com/MetaMask/core/pull/8999))
+- Bump `@metamask/accounts-controller` from `^38.1.2` to `^39.0.0` ([#8999](https://github.com/MetaMask/core/pull/8999))
+- Bump `@metamask/core-backend` from `^6.3.1` to `^6.3.2` ([#8999](https://github.com/MetaMask/core/pull/8999))
+- Bump `@metamask/multichain-account-service` from `^10.0.1` to `^10.0.2` ([#8999](https://github.com/MetaMask/core/pull/8999))
+- Bump `@metamask/transaction-controller` from `^66.0.0` to `^66.0.1` ([#8999](https://github.com/MetaMask/core/pull/8999))
+
+## [108.4.0]
+
+### Added
+
+- Add ARC mainnet (`5042`/`0x13b2`) entries in `multicall.ts` and `codefi-v2.ts` ([#8973](https://github.com/MetaMask/core/pull/8973))
+
+## [108.3.0]
+
+### Added
+
+- Add `fetchRwas` to fetch real-world asset tokens from the Token API ([#8931](https://github.com/MetaMask/core/pull/8931))
+
+### Changed
+
+- Bump `@metamask/account-tree-controller` from `^7.4.0` to `^7.5.0` ([#8912](https://github.com/MetaMask/core/pull/8912))
+- Bump `@metamask/accounts-controller` from `^38.1.1` to `^38.1.2` ([#8912](https://github.com/MetaMask/core/pull/8912))
+- Bump `@metamask/core-backend` from `^6.3.0` to `^6.3.1` ([#8912](https://github.com/MetaMask/core/pull/8912))
+- Bump `@metamask/keyring-controller` from `^25.5.0` to `^26.0.0` ([#8912](https://github.com/MetaMask/core/pull/8912))
+- Bump `@metamask/multichain-account-service` from `^10.0.0` to `^10.0.1` ([#8912](https://github.com/MetaMask/core/pull/8912))
+- Bump `@metamask/profile-sync-controller` from `^28.1.0` to `^28.1.1` ([#8912](https://github.com/MetaMask/core/pull/8912))
+
+## [108.2.0]
+
+### Added
+
+- Add inEVM Mainnet (chain 2525) and ICB Network (chain 73115) to `SPOT_PRICES_SUPPORT_INFO` ([#8887](https://github.com/MetaMask/core/pull/8887))
+
+### Changed
+
+- Bump `@metamask/transaction-controller` from `^65.3.0` to `^66.0.0` ([#8796](https://github.com/MetaMask/core/pull/8796), [#8848](https://github.com/MetaMask/core/pull/8848))
+- Bump `@metamask/core-backend` from `^6.2.2` to `^6.3.0` ([#8813](https://github.com/MetaMask/core/pull/8813))
+- Bump `@metamask/phishing-controller` from `^17.1.2` to `^17.2.0` ([#8819](https://github.com/MetaMask/core/pull/8819))
+- Bump `@metamask/network-enablement-controller` from `^5.1.1` to `^5.2.0` ([#8834](https://github.com/MetaMask/core/pull/8834))
+- Bump `@metamask/polling-controller` from `^16.0.5` to `^16.0.6` ([#8834](https://github.com/MetaMask/core/pull/8834))
+
+### Fixed
+
+- Fix incorrect hex key for Blast Mainnet in `SPOT_PRICES_SUPPORT_INFO` (`0x13c31` → `0x13e31`), which previously caused native-token price fetching to silently fail for that chain ([#8887](https://github.com/MetaMask/core/pull/8887))
+- Fixed Forma (chain `984122`) native token price resolution by requesting TIA as the zero-address native asset (`erc20:0x0000000000000000000000000000000000000000`) instead of a non-canonical SLIP-44 reference ([#8873](https://github.com/MetaMask/core/pull/8873))
+
+## [108.1.0]
+
+### Added
+
+- Add cursor-based pagination support to `searchTokens` ([#8788](https://github.com/MetaMask/core/pull/8788))
+  - The response now includes `totalCount` (total number of matching tokens across all pages) and `pageInfo` (`{ hasNextPage, endCursor }`) when returned by the API.
+  - Pass `pageInfo.endCursor` as the `after` option to fetch the next page of results.
+  - Export new type `PageInfo` for the pagination metadata shape.
+
+### Changed
+
+- Bump `@metamask/account-tree-controller` from `^7.3.0` to `^7.4.0` ([#8783](https://github.com/MetaMask/core/pull/8783))
+- Bump `@metamask/multichain-account-service` from `^9.0.0` to `^10.0.0` ([#8783](https://github.com/MetaMask/core/pull/8783))
+- Bump `@metamask/profile-sync-controller` from `^28.0.2` to `^28.1.0` ([#8783](https://github.com/MetaMask/core/pull/8783))
+
+## [108.0.0]
+
+### Changed
+
+- Bump `@metamask/accounts-controller` from `^38.1.0` to `^38.1.1` ([#8774](https://github.com/MetaMask/core/pull/8774))
+- Bump `@metamask/network-controller` from `^31.1.0` to `^32.0.0` ([#8774](https://github.com/MetaMask/core/pull/8774))
+- Bump `@metamask/controller-utils` from `^12.0.0` to `^12.1.0` ([#8774](https://github.com/MetaMask/core/pull/8774))
+
+## [107.0.0]
+
+### Added
+
+- Export new type `TrendingTokensQueryParams` for extensible trending token query parameters ([#8729](https://github.com/MetaMask/core/pull/8729))
+
+### Changed
+
+- **BREAKING:** `getTrendingTokens` now accepts `sort` instead of `sortBy` to match the API parameter name ([#8729](https://github.com/MetaMask/core/pull/8729))
+- `getTrendingTokens` and `getTrendingTokensURL` now accept arbitrary query parameters via an index signature on `TrendingTokensQueryParams`, allowing new API parameters to pass through without a core release ([#8729](https://github.com/MetaMask/core/pull/8729))
+- Bump `@metamask/network-controller` from `^31.0.0` to `^31.1.0` ([#8765](https://github.com/MetaMask/core/pull/8765))
+- Modify `SPOT_PRICES_SUPPORT_INFO` entries for Tempo chains (`0x1079` and `0xa5bf`) ([#8638](https://github.com/MetaMask/core/pull/8638))
+
+## [106.0.1]
+
+### Changed
+
+- Bump `@metamask/account-tree-controller` from `^7.2.0` to `^7.3.0` ([#8722](https://github.com/MetaMask/core/pull/8722))
+- Bump `@metamask/keyring-controller` from `^25.4.0` to `^25.5.0` ([#8722](https://github.com/MetaMask/core/pull/8722))
+- Bump `@metamask/multichain-account-service` from `^8.0.1` to `^9.0.0` ([#8722](https://github.com/MetaMask/core/pull/8722))
+- Bump `@metamask/permission-controller` from `^13.0.0` to `^13.1.1` ([#8722](https://github.com/MetaMask/core/pull/8722), [#8755](https://github.com/MetaMask/core/pull/8755))
+- Bump `@metamask/transaction-controller` from `^65.1.0` to `^65.3.0` ([#8722](https://github.com/MetaMask/core/pull/8722), [#8755](https://github.com/MetaMask/core/pull/8755))
+- Bump `@metamask/accounts-controller` from `^38.0.0` to `^38.1.0` ([#8755](https://github.com/MetaMask/core/pull/8755))
+- Bump `@metamask/controller-utils` from `^11.20.0` to `^12.0.0` ([#8755](https://github.com/MetaMask/core/pull/8755))
+- Bump `@metamask/core-backend` from `^6.2.1` to `^6.2.2` ([#8755](https://github.com/MetaMask/core/pull/8755))
+- Bump `@metamask/network-controller` from `^30.1.0` to `^31.0.0` ([#8755](https://github.com/MetaMask/core/pull/8755))
+- Bump `@metamask/network-enablement-controller` from `^5.1.0` to `^5.1.1` ([#8755](https://github.com/MetaMask/core/pull/8755))
+- Bump `@metamask/phishing-controller` from `^17.1.1` to `^17.1.2` ([#8755](https://github.com/MetaMask/core/pull/8755))
+- Bump `@metamask/polling-controller` from `^16.0.4` to `^16.0.5` ([#8755](https://github.com/MetaMask/core/pull/8755))
+
+## [106.0.0]
+
+### Added
+
+- Add `TokenListService`, a shared service for fetching and caching the token list per chain ([#8700](https://github.com/MetaMask/core/pull/8700))
+  - Wraps `@tanstack/query-core` to cache results in-memory for 4 hours per chain ID, matching `TokenListController`'s existing threshold.
+  - Multiple controllers sharing the same `TokenListService` instance share the same cache: only one HTTP request is made per chain per 4-hour window regardless of how many callers invoke `fetchTokensByChainId`.
+  - Exported from the package as `TokenListService` and `buildTokenListMap`.
+- Add `@tanstack/query-core` `^5.62.16` as a direct dependency ([#8700](https://github.com/MetaMask/core/pull/8700))
+- Expose missing public `AccountTrackerController` methods through its messenger ([#8693](https://github.com/MetaMask/core/pull/8693))
+  - The following actions are now available:
+    - `AccountTrackerController:refresh`
+    - `AccountTrackerController:syncBalanceWithAddresses`
+  - Corresponding action types are available as well.
+- Expose missing public `TokenBalancesController` methods through its messenger ([#8693](https://github.com/MetaMask/core/pull/8693))
+  - The following actions are now available:
+    - `TokenBalancesController:updateBalances`
+    - `TokenBalancesController:resetState`
+  - Corresponding action types are available as well.
+
+### Changed
+
+- **BREAKING:** `TokenDetectionController` now requires a `tokenListService: TokenListService` constructor option ([#8700](https://github.com/MetaMask/core/pull/8700))
+  - Token list data is fetched directly from `TokenListService` instead of reading `TokenListController` state on each detection pass.
+  - `GetTokenListState` has been removed from `AllowedActions` and `TokenListStateChange` has been removed from `AllowedEvents` on `TokenDetectionControllerMessenger`.
+- **BREAKING:** `TokensController` now requires a `tokenListService: TokenListService` constructor option ([#8700](https://github.com/MetaMask/core/pull/8700))
+  - `TokenListStateChange` has been removed from `AllowedEvents` on `TokensControllerMessenger`.
+  - Token `name` and `rwaData` enrichment now happens once at controller initialization instead of reactively on every `TokenListController:stateChange` event.
+- Bump `@metamask/transaction-controller` from `^65.0.0` to `^65.1.0` ([#8691](https://github.com/MetaMask/core/pull/8691))
+- Switch the default mUSD asset from upfront `allTokens` state seeding to detection-based discovery on Ethereum mainnet (`0x1`), Linea (`0xe708`), and Monad mainnet (`0x8f`) ([#8688](https://github.com/MetaMask/core/pull/8688))
+  - `TokenDetectionController` now merges mUSD into the in-memory token list cache for these chains so it is treated as a regular detection candidate, replacing the previous `start()`-time `TokensController:addTokens` call and the per-event re-seed runs.
+  - `TokenBalancesController` schedules mUSD for import on the same chains even when the Accounts API returns a zero balance, so users without a current mUSD balance still see the token.
+  - Drops Monad testnet (`0x279f`) from the default mUSD chain list.
+- Bump `@metamask/network-enablement-controller` from `^5.0.2` to `^5.1.0` ([#8665](https://github.com/MetaMask/core/pull/8665))
+- Bump `@metamask/keyring-controller` from `^25.3.0` to `^25.4.0` ([#8665](https://github.com/MetaMask/core/pull/8665))
+- Bump `@metamask/accounts-controller` from `^37.2.0` to `^38.0.0` ([#8665](https://github.com/MetaMask/core/pull/8665))
+- Bump `@metamask/account-tree-controller` from `^7.1.0` to `^7.2.0` ([#8665](https://github.com/MetaMask/core/pull/8665))
+
+### Removed
+
+- `TokenDetectionController` no longer restarts token detection when `TokenListController` publishes a `stateChange` event ([#8700](https://github.com/MetaMask/core/pull/8700))
+  - Detection is still triggered on wallet unlock, account change, network change, and preference changes; the extra restart that occurred whenever `TokenListController` refreshed its cache is gone.
+- Stop seeding mUSD directly into `TokensController` state and remove the related event subscriptions ([#8688](https://github.com/MetaMask/core/pull/8688))
+  - `TokensController` no longer subscribes to `KeyringController:unlock`, `AccountsController:accountAdded`, `AccountsController:selectedEvmAccountChange`, `NetworkController:networkAdded`, or `NetworkController:stateChange` for mUSD seeding purposes.
+  - `TokensControllerMessenger` no longer requires `NetworkControllerNetworkAddedEvent`, `AccountsControllerAccountAddedEvent`, or `KeyringControllerUnlockEvent` as allowed events.
+  - Detection-based discovery (see Changed) covers the same user-facing behavior on supported chains.
+
+## [105.1.0]
+
+### Added
+
+- Seed mUSD (`0xaca92e438df0b2401ff60da7e4337b687a2435da`) into `allTokens` state as a default tracked asset on Ethereum mainnet (`0x1`), Linea (`0xe708`), Monad mainnet (`0x8f`), and Monad testnet (`0x279f`) ([#8620](https://github.com/MetaMask/core/pull/8620))
+  - `TokenDetectionController.start()` now calls `TokensController:addTokens` for mUSD on every supported chain that is configured in `NetworkController` — this is the primary trigger and uses the proven `addTokens` API. Re-runs on `AccountsController:selectedEvmAccountChange` (since `addTokens` only seeds for the currently selected account).
+  - `TokensController` also seeds mUSD directly into state as a defense-in-depth measure: at startup for existing EVM accounts, on accounts already in persisted `allTokens` state, on `AccountsController:accountAdded`, on `AccountsController:selectedEvmAccountChange`, on `KeyringController:unlock`, on `NetworkController:networkAdded`, and on `NetworkController:stateChange` add patches.
+  - `TokensControllerMessenger` now requires `NetworkControllerNetworkAddedEvent`, `AccountsControllerAccountAddedEvent`, and `KeyringControllerUnlockEvent` as allowed events.
+- Add ZetaChain network support (`7000`/`0x1b58`) ([#8627](https://github.com/MetaMask/core/pull/8627))
+
+### Changed
+
+- Bump `@metamask/permission-controller` from `^12.3.0` to `^13.0.0` ([#8661](https://github.com/MetaMask/core/pull/8661))
+- Bump `@metamask/keyring-api` from `^23.0.1` to `^23.1.0` ([#8647](https://github.com/MetaMask/core/pull/8647))
+- Bump `@metamask/keyring-internal-api` from `^10.1.1` to `^11.0.1` ([#8584](https://github.com/MetaMask/core/pull/8584), [#8647](https://github.com/MetaMask/core/pull/8647))
+- Bump `@metamask/messenger` from `^1.1.1` to `^1.2.0` ([#8632](https://github.com/MetaMask/core/pull/8632))
+- Bump `@metamask/keyring-controller` from `^25.2.0` to `^25.3.0` ([#8634](https://github.com/MetaMask/core/pull/8634))
+- Bump `@metamask/network-controller` from `^30.0.1` to `^30.1.0` ([#8636](https://github.com/MetaMask/core/pull/8636))
+
+### Fixed
+
+- Correct the seeded mUSD token decimals from `18` to `6` in `TokensController` and `TokenDetectionController` defaults so tracked token metadata matches contract precision ([#8664](https://github.com/MetaMask/core/pull/8664))
+
+## [105.0.0]
+
+### Added
+
+- Expose missing public `CurrencyRateController` methods through its messenger ([#8561](https://github.com/MetaMask/core/pull/8561))
+  - The following actions are now available:
+    - `CurrencyRateController:setCurrentCurrency`
+    - `CurrencyRateController:updateExchangeRate`
+  - Corresponding action types (e.g. `CurrencyRateControllerSetCurrentCurrencyAction`) are available as well.
+
+### Changed
+
+- **BREAKING:** Standardize names of `CurrencyRateController` messenger action types ([#8561](https://github.com/MetaMask/core/pull/8561))
+  - The `GetCurrencyRateState` messenger action has been renamed to `CurrencyRateControllerGetStateAction` to follow the convention. You will need to update imports appropriately.
+  - These changes only affect the types. The action type strings themselves have not changed, so you do not need to update the list of actions you pass when initializing `CurrencyRateController` messenger.
+- `MultichainAssetsController`: Restore fail-open behavior for Blockaid spam token filter ([#8580](https://github.com/MetaMask/core/pull/8580))
+  - Uses blacklist approach: only rejects tokens explicitly marked as malicious by Blockaid
+  - When Blockaid bulk token scan API calls fail or return no results, tokens are allowed through
+  - This prevents legitimate tokens from being blocked due to API outages, network issues, or missing token data
+  - Malicious tokens that slip through are caught by the periodic rescan (runs daily by default)
+- Bump `@metamask/transaction-controller` from `^64.3.0` to `^65.0.0` ([#8585](https://github.com/MetaMask/core/pull/8585), [#8613](https://github.com/MetaMask/core/pull/8613))
+
+### Fixed
+
+- Fix `selectAssetsBySelectedAccountGroup` crashing when an account referenced in the account tree is missing from internal accounts ([#8604](https://github.com/MetaMask/core/pull/8604))
+
+## [104.3.0]
+
+### Added
+
+- Export `SPOT_PRICES_SUPPORT_INFO` from the token prices service ([#8483](https://github.com/MetaMask/core/pull/8483))
+
+## [104.2.0]
+
+### Added
+
+- Add Tempo Mainnet (`4217`/`0x1079`) multicall contract support ([#8346](https://github.com/MetaMask/core/pull/8346))
+- Add Forma (`0xf043a` / `eip155:984122`) to `SPOT_PRICES_SUPPORT_INFO`, mapping its native TIA asset to `slip44:984122` so the price-api can resolve it to CoinGecko's `celestia` coin ([#8524](https://github.com/MetaMask/core/pull/8524))
+
+## [104.1.0]
+
+### Added
+
 - `MultichainAssetsController`: periodic Blockaid re-scan of stored SPL-style `token:` assets (default once per day) so tokens that become malicious after a prior scan are dropped; use constructor option `blockaidTokenRescanInterval` (ms), or `0` to disable. ([#8400](https://github.com/MetaMask/core/pull/8400))
+- Added Injective Mainnet native token to Price API supported chains ([#8487](https://github.com/MetaMask/core/pull/8487))
 
 ### Changed
 
@@ -19,7 +277,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Used the `removed` property coming from `MultichainAssetsController:accountAssetListUpdated` event body to manage stale balances ([#8461](https://github.com/MetaMask/core/pull/8461))
 - `MultichainAssetsController`: fungible `token:` assets from automatic detection are no longer added when Blockaid bulk scan fails, returns empty, or omits that address (previously fail open); an explicit non-malicious per-token result from `PhishingController:bulkScanTokens` is now required before add. ([#8400](https://github.com/MetaMask/core/pull/8400))
+- Fix `AccountTrackerController` wiping existing balances on other chains when syncing accounts for a chain that has no state entry yet ([#8505](https://github.com/MetaMask/core/pull/8505))
 
 ## [104.0.0]
 
@@ -219,7 +479,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Bump `@metamask/network-enablement-controller` from `^4.1.2` to `^4.2.0` ([#8107](https://github.com/MetaMask/core/pull/8107))
-- Bump `@metamask/transaction-controller` from `^62.18.0` to `^62.20.0` ([#8031](https://github.com/MetaMask/core/pull/8031) [#8104](https://github.com/MetaMask/core/pull/8104))
+- Bump `@metamask/transaction-controller` from `^62.18.0` to `^62.20.0` ([#8031](https://github.com/MetaMask/core/pull/8031), [#8104](https://github.com/MetaMask/core/pull/8104))
 
 ### Fixed
 
@@ -294,9 +554,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Bump `@metamask/accounts-controller` from `^35.0.2` to `^36.0.0` ([#7897](https://github.com/MetaMask/core/pull/7897))
 - Bump `@metamask/keyring-api` from `^21.0.0` to `^21.5.0` ([#7857](https://github.com/MetaMask/core/pull/7857))
-- Bump `@metamask/account-tree-controller` from `^4.0.0` to `^4.1.1` ([#7869](https://github.com/MetaMask/core/pull/7869)), ([#7897](https://github.com/MetaMask/core/pull/7897))
-- Bump `@metamask/multichain-account-service` from `^5.1.0` to `^7.0.0` ([#7869](https://github.com/MetaMask/core/pull/7869)), ([#7897](https://github.com/MetaMask/core/pull/7897))
-- Bump `@metamask/transaction-controller` from `^62.15.0` to `^62.17.0` ([#7872](https://github.com/MetaMask/core/pull/7872)), ([#7897](https://github.com/MetaMask/core/pull/7897))
+- Bump `@metamask/account-tree-controller` from `^4.0.0` to `^4.1.1` ([#7869](https://github.com/MetaMask/core/pull/7869), [#7897](https://github.com/MetaMask/core/pull/7897))
+- Bump `@metamask/multichain-account-service` from `^5.1.0` to `^7.0.0` ([#7869](https://github.com/MetaMask/core/pull/7869), [#7897](https://github.com/MetaMask/core/pull/7897))
+- Bump `@metamask/transaction-controller` from `^62.15.0` to `^62.17.0` ([#7872](https://github.com/MetaMask/core/pull/7872), [#7897](https://github.com/MetaMask/core/pull/7897))
 - Bump `@metamask/phishing-controller` from `^16.1.0` to `^16.2.0` ([#7883](https://github.com/MetaMask/core/pull/7883))
 - Optimize Price API performance by deduplicating concurrent API calls ([#7811](https://github.com/MetaMask/core/pull/7811))
   - Add in-flight promise caching for `fetchSupportedNetworks()` to prevent duplicate concurrent requests
@@ -306,13 +566,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Remove `Tempo Testnet` multicall address ([#7858](https://github.com/MetaMask/core/pull/7858)).
+- Remove `Tempo Testnet` multicall address. ([#7858](https://github.com/MetaMask/core/pull/7858))
 
 ## [99.3.0]
 
 ### Added
 
-- Add optional `rwaData` support when adding tokens in `TokensController` ([#7804](https://github.com/MetaMask/core/pull/7804)).
+- Add optional `rwaData` support when adding tokens in `TokensController`. ([#7804](https://github.com/MetaMask/core/pull/7804))
 
 ### Changed
 
@@ -763,7 +1023,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **BREAKING:** Added constructor argument `tokenPricesService` in `currencyRateController` ([#6863](https://github.com/MetaMask/core/pull/6863))
 - Added `fetchExchangeRates` function to fetch exchange rates from price-api ([#6863](https://github.com/MetaMask/core/pull/6863))
 - Added `ignoreAssets` to allow ignoring assets for non-EVM chains ([#6981](https://github.com/MetaMask/core/pull/6981))
-
 - Added `searchTokens` function to search for tokens across multiple networks using CAIP format chain IDs ([#7004](https://github.com/MetaMask/core/pull/7004))
 
 ### Changed
@@ -943,8 +1202,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **BREAKING:** Rename `openSeaEnabled` to `displayNftMedia` in `NftController` ([#4774](https://github.com/MetaMask/core/pull/4774))
   - Ensure compatibility for extension preferences controller state
 - **BREAKING:** Remove `setApiKey` function and `openSeaApiKey` from `NftController` since opensea is not used anymore for NFT data ([#4774](https://github.com/MetaMask/core/pull/4774))
-- Bump `@metamask/phishing-controller` from `^13.1.0` to `^14.0.0` ([#6716](https://github.com/MetaMask/core/pull/6716), [#6629](https://github.com/MetaMask/core/pull/6716))
-- Bump `@metamask/preferences-controller` from `^19.0.0` to `^20.0.0` ([#6716](https://github.com/MetaMask/core/pull/6716), [#6629](https://github.com/MetaMask/core/pull/6716))
+- Bump `@metamask/phishing-controller` from `^13.1.0` to `^14.0.0` ([#6716](https://github.com/MetaMask/core/pull/6716), [#6629](https://github.com/MetaMask/core/pull/6629))
+- Bump `@metamask/preferences-controller` from `^19.0.0` to `^20.0.0` ([#6716](https://github.com/MetaMask/core/pull/6716), [#6629](https://github.com/MetaMask/core/pull/6629))
 
 ## [76.0.0]
 
@@ -1016,9 +1275,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - Fix values returned from multicall fetcher to use the correct BN type, not BigNumber ([#6411](https://github.com/MetaMask/core/pull/6411))
-
 - Ensure every access to the state of `AccountTrackerController` is done with a checksumed address ([#6411](https://github.com/MetaMask/core/pull/6411))
-
 - Ensure the balance passed to update `AccountTrackerController:updateNativeBalances` is of type `Hex` ([#6411](https://github.com/MetaMask/core/pull/6411))
 
 ## [74.3.0]
@@ -1056,21 +1313,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Bump `@metamask/base-controller` from `^8.1.0` to `^8.2.0` ([#6355](https://github.com/MetaMask/core/pull/6355))
-
 - Add new `accountId` field to the `Asset` type ([#6358](https://github.com/MetaMask/core/pull/6358))
 
 ### Fixed
 
 - Uses `InternalAccount['type']` for the `Asset['type']` property ([#6358](https://github.com/MetaMask/core/pull/6358))
-
 - Ensure that the evm addresses used to fetch balances from AccountTrackerController state is lowercase, in order to account for discrepancies between clients ([#6358](https://github.com/MetaMask/core/pull/6358))
-
 - Prevents mutation of memoized fields used inside selectors ([#6358](https://github.com/MetaMask/core/pull/6358))
-
 - Fix duplicate token balance entries caused by case-sensitive address comparison in `TokenBalancesController.updateBalances` ([#6354](https://github.com/MetaMask/core/pull/6354))
   - Normalize token addresses to proper EIP-55 checksum format before using as object keys to prevent the same token from appearing multiple times with different cases
   - Add comprehensive unit tests for token address normalization scenarios
-
 - Fix TokenBalancesController timeout handling by replacing `safelyExecuteWithTimeout` with proper `Promise.race` implementation ([#6365](https://github.com/MetaMask/core/pull/6365))
   - Replace `safelyExecuteWithTimeout` which was silently swallowing timeout errors with direct `Promise.race` that properly throws
   - Reduce RPC timeout from 3 minutes to 15 seconds for better responsiveness and batch size
@@ -1306,11 +1558,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - **BREAKING:** Add event listener for `AccountsController:accountRemoved` on `TokenBalancesController` to remove token balances for the removed account ([#5726](https://github.com/MetaMask/core/pull/5726))
-
 - **BREAKING:** Add event listener for `AccountsController:accountRemoved` on `TokensController` to remove tokens for the removed account ([#5726](https://github.com/MetaMask/core/pull/5726))
-
 - **BREAKING:** Add `listAccounts` action to `TokensController` ([#5726](https://github.com/MetaMask/core/pull/5726))
-
 - **BREAKING:** Add `listAccounts` action to `TokenBalancesController` ([#5726](https://github.com/MetaMask/core/pull/5726))
 
 ### Changed
@@ -1460,8 +1709,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Update token rate request key to handle when new tokens are detected inside the `TokenRatesController` ([#5531](https://github.com/MetaMask/core/pull/5311)))
-- Update `CurrencyRateController` to prevent undefined or empty currencies from being queried ([#5458](https://github.com/MetaMask/core/pull/5458)))
+- Update token rate request key to handle when new tokens are detected inside the `TokenRatesController`) ([#5531](https://github.com/MetaMask/core/pull/5531))
+- Update `CurrencyRateController` to prevent undefined or empty currencies from being queried) ([#5458](https://github.com/MetaMask/core/pull/5458))
 
 ## [55.0.1]
 
@@ -1613,9 +1862,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `cockatiel` should still be in the dependency tree because it's now a dependency of `@metamask/controller-utils`
 - Re-introduce `@metamask/keyring-api` as a runtime dependency ([#5206](https://github.com/MetaMask/core/pull/5206))
   - This was required since the introduction of the `MultichainBalancesController`.
-- Bump `@metamask/keyring-api` from `^14.0.0` to `^16.1.0` ([#5190](https://github.com/MetaMask/core/pull/5190)), ([#5208](https://github.com/MetaMask/core/pull/5208))
-- Bump `@metamask/keyring-internal-api` from `^2.0.1` to `^4.0.1` ([#5190](https://github.com/MetaMask/core/pull/5190)), ([#5208](https://github.com/MetaMask/core/pull/5208))
-- Bump `@metamask/keyring-snap-client` from `^3.0.0` to `^3.0.3` ([#5190](https://github.com/MetaMask/core/pull/5190)), ([#5208](https://github.com/MetaMask/core/pull/5208))
+- Bump `@metamask/keyring-api` from `^14.0.0` to `^16.1.0`, ([#5190](https://github.com/MetaMask/core/pull/5190), [#5208](https://github.com/MetaMask/core/pull/5208))
+- Bump `@metamask/keyring-internal-api` from `^2.0.1` to `^4.0.1`, ([#5190](https://github.com/MetaMask/core/pull/5190), [#5208](https://github.com/MetaMask/core/pull/5208))
+- Bump `@metamask/keyring-snap-client` from `^3.0.0` to `^3.0.3`, ([#5190](https://github.com/MetaMask/core/pull/5190), [#5208](https://github.com/MetaMask/core/pull/5208))
 
 ## [46.0.1]
 
@@ -1643,7 +1892,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - **BREAKING:** Bump `@metamask/accounts-controller` peer dependency from `^20.0.0` to `^21.0.0` ([#5140](https://github.com/MetaMask/core/pull/5140))
-- Bump `@metamask/base-controller` from `^7.0.0` to `^7.1.1` ([#5079](https://github.com/MetaMask/core/pull/5079)), ([#5135](https://github.com/MetaMask/core/pull/5135))
+- Bump `@metamask/base-controller` from `^7.0.0` to `^7.1.1`, ([#5079](https://github.com/MetaMask/core/pull/5079), [#5135](https://github.com/MetaMask/core/pull/5135))
 - Bump `@metamask/keyring-api` from `^12.0.0` to `^13.0.0` ([#5066](https://github.com/MetaMask/core/pull/5066))
 - Bump `@metamask/utils` to `^11.0.1` ([#5080](https://github.com/MetaMask/core/pull/5080))
 - Bump `@metamask/rpc-errors` to `^7.0.2` ([#5080](https://github.com/MetaMask/core/pull/5080))
@@ -1707,9 +1956,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **BREAKING:** Bump `@metamask/keyring-controller` peer dependency from `^18.0.0` to `^19.0.0` ([#4195](https://github.com/MetaMask/core/pull/4956))
-- **BREAKING:** Bump `@metamask/accounts-controller` peer dependency from `^19.0.0` to `^20.0.0` ([#4195](https://github.com/MetaMask/core/pull/4956))
-- **BREAKING:** Bump `@metamask/preferences-controller` peer dependency from `^14.0.0` to `^15.0.0` ([#4195](https://github.com/MetaMask/core/pull/4956))
+- **BREAKING:** Bump `@metamask/keyring-controller` peer dependency from `^18.0.0` to `^19.0.0` ([#4956](https://github.com/MetaMask/core/pull/4956))
+- **BREAKING:** Bump `@metamask/accounts-controller` peer dependency from `^19.0.0` to `^20.0.0` ([#4956](https://github.com/MetaMask/core/pull/4956))
+- **BREAKING:** Bump `@metamask/preferences-controller` peer dependency from `^14.0.0` to `^15.0.0` ([#4956](https://github.com/MetaMask/core/pull/4956))
 
 ## [44.1.0]
 
@@ -1722,7 +1971,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Fixes an issue where the token detection was unnecessarily falling back to an RPC approach, causing redundant detections. ([#4928](https://github.com/MetaMask/core/pull/4928))
-
 - Fixes an issue where `TokensController.addTokens` was not respecting the network client id passed to it. ([#4940](https://github.com/MetaMask/core/pull/4940))
 
 ## [44.0.0]
@@ -1730,13 +1978,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - **BREAKING**: The `TokenBalancesController` state is now across all chains and accounts under the field `tokenBalances`, as a mapping from account address -> chain id -> token address -> balance. ([#4782](https://github.com/MetaMask/core/pull/4782))
-
 - **BREAKING**: The `TokenBalancesController` now extends `StaticIntervalPollingController`, and the new polling API `startPolling` must be used to initiate polling (`startPolling`, `stopPollingByPollingToken`). ([#4782](https://github.com/MetaMask/core/pull/4782))
-
 - **BREAKING**: `TokenBalancesController` now requires subscriptions to the `PreferencesController:stateChange` and `NetworkController:stateChange` events. And access to the `NetworkController:getNetworkClientById`, `NetworkController:getState`, `TokensController:getState`, and `PreferencesController:getState` actions. ([#4782](https://github.com/MetaMask/core/pull/4782))
-
 - **BREAKING**: `TokensController` requires a subscription to the `NetworkController:stateChange` event. It now now removes state for chain IDs when their network is removed. ([#4782](https://github.com/MetaMask/core/pull/4782))
-
 - `TokenRatesController` now removes state for chain IDs when their network is removed. ([#4782](https://github.com/MetaMask/core/pull/4782))
 
 ## [43.1.1]
@@ -1830,7 +2074,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Parallelization of detected tokens with balance ([#4697](https://github.com/MetaMask/core/pull/4697))
-- Bump accounts related packages ([#4713](https://github.com/MetaMask/core/pull/4713)), ([#4728](https://github.com/MetaMask/core/pull/4728))
+- Bump accounts related packages, ([#4713](https://github.com/MetaMask/core/pull/4713), [#4728](https://github.com/MetaMask/core/pull/4728))
   - Those packages are now built slightly differently and are part of the [accounts monorepo](https://github.com/MetaMask/accounts).
   - Bump `@metamask/keyring-api` from `^8.1.0` to `^8.1.4`
 
@@ -1846,7 +2090,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     ["Are the Types Wrong?"](https://arethetypeswrong.github.io/) tool as
     ["masquerading as CJS"](https://github.com/arethetypeswrong/arethetypeswrong.github.io/blob/main/docs/problems/FalseCJS.md).
     All of the ATTW checks now pass.
-- Remove chunk files ([#4648](https://github.com/MetaMask/core/pull/4648)).
+- Remove chunk files. ([#4648](https://github.com/MetaMask/core/pull/4648))
   - Previously, the build tool we used to generate JavaScript files extracted
     common code to "chunk" files. While this was intended to make this package
     more tree-shakeable, it also made debugging more difficult for our
@@ -2223,7 +2467,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - `CodefiTokenPricesServiceV2` exports `SUPPORTED_CHAIN_IDS`, an array of chain IDs supported by Codefi Price API V2. ([#4079](https://github.com/MetaMask/core/pull/4079))
-
 - Added `tokenURI` key to `compareNftMetadata` function to compare nft metadata entries with. ([#3856](https://github.com/MetaMask/core/pull/3856))
 
 ## [27.1.0]
@@ -2262,15 +2505,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **BREAKING:** `TokenDetectionController` newly subscribes to the `PreferencesController:stateChange`, `AccountsController:selectedAccountChange`, `KeyringController:lock`, and `KeyringController:unlock` events, and allows messenger actions `AccountsController:getSelectedAccount`, `NetworkController:getNetworkClientById`, `NetworkController:getNetworkConfigurationByNetworkClientId`, `NetworkController:getState`, `KeyringController:getState`, `PreferencesController:getState`, `TokenListController:getState`, `TokensController:getState`, and `TokensController:addDetectedTokens` ([#3775](https://github.com/MetaMask/core/pull/3775/), [#3923](https://github.com/MetaMask/core/pull/3923/), [#3938](https://github.com/MetaMask/core/pull/3938))
-- `TokensController` now exports `TokensControllerActions`, `TokensControllerGetStateAction`, `TokensControllerAddDetectedTokensAction`, `TokensControllerEvents`, and `TokensControllerStateChangeEvent` ([#3690](https://github.com/MetaMask/core/pull/3690/))
+- **BREAKING:** `TokenDetectionController` newly subscribes to the `PreferencesController:stateChange`, `AccountsController:selectedAccountChange`, `KeyringController:lock`, and `KeyringController:unlock` events, and allows messenger actions `AccountsController:getSelectedAccount`, `NetworkController:getNetworkClientById`, `NetworkController:getNetworkConfigurationByNetworkClientId`, `NetworkController:getState`, `KeyringController:getState`, `PreferencesController:getState`, `TokenListController:getState`, `TokensController:getState`, and `TokensController:addDetectedTokens` ([#3775](https://github.com/MetaMask/core/pull/3775), [#3923](https://github.com/MetaMask/core/pull/3923), [#3938](https://github.com/MetaMask/core/pull/3938))
+- `TokensController` now exports `TokensControllerActions`, `TokensControllerGetStateAction`, `TokensControllerAddDetectedTokensAction`, `TokensControllerEvents`, and `TokensControllerStateChangeEvent` ([#3690](https://github.com/MetaMask/core/pull/3690))
 
 ### Changed
 
-- **BREAKING:** Add `@metamask/accounts-controller` `^11.0.0` as dependency and peer dependency ([#3775](https://github.com/MetaMask/core/pull/3775/), [#4007](https://github.com/MetaMask/core/pull/4007))
+- **BREAKING:** Add `@metamask/accounts-controller` `^11.0.0` as dependency and peer dependency ([#3775](https://github.com/MetaMask/core/pull/3775), [#4007](https://github.com/MetaMask/core/pull/4007))
 - **BREAKING:** Add `@metamask/keyring-controller` `^13.0.0` as dependency and peer dependency ([#3775](https://github.com/MetaMask/core/pull/3775), [#4007](https://github.com/MetaMask/core/pull/4007))
 - **BREAKING:** Bump `@metamask/preferences-controller` dependency and peer dependency to `^8.0.0` ([#4007](https://github.com/MetaMask/core/pull/4007))
-- **BREAKING:** `TokenDetectionController` is merged with `DetectTokensController` from the `metamask-extension` repo ([#3775](https://github.com/MetaMask/core/pull/3775/), [#3923](https://github.com/MetaMask/core/pull/3923)), ([#3938](https://github.com/MetaMask/core/pull/3938))
+- **BREAKING:** `TokenDetectionController` is merged with `DetectTokensController` from the `metamask-extension` repo, ([#3775](https://github.com/MetaMask/core/pull/3775), [#3923](https://github.com/MetaMask/core/pull/3923), [#3938](https://github.com/MetaMask/core/pull/3938))
   - **BREAKING:** `TokenDetectionController` now resets its polling interval to the default value of 3 minutes when token detection is triggered by external controller events `KeyringController:unlock`, `TokenListController:stateChange`, `PreferencesController:stateChange`, `AccountsController:selectedAccountChange`.
   - **BREAKING:** `TokenDetectionController` now refetches tokens on `NetworkController:networkDidChange` if the `networkClientId` is changed instead of `chainId`.
   - **BREAKING:** `TokenDetectionController` cannot initiate polling or token detection if `KeyringController` state is locked.
@@ -2294,11 +2537,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Removed
 
-- **BREAKING:** `TokenDetectionController` constructor no longer accepts options `networkClientId`, `onPreferencesStateChange`, `getPreferencesState`, `getTokensState`, or `addDetectedTokens` ([#3690](https://github.com/MetaMask/core/pull/3690/), [#3775](https://github.com/MetaMask/core/pull/3775/), [#3938](https://github.com/MetaMask/core/pull/3938))
-- **BREAKING:** `TokenDetectionController` no longer allows the `NetworkController:stateChange` event. ([#3775](https://github.com/MetaMask/core/pull/3775/))
+- **BREAKING:** `TokenDetectionController` constructor no longer accepts options `networkClientId`, `onPreferencesStateChange`, `getPreferencesState`, `getTokensState`, or `addDetectedTokens` ([#3690](https://github.com/MetaMask/core/pull/3690), [#3775](https://github.com/MetaMask/core/pull/3775), [#3938](https://github.com/MetaMask/core/pull/3938))
+- **BREAKING:** `TokenDetectionController` no longer allows the `NetworkController:stateChange` event. ([#3775](https://github.com/MetaMask/core/pull/3775))
   - The `NetworkController:networkDidChange` event can be used instead.
-- **BREAKING:** `TokenDetectionController` constructor no longer accepts options `networkClientId`, `onPreferencesStateChange`, `getPreferencesState`, `getTokensState`, or `addDetectedTokens` ([#3690](https://github.com/MetaMask/core/pull/3690/), [#3775](https://github.com/MetaMask/core/pull/3775/), [#3938](https://github.com/MetaMask/core/pull/3938))
-- **BREAKING:** `TokenBalancesController` constructor no longer accepts options `onTokensStateChange`, `getSelectedAddress` ([#3690](https://github.com/MetaMask/core/pull/3690/))
+- **BREAKING:** `TokenDetectionController` constructor no longer accepts options `networkClientId`, `onPreferencesStateChange`, `getPreferencesState`, `getTokensState`, or `addDetectedTokens` ([#3690](https://github.com/MetaMask/core/pull/3690), [#3775](https://github.com/MetaMask/core/pull/3775), [#3938](https://github.com/MetaMask/core/pull/3938))
+- **BREAKING:** `TokenBalancesController` constructor no longer accepts options `onTokensStateChange`, `getSelectedAddress` ([#3690](https://github.com/MetaMask/core/pull/3690))
 
 ### Fixed
 
@@ -2356,9 +2599,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add `onBreak` handler to `CodefiTokenPricesServiceV2` ([#3677](https://github.com/MetaMask/core/pull/3677))
   - This allows listening for "circuit breaks", which can indicate an outage. Useful for metrics.
 - Add `fetchTokenContractExchangeRates` utility method ([#3657](https://github.com/MetaMask/core/pull/3657))
-- `TokenListController` now exports a `TokenListControllerMessenger` type ([#3609](https://github.com/MetaMask/core/pull/3609)).
-- `TokenDetectionController` exports types `TokenDetectionControllerMessenger`, `TokenDetectionControllerActions`, `TokenDetectionControllerGetStateAction`, `TokenDetectionControllerEvents`, `TokenDetectionControllerStateChangeEvent` ([#3609](https://github.com/MetaMask/core/pull/3609)).
-- Add `enable` and `disable` methods to `TokenDetectionController`, which control whether the controller is able to make polling requests or all of its network calls are blocked. ([#3609](https://github.com/MetaMask/core/pull/3609)).
+- `TokenListController` now exports a `TokenListControllerMessenger` type. ([#3609](https://github.com/MetaMask/core/pull/3609))
+- `TokenDetectionController` exports types `TokenDetectionControllerMessenger`, `TokenDetectionControllerActions`, `TokenDetectionControllerGetStateAction`, `TokenDetectionControllerEvents`, `TokenDetectionControllerStateChangeEvent`. ([#3609](https://github.com/MetaMask/core/pull/3609))
+- Add `enable` and `disable` methods to `TokenDetectionController`, which control whether the controller is able to make polling requests or all of its network calls are blocked.. ([#3609](https://github.com/MetaMask/core/pull/3609))
   - Note that if the controller is initiated without the `disabled` constructor option set to `false`, the `enable` method will need to be called before the controller can make polling requests in response to subscribed events.
 
 ### Changed
@@ -2367,7 +2610,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **BREAKING:** Bump `@metamask/network-controller` dependency and peer dependency from `^17.0.0` to `^17.1.0` ([#3695](https://github.com/MetaMask/core/pull/3695))
 - **BREAKING:** Bump `@metamask/preferences-controller` dependency and peer dependency from `^5.0.0` to `^5.0.1` ([#3695](https://github.com/MetaMask/core/pull/3695))
 - **BREAKING:** Update `OpenSeaV2Contract` type, renaming `supply` to `total_supply` ([#3692](https://github.com/MetaMask/core/pull/3692))
-- **BREAKING:** `TokenDetectionController` is upgraded to extend `BaseControllerV2` and `StaticIntervalPollingController` ([#3609](https://github.com/MetaMask/core/pull/3609)).
+- **BREAKING:** `TokenDetectionController` is upgraded to extend `BaseControllerV2` and `StaticIntervalPollingController`. ([#3609](https://github.com/MetaMask/core/pull/3609))
   - The constructor now expects an options object as its only argument, with required properties `messenger`, `networkClientId`, required callbacks `onPreferencesStateChange`, `getBalancesInSingleCall`, `addDetectedTokens`, `getTokenState`, `getPreferencesState`, and optional properties `disabled`, `interval`, `selectedAddress`.
 - Bump `@metamask/base-controller` to `^4.0.1` ([#3695](https://github.com/MetaMask/core/pull/3695))
 - Bump `@metamask/polling-controller` to `^4.0.0` ([#3695](https://github.com/MetaMask/core/pull/3695))
@@ -2393,7 +2636,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add `CodefiTokenPricesServiceV2` ([#3600](https://github.com/MetaMask/core/pull/3600), [#3655](https://github.com/MetaMask/core/pull/3655), [#3655](https://github.com/MetaMask/core/pull/3655))
+- Add `CodefiTokenPricesServiceV2` ([#3600](https://github.com/MetaMask/core/pull/3600), [#3655](https://github.com/MetaMask/core/pull/3655))
   - This class can be used for the new `tokenPricesService` argument for TokenRatesController. It uses a MetaMask API to fetch prices for tokens instead of CoinGecko.
   - The `CodefiTokenPricesServiceV2` will retry if the token price update fails
     - We retry each request up to 3 times using a randomized exponential backoff strategy
@@ -2946,7 +3189,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Use Ethers for AssetsContractController ([#845](https://github.com/MetaMask/core/pull/845))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@104.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@108.6.0...HEAD
+[108.6.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@108.5.0...@metamask/assets-controllers@108.6.0
+[108.5.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@108.4.0...@metamask/assets-controllers@108.5.0
+[108.4.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@108.3.0...@metamask/assets-controllers@108.4.0
+[108.3.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@108.2.0...@metamask/assets-controllers@108.3.0
+[108.2.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@108.1.0...@metamask/assets-controllers@108.2.0
+[108.1.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@108.0.0...@metamask/assets-controllers@108.1.0
+[108.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@107.0.0...@metamask/assets-controllers@108.0.0
+[107.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@106.0.1...@metamask/assets-controllers@107.0.0
+[106.0.1]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@106.0.0...@metamask/assets-controllers@106.0.1
+[106.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@105.1.0...@metamask/assets-controllers@106.0.0
+[105.1.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@105.0.0...@metamask/assets-controllers@105.1.0
+[105.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@104.3.0...@metamask/assets-controllers@105.0.0
+[104.3.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@104.2.0...@metamask/assets-controllers@104.3.0
+[104.2.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@104.1.0...@metamask/assets-controllers@104.2.0
+[104.1.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@104.0.0...@metamask/assets-controllers@104.1.0
 [104.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@103.1.1...@metamask/assets-controllers@104.0.0
 [103.1.1]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@103.1.0...@metamask/assets-controllers@103.1.1
 [103.1.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@103.0.0...@metamask/assets-controllers@103.1.0

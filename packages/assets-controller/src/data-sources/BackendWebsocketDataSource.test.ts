@@ -10,7 +10,7 @@ import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
 import type { MockAnyNamespace } from '@metamask/messenger';
 
 import type { AssetsControllerMessenger } from '../AssetsController';
-import type { ChainId, DataRequest } from '../types';
+import type { Caip19AssetId, ChainId, DataRequest } from '../types';
 import {
   BackendWebsocketDataSource,
   createBackendWebsocketDataSource,
@@ -173,11 +173,15 @@ function setupController(
     },
   };
 
+  const isNativeAssetFn = (assetId: Caip19AssetId): boolean =>
+    assetId.includes('/slip44:');
+
   const controller = new BackendWebsocketDataSource({
     messenger: controllerMessenger as unknown as AssetsControllerMessenger,
     queryApiClient: queryApiClient as unknown as ApiPlatformClient,
     onActiveChainsUpdated: (dataSourceName, chains, previousChains): void =>
       activeChainsUpdateHandler(dataSourceName, chains, previousChains),
+    isNativeAsset: isNativeAssetFn,
     state: { activeChains: initialActiveChains },
   });
 
@@ -752,6 +756,72 @@ describe('BackendWebsocketDataSource', () => {
           'mock-account-id': expect.objectContaining({
             'eip155:1/erc20:0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48': {
               amount: '2.552037',
+            },
+          }),
+        }),
+      }),
+    );
+
+    controller.destroy();
+  });
+
+  it('emits plain decimal (not exponent form) for sub-1e-7 dust balances', async () => {
+    // Regression for MMBUGS-772: BigNumber's default EXPONENTIAL_AT makes
+    // `.toString()` emit "1e-18" for tiny values, which crashes downstream
+    // BigInt() consumers. The source uses `.toFixed()` to stay in plain form.
+    const { controller, wsSubscribeMock, assetsUpdateHandler } =
+      setupController({
+        initialActiveChains: [CHAIN_MAINNET],
+        connectionState: WebSocketState.CONNECTED,
+      });
+
+    let notificationCallback: (
+      notification: ServerNotificationMessage,
+    ) => void = () => undefined;
+
+    wsSubscribeMock.mockImplementation(({ callback }) => {
+      notificationCallback = callback;
+      return Promise.resolve(createMockWsSubscription());
+    });
+
+    await controller.subscribe({
+      subscriptionId: 'sub-1',
+      request: createDataRequest(),
+      isUpdate: false,
+      onAssetsUpdate: assetsUpdateHandler,
+    });
+
+    // 1 wei of an 18-decimal token = 1e-18 — squarely past BigNumber's
+    // default exponential threshold.
+    const notification = createMockNotification({
+      channel: `account-activity.v1.eip155:0:${MOCK_ADDRESS.toLowerCase()}`,
+      data: {
+        address: MOCK_ADDRESS,
+        tx: { chain: CHAIN_MAINNET },
+        updates: [
+          {
+            asset: {
+              type: 'eip155:1/erc20:0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
+              unit: 'TEST',
+              decimals: 18,
+            },
+            postBalance: {
+              amount: '0x1',
+            },
+          },
+        ],
+      },
+    });
+
+    notificationCallback(notification);
+    await new Promise(process.nextTick);
+
+    expect(assetsUpdateHandler).toHaveBeenCalledWith(
+      expect.objectContaining({
+        assetsBalance: expect.objectContaining({
+          'mock-account-id': expect.objectContaining({
+            'eip155:1/erc20:0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48': {
+              amount: '0.000000000000000001',
             },
           }),
         }),

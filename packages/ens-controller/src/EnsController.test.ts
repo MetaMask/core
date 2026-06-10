@@ -403,9 +403,24 @@ describe('EnsController', () => {
       messenger: ensControllerMessenger,
     });
     expect(() => {
-      controller.set('0x1', 'foo.eth', address1);
-    }).toThrow('Invalid ENS name: foo.eth');
+      controller.set('0x1', 'fo.eth', address1);
+    }).toThrow('Invalid ENS name: fo.eth');
     expect(controller.state).toStrictEqual(defaultState);
+  });
+
+  it('should allow 3 character ENS names', () => {
+    const rootMessenger = getRootMessenger();
+    const ensControllerMessenger = getEnsControllerMessenger(rootMessenger);
+    const controller = new EnsController({
+      messenger: ensControllerMessenger,
+    });
+
+    expect(controller.set('0x1', 'foo.eth', address1)).toBe(true);
+    expect(controller.state.ensEntries['0x1']['foo.eth']).toStrictEqual({
+      address: address1Checksum,
+      chainId: '0x1',
+      ensName: 'foo.eth',
+    });
   });
 
   it('should throw on attempt to set invalid ENS entry: address', () => {

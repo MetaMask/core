@@ -9,6 +9,7 @@ import type {
   QuoteResponse,
   TxData,
 } from '../../types';
+import { FeatureId } from '../../types';
 import { getNativeAssetForChainId, isCrossChain } from '../bridge';
 import {
   formatAddressToAssetId,
@@ -16,6 +17,7 @@ import {
 } from '../caip-formatters';
 import { MetricsSwapType } from './constants';
 import type {
+  AccountHardwareType,
   InputKeys,
   InputValues,
   QuoteWarning,
@@ -77,15 +79,27 @@ export const formatProviderLabel = ({
 }: QuoteResponse<TxData | string>['quote']): `${string}_${string}` =>
   `${bridgeId}_${bridges[0]}`;
 
-export const getRequestParams = ({
-  srcChainId,
-  destChainId,
-  srcTokenAddress,
-  destTokenAddress,
-}: Partial<GenericQuoteRequest>): Omit<
-  RequestParams,
-  'token_symbol_source' | 'token_symbol_destination'
-> => {
+/**
+ * @param quoteRequest - The current quote request used to derive chain and token identity fields.
+ * @param quoteRequest.srcChainId - Source chain id of the quote request.
+ * @param quoteRequest.destChainId - Destination chain id of the quote request.
+ * @param quoteRequest.srcTokenAddress - Source token address of the quote request.
+ * @param quoteRequest.destTokenAddress - Destination token address of the quote request.
+ * @param tokenSecurityTypeDestination - The security classification of the destination token,
+ * supplied by the client (e.g. from token security/scanning data). Pass `null` when no
+ * security data is available for the selected destination token.
+ * @returns The analytics request params derived from the quote request, minus token symbols
+ * which the caller provides separately.
+ */
+export const getRequestParams = (
+  {
+    srcChainId,
+    destChainId,
+    srcTokenAddress,
+    destTokenAddress,
+  }: Partial<GenericQuoteRequest>,
+  tokenSecurityTypeDestination: string | null,
+): Omit<RequestParams, 'token_symbol_source' | 'token_symbol_destination'> => {
   // Fallback to ETH if srcChainId is not defined. This is ok since the clients default to Ethereum as the source chain
   // This also doesn't happen at runtime since the quote request is validated before metrics are published
   const srcChainIdCaip = formatChainIdToCaip(srcChainId ?? ChainId.ETH);
@@ -103,13 +117,32 @@ export const getRequestParams = ({
           destChainId ?? srcChainIdCaip,
         ) ?? null)
       : null,
+    token_security_type_destination: tokenSecurityTypeDestination,
   };
+};
+
+export const getAccountHardwareType = (
+  selectedAccount?: AccountsControllerState['internalAccounts']['accounts'][string],
+): AccountHardwareType => {
+  // Unified bridge analytics only support the schema enum values for hardware accounts.
+  switch (selectedAccount?.metadata?.keyring.type) {
+    case 'Ledger Hardware':
+      return 'Ledger';
+    case 'Trezor Hardware':
+      return 'Trezor';
+    case 'QR Hardware Wallet Device':
+      return 'QR Hardware';
+    case 'Lattice Hardware':
+      return 'Lattice';
+    default:
+      return null;
+  }
 };
 
 export const isHardwareWallet = (
   selectedAccount?: AccountsControllerState['internalAccounts']['accounts'][string],
 ) => {
-  return selectedAccount?.metadata?.keyring.type?.includes('Hardware') ?? false;
+  return getAccountHardwareType(selectedAccount) !== null;
 };
 
 /**
@@ -119,15 +152,16 @@ export const isHardwareWallet = (
  * @deprecated This function should not be used. Use {@link selectDefaultSlippagePercentage} instead.
  */
 export const isCustomSlippage = (slippage: GenericQuoteRequest['slippage']) => {
-  return slippage !== DEFAULT_BRIDGE_CONTROLLER_STATE.quoteRequest.slippage;
+  return slippage !== DEFAULT_BRIDGE_CONTROLLER_STATE.quoteRequest[0]?.slippage;
 };
 
 export const getQuotesReceivedProperties = (
-  activeQuote: null | (QuoteResponse & Partial<QuoteMetadata>),
+  activeQuote: null | (QuoteResponse & QuoteMetadata),
   warnings: QuoteWarning[] = [],
   isSubmittable: boolean = true,
-  recommendedQuote?: null | (QuoteResponse & Partial<QuoteMetadata>),
+  recommendedQuote?: null | (QuoteResponse & QuoteMetadata),
   usdBalanceSource?: number,
+  hasSufficientGasForQuote?: boolean | null,
 ) => {
   const provider = activeQuote ? formatProviderLabel(activeQuote.quote) : '_';
   return {
@@ -146,5 +180,9 @@ export const getQuotesReceivedProperties = (
     provider,
     warnings,
     price_impact: Number(activeQuote?.quote.priceData?.priceImpact ?? 0),
+    ...(hasSufficientGasForQuote !== undefined && {
+      has_sufficient_gas_for_quote: hasSufficientGasForQuote,
+    }),
+    feature_id: activeQuote?.featureId ?? FeatureId.UNIFIED_SWAP_BRIDGE,
   };
 };

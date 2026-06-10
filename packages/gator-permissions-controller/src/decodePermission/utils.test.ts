@@ -2,7 +2,7 @@ import type { Caveat } from '@metamask/delegation-core';
 import { getChecksumAddress } from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
 
-import { createPermissionRulesForContracts } from './rules';
+import { createPermissionDecodersForContracts } from './decoders';
 import type { DeployedContractsByName } from './types';
 import {
   getChecksumEnforcersByChainId,
@@ -14,6 +14,7 @@ import {
 const buildContracts = (): DeployedContractsByName => ({
   ERC20PeriodTransferEnforcer: '0x1111111111111111111111111111111111111111',
   ERC20StreamingEnforcer: '0x2222222222222222222222222222222222222222',
+  ApprovalRevocationEnforcer: '0x1212121212121212121212121212121212121212',
   ExactCalldataEnforcer: '0x3333333333333333333333333333333333333333',
   NativeTokenPeriodTransferEnforcer:
     '0x4444444444444444444444444444444444444444',
@@ -22,6 +23,8 @@ const buildContracts = (): DeployedContractsByName => ({
   ValueLteEnforcer: '0x7777777777777777777777777777777777777777',
   NonceEnforcer: '0x8888888888888888888888888888888888888888',
   AllowedCalldataEnforcer: '0x9999999999999999999999999999999999999999',
+  AllowedTargetsEnforcer: '0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb',
+  RedeemerEnforcer: '0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
 });
 
 describe('getChecksumEnforcersByChainId', () => {
@@ -42,6 +45,9 @@ describe('getChecksumEnforcersByChainId', () => {
       nativeTokenPeriodicEnforcer: getChecksumAddress(
         contracts.NativeTokenPeriodTransferEnforcer,
       ),
+      approvalRevocationEnforcer: getChecksumAddress(
+        contracts.ApprovalRevocationEnforcer,
+      ),
       exactCalldataEnforcer: getChecksumAddress(
         contracts.ExactCalldataEnforcer,
       ),
@@ -51,6 +57,10 @@ describe('getChecksumEnforcersByChainId', () => {
       allowedCalldataEnforcer: getChecksumAddress(
         contracts.AllowedCalldataEnforcer,
       ),
+      allowedTargetsEnforcer: getChecksumAddress(
+        contracts.AllowedTargetsEnforcer,
+      ),
+      redeemerEnforcer: getChecksumAddress(contracts.RedeemerEnforcer),
     });
   });
 
@@ -63,32 +73,38 @@ describe('getChecksumEnforcersByChainId', () => {
   });
 });
 
-describe('createPermissionRulesForChainId', () => {
-  it('builds canonical rules with correct required and allowed enforcers', () => {
+describe('createPermissionDecodersForContracts', () => {
+  it('builds canonical decoders with correct required and allowed enforcers', () => {
     const contracts = buildContracts();
     const {
       erc20StreamingEnforcer,
       erc20PeriodicEnforcer,
       nativeTokenStreamingEnforcer,
       nativeTokenPeriodicEnforcer,
+      approvalRevocationEnforcer,
       exactCalldataEnforcer,
       valueLteEnforcer,
       timestampEnforcer,
       nonceEnforcer,
       allowedCalldataEnforcer,
+      allowedTargetsEnforcer,
+      redeemerEnforcer,
     } = getChecksumEnforcersByChainId(contracts);
 
     // erc20-token-stream
     // erc20-token-periodic
+    // erc20-token-allowance
     // native-token-stream
     // native-token-periodic
+    // native-token-allowance
     // erc20-token-revocation
-    const permissionTypeCount = 5;
-    const rules = createPermissionRulesForContracts(contracts);
-    expect(rules).toHaveLength(permissionTypeCount);
+    // token-approval-revocation
+    const permissionTypeCount = 8;
+    const decoders = createPermissionDecodersForContracts(contracts);
+    expect(decoders).toHaveLength(permissionTypeCount);
 
     const byType = Object.fromEntries(
-      rules.map((rule) => [rule.permissionType, rule]),
+      decoders.map((decoder) => [decoder.permissionType, decoder]),
     );
 
     // native-token-stream
@@ -96,9 +112,17 @@ describe('createPermissionRulesForChainId', () => {
     expect(byType['native-token-stream'].permissionType).toBe(
       'native-token-stream',
     );
-    expect(byType['native-token-stream'].optionalEnforcers.size).toBe(1);
+    expect(byType['native-token-stream'].optionalEnforcers.size).toBe(3);
     expect(
       byType['native-token-stream'].optionalEnforcers.has(timestampEnforcer),
+    ).toBe(true);
+    expect(
+      byType['native-token-stream'].optionalEnforcers.has(redeemerEnforcer),
+    ).toBe(true);
+    expect(
+      byType['native-token-stream'].optionalEnforcers.has(
+        allowedTargetsEnforcer,
+      ),
     ).toBe(true);
     expect(byType['native-token-stream'].requiredEnforcers.size).toBe(3);
     expect(
@@ -116,9 +140,17 @@ describe('createPermissionRulesForChainId', () => {
     expect(byType['native-token-periodic'].permissionType).toBe(
       'native-token-periodic',
     );
-    expect(byType['native-token-periodic'].optionalEnforcers.size).toBe(1);
+    expect(byType['native-token-periodic'].optionalEnforcers.size).toBe(3);
     expect(
       byType['native-token-periodic'].optionalEnforcers.has(timestampEnforcer),
+    ).toBe(true);
+    expect(
+      byType['native-token-periodic'].optionalEnforcers.has(redeemerEnforcer),
+    ).toBe(true);
+    expect(
+      byType['native-token-periodic'].optionalEnforcers.has(
+        allowedTargetsEnforcer,
+      ),
     ).toBe(true);
     expect(byType['native-token-periodic'].requiredEnforcers.size).toBe(3);
     expect(
@@ -136,9 +168,17 @@ describe('createPermissionRulesForChainId', () => {
     expect(byType['erc20-token-stream'].permissionType).toBe(
       'erc20-token-stream',
     );
-    expect(byType['erc20-token-stream'].optionalEnforcers.size).toBe(1);
+    expect(byType['erc20-token-stream'].optionalEnforcers.size).toBe(3);
     expect(
       byType['erc20-token-stream'].optionalEnforcers.has(timestampEnforcer),
+    ).toBe(true);
+    expect(
+      byType['erc20-token-stream'].optionalEnforcers.has(redeemerEnforcer),
+    ).toBe(true);
+    expect(
+      byType['erc20-token-stream'].optionalEnforcers.has(
+        allowedCalldataEnforcer,
+      ),
     ).toBe(true);
     expect(byType['erc20-token-stream'].requiredEnforcers.size).toBe(3);
     expect(
@@ -156,13 +196,77 @@ describe('createPermissionRulesForChainId', () => {
     expect(byType['erc20-token-periodic'].permissionType).toBe(
       'erc20-token-periodic',
     );
-    expect(byType['erc20-token-periodic'].optionalEnforcers.size).toBe(1);
+    expect(byType['erc20-token-periodic'].optionalEnforcers.size).toBe(3);
     expect(
       byType['erc20-token-periodic'].optionalEnforcers.has(timestampEnforcer),
+    ).toBe(true);
+    expect(
+      byType['erc20-token-periodic'].optionalEnforcers.has(redeemerEnforcer),
+    ).toBe(true);
+    expect(
+      byType['erc20-token-periodic'].optionalEnforcers.has(
+        allowedCalldataEnforcer,
+      ),
     ).toBe(true);
     expect(byType['erc20-token-periodic'].requiredEnforcers.size).toBe(3);
     expect(
       Array.from(byType['erc20-token-periodic'].requiredEnforcers.entries()),
+    ).toStrictEqual(
+      expect.arrayContaining([
+        [erc20PeriodicEnforcer, 1],
+        [valueLteEnforcer, 1],
+        [nonceEnforcer, 1],
+      ]),
+    );
+
+    // native-token-allowance
+    expect(byType['native-token-allowance']).toBeDefined();
+    expect(byType['native-token-allowance'].permissionType).toBe(
+      'native-token-allowance',
+    );
+    expect(byType['native-token-allowance'].optionalEnforcers.size).toBe(3);
+    expect(
+      byType['native-token-allowance'].optionalEnforcers.has(timestampEnforcer),
+    ).toBe(true);
+    expect(
+      byType['native-token-allowance'].optionalEnforcers.has(redeemerEnforcer),
+    ).toBe(true);
+    expect(
+      byType['native-token-allowance'].optionalEnforcers.has(
+        allowedTargetsEnforcer,
+      ),
+    ).toBe(true);
+    expect(byType['native-token-allowance'].requiredEnforcers.size).toBe(3);
+    expect(
+      Array.from(byType['native-token-allowance'].requiredEnforcers.entries()),
+    ).toStrictEqual(
+      expect.arrayContaining([
+        [nativeTokenPeriodicEnforcer, 1],
+        [exactCalldataEnforcer, 1],
+        [nonceEnforcer, 1],
+      ]),
+    );
+
+    // erc20-token-allowance
+    expect(byType['erc20-token-allowance']).toBeDefined();
+    expect(byType['erc20-token-allowance'].permissionType).toBe(
+      'erc20-token-allowance',
+    );
+    expect(byType['erc20-token-allowance'].optionalEnforcers.size).toBe(3);
+    expect(
+      byType['erc20-token-allowance'].optionalEnforcers.has(timestampEnforcer),
+    ).toBe(true);
+    expect(
+      byType['erc20-token-allowance'].optionalEnforcers.has(redeemerEnforcer),
+    ).toBe(true);
+    expect(
+      byType['erc20-token-allowance'].optionalEnforcers.has(
+        allowedCalldataEnforcer,
+      ),
+    ).toBe(true);
+    expect(byType['erc20-token-allowance'].requiredEnforcers.size).toBe(3);
+    expect(
+      Array.from(byType['erc20-token-allowance'].requiredEnforcers.entries()),
     ).toStrictEqual(
       expect.arrayContaining([
         [erc20PeriodicEnforcer, 1],
@@ -176,9 +280,12 @@ describe('createPermissionRulesForChainId', () => {
     expect(byType['erc20-token-revocation'].permissionType).toBe(
       'erc20-token-revocation',
     );
-    expect(byType['erc20-token-revocation'].optionalEnforcers.size).toBe(1);
+    expect(byType['erc20-token-revocation'].optionalEnforcers.size).toBe(2);
     expect(
       byType['erc20-token-revocation'].optionalEnforcers.has(timestampEnforcer),
+    ).toBe(true);
+    expect(
+      byType['erc20-token-revocation'].optionalEnforcers.has(redeemerEnforcer),
     ).toBe(true);
     expect(byType['erc20-token-revocation'].requiredEnforcers.size).toBe(3);
     expect(
@@ -190,11 +297,34 @@ describe('createPermissionRulesForChainId', () => {
         [nonceEnforcer, 1],
       ]),
     );
+
+    // token-approval-revocation
+    expect(byType['token-approval-revocation']).toBeDefined();
+    expect(byType['token-approval-revocation'].permissionType).toBe(
+      'token-approval-revocation',
+    );
+    expect(byType['token-approval-revocation'].optionalEnforcers.size).toBe(1);
+    expect(
+      byType['token-approval-revocation'].optionalEnforcers.has(
+        timestampEnforcer,
+      ),
+    ).toBe(true);
+    expect(byType['token-approval-revocation'].requiredEnforcers.size).toBe(2);
+    expect(
+      Array.from(
+        byType['token-approval-revocation'].requiredEnforcers.entries(),
+      ),
+    ).toStrictEqual(
+      expect.arrayContaining([
+        [approvalRevocationEnforcer, 1],
+        [nonceEnforcer, 1],
+      ]),
+    );
   });
 
-  it('each rule has caveatAddressesMatch and validateAndDecodePermission', () => {
+  it('each decoder has caveatAddressesMatch and validateAndDecodePermission', () => {
     const contracts = buildContracts();
-    const rules = createPermissionRulesForContracts(contracts);
+    const decoders = createPermissionDecodersForContracts(contracts);
     const {
       nativeTokenStreamingEnforcer,
       exactCalldataEnforcer,
@@ -202,17 +332,17 @@ describe('createPermissionRulesForChainId', () => {
       timestampEnforcer,
     } = getChecksumEnforcersByChainId(contracts);
 
-    for (const rule of rules) {
-      expect(typeof rule.caveatAddressesMatch).toBe('function');
-      expect(typeof rule.validateAndDecodePermission).toBe('function');
+    for (const decoder of decoders) {
+      expect(typeof decoder.caveatAddressesMatch).toBe('function');
+      expect(typeof decoder.validateAndDecodePermission).toBe('function');
     }
 
-    const nativeStreamRule = rules.find(
+    const nativeStreamDecoder = decoders.find(
       (candidate) => candidate.permissionType === 'native-token-stream',
     );
-    expect(nativeStreamRule).toBeDefined();
-    if (!nativeStreamRule) {
-      throw new Error('Rule not found');
+    expect(nativeStreamDecoder).toBeDefined();
+    if (!nativeStreamDecoder) {
+      throw new Error('Decoder not found');
     }
 
     const matchingCaveatAddresses: Hex[] = [
@@ -221,9 +351,9 @@ describe('createPermissionRulesForChainId', () => {
       nonceEnforcer,
       timestampEnforcer,
     ];
-    expect(nativeStreamRule.caveatAddressesMatch(matchingCaveatAddresses)).toBe(
-      true,
-    );
+    expect(
+      nativeStreamDecoder.caveatAddressesMatch(matchingCaveatAddresses),
+    ).toBe(true);
   });
 });
 

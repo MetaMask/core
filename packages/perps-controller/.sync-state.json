@@ -1,8 +1,8 @@
 {
-  "lastSyncedMobileCommit": "14dbdb4e3c7d218fe4f74984969c55142656fcf1",
-  "lastSyncedMobileBranch": "fix/perps/myx-webpack-ignore-restore",
-  "lastSyncedCoreCommit": "796d13b6e190fc481461bd268a1dd3820ca7b9a9",
-  "lastSyncedCoreBranch": "fix/perps/myx-webpack-ignore-restore-clean",
-  "lastSyncedDate": "2026-04-15T16:45:31Z",
-  "sourceChecksum": "5be7d584829db03e7449d06a8c329816966d2dd218a9fa42d57f07c22b00bc51"
+  "lastSyncedMobileCommit": "cc154d351581605282f5a70f8749565956d42b36",
+  "lastSyncedMobileBranch": "TAT-3187-perps-controller-removal",
+  "lastSyncedCoreCommit": "fbe58b4cca248101d12df709c0092cd87f15956f",
+  "lastSyncedCoreBranch": "feat/perps/controller-in-core",
+  "lastSyncedDate": "2026-05-21T08:44:09Z",
+  "sourceChecksum": "b05070da67baeb718f1e926ad167863c47efb5240b19e3ac99c31766070d0f91"
 }

@@ -16,7 +16,7 @@ import type {
   Middleware,
   AssetsControllerStateInternal,
 } from '../types';
-import { normalizeAssetId } from '../utils';
+import { fetchWithTimeout, normalizeAssetId } from '../utils';
 import type {
   DataSourceState,
   SubscriptionRequest,
@@ -29,6 +29,7 @@ import { AbstractDataSource } from './AbstractDataSource';
 
 const CONTROLLER_NAME = 'AccountsApiDataSource';
 const DEFAULT_POLL_INTERVAL = 30_000;
+const DEFAULT_FETCH_TIMEOUT_MS = 15_000;
 
 const log = createModuleLogger(projectLogger, CONTROLLER_NAME);
 
@@ -64,6 +65,12 @@ export type AccountsApiDataSourceConfig = {
    * Using a getter avoids stale values when the user toggles the preference at runtime.
    */
   tokenDetectionEnabled?: () => boolean;
+  /**
+   * Timeout in ms for a single balances fetch call (default: 15000).
+   * When it fires, every requested chain is marked as errored so the
+   * middleware hands them off to the next data source (e.g. RPC fallback).
+   */
+  fetchTimeoutMs?: number;
 };
 
 export type AccountsApiDataSourceOptions = AccountsApiDataSourceConfig & {
@@ -180,6 +187,8 @@ export class AccountsApiDataSource extends AbstractDataSource<
 
   readonly #pollInterval: number;
 
+  readonly #fetchTimeoutMs: number;
+
   /** Getter avoids stale value when user toggles token detection at runtime. */
   readonly #tokenDetectionEnabled: () => boolean;
 
@@ -200,6 +209,7 @@ export class AccountsApiDataSource extends AbstractDataSource<
 
     this.#onActiveChainsUpdated = options.onActiveChainsUpdated;
     this.#pollInterval = options.pollInterval ?? DEFAULT_POLL_INTERVAL;
+    this.#fetchTimeoutMs = options.fetchTimeoutMs ?? DEFAULT_FETCH_TIMEOUT_MS;
     this.#tokenDetectionEnabled =
       options.tokenDetectionEnabled ?? ((): boolean => true);
     this.#apiClient = options.queryApiClient;
@@ -258,7 +268,12 @@ export class AccountsApiDataSource extends AbstractDataSource<
     const response = await this.#apiClient.accounts.fetchV2SupportedNetworks();
 
     // Use fullSupport networks as active chains
-    return response.fullSupport.map(decimalToChainId);
+    return (
+      response.fullSupport
+        .map(decimalToChainId)
+        // TODO Restore solana when there is a fix for how we handle non-evm chains here
+        .filter((chainId) => chainId.startsWith('eip155:'))
+    );
   }
 
   // ============================================================================
@@ -304,8 +319,10 @@ export class AccountsApiDataSource extends AbstractDataSource<
         return response;
       }
 
-      const apiResponse =
-        await this.#apiClient.accounts.fetchV5MultiAccountBalances(accountIds);
+      const apiResponse = await fetchWithTimeout(
+        () => this.#apiClient.accounts.fetchV5MultiAccountBalances(accountIds),
+        this.#fetchTimeoutMs,
+      );
 
       // Handle unprocessed networks - these will be passed to next middleware
       if (apiResponse.unprocessedNetworks.length > 0) {

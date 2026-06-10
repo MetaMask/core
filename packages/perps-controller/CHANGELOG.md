@@ -7,6 +7,158 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/controller-utils` from `^12.1.0` to `^12.1.1` ([#9058](https://github.com/MetaMask/core/pull/9058))
+
+## [8.0.0]
+
+### Added
+
+- Centralise market category classification so consumers share one model instead of re-deriving it per client ([#9009](https://github.com/MetaMask/core/pull/9009))
+  - Export `getMarketTypeFilter` (resolves a market to its UI category filter with singular values aligned to `MarketCategory`) and `isHip3Market`. `getMarketTypeFilter` and `matchesCategory` treat a `marketSource` DEX id as a HIP-3 signal consistently, so partial (route-param) markets classify the same way in both.
+  - Export the pure `matchesCategory` and `applyMarketFilters` helpers (moved from `MarketDataService`).
+
+### Changed
+
+- **BREAKING:** Align `MarketTypeFilter` and `MARKET_CATEGORIES` values with `MarketCategory` singular values ([#9009](https://github.com/MetaMask/core/pull/9009))
+  - Replace `stocks` with `stock`, `indices` with `index`, `etfs` with `etf`, and `commodities` with `commodity`.
+- Reclassify `xyz:CBRS` (Cerebras) from `stock` to `pre-ipo` and add `xyz:IPOP` (Quantinuum) as `pre-ipo` in `HIP3_ASSET_MARKET_TYPES`, so all three Pre-IPO Perpetual markets on trade.xyz (CBRS, SPCX, IPOP) display under the Pre-IPO category ([#9038](https://github.com/MetaMask/core/pull/9038))
+
+## [7.0.0]
+
+### Added
+
+- Add `MarketCategory` enum, `MARKET_CATEGORIES` ordered array (7 data-model category pills), and `getMarketCategories` messenger action ([#8892](https://github.com/MetaMask/core/pull/8892))
+- Expand `HIP3_ASSET_MARKET_TYPES` with new stock, ETF, pre-IPO, forex, and commodity markets ([#8892](https://github.com/MetaMask/core/pull/8892))
+- Add `categories`, `sortBy`, `direction`, `limit`, and `excludeSymbols` optional params to `GetMarketDataWithPricesParams` and `getMarketDataWithPrices()` for post-processing filtering, sorting, and pagination of market data ([#8892](https://github.com/MetaMask/core/pull/8892))
+- Export `SortField`, `SortDirection`, and `GetMarketDataWithPricesParams` types from the package root ([#8892](https://github.com/MetaMask/core/pull/8892))
+
+### Changed
+
+- **BREAKING:** Replace `'equity'` with granular `MarketType` values: `'stock'`, `'pre-ipo'`, `'index'`, and `'etf'` ([#8892](https://github.com/MetaMask/core/pull/8892))
+  - Update any code matching `marketType === 'equity'` to use the specific sub-type.
+
+## [6.3.0]
+
+### Added
+
+- Add slippage controls so users can configure per-order slippage tolerance for market trades ([#8871](https://github.com/MetaMask/core/pull/8871))
+- Track `vip_tier` and `vip_discount` properties on perps trading events for fee analytics ([#8871](https://github.com/MetaMask/core/pull/8871))
+- Surface an in-app banner during an ongoing HyperLiquid outage so users see degraded trading status ([#8871](https://github.com/MetaMask/core/pull/8871))
+- Expose subpath `exports` for `./constants`, `./constants/*`, `./types`, and `./utils/*` so consumers using legacy `node` module resolution can deep-import compiled entry points without losing tree-shaking ([#8883](https://github.com/MetaMask/core/pull/8883))
+
+### Fixed
+
+- Prefer the currently selected EVM account when resolving the trading account so account switching is honored across providers ([#8871](https://github.com/MetaMask/core/pull/8871))
+- Suppress `User or API Wallet does not exist` Sentry noise from unfunded wallets that have not interacted with HyperLiquid ([#8871](https://github.com/MetaMask/core/pull/8871))
+- Approve the HyperLiquid builder fee when missing so order submission succeeds after fresh wallet setup ([#8871](https://github.com/MetaMask/core/pull/8871))
+
+## [6.2.0]
+
+### Changed
+
+- Pass `isInternal: true` to all internal `addTransaction` calls to adopt the explicit `isInternal` flag introduced in `@metamask/transaction-controller` ([#8633](https://github.com/MetaMask/core/pull/8633))
+- Bump `@metamask/transaction-controller` from `^65.4.0` to `^66.0.0` ([#8848](https://github.com/MetaMask/core/pull/8848))
+
+## [6.1.0]
+
+### Changed
+
+- Pass the perps builder base fee into rewards discount resolution and treat unhydrated rewards subscription state as retryable instead of a definitive no-discount result ([#8803](https://github.com/MetaMask/core/pull/8803))
+- Bump `@metamask/controller-utils` from `^12.0.0` to `^12.1.0` ([#8774](https://github.com/MetaMask/core/pull/8774))
+- Bump `@metamask/transaction-controller` from `^65.3.0` to `^65.4.0` ([#8796](https://github.com/MetaMask/core/pull/8796))
+
+### Fixed
+
+- Defer signing-backed HyperLiquid unified-account setup for hardware wallets across migratable abstraction modes, including Ledger, Trezor, OneKey, Lattice, and QR keyrings, to avoid repeated signing prompts while browsing ([#8803](https://github.com/MetaMask/core/pull/8803))
+- Improve logging and retry classification for failed cancel/close/TP-SL operations and SDK-wrapped keyring-locked errors ([#8803](https://github.com/MetaMask/core/pull/8803))
+
+## [6.0.1]
+
+### Changed
+
+- Bump `@metamask/controller-utils` from `^11.20.0` to `^12.0.0` ([#8755](https://github.com/MetaMask/core/pull/8755))
+
+## [6.0.0]
+
+### Changed
+
+- **BREAKING:** Rename `AccountState.availableBalance` to `spendableBalance` and `AccountState.availableToTradeBalance` to `withdrawableBalance` for clearer semantics across abstraction modes ([#8678](https://github.com/MetaMask/core/pull/8678))
+- Mode-aware spot fold: `addSpotBalanceToAccountState` now folds free spot USDC into both `spendableBalance` and `withdrawableBalance` for Unified/Portfolio modes, while Standard/DEX-abstraction modes keep spot separate ([#8678](https://github.com/MetaMask/core/pull/8678))
+- Add throttled WS-driven `userAbstraction` refresh so HL-web mode flips propagate back without requiring a restart or account switch ([#8678](https://github.com/MetaMask/core/pull/8678))
+- Fix position direction display for flipped positions ([#8707](https://github.com/MetaMask/core/pull/8707))
+
+## [5.0.0]
+
+### Added
+
+- **BREAKING:** `HyperLiquidClientService` now forces the `dexAbstraction → unifiedAccount` migration via a new internal flow, deferred until first `withdraw`, `placeOrder`, or other action entry point so users see unified collateral on their first trade/withdrawal ([#8658](https://github.com/MetaMask/core/pull/8658))
+- **BREAKING:** `addSpotBalanceToAccountState` and `HyperLiquidSubscriptionService` are now mode-aware: spot USDC is only folded into tradeable collateral for `unifiedAccount` / `portfolioMargin` modes, and `userAbstraction` is propagated through subscriptions ([#8658](https://github.com/MetaMask/core/pull/8658))
+
+### Changed
+
+- Bump `@nktkas/hyperliquid` from `^0.30.2` to `^0.32.2` for `userAbstraction` / `userSetAbstraction` / `agentSetAbstraction` API surface ([#8658](https://github.com/MetaMask/core/pull/8658))
+- Replace `agentSetAbstraction` wire-code magic string with a typed constant ([#8658](https://github.com/MetaMask/core/pull/8658))
+- Bump `@metamask/keyring-controller` from `^25.3.0` to `^25.4.0` ([#8665](https://github.com/MetaMask/core/pull/8665))
+- Bump `@metamask/account-tree-controller` from `^7.1.0` to `^7.2.0` ([#8665](https://github.com/MetaMask/core/pull/8665))
+- Bump `@metamask/transaction-controller` from `^64.4.0` to `^65.0.0` ([#8613](https://github.com/MetaMask/core/pull/8613))
+- Bump `@metamask/messenger` from `^1.1.1` to `^1.2.0` ([#8632](https://github.com/MetaMask/core/pull/8632))
+
+### Fixed
+
+- Keep users on `portfolioMargin` mode and recover the resolved abstraction mode after migration instead of evicting it ([#8658](https://github.com/MetaMask/core/pull/8658))
+- Retry abstraction mode after transient `userAbstraction` failures and reset the memoized readiness promise after silent migration failures ([#8658](https://github.com/MetaMask/core/pull/8658))
+- Close WebSocket-vs-REST race that could fold spot for Standard users and preserve abstraction REST results across active subscribers ([#8658](https://github.com/MetaMask/core/pull/8658))
+- Drop the pre-fetch generation guard so `userAbstraction` always resolves; treat cached balances as an unambiguous spot owner ([#8658](https://github.com/MetaMask/core/pull/8658))
+- Restore HyperLiquid withdrawal for Unified Account Mode users and support arb USDC withdraw balance in unified mode ([#8658](https://github.com/MetaMask/core/pull/8658))
+- Harden unified-account migration handling and close MM Pay `$0` + analytics gaps ([#8658](https://github.com/MetaMask/core/pull/8658))
+
+## [4.0.0]
+
+### Added
+
+- Add `coalescePerpsRestRequest` utility for deduplicating concurrent REST requests with account-scoped cache keys ([#8560](https://github.com/MetaMask/core/pull/8560))
+- Add `accountUtils` helpers for resolving the active perps account id and pinning it to forwarded provider params ([#8560](https://github.com/MetaMask/core/pull/8560))
+
+### Changed
+
+- Account-scope the REST cache and guard cache writes so mount load stays cacheable without cross-account bleed ([#8560](https://github.com/MetaMask/core/pull/8560))
+- Make `forceRefresh` provider-agnostic and align rate-limit handling with the extension ([#8560](https://github.com/MetaMask/core/pull/8560))
+- Regenerate `PerpsController` method action types; shrink rate-limit diff and drop verbose history logs ([#8560](https://github.com/MetaMask/core/pull/8560))
+
+### Removed
+
+- **BREAKING:** Drop the dead `spotState` parameter from `adaptAccountStateFromSDK`. Spot balances are layered on by `addSpotBalanceToAccountState`, which enforces the USDC-only policy via `SPOT_COLLATERAL_COINS`; removing the dormant branch keeps one source of truth and prevents a future caller from silently getting ALL-coins behavior ([#8560](https://github.com/MetaMask/core/pull/8560))
+
+### Fixed
+
+- HyperLiquid Unified-mode live balance: subscribe to `spotState` WS and compute tradeable/total balance from on-chain math ([#8560](https://github.com/MetaMask/core/pull/8560))
+- Complete spot-balance parity with the extension consumer ([#8560](https://github.com/MetaMask/core/pull/8560))
+- Preserve integer trailing zeros when `szDecimals=0` in `perpsFormatters` ([#8560](https://github.com/MetaMask/core/pull/8560))
+- Preserve candle pagination cancellation and skip coalesce for explicit-`endTime` candle paging to avoid stale pages ([#8560](https://github.com/MetaMask/core/pull/8560))
+- Defer account resolution on the non-paginated cache path to prevent race conditions ([#8560](https://github.com/MetaMask/core/pull/8560))
+- Force-refresh on activity mount and evict expired coalesce entries so stale promises cannot resolve to cache ([#8560](https://github.com/MetaMask/core/pull/8560))
+- Normalize `event.user` to lowercase when caching the spot-state WS address so `#ensureSpotState` hits the cache instead of triggering a redundant REST `spotClearinghouseState` refetch when HyperLiquid returns a checksummed address ([#8560](https://github.com/MetaMask/core/pull/8560))
+
+## [3.2.0]
+
+### Added
+
+- Add `isAbortError` utility export from `utils` for distinguishing expected cancellation errors from real failures ([#8515](https://github.com/MetaMask/core/pull/8515))
+
+### Changed
+
+- `TradingService.flipPosition()` no longer passes stale position `entryPrice` as `currentPrice` on reverse-position orders; providers now validate and price flips against live market data ([#8515](https://github.com/MetaMask/core/pull/8515))
+
+### Removed
+
+- Remove unused `ESTIMATED_FEE_RATE` export from `constants/hyperLiquidConfig` (dead code after reverse-position fee precheck was removed) ([#8515](https://github.com/MetaMask/core/pull/8515))
+
+### Fixed
+
+- Suppress noisy Sentry reports from expected historical-candle fetch cancellations (`AbortError`) during navigation, while preserving real error reporting in `HyperLiquidClientService` and `MarketDataService` ([#8515](https://github.com/MetaMask/core/pull/8515))
+
 ## [3.1.1]
 
 ### Fixed
@@ -97,7 +249,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Refactor pending withdraw/deposit tracking to FIFO queue design ([#8333](https://github.com/MetaMask/core/pull/8333))
-
 - Centralize Arbitrum network check in deposit hooks to prevent missing network errors ([#8333](https://github.com/MetaMask/core/pull/8333))
 - Provider credentials, builder fee injection, and env var centralization ([#8333](https://github.com/MetaMask/core/pull/8333))
 - Reduce max order amount by 0.5% buffer to avoid insufficient margin rejections ([#8333](https://github.com/MetaMask/core/pull/8333))
@@ -201,7 +352,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Bump `@metamask/controller-utils` from `^11.18.0` to `^11.19.0` ([#7995](https://github.com/MetaMask/core/pull/7995))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@3.1.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@8.0.0...HEAD
+[8.0.0]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@7.0.0...@metamask/perps-controller@8.0.0
+[7.0.0]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@6.3.0...@metamask/perps-controller@7.0.0
+[6.3.0]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@6.2.0...@metamask/perps-controller@6.3.0
+[6.2.0]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@6.1.0...@metamask/perps-controller@6.2.0
+[6.1.0]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@6.0.1...@metamask/perps-controller@6.1.0
+[6.0.1]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@6.0.0...@metamask/perps-controller@6.0.1
+[6.0.0]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@5.0.0...@metamask/perps-controller@6.0.0
+[5.0.0]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@4.0.0...@metamask/perps-controller@5.0.0
+[4.0.0]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@3.2.0...@metamask/perps-controller@4.0.0
+[3.2.0]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@3.1.1...@metamask/perps-controller@3.2.0
 [3.1.1]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@3.1.0...@metamask/perps-controller@3.1.1
 [3.1.0]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@3.0.0...@metamask/perps-controller@3.1.0
 [3.0.0]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@2.0.0...@metamask/perps-controller@3.0.0

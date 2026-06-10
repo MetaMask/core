@@ -13,6 +13,7 @@ import type {
 const ENFORCER_CONTRACT_NAMES = {
   ERC20PeriodTransferEnforcer: 'ERC20PeriodTransferEnforcer',
   ERC20StreamingEnforcer: 'ERC20StreamingEnforcer',
+  ApprovalRevocationEnforcer: 'ApprovalRevocationEnforcer',
   ExactCalldataEnforcer: 'ExactCalldataEnforcer',
   NativeTokenPeriodTransferEnforcer: 'NativeTokenPeriodTransferEnforcer',
   NativeTokenStreamingEnforcer: 'NativeTokenStreamingEnforcer',
@@ -20,6 +21,8 @@ const ENFORCER_CONTRACT_NAMES = {
   ValueLteEnforcer: 'ValueLteEnforcer',
   NonceEnforcer: 'NonceEnforcer',
   AllowedCalldataEnforcer: 'AllowedCalldataEnforcer',
+  AllowedTargetsEnforcer: 'AllowedTargetsEnforcer',
+  RedeemerEnforcer: 'RedeemerEnforcer',
 };
 
 /**
@@ -28,6 +31,12 @@ const ENFORCER_CONTRACT_NAMES = {
 export const ZERO_32_BYTES =
   '0x0000000000000000000000000000000000000000000000000000000000000000' as const;
 
+/**
+ * Maximum unsigned 256-bit integer encoded as 32 bytes (0x + 64 hex chars).
+ */
+export const UINT256_MAX =
+  '0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff' as const;
+
 /** AllowedCalldataEnforcer terms for ERC20 approve selector. */
 export const ERC20_APPROVE_SELECTOR_TERMS =
   '0x0000000000000000000000000000000000000000000000000000000000000000095ea7b3' as const;
@@ -35,6 +44,9 @@ export const ERC20_APPROVE_SELECTOR_TERMS =
 /** AllowedCalldataEnforcer terms for ERC20 approve zero amount. */
 export const ERC20_APPROVE_ZERO_AMOUNT_TERMS =
   '0x00000000000000000000000000000000000000000000000000000000000000240000000000000000000000000000000000000000000000000000000000000000' as const;
+
+/** Maximum period duration in seconds. */
+export const MAX_PERIOD_DURATION = 10 * 365 * 24 * 60 * 60; // 10 years in seconds
 
 /**
  * Get the byte length of a hex string.
@@ -80,6 +92,9 @@ export const getChecksumEnforcersByChainId = (
   const nativeTokenPeriodicEnforcer = getChecksumContractAddress(
     ENFORCER_CONTRACT_NAMES.NativeTokenPeriodTransferEnforcer,
   );
+  const approvalRevocationEnforcer = getChecksumContractAddress(
+    ENFORCER_CONTRACT_NAMES.ApprovalRevocationEnforcer,
+  );
 
   // general enforcers
   const exactCalldataEnforcer = getChecksumContractAddress(
@@ -99,16 +114,27 @@ export const getChecksumEnforcersByChainId = (
     ENFORCER_CONTRACT_NAMES.AllowedCalldataEnforcer,
   );
 
+  const allowedTargetsEnforcer = getChecksumContractAddress(
+    ENFORCER_CONTRACT_NAMES.AllowedTargetsEnforcer,
+  );
+
+  const redeemerEnforcer = getChecksumContractAddress(
+    ENFORCER_CONTRACT_NAMES.RedeemerEnforcer,
+  );
+
   return {
     erc20StreamingEnforcer,
     erc20PeriodicEnforcer,
     nativeTokenStreamingEnforcer,
     nativeTokenPeriodicEnforcer,
+    approvalRevocationEnforcer,
     exactCalldataEnforcer,
     valueLteEnforcer,
     timestampEnforcer,
     nonceEnforcer,
     allowedCalldataEnforcer,
+    allowedTargetsEnforcer,
+    redeemerEnforcer,
   };
 };
 

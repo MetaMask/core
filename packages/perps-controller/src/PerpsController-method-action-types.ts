@@ -306,6 +306,9 @@ export type PerpsControllerGetPositionsAction = {
  * Thin delegation to MarketDataService
  *
  * @param params - The operation parameters.
+ * @param options - Optional call modifiers.
+ * @param options.forceRefresh - Bypass the request-coalesce cache
+ * end-to-end (user-initiated refresh).
  * @returns Array of historical trade executions (fills).
  */
 export type PerpsControllerGetOrderFillsAction = {
@@ -318,6 +321,9 @@ export type PerpsControllerGetOrderFillsAction = {
  * Thin delegation to MarketDataService
  *
  * @param params - The operation parameters.
+ * @param options - Optional call modifiers.
+ * @param options.forceRefresh - Bypass the request-coalesce cache
+ * end-to-end (user-initiated refresh).
  * @returns Array of historical orders.
  */
 export type PerpsControllerGetOrdersAction = {
@@ -345,6 +351,9 @@ export type PerpsControllerGetOpenOrdersAction = {
  * Thin delegation to MarketDataService
  *
  * @param params - The operation parameters.
+ * @param options - Optional call modifiers.
+ * @param options.forceRefresh - Bypass the request-coalesce cache
+ * end-to-end (user-initiated refresh).
  * @returns Array of historical funding payments.
  */
 export type PerpsControllerGetFundingAction = {
@@ -395,13 +404,18 @@ export type PerpsControllerGetMarketsAction = {
 };
 
 /**
- * Get market data with prices (includes price, volume, 24h change)
+ * Get market data with prices (includes price, volume, 24h change).
+ * Optionally filter by category, sort, and limit the results.
  *
  * For standalone mode, bypasses getActiveProvider() to allow market data queries
  * without full perps initialization (e.g., for background preloading on app start)
  *
  * @param params - The operation parameters.
  * @param params.standalone - Whether to use standalone mode.
+ * @param params.categories - Filter to markets matching any of these categories.
+ * @param params.sortBy - Sort results by this field.
+ * @param params.direction - Sort direction (default: desc).
+ * @param params.limit - Maximum number of results to return.
  * @returns A promise that resolves to the market data.
  */
 export type PerpsControllerGetMarketDataWithPricesAction = {
@@ -563,6 +577,18 @@ export type PerpsControllerSwitchProviderAction = {
 export type PerpsControllerGetCurrentNetworkAction = {
   type: `PerpsController:getCurrentNetwork`;
   handler: PerpsController['getCurrentNetwork'];
+};
+
+/**
+ * Get the ordered list of all market categories for HIP-3 markets.
+ * Returns a stable, explicitly ordered array so the UI can render
+ * category filter tabs without deriving order from config insertion.
+ *
+ * @returns Ordered array of {@link MarketTypeFilter} values. Does not include the 'all' or 'new' sentinels — those are separate UI controls.
+ */
+export type PerpsControllerGetMarketCategoriesAction = {
+  type: `PerpsController:getMarketCategories`;
+  handler: PerpsController['getMarketCategories'];
 };
 
 /**
@@ -887,6 +913,26 @@ export type PerpsControllerSaveMarketFilterPreferencesAction = {
 };
 
 /**
+ * Get the user's max slippage tolerance in basis points.
+ *
+ * @returns The configured max slippage bps, or undefined if never set (callers should default to 300 bps / 3%).
+ */
+export type PerpsControllerGetMaxSlippageAction = {
+  type: `PerpsController:getMaxSlippage`;
+  handler: PerpsController['getMaxSlippage'];
+};
+
+/**
+ * Set the user's max slippage tolerance in basis points.
+ *
+ * @param bps - Max slippage in basis points (e.g. 300 = 3%). Clamped to 10–1000, snapped to step of 10.
+ */
+export type PerpsControllerSetMaxSlippageAction = {
+  type: `PerpsController:setMaxSlippage`;
+  handler: PerpsController['setMaxSlippage'];
+};
+
+/**
  * Set the selected payment token for the Perps order/deposit flow.
  * Pass null or a token with description PERPS_CONSTANTS.PerpsBalanceTokenDescription to select Perps balance.
  * Only required fields (address, chainId) are stored in state; description and symbol are optional.
@@ -1021,6 +1067,7 @@ export type PerpsControllerMethodActions =
   | PerpsControllerToggleTestnetAction
   | PerpsControllerSwitchProviderAction
   | PerpsControllerGetCurrentNetworkAction
+  | PerpsControllerGetMarketCategoriesAction
   | PerpsControllerGetWebSocketConnectionStateAction
   | PerpsControllerSubscribeToConnectionStateAction
   | PerpsControllerReconnectAction
@@ -1051,6 +1098,8 @@ export type PerpsControllerMethodActions =
   | PerpsControllerClearPendingTradeConfigurationAction
   | PerpsControllerGetMarketFilterPreferencesAction
   | PerpsControllerSaveMarketFilterPreferencesAction
+  | PerpsControllerGetMaxSlippageAction
+  | PerpsControllerSetMaxSlippageAction
   | PerpsControllerSetSelectedPaymentTokenAction
   | PerpsControllerResetSelectedPaymentTokenAction
   | PerpsControllerGetOrderBookGroupingAction

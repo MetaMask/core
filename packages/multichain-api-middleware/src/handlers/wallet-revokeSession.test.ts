@@ -9,7 +9,7 @@ import {
 import { rpcErrors } from '@metamask/rpc-errors';
 import type { JsonRpcRequest } from '@metamask/utils';
 
-import { walletRevokeSession } from './wallet-revokeSession';
+import { walletRevokeSessionHandler } from './wallet-revokeSession';
 
 const baseRequest: JsonRpcRequest & {
   origin: string;
@@ -39,7 +39,7 @@ const createMockedHandler = () => {
       params: { scopes?: string[] };
     },
   ) =>
-    walletRevokeSession.implementation(request, response, next, end, {
+    walletRevokeSessionHandler.implementation(request, response, next, end, {
       revokePermissionForOrigin,
       updateCaveat,
       getCaveatForOrigin,
@@ -83,6 +83,23 @@ describe('wallet_revokeSession', () => {
     expect(revokePermissionForOrigin).toHaveBeenCalledWith(
       Caip25EndowmentPermissionName,
     );
+    expect(response.result).toBe(true);
+  });
+
+  it('returns true without revoking if there is no active session and scopes are specified', async () => {
+    const {
+      handler,
+      getCaveatForOrigin,
+      revokePermissionForOrigin,
+      updateCaveat,
+      response,
+    } = createMockedHandler();
+    getCaveatForOrigin.mockReturnValue(undefined);
+
+    await handler({ ...baseRequest, params: { scopes: ['eip155:1'] } });
+
+    expect(revokePermissionForOrigin).not.toHaveBeenCalled();
+    expect(updateCaveat).not.toHaveBeenCalled();
     expect(response.result).toBe(true);
   });
 

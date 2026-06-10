@@ -153,6 +153,37 @@ describe('quote gas estimation', () => {
     });
   });
 
+  it('marks batch estimates that require an authorization list', async () => {
+    estimateGasBatchMock.mockResolvedValue({
+      totalGasLimit: 50000,
+      gasLimits: [50000],
+      requiresAuthorizationList: true,
+    });
+
+    const result = await estimateQuoteGasLimits({
+      messenger,
+      transactions: TRANSACTIONS_MOCK,
+    });
+
+    expect(result).toStrictEqual({
+      batchGasLimit: {
+        estimate: 50000,
+        max: 50000,
+      },
+      gasLimits: [
+        {
+          estimate: 50000,
+          max: 50000,
+        },
+      ],
+      is7702: true,
+      requiresAuthorizationList: true,
+      totalGasEstimate: 50000,
+      totalGasLimit: 50000,
+      usedBatch: true,
+    });
+  });
+
   it('uses per-transaction batch gas limits and preserves provided gas when it already matches', async () => {
     getGasBufferMock.mockReturnValue(1.5);
     estimateGasBatchMock.mockResolvedValue({

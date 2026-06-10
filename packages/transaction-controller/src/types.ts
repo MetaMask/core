@@ -325,6 +325,9 @@ export type TransactionMeta = {
    */
   origin?: string;
 
+  /** Whether the transaction was added by trusted internal MetaMask code. */
+  isInternal?: boolean;
+
   /**
    * The original dapp proposed token approval amount before edit by user.
    */
@@ -415,6 +418,9 @@ export type TransactionMeta = {
    * The number of times that the transaction submit has been retried.
    */
   retryCount?: number;
+
+  /** Decoded revert information from each lifecycle source. */
+  revert?: RevertData;
 
   /**
    * The transaction's 's' value as a hex string.
@@ -612,6 +618,9 @@ export type TransactionBatchMeta = {
    * Origin this transaction was sent from.
    */
   origin?: string;
+
+  /** Whether the batch was added by trusted internal MetaMask code. */
+  isInternal?: boolean;
 
   /**
    * ID of the JSON-RPC request from DAPP.
@@ -843,6 +852,11 @@ export enum TransactionType {
   predictAcrossDeposit = 'predictAcrossDeposit',
 
   /**
+   * Withdraw funds for Across quote via Predict.
+   */
+  predictAcrossWithdraw = 'predictAcrossWithdraw',
+
+  /**
    * Buy a position via Predict.
    *
    * @deprecated Not used.
@@ -990,6 +1004,11 @@ export enum TransactionType {
    * A token approval transaction subscribing to the shield insurance service
    */
   shieldSubscriptionApprove = 'shieldSubscriptionApprove',
+
+  /**
+   * A transaction that sets a spending limit delegation for the MetaMask Card.
+   */
+  cardDelegation = 'cardDelegation',
 }
 
 export enum TransactionContainerType {
@@ -1288,16 +1307,6 @@ export type InferTransactionTypeResult = {
    */
   type: TransactionType;
 };
-
-/**
- * A function for verifying a transaction, whether it is malicious or not.
- */
-export type SecurityProviderRequest = (
-  requestData: TransactionMeta,
-  messageType: string,
-  // TODO: Replace `any` with type
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-) => Promise<any>;
 
 /**
  * Specifies the shape of the base transaction parameters.
@@ -1861,6 +1870,9 @@ export type TransactionBatchRequest = {
   /** Origin of the request, such as a dApp hostname or `ORIGIN_METAMASK` if internal. */
   origin?: string;
 
+  /** Whether the batch was added by trusted internal MetaMask code. */
+  isInternal?: boolean;
+
   /** Whether to overwrite existing EIP-7702 delegation with MetaMask contract. */
   overwriteUpgrade?: boolean;
 
@@ -2108,20 +2120,6 @@ export type AfterAddHook = (request: {
 }>;
 
 /**
- * Custom logic to be executed after a transaction is simulated.
- * Can optionally update the transaction by returning the `updateTransaction` callback.
- */
-export type AfterSimulateHook = (request: {
-  transactionMeta: TransactionMeta;
-}) => Promise<
-  | {
-      skipSimulation?: boolean;
-      updateTransaction?: (transaction: TransactionMeta) => void;
-    }
-  | undefined
->;
-
-/**
  * Custom logic to be executed before a transaction is signed.
  * Can optionally update the transaction by returning the `updateTransaction` callback.
  */
@@ -2156,6 +2154,14 @@ export type MetamaskPayMetadata = {
 
   /** Chain ID of the payment token. */
   chainId?: Hex;
+
+  /** Fiat on-ramp metadata (order ID and provider). */
+  fiat?: {
+    /** Order ID (normalized format: /providers/{provider}/orders/{id}). */
+    orderId: string;
+    /** Provider code (e.g. "transak-native"). */
+    provider: string;
+  };
 
   /**
    * Whether this is a post-quote transaction (e.g., withdrawal flow).
@@ -2246,6 +2252,9 @@ export type AddTransactionOptions = {
   /** Origin of the transaction request, such as a dApp hostname. */
   origin?: string;
 
+  /** Whether the transaction was added by trusted internal MetaMask code. */
+  isInternal?: boolean;
+
   /** Custom logic to publish the transaction. */
   publishHook?: PublishHook;
 
@@ -2319,4 +2328,29 @@ export type RequiredAsset = {
 
   /** Token standard of the asset (e.g., 'erc20'). */
   standard: string;
+};
+
+/**
+ * Decoded revert from a single lifecycle source.
+ */
+export type Revert = {
+  /** Decoded human-readable revert reason. */
+  message?: string;
+
+  /** Raw revert data hex returned by the EVM. */
+  data?: Hex;
+};
+
+/**
+ * Revert information across each stage where a transaction can fail.
+ */
+export type RevertData = {
+  /** Revert from pre-confirmation gas estimation. */
+  gas?: Revert;
+
+  /** Revert from the simulation API's root call frame. */
+  simulation?: Revert;
+
+  /** Revert from on-chain failure, via receipt replay. */
+  receipt?: Revert;
 };

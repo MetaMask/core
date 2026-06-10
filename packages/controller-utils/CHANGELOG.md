@@ -7,6 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [12.1.1]
+
+### Changed
+
+- Update `NetworkNickname` to match latest client overrides ([#9005](https://github.com/MetaMask/core/pull/9005))
+
+## [12.1.0]
+
+### Added
+
+- Add `DEFAULT_INFURA_NETWORKS` with Infura network names to be enabled by default ([#8767](https://github.com/MetaMask/core/pull/8767))
+
+## [12.0.0]
+
+### Changed
+
+- **BREAKING:** The `ServicePolicy` type's `onDegraded` event now emits `{ duration: number }` instead of `void` when the service succeeds but takes longer than the `degradedThreshold` ([#8455](https://github.com/MetaMask/core/pull/8455))
+  - `void` has been removed from the event's type union. Listeners that checked for `undefined` data should now check for the `duration` property instead.
+  - The event still emits a `FailureReason` when retries are exhausted.
+- Update `normalizeEnsName` regex to allow ENS names with 3 or more characters (previously required 7 or more) ([#8510](https://github.com/MetaMask/core/pull/8510))
+- Update default Sei Mainnet block explorer URL from `seitrace.com` to `seiscan.io` ([#8545](https://github.com/MetaMask/core/pull/8545))
+- Update `BUILT_IN_NETWORKS`, `InfuraNetworkType`, `ChainId`, `NetworksTicker`, `BlockExplorerUrl`, `NetworkNickname` to include missing Infura networks ([#8680](https://github.com/MetaMask/core/pull/8680), [#8713](https://github.com/MetaMask/core/pull/8713))
+
 ## [11.20.0]
 
 ### Added
@@ -277,7 +300,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     ["Are the Types Wrong?"](https://arethetypeswrong.github.io/) tool as
     ["masquerading as CJS"](https://github.com/arethetypeswrong/arethetypeswrong.github.io/blob/main/docs/problems/FalseCJS.md).
     All of the ATTW checks now pass.
-- Remove chunk files ([#4648](https://github.com/MetaMask/core/pull/4648)).
+- Remove chunk files ([#4648](https://github.com/MetaMask/core/pull/4648))
   - Previously, the build tool we used to generate JavaScript files extracted
     common code to "chunk" files. While this was intended to make this package
     more tree-shakeable, it also made debugging more difficult for our
@@ -651,7 +674,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@11.20.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@12.1.1...HEAD
+[12.1.1]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@12.1.0...@metamask/controller-utils@12.1.1
+[12.1.0]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@12.0.0...@metamask/controller-utils@12.1.0
+[12.0.0]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@11.20.0...@metamask/controller-utils@12.0.0
 [11.20.0]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@11.19.0...@metamask/controller-utils@11.20.0
 [11.19.0]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@11.18.0...@metamask/controller-utils@11.19.0
 [11.18.0]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@11.17.0...@metamask/controller-utils@11.18.0

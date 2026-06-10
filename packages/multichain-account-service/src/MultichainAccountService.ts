@@ -43,7 +43,6 @@ import {
   SOL_ACCOUNT_PROVIDER_NAME,
   SolAccountProviderConfig,
 } from './providers/SolAccountProvider';
-import { SnapPlatformWatcher } from './snaps/SnapPlatformWatcher';
 import type {
   MultichainAccountServiceConfig,
   MultichainAccountServiceMessenger,
@@ -65,10 +64,6 @@ export type MultichainAccountServiceOptions = {
     [XLM_ACCOUNT_PROVIDER_NAME]?: XlmAccountProviderConfig;
   };
   config?: MultichainAccountServiceConfig;
-  /**
-   * When provided, used to prevent using Snap platform before onboarding completion.
-   */
-  ensureOnboardingComplete?: () => Promise<void>;
 };
 
 /**
@@ -120,7 +115,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'createMultichainAccountWallet',
   'resyncAccounts',
   'removeMultichainAccountWallet',
-  'ensureCanUseSnapPlatform',
+  'init',
 ] as const;
 
 /**
@@ -128,8 +123,6 @@ const MESSENGER_EXPOSED_METHODS = [
  */
 export class MultichainAccountService {
   readonly #messenger: MultichainAccountServiceMessenger;
-
-  readonly #watcher: SnapPlatformWatcher;
 
   readonly #providers: Bip44AccountProvider[];
 
@@ -154,15 +147,12 @@ export class MultichainAccountService {
    * @param options.providers - Optional list of account
    * @param options.providerConfigs - Optional provider configs
    * @param options.config - Optional config.
-   * @param options.ensureOnboardingComplete - Optional callback to ensure
-   * onboarding is completed before using the Snap platform.
    */
   constructor({
     messenger,
     providers = [],
     providerConfigs,
     config,
-    ensureOnboardingComplete,
   }: MultichainAccountServiceOptions) {
     this.#messenger = messenger;
     this.#wallets = new Map();
@@ -221,11 +211,6 @@ export class MultichainAccountService {
       // Custom account providers that can be provided by the MetaMask client.
       ...providers,
     ];
-
-    this.#watcher = new SnapPlatformWatcher(messenger, {
-      ensureOnboardingComplete,
-      snapKeyringWaitTimeoutMs: config?.snapPlatformWatcher?.timeoutMs,
-    });
 
     this.#messenger.registerMethodActionHandlers(
       this,
@@ -358,10 +343,6 @@ export class MultichainAccountService {
       }),
     );
     log('Providers got re-synced!');
-  }
-
-  ensureCanUseSnapPlatform(): Promise<void> {
-    return this.#watcher.ensureCanUseSnapPlatform();
   }
 
   /**

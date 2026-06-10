@@ -1,6 +1,6 @@
 {
   "name": "@metamask/remote-feature-flag-controller",
-  "version": "4.2.0",
+  "version": "4.2.2",
   "description": "The RemoteFeatureFlagController manages the retrieval and caching of remote feature flags",
   "keywords": [
     "Ethereum",
@@ -54,8 +54,8 @@
   },
   "dependencies": {
     "@metamask/base-controller": "^9.1.0",
-    "@metamask/controller-utils": "^11.20.0",
-    "@metamask/messenger": "^1.1.1",
+    "@metamask/controller-utils": "^12.1.1",
+    "@metamask/messenger": "^1.2.0",
     "@metamask/utils": "^11.9.0",
     "uuid": "^8.3.2"
   },

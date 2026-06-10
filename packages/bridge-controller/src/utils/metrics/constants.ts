@@ -27,6 +27,7 @@ export enum UnifiedSwapBridgeEventName {
 
 export enum PollingStatus {
   MaxPollingReached = 'max_polling_reached',
+  InvalidTransactionHash = 'invalid_transaction_hash',
   ManuallyRestarted = 'manually_restarted',
 }
 
@@ -35,6 +36,7 @@ export enum AbortReason {
   QuoteRequestUpdated = 'Quote Request Updated',
   ResetState = 'Reset controller state',
   TransactionSubmitted = 'Transaction submitted',
+  GaslessTxBatchFetched = 'Gasless transaction batch fetched',
 }
 
 /**

@@ -7,6 +7,41 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/controller-utils` from `^12.0.0` to `^12.1.1` ([#8774](https://github.com/MetaMask/core/pull/8774), [#9058](https://github.com/MetaMask/core/pull/9058))
+- Bump `@metamask/profile-sync-controller` from `^28.0.2` to `^28.1.1` ([#8783](https://github.com/MetaMask/core/pull/8783), [#8912](https://github.com/MetaMask/core/pull/8912))
+- Bump `@metamask/base-data-service` from `^0.1.2` to `^0.1.3` ([#8799](https://github.com/MetaMask/core/pull/8799))
+
+## [2.2.1]
+
+### Changed
+
+- Bump `@metamask/messenger` from `^1.1.1` to `^1.2.0` ([#8632](https://github.com/MetaMask/core/pull/8632))
+- Bump `@metamask/base-data-service` from `^0.1.1` to `^0.1.2` ([#8755](https://github.com/MetaMask/core/pull/8755))
+- Bump `@metamask/controller-utils` from `^11.20.0` to `^12.0.0` ([#8755](https://github.com/MetaMask/core/pull/8755))
+
+## [2.2.0]
+
+### Added
+
+- Add `SocialService.fetchPositionById` method exposing `GET /v1/traders/position/:positionId`, returning a single `Position` by ID ([#8602](https://github.com/MetaMask/core/pull/8602))
+
+## [2.1.0]
+
+### Added
+
+- Add `positionId` field to `Position` type and `PositionStruct` validation schema ([#8576](https://github.com/MetaMask/core/pull/8576))
+
+## [2.0.0]
+
+### Changed
+
+- **BREAKING:** `SocialService.follow`, `SocialService.unfollow`, and `SocialController.followTrader`, `SocialController.unfollowTrader` no longer accept an `addressOrUid` option. The caller is identified server-side from the JWT `sub` claim carried in the `Authorization` header. ([#8520](https://github.com/MetaMask/core/pull/8520))
+- **BREAKING:** `SocialService.fetchFollowing` and `SocialController.updateFollowing` now take no arguments (previously `{ addressOrUid }`). ([#8520](https://github.com/MetaMask/core/pull/8520))
+- **BREAKING:** Remove `FetchFollowingOptions` type export (no longer needed). ([#8520](https://github.com/MetaMask/core/pull/8520))
+- `SocialService` now calls `PUT /v1/users/me/follows`, `DELETE /v1/users/me/follows`, and `GET /v1/users/me/following` (previously `/v1/users/:addressOrUid/...`). ([#8520](https://github.com/MetaMask/core/pull/8520))
+
 ## [1.0.0]
 
 ### Uncategorized
@@ -51,7 +86,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - `unfollowTrader` — unfollows traders and removes addresses from state
     - `updateFollowing` — fetches following list and replaces addresses in state
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/social-controllers@1.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/social-controllers@2.2.1...HEAD
+[2.2.1]: https://github.com/MetaMask/core/compare/@metamask/social-controllers@2.2.0...@metamask/social-controllers@2.2.1
+[2.2.0]: https://github.com/MetaMask/core/compare/@metamask/social-controllers@2.1.0...@metamask/social-controllers@2.2.0
+[2.1.0]: https://github.com/MetaMask/core/compare/@metamask/social-controllers@2.0.0...@metamask/social-controllers@2.1.0
+[2.0.0]: https://github.com/MetaMask/core/compare/@metamask/social-controllers@1.0.0...@metamask/social-controllers@2.0.0
 [1.0.0]: https://github.com/MetaMask/core/compare/@metamask/social-controllers@0.2.0...@metamask/social-controllers@1.0.0
 [0.2.0]: https://github.com/MetaMask/core/compare/@metamask/social-controllers@0.1.0...@metamask/social-controllers@0.2.0
 [0.1.0]: https://github.com/MetaMask/core/releases/tag/@metamask/social-controllers@0.1.0

@@ -42,6 +42,9 @@
       "path": "./packages/assets-controllers"
     },
     {
+      "path": "./packages/authenticated-user-storage"
+    },
+    {
       "path": "./packages/base-controller"
     },
     {
@@ -58,6 +61,9 @@
     },
     {
       "path": "./packages/chain-agnostic-permission"
+    },
+    {
+      "path": "./packages/chomp-api-service"
     },
     {
       "path": "./packages/claims-controller"
@@ -141,6 +147,9 @@
       "path": "./packages/money-account-controller"
     },
     {
+      "path": "./packages/money-account-upgrade-controller"
+    },
+    {
       "path": "./packages/multichain-account-service"
     },
     {
@@ -163,6 +172,9 @@
     },
     {
       "path": "./packages/notification-services-controller"
+    },
+    {
+      "path": "./packages/passkey-controller"
     },
     {
       "path": "./packages/permission-controller"
@@ -216,6 +228,9 @@
       "path": "./packages/signature-controller"
     },
     {
+      "path": "./packages/snap-account-service"
+    },
+    {
       "path": "./packages/social-controllers"
     },
     {
@@ -229,8 +244,14 @@
     },
     {
       "path": "./packages/user-operation-controller"
+    },
+    {
+      "path": "./packages/wallet"
+    },
+    {
+      "path": "./packages/wallet-framework-docs"
     }
   ],
   "files": [],
-  "include": ["./types", "./scripts"]
+  "include": ["./docs", "./types", "./scripts", "./knip.config.ts"]
 }

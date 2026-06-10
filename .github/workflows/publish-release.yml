@@ -4,24 +4,29 @@ on:
   workflow_call:
     secrets:
       NPM_TOKEN:
-        required: true
+        required: false
       SLACK_WEBHOOK_URL:
         required: true
 
+permissions:
+  contents: read
+
+concurrency:
+  group: publish-release
+  queue: max
+
 jobs:
-  publish-release:
-    permissions:
-      contents: write
+  build:
+    name: Build release artifacts
     runs-on: ubuntu-latest
     steps:
       - name: Checkout and setup environment
         uses: MetaMask/action-checkout-and-setup@v2
         with:
           is-high-risk-environment: true
-      - uses: MetaMask/action-publish-release@v3
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      - run: yarn build
+          ref: ${{ github.sha }}
+      - name: Build
+        run: yarn build
       - name: Upload build artifacts
         uses: actions/upload-artifact@v6
         with:
@@ -35,7 +40,7 @@ jobs:
   publish-npm-dry-run:
     name: Dry run publish to NPM
     runs-on: ubuntu-latest
-    needs: publish-release
+    needs: build
     steps:
       - name: Checkout and setup environment
         uses: MetaMask/action-checkout-and-setup@v2
@@ -47,7 +52,7 @@ jobs:
         with:
           name: publish-release-artifacts-${{ github.sha }}
       - name: Dry run publish to NPM
-        uses: MetaMask/action-npm-publish@v5
+        uses: MetaMask/action-npm-publish@v6
         with:
           slack-webhook-url: ${{ secrets.SLACK_WEBHOOK_URL }}
           subteam: S042S7RE4AE # @metamask-npm-publishers
@@ -57,6 +62,9 @@ jobs:
     environment: npm-publish
     runs-on: ubuntu-latest
     needs: publish-npm-dry-run
+    permissions:
+      contents: read
+      id-token: write
     steps:
       - name: Checkout and setup environment
         uses: MetaMask/action-checkout-and-setup@v2
@@ -68,6 +76,22 @@ jobs:
         with:
           name: publish-release-artifacts-${{ github.sha }}
       - name: Publish to NPM
-        uses: MetaMask/action-npm-publish@v5
+        uses: MetaMask/action-npm-publish@v6
         with:
           npm-token: ${{ secrets.NPM_TOKEN }}
+
+  publish-release:
+    name: Publish release to GitHub
+    permissions:
+      contents: write
+    runs-on: ubuntu-latest
+    needs: publish-npm
+    steps:
+      - name: Checkout and setup environment
+        uses: MetaMask/action-checkout-and-setup@v2
+        with:
+          is-high-risk-environment: true
+          ref: ${{ github.sha }}
+      - uses: MetaMask/action-publish-release@v3
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

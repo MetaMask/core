@@ -1,4 +1,5 @@
 import { deriveStateFromMetadata } from '@metamask/base-controller';
+import { BrokenCircuitError } from '@metamask/controller-utils';
 import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
 import type {
   MockAnyNamespace,
@@ -20,6 +21,7 @@ import {
   getDefaultRampsControllerState,
   RAMPS_CONTROLLER_REQUIRED_SERVICE_ACTIONS,
 } from './RampsController';
+import { RAMPS_ERROR_CODES } from './rampsErrorCodes';
 import type {
   Country,
   TokensResponse,
@@ -61,6 +63,9 @@ import type {
 } from './TransakService';
 
 describe('RampsController', () => {
+  const circuitBreakerOpenErrorMessage =
+    'Execution prevented because the circuit breaker is open';
+
   describe('normalizeProviderCode', () => {
     it('strips /providers/ prefix', () => {
       expect(normalizeProviderCode('/providers/transak')).toBe('transak');
@@ -1075,6 +1080,126 @@ describe('RampsController', () => {
       });
     });
 
+    it('tags circuit breaker errors with a localized error key', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        const error = new BrokenCircuitError();
+        const fetcher = async (): Promise<string> => {
+          throw error;
+        };
+
+        await expect(
+          rootMessenger.call(
+            'RampsController:executeRequest',
+            'error-key-broken-circuit',
+            fetcher,
+          ),
+        ).rejects.toMatchObject({
+          errorKey: RAMPS_ERROR_CODES.CIRCUIT_BREAKER_OPEN,
+          message: circuitBreakerOpenErrorMessage,
+        });
+
+        const requestState =
+          controller.state.requests['error-key-broken-circuit'];
+        expect(requestState?.status).toBe(RequestStatus.ERROR);
+        expect(requestState?.error).toBe(circuitBreakerOpenErrorMessage);
+        expect(requestState?.errorKey).toBe(
+          RAMPS_ERROR_CODES.CIRCUIT_BREAKER_OPEN,
+        );
+        expect(error.message).toBe(circuitBreakerOpenErrorMessage);
+        expect((error as Error & { errorKey?: string }).errorKey).toBe(
+          RAMPS_ERROR_CODES.CIRCUIT_BREAKER_OPEN,
+        );
+      });
+    });
+
+    it('falls back to message matching for circuit breaker-shaped errors', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        const error = new Error(circuitBreakerOpenErrorMessage);
+        const fetcher = async (): Promise<string> => {
+          throw error;
+        };
+
+        await expect(
+          rootMessenger.call(
+            'RampsController:executeRequest',
+            'error-key-circuit-breaker',
+            fetcher,
+          ),
+        ).rejects.toMatchObject({
+          errorKey: RAMPS_ERROR_CODES.CIRCUIT_BREAKER_OPEN,
+          message: circuitBreakerOpenErrorMessage,
+        });
+
+        const requestState =
+          controller.state.requests['error-key-circuit-breaker'];
+        expect(requestState?.status).toBe(RequestStatus.ERROR);
+        expect(requestState?.error).toBe(circuitBreakerOpenErrorMessage);
+        expect(requestState?.errorKey).toBe(
+          RAMPS_ERROR_CODES.CIRCUIT_BREAKER_OPEN,
+        );
+        expect(error.message).toBe(circuitBreakerOpenErrorMessage);
+        expect((error as Error & { errorKey?: string }).errorKey).toBe(
+          RAMPS_ERROR_CODES.CIRCUIT_BREAKER_OPEN,
+        );
+      });
+    });
+
+    it('wraps string circuit breaker errors with a localized error key', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        const fetcher = async (): Promise<string> => {
+          // eslint-disable-next-line @typescript-eslint/only-throw-error
+          throw circuitBreakerOpenErrorMessage;
+        };
+
+        await expect(
+          rootMessenger.call(
+            'RampsController:executeRequest',
+            'error-key-circuit-breaker-string',
+            fetcher,
+          ),
+        ).rejects.toMatchObject({
+          errorKey: RAMPS_ERROR_CODES.CIRCUIT_BREAKER_OPEN,
+          message: circuitBreakerOpenErrorMessage,
+        });
+
+        const requestState =
+          controller.state.requests['error-key-circuit-breaker-string'];
+        expect(requestState?.status).toBe(RequestStatus.ERROR);
+        expect(requestState?.error).toBe(circuitBreakerOpenErrorMessage);
+        expect(requestState?.errorKey).toBe(
+          RAMPS_ERROR_CODES.CIRCUIT_BREAKER_OPEN,
+        );
+      });
+    });
+
+    it('wraps object circuit breaker errors with a localized error key', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        const fetcher = async (): Promise<string> => {
+          // eslint-disable-next-line @typescript-eslint/only-throw-error
+          throw { message: circuitBreakerOpenErrorMessage };
+        };
+
+        await expect(
+          rootMessenger.call(
+            'RampsController:executeRequest',
+            'error-key-circuit-breaker-object',
+            fetcher,
+          ),
+        ).rejects.toMatchObject({
+          errorKey: RAMPS_ERROR_CODES.CIRCUIT_BREAKER_OPEN,
+          message: circuitBreakerOpenErrorMessage,
+        });
+
+        const requestState =
+          controller.state.requests['error-key-circuit-breaker-object'];
+        expect(requestState?.status).toBe(RequestStatus.ERROR);
+        expect(requestState?.error).toBe(circuitBreakerOpenErrorMessage);
+        expect(requestState?.errorKey).toBe(
+          RAMPS_ERROR_CODES.CIRCUIT_BREAKER_OPEN,
+        );
+      });
+    });
+
     it('stores fallback error message when error has no message', async () => {
       await withController(async ({ controller, rootMessenger }) => {
         const fetcher = async (): Promise<string> => {
@@ -1115,6 +1240,65 @@ describe('RampsController', () => {
 
         expect(isResultCurrent).toHaveBeenCalledTimes(1);
         expect(controller.state.providers.error).toBe('network failed');
+      });
+    });
+
+    it('stores resource error keys for localized request failures', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        const fetcher = async (): Promise<string> => {
+          throw new Error(circuitBreakerOpenErrorMessage);
+        };
+
+        await expect(
+          rootMessenger.call(
+            'RampsController:executeRequest',
+            'providers-circuit-breaker-key',
+            fetcher,
+            { resourceType: 'providers' },
+          ),
+        ).rejects.toMatchObject({
+          errorKey: RAMPS_ERROR_CODES.CIRCUIT_BREAKER_OPEN,
+          message: circuitBreakerOpenErrorMessage,
+        });
+
+        expect(controller.state.providers.error).toBe(
+          circuitBreakerOpenErrorMessage,
+        );
+        expect(controller.state.providers.errorKey).toBe(
+          RAMPS_ERROR_CODES.CIRCUIT_BREAKER_OPEN,
+        );
+      });
+    });
+
+    it('clears resource error keys after a successful retry', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        await expect(
+          rootMessenger.call(
+            'RampsController:executeRequest',
+            'providers-circuit-breaker-key',
+            async () => {
+              throw new Error(circuitBreakerOpenErrorMessage);
+            },
+            { resourceType: 'providers' },
+          ),
+        ).rejects.toMatchObject({
+          errorKey: RAMPS_ERROR_CODES.CIRCUIT_BREAKER_OPEN,
+        });
+
+        expect(controller.state.providers.errorKey).toBe(
+          RAMPS_ERROR_CODES.CIRCUIT_BREAKER_OPEN,
+        );
+
+        const result = await rootMessenger.call(
+          'RampsController:executeRequest',
+          'providers-circuit-breaker-key-success',
+          async () => 'ok',
+          { resourceType: 'providers' },
+        );
+
+        expect(result).toBe('ok');
+        expect(controller.state.providers.error).toBeNull();
+        expect(controller.state.providers.errorKey).toBeNull();
       });
     });
 
@@ -2109,6 +2293,24 @@ describe('RampsController', () => {
           options: {
             state: {
               countries: createResourceState(createMockCountries()),
+              providers: {
+                ...createResourceState(
+                  [mockSelectedProvider],
+                  mockSelectedProvider,
+                ),
+                error: circuitBreakerOpenErrorMessage,
+                errorKey: RAMPS_ERROR_CODES.CIRCUIT_BREAKER_OPEN,
+              },
+              tokens: {
+                ...createResourceState({ topTokens: [], allTokens: [] }, null),
+                error: circuitBreakerOpenErrorMessage,
+                errorKey: RAMPS_ERROR_CODES.CIRCUIT_BREAKER_OPEN,
+              },
+              paymentMethods: {
+                ...createResourceState([mockPaymentMethod], mockPaymentMethod),
+                error: circuitBreakerOpenErrorMessage,
+                errorKey: RAMPS_ERROR_CODES.CIRCUIT_BREAKER_OPEN,
+              },
             },
           },
         },
@@ -2163,8 +2365,11 @@ describe('RampsController', () => {
           // Region change resets dependent resources
           expect(controller.state.tokens.data).toBeNull();
           expect(controller.state.providers.data).toStrictEqual([]);
+          expect(controller.state.providers.errorKey).toBeNull();
           expect(controller.state.paymentMethods.data).toStrictEqual([]);
           expect(controller.state.paymentMethods.selected).toBeNull();
+          expect(controller.state.paymentMethods.errorKey).toBeNull();
+          expect(controller.state.tokens.errorKey).toBeNull();
         },
       );
     });
@@ -5601,6 +5806,1012 @@ describe('RampsController', () => {
         },
       );
     });
+
+    describe('when autoSelectProvider is true', () => {
+      const ASSET_ETH = 'eip155:1/slip44:60';
+      const ASSET_USDC =
+        'eip155:42161/erc20:0xaf88d065e77c8cc2239327c5edb3a432268e5831';
+      const WALLET_ADDRESS = '0x1234567890abcdef1234567890abcdef12345678';
+      const PAYMENT_METHODS = ['/payments/debit-credit-card'];
+
+      const ethOnly = createMockProvider({
+        id: '/providers/eth-only',
+        name: 'ETH Only',
+        type: 'aggregator',
+        supportedCryptoCurrencies: { [ASSET_ETH]: true },
+      });
+      const moonpay = createMockProvider({
+        id: '/providers/moonpay',
+        name: 'MoonPay',
+        type: 'aggregator',
+        supportedCryptoCurrencies: { [ASSET_USDC]: true },
+      });
+      const transak = createMockProvider({
+        id: '/providers/transak-native',
+        name: 'Transak Native',
+        type: 'native',
+        supportedCryptoCurrencies: { [ASSET_USDC]: true },
+      });
+      const noCryptoProvider = createMockProvider({
+        id: '/providers/no-crypto',
+        name: 'No Crypto',
+        type: 'aggregator',
+        supportedCryptoCurrencies: undefined,
+      });
+
+      it('resolves only providers that support the asset', async () => {
+        await withController(
+          {
+            options: {
+              state: {
+                userRegion: createMockUserRegion('us'),
+                providers: createResourceState(
+                  [ethOnly, moonpay, noCryptoProvider],
+                  null,
+                ),
+              },
+            },
+          },
+          async ({ rootMessenger }) => {
+            let capturedProviders: string[] | undefined;
+            rootMessenger.registerActionHandler(
+              'RampsService:getQuotes',
+              async (params) => {
+                capturedProviders = params.providers;
+                return mockQuotesResponse;
+              },
+            );
+
+            await rootMessenger.call('RampsController:getQuotes', {
+              assetId: ASSET_USDC,
+              amount: 100,
+              walletAddress: WALLET_ADDRESS,
+              paymentMethods: PAYMENT_METHODS,
+              autoSelectProvider: true,
+            });
+
+            expect(capturedProviders).toStrictEqual(['/providers/moonpay']);
+          },
+        );
+      });
+
+      it('matches the asset case-insensitively when the API key is checksummed and the request is lowercased', async () => {
+        const checksummedAssetId =
+          'eip155:42161/erc20:0xaF88d065e77c8cC2239327C5EDb3A432268e5831';
+        const checksumProvider = createMockProvider({
+          id: '/providers/checksum-native',
+          name: 'Checksum Native',
+          type: 'native',
+          supportedCryptoCurrencies: { [checksummedAssetId]: true },
+        });
+
+        await withController(
+          {
+            options: {
+              state: {
+                userRegion: createMockUserRegion('us'),
+                providers: createResourceState([checksumProvider], null),
+              },
+            },
+          },
+          async ({ rootMessenger }) => {
+            let capturedProviders: string[] | undefined;
+            rootMessenger.registerActionHandler(
+              'RampsService:getQuotes',
+              async (params) => {
+                capturedProviders = params.providers;
+                return mockQuotesResponse;
+              },
+            );
+
+            await rootMessenger.call('RampsController:getQuotes', {
+              // Lowercased request against a checksummed provider key.
+              assetId: checksummedAssetId.toLowerCase(),
+              amount: 100,
+              walletAddress: WALLET_ADDRESS,
+              paymentMethods: PAYMENT_METHODS,
+              autoSelectProvider: true,
+            });
+
+            expect(capturedProviders).toStrictEqual([
+              '/providers/checksum-native',
+            ]);
+          },
+        );
+      });
+
+      it('prefers the currently selected provider when it supports the asset', async () => {
+        await withController(
+          {
+            options: {
+              state: {
+                userRegion: createMockUserRegion('us'),
+                providers: createResourceState([moonpay, transak], moonpay),
+              },
+            },
+          },
+          async ({ rootMessenger }) => {
+            let capturedProviders: string[] | undefined;
+            rootMessenger.registerActionHandler(
+              'RampsService:getQuotes',
+              async (params) => {
+                capturedProviders = params.providers;
+                return mockQuotesResponse;
+              },
+            );
+
+            await rootMessenger.call('RampsController:getQuotes', {
+              assetId: ASSET_USDC,
+              amount: 100,
+              walletAddress: WALLET_ADDRESS,
+              paymentMethods: PAYMENT_METHODS,
+              autoSelectProvider: true,
+            });
+
+            expect(capturedProviders).toStrictEqual(['/providers/moonpay']);
+          },
+        );
+      });
+
+      it('prefers a preferredProviderIds entry over Transak', async () => {
+        await withController(
+          {
+            options: {
+              state: {
+                userRegion: createMockUserRegion('us'),
+                providers: createResourceState([moonpay, transak], null),
+              },
+            },
+          },
+          async ({ rootMessenger }) => {
+            let capturedProviders: string[] | undefined;
+            rootMessenger.registerActionHandler(
+              'RampsService:getQuotes',
+              async (params) => {
+                capturedProviders = params.providers;
+                return mockQuotesResponse;
+              },
+            );
+
+            await rootMessenger.call('RampsController:getQuotes', {
+              assetId: ASSET_USDC,
+              amount: 100,
+              walletAddress: WALLET_ADDRESS,
+              paymentMethods: PAYMENT_METHODS,
+              autoSelectProvider: true,
+              preferredProviderIds: ['/providers/moonpay'],
+            });
+
+            expect(capturedProviders).toStrictEqual(['/providers/moonpay']);
+          },
+        );
+      });
+
+      it('prefers a Transak provider when nothing is selected or preferred', async () => {
+        await withController(
+          {
+            options: {
+              state: {
+                userRegion: createMockUserRegion('us'),
+                providers: createResourceState([moonpay, transak], null),
+              },
+            },
+          },
+          async ({ rootMessenger }) => {
+            let capturedProviders: string[] | undefined;
+            rootMessenger.registerActionHandler(
+              'RampsService:getQuotes',
+              async (params) => {
+                capturedProviders = params.providers;
+                return mockQuotesResponse;
+              },
+            );
+
+            await rootMessenger.call('RampsController:getQuotes', {
+              assetId: ASSET_USDC,
+              amount: 100,
+              walletAddress: WALLET_ADDRESS,
+              paymentMethods: PAYMENT_METHODS,
+              autoSelectProvider: true,
+            });
+
+            expect(capturedProviders).toStrictEqual([
+              '/providers/transak-native',
+            ]);
+          },
+        );
+      });
+
+      it('prefers a native provider over a non-native one via the type field', async () => {
+        const transakAggregator = createMockProvider({
+          id: '/providers/transak',
+          name: 'Transak',
+          type: 'aggregator',
+          supportedCryptoCurrencies: { [ASSET_USDC]: true },
+        });
+
+        await withController(
+          {
+            options: {
+              state: {
+                userRegion: createMockUserRegion('us'),
+                providers: createResourceState(
+                  [moonpay, transakAggregator, transak],
+                  null,
+                ),
+              },
+            },
+          },
+          async ({ rootMessenger }) => {
+            let capturedProviders: string[] | undefined;
+            rootMessenger.registerActionHandler(
+              'RampsService:getQuotes',
+              async (params) => {
+                capturedProviders = params.providers;
+                return mockQuotesResponse;
+              },
+            );
+
+            await rootMessenger.call('RampsController:getQuotes', {
+              assetId: ASSET_USDC,
+              amount: 100,
+              walletAddress: WALLET_ADDRESS,
+              paymentMethods: PAYMENT_METHODS,
+              autoSelectProvider: true,
+            });
+
+            expect(capturedProviders).toStrictEqual([
+              '/providers/transak-native',
+            ]);
+          },
+        );
+      });
+
+      it('treats the Transak aggregator as an ordinary provider when no native supports the asset', async () => {
+        const transakAggregator = createMockProvider({
+          id: '/providers/transak',
+          name: 'Transak',
+          type: 'aggregator',
+          supportedCryptoCurrencies: { [ASSET_USDC]: true },
+        });
+
+        await withController(
+          {
+            options: {
+              state: {
+                userRegion: createMockUserRegion('us'),
+                providers: createResourceState(
+                  [moonpay, transakAggregator],
+                  null,
+                ),
+              },
+            },
+          },
+          async ({ rootMessenger }) => {
+            let capturedProviders: string[] | undefined;
+            rootMessenger.registerActionHandler(
+              'RampsService:getQuotes',
+              async (params) => {
+                capturedProviders = params.providers;
+                return mockQuotesResponse;
+              },
+            );
+
+            await rootMessenger.call('RampsController:getQuotes', {
+              assetId: ASSET_USDC,
+              amount: 100,
+              walletAddress: WALLET_ADDRESS,
+              paymentMethods: PAYMENT_METHODS,
+              autoSelectProvider: true,
+            });
+
+            // No native present and no selection/preference, so the aggregator
+            // gets no priority — the first supporting provider wins.
+            expect(capturedProviders).toStrictEqual(['/providers/moonpay']);
+          },
+        );
+      });
+
+      it('falls back to the first supporting provider when no Transak provider supports the asset', async () => {
+        const paypal = createMockProvider({
+          id: '/providers/paypal',
+          name: 'PayPal',
+          supportedCryptoCurrencies: { [ASSET_USDC]: true },
+        });
+
+        await withController(
+          {
+            options: {
+              state: {
+                userRegion: createMockUserRegion('us'),
+                providers: createResourceState([moonpay, paypal], null),
+              },
+            },
+          },
+          async ({ rootMessenger }) => {
+            let capturedProviders: string[] | undefined;
+            rootMessenger.registerActionHandler(
+              'RampsService:getQuotes',
+              async (params) => {
+                capturedProviders = params.providers;
+                return mockQuotesResponse;
+              },
+            );
+
+            await rootMessenger.call('RampsController:getQuotes', {
+              assetId: ASSET_USDC,
+              amount: 100,
+              walletAddress: WALLET_ADDRESS,
+              paymentMethods: PAYMENT_METHODS,
+              autoSelectProvider: true,
+            });
+
+            expect(capturedProviders).toStrictEqual(['/providers/moonpay']);
+          },
+        );
+      });
+
+      it('lazily loads providers when none are cached', async () => {
+        await withController(
+          {
+            options: {
+              state: {
+                userRegion: createMockUserRegion('us'),
+                providers: createResourceState([], null),
+              },
+            },
+          },
+          async ({ rootMessenger }) => {
+            rootMessenger.registerActionHandler(
+              'RampsService:getProviders',
+              async () => ({ providers: [moonpay] }),
+            );
+
+            let capturedProviders: string[] | undefined;
+            rootMessenger.registerActionHandler(
+              'RampsService:getQuotes',
+              async (params) => {
+                capturedProviders = params.providers;
+                return mockQuotesResponse;
+              },
+            );
+
+            await rootMessenger.call('RampsController:getQuotes', {
+              assetId: ASSET_USDC,
+              amount: 100,
+              walletAddress: WALLET_ADDRESS,
+              paymentMethods: PAYMENT_METHODS,
+              autoSelectProvider: true,
+            });
+
+            expect(capturedProviders).toStrictEqual(['/providers/moonpay']);
+          },
+        );
+      });
+
+      it('does not mutate the selected provider or auto-selected flag', async () => {
+        await withController(
+          {
+            options: {
+              state: {
+                userRegion: createMockUserRegion('us'),
+                providers: createResourceState([moonpay, transak], null),
+              },
+            },
+          },
+          async ({ controller, rootMessenger }) => {
+            rootMessenger.registerActionHandler(
+              'RampsService:getQuotes',
+              async () => mockQuotesResponse,
+            );
+
+            await rootMessenger.call('RampsController:getQuotes', {
+              assetId: ASSET_USDC,
+              amount: 100,
+              walletAddress: WALLET_ADDRESS,
+              paymentMethods: PAYMENT_METHODS,
+              autoSelectProvider: true,
+            });
+
+            expect(controller.state.providers.selected).toBeNull();
+            expect(controller.state.providerAutoSelected).toBe(false);
+          },
+        );
+      });
+
+      it('falls back to all providers when none support the asset', async () => {
+        await withController(
+          {
+            options: {
+              state: {
+                userRegion: createMockUserRegion('us'),
+                providers: createResourceState([ethOnly], null),
+              },
+            },
+          },
+          async ({ rootMessenger }) => {
+            let capturedProviders: string[] | undefined;
+            rootMessenger.registerActionHandler(
+              'RampsService:getQuotes',
+              async (params) => {
+                capturedProviders = params.providers;
+                return mockQuotesResponse;
+              },
+            );
+
+            await rootMessenger.call('RampsController:getQuotes', {
+              assetId: ASSET_USDC,
+              amount: 100,
+              walletAddress: WALLET_ADDRESS,
+              paymentMethods: PAYMENT_METHODS,
+              autoSelectProvider: true,
+            });
+
+            expect(capturedProviders).toStrictEqual(['/providers/eth-only']);
+          },
+        );
+      });
+
+      it('ignores autoSelectProvider when explicit providers are passed', async () => {
+        await withController(
+          {
+            options: {
+              state: {
+                userRegion: createMockUserRegion('us'),
+                providers: createResourceState([moonpay, transak], null),
+              },
+            },
+          },
+          async ({ rootMessenger }) => {
+            let capturedProviders: string[] | undefined;
+            rootMessenger.registerActionHandler(
+              'RampsService:getQuotes',
+              async (params) => {
+                capturedProviders = params.providers;
+                return mockQuotesResponse;
+              },
+            );
+
+            await rootMessenger.call('RampsController:getQuotes', {
+              assetId: ASSET_USDC,
+              amount: 100,
+              walletAddress: WALLET_ADDRESS,
+              paymentMethods: PAYMENT_METHODS,
+              autoSelectProvider: true,
+              providers: ['/providers/transak-native'],
+            });
+
+            expect(capturedProviders).toStrictEqual([
+              '/providers/transak-native',
+            ]);
+          },
+        );
+      });
+
+      it('fetches providers for an explicit non-current region when none are cached', async () => {
+        await withController(
+          {
+            options: {
+              state: {
+                userRegion: createMockUserRegion('us'),
+                providers: createResourceState([], null),
+              },
+            },
+          },
+          async ({ rootMessenger }) => {
+            rootMessenger.registerActionHandler(
+              'RampsService:getProviders',
+              async (regionCode: string) => {
+                expect(regionCode).toBe('fr');
+                return { providers: [moonpay] };
+              },
+            );
+
+            let capturedProviders: string[] | undefined;
+            rootMessenger.registerActionHandler(
+              'RampsService:getQuotes',
+              async (params) => {
+                capturedProviders = params.providers;
+                return mockQuotesResponse;
+              },
+            );
+
+            await rootMessenger.call('RampsController:getQuotes', {
+              region: 'fr',
+              assetId: ASSET_USDC,
+              amount: 100,
+              walletAddress: WALLET_ADDRESS,
+              paymentMethods: PAYMENT_METHODS,
+              autoSelectProvider: true,
+            });
+
+            expect(capturedProviders).toStrictEqual(['/providers/moonpay']);
+          },
+        );
+      });
+
+      it('does not resolve against stale cached providers for an explicit non-current region', async () => {
+        await withController(
+          {
+            options: {
+              state: {
+                userRegion: createMockUserRegion('us'),
+                providers: createResourceState([ethOnly], null),
+              },
+            },
+          },
+          async ({ rootMessenger }) => {
+            rootMessenger.registerActionHandler(
+              'RampsService:getProviders',
+              async () => ({ providers: [moonpay] }),
+            );
+
+            let capturedProviders: string[] | undefined;
+            rootMessenger.registerActionHandler(
+              'RampsService:getQuotes',
+              async (params) => {
+                capturedProviders = params.providers;
+                return mockQuotesResponse;
+              },
+            );
+
+            await rootMessenger.call('RampsController:getQuotes', {
+              region: 'fr',
+              assetId: ASSET_USDC,
+              amount: 100,
+              walletAddress: WALLET_ADDRESS,
+              paymentMethods: PAYMENT_METHODS,
+              autoSelectProvider: true,
+            });
+
+            expect(capturedProviders).toStrictEqual(['/providers/moonpay']);
+          },
+        );
+      });
+
+      it('prefers the provider from the most recent completed order over Transak', async () => {
+        await withController(
+          {
+            options: {
+              state: {
+                userRegion: createMockUserRegion('us'),
+                providers: createResourceState([moonpay, transak], null),
+                orders: [
+                  createMockOrder({
+                    provider: moonpay,
+                    createdAt: 1000,
+                    status: RampsOrderStatus.Completed,
+                  }),
+                ],
+              },
+            },
+          },
+          async ({ rootMessenger }) => {
+            let capturedProviders: string[] | undefined;
+            rootMessenger.registerActionHandler(
+              'RampsService:getQuotes',
+              async (params) => {
+                capturedProviders = params.providers;
+                return mockQuotesResponse;
+              },
+            );
+
+            await rootMessenger.call('RampsController:getQuotes', {
+              assetId: ASSET_USDC,
+              amount: 100,
+              walletAddress: WALLET_ADDRESS,
+              paymentMethods: PAYMENT_METHODS,
+              autoSelectProvider: true,
+            });
+
+            expect(capturedProviders).toStrictEqual(['/providers/moonpay']);
+          },
+        );
+      });
+
+      it('orders order-derived preferences by most recent completed order', async () => {
+        const paypal = createMockProvider({
+          id: '/providers/paypal',
+          name: 'PayPal',
+          supportedCryptoCurrencies: { [ASSET_USDC]: true },
+        });
+
+        await withController(
+          {
+            options: {
+              state: {
+                userRegion: createMockUserRegion('us'),
+                providers: createResourceState(
+                  [moonpay, paypal, transak],
+                  null,
+                ),
+                orders: [
+                  createMockOrder({
+                    provider: moonpay,
+                    createdAt: 1000,
+                    status: RampsOrderStatus.Completed,
+                  }),
+                  createMockOrder({
+                    provider: paypal,
+                    createdAt: 2000,
+                    status: RampsOrderStatus.Completed,
+                  }),
+                ],
+              },
+            },
+          },
+          async ({ rootMessenger }) => {
+            let capturedProviders: string[] | undefined;
+            rootMessenger.registerActionHandler(
+              'RampsService:getQuotes',
+              async (params) => {
+                capturedProviders = params.providers;
+                return mockQuotesResponse;
+              },
+            );
+
+            await rootMessenger.call('RampsController:getQuotes', {
+              assetId: ASSET_USDC,
+              amount: 100,
+              walletAddress: WALLET_ADDRESS,
+              paymentMethods: PAYMENT_METHODS,
+              autoSelectProvider: true,
+            });
+
+            expect(capturedProviders).toStrictEqual(['/providers/paypal']);
+          },
+        );
+      });
+
+      it('prefers explicit preferredProviderIds over the order-derived preference', async () => {
+        const paypal = createMockProvider({
+          id: '/providers/paypal',
+          name: 'PayPal',
+          supportedCryptoCurrencies: { [ASSET_USDC]: true },
+        });
+
+        await withController(
+          {
+            options: {
+              state: {
+                userRegion: createMockUserRegion('us'),
+                providers: createResourceState(
+                  [moonpay, paypal, transak],
+                  null,
+                ),
+                orders: [
+                  createMockOrder({
+                    provider: moonpay,
+                    createdAt: 1000,
+                    status: RampsOrderStatus.Completed,
+                  }),
+                ],
+              },
+            },
+          },
+          async ({ rootMessenger }) => {
+            let capturedProviders: string[] | undefined;
+            rootMessenger.registerActionHandler(
+              'RampsService:getQuotes',
+              async (params) => {
+                capturedProviders = params.providers;
+                return mockQuotesResponse;
+              },
+            );
+
+            await rootMessenger.call('RampsController:getQuotes', {
+              assetId: ASSET_USDC,
+              amount: 100,
+              walletAddress: WALLET_ADDRESS,
+              paymentMethods: PAYMENT_METHODS,
+              autoSelectProvider: true,
+              preferredProviderIds: ['/providers/paypal'],
+            });
+
+            expect(capturedProviders).toStrictEqual(['/providers/paypal']);
+          },
+        );
+      });
+
+      it('ignores non-completed orders when deriving the preference', async () => {
+        await withController(
+          {
+            options: {
+              state: {
+                userRegion: createMockUserRegion('us'),
+                providers: createResourceState([moonpay, transak], null),
+                orders: [
+                  createMockOrder({
+                    provider: moonpay,
+                    createdAt: 1000,
+                    status: RampsOrderStatus.Pending,
+                  }),
+                ],
+              },
+            },
+          },
+          async ({ rootMessenger }) => {
+            let capturedProviders: string[] | undefined;
+            rootMessenger.registerActionHandler(
+              'RampsService:getQuotes',
+              async (params) => {
+                capturedProviders = params.providers;
+                return mockQuotesResponse;
+              },
+            );
+
+            await rootMessenger.call('RampsController:getQuotes', {
+              assetId: ASSET_USDC,
+              amount: 100,
+              walletAddress: WALLET_ADDRESS,
+              paymentMethods: PAYMENT_METHODS,
+              autoSelectProvider: true,
+            });
+
+            expect(capturedProviders).toStrictEqual([
+              '/providers/transak-native',
+            ]);
+          },
+        );
+      });
+    });
+
+    describe('when restrictToKnownOrNativeProviders is true', () => {
+      const ASSET_USDC =
+        'eip155:42161/erc20:0xaf88d065e77c8cc2239327c5edb3a432268e5831';
+      const WALLET_ADDRESS = '0x1234567890abcdef1234567890abcdef12345678';
+      const PAYMENT_METHODS = ['/payments/debit-credit-card'];
+      const EMPTY_QUOTES_RESPONSE: QuotesResponse = {
+        success: [],
+        sorted: [],
+        error: [],
+        customActions: [],
+      };
+
+      const moonpay = createMockProvider({
+        id: '/providers/moonpay',
+        name: 'MoonPay',
+        type: 'aggregator',
+        supportedCryptoCurrencies: { [ASSET_USDC]: true },
+      });
+      const transakNative = createMockProvider({
+        id: '/providers/transak-native',
+        name: 'Transak Native',
+        type: 'native',
+        supportedCryptoCurrencies: { [ASSET_USDC]: true },
+      });
+
+      it('auto-selects only the native provider', async () => {
+        await withController(
+          {
+            options: {
+              state: {
+                userRegion: createMockUserRegion('us'),
+                providers: createResourceState([moonpay, transakNative], null),
+              },
+            },
+          },
+          async ({ rootMessenger }) => {
+            let capturedProviders: string[] | undefined;
+            rootMessenger.registerActionHandler(
+              'RampsService:getQuotes',
+              async (params) => {
+                capturedProviders = params.providers;
+                return EMPTY_QUOTES_RESPONSE;
+              },
+            );
+
+            await rootMessenger.call('RampsController:getQuotes', {
+              assetId: ASSET_USDC,
+              amount: 100,
+              walletAddress: WALLET_ADDRESS,
+              paymentMethods: PAYMENT_METHODS,
+              autoSelectProvider: true,
+              restrictToKnownOrNativeProviders: true,
+            });
+
+            expect(capturedProviders).toStrictEqual([
+              '/providers/transak-native',
+            ]);
+          },
+        );
+      });
+
+      it('restricts even without autoSelectProvider when the flag is set alone', async () => {
+        await withController(
+          {
+            options: {
+              state: {
+                userRegion: createMockUserRegion('us'),
+                providers: createResourceState([moonpay, transakNative], null),
+              },
+            },
+          },
+          async ({ rootMessenger }) => {
+            let capturedProviders: string[] | undefined;
+            rootMessenger.registerActionHandler(
+              'RampsService:getQuotes',
+              async (params) => {
+                capturedProviders = params.providers;
+                return EMPTY_QUOTES_RESPONSE;
+              },
+            );
+
+            await rootMessenger.call('RampsController:getQuotes', {
+              assetId: ASSET_USDC,
+              amount: 100,
+              walletAddress: WALLET_ADDRESS,
+              paymentMethods: PAYMENT_METHODS,
+              restrictToKnownOrNativeProviders: true,
+            });
+
+            // No autoSelectProvider and no explicit providers, but the flag
+            // alone must still narrow to the native provider rather than
+            // quoting every provider in state.
+            expect(capturedProviders).toStrictEqual([
+              '/providers/transak-native',
+            ]);
+          },
+        );
+      });
+
+      it('still prefers a completed-order provider over the native provider', async () => {
+        await withController(
+          {
+            options: {
+              state: {
+                userRegion: createMockUserRegion('us'),
+                providers: createResourceState([moonpay, transakNative], null),
+                orders: [
+                  createMockOrder({
+                    provider: moonpay,
+                    createdAt: 1000,
+                    status: RampsOrderStatus.Completed,
+                  }),
+                ],
+              },
+            },
+          },
+          async ({ rootMessenger }) => {
+            let capturedProviders: string[] | undefined;
+            rootMessenger.registerActionHandler(
+              'RampsService:getQuotes',
+              async (params) => {
+                capturedProviders = params.providers;
+                return EMPTY_QUOTES_RESPONSE;
+              },
+            );
+
+            await rootMessenger.call('RampsController:getQuotes', {
+              assetId: ASSET_USDC,
+              amount: 100,
+              walletAddress: WALLET_ADDRESS,
+              paymentMethods: PAYMENT_METHODS,
+              autoSelectProvider: true,
+              restrictToKnownOrNativeProviders: true,
+            });
+
+            // Order history outranks Transak Native to preserve the existing
+            // KYC relationship, even under headless gating.
+            expect(capturedProviders).toStrictEqual(['/providers/moonpay']);
+          },
+        );
+      });
+
+      it('returns an empty response without calling the service when no native provider supports the asset', async () => {
+        const getQuotesHandler = jest.fn(async () => EMPTY_QUOTES_RESPONSE);
+
+        await withController(
+          {
+            options: {
+              state: {
+                userRegion: createMockUserRegion('us'),
+                providers: createResourceState([moonpay], null),
+              },
+            },
+          },
+          async ({ rootMessenger }) => {
+            rootMessenger.registerActionHandler(
+              'RampsService:getQuotes',
+              getQuotesHandler,
+            );
+
+            const result = await rootMessenger.call(
+              'RampsController:getQuotes',
+              {
+                assetId: ASSET_USDC,
+                amount: 100,
+                walletAddress: WALLET_ADDRESS,
+                paymentMethods: PAYMENT_METHODS,
+                autoSelectProvider: true,
+                restrictToKnownOrNativeProviders: true,
+              },
+            );
+
+            expect(result).toStrictEqual(EMPTY_QUOTES_RESPONSE);
+            expect(getQuotesHandler).not.toHaveBeenCalled();
+          },
+        );
+      });
+
+      it('passes through an explicitly requested provider that supports the asset', async () => {
+        await withController(
+          {
+            options: {
+              state: {
+                userRegion: createMockUserRegion('us'),
+                providers: createResourceState([moonpay, transakNative], null),
+              },
+            },
+          },
+          async ({ rootMessenger }) => {
+            let capturedProviders: string[] | undefined;
+            rootMessenger.registerActionHandler(
+              'RampsService:getQuotes',
+              async (params) => {
+                capturedProviders = params.providers;
+                return EMPTY_QUOTES_RESPONSE;
+              },
+            );
+
+            await rootMessenger.call('RampsController:getQuotes', {
+              assetId: ASSET_USDC,
+              amount: 100,
+              walletAddress: WALLET_ADDRESS,
+              paymentMethods: PAYMENT_METHODS,
+              providers: ['/providers/transak-native'],
+              restrictToKnownOrNativeProviders: true,
+            });
+
+            expect(capturedProviders).toStrictEqual([
+              '/providers/transak-native',
+            ]);
+          },
+        );
+      });
+
+      it('returns an empty response when the explicitly requested provider does not support the asset', async () => {
+        const getQuotesHandler = jest.fn(async () => EMPTY_QUOTES_RESPONSE);
+        const unsupported = createMockProvider({
+          id: '/providers/banxa',
+          name: 'Banxa',
+          type: 'aggregator',
+          supportedCryptoCurrencies: {},
+        });
+
+        await withController(
+          {
+            options: {
+              state: {
+                userRegion: createMockUserRegion('us'),
+                providers: createResourceState([moonpay, unsupported], null),
+              },
+            },
+          },
+          async ({ rootMessenger }) => {
+            rootMessenger.registerActionHandler(
+              'RampsService:getQuotes',
+              getQuotesHandler,
+            );
+
+            const result = await rootMessenger.call(
+              'RampsController:getQuotes',
+              {
+                assetId: ASSET_USDC,
+                amount: 100,
+                walletAddress: WALLET_ADDRESS,
+                paymentMethods: PAYMENT_METHODS,
+                providers: ['/providers/banxa'],
+                restrictToKnownOrNativeProviders: true,
+              },
+            );
+
+            expect(result).toStrictEqual(EMPTY_QUOTES_RESPONSE);
+            expect(getQuotesHandler).not.toHaveBeenCalled();
+          },
+        );
+      });
+    });
   });
 
   describe('getBuyWidgetData', () => {
@@ -6953,6 +8164,27 @@ describe('RampsController', () => {
           expect(result).toStrictEqual(mockResult);
         });
       });
+
+      it('tags circuit breaker errors with a localized error key', async () => {
+        await withController(async ({ rootMessenger }) => {
+          rootMessenger.registerActionHandler(
+            'TransakService:sendUserOtp',
+            async () => {
+              throw new BrokenCircuitError();
+            },
+          );
+
+          await expect(
+            rootMessenger.call(
+              'RampsController:transakSendUserOtp',
+              'test@example.com',
+            ),
+          ).rejects.toMatchObject({
+            errorKey: RAMPS_ERROR_CODES.CIRCUIT_BREAKER_OPEN,
+            message: circuitBreakerOpenErrorMessage,
+          });
+        });
+      });
     });
 
     describe('transakVerifyUserOtp', () => {
@@ -6977,6 +8209,29 @@ describe('RampsController', () => {
           expect(controller.state.nativeProviders.transak.isAuthenticated).toBe(
             true,
           );
+        });
+      });
+
+      it('tags circuit breaker errors with a localized error key', async () => {
+        await withController(async ({ rootMessenger }) => {
+          rootMessenger.registerActionHandler(
+            'TransakService:verifyUserOtp',
+            async () => {
+              throw new BrokenCircuitError();
+            },
+          );
+
+          await expect(
+            rootMessenger.call(
+              'RampsController:transakVerifyUserOtp',
+              'test@example.com',
+              '123456',
+              'state-token',
+            ),
+          ).rejects.toMatchObject({
+            errorKey: RAMPS_ERROR_CODES.CIRCUIT_BREAKER_OPEN,
+            message: circuitBreakerOpenErrorMessage,
+          });
         });
       });
     });
@@ -7313,6 +8568,41 @@ describe('RampsController', () => {
         });
       });
 
+      it('tags circuit breaker errors with a localized error key', async () => {
+        await withController(async ({ controller, rootMessenger }) => {
+          const error = new Error(circuitBreakerOpenErrorMessage);
+          rootMessenger.registerActionHandler(
+            'TransakService:getBuyQuote',
+            async () => {
+              throw error;
+            },
+          );
+          await expect(
+            rootMessenger.call(
+              'RampsController:transakGetBuyQuote',
+              'USD',
+              'BTC',
+              'bitcoin',
+              'credit_debit_card',
+              '100',
+            ),
+          ).rejects.toMatchObject({
+            errorKey: RAMPS_ERROR_CODES.CIRCUIT_BREAKER_OPEN,
+            message: circuitBreakerOpenErrorMessage,
+          });
+          expect(controller.state.nativeProviders.transak.buyQuote.error).toBe(
+            circuitBreakerOpenErrorMessage,
+          );
+          expect(
+            controller.state.nativeProviders.transak.buyQuote.errorKey,
+          ).toBe(RAMPS_ERROR_CODES.CIRCUIT_BREAKER_OPEN);
+          expect(error.message).toBe(circuitBreakerOpenErrorMessage);
+          expect((error as Error & { errorKey?: string }).errorKey).toBe(
+            RAMPS_ERROR_CODES.CIRCUIT_BREAKER_OPEN,
+          );
+        });
+      });
+
       it('uses fallback error message when error has no message', async () => {
         await withController(async ({ controller, rootMessenger }) => {
           rootMessenger.registerActionHandler(
@@ -7445,6 +8735,24 @@ describe('RampsController', () => {
         });
       });
 
+      it('tags circuit breaker errors with a localized error key', async () => {
+        await withController(async ({ controller, rootMessenger }) => {
+          rootMessenger.registerActionHandler(
+            'TransakService:getAdditionalRequirements',
+            async () => {
+              throw new BrokenCircuitError();
+            },
+          );
+
+          await expect(
+            controller.transakGetAdditionalRequirements('quote-1'),
+          ).rejects.toMatchObject({
+            errorKey: RAMPS_ERROR_CODES.CIRCUIT_BREAKER_OPEN,
+            message: circuitBreakerOpenErrorMessage,
+          });
+        });
+      });
+
       it('sets isAuthenticated to false when a 401 HttpError is thrown', async () => {
         await withController(async ({ controller, rootMessenger }) => {
           rootMessenger.call('RampsController:transakSetAuthenticated', true);
@@ -7487,6 +8795,29 @@ describe('RampsController', () => {
             '/payments/debit-credit-card',
           );
           expect(result).toStrictEqual(mockOrder);
+        });
+      });
+
+      it('tags circuit breaker errors with a localized error key', async () => {
+        await withController(async ({ rootMessenger }) => {
+          rootMessenger.registerActionHandler(
+            'TransakService:createOrder',
+            async () => {
+              throw new BrokenCircuitError();
+            },
+          );
+
+          await expect(
+            rootMessenger.call(
+              'RampsController:transakCreateOrder',
+              'quote-1',
+              '0x123',
+              'card',
+            ),
+          ).rejects.toMatchObject({
+            errorKey: RAMPS_ERROR_CODES.CIRCUIT_BREAKER_OPEN,
+            message: circuitBreakerOpenErrorMessage,
+          });
         });
       });
 
@@ -7561,6 +8892,28 @@ describe('RampsController', () => {
           );
         });
       });
+
+      it('tags circuit breaker errors with a localized error key', async () => {
+        await withController(async ({ rootMessenger }) => {
+          rootMessenger.registerActionHandler(
+            'TransakService:getOrder',
+            async () => {
+              throw new BrokenCircuitError();
+            },
+          );
+
+          await expect(
+            rootMessenger.call(
+              'RampsController:transakGetOrder',
+              'order-1',
+              '0x123',
+            ),
+          ).rejects.toMatchObject({
+            errorKey: RAMPS_ERROR_CODES.CIRCUIT_BREAKER_OPEN,
+            message: circuitBreakerOpenErrorMessage,
+          });
+        });
+      });
     });
 
     describe('transakGetUserLimits', () => {
@@ -7619,6 +8972,24 @@ describe('RampsController', () => {
             'RampsController:transakRequestOtt',
           );
           expect(result).toStrictEqual(mockResult);
+        });
+      });
+
+      it('tags circuit breaker errors with a localized error key', async () => {
+        await withController(async ({ rootMessenger }) => {
+          rootMessenger.registerActionHandler(
+            'TransakService:requestOtt',
+            async () => {
+              throw new BrokenCircuitError();
+            },
+          );
+
+          await expect(
+            rootMessenger.call('RampsController:transakRequestOtt'),
+          ).rejects.toMatchObject({
+            errorKey: RAMPS_ERROR_CODES.CIRCUIT_BREAKER_OPEN,
+            message: circuitBreakerOpenErrorMessage,
+          });
         });
       });
 
@@ -7904,6 +9275,33 @@ describe('RampsController', () => {
             request,
           );
           expect(result).toStrictEqual(mockTranslation);
+        });
+      });
+
+      it('tags circuit breaker errors with a localized error key', async () => {
+        await withController(async ({ rootMessenger }) => {
+          const request: TransakTranslationRequest = {
+            cryptoCurrencyId: 'BTC',
+            chainId: 'bitcoin',
+            fiatCurrencyId: 'USD',
+            paymentMethod: 'credit_debit_card',
+          };
+          rootMessenger.registerActionHandler(
+            'TransakService:getTranslation',
+            async () => {
+              throw new BrokenCircuitError();
+            },
+          );
+
+          await expect(
+            rootMessenger.call(
+              'RampsController:transakGetTranslation',
+              request,
+            ),
+          ).rejects.toMatchObject({
+            errorKey: RAMPS_ERROR_CODES.CIRCUIT_BREAKER_OPEN,
+            message: circuitBreakerOpenErrorMessage,
+          });
         });
       });
     });

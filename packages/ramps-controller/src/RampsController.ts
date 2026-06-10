@@ -4,11 +4,14 @@ import type {
   StateMetadata,
 } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
+import { BrokenCircuitError } from '@metamask/controller-utils';
 import type { Messenger } from '@metamask/messenger';
 import type { Json } from '@metamask/utils';
 import type { Draft } from 'immer';
 
 import type { RampsControllerMethodActions } from './RampsController-method-action-types';
+import type { RampsErrorCode } from './rampsErrorCodes';
+import { RAMPS_ERROR_CODES } from './rampsErrorCodes';
 import type {
   BuyWidget,
   Country,
@@ -156,6 +159,102 @@ export const RAMPS_CONTROLLER_REQUIRED_SERVICE_ACTIONS: readonly (
  */
 const DEFAULT_QUOTES_TTL = 15000;
 
+const CIRCUIT_BREAKER_OPEN_ERROR =
+  'Execution prevented because the circuit breaker is open';
+
+type ErrorWithMessage = {
+  message: string;
+};
+
+type ErrorWithRampsErrorKey = Error & {
+  errorKey?: RampsErrorCode;
+};
+
+type ErrorWithHttpStatus = Error & {
+  httpStatus: number;
+};
+
+type RampsErrorInfo = {
+  errorKey: RampsErrorCode | null;
+  message: string;
+};
+
+type NormalizedRampsError = {
+  errorInfo: RampsErrorInfo;
+  normalizedError: unknown;
+};
+
+function hasStringMessage(error: unknown): error is ErrorWithMessage {
+  return (
+    typeof error === 'object' &&
+    error !== null &&
+    typeof (error as { message?: unknown }).message === 'string'
+  );
+}
+
+function hasHttpStatus(error: unknown): error is ErrorWithHttpStatus {
+  return (
+    error instanceof Error &&
+    typeof (error as { httpStatus?: unknown }).httpStatus === 'number'
+  );
+}
+
+function getRampsErrorInfo(error: unknown): RampsErrorInfo {
+  if (error instanceof BrokenCircuitError && hasStringMessage(error)) {
+    return {
+      errorKey: RAMPS_ERROR_CODES.CIRCUIT_BREAKER_OPEN,
+      message: error.message,
+    };
+  }
+
+  let rawMessage: string | undefined;
+
+  if (hasStringMessage(error)) {
+    rawMessage = error.message;
+  } else if (typeof error === 'string') {
+    rawMessage = error;
+  }
+
+  if (rawMessage?.includes(CIRCUIT_BREAKER_OPEN_ERROR)) {
+    return {
+      errorKey: RAMPS_ERROR_CODES.CIRCUIT_BREAKER_OPEN,
+      message: rawMessage,
+    };
+  }
+
+  return {
+    errorKey: null,
+    message: rawMessage ?? 'Unknown error',
+  };
+}
+
+function getNormalizedRampsError(error: unknown): NormalizedRampsError {
+  const errorInfo = getRampsErrorInfo(error);
+
+  return {
+    errorInfo,
+    normalizedError: normalizeRampsErrorForRethrow(error, errorInfo),
+  };
+}
+
+function normalizeRampsErrorForRethrow(
+  error: unknown,
+  errorInfo: RampsErrorInfo,
+): unknown {
+  if (!errorInfo.errorKey) {
+    return error;
+  }
+
+  if (error instanceof Error) {
+    (error as ErrorWithRampsErrorKey).errorKey = errorInfo.errorKey;
+    return error;
+  }
+
+  return Object.assign(new Error(errorInfo.message), {
+    errorKey: errorInfo.errorKey,
+  });
+}
+
 // === STATE ===
 
 /**
@@ -199,6 +298,10 @@ export type ResourceState<TData, TSelected = null> = {
    * Error message if the fetch failed, or null.
    */
   error: string | null;
+  /**
+   * Stable error key for client-side localization, if available.
+   */
+  errorKey?: RampsErrorCode | null;
 };
 
 /**
@@ -406,16 +509,36 @@ type DependentResourceKey = (typeof DEPENDENT_RESOURCE_KEYS)[number];
 
 const DEPENDENT_RESOURCE_KEYS_SET = new Set<string>(DEPENDENT_RESOURCE_KEYS);
 
+function getResourceState<TResourceType extends ResourceType>(
+  state: Draft<RampsControllerState>,
+  resourceType: TResourceType,
+): Draft<RampsControllerState[TResourceType]> {
+  switch (resourceType) {
+    case 'countries':
+      return state.countries as Draft<RampsControllerState[TResourceType]>;
+    case 'providers':
+      return state.providers as Draft<RampsControllerState[TResourceType]>;
+    case 'tokens':
+      return state.tokens as Draft<RampsControllerState[TResourceType]>;
+    case 'paymentMethods':
+      return state.paymentMethods as Draft<RampsControllerState[TResourceType]>;
+    /* istanbul ignore next -- ResourceType is a closed internal union. */
+    default:
+      throw new Error(`Unsupported resource type: ${resourceType as string}`);
+  }
+}
+
 function resetResource(
   state: Draft<RampsControllerState>,
   resourceType: DependentResourceKey,
   defaultResource: RampsControllerState[DependentResourceKey],
 ): void {
-  const resource = state[resourceType];
+  const resource = getResourceState(state, resourceType);
   resource.data = defaultResource.data;
   resource.selected = defaultResource.selected;
   resource.isLoading = defaultResource.isLoading;
   resource.error = defaultResource.error;
+  resource.errorKey = defaultResource.errorKey ?? null;
 }
 
 /**
@@ -902,19 +1025,23 @@ export class RampsController extends BaseController<
           throw error;
         }
 
-        const errorMessage = (error as Error)?.message ?? 'Unknown error';
+        const { errorInfo, normalizedError } = getNormalizedRampsError(error);
         this.#updateRequestState(
           cacheKey,
-          createErrorState(errorMessage, lastFetchedAt),
+          createErrorState(
+            errorInfo.message,
+            lastFetchedAt,
+            errorInfo.errorKey,
+          ),
         );
         if (resourceType) {
           const isCurrent =
             !options?.isResultCurrent || options.isResultCurrent();
           if (isCurrent) {
-            this.#setResourceError(resourceType, errorMessage);
+            this.#setResourceError(resourceType, errorInfo);
           }
         }
-        throw error;
+        throw normalizedError;
       } finally {
         if (
           this.#pendingRequests.get(cacheKey)?.abortController ===
@@ -1034,14 +1161,12 @@ export class RampsController extends BaseController<
    */
   #updateResourceField(
     resourceType: ResourceType,
-    field: 'isLoading' | 'error',
-    value: boolean | string | null,
+    field: 'isLoading' | 'error' | 'errorKey',
+    value: boolean | string | RampsErrorCode | null,
   ): void {
     this.update((state) => {
-      const resource = state[resourceType];
-      if (resource) {
-        (resource as Record<string, unknown>)[field] = value;
-      }
+      const resource = getResourceState(state, resourceType);
+      (resource as Record<string, unknown>)[field] = value;
     });
   }
 
@@ -1059,10 +1184,17 @@ export class RampsController extends BaseController<
    * Sets the error state for a resource type.
    *
    * @param resourceType - The type of resource.
-   * @param error - The error message, or null to clear.
+   * @param errorInfo - The error info, or null to clear.
    */
-  #setResourceError(resourceType: ResourceType, error: string | null): void {
-    this.#updateResourceField(resourceType, 'error', error);
+  #setResourceError(
+    resourceType: ResourceType,
+    errorInfo: RampsErrorInfo | null,
+  ): void {
+    this.update((state) => {
+      const resource = getResourceState(state, resourceType);
+      resource.error = errorInfo?.message ?? null;
+      resource.errorKey = errorInfo?.errorKey ?? null;
+    });
   }
 
   /**
@@ -1604,6 +1736,18 @@ export class RampsController extends BaseController<
    * @param options.walletAddress - The destination wallet address.
    * @param options.paymentMethods - Array of payment method IDs. If not provided, uses paymentMethods from state.
    * @param options.providers - Optional provider IDs to filter quotes.
+   * @param options.autoSelectProvider - When true and `providers` is omitted,
+   *   resolves a provider that supports `assetId` for this request only (no
+   *   state mutation). Ignored when `providers` is passed.
+   * @param options.preferredProviderIds - Optional provider IDs to prefer
+   *   during auto-selection, in priority order (e.g. derived by the caller
+   *   from completed-order history). Only used when `autoSelectProvider` is
+   *   true and `providers` is omitted.
+   * @param options.restrictToKnownOrNativeProviders - Headless-buy v0 gating. When
+   *   true, auto-selection resolves only a native provider, and an explicitly
+   *   passed `providers` list is filtered to those supporting the region and
+   *   asset. If nothing qualifies, `getQuotes` returns an empty response
+   *   instead of quoting other providers.
    * @param options.redirectUrl - Optional redirect URL after order completion.
    * @param options.action - The ramp action type. Defaults to 'buy'.
    * @param options.forceRefresh - Whether to bypass cache.
@@ -1618,6 +1762,9 @@ export class RampsController extends BaseController<
     walletAddress: string;
     paymentMethods?: string[];
     providers?: string[];
+    autoSelectProvider?: boolean;
+    preferredProviderIds?: string[];
+    restrictToKnownOrNativeProviders?: boolean;
     redirectUrl?: string;
     action?: RampAction;
     forceRefresh?: boolean;
@@ -1628,9 +1775,6 @@ export class RampsController extends BaseController<
     const paymentMethodsToUse =
       options.paymentMethods ??
       this.state.paymentMethods.data.map((pm: PaymentMethod) => pm.id);
-    const providersToUse =
-      options.providers ??
-      this.state.providers.data.map((provider: Provider) => provider.id);
     const action = options.action ?? 'buy';
     const assetIdToUse = options.assetId ?? this.state.tokens.selected?.assetId;
 
@@ -1643,6 +1787,34 @@ export class RampsController extends BaseController<
     const normalizedAssetIdForValidation = (assetIdToUse ?? '').trim();
     if (normalizedAssetIdForValidation === '') {
       throw new Error('assetId is required.');
+    }
+
+    let providersToUse: string[];
+    if (options.providers) {
+      providersToUse = options.restrictToKnownOrNativeProviders
+        ? await this.#filterProviderIdsBySupport({
+            providerIds: options.providers,
+            assetId: normalizedAssetIdForValidation,
+            region: regionToUse,
+          })
+        : options.providers;
+    } else if (
+      options.autoSelectProvider ||
+      options.restrictToKnownOrNativeProviders
+    ) {
+      // The restriction flag implies resolution: it must narrow the provider
+      // set even when `autoSelectProvider` was not explicitly passed, otherwise
+      // it would be silently ignored and every provider quoted.
+      providersToUse = await this.#resolveProviderIdsForQuote({
+        assetId: normalizedAssetIdForValidation,
+        region: regionToUse,
+        preferredProviderIds: options.preferredProviderIds,
+        restrictToKnownOrNative: options.restrictToKnownOrNativeProviders,
+      });
+    } else {
+      providersToUse = this.state.providers.data.map(
+        (provider: Provider) => provider.id,
+      );
     }
 
     if (
@@ -1661,6 +1833,17 @@ export class RampsController extends BaseController<
 
     if (!options.walletAddress || options.walletAddress.trim() === '') {
       throw new Error('walletAddress is required.');
+    }
+
+    // Under headless-buy gating, an empty resolved provider list means no
+    // eligible (native/supporting) provider exists. Return an empty response
+    // rather than passing `[]` to the service, which omits the provider filter
+    // and would quote every provider.
+    if (
+      options.restrictToKnownOrNativeProviders &&
+      providersToUse.length === 0
+    ) {
+      return { success: [], sorted: [], error: [], customActions: [] };
     }
 
     const normalizedRegion = regionToUse.toLowerCase().trim();
@@ -1702,6 +1885,203 @@ export class RampsController extends BaseController<
         ttl: options.ttl ?? DEFAULT_QUOTES_TTL,
       },
     );
+  }
+
+  /**
+   * Returns the region's providers that support the given asset, plus the full
+   * region provider list. Uses cached providers only when the request targets
+   * the current region; otherwise fetches for the requested region, since
+   * `getProviders` does not persist results for a non-current region. Does not
+   * mutate state.
+   *
+   * @param options - The options.
+   * @param options.assetId - CAIP-19 asset type identifier to resolve for.
+   * @param options.region - Region to resolve providers for.
+   * @returns The supporting providers and the full region provider list.
+   */
+  async #getSupportingProvidersForRegion({
+    assetId,
+    region,
+  }: {
+    assetId: string;
+    region: string;
+  }): Promise<{ supporting: Provider[]; all: Provider[] }> {
+    const normalizedRegion = region.toLowerCase().trim();
+
+    let providers: Provider[];
+    if (
+      this.#isRegionCurrent(normalizedRegion) &&
+      this.state.providers.data.length > 0
+    ) {
+      providers = this.state.providers.data;
+    } else {
+      ({ providers } = await this.getProviders(normalizedRegion));
+    }
+
+    // EVM CAIP-19 asset IDs may arrive checksummed or lowercased, and the
+    // providers API returns both forms, so match case-insensitively on both
+    // sides. Only the lowercased forms are compared (the original IDs are never
+    // returned), so case-sensitive non-EVM asset IDs are not corrupted.
+    const normalizedAssetId = assetId.toLowerCase();
+    const supporting = providers.filter((provider) => {
+      const map = provider?.supportedCryptoCurrencies;
+      if (!map) {
+        return false;
+      }
+      return Object.keys(map).some(
+        (key) => key.toLowerCase() === normalizedAssetId,
+      );
+    });
+
+    return { supporting, all: providers };
+  }
+
+  /**
+   * Filters an explicitly-requested provider ID list down to those that support
+   * the asset in the region. Used for headless-buy gating so an explicitly
+   * passed provider that cannot serve the region/asset yields no providers
+   * rather than being trusted blindly.
+   *
+   * @param options - The options.
+   * @param options.providerIds - Explicitly requested provider IDs.
+   * @param options.assetId - CAIP-19 asset type identifier to resolve for.
+   * @param options.region - Region to resolve providers for.
+   * @returns The subset of `providerIds` supporting the asset in the region.
+   */
+  async #filterProviderIdsBySupport({
+    providerIds,
+    assetId,
+    region,
+  }: {
+    providerIds: string[];
+    assetId: string;
+    region: string;
+  }): Promise<string[]> {
+    const { supporting } = await this.#getSupportingProvidersForRegion({
+      assetId,
+      region,
+    });
+    const supportingIds = new Set(supporting.map((provider) => provider.id));
+    return providerIds.filter((id) => supportingIds.has(id));
+  }
+
+  /**
+   * Resolves the provider IDs to use for a single quote request, scoped to the
+   * given asset and region. Does not mutate `providers.selected` or any other
+   * state.
+   *
+   * Resolves against the region's supporting providers using this precedence:
+   * 1. The currently selected provider, if it is in the supporting set.
+   * 2. The first preferred provider that supports the asset, where the
+   *    preference is taken from `preferredProviderIds` when supplied, otherwise
+   *    derived from the user's completed-order history (most recent first).
+   *    This takes priority over Transak Native to preserve an existing KYC
+   *    relationship.
+   * 3. A native provider (e.g. Transak Native).
+   * 4. The first supporting provider — unless `restrictToKnownOrNative` is set, in
+   *    which case no further provider is introduced and nothing is returned.
+   *
+   * When `restrictToKnownOrNative` is unset and no provider supports the asset, falls
+   * back to all known provider IDs so the request behaves as if no
+   * auto-selection occurred.
+   *
+   * @param options - The options.
+   * @param options.assetId - CAIP-19 asset type identifier to resolve for.
+   * @param options.region - Region to resolve providers for.
+   * @param options.preferredProviderIds - Provider IDs to prefer, in order.
+   * @param options.restrictToKnownOrNative - When true, resolve only a native provider
+   *   (or no providers when none supports the asset).
+   * @returns Provider IDs for this request only.
+   */
+  async #resolveProviderIdsForQuote({
+    assetId,
+    region,
+    preferredProviderIds,
+    restrictToKnownOrNative,
+  }: {
+    assetId: string;
+    region: string;
+    preferredProviderIds?: string[];
+    restrictToKnownOrNative?: boolean;
+  }): Promise<string[]> {
+    const { supporting, all } = await this.#getSupportingProvidersForRegion({
+      assetId,
+      region,
+    });
+
+    // When not restricted and nothing supports the asset, behave as if no
+    // auto-selection occurred (quote against all known providers).
+    if (!restrictToKnownOrNative && supporting.length === 0) {
+      return all.map((provider) => provider.id);
+    }
+
+    // 1. The currently selected provider, if it supports the asset.
+    const { selected } = this.state.providers;
+    if (
+      selected &&
+      supporting.some((provider) => provider.id === selected.id)
+    ) {
+      return [selected.id];
+    }
+
+    // 2. A provider the user has transacted with before — from
+    //    `preferredProviderIds` when supplied, otherwise completed-order
+    //    history. Takes priority over Transak Native to preserve an existing
+    //    KYC relationship and avoid churn.
+    const preferred =
+      preferredProviderIds ?? this.#getPreferredProviderIdsFromOrders();
+
+    for (const preferredId of preferred) {
+      const match = supporting.find((provider) => provider.id === preferredId);
+      if (match) {
+        return [match.id];
+      }
+    }
+
+    // 3. A native provider (e.g. Transak Native).
+    const nativeProvider = supporting.find(
+      (provider) => provider.type === 'native',
+    );
+    if (nativeProvider) {
+      return [nativeProvider.id];
+    }
+
+    // 4. Fallback. Under headless gating, introduce no other provider — return
+    //    nothing so the caller surfaces an "unavailable" state. Otherwise the
+    //    aggregator and all other providers are treated equally: first wins.
+    if (restrictToKnownOrNative) {
+      return [];
+    }
+    return [supporting[0].id];
+  }
+
+  /**
+   * Derives an ordered list of provider IDs from the user's completed-order
+   * history, most recently completed first, with duplicates removed.
+   *
+   * Reads only this controller's own normalized order state, so it carries no
+   * dependency on any client-specific order representation.
+   *
+   * @returns Provider IDs ordered by most recent completed order.
+   */
+  #getPreferredProviderIdsFromOrders(): string[] {
+    const orderedIds: string[] = [];
+
+    const completedOrders = this.state.orders
+      .filter(
+        (order) =>
+          order.status === RampsOrderStatus.Completed && order.provider?.id,
+      )
+      .sort((orderA, orderB) => orderB.createdAt - orderA.createdAt);
+
+    for (const order of completedOrders) {
+      const id = order.provider?.id;
+      if (id && !orderedIds.includes(id)) {
+        orderedIds.push(id);
+      }
+    }
+
+    return orderedIds;
   }
 
   // === ORDER MANAGEMENT ===
@@ -2052,13 +2432,20 @@ export class RampsController extends BaseController<
    * @param error - The caught error to inspect.
    */
   #syncTransakAuthOnError(error: unknown): void {
-    if (
-      error instanceof Error &&
-      'httpStatus' in error &&
-      (error as Error & { httpStatus: number }).httpStatus === 401
-    ) {
+    if (hasHttpStatus(error) && error.httpStatus === 401) {
       this.transakSetAuthenticated(false);
     }
+  }
+
+  #getNormalizedTransakError(
+    error: unknown,
+    options: { syncAuth?: boolean } = {},
+  ): NormalizedRampsError {
+    if (options.syncAuth) {
+      this.#syncTransakAuthOnError(error);
+    }
+
+    return getNormalizedRampsError(error);
   }
 
   /**
@@ -2122,7 +2509,11 @@ export class RampsController extends BaseController<
     email: string;
     expiresIn: number;
   }> {
-    return this.messenger.call('TransakService:sendUserOtp', email);
+    try {
+      return await this.messenger.call('TransakService:sendUserOtp', email);
+    } catch (error) {
+      throw this.#getNormalizedTransakError(error).normalizedError;
+    }
   }
 
   /**
@@ -2139,14 +2530,18 @@ export class RampsController extends BaseController<
     verificationCode: string,
     stateToken: string,
   ): Promise<TransakAccessToken> {
-    const token = await this.messenger.call(
-      'TransakService:verifyUserOtp',
-      email,
-      verificationCode,
-      stateToken,
-    );
-    this.transakSetAuthenticated(true);
-    return token;
+    try {
+      const token = await this.messenger.call(
+        'TransakService:verifyUserOtp',
+        email,
+        verificationCode,
+        stateToken,
+      );
+      this.transakSetAuthenticated(true);
+      return token;
+    } catch (error) {
+      throw this.#getNormalizedTransakError(error).normalizedError;
+    }
   }
 
   /**
@@ -2157,8 +2552,9 @@ export class RampsController extends BaseController<
    */
   async transakLogout(): Promise<string> {
     try {
-      const result = await this.messenger.call('TransakService:logout');
-      return result;
+      return await this.messenger.call('TransakService:logout');
+    } catch (error) {
+      throw this.#getNormalizedTransakError(error).normalizedError;
     } finally {
       this.transakClearAccessToken();
       this.update((state) => {
@@ -2177,6 +2573,7 @@ export class RampsController extends BaseController<
     this.update((state) => {
       state.nativeProviders.transak.userDetails.isLoading = true;
       state.nativeProviders.transak.userDetails.error = null;
+      delete state.nativeProviders.transak.userDetails.errorKey;
     });
     try {
       const details = await this.messenger.call(
@@ -2188,13 +2585,18 @@ export class RampsController extends BaseController<
       });
       return details;
     } catch (error) {
-      this.#syncTransakAuthOnError(error);
-      const errorMessage = (error as Error)?.message ?? 'Unknown error';
+      const { errorInfo, normalizedError } = this.#getNormalizedTransakError(
+        error,
+        {
+          syncAuth: true,
+        },
+      );
       this.update((state) => {
         state.nativeProviders.transak.userDetails.isLoading = false;
-        state.nativeProviders.transak.userDetails.error = errorMessage;
+        state.nativeProviders.transak.userDetails.error = errorInfo.message;
+        state.nativeProviders.transak.userDetails.errorKey = errorInfo.errorKey;
       });
-      throw error;
+      throw normalizedError;
     }
   }
 
@@ -2219,6 +2621,7 @@ export class RampsController extends BaseController<
     this.update((state) => {
       state.nativeProviders.transak.buyQuote.isLoading = true;
       state.nativeProviders.transak.buyQuote.error = null;
+      delete state.nativeProviders.transak.buyQuote.errorKey;
     });
     try {
       const quote = await this.messenger.call(
@@ -2235,12 +2638,14 @@ export class RampsController extends BaseController<
       });
       return quote;
     } catch (error) {
-      const errorMessage = (error as Error)?.message ?? 'Unknown error';
+      const { errorInfo, normalizedError } =
+        this.#getNormalizedTransakError(error);
       this.update((state) => {
         state.nativeProviders.transak.buyQuote.isLoading = false;
-        state.nativeProviders.transak.buyQuote.error = errorMessage;
+        state.nativeProviders.transak.buyQuote.error = errorInfo.message;
+        state.nativeProviders.transak.buyQuote.errorKey = errorInfo.errorKey;
       });
-      throw error;
+      throw normalizedError;
     }
   }
 
@@ -2257,6 +2662,7 @@ export class RampsController extends BaseController<
     this.update((state) => {
       state.nativeProviders.transak.kycRequirement.isLoading = true;
       state.nativeProviders.transak.kycRequirement.error = null;
+      delete state.nativeProviders.transak.kycRequirement.errorKey;
     });
     try {
       const requirement = await this.messenger.call(
@@ -2269,13 +2675,19 @@ export class RampsController extends BaseController<
       });
       return requirement;
     } catch (error) {
-      this.#syncTransakAuthOnError(error);
-      const errorMessage = (error as Error)?.message ?? 'Unknown error';
+      const { errorInfo, normalizedError } = this.#getNormalizedTransakError(
+        error,
+        {
+          syncAuth: true,
+        },
+      );
       this.update((state) => {
         state.nativeProviders.transak.kycRequirement.isLoading = false;
-        state.nativeProviders.transak.kycRequirement.error = errorMessage;
+        state.nativeProviders.transak.kycRequirement.error = errorInfo.message;
+        state.nativeProviders.transak.kycRequirement.errorKey =
+          errorInfo.errorKey;
       });
-      throw error;
+      throw normalizedError;
     }
   }
 
@@ -2294,8 +2706,8 @@ export class RampsController extends BaseController<
         quoteId,
       );
     } catch (error) {
-      this.#syncTransakAuthOnError(error);
-      throw error;
+      throw this.#getNormalizedTransakError(error, { syncAuth: true })
+        .normalizedError;
     }
   }
 
@@ -2321,8 +2733,8 @@ export class RampsController extends BaseController<
         paymentMethodId,
       );
     } catch (error) {
-      this.#syncTransakAuthOnError(error);
-      throw error;
+      throw this.#getNormalizedTransakError(error, { syncAuth: true })
+        .normalizedError;
     }
   }
 
@@ -2339,12 +2751,16 @@ export class RampsController extends BaseController<
     wallet: string,
     paymentDetails?: TransakOrderPaymentMethod[],
   ): Promise<TransakDepositOrder> {
-    return this.messenger.call(
-      'TransakService:getOrder',
-      orderId,
-      wallet,
-      paymentDetails,
-    );
+    try {
+      return await this.messenger.call(
+        'TransakService:getOrder',
+        orderId,
+        wallet,
+        paymentDetails,
+      );
+    } catch (error) {
+      throw this.#getNormalizedTransakError(error).normalizedError;
+    }
   }
 
   /**
@@ -2368,8 +2784,8 @@ export class RampsController extends BaseController<
         kycType,
       );
     } catch (error) {
-      this.#syncTransakAuthOnError(error);
-      throw error;
+      throw this.#getNormalizedTransakError(error, { syncAuth: true })
+        .normalizedError;
     }
   }
 
@@ -2382,8 +2798,8 @@ export class RampsController extends BaseController<
     try {
       return await this.messenger.call('TransakService:requestOtt');
     } catch (error) {
-      this.#syncTransakAuthOnError(error);
-      throw error;
+      throw this.#getNormalizedTransakError(error, { syncAuth: true })
+        .normalizedError;
     }
   }
 
@@ -2424,8 +2840,8 @@ export class RampsController extends BaseController<
         purpose,
       );
     } catch (error) {
-      this.#syncTransakAuthOnError(error);
-      throw error;
+      throw this.#getNormalizedTransakError(error, { syncAuth: true })
+        .normalizedError;
     }
   }
 
@@ -2439,8 +2855,8 @@ export class RampsController extends BaseController<
     try {
       return await this.messenger.call('TransakService:patchUser', data);
     } catch (error) {
-      this.#syncTransakAuthOnError(error);
-      throw error;
+      throw this.#getNormalizedTransakError(error, { syncAuth: true })
+        .normalizedError;
     }
   }
 
@@ -2462,8 +2878,8 @@ export class RampsController extends BaseController<
         quoteId,
       );
     } catch (error) {
-      this.#syncTransakAuthOnError(error);
-      throw error;
+      throw this.#getNormalizedTransakError(error, { syncAuth: true })
+        .normalizedError;
     }
   }
 
@@ -2485,8 +2901,8 @@ export class RampsController extends BaseController<
         paymentMethodId,
       );
     } catch (error) {
-      this.#syncTransakAuthOnError(error);
-      throw error;
+      throw this.#getNormalizedTransakError(error, { syncAuth: true })
+        .normalizedError;
     }
   }
 
@@ -2499,7 +2915,14 @@ export class RampsController extends BaseController<
   async transakGetTranslation(
     request: TransakTranslationRequest,
   ): Promise<TransakQuoteTranslation> {
-    return this.messenger.call('TransakService:getTranslation', request);
+    try {
+      return await this.messenger.call(
+        'TransakService:getTranslation',
+        request,
+      );
+    } catch (error) {
+      throw this.#getNormalizedTransakError(error).normalizedError;
+    }
   }
 
   /**
@@ -2517,8 +2940,8 @@ export class RampsController extends BaseController<
         workFlowRunId,
       );
     } catch (error) {
-      this.#syncTransakAuthOnError(error);
-      throw error;
+      throw this.#getNormalizedTransakError(error, { syncAuth: true })
+        .normalizedError;
     }
   }
 
@@ -2535,8 +2958,8 @@ export class RampsController extends BaseController<
         depositOrderId,
       );
     } catch (error) {
-      this.#syncTransakAuthOnError(error);
-      throw error;
+      throw this.#getNormalizedTransakError(error, { syncAuth: true })
+        .normalizedError;
     }
   }
 
@@ -2550,8 +2973,8 @@ export class RampsController extends BaseController<
     try {
       return await this.messenger.call('TransakService:cancelAllActiveOrders');
     } catch (error) {
-      this.#syncTransakAuthOnError(error);
-      throw error;
+      throw this.#getNormalizedTransakError(error, { syncAuth: true })
+        .normalizedError;
     }
   }
 
@@ -2564,8 +2987,8 @@ export class RampsController extends BaseController<
     try {
       return await this.messenger.call('TransakService:getActiveOrders');
     } catch (error) {
-      this.#syncTransakAuthOnError(error);
-      throw error;
+      throw this.#getNormalizedTransakError(error, { syncAuth: true })
+        .normalizedError;
     }
   }
 }

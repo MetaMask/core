@@ -9,9 +9,48 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Bump `@metamask/keyring-controller` from `^25.1.1` to `^25.2.0` ([#8363](https://github.com/MetaMask/core/pull/8363))
-- Bump `@metamask/messenger` from `^1.0.0` to `^1.1.1` ([#8364](https://github.com/MetaMask/core/pull/8364), [#8373](https://github.com/MetaMask/core/pull/8373))
+- Bump `@metamask/keyring-controller` from `^26.0.0` to `^27.0.0` ([#9058](https://github.com/MetaMask/core/pull/9058))
+
+### Fixed
+
+- Deduplicate SRP profile pairing calls by payload in `SRPJwtBearerAuth.pairSrpProfiles` ([#8984](https://github.com/MetaMask/core/pull/8984))
+  - Concurrent and short-interval sequential `performSignIn` triggers (multiple UI surfaces, unlock-time effects, pairing retries) previously each issued their own `POST /api/v2/profile/pair`. A promise cache keyed by the token set now coalesces in-flight calls and reuses a successful result for a short TTL, collapsing the redundant calls into one. The key is order-insensitive (the same token set in any order dedupes), and failures are never cached so the existing `needsProfilePairing` retry loop still re-hits the endpoint.
+- Scope the storage-key and snap-signature caches in `UserStorageController` per `entropySourceId` ([#8948](https://github.com/MetaMask/core/pull/8948))
+  - In the edge case where two SRPs resolve to the same `profileId` (e.g. a shared canonical profile after pairing), the previously message-keyed caches could hand one SRP the other's cached key — letting it read/decrypt the other SRP's user storage (which surfaced as a second SRP inheriting the first SRP's account names) or write under its key. Scoping by `entropySourceId` keeps each SRP's key isolated even then; the signed `metamask:${profileId}` message is unchanged, so existing storage keys are preserved.
+
+## [28.1.1]
+
+### Changed
+
+- Bump `@metamask/keyring-controller` from `^25.5.0` to `^26.0.0` ([#8912](https://github.com/MetaMask/core/pull/8912))
+
+## [28.1.0]
+
+### Added
+
+- Add SRP profile pairing support (Accounts ADR 0006) ([#8504](https://github.com/MetaMask/core/pull/8504), [#8642](https://github.com/MetaMask/core/pull/8642))
+  - Pairing runs at the end of `performSignIn`; pair failures are swallowed and retried on the next gate fire.
+  - Add `needsProfilePairing?: boolean` to state (defaults `true`, cleared on successful pair, re-armed via `requestProfilePairing()`). Optional in the type to keep partial-state selectors assignable; treat `undefined` as `true`.
+  - Add `requestProfilePairing()` (and `AuthenticationController:requestProfilePairing` action) for clients to signal SRP-set changes so the next auto-sign-in cycle re-pairs.
+  - Upgrade path: existing signed-in users re-pair automatically on the first auto-sign-in cycle. Pre-pairing sessions miss `canonicalProfileId` and re-login on the next `getAccessToken`, so the pair call runs against fresh v2 JWTs — no client migration needed.
+  - JWT staleness note: a newly added SRP's JWT keeps `sub = alias_id` until that SRP's session is re-logged-in. User storage is unaffected (it keys on `x-profile-id`, not `sub`).
+  - Add `canonicalProfileId` to `UserProfile` — the unified profile ID across paired SRPs
+  - Add `ProfileAlias` type for transient alias data returned by the pairing API
+  - Add `pairSrpProfiles` method to `SRPJwtBearerAuth` and `JwtBearerAuth`
+  - Add `ProfileSignInEvent` (`AuthenticationController:profileSignIn`) emitted after successful pairing when the canonical profile ID changes or new aliases are returned
+  - Send `X-MetaMask-Profile-Pairing: enabled` header on all `/srp/login` requests
+  - Resolve original per-SRP `profileId` from `profile_aliases` using `computeIdentifierId`
+  - Propagate canonical profile ID to all `srpSessionData` entries after pairing
+  - Add `refreshCanonicalProfileId` method — forces a fresh canonical retrieval from the server (1 primary SRP login) and propagates it to all cached SRP sessions. For best-effort reads, use `getSessionProfile().canonicalProfileId` instead.
+  - Force re-login when cached session is missing `canonicalProfileId`
+- Add optional `getAppVersion` callback to `MetaMetricsAuth`, forwarded as `metametrics.app_version` in the `POST /api/v2/srp/login` payload. ([#8626](https://github.com/MetaMask/core/pull/8626))
+
+### Changed
+
+- Bump `@metamask/keyring-controller` from `^25.1.1` to `^25.5.0` ([#8363](https://github.com/MetaMask/core/pull/8363), [#8634](https://github.com/MetaMask/core/pull/8634), [#8665](https://github.com/MetaMask/core/pull/8665), [#8722](https://github.com/MetaMask/core/pull/8722))
+- Bump `@metamask/messenger` from `^1.0.0` to `^1.2.0` ([#8364](https://github.com/MetaMask/core/pull/8364), [#8373](https://github.com/MetaMask/core/pull/8373), [#8632](https://github.com/MetaMask/core/pull/8632))
 - Bump `@metamask/base-controller` from `^9.0.1` to `^9.1.0` ([#8457](https://github.com/MetaMask/core/pull/8457))
+- Bump `@metamask/address-book-controller` from `^7.1.1` to `^7.1.2` ([#8755](https://github.com/MetaMask/core/pull/8755))
 
 ## [28.0.2]
 
@@ -845,7 +884,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@28.0.2...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@28.1.1...HEAD
+[28.1.1]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@28.1.0...@metamask/profile-sync-controller@28.1.1
+[28.1.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@28.0.2...@metamask/profile-sync-controller@28.1.0
 [28.0.2]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@28.0.1...@metamask/profile-sync-controller@28.0.2
 [28.0.1]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@28.0.0...@metamask/profile-sync-controller@28.0.1
 [28.0.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@27.1.0...@metamask/profile-sync-controller@28.0.0

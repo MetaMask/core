@@ -1,4 +1,10 @@
 export { default as GatorPermissionsController } from './GatorPermissionsController';
+export {
+  DELEGATION_FRAMEWORK_VERSION,
+  EXECUTION_PERMISSION_EXPIRY_RULE_TYPE,
+  EXECUTION_PERMISSION_PAYEE_RULE_TYPE,
+  EXECUTION_PERMISSION_REDEEMER_RULE_TYPE,
+} from './constants';
 export type {
   GatorPermissionsControllerFetchAndUpdateGatorPermissionsAction,
   GatorPermissionsControllerAddPendingRevocationAction,
@@ -18,7 +24,6 @@ export type {
   GatorPermissionsControllerStateChangeEvent,
 } from './GatorPermissionsController';
 export type { DecodedPermission } from './decodePermission';
-export { DELEGATION_FRAMEWORK_VERSION } from './constants';
 export type {
   GatorPermissionsControllerErrorCode,
   GatorPermissionsSnapRpcMethod,
@@ -34,6 +39,8 @@ export type {
   SupportedPermissionType,
 } from './types';
 
+export type { PayeeRule } from './payeeRule';
+export type { RedeemerRule } from './redeemerRule';
 export type {
   NativeTokenStreamPermission,
   NativeTokenPeriodicPermission,

@@ -72,6 +72,7 @@ export type {
   PerpsControllerGetHistoricalPortfolioAction,
   PerpsControllerGetMarketDataWithPricesAction,
   PerpsControllerGetMarketFilterPreferencesAction,
+  PerpsControllerGetMarketCategoriesAction,
   PerpsControllerGetMarketsAction,
   PerpsControllerGetMaxLeverageAction,
   PerpsControllerGetOpenOrdersAction,
@@ -132,7 +133,12 @@ export type {
 export { HyperLiquidProvider } from './providers/HyperLiquidProvider';
 
 // Type definitions (explicit named exports)
-export { WebSocketConnectionState, PerpsAnalyticsEvent } from './types';
+export {
+  WebSocketConnectionState,
+  PerpsAnalyticsEvent,
+  MARKET_CATEGORIES,
+  MarketCategory,
+} from './types';
 export type {
   RawLedgerUpdate,
   UserHistoryItem,
@@ -195,6 +201,9 @@ export type {
   GetSupportedPathsParams,
   GetAvailableDexsParams,
   GetMarketsParams,
+  GetMarketDataWithPricesParams,
+  SortField,
+  SortDirection,
   SubscribePricesParams,
   SubscribePositionsParams,
   SubscribeOrderFillsParams,
@@ -409,6 +418,7 @@ export {
   WITHDRAWAL_CONSTANTS,
   VALIDATION_THRESHOLDS,
   ORDER_SLIPPAGE_CONFIG,
+  MAX_SLIPPAGE_BOUNDS,
   PERFORMANCE_CONFIG,
   TP_SL_CONFIG,
   HYPERLIQUID_ORDER_LIMITS,
@@ -431,7 +441,7 @@ export {
   aggregateAccountStates,
 } from './utils';
 export type { ReturnOnEquityInput } from './utils';
-export { ensureError } from './utils';
+export { ensureError, isAbortError } from './utils';
 export type {
   OrderBookCacheEntry,
   ProcessL2BookDataParams,
@@ -481,6 +491,10 @@ export {
   calculateFundingCountdown,
   calculate24hHighLow,
   filterMarketsByQuery,
+  matchesCategory,
+  getMarketTypeFilter,
+  applyMarketFilters,
+  isHip3Market,
 } from './utils';
 export type { MarketPatternMatcher, CompiledMarketPattern } from './utils';
 export type {
@@ -510,7 +524,7 @@ export {
   hasExceededSignificantFigures,
   roundToSignificantFigures,
 } from './utils';
-export type { SortField, SortDirection, SortMarketsParams } from './utils';
+export type { SortMarketsParams } from './utils';
 export { parseVolume, sortMarkets } from './utils';
 export type { StandaloneInfoClientOptions } from './utils';
 export {
