@@ -60,7 +60,7 @@
     "@metamask/assets-controller": "^8.3.3",
     "@metamask/assets-controllers": "^108.6.0",
     "@metamask/base-controller": "^9.1.0",
-    "@metamask/bridge-controller": "^75.0.0",
+    "@metamask/bridge-controller": "^75.1.0",
     "@metamask/bridge-status-controller": "^72.1.0",
     "@metamask/controller-utils": "^12.1.1",
     "@metamask/gas-fee-controller": "^26.2.2",
