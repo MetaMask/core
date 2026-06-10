@@ -1,4 +1,4 @@
-import { Hex } from '@metamask/utils';
+import { Duration, Hex, inMilliseconds } from '@metamask/utils';
 
 export const VEDA_PERFORMANCE_API_BASE_URL = 'https://api.sevenseas.capital';
 
@@ -7,6 +7,24 @@ export const VEDA_PERFORMANCE_API_BASE_URL = 'https://api.sevenseas.capital';
  * `RemoteFeatureFlagController` state's `remoteFeatureFlags` map.
  */
 export const VAULT_CONFIG_FEATURE_FLAG_KEY = 'moneyAccountVaultConfig';
+
+/**
+ * The key under which the Money account balance `staleTime` (in milliseconds)
+ * is stored in `RemoteFeatureFlagController` state's `remoteFeatureFlags` map.
+ *
+ * Lets us tune how often on-chain balance reads hit the RPC nodes without a
+ * client release. When the flag is absent or malformed the service uses
+ * {@link DEFAULT_BALANCE_STALE_TIME}.
+ */
+export const MONEY_ACCOUNT_BALANCE_STALETIME_FEATURE_FLAG_KEY =
+  'moneyAccountBalanceStaleTime';
+
+/**
+ * Default `staleTime` (in milliseconds) for on-chain Money account balance
+ * reads, used when {@link MONEY_ACCOUNT_BALANCE_STALETIME_FEATURE_FLAG_KEY} is
+ * absent or malformed.
+ */
+export const DEFAULT_BALANCE_STALE_TIME = inMilliseconds(1, Duration.Minute);
 
 export const VEDA_API_NETWORK_NAMES: Record<Hex, string> = {
   '0xa4b1': 'arbitrum',

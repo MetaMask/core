@@ -10,7 +10,10 @@ import type {
 import type { Json } from '@metamask/utils';
 import nock, { cleanAll as nockCleanAll } from 'nock';
 
-import { VAULT_CONFIG_FEATURE_FLAG_KEY } from './constants';
+import {
+  MONEY_ACCOUNT_BALANCE_STALETIME_FEATURE_FLAG_KEY,
+  VAULT_CONFIG_FEATURE_FLAG_KEY,
+} from './constants';
 import {
   VaultConfigNotAvailableError,
   VaultConfigValidationError,
@@ -661,6 +664,35 @@ describe('MoneyAccountBalanceService', () => {
       );
     });
 
+    it('uses the configured underlyingToken and skips the on-chain base() read when present', async () => {
+      // Only the ERC-20 contract is instantiated; no Accountant.base() call.
+      mockErc20BalanceOf('5000000');
+      const { service } = createService({
+        rffcFlags: {
+          [VAULT_CONFIG_FEATURE_FLAG_KEY]: {
+            ...MOCK_VAULT_CONFIG,
+            underlyingToken: MOCK_UNDERLYING_TOKEN_ADDRESS,
+          },
+        },
+      });
+
+      const result = await service.getMusdBalance(MOCK_ACCOUNT_ADDRESS);
+
+      expect(result).toStrictEqual({ balance: '5000000' });
+      // balanceOf is read directly on the configured underlying token...
+      expect(MockContract).toHaveBeenCalledWith(
+        MOCK_UNDERLYING_TOKEN_ADDRESS,
+        expect.anything(),
+        expect.anything(),
+      );
+      // ...and the Accountant is never instantiated to resolve base().
+      expect(MockContract).not.toHaveBeenCalledWith(
+        MOCK_ACCOUNTANT_ADDRESS,
+        expect.anything(),
+        expect.anything(),
+      );
+    });
+
     it('is also callable via the messenger action', async () => {
       mockAccountantBase();
       mockErc20BalanceOf('5000000');
@@ -1101,6 +1133,87 @@ describe('MoneyAccountBalanceService', () => {
         'No Veda API network name found for chain 0x1',
       );
     });
+  });
+
+  // ----------------------------------------------------------
+  // Balance staleTime feature flag
+  // ----------------------------------------------------------
+
+  describe('balance staleTime feature flag', () => {
+    /**
+     * Stubs the Accountant so `getRate` invocations are observable across
+     * calls. `getExchangeRate` is used as the probe because its staleTime
+     * defaults to the configurable balance staleTime.
+     *
+     * @returns The `getRate` mock.
+     */
+    function mockAccountantGetRateSpy(): jest.Mock {
+      const mockGetRate = jest
+        .fn()
+        .mockResolvedValue({ toString: () => '1050000' });
+      MockContract.mockImplementation(
+        () => ({ getRate: mockGetRate }) as unknown as Contract,
+      );
+      return mockGetRate;
+    }
+
+    it('applies a valid staleTime override read from the flag during init', async () => {
+      const mockGetRate = mockAccountantGetRateSpy();
+      // staleTime 0 disables caching, so each call performs a fresh read.
+      const { service } = createService({
+        rffcFlags: {
+          [VAULT_CONFIG_FEATURE_FLAG_KEY]: MOCK_VAULT_CONFIG,
+          [MONEY_ACCOUNT_BALANCE_STALETIME_FEATURE_FLAG_KEY]: 0,
+        },
+      });
+
+      await service.getExchangeRate();
+      await service.getExchangeRate();
+
+      expect(mockGetRate).toHaveBeenCalledTimes(2);
+    });
+
+    it('applies a staleTime override that arrives via stateChange', async () => {
+      const mockGetRate = mockAccountantGetRateSpy();
+      const { service, rootMessenger } = createService();
+
+      // Default 60s window → the second call is served from cache.
+      await service.getExchangeRate();
+      await service.getExchangeRate();
+      expect(mockGetRate).toHaveBeenCalledTimes(1);
+
+      // Lower staleTime to 0 remotely → caching is disabled for later calls.
+      publishRFFCStateChange(rootMessenger, {
+        [VAULT_CONFIG_FEATURE_FLAG_KEY]: MOCK_VAULT_CONFIG,
+        [MONEY_ACCOUNT_BALANCE_STALETIME_FEATURE_FLAG_KEY]: 0,
+      });
+
+      await service.getExchangeRate();
+      expect(mockGetRate).toHaveBeenCalledTimes(2);
+    });
+
+    it.each([
+      { description: 'a non-number', value: 'soon' },
+      { description: 'NaN', value: NaN },
+      { description: 'a negative number', value: -1 },
+    ])(
+      'falls back to the default staleTime when the flag is $description',
+      async ({ value }) => {
+        const mockGetRate = mockAccountantGetRateSpy();
+        const { service } = createService({
+          rffcFlags: {
+            [VAULT_CONFIG_FEATURE_FLAG_KEY]: MOCK_VAULT_CONFIG,
+            [MONEY_ACCOUNT_BALANCE_STALETIME_FEATURE_FLAG_KEY]: value,
+          },
+        });
+
+        // Default (non-zero) window applies → the second call is cached.
+        await service.getExchangeRate();
+        await service.getExchangeRate();
+
+        expect(mockGetRate).toHaveBeenCalledTimes(1);
+      },
+    );
   });
 });
 

@@ -36,7 +36,9 @@ export type MoneyAccountBalanceServiceGetMusdSHFvdBalanceAction = {
  * the underlying mUSD asset.
  *
  * @param options - The options for the query.
- * @param options.staleTime - The stale time for the query. Defaults to 30 seconds.
+ * @param options.staleTime - The stale time for the query. Defaults to the
+ * remotely-configurable balance stale time (see
+ * {@link MONEY_ACCOUNT_BALANCE_STALETIME_FEATURE_FLAG_KEY}).
  * @returns The exchange rate as a raw uint256 string.
  * @throws {@link VaultConfigNotAvailableError} if vault config has not been loaded.
  */

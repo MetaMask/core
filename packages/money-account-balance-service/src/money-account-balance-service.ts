@@ -24,7 +24,9 @@ import { Duration, inMilliseconds } from '@metamask/utils';
 
 import {
   ACCOUNTANT_ABI,
+  DEFAULT_BALANCE_STALE_TIME,
   LENS_ABI,
+  MONEY_ACCOUNT_BALANCE_STALETIME_FEATURE_FLAG_KEY,
   VAULT_CONFIG_FEATURE_FLAG_KEY,
   VEDA_API_NETWORK_NAMES,
   VEDA_PERFORMANCE_API_BASE_URL,
@@ -161,6 +163,13 @@ export class MoneyAccountBalanceService extends BaseDataService<
   #vaultConfig: VaultConfig | undefined;
 
   /**
+   * `staleTime` (in milliseconds) applied to on-chain balance reads. Seeded
+   * from {@link DEFAULT_BALANCE_STALE_TIME} and overridable at runtime via the
+   * {@link MONEY_ACCOUNT_BALANCE_STALETIME_FEATURE_FLAG_KEY} remote feature flag.
+   */
+  #balanceStaleTime: number = DEFAULT_BALANCE_STALE_TIME;
+
+  /**
    * Constructs a new MoneyAccountBalanceService.
    *
    * @param args - The constructor arguments.
@@ -188,9 +197,14 @@ export class MoneyAccountBalanceService extends BaseDataService<
       // eslint-disable-next-line no-restricted-syntax
       'RemoteFeatureFlagController:stateChange',
       (state) => {
-        const flagValue =
-          state.remoteFeatureFlags[VAULT_CONFIG_FEATURE_FLAG_KEY];
-        this.#onRemoteFeatureFlagChange(flagValue);
+        this.#onRemoteFeatureFlagChange(
+          state.remoteFeatureFlags[VAULT_CONFIG_FEATURE_FLAG_KEY],
+        );
+        this.#applyBalanceStaleTimeFlag(
+          state.remoteFeatureFlags[
+            MONEY_ACCOUNT_BALANCE_STALETIME_FEATURE_FLAG_KEY
+          ],
+        );
       },
     );
 
@@ -214,6 +228,11 @@ export class MoneyAccountBalanceService extends BaseDataService<
       const { remoteFeatureFlags } = this.messenger.call(
         'RemoteFeatureFlagController:getState',
       );
+
+      this.#applyBalanceStaleTimeFlag(
+        remoteFeatureFlags[MONEY_ACCOUNT_BALANCE_STALETIME_FEATURE_FLAG_KEY],
+      );
+
       const flagValue = remoteFeatureFlags[VAULT_CONFIG_FEATURE_FLAG_KEY];
 
       if (flagValue === undefined) {
@@ -250,6 +269,43 @@ export class MoneyAccountBalanceService extends BaseDataService<
       throw new VaultConfigNotAvailableError();
     }
     return this.#vaultConfig;
+  }
+
+  /**
+   * Validates the balance `staleTime` feature flag value and updates
+   * `#balanceStaleTime`. Falls back to {@link DEFAULT_BALANCE_STALE_TIME} when
+   * the flag is absent or malformed (logging the malformed case so the
+   * degraded path is visible). Changing `staleTime` only affects future fetch
+   * gating, so no cache invalidation is required.
+   *
+   * @param flagValue - The raw flag value from `remoteFeatureFlags`, expected
+   * to be a non-negative number of milliseconds.
+   */
+  #applyBalanceStaleTimeFlag(flagValue: Json | undefined): void {
+    let nextStaleTime = DEFAULT_BALANCE_STALE_TIME;
+
+    if (flagValue !== undefined) {
+      if (
+        typeof flagValue === 'number' &&
+        Number.isFinite(flagValue) &&
+        flagValue >= 0
+      ) {
+        nextStaleTime = flagValue;
+      } else {
+        configLogger(
+          'Invalid balance staleTime flag value; using default',
+          { flagValue, default: DEFAULT_BALANCE_STALE_TIME },
+        );
+      }
+    }
+
+    if (nextStaleTime !== this.#balanceStaleTime) {
+      configLogger('Balance staleTime updated', {
+        previous: this.#balanceStaleTime,
+        next: nextStaleTime,
+      });
+      this.#balanceStaleTime = nextStaleTime;
+    }
   }
 
   /**
@@ -423,10 +479,19 @@ export class MoneyAccountBalanceService extends BaseDataService<
     return this.fetchQuery({
       queryKey: [`${this.name}:getMusdBalance`, accountAddress],
       queryFn: async () => {
-        const { chainId } = this.#requireConfig();
+        const { chainId, underlyingToken } = this.#requireConfig();
 
-        const underlyingTokenAddress =
-          await this.#fetchUnderlyingTokenAddress(chainId);
+        // Prefer the remotely-configured underlying token address (0 RPC). Only
+        // fall back to an on-chain `base()` read when the flag predates the
+        // `underlyingToken` field, logging so the degraded path is visible.
+        let underlyingTokenAddress = underlyingToken;
+        if (!underlyingTokenAddress) {
+          configLogger(
+            'underlyingToken absent from vault config; falling back to on-chain base() read',
+          );
+          underlyingTokenAddress =
+            await this.#fetchUnderlyingTokenAddress(chainId);
+        }
 
         const balance = await this.#fetchErc20Balance(
           underlyingTokenAddress,
@@ -435,7 +500,7 @@ export class MoneyAccountBalanceService extends BaseDataService<
         );
         return { balance };
       },
-      staleTime: inMilliseconds(30, Duration.Second),
+      staleTime: this.#balanceStaleTime,
     });
   }
 
@@ -459,7 +524,7 @@ export class MoneyAccountBalanceService extends BaseDataService<
         );
         return { balance };
       },
-      staleTime: inMilliseconds(30, Duration.Second),
+      staleTime: this.#balanceStaleTime,
     });
   }
 
@@ -469,12 +534,14 @@ export class MoneyAccountBalanceService extends BaseDataService<
    * the underlying mUSD asset.
    *
    * @param options - The options for the query.
-   * @param options.staleTime - The stale time for the query. Defaults to 30 seconds.
+   * @param options.staleTime - The stale time for the query. Defaults to the
+   * remotely-configurable balance stale time (see
+   * {@link MONEY_ACCOUNT_BALANCE_STALETIME_FEATURE_FLAG_KEY}).
    * @returns The exchange rate as a raw uint256 string.
    * @throws {@link VaultConfigNotAvailableError} if vault config has not been loaded.
    */
   async getExchangeRate({
-    staleTime = inMilliseconds(30, Duration.Second),
+    staleTime,
   }: { staleTime?: number } = {}): Promise<ExchangeRateResponse> {
     return this.fetchQuery({
       queryKey: [`${this.name}:getExchangeRate`],
@@ -489,7 +556,7 @@ export class MoneyAccountBalanceService extends BaseDataService<
         const rate = await contract.getRate();
         return { rate: rate.toString() };
       },
-      staleTime,
+      staleTime: staleTime ?? this.#balanceStaleTime,
     });
   }
 
@@ -522,7 +589,7 @@ export class MoneyAccountBalanceService extends BaseDataService<
 
         return { balanceOfInAssets: balanceOfInAssets.toString() };
       },
-      staleTime: inMilliseconds(30, Duration.Second),
+      staleTime: this.#balanceStaleTime,
     });
   }
 
