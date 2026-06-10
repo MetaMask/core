@@ -15,6 +15,7 @@ import type {
 import { buildCaipAssetType } from '../../utils/token';
 import { updateTransaction } from '../../utils/transaction';
 import type { TransactionPayFiatAsset } from './constants';
+import { MUSD_MONAD_FIAT_ASSET } from './constants';
 import { submitSimpleRelay } from './fiat-submit-simple';
 import { submitWithTransactionData } from './fiat-submit-with-transaction-data';
 import type { FiatQuote } from './types';
@@ -25,6 +26,26 @@ import {
 } from './utils';
 
 const log = createModuleLogger(projectLogger, 'fiat-submit');
+
+/**
+ * Detects whether the given quotes originated from the direct mUSD-to-
+ * Money-Account flow by inspecting the stored quote request's source
+ * chain and token. This is more reliable than re-checking the feature
+ * flag, which could change between quote and submit.
+ *
+ * @param quotes - The fiat quotes to inspect.
+ * @returns `true` if the first quote targets mUSD on Monad as its source.
+ */
+function isDirectMusdToMoneyAccountQuote(
+  quotes: PayStrategyExecuteRequest<FiatQuote>['quotes'],
+): boolean {
+  const request = quotes[0]?.request;
+  return (
+    request?.sourceChainId === MUSD_MONAD_FIAT_ASSET.chainId &&
+    request?.sourceTokenAddress.toLowerCase() ===
+      MUSD_MONAD_FIAT_ASSET.address.toLowerCase()
+  );
+}
 
 const ORDER_POLL_INTERVAL_MS = 1000;
 const ORDER_POLL_TIMEOUT_MS = 10 * 60 * 1000;
@@ -53,8 +74,16 @@ export async function submitFiatQuotes(
   const transactionId = transaction.id;
   const state = messenger.call('TransactionPayController:getState');
   const transactionData = state.transactionData[transactionId];
-  const walletAddress = (transactionData?.accountOverride ??
-    transaction.txParams.from) as Hex | undefined;
+
+  const isDirectMusdToMA = isDirectMusdToMoneyAccountQuote(request.quotes);
+
+  // When the direct mUSD flow was used, the fiat provider delivered to
+  // the money account (txParams.from), not to the user's override account.
+  const walletAddress = (
+    isDirectMusdToMA
+      ? transaction.txParams.from
+      : (transactionData?.accountOverride ?? transaction.txParams.from)
+  ) as Hex | undefined;
 
   if (!walletAddress) {
     throw new Error('Missing wallet address for fiat submission');
@@ -243,7 +272,10 @@ async function submitRelayAfterFiatCompletion({
     throw new Error('Multiple fiat quotes are not supported for submission');
   }
 
-  const fiatAsset = deriveFiatAssetForFiatPayment(transaction, messenger);
+  const isDirectMusdToMA = isDirectMusdToMoneyAccountQuote(quotes);
+  const fiatAsset = isDirectMusdToMA
+    ? MUSD_MONAD_FIAT_ASSET
+    : deriveFiatAssetForFiatPayment(transaction, messenger);
 
   validateOrderAsset({
     expectedAsset: fiatAsset,

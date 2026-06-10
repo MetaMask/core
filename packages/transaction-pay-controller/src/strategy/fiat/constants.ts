@@ -43,3 +43,19 @@ export const FIAT_ENABLED_TYPES: TransactionType[] = [
   TransactionType.perpsDeposit,
   TransactionType.predictDeposit,
 ];
+
+/** Chain ID for Monad network. */
+export const CHAIN_ID_MONAD = '0x8f' as Hex;
+
+/** mUSD token address on Monad (same address across all supported chains). */
+export const MUSD_MONAD_ADDRESS =
+  '0xaca92e438df0b2401ff60da7e4337b687a2435da' as Hex;
+
+/** Fiat asset descriptor for mUSD on Monad. */
+export const MUSD_MONAD_FIAT_ASSET: TransactionPayFiatAsset = {
+  address: MUSD_MONAD_ADDRESS,
+  chainId: CHAIN_ID_MONAD,
+};
+
+/** Fixed USD amount used to probe whether any fiat provider can sell mUSD on Monad. */
+export const MUSD_PROBE_AMOUNT_USD = 50;

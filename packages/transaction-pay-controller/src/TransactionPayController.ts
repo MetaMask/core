@@ -12,7 +12,6 @@ import {
   TransactionPayStrategy,
 } from './constants';
 import { QuoteRefresher } from './helpers/QuoteRefresher';
-import { deriveFiatAssetForFiatPayment } from './strategy/fiat/utils';
 import type {
   GetAmountDataCallback,
   GetDelegationTransactionCallback,
@@ -29,7 +28,6 @@ import type {
 import { getStrategyOrder } from './utils/feature-flags';
 import { updateQuotes } from './utils/quotes';
 import { updateSourceAmounts } from './utils/source-amounts';
-import { buildCaipAssetType } from './utils/token';
 import {
   getTransaction,
   subscribeAssetChanges,
@@ -311,7 +309,6 @@ export class TransactionPayController extends BaseController<
     fn: (transactionData: Draft<TransactionData>) => void,
   ): void {
     let shouldUpdateQuotes = false;
-    let shouldUpdateFiatToken = false;
 
     this.update((state) => {
       const { transactionData } = state;
@@ -369,31 +366,7 @@ export class TransactionPayController extends BaseController<
         shouldUpdateQuotes = true;
       }
 
-      if (isFiatPaymentMethodUpdated) {
-        shouldUpdateFiatToken = true;
-      }
     });
-
-    if (shouldUpdateFiatToken) {
-      const transaction = getTransaction(
-        transactionId,
-        this.messenger,
-      ) as TransactionMeta;
-      const fiatAsset = deriveFiatAssetForFiatPayment(
-        transaction,
-        this.messenger,
-      );
-      if (fiatAsset) {
-        this.#updateTransactionData(transactionId, (data) => {
-          if (data.fiatPayment) {
-            data.fiatPayment.caipAssetId = buildCaipAssetType(
-              fiatAsset.chainId,
-              fiatAsset.address,
-            );
-          }
-        });
-      }
-    }
 
     if (shouldUpdateQuotes) {
       updateQuotes({

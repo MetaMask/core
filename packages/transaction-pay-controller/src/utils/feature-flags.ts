@@ -98,6 +98,7 @@ type FiatFlags = {
   enabledTransactionTypes: TransactionType[];
   feeReserveMultiplier?: number;
   maxRateDriftPercent?: number;
+  useFiatMUSDQuoteToInjectForMoneyAccount?: boolean;
 };
 
 type StrategyRoutingConfig = {
@@ -892,6 +893,26 @@ export function getFiatMaxRateDriftPercent(
   return typeof maxDrift === 'number' && maxDrift > 0
     ? maxDrift
     : DEFAULT_MAX_RATE_DRIFT_PERCENT;
+}
+
+/**
+ * Returns whether the direct mUSD fiat injection flow is enabled for
+ * Money Account deposits.
+ *
+ * When `true`, the fiat strategy attempts to buy mUSD directly on Monad
+ * and deliver it to the Money Account, skipping the cross-chain bridge.
+ *
+ * @param messenger - Controller messenger for feature flag access.
+ * @returns `true` if the direct mUSD injection flag is enabled.
+ */
+export function getUseFiatMUSDQuoteToInjectForMoneyAccount(
+  messenger: TransactionPayControllerMessenger,
+): boolean {
+  const state = messenger.call('RemoteFeatureFlagController:getState');
+  const fiatFlags = state.remoteFeatureFlags?.confirmations_pay_fiat as
+    | FiatFlags
+    | undefined;
+  return fiatFlags?.useFiatMUSDQuoteToInjectForMoneyAccount === true;
 }
 
 /**

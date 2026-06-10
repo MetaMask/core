@@ -8,6 +8,7 @@ import { projectLogger } from '../../logger';
 import type {
   PayStrategyGetQuotesRequest,
   QuoteRequest,
+  TransactionFiatPayment,
   TransactionPayRequiredToken,
   TransactionPayQuote,
 } from '../../types';
@@ -131,8 +132,12 @@ export async function getFiatQuotes(
     });
 
     messenger.call('TransactionPayController:updateFiatPayment', {
-      callback: (fiatPayment) => {
+      callback: (fiatPayment: TransactionFiatPayment) => {
         fiatPayment.rampsQuote = fiatQuote;
+        fiatPayment.caipAssetId = buildCaipAssetType(
+          fiatAsset.chainId,
+          fiatAsset.address,
+        );
       },
       transactionId,
     });
@@ -152,13 +157,30 @@ export async function getFiatQuotes(
   return [];
 }
 
-function getRequiredTokens(
+/**
+ * Filters required tokens to those that need funding (i.e. not skipped when balance is sufficient).
+ *
+ * @param tokens - The full list of required tokens for a transaction.
+ * @returns Tokens that require funding.
+ */
+export function getRequiredTokens(
   tokens?: TransactionPayRequiredToken[],
 ): TransactionPayRequiredToken[] {
   return tokens?.filter((token) => !token.skipIfBalance) ?? [];
 }
 
-async function getRampsQuote({
+/**
+ * Fetches a single ramps (fiat on-ramp) quote for the given asset and amount.
+ *
+ * @param options - Quote parameters.
+ * @param options.adjustedAmount - Fiat amount including relay fee overhead.
+ * @param options.fiatAsset - The crypto asset to purchase.
+ * @param options.fiatPaymentMethod - Selected payment method ID.
+ * @param options.messenger - Controller messenger for RampsController access.
+ * @param options.walletAddress - Delivery address for the purchased crypto.
+ * @returns The best matching ramps quote.
+ */
+export async function getRampsQuote({
   adjustedAmount,
   fiatAsset,
   fiatPaymentMethod,
@@ -194,7 +216,21 @@ async function getRampsQuote({
   return quote;
 }
 
-function buildRelayRequestFromAmountFiat({
+/**
+ * Builds a synthetic relay quote request from a fiat amount and asset.
+ *
+ * Converts the fiat amount to raw source token units using the token's
+ * USD rate and decimals, then constructs an EXACT_INPUT relay request.
+ *
+ * @param options - Build parameters.
+ * @param options.amountFiat - User-entered fiat amount in USD.
+ * @param options.fiatAsset - The source asset for the relay (address + chainId).
+ * @param options.messenger - Controller messenger for token info access.
+ * @param options.requiredToken - The target token the relay should deliver.
+ * @param options.walletAddress - Address of the user's wallet.
+ * @returns A relay quote request, or `undefined` if token info / rates are unavailable.
+ */
+export function buildRelayRequestFromAmountFiat({
   amountFiat,
   fiatAsset,
   messenger,
@@ -277,7 +313,7 @@ function buildRelayRequestFromAmountFiat({
  *   Consumed by UI transaction fee row and tooltip MetaMask fee.
  * - `totals.total` should represent Amount + Transaction Fee using the totals pipeline.
  */
-function combineQuotes({
+export function combineQuotes({
   adjustedAmountFiat,
   amountFiat,
   fiatQuote,
@@ -337,7 +373,13 @@ function getRampsProviderFee(fiatQuote: RampsQuote): BigNumber {
   );
 }
 
-function getRelayTotalFeeUsd(
+/**
+ * Computes the total relay fee in USD from a relay quote's fee breakdown.
+ *
+ * @param relayQuote - The relay quote containing fee components.
+ * @returns Total relay fee as a BigNumber in USD.
+ */
+export function getRelayTotalFeeUsd(
   relayQuote: TransactionPayQuote<RelayQuote>,
 ): BigNumber {
   return new BigNumber(relayQuote.fees.provider.usd)

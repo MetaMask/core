@@ -20,6 +20,7 @@ import { getRelayQuotes } from '../relay/relay-quotes';
 import { submitRelayQuotes } from '../relay/relay-submit';
 import type { RelayQuote } from '../relay/types';
 import type { TransactionPayFiatAsset } from './constants';
+import { MUSD_MONAD_FIAT_ASSET } from './constants';
 import { submitFiatQuotes } from './fiat-submit';
 import type { FiatQuote } from './types';
 import { deriveFiatAssetForFiatPayment, resolveSourceAmountRaw } from './utils';
@@ -776,5 +777,83 @@ describe('submitFiatQuotes', () => {
     await expect(submitFiatQuotes(request)).rejects.toThrow(
       'Computed fiat order source amount is not positive',
     );
+  });
+
+  describe('direct mUSD to money account flow', () => {
+    const MONEY_ACCOUNT_ADDRESS =
+      '0x3333333333333333333333333333333333333333' as Hex;
+
+    const MUSD_QUOTE_REQUEST: QuoteRequest = {
+      from: WALLET_ADDRESS_MOCK,
+      sourceBalanceRaw: '10000000',
+      sourceChainId: MUSD_MONAD_FIAT_ASSET.chainId,
+      sourceTokenAddress: MUSD_MONAD_FIAT_ASSET.address,
+      sourceTokenAmount: '10000000',
+      targetAmountMinimum: '10000000',
+      targetChainId: MUSD_MONAD_FIAT_ASSET.chainId,
+      targetTokenAddress: MUSD_MONAD_FIAT_ASSET.address,
+    };
+
+    const MUSD_TRANSACTION_MOCK = {
+      id: TRANSACTION_ID_MOCK,
+      txParams: { from: MONEY_ACCOUNT_ADDRESS },
+      type: 'batch',
+    } as TransactionMeta;
+
+    it('uses txParams.from as walletAddress when quote is direct mUSD', async () => {
+      const order = getFiatOrderMock({
+        status: RampsOrderStatus.Completed,
+      });
+      const { callMock, request } = getRequest({
+        order,
+        quotes: [getFiatQuoteMock({ request: MUSD_QUOTE_REQUEST })],
+        transaction: MUSD_TRANSACTION_MOCK,
+      });
+
+      await submitFiatQuotes(request);
+
+      const getOrderCall = callMock.mock.calls.find(
+        ([action]: [string]) => action === 'RampsController:getOrder',
+      );
+      expect(getOrderCall?.[3]).toBe(MONEY_ACCOUNT_ADDRESS);
+    });
+
+    it('uses MUSD_MONAD_FIAT_ASSET for order validation when quote is direct mUSD', async () => {
+      const order = getFiatOrderMock({
+        cryptoCurrency: {
+          assetId: 'eip155:143/erc20:0xaca92e438df0b2401ff60da7e4337b687a2435da',
+          chainId: 'eip155:143',
+          symbol: 'MUSD',
+        },
+        status: RampsOrderStatus.Completed,
+      });
+      buildCaipAssetTypeMock.mockReturnValue(
+        'eip155:143/erc20:0xaca92e438df0b2401ff60da7e4337b687a2435da',
+      );
+      const { request } = getRequest({
+        order,
+        quotes: [getFiatQuoteMock({ request: MUSD_QUOTE_REQUEST })],
+        transaction: MUSD_TRANSACTION_MOCK,
+      });
+
+      await expect(submitFiatQuotes(request)).resolves.not.toThrow();
+      expect(deriveFiatAssetForFiatPaymentMock).not.toHaveBeenCalled();
+    });
+
+    it('falls back to deriveFiatAssetForFiatPayment when quote is not direct mUSD', async () => {
+      const order = getFiatOrderMock({
+        cryptoCurrency: {
+          assetId: FIAT_ASSET_CAIP_ID_MOCK,
+          chainId: 'eip155:137',
+          symbol: 'POL',
+        },
+        status: RampsOrderStatus.Completed,
+      });
+      const { request } = getRequest({ order });
+
+      await submitFiatQuotes(request);
+
+      expect(deriveFiatAssetForFiatPaymentMock).toHaveBeenCalledTimes(1);
+    });
   });
 });
