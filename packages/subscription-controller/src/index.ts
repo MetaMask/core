@@ -32,6 +32,7 @@ export type {
   SubscriptionControllerGetTokenMinimumBalanceAmountAction,
   SubscriptionControllerClearStateAction,
   SubscriptionControllerTriggerAccessTokenRefreshAction,
+  SubscriptionControllerStopAllPollingAction,
 } from './SubscriptionController-method-action-types';
 export {
   SubscriptionController,

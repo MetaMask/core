@@ -6,7 +6,6 @@ import { toChecksumHexAddress, toHex } from '@metamask/controller-utils';
 import { TransactionType } from '@metamask/transaction-controller';
 import type { BatchTransaction } from '@metamask/transaction-controller';
 import type { TransactionMeta } from '@metamask/transaction-controller';
-import type { Hex } from '@metamask/utils';
 import { createModuleLogger } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
 import { orderBy } from 'lodash';
@@ -167,10 +166,10 @@ export async function refreshQuote(
  * @returns Batch transaction.
  */
 function getBatchTransaction(transaction: TxData): BatchTransaction {
-  const data = transaction.data as Hex;
+  const { data } = transaction;
   const gas = transaction.gasLimit ? toHex(transaction.gasLimit) : undefined;
-  const to = transaction.to as Hex;
-  const value = transaction.value as Hex;
+  const { to } = transaction;
+  const { value } = transaction;
 
   return {
     data,
@@ -335,8 +334,7 @@ async function getSingleBridgeQuote(
   const quotes = await messenger.call(
     'BridgeController:fetchQuotes',
     bridgeRequest,
-    undefined,
-    featureId,
+    featureId ?? FeatureId.PERPS,
   );
 
   if (!quotes.length) {

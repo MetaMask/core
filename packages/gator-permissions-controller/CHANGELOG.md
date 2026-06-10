@@ -7,18 +7,46 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/transaction-controller` from `^66.0.0` to `^67.1.0` ([#8999](https://github.com/MetaMask/core/pull/8999), [#9021](https://github.com/MetaMask/core/pull/9021), [#9027](https://github.com/MetaMask/core/pull/9027), [#9066](https://github.com/MetaMask/core/pull/9066))
+
+## [4.2.0]
+
 ### Added
 
-- Support `RedeemerEnforcer` caveat when decoding execution permissions ([#8537](https://github.com/MetaMask/core/pull/8537))
-  - Permission decoding now recognizes the `RedeemerEnforcer` as an optional caveat on all execution permission types and extracts a `redeemer` rule containing the allowlisted addresses.
-  - `DecodedPermission` type now includes an optional `rules` property for rules recovered from caveats.
-  - Export new `EXECUTION_PERMISSION_REDEEMER_RULE_TYPE` constant and `RedeemerRule` type.
+- Add `token-approval-revocation` execution permission type decoding ([#8823](https://github.com/MetaMask/core/pull/8823))
+
+### Changed
+
+- Bump `@metamask/transaction-controller` from `^65.3.0` to `^66.0.0` ([#8796](https://github.com/MetaMask/core/pull/8796), [#8848](https://github.com/MetaMask/core/pull/8848))
+
+## [4.1.2]
+
+### Changed
+
+- Bump `@metamask/network-controller` from `^31.0.0` to `^32.0.0` ([#8765](https://github.com/MetaMask/core/pull/8765), [#8774](https://github.com/MetaMask/core/pull/8774))
+
+## [4.1.1]
+
+### Changed
+
+- Bump `@metamask/transaction-controller` from `^65.1.0` to `^65.3.0` ([#8722](https://github.com/MetaMask/core/pull/8722), [#8755](https://github.com/MetaMask/core/pull/8755))
+- Bump `@metamask/network-controller` from `^30.1.0` to `^31.0.0` ([#8755](https://github.com/MetaMask/core/pull/8755))
+
+## [4.1.0]
+
+### Added
+
+- Add `payee` rule decoding for execution permissions, extracting allowed recipient addresses from `AllowedTargetsEnforcer` (native token) and `AllowedCalldataEnforcer` (ERC-20 token) caveats ([#8668](https://github.com/MetaMask/core/pull/8668))
+- Add `redeemer` rule decoding for execution permissions, extracting addresses from `RedeemerEnforcer` caveats ([#8537](https://github.com/MetaMask/core/pull/8537))
+- Add `native-token-allowance` and `erc20-token-allowance` execution permission type decoding ([#8553](https://github.com/MetaMask/core/pull/8553))
 
 ### Changed
 
 - Use `decodeRedeemerTerms` from `@metamask/delegation-core` instead of a local implementation ([#8537](https://github.com/MetaMask/core/pull/8537))
 - Bump `@metamask/delegation-core` from `^0.2.0` to `^1.1.0` ([#8537](https://github.com/MetaMask/core/pull/8537))
-- Bump `@metamask/transaction-controller` from `^64.2.0` to `^65.0.0` ([#8482](https://github.com/MetaMask/core/pull/8482), [#8585](https://github.com/MetaMask/core/pull/8585), [#8613](https://github.com/MetaMask/core/pull/8613))
+- Bump `@metamask/transaction-controller` from `^64.2.0` to `^65.1.0` ([#8482](https://github.com/MetaMask/core/pull/8482), [#8585](https://github.com/MetaMask/core/pull/8585), [#8613](https://github.com/MetaMask/core/pull/8613), [#8691](https://github.com/MetaMask/core/pull/8691))
 - Bump `@metamask/messenger` from `^1.1.1` to `^1.2.0` ([#8632](https://github.com/MetaMask/core/pull/8632))
 - Bump `@metamask/network-controller` from `^30.0.1` to `^30.1.0` ([#8636](https://github.com/MetaMask/core/pull/8636))
 
@@ -232,7 +260,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#6033](https://github.com/MetaMask/core/pull/6033))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/gator-permissions-controller@4.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/gator-permissions-controller@4.2.0...HEAD
+[4.2.0]: https://github.com/MetaMask/core/compare/@metamask/gator-permissions-controller@4.1.2...@metamask/gator-permissions-controller@4.2.0
+[4.1.2]: https://github.com/MetaMask/core/compare/@metamask/gator-permissions-controller@4.1.1...@metamask/gator-permissions-controller@4.1.2
+[4.1.1]: https://github.com/MetaMask/core/compare/@metamask/gator-permissions-controller@4.1.0...@metamask/gator-permissions-controller@4.1.1
+[4.1.0]: https://github.com/MetaMask/core/compare/@metamask/gator-permissions-controller@4.0.0...@metamask/gator-permissions-controller@4.1.0
 [4.0.0]: https://github.com/MetaMask/core/compare/@metamask/gator-permissions-controller@3.0.1...@metamask/gator-permissions-controller@4.0.0
 [3.0.1]: https://github.com/MetaMask/core/compare/@metamask/gator-permissions-controller@3.0.0...@metamask/gator-permissions-controller@3.0.1
 [3.0.0]: https://github.com/MetaMask/core/compare/@metamask/gator-permissions-controller@2.2.0...@metamask/gator-permissions-controller@3.0.0

@@ -178,6 +178,34 @@ export const BUILT_IN_NETWORKS = {
       blockExplorerUrl: BlockExplorerUrl['sei-mainnet'],
     },
   },
+  [NetworkType['monad-mainnet']]: {
+    chainId: ChainId['monad-mainnet'],
+    ticker: NetworksTicker['monad-mainnet'],
+    rpcPrefs: {
+      blockExplorerUrl: BlockExplorerUrl['monad-mainnet'],
+    },
+  },
+  [NetworkType['zksync-mainnet']]: {
+    chainId: ChainId['zksync-mainnet'],
+    ticker: NetworksTicker['zksync-mainnet'],
+    rpcPrefs: {
+      blockExplorerUrl: BlockExplorerUrl['zksync-mainnet'],
+    },
+  },
+  [NetworkType['megaeth-mainnet']]: {
+    chainId: ChainId['megaeth-mainnet'],
+    ticker: NetworksTicker['megaeth-mainnet'],
+    rpcPrefs: {
+      blockExplorerUrl: BlockExplorerUrl['megaeth-mainnet'],
+    },
+  },
+  [NetworkType['avalanche-mainnet']]: {
+    chainId: ChainId['avalanche-mainnet'],
+    ticker: NetworksTicker['avalanche-mainnet'],
+    rpcPrefs: {
+      blockExplorerUrl: BlockExplorerUrl['avalanche-mainnet'],
+    },
+  },
   [NetworkType.rpc]: {
     chainId: undefined,
     blockExplorerUrl: undefined,

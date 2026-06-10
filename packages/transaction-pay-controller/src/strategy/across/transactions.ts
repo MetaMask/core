@@ -1,4 +1,6 @@
 import { TransactionType } from '@metamask/transaction-controller';
+import type { TransactionMeta } from '@metamask/transaction-controller';
+import { BigNumber } from 'bignumber.js';
 
 import type { AcrossSwapApprovalResponse } from './types';
 
@@ -37,4 +39,29 @@ export function getAcrossOrderedTransactions({
       type: swapType,
     },
   ];
+}
+
+/**
+ * Get a usable gas limit from the original or nested transaction.
+ *
+ * @param transaction - Original transaction metadata.
+ * @returns Positive integer gas limit if present, otherwise undefined.
+ */
+export function getOriginalTransactionGas(
+  transaction: TransactionMeta,
+): number | undefined {
+  const nestedGas = transaction.nestedTransactions?.find((tx) => tx.gas)?.gas;
+  const rawGas = nestedGas ?? transaction.txParams.gas;
+
+  if (rawGas === undefined) {
+    return undefined;
+  }
+
+  const gas = new BigNumber(rawGas);
+
+  if (!gas.isFinite() || gas.isNaN() || !gas.isInteger() || gas.lte(0)) {
+    return undefined;
+  }
+
+  return gas.toNumber();
 }

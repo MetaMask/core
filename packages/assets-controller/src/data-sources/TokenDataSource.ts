@@ -45,7 +45,7 @@ const BULK_SCAN_BATCH_SIZE = 100;
 const MIN_TOKEN_OCCURRENCES = 3;
 
 /** CAIP-19 `assetNamespace` segments used across filtering logic. */
-enum CaipAssetNamespace {
+export enum CaipAssetNamespace {
   Slip44 = 'slip44',
   Erc20 = 'erc20',
   Token = 'token',
@@ -102,11 +102,18 @@ function transformV3AssetResponseToMetadata(
   const parsed = parseCaipAssetType(assetId);
   let tokenType: 'native' | 'erc20' | 'spl' = 'erc20';
 
-  if (nativeAssetIds.has(assetId.toLowerCase())) {
+  if (
+    nativeAssetIds.has(assetId.toLowerCase()) ||
+    parsed.assetNamespace === CaipAssetNamespace.Slip44
+  ) {
     tokenType = 'native';
-  } else if (parsed.assetNamespace === 'spl') {
+  } else if (
+    parsed.chain.namespace === KnownCaipNamespace.Solana &&
+    parsed.assetNamespace === CaipAssetNamespace.Token
+  ) {
     tokenType = 'spl';
   }
+  // TODO: Add support for Tron trc20 standard
 
   const metadata: FungibleAssetMetadata = {
     // Type derived from assetId
@@ -325,8 +332,13 @@ export class TokenDataSource {
       const assetIdsNeedingMetadata = new Set<string>();
 
       // Custom assets are user-imported — exempt from spam filtering.
+      // State stores asset IDs in their normalized (checksummed) form, but the
+      // V3 Tokens API can return them lower-cased. Lowercase both sides so the
+      // bypass is robust to address-case differences across data sources.
       const customAssetIds = new Set<string>(
-        Object.values(customAssets ?? {}).flat(),
+        Object.values(customAssets ?? {})
+          .flat()
+          .map((id) => id.toLowerCase()),
       );
 
       // Always include native asset IDs from NetworkEnablementController
@@ -433,11 +445,13 @@ export class TokenDataSource {
         // EVM: require minimum occurrence count to suppress low-signal tokens.
         // Tokens with no occurrence data (undefined) are treated the same as
         // zero occurrences and filtered out.
-        // Custom assets (user-imported) bypass the occurrence filter.
+        // Custom assets (user-imported) bypass the occurrence filter — users
+        // can import whatever they want and we must keep their metadata even
+        // if the API has fewer than `MIN_TOKEN_OCCURRENCES` aggregator hits.
         const allowedEvmIds = new Set(
           evmErc20Ids.filter(
             (id) =>
-              customAssetIds.has(id) ||
+              customAssetIds.has(id.toLowerCase()) ||
               (occurrencesByAssetId.get(id) ?? 0) >= MIN_TOKEN_OCCURRENCES ||
               id.includes(`/erc20:${MUSD_ADDRESS_LOWERCASE}`),
           ),
@@ -446,10 +460,12 @@ export class TokenDataSource {
         // Non-EVM: Blockaid bulk scan.
         // Custom assets (user-imported) bypass Blockaid filtering.
         const nonEvmToScan = nonEvmTokenIds.filter(
-          (id) => !customAssetIds.has(id),
+          (id) => !customAssetIds.has(id.toLowerCase()),
         );
         const allowedNonEvmIds = new Set([
-          ...nonEvmTokenIds.filter((id) => customAssetIds.has(id)),
+          ...nonEvmTokenIds.filter((id) =>
+            customAssetIds.has(id.toLowerCase()),
+          ),
           ...(await this.#filterBlockaidSpamTokens(nonEvmToScan)),
         ]);
 

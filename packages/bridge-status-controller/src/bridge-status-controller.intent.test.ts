@@ -371,9 +371,7 @@ describe('BridgeStatusController (intent swaps)', () => {
         "chainId": "0x1",
         "hash": undefined,
         "id": "intentDisplayTxId1",
-        "isIntentTx": true,
         "networkClientId": "network-client-id-1",
-        "orderUid": "order-uid-approve-1",
         "status": "submitted",
         "time": 1773879217428,
         "txParams": {
@@ -1057,6 +1055,7 @@ describe('BridgeStatusController (target uncovered branches)', () => {
             "failures": [
               "across|status",
             ],
+            "feature_id": "unified_swap_bridge",
             "location": "Main View",
             "refresh_count": 3,
             "token_address_destination": "eip155:10/slip44:60",

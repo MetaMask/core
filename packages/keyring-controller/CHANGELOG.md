@@ -7,6 +7,45 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [27.0.0]
+
+### Changed
+
+- **BREAKING:** `exportSeedPhrase` and `exportAccount` now take `Credentials` (`{ password }` | `{ encryptionKey, encryptionSalt? }`) instead of a bare password string ([#8996](https://github.com/MetaMask/core/pull/8996))
+
+### Fixed
+
+- Automatically remove and destroy non-primary keyrings whose last account is removed during a `withKeyring` or `withKeyringV2` callback ([#8951](https://github.com/MetaMask/core/pull/8951))
+  - Previously, draining a keyring of all its accounts via these APIs left an empty keyring entry in `state.keyrings` and persisted it in the vault.
+  - Pre-existing empty keyrings (e.g. those created intentionally via `addNewKeyring` without subsequent account creation) are still preserved, matching the behavior of `removeAccount`.
+  - The primary keyring is never auto-removed, even if drained; this preserves the existing `removeAccount` invariant against losing the primary keyring.
+
+## [26.0.0]
+
+### Changed
+
+- **BREAKING:** Change `KeyringSelectorV2` type selectors for `withKeyringV2` and `withKeyringV2Unsafe` to use `KeyringType` (v2 variant) ([#8901](https://github.com/MetaMask/core/pull/8901))
+  - Use values such as `KeyringType.Hd` instead of legacy `KeyringTypes.hd`.
+- Deprecate `KeyringTypes` ([#8907](https://github.com/MetaMask/core/pull/8907))
+  - Use `KeyringTypes` from `@metamask/keyring-api/v2` if your keyring has a v2 builder.
+
+## [25.5.0]
+
+### Added
+
+- Expose missing public `KeyringController` methods through its messenger ([#8674](https://github.com/MetaMask/core/pull/8674))
+  - The following actions are now available:
+    - `KeyringController:changePassword`,
+    - `KeyringController:exportAccount`,
+    - `KeyringController:exportEncryptionKey`,
+    - `KeyringController:getAccountKeyringType`,
+    - `KeyringController:importAccountWithStrategy`,
+    - `KeyringController:setLocked`,
+    - `KeyringController:submitEncryptionKey`,
+    - `KeyringController:submitPassword`,
+    - `KeyringController:verifyPassword`,
+  - Corresponding action types are available as well.
+
 ## [25.4.0]
 
 ### Changed
@@ -991,7 +1030,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@25.4.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@27.0.0...HEAD
+[27.0.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@26.0.0...@metamask/keyring-controller@27.0.0
+[26.0.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@25.5.0...@metamask/keyring-controller@26.0.0
+[25.5.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@25.4.0...@metamask/keyring-controller@25.5.0
 [25.4.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@25.3.0...@metamask/keyring-controller@25.4.0
 [25.3.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@25.2.0...@metamask/keyring-controller@25.3.0
 [25.2.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@25.1.1...@metamask/keyring-controller@25.2.0
