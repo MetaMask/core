@@ -399,7 +399,8 @@ export class RpcDataSource extends AbstractDataSource<
       const existingMeta = existingMetadata[balance.assetId];
       const isNative =
         existingMeta?.type === 'native' ||
-        balance.assetId.toLowerCase() === nativeAssetId?.toLowerCase();
+        balance.assetId.toLowerCase() === nativeAssetId?.toLowerCase() ||
+        this.#getAssetType(balance.assetId) === 'native';
 
       if (isNative && !this.#hasValidDecimals(existingMeta)) {
         // Only emit a stub when no valid metadata exists in state yet.
