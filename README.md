@@ -282,7 +282,6 @@ linkStyle default opacity:0.5
   authenticated_user_storage --> controller_utils;
   authenticated_user_storage --> messenger;
   base_controller --> messenger;
-  base_controller --> json_rpc_engine;
   base_data_service --> controller_utils;
   base_data_service --> messenger;
   bridge_controller --> accounts_controller;
@@ -369,7 +368,6 @@ linkStyle default opacity:0.5
   eth_json_rpc_middleware --> eth_json_rpc_provider;
   eth_json_rpc_middleware --> json_rpc_engine;
   eth_json_rpc_middleware --> message_manager;
-  eth_json_rpc_middleware --> network_controller;
   eth_json_rpc_provider --> json_rpc_engine;
   gas_fee_controller --> base_controller;
   gas_fee_controller --> controller_utils;
@@ -483,7 +481,6 @@ linkStyle default opacity:0.5
   phishing_controller --> messenger;
   phishing_controller --> transaction_controller;
   polling_controller --> base_controller;
-  polling_controller --> controller_utils;
   polling_controller --> network_controller;
   polling_controller --> messenger;
   preferences_controller --> base_controller;
@@ -595,6 +592,7 @@ linkStyle default opacity:0.5
   wallet --> controller_utils;
   wallet --> keyring_controller;
   wallet --> messenger;
+  wallet --> remote_feature_flag_controller;
   wallet --> storage_service;
 ```
 

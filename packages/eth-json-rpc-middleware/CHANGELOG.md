@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Bump `@metamask/json-rpc-engine` from `^10.2.4` to `^10.5.0` ([#8661](https://github.com/MetaMask/core/pull/8661), [#8746](https://github.com/MetaMask/core/pull/8746), [#8753](https://github.com/MetaMask/core/pull/8753))
 - Bump `@metamask/message-manager` from `^14.1.1` to `^14.1.2` ([#8755](https://github.com/MetaMask/core/pull/8755))
+- Drop `pify` dependency, which was no longer used in source ([#9064](https://github.com/MetaMask/core/pull/9064))
 
 ## [23.1.3]
 

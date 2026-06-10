@@ -13,6 +13,15 @@ import { Wallet } from './Wallet';
 const TEST_SRP = 'test test test test test test test test test test test ball';
 const TEST_PASSWORD = 'testpass';
 
+const REMOTE_FEATURE_FLAG_OPTIONS = {
+  clientConfigApiService: {
+    fetchRemoteFeatureFlags: async (): Promise<{
+      remoteFeatureFlags: Record<string, boolean>;
+      cacheTimestamp: number;
+    }> => ({ remoteFeatureFlags: {}, cacheTimestamp: Date.now() }),
+  },
+};
+
 async function setupWallet(): Promise<Wallet> {
   const wallet = new Wallet({
     instanceOptions: {
@@ -22,6 +31,7 @@ async function setupWallet(): Promise<Wallet> {
       storageService: {
         storage: new InMemoryStorageAdapter(),
       },
+      remoteFeatureFlagController: REMOTE_FEATURE_FLAG_OPTIONS,
     },
   });
 
@@ -81,6 +91,7 @@ describe('Wallet', () => {
         storageService: {
           storage: new InMemoryStorageAdapter(),
         },
+        remoteFeatureFlagController: REMOTE_FEATURE_FLAG_OPTIONS,
       },
     });
 
@@ -126,6 +137,7 @@ describe('Wallet', () => {
         storageService: {
           storage: new InMemoryStorageAdapter(),
         },
+        remoteFeatureFlagController: REMOTE_FEATURE_FLAG_OPTIONS,
       },
     });
     const { state } = wallet;
@@ -165,6 +177,7 @@ describe('Wallet', () => {
         storageService: {
           storage: new InMemoryStorageAdapter(),
         },
+        remoteFeatureFlagController: REMOTE_FEATURE_FLAG_OPTIONS,
       },
     });
 
@@ -239,6 +252,7 @@ describe('Wallet', () => {
           storageService: {
             storage: new InMemoryStorageAdapter(),
           },
+          remoteFeatureFlagController: REMOTE_FEATURE_FLAG_OPTIONS,
         },
       });
 
@@ -275,6 +289,7 @@ describe('Wallet', () => {
           storageService: {
             storage: new InMemoryStorageAdapter(),
           },
+          remoteFeatureFlagController: REMOTE_FEATURE_FLAG_OPTIONS,
         },
       });
 
@@ -322,6 +337,55 @@ describe('Wallet', () => {
         (await messenger.call('StorageService:getItem', 'TestNamespace', 'foo'))
           .result,
       ).toBe('bar');
+    });
+  });
+
+  describe('RemoteFeatureFlagController', () => {
+    it('is wired and exposes its state on the wallet messenger', async () => {
+      const wallet = await setupWallet();
+      const { messenger } = wallet;
+
+      expect(
+        messenger.call('RemoteFeatureFlagController:getState'),
+      ).toStrictEqual({
+        remoteFeatureFlags: {},
+        localOverrides: {},
+        rawRemoteFeatureFlags: {},
+        cacheTimestamp: 0,
+      });
+    });
+
+    it('routes injected instanceOptions through to the controller', async () => {
+      const wallet = new Wallet({
+        instanceOptions: {
+          connectivityController: {
+            connectivityAdapter: new AlwaysOnlineAdapter(),
+          },
+          keyringController: { encryptor: new MockEncryptor() },
+          storageService: { storage: new InMemoryStorageAdapter() },
+          remoteFeatureFlagController: {
+            clientConfigApiService: {
+              fetchRemoteFeatureFlags: async (): Promise<{
+                remoteFeatureFlags: Record<string, boolean>;
+                cacheTimestamp: number;
+              }> => ({
+                remoteFeatureFlags: { testFlag: true },
+                cacheTimestamp: Date.now(),
+              }),
+            },
+          },
+        },
+      });
+      const { messenger } = wallet;
+
+      await messenger.call(
+        'RemoteFeatureFlagController:updateRemoteFeatureFlags',
+      );
+
+      expect(
+        messenger.call('RemoteFeatureFlagController:getState')
+          .remoteFeatureFlags,
+      ).toStrictEqual({ testFlag: true });
     });
   });
 });
