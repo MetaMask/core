@@ -130,7 +130,9 @@
 /packages/profile-metrics-controller            @MetaMask/mobile-platform @MetaMask/extension-platform
 
 ## Initialization
+/packages/wallet/src/initialization/instances/accounts-controller/ @MetaMask/accounts-engineers
 /packages/wallet/src/initialization/instances/approval-controller/ @MetaMask/confirmations
+/packages/wallet/src/initialization/instances/connectivity-controller/ @MetaMask/core-platform
 /packages/wallet/src/initialization/instances/keyring-controller/ @MetaMask/accounts-engineers @MetaMask/core-platform
 /packages/wallet/src/initialization/instances/storage-service/ @MetaMask/extension-platform @MetaMask/mobile-platform @MetaMask/core-platform
 

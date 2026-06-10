@@ -1,3 +1,4 @@
+import { CONNECTIVITY_STATUSES } from '@metamask/connectivity-controller';
 import { Messenger } from '@metamask/messenger';
 import { InMemoryStorageAdapter } from '@metamask/storage-service';
 import { Json } from '@metamask/utils';
@@ -5,6 +6,7 @@ import { webcrypto } from 'crypto';
 
 import MockEncryptor from '../../keyring-controller/tests/mocks/mockEncryptor';
 import * as initializationModule from './initialization/initialization';
+import { AlwaysOnlineAdapter } from './initialization/instances/connectivity-controller/always-online-adapter';
 import { importSecretRecoveryPhrase } from './utilities';
 import { Wallet } from './Wallet';
 
@@ -14,6 +16,9 @@ const TEST_PASSWORD = 'testpass';
 async function setupWallet(): Promise<Wallet> {
   const wallet = new Wallet({
     instanceOptions: {
+      connectivityController: {
+        connectivityAdapter: new AlwaysOnlineAdapter(),
+      },
       storageService: {
         storage: new InMemoryStorageAdapter(),
       },
@@ -67,6 +72,9 @@ describe('Wallet', () => {
   it('supports passing instance options', async () => {
     const wallet = new Wallet({
       instanceOptions: {
+        connectivityController: {
+          connectivityAdapter: new AlwaysOnlineAdapter(),
+        },
         keyringController: {
           encryptor: new MockEncryptor(),
         },
@@ -112,6 +120,9 @@ describe('Wallet', () => {
         },
       ],
       instanceOptions: {
+        connectivityController: {
+          connectivityAdapter: new AlwaysOnlineAdapter(),
+        },
         storageService: {
           storage: new InMemoryStorageAdapter(),
         },
@@ -146,7 +157,16 @@ describe('Wallet', () => {
       NoMeta: { state: {} },
     });
 
-    const wallet = new Wallet({});
+    const wallet = new Wallet({
+      instanceOptions: {
+        connectivityController: {
+          connectivityAdapter: new AlwaysOnlineAdapter(),
+        },
+        storageService: {
+          storage: new InMemoryStorageAdapter(),
+        },
+      },
+    });
 
     expect(wallet.controllerMetadata).toStrictEqual({
       WithMeta: fakeMetadata,
@@ -191,6 +211,43 @@ describe('Wallet', () => {
     expect(spy).toHaveBeenCalledTimes(1);
   });
 
+  describe('AccountsController', () => {
+    it('tracks accounts created via KeyringController', async () => {
+      const wallet = await setupWallet();
+
+      const keyringAccounts = await wallet.messenger.call(
+        'KeyringController:getAccounts',
+      );
+      const trackedAddresses = Object.values(
+        wallet.state.AccountsController.internalAccounts.accounts,
+      ).map((account) => account.address);
+
+      // Sort both arrays so the assertion does not depend on account ordering.
+      expect([...trackedAddresses].sort()).toStrictEqual(
+        [...keyringAccounts].sort(),
+      );
+    });
+  });
+
+  describe('ConnectivityController', () => {
+    it('reports online connectivity status', () => {
+      const wallet = new Wallet({
+        instanceOptions: {
+          connectivityController: {
+            connectivityAdapter: new AlwaysOnlineAdapter(),
+          },
+          storageService: {
+            storage: new InMemoryStorageAdapter(),
+          },
+        },
+      });
+
+      expect(wallet.state.ConnectivityController.connectivityStatus).toBe(
+        CONNECTIVITY_STATUSES.Online,
+      );
+    });
+  });
+
   describe('KeyringController', () => {
     it('can unlock and populate accounts', async () => {
       const wallet = await setupWallet();
@@ -212,6 +269,9 @@ describe('Wallet', () => {
           },
         },
         instanceOptions: {
+          connectivityController: {
+            connectivityAdapter: new AlwaysOnlineAdapter(),
+          },
           storageService: {
             storage: new InMemoryStorageAdapter(),
           },
