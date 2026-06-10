@@ -104,10 +104,13 @@ export const extractTradeData = (trade: Trade): string => {
   }
 
   if (isStellarTrade(trade)) {
-    if (typeof trade.xdrBase64 === 'string') {
-      return trade.xdrBase64;
+    if (
+      hasOwnProp(trade, 'xdrBase64') &&
+      typeof (trade as { xdrBase64: unknown }).xdrBase64 === 'string'
+    ) {
+      return (trade as { xdrBase64: string }).xdrBase64;
     }
-    return trade.xdr;
+    return (trade as { xdr: string }).xdr;
   }
 
   if (typeof trade === 'string') {
