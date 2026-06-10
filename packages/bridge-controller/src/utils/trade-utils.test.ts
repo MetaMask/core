@@ -190,6 +190,15 @@ describe('Trade utils', () => {
       ).toBe('stellarXdrAlt');
     });
 
+    it('falls back to xdr when xdrBase64 is present but not a string', () => {
+      expect(
+        extractTradeData({
+          xdrBase64: null,
+          xdr: 'stellarXdrAlt',
+        } as unknown as Trade),
+      ).toBe('stellarXdrAlt');
+    });
+
     it('extracts data property from EVM TxData object', () => {
       const evmTxData: TxData = {
         chainId: 1,

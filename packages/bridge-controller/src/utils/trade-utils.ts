@@ -89,7 +89,11 @@ export const extractTradeData = (trade: Trade): string => {
   }
 
   if (isStellarTrade(trade)) {
-    return 'xdrBase64' in trade ? trade.xdrBase64 : trade.xdr;
+    // Return the xdrBase64 or xdr property of the trade object
+    // This is a workaround to support both the old and new Stellar trade formats
+    return 'xdrBase64' in trade && typeof trade.xdrBase64 === 'string'
+      ? trade.xdrBase64
+      : trade.xdr;
   }
 
   if (typeof trade === 'string') {
