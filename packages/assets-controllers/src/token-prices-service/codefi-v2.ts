@@ -326,6 +326,7 @@ export const SPOT_PRICES_SUPPORT_INFO = {
   '0x4e454152': 'eip155:1313161554/slip44:60', // Aurora Mainnet (Ethereum L2 on NEAR) - Native symbol: ETH
   '0x63564c40': 'eip155:1666600000/slip44:1023', // Harmony Mainnet Shard 0 - Native symbol: ONE
   '0x343b': 'eip155:13371/erc20:0x0000000000000000000000000000000000000000', // Immutable zkEVM - Native symbol: IMX
+  '0x4cef52': 'eip155:5042002/erc20:0x3600000000000000000000000000000000000000', // Arc Testnet - Native symbol: USDC (6 decimals)
 } as const;
 
 // MISSING CHAINS WITH NO NATIVE ASSET PRICES
