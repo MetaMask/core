@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `encodeFunctionData` to improve ABI encoding speed for addresses ([#9057](https://github.com/MetaMask/core/pull/9057))
+
 ## [12.1.1]
 
 ### Changed
