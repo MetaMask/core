@@ -158,9 +158,10 @@ const config: KnipConfig = {
       ignoreDependencies: ['immer'],
     },
     'packages/wallet-framework-docs': {
-      // Docusaurus loads these files at runtime; they're outside knip's
-      // default `src/**` project scope, so without explicit entries the
-      // package's docusaurus deps look unused.
+      // Source lives under `site/` instead of `src/`; tell knip to scan it
+      // so the type imports of `@docusaurus/*` / `prism-react-renderer` in
+      // `docusaurus.config.ts` and `sidebars.ts` are seen and the matching
+      // devDeps don't get flagged as unused.
       entry: ['site/docusaurus.config.ts', 'site/sidebars.ts'],
       project: ['site/**/*.{ts,tsx}'],
       ignoreDependencies: [
