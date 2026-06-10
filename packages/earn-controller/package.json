@@ -57,7 +57,7 @@
     "@ethersproject/providers": "^5.7.0",
     "@metamask/account-tree-controller": "^7.5.2",
     "@metamask/base-controller": "^9.1.0",
-    "@metamask/controller-utils": "^12.1.1",
+    "@metamask/controller-utils": "^12.2.0",
     "@metamask/keyring-api": "^23.1.0",
     "@metamask/messenger": "^1.2.0",
     "@metamask/network-controller": "^32.0.0",
