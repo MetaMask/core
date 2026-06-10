@@ -875,6 +875,47 @@ describe('encodeAggregate3', () => {
     expect(decodedCalls[1].allowFailure).toBe(false);
     expect(decodedCalls[1].callData.toLowerCase()).toBe(calls[1].callData);
   });
+
+  it('should produce identical calldata to regular Ethers implementation', () => {
+    const multicall3Interface = new Interface([
+      'function aggregate3((address target, bool allowFailure, bytes callData)[] calls) payable returns ((bool success, bytes returnData)[])',
+      'function getEthBalance(address addr) view returns (uint256)',
+    ]);
+
+    const erc20Interface = new Interface([
+      'function balanceOf(address account) view returns (uint256)',
+    ]);
+
+    const calls = [
+      {
+        target: TEST_TOKEN_1,
+        allowFailure: true,
+        callData: erc20Interface.encodeFunctionData('balanceOf', [
+          TEST_TOKEN_1,
+        ]) as Hex,
+      },
+      {
+        target: TEST_TOKEN_2,
+        allowFailure: false,
+        callData: erc20Interface.encodeFunctionData('balanceOf', [
+          TEST_TOKEN_1,
+        ]) as Hex,
+      },
+      {
+        target: '0xcA11bde05977b3631167028862bE2a173976CA11' as Address,
+        allowFailure: true,
+        callData: multicall3Interface.encodeFunctionData('getEthBalance', [
+          TEST_TOKEN_1,
+        ]) as Hex,
+      },
+    ];
+
+    const expected = multicall3Interface.encodeFunctionData('aggregate3', [
+      calls,
+    ]);
+
+    expect(encodeAggregate3(calls)).toBe(expected);
+  });
 });
 
 describe('decodeAggregate3Response', () => {

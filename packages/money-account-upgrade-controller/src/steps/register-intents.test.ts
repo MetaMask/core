@@ -432,6 +432,34 @@ describe('registerIntentsStep', () => {
       expect(mocks.createIntents).not.toHaveBeenCalled();
     });
 
+    it('ignores delegations for a token address that is no longer configured', async () => {
+      const { messenger, mocks } = setup();
+      mocks.listDelegations.mockResolvedValue([
+        // Stale withdrawal delegation left over from a previous config (e.g. a
+        // dev boring vault address) that still carries the current redeemer
+        // caveat. It must not be registered against the current configuration.
+        makeDelegationResponse({
+          tokenAddress: OTHER_TOKEN,
+          tokenSymbol: 'vmUSD',
+          delegationHash: `0x${'04'.repeat(32)}`,
+          type: 'cash-withdrawal',
+        }),
+        depositDelegation(),
+        withdrawalDelegation(),
+      ]);
+
+      const result = await run(messenger);
+
+      expect(result).toBe('completed');
+      const [submitted] = mocks.createIntents.mock.calls[0];
+      expect(submitted).toHaveLength(2);
+      expect(
+        submitted.map(
+          (intent: { delegationHash: Hex }) => intent.delegationHash,
+        ),
+      ).toStrictEqual([MOCK_MUSD_DELEGATION_HASH, MOCK_VMUSD_DELEGATION_HASH]);
+    });
+
     it('ignores delegations whose caveats do not include a redeemer caveat targeting the Veda vault adapter', async () => {
       const { messenger, mocks } = setup();
       mocks.listDelegations.mockResolvedValue([

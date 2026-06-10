@@ -197,6 +197,51 @@ describe('Fiat Utils', () => {
 
       expect(result).toStrictEqual(ETH_MAINNET_FIAT_ASSET);
     });
+
+    it('uses feature flag enabled types to filter nested transactions in batch', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_pay_fiat: {
+            enabledTransactionTypes: [TransactionType.predictDeposit],
+          },
+        },
+      });
+
+      const transaction = {
+        nestedTransactions: [
+          { type: TransactionType.perpsDeposit },
+          { type: TransactionType.predictDeposit },
+        ],
+        type: TransactionType.batch,
+      } as TransactionMeta;
+
+      const result = deriveFiatAssetForFiatPayment(transaction, messenger);
+
+      expect(result).toStrictEqual(
+        FIAT_ASSET_ID_BY_TX_TYPE[TransactionType.predictDeposit],
+      );
+    });
+
+    it('falls back to batch type when no nested transaction matches enabled types', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_pay_fiat: {
+            enabledTransactionTypes: [TransactionType.predictDeposit],
+          },
+        },
+      });
+
+      const transaction = {
+        nestedTransactions: [{ type: TransactionType.perpsDeposit }],
+        type: TransactionType.batch,
+      } as TransactionMeta;
+
+      const result = deriveFiatAssetForFiatPayment(transaction, messenger);
+
+      expect(result).toStrictEqual(ETH_MAINNET_FIAT_ASSET);
+    });
   });
 
   describe('resolveSourceAmountRaw', () => {

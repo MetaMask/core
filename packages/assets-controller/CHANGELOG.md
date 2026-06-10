@@ -9,7 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Use `encodeFunctionData` from `@metamask/controller-utils` for improved performance ([#9057](https://github.com/MetaMask/core/pull/9057))
 - Bump `@metamask/transaction-controller` from `^67.0.0` to `^67.1.0` ([#9066](https://github.com/MetaMask/core/pull/9066))
+
+### Removed
+
+- **BREAKING:** Remove `TransactionController:incomingTransactionsReceived` from `AssetsController` allowed events and `RpcDataSourceAllowedEvents`; remove associated balance refresh on incoming transactions ([#9012](https://github.com/MetaMask/core/pull/9012))
 
 ## [8.3.3]
 

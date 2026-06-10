@@ -125,7 +125,6 @@ const setupController = ({
       'AccountActivityService:statusChanged',
       'AccountsController:selectedEvmAccountChange',
       'TransactionController:transactionConfirmed',
-      'TransactionController:incomingTransactionsReceived',
     ],
   });
 
@@ -6383,22 +6382,6 @@ describe('TokenBalancesController', () => {
 
       expect(updateBalancesSpy).toHaveBeenCalledWith({
         chainIds: ['0x1'],
-      });
-    });
-
-    it('should handle TransactionController:incomingTransactionsReceived event', async () => {
-      const { controller, messenger } = setupController();
-      const updateBalancesSpy = jest.spyOn(controller, 'updateBalances');
-
-      messenger.publish('TransactionController:incomingTransactionsReceived', [
-        { chainId: '0x1' },
-        { chainId: '0x89' },
-      ] as unknown as TransactionMeta[]);
-
-      await jest.advanceTimersByTimeAsync(0);
-
-      expect(updateBalancesSpy).toHaveBeenCalledWith({
-        chainIds: ['0x1', '0x89'],
       });
     });
 

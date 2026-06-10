@@ -50,7 +50,9 @@ export const registerIntentsStep: Step = {
     messenger,
     address,
     chainId,
+    boringVaultAddress,
     delegateAddress,
+    musdTokenAddress,
     redeemerEnforcer,
     vedaVaultAdapterAddress,
   }) {
@@ -70,10 +72,17 @@ export const registerIntentsStep: Step = {
       vedaVaultAdapterAddress,
     );
 
+    const configuredTokenAddresses = [musdTokenAddress, boringVaultAddress];
+    const matchesConfiguredToken = (entry: DelegationResponse): boolean =>
+      configuredTokenAddresses.some((tokenAddress) =>
+        equalsIgnoreCase(entry.metadata.tokenAddress, tokenAddress),
+      );
+
     const needsIntent = (entry: DelegationResponse): boolean =>
       equalsIgnoreCase(entry.signedDelegation.delegator, address) &&
       equalsIgnoreCase(entry.signedDelegation.delegate, delegateAddress) &&
       equalsIgnoreCase(entry.metadata.chainIdHex, chainId) &&
+      matchesConfiguredToken(entry) &&
       hasVedaRedeemerCaveat(entry) &&
       !activeIntentHashes.has(entry.metadata.delegationHash.toLowerCase());
 
