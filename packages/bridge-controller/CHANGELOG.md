@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add Stellar support for bridge token flows: `isStellarChainId`, `ChainId.STELLAR`, native XLM metadata, CAIP/decimal formatting aligned with Bridge API, and Stellar pubnet/testnet in `isNonEvmChainId` ([#8829](https://github.com/MetaMask/core/pull/8829))
+- Add `StellarTradeDataSchema`, `StellarTradeData`, and `isStellarTrade`; extend `extractTradeData` to read Stellar XDR from `{ xdrBase64 }` or `{ xdr }` objects ([#8829](https://github.com/MetaMask/core/pull/8829))
+
 ## [75.1.0]
 
 ### Added

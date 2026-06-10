@@ -859,13 +859,13 @@ describe('BridgeController SSE', function () {
           // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
         ).toBeGreaterThan(t2!);
         expect(consoleLogSpy.mock.calls).toMatchInlineSnapshot(`
-        [
-          [
-            "Failed to stream bridge quotes",
-            "Network error",
-          ],
-        ]
-      `);
+                  [
+                    [
+                      "Failed to stream bridge quotes",
+                      "Network error",
+                    ],
+                  ]
+              `);
         expect(hasSufficientBalanceSpy).toHaveBeenCalledTimes(1);
         expect(getLayer1GasFeeMock).toHaveBeenCalledTimes(2);
         expect(trackMetaMetricsFn).toHaveBeenCalledTimes(8);
@@ -1237,22 +1237,24 @@ describe('BridgeController SSE', function () {
           t6!,
         );
         expect(consoleWarnSpy.mock.calls[0]).toMatchInlineSnapshot(`
-        [
-          "Quote validation failed",
           [
-            "lifi|trade",
-            "lifi|trade.chainId",
-            "lifi|trade.to",
-            "lifi|trade.from",
-            "lifi|trade.value",
-            "lifi|trade.data",
-            "lifi|trade.gasLimit",
-            "lifi|trade.unsignedPsbtBase64",
-            "lifi|trade.inputsToSign",
-            "lifi|trade.raw_data_hex",
-          ],
-        ]
-      `);
+            "Quote validation failed",
+            [
+              "lifi|trade",
+              "lifi|trade.chainId",
+              "lifi|trade.to",
+              "lifi|trade.from",
+              "lifi|trade.value",
+              "lifi|trade.data",
+              "lifi|trade.gasLimit",
+              "lifi|trade.unsignedPsbtBase64",
+              "lifi|trade.inputsToSign",
+              "lifi|trade.raw_data_hex",
+              "lifi|trade.xdrBase64",
+              "lifi|trade.xdr",
+            ],
+          ]
+        `);
         // Invalid quote
         jest.advanceTimersByTime(FOURTH_FETCH_DELAY * 3 - 1000);
         await flushPromises();
@@ -1267,21 +1269,21 @@ describe('BridgeController SSE', function () {
         );
         expect(consoleWarnSpy.mock.calls).toHaveLength(3);
         expect(consoleWarnSpy.mock.calls[1]).toMatchInlineSnapshot(`
-        [
-          "Quote validation failed",
-          [
-            "unknown|unknown",
-          ],
-        ]
-      `);
+                  [
+                    "Quote validation failed",
+                    [
+                      "unknown|unknown",
+                    ],
+                  ]
+              `);
         expect(consoleWarnSpy.mock.calls[2]).toMatchInlineSnapshot(`
-        [
-          "Quote validation failed",
-          [
-            "unknown|quote",
-          ],
-        ]
-      `);
+                  [
+                    "Quote validation failed",
+                    [
+                      "unknown|quote",
+                    ],
+                  ]
+              `);
 
         expect(consoleLogSpy).toHaveBeenCalledTimes(1);
         expect(fetchBridgeQuotesSpy).toHaveBeenCalledTimes(5);
@@ -1402,11 +1404,11 @@ describe('BridgeController SSE', function () {
         expect(fetchBridgeQuotesSpy).toHaveBeenCalledTimes(1);
         expect(consoleLogSpy).toHaveBeenCalledTimes(1);
         expect(consoleLogSpy.mock.calls[0]).toMatchInlineSnapshot(`
-        [
-          "Failed to stream bridge quotes",
-          [Error: Bridge-api error: timeout from server],
-        ]
-      `);
+                  [
+                    "Failed to stream bridge quotes",
+                    [Error: Bridge-api error: timeout from server],
+                  ]
+              `);
         expect(hasSufficientBalanceSpy).toHaveBeenCalledTimes(1);
         expect(getLayer1GasFeeMock).toHaveBeenCalledTimes(0);
         // eslint-disable-next-line jest/no-restricted-matchers
