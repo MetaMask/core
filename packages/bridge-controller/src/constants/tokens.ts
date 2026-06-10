@@ -59,6 +59,7 @@ const CURRENCY_SYMBOLS = {
   MON: 'MON',
   HYPE: 'HYPE',
   MEGAETH: 'ETH',
+  ARC: 'USDC',
 } as const;
 
 const ETH_SWAPS_TOKEN_OBJECT = {
@@ -189,6 +190,15 @@ const MEGAETH_SWAPS_TOKEN_OBJECT = {
   ...ETH_SWAPS_TOKEN_OBJECT,
 } as const;
 
+// Leaving for code consistency but we won't display it in the asset picker
+const ARC_SWAPS_TOKEN_OBJECT = {
+  symbol: 'USDC-native',
+  name: 'USDC-native',
+  address: '0x0000000000000000000000000000000000000000',
+  decimals: 18,
+  iconUrl: '',
+} as const;
+
 export const SWAPS_CHAINID_DEFAULT_TOKEN_MAP = {
   [CHAIN_IDS.MAINNET]: ETH_SWAPS_TOKEN_OBJECT,
   [CHAIN_IDS.LOCALHOST]: TEST_ETH_SWAPS_TOKEN_OBJECT,
@@ -206,6 +216,7 @@ export const SWAPS_CHAINID_DEFAULT_TOKEN_MAP = {
   [CHAIN_IDS.MONAD]: MONAD_SWAPS_TOKEN_OBJECT,
   [CHAIN_IDS.HYPEREVM]: HYPEREVM_SWAPS_TOKEN_OBJECT,
   [CHAIN_IDS.MEGAETH]: MEGAETH_SWAPS_TOKEN_OBJECT,
+  [CHAIN_IDS.ARC]: ARC_SWAPS_TOKEN_OBJECT,
   [SolScope.Mainnet]: SOLANA_SWAPS_TOKEN_OBJECT,
   [SolScope.Devnet]: SOLANA_SWAPS_TOKEN_OBJECT,
   [BtcScope.Mainnet]: BTC_SWAPS_TOKEN_OBJECT,
@@ -236,4 +247,6 @@ export const SYMBOL_TO_SLIP44_MAP: Record<
   TRX: 'slip44:195',
   MON: 'slip44:268435779',
   HYPE: 'slip44:2457',
+  // It won't be displayed - hidden on UI client side
+  'USDC-native': 'erc20:0x0000000000000000000000000000000000000000',
 };

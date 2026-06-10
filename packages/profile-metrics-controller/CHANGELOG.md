@@ -15,6 +15,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - The non-EVM snaps are expected to implement a `signProofOfOwnership` JSON-RPC method that validates the message prefix `metamask:proof-of-ownership:` before signing.
   - Add `profileMetricsServiceName` alias for the existing `serviceName` export, to disambiguate it from the new `proofOfOwnershipServiceName`. The original `serviceName` export is unchanged.
 
+### Changed
+
+- Bump `@metamask/transaction-controller` from `^67.0.0` to `^67.1.0` ([#9066](https://github.com/MetaMask/core/pull/9066))
+
 ## [3.2.0]
 
 ### Added

@@ -7,11 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Expose missing `SubscriptionController:stopAllPolling` action through its messenger ([#9061](https://github.com/MetaMask/core/pull/9061))
+  - Corresponding action type is available as well.
+
 ### Changed
 
 - Bump `@metamask/controller-utils` from `^12.0.0` to `^12.1.1` ([#8774](https://github.com/MetaMask/core/pull/8774), [#9058](https://github.com/MetaMask/core/pull/9058))
 - Bump `@metamask/profile-sync-controller` from `^28.0.2` to `^28.1.1` ([#8783](https://github.com/MetaMask/core/pull/8783), [#8912](https://github.com/MetaMask/core/pull/8912))
-- Bump `@metamask/transaction-controller` from `^65.3.0` to `^67.0.0` ([#8796](https://github.com/MetaMask/core/pull/8796), [#8848](https://github.com/MetaMask/core/pull/8848), [#8999](https://github.com/MetaMask/core/pull/8999), [#9021](https://github.com/MetaMask/core/pull/9021), [#9027](https://github.com/MetaMask/core/pull/9027))
+- Bump `@metamask/transaction-controller` from `^65.3.0` to `^67.1.0` ([#8796](https://github.com/MetaMask/core/pull/8796), [#8848](https://github.com/MetaMask/core/pull/8848), [#8999](https://github.com/MetaMask/core/pull/8999), [#9021](https://github.com/MetaMask/core/pull/9021), [#9027](https://github.com/MetaMask/core/pull/9027), [#9066](https://github.com/MetaMask/core/pull/9066))
 - Bump `@metamask/polling-controller` from `^16.0.5` to `^16.0.6` ([#8834](https://github.com/MetaMask/core/pull/8834))
 
 ## [6.1.3]
