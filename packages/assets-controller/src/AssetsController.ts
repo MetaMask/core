@@ -816,8 +816,8 @@ export class AssetsController extends BaseController<
       messenger: this.messenger,
       queryApiClient,
       onActiveChainsUpdated: this.#onActiveChainsUpdated,
-      isNativeAsset: (assetId: Caip19AssetId): boolean =>
-        this.#isNativeAsset(assetId),
+      getAssetType: (assetId: Caip19AssetId): 'native' | 'erc20' | 'spl' =>
+        this.#getAssetType(assetId),
     });
     this.#accountsApiDataSource = new AccountsApiDataSource({
       queryApiClient,
