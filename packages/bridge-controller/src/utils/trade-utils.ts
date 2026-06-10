@@ -13,6 +13,9 @@ export type Trade =
   | TronTradeData
   | StellarTradeData;
 
+const hasOwnProp = (obj: object, key: PropertyKey): boolean =>
+  Object.prototype.hasOwnProperty.call(obj, key);
+
 /**
  * Type guard to check if a trade is an EVM TxData object
  *
@@ -23,9 +26,9 @@ export const isEvmTxData = (trade: Trade): trade is TxData => {
   return (
     typeof trade === 'object' &&
     trade !== null &&
-    'data' in trade &&
-    'chainId' in trade &&
-    'to' in trade
+    hasOwnProp(trade, 'data') &&
+    hasOwnProp(trade, 'chainId') &&
+    hasOwnProp(trade, 'to')
   );
 };
 
@@ -37,7 +40,9 @@ export const isEvmTxData = (trade: Trade): trade is TxData => {
  */
 export const isBitcoinTrade = (trade: Trade): trade is BitcoinTradeData => {
   return (
-    typeof trade === 'object' && trade !== null && 'unsignedPsbtBase64' in trade
+    typeof trade === 'object' &&
+    trade !== null &&
+    hasOwnProp(trade, 'unsignedPsbtBase64')
   );
 };
 
@@ -48,23 +53,33 @@ export const isBitcoinTrade = (trade: Trade): trade is BitcoinTradeData => {
  * @returns True if the trade is a Tron trade with raw_data_hex property
  */
 export const isTronTrade = (trade: Trade): trade is TronTradeData => {
-  return typeof trade === 'object' && trade !== null && 'raw_data_hex' in trade;
+  return (
+    typeof trade === 'object' &&
+    trade !== null &&
+    hasOwnProp(trade, 'raw_data_hex')
+  );
 };
 
 /**
  * Type guard to check if a trade is a Stellar trade with XDR (base64) payload
+ *
+ * @param trade - The trade object to check
+ * @returns True if the trade is a Stellar trade with xdrBase64 or xdr property
  */
 export const isStellarTrade = (trade: Trade): trade is StellarTradeData => {
   if (typeof trade !== 'object' || trade === null) {
     return false;
   }
   if (
-    'xdrBase64' in trade &&
+    hasOwnProp(trade, 'xdrBase64') &&
     typeof (trade as { xdrBase64: unknown }).xdrBase64 === 'string'
   ) {
     return true;
   }
-  if ('xdr' in trade && typeof (trade as { xdr: unknown }).xdr === 'string') {
+  if (
+    hasOwnProp(trade, 'xdr') &&
+    typeof (trade as { xdr: unknown }).xdr === 'string'
+  ) {
     return true;
   }
   return false;
@@ -89,11 +104,10 @@ export const extractTradeData = (trade: Trade): string => {
   }
 
   if (isStellarTrade(trade)) {
-    // Return the xdrBase64 or xdr property of the trade object
-    // This is a workaround to support both the old and new Stellar trade formats
-    return 'xdrBase64' in trade && typeof trade.xdrBase64 === 'string'
-      ? trade.xdrBase64
-      : trade.xdr;
+    if (typeof trade.xdrBase64 === 'string') {
+      return trade.xdrBase64;
+    }
+    return trade.xdr;
   }
 
   if (typeof trade === 'string') {
