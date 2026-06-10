@@ -54,7 +54,7 @@
   },
   "dependencies": {
     "@metamask/base-controller": "^9.1.0",
-    "@metamask/controller-utils": "^12.1.1",
+    "@metamask/controller-utils": "^12.2.0",
     "@metamask/messenger": "^1.2.0",
     "@metamask/utils": "^11.9.0",
     "uuid": "^8.3.2"

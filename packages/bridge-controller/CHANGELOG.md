@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/assets-controller` from `^9.0.0` to `^9.0.1` ([#9083](https://github.com/MetaMask/core/pull/9083))
+- Bump `@metamask/controller-utils` from `^12.1.1` to `^12.2.0` ([#9083](https://github.com/MetaMask/core/pull/9083))
+
+## [75.1.1]
+
+### Changed
+
+- Bump `@metamask/assets-controller` from `^8.3.3` to `^9.0.0` ([#9078](https://github.com/MetaMask/core/pull/9078))
+- Bump `@metamask/assets-controllers` from `^108.6.0` to `^109.0.0` ([#9078](https://github.com/MetaMask/core/pull/9078))
+
 ## [75.1.0]
 
 ### Added
@@ -1591,7 +1603,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#5317](https://github.com/MetaMask/core/pull/5317))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@75.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@75.1.1...HEAD
+[75.1.1]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@75.1.0...@metamask/bridge-controller@75.1.1
 [75.1.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@75.0.0...@metamask/bridge-controller@75.1.0
 [75.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@74.0.0...@metamask/bridge-controller@75.0.0
 [74.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@73.2.1...@metamask/bridge-controller@74.0.0

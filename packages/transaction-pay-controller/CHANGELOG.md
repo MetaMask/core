@@ -9,6 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Bump `@metamask/assets-controller` from `^9.0.0` to `^9.0.1` ([#9083](https://github.com/MetaMask/core/pull/9083))
+- Bump `@metamask/controller-utils` from `^12.1.1` to `^12.2.0` ([#9083](https://github.com/MetaMask/core/pull/9083))
+
+## [23.5.1]
+
+### Changed
+
+- Bump `@metamask/assets-controller` from `^8.3.3` to `^9.0.0` ([#9078](https://github.com/MetaMask/core/pull/9078))
+- Bump `@metamask/assets-controllers` from `^108.6.0` to `^109.0.0` ([#9078](https://github.com/MetaMask/core/pull/9078))
+- Bump `@metamask/bridge-controller` from `^75.1.0` to `^75.1.1` ([#9078](https://github.com/MetaMask/core/pull/9078))
 - Make fiat-eligible transaction types remotely configurable via `confirmations_pay_fiat.enabledTransactionTypes` feature flag ([#9050](https://github.com/MetaMask/core/pull/9050))
 
 ### Fixed
@@ -1039,7 +1049,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#6820](https://github.com/MetaMask/core/pull/6820))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@23.5.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@23.5.1...HEAD
+[23.5.1]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@23.5.0...@metamask/transaction-pay-controller@23.5.1
 [23.5.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@23.4.0...@metamask/transaction-pay-controller@23.5.0
 [23.4.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@23.3.1...@metamask/transaction-pay-controller@23.4.0
 [23.3.1]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@23.3.0...@metamask/transaction-pay-controller@23.3.1
