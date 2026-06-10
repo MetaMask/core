@@ -61,7 +61,7 @@
     "@metamask/network-controller": "^32.0.0",
     "@metamask/slip44": "^4.3.0",
     "@metamask/transaction-controller": "^67.1.0",
-    "@metamask/utils": "^11.9.0",
+    "@metamask/utils": "^11.11.0",
     "reselect": "^5.1.1"
   },
   "devDependencies": {

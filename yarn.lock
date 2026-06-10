@@ -7665,7 +7665,7 @@ __metadata:
     "@metamask/network-controller": "npm:^32.0.0"
     "@metamask/slip44": "npm:^4.3.0"
     "@metamask/transaction-controller": "npm:^67.1.0"
-    "@metamask/utils": "npm:^11.9.0"
+    "@metamask/utils": "npm:^11.11.0"
     "@ts-bridge/cli": "npm:^0.6.4"
     "@types/jest": "npm:^29.5.14"
     deepmerge: "npm:^4.2.2"
