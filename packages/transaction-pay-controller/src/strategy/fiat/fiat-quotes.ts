@@ -147,6 +147,13 @@ export async function getFiatQuotes(
     ];
   } catch (error) {
     log('Failed to fetch fiat quotes', { error, transactionId });
+
+    messenger.call('TransactionPayController:updateFiatPayment', {
+      callback: (fiatPayment) => {
+        fiatPayment.rampsQuote = undefined;
+      },
+      transactionId,
+    });
   }
 
   return [];
