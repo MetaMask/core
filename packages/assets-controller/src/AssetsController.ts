@@ -49,7 +49,6 @@ import type {
   SnapControllerSnapInstalledEvent,
 } from '@metamask/snaps-controllers';
 import type {
-  TransactionControllerIncomingTransactionsReceivedEvent,
   TransactionControllerTransactionConfirmedEvent,
   TransactionControllerUnapprovedTransactionAddedEvent,
   TransactionMeta,
@@ -333,7 +332,6 @@ type AllowedEvents =
   | NetworkControllerNetworkAddedEvent
   | NetworkControllerNetworkRemovedEvent
   | TransactionControllerTransactionConfirmedEvent
-  | TransactionControllerIncomingTransactionsReceivedEvent
   // StakedBalanceDataSource
   | NetworkEnablementControllerEvents
   // SnapDataSource

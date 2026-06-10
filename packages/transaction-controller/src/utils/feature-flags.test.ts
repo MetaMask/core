@@ -21,9 +21,7 @@ import {
   getSubmitHistoryLimit,
   getTransactionHistoryLimit,
   FeatureFlag,
-  getIncomingTransactionsPollingInterval,
   getTimeoutAttempts,
-  isIncomingTransactionsUseBackendWebSocketServiceEnabled,
 } from './feature-flags';
 import { isValidSignature } from './signature';
 
@@ -772,28 +770,6 @@ describe('Feature Flags Utils', () => {
     });
   });
 
-  describe('getIncomingTransactionsPollingInterval', () => {
-    it('returns default value if no feature flags set', () => {
-      mockFeatureFlags({});
-
-      expect(getIncomingTransactionsPollingInterval(controllerMessenger)).toBe(
-        1000 * 60 * 4,
-      );
-    });
-
-    it('returns value from remote feature flag controller', () => {
-      mockFeatureFlags({
-        [FeatureFlag.IncomingTransactions]: {
-          pollingIntervalMs: 5000,
-        },
-      });
-
-      expect(getIncomingTransactionsPollingInterval(controllerMessenger)).toBe(
-        5000,
-      );
-    });
-  });
-
   describe('getTimeoutAttempts', () => {
     it('returns undefined if no feature flags set', () => {
       mockFeatureFlags({});
@@ -865,58 +841,6 @@ describe('Feature Flags Utils', () => {
       });
 
       expect(getTimeoutAttempts(CHAIN_ID_MOCK, controllerMessenger)).toBe(0);
-    });
-  });
-
-  describe('isIncomingTransactionsUseBackendWebSocketServiceEnabled', () => {
-    it('returns true when useBackendWebSocketService is true', () => {
-      mockFeatureFlags({
-        [FeatureFlag.IncomingTransactions]: {
-          useBackendWebSocketService: true,
-        },
-      });
-
-      expect(
-        isIncomingTransactionsUseBackendWebSocketServiceEnabled(
-          controllerMessenger,
-        ),
-      ).toBe(true);
-    });
-
-    it('returns false when useBackendWebSocketService is false', () => {
-      mockFeatureFlags({
-        [FeatureFlag.IncomingTransactions]: {
-          useBackendWebSocketService: false,
-        },
-      });
-
-      expect(
-        isIncomingTransactionsUseBackendWebSocketServiceEnabled(
-          controllerMessenger,
-        ),
-      ).toBe(false);
-    });
-
-    it('returns false when flag is not present', () => {
-      mockFeatureFlags({});
-
-      expect(
-        isIncomingTransactionsUseBackendWebSocketServiceEnabled(
-          controllerMessenger,
-        ),
-      ).toBe(false);
-    });
-
-    it('returns false when useBackendWebSocketService property is not present', () => {
-      mockFeatureFlags({
-        [FeatureFlag.IncomingTransactions]: {},
-      });
-
-      expect(
-        isIncomingTransactionsUseBackendWebSocketServiceEnabled(
-          controllerMessenger,
-        ),
-      ).toBe(false);
     });
   });
 });

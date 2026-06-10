@@ -54,7 +54,7 @@
   },
   "dependencies": {
     "@metamask/messenger": "^1.2.0",
-    "@metamask/utils": "^11.9.0"
+    "@metamask/utils": "^11.11.0"
   },
   "devDependencies": {
     "@metamask/auto-changelog": "^6.1.0",

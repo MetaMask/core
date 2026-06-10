@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/utils` from `^11.9.0` to `^11.11.0` ([#9074](https://github.com/MetaMask/core/pull/9074))
+
+## [23.5.0]
+
+### Changed
+
+- Bump `@metamask/bridge-controller` from `^75.0.0` to `^75.1.0` ([#9072](https://github.com/MetaMask/core/pull/9072))
+
+### Fixed
+
+- Fix request amount used for cases when paymentOverride is defined and also isPostQuote is true ([#9070](https://github.com/MetaMask/core/pull/9070))
+
 ## [23.4.0]
 
 ### Changed
@@ -1021,7 +1035,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#6820](https://github.com/MetaMask/core/pull/6820))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@23.4.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@23.5.0...HEAD
+[23.5.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@23.4.0...@metamask/transaction-pay-controller@23.5.0
 [23.4.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@23.3.1...@metamask/transaction-pay-controller@23.4.0
 [23.3.1]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@23.3.0...@metamask/transaction-pay-controller@23.3.1
 [23.3.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@23.2.0...@metamask/transaction-pay-controller@23.3.0

@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/utils` from `^11.9.0` to `^11.11.0` ([#9074](https://github.com/MetaMask/core/pull/9074))
+- The `state` option of the `AccountsController` constructor is now optional, defaulting to the controller's default state when omitted ([#8924](https://github.com/MetaMask/core/pull/8924))
+
 ## [39.0.1]
 
 ### Changed

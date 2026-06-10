@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **BREAKING:** Add `AccountsController` and `ConnectivityController` as default initialized controllers ([#8924](https://github.com/MetaMask/core/pull/8924))
+  - Passing `instanceOptions.connectivityController.connectivityAdapter` is now required.
+  - Export `AlwaysOnlineAdapter` from the package root for environments without a platform-specific network API (e.g. Node/tests).
+- **BREAKING:** Wire `RemoteFeatureFlagController` into the default wallet initialization ([#8969](https://github.com/MetaMask/core/pull/8969))
+  - The default `Wallet` now constructs a `RemoteFeatureFlagController` and registers its `RemoteFeatureFlagController:*` messenger actions. Consumers that pass their own `messenger` and already wire a `RemoteFeatureFlagController` must remove their own before upgrading, or the duplicate registration will collide.
+  - Adds a required `remoteFeatureFlagController` slot to `instanceOptions`. `clientConfigApiService` is required (each client injects a `ClientConfigApiService` configured for its own client type, distribution, and environment); `getMetaMetricsId`, `clientVersion`, `prevClientVersion`, `fetchInterval`, and `disabled` are optional. `prevClientVersion` lets consumers trigger feature-flag cache invalidation when the client version changes between sessions.
+
+### Changed
+
+- Bump `@metamask/utils` from `^11.9.0` to `^11.11.0` ([#9074](https://github.com/MetaMask/core/pull/9074))
+
 ## [3.0.0]
 
 ### Added
