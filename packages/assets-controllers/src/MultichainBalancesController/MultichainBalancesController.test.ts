@@ -928,7 +928,7 @@ describe('MultichainBalancesController', () => {
       });
     });
 
-    it('enriches extra when accountBalancesUpdated fires on an enrichment-enabled chain', async () => {
+    it('does not enrich extra when accountBalancesUpdated fires', async () => {
       const { controller, messenger, mockSnapHandleRequest } = setupController({
         state: {
           balances: {
@@ -946,24 +946,13 @@ describe('MultichainBalancesController', () => {
         },
       });
 
-      mockSnapHandleRequest.mockImplementation(
-        (params: { handler: string; request?: { method?: string } }) => {
-          if (isGetAccountAssetInfoCall(params)) {
-            return Promise.resolve({
-              [STELLAR_CLASSIC_USDC]: { limit: '1000' },
-            });
-          }
-          return Promise.resolve(mockBalanceResult);
-        },
-      );
-
       await waitForAllPromises();
       mockSnapHandleRequest.mockClear();
 
       messenger.publish('AccountsController:accountBalancesUpdated', {
         balances: {
           [mockStellarAccount.id]: {
-            [STELLAR_CLASSIC_USDC]: { amount: '0', unit: 'USDC' },
+            [STELLAR_CLASSIC_USDC]: { amount: '5', unit: 'USDC' },
           },
         },
       });
@@ -974,7 +963,67 @@ describe('MultichainBalancesController', () => {
         mockSnapHandleRequest.mock.calls.some(([params]) =>
           isGetAccountAssetInfoCall(params),
         ),
-      ).toBe(true);
+      ).toBe(false);
+      expect(
+        controller.state.balances[mockStellarAccount.id][STELLAR_CLASSIC_USDC],
+      ).toStrictEqual({
+        amount: '5',
+        unit: 'USDC',
+        extra: { limit: '0' },
+      });
+    });
+
+    it('enriches refreshed Stellar classics after accountAssetListUpdated', async () => {
+      const { controller, messenger, mockSnapHandleRequest } = setupController({
+        state: {
+          balances: {
+            [mockStellarAccount.id]: {
+              [STELLAR_CLASSIC_USDC]: {
+                amount: '0',
+                unit: 'USDC',
+                extra: { limit: '0' },
+              },
+            },
+          },
+        },
+        mocks: {
+          listMultichainAccounts: [mockStellarAccount],
+          handleRequestReturnValue: {},
+          handleMockGetAssetsState: {
+            accountsAssets: {
+              [mockStellarAccount.id]: [STELLAR_CLASSIC_USDC],
+            },
+          },
+        },
+      });
+
+      mockSnapHandleRequest.mockImplementation(
+        (params: { handler: string; request?: { method?: string } }) => {
+          if (isGetAccountAssetInfoCall(params)) {
+            return Promise.resolve({
+              [STELLAR_CLASSIC_USDC]: { limit: '1000' },
+            });
+          }
+          return Promise.resolve({
+            [STELLAR_CLASSIC_USDC]: { amount: '0', unit: 'USDC' },
+          });
+        },
+      );
+
+      await waitForAllPromises();
+
+      messenger.publish('MultichainAssetsController:accountAssetListUpdated', {
+        assets: {
+          [mockStellarAccount.id]: {
+            added: [],
+            removed: [],
+            refreshed: [STELLAR_CLASSIC_USDC],
+          },
+        },
+      });
+
+      await waitForAllPromises();
+
       expect(
         controller.state.balances[mockStellarAccount.id][STELLAR_CLASSIC_USDC],
       ).toStrictEqual({
@@ -984,7 +1033,7 @@ describe('MultichainBalancesController', () => {
       });
     });
 
-    it('calls getAccountAssetInfo on balance sync for enrichment-enabled chains', async () => {
+    it('does not call getAccountAssetInfo on balance sync', async () => {
       const { messenger, mockSnapHandleRequest } = setupController({
         state: {
           balances: {
@@ -1035,7 +1084,7 @@ describe('MultichainBalancesController', () => {
         mockSnapHandleRequest.mock.calls.some(([params]) =>
           isGetAccountAssetInfoCall(params),
         ),
-      ).toBe(true);
+      ).toBe(false);
     });
   });
 

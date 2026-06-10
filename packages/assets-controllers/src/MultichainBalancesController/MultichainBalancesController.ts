@@ -191,10 +191,11 @@ export class MultichainBalancesController extends BaseController<
       // eslint-disable-next-line @typescript-eslint/no-misused-promises
       async ({ assets }) => {
         const updatedAccountAssets = Object.entries(assets).map(
-          ([accountId, { added, removed }]) => ({
+          ([accountId, { added, removed, refreshed }]) => ({
             accountId,
             added: [...added],
             removed: [...removed],
+            refreshed: refreshed ? [...refreshed] : [],
           }),
         );
 
@@ -208,7 +209,7 @@ export class MultichainBalancesController extends BaseController<
    *
    * The event payload is treated as a delta:
    * - balances for `removed` assets are deleted so stale entries cannot remain
-   * - balances for `added` assets are fetched from the snap and merged in
+   * - balances for `added` and `refreshed` assets are fetched from the snap and merged in
    * - if an added asset is not returned by the snap, a zero placeholder is stored
    *   so the asset can still be represented in state
    *
@@ -219,6 +220,7 @@ export class MultichainBalancesController extends BaseController<
       accountId: string;
       added: CaipAssetType[];
       removed: CaipAssetType[];
+      refreshed: CaipAssetType[];
     }[],
   ): Promise<void> {
     const { isUnlocked } = this.messenger.call('KeyringController:getState');
@@ -228,8 +230,9 @@ export class MultichainBalancesController extends BaseController<
     }
     const balancesToAdd: MultichainBalancesControllerState['balances'] = {};
 
-    for (const { accountId, added } of accounts) {
-      if (added.length === 0) {
+    for (const { accountId, added, refreshed } of accounts) {
+      const assetsToFetch = [...added, ...refreshed];
+      if (assetsToFetch.length === 0) {
         continue;
       }
 
@@ -240,7 +243,11 @@ export class MultichainBalancesController extends BaseController<
         continue;
       }
 
-      const accountBalance = await this.#getBalances(account.id, snapId, added);
+      const accountBalance = await this.#getBalances(
+        account.id,
+        snapId,
+        assetsToFetch,
+      );
       const chainId = account.scopes[0];
 
       const enrichment = chainId
@@ -248,12 +255,12 @@ export class MultichainBalancesController extends BaseController<
             accountId,
             chainId,
             snapId as SnapId,
-            added,
+            assetsToFetch,
           ).catch(() => undefined)
         : undefined;
 
       balancesToAdd[accountId] = buildBalanceRowsWithExtra(
-        added,
+        assetsToFetch,
         accountBalance,
         enrichment,
       );
@@ -424,59 +431,6 @@ export class MultichainBalancesController extends BaseController<
         state.balances[accountId] = mergeAccountBalances(
           state.balances[accountId],
           assetBalances,
-        );
-      }
-    });
-
-    const enrichments: Record<string, GetAccountAssetInfoResponse> = {};
-
-    for (const [accountId, assetBalances] of Object.entries(
-      balanceUpdate.balances,
-    )) {
-      const assetIds: CaipAssetType[] = Object.keys(
-        assetBalances,
-      ) as CaipAssetType[];
-      let account: InternalAccount;
-      try {
-        account = this.#getAccount(accountId);
-      } catch {
-        continue;
-      }
-
-      const chainId = account.scopes[0];
-      const snapId = account.metadata.snap?.id;
-      if (!chainId || !snapId) {
-        continue;
-      }
-
-      const info = await this.#fetchAccountAssetInfo(
-        accountId,
-        chainId,
-        snapId as SnapId,
-        assetIds,
-      );
-      if (info) {
-        enrichments[accountId] = info;
-      }
-    }
-
-    if (Object.keys(enrichments).length === 0) {
-      return;
-    }
-
-    this.update((state: Draft<MultichainBalancesControllerState>) => {
-      for (const [accountId, info] of Object.entries(enrichments)) {
-        if (!state.balances[accountId]) {
-          continue;
-        }
-        state.balances[accountId] = mergeAccountBalances(
-          state.balances[accountId],
-          Object.fromEntries(
-            Object.entries(info).map(([assetId, extra]) => [
-              assetId,
-              { extra },
-            ]),
-          ),
         );
       }
     });
