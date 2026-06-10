@@ -19,6 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Bump `@metamask/controller-utils` from `^12.1.1` to `^12.2.0` ([#9083](https://github.com/MetaMask/core/pull/9083))
 - **BREAKING:** Automatically populate `isRpcFailoverEnabled` using `RemoteFeatureFlagController` ([#9013](https://github.com/MetaMask/core/pull/9013))
   - `NetworkController.init` must now be called to fully initialize the controller.
   - The constructor argument `isRpcFailoverEnabled` is no longer available.
