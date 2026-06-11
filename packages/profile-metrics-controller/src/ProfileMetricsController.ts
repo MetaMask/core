@@ -19,9 +19,9 @@ import { TransactionControllerTransactionSubmittedEvent } from '@metamask/transa
 import { Duration, inMilliseconds } from '@metamask/utils';
 import { Mutex } from 'async-mutex';
 
-import type { ProfileMetricsServiceMethodActions } from '.';
-import type { ProfileMetricsControllerMethodActions } from '.';
+import type { ProfileMetricsControllerMethodActions } from './ProfileMetricsController-method-action-types';
 import type { AccountWithScopes } from './ProfileMetricsService';
+import type { ProfileMetricsServiceMethodActions } from './ProfileMetricsService-method-action-types';
 
 /**
  * The name of the {@link ProfileMetricsController}, used to namespace the
