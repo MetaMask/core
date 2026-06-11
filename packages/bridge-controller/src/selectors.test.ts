@@ -2,10 +2,12 @@ import { getAddress } from '@ethersproject/address';
 import type { MarketDataDetails } from '@metamask/assets-controllers';
 import { toHex } from '@metamask/controller-utils';
 import { SolScope } from '@metamask/keyring-api';
+import { parseCaipAssetType } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
+import { merge } from 'lodash';
 
-import mockQuotesErc20Erc20 from '../tests/mock-quotes-erc20-erc20.json';
-import mockQuotesNativeErc20 from '../tests/mock-quotes-native-erc20.json';
+import { mockBridgeQuotesErc20Erc20V1 } from '../tests/mock-quotes-erc20-erc20';
+import { mockBridgeQuotesNativeErc20V1 } from '../tests/mock-quotes-native-erc20';
 import { DEFAULT_CHAIN_RANKING, ETH_USDT_ADDRESS } from './constants/bridge';
 import type { BridgeAppState } from './selectors';
 import {
@@ -20,14 +22,13 @@ import {
   selectBatchSellQuotes,
   selectBatchSellTrades,
 } from './selectors';
-import { validateQuoteResponse1 } from './validators/quote-response';
 import {
   SortOrder,
   RequestStatus,
   ChainId,
   BridgeAsset,
   NonEvmFees,
-  QuoteResponse,
+  QuoteResponseV1,
 } from './types';
 import { getNativeAssetForChainId, isNativeAddress } from './utils/bridge';
 import {
@@ -37,9 +38,8 @@ import {
   formatChainIdToDec,
   formatChainIdToHex,
 } from './utils/caip-formatters';
-import { BatchSellTransactionType } from './validators';
-import { parseCaipAssetType } from '@metamask/utils';
-import { merge } from 'lodash';
+import { validateQuoteResponseV1 } from './utils/validators';
+import { BatchSellTransactionType } from './utils/validators';
 
 const MOCK_USDC_ADDRESS = '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48';
 const MOCK_MUSD_ADDRESS = '0x12345A7890123456789012345678901234567890';
@@ -408,7 +408,7 @@ describe('Bridge Selectors', () => {
   describe('selectBridgeQuotes', () => {
     const getMockState = (
       chainId: ChainId,
-      quoteOverrides?: Partial<QuoteResponse & NonEvmFees>,
+      quoteOverrides?: Partial<QuoteResponseV1 & NonEvmFees>,
       stateOverrides?: Partial<BridgeAppState>,
     ): BridgeAppState => {
       const decChainId = formatChainIdToDec(chainId);
@@ -476,7 +476,7 @@ describe('Bridge Selectors', () => {
           value: '0x0',
         },
       };
-      validateQuoteResponse1(mockQuote);
+      validateQuoteResponseV1(mockQuote);
 
       return {
         quotes: [
@@ -653,7 +653,7 @@ describe('Bridge Selectors', () => {
         ...mockState.quotes[1],
         ...expectedQuoteMetadata,
       };
-      validateQuoteResponse1(quoteResponseV1);
+      validateQuoteResponseV1(quoteResponseV1);
 
       expect(result.sortedQuotes[0]).toStrictEqual(quoteResponseV1);
       expect(result.sortedQuotes[0].cost?.valueInCurrency).toBe('-419.985546');
@@ -768,7 +768,7 @@ describe('Bridge Selectors', () => {
         ...mockState.quotes[1],
         ...expectedActiveQuote,
       };
-      validateQuoteResponse1(quoteResponseV1);
+      validateQuoteResponseV1(quoteResponseV1);
 
       expect(result.sortedQuotes[0]).toStrictEqual(quoteResponseV1);
       expect(result.sortedQuotes[0]?.cost?.valueInCurrency).toBeNull();
@@ -863,7 +863,7 @@ describe('Bridge Selectors', () => {
         ...quotesWithPriceImpact[1],
         ...expectedQuoteMetadata,
       };
-      validateQuoteResponse1(quoteResponseV1);
+      validateQuoteResponseV1(quoteResponseV1);
 
       expect(result.recommendedQuote?.quote.priceData?.priceImpact).toBe(
         '-0.02',
@@ -1020,7 +1020,7 @@ describe('Bridge Selectors', () => {
               : '0x0',
           },
         };
-        validateQuoteResponse1(quoteResponse);
+        validateQuoteResponseV1(quoteResponse);
         const mockState = getMockState(1);
         return {
           ...getMockState(gasEstimatesChainId ?? chainId),
@@ -1121,7 +1121,7 @@ describe('Bridge Selectors', () => {
           ...newState.quotes[0],
           ...expectedQuoteMetadata,
         };
-        validateQuoteResponse1(quoteResponseV1);
+        validateQuoteResponseV1(quoteResponseV1);
         expect(sortedQuotes[0]).toStrictEqual(quoteResponseV1);
       });
 
@@ -1207,7 +1207,7 @@ describe('Bridge Selectors', () => {
           ...newState.quotes[0],
           ...expectedQuoteMetadata,
         };
-        validateQuoteResponse1(quoteResponseV1);
+        validateQuoteResponseV1(quoteResponseV1);
         expect(sortedQuotes[0]).toStrictEqual(quoteResponseV1);
       });
 
@@ -1296,7 +1296,7 @@ describe('Bridge Selectors', () => {
           ...newState.quotes[0],
           ...expectedQuoteMetadata,
         };
-        validateQuoteResponse1(quoteResponseV1);
+        validateQuoteResponseV1(quoteResponseV1);
         expect(sortedQuotes[0]).toStrictEqual(quoteResponseV1);
       });
 
@@ -1398,7 +1398,7 @@ describe('Bridge Selectors', () => {
           ...newState.quotes[0],
           ...expectedQuoteMetadata,
         };
-        validateQuoteResponse1(quoteResponseV1);
+        validateQuoteResponseV1(quoteResponseV1);
         expect(sortedQuotes[0]).toStrictEqual(quoteResponseV1);
       });
 
@@ -1501,7 +1501,7 @@ describe('Bridge Selectors', () => {
           ...newState.quotes[0],
           ...expectedQuoteMetadata,
         };
-        validateQuoteResponse1(quoteResponseV1);
+        validateQuoteResponseV1(quoteResponseV1);
         expect(sortedQuotes[0]).toStrictEqual(quoteResponseV1);
       });
 
@@ -1605,7 +1605,7 @@ describe('Bridge Selectors', () => {
           ...newState.quotes[0],
           ...expectedQuoteMetadata,
         };
-        validateQuoteResponse1(quoteResponseV1);
+        validateQuoteResponseV1(quoteResponseV1);
         expect(sortedQuotes[0]).toStrictEqual(quoteResponseV1);
       });
     });
@@ -1846,7 +1846,7 @@ describe('Bridge Selectors', () => {
       };
       const solanaQuote = solanaState.quotes[1];
       const quoteResponseV1 = { ...solanaQuote, ...expectedQuoteMetadata };
-      validateQuoteResponse1(quoteResponseV1);
+      validateQuoteResponseV1(quoteResponseV1);
       expect(result.recommendedQuote).toStrictEqual(quoteResponseV1);
     });
   });
@@ -1855,11 +1855,11 @@ describe('Bridge Selectors', () => {
     const getMockState = (chainId: string): BridgeAppState =>
       ({
         quotes: [
-          ...mockQuotesErc20Erc20.map((quote) => ({
+          ...mockBridgeQuotesErc20Erc20V1.map((quote) => ({
             ...quote,
             quoteRequestIndex: 1,
           })),
-          ...mockQuotesNativeErc20.map((quote) => ({
+          ...mockBridgeQuotesNativeErc20V1.map((quote) => ({
             ...quote,
             quoteRequestIndex: 0,
           })),
@@ -2036,11 +2036,11 @@ describe('Bridge Selectors', () => {
     const getMockState = (chainId: string): BridgeAppState =>
       ({
         quotes: [
-          ...mockQuotesErc20Erc20.map((quote) => ({
+          ...mockBridgeQuotesErc20Erc20V1.map((quote) => ({
             ...quote,
             quoteRequestIndex: 1,
           })),
-          ...mockQuotesNativeErc20.map((quote) => ({
+          ...mockBridgeQuotesNativeErc20V1.map((quote) => ({
             ...quote,
             quoteRequestIndex: 0,
           })),

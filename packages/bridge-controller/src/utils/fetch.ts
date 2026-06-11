@@ -3,7 +3,7 @@ import { StructError } from '@metamask/superstruct';
 import type { CaipAssetType, CaipChainId, Hex } from '@metamask/utils';
 
 import type {
-  QuoteResponse,
+  QuoteResponseV1,
   FetchFunction,
   GenericQuoteRequest,
   QuoteRequest,
@@ -23,7 +23,7 @@ import {
 import { fetchServerEvents } from './fetch-server-events';
 import { isEvmTxData } from './trade-utils';
 import {
-  validateQuoteResponse,
+  validateQuoteResponseV1,
   validateSwapsTokenObject,
   validateTokenFeature,
   validateQuoteStreamComplete,
@@ -160,7 +160,7 @@ export async function fetchBridgeQuotes(
   featureId: FeatureId | null,
   clientVersion?: string,
 ): Promise<{
-  quotes: QuoteResponse[];
+  quotes: QuoteResponseV1[];
   validationFailures: string[];
 }> {
   const normalizedRequest = formatQuoteRequest(request);
@@ -174,17 +174,17 @@ export async function fetchBridgeQuotes(
 
   const uniqueValidationFailures: Set<string> = new Set<string>([]);
   const filteredQuotes = quotes
-    .filter((quoteResponse: unknown): quoteResponse is QuoteResponse => {
+    .filter((quoteResponse: unknown): quoteResponse is QuoteResponseV1 => {
       try {
-        return validateQuoteResponse(quoteResponse);
+        return validateQuoteResponseV1(quoteResponse);
       } catch (error) {
         if (error instanceof StructError) {
           error.failures().forEach(({ branch, path }) => {
             const aggregatorId =
               branch?.[0]?.quote?.bridgeId ??
               branch?.[0]?.quote?.bridges?.[0] ??
-              (quoteResponse as QuoteResponse)?.quote?.bridgeId ??
-              (quoteResponse as QuoteResponse)?.quote?.bridges?.[0] ??
+              (quoteResponse as QuoteResponseV1)?.quote?.bridgeId ??
+              (quoteResponse as QuoteResponseV1)?.quote?.bridges?.[0] ??
               'unknown';
             const pathString = path?.join('.') || 'unknown';
             uniqueValidationFailures.add([aggregatorId, pathString].join('|'));
@@ -316,7 +316,7 @@ const getQuoteRequestId = ({
 const getQuoteResponseId = ({
   srcAsset: { address: srcTokenAddress, chainId: srcChainId },
   destAsset: { address: destTokenAddress, chainId: destChainId },
-}: QuoteResponse['quote']): string =>
+}: QuoteResponseV1['quote']): string =>
   `${formatAddressToAssetId(srcTokenAddress, srcChainId)}-${formatAddressToAssetId(destTokenAddress, destChainId)}`;
 
 /**
@@ -349,7 +349,7 @@ export async function fetchBridgeQuoteStream(
   serverEventHandlers: {
     onClose: () => void | Promise<void>;
     onQuoteValidationFailure: (validationFailures: string[]) => void;
-    onValidQuoteReceived: (quotes: QuoteResponse) => Promise<void>;
+    onValidQuoteReceived: (quotes: QuoteResponseV1) => Promise<void>;
     onTokenWarning: (warning: TokenFeature) => void;
     onComplete: (data: QuoteStreamCompleteData) => void;
   },
@@ -369,7 +369,7 @@ export async function fetchBridgeQuoteStream(
     const uniqueValidationFailures: Set<string> = new Set<string>([]);
 
     try {
-      if (validateQuoteResponse(quoteResponse)) {
+      if (validateQuoteResponseV1(quoteResponse)) {
         // Fallback to 0 if the quote doesn't match any requests
         const matchedQuoteRequestIdx = Math.max(
           quoteRequestIds?.findIndex((id) => {
@@ -404,8 +404,8 @@ export async function fetchBridgeQuoteStream(
           const aggregatorId =
             branch?.[0]?.quote?.bridgeId ??
             branch?.[0]?.quote?.bridges?.[0] ??
-            (quoteResponse as QuoteResponse)?.quote?.bridgeId ??
-            ((quoteResponse as QuoteResponse)?.quote?.bridges?.[0] ||
+            (quoteResponse as QuoteResponseV1)?.quote?.bridgeId ??
+            ((quoteResponse as QuoteResponseV1)?.quote?.bridges?.[0] ||
               ('unknown' as string));
           const pathString = path?.join('.') || 'unknown';
           uniqueValidationFailures.add([aggregatorId, pathString].join('|'));
@@ -497,11 +497,11 @@ export async function fetchBridgeQuoteStream(
 }
 
 export const formatBatchSellTradesRequest = (
-  quotes: (QuoteResponse | null)[],
+  quotes: (QuoteResponseV1 | null)[],
   stxEnabled: boolean,
 ): BatchSellTradesRequest => ({
   quotes: quotes
-    .filter((quote): quote is QuoteResponse => quote !== null)
+    .filter((quote): quote is QuoteResponseV1 => quote !== null)
     .map(
       ({
         trade,
@@ -534,7 +534,7 @@ export const formatBatchSellTradesRequest = (
  * @returns The batch sell trades and the total network fee
  */
 export async function fetchBatchSellTrades(
-  quotes: (QuoteResponse | null)[],
+  quotes: (QuoteResponseV1 | null)[],
   stxEnabled: boolean,
   signal: AbortSignal | null,
   clientId: string,
