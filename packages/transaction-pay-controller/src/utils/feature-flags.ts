@@ -28,6 +28,8 @@ type StrategyOrder = TransactionPayStrategy[];
 
 export const DEFAULT_FEE_RESERVE_MULTIPLIER = 1.2;
 export const DEFAULT_MAX_RATE_DRIFT_PERCENT = 10;
+export const DEFAULT_ORDER_POLL_INTERVAL_MS = 1000;
+export const DEFAULT_ORDER_POLL_TIMEOUT_MS = 10 * 60 * 1000;
 
 export const DEFAULT_GAS_BUFFER = 1.0;
 export const DEFAULT_FALLBACK_GAS_ESTIMATE = 900000;
@@ -98,6 +100,8 @@ type FiatFlags = {
   enabledTransactionTypes: TransactionType[];
   feeReserveMultiplier?: number;
   maxRateDriftPercent?: number;
+  orderPollIntervalMs?: number;
+  orderPollTimeoutMs?: number;
 };
 
 type StrategyRoutingConfig = {
@@ -892,6 +896,54 @@ export function getFiatMaxRateDriftPercent(
   return typeof maxDrift === 'number' && maxDrift > 0
     ? maxDrift
     : DEFAULT_MAX_RATE_DRIFT_PERCENT;
+}
+
+/**
+ * Returns the fiat order poll interval in milliseconds.
+ *
+ * Controls how frequently the fiat order status is polled during
+ * the on-ramp completion wait loop. Defaults to 1 000 ms.
+ *
+ * @param messenger - Controller messenger.
+ * @returns The poll interval in milliseconds.
+ */
+export function getFiatOrderPollIntervalMs(
+  messenger: TransactionPayControllerMessenger,
+): number {
+  const state = messenger.call('RemoteFeatureFlagController:getState');
+  const fiatFlags = state.remoteFeatureFlags?.confirmations_pay_fiat as
+    | FiatFlags
+    | undefined;
+
+  const interval = fiatFlags?.orderPollIntervalMs;
+
+  return typeof interval === 'number' && interval > 0
+    ? interval
+    : DEFAULT_ORDER_POLL_INTERVAL_MS;
+}
+
+/**
+ * Returns the fiat order poll timeout in milliseconds.
+ *
+ * Controls how long the fiat order polling loop waits for a terminal
+ * status before timing out. Defaults to 600 000 ms (10 minutes).
+ *
+ * @param messenger - Controller messenger.
+ * @returns The poll timeout in milliseconds.
+ */
+export function getFiatOrderPollTimeoutMs(
+  messenger: TransactionPayControllerMessenger,
+): number {
+  const state = messenger.call('RemoteFeatureFlagController:getState');
+  const fiatFlags = state.remoteFeatureFlags?.confirmations_pay_fiat as
+    | FiatFlags
+    | undefined;
+
+  const timeout = fiatFlags?.orderPollTimeoutMs;
+
+  return typeof timeout === 'number' && timeout > 0
+    ? timeout
+    : DEFAULT_ORDER_POLL_TIMEOUT_MS;
 }
 
 /**

@@ -14,6 +14,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `SnapAccountProvider.deleteAccount(id)` resolves the account's address and forwards to the legacy `SnapKeyring.removeAccount(address)` so that the snap and the host keyring stay in sync.
   - `AccountProviderWrapper.deleteAccount(id)` forwards unconditionally so that wallet-removal flows can clean up snap-backed accounts even when the wrapper has been disabled.
   - Added a public `unwrap` method on `AccountProviderWrapper`. This is an escape hatch for cleanup flows (e.g. wallet removal) that need to enumerate the underlying provider's accounts regardless of enabled state, since `getAccounts()` still returns `[]` when the wrapper is disabled.
+- Add `isAligned` ([#9039](https://github.com/MetaMask/core/pull/9039))
+  - This allows callers to cheaply check whether alignment has already occurred before triggering an explicit alignment operation.
 
 ### Changed
 
@@ -21,6 +23,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - The method now iterates every account belonging to the wallet and dispatches `provider.deleteAccount(account.id)` to the matching provider, instead of only removing a single EVM address.
   - For wrapped providers, enumeration uses the underlying provider so snap-backed accounts are still deleted when basic functionality is off (the wrapper's `getAccounts()` returns `[]` when disabled). Without this, snap-backed accounts would be orphaned in their underlying keyrings.
   - Per-account deletions are best-effort: a single account's failure does not abort cleanup of the remaining accounts. If one or more deletions fail, a single aggregated error is reported via the messenger's `captureException` with the per-account failure details (`provider`, `accountId`, error message, stack) in its `context`. The wallet is always removed from the service's internal map at the end.
+- Bump `@metamask/utils` from `^11.9.0` to `^11.11.0` ([#9074](https://github.com/MetaMask/core/pull/9074))
 - Bump `@metamask/controller-utils` from `^12.1.1` to `^12.2.0` ([#9083](https://github.com/MetaMask/core/pull/9083))
 
 ## [10.0.3]
@@ -51,7 +54,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - **BREAKING:** The service messenger now requires the `SnapAccountService:ensureReady` action to be declared ([#8715](https://github.com/MetaMask/core/pull/8715))
-- **BREAKING:** Delegate Snap platform readiness to `@metamask/snap-account-service` ([#8715](https://github.com/MetaMask/core/pull/8715)), ([#8752](https://github.com/MetaMask/core/pull/8752))
+- **BREAKING:** Delegate Snap platform readiness to `@metamask/snap-account-service` ([#8715](https://github.com/MetaMask/core/pull/8715), [#8752](https://github.com/MetaMask/core/pull/8752))
   - Removed `MultichainAccountService.ensureCanUseSnapPlatform()` method and the corresponding `MultichainAccountService:ensureCanUseSnapPlatform` messenger action.
   - Removed the `MultichainAccountServiceEnsureCanUseSnapPlatformAction` type export.
   - Removed `MultichainAccountServiceOptions.ensureOnboardingComplete`. Configure it via `SnapAccountService`'s `config.snapPlatformWatcher.ensureOnboardingComplete` instead.

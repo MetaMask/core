@@ -122,6 +122,26 @@ export class AccountProviderWrapper extends BaseBip44AccountProvider {
   }
 
   /**
+   * Returns true immediately when disabled (a disabled provider is considered
+   * aligned by definition). Delegates to the wrapped provider otherwise.
+   *
+   * @param context - The entropy source and group index to check.
+   * @param context.entropySource - The entropy source to check against.
+   * @param context.groupIndex - The group index to check against.
+   * @param accountIds - Account IDs pre-filtered by the caller.
+   * @returns Whether the provider is aligned for the given context.
+   */
+  override isAligned(
+    context: { entropySource: EntropySourceId; groupIndex: number },
+    accountIds: Bip44Account<KeyringAccount>['id'][],
+  ): boolean {
+    if (!this.isEnabled) {
+      return true;
+    }
+    return this.provider.isAligned(context, accountIds);
+  }
+
+  /**
    * Implement abstract method: Check if account is compatible.
    * Delegates directly to wrapped provider - no runtime checks needed!
    *

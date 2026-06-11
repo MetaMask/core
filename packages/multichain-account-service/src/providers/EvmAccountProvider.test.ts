@@ -828,6 +828,7 @@ describe('EvmAccountProvider', () => {
     expect(await provider.resyncAccounts()).toBeUndefined();
   });
 
+<<<<<<< HEAD
   describe('deleteAccount', () => {
     it('selects the keyring by the account entropy source and calls keyring.deleteAccount', async () => {
       const { provider, keyring, messenger } = setup({
@@ -863,6 +864,52 @@ describe('EvmAccountProvider', () => {
       await expect(provider.deleteAccount('unknown-id')).rejects.toThrow(
         'Unable to find account: unknown-id',
       );
+=======
+  describe('isAligned', () => {
+    it('returns true when accountIds is non-empty and every ID is owned by the provider', () => {
+      const { provider } = setup();
+      const accountId = 'test-account-id';
+      provider.init([accountId]);
+
+      expect(
+        provider.isAligned({ entropySource: 'es1', groupIndex: 0 }, [
+          accountId,
+        ]),
+      ).toBe(true);
+    });
+
+    it('returns false when accountIds is empty', () => {
+      const { provider } = setup();
+      provider.init(['some-account-id']);
+
+      expect(
+        provider.isAligned({ entropySource: 'es1', groupIndex: 0 }, []),
+      ).toBe(false);
+    });
+
+    it('returns false when an accountId is not owned by the provider', () => {
+      const { provider } = setup();
+      provider.init(['owned-id']);
+
+      expect(
+        provider.isAligned({ entropySource: 'es1', groupIndex: 0 }, [
+          'unknown-id',
+        ]),
+      ).toBe(false);
+    });
+
+    it('returns false when only some accountIds are owned by the provider', () => {
+      const { provider } = setup();
+      const ownedId = 'owned-id';
+      provider.init([ownedId]);
+
+      expect(
+        provider.isAligned({ entropySource: 'es1', groupIndex: 0 }, [
+          ownedId,
+          'unknown-id',
+        ]),
+      ).toBe(false);
+>>>>>>> origin/main
     });
   });
 });
