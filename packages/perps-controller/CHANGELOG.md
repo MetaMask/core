@@ -17,6 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - `rankMarketsByQuery`, `getMarketMatchRank`, and `filterMarketsByQuery` now also match a market's optional annotation `keywords` — the ranked helpers using the same exact/prefix/substring tiers as `symbol` and `name`, and `filterMarketsByQuery` by the same case-insensitive substring match — so the ranked and unranked search stay aligned ([#9086](https://github.com/MetaMask/core/pull/9086))
 - Add an optional `keywords?: string[]` field to `PerpsMarketData` and an optional `assetKeywords` parameter to `transformMarketData`, both additive (existing callers and consumers are unaffected) ([#9086](https://github.com/MetaMask/core/pull/9086))
+- Bump `@metamask/utils` from `^11.9.0` to `^11.11.0` ([#9074](https://github.com/MetaMask/core/pull/9074))
 
 ## [8.1.0]
 
