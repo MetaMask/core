@@ -1,23 +1,22 @@
-/* eslint-disable @typescript-eslint/explicit-function-return-type */
 import {
   convertHexToDecimal,
   toHex,
   weiHexToGweiDec,
 } from '@metamask/controller-utils';
+import { KnownCaipNamespace } from '@metamask/utils';
+/* eslint-disable @typescript-eslint/explicit-function-return-type */
 import { BigNumber } from 'bignumber.js';
 
 import type {
-  BridgeAsset,
   ExchangeRate,
   GenericQuoteRequest,
   L1GasFees,
-  Quote,
-  QuoteMetadata,
-  QuoteResponseV1,
   NonEvmFees,
 } from '../types';
+import type { BridgeAssetV2 } from '../validators/bridge-asset';
 import { FeatureId } from '../validators/feature-flags';
-import type { TxData } from '../validators/trade';
+import type { QuoteResponseV1 } from '../validators/quote-response';
+import type { QuoteResponse } from '../validators/quote-response-v2';
 import { isNativeAddress, isNonEvmChainId } from './bridge';
 
 export const isValidQuoteRequest = (
@@ -92,6 +91,8 @@ export const isValidBatchSellQuoteRequest = (
 /**
  * Generates a pseudo-unique string that identifies each quote by aggregator, bridge, and steps
  *
+ * @deprecated No longer used
+ *
  * @param quote - The quote to generate an identifier for
  * @returns A pseudo-unique string that identifies the quote
  */
@@ -103,8 +104,13 @@ const calcTokenAmount = (value: string | BigNumber, decimals: number) => {
   return new BigNumber(value).div(divisor);
 };
 
+export const calcTokenValue = (value: string | BigNumber, decimals: number) => {
+  const divisor = new BigNumber(10).pow(decimals ?? 0);
+  return new BigNumber(value).times(divisor).toFixed();
+};
+
 export const calcNonEvmTotalNetworkFee = (
-  bridgeQuote: QuoteResponseV1 & NonEvmFees,
+  bridgeQuote: QuoteResponse & NonEvmFees,
   { exchangeRate, usdExchangeRate }: ExchangeRate,
 ) => {
   const { nonEvmFeesInNative } = bridgeQuote;
@@ -112,17 +118,17 @@ export const calcNonEvmTotalNetworkFee = (
   const feeInNative = new BigNumber(nonEvmFeesInNative ?? '0');
 
   return {
-    amount: feeInNative.toString(),
+    amount: feeInNative.toFixed(),
     valueInCurrency: exchangeRate
-      ? feeInNative.times(exchangeRate).toString()
+      ? feeInNative.times(exchangeRate).toFixed()
       : null,
-    usd: usdExchangeRate ? feeInNative.times(usdExchangeRate).toString() : null,
+    usd: usdExchangeRate ? feeInNative.times(usdExchangeRate).toFixed() : null,
   };
 };
 
 export const calcToAmount = (
   destTokenAmount: string,
-  destAsset: BridgeAsset,
+  destAsset: BridgeAssetV2,
   { exchangeRate, usdExchangeRate }: ExchangeRate,
 ) => {
   const normalizedDestAmount = calcTokenAmount(
@@ -130,18 +136,22 @@ export const calcToAmount = (
     destAsset.decimals,
   );
   return {
-    amount: normalizedDestAmount.toString(),
+    amount: normalizedDestAmount.toFixed(),
     valueInCurrency: exchangeRate
-      ? normalizedDestAmount.times(exchangeRate).toString()
+      ? normalizedDestAmount.times(exchangeRate).toFixed()
       : null,
     usd: usdExchangeRate
-      ? normalizedDestAmount.times(usdExchangeRate).toString()
+      ? normalizedDestAmount.times(usdExchangeRate).toFixed()
       : null,
   };
 };
 
 export const calcSentAmount = (
-  { srcTokenAmount, srcAsset, feeData, intent }: Quote,
+  {
+    src: { amount: srcTokenAmount, asset: srcAsset },
+    feeData,
+    intent,
+  }: QuoteResponse['quote'],
   { exchangeRate, usdExchangeRate }: ExchangeRate,
 ) => {
   // For intent-based swaps (e.g. CoW Protocol), srcTokenAmount is the total
@@ -152,6 +162,7 @@ export const calcSentAmount = (
   const sentAmount = intent
     ? new BigNumber(srcTokenAmount)
     : Object.values(feeData)
+        .flat()
         .filter((fee) => fee?.amount && fee.asset?.assetId === srcAsset.assetId)
         .reduce(
           (acc, { amount }) => acc.plus(amount),
@@ -159,37 +170,38 @@ export const calcSentAmount = (
         );
   const normalizedSentAmount = calcTokenAmount(sentAmount, srcAsset.decimals);
   return {
-    amount: normalizedSentAmount.toString(),
+    amount: normalizedSentAmount.toFixed(),
     valueInCurrency: exchangeRate
-      ? normalizedSentAmount.times(exchangeRate).toString()
+      ? normalizedSentAmount.times(exchangeRate).toFixed()
       : null,
     usd: usdExchangeRate
-      ? normalizedSentAmount.times(usdExchangeRate).toString()
+      ? normalizedSentAmount.times(usdExchangeRate).toFixed()
       : null,
   };
 };
 
 export const calcBatchFees = (
   amount: string,
-  asset: BridgeAsset,
+  asset: BridgeAssetV2,
   { exchangeRate, usdExchangeRate }: ExchangeRate,
 ) => {
   const normalizedAmount = calcTokenAmount(amount, asset.decimals);
 
   return {
-    amount: normalizedAmount.toString(),
+    amount,
+    normalizedAmount: normalizedAmount.toFixed(),
     valueInCurrency: exchangeRate
-      ? normalizedAmount.times(exchangeRate).toString()
+      ? normalizedAmount.times(exchangeRate).toFixed()
       : null,
     usd: usdExchangeRate
-      ? normalizedAmount.times(usdExchangeRate).toString()
+      ? normalizedAmount.times(usdExchangeRate).toFixed()
       : null,
     asset,
   };
 };
 
 export const calcRelayerFee = (
-  quoteResponse: QuoteResponseV1<TxData, TxData>,
+  quoteResponse: QuoteResponse & { namespace: KnownCaipNamespace.Eip155 },
   { exchangeRate, usdExchangeRate }: ExchangeRate,
 ) => {
   const { quote, trade } = quoteResponse;
@@ -197,9 +209,12 @@ export const calcRelayerFee = (
     convertHexToDecimal(trade.value || '0x0'),
   );
   let relayerFeeInNative = calcTokenAmount(relayerFeeAmount, 18);
+  if (relayerFeeInNative.lte(0)) {
+    return { amount: '0', valueInCurrency: '0', usd: '0' };
+  }
 
   // Subtract srcAmount and other fees from trade value if srcAsset is native
-  if (isNativeAddress(quote.srcAsset.address)) {
+  if (isNativeAddress(quote.src.asset.assetId)) {
     const sentAmountInNative = calcSentAmount(quote, {
       exchangeRate,
       usdExchangeRate,
@@ -208,11 +223,13 @@ export const calcRelayerFee = (
   }
 
   return {
-    amount: relayerFeeInNative,
+    amount: relayerFeeInNative.toFixed(),
     valueInCurrency: exchangeRate
-      ? relayerFeeInNative.times(exchangeRate)
+      ? relayerFeeInNative.times(exchangeRate).toFixed()
       : null,
-    usd: usdExchangeRate ? relayerFeeInNative.times(usdExchangeRate) : null,
+    usd: usdExchangeRate
+      ? relayerFeeInNative.times(usdExchangeRate).toFixed()
+      : null,
   };
 };
 
@@ -251,9 +268,9 @@ const calcTotalGasFee = ({
     : null;
 
   return {
-    amount: gasFeesInDecEth.toString(),
-    valueInCurrency: gasFeesInDisplayCurrency?.toString() ?? null,
-    usd: gasFeesInUSD?.toString() ?? null,
+    amount: gasFeesInDecEth.toFixed(),
+    valueInCurrency: gasFeesInDisplayCurrency?.toFixed() ?? null,
+    usd: gasFeesInUSD?.toFixed() ?? null,
   };
 };
 
@@ -264,10 +281,12 @@ export const calcEstimatedAndMaxTotalGasFee = ({
   exchangeRate: nativeToDisplayCurrencyExchangeRate,
   usdExchangeRate: nativeToUsdExchangeRate,
 }: {
-  bridgeQuote: QuoteResponseV1<TxData, TxData> & L1GasFees;
+  bridgeQuote: QuoteResponse & {
+    namespace: KnownCaipNamespace.Eip155;
+  } & L1GasFees;
   maxFeePerGasInDecGwei?: string;
   feePerGasInDecGwei?: string;
-} & ExchangeRate): QuoteMetadata['gasFee'] => {
+} & ExchangeRate) => {
   // Estimated gas fees spent after receiving refunds, this is shown to the user
   const {
     amount: amountEffective,
@@ -345,16 +364,14 @@ export const calcTotalEstimatedNetworkFee = (
   return {
     amount: new BigNumber(gasFeeToDisplay?.amount ?? '0')
       .plus(relayerFee.amount)
-      .toString(),
+      .toFixed(),
     valueInCurrency: gasFeeToDisplay?.valueInCurrency
       ? new BigNumber(gasFeeToDisplay.valueInCurrency)
           .plus(relayerFee.valueInCurrency ?? '0')
-          .toString()
+          .toFixed()
       : null,
     usd: gasFeeToDisplay?.usd
-      ? new BigNumber(gasFeeToDisplay.usd)
-          .plus(relayerFee.usd ?? '0')
-          .toString()
+      ? new BigNumber(gasFeeToDisplay.usd).plus(relayerFee.usd ?? '0').toFixed()
       : null,
   };
 };
@@ -364,21 +381,26 @@ export const calcTotalMaxNetworkFee = (
   relayerFee: ReturnType<typeof calcRelayerFee>,
 ) => {
   return {
-    amount: new BigNumber(gasFee.max.amount).plus(relayerFee.amount).toString(),
+    amount: new BigNumber(gasFee.max.amount).plus(relayerFee.amount).toFixed(),
     valueInCurrency: gasFee.max.valueInCurrency
       ? new BigNumber(gasFee.max.valueInCurrency)
           .plus(relayerFee.valueInCurrency ?? '0')
-          .toString()
+          .toFixed()
       : null,
     usd: gasFee.max.usd
-      ? new BigNumber(gasFee.max.usd).plus(relayerFee.usd ?? '0').toString()
+      ? new BigNumber(gasFee.max.usd).plus(relayerFee.usd ?? '0').toFixed()
       : null,
   };
 };
 
 // Gas is included for some swap quotes and this is the value displayed in the client
 export const calcIncludedTxFees = (
-  { gasIncluded, gasIncluded7702, srcAsset, feeData: { txFee } }: Quote,
+  {
+    gasIncluded,
+    gasIncluded7702,
+    src: { asset: srcAsset },
+    feeData: { txFee },
+  }: QuoteResponse['quote'],
   srcTokenExchangeRate: ExchangeRate,
   destTokenExchangeRate: ExchangeRate,
 ) => {
@@ -387,21 +409,21 @@ export const calcIncludedTxFees = (
   }
   // Use exchange rate of the token that is being used to pay for the transaction
   const { exchangeRate, usdExchangeRate } =
-    txFee.asset.assetId === srcAsset.assetId
+    txFee[0].asset.assetId === srcAsset.assetId
       ? srcTokenExchangeRate
       : destTokenExchangeRate;
   const normalizedTxFeeAmount = calcTokenAmount(
-    txFee.amount,
-    txFee.asset.decimals,
+    txFee[0].amount,
+    txFee[0].asset.decimals,
   );
 
   return {
-    amount: normalizedTxFeeAmount.toString(),
+    amount: normalizedTxFeeAmount.toFixed(),
     valueInCurrency: exchangeRate
-      ? normalizedTxFeeAmount.times(exchangeRate).toString()
+      ? normalizedTxFeeAmount.times(exchangeRate).toFixed()
       : null,
     usd: usdExchangeRate
-      ? normalizedTxFeeAmount.times(usdExchangeRate).toString()
+      ? normalizedTxFeeAmount.times(usdExchangeRate).toFixed()
       : null,
   };
 };
@@ -409,10 +431,15 @@ export const calcIncludedTxFees = (
 export const calcAdjustedReturn = (
   toTokenAmount: ReturnType<typeof calcToAmount>,
   totalEstimatedNetworkFee: ReturnType<typeof calcTotalEstimatedNetworkFee>,
-  { feeData: { txFee }, destAsset: { assetId: destAssetId } }: Quote,
+  {
+    feeData: { txFee },
+    dest: {
+      asset: { assetId: destAssetId },
+    },
+  }: QuoteResponse['quote'],
 ) => {
   // If gas is included and is taken from the dest token, don't subtract network fee from return
-  if (txFee?.asset?.assetId === destAssetId) {
+  if (txFee?.[0]?.asset?.assetId === destAssetId) {
     return {
       valueInCurrency: toTokenAmount.valueInCurrency,
       usd: toTokenAmount.usd,
@@ -423,19 +450,19 @@ export const calcAdjustedReturn = (
       toTokenAmount.valueInCurrency && totalEstimatedNetworkFee.valueInCurrency
         ? new BigNumber(toTokenAmount.valueInCurrency)
             .minus(totalEstimatedNetworkFee.valueInCurrency)
-            .toString()
+            .toFixed()
         : null,
     usd:
       toTokenAmount.usd && totalEstimatedNetworkFee.usd
         ? new BigNumber(toTokenAmount.usd)
             .minus(totalEstimatedNetworkFee.usd)
-            .toString()
+            .toFixed()
         : null,
   };
 };
 
 export const calcSwapRate = (sentAmount: string, destTokenAmount: string) =>
-  new BigNumber(destTokenAmount).div(sentAmount).toString();
+  new BigNumber(destTokenAmount).div(sentAmount).toFixed();
 
 export const calcCost = (
   adjustedReturn: ReturnType<typeof calcAdjustedReturn>,
@@ -445,11 +472,11 @@ export const calcCost = (
     adjustedReturn.valueInCurrency && sentAmount.valueInCurrency
       ? new BigNumber(sentAmount.valueInCurrency)
           .minus(adjustedReturn.valueInCurrency)
-          .toString()
+          .toFixed()
       : null,
   usd:
     adjustedReturn.usd && sentAmount.usd
-      ? new BigNumber(sentAmount.usd).minus(adjustedReturn.usd).toString()
+      ? new BigNumber(sentAmount.usd).minus(adjustedReturn.usd).toFixed()
       : null,
 });
 
@@ -471,7 +498,7 @@ export const calcSlippagePercentage = (
       .div(sentAmount.valueInCurrency)
       .times(100)
       .abs()
-      .toString();
+      .toFixed();
   }
 
   if (cost.usd && sentAmount.usd) {
@@ -479,7 +506,7 @@ export const calcSlippagePercentage = (
       .div(sentAmount.usd)
       .times(100)
       .abs()
-      .toString();
+      .toFixed();
   }
 
   return null;

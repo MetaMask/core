@@ -19,17 +19,20 @@ import {
 import { StrictHexStruct } from '@metamask/utils';
 
 import { BridgeAssetSchema, ChainIdSchema } from './bridge-asset';
+import type { FeatureId } from './feature-flags';
 import {
   TxDataSchema,
   TronTradeDataSchema,
   BitcoinTradeDataSchema,
   HexAddressOrChecksumAddressSchema,
 } from './trade';
+import type { BitcoinTradeData, TronTradeData, TxData } from './trade';
 
 export enum FeeType {
   METABRIDGE = 'metabridge',
   REFUEL = 'refuel',
   TX_FEE = 'txFee',
+  NETWORK = 'network',
 }
 
 export enum ActionTypes {
@@ -46,10 +49,19 @@ export const NumberStringSchema = define<string>(
 export const truthyString = (value: string): boolean => Boolean(value?.length);
 const TruthyDigitStringSchema = pattern(string(), /^\d+$/u);
 
+export const FloatStringSchema = define<string>(
+  'FloatString',
+  (value: unknown) => typeof value === 'string' && /^-*\d*\.*\d+$/u.test(value),
+);
+
 export const FeeDataSchema = type({
   amount: TruthyDigitStringSchema,
   asset: BridgeAssetSchema,
+  quoteBpsFee: optional(number()),
+  baseBpsFee: optional(number()),
+  discountType: optional(string()),
 });
+export type FeeData = Infer<typeof FeeDataSchema>;
 
 export const ProtocolSchema = type({
   name: string(),
@@ -269,10 +281,14 @@ export const QuoteSchema = intersection([
       }),
     ),
     intent: optional(IntentSchema),
+    walletAddress: optional(string()),
+    destWalletAddress: optional(string()),
+    slippage: optional(number()),
+    protocols: optional(array(string())),
   }),
 ]);
 
-export const QuoteResponseSchema = type({
+export const QuoteResponseSchemaV1 = type({
   quoteId: optional(string()),
   quote: QuoteSchema,
   estimatedProcessingTimeInSeconds: number(),
@@ -283,11 +299,40 @@ export const QuoteResponseSchema = type({
     TronTradeDataSchema,
     string(),
   ]),
+  l1GasFeesInHexWei: optional(StrictHexStruct),
+  nonEvmFeesInNative: optional(FloatStringSchema),
 });
 
 export const validateQuoteResponseV1 = (
   data: unknown,
-): data is Infer<typeof QuoteResponseSchema> => {
-  assert(data, QuoteResponseSchema);
+): data is Infer<typeof QuoteResponseSchemaV1> => {
+  assert(data, QuoteResponseSchemaV1);
   return true;
+};
+
+/**
+ * This is the type for the quote response from the bridge-api
+ * TxDataType can be overriden to be a string when the quote is non-evm
+ * ApprovalType can be overriden when you know the specific approval type (e.g., TxData for EVM-only contexts)
+ */
+export type QuoteResponseV1<
+  TxDataType = TxData | string | BitcoinTradeData | TronTradeData,
+  ApprovalType = TxData | TronTradeData,
+> = Infer<typeof QuoteResponseSchemaV1> & {
+  trade: TxDataType;
+  approval?: ApprovalType;
+  /**
+   * Appended to the quote response based on the quote request
+   */
+  featureId?: FeatureId;
+  /**
+   * Appended to the quote response based on the quote request resetApproval flag
+   * If defined, the quote's total network fee will include the reset approval's gas limit.
+   */
+  resetApproval?: TxData;
+  /**
+   * Appended to the quote if there are multiple quote requests in a batch. This
+   * indicates which quoteRequest the quote is for
+   */
+  quoteRequestIndex?: number;
 };

@@ -7,7 +7,6 @@ import {
   array,
   boolean,
   number,
-  enums,
   is,
   define,
 } from '@metamask/superstruct';
@@ -93,15 +92,14 @@ const GenericQuoteRequestSchema = type({
   bridgeIds: optional(array(string())),
   fee: optional(number()),
 });
-const FeatureIdSchema = enums(Object.values(FeatureId));
+
 /**
  * This is the schema for the feature flags response from the RemoteFeatureFlagController
  */
-
 export const PlatformConfigSchema = type({
   priceImpactThreshold: optional(PriceImpactThresholdSchema),
   quoteRequestOverrides: optional(
-    record(FeatureIdSchema, optional(GenericQuoteRequestSchema)),
+    record(string(), optional(GenericQuoteRequestSchema)),
   ),
   minimumVersion: string(),
   refreshRate: number(),

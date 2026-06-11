@@ -21,9 +21,9 @@ import type {
   BridgeAsset,
   BridgeControllerState,
   GenericQuoteRequest,
-  QuoteResponseV1,
 } from '../types';
 import { ChainId } from '../types';
+import type { QuoteResponseV1 } from '../validators/quote-response';
 import type { TxData } from '../validators/trade';
 import {
   formatChainIdToCaip,
