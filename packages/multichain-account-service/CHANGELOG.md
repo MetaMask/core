@@ -9,20 +9,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Added `deleteAccount(id)` to the `Bip44AccountProvider` interface and to all built-in providers (`EvmAccountProvider`, `SolAccountProvider`, `BtcAccountProvider`, `TrxAccountProvider`, and the shared `SnapAccountProvider`/`AccountProviderWrapper`) ([#8960](https://github.com/MetaMask/core/pull/8960))
-  - `EvmAccountProvider.deleteAccount(id)` resolves the account's entropy source and forwards to the v2 HD keyring's `deleteAccount(accountId)`. When this drains the last account on a non-primary HD keyring, the keyring controller automatically prunes the empty keyring.
-  - `SnapAccountProvider.deleteAccount(id)` resolves the account's address and forwards to the legacy `SnapKeyring.removeAccount(address)` so that the snap and the host keyring stay in sync.
-  - `AccountProviderWrapper.deleteAccount(id)` forwards unconditionally so that wallet-removal flows can clean up snap-backed accounts even when the wrapper has been disabled.
-  - Added a public `unwrap` method on `AccountProviderWrapper`. This is an escape hatch for cleanup flows (e.g. wallet removal) that need to enumerate the underlying provider's accounts regardless of enabled state, since `getAccounts()` still returns `[]` when the wrapper is disabled.
+- Added `Bip44AccountProvider.deleteAccount(id)` method ([#8960](https://github.com/MetaMask/core/pull/8960))
+  - The `KeyringController` will automatically prunes the non-primary empty keyrings when the last EVM account is getting removed.
+  - `AccountProviderWrapper.deleteAccount(id)` always removes the account, even if disabled.
+- Added `AccountProviderWrapper.unwrap` method ([#8960](https://github.com/MetaMask/core/pull/8960))
+  - Use this if you need to access the inner (wrapped) keyring.
 - Add `isAligned` ([#9039](https://github.com/MetaMask/core/pull/9039))
   - This allows callers to cheaply check whether alignment has already occurred before triggering an explicit alignment operation.
 
 ### Changed
 
-- **BREAKING:** `MultichainAccountService.removeMultichainAccountWallet` (and the corresponding `MultichainAccountService:removeMultichainAccountWallet` messenger action) now takes a single `entropySource` argument; the previous `accountAddress` parameter has been removed ([#8960](https://github.com/MetaMask/core/pull/8960))
-  - The method now iterates every account belonging to the wallet and dispatches `provider.deleteAccount(account.id)` to the matching provider, instead of only removing a single EVM address.
-  - For wrapped providers, enumeration uses the underlying provider so snap-backed accounts are still deleted when basic functionality is off (the wrapper's `getAccounts()` returns `[]` when disabled). Without this, snap-backed accounts would be orphaned in their underlying keyrings.
-  - Per-account deletions are best-effort: a single account's failure does not abort cleanup of the remaining accounts. If one or more deletions fail, a single aggregated error is reported via the messenger's `captureException` with the per-account failure details (`provider`, `accountId`, error message, stack) in its `context`. The wallet is always removed from the service's internal map at the end.
+- **BREAKING:** `MultichainAccountService.removeMultichainAccountWallet` (and messenger action) now takes a single `entropySource` argument ([#8960](https://github.com/MetaMask/core/pull/8960))
+  - The previous `accountAddress` parameter has been removed.
+  - All accounts are now unconditionally removed from the wallet and providers (even for disabled `AccountProviderWrapper`).
+  - Per-account deletions are best-effort: a single account's failure does not abort cleanup of the remaining accounts.
+  - Errors are aggregated and reported in case of failure.
 - Bump `@metamask/utils` from `^11.9.0` to `^11.11.0` ([#9074](https://github.com/MetaMask/core/pull/9074))
 - Bump `@metamask/controller-utils` from `^12.1.1` to `^12.2.0` ([#9083](https://github.com/MetaMask/core/pull/9083))
 
