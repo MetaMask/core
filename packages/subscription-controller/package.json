@@ -54,11 +54,11 @@
   },
   "dependencies": {
     "@metamask/base-controller": "^9.1.0",
-    "@metamask/controller-utils": "^12.1.0",
+    "@metamask/controller-utils": "^12.2.0",
     "@metamask/messenger": "^1.2.0",
     "@metamask/polling-controller": "^16.0.6",
     "@metamask/profile-sync-controller": "^28.1.1",
-    "@metamask/transaction-controller": "^66.0.1",
+    "@metamask/transaction-controller": "^67.1.0",
     "@metamask/utils": "^11.9.0",
     "bignumber.js": "^9.1.2"
   },

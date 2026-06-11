@@ -2070,6 +2070,176 @@ describe('AccountTrackerController', () => {
       });
     });
   });
+
+  describe('isDeprecated', () => {
+    const initialState = {
+      accountsByChainId: {
+        '0x1': {
+          [CHECKSUM_ADDRESS_1]: { balance: '0x1' },
+        },
+      },
+    };
+
+    it('clears persisted accountsByChainId at construction when isDeprecated() returns true', async () => {
+      await withController(
+        {
+          options: { state: initialState, isDeprecated: () => true },
+        },
+        ({ controller }) => {
+          expect(controller.state.accountsByChainId).toStrictEqual({});
+        },
+      );
+    });
+
+    it('preserves persisted accountsByChainId at construction when isDeprecated() returns false', async () => {
+      await withController(
+        {
+          options: { state: initialState, isDeprecated: () => false },
+        },
+        ({ controller }) => {
+          expect(controller.state.accountsByChainId).toStrictEqual(
+            initialState.accountsByChainId,
+          );
+        },
+      );
+    });
+
+    it('does not throw at construction when isDeprecated() is true and state is already empty', async () => {
+      await withController(
+        {
+          options: {
+            state: { accountsByChainId: {} },
+            isDeprecated: () => true,
+          },
+        },
+        ({ controller }) => {
+          expect(controller.state.accountsByChainId).toStrictEqual({});
+        },
+      );
+    });
+
+    it('does not fetch and clears stale state on refresh when isDeprecated toggles to true at runtime', async () => {
+      let deprecated = false;
+      await withController(
+        {
+          options: { state: initialState, isDeprecated: () => deprecated },
+          selectedAccount: ACCOUNT_1,
+          listAccounts: [ACCOUNT_1],
+        },
+        async ({ controller, refresh }) => {
+          expect(controller.state.accountsByChainId).toStrictEqual(
+            initialState.accountsByChainId,
+          );
+
+          deprecated = true;
+
+          await refresh(['mainnet']);
+
+          expect(
+            mockedGetTokenBalancesForMultipleAddresses,
+          ).not.toHaveBeenCalled();
+          expect(controller.state.accountsByChainId).toStrictEqual({});
+        },
+      );
+    });
+
+    it('clears stale state on _executePoll when isDeprecated toggles to true at runtime', async () => {
+      let deprecated = false;
+      await withController(
+        {
+          options: { state: initialState, isDeprecated: () => deprecated },
+        },
+        async ({ controller }) => {
+          deprecated = true;
+
+          await controller._executePoll({ networkClientIds: ['mainnet'] });
+
+          expect(controller.state.accountsByChainId).toStrictEqual({});
+        },
+      );
+    });
+
+    it('clears stale state on refreshAddresses when isDeprecated toggles to true at runtime', async () => {
+      let deprecated = false;
+      await withController(
+        {
+          options: { state: initialState, isDeprecated: () => deprecated },
+          listAccounts: [ACCOUNT_1],
+        },
+        async ({ controller }) => {
+          deprecated = true;
+
+          await controller.refreshAddresses({
+            networkClientIds: ['mainnet'],
+            addresses: [ADDRESS_1],
+          });
+
+          expect(controller.state.accountsByChainId).toStrictEqual({});
+        },
+      );
+    });
+
+    it('returns no balances and clears stale state on syncBalanceWithAddresses when isDeprecated returns true', async () => {
+      let deprecated = false;
+      await withController(
+        {
+          options: { state: initialState, isDeprecated: () => deprecated },
+        },
+        async ({ controller }) => {
+          deprecated = true;
+
+          const result = await controller.syncBalanceWithAddresses([ADDRESS_1]);
+
+          expect(result).toStrictEqual({});
+          expect(controller.state.accountsByChainId).toStrictEqual({});
+        },
+      );
+    });
+
+    it('clears stale state on updateNativeBalances when isDeprecated returns true', async () => {
+      let deprecated = false;
+      await withController(
+        {
+          options: { state: initialState, isDeprecated: () => deprecated },
+        },
+        ({ controller }) => {
+          deprecated = true;
+
+          controller.updateNativeBalances([
+            {
+              address: CHECKSUM_ADDRESS_1,
+              chainId: '0x1' as const,
+              balance: '0x5',
+            },
+          ]);
+
+          expect(controller.state.accountsByChainId).toStrictEqual({});
+        },
+      );
+    });
+
+    it('clears stale state on updateStakedBalances when isDeprecated returns true', async () => {
+      let deprecated = false;
+      await withController(
+        {
+          options: { state: initialState, isDeprecated: () => deprecated },
+        },
+        ({ controller }) => {
+          deprecated = true;
+
+          controller.updateStakedBalances([
+            {
+              address: CHECKSUM_ADDRESS_1,
+              chainId: '0x1' as const,
+              stakedBalance: '0x5',
+            },
+          ]);
+
+          expect(controller.state.accountsByChainId).toStrictEqual({});
+        },
+      );
+    });
+  });
 });
 
 type NetworkEnablementMocks = {

@@ -193,9 +193,26 @@ const setupController = async (
     }),
   );
 
+  const remoteFeatureFlagControllerMessenger = new Messenger<
+    'RemoteFeatureFlagController',
+    RemoteFeatureFlagControllerGetStateAction,
+    never,
+    typeof rootMessenger
+  >({
+    namespace: 'RemoteFeatureFlagController',
+    parent: rootMessenger,
+  });
+
+  remoteFeatureFlagControllerMessenger.registerActionHandler(
+    'RemoteFeatureFlagController:getState',
+    () => getDefaultRemoteFeatureFlagControllerState(),
+  );
+
   const networkControllerMessenger = new Messenger<
     'NetworkController',
-    NetworkControllerActions | ConnectivityControllerGetStateAction,
+    | NetworkControllerActions
+    | ConnectivityControllerGetStateAction
+    | RemoteFeatureFlagControllerGetStateAction,
     NetworkControllerEvents,
     typeof rootMessenger
   >({
@@ -204,7 +221,10 @@ const setupController = async (
   });
   rootMessenger.delegate({
     messenger: networkControllerMessenger,
-    actions: ['ConnectivityController:getState'],
+    actions: [
+      'ConnectivityController:getState',
+      'RemoteFeatureFlagController:getState',
+    ],
   });
   const networkController = new NetworkController({
     messenger: networkControllerMessenger,
@@ -217,7 +237,8 @@ const setupController = async (
       isOffline: (): boolean => false,
     }),
   });
-  await networkController.initializeProvider();
+  networkController.init();
+  await networkController.lookupNetwork();
   const { provider, blockTracker } =
     networkController.getProviderAndBlockTracker();
   assert(provider, 'Provider must be available');
@@ -287,21 +308,6 @@ const setupController = async (
     () => ({}) as never,
   );
 
-  const remoteFeatureFlagControllerMessenger = new Messenger<
-    'RemoteFeatureFlagController',
-    RemoteFeatureFlagControllerGetStateAction,
-    never,
-    typeof rootMessenger
-  >({
-    namespace: 'RemoteFeatureFlagController',
-    parent: rootMessenger,
-  });
-
-  remoteFeatureFlagControllerMessenger.registerActionHandler(
-    'RemoteFeatureFlagController:getState',
-    () => getDefaultRemoteFeatureFlagControllerState(),
-  );
-
   rootMessenger.registerActionHandler(
     'GasFeeController:fetchGasFeeEstimates',
     async () => ({}) as never,
@@ -319,13 +325,12 @@ const setupController = async (
     getPermittedAccounts: async () => [ACCOUNT_MOCK],
     hooks: {},
     messenger,
-    pendingTransactions: {
-      isResubmitEnabled: () => false,
-    },
     ...givenOptions,
   };
 
   const transactionController = new TransactionController(options);
+
+  await jestAdvanceTime({ duration: 10 });
 
   return {
     transactionController,
