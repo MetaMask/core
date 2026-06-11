@@ -40,21 +40,21 @@ export type MoneyAccountBalanceServiceGetMoneyAccountBalanceAction = {
 };
 
 /**
- * Fetches the musdSHFvd (Veda vault share) ERC-20 balance for the given
+ * Fetches the vmUSD (Veda vault share) ERC-20 balance for the given
  * account address via RPC.
  *
  * @param accountAddress - The Money account's Ethereum address.
- * @returns The musdSHFvd balance as a raw uint256 string.
+ * @returns The vmUSD balance as a raw uint256 string.
  * @throws {@link VaultConfigNotAvailableError} if vault config has not been loaded.
  */
-export type MoneyAccountBalanceServiceGetMusdSHFvdBalanceAction = {
-  type: `MoneyAccountBalanceService:getMusdSHFvdBalance`;
-  handler: MoneyAccountBalanceService['getMusdSHFvdBalance'];
+export type MoneyAccountBalanceServiceGetVmusdBalanceAction = {
+  type: `MoneyAccountBalanceService:getVmusdBalance`;
+  handler: MoneyAccountBalanceService['getVmusdBalance'];
 };
 
 /**
  * Fetches the current exchange rate from the Veda Accountant contract via
- * RPC. The rate represents the conversion factor from musdSHFvd shares to
+ * RPC. The rate represents the conversion factor from vmUSD shares to
  * the underlying mUSD asset.
  *
  * @param options - The options for the query.
@@ -70,14 +70,13 @@ export type MoneyAccountBalanceServiceGetExchangeRateAction = {
 };
 
 /**
- * Computes the mUSD-equivalent value of the account's musdSHFvd holdings.
- * Internally fetches the musdSHFvd balance and exchange rate (using cached
+ * Computes the mUSD-equivalent value of the account's vmUSD holdings.
+ * Internally fetches the vmUSD balance and exchange rate (using cached
  * values when available within their staleTime windows), then multiplies
  * them.
  *
  * @param accountAddress - The Money account's Ethereum address.
- * @returns The musdSHFvd balance, exchange rate, and computed
- * mUSD-equivalent value as raw uint256 strings.
+ * @returns The mUSD-equivalent value (vmUSD holdings) as a raw uint256 string.
  * @throws {@link VaultConfigNotAvailableError} if vault config has not been loaded.
  */
 export type MoneyAccountBalanceServiceGetMusdEquivalentValueAction = {
@@ -102,7 +101,7 @@ export type MoneyAccountBalanceServiceGetVaultApyAction = {
 export type MoneyAccountBalanceServiceMethodActions =
   | MoneyAccountBalanceServiceGetMusdBalanceAction
   | MoneyAccountBalanceServiceGetMoneyAccountBalanceAction
-  | MoneyAccountBalanceServiceGetMusdSHFvdBalanceAction
+  | MoneyAccountBalanceServiceGetVmusdBalanceAction
   | MoneyAccountBalanceServiceGetExchangeRateAction
   | MoneyAccountBalanceServiceGetMusdEquivalentValueAction
   | MoneyAccountBalanceServiceGetVaultApyAction;

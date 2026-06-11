@@ -7,7 +7,7 @@ export type {
 export type {
   MoneyAccountBalanceServiceGetMoneyAccountBalanceAction,
   MoneyAccountBalanceServiceGetMusdBalanceAction,
-  MoneyAccountBalanceServiceGetMusdSHFvdBalanceAction,
+  MoneyAccountBalanceServiceGetVmusdBalanceAction,
   MoneyAccountBalanceServiceGetExchangeRateAction,
   MoneyAccountBalanceServiceGetMusdEquivalentValueAction,
   MoneyAccountBalanceServiceGetVaultApyAction,

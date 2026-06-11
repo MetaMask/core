@@ -15,7 +15,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Increase the default `staleTime` for on-chain balance reads (`getMusdBalance`, `getMusdSHFvdBalance`, `getMusdEquivalentValue`, and the default for `getExchangeRate`) from 30 seconds to 60 seconds. This default is now overridable via the `moneyAccountBalanceStaleTime` remote feature flag.
+- **BREAKING:** Rename `musdSHFvd` to `vmusd` across the public API to align with the vmUSD token name:
+  - `getMusdSHFvdBalance` method → `getVmusdBalance`
+  - `MoneyAccountBalanceServiceGetMusdSHFvdBalanceAction` type → `MoneyAccountBalanceServiceGetVmusdBalanceAction`
+  - `MoneyAccountBalanceService:getMusdSHFvdBalance` messenger action string → `MoneyAccountBalanceService:getVmusdBalance`
+  - `MoneyAccountBalanceResponse.musdSHFvdValueInMusd` property → `vmusdValueInMusd`
+- Increase the default `staleTime` for on-chain balance reads (`getMusdBalance`, `getVmusdBalance`, `getMusdEquivalentValue`, and the default for `getExchangeRate`) from 30 seconds to 60 seconds. This default is now overridable via the `moneyAccountBalanceStaleTime` remote feature flag.
 - Bump `@metamask/utils` from `^11.9.0` to `^11.11.0` ([#9074](https://github.com/MetaMask/core/pull/9074))
 - Bump `@metamask/controller-utils` from `^12.1.0` to `^12.2.0` ([#9058](https://github.com/MetaMask/core/pull/9058), [#9083](https://github.com/MetaMask/core/pull/9083))
 - Bump `@metamask/base-data-service` from `^0.1.2` to `^0.1.3` ([#8799](https://github.com/MetaMask/core/pull/8799))

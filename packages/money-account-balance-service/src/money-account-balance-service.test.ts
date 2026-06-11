@@ -266,7 +266,7 @@ function createService({
 /**
  * Configures the Contract mock so that `balanceOf` resolves to an object
  * whose `.toString()` returns `balance`. Used for single-contract flows
- * such as `getMusdSHFvdBalance`.
+ * such as `getVmusdBalance`.
  *
  * @param balance - The raw uint256 balance string to return.
  */
@@ -345,11 +345,11 @@ function makeMockBN(value: string): {
 
 function mockMoneyAccountBalanceMulticall({
   musdBalance = '0',
-  musdSHFvdValueInMusd = '0',
+  vmusdValueInMusd = '0',
   aggregate3,
 }: {
   musdBalance?: string;
-  musdSHFvdValueInMusd?: string;
+  vmusdValueInMusd?: string;
   aggregate3?: jest.Mock;
 } = {}): jest.Mock {
   const MUSD_RETURN_DATA = '0xMUSD';
@@ -379,7 +379,7 @@ function mockMoneyAccountBalanceMulticall({
                   (_functionFragment: string, data: string) =>
                     data === MUSD_RETURN_DATA
                       ? [makeMockBN(musdBalance)]
-                      : [makeMockBN(musdSHFvdValueInMusd)],
+                      : [makeMockBN(vmusdValueInMusd)],
                 ),
             },
           }) as unknown as Contract,
@@ -501,9 +501,9 @@ describe('MoneyAccountBalanceService', () => {
           },
         });
 
-        await service.getMusdSHFvdBalance(MOCK_ACCOUNT_ADDRESS);
+        await service.getVmusdBalance(MOCK_ACCOUNT_ADDRESS);
 
-        // getMusdSHFvdBalance uses vaultAddress — verify the new address was used.
+        // getVmusdBalance uses vaultAddress — verify the new address was used.
         expect(MockContract).toHaveBeenCalledWith(
           NEW_VAULT_ADDRESS,
           expect.anything(),
@@ -663,11 +663,11 @@ describe('MoneyAccountBalanceService', () => {
       ).rejects.toThrow(VaultConfigNotAvailableError);
     });
 
-    it('getMusdSHFvdBalance throws VaultConfigNotAvailableError', async () => {
+    it('getVmusdBalance throws VaultConfigNotAvailableError', async () => {
       const { service } = createService({ rffcFlags: {} });
 
       await expect(
-        service.getMusdSHFvdBalance(MOCK_ACCOUNT_ADDRESS),
+        service.getVmusdBalance(MOCK_ACCOUNT_ADDRESS),
       ).rejects.toThrow(VaultConfigNotAvailableError);
     });
 
@@ -822,15 +822,15 @@ describe('MoneyAccountBalanceService', () => {
   });
 
   // ----------------------------------------------------------
-  // getMusdSHFvdBalance
+  // getVmusdBalance
   // ----------------------------------------------------------
 
-  describe('getMusdSHFvdBalance', () => {
+  describe('getVmusdBalance', () => {
     it('returns the vault share balance for the given address', async () => {
       mockErc20BalanceOf('3000000');
       const { service } = createService();
 
-      const result = await service.getMusdSHFvdBalance(MOCK_ACCOUNT_ADDRESS);
+      const result = await service.getVmusdBalance(MOCK_ACCOUNT_ADDRESS);
 
       expect(result).toStrictEqual({ balance: '3000000' });
     });
@@ -839,7 +839,7 @@ describe('MoneyAccountBalanceService', () => {
       mockErc20BalanceOf('3000000');
       const { service } = createService();
 
-      await service.getMusdSHFvdBalance(MOCK_ACCOUNT_ADDRESS);
+      await service.getVmusdBalance(MOCK_ACCOUNT_ADDRESS);
 
       expect(MockContract).toHaveBeenCalledWith(
         MOCK_VAULT_ADDRESS,
@@ -858,7 +858,7 @@ describe('MoneyAccountBalanceService', () => {
       mockGetNetworkConfig.mockReturnValue(undefined);
 
       await expect(
-        service.getMusdSHFvdBalance(MOCK_ACCOUNT_ADDRESS),
+        service.getVmusdBalance(MOCK_ACCOUNT_ADDRESS),
       ).rejects.toThrow('No network configuration found for chain 0xa4b1');
     });
 
@@ -867,7 +867,7 @@ describe('MoneyAccountBalanceService', () => {
       mockGetNetworkClient.mockReturnValue({ provider: null });
 
       await expect(
-        service.getMusdSHFvdBalance(MOCK_ACCOUNT_ADDRESS),
+        service.getVmusdBalance(MOCK_ACCOUNT_ADDRESS),
       ).rejects.toThrow('No provider found for chain 0xa4b1');
     });
   });
@@ -1046,10 +1046,10 @@ describe('MoneyAccountBalanceService', () => {
       underlyingToken: MOCK_UNDERLYING_TOKEN_ADDRESS,
     };
 
-    it('returns musdBalance, musdSHFvdValueInMusd, and totalBalance from a single aggregate3 call', async () => {
+    it('returns musdBalance, vmusdValueInMusd, and totalBalance from a single aggregate3 call', async () => {
       const aggregate3 = mockMoneyAccountBalanceMulticall({
         musdBalance: '5000000',
-        musdSHFvdValueInMusd: '2200000',
+        vmusdValueInMusd: '2200000',
       });
       const { service } = createService({
         rffcFlags: {
@@ -1061,7 +1061,7 @@ describe('MoneyAccountBalanceService', () => {
 
       expect(result).toStrictEqual({
         musdBalance: '5000000',
-        musdSHFvdValueInMusd: '2200000',
+        vmusdValueInMusd: '2200000',
         totalBalance: '7200000',
       });
       expect(aggregate3).toHaveBeenCalledTimes(1);
@@ -1099,7 +1099,7 @@ describe('MoneyAccountBalanceService', () => {
     it('falls back to an on-chain base() read when underlyingToken is absent from config', async () => {
       const aggregate3 = mockMoneyAccountBalanceMulticall({
         musdBalance: '7',
-        musdSHFvdValueInMusd: '3',
+        vmusdValueInMusd: '3',
       });
       // MOCK_VAULT_CONFIG has no underlyingToken.
       const { service } = createService();
@@ -1108,7 +1108,7 @@ describe('MoneyAccountBalanceService', () => {
 
       expect(result).toStrictEqual({
         musdBalance: '7',
-        musdSHFvdValueInMusd: '3',
+        vmusdValueInMusd: '3',
         totalBalance: '10',
       });
       // Accountant is instantiated for the base() fallback...
@@ -1127,7 +1127,7 @@ describe('MoneyAccountBalanceService', () => {
     it('is also callable via the messenger action', async () => {
       mockMoneyAccountBalanceMulticall({
         musdBalance: '5000000',
-        musdSHFvdValueInMusd: '2200000',
+        vmusdValueInMusd: '2200000',
       });
       const { rootMessenger } = createService({
         rffcFlags: {
@@ -1142,7 +1142,7 @@ describe('MoneyAccountBalanceService', () => {
 
       expect(result).toStrictEqual({
         musdBalance: '5000000',
-        musdSHFvdValueInMusd: '2200000',
+        vmusdValueInMusd: '2200000',
         totalBalance: '7200000',
       });
     });

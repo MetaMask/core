@@ -74,7 +74,7 @@ const configLogger = createModuleLogger(projectLogger, 'config');
 const MESSENGER_EXPOSED_METHODS = [
   'getMoneyAccountBalance',
   'getMusdBalance',
-  'getMusdSHFvdBalance',
+  'getVmusdBalance',
   'getExchangeRate',
   'getMusdEquivalentValue',
   'getVaultApy',
@@ -141,7 +141,7 @@ export type MoneyAccountBalanceServiceMessenger = Messenger<
 
 /**
  * Data service responsible for fetching Money account balances (mUSD and
- * musdSHFvd) via on-chain RPC reads, the Veda Accountant exchange rate, and
+ * vmUSD) via on-chain RPC reads, the Veda Accountant exchange rate, and
  * the Veda vault APY from the Seven Seas REST API.
  *
  * All queries are cached via TanStack Query (inherited from
@@ -568,7 +568,7 @@ export class MoneyAccountBalanceService extends BaseDataService<
           MULTICALL3_ABI,
           provider,
         );
-        const [musdResult, musdSHFvdResult] =
+        const [musdResult, vmusdResult] =
           (await multicall3.callStatic.aggregate3(calls)) as [
             Multicall3Result,
             Multicall3Result,
@@ -578,15 +578,15 @@ export class MoneyAccountBalanceService extends BaseDataService<
           'balanceOf',
           musdResult.returnData,
         )[0];
-        const musdSHFvdBN = lens.interface.decodeFunctionResult(
+        const vmusdBN = lens.interface.decodeFunctionResult(
           'balanceOfInAssets',
-          musdSHFvdResult.returnData,
+          vmusdResult.returnData,
         )[0];
 
         return {
           musdBalance: musdBalanceBN.toString(),
-          musdSHFvdValueInMusd: musdSHFvdBN.toString(),
-          totalBalance: musdBalanceBN.add(musdSHFvdBN).toString(),
+          vmusdValueInMusd: vmusdBN.toString(),
+          totalBalance: musdBalanceBN.add(vmusdBN).toString(),
         };
       },
       staleTime: this.#balanceStaleTime,
@@ -594,16 +594,16 @@ export class MoneyAccountBalanceService extends BaseDataService<
   }
 
   /**
-   * Fetches the musdSHFvd (Veda vault share) ERC-20 balance for the given
+   * Fetches the vmUSD (Veda vault share) ERC-20 balance for the given
    * account address via RPC.
    *
    * @param accountAddress - The Money account's Ethereum address.
-   * @returns The musdSHFvd balance as a raw uint256 string.
+   * @returns The vmUSD balance as a raw uint256 string.
    * @throws {@link VaultConfigNotAvailableError} if vault config has not been loaded.
    */
-  async getMusdSHFvdBalance(accountAddress: Hex): Promise<{ balance: string }> {
+  async getVmusdBalance(accountAddress: Hex): Promise<{ balance: string }> {
     return this.fetchQuery({
-      queryKey: [`${this.name}:getMusdSHFvdBalance`, accountAddress],
+      queryKey: [`${this.name}:getVmusdBalance`, accountAddress],
       queryFn: async () => {
         const { boringVault, chainId } = this.#requireConfig();
         const balance = await this.#fetchErc20Balance(
@@ -619,7 +619,7 @@ export class MoneyAccountBalanceService extends BaseDataService<
 
   /**
    * Fetches the current exchange rate from the Veda Accountant contract via
-   * RPC. The rate represents the conversion factor from musdSHFvd shares to
+   * RPC. The rate represents the conversion factor from vmUSD shares to
    * the underlying mUSD asset.
    *
    * @param options - The options for the query.
@@ -648,7 +648,7 @@ export class MoneyAccountBalanceService extends BaseDataService<
   }
 
   /**
-   * Fetches the mUSD-equivalent value of the account's musdSHFvd vault shares
+   * Fetches the mUSD-equivalent value of the account's vmUSD vault shares
    * via `Lens.balanceOfInAssets` RPC.
    *
    * @param accountAddress - The Money account's Ethereum address.

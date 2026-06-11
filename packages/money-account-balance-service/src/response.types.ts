@@ -19,7 +19,7 @@ export type MusdEquivalentValueResponse = {
  */
 export type MoneyAccountBalanceResponse = {
   musdBalance: string;
-  musdSHFvdValueInMusd: string;
+  vmusdValueInMusd: string;
   totalBalance: string;
 };
 
