@@ -21,7 +21,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout and setup environment
-        uses: MetaMask/action-checkout-and-setup@v2
+        uses: MetaMask/action-checkout-and-setup@v3
         with:
           is-high-risk-environment: true
           ref: ${{ github.sha }}
@@ -43,10 +43,11 @@ jobs:
     needs: build
     steps:
       - name: Checkout and setup environment
-        uses: MetaMask/action-checkout-and-setup@v2
+        uses: MetaMask/action-checkout-and-setup@v3
         with:
           is-high-risk-environment: true
           ref: ${{ github.sha }}
+          skip-install: true
       - name: Restore build artifacts
         uses: actions/download-artifact@v7
         with:
@@ -67,10 +68,11 @@ jobs:
       id-token: write
     steps:
       - name: Checkout and setup environment
-        uses: MetaMask/action-checkout-and-setup@v2
+        uses: MetaMask/action-checkout-and-setup@v3
         with:
           is-high-risk-environment: true
           ref: ${{ github.sha }}
+          skip-install: true
       - name: Restore build artifacts
         uses: actions/download-artifact@v7
         with:
@@ -88,10 +90,11 @@ jobs:
     needs: publish-npm
     steps:
       - name: Checkout and setup environment
-        uses: MetaMask/action-checkout-and-setup@v2
+        uses: MetaMask/action-checkout-and-setup@v3
         with:
           is-high-risk-environment: true
           ref: ${{ github.sha }}
+          skip-install: true
       - uses: MetaMask/action-publish-release@v3
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
