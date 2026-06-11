@@ -11,10 +11,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Snap account-asset enrichment via `getAccountAssetInfo`; balance rows and `Asset.extra` carry chain-specific fields; export `isStellarClassicTrustlineInactiveForDisplay` for Stellar trustline UX ([#8828](https://github.com/MetaMask/core/pull/8828))
 
-### Removed
-
-- **BREAKING:** `MultichainAssetsController` state `stellarClassicTrustlineInactiveAssetIds` and `stellarTrustlineInactiveBackfillComplete` ([#8828](https://github.com/MetaMask/core/pull/8828))
-
 ### Changed
 
 - Bump `@metamask/controller-utils` from `^12.1.1` to `^12.2.0` ([#9083](https://github.com/MetaMask/core/pull/9083))
