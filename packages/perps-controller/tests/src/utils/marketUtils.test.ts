@@ -1,5 +1,6 @@
 import type { PerpsMarketData } from '../../../src/types';
 import {
+  filterMarketsByQuery,
   getMarketTypeFilter,
   isHip3Market,
   matchesCategory,
@@ -167,5 +168,32 @@ describe('marketUtils category classification', () => {
     ])('is consistent with matchesCategory for %o', (sample) => {
       expect(matchesCategory(sample, getMarketTypeFilter(sample))).toBe(true);
     });
+  });
+});
+
+describe('filterMarketsByQuery', () => {
+  const gold = market({
+    symbol: 'xyz:GOLD',
+    name: 'Gold',
+    keywords: ['precious metal', 'xau'],
+  });
+  const btc = market({ symbol: 'BTC', name: 'Bitcoin' });
+
+  it('returns all markets for an empty/whitespace query', () => {
+    expect(filterMarketsByQuery([gold, btc], '   ')).toStrictEqual([gold, btc]);
+  });
+
+  it('matches by symbol or name', () => {
+    expect(filterMarketsByQuery([gold, btc], 'bitcoin')).toStrictEqual([btc]);
+    expect(filterMarketsByQuery([gold, btc], 'xyz')).toStrictEqual([gold]);
+  });
+
+  it('matches by annotation keyword when symbol and name do not (the TAT-3338 case)', () => {
+    // "xau" matches neither symbol nor name — only the keyword.
+    expect(filterMarketsByQuery([gold, btc], 'xau')).toStrictEqual([gold]);
+  });
+
+  it('does not match markets without keywords on a keyword-only query', () => {
+    expect(filterMarketsByQuery([btc], 'xau')).toStrictEqual([]);
   });
 });

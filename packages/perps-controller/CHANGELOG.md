@@ -22,7 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- `rankMarketsByQuery` and `getMarketMatchRank` now also match a market's optional annotation `keywords`, using the same exact/prefix/substring tiers as `symbol` and `name` ([#9086](https://github.com/MetaMask/core/pull/9086))
+- `rankMarketsByQuery`, `getMarketMatchRank`, and `filterMarketsByQuery` now also match a market's optional annotation `keywords` — the ranked helpers using the same exact/prefix/substring tiers as `symbol` and `name`, and `filterMarketsByQuery` by the same case-insensitive substring match — so the ranked and unranked search stay aligned ([#9086](https://github.com/MetaMask/core/pull/9086))
 - Add an optional `keywords?: string[]` field to `PerpsMarketData` and an optional `assetKeywords` parameter to `transformMarketData`, both additive (existing callers and consumers are unaffected) ([#9086](https://github.com/MetaMask/core/pull/9086))
 - Deliver HyperLiquid positions, orders, and account/spot balance via per-DEX `clearinghouseState` and `openOrders` subscriptions on all paths, removing the dependency on the deprecated `webData2` snapshot channel ([#9081](https://github.com/MetaMask/core/pull/9081))
   - The non-HIP-3 (main-DEX-only) user data path previously used `webData2`, which HyperLiquid is throttling to a 15s push interval and deprecating. It now uses the same sub-second per-DEX subscriptions as the HIP-3 path, with `webData3` retained only for open-interest caps (not latency-sensitive).
