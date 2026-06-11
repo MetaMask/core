@@ -6,6 +6,7 @@ import { createModuleLogger } from '@metamask/utils';
 
 import { projectLogger } from '../logger';
 import type {
+  TransactionData,
   TransactionPayControllerMessenger,
   TransactionPayQuote,
 } from '../types';
@@ -18,6 +19,8 @@ const log = createModuleLogger(projectLogger, 'pay-publish-hook');
 const EMPTY_RESULT = {
   transactionHash: undefined,
 };
+
+const ERROR_NO_PAY_QUOTE = 'No pay quote available';
 
 export class TransactionPayPublishHook {
   readonly #isSmartTransaction: (chainId: Hex) => boolean;
@@ -62,11 +65,16 @@ export class TransactionPayPublishHook {
       'TransactionPayController:getState',
     );
 
+    const transactionData = controllerState.transactionData?.[transactionId];
+
     const quotes =
-      (controllerState.transactionData?.[transactionId]
-        ?.quotes as TransactionPayQuote<unknown>[]) ?? [];
+      (transactionData?.quotes as TransactionPayQuote<unknown>[]) ?? [];
 
     if (!quotes?.length) {
+      if (hasExplicitPayConfig(transactionData)) {
+        throw new Error(ERROR_NO_PAY_QUOTE);
+      }
+
       log('Skipping as no quotes found');
       return EMPTY_RESULT;
     }
@@ -93,4 +101,18 @@ export class TransactionPayPublishHook {
       transaction: transactionMeta,
     });
   }
+}
+
+function hasExplicitPayConfig(transactionData?: TransactionData): boolean {
+  if (!transactionData) {
+    return false;
+  }
+
+  return [
+    transactionData.accountOverride,
+    transactionData.fiatPayment?.selectedPaymentMethodId,
+    transactionData.isPostQuote,
+    transactionData.paymentOverride,
+    transactionData.paymentToken,
+  ].some(Boolean);
 }

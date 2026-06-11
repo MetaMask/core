@@ -6,6 +6,7 @@ import type {
 import { TransactionPayStrategy } from '..';
 import { getMessengerMock } from '../tests/messenger-mock';
 import type {
+  TransactionData,
   TransactionPayControllerState,
   TransactionPayQuote,
 } from '../types';
@@ -24,6 +25,22 @@ const TRANSACTION_META_MOCK = {
 const QUOTE_MOCK = {
   strategy: TransactionPayStrategy.Test,
 } as TransactionPayQuote<unknown>;
+
+const PAYMENT_TOKEN_MOCK = {
+  address: '0xdef',
+  balanceFiat: '1',
+  balanceHuman: '1',
+  balanceRaw: '1000000',
+  balanceUsd: '1',
+  chainId: '0x1',
+  decimals: 6,
+  symbol: 'TEST',
+};
+
+const EMPTY_TRANSACTION_DATA_MOCK = {
+  isLoading: false,
+  tokens: [],
+} as TransactionData;
 
 describe('TransactionPayPublishHook', () => {
   const isSmartTransactionMock = jest.fn();
@@ -114,6 +131,47 @@ describe('TransactionPayPublishHook', () => {
 
     expect(executeMock).not.toHaveBeenCalled();
   });
+
+  it('does nothing if no quotes exist for transaction data without explicit pay config', async () => {
+    getControllerStateMock.mockReturnValue({
+      transactionData: {
+        [TRANSACTION_META_MOCK.id]: EMPTY_TRANSACTION_DATA_MOCK,
+      },
+    });
+
+    await runHook();
+
+    expect(executeMock).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ['account override', { accountOverride: '0xdef' }],
+    [
+      'fiat payment method',
+      { fiatPayment: { selectedPaymentMethodId: 'test-payment-method' } },
+    ],
+    ['payment override', { paymentOverride: {} }],
+    ['payment token', { paymentToken: PAYMENT_TOKEN_MOCK }],
+    ['post-quote flag', { isPostQuote: true }],
+  ] as [string, Partial<TransactionData>][])(
+    'throws if no quotes exist for transaction data with %s',
+    async (_description, transactionData) => {
+      getControllerStateMock.mockReturnValue({
+        transactionData: {
+          [TRANSACTION_META_MOCK.id]: {
+            ...EMPTY_TRANSACTION_DATA_MOCK,
+            ...transactionData,
+          },
+        },
+      });
+
+      await expect(runHook()).rejects.toThrow(
+        'MetaMask Pay: No pay quote available',
+      );
+
+      expect(executeMock).not.toHaveBeenCalled();
+    },
+  );
 
   it('sets submittedTime on the transaction before executing strategy', async () => {
     await runHook();
