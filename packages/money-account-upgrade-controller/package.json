@@ -1,6 +1,6 @@
 {
   "name": "@metamask/money-account-upgrade-controller",
-  "version": "2.0.4",
+  "version": "2.0.5",
   "description": "MetaMask Money account upgrade controller",
   "keywords": [
     "Ethereum",

@@ -7,14 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- chore: remove vestigial lint scripts from migrated packages ([#9048](https://github.com/MetaMask/core/pull/9048))
-- Release 978.0.0 ([#8774](https://github.com/MetaMask/core/pull/8774))
-- Release 975.0.0 ([#8765](https://github.com/MetaMask/core/pull/8765))
-- feat(gator-permissions-controller): Added redeemer rule ([#8537](https://github.com/MetaMask/core/pull/8537))
-- Release 947.0.0 ([#8636](https://github.com/MetaMask/core/pull/8636))
-
 ### Changed
 
 - Bump `@metamask/json-rpc-engine` from `^10.2.4` to `^10.5.0` ([#8661](https://github.com/MetaMask/core/pull/8661), [#8746](https://github.com/MetaMask/core/pull/8746), [#8753](https://github.com/MetaMask/core/pull/8753))
