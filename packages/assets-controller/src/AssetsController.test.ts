@@ -1480,9 +1480,7 @@ describe('AssetsController', () => {
             'erc20',
           );
           expect(
-            controller.state.assetsInfo[
-              MOCK_ASSET_ID_LOWERCASE as Caip19AssetId
-            ],
+            controller.state.assetsInfo[MOCK_ASSET_ID_LOWERCASE],
           ).toBeUndefined();
         },
       );
