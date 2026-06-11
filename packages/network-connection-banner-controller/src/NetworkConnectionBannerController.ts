@@ -246,6 +246,8 @@ export class NetworkConnectionBannerController extends BaseController<
       this,
       MESSENGER_EXPOSED_METHODS,
     );
+
+    this.#evaluate();
   }
 
   /**

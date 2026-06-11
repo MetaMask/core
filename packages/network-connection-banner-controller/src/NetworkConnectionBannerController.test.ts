@@ -119,6 +119,37 @@ describe('NetworkConnectionBannerController', () => {
         });
       });
     });
+
+    it('evaluates existing upstream state on construction', async () => {
+      const initialState = buildNetworkState({
+        configurations: {
+          '0x89': buildConfiguration({
+            chainId: '0x89',
+            name: 'Polygon Mainnet',
+            nativeCurrency: 'MATIC',
+            rpcEndpoints: [
+              buildCustomEndpoint(
+                POLYGON_CUSTOM_CLIENT_ID,
+                'https://polygon-rpc.com',
+              ),
+            ],
+          }),
+        },
+        enabledChainIds: ['0x89'],
+        metadata: {
+          [POLYGON_CUSTOM_CLIENT_ID]: makeMetadata(NetworkStatus.Unavailable),
+        },
+      });
+
+      await withController(
+        ({ controller }) => {
+          jest.advanceTimersByTime(5_000);
+
+          expect(controller.state.status).toBe('degraded');
+        },
+        initialState,
+      );
+    });
   });
 
   describe('rule evaluation on NetworkController:stateChange', () => {
@@ -1075,19 +1106,22 @@ type WithControllerCallback<ReturnValue> = (payload: {
 
 async function withController<ReturnValue>(
   testFunction: WithControllerCallback<ReturnValue>,
+  initialState?: StubbedState,
 ): Promise<ReturnValue> {
   const rootMessenger: RootMessenger = new Messenger({
     namespace: MOCK_ANY_NAMESPACE,
   });
 
-  let currentState: StubbedState = {
-    network: {
-      networkConfigurationsByChainId: {},
-      networksMetadata: {},
-    },
-    enablement: buildEnablementState(),
-    connectivity: { connectivityStatus: CONNECTIVITY_STATUSES.Online },
-  };
+  let currentState: StubbedState =
+    initialState ??
+    ({
+      network: {
+        networkConfigurationsByChainId: {},
+        networksMetadata: {},
+      },
+      enablement: buildEnablementState(),
+      connectivity: { connectivityStatus: CONNECTIVITY_STATUSES.Online },
+    } satisfies StubbedState);
 
   rootMessenger.registerActionHandler(
     'NetworkController:getState',
