@@ -13,7 +13,7 @@ import type {
   L1GasFees,
   Quote,
   QuoteMetadata,
-  QuoteResponse,
+  QuoteResponseV1,
   NonEvmFees,
   TxData,
 } from '../types';
@@ -95,7 +95,7 @@ export const isValidBatchSellQuoteRequest = (
  * @param quote - The quote to generate an identifier for
  * @returns A pseudo-unique string that identifies the quote
  */
-export const getQuoteIdentifier = (quote: QuoteResponse['quote']) =>
+export const getQuoteIdentifier = (quote: QuoteResponseV1['quote']) =>
   `${quote.bridgeId}-${quote.bridges[0]}-${quote.steps.length}`;
 
 const calcTokenAmount = (value: string | BigNumber, decimals: number) => {
@@ -104,7 +104,7 @@ const calcTokenAmount = (value: string | BigNumber, decimals: number) => {
 };
 
 export const calcNonEvmTotalNetworkFee = (
-  bridgeQuote: QuoteResponse & NonEvmFees,
+  bridgeQuote: QuoteResponseV1 & NonEvmFees,
   { exchangeRate, usdExchangeRate }: ExchangeRate,
 ) => {
   const { nonEvmFeesInNative } = bridgeQuote;
@@ -191,7 +191,7 @@ export const calcBatchFees = (
 };
 
 export const calcRelayerFee = (
-  quoteResponse: QuoteResponse<TxData, TxData>,
+  quoteResponse: QuoteResponseV1<TxData, TxData>,
   { exchangeRate, usdExchangeRate }: ExchangeRate,
 ) => {
   const { quote, trade } = quoteResponse;
@@ -266,7 +266,7 @@ export const calcEstimatedAndMaxTotalGasFee = ({
   exchangeRate: nativeToDisplayCurrencyExchangeRate,
   usdExchangeRate: nativeToUsdExchangeRate,
 }: {
-  bridgeQuote: QuoteResponse<TxData, TxData> & L1GasFees;
+  bridgeQuote: QuoteResponseV1<TxData, TxData> & L1GasFees;
   maxFeePerGasInDecGwei?: string;
   feePerGasInDecGwei?: string;
 } & ExchangeRate): QuoteMetadata['gasFee'] => {
@@ -497,7 +497,7 @@ export const formatEtaInMinutes = (
 };
 
 export const sortQuotes = (
-  quotes: QuoteResponse[],
+  quotes: QuoteResponseV1[],
   featureId: FeatureId | null,
 ) => {
   // Sort perps quotes by increasing estimated processing time (fastest first)

@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `isKeyringControllerError` predicate ([#9095](https://github.com/MetaMask/core/pull/9095))
+
+### Changed
+
+- Bump `@metamask/utils` from `^11.9.0` to `^11.11.0` ([#9074](https://github.com/MetaMask/core/pull/9074))
+
+### Fixed
+
+- Remove use of `instanceof` for `isKeyringNotFoundError` ([#9095](https://github.com/MetaMask/core/pull/9095))
+  - Using `instanceof` causes a lot of issue if we have 2 major `@metamask/keyring-controller` major versions in the dependency tree, `class KeyringControllerError` could be different classes and this, making the check to fail.
+
 ## [27.0.0]
 
 ### Changed

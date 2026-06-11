@@ -301,7 +301,7 @@ export type TronTradeData = Infer<typeof TronTradeDataSchema>;
  * TxDataType can be overriden to be a string when the quote is non-evm
  * ApprovalType can be overriden when you know the specific approval type (e.g., TxData for EVM-only contexts)
  */
-export type QuoteResponse<
+export type QuoteResponseV1<
   TxDataType = TxData | string | BitcoinTradeData | TronTradeData,
   ApprovalType = TxData | TronTradeData,
 > = Infer<typeof QuoteResponseSchema> & {
@@ -324,7 +324,7 @@ export type QuoteResponse<
 };
 
 export type BatchSellTradesRequest = {
-  quotes: QuoteResponse[];
+  quotes: QuoteResponseV1[];
   stxEnabled: boolean;
 };
 
@@ -339,6 +339,18 @@ export type SimulatedGasFeeLimits = Infer<typeof SimulatedGasFeeLimitsSchema>;
 export type TxFeeGasLimits = Infer<typeof TxFeeGasLimitsSchema>;
 
 export type GaslessProperties = Infer<typeof GaslessPropertiesSchema>;
+
+export type DeepPartial<Type> = Type extends string
+  ? Type
+  : {
+      [K in keyof Type]?: Type[K] extends (infer U)[]
+        ? DeepPartial<U>[]
+        : Type[K] extends readonly (infer U)[]
+          ? readonly DeepPartial<U>[]
+          : Type[K] extends object
+            ? DeepPartial<Type[K]>
+            : Type[K];
+    };
 
 export enum ChainId {
   ETH = 1,
@@ -374,7 +386,7 @@ export enum RequestStatus {
 
 export type BridgeControllerState = {
   quoteRequest: Partial<GenericQuoteRequest>[];
-  quotes: (QuoteResponse & L1GasFees & NonEvmFees)[];
+  quotes: (QuoteResponseV1 & L1GasFees & NonEvmFees)[];
   /**
    * The time elapsed between the initial quote fetch and when the first valid quote was received
    */

@@ -13,7 +13,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Bump `@metamask/controller-utils` from `^12.1.0` to `^12.1.1` ([#9058](https://github.com/MetaMask/core/pull/9058))
+- No longer send an `Authorization` bearer token header for `RampsService.getPaymentMethods`; payment methods are now fetched as an unauthenticated request so the endpoint can be called before sign-in without triggering a login ([#9060](https://github.com/MetaMask/core/pull/9060))
+- Bump `@metamask/controller-utils` from `^12.1.0` to `^12.2.0` ([#9058](https://github.com/MetaMask/core/pull/9058), [#9083](https://github.com/MetaMask/core/pull/9083))
 
 ## [14.1.1]
 

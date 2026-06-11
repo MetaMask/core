@@ -100,6 +100,7 @@
 /packages/rate-limit-controller        @MetaMask/core-platform
 /packages/react-data-query             @MetaMask/core-platform
 /packages/wallet                       @MetaMask/core-platform
+/packages/wallet-cli                   @MetaMask/core-platform @MetaMask/ocap-kernel
 /packages/wallet-framework-docs        @MetaMask/core-platform
 
 ## Web3Auth Team
