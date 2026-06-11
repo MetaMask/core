@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add `isAligned` ([#TODO](https://github.com/MetaMask/core/pull/TODO))
+- Add `isAligned` ([#9039](https://github.com/MetaMask/core/pull/9039))
   - This allows callers to cheaply check whether alignment has already occurred before triggering an explicit alignment operation.
 
 ### Changed
