@@ -249,6 +249,9 @@
       "path": "./packages/wallet"
     },
     {
+      "path": "./packages/wallet-cli"
+    },
+    {
       "path": "./packages/wallet-framework-docs"
     }
   ],
