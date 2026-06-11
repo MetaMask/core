@@ -1064,9 +1064,6 @@ describe('MultichainAccountService', () => {
       expect(sentryError.message).toBe(
         'Failed to delete one or more accounts during wallet removal',
       );
-      expect(sentryError.context?.entropySource).toBe(
-        MOCK_HD_KEYRING_1.metadata.id,
-      );
       expect(sentryError.context?.failures).toStrictEqual([
         expect.objectContaining({
           provider: SOL_ACCOUNT_PROVIDER_NAME,

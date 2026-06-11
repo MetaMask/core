@@ -67,7 +67,6 @@ export type RemoveMultichainAccountWalletFailure = {
  * or more per-account deletions fail.
  */
 export type RemoveMultichainAccountWalletFailureContext = {
-  entropySource: EntropySourceId;
   failures: RemoveMultichainAccountWalletFailure[];
 };
 
@@ -626,7 +625,6 @@ export class MultichainAccountService {
       // failure in `context`. The shape is pinned by
       // `RemoveMultichainAccountWalletFailureContext`.
       const context: RemoveMultichainAccountWalletFailureContext = {
-        entropySource,
         failures: failures.map(({ provider, accountId, error }) => ({
           provider,
           accountId,
