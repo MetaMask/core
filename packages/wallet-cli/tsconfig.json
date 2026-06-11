@@ -4,5 +4,5 @@
     "baseUrl": "./"
   },
   "references": [],
-  "include": ["../../types", "./src"]
+  "include": ["../../types", "./bin", "./src"]
 }
