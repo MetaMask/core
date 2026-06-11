@@ -20,7 +20,9 @@ BETTER_SQLITE3_DIR="${MONOREPO_ROOT}/node_modules/better-sqlite3"
 if [ ! -f "${BETTER_SQLITE3_DIR}/build/Release/better_sqlite3.node" ]; then
   (
     cd "${BETTER_SQLITE3_DIR}"
-    "${MONOREPO_ROOT}/node_modules/.bin/prebuild-install" ||
+    if ! "${MONOREPO_ROOT}/node_modules/.bin/prebuild-install"; then
+      echo "wallet-cli: prebuild-install failed (see its output above); compiling better-sqlite3 from source. This needs a C/C++ toolchain and Python." >&2
       "${MONOREPO_ROOT}/node_modules/.bin/node-gyp" rebuild --release
+    fi
   )
 fi
