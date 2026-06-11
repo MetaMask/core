@@ -31,7 +31,7 @@ import type {
   GenericQuoteRequest,
   NonEvmFees,
   QuoteRequest,
-  QuoteResponse,
+  QuoteResponseV1,
   BridgeControllerState,
   BridgeControllerMessenger,
   FetchFunction,
@@ -395,7 +395,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
     quoteRequest: GenericQuoteRequest,
     featureId: FeatureId,
     abortSignal: AbortSignal | null = null,
-  ): Promise<(QuoteResponse & L1GasFees & NonEvmFees)[]> => {
+  ): Promise<(QuoteResponseV1 & L1GasFees & NonEvmFees)[]> => {
     const bridgeFeatureFlags = getBridgeFeatureFlags(this.messenger);
     const jwt = await this.#getJwt();
     // If featureId is specified, retrieve the quoteRequestOverrides for that featureId
@@ -439,7 +439,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
    * @param stxEnabled - Flag to estimate gas cost more precisely for the batch sell feature.
    */
   updateBatchSellTrades = async (
-    quotes: (QuoteResponse | null)[],
+    quotes: (QuoteResponseV1 | null)[],
     stxEnabled: boolean,
   ): Promise<void> => {
     this.#batchSellTradesAbortController?.abort(
@@ -966,7 +966,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
       {
         onQuoteValidationFailure: (validationFailures) =>
           this.#trackQuoteValidationFailures(validationFailures, featureId),
-        onValidQuoteReceived: async (quote: QuoteResponse) => {
+        onValidQuoteReceived: async (quote: QuoteResponseV1) => {
           const feeAppendPromise = (async () => {
             const quotesWithFees = await appendFeesToQuotes(
               [quote],
