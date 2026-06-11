@@ -451,6 +451,27 @@ function buildRelayRequestFromAmountFiat({
   };
 }
 
+/**
+ * Combines fiat and relay legs into a single MM Pay fiat strategy quote.
+ *
+ * @param params - Combined quote inputs.
+ * @param params.adjustedAmountFiat - Fiat amount sent to ramps after adding relay fee estimate.
+ * @param params.amountFiat - User-entered fiat amount.
+ * @param params.fiatQuote - Selected ramps quote.
+ * @param params.relayQuote - Estimated relay quote.
+ * @returns A single fiat strategy quote with split fee buckets.
+ * @remarks
+ * Fee mapping contract for MM Pay Fiat strategy:
+ * - `fees.provider`: Total provider fee (relay provider/swap fee + ramps provider/network fee).
+ *   Consumed by UI transaction fee row and tooltip provider fee.
+ * - `fees.providerFiat`: Fiat on-ramp provider fees only (`providerFee + networkFee` from ramps quote).
+ *   Optional breakdown; client can derive relay portion via `provider - providerFiat`.
+ * - `fees.sourceNetwork` / `fees.targetNetwork`: Relay settlement network fees.
+ *   Consumed by UI transaction fee row and tooltip network fee.
+ * - `fees.metaMask`: MM Pay fee (currently 100 bps over `amountFiat + adjustedAmountFiat`).
+ *   Consumed by UI transaction fee row and tooltip MetaMask fee.
+ * - `totals.total` should represent Amount + Transaction Fee using the totals pipeline.
+ */
 function combineQuotes({
   adjustedAmountFiat,
   amountFiat,
@@ -497,6 +518,14 @@ function combineQuotes({
   };
 }
 
+/**
+ * Ramps providers handle network gas fees themselves but report them separately
+ * as `networkFee` alongside their `providerFee`. We combine both into a single
+ * ramps provider fee for the `providerFiat` breakdown.
+ *
+ * @param fiatQuote - The ramps quote containing provider and network fees.
+ * @returns Combined ramps provider fee as a BigNumber.
+ */
 function getRampsProviderFee(fiatQuote: RampsQuote): BigNumber {
   return new BigNumber(fiatQuote.quote.providerFee ?? 0).plus(
     fiatQuote.quote.networkFee ?? 0,
