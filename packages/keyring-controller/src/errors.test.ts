@@ -40,9 +40,12 @@ describe('isKeyringNotFoundError', () => {
   });
 
   it('returns true for an error from another version of the package (duck-typing)', () => {
-    const error = Object.assign(new Error(KeyringControllerErrorMessage.KeyringNotFound), {
-      name: 'KeyringControllerError',
-    });
+    const error = Object.assign(
+      new Error(KeyringControllerErrorMessage.KeyringNotFound),
+      {
+        name: 'KeyringControllerError',
+      },
+    );
     expect(isKeyringNotFoundError(error)).toBe(true);
   });
 
