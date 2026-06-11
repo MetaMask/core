@@ -7,13 +7,14 @@ import type {
   QuoteResponseV1,
   L1GasFees,
   NonEvmFees,
-  TxData,
   BridgeControllerMessenger,
 } from '../types';
+import { isTronTrade } from '../validators/trade';
+import type { TxData } from '../validators/trade';
 import { isNonEvmChainId, sumHexes } from './bridge';
 import { formatChainIdToCaip } from './caip-formatters';
 import { computeFeeRequest } from './snaps';
-import { extractTradeData, isTronTrade } from './trade-utils';
+import { extractTradeData } from './trade-utils';
 
 /**
  * Appends transaction fees for EVM chains to quotes
