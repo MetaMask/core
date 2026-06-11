@@ -2,6 +2,7 @@ import { CaipAccountId, hasProperty } from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
 import type {
   ExchangeClient,
+  InfoClient,
   UserAbstractionResponse,
 } from '@nktkas/hyperliquid';
 import { v4 as uuidv4 } from 'uuid';
@@ -20,7 +21,6 @@ import {
   HIP3_ASSET_MARKET_TYPES,
   HIP3_FEE_CONFIG,
   HIP3_MARGIN_CONFIG,
-  HYPERLIQUID_ASSET_NAMES,
   HYPERLIQUID_WITHDRAWAL_MINUTES,
   REFERRAL_CONFIG,
   SPOT_ASSET_ID_OFFSET,
@@ -157,6 +157,11 @@ import {
   validateOrderParams,
   validateWithdrawalParams,
 } from '../utils/hyperLiquidValidation';
+import {
+  mergeAssetNamesWithAnnotations,
+  extractAssetKeywords,
+} from '../utils/marketAnnotations';
+import type { PerpConciseAnnotationEntry } from '../utils/marketAnnotations';
 import { transformMarketData } from '../utils/marketDataTransform';
 import {
   compileMarketPattern,
@@ -328,6 +333,12 @@ export class HyperLiquidProvider implements PerpsProvider {
   // Session cache for spot metadata (contains USDC/USDH token info for HIP-3 collateral checks)
   // Pre-fetched in ensureReadyForTrading() to avoid API failures during order placement
   #cachedSpotMeta: SpotMetaResponse | null = null;
+
+  // Session cache for HyperLiquid perp annotations (`perpConciseAnnotations`),
+  // used to resolve human-readable display names and search keywords. Optional
+  // enhancement layered beneath the curated HYPERLIQUID_ASSET_NAMES map; never
+  // blocks market data. `null` = not yet fetched this session.
+  #cachedPerpAnnotations: PerpConciseAnnotationEntry[] | null = null;
 
   // Unified DEX discovery cache — single source of truth for all perpDexs() derivatives.
   // Replaces three separate caches to eliminate desync bugs by construction.
@@ -1667,6 +1678,55 @@ export class HyperLiquidProvider implements PerpsProvider {
     );
 
     return spotMeta;
+  }
+
+  /**
+   * Fetch HyperLiquid perp annotations with session-based caching.
+   *
+   * Annotations (`perpConciseAnnotations`) carry optional, deployer-set
+   * `displayName` and `keywords` per asset. They layer beneath the curated
+   * `HYPERLIQUID_ASSET_NAMES` map and are a non-critical display enhancement, so
+   * any failure — including environments that do not support the endpoint —
+   * degrades to an empty result rather than throwing. Callers then fall back to
+   * the curated map with no keywords, leaving market data unaffected.
+   *
+   * @param infoClient - The HyperLiquid info client to fetch with.
+   * @returns The concise annotations, or an empty array when unavailable.
+   */
+  async #getCachedPerpAnnotations(
+    infoClient: InfoClient,
+  ): Promise<PerpConciseAnnotationEntry[]> {
+    if (this.#cachedPerpAnnotations) {
+      return this.#cachedPerpAnnotations;
+    }
+
+    try {
+      const annotations =
+        (await infoClient.perpConciseAnnotations()) as PerpConciseAnnotationEntry[];
+      this.#cachedPerpAnnotations = annotations;
+      this.#deps.debugLogger.log(
+        '[getCachedPerpAnnotations] Fetched and cached perp annotations',
+        {
+          total: annotations.length,
+          withDisplayName: annotations.filter(([, a]) => a?.displayName).length,
+          withKeywords: annotations.filter(([, a]) => a?.keywords?.length)
+            .length,
+        },
+      );
+      return annotations;
+    } catch (error) {
+      // Non-critical: market data must still load using the curated name map.
+      this.#deps.debugLogger.log(
+        '[getCachedPerpAnnotations] Failed to fetch perp annotations; using curated names only',
+        {
+          error: ensureError(
+            error,
+            'HyperLiquidProvider.getCachedPerpAnnotations',
+          ).message,
+        },
+      );
+      return [];
+    }
   }
 
   /**
@@ -6808,6 +6868,14 @@ export class HyperLiquidProvider implements PerpsProvider {
       ),
     });
 
+    // Resolve display names and search keywords from HyperLiquid perp
+    // annotations, layered beneath the curated map (curated > annotation
+    // displayName > symbol). Non-critical: a fetch failure yields the curated
+    // map and no keywords, leaving market data intact.
+    const annotations = await this.#getCachedPerpAnnotations(infoClient);
+    const assetNames = mergeAssetNamesWithAnnotations(annotations);
+    const assetKeywords = extractAssetKeywords(annotations);
+
     // Transform to UI-friendly format using standalone utility
     const transformedMarketData = transformMarketData(
       {
@@ -6817,7 +6885,8 @@ export class HyperLiquidProvider implements PerpsProvider {
       },
       this.#deps.marketDataFormatters,
       HIP3_ASSET_MARKET_TYPES,
-      HYPERLIQUID_ASSET_NAMES,
+      assetNames,
+      assetKeywords,
     );
 
     return this.#cacheFreshMarketDataSnapshot(
@@ -8241,6 +8310,7 @@ export class HyperLiquidProvider implements PerpsProvider {
       // to prevent repeated signing requests across reconnections
       this.#cachedMetaByDex.clear();
       this.#cachedSpotMeta = null;
+      this.#cachedPerpAnnotations = null;
       this.#dexDiscoveryCache.reset();
       this.#dexDiscoveryComplete = false;
 
