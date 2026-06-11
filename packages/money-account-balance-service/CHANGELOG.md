@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add `getMoneyAccountBalance` method that fetches the account's mUSD wallet balance and vault shares valued in mUSD in a single Multicall3 `aggregate3` request.
 - Add optional `underlyingToken` field to `VaultConfig` (validated by `VaultConfigStruct`). When present, `getMusdBalance` reads the underlying mUSD token address from config and skips the on-chain `Accountant.base()` call; when absent it falls back to reading `base()` on-chain.
 - Add support for configuring the balance `staleTime` at runtime via the `moneyAccountBalanceStaleTime` remote feature flag. The flag is read during `init()` and updated on `RemoteFeatureFlagController:stateChange`; absent or malformed values fall back to the default of 60 seconds.
 

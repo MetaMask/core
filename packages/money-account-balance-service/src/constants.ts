@@ -32,6 +32,56 @@ export const VEDA_API_NETWORK_NAMES: Record<Hex, string> = {
 };
 
 /**
+ * Multicall3 contract address by chain ID, used to batch the Money account
+ * balance reads into a single RPC request. Multicall3 is deployed at the same
+ * canonical address on every supported chain.
+ *
+ * Source: https://github.com/mds1/multicall/blob/main/deployments.json
+ */
+// TODO: Double check these addresses for correctness.
+export const MULTICALL3_ADDRESS_BY_CHAIN_ID: Record<Hex, Hex> = {
+  '0xa4b1': '0xcA11bde05977b3631167028862bE2a173976CA11', // Arbitrum One
+  '0x8f': '0xcA11bde05977b3631167028862bE2a173976CA11', // Monad mainnet
+};
+
+/**
+ * Minimal ABI for the Multicall3 `aggregate3` function. Each call carries its
+ * own `target` and `allowFailure` flag; the response preserves call order with
+ * a `success` flag and raw `returnData` per call.
+ *
+ * Source: https://github.com/mds1/multicall
+ */
+// TODO: Double check this ABI for correctness.
+export const MULTICALL3_ABI = [
+  {
+    name: 'aggregate3',
+    type: 'function',
+    stateMutability: 'payable',
+    inputs: [
+      {
+        name: 'calls',
+        type: 'tuple[]',
+        components: [
+          { name: 'target', type: 'address' },
+          { name: 'allowFailure', type: 'bool' },
+          { name: 'callData', type: 'bytes' },
+        ],
+      },
+    ],
+    outputs: [
+      {
+        name: 'returnData',
+        type: 'tuple[]',
+        components: [
+          { name: 'success', type: 'bool' },
+          { name: 'returnData', type: 'bytes' },
+        ],
+      },
+    ],
+  },
+] as const;
+
+/**
  * Minimal ABI for the Veda Accountant contract. Covers:
  *  - base    (0x5001f3b5) — the underlying ERC20 base asset address
  *  - getRate (0x679aefce) — exchange rate between vault shares and the

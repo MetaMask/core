@@ -12,6 +12,7 @@ import nock, { cleanAll as nockCleanAll } from 'nock';
 
 import {
   MONEY_ACCOUNT_BALANCE_STALETIME_FEATURE_FLAG_KEY,
+  MULTICALL3_ADDRESS_BY_CHAIN_ID,
   VAULT_CONFIG_FEATURE_FLAG_KEY,
 } from './constants';
 import {
@@ -328,6 +329,64 @@ function mockLensBalanceOfInAssets(balanceOfInAssets: string): void {
   );
 }
 
+/**
+ * Configures the Contract mock for the `getMoneyAccountBalance` aggregate3
+ * flow. The Multicall3 contract (matched by its canonical address) exposes
+ * `callStatic.aggregate3`; every other contract exposes a minimal `interface`
+ * (encode/decode) plus a `base()` stub so the on-chain underlying-token
+ * fallback path also works. The decoder routes by `returnData` so the same
+ * stub serves both the mUSD and Lens reads.
+ *
+ * @param options - Stub values.
+ * @param options.musdBalance - Raw mUSD `balanceOf` result. Defaults to '0'.
+ * @param options.musdSHFvdValueInMusd - Raw Lens `balanceOfInAssets` result. Defaults to '0'.
+ * @param options.aggregate3 - Optional replacement for the aggregate3 mock (e.g. to reject).
+ * @returns The aggregate3 jest mock.
+ */
+function mockMoneyAccountBalanceMulticall({
+  musdBalance = '0',
+  musdSHFvdValueInMusd = '0',
+  aggregate3,
+}: {
+  musdBalance?: string;
+  musdSHFvdValueInMusd?: string;
+  aggregate3?: jest.Mock;
+} = {}): jest.Mock {
+  const MUSD_RETURN_DATA = '0xMUSD';
+  const SHFVD_RETURN_DATA = '0xSHFVD';
+
+  const aggregate3Mock =
+    aggregate3 ??
+    jest.fn().mockResolvedValue([
+      { success: true, returnData: MUSD_RETURN_DATA },
+      { success: true, returnData: SHFVD_RETURN_DATA },
+    ]);
+
+  const multicall3Address =
+    MULTICALL3_ADDRESS_BY_CHAIN_ID[MOCK_VAULT_CONFIG.chainId];
+
+  MockContract.mockImplementation(
+    (address: string) =>
+      (address === multicall3Address
+        ? { callStatic: { aggregate3: aggregate3Mock } }
+        : {
+            base: jest.fn().mockResolvedValue(MOCK_UNDERLYING_TOKEN_ADDRESS),
+            interface: {
+              encodeFunctionData: jest.fn().mockReturnValue('0xcalldata'),
+              decodeFunctionResult: jest
+                .fn()
+                .mockImplementation((_functionFragment: string, data: string) =>
+                  data === MUSD_RETURN_DATA
+                    ? [{ toString: () => musdBalance }]
+                    : [{ toString: () => musdSHFvdValueInMusd }],
+                ),
+            },
+          }) as unknown as Contract,
+  );
+
+  return aggregate3Mock;
+}
+
 // ============================================================
 // Tests
 // ============================================================
@@ -587,6 +646,14 @@ describe('MoneyAccountBalanceService', () => {
   // ----------------------------------------------------------
 
   describe('when vault config is not available', () => {
+    it('getMoneyAccountBalance throws VaultConfigNotAvailableError', async () => {
+      const { service } = createService({ rffcFlags: {} });
+
+      await expect(
+        service.getMoneyAccountBalance(MOCK_ACCOUNT_ADDRESS),
+      ).rejects.toThrow(VaultConfigNotAvailableError);
+    });
+
     it('getMusdBalance throws VaultConfigNotAvailableError', async () => {
       const { service } = createService({ rffcFlags: {} });
 
@@ -961,6 +1028,151 @@ describe('MoneyAccountBalanceService', () => {
       await expect(
         service.getMusdEquivalentValue(MOCK_ACCOUNT_ADDRESS),
       ).rejects.toThrow('No provider found for chain 0xa4b1');
+    });
+  });
+
+  // ----------------------------------------------------------
+  // getMoneyAccountBalance
+  // ----------------------------------------------------------
+
+  describe('getMoneyAccountBalance', () => {
+    /**
+     * Vault config including `underlyingToken`, so balance resolution skips the
+     * on-chain `base()` read.
+     */
+    const VAULT_CONFIG_WITH_UNDERLYING_TOKEN = {
+      ...MOCK_VAULT_CONFIG,
+      underlyingToken: MOCK_UNDERLYING_TOKEN_ADDRESS,
+    };
+
+    it('returns musdBalance and musdSHFvdValueInMusd from a single aggregate3 call', async () => {
+      const aggregate3 = mockMoneyAccountBalanceMulticall({
+        musdBalance: '5000000',
+        musdSHFvdValueInMusd: '2200000',
+      });
+      const { service } = createService({
+        rffcFlags: {
+          [VAULT_CONFIG_FEATURE_FLAG_KEY]: VAULT_CONFIG_WITH_UNDERLYING_TOKEN,
+        },
+      });
+
+      const result = await service.getMoneyAccountBalance(MOCK_ACCOUNT_ADDRESS);
+
+      expect(result).toStrictEqual({
+        musdBalance: '5000000',
+        musdSHFvdValueInMusd: '2200000',
+      });
+      expect(aggregate3).toHaveBeenCalledTimes(1);
+    });
+
+    it('batches the mUSD and Lens reads into one aggregate3 request with allowFailure disabled', async () => {
+      const aggregate3 = mockMoneyAccountBalanceMulticall();
+      const { service } = createService({
+        rffcFlags: {
+          [VAULT_CONFIG_FEATURE_FLAG_KEY]: VAULT_CONFIG_WITH_UNDERLYING_TOKEN,
+        },
+      });
+
+      await service.getMoneyAccountBalance(MOCK_ACCOUNT_ADDRESS);
+
+      // A single batched request containing exactly the two balance reads.
+      expect(aggregate3).toHaveBeenCalledWith([
+        expect.objectContaining({
+          target: MOCK_UNDERLYING_TOKEN_ADDRESS,
+          allowFailure: false,
+        }),
+        expect.objectContaining({
+          target: MOCK_LENS_ADDRESS,
+          allowFailure: false,
+        }),
+      ]);
+      // The Multicall3 contract is instantiated at the canonical address.
+      expect(MockContract).toHaveBeenCalledWith(
+        MULTICALL3_ADDRESS_BY_CHAIN_ID[MOCK_VAULT_CONFIG.chainId],
+        expect.anything(),
+        expect.anything(),
+      );
+    });
+
+    it('falls back to an on-chain base() read when underlyingToken is absent from config', async () => {
+      const aggregate3 = mockMoneyAccountBalanceMulticall({
+        musdBalance: '7',
+        musdSHFvdValueInMusd: '3',
+      });
+      // MOCK_VAULT_CONFIG has no underlyingToken.
+      const { service } = createService();
+
+      const result = await service.getMoneyAccountBalance(MOCK_ACCOUNT_ADDRESS);
+
+      expect(result).toStrictEqual({
+        musdBalance: '7',
+        musdSHFvdValueInMusd: '3',
+      });
+      // Accountant is instantiated for the base() fallback...
+      expect(MockContract).toHaveBeenCalledWith(
+        MOCK_ACCOUNTANT_ADDRESS,
+        expect.anything(),
+        expect.anything(),
+      );
+      // ...and the resolved underlying token is used as the mUSD read target.
+      expect(aggregate3).toHaveBeenCalledWith([
+        expect.objectContaining({ target: MOCK_UNDERLYING_TOKEN_ADDRESS }),
+        expect.objectContaining({ target: MOCK_LENS_ADDRESS }),
+      ]);
+    });
+
+    it('is also callable via the messenger action', async () => {
+      mockMoneyAccountBalanceMulticall({
+        musdBalance: '5000000',
+        musdSHFvdValueInMusd: '2200000',
+      });
+      const { rootMessenger } = createService({
+        rffcFlags: {
+          [VAULT_CONFIG_FEATURE_FLAG_KEY]: VAULT_CONFIG_WITH_UNDERLYING_TOKEN,
+        },
+      });
+
+      const result = await rootMessenger.call(
+        'MoneyAccountBalanceService:getMoneyAccountBalance',
+        MOCK_ACCOUNT_ADDRESS,
+      );
+
+      expect(result).toStrictEqual({
+        musdBalance: '5000000',
+        musdSHFvdValueInMusd: '2200000',
+      });
+    });
+
+    it('rejects without reporting a partial balance when the aggregate3 multicall reverts', async () => {
+      const aggregate3 = jest
+        .fn()
+        .mockRejectedValue(new Error('execution reverted'));
+      mockMoneyAccountBalanceMulticall({ aggregate3 });
+      const { service } = createService({
+        rffcFlags: {
+          [VAULT_CONFIG_FEATURE_FLAG_KEY]: VAULT_CONFIG_WITH_UNDERLYING_TOKEN,
+        },
+      });
+
+      await expect(
+        service.getMoneyAccountBalance(MOCK_ACCOUNT_ADDRESS),
+      ).rejects.toThrow('execution reverted');
+    });
+
+    it('throws when no Multicall3 address is configured for the vault chain', async () => {
+      mockMoneyAccountBalanceMulticall();
+      const { service } = createService({
+        rffcFlags: {
+          [VAULT_CONFIG_FEATURE_FLAG_KEY]: {
+            ...VAULT_CONFIG_WITH_UNDERLYING_TOKEN,
+            chainId: '0x1',
+          },
+        },
+      });
+
+      await expect(
+        service.getMoneyAccountBalance(MOCK_ACCOUNT_ADDRESS),
+      ).rejects.toThrow('No Multicall3 address configured for chain 0x1');
     });
   });
 

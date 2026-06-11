@@ -5,6 +5,7 @@ export type {
   MoneyAccountBalanceServiceMessenger,
 } from './money-account-balance-service';
 export type {
+  MoneyAccountBalanceServiceGetMoneyAccountBalanceAction,
   MoneyAccountBalanceServiceGetMusdBalanceAction,
   MoneyAccountBalanceServiceGetMusdSHFvdBalanceAction,
   MoneyAccountBalanceServiceGetExchangeRateAction,
@@ -13,6 +14,7 @@ export type {
 } from './money-account-balance-service-method-action-types';
 export type {
   ExchangeRateResponse,
+  MoneyAccountBalanceResponse,
   MusdEquivalentValueResponse,
   NormalizedVaultApyResponse,
 } from './response.types';

@@ -27,6 +27,8 @@ import {
   DEFAULT_BALANCE_STALE_TIME,
   LENS_ABI,
   MONEY_ACCOUNT_BALANCE_STALETIME_FEATURE_FLAG_KEY,
+  MULTICALL3_ABI,
+  MULTICALL3_ADDRESS_BY_CHAIN_ID,
   VAULT_CONFIG_FEATURE_FLAG_KEY,
   VEDA_API_NETWORK_NAMES,
   VEDA_PERFORMANCE_API_BASE_URL,
@@ -41,6 +43,7 @@ import type { MoneyAccountBalanceServiceMethodActions } from './money-account-ba
 import { normalizeVaultApyResponse } from './requestNormalization';
 import type {
   ExchangeRateResponse,
+  MoneyAccountBalanceResponse,
   MusdEquivalentValueResponse,
   NormalizedVaultApyResponse,
 } from './response.types';
@@ -60,6 +63,7 @@ const configLogger = createModuleLogger(projectLogger, 'config');
 // === MESSENGER ===
 
 const MESSENGER_EXPOSED_METHODS = [
+  'getMoneyAccountBalance',
   'getMusdBalance',
   'getMusdSHFvdBalance',
   'getExchangeRate',
@@ -200,6 +204,7 @@ export class MoneyAccountBalanceService extends BaseDataService<
         this.#onRemoteFeatureFlagChange(
           state.remoteFeatureFlags[VAULT_CONFIG_FEATURE_FLAG_KEY],
         );
+        // TODO: Combine applyBalanceStaleTimeFlag with onRemoteFeatureFlagChange.
         this.#applyBalanceStaleTimeFlag(
           state.remoteFeatureFlags[
             MONEY_ACCOUNT_BALANCE_STALETIME_FEATURE_FLAG_KEY
@@ -292,10 +297,10 @@ export class MoneyAccountBalanceService extends BaseDataService<
       ) {
         nextStaleTime = flagValue;
       } else {
-        configLogger(
-          'Invalid balance staleTime flag value; using default',
-          { flagValue, default: DEFAULT_BALANCE_STALE_TIME },
-        );
+        configLogger('Invalid balance staleTime flag value; using default', {
+          flagValue,
+          default: DEFAULT_BALANCE_STALE_TIME,
+        });
       }
     }
 
@@ -320,6 +325,7 @@ export class MoneyAccountBalanceService extends BaseDataService<
    *
    * @param flagValue - The raw flag value from `remoteFeatureFlags`.
    */
+  // TODO: Add staleTime configuration in here.
   #onRemoteFeatureFlagChange(flagValue: Json | undefined): void {
     const previousConfig = this.#vaultConfig;
     const hadConfig = previousConfig !== undefined;
@@ -469,6 +475,42 @@ export class MoneyAccountBalanceService extends BaseDataService<
   }
 
   /**
+   * Resolves the underlying mUSD token address.
+   *
+   * Prefers the remotely-configured underlyingToken.
+   * Falls back to on-chain read when the flag isn't available.
+   *
+   * @param chainId - The chain ID to use for the provider on the fallback path.
+   * @returns The underlying mUSD token address.
+   */
+  async #resolveUnderlyingTokenAddress(chainId: Hex): Promise<Hex> {
+    const { underlyingToken } = this.#requireConfig();
+    if (underlyingToken) {
+      return underlyingToken;
+    }
+    configLogger(
+      'underlyingToken absent from vault config; falling back to on-chain read',
+    );
+    return this.#fetchUnderlyingTokenAddress(chainId);
+  }
+
+  /**
+   * Returns the Multicall3 contract address for the given chain, or throws if
+   * the chain is not supported.
+   *
+   * @param chainId - The chain ID to resolve a Multicall3 address for.
+   * @returns The Multicall3 contract address.
+   * @throws If no Multicall3 address is configured for the chain.
+   */
+  #getMulticall3Address(chainId: Hex): Hex {
+    const multicall3Address = MULTICALL3_ADDRESS_BY_CHAIN_ID[chainId];
+    if (!multicall3Address) {
+      throw new Error(`No Multicall3 address configured for chain ${chainId}`);
+    }
+    return multicall3Address;
+  }
+
+  /**
    * Fetches the mUSD ERC-20 balance for the given account address via RPC.
    *
    * @param accountAddress - The Money account's Ethereum address.
@@ -479,19 +521,10 @@ export class MoneyAccountBalanceService extends BaseDataService<
     return this.fetchQuery({
       queryKey: [`${this.name}:getMusdBalance`, accountAddress],
       queryFn: async () => {
-        const { chainId, underlyingToken } = this.#requireConfig();
+        const { chainId } = this.#requireConfig();
 
-        // Prefer the remotely-configured underlying token address (0 RPC). Only
-        // fall back to an on-chain `base()` read when the flag predates the
-        // `underlyingToken` field, logging so the degraded path is visible.
-        let underlyingTokenAddress = underlyingToken;
-        if (!underlyingTokenAddress) {
-          configLogger(
-            'underlyingToken absent from vault config; falling back to on-chain base() read',
-          );
-          underlyingTokenAddress =
-            await this.#fetchUnderlyingTokenAddress(chainId);
-        }
+        const underlyingTokenAddress =
+          await this.#resolveUnderlyingTokenAddress(chainId);
 
         const balance = await this.#fetchErc20Balance(
           underlyingTokenAddress,
@@ -499,6 +532,85 @@ export class MoneyAccountBalanceService extends BaseDataService<
           chainId,
         );
         return { balance };
+      },
+      staleTime: this.#balanceStaleTime,
+    });
+  }
+
+  /**
+   * Fetches the account's total Money balance inputs in a single batched RPC
+   * request via Multicall3's `aggregate3`, reading both values atomically at
+   * the same block:
+   *  - the mUSD wallet balance (`mUSD.balanceOf`), and
+   *  - the vault shares valued in mUSD (`Lens.balanceOfInAssets`).
+   *
+   * Both values are denominated in mUSD's decimals, so consumers can sum them
+   * directly to obtain the total balance. Sub-calls use `allowFailure: false`,
+   * so if either read reverts the whole query rejects rather than reporting a
+   * partial (and misleading) balance.
+   *
+   * @param accountAddress - The Money account's Ethereum address.
+   * @returns The mUSD balance and the mUSD-equivalent value of vault shares as
+   * raw uint256 strings.
+   * @throws {@link VaultConfigNotAvailableError} if vault config has not been loaded.
+   */
+  // TODO: Consider returning total (mUSD + musdSHFvd) too.
+  async getMoneyAccountBalance(
+    accountAddress: Hex,
+  ): Promise<MoneyAccountBalanceResponse> {
+    return this.fetchQuery({
+      queryKey: [`${this.name}:getMoneyAccountBalance`, accountAddress],
+      queryFn: async () => {
+        const { chainId, boringVault, accountantAddress, lensAddress } =
+          this.#requireConfig();
+        const provider = this.#getProvider(chainId);
+
+        const underlyingTokenAddress =
+          await this.#resolveUnderlyingTokenAddress(chainId);
+
+        const erc20 = new Contract(underlyingTokenAddress, abiERC20, provider);
+        const lens = new Contract(lensAddress, LENS_ABI, provider);
+
+        const calls = [
+          {
+            target: underlyingTokenAddress,
+            allowFailure: false,
+            callData: erc20.interface.encodeFunctionData('balanceOf', [
+              accountAddress,
+            ]),
+          },
+          {
+            target: lensAddress,
+            allowFailure: false,
+            callData: lens.interface.encodeFunctionData('balanceOfInAssets', [
+              accountAddress,
+              boringVault,
+              accountantAddress,
+            ]),
+          },
+        ];
+
+        const multicall3 = new Contract(
+          this.#getMulticall3Address(chainId),
+          MULTICALL3_ABI,
+          provider,
+        );
+        // TODO: type the results properly.
+        const [musdResult, musdSHFvdResult] =
+          await multicall3.callStatic.aggregate3(calls);
+
+        const musdBalance = erc20.interface
+          .decodeFunctionResult('balanceOf', musdResult.returnData)[0]
+          .toString();
+        const musdSHFvdValueInMusd = lens.interface
+          .decodeFunctionResult(
+            'balanceOfInAssets',
+            musdSHFvdResult.returnData,
+          )[0]
+          .toString();
+
+        // TODO: Add total balance to return payload.
+        return { musdBalance, musdSHFvdValueInMusd };
       },
       staleTime: this.#balanceStaleTime,
     });

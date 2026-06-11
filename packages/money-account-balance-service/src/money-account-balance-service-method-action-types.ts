@@ -18,6 +18,28 @@ export type MoneyAccountBalanceServiceGetMusdBalanceAction = {
 };
 
 /**
+ * Fetches the account's total Money balance inputs in a single batched RPC
+ * request via Multicall3's `aggregate3`, reading both values atomically at
+ * the same block:
+ * - the mUSD wallet balance (`mUSD.balanceOf`), and
+ * - the vault shares valued in mUSD (`Lens.balanceOfInAssets`).
+ *
+ * Both values are denominated in mUSD's decimals, so consumers can sum them
+ * directly to obtain the total balance. Sub-calls use `allowFailure: false`,
+ * so if either read reverts the whole query rejects rather than reporting a
+ * partial (and misleading) balance.
+ *
+ * @param accountAddress - The Money account's Ethereum address.
+ * @returns The mUSD balance and the mUSD-equivalent value of vault shares as
+ * raw uint256 strings.
+ * @throws {@link VaultConfigNotAvailableError} if vault config has not been loaded.
+ */
+export type MoneyAccountBalanceServiceGetMoneyAccountBalanceAction = {
+  type: `MoneyAccountBalanceService:getMoneyAccountBalance`;
+  handler: MoneyAccountBalanceService['getMoneyAccountBalance'];
+};
+
+/**
  * Fetches the musdSHFvd (Veda vault share) ERC-20 balance for the given
  * account address via RPC.
  *
@@ -79,6 +101,7 @@ export type MoneyAccountBalanceServiceGetVaultApyAction = {
  */
 export type MoneyAccountBalanceServiceMethodActions =
   | MoneyAccountBalanceServiceGetMusdBalanceAction
+  | MoneyAccountBalanceServiceGetMoneyAccountBalanceAction
   | MoneyAccountBalanceServiceGetMusdSHFvdBalanceAction
   | MoneyAccountBalanceServiceGetExchangeRateAction
   | MoneyAccountBalanceServiceGetMusdEquivalentValueAction
