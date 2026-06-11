@@ -1434,7 +1434,9 @@ describe('AssetsController', () => {
             'TestSource',
           );
 
-          expect(controller.state.assetsInfo[MOCK_ASSET_ID]?.type).toBe('erc20');
+          expect(controller.state.assetsInfo[MOCK_ASSET_ID]?.type).toBe(
+            'erc20',
+          );
         },
       );
     });

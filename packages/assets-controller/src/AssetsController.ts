@@ -2191,13 +2191,19 @@ export class AssetsController extends BaseController<
         // Reconcile & self-heal stale asset "types" (e.g. erc20 -> native)
         // for any asset ID touched by this response, not only assetsInfo.
         const touchedAssetIds = new Set<Caip19AssetId>([
-          ...(Object.keys(normalizedResponse.assetsInfo ?? {}) as Caip19AssetId[]),
-          ...(Object.keys(normalizedResponse.assetsPrice ?? {}) as Caip19AssetId[]),
+          ...(Object.keys(
+            normalizedResponse.assetsInfo ?? {},
+          ) as Caip19AssetId[]),
+          ...(Object.keys(
+            normalizedResponse.assetsPrice ?? {},
+          ) as Caip19AssetId[]),
         ]);
         for (const accountBalances of Object.values(
           normalizedResponse.assetsBalance ?? {},
         )) {
-          for (const assetId of Object.keys(accountBalances) as Caip19AssetId[]) {
+          for (const assetId of Object.keys(
+            accountBalances,
+          ) as Caip19AssetId[]) {
             touchedAssetIds.add(assetId);
           }
         }
