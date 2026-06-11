@@ -286,6 +286,14 @@ export class MultichainBalancesController extends BaseController<
             ...balance,
           };
         }
+
+        // If the asset list was updated but the snap did not return a balance for
+        // one of the added assets, keep the asset visible with an explicit zero.
+        for (const assetId of added) {
+          if (!state.balances[accountId][assetId]) {
+            state.balances[accountId][assetId] = { amount: '0', unit: '' };
+          }
+        }
       }
     });
   }
