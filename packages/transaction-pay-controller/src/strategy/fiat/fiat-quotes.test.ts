@@ -24,7 +24,6 @@ import type { RelayQuote } from '../relay/types';
 import type { TransactionPayFiatAsset } from './constants';
 import {
   DEFAULT_FIAT_CURRENCY,
-  MUSD_MONAD_FIAT_ASSET,
   MUSD_PROBE_AMOUNT_USD,
 } from './constants';
 import { getFiatQuotes } from './fiat-quotes';
@@ -915,15 +914,11 @@ describe('getFiatQuotes', () => {
 
     it('returns empty when direct flow relay or build fails', async () => {
       getRelayQuotesMock.mockResolvedValue([]);
-      const emptyRelayResult = await getFiatQuotes(
-        getDirectRequest().request,
-      );
+      const emptyRelayResult = await getFiatQuotes(getDirectRequest().request);
 
       getRelayQuotesMock.mockResolvedValue([getRelayQuoteMock()]);
       computeRawFromFiatAmountMock.mockReturnValue(undefined);
-      const noBuildResult = await getFiatQuotes(
-        getDirectRequest().request,
-      );
+      const noBuildResult = await getFiatQuotes(getDirectRequest().request);
 
       expect(emptyRelayResult).toStrictEqual([]);
       expect(noBuildResult).toStrictEqual([]);
@@ -959,9 +954,7 @@ describe('getFiatQuotes', () => {
           },
         },
       ]);
-      const nanFeeResult = await getFiatQuotes(
-        getDirectRequest().request,
-      );
+      const nanFeeResult = await getFiatQuotes(getDirectRequest().request);
 
       getRelayQuotesMock.mockResolvedValue([getRelayQuoteMock()]);
       const overflowResult = await getFiatQuotes(
@@ -1000,7 +993,5 @@ describe('getFiatQuotes', () => {
       // Probe sees no providers → falls back to standard flow
       expect(result).toHaveLength(1);
     });
-
-
   });
 });
