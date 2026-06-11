@@ -59,7 +59,7 @@ export async function submitFiatQuotes(
   const walletAddress = getWalletAddress({
     quotes: request.quotes,
     transaction,
-    accountOverride: transactionData?.accountOverride as Hex | undefined,
+    accountOverride: transactionData?.accountOverride,
   });
 
   const fiatPayment = transactionData?.fiatPayment;
