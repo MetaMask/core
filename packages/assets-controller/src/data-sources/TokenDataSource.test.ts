@@ -331,44 +331,6 @@ describe('TokenDataSource', () => {
     expect(next).toHaveBeenCalledWith(context);
   });
 
-  it('middleware refetches metadata when stored type is stale even if it has an image', async () => {
-    // Native asset previously mis-detected and stored as `erc20` with an image.
-    // getAssetType now classifies it as `native`, so the stale entry must be
-    // refetched (not skipped) so it self-heals to the correct type.
-    const { controller, apiClient } = setupController({
-      messenger: createTestMessenger(),
-      supportedNetworks: ['eip155:1'],
-      assetsResponse: [createMockAssetResponse(MOCK_NATIVE_ASSET)],
-    });
-
-    const next = jest.fn().mockResolvedValue(undefined);
-    const context = createMiddlewareContext({
-      response: {
-        detectedAssets: {
-          'mock-account-id': [MOCK_NATIVE_ASSET],
-        },
-      },
-      getAssetsState: jest.fn().mockReturnValue({
-        assetsInfo: {
-          [MOCK_NATIVE_ASSET]: {
-            type: 'erc20',
-            name: 'Mislabelled Native',
-            symbol: 'MIS',
-            decimals: 18,
-            image: 'https://state.com/icon.png',
-          },
-        },
-      }),
-    });
-
-    await controller.assetsMiddleware(context, next);
-
-    expect(apiClient.tokens.fetchV3Assets).toHaveBeenCalledWith(
-      [MOCK_NATIVE_ASSET],
-      expect.anything(),
-    );
-  });
-
   it('middleware fetches metadata for assets without image in existing metadata', async () => {
     const { controller, apiClient } = setupController({
       messenger: createTestMessenger(),

@@ -351,16 +351,9 @@ export class TokenDataSource {
               continue;
             }
 
-            // Skip if state already has metadata with image — unless its
-            // stored `type` no longer matches the authoritative type (e.g. a
-            // native that was previously mis-detected as erc20). A type
-            // mismatch forces a refetch so the stale entry self-heals to the
-            // correct type instead of being skipped forever.
+            // Skip if state already has metadata with image
             const existingMetadata = stateMetadata[assetId];
-            if (
-              existingMetadata?.image &&
-              existingMetadata.type === this.#getAssetType(assetId)
-            ) {
+            if (existingMetadata?.image) {
               continue;
             }
 
