@@ -144,7 +144,10 @@ describe('rankMarketsByQuery', () => {
   it('finds markets by annotation keyword (the TAT-3338 case)', () => {
     const markets: PerpsMarketData[] = [
       makeMarket('BTC', 'Bitcoin'),
-      { ...makeMarket('xyz:GOLD', 'Gold'), keywords: ['precious metal', 'xau'] },
+      {
+        ...makeMarket('xyz:GOLD', 'Gold'),
+        keywords: ['precious metal', 'xau'],
+      },
     ];
     // "xau" matches neither symbol nor name — only the keyword.
     expect(
