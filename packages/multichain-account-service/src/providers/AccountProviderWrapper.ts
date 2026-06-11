@@ -46,6 +46,22 @@ export class AccountProviderWrapper extends BaseBip44AccountProvider {
   }
 
   /**
+   * Returns the underlying (unwrapped) provider.
+   *
+   * Most callers should go through the wrapper's public surface so that the
+   * `disabled` gating is respected. This escape hatch is reserved for
+   * cleanup flows (e.g. wallet removal) that must see the wrapped
+   * provider's accounts regardless of enabled state, so that snap-backed
+   * accounts created while the provider was enabled can still be deleted
+   * after it has been disabled.
+   *
+   * @returns The wrapped provider instance.
+   */
+  unwrap(): BaseBip44AccountProvider {
+    return this.provider;
+  }
+
+  /**
    * Set the enabled state for this provider.
    *
    * @param enabled - Whether the provider should be enabled.
@@ -149,6 +165,19 @@ export class AccountProviderWrapper extends BaseBip44AccountProvider {
       return [];
     }
     return this.provider.createAccounts(options);
+  }
+
+  /**
+   * Forwards to the wrapped provider unconditionally, because deletion must run even
+   * when the wrapper is disabled, so that wallet-removal flows can clean up
+   * snap-backed accounts that were created while the provider was previously
+   * enabled.
+   *
+   * @param id - The id of the account to delete.
+   * @returns A promise that resolves when the account is deleted.
+   */
+  async deleteAccount(id: Bip44Account<KeyringAccount>['id']): Promise<void> {
+    return this.provider.deleteAccount(id);
   }
 
   /**

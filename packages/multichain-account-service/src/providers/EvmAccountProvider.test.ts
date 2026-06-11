@@ -828,6 +828,44 @@ describe('EvmAccountProvider', () => {
     expect(await provider.resyncAccounts()).toBeUndefined();
   });
 
+  describe('deleteAccount', () => {
+    it('selects the keyring by the account entropy source and calls keyring.deleteAccount', async () => {
+      const { provider, keyring, messenger } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1, MOCK_HD_ACCOUNT_2],
+      });
+      const withKeyringV2Spy = jest.fn(async (_, operation) =>
+        operation({ keyring, metadata: keyring.metadata }),
+      );
+      messenger.unregisterActionHandler('KeyringController:withKeyringV2');
+      messenger.registerActionHandler(
+        'KeyringController:withKeyringV2',
+        withKeyringV2Spy,
+      );
+      const deleteAccountSpy = jest.spyOn(keyring, 'deleteAccount');
+
+      await provider.deleteAccount(MOCK_HD_ACCOUNT_1.id);
+
+      expect(withKeyringV2Spy).toHaveBeenCalledWith(
+        { id: MOCK_HD_ACCOUNT_1.options.entropy.id },
+        expect.any(Function),
+      );
+      expect(deleteAccountSpy).toHaveBeenCalledWith(MOCK_HD_ACCOUNT_1.id);
+      expect(provider.getAccounts()).toStrictEqual([
+        asKeyringAccount(MOCK_HD_ACCOUNT_2),
+      ]);
+    });
+
+    it('throws if the account is not tracked by the provider', async () => {
+      const { provider } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1],
+      });
+
+      await expect(provider.deleteAccount('unknown-id')).rejects.toThrow(
+        'Unable to find account: unknown-id',
+      );
+    });
+  });
+
   describe('isAligned', () => {
     it('returns true when accountIds is non-empty and every ID is owned by the provider', () => {
       const { provider } = setup();

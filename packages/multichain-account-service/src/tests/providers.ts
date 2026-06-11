@@ -17,6 +17,7 @@ export type MockAccountProvider = {
   getAccount: jest.Mock;
   getAccounts: jest.Mock;
   createAccounts: jest.Mock;
+  deleteAccount: jest.Mock;
   discoverAccounts: jest.Mock;
   isAccountCompatible: jest.Mock;
   isAligned: jest.Mock;
@@ -49,6 +50,7 @@ export function makeMockAccountProvider(
     getAccount: jest.fn(),
     getAccounts: jest.fn(),
     createAccounts: jest.fn(),
+    deleteAccount: jest.fn(),
     discoverAccounts: jest.fn(),
     isAccountCompatible: jest.fn(),
     isAligned: jest.fn().mockReturnValue(false),
