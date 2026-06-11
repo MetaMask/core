@@ -7,9 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [8.1.0]
+
 ### Added
 
-- Add observational hard timeout for order submission: tag the `Perps Order Submission` trace and emit a breadcrumb when a provider round-trip exceeds `PlaceOrderTimeoutMs` (60s), without cancelling the in-flight order ([#21217](https://github.com/MetaMask/core/pull/21217))
+- Add observational hard timeout for order submission: tag the `Perps Order Submission` trace and emit a breadcrumb when a provider round-trip exceeds `PlaceOrderTimeoutMs` (60s), without cancelling the in-flight order ([#8994](https://github.com/MetaMask/core/pull/8994))
 - Add `HYPERLIQUID_ASSET_NAMES` (a curated `symbol → human-readable name` map, e.g. `BTC → 'Bitcoin'`, `xyz:AAPL → 'Apple'`, `xyz:GOLD → 'Gold'`) and the `getHyperLiquidAssetName(symbol, names?)` helper, both exported from `@metamask/perps-controller/constants`, so clients can match and display markets by full name ([#9082](https://github.com/MetaMask/core/pull/9082))
   - HyperLiquid does not expose a per-asset human-readable name; this map is maintained client-side and keyed like `HIP3_ASSET_MARKET_TYPES` (bare `SYMBOL` for crypto, `dex:SYMBOL` for HIP-3). Unmapped assets fall back to their ticker.
 - Add `rankMarketsByQuery(markets, query)` and `getMarketMatchRank(market, query)` helpers (and the `MarketMatchRank` enum) for relevance-ranked market search by ticker symbol or human-readable name (exact > prefix > substring, stable within a rank) ([#9082](https://github.com/MetaMask/core/pull/9082))
@@ -17,16 +19,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Deliver HyperLiquid positions, orders, and account/spot balance via per-DEX `clearinghouseState` and `openOrders` subscriptions on all paths, removing the dependency on the deprecated `webData2` snapshot channel ([#9078](https://github.com/MetaMask/core/pull/9078))
+- Deliver HyperLiquid positions, orders, and account/spot balance via per-DEX `clearinghouseState` and `openOrders` subscriptions on all paths, removing the dependency on the deprecated `webData2` snapshot channel ([#9081](https://github.com/MetaMask/core/pull/9081))
   - The non-HIP-3 (main-DEX-only) user data path previously used `webData2`, which HyperLiquid is throttling to a 15s push interval and deprecating. It now uses the same sub-second per-DEX subscriptions as the HIP-3 path, with `webData3` retained only for open-interest caps (not latency-sensitive).
-- Surface late order completions via trace `reason: 'late_success' | 'late_error'` ([#21217](https://github.com/MetaMask/core/pull/21217))
+- Surface late order completions via trace `reason: 'late_success' | 'late_error'` ([#8994](https://github.com/MetaMask/core/pull/8994))
 - `PerpsMarketData.name` returned by `getMarketDataWithPrices()` is now the human-readable market name (resolved via `HYPERLIQUID_ASSET_NAMES`) instead of a copy of the ticker symbol; unmapped assets are unchanged (still equal the symbol) ([#9082](https://github.com/MetaMask/core/pull/9082))
   - `transformMarketData` gains an optional `assetNames` parameter (defaults to the bundled map) to override the name source.
 - Bump `@metamask/controller-utils` from `^12.1.0` to `^12.2.0` ([#9058](https://github.com/MetaMask/core/pull/9058), [#9083](https://github.com/MetaMask/core/pull/9083))
 
 ### Removed
 
-- Remove unused `Perps Order Submission Toast` trace name from the `PerpsTraceName` union ([#21217](https://github.com/MetaMask/core/pull/21217))
+- Remove unused `Perps Order Submission Toast` trace name from the `PerpsTraceName` union ([#8994](https://github.com/MetaMask/core/pull/8994))
 
 ### Fixed
 
@@ -373,7 +375,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Bump `@metamask/controller-utils` from `^11.18.0` to `^11.19.0` ([#7995](https://github.com/MetaMask/core/pull/7995))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@8.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@8.1.0...HEAD
+[8.1.0]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@8.0.0...@metamask/perps-controller@8.1.0
 [8.0.0]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@7.0.0...@metamask/perps-controller@8.0.0
 [7.0.0]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@6.3.0...@metamask/perps-controller@7.0.0
 [6.3.0]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@6.2.0...@metamask/perps-controller@6.3.0
