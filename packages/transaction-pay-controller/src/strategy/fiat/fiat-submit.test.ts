@@ -696,6 +696,60 @@ describe('submitFiatQuotes', () => {
     dateNowSpy.mockRestore();
   });
 
+  it('uses configurable poll timeout from feature flag', async () => {
+    const customTimeoutMs = 30000;
+
+    const dateNowSpy = jest
+      .spyOn(Date, 'now')
+      .mockReturnValueOnce(0)
+      .mockReturnValue(customTimeoutMs);
+
+    const pendingOrder = getFiatOrderMock({ status: RampsOrderStatus.Pending });
+    const callMock = jest.fn((action: string) => {
+      if (action === 'TransactionPayController:getState') {
+        return {
+          transactionData: {
+            [TRANSACTION_ID_MOCK]: {
+              fiatPayment: {
+                orderId: ORDER_ID_MOCK,
+                rampsQuote: RAMPS_QUOTE_MOCK,
+              },
+              isLoading: false,
+              tokens: [],
+            },
+          },
+        };
+      }
+      if (action === 'RampsController:getOrder') {
+        return pendingOrder;
+      }
+      if (action === 'RemoteFeatureFlagController:getState') {
+        return {
+          remoteFeatureFlags: {
+            confirmations_pay_fiat: { orderPollTimeoutMs: customTimeoutMs },
+          },
+        };
+      }
+      throw new Error(`Unexpected action: ${action}`);
+    });
+
+    const request: PayStrategyExecuteRequest<FiatQuote> = {
+      accountSupports7702: false,
+      isSmartTransaction: () => false,
+      messenger: {
+        call: callMock,
+      } as unknown as PayStrategyExecuteRequest<FiatQuote>['messenger'],
+      quotes: [getFiatQuoteMock()],
+      transaction: TRANSACTION_MOCK,
+    };
+
+    await expect(submitFiatQuotes(request)).rejects.toThrow(
+      'Fiat order polling timed out (last status: PENDING)',
+    );
+
+    dateNowSpy.mockRestore();
+  });
+
   it('throws if token info is unavailable for the fiat asset', async () => {
     resolveSourceAmountRawMock.mockRejectedValue(
       new Error(

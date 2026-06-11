@@ -52,7 +52,7 @@
   },
   "dependencies": {
     "@metamask/base-data-service": "^0.1.3",
-    "@metamask/utils": "^11.9.0",
+    "@metamask/utils": "^11.11.0",
     "@tanstack/query-core": "^4.43.0",
     "@tanstack/react-query": "^4.43.0"
   },

@@ -814,8 +814,8 @@ export class AssetsController extends BaseController<
       messenger: this.messenger,
       queryApiClient,
       onActiveChainsUpdated: this.#onActiveChainsUpdated,
-      isNativeAsset: (assetId: Caip19AssetId): boolean =>
-        this.#isNativeAsset(assetId),
+      getAssetType: (assetId: Caip19AssetId): 'native' | 'erc20' | 'spl' =>
+        this.#getAssetType(assetId),
     });
     this.#accountsApiDataSource = new AccountsApiDataSource({
       queryApiClient,
@@ -839,6 +839,8 @@ export class AssetsController extends BaseController<
       queryClient: queryApiClient.queryClient,
       ...rpcConfig,
       isOnboarded: rpcConfig.isOnboarded ?? isOnboarded,
+      getAssetType: (assetId: Caip19AssetId): 'native' | 'erc20' | 'spl' =>
+        this.#getAssetType(assetId),
     });
     this.#stakedBalanceDataSource = new StakedBalanceDataSource({
       messenger: this.messenger,
@@ -850,6 +852,8 @@ export class AssetsController extends BaseController<
       getNativeAssetIds: (): Caip19AssetId[] => {
         return this.#getNativeAssetIdsForEnabledChains();
       },
+      getAssetType: (assetId: Caip19AssetId): 'native' | 'erc20' | 'spl' =>
+        this.#getAssetType(assetId),
     });
     this.#priceDataSource = new PriceDataSource({
       queryApiClient,
@@ -1949,6 +1953,29 @@ export class AssetsController extends BaseController<
   }
 
   /**
+   * Determines the asset type for a given CAIP-19 asset ID.
+   *
+   * @param assetId - The CAIP-19 asset ID.
+   * @returns The asset type: 'native', 'erc20', or 'spl'.
+   */
+  #getAssetType(assetId: Caip19AssetId): 'native' | 'erc20' | 'spl' {
+    const parsed = parseCaipAssetType(assetId);
+
+    if (this.#isNativeAsset(assetId)) {
+      return 'native';
+    }
+
+    if (
+      parsed.chain.namespace === KnownCaipNamespace.Solana &&
+      parsed.assetNamespace === CaipAssetNamespace.Token
+    ) {
+      return 'spl';
+    }
+
+    return 'erc20';
+  }
+
+  /**
    * Resolves native asset IDs (CAIP-19) for the given chains by looking them up
    * in the cached native asset map.
    * Chains without a registered native identifier are skipped.
@@ -2172,16 +2199,37 @@ export class AssetsController extends BaseController<
                 accountId
               ] ?? [];
 
-            // Full: response is authoritative; preserve custom assets not in response.
+            // Full: response is authoritative for the chains it covered;
+            //   balances for chains not in the response are preserved from
+            //   previous state so unsupported chains (e.g. Ink on AccountsAPI)
+            //   are never inadvertently reset to zero.
             // Merge: response overlays previous balances.
-            // Callers that fetch partial data (e.g. newly added chains) must set updateMode: 'merge'.
             const effective: Record<string, AssetBalance> =
               mode === 'merge'
                 ? { ...previousBalances, ...accountBalances }
                 : ((): Record<string, AssetBalance> => {
-                    const next: Record<string, AssetBalance> = {
-                      ...accountBalances,
-                    };
+                    // Determine which chain namespaces this response covers.
+                    const coveredChains = new Set(
+                      Object.keys(accountBalances).map(
+                        (assetId) => assetId.split('/')[0],
+                      ),
+                    );
+
+                    // Start from previous balances, dropping only entries for
+                    // chains this response is authoritative over.
+                    const next: Record<string, AssetBalance> = {};
+                    for (const [assetId, balance] of Object.entries(
+                      previousBalances,
+                    )) {
+                      if (!coveredChains.has(assetId.split('/')[0])) {
+                        next[assetId] = balance;
+                      }
+                    }
+
+                    // Apply the response (authoritative for covered chains).
+                    Object.assign(next, accountBalances);
+
+                    // Preserve custom assets that the response omitted.
                     for (const customId of customAssetIds) {
                       if (!(customId in next)) {
                         const prev = previousBalances[customId];

@@ -145,6 +145,19 @@ function setupController(options: {
     queryApiClient:
       apiClient as unknown as TokenDataSourceOptions['queryApiClient'],
     getNativeAssetIds: (): string[] => nativeAssetIds,
+    getAssetType: (assetId: Caip19AssetId): 'native' | 'erc20' | 'spl' => {
+      const lower = assetId.toLowerCase();
+      if (
+        lower.includes('/slip44:') ||
+        nativeAssetIds.some((id) => id.toLowerCase() === lower)
+      ) {
+        return 'native';
+      }
+      if (lower.startsWith('solana:') && lower.includes('/token:')) {
+        return 'spl';
+      }
+      return 'erc20';
+    },
   });
 
   return {

@@ -12,6 +12,10 @@ import type {
   PayStrategyExecuteRequest,
   TransactionPayControllerMessenger,
 } from '../../types';
+import {
+  getFiatOrderPollIntervalMs,
+  getFiatOrderPollTimeoutMs,
+} from '../../utils/feature-flags';
 import { buildCaipAssetType } from '../../utils/token';
 import { updateTransaction } from '../../utils/transaction';
 import type { TransactionPayFiatAsset } from './constants';
@@ -47,8 +51,6 @@ function isDirectMusdToMoneyAccountQuote(
   );
 }
 
-const ORDER_POLL_INTERVAL_MS = 1000;
-const ORDER_POLL_TIMEOUT_MS = 10 * 60 * 1000;
 
 const TERMINAL_FAILURE_STATUSES: RampsOrderStatus[] = [
   RampsOrderStatus.Cancelled,
@@ -201,6 +203,8 @@ async function waitForOrderCompletion({
   transactionId: string;
   walletAddress: string;
 }): Promise<RampsOrder> {
+  const pollIntervalMs = getFiatOrderPollIntervalMs(messenger);
+  const pollTimeoutMs = getFiatOrderPollTimeoutMs(messenger);
   const startTime = Date.now();
   let lastStatus: string | undefined;
 
@@ -236,13 +240,13 @@ async function waitForOrderCompletion({
       }
     }
 
-    if (Date.now() - startTime >= ORDER_POLL_TIMEOUT_MS) {
+    if (Date.now() - startTime >= pollTimeoutMs) {
       throw new Error(
         `Fiat order polling timed out (last status: ${lastStatus})`,
       );
     }
 
-    await new Promise((resolve) => setTimeout(resolve, ORDER_POLL_INTERVAL_MS));
+    await new Promise((resolve) => setTimeout(resolve, pollIntervalMs));
   }
 }
 
