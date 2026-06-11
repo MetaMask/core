@@ -12,6 +12,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/utils` from `^11.9.0` to `^11.11.0` ([#9074](https://github.com/MetaMask/core/pull/9074))
 - Bump `@metamask/transaction-controller` from `^67.1.0` to `^68.0.0` ([#9089](https://github.com/MetaMask/core/pull/9089))
 
+### Fixed
+
+- `AssetsController` now reclassifies stale native-token metadata entries when the asset appears in incoming balance or price payloads, even if metadata is not re-emitted by the data source ([#9099](https://github.com/MetaMask/core/pull/9099))
+
 ## [9.0.1]
 
 ### Changed
