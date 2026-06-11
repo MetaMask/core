@@ -265,7 +265,7 @@ export class MultichainBalancesController extends BaseController<
     }
 
     this.update((state: Draft<MultichainBalancesControllerState>) => {
-      for (const { accountId, removed } of accounts) {
+      for (const { accountId, added, removed } of accounts) {
         const addedBalances = balancesToAdd[accountId] ?? {};
 
         state.balances[accountId] = state.balances[accountId] ?? {};
