@@ -19,19 +19,11 @@ export type MoneyAccountBalanceServiceGetMusdBalanceAction = {
 
 /**
  * Fetches the account's total Money balance inputs in a single batched RPC
- * request via Multicall3's `aggregate3`, reading both values atomically at
- * the same block:
- * - the mUSD wallet balance (`mUSD.balanceOf`), and
- * - the vault shares valued in mUSD (`Lens.balanceOfInAssets`).
- *
- * Both values are denominated in mUSD's decimals, so consumers can sum them
- * directly to obtain the total balance. Sub-calls use `allowFailure: false`,
- * so if either read reverts the whole query rejects rather than reporting a
- * partial (and misleading) balance.
+ * request via Multicall3's `aggregate3`
  *
  * @param accountAddress - The Money account's Ethereum address.
  * @returns The mUSD balance and the mUSD-equivalent value of vault shares as
- * raw uint256 strings.
+ * raw uint256 strings. The total balance is the sum of the mUSD balance and the mUSD-equivalent value of vault shares.
  * @throws {@link VaultConfigNotAvailableError} if vault config has not been loaded.
  */
 export type MoneyAccountBalanceServiceGetMoneyAccountBalanceAction = {
@@ -58,9 +50,7 @@ export type MoneyAccountBalanceServiceGetVmusdBalanceAction = {
  * the underlying mUSD asset.
  *
  * @param options - The options for the query.
- * @param options.staleTime - The stale time for the query. Defaults to the
- * remotely-configurable balance stale time (see
- * {@link MONEY_ACCOUNT_BALANCE_STALETIME_FEATURE_FLAG_KEY}).
+ * @param options.staleTime - Cache stale time override for this query.
  * @returns The exchange rate as a raw uint256 string.
  * @throws {@link VaultConfigNotAvailableError} if vault config has not been loaded.
  */
@@ -70,13 +60,11 @@ export type MoneyAccountBalanceServiceGetExchangeRateAction = {
 };
 
 /**
- * Computes the mUSD-equivalent value of the account's vmUSD holdings.
- * Internally fetches the vmUSD balance and exchange rate (using cached
- * values when available within their staleTime windows), then multiplies
- * them.
+ * Fetches the mUSD-equivalent value of the account's vmUSD vault shares
+ * via `Lens.balanceOfInAssets` RPC.
  *
  * @param accountAddress - The Money account's Ethereum address.
- * @returns The mUSD-equivalent value (vmUSD holdings) as a raw uint256 string.
+ * @returns The mUSD-equivalent value of vault shares as a raw uint256 string.
  * @throws {@link VaultConfigNotAvailableError} if vault config has not been loaded.
  */
 export type MoneyAccountBalanceServiceGetMusdEquivalentValueAction = {
