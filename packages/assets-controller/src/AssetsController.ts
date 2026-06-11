@@ -2188,6 +2188,25 @@ export class AssetsController extends BaseController<
           }
         }
 
+        // Reconcile & self-heal stale asset "types" (e.g. erc20 -> native)
+        // Important to dynamically update as we start receiving new chain native token changes
+        const assetsInfoAssetIdsSet = new Set(
+          Object.keys(response.assetsInfo ?? {}) as Caip19AssetId[],
+        );
+        for (const assetId of assetsInfoAssetIdsSet) {
+          const entry = metadata[assetId] as FungibleAssetMetadata | undefined;
+          if (!entry) {
+            continue;
+          }
+          const correctType = this.#getAssetType(assetId);
+          if (entry.type !== correctType) {
+            metadata[assetId] = { ...entry, type: correctType };
+            if (!changedMetadata.includes(assetId)) {
+              changedMetadata.push(assetId);
+            }
+          }
+        }
+
         if (normalizedResponse.assetsBalance) {
           for (const [accountId, accountBalances] of Object.entries(
             normalizedResponse.assetsBalance,

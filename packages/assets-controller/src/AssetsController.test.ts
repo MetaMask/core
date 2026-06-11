@@ -1365,6 +1365,80 @@ describe('AssetsController', () => {
       });
     });
 
+    it('reconciles a stale native type stored as erc20 when a response touches the asset', async () => {
+      // Native (zero-address ERC-20) mis-stored as erc20 by an older version.
+      const imxAssetId =
+        'eip155:13371/erc20:0x0000000000000000000000000000000000000000' as Caip19AssetId;
+      const initialState: Partial<AssetsControllerState> = {
+        assetsInfo: {
+          [imxAssetId]: {
+            type: 'erc20',
+            symbol: 'IMX',
+            name: 'Immutable X',
+            decimals: 18,
+            image: 'https://example.com/imx.png',
+          },
+        },
+      };
+
+      await withController(
+        { state: initialState, isBasicFunctionality: () => false },
+        async ({ controller }) => {
+          // A balance report for the asset is enough to drive reconciliation —
+          // the metadata itself does not need to be re-emitted.
+          await controller.handleAssetsUpdate(
+            {
+              assetsBalance: {
+                [MOCK_ACCOUNT_ID]: {
+                  [imxAssetId]: { amount: '1000000000000000000' },
+                },
+              },
+            },
+            'TestSource',
+          );
+
+          expect(controller.state.assetsInfo[imxAssetId]).toStrictEqual({
+            type: 'native',
+            symbol: 'IMX',
+            name: 'Immutable X',
+            decimals: 18,
+            image: 'https://example.com/imx.png',
+          });
+        },
+      );
+    });
+
+    it('leaves a genuine erc20 type untouched when a response touches it', async () => {
+      const initialState: Partial<AssetsControllerState> = {
+        assetsInfo: {
+          [MOCK_ASSET_ID]: {
+            type: 'erc20',
+            symbol: 'USDC',
+            name: 'USD Coin',
+            decimals: 6,
+          },
+        },
+      };
+
+      await withController(
+        { state: initialState, isBasicFunctionality: () => false },
+        async ({ controller }) => {
+          await controller.handleAssetsUpdate(
+            {
+              assetsBalance: {
+                [MOCK_ACCOUNT_ID]: {
+                  [MOCK_ASSET_ID]: { amount: '1000000' },
+                },
+              },
+            },
+            'TestSource',
+          );
+
+          expect(controller.state.assetsInfo[MOCK_ASSET_ID]?.type).toBe('erc20');
+        },
+      );
+    });
+
     it('updates state with metadata', async () => {
       await withController(async ({ controller }) => {
         await controller.handleAssetsUpdate(
