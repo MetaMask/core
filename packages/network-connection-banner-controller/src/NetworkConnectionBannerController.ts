@@ -190,8 +190,8 @@ export type NetworkConnectionBannerControllerOptions = {
  * - The first failing network's default RPC is a custom (non-Infura) endpoint
  *   — users always want to be informed about errors with RPCs they've chosen.
  * - Failed RPCs span more than one registrable domain (likely client-side).
- * - Every enabled EVM network is failing (escape hatch for single-network
- *   setups so they still get a signal).
+ * - Every enabled EVM network with known connectivity status is failing
+ *   (escape hatch for single-network setups so they still get a signal).
  *
  * A wide single-provider outage (e.g. every `*.infura.io` network goes down at
  * once) collapses to one domain and is suppressed, except in the all-down
@@ -407,7 +407,7 @@ export class NetworkConnectionBannerController extends BaseController<
       domain: string | null;
     };
     const failedNetworks: EnrichedFailedNetwork[] = [];
-    let totalEnabled = 0;
+    let totalNetworksWithMetadata = 0;
 
     for (const chainId of enabledEvmChainIds) {
       const networkConfiguration = networkConfigurationsByChainId[chainId];
@@ -422,13 +422,14 @@ export class NetworkConnectionBannerController extends BaseController<
         continue;
       }
 
-      totalEnabled += 1;
-
       const metadata = networksMetadata[defaultRpcEndpoint.networkClientId];
-      if (
-        metadata === undefined ||
-        metadata.status === NetworkStatus.Available
-      ) {
+      if (metadata === undefined) {
+        continue;
+      }
+
+      totalNetworksWithMetadata += 1;
+
+      if (metadata.status === NetworkStatus.Available) {
         continue;
       }
 
@@ -468,12 +469,13 @@ export class NetworkConnectionBannerController extends BaseController<
         .map((entry) => entry.domain)
         .filter((domain): domain is string => domain !== null),
     ).size;
-    const areAllEnabledNetworksFailed = failedNetworks.length === totalEnabled;
+    const areAllKnownNetworksFailed =
+      failedNetworks.length === totalNetworksWithMetadata;
 
     if (
       !firstCustomFailed &&
       distinctDomains <= 1 &&
-      !areAllEnabledNetworksFailed
+      !areAllKnownNetworksFailed
     ) {
       return null;
     }

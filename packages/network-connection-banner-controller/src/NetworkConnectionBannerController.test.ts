@@ -141,14 +141,11 @@ describe('NetworkConnectionBannerController', () => {
         },
       });
 
-      await withController(
-        ({ controller }) => {
-          jest.advanceTimersByTime(5_000);
+      await withController(({ controller }) => {
+        jest.advanceTimersByTime(5_000);
 
-          expect(controller.state.status).toBe('degraded');
-        },
-        initialState,
-      );
+        expect(controller.state.status).toBe('degraded');
+      }, initialState);
     });
   });
 
@@ -351,6 +348,41 @@ describe('NetworkConnectionBannerController', () => {
         expect(controller.state.network).toMatchObject({
           chainId: '0x1',
           isInfuraEndpoint: true,
+        });
+      });
+    });
+
+    it('ignores enabled networks with missing metadata when every known network is failing', async () => {
+      await withController(({ controller, setNetworkState }) => {
+        setNetworkState(
+          buildNetworkState({
+            configurations: {
+              '0x1': buildConfiguration({
+                chainId: '0x1',
+                rpcEndpoints: [
+                  buildInfuraEndpoint(MAINNET_CLIENT_ID, 'mainnet'),
+                ],
+              }),
+              '0xaa36a7': buildConfiguration({
+                chainId: '0xaa36a7',
+                name: 'Sepolia',
+                nativeCurrency: 'SepoliaETH',
+                rpcEndpoints: [
+                  buildInfuraEndpoint(SEPOLIA_CLIENT_ID, 'sepolia'),
+                ],
+              }),
+            },
+            metadata: {
+              [MAINNET_CLIENT_ID]: makeMetadata(NetworkStatus.Unavailable),
+            },
+          }),
+        );
+
+        jest.advanceTimersByTime(5_000);
+
+        expect(controller.state.status).toBe('degraded');
+        expect(controller.state.network).toMatchObject({
+          networkClientId: MAINNET_CLIENT_ID,
         });
       });
     });
