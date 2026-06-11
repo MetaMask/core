@@ -1077,7 +1077,7 @@ describe('HyperLiquidSubscriptionService', () => {
       unsubscribe2();
     });
 
-    it('uses webData2 subscription when HIP-3 is disabled', async () => {
+    it('uses per-DEX subscriptions (not webData2) when HIP-3 is disabled', async () => {
       // Arrange
       const positionCallback = jest.fn();
       const orderCallback = jest.fn();
@@ -1097,43 +1097,42 @@ describe('HyperLiquidSubscriptionService', () => {
         '0x123' as Hex,
       );
 
-      // Mock webData2 to call callback with clearinghouseState data
-      mockSubscriptionClient.webData2.mockImplementation(
-        (_addr: any, callback: any) => {
+      // Positions + account come from the main-DEX clearinghouseState subscription
+      mockSubscriptionClient.clearinghouseState.mockImplementation(
+        (_params: any, callback: any) => {
           setTimeout(() => {
             callback({
+              dex: '',
               clearinghouseState: {
                 assetPositions: [
                   {
                     position: {
                       coin: 'BTC',
                       szi: '1.5',
-                      entryPx: '50000',
-                      positionValue: '75000',
-                      unrealizedPnl: '5000',
-                      returnOnEquity: '0.1',
-                      leverage: { type: 'cross', value: 10 },
-                      liquidationPx: '45000',
-                      marginUsed: '7500',
                     },
                   },
                 ],
                 marginSummary: {
                   accountValue: '100000',
                   totalMarginUsed: '7500',
-                  totalNtlPos: '75000',
-                  totalRawUsd: '100000',
                 },
                 withdrawable: '92500',
-                crossMarginSummary: {
-                  accountValue: '100000',
-                  totalMarginUsed: '7500',
-                  totalNtlPos: '75000',
-                  totalRawUsd: '100000',
-                },
-                time: Date.now(),
               },
-              openOrders: [
+            });
+          }, 0);
+          return Promise.resolve({
+            unsubscribe: jest.fn().mockResolvedValue(undefined),
+          });
+        },
+      );
+
+      // Orders come from the main-DEX openOrders subscription
+      mockSubscriptionClient.openOrders.mockImplementation(
+        (_params: any, callback: any) => {
+          setTimeout(() => {
+            callback({
+              dex: '',
+              orders: [
                 {
                   oid: 456,
                   coin: 'ETH',
@@ -1142,12 +1141,31 @@ describe('HyperLiquidSubscriptionService', () => {
                   origSz: '2.0',
                   limitPx: '3000',
                   orderType: 'Limit',
-                  timestamp: Date.now(),
+                  timestamp: 1234567890000,
                   isTrigger: false,
                   reduceOnly: false,
                 },
               ],
-              perpsAtOpenInterestCap: ['BTC', 'DOGE'],
+            });
+          }, 0);
+          return Promise.resolve({
+            unsubscribe: jest.fn().mockResolvedValue(undefined),
+          });
+        },
+      );
+
+      // OI caps still come from webData3 (acceptable latency)
+      mockSubscriptionClient.webData3.mockImplementation(
+        (_params: any, callback: any) => {
+          setTimeout(() => {
+            callback({
+              perpDexStates: [
+                {
+                  clearinghouseState: { assetPositions: [] },
+                  openOrders: [],
+                  perpsAtOpenInterestCap: ['BTC', 'DOGE'],
+                },
+              ],
             });
           }, 0);
           return Promise.resolve({
@@ -1172,13 +1190,21 @@ describe('HyperLiquidSubscriptionService', () => {
 
       await jest.runAllTimersAsync();
 
-      // Assert
-      expect(mockSubscriptionClient.webData2).toHaveBeenCalledTimes(1);
-      expect(mockSubscriptionClient.webData2).toHaveBeenCalledWith(
+      // Assert: webData2 is never used; positions/orders/account come from the
+      // per-DEX subscriptions and OI caps from webData3.
+      expect(mockSubscriptionClient.webData2).not.toHaveBeenCalled();
+      expect(mockSubscriptionClient.clearinghouseState).toHaveBeenCalledWith(
+        expect.objectContaining({ user: '0x123' }),
+        expect.any(Function),
+      );
+      expect(mockSubscriptionClient.openOrders).toHaveBeenCalledWith(
+        expect.objectContaining({ user: '0x123' }),
+        expect.any(Function),
+      );
+      expect(mockSubscriptionClient.webData3).toHaveBeenCalledWith(
         { user: '0x123' },
         expect.any(Function),
       );
-      expect(mockSubscriptionClient.webData3).not.toHaveBeenCalled();
 
       expect(positionCallback).toHaveBeenCalledWith(
         expect.arrayContaining([

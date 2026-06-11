@@ -7539,7 +7539,7 @@ export class HyperLiquidProvider implements PerpsProvider {
 
   /**
    * Subscribe to open interest cap updates
-   * Zero additional overhead - data extracted from existing webData2 subscription
+   * Zero additional overhead - data extracted from existing webData3 subscription
    *
    * @param params - The operation parameters.
    * @returns A cleanup function to remove the subscription.
