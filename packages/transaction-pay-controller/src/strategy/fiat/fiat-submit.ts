@@ -31,46 +31,6 @@ import {
 
 const log = createModuleLogger(projectLogger, 'fiat-submit');
 
-/**
- * Detects whether the given quotes originated from the direct mUSD-to-
- * Money-Account flow by inspecting the stored quote request's source
- * chain and token. This is more reliable than re-checking the feature
- * flag, which could change between quote and submit.
- *
- * @param quotes - The fiat quotes to inspect.
- * @returns `true` if the first quote targets mUSD on Monad as its source.
- */
-function isDirectMusdToMoneyAccountQuote(
-  quotes: PayStrategyExecuteRequest<FiatQuote>['quotes'],
-): boolean {
-  const request = quotes[0]?.request;
-  return (
-    request?.sourceChainId === MUSD_MONAD_FIAT_ASSET.chainId &&
-    request?.sourceTokenAddress.toLowerCase() ===
-      MUSD_MONAD_FIAT_ASSET.address.toLowerCase()
-  );
-}
-
-function getWalletAddress({
-  quotes,
-  transaction,
-  accountOverride,
-}: {
-  quotes: PayStrategyExecuteRequest<FiatQuote>['quotes'];
-  transaction: PayStrategyExecuteRequest<FiatQuote>['transaction'];
-  accountOverride: Hex | undefined;
-}): Hex {
-  const address = isDirectMusdToMoneyAccountQuote(quotes)
-    ? transaction.txParams.from
-    : (accountOverride ?? transaction.txParams.from);
-
-  if (!address) {
-    throw new Error('Missing wallet address for fiat submission');
-  }
-
-  return address as Hex;
-}
-
 const TERMINAL_FAILURE_STATUSES: RampsOrderStatus[] = [
   RampsOrderStatus.Cancelled,
   RampsOrderStatus.Failed,
@@ -333,4 +293,44 @@ async function submitRelayAfterFiatCompletion({
     sourceAmountRaw,
     transaction,
   });
+}
+
+/**
+ * Detects whether the given quotes originated from the direct mUSD-to-
+ * Money-Account flow by inspecting the stored quote request's source
+ * chain and token. This is more reliable than re-checking the feature
+ * flag, which could change between quote and submit.
+ *
+ * @param quotes - The fiat quotes to inspect.
+ * @returns `true` if the first quote targets mUSD on Monad as its source.
+ */
+function isDirectMusdToMoneyAccountQuote(
+  quotes: PayStrategyExecuteRequest<FiatQuote>['quotes'],
+): boolean {
+  const request = quotes[0]?.request;
+  return (
+    request?.sourceChainId === MUSD_MONAD_FIAT_ASSET.chainId &&
+    request?.sourceTokenAddress.toLowerCase() ===
+      MUSD_MONAD_FIAT_ASSET.address.toLowerCase()
+  );
+}
+
+function getWalletAddress({
+  quotes,
+  transaction,
+  accountOverride,
+}: {
+  quotes: PayStrategyExecuteRequest<FiatQuote>['quotes'];
+  transaction: PayStrategyExecuteRequest<FiatQuote>['transaction'];
+  accountOverride: Hex | undefined;
+}): Hex {
+  const address = isDirectMusdToMoneyAccountQuote(quotes)
+    ? transaction.txParams.from
+    : (accountOverride ?? transaction.txParams.from);
+
+  if (!address) {
+    throw new Error('Missing wallet address for fiat submission');
+  }
+
+  return address as Hex;
 }
