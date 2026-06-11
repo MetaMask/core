@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [2.0.5]
 
+### Changed
+
+- Bump `@metamask/utils` from `^11.9.0` to `^11.11.0` ([#9074](https://github.com/MetaMask/core/pull/9074))
+
 ### Fixed
 
 - Scope the `register-intents` step to the currently-configured token addresses (deposit mUSD / withdrawal vmUSD) so that stale delegations for previously-configured tokens are no longer registered as intents ([#9075](https://github.com/MetaMask/core/pull/9075))

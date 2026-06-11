@@ -71,7 +71,7 @@
     "@metamask/ramps-controller": "^14.1.1",
     "@metamask/remote-feature-flag-controller": "^4.2.2",
     "@metamask/transaction-controller": "^67.1.0",
-    "@metamask/utils": "^11.9.0",
+    "@metamask/utils": "^11.11.0",
     "bignumber.js": "^9.1.2",
     "bn.js": "^5.2.1",
     "immer": "^9.0.6",
