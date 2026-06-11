@@ -828,7 +828,6 @@ describe('EvmAccountProvider', () => {
     expect(await provider.resyncAccounts()).toBeUndefined();
   });
 
-<<<<<<< HEAD
   describe('deleteAccount', () => {
     it('selects the keyring by the account entropy source and calls keyring.deleteAccount', async () => {
       const { provider, keyring, messenger } = setup({
@@ -864,7 +863,9 @@ describe('EvmAccountProvider', () => {
       await expect(provider.deleteAccount('unknown-id')).rejects.toThrow(
         'Unable to find account: unknown-id',
       );
-=======
+    });
+  });
+
   describe('isAligned', () => {
     it('returns true when accountIds is non-empty and every ID is owned by the provider', () => {
       const { provider } = setup();
@@ -909,7 +910,6 @@ describe('EvmAccountProvider', () => {
           'unknown-id',
         ]),
       ).toBe(false);
->>>>>>> origin/main
     });
   });
 });
