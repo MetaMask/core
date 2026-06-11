@@ -254,6 +254,7 @@ const MOCK_PREPOPULATED_STATE: Partial<AccountTreeControllerState> = {
           [MOCK_PREPOPULATED_GROUP_ID]: {
             id: MOCK_PREPOPULATED_GROUP_ID,
             type: AccountGroupType.MultichainAccount,
+            status: 'uninitialized',
             accounts: [MOCK_HD_ACCOUNT_1.id],
             metadata: {
               name: 'Account 1',
@@ -562,6 +563,7 @@ describe('AccountTreeController', () => {
                 [expectedWalletId1Group]: {
                   id: expectedWalletId1Group,
                   type: AccountGroupType.MultichainAccount,
+                  status: 'uninitialized',
                   accounts: [MOCK_HD_ACCOUNT_1.id],
                   metadata: {
                     name: 'Account 1',
@@ -589,6 +591,7 @@ describe('AccountTreeController', () => {
                 [expectedWalletId2Group1]: {
                   id: expectedWalletId2Group1,
                   type: AccountGroupType.MultichainAccount,
+                  status: 'uninitialized',
                   accounts: [MOCK_HD_ACCOUNT_2.id],
                   metadata: {
                     name: 'Account 1', // Updated: per-wallet numbering (wallet 2, account 1)
@@ -603,6 +606,7 @@ describe('AccountTreeController', () => {
                 [expectedWalletId2Group2]: {
                   id: expectedWalletId2Group2,
                   type: AccountGroupType.MultichainAccount,
+                  status: 'uninitialized',
                   accounts: [MOCK_SNAP_ACCOUNT_1.id],
                   metadata: {
                     name: 'Account 2', // Updated: per-wallet sequential numbering (wallet 2, account 2)
@@ -1286,6 +1290,7 @@ describe('AccountTreeController', () => {
                 [walletId1Group]: {
                   id: walletId1Group,
                   type: AccountGroupType.MultichainAccount,
+                  status: 'uninitialized',
                   metadata: {
                     name: 'Account 1',
                     entropy: {
@@ -1377,6 +1382,7 @@ describe('AccountTreeController', () => {
                 [walletId1Group2]: {
                   id: walletId1Group2,
                   type: AccountGroupType.MultichainAccount,
+                  status: 'uninitialized',
                   metadata: {
                     name: 'Account 2',
                     entropy: {
@@ -1612,6 +1618,7 @@ describe('AccountTreeController', () => {
                 [walletId1Group]: {
                   id: walletId1Group,
                   type: AccountGroupType.MultichainAccount,
+                  status: 'uninitialized',
                   metadata: {
                     name: 'Account 1',
                     entropy: {
@@ -1720,6 +1727,7 @@ describe('AccountTreeController', () => {
                 [walletId1Group]: {
                   id: walletId1Group,
                   type: AccountGroupType.MultichainAccount,
+                  status: 'uninitialized',
                   metadata: {
                     name: 'Account 1',
                     entropy: {
@@ -1748,6 +1756,7 @@ describe('AccountTreeController', () => {
                 [walletId2Group]: {
                   id: walletId2Group,
                   type: AccountGroupType.MultichainAccount,
+                  status: 'uninitialized',
                   metadata: {
                     name: 'Account 1', // Updated: per-wallet naming (different wallet)
                     entropy: {
@@ -1868,6 +1877,60 @@ describe('AccountTreeController', () => {
       expect(controller.state.accountTree.wallets[walletId]?.status).toBe(
         'ready',
       );
+    });
+  });
+
+  describe('on MultichainAccountService:groupStatusChange', () => {
+    it('updates the group status when the event is published', () => {
+      const { controller, messenger } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1],
+        keyrings: [MOCK_HD_KEYRING_1],
+      });
+      controller.init();
+
+      const walletId = MOCK_PREPOPULATED_WALLET_ID;
+      const groupId = MOCK_PREPOPULATED_GROUP_ID;
+
+      expect(
+        controller.state.accountTree.wallets[walletId]?.groups[groupId]
+          ?.status,
+      ).toBe('uninitialized');
+
+      messenger.publish(
+        'MultichainAccountService:groupStatusChange',
+        groupId,
+        'in-progress:alignment',
+      );
+      expect(
+        controller.state.accountTree.wallets[walletId]?.groups[groupId]
+          ?.status,
+      ).toBe('in-progress:alignment');
+
+      messenger.publish(
+        'MultichainAccountService:groupStatusChange',
+        groupId,
+        'aligned',
+      );
+      expect(
+        controller.state.accountTree.wallets[walletId]?.groups[groupId]
+          ?.status,
+      ).toBe('aligned');
+    });
+
+    it('does nothing when the group ID is unknown', () => {
+      const { controller, messenger } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1],
+        keyrings: [MOCK_HD_KEYRING_1],
+      });
+      controller.init();
+
+      expect(() =>
+        messenger.publish(
+          'MultichainAccountService:groupStatusChange',
+          'unknown-group-id' as ReturnType<typeof toMultichainAccountGroupId>,
+          'aligned',
+        ),
+      ).not.toThrow();
     });
   });
 

@@ -13,6 +13,7 @@ import {
   XlmAccountType,
 } from '@metamask/keyring-api';
 import type { KeyringAccountType } from '@metamask/keyring-api';
+import type { MultichainAccountGroupStatus } from '@metamask/multichain-account-service';
 
 import type { UpdatableField, ExtractFieldValues } from './type-utils';
 import type { AccountTreeControllerState } from './types';
@@ -79,6 +80,7 @@ type IsAccountGroupObject<
 export type AccountGroupMultichainAccountObject = {
   type: AccountGroupType.MultichainAccount;
   id: MultichainAccountGroupId;
+  status: MultichainAccountGroupStatus;
   // Blockchain Accounts (at least 1 account per multichain-accounts):
   accounts: [AccountId, ...AccountId[]];
   metadata: AccountTreeGroupMetadata & {

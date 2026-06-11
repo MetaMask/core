@@ -49,6 +49,7 @@ export function getAccountTreeControllerMessenger(
       'AccountsController:selectedAccountChange',
       'UserStorageController:stateChange',
       'MultichainAccountService:walletStatusChange',
+      'MultichainAccountService:groupStatusChange',
     ],
     actions: [
       'AccountsController:listMultichainAccounts',

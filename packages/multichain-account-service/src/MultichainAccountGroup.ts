@@ -13,7 +13,10 @@ import { projectLogger as log, createModuleLogger } from './logger';
 import type { ServiceState, StateKeys } from './MultichainAccountService';
 import type { MultichainAccountWallet } from './MultichainAccountWallet';
 import type { Bip44AccountProvider } from './providers';
-import type { MultichainAccountServiceMessenger } from './types';
+import type {
+  MultichainAccountGroupStatus,
+  MultichainAccountServiceMessenger,
+} from './types';
 
 export type GroupState =
   ServiceState[StateKeys['entropySource']][StateKeys['groupIndex']];
@@ -47,6 +50,8 @@ export class MultichainAccountGroup<
   readonly #log: Logger;
 
   #initialized = false;
+
+  #status: MultichainAccountGroupStatus = 'uninitialized';
 
   constructor({
     groupIndex,
@@ -114,6 +119,9 @@ export class MultichainAccountGroup<
     this.#log('Finished initializing group state...');
 
     this.#initialized = true;
+    // Set initial status without publishing — mirrors wallet init() pattern where the tree
+    // hardcodes its own initial state and events only flow after the first mutation.
+    this.#status = this.isAligned() ? 'aligned' : 'misaligned';
   }
 
   /**
@@ -127,9 +135,71 @@ export class MultichainAccountGroup<
     this.#log('Finished updating group state...');
 
     if (this.#initialized) {
+      // Auto-correct status for dynamic account changes that happen outside any
+      // explicit operation (e.g. a new provider added at runtime). During an
+      // operation, `withState` owns the status and its `finally` block finalizes it,
+      // so we skip the auto-update to avoid clobbering the in-progress state.
+      if (!this.#status.startsWith('in-progress:')) {
+        this.#setStatus(this.isAligned() ? 'aligned' : 'misaligned');
+      }
+
       this.#messenger.publish(
         'MultichainAccountService:multichainAccountGroupUpdated',
         this,
+      );
+    }
+  }
+
+  /**
+   * Gets the current status of this group.
+   *
+   * @returns The group status.
+   */
+  get status(): MultichainAccountGroupStatus {
+    return this.#status;
+  }
+
+  /**
+   * Runs an async operation under a specific in-progress status, then auto-finalizes
+   * the group status to `'aligned'` or `'misaligned'` in the `finally` block.
+   *
+   * Mirrors the wallet's `#withLock` pattern — without acquiring a lock (the wallet's
+   * mutex already serializes all mutable group operations).
+   *
+   * @param status - The in-progress status to set before the operation.
+   * @param operation - The operation to run.
+   * @returns The operation's result.
+   */
+  async withState<Return>(
+    status: 'in-progress:create-accounts' | 'in-progress:alignment',
+    operation: () => Promise<Return>,
+  ): Promise<Return> {
+    // Do not override an in-progress status that was set by an outer caller
+    // (e.g. 'in-progress:create-accounts' must survive through the inner
+    // #alignAccountsForRange 'in-progress:alignment' withState call).
+    if (!this.#status.startsWith('in-progress:')) {
+      this.#setStatus(status);
+    }
+    try {
+      return await operation();
+    } finally {
+      this.#setStatus(this.isAligned() ? 'aligned' : 'misaligned');
+    }
+  }
+
+  /**
+   * Sets the group status and publishes the status-change event.
+   * No-ops when the group has not been initialized yet.
+   *
+   * @param status - The new status.
+   */
+  #setStatus(status: MultichainAccountGroupStatus): void {
+    this.#status = status;
+    if (this.#initialized) {
+      this.#messenger.publish(
+        'MultichainAccountService:groupStatusChange',
+        this.#id,
+        this.#status,
       );
     }
   }

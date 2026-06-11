@@ -447,8 +447,13 @@ export class MultichainAccountWallet<
   async #alignAccountsForRange(
     { from, to }: Required<GroupIndexRange>,
     providers: Bip44AccountProvider<Account>[],
-    options: { trace?: { data?: TraceRequest['data'] } } = {},
+    options: {
+      trace?: { data?: TraceRequest['data'] };
+      groupStatus?: 'in-progress:create-accounts' | 'in-progress:alignment';
+    } = {},
   ): Promise<void> {
+    const groupStatus = options.groupStatus ?? 'in-progress:alignment';
+
     await this.#trace(
       {
         name: TraceName.WalletAlignment,
@@ -475,7 +480,17 @@ export class MultichainAccountWallet<
         for (let groupIndex = from; groupIndex <= to; groupIndex++) {
           const groupState = groupStateByGroupIndex.get(groupIndex);
           if (groupState) {
-            this.#createOrUpdateMultichainAccountGroup(groupIndex, groupState);
+            const existingGroup = this.getMultichainAccountGroup(groupIndex);
+            assert(
+              existingGroup,
+              `Expected group at index ${groupIndex} to exist before alignment`,
+            );
+            await existingGroup.withState(groupStatus, async () => {
+              this.#createOrUpdateMultichainAccountGroup(
+                groupIndex,
+                groupState,
+              );
+            });
           }
         }
       },
@@ -702,6 +717,7 @@ export class MultichainAccountWallet<
                 post: true, // Tag to identify post-alignment traces in analytics.
               },
             },
+            groupStatus: 'in-progress:create-accounts',
           });
         });
 

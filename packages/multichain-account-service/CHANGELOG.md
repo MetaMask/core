@@ -16,6 +16,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Use this if you need to access the inner (wrapped) keyring.
 - Add `isAligned` ([#9039](https://github.com/MetaMask/core/pull/9039))
   - This allows callers to cheaply check whether alignment has already occurred before triggering an explicit alignment operation.
+- Add `MultichainAccountGroupStatus` type and `MultichainAccountServiceGroupStatusChangeEvent` event ([#TODO](https://github.com/MetaMask/core/pull/TODO))
+  - `MultichainAccountGroup` now tracks a `status` field (`'uninitialized' | 'in-progress:create-accounts' | 'in-progress:alignment' | 'aligned' | 'misaligned'`).
+  - The service messenger emits `MultichainAccountService:groupStatusChange` whenever a group's status changes.
 
 ### Changed
 
