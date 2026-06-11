@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- fix: drop deprecated HyperLiquid webData2 path in perps user data subscription ([#9081](https://github.com/MetaMask/core/pull/9081))
+- Release 1028.0.0 ([#9066](https://github.com/MetaMask/core/pull/9066))
+
 ### Added
 
 - Add observational hard timeout for order submission: tag the `Perps Order Submission` trace and emit a breadcrumb when a provider round-trip exceeds `PlaceOrderTimeoutMs` (60s), without cancelling the in-flight order ([#21217](https://github.com/MetaMask/core/pull/21217))
