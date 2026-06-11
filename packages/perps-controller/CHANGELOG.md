@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Bump `@metamask/controller-utils` from `^12.1.0` to `^12.1.1` ([#9058](https://github.com/MetaMask/core/pull/9058))
+- Revert Pre-IPO classification of `xyz:CBRS` and `xyz:IPOP` introduced in [#9038](https://github.com/MetaMask/core/pull/9038): `xyz:CBRS` is reclassified back to `stock` and `xyz:IPOP` is removed from `HIP3_ASSET_MARKET_TYPES` (no category). `xyz:SPCX` remains `pre-ipo`.
 
 ## [8.0.0]
 

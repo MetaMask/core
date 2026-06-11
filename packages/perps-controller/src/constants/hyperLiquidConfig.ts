@@ -342,6 +342,7 @@ export const HIP3_ASSET_MARKET_TYPES: Record<string, MarketType> = {
   'xyz:MRVL': MarketCategory.Stock,
   'xyz:ZM': MarketCategory.Stock,
   'xyz:EBAY': MarketCategory.Stock,
+  'xyz:CBRS': MarketCategory.Stock,
   'xyz:PURRDAT': MarketCategory.Stock,
   'xyz:ARM': MarketCategory.Stock,
   'xyz:BX': MarketCategory.Stock,
@@ -357,9 +358,7 @@ export const HIP3_ASSET_MARKET_TYPES: Record<string, MarketType> = {
   'xyz:KIOXIA': MarketCategory.Stock,
 
   // xyz DEX - Pre-IPO
-  'xyz:CBRS': MarketCategory.PreIpo,
   'xyz:SPCX': MarketCategory.PreIpo,
-  'xyz:IPOP': MarketCategory.PreIpo,
 
   // xyz DEX - Indices
   'xyz:SP500': MarketCategory.Index,
