@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Make fiat order polling interval and timeout remotely configurable via `confirmations_pay_fiat.orderPollIntervalMs` and `confirmations_pay_fiat.orderPollTimeoutMs` feature flags
+- Make fiat order polling interval and timeout remotely configurable via `confirmations_pay_fiat.orderPollIntervalMs` and `confirmations_pay_fiat.orderPollTimeoutMs` feature flags ([#9090](https://github.com/MetaMask/core/pull/9090))
 
 ### Changed
 
