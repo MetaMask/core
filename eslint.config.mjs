@@ -309,6 +309,27 @@ const config = createConfig([
     },
   },
   {
+    files: ['packages/wallet-cli/src/**/*.{js,ts}'],
+    rules: {
+      'import-x/no-nodejs-modules': 'off',
+      'no-restricted-globals': 'off',
+    },
+  },
+  {
+    files: ['packages/wallet-cli/src/**/*.test.{js,ts}'],
+    rules: {
+      'jest/unbound-method': 'off',
+      'n/no-process-env': 'off',
+      'n/no-sync': 'off',
+    },
+  },
+  {
+    files: ['packages/wallet-cli/bin/**/*.mjs'],
+    rules: {
+      'import-x/no-unresolved': 'off',
+    },
+  },
+  {
     files: [
       'packages/notification-services-controller/src/NotificationServicesPushController/services/push/*-web.ts',
       'packages/notification-services-controller/src/NotificationServicesPushController/web/**/*.ts',

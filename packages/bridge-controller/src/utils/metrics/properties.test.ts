@@ -1,7 +1,7 @@
 import { SolScope } from '@metamask/keyring-api';
 import type { CaipChainId } from '@metamask/utils';
 
-import type { QuoteResponse } from '../../types';
+import type { QuoteResponseV1 } from '../../types';
 import { getNativeAssetForChainId } from '../bridge';
 import { formatChainIdToCaip } from '../caip-formatters';
 import { MetricsSwapType } from './constants';
@@ -169,7 +169,7 @@ describe('properties', () => {
 
   describe('formatProviderLabel', () => {
     it('should format provider label correctly', () => {
-      const mockQuoteResponse: QuoteResponse = {
+      const mockQuoteResponse: QuoteResponseV1 = {
         quote: {
           requestId: 'request1',
           srcChainId: 1,
@@ -362,7 +362,7 @@ describe('properties', () => {
 
   describe('getQuotesReceivedProperties', () => {
     it('should return quotes received properties correctly', () => {
-      const mockQuoteResponse: QuoteResponse = {
+      const mockQuoteResponse: QuoteResponseV1 = {
         quote: {
           requestId: 'request1',
           srcChainId: 1,
