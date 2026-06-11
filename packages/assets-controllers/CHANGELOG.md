@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Snap account-asset enrichment via `getAccountAssetInfo`; balance rows and `Asset.extra` carry chain-specific fields; export `isStellarClassicTrustlineInactiveForDisplay` for Stellar trustline UX ([#8828](https://github.com/MetaMask/core/pull/8828))
+
 ### Changed
 
 - Bump `@metamask/utils` from `^11.9.0` to `^11.11.0` ([#9074](https://github.com/MetaMask/core/pull/9074))

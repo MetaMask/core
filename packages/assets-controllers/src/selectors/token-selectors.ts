@@ -14,7 +14,11 @@ import { shouldIncludeNativeToken } from '../constants';
 import type { CurrencyRateState } from '../CurrencyRateController';
 import type { MultichainAssetsControllerState } from '../MultichainAssetsController';
 import type { MultichainAssetsRatesControllerState } from '../MultichainAssetsRatesController';
-import type { MultichainBalancesControllerState } from '../MultichainBalancesController';
+import type {
+  MultichainAccountBalance,
+  MultichainBalancesControllerState,
+} from '../MultichainBalancesController';
+import type { AccountAssetInfoExtra } from '../MultichainBalancesController/utils';
 import { getNativeTokenAddress } from '../token-prices-service/codefi-v2';
 import type { TokenBalancesControllerState } from '../TokenBalancesController';
 import type { Token, TokenRatesControllerState } from '../TokenRatesController';
@@ -89,6 +93,8 @@ export type Asset = (
         conversionRate: number;
       }
     | undefined;
+  /** Chain-specific snap enrichment fields from balance `extra`. */
+  extra?: AccountAssetInfoExtra;
   rwaData?: TokenRwaData;
 };
 
@@ -401,12 +407,8 @@ const selectAllMultichainAssets = createAssetListSelector(
         groupAssets[accountGroupId][chainId] ??= [];
         const groupChainAssets = groupAssets[accountGroupId][chainId];
 
-        const balance:
-          | {
-              amount: string;
-              unit: string;
-            }
-          | undefined = multichainBalances[accountId]?.[assetId];
+        const balance: MultichainAccountBalance | undefined =
+          multichainBalances[accountId]?.[assetId];
 
         const decimals = assetMetadata.units?.find(
           (unit) =>
@@ -450,6 +452,7 @@ const selectAllMultichainAssets = createAssetListSelector(
               }
             : undefined,
           chainId,
+          ...(balance?.extra !== undefined && { extra: balance.extra }),
         });
       }
     }
