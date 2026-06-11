@@ -13,7 +13,6 @@ runs:
       uses: MetaMask/action-checkout-and-setup@v3
       with:
         is-high-risk-environment: false
-        fetch-depth: 0
         skip-install: true
 
     - name: Get merge base
