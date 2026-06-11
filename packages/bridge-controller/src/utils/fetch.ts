@@ -1,9 +1,9 @@
 /* eslint-disable @typescript-eslint/explicit-function-return-type */
 import { StructError } from '@metamask/superstruct';
+import { KnownCaipNamespace } from '@metamask/utils';
 import type { CaipAssetType, CaipChainId, Hex } from '@metamask/utils';
 
 import type {
-  QuoteResponseV1,
   FetchFunction,
   GenericQuoteRequest,
   QuoteRequest,
@@ -16,10 +16,14 @@ import type {
 import { validateBatchSellTradesResponse } from '../validators/batch-sell';
 import { validateBridgeAsset } from '../validators/bridge-asset';
 import type { FeatureId } from '../validators/feature-flags';
+import type { QuoteResponseV1 } from '../validators/quote-response';
 import { validateQuoteResponseV1 } from '../validators/quote-response';
+import type { QuoteResponse } from '../validators/quote-response-v2';
+import { toQuoteResponseV2 } from '../validators/quote-response-v2-migration';
 import { validateQuoteStreamComplete } from '../validators/quote-stream-complete';
 import { validateTokenFeature } from '../validators/token-feature';
 import { isEvmTxData } from '../validators/trade';
+import type { TxData } from '../validators/trade';
 import { getEthUsdtResetData } from './bridge';
 import {
   formatAddressToAssetId,
@@ -309,13 +313,17 @@ const getQuoteRequestId = ({
   srcTokenAddress,
   destTokenAddress,
 }: QuoteRequest): string =>
-  `${formatAddressToAssetId(srcTokenAddress, srcChainId)}-${formatAddressToAssetId(destTokenAddress, destChainId)}`;
+  `${formatAddressToAssetId(srcTokenAddress, srcChainId)}-${formatAddressToAssetId(destTokenAddress, destChainId)}`.toLowerCase();
 
 const getQuoteResponseId = ({
-  srcAsset: { address: srcTokenAddress, chainId: srcChainId },
-  destAsset: { address: destTokenAddress, chainId: destChainId },
-}: QuoteResponseV1['quote']): string =>
-  `${formatAddressToAssetId(srcTokenAddress, srcChainId)}-${formatAddressToAssetId(destTokenAddress, destChainId)}`;
+  src: {
+    asset: { assetId: srcAssetId },
+  },
+  dest: {
+    asset: { assetId: destAssetId },
+  },
+}: QuoteResponse['quote']): string =>
+  `${srcAssetId}-${destAssetId}`.toLowerCase();
 
 /**
  * Fetches quotes from the bridge-api
@@ -347,7 +355,9 @@ export async function fetchBridgeQuoteStream(
   serverEventHandlers: {
     onClose: () => void | Promise<void>;
     onQuoteValidationFailure: (validationFailures: string[]) => void;
-    onValidQuoteReceived: (quotes: QuoteResponseV1) => Promise<void>;
+    onValidQuoteReceived: (
+      quotes: QuoteResponse & { resetApproval?: TxData },
+    ) => Promise<void>;
     onTokenWarning: (warning: TokenFeature) => void;
     onComplete: (data: QuoteStreamCompleteData) => void;
   },
@@ -363,48 +373,51 @@ export async function fetchBridgeQuoteStream(
     ? normalizedQuoteRequests.map(getQuoteRequestId)
     : undefined;
 
-  const onQuoteReceived = async (quoteResponse: unknown): Promise<void> => {
+  const onQuoteReceived = async (
+    quoteResponseV1OrV2: unknown,
+  ): Promise<void> => {
     const uniqueValidationFailures: Set<string> = new Set<string>([]);
 
     try {
-      if (validateQuoteResponseV1(quoteResponse)) {
-        // Fallback to 0 if the quote doesn't match any requests
-        const matchedQuoteRequestIdx = Math.max(
-          quoteRequestIds?.findIndex((id) => {
-            return id === getQuoteResponseId(quoteResponse.quote);
-          }) ?? 0,
-          0,
-        );
-        const matchingQuoteRequest =
-          normalizedQuoteRequests[matchedQuoteRequestIdx];
+      const quoteResponseV2 = toQuoteResponseV2(quoteResponseV1OrV2, featureId);
+      // Fallback to 0 if the quote doesn't match any requests
+      const matchedQuoteRequestIdx = Math.max(
+        quoteRequestIds?.findIndex((id) => {
+          return id === getQuoteResponseId(quoteResponseV2.quote);
+        }) ?? 0,
+        0,
+      );
+      const matchingQuoteRequest =
+        normalizedQuoteRequests[matchedQuoteRequestIdx];
 
-        return await serverEventHandlers.onValidQuoteReceived({
-          ...quoteResponse,
-          featureId,
-          // Append the reset approval data to the quote response if the request has resetApproval set to true and the quote has an approval
-          resetApproval:
-            matchingQuoteRequest.resetApproval &&
-            quoteResponse.approval &&
-            isEvmTxData(quoteResponse.approval)
-              ? {
-                  ...quoteResponse.approval,
-                  data: getEthUsdtResetData(matchingQuoteRequest.destChainId),
-                }
-              : undefined,
-          ...(isBatchSellRequest && {
-            quoteRequestIndex: matchedQuoteRequestIdx,
-          }),
-        });
-      }
+      return await serverEventHandlers.onValidQuoteReceived({
+        ...quoteResponseV2,
+        featureId,
+        // Append the reset approval data to the quote response if the request has resetApproval set to true and the quote has an approval
+        resetApproval:
+          quoteResponseV2.namespace === KnownCaipNamespace.Eip155 &&
+          matchingQuoteRequest.resetApproval &&
+          quoteResponseV2.approval
+            ? {
+                ...quoteResponseV2.approval,
+                data: getEthUsdtResetData(matchingQuoteRequest.destChainId),
+              }
+            : undefined,
+        ...(isBatchSellRequest && {
+          quoteRequestIndex: matchedQuoteRequestIdx,
+        }),
+      });
     } catch (error) {
       if (error instanceof StructError) {
         error.failures().forEach(({ branch, path }) => {
           const aggregatorId =
-            branch?.[0]?.quote?.bridgeId ??
-            branch?.[0]?.quote?.bridges?.[0] ??
-            (quoteResponse as QuoteResponseV1)?.quote?.bridgeId ??
-            ((quoteResponse as QuoteResponseV1)?.quote?.bridges?.[0] ||
-              ('unknown' as string));
+            branch?.[0]?.quote?.aggregator ??
+            branch?.[0]?.quote?.protocols?.[0] ??
+            (quoteResponseV1OrV2 as QuoteResponseV1)?.quote?.protocols?.[0] ??
+            (quoteResponseV1OrV2 as QuoteResponseV1)?.quote?.bridgeId ??
+            (quoteResponseV1OrV2 as QuoteResponseV1)?.quote?.bridges?.[0] ??
+            (quoteResponseV1OrV2 as QuoteResponse)?.quote?.aggregator ??
+            'unknown';
           const pathString = path?.join('.') || 'unknown';
           uniqueValidationFailures.add([aggregatorId, pathString].join('|'));
         });
@@ -495,11 +508,16 @@ export async function fetchBridgeQuoteStream(
 }
 
 export const formatBatchSellTradesRequest = (
-  quotes: (QuoteResponseV1 | null)[],
+  quotes: (QuoteResponse | null)[],
   stxEnabled: boolean,
 ): BatchSellTradesRequest => ({
   quotes: quotes
-    .filter((quote): quote is QuoteResponseV1 => quote !== null)
+    .filter(
+      (
+        quote,
+      ): quote is QuoteResponse & { namespace: KnownCaipNamespace.Eip155 } =>
+        quote !== null && quote.namespace === KnownCaipNamespace.Eip155,
+    )
     .map(
       ({
         trade,
@@ -532,7 +550,7 @@ export const formatBatchSellTradesRequest = (
  * @returns The batch sell trades and the total network fee
  */
 export async function fetchBatchSellTrades(
-  quotes: (QuoteResponseV1 | null)[],
+  quotes: (QuoteResponse | null)[],
   stxEnabled: boolean,
   signal: AbortSignal | null,
   clientId: string,

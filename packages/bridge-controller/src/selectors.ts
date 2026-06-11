@@ -10,7 +10,11 @@ import type {
   GasFeeEstimatesByChainId,
 } from '@metamask/gas-fee-controller';
 import type { CaipAssetType } from '@metamask/utils';
-import { isStrictHexString, parseCaipAssetType } from '@metamask/utils';
+import {
+  isStrictHexString,
+  KnownCaipNamespace,
+  parseCaipAssetType,
+} from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
 import { orderBy } from 'lodash';
 import {
@@ -23,13 +27,10 @@ import type {
   BridgeControllerState,
   ExchangeRate,
   QuoteMetadata,
-  QuoteResponseV1,
-  TokenAmountValues,
 } from './types';
 import { RequestStatus, SortOrder } from './types';
 import {
   getNativeAssetForChainId,
-  isEvmQuoteResponse,
   isNativeAddress,
   isNonEvmChainId,
 } from './utils/bridge';
@@ -51,10 +52,11 @@ import {
   calcSwapRate,
   calcToAmount,
   calcTotalEstimatedNetworkFee,
-  calcTotalMaxNetworkFee,
   calcBatchFees,
 } from './utils/quote';
 import { getDefaultSlippagePercentage } from './utils/slippage';
+import type { QuoteResponse } from './validators/quote-response-v2';
+import { mergeQuoteMetadata } from './validators/quote-response-v2-migration';
 
 /**
  * The controller states that provide exchange rates
@@ -109,7 +111,7 @@ const createBridgeSelector = createSelector_.withTypes<BridgeAppState>();
  */
 type BridgeQuotesClientParams = {
   sortOrder: SortOrder;
-  selectedQuote: (QuoteResponseV1 & QuoteMetadata) | null;
+  selectedQuote: (QuoteResponse & QuoteMetadata) | null;
 };
 
 type EvmTokenExchangeRate = { price?: number; currency?: string };
@@ -298,7 +300,7 @@ export const selectIsAssetExchangeRateInState = (
 const selectBridgeFeesPerGas = createBridgeSelector(
   [
     (state) => state.gasFeeEstimatesByChainId,
-    (state) => state.quotes?.[0]?.quote.srcChainId,
+    (state) => state.quotes?.[0]?.chainId,
   ],
   (gasFeeEstimatesByChainId, srcChainId) => {
     if (!srcChainId) {
@@ -307,6 +309,7 @@ const selectBridgeFeesPerGas = createBridgeSelector(
     if (isNonEvmChainId(srcChainId)) {
       return null;
     }
+
     // @ts-expect-error - all supported networks use this type of estimates
     const gasFeeEstimates: GasFeeEstimates | undefined =
       gasFeeEstimatesByChainId?.[
@@ -366,17 +369,17 @@ const selectBridgeQuotesWithMetadata = createBridgeSelector(
     srcTokenExchangeRate,
     destTokenExchangeRate,
     nativeExchangeRate,
-  ) => {
+  ): QuoteResponse[] => {
     const newQuotes = quotes.map((quote) => {
       const sentAmount = calcSentAmount(quote.quote, srcTokenExchangeRate);
       const toTokenAmount = calcToAmount(
-        quote.quote.destTokenAmount,
-        quote.quote.destAsset,
+        quote.quote.dest.amount,
+        quote.quote.dest.asset,
         destTokenExchangeRate,
       );
       const minToTokenAmount = calcToAmount(
-        quote.quote.minDestTokenAmount,
-        quote.quote.destAsset,
+        quote.quote.dest.min?.amount ?? '0',
+        quote.quote.dest.asset,
         destTokenExchangeRate,
       );
 
@@ -386,12 +389,9 @@ const selectBridgeQuotesWithMetadata = createBridgeSelector(
         destTokenExchangeRate,
       );
 
-      let totalEstimatedNetworkFee,
-        totalMaxNetworkFee,
-        relayerFee,
-        gasFee: QuoteMetadata['gasFee'];
+      let totalEstimatedNetworkFee, relayerFee, gasFee;
 
-      if (isEvmQuoteResponse(quote)) {
+      if (quote.namespace === KnownCaipNamespace.Eip155) {
         relayerFee = calcRelayerFee(quote, nativeExchangeRate);
         gasFee = calcEstimatedAndMaxTotalGasFee({
           bridgeQuote: quote,
@@ -403,19 +403,18 @@ const selectBridgeQuotesWithMetadata = createBridgeSelector(
           gasFee,
           relayerFee,
         );
-        totalMaxNetworkFee = calcTotalMaxNetworkFee(gasFee, relayerFee);
       } else {
         // Use the new generic function for all non-EVM chains
         totalEstimatedNetworkFee = calcNonEvmTotalNetworkFee(
           quote,
           nativeExchangeRate,
         );
+
         gasFee = {
           effective: totalEstimatedNetworkFee,
           total: totalEstimatedNetworkFee,
           max: totalEstimatedNetworkFee,
         };
-        totalMaxNetworkFee = totalEstimatedNetworkFee;
       }
 
       const adjustedReturn = calcAdjustedReturn(
@@ -425,9 +424,7 @@ const selectBridgeQuotesWithMetadata = createBridgeSelector(
       );
       const cost = calcCost(adjustedReturn, sentAmount);
 
-      return {
-        ...quote,
-        // QuoteMetadata fields
+      return mergeQuoteMetadata(quote, {
         sentAmount,
         toTokenAmount,
         minToTokenAmount,
@@ -438,7 +435,6 @@ const selectBridgeQuotesWithMetadata = createBridgeSelector(
         Should be used for balance checks and tx submission.
          */
         totalNetworkFee: totalEstimatedNetworkFee,
-        totalMaxNetworkFee,
         /**
         This contains gas fee estimates for the bridge transaction
         Does not include the relayer fee (if needed), just the gasLimit and effectiveGas returned by the bridge API.
@@ -448,7 +444,7 @@ const selectBridgeQuotesWithMetadata = createBridgeSelector(
         adjustedReturn,
         cost,
         includedTxFees,
-      };
+      });
     });
 
     return newQuotes;
@@ -460,7 +456,7 @@ const selectSortedBridgeQuotes = createBridgeSelector(
     selectBridgeQuotesWithMetadata,
     (_, { sortOrder }: BridgeQuotesClientParams) => sortOrder,
   ],
-  (quotesWithMetadata, sortOrder): (QuoteResponseV1 & QuoteMetadata)[] => {
+  (quotesWithMetadata, sortOrder): QuoteResponse[] => {
     switch (sortOrder) {
       case SortOrder.ETA_ASC:
         return orderBy(
@@ -469,27 +465,32 @@ const selectSortedBridgeQuotes = createBridgeSelector(
           'asc',
         );
       default:
-        if (quotesWithMetadata.every((quote) => quote.cost.valueInCurrency)) {
+        if (
+          quotesWithMetadata.every(
+            (quote) => quote.quote.priceData?.cost?.valueInCurrency,
+          )
+        ) {
           return orderBy(
             quotesWithMetadata,
-            ({ cost }) => Number(cost.valueInCurrency),
+            ({ quote: { priceData } }) =>
+              Number(priceData?.cost?.valueInCurrency ?? 0),
             'asc',
           );
         }
         if (
           quotesWithMetadata.every(
-            (quote) => quote.quote.priceData?.priceImpact,
+            (quote) => quote.quote.priceData?.priceImpact?.amount,
           )
         ) {
           return orderBy(
             quotesWithMetadata,
-            ({ quote }) => Number(quote.priceData?.priceImpact),
+            ({ quote }) => Number(quote.priceData?.priceImpact?.amount ?? 0),
             'asc',
           );
         }
         return orderBy(
           quotesWithMetadata,
-          ({ quote }) => Number(quote.destTokenAmount),
+          ({ quote }) => Number(quote.dest.amount),
           'desc',
         );
     }
@@ -545,8 +546,8 @@ export const selectIsQuoteExpired = createBridgeSelector(
   (isQuoteGoingToRefresh, quotesLastFetched, refreshRate, currentTimeInMs) =>
     Boolean(
       !isQuoteGoingToRefresh &&
-      quotesLastFetched &&
-      currentTimeInMs - quotesLastFetched > refreshRate,
+        quotesLastFetched &&
+        currentTimeInMs - quotesLastFetched > refreshRate,
     ),
 );
 
@@ -591,35 +592,95 @@ const selectRecommendedQuotes = createBridgeSelector(
       const requestIndex = quote.quoteRequestIndex ?? 0;
       acc[requestIndex] ??= quote;
       return acc;
-    }, Array<(QuoteResponseV1 & QuoteMetadata) | null>(requestCount).fill(null)),
+    }, Array<QuoteResponse | null>(requestCount).fill(null)),
 );
 
-const selectMetadataSum = createBridgeSelector(
-  [
-    selectRecommendedQuotes,
-    (
-      _,
-      {
-        key,
-      }: { key: 'totalNetworkFee' | 'minToTokenAmount' | 'toTokenAmount' },
-    ) => key,
-  ],
-  (recommendedQuotes, key) =>
-    recommendedQuotes.reduce<TokenAmountValues>(
+const selectDestAmountSum = createBridgeSelector(
+  [selectRecommendedQuotes],
+  (recommendedQuotes) => {
+    const destAsset = recommendedQuotes.find(Boolean)?.quote.dest.asset;
+    if (!destAsset) {
+      return {
+        amount: '0',
+        usd: '0',
+        valueInCurrency: '0',
+        normalizedAmount: '0',
+        asset: destAsset,
+      };
+    }
+    return recommendedQuotes.reduce<QuoteResponse['quote']['dest']>(
       (acc, quote) => {
+        if (!quote) {
+          return acc;
+        }
+
         acc.usd = new BigNumber(acc.usd ?? 0)
-          .plus(quote?.[key]?.usd ?? 0)
+          .plus(quote?.quote.dest?.usd ?? 0)
           .toString();
         acc.valueInCurrency = new BigNumber(acc.valueInCurrency ?? 0)
-          .plus(quote?.[key]?.valueInCurrency ?? 0)
+          .plus(quote?.quote.dest.valueInCurrency ?? 0)
           .toString();
         acc.amount = new BigNumber(acc.amount ?? 0)
-          .plus(quote?.[key]?.amount ?? 0)
+          .plus(quote?.quote.dest.amount ?? 0)
+          .toString();
+        acc.normalizedAmount = new BigNumber(acc.normalizedAmount ?? 0)
+          .plus(quote?.quote.dest.normalizedAmount ?? 0)
           .toString();
         return acc;
       },
-      { usd: null, valueInCurrency: null, amount: '0' },
-    ),
+      {
+        usd: '0',
+        valueInCurrency: '0',
+        amount: '0',
+        normalizedAmount: '0',
+        asset: destAsset,
+      },
+    );
+  },
+);
+
+const selectMinDestAmountSum = createBridgeSelector(
+  [selectRecommendedQuotes],
+  (recommendedQuotes) => {
+    const destAsset = recommendedQuotes.find(Boolean)?.quote.dest.asset;
+    if (!destAsset) {
+      return {
+        amount: '0',
+        usd: '0',
+        valueInCurrency: '0',
+        normalizedAmount: '0',
+        asset: destAsset,
+      };
+    }
+    return recommendedQuotes.reduce<QuoteResponse['quote']['dest']>(
+      (acc, quote) => {
+        if (!quote) {
+          return acc;
+        }
+
+        acc.usd = new BigNumber(acc.usd ?? 0)
+          .plus(quote?.quote.dest.min?.usd ?? 0)
+          .toString();
+        acc.valueInCurrency = new BigNumber(acc.valueInCurrency ?? 0)
+          .plus(quote?.quote.dest.min?.valueInCurrency ?? 0)
+          .toString();
+        acc.amount = new BigNumber(acc.amount ?? 0)
+          .plus(quote?.quote.dest.min?.amount ?? 0)
+          .toString();
+        acc.normalizedAmount = new BigNumber(acc.normalizedAmount ?? 0)
+          .plus(quote?.quote.dest.min?.normalizedAmount ?? 0)
+          .toString();
+        return acc;
+      },
+      {
+        usd: '0',
+        valueInCurrency: '0',
+        amount: '0',
+        normalizedAmount: '0',
+        asset: destAsset,
+      },
+    );
+  },
 );
 
 /**
@@ -644,10 +705,8 @@ const selectMetadataSum = createBridgeSelector(
  */
 export const selectBatchSellQuotes = createStructuredBridgeSelector({
   recommendedQuotes: selectRecommendedQuotes,
-  totalReceived: (state, opts) =>
-    selectMetadataSum(state, { ...opts, key: 'toTokenAmount' }),
-  minimumReceived: (state, opts) =>
-    selectMetadataSum(state, { ...opts, key: 'minToTokenAmount' }),
+  totalReceived: selectDestAmountSum,
+  minimumReceived: selectMinDestAmountSum,
   quotesLastFetchedMs: (state) => state.quotesLastFetched,
   isLoading: (state) => state.quotesLoadingStatus === RequestStatus.LOADING,
   quoteFetchError: (state) => state.quoteFetchError,

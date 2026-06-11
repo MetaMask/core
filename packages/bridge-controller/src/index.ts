@@ -47,7 +47,6 @@ export type {
   Step,
   RefuelData,
   Quote,
-  QuoteResponseV1 as QuoteResponse,
   FeeData,
   Intent,
   IntentOrderLike,
@@ -93,6 +92,12 @@ export type {
   Trade,
 } from './validators/trade';
 export { isBitcoinTrade, isTronTrade, isEvmTxData } from './validators/trade';
+export {
+  type QuoteResponseV1,
+  validateQuoteResponseV1,
+} from './validators/quote-response';
+export type { QuoteResponse } from './validators/quote-response-v2';
+export { toQuoteResponseV2 } from './validators/quote-response-v2-migration';
 export { FeeType, ActionTypes } from './validators/quote-response';
 export {
   validateQuoteStreamComplete,
@@ -100,7 +105,15 @@ export {
 } from './validators/quote-stream-complete';
 export { BatchSellTransactionType } from './validators/batch-sell';
 export { TokenFeatureType } from './validators/token-feature';
-export { BridgeAssetSchema } from './validators/bridge-asset';
+export type { BridgeAssetV2 } from './validators/bridge-asset';
+export {
+  BridgeAssetSchema,
+  validateBridgeAssetV2,
+  validateMinimalAssetObject,
+  MinimalAssetSchema,
+  BridgeAssetV2Schema,
+  BridgeAssetSecurityDataType,
+} from './validators/bridge-asset';
 export { FeatureId } from './validators/feature-flags';
 
 export {

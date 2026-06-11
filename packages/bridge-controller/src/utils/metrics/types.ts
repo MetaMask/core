@@ -1,7 +1,8 @@
 /* eslint-disable @typescript-eslint/naming-convention */
 import type { CaipAssetType, CaipChainId } from '@metamask/utils';
 
-import type { FeatureId, SortOrder, StatusTypes } from '../../types';
+import type { SortOrder, StatusTypes } from '../../types';
+import type { FeatureId } from '../../validators/feature-flags';
 import type {
   UnifiedSwapBridgeEventName,
   MetaMetricsSwapsEventSource,

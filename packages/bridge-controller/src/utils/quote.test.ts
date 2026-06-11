@@ -2,14 +2,12 @@ import { AddressZero } from '@ethersproject/constants';
 import { convertHexToDecimal } from '@metamask/controller-utils';
 import { BigNumber } from 'bignumber.js';
 
-import type {
-  GenericQuoteRequest,
-  QuoteResponseV1,
-  Quote,
-  NonEvmFees,
-  L1GasFees,
-} from '../types';
-import type { TxData } from '../validators/trade';
+import { getMockBridgeQuotesErc20Erc20V2 } from '../../tests/mock-quotes-erc20-erc20';
+import { getMockBridgeQuotesNativeErc20V2 } from '../../tests/mock-quotes-native-erc20';
+import { getMockBridgeQuotesSolErc20V2 } from '../../tests/mock-quotes-sol-erc20';
+import type { GenericQuoteRequest, Quote, L1GasFees } from '../types';
+import { QuoteResponse } from '../validators/quote-response-v2';
+import { getNativeAssetForChainId } from './bridge';
 import {
   isValidQuoteRequest,
   getQuoteIdentifier,
@@ -166,13 +164,15 @@ describe('Quote Metadata Utils', () => {
 
   describe('calcSentAmount', () => {
     it('should calculate sent amount correctly with exchange rates', () => {
-      const mockQuote: Quote = {
-        srcTokenAmount: '12555423',
-        srcAsset: { decimals: 6 },
-        feeData: {
-          metabridge: { amount: '100000000' },
+      const mockQuote = getMockBridgeQuotesErc20Erc20V2({
+        quote: {
+          srcTokenAmount: '12555423',
+          srcAsset: { decimals: 6 },
+          feeData: {
+            metabridge: { amount: '100000000' },
+          },
         },
-      } as Quote;
+      })[0].quote;
       const result = calcSentAmount(mockQuote, {
         exchangeRate: '2.14',
         usdExchangeRate: '1.5',
@@ -184,13 +184,15 @@ describe('Quote Metadata Utils', () => {
     });
 
     it('should handle missing exchange rates', () => {
-      const mockQuote: Quote = {
-        srcTokenAmount: '1000000000',
-        srcAsset: { decimals: 6 },
-        feeData: {
-          metabridge: { amount: '100000000' },
+      const mockQuote = getMockBridgeQuotesErc20Erc20V2({
+        quote: {
+          srcTokenAmount: '1000000000',
+          srcAsset: { decimals: 6 },
+          feeData: {
+            metabridge: { amount: '100000000' },
+          },
         },
-      } as Quote;
+      })[0].quote;
       const result = calcSentAmount(mockQuote, {});
 
       expect(result.amount).toBe('1100');
@@ -199,20 +201,16 @@ describe('Quote Metadata Utils', () => {
     });
 
     it('should handle zero values', () => {
-      const mockQuote: Quote = {
-        srcTokenAmount: '0',
-        srcAsset: { decimals: 6 },
-        feeData: {
-          metabridge: { amount: '0' },
+      const zeroQuote = getMockBridgeQuotesErc20Erc20V2({
+        quote: {
+          srcTokenAmount: '0',
+          srcAsset: { decimals: 6 },
+
+          feeData: {
+            metabridge: { amount: '0' },
+          },
         },
-      } as Quote;
-      const zeroQuote = {
-        ...mockQuote,
-        srcTokenAmount: '0',
-        feeData: {
-          metabridge: { amount: '0' },
-        },
-      } as unknown as Quote;
+      })[0].quote;
 
       const result = calcSentAmount(zeroQuote, {
         exchangeRate: '2',
@@ -225,24 +223,27 @@ describe('Quote Metadata Utils', () => {
     });
 
     it('should handle large numbers', () => {
-      const largeQuote = {
-        srcTokenAmount: '1000000000000000000',
-        srcAsset: {
-          decimals: 18,
-          assetId: 'eip155:1/erc20:0x0000000000000000000000000000000000000000',
-        },
-        feeData: {
-          metabridge: {
-            amount: '100000000000000000',
-            asset: {
-              assetId:
-                'eip155:1/erc20:0x0000000000000000000000000000000000000000',
-              address: '0x0000000000000000000000000000000000000000',
-              decimals: 18,
+      const largeQuote = getMockBridgeQuotesErc20Erc20V2({
+        quote: {
+          srcTokenAmount: '1000000000000000000',
+          srcAsset: {
+            decimals: 18,
+            assetId:
+              'eip155:1/erc20:0x0000000000000000000000000000000000000000',
+          },
+          feeData: {
+            metabridge: {
+              amount: '100000000000000000',
+              asset: {
+                assetId:
+                  'eip155:1/erc20:0x0000000000000000000000000000000000000000',
+                address: '0x0000000000000000000000000000000000000000',
+                decimals: 18,
+              },
             },
           },
         },
-      } as unknown as Quote;
+      })[0].quote;
 
       const result = calcSentAmount(largeQuote, {
         exchangeRate: '2',
@@ -259,25 +260,48 @@ describe('Quote Metadata Utils', () => {
       // For intent-based swaps (e.g. CoW Protocol), srcTokenAmount is already
       // the total fixed commitment including protocol fees. Adding feeData fees
       // on top would double-count them.
-      const intentQuote = {
-        srcTokenAmount: '10000000', // 10 USDT (6 decimals), fee already included
-        srcAsset: {
-          decimals: 6,
-          assetId: 'eip155:1/erc20:0xdAC17F958D2ee523a2206206994597C13D831ec7',
-        },
-        feeData: {
-          metabridge: {
-            amount: '500000', // 0.5 USDT protocol fee — already inside srcTokenAmount
-            asset: {
-              assetId:
-                'eip155:1/erc20:0xdAC17F958D2ee523a2206206994597C13D831ec7',
-              address: '0xdAC17F958D2ee523a2206206994597C13D831ec7',
-              decimals: 6,
+
+      const intentQuote = getMockBridgeQuotesErc20Erc20V2({
+        quote: {
+          srcTokenAmount: '10000000', // 10 USDT (6 decimals), fee already included
+          srcAsset: {
+            decimals: 6,
+            assetId:
+              'eip155:1/erc20:0xdAC17F958D2ee523a2206206994597C13D831ec7',
+          },
+          feeData: {
+            metabridge: {
+              amount: '500000', // 0.5 USDT protocol fee — already inside srcTokenAmount
+              asset: {
+                assetId:
+                  'eip155:1/erc20:0xdAC17F958D2ee523a2206206994597C13D831ec7',
+                address: '0xdAC17F958D2ee523a2206206994597C13D831ec7',
+                decimals: 6,
+              },
+            },
+          },
+          intent: {
+            protocol: 'cow',
+            order: {
+              sellToken: '0xdAC17F958D2ee523a2206206994597C13D831ec7',
+              buyToken: '0x0000000000000000000000000000000000000000',
+              validTo: 1717027200,
+              appData: 'some-app-data',
+              appDataHash: '0xabcd',
+              feeAmount: '100',
+              kind: 'sell' as const,
+              partiallyFillable: false,
+              sellAmount: '1000',
+            },
+            typedData: {
+              types: {},
+              domain: {},
+              primaryType: 'Order',
+              message: {},
             },
           },
         },
-        intent: { protocol: 'cow', order: {} },
-      } as unknown as Quote;
+      })[0].quote;
 
       const result = calcSentAmount(intentQuote, {
         exchangeRate: '1',
@@ -292,11 +316,9 @@ describe('Quote Metadata Utils', () => {
   });
 
   describe('calcNonEvmTotalNetworkFee', () => {
-    const mockBridgeQuote: QuoteResponseV1 & NonEvmFees = {
+    const mockBridgeQuote = getMockBridgeQuotesSolErc20V2({
       nonEvmFeesInNative: '1',
-      quote: {} as Quote,
-      trade: {},
-    } as QuoteResponseV1 & NonEvmFees;
+    })[0];
 
     it('should calculate Solana fees correctly with exchange rates', () => {
       const result = calcNonEvmTotalNetworkFee(mockBridgeQuote, {
@@ -310,11 +332,9 @@ describe('Quote Metadata Utils', () => {
     });
 
     it('should calculate Bitcoin fees correctly with exchange rates', () => {
-      const btcQuote: QuoteResponseV1 & NonEvmFees = {
+      const btcQuote = getMockBridgeQuotesSolErc20V2({
         nonEvmFeesInNative: '0.00005', // BTC fee in native units
-        quote: {} as Quote,
-        trade: {},
-      } as QuoteResponseV1 & NonEvmFees;
+      })[0];
 
       const result = calcNonEvmTotalNetworkFee(btcQuote, {
         exchangeRate: '60000',
@@ -382,14 +402,17 @@ describe('Quote Metadata Utils', () => {
   });
 
   describe('calcRelayerFee', () => {
-    const mockBridgeQuote: QuoteResponseV1<TxData, TxData> = {
+    const mockBridgeQuote = getMockBridgeQuotesNativeErc20V2({
       quote: {
-        srcAsset: { address: '0x123', decimals: 18 },
         srcTokenAmount: '1000000000000000000',
-        feeData: { metabridge: { amount: '100000000000000000' } },
+        feeData: {
+          metabridge: {
+            amount: '100000000000000000',
+          },
+        },
       },
       trade: { value: '0x10A741A462780000' },
-    } as QuoteResponseV1<TxData, TxData>;
+    })[0];
 
     it('should calculate relayer fee correctly with exchange rates', () => {
       const result = calcRelayerFee(mockBridgeQuote, {
@@ -397,30 +420,32 @@ describe('Quote Metadata Utils', () => {
         usdExchangeRate: '1.5',
       });
 
-      expect(result.amount).toStrictEqual(new BigNumber(1.2));
-      expect(result.valueInCurrency).toStrictEqual(new BigNumber(2.4));
-      expect(result.usd).toStrictEqual(new BigNumber(1.8));
+      expect(result.amount).toStrictEqual(new BigNumber(1.2).toFixed());
+      expect(result.valueInCurrency).toStrictEqual(
+        new BigNumber(2.4).toFixed(),
+      );
+      expect(result.usd).toStrictEqual(new BigNumber(1.8).toFixed());
     });
 
     it('should calculate relayer fee correctly with no trade.value', () => {
       const result = calcRelayerFee(
-        { ...mockBridgeQuote, trade: {} as TxData },
+        getMockBridgeQuotesNativeErc20V2({
+          trade: { ...mockBridgeQuote.trade, value: '0x0' },
+        })[0],
         {
           exchangeRate: '2',
           usdExchangeRate: '1.5',
         },
       );
 
-      expect(result.amount).toStrictEqual(new BigNumber(0));
-      expect(result.valueInCurrency).toStrictEqual(new BigNumber(0));
-      expect(result.usd).toStrictEqual(new BigNumber(0));
+      expect(result.amount).toStrictEqual(new BigNumber(0).toFixed());
+      expect(result.valueInCurrency).toStrictEqual(new BigNumber(0).toFixed());
+      expect(result.usd).toStrictEqual(new BigNumber(0).toFixed());
     });
 
     it('should handle native token address', () => {
-      const nativeBridgeQuote = {
-        ...mockBridgeQuote,
+      const nativeBridgeQuote = getMockBridgeQuotesNativeErc20V2({
         quote: {
-          ...mockBridgeQuote.quote,
           srcTokenAmount: '1000000000000000000',
           feeData: {
             metabridge: {
@@ -428,19 +453,20 @@ describe('Quote Metadata Utils', () => {
               asset: {
                 address: AddressZero,
                 decimals: 18,
-                assetId:
-                  'eip155:1/erc20:0x0000000000000000000000000000000000000000',
+                assetId: getNativeAssetForChainId(1).assetId,
               },
             },
           },
           srcAsset: {
             address: AddressZero,
             decimals: 18,
-            assetId:
-              'eip155:1/erc20:0x0000000000000000000000000000000000000000',
+            assetId: getNativeAssetForChainId(1).assetId,
           },
         },
-      } as unknown as QuoteResponseV1<TxData, TxData>;
+        trade: {
+          value: '0x10A741A462780000',
+        },
+      })[0];
 
       const result = calcRelayerFee(nativeBridgeQuote, {
         exchangeRate: '2',
@@ -451,20 +477,20 @@ describe('Quote Metadata Utils', () => {
         convertHexToDecimal(nativeBridgeQuote.trade.value).toString(),
       ).toBe('1200000000000000000');
       expect(result).toStrictEqual({
-        amount: new BigNumber(0.1),
-        valueInCurrency: new BigNumber(0.2),
-        usd: new BigNumber(0.15),
+        amount: new BigNumber(0.1).toFixed(),
+        valueInCurrency: new BigNumber(0.2).toFixed(),
+        usd: new BigNumber(0.15).toFixed(),
       });
     });
   });
 
   describe('calcEstimatedAndMaxTotalGasFee', () => {
-    const mockBridgeQuote: QuoteResponseV1<TxData, TxData> & L1GasFees = {
+    const mockBridgeQuote: QuoteResponse & L1GasFees = {
       quote: {} as Quote,
       trade: { gasLimit: 21000 },
       approval: { gasLimit: 46000 },
       l1GasFeesInHexWei: '0x5AF3107A4000',
-    } as QuoteResponseV1<TxData, TxData> & L1GasFees;
+    };
 
     it('should calculate estimated and max gas fees correctly', () => {
       const result = calcEstimatedAndMaxTotalGasFee({
@@ -504,7 +530,7 @@ describe('Quote Metadata Utils', () => {
           ...mockBridgeQuote,
           trade: { gasLimit: 21000, effectiveGas: 10000 },
           approval: { gasLimit: 46000, effectiveGas: 20000 },
-        } as QuoteResponseV1<TxData, TxData> & L1GasFees,
+        },
         feePerGasInDecGwei: '52',
         maxFeePerGasInDecGwei: '102',
         exchangeRate: '2000',
@@ -588,7 +614,7 @@ describe('Quote Metadata Utils', () => {
         approval: { gasLimit: 0 },
         l1GasFeesInHexWei: '0x0',
         estimatedProcessingTimeInSeconds: 60,
-      } as QuoteResponseV1<TxData, TxData> & L1GasFees;
+      };
 
       const result = calcEstimatedAndMaxTotalGasFee({
         bridgeQuote: zeroGasQuote,
@@ -611,7 +637,7 @@ describe('Quote Metadata Utils', () => {
         approval: undefined,
         l1GasFeesInHexWei: '0x5AF3107A4000',
         estimatedProcessingTimeInSeconds: 60,
-      } as QuoteResponseV1<TxData, TxData> & L1GasFees;
+      };
 
       const result = calcEstimatedAndMaxTotalGasFee({
         bridgeQuote: noApprovalQuote,
@@ -635,7 +661,7 @@ describe('Quote Metadata Utils', () => {
         approval: { gasLimit: 46000 },
         l1GasFeesInHexWei: '0x5AF3107A4000',
         estimatedProcessingTimeInSeconds: 60,
-      } as unknown as QuoteResponseV1<TxData, TxData> & L1GasFees;
+      };
 
       const result = calcEstimatedAndMaxTotalGasFee({
         bridgeQuote: noGasLimitQuote,
@@ -656,7 +682,7 @@ describe('Quote Metadata Utils', () => {
         approval: { gasLimit: 500000 },
         l1GasFeesInHexWei: '0x1BC16D674EC80000', // 2 ETH in wei
         estimatedProcessingTimeInSeconds: 60,
-      } as QuoteResponseV1<TxData, TxData> & L1GasFees;
+      };
 
       const result = calcEstimatedAndMaxTotalGasFee({
         bridgeQuote: largeGasQuote,
@@ -718,9 +744,9 @@ describe('Quote Metadata Utils', () => {
     };
 
     const mockRelayerFee = {
-      amount: new BigNumber(0.05),
-      valueInCurrency: new BigNumber(100),
-      usd: new BigNumber(75),
+      amount: '0.05',
+      valueInCurrency: '100',
+      usd: '75',
     };
 
     it('should calculate total estimated network fee correctly', () => {
@@ -741,7 +767,7 @@ describe('Quote Metadata Utils', () => {
 
     it('should calculate total estimated network fee correctly with no relayer fee', () => {
       const result = calcTotalEstimatedNetworkFee(mockGasFee, {
-        amount: new BigNumber(0),
+        amount: '0',
         valueInCurrency: null,
         usd: null,
       });
@@ -753,7 +779,7 @@ describe('Quote Metadata Utils', () => {
 
     it('should calculate total max network fee correctly with no relayer fee', () => {
       const result = calcTotalMaxNetworkFee(mockGasFee, {
-        amount: new BigNumber(0),
+        amount: '0',
         valueInCurrency: null,
         usd: null,
       });
@@ -779,17 +805,21 @@ describe('Quote Metadata Utils', () => {
 
     const mockQuote = {
       feeData: {
-        txFee: {
-          asset: {
-            assetId:
-              'eip155:1/erc20:0x0000000000000000000000000000000000000000',
+        txFee: [
+          {
+            asset: {
+              assetId:
+                'eip155:1/erc20:0x0000000000000000000000000000000000000000',
+            },
           },
+        ],
+      },
+      dest: {
+        asset: {
+          assetId: 'eip155:10/erc20:0x0000000000000000000000000000000000000000',
         },
       },
-      destAsset: {
-        assetId: 'eip155:10/erc20:0x0000000000000000000000000000000000000000',
-      },
-    } as unknown as Quote;
+    };
     it('should calculate adjusted return correctly', () => {
       const result = calcAdjustedReturn(
         mockToAmount,
