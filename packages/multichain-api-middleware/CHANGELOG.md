@@ -15,7 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/controller-utils` from `^12.1.0` to `^12.2.0` ([#9058](https://github.com/MetaMask/core/pull/9058), [#9083](https://github.com/MetaMask/core/pull/9083))
 - Bump `@metamask/accounts-controller` from `^39.0.0` to `^39.0.1` ([#9058](https://github.com/MetaMask/core/pull/9058))
 - Bump `@metamask/api-specs` from `^0.14.0` to `^0.15.0` ([#9096](https://github.com/MetaMask/core/pull/9096))
-- Bump `@metamask/chain-agnostic-permission` from `^1.6.1` to `^1.6.2` ([#9096](https://github.com/MetaMask/core/pull/9096))
+- Bump `@metamask/chain-agnostic-permission` from `^1.6.1` to `^1.6.2` ([#9103](https://github.com/MetaMask/core/pull/9103))
 
 ## [3.1.3]
 
