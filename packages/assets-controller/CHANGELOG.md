@@ -14,7 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- `AssetsController` now reclassifies stale native-token metadata entries when the asset appears in incoming balance or price payloads, even if metadata is not re-emitted by the data source ([#9099](https://github.com/MetaMask/core/pull/9099))
+- `AssetsController` now reclassifies stale native-token metadata entries during `assetsInfo` updates, even when prior stored metadata already includes an image ([#9099](https://github.com/MetaMask/core/pull/9099))
 
 ## [9.0.1]
 

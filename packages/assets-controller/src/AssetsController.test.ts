@@ -1365,7 +1365,7 @@ describe('AssetsController', () => {
       });
     });
 
-    it('reconciles a stale native type stored as erc20 when a response touches the asset', async () => {
+    it('reconciles a stale native type stored as erc20 when assetsInfo includes the asset', async () => {
       // Native (zero-address ERC-20) mis-stored as erc20 by an older version.
       const imxAssetId =
         'eip155:13371/erc20:0x0000000000000000000000000000000000000000' as Caip19AssetId;
@@ -1384,13 +1384,16 @@ describe('AssetsController', () => {
       await withController(
         { state: initialState, isBasicFunctionality: () => false },
         async ({ controller }) => {
-          // A balance report for the asset is enough to drive reconciliation —
-          // the metadata itself does not need to be re-emitted.
+          // Reconciliation occurs when assetsInfo includes the asset.
           await controller.handleAssetsUpdate(
             {
-              assetsBalance: {
-                [MOCK_ACCOUNT_ID]: {
-                  [imxAssetId]: { amount: '1000000000000000000' },
+              assetsInfo: {
+                [imxAssetId]: {
+                  type: 'erc20',
+                  symbol: 'IMX',
+                  name: 'Immutable X',
+                  decimals: 18,
+                  image: 'https://example.com/imx.png',
                 },
               },
             },
@@ -1408,7 +1411,7 @@ describe('AssetsController', () => {
       );
     });
 
-    it('leaves a genuine erc20 type untouched when a response touches it', async () => {
+    it('leaves a genuine erc20 type untouched when assetsInfo includes it', async () => {
       const initialState: Partial<AssetsControllerState> = {
         assetsInfo: {
           [MOCK_ASSET_ID]: {
@@ -1425,9 +1428,12 @@ describe('AssetsController', () => {
         async ({ controller }) => {
           await controller.handleAssetsUpdate(
             {
-              assetsBalance: {
-                [MOCK_ACCOUNT_ID]: {
-                  [MOCK_ASSET_ID]: { amount: '1000000' },
+              assetsInfo: {
+                [MOCK_ASSET_ID]: {
+                  type: 'erc20',
+                  symbol: 'USDC',
+                  name: 'USD Coin',
+                  decimals: 6,
                 },
               },
             },
