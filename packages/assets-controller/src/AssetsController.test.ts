@@ -1447,6 +1447,47 @@ describe('AssetsController', () => {
       );
     });
 
+    it('reconciles type when assetsInfo response uses a non-checksummed asset ID', async () => {
+      const initialState: Partial<AssetsControllerState> = {
+        assetsInfo: {
+          [MOCK_ASSET_ID]: {
+            type: 'native',
+            symbol: 'USDC',
+            name: 'USD Coin',
+            decimals: 6,
+          },
+        },
+      };
+
+      await withController(
+        { state: initialState, isBasicFunctionality: () => false },
+        async ({ controller }) => {
+          await controller.handleAssetsUpdate(
+            {
+              assetsInfo: {
+                [MOCK_ASSET_ID_LOWERCASE]: {
+                  type: 'native',
+                  symbol: 'USDC',
+                  name: 'USD Coin',
+                  decimals: 6,
+                },
+              },
+            },
+            'TestSource',
+          );
+
+          expect(controller.state.assetsInfo[MOCK_ASSET_ID]?.type).toBe(
+            'erc20',
+          );
+          expect(
+            controller.state.assetsInfo[
+              MOCK_ASSET_ID_LOWERCASE as Caip19AssetId
+            ],
+          ).toBeUndefined();
+        },
+      );
+    });
+
     it('updates state with metadata', async () => {
       await withController(async ({ controller }) => {
         await controller.handleAssetsUpdate(
