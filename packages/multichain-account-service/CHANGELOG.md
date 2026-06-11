@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `isAligned` ([#9039](https://github.com/MetaMask/core/pull/9039))
+  - This allows callers to cheaply check whether alignment has already occurred before triggering an explicit alignment operation.
+
 ### Changed
 
 - Bump `@metamask/utils` from `^11.9.0` to `^11.11.0` ([#9074](https://github.com/MetaMask/core/pull/9074))
