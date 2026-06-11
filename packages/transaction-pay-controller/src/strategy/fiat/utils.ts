@@ -7,12 +7,14 @@ import { BigNumber } from 'bignumber.js';
 
 import { projectLogger } from '../../logger';
 import type { TransactionPayControllerMessenger } from '../../types';
-import { getFiatAssetPerTransactionType } from '../../utils/feature-flags';
+import {
+  getFiatAssetPerTransactionType,
+  getFiatEnabledTypes,
+} from '../../utils/feature-flags';
 import { getTokenInfo } from '../../utils/token';
 import { getTransferredAmountFromTxHash } from '../../utils/transaction';
 import type { RelayQuote } from '../relay/types';
 import type { TransactionPayFiatAsset } from './constants';
-import { FIAT_ASSET_ID_BY_TX_TYPE } from './constants';
 
 const log = createModuleLogger(projectLogger, 'fiat-utils');
 
@@ -20,21 +22,25 @@ export function deriveFiatAssetForFiatPayment(
   transaction: TransactionMeta,
   messenger: TransactionPayControllerMessenger,
 ): TransactionPayFiatAsset {
-  const txType = resolveTransactionType(transaction);
+  const enabledTypes = getFiatEnabledTypes(messenger);
+  const txType = resolveTransactionType(transaction, enabledTypes);
 
   return getFiatAssetPerTransactionType(messenger, txType);
 }
 
 function resolveTransactionType(
   transaction: TransactionMeta,
+  enabledTypes: TransactionType[],
 ): TransactionType | undefined {
   if (transaction.type !== TransactionType.batch) {
     return transaction.type;
   }
 
-  return transaction.nestedTransactions?.find(
-    (tx) => tx.type && FIAT_ASSET_ID_BY_TX_TYPE[tx.type] !== undefined,
+  const nestedType = transaction.nestedTransactions?.find(
+    (tx) => tx.type && enabledTypes.includes(tx.type),
   )?.type;
+
+  return nestedType ?? transaction.type;
 }
 
 /**

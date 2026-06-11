@@ -4,6 +4,7 @@ import type { Hex } from '@metamask/utils';
 import { getDefaultRemoteFeatureFlagControllerState } from '../../../remote-feature-flag-controller/src/remote-feature-flag-controller';
 import { TransactionPayStrategy } from '../constants';
 import type { TransactionPayFiatAsset } from '../strategy/fiat/constants';
+import { FIAT_ENABLED_TYPES } from '../strategy/fiat/constants';
 import { getMessengerMock } from '../tests/messenger-mock';
 import {
   DEFAULT_ACROSS_API_BASE,
@@ -17,6 +18,7 @@ import {
   getAssetsUnifyStateFeature,
   getFallbackGas,
   getFiatAssetPerTransactionType,
+  getFiatEnabledTypes,
   getFiatFeeReserveMultiplier,
   getFiatMaxRateDriftPercent,
   DEFAULT_RELAY_EXECUTE_URL,
@@ -1423,6 +1425,15 @@ describe('Feature Flags Utils', () => {
       chainId: '0x89',
     };
 
+    it('returns ETH mainnet fallback when transaction type is undefined', () => {
+      const result = getFiatAssetPerTransactionType(messenger, undefined);
+
+      expect(result).toStrictEqual({
+        address: '0x0000000000000000000000000000000000000000',
+        chainId: '0x1',
+      });
+    });
+
     it('returns ETH mainnet fallback when confirmations_pay_fiat flag is absent', () => {
       const result = getFiatAssetPerTransactionType(
         messenger,
@@ -1515,6 +1526,47 @@ describe('Feature Flags Utils', () => {
       );
 
       expect(result).toStrictEqual(FIAT_ASSET_MOCK);
+    });
+  });
+
+  describe('getFiatEnabledTypes', () => {
+    it('returns hardcoded defaults when feature flag is absent', () => {
+      const result = getFiatEnabledTypes(messenger);
+
+      expect(result).toStrictEqual(FIAT_ENABLED_TYPES);
+    });
+
+    it('returns hardcoded defaults when confirmations_pay_fiat exists but enabledTransactionTypes is missing', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_pay_fiat: {},
+        },
+      });
+
+      const result = getFiatEnabledTypes(messenger);
+
+      expect(result).toStrictEqual(FIAT_ENABLED_TYPES);
+    });
+
+    it('returns enabled types from feature flag when set', () => {
+      const customTypes = [
+        TransactionType.perpsDeposit,
+        TransactionType.predictDeposit,
+      ];
+
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_pay_fiat: {
+            enabledTransactionTypes: customTypes,
+          },
+        },
+      });
+
+      const result = getFiatEnabledTypes(messenger);
+
+      expect(result).toStrictEqual(customTypes);
     });
   });
 
