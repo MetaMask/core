@@ -52,7 +52,7 @@
   },
   "dependencies": {
     "@metamask/accounts-controller": "^39.0.1",
-    "@metamask/api-specs": "^0.14.0",
+    "@metamask/api-specs": "^0.15.0",
     "@metamask/chain-agnostic-permission": "^1.6.1",
     "@metamask/controller-utils": "^12.1.1",
     "@metamask/json-rpc-engine": "^10.5.0",

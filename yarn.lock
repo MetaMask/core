@@ -5594,10 +5594,10 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/api-specs@npm:^0.14.0":
-  version: 0.14.0
-  resolution: "@metamask/api-specs@npm:0.14.0"
-  checksum: 10/6caad5e233c12b87f25313fe1e0fb35af6ad9f0ef49e105b36a1826bd8b611a9335642920ddb6c556343375db4b02138a32598b7185392e50050ae7f390e0e7d
+"@metamask/api-specs@npm:^0.15.0":
+  version: 0.15.0
+  resolution: "@metamask/api-specs@npm:0.15.0"
+  checksum: 10/3ebc586d690c6e9746e01b7194765efac59332dece3a3fd2b347d08d3392de937b334641147b338f3278720ab1ccb69f0ff79f21753cd346c6c0eaedaf3408ed
   languageName: node
   linkType: hard
 
@@ -6001,7 +6001,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@metamask/chain-agnostic-permission@workspace:packages/chain-agnostic-permission"
   dependencies:
-    "@metamask/api-specs": "npm:^0.14.0"
+    "@metamask/api-specs": "npm:^0.15.0"
     "@metamask/auto-changelog": "npm:^6.1.0"
     "@metamask/controller-utils": "npm:^12.1.1"
     "@metamask/keyring-internal-api": "npm:^11.0.1"
@@ -7483,7 +7483,7 @@ __metadata:
   resolution: "@metamask/multichain-api-middleware@workspace:packages/multichain-api-middleware"
   dependencies:
     "@metamask/accounts-controller": "npm:^39.0.1"
-    "@metamask/api-specs": "npm:^0.14.0"
+    "@metamask/api-specs": "npm:^0.15.0"
     "@metamask/auto-changelog": "npm:^6.1.0"
     "@metamask/chain-agnostic-permission": "npm:^1.6.1"
     "@metamask/controller-utils": "npm:^12.1.1"
