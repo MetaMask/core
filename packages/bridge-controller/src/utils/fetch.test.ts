@@ -4,7 +4,7 @@ import type { CaipAssetType } from '@metamask/utils';
 import { mockBridgeQuotesErc20Erc20V1 } from '../../tests/mock-quotes-erc20-erc20';
 import { mockBridgeQuotesNativeErc20V1 } from '../../tests/mock-quotes-native-erc20';
 import { BridgeClientId, BRIDGE_PROD_API_BASE_URL } from '../constants/bridge';
-import { QuoteResponseV1, FeatureId } from '../types';
+import { FeatureId } from '../types';
 import {
   fetchBridgeQuotes,
   fetchBridgeTokens,
