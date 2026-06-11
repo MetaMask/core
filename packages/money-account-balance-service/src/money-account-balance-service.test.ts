@@ -375,11 +375,10 @@ function mockMoneyAccountBalanceMulticall({
               encodeFunctionData: jest.fn().mockReturnValue('0xcalldata'),
               decodeFunctionResult: jest
                 .fn()
-                .mockImplementation(
-                  (_functionFragment: string, data: string) =>
-                    data === MUSD_RETURN_DATA
-                      ? [makeMockBN(musdBalance)]
-                      : [makeMockBN(vmusdValueInMusd)],
+                .mockImplementation((_functionFragment: string, data: string) =>
+                  data === MUSD_RETURN_DATA
+                    ? [makeMockBN(musdBalance)]
+                    : [makeMockBN(vmusdValueInMusd)],
                 ),
             },
           }) as unknown as Contract,
