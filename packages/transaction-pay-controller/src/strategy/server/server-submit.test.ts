@@ -791,6 +791,27 @@ describe('submitServerQuotes', () => {
       expect(submitServerIntentMock).not.toHaveBeenCalled();
       expect(getServerStatusMock).toHaveBeenCalled();
     });
+
+    it('does not throw for a signature-only non-gasless quote (no transaction steps)', async () => {
+      const quote = cloneDeep(QUOTE_MOCK);
+      quote.original.steps = [SIGNATURE_STEP_MOCK];
+      quote.original.gasless = false;
+
+      successfulFetchMock.mockResolvedValue({
+        json: async () => ({}),
+        ok: true,
+      } as Response);
+
+      const req: PayStrategyExecuteRequest<ServerQuote> = {
+        accountSupports7702: true,
+        isSmartTransaction: (): boolean => false,
+        messenger,
+        quotes: [quote],
+        transaction: cloneDeep(TRANSACTION_META_MOCK),
+      };
+
+      await expect(submitServerQuotes(req)).resolves.not.toThrow();
+    });
   });
 
   describe('validateSourceBalance', () => {
@@ -944,6 +965,45 @@ describe('submitServerQuotes', () => {
             expect.objectContaining({
               params: expect.objectContaining({
                 to: transaction.txParams.to,
+                maxFeePerGas: expect.any(String),
+                maxPriorityFeePerGas: expect.any(String),
+              }),
+            }),
+          ]),
+        }),
+      );
+    });
+
+    it('prepends original tx with undefined fee caps when client has no fee estimates', async () => {
+      const transaction = cloneDeep(TRANSACTION_META_MOCK);
+
+      await submitServerQuotes(
+        buildRequest({
+          request: {
+            ...QUOTE_MOCK.request,
+            from: ORIGINAL_FROM_MOCK,
+            isPostQuote: true,
+          },
+          original: {
+            ...ORIGINAL_QUOTE_MOCK,
+            client: {
+              ...ORIGINAL_QUOTE_MOCK.client,
+              maxFeePerGas: undefined,
+              maxPriorityFeePerGas: undefined,
+            },
+            gasless: false,
+          },
+        }),
+      );
+
+      expect(addTxBatchMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          transactions: expect.arrayContaining([
+            expect.objectContaining({
+              params: expect.objectContaining({
+                to: transaction.txParams.to,
+                maxFeePerGas: undefined,
+                maxPriorityFeePerGas: undefined,
               }),
             }),
           ]),
@@ -971,7 +1031,11 @@ describe('submitServerQuotes', () => {
         expect.objectContaining({
           transactions: expect.arrayContaining([
             expect.objectContaining({
-              params: expect.objectContaining({ to: DELEGATION_MOCK.to }),
+              params: expect.objectContaining({
+                to: DELEGATION_MOCK.to,
+                maxFeePerGas: expect.any(String),
+                maxPriorityFeePerGas: expect.any(String),
+              }),
             }),
           ]),
         }),
