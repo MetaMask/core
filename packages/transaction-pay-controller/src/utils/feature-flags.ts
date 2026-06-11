@@ -899,16 +899,6 @@ export function getFiatMaxRateDriftPercent(
     : DEFAULT_MAX_RATE_DRIFT_PERCENT;
 }
 
-/**
- * Returns whether the direct mUSD fiat injection flow is enabled for
- * Money Account deposits.
- *
- * When `true`, the fiat strategy attempts to buy mUSD directly on Monad
- * and deliver it to the Money Account, skipping the cross-chain bridge.
- *
- * @param messenger - Controller messenger for feature flag access.
- * @returns `true` if the direct mUSD injection flag is enabled.
- */
 export function getUseFiatMUSDQuoteToInjectForMoneyAccount(
   messenger: TransactionPayControllerMessenger,
 ): boolean {

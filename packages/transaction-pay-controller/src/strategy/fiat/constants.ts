@@ -4,7 +4,9 @@ import type { Hex } from '@metamask/utils';
 import {
   CHAIN_ID_ARBITRUM,
   CHAIN_ID_MAINNET,
+  CHAIN_ID_MONAD,
   CHAIN_ID_POLYGON,
+  MUSD_MONAD_ADDRESS,
   NATIVE_TOKEN_ADDRESS,
 } from '../../constants';
 
@@ -43,13 +45,6 @@ export const FIAT_ENABLED_TYPES: TransactionType[] = [
   TransactionType.perpsDeposit,
   TransactionType.predictDeposit,
 ];
-
-/** Chain ID for Monad network. */
-export const CHAIN_ID_MONAD = '0x8f' as Hex;
-
-/** mUSD token address on Monad (same address across all supported chains). */
-export const MUSD_MONAD_ADDRESS =
-  '0xaca92e438df0b2401ff60da7e4337b687a2435da' as Hex;
 
 /** Fiat asset descriptor for mUSD on Monad. */
 export const MUSD_MONAD_FIAT_ASSET: TransactionPayFiatAsset = {

@@ -3,7 +3,7 @@ import type { Hex } from '@metamask/utils';
 import { createModuleLogger } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
 
-import { TransactionPayStrategy } from '../../constants';
+import { PaymentOverride, TransactionPayStrategy } from '../../constants';
 import { projectLogger } from '../../logger';
 import type {
   PayStrategyGetQuotesRequest,
@@ -12,6 +12,7 @@ import type {
   TransactionPayRequiredToken,
   TransactionPayQuote,
 } from '../../types';
+import { getUseFiatMUSDQuoteToInjectForMoneyAccount } from '../../utils/feature-flags';
 import {
   buildCaipAssetType,
   computeRawFromFiatAmount,
@@ -20,27 +21,47 @@ import {
 } from '../../utils/token';
 import { getRelayQuotes } from '../relay/relay-quotes';
 import type { RelayQuote } from '../relay/types';
-import { DEFAULT_FIAT_CURRENCY } from './constants';
+import {
+  DEFAULT_FIAT_CURRENCY,
+  MUSD_MONAD_FIAT_ASSET,
+  MUSD_PROBE_AMOUNT_USD,
+} from './constants';
 import type { TransactionPayFiatAsset } from './constants';
 import type { FiatQuote } from './types';
-import { deriveFiatAssetForFiatPayment } from './utils';
+import {
+  deriveFiatAssetForFiatPayment,
+  isMoneyAccountDepositTransaction,
+} from './utils';
 
 const log = createModuleLogger(projectLogger, 'fiat-strategy');
 
 /**
  * Fetches MM Pay fiat strategy quotes using a relay-first estimation flow.
  *
+ * When the direct-to-mUSD flag is enabled and the transaction is a Money
+ * Account deposit, attempts the direct mUSD flow first and falls back to
+ * the standard ETH flow if the probe or quotes fail.
+ *
  * @param request - Strategy quotes request.
  * @returns A single combined fiat strategy quote, or an empty array when inputs/quotes are unavailable.
- * @remarks
- * Flow summary:
- * 1. Read `amountFiat` and selected payment method from transaction pay state.
- * 2. Build a synthetic relay request from `amountFiat` using source token USD rate.
- * 3. Fetch relay quote and compute total relay fee (`provider + source network + target network + MetaMask`).
- * 4. Call ramps quotes with `adjustedAmountFiat = amountFiat + relayTotalFeeUsd`.
- * 5. Pick the configured ramps provider quote and combine it with relay quote into one fiat strategy quote.
  */
 export async function getFiatQuotes(
+  request: PayStrategyGetQuotesRequest,
+): Promise<TransactionPayQuote<FiatQuote>[]> {
+  if (
+    getUseFiatMUSDQuoteToInjectForMoneyAccount(request.messenger) &&
+    isMoneyAccountDepositTransaction(request.transaction)
+  ) {
+    const directQuotes = await getDirectMusdToMoneyAccountQuotes(request);
+    if (directQuotes.length > 0) {
+      return directQuotes;
+    }
+  }
+
+  return getStandardFiatQuotes(request);
+}
+
+async function getStandardFiatQuotes(
   request: PayStrategyGetQuotesRequest,
 ): Promise<TransactionPayQuote<FiatQuote>[]> {
   const {
@@ -55,7 +76,7 @@ export async function getFiatQuotes(
   const state = messenger.call('TransactionPayController:getState');
   const transactionData = state.transactionData[transactionId];
   const amountFiat = transactionData?.fiatPayment?.amountFiat;
-  const requiredTokens = getRequiredTokens(transactionData?.tokens);
+  const requiredTokens = transactionData?.tokens ?? [];
   const fiatAsset = deriveFiatAssetForFiatPayment(transaction, messenger);
 
   if (!amountFiat || !fiatPaymentMethod || !requiredTokens.length) {
@@ -164,30 +185,175 @@ export async function getFiatQuotes(
   return [];
 }
 
-/**
- * Filters required tokens to those that need funding (i.e. not skipped when balance is sufficient).
- *
- * @param tokens - The full list of required tokens for a transaction.
- * @returns Tokens that require funding.
- */
-export function getRequiredTokens(
-  tokens?: TransactionPayRequiredToken[],
-): TransactionPayRequiredToken[] {
-  return tokens?.filter((token) => !token.skipIfBalance) ?? [];
+async function probeMusdFiatAvailability({
+  messenger,
+  walletAddress,
+}: {
+  messenger: PayStrategyGetQuotesRequest['messenger'];
+  walletAddress: string;
+}): Promise<boolean> {
+  try {
+    const quotes = await messenger.call('RampsController:getQuotes', {
+      amount: MUSD_PROBE_AMOUNT_USD,
+      assetId: buildCaipAssetType(
+        MUSD_MONAD_FIAT_ASSET.chainId,
+        MUSD_MONAD_FIAT_ASSET.address,
+      ),
+      autoSelectProvider: true,
+      fiat: DEFAULT_FIAT_CURRENCY,
+      restrictToKnownOrNativeProviders: true,
+      walletAddress,
+    });
+
+    const isAvailable = (quotes.success?.length ?? 0) > 0;
+
+    log('mUSD fiat probe result', {
+      isAvailable,
+      providerCount: quotes.success?.length ?? 0,
+    });
+
+    return isAvailable;
+  } catch (error) {
+    log('mUSD fiat probe failed', { error });
+    return false;
+  }
 }
 
-/**
- * Fetches a single ramps (fiat on-ramp) quote for the given asset and amount.
- *
- * @param options - Quote parameters.
- * @param options.adjustedAmount - Fiat amount including relay fee overhead.
- * @param options.fiatAsset - The crypto asset to purchase.
- * @param options.fiatPaymentMethod - Selected payment method ID.
- * @param options.messenger - Controller messenger for RampsController access.
- * @param options.walletAddress - Delivery address for the purchased crypto.
- * @returns The best matching ramps quote.
- */
-export async function getRampsQuote({
+async function getDirectMusdToMoneyAccountQuotes(
+  request: PayStrategyGetQuotesRequest,
+): Promise<TransactionPayQuote<FiatQuote>[]> {
+  const {
+    accountSupports7702,
+    fiatPaymentMethod,
+    from: userWalletAddress,
+    messenger,
+    transaction,
+  } = request;
+  const transactionId = transaction.id;
+
+  const state = messenger.call('TransactionPayController:getState');
+  const transactionData = state.transactionData[transactionId];
+  const amountFiat = transactionData?.fiatPayment?.amountFiat;
+  const requiredTokens = transactionData?.tokens ?? [];
+
+  const moneyAccountAddress = transaction.txParams.from as Hex;
+
+  if (!amountFiat || !fiatPaymentMethod || !requiredTokens.length) {
+    return [];
+  }
+
+  const probeOk = await probeMusdFiatAvailability({
+    messenger,
+    walletAddress: moneyAccountAddress,
+  });
+
+  if (!probeOk) {
+    log('Probe failed — no provider supports mUSD on Monad, falling back', {
+      transactionId,
+    });
+    return [];
+  }
+
+  try {
+    if (requiredTokens.length > 1) {
+      throw new Error(
+        'Multiple required tokens not supported for direct mUSD strategy',
+      );
+    }
+
+    const requiredToken = requiredTokens[0];
+    const fiatAsset = MUSD_MONAD_FIAT_ASSET;
+
+    const baseRelayRequest = buildRelayRequestFromAmountFiat({
+      amountFiat,
+      fiatAsset,
+      messenger,
+      requiredToken,
+      walletAddress: userWalletAddress,
+    });
+
+    if (!baseRelayRequest) {
+      throw new Error('Failed to build relay request for direct mUSD flow');
+    }
+
+    const relayRequest = {
+      ...baseRelayRequest,
+      paymentOverride: PaymentOverride.MoneyAccount,
+    };
+
+    const relayQuotes = await getRelayQuotes({
+      accountSupports7702,
+      from: userWalletAddress,
+      messenger,
+      requests: [relayRequest],
+      transaction,
+    });
+
+    const relayQuote = relayQuotes[0];
+    if (!relayQuote) {
+      throw new Error('No relay quote available for direct mUSD estimation');
+    }
+
+    const relayTotalFeeUsd = getRelayTotalFeeUsd(relayQuote);
+    const adjustedAmountFiat = new BigNumber(amountFiat).plus(relayTotalFeeUsd);
+
+    if (
+      !adjustedAmountFiat.isFinite() ||
+      !adjustedAmountFiat.gt(0) ||
+      !relayTotalFeeUsd.isFinite() ||
+      !relayTotalFeeUsd.gte(0)
+    ) {
+      throw new Error('Invalid fiat amount after relay fee adjustment');
+    }
+
+    const adjustedAmount = adjustedAmountFiat.toNumber();
+    if (!Number.isFinite(adjustedAmount) || adjustedAmount <= 0) {
+      throw new Error('Invalid fiat amount after relay fee adjustment');
+    }
+
+    log('Direct mUSD quote flow', {
+      adjustedAmountFiat: adjustedAmountFiat.toString(10),
+      amountFiat,
+      moneyAccountAddress,
+      relayTotalFeeUsd: relayTotalFeeUsd.toString(10),
+      transactionId,
+    });
+
+    const fiatQuote = await getRampsQuote({
+      adjustedAmount,
+      fiatAsset,
+      fiatPaymentMethod,
+      messenger,
+      walletAddress: moneyAccountAddress,
+    });
+
+    messenger.call('TransactionPayController:updateFiatPayment', {
+      callback: (fiatPayment: TransactionFiatPayment) => {
+        fiatPayment.rampsQuote = fiatQuote;
+        fiatPayment.caipAssetId = buildCaipAssetType(
+          MUSD_MONAD_FIAT_ASSET.chainId,
+          MUSD_MONAD_FIAT_ASSET.address,
+        );
+      },
+      transactionId,
+    });
+
+    return [
+      combineQuotes({
+        adjustedAmountFiat: adjustedAmountFiat.toString(10),
+        amountFiat,
+        fiatQuote,
+        relayQuote,
+      }),
+    ];
+  } catch (error) {
+    log('Failed to fetch direct mUSD quotes', { error, transactionId });
+  }
+
+  return [];
+}
+
+async function getRampsQuote({
   adjustedAmount,
   fiatAsset,
   fiatPaymentMethod,
@@ -223,23 +389,7 @@ export async function getRampsQuote({
   return quote;
 }
 
-/**
- * Builds a synthetic relay quote request from a fiat amount and asset.
- *
- * Converts the fiat amount to raw source token units using the token's
- * USD rate and decimals, then constructs an EXACT_INPUT relay request.
- *
- * @param options - Build parameters.
- * @param options.amountFiat - User-entered fiat amount in USD.
- * @param options.fiatAsset - The source asset for the relay.
- * @param options.fiatAsset.address - Token address of the source asset.
- * @param options.fiatAsset.chainId - Chain ID of the source asset.
- * @param options.messenger - Controller messenger for token info access.
- * @param options.requiredToken - The target token the relay should deliver.
- * @param options.walletAddress - Address of the user's wallet.
- * @returns A relay quote request, or `undefined` if token info / rates are unavailable.
- */
-export function buildRelayRequestFromAmountFiat({
+function buildRelayRequestFromAmountFiat({
   amountFiat,
   fiatAsset,
   messenger,
@@ -301,28 +451,7 @@ export function buildRelayRequestFromAmountFiat({
   };
 }
 
-/**
- * Combines fiat and relay legs into a single MM Pay fiat strategy quote.
- *
- * @param params - Combined quote inputs.
- * @param params.adjustedAmountFiat - Fiat amount sent to ramps after adding relay fee estimate.
- * @param params.amountFiat - User-entered fiat amount.
- * @param params.fiatQuote - Selected ramps quote.
- * @param params.relayQuote - Estimated relay quote.
- * @returns A single fiat strategy quote with split fee buckets.
- * @remarks
- * Fee mapping contract for MM Pay Fiat strategy:
- * - `fees.provider`: Total provider fee (relay provider/swap fee + ramps provider/network fee).
- *   Consumed by UI transaction fee row and tooltip provider fee.
- * - `fees.providerFiat`: Fiat on-ramp provider fees only (`providerFee + networkFee` from ramps quote).
- *   Optional breakdown; client can derive relay portion via `provider - providerFiat`.
- * - `fees.sourceNetwork` / `fees.targetNetwork`: Relay settlement network fees.
- *   Consumed by UI transaction fee row and tooltip network fee.
- * - `fees.metaMask`: MM Pay fee (currently 100 bps over `amountFiat + adjustedAmountFiat`).
- *   Consumed by UI transaction fee row and tooltip MetaMask fee.
- * - `totals.total` should represent Amount + Transaction Fee using the totals pipeline.
- */
-export function combineQuotes({
+function combineQuotes({
   adjustedAmountFiat,
   amountFiat,
   fiatQuote,
@@ -368,27 +497,13 @@ export function combineQuotes({
   };
 }
 
-/**
- * Ramps providers handle network gas fees themselves but report them separately
- * as `networkFee` alongside their `providerFee`. We combine both into a single
- * ramps provider fee for the `providerFiat` breakdown.
- *
- * @param fiatQuote - The ramps quote containing provider and network fees.
- * @returns Combined ramps provider fee as a BigNumber.
- */
 function getRampsProviderFee(fiatQuote: RampsQuote): BigNumber {
   return new BigNumber(fiatQuote.quote.providerFee ?? 0).plus(
     fiatQuote.quote.networkFee ?? 0,
   );
 }
 
-/**
- * Computes the total relay fee in USD from a relay quote's fee breakdown.
- *
- * @param relayQuote - The relay quote containing fee components.
- * @returns Total relay fee as a BigNumber in USD.
- */
-export function getRelayTotalFeeUsd(
+function getRelayTotalFeeUsd(
   relayQuote: TransactionPayQuote<RelayQuote>,
 ): BigNumber {
   return new BigNumber(relayQuote.fees.provider.usd)

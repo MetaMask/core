@@ -51,6 +51,25 @@ function isDirectMusdToMoneyAccountQuote(
   );
 }
 
+function getWalletAddress({
+  quotes,
+  transaction,
+  accountOverride,
+}: {
+  quotes: PayStrategyExecuteRequest<FiatQuote>['quotes'];
+  transaction: PayStrategyExecuteRequest<FiatQuote>['transaction'];
+  accountOverride: Hex | undefined;
+}): Hex {
+  const address = isDirectMusdToMoneyAccountQuote(quotes)
+    ? transaction.txParams.from
+    : (accountOverride ?? transaction.txParams.from);
+
+  if (!address) {
+    throw new Error('Missing wallet address for fiat submission');
+  }
+
+  return address as Hex;
+}
 
 const TERMINAL_FAILURE_STATUSES: RampsOrderStatus[] = [
   RampsOrderStatus.Cancelled,
@@ -77,19 +96,11 @@ export async function submitFiatQuotes(
   const state = messenger.call('TransactionPayController:getState');
   const transactionData = state.transactionData[transactionId];
 
-  const isDirectMusdToMA = isDirectMusdToMoneyAccountQuote(request.quotes);
-
-  // When the direct mUSD flow was used, the fiat provider delivered to
-  // the money account (txParams.from), not to the user's override account.
-  const walletAddress = (
-    isDirectMusdToMA
-      ? transaction.txParams.from
-      : (transactionData?.accountOverride ?? transaction.txParams.from)
-  ) as Hex | undefined;
-
-  if (!walletAddress) {
-    throw new Error('Missing wallet address for fiat submission');
-  }
+  const walletAddress = getWalletAddress({
+    quotes: request.quotes,
+    transaction,
+    accountOverride: transactionData?.accountOverride as Hex | undefined,
+  });
 
   const fiatPayment = transactionData?.fiatPayment;
   const orderId = fiatPayment?.orderId;
@@ -276,8 +287,8 @@ async function submitRelayAfterFiatCompletion({
     throw new Error('Multiple fiat quotes are not supported for submission');
   }
 
-  const isDirectMusdToMA = isDirectMusdToMoneyAccountQuote(quotes);
-  const fiatAsset = isDirectMusdToMA
+  const isDirectMusd = isDirectMusdToMoneyAccountQuote(quotes);
+  const fiatAsset = isDirectMusd
     ? MUSD_MONAD_FIAT_ASSET
     : deriveFiatAssetForFiatPayment(transaction, messenger);
 
@@ -289,10 +300,7 @@ async function submitRelayAfterFiatCompletion({
 
   const baseRequest = quotes[0].request;
 
-  // For the direct mUSD flow, the fiat provider delivered to the money
-  // account (txParams.from), so on-chain amount resolution must look there.
-  // For the standard flow, it delivered to the user's account (baseRequest.from).
-  const sourceAmountWalletAddress = isDirectMusdToMA
+  const sourceAmountWalletAddress = isDirectMusd
     ? (transaction.txParams.from as Hex)
     : baseRequest.from;
 
