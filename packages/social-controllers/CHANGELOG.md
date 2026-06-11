@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add optional perp fields to the `Trade` type (and `TradeStruct`): `classification` (`'spot' | 'perp' | 'send' | 'receive' | null`), `perpPositionType` (`'long' | 'short' | null`), and `perpLeverage` (`number | null`) — exposing Hyperliquid/perp trade metadata to consumers ([#0000](https://github.com/MetaMask/core/pull/0000))
+- Add optional perp fields to the `Position` type (and `PositionStruct`): `perpPositionType` (`'long' | 'short' | null`), `perpLeverage` (`number | null`), and `positionAmountWithLeverage` (`number | null`) — exposing Hyperliquid/perp position metadata to consumers ([#0000](https://github.com/MetaMask/core/pull/0000))
+
 ### Changed
 
 - Bump `@metamask/controller-utils` from `^12.0.0` to `^12.2.0` ([#8774](https://github.com/MetaMask/core/pull/8774), [#9058](https://github.com/MetaMask/core/pull/9058), [#9083](https://github.com/MetaMask/core/pull/9083))

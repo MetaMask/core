@@ -1,6 +1,7 @@
 import type { Infer } from '@metamask/superstruct';
 import {
   enums,
+  nullable,
   number,
   optional,
   string,
@@ -39,6 +40,14 @@ export const TradeStruct = structType({
   direction: enums(['buy', 'sell']),
   intent: enums(['enter', 'exit']),
   category: optional(string()),
+  /** High-level trade classification. `null` when Clicker does not classify. */
+  classification: optional(
+    nullable(enums(['spot', 'perp', 'send', 'receive'])),
+  ),
+  /** Perp side for this fill. `null` for spot trades. */
+  perpPositionType: optional(nullable(enums(['long', 'short']))),
+  /** Leverage multiplier for perp trades (e.g. `5` for 5x). `null` for spot. */
+  perpLeverage: optional(nullable(number())),
   tokenAmount: number(),
   usdCost: number(),
   timestamp: number(),
@@ -153,6 +162,15 @@ export type Position = {
   pnlValueUsd?: number | null;
   /** PnL as a percentage of cost basis. */
   pnlPercent?: number | null;
+  /** Perp side of the position. `null`/absent for spot positions. */
+  perpPositionType?: 'long' | 'short' | null;
+  /** Leverage multiplier for perp positions. `null`/absent for spot. */
+  perpLeverage?: number | null;
+  /**
+   * Leveraged position size (un-leveraged `positionAmount` × leverage), i.e.
+   * the capital at risk. Hyperliquid/perp positions only; absent for spot.
+   */
+  positionAmountWithLeverage?: number | null;
 };
 
 export type Pagination = {
