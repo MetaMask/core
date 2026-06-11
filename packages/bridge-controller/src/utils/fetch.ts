@@ -10,6 +10,9 @@ import type {
   BridgeAsset,
   TokenFeature,
   QuoteStreamCompleteData,
+  BatchSellTradesRequest,
+  BatchSellTradesResponse,
+  FeatureId,
 } from '../types';
 import { getEthUsdtResetData } from './bridge';
 import {
@@ -19,12 +22,12 @@ import {
 } from './caip-formatters';
 import { fetchServerEvents } from './fetch-server-events';
 import { isEvmTxData } from './trade-utils';
-import type { FeatureId } from './validators';
 import {
   validateQuoteResponse,
   validateSwapsTokenObject,
   validateTokenFeature,
   validateQuoteStreamComplete,
+  validateBatchSellTradesResponse,
 } from './validators';
 
 export const getClientHeaders = ({
@@ -238,7 +241,7 @@ const fetchAssetPricesForCurrency = async (request: {
   const priceApiResponse = (await fetchFn(url, {
     headers: getClientHeaders({ clientId, clientVersion }),
     signal,
-  })) as Record<CaipAssetType, { [currency: string]: number }>;
+  })) as unknown as Record<CaipAssetType, { [currency: string]: number }>;
   if (!priceApiResponse || typeof priceApiResponse !== 'object') {
     return {};
   }
@@ -322,6 +325,7 @@ const getQuoteResponseId = ({
  * @param fetchFn - The fetch function to use
  * @param quoteRequests - An array of GenericQuoteRequest objects
  * @param signal - The abort signal
+ * @param featureId - The {@link FeatureId} for the experience that's requesting the quotes
  * @param clientId - The client ID for metrics
  * @param jwt - The JWT token for authentication
  * @param bridgeApiBaseUrl - The base URL for the bridge API
@@ -338,6 +342,7 @@ export async function fetchBridgeQuoteStream(
   fetchFn: FetchFunction,
   quoteRequests: GenericQuoteRequest[],
   signal: AbortSignal | undefined,
+  featureId: FeatureId,
   clientId: string,
   jwt: string | undefined,
   bridgeApiBaseUrl: string,
@@ -377,6 +382,7 @@ export async function fetchBridgeQuoteStream(
 
         return await serverEventHandlers.onValidQuoteReceived({
           ...quoteResponse,
+          featureId,
           // Append the reset approval data to the quote response if the request has resetApproval set to true and the quote has an approval
           resetApproval:
             matchingQuoteRequest.resetApproval &&
@@ -488,4 +494,86 @@ export async function fetchBridgeQuoteStream(
     },
     ...sharedFetchOptions,
   });
+}
+
+export const formatBatchSellTradesRequest = (
+  quotes: (QuoteResponse | null)[],
+  stxEnabled: boolean,
+): BatchSellTradesRequest => ({
+  quotes: quotes
+    .filter((quote): quote is QuoteResponse => quote !== null)
+    .map(
+      ({
+        trade,
+        approval,
+        quote,
+        estimatedProcessingTimeInSeconds,
+        quoteId,
+      }) => ({
+        trade,
+        approval,
+        quote,
+        estimatedProcessingTimeInSeconds,
+        quoteId,
+      }),
+    ),
+  stxEnabled,
+});
+
+/**
+ * Fetches quotes from the bridge-api's getQuote endpoint
+ *
+ * @param quotes - The quotes to fetch the gasless transaction data and fees for. May contain null values if a quote is not available for a swap
+ * @param stxEnabled - Flag to estimate gas cost more precisely for the batch sell feature.
+ * @param signal - The abort signal
+ * @param clientId - The client ID for metrics
+ * @param jwt - The JWT token for authentication
+ * @param fetchFn - The fetch function to use
+ * @param bridgeApiBaseUrl - The base URL for the bridge API
+ * @param clientVersion - The client version for metrics (optional)
+ * @returns The batch sell trades and the total network fee
+ */
+export async function fetchBatchSellTrades(
+  quotes: (QuoteResponse | null)[],
+  stxEnabled: boolean,
+  signal: AbortSignal | null,
+  clientId: string,
+  jwt: string | undefined,
+  fetchFn: FetchFunction,
+  bridgeApiBaseUrl: string,
+  clientVersion?: string,
+): Promise<BatchSellTradesResponse> {
+  const url = `${bridgeApiBaseUrl}/obtainGaslessBatch`;
+  const request: BatchSellTradesRequest = formatBatchSellTradesRequest(
+    quotes,
+    stxEnabled,
+  );
+  const batchSellTradesResponse = await fetchFn(url, {
+    headers: {
+      ...getClientHeaders({
+        clientId,
+        clientVersion,
+        jwt,
+      }),
+      'Content-Type': 'application/json',
+    },
+    signal,
+    method: 'POST',
+    body: JSON.stringify(request),
+  });
+
+  if (!batchSellTradesResponse.ok) {
+    throw new Error(
+      `Failed to fetch batch sell trades. ${batchSellTradesResponse.statusText}`,
+    );
+  }
+
+  try {
+    const data = await batchSellTradesResponse.json();
+    validateBatchSellTradesResponse(data);
+    return data;
+  } catch (error: unknown) {
+    // TODO validation failure event
+    throw new Error(`Invalid batch simulation response. ${error?.toString()}`);
+  }
 }

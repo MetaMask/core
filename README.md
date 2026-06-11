@@ -16,6 +16,26 @@ See the [Contributor Documentation](./docs) for help on:
 
 Each package in this repository has its own README where you can find installation and usage instructions. See `packages/` for more.
 
+## Agent skills
+
+This repo can install MetaMask agent skills for Claude, Cursor, and Codex/OpenAI.
+`yarn setup` keeps the public [`MetaMask/skills`](https://github.com/MetaMask/skills)
+cache available through the shared `@metamask/skills` CLI. Run `yarn skills` any
+time to install or refresh the gitignored generated skills under `.claude/skills/`,
+`.cursor/rules/`, and `.agents/skills/`.
+
+By default, all stable skills that support Core are installed when you run `yarn skills`.
+Set `SKILLS_AUTO_UPDATE=1` to opt into best-effort regeneration during setup. The shared package keeps sync/cache behavior uniform with Mobile and Extension.
+To persist a local selection, copy `.skills.local.example` to `.skills.local` and
+set values such as `SKILLS_DOMAINS=perps`.
+
+```bash
+yarn skills                         # refresh default stable Core skills
+yarn skills --domain perps          # install only the perps domain
+yarn skills --select                # interactively choose domains
+yarn skills --reset                 # clear saved local selection
+```
+
 ## Packages
 
 <!-- start package list -->
@@ -262,7 +282,6 @@ linkStyle default opacity:0.5
   authenticated_user_storage --> controller_utils;
   authenticated_user_storage --> messenger;
   base_controller --> messenger;
-  base_controller --> json_rpc_engine;
   base_data_service --> controller_utils;
   base_data_service --> messenger;
   bridge_controller --> accounts_controller;
@@ -349,7 +368,6 @@ linkStyle default opacity:0.5
   eth_json_rpc_middleware --> eth_json_rpc_provider;
   eth_json_rpc_middleware --> json_rpc_engine;
   eth_json_rpc_middleware --> message_manager;
-  eth_json_rpc_middleware --> network_controller;
   eth_json_rpc_provider --> json_rpc_engine;
   gas_fee_controller --> base_controller;
   gas_fee_controller --> controller_utils;
@@ -424,6 +442,7 @@ linkStyle default opacity:0.5
   network_controller --> eth_json_rpc_provider;
   network_controller --> json_rpc_engine;
   network_controller --> messenger;
+  network_controller --> remote_feature_flag_controller;
   network_enablement_controller --> base_controller;
   network_enablement_controller --> controller_utils;
   network_enablement_controller --> messenger;
@@ -462,7 +481,6 @@ linkStyle default opacity:0.5
   phishing_controller --> messenger;
   phishing_controller --> transaction_controller;
   polling_controller --> base_controller;
-  polling_controller --> controller_utils;
   polling_controller --> network_controller;
   polling_controller --> messenger;
   preferences_controller --> base_controller;
@@ -482,9 +500,11 @@ linkStyle default opacity:0.5
   ramps_controller --> base_controller;
   ramps_controller --> controller_utils;
   ramps_controller --> messenger;
+  ramps_controller --> profile_sync_controller;
   rate_limit_controller --> base_controller;
   rate_limit_controller --> messenger;
   react_data_query --> base_data_service;
+  react_data_query --> messenger;
   remote_feature_flag_controller --> base_controller;
   remote_feature_flag_controller --> controller_utils;
   remote_feature_flag_controller --> messenger;
@@ -549,6 +569,7 @@ linkStyle default opacity:0.5
   transaction_pay_controller --> bridge_status_controller;
   transaction_pay_controller --> controller_utils;
   transaction_pay_controller --> gas_fee_controller;
+  transaction_pay_controller --> keyring_controller;
   transaction_pay_controller --> messenger;
   transaction_pay_controller --> network_controller;
   transaction_pay_controller --> ramps_controller;
@@ -564,6 +585,15 @@ linkStyle default opacity:0.5
   user_operation_controller --> polling_controller;
   user_operation_controller --> transaction_controller;
   user_operation_controller --> eth_block_tracker;
+  wallet --> accounts_controller;
+  wallet --> approval_controller;
+  wallet --> base_controller;
+  wallet --> connectivity_controller;
+  wallet --> controller_utils;
+  wallet --> keyring_controller;
+  wallet --> messenger;
+  wallet --> remote_feature_flag_controller;
+  wallet --> storage_service;
 ```
 
 <!-- end dependency graph -->

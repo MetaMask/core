@@ -9,7 +9,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Bump `@metamask/transaction-controller` from `^65.3.0` to `^65.4.0` ([#8796](https://github.com/MetaMask/core/pull/8796))
+- Bump `@metamask/utils` from `^11.9.0` to `^11.11.0` ([#9074](https://github.com/MetaMask/core/pull/9074))
+- Bump `@metamask/transaction-controller` from `^66.0.0` to `^67.1.0` ([#8999](https://github.com/MetaMask/core/pull/8999), [#9021](https://github.com/MetaMask/core/pull/9021), [#9027](https://github.com/MetaMask/core/pull/9027), [#9066](https://github.com/MetaMask/core/pull/9066))
+
+## [4.2.0]
+
+### Added
+
+- Add `token-approval-revocation` execution permission type decoding ([#8823](https://github.com/MetaMask/core/pull/8823))
+
+### Changed
+
+- Bump `@metamask/transaction-controller` from `^65.3.0` to `^66.0.0` ([#8796](https://github.com/MetaMask/core/pull/8796), [#8848](https://github.com/MetaMask/core/pull/8848))
 
 ## [4.1.2]
 
@@ -250,7 +261,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#6033](https://github.com/MetaMask/core/pull/6033))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/gator-permissions-controller@4.1.2...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/gator-permissions-controller@4.2.0...HEAD
+[4.2.0]: https://github.com/MetaMask/core/compare/@metamask/gator-permissions-controller@4.1.2...@metamask/gator-permissions-controller@4.2.0
 [4.1.2]: https://github.com/MetaMask/core/compare/@metamask/gator-permissions-controller@4.1.1...@metamask/gator-permissions-controller@4.1.2
 [4.1.1]: https://github.com/MetaMask/core/compare/@metamask/gator-permissions-controller@4.1.0...@metamask/gator-permissions-controller@4.1.1
 [4.1.0]: https://github.com/MetaMask/core/compare/@metamask/gator-permissions-controller@4.0.0...@metamask/gator-permissions-controller@4.1.0

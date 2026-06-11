@@ -5,6 +5,7 @@ import {
   AccountWalletType,
 } from '@metamask/account-api';
 import { EthAccountType, EthMethod, EthScope } from '@metamask/keyring-api';
+import { KeyringType } from '@metamask/keyring-api/v2';
 import { KeyringTypes } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type { SnapId } from '@metamask/snaps-sdk';
@@ -48,6 +49,22 @@ const MOCK_SNAP_ACCOUNT_1: InternalAccount = {
   metadata: {
     name: 'Snap Account 1',
     keyring: { type: KeyringTypes.snap },
+    snap: { id: MOCK_SNAP_1.id },
+    importTime: 0,
+    lastSelected: 0,
+  },
+};
+
+const MOCK_SNAP_ACCOUNT_V2: InternalAccount = {
+  id: 'mock-snap-account-id-v2',
+  address: '0xDEF',
+  options: {},
+  methods: [...ETH_EOA_METHODS],
+  type: EthAccountType.Eoa,
+  scopes: [EthScope.Eoa],
+  metadata: {
+    name: 'Snap Account V2',
+    keyring: { type: KeyringType.Snap },
     snap: { id: MOCK_SNAP_1.id },
     importTime: 0,
     lastSelected: 0,
@@ -98,6 +115,57 @@ describe('SnapRule', () => {
       );
 
       expect(rule.match(MOCK_SNAP_ACCOUNT_1)).toBeDefined();
+    });
+
+    it('returns a result for a v2 snap keyring type account', () => {
+      const messenger = getRootMessenger();
+      const accountTreeControllerMessenger =
+        getAccountTreeControllerMessenger(messenger);
+      const rule = new SnapRule(accountTreeControllerMessenger);
+
+      messenger.registerActionHandler(
+        'SnapController:getSnap',
+        () => MOCK_SNAP_1 as unknown as Snap,
+      );
+
+      expect(rule.match(MOCK_SNAP_ACCOUNT_V2)).toBeDefined();
+    });
+
+    it('returns undefined for a v2 snap keyring type account when snap is blocked', () => {
+      const messenger = getRootMessenger();
+      const accountTreeControllerMessenger =
+        getAccountTreeControllerMessenger(messenger);
+      const rule = new SnapRule(accountTreeControllerMessenger);
+
+      const blockedSnap = { ...MOCK_SNAP_1, enabled: true, blocked: true };
+      messenger.registerActionHandler(
+        'SnapController:getSnap',
+        () => blockedSnap as unknown as Snap,
+      );
+
+      expect(rule.match(MOCK_SNAP_ACCOUNT_V2)).toBeUndefined();
+    });
+
+    it('returns undefined for account with unknown keyring type', () => {
+      const messenger = getRootMessenger();
+      const accountTreeControllerMessenger =
+        getAccountTreeControllerMessenger(messenger);
+      const rule = new SnapRule(accountTreeControllerMessenger);
+
+      messenger.registerActionHandler(
+        'SnapController:getSnap',
+        () => MOCK_SNAP_1 as unknown as Snap,
+      );
+
+      const accountWithUnknownKeyring: InternalAccount = {
+        ...MOCK_SNAP_ACCOUNT_1,
+        metadata: {
+          ...MOCK_SNAP_ACCOUNT_1.metadata,
+          keyring: { type: 'unknown-keyring-type' },
+        },
+      };
+
+      expect(rule.match(accountWithUnknownKeyring)).toBeUndefined();
     });
   });
 

@@ -35,7 +35,6 @@ import type {
   BridgeAssetSchema,
   ChainConfigurationSchema,
   ChainRankingSchema,
-  FeatureId,
   FeeDataSchema,
   IntentSchema,
   PlatformConfigSchema,
@@ -47,6 +46,10 @@ import type {
   QuoteStreamCompleteSchema,
   TronTradeDataSchema,
   TxDataSchema,
+  BatchSellTradesResponseSchema,
+  GaslessPropertiesSchema,
+  SimulatedGasFeeLimitsSchema,
+  TxFeeGasLimitsSchema,
 } from './utils/validators';
 
 export type FetchFunction = (
@@ -91,7 +94,7 @@ export type TokenAmountValues = {
   /**
    * The amount of the token
    *
-   * @example "1000000000000000000"
+   * @example "1.005"
    */
   amount: string;
   /**
@@ -255,6 +258,16 @@ export enum StatusTypes {
   COMPLETE = 'COMPLETE',
 }
 
+export enum FeatureId {
+  UNKNOWN = 'unknown',
+  PERPS = 'perps',
+  QUICK_BUY_FOLLOW_TRADING = 'quick_buy_follow_trading',
+  QUICK_BUY_TOKEN_DETAILS = 'quick_buy_token_details',
+  DAPP_SWAP = 'dapp_swap',
+  BATCH_SELL = 'batch_sell',
+  UNIFIED_SWAP_BRIDGE = 'unified_swap_bridge',
+}
+
 /**
  * These are types that components pass in. Since data is a mix of types when coming from the redux store, we need to use a generic type that can cover all the types.
  * Payloads with this type are transformed into QuoteRequest by fetchBridgeQuotes right before fetching quotes
@@ -310,6 +323,23 @@ export type QuoteResponse<
   quoteRequestIndex?: number;
 };
 
+export type BatchSellTradesRequest = {
+  quotes: QuoteResponse[];
+  stxEnabled: boolean;
+};
+
+/**
+ * This is the bridge-api response for the obtainGaslessBatch method
+ */
+export type BatchSellTradesResponse = Infer<
+  typeof BatchSellTradesResponseSchema
+>;
+
+export type SimulatedGasFeeLimits = Infer<typeof SimulatedGasFeeLimitsSchema>;
+export type TxFeeGasLimits = Infer<typeof TxFeeGasLimitsSchema>;
+
+export type GaslessProperties = Infer<typeof GaslessPropertiesSchema>;
+
 export enum ChainId {
   ETH = 1,
   OPTIMISM = 10,
@@ -327,6 +357,7 @@ export enum ChainId {
   MONAD = 143,
   HYPEREVM = 999,
   MEGAETH = 4326,
+  ARC = 5042,
 }
 
 export type FeatureFlagsPlatformConfig = Infer<typeof PlatformConfigSchema>;
@@ -336,30 +367,9 @@ export type TokenFeature = Infer<typeof TokenFeatureSchema>;
 export type QuoteStreamCompleteData = Infer<typeof QuoteStreamCompleteSchema>;
 
 export enum RequestStatus {
-  LOADING,
-  FETCHED,
-  ERROR,
-}
-
-/**
- * @deprecated Use the separate method action types (e.g.,
- * `BridgeControllerFetchQuotesAction`) instead.
- */
-export enum BridgeUserAction {
-  SELECT_DEST_NETWORK = 'selectDestNetwork',
-  UPDATE_QUOTE_PARAMS = 'updateBridgeQuoteRequestParams',
-}
-
-/**
- * @deprecated Use the separate method action types (e.g.,
- * `BridgeControllerFetchQuotesAction`) instead.
- */
-export enum BridgeBackgroundAction {
-  SET_CHAIN_INTERVAL_LENGTH = 'setChainIntervalLength',
-  RESET_STATE = 'resetState',
-  TRACK_METAMETRICS_EVENT = 'trackUnifiedSwapBridgeEvent',
-  STOP_POLLING_FOR_QUOTES = 'stopPollingForQuotes',
-  FETCH_QUOTES = 'fetchQuotes',
+  LOADING = 0,
+  FETCHED = 1,
+  ERROR = 2,
 }
 
 export type BridgeControllerState = {
@@ -417,6 +427,14 @@ export type BridgeControllerState = {
    * Set to null at the start of each fetch and updated when the complete event is received.
    */
   quoteStreamComplete: QuoteStreamCompleteData | null;
+  /**
+   * Contains gasless transaction data and fees for BatchSell quotes, provided by the obtainGaslessBatch API
+   */
+  batchSellTrades: BatchSellTradesResponse | null;
+  /**
+   * The status of the batch sell trades fetch, including fee calculations and validations
+   */
+  batchSellTradesLoadingStatus: RequestStatus | null;
 };
 
 /**

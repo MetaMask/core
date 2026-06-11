@@ -2,6 +2,7 @@ export {
   getAuthenticatedStorageUrl,
   AuthenticatedUserStorageService,
 } from './authenticated-user-storage';
+export { ASSETS_WATCHLIST_MAX_ASSETS } from './validators';
 export type {
   AuthenticatedUserStorageActions,
   AuthenticatedUserStorageCacheUpdatedEvent,
@@ -16,6 +17,8 @@ export type {
   AuthenticatedUserStorageServiceRevokeDelegationAction,
   AuthenticatedUserStorageServiceGetNotificationPreferencesAction,
   AuthenticatedUserStorageServicePutNotificationPreferencesAction,
+  AuthenticatedUserStorageServiceGetAssetsWatchlistAction,
+  AuthenticatedUserStorageServiceSetAssetsWatchlistAction,
 } from './authenticated-user-storage-method-action-types';
 export { getUserStorageApiUrl } from './env';
 export type { Environment } from './env';
@@ -33,5 +36,6 @@ export type {
   PerpsPreference,
   SocialAIPreference,
   NotificationPreferences,
+  AssetsWatchlistBlob,
   ClientType,
 } from './types';

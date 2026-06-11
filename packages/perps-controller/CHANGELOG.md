@@ -9,7 +9,84 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Bump `@metamask/utils` from `^11.9.0` to `^11.11.0` ([#9074](https://github.com/MetaMask/core/pull/9074))
+
+## [8.1.0]
+
+### Added
+
+- Add observational hard timeout for order submission: tag the `Perps Order Submission` trace and emit a breadcrumb when a provider round-trip exceeds `PlaceOrderTimeoutMs` (60s), without cancelling the in-flight order ([#8994](https://github.com/MetaMask/core/pull/8994))
+- Add `HYPERLIQUID_ASSET_NAMES` (a curated `symbol → human-readable name` map, e.g. `BTC → 'Bitcoin'`, `xyz:AAPL → 'Apple'`, `xyz:GOLD → 'Gold'`) and the `getHyperLiquidAssetName(symbol, names?)` helper, both exported from `@metamask/perps-controller/constants`, so clients can match and display markets by full name ([#9082](https://github.com/MetaMask/core/pull/9082))
+  - HyperLiquid does not expose a per-asset human-readable name; this map is maintained client-side and keyed like `HIP3_ASSET_MARKET_TYPES` (bare `SYMBOL` for crypto, `dex:SYMBOL` for HIP-3). Unmapped assets fall back to their ticker.
+- Add `rankMarketsByQuery(markets, query)` and `getMarketMatchRank(market, query)` helpers (and the `MarketMatchRank` enum) for relevance-ranked market search by ticker symbol or human-readable name (exact > prefix > substring, stable within a rank) ([#9082](https://github.com/MetaMask/core/pull/9082))
+  - Complements the existing unranked `filterMarketsByQuery`; same match semantics (case-insensitive substring on `symbol` and `name`), but ordered by relevance. No fuzzy/phonetic matching.
+
+### Changed
+
+- Deliver HyperLiquid positions, orders, and account/spot balance via per-DEX `clearinghouseState` and `openOrders` subscriptions on all paths, removing the dependency on the deprecated `webData2` snapshot channel ([#9081](https://github.com/MetaMask/core/pull/9081))
+  - The non-HIP-3 (main-DEX-only) user data path previously used `webData2`, which HyperLiquid is throttling to a 15s push interval and deprecating. It now uses the same sub-second per-DEX subscriptions as the HIP-3 path, with `webData3` retained only for open-interest caps (not latency-sensitive).
+- Surface late order completions via trace `reason: 'late_success' | 'late_error'` ([#8994](https://github.com/MetaMask/core/pull/8994))
+- `PerpsMarketData.name` returned by `getMarketDataWithPrices()` is now the human-readable market name (resolved via `HYPERLIQUID_ASSET_NAMES`) instead of a copy of the ticker symbol; unmapped assets are unchanged (still equal the symbol) ([#9082](https://github.com/MetaMask/core/pull/9082))
+  - `transformMarketData` gains an optional `assetNames` parameter (defaults to the bundled map) to override the name source.
+- Bump `@metamask/controller-utils` from `^12.1.0` to `^12.2.0` ([#9058](https://github.com/MetaMask/core/pull/9058), [#9083](https://github.com/MetaMask/core/pull/9083))
+
+### Removed
+
+- Remove unused `Perps Order Submission Toast` trace name from the `PerpsTraceName` union ([#8994](https://github.com/MetaMask/core/pull/8994))
+
+### Fixed
+
+- Fix `late_error` never being emitted in the `placeOrder` catch path when a provider call succeeded past `PlaceOrderTimeoutMs` but a subsequent step threw; the trace `reason` now correctly reflects `'late_error'` whenever the submission threshold was exceeded, regardless of where the exception originated ([#8994](https://github.com/MetaMask/core/pull/8994))
+
+## [8.0.0]
+
+### Added
+
+- Centralise market category classification so consumers share one model instead of re-deriving it per client ([#9009](https://github.com/MetaMask/core/pull/9009))
+  - Export `getMarketTypeFilter` (resolves a market to its UI category filter with singular values aligned to `MarketCategory`) and `isHip3Market`. `getMarketTypeFilter` and `matchesCategory` treat a `marketSource` DEX id as a HIP-3 signal consistently, so partial (route-param) markets classify the same way in both.
+  - Export the pure `matchesCategory` and `applyMarketFilters` helpers (moved from `MarketDataService`).
+
+### Changed
+
+- **BREAKING:** Align `MarketTypeFilter` and `MARKET_CATEGORIES` values with `MarketCategory` singular values ([#9009](https://github.com/MetaMask/core/pull/9009))
+  - Replace `stocks` with `stock`, `indices` with `index`, `etfs` with `etf`, and `commodities` with `commodity`.
+- Reclassify `xyz:CBRS` (Cerebras) from `stock` to `pre-ipo` and add `xyz:IPOP` (Quantinuum) as `pre-ipo` in `HIP3_ASSET_MARKET_TYPES`, so all three Pre-IPO Perpetual markets on trade.xyz (CBRS, SPCX, IPOP) display under the Pre-IPO category ([#9038](https://github.com/MetaMask/core/pull/9038))
+
+## [7.0.0]
+
+### Added
+
+- Add `MarketCategory` enum, `MARKET_CATEGORIES` ordered array (7 data-model category pills), and `getMarketCategories` messenger action ([#8892](https://github.com/MetaMask/core/pull/8892))
+- Expand `HIP3_ASSET_MARKET_TYPES` with new stock, ETF, pre-IPO, forex, and commodity markets ([#8892](https://github.com/MetaMask/core/pull/8892))
+- Add `categories`, `sortBy`, `direction`, `limit`, and `excludeSymbols` optional params to `GetMarketDataWithPricesParams` and `getMarketDataWithPrices()` for post-processing filtering, sorting, and pagination of market data ([#8892](https://github.com/MetaMask/core/pull/8892))
+- Export `SortField`, `SortDirection`, and `GetMarketDataWithPricesParams` types from the package root ([#8892](https://github.com/MetaMask/core/pull/8892))
+
+### Changed
+
+- **BREAKING:** Replace `'equity'` with granular `MarketType` values: `'stock'`, `'pre-ipo'`, `'index'`, and `'etf'` ([#8892](https://github.com/MetaMask/core/pull/8892))
+  - Update any code matching `marketType === 'equity'` to use the specific sub-type.
+
+## [6.3.0]
+
+### Added
+
+- Add slippage controls so users can configure per-order slippage tolerance for market trades ([#8871](https://github.com/MetaMask/core/pull/8871))
+- Track `vip_tier` and `vip_discount` properties on perps trading events for fee analytics ([#8871](https://github.com/MetaMask/core/pull/8871))
+- Surface an in-app banner during an ongoing HyperLiquid outage so users see degraded trading status ([#8871](https://github.com/MetaMask/core/pull/8871))
+- Expose subpath `exports` for `./constants`, `./constants/*`, `./types`, and `./utils/*` so consumers using legacy `node` module resolution can deep-import compiled entry points without losing tree-shaking ([#8883](https://github.com/MetaMask/core/pull/8883))
+
+### Fixed
+
+- Prefer the currently selected EVM account when resolving the trading account so account switching is honored across providers ([#8871](https://github.com/MetaMask/core/pull/8871))
+- Suppress `User or API Wallet does not exist` Sentry noise from unfunded wallets that have not interacted with HyperLiquid ([#8871](https://github.com/MetaMask/core/pull/8871))
+- Approve the HyperLiquid builder fee when missing so order submission succeeds after fresh wallet setup ([#8871](https://github.com/MetaMask/core/pull/8871))
+
+## [6.2.0]
+
+### Changed
+
 - Pass `isInternal: true` to all internal `addTransaction` calls to adopt the explicit `isInternal` flag introduced in `@metamask/transaction-controller` ([#8633](https://github.com/MetaMask/core/pull/8633))
+- Bump `@metamask/transaction-controller` from `^65.4.0` to `^66.0.0` ([#8848](https://github.com/MetaMask/core/pull/8848))
 
 ## [6.1.0]
 
@@ -302,7 +379,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Bump `@metamask/controller-utils` from `^11.18.0` to `^11.19.0` ([#7995](https://github.com/MetaMask/core/pull/7995))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@6.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@8.1.0...HEAD
+[8.1.0]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@8.0.0...@metamask/perps-controller@8.1.0
+[8.0.0]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@7.0.0...@metamask/perps-controller@8.0.0
+[7.0.0]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@6.3.0...@metamask/perps-controller@7.0.0
+[6.3.0]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@6.2.0...@metamask/perps-controller@6.3.0
+[6.2.0]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@6.1.0...@metamask/perps-controller@6.2.0
 [6.1.0]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@6.0.1...@metamask/perps-controller@6.1.0
 [6.0.1]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@6.0.0...@metamask/perps-controller@6.0.1
 [6.0.0]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@5.0.0...@metamask/perps-controller@6.0.0

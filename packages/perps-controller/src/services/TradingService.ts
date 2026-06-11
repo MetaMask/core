@@ -25,6 +25,7 @@ import type {
   ClosePositionsParams,
   ClosePositionsResult,
   Position,
+  TrackingData,
   UpdatePositionTPSLParams,
   PerpsAnalyticsProperties,
   PerpsPlatformDependencies,
@@ -223,6 +224,14 @@ export class TradingService {
         error?.message ?? result?.error ?? 'Unknown error';
     }
 
+    if (params.trackingData?.vipTier !== undefined) {
+      properties[PERPS_EVENT_PROPERTY.VIP_TIER] = params.trackingData.vipTier;
+    }
+    if (params.trackingData?.vipDiscount !== undefined) {
+      properties[PERPS_EVENT_PROPERTY.VIP_DISCOUNT] =
+        params.trackingData.vipDiscount;
+    }
+
     if (
       params.trackingData?.abTests &&
       Object.keys(params.trackingData.abTests).length > 0
@@ -368,8 +377,17 @@ export class TradingService {
     const traceId = uuidv4();
     const startTime = this.#deps.performance.now();
     let traceData:
-      | { success: boolean; error?: string; orderId?: string }
+      | {
+          success: boolean;
+          error?: string;
+          orderId?: string;
+          reason?: 'error' | 'late_success' | 'late_error';
+        }
       | undefined;
+    let orderSubmissionThresholdTimeoutId:
+      | ReturnType<typeof setTimeout>
+      | undefined;
+    let didExceedOrderSubmissionThreshold = false;
 
     const paymentToken =
       params.trackingData?.tradeWithToken === true
@@ -429,17 +447,51 @@ export class TradingService {
         },
       );
 
-      // Execute order with fee discount management
+      // Observational threshold: when the provider round-trip exceeds
+      // PlaceOrderTimeoutMs we tag the trace and emit a breadcrumb, but we
+      // intentionally do NOT cancel the in-flight order. Cancelling client-side
+      // (e.g. Promise.race rejection) does not stop the provider request, so a
+      // race-based timeout would let the UI mark an order as failed while
+      // HyperLiquid could still accept it. Instead, we always await
+      // provider.placeOrder(params) to terminal completion and surface
+      // late completions via trace `reason: 'late_success' | 'late_error'`.
+      orderSubmissionThresholdTimeoutId = setTimeout(() => {
+        didExceedOrderSubmissionThreshold = true;
+        this.#deps.tracer.addBreadcrumb({
+          category: 'perps',
+          message: 'Order submission exceeded threshold (still pending)',
+          level: 'warning',
+          data: {
+            thresholdMs: PERPS_CONSTANTS.PlaceOrderTimeoutMs,
+            payment_token: paymentToken,
+            market: params.symbol,
+            orderType: params.orderType,
+          },
+        });
+        this.#deps.debugLogger.log(
+          'TradingService: Order submission exceeded threshold (still pending)',
+          {
+            thresholdMs: PERPS_CONSTANTS.PlaceOrderTimeoutMs,
+            symbol: params.symbol,
+            orderType: params.orderType,
+          },
+        );
+      }, PERPS_CONSTANTS.PlaceOrderTimeoutMs);
       const result = await this.#withFeeDiscount({
         provider,
         feeDiscountBips,
         operation: () => provider.placeOrder(params),
       });
+      if (orderSubmissionThresholdTimeoutId !== undefined) {
+        clearTimeout(orderSubmissionThresholdTimeoutId);
+        orderSubmissionThresholdTimeoutId = undefined;
+      }
 
       this.#deps.debugLogger.log('TradingService: Provider response received', {
         success: result.success,
         orderId: result.orderId,
         error: result.error,
+        didExceedOrderSubmissionThreshold,
       });
 
       // Update state and handle success/failure
@@ -452,13 +504,23 @@ export class TradingService {
           context,
           reportOrderToDataLake,
         });
-        traceData = { success: true, orderId: result.orderId ?? '' };
+        traceData = {
+          success: true,
+          orderId: result.orderId ?? '',
+          ...(didExceedOrderSubmissionThreshold
+            ? { reason: 'late_success' as const }
+            : {}),
+        };
 
         // Invalidate standalone caches so external hooks (e.g., usePerpsPositionForAsset) refresh
         this.#deps.cacheInvalidator.invalidate({ cacheType: 'positions' });
         this.#deps.cacheInvalidator.invalidate({ cacheType: 'accountState' });
       } else {
-        traceData = { success: false, error: result.error ?? 'Unknown error' };
+        traceData = {
+          success: false,
+          reason: didExceedOrderSubmissionThreshold ? 'late_error' : 'error',
+          error: result.error ?? 'Unknown error',
+        };
       }
 
       // Track analytics (success or failure)
@@ -502,10 +564,14 @@ export class TradingService {
 
       traceData = {
         success: false,
+        reason: didExceedOrderSubmissionThreshold ? 'late_error' : 'error',
         error: error instanceof Error ? error.message : 'Unknown error',
       };
       throw error;
     } finally {
+      if (orderSubmissionThresholdTimeoutId !== undefined) {
+        clearTimeout(orderSubmissionThresholdTimeoutId);
+      }
       // Always end trace on exit (success or failure)
       this.#deps.tracer.endTrace({
         name: PerpsTraceNames.PlaceOrder,
@@ -684,6 +750,12 @@ export class TradingService {
       }),
       ...(params.trackingData?.source && {
         [PERPS_EVENT_PROPERTY.SOURCE]: params.trackingData.source,
+      }),
+      ...(params.trackingData?.vipTier !== undefined && {
+        [PERPS_EVENT_PROPERTY.VIP_TIER]: params.trackingData.vipTier,
+      }),
+      ...(params.trackingData?.vipDiscount !== undefined && {
+        [PERPS_EVENT_PROPERTY.VIP_DISCOUNT]: params.trackingData.vipDiscount,
       }),
     };
 
@@ -1989,15 +2061,17 @@ export class TradingService {
    * @param options - The configuration options.
    * @param options.provider - The perps provider instance.
    * @param options.position - The position data.
+   * @param options.trackingData - Optional tracking data for analytics events.
    * @param options.context - The service context for dependencies.
    * @returns The result of the operation.
    */
   async flipPosition(options: {
     provider: PerpsProvider;
     position: Position;
+    trackingData?: TrackingData;
     context: ServiceContext;
   }): Promise<OrderResult> {
-    const { provider, position, context } = options;
+    const { provider, position, trackingData, context } = options;
     const traceId = uuidv4();
     const startTime = this.#deps.performance.now();
 
@@ -2068,6 +2142,12 @@ export class TradingService {
             [PERPS_EVENT_PROPERTY.COMPLETION_DURATION]: completionDuration,
             [PERPS_EVENT_PROPERTY.ACTION]: flipAction,
             [PERPS_EVENT_PROPERTY.ORDER_VALUE]: positionSize * executedPrice,
+            ...(trackingData?.vipTier !== undefined && {
+              [PERPS_EVENT_PROPERTY.VIP_TIER]: trackingData.vipTier,
+            }),
+            ...(trackingData?.vipDiscount !== undefined && {
+              [PERPS_EVENT_PROPERTY.VIP_DISCOUNT]: trackingData.vipDiscount,
+            }),
           },
         );
 
@@ -2105,6 +2185,12 @@ export class TradingService {
         [PERPS_EVENT_PROPERTY.ACTION]: failFlipAction,
         [PERPS_EVENT_PROPERTY.COMPLETION_DURATION]: completionDuration,
         [PERPS_EVENT_PROPERTY.ERROR_MESSAGE]: errorMessage,
+        ...(trackingData?.vipTier !== undefined && {
+          [PERPS_EVENT_PROPERTY.VIP_TIER]: trackingData.vipTier,
+        }),
+        ...(trackingData?.vipDiscount !== undefined && {
+          [PERPS_EVENT_PROPERTY.VIP_DISCOUNT]: trackingData.vipDiscount,
+        }),
       });
 
       this.#deps.tracer.endTrace({

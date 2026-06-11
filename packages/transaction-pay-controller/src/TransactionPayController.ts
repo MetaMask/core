@@ -14,7 +14,9 @@ import {
 import { QuoteRefresher } from './helpers/QuoteRefresher';
 import { deriveFiatAssetForFiatPayment } from './strategy/fiat/utils';
 import type {
+  GetAmountDataCallback,
   GetDelegationTransactionCallback,
+  GetPaymentOverrideDataCallback,
   PolymarketCallbacks,
   TransactionConfigCallback,
   TransactionData,
@@ -35,7 +37,9 @@ import {
 } from './utils/transaction';
 
 const MESSENGER_EXPOSED_METHODS = [
+  'getAmountData',
   'getDelegationTransaction',
+  'getPaymentOverrideData',
   'getStrategy',
   'polymarketGetDepositWalletAddress',
   'polymarketSubmitDepositWalletBatch',
@@ -62,7 +66,11 @@ export class TransactionPayController extends BaseController<
   TransactionPayControllerState,
   TransactionPayControllerMessenger
 > {
+  readonly #getAmountData?: GetAmountDataCallback;
+
   readonly #getDelegationTransaction: GetDelegationTransactionCallback;
+
+  readonly #getPaymentOverrideData?: GetPaymentOverrideDataCallback;
 
   readonly #getStrategy?: (
     transaction: TransactionMeta,
@@ -75,7 +83,9 @@ export class TransactionPayController extends BaseController<
   readonly #polymarket?: PolymarketCallbacks;
 
   constructor({
+    getAmountData,
     getDelegationTransaction,
+    getPaymentOverrideData,
     getStrategy,
     getStrategies,
     messenger,
@@ -89,7 +99,9 @@ export class TransactionPayController extends BaseController<
       state: { ...getDefaultState(), ...state },
     });
 
+    this.#getAmountData = getAmountData;
     this.#getDelegationTransaction = getDelegationTransaction;
+    this.#getPaymentOverrideData = getPaymentOverrideData;
     this.#getStrategy = getStrategy;
     this.#getStrategies = getStrategies;
     this.#polymarket = polymarket;
@@ -140,6 +152,7 @@ export class TransactionPayController extends BaseController<
         isPolymarketDepositWallet: transactionData.isPolymarketDepositWallet,
         refundTo: transactionData.refundTo,
         accountOverride: transactionData.accountOverride,
+        paymentOverride: transactionData.paymentOverride,
       };
 
       const previousAccountOverride = config.accountOverride;
@@ -153,6 +166,7 @@ export class TransactionPayController extends BaseController<
       transactionData.isPolymarketDepositWallet =
         config.isPolymarketDepositWallet;
       transactionData.refundTo = config.refundTo;
+      transactionData.paymentOverride = config.paymentOverride;
 
       if (
         !config.isPostQuote &&
@@ -213,6 +227,30 @@ export class TransactionPayController extends BaseController<
     ...args: Parameters<GetDelegationTransactionCallback>
   ): ReturnType<GetDelegationTransactionCallback> {
     return this.#getDelegationTransaction(...args);
+  }
+
+  /**
+   * Returns additional transactions for the paymentOverride flow.
+   *
+   * Delegates to the client-supplied {@link GetPaymentOverrideDataCallback}.
+   * Called during quote execution when `paymentOverride` is defined on the transaction.
+   * Returns an empty array when no callback is configured.
+   *
+   * @param args - The arguments forwarded to the {@link GetPaymentOverrideDataCallback}.
+   * @returns A promise resolving to the additional transactions array.
+   */
+  getAmountData(
+    ...args: Parameters<GetAmountDataCallback>
+  ): ReturnType<GetAmountDataCallback> {
+    return this.#getAmountData?.(...args) ?? Promise.resolve({ updates: [] });
+  }
+
+  getPaymentOverrideData(
+    ...args: Parameters<GetPaymentOverrideDataCallback>
+  ): ReturnType<GetPaymentOverrideDataCallback> {
+    return (
+      this.#getPaymentOverrideData?.(...args) ?? Promise.resolve({ calls: [] })
+    );
   }
 
   /**

@@ -6,7 +6,7 @@ import type { Hex } from '@metamask/utils';
 import { TransactionPayController } from '.';
 import { updateFiatPayment } from './actions/update-fiat-payment';
 import { updatePaymentToken } from './actions/update-payment-token';
-import { TransactionPayStrategy } from './constants';
+import { PaymentOverride, TransactionPayStrategy } from './constants';
 import { deriveFiatAssetForFiatPayment } from './strategy/fiat/utils';
 import { getMessengerMock } from './tests/messenger-mock';
 import type {
@@ -204,6 +204,18 @@ describe('TransactionPayController', () => {
         controller.state.transactionData[TRANSACTION_ID_MOCK]
           .isHyperliquidSource,
       ).toBe(true);
+    });
+
+    it('updates paymentOverride in state', () => {
+      const controller = createController();
+
+      controller.setTransactionConfig(TRANSACTION_ID_MOCK, (config) => {
+        config.paymentOverride = PaymentOverride.MoneyAccount;
+      });
+
+      expect(
+        controller.state.transactionData[TRANSACTION_ID_MOCK].paymentOverride,
+      ).toBe(PaymentOverride.MoneyAccount);
     });
 
     it('triggers source amounts and quotes update when only isPostQuote changes', () => {
@@ -454,6 +466,100 @@ describe('TransactionPayController', () => {
         transaction: TRANSACTION_META_MOCK,
       });
       expect(result).toBe(resultMock);
+    });
+  });
+
+  describe('getPaymentOverrideData', () => {
+    it('delegates to the callback', async () => {
+      const resultMock = {
+        calls: [{ to: '0xdef' as const, data: '0xabc' as const }],
+      };
+      const getPaymentOverrideDataMock = jest
+        .fn()
+        .mockResolvedValue(resultMock);
+
+      new TransactionPayController({
+        getDelegationTransaction: jest.fn(),
+        getPaymentOverrideData: getPaymentOverrideDataMock,
+        messenger,
+      });
+
+      const requestMock = {
+        amount: '1.5',
+        transaction: TRANSACTION_META_MOCK,
+        transactionData: { isLoading: false, tokens: [] },
+      };
+
+      const result = await messenger.call(
+        'TransactionPayController:getPaymentOverrideData',
+        requestMock,
+      );
+
+      expect(getPaymentOverrideDataMock).toHaveBeenCalledWith(requestMock);
+      expect(result).toStrictEqual(resultMock);
+    });
+
+    it('returns empty array when no callback is configured', async () => {
+      new TransactionPayController({
+        getDelegationTransaction: jest.fn(),
+        messenger,
+      });
+
+      const result = await messenger.call(
+        'TransactionPayController:getPaymentOverrideData',
+        {
+          amount: '1.5',
+          transaction: TRANSACTION_META_MOCK,
+          transactionData: { isLoading: false, tokens: [] },
+        },
+      );
+
+      expect(result).toStrictEqual({ calls: [] });
+    });
+  });
+
+  describe('getAmountData', () => {
+    it('delegates to the callback', async () => {
+      const resultMock = {
+        updates: [{ nestedTransactionIndex: 0, data: '0xabc' as const }],
+      };
+      const getAmountDataMock = jest.fn().mockResolvedValue(resultMock);
+
+      new TransactionPayController({
+        getAmountData: getAmountDataMock,
+        getDelegationTransaction: jest.fn(),
+        messenger,
+      });
+
+      const requestMock = {
+        amount: '5000000',
+        transaction: TRANSACTION_META_MOCK,
+      };
+
+      const result = await messenger.call(
+        'TransactionPayController:getAmountData',
+        requestMock,
+      );
+
+      expect(getAmountDataMock).toHaveBeenCalledWith(requestMock);
+      expect(result).toStrictEqual(resultMock);
+    });
+
+    it('returns empty updates when no callback is configured', async () => {
+      new TransactionPayController({
+        getDelegationTransaction: jest.fn(),
+        messenger,
+      });
+
+      const result = await messenger.call(
+        'TransactionPayController:getAmountData',
+        {
+          amount: '5000000',
+          transaction: TRANSACTION_META_MOCK,
+        },
+      );
+
+      expect(result).toStrictEqual({ updates: [] });
     });
   });
 

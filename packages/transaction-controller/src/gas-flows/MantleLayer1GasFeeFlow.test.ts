@@ -180,7 +180,85 @@ describe('MantleLayer1GasFeeFlow', () => {
       });
     });
 
-    it('returns converted L1 fee when no gasUsed (no operator fee)', async () => {
+    it('falls back to txParams.gas for operator fee when gasUsed is missing', async () => {
+      contractGetOperatorFeeMock.mockResolvedValueOnce(
+        bnFromHex(OPERATOR_FEE_MOCK),
+      );
+
+      jest
+        .spyOn(TransactionFactory, 'fromTxData')
+        .mockReturnValueOnce(
+          createMockTypedTransaction(
+            Buffer.from(SERIALIZED_TRANSACTION_MOCK, 'hex'),
+          ),
+        );
+
+      const flow = new MantleLayer1GasFeeFlow();
+      const response = await flow.getLayer1Fee(request);
+
+      const expectedL1FeeInMnt = bnFromHex(L1_FEE_MOCK).mul(TOKEN_RATIO_MOCK);
+      const expectedTotal = expectedL1FeeInMnt.add(
+        bnFromHex(OPERATOR_FEE_MOCK),
+      );
+
+      expect(contractGetOperatorFeeMock).toHaveBeenCalledTimes(1);
+      expect(contractGetOperatorFeeMock).toHaveBeenCalledWith(
+        TRANSACTION_PARAMS_MOCK.gas,
+      );
+      expect(response).toStrictEqual({
+        layer1Fee: add0x(padHexToEvenLength(expectedTotal.toString(16))),
+      });
+    });
+
+    it('falls back to txParams.gasLimit for operator fee when gasUsed and txParams.gas are missing', async () => {
+      const gasLimit = '0x9999';
+      request = {
+        ...request,
+        transactionMeta: {
+          ...request.transactionMeta,
+          txParams: {
+            from: TRANSACTION_PARAMS_MOCK.from,
+            gasLimit,
+          },
+        },
+      };
+
+      contractGetOperatorFeeMock.mockResolvedValueOnce(
+        bnFromHex(OPERATOR_FEE_MOCK),
+      );
+
+      jest
+        .spyOn(TransactionFactory, 'fromTxData')
+        .mockReturnValueOnce(
+          createMockTypedTransaction(
+            Buffer.from(SERIALIZED_TRANSACTION_MOCK, 'hex'),
+          ),
+        );
+
+      const flow = new MantleLayer1GasFeeFlow();
+      const response = await flow.getLayer1Fee(request);
+
+      const expectedL1FeeInMnt = bnFromHex(L1_FEE_MOCK).mul(TOKEN_RATIO_MOCK);
+      const expectedTotal = expectedL1FeeInMnt.add(
+        bnFromHex(OPERATOR_FEE_MOCK),
+      );
+
+      expect(contractGetOperatorFeeMock).toHaveBeenCalledTimes(1);
+      expect(contractGetOperatorFeeMock).toHaveBeenCalledWith(gasLimit);
+      expect(response).toStrictEqual({
+        layer1Fee: add0x(padHexToEvenLength(expectedTotal.toString(16))),
+      });
+    });
+
+    it('skips operator fee when no gasUsed, txParams.gas, or txParams.gasLimit is available', async () => {
+      request = {
+        ...request,
+        transactionMeta: {
+          ...request.transactionMeta,
+          txParams: { from: TRANSACTION_PARAMS_MOCK.from },
+        },
+      };
+
       jest
         .spyOn(TransactionFactory, 'fromTxData')
         .mockReturnValueOnce(

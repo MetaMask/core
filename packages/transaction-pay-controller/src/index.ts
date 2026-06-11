@@ -1,4 +1,9 @@
 export type {
+  GetAmountDataCallback,
+  GetAmountDataRequest,
+  GetAmountDataResponse,
+  GetPaymentOverrideDataRequest,
+  GetPaymentOverrideDataResponse,
   TransactionConfig,
   TransactionConfigCallback,
   TransactionData,
@@ -21,6 +26,7 @@ export type {
   UpdatePaymentTokenRequest,
 } from './types';
 export type {
+  TransactionPayControllerGetAmountDataAction,
   TransactionPayControllerGetDelegationTransactionAction,
   TransactionPayControllerGetStrategyAction,
   TransactionPayControllerPolymarketGetDepositWalletAddressAction,
@@ -29,7 +35,7 @@ export type {
   TransactionPayControllerUpdatePaymentTokenAction,
   TransactionPayControllerUpdateFiatPaymentAction,
 } from './TransactionPayController-method-action-types';
-export { TransactionPayStrategy } from './constants';
+export { PaymentOverride, TransactionPayStrategy } from './constants';
 export { TransactionPayController } from './TransactionPayController';
 export { TransactionPayPublishHook } from './helpers/TransactionPayPublishHook';
 export type { TransactionPayBridgeQuote } from './strategy/bridge/types';

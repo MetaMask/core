@@ -14,14 +14,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Bump `@metamask/snap-account-service` from `^0.1.0` to `^0.2.0` ([#8844](https://github.com/MetaMask/core/pull/8844))
+- Bump `@metamask/utils` from `^11.9.0` to `^11.11.0` ([#9074](https://github.com/MetaMask/core/pull/9074))
+- Bump `@metamask/controller-utils` from `^12.1.1` to `^12.2.0` ([#9083](https://github.com/MetaMask/core/pull/9083))
+
+## [10.0.3]
+
+### Changed
+
+- Bump `@metamask/accounts-controller` from `^39.0.0` to `^39.0.1` ([#9058](https://github.com/MetaMask/core/pull/9058))
+- Bump `@metamask/keyring-controller` from `^26.0.0` to `^27.0.0` ([#9058](https://github.com/MetaMask/core/pull/9058))
+- Bump `@metamask/snap-account-service` from `^0.3.0` to `^0.3.1` ([#9058](https://github.com/MetaMask/core/pull/9058))
+
+## [10.0.2]
+
+### Changed
+
+- Bump `@metamask/accounts-controller` from `^38.1.2` to `^39.0.0` ([#8999](https://github.com/MetaMask/core/pull/8999))
+- Bump `@metamask/snap-account-service` from `^0.2.1` to `^0.3.0` ([#8999](https://github.com/MetaMask/core/pull/8999))
+
+## [10.0.1]
+
+### Changed
+
+- Bump `@metamask/snap-account-service` from `^0.1.0` to `^0.2.1` ([#8844](https://github.com/MetaMask/core/pull/8844), [#8912](https://github.com/MetaMask/core/pull/8912))
+- Bump `@metamask/keyring-controller` from `^25.5.0` to `^26.0.0` ([#8912](https://github.com/MetaMask/core/pull/8912))
+- Bump `@metamask/accounts-controller` from `^38.1.1` to `^38.1.2` ([#8912](https://github.com/MetaMask/core/pull/8912))
 
 ## [10.0.0]
 
 ### Changed
 
 - **BREAKING:** The service messenger now requires the `SnapAccountService:ensureReady` action to be declared ([#8715](https://github.com/MetaMask/core/pull/8715))
-- **BREAKING:** Delegate Snap platform readiness to `@metamask/snap-account-service` ([#8715](https://github.com/MetaMask/core/pull/8715)), ([#8752](https://github.com/MetaMask/core/pull/8752))
+- **BREAKING:** Delegate Snap platform readiness to `@metamask/snap-account-service` ([#8715](https://github.com/MetaMask/core/pull/8715), [#8752](https://github.com/MetaMask/core/pull/8752))
   - Removed `MultichainAccountService.ensureCanUseSnapPlatform()` method and the corresponding `MultichainAccountService:ensureCanUseSnapPlatform` messenger action.
   - Removed the `MultichainAccountServiceEnsureCanUseSnapPlatformAction` type export.
   - Removed `MultichainAccountServiceOptions.ensureOnboardingComplete`. Configure it via `SnapAccountService`'s `config.snapPlatformWatcher.ensureOnboardingComplete` instead.
@@ -494,7 +518,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add `MultichainAccountService` ([#6141](https://github.com/MetaMask/core/pull/6141), [#6165](https://github.com/MetaMask/core/pull/6165))
   - This service manages multichain accounts/wallets.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/multichain-account-service@10.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/multichain-account-service@10.0.3...HEAD
+[10.0.3]: https://github.com/MetaMask/core/compare/@metamask/multichain-account-service@10.0.2...@metamask/multichain-account-service@10.0.3
+[10.0.2]: https://github.com/MetaMask/core/compare/@metamask/multichain-account-service@10.0.1...@metamask/multichain-account-service@10.0.2
+[10.0.1]: https://github.com/MetaMask/core/compare/@metamask/multichain-account-service@10.0.0...@metamask/multichain-account-service@10.0.1
 [10.0.0]: https://github.com/MetaMask/core/compare/@metamask/multichain-account-service@9.0.0...@metamask/multichain-account-service@10.0.0
 [9.0.0]: https://github.com/MetaMask/core/compare/@metamask/multichain-account-service@8.0.1...@metamask/multichain-account-service@9.0.0
 [8.0.1]: https://github.com/MetaMask/core/compare/@metamask/multichain-account-service@8.0.0...@metamask/multichain-account-service@8.0.1
