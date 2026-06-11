@@ -20,6 +20,7 @@ import {
   HIP3_ASSET_MARKET_TYPES,
   HIP3_FEE_CONFIG,
   HIP3_MARGIN_CONFIG,
+  HYPERLIQUID_ASSET_NAMES,
   HYPERLIQUID_WITHDRAWAL_MINUTES,
   REFERRAL_CONFIG,
   SPOT_ASSET_ID_OFFSET,
@@ -6816,6 +6817,7 @@ export class HyperLiquidProvider implements PerpsProvider {
       },
       this.#deps.marketDataFormatters,
       HIP3_ASSET_MARKET_TYPES,
+      HYPERLIQUID_ASSET_NAMES,
     );
 
     return this.#cacheFreshMarketDataSnapshot(
