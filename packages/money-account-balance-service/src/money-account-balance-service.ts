@@ -53,6 +53,15 @@ import type { VaultConfig } from './types';
 // === GENERAL ===
 
 /**
+ * The shape of a single result entry returned by Multicall3's `aggregate3`.
+ * Mirrors the on-chain `struct Multicall3.Result`.
+ */
+type Multicall3Result = {
+  success: boolean;
+  returnData: string;
+};
+
+/**
  * The name of the {@link MoneyAccountBalanceService}, used to namespace the
  * service's actions and events.
  */
@@ -166,19 +175,13 @@ export class MoneyAccountBalanceService extends BaseDataService<
 > {
   #vaultConfig: VaultConfig | undefined;
 
-  /**
-   * `staleTime` (in milliseconds) applied to on-chain balance reads. Seeded
-   * from {@link DEFAULT_BALANCE_STALE_TIME} and overridable at runtime via the
-   * {@link MONEY_ACCOUNT_BALANCE_STALETIME_FEATURE_FLAG_KEY} remote feature flag.
-   */
+  /** Cache stale time (ms) for on-chain balance reads. Overridable via remote feature flag. */
   #balanceStaleTime: number = DEFAULT_BALANCE_STALE_TIME;
 
   /**
-   * Constructs a new MoneyAccountBalanceService.
-   *
-   * @param args - The constructor arguments.
-   * @param args.messenger - The messenger suited for this service.
-   * @param args.policyOptions - Options to pass to `createServicePolicy`.
+   * @param options - Constructor options.
+   * @param options.messenger - The messenger for this service.
+   * @param options.policyOptions - Options passed to `createServicePolicy`.
    */
   constructor({
     messenger,
@@ -200,17 +203,7 @@ export class MoneyAccountBalanceService extends BaseDataService<
     this.messenger.subscribe(
       // eslint-disable-next-line no-restricted-syntax
       'RemoteFeatureFlagController:stateChange',
-      (state) => {
-        this.#onRemoteFeatureFlagChange(
-          state.remoteFeatureFlags[VAULT_CONFIG_FEATURE_FLAG_KEY],
-        );
-        // TODO: Combine applyBalanceStaleTimeFlag with onRemoteFeatureFlagChange.
-        this.#applyBalanceStaleTimeFlag(
-          state.remoteFeatureFlags[
-            MONEY_ACCOUNT_BALANCE_STALETIME_FEATURE_FLAG_KEY
-          ],
-        );
-      },
+      (state) => this.#onRemoteFeatureFlagChange(state.remoteFeatureFlags),
     );
 
     this.messenger.registerMethodActionHandlers(
@@ -220,7 +213,7 @@ export class MoneyAccountBalanceService extends BaseDataService<
   }
 
   /**
-   * Eagerly reads already-loaded feature flags and initialises `#vaultConfig`.
+   * Eagerly reads already-loaded feature flags and initialises service state.
    *
    * Must be called after all controllers and services have been instantiated so
    * that the `RemoteFeatureFlagController:getState` action is guaranteed to be
@@ -233,21 +226,7 @@ export class MoneyAccountBalanceService extends BaseDataService<
       const { remoteFeatureFlags } = this.messenger.call(
         'RemoteFeatureFlagController:getState',
       );
-
-      this.#applyBalanceStaleTimeFlag(
-        remoteFeatureFlags[MONEY_ACCOUNT_BALANCE_STALETIME_FEATURE_FLAG_KEY],
-      );
-
-      const flagValue = remoteFeatureFlags[VAULT_CONFIG_FEATURE_FLAG_KEY];
-
-      if (flagValue === undefined) {
-        configLogger(
-          'Init complete — no vault config flag present, awaiting remote flags',
-        );
-        return;
-      }
-      this.#vaultConfig = this.#parseAndValidateVaultConfig(flagValue);
-      configLogger('Vault config loaded during init', this.#vaultConfig);
+      this.#onRemoteFeatureFlagChange(remoteFeatureFlags);
     } catch (error) {
       if (error instanceof VaultConfigValidationError) {
         configLogger(
@@ -277,14 +256,11 @@ export class MoneyAccountBalanceService extends BaseDataService<
   }
 
   /**
-   * Validates the balance `staleTime` feature flag value and updates
-   * `#balanceStaleTime`. Falls back to {@link DEFAULT_BALANCE_STALE_TIME} when
-   * the flag is absent or malformed (logging the malformed case so the
-   * degraded path is visible). Changing `staleTime` only affects future fetch
-   * gating, so no cache invalidation is required.
+   * Applies the balance `staleTime` feature flag, falling back to
+   * {@link DEFAULT_BALANCE_STALE_TIME} when the flag is absent or malformed.
    *
-   * @param flagValue - The raw flag value from `remoteFeatureFlags`, expected
-   * to be a non-negative number of milliseconds.
+   * @param flagValue - Raw flag value from `remoteFeatureFlags`; expected to be
+   * a non-negative number of milliseconds.
    */
   #applyBalanceStaleTimeFlag(flagValue: Json | undefined): void {
     let nextStaleTime = DEFAULT_BALANCE_STALE_TIME;
@@ -314,25 +290,33 @@ export class MoneyAccountBalanceService extends BaseDataService<
   }
 
   /**
-   * Called on every `RemoteFeatureFlagController:stateChange` event.
-   * Validates the flag value, updates `#vaultConfig`, and invalidates all
-   * cached queries when the config changes.
+   * Handles `RemoteFeatureFlagController:stateChange` events and the initial
+   * {@link init} call.
    *
+   * @param remoteFeatureFlags - The `remoteFeatureFlags` map from
+   * `RemoteFeatureFlagController` state.
+   */
+  #onRemoteFeatureFlagChange(remoteFeatureFlags: Record<string, Json>): void {
+    this.#applyBalanceStaleTimeFlag(
+      remoteFeatureFlags[MONEY_ACCOUNT_BALANCE_STALETIME_FEATURE_FLAG_KEY],
+    );
+    this.#applyVaultConfig(remoteFeatureFlags[VAULT_CONFIG_FEATURE_FLAG_KEY]);
+  }
+
+  /**
+   * Validates the vault config feature flag value, updates `#vaultConfig`, and
+   * invalidates all cached queries when the config changes.
    * Throws {@link VaultConfigValidationError} when the flag value is malformed.
-   * The messenger catches throws from event subscribers and routes them to
-   * `captureException` (Sentry) — the error does NOT propagate to the
-   * stateChange publisher.
    *
    * @param flagValue - The raw flag value from `remoteFeatureFlags`.
    */
-  // TODO: Add staleTime configuration in here.
-  #onRemoteFeatureFlagChange(flagValue: Json | undefined): void {
+  #applyVaultConfig(flagValue: Json | undefined): void {
     const previousConfig = this.#vaultConfig;
     const hadConfig = previousConfig !== undefined;
 
     if (flagValue === undefined) {
-      // Flag key absent — treat as "not loaded".
       if (hadConfig) {
+        // Invalidate the cache if the flag key was removed. We don't want to keep using old config values.
         this.#vaultConfig = undefined;
         configLogger(
           'Vault config cleared — flag key absent; cache invalidated',
@@ -352,8 +336,8 @@ export class MoneyAccountBalanceService extends BaseDataService<
     try {
       newConfig = this.#parseAndValidateVaultConfig(flagValue);
     } catch (error) {
-      // Clear previously valid config and purge stale cache.
       if (hadConfig) {
+        // Invalidate the cache if the config is malformed. We don't want to keep using old config values.
         this.#vaultConfig = undefined;
         configLogger(
           'Vault config validation failed — previous config cleared; cache invalidated',
@@ -364,9 +348,7 @@ export class MoneyAccountBalanceService extends BaseDataService<
       } else {
         configLogger(
           'Vault config validation failed — config was already absent',
-          {
-            error,
-          },
+          { error },
         );
       }
       throw error;
@@ -539,22 +521,13 @@ export class MoneyAccountBalanceService extends BaseDataService<
 
   /**
    * Fetches the account's total Money balance inputs in a single batched RPC
-   * request via Multicall3's `aggregate3`, reading both values atomically at
-   * the same block:
-   *  - the mUSD wallet balance (`mUSD.balanceOf`), and
-   *  - the vault shares valued in mUSD (`Lens.balanceOfInAssets`).
-   *
-   * Both values are denominated in mUSD's decimals, so consumers can sum them
-   * directly to obtain the total balance. Sub-calls use `allowFailure: false`,
-   * so if either read reverts the whole query rejects rather than reporting a
-   * partial (and misleading) balance.
+   * request via Multicall3's `aggregate3`
    *
    * @param accountAddress - The Money account's Ethereum address.
    * @returns The mUSD balance and the mUSD-equivalent value of vault shares as
-   * raw uint256 strings.
+   * raw uint256 strings. The total balance is the sum of the mUSD balance and the mUSD-equivalent value of vault shares.
    * @throws {@link VaultConfigNotAvailableError} if vault config has not been loaded.
    */
-  // TODO: Consider returning total (mUSD + musdSHFvd) too.
   async getMoneyAccountBalance(
     accountAddress: Hex,
   ): Promise<MoneyAccountBalanceResponse> {
@@ -595,22 +568,26 @@ export class MoneyAccountBalanceService extends BaseDataService<
           MULTICALL3_ABI,
           provider,
         );
-        // TODO: type the results properly.
         const [musdResult, musdSHFvdResult] =
-          await multicall3.callStatic.aggregate3(calls);
+          (await multicall3.callStatic.aggregate3(calls)) as [
+            Multicall3Result,
+            Multicall3Result,
+          ];
 
-        const musdBalance = erc20.interface
-          .decodeFunctionResult('balanceOf', musdResult.returnData)[0]
-          .toString();
-        const musdSHFvdValueInMusd = lens.interface
-          .decodeFunctionResult(
-            'balanceOfInAssets',
-            musdSHFvdResult.returnData,
-          )[0]
-          .toString();
+        const musdBalanceBN = erc20.interface.decodeFunctionResult(
+          'balanceOf',
+          musdResult.returnData,
+        )[0];
+        const musdSHFvdBN = lens.interface.decodeFunctionResult(
+          'balanceOfInAssets',
+          musdSHFvdResult.returnData,
+        )[0];
 
-        // TODO: Add total balance to return payload.
-        return { musdBalance, musdSHFvdValueInMusd };
+        return {
+          musdBalance: musdBalanceBN.toString(),
+          musdSHFvdValueInMusd: musdSHFvdBN.toString(),
+          totalBalance: musdBalanceBN.add(musdSHFvdBN).toString(),
+        };
       },
       staleTime: this.#balanceStaleTime,
     });
@@ -646,9 +623,7 @@ export class MoneyAccountBalanceService extends BaseDataService<
    * the underlying mUSD asset.
    *
    * @param options - The options for the query.
-   * @param options.staleTime - The stale time for the query. Defaults to the
-   * remotely-configurable balance stale time (see
-   * {@link MONEY_ACCOUNT_BALANCE_STALETIME_FEATURE_FLAG_KEY}).
+   * @param options.staleTime - Cache stale time override for this query.
    * @returns The exchange rate as a raw uint256 string.
    * @throws {@link VaultConfigNotAvailableError} if vault config has not been loaded.
    */
@@ -673,14 +648,11 @@ export class MoneyAccountBalanceService extends BaseDataService<
   }
 
   /**
-   * Computes the mUSD-equivalent value of the account's musdSHFvd holdings.
-   * Internally fetches the musdSHFvd balance and exchange rate (using cached
-   * values when available within their staleTime windows), then multiplies
-   * them.
+   * Fetches the mUSD-equivalent value of the account's musdSHFvd vault shares
+   * via `Lens.balanceOfInAssets` RPC.
    *
    * @param accountAddress - The Money account's Ethereum address.
-   * @returns The musdSHFvd balance, exchange rate, and computed
-   * mUSD-equivalent value as raw uint256 strings.
+   * @returns The mUSD-equivalent value of vault shares as a raw uint256 string.
    * @throws {@link VaultConfigNotAvailableError} if vault config has not been loaded.
    */
   async getMusdEquivalentValue(

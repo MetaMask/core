@@ -11,13 +11,10 @@ export const VAULT_CONFIG_FEATURE_FLAG_KEY = 'moneyAccountVaultConfig';
 /**
  * The key under which the Money account balance `staleTime` (in milliseconds)
  * is stored in `RemoteFeatureFlagController` state's `remoteFeatureFlags` map.
- *
- * Lets us tune how often on-chain balance reads hit the RPC nodes without a
- * client release. When the flag is absent or malformed the service uses
- * {@link DEFAULT_BALANCE_STALE_TIME}.
+ * Falls back to {@link DEFAULT_BALANCE_STALE_TIME} when absent or malformed.
  */
 export const MONEY_ACCOUNT_BALANCE_STALETIME_FEATURE_FLAG_KEY =
-  'moneyAccountBalanceStaleTime';
+  'moneyAccountBalanceStaletime';
 
 /**
  * Default `staleTime` (in milliseconds) for on-chain Money account balance
@@ -38,20 +35,14 @@ export const VEDA_API_NETWORK_NAMES: Record<Hex, string> = {
  *
  * Source: https://github.com/mds1/multicall/blob/main/deployments.json
  */
-// TODO: Double check these addresses for correctness.
 export const MULTICALL3_ADDRESS_BY_CHAIN_ID: Record<Hex, Hex> = {
   '0xa4b1': '0xcA11bde05977b3631167028862bE2a173976CA11', // Arbitrum One
   '0x8f': '0xcA11bde05977b3631167028862bE2a173976CA11', // Monad mainnet
 };
 
 /**
- * Minimal ABI for the Multicall3 `aggregate3` function. Each call carries its
- * own `target` and `allowFailure` flag; the response preserves call order with
- * a `success` flag and raw `returnData` per call.
- *
- * Source: https://github.com/mds1/multicall
+ * Minimal ABI for the Multicall3 `aggregate3` function.
  */
-// TODO: Double check this ABI for correctness.
 export const MULTICALL3_ABI = [
   {
     name: 'aggregate3',
