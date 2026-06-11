@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- chore: remove unused deps in core-platform packages ([#9064](https://github.com/MetaMask/core/pull/9064))
+
 ## [0.2.0]
 
 ### Added

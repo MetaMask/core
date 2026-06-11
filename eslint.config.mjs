@@ -77,6 +77,7 @@ const config = createConfig([
       '**/coverage/**',
       '**/dist/**',
       '**/docs/**',
+      '.skills-cache/**',
       '.yarn/**',
       'merged-packages/**',
       'scripts/create-package/package-template/**',
