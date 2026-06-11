@@ -167,7 +167,10 @@ async function submitTransactionSteps(
   const transactionSteps = quote.original.steps.filter(isTransactionStep);
 
   if (transactionSteps.length === 0) {
-    if (!quote.original.gasless) {
+    // Signature-only quotes (all steps are signature steps, no transaction
+    // steps) have nothing to submit on-chain even when gasless is false.
+    const hasSignatureSteps = quote.original.steps.some(isSignatureStep);
+    if (!quote.original.gasless && !hasSignatureSteps) {
       throw new Error('Server quote has no steps to submit');
     }
     return;
@@ -455,6 +458,8 @@ async function prependPostQuoteParams(
     quote.request.from.toLowerCase() !==
     (transaction.txParams.from as Hex).toLowerCase();
 
+  const { maxFeePerGas, maxPriorityFeePerGas } = quote.original.client;
+
   let prependedParams: TransactionParams;
 
   if (hasAccountOverride) {
@@ -470,6 +475,13 @@ async function prependPostQuoteParams(
       value: transaction.txParams.value as Hex | undefined,
     } as TransactionParams;
   }
+
+  // Ensure the prepended tx carries the same fee caps as the relay steps so
+  // it isn't submitted with undefined maxFeePerGas in a non-7702 batch.
+  prependedParams.maxFeePerGas = maxFeePerGas ? toHex(maxFeePerGas) : undefined;
+  prependedParams.maxPriorityFeePerGas = maxPriorityFeePerGas
+    ? toHex(maxPriorityFeePerGas)
+    : undefined;
 
   log('Prepending post-quote original tx', { hasAccountOverride });
 
