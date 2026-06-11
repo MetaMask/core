@@ -23,7 +23,7 @@ describe('loadState', () => {
   });
 
   it('returns an empty object when the store is empty', () => {
-    expect(loadState(store)).toStrictEqual({});
+    expect(loadState(store, {})).toStrictEqual({});
   });
 
   it('groups keys by controller name', () => {
@@ -31,7 +31,15 @@ describe('loadState', () => {
     store.set('ControllerA.prop2', 42);
     store.set('ControllerB.prop1', [1, 2, 3]);
 
-    expect(loadState(store)).toStrictEqual({
+    const controllerMetadata = createControllerMetadata({
+      ControllerA: [
+        ['prop1', true],
+        ['prop2', true],
+      ],
+      ControllerB: [['prop1', true]],
+    });
+
+    expect(loadState(store, controllerMetadata)).toStrictEqual({
       ControllerA: { prop1: 'value1', prop2: 42 },
       ControllerB: { prop1: [1, 2, 3] },
     });
@@ -40,15 +48,66 @@ describe('loadState', () => {
   it('splits on the first dot only', () => {
     store.set('Controller.prop.with.dots', 'value');
 
-    expect(loadState(store)).toStrictEqual({
+    const controllerMetadata = createControllerMetadata({
+      Controller: [['prop.with.dots', true]],
+    });
+
+    expect(loadState(store, controllerMetadata)).toStrictEqual({
       Controller: { 'prop.with.dots': 'value' },
     });
+  });
+
+  it('rehydrates properties whose persist flag is a deriver function', () => {
+    store.set('TestController.derived', 'value');
+
+    const controllerMetadata = createControllerMetadata({
+      TestController: [['derived', (value: never): Json => value]],
+    });
+
+    expect(loadState(store, controllerMetadata)).toStrictEqual({
+      TestController: { derived: 'value' },
+    });
+  });
+
+  it('skips properties whose persist flag is disabled', () => {
+    store.set('TestController.kept', 'keepMe');
+    store.set('TestController.dropped', 'staleValue');
+
+    const controllerMetadata = createControllerMetadata({
+      TestController: [
+        ['kept', true],
+        ['dropped', false],
+      ],
+    });
+
+    expect(loadState(store, controllerMetadata)).toStrictEqual({
+      TestController: { kept: 'keepMe' },
+    });
+  });
+
+  it('skips properties absent from the controller metadata', () => {
+    store.set('TestController.kept', 'keepMe');
+    store.set('TestController.removed', 'staleValue');
+
+    const controllerMetadata = createControllerMetadata({
+      TestController: [['kept', true]],
+    });
+
+    expect(loadState(store, controllerMetadata)).toStrictEqual({
+      TestController: { kept: 'keepMe' },
+    });
+  });
+
+  it('skips keys for controllers absent from the metadata', () => {
+    store.set('RemovedController.prop', 'staleValue');
+
+    expect(loadState(store, {})).toStrictEqual({});
   });
 
   it('throws on a key without a dot separator', () => {
     store.set('noDot', 'value');
 
-    expect(() => loadState(store)).toThrow(
+    expect(() => loadState(store, {})).toThrow(
       "Invalid key in store: 'noDot'. Expected format 'ControllerName.propertyName'.",
     );
   });
@@ -56,7 +115,7 @@ describe('loadState', () => {
   it('throws on a key with an empty controller name', () => {
     store.set('.propName', 'value');
 
-    expect(() => loadState(store)).toThrow(
+    expect(() => loadState(store, {})).toThrow(
       "Invalid key in store: '.propName'. Both controller name and property name must be non-empty.",
     );
   });
@@ -64,7 +123,7 @@ describe('loadState', () => {
   it('throws on a key with an empty property name', () => {
     store.set('ControllerName.', 'value');
 
-    expect(() => loadState(store)).toThrow(
+    expect(() => loadState(store, {})).toThrow(
       "Invalid key in store: 'ControllerName.'. Both controller name and property name must be non-empty.",
     );
   });
@@ -138,6 +197,54 @@ describe('subscribeToChanges', () => {
     });
 
     expect(store.get('TestController.derived')).toBe('HELLO');
+  });
+
+  it('logs and skips the write when a deriver result serializes to undefined', () => {
+    const { messenger, controllerMetadata } = createMockControllers({
+      TestController: createStateMetadata([
+        ['derived', (): Json => undefined as unknown as Json],
+      ]),
+    });
+
+    const log = jest.fn();
+    subscribeToChanges(messenger, controllerMetadata, store, log);
+
+    publishStateChanged(messenger, 'TestController', {
+      state: { derived: 'anything' },
+      patches: [{ op: 'replace', path: ['derived'], value: 'anything' }],
+    });
+
+    expect(log).toHaveBeenCalledWith(
+      expect.stringContaining(
+        'Failed to persist state for TestController.derived',
+      ),
+    );
+    expect(store.get('TestController.derived')).toBeUndefined();
+  });
+
+  it('does not swallow errors thrown by a deriver function', () => {
+    const { messenger, controllerMetadata } = createMockControllers({
+      TestController: createStateMetadata([
+        [
+          'derived',
+          (): Json => {
+            throw new Error('deriver boom');
+          },
+        ],
+      ]),
+    });
+
+    const log = jest.fn();
+    subscribeToChanges(messenger, controllerMetadata, store, log);
+
+    expect(() =>
+      publishStateChanged(messenger, 'TestController', {
+        state: { derived: 'value' },
+        patches: [{ op: 'replace', path: ['derived'], value: 'value' }],
+      }),
+    ).toThrow('deriver boom');
+
+    expect(log).not.toHaveBeenCalled();
   });
 
   it('handles nested property changes by extracting the top-level key', () => {
@@ -418,6 +525,24 @@ function createStateMetadata(
         includeInStateLogs: false,
         usedInUi: false,
       },
+    ]),
+  );
+}
+
+/**
+ * Builds a `controllerMetadata` map for `loadState` tests.
+ *
+ * @param controllers - Map of controller names to an array of
+ * [property name, persist value] pairs.
+ * @returns A `controllerMetadata` map keyed by controller name.
+ */
+function createControllerMetadata(
+  controllers: Record<string, [string, boolean | ((value: never) => Json)][]>,
+): Record<string, StateMetadataConstraint> {
+  return Object.fromEntries(
+    Object.entries(controllers).map(([name, properties]) => [
+      name,
+      createStateMetadata(properties),
     ]),
   );
 }

@@ -11,6 +11,15 @@ import type { Patch } from 'immer';
 import type { KeyValueStore } from './KeyValueStore';
 
 /**
+ * Handler for a controller's `stateChanged` event: the new controller state and
+ * the Immer patches describing what changed.
+ */
+type StateChangedHandler = (
+  state: Record<string, Json>,
+  patches: Patch[],
+) => void;
+
+/**
  * Construct a store key from a controller name and property name.
  *
  * @param controllerName - The controller name.
@@ -28,12 +37,25 @@ function storeKey(controllerName: string, propertyName: string): string {
  * Keys in the store follow the format `ControllerName.propertyName`.
  * This function groups them into `{ [controllerName]: { [propertyName]: value } }`.
  *
+ * Only properties that are currently persist-flagged in `controllerMetadata`
+ * are rehydrated. Rows for controllers or properties that no longer exist — or
+ * whose `persist` flag has since been disabled — are ignored. This keeps
+ * loading symmetric with {@link subscribeToChanges}, which only ever writes
+ * persist-flagged properties: without the filter, a migration that stops
+ * persisting a property would leave its stale row on disk to be resurrected
+ * into the `Wallet` constructor state on the next restart.
+ *
  * @param store - The key-value store to read from.
+ * @param controllerMetadata - A map from controller name to its state metadata,
+ * used to filter out keys that are no longer persist-flagged.
  * @returns A record of controller states, keyed by controller name, suitable
  * for the `state` option of the `Wallet` constructor.
  */
 export function loadState(
   store: KeyValueStore,
+  controllerMetadata: Readonly<
+    Record<string, Readonly<StateMetadataConstraint>>
+  >,
 ): Record<string, Record<string, Json>> {
   const allPairs = store.getAll();
   const state: Record<string, Record<string, Json>> = {};
@@ -52,6 +74,10 @@ export function loadState(
       throw new Error(
         `Invalid key in store: '${key}'. Both controller name and property name must be non-empty.`,
       );
+    }
+
+    if (!isPersisted(controllerMetadata[controllerName], propertyName)) {
+      continue;
     }
 
     if (!state[controllerName]) {
@@ -102,24 +128,26 @@ export function subscribeToChanges(
 
     const eventType = `${controllerName}:stateChanged`;
 
-    const handler = (state: Record<string, Json>, patches: Patch[]): void => {
+    const handler: StateChangedHandler = (state, patches) => {
       const changed = getChangedProperties(patches, persistedProperties);
 
       for (const prop of changed) {
         const key = storeKey(controllerName, prop);
+        const removed = !hasProperty(state, prop);
+
+        // Derive the value before the try/catch so a throwing `StateDeriver`
+        // surfaces as its own error instead of a misreported write failure.
+        const persistFlag = metadata[prop]?.persist;
+        const value =
+          !removed && typeof persistFlag === 'function'
+            ? persistFlag(state[prop] as never)
+            : state[prop];
 
         try {
-          if (!hasProperty(state, prop)) {
+          if (removed) {
             store.delete(key);
-            continue;
-          }
-
-          const persistFlag = metadata[prop]?.persist;
-
-          if (typeof persistFlag === 'function') {
-            store.set(key, persistFlag(state[prop] as never));
           } else {
-            store.set(key, state[prop]);
+            store.set(key, value);
           }
         } catch (error) {
           // TODO: Surface persistence-write failures up the stack so callers
@@ -130,13 +158,7 @@ export function subscribeToChanges(
       }
     };
 
-    // @ts-expect-error Event type is dynamically constructed, but we know it's valid.
-    messenger.subscribe(eventType, handler);
-
-    unsubscribers.push(() => {
-      // @ts-expect-error Event type is dynamically constructed, but we know it's valid.
-      messenger.unsubscribe(eventType, handler);
-    });
+    unsubscribers.push(subscribeToStateChanged(messenger, eventType, handler));
   }
 
   const unsubscribeAll = (): void => {
@@ -146,6 +168,56 @@ export function subscribeToChanges(
   };
 
   return unsubscribeAll;
+}
+
+/**
+ * Subscribe a handler to a controller's `stateChanged` event.
+ *
+ * The event name is built from a runtime controller name, so it widens to
+ * `string` and cannot be proven to be a literal member of the messenger's event
+ * union at compile time. This helper localizes that single unavoidable cast
+ * behind a typed {@link StateChangedHandler}, so the `(state, patches)` payload
+ * shape stays compile-checked at every call site instead of being erased by a
+ * statement-level `@ts-expect-error`.
+ *
+ * @param messenger - The root messenger to subscribe on.
+ * @param eventType - The `${controllerName}:stateChanged` event name.
+ * @param handler - The state-change handler to register.
+ * @returns A function that unsubscribes the handler.
+ */
+function subscribeToStateChanged(
+  messenger: RootMessenger<DefaultActions, DefaultEvents>,
+  eventType: string,
+  handler: StateChangedHandler,
+): () => void {
+  const subscriber = messenger as unknown as {
+    subscribe: (eventType: string, handler: StateChangedHandler) => void;
+    unsubscribe: (eventType: string, handler: StateChangedHandler) => void;
+  };
+  subscriber.subscribe(eventType, handler);
+  return () => {
+    subscriber.unsubscribe(eventType, handler);
+  };
+}
+
+/**
+ * Determine whether a property is currently persist-flagged.
+ *
+ * The `persist` flag is truthy when it is `true` or a `StateDeriver` function,
+ * and falsy when it is `false` or when the controller or property is absent
+ * from the metadata. `loadState` and `subscribeToChanges` share this predicate
+ * so the read and write paths can never disagree on what counts as persisted.
+ *
+ * @param metadata - The controller's state metadata, or `undefined` when the
+ * controller is absent from the metadata map.
+ * @param propertyName - The property name to check.
+ * @returns `true` if the property should be persisted.
+ */
+function isPersisted(
+  metadata: Readonly<StateMetadataConstraint> | undefined,
+  propertyName: string,
+): boolean {
+  return Boolean(metadata?.[propertyName]?.persist);
 }
 
 /**
@@ -160,7 +232,7 @@ function getPersistPropertyNames(
 ): ReadonlySet<string> {
   const names = new Set<string>();
   for (const key of Object.keys(metadata)) {
-    if (metadata[key].persist) {
+    if (isPersisted(metadata, key)) {
       names.add(key);
     }
   }
