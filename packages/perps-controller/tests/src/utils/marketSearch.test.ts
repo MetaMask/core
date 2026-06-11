@@ -64,6 +64,38 @@ describe('getMarketMatchRank', () => {
     // "tsla" only appears inside the dex-prefixed symbol -> Substring.
     expect(getMarketMatchRank(tsla, 'tsla')).toBe(MarketMatchRank.Substring);
   });
+
+  it('matches annotation keywords with the same exact/prefix/substring tiers', () => {
+    const btcWithKeywords: PerpsMarketData = {
+      ...makeMarket('BTC', 'Bitcoin'),
+      keywords: ['digital gold', 'store of value'],
+    };
+    // Neither symbol nor name matches "digital gold" — only a keyword does.
+    expect(getMarketMatchRank(btcWithKeywords, 'digital gold')).toBe(
+      MarketMatchRank.Exact,
+    );
+    expect(getMarketMatchRank(btcWithKeywords, 'digital')).toBe(
+      MarketMatchRank.Prefix,
+    );
+    expect(getMarketMatchRank(btcWithKeywords, 'of value')).toBe(
+      MarketMatchRank.Substring,
+    );
+  });
+
+  it('uses the best (lowest) rank across symbol, name, and keywords', () => {
+    const ethWithKeyword: PerpsMarketData = {
+      ...makeMarket('ETH', 'Ethereum'),
+      // "eth" is a name/symbol prefix, but an exact keyword should win.
+      keywords: ['eth'],
+    };
+    expect(getMarketMatchRank(ethWithKeyword, 'eth')).toBe(
+      MarketMatchRank.Exact,
+    );
+  });
+
+  it('handles markets without keywords', () => {
+    expect(getMarketMatchRank(btc, 'gold')).toBeNull();
+  });
 });
 
 describe('rankMarketsByQuery', () => {
@@ -107,6 +139,17 @@ describe('rankMarketsByQuery', () => {
       (market) => market.symbol,
     );
     expect(result).toStrictEqual(['BTC', 'BCH']);
+  });
+
+  it('finds markets by annotation keyword (the TAT-3338 case)', () => {
+    const markets: PerpsMarketData[] = [
+      makeMarket('BTC', 'Bitcoin'),
+      { ...makeMarket('xyz:GOLD', 'Gold'), keywords: ['precious metal', 'xau'] },
+    ];
+    // "xau" matches neither symbol nor name — only the keyword.
+    expect(
+      rankMarketsByQuery(markets, 'xau').map((market) => market.symbol),
+    ).toStrictEqual(['xyz:GOLD']);
   });
 
   it('finds markets by human-readable name (the TAT-2413 case)', () => {

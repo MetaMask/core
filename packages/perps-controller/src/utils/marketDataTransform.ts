@@ -179,7 +179,12 @@ function extractFundingData(params: ExtractFundingDataParams): FundingData {
  * @param assetMarketTypes - Optional mapping of asset symbols to market types
  * @param assetNames - Optional mapping of asset symbols to human-readable names.
  * Defaults to the bundled HYPERLIQUID_ASSET_NAMES; unmapped assets fall back to
- * their ticker symbol.
+ * their ticker symbol. To layer HyperLiquid perp-annotation display names beneath
+ * the curated names, build this map with `mergeAssetNamesWithAnnotations`.
+ * @param assetKeywords - Optional mapping of asset symbols to search keywords
+ * (e.g. from `extractAssetKeywords` over `perpConciseAnnotations`). Surfaced on
+ * `PerpsMarketData.keywords` for ranked search. Assets without keywords are
+ * unaffected.
  * @returns Transformed market data ready for UI consumption
  */
 export function transformMarketData(
@@ -187,6 +192,7 @@ export function transformMarketData(
   formatters: MarketDataFormatters,
   assetMarketTypes?: Record<string, MarketType>,
   assetNames?: Record<string, string>,
+  assetKeywords?: Record<string, string[]>,
 ): PerpsMarketData[] {
   const { universe, assetCtxs, allMids, predictedFundings } = hyperLiquidData;
 
@@ -266,9 +272,12 @@ export function transformMarketData(
     // New markets are always HIP-3 (non-crypto) that haven't been assigned a category yet
     const isNewMarket = isHip3 && !explicitMarketType;
 
+    const keywords = assetKeywords?.[symbol];
+
     return {
       symbol,
       name: getHyperLiquidAssetName(symbol, assetNames),
+      ...(keywords?.length ? { keywords } : {}),
       maxLeverage: `${asset.maxLeverage}x`,
       price: isNaN(currentPrice)
         ? PERPS_CONSTANTS.FallbackPriceDisplay

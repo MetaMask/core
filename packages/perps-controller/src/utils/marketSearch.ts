@@ -3,10 +3,10 @@
  *
  * Provisional, standalone helper layered on the same match semantics as
  * `filterMarketsByQuery` (case-insensitive substring on a market's ticker symbol
- * and human-readable name). It adds the one thing `filterMarketsByQuery` does
- * not: relevance ranking — exact matches first, then prefix, then substring;
- * ties keep their input order (stable). No fuzzy/phonetic matching (out of scope
- * for v1).
+ * and human-readable name), additionally matching any optional annotation
+ * `keywords` (TAT-3338). It adds the one thing `filterMarketsByQuery` does not:
+ * relevance ranking — exact matches first, then prefix, then substring; ties keep
+ * their input order (stable). No fuzzy/phonetic matching (out of scope for v1).
  *
  * Kept in its own file so it can be promoted or relocated later without touching
  * the shared `marketUtils`. A market matches here (rank !== null) iff
@@ -54,15 +54,18 @@ function fieldRank(
 
 /**
  * Compute the best (lowest) relevance rank for a market against a search query,
- * considering both its ticker symbol and human-readable name.
+ * considering its ticker symbol, human-readable name, and any annotation
+ * keywords. Keywords are ranked with the same exact/prefix/substring tiers as
+ * the symbol and name, so a market matched only via a keyword still participates
+ * in ranking.
  *
- * @param market - Market to score (uses `symbol` and `name`).
+ * @param market - Market to score (uses `symbol`, `name`, and `keywords`).
  * @param searchQuery - User search text (trimmed/cased internally).
  * @returns The match rank, or null when the market does not match (or the query
  * is empty/whitespace).
  */
 export function getMarketMatchRank(
-  market: Pick<PerpsMarketData, 'symbol' | 'name'>,
+  market: Pick<PerpsMarketData, 'symbol' | 'name' | 'keywords'>,
   searchQuery: string,
 ): MarketMatchRank | null {
   if (!searchQuery?.trim()) {
@@ -72,16 +75,18 @@ export function getMarketMatchRank(
   const ranks = [
     fieldRank(market.symbol, query),
     fieldRank(market.name, query),
+    ...(market.keywords ?? []).map((keyword) => fieldRank(keyword, query)),
   ].filter((rank): rank is MarketMatchRank => rank !== null);
 
   return ranks.length > 0 ? Math.min(...ranks) : null;
 }
 
 /**
- * Filter and rank markets by a search query, matching the human-readable name or
- * ticker symbol. Exact matches sort first, then prefix, then substring; markets
- * sharing a rank keep their input order (stable). An empty/whitespace query
- * returns the markets unchanged (no filtering), matching `filterMarketsByQuery`.
+ * Filter and rank markets by a search query, matching the human-readable name,
+ * ticker symbol, or any annotation keywords. Exact matches sort first, then
+ * prefix, then substring; markets sharing a rank keep their input order (stable).
+ * An empty/whitespace query returns the markets unchanged (no filtering),
+ * matching `filterMarketsByQuery`.
  *
  * @param markets - Markets to search.
  * @param searchQuery - User search text.

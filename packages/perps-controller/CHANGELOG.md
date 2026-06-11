@@ -14,8 +14,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - HyperLiquid does not expose a per-asset human-readable name; this map is maintained client-side and keyed like `HIP3_ASSET_MARKET_TYPES` (bare `SYMBOL` for crypto, `dex:SYMBOL` for HIP-3). Unmapped assets fall back to their ticker.
 - Add `rankMarketsByQuery(markets, query)` and `getMarketMatchRank(market, query)` helpers (and the `MarketMatchRank` enum) for relevance-ranked market search by ticker symbol or human-readable name (exact > prefix > substring, stable within a rank) ([#9082](https://github.com/MetaMask/core/pull/9082))
   - Complements the existing unranked `filterMarketsByQuery`; same match semantics (case-insensitive substring on `symbol` and `name`), but ordered by relevance. No fuzzy/phonetic matching.
+- Add `mergeAssetNamesWithAnnotations(annotations, curatedNames?)` and `extractAssetKeywords(annotations)` helpers (with the `PerpConciseAnnotation` and `PerpConciseAnnotationEntry` types), which adapt HyperLiquid `perpConciseAnnotations` into the name/keyword overlays consumed by `transformMarketData` ([#PRNUM](https://github.com/MetaMask/core/pull/PRNUM))
+  - Name resolution precedence is curated map > annotation `displayName` > raw ticker symbol, so first-party `HYPERLIQUID_ASSET_NAMES` entries always win; annotation display names only fill gaps. The live `perpConciseAnnotations` fetch is not wired into the provider yet (pending a mainnet coverage assessment).
 
 ### Changed
+
+- `rankMarketsByQuery` and `getMarketMatchRank` now also match a market's optional annotation `keywords`, using the same exact/prefix/substring tiers as `symbol` and `name` ([#PRNUM](https://github.com/MetaMask/core/pull/PRNUM))
+- Add an optional `keywords?: string[]` field to `PerpsMarketData` and an optional `assetKeywords` parameter to `transformMarketData`, both additive (existing callers and consumers are unaffected) ([#PRNUM](https://github.com/MetaMask/core/pull/PRNUM))
 
 - Deliver HyperLiquid positions, orders, and account/spot balance via per-DEX `clearinghouseState` and `openOrders` subscriptions on all paths, removing the dependency on the deprecated `webData2` snapshot channel ([#9078](https://github.com/MetaMask/core/pull/9078))
   - The non-HIP-3 (main-DEX-only) user data path previously used `webData2`, which HyperLiquid is throttling to a 15s push interval and deprecating. It now uses the same sub-second per-DEX subscriptions as the HIP-3 path, with `webData3` retained only for open-interest caps (not latency-sensitive).

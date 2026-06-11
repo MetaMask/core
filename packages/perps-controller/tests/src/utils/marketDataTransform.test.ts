@@ -107,6 +107,44 @@ describe('transformMarketData - human-readable names', () => {
     expect(result[0].name).toBe('Custom Bitcoin');
   });
 
+  it('surfaces injected assetKeywords on matching markets only', () => {
+    const universe: PerpsUniverse[] = [
+      makeUniverseEntry('BTC'),
+      makeUniverseEntry('ETH'),
+    ];
+    const allMids: AllMidsResponse = { BTC: '50000', ETH: '3000' };
+
+    const result = transformMarketData(
+      { universe, assetCtxs: [], allMids },
+      mockFormatters,
+      undefined,
+      undefined,
+      { BTC: ['digital gold', 'store of value'] },
+    );
+
+    expect(result[0]).toMatchObject({
+      symbol: 'BTC',
+      keywords: ['digital gold', 'store of value'],
+    });
+    // ETH has no keywords entry -> field omitted entirely.
+    expect(result[1]).not.toHaveProperty('keywords');
+  });
+
+  it('omits keywords when the assetKeywords entry is empty', () => {
+    const universe: PerpsUniverse[] = [makeUniverseEntry('BTC')];
+    const allMids: AllMidsResponse = { BTC: '50000' };
+
+    const result = transformMarketData(
+      { universe, assetCtxs: [], allMids },
+      mockFormatters,
+      undefined,
+      undefined,
+      { BTC: [] },
+    );
+
+    expect(result[0]).not.toHaveProperty('keywords');
+  });
+
   it('still reads asset context data alongside the resolved name', () => {
     const universe: PerpsUniverse[] = [makeUniverseEntry('BTC')];
     const allMids: AllMidsResponse = { BTC: '50000' };
