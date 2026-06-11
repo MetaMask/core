@@ -34,6 +34,8 @@ export class Wallet {
    * required beyond the ones included by default.
    * @param options.instanceOptions - An optional object containing options that should be passed
    * to specific instances for additional customization.
+   * @param options.logger - An optional logger used to emit a breadcrumb after each controller's
+   * initialization completes. Defaults to no output.
    */
   constructor(options: WalletOptions) {
     this.#messenger =
