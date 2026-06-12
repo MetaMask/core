@@ -471,6 +471,7 @@ linkStyle default opacity:0.5
   perps_controller --> controller_utils;
   perps_controller --> messenger;
   perps_controller --> account_tree_controller;
+  perps_controller --> authenticated_user_storage;
   perps_controller --> geolocation_controller;
   perps_controller --> keyring_controller;
   perps_controller --> network_controller;
