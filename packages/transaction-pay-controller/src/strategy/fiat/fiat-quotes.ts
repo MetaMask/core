@@ -3,7 +3,11 @@ import type { Hex } from '@metamask/utils';
 import { createModuleLogger } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
 
-import { PaymentOverride, TransactionPayStrategy } from '../../constants';
+import {
+  NATIVE_TOKEN_ADDRESS,
+  PaymentOverride,
+  TransactionPayStrategy,
+} from '../../constants';
 import { projectLogger } from '../../logger';
 import type {
   PayStrategyGetQuotesRequest,
@@ -12,7 +16,7 @@ import type {
   TransactionPayRequiredToken,
   TransactionPayQuote,
 } from '../../types';
-import { getUseFiatMUSDQuoteToInjectForMoneyAccount } from '../../utils/feature-flags';
+import { getDirectMoneyMusdEnabled } from '../../utils/feature-flags';
 import {
   buildCaipAssetType,
   computeRawFromFiatAmount,
@@ -39,8 +43,9 @@ const log = createModuleLogger(projectLogger, 'fiat-strategy');
  * Fetches MM Pay fiat strategy quotes using a relay-first estimation flow.
  *
  * When the direct-to-mUSD flag is enabled and the transaction is a Money
- * Account deposit, attempts the direct mUSD flow first and falls back to
- * the standard ETH flow if the probe or quotes fail.
+ * Account deposit, probes ramps for mUSD availability on Monad. If viable,
+ * uses direct mUSD params (asset, wallet, recipient); otherwise falls back
+ * to the standard ETH flow. Both paths share a single quote pipeline.
  *
  * @param request - Strategy quotes request.
  * @returns A single combined fiat strategy quote, or an empty array when inputs/quotes are unavailable.
@@ -48,21 +53,51 @@ const log = createModuleLogger(projectLogger, 'fiat-strategy');
 export async function getFiatQuotes(
   request: PayStrategyGetQuotesRequest,
 ): Promise<TransactionPayQuote<FiatQuote>[]> {
-  if (
-    getUseFiatMUSDQuoteToInjectForMoneyAccount(request.messenger) &&
-    isMoneyAccountDepositTransaction(request.transaction)
-  ) {
-    const directQuotes = await getDirectMusdToMoneyAccountQuotes(request);
-    if (directQuotes.length > 0) {
-      return directQuotes;
+  const { messenger, transaction } = request;
+
+  const useDirectMusd =
+    getDirectMoneyMusdEnabled(messenger) &&
+    isMoneyAccountDepositTransaction(transaction);
+
+  if (useDirectMusd) {
+    const moneyAccountAddress = transaction.txParams.from as Hex;
+
+    const probeOk = await probeMusdFiatAvailability({
+      messenger,
+      walletAddress: moneyAccountAddress,
+    });
+
+    if (probeOk) {
+      const directResult = await executeFiatQuotePipeline(request, {
+        fiatAsset: MUSD_MONAD_FIAT_ASSET,
+        rampsWalletAddress: moneyAccountAddress,
+        relayRequestOverrides: {
+          paymentOverride: PaymentOverride.MoneyAccount,
+          recipient: moneyAccountAddress,
+        },
+      });
+
+      if (directResult.length > 0) {
+        return directResult;
+      }
     }
   }
 
-  return getStandardFiatQuotes(request);
+  return executeFiatQuotePipeline(request, {
+    fiatAsset: deriveFiatAssetForFiatPayment(transaction, messenger),
+    rampsWalletAddress: request.from,
+  });
 }
 
-async function getStandardFiatQuotes(
+type FiatQuotePipelineOptions = {
+  fiatAsset: TransactionPayFiatAsset;
+  rampsWalletAddress: Hex;
+  relayRequestOverrides?: Partial<QuoteRequest>;
+};
+
+async function executeFiatQuotePipeline(
   request: PayStrategyGetQuotesRequest,
+  options: FiatQuotePipelineOptions,
 ): Promise<TransactionPayQuote<FiatQuote>[]> {
   const {
     accountSupports7702,
@@ -71,13 +106,13 @@ async function getStandardFiatQuotes(
     messenger,
     transaction,
   } = request;
+  const { fiatAsset, rampsWalletAddress, relayRequestOverrides } = options;
   const transactionId = transaction.id;
 
   const state = messenger.call('TransactionPayController:getState');
   const transactionData = state.transactionData[transactionId];
   const amountFiat = transactionData?.fiatPayment?.amountFiat;
   const requiredTokens = transactionData?.tokens ?? [];
-  const fiatAsset = deriveFiatAssetForFiatPayment(transaction, messenger);
 
   if (!amountFiat || !fiatPaymentMethod || !requiredTokens.length) {
     return [];
@@ -104,11 +139,15 @@ async function getStandardFiatQuotes(
       throw new Error('Failed to build relay request from fiat amount');
     }
 
+    const finalRelayRequest = relayRequestOverrides
+      ? { ...relayRequest, ...relayRequestOverrides }
+      : relayRequest;
+
     const relayQuotes = await getRelayQuotes({
       accountSupports7702,
       from: walletAddress,
       messenger,
-      requests: [relayRequest],
+      requests: [finalRelayRequest],
       transaction,
     });
 
@@ -117,7 +156,14 @@ async function getStandardFiatQuotes(
       throw new Error('No relay quote available for fiat estimation');
     }
 
-    const relayTotalFeeUsd = getRelayTotalFeeUsd(relayQuote);
+    const isSourceNative =
+      fiatAsset.address.toLowerCase() === NATIVE_TOKEN_ADDRESS.toLowerCase();
+    const gasDeductedFromSource =
+      isSourceNative || relayQuote.fees.isSourceGasFeeToken === true;
+
+    const relayTotalFeeUsd = gasDeductedFromSource
+      ? getRelayTotalFeeUsd(relayQuote)
+      : getNonGasRelayFeeUsd(relayQuote);
     const adjustedAmountFiat = new BigNumber(amountFiat).plus(relayTotalFeeUsd);
 
     if (
@@ -138,7 +184,8 @@ async function getStandardFiatQuotes(
     log('Fiat quote flow', {
       adjustedAmountFiat: adjustedAmountFiat.toString(10),
       amountFiat,
-      paymentMethods: [fiatPaymentMethod],
+      isDirectMusd: Boolean(relayRequestOverrides),
+      rampsWalletAddress,
       relayTotalFeeUsd: relayTotalFeeUsd.toString(10),
       sourceAmountRaw: relayRequest.sourceTokenAmount,
       transactionId,
@@ -149,7 +196,7 @@ async function getStandardFiatQuotes(
       fiatAsset,
       fiatPaymentMethod,
       messenger,
-      walletAddress,
+      walletAddress: rampsWalletAddress,
     });
 
     messenger.call('TransactionPayController:updateFiatPayment', {
@@ -217,140 +264,6 @@ async function probeMusdFiatAvailability({
     log('mUSD fiat probe failed', { error });
     return false;
   }
-}
-
-async function getDirectMusdToMoneyAccountQuotes(
-  request: PayStrategyGetQuotesRequest,
-): Promise<TransactionPayQuote<FiatQuote>[]> {
-  const {
-    accountSupports7702,
-    fiatPaymentMethod,
-    from: userWalletAddress,
-    messenger,
-    transaction,
-  } = request;
-  const transactionId = transaction.id;
-
-  const state = messenger.call('TransactionPayController:getState');
-  const transactionData = state.transactionData[transactionId];
-  const amountFiat = transactionData?.fiatPayment?.amountFiat;
-  const requiredTokens = transactionData?.tokens ?? [];
-
-  const moneyAccountAddress = transaction.txParams.from as Hex;
-
-  if (!amountFiat || !fiatPaymentMethod || !requiredTokens.length) {
-    return [];
-  }
-
-  const probeOk = await probeMusdFiatAvailability({
-    messenger,
-    walletAddress: moneyAccountAddress,
-  });
-
-  if (!probeOk) {
-    log('Probe failed — no provider supports mUSD on Monad, falling back', {
-      transactionId,
-    });
-    return [];
-  }
-
-  try {
-    if (requiredTokens.length > 1) {
-      throw new Error(
-        'Multiple required tokens not supported for direct mUSD strategy',
-      );
-    }
-
-    const requiredToken = requiredTokens[0];
-    const fiatAsset = MUSD_MONAD_FIAT_ASSET;
-
-    const baseRelayRequest = buildRelayRequestFromAmountFiat({
-      amountFiat,
-      fiatAsset,
-      messenger,
-      requiredToken,
-      walletAddress: userWalletAddress,
-    });
-
-    if (!baseRelayRequest) {
-      throw new Error('Failed to build relay request for direct mUSD flow');
-    }
-
-    const relayRequest = {
-      ...baseRelayRequest,
-      paymentOverride: PaymentOverride.MoneyAccount,
-    };
-
-    const relayQuotes = await getRelayQuotes({
-      accountSupports7702,
-      from: userWalletAddress,
-      messenger,
-      requests: [relayRequest],
-      transaction,
-    });
-
-    const relayQuote = relayQuotes[0];
-    if (!relayQuote) {
-      throw new Error('No relay quote available for direct mUSD estimation');
-    }
-
-    const relayTotalFeeUsd = getRelayTotalFeeUsd(relayQuote);
-    const adjustedAmountFiat = new BigNumber(amountFiat).plus(relayTotalFeeUsd);
-
-    if (
-      !adjustedAmountFiat.isFinite() ||
-      !adjustedAmountFiat.gt(0) ||
-      !relayTotalFeeUsd.isFinite() ||
-      !relayTotalFeeUsd.gte(0)
-    ) {
-      throw new Error('Invalid fiat amount after relay fee adjustment');
-    }
-
-    const adjustedAmount = adjustedAmountFiat.toNumber();
-    if (!Number.isFinite(adjustedAmount) || adjustedAmount <= 0) {
-      throw new Error('Invalid fiat amount after relay fee adjustment');
-    }
-
-    log('Direct mUSD quote flow', {
-      adjustedAmountFiat: adjustedAmountFiat.toString(10),
-      amountFiat,
-      moneyAccountAddress,
-      relayTotalFeeUsd: relayTotalFeeUsd.toString(10),
-      transactionId,
-    });
-
-    const fiatQuote = await getRampsQuote({
-      adjustedAmount,
-      fiatAsset,
-      fiatPaymentMethod,
-      messenger,
-      walletAddress: moneyAccountAddress,
-    });
-
-    messenger.call('TransactionPayController:updateFiatPayment', {
-      callback: (fiatPayment: TransactionFiatPayment) => {
-        fiatPayment.rampsQuote = fiatQuote;
-        fiatPayment.caipAssetId = buildCaipAssetType(
-          MUSD_MONAD_FIAT_ASSET.chainId,
-          MUSD_MONAD_FIAT_ASSET.address,
-        );
-      },
-      transactionId,
-    });
-
-    return [
-      combineQuotes({
-        adjustedAmountFiat: adjustedAmountFiat.toString(10),
-        amountFiat,
-        fiatQuote,
-        relayQuote,
-      }),
-    ];
-  } catch (error) {
-    log('Failed to fetch direct mUSD quotes', { error, transactionId });
-  }
-
-  return [];
 }
 
 async function getRampsQuote({
@@ -537,6 +450,14 @@ function getRelayTotalFeeUsd(
 ): BigNumber {
   return new BigNumber(relayQuote.fees.provider.usd)
     .plus(relayQuote.fees.sourceNetwork.estimate.usd)
+    .plus(relayQuote.fees.targetNetwork.usd)
+    .plus(relayQuote.fees.metaMask.usd);
+}
+
+function getNonGasRelayFeeUsd(
+  relayQuote: TransactionPayQuote<RelayQuote>,
+): BigNumber {
+  return new BigNumber(relayQuote.fees.provider.usd)
     .plus(relayQuote.fees.targetNetwork.usd)
     .plus(relayQuote.fees.metaMask.usd);
 }

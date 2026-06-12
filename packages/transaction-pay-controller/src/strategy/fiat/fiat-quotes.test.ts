@@ -6,7 +6,7 @@ import type { TransactionMeta } from '@metamask/transaction-controller';
 import { TransactionType } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 
-import { TransactionPayStrategy } from '../../constants';
+import { NATIVE_TOKEN_ADDRESS, TransactionPayStrategy } from '../../constants';
 import type {
   PayStrategyGetQuotesRequest,
   TransactionFiatPayment,
@@ -22,7 +22,11 @@ import {
 import { getRelayQuotes } from '../relay/relay-quotes';
 import type { RelayQuote } from '../relay/types';
 import type { TransactionPayFiatAsset } from './constants';
-import { DEFAULT_FIAT_CURRENCY, MUSD_PROBE_AMOUNT_USD } from './constants';
+import {
+  DEFAULT_FIAT_CURRENCY,
+  MUSD_MONAD_FIAT_ASSET,
+  MUSD_PROBE_AMOUNT_USD,
+} from './constants';
 import { getFiatQuotes } from './fiat-quotes';
 import {
   deriveFiatAssetForFiatPayment,
@@ -289,6 +293,25 @@ describe('getFiatQuotes', () => {
       expect(result[0].original).toStrictEqual({
         rampsQuote: FIAT_QUOTE_MOCK,
         relayQuote: {},
+      });
+    });
+
+    it('includes sourceNetwork gas in adjusted amount when source is native token', async () => {
+      const nativeFiatAsset: TransactionPayFiatAsset = {
+        address: NATIVE_TOKEN_ADDRESS,
+        chainId: '0x1',
+      };
+      deriveFiatAssetForFiatPaymentMock.mockReturnValue(nativeFiatAsset);
+
+      const { request } = getRequest();
+      const result = await getFiatQuotes(request);
+
+      expect(result).toHaveLength(1);
+      // amountFiat(10) + provider(1) + sourceNetwork(2) + targetNetwork(3) + metaMask(4) = 20
+      // ramps gets amount=20, providerFiat = ramps(0.5+0.2)=0.7
+      expect(result[0].fees.provider).toStrictEqual({
+        fiat: '1.7',
+        usd: '1.7',
       });
     });
 
@@ -759,7 +782,7 @@ describe('getFiatQuotes', () => {
             return {
               remoteFeatureFlags: {
                 confirmations_pay_fiat: {
-                  useFiatMUSDQuoteToInjectForMoneyAccount: true,
+                  directMoneyMusdEnabled: true,
                 },
               },
             };
@@ -806,6 +829,25 @@ describe('getFiatQuotes', () => {
         restrictToKnownOrNativeProviders: true,
         walletAddress: MONEY_ACCOUNT_ADDRESS,
       });
+    });
+
+    it('passes recipient and paymentOverride in relay request for direct flow', async () => {
+      const { request } = getDirectRequest();
+
+      await getFiatQuotes(request);
+
+      expect(getRelayQuotesMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          requests: [
+            expect.objectContaining({
+              paymentOverride: 'moneyAccount',
+              recipient: MONEY_ACCOUNT_ADDRESS,
+              sourceChainId: MUSD_MONAD_FIAT_ASSET.chainId,
+              sourceTokenAddress: MUSD_MONAD_FIAT_ASSET.address,
+            }),
+          ],
+        }),
+      );
     });
 
     it('returns combined quote when probe and quote both succeed', async () => {

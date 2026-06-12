@@ -1,6 +1,7 @@
 import type { TransactionType } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 import { createModuleLogger } from '@metamask/utils';
+import { BigNumber } from 'bignumber.js';
 import { uniq } from 'lodash';
 
 import { isTransactionPayStrategy, TransactionPayStrategy } from '../constants';
@@ -97,10 +98,10 @@ type FiatFlags = {
   assetPerTransactionType?: Partial<
     Record<TransactionType, TransactionPayFiatAsset>
   >;
+  directMoneyMusdEnabled?: boolean;
   enabledTransactionTypes: TransactionType[];
   feeReserveMultiplier?: number;
   maxRateDriftPercent?: number;
-  useFiatMUSDQuoteToInjectForMoneyAccount?: boolean;
   orderPollIntervalMs?: number;
   orderPollTimeoutMs?: number;
 };
@@ -468,10 +469,13 @@ export function getFeatureFlags(
       | FeatureFlagsRaw
       | undefined) ?? {};
 
-  const estimate =
-    featureFlags.relayFallbackGas?.estimate ?? DEFAULT_FALLBACK_GAS_ESTIMATE;
+  const estimate = new BigNumber(
+    featureFlags.relayFallbackGas?.estimate ?? DEFAULT_FALLBACK_GAS_ESTIMATE,
+  ).toNumber();
 
-  const max = featureFlags.relayFallbackGas?.max ?? DEFAULT_FALLBACK_GAS_MAX;
+  const max = new BigNumber(
+    featureFlags.relayFallbackGas?.max ?? DEFAULT_FALLBACK_GAS_MAX,
+  ).toNumber();
 
   const relayExecuteUrl =
     featureFlags.relayExecuteUrl ?? DEFAULT_RELAY_EXECUTE_URL;
@@ -899,14 +903,14 @@ export function getFiatMaxRateDriftPercent(
     : DEFAULT_MAX_RATE_DRIFT_PERCENT;
 }
 
-export function getUseFiatMUSDQuoteToInjectForMoneyAccount(
+export function getDirectMoneyMusdEnabled(
   messenger: TransactionPayControllerMessenger,
 ): boolean {
   const state = messenger.call('RemoteFeatureFlagController:getState');
   const fiatFlags = state.remoteFeatureFlags?.confirmations_pay_fiat as
     | FiatFlags
     | undefined;
-  return fiatFlags?.useFiatMUSDQuoteToInjectForMoneyAccount === true;
+  return fiatFlags?.directMoneyMusdEnabled === true;
 }
 
 /**

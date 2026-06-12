@@ -289,7 +289,7 @@ async function getSingleQuote(
       ...(useExecute
         ? { originGasOverhead: getRelayOriginGasOverhead(messenger) }
         : {}),
-      recipient: from,
+      recipient: request.recipient ?? from,
       slippageTolerance,
       tradeType: useExactInput ? 'EXACT_INPUT' : 'EXPECTED_OUTPUT',
       user: from,
@@ -315,13 +315,6 @@ async function getSingleQuote(
       request.paymentOverride === PaymentOverride.MoneyAccount
     ) {
       await processMoneyAccountPostQuote(transaction, request, body, messenger);
-
-      // For same-chain Money Account flows, Relay rejects requests where
-      // user === recipient. Override recipient to the money account address
-      // so Relay treats it as a transfer rather than a self-send.
-      if (transaction.txParams?.from && body.recipient === from) {
-        body.recipient = transaction.txParams.from as Hex;
-      }
     } else if (request.refundTo) {
       // For post-quote flows, honour the caller-specified refund address so that
       // failed Relay transactions refund to the correct account (e.g. the Predict

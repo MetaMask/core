@@ -495,6 +495,9 @@ export type QuoteRequest = {
    * When set, overrides the default refund recipient (EOA) in the quote
    * request.
    */
+  /** Optional recipient address for Relay requests. When set, overrides the default `from` address. */
+  recipient?: Hex;
+
   refundTo?: Hex;
 
   /** Whether to skip processTransactions in relay-quotes. Defaults to `isPostQuote`. */
