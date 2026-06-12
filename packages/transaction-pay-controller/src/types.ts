@@ -490,14 +490,14 @@ export type QuoteRequest = {
   /** Overrides the payment source for the transaction. */
   paymentOverride?: PaymentOverride;
 
+  /** Optional recipient address for Relay requests. When set, overrides the default `from` address. */
+  recipient?: Hex;
+
   /**
    * Optional address to receive refunds if the quote provider transaction fails.
    * When set, overrides the default refund recipient (EOA) in the quote
    * request.
    */
-  /** Optional recipient address for Relay requests. When set, overrides the default `from` address. */
-  recipient?: Hex;
-
   refundTo?: Hex;
 
   /** Whether to skip processTransactions in relay-quotes. Defaults to `isPostQuote`. */
