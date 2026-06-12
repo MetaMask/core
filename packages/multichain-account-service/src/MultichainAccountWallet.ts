@@ -443,6 +443,7 @@ export class MultichainAccountWallet<
    * @param options - Options.
    * @param options.trace - Trace options.
    * @param options.trace.data - Optional trace data.
+   * @param options.groupStatus - Optional status to set on groups during alignment or post-creation alignment (defaults to 'in-progress:alignment').
    */
   async #alignAccountsForRange(
     { from, to }: Required<GroupIndexRange>,
