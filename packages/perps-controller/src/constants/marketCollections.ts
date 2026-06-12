@@ -1,9 +1,5 @@
-import {
-  PerpsMarketCollectionTag,
-} from '../types';
-import type {
-  PerpsMarketDefinition,
-} from '../types';
+import { PerpsMarketCollectionTag } from '../types';
+import type { PerpsMarketDefinition } from '../types';
 
 const T = PerpsMarketCollectionTag;
 
@@ -49,11 +45,17 @@ export const PERPS_MARKET_COLLECTION_TAGS: readonly PerpsMarketCollectionTag[] =
 export const PERPS_MARKET_DEFINITIONS: readonly PerpsMarketDefinition[] = [
   { ticker: 'BTC', collections: [T.L1, T.BitcoinEcosystem, T.StoreOfValue] },
   { ticker: 'ETH', collections: [T.L1, T.SmartContractPlatform] },
-  { ticker: 'ATOM', collections: [T.L1, T.CosmosEcosystem, T.Interoperability] },
+  {
+    ticker: 'ATOM',
+    collections: [T.L1, T.CosmosEcosystem, T.Interoperability],
+  },
   { ticker: 'DYDX', collections: [T.DeFi, T.CosmosEcosystem, T.ExchangeToken] },
   { ticker: 'SOL', collections: [T.L1, T.SolanaEcosystem] },
   { ticker: 'AVAX', collections: [T.L1, T.SmartContractPlatform] },
-  { ticker: 'BNB', collections: [T.L1, T.ExchangeToken, T.SmartContractPlatform] },
+  {
+    ticker: 'BNB',
+    collections: [T.L1, T.ExchangeToken, T.SmartContractPlatform],
+  },
   { ticker: 'APE', collections: [T.GamingNft] },
   { ticker: 'OP', collections: [T.L2Scaling] },
   { ticker: 'LTC', collections: [T.L1, T.BitcoinEcosystem, T.Payments] },
@@ -105,7 +107,10 @@ export const PERPS_MARKET_DEFINITIONS: readonly PerpsMarketDefinition[] = [
   { ticker: 'NEO', collections: [T.L1, T.SmartContractPlatform] },
   { ticker: 'ZEN', collections: [T.L1, T.Privacy] },
   { ticker: 'FIL', collections: [T.L1, T.StorageData] },
-  { ticker: 'PYTH', collections: [T.Infrastructure, T.Oracle, T.SolanaEcosystem] },
+  {
+    ticker: 'PYTH',
+    collections: [T.Infrastructure, T.Oracle, T.SolanaEcosystem],
+  },
   { ticker: 'SUSHI', collections: [T.DeFi, T.ExchangeToken] },
   { ticker: 'IMX', collections: [T.GamingNft, T.L2Scaling] },
   { ticker: 'kBONK', collections: [T.Memecoin, T.SolanaEcosystem] },
@@ -166,11 +171,17 @@ export const PERPS_MARKET_DEFINITIONS: readonly PerpsMarketDefinition[] = [
   { ticker: 'SAND', collections: [T.GamingNft, T.Metaverse] },
   { ticker: 'IOTA', collections: [T.L1, T.IotInfrastructure] },
   { ticker: 'ALGO', collections: [T.L1, T.SmartContractPlatform] },
-  { ticker: 'HYPE', collections: [T.L1, T.ExchangeToken, T.HyperliquidEcosystem] },
+  {
+    ticker: 'HYPE',
+    collections: [T.L1, T.ExchangeToken, T.HyperliquidEcosystem],
+  },
   { ticker: 'ME', collections: [T.GamingNft, T.SolanaEcosystem] },
   { ticker: 'MOVE', collections: [T.L1, T.MoveEcosystem] },
   { ticker: 'VIRTUAL', collections: [T.AiDepin] },
-  { ticker: 'PENGU', collections: [T.Memecoin, T.GamingNft, T.SolanaEcosystem] },
+  {
+    ticker: 'PENGU',
+    collections: [T.Memecoin, T.GamingNft, T.SolanaEcosystem],
+  },
   { ticker: 'USUAL', collections: [T.DeFi, T.RwaStablecoin] },
   { ticker: 'FARTCOIN', collections: [T.Memecoin] },
   { ticker: 'AIXBT', collections: [T.AiDepin, T.Memecoin] },
@@ -229,7 +240,6 @@ export const PERPS_MARKET_DEFINITIONS: readonly PerpsMarketDefinition[] = [
   { ticker: 'DASH', collections: [T.L1, T.Privacy, T.Payments] },
 
   { ticker: 'AZTEC', collections: [T.L2Scaling, T.ZkModular, T.Privacy] },
-
 ] as const;
 
 const marketsByTicker = new Map<string, PerpsMarketDefinition>(

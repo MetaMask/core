@@ -16,14 +16,14 @@ import {
   PERPS_EVENT_VALUE,
 } from './constants/eventNames';
 import { USDC_SYMBOL } from './constants/hyperLiquidConfig';
-import { PerpsMeasurementName } from './constants/performanceMetrics';
-import type { SortOptionId } from './constants/perpsConfig';
 import {
   PERPS_MARKET_COLLECTION_TAGS,
   PERPS_MARKET_DEFINITIONS,
   getMarketDefinitionByTicker as getMarketDefinitionByTickerUtil,
   getMarketDefinitionsByCollection as getMarketDefinitionsByCollectionUtil,
 } from './constants/marketCollections';
+import { PerpsMeasurementName } from './constants/performanceMetrics';
+import type { SortOptionId } from './constants/perpsConfig';
 import {
   PERPS_CONSTANTS,
   MARKET_SORTING_CONFIG,

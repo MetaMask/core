@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add hardcoded market collections registry with 175 perps markets and 27 collection tags ([#9106](https://github.com/MetaMask/core/pull/9106))
+  - New `PerpsMarketCollectionTag` enum, `PerpsMarketDefinition` type, `PERPS_MARKET_DEFINITIONS` and `PERPS_MARKET_COLLECTION_TAGS` constants
+  - New utility functions `getMarketDefinitionByTicker` and `getMarketDefinitionsByCollection`
+  - New controller methods `getMarketCollections()`, `getMarketDefinitions()`, `getMarketDefinitionByTicker()`, and `getMarketDefinitionsByCollection()`
+
 ### Changed
 
 - Bump `@metamask/utils` from `^11.9.0` to `^11.11.0` ([#9074](https://github.com/MetaMask/core/pull/9074))

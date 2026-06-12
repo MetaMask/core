@@ -119,9 +119,7 @@ describe('getMarketDefinitionsByCollection', () => {
     );
     expect(memecoins.length).toBeGreaterThan(0);
     for (const market of memecoins) {
-      expect(market.collections).toContain(
-        PerpsMarketCollectionTag.Memecoin,
-      );
+      expect(market.collections).toContain(PerpsMarketCollectionTag.Memecoin);
     }
   });
 
