@@ -14,6 +14,10 @@ const QUOTE_MOCK = {
   estimatedDuration: 5,
 } as TransactionPayQuote<FiatQuote>;
 
+const MESSENGER_MOCK = {
+  call: jest.fn().mockReturnValue({ remoteFeatureFlags: {} }),
+} as unknown as TransactionPayControllerMessenger;
+
 describe('FiatStrategy', () => {
   const getFiatQuotesMock = jest.mocked(getFiatQuotes);
   const submitFiatQuotesMock = jest.mocked(submitFiatQuotes);
@@ -24,19 +28,22 @@ describe('FiatStrategy', () => {
   });
 
   describe('getQuotes', () => {
-    it('returns result from util', async () => {
-      const result = new FiatStrategy().getQuotes({
-        messenger: {} as TransactionPayControllerMessenger,
+    it('delegates to getFiatQuotes', async () => {
+      const request = {
+        messenger: MESSENGER_MOCK,
         requests: [],
         transaction: {} as TransactionMeta,
-      });
+      };
 
-      expect(await result).toStrictEqual([QUOTE_MOCK]);
+      const result = await new FiatStrategy().getQuotes(request);
+
+      expect(result).toStrictEqual([QUOTE_MOCK]);
+      expect(getFiatQuotesMock).toHaveBeenCalledWith(request);
     });
   });
 
   describe('execute', () => {
-    it('calls util', async () => {
+    it('delegates to submitFiatQuotes', async () => {
       await new FiatStrategy().execute({
         isSmartTransaction: () => false,
         quotes: [QUOTE_MOCK],

@@ -944,7 +944,6 @@ describe('TransactionPayController', () => {
   });
 
   describe('fiat token selection', () => {
-    const CAIP_ASSET_ID_MOCK = 'eip155:137/slip44:966';
     const FIAT_ASSET_MOCK = {
       address: '0x0000000000000000000000000000000000001010' as Hex,
       chainId: '0x89' as Hex,
@@ -984,7 +983,7 @@ describe('TransactionPayController', () => {
       ).toBeUndefined();
     });
 
-    it('stores caipAssetId in fiatPayment when payment method changes', () => {
+    it('does not set caipAssetId when payment method changes (set by quote functions instead)', () => {
       getTransactionMock.mockReturnValue(TRANSACTION_META_MOCK);
       deriveFiatAssetForFiatPaymentMock.mockReturnValue(FIAT_ASSET_MOCK);
 
@@ -998,7 +997,7 @@ describe('TransactionPayController', () => {
       expect(
         controller.state.transactionData[TRANSACTION_ID_MOCK]?.fiatPayment
           ?.caipAssetId,
-      ).toBe(CAIP_ASSET_ID_MOCK);
+      ).toBeUndefined();
     });
 
     it('triggers quote update when fiat payment changes', () => {
