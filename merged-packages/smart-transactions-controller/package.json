@@ -81,7 +81,6 @@
     "@types/jest": "^26.0.24",
     "@types/lodash": "^4.14.194",
     "@types/node": "^18.19.17",
-    "@types/sinon": "^9.0.10",
     "eslint": "^9.39.1",
     "eslint-config-prettier": "^9.1.0",
     "eslint-import-resolver-typescript": "^3.6.3",
@@ -96,8 +95,7 @@
     "nock": "^14.0.0-beta.7",
     "prettier": "^3.3.3",
     "prettier-plugin-packagejson": "^2.4.3",
-    "sinon": "^9.2.4",
-    "ts-jest": "^29.1.4",
+    "ts-jest": "^29.2.5",
     "typescript": "~5.3.3",
     "typescript-eslint": "^8.39.0"
   },

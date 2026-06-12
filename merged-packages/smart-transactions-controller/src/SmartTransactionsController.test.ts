@@ -24,7 +24,6 @@ import type {
 import type { TransactionParams } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 import nock from 'nock';
-import * as sinon from 'sinon';
 
 import packageJson from '../package.json';
 import {
@@ -2358,15 +2357,12 @@ describe('SmartTransactionsController', () => {
   });
 
   describe('startPolling', () => {
-    let clock: sinon.SinonFakeTimers;
-
     beforeEach(() => {
-      // eslint-disable-next-line import-x/namespace
-      clock = sinon.useFakeTimers();
+      jest.useFakeTimers();
     });
 
     afterEach(() => {
-      clock.restore();
+      jest.useRealTimers();
     });
 
     it('starts and stops calling smart transactions batch status api endpoint with the correct chainId at the polling interval', async () => {
@@ -2413,7 +2409,7 @@ describe('SmartTransactionsController', () => {
             chainIds: [ChainId.mainnet],
           });
 
-          await advanceTime({ clock, duration: 0 });
+          await advanceTime({ duration: 0 });
 
           const fetchHeaders = {
             headers: {
@@ -2430,7 +2426,7 @@ describe('SmartTransactionsController', () => {
             fetchHeaders,
           );
 
-          await advanceTime({ clock, duration: DEFAULT_INTERVAL });
+          await advanceTime({ duration: DEFAULT_INTERVAL });
 
           expect(handleFetchSpy).toHaveBeenNthCalledWith(
             2,
@@ -2441,7 +2437,7 @@ describe('SmartTransactionsController', () => {
           );
 
           controller.startPolling({ chainIds: [ChainId.sepolia] });
-          await advanceTime({ clock, duration: 0 });
+          await advanceTime({ duration: 0 });
 
           expect(handleFetchSpy).toHaveBeenNthCalledWith(
             3,
@@ -2451,7 +2447,7 @@ describe('SmartTransactionsController', () => {
             fetchHeaders,
           );
 
-          await advanceTime({ clock, duration: DEFAULT_INTERVAL });
+          await advanceTime({ duration: DEFAULT_INTERVAL });
 
           expect(handleFetchSpy).toHaveBeenNthCalledWith(
             5,
@@ -2465,9 +2461,9 @@ describe('SmartTransactionsController', () => {
           controller.stopPollingByPollingToken(mainnetPollingToken);
 
           // cycle two polling intervals
-          await advanceTime({ clock, duration: DEFAULT_INTERVAL });
+          await advanceTime({ duration: DEFAULT_INTERVAL });
 
-          await advanceTime({ clock, duration: DEFAULT_INTERVAL });
+          await advanceTime({ duration: DEFAULT_INTERVAL });
 
           // check that the mainnet polling has stopped while the sepolia polling continues
           expect(handleFetchSpy).toHaveBeenNthCalledWith(
@@ -2533,7 +2529,7 @@ describe('SmartTransactionsController', () => {
             chainIds: ['notSupportedChainId' as Hex],
           });
 
-          await advanceTime({ clock, duration: 0 });
+          await advanceTime({ duration: 0 });
 
           expect(handleFetchSpy).not.toHaveBeenCalled();
         },
