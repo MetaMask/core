@@ -7,8 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [2.0.0]
-
 ### Added
 
 - Add `getMoneyAccountBalance` method that fetches the account's mUSD wallet balance and vault shares valued in mUSD in a single Multicall3 `aggregate3` request. ([#9100](https://github.com/MetaMask/core/pull/9100))
@@ -77,8 +75,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Compute mUSD-equivalent value of vault share holdings (`getMusdEquivalentValue`)
   - Fetch vault APY from the Veda performance REST API (`getVaultApy`)
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/money-account-balance-service@2.0.0...HEAD
-[2.0.0]: https://github.com/MetaMask/core/compare/@metamask/money-account-balance-service@1.0.2...@metamask/money-account-balance-service@2.0.0
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/money-account-balance-service@1.0.2...HEAD
 [1.0.2]: https://github.com/MetaMask/core/compare/@metamask/money-account-balance-service@1.0.1...@metamask/money-account-balance-service@1.0.2
 [1.0.1]: https://github.com/MetaMask/core/compare/@metamask/money-account-balance-service@1.0.0...@metamask/money-account-balance-service@1.0.1
 [1.0.0]: https://github.com/MetaMask/core/compare/@metamask/money-account-balance-service@0.2.0...@metamask/money-account-balance-service@1.0.0
