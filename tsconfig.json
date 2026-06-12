@@ -165,6 +165,9 @@
       "path": "./packages/name-controller"
     },
     {
+      "path": "./packages/network-connection-banner-controller"
+    },
+    {
       "path": "./packages/network-controller"
     },
     {
