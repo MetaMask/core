@@ -8,6 +8,7 @@ import {
   SolAccountType,
   EthScope,
   TrxAccountType,
+  XlmAccountType,
 } from '@metamask/keyring-api';
 import type {
   AnyAccountType,
@@ -274,6 +275,8 @@ function setupController({
       [BtcAccountType.P2tr]:
         'bc1pxfxst7zrkw39vzh0pchq5ey0q7z6u739cudhz5vmg89wa4kyyp9qzrf5sp',
       [TrxAccountType.Eoa]: 'TYvuLYQvTZp56urTbkeM3vDqU2YipJ7eDk',
+      [XlmAccountType.Account]:
+        'GA7QYNF7SOWQ3GLR2BGMZEHXAVIRZA4KVWLTJJFC7MGXUA74P7UJVSGZ',
     };
     const mockAccountAddress = mockAccountAddressByAccountType[accountType];
 

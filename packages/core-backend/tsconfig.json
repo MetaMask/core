@@ -2,25 +2,8 @@
   "extends": "../../tsconfig.packages.json",
   "compilerOptions": {
     "baseUrl": "./",
-    "outDir": "./dist",
-    "rootDir": "./src"
+    "rootDir": "../.."
   },
-  "references": [
-    {
-      "path": "../accounts-controller"
-    },
-    {
-      "path": "../controller-utils"
-    },
-    {
-      "path": "../keyring-controller"
-    },
-    {
-      "path": "../messenger"
-    },
-    {
-      "path": "../profile-sync-controller"
-    }
-  ],
+  "references": [],
   "include": ["../../types", "./src"]
 }

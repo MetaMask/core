@@ -29,7 +29,7 @@ import {
 import type { KeyringObject } from '@metamask/keyring-controller';
 import { KeyringTypes } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
-import type { GetSnap as SnapControllerGetSnap } from '@metamask/snaps-controllers';
+import type { SnapControllerGetSnapAction as SnapControllerGetSnap } from '@metamask/snaps-controllers';
 
 import {
   getAccountTreeControllerMessenger,

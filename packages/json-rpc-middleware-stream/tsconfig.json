@@ -5,6 +5,6 @@
     "forceConsistentCasingInFileNames": true,
     "target": "es2017"
   },
-  "references": [{ "path": "../json-rpc-engine" }],
+  "references": [],
   "include": ["../../types", "./src"]
 }

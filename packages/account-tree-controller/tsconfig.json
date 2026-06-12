@@ -3,25 +3,6 @@
   "compilerOptions": {
     "baseUrl": "./"
   },
-  "references": [
-    {
-      "path": "../base-controller"
-    },
-    {
-      "path": "../keyring-controller"
-    },
-    {
-      "path": "../accounts-controller"
-    },
-    {
-      "path": "../messenger"
-    },
-    {
-      "path": "../multichain-account-service"
-    },
-    {
-      "path": "../profile-sync-controller"
-    }
-  ],
+  "references": [],
   "include": ["../../types", "./src", "./tests"]
 }

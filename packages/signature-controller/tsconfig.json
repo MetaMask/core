@@ -3,37 +3,6 @@
   "compilerOptions": {
     "baseUrl": "./"
   },
-  "references": [
-    {
-      "path": "../accounts-controller"
-    },
-    {
-      "path": "../approval-controller"
-    },
-    {
-      "path": "../base-controller"
-    },
-    {
-      "path": "../controller-utils"
-    },
-    {
-      "path": "../gator-permissions-controller"
-    },
-    {
-      "path": "../message-manager"
-    },
-    {
-      "path": "../keyring-controller"
-    },
-    {
-      "path": "../logging-controller"
-    },
-    {
-      "path": "../network-controller"
-    },
-    {
-      "path": "../messenger"
-    }
-  ],
+  "references": [],
   "include": ["../../types", "./src"]
 }

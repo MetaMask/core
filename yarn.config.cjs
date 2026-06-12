@@ -202,6 +202,13 @@ module.exports = defineConfig({
           'scripts.test:watch',
           'NODE_OPTIONS=--experimental-vm-modules jest --watch',
         );
+
+        // All non-root packages must have the same "typecheck" script.
+        expectWorkspaceField(
+          workspace,
+          'scripts.typecheck',
+          'tsc --noEmit --pretty false',
+        );
       }
 
       if (isChildWorkspace) {

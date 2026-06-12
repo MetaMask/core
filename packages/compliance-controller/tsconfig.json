@@ -4,9 +4,5 @@
     "baseUrl": "./"
   },
   "include": ["../../types", "./src"],
-  "references": [
-    { "path": "../base-controller" },
-    { "path": "../controller-utils" },
-    { "path": "../messenger" }
-  ]
+  "references": []
 }

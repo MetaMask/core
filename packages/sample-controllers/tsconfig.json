@@ -3,13 +3,7 @@
   "compilerOptions": {
     "baseUrl": "./"
   },
-  "references": [
-    { "path": "../../packages/base-controller" },
-    { "path": "../../packages/base-data-service" },
-    { "path": "../../packages/controller-utils" },
-    { "path": "../../packages/messenger" },
-    { "path": "../../packages/network-controller" }
-  ],
+  "references": [],
   "include": ["../../types", "./src"],
   /**
    * Here we ensure that TypeScript resolves `@metamask/*` imports to the
