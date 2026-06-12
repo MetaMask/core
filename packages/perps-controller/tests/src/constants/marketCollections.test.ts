@@ -4,23 +4,16 @@ import {
   getMarketDefinitionByTicker,
   getMarketDefinitionsByCollection,
 } from '../../../src/constants/marketCollections';
-import type { PerpsMarketCollectionTag } from '../../../src/types';
+import { PerpsMarketCollectionTag } from '../../../src/types';
 
 describe('PERPS_MARKET_DEFINITIONS', () => {
-  it('contains 183 market entries', () => {
-    expect(PERPS_MARKET_DEFINITIONS).toHaveLength(183);
+  it('contains 175 market entries', () => {
+    expect(PERPS_MARKET_DEFINITIONS).toHaveLength(175);
   });
 
   it('has unique tickers', () => {
     const tickers = PERPS_MARKET_DEFINITIONS.map((m) => m.ticker);
     expect(new Set(tickers).size).toBe(tickers.length);
-  });
-
-  it('has valid maxLeverage for every entry', () => {
-    for (const market of PERPS_MARKET_DEFINITIONS) {
-      expect(market.maxLeverage).toBeGreaterThanOrEqual(1);
-      expect(Number.isInteger(market.maxLeverage)).toBe(true);
-    }
   });
 
   it('has a non-empty ticker for every entry', () => {
@@ -42,22 +35,27 @@ describe('PERPS_MARKET_DEFINITIONS', () => {
     const btc = PERPS_MARKET_DEFINITIONS.find((m) => m.ticker === 'BTC');
     expect(btc).toStrictEqual({
       ticker: 'BTC',
-      maxLeverage: 40,
-      collections: ['L1', 'Bitcoin Ecosystem', 'Store of Value'],
+      collections: [
+        PerpsMarketCollectionTag.L1,
+        PerpsMarketCollectionTag.BitcoinEcosystem,
+        PerpsMarketCollectionTag.StoreOfValue,
+      ],
     });
 
     const eth = PERPS_MARKET_DEFINITIONS.find((m) => m.ticker === 'ETH');
     expect(eth).toStrictEqual({
       ticker: 'ETH',
-      maxLeverage: 25,
-      collections: ['L1', 'Smart Contract Platform'],
+      collections: [
+        PerpsMarketCollectionTag.L1,
+        PerpsMarketCollectionTag.SmartContractPlatform,
+      ],
     });
   });
 
-  it('allows markets with empty collections', () => {
-    const nxpc = PERPS_MARKET_DEFINITIONS.find((m) => m.ticker === 'NXPC');
-    expect(nxpc).toBeDefined();
-    expect(nxpc?.collections).toStrictEqual([]);
+  it('has no markets with empty collections', () => {
+    for (const market of PERPS_MARKET_DEFINITIONS) {
+      expect(market.collections.length).toBeGreaterThan(0);
+    }
   });
 });
 
@@ -91,8 +89,9 @@ describe('getMarketDefinitionByTicker', () => {
     const btc = getMarketDefinitionByTicker('BTC');
     expect(btc).toBeDefined();
     expect(btc?.ticker).toBe('BTC');
-    expect(btc?.maxLeverage).toBe(40);
-    expect(btc?.collections).toContain('Bitcoin Ecosystem');
+    expect(btc?.collections).toContain(
+      PerpsMarketCollectionTag.BitcoinEcosystem,
+    );
   });
 
   it('returns undefined for a non-existent ticker', () => {
@@ -107,30 +106,39 @@ describe('getMarketDefinitionByTicker', () => {
   it('returns the correct entry for a ticker with special prefix', () => {
     const kPepe = getMarketDefinitionByTicker('kPEPE');
     expect(kPepe).toBeDefined();
-    expect(kPepe?.maxLeverage).toBe(10);
-    expect(kPepe?.collections).toStrictEqual(['Memecoin']);
+    expect(kPepe?.collections).toStrictEqual([
+      PerpsMarketCollectionTag.Memecoin,
+    ]);
   });
 });
 
 describe('getMarketDefinitionsByCollection', () => {
   it('returns all Memecoin markets', () => {
-    const memecoins = getMarketDefinitionsByCollection('Memecoin');
+    const memecoins = getMarketDefinitionsByCollection(
+      PerpsMarketCollectionTag.Memecoin,
+    );
     expect(memecoins.length).toBeGreaterThan(0);
     for (const market of memecoins) {
-      expect(market.collections).toContain('Memecoin');
+      expect(market.collections).toContain(
+        PerpsMarketCollectionTag.Memecoin,
+      );
     }
   });
 
   it('returns all DeFi markets', () => {
-    const defi = getMarketDefinitionsByCollection('DeFi');
+    const defi = getMarketDefinitionsByCollection(
+      PerpsMarketCollectionTag.DeFi,
+    );
     expect(defi.length).toBeGreaterThan(0);
     for (const market of defi) {
-      expect(market.collections).toContain('DeFi');
+      expect(market.collections).toContain(PerpsMarketCollectionTag.DeFi);
     }
   });
 
   it('returns BTC for Bitcoin Ecosystem', () => {
-    const btcEco = getMarketDefinitionsByCollection('Bitcoin Ecosystem');
+    const btcEco = getMarketDefinitionsByCollection(
+      PerpsMarketCollectionTag.BitcoinEcosystem,
+    );
     const tickers = btcEco.map((m) => m.ticker);
     expect(tickers).toContain('BTC');
     expect(tickers).toContain('LTC');
@@ -140,14 +148,15 @@ describe('getMarketDefinitionsByCollection', () => {
     const allTags = new Set(
       PERPS_MARKET_DEFINITIONS.flatMap((m) => m.collections),
     );
-    // "Store of Value" should only have BTC, but let's test an actual edge case:
-    // verify each returned market actually has the tag
-    const storeOfValue = getMarketDefinitionsByCollection('Store of Value');
+    const storeOfValue = getMarketDefinitionsByCollection(
+      PerpsMarketCollectionTag.StoreOfValue,
+    );
     expect(storeOfValue.length).toBeGreaterThanOrEqual(1);
     for (const market of storeOfValue) {
-      expect(market.collections).toContain('Store of Value');
+      expect(market.collections).toContain(
+        PerpsMarketCollectionTag.StoreOfValue,
+      );
     }
-    // Verify all declared tags have at least one result OR are valid
     for (const tag of PERPS_MARKET_COLLECTION_TAGS) {
       const results = getMarketDefinitionsByCollection(tag);
       if (allTags.has(tag)) {

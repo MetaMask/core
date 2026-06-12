@@ -1795,34 +1795,35 @@ export function isVersionGatedFeatureFlag(
  * Tag identifying a thematic collection/grouping that a perps market belongs to.
  * A single market may belong to zero or more collections.
  */
-export type PerpsMarketCollectionTag =
-  | 'L1'
-  | 'L2 / Scaling'
-  | 'Bitcoin Ecosystem'
-  | 'Solana Ecosystem'
-  | 'Cosmos Ecosystem'
-  | 'TON Ecosystem'
-  | 'Hyperliquid Ecosystem'
-  | 'Move Ecosystem'
-  | 'Smart Contract Platform'
-  | 'DeFi'
-  | 'Exchange Token'
-  | 'Memecoin'
-  | 'Gaming / NFT'
-  | 'AI / DePIN'
-  | 'Infrastructure'
-  | 'Oracle'
-  | 'Interoperability'
-  | 'Payments'
-  | 'LSD / Liquid Staking'
-  | 'RWA / Stablecoin'
-  | 'ZK / Modular'
-  | 'Privacy'
-  | 'Storage / Data'
-  | 'Store of Value'
-  | 'Metaverse'
-  | 'IoT / Infrastructure'
-  | 'Political';
+export enum PerpsMarketCollectionTag {
+  L1 = 'L1',
+  L2Scaling = 'L2 / Scaling',
+  BitcoinEcosystem = 'Bitcoin Ecosystem',
+  SolanaEcosystem = 'Solana Ecosystem',
+  CosmosEcosystem = 'Cosmos Ecosystem',
+  TonEcosystem = 'TON Ecosystem',
+  HyperliquidEcosystem = 'Hyperliquid Ecosystem',
+  MoveEcosystem = 'Move Ecosystem',
+  SmartContractPlatform = 'Smart Contract Platform',
+  DeFi = 'DeFi',
+  ExchangeToken = 'Exchange Token',
+  Memecoin = 'Memecoin',
+  GamingNft = 'Gaming / NFT',
+  AiDepin = 'AI / DePIN',
+  Infrastructure = 'Infrastructure',
+  Oracle = 'Oracle',
+  Interoperability = 'Interoperability',
+  Payments = 'Payments',
+  LiquidStaking = 'LSD / Liquid Staking',
+  RwaStablecoin = 'RWA / Stablecoin',
+  ZkModular = 'ZK / Modular',
+  Privacy = 'Privacy',
+  StorageData = 'Storage / Data',
+  StoreOfValue = 'Store of Value',
+  Metaverse = 'Metaverse',
+  IotInfrastructure = 'IoT / Infrastructure',
+  Political = 'Political',
+}
 
 /**
  * Static definition of a supported perps market.
@@ -1832,8 +1833,6 @@ export type PerpsMarketCollectionTag =
 export type PerpsMarketDefinition = {
   /** Asset ticker symbol (e.g. 'BTC', 'ETH', 'kPEPE'). */
   ticker: string;
-  /** Maximum leverage multiplier (e.g. 40 for 40x). */
-  maxLeverage: number;
   /** Thematic collections this market belongs to. May be empty. */
   collections: PerpsMarketCollectionTag[];
 };

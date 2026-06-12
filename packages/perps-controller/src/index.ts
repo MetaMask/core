@@ -143,10 +143,8 @@ export {
   MARKET_CATEGORIES,
   MarketCategory,
 } from './types';
-export type {
-  PerpsMarketCollectionTag,
-  PerpsMarketDefinition,
-} from './types';
+export { PerpsMarketCollectionTag } from './types';
+export type { PerpsMarketDefinition } from './types';
 export type {
   RawLedgerUpdate,
   UserHistoryItem,
