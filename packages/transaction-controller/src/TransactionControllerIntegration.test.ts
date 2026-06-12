@@ -238,6 +238,7 @@ const setupController = async (
     }),
   });
   networkController.init();
+  await networkController.lookupNetwork();
   const { provider, blockTracker } =
     networkController.getProviderAndBlockTracker();
   assert(provider, 'Provider must be available');
@@ -324,13 +325,12 @@ const setupController = async (
     getPermittedAccounts: async () => [ACCOUNT_MOCK],
     hooks: {},
     messenger,
-    pendingTransactions: {
-      isResubmitEnabled: () => false,
-    },
     ...givenOptions,
   };
 
   const transactionController = new TransactionController(options);
+
+  await jestAdvanceTime({ duration: 10 });
 
   return {
     transactionController,

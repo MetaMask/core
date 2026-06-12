@@ -1,5 +1,5 @@
 import type { StateMetadata } from '@metamask/base-controller';
-import type {
+import {
   QuoteMetadata,
   RequiredEventContextFromClient,
   QuoteResponse,
@@ -24,6 +24,7 @@ import {
   TransactionStatus,
   TransactionType,
   TransactionController,
+  generateBatchId,
 } from '@metamask/transaction-controller';
 import type { TransactionMeta } from '@metamask/transaction-controller';
 import { numberToHex } from '@metamask/utils';
@@ -31,6 +32,7 @@ import type { Hex } from '@metamask/utils';
 
 import { IntentManager } from './bridge-status-controller.intent';
 import {
+  ALLOWED_FEATURE_IDS_FOR_STATUS_EVENTS,
   BRIDGE_PROD_API_BASE_URL,
   BRIDGE_STATUS_CONTROLLER_NAME,
   DEFAULT_BRIDGE_STATUS_CONTROLLER_STATE,
@@ -77,7 +79,6 @@ import {
   getEVMTxPropertiesFromTransactionMeta,
   getTxStatusesFromHistory,
   getPreConfirmationPropertiesFromQuote,
-  getPollingStatusUpdatedProperties,
 } from './utils/metrics';
 import { getSelectedChainId } from './utils/network';
 import { getTraceParams } from './utils/trace';
@@ -432,36 +433,14 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
         this.#startPollingForTxId(targetTxMetaId);
 
         // Track polling manually restarted event
-        if (!historyItem.featureId) {
-          const selectedAccount = getAccountByAddress(
-            this.messenger,
-            historyItem.account,
-          );
-          const requestParams = getRequestParamFromHistory(historyItem);
-          const requestMetadata = getRequestMetadataFromHistory(
-            historyItem,
-            selectedAccount,
-          );
-          const { security_warnings: _, ...metadataWithoutWarnings } =
-            requestMetadata;
-
-          this.#trackUnifiedSwapBridgeEvent(
-            UnifiedSwapBridgeEventName.PollingStatusUpdated,
-            targetTxMetaId,
-            {
-              ...getTradeDataFromHistory(historyItem),
-              ...getPriceImpactFromQuote(historyItem.quote),
-              ...metadataWithoutWarnings,
-              chain_id_source: requestParams.chain_id_source,
-              chain_id_destination: requestParams.chain_id_destination,
-              token_symbol_source: requestParams.token_symbol_source,
-              token_symbol_destination: requestParams.token_symbol_destination,
-              action_type: MetricsActionType.SWAPBRIDGE_V1,
-              polling_status: PollingStatus.ManuallyRestarted,
-              retry_attempts: previousAttempts,
-            },
-          );
-        }
+        this.#trackUnifiedSwapBridgeEvent(
+          UnifiedSwapBridgeEventName.PollingStatusUpdated,
+          targetTxMetaId,
+          {
+            polling_status: PollingStatus.ManuallyRestarted,
+            retry_attempts: previousAttempts,
+          },
+        );
       }
     }
   };
@@ -632,7 +611,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
 
       // Track max polling reached event
       const historyItem = this.state.txHistory[bridgeTxMetaId];
-      if (historyItem && !historyItem.featureId) {
+      if (historyItem) {
         // Track polling status updated event
         this.#trackPollingStatusUpdatedEvent(
           bridgeTxMetaId,
@@ -803,11 +782,6 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       if (isFinalStatus && pollingToken) {
         this.stopPollingByPollingToken(pollingToken);
         delete this.#pollingTokensByTxMetaId[bridgeTxMetaId];
-
-        // Skip tracking events when featureId is set (i.e. PERPS)
-        if (historyItem.featureId) {
-          return;
-        }
 
         if (status.status === StatusTypes.COMPLETE) {
           this.#trackUnifiedSwapBridgeEvent(
@@ -1080,10 +1054,10 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       : [maybeQuoteResponses];
     const quoteResponse = quoteResponses[0];
 
-    const { featureId, quote } = quoteResponse;
+    const { quote } = quoteResponse;
     const startTime = Date.now();
 
-    stopPollingForQuotes(this.messenger, featureId, quotesReceivedContext);
+    stopPollingForQuotes(this.messenger, quotesReceivedContext);
 
     const selectedAccount = getAccountByAddress(this.messenger, accountAddress);
     if (!selectedAccount) {
@@ -1101,6 +1075,13 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       this.#clientId === BridgeClientId.MOBILE && accountHardwareType !== null;
     const isBridgeTx = isCrossChain(quote.srcChainId, quote.destChainId);
 
+    const batchId = quoteResponses.some(
+      ({ featureId: quoteFeatureId }) =>
+        quoteFeatureId === FeatureId.BATCH_SELL,
+    )
+      ? generateBatchId()
+      : undefined;
+
     const preConfirmationProperties = getPreConfirmationPropertiesFromQuote(
       quoteResponse,
       isStxEnabled,
@@ -1110,6 +1091,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       activeAbTests,
       tokenSecurityTypeDestination,
       batchSellTrades,
+      batchId,
     );
 
     try {
@@ -1118,7 +1100,6 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
         UnifiedSwapBridgeEventName.Submitted,
         undefined,
         preConfirmationProperties,
-        featureId,
       );
 
       /**
@@ -1148,6 +1129,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
         addTransactionBatchFn: this.#addTransactionBatchFn,
         fetchFn: this.#fetchFn,
         traceFn: this.#trace,
+        batchId,
       };
 
       return await this.#trace(
@@ -1169,7 +1151,6 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
           error_message: (error as Error)?.message,
           ...preConfirmationProperties,
         },
-        featureId,
       );
       throw error;
     }
@@ -1267,11 +1248,10 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     this.#trackUnifiedSwapBridgeEvent(
       UnifiedSwapBridgeEventName.PollingStatusUpdated,
       historyKey,
-      getPollingStatusUpdatedProperties(
-        this.messenger,
-        pollingStatus,
-        historyItem,
-      ),
+      {
+        polling_status: pollingStatus,
+        retry_attempts: historyItem.attempts?.counter ?? 0,
+      },
     );
   };
 
@@ -1279,10 +1259,8 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
    * Tracks post-submission events for a cross-chain swap based on the history item
    *
    * @param eventName - The name of the event to track
-   * @param txMetaId - The txMetaId of the history item to track the event for
+   * @param txHistoryKey - The txMetaId, actionId or intentUid of the history item to track the event for
    * @param eventProperties - The properties for the event
-   * @param featureIdOverride - The featureId to use when the history item is not available. Should
-   * only be provided for events that are not associated with a history item yet, such as Submitted or Failed
    */
   readonly #trackUnifiedSwapBridgeEvent = <
     EventName extends
@@ -1291,46 +1269,56 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       | typeof UnifiedSwapBridgeEventName.Completed
       | typeof UnifiedSwapBridgeEventName.StatusValidationFailed
       | typeof UnifiedSwapBridgeEventName.PollingStatusUpdated,
+    EventProperties extends Omit<
+      RequiredEventContextFromClient[EventName],
+      'feature_id'
+    > & {
+      // eslint-disable-next-line @typescript-eslint/naming-convention
+      feature_id?: FeatureId;
+    },
   >(
     eventName: EventName,
-    txMetaId?: string,
-    eventProperties?: Pick<
-      RequiredEventContextFromClient,
-      EventName
-    >[EventName],
-    featureIdOverride?: FeatureId,
+    txHistoryKey?: string,
+    eventProperties?: EventProperties,
   ): void => {
-    const historyItem: BridgeHistoryItem | undefined = txMetaId
-      ? this.state.txHistory[txMetaId]
+    const historyItem: BridgeHistoryItem | undefined = txHistoryKey
+      ? this.state.txHistory[txHistoryKey]
       : undefined;
-    const featureId = featureIdOverride ?? historyItem?.featureId;
 
-    const shouldSkipMetrics =
-      // Skip tracking all other events when featureId is set (i.e. PERPS)
-      featureId &&
-      // Always publish StatusValidationFailed event, regardless of featureId
-      eventName !== UnifiedSwapBridgeEventName.StatusValidationFailed;
-    if (shouldSkipMetrics) {
+    const featureId =
+      eventProperties?.feature_id ??
+      historyItem?.featureId ??
+      FeatureId.UNIFIED_SWAP_BRIDGE;
+
+    if (
+      !(
+        ALLOWED_FEATURE_IDS_FOR_STATUS_EVENTS.includes(featureId) ||
+        eventName === UnifiedSwapBridgeEventName.StatusValidationFailed
+      )
+    ) {
       return;
     }
 
     // Legacy/new metrics fields are intentionally kept independent during migration.
-    const historyAbTests = txMetaId
-      ? this.state.txHistory?.[txMetaId]?.abTests
+    const historyAbTests = txHistoryKey
+      ? this.state.txHistory?.[txHistoryKey]?.abTests
       : undefined;
-    const historyActiveAbTests = txMetaId
-      ? this.state.txHistory?.[txMetaId]?.activeAbTests
+    const historyActiveAbTests = txHistoryKey
+      ? this.state.txHistory?.[txHistoryKey]?.activeAbTests
       : undefined;
     const resolvedAbTests = eventProperties?.ab_tests ?? historyAbTests;
     const resolvedActiveAbTests =
       eventProperties?.active_ab_tests ?? historyActiveAbTests;
 
     const location =
-      (txMetaId ? this.state.txHistory?.[txMetaId]?.location : undefined) ??
-      MetaMetricsSwapsEventSource.MainView;
+      (txHistoryKey
+        ? this.state.txHistory?.[txHistoryKey]?.location
+        : undefined) ?? MetaMetricsSwapsEventSource.MainView;
 
     const baseProperties = {
       action_type: MetricsActionType.SWAPBRIDGE_V1,
+      feature_id: featureId ?? FeatureId.UNIFIED_SWAP_BRIDGE,
+      ...(historyItem?.batchId ? { batch_id: historyItem.batchId } : {}),
       ...(eventProperties ?? {}),
       location,
       ...(resolvedAbTests &&
@@ -1382,7 +1370,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
 
     const transactions = getTransactions(this.messenger);
     const txMeta = transactions.find(
-      (tx: TransactionMeta) => tx.id === txMetaId,
+      (tx: TransactionMeta) => tx.id === txHistoryKey,
     );
     const approvalTxMeta = transactions.find(
       (tx: TransactionMeta) => tx.id === approvalTxId,

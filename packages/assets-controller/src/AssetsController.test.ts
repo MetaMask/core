@@ -28,7 +28,7 @@ import type {
   DataResponse,
   FungibleAssetMetadata,
 } from './types';
-import { formatExchangeRatesForBridge } from './utils';
+import { formatExchangeRatesForBridge, normalizeAssetId } from './utils';
 
 jest.mock('./utils', () => {
   const actual = jest.requireActual<typeof import('./utils')>('./utils');
@@ -269,12 +269,10 @@ describe('AssetsController', () => {
       const defaultState = getDefaultAssetsControllerState();
       const assetIds = Object.keys(defaultState.assetsInfo);
       expect(assetIds.length).toBeGreaterThan(0);
-      // Every erc20 asset ID must contain at least one uppercase hex letter
-      // (EIP-55 checksum property) so that keys match normalizeAssetId output.
       const erc20Ids = assetIds.filter((id) => id.includes('/erc20:'));
       expect(erc20Ids.length).toBeGreaterThan(0);
       for (const id of erc20Ids) {
-        expect(id).toMatch(/\/erc20:0x[0-9a-fA-F]*[A-F][0-9a-fA-F]*/u);
+        expect(id).toBe(normalizeAssetId(id as Caip19AssetId));
       }
     });
   });

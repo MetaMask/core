@@ -251,4 +251,25 @@ export class MultichainAccountGroup<
   select(selector: AccountSelector<Account>): Account[] {
     return select(this.getAccounts(), selector);
   }
+
+  /**
+   * Check whether every provider has an aligned account in this group.
+   *
+   * A group is aligned when every registered provider reports that the
+   * account IDs it contributed to this group are non-empty and owned by it.
+   * Disabled {@link AccountProviderWrapper} instances always report `true`.
+   *
+   * @returns `true` when all providers are aligned for this group.
+   */
+  isAligned(): boolean {
+    return this.#providers.every((provider) =>
+      provider.isAligned(
+        {
+          entropySource: this.#wallet.entropySource,
+          groupIndex: this.#groupIndex,
+        },
+        this.#providerToAccounts.get(provider) ?? [],
+      ),
+    );
+  }
 }

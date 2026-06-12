@@ -42,14 +42,18 @@ const log = createModuleLogger(projectLogger, 'fiat-strategy');
 export async function getFiatQuotes(
   request: PayStrategyGetQuotesRequest,
 ): Promise<TransactionPayQuote<FiatQuote>[]> {
-  const { accountSupports7702, fiatPaymentMethod, messenger, transaction } =
-    request;
+  const {
+    accountSupports7702,
+    fiatPaymentMethod,
+    from: walletAddress,
+    messenger,
+    transaction,
+  } = request;
   const transactionId = transaction.id;
 
   const state = messenger.call('TransactionPayController:getState');
   const transactionData = state.transactionData[transactionId];
   const amountFiat = transactionData?.fiatPayment?.amountFiat;
-  const walletAddress = transaction.txParams.from as Hex;
   const requiredTokens = getRequiredTokens(transactionData?.tokens);
   const fiatAsset = deriveFiatAssetForFiatPayment(transaction, messenger);
 
@@ -80,6 +84,7 @@ export async function getFiatQuotes(
 
     const relayQuotes = await getRelayQuotes({
       accountSupports7702,
+      from: walletAddress,
       messenger,
       requests: [relayRequest],
       transaction,
@@ -142,6 +147,13 @@ export async function getFiatQuotes(
     ];
   } catch (error) {
     log('Failed to fetch fiat quotes', { error, transactionId });
+
+    messenger.call('TransactionPayController:updateFiatPayment', {
+      callback: (fiatPayment) => {
+        fiatPayment.rampsQuote = undefined;
+      },
+      transactionId,
+    });
   }
 
   return [];

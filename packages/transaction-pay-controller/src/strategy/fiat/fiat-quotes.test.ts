@@ -181,6 +181,7 @@ function getRequest({
     request: {
       accountSupports7702: false,
       fiatPaymentMethod,
+      from: WALLET_ADDRESS,
       messenger: {
         call: callMock,
       } as unknown as PayStrategyGetQuotesRequest['messenger'],
@@ -336,6 +337,7 @@ describe('getFiatQuotes', () => {
     const result = await getFiatQuotes({
       accountSupports7702: false,
       fiatPaymentMethod: '/payments/debit-credit-card',
+      from: WALLET_ADDRESS,
       messenger: {
         call: callMock,
       } as unknown as PayStrategyGetQuotesRequest['messenger'],
@@ -520,6 +522,7 @@ describe('getFiatQuotes', () => {
     await getFiatQuotes({
       accountSupports7702: false,
       fiatPaymentMethod: '/payments/debit-credit-card',
+      from: WALLET_ADDRESS,
       messenger: {
         call: callMock,
       } as unknown as PayStrategyGetQuotesRequest['messenger'],
@@ -538,6 +541,55 @@ describe('getFiatQuotes', () => {
     const result = await getFiatQuotes(request);
 
     expect(result).toStrictEqual([]);
+  });
+
+  it('clears rampsQuote on fiat payment state when quote fetch fails', async () => {
+    const fiatPaymentState: TransactionFiatPayment = {
+      rampsQuote: FIAT_QUOTE_MOCK,
+    };
+
+    const callMock = jest.fn(
+      (action: string, requestArg?: Record<string, unknown>) => {
+        if (action === 'TransactionPayController:getState') {
+          return {
+            transactionData: {
+              [TRANSACTION_ID]: {
+                fiatPayment: { amountFiat: '10' },
+                isLoading: false,
+                tokens: [REQUIRED_TOKEN_MOCK],
+              },
+            },
+          };
+        }
+
+        if (action === 'RampsController:getQuotes') {
+          throw new Error('ramps failed');
+        }
+
+        if (action === 'TransactionPayController:updateFiatPayment') {
+          const { callback } = requestArg as unknown as {
+            callback: (fp: TransactionFiatPayment) => void;
+          };
+          callback(fiatPaymentState);
+          return undefined;
+        }
+
+        throw new Error(`Unexpected action: ${action}`);
+      },
+    );
+
+    await getFiatQuotes({
+      accountSupports7702: false,
+      fiatPaymentMethod: '/payments/debit-credit-card',
+      from: WALLET_ADDRESS,
+      messenger: {
+        call: callMock,
+      } as unknown as PayStrategyGetQuotesRequest['messenger'],
+      requests: [],
+      transaction: TRANSACTION_MOCK,
+    });
+
+    expect(fiatPaymentState.rampsQuote).toBeUndefined();
   });
 
   it('returns empty array if multiple required tokens exist', async () => {

@@ -7,9 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Added
+## [14.2.0]
 
-- Authenticate `RampsService.getPaymentMethods` and `RampsService.getQuotes` by sourcing a bearer token from `AuthenticationController:getBearerToken` and sending it as an `Authorization: Bearer <token>` header ([#8888](https://github.com/MetaMask/core/pull/8888))
+### Changed
+
+- `RampsService.getQuotes` now sends an `Authorization: Bearer <token>` header, sourcing the token from `AuthenticationController:getBearerToken` (already a required messenger action since `14.0.0`); the call throws if no token is available (e.g. the wallet is locked or the user is signed out) ([#8888](https://github.com/MetaMask/core/pull/8888))
+- Bump `@metamask/controller-utils` from `^12.1.0` to `^12.2.0` ([#9058](https://github.com/MetaMask/core/pull/9058), [#9083](https://github.com/MetaMask/core/pull/9083))
 
 ## [14.1.1]
 
@@ -373,7 +376,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Add `OnRampService` for interacting with the OnRamp API
   - Add geolocation detection via IP address lookup
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@14.1.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@14.2.0...HEAD
+[14.2.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@14.1.1...@metamask/ramps-controller@14.2.0
 [14.1.1]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@14.1.0...@metamask/ramps-controller@14.1.1
 [14.1.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@14.0.0...@metamask/ramps-controller@14.1.0
 [14.0.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@13.3.1...@metamask/ramps-controller@14.0.0

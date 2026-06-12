@@ -1,4 +1,5 @@
 export { Wallet } from './Wallet';
+export { AlwaysOnlineAdapter } from './initialization/instances/connectivity-controller/always-online-adapter';
 export { importSecretRecoveryPhrase } from './utilities';
 export type { WalletOptions } from './types';
 export type {

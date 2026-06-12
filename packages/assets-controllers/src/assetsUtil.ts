@@ -163,6 +163,7 @@ export enum SupportedTokenDetectionNetworks {
   Sei = '0x531', // decimal: 1329
   MonadMainnet = '0x8f', // decimal: 143
   Hyperevm = '0x3e7', // decimal: 999
+  Arc = '0x13b2', // decimal: 5042
 }
 
 /**

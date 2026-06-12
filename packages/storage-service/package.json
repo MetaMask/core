@@ -1,6 +1,6 @@
 {
   "name": "@metamask/storage-service",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Platform-agnostic service for storing large, infrequently accessed controller data",
   "keywords": [
     "Ethereum",
@@ -54,7 +54,7 @@
   },
   "dependencies": {
     "@metamask/messenger": "^1.2.0",
-    "@metamask/utils": "^11.9.0"
+    "@metamask/utils": "^11.11.0"
   },
   "devDependencies": {
     "@metamask/auto-changelog": "^6.1.0",
