@@ -406,6 +406,13 @@ export type PerpsMarketData = {
    */
   name: string;
   /**
+   * Optional search keywords sourced from HyperLiquid perp annotations
+   * (`perpConciseAnnotations`). Used as additional match hints in ranked search
+   * (e.g. `rankMarketsByQuery`). Absent when the asset has no annotation
+   * keywords.
+   */
+  keywords?: string[];
+  /**
    * Maximum leverage available as formatted string (e.g., '40x', '25x')
    */
   maxLeverage: string;

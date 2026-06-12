@@ -474,6 +474,11 @@ export {
   formatChange,
 } from './utils';
 export type { HyperLiquidMarketData } from './utils';
+export { mergeAssetNamesWithAnnotations, extractAssetKeywords } from './utils';
+export type {
+  PerpConciseAnnotation,
+  PerpConciseAnnotationEntry,
+} from './utils';
 export {
   getPerpsConnectionAttemptContext,
   withPerpsConnectionAttemptContext,
