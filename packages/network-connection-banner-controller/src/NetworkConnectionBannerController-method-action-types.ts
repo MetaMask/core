@@ -6,6 +6,17 @@
 import type { NetworkConnectionBannerController } from './NetworkConnectionBannerController';
 
 /**
+ * Starts evaluating network connection state.
+ *
+ * This method should be called after the upstream network, network
+ * enablement, and connectivity controllers have been initialized.
+ */
+export type NetworkConnectionBannerControllerInitAction = {
+  type: `NetworkConnectionBannerController:init`;
+  handler: NetworkConnectionBannerController['init'];
+};
+
+/**
  * Clears the banner state regardless of the current rule outcome. The next
  * subscription-driven evaluation will re-show the banner if the conditions
  * still hold.
@@ -33,5 +44,6 @@ export type NetworkConnectionBannerControllerSwitchToDefaultInfuraRpcAction = {
  * Union of all NetworkConnectionBannerController action types.
  */
 export type NetworkConnectionBannerControllerMethodActions =
+  | NetworkConnectionBannerControllerInitAction
   | NetworkConnectionBannerControllerDismissBannerAction
   | NetworkConnectionBannerControllerSwitchToDefaultInfuraRpcAction;

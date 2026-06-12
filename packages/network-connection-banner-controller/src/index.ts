@@ -10,6 +10,7 @@ export type {
   NetworkConnectionBannerStatus,
 } from './NetworkConnectionBannerController';
 export type {
+  NetworkConnectionBannerControllerInitAction,
   NetworkConnectionBannerControllerDismissBannerAction,
   NetworkConnectionBannerControllerSwitchToDefaultInfuraRpcAction,
 } from './NetworkConnectionBannerController-method-action-types';

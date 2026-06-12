@@ -101,6 +101,7 @@ const DEGRADED_BANNER_TIMEOUT_MS = 5_000;
 const UNAVAILABLE_BANNER_TIMEOUT_MS = 30_000;
 
 const MESSENGER_EXPOSED_METHODS = [
+  'init',
   'dismissBanner',
   'switchToDefaultInfuraRpc',
 ] as const;
@@ -213,6 +214,8 @@ export class NetworkConnectionBannerController extends BaseController<
 
   #pendingNetworkClientId: string | undefined;
 
+  #initialized = false;
+
   /**
    * Constructs a new {@link NetworkConnectionBannerController}.
    *
@@ -227,7 +230,11 @@ export class NetworkConnectionBannerController extends BaseController<
       state: getDefaultNetworkConnectionBannerControllerState(),
     });
 
-    const onStateChange = (): void => this.#evaluate();
+    const onStateChange = (): void => {
+      if (this.#initialized) {
+        this.#evaluate();
+      }
+    };
     // Upstream controllers still expose :stateChange; switch to :stateChanged
     // once those packages migrate their event types.
     /* eslint-disable no-restricted-syntax -- awaiting upstream :stateChanged migration */
@@ -246,8 +253,21 @@ export class NetworkConnectionBannerController extends BaseController<
       this,
       MESSENGER_EXPOSED_METHODS,
     );
+  }
+
+  /**
+   * Starts evaluating network connection state.
+   *
+   * This method should be called after the upstream network, network
+   * enablement, and connectivity controllers have been initialized.
+   */
+  init(): void {
+    if (this.#initialized) {
+      return;
+    }
 
     this.#evaluate();
+    this.#initialized = true;
   }
 
   /**

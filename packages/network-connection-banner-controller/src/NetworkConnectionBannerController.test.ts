@@ -120,7 +120,7 @@ describe('NetworkConnectionBannerController', () => {
       });
     });
 
-    it('evaluates existing upstream state on construction', async () => {
+    it('does not evaluate existing upstream state before initialization', async () => {
       const initialState = buildNetworkState({
         configurations: {
           '0x89': buildConfiguration({
@@ -142,10 +142,76 @@ describe('NetworkConnectionBannerController', () => {
       });
 
       await withController(({ controller }) => {
+        jest.advanceTimersByTime(30_000);
+
+        expect(controller.state.status).toBe('available');
+      }, initialState, false);
+    });
+
+    it('evaluates existing upstream state on initialization', async () => {
+      const initialState = buildNetworkState({
+        configurations: {
+          '0x89': buildConfiguration({
+            chainId: '0x89',
+            name: 'Polygon Mainnet',
+            nativeCurrency: 'MATIC',
+            rpcEndpoints: [
+              buildCustomEndpoint(
+                POLYGON_CUSTOM_CLIENT_ID,
+                'https://polygon-rpc.com',
+              ),
+            ],
+          }),
+        },
+        enabledChainIds: ['0x89'],
+        metadata: {
+          [POLYGON_CUSTOM_CLIENT_ID]: makeMetadata(NetworkStatus.Unavailable),
+        },
+      });
+
+      await withController(({ controller, rootMessenger }) => {
+        rootMessenger.call('NetworkConnectionBannerController:init');
+        rootMessenger.call('NetworkConnectionBannerController:init');
+
         jest.advanceTimersByTime(5_000);
 
         expect(controller.state.status).toBe('degraded');
-      }, initialState);
+      }, initialState, false);
+    });
+
+    it('ignores upstream state changes before initialization', async () => {
+      await withController(({ controller, setNetworkState }) => {
+        setNetworkState(
+          buildNetworkState({
+            configurations: {
+              '0x89': buildConfiguration({
+                chainId: '0x89',
+                name: 'Polygon Mainnet',
+                nativeCurrency: 'MATIC',
+                rpcEndpoints: [
+                  buildCustomEndpoint(
+                    POLYGON_CUSTOM_CLIENT_ID,
+                    'https://polygon-rpc.com',
+                  ),
+                ],
+              }),
+            },
+            enabledChainIds: ['0x89'],
+            metadata: {
+              [POLYGON_CUSTOM_CLIENT_ID]: makeMetadata(
+                NetworkStatus.Unavailable,
+              ),
+            },
+          }),
+        );
+
+        jest.advanceTimersByTime(30_000);
+        expect(controller.state.status).toBe('available');
+
+        controller.init();
+        jest.advanceTimersByTime(5_000);
+        expect(controller.state.status).toBe('degraded');
+      }, undefined, false);
     });
   });
 
@@ -1139,6 +1205,7 @@ type WithControllerCallback<ReturnValue> = (payload: {
 async function withController<ReturnValue>(
   testFunction: WithControllerCallback<ReturnValue>,
   initialState?: StubbedState,
+  initialize = true,
 ): Promise<ReturnValue> {
   const rootMessenger: RootMessenger = new Messenger({
     namespace: MOCK_ANY_NAMESPACE,
@@ -1215,6 +1282,9 @@ async function withController<ReturnValue>(
   const controller = new NetworkConnectionBannerController({
     messenger,
   });
+  if (initialize) {
+    controller.init();
+  }
 
   const setNetworkState = (state: StubbedState): void => {
     currentState = state;
