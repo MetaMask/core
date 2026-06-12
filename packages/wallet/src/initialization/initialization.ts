@@ -23,6 +23,7 @@ export function initialize(options: InitializeOptions): DefaultInstances {
     state = {},
     initializationConfigurations = [],
     instanceOptions,
+    logger,
   } = options;
 
   const overriddenConfiguration = initializationConfigurations.map(
@@ -55,6 +56,8 @@ export function initialize(options: InitializeOptions): DefaultInstances {
     });
 
     instances[name] = instance;
+
+    logger?.info(`[wallet] ${name}: initialized`);
   }
 
   return instances as DefaultInstances;
