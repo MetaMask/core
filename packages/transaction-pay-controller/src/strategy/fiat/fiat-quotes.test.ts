@@ -287,8 +287,8 @@ describe('getFiatQuotes', () => {
         usd: '0.7',
       });
       expect(result[0].fees.metaMask).toStrictEqual({
-        fiat: '0.3',
-        usd: '0.3',
+        fiat: '0.28',
+        usd: '0.28',
       });
       expect(result[0].original).toStrictEqual({
         rampsQuote: FIAT_QUOTE_MOCK,
