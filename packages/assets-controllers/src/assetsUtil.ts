@@ -345,6 +345,13 @@ export async function reduceInBatchesSerially<Value, Result>({
   return finalResult;
 }
 
+type FetchTokenContractExchangeRatesArgs = {
+  tokenPricesService: AbstractTokenPricesService;
+  nativeCurrency: string;
+  tokenAddresses: Hex[];
+  chainId: Hex;
+};
+
 /**
  * Retrieves token prices for a set of contract addresses in a specific currency and chainId.
  *
@@ -357,17 +364,21 @@ export async function reduceInBatchesSerially<Value, Result>({
  * percentage changes, market cap, etc.) per token instead of just the price.
  * @returns The prices (or full market data) for the requested tokens.
  */
+export async function fetchTokenContractExchangeRates(
+  args: FetchTokenContractExchangeRatesArgs & { includeMarketData: true },
+): Promise<ContractMarketData>;
+
+export async function fetchTokenContractExchangeRates(
+  args: FetchTokenContractExchangeRatesArgs & { includeMarketData?: false },
+): Promise<ContractExchangeRates>;
+
 export async function fetchTokenContractExchangeRates({
   tokenPricesService,
   nativeCurrency,
   tokenAddresses,
   chainId,
   includeMarketData = false,
-}: {
-  tokenPricesService: AbstractTokenPricesService;
-  nativeCurrency: string;
-  tokenAddresses: Hex[];
-  chainId: Hex;
+}: FetchTokenContractExchangeRatesArgs & {
   includeMarketData?: boolean;
 }): Promise<ContractExchangeRates | ContractMarketData> {
   const isChainIdSupported =
@@ -411,9 +422,13 @@ export async function fetchTokenContractExchangeRates({
     return Object.entries(tokenPricesByTokenAddress).reduce<ContractMarketData>(
       (obj, [tokenAddress, tokenPrice]) => {
         if (tokenPrice) {
+          const checksummedAddress = toChecksumHexAddress(tokenAddress);
           return {
             ...obj,
-            [toChecksumHexAddress(tokenAddress)]: tokenPrice,
+            [checksummedAddress]: {
+              ...tokenPrice,
+              tokenAddress: checksummedAddress,
+            },
           };
         }
         return obj;

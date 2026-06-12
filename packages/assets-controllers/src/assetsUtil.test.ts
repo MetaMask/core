@@ -808,7 +808,10 @@ describe('assetsUtil', () => {
       });
 
       expect(result).toStrictEqual({
-        [checksummedAddress]: mockMarketData,
+        [checksummedAddress]: {
+          ...mockMarketData,
+          tokenAddress: checksummedAddress,
+        },
       });
     });
   });
