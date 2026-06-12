@@ -4,34 +4,29 @@ import {
   convertHexToDecimal,
   ChainId,
 } from '@metamask/controller-utils';
-import {
-  Messenger,
-  MOCK_ANY_NAMESPACE,
-  type MessengerActions,
-  type MessengerEvents,
-  type MockAnyNamespace,
+import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
+import type {
+  MessengerActions,
+  MessengerEvents,
+  MockAnyNamespace,
 } from '@metamask/messenger';
+import { NetworkStatus, RpcEndpointType } from '@metamask/network-controller';
+import type { NetworkState } from '@metamask/network-controller';
 import {
-  NetworkStatus,
-  RpcEndpointType,
-  type NetworkState,
-} from '@metamask/network-controller';
+  TransactionStatus,
+  TransactionType,
+} from '@metamask/transaction-controller';
 import type {
   TransactionControllerGetNonceLockAction,
   TransactionControllerGetTransactionsAction,
   TransactionControllerUpdateTransactionAction,
 } from '@metamask/transaction-controller';
-import {
-  type TransactionParams,
-  TransactionStatus,
-  TransactionType,
-} from '@metamask/transaction-controller';
+import type { TransactionParams } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 import nock from 'nock';
 import * as sinon from 'sinon';
 
 import packageJson from '../package.json';
-import { advanceTime, flushPromises, getFakeProvider } from '../tests/helpers';
 import {
   API_BASE_URL,
   SENTINEL_API_BASE_URL_MAP,
@@ -41,11 +36,12 @@ import {
   DEFAULT_INTERVAL,
   SmartTransactionsController,
   getDefaultSmartTransactionsControllerState,
-  type SmartTransactionsControllerMessenger,
 } from './SmartTransactionsController';
+import type { SmartTransactionsControllerMessenger } from './SmartTransactionsController';
 import type { SmartTransaction, UnsignedTransaction } from './types';
 import { SmartTransactionStatuses, ClientId } from './types';
 import * as utils from './utils';
+import { advanceTime, flushPromises, getFakeProvider } from '../tests/helpers';
 
 type AllActions = MessengerActions<SmartTransactionsControllerMessenger>;
 
@@ -59,32 +55,27 @@ jest.mock('@metamask/eth-query', () => {
     sendAsync = jest.fn(({ method, params }, callback) => {
       switch (method) {
         case 'eth_getBalance': {
-          callback(null, '0x1000');
-          break;
+          return callback(null, '0x1000');
         }
 
         case 'eth_getTransactionReceipt': {
           // Return null if txHash is empty/falsy
           const txHash = params?.[0];
           if (txHash) {
-            callback(null, { blockNumber: '123' });
-          } else {
-            callback(null, null);
+            return callback(null, { blockNumber: '123' });
           }
-          break;
+          return callback(null, null);
         }
 
         case 'eth_getBlockByNumber': {
-          callback(null, { baseFeePerGas: '0x123' });
-          break;
+          return callback(null, { baseFeePerGas: '0x123' });
         }
 
         case 'eth_getTransactionByHash': {
-          callback(null, {
+          return callback(null, {
             maxFeePerGas: '0x123',
             maxPriorityFeePerGas: '0x123',
           });
-          break;
         }
 
         default: {
@@ -322,6 +313,7 @@ const trackMetaMetricsEventSpy = jest.fn();
 describe('SmartTransactionsController', () => {
   afterEach(async () => {
     jest.clearAllMocks();
+    // eslint-disable-next-line import-x/no-named-as-default-member
     nock.cleanAll();
   });
 
@@ -2369,6 +2361,7 @@ describe('SmartTransactionsController', () => {
     let clock: sinon.SinonFakeTimers;
 
     beforeEach(() => {
+      // eslint-disable-next-line import-x/namespace
       clock = sinon.useFakeTimers();
     });
 
@@ -2819,9 +2812,7 @@ describe('SmartTransactionsController', () => {
           },
         },
         async ({ controller }) => {
-          controller.updateSmartTransaction(
-            newSmartTransaction as SmartTransaction,
-          );
+          controller.updateSmartTransaction(newSmartTransaction);
 
           // Allow async operations to complete
           await flushPromises();
@@ -2870,9 +2861,7 @@ describe('SmartTransactionsController', () => {
           },
         },
         async ({ controller }) => {
-          controller.updateSmartTransaction(
-            newSmartTransaction as SmartTransaction,
-          );
+          controller.updateSmartTransaction(newSmartTransaction);
 
           // Allow async operations to complete
           await flushPromises();

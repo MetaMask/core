@@ -9,8 +9,8 @@ import {
   safelyExecute,
   ChainId,
   isSafeDynamicKey,
-  type TraceCallback,
 } from '@metamask/controller-utils';
+import type { TraceCallback } from '@metamask/controller-utils';
 import EthQuery from '@metamask/eth-query';
 import type { Messenger } from '@metamask/messenger';
 import type {
@@ -272,11 +272,11 @@ export class SmartTransactionsController extends StaticIntervalPollingController
 > {
   #interval: number;
 
-  #clientId: ClientId;
+  readonly #clientId: ClientId;
 
   #chainId: Hex;
 
-  #supportedChainIds: Hex[];
+  readonly #supportedChainIds: Hex[];
 
   timeoutHandle?: NodeJS.Timeout;
 
@@ -286,7 +286,7 @@ export class SmartTransactionsController extends StaticIntervalPollingController
 
   readonly #getMetaMetricsProps: () => Promise<MetaMetricsProps>;
 
-  #trace: TraceCallback;
+  readonly #trace: TraceCallback;
 
   #isStxMigrationFlagEnabled(flagName: string): boolean {
     const flag = this.messenger.call('RemoteFeatureFlagController:getState')
@@ -741,7 +741,7 @@ export class SmartTransactionsController extends StaticIntervalPollingController
         .map((pendingSmartTransaction) => {
           // Use the transaction's chainId (from the key) to derive a networkClientId
           const networkClientIdToUse = this.#getNetworkClientId({
-            chainId: chainId as Hex,
+            chainId,
           });
           return {
             uuid: pendingSmartTransaction.uuid,
@@ -1195,7 +1195,7 @@ export class SmartTransactionsController extends StaticIntervalPollingController
           await this.#fetch(getAPIRequestURL(APIType.LIVENESS, chainId)),
       );
       liveness = Boolean(response.smartTransactions);
-    } catch (error) {
+    } catch {
       console.log('"fetchLiveness" API call failed');
     }
 

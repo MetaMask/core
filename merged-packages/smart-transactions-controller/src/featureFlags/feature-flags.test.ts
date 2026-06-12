@@ -1,5 +1,3 @@
-import type { CaipChainId, Hex } from '@metamask/utils';
-
 import { DEFAULT_DISABLED_SMART_TRANSACTIONS_FEATURE_FLAGS } from '../constants';
 import {
   processSmartTransactionsFeatureFlags,
@@ -196,7 +194,7 @@ describe('feature-flags', () => {
     it('should return hardcoded disabled defaults for unknown chain', () => {
       const result = getSmartTransactionsFeatureFlagsForChain(
         baseFlags,
-        '0x999' as Hex,
+        '0x999',
       );
       // Unknown chains get hardcoded disabled defaults, not remote default
       expect(result).toStrictEqual(
@@ -205,10 +203,7 @@ describe('feature-flags', () => {
     });
 
     it('should merge chain-specific config with default', () => {
-      const result = getSmartTransactionsFeatureFlagsForChain(
-        baseFlags,
-        '0x1' as Hex,
-      );
+      const result = getSmartTransactionsFeatureFlagsForChain(baseFlags, '0x1');
       expect(result).toStrictEqual({
         extensionActive: true,
         mobileActive: false,
@@ -221,7 +216,7 @@ describe('feature-flags', () => {
     it('should allow chain-specific config to override default values', () => {
       const result = getSmartTransactionsFeatureFlagsForChain(
         baseFlags,
-        '0x38' as Hex,
+        '0x38',
       );
       expect(result).toStrictEqual({
         extensionActive: false, // overridden to false
@@ -240,7 +235,7 @@ describe('feature-flags', () => {
       };
       const result = getSmartTransactionsFeatureFlagsForChain(
         flagsWithoutDefault,
-        '0x1' as Hex,
+        '0x1',
       );
       expect(result).toStrictEqual({
         extensionActive: true,
@@ -255,7 +250,7 @@ describe('feature-flags', () => {
       };
       const result = getSmartTransactionsFeatureFlagsForChain(
         flagsWithoutDefault,
-        '0x999' as Hex,
+        '0x999',
       );
       // Unknown chains get hardcoded disabled defaults
       expect(result).toStrictEqual(
@@ -272,7 +267,7 @@ describe('feature-flags', () => {
       };
       const result = getSmartTransactionsFeatureFlagsForChain(
         flagsWithUndefinedChain,
-        '0x1' as Hex,
+        '0x1',
       );
       // Undefined chain config means unknown chain, returns hardcoded defaults
       expect(result).toStrictEqual(
@@ -288,7 +283,7 @@ describe('feature-flags', () => {
       // Query with CAIP-2 format, should find config keyed by hex
       const result = getSmartTransactionsFeatureFlagsForChain(
         flags,
-        'eip155:1' as CaipChainId,
+        'eip155:1',
       );
       expect(result).toStrictEqual({
         extensionActive: true,
@@ -303,7 +298,7 @@ describe('feature-flags', () => {
       };
       const result = getSmartTransactionsFeatureFlagsForChain(
         flags,
-        'eip155:137' as CaipChainId,
+        'eip155:137',
       );
       expect(result).toStrictEqual({
         extensionActive: true,
@@ -321,7 +316,7 @@ describe('feature-flags', () => {
       };
       const result = getSmartTransactionsFeatureFlagsForChain(
         flags,
-        'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp' as CaipChainId,
+        'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp',
       );
       expect(result).toStrictEqual({
         extensionActive: true,
@@ -336,7 +331,7 @@ describe('feature-flags', () => {
       };
       const result = getSmartTransactionsFeatureFlagsForChain(
         flags,
-        'solana:unknown' as CaipChainId,
+        'solana:unknown',
       );
       // Unknown chains get hardcoded disabled defaults, not remote default
       expect(result).toStrictEqual(
@@ -379,9 +374,9 @@ describe('feature-flags', () => {
 
     it('should not normalize invalid eip155 formats', () => {
       // Missing number
-      expect(normalizeChainId('eip155:' as CaipChainId)).toBe('eip155:');
+      expect(normalizeChainId('eip155:')).toBe('eip155:');
       // Non-numeric
-      expect(normalizeChainId('eip155:abc' as CaipChainId)).toBe('eip155:abc');
+      expect(normalizeChainId('eip155:abc')).toBe('eip155:abc');
     });
   });
 });

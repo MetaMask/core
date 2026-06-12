@@ -1,2 +1,2 @@
-// eslint-disable-next-line import/no-unassigned-import
+// eslint-disable-next-line import-x/no-unassigned-import
 require('isomorphic-fetch');

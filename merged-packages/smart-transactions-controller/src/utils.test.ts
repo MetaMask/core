@@ -1,10 +1,8 @@
 import { arrayify, hexlify } from '@ethersproject/bytes';
 import { keccak256 } from '@ethersproject/keccak256';
 import { ChainId, NetworkType } from '@metamask/controller-utils';
-import {
-  type TransactionMeta,
-  TransactionStatus,
-} from '@metamask/transaction-controller';
+import { TransactionStatus } from '@metamask/transaction-controller';
+import type { TransactionMeta } from '@metamask/transaction-controller';
 
 import packageJson from '../package.json';
 import { API_BASE_URL, SENTINEL_API_BASE_URL_MAP } from './constants';
