@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add the daemon transport layer: a newline-delimited JSON-RPC client and server over a Unix socket, plus daemon spawn/stop lifecycle helpers
 - Add SQLite-backed persistence for wallet controller state ([#9067](https://github.com/MetaMask/core/pull/9067))
   - A `KeyValueStore` backed by `better-sqlite3` for synchronous reads and writes.
   - `loadState` to rehydrate persist-flagged controller state from the store and `subscribeToChanges` to write persist-flagged controller state through to disk on every `stateChanged` event.
