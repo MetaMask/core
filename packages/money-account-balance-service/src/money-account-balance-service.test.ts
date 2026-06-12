@@ -7,10 +7,12 @@ import type {
   MessengerActions,
   MessengerEvents,
 } from '@metamask/messenger';
+import { abiERC20 } from '@metamask/metamask-eth-abis';
 import type { Json } from '@metamask/utils';
 import nock, { cleanAll as nockCleanAll } from 'nock';
 
 import {
+  LENS_ABI,
   MONEY_ACCOUNT_BALANCE_STALETIME_FEATURE_FLAG_KEY,
   MULTICALL3_ADDRESS_BY_CHAIN_ID,
   VAULT_CONFIG_FEATURE_FLAG_KEY,
@@ -1064,6 +1066,67 @@ describe('MoneyAccountBalanceService', () => {
         totalBalance: '7200000',
       });
       expect(aggregate3).toHaveBeenCalledTimes(1);
+    });
+
+    it('exercises real ABI encode/decode through the multicall path', async () => {
+      const { Contract: RealContract } = jest.requireActual<
+        typeof import('@ethersproject/contracts')
+      >('@ethersproject/contracts');
+      const erc20Iface = new RealContract(
+        MOCK_UNDERLYING_TOKEN_ADDRESS,
+        abiERC20,
+      ).interface;
+      const lensIface = new RealContract(MOCK_LENS_ADDRESS, LENS_ABI).interface;
+
+      const musdReturnData = erc20Iface.encodeFunctionResult('balanceOf', [
+        '5000000',
+      ]);
+      const vmusdReturnData = lensIface.encodeFunctionResult(
+        'balanceOfInAssets',
+        ['2200000'],
+      );
+
+      const aggregate3Mock = jest.fn().mockResolvedValue([
+        { success: true, returnData: musdReturnData },
+        { success: true, returnData: vmusdReturnData },
+      ]);
+
+      const multicall3Address =
+        MULTICALL3_ADDRESS_BY_CHAIN_ID[MOCK_VAULT_CONFIG.chainId];
+
+      MockContract.mockImplementation(
+        (address, abi) =>
+          (address === multicall3Address
+            ? { callStatic: { aggregate3: aggregate3Mock } }
+            : new RealContract(address, abi)) as unknown as Contract,
+      );
+
+      const { service } = createService({
+        rffcFlags: {
+          [VAULT_CONFIG_FEATURE_FLAG_KEY]: VAULT_CONFIG_WITH_UNDERLYING_TOKEN,
+        },
+      });
+
+      const result = await service.getMoneyAccountBalance(MOCK_ACCOUNT_ADDRESS);
+
+      expect(result).toStrictEqual({
+        musdBalance: '5000000',
+        vmusdValueInMusd: '2200000',
+        totalBalance: '7200000',
+      });
+
+      const [[calls]] = aggregate3Mock.mock.calls;
+      expect(calls).toHaveLength(2);
+      expect(calls[0].callData).toBe(
+        erc20Iface.encodeFunctionData('balanceOf', [MOCK_ACCOUNT_ADDRESS]),
+      );
+      expect(calls[1].callData).toBe(
+        lensIface.encodeFunctionData('balanceOfInAssets', [
+          MOCK_ACCOUNT_ADDRESS,
+          MOCK_VAULT_ADDRESS,
+          MOCK_ACCOUNTANT_ADDRESS,
+        ]),
+      );
     });
 
     it('batches the mUSD and Lens reads into one aggregate3 request with allowFailure disabled', async () => {
