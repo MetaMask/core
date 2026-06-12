@@ -1892,8 +1892,7 @@ describe('AccountTreeController', () => {
       const groupId = MOCK_PREPOPULATED_GROUP_ID;
 
       expect(
-        controller.state.accountTree.wallets[walletId]?.groups[groupId]
-          ?.status,
+        controller.state.accountTree.wallets[walletId]?.groups[groupId]?.status,
       ).toBe('uninitialized');
 
       messenger.publish(
@@ -1902,8 +1901,7 @@ describe('AccountTreeController', () => {
         'in-progress:alignment',
       );
       expect(
-        controller.state.accountTree.wallets[walletId]?.groups[groupId]
-          ?.status,
+        controller.state.accountTree.wallets[walletId]?.groups[groupId]?.status,
       ).toBe('in-progress:alignment');
 
       messenger.publish(
@@ -1912,8 +1910,7 @@ describe('AccountTreeController', () => {
         'aligned',
       );
       expect(
-        controller.state.accountTree.wallets[walletId]?.groups[groupId]
-          ?.status,
+        controller.state.accountTree.wallets[walletId]?.groups[groupId]?.status,
       ).toBe('aligned');
     });
 
