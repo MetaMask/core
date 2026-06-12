@@ -11,7 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Add optional `includeMarketData` parameter to `fetchTokenContractExchangeRates` ([#9042](https://github.com/MetaMask/core/pull/9042))
   - When `includeMarketData` is `true`, the function returns `ContractMarketData` (full `MarketDataDetails` per token, including percentage changes, market cap, volume, etc.) instead of `ContractExchangeRates` (price-only). Defaults to `false` for backward compatibility.
-  
+
 ### Changed
 
 - Bump `@metamask/utils` from `^11.9.0` to `^11.11.0` ([#9074](https://github.com/MetaMask/core/pull/9074))
@@ -3196,7 +3196,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Initial release
+
   - As a result of converting our shared controllers repo into a monorepo ([#831](https://github.com/MetaMask/core/pull/831)), we've created this package from select parts of [`@metamask/controllers` v33.0.0](https://github.com/MetaMask/core/tree/v33.0.0), namely:
+
     - Everything in `src/assets`
     - Asset-related functions from `src/util.ts` and accompanying tests
 
