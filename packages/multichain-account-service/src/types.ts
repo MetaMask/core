@@ -1,6 +1,7 @@
 import type {
   Bip44Account,
   MultichainAccountGroup,
+  MultichainAccountGroupId,
   MultichainAccountWalletId,
   MultichainAccountWalletStatus,
 } from '@metamask/account-api';
@@ -58,13 +59,29 @@ export type MultichainAccountServiceWalletStatusChangeEvent = {
 };
 
 /**
+ * Status of a multichain account group, mirroring the wallet-level status pattern.
+ */
+export type MultichainAccountGroupStatus =
+  | 'uninitialized'
+  | 'in-progress:create-accounts'
+  | 'in-progress:alignment'
+  | 'aligned'
+  | 'misaligned';
+
+export type MultichainAccountServiceGroupStatusChangeEvent = {
+  type: `${typeof serviceName}:groupStatusChange`;
+  payload: [MultichainAccountGroupId, MultichainAccountGroupStatus];
+};
+
+/**
  * All events that {@link MultichainAccountService} publishes so that other modules
  * can subscribe to them.
  */
 export type MultichainAccountServiceEvents =
   | MultichainAccountServiceMultichainAccountGroupCreatedEvent
   | MultichainAccountServiceMultichainAccountGroupUpdatedEvent
-  | MultichainAccountServiceWalletStatusChangeEvent;
+  | MultichainAccountServiceWalletStatusChangeEvent
+  | MultichainAccountServiceGroupStatusChangeEvent;
 
 /**
  * All actions registered by other modules that {@link MultichainAccountService}

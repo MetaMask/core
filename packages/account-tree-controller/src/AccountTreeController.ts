@@ -1,10 +1,14 @@
-import { AccountWalletType, select } from '@metamask/account-api';
+import {
+  AccountGroupType,
+  AccountWalletType,
+  select,
+} from '@metamask/account-api';
 import type {
   AccountGroupId,
   AccountWalletId,
   AccountSelector,
+  MultichainAccountGroupId,
   MultichainAccountWalletId,
-  AccountGroupType,
 } from '@metamask/account-api';
 import type { MultichainAccountWalletStatus } from '@metamask/account-api';
 import type { AccountId } from '@metamask/accounts-controller';
@@ -13,6 +17,7 @@ import { BaseController } from '@metamask/base-controller';
 import type { TraceCallback } from '@metamask/controller-utils';
 import { isEvmAccountType } from '@metamask/keyring-api';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
+import type { MultichainAccountGroupStatus } from '@metamask/multichain-account-service';
 import { assert } from '@metamask/utils';
 
 import type { BackupAndSyncEmitAnalyticsEventParams } from './backup-and-sync/analytics';
@@ -274,6 +279,13 @@ export class AccountTreeController extends BaseController<
       'MultichainAccountService:walletStatusChange',
       (walletId, status) => {
         this.#handleMultichainAccountWalletStatusChange(walletId, status);
+      },
+    );
+
+    this.messenger.subscribe(
+      'MultichainAccountService:groupStatusChange',
+      (groupId, status) => {
+        this.#handleMultichainAccountGroupStatusChange(groupId, status);
       },
     );
 
@@ -1173,6 +1185,11 @@ export class AccountTreeController extends BaseController<
         ...result.group,
         // Type-wise, we are guaranteed to always have at least 1 account.
         accounts: [id],
+        // Entropy (multichain) groups start as 'uninitialized'; the service will
+        // publish a groupStatusChange event to set the real status shortly after.
+        ...(result.group.type === AccountGroupType.MultichainAccount && {
+          status: 'uninitialized',
+        }),
         metadata: {
           name: '',
           ...{ pinned: false, hidden: false, lastSelected: 0 }, // Default UI states
@@ -1419,6 +1436,28 @@ export class AccountTreeController extends BaseController<
 
       if (wallet) {
         wallet.status = walletStatus;
+      }
+    });
+  }
+
+  /**
+   * Handles multichain account group status change from
+   * the MultichainAccountService.
+   *
+   * @param groupId - Multichain account group ID.
+   * @param groupStatus - New multichain account group status.
+   */
+  #handleMultichainAccountGroupStatusChange(
+    groupId: MultichainAccountGroupId,
+    groupStatus: MultichainAccountGroupStatus,
+  ): void {
+    this.update((state) => {
+      const walletId = this.#groupIdToWalletId.get(groupId);
+      if (walletId) {
+        const group = state.accountTree.wallets[walletId]?.groups[groupId];
+        if (group?.type === AccountGroupType.MultichainAccount) {
+          group.status = groupStatus;
+        }
       }
     });
   }

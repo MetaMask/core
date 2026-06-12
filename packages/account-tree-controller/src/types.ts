@@ -20,7 +20,10 @@ import type {
   MultichainAccountServiceCreateMultichainAccountGroupAction,
   MultichainAccountServiceCreateMultichainAccountGroupsAction,
 } from '@metamask/multichain-account-service';
-import type { MultichainAccountServiceWalletStatusChangeEvent } from '@metamask/multichain-account-service';
+import type {
+  MultichainAccountServiceGroupStatusChangeEvent,
+  MultichainAccountServiceWalletStatusChangeEvent,
+} from '@metamask/multichain-account-service';
 import type {
   AuthenticationController,
   UserStorageController,
@@ -158,7 +161,8 @@ export type AllowedEvents =
   | AccountsControllerAccountsRemovedEvent
   | AccountsControllerSelectedAccountChangeEvent
   | UserStorageController.UserStorageControllerStateChangeEvent
-  | MultichainAccountServiceWalletStatusChangeEvent;
+  | MultichainAccountServiceWalletStatusChangeEvent
+  | MultichainAccountServiceGroupStatusChangeEvent;
 
 export type AccountTreeControllerEvents =
   | AccountTreeControllerStateChangeEvent
