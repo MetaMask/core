@@ -73,6 +73,10 @@ export type {
   PerpsControllerGetMarketDataWithPricesAction,
   PerpsControllerGetMarketFilterPreferencesAction,
   PerpsControllerGetMarketCategoriesAction,
+  PerpsControllerGetMarketCollectionsAction,
+  PerpsControllerGetMarketDefinitionByTickerAction,
+  PerpsControllerGetMarketDefinitionsAction,
+  PerpsControllerGetMarketDefinitionsByCollectionAction,
   PerpsControllerGetMarketsAction,
   PerpsControllerGetMaxLeverageAction,
   PerpsControllerGetOpenOrdersAction,
@@ -139,6 +143,8 @@ export {
   MARKET_CATEGORIES,
   MarketCategory,
 } from './types';
+export { PerpsMarketCollectionTag } from './types';
+export type { PerpsMarketDefinition } from './types';
 export type {
   RawLedgerUpdate,
   UserHistoryItem,
@@ -412,6 +418,12 @@ export {
   MYX_DEFAULT_SLIPPAGE_BPS,
   MYX_MINIMUM_ORDER_SIZE_USD,
   MYX_EXECUTION_FEE_TOKEN,
+} from './constants';
+export {
+  PERPS_MARKET_COLLECTION_TAGS,
+  PERPS_MARKET_DEFINITIONS,
+  getMarketDefinitionByTicker,
+  getMarketDefinitionsByCollection,
 } from './constants';
 export {
   PERPS_CONSTANTS,

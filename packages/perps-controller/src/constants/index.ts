@@ -9,3 +9,4 @@ export * from './perpsConfig';
 export * from './transactionsHistoryConfig';
 export * from './performanceMetrics';
 export * from './myxConfig';
+export * from './marketCollections';
