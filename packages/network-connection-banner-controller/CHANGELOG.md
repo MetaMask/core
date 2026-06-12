@@ -9,9 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Initial release ([#9041](https://github.com/MetaMask/core/pull/9041))
-- Add an explicit, idempotent `init()` lifecycle method that starts banner
-  evaluation after dependent controllers are ready
+- Add `NetworkConnectionBannerController`, which evaluates enabled network RPC
+  health after initialization and manages degraded and unavailable banner state,
+  dismissal, and switching custom RPC endpoints to an available Infura endpoint
   ([#9041](https://github.com/MetaMask/core/pull/9041))
 
 [Unreleased]: https://github.com/MetaMask/core/
