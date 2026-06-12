@@ -5,13 +5,6 @@
     "resolveJsonModule": true,
     "rootDir": "../.."
   },
-  "references": [
-    { "path": "../accounts-controller" },
-    { "path": "../chain-agnostic-permission" },
-    { "path": "../json-rpc-engine" },
-    { "path": "../network-controller" },
-    { "path": "../permission-controller" },
-    { "path": "../multichain-transactions-controller" }
-  ],
+  "references": [],
   "include": ["../../types", "./src"]
 }

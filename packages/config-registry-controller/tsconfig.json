@@ -3,14 +3,6 @@
   "compilerOptions": {
     "baseUrl": "./"
   },
-  "references": [
-    { "path": "../base-controller" },
-    { "path": "../controller-utils" },
-    { "path": "../keyring-controller" },
-    { "path": "../messenger" },
-    { "path": "../polling-controller" },
-    { "path": "../profile-sync-controller" },
-    { "path": "../remote-feature-flag-controller" }
-  ],
+  "references": [],
   "include": ["../../types", "./src", "./tests"]
 }

@@ -4,22 +4,6 @@
     "baseUrl": "./",
     "rootDir": "../.."
   },
-  "references": [
-    {
-      "path": "../base-controller"
-    },
-    {
-      "path": "../network-controller"
-    },
-    {
-      "path": "../json-rpc-engine"
-    },
-    {
-      "path": "../permission-controller"
-    },
-    {
-      "path": "../messenger"
-    }
-  ],
+  "references": [],
   "include": ["../../types", "../../tests", "./src", "./tests"]
 }

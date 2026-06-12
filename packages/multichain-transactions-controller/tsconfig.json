@@ -3,12 +3,6 @@
   "compilerOptions": {
     "baseUrl": "./"
   },
-  "references": [
-    { "path": "../accounts-controller" },
-    { "path": "../base-controller" },
-    { "path": "../keyring-controller" },
-    { "path": "../polling-controller" },
-    { "path": "../messenger" }
-  ],
+  "references": [],
   "include": ["../../types", "./src"]
 }

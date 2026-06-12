@@ -3,22 +3,6 @@
   "compilerOptions": {
     "baseUrl": "./"
   },
-  "references": [
-    {
-      "path": "../base-controller"
-    },
-    {
-      "path": "../messenger"
-    },
-    {
-      "path": "../profile-sync-controller"
-    },
-    {
-      "path": "../polling-controller"
-    },
-    {
-      "path": "../transaction-controller"
-    }
-  ],
+  "references": [],
   "include": ["../../types", "./src", "./tests"]
 }
