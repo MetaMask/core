@@ -256,7 +256,7 @@ describe('getFiatQuotes', () => {
       expect(callMock).toHaveBeenCalledWith(
         'RampsController:getQuotes',
         expect.objectContaining({
-          amount: 20,
+          amount: 18,
           assetId: FIAT_ASSET_CAIP_ID_MOCK,
           autoSelectProvider: true,
           fiat: 'USD',
