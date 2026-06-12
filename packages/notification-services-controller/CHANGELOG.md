@@ -7,10 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `PushAnalyticsPayload` type carrying the first-class push notification fields (`notification_id`, `notification_type`, `notification_subtype`, `profile_id`, `chain_id`, `deeplink`). ([#8944](https://github.com/MetaMask/core/pull/8944))
+- Add `getNotificationSubtype` helper that derives a normalised `notification_subtype` from an `INotification`, so both clients pull the subtype from one place. ([#8944](https://github.com/MetaMask/core/pull/8944))
+- Add a `notification_subtype` field to the generated platform notification schema (`PlatformNotification`), surfaced via `getNotificationSubtype` so platform notifications report their server-set subtype (e.g. `position_liquidated`) instead of the generic `platform` label. ([#8944](https://github.com/MetaMask/core/pull/8944))
+- Export `toPushAnalyticsPayload` from `@metamask/notification-services-controller/push-services` so web and mobile clients can parse FCM analytics fields from a shared helper. ([#8944](https://github.com/MetaMask/core/pull/8944))
+
 ### Changed
 
 - Bump `@metamask/utils` from `^11.9.0` to `^11.11.0` ([#9074](https://github.com/MetaMask/core/pull/9074))
 - Bump `@metamask/controller-utils` from `^12.1.1` to `^12.2.0` ([#9083](https://github.com/MetaMask/core/pull/9083))
+- **BREAKING:** The `NotificationServicesPushController:onNewNotifications` and `NotificationServicesPushController:pushNotificationClicked` messenger events now carry `PushAnalyticsPayload` instead of `INotification`. ([#8944](https://github.com/MetaMask/core/pull/8944))
+  - The push payload no longer carries the full notification body; clients construct their analytics events directly from the first-class fields.
+  - The `onReceivedHandler` / `onClickHandler` callbacks passed to `createSubscribeToPushNotifications` now receive a `PushAnalyticsPayload` instead of an `INotification`.
+- On push receive, the controller now re-fetches the notifications list from the API rather than inserting the push payload, since the push payload no longer contains the notification body. ([#8944](https://github.com/MetaMask/core/pull/8944))
+
+### Removed
+
+- **BREAKING:** Remove the nested `data["data"]` / `metadata` FCM payload parsing path; push payloads are now read from the top-level FCM fields written by push-services. ([#8944](https://github.com/MetaMask/core/pull/8944))
 
 ## [24.1.3]
 

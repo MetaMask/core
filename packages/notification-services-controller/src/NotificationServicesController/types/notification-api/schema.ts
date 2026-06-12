@@ -107,11 +107,16 @@ export type paths = {
 export type webhooks = Record<string, never>;
 export type components = {
   schemas: {
+    /**
+     * @example mobile
+     * @enum {string}
+     */
+    AppPlatform: 'portfolio' | 'extension' | 'mobile';
     NotificationInputV3: {
       /** @example en-US */
       locale: string;
+      platform: components['schemas']['AppPlatform'];
       addresses: string[];
-      platform: 'extension' | 'mobile';
     };
     NotificationOutputV3: (
       | components['schemas']['PlatformNotification']
@@ -125,6 +130,8 @@ export type components = {
       id: string;
       /** @enum {string} */
       notification_type: 'platform';
+      /** @example position_liquidated */
+      notification_subtype: string;
       /** @example false */
       unread: boolean;
       template: components['schemas']['LocalizedNotification'];

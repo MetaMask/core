@@ -517,9 +517,11 @@ export class NotificationServicesController extends BaseController<
     subscribe: (): void => {
       this.messenger.subscribe(
         'NotificationServicesPushController:onNewNotifications',
-        (notification): void => {
+        (): void => {
+          // The push payload no longer carries the full notification body, so
+          // re-fetch the inbox from the API to surface the new notification.
           // eslint-disable-next-line @typescript-eslint/no-floating-promises
-          this.updateMetamaskNotificationsList(notification);
+          this.fetchAndUpdateMetamaskNotifications();
         },
       );
     },

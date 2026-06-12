@@ -1236,6 +1236,7 @@ describe('NotificationServicesController', () => {
       expect(filteredNotifications).toStrictEqual([
         {
           type: TRIGGER_TYPES.SNAP,
+          notification_subtype: TRIGGER_TYPES.SNAP,
           id: expect.any(String),
           createdAt: expect.any(String),
           isRead: false,
@@ -1605,6 +1606,7 @@ describe('NotificationServicesController', () => {
       expect(controller.state.metamaskNotificationsList).toStrictEqual([
         {
           type: TRIGGER_TYPES.SNAP,
+          notification_subtype: TRIGGER_TYPES.SNAP,
           id: expect.any(String),
           createdAt: expect.any(String),
           readDate: null,

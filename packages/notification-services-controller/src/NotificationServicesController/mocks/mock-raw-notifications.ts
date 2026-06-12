@@ -834,6 +834,7 @@ export function createMockPlatformNotification(): NormalisedAPINotification {
   const mockNotification: NormalisedAPINotification = {
     type: TRIGGER_TYPES.PLATFORM,
     notification_type: 'platform',
+    notification_subtype: 'position_liquidated',
     id: '3fa85f64-5717-4562-b3fc-2c963f66afa6',
     unread: true,
     created_at: '2025-10-09T09:45:34.202Z',
