@@ -49,6 +49,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add `isDeprecated` option to `AccountTrackerController` constructor ([#9033](https://github.com/MetaMask/core/pull/9033))
   - When `isDeprecated()` returns `true`, no network requests are sent and `accountsByChainId` is reset to `{}` at construction and at every entry point (`refresh`, `refreshAddresses`, `_executePoll`, `syncBalanceWithAddresses`, `updateNativeBalances`, and `updateStakedBalances`), so no stale balances remain in state.
   - The function is re-evaluated on each entry point so it can be toggled at runtime without reconstructing the controller.
+- Add `isDeprecated` option to `MultichainAssetsRatesController` constructor ([#9044](https://github.com/MetaMask/core/pull/9044))
+  - When `isDeprecated()` returns `true`, no Snap requests are sent and `conversionRates` and `historicalPrices` are reset to `{}` at construction and at every entry point (`updateAssetsRates`, `fetchHistoricalPricesForAsset`, `_executePoll`, `CurrencyRateController:stateChange`, and `MultichainAssetsController:accountAssetListUpdated`), so no stale rates remain in state.
+  - The function is re-evaluated on each entry point so it can be toggled at runtime without reconstructing the controller.
+- Add `isDeprecated` option to `MultichainBalancesController` constructor ([#9044](https://github.com/MetaMask/core/pull/9044))
+  - When `isDeprecated()` returns `true`, no Snap requests are sent and `balances` is reset to `{}` at construction and at every entry point (`updateBalance`, `MultichainAssetsController:accountAssetListUpdated`, `AccountsController:accountBalancesUpdated`, and `AccountsController:accountRemoved`), so no stale balances remain in state.
+  - The function is re-evaluated on each entry point so it can be toggled at runtime without reconstructing the controller.
 
 ### Changed
 
