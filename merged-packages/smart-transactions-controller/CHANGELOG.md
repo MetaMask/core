@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/controller-utils` from `^12.1.0` to `^12.2.0` ([#590](https://github.com/MetaMask/smart-transactions-controller/pull/590))
+- Bump `@metamask/profile-sync-controller` from `^28.1.0` to `^28.1.1` ([#590](https://github.com/MetaMask/smart-transactions-controller/pull/590))
+- Bump `@metamask/remote-feature-flag-controller` from `^4.2.1` to `^4.2.2` ([#590](https://github.com/MetaMask/smart-transactions-controller/pull/590))
+- Bump `@metamask/utils` from `^11.0.0` to `^11.11.0` ([#590](https://github.com/MetaMask/smart-transactions-controller/pull/590))
+
 ## [24.2.0]
 
 ### Changed

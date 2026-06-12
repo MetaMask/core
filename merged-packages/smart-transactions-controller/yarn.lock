@@ -1498,6 +1498,28 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@metamask/controller-utils@npm:^12.2.0":
+  version: 12.2.0
+  resolution: "@metamask/controller-utils@npm:12.2.0"
+  dependencies:
+    "@ethersproject/abi": ^5.7.0
+    "@metamask/eth-query": ^4.0.0
+    "@metamask/ethjs-unit": ^0.3.0
+    "@metamask/utils": ^11.9.0
+    "@spruceid/siwe-parser": 2.1.0
+    "@types/bn.js": ^5.1.5
+    bignumber.js: ^9.1.2
+    bn.js: ^5.2.1
+    cockatiel: ^3.1.2
+    eth-ens-namehash: ^2.0.8
+    fast-deep-equal: ^3.1.3
+    lodash: ^4.17.21
+  peerDependencies:
+    "@babel/runtime": ^7.0.0
+  checksum: 65adb8326d8b4100e77ed1a6d6f6237ea4679badcc87366198b1b683253a7f0613fc2e8445ab3b59fa56e42dde2713a4a46a1e113aabc14ab5f9532146211d63
+  languageName: node
+  linkType: hard
+
 "@metamask/core-backend@npm:^6.2.2":
   version: 6.3.0
   resolution: "@metamask/core-backend@npm:6.3.0"
@@ -1903,6 +1925,29 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@metamask/keyring-controller@npm:^26.0.0":
+  version: 26.0.0
+  resolution: "@metamask/keyring-controller@npm:26.0.0"
+  dependencies:
+    "@ethereumjs/util": ^9.1.0
+    "@metamask/base-controller": ^9.1.0
+    "@metamask/browser-passworder": ^6.0.0
+    "@metamask/eth-hd-keyring": ^14.1.1
+    "@metamask/eth-sig-util": ^8.2.0
+    "@metamask/eth-simple-keyring": ^12.0.2
+    "@metamask/keyring-api": ^23.1.0
+    "@metamask/keyring-internal-api": ^11.0.1
+    "@metamask/messenger": ^1.2.0
+    "@metamask/utils": ^11.9.0
+    async-mutex: ^0.5.0
+    ethereumjs-wallet: ^1.0.1
+    immer: ^9.0.6
+    lodash: ^4.17.21
+    ulid: ^2.3.0
+  checksum: bc165ac5e8263bc6823fa673f0f29b4180ebb28318aad46765690471fb3465a5a36127cc2764260c6b57c96c8871b16bf67fefcf3b2bc6d9c89992054bb1f17f
+  languageName: node
+  linkType: hard
+
 "@metamask/keyring-internal-api@npm:^11.0.1":
   version: 11.0.1
   resolution: "@metamask/keyring-internal-api@npm:11.0.1"
@@ -2172,6 +2217,30 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@metamask/profile-sync-controller@npm:^28.1.1":
+  version: 28.1.1
+  resolution: "@metamask/profile-sync-controller@npm:28.1.1"
+  dependencies:
+    "@metamask/address-book-controller": ^7.1.2
+    "@metamask/base-controller": ^9.1.0
+    "@metamask/keyring-controller": ^26.0.0
+    "@metamask/messenger": ^1.2.0
+    "@metamask/snaps-controllers": ^19.0.0
+    "@metamask/snaps-sdk": ^11.0.0
+    "@metamask/snaps-utils": ^12.1.2
+    "@metamask/utils": ^11.9.0
+    "@noble/ciphers": ^1.3.0
+    "@noble/hashes": ^1.8.0
+    immer: ^9.0.6
+    loglevel: ^1.8.1
+    siwe: ^2.3.2
+  peerDependencies:
+    "@metamask/providers": ^22.0.0
+    webextension-polyfill: ^0.10.0 || ^0.11.0 || ^0.12.0
+  checksum: 266438e3f8fcd315d81778109cd22397f180f0e7f67baca8ff9b256235b5c39d629375f6155cb3e9d73cfc3f8f24b6bb000486da7ba3f2edf293e54212fec736
+  languageName: node
+  linkType: hard
+
 "@metamask/providers@npm:^22.1.1":
   version: 22.1.1
   resolution: "@metamask/providers@npm:22.1.1"
@@ -2203,6 +2272,19 @@ __metadata:
     "@metamask/utils": ^11.9.0
     uuid: ^8.3.2
   checksum: 58cbe16ab1badf256998381395a3501959967b5de3e6a291b16e3d90b0b1e01e20b5e671163f81a95fe22d8edbe28aa22b8147351ea049bed58634f7ab4f3e6a
+  languageName: node
+  linkType: hard
+
+"@metamask/remote-feature-flag-controller@npm:^4.2.2":
+  version: 4.2.2
+  resolution: "@metamask/remote-feature-flag-controller@npm:4.2.2"
+  dependencies:
+    "@metamask/base-controller": ^9.1.0
+    "@metamask/controller-utils": ^12.1.0
+    "@metamask/messenger": ^1.2.0
+    "@metamask/utils": ^11.9.0
+    uuid: ^8.3.2
+  checksum: c42610f962893750f47fa42f126550a23488fdd960086f5ece817d79827297b4187b681dd116e8c54a5287458bb3ca4f1e82c86c60f87e3eaeccd7e7d340ba3c
   languageName: node
   linkType: hard
 
@@ -2255,7 +2337,7 @@ __metadata:
     "@lavamoat/preinstall-always-fail": ^2.1.0
     "@metamask/auto-changelog": ^3.1.0
     "@metamask/base-controller": ^9.1.0
-    "@metamask/controller-utils": ^12.1.0
+    "@metamask/controller-utils": ^12.2.0
     "@metamask/eslint-config": ^12.2.0
     "@metamask/eslint-config-jest": ^12.1.0
     "@metamask/eslint-config-nodejs": ^12.1.0
@@ -2268,11 +2350,11 @@ __metadata:
     "@metamask/messenger-cli": ^0.1.0
     "@metamask/network-controller": ^32.0.0
     "@metamask/polling-controller": ^16.0.6
-    "@metamask/profile-sync-controller": ^28.1.0
-    "@metamask/remote-feature-flag-controller": ^4.2.1
+    "@metamask/profile-sync-controller": ^28.1.1
+    "@metamask/remote-feature-flag-controller": ^4.2.2
     "@metamask/superstruct": ^3.1.0
     "@metamask/transaction-controller": ^65.4.0
-    "@metamask/utils": ^11.0.0
+    "@metamask/utils": ^11.11.0
     "@ts-bridge/cli": ^0.6.3
     "@types/eslint": ^9.6.1
     "@types/jest": ^26.0.24
@@ -2492,7 +2574,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/utils@npm:^11.0.0, @metamask/utils@npm:^11.0.1, @metamask/utils@npm:^11.10.0, @metamask/utils@npm:^11.11.0, @metamask/utils@npm:^11.4.0, @metamask/utils@npm:^11.4.2, @metamask/utils@npm:^11.8.1, @metamask/utils@npm:^11.9.0":
+"@metamask/utils@npm:^11.0.1, @metamask/utils@npm:^11.10.0, @metamask/utils@npm:^11.11.0, @metamask/utils@npm:^11.4.0, @metamask/utils@npm:^11.4.2, @metamask/utils@npm:^11.8.1, @metamask/utils@npm:^11.9.0":
   version: 11.11.0
   resolution: "@metamask/utils@npm:11.11.0"
   dependencies:
