@@ -39,6 +39,7 @@ const ALLOWED_PEER_DEPENDENCIES = ['react', 'react-dom', 'react-native'];
 const TOOLS = [
   '@metamask/foundryup',
   '@metamask/messenger-cli',
+  '@metamask/wallet-cli',
   '@metamask/wallet-framework-docs',
 ];
 

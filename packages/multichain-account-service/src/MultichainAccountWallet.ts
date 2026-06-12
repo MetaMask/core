@@ -741,6 +741,11 @@ export class MultichainAccountWallet<
    * NOTE: This operation WILL lock the wallet's mutex.
    */
   async alignAccounts(): Promise<void> {
+    if (this.isAligned()) {
+      this.#log('Already aligned, skipping...');
+      return;
+    }
+
     const nextGroupIndex = this.getNextGroupIndex();
 
     if (nextGroupIndex > 0) {
@@ -760,6 +765,21 @@ export class MultichainAccountWallet<
   }
 
   /**
+   * Check whether every group in this wallet is aligned.
+   *
+   * A wallet is aligned when every multichain account group reports that all
+   * of its registered providers have contributed at least one account.
+   * Returns `true` if the wallet has no groups.
+   *
+   * @returns `true` when all groups are aligned.
+   */
+  isAligned(): boolean {
+    return this.getMultichainAccountGroups().every((group) =>
+      group.isAligned(),
+    );
+  }
+
+  /**
    * Align a specific multichain account group.
    *
    * NOTE: This operation WILL lock the wallet's mutex.
@@ -770,6 +790,11 @@ export class MultichainAccountWallet<
     const group = this.getMultichainAccountGroup(groupIndex);
 
     if (group) {
+      if (group.isAligned()) {
+        this.#log(`Group "${group.id}" is already aligned, skipping...`);
+        return;
+      }
+
       this.#log(`Aligning accounts for group "${group.id}"...`);
 
       await this.#withLock(
