@@ -141,11 +141,15 @@ describe('NetworkConnectionBannerController', () => {
         },
       });
 
-      await withController(({ controller }) => {
-        jest.advanceTimersByTime(30_000);
+      await withController(
+        ({ controller }) => {
+          jest.advanceTimersByTime(30_000);
 
-        expect(controller.state.status).toBe('available');
-      }, initialState, false);
+          expect(controller.state.status).toBe('available');
+        },
+        initialState,
+        false,
+      );
     });
 
     it('evaluates existing upstream state on initialization', async () => {
@@ -169,49 +173,57 @@ describe('NetworkConnectionBannerController', () => {
         },
       });
 
-      await withController(({ controller, rootMessenger }) => {
-        rootMessenger.call('NetworkConnectionBannerController:init');
-        rootMessenger.call('NetworkConnectionBannerController:init');
+      await withController(
+        ({ controller, rootMessenger }) => {
+          rootMessenger.call('NetworkConnectionBannerController:init');
+          rootMessenger.call('NetworkConnectionBannerController:init');
 
-        jest.advanceTimersByTime(5_000);
+          jest.advanceTimersByTime(5_000);
 
-        expect(controller.state.status).toBe('degraded');
-      }, initialState, false);
+          expect(controller.state.status).toBe('degraded');
+        },
+        initialState,
+        false,
+      );
     });
 
     it('ignores upstream state changes before initialization', async () => {
-      await withController(({ controller, setNetworkState }) => {
-        setNetworkState(
-          buildNetworkState({
-            configurations: {
-              '0x89': buildConfiguration({
-                chainId: '0x89',
-                name: 'Polygon Mainnet',
-                nativeCurrency: 'MATIC',
-                rpcEndpoints: [
-                  buildCustomEndpoint(
-                    POLYGON_CUSTOM_CLIENT_ID,
-                    'https://polygon-rpc.com',
-                  ),
-                ],
-              }),
-            },
-            enabledChainIds: ['0x89'],
-            metadata: {
-              [POLYGON_CUSTOM_CLIENT_ID]: makeMetadata(
-                NetworkStatus.Unavailable,
-              ),
-            },
-          }),
-        );
+      await withController(
+        ({ controller, setNetworkState }) => {
+          setNetworkState(
+            buildNetworkState({
+              configurations: {
+                '0x89': buildConfiguration({
+                  chainId: '0x89',
+                  name: 'Polygon Mainnet',
+                  nativeCurrency: 'MATIC',
+                  rpcEndpoints: [
+                    buildCustomEndpoint(
+                      POLYGON_CUSTOM_CLIENT_ID,
+                      'https://polygon-rpc.com',
+                    ),
+                  ],
+                }),
+              },
+              enabledChainIds: ['0x89'],
+              metadata: {
+                [POLYGON_CUSTOM_CLIENT_ID]: makeMetadata(
+                  NetworkStatus.Unavailable,
+                ),
+              },
+            }),
+          );
 
-        jest.advanceTimersByTime(30_000);
-        expect(controller.state.status).toBe('available');
+          jest.advanceTimersByTime(30_000);
+          expect(controller.state.status).toBe('available');
 
-        controller.init();
-        jest.advanceTimersByTime(5_000);
-        expect(controller.state.status).toBe('degraded');
-      }, undefined, false);
+          controller.init();
+          jest.advanceTimersByTime(5_000);
+          expect(controller.state.status).toBe('degraded');
+        },
+        undefined,
+        false,
+      );
     });
   });
 
@@ -671,7 +683,7 @@ describe('NetworkConnectionBannerController', () => {
       );
     });
 
-    it('bails out at the unavailable timer if the underlying state has silently recovered', async () => {
+    it('clears the banner at the unavailable timer if the underlying state has silently recovered', async () => {
       await withController(
         ({ controller, setNetworkState, setNetworkStateSilently }) => {
           const config = buildConfiguration({
@@ -715,7 +727,10 @@ describe('NetworkConnectionBannerController', () => {
           );
 
           jest.advanceTimersByTime(25_000);
-          expect(controller.state.status).toBe('degraded');
+          expect(controller.state).toStrictEqual({
+            status: 'available',
+            network: null,
+          });
         },
       );
     });

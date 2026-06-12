@@ -375,6 +375,7 @@ export class NetworkConnectionBannerController extends BaseController<
         this.#unavailableTimer = undefined;
         const stillFailedAtEscalation = this.#findFailedNetworkForBanner();
         if (!stillFailedAtEscalation) {
+          this.#resetBanner();
           return;
         }
         this.update((draft) => {
