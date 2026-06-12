@@ -4,39 +4,11 @@ import type { PerpsMarketDefinition } from '../types';
 const T = PerpsMarketCollectionTag;
 
 /**
- * Ordered list of all market collection tags for UI filter pills.
- * The order here determines display order in the consumer UI.
+ * All market collection tags derived from the enum.
+ * Order follows the enum declaration order.
  */
 export const PERPS_MARKET_COLLECTION_TAGS: readonly PerpsMarketCollectionTag[] =
-  [
-    T.L1,
-    T.L2Scaling,
-    T.BitcoinEcosystem,
-    T.SolanaEcosystem,
-    T.CosmosEcosystem,
-    T.TonEcosystem,
-    T.HyperliquidEcosystem,
-    T.MoveEcosystem,
-    T.SmartContractPlatform,
-    T.DeFi,
-    T.ExchangeToken,
-    T.Memecoin,
-    T.GamingNft,
-    T.AiDepin,
-    T.Infrastructure,
-    T.Oracle,
-    T.Interoperability,
-    T.Payments,
-    T.LiquidStaking,
-    T.RwaStablecoin,
-    T.ZkModular,
-    T.Privacy,
-    T.StorageData,
-    T.StoreOfValue,
-    T.Metaverse,
-    T.IotInfrastructure,
-    T.Political,
-  ] as const;
+  Object.values(PerpsMarketCollectionTag);
 
 /**
  * Canonical registry of all supported perps markets.
