@@ -1788,6 +1788,57 @@ export function isVersionGatedFeatureFlag(
 }
 
 // ============================================================================
+// Market Collections
+// ============================================================================
+
+/**
+ * Tag identifying a thematic collection/grouping that a perps market belongs to.
+ * A single market may belong to zero or more collections.
+ */
+export type PerpsMarketCollectionTag =
+  | 'L1'
+  | 'L2 / Scaling'
+  | 'Bitcoin Ecosystem'
+  | 'Solana Ecosystem'
+  | 'Cosmos Ecosystem'
+  | 'TON Ecosystem'
+  | 'Hyperliquid Ecosystem'
+  | 'Move Ecosystem'
+  | 'Smart Contract Platform'
+  | 'DeFi'
+  | 'Exchange Token'
+  | 'Memecoin'
+  | 'Gaming / NFT'
+  | 'AI / DePIN'
+  | 'Infrastructure'
+  | 'Oracle'
+  | 'Interoperability'
+  | 'Payments'
+  | 'LSD / Liquid Staking'
+  | 'RWA / Stablecoin'
+  | 'ZK / Modular'
+  | 'Privacy'
+  | 'Storage / Data'
+  | 'Store of Value'
+  | 'Metaverse'
+  | 'IoT / Infrastructure'
+  | 'Political';
+
+/**
+ * Static definition of a supported perps market.
+ * These entries are hardcoded and represent the canonical set of markets
+ * available for perpetual trading.
+ */
+export type PerpsMarketDefinition = {
+  /** Asset ticker symbol (e.g. 'BTC', 'ETH', 'kPEPE'). */
+  ticker: string;
+  /** Maximum leverage multiplier (e.g. 40 for 40x). */
+  maxLeverage: number;
+  /** Thematic collections this market belongs to. May be empty. */
+  collections: PerpsMarketCollectionTag[];
+};
+
+// ============================================================================
 // Sub-module type re-exports
 // These types live in separate files within types/ and need to be accessible
 // from the root barrel via `export * from './types'`.

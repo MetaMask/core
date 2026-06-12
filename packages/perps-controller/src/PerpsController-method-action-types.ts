@@ -592,6 +592,49 @@ export type PerpsControllerGetMarketCategoriesAction = {
 };
 
 /**
+ * Get the ordered list of all market collection tags.
+ * Used by the UI to render collection filter pills.
+ *
+ * @returns Ordered array of {@link PerpsMarketCollectionTag} values.
+ */
+export type PerpsControllerGetMarketCollectionsAction = {
+  type: `PerpsController:getMarketCollections`;
+  handler: PerpsController['getMarketCollections'];
+};
+
+/**
+ * Get the full list of hardcoded perps market definitions.
+ *
+ * @returns Array of all {@link PerpsMarketDefinition} entries.
+ */
+export type PerpsControllerGetMarketDefinitionsAction = {
+  type: `PerpsController:getMarketDefinitions`;
+  handler: PerpsController['getMarketDefinitions'];
+};
+
+/**
+ * Look up a single market definition by its ticker symbol.
+ *
+ * @param ticker - The ticker to look up (e.g. 'BTC', 'ETH').
+ * @returns The matching definition, or `undefined` if not found.
+ */
+export type PerpsControllerGetMarketDefinitionByTickerAction = {
+  type: `PerpsController:getMarketDefinitionByTicker`;
+  handler: PerpsController['getMarketDefinitionByTicker'];
+};
+
+/**
+ * Return all market definitions that belong to a given collection tag.
+ *
+ * @param collection - The collection tag to filter by.
+ * @returns Array of matching market definitions (may be empty).
+ */
+export type PerpsControllerGetMarketDefinitionsByCollectionAction = {
+  type: `PerpsController:getMarketDefinitionsByCollection`;
+  handler: PerpsController['getMarketDefinitionsByCollection'];
+};
+
+/**
  * Get the current WebSocket connection state from the active provider.
  * Used by the UI to monitor connection health and show notifications.
  *
@@ -1068,6 +1111,10 @@ export type PerpsControllerMethodActions =
   | PerpsControllerSwitchProviderAction
   | PerpsControllerGetCurrentNetworkAction
   | PerpsControllerGetMarketCategoriesAction
+  | PerpsControllerGetMarketCollectionsAction
+  | PerpsControllerGetMarketDefinitionsAction
+  | PerpsControllerGetMarketDefinitionByTickerAction
+  | PerpsControllerGetMarketDefinitionsByCollectionAction
   | PerpsControllerGetWebSocketConnectionStateAction
   | PerpsControllerSubscribeToConnectionStateAction
   | PerpsControllerReconnectAction

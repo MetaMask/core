@@ -19,6 +19,12 @@ import { USDC_SYMBOL } from './constants/hyperLiquidConfig';
 import { PerpsMeasurementName } from './constants/performanceMetrics';
 import type { SortOptionId } from './constants/perpsConfig';
 import {
+  PERPS_MARKET_COLLECTION_TAGS,
+  PERPS_MARKET_DEFINITIONS,
+  getMarketDefinitionByTicker as getMarketDefinitionByTickerUtil,
+  getMarketDefinitionsByCollection as getMarketDefinitionsByCollectionUtil,
+} from './constants/marketCollections';
+import {
   PERPS_CONSTANTS,
   MARKET_SORTING_CONFIG,
   PROVIDER_CONFIG,
@@ -107,6 +113,8 @@ import type {
   PerpsLogger,
   PerpsActiveProviderMode,
   PerpsProviderType,
+  PerpsMarketCollectionTag,
+  PerpsMarketDefinition,
   PerpsSelectedPaymentToken,
   PerpsRemoteFeatureFlagState,
   PerpsTransactionParams,
@@ -726,7 +734,11 @@ const MESSENGER_EXPOSED_METHODS = [
   'getFunding',
   'getHistoricalPortfolio',
   'getMarketCategories',
+  'getMarketCollections',
   'getMarketDataWithPrices',
+  'getMarketDefinitionByTicker',
+  'getMarketDefinitions',
+  'getMarketDefinitionsByCollection',
   'getMarketFilterPreferences',
   'getMarkets',
   'getMaxLeverage',
@@ -3985,6 +3997,49 @@ export class PerpsController extends BaseController<
    */
   getMarketCategories(): MarketTypeFilter[] {
     return MARKET_CATEGORIES;
+  }
+
+  /**
+   * Get the ordered list of all market collection tags.
+   * Used by the UI to render collection filter pills.
+   *
+   * @returns Ordered array of {@link PerpsMarketCollectionTag} values.
+   */
+  getMarketCollections(): PerpsMarketCollectionTag[] {
+    return [...PERPS_MARKET_COLLECTION_TAGS];
+  }
+
+  /**
+   * Get the full list of hardcoded perps market definitions.
+   *
+   * @returns Array of all {@link PerpsMarketDefinition} entries.
+   */
+  getMarketDefinitions(): PerpsMarketDefinition[] {
+    return [...PERPS_MARKET_DEFINITIONS];
+  }
+
+  /**
+   * Look up a single market definition by its ticker symbol.
+   *
+   * @param ticker - The ticker to look up (e.g. 'BTC', 'ETH').
+   * @returns The matching definition, or `undefined` if not found.
+   */
+  getMarketDefinitionByTicker(
+    ticker: string,
+  ): PerpsMarketDefinition | undefined {
+    return getMarketDefinitionByTickerUtil(ticker);
+  }
+
+  /**
+   * Return all market definitions that belong to a given collection tag.
+   *
+   * @param collection - The collection tag to filter by.
+   * @returns Array of matching market definitions (may be empty).
+   */
+  getMarketDefinitionsByCollection(
+    collection: PerpsMarketCollectionTag,
+  ): PerpsMarketDefinition[] {
+    return getMarketDefinitionsByCollectionUtil(collection);
   }
 
   /**
