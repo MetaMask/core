@@ -6,6 +6,7 @@
 import type { MultichainAssetsController } from './MultichainAssetsController';
 
 /**
+ * @deprecated This is deprecated and will be removed in a future version. Use `AssetsController` from `@metamask/assets-controller` instead.
  * Returns the metadata for the given asset
  *
  * @param asset - The asset to get metadata for
@@ -17,6 +18,7 @@ export type MultichainAssetsControllerGetAssetMetadataAction = {
 };
 
 /**
+ * @deprecated This is deprecated and will be removed in a future version. Use `AssetsController` from `@metamask/assets-controller` instead.
  * Ignores a batch of assets for a specific account.
  *
  * @param assetsToIgnore - Array of asset IDs to ignore.
@@ -28,6 +30,7 @@ export type MultichainAssetsControllerIgnoreAssetsAction = {
 };
 
 /**
+ * @deprecated This is deprecated and will be removed in a future version. Use `AssetsController` from `@metamask/assets-controller` instead.
  * Adds multiple assets to the stored asset list for a specific account.
  * All assets must belong to the same chain.
  *

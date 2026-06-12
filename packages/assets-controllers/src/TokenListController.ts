@@ -52,22 +52,37 @@ export type TokensChainsCache = {
   [chainId: Hex]: DataCache;
 };
 
+/**
+ * @deprecated This is deprecated and will be removed in a future version. Use `AssetsController` from `@metamask/assets-controller` instead.
+ */
 export type TokenListState = {
   tokensChainsCache: TokensChainsCache;
 };
 
+/**
+ * @deprecated This is deprecated and will be removed in a future version. Use `AssetsController` from `@metamask/assets-controller` instead.
+ */
 export type TokenListStateChange = ControllerStateChangeEvent<
   typeof name,
   TokenListState
 >;
 
+/**
+ * @deprecated This is deprecated and will be removed in a future version. Use `AssetsController` from `@metamask/assets-controller` instead.
+ */
 export type TokenListControllerEvents = TokenListStateChange;
 
+/**
+ * @deprecated This is deprecated and will be removed in a future version. Use `AssetsController` from `@metamask/assets-controller` instead.
+ */
 export type GetTokenListState = ControllerGetStateAction<
   typeof name,
   TokenListState
 >;
 
+/**
+ * @deprecated This is deprecated and will be removed in a future version. Use `AssetsController` from `@metamask/assets-controller` instead.
+ */
 export type TokenListControllerActions = GetTokenListState;
 
 type AllowedActions =
@@ -78,6 +93,9 @@ type AllowedActions =
 
 type AllowedEvents = NetworkControllerStateChangeEvent;
 
+/**
+ * @deprecated This is deprecated and will be removed in a future version. Use `AssetsController` from `@metamask/assets-controller` instead.
+ */
 export type TokenListControllerMessenger = Messenger<
   typeof name,
   TokenListControllerActions | AllowedActions,
@@ -93,6 +111,9 @@ const metadata: StateMetadata<TokenListState> = {
   },
 };
 
+/**
+ * @deprecated This is deprecated and will be removed in a future version. Use `AssetsController` from `@metamask/assets-controller` instead.
+ */
 export const getDefaultTokenListState = (): TokenListState => {
   return {
     tokensChainsCache: {},
@@ -105,6 +126,7 @@ type TokenListPollingInput = {
 };
 
 /**
+ * @deprecated This is deprecated and will be removed in a future version. Use `AssetsController` from `@metamask/assets-controller` instead.
  * Controller that passively polls on a set interval for the list of tokens from metaswaps api
  */
 export class TokenListController extends StaticIntervalPollingController<TokenListPollingInput>()<
@@ -243,6 +265,7 @@ export class TokenListController extends StaticIntervalPollingController<TokenLi
   }
 
   /**
+   * @deprecated This is deprecated and will be removed in a future version. Use `AssetsController` from `@metamask/assets-controller` instead.
    * Initialize the controller by loading cache from storage and running migration.
    * This method should be called by clients after construction.
    *
@@ -529,8 +552,7 @@ export class TokenListController extends StaticIntervalPollingController<TokenLi
   /**
    * Start polling for the token list.
    *
-   * @deprecated This method is deprecated and will be removed in the future.
-   * Consider using the new polling approach instead
+   * @deprecated This is deprecated and will be removed in a future version. Use `AssetsController` from `@metamask/assets-controller` instead.
    */
   async start(): Promise<void> {
     if (this.#isDeprecated()) {
@@ -546,8 +568,7 @@ export class TokenListController extends StaticIntervalPollingController<TokenLi
   /**
    * Restart polling for the token list.
    *
-   * @deprecated This method is deprecated and will be removed in the future.
-   * Consider using the new polling approach instead
+   * @deprecated This is deprecated and will be removed in a future version. Use `AssetsController` from `@metamask/assets-controller` instead.
    */
   async restart(): Promise<void> {
     this.#stopPolling();
@@ -561,8 +582,7 @@ export class TokenListController extends StaticIntervalPollingController<TokenLi
   /**
    * Stop polling for the token list.
    *
-   * @deprecated This method is deprecated and will be removed in the future.
-   * Consider using the new polling approach instead
+   * @deprecated This is deprecated and will be removed in a future version. Use `AssetsController` from `@metamask/assets-controller` instead.
    */
   stop(): void {
     this.#stopPolling();
@@ -571,8 +591,7 @@ export class TokenListController extends StaticIntervalPollingController<TokenLi
   /**
    * This stops any active polling.
    *
-   * @deprecated This method is deprecated and will be removed in the future.
-   * Consider using the new polling approach instead
+   * @deprecated This is deprecated and will be removed in a future version. Use `AssetsController` from `@metamask/assets-controller` instead.
    */
   override destroy(): void {
     super.destroy();
@@ -589,8 +608,7 @@ export class TokenListController extends StaticIntervalPollingController<TokenLi
   /**
    * This stops any active polling intervals.
    *
-   * @deprecated This method is deprecated and will be removed in the future.
-   * Consider using the new polling approach instead
+   * @deprecated This is deprecated and will be removed in a future version. Use `AssetsController` from `@metamask/assets-controller` instead.
    */
   #stopPolling(): void {
     if (this.#intervalId) {
@@ -601,8 +619,7 @@ export class TokenListController extends StaticIntervalPollingController<TokenLi
   /**
    * Starts a new polling interval for a given chainId (this should be deprecated in favor of _executePoll)
    *
-   * @deprecated This method is deprecated and will be removed in the future.
-   * Consider using the new polling approach instead
+   * @deprecated This is deprecated and will be removed in a future version. Use `AssetsController` from `@metamask/assets-controller` instead.
    */
   async #startDeprecatedPolling(): Promise<void> {
     // renaming this to avoid collision with base class
@@ -615,6 +632,7 @@ export class TokenListController extends StaticIntervalPollingController<TokenLi
   }
 
   /**
+   * @deprecated This is deprecated and will be removed in a future version. Use `AssetsController` from `@metamask/assets-controller` instead.
    * This starts a new polling loop for any given chain. Under the hood it is deduping polls
    *
    * @param input - The input for the poll.
@@ -703,6 +721,7 @@ export class TokenListController extends StaticIntervalPollingController<TokenLi
   }
 
   /**
+   * @deprecated This is deprecated and will be removed in a future version. Use `AssetsController` from `@metamask/assets-controller` instead.
    * Fetching token list from the Token Service API. This will fetch tokens across chains.
    * State changes are automatically persisted via the stateChange subscription.
    *
@@ -769,6 +788,9 @@ export class TokenListController extends StaticIntervalPollingController<TokenLi
     }
   }
 
+  /**
+   * @deprecated This is deprecated and will be removed in a future version. Use `AssetsController` from `@metamask/assets-controller` instead.
+   */
   isCacheValid(chainId: Hex): boolean {
     const { tokensChainsCache }: TokenListState = this.state;
     const timestamp: number | undefined = tokensChainsCache[chainId]?.timestamp;

@@ -56,6 +56,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/multichain-account-service` from `^10.0.2` to `^10.0.3` ([#9058](https://github.com/MetaMask/core/pull/9058))
 - Bump `@metamask/storage-service` from `^1.0.1` to `^1.0.2` ([#9058](https://github.com/MetaMask/core/pull/9058))
 
+### Deprecated
+
+- Mark legacy assets controllers, their state types, and public methods as deprecated in favor of `AssetsController` from `@metamask/assets-controller`
+  - Affected controllers: `AccountTrackerController`, `CurrencyRateController`, `MultichainAssetsController`, `MultichainAssetsRatesController`, `MultichainBalancesController`, `RatesController`, `TokenBalancesController`, `TokenListController`, `TokenRatesController`, and `TokensController`.
+
 ## [108.5.0]
 
 ### Added
