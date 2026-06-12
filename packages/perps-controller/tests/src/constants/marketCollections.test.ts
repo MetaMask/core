@@ -12,7 +12,7 @@ describe('PERPS_MARKET_DEFINITIONS', () => {
   });
 
   it('has unique tickers', () => {
-    const tickers = PERPS_MARKET_DEFINITIONS.map((m) => m.ticker);
+    const tickers = PERPS_MARKET_DEFINITIONS.map((market) => market.ticker);
     expect(new Set(tickers).size).toBe(tickers.length);
   });
 
@@ -32,7 +32,9 @@ describe('PERPS_MARKET_DEFINITIONS', () => {
   });
 
   it('includes known markets with correct data', () => {
-    const btc = PERPS_MARKET_DEFINITIONS.find((m) => m.ticker === 'BTC');
+    const btc = PERPS_MARKET_DEFINITIONS.find(
+      (market) => market.ticker === 'BTC',
+    );
     expect(btc).toStrictEqual({
       ticker: 'BTC',
       collections: [
@@ -42,7 +44,9 @@ describe('PERPS_MARKET_DEFINITIONS', () => {
       ],
     });
 
-    const eth = PERPS_MARKET_DEFINITIONS.find((m) => m.ticker === 'ETH');
+    const eth = PERPS_MARKET_DEFINITIONS.find(
+      (market) => market.ticker === 'ETH',
+    );
     expect(eth).toStrictEqual({
       ticker: 'ETH',
       collections: [
@@ -137,15 +141,23 @@ describe('getMarketDefinitionsByCollection', () => {
     const btcEco = getMarketDefinitionsByCollection(
       PerpsMarketCollectionTag.BitcoinEcosystem,
     );
-    const tickers = btcEco.map((m) => m.ticker);
+    const tickers = btcEco.map((market) => market.ticker);
     expect(tickers).toContain('BTC');
     expect(tickers).toContain('LTC');
   });
 
-  it('returns an empty array for a tag with no markets', () => {
-    const allTags = new Set(
-      PERPS_MARKET_DEFINITIONS.flatMap((m) => m.collections),
+  it('returns results for every tag that appears in market definitions', () => {
+    const usedTags = new Set(
+      PERPS_MARKET_DEFINITIONS.flatMap((market) => market.collections),
     );
+    for (const tag of PERPS_MARKET_COLLECTION_TAGS) {
+      const results = getMarketDefinitionsByCollection(tag);
+      expect(results.length).toBe(usedTags.has(tag) ? results.length : 0);
+      expect(results.length).toBeGreaterThanOrEqual(0);
+    }
+  });
+
+  it('returns markets with the correct tag for Store of Value', () => {
     const storeOfValue = getMarketDefinitionsByCollection(
       PerpsMarketCollectionTag.StoreOfValue,
     );
@@ -154,12 +166,6 @@ describe('getMarketDefinitionsByCollection', () => {
       expect(market.collections).toContain(
         PerpsMarketCollectionTag.StoreOfValue,
       );
-    }
-    for (const tag of PERPS_MARKET_COLLECTION_TAGS) {
-      const results = getMarketDefinitionsByCollection(tag);
-      if (allTags.has(tag)) {
-        expect(results.length).toBeGreaterThan(0);
-      }
     }
   });
 });
