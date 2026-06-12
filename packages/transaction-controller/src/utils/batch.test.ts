@@ -2025,6 +2025,150 @@ describe('Batch Utils', () => {
         );
       });
 
+      it('rejects individual publish hooks if a batch member fails before every publish hook is called', async () => {
+        const publishBatchHook: jest.MockedFn<PublishBatchHook> = jest.fn();
+        let publishHookPromise: Promise<unknown> | undefined;
+
+        const txMeta1 = {
+          ...TRANSACTION_META_MOCK,
+          id: TRANSACTION_ID_MOCK,
+          status: TransactionStatus.signed,
+        } as TransactionMeta;
+        const txMeta2 = {
+          ...TRANSACTION_META_MOCK,
+          id: TRANSACTION_ID_2_MOCK,
+          status: TransactionStatus.signed,
+        } as TransactionMeta;
+
+        addTransactionMock
+          .mockResolvedValueOnce({
+            transactionMeta: txMeta1,
+            result: Promise.resolve(''),
+          })
+          .mockImplementationOnce((_params, options) => {
+            publishHookPromise = options.publishHook?.(
+              txMeta2,
+              TRANSACTION_SIGNATURE_2_MOCK,
+            );
+            publishHookPromise?.catch(() => {
+              // Intentionally empty
+            });
+            return Promise.resolve({
+              transactionMeta: txMeta2,
+              result: Promise.resolve(''),
+            });
+          });
+
+        getTransactionMock.mockImplementation(
+          (id: string) =>
+            (id === TRANSACTION_ID_MOCK ? txMeta1 : txMeta2) as TransactionMeta,
+        );
+
+        const resultPromise = addTransactionBatch({
+          ...request,
+          publishBatchHook,
+          request: {
+            ...request.request,
+            requireApproval: false,
+            disable7702: true,
+          },
+        }).then(
+          () => 'resolved',
+          (error: Error) => error.message,
+        );
+
+        await flushPromises();
+
+        const statusUpdatedHandler = jest
+          .mocked(MESSENGER_MOCK.subscribe)
+          .mock.calls.find(
+            ([event]) =>
+              event === 'TransactionController:transactionStatusUpdated',
+          )?.[1] as
+          | ((payload: { transactionMeta: TransactionMeta }) => void)
+          | undefined;
+
+        statusUpdatedHandler?.({
+          transactionMeta: {
+            ...txMeta1,
+            status: TransactionStatus.failed,
+            error: { message: ERROR_MESSAGE_MOCK },
+          },
+        });
+
+        const result = await Promise.race([
+          resultPromise,
+          flushPromises().then(() => 'pending'),
+        ]);
+
+        expect(result).toBe(ERROR_MESSAGE_MOCK);
+        await expect(publishHookPromise).rejects.toThrow(ERROR_MESSAGE_MOCK);
+      });
+
+      it('rejects individual publish hooks if a batch member was already rejected before subscribing to status updates', async () => {
+        const publishBatchHook: jest.MockedFn<PublishBatchHook> = jest.fn();
+        let publishHookPromise: Promise<unknown> | undefined;
+
+        const txMeta1 = {
+          ...TRANSACTION_META_MOCK,
+          id: TRANSACTION_ID_MOCK,
+          status: TransactionStatus.signed,
+        } as TransactionMeta;
+        const txMeta2 = {
+          ...TRANSACTION_META_MOCK,
+          id: TRANSACTION_ID_2_MOCK,
+          status: TransactionStatus.signed,
+        } as TransactionMeta;
+        const rejectedTxMeta1 = {
+          ...txMeta1,
+          status: TransactionStatus.rejected,
+          error: { message: ERROR_MESSAGE_MOCK },
+        } as TransactionMeta;
+
+        addTransactionMock
+          .mockResolvedValueOnce({
+            transactionMeta: txMeta1,
+            result: Promise.resolve(''),
+          })
+          .mockImplementationOnce((_params, options) => {
+            publishHookPromise = options.publishHook?.(
+              txMeta2,
+              TRANSACTION_SIGNATURE_2_MOCK,
+            );
+            publishHookPromise?.catch(() => {
+              // Intentionally empty
+            });
+            return Promise.resolve({
+              transactionMeta: txMeta2,
+              result: Promise.resolve(''),
+            });
+          });
+
+        getTransactionMock
+          .mockReturnValueOnce(txMeta1)
+          .mockReturnValueOnce(txMeta2)
+          .mockReturnValueOnce(rejectedTxMeta1)
+          .mockReturnValue(txMeta2);
+
+        const resultPromise = addTransactionBatch({
+          ...request,
+          publishBatchHook,
+          request: {
+            ...request.request,
+            requireApproval: false,
+            disable7702: true,
+          },
+        }).then(
+          () => 'resolved',
+          (error: Error) => error.message,
+        );
+
+        await flushPromises();
+
+        expect(await resultPromise).toBe(ERROR_MESSAGE_MOCK);
+        await expect(publishHookPromise).rejects.toThrow(ERROR_MESSAGE_MOCK);
+      });
+
       it('rejects individual publish hooks if add transaction throws', async () => {
         const publishBatchHook: jest.MockedFn<PublishBatchHook> = jest.fn();
 
