@@ -8,9 +8,13 @@ import type {
   TransactionPayQuoteValidationError,
 } from '../../types';
 import { getPayStrategiesConfig } from '../../utils/feature-flags';
+import {
+  isQuoteValidationError,
+  validateQuoteExecution,
+} from '../../utils/validation';
 import { getRelayQuotes } from './relay-quotes';
 import { submitRelayQuotes } from './relay-submit';
-import { isRelayQuoteValidationError, validateRelayQuote } from './simulation';
+import { buildRelaySimulation } from './simulation';
 import type { RelayQuote } from './types';
 
 export class RelayStrategy implements PayStrategy<RelayQuote> {
@@ -29,12 +33,22 @@ export class RelayStrategy implements PayStrategy<RelayQuote> {
     request: PayStrategyCheckQuoteSupportRequest<RelayQuote>,
   ): Promise<PayStrategyQuoteSupportResult> {
     for (const quote of request.quotes) {
+      if (shouldSkipValidation(quote)) {
+        continue;
+      }
+
       try {
-        await validateRelayQuote({
+        const simulation = await buildRelaySimulation({
+          messenger: request.messenger,
+          quote,
+          transaction: request.transaction,
+        });
+
+        await validateQuoteExecution({
           messenger: request.messenger,
           quote,
           signal: request.signal,
-          transaction: request.transaction,
+          simulation,
         });
       } catch (error) {
         if (request.signal?.aborted) {
@@ -63,11 +77,19 @@ export class RelayStrategy implements PayStrategy<RelayQuote> {
   }
 }
 
+function shouldSkipValidation(quote: TransactionPayQuote<RelayQuote>): boolean {
+  const { request } = quote;
+
+  return Boolean(
+    request.isHyperliquidSource ?? request.isPolymarketDepositWallet ?? false,
+  );
+}
+
 function getValidationError(
   quote: TransactionPayQuote<RelayQuote>,
   error: unknown,
 ): TransactionPayQuoteValidationError {
-  if (isRelayQuoteValidationError(error)) {
+  if (isQuoteValidationError(error)) {
     return error.validationError;
   }
 
