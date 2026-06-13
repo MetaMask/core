@@ -55,6 +55,11 @@ const FALLBACK_HASH = '0x0' as Hex;
 
 const log = createModuleLogger(projectLogger, 'relay-strategy');
 
+export type RelaySubmitParams = {
+  allParams: TransactionParams[];
+  normalizedParams: TransactionParams[];
+};
+
 /**
  * Submits Relay quotes.
  *
@@ -270,7 +275,7 @@ async function waitForRelayCompletion(
  * @param messenger - Controller messenger.
  * @returns Normalized transaction parameters.
  */
-function normalizeParams(
+export function normalizeRelayParams(
   params: RelayTransactionStep['items'][0]['data'],
   messenger: TransactionPayControllerMessenger,
 ): TransactionParams {
@@ -364,20 +369,6 @@ async function submitTransactions(
   transaction: TransactionMeta,
   messenger: TransactionPayControllerMessenger,
 ): Promise<Hex> {
-  const { steps } = quote.original;
-  const txSteps = steps.filter(
-    (step): step is RelayTransactionStep => step.kind === 'transaction',
-  );
-  const params = txSteps.flatMap((step) => step.items).map((item) => item.data);
-  const SUPPORTED_STEP_KINDS = ['transaction', 'signature'];
-  const invalidKind = steps.find(
-    (step) => !SUPPORTED_STEP_KINDS.includes(step.kind),
-  )?.kind;
-
-  if (invalidKind) {
-    throw new Error(`Unsupported step kind: ${invalidKind}`);
-  }
-
   // In post-quote flows (e.g. Predict withdraw), the source tokens are held in
   // the Safe — not the EOA — and only become available after the original tx
   // executes as part of the batch. Skip the EOA balance check here.
@@ -385,8 +376,67 @@ async function submitTransactions(
     await validateSourceBalance(quote, messenger);
   }
 
+  const { allParams, normalizedParams } = await buildRelaySubmitParams({
+    messenger,
+    quote,
+    transaction,
+  });
+
+  if (quote.original.metamask.isExecute) {
+    return await submitViaRelayExecute(
+      quote,
+      transaction,
+      messenger,
+      allParams,
+    );
+  }
+
+  return await submitViaTransactionController(
+    quote,
+    transaction,
+    messenger,
+    normalizedParams,
+    allParams,
+  );
+}
+
+export function getRelayTransactionStepData(
+  quote: TransactionPayQuote<RelayQuote>,
+): RelayTransactionStep['items'][0]['data'][] {
+  const { steps } = quote.original;
+  const supportedStepKinds = ['transaction', 'signature'];
+  const invalidKind = steps.find(
+    (step) => !supportedStepKinds.includes(step.kind),
+  )?.kind;
+
+  if (invalidKind) {
+    throw new Error(`Unsupported step kind: ${invalidKind}`);
+  }
+
+  const txSteps = steps.filter(
+    (step): step is RelayTransactionStep => step.kind === 'transaction',
+  );
+
+  return txSteps
+    .flatMap((step) => step.items)
+    .map((item) => item.data)
+    .filter((data): data is RelayTransactionStep['items'][0]['data'] =>
+      isRelayTransactionStepData(data),
+    );
+}
+
+export async function buildRelaySubmitParams({
+  messenger,
+  quote,
+  transaction,
+}: {
+  messenger: TransactionPayControllerMessenger;
+  quote: TransactionPayQuote<RelayQuote>;
+  transaction: TransactionMeta;
+}): Promise<RelaySubmitParams> {
+  const params = getRelayTransactionStepData(quote);
   const normalizedParams = params.map((singleParams) =>
-    normalizeParams(singleParams, messenger),
+    normalizeRelayParams(singleParams, messenger),
   );
 
   // For post-quote flows, prepend the original transaction so it gets
@@ -442,22 +492,14 @@ async function submitTransactions(
     allParams = [prependedParams, ...normalizedParams];
   }
 
-  if (quote.original.metamask.isExecute) {
-    return await submitViaRelayExecute(
-      quote,
-      transaction,
-      messenger,
-      allParams,
-    );
-  }
+  return { allParams, normalizedParams };
+}
 
-  return await submitViaTransactionController(
-    quote,
-    transaction,
-    messenger,
-    normalizedParams,
-    allParams,
-  );
+function isRelayTransactionStepData(
+  data: RelayTransactionStep['items'][0]['data'],
+): data is RelayTransactionStep['items'][0]['data'] {
+  const maybeStepData = data as { to?: unknown };
+  return maybeStepData.to !== undefined;
 }
 
 /**
@@ -516,11 +558,44 @@ async function submitViaRelayExecute(
   messenger: TransactionPayControllerMessenger,
   allParams: TransactionParams[],
 ): Promise<Hex> {
+  const executeBody = await buildRelayExecuteRequest({
+    allParams,
+    messenger,
+    quote,
+    transaction,
+  });
+  const { from } = quote.request;
+
+  log('Submitting via Relay execute', { executeBody, from });
+
+  let result;
+  try {
+    result = await submitRelayExecute(messenger, executeBody);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    throw new Error(`Relay execute: ${message}`);
+  }
+
+  log('Relay execute response', result);
+
+  return FALLBACK_HASH;
+}
+
+export async function buildRelayExecuteRequest({
+  allParams,
+  messenger,
+  quote,
+  transaction,
+}: {
+  allParams: TransactionParams[];
+  messenger: TransactionPayControllerMessenger;
+  quote: TransactionPayQuote<RelayQuote>;
+  transaction: TransactionMeta;
+}): Promise<RelayExecuteRequest> {
   const { from, sourceChainId } = quote.request;
   const { requestId } = quote.original.steps[0];
 
   const networkClientId = getNetworkClientId(messenger, sourceChainId);
-
   const sourceCallTransaction = {
     ...transaction,
     chainId: sourceChainId,
@@ -543,7 +618,7 @@ async function submitViaRelayExecute(
 
   log('Delegation result for source calls', delegation);
 
-  const executeBody: RelayExecuteRequest = {
+  return {
     executionKind: 'rawCalls',
     data: {
       chainId: Number(sourceChainId),
@@ -568,20 +643,6 @@ async function submitViaRelayExecute(
     },
     requestId,
   };
-
-  log('Submitting via Relay execute', { executeBody, from });
-
-  let result;
-  try {
-    result = await submitRelayExecute(messenger, executeBody);
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    throw new Error(`Relay execute: ${message}`);
-  }
-
-  log('Relay execute response', result);
-
-  return FALLBACK_HASH;
 }
 
 /**

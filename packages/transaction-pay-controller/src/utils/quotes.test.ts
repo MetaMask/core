@@ -178,10 +178,12 @@ describe('Quotes Utils', () => {
     checkStrategyQuoteSupportMock.mockImplementation(
       async (strategy, request) => {
         if (strategy.checkQuoteSupport) {
-          return await strategy.checkQuoteSupport(request);
+          const result = await strategy.checkQuoteSupport(request);
+
+          return typeof result === 'boolean' ? { isSupported: result } : result;
         }
 
-        return true;
+        return { isSupported: true };
       },
     );
 
@@ -209,6 +211,53 @@ describe('Quotes Utils', () => {
 
       expect(transactionDataMock).toMatchObject({
         quotes: [QUOTE_MOCK],
+      });
+    });
+
+    it('stores quote validation errors when quotes are rejected', async () => {
+      const validationError = {
+        code: 'insufficient_source_balance' as const,
+        message: 'Insufficient source token balance for quote',
+        strategy: TransactionPayStrategy.Test,
+      };
+
+      checkStrategyQuoteSupportMock.mockResolvedValue({
+        isSupported: false,
+        validationError,
+      });
+
+      await run();
+
+      const transactionDataMock = {};
+
+      updateTransactionDataMock.mock.calls.map((call) =>
+        call[1](transactionDataMock),
+      );
+
+      expect(transactionDataMock).toMatchObject({
+        quotes: [],
+        quoteValidationError: validationError,
+      });
+    });
+
+    it('clears quote validation error when quote loading starts', async () => {
+      const validationError = {
+        code: 'insufficient_source_balance' as const,
+        message: 'Insufficient source token balance for quote',
+        strategy: TransactionPayStrategy.Test,
+      };
+
+      await run();
+
+      const transactionDataMock = {
+        quoteValidationError: validationError,
+      };
+
+      updateTransactionDataMock.mock.calls[0][1](transactionDataMock);
+
+      expect(transactionDataMock).toStrictEqual({
+        isLoading: true,
+        quoteValidationError: undefined,
       });
     });
 

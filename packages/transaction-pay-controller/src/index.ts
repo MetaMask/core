@@ -19,6 +19,8 @@ export type {
   TransactionPayControllerStateChangeEvent,
   TransactionPaymentToken,
   TransactionPayQuote,
+  TransactionPayQuoteValidationError,
+  TransactionPayQuoteValidationErrorCode,
   TransactionPayRequiredToken,
   TransactionPaySourceAmount,
   TransactionPayTotals,
