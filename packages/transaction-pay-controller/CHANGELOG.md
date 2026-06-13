@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add Relay quote validation and transaction simulation before Transaction Pay quotes are surfaced ([#9143](https://github.com/MetaMask/core/pull/9143))
 - Add test-only fiat execution options to bypass fiat on-ramp settlement during local QA by funding the expected fiat asset from a configured account before continuing the normal MM Pay fiat submit flow ([#9161](https://github.com/MetaMask/core/pull/9161))
 
 ### Fixed

@@ -11,6 +11,7 @@ import type {
   TransactionData,
   TransactionPayControllerMessenger,
   TransactionPayQuote,
+  TransactionPayQuoteValidationError,
   TransactionPayRequiredToken,
   TransactionPaySourceAmount,
   TransactionPayTotals,
@@ -101,6 +102,7 @@ export async function updateQuotes(
 
   updateTransactionData(transactionId, (data) => {
     data.isLoading = true;
+    data.quoteValidationError = undefined;
   });
 
   try {
@@ -134,7 +136,7 @@ export async function updateQuotes(
 
     const supports7702 = accountSupports7702(messenger, from);
 
-    const { batchTransactions, quotes } = await getQuotes(
+    const { batchTransactions, quotes, validationError } = await getQuotes(
       transaction,
       from,
       requests,
@@ -174,6 +176,7 @@ export async function updateQuotes(
 
     updateTransactionData(transactionId, (data) => {
       data.quotes = quotes as never;
+      data.quoteValidationError = quotes.length ? undefined : validationError;
       data.quotesLastUpdated = Date.now();
       data.totals = totals;
     });
@@ -601,6 +604,7 @@ async function getQuotes(
 ): Promise<{
   batchTransactions: BatchTransaction[];
   quotes: TransactionPayQuote<Json>[];
+  validationError?: TransactionPayQuoteValidationError;
 }> {
   const { id: transactionId } = transaction;
   const strategies = getStrategiesByName(
@@ -630,6 +634,8 @@ async function getQuotes(
     transaction,
   };
 
+  let validationError: TransactionPayQuoteValidationError | undefined;
+
   for (const { name, strategy } of strategies) {
     try {
       const support = await checkStrategySupport(strategy, request);
@@ -658,7 +664,9 @@ async function getQuotes(
         transaction,
       });
 
-      if (!quoteSupport) {
+      if (!quoteSupport.isSupported) {
+        validationError ??= quoteSupport.validationError;
+
         log('Strategy does not support quotes', {
           strategy: name,
           transactionId,
@@ -701,5 +709,6 @@ async function getQuotes(
   return {
     batchTransactions: [],
     quotes: [],
+    validationError,
   };
 }

@@ -1,5 +1,6 @@
 import type { Hex } from '@metamask/utils';
 
+import { TransactionPayStrategy } from '../../constants';
 import type {
   PayStrategyExecuteRequest,
   PayStrategyGetQuotesRequest,
@@ -9,16 +10,22 @@ import { getPayStrategiesConfig } from '../../utils/feature-flags';
 import { getRelayQuotes } from './relay-quotes';
 import { submitRelayQuotes } from './relay-submit';
 import { RelayStrategy } from './RelayStrategy';
+import { isRelayQuoteValidationError, validateRelayQuote } from './simulation';
 import type { RelayQuote } from './types';
 
 jest.mock('./relay-quotes');
+jest.mock('./simulation');
 jest.mock('./relay-submit');
 jest.mock('../../utils/feature-flags');
 
 describe('RelayStrategy', () => {
   const getRelayQuotesMock = jest.mocked(getRelayQuotes);
+  const isRelayQuoteValidationErrorMock = jest.mocked(
+    isRelayQuoteValidationError,
+  );
   const submitRelayQuotesMock = jest.mocked(submitRelayQuotes);
   const getPayStrategiesConfigMock = jest.mocked(getPayStrategiesConfig);
+  const validateRelayQuoteMock = jest.mocked(validateRelayQuote);
 
   const messenger = {} as never;
 
@@ -57,6 +64,8 @@ describe('RelayStrategy', () => {
         enabled: true,
       },
     });
+    isRelayQuoteValidationErrorMock.mockReturnValue(false);
+    validateRelayQuoteMock.mockResolvedValue(undefined);
   });
 
   it('returns true from supports when relay is enabled', () => {
@@ -90,6 +99,84 @@ describe('RelayStrategy', () => {
     const strategy = new RelayStrategy();
     expect(await strategy.getQuotes(request)).toStrictEqual([quote]);
     expect(getRelayQuotesMock).toHaveBeenCalledWith(request);
+  });
+
+  it('validates quotes in checkQuoteSupport', async () => {
+    const quote = {
+      strategy: TransactionPayStrategy.Relay,
+    } as TransactionPayQuote<RelayQuote>;
+
+    const strategy = new RelayStrategy();
+    const result = await strategy.checkQuoteSupport({
+      messenger,
+      quotes: [quote],
+      transaction: request.transaction,
+    });
+
+    expect(result).toStrictEqual({ isSupported: true });
+    expect(validateRelayQuoteMock).toHaveBeenCalledWith({
+      messenger,
+      quote,
+      signal: undefined,
+      transaction: request.transaction,
+    });
+  });
+
+  it('returns quote validation errors from checkQuoteSupport', async () => {
+    const validationError = {
+      code: 'insufficient_source_balance',
+      message: 'Insufficient source token balance for quote',
+      strategy: TransactionPayStrategy.Relay,
+    } as const;
+    const quote = {
+      strategy: TransactionPayStrategy.Relay,
+    } as TransactionPayQuote<RelayQuote>;
+    const error = { validationError } as unknown as Error;
+
+    isRelayQuoteValidationErrorMock.mockReturnValue(true);
+    validateRelayQuoteMock.mockRejectedValue(error);
+
+    const strategy = new RelayStrategy();
+    const result = await strategy.checkQuoteSupport({
+      messenger,
+      quotes: [quote],
+      transaction: request.transaction,
+    });
+
+    expect(result).toStrictEqual({
+      isSupported: false,
+      validationError,
+    });
+  });
+
+  it('wraps unknown quote validation errors', async () => {
+    const quote = {
+      request: {
+        sourceChainId: '0x1' as Hex,
+        sourceTokenAddress: '0xabc' as Hex,
+      },
+      strategy: TransactionPayStrategy.Relay,
+    } as TransactionPayQuote<RelayQuote>;
+
+    validateRelayQuoteMock.mockRejectedValue(new Error('RPC down'));
+
+    const strategy = new RelayStrategy();
+    const result = await strategy.checkQuoteSupport({
+      messenger,
+      quotes: [quote],
+      transaction: request.transaction,
+    });
+
+    expect(result).toStrictEqual({
+      isSupported: false,
+      validationError: {
+        chainId: '0x1',
+        code: 'quote_validation_unavailable',
+        message: 'RPC down',
+        strategy: TransactionPayStrategy.Relay,
+        tokenAddress: '0xabc',
+      },
+    });
   });
 
   it('delegates execute', async () => {
