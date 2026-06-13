@@ -5,7 +5,10 @@ import type { Hex } from '@metamask/utils';
 
 import { TransactionPayStrategy } from '../../constants';
 import { getMessengerMock } from '../../tests/messenger-mock';
-import type { TransactionPayQuote } from '../../types';
+import type {
+  TransactionPayControllerMessenger,
+  TransactionPayQuote,
+} from '../../types';
 import { getFeatureFlags } from '../../utils/feature-flags';
 import { rpcRequest } from '../../utils/provider';
 import {
@@ -14,10 +17,10 @@ import {
 } from '../../utils/sentinel';
 import { getLiveTokenBalance } from '../../utils/token';
 import {
-  isRelayQuoteValidationError,
-  RelayQuoteValidationError,
-  validateRelayQuote,
-} from './simulation';
+  isQuoteValidationError,
+  validateQuoteExecution,
+} from '../../utils/validation';
+import { buildRelaySimulation, RelayQuoteValidationError } from './simulation';
 import type { RelayQuote } from './types';
 
 jest.mock('../../utils/feature-flags', () => ({
@@ -50,6 +53,8 @@ const FROM_MOCK = '0x1111111111111111111111111111111111111111' as Hex;
 const TOKEN_ADDRESS_MOCK = '0x2222222222222222222222222222222222222222' as Hex;
 const RECIPIENT_MOCK = '0x3333333333333333333333333333333333333333' as Hex;
 const CHAIN_ID_MOCK = '0x38' as Hex;
+const EIP7702_DELEGATOR_ADDRESS =
+  '0x63c0c19a282a1b52b07dd5a65b58948a07dae32b' as Hex;
 const TRANSACTION_MOCK = {
   id: 'tx-id',
   chainId: CHAIN_ID_MOCK,
@@ -415,7 +420,7 @@ describe('Relay quote simulation validation', () => {
       expect.objectContaining({
         overrides: {
           [FROM_MOCK.toLowerCase()]: {
-            code: `0xef0100${authorizationAddress.slice(2)}`,
+            code: `0xef0100${EIP7702_DELEGATOR_ADDRESS.slice(2)}`,
           },
         },
         transactions: [
@@ -437,7 +442,7 @@ describe('Relay quote simulation validation', () => {
       strategy: TransactionPayStrategy.Relay,
     });
 
-    expect(isRelayQuoteValidationError(error)).toBe(true);
+    expect(isQuoteValidationError(error)).toBe(true);
   });
 });
 
@@ -509,4 +514,26 @@ function buildQuote({
     },
     strategy: TransactionPayStrategy.Relay,
   } as TransactionPayQuote<RelayQuote>;
+}
+
+async function validateRelayQuote({
+  messenger,
+  quote,
+  transaction,
+}: {
+  messenger: TransactionPayControllerMessenger;
+  quote: TransactionPayQuote<RelayQuote>;
+  transaction: TransactionMeta;
+}): Promise<void> {
+  const simulation = await buildRelaySimulation({
+    messenger,
+    quote,
+    transaction,
+  });
+
+  await validateQuoteExecution({
+    messenger,
+    quote,
+    simulation,
+  });
 }

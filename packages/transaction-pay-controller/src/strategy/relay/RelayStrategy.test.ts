@@ -7,25 +7,29 @@ import type {
   TransactionPayQuote,
 } from '../../types';
 import { getPayStrategiesConfig } from '../../utils/feature-flags';
+import {
+  isQuoteValidationError,
+  validateQuoteExecution,
+} from '../../utils/validation';
 import { getRelayQuotes } from './relay-quotes';
 import { submitRelayQuotes } from './relay-submit';
 import { RelayStrategy } from './RelayStrategy';
-import { isRelayQuoteValidationError, validateRelayQuote } from './simulation';
+import { buildRelaySimulation } from './simulation';
 import type { RelayQuote } from './types';
 
 jest.mock('./relay-quotes');
 jest.mock('./simulation');
 jest.mock('./relay-submit');
 jest.mock('../../utils/feature-flags');
+jest.mock('../../utils/validation');
 
 describe('RelayStrategy', () => {
   const getRelayQuotesMock = jest.mocked(getRelayQuotes);
-  const isRelayQuoteValidationErrorMock = jest.mocked(
-    isRelayQuoteValidationError,
-  );
+  const buildRelaySimulationMock = jest.mocked(buildRelaySimulation);
+  const isQuoteValidationErrorMock = jest.mocked(isQuoteValidationError);
   const submitRelayQuotesMock = jest.mocked(submitRelayQuotes);
   const getPayStrategiesConfigMock = jest.mocked(getPayStrategiesConfig);
-  const validateRelayQuoteMock = jest.mocked(validateRelayQuote);
+  const validateQuoteExecutionMock = jest.mocked(validateQuoteExecution);
 
   const messenger = {} as never;
 
@@ -64,8 +68,9 @@ describe('RelayStrategy', () => {
         enabled: true,
       },
     });
-    isRelayQuoteValidationErrorMock.mockReturnValue(false);
-    validateRelayQuoteMock.mockResolvedValue(undefined);
+    buildRelaySimulationMock.mockResolvedValue({ transactions: [] });
+    isQuoteValidationErrorMock.mockReturnValue(false);
+    validateQuoteExecutionMock.mockResolvedValue(undefined);
   });
 
   it('returns true from supports when relay is enabled', () => {
@@ -102,9 +107,7 @@ describe('RelayStrategy', () => {
   });
 
   it('validates quotes in checkQuoteSupport', async () => {
-    const quote = {
-      strategy: TransactionPayStrategy.Relay,
-    } as TransactionPayQuote<RelayQuote>;
+    const quote = buildQuote();
 
     const strategy = new RelayStrategy();
     const result = await strategy.checkQuoteSupport({
@@ -114,11 +117,16 @@ describe('RelayStrategy', () => {
     });
 
     expect(result).toStrictEqual({ isSupported: true });
-    expect(validateRelayQuoteMock).toHaveBeenCalledWith({
+    expect(buildRelaySimulationMock).toHaveBeenCalledWith({
+      messenger,
+      quote,
+      transaction: request.transaction,
+    });
+    expect(validateQuoteExecutionMock).toHaveBeenCalledWith({
       messenger,
       quote,
       signal: undefined,
-      transaction: request.transaction,
+      simulation: { transactions: [] },
     });
   });
 
@@ -128,13 +136,11 @@ describe('RelayStrategy', () => {
       message: 'Insufficient source token balance for quote',
       strategy: TransactionPayStrategy.Relay,
     } as const;
-    const quote = {
-      strategy: TransactionPayStrategy.Relay,
-    } as TransactionPayQuote<RelayQuote>;
+    const quote = buildQuote();
     const error = { validationError } as unknown as Error;
 
-    isRelayQuoteValidationErrorMock.mockReturnValue(true);
-    validateRelayQuoteMock.mockRejectedValue(error);
+    isQuoteValidationErrorMock.mockReturnValue(true);
+    validateQuoteExecutionMock.mockRejectedValue(error);
 
     const strategy = new RelayStrategy();
     const result = await strategy.checkQuoteSupport({
@@ -158,7 +164,8 @@ describe('RelayStrategy', () => {
       strategy: TransactionPayStrategy.Relay,
     } as TransactionPayQuote<RelayQuote>;
 
-    validateRelayQuoteMock.mockRejectedValue(new Error('RPC down'));
+    buildRelaySimulationMock.mockResolvedValue({ transactions: [] });
+    validateQuoteExecutionMock.mockRejectedValue(new Error('RPC down'));
 
     const strategy = new RelayStrategy();
     const result = await strategy.checkQuoteSupport({
@@ -178,6 +185,16 @@ describe('RelayStrategy', () => {
       },
     });
   });
+
+  function buildQuote(): TransactionPayQuote<RelayQuote> {
+    return {
+      request: {
+        sourceChainId: '0x1' as Hex,
+        sourceTokenAddress: '0xabc' as Hex,
+      },
+      strategy: TransactionPayStrategy.Relay,
+    } as TransactionPayQuote<RelayQuote>;
+  }
 
   it('delegates execute', async () => {
     const executeRequest = {
