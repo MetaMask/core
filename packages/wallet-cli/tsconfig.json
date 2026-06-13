@@ -3,6 +3,9 @@
   "compilerOptions": {
     "baseUrl": "./"
   },
-  "references": [],
+  "references": [
+    { "path": "../base-controller/tsconfig.json" },
+    { "path": "../wallet/tsconfig.json" }
+  ],
   "include": ["../../types", "./bin", "./src"]
 }
