@@ -1953,6 +1953,96 @@ describe('KeyringController', () => {
           });
         });
       });
+
+      it('normalizes errors with a 4001 code to a user rejection error', async () => {
+        await withController(async ({ controller, initialState }) => {
+          const account = initialState.keyrings[0].accounts[0];
+          const keyring = (await controller.getKeyringForAccount(
+            account,
+          )) as EthKeyring;
+          jest
+            .spyOn(keyring, 'signMessage')
+            .mockRejectedValue({ code: 4001, data: { foo: 'bar' } });
+
+          await expect(
+            controller.signMessage({
+              data: '0x879a053d4800c6354e76c7985a865d2922c82fb5b3f4577b2fe08b998954f2e0',
+              from: account,
+            }),
+          ).rejects.toMatchObject({
+            code: errorCodes.provider.userRejectedRequest,
+            message:
+              'MetaMask Tx Signature: User denied transaction signature.',
+            data: { foo: 'bar' },
+          });
+        });
+      });
+
+      it('normalizes string rejection errors to a user rejection error', async () => {
+        await withController(async ({ controller, initialState }) => {
+          const account = initialState.keyrings[0].accounts[0];
+          const keyring = (await controller.getKeyringForAccount(
+            account,
+          )) as EthKeyring;
+          jest
+            .spyOn(keyring, 'signMessage')
+            .mockRejectedValue('User rejected the request');
+
+          await expect(
+            controller.signMessage({
+              data: '0x879a053d4800c6354e76c7985a865d2922c82fb5b3f4577b2fe08b998954f2e0',
+              from: account,
+            }),
+          ).rejects.toMatchObject({
+            code: errorCodes.provider.userRejectedRequest,
+            message:
+              'MetaMask Tx Signature: User denied transaction signature.',
+          });
+        });
+      });
+
+      it('re-throws non-rejection errors unchanged, even with a non-string non-object code', async () => {
+        await withController(async ({ controller, initialState }) => {
+          const account = initialState.keyrings[0].accounts[0];
+          const keyring = (await controller.getKeyringForAccount(
+            account,
+          )) as EthKeyring;
+          const originalError = { code: 1234, message: 'Something else' };
+          jest
+            .spyOn(keyring, 'signMessage')
+            .mockRejectedValue(originalError);
+
+          await expect(
+            controller.signMessage({
+              data: '0x879a053d4800c6354e76c7985a865d2922c82fb5b3f4577b2fe08b998954f2e0',
+              from: account,
+            }),
+          ).rejects.toBe(originalError);
+        });
+      });
+
+      it('re-throws non-rejection errors with circular references unchanged', async () => {
+        await withController(async ({ controller, initialState }) => {
+          const account = initialState.keyrings[0].accounts[0];
+          const keyring = (await controller.getKeyringForAccount(
+            account,
+          )) as EthKeyring;
+          const originalError: { message: string; cause?: unknown } = {
+            message: 'Something else',
+          };
+          originalError.cause = originalError;
+          jest
+            .spyOn(keyring, 'signMessage')
+            .mockRejectedValue(originalError);
+
+          await expect(
+            controller.signMessage({
+              data: '0x879a053d4800c6354e76c7985a865d2922c82fb5b3f4577b2fe08b998954f2e0',
+              from: account,
+            }),
+          ).rejects.toBe(originalError);
+        });
+      });
     });
 
     describe('when the keyring for the given address does not support signMessage', () => {
@@ -2033,6 +2123,29 @@ describe('KeyringController', () => {
               from: '',
             }),
           ).rejects.toThrow(KeyringControllerErrorMessage.KeyringNotFound);
+        });
+      });
+
+      it('normalizes cancellation-like signPersonalMessage errors to 4001', async () => {
+        await withController(async ({ controller, initialState }) => {
+          const account = initialState.keyrings[0].accounts[0];
+          const keyring = (await controller.getKeyringForAccount(
+            account,
+          )) as EthKeyring;
+          jest
+            .spyOn(keyring, 'signPersonalMessage')
+            .mockRejectedValue(new Error('Action cancelled by user'));
+
+          await expect(
+            controller.signPersonalMessage({
+              data: '0x879a053d4800c6354e76c7985a865d2922c82fb5b3f4577b2fe08b998954f2e0',
+              from: account,
+            }),
+          ).rejects.toMatchObject({
+            code: errorCodes.provider.userRejectedRequest,
+            message:
+              'MetaMask Tx Signature: User denied transaction signature.',
+          });
         });
       });
     });
