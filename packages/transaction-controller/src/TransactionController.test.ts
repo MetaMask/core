@@ -3134,18 +3134,23 @@ describe('TransactionController', () => {
         });
 
         it('normalizes "cancelled" signing errors to userRejectedRequest', async () => {
-          const { controller } = setupController({
-            options: {
-              sign: () => {
-                throw new Error('Action cancelled by user');
-              },
-            },
+          const { controller, rootMessenger } = setupController({
             messengerOptions: {
               addTransactionApprovalRequest: {
                 state: 'approved',
               },
             },
           });
+
+          rootMessenger.unregisterActionHandler(
+            'KeyringController:signTransaction',
+          );
+          rootMessenger.registerActionHandler(
+            'KeyringController:signTransaction',
+            () => {
+              throw new Error('Action cancelled by user');
+            },
+          );
 
           await expectTransactionToFail(
             controller,
@@ -3155,18 +3160,23 @@ describe('TransactionController', () => {
         });
 
         it('normalizes "canceled" signing errors to userRejectedRequest', async () => {
-          const { controller } = setupController({
-            options: {
-              sign: () => {
-                throw new Error('Action canceled by user');
-              },
-            },
+          const { controller, rootMessenger } = setupController({
             messengerOptions: {
               addTransactionApprovalRequest: {
                 state: 'approved',
               },
             },
           });
+
+          rootMessenger.unregisterActionHandler(
+            'KeyringController:signTransaction',
+          );
+          rootMessenger.registerActionHandler(
+            'KeyringController:signTransaction',
+            () => {
+              throw new Error('Action canceled by user');
+            },
+          );
 
           await expectTransactionToFail(
             controller,
