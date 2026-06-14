@@ -46,6 +46,16 @@ export class MantleLayer1GasFeeFlow extends OracleLayer1GasFeeFlow {
     return MANTLE_CHAIN_IDS.includes(transactionMeta.chainId);
   }
 
+  protected override getOperatorFeeGas(
+    transactionMeta: TransactionMeta,
+  ): string | undefined {
+    return (
+      transactionMeta.gasUsed ??
+      transactionMeta.txParams.gas ??
+      transactionMeta.txParams.gasLimit
+    );
+  }
+
   protected override async transformOracleFee(
     oracleFee: BN,
     request: Layer1GasFeeFlowRequest,

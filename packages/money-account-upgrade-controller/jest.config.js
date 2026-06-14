@@ -11,10 +11,7 @@ const baseConfig = require('../../jest.config.packages');
 const displayName = path.basename(__dirname);
 
 module.exports = merge(baseConfig, {
-  // The display name when running multiple projects
   displayName,
-
-  // An object that configures minimum threshold enforcement for coverage results
   coverageThreshold: {
     global: {
       branches: 100,
@@ -23,4 +20,5 @@ module.exports = merge(baseConfig, {
       statements: 100,
     },
   },
+  testEnvironment: '<rootDir>/jest.environment.js',
 });

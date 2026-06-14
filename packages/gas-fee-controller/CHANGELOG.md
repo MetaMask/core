@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/utils` from `^11.9.0` to `^11.11.0` ([#9074](https://github.com/MetaMask/core/pull/9074))
+- Bump `@metamask/controller-utils` from `^12.1.0` to `^12.2.0` ([#9058](https://github.com/MetaMask/core/pull/9058), [#9083](https://github.com/MetaMask/core/pull/9083))
+
+## [26.2.2]
+
+### Changed
+
+- Bump `@metamask/network-controller` from `^31.0.0` to `^32.0.0` ([#8765](https://github.com/MetaMask/core/pull/8765), [#8774](https://github.com/MetaMask/core/pull/8774))
+- Bump `@metamask/controller-utils` from `^12.0.0` to `^12.1.0` ([#8774](https://github.com/MetaMask/core/pull/8774))
+- Bump `@metamask/polling-controller` from `^16.0.5` to `^16.0.6` ([#8834](https://github.com/MetaMask/core/pull/8834))
+
+## [26.2.1]
+
+### Changed
+
+- Bump `@metamask/controller-utils` from `^11.20.0` to `^12.0.0` ([#8755](https://github.com/MetaMask/core/pull/8755))
+- Bump `@metamask/network-controller` from `^30.1.0` to `^31.0.0` ([#8755](https://github.com/MetaMask/core/pull/8755))
+- Bump `@metamask/polling-controller` from `^16.0.4` to `^16.0.5` ([#8755](https://github.com/MetaMask/core/pull/8755))
+
 ## [26.2.0]
 
 ### Added
@@ -534,7 +555,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@26.2.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@26.2.2...HEAD
+[26.2.2]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@26.2.1...@metamask/gas-fee-controller@26.2.2
+[26.2.1]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@26.2.0...@metamask/gas-fee-controller@26.2.1
 [26.2.0]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@26.1.1...@metamask/gas-fee-controller@26.2.0
 [26.1.1]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@26.1.0...@metamask/gas-fee-controller@26.1.1
 [26.1.0]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@26.0.3...@metamask/gas-fee-controller@26.1.0

@@ -255,6 +255,15 @@
     },
     {
       "path": "./packages/user-operation-controller/tsconfig.build.json"
+    },
+    {
+      "path": "./packages/wallet-cli/tsconfig.build.json"
+    },
+    {
+      "path": "./packages/wallet-framework-docs/tsconfig.build.json"
+    },
+    {
+      "path": "./packages/wallet/tsconfig.build.json"
     }
   ],
   "files": [],

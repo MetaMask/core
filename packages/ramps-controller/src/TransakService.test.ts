@@ -1172,6 +1172,28 @@ describe('TransakService', () => {
       expect(await promise).toStrictEqual(MOCK_TRANSLATION);
     });
 
+    it('normalizes canonical payment method IDs without the /payments/ prefix', async () => {
+      nock(STAGING_ORDERS_BASE)
+        .get(`${STAGING_PROVIDER_PATH}/native/translate`)
+        .query(
+          (query) =>
+            query.paymentMethod === 'apple_pay' &&
+            query.fiatCurrencyId === 'USD',
+        )
+        .reply(200, MOCK_TRANSLATION);
+
+      const { service } = getService();
+
+      const promise = service.getTranslation({
+        fiatCurrencyId: 'USD',
+        paymentMethod: 'apple-pay',
+      });
+      await jest.runAllTimersAsync();
+      await flushPromises();
+
+      expect(await promise).toStrictEqual(MOCK_TRANSLATION);
+    });
+
     it('passes through payment methods already in deposit format', async () => {
       nock(STAGING_ORDERS_BASE)
         .get(`${STAGING_PROVIDER_PATH}/native/translate`)

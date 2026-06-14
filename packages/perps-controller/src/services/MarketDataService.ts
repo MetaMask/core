@@ -20,6 +20,7 @@ import type {
   Order,
   GetOrdersParams,
   MarketInfo,
+  GetMarketDataWithPricesParams,
   GetMarketsParams,
   GetAvailableDexsParams,
   LiquidationPriceParams,
@@ -30,10 +31,12 @@ import type {
   ClosePositionParams,
   AssetRoute,
   PerpsPlatformDependencies,
+  PerpsMarketData,
 } from '../types';
 import type { CandleData } from '../types/perps-types';
 import { coalescePerpsRestRequest } from '../utils/coalescePerpsRestRequest';
 import { ensureError, isAbortError } from '../utils/errorUtils';
+import { applyMarketFilters } from '../utils/marketUtils';
 import type { ServiceContext } from './ServiceContext';
 
 /**
@@ -793,6 +796,83 @@ export class MarketDataService {
     } finally {
       this.#deps.tracer.endTrace({
         name: PerpsTraceNames.GetMarkets,
+        id: traceId,
+        data: traceData,
+      });
+    }
+  }
+
+  /**
+   * Get market data with prices (includes price, volume, 24h change).
+   * Applies optional category filtering, sorting, and limit after fetching.
+   *
+   * @param options - The configuration options.
+   * @param options.provider - The perps provider instance.
+   * @param options.params - Optional filter/sort/limit params.
+   * @param options.context - The service context for dependencies.
+   * @returns The result of the operation.
+   */
+  async getMarketDataWithPrices(options: {
+    provider: PerpsProvider;
+    params?: GetMarketDataWithPricesParams;
+    context: ServiceContext;
+  }): Promise<PerpsMarketData[]> {
+    const { provider, params, context } = options;
+    const traceId = uuidv4();
+    let traceData: { success: boolean; error?: string } | undefined;
+
+    try {
+      this.#deps.tracer.trace({
+        name: PerpsTraceNames.GetMarketDataWithPrices,
+        id: traceId,
+        op: PerpsTraceOperations.Operation,
+        tags: {
+          provider: context.tracingContext.provider,
+          isTestnet: String(context.tracingContext.isTestnet),
+          ...(params?.categories && {
+            categoryCount: String(params.categories.length),
+          }),
+        },
+      });
+
+      const markets = await provider.getMarketDataWithPrices();
+      const filtered = applyMarketFilters(markets, params);
+
+      traceData = { success: true };
+      return filtered;
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error
+          ? error.message
+          : PERPS_ERROR_CODES.MARKETS_FAILED;
+
+      this.#deps.logger.error(
+        ensureError(error, 'MarketDataService.getMarketDataWithPrices'),
+        {
+          tags: {
+            feature: PERPS_CONSTANTS.FeatureName,
+            provider: context.tracingContext.provider,
+            network: context.tracingContext.isTestnet ? 'testnet' : 'mainnet',
+          },
+          context: {
+            name: context.errorContext.controller,
+            data: {
+              method: context.errorContext.method,
+              params,
+            },
+          },
+        },
+      );
+
+      traceData = {
+        success: false,
+        error: errorMessage,
+      };
+
+      throw error;
+    } finally {
+      this.#deps.tracer.endTrace({
+        name: PerpsTraceNames.GetMarketDataWithPrices,
         id: traceId,
         data: traceData,
       });

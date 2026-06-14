@@ -4,6 +4,7 @@ import type {
 } from '@metamask/controller-utils';
 import { createServicePolicy, HttpError } from '@metamask/controller-utils';
 import type { Messenger } from '@metamask/messenger';
+import type { AuthenticationController } from '@metamask/profile-sync-controller';
 
 import packageJson from '../package.json';
 import type { RampsServiceMethodActions } from './RampsService-method-action-types';
@@ -108,6 +109,12 @@ export type ProviderLimits = {
 export type Provider = {
   id: string;
   name: string;
+  /**
+   * Provider classification from the v2 API: 'native' (first-party
+   * integration, e.g. Transak Native) or 'aggregator' (third-party redirect).
+   * May be absent on responses that predate the v2 type field.
+   */
+  type?: 'aggregator' | 'native';
   environmentType: string;
   description: string;
   hqAddress: string;
@@ -684,7 +691,8 @@ export type RampsServiceActions = RampsServiceMethodActions;
 /**
  * Actions from other messengers that {@link RampsService} calls.
  */
-type AllowedActions = never;
+type AllowedActions =
+  AuthenticationController.AuthenticationControllerGetBearerTokenAction;
 
 /**
  * Events that {@link RampsService} exposes to other consumers.
@@ -889,6 +897,24 @@ export class RampsService {
       return this.#baseUrlOverride;
     }
     return getBaseUrl(this.#environment, service);
+  }
+
+  /**
+   * Builds the request headers for authenticated ramps API calls.
+   *
+   * Fetches a bearer token from `AuthenticationController` and returns it as
+   * an `Authorization` header. Throws if the token is unavailable (e.g. the
+   * wallet is locked or the user is signed out).
+   *
+   * @returns Headers containing the `Authorization: Bearer <token>` entry.
+   */
+  async #getRequestHeaders(): Promise<Record<string, string>> {
+    const bearerToken = await this.#messenger.call(
+      'AuthenticationController:getBearerToken',
+    );
+    return {
+      Authorization: `Bearer ${bearerToken}`,
+    };
   }
 
   /**
@@ -1270,6 +1296,8 @@ export class RampsService {
     url.searchParams.set('amount', String(params.amount));
     url.searchParams.set('walletAddress', params.walletAddress);
 
+    const headers = await this.#getRequestHeaders();
+
     // Add payment methods as array parameters
     params.paymentMethods.forEach((paymentMethod) => {
       url.searchParams.append('payments', paymentMethod);
@@ -1286,7 +1314,7 @@ export class RampsService {
     }
 
     const response = await this.#policy.execute(async () => {
-      const fetchResponse = await this.#fetch(url);
+      const fetchResponse = await this.#fetch(url, { headers });
       if (!fetchResponse.ok) {
         throw new HttpError(
           fetchResponse.status,
@@ -1324,8 +1352,10 @@ export class RampsService {
     const url = new URL(buyUrl);
     this.#addCommonParams(url);
 
+    const headers = await this.#getRequestHeaders();
+
     const response = await this.#policy.execute(async () => {
-      const fetchResponse = await this.#fetch(url);
+      const fetchResponse = await this.#fetch(url, { headers });
       if (!fetchResponse.ok) {
         throw new HttpError(
           fetchResponse.status,

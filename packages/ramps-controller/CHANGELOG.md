@@ -7,6 +7,50 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [14.2.0]
+
+### Changed
+
+- `RampsService.getQuotes` now sends an `Authorization: Bearer <token>` header, sourcing the token from `AuthenticationController:getBearerToken` (already a required messenger action since `14.0.0`); the call throws if no token is available (e.g. the wallet is locked or the user is signed out) ([#8888](https://github.com/MetaMask/core/pull/8888))
+- Bump `@metamask/controller-utils` from `^12.1.0` to `^12.2.0` ([#9058](https://github.com/MetaMask/core/pull/9058), [#9083](https://github.com/MetaMask/core/pull/9083))
+
+## [14.1.1]
+
+### Fixed
+
+- Fix Transak Native deposits failing on staging/UAT with a 400 `paymentMethod is required parameter` error by mapping canonical payment method IDs supplied without the `/payments/` prefix (e.g. `apple-pay`) to their deposit-format equivalents, in addition to the prefixed forms (e.g. `/payments/apple-pay`) ([#8980](https://github.com/MetaMask/core/pull/8980))
+
+## [14.1.0]
+
+### Added
+
+- Add `autoSelectProvider`, `preferredProviderIds`, and `restrictToKnownOrNativeProviders` options to the `getQuotes` method (and `RampsController:getQuotes` messenger action) ([#8949](https://github.com/MetaMask/core/pull/8949))
+  - When `autoSelectProvider` is `true` and `providers` is omitted, `getQuotes` resolves a provider supporting the requested `assetId` for that request only, against the provider list for the requested region. It prefers the currently selected provider (when it supports the asset), then preferred providers — taken from `preferredProviderIds` when supplied, otherwise derived from the user's completed-order history (most recent first) — then a native provider (identified by the API's `type` field, e.g. Transak Native), then the first supporting provider. The selected-provider state is never mutated.
+  - When `restrictToKnownOrNativeProviders` is `true`, auto-selection still honors a previously-used provider (selected, then completed-order history) but otherwise resolves only a native provider, introducing no other provider; an explicitly passed `providers` list is filtered to those supporting the region/asset. If nothing qualifies, `getQuotes` returns an empty response instead of quoting other providers.
+- Add an optional `type` field (`'native' | 'aggregator'`) to the `Provider` type, mirroring the v2 providers API ([#8949](https://github.com/MetaMask/core/pull/8949))
+
+### Changed
+
+- Bump `@metamask/profile-sync-controller` from `^28.1.0` to `^28.1.1` ([#8912](https://github.com/MetaMask/core/pull/8912))
+
+## [14.0.0]
+
+### Added
+
+- Authenticate ramps requests by sourcing a bearer token from `AuthenticationController:getBearerToken` and sending it as an `Authorization: Bearer <token>` header for `getBuyWidgetUrl` ([#8843](https://github.com/MetaMask/core/pull/8843))
+- Add `@metamask/profile-sync-controller` `^28.1.0` as a runtime dependency ([#8843](https://github.com/MetaMask/core/pull/8843))
+
+### Changed
+
+- **BREAKING:** `RampsServiceMessenger` now requires the `AuthenticationController:getBearerToken` action to be delegated to it; consumers must register this action handler before calling `getBuyWidgetUrl`, otherwise the call will throw ([#8843](https://github.com/MetaMask/core/pull/8843))
+- Bump `@metamask/controller-utils` from `^12.0.0` to `^12.1.0` ([#8774](https://github.com/MetaMask/core/pull/8774))
+
+## [13.3.1]
+
+### Changed
+
+- Bump `@metamask/controller-utils` from `^11.20.0` to `^12.0.0` ([#8755](https://github.com/MetaMask/core/pull/8755))
+
 ## [13.3.0]
 
 ### Changed
@@ -16,7 +60,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Tag circuit-breaker errors in `RampsController` with a stable `CIRCUIT_BREAKER_OPEN` error key so clients can localize the fallback copy without depending on internal Cockatiel text ([#8596](https://github.com/MetaMask/core/pull/8596)).
+- Tag circuit-breaker errors in `RampsController` with a stable `CIRCUIT_BREAKER_OPEN` error key so clients can localize the fallback copy without depending on internal Cockatiel text. ([#8596](https://github.com/MetaMask/core/pull/8596))
 
 ## [13.2.0]
 
@@ -332,7 +376,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Add `OnRampService` for interacting with the OnRamp API
   - Add geolocation detection via IP address lookup
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@13.3.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@14.2.0...HEAD
+[14.2.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@14.1.1...@metamask/ramps-controller@14.2.0
+[14.1.1]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@14.1.0...@metamask/ramps-controller@14.1.1
+[14.1.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@14.0.0...@metamask/ramps-controller@14.1.0
+[14.0.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@13.3.1...@metamask/ramps-controller@14.0.0
+[13.3.1]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@13.3.0...@metamask/ramps-controller@13.3.1
 [13.3.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@13.2.0...@metamask/ramps-controller@13.3.0
 [13.2.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@13.1.0...@metamask/ramps-controller@13.2.0
 [13.1.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@13.0.0...@metamask/ramps-controller@13.1.0

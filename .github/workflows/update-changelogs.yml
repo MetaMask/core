@@ -9,6 +9,7 @@ on:
       - main
     types:
       - opened
+      - ready_for_review
 
 permissions:
   contents: write
@@ -17,7 +18,7 @@ permissions:
 jobs:
   is-fork:
     name: Determine whether this PR is from a fork
-    if: github.event_name == 'pull_request_target' || (github.event.issue.pull_request && startsWith(github.event.comment.body, '@metamaskbot update-changelogs'))
+    if: (github.event_name == 'pull_request_target' && !github.event.pull_request.draft) || (github.event.issue.pull_request && startsWith(github.event.comment.body, '@metamaskbot update-changelogs'))
     runs-on: ubuntu-latest
     outputs:
       is-fork: ${{ steps.is-fork.outputs.is-fork }}
@@ -47,7 +48,7 @@ jobs:
       - name: Get pull request info
         id: pr-info
         env:
-          GH_TOKEN: ${{ secrets.UPDATE_CHANGELOG_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PR_NUMBER: ${{ github.event.issue.number || github.event.pull_request.number }}
         run: |
           gh pr view "$PR_NUMBER" \
@@ -89,8 +90,18 @@ jobs:
     if: needs.is-release.outputs.is-release == 'true' && github.event_name == 'issue_comment'
     runs-on: ubuntu-latest
     environment: default-branch
+    permissions:
+      id-token: write
     continue-on-error: true
     steps:
+      - name: Get access token
+        id: get-token
+        uses: MetaMask/github-tools/.github/actions/get-token@v1
+        with:
+          token-exchange-url: ${{ vars.TOKEN_EXCHANGE_URL }}
+          permissions: |
+            contents: write
+            pull_requests: write
       - name: Checkout repository
         uses: actions/checkout@v6
       - name: React to the comment
@@ -103,7 +114,7 @@ jobs:
             -f content='+1'
         env:
           COMMENT_ID: ${{ github.event.comment.id }}
-          GH_TOKEN: ${{ secrets.UPDATE_CHANGELOG_TOKEN }}
+          GH_TOKEN: ${{ steps.get-token.outputs.token }}
           REPO: ${{ github.repository }}
 
   update-changelogs:
@@ -112,12 +123,23 @@ jobs:
     if: ${{ needs.is-release.outputs.is-release == 'true' }}
     runs-on: ubuntu-latest
     environment: default-branch
+    permissions:
+      id-token: write
     steps:
+      - name: Get access token
+        id: get-token
+        uses: MetaMask/github-tools/.github/actions/get-token@v1
+        with:
+          token-exchange-url: ${{ vars.TOKEN_EXCHANGE_URL }}
+          permissions: |
+            contents: write
+            pull_requests: write
+
       - name: Check out the base branch
         uses: actions/checkout@v6
         with:
           ref: ${{ needs.is-release.outputs.merge-base }}
-          token: ${{ secrets.UPDATE_CHANGELOG_TOKEN }}
+          token: ${{ steps.get-token.outputs.token }}
 
       - name: Detach HEAD (to prevent accidental pushes)
         run: git checkout --detach HEAD
@@ -127,7 +149,7 @@ jobs:
         with:
           is-high-risk-environment: false
 
-      - name: Overlay changelogs from current pull request
+      - name: Overlay relevant files from current pull request
         env:
           PR_HEAD_SHA: ${{ needs.is-release.outputs.head-sha }}
           PR_HEAD_REF: ${{ needs.is-release.outputs.head-ref }}
@@ -135,7 +157,7 @@ jobs:
           # These next two commands are also useful later when pushing
           git fetch --no-tags origin "$PR_HEAD_SHA"
           git fetch --no-tags origin "$PR_HEAD_REF"
-          git checkout "$PR_HEAD_SHA" -- '**/CHANGELOG.md'
+          git checkout "$PR_HEAD_SHA" -- '**/CHANGELOG.md' '**/package.json'
         shell: bash
 
       - name: Configure Git with name and email
@@ -146,9 +168,9 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
         shell: bash
 
-      - name: Commit changelogs from current pull request
+      - name: Commit relevant files from current pull request
         run: |
-          git add -- '**/CHANGELOG.md'
+          git add -- '**/CHANGELOG.md' '**/package.json'
           git commit -m "[Temporary] Add changelogs from current pull request"
         shell: bash
 
@@ -175,7 +197,7 @@ jobs:
           git add -- '**/CHANGELOG.md'
           git commit -m "chore: Update dependency bump changelog entries"
 
-          new_commit_id="$(git log -1 --pretty='format:%h')"
+          new_commit_id="$(git log -1 --pretty='format:%H')"
           echo "new-commit-id=${new_commit_id}" >> "$GITHUB_OUTPUT"
         shell: bash
 
@@ -205,7 +227,7 @@ jobs:
           UPDATE_CHANGELOGS_OUTCOME: ${{ steps.update-changelogs.outcome }}
           PR_NUMBER: ${{ github.event.issue.number || github.event.pull_request.number }}
         with:
-          github-token: ${{ secrets.UPDATE_CHANGELOG_TOKEN }}
+          github-token: ${{ steps.get-token.outputs.token }}
           script: |
             const {
               CHANGES_PUSHED,

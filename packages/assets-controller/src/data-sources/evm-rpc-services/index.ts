@@ -16,6 +16,7 @@ export {
   type MulticallClientConfig,
   TokensApiClient,
   type TokensApiClientConfig,
+  type TokenListQueryClient,
 } from './clients';
 export {
   BalanceFetcher,

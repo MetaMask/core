@@ -41,6 +41,9 @@ export const PERPS_CONSTANTS = {
   BalanceUpdateThrottleMs: 15000, // Update at most every 15 seconds to reduce state updates in PerpsConnectionManager
   InitialDataDelayMs: 100, // Delay to allow initial data to load after connection establishment
 
+  // Order submission timing
+  PlaceOrderTimeoutMs: 60_000, // Hard timeout for provider round-trip in TradingService.placeOrder
+
   // Deposit toast timing
   DepositTakingLongerToastDelayMs: 30_000, // Delay before showing "Deposit taking longer than usual" toast
 
@@ -107,6 +110,16 @@ export const ORDER_SLIPPAGE_CONFIG = {
 } as const;
 
 /**
+ * Bounds and step for the user-configurable max slippage preference (basis points).
+ * Shared by the controller (`setMaxSlippage`) and UI (`slippageConfig.ts`).
+ */
+export const MAX_SLIPPAGE_BOUNDS = {
+  MinBps: 10,
+  MaxBps: 1000,
+  StepBps: 10,
+} as const;
+
+/**
  * Max order amount buffer to reduce "Insufficient margin" rejections from the exchange.
  * When the user selects 100% (slider or Max), we cap the order at (1 - this) of the
  * theoretical max so that fees, rounding, and exchange-side margin checks are covered.
@@ -134,6 +147,20 @@ export const PERFORMANCE_CONFIG = {
   // Candle subscription debounce delay (milliseconds)
   // Prevents WS subscription churn during rapid market switching (#28141)
   CandleConnectDebounceMs: 500,
+
+  // Order-form slippage estimate throttle (milliseconds)
+  // Updates the estimated-slippage value derived from the live L2 order book
+  // no more than once per window. Aggressive enough to keep the row reactive
+  // while the user edits the amount, conservative enough to avoid re-render
+  // pressure on every book tick.
+  SlippageEstimateThrottleMs: 250,
+
+  // Order-book levels sampled when estimating slippage
+  // Number of price levels (per side) walked by `calculateEstimatedSlippageBps`
+  // to fill the requested USD notional. Matches the L2 sample size used by the
+  // order-book panel and is enough depth for the typical order sizes we
+  // surface in the order form.
+  SlippageEstimateBookLevels: 10,
 
   // Candle WS teardown delay (milliseconds)
   // When the last subscriber for a cacheKey unsubscribes, wait this long before

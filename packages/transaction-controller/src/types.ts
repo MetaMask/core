@@ -325,6 +325,9 @@ export type TransactionMeta = {
    */
   origin?: string;
 
+  /** Whether the transaction was added by trusted internal MetaMask code. */
+  isInternal?: boolean;
+
   /**
    * The original dapp proposed token approval amount before edit by user.
    */
@@ -616,6 +619,9 @@ export type TransactionBatchMeta = {
    */
   origin?: string;
 
+  /** Whether the batch was added by trusted internal MetaMask code. */
+  isInternal?: boolean;
+
   /**
    * ID of the JSON-RPC request from DAPP.
    */
@@ -844,6 +850,11 @@ export enum TransactionType {
    * Deposit funds for Across quote via Predict.
    */
   predictAcrossDeposit = 'predictAcrossDeposit',
+
+  /**
+   * Withdraw funds for Across quote via Predict.
+   */
+  predictAcrossWithdraw = 'predictAcrossWithdraw',
 
   /**
    * Buy a position via Predict.
@@ -1216,7 +1227,6 @@ export interface RemoteTransactionSourceRequest {
 
 /**
  * An object capable of fetching transaction data from a remote source.
- * Used by the IncomingTransactionHelper to retrieve remote transaction data.
  */
 // This interface was created before this ESLint rule was added.
 // Convert to a `type` in a future major version.
@@ -1296,16 +1306,6 @@ export type InferTransactionTypeResult = {
    */
   type: TransactionType;
 };
-
-/**
- * A function for verifying a transaction, whether it is malicious or not.
- */
-export type SecurityProviderRequest = (
-  requestData: TransactionMeta,
-  messageType: string,
-  // TODO: Replace `any` with type
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-) => Promise<any>;
 
 /**
  * Specifies the shape of the base transaction parameters.
@@ -1869,6 +1869,9 @@ export type TransactionBatchRequest = {
   /** Origin of the request, such as a dApp hostname or `ORIGIN_METAMASK` if internal. */
   origin?: string;
 
+  /** Whether the batch was added by trusted internal MetaMask code. */
+  isInternal?: boolean;
+
   /** Whether to overwrite existing EIP-7702 delegation with MetaMask contract. */
   overwriteUpgrade?: boolean;
 
@@ -2116,20 +2119,6 @@ export type AfterAddHook = (request: {
 }>;
 
 /**
- * Custom logic to be executed after a transaction is simulated.
- * Can optionally update the transaction by returning the `updateTransaction` callback.
- */
-export type AfterSimulateHook = (request: {
-  transactionMeta: TransactionMeta;
-}) => Promise<
-  | {
-      skipSimulation?: boolean;
-      updateTransaction?: (transaction: TransactionMeta) => void;
-    }
-  | undefined
->;
-
-/**
  * Custom logic to be executed before a transaction is signed.
  * Can optionally update the transaction by returning the `updateTransaction` callback.
  */
@@ -2164,6 +2153,14 @@ export type MetamaskPayMetadata = {
 
   /** Chain ID of the payment token. */
   chainId?: Hex;
+
+  /** Fiat on-ramp metadata (order ID and provider). */
+  fiat?: {
+    /** Order ID (normalized format: /providers/{provider}/orders/{id}). */
+    orderId: string;
+    /** Provider code (e.g. "transak-native"). */
+    provider: string;
+  };
 
   /**
    * Whether this is a post-quote transaction (e.g., withdrawal flow).
@@ -2253,6 +2250,9 @@ export type AddTransactionOptions = {
 
   /** Origin of the transaction request, such as a dApp hostname. */
   origin?: string;
+
+  /** Whether the transaction was added by trusted internal MetaMask code. */
+  isInternal?: boolean;
 
   /** Custom logic to publish the transaction. */
   publishHook?: PublishHook;

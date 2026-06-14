@@ -21,7 +21,7 @@ import type {
   BridgeAsset,
   BridgeControllerState,
   GenericQuoteRequest,
-  QuoteResponse,
+  QuoteResponseV1,
   TxData,
 } from '../types';
 import { ChainId } from '../types';
@@ -126,7 +126,7 @@ export const getEthUsdtResetData = (
     '0',
   ]);
 
-  return data;
+  return data as Hex;
 };
 
 export const isEthUsdt = (
@@ -248,7 +248,7 @@ export const isNonEvmChainId = (
 };
 
 export const isEvmQuoteResponse = (
-  quoteResponse: QuoteResponse,
-): quoteResponse is QuoteResponse<TxData, TxData> => {
+  quoteResponse: QuoteResponseV1,
+): quoteResponse is QuoteResponseV1<TxData, TxData> => {
   return !isNonEvmChainId(quoteResponse.quote.srcChainId);
 };

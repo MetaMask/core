@@ -3,7 +3,9 @@ import { toHex } from '@metamask/controller-utils';
 import { abiERC20 } from '@metamask/metamask-eth-abis';
 import type { TransactionMeta } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
+import { createModuleLogger } from '@metamask/utils';
 
+import { projectLogger } from '../logger';
 import type {
   TransactionPayControllerMessenger,
   TransactionPayRequiredToken,
@@ -14,6 +16,8 @@ import {
   getTokenFiatRate,
   getTokenInfo,
 } from './token';
+
+const log = createModuleLogger(projectLogger, 'required-tokens');
 
 const FOUR_BYTE_TOKEN_TRANSFER = '0xa9059cbb';
 
@@ -61,19 +65,28 @@ function getTokenTransferToken(
   const { data, to } = getTokenTransferData(transaction) ?? {};
 
   if (!to || !data) {
+    log('No token transfer detected', {
+      transactionId: transaction.id,
+    });
     return undefined;
   }
 
   let transferAmount: Hex | undefined;
+  let decodeError: unknown;
 
   try {
     const result = new Interface(abiERC20).decodeFunctionData('transfer', data);
     transferAmount = toHex(result._value);
-  } catch {
-    // Intentionally empty
+  } catch (error) {
+    decodeError = error;
   }
 
   if (transferAmount === undefined) {
+    log('Failed to decode transfer calldata', {
+      transactionId: transaction.id,
+      to,
+      error: decodeError,
+    });
     return undefined;
   }
 
@@ -105,6 +118,16 @@ function buildRequiredToken(
   const tokenBalance = getTokenBalance(messenger, from, chainId, tokenAddress);
 
   if (tokenDecimals === undefined || !symbol || fiatRates === undefined) {
+    log('Missing token data', {
+      transactionId: transaction.id,
+      chainId,
+      tokenAddress,
+      missing: {
+        decimals: tokenDecimals === undefined,
+        symbol: !symbol,
+        fiatRates: fiatRates === undefined,
+      },
+    });
     return undefined;
   }
 
