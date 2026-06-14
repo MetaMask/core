@@ -55,7 +55,9 @@ export type PaginationOptions = {
   next?: string | null;
 };
 
-export type PendingMultichainTransaction = {
+export type PendingMultichainTransaction<
+  CustomData extends Record<string, Json> = Record<string, Json>,
+> = {
   approvalId: string;
   chainId: CaipChainId;
   accountId: string;
@@ -66,6 +68,7 @@ export type PendingMultichainTransaction = {
     amount: string;
     assetId?: CaipAssetType;
   };
+  custom?: CustomData;
   origin?: string;
   createdAt: number;
 };
