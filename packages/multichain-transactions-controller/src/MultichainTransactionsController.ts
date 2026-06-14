@@ -28,7 +28,15 @@ import type { MultichainTransactionsControllerMethodActions } from './Multichain
 
 const controllerName = 'MultichainTransactionsController';
 
-const MESSENGER_EXPOSED_METHODS = ['updateTransactionsForAccount'] as const;
+const MESSENGER_EXPOSED_METHODS = [
+  'addPendingTransaction',
+  'getPendingTransaction',
+  'removePendingTransaction',
+  'updatePendingTransaction',
+  'updateTransactionsForAccount',
+] as const;
+const MISSING_PENDING_TRANSACTION_MESSAGE =
+  'Pending multichain transaction not found for approvalId';
 
 /**
  * PaginationOptions
@@ -42,6 +50,23 @@ export type PaginationOptions = {
   next?: string | null;
 };
 
+export type PendingMultichainTransaction = {
+  approvalId: string;
+  chainNamespace: 'solana' | 'bip122' | 'tron';
+  chain: string;
+  accountId: string;
+  from: string;
+  to: string;
+  value: string;
+  assetType: string;
+  assetSymbol: string;
+  assetDecimals: number;
+  feeRaw?: string;
+  feeAssetType?: string;
+  origin?: string;
+  createdAt: number;
+};
+
 /**
  * State used by the {@link MultichainTransactionsController} to cache account transactions.
  */
@@ -51,6 +76,7 @@ export type MultichainTransactionsControllerState = {
       [chain: CaipChainId]: TransactionStateEntry;
     };
   };
+  pendingTransactions: Record<string, PendingMultichainTransaction>;
 };
 
 /**
@@ -61,6 +87,7 @@ export type MultichainTransactionsControllerState = {
 export function getDefaultMultichainTransactionsControllerState(): MultichainTransactionsControllerState {
   return {
     nonEvmTransactions: {},
+    pendingTransactions: {},
   };
 }
 
@@ -152,6 +179,13 @@ const multichainTransactionsControllerMetadata = {
     includeInDebugSnapshot: false,
     usedInUi: true,
   },
+  pendingTransactions: {
+    includeInStateLogs: true,
+    persist: false,
+    includeInDebugSnapshot: false,
+    usedInUi: true,
+    anonymous: false,
+  },
 };
 
 /**
@@ -217,6 +251,67 @@ export class MultichainTransactionsController extends BaseController<
       (transactionsUpdate: AccountTransactionsUpdatedEventPayload) =>
         this.#handleOnAccountTransactionsUpdated(transactionsUpdate),
     );
+  }
+
+  /**
+   * Adds or replaces a pending multichain transaction by approval ID.
+   *
+   * @param entry - Pending transaction entry to add.
+   */
+  addPendingTransaction(entry: PendingMultichainTransaction): void {
+    this.update((state: Draft<MultichainTransactionsControllerState>) => {
+      state.pendingTransactions[entry.approvalId] = entry;
+    });
+  }
+
+  /**
+   * Updates a pending multichain transaction by approval ID.
+   *
+   * @param approvalId - Approval ID for the pending transaction.
+   * @param patch - Shallow patch to apply to the pending transaction.
+   */
+  updatePendingTransaction(
+    approvalId: string,
+    patch: Partial<PendingMultichainTransaction>,
+  ): void {
+    this.update((state: Draft<MultichainTransactionsControllerState>) => {
+      const pendingTransaction = state.pendingTransactions[approvalId];
+
+      if (!pendingTransaction) {
+        console.warn(MISSING_PENDING_TRANSACTION_MESSAGE, approvalId);
+        return;
+      }
+
+      Object.assign(pendingTransaction, patch);
+    });
+  }
+
+  /**
+   * Removes a pending multichain transaction by approval ID.
+   *
+   * @param approvalId - Approval ID for the pending transaction.
+   */
+  removePendingTransaction(approvalId: string): void {
+    this.update((state: Draft<MultichainTransactionsControllerState>) => {
+      if (!state.pendingTransactions[approvalId]) {
+        console.warn(MISSING_PENDING_TRANSACTION_MESSAGE, approvalId);
+        return;
+      }
+
+      delete state.pendingTransactions[approvalId];
+    });
+  }
+
+  /**
+   * Gets a pending multichain transaction by approval ID.
+   *
+   * @param approvalId - Approval ID for the pending transaction.
+   * @returns Pending transaction entry, if found.
+   */
+  getPendingTransaction(
+    approvalId: string,
+  ): PendingMultichainTransaction | undefined {
+    return this.state.pendingTransactions[approvalId];
   }
 
   /**
