@@ -342,13 +342,13 @@ describe('MultichainTransactionsController', () => {
     });
   });
 
-  it('adds, updates, gets, and removes pending multichain transactions', () => {
+  it('adds, updates, and removes pending multichain transactions', () => {
     const { controller } = setupController();
 
     controller.addPendingTransaction(MOCK_PENDING_TRANSACTION);
 
     expect(
-      controller.getPendingTransaction(MOCK_PENDING_TRANSACTION.approvalId),
+      controller.state.pendingTransactions[MOCK_PENDING_TRANSACTION.approvalId],
     ).toStrictEqual(MOCK_PENDING_TRANSACTION);
 
     controller.updatePendingTransaction(MOCK_PENDING_TRANSACTION.approvalId, {
@@ -356,7 +356,7 @@ describe('MultichainTransactionsController', () => {
     });
 
     expect(
-      controller.getPendingTransaction(MOCK_PENDING_TRANSACTION.approvalId),
+      controller.state.pendingTransactions[MOCK_PENDING_TRANSACTION.approvalId],
     ).toStrictEqual({
       ...MOCK_PENDING_TRANSACTION,
       amount: '2000000',
@@ -365,7 +365,7 @@ describe('MultichainTransactionsController', () => {
     controller.removePendingTransaction(MOCK_PENDING_TRANSACTION.approvalId);
 
     expect(
-      controller.getPendingTransaction(MOCK_PENDING_TRANSACTION.approvalId),
+      controller.state.pendingTransactions[MOCK_PENDING_TRANSACTION.approvalId],
     ).toBeUndefined();
   });
 

@@ -35,7 +35,6 @@ const controllerName = 'MultichainTransactionsController';
 
 const MESSENGER_EXPOSED_METHODS = [
   'addPendingTransaction',
-  'getPendingTransaction',
   'removePendingTransaction',
   'updatePendingTransaction',
   'updateTransactionsForAccount',
@@ -306,18 +305,6 @@ export class MultichainTransactionsController extends BaseController<
 
       delete state.pendingTransactions[approvalId];
     });
-  }
-
-  /**
-   * Gets a pending multichain transaction by approval ID.
-   *
-   * @param approvalId - Approval ID for the pending transaction.
-   * @returns Pending transaction entry, if found.
-   */
-  getPendingTransaction(
-    approvalId: string,
-  ): PendingMultichainTransaction | undefined {
-    return this.state.pendingTransactions[approvalId];
   }
 
   /**

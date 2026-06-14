@@ -37,17 +37,6 @@ export type MultichainTransactionsControllerRemovePendingTransactionAction = {
 };
 
 /**
- * Gets a pending multichain transaction by approval ID.
- *
- * @param approvalId - Approval ID for the pending transaction.
- * @returns Pending transaction entry, if found.
- */
-export type MultichainTransactionsControllerGetPendingTransactionAction = {
-  type: `MultichainTransactionsController:getPendingTransaction`;
-  handler: MultichainTransactionsController['getPendingTransaction'];
-};
-
-/**
  * Updates transactions for a specific account. This is used for the initial fetch
  * when an account is first added.
  *
@@ -66,5 +55,4 @@ export type MultichainTransactionsControllerMethodActions =
   | MultichainTransactionsControllerAddPendingTransactionAction
   | MultichainTransactionsControllerUpdatePendingTransactionAction
   | MultichainTransactionsControllerRemovePendingTransactionAction
-  | MultichainTransactionsControllerGetPendingTransactionAction
   | MultichainTransactionsControllerUpdateTransactionsForAccountAction;
