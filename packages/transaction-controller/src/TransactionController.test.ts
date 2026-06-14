@@ -3062,10 +3062,12 @@ describe('TransactionController', () => {
          *
          * @param controller - The controller instance.
          * @param expectedError - The expected error message.
+         * @param expectedErrorCode - The expected persisted error code.
          */
         async function expectTransactionToFail(
           controller: TransactionController,
           expectedError: string,
+          expectedErrorCode?: number,
         ): Promise<void> {
           const { result } = await controller.addTransaction(
             {
@@ -3083,6 +3085,11 @@ describe('TransactionController', () => {
           expect(txParams.from).toBe(ACCOUNT_MOCK);
           expect(txParams.to).toBe(ACCOUNT_MOCK);
           expect(status).toBe(TransactionStatus.failed);
+          if (expectedErrorCode !== undefined) {
+            expect(controller.state.transactions[0].error).toMatchObject({
+              code: expectedErrorCode,
+            });
+          }
         }
 
         it('if signing error', async () => {
@@ -3123,6 +3130,58 @@ describe('TransactionController', () => {
           await expectTransactionToFail(
             controller,
             'A handler for KeyringController:signTransaction has not been registered',
+          );
+        });
+
+        it('normalizes "cancelled" signing errors to userRejectedRequest', async () => {
+          const { controller, rootMessenger } = setupController({
+            messengerOptions: {
+              addTransactionApprovalRequest: {
+                state: 'approved',
+              },
+            },
+          });
+
+          rootMessenger.unregisterActionHandler(
+            'KeyringController:signTransaction',
+          );
+          rootMessenger.registerActionHandler(
+            'KeyringController:signTransaction',
+            () => {
+              throw new Error('Action cancelled by user');
+            },
+          );
+
+          await expectTransactionToFail(
+            controller,
+            'MetaMask Tx Signature: User denied transaction signature.',
+            errorCodes.provider.userRejectedRequest,
+          );
+        });
+
+        it('normalizes "canceled" signing errors to userRejectedRequest', async () => {
+          const { controller, rootMessenger } = setupController({
+            messengerOptions: {
+              addTransactionApprovalRequest: {
+                state: 'approved',
+              },
+            },
+          });
+
+          rootMessenger.unregisterActionHandler(
+            'KeyringController:signTransaction',
+          );
+          rootMessenger.registerActionHandler(
+            'KeyringController:signTransaction',
+            () => {
+              throw new Error('Action canceled by user');
+            },
+          );
+
+          await expectTransactionToFail(
+            controller,
+            'MetaMask Tx Signature: User denied transaction signature.',
+            errorCodes.provider.userRejectedRequest,
           );
         });
 

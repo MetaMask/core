@@ -4238,6 +4238,59 @@ export class TransactionController extends BaseController<
     ].includes(error.code as number);
   }
 
+  #hasUserRejectedMessage(
+    error: unknown,
+    visited = new Set<unknown>(),
+  ): boolean {
+    if (!error || visited.has(error)) {
+      return false;
+    }
+    visited.add(error);
+
+    if (typeof error === 'string') {
+      const normalizedError = error.toLowerCase();
+
+      if (
+        normalizedError.includes('trezorkeyring') &&
+        normalizedError.includes('unknown error')
+      ) {
+        return true;
+      }
+
+      return /(?:\buser rejected\b|\baction cancelled\b|\bcancelled\b|\bcanceled\b|failure_actioncancelled)/iu.test(
+        error,
+      );
+    }
+
+    if (error instanceof Error) {
+      return (
+        this.#hasUserRejectedMessage(error.message, visited) ||
+        this.#hasUserRejectedMessage(error.stack, visited) ||
+        this.#hasUserRejectedMessage(
+          error as Error & { cause?: unknown; originalError?: unknown },
+          visited,
+        )
+      );
+    }
+
+    if (typeof error === 'object') {
+      const objectError = error as {
+        message?: unknown;
+        stack?: unknown;
+        cause?: unknown;
+        originalError?: unknown;
+      };
+      return (
+        this.#hasUserRejectedMessage(objectError.message, visited) ||
+        this.#hasUserRejectedMessage(objectError.stack, visited) ||
+        this.#hasUserRejectedMessage(objectError.cause, visited) ||
+        this.#hasUserRejectedMessage(objectError.originalError, visited)
+      );
+    }
+
+    return false;
+  }
+
   #rejectTransactionAndThrow(
     transactionId: string,
     actionId: string | undefined,
@@ -4260,6 +4313,13 @@ export class TransactionController extends BaseController<
     error: Error,
     actionId?: string,
   ): void {
+    const errorToPersist = this.#hasUserRejectedMessage(error)
+      ? providerErrors.userRejectedRequest({
+          message: 'MetaMask Tx Signature: User denied transaction signature.',
+          data: (error as Error & { data?: Json })?.data,
+        })
+      : error;
+
     let newTransactionMeta: TransactionMeta;
     const { revert: receiptRevert } = error as { revert?: Revert };
 
@@ -4276,7 +4336,7 @@ export class TransactionController extends BaseController<
             draftTransactionMeta as TransactionMeta & {
               status: TransactionStatus.failed;
             }
-          ).error = normalizeTxError(error);
+          ).error = normalizeTxError(errorToPersist);
 
           if (receiptRevert === undefined) {
             return;
@@ -4294,7 +4354,7 @@ export class TransactionController extends BaseController<
       newTransactionMeta = {
         ...transactionMeta,
         status: TransactionStatus.failed,
-        error: normalizeTxError(error),
+        error: normalizeTxError(errorToPersist),
         ...(receiptRevert === undefined
           ? {}
           : {
@@ -4308,7 +4368,7 @@ export class TransactionController extends BaseController<
 
     this.messenger.publish(`${controllerName}:transactionFailed`, {
       actionId,
-      error: error.message,
+      error: errorToPersist.message,
       transactionMeta: newTransactionMeta,
     });
 
