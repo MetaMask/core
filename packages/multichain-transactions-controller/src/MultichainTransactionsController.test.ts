@@ -258,17 +258,13 @@ const NEW_ACCOUNT_ID = 'new-account-id';
 const TEST_ACCOUNT_ID = 'test-account-id';
 const MOCK_PENDING_TRANSACTION: PendingMultichainTransaction = {
   approvalId: 'approval-id',
-  chainNamespace: 'solana',
-  chain: MultichainNetwork.Solana,
+  chainId: MultichainNetwork.Solana,
   accountId: TEST_ACCOUNT_ID,
-  from: 'from-address',
   to: 'to-address',
-  value: '1000000',
-  assetType: 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501',
-  assetSymbol: 'SOL',
-  assetDecimals: 9,
-  feeRaw: '5000',
-  feeAssetType: 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501',
+  amount: '1000000',
+  fee: {
+    amount: '5000',
+  },
   origin: 'mock-snap',
   createdAt: 123,
 };
@@ -356,14 +352,14 @@ describe('MultichainTransactionsController', () => {
     ).toStrictEqual(MOCK_PENDING_TRANSACTION);
 
     controller.updatePendingTransaction(MOCK_PENDING_TRANSACTION.approvalId, {
-      value: '2000000',
+      amount: '2000000',
     });
 
     expect(
       controller.getPendingTransaction(MOCK_PENDING_TRANSACTION.approvalId),
     ).toStrictEqual({
       ...MOCK_PENDING_TRANSACTION,
-      value: '2000000',
+      amount: '2000000',
     });
 
     controller.removePendingTransaction(MOCK_PENDING_TRANSACTION.approvalId);
@@ -377,7 +373,7 @@ describe('MultichainTransactionsController', () => {
     const { controller } = setupController();
     const warnSpy = jest.spyOn(console, 'warn').mockImplementation();
 
-    controller.updatePendingTransaction('missing-approval-id', { value: '1' });
+    controller.updatePendingTransaction('missing-approval-id', { amount: '1' });
     controller.removePendingTransaction('missing-approval-id');
 
     expect(warnSpy).toHaveBeenCalledTimes(2);

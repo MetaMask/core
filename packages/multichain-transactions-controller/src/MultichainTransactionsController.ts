@@ -21,7 +21,12 @@ import type { Messenger } from '@metamask/messenger';
 import type { SnapControllerHandleRequestAction } from '@metamask/snaps-controllers';
 import type { SnapId } from '@metamask/snaps-sdk';
 import { HandlerType } from '@metamask/snaps-utils';
-import type { CaipChainId, Json, JsonRpcRequest } from '@metamask/utils';
+import type {
+  CaipAssetType,
+  CaipChainId,
+  Json,
+  JsonRpcRequest,
+} from '@metamask/utils';
 import type { Draft } from 'immer';
 
 import type { MultichainTransactionsControllerMethodActions } from './MultichainTransactionsController-method-action-types';
@@ -52,17 +57,15 @@ export type PaginationOptions = {
 
 export type PendingMultichainTransaction = {
   approvalId: string;
-  chainNamespace: 'solana' | 'bip122' | 'tron';
-  chain: string;
+  chainId: CaipChainId;
   accountId: string;
-  from: string;
   to: string;
-  value: string;
-  assetType: string;
-  assetSymbol: string;
-  assetDecimals: number;
-  feeRaw?: string;
-  feeAssetType?: string;
+  amount: string;
+  assetId?: CaipAssetType;
+  fee?: {
+    amount: string;
+    assetId?: CaipAssetType;
+  };
   origin?: string;
   createdAt: number;
 };
