@@ -2008,9 +2008,7 @@ describe('KeyringController', () => {
             account,
           )) as EthKeyring;
           const originalError = { code: 1234, message: 'Something else' };
-          jest
-            .spyOn(keyring, 'signMessage')
-            .mockRejectedValue(originalError);
+          jest.spyOn(keyring, 'signMessage').mockRejectedValue(originalError);
 
           await expect(
             controller.signMessage({
@@ -2031,9 +2029,7 @@ describe('KeyringController', () => {
             message: 'Something else',
           };
           originalError.cause = originalError;
-          jest
-            .spyOn(keyring, 'signMessage')
-            .mockRejectedValue(originalError);
+          jest.spyOn(keyring, 'signMessage').mockRejectedValue(originalError);
 
           await expect(
             controller.signMessage({
