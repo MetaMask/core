@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Pending universal transaction state on `MultichainTransactionsController` ([#TBD](https://github.com/MetaMask/core/pull/TBD))
+  - New non-persisted `pendingTransactions` state keyed by approval ID.
+  - New `addPendingTransaction`, `updatePendingTransaction`, and `removePendingTransaction` messenger actions.
+  - New `PendingMultichainTransaction` type for protocol-agnostic pending confirmation display data.
+
 ### Changed
 
 - Bump `@metamask/accounts-controller` from `^38.0.0` to `^38.1.1` ([#8755](https://github.com/MetaMask/core/pull/8755), [#8774](https://github.com/MetaMask/core/pull/8774))
