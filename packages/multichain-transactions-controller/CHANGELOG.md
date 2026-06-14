@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Pending universal transaction state on `MultichainTransactionsController` ([#TBD](https://github.com/MetaMask/core/pull/TBD))
+- Pending universal transaction state on `MultichainTransactionsController` ([#9115](https://github.com/MetaMask/core/pull/9115))
   - New non-persisted `pendingTransactions` state keyed by approval ID.
   - New `addPendingTransaction`, `updatePendingTransaction`, and `removePendingTransaction` messenger actions.
   - New `PendingMultichainTransaction` type for protocol-agnostic pending confirmation display data.
