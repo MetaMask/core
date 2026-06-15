@@ -461,14 +461,15 @@ async function processMoneyAccountPostQuote(
   }
 
   const fundingRecipient = recipient ?? request.from;
+  const rawAmount = transactionData?.tokens?.[0]?.amountRaw ?? '0';
 
   requestBody.authorizationList = normalizeAuthorizationList(authorizationList);
   requestBody.tradeType = 'EXACT_OUTPUT';
-  requestBody.amount = transactionData?.tokens?.[0]?.amountRaw ?? '0';
+  requestBody.amount = rawAmount;
   requestBody.txs = [
     {
       to: request.targetTokenAddress,
-      data: buildTokenTransferData(fundingRecipient, request.sourceTokenAmount),
+      data: buildTokenTransferData(fundingRecipient, rawAmount),
       value: '0x0',
     },
     ...overrideCalls.map((call) => ({

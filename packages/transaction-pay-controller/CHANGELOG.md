@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Bump `@metamask/assets-controllers` from `^109.0.0` to `^109.1.0` ([#9110](https://github.com/MetaMask/core/pull/9110))
 
+### Fixed
+
+- Fix token amount in `buildTokenTransferData` for MM Pay post-quote Money Account transactions when source and target tokens have different decimal places ([#9116](https://github.com/MetaMask/core/pull/9116))
+
 ## [23.6.0]
 
 ### Added
