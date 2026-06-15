@@ -147,6 +147,7 @@ export class TransactionPayController extends BaseController<
         isPostQuote: transactionData.isPostQuote,
         isHyperliquidSource: transactionData.isHyperliquidSource,
         isPolymarketDepositWallet: transactionData.isPolymarketDepositWallet,
+        isQuoteRequired: transactionData.isQuoteRequired,
         refundTo: transactionData.refundTo,
         accountOverride: transactionData.accountOverride,
         paymentOverride: transactionData.paymentOverride,
@@ -162,6 +163,7 @@ export class TransactionPayController extends BaseController<
       transactionData.isHyperliquidSource = config.isHyperliquidSource;
       transactionData.isPolymarketDepositWallet =
         config.isPolymarketDepositWallet;
+      transactionData.isQuoteRequired = config.isQuoteRequired;
       transactionData.refundTo = config.refundTo;
       transactionData.paymentOverride = config.paymentOverride;
 
