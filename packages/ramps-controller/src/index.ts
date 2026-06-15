@@ -172,6 +172,15 @@ export {
   TransakEnvironment,
   TransakOrderIdTransformer,
 } from './TransakService';
+export { TRANSAK_ERROR_CODES } from './transakErrorCodes';
+export type { TransakErrorCode } from './transakErrorCodes';
+export {
+  getTransakApiMessage,
+  getTransakErrorCode,
+  isTransakApiError,
+  isTransakErrorCode,
+  isTransakPhoneRegisteredError,
+} from './transakApiErrorUtils';
 export type {
   TransakServiceMethodActions,
   TransakServiceSendUserOtpAction,

@@ -7,6 +7,8 @@ import type { Messenger } from '@metamask/messenger';
 
 import type { TransakServiceMethodActions } from './TransakService-method-action-types';
 
+import { TRANSAK_ERROR_CODES } from './transakErrorCodes';
+
 // === TYPES ===
 
 export type TransakAccessToken = {
@@ -428,8 +430,6 @@ function getPaymentWidgetBaseUrl(environment: TransakEnvironment): string {
 }
 
 // === TRANSAK API ERROR ===
-
-const TRANSAK_ORDER_EXISTS_CODE = '4005';
 
 export class TransakApiError extends HttpError {
   readonly errorCode: string | undefined;
@@ -915,7 +915,7 @@ export class TransakService {
       if (
         error instanceof TransakApiError &&
         error.httpStatus === 409 &&
-        error.errorCode === TRANSAK_ORDER_EXISTS_CODE
+        error.errorCode === TRANSAK_ERROR_CODES.ORDER_EXISTS
       ) {
         await this.cancelAllActiveOrders();
         await new Promise((resolve) =>
