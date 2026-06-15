@@ -1,7 +1,5 @@
 import type { AccountGroupId } from '@metamask/account-api';
-import {
-  AccountWalletType,
-} from '@metamask/account-api';
+import { AccountWalletType } from '@metamask/account-api';
 import type {
   AccountWalletId,
   MultichainAccountWalletId,
@@ -133,8 +131,8 @@ export type AccountWalletObjectOf<WalletType extends AccountWalletType> =
  * @param wallet - The wallet to check.
  * @returns `true` if the wallet is a multichain account wallet, `false` otherwise.
  */
-export function isMultichainAccountWallet<Value extends { type: AccountWalletType }>(
-  wallet: Value,
-): wallet is Value & { type: AccountWalletType.Entropy } {
+export function isMultichainAccountWallet<
+  Value extends { type: AccountWalletType },
+>(wallet: Value): wallet is Value & { type: AccountWalletType.Entropy } {
   return wallet.type === AccountWalletType.Entropy;
 }

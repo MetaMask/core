@@ -1,5 +1,8 @@
 export type { AccountWalletObject } from './wallet';
-export { isMultichainAccountWallet, assertIsMultichainAccountWallet } from './wallet';
+export {
+  isMultichainAccountWallet,
+  assertIsMultichainAccountWallet,
+} from './wallet';
 export type { AccountGroupObject } from './group';
 export {
   isAccountGroupNameUnique,

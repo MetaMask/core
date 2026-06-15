@@ -1159,7 +1159,9 @@ export class AccountTreeController extends BaseController<
       wallets[walletId] = {
         ...result.wallet,
         status: isMultichainAccountWallet(result.wallet)
-          ? this.#getMultichainAccountWalletStatus(result.wallet.metadata.entropy.id)
+          ? this.#getMultichainAccountWalletStatus(
+              result.wallet.metadata.entropy.id,
+            )
           : 'ready',
         groups: {},
         metadata: {
@@ -1189,7 +1191,7 @@ export class AccountTreeController extends BaseController<
         ...result.group,
         // Type-wise, we are guaranteed to always have at least 1 account.
         accounts: [id],
-          ...(isMultichainAccountGroup(result.group) &&
+        ...(isMultichainAccountGroup(result.group) &&
           isMultichainAccountWallet(result.wallet) && {
             status: this.#getMultichainAccountGroupStatus(
               result.wallet.metadata.entropy.id,
@@ -1476,7 +1478,9 @@ export class AccountTreeController extends BaseController<
    * @param entropySource - The entropy source ID of the wallet.
    * @returns The wallet's current status, or `'uninitialized'` if unknown.
    */
-  #getMultichainAccountWalletStatus(entropySource: string): MultichainAccountWalletStatus {
+  #getMultichainAccountWalletStatus(
+    entropySource: string,
+  ): MultichainAccountWalletStatus {
     try {
       return this.messenger.call(
         'MultichainAccountService:getMultichainAccountWallet',

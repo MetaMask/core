@@ -1,6 +1,4 @@
-import {
-  AccountGroupType,
-} from '@metamask/account-api';
+import { AccountGroupType } from '@metamask/account-api';
 import type {
   MultichainAccountGroupId,
   AccountGroupId,
@@ -156,9 +154,9 @@ export function isAccountGroupNameUniqueFromWallet(
  * @param group - The group to check.
  * @returns `true` if the group is a multichain account group, `false` otherwise.
  */
-export function isMultichainAccountGroup<Value extends { type: AccountGroupType }>(
-  group: Value,
-): group is Value & { type: AccountGroupType.MultichainAccount } {
+export function isMultichainAccountGroup<
+  Value extends { type: AccountGroupType },
+>(group: Value): group is Value & { type: AccountGroupType.MultichainAccount } {
   return group.type === AccountGroupType.MultichainAccount;
 }
 

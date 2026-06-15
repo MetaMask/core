@@ -377,7 +377,9 @@ function setup({
       }),
       // Default: service is initialized and wallet is ready (the common case).
       // Individual tests can override via mockReturnValue to test other statuses.
-      getMultichainAccountWallet: jest.fn().mockReturnValue({ status: 'ready' }),
+      getMultichainAccountWallet: jest
+        .fn()
+        .mockReturnValue({ status: 'ready' }),
     },
     AccountsController: {
       accounts,
@@ -1061,16 +1063,18 @@ describe('AccountTreeController', () => {
         keyrings: [MOCK_HD_KEYRING_1],
       });
 
-      mocks.MultichainAccountService.getMultichainAccountWallet.mockReturnValue({
-        status: 'in-progress:alignment',
-      });
+      mocks.MultichainAccountService.getMultichainAccountWallet.mockReturnValue(
+        {
+          status: 'in-progress:alignment',
+        },
+      );
 
       controller.init();
 
       const walletId = MOCK_PREPOPULATED_WALLET_ID;
-      expect(
-        controller.state.accountTree.wallets[walletId]?.status,
-      ).toBe('in-progress:alignment');
+      expect(controller.state.accountTree.wallets[walletId]?.status).toBe(
+        'in-progress:alignment',
+      );
     });
 
     it('falls back to uninitialized for wallet when the service has no record yet', () => {
@@ -1088,9 +1092,9 @@ describe('AccountTreeController', () => {
       controller.init();
 
       const walletId = MOCK_PREPOPULATED_WALLET_ID;
-      expect(
-        controller.state.accountTree.wallets[walletId]?.status,
-      ).toBe('uninitialized');
+      expect(controller.state.accountTree.wallets[walletId]?.status).toBe(
+        'uninitialized',
+      );
     });
 
     it('reads group status from the service when it is already initialized', () => {
