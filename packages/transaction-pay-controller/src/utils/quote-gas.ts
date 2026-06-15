@@ -55,7 +55,11 @@ export async function estimateQuoteGasLimits({
 
   if (useBatch) {
     return {
-      ...(await estimateQuoteGasLimitsBatch(transactions, messenger)),
+      ...(await estimateQuoteGasLimitsBatch(
+        transactions,
+        messenger,
+        fallbackGas,
+      )),
       usedBatch: true,
     };
   }
@@ -75,6 +79,10 @@ export async function estimateQuoteGasLimits({
 async function estimateQuoteGasLimitsBatch(
   transactions: QuoteGasTransaction[],
   messenger: TransactionPayControllerMessenger,
+  fallbackGas?: {
+    estimate: number;
+    max: number;
+  },
 ): Promise<{
   batchGasLimit?: QuoteGasLimit;
   gasLimits: QuoteGasLimit[];
@@ -115,6 +123,33 @@ async function estimateQuoteGasLimitsBatch(
     // buffered because it is a fresh batch estimate.
     const useBuffer = gasLimits.length === 1 || !providedGasWasPreserved;
     const bufferedGas = Math.ceil(gasLimit * (useBuffer ? gasBuffer : 1));
+
+    // Clamp to the relay fallback ceiling when provided. The underlying
+    // TransactionController:estimateGasBatch returns a fraction of the block
+    // gas limit (currently 35%) when its own simulation fails — e.g. when the
+    // sender EOA has zero native balance on chains with very large block gas
+    // limits like Monad (200M block → 70M fallback). That value exceeds the
+    // per-tx gas cap on such chains and causes the RPC to reject the tx with
+    // "Exceeds transaction gas limit". The relay strategy already supplies a
+    // sane fallbackGas (relayFallbackGas feature flag, typically 1.5M) for
+    // exactly this case in the single-transaction path; honour it here too
+    // so the batch path is not chain-hostile when simulation fails.
+    if (
+      fallbackGas !== undefined &&
+      !providedGasWasPreserved &&
+      bufferedGas > fallbackGas.max
+    ) {
+      log('Clamping batch gas to relay fallback max', {
+        index,
+        bufferedGas,
+        fallbackMax: fallbackGas.max,
+      });
+
+      return {
+        estimate: fallbackGas.estimate,
+        max: fallbackGas.max,
+      };
+    }
 
     return {
       estimate: bufferedGas,

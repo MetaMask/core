@@ -3,7 +3,11 @@ import { createModuleLogger } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
 
 import { projectLogger } from '../../logger';
-import type { PayStrategyExecuteRequest, QuoteRequest } from '../../types';
+import type {
+  PayStrategyExecuteRequest,
+  QuoteRequest,
+  TransactionConfig,
+} from '../../types';
 import {
   getFiatFeeReserveMultiplier,
   getFiatMaxRateDriftPercent,
@@ -28,6 +32,14 @@ const log = createModuleLogger(projectLogger, 'fiat-submit-calldata');
  * @param options - The submission options.
  * @param options.baseRequest - The base quote request from the original fiat quote.
  * @param options.request - The original fiat strategy execute request.
+ * @param options.signerOverride - Optional address to use as the relay quote
+ * `user`/`from` for BOTH the discovery and final quotes, overriding
+ * `baseRequest.from`. `recipient` is left untouched so Relay does not reject
+ * the quote with `Sender and recipient cannot be the same`. Used by the
+ * direct mUSD → Money Account flow where the originally-quoted EOA cannot
+ * sign the relay leg (zero native balance) but the Money Account can (it is
+ * EIP-7702-sponsored on Monad). Leaving this undefined preserves the
+ * original EOA-signed behaviour for Perps / Predict / non-mUSD deposits.
  * @param options.sourceAmountRaw - The settled source amount in atomic units.
  * @param options.transaction - The transaction metadata.
  * @returns An object containing the relay transaction hash if available.
@@ -35,16 +47,53 @@ const log = createModuleLogger(projectLogger, 'fiat-submit-calldata');
 export async function submitWithTransactionData({
   baseRequest,
   request,
+  signerOverride,
   sourceAmountRaw,
   transaction,
 }: {
   baseRequest: QuoteRequest;
   request: PayStrategyExecuteRequest<FiatQuote>;
+  signerOverride?: Hex;
   sourceAmountRaw: string;
   transaction: PayStrategyExecuteRequest<FiatQuote>['transaction'];
 }): Promise<{ transactionHash?: Hex }> {
   const { messenger } = request;
   const transactionId = transaction.id;
+
+  // `getSingleQuote` reads `from` off the per-request QuoteRequest
+  // (see relay-quotes.ts → body.user). Apply the override to both the
+  // discovery and final quotes so the entire relay flow is signed by the
+  // override account, not the original EOA. `recipient` is intentionally
+  // not overridden: setting it equal to `user` makes Relay reject the quote
+  // with `Sender and recipient cannot be the same for 'send' transactions`.
+  const effectiveFrom = signerOverride ?? baseRequest.from;
+
+  // Required for directMusd: flips `transactionData.isPostQuote = true` so the
+  // mobile paymentoverride callback returns the 7702-wrapped approve + Teller.deposit
+  // calls that `processMoneyAccountPostQuote` writes into `body.txs[]`. Without
+  // this, `body.txs[]` stays empty → Relay 400 (`user === recipient`) or
+  // MoneyAccount echoed as the on-chain signer (0 MON → "insufficient balance").
+  if (signerOverride) {
+    // eslint-disable-next-line no-console
+    console.log(
+      'OGP- submitWithTransactionData: flipping isPostQuote=true AND paymentOverride=moneyAccount',
+      {
+        transactionId,
+        signerOverride,
+        baseRequestFrom: baseRequest.from,
+        baseRequestRecipient: baseRequest.recipient,
+        baseRequestPaymentOverride: baseRequest.paymentOverride,
+      },
+    );
+    messenger.call(
+      'TransactionPayController:setTransactionConfig',
+      transactionId,
+      (config: TransactionConfig) => {
+        config.isPostQuote = true;
+        config.paymentOverride = baseRequest.paymentOverride;
+      },
+    );
+  }
 
   const feeReserveRaw = calculateFeeReserve({
     feeQuote: request.quotes[0].original.relayQuote,
@@ -65,6 +114,7 @@ export async function submitWithTransactionData({
 
   const discoveryRequest: QuoteRequest = {
     ...baseRequest,
+    from: effectiveFrom,
     isMaxAmount: false,
     isPostQuote: true,
     sourceBalanceRaw: sourceAmountRaw,
@@ -73,7 +123,7 @@ export async function submitWithTransactionData({
 
   const discoveryQuotes = await getRelayQuotes({
     accountSupports7702: request.accountSupports7702,
-    from: baseRequest.from,
+    from: effectiveFrom,
     messenger,
     requests: [discoveryRequest],
     transaction,
@@ -123,6 +173,7 @@ export async function submitWithTransactionData({
 
   const relayRequest: QuoteRequest = {
     ...baseRequest,
+    from: effectiveFrom,
     isMaxAmount: false,
     isPostQuote: false,
     sourceBalanceRaw: sourceAmountRaw,
@@ -132,7 +183,7 @@ export async function submitWithTransactionData({
 
   const relayQuotes = await getRelayQuotes({
     accountSupports7702: request.accountSupports7702,
-    from: baseRequest.from,
+    from: effectiveFrom,
     messenger,
     requests: [relayRequest],
     transaction: updatedTransaction,

@@ -16,7 +16,7 @@ import {
   getFiatOrderPollIntervalMs,
   getFiatOrderPollTimeoutMs,
 } from '../../utils/feature-flags';
-import { buildCaipAssetType } from '../../utils/token';
+import { buildCaipAssetType, getLiveTokenBalance } from '../../utils/token';
 import { updateTransaction } from '../../utils/transaction';
 import type { TransactionPayFiatAsset } from './constants';
 import { MUSD_MONAD_FIAT_ASSET } from './constants';
@@ -36,6 +36,117 @@ const TERMINAL_FAILURE_STATUSES: RampsOrderStatus[] = [
   RampsOrderStatus.Failed,
   RampsOrderStatus.IdExpired,
 ];
+
+// Transak's API returns COMPLETED before the on-chain settlement tx is mined.
+// Wait for the destination wallet's token balance to actually reflect the
+// expected amount before invoking Relay — otherwise Relay's simulator runs
+// against pre-settlement state and rejects with `Token balance too low`,
+// allowing CHOMP to race in and sweep the funds first.
+const ONCHAIN_SETTLEMENT_POLL_INTERVAL_MS = 1500;
+const ONCHAIN_SETTLEMENT_TIMEOUT_MS = 120000;
+
+async function waitForOnChainSettlement({
+  messenger,
+  chainId,
+  tokenAddress,
+  walletAddress,
+  expectedRawAmount,
+  transactionId,
+}: {
+  messenger: TransactionPayControllerMessenger;
+  chainId: Hex;
+  tokenAddress: Hex;
+  walletAddress: Hex;
+  expectedRawAmount: string;
+  transactionId: string;
+}): Promise<void> {
+  const expected = BigInt(expectedRawAmount);
+  if (expected <= 0n) {
+    return;
+  }
+
+  let baseline: bigint;
+  try {
+    const baselineStr = await getLiveTokenBalance(
+      messenger,
+      walletAddress,
+      chainId,
+      tokenAddress,
+    );
+    baseline = BigInt(baselineStr);
+  } catch (error) {
+    baseline = 0n;
+    // eslint-disable-next-line no-console
+    console.log(
+      'OGP- waitForOnChainSettlement: baseline read failed, assuming 0',
+      { transactionId, error: String(error) },
+    );
+  }
+
+  const target = baseline + expected;
+  // eslint-disable-next-line no-console
+  console.log('OGP- waitForOnChainSettlement: start', {
+    transactionId,
+    walletAddress,
+    tokenAddress,
+    chainId,
+    baseline: baseline.toString(),
+    expected: expected.toString(),
+    target: target.toString(),
+    timeoutMs: ONCHAIN_SETTLEMENT_TIMEOUT_MS,
+  });
+
+  const startTime = Date.now();
+  let lastSeen = baseline;
+
+  while (true) {
+    let current: bigint | undefined;
+    try {
+      const currentStr = await getLiveTokenBalance(
+        messenger,
+        walletAddress,
+        chainId,
+        tokenAddress,
+      );
+      current = BigInt(currentStr);
+      lastSeen = current;
+    } catch (error) {
+      // eslint-disable-next-line no-console
+      console.log('OGP- waitForOnChainSettlement: poll read failed', {
+        transactionId,
+        error: String(error),
+      });
+    }
+
+    if (current !== undefined && current >= target) {
+      // eslint-disable-next-line no-console
+      console.log('OGP- waitForOnChainSettlement: settled', {
+        transactionId,
+        elapsedMs: Date.now() - startTime,
+        balance: current.toString(),
+      });
+      return;
+    }
+
+    if (Date.now() - startTime >= ONCHAIN_SETTLEMENT_TIMEOUT_MS) {
+      // eslint-disable-next-line no-console
+      console.log(
+        'OGP- waitForOnChainSettlement: TIMEOUT — proceeding to Relay anyway',
+        {
+          transactionId,
+          elapsedMs: Date.now() - startTime,
+          lastSeenBalance: lastSeen.toString(),
+          target: target.toString(),
+        },
+      );
+      return;
+    }
+
+    await new Promise((resolve) =>
+      setTimeout(resolve, ONCHAIN_SETTLEMENT_POLL_INTERVAL_MS),
+    );
+  }
+}
 
 /**
  * Submits fiat strategy quotes by polling the on-ramp order until completion,
@@ -272,6 +383,23 @@ async function submitRelayAfterFiatCompletion({
   });
 
   const hasNestedCalldata = (transaction.nestedTransactions?.length ?? 0) >= 2;
+
+  // Direct mUSD on Monad: route through the three-phase
+  // submitWithTransactionData path so the parent batch's nested approve +
+  // Teller.deposit calldata is re-encoded with the settled mUSD amount
+  // (without it the simulation reverts InsufficientBalance against the
+  // stale pre-fiat amount). Override `from`/`recipient` to the Money
+  // Account because the originally-quoted EOA holds no native gas, while
+  // the Money Account is EIP-7702-sponsored on Monad.
+  if (isDirectMusd) {
+    return await submitWithTransactionData({
+      baseRequest,
+      request,
+      signerOverride: transaction.txParams.from as Hex,
+      sourceAmountRaw,
+      transaction,
+    });
+  }
 
   // Transactions with nested calldata (e.g. moneyAccountDeposit with
   // approve + deposit) need a three-phase flow: discovery quote to learn

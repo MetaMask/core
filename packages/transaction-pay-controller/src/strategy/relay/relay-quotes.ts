@@ -275,10 +275,40 @@ async function getSingleQuote(
     // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing
     const useExactInput = isMaxAmount || request.isPostQuote;
 
+    const gate_supports7702 = supports7702;
+    const gate_isRelayExecuteEnabled = isRelayExecuteEnabled(messenger);
+    const gate_isEIP7702Chain = isEIP7702Chain(messenger, sourceChainId);
     const useExecute =
-      supports7702 &&
-      isRelayExecuteEnabled(messenger) &&
-      isEIP7702Chain(messenger, sourceChainId);
+      gate_supports7702 && gate_isRelayExecuteEnabled && gate_isEIP7702Chain;
+    try {
+      const _state = messenger.call('RemoteFeatureFlagController:getState');
+      const _eip7702Flags = _state.remoteFeatureFlags
+        ?.confirmations_eip_7702 as
+        | { supportedChains?: Hex[] }
+        | undefined;
+      const _payExtFlags = _state.remoteFeatureFlags
+        ?.confirmations_pay_extended as
+        | {
+            payStrategies?: { relay?: { gaslessEnabled?: boolean } };
+          }
+        | undefined;
+      // eslint-disable-next-line no-console
+      console.log('OGP- relay-quotes: useExecute GATE DECISION', {
+        transactionId: transaction.id,
+        sourceChainId,
+        useExecute,
+        gate_supports7702,
+        gate_isRelayExecuteEnabled,
+        gate_isEIP7702Chain,
+        confirmations_eip_7702_supportedChains:
+          _eip7702Flags?.supportedChains,
+        confirmations_pay_extended_relay_gaslessEnabled:
+          _payExtFlags?.payStrategies?.relay?.gaslessEnabled,
+      });
+    } catch (e) {
+      // eslint-disable-next-line no-console
+      console.log('OGP- relay-quotes: gate flag dump failed', String(e));
+    }
 
     const body: RelayQuoteRequest = {
       amount: useExactInput ? sourceTokenAmount : targetAmountMinimum,
@@ -314,7 +344,28 @@ async function getSingleQuote(
       request.isPostQuote &&
       request.paymentOverride === PaymentOverride.MoneyAccount
     ) {
+      // eslint-disable-next-line no-console
+      console.log(
+        'OGP- relay-quotes: entering processMoneyAccountPostQuote',
+        {
+          transactionId: transaction.id,
+          user: body.user,
+          recipient: body.recipient,
+          isPostQuote: request.isPostQuote,
+          paymentOverride: request.paymentOverride,
+        },
+      );
       await processMoneyAccountPostQuote(transaction, request, body, messenger);
+      // eslint-disable-next-line no-console
+      console.log('OGP- relay-quotes: post processMoneyAccountPostQuote', {
+        transactionId: transaction.id,
+        user: body.user,
+        recipient: body.recipient,
+        txsLength: body.txs?.length ?? 0,
+        hasAuthorizationList: Boolean(body.authorizationList?.length),
+        amount: body.amount,
+        tradeType: body.tradeType,
+      });
     } else if (request.refundTo) {
       // For post-quote flows, honour the caller-specified refund address so that
       // failed Relay transactions refund to the correct account (e.g. the Predict
@@ -455,7 +506,27 @@ async function processMoneyAccountPostQuote(
     transactionData,
   });
 
+  // eslint-disable-next-line no-console
+  console.log('OGP- processMoneyAccountPostQuote: getPaymentOverrideData', {
+    transactionId: transaction.id,
+    amountHuman,
+    overrideCallsLength: overrideCalls.length,
+    recipient,
+    hasAuthorizationList: Boolean(authorizationList?.length),
+    isPostQuote: transactionData?.isPostQuote,
+    paymentOverride: transactionData?.paymentOverride,
+  });
+
   if (!overrideCalls.length) {
+    // eslint-disable-next-line no-console
+    console.log(
+      'OGP- processMoneyAccountPostQuote: EARLY RETURN — empty overrideCalls (txs[] will be unset, expect Relay 400)',
+      {
+        transactionId: transaction.id,
+        isPostQuote: transactionData?.isPostQuote,
+        paymentOverride: transactionData?.paymentOverride,
+      },
+    );
     log('No payment override calls for money account post-quote');
     return;
   }
