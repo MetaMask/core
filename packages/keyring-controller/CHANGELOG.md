@@ -13,10 +13,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Add `@metamask/rpc-errors` as a dependency ([#8490](https://github.com/MetaMask/core/pull/8490))
 - Bump `@metamask/utils` from `^11.9.0` to `^11.11.0` ([#9074](https://github.com/MetaMask/core/pull/9074))
 
 ### Fixed
 
+- Normalize user-rejection errors thrown while signing into a standard `userRejectedRequest` provider error ([#8490](https://github.com/MetaMask/core/pull/8490))
+  - `signMessage`, `signPersonalMessage`, `signTypedMessage`, and `signTransaction` now surface a consistent `userRejectedRequest` error when the underlying keyring (e.g. a Trezor hardware wallet) reports that the user rejected the request.
 - Remove use of `instanceof` for `isKeyringNotFoundError` ([#9095](https://github.com/MetaMask/core/pull/9095))
   - Using `instanceof` causes a lot of issue if we have 2 major `@metamask/keyring-controller` major versions in the dependency tree, `class KeyringControllerError` could be different classes and this, making the check to fail.
 

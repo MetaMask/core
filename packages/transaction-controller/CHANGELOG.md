@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Normalize uninformative hardware wallet rejection errors into a standard `userRejectedRequest` provider error when a transaction fails ([#8490](https://github.com/MetaMask/core/pull/8490))
+  - User-rejection errors surfaced by hardware wallets (e.g. a Trezor reporting an unknown error) are now persisted on the transaction and published with `TransactionController:transactionFailed` as a recognizable user-rejection error.
+
 ## [68.0.0]
 
 ### Changed
