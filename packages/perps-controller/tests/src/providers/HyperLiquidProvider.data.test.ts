@@ -538,11 +538,11 @@ describe('HyperLiquidProvider', () => {
       ).toHaveBeenCalled();
     });
 
-    it('does not count USDH-only spot balance in funded-state totals', async () => {
+    it('does not count non-USDC spot balance in funded-state totals', async () => {
       mockClientService.getInfoClient = jest.fn().mockReturnValue(
         createMockInfoClient({
           spotClearinghouseState: jest.fn().mockResolvedValue({
-            balances: [{ coin: 'USDH', hold: '1000', total: '10000' }],
+            balances: [{ coin: 'HYPE', hold: '1000', total: '10000' }],
           }),
         }),
       );
