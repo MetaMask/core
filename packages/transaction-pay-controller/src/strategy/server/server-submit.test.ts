@@ -810,7 +810,9 @@ describe('submitServerQuotes', () => {
         transaction: cloneDeep(TRANSACTION_META_MOCK),
       };
 
-      await expect(submitServerQuotes(req)).resolves.not.toThrow();
+      await submitServerQuotes(req);
+
+      expect(successfulFetchMock).toHaveBeenCalled();
     });
   });
 

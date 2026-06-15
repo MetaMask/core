@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add generic signature steps to the server pay strategy, supporting EIP-712 sign-then-POST flows ([#9051](https://github.com/MetaMask/core/pull/9051))
+  - Trigger quote refresh when `txParams.to` or `requiredAssets` changes on a transaction, in addition to the existing `txParams.data` trigger
+
 ### Changed
 
 - Bump `@metamask/assets-controllers` from `^109.0.0` to `^109.1.0` ([#9110](https://github.com/MetaMask/core/pull/9110))
@@ -16,8 +21,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Add direct mUSD fiat injection flow for Money Account deposits behind `useFiatMUSDQuoteToInjectForMoneyAccount` feature flag. When enabled, probes fiat providers for mUSD on Monad availability and, if viable, purchases mUSD directly to the Money Account, skipping the ETH-to-mUSD bridge. Falls back to the existing flow when no provider supports the direct route. Also moves `fiatPayment.caipAssetId` assignment into fiat quote functions so the asset ID always matches the quote that succeeded. ([#9080](https://github.com/MetaMask/core/pull/9080))
-- Add generic signature steps to the server pay strategy, supporting EIP-712 sign-then-POST flows ([#9051](https://github.com/MetaMask/core/pull/9051))
-  - Trigger quote refresh when `txParams.to` or `requiredAssets` changes on a transaction, in addition to the existing `txParams.data` trigger
 - Make fiat order polling interval and timeout remotely configurable via `confirmations_pay_fiat.orderPollIntervalMs` and `confirmations_pay_fiat.orderPollTimeoutMs` feature flags ([#9090](https://github.com/MetaMask/core/pull/9090))
 
 ### Changed
