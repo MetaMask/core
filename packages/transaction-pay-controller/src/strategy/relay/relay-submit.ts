@@ -1,6 +1,9 @@
 import { ORIGIN_METAMASK, toHex } from '@metamask/controller-utils';
 import { TransactionType } from '@metamask/transaction-controller';
-import type { TransactionParams } from '@metamask/transaction-controller';
+import type {
+  BatchTransactionParams,
+  TransactionParams,
+} from '@metamask/transaction-controller';
 import type {
   AuthorizationList,
   TransactionMeta,
@@ -66,7 +69,7 @@ export async function submitRelayQuotes(
 ): Promise<{ transactionHash?: Hex }> {
   log('Executing quotes', request);
 
-  const { quotes, messenger, transaction } = request;
+  const { quotes, messenger, transaction, submitCalls } = request;
 
   let transactionHash: Hex | undefined;
 
@@ -75,6 +78,7 @@ export async function submitRelayQuotes(
       quote,
       messenger,
       transaction,
+      submitCalls,
     ));
   }
 
@@ -87,12 +91,14 @@ export async function submitRelayQuotes(
  * @param quote - Relay quote to execute.
  * @param messenger - Controller messenger.
  * @param transaction - Original transaction meta.
+ * @param submitCalls - Batch transaction params.
  * @returns An object containing the transaction hash if available.
  */
 async function executeSingleQuote(
   quote: TransactionPayQuote<RelayQuote>,
   messenger: TransactionPayControllerMessenger,
   transaction: TransactionMeta,
+  submitCalls?: BatchTransactionParams[],
 ): Promise<{ transactionHash?: Hex }> {
   log('Executing single quote', quote);
 
@@ -119,7 +125,7 @@ async function executeSingleQuote(
     polymarketPreSubmitUsdceBalance = preSubmitUsdceBalance;
     setRelaySourceHash(transaction, messenger, sourceHash);
   } else {
-    await submitTransactions(quote, transaction, messenger);
+    await submitTransactions(quote, transaction, messenger, submitCalls);
   }
 
   const completion = await waitForRelayCompletion(quote.original, messenger, {
@@ -357,12 +363,14 @@ async function validateSourceBalance(
  * @param quote - Relay quote.
  * @param transaction - Original transaction meta.
  * @param messenger - Controller messenger.
+ * @param submitCalls - Batch transaction params.
  * @returns Hash of the last submitted transaction.
  */
 async function submitTransactions(
   quote: TransactionPayQuote<RelayQuote>,
   transaction: TransactionMeta,
   messenger: TransactionPayControllerMessenger,
+  submitCalls?: BatchTransactionParams[],
 ): Promise<Hex> {
   const { steps } = quote.original;
   const txSteps = steps.filter(
@@ -442,6 +450,24 @@ async function submitTransactions(
     allParams = [prependedParams, ...normalizedParams];
   }
 
+  if (submitCalls?.length) {
+    console.log('OGP- submitCalls present, building delegation', submitCalls);
+    const delegationParams = await buildDelegatedSubmitCallsParams(
+      submitCalls,
+      transaction,
+      messenger,
+      normalizedParams[0],
+    );
+    console.log('OGP- delegation params for submitCalls', delegationParams);
+    allParams = [delegationParams, ...allParams];
+    console.log(
+      'OGP- final allParams count',
+      allParams.length,
+      'batch from',
+      quote.request.from,
+    );
+  }
+
   if (quote.original.metamask.isExecute) {
     return await submitViaRelayExecute(
       quote,
@@ -485,6 +511,51 @@ async function buildDelegatedOriginalParams(
   );
 
   log('Delegation result for prepended original tx', delegation);
+
+  return {
+    data: delegation.data,
+    from: transaction.txParams.from as Hex,
+    maxFeePerGas: relayParams?.maxFeePerGas,
+    maxPriorityFeePerGas: relayParams?.maxPriorityFeePerGas,
+    to: delegation.to,
+    value: delegation.value,
+  };
+}
+
+/**
+ * Wraps `submitCalls` into a single delegation tx that redeems them on
+ * behalf of `transaction.txParams.from`. Used by the fiat direct-mUSD flow
+ * so the prepended mUSD transfer executes from the Money Account while the
+ * rest of the batch executes from the EOA.
+ *
+ * @param submitCalls - Calls to delegate.
+ * @param transaction - Original transaction meta whose `txParams.from` is the
+ * account on whose behalf the calls should be redeemed.
+ * @param messenger - Controller messenger.
+ * @param relayParams - Optional relay params to copy gas fee fields from.
+ * @returns Transaction params for the delegation tx.
+ */
+async function buildDelegatedSubmitCallsParams(
+  submitCalls: BatchTransactionParams[],
+  transaction: TransactionMeta,
+  messenger: TransactionPayControllerMessenger,
+  relayParams?: TransactionParams,
+): Promise<TransactionParams> {
+  const delegatedTransaction = {
+    ...transaction,
+    nestedTransactions: submitCalls.map((call) => ({
+      data: call.data ?? '0x',
+      to: call.to as Hex,
+      value: call.value ?? '0x0',
+    })),
+  } as TransactionMeta;
+
+  const delegation = await messenger.call(
+    'TransactionPayController:getDelegationTransaction',
+    { transaction: delegatedTransaction },
+  );
+
+  log('Delegation result for submitCalls', delegation);
 
   return {
     data: delegation.data,

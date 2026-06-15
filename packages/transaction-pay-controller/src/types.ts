@@ -633,6 +633,13 @@ export type PayStrategyExecuteRequest<OriginalRequest> = {
 
   /** Metadata of the original target transaction. */
   transaction: TransactionMeta;
+
+  /**
+   * Extra calls to prepend to the relay submission batch. Used by the fiat
+   * direct-mUSD flow to transfer mUSD from the Money Account to the EOA
+   * before the relay swap executes from the EOA.
+   */
+  submitCalls?: BatchTransactionParams[];
 };
 
 /** Request to get batch transactions for quotes. */

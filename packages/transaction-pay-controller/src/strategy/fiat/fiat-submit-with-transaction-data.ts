@@ -1,3 +1,5 @@
+import { Interface } from '@ethersproject/abi';
+import type { BatchTransactionParams } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 import { createModuleLogger } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
@@ -11,7 +13,8 @@ import {
 import { getTransaction, updateTransaction } from '../../utils/transaction';
 import { getRelayQuotes } from '../relay/relay-quotes';
 import { submitRelayQuotes } from '../relay/relay-submit';
-import type { RelayQuote } from '../relay/types';
+import type { RelayQuote, RelayTransactionStep } from '../relay/types';
+import { MUSD_MONAD_FIAT_ASSET } from './constants';
 import type { FiatQuote } from './types';
 import { validateRelayRateDrift } from './utils';
 
@@ -155,13 +158,69 @@ export async function submitWithTransactionData({
     transactionId,
   });
 
+  let submitCalls: BatchTransactionParams[] | undefined;
+
+  const directMusd = isDirectMusdRequest(baseRequest);
+  console.log('OGP- directMusd?', directMusd);
+
+  if (directMusd) {
+    const { transactionData } = messenger.call(
+      'TransactionPayController:getState',
+    );
+    const eoaAddress = transactionData[transactionId]?.accountOverride as Hex;
+    const moneyAccount = updatedTransaction.txParams.from;
+
+    console.log('OGP- eoa', eoaAddress, 'moneyAccount', moneyAccount);
+    console.log('OGP- transferAmountRaw', sourceAmountRaw);
+
+    submitCalls = [
+      {
+        to: MUSD_MONAD_FIAT_ASSET.address,
+        data: encodeTokenTransfer(eoaAddress, sourceAmountRaw),
+        value: '0x0',
+      },
+    ];
+
+    for (const quote of relayQuotes) {
+      quote.request.from = eoaAddress;
+      const txSteps = quote.original.steps.filter(
+        (step): step is RelayTransactionStep => step.kind === 'transaction',
+      );
+      for (const step of txSteps) {
+        for (const item of step.items) {
+          item.data.from = eoaAddress;
+        }
+      }
+    }
+
+    console.log(
+      'OGP- rewrote quote.request.from + step.from to EOA, submitCalls=',
+      submitCalls,
+    );
+  }
+
   return await submitRelayQuotes({
     accountSupports7702: request.accountSupports7702,
     isSmartTransaction: request.isSmartTransaction,
     messenger,
     quotes: relayQuotes,
     transaction: updatedTransaction,
+    submitCalls,
   });
+}
+
+function isDirectMusdRequest(request: QuoteRequest): boolean {
+  return (
+    request.sourceChainId === MUSD_MONAD_FIAT_ASSET.chainId &&
+    request.sourceTokenAddress.toLowerCase() ===
+      MUSD_MONAD_FIAT_ASSET.address.toLowerCase()
+  );
+}
+
+function encodeTokenTransfer(recipient: Hex, amountRaw: string): Hex {
+  return new Interface([
+    'function transfer(address to, uint256 amount)',
+  ]).encodeFunctionData('transfer', [recipient, amountRaw]) as Hex;
 }
 
 /**
