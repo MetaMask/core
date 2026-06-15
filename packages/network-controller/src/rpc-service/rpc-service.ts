@@ -67,10 +67,13 @@ export type RpcServiceOptions = {
    */
   logger?: Pick<Logger, 'warn'>;
   /**
-   * Options to pass to `createServicePolicy`. Note that `retryFilterPolicy` is
-   * not accepted, as it is overwritten. See {@link createServicePolicy}.
+   * Options to pass to `createServicePolicy`. Note that `retryFilterPolicy` and `isServiceFailure`
+   * are not accepted, as they are overwritten. See {@link createServicePolicy}.
    */
-  policyOptions?: Omit<CreateServicePolicyOptions, 'retryFilterPolicy'>;
+  policyOptions?: Omit<
+    CreateServicePolicyOptions,
+    'retryFilterPolicy' | 'isServiceFailure'
+  >;
   /**
    * A function that checks if the user is currently offline. If it returns true,
    * connection errors will not be retried, preventing degraded and break
@@ -372,6 +375,20 @@ export class RpcService {
       maxRetries: DEFAULT_MAX_RETRIES,
       maxConsecutiveFailures: DEFAULT_MAX_CONSECUTIVE_FAILURES,
       ...policyOptions,
+      isServiceFailure: (error) => {
+        if (
+          typeof error === 'object' &&
+          error !== null &&
+          'httpStatus' in error &&
+          typeof error.httpStatus === 'number'
+        ) {
+          return error.httpStatus !== 429;
+        }
+
+        // If the error is not an object, or doesn't have a numeric code property,
+        // consider it a service failure (e.g., network errors, timeouts, etc.)
+        return true;
+      },
       retryFilterPolicy: handleWhen((error) => {
         // If user is offline, don't retry any errors
         // This prevents degraded/break callbacks from being triggered
