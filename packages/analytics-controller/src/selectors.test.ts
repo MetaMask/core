@@ -60,4 +60,35 @@ describe('analyticsControllerSelectors', () => {
       },
     );
   });
+
+  describe('selectLatestNonAnonymousEventTimestamp', () => {
+    it('returns the latest non-anonymous event timestamp from state', () => {
+      const state: AnalyticsControllerState = {
+        optedIn: true,
+        analyticsId: defaultAnalyticsId,
+        latestNonAnonymousEventTimestamp: 12345,
+      };
+
+      const result =
+        analyticsControllerSelectors.selectLatestNonAnonymousEventTimestamp(
+          state,
+        );
+
+      expect(result).toBe(12345);
+    });
+
+    it('returns 0 when latestNonAnonymousEventTimestamp is unset', () => {
+      const state: AnalyticsControllerState = {
+        optedIn: true,
+        analyticsId: defaultAnalyticsId,
+      };
+
+      const result =
+        analyticsControllerSelectors.selectLatestNonAnonymousEventTimestamp(
+          state,
+        );
+
+      expect(result).toBe(0);
+    });
+  });
 });

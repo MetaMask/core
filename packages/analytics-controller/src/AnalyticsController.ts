@@ -12,6 +12,7 @@ import { v4 as uuid } from 'uuid';
 import type { AnalyticsControllerMethodActions } from './AnalyticsController-method-action-types';
 import { validateAnalyticsControllerState } from './analyticsControllerStateValidator';
 import { projectLogger as log } from './AnalyticsLogger';
+import { ANONYMOUS_EVENT_PROPERTY } from './AnalyticsPlatformAdapter.types';
 import type {
   AnalyticsPlatformAdapter,
   AnalyticsDeliveryOptions,
@@ -54,6 +55,13 @@ export type AnalyticsControllerState = {
    * This is only used when event queue persistence is enabled.
    */
   eventQueue?: Record<string, Json>;
+
+  /**
+   * Timestamp (milliseconds since epoch) of the latest non-anonymous analytics
+   * delivery attempt. Used by data deletion workflows to determine whether new
+   * identifiable analytics data was collected after a deletion request.
+   */
+  latestNonAnonymousEventTimestamp?: number;
 };
 
 /**
@@ -161,6 +169,12 @@ const analyticsControllerMetadata = {
     usedInUi: false,
   },
   eventQueue: {
+    includeInStateLogs: false,
+    persist: true,
+    includeInDebugSnapshot: false,
+    usedInUi: false,
+  },
+  latestNonAnonymousEventTimestamp: {
     includeInStateLogs: false,
     persist: true,
     includeInDebugSnapshot: false,
@@ -438,6 +452,10 @@ export class AnalyticsController extends BaseController<
     context?: AnalyticsContext,
   ): void {
     if (!this.#isEventQueuePersistenceEnabled) {
+      this.#updateLatestEventTimestamp({
+        method: 'track',
+        properties,
+      });
       this.#platformAdapter.track(eventName, properties, context);
       return;
     }
@@ -467,6 +485,7 @@ export class AnalyticsController extends BaseController<
     context?: AnalyticsContext,
   ): void {
     if (!this.#isEventQueuePersistenceEnabled) {
+      this.#updateLatestEventTimestamp({ method: 'identify' });
       this.#platformAdapter.identify(userId, traits, context);
       return;
     }
@@ -496,6 +515,7 @@ export class AnalyticsController extends BaseController<
     context?: AnalyticsContext,
   ): void {
     if (!this.#isEventQueuePersistenceEnabled) {
+      this.#updateLatestEventTimestamp({ method: 'view' });
       this.#platformAdapter.view(name, properties, context);
       return;
     }
@@ -563,6 +583,10 @@ export class AnalyticsController extends BaseController<
 
     try {
       if (queuedEvent.type === 'track') {
+        this.#updateLatestEventTimestamp({
+          method: 'track',
+          properties: queuedEvent.properties,
+        });
         this.#platformAdapter.track(
           queuedEvent.eventName,
           cloneDeep(queuedEvent.properties),
@@ -570,6 +594,7 @@ export class AnalyticsController extends BaseController<
           options,
         );
       } else if (queuedEvent.type === 'identify') {
+        this.#updateLatestEventTimestamp({ method: 'identify' });
         this.#platformAdapter.identify(
           queuedEvent.userId,
           cloneDeep(queuedEvent.traits),
@@ -577,6 +602,7 @@ export class AnalyticsController extends BaseController<
           options,
         );
       } else {
+        this.#updateLatestEventTimestamp({ method: 'view' });
         this.#platformAdapter.view(
           queuedEvent.name,
           cloneDeep(queuedEvent.properties),
@@ -659,6 +685,22 @@ export class AnalyticsController extends BaseController<
     });
   }
 
+  #updateLatestEventTimestamp({
+    method,
+    properties,
+  }: {
+    method: AnalyticsQueuedEventType;
+    properties?: AnalyticsEventProperties;
+  }): void {
+    if (method === 'track' && properties?.[ANONYMOUS_EVENT_PROPERTY] === true) {
+      return;
+    }
+
+    this.update((state) => {
+      state.latestNonAnonymousEventTimestamp = Date.now();
+    });
+  }
+
   /**
    * Track an analytics event.
    *
@@ -702,7 +744,9 @@ export class AnalyticsController extends BaseController<
         {
           ...event.properties,
           ...event.sensitiveProperties,
-          ...(hasSensitiveProperties && { anonymous: true }),
+          ...(hasSensitiveProperties && {
+            [ANONYMOUS_EVENT_PROPERTY]: true,
+          }),
         },
         context,
       );

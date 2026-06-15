@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Persisted `latestNonAnonymousEventTimestamp` state in `AnalyticsController`, updated on non-anonymous `track`, `identify`, and `view` delivery attempts. ([#TBD](https://github.com/MetaMask/core/pull/TBD))
+- `analyticsControllerSelectors.selectLatestNonAnonymousEventTimestamp` and exported `ANONYMOUS_EVENT_PROPERTY` constant. ([#TBD](https://github.com/MetaMask/core/pull/TBD))
+
 ### Changed
 
 - Bump `@metamask/utils` from `^11.9.0` to `^11.11.0` ([#9074](https://github.com/MetaMask/core/pull/9074))

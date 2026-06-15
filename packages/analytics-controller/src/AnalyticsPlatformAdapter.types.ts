@@ -1,6 +1,11 @@
 import type { Json } from '@metamask/utils';
 
 /**
+ * Property marker used to indicate an analytics track event is anonymous.
+ */
+export const ANONYMOUS_EVENT_PROPERTY = 'anonymous' as const;
+
+/**
  * Analytics event properties
  */
 export type AnalyticsEventProperties = Record<string, Json>;

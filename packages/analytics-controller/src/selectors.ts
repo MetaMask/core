@@ -30,6 +30,16 @@ const selectEnabled = (state: AnalyticsControllerState): boolean =>
   state.optedIn;
 
 /**
+ * Selects the timestamp of the latest non-anonymous analytics delivery attempt.
+ *
+ * @param state - The controller state
+ * @returns Timestamp in milliseconds since epoch
+ */
+const selectLatestNonAnonymousEventTimestamp = (
+  state: AnalyticsControllerState,
+): number => state.latestNonAnonymousEventTimestamp ?? 0;
+
+/**
  * Selectors for the AnalyticsController state.
  * These can be used with Redux or directly with controller state.
  */
@@ -37,4 +47,5 @@ export const analyticsControllerSelectors = {
   selectAnalyticsId,
   selectOptedIn,
   selectEnabled,
+  selectLatestNonAnonymousEventTimestamp,
 };

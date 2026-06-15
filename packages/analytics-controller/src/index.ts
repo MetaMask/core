@@ -18,6 +18,7 @@ export type {
   AnalyticsPlatformAdapter,
   AnalyticsTrackingEvent,
 } from './AnalyticsPlatformAdapter.types';
+export { ANONYMOUS_EVENT_PROPERTY } from './AnalyticsPlatformAdapter.types';
 
 // Export state types
 export type {

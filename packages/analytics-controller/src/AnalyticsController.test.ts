@@ -1073,6 +1073,114 @@ describe('AnalyticsController', () => {
     });
   });
 
+  describe('latestNonAnonymousEventTimestamp', () => {
+    const analyticsId = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
+
+    it('updates on non-anonymous track delivery', async () => {
+      jest.useFakeTimers();
+      const currentTimestamp = new Date('2024-02-01T00:00:00.000Z').getTime();
+      jest.setSystemTime(currentTimestamp);
+
+      const { controller } = await setupController({
+        state: {
+          optedIn: true,
+          analyticsId,
+        },
+      });
+
+      controller.trackEvent(createTestEvent('test_event', { prop: 'value' }));
+
+      expect(controller.state.latestNonAnonymousEventTimestamp).toBe(
+        currentTimestamp,
+      );
+      jest.useRealTimers();
+    });
+
+    it('does not update on anonymous track delivery', async () => {
+      const previousTimestamp = new Date('2024-01-01T00:00:00.000Z').getTime();
+      const currentTimestamp = new Date('2024-02-01T00:00:00.000Z').getTime();
+      jest.useFakeTimers();
+      jest.setSystemTime(currentTimestamp);
+
+      const { controller } = await setupController({
+        state: {
+          optedIn: true,
+          analyticsId,
+          latestNonAnonymousEventTimestamp: previousTimestamp,
+        },
+        isAnonymousEventsFeatureEnabled: false,
+      });
+
+      controller.trackEvent(
+        createTestEvent(
+          'test_event',
+          { prop: 'value' },
+          { sensitive_prop: 'sensitive value' },
+        ),
+      );
+
+      expect(controller.state.latestNonAnonymousEventTimestamp).toBe(
+        previousTimestamp,
+      );
+      jest.useRealTimers();
+    });
+
+    it('updates on identify and trackView delivery', async () => {
+      jest.useFakeTimers();
+      const currentTimestamp = new Date('2024-03-01T00:00:00.000Z').getTime();
+      jest.setSystemTime(currentTimestamp);
+
+      const { controller } = await setupController({
+        state: {
+          optedIn: true,
+          analyticsId,
+        },
+      });
+
+      controller.identify({ ENABLE_OPENSEA_API: 'ON' });
+      expect(controller.state.latestNonAnonymousEventTimestamp).toBe(
+        currentTimestamp,
+      );
+
+      jest.setSystemTime(currentTimestamp + 1000);
+      controller.trackView('Home');
+      expect(controller.state.latestNonAnonymousEventTimestamp).toBe(
+        currentTimestamp + 1000,
+      );
+      jest.useRealTimers();
+    });
+
+    it('does not update when analytics is disabled', async () => {
+      const { controller } = await setupController({
+        state: {
+          optedIn: false,
+          analyticsId,
+        },
+      });
+
+      controller.trackEvent(createTestEvent('test_event', { prop: 'value' }));
+      controller.identify();
+      controller.trackView('Home');
+
+      expect(controller.state.latestNonAnonymousEventTimestamp).toBeUndefined();
+    });
+
+    it('selector returns 0 when latestNonAnonymousEventTimestamp is unset', async () => {
+      const { controller } = await setupController({
+        state: {
+          optedIn: false,
+          analyticsId,
+        },
+      });
+
+      expect(
+        analyticsControllerSelectors.selectLatestNonAnonymousEventTimestamp(
+          controller.state,
+        ),
+      ).toBe(0);
+    });
+  });
+
   describe('identify', () => {
     it('identifies user via platform adapter with traits using current analytics ID', async () => {
       const mockAdapter = createMockAdapter();
