@@ -7,9 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Added
-
-- Add `typedoc.json` configuration for API doc generation ([#592](https://github.com/MetaMask/smart-transactions-controller/pull/592))
+## [24.2.1]
 
 ### Changed
 
@@ -824,7 +822,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add initial SmartTransactionsController ([#1](https://github.com/MetaMask/smart-transactions-controller/pull/1))
 - Initial commit
 
-[Unreleased]: https://github.com/MetaMask/smart-transactions-controller/compare/v24.2.0...HEAD
+[Unreleased]: https://github.com/MetaMask/smart-transactions-controller/compare/v24.2.1...HEAD
+[24.2.1]: https://github.com/MetaMask/smart-transactions-controller/compare/v24.2.0...v24.2.1
 [24.2.0]: https://github.com/MetaMask/smart-transactions-controller/compare/v24.1.1...v24.2.0
 [24.1.1]: https://github.com/MetaMask/smart-transactions-controller/compare/v24.1.0...v24.1.1
 [24.1.0]: https://github.com/MetaMask/smart-transactions-controller/compare/v24.0.0...v24.1.0
