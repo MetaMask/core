@@ -5,7 +5,6 @@ import type { Hex } from '@metamask/utils';
 
 import { EXECUTION_PERMISSION_EXPIRY_RULE_TYPE } from '../../constants';
 import type {
-  ChecksumCaveat,
   ChecksumEnforcersByChainId,
   DecodedPermission,
   PermissionDecoder,
@@ -28,7 +27,7 @@ export type MakePermissionDecoderConfig = {
   requiredEnforcers: Record<Hex, number>;
   rules: RuleDecoder[];
   validateAndDecodeData: (
-    caveats: ChecksumCaveat[],
+    caveats: Caveat<Hex>[],
     contractAddresses: ChecksumEnforcersByChainId,
   ) => DecodedPermission['permission']['data'];
 };
@@ -57,10 +56,10 @@ export function makePermissionDecoder({
   rules,
   validateAndDecodeData,
 }: MakePermissionDecoderConfig): PermissionDecoder {
-  const optionalEnforcersSet = new Set(optionalEnforcers);
+  const optionalEnforcersSet = new Set(optionalEnforcers.map(getChecksumAddress));
   const requiredEnforcersMap = new Map(
-    Object.entries(requiredEnforcers),
-  ) as Map<Hex, number>;
+    Object.entries(requiredEnforcers).map(([enforcer, count]) => [getChecksumAddress(enforcer as Hex), count]),
+  );
 
   const caveatAddressesMatch = (caveatAddresses: Hex[]): boolean => {
     const { counts, enforcersSet } = buildEnforcerCountsAndSet(caveatAddresses);
@@ -76,7 +75,7 @@ export function makePermissionDecoder({
   const validateAndDecodePermission = (
     caveats: Caveat<Hex>[],
   ): ValidateAndDecodeResult => {
-    const checksumCaveats: ChecksumCaveat[] = caveats.map((caveat) => ({
+    const checksumCaveats: Caveat<Hex>[] = caveats.map((caveat) => ({
       ...caveat,
       enforcer: getChecksumAddress(caveat.enforcer),
     }));

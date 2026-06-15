@@ -123,9 +123,6 @@ export type ChecksumEnforcersByChainId = {
   redeemerEnforcer: Hex;
 };
 
-/** Caveat with checksummed enforcer address; used by rule decode functions. */
-export type ChecksumCaveat = Caveat<Hex>;
-
 /**
  * Result of validating and decoding permission terms from caveats.
  * When valid, includes expiry and decoded data; when invalid, includes the error.
@@ -173,6 +170,6 @@ export type PermissionDecoder = {
  */
 export type RuleDecoder = (args: {
   contractAddresses: ChecksumEnforcersByChainId;
-  caveats: ChecksumCaveat[];
+  caveats: Caveat[];
   requiredEnforcers: Map<Hex, number>;
 }) => Rule | null;
