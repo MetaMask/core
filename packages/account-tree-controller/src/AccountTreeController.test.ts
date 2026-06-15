@@ -342,6 +342,9 @@ function setup({
       keyrings: KeyringObject[];
       getState: jest.Mock;
     };
+    MultichainAccountService: {
+      getMultichainAccountGroup: jest.Mock;
+    };
     AccountsController: {
       accounts: InternalAccount[];
       listMultichainAccounts: jest.Mock;
@@ -364,6 +367,13 @@ function setup({
     KeyringController: {
       keyrings,
       getState: jest.fn(),
+    },
+    MultichainAccountService: {
+      // Default: service has no group (not yet initialized). #queryGroupStatus catches
+      // the throw and falls back to 'uninitialized'. Individual tests can override.
+      getMultichainAccountGroup: jest.fn().mockImplementation(() => {
+        throw new Error('Group not found');
+      }),
     },
     AccountsController: {
       accounts,
@@ -388,6 +398,11 @@ function setup({
       }),
     },
   };
+
+  messenger.registerActionHandler(
+    'MultichainAccountService:getMultichainAccountGroup',
+    mocks.MultichainAccountService.getMultichainAccountGroup,
+  );
 
   if (accounts) {
     mocks.AccountsController.listMultichainAccounts.mockImplementation(
@@ -1030,6 +1045,41 @@ describe('AccountTreeController', () => {
       expect(groupIds[0]).toBe(toMultichainAccountGroupId(walletId, 0));
       expect(groupIds[1]).toBe(toMultichainAccountGroupId(walletId, 1));
       expect(groupIds[2]).toBe(toMultichainAccountGroupId(walletId, 2));
+    });
+
+    it('reads group status from the service when it is already initialized', () => {
+      const { controller, mocks } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1],
+        keyrings: [MOCK_HD_KEYRING_1],
+      });
+
+      // Simulate the service having already initialized and the group being aligned.
+      mocks.MultichainAccountService.getMultichainAccountGroup.mockReturnValue({
+        status: 'aligned',
+      });
+
+      controller.init();
+
+      const groupId = MOCK_PREPOPULATED_GROUP_ID;
+      const walletId = MOCK_PREPOPULATED_WALLET_ID;
+      expect(
+        controller.state.accountTree.wallets[walletId]?.groups[groupId]?.status,
+      ).toBe('aligned');
+    });
+
+    it('falls back to uninitialized when the service has no record for the group yet', () => {
+      const { controller } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1],
+        keyrings: [MOCK_HD_KEYRING_1],
+      });
+      // Default setup handler throws — fallback should apply.
+      controller.init();
+
+      const groupId = MOCK_PREPOPULATED_GROUP_ID;
+      const walletId = MOCK_PREPOPULATED_WALLET_ID;
+      expect(
+        controller.state.accountTree.wallets[walletId]?.groups[groupId]?.status,
+      ).toBe('uninitialized');
     });
   });
 

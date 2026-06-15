@@ -19,6 +19,7 @@ import type { Messenger } from '@metamask/messenger';
 import type {
   MultichainAccountServiceCreateMultichainAccountGroupAction,
   MultichainAccountServiceCreateMultichainAccountGroupsAction,
+  MultichainAccountServiceGetMultichainAccountGroupAction,
 } from '@metamask/multichain-account-service';
 import type {
   MultichainAccountServiceGroupStatusChangeEvent,
@@ -97,7 +98,8 @@ export type AllowedActions =
   | UserStorageController.UserStorageControllerPerformBatchSetStorageAction
   | AuthenticationController.AuthenticationControllerGetSessionProfileAction
   | MultichainAccountServiceCreateMultichainAccountGroupAction
-  | MultichainAccountServiceCreateMultichainAccountGroupsAction;
+  | MultichainAccountServiceCreateMultichainAccountGroupsAction
+  | MultichainAccountServiceGetMultichainAccountGroupAction;
 
 export type AccountTreeControllerActions =
   | AccountTreeControllerGetStateAction

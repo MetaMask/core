@@ -1185,11 +1185,13 @@ export class AccountTreeController extends BaseController<
         ...result.group,
         // Type-wise, we are guaranteed to always have at least 1 account.
         accounts: [id],
-        // Entropy (multichain) groups start as 'uninitialized'; the service will
-        // publish a groupStatusChange event to set the real status shortly after.
-        ...(result.group.type === AccountGroupType.MultichainAccount && {
-          status: 'uninitialized',
-        }),
+          ...(result.group.type === AccountGroupType.MultichainAccount &&
+          result.wallet.type === AccountWalletType.Entropy && {
+            status: this.#getMultichainAccountGroupStatus(
+              result.wallet.metadata.entropy.id,
+              result.group.metadata.entropy.groupIndex,
+            ),
+          }),
         metadata: {
           name: '',
           ...{ pinned: false, hidden: false, lastSelected: 0 }, // Default UI states
@@ -1460,6 +1462,30 @@ export class AccountTreeController extends BaseController<
         }
       }
     });
+  }
+
+  /**
+   * Gets the multichain account group's current status from the service.
+   * Falls back to `'uninitialized'` when the service has no record for the
+   * group yet (e.g. the service hasn't finished its group or hasn't finished
+   * its own `init` call).
+   *
+   * @param entropySource - The entropy source ID of the wallet.
+   * @param groupIndex - The group index within that wallet.
+   * @returns The group's current status, or `'uninitialized'` if unknown.
+   */
+  #getMultichainAccountGroupStatus(
+    entropySource: string,
+    groupIndex: number,
+  ): MultichainAccountGroupStatus {
+    try {
+      return this.messenger.call(
+        'MultichainAccountService:getMultichainAccountGroup',
+        { entropySource, groupIndex },
+      ).status;
+    } catch {
+      return 'uninitialized';
+    }
   }
 
   /**
