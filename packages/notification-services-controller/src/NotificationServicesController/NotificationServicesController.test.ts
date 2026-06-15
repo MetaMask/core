@@ -106,10 +106,7 @@ const prefsFromAddresses = (
     pushNotificationsEnabled: true,
     mutedTraderProfileIds: [],
   },
-  agenticCli: {
-    inAppNotificationsEnabled: true,
-    pushNotificationsEnabled: true,
-  },
+  agenticCli: { ...DEFAULT_AGENTIC_CLI_PREFERENCES },
 });
 
 const prefsFromAddressesWithMarketingInAppNotifications = (

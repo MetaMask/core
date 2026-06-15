@@ -218,6 +218,23 @@ describe('AuthenticatedUserStorageService', () => {
         agenticCli: DEFAULT_AGENTIC_CLI_PREFERENCES,
       });
     });
+
+    it('does not mutate DEFAULT_AGENTIC_CLI_PREFERENCES when coercing legacy payloads', async () => {
+      handleMockGetNotificationPreferences({
+        status: 200,
+        body: MOCK_LEGACY_NOTIFICATION_PREFERENCES,
+      });
+      const { service } = createService();
+
+      const result = await service.getNotificationPreferences();
+
+      expect(result).not.toBeNull();
+      result.agenticCli.inAppNotificationsEnabled = false;
+
+      expect(DEFAULT_AGENTIC_CLI_PREFERENCES.inAppNotificationsEnabled).toBe(
+        true,
+      );
+    });
   });
 
   describe('putNotificationPreferences', () => {

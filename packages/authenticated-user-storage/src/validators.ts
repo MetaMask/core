@@ -13,7 +13,7 @@ import {
   type,
 } from '@metamask/superstruct';
 
-import type { AgenticCliPreference, DelegationResponse } from './types';
+import type { AgenticCliPreference, DelegationResponse, NotificationPreferences } from './types';
 
 /**
  * Matches a 0x-prefixed hex string with zero or more hex digits.
@@ -96,18 +96,13 @@ const AgenticCliPreferenceSchema = type({
   pushNotificationsEnabled: boolean(),
 });
 
-const NotificationPreferencesBaseSchema = type({
+const NotificationPreferencesSchema = type({
   walletActivity: WalletActivityPreferenceSchema,
   marketing: MarketingPreferenceSchema,
   perps: PerpsPreferenceSchema,
   socialAI: SocialAIPreferenceSchema,
+  agenticCli: AgenticCliPreferenceSchema,
 });
-
-/** Package-internal: lenient read validation (legacy may omit agenticCli). */
-export const NotificationPreferencesReadSchema = assign(
-  NotificationPreferencesBaseSchema,
-  type({ agenticCli: optional(AgenticCliPreferenceSchema) }),
-);
 
 /**
  * Default Agentic CLI notification preferences applied when coercing legacy
@@ -179,6 +174,18 @@ export function assertDelegationResponseArray(
   data: unknown,
 ): asserts data is DelegationResponse[] {
   assert(data, array(DelegationResponseSchema));
+}
+
+/**
+ * Asserts that the given value is a valid `NotificationPreferences`.
+ *
+ * @param data - The unknown value to validate.
+ * @throws If the value does not match the expected schema.
+ */
+export function assertNotificationPreferences(
+  data: unknown,
+): asserts data is NotificationPreferences {
+  assert(data, NotificationPreferencesSchema);
 }
 
 /**
