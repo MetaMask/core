@@ -1156,7 +1156,10 @@ export class AccountTreeController extends BaseController<
       log(`[${walletId}] Added as new wallet`);
       wallets[walletId] = {
         ...result.wallet,
-        status: 'ready',
+        status:
+          result.wallet.type === AccountWalletType.Entropy
+            ? this.#queryWalletStatus(result.wallet.metadata.entropy.id)
+            : 'ready',
         groups: {},
         metadata: {
           name: '', // Will get updated later.
@@ -1462,6 +1465,25 @@ export class AccountTreeController extends BaseController<
         }
       }
     });
+  }
+
+  /**
+   * Gets the multichain account wallet's current status from the service.
+   * Falls back to `'uninitialized'` when the service has no record for the
+   * wallet yet (e.g. the service hasn't finished its own `init` call).
+   *
+   * @param entropySource - The entropy source ID of the wallet.
+   * @returns The wallet's current status, or `'uninitialized'` if unknown.
+   */
+  #queryWalletStatus(entropySource: string): MultichainAccountWalletStatus {
+    try {
+      return this.messenger.call(
+        'MultichainAccountService:getMultichainAccountWallet',
+        { entropySource },
+      ).status;
+    } catch {
+      return 'uninitialized';
+    }
   }
 
   /**

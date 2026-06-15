@@ -344,6 +344,7 @@ function setup({
     };
     MultichainAccountService: {
       getMultichainAccountGroup: jest.Mock;
+      getMultichainAccountWallet: jest.Mock;
     };
     AccountsController: {
       accounts: InternalAccount[];
@@ -369,11 +370,14 @@ function setup({
       getState: jest.fn(),
     },
     MultichainAccountService: {
-      // Default: service has no group (not yet initialized). #queryGroupStatus catches
-      // the throw and falls back to 'uninitialized'. Individual tests can override.
+      // Default: service has no record yet. The query helpers catch the throw and
+      // fall back to 'uninitialized'. Individual tests can override via mockReturnValue.
       getMultichainAccountGroup: jest.fn().mockImplementation(() => {
         throw new Error('Group not found');
       }),
+      // Default: service is initialized and wallet is ready (the common case).
+      // Individual tests can override via mockReturnValue to test other statuses.
+      getMultichainAccountWallet: jest.fn().mockReturnValue({ status: 'ready' }),
     },
     AccountsController: {
       accounts,
@@ -402,6 +406,10 @@ function setup({
   messenger.registerActionHandler(
     'MultichainAccountService:getMultichainAccountGroup',
     mocks.MultichainAccountService.getMultichainAccountGroup,
+  );
+  messenger.registerActionHandler(
+    'MultichainAccountService:getMultichainAccountWallet',
+    mocks.MultichainAccountService.getMultichainAccountWallet,
   );
 
   if (accounts) {
@@ -1045,6 +1053,44 @@ describe('AccountTreeController', () => {
       expect(groupIds[0]).toBe(toMultichainAccountGroupId(walletId, 0));
       expect(groupIds[1]).toBe(toMultichainAccountGroupId(walletId, 1));
       expect(groupIds[2]).toBe(toMultichainAccountGroupId(walletId, 2));
+    });
+
+    it('reads wallet status from the service when it is already initialized', () => {
+      const { controller, mocks } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1],
+        keyrings: [MOCK_HD_KEYRING_1],
+      });
+
+      mocks.MultichainAccountService.getMultichainAccountWallet.mockReturnValue({
+        status: 'in-progress:alignment',
+      });
+
+      controller.init();
+
+      const walletId = MOCK_PREPOPULATED_WALLET_ID;
+      expect(
+        controller.state.accountTree.wallets[walletId]?.status,
+      ).toBe('in-progress:alignment');
+    });
+
+    it('falls back to uninitialized for wallet when the service has no record yet', () => {
+      const { controller, mocks } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1],
+        keyrings: [MOCK_HD_KEYRING_1],
+      });
+
+      mocks.MultichainAccountService.getMultichainAccountWallet.mockImplementation(
+        () => {
+          throw new Error('Wallet not found');
+        },
+      );
+
+      controller.init();
+
+      const walletId = MOCK_PREPOPULATED_WALLET_ID;
+      expect(
+        controller.state.accountTree.wallets[walletId]?.status,
+      ).toBe('uninitialized');
     });
 
     it('reads group status from the service when it is already initialized', () => {

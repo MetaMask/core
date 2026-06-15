@@ -20,6 +20,7 @@ import type {
   MultichainAccountServiceCreateMultichainAccountGroupAction,
   MultichainAccountServiceCreateMultichainAccountGroupsAction,
   MultichainAccountServiceGetMultichainAccountGroupAction,
+  MultichainAccountServiceGetMultichainAccountWalletAction,
 } from '@metamask/multichain-account-service';
 import type {
   MultichainAccountServiceGroupStatusChangeEvent,
@@ -99,7 +100,8 @@ export type AllowedActions =
   | AuthenticationController.AuthenticationControllerGetSessionProfileAction
   | MultichainAccountServiceCreateMultichainAccountGroupAction
   | MultichainAccountServiceCreateMultichainAccountGroupsAction
-  | MultichainAccountServiceGetMultichainAccountGroupAction;
+  | MultichainAccountServiceGetMultichainAccountGroupAction
+  | MultichainAccountServiceGetMultichainAccountWalletAction;
 
 export type AccountTreeControllerActions =
   | AccountTreeControllerGetStateAction
