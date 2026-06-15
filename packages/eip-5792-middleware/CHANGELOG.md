@@ -7,14 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- Release/1027.0.0 ([#9058](https://github.com/MetaMask/core/pull/9058))
-- Revert "Release 1022.0.0" ([#9025](https://github.com/MetaMask/core/pull/9025))
-- Revert "Release 1023.0.0" ([#9018](https://github.com/MetaMask/core/pull/9018))
-- Release 1023.0.0 ([#9017](https://github.com/MetaMask/core/pull/9017))
-- Release/1003.0.0 ([#8912](https://github.com/MetaMask/core/pull/8912))
-
 ### Changed
 
 - Bump `@metamask/utils` from `^11.9.0` to `^11.11.0` ([#9074](https://github.com/MetaMask/core/pull/9074))
@@ -69,7 +61,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Bump `@metamask/transaction-controller` from `^61.3.0` to `^62.7.0` ([#7007](https://github.com/MetaMask/core/pull/7007), [#7126](https://github.com/MetaMask/core/pull/7126), [#7153](https://github.com/MetaMask/core/pull/7153), [#7202](https://github.com/MetaMask/core/pull/7202), [#7215](https://github.com/MetaMask/core/pull/7215), [#7220](https://github.com/MetaMask/core/pull/7220), [#7236](https://github.com/MetaMask/core/pull/7236), [#7257](https://github.com/MetaMask/core/pull/7257), [#7289](https://github.com/MetaMask/core/pull/7289), [#7325](https://github.com/MetaMask/core/pull/7325), [#7430](https://github.com/MetaMask/core/pull/7430), [#7494](https://github.com/MetaMask/core/pull/7494))
+- Bump `@metamask/transaction-controller` from `^61.3.0` to `^62.7.0` ([#7007](https://github.com/MetaMask/core/pull/7007), [#7126](https://github.com/MetaMask/core/pull/7126), [#7153](https://github.com/MetaMask/core/pull/7153), [#7202](https://github.com/MetaMask/core/pull/7202), [#7215](https://github.com/MetaMask/core/pull/7202), [#7220](https://github.com/MetaMask/core/pull/7220), [#7236](https://github.com/MetaMask/core/pull/7236), [#7257](https://github.com/MetaMask/core/pull/7257), [#7289](https://github.com/MetaMask/core/pull/7289), [#7325](https://github.com/MetaMask/core/pull/7325), [#7430](https://github.com/MetaMask/core/pull/7430), [#7494](https://github.com/MetaMask/core/pull/7494))
 
 ## [2.0.0]
 
@@ -103,7 +95,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Bump `@metamask/utils` from `^11.8.0` to `^11.8.1` ([#6708](https://github.com/MetaMask/core/pull/6708))
-- Bump `@metamask/transaction-controller` from `^60.4.0` to `^60.6.0` ([#6708](https://github.com/MetaMask/core/pull/6708), [#6771](https://github.com/MetaMask/core/pull/6771))
+- Bump `@metamask/transaction-controller` from `^60.4.0` to `^60.6.0` ([#6708](https://github.com/MetaMask/core/pull/6733), [#6771](https://github.com/MetaMask/core/pull/6771))
 - Remove dependency `@metamask/eth-json-rpc-middleware` ([#6714](https://github.com/MetaMask/core/pull/6714))
 
 ## [1.2.0]
