@@ -92,7 +92,6 @@ const DEFAULT_TEST_CONFIG = {
     'native-token-periodic',
     'erc20-token-stream',
     'erc20-token-periodic',
-    'erc20-token-revocation',
   ] as SupportedPermissionType[],
 };
 
@@ -420,49 +419,6 @@ describe('GatorPermissionsController', () => {
 
       expect(controller.state.grantedPermissions).toHaveLength(1);
       expect(controller.state.grantedPermissions[0].status).toBe('Active');
-    });
-
-    it('categorizes erc20-token-revocation permissions into its own bucket', async () => {
-      const chainId = '0x1' as Hex;
-      // Create a minimal revocation permission entry and cast to satisfy types
-      const revocationEntry = {
-        permissionResponse: {
-          chainId,
-          from: '0x0000000000000000000000000000000000000001',
-          to: '0x0000000000000000000000000000000000000002',
-          permission: {
-            type: 'erc20-token-revocation',
-            isAdjustmentAllowed: false,
-            // Data shape is enforced by external types; not relevant for categorization
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            data: {} as any,
-          },
-          context: '0xdeadbeef',
-          dependencies: [],
-          delegationManager: '0x0000000000000000000000000000000000000003',
-        },
-        siteOrigin: 'https://example.org',
-      } as unknown;
-      const rootMessenger = getRootMessenger({
-        snapControllerHandleRequestActionHandler: async () =>
-          [revocationEntry] as unknown,
-      });
-      const controller = new GatorPermissionsController({
-        messenger: getGatorPermissionsControllerMessenger(rootMessenger),
-        config: DEFAULT_TEST_CONFIG,
-      });
-
-      await rootMessenger.call(
-        'GatorPermissionsController:fetchAndUpdateGatorPermissions',
-      );
-
-      const { grantedPermissions } = controller.state;
-      expect(grantedPermissions).toHaveLength(1);
-      expect(grantedPermissions[0].permissionResponse.permission.type).toBe(
-        'erc20-token-revocation',
-      );
-      expect(grantedPermissions[0].permissionResponse.chainId).toBe(chainId);
-      expect(PERMISSION_STATUSES).toContain(grantedPermissions[0].status);
     });
 
     it('handles null permissions data', async () => {
@@ -889,6 +845,7 @@ describe('GatorPermissionsController', () => {
       expect(result.expiry).toBe(beforeThreshold);
       // amounts are hex-encoded in decoded data; startTime is numeric
       expect(result.permission.data.startTime).toBe(startTime);
+
       // BigInt fields are encoded as hex; compare after decoding
       expect(hexToBigInt(result.permission.data.initialAmount)).toBe(
         initialAmount,
@@ -902,7 +859,7 @@ describe('GatorPermissionsController', () => {
 
     it('throws when origin does not match permissions provider', () => {
       expect(() =>
-        rootMessenger.call(
+      rootMessenger.call(
           'GatorPermissionsController:decodePermissionFromPermissionContextForOrigin',
           {
             origin: 'not-the-provider',

@@ -11,13 +11,13 @@ import {
   reconstructDecodedPermission,
   selectUniqueDecoderAndDecodedPermission,
 } from './decodePermission';
-import { createPermissionDecodersForContracts } from './decoders';
 import type {
   DecodedPermission,
   DeployedContractsByName,
   PermissionDecoder,
 } from './types';
 import { getChecksumEnforcersByChainId } from './utils';
+import { createPermissionDecodersForContracts } from './decoders';
 
 // These tests use the live deployments table for version 1.3.0 to
 // construct deterministic caveat address sets for a known chain.
@@ -493,138 +493,6 @@ describe('decodePermission', () => {
       });
     });
 
-    describe('erc20-token-revocation', () => {
-      const expectedPermissionType = 'erc20-token-revocation';
-
-      it('matches with two AllowedCalldataEnforcer and ValueLteEnforcer and NonceEnforcer', () => {
-        const enforcers = [
-          AllowedCalldataEnforcer,
-          AllowedCalldataEnforcer,
-          ValueLteEnforcer,
-          NonceEnforcer,
-        ];
-        const rules = findDecodersWithMatchingCaveatAddresses({
-          enforcers,
-          permissionDecoders: createPermissionDecodersForContracts(contracts),
-        });
-        expect(
-          rules.map((matchingRule) => matchingRule.permissionType),
-        ).toStrictEqual([expectedPermissionType]);
-      });
-
-      it('allows TimestampEnforcer as extra', () => {
-        const enforcers = [
-          AllowedCalldataEnforcer,
-          AllowedCalldataEnforcer,
-          ValueLteEnforcer,
-          NonceEnforcer,
-          TimestampEnforcer,
-        ];
-        const rules = findDecodersWithMatchingCaveatAddresses({
-          enforcers,
-          permissionDecoders: createPermissionDecodersForContracts(contracts),
-        });
-        expect(
-          rules.map((matchingRule) => matchingRule.permissionType),
-        ).toStrictEqual([expectedPermissionType]);
-      });
-
-      it('rejects when only one AllowedCalldataEnforcer is provided', () => {
-        const enforcers = [
-          AllowedCalldataEnforcer,
-          ValueLteEnforcer,
-          NonceEnforcer,
-        ];
-        const rules = findDecodersWithMatchingCaveatAddresses({
-          enforcers,
-          permissionDecoders: createPermissionDecodersForContracts(contracts),
-        });
-        expect(rules).toStrictEqual([]);
-      });
-
-      it('rejects when three AllowedCalldataEnforcer are provided', () => {
-        const enforcers = [
-          AllowedCalldataEnforcer,
-          AllowedCalldataEnforcer,
-          AllowedCalldataEnforcer,
-          ValueLteEnforcer,
-          NonceEnforcer,
-        ];
-        const rules = findDecodersWithMatchingCaveatAddresses({
-          enforcers,
-          permissionDecoders: createPermissionDecodersForContracts(contracts),
-        });
-        expect(rules).toStrictEqual([]);
-      });
-
-      it('rejects when ValueLteEnforcer is missing', () => {
-        const enforcers = [
-          AllowedCalldataEnforcer,
-          AllowedCalldataEnforcer,
-          NonceEnforcer,
-        ];
-        const rules = findDecodersWithMatchingCaveatAddresses({
-          enforcers,
-          permissionDecoders: createPermissionDecodersForContracts(contracts),
-        });
-        expect(rules).toStrictEqual([]);
-      });
-
-      it('rejects forbidden extra caveat', () => {
-        const enforcers = [
-          AllowedCalldataEnforcer,
-          AllowedCalldataEnforcer,
-          ValueLteEnforcer,
-          NonceEnforcer,
-          // Not allowed for erc20-token-revocation
-          ExactCalldataEnforcer,
-        ];
-        const rules = findDecodersWithMatchingCaveatAddresses({
-          enforcers,
-          permissionDecoders: createPermissionDecodersForContracts(contracts),
-        });
-        expect(rules).toStrictEqual([]);
-      });
-
-      it('accepts lowercased addresses', () => {
-        const enforcers: Hex[] = [
-          AllowedCalldataEnforcer.toLowerCase() as unknown as Hex,
-          AllowedCalldataEnforcer.toLowerCase() as unknown as Hex,
-          ValueLteEnforcer.toLowerCase() as unknown as Hex,
-          NonceEnforcer.toLowerCase() as unknown as Hex,
-        ];
-        const rules = findDecodersWithMatchingCaveatAddresses({
-          enforcers,
-          permissionDecoders: createPermissionDecodersForContracts(contracts),
-        });
-        expect(
-          rules.map((matchingRule) => matchingRule.permissionType),
-        ).toStrictEqual([expectedPermissionType]);
-      });
-
-      it('throws if a contract is not found', () => {
-        const enforcers = [
-          AllowedCalldataEnforcer,
-          AllowedCalldataEnforcer,
-          ValueLteEnforcer,
-          NonceEnforcer,
-        ];
-        const contractsWithoutAllowedCalldataEnforcer = {
-          ...contracts,
-          AllowedCalldataEnforcer: undefined,
-        } as unknown as DeployedContractsByName;
-
-        expect(() =>
-          findDecodersWithMatchingCaveatAddresses({
-            enforcers,
-            permissionDecoders: createPermissionDecodersForContracts(
-              contractsWithoutAllowedCalldataEnforcer,
-            ),
-          }),
-        ).toThrow('Contract not found: AllowedCalldataEnforcer');
-      });
-    });
-
     describe('token-approval-revocation', () => {
       const expectedPermissionType = 'token-approval-revocation';
       const findMatchingDecoders = (enforcers: Hex[]): PermissionDecoder[] =>
@@ -997,34 +865,6 @@ describe('decodePermission', () => {
           ExactCalldataEnforcer,
           NonceEnforcer,
           unknownEnforcer,
-        ];
-        const rules = findDecodersWithMatchingCaveatAddresses({
-          enforcers,
-          permissionDecoders: createPermissionDecodersForContracts(contracts),
-        });
-        expect(rules).toStrictEqual([]);
-      });
-
-      it('rejects exactly one AllowedCalldataEnforcer for erc20-token-revocation (wrong multiplicity)', () => {
-        const enforcers = [
-          AllowedCalldataEnforcer,
-          ValueLteEnforcer,
-          NonceEnforcer,
-        ];
-        const rules = findDecodersWithMatchingCaveatAddresses({
-          enforcers,
-          permissionDecoders: createPermissionDecodersForContracts(contracts),
-        });
-        expect(rules).toStrictEqual([]);
-      });
-
-      it('rejects three AllowedCalldataEnforcer for erc20-token-revocation (excess multiplicity)', () => {
-        const enforcers = [
-          AllowedCalldataEnforcer,
-          AllowedCalldataEnforcer,
-          AllowedCalldataEnforcer,
-          ValueLteEnforcer,
-          NonceEnforcer,
         ];
         const rules = findDecodersWithMatchingCaveatAddresses({
           enforcers,
