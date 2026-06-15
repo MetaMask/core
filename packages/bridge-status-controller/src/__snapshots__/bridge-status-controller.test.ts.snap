@@ -228,6 +228,7 @@ exports[`BridgeStatusController startPollingForBridgeTxStatus emits bridgeTransa
       "chain_id_source": "eip155:42161",
       "custom_slippage": true,
       "destination_transaction": "FAILED",
+      "feature_id": "unified_swap_bridge",
       "gas_included": false,
       "gas_included_7702": false,
       "is_hardware_wallet": false,
@@ -412,6 +413,7 @@ exports[`BridgeStatusController startPollingForBridgeTxStatus stops polling when
       "chain_id_source": "eip155:42161",
       "custom_slippage": true,
       "destination_transaction": "COMPLETE",
+      "feature_id": "unified_swap_bridge",
       "gas_included": false,
       "gas_included_7702": false,
       "is_hardware_wallet": false,
@@ -616,6 +618,7 @@ exports[`BridgeStatusController submitTx: EVM bridge should delay after submitti
       "chain_id_destination": "eip155:10",
       "chain_id_source": "eip155:8453",
       "custom_slippage": false,
+      "feature_id": "unified_swap_bridge",
       "gas_included": false,
       "gas_included_7702": false,
       "is_hardware_wallet": false,
@@ -930,6 +933,7 @@ exports[`BridgeStatusController submitTx: EVM bridge should delay after submitti
       "chain_id_destination": "eip155:10",
       "chain_id_source": "eip155:59144",
       "custom_slippage": false,
+      "feature_id": "unified_swap_bridge",
       "gas_included": false,
       "gas_included_7702": false,
       "is_hardware_wallet": false,
@@ -1231,13 +1235,16 @@ exports[`BridgeStatusController submitTx: EVM bridge should handle smart transac
     {
       "atomic": true,
       "disable7702": true,
+      "excludeNativeTokenForFee": true,
       "from": "0xaccount1",
+      "gasFeeToken": undefined,
       "isGasFeeIncluded": false,
       "isGasFeeSponsored": false,
       "isInternal": true,
       "networkClientId": "arbitrum",
       "origin": "metamask",
       "requireApproval": false,
+      "skipInitialGasEstimate": false,
       "transactions": [
         {
           "assetsFiatValues": {
@@ -1269,6 +1276,7 @@ exports[`BridgeStatusController submitTx: EVM bridge should handle smart transac
     {
       "best_quote_provider": "lifi_across",
       "can_submit": true,
+      "feature_id": "unified_swap_bridge",
       "gas_included": false,
       "gas_included_7702": false,
       "price_impact": 0,
@@ -1295,6 +1303,7 @@ exports[`BridgeStatusController submitTx: EVM bridge should handle smart transac
       "chain_id_destination": "eip155:10",
       "chain_id_source": "eip155:42161",
       "custom_slippage": false,
+      "feature_id": "unified_swap_bridge",
       "gas_included": false,
       "gas_included_7702": false,
       "is_hardware_wallet": false,
@@ -1544,6 +1553,7 @@ exports[`BridgeStatusController submitTx: EVM bridge should not call handleMobil
       "chain_id_destination": "eip155:10",
       "chain_id_source": "eip155:42161",
       "custom_slippage": false,
+      "feature_id": "unified_swap_bridge",
       "gas_included": false,
       "gas_included_7702": false,
       "is_hardware_wallet": false,
@@ -1858,6 +1868,7 @@ exports[`BridgeStatusController submitTx: EVM bridge should not call handleMobil
       "chain_id_destination": "eip155:10",
       "chain_id_source": "eip155:42161",
       "custom_slippage": false,
+      "feature_id": "unified_swap_bridge",
       "gas_included": false,
       "gas_included_7702": false,
       "is_hardware_wallet": false,
@@ -2172,6 +2183,7 @@ exports[`BridgeStatusController submitTx: EVM bridge should reset USDT allowance
       "chain_id_destination": "eip155:10",
       "chain_id_source": "eip155:42161",
       "custom_slippage": false,
+      "feature_id": "unified_swap_bridge",
       "gas_included": false,
       "gas_included_7702": false,
       "is_hardware_wallet": false,
@@ -2506,6 +2518,7 @@ exports[`BridgeStatusController submitTx: EVM bridge should successfully submit 
       "chain_id_destination": "eip155:10",
       "chain_id_source": "eip155:42161",
       "custom_slippage": false,
+      "feature_id": "unified_swap_bridge",
       "gas_included": false,
       "gas_included_7702": false,
       "is_hardware_wallet": false,
@@ -2795,6 +2808,7 @@ exports[`BridgeStatusController submitTx: EVM bridge should successfully submit 
       "chain_id_destination": "eip155:10",
       "chain_id_source": "eip155:42161",
       "custom_slippage": false,
+      "feature_id": "unified_swap_bridge",
       "gas_included": false,
       "gas_included_7702": false,
       "is_hardware_wallet": false,
@@ -2891,6 +2905,7 @@ exports[`BridgeStatusController submitTx: EVM bridge should throw an error if ap
       "chain_id_destination": "eip155:10",
       "chain_id_source": "eip155:42161",
       "custom_slippage": false,
+      "feature_id": "unified_swap_bridge",
       "gas_included": false,
       "gas_included_7702": false,
       "is_hardware_wallet": false,
@@ -2971,6 +2986,7 @@ exports[`BridgeStatusController submitTx: EVM bridge should throw an error if ap
       "chain_id_source": "eip155:42161",
       "custom_slippage": false,
       "error_message": "Approval tx failed",
+      "feature_id": "unified_swap_bridge",
       "gas_included": false,
       "gas_included_7702": false,
       "is_hardware_wallet": false,
@@ -3013,6 +3029,7 @@ exports[`BridgeStatusController submitTx: EVM bridge should throw an error if ap
       "chain_id_destination": "eip155:10",
       "chain_id_source": "eip155:42161",
       "custom_slippage": false,
+      "feature_id": "unified_swap_bridge",
       "gas_included": false,
       "gas_included_7702": false,
       "is_hardware_wallet": false,
@@ -3096,6 +3113,7 @@ exports[`BridgeStatusController submitTx: EVM bridge should throw an error if ap
       "chain_id_source": "eip155:42161",
       "custom_slippage": false,
       "error_message": "Failed to submit cross-chain swap tx: txMeta for txHash was not found",
+      "feature_id": "unified_swap_bridge",
       "gas_included": false,
       "gas_included_7702": false,
       "is_hardware_wallet": false,
@@ -3286,6 +3304,7 @@ exports[`BridgeStatusController submitTx: EVM bridge waits for approval tx confi
       "chain_id_destination": "eip155:10",
       "chain_id_source": "eip155:42161",
       "custom_slippage": false,
+      "feature_id": "unified_swap_bridge",
       "gas_included": false,
       "gas_included_7702": false,
       "is_hardware_wallet": true,
@@ -3471,6 +3490,7 @@ exports[`BridgeStatusController submitTx: EVM swap should gracefully handle isAt
       "chain_id_destination": "eip155:42161",
       "chain_id_source": "eip155:42161",
       "custom_slippage": false,
+      "feature_id": "unified_swap_bridge",
       "gas_included": false,
       "gas_included_7702": false,
       "is_hardware_wallet": false,
@@ -3633,6 +3653,15 @@ exports[`BridgeStatusController submitTx: EVM swap should handle a gasless swap 
     "destTokenAmount": "990654755978612",
     "feeData": {
       "txFee": {
+        "asset": {
+          "address": "0x0000000000000000000000000000000000000000",
+          "assetId": "eip155:42161/slip44:60",
+          "chainId": 42161,
+          "decimals": 18,
+          "iconUrl": "",
+          "name": "Ether",
+          "symbol": "ETH",
+        },
         "maxFeePerGas": "123",
         "maxPriorityFeePerGas": "123",
       },
@@ -3692,6 +3721,40 @@ exports[`BridgeStatusController submitTx: EVM swap should handle a gasless swap 
         "srcChainId": 42161,
       },
     ],
+  },
+  "slippagePercentage": 0,
+  "startTime": 1234567890,
+  "status": {
+    "srcChain": {
+      "chainId": 42161,
+      "txHash": undefined,
+    },
+    "status": "PENDING",
+  },
+  "targetContractAddress": undefined,
+  "txMetaId": "test-tx-id",
+}
+`;
+
+exports[`BridgeStatusController submitTx: EVM swap should handle a gasless swap transaction with fees paid in ERC20 1`] = `
+{
+  "account": "0xaccount1",
+  "actionId": undefined,
+  "approvalTxId": undefined,
+  "batchId": "batchId1",
+  "estimatedProcessingTimeInSeconds": 0,
+  "featureId": undefined,
+  "hasApprovalTx": true,
+  "initialDestAssetBalance": undefined,
+  "isStxEnabled": true,
+  "location": "Main View",
+  "originalTransactionId": "test-tx-id",
+  "pricingData": {
+    "amountSent": "1.234",
+    "amountSentInUsd": "1.01",
+    "quotedGasAmount": ".00055",
+    "quotedGasInUsd": "2.5778",
+    "quotedReturnInUsd": "0.134214",
   },
   "slippagePercentage": 0,
   "startTime": 1234567890,
@@ -3858,13 +3921,16 @@ exports[`BridgeStatusController submitTx: EVM swap should handle smart transacti
     {
       "atomic": true,
       "disable7702": true,
+      "excludeNativeTokenForFee": true,
       "from": "0xaccount1",
+      "gasFeeToken": undefined,
       "isGasFeeIncluded": false,
       "isGasFeeSponsored": false,
       "isInternal": true,
       "networkClientId": "arbitrum",
       "origin": "metamask",
       "requireApproval": false,
+      "skipInitialGasEstimate": false,
       "transactions": [
         {
           "assetsFiatValues": undefined,
@@ -3921,6 +3987,7 @@ exports[`BridgeStatusController submitTx: EVM swap should handle smart transacti
       "chain_id_destination": "eip155:42161",
       "chain_id_source": "eip155:42161",
       "custom_slippage": false,
+      "feature_id": "unified_swap_bridge",
       "gas_included": false,
       "gas_included_7702": false,
       "is_hardware_wallet": false,
@@ -4031,7 +4098,7 @@ exports[`BridgeStatusController submitTx: EVM swap should successfully submit an
 }
 `;
 
-exports[`BridgeStatusController submitTx: EVM swap should successfully submit an EVM swap transaction with featureId 1`] = `
+exports[`BridgeStatusController submitTx: EVM swap should successfully submit an EVM swap transaction with featureId=perps 1`] = `
 {
   "chainId": "0xa4b1",
   "hash": "0xevmTxHash",
@@ -4050,7 +4117,7 @@ exports[`BridgeStatusController submitTx: EVM swap should successfully submit an
 }
 `;
 
-exports[`BridgeStatusController submitTx: EVM swap should successfully submit an EVM swap transaction with featureId 2`] = `
+exports[`BridgeStatusController submitTx: EVM swap should successfully submit an EVM swap transaction with featureId=perps 2`] = `
 [
   [
     "BridgeController:stopPollingForQuotes",
@@ -4327,6 +4394,7 @@ exports[`BridgeStatusController submitTx: EVM swap should successfully submit an
       "chain_id_destination": "eip155:42161",
       "chain_id_source": "eip155:42161",
       "custom_slippage": false,
+      "feature_id": "unified_swap_bridge",
       "gas_included": false,
       "gas_included_7702": false,
       "is_hardware_wallet": false,
@@ -4783,6 +4851,7 @@ exports[`BridgeStatusController submitTx: Solana bridge should handle snap contr
       "chain_id_destination": "eip155:1",
       "chain_id_source": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
       "custom_slippage": false,
+      "feature_id": "unified_swap_bridge",
       "gas_included": false,
       "gas_included_7702": false,
       "is_hardware_wallet": false,
@@ -4830,6 +4899,7 @@ exports[`BridgeStatusController submitTx: Solana bridge should handle snap contr
       "chain_id_source": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
       "custom_slippage": false,
       "error_message": "Snap error",
+      "feature_id": "unified_swap_bridge",
       "gas_included": false,
       "gas_included_7702": false,
       "is_hardware_wallet": false,
@@ -4872,6 +4942,7 @@ exports[`BridgeStatusController submitTx: Solana bridge should successfully subm
       "chain_id_destination": "eip155:1",
       "chain_id_source": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
       "custom_slippage": false,
+      "feature_id": "unified_swap_bridge",
       "gas_included": false,
       "gas_included_7702": false,
       "is_hardware_wallet": false,
@@ -5073,6 +5144,7 @@ exports[`BridgeStatusController submitTx: Solana bridge should throw error when 
       "chain_id_destination": "eip155:1",
       "chain_id_source": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
       "custom_slippage": false,
+      "feature_id": "unified_swap_bridge",
       "gas_included": false,
       "gas_included_7702": false,
       "is_hardware_wallet": false,
@@ -5102,6 +5174,7 @@ exports[`BridgeStatusController submitTx: Solana bridge should throw error when 
       "chain_id_source": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
       "custom_slippage": false,
       "error_message": "Failed to submit cross-chain swap transaction: undefined snap id",
+      "feature_id": "unified_swap_bridge",
       "gas_included": false,
       "gas_included_7702": false,
       "is_hardware_wallet": false,
@@ -5144,6 +5217,7 @@ exports[`BridgeStatusController submitTx: Solana swap should handle snap control
       "chain_id_destination": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
       "chain_id_source": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
       "custom_slippage": false,
+      "feature_id": "unified_swap_bridge",
       "gas_included": false,
       "gas_included_7702": false,
       "is_hardware_wallet": true,
@@ -5191,6 +5265,7 @@ exports[`BridgeStatusController submitTx: Solana swap should handle snap control
       "chain_id_source": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
       "custom_slippage": false,
       "error_message": "Snap error",
+      "feature_id": "unified_swap_bridge",
       "gas_included": false,
       "gas_included_7702": false,
       "is_hardware_wallet": true,
@@ -5233,6 +5308,7 @@ exports[`BridgeStatusController submitTx: Solana swap should successfully submit
       "chain_id_destination": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
       "chain_id_source": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
       "custom_slippage": false,
+      "feature_id": "unified_swap_bridge",
       "gas_included": false,
       "gas_included_7702": false,
       "is_hardware_wallet": true,
@@ -5290,6 +5366,7 @@ exports[`BridgeStatusController submitTx: Solana swap should successfully submit
       "chain_id_source": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
       "custom_slippage": true,
       "destination_transaction": "PENDING",
+      "feature_id": "unified_swap_bridge",
       "gas_included": false,
       "gas_included_7702": false,
       "is_hardware_wallet": true,
@@ -5486,6 +5563,7 @@ exports[`BridgeStatusController submitTx: Solana swap should throw error when sn
       "chain_id_destination": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
       "chain_id_source": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
       "custom_slippage": false,
+      "feature_id": "unified_swap_bridge",
       "gas_included": false,
       "gas_included_7702": false,
       "is_hardware_wallet": false,
@@ -5515,6 +5593,7 @@ exports[`BridgeStatusController submitTx: Solana swap should throw error when sn
       "chain_id_source": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
       "custom_slippage": false,
       "error_message": "Failed to submit cross-chain swap transaction: undefined snap id",
+      "feature_id": "unified_swap_bridge",
       "gas_included": false,
       "gas_included_7702": false,
       "is_hardware_wallet": false,
@@ -5557,6 +5636,7 @@ exports[`BridgeStatusController submitTx: Tron swap with approval should handle 
       "chain_id_destination": "tron:728126428",
       "chain_id_source": "tron:728126428",
       "custom_slippage": false,
+      "feature_id": "unified_swap_bridge",
       "gas_included": false,
       "gas_included_7702": false,
       "is_hardware_wallet": false,
@@ -5608,6 +5688,7 @@ exports[`BridgeStatusController submitTx: Tron swap with approval should handle 
       "chain_id_source": "tron:728126428",
       "custom_slippage": false,
       "error_message": "Approval transaction failed",
+      "feature_id": "unified_swap_bridge",
       "gas_included": false,
       "gas_included_7702": false,
       "is_hardware_wallet": false,
@@ -5650,6 +5731,7 @@ exports[`BridgeStatusController submitTx: Tron swap with approval should success
       "chain_id_destination": "eip155:1",
       "chain_id_source": "tron:728126428",
       "custom_slippage": false,
+      "feature_id": "unified_swap_bridge",
       "gas_included": false,
       "gas_included_7702": false,
       "is_hardware_wallet": false,
@@ -5875,6 +5957,7 @@ exports[`BridgeStatusController submitTx: Tron swap with approval should success
       "chain_id_destination": "tron:728126428",
       "chain_id_source": "tron:728126428",
       "custom_slippage": false,
+      "feature_id": "unified_swap_bridge",
       "gas_included": false,
       "gas_included_7702": false,
       "is_hardware_wallet": false,
@@ -6099,6 +6182,7 @@ exports[`BridgeStatusController subscription handlers TransactionController:tran
       "failures": [
         "across|status",
       ],
+      "feature_id": "perps",
       "location": "Main View",
       "refresh_count": 0,
       "token_address_destination": "eip155:10/slip44:60",
@@ -6116,6 +6200,7 @@ exports[`BridgeStatusController subscription handlers TransactionController:tran
       "failures": [
         "across|unknown",
       ],
+      "feature_id": "unified_swap_bridge",
       "location": "Main View",
       "refresh_count": 0,
       "token_address_destination": "eip155:10/slip44:60",
@@ -6139,7 +6224,7 @@ exports[`BridgeStatusController subscription handlers TransactionController:tran
 ]
 `;
 
-exports[`BridgeStatusController subscription handlers TransactionController:transactionStatusUpdated (confirmed) should start polling for completed bridge tx with featureId 2`] = `
+exports[`BridgeStatusController subscription handlers TransactionController:transactionStatusUpdated (confirmed) should start polling for completed bridge tx with featureId=perps 2`] = `
 {
   "bridge": "across",
   "destChain": {
@@ -6180,7 +6265,7 @@ exports[`BridgeStatusController subscription handlers TransactionController:tran
 }
 `;
 
-exports[`BridgeStatusController subscription handlers TransactionController:transactionStatusUpdated (confirmed) should start polling for failed bridge tx with featureId 2`] = `
+exports[`BridgeStatusController subscription handlers TransactionController:transactionStatusUpdated (confirmed) should start polling for failed bridge tx with featureId=perps 2`] = `
 {
   "bridge": "debridge",
   "destChain": {
@@ -6229,6 +6314,7 @@ exports[`BridgeStatusController subscription handlers TransactionController:tran
       "chain_id_source": "eip155:42161",
       "custom_slippage": true,
       "destination_transaction": "PENDING",
+      "feature_id": "unified_swap_bridge",
       "gas_included": false,
       "gas_included_7702": false,
       "is_hardware_wallet": false,
@@ -6273,6 +6359,7 @@ exports[`BridgeStatusController subscription handlers TransactionController:tran
     "custom_slippage": true,
     "destination_transaction": "FAILED",
     "error_message": "Transaction failed. tx-error",
+    "feature_id": "unified_swap_bridge",
     "gas_included": false,
     "gas_included_7702": false,
     "is_hardware_wallet": false,
@@ -6317,11 +6404,13 @@ exports[`BridgeStatusController subscription handlers TransactionController:tran
     "actual_time_minutes": 833734.9086166667,
     "allowance_reset_transaction": undefined,
     "approval_transaction": undefined,
+    "batch_id": "0xBatchIdFailed1",
     "chain_id_destination": "eip155:10",
     "chain_id_source": "eip155:42161",
     "custom_slippage": true,
     "destination_transaction": "FAILED",
     "error_message": "Transaction failed. tx-error",
+    "feature_id": "unified_swap_bridge",
     "gas_included": false,
     "gas_included_7702": false,
     "is_hardware_wallet": false,
@@ -6373,6 +6462,7 @@ exports[`BridgeStatusController subscription handlers TransactionController:tran
       "custom_slippage": true,
       "destination_transaction": "FAILED",
       "error_message": "Transaction dropped. tx-error",
+      "feature_id": "unified_swap_bridge",
       "gas_included": false,
       "gas_included_7702": false,
       "is_hardware_wallet": false,
@@ -6415,6 +6505,7 @@ exports[`BridgeStatusController subscription handlers TransactionController:tran
       "chain_id_source": "eip155:42161",
       "custom_slippage": false,
       "error_message": "Transaction failed. tx-error",
+      "feature_id": "unified_swap_bridge",
       "gas_included": false,
       "gas_included_7702": false,
       "is_hardware_wallet": false,
@@ -6466,6 +6557,7 @@ exports[`BridgeStatusController subscription handlers TransactionController:tran
       "custom_slippage": true,
       "destination_transaction": "FAILED",
       "error_message": "Transaction failed. tx-error",
+      "feature_id": "unified_swap_bridge",
       "gas_included": false,
       "gas_included_7702": false,
       "is_hardware_wallet": false,
@@ -6510,6 +6602,7 @@ exports[`BridgeStatusController subscription handlers TransactionController:tran
     "custom_slippage": true,
     "destination_transaction": "FAILED",
     "error_message": "Transaction failed. approval-tx-error",
+    "feature_id": "unified_swap_bridge",
     "gas_included": false,
     "gas_included_7702": false,
     "is_hardware_wallet": false,

@@ -76,8 +76,8 @@ export type BackendWebsocketDataSourceOptions = {
     chains: ChainId[],
     previousChains: ChainId[],
   ) => void;
-  /** Determines whether a CAIP-19 asset ID represents a native asset. */
-  isNativeAsset: (assetId: Caip19AssetId) => boolean;
+  /** Returns the asset type ('native' | 'erc20' | 'spl') for a given CAIP-19 asset ID. */
+  getAssetType: (assetId: Caip19AssetId) => 'native' | 'erc20' | 'spl';
   state?: Partial<BackendWebsocketDataSourceState>;
 };
 
@@ -226,7 +226,9 @@ export class BackendWebsocketDataSource extends AbstractDataSource<
     previousChains: ChainId[],
   ) => void;
 
-  readonly #isNativeAsset: (assetId: Caip19AssetId) => boolean;
+  readonly #getAssetType: (
+    assetId: Caip19AssetId,
+  ) => 'native' | 'erc20' | 'spl';
 
   /** Chains refresh timer */
   #chainsRefreshTimer: ReturnType<typeof setInterval> | null = null;
@@ -255,7 +257,7 @@ export class BackendWebsocketDataSource extends AbstractDataSource<
     this.#messenger = options.messenger;
     this.#apiClient = options.queryApiClient;
     this.#onActiveChainsUpdated = options.onActiveChainsUpdated;
-    this.#isNativeAsset = options.isNativeAsset;
+    this.#getAssetType = options.getAssetType;
 
     this.#subscribeToEvents();
     this.#initializeActiveChains().catch(console.error);
@@ -643,9 +645,7 @@ export class BackendWebsocketDataSource extends AbstractDataSource<
       // We can use it directly as the asset ID
       const assetId = asset.type as Caip19AssetId;
 
-      // Determine token type from asset type string
-      const isNative = this.#isNativeAsset(assetId);
-      const tokenType = isNative ? 'native' : 'erc20';
+      const tokenType = this.#getAssetType(assetId);
 
       // We assume decimals are always present; skip malformed updates
       if (asset.decimals === undefined) {
@@ -657,10 +657,9 @@ export class BackendWebsocketDataSource extends AbstractDataSource<
         ? BigInt(postBalance.amount).toString()
         : postBalance.amount;
 
-      // Convert to human-readable using asset decimals (match RpcDataSource / pipeline format)
       const humanReadableAmount = new BigNumberJS(rawBalanceStr)
         .dividedBy(new BigNumberJS(10).pow(asset.decimals))
-        .toString();
+        .toFixed();
 
       assetsBalance[accountId][assetId] = {
         amount: humanReadableAmount,

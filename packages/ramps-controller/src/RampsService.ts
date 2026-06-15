@@ -109,6 +109,12 @@ export type ProviderLimits = {
 export type Provider = {
   id: string;
   name: string;
+  /**
+   * Provider classification from the v2 API: 'native' (first-party
+   * integration, e.g. Transak Native) or 'aggregator' (third-party redirect).
+   * May be absent on responses that predate the v2 type field.
+   */
+  type?: 'aggregator' | 'native';
   environmentType: string;
   description: string;
   hqAddress: string;
@@ -1290,6 +1296,8 @@ export class RampsService {
     url.searchParams.set('amount', String(params.amount));
     url.searchParams.set('walletAddress', params.walletAddress);
 
+    const headers = await this.#getRequestHeaders();
+
     // Add payment methods as array parameters
     params.paymentMethods.forEach((paymentMethod) => {
       url.searchParams.append('payments', paymentMethod);
@@ -1306,7 +1314,7 @@ export class RampsService {
     }
 
     const response = await this.#policy.execute(async () => {
-      const fetchResponse = await this.#fetch(url);
+      const fetchResponse = await this.#fetch(url, { headers });
       if (!fetchResponse.ok) {
         throw new HttpError(
           fetchResponse.status,

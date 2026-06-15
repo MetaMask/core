@@ -11,6 +11,7 @@ import type { TransactionPayControllerMessenger } from '..';
 import { createModuleLogger, projectLogger } from '../logger';
 import type { Amount } from '../types';
 import { getFallbackGas, getGasBuffer } from './feature-flags';
+import { getNetworkClientId } from './provider';
 import { getNativeToken, getTokenBalance, getTokenFiatRate } from './token';
 
 const log = createModuleLogger(projectLogger, 'gas');
@@ -227,10 +228,7 @@ export async function estimateGasLimit({
   error?: unknown;
 }> {
   const gasBuffer = getGasBuffer(messenger, chainId);
-  const networkClientId = messenger.call(
-    'NetworkController:findNetworkClientIdByChainId',
-    chainId,
-  );
+  const networkClientId = getNetworkClientId(messenger, chainId);
 
   let estimateGasError: unknown;
   let simulationError: Error | undefined;

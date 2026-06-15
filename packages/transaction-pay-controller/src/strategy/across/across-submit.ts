@@ -21,6 +21,7 @@ import type {
 import { accountSupports7702 } from '../../utils/7702';
 import { getPayStrategiesConfig } from '../../utils/feature-flags';
 import { getGasBuffer } from '../../utils/feature-flags';
+import { getNetworkClientId } from '../../utils/provider';
 import {
   collectTransactionIds,
   getTransaction,
@@ -141,10 +142,7 @@ async function submitTransactions(
   const transactionCount =
     orderedTransactions.length + (shouldPrependOriginalTransaction ? 1 : 0);
 
-  const networkClientId = messenger.call(
-    'NetworkController:findNetworkClientIdByChainId',
-    chainId,
-  );
+  const networkClientId = getNetworkClientId(messenger, chainId);
 
   const is7702Batch = is7702 && transactionCount > 1;
   const canUseQuotedBatchGasLimit =

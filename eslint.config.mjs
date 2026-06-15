@@ -73,11 +73,12 @@ const config = createConfig([
   ...base,
   {
     ignores: [
+      '**/.docusaurus',
+      '**/coverage/**',
       '**/dist/**',
       '**/docs/**',
-      '**/coverage/**',
-      'merged-packages/**',
       '.yarn/**',
+      'merged-packages/**',
       'scripts/create-package/package-template/**',
     ],
   },
@@ -110,6 +111,7 @@ const config = createConfig([
     files: [
       '**/*.{js,cjs,mjs}',
       '**/*.test.{js,ts}',
+      '**/docusaurus.config.ts',
       '**/test/**/*.{js,ts}',
       '**/tests/**/*.{js,ts}',
       'scripts/*.ts',
@@ -307,6 +309,27 @@ const config = createConfig([
     },
   },
   {
+    files: ['packages/wallet-cli/src/**/*.{js,ts}'],
+    rules: {
+      'import-x/no-nodejs-modules': 'off',
+      'no-restricted-globals': 'off',
+    },
+  },
+  {
+    files: ['packages/wallet-cli/src/**/*.test.{js,ts}'],
+    rules: {
+      'jest/unbound-method': 'off',
+      'n/no-process-env': 'off',
+      'n/no-sync': 'off',
+    },
+  },
+  {
+    files: ['packages/wallet-cli/bin/**/*.mjs'],
+    rules: {
+      'import-x/no-unresolved': 'off',
+    },
+  },
+  {
     files: [
       'packages/notification-services-controller/src/NotificationServicesPushController/services/push/*-web.ts',
       'packages/notification-services-controller/src/NotificationServicesPushController/web/**/*.ts',
@@ -341,6 +364,12 @@ const config = createConfig([
       // for types that don't follow TSDoc properly.
       // See https://github.com/gajus/eslint-plugin-jsdoc/issues/1054
       'jsdoc/check-tag-names': 'off',
+    },
+  },
+  {
+    files: ['packages/wallet-framework-docs/site/docusaurus.config.ts'],
+    rules: {
+      'n/no-process-env': 'off',
     },
   },
 ]);

@@ -11,6 +11,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Add `DEFAULT_AGENTIC_CLI_PREFERENCES` and initialize `agenticCli` when building fresh notification preferences via `NotificationServicesController` ([#8933](https://github.com/MetaMask/core/pull/8933))
 
+### Changed
+
+- Bump `@metamask/utils` from `^11.9.0` to `^11.11.0` ([#9074](https://github.com/MetaMask/core/pull/9074))
+- Bump `@metamask/controller-utils` from `^12.1.1` to `^12.2.0` ([#9083](https://github.com/MetaMask/core/pull/9083))
+- Bump `@metamask/profile-sync-controller` from `^28.1.1` to `^28.2.0` ([#9119](https://github.com/MetaMask/core/pull/9119))
+
+## [24.1.3]
+
+### Changed
+
+- Bump `@metamask/controller-utils` from `^12.1.0` to `^12.1.1` ([#9058](https://github.com/MetaMask/core/pull/9058))
+- Bump `@metamask/keyring-controller` from `^26.0.0` to `^27.0.0` ([#9058](https://github.com/MetaMask/core/pull/9058))
+
 ## [24.1.2]
 
 ### Changed
@@ -767,7 +780,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@24.1.2...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@24.1.3...HEAD
+[24.1.3]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@24.1.2...@metamask/notification-services-controller@24.1.3
 [24.1.2]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@24.1.1...@metamask/notification-services-controller@24.1.2
 [24.1.1]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@24.1.0...@metamask/notification-services-controller@24.1.1
 [24.1.0]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@24.0.0...@metamask/notification-services-controller@24.1.0

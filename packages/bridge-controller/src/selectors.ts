@@ -1,4 +1,5 @@
 /* eslint-disable @typescript-eslint/explicit-function-return-type */
+import { getAddress } from '@ethersproject/address';
 import type {
   CurrencyRateState,
   MultichainAssetsRatesControllerState,
@@ -22,7 +23,7 @@ import type {
   BridgeControllerState,
   ExchangeRate,
   QuoteMetadata,
-  QuoteResponse,
+  QuoteResponseV1,
   TokenAmountValues,
 } from './types';
 import { RequestStatus, SortOrder } from './types';
@@ -108,8 +109,11 @@ const createBridgeSelector = createSelector_.withTypes<BridgeAppState>();
  */
 type BridgeQuotesClientParams = {
   sortOrder: SortOrder;
-  selectedQuote: (QuoteResponse & QuoteMetadata) | null;
+  selectedQuote: (QuoteResponseV1 & QuoteMetadata) | null;
 };
+
+type EvmTokenExchangeRate = { price?: number; currency?: string };
+type EvmTokenExchangeRates = Record<string, EvmTokenExchangeRate>;
 
 const createFeatureFlagsSelector =
   createSelector_.withTypes<RemoteFeatureFlagControllerState>();
@@ -139,6 +143,20 @@ export const selectBridgeFeatureFlags = createFeatureFlagsSelector(
   [(state) => state.remoteFeatureFlags.bridgeConfig],
   (bridgeConfig: unknown) => processFeatureFlags(bridgeConfig),
 );
+
+const getEvmTokenExchangeRateForAddress = (
+  evmTokenExchangeRates: EvmTokenExchangeRates | undefined,
+  address: string,
+): EvmTokenExchangeRate | null | undefined => {
+  try {
+    return isStrictHexString(address)
+      ? (evmTokenExchangeRates?.[getAddress(address)] ??
+          evmTokenExchangeRates?.[address.toLowerCase()])
+      : null;
+  } catch {
+    return null;
+  }
+};
 
 /**
  * Selects the asset exchange rate for a given chain and address
@@ -226,14 +244,13 @@ export const selectExchangeRateByAssetId = (
   // If the chain is an EVM chain and the asset is not the native asset, use the conversion rate from the token rates controller
   if (!isNonEvmChainId(chainId)) {
     const marketDataByChain =
-      (marketData as
-        | Record<string, Record<string, { price?: number; currency?: string }>>
-        | undefined) ?? {};
+      (marketData as Record<string, EvmTokenExchangeRates> | undefined) ?? {};
     const evmTokenExchangeRates =
       marketDataByChain[formatChainIdToHex(chainId)];
-    const evmTokenExchangeRateForAddress = isStrictHexString(address)
-      ? evmTokenExchangeRates?.[address]
-      : null;
+    const evmTokenExchangeRateForAddress = getEvmTokenExchangeRateForAddress(
+      evmTokenExchangeRates,
+      address,
+    );
     const currencyKey = evmTokenExchangeRateForAddress?.currency;
     const nativeCurrencyRate =
       currencyKey !== undefined && currencyKey !== null
@@ -443,7 +460,7 @@ const selectSortedBridgeQuotes = createBridgeSelector(
     selectBridgeQuotesWithMetadata,
     (_, { sortOrder }: BridgeQuotesClientParams) => sortOrder,
   ],
-  (quotesWithMetadata, sortOrder): (QuoteResponse & QuoteMetadata)[] => {
+  (quotesWithMetadata, sortOrder): (QuoteResponseV1 & QuoteMetadata)[] => {
     switch (sortOrder) {
       case SortOrder.ETA_ASC:
         return orderBy(
@@ -574,7 +591,7 @@ const selectRecommendedQuotes = createBridgeSelector(
       const requestIndex = quote.quoteRequestIndex ?? 0;
       acc[requestIndex] ??= quote;
       return acc;
-    }, Array<(QuoteResponse & QuoteMetadata) | null>(requestCount).fill(null)),
+    }, Array<(QuoteResponseV1 & QuoteMetadata) | null>(requestCount).fill(null)),
 );
 
 const selectMetadataSum = createBridgeSelector(

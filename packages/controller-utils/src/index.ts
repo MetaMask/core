@@ -1,3 +1,4 @@
+export { encodeFunctionData } from './abi';
 export {
   BrokenCircuitError,
   CircuitState,

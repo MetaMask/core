@@ -54,33 +54,6 @@ export type TransactionControllerAddTransactionAction = {
 };
 
 /**
- * Starts polling for incoming transactions from the remote transaction source.
- */
-export type TransactionControllerStartIncomingTransactionPollingAction = {
-  type: `TransactionController:startIncomingTransactionPolling`;
-  handler: TransactionController['startIncomingTransactionPolling'];
-};
-
-/**
- * Stops polling for incoming transactions from the remote transaction source.
- */
-export type TransactionControllerStopIncomingTransactionPollingAction = {
-  type: `TransactionController:stopIncomingTransactionPolling`;
-  handler: TransactionController['stopIncomingTransactionPolling'];
-};
-
-/**
- * Update the incoming transactions by polling the remote transaction source.
- *
- * @param request - Request object.
- * @param request.tags - Additional tags to identify the source of the request.
- */
-export type TransactionControllerUpdateIncomingTransactionsAction = {
-  type: `TransactionController:updateIncomingTransactions`;
-  handler: TransactionController['updateIncomingTransactions'];
-};
-
-/**
  * Attempts to cancel a transaction based on its ID by setting its status to "rejected"
  * and emitting a `<tx.id>:finished` hub event.
  *
@@ -443,9 +416,6 @@ export type TransactionControllerMethodActions =
   | TransactionControllerAddTransactionBatchAction
   | TransactionControllerIsAtomicBatchSupportedAction
   | TransactionControllerAddTransactionAction
-  | TransactionControllerStartIncomingTransactionPollingAction
-  | TransactionControllerStopIncomingTransactionPollingAction
-  | TransactionControllerUpdateIncomingTransactionsAction
   | TransactionControllerStopTransactionAction
   | TransactionControllerSpeedUpTransactionAction
   | TransactionControllerEstimateGasAction

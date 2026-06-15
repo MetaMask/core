@@ -20,6 +20,7 @@ import {
   getRelayPollingInterval,
   getRelayPollingTimeout,
 } from '../../utils/feature-flags';
+import { getNetworkClientId } from '../../utils/provider';
 import {
   getLiveTokenBalance,
   normalizeTokenAddress,
@@ -424,10 +425,16 @@ async function submitTransactions(
     }
   } else if (isPostQuote && transaction.txParams.to) {
     const prependedParams = hasAccountOverride
-      ? await buildDelegatedOriginalParams(transaction, messenger)
+      ? await buildDelegatedOriginalParams(
+          transaction,
+          messenger,
+          normalizedParams[0],
+        )
       : ({
           data: transaction.txParams.data as Hex | undefined,
           from: transaction.txParams.from,
+          maxFeePerGas: normalizedParams[0]?.maxFeePerGas,
+          maxPriorityFeePerGas: normalizedParams[0]?.maxPriorityFeePerGas,
           to: transaction.txParams.to,
           value: transaction.txParams.value as Hex | undefined,
         } as TransactionParams);
@@ -464,11 +471,13 @@ async function submitTransactions(
  *
  * @param transaction - Original transaction meta to be redeemed.
  * @param messenger - Controller messenger.
+ * @param relayParams - Optional relay params to copy gas fee fields from.
  * @returns Transaction params for the delegation tx.
  */
 async function buildDelegatedOriginalParams(
   transaction: TransactionMeta,
   messenger: TransactionPayControllerMessenger,
+  relayParams?: TransactionParams,
 ): Promise<TransactionParams> {
   const delegation = await messenger.call(
     'TransactionPayController:getDelegationTransaction',
@@ -480,6 +489,8 @@ async function buildDelegatedOriginalParams(
   return {
     data: delegation.data,
     from: transaction.txParams.from as Hex,
+    maxFeePerGas: relayParams?.maxFeePerGas,
+    maxPriorityFeePerGas: relayParams?.maxPriorityFeePerGas,
     to: delegation.to,
     value: delegation.value,
   };
@@ -508,10 +519,7 @@ async function submitViaRelayExecute(
   const { from, sourceChainId } = quote.request;
   const { requestId } = quote.original.steps[0];
 
-  const networkClientId = messenger.call(
-    'NetworkController:findNetworkClientIdByChainId',
-    sourceChainId,
-  );
+  const networkClientId = getNetworkClientId(messenger, sourceChainId);
 
   const sourceCallTransaction = {
     ...transaction,
@@ -600,10 +608,7 @@ async function submitViaTransactionController(
   const { from, sourceChainId, sourceTokenAddress } = quote.request;
   const { isPostQuote } = quote.request;
 
-  const networkClientId = messenger.call(
-    'NetworkController:findNetworkClientIdByChainId',
-    sourceChainId,
-  );
+  const networkClientId = getNetworkClientId(messenger, sourceChainId);
 
   log('Adding transactions', {
     normalizedParams: allParams,
