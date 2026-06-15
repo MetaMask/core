@@ -1025,7 +1025,7 @@ async function expectCodeowner(workspace, workspaceBasename) {
  * Expect that the workspace has a package manager set, and that it is Yarn with
  * a sha256 hash.
  *
- * @param workspace - The workspace to check.
+ * @param {Workspace} workspace - The workspace to check.
  */
 function expectYarnPackageManager(workspace) {
   expectWorkspaceField(workspace, 'packageManager');
