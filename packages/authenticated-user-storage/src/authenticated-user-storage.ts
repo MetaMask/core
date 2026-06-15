@@ -7,6 +7,8 @@ import { BaseDataService } from '@metamask/base-data-service';
 import type { CreateServicePolicyOptions } from '@metamask/controller-utils';
 import { HttpError } from '@metamask/controller-utils';
 import type { Messenger } from '@metamask/messenger';
+import { assert } from '@metamask/superstruct';
+import type { Infer } from '@metamask/superstruct';
 import type { Json } from '@metamask/utils';
 
 import type { AuthenticatedUserStorageServiceMethodActions } from './authenticated-user-storage-method-action-types';
@@ -23,7 +25,8 @@ import {
   assertAssetsWatchlistBlob,
   assertAssetsWatchlistBlobForWrite,
   assertDelegationResponseArray,
-  assertNotificationPreferences,
+  DEFAULT_AGENTIC_CLI_PREFERENCES,
+  NotificationPreferencesReadSchema,
 } from './validators';
 
 // === GENERAL ===
@@ -271,6 +274,9 @@ export class AuthenticatedUserStorageService extends BaseDataService<
   /**
    * Returns the notification preferences for the authenticated user.
    *
+   * Legacy payloads that omit `agenticCli` are coerced with
+   * {@link DEFAULT_AGENTIC_CLI_PREFERENCES} on read.
+   *
    * @returns The notification preferences object, or `null` if none have been
    * set (404).
    */
@@ -302,8 +308,12 @@ export class AuthenticatedUserStorageService extends BaseDataService<
       return null;
     }
 
-    assertNotificationPreferences(data);
-    return data;
+    assert(data, NotificationPreferencesReadSchema);
+    const parsed = data as Infer<typeof NotificationPreferencesReadSchema>;
+    return {
+      ...parsed,
+      agenticCli: parsed.agenticCli ?? DEFAULT_AGENTIC_CLI_PREFERENCES,
+    } as NotificationPreferences;
   }
 
   /**

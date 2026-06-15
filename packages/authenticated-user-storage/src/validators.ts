@@ -13,7 +13,7 @@ import {
   type,
 } from '@metamask/superstruct';
 
-import type { DelegationResponse, NotificationPreferences } from './types';
+import type { AgenticCliPreference, DelegationResponse } from './types';
 
 /**
  * Matches a 0x-prefixed hex string with zero or more hex digits.
@@ -96,13 +96,27 @@ const AgenticCliPreferenceSchema = type({
   pushNotificationsEnabled: boolean(),
 });
 
-const NotificationPreferencesSchema = type({
+const NotificationPreferencesBaseSchema = type({
   walletActivity: WalletActivityPreferenceSchema,
   marketing: MarketingPreferenceSchema,
   perps: PerpsPreferenceSchema,
   socialAI: SocialAIPreferenceSchema,
-  agenticCli: AgenticCliPreferenceSchema,
 });
+
+/** Package-internal: lenient read validation (legacy may omit agenticCli). */
+export const NotificationPreferencesReadSchema = assign(
+  NotificationPreferencesBaseSchema,
+  type({ agenticCli: optional(AgenticCliPreferenceSchema) }),
+);
+
+/**
+ * Default Agentic CLI notification preferences applied when coercing legacy
+ * notification-preference blobs that omit `agenticCli`.
+ */
+export const DEFAULT_AGENTIC_CLI_PREFERENCES: AgenticCliPreference = {
+  inAppNotificationsEnabled: true,
+  pushNotificationsEnabled: true,
+};
 
 /**
  * Maximum number of entries allowed in an assets-watchlist on write. Reads
@@ -165,18 +179,6 @@ export function assertDelegationResponseArray(
   data: unknown,
 ): asserts data is DelegationResponse[] {
   assert(data, array(DelegationResponseSchema));
-}
-
-/**
- * Asserts that the given value is a valid `NotificationPreferences`.
- *
- * @param data - The unknown value to validate.
- * @throws If the value does not match the expected schema.
- */
-export function assertNotificationPreferences(
-  data: unknown,
-): asserts data is NotificationPreferences {
-  assert(data, NotificationPreferencesSchema);
 }
 
 /**
