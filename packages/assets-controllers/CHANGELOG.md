@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add DeFi Oracle Meta Mainnet support (`138`/`0x8a`) to `SPOT_PRICES_SUPPORT_INFO` for native ETH spot-price fallback ([#9118](https://github.com/MetaMask/core/pull/9118))
+
 ### Changed
 
 - Bump `@metamask/profile-sync-controller` from `^28.1.1` to `^28.2.0` ([#9119](https://github.com/MetaMask/core/pull/9119))
