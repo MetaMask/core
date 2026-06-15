@@ -18,7 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `bignumber.js` from `^9.0.1` to `^9.1.2` ([#597](https://github.com/MetaMask/smart-transactions-controller/pull/597))
 - Bump `fast-json-patch` from `^3.1.0` to `^3.1.1` ([#597](https://github.com/MetaMask/smart-transactions-controller/pull/597))
 - Bump `@metamask/controller-utils` from `^12.1.0` to `^12.2.0` ([#590](https://github.com/MetaMask/smart-transactions-controller/pull/590))
-- Bump `@metamask/profile-sync-controller` from `^28.1.0` to `^28.1.1` ([#590](https://github.com/MetaMask/smart-transactions-controller/pull/590))
+- Bump `@metamask/profile-sync-controller` from `^28.1.0` to `^28.2.0` ([#590](https://github.com/MetaMask/smart-transactions-controller/pull/590), [#598](https://github.com/MetaMask/smart-transactions-controller/pull/598))
 - Bump `@metamask/remote-feature-flag-controller` from `^4.2.1` to `^4.2.2` ([#590](https://github.com/MetaMask/smart-transactions-controller/pull/590))
 - Bump `@metamask/transaction-controller` from `^65.4.0` to `^68.0.0` ([#591](https://github.com/MetaMask/smart-transactions-controller/pull/591))
 - Bump `@metamask/utils` from `^11.0.0` to `^11.11.0` ([#590](https://github.com/MetaMask/smart-transactions-controller/pull/590))

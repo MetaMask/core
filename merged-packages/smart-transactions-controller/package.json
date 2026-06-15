@@ -41,7 +41,7 @@
     "test:watch": "jest --watchAll"
   },
   "dependencies": {
-    "@babel/runtime": "^7.24.1",
+    "@babel/runtime": "^7.23.9",
     "@ethereumjs/tx": "^5.4.0",
     "@ethereumjs/util": "^9.1.0",
     "@ethersproject/bytes": "^5.7.0",
@@ -54,7 +54,7 @@
     "@metamask/messenger": "^1.2.0",
     "@metamask/network-controller": "^32.0.0",
     "@metamask/polling-controller": "^16.0.6",
-    "@metamask/profile-sync-controller": "^28.1.1",
+    "@metamask/profile-sync-controller": "^28.2.0",
     "@metamask/remote-feature-flag-controller": "^4.2.2",
     "@metamask/superstruct": "^3.1.0",
     "@metamask/transaction-controller": "^68.0.0",
@@ -66,7 +66,7 @@
   },
   "devDependencies": {
     "@arethetypeswrong/cli": "^0.18.2",
-    "@lavamoat/allow-scripts": "^3.2.1",
+    "@lavamoat/allow-scripts": "^3.0.4",
     "@lavamoat/preinstall-always-fail": "^2.1.0",
     "@metamask/auto-changelog": "^6.1.0",
     "@metamask/eslint-config": "^15.0.0",
@@ -77,10 +77,6 @@
     "@metamask/json-rpc-engine": "^10.5.0",
     "@metamask/messenger-cli": "^0.2.0",
     "@ts-bridge/cli": "^0.6.4",
-    "@types/eslint": "^9.6.1",
-    "@types/jest": "^29.5.14",
-    "@types/lodash": "^4.14.194",
-    "@types/node": "^18.19.17",
     "eslint": "^9.39.1",
     "eslint-config-prettier": "^9.1.0",
     "eslint-import-resolver-typescript": "^3.6.3",
@@ -97,7 +93,7 @@
     "prettier-plugin-packagejson": "^2.4.3",
     "ts-jest": "^29.2.5",
     "typescript": "~5.3.3",
-    "typescript-eslint": "^8.39.0"
+    "typescript-eslint": "^8.48.0"
   },
   "peerDependenciesMeta": {
     "@metamask/accounts-controller": {
