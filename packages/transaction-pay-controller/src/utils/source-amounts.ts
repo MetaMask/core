@@ -147,6 +147,7 @@ function calculatePostQuoteSourceAmounts(
  * @param messenger - Controller messenger.
  * @param transactionId - ID of the transaction.
  * @param isMaxAmount - Whether the transaction is a maximum amount transaction.
+ * @param isQuoteRequired - When true, a quote is always fetched even when source and target tokens are identical.
  * @returns The source amount or undefined if calculation failed.
  */
 function calculateSourceAmount(
@@ -228,6 +229,7 @@ function calculateSourceAmount(
  * @param token - Target token.
  * @param strategy - Payment strategy.
  * @param parentTransactionType - Parent transaction type, if available.
+ * @param isQuoteRequired - When true, a quote is always fetched even when source and target tokens are identical.
  * @returns True if a quote is always required, false otherwise.
  */
 function isQuoteAlwaysRequired(
