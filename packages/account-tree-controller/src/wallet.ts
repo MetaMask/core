@@ -1,11 +1,13 @@
 import type { AccountGroupId } from '@metamask/account-api';
-import type {
+import {
   AccountWalletType,
+} from '@metamask/account-api';
+import type {
   AccountWalletId,
   MultichainAccountWalletId,
   AccountWalletStatus,
+  MultichainAccountWalletStatus,
 } from '@metamask/account-api';
-import type { MultichainAccountWalletStatus } from '@metamask/account-api';
 import type { EntropySourceId } from '@metamask/keyring-api';
 import type { KeyringTypes } from '@metamask/keyring-controller';
 import type { SnapId } from '@metamask/snaps-sdk';
@@ -120,3 +122,19 @@ export type AccountWalletObjectOf<WalletType extends AccountWalletType> =
     | { type: AccountWalletType.Snap; object: AccountWalletSnapObject },
     { type: WalletType }
   >['object'];
+
+/**
+ * Returns `true` if the wallet is a multichain account (entropy-backed) wallet,
+ * narrowing its type to the entropy variant.
+ *
+ * Works for both {@link AccountWalletObject} state objects and the intermediate
+ * rule-result wallet shapes used inside `#insert()`.
+ *
+ * @param wallet - The wallet to check.
+ * @returns `true` if the wallet is a multichain account wallet, `false` otherwise.
+ */
+export function isMultichainAccountWallet<Value extends { type: AccountWalletType }>(
+  wallet: Value,
+): wallet is Value & { type: AccountWalletType.Entropy } {
+  return wallet.type === AccountWalletType.Entropy;
+}

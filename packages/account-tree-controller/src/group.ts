@@ -1,8 +1,10 @@
-import type {
+import {
   AccountGroupType,
-  MultichainAccountGroupId,
 } from '@metamask/account-api';
-import type { AccountGroupId } from '@metamask/account-api';
+import type {
+  MultichainAccountGroupId,
+  AccountGroupId,
+} from '@metamask/account-api';
 import type { AccountId } from '@metamask/accounts-controller';
 import {
   AnyAccountType,
@@ -142,6 +144,22 @@ export function isAccountGroupNameUniqueFromWallet(
     }
   }
   return true;
+}
+
+/**
+ * Returns `true` if the group is a multichain account group, narrowing its
+ * type to the multichain account variant.
+ *
+ * Works for both {@link AccountGroupObject} state objects and the intermediate
+ * rule-result group shapes used inside `#insert()`.
+ *
+ * @param group - The group to check.
+ * @returns `true` if the group is a multichain account group, `false` otherwise.
+ */
+export function isMultichainAccountGroup<Value extends { type: AccountGroupType }>(
+  group: Value,
+): group is Value & { type: AccountGroupType.MultichainAccount } {
+  return group.type === AccountGroupType.MultichainAccount;
 }
 
 /**

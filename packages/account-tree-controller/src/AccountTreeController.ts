@@ -32,6 +32,7 @@ import {
   ACCOUNT_TYPE_TO_SORT_ORDER,
   isAccountGroupNameUnique,
   isAccountGroupNameUniqueFromWallet,
+  isMultichainAccountGroup,
   MAX_SORT_ORDER,
 } from './group';
 import { projectLogger as log } from './logger';
@@ -46,6 +47,7 @@ import type {
   AccountTreeControllerState,
 } from './types';
 import type { AccountWalletObject, AccountWalletObjectOf } from './wallet';
+import { isMultichainAccountWallet } from './wallet';
 
 export const controllerName = 'AccountTreeController';
 
@@ -1156,10 +1158,9 @@ export class AccountTreeController extends BaseController<
       log(`[${walletId}] Added as new wallet`);
       wallets[walletId] = {
         ...result.wallet,
-        status:
-          result.wallet.type === AccountWalletType.Entropy
-            ? this.#queryWalletStatus(result.wallet.metadata.entropy.id)
-            : 'ready',
+        status: isMultichainAccountWallet(result.wallet)
+          ? this.#getMultichainAccountWalletStatus(result.wallet.metadata.entropy.id)
+          : 'ready',
         groups: {},
         metadata: {
           name: '', // Will get updated later.
@@ -1171,7 +1172,7 @@ export class AccountTreeController extends BaseController<
       wallet = wallets[walletId];
 
       // Trigger atomic sync for new wallet (only for entropy wallets)
-      if (wallet.type === AccountWalletType.Entropy) {
+      if (isMultichainAccountWallet(wallet)) {
         this.#backupAndSyncService.enqueueSingleWalletSync(walletId);
       }
     }
@@ -1188,8 +1189,8 @@ export class AccountTreeController extends BaseController<
         ...result.group,
         // Type-wise, we are guaranteed to always have at least 1 account.
         accounts: [id],
-          ...(result.group.type === AccountGroupType.MultichainAccount &&
-          result.wallet.type === AccountWalletType.Entropy && {
+          ...(isMultichainAccountGroup(result.group) &&
+          isMultichainAccountWallet(result.wallet) && {
             status: this.#getMultichainAccountGroupStatus(
               result.wallet.metadata.entropy.id,
               result.group.metadata.entropy.groupIndex,
@@ -1209,7 +1210,7 @@ export class AccountTreeController extends BaseController<
       this.#groupIdToWalletId.set(groupId, walletId);
 
       // Trigger atomic sync for new group (only for entropy wallets)
-      if (wallet.type === AccountWalletType.Entropy) {
+      if (isMultichainAccountWallet(wallet)) {
         this.#backupAndSyncService.enqueueSingleGroupSync(groupId);
       }
     } else {
@@ -1460,7 +1461,7 @@ export class AccountTreeController extends BaseController<
       const walletId = this.#groupIdToWalletId.get(groupId);
       if (walletId) {
         const group = state.accountTree.wallets[walletId]?.groups[groupId];
-        if (group?.type === AccountGroupType.MultichainAccount) {
+        if (group && isMultichainAccountGroup(group)) {
           group.status = groupStatus;
         }
       }
@@ -1475,7 +1476,7 @@ export class AccountTreeController extends BaseController<
    * @param entropySource - The entropy source ID of the wallet.
    * @returns The wallet's current status, or `'uninitialized'` if unknown.
    */
-  #queryWalletStatus(entropySource: string): MultichainAccountWalletStatus {
+  #getMultichainAccountWalletStatus(entropySource: string): MultichainAccountWalletStatus {
     try {
       return this.messenger.call(
         'MultichainAccountService:getMultichainAccountWallet',
