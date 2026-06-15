@@ -1,0 +1,57 @@
+import { Messenger } from '@metamask/messenger';
+import type {
+  TransactionControllerMessenger,
+  TransactionControllerOptions,
+} from '@metamask/transaction-controller';
+import { TransactionController } from '@metamask/transaction-controller';
+
+import type { InitializationConfiguration } from '../../types';
+
+export type { TransactionControllerInstanceOptions } from './types';
+
+export const transactionController: InitializationConfiguration<
+  TransactionController,
+  TransactionControllerMessenger
+> = {
+  name: 'TransactionController',
+  init: ({ state, messenger, options }) => {
+    return new TransactionController({
+      ...options,
+      messenger,
+      state,
+    } as TransactionControllerOptions);
+  },
+  getMessenger: (parent) => {
+    const messenger: TransactionControllerMessenger = new Messenger({
+      namespace: 'TransactionController',
+      parent,
+    });
+
+    parent.delegate({
+      messenger,
+      actions: [
+        'AccountsController:getSelectedAccount',
+        'AccountsController:getState',
+        'ApprovalController:addRequest',
+        'GasFeeController:fetchGasFeeEstimates',
+        'KeyringController:getState',
+        'KeyringController:signEip7702Authorization',
+        'KeyringController:signTransaction',
+        'NetworkController:findNetworkClientIdByChainId',
+        'NetworkController:getEIP1559Compatibility',
+        'NetworkController:getNetworkClientById',
+        'NetworkController:getNetworkClientRegistry',
+        'NetworkController:getState',
+        'RemoteFeatureFlagController:getState',
+      ],
+      events: [
+        'AccountActivityService:transactionUpdated',
+        // TODO: Replace with `NetworkController:stateChanged` once TransactionController migrates.
+        // eslint-disable-next-line no-restricted-syntax
+        'NetworkController:stateChange',
+      ],
+    });
+
+    return messenger;
+  },
+};
