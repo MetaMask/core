@@ -976,8 +976,17 @@ export type PerpsControllerSaveOrderBookGroupingAction = {
 };
 
 /**
- * Toggle watchlist status for a market
- * Watchlist markets are stored per network (testnet/mainnet)
+ * Toggle watchlist status for a market.
+ *
+ * Updates local state immediately (optimistic UI) and then syncs the new
+ * watchlist to AuthenticatedUserStorageService.  If the remote write fails,
+ * the local state is reverted so it stays consistent with AUS.
+ *
+ * When the user is unauthenticated, or the active provider is not yet
+ * supported by the AUS schema, the controller continues operating with
+ * local-persisted state only — no error is surfaced to the caller.
+ *
+ * Watchlist markets are stored per network (testnet/mainnet).
  *
  * @param symbol - The trading pair symbol.
  */
