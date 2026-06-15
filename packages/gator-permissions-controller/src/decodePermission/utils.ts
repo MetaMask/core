@@ -26,39 +26,6 @@ const ENFORCER_CONTRACT_NAMES = {
 };
 
 /**
- * 32 bytes of zero (0x + 64 hex chars).
- */
-export const ZERO_32_BYTES =
-  '0x0000000000000000000000000000000000000000000000000000000000000000' as const;
-
-/**
- * Maximum unsigned 256-bit integer encoded as 32 bytes (0x + 64 hex chars).
- */
-export const UINT256_MAX =
-  '0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff' as const;
-
-/** AllowedCalldataEnforcer terms for ERC20 approve selector. */
-export const ERC20_APPROVE_SELECTOR_TERMS =
-  '0x0000000000000000000000000000000000000000000000000000000000000000095ea7b3' as const;
-
-/** AllowedCalldataEnforcer terms for ERC20 approve zero amount. */
-export const ERC20_APPROVE_ZERO_AMOUNT_TERMS =
-  '0x00000000000000000000000000000000000000000000000000000000000000240000000000000000000000000000000000000000000000000000000000000000' as const;
-
-/** Maximum period duration in seconds. */
-export const MAX_PERIOD_DURATION = 10 * 365 * 24 * 60 * 60; // 10 years in seconds
-
-/**
- * Get the byte length of a hex string.
- *
- * @param hexString - The hex string to get the byte length of.
- * @returns The byte length of the hex string.
- */
-export const getByteLength = (hexString: Hex): number => {
-  return (hexString.length - 2) / 2;
-};
-
-/**
  * Resolves and returns checksummed addresses of all known enforcer contracts
  * for a given `chainId` under the current delegation framework version.
  *

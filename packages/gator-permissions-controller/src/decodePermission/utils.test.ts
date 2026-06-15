@@ -97,9 +97,8 @@ describe('createPermissionDecodersForContracts', () => {
     // native-token-stream
     // native-token-periodic
     // native-token-allowance
-    // erc20-token-revocation
     // token-approval-revocation
-    const permissionTypeCount = 8;
+    const permissionTypeCount = 7;
     const decoders = createPermissionDecodersForContracts(contracts);
     expect(decoders).toHaveLength(permissionTypeCount);
 
@@ -270,29 +269,6 @@ describe('createPermissionDecodersForContracts', () => {
     ).toStrictEqual(
       expect.arrayContaining([
         [erc20PeriodicEnforcer, 1],
-        [valueLteEnforcer, 1],
-        [nonceEnforcer, 1],
-      ]),
-    );
-
-    // erc20-token-revocation
-    expect(byType['erc20-token-revocation']).toBeDefined();
-    expect(byType['erc20-token-revocation'].permissionType).toBe(
-      'erc20-token-revocation',
-    );
-    expect(byType['erc20-token-revocation'].optionalEnforcers.size).toBe(2);
-    expect(
-      byType['erc20-token-revocation'].optionalEnforcers.has(timestampEnforcer),
-    ).toBe(true);
-    expect(
-      byType['erc20-token-revocation'].optionalEnforcers.has(redeemerEnforcer),
-    ).toBe(true);
-    expect(byType['erc20-token-revocation'].requiredEnforcers.size).toBe(3);
-    expect(
-      Array.from(byType['erc20-token-revocation'].requiredEnforcers.entries()),
-    ).toStrictEqual(
-      expect.arrayContaining([
-        [allowedCalldataEnforcer, 2],
         [valueLteEnforcer, 1],
         [nonceEnforcer, 1],
       ]),
