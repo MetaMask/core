@@ -30,7 +30,6 @@ describe('decodePermission', () => {
     ExactCalldataEnforcer,
     TimestampEnforcer,
     ValueLteEnforcer,
-    AllowedCalldataEnforcer,
     ERC20StreamingEnforcer,
     ERC20PeriodTransferEnforcer,
     NativeTokenStreamingEnforcer,

@@ -15,7 +15,7 @@ import { PermissionType, RuleDecoder } from '../types';
 import { randomBytes } from 'crypto';
 import { Rule } from '@metamask/7715-permission-types';
 
-const randomAddress = () => `0x${randomBytes(20).toString('hex')}` as Hex;
+const randomAddress = () => `0x${randomBytes(20).toString('hex')}` as const;
 
 describe('makePermissionDecoder', () => {
   const permissionType = 'specified-permission-type' as PermissionType;
@@ -37,7 +37,7 @@ describe('makePermissionDecoder', () => {
       expect(decoder.permissionType).toStrictEqual(permissionType);
     });
 
-    it('returns a set of optional enforcers', () => {
+    it('returns a set of checksummed optional enforcers', () => {
       const optionalEnforcers: Hex[] = [
         randomAddress(),
         randomAddress(),
@@ -53,12 +53,12 @@ describe('makePermissionDecoder', () => {
         validateAndDecodeData: jest.fn()
       });
 
-      const optionalEnforcersSet = new Set(decoder.optionalEnforcers);
-
-      expect(decoder.optionalEnforcers).toEqual(optionalEnforcersSet);
+      expect(decoder.optionalEnforcers).toStrictEqual(
+        new Set(optionalEnforcers.map(getChecksumAddress)),
+      );
     });
 
-    it ('returns a Map of the specified required enforcers to their required count', () => {
+    it ('returns a Map of checksummed required enforcers to their required count', () => {
       const requiredEnforcers = {
         [randomAddress()]: 1,
         [randomAddress()]: 2,
@@ -74,22 +74,27 @@ describe('makePermissionDecoder', () => {
         validateAndDecodeData: jest.fn()
       });
 
-      const requiredEnforcersMap = new Map(Object.entries(requiredEnforcers));
+      const requiredEnforcersMap = new Map(
+        Object.entries(requiredEnforcers).map(([enforcer, count]) => [
+          getChecksumAddress(enforcer as Hex),
+          count,
+        ]),
+      );
 
       expect(decoder.requiredEnforcers).toStrictEqual(requiredEnforcersMap);
     });
   });
 
   describe('caveatAddressesMatch', () => {
-    it('returns true when the specified addresses match the checksummed required enforcers', () => {
+    it('returns true when the specified addresses match the required enforcers', () => {
       const enforcer1 = randomAddress();
       const enforcer2 = randomAddress();
       const enforcer3 = randomAddress();
 
       const requiredEnforcers = {
-        [getChecksumAddress(enforcer1)]: 1,
-        [getChecksumAddress(enforcer2)]: 1,
-        [getChecksumAddress(enforcer3)]: 1,
+        [enforcer1]: 1,
+        [enforcer2]: 1,
+        [enforcer3]: 1,
       };
 
       const decoder = makePermissionDecoder({
@@ -116,9 +121,9 @@ describe('makePermissionDecoder', () => {
       const enforcer3 = randomAddress();
 
       const requiredEnforcers = {
-        [getChecksumAddress(enforcer1)]: 1,
-        [getChecksumAddress(enforcer2)]: 2,
-        [getChecksumAddress(enforcer3)]: 3,
+        [enforcer1]: 1,
+        [enforcer2]: 2,
+        [enforcer3]: 3,
       };
 
       const decoder = makePermissionDecoder({
@@ -329,6 +334,30 @@ describe('makePermissionDecoder', () => {
 
       expect(decoder.caveatAddressesMatch(specifiedCaveats)).toBe(true);
     });
+
+    it('matches when decoder config address casing mismatches specified caveat addresses', () => {
+      const toUpperCaseHex = (address: Hex) => `0x${address.slice(2).toUpperCase()}` as const;
+      const requiredEnforcer = randomAddress().toLowerCase() as Hex;
+      const optionalEnforcer = randomAddress().toLowerCase() as Hex;
+
+      const decoder = makePermissionDecoder({
+        permissionType,
+        contractAddresses,
+        optionalEnforcers: [optionalEnforcer],
+        requiredEnforcers: {
+          [requiredEnforcer]: 1,
+        },
+        rules: [],
+        validateAndDecodeData: jest.fn(),
+      });
+
+      expect(
+        decoder.caveatAddressesMatch([
+          toUpperCaseHex(requiredEnforcer),
+          toUpperCaseHex(optionalEnforcer),
+        ]),
+      ).toBe(true);
+    });
   });
 
   describe('validateAndDecodePermission', () => {
@@ -348,7 +377,7 @@ describe('makePermissionDecoder', () => {
 
       expect(validateAndDecodeData).toHaveBeenCalled();
       expect(result.isValid).toBe(true);
-      expect((result as {data: {}}).data).toStrictEqual(data);
+      expect((result as {data: Record<string, unknown>}).data).toStrictEqual(data);
     });
 
     it ('calls the validation and decoding function with the correct arguments', () => {
