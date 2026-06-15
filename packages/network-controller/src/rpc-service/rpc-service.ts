@@ -379,7 +379,7 @@ export class RpcService {
         if (
           typeof error === 'object' &&
           error !== null &&
-          'httpStatus' in error &&
+          hasProperty(error, 'httpStatus') &&
           typeof error.httpStatus === 'number'
         ) {
           return error.httpStatus !== 429;
