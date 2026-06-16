@@ -2624,6 +2624,48 @@ describe('TransactionController', () => {
 
         expect(controller.state.transactions[0].isExternalSign).toBeUndefined();
       });
+
+      it('sets isExternalSign to true immediately when isGasFeeSponsored is passed in options', async () => {
+        const { controller } = setupController();
+
+        await controller.addTransaction(
+          {
+            from: ACCOUNT_MOCK,
+            to: ACCOUNT_MOCK,
+          },
+          {
+            networkClientId: NETWORK_CLIENT_ID_MOCK,
+            isGasFeeSponsored: true,
+          },
+        );
+
+        expect(controller.state.transactions[0].isExternalSign).toBe(true);
+      });
+
+      it('preserves isGasFeeSponsored and isExternalSign when passed in options even if simulation returns not sponsored', async () => {
+        getGasFeeTokensMock.mockResolvedValueOnce({
+          gasFeeTokens: [],
+          isGasFeeSponsored: false,
+        });
+
+        const { controller } = setupController();
+
+        await controller.addTransaction(
+          {
+            from: ACCOUNT_MOCK,
+            to: ACCOUNT_MOCK,
+          },
+          {
+            networkClientId: NETWORK_CLIENT_ID_MOCK,
+            isGasFeeSponsored: true,
+          },
+        );
+
+        await flushPromises();
+
+        expect(controller.state.transactions[0].isGasFeeSponsored).toBe(true);
+        expect(controller.state.transactions[0].isExternalSign).toBe(true);
+      });
     });
 
     describe('with isStateOnly', () => {

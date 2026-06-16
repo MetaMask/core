@@ -1129,6 +1129,7 @@ export class TransactionController extends BaseController<
       isGasFeeTokenIgnoredIfBalance,
       isGasFeeIncluded,
       isGasFeeSponsored,
+      ...(isGasFeeSponsored ? { isExternalSign: true } : {}),
       // To avoid the property to be set as undefined.
       ...(excludeNativeTokenForFee === undefined
         ? {}
@@ -4077,9 +4078,10 @@ export class TransactionController extends BaseController<
       },
       (txMeta) => {
         txMeta.gasFeeTokens = gasFeeTokens;
-        txMeta.isGasFeeSponsored = isGasFeeSponsored;
+        txMeta.isGasFeeSponsored =
+          txMeta.isGasFeeSponsored ?? isGasFeeSponsored;
 
-        if (isGasFeeSponsored) {
+        if (txMeta.isGasFeeSponsored) {
           txMeta.isExternalSign = true;
         }
 
