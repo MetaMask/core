@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Bump `@metamask/profile-sync-controller` from `^28.1.1` to `^28.2.0` ([#9119](https://github.com/MetaMask/core/pull/9119))
 
+### Fixed
+
+- Compare internal order codes (from canonical order `id`) instead of provider-native `providerOrderId` when merging orders in `RampsController.addOrder` and `RampsController.getOrder` ([#TBD](https://github.com/MetaMask/core/pull/TBD))
+
 ## [14.2.0]
 
 ### Changed

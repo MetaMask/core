@@ -64,6 +64,7 @@ export type {
 export {
   RampsController,
   getDefaultRampsControllerState,
+  getInternalOrderCode,
   normalizeProviderCode,
   RAMPS_CONTROLLER_REQUIRED_SERVICE_ACTIONS,
 } from './RampsController';
