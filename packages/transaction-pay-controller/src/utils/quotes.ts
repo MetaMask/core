@@ -233,6 +233,15 @@ function syncTransaction({
       tx.batchTransactions = batchTransactions;
       tx.batchTransactionsOptions = {};
 
+      // Once a quote has been calculated, MM Pay owns submission of the
+      // transaction via its strategy publish hook. Mark the parent as
+      // externally signed so the TransactionController skips the local
+      // `KeyringController:signTransaction` call. This is required for
+      // accounts whose keyring cannot sign raw transactions (e.g.
+      // `MoneyKeyring`, which only exposes EIP-7702 authorization and
+      // EIP-712 / personal message signing).
+      tx.isExternalSign = true;
+
       tx.metamaskPay = {
         bridgeFeeFiat: totals.fees.provider.usd,
         chainId: paymentToken.chainId,

@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Bump `@metamask/keyring-controller` from `^27.0.0` to `^27.1.0` ([#9129](https://github.com/MetaMask/core/pull/9129))
 
+### Fixed
+
+- Mark MM Pay transactions as externally signed once a quote is available, so the parent transaction is no longer locally signed by `KeyringController:signTransaction`. Unblocks `MoneyKeyring`, which does not implement `signTransaction`.
+
 ## [23.7.0]
 
 ### Added
