@@ -1,5 +1,5 @@
-import { TransakApiError } from './TransakService';
 import { TRANSAK_ERROR_CODES } from './transakErrorCodes';
+import { TransakApiError } from './TransakService';
 
 export function isTransakApiError(error: unknown): error is TransakApiError {
   return error instanceof TransakApiError;

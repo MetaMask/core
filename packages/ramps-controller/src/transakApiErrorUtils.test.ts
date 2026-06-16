@@ -5,8 +5,8 @@ import {
   isTransakErrorCode,
   isTransakPhoneRegisteredError,
 } from './transakApiErrorUtils';
-import { TransakApiError } from './TransakService';
 import { TRANSAK_ERROR_CODES } from './transakErrorCodes';
+import { TransakApiError } from './TransakService';
 
 describe('transakApiErrorUtils', () => {
   const phoneRegisteredError = new TransakApiError(
