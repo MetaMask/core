@@ -16,6 +16,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - The default `policyOptions.circuitBreakDuration` is now `30` seconds.
   - The default `pollingInterval` for the block tracker is now `20` seconds.
   - The default `retryTimeout` for the block tracker is now `20` seconds.
+- Add `failoverUrls` constructor argument ([#9140](https://github.com/MetaMask/core/pull/9140))
+  - These will override `failoverUrls` in state during network client creation. 
 
 ### Changed
 
