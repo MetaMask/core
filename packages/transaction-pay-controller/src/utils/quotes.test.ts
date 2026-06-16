@@ -730,6 +730,30 @@ describe('Quotes Utils', () => {
       );
     });
 
+    it('marks the transaction as externally signed when quotes are available so the publish hook owns submission', async () => {
+      await run();
+
+      const transactionMetaMock = {} as TransactionMeta;
+      updateTransactionMock.mock.calls[0][1](transactionMetaMock);
+
+      expect(transactionMetaMock).toMatchObject(
+        expect.objectContaining({ isExternalSign: true }),
+      );
+    });
+
+    it('clears the externally signed flag when no quotes are returned so the transaction falls back to local signing', async () => {
+      getQuotesMock.mockResolvedValue([]);
+
+      await run();
+
+      const transactionMetaMock = {} as TransactionMeta;
+      updateTransactionMock.mock.calls[0][1](transactionMetaMock);
+
+      expect(transactionMetaMock).toMatchObject(
+        expect.objectContaining({ isExternalSign: false }),
+      );
+    });
+
     it('updates metrics in metadata', async () => {
       await run();
 
