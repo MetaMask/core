@@ -173,6 +173,10 @@ export {
   TransakEnvironment,
   TransakOrderIdTransformer,
 } from './TransakService';
+export {
+  getTransakApiMessage,
+  isTransakPhoneRegisteredError,
+} from './transakApiErrorUtils';
 export type {
   TransakServiceMethodActions,
   TransakServiceSendUserOtpAction,
