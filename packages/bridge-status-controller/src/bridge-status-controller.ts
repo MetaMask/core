@@ -90,6 +90,8 @@ import {
   updateTransactionsInBatch,
   hasNestedSwapTransactions,
 } from './utils/transaction';
+import { QuoteStatusUpdateManager } from './quote-status-update-manager';
+import { QuoteStatusUpdateError } from './errors';
 
 const metadata: StateMetadata<BridgeStatusControllerState> = {
   // We want to persist the bridge status state so that we can show the proper data for the Activity list
@@ -604,7 +606,6 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
    * @param txMeta - The transaction meta from the successful submission
    * @param txMeta.id - The transaction meta id to use as the new key
    * @param txMeta.hash - The transaction hash to set on the history item
-   * @param txMeta.batchId - The transaction batch id to set on the history item
    */
   readonly #rekeyHistoryItem = (
     oldKey: string,
