@@ -10,6 +10,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Bump `@metamask/utils` from `^11.9.0` to `^11.11.0` ([#9074](https://github.com/MetaMask/core/pull/9074))
+- On `subscribeToPrices` calls with `includeMarketData: true` (i.e. focused single-symbol screens), the `price` field in each `PriceUpdate` is now driven by the per-symbol `activeAssetCtx` WebSocket stream (`midPx`, falling back to `markPx`) rather than the main-DEX `allMids` snapshot, which Hyperliquid throttles to a ~5 s push cadence ([#TODO](https://github.com/MetaMask/core/pull/TODO))
+  - The fast-stream price is preferred only while it is fresh (within a 10 s staleness window); `allMids` remains the fallback if the `activeAssetCtx` stream goes silent.
+  - Subscriptions with `includeMarketData: false` (list/overview screens) are unaffected and continue to use `allMids` exclusively.
+  - No new WebSocket subscriptions are created; `activeAssetCtx` was already established for `includeMarketData: true` subscriptions.
 
 ## [8.1.0]
 

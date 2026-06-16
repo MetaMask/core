@@ -303,8 +303,18 @@ export class HyperLiquidSubscriptionService {
       volume24h?: number;
       oraclePrice?: number;
       lastUpdated: number;
+      // Fast-stream price from activeAssetCtx (midPx preferred, markPx fallback).
+      // Populated only for symbols with includeMarketData subscriptions.
+      // Used in #createPriceUpdate to prefer this over the 5s-cadence allMids snapshot.
+      activeAssetCtxPrice?: number;
+      // Timestamp of the last activeAssetCtx price update, used for staleness checks.
+      priceLastUpdated?: number;
     }
   >();
+
+  // Stale threshold for activeAssetCtx price preference. If the last fast-stream
+  // price update is older than this, #createPriceUpdate falls back to allMids.
+  static readonly #activeAssetCtxPriceTtlMs = 10_000;
 
   // Flag to suppress error logging during intentional disconnect
   // Set in clearAll() and never reset (service instance is discarded after disconnect)
@@ -2831,7 +2841,23 @@ export class HyperLiquidSubscriptionService {
   #createPriceUpdate(symbol: string, price: string): PriceUpdate {
     const marketData = this.#marketDataCache.get(symbol);
     const orderBookData = this.#orderBookCache.get(symbol);
-    const currentPrice = parseFloat(price);
+
+    // Prefer the fast-stream price from activeAssetCtx over the passed-in
+    // allMids price when one is cached and fresh enough. This absorbs the
+    // upcoming 5s allMids push cadence on detail/ticket screens without
+    // affecting list/overview screens (which never populate activeAssetCtxPrice).
+    const now = Date.now();
+    const hasFreshActiveAssetCtxPrice =
+      marketData?.activeAssetCtxPrice !== undefined &&
+      marketData.priceLastUpdated !== undefined &&
+      now - marketData.priceLastUpdated <=
+        HyperLiquidSubscriptionService.#activeAssetCtxPriceTtlMs;
+
+    const effectivePrice = hasFreshActiveAssetCtxPrice
+      ? (marketData.activeAssetCtxPrice as number).toString()
+      : price;
+
+    const currentPrice = parseFloat(effectivePrice);
 
     let percentChange24h: string | undefined;
     if (marketData?.prevDayPx !== undefined) {
@@ -2847,8 +2873,8 @@ export class HyperLiquidSubscriptionService {
 
     const priceUpdate = {
       symbol,
-      price, // This is the mid price from allMids
-      timestamp: Date.now(),
+      price: effectivePrice,
+      timestamp: now,
       percentChange24h,
       // Add mark price from activeAssetCtx
       markPrice: marketData?.oraclePrice
@@ -2872,6 +2898,18 @@ export class HyperLiquidSubscriptionService {
 
   /**
    * Ensure global allMids subscription is active (singleton pattern)
+   *
+   * NOTE ON PUSH CADENCE: Hyperliquid throttles the main-DEX allMids stream to
+   * push every ~5 seconds. This cadence is acceptable for list/overview screens
+   * that show many symbols simultaneously, but would make a focused single-symbol
+   * view (trade detail, order ticket) feel noticeably stale.
+   *
+   * Mitigation: when a subscription is created with `includeMarketData: true`,
+   * #ensureActiveAssetSubscription also establishes a per-symbol activeAssetCtx
+   * WebSocket that ticks at a faster cadence. #createPriceUpdate prefers that
+   * fast-stream price over this allMids snapshot (with a 10s staleness gate via
+   * #ACTIVE_ASSET_CTX_PRICE_TTL_MS), so detail screens stay responsive. Screens
+   * that use only allMids (includeMarketData: false) are unaffected.
    */
   #ensureGlobalAllMidsSubscription(): void {
     // Check both the subscription AND the promise to prevent race conditions
@@ -3020,6 +3058,7 @@ export class HyperLiquidSubscriptionService {
 
             // Cache market data for consolidation with price updates
             const ctxPrice = ctx.midPx ?? ctx.markPx;
+            const now = Date.now();
             const openInterestUSD =
               isPerpsContext(data) && ctxPrice
                 ? calculateOpenInterestUSD(data.ctx.openInterest, ctxPrice)
@@ -3042,23 +3081,35 @@ export class HyperLiquidSubscriptionService {
               oraclePrice: isPerpsContext(data)
                 ? parseFloat(data.ctx.oraclePx.toString())
                 : undefined,
-              lastUpdated: Date.now(),
+              lastUpdated: now,
+              // Store fast-stream price so #createPriceUpdate can prefer it over
+              // the 5s-cadence allMids snapshot on detail/ticket screens.
+              activeAssetCtxPrice: ctxPrice
+                ? parseFloat(ctxPrice.toString())
+                : undefined,
+              priceLastUpdated: ctxPrice ? now : undefined,
             };
 
             this.#marketDataCache.set(symbol, marketData);
 
-            // Update cached price data with new 24h change if we have current price
-            const currentCachedPrice = this.#cachedPriceData?.get(symbol);
-            if (currentCachedPrice) {
-              const updatedPrice = this.#createPriceUpdate(
-                symbol,
-                currentCachedPrice.price,
-              );
+            // Drive a price update from the fast-stream price. Use the allMids
+            // fallback string if ctxPrice is absent so #createPriceUpdate still
+            // has something to work with. The preference logic inside
+            // #createPriceUpdate will pick up the cached activeAssetCtxPrice.
+            const fallbackPrice =
+              this.#cachedPriceData?.get(symbol)?.price ?? '0';
+            const priceForUpdate = ctxPrice
+              ? ctxPrice.toString()
+              : fallbackPrice;
 
-              this.#cachedPriceData ??= new Map<string, PriceUpdate>();
-              this.#cachedPriceData.set(symbol, updatedPrice);
-              this.#notifyAllPriceSubscribers();
-            }
+            // Notify unconditionally so the first activeAssetCtx tick surfaces a
+            // price even if no allMids tick has arrived yet.
+            this.#cachedPriceData ??= new Map<string, PriceUpdate>();
+            this.#cachedPriceData.set(
+              symbol,
+              this.#createPriceUpdate(symbol, priceForUpdate),
+            );
+            this.#notifyAllPriceSubscribers();
           }
         },
       )
