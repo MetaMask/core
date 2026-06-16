@@ -151,6 +151,25 @@ describe('provider utils', () => {
       );
     });
 
+    it('uses nested RPC data messages when available', async () => {
+      const error = Object.assign(new Error('Outer message'), {
+        data: { message: 'Nested rpc error message' },
+      });
+      requestMock.mockRejectedValue(error);
+
+      await expect(
+        rpcRequest({
+          messenger: messengerMock,
+          networkClientId: 'networkClientIdA' as NetworkClientId,
+          method: 'eth_getBalance',
+          params: ['0x123', 'latest'],
+        }),
+      ).rejects.toBe(error);
+      expect(error.message).toBe(
+        'RPC 0xa4b1 Custom eth_getBalance: Nested rpc error message',
+      );
+    });
+
     it('prefixes provider errors when the original message is read-only', async () => {
       const error = new Error('RPC failed') as Error & { code?: string };
       error.code = 'UNAUTHORIZED';

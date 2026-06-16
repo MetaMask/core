@@ -152,7 +152,14 @@ function throwWithRpcContext(
     networkClient: NetworkClient;
   },
 ): never {
-  const message = error instanceof Error ? error.message : String(error);
+  const errorObject = error as
+    | {
+        data?: { message?: string };
+        message?: string;
+      }
+    | undefined;
+  const message =
+    errorObject?.data?.message ?? errorObject?.message ?? String(error);
   const prefix = `RPC ${networkClient.configuration.chainId} ${getEndpointLabel(
     networkClient,
   )} ${method}`;
