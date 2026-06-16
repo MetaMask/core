@@ -7,10 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Added
-
-- Add input primary denomination to submitted bridge history and post-submit analytics.
-
 ### Changed
 
 - Rename `solanaFeesInLamports` to `nonEvmFeesInNative` in unit test mocks ([#9098](https://github.com/MetaMask/core/pull/9098))
@@ -20,6 +16,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/transaction-controller` from `^67.1.0` to `^68.0.0` ([#9089](https://github.com/MetaMask/core/pull/9089))
 - Bump `@metamask/profile-sync-controller` from `^28.1.1` to `^28.2.0` ([#9119](https://github.com/MetaMask/core/pull/9119))
 - Bump `@metamask/keyring-controller` from `^27.0.0` to `^27.1.0` ([#9129](https://github.com/MetaMask/core/pull/9129))
+
+## [72.2.0]
+
+### Added
+
+- Add input primary denomination to submitted bridge history and post-submit analytics ([#9147](https://github.com/MetaMask/core/pull/9147))
+
+### Changed
+
+- Bump `@metamask/bridge-controller` from `^75.1.1` to `^75.2.0` ([#9147](https://github.com/MetaMask/core/pull/9147))
 
 ## [72.1.0]
 
