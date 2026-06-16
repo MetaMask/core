@@ -13,8 +13,6 @@ export type PushAnalyticsPayload = {
   notification_type: string;
   /** Team-owned, open-ended (e.g. `eth_received`). */
   notification_subtype: string;
-  /** Server-side cross-check; clients prefer their own AuthController source. */
-  profile_id?: string;
   /** Only present when the notification has a chain context. */
   chain_id?: number;
   /** Platform notifications only; the CTA link to route to on tap. */

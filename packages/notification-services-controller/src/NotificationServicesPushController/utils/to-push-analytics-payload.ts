@@ -20,7 +20,6 @@ export function toPushAnalyticsPayload(
     notification_id: data.notification_id,
     notification_type: data.notification_type,
     notification_subtype: data.notification_subtype ?? '',
-    profile_id: data.profile_id || undefined,
     chain_id: data.chain_id ? Number(data.chain_id) : undefined,
     deeplink: data.deeplink || undefined,
   };

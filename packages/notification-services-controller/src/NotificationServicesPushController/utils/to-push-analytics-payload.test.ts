@@ -5,7 +5,6 @@ const mockFcmData = {
   notification_id: 'test-notification-id',
   notification_type: 'wallet_activity',
   notification_subtype: 'eth_received',
-  profile_id: 'test-profile-id',
   chain_id: '1',
   deeplink: 'https://example.com/deeplink',
 };
@@ -14,7 +13,6 @@ const expectedAnalyticsPayload: PushAnalyticsPayload = {
   notification_id: 'test-notification-id',
   notification_type: 'wallet_activity',
   notification_subtype: 'eth_received',
-  profile_id: 'test-profile-id',
   chain_id: 1,
   deeplink: 'https://example.com/deeplink',
 };
