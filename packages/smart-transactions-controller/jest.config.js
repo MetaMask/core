@@ -24,7 +24,5 @@ module.exports = merge(baseConfig, {
     },
   },
 
-  setupFiles: ['./setupJest.js'],
-
   testTimeout: 2500,
 });
