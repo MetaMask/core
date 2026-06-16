@@ -296,7 +296,7 @@ const INFURA_NON_FAILURE_HTTP_STATUS_CODES = [400, 429];
  * @returns True if the error should be treated as a service policy failure. Most errors are treated like failures,
  * with the exception of certain HTTP status codes.
  */
-function isServiceFailureInfura(error: unknown) {
+function isServiceFailureInfura(error: unknown): boolean {
   if (
     typeof error === 'object' &&
     error !== null &&
