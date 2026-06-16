@@ -395,7 +395,7 @@ export class RpcService {
     this.endpointUrl = stripCredentialsFromUrl(normalizedUrl);
     this.#logger = logger;
 
-    const isInfura = normalizedUrl.hostname.endsWith('infura.io');
+    const isInfura = normalizedUrl.hostname.endsWith('.infura.io');
 
     this.#policy = createServicePolicy({
       maxRetries: DEFAULT_MAX_RETRIES,
