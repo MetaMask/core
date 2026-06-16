@@ -13,6 +13,7 @@ import { TOKEN_PRICES_BATCH_SIZE } from './assetsUtil';
 import type { Nft, NftMetadata } from './NftController';
 import { getNativeTokenAddress } from './token-prices-service';
 import type { AbstractTokenPricesService } from './token-prices-service';
+import { EvmAssetWithMarketData } from './token-prices-service/abstract-token-prices-service';
 
 const DEFAULT_IPFS_URL_FORMAT = 'ipfs://';
 const ALTERNATIVE_IPFS_URL_FORMAT = 'ipfs://ipfs/';
@@ -758,6 +759,60 @@ describe('assetsUtil', () => {
           currency: testNativeCurrency,
         });
       }
+    });
+
+    it('should return full market data keyed by checksummed address when includeMarketData is true', async () => {
+      const testTokenAddress =
+        '0x7bef710a5759d197ec0bf621c3df802c2d60d848' as Hex;
+      const checksummedAddress = '0x7BEF710a5759d197EC0Bf621c3Df802C2D60D848';
+      const testNativeCurrency = 'ETH';
+      const testChainId = '0x1';
+      const mockPriceService = createMockPriceService();
+
+      const mockMarketData = {
+        tokenAddress: testTokenAddress,
+        chainId: testChainId,
+        currency: testNativeCurrency,
+        allTimeHigh: 4000,
+        allTimeLow: 900,
+        circulatingSupply: 2000,
+        dilutedMarketCap: 100,
+        high1d: 200,
+        low1d: 100,
+        marketCap: 1000,
+        marketCapPercentChange1d: 100,
+        price: 0.0004588648479937523,
+        pricePercentChange14d: 100,
+        pricePercentChange1h: 1,
+        pricePercentChange1y: 200,
+        pricePercentChange200d: 300,
+        pricePercentChange30d: 200,
+        pricePercentChange7d: 100,
+        totalVolume: 100,
+        priceChange1d: 100,
+        pricePercentChange1d: 100,
+      };
+
+      jest
+        .spyOn(mockPriceService, 'fetchTokenPrices')
+        .mockResolvedValue([
+          mockMarketData as unknown as EvmAssetWithMarketData,
+        ]);
+
+      const result = await assetsUtil.fetchTokenContractExchangeRates({
+        tokenPricesService: mockPriceService,
+        nativeCurrency: testNativeCurrency,
+        tokenAddresses: [testTokenAddress],
+        chainId: testChainId,
+        includeMarketData: true,
+      });
+
+      expect(result).toStrictEqual({
+        [checksummedAddress]: {
+          ...mockMarketData,
+          tokenAddress: checksummedAddress,
+        },
+      });
     });
   });
 
