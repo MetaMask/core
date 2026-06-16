@@ -17,10 +17,6 @@ const log = createModuleLogger(projectLogger, 'provider');
 
 type ProviderRequestParams = Parameters<Provider['request']>[0]['params'];
 
-type NetworkClientWithId = NetworkClient & {
-  id: NetworkClientId;
-};
-
 /**
  * Options for network client resolution.
  */
@@ -139,13 +135,11 @@ export async function rpcRequest<TResponse = unknown>({
 function getNetworkClient(
   messenger: TransactionPayControllerMessenger,
   networkClientId: NetworkClientId,
-): NetworkClientWithId {
-  const networkClient = messenger.call(
+): NetworkClient {
+  return messenger.call(
     'NetworkController:getNetworkClientById',
     networkClientId,
   ) as NetworkClient;
-
-  return { ...networkClient, id: networkClientId };
 }
 
 function throwWithRpcContext(
@@ -155,7 +149,7 @@ function throwWithRpcContext(
     networkClient,
   }: {
     method: string;
-    networkClient: NetworkClientWithId;
+    networkClient: NetworkClient;
   },
 ): never {
   const message = error instanceof Error ? error.message : String(error);
@@ -178,9 +172,7 @@ function throwWithRpcContext(
   throw new Error(prefixedMessage);
 }
 
-function getEndpointLabel(
-  networkClient: NetworkClientWithId,
-): 'Infura' | 'Custom' {
+function getEndpointLabel(networkClient: NetworkClient): 'Infura' | 'Custom' {
   return networkClient.configuration.type === NetworkClientType.Infura
     ? 'Infura'
     : 'Custom';

@@ -13,10 +13,6 @@ const log = createModuleLogger(projectLogger, 'provider');
 
 type ProviderRequestParams = Parameters<Provider['request']>[0]['params'];
 
-type NetworkClientWithId = NetworkClient & {
-  id: NetworkClientId;
-};
-
 /**
  * Get a provider for the specified chain or network client.
  * Resolves chainId to networkClientId if needed, then gets the provider.
@@ -153,13 +149,11 @@ export function getChainId({
 function getNetworkClient(
   messenger: TransactionControllerMessenger,
   networkClientId: NetworkClientId,
-): NetworkClientWithId {
-  const networkClient = messenger.call(
+): NetworkClient {
+  return messenger.call(
     'NetworkController:getNetworkClientById',
     networkClientId,
   ) as NetworkClient;
-
-  return { ...networkClient, id: networkClientId };
 }
 
 function throwWithRpcContext(
@@ -169,7 +163,7 @@ function throwWithRpcContext(
     networkClient,
   }: {
     method: string;
-    networkClient: NetworkClientWithId;
+    networkClient: NetworkClient;
   },
 ): never {
   const message = error instanceof Error ? error.message : String(error);
@@ -192,9 +186,7 @@ function throwWithRpcContext(
   throw new Error(prefixedMessage);
 }
 
-function getEndpointLabel(
-  networkClient: NetworkClientWithId,
-): 'Infura' | 'Custom' {
+function getEndpointLabel(networkClient: NetworkClient): 'Infura' | 'Custom' {
   return networkClient.configuration.type === NetworkClientType.Infura
     ? 'Infura'
     : 'Custom';
