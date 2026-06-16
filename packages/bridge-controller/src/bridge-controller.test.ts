@@ -3014,7 +3014,7 @@ describe('BridgeController', function () {
     });
 
     it('should track the FiatCryptoToggleClicked event', async () => {
-      await withController(async ({ rootMessenger }) => {
+      await withController(async ({ rootMessenger, controller }) => {
         jest.spyOn(console, 'warn').mockImplementationOnce(jest.fn());
         await rootMessenger.call(
           'BridgeController:updateBridgeQuoteRequestParams',
@@ -3031,6 +3031,11 @@ describe('BridgeController', function () {
             feature_id: FeatureId.QUICK_BUY_FOLLOW_TRADING,
           },
         );
+        rootMessenger.call(
+          'BridgeController:setInputPrimaryDenomination',
+          'fiat_value',
+        );
+        expect(controller.state.inputPrimaryDenomination).toBe('fiat_value');
         jest.clearAllMocks();
         rootMessenger.call(
           'BridgeController:trackUnifiedSwapBridgeEvent',
@@ -4346,18 +4351,6 @@ describe('BridgeController', function () {
         expect(controller.state.batchSellTradesLoadingStatus).toBe(
           RequestStatus.FETCHED,
         );
-      });
-    });
-  });
-
-  describe('setInputPrimaryDenomination', () => {
-    it('updates the persisted input denomination state', async () => {
-      await withController(async ({ rootMessenger, controller }) => {
-        rootMessenger.call(
-          'BridgeController:setInputPrimaryDenomination',
-          'fiat_value',
-        );
-        expect(controller.state.inputPrimaryDenomination).toBe('fiat_value');
       });
     });
   });

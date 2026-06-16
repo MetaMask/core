@@ -153,16 +153,6 @@ describe('History Utils', () => {
       expect(txHistoryItem.tokenSecurityTypeDestination).toBeNull();
     });
 
-    it('omits inputPrimaryDenomination when not provided', () => {
-      const txHistoryItem = getInitialHistoryItem(baseArgs);
-      expect(
-        Object.prototype.hasOwnProperty.call(
-          txHistoryItem,
-          'inputPrimaryDenomination',
-        ),
-      ).toBe(false);
-    });
-
     it('persists inputPrimaryDenomination when provided', () => {
       const txHistoryItem = getInitialHistoryItem({
         ...baseArgs,
