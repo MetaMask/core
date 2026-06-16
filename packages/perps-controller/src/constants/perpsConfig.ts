@@ -340,7 +340,7 @@ export const TERMINAL_API_CONFIG = {
     uat: 'https://terminal.uat-api.cx.metamask.io',
     prd: 'https://terminal.api.cx.metamask.io',
   },
-  PerpetualPath: '/perpetuals',
+  PerpetualPath: '/v1/perpetuals',
   CacheTtlMs: 5 * 60 * 1000, // 5 minutes
 } as const;
 

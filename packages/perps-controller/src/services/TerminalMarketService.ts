@@ -1,3 +1,15 @@
+import type { Infer } from '@metamask/superstruct';
+import {
+  array,
+  boolean,
+  is,
+  nullable,
+  number,
+  optional,
+  string,
+  type,
+} from '@metamask/superstruct';
+
 import { TERMINAL_API_CONFIG } from '../constants/perpsConfig';
 import type {
   MarketInfo,
@@ -22,23 +34,30 @@ export type TerminalAssetMetadata = {
 };
 
 /**
- * Shape of a single market item returned by GET {terminalApiBaseUrl}/perpetuals.
- * Kept intentionally loose — validated at parse time.
+ * Runtime validation schema for a single market item returned by
+ * `GET {terminalApiBaseUrl}/perpetuals`.
+ *
+ * Uses `type()` (loose object matching) so that extra fields the API sends
+ * (e.g. `price`, `iconUrl`, `trend`) are silently accepted.
+ * Each item is individually validated; items that fail validation are
+ * filtered out and logged rather than rejecting the entire response.
  */
-type TerminalPerpetualItem = {
-  symbol: string;
-  name?: string;
-  szDecimals?: number;
-  maxLeverage?: number;
-  marginTableId?: number;
-  onlyIsolated?: boolean;
-  isDelisted?: boolean;
-  minimumOrderSize?: number;
-  keywords?: string[];
-  tags?: string[];
-  categories?: string[];
-  marketType?: string;
-};
+const TerminalPerpetualItemStruct = type({
+  symbol: string(),
+  name: optional(nullable(string())),
+  szDecimals: optional(number()),
+  maxLeverage: optional(number()),
+  marginTableId: optional(number()),
+  onlyIsolated: optional(boolean()),
+  isDelisted: optional(boolean()),
+  minimumOrderSize: optional(number()),
+  keywords: optional(nullable(array(string()))),
+  tags: optional(nullable(array(string()))),
+  categories: optional(nullable(array(string()))),
+  marketType: optional(nullable(string())),
+});
+
+type TerminalPerpetualItem = Infer<typeof TerminalPerpetualItemStruct>;
 
 type CacheEntry = {
   markets: MarketInfo[];
@@ -102,7 +121,7 @@ export class TerminalMarketService {
       );
     }
 
-    const items = body as TerminalPerpetualItem[];
+    const items = this.#validateItems(body);
     const markets = this.#mapToMarketInfo(items);
     const metadata = this.#extractMetadata(items);
 
@@ -115,6 +134,43 @@ export class TerminalMarketService {
    */
   clearCache(): void {
     this.#cache = null;
+  }
+
+  /**
+   * Validate raw API response items against the expected schema.
+   * Items that fail validation are filtered out and logged rather than
+   * rejecting the entire response.
+   *
+   * @param raw - The raw array from the API response body.
+   * @returns Array of validated items.
+   */
+  #validateItems(raw: unknown[]): TerminalPerpetualItem[] {
+    const valid: TerminalPerpetualItem[] = [];
+    for (const item of raw) {
+      if (is(item, TerminalPerpetualItemStruct)) {
+        valid.push(item);
+      } else {
+        this.#deps.logger.error(
+          ensureError(
+            new Error('Terminal API item failed schema validation'),
+            'TerminalMarketService.validateItems',
+          ),
+          {
+            tags: { feature: 'perps', source: 'terminal-api' },
+            context: {
+              name: 'TerminalMarketService.validateItems',
+              data: {
+                symbol:
+                  typeof item === 'object' && item !== null && 'symbol' in item
+                    ? (item as Record<string, unknown>).symbol
+                    : undefined,
+              },
+            },
+          },
+        );
+      }
+    }
+    return valid;
   }
 
   /**

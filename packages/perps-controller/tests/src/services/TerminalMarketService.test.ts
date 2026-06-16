@@ -61,7 +61,7 @@ describe('TerminalMarketService', () => {
       const { markets, metadata } = await service.fetchMarkets();
 
       expect(globalThis.fetch).toHaveBeenCalledWith(
-        'https://terminal.test-api.cx.metamask.io/perpetuals',
+        'https://terminal.test-api.cx.metamask.io/v1/perpetuals',
         { method: 'GET', headers: { 'Content-Type': 'application/json' } },
       );
 
@@ -114,7 +114,7 @@ describe('TerminalMarketService', () => {
       await service.fetchMarkets();
 
       expect(globalThis.fetch).toHaveBeenCalledWith(
-        'https://terminal.api.cx.metamask.io/perpetuals',
+        'https://terminal.api.cx.metamask.io/v1/perpetuals',
         expect.any(Object),
       );
     });
@@ -177,7 +177,6 @@ describe('TerminalMarketService', () => {
         json: () =>
           Promise.resolve([
             { symbol: '', name: 'Empty' },
-            { name: 'NoSymbol' },
             { symbol: 'VALID', name: 'Valid' },
           ]),
       } as Response);
@@ -188,6 +187,39 @@ describe('TerminalMarketService', () => {
       expect(markets[0]?.name).toBe('VALID');
       expect(metadata.size).toBe(1);
       expect(metadata.has('VALID')).toBe(true);
+    });
+
+    it('filters out items that fail schema validation and logs errors', async () => {
+      jest.spyOn(globalThis, 'fetch').mockResolvedValue({
+        ok: true,
+        status: 200,
+        statusText: 'OK',
+        json: () =>
+          Promise.resolve([
+            { symbol: 123 },
+            { name: 'NoSymbol' },
+            'not-an-object',
+            { symbol: 'VALID', name: 'Valid' },
+          ]),
+      } as Response);
+
+      const { markets, metadata } = await service.fetchMarkets();
+
+      expect(markets).toHaveLength(1);
+      expect(markets[0]?.name).toBe('VALID');
+      expect(metadata.size).toBe(1);
+      expect(mockDeps.logger.error).toHaveBeenCalledTimes(3);
+      expect(mockDeps.logger.error).toHaveBeenCalledWith(
+        expect.objectContaining({
+          message: 'Terminal API item failed schema validation',
+        }),
+        expect.objectContaining({
+          tags: { feature: 'perps', source: 'terminal-api' },
+          context: expect.objectContaining({
+            name: 'TerminalMarketService.validateItems',
+          }),
+        }),
+      );
     });
 
     it('uses defaults for missing numeric fields', async () => {
