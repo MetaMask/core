@@ -4078,6 +4078,11 @@ export class TransactionController extends BaseController<
       (txMeta) => {
         txMeta.gasFeeTokens = gasFeeTokens;
         txMeta.isGasFeeSponsored = isGasFeeSponsored;
+
+        if (isGasFeeSponsored) {
+          txMeta.isExternalSign = true;
+        }
+
         txMeta.gasUsed = gasUsed;
 
         if (!this.#isBalanceChangesSkipped(txMeta)) {
