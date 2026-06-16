@@ -13,7 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Mark MM Pay transactions as externally signed when quotes are available, so the parent transaction is no longer locally signed by `KeyringController:signTransaction`. The flag is cleared when no quotes are returned (e.g. the payment token matches the target token) so the transaction falls back to normal local signing. Unblocks `MoneyKeyring`, which does not implement `signTransaction`. ([#9145](https://github.com/MetaMask/core/pull/9145))
+- Mark MM Pay transactions as externally signed when quotes are available ([#9145](https://github.com/MetaMask/core/pull/9145))
 
 ## [23.7.0]
 
