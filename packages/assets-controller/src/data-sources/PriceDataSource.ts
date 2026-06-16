@@ -3,6 +3,7 @@ import type {
   V3SpotPricesResponse,
 } from '@metamask/core-backend';
 import { ApiPlatformClient } from '@metamask/core-backend';
+import { StaticIntervalPollingControllerOnly } from '@metamask/polling-controller';
 import { parseCaipAssetType } from '@metamask/utils';
 
 import { projectLogger, createModuleLogger } from '../logger';
@@ -28,9 +29,18 @@ const DEFAULT_POLL_INTERVAL = 60_000; // 1 minute for price updates
 const DEFAULT_FETCH_TIMEOUT_MS = 15_000;
 
 /** Maximum number of asset IDs per Price API request. */
-const PRICE_API_BATCH_SIZE = 50;
+const PRICE_API_BATCH_SIZE = 100;
 
 const log = createModuleLogger(projectLogger, CONTROLLER_NAME);
+
+// ============================================================================
+// TYPES
+// ============================================================================
+
+/** Input key for a single polling subscription. */
+type PricePollingInput = {
+  subscriptionId: string;
+};
 
 // ============================================================================
 // OPTIONS
@@ -114,14 +124,14 @@ function isValidMarketData(data: unknown): data is SpotPriceMarketData {
 /**
  * PriceDataSource fetches asset prices from the Price API.
  *
- * This data source:
- * - Fetches prices from Price API v3 spot-prices endpoint
- * - Supports one-time fetch and subscription-based polling
- * - In subscribe mode, uses getAssetsState from SubscriptionRequest to read assetsBalance and fetch prices
+ * Extends StaticIntervalPollingControllerOnly — this is the single polling
+ * instance driving all price updates. _executePoll is called on every tick
+ * and is the only code path that fetches prices.
  *
- * Usage: Create with queryApiClient; subscribe() requires getAssetsState in the request for balance-based pricing.
+ * The assetsMiddleware is a no-op pass-through; it no longer fetches prices
+ * inline or schedules extra refreshes. All pricing comes from the poll.
  */
-export class PriceDataSource {
+export class PriceDataSource extends StaticIntervalPollingControllerOnly<PricePollingInput>() {
   static readonly controllerName = CONTROLLER_NAME;
 
   getName(): string {
@@ -130,29 +140,67 @@ export class PriceDataSource {
 
   readonly #getSelectedCurrency: () => SupportedCurrency;
 
-  readonly #pollInterval: number;
-
   /** ApiPlatformClient for cached API calls */
   readonly #apiClient: ApiPlatformClient;
 
   readonly #fetchTimeoutMs: number;
 
-  /** Active subscriptions by ID */
+  /** Non-serialisable subscription state, keyed by subscriptionId. */
   readonly #activeSubscriptions: Map<
     string,
     {
-      cleanup: () => void;
       request: DataRequest;
       onAssetsUpdate: (response: DataResponse) => void | Promise<void>;
       getAssetsState?: () => AssetsControllerStateInternal;
     }
   > = new Map();
 
+  /** Polling tokens issued by StaticIntervalPollingControllerOnly, for cleanup. */
+  readonly #pollingTokens: Map<string, string> = new Map();
+
   constructor(options: PriceDataSourceOptions) {
+    super();
     this.#getSelectedCurrency = options.getSelectedCurrency;
-    this.#pollInterval = options.pollInterval ?? DEFAULT_POLL_INTERVAL;
     this.#apiClient = options.queryApiClient;
     this.#fetchTimeoutMs = options.fetchTimeoutMs ?? DEFAULT_FETCH_TIMEOUT_MS;
+    this.setIntervalLength(options.pollInterval ?? DEFAULT_POLL_INTERVAL);
+  }
+
+  // ============================================================================
+  // POLLING
+  // ============================================================================
+
+  /**
+   * Called by StaticIntervalPollingControllerOnly on every tick.
+   * Fetches prices for all assets currently held by the subscription's accounts.
+   *
+   * @param input - Polling input containing the subscription ID.
+   */
+  async _executePoll(input: PricePollingInput): Promise<void> {
+    const { subscriptionId } = input;
+    const subscription = this.#activeSubscriptions.get(subscriptionId);
+    if (!subscription) {
+      return;
+    }
+
+    try {
+      const fetchResponse = await this.fetch(
+        subscription.request,
+        subscription.getAssetsState,
+      );
+
+      if (
+        fetchResponse.assetsPrice &&
+        Object.keys(fetchResponse.assetsPrice).length > 0
+      ) {
+        await subscription.onAssetsUpdate({
+          ...fetchResponse,
+          updateMode: 'merge',
+        });
+      }
+    } catch (error) {
+      log('Subscription poll failed', { subscriptionId, error });
+    }
   }
 
   // ============================================================================
@@ -160,68 +208,14 @@ export class PriceDataSource {
   // ============================================================================
 
   /**
-   * Get the middleware for enriching responses with price data.
-   *
-   * This middleware:
-   * 1. Extracts the response from context
-   * 2. Fetches prices for detected assets (assets without metadata)
-   * 3. Enriches the response with fetched prices
-   * 4. Calls next() at the end to continue the middleware chain
-   *
-   * Note: This middleware ONLY fetches prices for detected assets.
-   * For fetching prices for all assets, use the subscription mechanism
-   * which polls prices for all assets in the balance state.
+   * Pass-through middleware — price fetching is handled entirely by the
+   * StaticIntervalPollingControllerOnly poll (_executePoll). No inline fetches
+   * or extra scheduling happen here; the pipeline simply continues.
    *
    * @returns The middleware function for the assets pipeline.
    */
   get assetsMiddleware(): Middleware {
-    return forDataTypes(['price'], async (ctx, next) => {
-      // Extract response from context
-      const { response, request } = ctx;
-
-      // Only fetch prices for detected assets (assets without metadata)
-      // The subscription handles fetching prices for all existing assets
-      if (!response.detectedAssets && !request.assetsForPriceUpdate?.length) {
-        return next(ctx);
-      }
-
-      const assetIds = new Set<Caip19AssetId>();
-      for (const detectedAccountAssets of Object.values(
-        response.detectedAssets ?? {},
-      )) {
-        for (const assetId of detectedAccountAssets) {
-          assetIds.add(assetId);
-        }
-      }
-
-      for (const assetId of request.assetsForPriceUpdate ?? []) {
-        assetIds.add(assetId);
-      }
-
-      if (assetIds.size === 0) {
-        return next(ctx);
-      }
-
-      // Filter to only priceable assets
-      const priceableAssetIds = [...assetIds].filter(isPriceableAsset);
-
-      if (priceableAssetIds.length === 0) {
-        return next(ctx);
-      }
-
-      try {
-        const spotPrices = await this.#fetchSpotPrices(priceableAssetIds);
-        response.assetsPrice = {
-          ...(response.assetsPrice ?? {}),
-          ...spotPrices,
-        };
-      } catch (error) {
-        log('Failed to fetch prices via middleware', { error });
-      }
-
-      // Call next() at the end to continue the middleware chain
-      return next(ctx);
-    });
+    return forDataTypes(['price'], async (ctx, next) => next(ctx));
   }
 
   // ============================================================================
@@ -365,7 +359,6 @@ export class PriceDataSource {
         for (const [accountId, accountBalances] of Object.entries(
           state.assetsBalance,
         )) {
-          // Filter by account if specified
           if (accountFilter && !accountFilter.has(accountId)) {
             continue;
           }
@@ -373,7 +366,6 @@ export class PriceDataSource {
           for (const assetId of Object.keys(
             accountBalances as Record<string, unknown>,
           )) {
-            // Filter by chain if specified; skip malformed asset IDs for this entry only
             if (chainFilter) {
               try {
                 const { chainId } = parseCaipAssetType(
@@ -420,13 +412,11 @@ export class PriceDataSource {
   ): Promise<DataResponse> {
     const response: DataResponse = {};
 
-    // Get asset IDs from balance state when state access is provided
     const rawAssetIds = this.#getAssetIdsFromBalanceState(
       request,
       getAssetsState,
     );
 
-    // Filter out non-priceable assets (e.g., Tron bandwidth/energy resources)
     const assetIds = rawAssetIds.filter(isPriceableAsset);
 
     if (assetIds.length === 0) {
@@ -435,7 +425,6 @@ export class PriceDataSource {
 
     try {
       const spotPrices = await this.#fetchSpotPrices([...assetIds]);
-
       response.assetsPrice = {
         ...(response.assetsPrice ?? {}),
         ...spotPrices,
@@ -448,19 +437,19 @@ export class PriceDataSource {
   }
 
   // ============================================================================
-  // SUBSCRIBE
+  // SUBSCRIBE / UNSUBSCRIBE
   // ============================================================================
 
   /**
    * Subscribe to price updates.
-   * Sets up polling that fetches prices for all assets in assetsBalance state.
+   * Stores subscription state and delegates polling to
+   * StaticIntervalPollingControllerOnly via startPolling.
    *
    * @param subscriptionRequest - The subscription request configuration.
    */
   async subscribe(subscriptionRequest: SubscriptionRequest): Promise<void> {
     const { request, subscriptionId, isUpdate } = subscriptionRequest;
 
-    // Handle subscription update - just update the request
     if (isUpdate) {
       const existing = this.#activeSubscriptions.get(subscriptionId);
       if (existing) {
@@ -469,57 +458,23 @@ export class PriceDataSource {
       }
     }
 
-    // Clean up existing subscription
     await this.unsubscribe(subscriptionId);
 
-    const pollInterval = request.updateInterval ?? this.#pollInterval;
-
-    // Create poll function - fetches prices using getAssetsState from subscription
-    const pollFn = async (): Promise<void> => {
-      try {
-        const subscription = this.#activeSubscriptions.get(subscriptionId);
-        if (!subscription) {
-          return;
-        }
-
-        // Fetch prices for all assets in balance state (uses subscription's getAssetsState)
-        const fetchResponse = await this.fetch(
-          subscription.request,
-          subscription.getAssetsState,
-        );
-
-        // Only report if we got prices
-        if (
-          fetchResponse.assetsPrice &&
-          Object.keys(fetchResponse.assetsPrice).length > 0
-        ) {
-          await subscription.onAssetsUpdate({
-            ...fetchResponse,
-            updateMode: 'merge',
-          });
-        }
-      } catch (error) {
-        log('Subscription poll failed', { subscriptionId, error });
-      }
-    };
-
-    // Set up polling
-    const timer = setInterval(() => {
-      pollFn().catch(console.error);
-    }, pollInterval);
-
-    // Store subscription (getAssetsState from request for balance-based pricing)
     this.#activeSubscriptions.set(subscriptionId, {
-      cleanup: () => {
-        clearInterval(timer);
-      },
       request,
       onAssetsUpdate: subscriptionRequest.onAssetsUpdate,
       getAssetsState: subscriptionRequest.getAssetsState,
     });
 
-    // Initial fetch
-    await pollFn();
+    // Allow the request to override the polling interval.
+    if (request.updateInterval) {
+      this.setIntervalLength(request.updateInterval);
+    }
+
+    // startPolling fires _executePoll immediately (setTimeout 0) then repeats
+    // at the interval set by setIntervalLength in the constructor.
+    const pollingToken = this.startPolling({ subscriptionId });
+    this.#pollingTokens.set(subscriptionId, pollingToken);
   }
 
   /**
@@ -528,20 +483,20 @@ export class PriceDataSource {
    * @param subscriptionId - The ID of the subscription to cancel.
    */
   async unsubscribe(subscriptionId: string): Promise<void> {
-    const subscription = this.#activeSubscriptions.get(subscriptionId);
-    if (subscription) {
-      subscription.cleanup();
-      this.#activeSubscriptions.delete(subscriptionId);
+    const pollingToken = this.#pollingTokens.get(subscriptionId);
+    if (pollingToken) {
+      this.stopPollingByPollingToken(pollingToken);
+      this.#pollingTokens.delete(subscriptionId);
     }
+    this.#activeSubscriptions.delete(subscriptionId);
   }
 
   /**
    * Destroy the data source and clean up all subscriptions.
    */
   destroy(): void {
-    for (const subscription of this.#activeSubscriptions.values()) {
-      subscription.cleanup();
-    }
+    this.stopAllPolling();
     this.#activeSubscriptions.clear();
+    this.#pollingTokens.clear();
   }
 }

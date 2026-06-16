@@ -8,6 +8,7 @@ import type {
   BalanceUpdate,
 } from '@metamask/core-backend';
 import type { ApiPlatformClient } from '@metamask/core-backend';
+import { makePoller } from './polling-utils';
 import {
   isCaipChainId,
   KnownCaipNamespace,
@@ -230,8 +231,14 @@ export class BackendWebsocketDataSource extends AbstractDataSource<
     assetId: Caip19AssetId,
   ) => 'native' | 'erc20' | 'spl';
 
-  /** Chains refresh timer */
-  #chainsRefreshTimer: ReturnType<typeof setInterval> | null = null;
+  /**
+   * Poller for the 20-minute active-chains refresh.
+   * Uses StaticIntervalPollingControllerOnly via composition (class already
+   * extends AbstractDataSource).
+   */
+  readonly #chainsPoller = makePoller<null>(
+    async () => this.#refreshActiveChains(),
+  );
 
   /** Chains the backend API reports as supported (preserved across disconnects). */
   #supportedChains: ChainId[] = [];
@@ -259,6 +266,7 @@ export class BackendWebsocketDataSource extends AbstractDataSource<
     this.#onActiveChainsUpdated = options.onActiveChainsUpdated;
     this.#getAssetType = options.getAssetType;
 
+    this.#chainsPoller.setIntervalLength(DEFAULT_CHAINS_REFRESH_INTERVAL_MS);
     this.#subscribeToEvents();
     this.#initializeActiveChains().catch(console.error);
   }
@@ -282,9 +290,7 @@ export class BackendWebsocketDataSource extends AbstractDataSource<
         );
       }
 
-      this.#chainsRefreshTimer = setInterval(() => {
-        this.#refreshActiveChains().catch(console.error);
-      }, DEFAULT_CHAINS_REFRESH_INTERVAL_MS);
+      this.#chainsPoller.startPolling(null);
     } catch (error) {
       log('Failed to fetch active chains', error);
     }
@@ -687,10 +693,7 @@ export class BackendWebsocketDataSource extends AbstractDataSource<
   // ============================================================================
 
   destroy(): void {
-    if (this.#chainsRefreshTimer) {
-      clearInterval(this.#chainsRefreshTimer);
-      this.#chainsRefreshTimer = null;
-    }
+    this.#chainsPoller.stopAllPolling();
 
     // Clean up WebSocket subscriptions
     // Convert to array first to avoid modifying map during iteration
