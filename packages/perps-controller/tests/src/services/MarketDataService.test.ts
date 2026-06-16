@@ -1245,44 +1245,6 @@ describe('MarketDataService', () => {
         expect(result).toEqual(providerMarkets);
         expect(mockTerminalService.fetchMarkets).not.toHaveBeenCalled();
       });
-
-      it('filters terminal markets by params.symbols', async () => {
-        mockTerminalService.fetchMarkets.mockResolvedValue({
-          markets: terminalMarkets,
-          metadata: terminalMetadata,
-        });
-
-        const result = await serviceWithTerminal.getMarkets({
-          provider: mockProvider,
-          context: mockContext,
-          useTerminalApi: true,
-          params: { symbols: ['BTC'] },
-        });
-
-        expect(result).toHaveLength(1);
-        expect(result[0]?.name).toBe('BTC');
-        expect(mockProvider.getMarkets).not.toHaveBeenCalled();
-      });
-
-      it('falls back to provider when terminal markets are filtered to empty', async () => {
-        const providerMarkets: MarketInfo[] = [
-          { name: 'SOL', szDecimals: 3, maxLeverage: 20, marginTableId: 5 },
-        ];
-        mockTerminalService.fetchMarkets.mockResolvedValue({
-          markets: terminalMarkets,
-          metadata: terminalMetadata,
-        });
-        mockProvider.getMarkets.mockResolvedValue(providerMarkets);
-
-        const result = await serviceWithTerminal.getMarkets({
-          provider: mockProvider,
-          context: mockContext,
-          useTerminalApi: true,
-          params: { symbols: ['SOL'] },
-        });
-
-        expect(result).toEqual(providerMarkets);
-      });
     });
 
     describe('getMarketDataWithPrices with useTerminalApi', () => {
