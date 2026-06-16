@@ -75,7 +75,7 @@ export const MOCK_NOTIFICATION_PREFERENCES: NotificationPreferences = {
 };
 
 /** Legacy notification preferences blob without `agenticCli`. */
-export const MOCK_LEGACY_NOTIFICATION_PREFERENCES = {
+export const MOCK_LEGACY_NOTIFICATION_PREFERENCES: NotificationPreferences = {
   walletActivity: MOCK_NOTIFICATION_PREFERENCES.walletActivity,
   marketing: MOCK_NOTIFICATION_PREFERENCES.marketing,
   perps: MOCK_NOTIFICATION_PREFERENCES.perps,
