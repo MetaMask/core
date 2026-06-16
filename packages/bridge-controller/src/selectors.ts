@@ -23,7 +23,7 @@ import type {
   BridgeControllerState,
   ExchangeRate,
   QuoteMetadata,
-  QuoteResponse,
+  QuoteResponseV1,
   TokenAmountValues,
 } from './types';
 import { RequestStatus, SortOrder } from './types';
@@ -109,7 +109,7 @@ const createBridgeSelector = createSelector_.withTypes<BridgeAppState>();
  */
 type BridgeQuotesClientParams = {
   sortOrder: SortOrder;
-  selectedQuote: (QuoteResponse & QuoteMetadata) | null;
+  selectedQuote: (QuoteResponseV1 & QuoteMetadata) | null;
 };
 
 type EvmTokenExchangeRate = { price?: number; currency?: string };
@@ -460,7 +460,7 @@ const selectSortedBridgeQuotes = createBridgeSelector(
     selectBridgeQuotesWithMetadata,
     (_, { sortOrder }: BridgeQuotesClientParams) => sortOrder,
   ],
-  (quotesWithMetadata, sortOrder): (QuoteResponse & QuoteMetadata)[] => {
+  (quotesWithMetadata, sortOrder): (QuoteResponseV1 & QuoteMetadata)[] => {
     switch (sortOrder) {
       case SortOrder.ETA_ASC:
         return orderBy(
@@ -591,7 +591,7 @@ const selectRecommendedQuotes = createBridgeSelector(
       const requestIndex = quote.quoteRequestIndex ?? 0;
       acc[requestIndex] ??= quote;
       return acc;
-    }, Array<(QuoteResponse & QuoteMetadata) | null>(requestCount).fill(null)),
+    }, Array<(QuoteResponseV1 & QuoteMetadata) | null>(requestCount).fill(null)),
 );
 
 const selectMetadataSum = createBridgeSelector(

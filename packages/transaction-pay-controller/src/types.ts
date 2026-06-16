@@ -138,6 +138,9 @@ export type TransactionConfig = {
   /** Overrides the payment source for the transaction. */
   paymentOverride?: PaymentOverride;
 
+  /** When true, a quote is always fetched even when the source and target tokens are identical. */
+  isQuoteRequired?: boolean;
+
   /**
    * Optional address to receive refunds if the quote provider transaction fails.
    * When set, overrides the default refund recipient (EOA) in the quote
@@ -311,6 +314,9 @@ export type TransactionData = {
 
   /** Overrides the payment source for the transaction. */
   paymentOverride?: PaymentOverride;
+
+  /** When true, a quote is always fetched even when the source and target tokens are identical. */
+  isQuoteRequired?: boolean;
 
   /**
    * Optional address to receive refunds if the quote provider transaction fails.
@@ -489,6 +495,9 @@ export type QuoteRequest = {
 
   /** Overrides the payment source for the transaction. */
   paymentOverride?: PaymentOverride;
+
+  /** Optional recipient address for Relay requests. When set, overrides the default `from` address. */
+  recipient?: Hex;
 
   /**
    * Optional address to receive refunds if the quote provider transaction fails.

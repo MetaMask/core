@@ -9,9 +9,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Bump `@metamask/keyring-controller` from `^27.0.0` to `^27.1.0` ([#9129](https://github.com/MetaMask/core/pull/9129))
+
+## [23.7.0]
+
+### Added
+
+- Add `isQuoteRequired` transaction config parameter to enforce fetching relay quotes even when source and target tokens are identical ([#9117](https://github.com/MetaMask/core/pull/9117))
+
+### Changed
+
+- Bump `@metamask/assets-controllers` from `^109.0.0` to `^109.1.0` ([#9110](https://github.com/MetaMask/core/pull/9110))
+
+### Fixed
+
+- Fix token amount in `buildTokenTransferData` for MM Pay post-quote Money Account transactions when source and target tokens have different decimal places ([#9116](https://github.com/MetaMask/core/pull/9116))
+
+## [23.6.0]
+
+### Added
+
+- Add direct mUSD fiat injection flow for Money Account deposits behind `useFiatMUSDQuoteToInjectForMoneyAccount` feature flag. When enabled, probes fiat providers for mUSD on Monad availability and, if viable, purchases mUSD directly to the Money Account, skipping the ETH-to-mUSD bridge. Falls back to the existing flow when no provider supports the direct route. Also moves `fiatPayment.caipAssetId` assignment into fiat quote functions so the asset ID always matches the quote that succeeded. ([#9080](https://github.com/MetaMask/core/pull/9080))
+- Make fiat order polling interval and timeout remotely configurable via `confirmations_pay_fiat.orderPollIntervalMs` and `confirmations_pay_fiat.orderPollTimeoutMs` feature flags ([#9090](https://github.com/MetaMask/core/pull/9090))
+
+### Changed
+
+- Bump `@metamask/assets-controllers` from `^109.0.0` to `^109.1.0` ([#9110](https://github.com/MetaMask/core/pull/9110))
 - Bump `@metamask/utils` from `^11.9.0` to `^11.11.0` ([#9074](https://github.com/MetaMask/core/pull/9074))
 - Bump `@metamask/assets-controller` from `^9.0.0` to `^9.0.1` ([#9083](https://github.com/MetaMask/core/pull/9083))
 - Bump `@metamask/controller-utils` from `^12.1.1` to `^12.2.0` ([#9083](https://github.com/MetaMask/core/pull/9083))
+- Bump `@metamask/transaction-controller` from `^67.1.0` to `^68.0.0` ([#9089](https://github.com/MetaMask/core/pull/9089))
+- Bump `@metamask/ramps-controller` from `^14.1.1` to `^14.2.0` ([#9105](https://github.com/MetaMask/core/pull/9105))
 
 ### Fixed
 
@@ -1050,7 +1078,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#6820](https://github.com/MetaMask/core/pull/6820))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@23.5.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@23.7.0...HEAD
+[23.7.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@23.6.0...@metamask/transaction-pay-controller@23.7.0
+[23.6.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@23.5.1...@metamask/transaction-pay-controller@23.6.0
 [23.5.1]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@23.5.0...@metamask/transaction-pay-controller@23.5.1
 [23.5.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@23.4.0...@metamask/transaction-pay-controller@23.5.0
 [23.4.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@23.3.1...@metamask/transaction-pay-controller@23.4.0

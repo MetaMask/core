@@ -20,6 +20,7 @@ import { getRelayQuotes } from '../relay/relay-quotes';
 import { submitRelayQuotes } from '../relay/relay-submit';
 import type { RelayQuote } from '../relay/types';
 import type { TransactionPayFiatAsset } from './constants';
+import { MUSD_MONAD_FIAT_ASSET } from './constants';
 import { submitFiatQuotes } from './fiat-submit';
 import type { FiatQuote } from './types';
 import { deriveFiatAssetForFiatPayment, resolveSourceAmountRaw } from './utils';
@@ -695,6 +696,60 @@ describe('submitFiatQuotes', () => {
     dateNowSpy.mockRestore();
   });
 
+  it('uses configurable poll timeout from feature flag', async () => {
+    const customTimeoutMs = 30000;
+
+    const dateNowSpy = jest
+      .spyOn(Date, 'now')
+      .mockReturnValueOnce(0)
+      .mockReturnValue(customTimeoutMs);
+
+    const pendingOrder = getFiatOrderMock({ status: RampsOrderStatus.Pending });
+    const callMock = jest.fn((action: string) => {
+      if (action === 'TransactionPayController:getState') {
+        return {
+          transactionData: {
+            [TRANSACTION_ID_MOCK]: {
+              fiatPayment: {
+                orderId: ORDER_ID_MOCK,
+                rampsQuote: RAMPS_QUOTE_MOCK,
+              },
+              isLoading: false,
+              tokens: [],
+            },
+          },
+        };
+      }
+      if (action === 'RampsController:getOrder') {
+        return pendingOrder;
+      }
+      if (action === 'RemoteFeatureFlagController:getState') {
+        return {
+          remoteFeatureFlags: {
+            confirmations_pay_fiat: { orderPollTimeoutMs: customTimeoutMs },
+          },
+        };
+      }
+      throw new Error(`Unexpected action: ${action}`);
+    });
+
+    const request: PayStrategyExecuteRequest<FiatQuote> = {
+      accountSupports7702: false,
+      isSmartTransaction: () => false,
+      messenger: {
+        call: callMock,
+      } as unknown as PayStrategyExecuteRequest<FiatQuote>['messenger'],
+      quotes: [getFiatQuoteMock()],
+      transaction: TRANSACTION_MOCK,
+    };
+
+    await expect(submitFiatQuotes(request)).rejects.toThrow(
+      'Fiat order polling timed out (last status: PENDING)',
+    );
+
+    dateNowSpy.mockRestore();
+  });
+
   it('throws if token info is unavailable for the fiat asset', async () => {
     resolveSourceAmountRawMock.mockRejectedValue(
       new Error(
@@ -776,5 +831,84 @@ describe('submitFiatQuotes', () => {
     await expect(submitFiatQuotes(request)).rejects.toThrow(
       'Computed fiat order source amount is not positive',
     );
+  });
+
+  describe('direct mUSD to money account flow', () => {
+    const MONEY_ACCOUNT_ADDRESS =
+      '0x3333333333333333333333333333333333333333' as Hex;
+
+    const MUSD_QUOTE_REQUEST: QuoteRequest = {
+      from: WALLET_ADDRESS_MOCK,
+      sourceBalanceRaw: '10000000',
+      sourceChainId: MUSD_MONAD_FIAT_ASSET.chainId,
+      sourceTokenAddress: MUSD_MONAD_FIAT_ASSET.address,
+      sourceTokenAmount: '10000000',
+      targetAmountMinimum: '10000000',
+      targetChainId: MUSD_MONAD_FIAT_ASSET.chainId,
+      targetTokenAddress: MUSD_MONAD_FIAT_ASSET.address,
+    };
+
+    const MUSD_TRANSACTION_MOCK = {
+      id: TRANSACTION_ID_MOCK,
+      txParams: { from: MONEY_ACCOUNT_ADDRESS },
+      type: 'batch',
+    } as TransactionMeta;
+
+    it('uses txParams.from as walletAddress when quote is direct mUSD', async () => {
+      const order = getFiatOrderMock({
+        status: RampsOrderStatus.Completed,
+      });
+      const { callMock, request } = getRequest({
+        order,
+        quotes: [getFiatQuoteMock({ request: MUSD_QUOTE_REQUEST })],
+        transaction: MUSD_TRANSACTION_MOCK,
+      });
+
+      await submitFiatQuotes(request);
+
+      const getOrderCall = callMock.mock.calls.find(
+        ([action]: [string]) => action === 'RampsController:getOrder',
+      );
+      expect(getOrderCall?.[3]).toBe(MONEY_ACCOUNT_ADDRESS);
+    });
+
+    it('uses MUSD_MONAD_FIAT_ASSET for order validation when quote is direct mUSD', async () => {
+      const order = getFiatOrderMock({
+        cryptoCurrency: {
+          assetId:
+            'eip155:143/erc20:0xaca92e438df0b2401ff60da7e4337b687a2435da',
+          chainId: 'eip155:143',
+          symbol: 'MUSD',
+        },
+        status: RampsOrderStatus.Completed,
+      });
+      buildCaipAssetTypeMock.mockReturnValue(
+        'eip155:143/erc20:0xaca92e438df0b2401ff60da7e4337b687a2435da',
+      );
+      const { request } = getRequest({
+        order,
+        quotes: [getFiatQuoteMock({ request: MUSD_QUOTE_REQUEST })],
+        transaction: MUSD_TRANSACTION_MOCK,
+      });
+
+      await submitFiatQuotes(request);
+      expect(deriveFiatAssetForFiatPaymentMock).not.toHaveBeenCalled();
+    });
+
+    it('falls back to deriveFiatAssetForFiatPayment when quote is not direct mUSD', async () => {
+      const order = getFiatOrderMock({
+        cryptoCurrency: {
+          assetId: FIAT_ASSET_CAIP_ID_MOCK,
+          chainId: 'eip155:137',
+          symbol: 'POL',
+        },
+        status: RampsOrderStatus.Completed,
+      });
+      const { request } = getRequest({ order });
+
+      await submitFiatQuotes(request);
+
+      expect(deriveFiatAssetForFiatPaymentMock).toHaveBeenCalledTimes(1);
+    });
   });
 });

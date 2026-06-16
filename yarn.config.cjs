@@ -39,6 +39,7 @@ const ALLOWED_PEER_DEPENDENCIES = ['react', 'react-dom', 'react-native'];
 const TOOLS = [
   '@metamask/foundryup',
   '@metamask/messenger-cli',
+  '@metamask/wallet-cli',
   '@metamask/wallet-framework-docs',
 ];
 
@@ -257,7 +258,7 @@ module.exports = defineConfig({
       if (isChildWorkspace) {
         workspace.unset('packageManager');
       } else {
-        expectWorkspaceField(workspace, 'packageManager', 'yarn@4.16.0');
+        expectYarnPackageManager(workspace);
       }
 
       // All packages must specify a minimum Node.js version of 18.18.
@@ -1017,5 +1018,28 @@ async function expectCodeowner(workspace, workspaceBasename) {
         'Missing CODEOWNER rule for package.json co-ownership with core platform team',
       );
     }
+  }
+}
+
+/**
+ * Expect that the workspace has a package manager set, and that it is Yarn with
+ * a sha256 hash.
+ *
+ * @param {Workspace} workspace - The workspace to check.
+ */
+function expectYarnPackageManager(workspace) {
+  expectWorkspaceField(workspace, 'packageManager');
+
+  const { packageManager } = workspace.manifest;
+  if (!packageManager.startsWith('yarn@')) {
+    workspace.error(
+      `Expected packageManager to start with "yarn@<version>", but got "${packageManager}".`,
+    );
+  }
+
+  if (!packageManager.includes('sha256')) {
+    workspace.error(
+      `Expected packageManager to include a sha256 hash, but got "${packageManager}".`,
+    );
   }
 }

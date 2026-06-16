@@ -7,8 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.0.0]
+
+### Added
+
+- Add `getMoneyAccountBalance` method that fetches the account's mUSD wallet balance and vault shares valued in mUSD in a single Multicall3 `aggregate3` request. ([#9100](https://github.com/MetaMask/core/pull/9100))
+- Add optional `underlyingToken` field to `VaultConfig` (validated by `VaultConfigStruct`). When present, `getMusdBalance` reads the underlying mUSD token address from config and skips the on-chain `Accountant.base()` call; when absent it falls back to reading `base()` on-chain. ([#9100](https://github.com/MetaMask/core/pull/9100))
+- Add support for configuring the balance `staleTime` at runtime via the `moneyAccountBalanceStaletime` remote feature flag. The flag is read during `init()` and updated on `RemoteFeatureFlagController:stateChange`; absent or malformed values fall back to the default of 60 seconds. ([#9100](https://github.com/MetaMask/core/pull/9100))
+
 ### Changed
 
+- **BREAKING:** Rename `musdSHFvd` to `vmusd` across the public API to align with the vmUSD token name: ([#9100](https://github.com/MetaMask/core/pull/9100))
+  - `getMusdSHFvdBalance` method → `getVmusdBalance`
+  - `MoneyAccountBalanceServiceGetMusdSHFvdBalanceAction` type → `MoneyAccountBalanceServiceGetVmusdBalanceAction`
+  - `MoneyAccountBalanceService:getMusdSHFvdBalance` messenger action string → `MoneyAccountBalanceService:getVmusdBalance`
+  - `MoneyAccountBalanceResponse.musdSHFvdValueInMusd` property → `vmusdValueInMusd`
+- Increase the default `staleTime` for on-chain balance reads (`getMusdBalance`, `getVmusdBalance`, `getMusdEquivalentValue`, and the default for `getExchangeRate`) from 30 seconds to 60 seconds. This default is now overridable via the `moneyAccountBalanceStaletime` remote feature flag. ([#9100](https://github.com/MetaMask/core/pull/9100))
 - Bump `@metamask/utils` from `^11.9.0` to `^11.11.0` ([#9074](https://github.com/MetaMask/core/pull/9074))
 - Bump `@metamask/controller-utils` from `^12.1.0` to `^12.2.0` ([#9058](https://github.com/MetaMask/core/pull/9058), [#9083](https://github.com/MetaMask/core/pull/9083))
 - Bump `@metamask/base-data-service` from `^0.1.2` to `^0.1.3` ([#8799](https://github.com/MetaMask/core/pull/8799))
@@ -63,7 +77,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Compute mUSD-equivalent value of vault share holdings (`getMusdEquivalentValue`)
   - Fetch vault APY from the Veda performance REST API (`getVaultApy`)
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/money-account-balance-service@1.0.2...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/money-account-balance-service@2.0.0...HEAD
+[2.0.0]: https://github.com/MetaMask/core/compare/@metamask/money-account-balance-service@1.0.2...@metamask/money-account-balance-service@2.0.0
 [1.0.2]: https://github.com/MetaMask/core/compare/@metamask/money-account-balance-service@1.0.1...@metamask/money-account-balance-service@1.0.2
 [1.0.1]: https://github.com/MetaMask/core/compare/@metamask/money-account-balance-service@1.0.0...@metamask/money-account-balance-service@1.0.1
 [1.0.0]: https://github.com/MetaMask/core/compare/@metamask/money-account-balance-service@0.2.0...@metamask/money-account-balance-service@1.0.0

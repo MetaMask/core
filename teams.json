@@ -57,6 +57,7 @@
   "metamask/react-data-query": "team-core-platform",
   "metamask/profile-metrics-controller": "team-mobile-platform,team-extension-platform",
   "metamask/wallet": "team-core-platform",
+  "metamask/wallet-cli": "team-core-platform,team-ocap-kernel",
   "metamask/passkey-controller": "team-onboarding",
   "metamask/seedless-onboarding-controller": "team-onboarding",
   "metamask/shield-controller": "team-shield",

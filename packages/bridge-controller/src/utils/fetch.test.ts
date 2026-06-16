@@ -1,10 +1,10 @@
 import { AddressZero } from '@ethersproject/constants';
 import type { CaipAssetType } from '@metamask/utils';
 
-import mockBridgeQuotesErc20Erc20 from '../../tests/mock-quotes-erc20-erc20.json';
-import mockBridgeQuotesNativeErc20 from '../../tests/mock-quotes-native-erc20.json';
+import { mockBridgeQuotesErc20Erc20V1 } from '../../tests/mock-quotes-erc20-erc20';
+import { mockBridgeQuotesNativeErc20V1 } from '../../tests/mock-quotes-native-erc20';
 import { BridgeClientId, BRIDGE_PROD_API_BASE_URL } from '../constants/bridge';
-import { QuoteResponse, FeatureId } from '../types';
+import { FeatureId } from '../types';
 import {
   fetchBridgeQuotes,
   fetchBridgeTokens,
@@ -162,7 +162,7 @@ describe('fetch', () => {
       const mockConsoleWarn = jest
         .spyOn(console, 'warn')
         .mockImplementation(jest.fn());
-      mockFetchFn.mockResolvedValue(mockBridgeQuotesNativeErc20);
+      mockFetchFn.mockResolvedValue(mockBridgeQuotesNativeErc20V1);
       const { signal } = new AbortController();
 
       const result = await fetchBridgeQuotes(
@@ -199,7 +199,7 @@ describe('fetch', () => {
       );
 
       expect(result.quotes).toStrictEqual(
-        mockBridgeQuotesNativeErc20.map((quote) => ({
+        mockBridgeQuotesNativeErc20V1.map((quote) => ({
           ...quote,
           featureId: undefined,
           resetApproval: undefined,
@@ -215,17 +215,17 @@ describe('fetch', () => {
         .spyOn(console, 'warn')
         .mockImplementation(jest.fn());
       mockFetchFn.mockResolvedValue([
-        ...mockBridgeQuotesErc20Erc20,
+        ...mockBridgeQuotesErc20Erc20V1,
         {
-          ...mockBridgeQuotesErc20Erc20[0],
+          ...mockBridgeQuotesErc20Erc20V1[0],
           quote: {
-            ...mockBridgeQuotesErc20Erc20[0].quote,
+            ...mockBridgeQuotesErc20Erc20V1[0].quote,
             bridges: ['lifi'],
             bridgeId: 'lifi',
           },
           approval: null,
         },
-        { ...mockBridgeQuotesErc20Erc20[0], trade: null },
+        { ...mockBridgeQuotesErc20Erc20V1[0], trade: null },
       ]);
       const { signal } = new AbortController();
 
@@ -263,7 +263,7 @@ describe('fetch', () => {
       );
 
       expect(result.quotes).toStrictEqual(
-        mockBridgeQuotesErc20Erc20.map((quote) => ({
+        mockBridgeQuotesErc20Erc20V1.map((quote) => ({
           ...quote,
           featureId: undefined,
           resetApproval: undefined,
@@ -282,28 +282,28 @@ describe('fetch', () => {
         .spyOn(console, 'warn')
         .mockImplementation(jest.fn());
       mockFetchFn.mockResolvedValue([
-        ...mockBridgeQuotesErc20Erc20,
-        ...mockBridgeQuotesErc20Erc20.map(
+        ...mockBridgeQuotesErc20Erc20V1,
+        ...mockBridgeQuotesErc20Erc20V1.map(
           ({ quote, ...restOfQuote }) => restOfQuote,
         ),
         {
-          ...mockBridgeQuotesErc20Erc20[0],
+          ...mockBridgeQuotesErc20Erc20V1[0],
           quote: {
             bridges: ['lifi'],
             bridgeId: 'lifi',
             srcAsset: {
-              ...mockBridgeQuotesErc20Erc20[0].quote.srcAsset,
+              ...mockBridgeQuotesErc20Erc20V1[0].quote.srcAsset,
               decimals: undefined,
             },
           },
         },
         {
-          ...mockBridgeQuotesErc20Erc20[1],
+          ...mockBridgeQuotesErc20Erc20V1[1],
           quote: {
             bridges: ['socket'],
             bridgeId: 'socket',
             destAsset: {
-              ...mockBridgeQuotesErc20Erc20[1].quote.destAsset,
+              ...mockBridgeQuotesErc20Erc20V1[1].quote.destAsset,
               address: undefined,
             },
           },
@@ -345,7 +345,7 @@ describe('fetch', () => {
       );
 
       expect(result.quotes).toStrictEqual(
-        mockBridgeQuotesErc20Erc20.map((quote) => ({
+        mockBridgeQuotesErc20Erc20V1.map((quote) => ({
           ...quote,
           featureId: undefined,
           resetApproval: undefined,
@@ -382,7 +382,7 @@ describe('fetch', () => {
     });
 
     it('should fetch bridge quotes successfully, with aggIds, bridgeIds and fee=0', async () => {
-      mockFetchFn.mockResolvedValue(mockBridgeQuotesNativeErc20);
+      mockFetchFn.mockResolvedValue(mockBridgeQuotesNativeErc20V1);
       const { signal } = new AbortController();
 
       const result = await fetchBridgeQuotes(
@@ -422,7 +422,7 @@ describe('fetch', () => {
       );
 
       expect(result.quotes).toStrictEqual(
-        mockBridgeQuotesNativeErc20.map((quote) => ({
+        mockBridgeQuotesNativeErc20V1.map((quote) => ({
           ...quote,
           featureId: FeatureId.PERPS,
           resetApproval: undefined,
@@ -703,7 +703,7 @@ describe('fetch', () => {
     let mockConsoleWarn: jest.SpyInstance;
 
     const mockBatchSellTrades = {
-      transactions: mockBridgeQuotesErc20Erc20.flatMap(
+      transactions: mockBridgeQuotesErc20Erc20V1.flatMap(
         ({ trade, approval }) => [
           {
             ...trade,
@@ -745,10 +745,7 @@ describe('fetch', () => {
       signal,
       method: 'POST',
       body: JSON.stringify(
-        formatBatchSellTradesRequest(
-          mockBridgeQuotesErc20Erc20 as unknown as QuoteResponse[],
-          stxEnabled,
-        ),
+        formatBatchSellTradesRequest(mockBridgeQuotesErc20Erc20V1, stxEnabled),
       ),
     });
 
@@ -772,7 +769,7 @@ describe('fetch', () => {
         const { signal } = new AbortController();
 
         const result = await fetchBatchSellTrades(
-          mockBridgeQuotesErc20Erc20 as unknown as QuoteResponse[],
+          mockBridgeQuotesErc20Erc20V1,
           false,
           signal,
           BridgeClientId.EXTENSION,
@@ -799,7 +796,7 @@ describe('fetch', () => {
 
         await expect(
           fetchBatchSellTrades(
-            mockBridgeQuotesErc20Erc20 as unknown as QuoteResponse[],
+            mockBridgeQuotesErc20Erc20V1,
             false,
             signal,
             BridgeClientId.EXTENSION,
@@ -865,10 +862,7 @@ describe('fetch', () => {
 
         await expect(
           fetchBatchSellTrades(
-            [
-              ...(mockBridgeQuotesErc20Erc20 as unknown as QuoteResponse[]),
-              null,
-            ],
+            [...mockBridgeQuotesErc20Erc20V1, null],
             false,
             signal,
             BridgeClientId.EXTENSION,
@@ -882,7 +876,7 @@ describe('fetch', () => {
         const result = await Promise.allSettled(
           Array.from({ length: 3 }, () =>
             fetchBatchSellTrades(
-              mockBridgeQuotesErc20Erc20 as unknown as QuoteResponse[],
+              mockBridgeQuotesErc20Erc20V1,
               false,
               signal,
               BridgeClientId.EXTENSION,
@@ -932,7 +926,7 @@ describe('fetch', () => {
         const { signal } = new AbortController();
 
         await fetchBatchSellTrades(
-          mockBridgeQuotesErc20Erc20 as unknown as QuoteResponse[],
+          mockBridgeQuotesErc20Erc20V1,
           true,
           signal,
           BridgeClientId.EXTENSION,

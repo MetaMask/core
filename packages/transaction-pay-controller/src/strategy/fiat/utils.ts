@@ -15,6 +15,7 @@ import { getTokenInfo } from '../../utils/token';
 import { getTransferredAmountFromTxHash } from '../../utils/transaction';
 import type { RelayQuote } from '../relay/types';
 import type { TransactionPayFiatAsset } from './constants';
+import { FIAT_ENABLED_TYPES } from './constants';
 
 const log = createModuleLogger(projectLogger, 'fiat-utils');
 
@@ -28,7 +29,19 @@ export function deriveFiatAssetForFiatPayment(
   return getFiatAssetPerTransactionType(messenger, txType);
 }
 
-function resolveTransactionType(
+/**
+ * Resolves the effective transaction type for fiat strategy purposes.
+ *
+ * For non-batch transactions returns the transaction's own type.
+ * For batch transactions returns the first nested transaction type
+ * that appears in the enabled types list, or the batch type itself
+ * if no nested type matches.
+ *
+ * @param transaction - The transaction metadata to inspect.
+ * @param enabledTypes - Transaction types eligible for fiat payment.
+ * @returns The resolved transaction type, or `undefined`.
+ */
+export function resolveTransactionType(
   transaction: TransactionMeta,
   enabledTypes: TransactionType[],
 ): TransactionType | undefined {
@@ -41,6 +54,26 @@ function resolveTransactionType(
   )?.type;
 
   return nestedType ?? transaction.type;
+}
+
+/**
+ * Checks whether a transaction is a Money Account deposit.
+ *
+ * Handles both direct `moneyAccountDeposit` transactions and EIP-7702
+ * batch transactions that contain a `moneyAccountDeposit` nested call.
+ * Uses {@link resolveTransactionType} with `FIAT_ENABLED_TYPES` to
+ * correctly skip non-deposit nested types (e.g. `tokenMethodApprove`).
+ *
+ * @param transaction - The transaction metadata to inspect.
+ * @returns `true` if the transaction is a Money Account deposit.
+ */
+export function isMoneyAccountDepositTransaction(
+  transaction: TransactionMeta,
+): boolean {
+  return (
+    resolveTransactionType(transaction, FIAT_ENABLED_TYPES) ===
+    TransactionType.moneyAccountDeposit
+  );
 }
 
 /**

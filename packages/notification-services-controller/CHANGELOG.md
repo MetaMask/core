@@ -18,6 +18,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Bump `@metamask/utils` from `^11.9.0` to `^11.11.0` ([#9074](https://github.com/MetaMask/core/pull/9074))
 - Bump `@metamask/controller-utils` from `^12.1.1` to `^12.2.0` ([#9083](https://github.com/MetaMask/core/pull/9083))
+- Bump `@metamask/profile-sync-controller` from `^28.1.1` to `^28.2.0` ([#9119](https://github.com/MetaMask/core/pull/9119))
+- Bump `@metamask/keyring-controller` from `^27.0.0` to `^27.1.0` ([#9129](https://github.com/MetaMask/core/pull/9129))
 - **BREAKING:** The `NotificationServicesPushController:onNewNotifications` and `NotificationServicesPushController:pushNotificationClicked` messenger events now carry `PushAnalyticsPayload` instead of `INotification`. ([#8944](https://github.com/MetaMask/core/pull/8944))
   - The push payload no longer carries the full notification body; clients construct their analytics events directly from the first-class fields.
   - The `onReceivedHandler` / `onClickHandler` callbacks passed to `createSubscribeToPushNotifications` now receive a `PushAnalyticsPayload` instead of an `INotification`.

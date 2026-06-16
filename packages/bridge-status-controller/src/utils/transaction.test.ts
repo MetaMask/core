@@ -549,7 +549,7 @@ describe('Bridge Status Controller Transaction Utils', () => {
         },
         estimatedProcessingTimeInSeconds: 300,
         trade: 'ABCD',
-        solanaFeesInLamports: '5000',
+        nonEvmFeesInNative: '5000',
         // QuoteMetadata fields
         sentAmount: {
           amount: '1.0',
@@ -660,7 +660,7 @@ describe('Bridge Status Controller Transaction Utils', () => {
         },
         estimatedProcessingTimeInSeconds: 300,
         trade: 'ABCD',
-        solanaFeesInLamports: '5000',
+        nonEvmFeesInNative: '5000',
         // QuoteMetadata fields
         sentAmount: {
           amount: '1.0',
@@ -748,7 +748,7 @@ describe('Bridge Status Controller Transaction Utils', () => {
         },
         estimatedProcessingTimeInSeconds: 300,
         trade: 'ABCD',
-        solanaFeesInLamports: '5000',
+        nonEvmFeesInNative: '5000',
         // QuoteMetadata fields
         sentAmount: {
           amount: '1.0',
@@ -835,7 +835,7 @@ describe('Bridge Status Controller Transaction Utils', () => {
         },
         estimatedProcessingTimeInSeconds: 300,
         trade: 'ABCD',
-        solanaFeesInLamports: '5000',
+        nonEvmFeesInNative: '5000',
         // QuoteMetadata fields
         sentAmount: {
           amount: '1.0',
@@ -923,7 +923,7 @@ describe('Bridge Status Controller Transaction Utils', () => {
         },
         estimatedProcessingTimeInSeconds: 300,
         trade: 'ABCD',
-        solanaFeesInLamports: '5000',
+        nonEvmFeesInNative: '5000',
         // QuoteMetadata fields
         sentAmount: {
           amount: '1.0',
@@ -1011,7 +1011,7 @@ describe('Bridge Status Controller Transaction Utils', () => {
         },
         estimatedProcessingTimeInSeconds: 300,
         trade: 'ABCD',
-        solanaFeesInLamports: '5000',
+        nonEvmFeesInNative: '5000',
         // QuoteMetadata fields
         sentAmount: {
           amount: '1.0',
@@ -1099,7 +1099,7 @@ describe('Bridge Status Controller Transaction Utils', () => {
         },
         estimatedProcessingTimeInSeconds: 300,
         trade: 'ABCD',
-        solanaFeesInLamports: '5000',
+        nonEvmFeesInNative: '5000',
         // QuoteMetadata fields
         sentAmount: {
           amount: '1.0',
@@ -1195,7 +1195,7 @@ describe('Bridge Status Controller Transaction Utils', () => {
         },
         estimatedProcessingTimeInSeconds: 300,
         trade: 'ABCD',
-        solanaFeesInLamports: '5000',
+        nonEvmFeesInNative: '5000',
         // QuoteMetadata fields
         sentAmount: {
           amount: '1.0',
