@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add input primary denomination to submitted bridge history and post-submit analytics.
+
 ### Changed
 
 - Rename `solanaFeesInLamports` to `nonEvmFeesInNative` in unit test mocks ([#9098](https://github.com/MetaMask/core/pull/9098))

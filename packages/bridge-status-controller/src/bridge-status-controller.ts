@@ -6,6 +6,7 @@ import {
   Trade,
   FeatureId,
   BatchSellTradesResponse,
+  InputPrimaryDenomination,
 } from '@metamask/bridge-controller';
 import {
   isNonEvmChainId,
@@ -949,6 +950,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       abTests?: Record<string, string>;
       activeAbTests?: { key: string; value: string }[];
       tokenSecurityTypeDestination?: string | null;
+      inputPrimaryDenomination?: InputPrimaryDenomination;
     },
   ): Promise<TransactionMeta> => {
     let tradeTxMeta!: TransactionMeta;
@@ -1028,6 +1030,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
    * @param activeAbTests - New A/B test context for `active_ab_tests` (migration target). Attributes events to specific experiments.
    * @param tokenSecurityTypeDestination - The security classification of the destination token, supplied by the client (e.g. from token security/scanning data). Pass `null` when no security data is available.
    * @param batchSellTrades - Contains transaction data for the quotes, provided by the obtainGaslessBatch API
+   * @param inputPrimaryDenomination - The denomination shown as the primary source amount input at submission time.
    * @returns The transaction meta
    * @throws An error if transaction submission fails before it gets published
    */
@@ -1043,6 +1046,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     activeAbTests?: { key: string; value: string }[],
     tokenSecurityTypeDestination?: string | null,
     batchSellTrades?: BatchSellTradesResponse | null,
+    inputPrimaryDenomination?: InputPrimaryDenomination,
   ): Promise<TransactionMeta> => {
     /**
      * If there are multiple quote responses, we assume that they all originate from the same src chain
@@ -1099,7 +1103,11 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       this.#trackUnifiedSwapBridgeEvent(
         UnifiedSwapBridgeEventName.Submitted,
         undefined,
-        preConfirmationProperties,
+        {
+          ...preConfirmationProperties,
+          input_primary_denomination:
+            inputPrimaryDenomination ?? 'token_amount',
+        },
       );
 
       /**
@@ -1141,6 +1149,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
             abTests,
             activeAbTests,
             tokenSecurityTypeDestination,
+            inputPrimaryDenomination,
           }),
       );
     } catch (error) {
@@ -1167,6 +1176,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
    * @param params.abTests - Legacy A/B test context for `ab_tests` (backward compatibility)
    * @param params.activeAbTests - New A/B test context for `active_ab_tests` (migration target). Attributes events to specific experiments.
    * @param params.tokenSecurityTypeDestination - The security classification of the destination token, supplied by the client (e.g. from token security/scanning data). Pass `null` when no security data is available.
+   * @param params.inputPrimaryDenomination - The denomination shown as the primary source amount input at submission time.
    * @param params.isStxEnabled - Whether smart transactions are enabled on the client, for example the getSmartTransactionsEnabled selector value from the extension
    * @param params.quotesReceivedContext - The context for the QuotesReceived event
    * @returns A lightweight TransactionMeta-like object for history linking
@@ -1179,6 +1189,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     abTests?: Record<string, string>;
     activeAbTests?: { key: string; value: string }[];
     tokenSecurityTypeDestination?: string | null;
+    inputPrimaryDenomination?: InputPrimaryDenomination;
     isStxEnabled?: boolean;
     quotesReceivedContext?: RequiredEventContextFromClient[UnifiedSwapBridgeEventName.QuotesReceived];
   }): Promise<TransactionMeta> => {
@@ -1189,6 +1200,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       abTests,
       activeAbTests,
       tokenSecurityTypeDestination,
+      inputPrimaryDenomination,
       isStxEnabled = false,
       quotesReceivedContext,
     } = params;
@@ -1203,6 +1215,8 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       abTests,
       activeAbTests,
       tokenSecurityTypeDestination,
+      undefined,
+      inputPrimaryDenomination,
     );
   };
 
@@ -1384,6 +1398,10 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       ...getTxStatusesFromHistory(historyItem),
       ...getFinalizedTxProperties(historyItem, txMeta, approvalTxMeta),
       ...getPriceImpactFromQuote(quote),
+      ...(eventName === UnifiedSwapBridgeEventName.Completed && {
+        input_primary_denomination:
+          historyItem.inputPrimaryDenomination ?? 'token_amount',
+      }),
     };
 
     trackMetricsEvent({

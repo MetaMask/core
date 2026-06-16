@@ -1,7 +1,12 @@
 /* eslint-disable @typescript-eslint/naming-convention */
 import type { CaipAssetType, CaipChainId } from '@metamask/utils';
 
-import type { FeatureId, SortOrder, StatusTypes } from '../../types';
+import type {
+  FeatureId,
+  InputPrimaryDenomination,
+  SortOrder,
+  StatusTypes,
+} from '../../types';
 import type {
   UnifiedSwapBridgeEventName,
   MetaMetricsSwapsEventSource,
@@ -28,6 +33,11 @@ export type RequestParams = {
    * available for the selected destination token.
    */
   token_security_type_destination: string | null;
+};
+
+type RequestTokenSymbols = {
+  token_symbol_source: string;
+  token_symbol_destination: string | null;
 };
 
 export type AccountHardwareType =
@@ -74,6 +84,10 @@ export type TxStatusData = {
   destination_transaction?: StatusTypes;
 };
 
+export type InputPrimaryDenominationData = {
+  input_primary_denomination?: InputPrimaryDenomination;
+};
+
 export type InputKeys =
   | 'token_source'
   | 'token_destination'
@@ -108,11 +122,7 @@ export type QuoteWarning =
  * via the RequiredEventContextFromClient mapped type.
  */
 type RequiredEventContextFromClientBase = {
-  [UnifiedSwapBridgeEventName.ButtonClicked]: Pick<
-    RequestParams,
-    'token_symbol_source' | 'token_symbol_destination'
-  >;
-  // When type is object, the payload can be anything
+  [UnifiedSwapBridgeEventName.ButtonClicked]: RequestTokenSymbols;
   [UnifiedSwapBridgeEventName.PageViewed]: object;
   [UnifiedSwapBridgeEventName.InputChanged]: {
     input:
@@ -124,6 +134,10 @@ type RequiredEventContextFromClientBase = {
       | 'token_amount_source';
     input_value: InputValues[keyof InputValues];
     input_amount_preset?: string;
+  } & InputPrimaryDenominationData;
+  [UnifiedSwapBridgeEventName.FiatCryptoToggleClicked]: RequestTokenSymbols & {
+    previous_primary_denomination: InputPrimaryDenomination;
+    new_primary_denomination: InputPrimaryDenomination;
   };
   [UnifiedSwapBridgeEventName.InputSourceDestinationSwitched]: {
     token_symbol_source: RequestParams['token_symbol_source'];
@@ -141,15 +155,16 @@ type RequiredEventContextFromClientBase = {
     token_symbol_source: RequestParams['token_symbol_source'];
     token_symbol_destination: RequestParams['token_symbol_destination'];
     token_security_type_destination: RequestParams['token_security_type_destination'];
-  };
-  [UnifiedSwapBridgeEventName.QuotesReceived]: TradeData & {
-    warnings: QuoteWarning[];
-    best_quote_provider: QuoteFetchData['best_quote_provider'];
-    price_impact: QuoteFetchData['price_impact'];
-    can_submit: QuoteFetchData['can_submit'];
-    usd_balance_source?: number;
-    has_sufficient_gas_for_quote?: boolean | null;
-  };
+  } & InputPrimaryDenominationData;
+  [UnifiedSwapBridgeEventName.QuotesReceived]: TradeData &
+    InputPrimaryDenominationData & {
+      warnings: QuoteWarning[];
+      best_quote_provider: QuoteFetchData['best_quote_provider'];
+      price_impact: QuoteFetchData['price_impact'];
+      can_submit: QuoteFetchData['can_submit'];
+      usd_balance_source?: number;
+      has_sufficient_gas_for_quote?: boolean | null;
+    };
   [UnifiedSwapBridgeEventName.QuotesError]: Pick<
     RequestMetadata,
     'stx_enabled'
@@ -173,7 +188,7 @@ type RequiredEventContextFromClientBase = {
     > & {
       action_type: MetricsActionType;
       batch_id?: string;
-    };
+    } & InputPrimaryDenominationData;
   [UnifiedSwapBridgeEventName.Completed]: TradeData &
     Pick<QuoteFetchData, 'price_impact'> &
     Omit<RequestMetadata, 'security_warnings'> &
@@ -186,10 +201,10 @@ type RequiredEventContextFromClientBase = {
       quoted_vs_used_gas_ratio: number;
       action_type: MetricsActionType;
       batch_id?: string;
-    };
+    } & InputPrimaryDenominationData;
   [UnifiedSwapBridgeEventName.Failed]: (
     | // Tx failed before confirmation
-      (Pick<
+    (Pick<
         RequestMetadata,
         | 'stx_enabled'
         | 'usd_amount_source'
@@ -230,7 +245,7 @@ type RequiredEventContextFromClientBase = {
     'gas_included'
   > &
     Pick<QuoteFetchData, 'price_impact'> &
-    Pick<RequestParams, 'token_symbol_source' | 'token_symbol_destination'> & {
+    RequestTokenSymbols & {
       stx_enabled: RequestMetadata['stx_enabled'];
       can_submit: QuoteFetchData['can_submit'];
     };
@@ -239,7 +254,7 @@ type RequiredEventContextFromClientBase = {
     'gas_included'
   > &
     Pick<QuoteFetchData, 'price_impact'> &
-    Pick<RequestParams, 'token_symbol_source' | 'token_symbol_destination'> & {
+    RequestTokenSymbols & {
       stx_enabled: RequestMetadata['stx_enabled'];
       sort_order: SortOrder;
       best_quote_provider: QuoteFetchData['best_quote_provider'];
@@ -293,22 +308,25 @@ export type EventPropertiesFromControllerState = {
     Omit<
       RequestMetadata,
       'stx_enabled' | 'usd_amount_source' | 'security_warnings'
-    >;
+    > &
+    InputPrimaryDenominationData;
   [UnifiedSwapBridgeEventName.InputChanged]: {
     input: InputKeys;
     input_value: string;
-  };
+  } & InputPrimaryDenominationData;
+  [UnifiedSwapBridgeEventName.FiatCryptoToggleClicked]: RequestParams &
+    Pick<RequestMetadata, 'swap_type'>;
   [UnifiedSwapBridgeEventName.InputSourceDestinationSwitched]: RequestParams;
   [UnifiedSwapBridgeEventName.QuotesRequested]: RequestParams &
     RequestMetadata & {
       has_sufficient_funds: boolean;
-    };
+    } & InputPrimaryDenominationData;
   [UnifiedSwapBridgeEventName.QuotesReceived]: RequestParams &
     RequestMetadata &
     QuoteFetchData &
     TradeData & {
       refresh_count: number; // starts from 0
-    };
+    } & InputPrimaryDenominationData;
   [UnifiedSwapBridgeEventName.QuotesError]: RequestParams &
     RequestMetadata & {
       has_sufficient_funds: boolean;

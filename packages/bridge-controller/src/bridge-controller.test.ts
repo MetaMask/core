@@ -4342,6 +4342,7 @@ describe('BridgeController', function () {
             "assetExchangeRates": {},
             "batchSellTrades": null,
             "batchSellTradesLoadingStatus": null,
+            "inputPrimaryDenomination": "token_amount",
             "minimumBalanceForRentExemptionInLamports": "0",
             "quoteFetchError": null,
             "quoteRequest": [
@@ -4370,7 +4371,11 @@ describe('BridgeController', function () {
             bridgeController.metadata,
             'persist',
           ),
-        ).toMatchInlineSnapshot(`{}`);
+        ).toMatchInlineSnapshot(`
+          {
+            "inputPrimaryDenomination": "token_amount",
+          }
+        `);
       });
     });
 
@@ -4387,6 +4392,7 @@ describe('BridgeController', function () {
             "assetExchangeRates": {},
             "batchSellTrades": null,
             "batchSellTradesLoadingStatus": null,
+            "inputPrimaryDenomination": "token_amount",
             "minimumBalanceForRentExemptionInLamports": "0",
             "quoteFetchError": null,
             "quoteRequest": [

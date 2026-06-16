@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add persisted input primary denomination state and `Unified SwapBridge Fiat Crypto Toggle Clicked` analytics event support.
+
 ### Changed
 
 - Bump `@metamask/assets-controllers` from `^109.0.0` to `^109.1.0` ([#9110](https://github.com/MetaMask/core/pull/9110))
