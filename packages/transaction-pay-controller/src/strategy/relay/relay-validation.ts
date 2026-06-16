@@ -7,18 +7,20 @@ import type {
 import type { Hex } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
 
-import { TransactionPayStrategy } from '../../constants';
 import type {
+  PayStrategyCheckQuoteSupportRequest,
+  PayStrategyQuoteSupportResult,
   TransactionPayControllerMessenger,
   TransactionPayQuote,
 } from '../../types';
 import type { SimulationTransaction } from '../../utils/simulation';
-import { QuoteValidationError } from '../../utils/validation';
 import type { QuoteValidationSimulation } from '../../utils/validation';
 import {
-  buildRelayExecuteRequest,
-  buildRelaySubmitParams,
-} from './relay-submit';
+  isQuoteValidationError,
+  QuoteValidationError,
+  validateQuoteExecution,
+} from '../../utils/validation';
+import { getRelaySubmitCalls } from './relay-submit';
 import type { RelayExecuteRequest, RelayQuote } from './types';
 
 const ERC7579_CALL_TYPE_BATCH = '01';
@@ -32,7 +34,43 @@ const erc7821Interface = new Interface([
 
 export { QuoteValidationError as RelayQuoteValidationError };
 
-export async function buildRelaySimulation({
+export async function validateRelayQuoteSupport(
+  request: PayStrategyCheckQuoteSupportRequest<RelayQuote>,
+): Promise<PayStrategyQuoteSupportResult> {
+  for (const quote of request.quotes) {
+    if (shouldSkipValidation(quote)) {
+      continue;
+    }
+
+    try {
+      const simulation = await buildRelayValidationSimulation({
+        messenger: request.messenger,
+        quote,
+        transaction: request.transaction,
+      });
+
+      await validateQuoteExecution({
+        messenger: request.messenger,
+        quote,
+        signal: request.signal,
+        simulation,
+      });
+    } catch (error) {
+      if (request.signal?.aborted) {
+        throw error;
+      }
+
+      return {
+        isSupported: false,
+        validationError: getValidationError(error),
+      };
+    }
+  }
+
+  return { isSupported: true };
+}
+
+async function buildRelayValidationSimulation({
   messenger,
   quote,
   transaction,
@@ -41,48 +79,36 @@ export async function buildRelaySimulation({
   quote: TransactionPayQuote<RelayQuote>;
   transaction: TransactionMeta;
 }): Promise<QuoteValidationSimulation> {
-  const { allParams } = await buildRelaySubmitParams({
+  const submitCalls = await getRelaySubmitCalls({
     messenger,
     quote,
     transaction,
   });
 
   if (quote.original.metamask.isExecute) {
-    return await buildRelayExecuteSimulation({
-      allParams,
-      messenger,
+    return buildRelayExecuteValidationSimulation(
       quote,
-      transaction,
-    });
+      submitCalls.executeRequest as RelayExecuteRequest,
+    );
   }
 
   if (quote.original.metamask.is7702) {
-    return buildRelay7702BatchSimulation(quote, allParams);
+    return buildRelay7702BatchValidationSimulation(
+      quote,
+      submitCalls.allParams,
+    );
   }
 
   return {
-    transactions: allParams.map(toSimulationTransaction),
+    transactions: submitCalls.allParams.map(toSimulationTransaction),
   };
 }
 
-async function buildRelayExecuteSimulation({
-  allParams,
-  messenger,
-  quote,
-  transaction,
-}: {
-  allParams: TransactionParams[];
-  messenger: TransactionPayControllerMessenger;
-  quote: TransactionPayQuote<RelayQuote>;
-  transaction: TransactionMeta;
-}): Promise<QuoteValidationSimulation> {
-  const executeRequest = await buildRelayExecuteRequest({
-    allParams,
-    messenger,
-    quote,
-    transaction,
-  });
-  validateAuthorizationList(executeRequest, quote);
+function buildRelayExecuteValidationSimulation(
+  quote: TransactionPayQuote<RelayQuote>,
+  executeRequest: RelayExecuteRequest,
+): QuoteValidationSimulation {
+  validateAuthorizationList(executeRequest);
 
   const transactionToSimulate = {
     data: executeRequest.data.data,
@@ -99,7 +125,7 @@ async function buildRelayExecuteSimulation({
   };
 }
 
-function buildRelay7702BatchSimulation(
+function buildRelay7702BatchValidationSimulation(
   quote: TransactionPayQuote<RelayQuote>,
   allParams: TransactionParams[],
 ): QuoteValidationSimulation {
@@ -147,10 +173,7 @@ function buildEip7702BatchTransaction(
   };
 }
 
-function validateAuthorizationList(
-  executeRequest: RelayExecuteRequest,
-  quote: TransactionPayQuote<RelayQuote>,
-): void {
+function validateAuthorizationList(executeRequest: RelayExecuteRequest): void {
   for (const authorization of executeRequest.data.authorizationList ?? []) {
     if (
       authorization.address === undefined ||
@@ -160,13 +183,9 @@ function validateAuthorizationList(
       authorization.s === undefined ||
       authorization.yParity === undefined
     ) {
-      throw new QuoteValidationError({
-        chainId: quote.request.sourceChainId,
-        code: 'quote_authorization_invalid',
-        message: 'Relay execute authorization list is incomplete',
-        strategy: TransactionPayStrategy.Relay,
-        tokenAddress: quote.request.sourceTokenAddress,
-      });
+      throw new QuoteValidationError(
+        'Relay execute authorization list is incomplete',
+      );
     }
   }
 }
@@ -183,6 +202,22 @@ function toSimulationTransaction(
     to: params.to as Hex | undefined,
     value: (params.value as Hex | undefined) ?? '0x0',
   };
+}
+
+function shouldSkipValidation(quote: TransactionPayQuote<RelayQuote>): boolean {
+  const { request } = quote;
+
+  return Boolean(
+    request.isHyperliquidSource ?? request.isPolymarketDepositWallet ?? false,
+  );
+}
+
+function getValidationError(error: unknown): string {
+  if (isQuoteValidationError(error)) {
+    return error.validationError;
+  }
+
+  return (error as Error).message;
 }
 
 function decimalToHex(value: string): Hex {

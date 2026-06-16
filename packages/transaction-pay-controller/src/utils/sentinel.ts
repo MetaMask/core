@@ -72,6 +72,9 @@ export async function simulateTransactions(
   request: SentinelSimulationRequest,
 ): Promise<SentinelSimulationResponse> {
   const url = await getSimulationUrl(chainId);
+
+  log('Simulation request', { chainId, request, url });
+
   const response = await fetch(url, {
     method: 'POST',
     headers: {
@@ -106,14 +109,24 @@ async function getSimulationUrl(chainId: Hex): Promise<string> {
     );
   }
 
-  return getUrl(network.network);
+  const url = getUrl(network.network);
+
+  log('Resolved simulation URL', { chainId, network, url });
+
+  return url;
 }
 
 async function getNetworkData(): Promise<SentinelNetworkResponse> {
+  log('Fetching simulation networks');
+
   const response = await fetch(
     `${getUrl('ethereum-mainnet')}${ENDPOINT_NETWORKS}`,
   );
-  return await response.json();
+  const networkData = await response.json();
+
+  log('Fetched simulation networks', { networkData });
+
+  return networkData;
 }
 
 function getUrl(subdomain: string): string {

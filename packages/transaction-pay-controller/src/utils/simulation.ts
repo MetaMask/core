@@ -1,10 +1,9 @@
 import { defaultAbiCoder } from '@ethersproject/abi';
+import { createModuleLogger } from '@metamask/utils';
 import type { Hex, Json } from '@metamask/utils';
 
-import type {
-  TransactionPayControllerMessenger,
-  TransactionPayQuoteValidationErrorCode,
-} from '../types';
+import { projectLogger } from '../logger';
+import type { TransactionPayControllerMessenger } from '../types';
 import { isChainExcludedFromInfura } from './feature-flags';
 import { rpcRequest } from './provider';
 import {
@@ -23,6 +22,8 @@ const PANIC_SELECTOR = '0x4e487b71';
 const QUOTE_SIMULATION_FAILED_PREFIX = /^Quote simulation failed\s*[-:]\s*/iu;
 const RPC_FALLBACK_UNSUPPORTED_REGEX =
   /(does not exist|invalid argument|invalid params|method .*not|not supported|too many arguments|unsupported)/iu;
+
+const log = createModuleLogger(projectLogger, 'simulation');
 
 export type SimulationTransaction = SentinelSimulationTransaction;
 
@@ -60,12 +61,9 @@ type SimulationRequestWithOverrides = SimulationRequest & {
 };
 
 export class TransactionPaySimulationError extends Error {
-  readonly code: TransactionPayQuoteValidationErrorCode;
-
-  constructor(code: TransactionPayQuoteValidationErrorCode, message: string) {
+  constructor(message: string) {
     super(message);
     this.name = 'TransactionPaySimulationError';
-    this.code = code;
   }
 }
 
@@ -74,6 +72,12 @@ export async function simulateQuoteTransactions(
 ): Promise<void> {
   const requestWithOverrides = addSimulationOverrides(request);
   let responseTransactions: SentinelSimulationResponseTransaction[];
+
+  log('Simulating quote transactions', {
+    chainId: request.chainId,
+    hasMock7702From: Boolean(request.mock7702From),
+    transactionCount: request.transactions.length,
+  });
 
   try {
     const response = await simulateTransactions(request.chainId, {
@@ -84,29 +88,24 @@ export async function simulateQuoteTransactions(
     });
     responseTransactions = response.transactions;
   } catch (error) {
+    log('Sentinel simulation failed', { error });
+
     const fallbackResult =
       await getFallbackSimulationResult(requestWithOverrides);
     const fallbackError = fallbackResult?.error;
 
     if (fallbackResult?.isSupported && !fallbackError) {
+      log('RPC fallback simulation passed');
       return;
     }
 
     if (!fallbackError && isSentinelChainUnsupportedError(error)) {
+      log('Skipping validation for Sentinel-unsupported chain');
       return;
     }
 
-    const { message } = error as Error;
-    const code =
-      fallbackError ||
-      isQuoteSimulationFailure(error) ||
-      !(error instanceof SentinelSimulationError)
-        ? 'quote_simulation_failed'
-        : 'quote_validation_unavailable';
-
     throw new TransactionPaySimulationError(
-      code,
-      fallbackError ?? normalizeSimulationErrorMessage(message),
+      fallbackError ?? normalizeSimulationErrorMessage(getErrorMessage(error)),
     );
   }
 
@@ -128,8 +127,13 @@ async function validateSimulationResponse(
     const fallbackError = (await getFallbackSimulationResult(request, index))
       ?.error;
 
+    log('Simulation response transaction failed', {
+      error,
+      fallbackError,
+      index,
+    });
+
     throw new TransactionPaySimulationError(
-      'quote_simulation_failed',
       fallbackError ?? normalizeSimulationErrorMessage(error),
     );
   }
@@ -165,12 +169,20 @@ async function getFallbackSimulationResult(
   transactionIndex = 0,
 ): Promise<RpcFallbackSimulationResult | undefined> {
   if (request.transactions.length !== 1) {
+    log('Skipping RPC fallback for multi-transaction simulation', {
+      transactionCount: request.transactions.length,
+    });
+
     return undefined;
   }
 
   const transaction = request.transactions[transactionIndex];
 
   if (!transaction) {
+    log('Skipping RPC fallback for missing simulation transaction', {
+      transactionIndex,
+    });
+
     return undefined;
   }
 
@@ -180,10 +192,16 @@ async function getFallbackSimulationResult(
   );
 
   if (debugTraceCallResult?.isSupported) {
+    log('debug_traceCall fallback completed', debugTraceCallResult);
+
     return debugTraceCallResult;
   }
 
-  return await getEstimateGasResult(request, transaction);
+  const estimateGasResult = await getEstimateGasResult(request, transaction);
+
+  log('eth_estimateGas fallback completed', estimateGasResult);
+
+  return estimateGasResult;
 }
 
 async function getDebugTraceCallResult(
@@ -191,6 +209,8 @@ async function getDebugTraceCallResult(
   transaction: SimulationTransaction,
 ): Promise<RpcFallbackSimulationResult | undefined> {
   try {
+    log('Running debug_traceCall fallback');
+
     const trace = await rpcRequest<RpcCallTrace>({
       messenger: request.messenger,
       chainId: request.chainId,
@@ -211,6 +231,8 @@ async function getDebugTraceCallResult(
       isSupported: true,
     };
   } catch (error) {
+    log('debug_traceCall fallback failed', { error });
+
     return getRpcFallbackErrorResult(error);
   }
 }
@@ -220,6 +242,8 @@ async function getEstimateGasResult(
   transaction: SimulationTransaction,
 ): Promise<RpcFallbackSimulationResult | undefined> {
   try {
+    log('Running eth_estimateGas fallback');
+
     await rpcRequest({
       messenger: request.messenger,
       chainId: request.chainId,
@@ -228,6 +252,8 @@ async function getEstimateGasResult(
       options: getRpcFallbackRequestOptions(request),
     });
   } catch (error) {
+    log('eth_estimateGas fallback failed', { error });
+
     return getRpcFallbackErrorResult(error);
   }
 
@@ -261,67 +287,39 @@ function getRpcFallbackRequestOptions(request: SimulationRequest): {
 }
 
 function getRpcCallTraceError(trace: RpcCallTrace): string | undefined {
-  const ownErrors = [
+  const errors = [
     trace.revertReason,
     decodeRevertData(trace.output),
     trace.error,
-  ];
-  const nestedErrors = (trace.calls ?? [])
-    .map((call) => getRpcCallTraceError(call))
-    .filter((error): error is string => error !== undefined);
-  const errors = [...ownErrors, ...nestedErrors]
+  ]
     .filter((error): error is string => error !== undefined)
     .map(normalizeSimulationErrorMessage);
 
-  return errors.find((error) => !isGenericSimulationError(error)) ?? errors[0];
+  return errors[0];
 }
 
 function getRpcErrorMessage(error: unknown): string | undefined {
-  return (
-    decodeRevertData(findRevertData(error)) ??
-    findErrorMessage(error)?.replace(/^Error: /u, '')
-  );
-}
-
-function findRevertData(value: unknown): Hex | undefined {
-  if (typeof value === 'string') {
-    return isRevertData(value) ? (value as Hex) : undefined;
+  if (typeof error === 'string') {
+    return decodeRevertData(error as Hex) ?? error;
   }
 
-  if (!value || typeof value !== 'object') {
+  if (error instanceof Error) {
+    return error.message.replace(/^Error: /u, '');
+  }
+
+  if (!error || typeof error !== 'object') {
     return undefined;
   }
 
-  const valueRecord = value as Record<string, unknown>;
+  const { data, message } = error as Record<string, unknown>;
 
-  return (
-    findRevertData(valueRecord.data) ??
-    findRevertData(valueRecord.error) ??
-    findRevertData(valueRecord.originalError)
-  );
-}
-
-function findErrorMessage(value: unknown): string | undefined {
-  if (value instanceof Error) {
-    return value.message;
+  if (typeof data === 'string') {
+    return decodeRevertData(data as Hex) ?? data;
   }
 
-  if (typeof value === 'string') {
-    return value;
-  }
-
-  if (!value || typeof value !== 'object') {
-    return undefined;
-  }
-
-  const valueRecord = value as Record<string, unknown>;
-
-  return (
-    findErrorMessage(valueRecord.message) ??
-    findErrorMessage(valueRecord.data) ??
-    findErrorMessage(valueRecord.error) ??
-    findErrorMessage(valueRecord.originalError)
-  );
+  return typeof message === 'string'
+    ? message.replace(/^Error: /u, '')
+    : undefined;
 }
 
 function decodeRevertData(data?: Hex): string | undefined {
@@ -376,12 +374,6 @@ function toRpcCallTransaction(
   };
 }
 
-function isQuoteSimulationFailure(error: unknown): boolean {
-  const message = error instanceof Error ? error.message : String(error);
-
-  return QUOTE_SIMULATION_FAILED_PREFIX.test(message);
-}
-
 function isSentinelChainUnsupportedError(error: unknown): boolean {
   return (
     error instanceof SentinelSimulationError &&
@@ -393,42 +385,24 @@ function normalizeSimulationErrorMessage(message: string): string {
   return message.replace(QUOTE_SIMULATION_FAILED_PREFIX, '');
 }
 
-function isGenericSimulationError(message: string): boolean {
-  return /^(execution reverted|reverted)$/iu.test(message.trim());
-}
-
-function isRevertData(value: string): boolean {
-  return (
-    value.startsWith(ERROR_STRING_SELECTOR) || value.startsWith(PANIC_SELECTOR)
-  );
-}
-
 function getCallTraceError(
   transaction: SentinelSimulationResponseTransaction,
 ): string | undefined {
-  return findCallTraceError(transaction.callTrace);
-}
+  const { callTrace } = transaction;
 
-function findCallTraceError(
-  callTrace: SentinelSimulationResponseTransaction['callTrace'],
-): string | undefined {
   if (!callTrace) {
     return undefined;
   }
 
-  if (callTrace.error) {
-    return callTrace.error;
+  return decodeRevertData(callTrace.output) ?? callTrace.error;
+}
+
+function getErrorMessage(error: unknown): string {
+  if (error instanceof Error) {
+    return error.message;
   }
 
-  for (const nestedCall of callTrace.calls ?? []) {
-    const error = findCallTraceError(nestedCall);
-
-    if (error) {
-      return error;
-    }
-  }
-
-  return undefined;
+  return String(error);
 }
 
 function getAccountUpgradeOverride(account: Hex): Record<Hex, { code: Hex }> {

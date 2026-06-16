@@ -55,9 +55,13 @@ const FALLBACK_HASH = '0x0' as Hex;
 
 const log = createModuleLogger(projectLogger, 'relay-strategy');
 
-export type RelaySubmitParams = {
+type RelaySubmitParams = {
   allParams: TransactionParams[];
   normalizedParams: TransactionParams[];
+};
+
+type RelaySubmitCalls = RelaySubmitParams & {
+  executeRequest?: RelayExecuteRequest;
 };
 
 /**
@@ -376,18 +380,18 @@ async function submitTransactions(
     await validateSourceBalance(quote, messenger);
   }
 
-  const { allParams, normalizedParams } = await buildRelaySubmitParams({
-    messenger,
-    quote,
-    transaction,
-  });
+  const { allParams, executeRequest, normalizedParams } =
+    await getRelaySubmitCalls({
+      messenger,
+      quote,
+      transaction,
+    });
 
   if (quote.original.metamask.isExecute) {
     return await submitViaRelayExecute(
       quote,
-      transaction,
       messenger,
-      allParams,
+      executeRequest as RelayExecuteRequest,
     );
   }
 
@@ -425,7 +429,37 @@ export function getRelayTransactionStepData(
     );
 }
 
-export async function buildRelaySubmitParams({
+export async function getRelaySubmitCalls({
+  messenger,
+  quote,
+  transaction,
+}: {
+  messenger: TransactionPayControllerMessenger;
+  quote: TransactionPayQuote<RelayQuote>;
+  transaction: TransactionMeta;
+}): Promise<RelaySubmitCalls> {
+  const { allParams, normalizedParams } = await buildRelaySubmitParams({
+    messenger,
+    quote,
+    transaction,
+  });
+  const executeRequest = quote.original.metamask.isExecute
+    ? await buildRelayExecuteRequest({
+        allParams,
+        messenger,
+        quote,
+        transaction,
+      })
+    : undefined;
+
+  return {
+    allParams,
+    ...(executeRequest ? { executeRequest } : {}),
+    normalizedParams,
+  };
+}
+
+async function buildRelaySubmitParams({
   messenger,
   quote,
   transaction,
@@ -547,23 +581,15 @@ async function buildDelegatedOriginalParams(
  * it to Relay's /execute endpoint for gasless execution.
  *
  * @param quote - Relay quote.
- * @param transaction - Original transaction meta.
  * @param messenger - Controller messenger.
- * @param allParams - All source transaction params to combine.
+ * @param executeBody - Relay execute request to submit.
  * @returns Fallback hash (actual hash comes from relay status polling).
  */
 async function submitViaRelayExecute(
   quote: TransactionPayQuote<RelayQuote>,
-  transaction: TransactionMeta,
   messenger: TransactionPayControllerMessenger,
-  allParams: TransactionParams[],
+  executeBody: RelayExecuteRequest,
 ): Promise<Hex> {
-  const executeBody = await buildRelayExecuteRequest({
-    allParams,
-    messenger,
-    quote,
-    transaction,
-  });
   const { from } = quote.request;
 
   log('Submitting via Relay execute', { executeBody, from });
@@ -581,7 +607,7 @@ async function submitViaRelayExecute(
   return FALLBACK_HASH;
 }
 
-export async function buildRelayExecuteRequest({
+async function buildRelayExecuteRequest({
   allParams,
   messenger,
   quote,

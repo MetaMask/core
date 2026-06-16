@@ -135,24 +135,8 @@ describe('Strategy Utils', () => {
       quotes: [],
     } as never;
 
-    it('wraps boolean false into a support result', async () => {
-      const strategy = {
-        checkQuoteSupport: jest.fn().mockReturnValue(false),
-        getQuotes: jest.fn(),
-        execute: jest.fn(),
-      };
-
-      expect(await checkStrategyQuoteSupport(strategy, request)).toStrictEqual({
-        isSupported: false,
-      });
-      expect(strategy.checkQuoteSupport).toHaveBeenCalledWith(request);
-    });
-
     it('passes through a structured support result unchanged', async () => {
-      const validationError = {
-        code: 'quote_simulation_failed',
-        message: 'boom',
-      };
+      const validationError = 'boom';
       const strategy = {
         checkQuoteSupport: jest.fn().mockReturnValue({
           isSupported: false,

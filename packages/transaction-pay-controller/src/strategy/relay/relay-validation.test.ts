@@ -16,11 +16,11 @@ import {
   simulateTransactions,
 } from '../../utils/sentinel';
 import { getLiveTokenBalance } from '../../utils/token';
+import { isQuoteValidationError } from '../../utils/validation';
 import {
-  isQuoteValidationError,
-  validateQuoteExecution,
-} from '../../utils/validation';
-import { buildRelaySimulation, RelayQuoteValidationError } from './simulation';
+  RelayQuoteValidationError,
+  validateRelayQuoteSupport,
+} from './relay-validation';
 import type { RelayQuote } from './types';
 
 jest.mock('../../utils/feature-flags', () => ({
@@ -116,6 +116,36 @@ describe('Relay quote simulation validation', () => {
     });
   });
 
+  it('skips validation for Hyperliquid source quotes', async () => {
+    await validateRelayQuote({
+      messenger,
+      quote: buildQuote({
+        isHyperliquidSource: true,
+        sourceAmountRaw: '500',
+        transferAmountRaw: '500',
+      }),
+      transaction: TRANSACTION_MOCK,
+    });
+
+    expect(getLiveTokenBalanceMock).not.toHaveBeenCalled();
+    expect(simulateTransactionsMock).not.toHaveBeenCalled();
+  });
+
+  it('skips validation for Polymarket deposit wallet quotes', async () => {
+    await validateRelayQuote({
+      messenger,
+      quote: buildQuote({
+        isPolymarketDepositWallet: true,
+        sourceAmountRaw: '500',
+        transferAmountRaw: '500',
+      }),
+      transaction: TRANSACTION_MOCK,
+    });
+
+    expect(getLiveTokenBalanceMock).not.toHaveBeenCalled();
+    expect(simulateTransactionsMock).not.toHaveBeenCalled();
+  });
+
   it('throws an insufficient source balance error when source amount exceeds live balance', async () => {
     await expect(
       validateRelayQuote({
@@ -127,12 +157,7 @@ describe('Relay quote simulation validation', () => {
         transaction: TRANSACTION_MOCK,
       }),
     ).rejects.toMatchObject({
-      validationError: {
-        availableAmountRaw: '1000',
-        code: 'insufficient_source_balance',
-        message: 'Insufficient quote source amount',
-        requiredAmountRaw: '1500',
-      },
+      validationError: 'Insufficient quote source amount',
     });
     expect(simulateTransactionsMock).not.toHaveBeenCalled();
   });
@@ -148,12 +173,7 @@ describe('Relay quote simulation validation', () => {
         transaction: TRANSACTION_MOCK,
       }),
     ).rejects.toMatchObject({
-      validationError: {
-        availableAmountRaw: '1000',
-        code: 'insufficient_source_balance',
-        message: 'Insufficient balance for decoded quote amount',
-        requiredAmountRaw: '1500',
-      },
+      validationError: 'Insufficient balance for decoded quote amount',
     });
     expect(simulateTransactionsMock).not.toHaveBeenCalled();
   });
@@ -168,10 +188,7 @@ describe('Relay quote simulation validation', () => {
         transaction: TRANSACTION_MOCK,
       }),
     ).rejects.toMatchObject({
-      validationError: {
-        code: 'source_balance_unavailable',
-        message: 'Cannot validate payment token balance - RPC timeout',
-      },
+      validationError: 'Cannot validate payment token balance - RPC timeout',
     });
   });
 
@@ -187,10 +204,7 @@ describe('Relay quote simulation validation', () => {
         transaction: TRANSACTION_MOCK,
       }),
     ).rejects.toMatchObject({
-      validationError: {
-        code: 'quote_simulation_failed',
-        message: 'ERC20: transfer amount exceeds balance',
-      },
+      validationError: 'ERC20: transfer amount exceeds balance',
     });
   });
 
@@ -199,8 +213,7 @@ describe('Relay quote simulation validation', () => {
       transactions: [{ error: 'Quote simulation failed - execution reverted' }],
     });
     rpcRequestMock.mockResolvedValueOnce({
-      error: 'execution reverted',
-      calls: [{ error: 'ERC20: transfer amount exceeds balance' }],
+      error: 'ERC20: transfer amount exceeds balance',
     } as never);
 
     await expect(
@@ -210,10 +223,7 @@ describe('Relay quote simulation validation', () => {
         transaction: TRANSACTION_MOCK,
       }),
     ).rejects.toMatchObject({
-      validationError: {
-        code: 'quote_simulation_failed',
-        message: 'ERC20: transfer amount exceeds balance',
-      },
+      validationError: 'ERC20: transfer amount exceeds balance',
     });
 
     expect(rpcRequestMock).toHaveBeenCalledWith(
@@ -237,7 +247,7 @@ describe('Relay quote simulation validation', () => {
       transactions: [{ error: 'Quote simulation failed - execution reverted' }],
     });
     rpcRequestMock.mockResolvedValueOnce({
-      calls: [{ error: 'route reverted' }],
+      error: 'route reverted',
     } as never);
 
     await expect(
@@ -247,9 +257,7 @@ describe('Relay quote simulation validation', () => {
         transaction: TRANSACTION_MOCK,
       }),
     ).rejects.toMatchObject({
-      validationError: {
-        message: 'route reverted',
-      },
+      validationError: 'route reverted',
     });
 
     expect(rpcRequestMock).toHaveBeenCalledWith(
@@ -337,10 +345,7 @@ describe('Relay quote simulation validation', () => {
         transaction: TRANSACTION_MOCK,
       }),
     ).rejects.toMatchObject({
-      validationError: {
-        code: 'quote_simulation_failed',
-        message: 'execution reverted: route reverted',
-      },
+      validationError: 'execution reverted: route reverted',
     });
 
     expect(rpcRequestMock).toHaveBeenNthCalledWith(
@@ -367,10 +372,8 @@ describe('Relay quote simulation validation', () => {
         transaction: TRANSACTION_MOCK,
       }),
     ).rejects.toMatchObject({
-      validationError: {
-        code: 'quote_simulation_failed',
-        message: 'execution reverted: ERC20: transfer amount exceeds balance',
-      },
+      validationError:
+        'execution reverted: ERC20: transfer amount exceeds balance',
     });
   });
 
@@ -386,10 +389,7 @@ describe('Relay quote simulation validation', () => {
         transaction: TRANSACTION_MOCK,
       }),
     ).rejects.toMatchObject({
-      validationError: {
-        code: 'quote_simulation_failed',
-        message: 'insufficient funds for gas * price + value',
-      },
+      validationError: 'insufficient funds for gas * price + value',
     });
   });
 
@@ -466,11 +466,7 @@ describe('Relay quote simulation validation', () => {
   });
 
   it('identifies relay quote validation errors', async () => {
-    const error = new RelayQuoteValidationError({
-      code: 'quote_simulation_failed',
-      message: 'boom',
-      strategy: TransactionPayStrategy.Relay,
-    });
+    const error = new RelayQuoteValidationError('boom');
 
     expect(isQuoteValidationError(error)).toBe(true);
   });
@@ -605,10 +601,7 @@ describe('Relay quote simulation validation', () => {
         transaction: TRANSACTION_MOCK,
       }),
     ).rejects.toMatchObject({
-      validationError: {
-        code: 'quote_authorization_invalid',
-        message: 'Relay execute authorization list is incomplete',
-      },
+      validationError: 'Relay execute authorization list is incomplete',
     });
   });
 
@@ -621,7 +614,9 @@ describe('Relay quote simulation validation', () => {
         quote: buildQuote({ sourceAmountRaw: '500', transferAmountRaw: '500' }),
         transaction: TRANSACTION_MOCK,
       }),
-    ).rejects.toThrow(TypeError);
+    ).rejects.toMatchObject({
+      validationError: expect.stringContaining('Cannot'),
+    });
   });
 
   it('skips required source amount check for post-quote requests', async () => {
@@ -701,10 +696,12 @@ describe('Relay quote simulation validation', () => {
 
 function buildQuote({
   isExecute = false,
+  isHyperliquidSource,
   is7702 = false,
   isPostQuote = false,
   gasLimits = [],
   paymentOverride,
+  isPolymarketDepositWallet,
   requestAuthorizationList,
   sourceAmountRaw,
   sourceTokenAddress = TOKEN_ADDRESS_MOCK,
@@ -713,10 +710,12 @@ function buildQuote({
   transferAmountRaw,
 }: {
   isExecute?: boolean;
+  isHyperliquidSource?: boolean;
   is7702?: boolean;
   isPostQuote?: boolean;
   gasLimits?: number[];
   paymentOverride?: boolean;
+  isPolymarketDepositWallet?: boolean;
   requestAuthorizationList?: {
     address: Hex;
     chainId: Hex;
@@ -772,6 +771,8 @@ function buildQuote({
     } as RelayQuote,
     request: {
       from: FROM_MOCK,
+      isHyperliquidSource,
+      isPolymarketDepositWallet,
       isPostQuote,
       paymentOverride,
       sourceBalanceRaw: '1000',
@@ -803,16 +804,16 @@ async function validateRelayQuote({
   signal?: AbortSignal;
   transaction: TransactionMeta;
 }): Promise<void> {
-  const simulation = await buildRelaySimulation({
+  const result = await validateRelayQuoteSupport({
     messenger,
-    quote,
+    quotes: [quote],
+    signal,
     transaction,
   });
 
-  await validateQuoteExecution({
-    messenger,
-    quote,
-    signal,
-    simulation,
-  });
+  if (!result.isSupported) {
+    throw new RelayQuoteValidationError(
+      result.validationError ?? 'Relay quote is not supported',
+    );
+  }
 }

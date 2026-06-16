@@ -112,11 +112,5 @@ export async function checkStrategyQuoteSupport(
     return { isSupported: true };
   }
 
-  const result = await strategy.checkQuoteSupport(request);
-
-  if (typeof result === 'boolean') {
-    return { isSupported: result };
-  }
-
-  return result;
+  return await strategy.checkQuoteSupport(request);
 }

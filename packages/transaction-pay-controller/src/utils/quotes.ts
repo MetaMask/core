@@ -11,7 +11,6 @@ import type {
   TransactionData,
   TransactionPayControllerMessenger,
   TransactionPayQuote,
-  TransactionPayQuoteValidationError,
   TransactionPayRequiredToken,
   TransactionPaySourceAmount,
   TransactionPayTotals,
@@ -604,7 +603,7 @@ async function getQuotes(
 ): Promise<{
   batchTransactions: BatchTransaction[];
   quotes: TransactionPayQuote<Json>[];
-  validationError?: TransactionPayQuoteValidationError;
+  validationError?: string;
 }> {
   const { id: transactionId } = transaction;
   const strategies = getStrategiesByName(
@@ -634,7 +633,7 @@ async function getQuotes(
     transaction,
   };
 
-  let validationError: TransactionPayQuoteValidationError | undefined;
+  let validationError: string | undefined;
 
   for (const { name, strategy } of strategies) {
     try {

@@ -78,7 +78,7 @@ describe('simulateQuoteTransactions', () => {
         simulateQuoteTransactions(buildRequest()),
       ).rejects.toMatchObject({
         name: 'TransactionPaySimulationError',
-        code: 'quote_simulation_failed',
+        message: 'network timeout',
       });
     });
 
@@ -98,7 +98,6 @@ describe('simulateQuoteTransactions', () => {
         simulateQuoteTransactions(buildRequest()),
       ).rejects.toMatchObject({
         name: 'TransactionPaySimulationError',
-        code: 'quote_validation_unavailable',
         message: 'Internal server error',
       });
     });
@@ -110,7 +109,6 @@ describe('simulateQuoteTransactions', () => {
       await expect(
         simulateQuoteTransactions(buildRequest()),
       ).rejects.toMatchObject({
-        code: 'quote_simulation_failed',
         message: '0x1234abcd',
       });
     });
@@ -122,7 +120,6 @@ describe('simulateQuoteTransactions', () => {
       await expect(
         simulateQuoteTransactions(buildRequest()),
       ).rejects.toMatchObject({
-        code: 'quote_simulation_failed',
         message: 'Panic(0)',
       });
     });
@@ -134,7 +131,6 @@ describe('simulateQuoteTransactions', () => {
       await expect(
         simulateQuoteTransactions(buildRequest()),
       ).rejects.toMatchObject({
-        code: 'quote_simulation_failed',
         message: 'ERC20: transfer failed',
       });
     });
@@ -146,7 +142,6 @@ describe('simulateQuoteTransactions', () => {
       await expect(
         simulateQuoteTransactions(buildRequest()),
       ).rejects.toMatchObject({
-        code: 'quote_simulation_failed',
         message: 'fallback route error',
       });
     });
@@ -169,7 +164,7 @@ describe('simulateQuoteTransactions', () => {
       expect(await simulateQuoteTransactions(buildRequest())).toBeUndefined();
     });
 
-    it('uses isQuoteSimulationFailure with String() when the thrown error is not an Error instance', async () => {
+    it('uses String() when the thrown error is not an Error instance', async () => {
       simulateTransactionsMock.mockRejectedValue({
         code: 999,
         message: 'custom error',
@@ -185,8 +180,7 @@ describe('simulateQuoteTransactions', () => {
       await expect(
         simulateQuoteTransactions(buildRequest()),
       ).rejects.toMatchObject({
-        code: 'quote_simulation_failed',
-        message: 'custom error',
+        message: '[object Object]',
       });
     });
 
@@ -238,56 +232,40 @@ describe('simulateQuoteTransactions', () => {
       await expect(
         simulateQuoteTransactions(buildRequest()),
       ).rejects.toMatchObject({
-        code: 'quote_simulation_failed',
         message: 'rpc error string',
       });
     });
 
-    it('falls through to nested data messages when the top-level message is missing', async () => {
+    it('uses direct string RPC errors', async () => {
+      simulateTransactionsMock.mockRejectedValue(CHAIN_UNSUPPORTED_ERROR);
+      rpcRequestMock.mockRejectedValueOnce('direct rpc error string');
+
+      await expect(
+        simulateQuoteTransactions(buildRequest()),
+      ).rejects.toMatchObject({
+        message: 'direct rpc error string',
+      });
+    });
+
+    it('ignores nested data messages when the top-level message is missing', async () => {
       simulateTransactionsMock.mockRejectedValue(CHAIN_UNSUPPORTED_ERROR);
       rpcRequestMock.mockRejectedValueOnce({
         data: { message: 'nested rpc error string' },
       });
 
-      await expect(
-        simulateQuoteTransactions(buildRequest()),
-      ).rejects.toMatchObject({
-        code: 'quote_simulation_failed',
-        message: 'nested rpc error string',
-      });
-    });
-
-    it('falls through to nested error messages when message and data are missing', async () => {
-      simulateTransactionsMock.mockRejectedValue(CHAIN_UNSUPPORTED_ERROR);
-      rpcRequestMock.mockRejectedValueOnce({
-        error: { message: 'nested error rpc string' },
-      });
-
-      await expect(
-        simulateQuoteTransactions(buildRequest()),
-      ).rejects.toMatchObject({
-        code: 'quote_simulation_failed',
-        message: 'nested error rpc string',
-      });
-    });
-
-    it('falls through to original error messages when earlier fields are missing', async () => {
-      simulateTransactionsMock.mockRejectedValue(CHAIN_UNSUPPORTED_ERROR);
-      rpcRequestMock.mockRejectedValueOnce({
-        originalError: { message: 'nested original rpc string' },
-      });
-
-      await expect(
-        simulateQuoteTransactions(buildRequest()),
-      ).rejects.toMatchObject({
-        code: 'quote_simulation_failed',
-        message: 'nested original rpc string',
-      });
+      expect(await simulateQuoteTransactions(buildRequest())).toBeUndefined();
     });
 
     it('ignores unsupported chain errors when no RPC fallback message can be extracted', async () => {
       simulateTransactionsMock.mockRejectedValue(CHAIN_UNSUPPORTED_ERROR);
       rpcRequestMock.mockRejectedValueOnce({ code: 3 });
+
+      expect(await simulateQuoteTransactions(buildRequest())).toBeUndefined();
+    });
+
+    it('ignores unsupported chain errors when RPC fallback throws null', async () => {
+      simulateTransactionsMock.mockRejectedValue(CHAIN_UNSUPPORTED_ERROR);
+      rpcRequestMock.mockRejectedValueOnce(null);
 
       expect(await simulateQuoteTransactions(buildRequest())).toBeUndefined();
     });
@@ -302,7 +280,6 @@ describe('simulateQuoteTransactions', () => {
       await expect(
         simulateQuoteTransactions(buildRequest()),
       ).rejects.toMatchObject({
-        code: 'quote_simulation_failed',
         message: 'tx2 route error',
       });
     });
@@ -322,12 +299,11 @@ describe('simulateQuoteTransactions', () => {
       await expect(
         simulateQuoteTransactions(buildRequest()),
       ).rejects.toMatchObject({
-        code: 'quote_simulation_failed',
         message: 'callTrace direct error',
       });
     });
 
-    it('throws when Sentinel response transaction has a nested callTrace error', async () => {
+    it('ignores nested callTrace errors', async () => {
       simulateTransactionsMock.mockResolvedValue({
         transactions: [
           {
@@ -337,20 +313,8 @@ describe('simulateQuoteTransactions', () => {
           },
         ],
       });
-      rpcRequestMock
-        .mockRejectedValueOnce(
-          new Error('method debug_traceCall not supported'),
-        )
-        .mockRejectedValueOnce(
-          new Error('method eth_estimateGas not supported'),
-        );
 
-      await expect(
-        simulateQuoteTransactions(buildRequest()),
-      ).rejects.toMatchObject({
-        code: 'quote_simulation_failed',
-        message: 'nested callTrace error',
-      });
+      expect(await simulateQuoteTransactions(buildRequest())).toBeUndefined();
     });
   });
 

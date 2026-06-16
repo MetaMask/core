@@ -215,11 +215,7 @@ describe('Quotes Utils', () => {
     });
 
     it('stores quote validation errors when quotes are rejected', async () => {
-      const validationError = {
-        code: 'insufficient_source_balance' as const,
-        message: 'Insufficient source token balance for quote',
-        strategy: TransactionPayStrategy.Test,
-      };
+      const validationError = 'Insufficient source token balance for quote';
 
       checkStrategyQuoteSupportMock.mockResolvedValue({
         isSupported: false,
@@ -241,11 +237,7 @@ describe('Quotes Utils', () => {
     });
 
     it('clears quote validation error when quote loading starts', async () => {
-      const validationError = {
-        code: 'insufficient_source_balance' as const,
-        message: 'Insufficient source token balance for quote',
-        strategy: TransactionPayStrategy.Test,
-      };
+      const validationError = 'Insufficient source token balance for quote';
 
       await run();
 
@@ -458,7 +450,9 @@ describe('Quotes Utils', () => {
     it('falls back to next strategy when post-quote support checks fail', async () => {
       const unsupportedStrategy = {
         supports: jest.fn().mockReturnValue(true),
-        checkQuoteSupport: jest.fn().mockResolvedValue(false),
+        checkQuoteSupport: jest.fn().mockResolvedValue({
+          isSupported: false,
+        }),
         getQuotes: jest.fn().mockResolvedValue([QUOTE_MOCK]),
         getBatchTransactions: jest.fn(),
         execute: jest.fn(),

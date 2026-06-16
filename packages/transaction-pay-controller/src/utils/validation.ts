@@ -6,7 +6,6 @@ import { BigNumber } from 'bignumber.js';
 import type {
   TransactionPayControllerMessenger,
   TransactionPayQuote,
-  TransactionPayQuoteValidationError,
 } from '../types';
 import {
   SimulationTransaction,
@@ -35,10 +34,10 @@ export type QuoteValidationRequest = {
 };
 
 export class QuoteValidationError extends Error {
-  readonly validationError: TransactionPayQuoteValidationError;
+  readonly validationError: string;
 
-  constructor(validationError: TransactionPayQuoteValidationError) {
-    super(validationError.message);
+  constructor(validationError: string) {
+    super(validationError);
     this.name = 'QuoteValidationError';
     this.validationError = validationError;
   }
@@ -72,13 +71,7 @@ export async function validateQuoteExecution({
     throwIfAborted(signal);
 
     if (error instanceof TransactionPaySimulationError) {
-      throw new QuoteValidationError({
-        chainId: quote.request.sourceChainId,
-        code: error.code,
-        message: error.message,
-        strategy: quote.strategy,
-        tokenAddress: quote.request.sourceTokenAddress,
-      });
+      throw new QuoteValidationError(error.message);
     }
 
     throw error;
@@ -110,15 +103,9 @@ async function getLiveSourceBalance(
       normalizedSourceTokenAddress,
     );
   } catch (error) {
-    throw new QuoteValidationError({
-      chainId: sourceChainId,
-      code: 'source_balance_unavailable',
-      message: `Cannot validate payment token balance - ${
-        (error as Error).message
-      }`,
-      strategy: quote.strategy,
-      tokenAddress: normalizedSourceTokenAddress,
-    });
+    throw new QuoteValidationError(
+      `Cannot validate payment token balance - ${(error as Error).message}`,
+    );
   }
 }
 
@@ -137,12 +124,7 @@ function validateRequiredSourceAmount(
     return;
   }
 
-  throwInsufficientBalanceError(
-    quote,
-    liveBalance,
-    requiredAmount.toString(10),
-    'Insufficient quote source amount',
-  );
+  throwInsufficientBalanceError('Insufficient quote source amount');
 }
 
 function validateDecodedSourceTransfers(
@@ -160,9 +142,6 @@ function validateDecodedSourceTransfers(
   }
 
   throwInsufficientBalanceError(
-    quote,
-    liveBalance,
-    requiredAmount,
     'Insufficient balance for decoded quote amount',
   );
 }
@@ -211,28 +190,8 @@ function decodeTransferAmount(data: Hex): string | undefined {
   }
 }
 
-function throwInsufficientBalanceError(
-  quote: TransactionPayQuote<unknown>,
-  liveBalance: string,
-  requiredAmountRaw: string,
-  message: string,
-): never {
-  const { sourceChainId, sourceTokenAddress } = quote.request;
-  const normalizedSourceTokenAddress = normalizeTokenAddress(
-    sourceTokenAddress,
-    sourceChainId,
-    TokenAddressTarget.MetaMask,
-  );
-
-  throw new QuoteValidationError({
-    availableAmountRaw: liveBalance,
-    chainId: sourceChainId,
-    code: 'insufficient_source_balance',
-    message,
-    requiredAmountRaw,
-    strategy: quote.strategy,
-    tokenAddress: normalizedSourceTokenAddress,
-  });
+function throwInsufficientBalanceError(message: string): never {
+  throw new QuoteValidationError(message);
 }
 
 function throwIfAborted(signal?: AbortSignal): void {

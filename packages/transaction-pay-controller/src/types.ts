@@ -347,8 +347,8 @@ export type TransactionData = {
   /** Quotes retrieved for the transaction. */
   quotes?: TransactionPayQuote<Json>[];
 
-  /** Most relevant validation error from the latest quote attempt. */
-  quoteValidationError?: TransactionPayQuoteValidationError;
+  /** Most relevant validation error message from the latest quote attempt. */
+  quoteValidationError?: string;
 
   /** Timestamp of when quotes were last updated. */
   quotesLastUpdated?: number;
@@ -447,49 +447,13 @@ export type TransactionPaySourceAmount = {
   targetTokenAddress: Hex;
 };
 
-/** Machine-readable reason a quote was rejected during validation. */
-export type TransactionPayQuoteValidationErrorCode =
-  | 'insufficient_source_balance'
-  | 'quote_authorization_invalid'
-  | 'quote_simulation_failed'
-  | 'quote_validation_unavailable'
-  | 'relay_execute_validation_failed'
-  | 'source_approval_reverted'
-  | 'source_balance_unavailable'
-  | 'source_token_contract_missing'
-  | 'source_transfer_reverted';
-
-/** Validation error suitable for clients to surface instead of a generic no-quotes message. */
-export type TransactionPayQuoteValidationError = {
-  /** Machine-readable validation failure code. */
-  code: TransactionPayQuoteValidationErrorCode;
-
-  /** Human-readable fallback message. Clients may map `code` to localized copy. */
-  message: string;
-
-  /** Strategy whose quote failed validation. */
-  strategy: TransactionPayStrategy;
-
-  /** Available source token balance, if known. */
-  availableAmountRaw?: string;
-
-  /** Chain ID associated with the failed source token or transaction. */
-  chainId?: Hex;
-
-  /** Source token amount required by the quote, if known. */
-  requiredAmountRaw?: string;
-
-  /** Source token address associated with the failed quote, if known. */
-  tokenAddress?: Hex;
-};
-
 /** Result returned by a strategy's post-quote support check. */
 export type PayStrategyQuoteSupportResult = {
   /** Whether the quote set is supported and can be presented to the user. */
   isSupported: boolean;
 
-  /** Validation error explaining why the quote set was rejected. */
-  validationError?: TransactionPayQuoteValidationError;
+  /** Validation error message explaining why the quote set was rejected. */
+  validationError?: string;
 };
 
 /** Source token used to pay for required tokens. */
@@ -759,10 +723,7 @@ export type PayStrategy<OriginalQuote> = {
    */
   checkQuoteSupport?: (
     request: PayStrategyCheckQuoteSupportRequest<OriginalQuote>,
-  ) =>
-    | boolean
-    | PayStrategyQuoteSupportResult
-    | Promise<boolean | PayStrategyQuoteSupportResult>;
+  ) => PayStrategyQuoteSupportResult | Promise<PayStrategyQuoteSupportResult>;
 
   /** Retrieve batch transactions for quotes, if supported by the strategy. */
   getBatchTransactions?: (

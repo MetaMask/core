@@ -7,29 +7,22 @@ import type {
   TransactionPayQuote,
 } from '../../types';
 import { getPayStrategiesConfig } from '../../utils/feature-flags';
-import {
-  isQuoteValidationError,
-  validateQuoteExecution,
-} from '../../utils/validation';
 import { getRelayQuotes } from './relay-quotes';
 import { submitRelayQuotes } from './relay-submit';
+import { validateRelayQuoteSupport } from './relay-validation';
 import { RelayStrategy } from './RelayStrategy';
-import { buildRelaySimulation } from './simulation';
 import type { RelayQuote } from './types';
 
 jest.mock('./relay-quotes');
-jest.mock('./simulation');
 jest.mock('./relay-submit');
+jest.mock('./relay-validation');
 jest.mock('../../utils/feature-flags');
-jest.mock('../../utils/validation');
 
 describe('RelayStrategy', () => {
   const getRelayQuotesMock = jest.mocked(getRelayQuotes);
-  const buildRelaySimulationMock = jest.mocked(buildRelaySimulation);
-  const isQuoteValidationErrorMock = jest.mocked(isQuoteValidationError);
   const submitRelayQuotesMock = jest.mocked(submitRelayQuotes);
   const getPayStrategiesConfigMock = jest.mocked(getPayStrategiesConfig);
-  const validateQuoteExecutionMock = jest.mocked(validateQuoteExecution);
+  const validateRelayQuoteSupportMock = jest.mocked(validateRelayQuoteSupport);
 
   const messenger = {} as never;
 
@@ -68,9 +61,7 @@ describe('RelayStrategy', () => {
         enabled: true,
       },
     });
-    buildRelaySimulationMock.mockResolvedValue({ transactions: [] });
-    isQuoteValidationErrorMock.mockReturnValue(false);
-    validateQuoteExecutionMock.mockResolvedValue(undefined);
+    validateRelayQuoteSupportMock.mockResolvedValue({ isSupported: true });
   });
 
   it('returns true from supports when relay is enabled', () => {
@@ -106,119 +97,25 @@ describe('RelayStrategy', () => {
     expect(getRelayQuotesMock).toHaveBeenCalledWith(request);
   });
 
-  it('validates quotes in checkQuoteSupport', async () => {
+  it('delegates checkQuoteSupport', async () => {
     const quote = buildQuote();
-
-    const strategy = new RelayStrategy();
-    const result = await strategy.checkQuoteSupport({
-      messenger,
-      quotes: [quote],
-      transaction: request.transaction,
-    });
-
-    expect(result).toStrictEqual({ isSupported: true });
-    expect(buildRelaySimulationMock).toHaveBeenCalledWith({
-      messenger,
-      quote,
-      transaction: request.transaction,
-    });
-    expect(validateQuoteExecutionMock).toHaveBeenCalledWith({
-      messenger,
-      quote,
-      signal: undefined,
-      simulation: { transactions: [] },
-    });
-  });
-
-  it('skips validation for Hyperliquid source quotes', async () => {
-    const quote = buildQuote({ isHyperliquidSource: true });
-
-    const strategy = new RelayStrategy();
-    const result = await strategy.checkQuoteSupport({
-      messenger,
-      quotes: [quote],
-      transaction: request.transaction,
-    });
-
-    expect(result).toStrictEqual({ isSupported: true });
-    expect(buildRelaySimulationMock).not.toHaveBeenCalled();
-    expect(validateQuoteExecutionMock).not.toHaveBeenCalled();
-  });
-
-  it('rethrows validation errors when the abort signal is aborted', async () => {
-    const quote = buildQuote();
-    const controller = new AbortController();
-    const error = new Error('Quote validation aborted');
-
-    controller.abort();
-    validateQuoteExecutionMock.mockRejectedValue(error);
-
-    const strategy = new RelayStrategy();
-
-    await expect(
-      strategy.checkQuoteSupport({
-        messenger,
-        quotes: [quote],
-        signal: controller.signal,
-        transaction: request.transaction,
-      }),
-    ).rejects.toThrow(error);
-  });
-
-  it('returns quote validation errors from checkQuoteSupport', async () => {
-    const validationError = {
-      code: 'insufficient_source_balance',
-      message: 'Insufficient source token balance for quote',
-      strategy: TransactionPayStrategy.Relay,
-    } as const;
-    const quote = buildQuote();
-    const error = { validationError } as unknown as Error;
-
-    isQuoteValidationErrorMock.mockReturnValue(true);
-    validateQuoteExecutionMock.mockRejectedValue(error);
-
-    const strategy = new RelayStrategy();
-    const result = await strategy.checkQuoteSupport({
-      messenger,
-      quotes: [quote],
-      transaction: request.transaction,
-    });
-
-    expect(result).toStrictEqual({
+    const supportResult = {
       isSupported: false,
-      validationError,
-    });
-  });
+      validationError: 'RPC down',
+    };
 
-  it('wraps unknown quote validation errors', async () => {
-    const quote = {
-      request: {
-        sourceChainId: '0x1' as Hex,
-        sourceTokenAddress: '0xabc' as Hex,
-      },
-      strategy: TransactionPayStrategy.Relay,
-    } as TransactionPayQuote<RelayQuote>;
-
-    buildRelaySimulationMock.mockResolvedValue({ transactions: [] });
-    validateQuoteExecutionMock.mockRejectedValue(new Error('RPC down'));
+    validateRelayQuoteSupportMock.mockResolvedValue(supportResult);
 
     const strategy = new RelayStrategy();
-    const result = await strategy.checkQuoteSupport({
+    const checkRequest = {
       messenger,
       quotes: [quote],
       transaction: request.transaction,
-    });
+    };
+    const result = await strategy.checkQuoteSupport(checkRequest);
 
-    expect(result).toStrictEqual({
-      isSupported: false,
-      validationError: {
-        chainId: '0x1',
-        code: 'quote_validation_unavailable',
-        message: 'RPC down',
-        strategy: TransactionPayStrategy.Relay,
-        tokenAddress: '0xabc',
-      },
-    });
+    expect(result).toStrictEqual(supportResult);
+    expect(validateRelayQuoteSupportMock).toHaveBeenCalledWith(checkRequest);
   });
 
   function buildQuote(
