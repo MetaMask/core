@@ -2,6 +2,11 @@ import { deriveStateFromMetadata } from '@metamask/base-controller';
 import {
   createTimestampTerms,
   createNativeTokenStreamingTerms,
+  createNativeTokenPeriodTransferTerms,
+  createERC20StreamingTerms,
+  createERC20TokenPeriodTransferTerms,
+  createApprovalRevocationTerms,
+  createValueLteTerms,
   encodeDelegations,
   ROOT_AUTHORITY,
 } from '@metamask/delegation-core';
@@ -780,86 +785,9 @@ describe('GatorPermissionsController', () => {
       ).toThrow('Contracts not found for chainId: 999999');
     });
 
-    it('decodes a native-token-stream permission successfully', () => {
-      const {
-        TimestampEnforcer,
-        NativeTokenStreamingEnforcer,
-        ExactCalldataEnforcer,
-        NonceEnforcer,
-      } = contracts;
-
-      const delegator = delegatorAddressA;
-      const delegate = delegateAddressB;
-
-      const beforeThreshold = 1720000;
-      const expiryTerms = createTimestampTerms(
-        { afterThreshold: 0, beforeThreshold },
-        { out: 'hex' },
-      );
-
-      const initialAmount = 123456n;
-      const maxAmount = 999999n;
-      const amountPerSecond = 1n;
-      const startTime = 1715664;
-      const streamTerms = createNativeTokenStreamingTerms(
-        { initialAmount, maxAmount, amountPerSecond, startTime },
-        { out: 'hex' },
-      );
-
-      const caveats = [
-        {
-          enforcer: TimestampEnforcer,
-          terms: expiryTerms,
-          args: '0x',
-        } as const,
-        {
-          enforcer: NativeTokenStreamingEnforcer,
-          terms: streamTerms,
-          args: '0x',
-        } as const,
-        { enforcer: ExactCalldataEnforcer, terms: '0x', args: '0x' } as const,
-        { enforcer: NonceEnforcer, terms: '0x', args: '0x' } as const,
-      ];
-
-      const delegation = {
-        delegate,
-        delegator,
-        authority: ROOT_AUTHORITY as Hex,
-        caveats,
-      };
-
-      const result = rootMessenger.call(
-        'GatorPermissionsController:decodePermissionFromPermissionContextForOrigin',
-        {
-          origin: controller.gatorPermissionsProviderSnapId,
-          chainId,
-          delegation,
-          metadata: buildMetadata('Test justification'),
-        },
-      );
-
-      expect(result.chainId).toBe(numberToHex(chainId));
-      expect(result.from).toBe(delegator);
-      expect(result.to).toStrictEqual(delegate);
-      expect(result.permission.type).toBe('native-token-stream');
-      expect(result.expiry).toBe(beforeThreshold);
-      // amounts are hex-encoded in decoded data; startTime is numeric
-      expect(result.permission.data.startTime).toBe(startTime);
-
-      // BigInt fields are encoded as hex; compare after decoding
-      expect(hexToBigInt(result.permission.data.initialAmount)).toBe(
-        initialAmount,
-      );
-      expect(hexToBigInt(result.permission.data.maxAmount)).toBe(maxAmount);
-      expect(hexToBigInt(result.permission.data.amountPerSecond)).toBe(
-        amountPerSecond,
-      );
-      expect(result.permission.justification).toBe('Test justification');
-    });
-
     it('throws when origin does not match permissions provider', () => {
       expect(() =>
-      rootMessenger.call(
+        rootMessenger.call(
           'GatorPermissionsController:decodePermissionFromPermissionContextForOrigin',
           {
             origin: 'not-the-provider',
@@ -1020,6 +948,531 @@ describe('GatorPermissionsController', () => {
           },
         ),
       ).toThrow('Failed to decode permission');
+    });
+
+    describe('specific permission types', () => {
+      const UINT256_MAX = 2n ** 256n - 1n;
+
+      it('decodes a native-token-stream permission successfully', () => {
+        const {
+          TimestampEnforcer,
+          NativeTokenStreamingEnforcer,
+          ExactCalldataEnforcer,
+          NonceEnforcer,
+        } = contracts;
+
+        const delegator = delegatorAddressA;
+        const delegate = delegateAddressB;
+
+        const beforeThreshold = 1720000;
+        const expiryTerms = createTimestampTerms(
+          { afterThreshold: 0, beforeThreshold },
+          { out: 'hex' },
+        );
+
+        const initialAmount = 123456n;
+        const maxAmount = 999999n;
+        const amountPerSecond = 1n;
+        const startTime = 1715664;
+        const streamTerms = createNativeTokenStreamingTerms(
+          { initialAmount, maxAmount, amountPerSecond, startTime },
+          { out: 'hex' },
+        );
+
+        const caveats = [
+          {
+            enforcer: TimestampEnforcer,
+            terms: expiryTerms,
+            args: '0x',
+          } as const,
+          {
+            enforcer: NativeTokenStreamingEnforcer,
+            terms: streamTerms,
+            args: '0x',
+          } as const,
+          { enforcer: ExactCalldataEnforcer, terms: '0x', args: '0x' } as const,
+          { enforcer: NonceEnforcer, terms: '0x', args: '0x' } as const,
+        ];
+
+        const delegation = {
+          delegate,
+          delegator,
+          authority: ROOT_AUTHORITY as Hex,
+          caveats,
+        };
+
+        const result = rootMessenger.call(
+          'GatorPermissionsController:decodePermissionFromPermissionContextForOrigin',
+          {
+            origin: controller.gatorPermissionsProviderSnapId,
+            chainId,
+            delegation,
+            metadata: buildMetadata('Test justification'),
+          },
+        );
+
+        expect(result.chainId).toBe(numberToHex(chainId));
+        expect(result.from).toBe(delegator);
+        expect(result.to).toStrictEqual(delegate);
+        expect(result.permission.type).toBe('native-token-stream');
+        expect(result.expiry).toBe(beforeThreshold);
+        // amounts are hex-encoded in decoded data; startTime is numeric
+        expect(result.permission.data.startTime).toBe(startTime);
+
+        // BigInt fields are encoded as hex; compare after decoding
+        expect(hexToBigInt(result.permission.data.initialAmount)).toBe(
+          initialAmount,
+        );
+        expect(hexToBigInt(result.permission.data.maxAmount)).toBe(maxAmount);
+        expect(hexToBigInt(result.permission.data.amountPerSecond)).toBe(
+          amountPerSecond,
+        );
+        expect(result.permission.justification).toBe('Test justification');
+      });
+
+      it('decodes a native-token-periodic permission successfully', () => {
+        const {
+          TimestampEnforcer,
+          NativeTokenPeriodTransferEnforcer,
+          ExactCalldataEnforcer,
+          NonceEnforcer,
+        } = contracts;
+
+        const delegator = delegatorAddressA;
+        const delegate = delegateAddressB;
+
+        const beforeThreshold = 1720000;
+        const expiryTerms = createTimestampTerms(
+          { afterThreshold: 0, beforeThreshold },
+          { out: 'hex' },
+        );
+
+        const periodAmount = 123456n;
+        const periodDuration = 86400;
+        const startDate = 1715664;
+        const periodicTerms = createNativeTokenPeriodTransferTerms(
+          { periodAmount, periodDuration, startDate },
+          { out: 'hex' },
+        );
+
+        const caveats = [
+          {
+            enforcer: TimestampEnforcer,
+            terms: expiryTerms,
+            args: '0x',
+          } as const,
+          {
+            enforcer: NativeTokenPeriodTransferEnforcer,
+            terms: periodicTerms,
+            args: '0x',
+          } as const,
+          { enforcer: ExactCalldataEnforcer, terms: '0x', args: '0x' } as const,
+          { enforcer: NonceEnforcer, terms: '0x', args: '0x' } as const,
+        ];
+
+        const result = rootMessenger.call(
+          'GatorPermissionsController:decodePermissionFromPermissionContextForOrigin',
+          {
+            origin: controller.gatorPermissionsProviderSnapId,
+            chainId,
+            delegation: {
+              delegate,
+              delegator,
+              authority: ROOT_AUTHORITY as Hex,
+              caveats,
+            },
+            metadata: buildMetadata('Test justification'),
+          },
+        );
+
+        expect(result.permission.type).toBe('native-token-periodic');
+        expect(result.expiry).toBe(beforeThreshold);
+        expect(hexToBigInt(result.permission.data.periodAmount)).toBe(
+          periodAmount,
+        );
+        expect(result.permission.data.periodDuration).toBe(periodDuration);
+        expect(result.permission.data.startTime).toBe(startDate);
+        expect(result.permission.justification).toBe('Test justification');
+      });
+
+      it('decodes an erc20-token-stream permission successfully', () => {
+        const {
+          TimestampEnforcer,
+          ERC20StreamingEnforcer,
+          ValueLteEnforcer,
+          NonceEnforcer,
+        } = contracts;
+
+        const delegator = delegatorAddressA;
+        const delegate = delegateAddressB;
+
+        const beforeThreshold = 1720000;
+        const expiryTerms = createTimestampTerms(
+          { afterThreshold: 0, beforeThreshold },
+          { out: 'hex' },
+        );
+
+        const tokenAddress =
+          '0x3333333333333333333333333333333333333333' as Hex;
+        const initialAmount = 123456n;
+        const maxAmount = 999999n;
+        const amountPerSecond = 1n;
+        const startTime = 1715664;
+        const streamTerms = createERC20StreamingTerms(
+          {
+            tokenAddress,
+            initialAmount,
+            maxAmount,
+            amountPerSecond,
+            startTime,
+          },
+          { out: 'hex' },
+        );
+        const valueLteTerms = createValueLteTerms(
+          { maxValue: 0n },
+          { out: 'hex' },
+        );
+
+        const caveats = [
+          {
+            enforcer: TimestampEnforcer,
+            terms: expiryTerms,
+            args: '0x',
+          } as const,
+          {
+            enforcer: ERC20StreamingEnforcer,
+            terms: streamTerms,
+            args: '0x',
+          } as const,
+          {
+            enforcer: ValueLteEnforcer,
+            terms: valueLteTerms,
+            args: '0x',
+          } as const,
+          { enforcer: NonceEnforcer, terms: '0x', args: '0x' } as const,
+        ];
+
+        const result = rootMessenger.call(
+          'GatorPermissionsController:decodePermissionFromPermissionContextForOrigin',
+          {
+            origin: controller.gatorPermissionsProviderSnapId,
+            chainId,
+            delegation: {
+              delegate,
+              delegator,
+              authority: ROOT_AUTHORITY as Hex,
+              caveats,
+            },
+            metadata: buildMetadata('Test justification'),
+          },
+        );
+
+        expect(result.permission.type).toBe('erc20-token-stream');
+        expect(result.expiry).toBe(beforeThreshold);
+        expect(result.permission.data.tokenAddress.toLowerCase()).toBe(
+          tokenAddress.toLowerCase(),
+        );
+        expect(hexToBigInt(result.permission.data.initialAmount)).toBe(
+          initialAmount,
+        );
+        expect(hexToBigInt(result.permission.data.maxAmount)).toBe(maxAmount);
+        expect(hexToBigInt(result.permission.data.amountPerSecond)).toBe(
+          amountPerSecond,
+        );
+        expect(result.permission.data.startTime).toBe(startTime);
+        expect(result.permission.justification).toBe('Test justification');
+      });
+
+      it('decodes an erc20-token-periodic permission successfully', () => {
+        const {
+          TimestampEnforcer,
+          ERC20PeriodTransferEnforcer,
+          ValueLteEnforcer,
+          NonceEnforcer,
+        } = contracts;
+
+        const delegator = delegatorAddressA;
+        const delegate = delegateAddressB;
+
+        const beforeThreshold = 1720000;
+        const expiryTerms = createTimestampTerms(
+          { afterThreshold: 0, beforeThreshold },
+          { out: 'hex' },
+        );
+
+        const tokenAddress =
+          '0x3333333333333333333333333333333333333333' as Hex;
+        const periodAmount = 123456n;
+        const periodDuration = 86400;
+        const startDate = 1715664;
+        const periodicTerms = createERC20TokenPeriodTransferTerms(
+          { tokenAddress, periodAmount, periodDuration, startDate },
+          { out: 'hex' },
+        );
+        const valueLteTerms = createValueLteTerms(
+          { maxValue: 0n },
+          { out: 'hex' },
+        );
+
+        const caveats = [
+          {
+            enforcer: TimestampEnforcer,
+            terms: expiryTerms,
+            args: '0x',
+          } as const,
+          {
+            enforcer: ERC20PeriodTransferEnforcer,
+            terms: periodicTerms,
+            args: '0x',
+          } as const,
+          {
+            enforcer: ValueLteEnforcer,
+            terms: valueLteTerms,
+            args: '0x',
+          } as const,
+          { enforcer: NonceEnforcer, terms: '0x', args: '0x' } as const,
+        ];
+
+        const result = rootMessenger.call(
+          'GatorPermissionsController:decodePermissionFromPermissionContextForOrigin',
+          {
+            origin: controller.gatorPermissionsProviderSnapId,
+            chainId,
+            delegation: {
+              delegate,
+              delegator,
+              authority: ROOT_AUTHORITY as Hex,
+              caveats,
+            },
+            metadata: buildMetadata('Test justification'),
+          },
+        );
+
+        expect(result.permission.type).toBe('erc20-token-periodic');
+        expect(result.expiry).toBe(beforeThreshold);
+        expect(result.permission.data.tokenAddress.toLowerCase()).toBe(
+          tokenAddress.toLowerCase(),
+        );
+        expect(hexToBigInt(result.permission.data.periodAmount)).toBe(
+          periodAmount,
+        );
+        expect(result.permission.data.periodDuration).toBe(periodDuration);
+        expect(result.permission.data.startTime).toBe(startDate);
+        expect(result.permission.justification).toBe('Test justification');
+      });
+
+      it('decodes a native-token-allowance permission successfully', () => {
+        const {
+          TimestampEnforcer,
+          NativeTokenPeriodTransferEnforcer,
+          ExactCalldataEnforcer,
+          NonceEnforcer,
+        } = contracts;
+
+        const delegator = delegatorAddressA;
+        const delegate = delegateAddressB;
+
+        const beforeThreshold = 1720000;
+        const expiryTerms = createTimestampTerms(
+          { afterThreshold: 0, beforeThreshold },
+          { out: 'hex' },
+        );
+
+        const allowanceAmount = 123456n;
+        const startDate = 1715664;
+        const allowanceTerms = createNativeTokenPeriodTransferTerms(
+          {
+            periodAmount: allowanceAmount,
+            periodDuration: UINT256_MAX,
+            startDate,
+          },
+          { out: 'hex' },
+        );
+
+        const caveats = [
+          {
+            enforcer: TimestampEnforcer,
+            terms: expiryTerms,
+            args: '0x',
+          } as const,
+          {
+            enforcer: NativeTokenPeriodTransferEnforcer,
+            terms: allowanceTerms,
+            args: '0x',
+          } as const,
+          { enforcer: ExactCalldataEnforcer, terms: '0x', args: '0x' } as const,
+          { enforcer: NonceEnforcer, terms: '0x', args: '0x' } as const,
+        ];
+
+        const result = rootMessenger.call(
+          'GatorPermissionsController:decodePermissionFromPermissionContextForOrigin',
+          {
+            origin: controller.gatorPermissionsProviderSnapId,
+            chainId,
+            delegation: {
+              delegate,
+              delegator,
+              authority: ROOT_AUTHORITY as Hex,
+              caveats,
+            },
+            metadata: buildMetadata('Test justification'),
+          },
+        );
+
+        expect(result.permission.type).toBe('native-token-allowance');
+        expect(result.expiry).toBe(beforeThreshold);
+        expect(hexToBigInt(result.permission.data.allowanceAmount)).toBe(
+          allowanceAmount,
+        );
+        expect(result.permission.data.startTime).toBe(startDate);
+        expect(result.permission.justification).toBe('Test justification');
+      });
+
+      it('decodes an erc20-token-allowance permission successfully', () => {
+        const {
+          TimestampEnforcer,
+          ERC20PeriodTransferEnforcer,
+          ValueLteEnforcer,
+          NonceEnforcer,
+        } = contracts;
+
+        const delegator = delegatorAddressA;
+        const delegate = delegateAddressB;
+
+        const beforeThreshold = 1720000;
+        const expiryTerms = createTimestampTerms(
+          { afterThreshold: 0, beforeThreshold },
+          { out: 'hex' },
+        );
+
+        const tokenAddress =
+          '0x3333333333333333333333333333333333333333' as Hex;
+        const allowanceAmount = 123456n;
+        const startDate = 1715664;
+        const allowanceTerms = createERC20TokenPeriodTransferTerms(
+          {
+            tokenAddress,
+            periodAmount: allowanceAmount,
+            periodDuration: UINT256_MAX,
+            startDate,
+          },
+          { out: 'hex' },
+        );
+        const valueLteTerms = createValueLteTerms(
+          { maxValue: 0n },
+          { out: 'hex' },
+        );
+
+        const caveats = [
+          {
+            enforcer: TimestampEnforcer,
+            terms: expiryTerms,
+            args: '0x',
+          } as const,
+          {
+            enforcer: ERC20PeriodTransferEnforcer,
+            terms: allowanceTerms,
+            args: '0x',
+          } as const,
+          {
+            enforcer: ValueLteEnforcer,
+            terms: valueLteTerms,
+            args: '0x',
+          } as const,
+          { enforcer: NonceEnforcer, terms: '0x', args: '0x' } as const,
+        ];
+
+        const result = rootMessenger.call(
+          'GatorPermissionsController:decodePermissionFromPermissionContextForOrigin',
+          {
+            origin: controller.gatorPermissionsProviderSnapId,
+            chainId,
+            delegation: {
+              delegate,
+              delegator,
+              authority: ROOT_AUTHORITY as Hex,
+              caveats,
+            },
+            metadata: buildMetadata('Test justification'),
+          },
+        );
+
+        expect(result.permission.type).toBe('erc20-token-allowance');
+        expect(result.expiry).toBe(beforeThreshold);
+        expect(result.permission.data.tokenAddress.toLowerCase()).toBe(
+          tokenAddress.toLowerCase(),
+        );
+        expect(hexToBigInt(result.permission.data.allowanceAmount)).toBe(
+          allowanceAmount,
+        );
+        expect(result.permission.data.startTime).toBe(startDate);
+        expect(result.permission.justification).toBe('Test justification');
+      });
+
+      it('decodes a token-approval-revocation permission successfully', () => {
+        const { TimestampEnforcer, ApprovalRevocationEnforcer, NonceEnforcer } =
+          contracts;
+
+        const delegator = delegatorAddressA;
+        const delegate = delegateAddressB;
+
+        const beforeThreshold = 1720000;
+        const expiryTerms = createTimestampTerms(
+          { afterThreshold: 0, beforeThreshold },
+          { out: 'hex' },
+        );
+
+        const approvalRevocationTerms = createApprovalRevocationTerms(
+          {
+            erc20Approve: true,
+            erc721Approve: false,
+            erc721SetApprovalForAll: true,
+            permit2Approve: false,
+            permit2Lockdown: true,
+            permit2InvalidateNonces: false,
+          },
+          { out: 'hex' },
+        );
+
+        const caveats = [
+          {
+            enforcer: TimestampEnforcer,
+            terms: expiryTerms,
+            args: '0x',
+          } as const,
+          {
+            enforcer: ApprovalRevocationEnforcer,
+            terms: approvalRevocationTerms,
+            args: '0x',
+          } as const,
+          { enforcer: NonceEnforcer, terms: '0x', args: '0x' } as const,
+        ];
+
+        const result = rootMessenger.call(
+          'GatorPermissionsController:decodePermissionFromPermissionContextForOrigin',
+          {
+            origin: controller.gatorPermissionsProviderSnapId,
+            chainId,
+            delegation: {
+              delegate,
+              delegator,
+              authority: ROOT_AUTHORITY as Hex,
+              caveats,
+            },
+            metadata: buildMetadata('Test justification'),
+          },
+        );
+
+        expect(result.permission.type).toBe('token-approval-revocation');
+        expect(result.expiry).toBe(beforeThreshold);
+        expect(result.permission.data.erc20Approve).toBe(true);
+        expect(result.permission.data.erc721Approve).toBe(false);
+        expect(result.permission.data.erc721SetApprovalForAll).toBe(true);
+        expect(result.permission.data.permit2Approve).toBe(false);
+        expect(result.permission.data.permit2Lockdown).toBe(true);
+        expect(result.permission.data.permit2InvalidateNonces).toBe(false);
+        expect(result.permission.justification).toBe('Test justification');
+      });
     });
   });
 
