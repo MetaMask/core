@@ -548,7 +548,6 @@ linkStyle default opacity:0.5
   smart_transactions_controller --> profile_sync_controller;
   smart_transactions_controller --> remote_feature_flag_controller;
   smart_transactions_controller --> transaction_controller;
-  smart_transactions_controller --> gas_fee_controller;
   smart_transactions_controller --> json_rpc_engine;
   snap_account_service --> account_tree_controller;
   snap_account_service --> keyring_controller;
