@@ -3013,6 +3013,40 @@ describe('BridgeController', function () {
       });
     });
 
+    it('should track the FiatCryptoToggleClicked event', async () => {
+      await withController(async ({ rootMessenger }) => {
+        jest.spyOn(console, 'warn').mockImplementationOnce(jest.fn());
+        await rootMessenger.call(
+          'BridgeController:updateBridgeQuoteRequestParams',
+          {
+            walletAddress: '0x123',
+          },
+          {
+            stx_enabled: false,
+            security_warnings: [],
+            token_symbol_source: 'ETH',
+            token_symbol_destination: 'USDC',
+            usd_amount_source: 100,
+            token_security_type_destination: null,
+            feature_id: FeatureId.QUICK_BUY_FOLLOW_TRADING,
+          },
+        );
+        jest.clearAllMocks();
+        rootMessenger.call(
+          'BridgeController:trackUnifiedSwapBridgeEvent',
+          UnifiedSwapBridgeEventName.FiatCryptoToggleClicked,
+          {
+            location: MetaMetricsSwapsEventSource.MainView,
+            previous_primary_denomination: 'token_amount',
+            new_primary_denomination: 'fiat_value',
+            feature_id: FeatureId.QUICK_BUY_FOLLOW_TRADING,
+          },
+        );
+        expect(trackMetaMetricsFn).toHaveBeenCalledTimes(1);
+        expect(trackMetaMetricsFn.mock.calls).toMatchSnapshot();
+      });
+    });
+
     it('should track InputChanged with an enum quick amount preset label', async () => {
       await withController(async ({ rootMessenger }) => {
         // Ignore console.warn for this test bc there will be expected asset rate fetching warnings
@@ -4312,6 +4346,18 @@ describe('BridgeController', function () {
         expect(controller.state.batchSellTradesLoadingStatus).toBe(
           RequestStatus.FETCHED,
         );
+      });
+    });
+  });
+
+  describe('setInputPrimaryDenomination', () => {
+    it('updates the persisted input denomination state', async () => {
+      await withController(async ({ rootMessenger, controller }) => {
+        rootMessenger.call(
+          'BridgeController:setInputPrimaryDenomination',
+          'fiat_value',
+        );
+        expect(controller.state.inputPrimaryDenomination).toBe('fiat_value');
       });
     });
   });
