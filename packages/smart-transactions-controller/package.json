@@ -15,7 +15,12 @@
     "type": "git",
     "url": "https://github.com/MetaMask/core.git"
   },
+  "files": [
+    "dist/"
+  ],
   "sideEffects": false,
+  "main": "./dist/index.cjs",
+  "types": "./dist/index.d.cts",
   "exports": {
     ".": {
       "import": {
@@ -29,11 +34,10 @@
     },
     "./package.json": "./package.json"
   },
-  "main": "./dist/index.cjs",
-  "types": "./dist/index.d.cts",
-  "files": [
-    "dist/"
-  ],
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  },
   "scripts": {
     "build": "ts-bridge --project tsconfig.build.json --verbose --clean --no-references",
     "build:all": "ts-bridge --project tsconfig.build.json --verbose --clean",
@@ -81,10 +85,6 @@
     "typedoc": "^0.25.13",
     "typedoc-plugin-missing-exports": "^2.0.0",
     "typescript": "~5.3.3"
-  },
-  "publishConfig": {
-    "access": "public",
-    "registry": "https://registry.npmjs.org/"
   },
   "engines": {
     "node": "^18.18 || >=20"
