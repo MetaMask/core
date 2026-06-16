@@ -493,6 +493,9 @@ export type QuoteRequest = {
   /** Whether the source of funds is a Polymarket deposit wallet. */
   isPolymarketDepositWallet?: boolean;
 
+  /** Whether this quote is the direct mUSD-to-Money-Account fiat flow. */
+  isDirectMusdMoneyAccount?: boolean;
+
   /** Overrides the payment source for the transaction. */
   paymentOverride?: PaymentOverride;
 

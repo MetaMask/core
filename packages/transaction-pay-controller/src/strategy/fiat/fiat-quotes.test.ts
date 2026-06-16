@@ -94,11 +94,13 @@ const AMOUNT_MOCK = {
 };
 
 function getRelayQuoteMock({
+  isExecute,
   metaMaskUsd = '4',
   providerUsd = '1',
   sourceNetworkUsd = '2',
   targetNetworkUsd = '3',
 }: {
+  isExecute?: boolean;
   metaMaskUsd?: string;
   providerUsd?: string;
   sourceNetworkUsd?: string;
@@ -123,7 +125,9 @@ function getRelayQuoteMock({
       },
       targetNetwork: { fiat: targetNetworkUsd, usd: targetNetworkUsd },
     },
-    original: {} as RelayQuote,
+    original: (isExecute === undefined
+      ? {}
+      : { metamask: { isExecute } }) as RelayQuote,
     request: {} as never,
     sourceAmount: AMOUNT_MOCK,
     strategy: TransactionPayStrategy.Relay,
@@ -795,7 +799,7 @@ describe('getFiatQuotes', () => {
       return {
         callMock,
         request: {
-          accountSupports7702: false,
+          accountSupports7702: true,
           fiatPaymentMethod,
           from: WALLET_ADDRESS,
           messenger: {
@@ -810,6 +814,12 @@ describe('getFiatQuotes', () => {
     beforeEach(() => {
       isMoneyAccountDepositTransactionMock.mockReturnValue(true);
       buildCaipAssetTypeMock.mockReturnValue(MUSD_CAIP_ID_MOCK);
+      getRelayQuotesMock.mockImplementation(async ({ requests }) => [
+        {
+          ...getRelayQuoteMock({ isExecute: true }),
+          request: requests[0],
+        },
+      ]);
     });
 
     it('calls probe with mUSD asset and money account address', async () => {
@@ -831,21 +841,53 @@ describe('getFiatQuotes', () => {
       });
     });
 
-    it('passes recipient and paymentOverride in relay request for direct flow', async () => {
+    it('uses the account override as Relay user and the money account as recipient for direct flow', async () => {
       const { request } = getDirectRequest();
 
       await getFiatQuotes(request);
 
       expect(getRelayQuotesMock).toHaveBeenCalledWith(
         expect.objectContaining({
+          accountSupports7702: true,
+          from: WALLET_ADDRESS,
           requests: [
             expect.objectContaining({
-              paymentOverride: 'moneyAccount',
+              from: WALLET_ADDRESS,
+              isDirectMusdMoneyAccount: true,
               recipient: MONEY_ACCOUNT_ADDRESS,
               sourceChainId: MUSD_MONAD_FIAT_ASSET.chainId,
               sourceTokenAddress: MUSD_MONAD_FIAT_ASSET.address,
             }),
           ],
+        }),
+      );
+    });
+
+    it('falls back to standard flow when direct Relay quote is not execute', async () => {
+      deriveFiatAssetForFiatPaymentMock.mockReturnValue(FIAT_ASSET_MOCK);
+      getRelayQuotesMock
+        .mockImplementationOnce(async ({ requests }) => [
+          {
+            ...getRelayQuoteMock({ isExecute: false }),
+            request: requests[0],
+          },
+        ])
+        .mockImplementationOnce(async ({ requests }) => [
+          {
+            ...getRelayQuoteMock(),
+            request: requests[0],
+          },
+        ]);
+      const { request } = getDirectRequest();
+
+      const result = await getFiatQuotes(request);
+
+      expect(result).toHaveLength(1);
+      expect(getRelayQuotesMock).toHaveBeenCalledTimes(2);
+      expect(getRelayQuotesMock.mock.calls[1][0].requests[0]).toStrictEqual(
+        expect.objectContaining({
+          sourceChainId: FIAT_ASSET_MOCK.chainId,
+          sourceTokenAddress: FIAT_ASSET_MOCK.address,
         }),
       );
     });

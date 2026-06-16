@@ -302,6 +302,49 @@ describe('Relay Quotes Utils', () => {
       expect(body.originGasOverhead).toBeUndefined();
     });
 
+    it('keeps direct mUSD Relay request canonical and does not rewrite returned steps', async () => {
+      const moneyAccountAddress =
+        '0x2222222222222222222222222222222222222222' as Hex;
+      const accountOverride =
+        '0x3333333333333333333333333333333333333333' as Hex;
+      const quoteMock = cloneDeep(QUOTE_MOCK);
+
+      successfulFetchMock.mockResolvedValue({
+        ok: true,
+        json: async () => quoteMock,
+      } as never);
+
+      const result = await getRelayQuotes({
+        accountSupports7702: true,
+        messenger,
+        requests: [
+          {
+            ...QUOTE_REQUEST_MOCK,
+            from: accountOverride,
+            isDirectMusdMoneyAccount: true,
+            recipient: moneyAccountAddress,
+          },
+        ],
+        transaction: TRANSACTION_META_MOCK,
+      });
+
+      const body = JSON.parse(
+        successfulFetchMock.mock.calls[0][1]?.body as string,
+      );
+
+      expect(body).toStrictEqual(
+        expect.objectContaining({
+          recipient: moneyAccountAddress,
+          user: accountOverride,
+        }),
+      );
+
+      const step = result[0].original.steps[0] as RelayTransactionStep;
+      expect(step.items[0].data.from).toBe(
+        QUOTE_MOCK.steps[0].items[0].data.from,
+      );
+    });
+
     it('includes originGasOverhead when relay execute is enabled on EIP-7702 chain', async () => {
       isRelayExecuteEnabledMock.mockReturnValue(true);
 

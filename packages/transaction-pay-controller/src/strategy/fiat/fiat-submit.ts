@@ -20,6 +20,10 @@ import { buildCaipAssetType } from '../../utils/token';
 import { updateTransaction } from '../../utils/transaction';
 import type { TransactionPayFiatAsset } from './constants';
 import { MUSD_MONAD_FIAT_ASSET } from './constants';
+import {
+  assertDirectMusdRelayExecute,
+  isDirectMusdMoneyAccountQuote,
+} from './fiat-direct-musd';
 import { submitSimpleRelay } from './fiat-submit-simple';
 import { submitWithTransactionData } from './fiat-submit-with-transaction-data';
 import type { FiatQuote } from './types';
@@ -247,7 +251,8 @@ async function submitRelayAfterFiatCompletion({
     throw new Error('Multiple fiat quotes are not supported for submission');
   }
 
-  const isDirectMusd = isDirectMusdToMoneyAccountQuote(quotes);
+  const fiatQuote = quotes[0];
+  const isDirectMusd = isDirectMusdMoneyAccountQuote(fiatQuote);
   const fiatAsset = isDirectMusd
     ? MUSD_MONAD_FIAT_ASSET
     : deriveFiatAssetForFiatPayment(transaction, messenger);
@@ -258,7 +263,12 @@ async function submitRelayAfterFiatCompletion({
     transactionId,
   });
 
-  const baseRequest = quotes[0].request;
+  const baseRequest = fiatQuote.request;
+
+  assertDirectMusdRelayExecute({
+    original: fiatQuote.original.relayQuote,
+    request: baseRequest,
+  });
 
   const sourceAmountWalletAddress = isDirectMusd
     ? (transaction.txParams.from as Hex)
@@ -278,7 +288,7 @@ async function submitRelayAfterFiatCompletion({
   // the target amount, calldata re-encoding, then a delegation quote.
   // Simple deposits (Perps, Predict) skip straight to a single EXACT_INPUT
   // relay quote — cheaper fees, no leftover dust, one fewer request.
-  if (hasNestedCalldata) {
+  if (hasNestedCalldata && !isDirectMusd) {
     return await submitWithTransactionData({
       baseRequest,
       request,
@@ -295,26 +305,6 @@ async function submitRelayAfterFiatCompletion({
   });
 }
 
-/**
- * Detects whether the given quotes originated from the direct mUSD-to-
- * Money-Account flow by inspecting the stored quote request's source
- * chain and token. This is more reliable than re-checking the feature
- * flag, which could change between quote and submit.
- *
- * @param quotes - The fiat quotes to inspect.
- * @returns `true` if the first quote targets mUSD on Monad as its source.
- */
-function isDirectMusdToMoneyAccountQuote(
-  quotes: PayStrategyExecuteRequest<FiatQuote>['quotes'],
-): boolean {
-  const request = quotes[0]?.request;
-  return (
-    request?.sourceChainId === MUSD_MONAD_FIAT_ASSET.chainId &&
-    request?.sourceTokenAddress.toLowerCase() ===
-      MUSD_MONAD_FIAT_ASSET.address.toLowerCase()
-  );
-}
-
 function getWalletAddress({
   quotes,
   transaction,
@@ -324,7 +314,7 @@ function getWalletAddress({
   transaction: PayStrategyExecuteRequest<FiatQuote>['transaction'];
   accountOverride: Hex | undefined;
 }): Hex {
-  const address = isDirectMusdToMoneyAccountQuote(quotes)
+  const address = isDirectMusdMoneyAccountQuote(quotes[0])
     ? transaction.txParams.from
     : (accountOverride ?? transaction.txParams.from);
 

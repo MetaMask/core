@@ -55,6 +55,7 @@ import {
   normalizeTokenAddress,
   TokenAddressTarget,
 } from '../../utils/token';
+import { buildTokenTransferData } from '../../utils/token-transfer';
 import { isPredictWithdrawTransaction } from '../../utils/transaction';
 import { TOKEN_TRANSFER_FOUR_BYTE } from './constants';
 import { applyPolymarketDepositWalletOverrides } from './polymarket/withdraw';
@@ -1155,19 +1156,6 @@ function addPaymentOverrideGas(relayGas: RelayGasResult): RelayGasResult {
  */
 function calculateProviderFee(quote: RelayQuote): BigNumber {
   return new BigNumber(quote.details.totalImpact.usd).abs();
-}
-
-/**
- * Build token transfer data.
- *
- * @param recipient - Recipient address.
- * @param amountRaw - Amount in raw format.
- * @returns Token transfer data.
- */
-function buildTokenTransferData(recipient: Hex, amountRaw: string): Hex {
-  return new Interface([
-    'function transfer(address to, uint256 amount)',
-  ]).encodeFunctionData('transfer', [recipient, amountRaw]) as Hex;
 }
 
 /**

@@ -3,11 +3,7 @@ import type { Hex } from '@metamask/utils';
 import { createModuleLogger } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
 
-import {
-  NATIVE_TOKEN_ADDRESS,
-  PaymentOverride,
-  TransactionPayStrategy,
-} from '../../constants';
+import { NATIVE_TOKEN_ADDRESS, TransactionPayStrategy } from '../../constants';
 import { projectLogger } from '../../logger';
 import type {
   PayStrategyGetQuotesRequest,
@@ -25,12 +21,12 @@ import {
 } from '../../utils/token';
 import { getRelayQuotes } from '../relay/relay-quotes';
 import type { RelayQuote } from '../relay/types';
-import {
-  DEFAULT_FIAT_CURRENCY,
-  MUSD_MONAD_FIAT_ASSET,
-  MUSD_PROBE_AMOUNT_USD,
-} from './constants';
+import { DEFAULT_FIAT_CURRENCY } from './constants';
 import type { TransactionPayFiatAsset } from './constants';
+import {
+  assertDirectMusdRelayExecute,
+  getDirectMusdFiatQuoteOptions,
+} from './fiat-direct-musd';
 import type { FiatQuote } from './types';
 import {
   deriveFiatAssetForFiatPayment,
@@ -38,6 +34,12 @@ import {
 } from './utils';
 
 const log = createModuleLogger(projectLogger, 'fiat-strategy');
+
+type FiatQuotePipelineOptions = {
+  fiatAsset: TransactionPayFiatAsset;
+  rampsWalletAddress: Hex;
+  relayRequestOverrides?: Partial<QuoteRequest>;
+};
 
 /**
  * Fetches MM Pay fiat strategy quotes using a relay-first estimation flow.
@@ -62,20 +64,16 @@ export async function getFiatQuotes(
   if (useDirectMusd) {
     const moneyAccountAddress = transaction.txParams.from as Hex;
 
-    const probeOk = await probeMusdFiatAvailability({
+    const directOptions = await getDirectMusdFiatQuoteOptions({
       messenger,
-      walletAddress: moneyAccountAddress,
+      moneyAccountAddress,
     });
 
-    if (probeOk) {
-      const directResult = await executeFiatQuotePipeline(request, {
-        fiatAsset: MUSD_MONAD_FIAT_ASSET,
-        rampsWalletAddress: moneyAccountAddress,
-        relayRequestOverrides: {
-          paymentOverride: PaymentOverride.MoneyAccount,
-          recipient: moneyAccountAddress,
-        },
-      });
+    if (directOptions) {
+      const directResult = await executeFiatQuotePipeline(
+        request,
+        directOptions,
+      );
 
       if (directResult.length > 0) {
         return directResult;
@@ -88,12 +86,6 @@ export async function getFiatQuotes(
     rampsWalletAddress: request.from,
   });
 }
-
-type FiatQuotePipelineOptions = {
-  fiatAsset: TransactionPayFiatAsset;
-  rampsWalletAddress: Hex;
-  relayRequestOverrides?: Partial<QuoteRequest>;
-};
 
 async function executeFiatQuotePipeline(
   request: PayStrategyGetQuotesRequest,
@@ -155,6 +147,8 @@ async function executeFiatQuotePipeline(
     if (!relayQuote) {
       throw new Error('No relay quote available for fiat estimation');
     }
+
+    assertDirectMusdRelayExecute(relayQuote);
 
     const isSourceNative =
       fiatAsset.address.toLowerCase() === NATIVE_TOKEN_ADDRESS.toLowerCase();
@@ -230,40 +224,6 @@ async function executeFiatQuotePipeline(
   }
 
   return [];
-}
-
-async function probeMusdFiatAvailability({
-  messenger,
-  walletAddress,
-}: {
-  messenger: PayStrategyGetQuotesRequest['messenger'];
-  walletAddress: string;
-}): Promise<boolean> {
-  try {
-    const quotes = await messenger.call('RampsController:getQuotes', {
-      amount: MUSD_PROBE_AMOUNT_USD,
-      assetId: buildCaipAssetType(
-        MUSD_MONAD_FIAT_ASSET.chainId,
-        MUSD_MONAD_FIAT_ASSET.address,
-      ),
-      autoSelectProvider: true,
-      fiat: DEFAULT_FIAT_CURRENCY,
-      restrictToKnownOrNativeProviders: true,
-      walletAddress,
-    });
-
-    const isAvailable = (quotes.success?.length ?? 0) > 0;
-
-    log('mUSD fiat probe result', {
-      isAvailable,
-      providerCount: quotes.success?.length ?? 0,
-    });
-
-    return isAvailable;
-  } catch (error) {
-    log('mUSD fiat probe failed', { error });
-    return false;
-  }
 }
 
 async function getRampsQuote({

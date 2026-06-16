@@ -109,6 +109,7 @@ const RELAY_QUOTE_RESULT_MOCK = {
       },
       totalImpact: { usd: '-0.15' },
     },
+    metamask: { isExecute: true },
   } as unknown as RelayQuote,
   request: BASE_QUOTE_REQUEST_MOCK,
   sourceAmount: {
@@ -182,6 +183,7 @@ function getFiatQuoteMock({
           },
           totalImpact: { usd: '-0.15' },
         },
+        metamask: { isExecute: true },
       } as unknown as RelayQuote,
     },
     request,
@@ -839,6 +841,7 @@ describe('submitFiatQuotes', () => {
 
     const MUSD_QUOTE_REQUEST: QuoteRequest = {
       from: WALLET_ADDRESS_MOCK,
+      isDirectMusdMoneyAccount: true,
       sourceBalanceRaw: '10000000',
       sourceChainId: MUSD_MONAD_FIAT_ASSET.chainId,
       sourceTokenAddress: MUSD_MONAD_FIAT_ASSET.address,
@@ -893,6 +896,29 @@ describe('submitFiatQuotes', () => {
 
       await submitFiatQuotes(request);
       expect(deriveFiatAssetForFiatPaymentMock).not.toHaveBeenCalled();
+    });
+
+    it('uses simple Relay submit for direct mUSD even when transaction has nested calldata', async () => {
+      const { callMock, request } = getRequest({
+        quotes: [getFiatQuoteMock({ request: MUSD_QUOTE_REQUEST })],
+        transaction: {
+          ...MUSD_TRANSACTION_MOCK,
+          nestedTransactions: [
+            { data: '0xapprove' as Hex, to: '0xapprove' as Hex },
+            { data: '0xdeposit' as Hex, to: '0xdeposit' as Hex },
+          ],
+        } as TransactionMeta,
+      });
+
+      await submitFiatQuotes(request);
+
+      expect(getRelayQuotesMock).toHaveBeenCalledTimes(1);
+      expect(
+        callMock.mock.calls.some(
+          ([action]: [string]) =>
+            action === 'TransactionPayController:getAmountData',
+        ),
+      ).toBe(false);
     });
 
     it('falls back to deriveFiatAssetForFiatPayment when quote is not direct mUSD', async () => {

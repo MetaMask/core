@@ -146,6 +146,83 @@ describe('submitSimpleRelay', () => {
     expect(result).toStrictEqual({ transactionHash: '0xabc' });
   });
 
+  it('preserves direct mUSD marker and account override for re-quotes', async () => {
+    const moneyAccountAddress =
+      '0x2222222222222222222222222222222222222222' as Hex;
+    const directBaseRequest = {
+      ...BASE_QUOTE_REQUEST_MOCK,
+      from: WALLET_ADDRESS_MOCK,
+      isDirectMusdMoneyAccount: true,
+      recipient: moneyAccountAddress,
+    } as QuoteRequest;
+    const directRelayQuote = {
+      ...RELAY_QUOTE_MOCK,
+      original: {
+        ...RELAY_QUOTE_MOCK.original,
+        metamask: { isExecute: true },
+      } as RelayQuote,
+      request: directBaseRequest,
+    };
+    const req = buildRequest({ accountSupports7702: true });
+    getRelayQuotesMock.mockResolvedValue([directRelayQuote]);
+
+    await submitSimpleRelay({
+      baseRequest: directBaseRequest,
+      request: req,
+      sourceAmountRaw: '1000000000000000000',
+      transaction: TRANSACTION_MOCK,
+    });
+
+    expect(getRelayQuotesMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        accountSupports7702: true,
+        from: WALLET_ADDRESS_MOCK,
+        requests: [
+          expect.objectContaining({
+            from: WALLET_ADDRESS_MOCK,
+            isDirectMusdMoneyAccount: true,
+            recipient: moneyAccountAddress,
+          }),
+        ],
+      }),
+    );
+    expect(submitRelayQuotesMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        accountSupports7702: true,
+      }),
+    );
+  });
+
+  it('throws when direct mUSD re-quote is not Relay execute', async () => {
+    const directBaseRequest = {
+      ...BASE_QUOTE_REQUEST_MOCK,
+      isDirectMusdMoneyAccount: true,
+      recipient: '0x2222222222222222222222222222222222222222' as Hex,
+    } as QuoteRequest;
+    getRelayQuotesMock.mockResolvedValue([
+      {
+        ...RELAY_QUOTE_MOCK,
+        original: {
+          ...RELAY_QUOTE_MOCK.original,
+          metamask: { isExecute: false },
+        } as RelayQuote,
+        request: directBaseRequest,
+      },
+    ]);
+    const req = buildRequest();
+
+    await expect(
+      submitSimpleRelay({
+        baseRequest: directBaseRequest,
+        request: req,
+        sourceAmountRaw: '1000000000000000000',
+        transaction: TRANSACTION_MOCK,
+      }),
+    ).rejects.toThrow('Direct mUSD Money Account quotes require Relay execute');
+
+    expect(submitRelayQuotesMock).not.toHaveBeenCalled();
+  });
+
   it('throws when relay returns no quotes', async () => {
     getRelayQuotesMock.mockResolvedValue([]);
     const req = buildRequest();

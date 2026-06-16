@@ -33,6 +33,11 @@ import {
   waitForTransactionConfirmed,
 } from '../../utils/transaction';
 import {
+  assertDirectMusdRelayExecute,
+  buildDirectMusdFundingParams,
+  shouldForceDirectMusdRelayPolling,
+} from '../fiat/fiat-direct-musd';
+import {
   RELAY_DEPOSIT_TYPES,
   RELAY_FAILURE_STATUSES,
   RELAY_PENDING_STATUSES,
@@ -123,6 +128,7 @@ async function executeSingleQuote(
   }
 
   const completion = await waitForRelayCompletion(quote.original, messenger, {
+    forcePolling: shouldForceDirectMusdRelayPolling(quote),
     onSourceHash: (hash) => {
       log('Source hash received', hash);
       setRelaySourceHash(transaction, messenger, hash);
@@ -184,11 +190,12 @@ async function waitForRelayCompletion(
   quote: RelayQuote,
   messenger: TransactionPayControllerMessenger,
   options: {
+    forcePolling?: boolean;
     onSourceHash?: (hash: Hex) => void;
     tolerateFailure?: boolean;
   },
 ): Promise<RelayCompletionOutcome> {
-  const { onSourceHash, tolerateFailure } = options;
+  const { forcePolling, onSourceHash, tolerateFailure } = options;
 
   const isSameChain =
     quote.details.currencyIn.currency.chainId ===
@@ -197,7 +204,7 @@ async function waitForRelayCompletion(
   const isSingleDepositStep =
     quote.steps.length === 1 && quote.steps[0].id === 'deposit';
 
-  if (isSameChain && !isSingleDepositStep) {
+  if (isSameChain && !isSingleDepositStep && !forcePolling) {
     log('Skipping polling as same chain');
     return { status: 'success', targetHash: FALLBACK_HASH };
   }
@@ -378,10 +385,18 @@ async function submitTransactions(
     throw new Error(`Unsupported step kind: ${invalidKind}`);
   }
 
+  const isDirectMusd = shouldForceDirectMusdRelayPolling(quote);
+
+  assertDirectMusdRelayExecute(quote);
+
   // In post-quote flows (e.g. Predict withdraw), the source tokens are held in
   // the Safe — not the EOA — and only become available after the original tx
   // executes as part of the batch. Skip the EOA balance check here.
-  if (!quote.request.isPostQuote && !quote.request.paymentOverride) {
+  if (
+    !quote.request.isPostQuote &&
+    !quote.request.paymentOverride &&
+    !isDirectMusd
+  ) {
     await validateSourceBalance(quote, messenger);
   }
 
@@ -403,7 +418,18 @@ async function submitTransactions(
 
   let allParams = normalizedParams;
 
-  if (quote.request.paymentOverride) {
+  if (isDirectMusd) {
+    const fundingParams = await buildDirectMusdFundingParams({
+      messenger,
+      quote,
+      relayParams: normalizedParams[0],
+      transaction,
+    });
+
+    if (fundingParams) {
+      allParams = [fundingParams, ...normalizedParams];
+    }
+  } else if (quote.request.paymentOverride) {
     const { transactionData } = messenger.call(
       'TransactionPayController:getState',
     );

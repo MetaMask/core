@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - Sync transaction metadata when fiat payment is selected but no payment token is present ([#9158](https://github.com/MetaMask/core/pull/9158))
+- Fix direct mUSD fiat Money Account deposits to execute atomically through Relay execute by preserving canonical Relay quote steps and prepending delegated Money Account funding during submission.
 
 ## [23.8.0]
 
