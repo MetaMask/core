@@ -13,7 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Compare internal order codes (from canonical order `id`) instead of provider-native `providerOrderId` when merging orders in `RampsController.addOrder` and `RampsController.getOrder` ([#TBD](https://github.com/MetaMask/core/pull/TBD))
+- Compare internal order codes (from canonical order `id`) instead of provider-native `providerOrderId` when merging orders in `RampsController.addOrder` and `RampsController.getOrder` ([#9159](https://github.com/MetaMask/core/pull/9159))
 
 ## [14.2.0]
 
