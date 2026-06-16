@@ -1200,8 +1200,12 @@ function getQuoteUser(
   transaction: TransactionMeta,
   from: Hex,
 ): Hex {
-  const { sourceChainId, sourceTokenAddress, targetChainId, targetTokenAddress } =
-    request;
+  const {
+    sourceChainId,
+    sourceTokenAddress,
+    targetChainId,
+    targetTokenAddress,
+  } = request;
 
   const isSameSourceAndTarget =
     sourceChainId === targetChainId &&
