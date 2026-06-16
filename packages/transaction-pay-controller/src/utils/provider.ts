@@ -1,5 +1,12 @@
-import type { NetworkClientId, Provider } from '@metamask/network-controller';
-import { RpcEndpointType } from '@metamask/network-controller';
+import type {
+  NetworkClient,
+  NetworkClientId,
+  Provider,
+} from '@metamask/network-controller';
+import {
+  NetworkClientType,
+  RpcEndpointType,
+} from '@metamask/network-controller';
 import type { Hex } from '@metamask/utils';
 import { createModuleLogger } from '@metamask/utils';
 
@@ -10,12 +17,8 @@ const log = createModuleLogger(projectLogger, 'provider');
 
 type ProviderRequestParams = Parameters<Provider['request']>[0]['params'];
 
-type NetworkClient = {
-  configuration: {
-    chainId: Hex;
-    rpcEndpoints?: { networkClientId: NetworkClientId; type?: string }[];
-  };
-  provider: Provider;
+type NetworkClientWithId = NetworkClient & {
+  id: NetworkClientId;
 };
 
 /**
@@ -123,10 +126,8 @@ export async function rpcRequest<TResponse = unknown>({
     response = await provider.request({ method, params });
   } catch (error) {
     throwWithRpcContext(error, {
-      chainId,
       method,
       networkClient,
-      networkClientId,
     });
   }
 
@@ -138,48 +139,58 @@ export async function rpcRequest<TResponse = unknown>({
 function getNetworkClient(
   messenger: TransactionPayControllerMessenger,
   networkClientId: NetworkClientId,
-): NetworkClient {
-  return messenger.call(
+): NetworkClientWithId {
+  const networkClient = messenger.call(
     'NetworkController:getNetworkClientById',
     networkClientId,
   ) as NetworkClient;
+
+  return { ...networkClient, id: networkClientId };
 }
 
 function throwWithRpcContext(
   error: unknown,
   {
-    chainId,
     method,
     networkClient,
-    networkClientId,
   }: {
-    chainId: Hex;
     method: string;
-    networkClient: NetworkClient;
-    networkClientId: NetworkClientId;
+    networkClient: NetworkClientWithId;
   },
 ): never {
   const message = error instanceof Error ? error.message : String(error);
-  const prefix = `RPC ${chainId} ${getEndpointLabel(
+  const prefix = `RPC ${networkClient.configuration.chainId} ${getEndpointLabel(
     networkClient,
-    networkClientId,
   )} ${method}`;
+  const prefixedMessage = `${prefix}: ${message}`;
 
   if (error instanceof Error) {
-    error.message = `${prefix}: ${message}`;
-    throw error;
+    if (setErrorMessage(error, prefixedMessage)) {
+      throw error;
+    }
+
+    const wrappedError = Object.assign(new Error(prefixedMessage), error);
+
+    wrappedError.message = prefixedMessage;
+    throw wrappedError;
   }
 
-  throw new Error(`${prefix}: ${message}`);
+  throw new Error(prefixedMessage);
 }
 
 function getEndpointLabel(
-  networkClient: NetworkClient,
-  networkClientId: NetworkClientId,
+  networkClient: NetworkClientWithId,
 ): 'Infura' | 'Custom' {
-  const endpoint = networkClient.configuration.rpcEndpoints?.find(
-    (rpcEndpoint) => rpcEndpoint.networkClientId === networkClientId,
-  );
+  return networkClient.configuration.type === NetworkClientType.Infura
+    ? 'Infura'
+    : 'Custom';
+}
 
-  return endpoint?.type === RpcEndpointType.Infura ? 'Infura' : 'Custom';
+function setErrorMessage(error: Error, message: string): boolean {
+  try {
+    error.message = message;
+    return error.message === message;
+  } catch {
+    return false;
+  }
 }

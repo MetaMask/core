@@ -1,4 +1,5 @@
 import type { Provider } from '@metamask/network-controller';
+import { NetworkClientType } from '@metamask/network-controller';
 import { RpcEndpointType } from '@metamask/network-controller';
 import type { NetworkConfiguration } from '@metamask/network-controller';
 import type { Hex } from '@metamask/utils';
@@ -18,6 +19,10 @@ function buildNetworkClient(
   return {
     configuration: {
       chainId: CHAIN_ID_MOCK,
+      type:
+        networkClientId === INFURA_NETWORK_CLIENT_ID_MOCK
+          ? NetworkClientType.Infura
+          : NetworkClientType.Custom,
       rpcEndpoints: [
         {
           networkClientId,
@@ -138,6 +143,7 @@ describe('provider utils', () => {
       getNetworkClientByIdMock.mockReturnValue({
         configuration: {
           chainId: CHAIN_ID_MOCK,
+          type: NetworkClientType.Custom,
           rpcEndpoints: [
             {
               networkClientId: DEFAULT_NETWORK_CLIENT_ID_MOCK,
@@ -167,6 +173,7 @@ describe('provider utils', () => {
       getNetworkClientByIdMock.mockReturnValue({
         configuration: {
           chainId: CHAIN_ID_MOCK,
+          type: NetworkClientType.Custom,
           rpcEndpoints: [
             {
               networkClientId: DEFAULT_NETWORK_CLIENT_ID_MOCK,
@@ -195,6 +202,7 @@ describe('provider utils', () => {
       getNetworkClientByIdMock.mockReturnValue({
         configuration: {
           chainId: CHAIN_ID_MOCK,
+          type: NetworkClientType.Custom,
           rpcEndpoints: [
             {
               networkClientId: DEFAULT_NETWORK_CLIENT_ID_MOCK,
@@ -230,6 +238,7 @@ describe('provider utils', () => {
       getNetworkClientByIdMock.mockReturnValue({
         configuration: {
           chainId: CHAIN_ID_MOCK,
+          type: NetworkClientType.Infura,
           rpcEndpoints: [
             {
               networkClientId: INFURA_NETWORK_CLIENT_ID_MOCK,
@@ -253,6 +262,47 @@ describe('provider utils', () => {
       );
     });
 
+    it('prefixes provider errors when the original message is read-only', async () => {
+      const error = new Error('RPC failed') as Error & { code?: string };
+      error.code = 'UNAUTHORIZED';
+      Object.defineProperty(error, 'message', {
+        value: 'RPC failed',
+        writable: false,
+      });
+      const requestMock = jest.fn().mockRejectedValue(error);
+      getNetworkClientByIdMock.mockReturnValue({
+        configuration: {
+          chainId: CHAIN_ID_MOCK,
+          type: NetworkClientType.Custom,
+          rpcEndpoints: [
+            {
+              networkClientId: DEFAULT_NETWORK_CLIENT_ID_MOCK,
+              type: RpcEndpointType.Custom,
+            },
+          ],
+        },
+        provider: { request: requestMock },
+      } as never);
+
+      let thrownError: (Error & { code?: string }) | undefined;
+      try {
+        await rpcRequest({
+          messenger,
+          chainId: CHAIN_ID_MOCK,
+          method: 'eth_blockNumber',
+        });
+      } catch (caughtError) {
+        thrownError = caughtError as Error & { code?: string };
+      }
+
+      expect(thrownError).not.toBe(error);
+      expect(thrownError?.message).toBe(
+        'RPC 0x1 Custom eth_blockNumber: RPC failed',
+      );
+      expect(thrownError?.code).toBe('UNAUTHORIZED');
+      expect(error.message).toBe('RPC failed');
+    });
+
     it('uses Infura network client when preferInfura is true', async () => {
       getNetworkConfigurationByChainIdMock.mockReturnValue({
         rpcEndpoints: [
@@ -267,6 +317,7 @@ describe('provider utils', () => {
       getNetworkClientByIdMock.mockReturnValue({
         configuration: {
           chainId: CHAIN_ID_MOCK,
+          type: NetworkClientType.Infura,
           rpcEndpoints: [
             {
               networkClientId: INFURA_NETWORK_CLIENT_ID_MOCK,
