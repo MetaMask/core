@@ -1,26 +1,14 @@
-import { TRANSAK_ERROR_CODES } from './transakErrorCodes';
 import { TransakApiError } from './TransakService';
 
-export function isTransakApiError(error: unknown): error is TransakApiError {
-  return error instanceof TransakApiError;
-}
-
-export function getTransakErrorCode(error: unknown): string | undefined {
-  return isTransakApiError(error) ? error.errorCode : undefined;
-}
+const PHONE_ALREADY_REGISTERED_ERROR_CODE = '2020';
 
 export function getTransakApiMessage(error: unknown): string | undefined {
-  return isTransakApiError(error) ? error.apiMessage : undefined;
-}
-
-export function isTransakErrorCode(error: unknown, code: string): boolean {
-  const errorCode = getTransakErrorCode(error);
-  return errorCode === code || errorCode === String(code);
+  return error instanceof TransakApiError ? error.apiMessage : undefined;
 }
 
 export function isTransakPhoneRegisteredError(error: unknown): boolean {
-  return isTransakErrorCode(
-    error,
-    TRANSAK_ERROR_CODES.PHONE_ALREADY_REGISTERED,
+  return (
+    error instanceof TransakApiError &&
+    error.errorCode === PHONE_ALREADY_REGISTERED_ERROR_CODE
   );
 }

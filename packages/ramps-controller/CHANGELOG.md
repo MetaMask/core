@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Export `TRANSAK_ERROR_CODES`, `TransakErrorCode`, and Transak API error helpers (`isTransakApiError`, `getTransakErrorCode`, `getTransakApiMessage`, `isTransakErrorCode`, `isTransakPhoneRegisteredError`) for consumers handling `TransakApiError` ([#9135](https://github.com/MetaMask/core/pull/9135))
+- Export `getTransakApiMessage` and `isTransakPhoneRegisteredError` for consumers handling `TransakApiError` ([#9135](https://github.com/MetaMask/core/pull/9135))
 
 ### Changed
 
