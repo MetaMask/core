@@ -15,9 +15,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **BREAKING:** Wire `RemoteFeatureFlagController` into the default wallet initialization ([#8969](https://github.com/MetaMask/core/pull/8969))
   - The default `Wallet` now constructs a `RemoteFeatureFlagController` and registers its `RemoteFeatureFlagController:*` messenger actions. Consumers that pass their own `messenger` and already wire a `RemoteFeatureFlagController` must remove their own before upgrading, or the duplicate registration will collide.
   - Adds a required `remoteFeatureFlagController` slot to `instanceOptions`. `clientConfigApiService` is required (each client injects a `ClientConfigApiService` configured for its own client type, distribution, and environment); `getMetaMetricsId`, `clientVersion`, `prevClientVersion`, `fetchInterval`, and `disabled` are optional. `prevClientVersion` lets consumers trigger feature-flag cache invalidation when the client version changes between sessions.
+- Add `@metamask/polling-controller` as a dependency ([#0000](https://github.com/MetaMask/core/pull/0000))
 
 ### Changed
 
+- `Wallet.destroy()` now calls `stopAllPolling()` on any initialized instance that implements the `@metamask/polling-controller` `IPollingController` interface before destroying it, so polling timers and block-tracker listeners are torn down uniformly regardless of whether the controller stops polling in its own `destroy` ([#0000](https://github.com/MetaMask/core/pull/0000))
 - Bump `@metamask/utils` from `^11.9.0` to `^11.11.0` ([#9074](https://github.com/MetaMask/core/pull/9074))
 - Bump `@metamask/controller-utils` from `^12.1.1` to `^12.2.0` ([#9083](https://github.com/MetaMask/core/pull/9083))
 - Bump `@metamask/keyring-controller` from `^27.0.0` to `^27.1.0` ([#9129](https://github.com/MetaMask/core/pull/9129))

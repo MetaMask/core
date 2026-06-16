@@ -224,6 +224,38 @@ describe('Wallet', () => {
     expect(spy).toHaveBeenCalledTimes(1);
   });
 
+  it('stops polling on polling controllers before destroying them', async () => {
+    const calls: string[] = [];
+    const stopAllPolling = jest.fn(() => calls.push('stopAllPolling'));
+    const destroy = jest.fn(() => calls.push('destroy'));
+
+    jest.spyOn(initializationModule, 'initialize').mockReturnValueOnce({
+      // @ts-expect-error Mock data.
+      PollingController: { stopAllPolling, destroy },
+      // A non-polling instance exercises the `isPollingController` false branch.
+      // @ts-expect-error Mock data.
+      PlainController: { destroy: jest.fn() },
+    });
+
+    const wallet = new Wallet({
+      instanceOptions: {
+        connectivityController: {
+          connectivityAdapter: new AlwaysOnlineAdapter(),
+        },
+        storageService: {
+          storage: new InMemoryStorageAdapter(),
+        },
+        remoteFeatureFlagController: REMOTE_FEATURE_FLAG_OPTIONS,
+      },
+    });
+
+    await wallet.destroy();
+
+    expect(stopAllPolling).toHaveBeenCalledTimes(1);
+    // Polling is stopped before the instance is destroyed.
+    expect(calls).toStrictEqual(['stopAllPolling', 'destroy']);
+  });
+
   describe('AccountsController', () => {
     it('tracks accounts created via KeyringController', async () => {
       const wallet = await setupWallet();

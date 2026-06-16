@@ -1,5 +1,7 @@
 import type { StateMetadataConstraint } from '@metamask/base-controller';
 import { Messenger } from '@metamask/messenger';
+import type { IPollingController } from '@metamask/polling-controller';
+import type { Json } from '@metamask/utils';
 import { hasProperty } from '@metamask/utils';
 
 import type {
@@ -11,6 +13,24 @@ import type {
 } from './initialization/defaults';
 import { initialize } from './initialization/initialization';
 import { WalletOptions } from './types';
+
+/**
+ * Check whether an instance implements the polling controller interface, i.e.
+ * exposes a `stopAllPolling` method.
+ *
+ * @param instance - The instance to check.
+ * @returns Whether the instance can stop all of its polling.
+ */
+function isPollingController(
+  instance: unknown,
+): instance is IPollingController<Json> {
+  return (
+    typeof instance === 'object' &&
+    instance !== null &&
+    hasProperty(instance, 'stopAllPolling') &&
+    typeof instance.stopAllPolling === 'function'
+  );
+}
 
 export class Wallet {
   // TODO: Expand default types when passing additionalConfigurations.
@@ -135,6 +155,12 @@ export class Wallet {
 
     await Promise.allSettled(
       Object.values(this.#instances).map(async (instance) => {
+        // Stop polling before destroying so any active timers or block-tracker
+        // listeners are torn down. Not all polling controllers stop polling in
+        // their own `destroy`, so the wallet guarantees it uniformly here.
+        if (isPollingController(instance)) {
+          instance.stopAllPolling();
+        }
         // @ts-expect-error Accessing protected property.
         if (typeof instance.destroy === 'function') {
           // @ts-expect-error Accessing protected property.

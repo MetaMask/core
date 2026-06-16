@@ -11,6 +11,7 @@
     { "path": "../controller-utils/tsconfig.json" },
     { "path": "../keyring-controller/tsconfig.json" },
     { "path": "../messenger/tsconfig.json" },
+    { "path": "../polling-controller/tsconfig.json" },
     { "path": "../remote-feature-flag-controller/tsconfig.json" },
     { "path": "../storage-service/tsconfig.json" }
   ],

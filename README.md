@@ -594,6 +594,7 @@ linkStyle default opacity:0.5
   wallet --> controller_utils;
   wallet --> keyring_controller;
   wallet --> messenger;
+  wallet --> polling_controller;
   wallet --> remote_feature_flag_controller;
   wallet --> storage_service;
 ```
