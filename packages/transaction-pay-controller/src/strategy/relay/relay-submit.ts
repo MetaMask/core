@@ -451,21 +451,13 @@ async function submitTransactions(
   }
 
   if (submitCalls?.length) {
-    console.log('OGP- submitCalls present, building delegation', submitCalls);
     const delegationParams = await buildDelegatedSubmitCallsParams(
       submitCalls,
       transaction,
       messenger,
       normalizedParams[0],
     );
-    console.log('OGP- delegation params for submitCalls', delegationParams);
     allParams = [delegationParams, ...allParams];
-    console.log(
-      'OGP- final allParams count',
-      allParams.length,
-      'batch from',
-      quote.request.from,
-    );
   }
 
   if (quote.original.metamask.isExecute) {

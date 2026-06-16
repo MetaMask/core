@@ -161,17 +161,12 @@ export async function submitWithTransactionData({
   let submitCalls: BatchTransactionParams[] | undefined;
 
   const directMusd = isDirectMusdRequest(baseRequest);
-  console.log('OGP- directMusd?', directMusd);
 
   if (directMusd) {
     const { transactionData } = messenger.call(
       'TransactionPayController:getState',
     );
     const eoaAddress = transactionData[transactionId]?.accountOverride as Hex;
-    const moneyAccount = updatedTransaction.txParams.from;
-
-    console.log('OGP- eoa', eoaAddress, 'moneyAccount', moneyAccount);
-    console.log('OGP- transferAmountRaw', sourceAmountRaw);
 
     submitCalls = [
       {
@@ -192,11 +187,6 @@ export async function submitWithTransactionData({
         }
       }
     }
-
-    console.log(
-      'OGP- rewrote quote.request.from + step.from to EOA, submitCalls=',
-      submitCalls,
-    );
   }
 
   return await submitRelayQuotes({
