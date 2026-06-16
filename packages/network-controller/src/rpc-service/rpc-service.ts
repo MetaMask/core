@@ -287,6 +287,30 @@ function stripCredentialsFromUrl(url: URL): URL {
   return strippedUrl;
 }
 
+const INFURA_NON_FAILURE_HTTP_STATUS_CODES = [400, 429];
+
+/**
+ * Predicate function that determines if an error from Infura is treated as a service failure.
+ *
+ * @param error - The error.
+ * @returns True if the error should be treated as a service policy failure. Most errors are treated like failures,
+ * with the exception of certain HTTP status codes.
+ */
+function isServiceFailureInfura(error: unknown) {
+  if (
+    typeof error === 'object' &&
+    error !== null &&
+    hasProperty(error, 'httpStatus') &&
+    typeof error.httpStatus === 'number'
+  ) {
+    return !INFURA_NON_FAILURE_HTTP_STATUS_CODES.includes(error.httpStatus);
+  }
+
+  // If the error is not an object, or doesn't have a numeric code property,
+  // consider it a service failure (e.g., network errors, timeouts, etc.)
+  return true;
+}
+
 /**
  * This class is responsible for making a request to an endpoint that implements
  * the JSON-RPC protocol. It is designed to gracefully handle network and server
@@ -371,24 +395,13 @@ export class RpcService {
     this.endpointUrl = stripCredentialsFromUrl(normalizedUrl);
     this.#logger = logger;
 
+    const isInfura = normalizedUrl.hostname.endsWith('infura.io');
+
     this.#policy = createServicePolicy({
       maxRetries: DEFAULT_MAX_RETRIES,
       maxConsecutiveFailures: DEFAULT_MAX_CONSECUTIVE_FAILURES,
       ...policyOptions,
-      isServiceFailure: (error) => {
-        if (
-          typeof error === 'object' &&
-          error !== null &&
-          hasProperty(error, 'httpStatus') &&
-          typeof error.httpStatus === 'number'
-        ) {
-          return error.httpStatus !== 429;
-        }
-
-        // If the error is not an object, or doesn't have a numeric code property,
-        // consider it a service failure (e.g., network errors, timeouts, etc.)
-        return true;
-      },
+      isServiceFailure: isInfura ? isServiceFailureInfura : undefined,
       retryFilterPolicy: handleWhen((error) => {
         // If user is offline, don't retry any errors
         // This prevents degraded/break callbacks from being triggered
