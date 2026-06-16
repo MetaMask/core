@@ -16,6 +16,7 @@ export const networkController: InitializationConfiguration<
       state,
       messenger,
       infuraProjectId: options.infuraProjectId,
+      failoverUrls: options.failoverUrls,
     }),
   getMessenger: (parent) => {
     const networkControllerMessenger: NetworkControllerMessenger =
