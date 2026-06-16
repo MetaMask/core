@@ -12,9 +12,10 @@ import {
   TransactionPayStrategy,
 } from './constants';
 import { QuoteRefresher } from './helpers/QuoteRefresher';
-import { deriveFiatAssetForFiatPayment } from './strategy/fiat/utils';
 import type {
+  GetAmountDataCallback,
   GetDelegationTransactionCallback,
+  GetPaymentOverrideDataCallback,
   PolymarketCallbacks,
   TransactionConfigCallback,
   TransactionData,
@@ -27,15 +28,15 @@ import type {
 import { getStrategyOrder } from './utils/feature-flags';
 import { updateQuotes } from './utils/quotes';
 import { updateSourceAmounts } from './utils/source-amounts';
-import { buildCaipAssetType } from './utils/token';
 import {
-  getTransaction,
   subscribeAssetChanges,
   subscribeTransactionChanges,
 } from './utils/transaction';
 
 const MESSENGER_EXPOSED_METHODS = [
+  'getAmountData',
   'getDelegationTransaction',
+  'getPaymentOverrideData',
   'getStrategy',
   'polymarketGetDepositWalletAddress',
   'polymarketSubmitDepositWalletBatch',
@@ -62,7 +63,11 @@ export class TransactionPayController extends BaseController<
   TransactionPayControllerState,
   TransactionPayControllerMessenger
 > {
+  readonly #getAmountData?: GetAmountDataCallback;
+
   readonly #getDelegationTransaction: GetDelegationTransactionCallback;
+
+  readonly #getPaymentOverrideData?: GetPaymentOverrideDataCallback;
 
   readonly #getStrategy?: (
     transaction: TransactionMeta,
@@ -75,7 +80,9 @@ export class TransactionPayController extends BaseController<
   readonly #polymarket?: PolymarketCallbacks;
 
   constructor({
+    getAmountData,
     getDelegationTransaction,
+    getPaymentOverrideData,
     getStrategy,
     getStrategies,
     messenger,
@@ -89,7 +96,9 @@ export class TransactionPayController extends BaseController<
       state: { ...getDefaultState(), ...state },
     });
 
+    this.#getAmountData = getAmountData;
     this.#getDelegationTransaction = getDelegationTransaction;
+    this.#getPaymentOverrideData = getPaymentOverrideData;
     this.#getStrategy = getStrategy;
     this.#getStrategies = getStrategies;
     this.#polymarket = polymarket;
@@ -138,6 +147,7 @@ export class TransactionPayController extends BaseController<
         isPostQuote: transactionData.isPostQuote,
         isHyperliquidSource: transactionData.isHyperliquidSource,
         isPolymarketDepositWallet: transactionData.isPolymarketDepositWallet,
+        isQuoteRequired: transactionData.isQuoteRequired,
         refundTo: transactionData.refundTo,
         accountOverride: transactionData.accountOverride,
         paymentOverride: transactionData.paymentOverride,
@@ -153,6 +163,7 @@ export class TransactionPayController extends BaseController<
       transactionData.isHyperliquidSource = config.isHyperliquidSource;
       transactionData.isPolymarketDepositWallet =
         config.isPolymarketDepositWallet;
+      transactionData.isQuoteRequired = config.isQuoteRequired;
       transactionData.refundTo = config.refundTo;
       transactionData.paymentOverride = config.paymentOverride;
 
@@ -218,6 +229,30 @@ export class TransactionPayController extends BaseController<
   }
 
   /**
+   * Returns additional transactions for the paymentOverride flow.
+   *
+   * Delegates to the client-supplied {@link GetPaymentOverrideDataCallback}.
+   * Called during quote execution when `paymentOverride` is defined on the transaction.
+   * Returns an empty array when no callback is configured.
+   *
+   * @param args - The arguments forwarded to the {@link GetPaymentOverrideDataCallback}.
+   * @returns A promise resolving to the additional transactions array.
+   */
+  getAmountData(
+    ...args: Parameters<GetAmountDataCallback>
+  ): ReturnType<GetAmountDataCallback> {
+    return this.#getAmountData?.(...args) ?? Promise.resolve({ updates: [] });
+  }
+
+  getPaymentOverrideData(
+    ...args: Parameters<GetPaymentOverrideDataCallback>
+  ): ReturnType<GetPaymentOverrideDataCallback> {
+    return (
+      this.#getPaymentOverrideData?.(...args) ?? Promise.resolve({ calls: [] })
+    );
+  }
+
+  /**
    * Gets the preferred strategy for a transaction.
    *
    * Returns the first strategy from the ordered list of strategies applicable
@@ -275,7 +310,6 @@ export class TransactionPayController extends BaseController<
     fn: (transactionData: Draft<TransactionData>) => void,
   ): void {
     let shouldUpdateQuotes = false;
-    let shouldUpdateFiatToken = false;
 
     this.update((state) => {
       const { transactionData } = state;
@@ -332,32 +366,7 @@ export class TransactionPayController extends BaseController<
       if (isFiatAmountUpdated || isFiatPaymentMethodUpdated) {
         shouldUpdateQuotes = true;
       }
-
-      if (isFiatPaymentMethodUpdated) {
-        shouldUpdateFiatToken = true;
-      }
     });
-
-    if (shouldUpdateFiatToken) {
-      const transaction = getTransaction(
-        transactionId,
-        this.messenger,
-      ) as TransactionMeta;
-      const fiatAsset = deriveFiatAssetForFiatPayment(
-        transaction,
-        this.messenger,
-      );
-      if (fiatAsset) {
-        this.#updateTransactionData(transactionId, (data) => {
-          if (data.fiatPayment) {
-            data.fiatPayment.caipAssetId = buildCaipAssetType(
-              fiatAsset.chainId,
-              fiatAsset.address,
-            );
-          }
-        });
-      }
-    }
 
     if (shouldUpdateQuotes) {
       updateQuotes({

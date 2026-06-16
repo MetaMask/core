@@ -1,6 +1,6 @@
 {
   "name": "@metamask/snap-account-service",
-  "version": "0.2.1",
+  "version": "0.3.1",
   "description": "Service for Account Management Snaps",
   "keywords": [
     "Ethereum",
@@ -54,13 +54,15 @@
   },
   "dependencies": {
     "@metamask/account-api": "^1.0.4",
-    "@metamask/account-tree-controller": "^7.5.0",
+    "@metamask/account-tree-controller": "^7.5.2",
     "@metamask/eth-snap-keyring": "^22.0.1",
-    "@metamask/keyring-controller": "^26.0.0",
+    "@metamask/keyring-api": "^23.1.0",
+    "@metamask/keyring-controller": "^27.1.0",
+    "@metamask/keyring-snap-sdk": "^9.0.1",
     "@metamask/messenger": "^1.2.0",
     "@metamask/snaps-controllers": "^19.0.0",
     "@metamask/snaps-sdk": "^11.0.0",
-    "@metamask/utils": "^11.9.0",
+    "@metamask/utils": "^11.11.0",
     "lodash": "^4.17.21"
   },
   "devDependencies": {

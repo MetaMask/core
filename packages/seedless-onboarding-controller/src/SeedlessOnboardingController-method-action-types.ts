@@ -71,6 +71,24 @@ export type SeedlessOnboardingControllerAddNewSecretDataAction = {
 };
 
 /**
+ * Run any pending seedless onboarding migrations.
+ *
+ * This method should be called by clients after the controller is unlocked
+ * to ensure legacy data is migrated to the latest format.
+ *
+ * Migrations are idempotent - running this multiple times is safe.
+ * The migration version is tracked in state to prevent re-running migrations.
+ *
+ * @returns A promise that resolves to `true` if data was actually migrated
+ * (items were updated on the server), `false` otherwise.
+ * @throws If the password is outdated (changed on another device).
+ */
+export type SeedlessOnboardingControllerRunMigrationsAction = {
+  type: `SeedlessOnboardingController:runMigrations`;
+  handler: SeedlessOnboardingController['runMigrations'];
+};
+
+/**
  * Fetches all secret data items from the metadata store.
  *
  * Decrypts the secret data and returns the decrypted secret data using the recovered encryption key from the password.
@@ -350,6 +368,7 @@ export type SeedlessOnboardingControllerMethodActions =
   | SeedlessOnboardingControllerAuthenticateAction
   | SeedlessOnboardingControllerCreateToprfKeyAndBackupSeedPhraseAction
   | SeedlessOnboardingControllerAddNewSecretDataAction
+  | SeedlessOnboardingControllerRunMigrationsAction
   | SeedlessOnboardingControllerFetchAllSecretDataAction
   | SeedlessOnboardingControllerChangePasswordAction
   | SeedlessOnboardingControllerUpdateBackupMetadataStateAction

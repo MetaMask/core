@@ -35,7 +35,6 @@ import type {
   BridgeAssetSchema,
   ChainConfigurationSchema,
   ChainRankingSchema,
-  FeatureId,
   FeeDataSchema,
   IntentSchema,
   PlatformConfigSchema,
@@ -259,6 +258,16 @@ export enum StatusTypes {
   COMPLETE = 'COMPLETE',
 }
 
+export enum FeatureId {
+  UNKNOWN = 'unknown',
+  PERPS = 'perps',
+  QUICK_BUY_FOLLOW_TRADING = 'quick_buy_follow_trading',
+  QUICK_BUY_TOKEN_DETAILS = 'quick_buy_token_details',
+  DAPP_SWAP = 'dapp_swap',
+  BATCH_SELL = 'batch_sell',
+  UNIFIED_SWAP_BRIDGE = 'unified_swap_bridge',
+}
+
 /**
  * These are types that components pass in. Since data is a mix of types when coming from the redux store, we need to use a generic type that can cover all the types.
  * Payloads with this type are transformed into QuoteRequest by fetchBridgeQuotes right before fetching quotes
@@ -292,7 +301,7 @@ export type TronTradeData = Infer<typeof TronTradeDataSchema>;
  * TxDataType can be overriden to be a string when the quote is non-evm
  * ApprovalType can be overriden when you know the specific approval type (e.g., TxData for EVM-only contexts)
  */
-export type QuoteResponse<
+export type QuoteResponseV1<
   TxDataType = TxData | string | BitcoinTradeData | TronTradeData,
   ApprovalType = TxData | TronTradeData,
 > = Infer<typeof QuoteResponseSchema> & {
@@ -315,7 +324,8 @@ export type QuoteResponse<
 };
 
 export type BatchSellTradesRequest = {
-  quotes: QuoteResponse[];
+  quotes: QuoteResponseV1[];
+  stxEnabled: boolean;
 };
 
 /**
@@ -329,6 +339,18 @@ export type SimulatedGasFeeLimits = Infer<typeof SimulatedGasFeeLimitsSchema>;
 export type TxFeeGasLimits = Infer<typeof TxFeeGasLimitsSchema>;
 
 export type GaslessProperties = Infer<typeof GaslessPropertiesSchema>;
+
+export type DeepPartial<Type> = Type extends string
+  ? Type
+  : {
+      [K in keyof Type]?: Type[K] extends (infer U)[]
+        ? DeepPartial<U>[]
+        : Type[K] extends readonly (infer U)[]
+          ? readonly DeepPartial<U>[]
+          : Type[K] extends object
+            ? DeepPartial<Type[K]>
+            : Type[K];
+    };
 
 export enum ChainId {
   ETH = 1,
@@ -347,6 +369,7 @@ export enum ChainId {
   MONAD = 143,
   HYPEREVM = 999,
   MEGAETH = 4326,
+  ARC = 5042,
 }
 
 export type FeatureFlagsPlatformConfig = Infer<typeof PlatformConfigSchema>;
@@ -361,30 +384,9 @@ export enum RequestStatus {
   ERROR = 2,
 }
 
-/**
- * @deprecated Use the separate method action types (e.g.,
- * `BridgeControllerFetchQuotesAction`) instead.
- */
-export enum BridgeUserAction {
-  SELECT_DEST_NETWORK = 'selectDestNetwork',
-  UPDATE_QUOTE_PARAMS = 'updateBridgeQuoteRequestParams',
-}
-
-/**
- * @deprecated Use the separate method action types (e.g.,
- * `BridgeControllerFetchQuotesAction`) instead.
- */
-export enum BridgeBackgroundAction {
-  SET_CHAIN_INTERVAL_LENGTH = 'setChainIntervalLength',
-  RESET_STATE = 'resetState',
-  TRACK_METAMETRICS_EVENT = 'trackUnifiedSwapBridgeEvent',
-  STOP_POLLING_FOR_QUOTES = 'stopPollingForQuotes',
-  FETCH_QUOTES = 'fetchQuotes',
-}
-
 export type BridgeControllerState = {
   quoteRequest: Partial<GenericQuoteRequest>[];
-  quotes: (QuoteResponse & L1GasFees & NonEvmFees)[];
+  quotes: (QuoteResponseV1 & L1GasFees & NonEvmFees)[];
   /**
    * The time elapsed between the initial quote fetch and when the first valid quote was received
    */

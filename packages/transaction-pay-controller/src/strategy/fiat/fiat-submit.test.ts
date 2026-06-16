@@ -20,11 +20,16 @@ import { getRelayQuotes } from '../relay/relay-quotes';
 import { submitRelayQuotes } from '../relay/relay-submit';
 import type { RelayQuote } from '../relay/types';
 import type { TransactionPayFiatAsset } from './constants';
+import { MUSD_MONAD_FIAT_ASSET } from './constants';
 import { submitFiatQuotes } from './fiat-submit';
 import type { FiatQuote } from './types';
 import { deriveFiatAssetForFiatPayment, resolveSourceAmountRaw } from './utils';
 
-jest.mock('./utils');
+jest.mock('./utils', () => ({
+  ...jest.requireActual('./utils'),
+  deriveFiatAssetForFiatPayment: jest.fn(),
+  resolveSourceAmountRaw: jest.fn(),
+}));
 jest.mock('../../utils/token');
 jest.mock('../../utils/transaction');
 jest.mock('../relay/relay-quotes');
@@ -96,7 +101,13 @@ const RELAY_QUOTE_RESULT_MOCK = {
   },
   original: {
     details: {
-      currencyOut: { amount: '12000000' },
+      currencyIn: { amount: '1000000000000000000', amountUsd: '5.00' },
+      currencyOut: {
+        amount: '12000000',
+        amountUsd: '4.85',
+        minimumAmount: '11900000',
+      },
+      totalImpact: { usd: '-0.15' },
     },
   } as unknown as RelayQuote,
   request: BASE_QUOTE_REQUEST_MOCK,
@@ -163,7 +174,13 @@ function getFiatQuoteMock({
       rampsQuote: RAMPS_QUOTE_MOCK,
       relayQuote: {
         details: {
-          currencyOut: { amount: '12000000' },
+          currencyIn: { amount: '1000000000000000000', amountUsd: '5.00' },
+          currencyOut: {
+            amount: '12000000',
+            amountUsd: '4.85',
+            minimumAmount: '11900000',
+          },
+          totalImpact: { usd: '-0.15' },
         },
       } as unknown as RelayQuote,
     },
@@ -218,6 +235,14 @@ function getRequest({
       return order;
     }
 
+    if (action === 'TransactionPayController:getAmountData') {
+      return Promise.resolve({ updates: [] });
+    }
+
+    if (action === 'RemoteFeatureFlagController:getState') {
+      return { remoteFeatureFlags: {} };
+    }
+
     throw new Error(`Unexpected action: ${action}`);
   });
 
@@ -257,7 +282,7 @@ describe('submitFiatQuotes', () => {
     });
   });
 
-  it('polls completed fiat order then requotes and submits relay', async () => {
+  it('polls completed fiat order then submits single EXACT_INPUT relay for simple deposits', async () => {
     const order = getFiatOrderMock({
       cryptoAmount: '1.2345',
       cryptoCurrency: {
@@ -287,22 +312,91 @@ describe('submitFiatQuotes', () => {
     expect(getRelayQuotesMock).toHaveBeenCalledTimes(1);
     expect(getRelayQuotesMock.mock.calls[0][0].requests).toStrictEqual([
       expect.objectContaining({
-        isMaxAmount: true,
-        isPostQuote: false,
+        isMaxAmount: false,
+        isPostQuote: true,
+        skipProcessTransactions: false,
         sourceBalanceRaw: '1234500000000000000',
         sourceTokenAmount: '1234500000000000000',
       }),
     ]);
-    expect(
-      getRelayQuotesMock.mock.calls[0][0].transaction.txParams.data,
-    ).toBeUndefined();
-    expect(
-      getRelayQuotesMock.mock.calls[0][0].transaction.nestedTransactions,
-    ).toBeUndefined();
     expect(submitRelayQuotesMock).toHaveBeenCalledWith(
       expect.objectContaining({
         quotes: [RELAY_QUOTE_RESULT_MOCK],
       }),
+    );
+    expect(result).toStrictEqual({ transactionHash: '0x1234' });
+  });
+
+  it('uses three-phase flow with discovery and delegation for nested calldata transactions', async () => {
+    const nestedTransaction = {
+      ...TRANSACTION_MOCK,
+      nestedTransactions: [
+        { to: '0xaaa' as Hex, data: '0x1111' as Hex },
+        { to: '0xbbb' as Hex, data: '0x2222' as Hex },
+      ],
+    } as unknown as TransactionMeta;
+
+    resolveSourceAmountRawMock.mockResolvedValue('1234500000000000000');
+
+    const { callMock, request } = getRequest({
+      transaction: nestedTransaction,
+    });
+
+    callMock.mockImplementation((action: string) => {
+      if (action === 'TransactionPayController:getState') {
+        return {
+          transactionData: {
+            [TRANSACTION_ID_MOCK]: {
+              fiatPayment: {
+                orderId: ORDER_ID_MOCK,
+                rampsQuote: RAMPS_QUOTE_MOCK,
+              },
+              isLoading: false,
+              tokens: [],
+            },
+          },
+        };
+      }
+      if (action === 'RampsController:getOrder') {
+        return getFiatOrderMock();
+      }
+      if (action === 'TransactionPayController:getAmountData') {
+        return Promise.resolve({
+          updates: [
+            { nestedTransactionIndex: 0, data: '0xNewApprove' },
+            { nestedTransactionIndex: 1, data: '0xNewDeposit' },
+          ],
+        });
+      }
+      if (action === 'RemoteFeatureFlagController:getState') {
+        return { remoteFeatureFlags: {} };
+      }
+      throw new Error(`Unexpected action: ${action}`);
+    });
+
+    const result = await submitFiatQuotes(request);
+
+    expect(getRelayQuotesMock).toHaveBeenCalledTimes(2);
+    expect(getRelayQuotesMock.mock.calls[0][0].requests).toStrictEqual([
+      expect.objectContaining({
+        isMaxAmount: false,
+        isPostQuote: true,
+        sourceBalanceRaw: '1234500000000000000',
+        sourceTokenAmount: '1198500000000000000',
+      }),
+    ]);
+    expect(getRelayQuotesMock.mock.calls[1][0].requests).toStrictEqual([
+      expect.objectContaining({
+        isMaxAmount: false,
+        isPostQuote: false,
+        sourceBalanceRaw: '1234500000000000000',
+        sourceTokenAmount: '1234500000000000000',
+        targetAmountMinimum: '12268041',
+      }),
+    ]);
+    expect(callMock).toHaveBeenCalledWith(
+      'TransactionPayController:getAmountData',
+      expect.objectContaining({ amount: '12268041' }),
     );
     expect(result).toStrictEqual({ transactionHash: '0x1234' });
   });
@@ -383,6 +477,9 @@ describe('submitFiatQuotes', () => {
           },
         };
       }
+      if (action === 'RemoteFeatureFlagController:getState') {
+        return { remoteFeatureFlags: {} };
+      }
       throw new Error(`Unexpected action: ${action}`);
     });
 
@@ -402,11 +499,36 @@ describe('submitFiatQuotes', () => {
 
   it('throws if provider string format is invalid', async () => {
     const { request } = getRequest({
-      rampsQuote: { ...RAMPS_QUOTE_MOCK, provider: 'invalid' },
+      rampsQuote: { ...RAMPS_QUOTE_MOCK, provider: '/unexpected/path' },
     });
 
     await expect(submitFiatQuotes(request)).rejects.toThrow(
       'Missing provider code for fiat submission',
+    );
+  });
+
+  it('throws if the legacy providers path prefix has no provider code', async () => {
+    const { request } = getRequest({
+      rampsQuote: { ...RAMPS_QUOTE_MOCK, provider: '/providers' },
+    });
+
+    await expect(submitFiatQuotes(request)).rejects.toThrow(
+      'Missing provider code for fiat submission',
+    );
+  });
+
+  it('accepts the canonical provider code without the legacy providers path prefix', async () => {
+    const { callMock, request } = getRequest({
+      rampsQuote: { ...RAMPS_QUOTE_MOCK, provider: 'transak-native-staging' },
+    });
+
+    await submitFiatQuotes(request);
+
+    expect(callMock).toHaveBeenCalledWith(
+      'RampsController:getOrder',
+      'transak-native-staging',
+      ORDER_ID_MOCK,
+      WALLET_ADDRESS_MOCK,
     );
   });
 
@@ -471,6 +593,13 @@ describe('submitFiatQuotes', () => {
         return getOrderCallCount === 1 ? pendingOrder : completedOrder;
       }
 
+      if (action === 'TransactionPayController:getAmountData') {
+        return Promise.resolve({ updates: [] });
+      }
+
+      if (action === 'RemoteFeatureFlagController:getState') {
+        return { remoteFeatureFlags: {} };
+      }
       throw new Error(`Unexpected action: ${action}`);
     });
 
@@ -524,6 +653,13 @@ describe('submitFiatQuotes', () => {
         return completedOrder;
       }
 
+      if (action === 'TransactionPayController:getAmountData') {
+        return Promise.resolve({ updates: [] });
+      }
+
+      if (action === 'RemoteFeatureFlagController:getState') {
+        return { remoteFeatureFlags: {} };
+      }
       throw new Error(`Unexpected action: ${action}`);
     });
 
@@ -552,6 +688,60 @@ describe('submitFiatQuotes', () => {
 
     const pendingOrder = getFiatOrderMock({ status: RampsOrderStatus.Pending });
     const { request } = getRequest({ order: pendingOrder });
+
+    await expect(submitFiatQuotes(request)).rejects.toThrow(
+      'Fiat order polling timed out (last status: PENDING)',
+    );
+
+    dateNowSpy.mockRestore();
+  });
+
+  it('uses configurable poll timeout from feature flag', async () => {
+    const customTimeoutMs = 30000;
+
+    const dateNowSpy = jest
+      .spyOn(Date, 'now')
+      .mockReturnValueOnce(0)
+      .mockReturnValue(customTimeoutMs);
+
+    const pendingOrder = getFiatOrderMock({ status: RampsOrderStatus.Pending });
+    const callMock = jest.fn((action: string) => {
+      if (action === 'TransactionPayController:getState') {
+        return {
+          transactionData: {
+            [TRANSACTION_ID_MOCK]: {
+              fiatPayment: {
+                orderId: ORDER_ID_MOCK,
+                rampsQuote: RAMPS_QUOTE_MOCK,
+              },
+              isLoading: false,
+              tokens: [],
+            },
+          },
+        };
+      }
+      if (action === 'RampsController:getOrder') {
+        return pendingOrder;
+      }
+      if (action === 'RemoteFeatureFlagController:getState') {
+        return {
+          remoteFeatureFlags: {
+            confirmations_pay_fiat: { orderPollTimeoutMs: customTimeoutMs },
+          },
+        };
+      }
+      throw new Error(`Unexpected action: ${action}`);
+    });
+
+    const request: PayStrategyExecuteRequest<FiatQuote> = {
+      accountSupports7702: false,
+      isSmartTransaction: () => false,
+      messenger: {
+        call: callMock,
+      } as unknown as PayStrategyExecuteRequest<FiatQuote>['messenger'],
+      quotes: [getFiatQuoteMock()],
+      transaction: TRANSACTION_MOCK,
+    };
 
     await expect(submitFiatQuotes(request)).rejects.toThrow(
       'Fiat order polling timed out (last status: PENDING)',
@@ -643,50 +833,82 @@ describe('submitFiatQuotes', () => {
     );
   });
 
-  it('skips slippage check when original relay target amount is zero', async () => {
-    const { request } = getRequest();
-    request.quotes[0].original.relayQuote = {
-      details: { currencyOut: { amount: '0' } },
-    } as unknown as RelayQuote;
+  describe('direct mUSD to money account flow', () => {
+    const MONEY_ACCOUNT_ADDRESS =
+      '0x3333333333333333333333333333333333333333' as Hex;
 
-    const result = await submitFiatQuotes(request);
+    const MUSD_QUOTE_REQUEST: QuoteRequest = {
+      from: WALLET_ADDRESS_MOCK,
+      sourceBalanceRaw: '10000000',
+      sourceChainId: MUSD_MONAD_FIAT_ASSET.chainId,
+      sourceTokenAddress: MUSD_MONAD_FIAT_ASSET.address,
+      sourceTokenAmount: '10000000',
+      targetAmountMinimum: '10000000',
+      targetChainId: MUSD_MONAD_FIAT_ASSET.chainId,
+      targetTokenAddress: MUSD_MONAD_FIAT_ASSET.address,
+    };
 
-    expect(result).toStrictEqual({ transactionHash: '0x1234' });
-  });
+    const MUSD_TRANSACTION_MOCK = {
+      id: TRANSACTION_ID_MOCK,
+      txParams: { from: MONEY_ACCOUNT_ADDRESS },
+      type: 'batch',
+    } as TransactionMeta;
 
-  it('throws if relay re-quote slippage exceeds threshold', async () => {
-    getRelayQuotesMock.mockResolvedValue([
-      {
-        ...RELAY_QUOTE_RESULT_MOCK,
-        original: {
-          details: {
-            currencyOut: { amount: '10000000' },
-          },
-        } as unknown as RelayQuote,
-      },
-    ]);
-    const { request } = getRequest();
+    it('uses txParams.from as walletAddress when quote is direct mUSD', async () => {
+      const order = getFiatOrderMock({
+        status: RampsOrderStatus.Completed,
+      });
+      const { callMock, request } = getRequest({
+        order,
+        quotes: [getFiatQuoteMock({ request: MUSD_QUOTE_REQUEST })],
+        transaction: MUSD_TRANSACTION_MOCK,
+      });
 
-    await expect(submitFiatQuotes(request)).rejects.toThrow(
-      /Relay re-quote slippage too high/u,
-    );
-  });
+      await submitFiatQuotes(request);
 
-  it('throws if relay re-quote returns no quotes', async () => {
-    getRelayQuotesMock.mockResolvedValue([]);
-    const { request } = getRequest();
+      const getOrderCall = callMock.mock.calls.find(
+        ([action]: [string]) => action === 'RampsController:getOrder',
+      );
+      expect(getOrderCall?.[3]).toBe(MONEY_ACCOUNT_ADDRESS);
+    });
 
-    await expect(submitFiatQuotes(request)).rejects.toThrow(
-      'No relay quotes returned for completed fiat order',
-    );
-  });
+    it('uses MUSD_MONAD_FIAT_ASSET for order validation when quote is direct mUSD', async () => {
+      const order = getFiatOrderMock({
+        cryptoCurrency: {
+          assetId:
+            'eip155:143/erc20:0xaca92e438df0b2401ff60da7e4337b687a2435da',
+          chainId: 'eip155:143',
+          symbol: 'MUSD',
+        },
+        status: RampsOrderStatus.Completed,
+      });
+      buildCaipAssetTypeMock.mockReturnValue(
+        'eip155:143/erc20:0xaca92e438df0b2401ff60da7e4337b687a2435da',
+      );
+      const { request } = getRequest({
+        order,
+        quotes: [getFiatQuoteMock({ request: MUSD_QUOTE_REQUEST })],
+        transaction: MUSD_TRANSACTION_MOCK,
+      });
 
-  it('throws if relay submit fails', async () => {
-    submitRelayQuotesMock.mockRejectedValue(new Error('Relay submit failed'));
-    const { request } = getRequest();
+      await submitFiatQuotes(request);
+      expect(deriveFiatAssetForFiatPaymentMock).not.toHaveBeenCalled();
+    });
 
-    await expect(submitFiatQuotes(request)).rejects.toThrow(
-      'Relay submit failed',
-    );
+    it('falls back to deriveFiatAssetForFiatPayment when quote is not direct mUSD', async () => {
+      const order = getFiatOrderMock({
+        cryptoCurrency: {
+          assetId: FIAT_ASSET_CAIP_ID_MOCK,
+          chainId: 'eip155:137',
+          symbol: 'POL',
+        },
+        status: RampsOrderStatus.Completed,
+      });
+      const { request } = getRequest({ order });
+
+      await submitFiatQuotes(request);
+
+      expect(deriveFiatAssetForFiatPaymentMock).toHaveBeenCalledTimes(1);
+    });
   });
 });

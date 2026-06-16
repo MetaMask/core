@@ -7,10 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add optional perp fields to the `Trade` type (and `TradeStruct`): `classification` (`'spot' | 'perp' | 'send' | 'receive' | null`), `perpPositionType` (`'long' | 'short' | null`), and `perpLeverage` (`number | null`) — exposing Hyperliquid/perp trade metadata to consumers ([#9094](https://github.com/MetaMask/core/pull/9094))
+- Add optional perp fields to the `Position` type (and `PositionStruct`): `perpPositionType` (`'long' | 'short' | null`), `perpLeverage` (`number | null`), and `positionAmountWithLeverage` (`number | null`) — exposing Hyperliquid/perp position metadata to consumers ([#9094](https://github.com/MetaMask/core/pull/9094))
+
 ### Changed
 
-- Bump `@metamask/controller-utils` from `^12.0.0` to `^12.1.0` ([#8774](https://github.com/MetaMask/core/pull/8774))
-- Bump `@metamask/profile-sync-controller` from `^28.0.2` to `^28.1.1` ([#8783](https://github.com/MetaMask/core/pull/8783), [#8912](https://github.com/MetaMask/core/pull/8912))
+- Bump `@metamask/controller-utils` from `^12.0.0` to `^12.2.0` ([#8774](https://github.com/MetaMask/core/pull/8774), [#9058](https://github.com/MetaMask/core/pull/9058), [#9083](https://github.com/MetaMask/core/pull/9083))
+- Bump `@metamask/profile-sync-controller` from `^28.0.2` to `^28.2.0` ([#8783](https://github.com/MetaMask/core/pull/8783), [#8912](https://github.com/MetaMask/core/pull/8912), [#9119](https://github.com/MetaMask/core/pull/9119))
 - Bump `@metamask/base-data-service` from `^0.1.2` to `^0.1.3` ([#8799](https://github.com/MetaMask/core/pull/8799))
 
 ## [2.2.1]

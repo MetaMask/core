@@ -1,4 +1,4 @@
-import { Hex } from '@metamask/utils';
+import { Duration, Hex, inMilliseconds } from '@metamask/utils';
 
 export const VEDA_PERFORMANCE_API_BASE_URL = 'https://api.sevenseas.capital';
 
@@ -8,10 +8,69 @@ export const VEDA_PERFORMANCE_API_BASE_URL = 'https://api.sevenseas.capital';
  */
 export const VAULT_CONFIG_FEATURE_FLAG_KEY = 'moneyAccountVaultConfig';
 
+/**
+ * The key under which the Money account balance `staleTime` (in milliseconds)
+ * is stored in `RemoteFeatureFlagController` state's `remoteFeatureFlags` map.
+ * Falls back to {@link DEFAULT_BALANCE_STALE_TIME} when absent or malformed.
+ */
+export const MONEY_ACCOUNT_BALANCE_STALETIME_FEATURE_FLAG_KEY =
+  'moneyAccountBalanceStaletime';
+
+/**
+ * Default `staleTime` (in milliseconds) for on-chain Money account balance
+ * reads, used when {@link MONEY_ACCOUNT_BALANCE_STALETIME_FEATURE_FLAG_KEY} is
+ * absent or malformed.
+ */
+export const DEFAULT_BALANCE_STALE_TIME = inMilliseconds(1, Duration.Minute);
+
 export const VEDA_API_NETWORK_NAMES: Record<Hex, string> = {
   '0xa4b1': 'arbitrum',
   '0x8f': 'monad',
 };
+
+/**
+ * Multicall3 contract address by chain ID, used to batch the Money account
+ * balance reads into a single RPC request. Multicall3 is deployed at the same
+ * canonical address on every supported chain.
+ *
+ * Source: https://github.com/mds1/multicall/blob/main/deployments.json
+ */
+export const MULTICALL3_ADDRESS_BY_CHAIN_ID: Record<Hex, Hex> = {
+  '0xa4b1': '0xcA11bde05977b3631167028862bE2a173976CA11', // Arbitrum One
+  '0x8f': '0xcA11bde05977b3631167028862bE2a173976CA11', // Monad mainnet
+};
+
+/**
+ * Minimal ABI for the Multicall3 `aggregate3` function.
+ */
+export const MULTICALL3_ABI = [
+  {
+    name: 'aggregate3',
+    type: 'function',
+    stateMutability: 'payable',
+    inputs: [
+      {
+        name: 'calls',
+        type: 'tuple[]',
+        components: [
+          { name: 'target', type: 'address' },
+          { name: 'allowFailure', type: 'bool' },
+          { name: 'callData', type: 'bytes' },
+        ],
+      },
+    ],
+    outputs: [
+      {
+        name: 'returnData',
+        type: 'tuple[]',
+        components: [
+          { name: 'success', type: 'bool' },
+          { name: 'returnData', type: 'bytes' },
+        ],
+      },
+    ],
+  },
+] as const;
 
 /**
  * Minimal ABI for the Veda Accountant contract. Covers:

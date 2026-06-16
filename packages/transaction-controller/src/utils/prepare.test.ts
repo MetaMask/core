@@ -144,7 +144,7 @@ describe('Prepare Utils', () => {
         TRANSACTION_PARAMS_MOCK,
       );
 
-      const result = serializeTransaction(transaction);
+      const result = serializeTransaction(CHAIN_ID_MOCK, transaction);
       expect(result).toStrictEqual(SERIALIZED_TRANSACTION);
     });
 
@@ -154,7 +154,7 @@ describe('Prepare Utils', () => {
         TRANSACTION_PARAMS_FEE_MARKET_MOCK,
       );
 
-      const result = serializeTransaction(transaction);
+      const result = serializeTransaction(CHAIN_ID_MOCK, transaction);
       expect(result).toStrictEqual(SERIALIZED_TRANSACTION_FEE_MARKET);
     });
   });

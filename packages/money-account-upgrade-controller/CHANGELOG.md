@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/keyring-controller` from `^27.0.0` to `^27.1.0` ([#9129](https://github.com/MetaMask/core/pull/9129))
+
+## [2.0.5]
+
+### Changed
+
+- Bump `@metamask/utils` from `^11.9.0` to `^11.11.0` ([#9074](https://github.com/MetaMask/core/pull/9074))
+
+### Fixed
+
+- Scope the `register-intents` step to the currently-configured token addresses (deposit mUSD / withdrawal vmUSD) so that stale delegations for previously-configured tokens are no longer registered as intents ([#9075](https://github.com/MetaMask/core/pull/9075))
+
+## [2.0.4]
+
+### Changed
+
+- Bump `@metamask/delegation-controller` from `^3.0.1` to `^3.0.2` ([#9058](https://github.com/MetaMask/core/pull/9058))
+- Bump `@metamask/keyring-controller` from `^26.0.0` to `^27.0.0` ([#9058](https://github.com/MetaMask/core/pull/9058))
+
 ## [2.0.3]
 
 ### Changed
@@ -100,7 +121,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Add `MoneyAccountUpgradeController` with `upgradeAccount` method ([#8426](https://github.com/MetaMask/core/pull/8426))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/money-account-upgrade-controller@2.0.3...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/money-account-upgrade-controller@2.0.5...HEAD
+[2.0.5]: https://github.com/MetaMask/core/compare/@metamask/money-account-upgrade-controller@2.0.4...@metamask/money-account-upgrade-controller@2.0.5
+[2.0.4]: https://github.com/MetaMask/core/compare/@metamask/money-account-upgrade-controller@2.0.3...@metamask/money-account-upgrade-controller@2.0.4
 [2.0.3]: https://github.com/MetaMask/core/compare/@metamask/money-account-upgrade-controller@2.0.2...@metamask/money-account-upgrade-controller@2.0.3
 [2.0.2]: https://github.com/MetaMask/core/compare/@metamask/money-account-upgrade-controller@2.0.1...@metamask/money-account-upgrade-controller@2.0.2
 [2.0.1]: https://github.com/MetaMask/core/compare/@metamask/money-account-upgrade-controller@2.0.0...@metamask/money-account-upgrade-controller@2.0.1

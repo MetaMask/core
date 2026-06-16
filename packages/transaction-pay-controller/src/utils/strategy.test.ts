@@ -3,6 +3,7 @@ import { AcrossStrategy } from '../strategy/across/AcrossStrategy';
 import { BridgeStrategy } from '../strategy/bridge/BridgeStrategy';
 import { FiatStrategy } from '../strategy/fiat/FiatStrategy';
 import { RelayStrategy } from '../strategy/relay/RelayStrategy';
+import { ServerStrategy } from '../strategy/server/ServerStrategy';
 import { TestStrategy } from '../strategy/test/TestStrategy';
 import type { PayStrategyGetQuotesRequest } from '../types';
 import {
@@ -39,6 +40,11 @@ describe('Strategy Utils', () => {
       expect(strategy).toBeInstanceOf(FiatStrategy);
     });
 
+    it('returns ServerStrategy if strategy name is Server', () => {
+      const strategy = getStrategyByName(TransactionPayStrategy.Server);
+      expect(strategy).toBeInstanceOf(ServerStrategy);
+    });
+
     it('throws if strategy name is unknown', () => {
       expect(() => getStrategyByName('UnknownStrategy' as never)).toThrow(
         'Unknown strategy: UnknownStrategy',
@@ -53,17 +59,20 @@ describe('Strategy Utils', () => {
         TransactionPayStrategy.Bridge,
         TransactionPayStrategy.Relay,
         TransactionPayStrategy.Fiat,
+        TransactionPayStrategy.Server,
       ]);
 
-      expect(strategies).toHaveLength(4);
+      expect(strategies).toHaveLength(5);
       expect(strategies[0].name).toBe(TransactionPayStrategy.Test);
       expect(strategies[1].name).toBe(TransactionPayStrategy.Bridge);
       expect(strategies[2].name).toBe(TransactionPayStrategy.Relay);
       expect(strategies[3].name).toBe(TransactionPayStrategy.Fiat);
+      expect(strategies[4].name).toBe(TransactionPayStrategy.Server);
       expect(strategies[0].strategy).toBeInstanceOf(TestStrategy);
       expect(strategies[1].strategy).toBeInstanceOf(BridgeStrategy);
       expect(strategies[2].strategy).toBeInstanceOf(RelayStrategy);
       expect(strategies[3].strategy).toBeInstanceOf(FiatStrategy);
+      expect(strategies[4].strategy).toBeInstanceOf(ServerStrategy);
     });
 
     it('skips unknown strategies and calls callback', () => {

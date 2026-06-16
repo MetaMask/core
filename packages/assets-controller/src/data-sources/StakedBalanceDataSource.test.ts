@@ -221,10 +221,6 @@ describe('StakedBalanceDataSource', () => {
           expect.any(Function),
         );
         expect(mockMessengerSubscribe).toHaveBeenCalledWith(
-          'TransactionController:incomingTransactionsReceived',
-          expect.any(Function),
-        );
-        expect(mockMessengerSubscribe).toHaveBeenCalledWith(
           'NetworkController:stateChange',
           expect.any(Function),
         );
@@ -490,64 +486,6 @@ describe('StakedBalanceDataSource', () => {
         // Assert
         await new Promise((resolve) => setTimeout(resolve, 300));
         expect(onAssetsUpdate).toHaveBeenCalledTimes(1);
-      });
-    });
-
-    it('refreshes when incomingTransactionsReceived includes tx involving staking contract', async () => {
-      await withController(async ({ controller, rootMessenger }) => {
-        // Arrange
-        const onAssetsUpdate = await arrange({ controller });
-
-        // Act
-        rootMessenger.publish(
-          'TransactionController:incomingTransactionsReceived',
-          [
-            {
-              id: '1',
-              networkClientId: 'mainnet',
-              status: TransactionStatus.confirmed,
-              time: Date.now(),
-              chainId: MAINNET_CHAIN_ID_HEX,
-              txParams: {
-                to: STAKING_CONTRACT_MAINNET,
-                from: '0x0000000000000000000000000000000000000000',
-              },
-            },
-          ],
-        );
-
-        // Assert
-        await new Promise((resolve) => setTimeout(resolve, 300));
-        expect(onAssetsUpdate).toHaveBeenCalledTimes(1);
-      });
-    });
-
-    it('does not refresh when incomingTransactionsReceived has no tx involving staking contract', async () => {
-      await withController(async ({ controller, rootMessenger }) => {
-        // Arrange
-        const onAssetsUpdate = await arrange({ controller });
-
-        // Act
-        rootMessenger.publish(
-          'TransactionController:incomingTransactionsReceived',
-          [
-            {
-              id: '1',
-              networkClientId: 'mainnet',
-              status: TransactionStatus.confirmed,
-              time: Date.now(),
-              chainId: MAINNET_CHAIN_ID_HEX,
-              txParams: {
-                to: '0x1234567890123456789012345678901234567890',
-                from: '0x0000000000000000000000000000000000000000',
-              },
-            },
-          ],
-        );
-
-        // Assert
-        await new Promise((resolve) => setTimeout(resolve, 100));
-        expect(onAssetsUpdate).not.toHaveBeenCalled();
       });
     });
   });

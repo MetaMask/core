@@ -11,6 +11,7 @@ import type { AuthenticationController } from '@metamask/profile-sync-controller
 import {
   array,
   boolean,
+  enums,
   is,
   nullable,
   number,
@@ -76,6 +77,9 @@ const PositionStruct = structType({
   currentValueUSD: optional(nullable(number())),
   pnlValueUsd: optional(nullable(number())),
   pnlPercent: optional(nullable(number())),
+  perpPositionType: optional(nullable(enums(['long', 'short']))),
+  perpLeverage: optional(nullable(number())),
+  positionAmountWithLeverage: optional(nullable(number())),
 });
 
 const PaginationStruct = structType({

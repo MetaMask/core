@@ -1,4 +1,3 @@
-import { KeyringControllerOptions } from '@metamask/keyring-controller';
 import type { Json } from '@metamask/utils';
 
 import type {
@@ -6,7 +5,11 @@ import type {
   DefaultEvents,
   RootMessenger,
 } from './initialization/defaults';
-import { GenericEncryptor } from './initialization/instances/keyring-controller';
+import type { ApprovalControllerInstanceOptions } from './initialization/instances/approval-controller/types';
+import type { ConnectivityControllerInstanceOptions } from './initialization/instances/connectivity-controller/types';
+import type { KeyringControllerInstanceOptions } from './initialization/instances/keyring-controller/types';
+import type { RemoteFeatureFlagControllerInstanceOptions } from './initialization/instances/remote-feature-flag-controller/types';
+import type { StorageServiceInstanceOptions } from './initialization/instances/storage-service/types';
 import { InitializationConfiguration } from './initialization/types';
 
 export type WalletOptions = {
@@ -16,12 +19,13 @@ export type WalletOptions = {
     unknown,
     unknown
   >[];
-  instanceOptions?: InstanceSpecificOptions;
+  instanceOptions: InstanceSpecificOptions;
 };
 
 export type InstanceSpecificOptions = {
-  keyringController?: {
-    encryptor?: GenericEncryptor;
-    keyringBuilders?: KeyringControllerOptions['keyringBuilders'];
-  };
+  approvalController?: ApprovalControllerInstanceOptions;
+  connectivityController: ConnectivityControllerInstanceOptions;
+  keyringController?: KeyringControllerInstanceOptions;
+  remoteFeatureFlagController: RemoteFeatureFlagControllerInstanceOptions;
+  storageService: StorageServiceInstanceOptions;
 };

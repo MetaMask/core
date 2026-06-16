@@ -247,8 +247,14 @@
     },
     {
       "path": "./packages/wallet"
+    },
+    {
+      "path": "./packages/wallet-cli"
+    },
+    {
+      "path": "./packages/wallet-framework-docs"
     }
   ],
   "files": [],
-  "include": ["./types", "./scripts"]
+  "include": ["./docs", "./types", "./scripts", "./knip.config.ts"]
 }

@@ -4,8 +4,6 @@ import type {
   ControllerStateChangeEvent,
 } from '@metamask/base-controller';
 import type {
-  BridgeBackgroundAction,
-  BridgeControllerAction,
   ChainId,
   FeatureId,
   Quote,
@@ -15,6 +13,10 @@ import type {
   SimulatedGasFeeLimits,
   TxData,
   TxFeeGasLimits,
+  BridgeControllerTrackUnifiedSwapBridgeEventAction,
+  BridgeControllerStopPollingForQuotesAction,
+  BatchSellTradesResponse,
+  BridgeControllerGetStateAction,
 } from '@metamask/bridge-controller';
 import type { KeyringControllerSignTypedMessageAction } from '@metamask/keyring-controller';
 import type { Messenger } from '@metamask/messenger';
@@ -146,6 +148,16 @@ export type BridgeHistoryItem = {
    */
   originalTransactionId?: string; // Keep original transaction ID for intent transactions
   batchId?: string;
+  /**
+   * This is defined when the history item is for a batch sell transaction
+   */
+  batchSellData?: BatchSellTradesResponse;
+  /**
+   * This is defined when the history item corresponds to the 7702 batch's delegation tx.
+   * It contains the list of quoteIds for the BatchSell quotes that are part of the 7702 batch.
+   * Each quote can be retrieved from txHistory as `txHistory[quoteId]`.
+   */
+  quoteIds?: string[];
   quote: Quote;
   quoteId?: string; // Optional: absent on history items persisted before this field was introduced
   status: StatusResponse;
@@ -261,6 +273,8 @@ export type QuoteMetadataSerialized = {
 export type StartPollingForBridgeTxStatusArgs = {
   bridgeTxMeta?: Pick<TransactionMeta, 'id' | 'hash' | 'batchId'>;
   actionId?: string;
+  batchSellData?: BridgeHistoryItem['batchSellData'];
+  quoteIds?: BridgeHistoryItem['quoteIds'];
   /**
    * @deprecated the txMeta or orderUid should be used instead
    */
@@ -272,7 +286,7 @@ export type StartPollingForBridgeTxStatusArgs = {
   targetContractAddress?: BridgeHistoryItem['targetContractAddress'];
   approvalTxId?: BridgeHistoryItem['approvalTxId'];
   isStxEnabled?: BridgeHistoryItem['isStxEnabled'];
-  location?: BridgeHistoryItem['location'];
+  location: MetaMetricsSwapsEventSource;
   // Legacy field for `ab_tests` metrics payload.
   abTests?: BridgeHistoryItem['abTests'];
   // New field for `active_ab_tests` metrics payload.
@@ -292,7 +306,7 @@ export type StartPollingForBridgeTxStatusArgsSerialized = Omit<
   StartPollingForBridgeTxStatusArgs,
   'quoteResponse'
 > & {
-  quoteResponse: QuoteResponse & Partial<QuoteMetadata>;
+  quoteResponse: QuoteResponse & QuoteMetadata;
 };
 
 export type SourceChainTxMetaId = string;
@@ -353,8 +367,9 @@ type AllowedActions =
   | TransactionControllerAddTransactionAction
   | TransactionControllerEstimateGasFeeAction
   | TransactionControllerIsAtomicBatchSupportedAction
-  | BridgeControllerAction<BridgeBackgroundAction.TRACK_METAMETRICS_EVENT>
-  | BridgeControllerAction<BridgeBackgroundAction.STOP_POLLING_FOR_QUOTES>
+  | BridgeControllerTrackUnifiedSwapBridgeEventAction
+  | BridgeControllerStopPollingForQuotesAction
+  | BridgeControllerGetStateAction
   | AccountsControllerGetAccountByAddressAction
   | AuthenticationControllerGetBearerTokenAction
   | KeyringControllerSignTypedMessageAction;

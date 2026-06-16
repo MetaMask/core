@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/utils` from `^11.9.0` to `^11.11.0` ([#9074](https://github.com/MetaMask/core/pull/9074))
+- Bump `@metamask/controller-utils` from `^12.1.1` to `^12.2.0` ([#9083](https://github.com/MetaMask/core/pull/9083))
+- The `state` option of the `AccountsController` constructor is now optional, defaulting to the controller's default state when omitted ([#8924](https://github.com/MetaMask/core/pull/8924))
+- Bump `@metamask/keyring-controller` from `^27.0.0` to `^27.1.0` ([#9129](https://github.com/MetaMask/core/pull/9129))
+
+## [39.0.1]
+
+### Changed
+
+- Bump `@metamask/keyring-controller` from `^26.0.0` to `^27.0.0` ([#9058](https://github.com/MetaMask/core/pull/9058))
+
+## [39.0.0]
+
+### Changed
+
+- **BREAKING:** Re-publish `SnapAccountService:account{AssetList,Balances,Transactions}Updated` events as `AccountsController:account{AssetList,Balances,Transactions}Updated` events ([#8978](https://github.com/MetaMask/core/pull/8978))
+  - Now requires `SnapAccountService:account{AssetList,Balances,Transactions}Updated` events to be registered on the messenger.
+  - No longer requires `SnapKeyring:account{AssetList,Balances,Transactions}Updated` events to be registered on the messenger.
+
 ## [38.1.2]
 
 ### Changed
@@ -805,7 +826,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#1637](https://github.com/MetaMask/core/pull/1637))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@38.1.2...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@39.0.1...HEAD
+[39.0.1]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@39.0.0...@metamask/accounts-controller@39.0.1
+[39.0.0]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@38.1.2...@metamask/accounts-controller@39.0.0
 [38.1.2]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@38.1.1...@metamask/accounts-controller@38.1.2
 [38.1.1]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@38.1.0...@metamask/accounts-controller@38.1.1
 [38.1.0]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@38.0.0...@metamask/accounts-controller@38.1.0

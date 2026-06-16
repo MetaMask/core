@@ -4,7 +4,7 @@ import type { TransactionMeta } from '@metamask/transaction-controller';
 import type { Hex, Json } from '@metamask/utils';
 import { createModuleLogger } from '@metamask/utils';
 
-import { TransactionPayStrategy } from '../constants';
+import { PaymentOverride, TransactionPayStrategy } from '../constants';
 import { projectLogger } from '../logger';
 import type {
   QuoteRequest,
@@ -86,7 +86,9 @@ export async function updateQuotes(
     isPostQuote,
     isHyperliquidSource,
     isPolymarketDepositWallet,
+    paymentOverride,
     paymentToken: originalPaymentToken,
+    fiatPayment,
     refundTo,
     sourceAmounts,
     tokens,
@@ -122,6 +124,7 @@ export async function updateQuotes(
       isPostQuote,
       isHyperliquidSource,
       isPolymarketDepositWallet,
+      paymentOverride,
       paymentToken,
       refundTo,
       sourceAmounts,
@@ -133,11 +136,12 @@ export async function updateQuotes(
 
     const { batchTransactions, quotes } = await getQuotes(
       transaction,
+      from,
       requests,
       supports7702,
       getStrategies,
       messenger,
-      transactionData.fiatPayment?.selectedPaymentMethodId,
+      fiatPayment?.selectedPaymentMethodId,
       signal,
     );
 
@@ -147,6 +151,7 @@ export async function updateQuotes(
     }
 
     const totals = calculateTotals({
+      fiatPaymentAmount: fiatPayment?.amountFiat,
       isMaxAmount,
       messenger,
       quotes: quotes as TransactionPayQuote<unknown>[],
@@ -326,6 +331,7 @@ function clearControllerIfCurrent(
  * @param request.isHyperliquidSource - Whether the source of funds is HyperLiquid.
  * @param request.isPolymarketDepositWallet - Whether the source of funds is a Polymarket deposit wallet.
  * @param request.isPostQuote - Whether this is a post-quote flow.
+ * @param request.paymentOverride - Optional payment override type for the transaction.
  * @param request.paymentToken - Payment token (source for standard flows, destination for post-quote).
  * @param request.refundTo - Optional address to receive refunds if the Relay transaction fails.
  * @param request.sourceAmounts - Source amounts for the transaction.
@@ -339,6 +345,7 @@ function buildQuoteRequests({
   isPostQuote,
   isHyperliquidSource,
   isPolymarketDepositWallet,
+  paymentOverride,
   paymentToken,
   refundTo,
   sourceAmounts,
@@ -350,6 +357,7 @@ function buildQuoteRequests({
   isPostQuote?: boolean;
   isHyperliquidSource?: boolean;
   isPolymarketDepositWallet?: boolean;
+  paymentOverride?: PaymentOverride;
   paymentToken: TransactionPaymentToken | undefined;
   refundTo?: Hex;
   sourceAmounts: TransactionPaySourceAmount[] | undefined;
@@ -366,6 +374,7 @@ function buildQuoteRequests({
       isMaxAmount,
       isHyperliquidSource,
       isPolymarketDepositWallet,
+      paymentOverride,
       destinationToken: paymentToken,
       refundTo,
       sourceAmounts,
@@ -382,6 +391,7 @@ function buildQuoteRequests({
     return {
       from,
       isMaxAmount,
+      paymentOverride,
       sourceBalanceRaw: paymentToken.balanceRaw,
       sourceTokenAmount: sourceAmount.sourceAmountRaw,
       sourceChainId: paymentToken.chainId,
@@ -409,6 +419,7 @@ function buildQuoteRequests({
  * @param request.isMaxAmount - Whether the transaction is a maximum amount transaction.
  * @param request.isHyperliquidSource - Whether the source of funds is HyperLiquid.
  * @param request.isPolymarketDepositWallet - Whether the source of funds is a Polymarket deposit wallet.
+ * @param request.paymentOverride - Optional payment override type for the transaction.
  * @param request.destinationToken - Destination token (paymentToken in post-quote mode).
  * @param request.refundTo - Optional address to receive refunds if the Relay transaction fails.
  * @param request.sourceAmounts - Source amounts for the transaction (includes source token info).
@@ -420,6 +431,7 @@ function buildPostQuoteRequests({
   isMaxAmount,
   isHyperliquidSource,
   isPolymarketDepositWallet,
+  paymentOverride,
   destinationToken,
   refundTo,
   sourceAmounts,
@@ -429,6 +441,7 @@ function buildPostQuoteRequests({
   isMaxAmount: boolean;
   isHyperliquidSource?: boolean;
   isPolymarketDepositWallet?: boolean;
+  paymentOverride?: PaymentOverride;
   destinationToken: TransactionPaymentToken;
   refundTo?: Hex;
   sourceAmounts: TransactionPaySourceAmount[] | undefined;
@@ -459,6 +472,7 @@ function buildPostQuoteRequests({
     isPostQuote: true,
     isHyperliquidSource,
     isPolymarketDepositWallet,
+    paymentOverride,
     refundTo,
     sourceBalanceRaw: sourceAmount.sourceBalanceRaw,
     sourceTokenAmount: sourceAmount.sourceAmountRaw,
@@ -550,6 +564,7 @@ async function refreshPaymentTokenBalance({
  * Retrieve quotes for a transaction.
  *
  * @param transaction - Transaction metadata.
+ * @param from - Resolved wallet address (`accountOverride ?? txParams.from`).
  * @param requests - Quote requests.
  * @param isAccountEIP7702Compatible - Whether the account supports EIP-7702.
  * @param getStrategies - Callback to get ordered strategy names for a transaction.
@@ -560,6 +575,7 @@ async function refreshPaymentTokenBalance({
  */
 async function getQuotes(
   transaction: TransactionMeta,
+  from: Hex,
   requests: QuoteRequest[],
   isAccountEIP7702Compatible: boolean,
   getStrategies: (transaction: TransactionMeta) => TransactionPayStrategy[],
@@ -591,6 +607,7 @@ async function getQuotes(
   const request = {
     accountSupports7702: isAccountEIP7702Compatible,
     fiatPaymentMethod,
+    from,
     messenger,
     requests,
     signal,

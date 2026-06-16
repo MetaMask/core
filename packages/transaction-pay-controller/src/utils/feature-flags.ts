@@ -1,6 +1,7 @@
 import type { TransactionType } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 import { createModuleLogger } from '@metamask/utils';
+import { BigNumber } from 'bignumber.js';
 import { uniq } from 'lodash';
 
 import { isTransactionPayStrategy, TransactionPayStrategy } from '../constants';
@@ -9,17 +10,27 @@ import type { TransactionPayFiatAsset } from '../strategy/fiat/constants';
 import {
   ETH_MAINNET_FIAT_ASSET,
   FIAT_ASSET_ID_BY_TX_TYPE,
+  FIAT_ENABLED_TYPES,
 } from '../strategy/fiat/constants';
 import {
   RELAY_EXECUTE_URL,
   RELAY_POLLING_INTERVAL,
   RELAY_QUOTE_URL,
 } from '../strategy/relay/constants';
+import {
+  SERVER_POLLING_INTERVAL,
+  SERVER_URL_BASE,
+} from '../strategy/server/constants';
 import type { TransactionPayControllerMessenger } from '../types';
 
 const log = createModuleLogger(projectLogger, 'feature-flags');
 
 type StrategyOrder = TransactionPayStrategy[];
+
+export const DEFAULT_FEE_RESERVE_MULTIPLIER = 1.2;
+export const DEFAULT_MAX_RATE_DRIFT_PERCENT = 10;
+export const DEFAULT_ORDER_POLL_INTERVAL_MS = 1000;
+export const DEFAULT_ORDER_POLL_TIMEOUT_MS = 10 * 60 * 1000;
 
 export const DEFAULT_GAS_BUFFER = 1.0;
 export const DEFAULT_FALLBACK_GAS_ESTIMATE = 900000;
@@ -29,7 +40,9 @@ export const DEFAULT_RELAY_QUOTE_URL = RELAY_QUOTE_URL;
 export const DEFAULT_RELAY_ORIGIN_GAS_OVERHEAD = '300000';
 export const DEFAULT_SLIPPAGE = 0.005;
 export const DEFAULT_ACROSS_API_BASE = 'https://app.across.to/api';
+export const DEFAULT_SERVER_BASE_URL = SERVER_URL_BASE;
 export const DEFAULT_STRATEGY_ORDER: StrategyOrder = [
+  TransactionPayStrategy.Server,
   TransactionPayStrategy.Relay,
   TransactionPayStrategy.Across,
 ];
@@ -85,11 +98,20 @@ type FiatFlags = {
   assetPerTransactionType?: Partial<
     Record<TransactionType, TransactionPayFiatAsset>
   >;
+  directMoneyMusdEnabled?: boolean;
+  enabledTransactionTypes: TransactionType[];
+  feeReserveMultiplier?: number;
+  maxRateDriftPercent?: number;
+  orderPollIntervalMs?: number;
+  orderPollTimeoutMs?: number;
 };
 
 type StrategyRoutingConfig = {
   payStrategies: {
     across: {
+      enabled: boolean;
+    };
+    server: {
       enabled: boolean;
     };
     relay: {
@@ -140,15 +162,28 @@ export type PayStrategiesConfigRaw = {
 };
 
 type FeatureFlagsExtendedRaw = {
+  excludeChainIdsFromInfura?: Hex[];
   payStrategies?: {
     relay?: {
       gaslessEnabled?: boolean;
+    };
+    server?: {
+      enabled?: boolean;
+      baseUrl?: string;
+      pollingInterval?: number;
+      pollingTimeout?: number;
     };
   };
 };
 
 export type PayStrategiesConfig = {
   across: AcrossConfig;
+  server: {
+    enabled: boolean;
+    baseUrl: string;
+    pollingInterval: number;
+    pollingTimeout?: number;
+  };
   relay: {
     enabled: boolean;
   };
@@ -238,6 +273,7 @@ function normalizeStrategyOverride(
 
 function normalizeStrategyRoutingConfig(
   featureFlags: FeatureFlagsRaw,
+  extendedFeatureFlags: FeatureFlagsExtendedRaw,
 ): StrategyRoutingConfig {
   const strategyOrder = normalizeStrategyList(featureFlags.strategyOrder);
 
@@ -245,6 +281,9 @@ function normalizeStrategyRoutingConfig(
     payStrategies: {
       across: {
         enabled: featureFlags.payStrategies?.across?.enabled ?? false,
+      },
+      server: {
+        enabled: extendedFeatureFlags.payStrategies?.server?.enabled ?? false,
       },
       relay: {
         enabled: featureFlags.payStrategies?.relay?.enabled ?? true,
@@ -273,8 +312,15 @@ function getStrategyRoutingConfig(
   const featureFlags = state.remoteFeatureFlags?.confirmations_pay as
     | FeatureFlagsRaw
     | undefined;
+  const extendedFeatureFlags =
+    (state.remoteFeatureFlags?.confirmations_pay_extended as
+      | FeatureFlagsExtendedRaw
+      | undefined) ?? {};
 
-  return normalizeStrategyRoutingConfig(featureFlags ?? {});
+  return normalizeStrategyRoutingConfig(
+    featureFlags ?? {},
+    extendedFeatureFlags,
+  );
 }
 
 function filterEnabledStrategies(
@@ -288,6 +334,10 @@ function filterEnabledStrategies(
 
     if (strategy === TransactionPayStrategy.Relay) {
       return routingConfig.payStrategies.relay.enabled;
+    }
+
+    if (strategy === TransactionPayStrategy.Server) {
+      return routingConfig.payStrategies.server.enabled;
     }
 
     return true;
@@ -419,10 +469,13 @@ export function getFeatureFlags(
       | FeatureFlagsRaw
       | undefined) ?? {};
 
-  const estimate =
-    featureFlags.relayFallbackGas?.estimate ?? DEFAULT_FALLBACK_GAS_ESTIMATE;
+  const estimate = new BigNumber(
+    featureFlags.relayFallbackGas?.estimate ?? DEFAULT_FALLBACK_GAS_ESTIMATE,
+  ).toNumber();
 
-  const max = featureFlags.relayFallbackGas?.max ?? DEFAULT_FALLBACK_GAS_MAX;
+  const max = new BigNumber(
+    featureFlags.relayFallbackGas?.max ?? DEFAULT_FALLBACK_GAS_MAX,
+  ).toNumber();
 
   const relayExecuteUrl =
     featureFlags.relayExecuteUrl ?? DEFAULT_RELAY_EXECUTE_URL;
@@ -464,9 +517,15 @@ export function getPayStrategiesConfig(
     (state.remoteFeatureFlags?.confirmations_pay as
       | FeatureFlagsRaw
       | undefined) ?? {};
+  const extendedFeatureFlags =
+    (state.remoteFeatureFlags?.confirmations_pay_extended as
+      | FeatureFlagsExtendedRaw
+      | undefined) ?? {};
   const payStrategies = featureFlags.payStrategies ?? {};
+  const extendedPayStrategies = extendedFeatureFlags.payStrategies ?? {};
 
   const acrossRaw = payStrategies.across ?? {};
+  const serverRaw = extendedPayStrategies.server ?? {};
   const relayRaw = payStrategies.relay ?? {};
 
   const across = {
@@ -479,12 +538,20 @@ export function getPayStrategiesConfig(
     },
   };
 
+  const server = {
+    enabled: serverRaw.enabled ?? false,
+    baseUrl: serverRaw.baseUrl ?? DEFAULT_SERVER_BASE_URL,
+    pollingInterval: serverRaw.pollingInterval ?? SERVER_POLLING_INTERVAL,
+    pollingTimeout: serverRaw.pollingTimeout,
+  };
+
   const relay = {
     enabled: relayRaw.enabled ?? true,
   };
 
   return {
     across,
+    server,
     relay,
   };
 }
@@ -504,6 +571,33 @@ export function isRelayExecuteEnabled(
       | FeatureFlagsExtendedRaw
       | undefined) ?? {};
   return featureFlags.payStrategies?.relay?.gaslessEnabled ?? false;
+}
+
+/**
+ * Whether a chain is excluded from preferring Infura for balance queries.
+ *
+ * When a chain ID appears in the `confirmations_pay_extended.excludeChainIdsFromInfura`
+ * feature flag array, the Infura RPC endpoint should not be forced for that chain.
+ *
+ * @param messenger - Controller messenger.
+ * @param chainId - Chain ID to check.
+ * @returns True if the chain should skip the Infura preference.
+ */
+export function isChainExcludedFromInfura(
+  messenger: TransactionPayControllerMessenger,
+  chainId: Hex,
+): boolean {
+  const state = messenger.call('RemoteFeatureFlagController:getState');
+  const featureFlags =
+    (state.remoteFeatureFlags?.confirmations_pay_extended as
+      | FeatureFlagsExtendedRaw
+      | undefined) ?? {};
+
+  const excludedChains = featureFlags.excludeChainIdsFromInfura ?? [];
+
+  return excludedChains.some(
+    (excluded) => excluded.toLowerCase() === chainId.toLowerCase(),
+  );
 }
 
 /**
@@ -563,6 +657,30 @@ export function getRelayPollingTimeout(
       | FeatureFlagsRaw
       | undefined) ?? {};
   return featureFlags.payStrategies?.relay?.pollingTimeout;
+}
+
+/**
+ * Get the server strategy status polling interval in milliseconds.
+ *
+ * @param messenger - Controller messenger.
+ * @returns Polling interval in milliseconds.
+ */
+export function getServerPollingInterval(
+  messenger: TransactionPayControllerMessenger,
+): number {
+  return getPayStrategiesConfig(messenger).server.pollingInterval;
+}
+
+/**
+ * Get the server strategy status polling timeout in milliseconds.
+ *
+ * @param messenger - Controller messenger.
+ * @returns Polling timeout in milliseconds, or undefined when not configured.
+ */
+export function getServerPollingTimeout(
+  messenger: TransactionPayControllerMessenger,
+): number | undefined {
+  return getPayStrategiesConfig(messenger).server.pollingTimeout;
 }
 
 /**
@@ -717,6 +835,130 @@ export function getFiatAssetPerTransactionType(
     FIAT_ASSET_ID_BY_TX_TYPE[transactionType] ??
     ETH_MAINNET_FIAT_ASSET
   );
+}
+
+/**
+ * Get the enabled fiat transaction types.
+ *
+ * @param messenger - Controller messenger.
+ * @returns The enabled fiat transaction types.
+ */
+export function getFiatEnabledTypes(
+  messenger: TransactionPayControllerMessenger,
+): TransactionType[] {
+  const state = messenger.call('RemoteFeatureFlagController:getState');
+  const fiatFlags = state.remoteFeatureFlags?.confirmations_pay_fiat as
+    | FiatFlags
+    | undefined;
+
+  return fiatFlags?.enabledTransactionTypes ?? FIAT_ENABLED_TYPES;
+}
+
+/**
+ * Returns the fee reserve multiplier for fiat three-phase submit.
+ *
+ * Controls how much of the original relay fee is reserved from the discovery
+ * quote source amount to prevent EXACT_OUTPUT cost overruns.
+ *
+ * @param messenger - Controller messenger.
+ * @returns The fee reserve multiplier.
+ */
+export function getFiatFeeReserveMultiplier(
+  messenger: TransactionPayControllerMessenger,
+): number {
+  const state = messenger.call('RemoteFeatureFlagController:getState');
+  const fiatFlags = state.remoteFeatureFlags?.confirmations_pay_fiat as
+    | FiatFlags
+    | undefined;
+
+  const multiplier = fiatFlags?.feeReserveMultiplier;
+
+  return typeof multiplier === 'number' && multiplier > 0
+    ? multiplier
+    : DEFAULT_FEE_RESERVE_MULTIPLIER;
+}
+
+/**
+ * Returns the maximum allowed relay rate drift percentage for fiat submit.
+ *
+ * Controls how much the relay exchange rate can drift between the original
+ * quoting phase and the post-settlement discovery quote before failing.
+ * Defaults to 10%.
+ *
+ * @param messenger - Controller messenger.
+ * @returns The maximum rate drift percentage.
+ */
+export function getFiatMaxRateDriftPercent(
+  messenger: TransactionPayControllerMessenger,
+): number {
+  const state = messenger.call('RemoteFeatureFlagController:getState');
+  const fiatFlags = state.remoteFeatureFlags?.confirmations_pay_fiat as
+    | FiatFlags
+    | undefined;
+
+  const maxDrift = fiatFlags?.maxRateDriftPercent;
+
+  return typeof maxDrift === 'number' && maxDrift > 0
+    ? maxDrift
+    : DEFAULT_MAX_RATE_DRIFT_PERCENT;
+}
+
+export function getDirectMoneyMusdEnabled(
+  messenger: TransactionPayControllerMessenger,
+): boolean {
+  const state = messenger.call('RemoteFeatureFlagController:getState');
+  const fiatFlags = state.remoteFeatureFlags?.confirmations_pay_fiat as
+    | FiatFlags
+    | undefined;
+  return fiatFlags?.directMoneyMusdEnabled === true;
+}
+
+/**
+ * Returns the fiat order poll interval in milliseconds.
+ *
+ * Controls how frequently the fiat order status is polled during
+ * the on-ramp completion wait loop. Defaults to 1 000 ms.
+ *
+ * @param messenger - Controller messenger.
+ * @returns The poll interval in milliseconds.
+ */
+export function getFiatOrderPollIntervalMs(
+  messenger: TransactionPayControllerMessenger,
+): number {
+  const state = messenger.call('RemoteFeatureFlagController:getState');
+  const fiatFlags = state.remoteFeatureFlags?.confirmations_pay_fiat as
+    | FiatFlags
+    | undefined;
+
+  const interval = fiatFlags?.orderPollIntervalMs;
+
+  return typeof interval === 'number' && interval > 0
+    ? interval
+    : DEFAULT_ORDER_POLL_INTERVAL_MS;
+}
+
+/**
+ * Returns the fiat order poll timeout in milliseconds.
+ *
+ * Controls how long the fiat order polling loop waits for a terminal
+ * status before timing out. Defaults to 600 000 ms (10 minutes).
+ *
+ * @param messenger - Controller messenger.
+ * @returns The poll timeout in milliseconds.
+ */
+export function getFiatOrderPollTimeoutMs(
+  messenger: TransactionPayControllerMessenger,
+): number {
+  const state = messenger.call('RemoteFeatureFlagController:getState');
+  const fiatFlags = state.remoteFeatureFlags?.confirmations_pay_fiat as
+    | FiatFlags
+    | undefined;
+
+  const timeout = fiatFlags?.orderPollTimeoutMs;
+
+  return typeof timeout === 'number' && timeout > 0
+    ? timeout
+    : DEFAULT_ORDER_POLL_TIMEOUT_MS;
 }
 
 /**

@@ -16,6 +16,7 @@ export const CHAIN_ID_ARBITRUM = '0xa4b1' as Hex;
 export const CHAIN_ID_MAINNET = '0x1' as Hex;
 export const CHAIN_ID_POLYGON = '0x89' as Hex;
 export const CHAIN_ID_HYPERCORE = '0x539' as Hex;
+export const CHAIN_ID_MONAD = '0x8f' as Hex;
 
 export const NATIVE_TOKEN_ADDRESS =
   '0x0000000000000000000000000000000000000000' as Hex;
@@ -28,6 +29,9 @@ export const POLYGON_USDCE_ADDRESS =
 
 export const POLYGON_PUSD_ADDRESS =
   '0xC011a7E12a19f7B1f670d46F03B03f3342E82DFB' as Hex;
+
+export const MUSD_MONAD_ADDRESS =
+  '0xaca92e438df0b2401ff60da7e4337b687a2435da' as Hex;
 
 export const HYPERCORE_USDC_ADDRESS = '0x00000000000000000000000000000000';
 
@@ -70,6 +74,7 @@ export enum TransactionPayStrategy {
   Bridge = 'bridge',
   Fiat = 'fiat',
   Relay = 'relay',
+  Server = 'server',
   Test = 'test',
 }
 

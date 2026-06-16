@@ -15,6 +15,7 @@ import {
   MetricsActionType,
   MetricsSwapType,
   MetaMetricsSwapsEventSource,
+  FeatureId,
 } from '@metamask/bridge-controller';
 import type {
   AccountHardwareType,
@@ -25,21 +26,17 @@ import type {
   RequestParams,
   TradeData,
   RequestMetadata,
-  PollingStatus,
+  BatchSellTradesResponse,
 } from '@metamask/bridge-controller';
 import {
   TransactionStatus,
   TransactionType,
 } from '@metamask/transaction-controller';
 import type { TransactionMeta } from '@metamask/transaction-controller';
-import type { CaipAssetType } from '@metamask/utils';
+import type { CaipAssetType, Hex } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
 
-import type {
-  BridgeHistoryItem,
-  BridgeStatusControllerMessenger,
-} from '../types';
-import { getAccountByAddress } from './accounts';
+import type { BridgeHistoryItem } from '../types';
 import { calcActualGasUsed } from './gas';
 import {
   getActualBridgeReceivedAmount,
@@ -157,12 +154,17 @@ export const getRequestParamFromHistory = (
 };
 
 export const getTradeDataFromQuote = (
-  quoteResponse: QuoteResponse & Partial<QuoteMetadata>,
+  quoteResponse: QuoteResponse & QuoteMetadata,
+  batchSellTrades?: BatchSellTradesResponse | null,
 ): TradeData => {
   return {
     usd_quoted_gas: Number(quoteResponse.gasFee?.effective?.usd ?? 0),
-    gas_included: quoteResponse.quote.gasIncluded ?? false,
-    gas_included_7702: quoteResponse.quote.gasIncluded7702 ?? false,
+    gas_included:
+      quoteResponse.quote.gasIncluded ?? batchSellTrades?.gasIncluded ?? false,
+    gas_included_7702:
+      quoteResponse.quote.gasIncluded7702 ??
+      batchSellTrades?.gasIncluded7702 ??
+      false,
     provider: formatProviderLabel(quoteResponse.quote),
     quoted_time_minutes: Number(
       quoteResponse.estimatedProcessingTimeInSeconds / 60,
@@ -182,27 +184,31 @@ export const getPriceImpactFromQuote = (
  * The quote is used to populate event properties before confirmation
  *
  * @param quoteResponse - The quote response
- * @param isStxEnabledOnClient - Whether smart transactions are enabled on the client, for example the getSmartTransactionsEnabled selector value from the extension
+ * @param isStxEnabled - Whether smart transactions are enabled on the client, for example the getSmartTransactionsEnabled selector value from the extension
  * @param accountHardwareType - The hardware wallet type used to submit the tx, or null if not a hardware wallet
  * @param location - The entry point from which the user initiated the swap or bridge (e.g. Main View, Token View, Trending Explore)
  * @param abTests - Legacy A/B test context for `ab_tests` (backward compatibility)
  * @param activeAbTests - New A/B test context for `active_ab_tests` (migration target)
  * @param tokenSecurityTypeDestination - The security classification of the destination token, supplied by the client (e.g. from token security/scanning data). Pass `null` when no security data is available.
+ * @param batchSellTrades - The batch sell trades response
+ * @param batchId - The batch ID of the transaction batch.
  * @returns The properties for the pre-confirmation event
  */
 export const getPreConfirmationPropertiesFromQuote = (
-  quoteResponse: QuoteResponse & Partial<QuoteMetadata>,
-  isStxEnabledOnClient: boolean,
+  quoteResponse: QuoteResponse & QuoteMetadata,
+  isStxEnabled: boolean,
   accountHardwareType: AccountHardwareType,
-  location: MetaMetricsSwapsEventSource = MetaMetricsSwapsEventSource.MainView,
+  location?: MetaMetricsSwapsEventSource,
   abTests?: Record<string, string>,
   activeAbTests?: { key: string; value: string }[],
   tokenSecurityTypeDestination?: string | null,
+  batchSellTrades?: BatchSellTradesResponse | null,
+  batchId?: Hex,
 ) => {
   const { quote } = quoteResponse;
   return {
     ...getPriceImpactFromQuote(quote),
-    ...getTradeDataFromQuote(quoteResponse),
+    ...getTradeDataFromQuote(quoteResponse, batchSellTrades),
     chain_id_source: formatChainIdToCaip(quote.srcChainId),
     token_symbol_source: quote.srcAsset.symbol,
     token_address_source: quote.srcAsset.assetId,
@@ -217,7 +223,7 @@ export const getPreConfirmationPropertiesFromQuote = (
       quoteResponse.quote.destChainId,
     ),
     usd_amount_source: Number(quoteResponse.sentAmount?.usd ?? 0),
-    stx_enabled: isStxEnabledOnClient,
+    stx_enabled: isStxEnabled,
     action_type: MetricsActionType.SWAPBRIDGE_V1,
     custom_slippage: false, // TODO detect whether the user changed the default slippage
     location,
@@ -229,6 +235,8 @@ export const getPreConfirmationPropertiesFromQuote = (
       activeAbTests.length > 0 && {
         active_ab_tests: activeAbTests,
       }),
+    ...(batchId ? { batch_id: batchId } : {}),
+    feature_id: quoteResponse.featureId ?? FeatureId.UNIFIED_SWAP_BRIDGE,
   };
 };
 
@@ -334,32 +342,6 @@ export const getEVMTxPropertiesFromTransactionMeta = (
     usd_actual_return: 0,
     usd_actual_gas: 0,
     action_type: MetricsActionType.SWAPBRIDGE_V1,
-  };
-};
-
-export const getPollingStatusUpdatedProperties = (
-  messenger: BridgeStatusControllerMessenger,
-  pollingStatus: PollingStatus,
-  historyItem: BridgeHistoryItem,
-) => {
-  const selectedAccount = getAccountByAddress(messenger, historyItem.account);
-  const requestParams = getRequestParamFromHistory(historyItem);
-  const requestMetadata = getRequestMetadataFromHistory(
-    historyItem,
-    selectedAccount,
-  );
-  const { security_warnings: _, ...metadataWithoutWarnings } = requestMetadata;
-
-  return {
-    ...getTradeDataFromHistory(historyItem),
-    ...getPriceImpactFromQuote(historyItem.quote),
-    ...metadataWithoutWarnings,
-    chain_id_source: requestParams.chain_id_source,
-    chain_id_destination: requestParams.chain_id_destination,
-    token_symbol_source: requestParams.token_symbol_source,
-    token_symbol_destination: requestParams.token_symbol_destination,
-    action_type: MetricsActionType.SWAPBRIDGE_V1,
-    polling_status: pollingStatus,
-    retry_attempts: historyItem.attempts?.counter ?? 0,
+    ...(transactionMeta.batchId ? { batch_id: transactionMeta.batchId } : {}),
   };
 };

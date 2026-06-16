@@ -31,12 +31,6 @@ export enum FeeType {
   TX_FEE = 'txFee',
 }
 
-export enum FeatureId {
-  PERPS = 'perps',
-  QUICK_BUY = 'quickBuy',
-  DAPP_SWAP = 'dappSwap',
-}
-
 export enum ActionTypes {
   BRIDGE = 'bridge',
   SWAP = 'swap',
@@ -162,15 +156,13 @@ const GenericQuoteRequestSchema = type({
   fee: optional(number()),
 });
 
-const FeatureIdSchema = enums(Object.values(FeatureId));
-
 /**
  * This is the schema for the feature flags response from the RemoteFeatureFlagController
  */
 export const PlatformConfigSchema = type({
   priceImpactThreshold: optional(PriceImpactThresholdSchema),
   quoteRequestOverrides: optional(
-    record(FeatureIdSchema, optional(GenericQuoteRequestSchema)),
+    record(string(), optional(GenericQuoteRequestSchema)),
   ),
   minimumVersion: string(),
   refreshRate: number(),
@@ -483,7 +475,7 @@ export const QuoteResponseSchema = type({
   ]),
 });
 
-export const validateQuoteResponse = (
+export const validateQuoteResponseV1 = (
   data: unknown,
 ): data is Infer<typeof QuoteResponseSchema> => {
   assert(data, QuoteResponseSchema);
@@ -547,21 +539,24 @@ export const SimulatedGasFeeLimitsSchema = type({
   maxPriorityFeePerGas: HexStringSchema,
 });
 
-export const BatchSellTradesResponseSchema = type({
-  transactions: array(
-    intersection([
-      TxDataSchema,
-      SimulatedGasFeeLimitsSchema,
-      type({ type: enums(Object.values(BatchSellTransactionType)) }),
-    ]),
-  ),
-  fee: optional(
-    type({
-      asset: BridgeAssetSchema,
-      amount: NumberStringSchema,
-    }),
-  ),
-});
+export const BatchSellTradesResponseSchema = intersection([
+  type({
+    transactions: array(
+      intersection([
+        TxDataSchema,
+        SimulatedGasFeeLimitsSchema,
+        type({ type: enums(Object.values(BatchSellTransactionType)) }),
+      ]),
+    ),
+    fee: optional(
+      type({
+        asset: BridgeAssetSchema,
+        amount: NumberStringSchema,
+      }),
+    ),
+  }),
+  GaslessPropertiesSchema,
+]);
 
 export const validateBatchSellTradesResponse = (
   data: unknown,
