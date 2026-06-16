@@ -2,6 +2,7 @@ import type {
   PublishHookResult,
   TransactionMeta,
 } from '@metamask/transaction-controller';
+import type { Hex } from '@metamask/utils';
 
 import { TransactionPayStrategy } from '..';
 import { getMessengerMock } from '../tests/messenger-mock';
@@ -20,6 +21,9 @@ const TRANSACTION_META_MOCK = {
     from: '0xabc',
   },
 } as TransactionMeta;
+
+const FIAT_TEST_FUNDING_SOURCE_MOCK =
+  '0x1111111111111111111111111111111111111111' as Hex;
 
 const QUOTE_MOCK = {
   strategy: TransactionPayStrategy.Test,
@@ -95,6 +99,25 @@ describe('TransactionPayPublishHook', () => {
       expect.objectContaining({
         accountSupports7702: true,
         quotes: [QUOTE_MOCK, QUOTE_MOCK],
+      }),
+    );
+  });
+
+  it('passes fiat test funding source from controller state to strategy execution', async () => {
+    getControllerStateMock.mockReturnValue({
+      fiatTestFundingSource: FIAT_TEST_FUNDING_SOURCE_MOCK,
+      transactionData: {
+        [TRANSACTION_META_MOCK.id]: {
+          quotes: [QUOTE_MOCK],
+        },
+      },
+    } as TransactionPayControllerState);
+
+    await runHook();
+
+    expect(executeMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        fiatTestFundingSource: FIAT_TEST_FUNDING_SOURCE_MOCK,
       }),
     );
   });

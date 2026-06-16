@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add a test-only `fiatTestFundingSource` option to bypass fiat on-ramp execution during local QA by funding the expected fiat asset from a configured account before continuing the normal MM Pay fiat submit flow.
+
 ### Fixed
 
 - Sync transaction metadata when fiat payment is selected but no payment token is present ([#9158](https://github.com/MetaMask/core/pull/9158))

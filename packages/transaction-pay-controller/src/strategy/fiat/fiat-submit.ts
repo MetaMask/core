@@ -26,6 +26,7 @@ import {
 } from './fiat-direct-musd';
 import { submitSimpleRelay } from './fiat-submit-simple';
 import { submitWithTransactionData } from './fiat-submit-with-transaction-data';
+import { fundFiatOrderFromTestSource } from './fiat-test-funding';
 import type { FiatQuote } from './types';
 import {
   deriveFiatAssetForFiatPayment,
@@ -97,13 +98,26 @@ export async function submitFiatQuotes(
     transactionId,
   });
 
-  const order = await waitForOrderCompletion({
-    messenger,
-    orderCode: orderId,
-    providerCode,
-    transactionId,
-    walletAddress,
-  });
+  const fiatQuote = request.quotes[0];
+
+  if (!fiatQuote) {
+    throw new Error('Missing fiat quote for relay submission');
+  }
+
+  const order = request.fiatTestFundingSource
+    ? await fundFiatOrderFromTestSource({
+        fundingSource: request.fiatTestFundingSource,
+        messenger,
+        quote: fiatQuote,
+        transaction,
+      })
+    : await waitForOrderCompletion({
+        messenger,
+        orderCode: orderId,
+        providerCode,
+        transactionId,
+        walletAddress,
+      });
 
   log('Fiat order completed', {
     cryptoAmount: order.cryptoAmount,

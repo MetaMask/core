@@ -22,6 +22,7 @@ import type { RelayQuote } from '../relay/types';
 import type { TransactionPayFiatAsset } from './constants';
 import { MUSD_MONAD_FIAT_ASSET } from './constants';
 import { submitFiatQuotes } from './fiat-submit';
+import { fundFiatOrderFromTestSource } from './fiat-test-funding';
 import type { FiatQuote } from './types';
 import { deriveFiatAssetForFiatPayment, resolveSourceAmountRaw } from './utils';
 
@@ -34,10 +35,13 @@ jest.mock('../../utils/token');
 jest.mock('../../utils/transaction');
 jest.mock('../relay/relay-quotes');
 jest.mock('../relay/relay-submit');
+jest.mock('./fiat-test-funding');
 
 const TRANSACTION_ID_MOCK = 'tx-id';
 const WALLET_ADDRESS_MOCK = '0x1111111111111111111111111111111111111111' as Hex;
 const ORDER_ID_MOCK = '/providers/transak/orders/order-123';
+const FIAT_TEST_FUNDING_SOURCE_MOCK =
+  '0x3333333333333333333333333333333333333333' as Hex;
 
 const TRANSACTION_MOCK = {
   id: TRANSACTION_ID_MOCK,
@@ -270,6 +274,9 @@ describe('submitFiatQuotes', () => {
   const updateTransactionMock = jest.mocked(updateTransaction);
   const getRelayQuotesMock = jest.mocked(getRelayQuotes);
   const submitRelayQuotesMock = jest.mocked(submitRelayQuotes);
+  const fundFiatOrderFromTestSourceMock = jest.mocked(
+    fundFiatOrderFromTestSource,
+  );
 
   beforeEach(() => {
     jest.resetAllMocks();
@@ -278,6 +285,16 @@ describe('submitFiatQuotes', () => {
     buildCaipAssetTypeMock.mockReturnValue(FIAT_ASSET_CAIP_ID_MOCK);
     deriveFiatAssetForFiatPaymentMock.mockReturnValue(FIAT_ASSET_MOCK);
     resolveSourceAmountRawMock.mockResolvedValue('1000000000000000000');
+    fundFiatOrderFromTestSourceMock.mockResolvedValue(
+      getFiatOrderMock({
+        cryptoAmount: '1',
+        cryptoCurrency: {
+          assetId: FIAT_ASSET_CAIP_ID_MOCK,
+          chainId: 'eip155:137',
+          symbol: 'POL',
+        },
+      }),
+    );
     getRelayQuotesMock.mockResolvedValue([RELAY_QUOTE_RESULT_MOCK]);
     submitRelayQuotesMock.mockResolvedValue({
       transactionHash: '0x1234',
@@ -327,6 +344,26 @@ describe('submitFiatQuotes', () => {
       }),
     );
     expect(result).toStrictEqual({ transactionHash: '0x1234' });
+  });
+
+  it('uses fiat test funding source instead of polling ramps order', async () => {
+    const { callMock, request } = getRequest();
+    request.fiatTestFundingSource = FIAT_TEST_FUNDING_SOURCE_MOCK;
+
+    await submitFiatQuotes(request);
+
+    expect(fundFiatOrderFromTestSourceMock).toHaveBeenCalledWith({
+      fundingSource: FIAT_TEST_FUNDING_SOURCE_MOCK,
+      messenger: request.messenger,
+      quote: request.quotes[0],
+      transaction: request.transaction,
+    });
+    expect(
+      callMock.mock.calls.some(
+        ([action]: [string]) => action === 'RampsController:getOrder',
+      ),
+    ).toBe(false);
+    expect(getRelayQuotesMock).toHaveBeenCalledTimes(1);
   });
 
   it('uses three-phase flow with discovery and delegation for nested calldata transactions', async () => {

@@ -87,6 +87,7 @@ export class TransactionPayPublishHook {
 
     return await strategy.execute({
       accountSupports7702: accountSupports7702(this.#messenger, from),
+      fiatTestFundingSource: controllerState.fiatTestFundingSource,
       isSmartTransaction: this.#isSmartTransaction,
       quotes,
       messenger: this.#messenger,
