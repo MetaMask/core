@@ -39,6 +39,8 @@ import {
   MAX_ATTEMPTS,
   REFRESH_INTERVAL_MS,
 } from './constants';
+import { QuoteStatusUpdateError } from './errors';
+import { QuoteStatusUpdateManager } from './quote-status-update-manager';
 import executeSubmitStrategy from './strategy';
 import { SubmitStep } from './strategy/types';
 import type { SubmitStrategyParams } from './strategy/types';
@@ -90,8 +92,6 @@ import {
   updateTransactionsInBatch,
   hasNestedSwapTransactions,
 } from './utils/transaction';
-import { QuoteStatusUpdateManager } from './quote-status-update-manager';
-import { QuoteStatusUpdateError } from './errors';
 
 const metadata: StateMetadata<BridgeStatusControllerState> = {
   // We want to persist the bridge status state so that we can show the proper data for the Activity list
