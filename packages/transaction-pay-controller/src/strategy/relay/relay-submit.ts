@@ -1,10 +1,15 @@
-import { defaultAbiCoder, Interface } from '@ethersproject/abi';
 import { ORIGIN_METAMASK, toHex } from '@metamask/controller-utils';
-import { TransactionType } from '@metamask/transaction-controller';
-import type { TransactionParams } from '@metamask/transaction-controller';
+import {
+  generateEIP7702BatchTransaction,
+  TransactionType,
+} from '@metamask/transaction-controller';
 import type {
   AuthorizationList,
+  BatchTransactionParams,
+  TransactionBatchRequest,
+  TransactionBatchSingleRequest,
   TransactionMeta,
+  TransactionParams,
 } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 import { createModuleLogger } from '@metamask/utils';
@@ -55,16 +60,8 @@ import type {
 } from './types';
 
 const FALLBACK_HASH = '0x0' as Hex;
-const ERC7579_CALL_TYPE_BATCH = '01';
-const ERC7579_EXEC_TYPE_DEFAULT = '00';
-const CALLS_SIGNATURE = '(address,uint256,bytes)[]';
-const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000' as Hex;
 
 const log = createModuleLogger(projectLogger, 'relay-strategy');
-
-const erc7821Interface = new Interface([
-  'function execute(bytes32 mode, bytes executionData)',
-]);
 
 type RelaySubmitParams = {
   allParams: TransactionParams[];
@@ -735,46 +732,37 @@ function buildRelay7702BatchValidationSimulation(
   allParams: TransactionParams[],
 ): QuoteValidationSimulation {
   const { from } = quote.request;
-  const batchTransaction = buildEip7702BatchTransaction(from, allParams, quote);
+  const firstParam = allParams[0];
+  const batchTransaction = generateEIP7702BatchTransaction(
+    from,
+    allParams.map(toBatchTransactionParams),
+  );
 
   return {
     ...(quote.original.request.authorizationList?.length
       ? { mock7702From: from }
       : {}),
-    transactions: [batchTransaction],
+    transactions: [
+      toSimulationTransaction({
+        ...batchTransaction,
+        from,
+        gas: getGasLimit7702(quote),
+        maxFeePerGas: firstParam?.maxFeePerGas as Hex | undefined,
+        maxPriorityFeePerGas: firstParam?.maxPriorityFeePerGas as
+          | Hex
+          | undefined,
+      }),
+    ],
   };
 }
 
-function buildEip7702BatchTransaction(
-  from: Hex,
-  allParams: TransactionParams[],
-  quote: TransactionPayQuote<RelayQuote>,
-): SimulationTransaction {
-  const calls = allParams.map((params) => [
-    (params.to as Hex | undefined) ?? ZERO_ADDRESS,
-    params.value ?? '0x0',
-    params.data ?? '0x',
-  ]);
-  const mode =
-    `0x${ERC7579_CALL_TYPE_BATCH}${ERC7579_EXEC_TYPE_DEFAULT}`.padEnd(
-      66,
-      '0',
-    ) as Hex;
-  const executionData = defaultAbiCoder.encode(
-    [CALLS_SIGNATURE],
-    [calls],
-  ) as Hex;
-  const gas = quote.original.metamask.gasLimits[0];
-
+function toBatchTransactionParams(
+  params: TransactionParams,
+): BatchTransactionParams {
   return {
-    data: erc7821Interface.encodeFunctionData('execute', [
-      mode,
-      executionData,
-    ]) as Hex,
-    from,
-    ...(gas === undefined ? {} : { gas: toHex(gas) }),
-    to: from,
-    value: '0x0',
+    data: params.data as Hex | undefined,
+    to: params.to as Hex | undefined,
+    value: params.value as Hex | undefined,
   };
 }
 
@@ -897,49 +885,16 @@ async function submitViaTransactionController(
       },
     );
   } else {
-    const gasLimit7702 = metamask.is7702
-      ? toHex(metamask.gasLimits[0])
-      : undefined;
-
-    const prependCount = allParams.length - normalizedParams.length;
-
-    const transactions = allParams.map((singleParams, index) => {
-      const gasLimit = gasLimits[index];
-      const gas =
-        gasLimit === undefined || gasLimit7702 ? undefined : toHex(gasLimit);
-
-      return {
-        params: {
-          data: singleParams.data as Hex,
-          gas,
-          maxFeePerGas: singleParams.maxFeePerGas as Hex,
-          maxPriorityFeePerGas: singleParams.maxPriorityFeePerGas as Hex,
-          to: singleParams.to as Hex,
-          value: singleParams.value as Hex,
-        },
-        type: getTransactionType(
-          prependCount,
-          index,
-          getEffectiveTransactionType(transaction),
-          normalizedParams.length,
-        ),
-      };
-    });
-
-    await messenger.call('TransactionController:addTransactionBatch', {
-      from,
-      disable7702: !gasLimit7702,
-      disableHook: Boolean(gasLimit7702),
-      disableSequential: Boolean(gasLimit7702),
-      gasFeeToken,
-      gasLimit7702,
-      networkClientId,
-      origin: ORIGIN_METAMASK,
-      isInternal: true,
-      overwriteUpgrade: true,
-      requireApproval: false,
-      transactions,
-    });
+    await messenger.call(
+      'TransactionController:addTransactionBatch',
+      buildRelayTransactionBatchRequest({
+        allParams,
+        messenger,
+        normalizedParams,
+        quote,
+        transaction,
+      }),
+    );
   }
 
   end();
@@ -960,6 +915,97 @@ async function submitViaTransactionController(
   const hash = getTransaction(transactionIds.slice(-1)[0], messenger)?.hash;
 
   return hash as Hex;
+}
+
+function buildRelayTransactionBatchRequest({
+  allParams,
+  messenger,
+  normalizedParams,
+  quote,
+  transaction,
+}: {
+  allParams: TransactionParams[];
+  messenger: TransactionPayControllerMessenger;
+  normalizedParams: TransactionParams[];
+  quote: TransactionPayQuote<RelayQuote>;
+  transaction: TransactionMeta;
+}): TransactionBatchRequest {
+  const { from, sourceChainId, sourceTokenAddress } = quote.request;
+  const { metamask } = quote.original;
+  const networkClientId = getNetworkClientId(messenger, sourceChainId);
+  const gasFeeToken = quote.fees?.isSourceGasFeeToken
+    ? sourceTokenAddress
+    : undefined;
+  const gasLimit7702 = getGasLimit7702(quote);
+
+  return {
+    from,
+    disable7702: !gasLimit7702,
+    disableHook: Boolean(gasLimit7702),
+    disableSequential: Boolean(gasLimit7702),
+    gasFeeToken,
+    gasLimit7702,
+    networkClientId,
+    origin: ORIGIN_METAMASK,
+    isInternal: true,
+    overwriteUpgrade: true,
+    requireApproval: false,
+    transactions: buildRelayBatchTransactions({
+      allParams,
+      gasLimit7702,
+      gasLimits: metamask.gasLimits,
+      normalizedParams,
+      transaction,
+    }),
+  };
+}
+
+function buildRelayBatchTransactions({
+  allParams,
+  gasLimit7702,
+  gasLimits,
+  normalizedParams,
+  transaction,
+}: {
+  allParams: TransactionParams[];
+  gasLimit7702?: Hex;
+  gasLimits: number[];
+  normalizedParams: TransactionParams[];
+  transaction: TransactionMeta;
+}): TransactionBatchSingleRequest[] {
+  const prependCount = allParams.length - normalizedParams.length;
+
+  return allParams.map((singleParams, index) => {
+    const gasLimit = gasLimits[index];
+    const gas =
+      gasLimit === undefined || gasLimit7702 ? undefined : toHex(gasLimit);
+
+    return {
+      params: {
+        data: singleParams.data as Hex,
+        gas,
+        maxFeePerGas: singleParams.maxFeePerGas as Hex,
+        maxPriorityFeePerGas: singleParams.maxPriorityFeePerGas as Hex,
+        to: singleParams.to as Hex,
+        value: singleParams.value as Hex,
+      },
+      type: getTransactionType(
+        prependCount,
+        index,
+        getEffectiveTransactionType(transaction),
+        normalizedParams.length,
+      ),
+    };
+  });
+}
+
+function getGasLimit7702(
+  quote: TransactionPayQuote<RelayQuote>,
+): Hex | undefined {
+  const { gasLimits, is7702 } = quote.original.metamask;
+  const gasLimit = gasLimits[0];
+
+  return is7702 && gasLimit !== undefined ? toHex(gasLimit) : undefined;
 }
 
 /**

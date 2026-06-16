@@ -549,7 +549,6 @@ describe('Relay quote simulation validation', () => {
       s: '0x2' as Hex,
       yParity: '0x0' as Hex,
     };
-
     await validateRelayQuote({
       messenger,
       quote: buildQuote({
