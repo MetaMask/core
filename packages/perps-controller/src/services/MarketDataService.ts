@@ -886,22 +886,26 @@ export class MarketDataService {
       // Fetch Terminal API metadata in parallel with provider data when enabled.
       // Terminal metadata enriches the provider result (name, keywords, tags,
       // categories) but never replaces live pricing / funding data.
-      let terminalMetadata: Map<string, TerminalAssetMetadata> | undefined;
-      if (useTerminalApi && this.#terminalMarketService) {
-        try {
-          const result = await this.#terminalMarketService.fetchMarkets();
-          if (result.metadata.size > 0) {
-            terminalMetadata = result.metadata;
-          }
-        } catch (terminalError) {
-          this.#terminalMarketService.logError(
-            terminalError,
-            'getMarketDataWithPrices',
-          );
-        }
-      }
+      const terminalMetadataPromise =
+        useTerminalApi && this.#terminalMarketService
+          ? this.#terminalMarketService
+              .fetchMarkets()
+              .then((result) =>
+                result.metadata.size > 0 ? result.metadata : undefined,
+              )
+              .catch((terminalError: unknown) => {
+                this.#terminalMarketService?.logError(
+                  terminalError,
+                  'getMarketDataWithPrices',
+                );
+                return undefined;
+              })
+          : undefined;
 
-      const markets = await provider.getMarketDataWithPrices();
+      const [markets, terminalMetadata] = await Promise.all([
+        provider.getMarketDataWithPrices(),
+        terminalMetadataPromise,
+      ]);
 
       // Enrich with terminal metadata when available
       const enriched = terminalMetadata
