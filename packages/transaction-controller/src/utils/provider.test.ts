@@ -180,6 +180,19 @@ describe('provider utils', () => {
       expect(error.message).toBe('RPC failed');
     });
 
+    it('prefixes non-Error provider errors', async () => {
+      requestMock.mockRejectedValue('RPC failed');
+
+      await expect(
+        rpcRequest({
+          messenger: messengerMock,
+          networkClientId: 'networkClientIdA' as NetworkClientId,
+          method: 'eth_getBalance',
+          params: ['0x123', 'latest'],
+        }),
+      ).rejects.toThrow('RPC 0xa4b1 Custom eth_getBalance: RPC failed');
+    });
+
     it('works when params are undefined', async () => {
       requestMock.mockResolvedValue('0x10');
 

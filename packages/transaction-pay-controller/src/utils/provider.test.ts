@@ -303,6 +303,31 @@ describe('provider utils', () => {
       expect(error.message).toBe('RPC failed');
     });
 
+    it('prefixes non-Error provider errors', async () => {
+      const requestMock = jest.fn().mockRejectedValue('RPC failed');
+      getNetworkClientByIdMock.mockReturnValue({
+        configuration: {
+          chainId: CHAIN_ID_MOCK,
+          type: NetworkClientType.Custom,
+          rpcEndpoints: [
+            {
+              networkClientId: DEFAULT_NETWORK_CLIENT_ID_MOCK,
+              type: RpcEndpointType.Custom,
+            },
+          ],
+        },
+        provider: { request: requestMock },
+      } as never);
+
+      await expect(
+        rpcRequest({
+          messenger,
+          chainId: CHAIN_ID_MOCK,
+          method: 'eth_blockNumber',
+        }),
+      ).rejects.toThrow('RPC 0x1 Custom eth_blockNumber: RPC failed');
+    });
+
     it('uses Infura network client when preferInfura is true', async () => {
       getNetworkConfigurationByChainIdMock.mockReturnValue({
         rpcEndpoints: [
