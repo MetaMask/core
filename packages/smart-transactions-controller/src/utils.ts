@@ -131,6 +131,7 @@ export const calculateStatus = (stxStatus: SmartTransactionsStatus) => {
 
 /**
  * Returns processing time for an STX in seconds.
+ *
  * @param smartTransactionSubmittedtime
  * @returns Processing time in seconds.
  */

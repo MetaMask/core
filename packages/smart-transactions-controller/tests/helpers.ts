@@ -17,6 +17,7 @@ export const flushPromises = async () => {
  * promises or other asynchronous operations that may get enqueued during the timer's duration.
  * By advancing time in incremental steps and flushing promises between each step,
  * this function ensures that both timers and promises are comprehensively processed.
+ *
  * @param options - The options object.
  * @param options.duration - The total amount of time (in milliseconds) to advance the timer by.
  * @param options.stepSize - The incremental step size (in milliseconds) by which the timer is advanced in each iteration. Default is 1/4 of the duration.
