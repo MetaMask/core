@@ -2,13 +2,14 @@ import {
   getTransakApiMessage,
   isTransakPhoneRegisteredError,
 } from './transakApiErrorUtils';
+import { TRANSAK_ERROR_CODES } from './transakErrorCodes';
 import { TransakApiError } from './TransakService';
 
 describe('transakApiErrorUtils', () => {
   const phoneRegisteredError = new TransakApiError(
     400,
     "Fetching 'https://api.transak.com/user' failed with status '400'",
-    '2020',
+    TRANSAK_ERROR_CODES.PHONE_ALREADY_REGISTERED,
     'Phone registered with t***@test.com',
   );
 
