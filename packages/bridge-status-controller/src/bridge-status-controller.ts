@@ -308,29 +308,6 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       },
     );
 
-    // TODO: we might not want that!
-    // For batch EVM transactions (STX / gasIncluded7702) the tx hash is not
-    // available when submitTx returns, so we report the submitted status here
-    // once the TransactionController has broadcast the tx and assigned a hash.
-    this.messenger.subscribe(
-      'TransactionController:transactionSubmitted',
-      ({ transactionMeta }) => {
-        const { type, id: txMetaId, hash, actionId } = transactionMeta;
-        if (hash && type && isCrossChainTx(type)) {
-          const historyItem =
-            this.state.txHistory[txMetaId] ??
-            (actionId ? this.state.txHistory[actionId] : undefined);
-          if (historyItem?.quoteId) {
-            this.#quoteStatusUpdateManager.reportSubmitted(
-              historyItem.quoteId,
-              hash,
-              txMetaId,
-            );
-          }
-        }
-      },
-    );
-
     // If you close the extension, but keep the browser open, the polling continues
     // If you close the browser, the polling stops
     // Check for historyItems that do not have a status of complete and restart polling
@@ -412,6 +389,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
           status: StatusTypes.COMPLETE,
           completionTime: Date.now(),
         });
+        this.#quoteStatusUpdateManager.reportFinalised(txMeta.id, true);
         this.#trackUnifiedSwapBridgeEvent(
           UnifiedSwapBridgeEventName.Completed,
           historyKey,
@@ -423,6 +401,43 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
         }
         break;
     }
+  };
+
+  /**
+   * Reports the SUBMITTED quote status for non-EVM transactions.
+   *
+   * EVM transactions report SUBMITTED via the
+   * `TransactionController:transactionStatusUpdated` subscription, which also
+   * picks up hash replacements (speed-up/cancel) and the late hash assignment
+   * of smart/batch transactions. Non-EVM transactions (Solana, Bitcoin, Tron)
+   * are submitted through Snaps and never emit TransactionController lifecycle
+   * events, so they are reported here once the history item exists and the
+   * source tx hash is known.
+   *
+   * @param historyKey - The key of the history item in `txHistory`
+   * @param txMeta - The submitted trade transaction's id and hash
+   * @param txMeta.id - The transaction meta id, used for finalization matching
+   * @param txMeta.hash - The source chain transaction hash
+   */
+  readonly #reportSubmittedForNonEvmTx = (
+    historyKey: string,
+    txMeta?: { id?: string; hash?: string },
+  ): void => {
+    if (!txMeta?.id || !txMeta.hash) {
+      return;
+    }
+    const historyItem = this.state.txHistory[historyKey];
+    if (
+      !historyItem?.quoteId ||
+      !isNonEvmChainId(historyItem.quote.srcChainId)
+    ) {
+      return;
+    }
+    this.#quoteStatusUpdateManager.reportSubmitted(
+      historyItem.quoteId,
+      txMeta.hash,
+      txMeta.id,
+    );
   };
 
   resetState = (): void => {
@@ -1082,6 +1097,10 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
               isStxEnabled: params.isStxEnabled,
               slippagePercentage: 0, // TODO include slippage provided by quote if using dynamic slippage, or slippage from quote request
             });
+            this.#reportSubmittedForNonEvmTx(
+              payload.historyKey,
+              payload.bridgeTxMeta,
+            );
             break;
 
           case SubmitStep.StartPolling:
@@ -1089,6 +1108,10 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
             break;
 
           case SubmitStep.PublishCompletedEvent:
+            this.#quoteStatusUpdateManager.reportFinalised(
+              payload.historyKey,
+              true,
+            );
             this.#trackUnifiedSwapBridgeEvent(
               UnifiedSwapBridgeEventName.Completed,
               payload.historyKey,
