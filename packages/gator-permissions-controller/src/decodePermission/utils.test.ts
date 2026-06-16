@@ -411,7 +411,8 @@ describe('getTermsByEnforcer', () => {
 describe('extractExpiryFromCaveatTerms', () => {
   it('returns expiry from valid TimestampEnforcer terms', () => {
     const expiry = 1735689600n;
-    const terms = `0x${'0'.repeat(32)}${expiry.toString(16).padStart(32, '0')}` as Hex;
+    const terms =
+      `0x${'0'.repeat(32)}${expiry.toString(16).padStart(32, '0')}` as Hex;
 
     expect(extractExpiryFromCaveatTerms(terms)).toBe(Number(expiry));
   });
@@ -433,7 +434,7 @@ describe('extractExpiryFromCaveatTerms', () => {
   });
 
   it('throws if timestampBeforeThreshold is zero', () => {
-    const terms = `0x${'0'.repeat(64)}` as Hex;
+    const terms = `0x${'0'.repeat(64)}`;
 
     expect(() => extractExpiryFromCaveatTerms(terms)).toThrow(
       'Invalid expiry: timestampBeforeThreshold must be greater than 0',

@@ -56,9 +56,14 @@ export function makePermissionDecoder({
   rules,
   validateAndDecodeData,
 }: MakePermissionDecoderConfig): PermissionDecoder {
-  const optionalEnforcersSet = new Set(optionalEnforcers.map(getChecksumAddress));
+  const optionalEnforcersSet = new Set(
+    optionalEnforcers.map(getChecksumAddress),
+  );
   const requiredEnforcersMap = new Map(
-    Object.entries(requiredEnforcers).map(([enforcer, count]) => [getChecksumAddress(enforcer as Hex), count]),
+    Object.entries(requiredEnforcers).map(([enforcer, count]) => [
+      getChecksumAddress(enforcer as Hex),
+      count,
+    ]),
   );
 
   const caveatAddressesMatch = (caveatAddresses: Hex[]): boolean => {

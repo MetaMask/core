@@ -5,28 +5,28 @@ import {
   reconstructDecodedPermission,
   selectUniqueDecoderAndDecodedPermission,
 } from './decodePermission';
-import type {
-  PermissionDecoder,
-  PermissionType,
-} from './types';
-
+import type { PermissionDecoder, PermissionType } from './types';
 
 describe('decodePermission', () => {
   describe('findDecodersWithMatchingCaveatAddresses', () => {
     it('returns all decoders that match the given enforcers', () => {
       const matchingDecoder1 = {
         permissionType: 'matching-permission-1',
-        caveatAddressesMatch: jest.fn().mockReturnValue(true)
+        caveatAddressesMatch: jest.fn().mockReturnValue(true),
       };
       const matchingDecoder2 = {
         permissionType: 'matching-permission-2',
-        caveatAddressesMatch: jest.fn().mockReturnValue(true)
+        caveatAddressesMatch: jest.fn().mockReturnValue(true),
       };
       const nonMatchingDecoder = {
         permissionType: 'non-matching-permission',
-        caveatAddressesMatch: jest.fn().mockReturnValue(false)
+        caveatAddressesMatch: jest.fn().mockReturnValue(false),
       };
-      const decoders = [matchingDecoder1, matchingDecoder2, nonMatchingDecoder] as unknown as PermissionDecoder[];
+      const decoders = [
+        matchingDecoder1,
+        matchingDecoder2,
+        nonMatchingDecoder,
+      ] as unknown as PermissionDecoder[];
       const rules = findDecodersWithMatchingCaveatAddresses({
         enforcers: [],
         permissionDecoders: decoders,
@@ -38,17 +38,21 @@ describe('decodePermission', () => {
     it('returns an empty array if no decoders match the given enforcers', () => {
       const nonMatchingDecoder1 = {
         permissionType: 'non-matching-permission-1',
-        caveatAddressesMatch: jest.fn().mockReturnValue(false)
+        caveatAddressesMatch: jest.fn().mockReturnValue(false),
       };
       const nonMatchingDecoder2 = {
         permissionType: 'non-matching-permission-2',
-        caveatAddressesMatch: jest.fn().mockReturnValue(false)
+        caveatAddressesMatch: jest.fn().mockReturnValue(false),
       };
       const nonMatchingDecoder3 = {
         permissionType: 'non-matching-permission-3',
-        caveatAddressesMatch: jest.fn().mockReturnValue(false)
+        caveatAddressesMatch: jest.fn().mockReturnValue(false),
       };
-      const decoders = [nonMatchingDecoder1, nonMatchingDecoder2, nonMatchingDecoder3] as unknown as PermissionDecoder[];
+      const decoders = [
+        nonMatchingDecoder1,
+        nonMatchingDecoder2,
+        nonMatchingDecoder3,
+      ] as unknown as PermissionDecoder[];
       const rules = findDecodersWithMatchingCaveatAddresses({
         enforcers: [],
         permissionDecoders: decoders,
@@ -68,23 +72,29 @@ describe('decodePermission', () => {
     it('calls caveatAddressesMatch with the given enforcers', () => {
       const matchingDecoder1 = {
         permissionType: 'matching-permission-1',
-        caveatAddressesMatch: jest.fn().mockReturnValue(true)
+        caveatAddressesMatch: jest.fn().mockReturnValue(true),
       };
       const matchingDecoder2 = {
         permissionType: 'matching-permission-2',
-        caveatAddressesMatch: jest.fn().mockReturnValue(true)
+        caveatAddressesMatch: jest.fn().mockReturnValue(true),
       };
       const enforcers: Hex[] = ['0x0000000000000000000000000000000000000000'];
 
       findDecodersWithMatchingCaveatAddresses({
         enforcers,
-        permissionDecoders: [matchingDecoder1, matchingDecoder2] as unknown as PermissionDecoder[],
+        permissionDecoders: [
+          matchingDecoder1,
+          matchingDecoder2,
+        ] as unknown as PermissionDecoder[],
       });
 
-      expect(matchingDecoder1.caveatAddressesMatch).toHaveBeenCalledWith(enforcers);
-      expect(matchingDecoder2.caveatAddressesMatch).toHaveBeenCalledWith(enforcers);
+      expect(matchingDecoder1.caveatAddressesMatch).toHaveBeenCalledWith(
+        enforcers,
+      );
+      expect(matchingDecoder2.caveatAddressesMatch).toHaveBeenCalledWith(
+        enforcers,
+      );
     });
-
   });
 
   describe('reconstructDecodedPermission', () => {
@@ -95,12 +105,14 @@ describe('decodePermission', () => {
     const justification = 'Test justification';
     const permissionType = 'selected-permission-type' as PermissionType;
     const data = {
-      value: 1
+      value: 1,
     };
-    const authory = '0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff' as const;
+    const authory =
+      '0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff' as const;
 
     it('throws if the authority is not ROOT_AUTHORITY', () => {
-      const invalidAuthority = '0x0000000000000000000000000000000000000000' as const;
+      const invalidAuthority =
+        '0x0000000000000000000000000000000000000000' as const;
       expect(() =>
         reconstructDecodedPermission({
           chainId,
@@ -135,7 +147,7 @@ describe('decodePermission', () => {
       expect(result.permission).toStrictEqual({
         type: permissionType,
         data,
-        justification
+        justification,
       });
       expect(result.origin).toBe(specifiedOrigin);
 
@@ -147,9 +159,9 @@ describe('decodePermission', () => {
         {
           type: 'mock-rule',
           data: {
-            value: 1
-          }
-        }
+            value: 1,
+          },
+        },
       ];
 
       const result = reconstructDecodedPermission({
@@ -162,7 +174,7 @@ describe('decodePermission', () => {
         data,
         justification,
         specifiedOrigin,
-        rules
+        rules,
       });
 
       expect(result.rules).toStrictEqual(rules);
@@ -170,44 +182,50 @@ describe('decodePermission', () => {
   });
 
   describe('selectUniqueDecoderAndDecodedPermission', () => {
-    const caveats = [{
-      enforcer: '0x0000000000000000000000000000000000000001',
-      terms: '0x0000000000000000000000000000000000000000',
-      args: '0x'
-    }] as Caveat<Hex>[];
+    const caveats = [
+      {
+        enforcer: '0x0000000000000000000000000000000000000001',
+        terms: '0x0000000000000000000000000000000000000000',
+        args: '0x',
+      },
+    ] as Caveat<Hex>[];
 
     const data = {
-      value: 1
+      value: 1,
     };
 
     it('returns the successful decoder and decoded permission when exactly one decoder matches', () => {
       const matchingDecoder = {
         permissionType: 'matching-permission-type' as PermissionType,
         requiredEnforcers: new Map([[caveats[0].enforcer, 1]]),
-        optionalEnforcers: new Set(['0x0000000000000000000000000000000000000000' as Hex]),
+        optionalEnforcers: new Set([
+          '0x0000000000000000000000000000000000000000' as Hex,
+        ]),
         caveatAddressesMatch: jest.fn(),
         validateAndDecodePermission: jest.fn().mockReturnValue({
           isValid: true,
           expiry: null,
           data,
-        })
+        }),
       };
 
       const mismatchingDecoder = {
         permissionType: 'mismatching-permission-type' as PermissionType,
         requiredEnforcers: new Map([[caveats[0].enforcer, 1]]),
-        optionalEnforcers: new Set(['0x0000000000000000000000000000000000000000' as Hex]),
+        optionalEnforcers: new Set([
+          '0x0000000000000000000000000000000000000000' as Hex,
+        ]),
         caveatAddressesMatch: jest.fn(),
         validateAndDecodePermission: jest.fn().mockReturnValue({
-          isValid: false
-        })
+          isValid: false,
+        }),
       };
 
       const result = selectUniqueDecoderAndDecodedPermission({
         candidateDecoders: [matchingDecoder, mismatchingDecoder],
         caveats,
       });
-      
+
       expect(result.decoder).toBe(matchingDecoder);
       expect(result.rules).toBeUndefined();
       expect(result.data).toBe(data);
@@ -218,12 +236,14 @@ describe('decodePermission', () => {
       const mismatchingDecoder = {
         permissionType: 'mismatching-permission-type' as PermissionType,
         requiredEnforcers: new Map([[caveats[0].enforcer, 1]]),
-        optionalEnforcers: new Set(['0x0000000000000000000000000000000000000000' as Hex]),
+        optionalEnforcers: new Set([
+          '0x0000000000000000000000000000000000000000' as Hex,
+        ]),
         caveatAddressesMatch: jest.fn(),
         validateAndDecodePermission: jest.fn().mockReturnValue({
           isValid: false,
-          error: new Error('Failed to validate and decode permission')
-        })
+          error: new Error('Failed to validate and decode permission'),
+        }),
       };
 
       expect(() => {
@@ -238,11 +258,13 @@ describe('decodePermission', () => {
       const throwingDecoder = {
         permissionType: 'throwing-permission-type' as PermissionType,
         requiredEnforcers: new Map([[caveats[0].enforcer, 1]]),
-        optionalEnforcers: new Set(['0x0000000000000000000000000000000000000000' as Hex]),
+        optionalEnforcers: new Set([
+          '0x0000000000000000000000000000000000000000' as Hex,
+        ]),
         caveatAddressesMatch: jest.fn(),
         validateAndDecodePermission: jest.fn().mockImplementation(() => {
           throw new Error('Failed to validate and decode permission');
-        })
+        }),
       };
 
       expect(() => {
@@ -257,21 +279,25 @@ describe('decodePermission', () => {
       const matchingDecoder = {
         permissionType: 'matching-permission-type' as PermissionType,
         requiredEnforcers: new Map([[caveats[0].enforcer, 1]]),
-        optionalEnforcers: new Set(['0x0000000000000000000000000000000000000000' as Hex]),
+        optionalEnforcers: new Set([
+          '0x0000000000000000000000000000000000000000' as Hex,
+        ]),
         caveatAddressesMatch: jest.fn(),
         validateAndDecodePermission: jest.fn().mockReturnValue({
           isValid: true,
           expiry: null,
           data,
-        })
+        }),
       };
 
       expect(() => {
-          selectUniqueDecoderAndDecodedPermission({
+        selectUniqueDecoderAndDecodedPermission({
           candidateDecoders: [matchingDecoder, matchingDecoder],
           caveats,
         });
-      }).toThrow('Multiple permission types validate the same delegation caveats: matching-permission-type, matching-permission-type');
+      }).toThrow(
+        'Multiple permission types validate the same delegation caveats: matching-permission-type, matching-permission-type',
+      );
     });
 
     it('throws an error when candidate decoders are empty', () => {
@@ -287,22 +313,26 @@ describe('decodePermission', () => {
       const firstFailingDecoder = {
         permissionType: 'first-failing-permission-type' as PermissionType,
         requiredEnforcers: new Map([[caveats[0].enforcer, 1]]),
-        optionalEnforcers: new Set(['0x0000000000000000000000000000000000000000' as Hex]),
+        optionalEnforcers: new Set([
+          '0x0000000000000000000000000000000000000000' as Hex,
+        ]),
         caveatAddressesMatch: jest.fn(),
         validateAndDecodePermission: jest.fn().mockReturnValue({
           isValid: false,
-          error: new Error('First decoder failed')
-        })
+          error: new Error('First decoder failed'),
+        }),
       };
       const secondFailingDecoder = {
         permissionType: 'second-failing-permission-type' as PermissionType,
         requiredEnforcers: new Map([[caveats[0].enforcer, 1]]),
-        optionalEnforcers: new Set(['0x0000000000000000000000000000000000000000' as Hex]),
+        optionalEnforcers: new Set([
+          '0x0000000000000000000000000000000000000000' as Hex,
+        ]),
         caveatAddressesMatch: jest.fn(),
         validateAndDecodePermission: jest.fn().mockReturnValue({
           isValid: false,
-          error: new Error('Second decoder failed')
-        })
+          error: new Error('Second decoder failed'),
+        }),
       };
 
       expect(() => {
@@ -319,23 +349,27 @@ describe('decodePermission', () => {
       const matchingDecoder = {
         permissionType: 'matching-permission-type' as PermissionType,
         requiredEnforcers: new Map([[caveats[0].enforcer, 1]]),
-        optionalEnforcers: new Set(['0x0000000000000000000000000000000000000000' as Hex]),
+        optionalEnforcers: new Set([
+          '0x0000000000000000000000000000000000000000' as Hex,
+        ]),
         caveatAddressesMatch: jest.fn(),
         validateAndDecodePermission: jest.fn().mockReturnValue({
           isValid: true,
           expiry: null,
           data,
-        })
+        }),
       };
       const mismatchingDecoder = {
         permissionType: 'mismatching-permission-type' as PermissionType,
         requiredEnforcers: new Map([[caveats[0].enforcer, 1]]),
-        optionalEnforcers: new Set(['0x0000000000000000000000000000000000000000' as Hex]),
+        optionalEnforcers: new Set([
+          '0x0000000000000000000000000000000000000000' as Hex,
+        ]),
         caveatAddressesMatch: jest.fn(),
         validateAndDecodePermission: jest.fn().mockReturnValue({
           isValid: false,
-          error: new Error('Failed to validate and decode permission')
-        })
+          error: new Error('Failed to validate and decode permission'),
+        }),
       };
 
       selectUniqueDecoderAndDecodedPermission({
@@ -346,29 +380,31 @@ describe('decodePermission', () => {
       expect(matchingDecoder.validateAndDecodePermission).toHaveBeenCalledWith(
         caveats,
       );
-      expect(mismatchingDecoder.validateAndDecodePermission).toHaveBeenCalledWith(
-        caveats,
-      );
+      expect(
+        mismatchingDecoder.validateAndDecodePermission,
+      ).toHaveBeenCalledWith(caveats);
     });
 
     it('returns rules when the selected decoder includes decoded rules', () => {
       const rules = [
         {
           type: 'mock-rule',
-          data: { value: 1 }
-        }
+          data: { value: 1 },
+        },
       ];
       const matchingDecoder = {
         permissionType: 'matching-permission-type' as PermissionType,
         requiredEnforcers: new Map([[caveats[0].enforcer, 1]]),
-        optionalEnforcers: new Set(['0x0000000000000000000000000000000000000000' as Hex]),
+        optionalEnforcers: new Set([
+          '0x0000000000000000000000000000000000000000' as Hex,
+        ]),
         caveatAddressesMatch: jest.fn(),
         validateAndDecodePermission: jest.fn().mockReturnValue({
           isValid: true,
           expiry: null,
           data,
           rules,
-        })
+        }),
       };
 
       const result = selectUniqueDecoderAndDecodedPermission({
@@ -384,13 +420,15 @@ describe('decodePermission', () => {
       const matchingDecoder = {
         permissionType: 'matching-permission-type' as PermissionType,
         requiredEnforcers: new Map([[caveats[0].enforcer, 1]]),
-        optionalEnforcers: new Set(['0x0000000000000000000000000000000000000000' as Hex]),
+        optionalEnforcers: new Set([
+          '0x0000000000000000000000000000000000000000' as Hex,
+        ]),
         caveatAddressesMatch: jest.fn(),
         validateAndDecodePermission: jest.fn().mockReturnValue({
           isValid: true,
           expiry,
           data,
-        })
+        }),
       };
 
       const result = selectUniqueDecoderAndDecodedPermission({
@@ -405,22 +443,26 @@ describe('decodePermission', () => {
       const matchingDecoder = {
         permissionType: 'matching-permission-type' as PermissionType,
         requiredEnforcers: new Map([[caveats[0].enforcer, 1]]),
-        optionalEnforcers: new Set(['0x0000000000000000000000000000000000000000' as Hex]),
+        optionalEnforcers: new Set([
+          '0x0000000000000000000000000000000000000000' as Hex,
+        ]),
         caveatAddressesMatch: jest.fn(),
         validateAndDecodePermission: jest.fn().mockReturnValue({
           isValid: true,
           expiry: null,
           data,
-        })
+        }),
       };
       const throwingDecoder = {
         permissionType: 'throwing-permission-type' as PermissionType,
         requiredEnforcers: new Map([[caveats[0].enforcer, 1]]),
-        optionalEnforcers: new Set(['0x0000000000000000000000000000000000000000' as Hex]),
+        optionalEnforcers: new Set([
+          '0x0000000000000000000000000000000000000000' as Hex,
+        ]),
         caveatAddressesMatch: jest.fn(),
         validateAndDecodePermission: jest.fn().mockImplementation(() => {
           throw new Error('Failed to validate and decode permission');
-        })
+        }),
       };
 
       expect(() => {

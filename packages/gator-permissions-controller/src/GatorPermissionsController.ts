@@ -34,6 +34,7 @@ import {
   reconstructDecodedPermission,
   selectUniqueDecoderAndDecodedPermission,
 } from './decodePermission';
+import { createPermissionDecodersForContracts } from './decodePermission/decoders';
 import {
   GatorPermissionsFetchError,
   GatorPermissionsProviderError,
@@ -55,7 +56,6 @@ import type {
   PendingRevocationParams,
 } from './types';
 import { executeSnapRpc } from './utils';
-import { createPermissionDecodersForContracts } from './decodePermission/decoders';
 
 // === GENERAL ===
 

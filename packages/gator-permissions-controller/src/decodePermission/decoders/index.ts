@@ -1,4 +1,5 @@
 import { makePermissionDecoderConfigs } from '@metamask/7715-permission-types';
+
 import type { DeployedContractsByName, PermissionDecoder } from '../types';
 import { makePermissionDecoder } from './makePermissionDecoder';
 
