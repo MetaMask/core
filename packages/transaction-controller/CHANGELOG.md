@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Set `isExternalSign` to `true` when `isGasFeeSponsored` is confirmed by simulation, so gas-sponsored transactions from accounts that cannot locally sign (e.g. Money Account keyring) skip `KeyringController:signTransaction` ([#XXXX](https://github.com/MetaMask/core/pull/XXXX))
+- Set `isExternalSign` to `true` when `isGasFeeSponsored` is confirmed by simulation, so gas-sponsored transactions from accounts that cannot locally sign (e.g. Money Account keyring) skip `KeyringController:signTransaction` ([#9148](https://github.com/MetaMask/core/pull/9148))
 
 ## [68.0.0]
 
