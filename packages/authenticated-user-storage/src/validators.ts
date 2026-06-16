@@ -13,7 +13,11 @@ import {
   type,
 } from '@metamask/superstruct';
 
-import type { AgenticCliPreference, DelegationResponse, NotificationPreferences } from './types';
+import type {
+  AgenticCliPreference,
+  DelegationResponse,
+  NotificationPreferences,
+} from './types';
 
 /**
  * Matches a 0x-prefixed hex string with zero or more hex digits.
