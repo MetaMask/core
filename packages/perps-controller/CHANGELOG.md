@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add Terminal API integration for market data behind `perpsTerminalApiMarkets` feature flag ([#TBD](https://github.com/MetaMask/core/pull/TBD))
+  - `TerminalMarketService` fetches structured market metadata from `{terminalApiBaseUrl}/perpetuals` with a 5-minute cache TTL.
+  - When enabled, `getMarkets()` attempts the Terminal API first; on failure or empty response, falls back silently to HyperLiquid.
+  - `getMarketDataWithPrices()` enriches provider data with Terminal API metadata (name, keywords, tags, categories).
+  - `PerpsPlatformDependencies` gains a required `terminalApiBaseUrl: string` field; clients must inject the correct environment URL.
+  - `PerpsMarketData` gains optional `keywords`, `tags`, and `categories` fields.
+  - `transformMarketData()` accepts optional `terminalMetadata` parameter to override static name/category maps per symbol.
+  - Market search (`getMarketMatchRank`, `rankMarketsByQuery`) now indexes the `keywords` field for richer search results.
+  - `HYPERLIQUID_ASSET_NAMES` and `HIP3_ASSET_MARKET_TYPES` remain intact as fallback for assets absent from the Terminal API.
+
 ### Changed
 
 - Bump `@metamask/utils` from `^11.9.0` to `^11.11.0` ([#9074](https://github.com/MetaMask/core/pull/9074))

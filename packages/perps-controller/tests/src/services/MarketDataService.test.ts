@@ -1,6 +1,8 @@
 import type { CandlePeriod } from '../../../src/constants/chartConfig';
 import { MarketDataService } from '../../../src/services/MarketDataService';
 import type { ServiceContext } from '../../../src/services/ServiceContext';
+import type { TerminalMarketService } from '../../../src/services/TerminalMarketService';
+import type { TerminalAssetMetadata } from '../../../src/services/TerminalMarketService';
 import type {
   PerpsProvider,
   Position,
@@ -13,6 +15,7 @@ import type {
   FeeCalculationParams,
   AssetRoute,
   PerpsPlatformDependencies,
+  PerpsMarketData,
 } from '../../../src/types';
 import type { CandleData } from '../../../src/types/perps-types';
 import { resetPerpsRestCacheForTests } from '../../../src/utils/coalescePerpsRestRequest';
@@ -1123,6 +1126,206 @@ describe('MarketDataService', () => {
       ).rejects.toThrow('Network timeout');
 
       expect(mockDeps.logger.error).toHaveBeenCalled();
+    });
+  });
+
+  describe('Terminal API integration', () => {
+    let mockTerminalService: jest.Mocked<TerminalMarketService>;
+    let serviceWithTerminal: MarketDataService;
+
+    const terminalMarkets: MarketInfo[] = [
+      { name: 'BTC', szDecimals: 5, maxLeverage: 50, marginTableId: 0 },
+      { name: 'ETH', szDecimals: 4, maxLeverage: 25, marginTableId: 1 },
+    ];
+
+    const terminalMetadata = new Map<string, TerminalAssetMetadata>([
+      [
+        'BTC',
+        {
+          name: 'Bitcoin',
+          keywords: ['crypto', 'layer-1'],
+          tags: ['top-10'],
+          categories: ['crypto'],
+          marketType: 'crypto',
+        },
+      ],
+      [
+        'ETH',
+        {
+          name: 'Ethereum',
+          keywords: ['defi'],
+        },
+      ],
+    ]);
+
+    beforeEach(() => {
+      mockTerminalService = {
+        fetchMarkets: jest.fn(),
+        clearCache: jest.fn(),
+        logError: jest.fn(),
+      } as unknown as jest.Mocked<TerminalMarketService>;
+
+      serviceWithTerminal = new MarketDataService(
+        mockDeps,
+        mockTerminalService,
+      );
+    });
+
+    describe('getMarkets with useTerminalApi', () => {
+      it('uses terminal API when flag is enabled and returns data', async () => {
+        mockTerminalService.fetchMarkets.mockResolvedValue({
+          markets: terminalMarkets,
+          metadata: terminalMetadata,
+        });
+
+        const result = await serviceWithTerminal.getMarkets({
+          provider: mockProvider,
+          context: mockContext,
+          useTerminalApi: true,
+        });
+
+        expect(result).toEqual(terminalMarkets);
+        expect(mockTerminalService.fetchMarkets).toHaveBeenCalled();
+        expect(mockProvider.getMarkets).not.toHaveBeenCalled();
+      });
+
+      it('falls back to provider when terminal API fails', async () => {
+        const providerMarkets: MarketInfo[] = [
+          { name: 'BTC', szDecimals: 5, maxLeverage: 50, marginTableId: 0 },
+        ];
+        mockTerminalService.fetchMarkets.mockRejectedValue(
+          new Error('Terminal API down'),
+        );
+        mockProvider.getMarkets.mockResolvedValue(providerMarkets);
+
+        const result = await serviceWithTerminal.getMarkets({
+          provider: mockProvider,
+          context: mockContext,
+          useTerminalApi: true,
+        });
+
+        expect(result).toEqual(providerMarkets);
+        expect(mockTerminalService.logError).toHaveBeenCalledWith(
+          expect.any(Error),
+          'getMarkets',
+        );
+      });
+
+      it('falls back to provider when terminal API returns empty', async () => {
+        const providerMarkets: MarketInfo[] = [
+          { name: 'BTC', szDecimals: 5, maxLeverage: 50, marginTableId: 0 },
+        ];
+        mockTerminalService.fetchMarkets.mockResolvedValue({
+          markets: [],
+          metadata: new Map(),
+        });
+        mockProvider.getMarkets.mockResolvedValue(providerMarkets);
+
+        const result = await serviceWithTerminal.getMarkets({
+          provider: mockProvider,
+          context: mockContext,
+          useTerminalApi: true,
+        });
+
+        expect(result).toEqual(providerMarkets);
+      });
+
+      it('uses provider when useTerminalApi is false', async () => {
+        const providerMarkets: MarketInfo[] = [
+          { name: 'BTC', szDecimals: 5, maxLeverage: 50, marginTableId: 0 },
+        ];
+        mockProvider.getMarkets.mockResolvedValue(providerMarkets);
+
+        const result = await serviceWithTerminal.getMarkets({
+          provider: mockProvider,
+          context: mockContext,
+          useTerminalApi: false,
+        });
+
+        expect(result).toEqual(providerMarkets);
+        expect(mockTerminalService.fetchMarkets).not.toHaveBeenCalled();
+      });
+    });
+
+    describe('getMarketDataWithPrices with useTerminalApi', () => {
+      const providerMarketData: PerpsMarketData[] = [
+        {
+          symbol: 'BTC',
+          name: 'BTC',
+          maxLeverage: '50x',
+          price: '$50000.00',
+          change24h: '+$500.00',
+          change24hPercent: '+1.00%',
+          volume: '$1000000',
+        },
+        {
+          symbol: 'ETH',
+          name: 'ETH',
+          maxLeverage: '25x',
+          price: '$3000.00',
+          change24h: '+$30.00',
+          change24hPercent: '+1.00%',
+          volume: '$500000',
+        },
+      ];
+
+      it('enriches provider data with terminal metadata when flag is enabled', async () => {
+        mockTerminalService.fetchMarkets.mockResolvedValue({
+          markets: terminalMarkets,
+          metadata: terminalMetadata,
+        });
+        mockProvider.getMarketDataWithPrices.mockResolvedValue(
+          providerMarketData,
+        );
+
+        const result = await serviceWithTerminal.getMarketDataWithPrices({
+          provider: mockProvider,
+          context: mockContext,
+          useTerminalApi: true,
+        });
+
+        expect(result[0]?.name).toBe('Bitcoin');
+        expect(result[0]?.keywords).toEqual(['crypto', 'layer-1']);
+        expect(result[0]?.tags).toEqual(['top-10']);
+        expect(result[0]?.categories).toEqual(['crypto']);
+        expect(result[0]?.marketType).toBe('crypto');
+        expect(result[1]?.name).toBe('Ethereum');
+        expect(result[1]?.keywords).toEqual(['defi']);
+      });
+
+      it('returns provider data unchanged when terminal API fails', async () => {
+        mockTerminalService.fetchMarkets.mockRejectedValue(
+          new Error('Network error'),
+        );
+        mockProvider.getMarketDataWithPrices.mockResolvedValue(
+          providerMarketData,
+        );
+
+        const result = await serviceWithTerminal.getMarketDataWithPrices({
+          provider: mockProvider,
+          context: mockContext,
+          useTerminalApi: true,
+        });
+
+        expect(result[0]?.name).toBe('BTC');
+        expect(result[0]?.keywords).toBeUndefined();
+        expect(mockTerminalService.logError).toHaveBeenCalled();
+      });
+
+      it('returns provider data unchanged when flag is disabled', async () => {
+        mockProvider.getMarketDataWithPrices.mockResolvedValue(
+          providerMarketData,
+        );
+
+        const result = await serviceWithTerminal.getMarketDataWithPrices({
+          provider: mockProvider,
+          context: mockContext,
+          useTerminalApi: false,
+        });
+
+        expect(result[0]?.name).toBe('BTC');
+        expect(mockTerminalService.fetchMarkets).not.toHaveBeenCalled();
+      });
     });
   });
 });

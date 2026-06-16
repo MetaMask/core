@@ -329,6 +329,22 @@ export const DATA_LAKE_API_CONFIG = {
 } as const;
 
 /**
+ * Terminal API configuration
+ * Endpoints for fetching structured market metadata from the MetaMask Terminal backend.
+ * The active URL at runtime comes from PerpsPlatformDependencies.terminalApiBaseUrl,
+ * not these constants (they are reference-only for each environment).
+ */
+export const TERMINAL_API_CONFIG = {
+  Endpoints: {
+    dev: 'https://terminal.dev-api.cx.metamask.io',
+    uat: 'https://terminal.uat-api.cx.metamask.io',
+    prd: 'https://terminal.api.cx.metamask.io',
+  },
+  PerpetualPath: '/perpetuals',
+  CacheTtlMs: 5 * 60 * 1000, // 5 minutes
+} as const;
+
+/**
  * Decimal precision configuration
  * Controls maximum decimal places for price and input validation
  */

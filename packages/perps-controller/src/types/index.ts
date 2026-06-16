@@ -476,6 +476,18 @@ export type PerpsMarketData = {
    * Indicates this market snapshot came from the last known good cache after live fetch failure.
    */
   isStale?: boolean;
+  /**
+   * Searchable keywords from Terminal API metadata (e.g., ['defi', 'layer-1'])
+   */
+  keywords?: string[];
+  /**
+   * Taxonomy tags from Terminal API metadata (e.g., ['top-100', 'gaming'])
+   */
+  tags?: string[];
+  /**
+   * Market categories from Terminal API metadata (e.g., ['crypto', 'meme'])
+   */
+  categories?: string[];
 };
 
 export type ToggleTestnetResult = {
@@ -1653,6 +1665,14 @@ export type PerpsPlatformDependencies = {
     setItem(key: string, value: string): Promise<void>;
     removeItem(key: string): Promise<void>;
   };
+
+  // === Terminal API (market metadata source) ===
+  /**
+   * Base URL for the MetaMask Terminal API.
+   * Each client build (dev/uat/prd) injects the appropriate environment URL.
+   * Never hardcoded in controller code — always provided by the platform.
+   */
+  terminalApiBaseUrl: string;
 
   // === Rewards (DI — no RewardsController in Core yet) ===
   rewards: {

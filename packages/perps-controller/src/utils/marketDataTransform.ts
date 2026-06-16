@@ -16,6 +16,7 @@ import type {
   MarketType,
   MarketDataFormatters,
 } from '../types';
+import type { TerminalAssetMetadata } from '../services/TerminalMarketService';
 import type {
   AllMidsResponse,
   PerpsUniverse,
@@ -180,6 +181,9 @@ function extractFundingData(params: ExtractFundingDataParams): FundingData {
  * @param assetNames - Optional mapping of asset symbols to human-readable names.
  * Defaults to the bundled HYPERLIQUID_ASSET_NAMES; unmapped assets fall back to
  * their ticker symbol.
+ * @param terminalMetadata - Optional per-symbol metadata from Terminal API.
+ * When present, overrides name/marketType from static maps and carries through
+ * keywords/tags/categories. Static maps remain as fallback for unmatched symbols.
  * @returns Transformed market data ready for UI consumption
  */
 export function transformMarketData(
@@ -187,6 +191,7 @@ export function transformMarketData(
   formatters: MarketDataFormatters,
   assetMarketTypes?: Record<string, MarketType>,
   assetNames?: Record<string, string>,
+  terminalMetadata?: Map<string, TerminalAssetMetadata>,
 ): PerpsMarketData[] {
   const { universe, assetCtxs, allMids, predictedFundings } = hyperLiquidData;
 
@@ -255,20 +260,23 @@ export function transformMarketData(
     // Crypto markets (HIP-2) don't have a prefix (e.g., BTC, ETH)
     const isHip3 = Boolean(dex);
 
-    // Determine market type from explicit mapping only
-    // Only explicitly mapped HIP-3 markets get a marketType (e.g., 'xyz:GOLD' → 'commodity')
-    // Unmapped HIP-3 markets (e.g., 'hyna:BTC') have no marketType - they go to "New" tab
-    // Main DEX crypto also has no marketType
-    const explicitMarketType = assetMarketTypes?.[symbol];
+    // Terminal API metadata takes priority over static maps when available
+    const terminalMeta = terminalMetadata?.get(symbol);
+
+    // Determine market type: terminal API > explicit static mapping
+    const explicitMarketType =
+      terminalMeta?.marketType ?? assetMarketTypes?.[symbol];
     const marketType: MarketType | undefined = explicitMarketType;
 
     // Mark as "new" if it's a HIP-3 market but not explicitly categorized
-    // New markets are always HIP-3 (non-crypto) that haven't been assigned a category yet
     const isNewMarket = isHip3 && !explicitMarketType;
+
+    // Resolve name: terminal API > static name map > ticker fallback
+    const resolvedName = terminalMeta?.name ?? getHyperLiquidAssetName(symbol, assetNames);
 
     return {
       symbol,
-      name: getHyperLiquidAssetName(symbol, assetNames),
+      name: resolvedName,
       maxLeverage: `${asset.maxLeverage}x`,
       price: isNaN(currentPrice)
         ? PERPS_CONSTANTS.FallbackPriceDisplay
@@ -294,6 +302,9 @@ export function transformMarketData(
       marketType,
       isHip3,
       isNewMarket,
+      ...(terminalMeta?.keywords && { keywords: terminalMeta.keywords }),
+      ...(terminalMeta?.tags && { tags: terminalMeta.tags }),
+      ...(terminalMeta?.categories && { categories: terminalMeta.categories }),
     };
   });
 }

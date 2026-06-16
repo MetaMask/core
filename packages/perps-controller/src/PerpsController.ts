@@ -38,6 +38,7 @@ import { FeatureFlagConfigurationService } from './services/FeatureFlagConfigura
 import { MarketDataService } from './services/MarketDataService';
 import { RewardsIntegrationService } from './services/RewardsIntegrationService';
 import type { ServiceContext } from './services/ServiceContext';
+import { TerminalMarketService } from './services/TerminalMarketService';
 import { TradingService } from './services/TradingService';
 // PerpsStreamChannelKey removed: using string for channel keys (PerpsStreamManager.pauseChannel takes string)
 import {
@@ -882,6 +883,26 @@ export class PerpsController extends BaseController<
   }
 
   /**
+   * Whether the Terminal API should be used as the primary market data source.
+   * Reads the `perpsTerminalApiMarkets` remote feature flag on every call
+   * (per-fetch, not cached at init) so toggling the flag takes effect immediately.
+   *
+   * @returns True when the flag is enabled.
+   */
+  #isTerminalApiEnabled(): boolean {
+    try {
+      const remoteState = this.messenger.call(
+        'RemoteFeatureFlagController:getState',
+      );
+      return (
+        remoteState.remoteFeatureFlags?.perpsTerminalApiMarkets === true
+      );
+    } catch {
+      return false;
+    }
+  }
+
+  /**
    * Active provider instance for routing operations.
    * When activeProvider is 'hyperliquid' or 'myx': points to specific provider directly
    * When activeProvider is 'aggregated': points to AggregatedPerpsProvider wrapper
@@ -910,6 +931,8 @@ export class PerpsController extends BaseController<
   readonly #tradingService: TradingService;
 
   readonly #marketDataService: MarketDataService;
+
+  readonly #terminalMarketService: TerminalMarketService;
 
   readonly #accountService: AccountService;
 
@@ -950,7 +973,11 @@ export class PerpsController extends BaseController<
     // Instantiate services with platform dependencies
     // Services that need cross-controller access receive the messenger
     this.#tradingService = new TradingService(infrastructure);
-    this.#marketDataService = new MarketDataService(infrastructure);
+    this.#terminalMarketService = new TerminalMarketService(infrastructure);
+    this.#marketDataService = new MarketDataService(
+      infrastructure,
+      this.#terminalMarketService,
+    );
     this.#accountService = new AccountService(infrastructure, messenger);
     this.#eligibilityService = new EligibilityService(infrastructure);
     this.#dataLakeService = new DataLakeService(infrastructure, messenger);
@@ -2932,6 +2959,7 @@ export class PerpsController extends BaseController<
       provider,
       params,
       context: this.#createServiceContext('getMarkets'),
+      useTerminalApi: this.#isTerminalApiEnabled(),
     });
   }
 
@@ -2962,6 +2990,7 @@ export class PerpsController extends BaseController<
         provider,
         params,
         context: this.#createServiceContext('getMarketDataWithPrices'),
+        useTerminalApi: this.#isTerminalApiEnabled(),
       });
     }
 
@@ -2970,6 +2999,7 @@ export class PerpsController extends BaseController<
       provider,
       params,
       context: this.#createServiceContext('getMarketDataWithPrices'),
+      useTerminalApi: this.#isTerminalApiEnabled(),
     });
   }
 
