@@ -35,11 +35,6 @@ export type RequestParams = {
   token_security_type_destination: string | null;
 };
 
-type RequestTokenSymbols = {
-  token_symbol_source: string;
-  token_symbol_destination: string | null;
-};
-
 export type AccountHardwareType =
   | 'Ledger'
   | 'Trezor'
@@ -122,7 +117,10 @@ export type QuoteWarning =
  * via the RequiredEventContextFromClient mapped type.
  */
 type RequiredEventContextFromClientBase = {
-  [UnifiedSwapBridgeEventName.ButtonClicked]: RequestTokenSymbols;
+  [UnifiedSwapBridgeEventName.ButtonClicked]: Pick<
+    RequestParams,
+    'token_symbol_source' | 'token_symbol_destination'
+  >;
   [UnifiedSwapBridgeEventName.PageViewed]: object;
   [UnifiedSwapBridgeEventName.InputChanged]: {
     input:
@@ -135,7 +133,9 @@ type RequiredEventContextFromClientBase = {
     input_value: InputValues[keyof InputValues];
     input_amount_preset?: string;
   } & InputPrimaryDenominationData;
-  [UnifiedSwapBridgeEventName.FiatCryptoToggleClicked]: RequestTokenSymbols & {
+  [UnifiedSwapBridgeEventName.FiatCryptoToggleClicked]: {
+    token_symbol_source: string;
+    token_symbol_destination: string | null;
     previous_primary_denomination: InputPrimaryDenomination;
     new_primary_denomination: InputPrimaryDenomination;
   };
@@ -245,7 +245,7 @@ type RequiredEventContextFromClientBase = {
     'gas_included'
   > &
     Pick<QuoteFetchData, 'price_impact'> &
-    RequestTokenSymbols & {
+    Pick<RequestParams, 'token_symbol_source' | 'token_symbol_destination'> & {
       stx_enabled: RequestMetadata['stx_enabled'];
       can_submit: QuoteFetchData['can_submit'];
     };
@@ -254,7 +254,7 @@ type RequiredEventContextFromClientBase = {
     'gas_included'
   > &
     Pick<QuoteFetchData, 'price_impact'> &
-    RequestTokenSymbols & {
+    Pick<RequestParams, 'token_symbol_source' | 'token_symbol_destination'> & {
       stx_enabled: RequestMetadata['stx_enabled'];
       sort_order: SortOrder;
       best_quote_provider: QuoteFetchData['best_quote_provider'];
