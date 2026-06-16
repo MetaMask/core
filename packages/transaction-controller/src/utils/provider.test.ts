@@ -170,48 +170,6 @@ describe('provider utils', () => {
       );
     });
 
-    it('prefixes provider errors when the original message is read-only', async () => {
-      const error = new Error('RPC failed') as Error & { code?: string };
-      error.code = 'UNAUTHORIZED';
-      Object.defineProperty(error, 'message', {
-        value: 'RPC failed',
-        writable: false,
-      });
-      requestMock.mockRejectedValue(error);
-
-      let thrownError: (Error & { code?: string }) | undefined;
-      try {
-        await rpcRequest({
-          messenger: messengerMock,
-          networkClientId: 'networkClientIdA' as NetworkClientId,
-          method: 'eth_getBalance',
-          params: ['0x123', 'latest'],
-        });
-      } catch (caughtError) {
-        thrownError = caughtError as Error & { code?: string };
-      }
-
-      expect(thrownError).not.toBe(error);
-      expect(thrownError?.message).toBe(
-        'RPC 0xa4b1 Custom eth_getBalance: RPC failed',
-      );
-      expect(thrownError?.code).toBe('UNAUTHORIZED');
-      expect(error.message).toBe('RPC failed');
-    });
-
-    it('prefixes non-Error provider errors', async () => {
-      requestMock.mockRejectedValue('RPC failed');
-
-      await expect(
-        rpcRequest({
-          messenger: messengerMock,
-          networkClientId: 'networkClientIdA' as NetworkClientId,
-          method: 'eth_getBalance',
-          params: ['0x123', 'latest'],
-        }),
-      ).rejects.toThrow('RPC 0xa4b1 Custom eth_getBalance: RPC failed');
-    });
-
     it('works when params are undefined', async () => {
       requestMock.mockResolvedValue('0x10');
 

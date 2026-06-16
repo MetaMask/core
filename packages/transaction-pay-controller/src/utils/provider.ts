@@ -152,44 +152,22 @@ function throwWithRpcContext(
     networkClient: NetworkClient;
   },
 ): never {
-  const errorObject = error as
-    | {
-        data?: { message?: string };
-        message?: string;
-      }
-    | undefined;
-  const message =
-    errorObject?.data?.message ?? errorObject?.message ?? String(error);
+  const errorObject = error as {
+    data?: { message?: string };
+    message?: string;
+  };
+  const message = errorObject.data?.message ?? errorObject.message;
   const prefix = `RPC ${networkClient.configuration.chainId} ${getEndpointLabel(
     networkClient,
   )} ${method}`;
   const prefixedMessage = `${prefix}: ${message}`;
 
-  if (error instanceof Error) {
-    if (setErrorMessage(error, prefixedMessage)) {
-      throw error;
-    }
-
-    const wrappedError = Object.assign(new Error(prefixedMessage), error);
-
-    wrappedError.message = prefixedMessage;
-    throw wrappedError;
-  }
-
-  throw new Error(prefixedMessage);
+  errorObject.message = prefixedMessage;
+  throw error;
 }
 
 function getEndpointLabel(networkClient: NetworkClient): 'Infura' | 'Custom' {
   return networkClient.configuration.type === NetworkClientType.Infura
     ? 'Infura'
     : 'Custom';
-}
-
-function setErrorMessage(error: Error, message: string): boolean {
-  try {
-    error.message = message;
-    return error.message === message;
-  } catch {
-    return false;
-  }
 }
