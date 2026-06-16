@@ -1,4 +1,4 @@
-import type { Provider } from '@metamask/network-controller';
+import type { NetworkClient, Provider } from '@metamask/network-controller';
 import { NetworkClientType } from '@metamask/network-controller';
 import { RpcEndpointType } from '@metamask/network-controller';
 import type { NetworkConfiguration } from '@metamask/network-controller';
@@ -15,7 +15,7 @@ const PROVIDER_MOCK = { request: jest.fn() } as unknown as Provider;
 function buildNetworkClient(
   provider: Provider,
   networkClientId = DEFAULT_NETWORK_CLIENT_ID_MOCK,
-) {
+): Pick<NetworkClient, 'configuration' | 'provider'> {
   return {
     configuration: {
       chainId: CHAIN_ID_MOCK,
