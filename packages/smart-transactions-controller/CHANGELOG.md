@@ -7,4 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
 - This package was migrated to the core monorepo from [`MetaMask/smart-transactions-controller`](https://github.com/MetaMask/smart-transactions-controller). For the changelog up to and including v24.2.1 (the last release from the original repo), see the [historical changelog](https://github.com/MetaMask/smart-transactions-controller/blob/v24.2.1/CHANGELOG.md).
+
+[Unreleased]: https://github.com/MetaMask/core/
