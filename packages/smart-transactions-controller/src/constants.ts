@@ -24,7 +24,6 @@ export enum MetaMetricsEventName {
 
 export enum MetaMetricsEventCategory {
   Transactions = 'Transactions',
-  // eslint-disable-next-line @typescript-eslint/no-shadow
   Navigation = 'Navigation',
 }
 

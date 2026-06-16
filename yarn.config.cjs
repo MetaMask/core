@@ -534,6 +534,7 @@ async function expectWorkspaceLicense(workspace) {
       '@metamask/permission-log-controller',
       '@metamask/eth-json-rpc-middleware',
       '@metamask/eth-json-rpc-provider',
+      '@metamask/smart-transactions-controller',
     ].includes(workspace.manifest.name)
   ) {
     expectWorkspaceField(workspace, 'license');
