@@ -608,6 +608,8 @@ linkStyle default opacity:0.5
   wallet --> messenger;
   wallet --> remote_feature_flag_controller;
   wallet --> storage_service;
+  wallet_cli --> base_controller;
+  wallet_cli --> wallet;
 ```
 
 <!-- end dependency graph -->
