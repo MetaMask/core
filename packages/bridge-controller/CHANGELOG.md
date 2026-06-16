@@ -7,10 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Added
-
-- Add required `quoteId: string` to `QuoteResponseSchema`; quote responses without a `quoteId` will now fail validation ([#8462](https://github.com/MetaMask/core/pull/8462))
-
 ### Changed
 
 - Bump `@metamask/assets-controllers` from `^109.0.0` to `^109.1.0` ([#9110](https://github.com/MetaMask/core/pull/9110))
