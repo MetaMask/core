@@ -1670,9 +1670,10 @@ export type PerpsPlatformDependencies = {
   /**
    * Base URL for the MetaMask Terminal API.
    * Each client build (dev/uat/prd) injects the appropriate environment URL.
-   * Never hardcoded in controller code — always provided by the platform.
+   * Optional — when omitted, the Terminal API integration is disabled
+   * regardless of the remote feature flag.
    */
-  terminalApiBaseUrl: string;
+  terminalApiBaseUrl?: string;
 
   // === Rewards (DI — no RewardsController in Core yet) ===
   rewards: {

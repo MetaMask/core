@@ -13,7 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `TerminalMarketService` fetches structured market metadata from `{terminalApiBaseUrl}/perpetuals` with a 5-minute cache TTL.
   - When enabled, `getMarkets()` attempts the Terminal API first; on failure or empty response, falls back silently to HyperLiquid.
   - `getMarketDataWithPrices()` enriches provider data with Terminal API metadata (name, keywords, tags, categories).
-  - `PerpsPlatformDependencies` gains a required `terminalApiBaseUrl: string` field; clients must inject the correct environment URL.
+  - `PerpsPlatformDependencies` gains an optional `terminalApiBaseUrl?: string` field; when omitted, the Terminal API integration is disabled regardless of the feature flag.
   - `PerpsMarketData` gains optional `keywords`, `tags`, and `categories` fields.
   - `transformMarketData()` accepts optional `terminalMetadata` parameter to override static name/category maps per symbol.
   - Market search (`getMarketMatchRank`, `rankMarketsByQuery`) now indexes the `keywords` field for richer search results.
