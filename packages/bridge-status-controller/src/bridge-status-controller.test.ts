@@ -439,6 +439,7 @@ const MockTxHistory = {
       attempts,
       featureId,
       location: MetaMetricsSwapsEventSource.MainView,
+      quoteId: undefined,
     },
   }),
   getUnknown: ({
@@ -477,6 +478,7 @@ const MockTxHistory = {
       hasApprovalTx: false,
       completionTime: undefined,
       location: undefined,
+      quoteId: undefined,
     },
   }),
   getPendingSwap: ({
@@ -516,6 +518,7 @@ const MockTxHistory = {
       completionTime: undefined,
       featureId,
       location: undefined,
+      quoteId: undefined,
     },
   }),
   getComplete: ({
@@ -554,6 +557,7 @@ const MockTxHistory = {
       hasApprovalTx: false,
       attempts: undefined,
       location: MetaMetricsSwapsEventSource.MainView,
+      quoteId: undefined,
     },
   }),
 };
@@ -5208,9 +5212,7 @@ describe('BridgeStatusController', () => {
         .fn()
         .mockResolvedValueOnce(MockStatusResponse.getPending());
 
-      jest.spyOn(Date, 'now').mockReturnValueOnce(1779988919705);
-      jest.spyOn(Date, 'now').mockReturnValueOnce(1779988919706);
-      jest.spyOn(Date, 'now').mockReturnValue(1779988919707);
+      jest.setSystemTime(1779988919707);
 
       // Create base history item for actionId-keyed entries
       const baseHistoryItem = MockTxHistory.getPending().bridgeTxMetaId1;
@@ -5521,7 +5523,7 @@ describe('BridgeStatusController', () => {
               {
                 "account_hardware_type": null,
                 "action_type": "swapbridge-v1",
-                "actual_time_minutes": 833734.9086166667,
+                "actual_time_minutes": 833734.9086333333,
                 "allowance_reset_transaction": undefined,
                 "approval_transaction": undefined,
                 "batch_id": "0xBatchId3",
@@ -6251,6 +6253,7 @@ describe('BridgeStatusController', () => {
           ),
         ).toMatchInlineSnapshot(`
           {
+            "deferredStatusUpdates": {},
             "txHistory": {},
           }
         `);

@@ -301,6 +301,7 @@ export const getHistoryItem = (
     },
     batchSellData,
     quote: quote as Quote,
+    quoteId: undefined,
     ...(quoteIds ? { quoteIds } : {}),
   };
 };
