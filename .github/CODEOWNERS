@@ -36,6 +36,9 @@
 /packages/transaction-pay-controller        @MetaMask/confirmations
 /packages/user-operation-controller         @MetaMask/confirmations
 
+## Transactions Team
+/packages/smart-transactions-controller     @MetaMask/transactions
+
 ## Delegation Team
 /packages/delegation-controller             @MetaMask/delegation
 /packages/gator-permissions-controller      @MetaMask/delegation
@@ -213,6 +216,8 @@
 /packages/selected-network-controller/CHANGELOG.md @MetaMask/wallet-integrations @MetaMask/core-platform
 /packages/signature-controller/package.json       @MetaMask/confirmations @MetaMask/core-platform
 /packages/signature-controller/CHANGELOG.md       @MetaMask/confirmations @MetaMask/core-platform
+/packages/smart-transactions-controller/package.json @MetaMask/transactions @MetaMask/core-platform
+/packages/smart-transactions-controller/CHANGELOG.md @MetaMask/transactions @MetaMask/core-platform
 /packages/transaction-controller/package.json     @MetaMask/confirmations @MetaMask/core-platform
 /packages/transaction-controller/CHANGELOG.md     @MetaMask/confirmations @MetaMask/core-platform
 /packages/transaction-pay-controller/package.json @MetaMask/confirmations @MetaMask/core-platform

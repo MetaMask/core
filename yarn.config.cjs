@@ -25,6 +25,7 @@ const { inspect } = require('util');
  */
 const ALLOWED_INCONSISTENT_DEPENDENCIES = {
   '@tanstack/query-core': ['^4.43.0'],
+  nock: ['^14.0.0-beta.7'],
 };
 
 /**
@@ -534,6 +535,7 @@ async function expectWorkspaceLicense(workspace) {
       '@metamask/permission-log-controller',
       '@metamask/eth-json-rpc-middleware',
       '@metamask/eth-json-rpc-provider',
+      '@metamask/smart-transactions-controller',
     ].includes(workspace.manifest.name)
   ) {
     expectWorkspaceField(workspace, 'license');
