@@ -5,6 +5,7 @@ import type { Hex } from '@metamask/utils';
 import { createPermissionDecodersForContracts } from './decoders';
 import type { DeployedContractsByName } from './types';
 import {
+  extractExpiryFromCaveatTerms,
   getChecksumEnforcersByChainId,
   getTermsByEnforcer,
   splitHex,
@@ -404,6 +405,39 @@ describe('getTermsByEnforcer', () => {
         throwIfNotFound: true,
       }),
     ).toThrow('Invalid caveats');
+  });
+});
+
+describe('extractExpiryFromCaveatTerms', () => {
+  it('returns expiry from valid TimestampEnforcer terms', () => {
+    const expiry = 1735689600n;
+    const terms = `0x${'0'.repeat(32)}${expiry.toString(16).padStart(32, '0')}` as Hex;
+
+    expect(extractExpiryFromCaveatTerms(terms)).toBe(Number(expiry));
+  });
+
+  it('throws if terms length is not 66 characters', () => {
+    const invalidTerms = '0x1234' as Hex;
+    expect(() => extractExpiryFromCaveatTerms(invalidTerms)).toThrow(
+      'Invalid TimestampEnforcer terms length: expected 66 characters (0x + 64 hex), got 6',
+    );
+  });
+
+  it('throws if timestampAfterThreshold is non-zero', () => {
+    const terms =
+      '0x0000000000000000000000000000000100000000000000000000000000000001' as Hex;
+
+    expect(() => extractExpiryFromCaveatTerms(terms)).toThrow(
+      'Invalid expiry: timestampAfterThreshold must be 0',
+    );
+  });
+
+  it('throws if timestampBeforeThreshold is zero', () => {
+    const terms = `0x${'0'.repeat(64)}` as Hex;
+
+    expect(() => extractExpiryFromCaveatTerms(terms)).toThrow(
+      'Invalid expiry: timestampBeforeThreshold must be greater than 0',
+    );
   });
 });
 
