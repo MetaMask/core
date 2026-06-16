@@ -163,6 +163,7 @@ export async function updateQuotes(
 
     syncTransaction({
       batchTransactions,
+      hasQuotes: quotes.length > 0,
       isPostQuote,
       messenger: messenger as never,
       paymentToken,
@@ -198,6 +199,7 @@ export async function updateQuotes(
  *
  * @param request - Request object.
  * @param request.batchTransactions - Batch transactions to sync.
+ * @param request.hasQuotes - Whether MM Pay produced any quotes for this transaction.
  * @param request.isPostQuote - Whether this is a post-quote flow.
  * @param request.messenger - Messenger instance.
  * @param request.paymentToken - Payment token (source for standard flows, destination for post-quote).
@@ -206,6 +208,7 @@ export async function updateQuotes(
  */
 function syncTransaction({
   batchTransactions,
+  hasQuotes,
   isPostQuote,
   messenger,
   paymentToken,
@@ -213,6 +216,7 @@ function syncTransaction({
   transactionId,
 }: {
   batchTransactions: BatchTransaction[];
+  hasQuotes: boolean;
   isPostQuote?: boolean;
   messenger: TransactionPayControllerMessenger;
   paymentToken: TransactionPaymentToken | undefined;
@@ -232,6 +236,14 @@ function syncTransaction({
     (tx: TransactionMeta) => {
       tx.batchTransactions = batchTransactions;
       tx.batchTransactionsOptions = {};
+
+      // When MM Pay has produced quotes, it owns submission of this transaction
+      // via its strategy publish hook, so the parent must be marked externally
+      // signed to skip the local `KeyringController:signTransaction` call.
+      // When there are no quotes (e.g. user selected the target token as the
+      // payment token in a Predict flow), the transaction falls back to normal
+      // local signing, so the flag is cleared to allow that.
+      tx.isExternalSign = hasQuotes;
 
       tx.metamaskPay = {
         bridgeFeeFiat: totals.fees.provider.usd,
