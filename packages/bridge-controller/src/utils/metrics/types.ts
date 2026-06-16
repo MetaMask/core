@@ -121,6 +121,7 @@ type RequiredEventContextFromClientBase = {
     RequestParams,
     'token_symbol_source' | 'token_symbol_destination'
   >;
+  // When type is object, the payload can be anything
   [UnifiedSwapBridgeEventName.PageViewed]: object;
   [UnifiedSwapBridgeEventName.InputChanged]: {
     input:
