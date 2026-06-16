@@ -932,7 +932,7 @@ export class PerpsController extends BaseController<
 
   readonly #marketDataService: MarketDataService;
 
-  readonly #terminalMarketService: TerminalMarketService | undefined;
+  readonly #terminalMarketService: TerminalMarketService;
 
   readonly #accountService: AccountService;
 
@@ -973,9 +973,7 @@ export class PerpsController extends BaseController<
     // Instantiate services with platform dependencies
     // Services that need cross-controller access receive the messenger
     this.#tradingService = new TradingService(infrastructure);
-    this.#terminalMarketService = infrastructure.terminalApiBaseUrl
-      ? new TerminalMarketService(infrastructure)
-      : undefined;
+    this.#terminalMarketService = new TerminalMarketService(infrastructure);
     this.#marketDataService = new MarketDataService(
       infrastructure,
       this.#terminalMarketService,
