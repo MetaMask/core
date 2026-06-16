@@ -16,10 +16,7 @@ import type {
   MarketType,
   PerpsPlatformDependencies,
 } from '../types';
-import { MARKET_CATEGORIES } from '../types';
 import { ensureError } from '../utils/errorUtils';
-
-const VALID_MARKET_TYPES = new Set<string>(MARKET_CATEGORIES);
 
 /**
  * Metadata extracted from Terminal API for a single asset.
@@ -224,10 +221,7 @@ export class TerminalMarketService {
       if (Array.isArray(item.categories) && item.categories.length > 0) {
         entry.categories = item.categories;
       }
-      if (
-        typeof item.marketType === 'string' &&
-        VALID_MARKET_TYPES.has(item.marketType)
-      ) {
+      if (typeof item.marketType === 'string' && item.marketType.length > 0) {
         entry.marketType = item.marketType as MarketType;
       }
 

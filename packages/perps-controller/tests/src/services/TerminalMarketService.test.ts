@@ -252,22 +252,6 @@ describe('TerminalMarketService', () => {
 
       expect(metadata.get('UNKNOWN')?.name).toBe('UNKNOWN');
     });
-
-    it('ignores unrecognised marketType values from the API', async () => {
-      jest.spyOn(globalThis, 'fetch').mockResolvedValue({
-        ok: true,
-        status: 200,
-        statusText: 'OK',
-        json: () =>
-          Promise.resolve([
-            { symbol: 'XYZ', name: 'Unknown Type', marketType: 'derivatives' },
-          ]),
-      } as Response);
-
-      const { metadata } = await service.fetchMarkets();
-
-      expect(metadata.get('XYZ')?.marketType).toBeUndefined();
-    });
   });
 
   describe('cache behavior', () => {
