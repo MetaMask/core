@@ -130,6 +130,41 @@ describe('RelayStrategy', () => {
     });
   });
 
+  it('skips validation for Hyperliquid source quotes', async () => {
+    const quote = buildQuote({ isHyperliquidSource: true });
+
+    const strategy = new RelayStrategy();
+    const result = await strategy.checkQuoteSupport({
+      messenger,
+      quotes: [quote],
+      transaction: request.transaction,
+    });
+
+    expect(result).toStrictEqual({ isSupported: true });
+    expect(buildRelaySimulationMock).not.toHaveBeenCalled();
+    expect(validateQuoteExecutionMock).not.toHaveBeenCalled();
+  });
+
+  it('rethrows validation errors when the abort signal is aborted', async () => {
+    const quote = buildQuote();
+    const controller = new AbortController();
+    const error = new Error('Quote validation aborted');
+
+    controller.abort();
+    validateQuoteExecutionMock.mockRejectedValue(error);
+
+    const strategy = new RelayStrategy();
+
+    await expect(
+      strategy.checkQuoteSupport({
+        messenger,
+        quotes: [quote],
+        signal: controller.signal,
+        transaction: request.transaction,
+      }),
+    ).rejects.toThrow(error);
+  });
+
   it('returns quote validation errors from checkQuoteSupport', async () => {
     const validationError = {
       code: 'insufficient_source_balance',
@@ -186,11 +221,14 @@ describe('RelayStrategy', () => {
     });
   });
 
-  function buildQuote(): TransactionPayQuote<RelayQuote> {
+  function buildQuote(
+    requestOverrides: Partial<TransactionPayQuote<RelayQuote>['request']> = {},
+  ): TransactionPayQuote<RelayQuote> {
     return {
       request: {
         sourceChainId: '0x1' as Hex,
         sourceTokenAddress: '0xabc' as Hex,
+        ...requestOverrides,
       },
       strategy: TransactionPayStrategy.Relay,
     } as TransactionPayQuote<RelayQuote>;

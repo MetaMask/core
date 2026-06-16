@@ -3,7 +3,7 @@ import { abiERC20 } from '@metamask/metamask-eth-abis';
 import type { TransactionMeta } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 
-import { TransactionPayStrategy } from '../../constants';
+import { NATIVE_TOKEN_ADDRESS, TransactionPayStrategy } from '../../constants';
 import { getMessengerMock } from '../../tests/messenger-mock';
 import type {
   TransactionPayControllerMessenger,
@@ -60,6 +60,10 @@ const TRANSACTION_MOCK = {
   chainId: CHAIN_ID_MOCK,
   txParams: { from: FROM_MOCK },
 } as TransactionMeta;
+const TRANSACTION_WITH_TO_MOCK = {
+  ...TRANSACTION_MOCK,
+  txParams: { ...TRANSACTION_MOCK.txParams, to: TOKEN_ADDRESS_MOCK },
+} as TransactionMeta;
 
 describe('Relay quote simulation validation', () => {
   const getFeatureFlagsMock = jest.mocked(getFeatureFlags);
@@ -68,7 +72,9 @@ describe('Relay quote simulation validation', () => {
   const simulateTransactionsMock = jest.mocked(simulateTransactions);
   const {
     findNetworkClientIdByChainIdMock,
+    getControllerStateMock,
     getDelegationTransactionMock,
+    getPaymentOverrideDataMock,
     getRemoteFeatureFlagControllerStateMock,
     messenger,
   } = getMessengerMock();
@@ -82,6 +88,7 @@ describe('Relay quote simulation validation', () => {
     getRemoteFeatureFlagControllerStateMock.mockReturnValue({
       remoteFeatureFlags: {},
     } as never);
+    getControllerStateMock.mockReturnValue({ transactionData: {} } as never);
     getLiveTokenBalanceMock.mockResolvedValue('1000');
     rpcRequestMock.mockResolvedValue({} as never);
     simulateTransactionsMock.mockResolvedValue({ transactions: [{}] });
@@ -435,6 +442,29 @@ describe('Relay quote simulation validation', () => {
     );
   });
 
+  it('simulates Relay execute quotes without an account override when authorization list is absent', async () => {
+    getDelegationTransactionMock.mockResolvedValue({
+      data: '0x1234' as Hex,
+      to: '0x5555555555555555555555555555555555555555' as Hex,
+      value: '0',
+    });
+
+    await validateRelayQuote({
+      messenger,
+      quote: buildQuote({
+        isExecute: true,
+        sourceAmountRaw: '500',
+        transferAmountRaw: '500',
+      }),
+      transaction: TRANSACTION_MOCK,
+    });
+
+    expect(simulateTransactionsMock).toHaveBeenCalledWith(
+      CHAIN_ID_MOCK,
+      expect.not.objectContaining({ overrides: expect.any(Object) }),
+    );
+  });
+
   it('identifies relay quote validation errors', async () => {
     const error = new RelayQuoteValidationError({
       code: 'quote_simulation_failed',
@@ -444,17 +474,259 @@ describe('Relay quote simulation validation', () => {
 
     expect(isQuoteValidationError(error)).toBe(true);
   });
+
+  it('simulates is7702 quotes as a single batch execute transaction sent to the from address', async () => {
+    await validateRelayQuote({
+      messenger,
+      quote: buildQuote({
+        is7702: true,
+        sourceAmountRaw: '500',
+        transferAmountRaw: '500',
+      }),
+      transaction: TRANSACTION_MOCK,
+    });
+
+    expect(simulateTransactionsMock).toHaveBeenCalledWith(
+      CHAIN_ID_MOCK,
+      expect.objectContaining({
+        transactions: [
+          expect.objectContaining({
+            from: FROM_MOCK,
+            to: FROM_MOCK,
+            value: '0x0',
+          }),
+        ],
+      }),
+    );
+  });
+
+  it('adds the first Relay gas limit to is7702 batch simulations when provided', async () => {
+    await validateRelayQuote({
+      messenger,
+      quote: buildQuote({
+        gasLimits: [123],
+        is7702: true,
+        sourceAmountRaw: '500',
+        transferAmountRaw: '500',
+      }),
+      transaction: TRANSACTION_MOCK,
+    });
+
+    expect(simulateTransactionsMock).toHaveBeenCalledWith(
+      CHAIN_ID_MOCK,
+      expect.objectContaining({
+        transactions: [expect.objectContaining({ gas: '0x7b' })],
+      }),
+    );
+  });
+
+  it('uses default call values for incomplete payment override calls in is7702 batch simulations', async () => {
+    getPaymentOverrideDataMock.mockResolvedValue({
+      calls: [{ from: FROM_MOCK }],
+    } as never);
+
+    await validateRelayQuote({
+      messenger,
+      quote: buildQuote({
+        is7702: true,
+        paymentOverride: true,
+        sourceAmountRaw: '500',
+        transferAmountRaw: '500',
+      }),
+      transaction: TRANSACTION_MOCK,
+    });
+
+    expect(simulateTransactionsMock).toHaveBeenCalledWith(
+      CHAIN_ID_MOCK,
+      expect.objectContaining({
+        transactions: [expect.objectContaining({ to: FROM_MOCK })],
+      }),
+    );
+  });
+
+  it('sets mock7702From on is7702 simulations when the quote request has an authorization list', async () => {
+    const authorizationEntry = {
+      address: '0x4444444444444444444444444444444444444444' as Hex,
+      chainId: CHAIN_ID_MOCK,
+      nonce: '0x1' as Hex,
+      r: '0x1' as Hex,
+      s: '0x2' as Hex,
+      yParity: '0x0' as Hex,
+    };
+
+    await validateRelayQuote({
+      messenger,
+      quote: buildQuote({
+        is7702: true,
+        requestAuthorizationList: [authorizationEntry],
+        sourceAmountRaw: '500',
+        transferAmountRaw: '500',
+      }),
+      transaction: TRANSACTION_MOCK,
+    });
+
+    expect(simulateTransactionsMock).toHaveBeenCalledWith(
+      CHAIN_ID_MOCK,
+      expect.objectContaining({
+        overrides: {
+          [FROM_MOCK.toLowerCase()]: {
+            code: `0xef0100${EIP7702_DELEGATOR_ADDRESS.slice(2)}`,
+          },
+        },
+      }),
+    );
+  });
+
+  it('throws quote_authorization_invalid when Relay execute authorization list has an incomplete entry', async () => {
+    getDelegationTransactionMock.mockResolvedValue({
+      authorizationList: [
+        {
+          // address intentionally omitted to trigger validation failure
+          chainId: CHAIN_ID_MOCK,
+          nonce: '0x1',
+          r: '0x1' as Hex,
+          s: '0x2' as Hex,
+          yParity: '0x0',
+        },
+      ],
+      data: '0x1234' as Hex,
+      to: '0x5555555555555555555555555555555555555555' as Hex,
+      value: '0x0' as Hex,
+    } as never);
+
+    await expect(
+      validateRelayQuote({
+        messenger,
+        quote: buildQuote({
+          isExecute: true,
+          sourceAmountRaw: '500',
+          transferAmountRaw: '500',
+        }),
+        transaction: TRANSACTION_MOCK,
+      }),
+    ).rejects.toMatchObject({
+      validationError: {
+        code: 'quote_authorization_invalid',
+        message: 'Relay execute authorization list is incomplete',
+      },
+    });
+  });
+
+  it('rethrows non-simulation errors from simulateQuoteTransactions', async () => {
+    simulateTransactionsMock.mockResolvedValue({ transactions: null as never });
+
+    await expect(
+      validateRelayQuote({
+        messenger,
+        quote: buildQuote({ sourceAmountRaw: '500', transferAmountRaw: '500' }),
+        transaction: TRANSACTION_MOCK,
+      }),
+    ).rejects.toThrow(TypeError);
+  });
+
+  it('skips required source amount check for post-quote requests', async () => {
+    await validateRelayQuote({
+      messenger,
+      quote: buildQuote({
+        isPostQuote: true,
+        sourceAmountRaw: '9999',
+        transferAmountRaw: '500',
+      }),
+      transaction: TRANSACTION_MOCK,
+    });
+
+    expect(simulateTransactionsMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('skips decoded ERC-20 transfer check for native token source quotes', async () => {
+    getLiveTokenBalanceMock.mockResolvedValue('500');
+
+    await validateRelayQuote({
+      messenger,
+      quote: buildQuote({
+        sourceAmountRaw: '300',
+        sourceTokenAddress: NATIVE_TOKEN_ADDRESS,
+        transferAmountRaw: '300',
+      }),
+      transaction: TRANSACTION_MOCK,
+    });
+
+    expect(simulateTransactionsMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('defaults missing value and ignores missing data on prepended post-quote transactions', async () => {
+    await validateRelayQuote({
+      messenger,
+      quote: buildQuote({
+        isPostQuote: true,
+        sourceAmountRaw: '500',
+        transferAmountRaw: '500',
+      }),
+      transaction: TRANSACTION_WITH_TO_MOCK,
+    });
+
+    expect(simulateTransactionsMock).toHaveBeenCalledWith(
+      CHAIN_ID_MOCK,
+      expect.objectContaining({
+        transactions: expect.arrayContaining([
+          expect.objectContaining({
+            data: undefined,
+            to: TOKEN_ADDRESS_MOCK,
+            value: '0x0',
+          }),
+        ]),
+      }),
+    );
+  });
+
+  it('throws when the abort signal is already aborted before validation starts', async () => {
+    const controller = new AbortController();
+    controller.abort();
+
+    await expect(
+      validateRelayQuote({
+        messenger,
+        quote: buildQuote({
+          sourceAmountRaw: '500',
+          transferAmountRaw: '500',
+        }),
+        signal: controller.signal,
+        transaction: TRANSACTION_MOCK,
+      }),
+    ).rejects.toThrow('Quote validation aborted');
+
+    expect(getLiveTokenBalanceMock).not.toHaveBeenCalled();
+  });
 });
 
 function buildQuote({
   isExecute = false,
+  is7702 = false,
+  isPostQuote = false,
+  gasLimits = [],
+  paymentOverride,
+  requestAuthorizationList,
   sourceAmountRaw,
+  sourceTokenAddress = TOKEN_ADDRESS_MOCK,
   stepData,
   transactionCount = 1,
   transferAmountRaw,
 }: {
   isExecute?: boolean;
+  is7702?: boolean;
+  isPostQuote?: boolean;
+  gasLimits?: number[];
+  paymentOverride?: boolean;
+  requestAuthorizationList?: {
+    address: Hex;
+    chainId: Hex;
+    nonce: Hex;
+    r: Hex;
+    s: Hex;
+    yParity: Hex;
+  }[];
   sourceAmountRaw: string;
+  sourceTokenAddress?: Hex;
   stepData?: Hex;
   transactionCount?: number;
   transferAmountRaw: string;
@@ -465,8 +737,10 @@ function buildQuote({
         currencyIn: { currency: { chainId: Number(CHAIN_ID_MOCK) } },
         currencyOut: { currency: { chainId: 1 } },
       },
-      metamask: { gasLimits: [], isExecute, is7702: false },
-      request: {},
+      metamask: { gasLimits, isExecute, is7702 },
+      request: requestAuthorizationList
+        ? { authorizationList: requestAuthorizationList }
+        : {},
       steps: [
         {
           id: 'deposit',
@@ -498,9 +772,11 @@ function buildQuote({
     } as RelayQuote,
     request: {
       from: FROM_MOCK,
+      isPostQuote,
+      paymentOverride,
       sourceBalanceRaw: '1000',
       sourceChainId: CHAIN_ID_MOCK,
-      sourceTokenAddress: TOKEN_ADDRESS_MOCK,
+      sourceTokenAddress,
       sourceTokenAmount: sourceAmountRaw,
       targetAmountMinimum: '0',
       targetChainId: '0x1' as Hex,
@@ -519,10 +795,12 @@ function buildQuote({
 async function validateRelayQuote({
   messenger,
   quote,
+  signal,
   transaction,
 }: {
   messenger: TransactionPayControllerMessenger;
   quote: TransactionPayQuote<RelayQuote>;
+  signal?: AbortSignal;
   transaction: TransactionMeta;
 }): Promise<void> {
   const simulation = await buildRelaySimulation({
@@ -534,6 +812,7 @@ async function validateRelayQuote({
   await validateQuoteExecution({
     messenger,
     quote,
+    signal,
     simulation,
   });
 }
