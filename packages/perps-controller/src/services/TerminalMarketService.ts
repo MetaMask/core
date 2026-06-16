@@ -158,7 +158,9 @@ export class TerminalMarketService {
               name: 'TerminalMarketService.validateItems',
               data: {
                 symbol:
-                  typeof item === 'object' && item !== null && 'symbol' in item
+                  typeof item === 'object' &&
+                  item !== null &&
+                  Object.prototype.hasOwnProperty.call(item, 'symbol')
                     ? (item as Record<string, unknown>).symbol
                     : undefined,
               },
