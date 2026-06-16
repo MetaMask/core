@@ -766,14 +766,20 @@ export class MarketDataService {
           const { markets: terminalMarkets } =
             await this.#terminalMarketService.fetchMarkets();
           if (terminalMarkets.length > 0) {
-            if (context.stateManager) {
-              context.stateManager.update((state) => {
-                state.lastError = null;
-                state.lastUpdateTimestamp = Date.now();
-              });
+            const filtered = this.#applyGetMarketsParams(
+              terminalMarkets,
+              params,
+            );
+            if (filtered.length > 0) {
+              if (context.stateManager) {
+                context.stateManager.update((state) => {
+                  state.lastError = null;
+                  state.lastUpdateTimestamp = Date.now();
+                });
+              }
+              traceData = { success: true };
+              return filtered;
             }
-            traceData = { success: true };
-            return terminalMarkets;
           }
         } catch (terminalError) {
           this.#terminalMarketService.logError(terminalError, 'getMarkets');
@@ -1329,6 +1335,36 @@ export class MarketDataService {
    * @param metadata - Per-symbol metadata from the Terminal API.
    * @returns Enriched market data array.
    */
+  /**
+   * Apply GetMarketsParams filtering to Terminal API results.
+   * Replicates the symbol/dex subset that the provider would apply.
+   *
+   * @param markets - Unfiltered Terminal API markets.
+   * @param params - Caller-supplied filter params.
+   * @returns Filtered markets.
+   */
+  #applyGetMarketsParams(
+    markets: MarketInfo[],
+    params?: GetMarketsParams,
+  ): MarketInfo[] {
+    if (!params) {
+      return markets;
+    }
+    let result = markets;
+    if (params.symbols && params.symbols.length > 0) {
+      const symbolSet = new Set(params.symbols);
+      result = result.filter((m) => symbolSet.has(m.name));
+    }
+    if (params.dex !== undefined) {
+      result = result.filter((m) => {
+        const colonIdx = m.name.indexOf(':');
+        const marketDex = colonIdx === -1 ? '' : m.name.substring(0, colonIdx);
+        return marketDex === params.dex;
+      });
+    }
+    return result;
+  }
+
   #enrichWithTerminalMetadata(
     markets: PerpsMarketData[],
     metadata: Map<string, TerminalAssetMetadata>,
