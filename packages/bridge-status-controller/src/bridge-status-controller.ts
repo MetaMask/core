@@ -382,24 +382,39 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     const isSwap =
       txMeta.type === TransactionType.swap || hasNestedSwapTransactions(txMeta);
 
-    switch (isSwap) {
-      case true:
-        this.#updateHistoryItem({
-          historyKey,
-          status: StatusTypes.COMPLETE,
-          completionTime: Date.now(),
-        });
-        this.#quoteStatusUpdateManager.reportFinalised(txMeta.id, true);
-        this.#trackUnifiedSwapBridgeEvent(
-          UnifiedSwapBridgeEventName.Completed,
-          historyKey,
+    if (isSwap) {
+      this.#updateHistoryItem({
+        historyKey,
+        status: StatusTypes.COMPLETE,
+        completionTime: Date.now(),
+      });
+
+      // For EVM intent-based swaps the synthetic tx transitions
+      // submitted→confirmed in a single update that carries the CoW
+      // settlement hash, so the submitted status handler never has a hash
+      // and reportSubmitted is never called. Call it here (before
+      // reportFinalised) so the deferred-queue entry is created.
+      const historyItem = historyKey
+        ? this.state.txHistory[historyKey]
+        : undefined;
+      if (
+        historyItem?.quoteId &&
+        txMeta.hash &&
+        !isNonEvmChainId(historyItem.quote.srcChainId)
+      ) {
+        this.#quoteStatusUpdateManager.reportSubmitted(
+          historyItem.quoteId,
+          txMeta.hash,
+          txMeta.id,
         );
-        break;
-      default:
-        if (historyKey) {
-          this.#startPollingForTxId(historyKey);
-        }
-        break;
+      }
+      this.#quoteStatusUpdateManager.reportFinalised(txMeta.id, true);
+      this.#trackUnifiedSwapBridgeEvent(
+        UnifiedSwapBridgeEventName.Completed,
+        historyKey,
+      );
+    } else if (historyKey) {
+      this.#startPollingForTxId(historyKey);
     }
   };
 
@@ -886,6 +901,24 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
         if (pollingToken) {
           this.stopPollingByPollingToken(pollingToken);
           delete this.#pollingTokensByTxMetaId[bridgeTxMetaId];
+        }
+
+        // For EVM intent-based bridges the TransactionController subscription
+        // never carries a hash at `submitted` time (CoW hasn't settled yet),
+        // so `reportSubmitted` is never called via that path. Call it here now
+        // that we have the final settlement hash, so the deferred-queue entry
+        // exists for `reportFinalised` to append to.
+        const settlementTxHash = newBridgeHistoryItem.status.srcChain.txHash;
+        if (
+          historyItem.quoteId &&
+          settlementTxHash &&
+          !isNonEvmChainId(historyItem.quote.srcChainId)
+        ) {
+          this.#quoteStatusUpdateManager.reportSubmitted(
+            historyItem.quoteId,
+            settlementTxHash,
+            bridgeTxMetaId,
+          );
         }
 
         this.#quoteStatusUpdateManager.reportFinalised(
