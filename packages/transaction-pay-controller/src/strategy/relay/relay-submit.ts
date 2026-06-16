@@ -1,3 +1,4 @@
+import { defaultAbiCoder, Interface } from '@ethersproject/abi';
 import { ORIGIN_METAMASK, toHex } from '@metamask/controller-utils';
 import { TransactionType } from '@metamask/transaction-controller';
 import type { TransactionParams } from '@metamask/transaction-controller';
@@ -21,6 +22,7 @@ import {
   getRelayPollingTimeout,
 } from '../../utils/feature-flags';
 import { getNetworkClientId } from '../../utils/provider';
+import type { SimulationTransaction } from '../../utils/simulation';
 import {
   getLiveTokenBalance,
   normalizeTokenAddress,
@@ -32,6 +34,7 @@ import {
   updateTransaction,
   waitForTransactionConfirmed,
 } from '../../utils/transaction';
+import type { QuoteValidationSimulation } from '../../utils/validation';
 import {
   RELAY_DEPOSIT_TYPES,
   RELAY_FAILURE_STATUSES,
@@ -52,8 +55,16 @@ import type {
 } from './types';
 
 const FALLBACK_HASH = '0x0' as Hex;
+const ERC7579_CALL_TYPE_BATCH = '01';
+const ERC7579_EXEC_TYPE_DEFAULT = '00';
+const CALLS_SIGNATURE = '(address,uint256,bytes)[]';
+const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000' as Hex;
 
 const log = createModuleLogger(projectLogger, 'relay-strategy');
+
+const erc7821Interface = new Interface([
+  'function execute(bytes32 mode, bytes executionData)',
+]);
 
 type RelaySubmitParams = {
   allParams: TransactionParams[];
@@ -62,6 +73,7 @@ type RelaySubmitParams = {
 
 type RelaySubmitCalls = RelaySubmitParams & {
   executeRequest?: RelayExecuteRequest;
+  getValidationSimulation: () => QuoteValidationSimulation;
 };
 
 /**
@@ -455,6 +467,12 @@ export async function getRelaySubmitCalls({
   return {
     allParams,
     ...(executeRequest ? { executeRequest } : {}),
+    getValidationSimulation: () =>
+      buildRelaySubmitValidationSimulation({
+        allParams,
+        executeRequest,
+        quote,
+      }),
     normalizedParams,
   };
 }
@@ -669,6 +687,113 @@ async function buildRelayExecuteRequest({
     },
     requestId,
   };
+}
+
+function buildRelaySubmitValidationSimulation({
+  allParams,
+  executeRequest,
+  quote,
+}: {
+  allParams: TransactionParams[];
+  executeRequest?: RelayExecuteRequest;
+  quote: TransactionPayQuote<RelayQuote>;
+}): QuoteValidationSimulation {
+  if (executeRequest) {
+    return buildRelayExecuteValidationSimulation(quote, executeRequest);
+  }
+
+  if (quote.original.metamask.is7702) {
+    return buildRelay7702BatchValidationSimulation(quote, allParams);
+  }
+
+  return {
+    transactions: allParams.map(toSimulationTransaction),
+  };
+}
+
+function buildRelayExecuteValidationSimulation(
+  quote: TransactionPayQuote<RelayQuote>,
+  executeRequest: RelayExecuteRequest,
+): QuoteValidationSimulation {
+  const transactionToSimulate = {
+    data: executeRequest.data.data,
+    from: quote.request.from,
+    to: executeRequest.data.to,
+    value: decimalToHex(executeRequest.data.value),
+  };
+
+  return {
+    ...(executeRequest.data.authorizationList?.length
+      ? { mock7702From: quote.request.from }
+      : {}),
+    transactions: [transactionToSimulate],
+  };
+}
+
+function buildRelay7702BatchValidationSimulation(
+  quote: TransactionPayQuote<RelayQuote>,
+  allParams: TransactionParams[],
+): QuoteValidationSimulation {
+  const { from } = quote.request;
+  const batchTransaction = buildEip7702BatchTransaction(from, allParams, quote);
+
+  return {
+    ...(quote.original.request.authorizationList?.length
+      ? { mock7702From: from }
+      : {}),
+    transactions: [batchTransaction],
+  };
+}
+
+function buildEip7702BatchTransaction(
+  from: Hex,
+  allParams: TransactionParams[],
+  quote: TransactionPayQuote<RelayQuote>,
+): SimulationTransaction {
+  const calls = allParams.map((params) => [
+    (params.to as Hex | undefined) ?? ZERO_ADDRESS,
+    params.value ?? '0x0',
+    params.data ?? '0x',
+  ]);
+  const mode =
+    `0x${ERC7579_CALL_TYPE_BATCH}${ERC7579_EXEC_TYPE_DEFAULT}`.padEnd(
+      66,
+      '0',
+    ) as Hex;
+  const executionData = defaultAbiCoder.encode(
+    [CALLS_SIGNATURE],
+    [calls],
+  ) as Hex;
+  const gas = quote.original.metamask.gasLimits[0];
+
+  return {
+    data: erc7821Interface.encodeFunctionData('execute', [
+      mode,
+      executionData,
+    ]) as Hex,
+    from,
+    ...(gas === undefined ? {} : { gas: toHex(gas) }),
+    to: from,
+    value: '0x0',
+  };
+}
+
+function toSimulationTransaction(
+  params: TransactionParams,
+): SimulationTransaction {
+  return {
+    data: params.data as Hex | undefined,
+    from: params.from as Hex,
+    gas: params.gas as Hex | undefined,
+    maxFeePerGas: params.maxFeePerGas as Hex | undefined,
+    maxPriorityFeePerGas: params.maxPriorityFeePerGas as Hex | undefined,
+    to: params.to as Hex | undefined,
+    value: (params.value as Hex | undefined) ?? '0x0',
+  };
+}
+
+function decimalToHex(value: string): Hex {
+  return new BigNumber(value).toString(16).replace(/^/u, '0x') as Hex;
 }
 
 /**
