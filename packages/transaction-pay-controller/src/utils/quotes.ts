@@ -163,6 +163,7 @@ export async function updateQuotes(
 
     syncTransaction({
       batchTransactions,
+      selectedFiatPayment: fiatPayment?.selectedPaymentMethodId,
       hasQuotes: quotes.length > 0,
       isPostQuote,
       messenger: messenger as never,
@@ -203,6 +204,7 @@ export async function updateQuotes(
  * @param request.isPostQuote - Whether this is a post-quote flow.
  * @param request.messenger - Messenger instance.
  * @param request.paymentToken - Payment token (source for standard flows, destination for post-quote).
+ * @param request.selectedFiatPayment - Selected fiat payment method ID.
  * @param request.totals - Calculated totals.
  * @param request.transactionId - ID of the transaction to sync.
  */
@@ -212,10 +214,12 @@ function syncTransaction({
   isPostQuote,
   messenger,
   paymentToken,
+  selectedFiatPayment,
   totals,
   transactionId,
 }: {
   batchTransactions: BatchTransaction[];
+  selectedFiatPayment?: string;
   hasQuotes: boolean;
   isPostQuote?: boolean;
   messenger: TransactionPayControllerMessenger;
@@ -223,7 +227,7 @@ function syncTransaction({
   totals: TransactionPayTotals;
   transactionId: string;
 }): void {
-  if (!paymentToken) {
+  if (!paymentToken && !selectedFiatPayment) {
     return;
   }
 
@@ -247,11 +251,11 @@ function syncTransaction({
 
       tx.metamaskPay = {
         bridgeFeeFiat: totals.fees.provider.usd,
-        chainId: paymentToken.chainId,
+        chainId: paymentToken?.chainId,
         isPostQuote,
         networkFeeFiat: totals.fees.sourceNetwork.estimate.usd,
         targetFiat: totals.targetAmount.usd,
-        tokenAddress: paymentToken.address,
+        tokenAddress: paymentToken?.address,
         totalFiat: totals.total.usd,
       };
     },
