@@ -23,6 +23,4 @@ module.exports = merge(baseConfig, {
       statements: 91.89,
     },
   },
-
-  testTimeout: 2500,
 });
