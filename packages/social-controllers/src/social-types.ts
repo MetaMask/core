@@ -167,8 +167,12 @@ export type Position = {
   /** Leverage multiplier for perp positions. `null`/absent for spot. */
   perpLeverage?: number | null;
   /**
-   * Leveraged position size (un-leveraged `positionAmount` × leverage), i.e.
-   * the capital at risk. Hyperliquid/perp positions only; absent for spot.
+   * Leveraged/notional position size as reported by Clicker. NOT necessarily
+   * `positionAmount` × `perpLeverage` — the ratio varies for positions built
+   * across fills at different leverage, so use this field directly rather than
+   * deriving it, and treat `perpLeverage` as the authoritative leverage. This is
+   * notional exposure, not capital at risk (the margin/capital at risk is
+   * `costBasis`). Hyperliquid/perp positions only; absent for spot.
    */
   positionAmountWithLeverage?: number | null;
 };
