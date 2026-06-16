@@ -34,6 +34,7 @@ import type {
 const controllerName = 'MultichainBalancesController';
 
 /**
+ * @deprecated This is deprecated and will be removed in a future version. Use `AssetsController` from `@metamask/assets-controller` instead.
  * State used by the {@link MultichainBalancesController} to cache account balances.
  */
 export type MultichainBalancesControllerState = {
@@ -48,6 +49,7 @@ export type MultichainBalancesControllerState = {
 };
 
 /**
+ * @deprecated This is deprecated and will be removed in a future version. Use `AssetsController` from `@metamask/assets-controller` instead.
  * Constructs the default {@link MultichainBalancesController} state. This allows
  * consumers to provide a partial state object when initializing the controller
  * and also helps in constructing complete state objects for this controller in
@@ -60,6 +62,7 @@ export function getDefaultMultichainBalancesControllerState(): MultichainBalance
 }
 
 /**
+ * @deprecated This is deprecated and will be removed in a future version. Use `AssetsController` from `@metamask/assets-controller` instead.
  * Returns the state of the {@link MultichainBalancesController}.
  */
 export type MultichainBalancesControllerGetStateAction =
@@ -69,6 +72,7 @@ export type MultichainBalancesControllerGetStateAction =
   >;
 
 /**
+ * @deprecated This is deprecated and will be removed in a future version. Use `AssetsController` from `@metamask/assets-controller` instead.
  * Event emitted when the state of the {@link MultichainBalancesController} changes.
  */
 export type MultichainBalancesControllerStateChange =
@@ -78,12 +82,14 @@ export type MultichainBalancesControllerStateChange =
   >;
 
 /**
+ * @deprecated This is deprecated and will be removed in a future version. Use `AssetsController` from `@metamask/assets-controller` instead.
  * Actions exposed by the {@link MultichainBalancesController}.
  */
 export type MultichainBalancesControllerActions =
   MultichainBalancesControllerGetStateAction;
 
 /**
+ * @deprecated This is deprecated and will be removed in a future version. Use `AssetsController` from `@metamask/assets-controller` instead.
  * Events emitted by {@link MultichainBalancesController}.
  */
 export type MultichainBalancesControllerEvents =
@@ -107,6 +113,7 @@ type AllowedEvents =
   | AccountsControllerAccountBalancesUpdatesEvent
   | MultichainAssetsControllerAccountAssetListUpdatedEvent;
 /**
+ * @deprecated This is deprecated and will be removed in a future version. Use `AssetsController` from `@metamask/assets-controller` instead.
  * Messenger type for the MultichainBalancesController.
  */
 export type MultichainBalancesControllerMessenger = Messenger<
@@ -133,6 +140,7 @@ const balancesControllerMetadata: StateMetadata<MultichainBalancesControllerStat
   };
 
 /**
+ * @deprecated This is deprecated and will be removed in a future version. Use `AssetsController` from `@metamask/assets-controller` instead.
  * The MultichainBalancesController is responsible for fetching and caching account
  * balances.
  */
@@ -306,6 +314,7 @@ export class MultichainBalancesController extends BaseController<
   }
 
   /**
+   * @deprecated This is deprecated and will be removed in a future version. Use `AssetsController` from `@metamask/assets-controller` instead.
    * Updates the balances of one account. This method doesn't return
    * anything, but it updates the state of the controller.
    *

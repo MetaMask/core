@@ -93,6 +93,7 @@ const getNonEmptyString = (
 };
 
 /**
+ * @deprecated This is deprecated and will be removed in a future version. Use `AssetsController` from `@metamask/assets-controller` instead.
  * @type TokensControllerState
  *
  * Assets controller state
@@ -130,16 +131,23 @@ const metadata: StateMetadata<TokensControllerState> = {
 
 const controllerName = 'TokensController';
 
+/**
+ * @deprecated This is deprecated and will be removed in a future version. Use `AssetsController` from `@metamask/assets-controller` instead.
+ */
 export type TokensControllerGetStateAction = ControllerGetStateAction<
   typeof controllerName,
   TokensControllerState
 >;
 
+/**
+ * @deprecated This is deprecated and will be removed in a future version. Use `AssetsController` from `@metamask/assets-controller` instead.
+ */
 export type TokensControllerActions =
   | TokensControllerGetStateAction
   | TokensControllerMethodActions;
 
 /**
+ * @deprecated This is deprecated and will be removed in a future version. Use `AssetsController` from `@metamask/assets-controller` instead.
  * The external actions available to the {@link TokensController}.
  */
 export type AllowedActions =
@@ -149,13 +157,22 @@ export type AllowedActions =
   | AccountsControllerGetSelectedAccountAction
   | AccountsControllerListAccountsAction;
 
+/**
+ * @deprecated This is deprecated and will be removed in a future version. Use `AssetsController` from `@metamask/assets-controller` instead.
+ */
 export type TokensControllerStateChangeEvent = ControllerStateChangeEvent<
   typeof controllerName,
   TokensControllerState
 >;
 
+/**
+ * @deprecated This is deprecated and will be removed in a future version. Use `AssetsController` from `@metamask/assets-controller` instead.
+ */
 export type TokensControllerEvents = TokensControllerStateChangeEvent;
 
+/**
+ * @deprecated This is deprecated and will be removed in a future version. Use `AssetsController` from `@metamask/assets-controller` instead.
+ */
 export type AllowedEvents =
   | NetworkControllerStateChangeEvent
   | NetworkControllerNetworkDidChangeEvent
@@ -163,6 +180,7 @@ export type AllowedEvents =
   | KeyringControllerAccountRemovedEvent;
 
 /**
+ * @deprecated This is deprecated and will be removed in a future version. Use `AssetsController` from `@metamask/assets-controller` instead.
  * The messenger of the {@link TokensController}.
  */
 export type TokensControllerMessenger = Messenger<
@@ -171,6 +189,9 @@ export type TokensControllerMessenger = Messenger<
   TokensControllerEvents | AllowedEvents
 >;
 
+/**
+ * @deprecated This is deprecated and will be removed in a future version. Use `AssetsController` from `@metamask/assets-controller` instead.
+ */
 export const getDefaultTokensState = (): TokensControllerState => {
   return {
     allTokens: {},
@@ -191,6 +212,7 @@ const MESSENGER_EXPOSED_METHODS = [
 ] as const;
 
 /**
+ * @deprecated This is deprecated and will be removed in a future version. Use `AssetsController` from `@metamask/assets-controller` instead.
  * Controller that stores assets and exposes convenience methods
  */
 export class TokensController extends BaseController<
@@ -423,6 +445,7 @@ export class TokensController extends BaseController<
   }
 
   /**
+   * @deprecated This is deprecated and will be removed in a future version. Use `AssetsController` from `@metamask/assets-controller` instead.
    * Adds a token to the stored token list.
    *
    * @param options - The method argument object.
@@ -536,6 +559,7 @@ export class TokensController extends BaseController<
   }
 
   /**
+   * @deprecated This is deprecated and will be removed in a future version. Use `AssetsController` from `@metamask/assets-controller` instead.
    * Add a batch of tokens.
    *
    * @param tokensToImport - Array of tokens to import.
@@ -613,6 +637,7 @@ export class TokensController extends BaseController<
   }
 
   /**
+   * @deprecated This is deprecated and will be removed in a future version. Use `AssetsController` from `@metamask/assets-controller` instead.
    * Ignore a batch of tokens.
    *
    * @param tokenAddressesToIgnore - Array of token addresses to ignore.
@@ -668,6 +693,7 @@ export class TokensController extends BaseController<
   }
 
   /**
+   * @deprecated This is deprecated and will be removed in a future version. Use `AssetsController` from `@metamask/assets-controller` instead.
    * Adds a batch of detected tokens to the stored token list.
    *
    * @param incomingDetectedTokens - Array of detected tokens to be added or updated.
@@ -771,6 +797,7 @@ export class TokensController extends BaseController<
   }
 
   /**
+   * @deprecated This is deprecated and will be removed in a future version. Use `AssetsController` from `@metamask/assets-controller` instead.
    * Adds isERC721 field to token object. This is called when a user attempts to add tokens that
    * were previously added which do not yet had isERC721 field.
    *
@@ -864,6 +891,7 @@ export class TokensController extends BaseController<
   }
 
   /**
+   * @deprecated This is deprecated and will be removed in a future version. Use `AssetsController` from `@metamask/assets-controller` instead.
    * Adds a new suggestedAsset to the list of watched assets.
    * Parameters will be validated according to the asset type being watched.
    *
@@ -1118,6 +1146,7 @@ export class TokensController extends BaseController<
   }
 
   /**
+   * @deprecated This is deprecated and will be removed in a future version. Use `AssetsController` from `@metamask/assets-controller` instead.
    * Removes all tokens from the ignored list.
    */
   clearIgnoredTokens() {
@@ -1173,6 +1202,7 @@ export class TokensController extends BaseController<
   }
 
   /**
+   * @deprecated This is deprecated and will be removed in a future version. Use `AssetsController` from `@metamask/assets-controller` instead.
    * Reset the controller state to the default state.
    */
   resetState() {

@@ -140,6 +140,7 @@ export type AccountInformation = {
 };
 
 /**
+ * @deprecated This is deprecated and will be removed in a future version. Use `AssetsController` from `@metamask/assets-controller` instead.
  * AccountTrackerControllerState
  *
  * Account tracker controller state
@@ -160,6 +161,7 @@ const accountTrackerMetadata: StateMetadata<AccountTrackerControllerState> = {
 };
 
 /**
+ * @deprecated This is deprecated and will be removed in a future version. Use `AssetsController` from `@metamask/assets-controller` instead.
  * The action that can be performed to get the state of the {@link AccountTrackerController}.
  */
 export type AccountTrackerControllerGetStateAction = ControllerGetStateAction<
@@ -168,6 +170,7 @@ export type AccountTrackerControllerGetStateAction = ControllerGetStateAction<
 >;
 
 /**
+ * @deprecated This is deprecated and will be removed in a future version. Use `AssetsController` from `@metamask/assets-controller` instead.
  * The actions that can be performed using the {@link AccountTrackerController}.
  */
 export type AccountTrackerControllerActions =
@@ -175,6 +178,7 @@ export type AccountTrackerControllerActions =
   | AccountTrackerControllerMethodActions;
 
 /**
+ * @deprecated This is deprecated and will be removed in a future version. Use `AssetsController` from `@metamask/assets-controller` instead.
  * The messenger of the {@link AccountTrackerController} for communication.
  */
 export type AllowedActions =
@@ -191,6 +195,7 @@ export type AllowedActions =
   | KeyringControllerGetStateAction;
 
 /**
+ * @deprecated This is deprecated and will be removed in a future version. Use `AssetsController` from `@metamask/assets-controller` instead.
  * The event that {@link AccountTrackerController} can emit.
  */
 export type AccountTrackerControllerStateChangeEvent =
@@ -200,12 +205,14 @@ export type AccountTrackerControllerStateChangeEvent =
   >;
 
 /**
+ * @deprecated This is deprecated and will be removed in a future version. Use `AssetsController` from `@metamask/assets-controller` instead.
  * The events that {@link AccountTrackerController} can emit.
  */
 export type AccountTrackerControllerEvents =
   AccountTrackerControllerStateChangeEvent;
 
 /**
+ * @deprecated This is deprecated and will be removed in a future version. Use `AssetsController` from `@metamask/assets-controller` instead.
  * The external events available to the {@link AccountTrackerController}.
  */
 export type AllowedEvents =
@@ -217,6 +224,7 @@ export type AllowedEvents =
   | KeyringControllerUnlockEvent;
 
 /**
+ * @deprecated This is deprecated and will be removed in a future version. Use `AssetsController` from `@metamask/assets-controller` instead.
  * The messenger of the {@link AccountTrackerController}.
  */
 export type AccountTrackerControllerMessenger = Messenger<
@@ -239,6 +247,7 @@ const MESSENGER_EXPOSED_METHODS = [
 ] as const;
 
 /**
+ * @deprecated This is deprecated and will be removed in a future version. Use `AssetsController` from `@metamask/assets-controller` instead.
  * Controller that tracks the network balances for all user accounts.
  */
 export class AccountTrackerController extends StaticIntervalPollingController<AccountTrackerPollingInput>()<
@@ -437,6 +446,7 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
   }
 
   /**
+   * @deprecated This is deprecated and will be removed in a future version. Use `AssetsController` from `@metamask/assets-controller` instead.
    * Whether the controller is active (keyring is unlocked and user is onboarded).
    * When locked or not onboarded, balance updates should be skipped.
    *
@@ -655,6 +665,7 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
   }
 
   /**
+   * @deprecated This is deprecated and will be removed in a future version. Use `AssetsController` from `@metamask/assets-controller` instead.
    * Refreshes the balances of the accounts using the networkClientId
    *
    * @param input - The input for the poll.
@@ -675,6 +686,7 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
   }
 
   /**
+   * @deprecated This is deprecated and will be removed in a future version. Use `AssetsController` from `@metamask/assets-controller` instead.
    * Refreshes the balances of the accounts depending on the multi-account setting.
    * If multi-account is disabled, only updates the selected account balance.
    * If multi-account is enabled, updates balances for all accounts.
@@ -708,6 +720,9 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
     });
   }
 
+  /**
+   * @deprecated This is deprecated and will be removed in a future version. Use `AssetsController` from `@metamask/assets-controller` instead.
+   */
   async refreshAddresses({
     networkClientIds,
     addresses,
@@ -915,6 +930,7 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
   }
 
   /**
+   * @deprecated This is deprecated and will be removed in a future version. Use `AssetsController` from `@metamask/assets-controller` instead.
    * Sync accounts balances with some additional addresses.
    *
    * @param addresses - the additional addresses, may be hardware wallet addresses.
@@ -987,6 +1003,7 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
   }
 
   /**
+   * @deprecated This is deprecated and will be removed in a future version. Use `AssetsController` from `@metamask/assets-controller` instead.
    * Updates the balances of multiple native tokens in a single batch operation.
    * This is more efficient than calling updateNativeToken multiple times as it
    * triggers only one state update.
@@ -1043,6 +1060,7 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
   }
 
   /**
+   * @deprecated This is deprecated and will be removed in a future version. Use `AssetsController` from `@metamask/assets-controller` instead.
    * Updates the staked balances of multiple accounts in a single batch operation.
    * This is more efficient than updating staked balances individually as it
    * triggers only one state update.

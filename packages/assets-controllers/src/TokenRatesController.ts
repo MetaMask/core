@@ -90,6 +90,7 @@ type ChainIdAndNativeCurrency = {
 };
 
 /**
+ * @deprecated This is deprecated and will be removed in a future version. Use `AssetsController` from `@metamask/assets-controller` instead.
  * The external actions available to the {@link TokenRatesController}.
  */
 export type AllowedActions =
@@ -98,6 +99,7 @@ export type AllowedActions =
   | NetworkEnablementControllerGetStateAction;
 
 /**
+ * @deprecated This is deprecated and will be removed in a future version. Use `AssetsController` from `@metamask/assets-controller` instead.
  * The external events available to the {@link TokenRatesController}.
  */
 export type AllowedEvents =
@@ -110,6 +112,7 @@ export type AllowedEvents =
 export const controllerName = 'TokenRatesController';
 
 /**
+ * @deprecated This is deprecated and will be removed in a future version. Use `AssetsController` from `@metamask/assets-controller` instead.
  * @type TokenRatesState
  *
  * Token rates controller state
@@ -121,6 +124,7 @@ export type TokenRatesControllerState = {
 };
 
 /**
+ * @deprecated This is deprecated and will be removed in a future version. Use `AssetsController` from `@metamask/assets-controller` instead.
  * The action that can be performed to get the state of the {@link TokenRatesController}.
  */
 export type TokenRatesControllerGetStateAction = ControllerGetStateAction<
@@ -129,11 +133,13 @@ export type TokenRatesControllerGetStateAction = ControllerGetStateAction<
 >;
 
 /**
+ * @deprecated This is deprecated and will be removed in a future version. Use `AssetsController` from `@metamask/assets-controller` instead.
  * The actions that can be performed using the {@link TokenRatesController}.
  */
 export type TokenRatesControllerActions = TokenRatesControllerGetStateAction;
 
 /**
+ * @deprecated This is deprecated and will be removed in a future version. Use `AssetsController` from `@metamask/assets-controller` instead.
  * The event that {@link TokenRatesController} can emit.
  */
 export type TokenRatesControllerStateChangeEvent = ControllerStateChangeEvent<
@@ -142,11 +148,13 @@ export type TokenRatesControllerStateChangeEvent = ControllerStateChangeEvent<
 >;
 
 /**
+ * @deprecated This is deprecated and will be removed in a future version. Use `AssetsController` from `@metamask/assets-controller` instead.
  * The events that {@link TokenRatesController} can emit.
  */
 export type TokenRatesControllerEvents = TokenRatesControllerStateChangeEvent;
 
 /**
+ * @deprecated This is deprecated and will be removed in a future version. Use `AssetsController` from `@metamask/assets-controller` instead.
  * The messenger of the {@link TokenRatesController} for communication.
  */
 export type TokenRatesControllerMessenger = Messenger<
@@ -165,6 +173,7 @@ const tokenRatesControllerMetadata: StateMetadata<TokenRatesControllerState> = {
 };
 
 /**
+ * @deprecated This is deprecated and will be removed in a future version. Use `AssetsController` from `@metamask/assets-controller` instead.
  * Get the default {@link TokenRatesController} state.
  *
  * @returns The default {@link TokenRatesController} state.
@@ -182,6 +191,7 @@ export type TokenRatesPollingInput = {
 };
 
 /**
+ * @deprecated This is deprecated and will be removed in a future version. Use `AssetsController` from `@metamask/assets-controller` instead.
  * Controller that passively polls on a set interval for token-to-fiat exchange rates
  * for tokens stored in the TokensController
  */
@@ -402,6 +412,7 @@ export class TokenRatesController extends StaticIntervalPollingController<TokenR
   }
 
   /**
+   * @deprecated This is deprecated and will be removed in a future version. Use `AssetsController` from `@metamask/assets-controller` instead.
    * Allows controller to make active and passive polling requests
    */
   enable(): void {
@@ -409,6 +420,7 @@ export class TokenRatesController extends StaticIntervalPollingController<TokenR
   }
 
   /**
+   * @deprecated This is deprecated and will be removed in a future version. Use `AssetsController` from `@metamask/assets-controller` instead.
    * Blocks controller from making network calls
    */
   disable(): void {
@@ -430,6 +442,7 @@ export class TokenRatesController extends StaticIntervalPollingController<TokenR
   }
 
   /**
+   * @deprecated This is deprecated and will be removed in a future version. Use `AssetsController` from `@metamask/assets-controller` instead.
    * Updates exchange rates for all tokens.
    *
    * @param chainIdAndNativeCurrency - The chain ID and native currency.
@@ -623,6 +636,7 @@ export class TokenRatesController extends StaticIntervalPollingController<TokenR
   }
 
   /**
+   * @deprecated This is deprecated and will be removed in a future version. Use `AssetsController` from `@metamask/assets-controller` instead.
    * Updates token rates for the given networkClientId
    *
    * @param input - The input for the poll.
@@ -659,6 +673,7 @@ export class TokenRatesController extends StaticIntervalPollingController<TokenR
   }
 
   /**
+   * @deprecated This is deprecated and will be removed in a future version. Use `AssetsController` from `@metamask/assets-controller` instead.
    * Reset the controller state to the default state.
    */
   resetState() {

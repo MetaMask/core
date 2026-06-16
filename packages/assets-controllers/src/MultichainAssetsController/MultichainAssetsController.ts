@@ -46,6 +46,9 @@ import { getChainIdsCaveat } from './utils';
 
 const controllerName = 'MultichainAssetsController';
 
+/**
+ * @deprecated This is deprecated and will be removed in a future version. Use `AssetsController` from `@metamask/assets-controller` instead.
+ */
 export type MultichainAssetsControllerState = {
   assetsMetadata: {
     [asset: CaipAssetType]: FungibleAssetMetadata;
@@ -67,6 +70,7 @@ export type MultichainAssetsControllerAccountAssetListUpdatedEvent = {
 };
 
 /**
+ * @deprecated This is deprecated and will be removed in a future version. Use `AssetsController` from `@metamask/assets-controller` instead.
  * Constructs the default {@link MultichainAssetsController} state. This allows
  * consumers to provide a partial state object when initializing the controller
  * and also helps in constructing complete state objects for this controller in
@@ -79,6 +83,7 @@ export function getDefaultMultichainAssetsControllerState(): MultichainAssetsCon
 }
 
 /**
+ * @deprecated This is deprecated and will be removed in a future version. Use `AssetsController` from `@metamask/assets-controller` instead.
  * Returns the state of the {@link MultichainAssetsController}.
  */
 export type MultichainAssetsControllerGetStateAction = ControllerGetStateAction<
@@ -87,6 +92,7 @@ export type MultichainAssetsControllerGetStateAction = ControllerGetStateAction<
 >;
 
 /**
+ * @deprecated This is deprecated and will be removed in a future version. Use `AssetsController` from `@metamask/assets-controller` instead.
  * Event emitted when the state of the {@link MultichainAssetsController} changes.
  */
 export type MultichainAssetsControllerStateChangeEvent =
@@ -96,6 +102,7 @@ export type MultichainAssetsControllerStateChangeEvent =
   >;
 
 /**
+ * @deprecated This is deprecated and will be removed in a future version. Use `AssetsController` from `@metamask/assets-controller` instead.
  * Actions exposed by the {@link MultichainAssetsController}.
  */
 export type MultichainAssetsControllerActions =
@@ -103,6 +110,7 @@ export type MultichainAssetsControllerActions =
   | MultichainAssetsControllerMethodActions;
 
 /**
+ * @deprecated This is deprecated and will be removed in a future version. Use `AssetsController` from `@metamask/assets-controller` instead.
  * Events emitted by {@link MultichainAssetsController}.
  */
 export type MultichainAssetsControllerEvents =
@@ -140,6 +148,7 @@ type AllowedEvents =
   | AccountsControllerAccountAssetListUpdatedEvent;
 
 /**
+ * @deprecated This is deprecated and will be removed in a future version. Use `AssetsController` from `@metamask/assets-controller` instead.
  * Messenger type for the MultichainAssetsController.
  */
 export type MultichainAssetsControllerMessenger = Messenger<
@@ -202,6 +211,9 @@ type BulkTokenScanBatchOutcome =
     }
   | { status: 'rejected'; entries: ChainTokenEntry[] };
 
+/**
+ * @deprecated This is deprecated and will be removed in a future version. Use `AssetsController` from `@metamask/assets-controller` instead.
+ */
 export class MultichainAssetsController extends StaticIntervalPollingController<null>()<
   typeof controllerName,
   MultichainAssetsControllerState,
@@ -258,6 +270,9 @@ export class MultichainAssetsController extends StaticIntervalPollingController<
     messenger.registerMethodActionHandlers(this, MESSENGER_EXPOSED_METHODS);
   }
 
+  /**
+   * @deprecated This is deprecated and will be removed in a future version. Use `AssetsController` from `@metamask/assets-controller` instead.
+   */
   async _executePoll(_input: null): Promise<void> {
     await this.#withControllerLock(async () => {
       const assetsByAccount: Record<
@@ -318,6 +333,7 @@ export class MultichainAssetsController extends StaticIntervalPollingController<
   }
 
   /**
+   * @deprecated This is deprecated and will be removed in a future version. Use `AssetsController` from `@metamask/assets-controller` instead.
    * Returns the metadata for the given asset
    *
    * @param asset - The asset to get metadata for
@@ -328,6 +344,7 @@ export class MultichainAssetsController extends StaticIntervalPollingController<
   }
 
   /**
+   * @deprecated This is deprecated and will be removed in a future version. Use `AssetsController` from `@metamask/assets-controller` instead.
    * Ignores a batch of assets for a specific account.
    *
    * @param assetsToIgnore - Array of asset IDs to ignore.
@@ -353,6 +370,7 @@ export class MultichainAssetsController extends StaticIntervalPollingController<
   }
 
   /**
+   * @deprecated This is deprecated and will be removed in a future version. Use `AssetsController` from `@metamask/assets-controller` instead.
    * Adds multiple assets to the stored asset list for a specific account.
    * All assets must belong to the same chain.
    *

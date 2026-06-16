@@ -22,6 +22,7 @@ import type { AbstractTokenPricesService } from './token-prices-service/abstract
 import { getNativeTokenAddress } from './token-prices-service/codefi-v2';
 
 /**
+ * @deprecated This is deprecated and will be removed in a future version. Use `AssetsController` from `@metamask/assets-controller` instead.
  * currencyRates - Object keyed by native currency
  *
  * currencyRates.conversionDate - Timestamp of conversion rate expressed in ms since UNIX epoch
@@ -51,18 +52,30 @@ const MESSENGER_EXPOSED_METHODS = [
   'updateExchangeRate',
 ] as const;
 
+/**
+ * @deprecated This is deprecated and will be removed in a future version. Use `AssetsController` from `@metamask/assets-controller` instead.
+ */
 export type CurrencyRateStateChange = ControllerStateChangeEvent<
   typeof name,
   CurrencyRateState
 >;
 
+/**
+ * @deprecated This is deprecated and will be removed in a future version. Use `AssetsController` from `@metamask/assets-controller` instead.
+ */
 export type CurrencyRateControllerEvents = CurrencyRateStateChange;
 
+/**
+ * @deprecated This is deprecated and will be removed in a future version. Use `AssetsController` from `@metamask/assets-controller` instead.
+ */
 export type CurrencyRateControllerGetStateAction = ControllerGetStateAction<
   typeof name,
   CurrencyRateState
 >;
 
+/**
+ * @deprecated This is deprecated and will be removed in a future version. Use `AssetsController` from `@metamask/assets-controller` instead.
+ */
 export type CurrencyRateControllerActions =
   | CurrencyRateControllerGetStateAction
   | CurrencyRateControllerMethodActions;
@@ -71,6 +84,9 @@ type AllowedActions =
   | NetworkControllerGetNetworkClientByIdAction
   | NetworkControllerGetStateAction;
 
+/**
+ * @deprecated This is deprecated and will be removed in a future version. Use `AssetsController` from `@metamask/assets-controller` instead.
+ */
 export type CurrencyRateMessenger = Messenger<
   typeof name,
   CurrencyRateControllerActions | AllowedActions,
@@ -124,6 +140,7 @@ type FetchRatesResult = {
 };
 
 /**
+ * @deprecated This is deprecated and will be removed in a future version. Use `AssetsController` from `@metamask/assets-controller` instead.
  * Controller that passively polls on a set interval for an exchange rate from the current network
  * asset to the user's preferred currency.
  */
@@ -184,6 +201,7 @@ export class CurrencyRateController extends StaticIntervalPollingController<Curr
   }
 
   /**
+   * @deprecated This is deprecated and will be removed in a future version. Use `AssetsController` from `@metamask/assets-controller` instead.
    * Sets a currency to track.
    *
    * @param currentCurrency - ISO 4217 currency code.
@@ -425,6 +443,7 @@ export class CurrencyRateController extends StaticIntervalPollingController<Curr
   }
 
   /**
+   * @deprecated This is deprecated and will be removed in a future version. Use `AssetsController` from `@metamask/assets-controller` instead.
    * Updates the exchange rate for the current currency and native currency pairs.
    *
    * @param nativeCurrencies - The native currency symbols to fetch exchange rates for.
@@ -473,6 +492,7 @@ export class CurrencyRateController extends StaticIntervalPollingController<Curr
   }
 
   /**
+   * @deprecated This is deprecated and will be removed in a future version. Use `AssetsController` from `@metamask/assets-controller` instead.
    * Prepare to discard this controller.
    *
    * This stops any active polling.
@@ -483,6 +503,7 @@ export class CurrencyRateController extends StaticIntervalPollingController<Curr
   }
 
   /**
+   * @deprecated This is deprecated and will be removed in a future version. Use `AssetsController` from `@metamask/assets-controller` instead.
    * Updates exchange rate for the current currency.
    *
    * @param input - The input for the poll.

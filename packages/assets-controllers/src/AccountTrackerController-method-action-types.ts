@@ -6,6 +6,7 @@
 import type { AccountTrackerController } from './AccountTrackerController';
 
 /**
+ * @deprecated This is deprecated and will be removed in a future version. Use `AssetsController` from `@metamask/assets-controller` instead.
  * Refreshes the balances of the accounts depending on the multi-account setting.
  * If multi-account is disabled, only updates the selected account balance.
  * If multi-account is enabled, updates balances for all accounts.
@@ -19,6 +20,7 @@ export type AccountTrackerControllerRefreshAction = {
 };
 
 /**
+ * @deprecated This is deprecated and will be removed in a future version. Use `AssetsController` from `@metamask/assets-controller` instead.
  * Sync accounts balances with some additional addresses.
  *
  * @param addresses - the additional addresses, may be hardware wallet addresses.
@@ -31,6 +33,7 @@ export type AccountTrackerControllerSyncBalanceWithAddressesAction = {
 };
 
 /**
+ * @deprecated This is deprecated and will be removed in a future version. Use `AssetsController` from `@metamask/assets-controller` instead.
  * Updates the balances of multiple native tokens in a single batch operation.
  * This is more efficient than calling updateNativeToken multiple times as it
  * triggers only one state update.
@@ -43,6 +46,7 @@ export type AccountTrackerControllerUpdateNativeBalancesAction = {
 };
 
 /**
+ * @deprecated This is deprecated and will be removed in a future version. Use `AssetsController` from `@metamask/assets-controller` instead.
  * Updates the staked balances of multiple accounts in a single batch operation.
  * This is more efficient than updating staked balances individually as it
  * triggers only one state update.

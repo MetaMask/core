@@ -141,19 +141,31 @@ export type TokenBalances = Record<
   Record<ChainIdHex, Record<ChecksumAddress, Hex>>
 >;
 
+/**
+ * @deprecated This is deprecated and will be removed in a future version. Use `AssetsController` from `@metamask/assets-controller` instead.
+ */
 export type TokenBalancesControllerState = {
   tokenBalances: TokenBalances;
 };
 
+/**
+ * @deprecated This is deprecated and will be removed in a future version. Use `AssetsController` from `@metamask/assets-controller` instead.
+ */
 export type TokenBalancesControllerGetStateAction = ControllerGetStateAction<
   typeof CONTROLLER,
   TokenBalancesControllerState
 >;
 
+/**
+ * @deprecated This is deprecated and will be removed in a future version. Use `AssetsController` from `@metamask/assets-controller` instead.
+ */
 export type TokenBalancesControllerActions =
   | TokenBalancesControllerGetStateAction
   | TokenBalancesControllerMethodActions;
 
+/**
+ * @deprecated This is deprecated and will be removed in a future version. Use `AssetsController` from `@metamask/assets-controller` instead.
+ */
 export type TokenBalancesControllerStateChangeEvent =
   ControllerStateChangeEvent<typeof CONTROLLER, TokenBalancesControllerState>;
 
@@ -162,10 +174,16 @@ export type NativeBalanceEvent = {
   payload: unknown[];
 };
 
+/**
+ * @deprecated This is deprecated and will be removed in a future version. Use `AssetsController` from `@metamask/assets-controller` instead.
+ */
 export type TokenBalancesControllerEvents =
   | TokenBalancesControllerStateChangeEvent
   | NativeBalanceEvent;
 
+/**
+ * @deprecated This is deprecated and will be removed in a future version. Use `AssetsController` from `@metamask/assets-controller` instead.
+ */
 export type AllowedActions =
   | NetworkControllerGetNetworkClientByIdAction
   | NetworkControllerGetStateAction
@@ -182,6 +200,9 @@ export type AllowedActions =
   | KeyringControllerGetStateAction
   | AuthenticationController.AuthenticationControllerGetBearerTokenAction;
 
+/**
+ * @deprecated This is deprecated and will be removed in a future version. Use `AssetsController` from `@metamask/assets-controller` instead.
+ */
 export type AllowedEvents =
   | TokensControllerStateChangeEvent
   | PreferencesControllerStateChangeEvent
@@ -194,6 +215,9 @@ export type AllowedEvents =
   | AccountsControllerSelectedEvmAccountChangeEvent
   | TransactionControllerTransactionConfirmedEvent;
 
+/**
+ * @deprecated This is deprecated and will be removed in a future version. Use `AssetsController` from `@metamask/assets-controller` instead.
+ */
 export type TokenBalancesControllerMessenger = Messenger<
   typeof CONTROLLER,
   TokenBalancesControllerActions | AllowedActions,
@@ -305,6 +329,9 @@ const MESSENGER_EXPOSED_METHODS = [
   'resetState',
 ] as const;
 
+/**
+ * @deprecated This is deprecated and will be removed in a future version. Use `AssetsController` from `@metamask/assets-controller` instead.
+ */
 export class TokenBalancesController extends StaticIntervalPollingController<{
   chainIds: ChainIdHex[];
 }>()<
@@ -527,6 +554,7 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
   }
 
   /**
+   * @deprecated This is deprecated and will be removed in a future version. Use `AssetsController` from `@metamask/assets-controller` instead.
    * Whether the controller is active (keyring is unlocked and user is onboarded).
    * When locked or not onboarded, balance updates should be skipped.
    *
@@ -629,6 +657,9 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
     };
   };
 
+  /**
+   * @deprecated This is deprecated and will be removed in a future version. Use `AssetsController` from `@metamask/assets-controller` instead.
+   */
   override _startPolling({ chainIds }: { chainIds: ChainIdHex[] }): void {
     this.#requestedChainIds = [...chainIds];
     this.#isControllerPollingActive = true;
@@ -702,6 +733,9 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
     this.#intervalPollingTimers.set(interval, timer);
   }
 
+  /**
+   * @deprecated This is deprecated and will be removed in a future version. Use `AssetsController` from `@metamask/assets-controller` instead.
+   */
   override _stopPollingByPollingTokenSetId(tokenSetId: string): void {
     let chainsToStop: ChainIdHex[] = [];
 
@@ -733,6 +767,9 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
     this.#intervalPollingTimers.clear();
   }
 
+  /**
+   * @deprecated This is deprecated and will be removed in a future version. Use `AssetsController` from `@metamask/assets-controller` instead.
+   */
   getChainPollingConfig(chainId: ChainIdHex): ChainPollingConfig {
     return (
       this.#chainPollingConfig[chainId] ?? {
@@ -741,6 +778,9 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
     );
   }
 
+  /**
+   * @deprecated This is deprecated and will be removed in a future version. Use `AssetsController` from `@metamask/assets-controller` instead.
+   */
   override async _executePoll({
     chainIds,
     queryAllAccounts = false,
@@ -755,6 +795,9 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
     await this.#executeUpdateBalances({ chainIds, queryAllAccounts });
   }
 
+  /**
+   * @deprecated This is deprecated and will be removed in a future version. Use `AssetsController` from `@metamask/assets-controller` instead.
+   */
   updateChainPollingConfigs(
     configs: Record<ChainIdHex, ChainPollingConfig>,
     options: UpdateChainPollingConfigsOptions = { immediateUpdate: true },
@@ -769,6 +812,9 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
     }
   }
 
+  /**
+   * @deprecated This is deprecated and will be removed in a future version. Use `AssetsController` from `@metamask/assets-controller` instead.
+   */
   async updateBalances(options: UpdateBalancesOptions = {}): Promise<void> {
     if (this.#isDeprecated()) {
       this.#enforceDisabledState();
@@ -1258,6 +1304,9 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
     }
   }
 
+  /**
+   * @deprecated This is deprecated and will be removed in a future version. Use `AssetsController` from `@metamask/assets-controller` instead.
+   */
   resetState(): void {
     this.update(() => ({ tokenBalances: {} }));
   }
@@ -1637,6 +1686,9 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
     }
   }
 
+  /**
+   * @deprecated This is deprecated and will be removed in a future version. Use `AssetsController` from `@metamask/assets-controller` instead.
+   */
   override destroy(): void {
     this.#isControllerPollingActive = false;
     this.#intervalPollingTimers.forEach((timer) => clearInterval(timer));

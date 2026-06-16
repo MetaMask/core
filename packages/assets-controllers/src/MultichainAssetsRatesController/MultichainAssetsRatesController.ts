@@ -61,6 +61,7 @@ type HistoricalPrice = {
 };
 
 /**
+ * @deprecated This is deprecated and will be removed in a future version. Use `AssetsController` from `@metamask/assets-controller` instead.
  * State used by the MultichainAssetsRatesController to cache token conversion rates.
  */
 export type MultichainAssetsRatesControllerState = {
@@ -69,6 +70,7 @@ export type MultichainAssetsRatesControllerState = {
 };
 
 /**
+ * @deprecated This is deprecated and will be removed in a future version. Use `AssetsController` from `@metamask/assets-controller` instead.
  * Returns the state of the MultichainAssetsRatesController.
  */
 export type MultichainAssetsRatesControllerGetStateAction =
@@ -82,6 +84,7 @@ type UnifiedAssetConversion = AssetConversion & {
 };
 
 /**
+ * @deprecated This is deprecated and will be removed in a future version. Use `AssetsController` from `@metamask/assets-controller` instead.
  * Constructs the default {@link MultichainAssetsRatesController} state. This allows
  * consumers to provide a partial state object when initializing the controller
  * and also helps in constructing complete state objects for this controller in
@@ -94,6 +97,7 @@ export function getDefaultMultichainAssetsRatesControllerState(): MultichainAsse
 }
 
 /**
+ * @deprecated This is deprecated and will be removed in a future version. Use `AssetsController` from `@metamask/assets-controller` instead.
  * Event emitted when the state of the MultichainAssetsRatesController changes.
  */
 export type MultichainAssetsRatesControllerStateChange =
@@ -103,6 +107,7 @@ export type MultichainAssetsRatesControllerStateChange =
   >;
 
 /**
+ * @deprecated This is deprecated and will be removed in a future version. Use `AssetsController` from `@metamask/assets-controller` instead.
  * Actions exposed by the MultichainAssetsRatesController.
  */
 export type MultichainAssetsRatesControllerActions =
@@ -110,12 +115,14 @@ export type MultichainAssetsRatesControllerActions =
   | MultichainAssetsRatesControllerMethodActions;
 
 /**
+ * @deprecated This is deprecated and will be removed in a future version. Use `AssetsController` from `@metamask/assets-controller` instead.
  * Events emitted by MultichainAssetsRatesController.
  */
 export type MultichainAssetsRatesControllerEvents =
   MultichainAssetsRatesControllerStateChange;
 
 /**
+ * @deprecated This is deprecated and will be removed in a future version. Use `AssetsController` from `@metamask/assets-controller` instead.
  * Actions that this controller is allowed to call.
  */
 export type AllowedActions =
@@ -126,6 +133,7 @@ export type AllowedActions =
   | AccountsControllerGetSelectedMultichainAccountAction;
 
 /**
+ * @deprecated This is deprecated and will be removed in a future version. Use `AssetsController` from `@metamask/assets-controller` instead.
  * Events that this controller is allowed to subscribe to.
  */
 export type AllowedEvents =
@@ -135,6 +143,7 @@ export type AllowedEvents =
   | CurrencyRateStateChange
   | MultichainAssetsControllerAccountAssetListUpdatedEvent;
 /**
+ * @deprecated This is deprecated and will be removed in a future version. Use `AssetsController` from `@metamask/assets-controller` instead.
  * Messenger type for the MultichainAssetsRatesController.
  */
 export type MultichainAssetsRatesControllerMessenger = Messenger<
@@ -187,6 +196,7 @@ const MESSENGER_EXPOSED_METHODS = [
 ] as const;
 
 /**
+ * @deprecated This is deprecated and will be removed in a future version. Use `AssetsController` from `@metamask/assets-controller` instead.
  * Controller that manages multichain token conversion rates.
  *
  * This controller polls for token conversion rates and updates its state.
@@ -275,6 +285,7 @@ export class MultichainAssetsRatesController extends StaticIntervalPollingContro
   }
 
   /**
+   * @deprecated This is deprecated and will be removed in a future version. Use `AssetsController` from `@metamask/assets-controller` instead.
    * Executes a poll by updating token conversion rates for the current account.
    *
    * @returns A promise that resolves when the polling completes.
@@ -284,6 +295,7 @@ export class MultichainAssetsRatesController extends StaticIntervalPollingContro
   }
 
   /**
+   * @deprecated This is deprecated and will be removed in a future version. Use `AssetsController` from `@metamask/assets-controller` instead.
    * Determines whether the controller is active.
    *
    * @returns True if the keyring is unlocked; otherwise, false.
@@ -360,6 +372,7 @@ export class MultichainAssetsRatesController extends StaticIntervalPollingContro
   }
 
   /**
+   * @deprecated This is deprecated and will be removed in a future version. Use `AssetsController` from `@metamask/assets-controller` instead.
    * Updates token conversion rates for each non-EVM account.
    *
    * @returns A promise that resolves when the rates are updated.
@@ -549,6 +562,7 @@ export class MultichainAssetsRatesController extends StaticIntervalPollingContro
   }
 
   /**
+   * @deprecated This is deprecated and will be removed in a future version. Use `AssetsController` from `@metamask/assets-controller` instead.
    * Fetches historical prices for the current account
    *
    * @param asset - The asset to fetch historical prices for.

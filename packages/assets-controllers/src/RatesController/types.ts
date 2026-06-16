@@ -33,6 +33,7 @@ export type Rate = {
 export type ConversionRates = Record<string, Rate>;
 
 /**
+ * @deprecated This is deprecated and will be removed in a future version. Use `AssetsController` from `@metamask/assets-controller` instead.
  * Represents the state structure for the RatesController.
  */
 export type RatesControllerState = {
@@ -53,6 +54,7 @@ export type RatesControllerState = {
 };
 
 /**
+ * @deprecated This is deprecated and will be removed in a future version. Use `AssetsController` from `@metamask/assets-controller` instead.
  * Type definition for RatesController state change events.
  */
 export type RatesControllerStateChangeEvent = ControllerStateChangeEvent<
@@ -77,6 +79,7 @@ export type RatesControllerPollingStoppedEvent = {
 };
 
 /**
+ * @deprecated This is deprecated and will be removed in a future version. Use `AssetsController` from `@metamask/assets-controller` instead.
  * Defines the events that the RatesController can emit.
  */
 export type RatesControllerEvents =
@@ -84,17 +87,22 @@ export type RatesControllerEvents =
   | RatesControllerPollingStartedEvent
   | RatesControllerPollingStoppedEvent;
 
+/**
+ * @deprecated This is deprecated and will be removed in a future version. Use `AssetsController` from `@metamask/assets-controller` instead.
+ */
 export type RatesControllerGetStateAction = ControllerGetStateAction<
   typeof ratesControllerName,
   RatesControllerState
 >;
 
 /**
+ * @deprecated This is deprecated and will be removed in a future version. Use `AssetsController` from `@metamask/assets-controller` instead.
  * Defines the actions that can be performed to get the state of the RatesController.
  */
 export type RatesControllerActions = RatesControllerGetStateAction;
 
 /**
+ * @deprecated This is deprecated and will be removed in a future version. Use `AssetsController` from `@metamask/assets-controller` instead.
  * Defines the actions that the RatesController can perform.
  */
 export type RatesControllerMessenger = Messenger<
