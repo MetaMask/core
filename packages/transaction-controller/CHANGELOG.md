@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Add RPC method, chain ID, and endpoint type context to transaction provider errors, including raw transaction submission failures ([#9144](https://github.com/MetaMask/core/pull/9144))
+
 ## [68.0.1]
 
 ### Fixed

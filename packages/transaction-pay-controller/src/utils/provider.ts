@@ -10,6 +10,14 @@ const log = createModuleLogger(projectLogger, 'provider');
 
 type ProviderRequestParams = Parameters<Provider['request']>[0]['params'];
 
+type NetworkClient = {
+  configuration: {
+    chainId: Hex;
+    rpcEndpoints?: { networkClientId: NetworkClientId; type?: string }[];
+  };
+  provider: Provider;
+};
+
 /**
  * Options for network client resolution.
  */
@@ -107,14 +115,71 @@ export async function rpcRequest<TResponse = unknown>({
 }: RpcRequestParams): Promise<TResponse> {
   const networkClientId = getNetworkClientId(messenger, chainId, options);
 
-  const { provider } = messenger.call(
-    'NetworkController:getNetworkClientById',
-    networkClientId,
-  );
+  const networkClient = getNetworkClient(messenger, networkClientId);
+  const { provider } = networkClient;
 
-  const response = await provider.request({ method, params });
+  let response: unknown;
+  try {
+    response = await provider.request({ method, params });
+  } catch (error) {
+    throwWithRpcContext(error, {
+      chainId,
+      method,
+      networkClient,
+      networkClientId,
+    });
+  }
 
   log(method, { chainId, networkClientId, params, response });
 
   return response as TResponse;
+}
+
+function getNetworkClient(
+  messenger: TransactionPayControllerMessenger,
+  networkClientId: NetworkClientId,
+): NetworkClient {
+  return messenger.call(
+    'NetworkController:getNetworkClientById',
+    networkClientId,
+  ) as NetworkClient;
+}
+
+function throwWithRpcContext(
+  error: unknown,
+  {
+    chainId,
+    method,
+    networkClient,
+    networkClientId,
+  }: {
+    chainId: Hex;
+    method: string;
+    networkClient: NetworkClient;
+    networkClientId: NetworkClientId;
+  },
+): never {
+  const message = error instanceof Error ? error.message : String(error);
+  const prefix = `RPC ${chainId} ${getEndpointLabel(
+    networkClient,
+    networkClientId,
+  )} ${method}`;
+
+  if (error instanceof Error) {
+    error.message = `${prefix}: ${message}`;
+    throw error;
+  }
+
+  throw new Error(`${prefix}: ${message}`);
+}
+
+function getEndpointLabel(
+  networkClient: NetworkClient,
+  networkClientId: NetworkClientId,
+): 'Infura' | 'Custom' {
+  const endpoint = networkClient.configuration.rpcEndpoints?.find(
+    (rpcEndpoint) => rpcEndpoint.networkClientId === networkClientId,
+  );
+
+  return endpoint?.type === RpcEndpointType.Infura ? 'Infura' : 'Custom';
 }

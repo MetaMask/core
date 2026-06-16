@@ -11,6 +11,27 @@ const DEFAULT_NETWORK_CLIENT_ID_MOCK = 'default-client-id';
 const INFURA_NETWORK_CLIENT_ID_MOCK = 'mainnet';
 const PROVIDER_MOCK = { request: jest.fn() } as unknown as Provider;
 
+function buildNetworkClient(
+  provider: Provider,
+  networkClientId = DEFAULT_NETWORK_CLIENT_ID_MOCK,
+) {
+  return {
+    configuration: {
+      chainId: CHAIN_ID_MOCK,
+      rpcEndpoints: [
+        {
+          networkClientId,
+          type:
+            networkClientId === INFURA_NETWORK_CLIENT_ID_MOCK
+              ? RpcEndpointType.Infura
+              : RpcEndpointType.Custom,
+        },
+      ],
+    },
+    provider,
+  };
+}
+
 describe('provider utils', () => {
   const {
     messenger,
@@ -26,9 +47,9 @@ describe('provider utils', () => {
       DEFAULT_NETWORK_CLIENT_ID_MOCK,
     );
 
-    getNetworkClientByIdMock.mockReturnValue({
-      provider: PROVIDER_MOCK,
-    } as never);
+    getNetworkClientByIdMock.mockImplementation((networkClientId) =>
+      buildNetworkClient(PROVIDER_MOCK, networkClientId),
+    );
 
     getNetworkConfigurationByChainIdMock.mockReturnValue(undefined);
   });
@@ -115,6 +136,15 @@ describe('provider utils', () => {
     it('calls provider.request with method and params', async () => {
       const requestMock = jest.fn().mockResolvedValue('0xabc');
       getNetworkClientByIdMock.mockReturnValue({
+        configuration: {
+          chainId: CHAIN_ID_MOCK,
+          rpcEndpoints: [
+            {
+              networkClientId: DEFAULT_NETWORK_CLIENT_ID_MOCK,
+              type: RpcEndpointType.Custom,
+            },
+          ],
+        },
         provider: { request: requestMock },
       } as never);
 
@@ -135,6 +165,15 @@ describe('provider utils', () => {
     it('calls provider.request without params when omitted', async () => {
       const requestMock = jest.fn().mockResolvedValue('0x10');
       getNetworkClientByIdMock.mockReturnValue({
+        configuration: {
+          chainId: CHAIN_ID_MOCK,
+          rpcEndpoints: [
+            {
+              networkClientId: DEFAULT_NETWORK_CLIENT_ID_MOCK,
+              type: RpcEndpointType.Custom,
+            },
+          ],
+        },
         provider: { request: requestMock },
       } as never);
 
@@ -150,10 +189,19 @@ describe('provider utils', () => {
       });
     });
 
-    it('propagates provider errors', async () => {
+    it('prefixes provider errors with custom endpoint context', async () => {
       const error = new Error('RPC failed');
       const requestMock = jest.fn().mockRejectedValue(error);
       getNetworkClientByIdMock.mockReturnValue({
+        configuration: {
+          chainId: CHAIN_ID_MOCK,
+          rpcEndpoints: [
+            {
+              networkClientId: DEFAULT_NETWORK_CLIENT_ID_MOCK,
+              type: RpcEndpointType.Custom,
+            },
+          ],
+        },
         provider: { request: requestMock },
       } as never);
 
@@ -164,6 +212,45 @@ describe('provider utils', () => {
           method: 'eth_blockNumber',
         }),
       ).rejects.toBe(error);
+      expect(error.message).toBe('RPC 0x1 Custom eth_blockNumber: RPC failed');
+    });
+
+    it('prefixes provider errors with Infura endpoint context', async () => {
+      getNetworkConfigurationByChainIdMock.mockReturnValue({
+        rpcEndpoints: [
+          {
+            type: RpcEndpointType.Infura,
+            networkClientId: INFURA_NETWORK_CLIENT_ID_MOCK,
+          },
+        ],
+      } as NetworkConfiguration);
+
+      const error = new Error('Unauthorized.');
+      const requestMock = jest.fn().mockRejectedValue(error);
+      getNetworkClientByIdMock.mockReturnValue({
+        configuration: {
+          chainId: CHAIN_ID_MOCK,
+          rpcEndpoints: [
+            {
+              networkClientId: INFURA_NETWORK_CLIENT_ID_MOCK,
+              type: RpcEndpointType.Infura,
+            },
+          ],
+        },
+        provider: { request: requestMock },
+      } as never);
+
+      await expect(
+        rpcRequest({
+          messenger,
+          chainId: CHAIN_ID_MOCK,
+          method: 'eth_getBalance',
+          options: { preferInfura: true },
+        }),
+      ).rejects.toBe(error);
+      expect(error.message).toBe(
+        'RPC 0x1 Infura eth_getBalance: Unauthorized.',
+      );
     });
 
     it('uses Infura network client when preferInfura is true', async () => {
@@ -178,6 +265,15 @@ describe('provider utils', () => {
 
       const requestMock = jest.fn().mockResolvedValue('0x1');
       getNetworkClientByIdMock.mockReturnValue({
+        configuration: {
+          chainId: CHAIN_ID_MOCK,
+          rpcEndpoints: [
+            {
+              networkClientId: INFURA_NETWORK_CLIENT_ID_MOCK,
+              type: RpcEndpointType.Infura,
+            },
+          ],
+        },
         provider: { request: requestMock },
       } as never);
 
