@@ -275,10 +275,12 @@ function createRpcServiceChain({
   isRpcFailoverForced: boolean;
   logger?: Logger;
 }): RpcServiceChain {
-  const failoverEndpoints = (configuration.failoverRpcUrls ?? []).map((url) => ({
-    url,
-    isFailover: true,
-  }));
+  const failoverEndpoints = (configuration.failoverRpcUrls ?? []).map(
+    (url) => ({
+      url,
+      isFailover: true,
+    }),
+  );
   const isInfuraEndpoint = configuration.type === NetworkClientType.Infura;
 
   let availableEndpoints: { url: string; isFailover: boolean }[];

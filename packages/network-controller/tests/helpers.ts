@@ -664,7 +664,10 @@ export async function withController<ReturnValue>(
     initializeController = true,
     ...controllerOptions
   } = rest;
-  const messenger = buildRootMessenger({ isRpcFailoverEnabled, isRpcFailoverForced });
+  const messenger = buildRootMessenger({
+    isRpcFailoverEnabled,
+    isRpcFailoverForced,
+  });
   const networkControllerMessenger = buildNetworkControllerMessenger(messenger);
   const controller = new NetworkController({
     messenger: networkControllerMessenger,
