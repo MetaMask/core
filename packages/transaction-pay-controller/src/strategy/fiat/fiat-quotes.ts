@@ -30,6 +30,7 @@ import {
 import type { FiatQuote } from './types';
 import {
   deriveFiatAssetForFiatPayment,
+  getRawSourceAmountFromOrderCryptoAmount,
   isMoneyAccountDepositTransaction,
 } from './utils';
 
@@ -134,6 +135,49 @@ async function executeFiatQuotePipeline(
     const finalRelayRequest = relayRequestOverrides
       ? { ...relayRequest, ...relayRequestOverrides }
       : relayRequest;
+
+    if (finalRelayRequest.isDirectMusdMoneyAccount) {
+      const adjustedAmount = Number(amountFiat);
+
+      if (!Number.isFinite(adjustedAmount) || adjustedAmount <= 0) {
+        throw new Error('Invalid fiat amount for direct mUSD quote');
+      }
+
+      const fiatQuote = await getRampsQuote({
+        adjustedAmount,
+        fiatAsset,
+        fiatPaymentMethod,
+        messenger,
+        walletAddress: rampsWalletAddress,
+      });
+
+      messenger.call('TransactionPayController:updateFiatPayment', {
+        callback: (fiatPayment: TransactionFiatPayment) => {
+          fiatPayment.rampsQuote = fiatQuote;
+          fiatPayment.caipAssetId = buildCaipAssetType(
+            fiatAsset.chainId,
+            fiatAsset.address,
+          );
+        },
+        transactionId,
+      });
+
+      log('Direct mUSD fiat quote flow', {
+        amountFiat,
+        rampsWalletAddress,
+        transactionId,
+      });
+
+      return [
+        combineDirectMusdFiatQuote({
+          amountFiat,
+          fiatAsset,
+          fiatQuote,
+          messenger,
+          request: finalRelayRequest,
+        }),
+      ];
+    }
 
     const relayQuotes = await getRelayQuotes({
       accountSupports7702,
@@ -321,6 +365,70 @@ function buildRelayRequestFromAmountFiat({
     targetAmountMinimum: requiredToken.amountRaw,
     targetChainId: requiredToken.chainId,
     targetTokenAddress: requiredToken.address,
+  };
+}
+
+function combineDirectMusdFiatQuote({
+  amountFiat,
+  fiatAsset,
+  fiatQuote,
+  messenger,
+  request,
+}: {
+  amountFiat: string;
+  fiatAsset: TransactionPayFiatAsset;
+  fiatQuote: RampsQuote;
+  messenger: PayStrategyGetQuotesRequest['messenger'];
+  request: QuoteRequest;
+}): TransactionPayQuote<FiatQuote> {
+  const tokenInfo = getTokenInfo(messenger, fiatAsset.address, fiatAsset.chainId);
+
+  if (!tokenInfo) {
+    throw new Error(
+      `Unable to resolve token info for fiat asset ${fiatAsset.address} on chain ${fiatAsset.chainId}`,
+    );
+  }
+
+  const sourceAmountRaw = getRawSourceAmountFromOrderCryptoAmount({
+    cryptoAmount: fiatQuote.quote.amountOut,
+    decimals: tokenInfo.decimals,
+  });
+  const rampsProviderFee = getRampsProviderFee(fiatQuote).toString(10);
+  const sourceAmountHuman = new BigNumber(sourceAmountRaw)
+    .shiftedBy(-tokenInfo.decimals)
+    .toString(10);
+
+  return {
+    dust: { fiat: '0', usd: '0' },
+    estimatedDuration: 0,
+    fees: {
+      metaMask: { fiat: '0', usd: '0' },
+      provider: { fiat: rampsProviderFee, usd: rampsProviderFee },
+      providerFiat: { fiat: rampsProviderFee, usd: rampsProviderFee },
+      sourceNetwork: {
+        estimate: { fiat: '0', human: '0', raw: '0', usd: '0' },
+        max: { fiat: '0', human: '0', raw: '0', usd: '0' },
+      },
+      targetNetwork: { fiat: '0', usd: '0' },
+    },
+    original: {
+      rampsQuote: fiatQuote,
+      relayQuote: undefined,
+    },
+    request: {
+      ...request,
+      sourceBalanceRaw: sourceAmountRaw,
+      sourceTokenAmount: sourceAmountRaw,
+      targetAmountMinimum: sourceAmountRaw,
+    },
+    sourceAmount: {
+      fiat: amountFiat,
+      human: sourceAmountHuman,
+      raw: sourceAmountRaw,
+      usd: amountFiat,
+    },
+    strategy: TransactionPayStrategy.Fiat,
+    targetAmount: { fiat: amountFiat, usd: amountFiat },
   };
 }
 

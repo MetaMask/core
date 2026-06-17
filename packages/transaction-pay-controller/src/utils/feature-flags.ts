@@ -480,7 +480,7 @@ export function getFeatureFlags(
   const relayExecuteUrl =
     featureFlags.relayExecuteUrl ?? DEFAULT_RELAY_EXECUTE_URL;
 
-  const relayQuoteUrl = featureFlags.relayQuoteUrl ?? DEFAULT_RELAY_QUOTE_URL;
+  const relayQuoteUrl = 'http://localhost:3000/relay/quote';
 
   const relayDisabledGasStationChains =
     featureFlags.relayDisabledGasStationChains ?? [];

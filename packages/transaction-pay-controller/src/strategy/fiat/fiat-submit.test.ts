@@ -15,7 +15,12 @@ import type {
   TransactionPayQuote,
 } from '../../types';
 import { buildCaipAssetType } from '../../utils/token';
-import { updateTransaction } from '../../utils/transaction';
+import {
+  collectTransactionIds,
+  getTransaction,
+  updateTransaction,
+  waitForTransactionConfirmed,
+} from '../../utils/transaction';
 import { getRelayQuotes } from '../relay/relay-quotes';
 import { submitRelayQuotes } from '../relay/relay-submit';
 import type { RelayQuote } from '../relay/types';
@@ -146,8 +151,23 @@ function getFiatOrderMock({
 }
 
 function getFiatQuoteMock({
+  includeRelayQuote = true,
+  relayQuote = {
+    details: {
+      currencyIn: { amount: '1000000000000000000', amountUsd: '5.00' },
+      currencyOut: {
+        amount: '12000000',
+        amountUsd: '4.85',
+        minimumAmount: '11900000',
+      },
+      totalImpact: { usd: '-0.15' },
+    },
+    metamask: { isExecute: true },
+  } as unknown as RelayQuote,
   request = BASE_QUOTE_REQUEST_MOCK,
 }: {
+  includeRelayQuote?: boolean;
+  relayQuote?: RelayQuote;
   request?: QuoteRequest;
 } = {}): TransactionPayQuote<FiatQuote> {
   return {
@@ -177,18 +197,7 @@ function getFiatQuoteMock({
     },
     original: {
       rampsQuote: RAMPS_QUOTE_MOCK,
-      relayQuote: {
-        details: {
-          currencyIn: { amount: '1000000000000000000', amountUsd: '5.00' },
-          currencyOut: {
-            amount: '12000000',
-            amountUsd: '4.85',
-            minimumAmount: '11900000',
-          },
-          totalImpact: { usd: '-0.15' },
-        },
-        metamask: { isExecute: true },
-      } as unknown as RelayQuote,
+      relayQuote: includeRelayQuote ? relayQuote : undefined,
     },
     request,
     sourceAmount: {
@@ -242,7 +251,20 @@ function getRequest({
     }
 
     if (action === 'TransactionPayController:getAmountData') {
-      return Promise.resolve({ updates: [] });
+      return Promise.resolve({
+        updates: [
+          { nestedTransactionIndex: 0, data: '0xapprove' },
+          { nestedTransactionIndex: 1, data: '0xdeposit' },
+        ],
+      });
+    }
+
+    if (action === 'TransactionController:addTransactionBatch') {
+      return Promise.resolve({ batchId: 'direct-batch' });
+    }
+
+    if (action === 'NetworkController:findNetworkClientIdByChainId') {
+      return 'network-client-id-mock';
     }
 
     if (action === 'RemoteFeatureFlagController:getState') {
@@ -272,6 +294,11 @@ describe('submitFiatQuotes', () => {
   );
   const resolveSourceAmountRawMock = jest.mocked(resolveSourceAmountRaw);
   const updateTransactionMock = jest.mocked(updateTransaction);
+  const collectTransactionIdsMock = jest.mocked(collectTransactionIds);
+  const getTransactionMock = jest.mocked(getTransaction);
+  const waitForTransactionConfirmedMock = jest.mocked(
+    waitForTransactionConfirmed,
+  );
   const getRelayQuotesMock = jest.mocked(getRelayQuotes);
   const submitRelayQuotesMock = jest.mocked(submitRelayQuotes);
   const fundFiatOrderFromTestSourceMock = jest.mocked(
@@ -283,6 +310,20 @@ describe('submitFiatQuotes', () => {
     jest.useRealTimers();
 
     buildCaipAssetTypeMock.mockReturnValue(FIAT_ASSET_CAIP_ID_MOCK);
+    collectTransactionIdsMock.mockImplementation(
+      (_chainId, _from, _messenger, onTransaction) => {
+        onTransaction('direct-child-1');
+        onTransaction('direct-child-2');
+
+        return { end: jest.fn() };
+      },
+    );
+    getTransactionMock.mockImplementation((transactionId) =>
+      transactionId === 'direct-child-2'
+        ? ({ hash: '0xdirect' } as TransactionMeta)
+        : undefined,
+    );
+    waitForTransactionConfirmedMock.mockResolvedValue();
     deriveFiatAssetForFiatPaymentMock.mockReturnValue(FIAT_ASSET_MOCK);
     resolveSourceAmountRawMock.mockResolvedValue('1000000000000000000');
     fundFiatOrderFromTestSourceMock.mockResolvedValue(
@@ -890,6 +931,10 @@ describe('submitFiatQuotes', () => {
 
     const MUSD_TRANSACTION_MOCK = {
       id: TRANSACTION_ID_MOCK,
+      nestedTransactions: [
+        { data: '0xoldApprove' as Hex, to: '0xapprove' as Hex },
+        { data: '0xoldDeposit' as Hex, to: '0xdeposit' as Hex },
+      ],
       txParams: { from: MONEY_ACCOUNT_ADDRESS },
       type: 'batch',
     } as TransactionMeta;
@@ -900,7 +945,12 @@ describe('submitFiatQuotes', () => {
       });
       const { callMock, request } = getRequest({
         order,
-        quotes: [getFiatQuoteMock({ request: MUSD_QUOTE_REQUEST })],
+        quotes: [
+          getFiatQuoteMock({
+            includeRelayQuote: false,
+            request: MUSD_QUOTE_REQUEST,
+          }),
+        ],
         transaction: MUSD_TRANSACTION_MOCK,
       });
 
@@ -927,7 +977,12 @@ describe('submitFiatQuotes', () => {
       );
       const { request } = getRequest({
         order,
-        quotes: [getFiatQuoteMock({ request: MUSD_QUOTE_REQUEST })],
+        quotes: [
+          getFiatQuoteMock({
+            includeRelayQuote: false,
+            request: MUSD_QUOTE_REQUEST,
+          }),
+        ],
         transaction: MUSD_TRANSACTION_MOCK,
       });
 
@@ -935,9 +990,14 @@ describe('submitFiatQuotes', () => {
       expect(deriveFiatAssetForFiatPaymentMock).not.toHaveBeenCalled();
     });
 
-    it('uses simple Relay submit for direct mUSD even when transaction has nested calldata', async () => {
+    it('submits a sponsored Money Account vault batch for direct pure-fiat mUSD', async () => {
       const { callMock, request } = getRequest({
-        quotes: [getFiatQuoteMock({ request: MUSD_QUOTE_REQUEST })],
+        quotes: [
+          getFiatQuoteMock({
+            includeRelayQuote: false,
+            request: MUSD_QUOTE_REQUEST,
+          }),
+        ],
         transaction: {
           ...MUSD_TRANSACTION_MOCK,
           nestedTransactions: [
@@ -947,13 +1007,50 @@ describe('submitFiatQuotes', () => {
         } as TransactionMeta,
       });
 
-      await submitFiatQuotes(request);
+      const result = await submitFiatQuotes(request);
 
-      expect(getRelayQuotesMock).toHaveBeenCalledTimes(1);
+      expect(getRelayQuotesMock).not.toHaveBeenCalled();
+      expect(submitRelayQuotesMock).not.toHaveBeenCalled();
+      expect(callMock).toHaveBeenCalledWith(
+        'TransactionPayController:getAmountData',
+        expect.objectContaining({
+          amount: '1000000000000000000',
+          transaction: expect.objectContaining({ id: TRANSACTION_ID_MOCK }),
+        }),
+      );
+      expect(updateTransactionMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          note: 'Direct mUSD fiat: update vault amount',
+          transactionId: TRANSACTION_ID_MOCK,
+        }),
+        expect.any(Function),
+      );
+      expect(callMock).toHaveBeenCalledWith(
+        'TransactionController:addTransactionBatch',
+        expect.objectContaining({
+          from: MONEY_ACCOUNT_ADDRESS,
+          isGasFeeSponsored: true,
+          isInternal: true,
+          networkClientId: 'network-client-id-mock',
+          origin: 'metamask',
+          requireApproval: false,
+          transactions: [
+            {
+              params: { data: '0xapprove', to: '0xapprove', value: '0x0' },
+              type: TransactionType.tokenMethodApprove,
+            },
+            {
+              params: { data: '0xdeposit', to: '0xdeposit', value: '0x0' },
+              type: TransactionType.moneyAccountDeposit,
+            },
+          ],
+        }),
+      );
+      expect(result).toStrictEqual({ transactionHash: '0xdirect' });
       expect(
         callMock.mock.calls.some(
           ([action]: [string]) =>
-            action === 'TransactionPayController:getAmountData',
+            action === 'TransactionPayController:getPaymentOverrideData',
         ),
       ).toBe(false);
     });

@@ -30,6 +30,7 @@ import {
 import { getFiatQuotes } from './fiat-quotes';
 import {
   deriveFiatAssetForFiatPayment,
+  getRawSourceAmountFromOrderCryptoAmount,
   isMoneyAccountDepositTransaction,
 } from './utils';
 
@@ -215,6 +216,9 @@ describe('getFiatQuotes', () => {
   const getTokenFiatRateMock = jest.mocked(getTokenFiatRate);
   const getTokenInfoMock = jest.mocked(getTokenInfo);
   const computeRawFromFiatAmountMock = jest.mocked(computeRawFromFiatAmount);
+  const getRawSourceAmountFromOrderCryptoAmountMock = jest.mocked(
+    getRawSourceAmountFromOrderCryptoAmount,
+  );
   const deriveFiatAssetForFiatPaymentMock = jest.mocked(
     deriveFiatAssetForFiatPayment,
   );
@@ -234,6 +238,9 @@ describe('getFiatQuotes', () => {
     });
     getTokenInfoMock.mockReturnValue({ decimals: 18, symbol: 'POL' });
     computeRawFromFiatAmountMock.mockReturnValue('5000000000000000000');
+    getRawSourceAmountFromOrderCryptoAmountMock.mockReturnValue(
+      '5000000000000000000',
+    );
     getRelayQuotesMock.mockResolvedValue([getRelayQuoteMock()]);
   });
 
@@ -841,55 +848,44 @@ describe('getFiatQuotes', () => {
       });
     });
 
-    it('uses the account override as Relay user and the money account as recipient for direct flow', async () => {
+    it('builds a direct pure-fiat quote without calling Relay', async () => {
       const { request } = getDirectRequest();
 
-      await getFiatQuotes(request);
+      const result = await getFiatQuotes(request);
 
-      expect(getRelayQuotesMock).toHaveBeenCalledWith(
+      expect(getRelayQuotesMock).not.toHaveBeenCalled();
+      expect(result[0]).toStrictEqual(
         expect.objectContaining({
-          accountSupports7702: true,
-          from: WALLET_ADDRESS,
-          requests: [
-            expect.objectContaining({
-              from: WALLET_ADDRESS,
-              isDirectMusdMoneyAccount: true,
-              recipient: MONEY_ACCOUNT_ADDRESS,
-              sourceChainId: MUSD_MONAD_FIAT_ASSET.chainId,
-              sourceTokenAddress: MUSD_MONAD_FIAT_ASSET.address,
-            }),
-          ],
+          fees: expect.objectContaining({
+            sourceNetwork: {
+              estimate: { fiat: '0', human: '0', raw: '0', usd: '0' },
+              max: { fiat: '0', human: '0', raw: '0', usd: '0' },
+            },
+            targetNetwork: { fiat: '0', usd: '0' },
+          }),
+          original: expect.objectContaining({
+            relayQuote: undefined,
+          }),
+          request: expect.objectContaining({
+            from: WALLET_ADDRESS,
+            isDirectMusdMoneyAccount: true,
+            recipient: MONEY_ACCOUNT_ADDRESS,
+            sourceChainId: MUSD_MONAD_FIAT_ASSET.chainId,
+            sourceTokenAddress: MUSD_MONAD_FIAT_ASSET.address,
+          }),
+          strategy: TransactionPayStrategy.Fiat,
         }),
       );
     });
 
-    it('falls back to standard flow when direct Relay quote is not execute', async () => {
-      deriveFiatAssetForFiatPaymentMock.mockReturnValue(FIAT_ASSET_MOCK);
-      getRelayQuotesMock
-        .mockImplementationOnce(async ({ requests }) => [
-          {
-            ...getRelayQuoteMock({ isExecute: false }),
-            request: requests[0],
-          },
-        ])
-        .mockImplementationOnce(async ({ requests }) => [
-          {
-            ...getRelayQuoteMock(),
-            request: requests[0],
-          },
-        ]);
+    it('does not require Relay execute for direct mUSD quoting', async () => {
       const { request } = getDirectRequest();
 
       const result = await getFiatQuotes(request);
 
       expect(result).toHaveLength(1);
-      expect(getRelayQuotesMock).toHaveBeenCalledTimes(2);
-      expect(getRelayQuotesMock.mock.calls[1][0].requests[0]).toStrictEqual(
-        expect.objectContaining({
-          sourceChainId: FIAT_ASSET_MOCK.chainId,
-          sourceTokenAddress: FIAT_ASSET_MOCK.address,
-        }),
-      );
+      expect(result[0].original.relayQuote).toBeUndefined();
+      expect(getRelayQuotesMock).not.toHaveBeenCalled();
     });
 
     it('returns combined quote when probe and quote both succeed', async () => {
@@ -993,21 +989,15 @@ describe('getFiatQuotes', () => {
       expect(undefinedTokensResult).toStrictEqual([]);
     });
 
-    it('returns empty when direct flow relay or build fails', async () => {
-      getRelayQuotesMock.mockResolvedValue([]);
-      const emptyRelayResult = await getFiatQuotes(getDirectRequest().request);
-
-      getRelayQuotesMock.mockResolvedValue([getRelayQuoteMock()]);
+    it('returns empty when direct flow request build fails', async () => {
       computeRawFromFiatAmountMock.mockReturnValue(undefined);
       const noBuildResult = await getFiatQuotes(getDirectRequest().request);
 
-      expect(emptyRelayResult).toStrictEqual([]);
       expect(noBuildResult).toStrictEqual([]);
     });
 
-    it('returns empty when direct flow has multiple tokens or invalid fees', async () => {
+    it('returns empty when direct flow has multiple tokens or invalid fiat amount', async () => {
       computeRawFromFiatAmountMock.mockReturnValue('5000000000000000000');
-      getRelayQuotesMock.mockResolvedValue([getRelayQuoteMock()]);
 
       const multiTokenResult = await getFiatQuotes(
         getDirectRequest({
@@ -1021,30 +1011,25 @@ describe('getFiatQuotes', () => {
         }).request,
       );
 
-      getRelayQuotesMock.mockResolvedValue([
-        {
-          ...getRelayQuoteMock(),
-          fees: {
-            metaMask: { fiat: 'NaN', usd: 'NaN' },
-            provider: { fiat: 'NaN', usd: 'NaN' },
-            sourceNetwork: {
-              estimate: { fiat: 'NaN', human: '0', raw: '0', usd: 'NaN' },
-              max: AMOUNT_MOCK,
-            },
-            targetNetwork: { fiat: 'NaN', usd: 'NaN' },
-          },
-        },
-      ]);
-      const nanFeeResult = await getFiatQuotes(getDirectRequest().request);
-
-      getRelayQuotesMock.mockResolvedValue([getRelayQuoteMock()]);
       const overflowResult = await getFiatQuotes(
         getDirectRequest({ amountFiat: '1e+309' }).request,
       );
 
       expect(multiTokenResult).toStrictEqual([]);
-      expect(nanFeeResult).toStrictEqual([]);
       expect(overflowResult).toStrictEqual([]);
+    });
+
+    it('falls back to standard flow when direct pure-fiat quote fails', async () => {
+      getRawSourceAmountFromOrderCryptoAmountMock.mockImplementation(() => {
+        throw new Error('Invalid fiat order crypto amount: 0');
+      });
+      deriveFiatAssetForFiatPaymentMock.mockReturnValue(FIAT_ASSET_MOCK);
+
+      const result = await getFiatQuotes(getDirectRequest().request);
+
+      expect(result).toHaveLength(1);
+      expect(result[0].original.relayQuote).toBeDefined();
+      expect(getRelayQuotesMock).toHaveBeenCalledTimes(1);
     });
 
     it('sets caipAssetId and rampsQuote via updateFiatPayment', async () => {

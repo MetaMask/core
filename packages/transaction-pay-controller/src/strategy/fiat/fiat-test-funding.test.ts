@@ -185,7 +185,7 @@ describe('fundFiatOrderFromTestSource', () => {
   it('uses Money Account recipient and request source asset for direct mUSD quotes', async () => {
     const { addTransactionMock, messenger } = getMessengerMock();
 
-    await fundFiatOrderFromTestSource({
+    const order = await fundFiatOrderFromTestSource({
       fundingSource: FUNDING_SOURCE_MOCK,
       messenger,
       quote: getFiatQuoteMock({ isDirectMusdMoneyAccount: true }),
@@ -195,10 +195,15 @@ describe('fundFiatOrderFromTestSource', () => {
     expect(deriveFiatAssetForFiatPaymentMock).not.toHaveBeenCalled();
     expect(addTransactionMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        data: buildTokenTransferData(MONEY_ACCOUNT_ADDRESS_MOCK, '12340000'),
+        data: buildTokenTransferData(MONEY_ACCOUNT_ADDRESS_MOCK, '100000'),
         to: FIAT_ASSET_ADDRESS_MOCK,
       }),
       expect.anything(),
+    );
+    expect(order).toStrictEqual(
+      expect.objectContaining({
+        cryptoAmount: '0.1',
+      }),
     );
   });
 

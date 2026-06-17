@@ -31,6 +31,7 @@ import { deriveFiatAssetForFiatPayment } from './utils';
 import { getRawSourceAmountFromOrderCryptoAmount } from './utils';
 
 const log = createModuleLogger(projectLogger, 'fiat-test-funding');
+const DIRECT_MUSD_TEST_FUNDING_CRYPTO_AMOUNT = '0.1';
 
 /**
  * Funds the fiat recipient from a test source instead of waiting for ramps.
@@ -53,7 +54,8 @@ export async function fundFiatOrderFromTestSource({
   quote: TransactionPayQuote<FiatQuote>;
   transaction: TransactionMeta;
 }): Promise<RampsOrder> {
-  const fiatAsset = isDirectMusdMoneyAccountQuote(quote)
+  const isDirectMusd = isDirectMusdMoneyAccountQuote(quote);
+  const fiatAsset = isDirectMusd
     ? {
         address: quote.request.sourceTokenAddress,
         chainId: quote.request.sourceChainId,
@@ -61,7 +63,9 @@ export async function fundFiatOrderFromTestSource({
     : deriveFiatAssetForFiatPayment(transaction, messenger);
 
   const recipient = getFiatFundingRecipient({ quote, transaction });
-  const cryptoAmount = quote.original.rampsQuote.quote.amountOut;
+  const cryptoAmount = isDirectMusd
+    ? DIRECT_MUSD_TEST_FUNDING_CRYPTO_AMOUNT
+    : quote.original.rampsQuote.quote.amountOut;
   const tokenInfo = getTokenInfo(
     messenger,
     fiatAsset.address,
