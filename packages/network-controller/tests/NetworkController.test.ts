@@ -1456,7 +1456,6 @@ describe('NetworkController', () => {
         },
         async ({ messenger }) => {
           messenger.publish(
-            // eslint-disable-next-line no-restricted-syntax
             'RemoteFeatureFlagController:stateChange',
             {
               remoteFeatureFlags: {
@@ -1579,7 +1578,6 @@ describe('NetworkController', () => {
         },
         async ({ messenger }) => {
           messenger.publish(
-            // eslint-disable-next-line no-restricted-syntax
             'RemoteFeatureFlagController:stateChange',
             {
               remoteFeatureFlags: {
