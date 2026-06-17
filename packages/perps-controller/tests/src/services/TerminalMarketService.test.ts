@@ -222,6 +222,42 @@ describe('TerminalMarketService', () => {
       );
     });
 
+    it('accepts items with extra properties returned by the backend', async () => {
+      jest.spyOn(globalThis, 'fetch').mockResolvedValue({
+        ok: true,
+        status: 200,
+        statusText: 'OK',
+        json: () =>
+          Promise.resolve([
+            {
+              symbol: 'BTC',
+              name: 'Bitcoin',
+              szDecimals: 5,
+              maxLeverage: 50,
+              marginTableId: 0,
+              // Extra properties not in the schema
+              price: 67000.5,
+              iconUrl: 'https://example.com/btc.png',
+              trend: 'bullish',
+              volume24h: 1234567890,
+              sparklineData: [65000, 66000, 67000],
+            },
+          ]),
+      } as Response);
+
+      const { markets, metadata } = await service.fetchMarkets();
+
+      expect(markets).toHaveLength(1);
+      expect(markets[0]).toEqual({
+        name: 'BTC',
+        szDecimals: 5,
+        maxLeverage: 50,
+        marginTableId: 0,
+      });
+      expect(metadata.get('BTC')?.name).toBe('Bitcoin');
+      expect(mockDeps.logger.error).not.toHaveBeenCalled();
+    });
+
     it('uses defaults for missing numeric fields', async () => {
       jest.spyOn(globalThis, 'fetch').mockResolvedValue({
         ok: true,
