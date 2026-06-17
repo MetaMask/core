@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [2.1.0]
 
-### Fixed
+### Changed
 
 - Fetch on-chain Money account balances at the `pending` block tag instead of `latest`, so a balance refetch triggered by `TransactionController:transactionConfirmed` returns the post-transaction balance immediately rather than stale data for up to ~20 seconds. ([#9163](https://github.com/MetaMask/core/pull/9163))
   - Applies to `getMoneyAccountBalance`, `getMusdBalance`, `getVmusdBalance`, and `getMusdEquivalentValue`. As a result these reads now reflect pending (mempool-inclusive) state. `getExchangeRate` and the on-chain `Accountant.base()` token-address lookup intentionally remain on `latest`.
