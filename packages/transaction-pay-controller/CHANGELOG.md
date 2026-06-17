@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Sync transaction metadata when fiat payment is selected but no payment token is present ([#9158](https://github.com/MetaMask/core/pull/9158))
+
 ## [23.8.0]
 
 ### Changed
