@@ -2,7 +2,6 @@ import type {
   PublishHookResult,
   TransactionMeta,
 } from '@metamask/transaction-controller';
-import type { Hex } from '@metamask/utils';
 
 import { TransactionPayStrategy } from '..';
 import { getMessengerMock } from '../tests/messenger-mock';
@@ -22,9 +21,6 @@ const TRANSACTION_META_MOCK = {
   },
 } as TransactionMeta;
 
-const FIAT_TEST_FUNDING_SOURCE_MOCK =
-  '0x1111111111111111111111111111111111111111' as Hex;
-
 const QUOTE_MOCK = {
   strategy: TransactionPayStrategy.Test,
 } as TransactionPayQuote<unknown>;
@@ -37,7 +33,6 @@ describe('TransactionPayPublishHook', () => {
   const {
     messenger,
     getControllerStateMock,
-    getFiatOptionsMock,
     getKeyringControllerStateMock,
     getTransactionControllerStateMock,
     updateTransactionMock,
@@ -104,21 +99,6 @@ describe('TransactionPayPublishHook', () => {
     );
   });
 
-  it('passes fiat test options from messenger action to strategy execution', async () => {
-    getFiatOptionsMock.mockReturnValue({
-      testFundingSource: FIAT_TEST_FUNDING_SOURCE_MOCK,
-    });
-
-    await runHook();
-
-    expect(getFiatOptionsMock).toHaveBeenCalledTimes(1);
-    expect(executeMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        fiat: { testFundingSource: FIAT_TEST_FUNDING_SOURCE_MOCK },
-      }),
-    );
-  });
-
   it('selects strategy from quote', async () => {
     await runHook();
 
@@ -172,7 +152,6 @@ describe('TransactionPayPublishHook', () => {
     await runHook();
 
     expect(updateTransactionMock).not.toHaveBeenCalled();
-    expect(getFiatOptionsMock).not.toHaveBeenCalled();
   });
 
   it('defaults to accountSupports7702 false when keyring not found', async () => {

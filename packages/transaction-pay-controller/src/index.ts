@@ -2,7 +2,6 @@ export type {
   GetAmountDataCallback,
   GetAmountDataRequest,
   GetAmountDataResponse,
-  GetFiatOptionsCallback,
   GetPaymentOverrideDataRequest,
   GetPaymentOverrideDataResponse,
   TransactionConfig,

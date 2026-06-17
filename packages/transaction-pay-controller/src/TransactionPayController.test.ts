@@ -568,23 +568,21 @@ describe('TransactionPayController', () => {
   });
 
   describe('getFiatOptions', () => {
-    it('delegates to the callback', () => {
+    it('returns configured fiat options', () => {
       const fiatOptions = {
         testFundingSource:
           '0x1111111111111111111111111111111111111111' as Hex,
         testAmountOverride: '0.1',
       };
-      const getFiatOptionsMock = jest.fn().mockReturnValue(fiatOptions);
 
-      createController({ getFiatOptions: getFiatOptionsMock });
+      createController({ fiatOptions });
 
       const result = messenger.call('TransactionPayController:getFiatOptions');
 
-      expect(getFiatOptionsMock).toHaveBeenCalledTimes(1);
       expect(result).toBe(fiatOptions);
     });
 
-    it('returns undefined when no callback is configured', () => {
+    it('returns undefined when no fiat options are configured', () => {
       createController();
 
       const result = messenger.call('TransactionPayController:getFiatOptions');

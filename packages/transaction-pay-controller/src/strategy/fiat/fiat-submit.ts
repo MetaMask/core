@@ -10,6 +10,7 @@ import { projectLogger } from '../../logger';
 import type {
   PayStrategy,
   PayStrategyExecuteRequest,
+  TransactionPayFiatOptions,
   TransactionPayControllerMessenger,
 } from '../../types';
 import {
@@ -104,9 +105,11 @@ export async function submitFiatQuotes(
     throw new Error('Missing fiat quote for relay submission');
   }
 
-  const order = request.fiat?.testFundingSource
+  const fiatOptions = getFiatOptions(messenger);
+
+  const order = fiatOptions?.testFundingSource
     ? await fundFiatOrderFromTestSource({
-        fiat: request.fiat,
+        fiat: fiatOptions,
         messenger,
         quote: fiatQuote,
         transaction,
@@ -126,6 +129,17 @@ export async function submitFiatQuotes(
   });
 
   return await submitRelayAfterFiatCompletion({ order, request });
+}
+
+function getFiatOptions(
+  messenger: TransactionPayControllerMessenger,
+): TransactionPayFiatOptions | undefined {
+  try {
+    return messenger.call('TransactionPayController:getFiatOptions');
+  } catch (error) {
+    log('Failed to retrieve fiat options', error);
+    return undefined;
+  }
 }
 
 /**

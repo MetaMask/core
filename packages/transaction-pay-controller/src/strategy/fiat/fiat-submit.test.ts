@@ -12,6 +12,7 @@ import { TransactionPayStrategy } from '../../constants';
 import type {
   PayStrategyExecuteRequest,
   QuoteRequest,
+  TransactionPayFiatOptions,
   TransactionPayQuote,
 } from '../../types';
 import { buildCaipAssetType } from '../../utils/token';
@@ -215,12 +216,16 @@ function getFiatQuoteMock({
 }
 
 function getRequest({
+  fiatOptionsError,
+  fiatOptions,
   orderId = ORDER_ID_MOCK,
   rampsQuote = RAMPS_QUOTE_MOCK,
   order = getFiatOrderMock(),
   quotes = [getFiatQuoteMock()],
   transaction = TRANSACTION_MOCK,
 }: {
+  fiatOptionsError?: Error;
+  fiatOptions?: TransactionPayFiatOptions;
   orderId?: string;
   rampsQuote?: RampsQuote | undefined;
   order?: RampsOrder;
@@ -244,6 +249,14 @@ function getRequest({
           },
         },
       };
+    }
+
+    if (action === 'TransactionPayController:getFiatOptions') {
+      if (fiatOptionsError) {
+        throw fiatOptionsError;
+      }
+
+      return fiatOptions;
     }
 
     if (action === 'RampsController:getOrder') {
@@ -388,13 +401,13 @@ describe('submitFiatQuotes', () => {
   });
 
   it('uses fiat test funding source instead of polling ramps order', async () => {
-    const { callMock, request } = getRequest();
-    request.fiat = { testFundingSource: FIAT_TEST_FUNDING_SOURCE_MOCK };
+    const fiatOptions = { testFundingSource: FIAT_TEST_FUNDING_SOURCE_MOCK };
+    const { callMock, request } = getRequest({ fiatOptions });
 
     await submitFiatQuotes(request);
 
     expect(fundFiatOrderFromTestSourceMock).toHaveBeenCalledWith({
-      fiat: { testFundingSource: FIAT_TEST_FUNDING_SOURCE_MOCK },
+      fiat: fiatOptions,
       messenger: request.messenger,
       quote: request.quotes[0],
       transaction: request.transaction,
@@ -404,6 +417,23 @@ describe('submitFiatQuotes', () => {
         ([action]: [string]) => action === 'RampsController:getOrder',
       ),
     ).toBe(false);
+    expect(getRelayQuotesMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('polls ramps order if retrieving fiat options fails', async () => {
+    const { callMock, request } = getRequest({
+      fiatOptionsError: new Error('No handler'),
+    });
+
+    await submitFiatQuotes(request);
+
+    expect(fundFiatOrderFromTestSourceMock).not.toHaveBeenCalled();
+    expect(callMock).toHaveBeenCalledWith(
+      'RampsController:getOrder',
+      'transak-native-staging',
+      ORDER_ID_MOCK,
+      WALLET_ADDRESS_MOCK,
+    );
     expect(getRelayQuotesMock).toHaveBeenCalledTimes(1);
   });
 
@@ -436,6 +466,9 @@ describe('submitFiatQuotes', () => {
             },
           },
         };
+      }
+      if (action === 'TransactionPayController:getFiatOptions') {
+        return undefined;
       }
       if (action === 'RampsController:getOrder') {
         return getFiatOrderMock();
@@ -668,6 +701,10 @@ describe('submitFiatQuotes', () => {
         };
       }
 
+      if (action === 'TransactionPayController:getFiatOptions') {
+        return undefined;
+      }
+
       if (action === 'RampsController:getOrder') {
         getOrderCallCount += 1;
         return getOrderCallCount === 1 ? pendingOrder : completedOrder;
@@ -723,6 +760,10 @@ describe('submitFiatQuotes', () => {
             },
           },
         };
+      }
+
+      if (action === 'TransactionPayController:getFiatOptions') {
+        return undefined;
       }
 
       if (action === 'RampsController:getOrder') {
@@ -799,6 +840,9 @@ describe('submitFiatQuotes', () => {
             },
           },
         };
+      }
+      if (action === 'TransactionPayController:getFiatOptions') {
+        return undefined;
       }
       if (action === 'RampsController:getOrder') {
         return pendingOrder;
@@ -1087,6 +1131,10 @@ describe('submitFiatQuotes', () => {
               },
             },
           };
+        }
+
+        if (action === 'TransactionPayController:getFiatOptions') {
+          return undefined;
         }
 
         if (action === 'RampsController:getOrder') {
