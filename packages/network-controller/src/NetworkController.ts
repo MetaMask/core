@@ -1691,8 +1691,9 @@ export class NetworkController extends BaseController<
   }
 
   /**
-   * Initialize the NetworkController, updating the RPC failover feature flag
-   * and applying the network selection.
+   * Initialize the NetworkController, updating the RPC failover feature flags
+   * (`isRpcFailoverEnabled` and `isRpcFailoverForced`) and applying the network
+   * selection.
    */
   init(): void {
     const state = this.messenger.call('RemoteFeatureFlagController:getState');
