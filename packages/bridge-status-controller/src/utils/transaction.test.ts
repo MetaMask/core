@@ -1669,6 +1669,80 @@ describe('Bridge Status Controller Transaction Utils', () => {
 
       createClientRequestSpy.mockRestore();
     });
+
+    it('should include Stellar source and destination chain IDs as options when trade is Stellar', () => {
+      const stellarTrade = {
+        xdrBase64: 'AAAABg==',
+      } as never;
+
+      const mockAccount = {
+        id: 'test-account-id',
+        metadata: {
+          snap: { id: 'test-snap-id' },
+        },
+      };
+
+      const result = snaps.getClientRequest(
+        stellarTrade,
+        ChainId.STELLAR,
+        mockAccount.id,
+        mockAccount.metadata.snap.id,
+        ChainId.ETH,
+      );
+
+      expect(result).toMatchObject({
+        origin: 'metamask',
+        snapId: 'test-snap-id',
+        handler: 'onClientRequest',
+        request: {
+          id: expect.any(String),
+          jsonrpc: '2.0',
+          method: 'signAndSendTransaction',
+          params: {
+            transaction: 'AAAABg==',
+            scope: formatChainIdToCaip(ChainId.STELLAR),
+            accountId: 'test-account-id',
+            options: {
+              sourceChainId: formatChainIdToCaip(ChainId.STELLAR),
+              destChainId: formatChainIdToCaip(ChainId.ETH),
+            },
+          },
+        },
+      });
+    });
+
+    it('should omit destChainId option for Stellar trades when destination chain ID is not provided', () => {
+      const stellarTrade = {
+        xdr: 'AAAABg==',
+      } as never;
+
+      const mockAccount = {
+        id: 'test-account-id',
+        metadata: {
+          snap: { id: 'test-snap-id' },
+        },
+      };
+
+      const result = snaps.getClientRequest(
+        stellarTrade,
+        ChainId.STELLAR,
+        mockAccount.id,
+        mockAccount.metadata.snap.id,
+      );
+
+      expect(result).toMatchObject({
+        request: {
+          params: {
+            options: {
+              sourceChainId: formatChainIdToCaip(ChainId.STELLAR),
+            },
+          },
+        },
+      });
+      expect(
+        (result.request.params as { options: Record<string, unknown> }).options,
+      ).not.toHaveProperty('destChainId');
+    });
   });
 
   describe('getAddTransactionBatchParams', () => {

@@ -10,6 +10,7 @@ import {
   formatChainIdToCaip,
   formatChainIdToHex,
   isCrossChain,
+  isStellarTrade,
   isTronTrade,
 } from '@metamask/bridge-controller';
 import { SnapController } from '@metamask/snaps-controllers';
@@ -72,6 +73,7 @@ export const createClientTransactionRequest = (
  * @param srcChainId - The source chain ID
  * @param accountId - The account ID
  * @param snapId - The snap ID
+ * @param destChainId - The destination chain ID
  * @returns The snap request object for signing and sending transaction
  */
 export const getClientRequest = (
@@ -79,18 +81,28 @@ export const getClientRequest = (
   srcChainId: number,
   accountId: AccountsControllerState['internalAccounts']['accounts'][string]['id'],
   snapId: string,
+  destChainId?: number,
 ): Parameters<SnapController['handleRequest']>[0] => {
   const scope = formatChainIdToCaip(srcChainId);
 
   const transaction = extractTradeData(trade);
 
-  // Tron trades need the visible flag and contract type to be included in the request options
-  const options = isTronTrade(trade)
-    ? {
-        visible: trade.visible,
-        type: trade.raw_data?.contract?.[0]?.type,
-      }
-    : undefined;
+  let options: Record<string, unknown> | undefined;
+  if (isTronTrade(trade)) {
+    // Tron trades need the visible flag and contract type to be included in the request options
+    options = {
+      visible: trade.visible,
+      type: trade.raw_data?.contract?.[0]?.type,
+    };
+  } else if (isStellarTrade(trade)) {
+    // Stellar trades need the source and destination chain IDs to be included as metadata
+    options = {
+      sourceChainId: scope,
+      ...(destChainId !== undefined && {
+        destChainId: formatChainIdToCaip(destChainId),
+      }),
+    };
+  }
 
   return createClientTransactionRequest(
     snapId,
@@ -250,6 +262,7 @@ export const handleNonEvmTx = async (
     quoteResponse.quote.srcChainId,
     selectedAccount.id,
     selectedAccount.metadata?.snap?.id,
+    quoteResponse.quote.destChainId,
   );
   const requestResponse = (await messenger.call(
     'SnapController:handleRequest',
