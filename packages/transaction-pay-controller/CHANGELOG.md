@@ -10,7 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - Fix post-quote flow for MM Pay transactions transferring between same chain and tokens when `isQuoteRequired` is set ([#9150](https://github.com/MetaMask/core/pull/9150))
-- Fix Relay quote `user` address to use `txParams.from` instead of `accountOverride` for same-token-same-chain transactions ([#9150](https://github.com/MetaMask/core/pull/9150))
+- Sync transaction metadata when fiat payment is selected but no payment token is present ([#9158](https://github.com/MetaMask/core/pull/9158))
 
 ## [23.8.0]
 

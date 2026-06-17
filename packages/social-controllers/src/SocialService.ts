@@ -134,6 +134,9 @@ const PerChainBreakdownStruct = structType({
   perChainPnl: record(string(), number()),
   perChainRoi: record(string(), nullable(number())),
   perChainVolume: record(string(), number()),
+  perChainPnl7d: optional(record(string(), number())),
+  perChainRoi7d: optional(record(string(), nullable(number()))),
+  perChainVolume7d: optional(record(string(), number())),
 });
 
 const TraderProfileResponseStruct = structType({

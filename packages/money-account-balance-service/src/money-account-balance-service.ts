@@ -62,6 +62,13 @@ type Multicall3Result = {
 };
 
 /**
+ * ethers `CallOverrides` used for BALANCE reads (mUSD, vmUSD, Lens).
+ *
+ * We deliberately read at `pending` rather than `latest` to bypass the provider's block cache middleware.
+ */
+const PENDING_READ_OVERRIDES = { blockTag: 'pending' } as const;
+
+/**
  * The name of the {@link MoneyAccountBalanceService}, used to namespace the
  * service's actions and events.
  */
@@ -438,7 +445,10 @@ export class MoneyAccountBalanceService extends BaseDataService<
   ): Promise<string> {
     const provider = this.#getProvider(chainId);
     const contract = new Contract(contractAddress, abiERC20, provider);
-    const balance = await contract.balanceOf(accountAddress);
+    const balance = await contract.balanceOf(
+      accountAddress,
+      PENDING_READ_OVERRIDES,
+    );
     return balance.toString();
   }
 
@@ -569,10 +579,10 @@ export class MoneyAccountBalanceService extends BaseDataService<
           provider,
         );
         const [musdResult, vmusdResult] =
-          (await multicall3.callStatic.aggregate3(calls)) as [
-            Multicall3Result,
-            Multicall3Result,
-          ];
+          (await multicall3.callStatic.aggregate3(
+            calls,
+            PENDING_READ_OVERRIDES,
+          )) as [Multicall3Result, Multicall3Result];
 
         const musdBalanceBN = erc20.interface.decodeFunctionResult(
           'balanceOf',
@@ -669,6 +679,7 @@ export class MoneyAccountBalanceService extends BaseDataService<
           accountAddress,
           boringVault,
           accountantAddress,
+          PENDING_READ_OVERRIDES,
         );
 
         return { balanceOfInAssets: balanceOfInAssets.toString() };

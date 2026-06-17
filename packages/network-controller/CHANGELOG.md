@@ -28,6 +28,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - The constructor argument `isRpcFailoverEnabled` is no longer available.
   - `RemoteFeatureFlagController:stateChange` and `RemoteFeatureFlagController:getState` are now required.
 - Drop `async-mutex` dependency, which was no longer used in source ([#9064](https://github.com/MetaMask/core/pull/9064))
+- Consider all Infura HTTP errors as service failures except `400` and `429` ([#9123](https://github.com/MetaMask/core/pull/9123))
 
 ### Removed
 

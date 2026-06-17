@@ -123,6 +123,16 @@ export type PerChainBreakdown = {
   /** ROI can be null for chains with no trading activity (zero cost-basis). */
   perChainRoi: Record<string, number | null>;
   perChainVolume: Record<string, number>;
+  /**
+   * 7-day per-chain PnL in USD. Optional: older social-api versions only
+   * return the 30-day breakdown (`perChainPnl`). The unsuffixed fields above
+   * remain the 30-day window for backward compatibility.
+   */
+  perChainPnl7d?: Record<string, number>;
+  /** 7-day per-chain ROI. Null for chains with no trading activity. */
+  perChainRoi7d?: Record<string, number | null>;
+  /** 7-day per-chain volume in USD. */
+  perChainVolume7d?: Record<string, number>;
 };
 
 /**
