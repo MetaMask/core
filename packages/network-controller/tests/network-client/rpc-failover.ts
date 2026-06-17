@@ -35,10 +35,6 @@ export function testsForRpcFailoverBehavior({
   getExpectedError: (url: string) => Error | jest.Constructable;
   getExpectedBreakError?: (url: string) => Error | jest.Constructable;
 }): void {
-  if (providerType === 'custom') {
-    return;
-  }
-
   const blockNumber = '0x100';
   const backoffDuration = 100;
   const maxConsecutiveFailures = 15;
@@ -46,6 +42,78 @@ export function testsForRpcFailoverBehavior({
   const numRequestsToMake = isRetriableFailure
     ? maxConsecutiveFailures / (maxRetries + 1)
     : maxConsecutiveFailures;
+
+  if (providerType === 'custom') {
+    // Failover is only honored for Infura endpoints, so a custom endpoint must
+    // never divert to its configured failover URLs even when failover is
+    // enabled. We assert this by configuring a failover URL that is never
+    // mocked: if the client wrongly diverted to it, the request would fail to
+    // match the primary error below.
+    describe('if RPC failover functionality is enabled but the endpoint is not an Infura endpoint', () => {
+      it(`does not fail over to the provided alternate RPC endpoint, even after ${maxConsecutiveFailures} unsuccessful attempts`, async () => {
+        await withMockedCommunications({ providerType }, async (comms) => {
+          const request = requestToCall;
+          const requestToMock = getRequestToMock(request, blockNumber);
+          const additionalMockRpcCallOptions =
+            failure instanceof Error || typeof failure === 'string'
+              ? { error: failure }
+              : { response: failure };
+
+          // The first time a block-cacheable request is made, the latest block
+          // number is retrieved through the block tracker first.
+          comms.mockNextBlockTrackerRequest({ blockNumber });
+          comms.mockRpcCall({
+            request: requestToMock,
+            times: maxConsecutiveFailures,
+            ...additionalMockRpcCallOptions,
+          });
+
+          const messenger = buildRootMessenger();
+
+          await withNetworkClient(
+            {
+              providerType,
+              isRpcFailoverEnabled: true,
+              failoverRpcUrls: ['https://failover.endpoint'],
+              messenger,
+              getRpcServiceOptions: () => ({
+                fetch,
+                btoa,
+                isOffline: (): boolean => false,
+                policyOptions: {
+                  backoff: new ConstantBackoff(backoffDuration),
+                },
+              }),
+            },
+            async ({ makeRpcCall, rpcUrl }) => {
+              messenger.subscribe(
+                'NetworkController:rpcEndpointRetried',
+                () => {
+                  // Ensure that we advance to the next RPC request
+                  // retry, not the next block tracker request.
+                  // We also don't need to await this, it just needs to
+                  // be added to the promise queue.
+                  // eslint-disable-next-line @typescript-eslint/no-floating-promises
+                  jest.advanceTimersByTimeAsync(backoffDuration);
+                },
+              );
+
+              for (let i = 0; i < numRequestsToMake - 1; i++) {
+                await ignoreRejection(makeRpcCall(request));
+              }
+              const promiseForResult = makeRpcCall(request);
+
+              await expect(promiseForResult).rejects.toThrow(
+                getExpectedError(rpcUrl),
+              );
+            },
+          );
+        });
+      });
+    });
+
+    return;
+  }
 
   describe('if RPC failover functionality is enabled', () => {
     it(`fails over to the provided alternate RPC endpoint after ${maxConsecutiveFailures} unsuccessful attempts`, async () => {
