@@ -9,8 +9,56 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Bump `@metamask/assets-controllers` from `^109.0.0` to `^109.1.0` ([#9110](https://github.com/MetaMask/core/pull/9110))
+- Bump `@metamask/utils` from `^11.9.0` to `^11.11.0` ([#9074](https://github.com/MetaMask/core/pull/9074))
+- Bump `@metamask/transaction-controller` from `^67.1.0` to `^68.0.0` ([#9089](https://github.com/MetaMask/core/pull/9089))
+- Bump `@metamask/keyring-controller` from `^27.0.0` to `^27.1.0` ([#9129](https://github.com/MetaMask/core/pull/9129))
+
+### Fixed
+
+- `AssetsController` reconciliate and self-heals stale assetInfo metadata types ([#9099](https://github.com/MetaMask/core/pull/9099))
+
+## [9.0.1]
+
+### Changed
+
+- Bump `@metamask/controller-utils` from `^12.1.1` to `^12.2.0` ([#9083](https://github.com/MetaMask/core/pull/9083))
+
+## [9.0.0]
+
+### Added
+
+- Add USDC on ARC mainnet (`eip155:5042/erc20:0x3600000000000000000000000000000000000000`) to default tokens to display on ARC ([#9011](https://github.com/MetaMask/core/pull/9011))
+
+### Changed
+
+- **BREAKING:** `RpcDataSourceOptions`, `TokenDataSourceOptions`, and `BackendWebsocketDataSourceOptions` no longer accept `isNativeAsset: (assetId) => boolean`; replace it with `getAssetType: (assetId) => 'native' | 'erc20' | 'spl'` ([#9063](https://github.com/MetaMask/core/pull/9063))
+- Token detection via `TokensApiClient` is now gated behind the `/v2/supportedNetworks` endpoint; chains absent from the supported-networks list are skipped and return an empty token list, and token-list request failures return an empty array instead of throwing ([#9063](https://github.com/MetaMask/core/pull/9063))
+
+- Use `encodeFunctionData` from `@metamask/controller-utils` for improved performance ([#9057](https://github.com/MetaMask/core/pull/9057))
+- Bump `@metamask/assets-controllers` from `^108.6.0` to `^109.0.0` ([#9078](https://github.com/MetaMask/core/pull/9078))
+- Bump `@metamask/transaction-controller` from `^67.0.0` to `^67.1.0` ([#9066](https://github.com/MetaMask/core/pull/9066))
+
+### Removed
+
+- **BREAKING:** Remove `TransactionController:incomingTransactionsReceived` from `AssetsController` allowed events and `RpcDataSourceAllowedEvents`; remove associated balance refresh on incoming transactions ([#9012](https://github.com/MetaMask/core/pull/9012))
+
+### Fixed
+
+- `RpcDataSource`, `TokenDataSource`, and `BackendWebsocketDataSource` now correctly classify native tokens exposed via a non-zero-address ERC-20 interface (e.g. Immutable zkEVM's IMX, Arc's USDC at `0x3600…0000`) as `type: 'native'` instead of `type: 'erc20'` ([#9063](https://github.com/MetaMask/core/pull/9063))
+
+## [8.3.3]
+
+### Changed
+
 - Bump `@metamask/network-enablement-controller` from `^5.2.0` to `^5.3.0` ([#9003](https://github.com/MetaMask/core/pull/9003))
 - Bump `@metamask/transaction-controller` from `^66.0.1` to `^67.0.0` ([#9021](https://github.com/MetaMask/core/pull/9021))
+- Bump `@metamask/account-tree-controller` from `^7.5.1` to `^7.5.2` ([#9058](https://github.com/MetaMask/core/pull/9058))
+- Bump `@metamask/accounts-controller` from `^39.0.0` to `^39.0.1` ([#9058](https://github.com/MetaMask/core/pull/9058))
+- Bump `@metamask/assets-controllers` from `^108.5.0` to `^108.6.0` ([#9058](https://github.com/MetaMask/core/pull/9058))
+- Bump `@metamask/controller-utils` from `^12.1.0` to `^12.1.1` ([#9058](https://github.com/MetaMask/core/pull/9058))
+- Bump `@metamask/core-backend` from `^6.3.2` to `^6.3.3` ([#9058](https://github.com/MetaMask/core/pull/9058))
+- Bump `@metamask/keyring-controller` from `^26.0.0` to `^27.0.0` ([#9058](https://github.com/MetaMask/core/pull/9058))
 
 ## [8.3.2]
 
@@ -576,7 +624,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Refactor `RpcDataSource` to delegate polling to `BalanceFetcher` and `TokenDetector` services ([#7709](https://github.com/MetaMask/core/pull/7709))
 - Refactor `BalanceFetcher` and `TokenDetector` to extend `StaticIntervalPollingControllerOnly` for independent polling management ([#7709](https://github.com/MetaMask/core/pull/7709))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@8.3.2...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@9.0.1...HEAD
+[9.0.1]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@9.0.0...@metamask/assets-controller@9.0.1
+[9.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@8.3.3...@metamask/assets-controller@9.0.0
+[8.3.3]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@8.3.2...@metamask/assets-controller@8.3.3
 [8.3.2]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@8.3.1...@metamask/assets-controller@8.3.2
 [8.3.1]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@8.3.0...@metamask/assets-controller@8.3.1
 [8.3.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@8.2.0...@metamask/assets-controller@8.3.0

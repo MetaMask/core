@@ -36,6 +36,9 @@
 /packages/transaction-pay-controller        @MetaMask/confirmations
 /packages/user-operation-controller         @MetaMask/confirmations
 
+## Transactions Team
+/packages/smart-transactions-controller     @MetaMask/transactions
+
 ## Delegation Team
 /packages/delegation-controller             @MetaMask/delegation
 /packages/gator-permissions-controller      @MetaMask/delegation
@@ -100,6 +103,7 @@
 /packages/rate-limit-controller        @MetaMask/core-platform
 /packages/react-data-query             @MetaMask/core-platform
 /packages/wallet                       @MetaMask/core-platform
+/packages/wallet-cli                   @MetaMask/core-platform @MetaMask/ocap-kernel
 /packages/wallet-framework-docs        @MetaMask/core-platform
 
 ## Web3Auth Team
@@ -130,8 +134,11 @@
 /packages/profile-metrics-controller            @MetaMask/mobile-platform @MetaMask/extension-platform
 
 ## Initialization
+/packages/wallet/src/initialization/instances/accounts-controller/ @MetaMask/accounts-engineers
 /packages/wallet/src/initialization/instances/approval-controller/ @MetaMask/confirmations
+/packages/wallet/src/initialization/instances/connectivity-controller/ @MetaMask/core-platform
 /packages/wallet/src/initialization/instances/keyring-controller/ @MetaMask/accounts-engineers @MetaMask/core-platform
+/packages/wallet/src/initialization/instances/remote-feature-flag-controller/ @MetaMask/extension-platform @MetaMask/mobile-platform @MetaMask/core-platform
 /packages/wallet/src/initialization/instances/storage-service/ @MetaMask/extension-platform @MetaMask/mobile-platform @MetaMask/core-platform
 
 ## Package Release related
@@ -209,6 +216,8 @@
 /packages/selected-network-controller/CHANGELOG.md @MetaMask/wallet-integrations @MetaMask/core-platform
 /packages/signature-controller/package.json       @MetaMask/confirmations @MetaMask/core-platform
 /packages/signature-controller/CHANGELOG.md       @MetaMask/confirmations @MetaMask/core-platform
+/packages/smart-transactions-controller/package.json @MetaMask/transactions @MetaMask/core-platform
+/packages/smart-transactions-controller/CHANGELOG.md @MetaMask/transactions @MetaMask/core-platform
 /packages/transaction-controller/package.json     @MetaMask/confirmations @MetaMask/core-platform
 /packages/transaction-controller/CHANGELOG.md     @MetaMask/confirmations @MetaMask/core-platform
 /packages/transaction-pay-controller/package.json @MetaMask/confirmations @MetaMask/core-platform

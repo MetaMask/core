@@ -20,6 +20,9 @@ export const VaultConfigStruct = type({
   lensAddress: StrictHexStruct,
   tellerAddress: StrictHexStruct,
   chainId: StrictHexStruct,
+  // Optional so flags deployed before this field existed still validate. When
+  // present it lets the service skip the on-chain `Accountant.base()` read.
+  underlyingToken: optional(StrictHexStruct),
 });
 
 /**

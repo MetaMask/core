@@ -7,9 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.6.2]
+
 ### Changed
 
-- Bump `@metamask/controller-utils` from `^12.0.0` to `^12.1.0` ([#8774](https://github.com/MetaMask/core/pull/8774))
+- Bump `@metamask/api-specs` from `^0.14.0` to `^0.15.0` ([#9096](https://github.com/MetaMask/core/pull/9096))
+- Bump `@metamask/utils` from `^11.9.0` to `^11.11.0` ([#9074](https://github.com/MetaMask/core/pull/9074))
+- Bump `@metamask/controller-utils` from `^12.0.0` to `^12.2.0` ([#8774](https://github.com/MetaMask/core/pull/8774), [#9058](https://github.com/MetaMask/core/pull/9058), [#9083](https://github.com/MetaMask/core/pull/9083))
 
 ## [1.6.1]
 
@@ -215,7 +219,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/chain-agnostic-permission@1.6.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/chain-agnostic-permission@1.6.2...HEAD
+[1.6.2]: https://github.com/MetaMask/core/compare/@metamask/chain-agnostic-permission@1.6.1...@metamask/chain-agnostic-permission@1.6.2
 [1.6.1]: https://github.com/MetaMask/core/compare/@metamask/chain-agnostic-permission@1.6.0...@metamask/chain-agnostic-permission@1.6.1
 [1.6.0]: https://github.com/MetaMask/core/compare/@metamask/chain-agnostic-permission@1.5.0...@metamask/chain-agnostic-permission@1.6.0
 [1.5.0]: https://github.com/MetaMask/core/compare/@metamask/chain-agnostic-permission@1.4.0...@metamask/chain-agnostic-permission@1.5.0

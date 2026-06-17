@@ -7,6 +7,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Set `isExternalSign` to `true` when `isGasFeeSponsored` is confirmed by simulation, so gas-sponsored transactions from accounts that cannot locally sign (e.g. Money Account keyring) skip `KeyringController:signTransaction` ([#9148](https://github.com/MetaMask/core/pull/9148))
+
+## [68.0.0]
+
+### Changed
+
+- Bump `@metamask/utils` from `^11.9.0` to `^11.11.0` ([#9074](https://github.com/MetaMask/core/pull/9074))
+- Bump `@metamask/controller-utils` from `^12.1.1` to `^12.2.0` ([#9083](https://github.com/MetaMask/core/pull/9083))
+- `TransactionController` can now be constructed before `NetworkController` is registered on the messenger ([#9012](https://github.com/MetaMask/core/pull/9012))
+  - Network client tracking initializes automatically once `NetworkController` becomes available; no explicit call required from the consumer.
+  - Transaction history trimming is skipped when the history limit feature flag is unavailable.
+
+### Removed
+
+- **BREAKING:** Remove incoming transaction support from `TransactionController` ([#9012](https://github.com/MetaMask/core/pull/9012))
+  - Removed constructor option `incomingTransactions`.
+  - Removed public methods `startIncomingTransactionPolling`, `stopIncomingTransactionPolling`, `updateIncomingTransactions`.
+  - Removed event `TransactionController:incomingTransactionsReceived`.
+  - Removed exported constant `INCOMING_TRANSACTIONS_SUPPORTED_CHAIN_IDS`.
+  - Removed exported types `TransactionControllerIncomingTransactionsReceivedEvent`, `TransactionControllerStartIncomingTransactionPollingAction`, `TransactionControllerStopIncomingTransactionPollingAction`, `TransactionControllerUpdateIncomingTransactionsAction`, `TransactionResponse`, `GetAccountTransactionsRequest`, `GetAccountTransactionsResponse`.
+  - Fields on `TransactionMeta` related to incoming transactions are preserved.
+
+## [67.1.0]
+
+### Changed
+
+- Export `generateBatchId` utility ([#8964](https://github.com/MetaMask/core/pull/8964))
+- Bump `@metamask/accounts-controller` from `^39.0.0` to `^39.0.1` ([#9058](https://github.com/MetaMask/core/pull/9058))
+- Bump `@metamask/approval-controller` from `^9.0.1` to `^9.0.2` ([#9058](https://github.com/MetaMask/core/pull/9058))
+- Bump `@metamask/controller-utils` from `^12.1.0` to `^12.1.1` ([#9058](https://github.com/MetaMask/core/pull/9058))
+- Bump `@metamask/core-backend` from `^6.3.2` to `^6.3.3` ([#9058](https://github.com/MetaMask/core/pull/9058))
+
 ## [67.0.0]
 
 ### Changed
@@ -2470,7 +2504,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@67.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@68.0.0...HEAD
+[68.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@67.1.0...@metamask/transaction-controller@68.0.0
+[67.1.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@67.0.0...@metamask/transaction-controller@67.1.0
 [67.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@66.0.1...@metamask/transaction-controller@67.0.0
 [66.0.1]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@66.0.0...@metamask/transaction-controller@66.0.1
 [66.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@65.4.0...@metamask/transaction-controller@66.0.0
