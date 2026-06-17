@@ -483,6 +483,9 @@ export async function waitForPromiseToBeFulfilledAfterRunningAllTimers<Type>(
  * @param options.networkClientId - The ID of the new network client.
  * @param options.isRpcFailoverEnabled - Whether or not the RPC failover
  * functionality is enabled.
+ * @param options.isRpcFailoverForced - Whether or not to force all traffic for
+ * Infura endpoints that have failover URLs to those failover URLs, bypassing
+ * Infura entirely.
  * @param fn - A function which will be called with an object that allows
  * interaction with the network client.
  * @returns The return value of the given function.

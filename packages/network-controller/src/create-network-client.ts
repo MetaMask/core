@@ -135,6 +135,9 @@ type RpcApiMiddleware = JsonRpcMiddleware<
  * provided failover endpoints if the primary is unavailable. This effectively
  * causes the `failoverRpcUrls` property of the network client configuration
  * to be honored or ignored.
+ * @param args.isRpcFailoverForced - Whether or not to force all traffic for
+ * Infura endpoints that have failover URLs to those failover URLs, bypassing
+ * Infura entirely.
  * @param args.logger - A `loglevel` logger.
  * @returns The network client.
  */
@@ -245,6 +248,9 @@ export function createNetworkClient({
  * provided failover endpoints if the primary is unavailable. This effectively
  * causes the `failoverRpcUrls` property of the network client configuration
  * to be honored or ignored.
+ * @param args.isRpcFailoverForced - Whether or not to force all traffic for
+ * Infura endpoints that have failover URLs to those failover URLs, bypassing
+ * Infura entirely.
  * @param args.logger - A `loglevel` logger.
  * @returns The RPC service chain.
  */

@@ -83,6 +83,9 @@ const UNINITIALIZED_TARGET = { __UNINITIALIZED__: true };
  * @param args.isRpcFailoverEnabled - Whether or not requests sent to the
  * primary RPC endpoint for this network should be automatically diverted to
  * provided failover endpoints if the primary is unavailable.
+ * @param args.isRpcFailoverForced - Whether or not to force all traffic for
+ * Infura endpoints that have failover URLs to those failover URLs, bypassing
+ * Infura entirely.
  * @param args.logger - A `loglevel` logger.
  * @returns The auto-managed network client.
  */
