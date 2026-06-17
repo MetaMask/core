@@ -20,7 +20,7 @@ import type {
   NetworkControllerStateChangeEvent,
 } from '@metamask/network-controller';
 import { StaticIntervalPollingController } from '@metamask/polling-controller';
-import type { AuthenticationControllerGetBearerTokenAction } from '@metamask/profile-sync-controller/auth';
+import type { AuthenticationController } from '@metamask/profile-sync-controller';
 import type {
   RemoteFeatureFlagControllerGetStateAction,
   RemoteFeatureFlagControllerStateChangeEvent,
@@ -188,7 +188,7 @@ export type SmartTransactionsControllerActions =
   | SmartTransactionsControllerMethodActions;
 
 type AllowedActions =
-  | AuthenticationControllerGetBearerTokenAction
+  | AuthenticationController.AuthenticationControllerGetBearerTokenAction
   | NetworkControllerGetNetworkClientByIdAction
   | NetworkControllerGetStateAction
   | RemoteFeatureFlagControllerGetStateAction
