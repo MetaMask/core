@@ -17,12 +17,6 @@ class CustomTestEnvironment extends TestEnvironment {
     this.global.TextDecoder = TextDecoder;
     this.global.ArrayBuffer = ArrayBuffer;
     this.global.Uint8Array = Uint8Array;
-
-    if (typeof this.global.crypto === 'undefined') {
-      // jest runs in a node environment, so need to polyfil webAPIs
-      // eslint-disable-next-line n/no-unsupported-features/node-builtins
-      this.global.crypto = require('crypto').webcrypto;
-    }
   }
 }
 
