@@ -946,6 +946,16 @@ describe('submitFiatQuotes', () => {
     );
   });
 
+  it('throws if non-direct fiat quote is missing a Relay quote', async () => {
+    const { request } = getRequest({
+      quotes: [getFiatQuoteMock({ includeRelayQuote: false })],
+    });
+
+    await expect(submitFiatQuotes(request)).rejects.toThrow(
+      'Missing Relay quote for fiat submission',
+    );
+  });
+
   it('throws if resolveSourceAmountRaw throws for zero amount', async () => {
     resolveSourceAmountRawMock.mockRejectedValue(
       new Error('Computed fiat order source amount is not positive'),

@@ -22,10 +22,7 @@ import {
 import { getRelayQuotes } from '../relay/relay-quotes';
 import type { RelayQuote } from '../relay/types';
 import type { TransactionPayFiatAsset } from './constants';
-import {
-  DEFAULT_FIAT_CURRENCY,
-  MUSD_MONAD_FIAT_ASSET,
-} from './constants';
+import { DEFAULT_FIAT_CURRENCY, MUSD_MONAD_FIAT_ASSET } from './constants';
 import { getFiatQuotes } from './fiat-quotes';
 import {
   deriveFiatAssetForFiatPayment,

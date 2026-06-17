@@ -1,5 +1,5 @@
-import type { Quote as RampsQuote } from '@metamask/ramps-controller';
 import { ORIGIN_METAMASK } from '@metamask/controller-utils';
+import type { Quote as RampsQuote } from '@metamask/ramps-controller';
 import { TransactionType } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 import { createModuleLogger } from '@metamask/utils';

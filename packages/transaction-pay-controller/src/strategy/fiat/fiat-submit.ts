@@ -271,10 +271,6 @@ async function submitRelayAfterFiatCompletion({
   const { messenger, quotes, transaction } = request;
   const transactionId = transaction.id;
 
-  if (!quotes.length) {
-    throw new Error('Missing fiat quote for relay submission');
-  }
-
   if (quotes.length > 1) {
     throw new Error('Multiple fiat quotes are not supported for submission');
   }

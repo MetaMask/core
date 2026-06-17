@@ -268,4 +268,64 @@ describe('fundFiatOrderFromTestSource', () => {
 
     expect(addTransactionMock).not.toHaveBeenCalled();
   });
+
+  it('throws if test funding source is missing', async () => {
+    const { messenger } = getMessengerMock();
+
+    await expect(
+      fundFiatOrderFromTestSource({
+        fiat: { testAmountOverride: '0.1' },
+        messenger,
+        quote: getFiatQuoteMock(),
+        transaction: TRANSACTION_MOCK,
+      }),
+    ).rejects.toThrow('Missing fiat test funding source');
+  });
+
+  it('throws if fiat asset token info cannot be resolved', async () => {
+    const { messenger } = getMessengerMock();
+
+    getTokenInfoMock.mockReturnValue(undefined);
+
+    await expect(
+      fundFiatOrderFromTestSource({
+        fiat: getFiatTestOptions(),
+        messenger,
+        quote: getFiatQuoteMock(),
+        transaction: TRANSACTION_MOCK,
+      }),
+    ).rejects.toThrow('Unable to resolve fiat test funding token info');
+  });
+
+  it('throws if direct mUSD transaction is missing a Money Account address', async () => {
+    const { messenger } = getMessengerMock();
+
+    await expect(
+      fundFiatOrderFromTestSource({
+        fiat: getFiatTestOptions(),
+        messenger,
+        quote: getFiatQuoteMock({ isDirectMusdMoneyAccount: true }),
+        transaction: { ...TRANSACTION_MOCK, txParams: {} } as TransactionMeta,
+      }),
+    ).rejects.toThrow('Missing Money Account address for fiat test funding');
+  });
+
+  it('throws if test funding source has insufficient native gas', async () => {
+    getLiveTokenBalanceMock.mockReset();
+    getLiveTokenBalanceMock
+      .mockResolvedValueOnce('12340000')
+      .mockResolvedValueOnce('0');
+    const { addTransactionMock, messenger } = getMessengerMock();
+
+    await expect(
+      fundFiatOrderFromTestSource({
+        fiat: getFiatTestOptions(),
+        messenger,
+        quote: getFiatQuoteMock(),
+        transaction: TRANSACTION_MOCK,
+      }),
+    ).rejects.toThrow('Fiat test funding source has insufficient native gas');
+
+    expect(addTransactionMock).not.toHaveBeenCalled();
+  });
 });

@@ -20,10 +20,7 @@ import {
   updateTransaction,
   waitForTransactionConfirmed,
 } from '../../utils/transaction';
-import {
-  DEFAULT_FIAT_CURRENCY,
-  MUSD_MONAD_FIAT_ASSET,
-} from './constants';
+import { DEFAULT_FIAT_CURRENCY, MUSD_MONAD_FIAT_ASSET } from './constants';
 import {
   getDirectMusdFiatQuote,
   isDirectMusdMoneyAccountQuote,
@@ -92,37 +89,41 @@ function getQuotesMessenger({
   callMock: jest.Mock;
   messenger: PayStrategyGetQuotesRequest['messenger'];
 } {
-  const callMock = jest.fn((action: string, request?: Record<string, unknown>) => {
-    if (action === 'RampsController:getQuotes') {
-      if (quoteError) {
-        throw quoteError;
+  const callMock = jest.fn(
+    (action: string, request?: Record<string, unknown>) => {
+      if (action === 'RampsController:getQuotes') {
+        if (quoteError) {
+          throw quoteError;
+        }
+
+        return {
+          customActions: [],
+          error: [],
+          sorted: [],
+          success: quotes,
+        };
       }
 
-      return {
-        customActions: [],
-        error: [],
-        sorted: [],
-        success: quotes,
-      };
-    }
+      if (action === 'TransactionPayController:updateFiatPayment') {
+        const { callback } = request as unknown as {
+          callback: (fiatPayment: TransactionFiatPayment) => void;
+        };
+        const fiatPayment: TransactionFiatPayment = {};
 
-    if (action === 'TransactionPayController:updateFiatPayment') {
-      const { callback } = request as unknown as {
-        callback: (fiatPayment: TransactionFiatPayment) => void;
-      };
-      const fiatPayment: TransactionFiatPayment = {};
+        callback(fiatPayment);
 
-      callback(fiatPayment);
+        return undefined;
+      }
 
-      return undefined;
-    }
-
-    throw new Error(`Unexpected action: ${action}`);
-  });
+      throw new Error(`Unexpected action: ${action}`);
+    },
+  );
 
   return {
     callMock,
-    messenger: { call: callMock } as unknown as PayStrategyGetQuotesRequest['messenger'],
+    messenger: {
+      call: callMock,
+    } as unknown as PayStrategyGetQuotesRequest['messenger'],
   };
 }
 
@@ -132,7 +133,9 @@ function getExecuteRequest({
   return {
     accountSupports7702: true,
     isSmartTransaction: () => false,
-    messenger: { call: callMock } as unknown as PayStrategyExecuteRequest<FiatQuote>['messenger'],
+    messenger: {
+      call: callMock,
+    } as unknown as PayStrategyExecuteRequest<FiatQuote>['messenger'],
     quotes: [],
     transaction: TRANSACTION_MOCK,
   };
@@ -191,7 +194,9 @@ describe('fiat-direct-musd', () => {
     it('returns false when quote is missing or unmarked', () => {
       expect(isDirectMusdMoneyAccountQuote(undefined)).toBe(false);
       expect(
-        isDirectMusdMoneyAccountQuote({ request: {} } as TransactionPayQuote<unknown>),
+        isDirectMusdMoneyAccountQuote({
+          request: {},
+        } as TransactionPayQuote<unknown>),
       ).toBe(false);
     });
   });
@@ -284,10 +289,64 @@ describe('fiat-direct-musd', () => {
       expect(result).toBeUndefined();
       expect(callMock).toHaveBeenCalledTimes(1);
     });
+
+    it('returns undefined when mUSD token info cannot be resolved', async () => {
+      const { messenger } = getQuotesMessenger();
+
+      getTokenInfoMock.mockReturnValue(undefined);
+
+      const result = await getDirectMusdFiatQuote({
+        amountFiat: '10',
+        fiatPaymentMethod: '/payments/debit-credit-card',
+        messenger,
+        moneyAccountAddress: MONEY_ACCOUNT_ADDRESS_MOCK,
+        requiredToken: REQUIRED_TOKEN_MOCK,
+        transactionId: TRANSACTION_ID_MOCK,
+      });
+
+      expect(result).toBeUndefined();
+    });
+
+    it('sets provider fees to zero when ramps provider fees are missing', async () => {
+      const quoteWithoutFees: RampsQuote = {
+        provider: '/providers/transak-native-staging',
+        quote: {
+          amountIn: 10,
+          amountOut: 5,
+          paymentMethod: '/payments/debit-credit-card',
+        },
+      };
+      const { messenger } = getQuotesMessenger({ quotes: [quoteWithoutFees] });
+
+      const result = await getDirectMusdFiatQuote({
+        amountFiat: '10',
+        fiatPaymentMethod: '/payments/debit-credit-card',
+        messenger,
+        moneyAccountAddress: MONEY_ACCOUNT_ADDRESS_MOCK,
+        requiredToken: REQUIRED_TOKEN_MOCK,
+        transactionId: TRANSACTION_ID_MOCK,
+      });
+
+      expect(result?.fees.provider).toStrictEqual({ fiat: '0', usd: '0' });
+      expect(result?.fees.providerFiat).toStrictEqual({
+        fiat: '0',
+        usd: '0',
+      });
+    });
   });
 
   describe('submitDirectMusdVaultDeposit', () => {
     it('submits a sponsored Money Account vault batch with refreshed calldata', async () => {
+      updateTransactionMock.mockImplementation((_request, callback) => {
+        callback({
+          ...TRANSACTION_MOCK,
+          nestedTransactions: TRANSACTION_MOCK.nestedTransactions?.map(
+            (nestedTransaction) => ({ ...nestedTransaction }),
+          ),
+          requiredAssets: [{ amount: '0x0' }],
+        } as TransactionMeta);
+      });
+
       const callMock = jest.fn((action: string) => {
         if (action === 'TransactionPayController:getAmountData') {
           return Promise.resolve({
@@ -359,6 +418,52 @@ describe('fiat-direct-musd', () => {
         expect.anything(),
       );
       expect(result).toStrictEqual({ transactionHash: '0xdirect' });
+    });
+
+    it('throws when getAmountData returns no updates', async () => {
+      const callMock = jest.fn((action: string) => {
+        if (action === 'TransactionPayController:getAmountData') {
+          return Promise.resolve({ updates: [] });
+        }
+
+        throw new Error(`Unexpected action: ${action}`);
+      });
+
+      await expect(
+        submitDirectMusdVaultDeposit({
+          request: getExecuteRequest({ callMock }),
+          sourceAmountRaw: '5000000',
+          transaction: TRANSACTION_MOCK,
+        }),
+      ).rejects.toThrow(
+        'getAmountData returned no updates for direct mUSD submit',
+      );
+    });
+
+    it('throws when nested transactions are missing', async () => {
+      const transaction = {
+        ...TRANSACTION_MOCK,
+        nestedTransactions: undefined,
+      } as TransactionMeta;
+      const callMock = jest.fn((action: string) => {
+        if (action === 'TransactionPayController:getAmountData') {
+          return Promise.resolve({
+            updates: [{ data: '0xnewApprove', nestedTransactionIndex: 0 }],
+          });
+        }
+
+        throw new Error(`Unexpected action: ${action}`);
+      });
+
+      getTransactionMock.mockReturnValue(transaction);
+
+      await expect(
+        submitDirectMusdVaultDeposit({
+          request: getExecuteRequest({ callMock }),
+          sourceAmountRaw: '5000000',
+          transaction,
+        }),
+      ).rejects.toThrow('Missing nested transactions for direct mUSD submit');
     });
 
     it('skips the vault batch when vaultDisabled is enabled', async () => {

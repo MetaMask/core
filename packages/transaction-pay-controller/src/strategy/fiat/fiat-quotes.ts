@@ -59,7 +59,11 @@ export async function getFiatQuotes(
   const amountFiat = transactionData?.fiatPayment?.amountFiat;
   const requiredTokens = transactionData?.tokens ?? [];
 
-  if (!amountFiat || !request.fiatPaymentMethod || requiredTokens.length !== 1) {
+  if (
+    !amountFiat ||
+    !request.fiatPaymentMethod ||
+    requiredTokens.length !== 1
+  ) {
     return [];
   }
 
@@ -103,10 +107,6 @@ async function executeFiatQuotePipeline(
   } = request;
   const { amountFiat, fiatAsset, rampsWalletAddress, requiredTokens } = options;
   const transactionId = transaction.id;
-
-  if (!fiatPaymentMethod) {
-    return [];
-  }
 
   try {
     const requiredToken = requiredTokens[0];

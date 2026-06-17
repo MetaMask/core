@@ -397,6 +397,21 @@ describe('submitWithCalldataReEncoding', () => {
     );
   });
 
+  it('throws when the original fiat quote is missing a relay quote', async () => {
+    const fiatQuote = buildFiatQuote();
+    fiatQuote.original.relayQuote = undefined;
+    const request = buildRequest({ quotes: [fiatQuote] });
+
+    await expect(
+      submitWithTransactionData({
+        baseRequest: BASE_QUOTE_REQUEST_MOCK,
+        request,
+        sourceAmountRaw: '1000000000000000000',
+        transaction: TRANSACTION_MOCK,
+      }),
+    ).rejects.toThrow('Missing Relay quote for fiat submission');
+  });
+
   it('falls back to original transaction when getTransaction returns undefined', async () => {
     getTransactionMock.mockReturnValue(undefined);
     const request = buildRequest();

@@ -570,8 +570,7 @@ describe('TransactionPayController', () => {
   describe('getFiatOptions', () => {
     it('returns configured fiat options', () => {
       const fiatOptions = {
-        testFundingSource:
-          '0x1111111111111111111111111111111111111111' as Hex,
+        testFundingSource: '0x1111111111111111111111111111111111111111' as Hex,
         testAmountOverride: '0.1',
       };
 
