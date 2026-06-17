@@ -169,7 +169,7 @@ describe('keyword matching (Terminal API metadata)', () => {
     ];
 
     const result = rankMarketsByQuery(markets, 'gold').map(
-      (m) => m.symbol,
+      (market) => market.symbol,
     );
     expect(result).toContain('BTC');
     expect(result).toContain('xyz:GOLD');

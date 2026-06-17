@@ -66,13 +66,13 @@ describe('TerminalMarketService', () => {
       );
 
       expect(markets).toHaveLength(3);
-      expect(markets[0]).toEqual({
+      expect(markets[0]).toStrictEqual({
         name: 'BTC',
         szDecimals: 5,
         maxLeverage: 50,
         marginTableId: 0,
       });
-      expect(markets[2]).toEqual({
+      expect(markets[2]).toStrictEqual({
         name: 'xyz:TSLA',
         szDecimals: 2,
         maxLeverage: 5,
@@ -81,18 +81,18 @@ describe('TerminalMarketService', () => {
       });
 
       expect(metadata.size).toBe(3);
-      expect(metadata.get('BTC')).toEqual({
+      expect(metadata.get('BTC')).toStrictEqual({
         name: 'Bitcoin',
         keywords: ['crypto', 'layer-1'],
         tags: ['top-10'],
         categories: ['crypto'],
         marketType: 'crypto',
       });
-      expect(metadata.get('ETH')).toEqual({
+      expect(metadata.get('ETH')).toStrictEqual({
         name: 'Ethereum',
         keywords: ['defi', 'layer-1'],
       });
-      expect(metadata.get('xyz:TSLA')).toEqual({
+      expect(metadata.get('xyz:TSLA')).toStrictEqual({
         name: 'Tesla',
         marketType: 'stock',
         tags: ['us-equities'],
@@ -248,7 +248,7 @@ describe('TerminalMarketService', () => {
       const { markets, metadata } = await service.fetchMarkets();
 
       expect(markets).toHaveLength(1);
-      expect(markets[0]).toEqual({
+      expect(markets[0]).toStrictEqual({
         name: 'BTC',
         szDecimals: 5,
         maxLeverage: 50,
@@ -288,7 +288,7 @@ describe('TerminalMarketService', () => {
 
       const { markets } = await service.fetchMarkets();
 
-      expect(markets[0]).toEqual({
+      expect(markets[0]).toStrictEqual({
         name: 'FOO',
         szDecimals: 0,
         maxLeverage: 1,
@@ -359,12 +359,9 @@ describe('TerminalMarketService', () => {
       await service.fetchMarkets();
 
       // Advance time past TTL (5 minutes)
-      const realDateNow = Date.now;
-      Date.now = () => realDateNow() + 6 * 60 * 1000;
+      jest.spyOn(Date, 'now').mockReturnValue(Date.now() + 6 * 60 * 1000);
 
       await service.fetchMarkets();
-
-      Date.now = realDateNow;
 
       expect(fetchSpy).toHaveBeenCalledTimes(2);
     });

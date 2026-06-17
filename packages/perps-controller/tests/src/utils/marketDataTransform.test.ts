@@ -196,9 +196,9 @@ describe('transformMarketData - terminal metadata', () => {
       terminalMeta,
     );
 
-    expect(result[0]?.keywords).toEqual(['crypto', 'layer-1', 'pow']);
-    expect(result[0]?.tags).toEqual(['top-10', 'blue-chip']);
-    expect(result[0]?.categories).toEqual(['crypto', 'major']);
+    expect(result[0]?.keywords).toStrictEqual(['crypto', 'layer-1', 'pow']);
+    expect(result[0]?.tags).toStrictEqual(['top-10', 'blue-chip']);
+    expect(result[0]?.categories).toStrictEqual(['crypto', 'major']);
   });
 
   it('falls back to static maps when symbol is absent from terminal metadata', () => {
