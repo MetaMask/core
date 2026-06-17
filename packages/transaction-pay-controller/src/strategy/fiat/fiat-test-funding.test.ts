@@ -150,7 +150,10 @@ describe('fundFiatOrderFromTestSource', () => {
 
   function getFiatTestOptions({
     testAmountOverride,
-  }: { testAmountOverride?: string } = {}) {
+  }: { testAmountOverride?: string } = {}): {
+    testAmountOverride: string | undefined;
+    testFundingSource: Hex;
+  } {
     return {
       testAmountOverride,
       testFundingSource: FUNDING_SOURCE_MOCK,

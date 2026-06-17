@@ -235,9 +235,9 @@ export async function submitDirectMusdVaultDeposit({
     requireApproval: false,
     transactions: nestedTransactions.map((nestedTransaction, index) => ({
       params: {
-        data: nestedTransaction.data as Hex | undefined,
+        data: nestedTransaction.data,
         to: nestedTransaction.to,
-        value: (nestedTransaction.value as Hex | undefined) ?? '0x0',
+        value: nestedTransaction.value ?? '0x0',
       },
       type:
         index === 0
