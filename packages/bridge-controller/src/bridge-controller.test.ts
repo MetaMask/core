@@ -3044,6 +3044,17 @@ describe('BridgeController', function () {
             location: MetaMetricsSwapsEventSource.MainView,
             previous_primary_denomination: 'token_amount',
             new_primary_denomination: 'fiat_value',
+            token_symbol_source: 'ETH',
+            token_symbol_destination: 'USDC',
+            chain_id_source: formatChainIdToCaip(ChainId.ETH),
+            chain_id_destination: formatChainIdToCaip(ChainId.ETH),
+            token_address_source: formatAddressToAssetId('', ChainId.ETH),
+            token_address_destination: formatAddressToAssetId(
+              ETH_USDT_ADDRESS,
+              ChainId.ETH,
+            ),
+            token_security_type_destination: null,
+            swap_type: MetricsSwapType.SINGLE,
             feature_id: FeatureId.QUICK_BUY_FOLLOW_TRADING,
           },
         );

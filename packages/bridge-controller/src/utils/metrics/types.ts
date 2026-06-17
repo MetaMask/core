@@ -139,6 +139,12 @@ type RequiredEventContextFromClientBase = {
     token_symbol_destination: string | null;
     previous_primary_denomination: InputPrimaryDenomination;
     new_primary_denomination: InputPrimaryDenomination;
+    chain_id_source?: RequestParams['chain_id_source'];
+    chain_id_destination?: RequestParams['chain_id_destination'];
+    token_address_source?: RequestParams['token_address_source'];
+    token_address_destination?: RequestParams['token_address_destination'];
+    token_security_type_destination?: RequestParams['token_security_type_destination'];
+    swap_type?: RequestMetadata['swap_type'];
   };
   [UnifiedSwapBridgeEventName.InputSourceDestinationSwitched]: {
     token_symbol_source: RequestParams['token_symbol_source'];
