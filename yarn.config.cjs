@@ -176,11 +176,16 @@ module.exports = defineConfig({
         );
 
         // All non-root packages must have the same "test" script.
-        expectWorkspaceField(
-          workspace,
-          'scripts.test',
-          'NODE_OPTIONS=--experimental-vm-modules jest --reporters=jest-silent-reporter',
-        );
+        // @metamask/wallet-cli prepends a better-sqlite3 prebuild fetch to its
+        // "test" script because the native addon isn't built during
+        // `yarn install` (Yarn runs with `enableScripts: false`).
+        if (workspace.ident !== '@metamask/wallet-cli') {
+          expectWorkspaceField(
+            workspace,
+            'scripts.test',
+            'NODE_OPTIONS=--experimental-vm-modules jest --reporters=jest-silent-reporter',
+          );
+        }
 
         // All non-root packages must have the same "test:clean" script.
         expectWorkspaceField(
@@ -262,7 +267,14 @@ module.exports = defineConfig({
       }
 
       // All packages must specify a minimum Node.js version of 18.18.
-      expectWorkspaceField(workspace, 'engines.node', '^18.18 || >=20');
+      // @metamask/wallet-cli depends on `better-sqlite3`, which only ships
+      // prebuilt binaries for Node 20+; bumping its declared minimum keeps the
+      // engines field honest.
+      if (workspace.ident === '@metamask/wallet-cli') {
+        expectWorkspaceField(workspace, 'engines.node', '>=20');
+      } else {
+        expectWorkspaceField(workspace, 'engines.node', '^18.18 || >=20');
+      }
 
       // All non-root public packages should be published to the NPM registry;
       // all non-root private packages should not.
@@ -534,6 +546,7 @@ async function expectWorkspaceLicense(workspace) {
       '@metamask/permission-log-controller',
       '@metamask/eth-json-rpc-middleware',
       '@metamask/eth-json-rpc-provider',
+      '@metamask/smart-transactions-controller',
     ].includes(workspace.manifest.name)
   ) {
     expectWorkspaceField(workspace, 'license');

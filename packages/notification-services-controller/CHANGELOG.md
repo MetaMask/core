@@ -13,8 +13,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add `getNotificationSubtype` helper that derives a normalised `notification_subtype` from an `INotification`, so both clients pull the subtype from one place. ([#8944](https://github.com/MetaMask/core/pull/8944))
 - Add a `notification_subtype` field to the generated platform notification schema (`PlatformNotification`), surfaced via `getNotificationSubtype` so platform notifications report their server-set subtype (e.g. `position_liquidated`) instead of the generic `platform` label. ([#8944](https://github.com/MetaMask/core/pull/8944))
 - Export `toPushAnalyticsPayload` from `@metamask/notification-services-controller/push-services` so web and mobile clients can parse FCM analytics fields from a shared helper. ([#8944](https://github.com/MetaMask/core/pull/8944))
+- Add `DEFAULT_AGENTIC_CLI_PREFERENCES` and initialize `agenticCli` when building fresh notification preferences via `NotificationServicesController` ([#8933](https://github.com/MetaMask/core/pull/8933))
+  - Re-export `DEFAULT_AGENTIC_CLI_PREFERENCES` from `@metamask/authenticated-user-storage`.
 
 ### Changed
+
+- Agentic CLI notification delivery is gated by the Agentic backend using AUS `agenticCli` preferences; `NotificationServicesController` does not filter Agentic CLI notifications at fetch time (same as `perps` and `socialAI`) ([#8933](https://github.com/MetaMask/core/pull/8933))
 
 - Bump `@metamask/utils` from `^11.9.0` to `^11.11.0` ([#9074](https://github.com/MetaMask/core/pull/9074))
 - Bump `@metamask/controller-utils` from `^12.1.1` to `^12.2.0` ([#9083](https://github.com/MetaMask/core/pull/9083))

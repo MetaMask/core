@@ -6,6 +6,7 @@ import type {
   SocialAIPreference,
   WalletActivityAccount,
 } from '@metamask/authenticated-user-storage';
+import { DEFAULT_AGENTIC_CLI_PREFERENCES } from '@metamask/authenticated-user-storage';
 import type {
   ControllerGetStateAction,
   ControllerStateChangeEvent,
@@ -244,6 +245,8 @@ export const DEFAULT_SOCIAL_AI_PREFERENCES: Required<SocialAIPreference> = {
   mutedTraderProfileIds: [],
 };
 
+export { DEFAULT_AGENTIC_CLI_PREFERENCES } from '@metamask/authenticated-user-storage';
+
 /**
  * Builds wallet-activity preferences from the keyring's current accounts.
  *
@@ -301,8 +304,8 @@ const buildWalletActivityAccountsFromTriggerConfig = async (
 
 /**
  * Builds a fresh `NotificationPreferences` blob using hardcoded defaults for
- * Perps and Social AI, the supplied wallet-activity accounts and the user's
- * marketing/product-announcement flags.
+ * Perps, Social AI, and Agentic CLI, the supplied wallet-activity accounts and
+ * the user's marketing/product-announcement flags.
  *
  * @param walletActivityAccounts - The wallet-activity account config to initialize.
  * @param hasMarketingConsent - Whether marketing push notifications should be enabled.
@@ -325,6 +328,7 @@ const buildFreshPreferences = (
   },
   perps: { ...DEFAULT_PERPS_PREFERENCES },
   socialAI: { ...DEFAULT_SOCIAL_AI_PREFERENCES },
+  agenticCli: { ...DEFAULT_AGENTIC_CLI_PREFERENCES },
 });
 
 const MESSENGER_EXPOSED_METHODS = [

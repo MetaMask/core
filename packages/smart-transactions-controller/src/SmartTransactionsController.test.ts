@@ -26,6 +26,7 @@ import type { Hex } from '@metamask/utils';
 import nock from 'nock';
 
 import packageJson from '../package.json';
+import { advanceTime, flushPromises, getFakeProvider } from '../tests/helpers';
 import {
   API_BASE_URL,
   SENTINEL_API_BASE_URL_MAP,
@@ -40,7 +41,6 @@ import type { SmartTransactionsControllerMessenger } from './SmartTransactionsCo
 import type { SmartTransaction, UnsignedTransaction } from './types';
 import { SmartTransactionStatuses, ClientId } from './types';
 import * as utils from './utils';
-import { advanceTime, flushPromises, getFakeProvider } from '../tests/helpers';
 
 type AllActions = MessengerActions<SmartTransactionsControllerMessenger>;
 
