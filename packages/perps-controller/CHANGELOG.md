@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add Terminal API integration for market data behind `perpsTerminalApiMarkets` feature flag ([#TBD](https://github.com/MetaMask/core/pull/TBD))
+- Add Terminal API integration for market data behind `perpsTerminalApiMarkets` feature flag ([#9137](https://github.com/MetaMask/core/pull/9137))
   - `TerminalMarketService` fetches structured market metadata from `{terminalApiBaseUrl}/perpetuals` with a 5-minute cache TTL.
   - When enabled, `getMarkets()` attempts the Terminal API first; on failure or empty response, falls back silently to HyperLiquid.
   - `getMarketDataWithPrices()` enriches provider data with Terminal API metadata (name, keywords, tags, categories).
@@ -21,7 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Replace unsafe `as` type cast with runtime schema validation (`@metamask/superstruct`) in `TerminalMarketService` ([#TBD](https://github.com/MetaMask/core/pull/TBD))
+- Replace unsafe `as` type cast with runtime schema validation (`@metamask/superstruct`) in `TerminalMarketService` ([#9137](https://github.com/MetaMask/core/pull/9137))
   - Each item in the Terminal API response is now individually validated; items that fail validation are filtered out and logged instead of silently accepted.
 - Bump `@metamask/utils` from `^11.9.0` to `^11.11.0` ([#9074](https://github.com/MetaMask/core/pull/9074))
 
