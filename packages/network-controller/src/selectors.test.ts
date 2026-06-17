@@ -26,7 +26,7 @@ describe('getIsRpcFailoverForced', () => {
     expect(getIsRpcFailoverForced(state as never)).toBe(false);
   });
 
-  it('returns false when the flag is a non-boolean value', () => {
+  it('passes through non-boolean values without coercion', () => {
     const state = {
       remoteFeatureFlags: {
         'wallet-framework-rpc-failover-force-enabled': 'yes',
