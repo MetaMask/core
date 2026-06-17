@@ -35,6 +35,7 @@ const log = createModuleLogger(projectLogger, 'fiat-strategy');
 type FiatQuotePipelineOptions = {
   amountFiat: string;
   fiatAsset: TransactionPayFiatAsset;
+  fiatPaymentMethod: string;
   rampsWalletAddress: Hex;
   requiredTokens: TransactionPayRequiredToken[];
 };
@@ -89,6 +90,7 @@ export async function getFiatQuotes(
   return executeFiatQuotePipeline(request, {
     amountFiat,
     fiatAsset: deriveFiatAssetForFiatPayment(transaction, messenger),
+    fiatPaymentMethod: request.fiatPaymentMethod,
     rampsWalletAddress: request.from,
     requiredTokens,
   });
@@ -100,12 +102,17 @@ async function executeFiatQuotePipeline(
 ): Promise<TransactionPayQuote<FiatQuote>[]> {
   const {
     accountSupports7702,
-    fiatPaymentMethod,
     from: walletAddress,
     messenger,
     transaction,
   } = request;
-  const { amountFiat, fiatAsset, rampsWalletAddress, requiredTokens } = options;
+  const {
+    amountFiat,
+    fiatAsset,
+    fiatPaymentMethod,
+    rampsWalletAddress,
+    requiredTokens,
+  } = options;
   const transactionId = transaction.id;
 
   try {
