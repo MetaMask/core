@@ -21,12 +21,12 @@ import {
 } from '../../utils/token';
 import { getRelayQuotes } from '../relay/relay-quotes';
 import type { RelayQuote } from '../relay/types';
-import { DEFAULT_FIAT_CURRENCY } from './constants';
 import type { TransactionPayFiatAsset } from './constants';
 import { getDirectMusdFiatQuote } from './fiat-direct-musd';
 import type { FiatQuote } from './types';
 import {
   deriveFiatAssetForFiatPayment,
+  getRampsQuote,
   isMoneyAccountDepositTransaction,
 } from './utils';
 
@@ -216,42 +216,6 @@ async function executeFiatQuotePipeline(
   }
 
   return [];
-}
-
-async function getRampsQuote({
-  adjustedAmount,
-  fiatAsset,
-  fiatPaymentMethod,
-  messenger,
-  walletAddress,
-}: {
-  adjustedAmount: number;
-  fiatAsset: TransactionPayFiatAsset;
-  fiatPaymentMethod: string;
-  messenger: PayStrategyGetQuotesRequest['messenger'];
-  walletAddress: string;
-}): Promise<RampsQuote> {
-  const quotes = await messenger.call('RampsController:getQuotes', {
-    amount: adjustedAmount,
-    assetId: buildCaipAssetType(fiatAsset.chainId, fiatAsset.address),
-    autoSelectProvider: true,
-    fiat: DEFAULT_FIAT_CURRENCY,
-    paymentMethods: [fiatPaymentMethod],
-    restrictToKnownOrNativeProviders: true,
-    walletAddress,
-  });
-
-  log('Fetched ramps quotes', {
-    quotesCount: quotes.success?.length ?? 0,
-  });
-
-  const quote = quotes.success?.[0];
-
-  if (!quote) {
-    throw new Error('No matching ramps quote found for selected provider');
-  }
-
-  return quote;
 }
 
 function buildRelayRequestFromAmountFiat({

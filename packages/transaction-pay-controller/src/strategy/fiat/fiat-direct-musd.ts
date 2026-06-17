@@ -23,9 +23,12 @@ import {
   updateTransaction,
   waitForTransactionConfirmed,
 } from '../../utils/transaction';
-import { DEFAULT_FIAT_CURRENCY, MUSD_MONAD_FIAT_ASSET } from './constants';
+import { MUSD_MONAD_FIAT_ASSET } from './constants';
 import type { FiatQuote } from './types';
-import { getRawSourceAmountFromOrderCryptoAmount } from './utils';
+import {
+  getRampsQuote,
+  getRawSourceAmountFromOrderCryptoAmount,
+} from './utils';
 
 const log = createModuleLogger(projectLogger, 'fiat-direct-musd');
 
@@ -65,6 +68,8 @@ export async function getDirectMusdFiatQuote({
 
     const fiatQuote = await getRampsQuote({
       adjustedAmount,
+      errorMessage: 'No matching ramps quote found for direct mUSD provider',
+      fiatAsset: MUSD_MONAD_FIAT_ASSET,
       fiatPaymentMethod,
       messenger,
       walletAddress: moneyAccountAddress,
@@ -274,43 +279,6 @@ export async function submitDirectMusdVaultDeposit({
   });
 
   return { transactionHash: hash as Hex | undefined };
-}
-
-async function getRampsQuote({
-  adjustedAmount,
-  fiatPaymentMethod,
-  messenger,
-  walletAddress,
-}: {
-  adjustedAmount: number;
-  fiatPaymentMethod: string;
-  messenger: PayStrategyGetQuotesRequest['messenger'];
-  walletAddress: string;
-}): Promise<RampsQuote> {
-  const quotes = await messenger.call('RampsController:getQuotes', {
-    amount: adjustedAmount,
-    assetId: buildCaipAssetType(
-      MUSD_MONAD_FIAT_ASSET.chainId,
-      MUSD_MONAD_FIAT_ASSET.address,
-    ),
-    autoSelectProvider: true,
-    fiat: DEFAULT_FIAT_CURRENCY,
-    paymentMethods: [fiatPaymentMethod],
-    restrictToKnownOrNativeProviders: true,
-    walletAddress,
-  });
-
-  log('Fetched direct mUSD ramps quotes', {
-    quotesCount: quotes.success?.length ?? 0,
-  });
-
-  const quote = quotes.success?.[0];
-
-  if (!quote) {
-    throw new Error('No matching ramps quote found for direct mUSD provider');
-  }
-
-  return quote;
 }
 
 function combineDirectMusdFiatQuote({

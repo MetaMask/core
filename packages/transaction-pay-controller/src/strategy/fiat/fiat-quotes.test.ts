@@ -32,7 +32,12 @@ import {
 
 jest.mock('../relay/relay-quotes');
 jest.mock('../../utils/token');
-jest.mock('./utils');
+jest.mock('./utils', () => ({
+  ...jest.requireActual('./utils'),
+  deriveFiatAssetForFiatPayment: jest.fn(),
+  getRawSourceAmountFromOrderCryptoAmount: jest.fn(),
+  isMoneyAccountDepositTransaction: jest.fn(),
+}));
 
 const TRANSACTION_ID = 'tx-id';
 const WALLET_ADDRESS = '0x1111111111111111111111111111111111111111' as Hex;
