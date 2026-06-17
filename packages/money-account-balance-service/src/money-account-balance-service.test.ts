@@ -377,10 +377,11 @@ function mockMoneyAccountBalanceMulticall({
               encodeFunctionData: jest.fn().mockReturnValue('0xcalldata'),
               decodeFunctionResult: jest
                 .fn()
-                .mockImplementation((_functionFragment: string, data: string) =>
-                  data === MUSD_RETURN_DATA
-                    ? [makeMockBN(musdBalance)]
-                    : [makeMockBN(vmusdValueInMusd)],
+                .mockImplementation(
+                  (_functionFragment: string, data: string) =>
+                    data === MUSD_RETURN_DATA
+                      ? [makeMockBN(musdBalance)]
+                      : [makeMockBN(vmusdValueInMusd)],
                 ),
             },
           }) as unknown as Contract,
@@ -820,6 +821,29 @@ describe('MoneyAccountBalanceService', () => {
         'client-at-index-0',
       );
     });
+
+    it('reads the ERC-20 balance at the pending block tag', async () => {
+      const mockBalanceOf = jest
+        .fn()
+        .mockResolvedValue({ toString: () => '5000000' });
+      MockContract.mockImplementation(
+        () => ({ balanceOf: mockBalanceOf }) as unknown as Contract,
+      );
+      const { service } = createService({
+        rffcFlags: {
+          [VAULT_CONFIG_FEATURE_FLAG_KEY]: {
+            ...MOCK_VAULT_CONFIG,
+            underlyingToken: MOCK_UNDERLYING_TOKEN_ADDRESS,
+          },
+        },
+      });
+
+      await service.getMusdBalance(MOCK_ACCOUNT_ADDRESS);
+
+      expect(mockBalanceOf).toHaveBeenCalledWith(MOCK_ACCOUNT_ADDRESS, {
+        blockTag: 'pending',
+      });
+    });
   });
 
   // ----------------------------------------------------------
@@ -1011,6 +1035,7 @@ describe('MoneyAccountBalanceService', () => {
         MOCK_ACCOUNT_ADDRESS,
         MOCK_VAULT_ADDRESS,
         MOCK_ACCOUNTANT_ADDRESS,
+        { blockTag: 'pending' },
       );
     });
 
@@ -1139,17 +1164,21 @@ describe('MoneyAccountBalanceService', () => {
 
       await service.getMoneyAccountBalance(MOCK_ACCOUNT_ADDRESS);
 
-      // A single batched request containing exactly the two balance reads.
-      expect(aggregate3).toHaveBeenCalledWith([
-        expect.objectContaining({
-          target: MOCK_UNDERLYING_TOKEN_ADDRESS,
-          allowFailure: false,
-        }),
-        expect.objectContaining({
-          target: MOCK_LENS_ADDRESS,
-          allowFailure: false,
-        }),
-      ]);
+      // A single batched request containing exactly the two balance reads,
+      // read at the pending block tag.
+      expect(aggregate3).toHaveBeenCalledWith(
+        [
+          expect.objectContaining({
+            target: MOCK_UNDERLYING_TOKEN_ADDRESS,
+            allowFailure: false,
+          }),
+          expect.objectContaining({
+            target: MOCK_LENS_ADDRESS,
+            allowFailure: false,
+          }),
+        ],
+        { blockTag: 'pending' },
+      );
       // The Multicall3 contract is instantiated at the canonical address.
       expect(MockContract).toHaveBeenCalledWith(
         MULTICALL3_ADDRESS_BY_CHAIN_ID[MOCK_VAULT_CONFIG.chainId],
@@ -1180,10 +1209,13 @@ describe('MoneyAccountBalanceService', () => {
         expect.anything(),
       );
       // ...and the resolved underlying token is used as the mUSD read target.
-      expect(aggregate3).toHaveBeenCalledWith([
-        expect.objectContaining({ target: MOCK_UNDERLYING_TOKEN_ADDRESS }),
-        expect.objectContaining({ target: MOCK_LENS_ADDRESS }),
-      ]);
+      expect(aggregate3).toHaveBeenCalledWith(
+        [
+          expect.objectContaining({ target: MOCK_UNDERLYING_TOKEN_ADDRESS }),
+          expect.objectContaining({ target: MOCK_LENS_ADDRESS }),
+        ],
+        { blockTag: 'pending' },
+      );
     });
 
     it('is also callable via the messenger action', async () => {
