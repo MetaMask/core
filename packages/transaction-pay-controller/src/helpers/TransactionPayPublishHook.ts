@@ -6,7 +6,6 @@ import { createModuleLogger } from '@metamask/utils';
 
 import { projectLogger } from '../logger';
 import type {
-  TransactionPayFiatOptions,
   TransactionPayControllerMessenger,
   TransactionPayQuote,
 } from '../types';
@@ -21,22 +20,17 @@ const EMPTY_RESULT = {
 };
 
 export class TransactionPayPublishHook {
-  readonly #fiat?: TransactionPayFiatOptions;
-
   readonly #isSmartTransaction: (chainId: Hex) => boolean;
 
   readonly #messenger: TransactionPayControllerMessenger;
 
   constructor({
-    fiat,
     isSmartTransaction,
     messenger,
   }: {
-    fiat?: TransactionPayFiatOptions;
     isSmartTransaction: (chainId: Hex) => boolean;
     messenger: TransactionPayControllerMessenger;
   }) {
-    this.#fiat = fiat;
     this.#isSmartTransaction = isSmartTransaction;
     this.#messenger = messenger;
   }
@@ -93,7 +87,7 @@ export class TransactionPayPublishHook {
 
     return await strategy.execute({
       accountSupports7702: accountSupports7702(this.#messenger, from),
-      fiat: this.#fiat,
+      fiat: this.#messenger.call('TransactionPayController:getFiatOptions'),
       isSmartTransaction: this.#isSmartTransaction,
       quotes,
       messenger: this.#messenger,

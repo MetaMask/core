@@ -1615,6 +1615,7 @@ describe('Relay Submit Utils', () => {
     describe('EIP-7702 execute path', () => {
       const DELEGATION_MANAGER_MOCK = '0xdelegationManager' as Hex;
       const DELEGATION_DATA_MOCK = '0xdelegationdata' as Hex;
+
       const DELEGATION_RESULT_MOCK = {
         authorizationList: [
           {

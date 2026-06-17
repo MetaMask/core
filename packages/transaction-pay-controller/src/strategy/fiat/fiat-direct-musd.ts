@@ -10,8 +10,8 @@ import { projectLogger } from '../../logger';
 import type {
   PayStrategyExecuteRequest,
   PayStrategyGetQuotesRequest,
-  QuoteRequest,
   TransactionFiatPayment,
+  TransactionPayRequiredToken,
   TransactionPayQuote,
 } from '../../types';
 import { getFiatVaultDisabled } from '../../utils/feature-flags';
@@ -38,33 +38,28 @@ const log = createModuleLogger(projectLogger, 'fiat-direct-musd');
  *
  * @param options - Direct quote options.
  * @param options.amountFiat - Fiat amount entered by the user.
- * @param options.baseRequest - Base quote request built for the mUSD asset.
  * @param options.fiatPaymentMethod - Selected fiat payment method.
  * @param options.messenger - Controller messenger.
  * @param options.moneyAccountAddress - Money Account receiving the on-ramped mUSD.
+ * @param options.requiredToken - Required token from the original Money Account transaction.
  * @param options.transactionId - Transaction ID for state updates and logs.
  * @returns Direct mUSD Fiat quote, or undefined when unavailable.
  */
 export async function getDirectMusdFiatQuote({
   amountFiat,
-  baseRequest,
   fiatPaymentMethod,
   messenger,
   moneyAccountAddress,
+  requiredToken,
   transactionId,
 }: {
   amountFiat: string;
-  baseRequest: QuoteRequest;
   fiatPaymentMethod: string;
   messenger: PayStrategyGetQuotesRequest['messenger'];
   moneyAccountAddress: Hex;
+  requiredToken: TransactionPayRequiredToken;
   transactionId: string;
 }): Promise<TransactionPayQuote<FiatQuote> | undefined> {
-  if (getFiatVaultDisabled(messenger)) {
-    log('Skipping direct mUSD quote as vault is disabled', { transactionId });
-    return undefined;
-  }
-
   const probeOk = await probeMusdFiatAvailability({
     messenger,
     walletAddress: moneyAccountAddress,
@@ -109,11 +104,8 @@ export async function getDirectMusdFiatQuote({
       amountFiat,
       fiatQuote,
       messenger,
-      request: {
-        ...baseRequest,
-        isDirectMusdMoneyAccount: true,
-        recipient: moneyAccountAddress,
-      },
+      moneyAccountAddress,
+      requiredToken,
     });
   } catch (error) {
     log('Direct mUSD fiat quote failed', { error, transactionId });
@@ -160,10 +152,17 @@ export async function submitDirectMusdVaultDeposit({
   }
 
   if (getFiatVaultDisabled(messenger)) {
-    throw new Error('Direct mUSD Money Account vault submit is disabled');
+    log('Skipping direct mUSD vault deposit because vaultDisabled is enabled', {
+      moneyAccountAddress,
+      sourceAmountRaw,
+      transactionId,
+    });
+
+    return { transactionHash: '0x' };
   }
 
-  const updatedTransaction = getTransaction(transactionId, messenger) ?? transaction;
+  const updatedTransaction =
+    getTransaction(transactionId, messenger) ?? transaction;
   const { updates } = await messenger.call(
     'TransactionPayController:getAmountData',
     {
@@ -232,7 +231,7 @@ export async function submitDirectMusdVaultDeposit({
     },
   );
 
-  log('Submitting direct mUSD vault batch', {
+  log('Submitting direct mUSD vault deposit', {
     moneyAccountAddress,
     nestedTransactionCount: nestedTransactions.length,
     networkClientId,
@@ -262,14 +261,27 @@ export async function submitDirectMusdVaultDeposit({
 
   end();
 
+  log('Submitted direct mUSD vault deposit', {
+    moneyAccountAddress,
+    nestedTransactionCount: nestedTransactions.length,
+    networkClientId,
+    sourceAmountRaw,
+    transactionId,
+    transactionIds,
+  });
+
   await Promise.all(
     transactionIds.map((id) => waitForTransactionConfirmed(id, messenger)),
   );
 
   const hash = getTransaction(transactionIds.slice(-1)[0], messenger)?.hash;
 
-  log('Submitted direct mUSD vault deposit', {
+  log('Confirmed direct mUSD vault deposit', {
     hash,
+    moneyAccountAddress,
+    nestedTransactionCount: nestedTransactions.length,
+    networkClientId,
+    sourceAmountRaw,
     transactionId,
     transactionIds,
   });
@@ -318,12 +330,14 @@ function combineDirectMusdFiatQuote({
   amountFiat,
   fiatQuote,
   messenger,
-  request,
+  moneyAccountAddress,
+  requiredToken,
 }: {
   amountFiat: string;
   fiatQuote: RampsQuote;
   messenger: PayStrategyGetQuotesRequest['messenger'];
-  request: QuoteRequest;
+  moneyAccountAddress: Hex;
+  requiredToken: TransactionPayRequiredToken;
 }): TransactionPayQuote<FiatQuote> {
   const tokenInfo = getTokenInfo(
     messenger,
@@ -362,10 +376,16 @@ function combineDirectMusdFiatQuote({
       relayQuote: undefined,
     },
     request: {
-      ...request,
+      from: moneyAccountAddress,
+      isDirectMusdMoneyAccount: true,
+      recipient: moneyAccountAddress,
       sourceBalanceRaw: sourceAmountRaw,
+      sourceChainId: MUSD_MONAD_FIAT_ASSET.chainId,
+      sourceTokenAddress: MUSD_MONAD_FIAT_ASSET.address,
       sourceTokenAmount: sourceAmountRaw,
       targetAmountMinimum: sourceAmountRaw,
+      targetChainId: requiredToken.chainId,
+      targetTokenAddress: requiredToken.address,
     },
     sourceAmount: {
       fiat: amountFiat,

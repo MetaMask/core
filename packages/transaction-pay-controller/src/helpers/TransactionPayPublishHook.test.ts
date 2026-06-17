@@ -37,6 +37,7 @@ describe('TransactionPayPublishHook', () => {
   const {
     messenger,
     getControllerStateMock,
+    getFiatOptionsMock,
     getKeyringControllerStateMock,
     getTransactionControllerStateMock,
     updateTransactionMock,
@@ -103,15 +104,14 @@ describe('TransactionPayPublishHook', () => {
     );
   });
 
-  it('passes fiat test options from constructor to strategy execution', async () => {
-    hook = new TransactionPayPublishHook({
-      fiat: { testFundingSource: FIAT_TEST_FUNDING_SOURCE_MOCK },
-      isSmartTransaction: isSmartTransactionMock,
-      messenger,
+  it('passes fiat test options from messenger action to strategy execution', async () => {
+    getFiatOptionsMock.mockReturnValue({
+      testFundingSource: FIAT_TEST_FUNDING_SOURCE_MOCK,
     });
 
     await runHook();
 
+    expect(getFiatOptionsMock).toHaveBeenCalledTimes(1);
     expect(executeMock).toHaveBeenCalledWith(
       expect.objectContaining({
         fiat: { testFundingSource: FIAT_TEST_FUNDING_SOURCE_MOCK },
@@ -172,6 +172,7 @@ describe('TransactionPayPublishHook', () => {
     await runHook();
 
     expect(updateTransactionMock).not.toHaveBeenCalled();
+    expect(getFiatOptionsMock).not.toHaveBeenCalled();
   });
 
   it('defaults to accountSupports7702 false when keyring not found', async () => {

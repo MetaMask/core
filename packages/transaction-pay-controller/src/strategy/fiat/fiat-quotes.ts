@@ -22,7 +22,6 @@ import {
 import { getRelayQuotes } from '../relay/relay-quotes';
 import type { RelayQuote } from '../relay/types';
 import { DEFAULT_FIAT_CURRENCY } from './constants';
-import { MUSD_MONAD_FIAT_ASSET } from './constants';
 import type { TransactionPayFiatAsset } from './constants';
 import { getDirectMusdFiatQuote } from './fiat-direct-musd';
 import type { FiatQuote } from './types';
@@ -69,29 +68,27 @@ export async function getFiatQuotes(
     getDirectMoneyMusdEnabled(messenger) &&
     isMoneyAccountDepositTransaction(transaction);
 
-  if (useDirectMusd && requiredTokens.length === 1) {
-    const moneyAccountAddress = transaction.txParams.from as Hex;
-    const directBaseRequest = buildRelayRequestFromAmountFiat({
+  if (useDirectMusd) {
+    if (requiredTokens.length > 1) {
+      return executeFiatQuotePipeline(request, {
+        amountFiat,
+        fiatAsset: deriveFiatAssetForFiatPayment(transaction, messenger),
+        rampsWalletAddress: request.from,
+        requiredTokens,
+      });
+    }
+
+    const directQuote = await getDirectMusdFiatQuote({
       amountFiat,
-      fiatAsset: MUSD_MONAD_FIAT_ASSET,
+      fiatPaymentMethod: request.fiatPaymentMethod,
       messenger,
+      moneyAccountAddress: transaction.txParams.from as Hex,
       requiredToken: requiredTokens[0],
-      walletAddress: request.from,
+      transactionId: transaction.id,
     });
 
-    if (directBaseRequest) {
-      const directQuote = await getDirectMusdFiatQuote({
-        amountFiat,
-        baseRequest: directBaseRequest,
-        fiatPaymentMethod: request.fiatPaymentMethod,
-        messenger,
-        moneyAccountAddress,
-        transactionId: transaction.id,
-      });
-
-      if (directQuote) {
-        return [directQuote];
-      }
+    if (directQuote) {
+      return [directQuote];
     }
   }
 

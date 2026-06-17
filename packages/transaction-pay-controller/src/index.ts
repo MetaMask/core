@@ -2,6 +2,7 @@ export type {
   GetAmountDataCallback,
   GetAmountDataRequest,
   GetAmountDataResponse,
+  GetFiatOptionsCallback,
   GetPaymentOverrideDataRequest,
   GetPaymentOverrideDataResponse,
   TransactionConfig,
@@ -29,6 +30,7 @@ export type {
 export type {
   TransactionPayControllerGetAmountDataAction,
   TransactionPayControllerGetDelegationTransactionAction,
+  TransactionPayControllerGetFiatOptionsAction,
   TransactionPayControllerGetStrategyAction,
   TransactionPayControllerPolymarketGetDepositWalletAddressAction,
   TransactionPayControllerPolymarketSubmitDepositWalletBatchAction,

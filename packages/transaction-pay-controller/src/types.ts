@@ -209,6 +209,11 @@ export type GetAmountDataCallback = (
   request: GetAmountDataRequest,
 ) => Promise<GetAmountDataResponse>;
 
+/** Callback to retrieve optional fiat local-QA execution configuration. */
+export type GetFiatOptionsCallback = () =>
+  | TransactionPayFiatOptions
+  | undefined;
+
 /** Callback to update fiat payment state. */
 export type TransactionFiatPaymentCallback = (
   fiatPayment: TransactionFiatPayment,
@@ -250,6 +255,9 @@ export type TransactionPayControllerOptions = {
 
   /** Callback to convert a transaction into a redeem delegation. */
   getDelegationTransaction: GetDelegationTransactionCallback;
+
+  /** Optional callback to retrieve fiat local-QA execution configuration. */
+  getFiatOptions?: GetFiatOptionsCallback;
 
   /**
    * Optional callback invoked during quote execution when `paymentOverride` is defined.

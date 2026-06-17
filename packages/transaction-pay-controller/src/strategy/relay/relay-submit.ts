@@ -184,12 +184,11 @@ async function waitForRelayCompletion(
   quote: RelayQuote,
   messenger: TransactionPayControllerMessenger,
   options: {
-    forcePolling?: boolean;
     onSourceHash?: (hash: Hex) => void;
     tolerateFailure?: boolean;
   },
 ): Promise<RelayCompletionOutcome> {
-  const { forcePolling, onSourceHash, tolerateFailure } = options;
+  const { onSourceHash, tolerateFailure } = options;
 
   const isSameChain =
     quote.details.currencyIn.currency.chainId ===
@@ -198,7 +197,7 @@ async function waitForRelayCompletion(
   const isSingleDepositStep =
     quote.steps.length === 1 && quote.steps[0].id === 'deposit';
 
-  if (isSameChain && !isSingleDepositStep && !forcePolling) {
+  if (isSameChain && !isSingleDepositStep) {
     log('Skipping polling as same chain');
     return { status: 'success', targetHash: FALLBACK_HASH };
   }

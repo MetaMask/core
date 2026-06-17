@@ -1062,6 +1062,67 @@ describe('submitFiatQuotes', () => {
       ).toBe(false);
     });
 
+    it('skips the vault batch and returns an empty hash when vaultDisabled is enabled', async () => {
+      const { callMock, request } = getRequest({
+        quotes: [
+          getFiatQuoteMock({
+            includeRelayQuote: false,
+            request: MUSD_QUOTE_REQUEST,
+          }),
+        ],
+        transaction: MUSD_TRANSACTION_MOCK,
+      });
+
+      callMock.mockImplementation((action: string) => {
+        if (action === 'TransactionPayController:getState') {
+          return {
+            transactionData: {
+              [MUSD_TRANSACTION_MOCK.id]: {
+                fiatPayment: {
+                  orderId: ORDER_ID_MOCK,
+                  rampsQuote: RAMPS_QUOTE_MOCK,
+                },
+                isLoading: false,
+                tokens: [],
+              },
+            },
+          };
+        }
+
+        if (action === 'RampsController:getOrder') {
+          return getFiatOrderMock();
+        }
+
+        if (action === 'RemoteFeatureFlagController:getState') {
+          return {
+            remoteFeatureFlags: {
+              confirmations_pay_fiat: { vaultDisabled: true },
+            },
+          };
+        }
+
+        throw new Error(`Unexpected action: ${action}`);
+      });
+
+      const result = await submitFiatQuotes(request);
+
+      expect(result).toStrictEqual({ transactionHash: '0x' });
+      expect(callMock).not.toHaveBeenCalledWith(
+        'TransactionPayController:getAmountData',
+        expect.anything(),
+      );
+      expect(callMock).not.toHaveBeenCalledWith(
+        'TransactionController:addTransactionBatch',
+        expect.anything(),
+      );
+      expect(updateTransactionMock).not.toHaveBeenCalledWith(
+        expect.objectContaining({
+          note: 'Add required transaction ID from direct mUSD vault submission',
+        }),
+        expect.any(Function),
+      );
+    });
+
     it('falls back to deriveFiatAssetForFiatPayment when quote is not direct mUSD', async () => {
       const order = getFiatOrderMock({
         cryptoCurrency: {

@@ -267,9 +267,29 @@ async function submitRelayAfterFiatCompletion({
 
   const fiatQuote = quotes[0];
   const isDirectMusd = isDirectMusdMoneyAccountQuote(fiatQuote);
-  const fiatAsset = isDirectMusd
-    ? MUSD_MONAD_FIAT_ASSET
-    : deriveFiatAssetForFiatPayment(transaction, messenger);
+
+  if (isDirectMusd) {
+    validateOrderAsset({
+      expectedAsset: MUSD_MONAD_FIAT_ASSET,
+      orderCrypto: order.cryptoCurrency,
+      transactionId,
+    });
+
+    const sourceAmountRaw = await resolveSourceAmountRaw({
+      messenger,
+      order,
+      fiatAsset: MUSD_MONAD_FIAT_ASSET,
+      walletAddress: transaction.txParams.from as Hex,
+    });
+
+    return await submitDirectMusdVaultDeposit({
+      request,
+      sourceAmountRaw,
+      transaction,
+    });
+  }
+
+  const fiatAsset = deriveFiatAssetForFiatPayment(transaction, messenger);
 
   validateOrderAsset({
     expectedAsset: fiatAsset,
@@ -279,24 +299,12 @@ async function submitRelayAfterFiatCompletion({
 
   const baseRequest = fiatQuote.request;
 
-  const sourceAmountWalletAddress = isDirectMusd
-    ? (transaction.txParams.from as Hex)
-    : baseRequest.from;
-
   const sourceAmountRaw = await resolveSourceAmountRaw({
     messenger,
     order,
     fiatAsset,
-    walletAddress: sourceAmountWalletAddress,
+    walletAddress: baseRequest.from,
   });
-
-  if (isDirectMusd) {
-    return await submitDirectMusdVaultDeposit({
-      request,
-      sourceAmountRaw,
-      transaction,
-    });
-  }
 
   if (!fiatQuote.original.relayQuote) {
     throw new Error('Missing Relay quote for fiat submission');
@@ -309,7 +317,7 @@ async function submitRelayAfterFiatCompletion({
   // the target amount, calldata re-encoding, then a delegation quote.
   // Simple deposits (Perps, Predict) skip straight to a single EXACT_INPUT
   // relay quote — cheaper fees, no leftover dust, one fewer request.
-  if (hasNestedCalldata && !isDirectMusd) {
+  if (hasNestedCalldata) {
     return await submitWithTransactionData({
       baseRequest,
       request,

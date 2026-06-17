@@ -867,7 +867,7 @@ describe('getFiatQuotes', () => {
             relayQuote: undefined,
           }),
           request: expect.objectContaining({
-            from: WALLET_ADDRESS,
+            from: MONEY_ACCOUNT_ADDRESS,
             isDirectMusdMoneyAccount: true,
             recipient: MONEY_ACCOUNT_ADDRESS,
             sourceChainId: MUSD_MONAD_FIAT_ASSET.chainId,
@@ -987,13 +987,6 @@ describe('getFiatQuotes', () => {
       expect(emptyMethodResult).toStrictEqual([]);
       expect(emptyTokensResult).toStrictEqual([]);
       expect(undefinedTokensResult).toStrictEqual([]);
-    });
-
-    it('returns empty when direct flow request build fails', async () => {
-      computeRawFromFiatAmountMock.mockReturnValue(undefined);
-      const noBuildResult = await getFiatQuotes(getDirectRequest().request);
-
-      expect(noBuildResult).toStrictEqual([]);
     });
 
     it('returns empty when direct flow has multiple tokens or invalid fiat amount', async () => {

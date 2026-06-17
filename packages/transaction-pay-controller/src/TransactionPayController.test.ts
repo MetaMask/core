@@ -11,6 +11,7 @@ import { deriveFiatAssetForFiatPayment } from './strategy/fiat/utils';
 import { getMessengerMock } from './tests/messenger-mock';
 import type {
   TransactionPayControllerMessenger,
+  TransactionPayControllerOptions,
   TransactionPaySourceAmount,
   UpdateTransactionDataCallback,
 } from './types';
@@ -58,8 +59,11 @@ describe('TransactionPayController', () => {
    * @param options - Controller options.
    * @returns The created controller.
    */
-  function createController(): TransactionPayController {
+  function createController(
+    options: Partial<TransactionPayControllerOptions> = {},
+  ): TransactionPayController {
     return new TransactionPayController({
+      ...options,
       getDelegationTransaction: jest.fn(),
       messenger,
     });
@@ -560,6 +564,32 @@ describe('TransactionPayController', () => {
       );
 
       expect(result).toStrictEqual({ updates: [] });
+    });
+  });
+
+  describe('getFiatOptions', () => {
+    it('delegates to the callback', () => {
+      const fiatOptions = {
+        testFundingSource:
+          '0x1111111111111111111111111111111111111111' as Hex,
+        testAmountOverride: '0.1',
+      };
+      const getFiatOptionsMock = jest.fn().mockReturnValue(fiatOptions);
+
+      createController({ getFiatOptions: getFiatOptionsMock });
+
+      const result = messenger.call('TransactionPayController:getFiatOptions');
+
+      expect(getFiatOptionsMock).toHaveBeenCalledTimes(1);
+      expect(result).toBe(fiatOptions);
+    });
+
+    it('returns undefined when no callback is configured', () => {
+      createController();
+
+      const result = messenger.call('TransactionPayController:getFiatOptions');
+
+      expect(result).toBeUndefined();
     });
   });
 

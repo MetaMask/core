@@ -15,6 +15,7 @@ import { QuoteRefresher } from './helpers/QuoteRefresher';
 import type {
   GetAmountDataCallback,
   GetDelegationTransactionCallback,
+  GetFiatOptionsCallback,
   GetPaymentOverrideDataCallback,
   PolymarketCallbacks,
   TransactionConfigCallback,
@@ -36,6 +37,7 @@ import {
 const MESSENGER_EXPOSED_METHODS = [
   'getAmountData',
   'getDelegationTransaction',
+  'getFiatOptions',
   'getPaymentOverrideData',
   'getStrategy',
   'polymarketGetDepositWalletAddress',
@@ -67,6 +69,8 @@ export class TransactionPayController extends BaseController<
 
   readonly #getDelegationTransaction: GetDelegationTransactionCallback;
 
+  readonly #getFiatOptions?: GetFiatOptionsCallback;
+
   readonly #getPaymentOverrideData?: GetPaymentOverrideDataCallback;
 
   readonly #getStrategy?: (
@@ -82,6 +86,7 @@ export class TransactionPayController extends BaseController<
   constructor({
     getAmountData,
     getDelegationTransaction,
+    getFiatOptions,
     getPaymentOverrideData,
     getStrategy,
     getStrategies,
@@ -98,6 +103,7 @@ export class TransactionPayController extends BaseController<
 
     this.#getAmountData = getAmountData;
     this.#getDelegationTransaction = getDelegationTransaction;
+    this.#getFiatOptions = getFiatOptions;
     this.#getPaymentOverrideData = getPaymentOverrideData;
     this.#getStrategy = getStrategy;
     this.#getStrategies = getStrategies;
@@ -242,6 +248,18 @@ export class TransactionPayController extends BaseController<
     ...args: Parameters<GetAmountDataCallback>
   ): ReturnType<GetAmountDataCallback> {
     return this.#getAmountData?.(...args) ?? Promise.resolve({ updates: [] });
+  }
+
+  /**
+   * Returns optional fiat local-QA execution configuration.
+   *
+   * This is intentionally not stored in controller state; clients can compute
+   * it from their current environment when the publish hook executes.
+   *
+   * @returns Fiat local-QA execution options, if configured.
+   */
+  getFiatOptions(): ReturnType<GetFiatOptionsCallback> {
+    return this.#getFiatOptions?.();
   }
 
   getPaymentOverrideData(
