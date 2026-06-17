@@ -894,9 +894,7 @@ export class PerpsController extends BaseController<
       const remoteState = this.messenger.call(
         'RemoteFeatureFlagController:getState',
       );
-      return (
-        remoteState.remoteFeatureFlags?.perpsTerminalApiMarkets === true
-      );
+      return remoteState.remoteFeatureFlags?.perpsTerminalApiMarkets === true;
     } catch {
       return false;
     }

@@ -312,14 +312,12 @@ describe('TerminalMarketService', () => {
 
   describe('cache behavior', () => {
     it('returns cached data on second call within TTL', async () => {
-      const fetchSpy = jest
-        .spyOn(globalThis, 'fetch')
-        .mockResolvedValue({
-          ok: true,
-          status: 200,
-          statusText: 'OK',
-          json: () => Promise.resolve(mockApiResponse),
-        } as Response);
+      const fetchSpy = jest.spyOn(globalThis, 'fetch').mockResolvedValue({
+        ok: true,
+        status: 200,
+        statusText: 'OK',
+        json: () => Promise.resolve(mockApiResponse),
+      } as Response);
 
       const first = await service.fetchMarkets();
       const second = await service.fetchMarkets();
@@ -330,14 +328,12 @@ describe('TerminalMarketService', () => {
     });
 
     it('fetches again after cache is cleared', async () => {
-      const fetchSpy = jest
-        .spyOn(globalThis, 'fetch')
-        .mockResolvedValue({
-          ok: true,
-          status: 200,
-          statusText: 'OK',
-          json: () => Promise.resolve(mockApiResponse),
-        } as Response);
+      const fetchSpy = jest.spyOn(globalThis, 'fetch').mockResolvedValue({
+        ok: true,
+        status: 200,
+        statusText: 'OK',
+        json: () => Promise.resolve(mockApiResponse),
+      } as Response);
 
       await service.fetchMarkets();
       service.clearCache();
@@ -347,14 +343,12 @@ describe('TerminalMarketService', () => {
     });
 
     it('fetches again after TTL expires', async () => {
-      const fetchSpy = jest
-        .spyOn(globalThis, 'fetch')
-        .mockResolvedValue({
-          ok: true,
-          status: 200,
-          statusText: 'OK',
-          json: () => Promise.resolve(mockApiResponse),
-        } as Response);
+      const fetchSpy = jest.spyOn(globalThis, 'fetch').mockResolvedValue({
+        ok: true,
+        status: 200,
+        statusText: 'OK',
+        json: () => Promise.resolve(mockApiResponse),
+      } as Response);
 
       await service.fetchMarkets();
 

@@ -272,7 +272,8 @@ export function transformMarketData(
     const isNewMarket = isHip3 && !explicitMarketType;
 
     // Resolve name: terminal API > static name map > ticker fallback
-    const resolvedName = terminalMeta?.name ?? getHyperLiquidAssetName(symbol, assetNames);
+    const resolvedName =
+      terminalMeta?.name ?? getHyperLiquidAssetName(symbol, assetNames);
 
     return {
       symbol,

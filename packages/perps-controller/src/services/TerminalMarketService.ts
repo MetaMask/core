@@ -91,7 +91,10 @@ export class TerminalMarketService {
     markets: MarketInfo[];
     metadata: Map<string, TerminalAssetMetadata>;
   }> {
-    if (this.#cache && Date.now() - this.#cache.timestamp < TERMINAL_API_CONFIG.CacheTtlMs) {
+    if (
+      this.#cache &&
+      Date.now() - this.#cache.timestamp < TERMINAL_API_CONFIG.CacheTtlMs
+    ) {
       return {
         markets: this.#cache.markets,
         metadata: this.#cache.metadata,
@@ -113,9 +116,7 @@ export class TerminalMarketService {
     const body: unknown = await response.json();
 
     if (!Array.isArray(body)) {
-      throw new Error(
-        `Terminal API returned non-array body: ${typeof body}`,
-      );
+      throw new Error(`Terminal API returned non-array body: ${typeof body}`);
     }
 
     const items = this.#validateItems(body);
@@ -180,7 +181,9 @@ export class TerminalMarketService {
    */
   #mapToMarketInfo(items: TerminalPerpetualItem[]): MarketInfo[] {
     return items
-      .filter((item) => typeof item.symbol === 'string' && item.symbol.length > 0)
+      .filter(
+        (item) => typeof item.symbol === 'string' && item.symbol.length > 0,
+      )
       .map((item) => ({
         name: item.symbol,
         szDecimals: item.szDecimals ?? 0,
