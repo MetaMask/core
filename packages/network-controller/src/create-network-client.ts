@@ -264,8 +264,16 @@ function createRpcServiceChain({
   isRpcFailoverEnabled: boolean;
   logger?: Logger;
 }): RpcServiceChain {
-  // We explicitly check the URL since some networks have been added with invalid configuration types in the past.
-  const isInfura = new URL(primaryEndpointUrl).hostname.endsWith('.infura.io');
+  // We explicitly check the URL since some networks have been added with
+  // invalid configuration types in the past. Parsing may throw for a malformed
+  // URL, in which case we treat the endpoint as non-Infura rather than break
+  // network client creation for a config that previously worked.
+  let isInfura = false;
+  try {
+    isInfura = new URL(primaryEndpointUrl).hostname.endsWith('.infura.io');
+  } catch {
+    isInfura = false;
+  }
 
   const availableEndpoints =
     isRpcFailoverEnabled && isInfura
