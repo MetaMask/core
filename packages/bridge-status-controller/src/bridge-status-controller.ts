@@ -260,15 +260,10 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
               txMeta.hash &&
               txMeta.type &&
               isCrossChainTx(txMeta.type) &&
-              !isApprovalTxMeta
+              !isApprovalTxMeta &&
+              historyKey
             ) {
-              if (historyItem?.quoteId && txMeta.hash) {
-                this.#quoteStatusUpdateManager.reportSubmitted(
-                  historyItem.quoteId,
-                  txMeta.hash,
-                  txMeta.id,
-                );
-              }
+              this.#reportSubmittedOnce(historyKey, txMeta.hash, txMeta.id);
             }
             break;
           case TransactionStatus.confirmed:
@@ -398,15 +393,12 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
         ? this.state.txHistory[historyKey]
         : undefined;
       if (
-        historyItem?.quoteId &&
+        historyKey &&
+        historyItem &&
         txMeta.hash &&
         !isNonEvmChainId(historyItem.quote.srcChainId)
       ) {
-        this.#quoteStatusUpdateManager.reportSubmitted(
-          historyItem.quoteId,
-          txMeta.hash,
-          txMeta.id,
-        );
+        this.#reportSubmittedOnce(historyKey, txMeta.hash, txMeta.id);
       }
       this.#quoteStatusUpdateManager.reportFinalised(txMeta.id, true);
       this.#trackUnifiedSwapBridgeEvent(
@@ -442,17 +434,46 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       return;
     }
     const historyItem = this.state.txHistory[historyKey];
-    if (
-      !historyItem?.quoteId ||
-      !isNonEvmChainId(historyItem.quote.srcChainId)
-    ) {
+    if (!historyItem || !isNonEvmChainId(historyItem.quote.srcChainId)) {
+      return;
+    }
+    this.#reportSubmittedOnce(historyKey, txMeta.hash, txMeta.id);
+  };
+
+  /**
+   * Reports a SUBMITTED quote status update exactly once per source tx hash.
+   *
+   * SUBMITTED can be triggered from several code paths (submission, the first
+   * poll where the hash is known, and the final-status branch) and the poll
+   * path runs on every interval.
+   *
+   * @param historyKey - The key of the history item in `txHistory`
+   * @param srcTxHash - The source chain transaction hash
+   * @param txMetaId - The transaction meta id, used for finalization matching
+   */
+  readonly #reportSubmittedOnce = (
+    historyKey: string,
+    srcTxHash: string,
+    txMetaId: string,
+  ): void => {
+    const historyItem = this.state.txHistory[historyKey];
+    if (!historyItem?.quoteId) {
+      return;
+    }
+    if (historyItem.reportedSubmittedTxHash === srcTxHash) {
       return;
     }
     this.#quoteStatusUpdateManager.reportSubmitted(
       historyItem.quoteId,
-      txMeta.hash,
-      txMeta.id,
+      srcTxHash,
+      txMetaId,
     );
+    this.update((state) => {
+      const item = state.txHistory[historyKey];
+      if (item) {
+        item.reportedSubmittedTxHash = srcTxHash;
+      }
+    });
   };
 
   resetState = (): void => {
@@ -822,6 +843,17 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
           return;
         }
         status = intentTxStatus.bridgeStatus.status;
+
+        // Report SUBMITTED as soon as the intent's source/settlement hash is
+        // known at poll time, before the order reaches a terminal status.
+        const intentSrcTxHash = status.srcChain.txHash;
+        if (intentSrcTxHash) {
+          this.#reportSubmittedOnce(
+            bridgeTxMetaId,
+            intentSrcTxHash,
+            bridgeTxMetaId,
+          );
+        }
       } else {
         // We try here because we receive 500 errors from Bridge API if we try to fetch immediately after submitting the source tx
         // Oddly mostly happens on Optimism, never on Arbitrum. By the 2nd fetch, the Bridge API responds properly.
@@ -831,6 +863,10 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
         if (!srcTxHash) {
           return;
         }
+
+        // Report SUBMITTED as soon as a srcTxHash is known at poll time, for
+        // every chain not just non-EVM sources.
+        this.#reportSubmittedOnce(bridgeTxMetaId, srcTxHash, bridgeTxMetaId);
 
         const statusRequest = getStatusRequestWithSrcTxHash(
           historyItem.quote,
@@ -903,19 +939,11 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
           delete this.#pollingTokensByTxMetaId[bridgeTxMetaId];
         }
 
-        // For EVM intent-based bridges the TransactionController subscription
-        // never carries a hash at `submitted` time (CoW hasn't settled yet),
-        // so `reportSubmitted` is never called via that path. Call it here now
-        // that we have the final settlement hash, so the deferred-queue entry
-        // exists for `reportFinalised` to append to.
+        // Ensure a deferred entry exists before reportFinalised is called.
         const settlementTxHash = newBridgeHistoryItem.status.srcChain.txHash;
-        if (
-          historyItem.quoteId &&
-          settlementTxHash &&
-          !isNonEvmChainId(historyItem.quote.srcChainId)
-        ) {
-          this.#quoteStatusUpdateManager.reportSubmitted(
-            historyItem.quoteId,
+        if (settlementTxHash) {
+          this.#reportSubmittedOnce(
+            bridgeTxMetaId,
             settlementTxHash,
             bridgeTxMetaId,
           );
