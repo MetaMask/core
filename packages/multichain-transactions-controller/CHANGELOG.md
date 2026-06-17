@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **BREAKING:** Bump minimum Node.js version to 22 ([#9168](https://github.com/MetaMask/core/pull/9168))
 - Bump `@metamask/utils` from `^11.9.0` to `^11.11.0` ([#9074](https://github.com/MetaMask/core/pull/9074))
 - Bump `@metamask/accounts-controller` from `^39.0.0` to `^39.0.5` ([#9058](https://github.com/MetaMask/core/pull/9058), [#9218](https://github.com/MetaMask/core/pull/9218), [#9231](https://github.com/MetaMask/core/pull/9231), [#9349](https://github.com/MetaMask/core/pull/9349), [#9470](https://github.com/MetaMask/core/pull/9470))
 - Bump `@metamask/polling-controller` from `^16.0.6` to `^16.0.8` ([#9218](https://github.com/MetaMask/core/pull/9218), [#9349](https://github.com/MetaMask/core/pull/9349))

@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **BREAKING:** Bump minimum Node.js version to 22 ([#9168](https://github.com/MetaMask/core/pull/9168))
 - Bump `@metamask/network-enablement-controller` from `^5.4.1` to `^5.6.0` ([#9470](https://github.com/MetaMask/core/pull/9470), [#9520](https://github.com/MetaMask/core/pull/9520))
 
 ## [0.1.0]

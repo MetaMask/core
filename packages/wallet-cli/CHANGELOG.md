@@ -20,6 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **BREAKING:** Bump minimum Node.js version to 22 ([#9168](https://github.com/MetaMask/core/pull/9168))
 - `--password` / `MM_WALLET_PASSWORD` is now optional on `mm daemon start`; on subsequent runs, omitting it starts the daemon with a locked keyring, and the persisted vault is auto-unlocked when a password is supplied ([#8821](https://github.com/MetaMask/core/pull/8821))
 - The daemon RPC server now validates `params` against each handler's superstruct before dispatch, returning a `-32602 invalidParams` error on mismatch instead of passing raw params to the handler ([#8846](https://github.com/MetaMask/core/pull/8846))
 - Report daemon socket connection errors consistently across `mm daemon call` and `mm daemon list` ([#9339](https://github.com/MetaMask/core/pull/9339))

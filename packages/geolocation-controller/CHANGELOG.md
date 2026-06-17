@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **BREAKING:** Bump minimum Node.js version to 22 ([#9168](https://github.com/MetaMask/core/pull/9168))
 - Point `GeolocationApiService` at API Platform's `geolocation-api` service instead of the legacy Ramps-owned `on-ramp` geolocation endpoint, which is slated for deprecation ([#9417](https://github.com/MetaMask/core/pull/9417))
   - UAT temporarily resolves to the production URL since API Platform has not yet provisioned a dedicated UAT deployment for this service
 - Bump `@metamask/controller-utils` from `^12.0.0` to `^12.3.0` ([#8774](https://github.com/MetaMask/core/pull/8774), [#9058](https://github.com/MetaMask/core/pull/9058), [#9083](https://github.com/MetaMask/core/pull/9083), [#9218](https://github.com/MetaMask/core/pull/9218))

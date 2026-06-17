@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **BREAKING:** Bump minimum Node.js version to 22 ([#9168](https://github.com/MetaMask/core/pull/9168))
 - **BREAKING:** `associateAddress` now throws an `HttpError` on a 409 response instead of returning the parsed body ([#9387](https://github.com/MetaMask/core/pull/9387))
   - A 409 from `POST /v1/auth/address` indicates the address is associated with a _different_ profile; the previous handling attempted to parse the error body as an association result and failed with a confusing validation error. An address already associated with the authenticated profile is reported via a 201 response with `status: 'active'`, which is unchanged.
 - Bump `@metamask/utils` from `^11.9.0` to `^11.11.0` ([#9074](https://github.com/MetaMask/core/pull/9074))
