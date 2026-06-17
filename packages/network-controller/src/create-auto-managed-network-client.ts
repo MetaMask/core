@@ -49,6 +49,8 @@ export type AutoManagedNetworkClient<
   destroy: () => void;
   enableRpcFailover: () => void;
   disableRpcFailover: () => void;
+  enableRpcFailoverForced: () => void;
+  disableRpcFailoverForced: () => void;
 };
 
 /**
@@ -96,6 +98,7 @@ export function createAutoManagedNetworkClient<
   > => ({}),
   messenger,
   isRpcFailoverEnabled: givenIsRpcFailoverEnabled,
+  isRpcFailoverForced: givenIsRpcFailoverForced,
   logger,
 }: {
   networkClientId: NetworkClientId;
@@ -108,9 +111,11 @@ export function createAutoManagedNetworkClient<
   ) => Omit<PollingBlockTrackerOptions, 'provider'>;
   messenger: NetworkControllerMessenger;
   isRpcFailoverEnabled: boolean;
+  isRpcFailoverForced: boolean;
   logger?: Logger;
 }): AutoManagedNetworkClient<Configuration> {
   let isRpcFailoverEnabled = givenIsRpcFailoverEnabled;
+  let isRpcFailoverForced = givenIsRpcFailoverForced;
   let networkClient: NetworkClient | undefined;
 
   const ensureNetworkClientCreated = (): NetworkClient => {
@@ -121,6 +126,7 @@ export function createAutoManagedNetworkClient<
       getBlockTrackerOptions,
       messenger,
       isRpcFailoverEnabled,
+      isRpcFailoverForced,
       logger,
     });
 
@@ -246,6 +252,18 @@ export function createAutoManagedNetworkClient<
     networkClient = undefined;
   };
 
+  const enableRpcFailoverForced = (): void => {
+    isRpcFailoverForced = true;
+    destroy();
+    networkClient = undefined;
+  };
+
+  const disableRpcFailoverForced = (): void => {
+    isRpcFailoverForced = false;
+    destroy();
+    networkClient = undefined;
+  };
+
   return {
     configuration: networkClientConfiguration,
     provider: providerProxy,
@@ -253,5 +271,7 @@ export function createAutoManagedNetworkClient<
     destroy,
     enableRpcFailover,
     disableRpcFailover,
+    enableRpcFailoverForced,
+    disableRpcFailoverForced,
   };
 }

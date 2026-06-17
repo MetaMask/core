@@ -145,6 +145,7 @@ export function createNetworkClient({
   getBlockTrackerOptions,
   messenger,
   isRpcFailoverEnabled,
+  isRpcFailoverForced,
   logger,
 }: {
   id: NetworkClientId;
@@ -157,6 +158,7 @@ export function createNetworkClient({
   ) => Omit<PollingBlockTrackerOptions, 'provider'>;
   messenger: NetworkControllerMessenger;
   isRpcFailoverEnabled: boolean;
+  isRpcFailoverForced: boolean;
   logger?: Logger;
 }): NetworkClient {
   const primaryEndpointUrl =
@@ -170,6 +172,7 @@ export function createNetworkClient({
     getRpcServiceOptions,
     messenger,
     isRpcFailoverEnabled,
+    isRpcFailoverForced,
     logger,
   });
 
@@ -252,6 +255,7 @@ function createRpcServiceChain({
   getRpcServiceOptions,
   messenger,
   isRpcFailoverEnabled,
+  isRpcFailoverForced,
   logger,
 }: {
   id: NetworkClientId;
@@ -262,17 +266,28 @@ function createRpcServiceChain({
   ) => RpcServiceOptionsWithDefaults;
   messenger: NetworkControllerMessenger;
   isRpcFailoverEnabled: boolean;
+  isRpcFailoverForced: boolean;
   logger?: Logger;
 }): RpcServiceChain {
-  const availableEndpoints = isRpcFailoverEnabled
-    ? [
-        { url: primaryEndpointUrl, isFailover: false },
-        ...(configuration.failoverRpcUrls ?? []).map((url) => ({
-          url,
-          isFailover: true,
-        })),
-      ]
-    : [{ url: primaryEndpointUrl, isFailover: false }];
+  const failoverEndpoints = (configuration.failoverRpcUrls ?? []).map((url) => ({
+    url,
+    isFailover: true,
+  }));
+  const isInfuraEndpoint = configuration.type === NetworkClientType.Infura;
+
+  let availableEndpoints: { url: string; isFailover: boolean }[];
+  if (isRpcFailoverForced && isInfuraEndpoint && failoverEndpoints.length > 0) {
+    // Force flag is on for an Infura endpoint with failovers: bypass Infura
+    // entirely and route all traffic (including block polling) to failovers.
+    availableEndpoints = failoverEndpoints;
+  } else if (isRpcFailoverEnabled) {
+    availableEndpoints = [
+      { url: primaryEndpointUrl, isFailover: false },
+      ...failoverEndpoints,
+    ];
+  } else {
+    availableEndpoints = [{ url: primaryEndpointUrl, isFailover: false }];
+  }
 
   const isOffline = (): boolean => {
     const connectivityState = messenger.call('ConnectivityController:getState');

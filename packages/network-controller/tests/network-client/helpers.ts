@@ -334,6 +334,7 @@ export type MockOptions = {
   messenger?: RootMessenger;
   networkClientId?: NetworkClientId;
   isRpcFailoverEnabled?: boolean;
+  isRpcFailoverForced?: boolean;
 };
 
 export type MockCommunications = {
@@ -502,6 +503,7 @@ export async function withNetworkClient<Type>(
     messenger = buildRootMessenger(),
     networkClientId = 'some-network-client-id',
     isRpcFailoverEnabled = false,
+    isRpcFailoverForced = false,
   }: MockOptions,
   fn: (client: MockNetworkClient) => Promise<Type>,
 ): Promise<Type> {
@@ -554,6 +556,7 @@ export async function withNetworkClient<Type>(
     getBlockTrackerOptions,
     messenger: networkControllerMessenger,
     isRpcFailoverEnabled,
+    isRpcFailoverForced,
   });
   /* eslint-disable-next-line n/no-process-env */
   process.env.IN_TEST = inTest;

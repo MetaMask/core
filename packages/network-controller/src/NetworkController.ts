@@ -1287,6 +1287,8 @@ export class NetworkController extends BaseController<
 
   #isRpcFailoverEnabled = false;
 
+  #isRpcFailoverForced = false;
+
   /**
    * Constructs a NetworkController.
    *
@@ -2872,6 +2874,7 @@ export class NetworkController extends BaseController<
           getBlockTrackerOptions: this.#getBlockTrackerOptions,
           messenger: this.messenger,
           isRpcFailoverEnabled: this.#isRpcFailoverEnabled,
+          isRpcFailoverForced: this.#isRpcFailoverForced,
           logger: this.#log,
         });
       } else {
@@ -2891,6 +2894,7 @@ export class NetworkController extends BaseController<
           getBlockTrackerOptions: this.#getBlockTrackerOptions,
           messenger: this.messenger,
           isRpcFailoverEnabled: this.#isRpcFailoverEnabled,
+          isRpcFailoverForced: this.#isRpcFailoverForced,
           logger: this.#log,
         });
       }
@@ -3057,6 +3061,7 @@ export class NetworkController extends BaseController<
               getBlockTrackerOptions: this.#getBlockTrackerOptions,
               messenger: this.messenger,
               isRpcFailoverEnabled: this.#isRpcFailoverEnabled,
+              isRpcFailoverForced: this.#isRpcFailoverForced,
               logger: this.#log,
             }),
           ] as const;
@@ -3076,6 +3081,7 @@ export class NetworkController extends BaseController<
             getBlockTrackerOptions: this.#getBlockTrackerOptions,
             messenger: this.messenger,
             isRpcFailoverEnabled: this.#isRpcFailoverEnabled,
+            isRpcFailoverForced: this.#isRpcFailoverForced,
             logger: this.#log,
           }),
         ] as const;
