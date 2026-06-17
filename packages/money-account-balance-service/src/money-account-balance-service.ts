@@ -69,6 +69,51 @@ export const serviceName = 'MoneyAccountBalanceService';
 
 const configLogger = createModuleLogger(projectLogger, 'config');
 
+/** Verbose timing / request logging for debugging stuck balance loads — temporary */
+const balanceDebugLogger = createModuleLogger(projectLogger, 'balance-debug');
+
+/**
+ * Logs start, success or error with elapsed time. Intended only for temporary
+ * debugging of stuck RPC / HTTP calls.
+ *
+ * @param phase - Stable label used in log lines.
+ * @param details - Structured context (no secrets — avoid logging raw RPC URLs).
+ * @param operation - Async work to wrap.
+ */
+async function withBalanceDebugTiming<T>(
+  phase: string,
+  details: Record<string, unknown>,
+  operation: () => Promise<T>,
+): Promise<T> {
+  const startedAt = performance.now();
+  const startedAtWallMs = Date.now();
+  balanceDebugLogger(`${phase}:start`, { ...details, startedAtWallMs });
+  try {
+    const result = await operation();
+    balanceDebugLogger(`${phase}:ok`, {
+      ...details,
+      elapsedMs: Math.round(performance.now() - startedAt),
+      startedAtWallMs,
+    });
+    return result;
+  } catch (error) {
+    balanceDebugLogger(`${phase}:error`, {
+      ...details,
+      elapsedMs: Math.round(performance.now() - startedAt),
+      startedAtWallMs,
+      error:
+        error instanceof Error
+          ? {
+              name: error.name,
+              message: error.message,
+              stack: error.stack,
+            }
+          : error,
+    });
+    throw error;
+  }
+}
+
 // === MESSENGER ===
 
 const MESSENGER_EXPOSED_METHODS = [
@@ -399,17 +444,45 @@ export class MoneyAccountBalanceService extends BaseDataService<
    * resolved network client has no provider.
    */
   #getProvider(chainId: Hex): Web3Provider {
+    const t0 = performance.now();
+    balanceDebugLogger('getProvider:start', {
+      chainId,
+      step: 'getNetworkConfigurationByChainId',
+    });
+
     const config = this.messenger.call(
       'NetworkController:getNetworkConfigurationByChainId',
       chainId,
     );
 
     if (!config) {
+      balanceDebugLogger('getProvider:error', {
+        chainId,
+        reason: 'no_network_configuration',
+        elapsedMs: Math.round(performance.now() - t0),
+      });
       throw new Error(`No network configuration found for chain ${chainId}`);
     }
 
-    const { rpcEndpoints, defaultRpcEndpointIndex } = config;
-    const { networkClientId } = rpcEndpoints[defaultRpcEndpointIndex];
+    const { rpcEndpoints, defaultRpcEndpointIndex, name: networkName } = config;
+    const selectedEndpoint = rpcEndpoints[defaultRpcEndpointIndex];
+    const { networkClientId } = selectedEndpoint;
+
+    balanceDebugLogger('getProvider:network_config', {
+      chainId,
+      networkName,
+      defaultRpcEndpointIndex,
+      rpcEndpointCount: rpcEndpoints.length,
+      networkClientId,
+      // Omit raw RPC URLs — often contain API keys
+      rpcEndpointType: selectedEndpoint?.type,
+    });
+
+    balanceDebugLogger('getProvider:step', {
+      chainId,
+      step: 'getNetworkClientById',
+      networkClientId,
+    });
 
     const networkClient = this.messenger.call(
       'NetworkController:getNetworkClientById',
@@ -417,8 +490,20 @@ export class MoneyAccountBalanceService extends BaseDataService<
     );
 
     if (!networkClient?.provider) {
+      balanceDebugLogger('getProvider:error', {
+        chainId,
+        networkClientId,
+        reason: 'no_provider_on_network_client',
+        elapsedMs: Math.round(performance.now() - t0),
+      });
       throw new Error(`No provider found for chain ${chainId}`);
     }
+
+    balanceDebugLogger('getProvider:ok', {
+      chainId,
+      networkClientId,
+      elapsedMs: Math.round(performance.now() - t0),
+    });
 
     return new Web3Provider(networkClient.provider);
   }
@@ -436,9 +521,27 @@ export class MoneyAccountBalanceService extends BaseDataService<
     accountAddress: Hex,
     chainId: Hex,
   ): Promise<string> {
+    balanceDebugLogger('fetchErc20Balance:about_to_get_provider', {
+      chainId,
+      contractAddress,
+      accountAddress,
+    });
     const provider = this.#getProvider(chainId);
     const contract = new Contract(contractAddress, abiERC20, provider);
-    const balance = await contract.balanceOf(accountAddress);
+
+    const balance = await withBalanceDebugTiming(
+      'fetchErc20Balance:balanceOf',
+      { chainId, contractAddress, accountAddress },
+      async () => contract.balanceOf(accountAddress),
+    );
+
+    balanceDebugLogger('fetchErc20Balance:resolved', {
+      chainId,
+      contractAddress,
+      accountAddress,
+      balanceLengthChars: balance.toString().length,
+    });
+
     return balance.toString();
   }
 
@@ -450,9 +553,22 @@ export class MoneyAccountBalanceService extends BaseDataService<
    */
   async #fetchUnderlyingTokenAddress(chainId: Hex): Promise<Hex> {
     const { accountantAddress } = this.#requireConfig();
+    balanceDebugLogger('fetchUnderlyingTokenAddress:about_to_get_provider', {
+      chainId,
+      accountantAddress,
+    });
     const provider = this.#getProvider(chainId);
     const contract = new Contract(accountantAddress, ACCOUNTANT_ABI, provider);
-    const underlyingTokenAddress = await contract.base();
+    const underlyingTokenAddress = await withBalanceDebugTiming(
+      'fetchUnderlyingTokenAddress:contract.base',
+      { chainId, accountantAddress },
+      async () => contract.base(),
+    );
+    balanceDebugLogger('fetchUnderlyingTokenAddress:resolved', {
+      chainId,
+      accountantAddress,
+      underlyingTokenAddress,
+    });
     return underlyingTokenAddress;
   }
 
@@ -503,16 +619,42 @@ export class MoneyAccountBalanceService extends BaseDataService<
     return this.fetchQuery({
       queryKey: [`${this.name}:getMusdBalance`, accountAddress],
       queryFn: async () => {
+        const queryStarted = performance.now();
+        balanceDebugLogger('getMusdBalance:queryFn:start', {
+          accountAddress,
+          queryKeyHint: 'getMusdBalance',
+        });
+
         const { chainId } = this.#requireConfig();
+        balanceDebugLogger('getMusdBalance:queryFn:after_require_config', {
+          accountAddress,
+          chainId,
+          elapsedMs: Math.round(performance.now() - queryStarted),
+        });
 
         const underlyingTokenAddress =
           await this.#resolveUnderlyingTokenAddress(chainId);
+
+        balanceDebugLogger('getMusdBalance:queryFn:after_underlying_token', {
+          accountAddress,
+          chainId,
+          underlyingTokenAddress,
+          elapsedMs: Math.round(performance.now() - queryStarted),
+        });
 
         const balance = await this.#fetchErc20Balance(
           underlyingTokenAddress,
           accountAddress,
           chainId,
         );
+
+        balanceDebugLogger('getMusdBalance:queryFn:complete', {
+          accountAddress,
+          chainId,
+          totalElapsedMs: Math.round(performance.now() - queryStarted),
+          balancePreview: balance.slice(0, 24),
+        });
+
         return { balance };
       },
       staleTime: this.#balanceStaleTime,
@@ -605,12 +747,34 @@ export class MoneyAccountBalanceService extends BaseDataService<
     return this.fetchQuery({
       queryKey: [`${this.name}:getVmusdBalance`, accountAddress],
       queryFn: async () => {
+        const queryStarted = performance.now();
+        balanceDebugLogger('getMusdSHFvdBalance:queryFn:start', {
+          accountAddress,
+          queryKeyHint: 'getMusdSHFvdBalance',
+        });
+
         const { boringVault, chainId } = this.#requireConfig();
+        balanceDebugLogger('getMusdSHFvdBalance:queryFn:after_require_config', {
+          accountAddress,
+          chainId,
+          boringVault,
+          elapsedMs: Math.round(performance.now() - queryStarted),
+        });
+
         const balance = await this.#fetchErc20Balance(
           boringVault,
           accountAddress,
           chainId,
         );
+
+        balanceDebugLogger('getMusdSHFvdBalance:queryFn:complete', {
+          accountAddress,
+          chainId,
+          boringVault,
+          totalElapsedMs: Math.round(performance.now() - queryStarted),
+          balancePreview: balance.slice(0, 24),
+        });
+
         return { balance };
       },
       staleTime: this.#balanceStaleTime,
@@ -633,14 +797,40 @@ export class MoneyAccountBalanceService extends BaseDataService<
     return this.fetchQuery({
       queryKey: [`${this.name}:getExchangeRate`],
       queryFn: async () => {
+        const queryStarted = performance.now();
+        balanceDebugLogger('getExchangeRate:queryFn:start', {
+          queryKeyHint: 'getExchangeRate',
+        });
+
         const { accountantAddress, chainId } = this.#requireConfig();
+        balanceDebugLogger('getExchangeRate:queryFn:after_require_config', {
+          chainId,
+          accountantAddress,
+          elapsedMs: Math.round(performance.now() - queryStarted),
+        });
+
+        balanceDebugLogger('getExchangeRate:queryFn:before_get_provider', {
+          chainId,
+        });
         const provider = this.#getProvider(chainId);
         const contract = new Contract(
           accountantAddress,
           ACCOUNTANT_ABI,
           provider,
         );
-        const rate = await contract.getRate();
+        const rate = await withBalanceDebugTiming(
+          'getExchangeRate:contract.getRate',
+          { chainId, accountantAddress },
+          async () => contract.getRate(),
+        );
+
+        balanceDebugLogger('getExchangeRate:queryFn:complete', {
+          chainId,
+          accountantAddress,
+          totalElapsedMs: Math.round(performance.now() - queryStarted),
+          ratePreview: rate.toString().slice(0, 24),
+        });
+
         return { rate: rate.toString() };
       },
       staleTime: staleTime ?? this.#balanceStaleTime,
@@ -661,15 +851,52 @@ export class MoneyAccountBalanceService extends BaseDataService<
     return this.fetchQuery({
       queryKey: [`${this.name}:getMusdEquivalentValue`, accountAddress],
       queryFn: async () => {
+        const queryStarted = performance.now();
+        balanceDebugLogger('getMusdEquivalentValue:queryFn:start', {
+          accountAddress,
+          queryKeyHint: 'getMusdEquivalentValue',
+        });
+
         const { lensAddress, boringVault, accountantAddress, chainId } =
           this.#requireConfig();
-        const provider = this.#getProvider(chainId);
-        const contract = new Contract(lensAddress, LENS_ABI, provider);
-        const balanceOfInAssets = await contract.balanceOfInAssets(
+        balanceDebugLogger('getMusdEquivalentValue:queryFn:after_require_config', {
           accountAddress,
+          chainId,
+          lensAddress,
           boringVault,
           accountantAddress,
+          elapsedMs: Math.round(performance.now() - queryStarted),
+        });
+
+        balanceDebugLogger(
+          'getMusdEquivalentValue:queryFn:before_balanceOfInAssets',
+          { accountAddress, chainId },
         );
+        const provider = this.#getProvider(chainId);
+        const contract = new Contract(lensAddress, LENS_ABI, provider);
+        const balanceOfInAssets = await withBalanceDebugTiming(
+          'getMusdEquivalentValue:contract.balanceOfInAssets',
+          {
+            accountAddress,
+            chainId,
+            lensAddress,
+            boringVault,
+            accountantAddress,
+          },
+          async () =>
+            contract.balanceOfInAssets(
+              accountAddress,
+              boringVault,
+              accountantAddress,
+            ),
+        );
+
+        balanceDebugLogger('getMusdEquivalentValue:queryFn:complete', {
+          accountAddress,
+          chainId,
+          totalElapsedMs: Math.round(performance.now() - queryStarted),
+          balanceOfInAssetsPreview: balanceOfInAssets.toString().slice(0, 24),
+        });
 
         return { balanceOfInAssets: balanceOfInAssets.toString() };
       },
@@ -687,10 +914,27 @@ export class MoneyAccountBalanceService extends BaseDataService<
     return this.fetchQuery({
       queryKey: [`${this.name}:getVaultApy`],
       queryFn: async () => {
+        const queryStarted = performance.now();
+        balanceDebugLogger('getVaultApy:queryFn:start', {
+          queryKeyHint: 'getVaultApy',
+        });
+
         const { chainId, boringVault } = this.#requireConfig();
+        balanceDebugLogger('getVaultApy:queryFn:after_require_config', {
+          chainId,
+          boringVault,
+          elapsedMs: Math.round(performance.now() - queryStarted),
+          knownVedaChainIds: Object.keys(VEDA_API_NETWORK_NAMES),
+        });
+
         const networkName = VEDA_API_NETWORK_NAMES[chainId];
 
         if (!networkName) {
+          balanceDebugLogger('getVaultApy:queryFn:error:no_veda_network_name', {
+            chainId,
+            boringVault,
+            elapsedMs: Math.round(performance.now() - queryStarted),
+          });
           throw new Error(
             `No Veda API network name found for chain ${chainId}`,
           );
@@ -701,25 +945,99 @@ export class MoneyAccountBalanceService extends BaseDataService<
           VEDA_PERFORMANCE_API_BASE_URL,
         );
 
+        balanceDebugLogger('getVaultApy:veda_request:prepared', {
+          chainId,
+          boringVault,
+          networkName,
+          baseUrl: VEDA_PERFORMANCE_API_BASE_URL,
+          fullHref: url.href,
+          pathname: url.pathname,
+        });
+
+        const fetchStarted = performance.now();
+        balanceDebugLogger('getVaultApy:veda_request:fetch_start', {
+          fullHref: url.href,
+          startedAtWallMs: Date.now(),
+        });
+
         const response = await fetch(url);
 
+        balanceDebugLogger('getVaultApy:veda_request:fetch_headers_received', {
+          fullHref: url.href,
+          status: response.status,
+          ok: response.ok,
+          elapsedMsSinceFetchStart: Math.round(
+            performance.now() - fetchStarted,
+          ),
+          contentType: response.headers.get('content-type'),
+          // Helpful when debugging CDN / cache behavior (may be absent)
+          cfRay: response.headers.get('cf-ray'),
+        });
+
         if (!response.ok) {
+          let errorBodySnippet: string | undefined;
+          try {
+            errorBodySnippet = (await response.text()).slice(0, 512);
+          } catch {
+            errorBodySnippet = undefined;
+          }
+          balanceDebugLogger('getVaultApy:veda_request:http_error_body', {
+            fullHref: url.href,
+            status: response.status,
+            errorBodySnippet,
+          });
           throw new HttpError(
             response.status,
             `Veda performance API failed with status '${response.status}'`,
           );
         }
 
+        const jsonStarted = performance.now();
         const rawResponse = await response.json();
+        balanceDebugLogger('getVaultApy:veda_request:json_parsed', {
+          fullHref: url.href,
+          jsonParseElapsedMs: Math.round(performance.now() - jsonStarted),
+          totalElapsedSinceFetchStartMs: Math.round(
+            performance.now() - fetchStarted,
+          ),
+          rawKeys:
+            rawResponse !== null &&
+            typeof rawResponse === 'object' &&
+            !Array.isArray(rawResponse)
+              ? Object.keys(rawResponse as object)
+              : typeof rawResponse,
+        });
 
         // Validate raw response inside queryFn to avoid poisoned cache.
         if (!is(rawResponse, VaultApyRawResponseStruct)) {
+          balanceDebugLogger('getVaultApy:veda_response:validation_failed', {
+            fullHref: url.href,
+            rawResponseSnippet: JSON.stringify(rawResponse).slice(0, 512),
+          });
           throw new VedaResponseValidationError(
             'Malformed response received from Veda performance API',
           );
         }
 
-        return normalizeVaultApyResponse(rawResponse);
+        balanceDebugLogger('getVaultApy:veda_request:success', {
+          fullHref: url.href,
+          totalElapsedSinceFetchStartMs: Math.round(
+            performance.now() - fetchStarted,
+          ),
+        });
+
+        const normalized = normalizeVaultApyResponse(rawResponse);
+
+        balanceDebugLogger('getVaultApy:queryFn:complete', {
+          chainId,
+          boringVault,
+          fullHref: url.href,
+          totalQueryFnElapsedMs: Math.round(
+            performance.now() - queryStarted,
+          ),
+        });
+
+        return normalized;
       },
       staleTime: inMilliseconds(5, Duration.Minute),
     });
