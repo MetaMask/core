@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add optional 7-day per-chain fields to the `PerChainBreakdown` type (and `PerChainBreakdownStruct`): `perChainPnl7d` (`Record<string, number>`), `perChainRoi7d` (`Record<string, number | null>`), and `perChainVolume7d` (`Record<string, number>`) — exposing the 7-day Hyperliquid/per-chain breakdown alongside the existing 30-day fields. The unsuffixed fields (`perChainPnl`, `perChainRoi`, `perChainVolume`) remain the 30-day window; the new fields are optional for backward compatibility with social-api versions that only return the 30-day breakdown ([#9999](https://github.com/MetaMask/core/pull/9999))
+- Add optional 7-day per-chain fields to the `PerChainBreakdown` type (and `PerChainBreakdownStruct`): `perChainPnl7d` (`Record<string, number>`), `perChainRoi7d` (`Record<string, number | null>`), and `perChainVolume7d` (`Record<string, number>`) — exposing the 7-day Hyperliquid/per-chain breakdown alongside the existing 30-day fields. The unsuffixed fields (`perChainPnl`, `perChainRoi`, `perChainVolume`) remain the 30-day window; the new fields are optional for backward compatibility with social-api versions that only return the 30-day breakdown ([#9165](https://github.com/MetaMask/core/pull/9165))
 
 ## [2.3.0]
 
