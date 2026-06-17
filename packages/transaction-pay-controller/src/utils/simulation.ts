@@ -75,8 +75,9 @@ export async function simulateQuoteTransactions(
 
   log('Simulating quote transactions', {
     chainId: request.chainId,
-    hasMock7702From: Boolean(request.mock7702From),
-    transactionCount: request.transactions.length,
+    mock7702From: request.mock7702From,
+    overrides: requestWithOverrides.overrides,
+    transactions: requestWithOverrides.transactions,
   });
 
   try {
@@ -86,7 +87,10 @@ export async function simulateQuoteTransactions(
       withGas: true,
       withLogs: true,
     });
+
     responseTransactions = response.transactions;
+
+    log('Sentinel simulation succeeded', { responseTransactions });
   } catch (error) {
     log('Sentinel simulation failed', { error });
 
@@ -117,8 +121,15 @@ async function validateSimulationResponse(
   responseTransactions: SentinelSimulationResponseTransaction[],
 ): Promise<void> {
   for (const [index, responseTransaction] of responseTransactions.entries()) {
-    const error =
-      responseTransaction.error ?? getCallTraceError(responseTransaction);
+    const extractedCallTraceError = getCallTraceError(responseTransaction);
+    const error = responseTransaction.error ?? extractedCallTraceError;
+
+    log('Simulation response transaction', {
+      callTrace: responseTransaction.callTrace,
+      extractedCallTraceError,
+      index,
+      rawError: responseTransaction.error,
+    });
 
     if (!error) {
       continue;
@@ -129,8 +140,10 @@ async function validateSimulationResponse(
 
     log('Simulation response transaction failed', {
       error,
+      extractedCallTraceError,
       fallbackError,
       index,
+      rawError: responseTransaction.error,
     });
 
     throw new TransactionPaySimulationError(
@@ -208,23 +221,29 @@ async function getDebugTraceCallResult(
   request: SimulationRequestWithOverrides,
   transaction: SimulationTransaction,
 ): Promise<RpcFallbackSimulationResult | undefined> {
+  const rpcTransaction = toRpcCallTransaction(transaction);
+  const tracerOptions = {
+    tracer: 'callTracer',
+    ...(request.overrides ? { stateOverrides: request.overrides } : {}),
+  };
+
   try {
-    log('Running debug_traceCall fallback');
+    log('Running debug_traceCall fallback', {
+      chainId: request.chainId,
+      overrides: request.overrides,
+      tracerOptions,
+      transaction: rpcTransaction,
+    });
 
     const trace = await rpcRequest<RpcCallTrace>({
       messenger: request.messenger,
       chainId: request.chainId,
       method: 'debug_traceCall',
-      params: [
-        toRpcCallTransaction(transaction),
-        LATEST_BLOCK,
-        {
-          tracer: 'callTracer',
-          ...(request.overrides ? { stateOverrides: request.overrides } : {}),
-        },
-      ],
+      params: [rpcTransaction, LATEST_BLOCK, tracerOptions],
       options: getRpcFallbackRequestOptions(request),
     });
+
+    log('debug_traceCall fallback trace', { trace });
 
     return {
       error: getRpcCallTraceError(trace),
@@ -241,14 +260,19 @@ async function getEstimateGasResult(
   request: SimulationRequestWithOverrides,
   transaction: SimulationTransaction,
 ): Promise<RpcFallbackSimulationResult | undefined> {
+  const params = getRpcCallParams(transaction, request);
+
   try {
-    log('Running eth_estimateGas fallback');
+    log('Running eth_estimateGas fallback', {
+      chainId: request.chainId,
+      params,
+    });
 
     await rpcRequest({
       messenger: request.messenger,
       chainId: request.chainId,
       method: 'eth_estimateGas',
-      params: getRpcCallParams(transaction, request),
+      params,
       options: getRpcFallbackRequestOptions(request),
     });
   } catch (error) {

@@ -3,6 +3,7 @@ import { abiERC20 } from '@metamask/metamask-eth-abis';
 import type { Hex } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
 
+import { createModuleLogger, projectLogger } from '../logger';
 import type {
   TransactionPayControllerMessenger,
   TransactionPayQuote,
@@ -18,6 +19,8 @@ import {
   normalizeTokenAddress,
   TokenAddressTarget,
 } from './token';
+
+const log = createModuleLogger(projectLogger, 'validation');
 
 const erc20Interface = new Interface(abiERC20);
 
@@ -53,12 +56,43 @@ export async function validateQuoteExecution({
 
   const liveBalance = await getLiveSourceBalance(quote, messenger);
 
+  log('Live source balance', {
+    from: quote.request.from,
+    liveBalance,
+    sourceChainId: quote.request.sourceChainId,
+    sourceTokenAddress: quote.request.sourceTokenAddress,
+  });
+
   throwIfAborted(signal);
+
+  log('Checking quote source amount', {
+    hasPaymentOverride: Boolean(quote.request.paymentOverride),
+    isPostQuote: Boolean(quote.request.isPostQuote),
+    liveBalance,
+    requiredAmount: quote.sourceAmount.raw,
+  });
 
   validateRequiredSourceAmount(quote, liveBalance);
+
+  log('Quote source amount check passed');
+
+  log('Checking decoded source transfers', {
+    sourceChainId: quote.request.sourceChainId,
+    sourceTokenAddress: quote.request.sourceTokenAddress,
+    transactionCount: simulation.transactions.length,
+  });
+
   validateDecodedSourceTransfers(quote, liveBalance, simulation.transactions);
 
+  log('Decoded source transfers check passed');
+
   throwIfAborted(signal);
+
+  log('Starting simulation', {
+    chainId: quote.request.sourceChainId,
+    mock7702From: simulation.mock7702From,
+    transactions: simulation.transactions,
+  });
 
   try {
     await simulateQuoteTransactions({
@@ -67,6 +101,8 @@ export async function validateQuoteExecution({
       mock7702From: simulation.mock7702From,
       transactions: simulation.transactions,
     });
+
+    log('Simulation passed');
   } catch (error) {
     throwIfAborted(signal);
 
@@ -124,7 +160,9 @@ function validateRequiredSourceAmount(
     return;
   }
 
-  throwInsufficientBalanceError('Insufficient quote source amount');
+  throwInsufficientBalanceError(
+    `Insufficient quote source amount: required ${requiredAmount.toFixed()}, balance ${balance.toFixed()}`,
+  );
 }
 
 function validateDecodedSourceTransfers(
@@ -132,17 +170,26 @@ function validateDecodedSourceTransfers(
   liveBalance: string,
   transactions: SimulationTransaction[],
 ): void {
-  const requiredAmount = getDecodedSourceTransferAmounts(quote, transactions)
+  const decodedAmounts = getDecodedSourceTransferAmounts(quote, transactions);
+
+  const requiredAmount = decodedAmounts
     .reduce((total, amount) => total.plus(amount), new BigNumber(0))
     .toString(10);
+
   const balance = new BigNumber(liveBalance);
+
+  log('Decoded source transfer amounts', {
+    decodedAmounts,
+    liveBalance,
+    requiredAmount,
+  });
 
   if (balance.isGreaterThanOrEqualTo(requiredAmount)) {
     return;
   }
 
   throwInsufficientBalanceError(
-    'Insufficient balance for decoded quote amount',
+    `Insufficient balance for decoded quote amount: required ${requiredAmount}, balance ${liveBalance}`,
   );
 }
 

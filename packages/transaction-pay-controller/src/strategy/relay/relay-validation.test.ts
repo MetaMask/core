@@ -157,7 +157,7 @@ describe('Relay quote simulation validation', () => {
         transaction: TRANSACTION_MOCK,
       }),
     ).rejects.toMatchObject({
-      validationError: 'Insufficient quote source amount',
+      validationError: 'Insufficient quote source amount: required 1500, balance 1000',
     });
     expect(simulateTransactionsMock).not.toHaveBeenCalled();
   });
@@ -173,7 +173,7 @@ describe('Relay quote simulation validation', () => {
         transaction: TRANSACTION_MOCK,
       }),
     ).rejects.toMatchObject({
-      validationError: 'Insufficient balance for decoded quote amount',
+      validationError: 'Insufficient balance for decoded quote amount: required 1500, balance 1000',
     });
     expect(simulateTransactionsMock).not.toHaveBeenCalled();
   });
