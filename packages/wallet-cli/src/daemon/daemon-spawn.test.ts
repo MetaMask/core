@@ -256,6 +256,33 @@ describe('ensureDaemon', () => {
     expect(spawnMock.on).toHaveBeenCalledWith('exit', expect.any(Function));
   });
 
+  it('throws early with the spawn error when the child fails to spawn', async () => {
+    mockPingDaemon.mockResolvedValue(ABSENT);
+    mockExistsSync.mockReturnValue(true);
+    // Fire 'error' at registration so the first poll iteration sees the failure.
+    const on = jest.fn(
+      (event: string, handler: (...args: unknown[]) => void) => {
+        if (event === 'error') {
+          handler(new Error('spawn ENOENT'));
+        }
+      },
+    );
+    mockSpawn.mockReturnValue({ unref: jest.fn(), on } as never);
+
+    jest.useFakeTimers();
+    const promise = ensureDaemon(CONFIG);
+    const rejection = promise.catch((thrown: unknown) => thrown);
+    await jest.advanceTimersByTimeAsync(200);
+
+    const thrownError = await rejection;
+    expect(thrownError).toBeInstanceOf(Error);
+    expect((thrownError as Error).message).toContain(
+      'Failed to spawn daemon process',
+    );
+    expect((thrownError as Error).message).toContain('spawn ENOENT');
+    expect((thrownError as Error).message).toContain('/tmp/test.log');
+  });
+
   it('writes spawn errors to stderr', async () => {
     mockPingDaemon
       .mockResolvedValueOnce(ABSENT)

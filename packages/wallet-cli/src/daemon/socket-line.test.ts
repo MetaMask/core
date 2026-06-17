@@ -37,6 +37,27 @@ describe('writeLine', () => {
 
     await expect(writeLine(socket, 'hello')).rejects.toThrow('write failed');
   });
+
+  it('rejects when the socket emits an error before the write completes', async () => {
+    const socket = createMockSocket();
+    // Never invoke the write callback; the failure arrives via the 'error' event.
+    (socket.write as jest.Mock).mockImplementation(() => undefined);
+
+    const promise = writeLine(socket, 'hello');
+    socket.emit('error', new Error('connection reset'));
+
+    await expect(promise).rejects.toThrow('connection reset');
+  });
+
+  it('removes the error listener after a successful write', async () => {
+    const socket = createMockSocket();
+    (socket.write as jest.Mock).mockImplementation(
+      (_data: string, callback: (writeError?: Error) => void) => callback(),
+    );
+
+    await writeLine(socket, 'hello');
+    expect(socket.listenerCount('error')).toBe(0);
+  });
 });
 
 describe('readLine', () => {

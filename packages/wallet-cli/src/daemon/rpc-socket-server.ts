@@ -5,7 +5,7 @@ import type {
   JsonRpcResponse,
 } from '@metamask/utils';
 import { hasProperty, isJsonRpcRequest } from '@metamask/utils';
-import { unlink } from 'node:fs/promises';
+import { chmod, unlink } from 'node:fs/promises';
 import { createServer } from 'node:net';
 import type { Server } from 'node:net';
 
@@ -316,11 +316,16 @@ async function listen(server: Server, socketPath: string): Promise<void> {
     }
   }
 
-  return new Promise((resolve, reject) => {
+  await new Promise<void>((resolve, reject) => {
     server.on('error', reject);
     server.listen(socketPath, () => {
       server.removeListener('error', reject);
       resolve();
     });
   });
+
+  // Restrict the socket to its owner. The daemon hosts an unlocked wallet, so
+  // a world-connectable socket would let any local user drive it. listen()
+  // creates the socket with umask-derived (typically world-accessible) perms.
+  await chmod(socketPath, 0o600);
 }

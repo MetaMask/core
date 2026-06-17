@@ -8,7 +8,17 @@ import type { Socket } from 'node:net';
  */
 export async function writeLine(socket: Socket, line: string): Promise<void> {
   return new Promise((resolve, reject) => {
+    // A socket 'error' can fire while the write is in flight without ever
+    // reaching the write callback; without this listener Node would treat it
+    // as an unhandled 'error' event and crash the process.
+    const onError = (error: Error): void => {
+      socket.removeListener('error', onError);
+      reject(error);
+    };
+    socket.once('error', onError);
+
     socket.write(`${line}\n`, (error) => {
+      socket.removeListener('error', onError);
       if (error) {
         reject(error);
       } else {

@@ -78,9 +78,14 @@ export async function ensureDaemon(
 
   type ExitInfo = { code: number | null; signal: NodeJS.Signals | null };
   const exitInfo: { value: ExitInfo | null } = { value: null };
+  // A failed spawn (bad interpreter, EACCES, ENOENT) emits 'error' and may
+  // never emit 'exit'. Capture it so the readiness loop can surface the real
+  // cause immediately instead of hanging for the full timeout.
+  const spawnError: { value: Error | null } = { value: null };
 
-  child.on('error', (error) => {
+  child.on('error', (error: Error) => {
     process.stderr.write(`Failed to spawn daemon process: ${String(error)}\n`);
+    spawnError.value = error;
   });
   child.on('exit', (code, signal) => {
     exitInfo.value = { code, signal };
@@ -89,6 +94,12 @@ export async function ensureDaemon(
 
   for (let i = 0; i < MAX_POLLS; i++) {
     await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL_MS));
+    if (spawnError.value !== null) {
+      throw new Error(
+        `Failed to spawn daemon process: ${spawnError.value.message}. ` +
+          `Check the daemon log at ${getDaemonPaths(config.dataDir).logPath}.`,
+      );
+    }
     if (exitInfo.value !== null) {
       const { code, signal } = exitInfo.value;
       throw new Error(

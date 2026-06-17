@@ -1,3 +1,5 @@
+import { stat } from 'node:fs/promises';
+import { createConnection } from 'node:net';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -66,6 +68,21 @@ describe('socket integration', () => {
       jsonrpc: '2.0',
       result: { pid: 42, uptime: 7 },
     });
+  });
+
+  it('restricts the socket file to the owner (0600)', async () => {
+    await startServer({
+      socketPath,
+      handlers: {
+        getStatus: async () => ({ pid: 1, uptime: 0 }),
+      },
+    });
+
+    // The daemon hosts an unlocked wallet, so the socket must not be
+    // connectable by other local users. The last three octal digits are the
+    // owner/group/other permission bits.
+    const stats = await stat(socketPath);
+    expect(stats.mode.toString(8).slice(-3)).toBe('600');
   });
 
   it('returns responsive from pingDaemon when the server is up', async () => {
@@ -188,7 +205,6 @@ describe('socket integration', () => {
     });
 
     // Open a raw connection and write two requests at once.
-    const { createConnection } = await import('node:net');
     const socket = createConnection(socketPath);
     await new Promise<void>((resolve, reject) => {
       socket.once('connect', () => resolve());
