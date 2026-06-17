@@ -84,6 +84,8 @@ export type TransactionPayControllerGetAmountDataAction = {
 /**
  * Returns optional fiat execution configuration.
  *
+ * This is intentionally not stored in controller state.
+ *
  * @returns Fiat execution options, if configured.
  */
 export type TransactionPayControllerGetFiatOptionsAction = {
