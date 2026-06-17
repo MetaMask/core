@@ -43,9 +43,8 @@ type FiatQuotePipelineOptions = {
  * Fetches MM Pay fiat strategy quotes using a relay-first estimation flow.
  *
  * When the direct-to-mUSD flag is enabled and the transaction is a Money
- * Account deposit, probes ramps for mUSD availability on Monad. If viable,
- * uses direct mUSD params (asset, wallet, recipient); otherwise falls back
- * to the standard ETH flow. Both paths share a single quote pipeline.
+ * Account deposit, uses direct mUSD params (asset, wallet, recipient).
+ * Otherwise, uses the standard ETH flow.
  *
  * @param request - Strategy quotes request.
  * @returns A single combined fiat strategy quote, or an empty array when inputs/quotes are unavailable.
@@ -60,7 +59,7 @@ export async function getFiatQuotes(
   const amountFiat = transactionData?.fiatPayment?.amountFiat;
   const requiredTokens = transactionData?.tokens ?? [];
 
-  if (!amountFiat || !request.fiatPaymentMethod || !requiredTokens.length) {
+  if (!amountFiat || !request.fiatPaymentMethod || requiredTokens.length !== 1) {
     return [];
   }
 
@@ -69,27 +68,18 @@ export async function getFiatQuotes(
     isMoneyAccountDepositTransaction(transaction);
 
   if (useDirectMusd) {
-    if (requiredTokens.length > 1) {
-      return executeFiatQuotePipeline(request, {
-        amountFiat,
-        fiatAsset: deriveFiatAssetForFiatPayment(transaction, messenger),
-        rampsWalletAddress: request.from,
-        requiredTokens,
-      });
-    }
+    const requiredToken = requiredTokens[0];
 
     const directQuote = await getDirectMusdFiatQuote({
       amountFiat,
       fiatPaymentMethod: request.fiatPaymentMethod,
       messenger,
       moneyAccountAddress: transaction.txParams.from as Hex,
-      requiredToken: requiredTokens[0],
+      requiredToken,
       transactionId: transaction.id,
     });
 
-    if (directQuote) {
-      return [directQuote];
-    }
+    return directQuote ? [directQuote] : [];
   }
 
   return executeFiatQuotePipeline(request, {
@@ -119,17 +109,7 @@ async function executeFiatQuotePipeline(
   }
 
   try {
-    if (requiredTokens.length > 1) {
-      throw new Error(
-        'Multiple required tokens not supported for fiat strategy',
-      );
-    }
-
     const requiredToken = requiredTokens[0];
-
-    if (!requiredToken) {
-      return [];
-    }
 
     const relayRequest = buildRelayRequestFromAmountFiat({
       amountFiat,

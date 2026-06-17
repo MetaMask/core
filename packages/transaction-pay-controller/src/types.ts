@@ -251,7 +251,7 @@ export type TransactionPayControllerOptions = {
   /** Callback to convert a transaction into a redeem delegation. */
   getDelegationTransaction: GetDelegationTransactionCallback;
 
-  /** Optional fiat local-QA execution configuration. */
+  /** Optional fiat execution configuration. */
   fiatOptions?: TransactionPayFiatOptions;
 
   /**
@@ -282,7 +282,7 @@ export type TransactionPayControllerState = {
   transactionData: Record<string, TransactionData>;
 };
 
-/** Optional fiat local-QA execution configuration. */
+/** Optional fiat execution configuration. */
 export type TransactionPayFiatOptions = {
   /** Test funding source used to bypass fiat on-ramp execution during local QA. */
   testFundingSource?: Hex;

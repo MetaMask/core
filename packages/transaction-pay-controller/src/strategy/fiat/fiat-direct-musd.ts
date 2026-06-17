@@ -23,18 +23,14 @@ import {
   updateTransaction,
   waitForTransactionConfirmed,
 } from '../../utils/transaction';
-import {
-  DEFAULT_FIAT_CURRENCY,
-  MUSD_MONAD_FIAT_ASSET,
-  MUSD_PROBE_AMOUNT_USD,
-} from './constants';
+import { DEFAULT_FIAT_CURRENCY, MUSD_MONAD_FIAT_ASSET } from './constants';
 import type { FiatQuote } from './types';
 import { getRawSourceAmountFromOrderCryptoAmount } from './utils';
 
 const log = createModuleLogger(projectLogger, 'fiat-direct-musd');
 
 /**
- * Returns a direct mUSD fiat quote when ramps can sell mUSD to the Money Account.
+ * Returns a direct mUSD fiat quote to the Money Account.
  *
  * @param options - Direct quote options.
  * @param options.amountFiat - Fiat amount entered by the user.
@@ -60,15 +56,6 @@ export async function getDirectMusdFiatQuote({
   requiredToken: TransactionPayRequiredToken;
   transactionId: string;
 }): Promise<TransactionPayQuote<FiatQuote> | undefined> {
-  const probeOk = await probeMusdFiatAvailability({
-    messenger,
-    walletAddress: moneyAccountAddress,
-  });
-
-  if (!probeOk) {
-    return undefined;
-  }
-
   try {
     const adjustedAmount = Number(amountFiat);
 
@@ -402,38 +389,4 @@ function getRampsProviderFee(fiatQuote: RampsQuote): BigNumber {
   return new BigNumber(fiatQuote.quote.providerFee ?? 0).plus(
     fiatQuote.quote.networkFee ?? 0,
   );
-}
-
-async function probeMusdFiatAvailability({
-  messenger,
-  walletAddress,
-}: {
-  messenger: PayStrategyGetQuotesRequest['messenger'];
-  walletAddress: string;
-}): Promise<boolean> {
-  try {
-    const quotes = await messenger.call('RampsController:getQuotes', {
-      amount: MUSD_PROBE_AMOUNT_USD,
-      assetId: buildCaipAssetType(
-        MUSD_MONAD_FIAT_ASSET.chainId,
-        MUSD_MONAD_FIAT_ASSET.address,
-      ),
-      autoSelectProvider: true,
-      fiat: DEFAULT_FIAT_CURRENCY,
-      restrictToKnownOrNativeProviders: true,
-      walletAddress,
-    });
-
-    const isAvailable = (quotes.success?.length ?? 0) > 0;
-
-    log('mUSD fiat probe result', {
-      isAvailable,
-      providerCount: quotes.success?.length ?? 0,
-    });
-
-    return isAvailable;
-  } catch (error) {
-    log('mUSD fiat probe failed', { error });
-    return false;
-  }
 }

@@ -251,11 +251,11 @@ export class TransactionPayController extends BaseController<
   }
 
   /**
-   * Returns optional fiat local-QA execution configuration.
+   * Returns optional fiat execution configuration.
    *
    * This is intentionally not stored in controller state.
    *
-   * @returns Fiat local-QA execution options, if configured.
+   * @returns Fiat execution options, if configured.
    */
   getFiatOptions(): TransactionPayFiatOptions | undefined {
     return this.#fiatOptions;

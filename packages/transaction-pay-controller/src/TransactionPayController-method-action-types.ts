@@ -82,12 +82,9 @@ export type TransactionPayControllerGetAmountDataAction = {
 };
 
 /**
- * Returns optional fiat local-QA execution configuration.
+ * Returns optional fiat execution configuration.
  *
- * This is intentionally not stored in controller state; clients can compute
- * it from their current environment when the publish hook executes.
- *
- * @returns Fiat local-QA execution options, if configured.
+ * @returns Fiat execution options, if configured.
  */
 export type TransactionPayControllerGetFiatOptionsAction = {
   type: `TransactionPayController:getFiatOptions`;
