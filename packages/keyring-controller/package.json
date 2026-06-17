@@ -93,7 +93,7 @@
     "uuid": "^8.3.2"
   },
   "engines": {
-    "node": "^18.18 || >=20"
+    "node": ">=22"
   },
   "lavamoat": {
     "allowScripts": {

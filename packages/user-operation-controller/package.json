@@ -91,6 +91,6 @@
     "@metamask/eth-block-tracker": ">=9"
   },
   "engines": {
-    "node": "^18.18 || >=20"
+    "node": ">=22"
   }
 }
