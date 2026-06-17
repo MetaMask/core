@@ -1,14 +1,7 @@
 export type { AccountWalletObject } from './wallet';
-export {
-  isMultichainAccountWallet,
-  assertIsMultichainAccountWallet,
-} from './wallet';
+export { isMultichainAccountWallet } from './wallet';
 export type { AccountGroupObject } from './group';
-export {
-  isAccountGroupNameUnique,
-  isMultichainAccountGroup,
-  assertIsMultichainAccountGroup,
-} from './group';
+export { isAccountGroupNameUnique, isMultichainAccountGroup } from './group';
 
 export {
   USER_STORAGE_GROUPS_FEATURE_KEY,
