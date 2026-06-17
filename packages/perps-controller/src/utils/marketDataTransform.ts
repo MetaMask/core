@@ -11,12 +11,12 @@ import {
   getHyperLiquidAssetName,
 } from '../constants/hyperLiquidConfig';
 import { PERPS_CONSTANTS } from '../constants/perpsConfig';
+import type { TerminalAssetMetadata } from '../services/TerminalMarketService';
 import type {
   PerpsMarketData,
   MarketType,
   MarketDataFormatters,
 } from '../types';
-import type { TerminalAssetMetadata } from '../services/TerminalMarketService';
 import type {
   AllMidsResponse,
   PerpsUniverse,
