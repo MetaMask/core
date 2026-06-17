@@ -317,7 +317,6 @@ describe('SocialService', () => {
       },
       socialHandles: mockSocialHandles,
       followerCount: 100,
-      followingCount: 50,
     };
 
     it('fetches trader profile from correct endpoint', async () => {
@@ -404,6 +403,7 @@ describe('SocialService', () => {
 
       expect(result.stats).toStrictEqual({});
     });
+
   });
 
   describe('fetchOpenPositions', () => {

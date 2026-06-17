@@ -142,7 +142,6 @@ const TraderProfileResponseStruct = structType({
   perChainBreakdown: PerChainBreakdownStruct,
   socialHandles: SocialHandlesStruct,
   followerCount: number(),
-  followingCount: number(),
 });
 
 const PositionsResponseStruct = structType({

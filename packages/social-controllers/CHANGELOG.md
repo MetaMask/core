@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Removed
+
+- **BREAKING:** Remove `TraderProfileResponse.followingCount` from both the runtime validation struct (`TraderProfileResponseStruct`) and the TypeScript type. The social-api response contract no longer surfaces this field (it had been a transitional duplicate of `metrics.allPartners.followingCount`), and the SDK was rejecting otherwise-valid responses because the struct still required it. No current consumers depend on the field.
+
 ## [2.3.0]
 
 ### Added

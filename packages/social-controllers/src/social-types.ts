@@ -134,7 +134,6 @@ export type TraderProfileResponse = {
   perChainBreakdown: PerChainBreakdown;
   socialHandles: SocialHandles;
   followerCount: number;
-  followingCount: number;
 };
 
 // ---------------------------------------------------------------------------
