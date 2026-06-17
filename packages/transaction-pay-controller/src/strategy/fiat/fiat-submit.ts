@@ -3,8 +3,6 @@ import type {
   RampsOrderCryptoCurrency,
 } from '@metamask/ramps-controller';
 import { RampsOrderStatus } from '@metamask/ramps-controller';
-import { ORIGIN_METAMASK } from '@metamask/controller-utils';
-import { TransactionType } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 import { createModuleLogger } from '@metamask/utils';
 
@@ -19,18 +17,12 @@ import {
   getFiatOrderPollTimeoutMs,
 } from '../../utils/feature-flags';
 import { buildCaipAssetType } from '../../utils/token';
-import { getNetworkClientId } from '../../utils/provider';
-import {
-  collectTransactionIds,
-  getTransaction,
-  updateTransaction,
-  waitForTransactionConfirmed,
-} from '../../utils/transaction';
+import { updateTransaction } from '../../utils/transaction';
 import type { TransactionPayFiatAsset } from './constants';
 import { MUSD_MONAD_FIAT_ASSET } from './constants';
 import {
-  assertDirectMusdRelayExecute,
   isDirectMusdMoneyAccountQuote,
+  submitDirectMusdVaultDeposit,
 } from './fiat-direct-musd';
 import { submitSimpleRelay } from './fiat-submit-simple';
 import { submitWithTransactionData } from './fiat-submit-with-transaction-data';
@@ -112,9 +104,9 @@ export async function submitFiatQuotes(
     throw new Error('Missing fiat quote for relay submission');
   }
 
-  const order = request.fiatTestFundingSource
+  const order = request.fiat?.testFundingSource
     ? await fundFiatOrderFromTestSource({
-        fundingSource: request.fiatTestFundingSource,
+        fiat: request.fiat,
         messenger,
         quote: fiatQuote,
         transaction,
@@ -298,7 +290,7 @@ async function submitRelayAfterFiatCompletion({
     walletAddress: sourceAmountWalletAddress,
   });
 
-  if (isDirectMusd && !fiatQuote.original.relayQuote) {
+  if (isDirectMusd) {
     return await submitDirectMusdVaultDeposit({
       request,
       sourceAmountRaw,
@@ -309,11 +301,6 @@ async function submitRelayAfterFiatCompletion({
   if (!fiatQuote.original.relayQuote) {
     throw new Error('Missing Relay quote for fiat submission');
   }
-
-  assertDirectMusdRelayExecute({
-    original: fiatQuote.original.relayQuote,
-    request: baseRequest,
-  });
 
   const hasNestedCalldata = (transaction.nestedTransactions?.length ?? 0) >= 2;
 
@@ -337,117 +324,6 @@ async function submitRelayAfterFiatCompletion({
     sourceAmountRaw,
     transaction,
   });
-}
-
-async function submitDirectMusdVaultDeposit({
-  request,
-  sourceAmountRaw,
-  transaction,
-}: {
-  request: PayStrategyExecuteRequest<FiatQuote>;
-  sourceAmountRaw: string;
-  transaction: PayStrategyExecuteRequest<FiatQuote>['transaction'];
-}): Promise<{ transactionHash?: Hex }> {
-  const { messenger } = request;
-  const transactionId = transaction.id;
-  const moneyAccountAddress = transaction.txParams.from as Hex | undefined;
-
-  if (!moneyAccountAddress) {
-    throw new Error('Missing Money Account address for direct mUSD submit');
-  }
-
-  const updatedTransaction = getTransaction(transactionId, messenger) ?? transaction;
-  const { updates } = await messenger.call(
-    'TransactionPayController:getAmountData',
-    {
-      amount: sourceAmountRaw,
-      transaction: updatedTransaction,
-    },
-  );
-
-  if (!updates.length) {
-    throw new Error('getAmountData returned no updates for direct mUSD submit');
-  }
-
-  const nestedTransactions = updatedTransaction.nestedTransactions?.map(
-    (nestedTransaction) => ({ ...nestedTransaction }),
-  );
-
-  if (!nestedTransactions?.length) {
-    throw new Error('Missing nested transactions for direct mUSD submit');
-  }
-
-  for (const { nestedTransactionIndex, data } of updates) {
-    if (nestedTransactions[nestedTransactionIndex]) {
-      nestedTransactions[nestedTransactionIndex].data = data;
-    }
-  }
-
-  updateTransaction(
-    { transactionId, messenger, note: 'Direct mUSD fiat: update vault amount' },
-    (tx) => {
-      for (const { nestedTransactionIndex, data } of updates) {
-        if (tx.nestedTransactions?.[nestedTransactionIndex]) {
-          tx.nestedTransactions[nestedTransactionIndex].data = data;
-        }
-      }
-
-      if (tx.requiredAssets?.[0]) {
-        tx.requiredAssets[0].amount = `0x${BigInt(sourceAmountRaw).toString(
-          16,
-        )}`;
-      }
-    },
-  );
-
-  const networkClientId = getNetworkClientId(
-    messenger,
-    MUSD_MONAD_FIAT_ASSET.chainId,
-  );
-  const transactionIds: string[] = [];
-  const { end } = collectTransactionIds(
-    MUSD_MONAD_FIAT_ASSET.chainId,
-    moneyAccountAddress,
-    messenger,
-    (id) => transactionIds.push(id),
-  );
-
-  await messenger.call('TransactionController:addTransactionBatch', {
-    from: moneyAccountAddress,
-    isGasFeeSponsored: true,
-    isInternal: true,
-    networkClientId,
-    origin: ORIGIN_METAMASK,
-    requireApproval: false,
-    transactions: nestedTransactions.map((nestedTransaction, index) => ({
-      params: {
-        data: nestedTransaction.data as Hex | undefined,
-        to: nestedTransaction.to,
-        value: (nestedTransaction.value as Hex | undefined) ?? '0x0',
-      },
-      type:
-        nestedTransaction.type ??
-        (index === nestedTransactions.length - 1
-          ? TransactionType.moneyAccountDeposit
-          : TransactionType.tokenMethodApprove),
-    })),
-  });
-
-  end();
-
-  await Promise.all(
-    transactionIds.map((id) => waitForTransactionConfirmed(id, messenger)),
-  );
-
-  const hash = getTransaction(transactionIds.slice(-1)[0], messenger)?.hash;
-
-  log('Submitted direct mUSD vault deposit', {
-    hash,
-    transactionId,
-    transactionIds,
-  });
-
-  return { transactionHash: hash as Hex | undefined };
 }
 
 function getWalletAddress({

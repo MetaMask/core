@@ -6,7 +6,6 @@ import type { PayStrategyExecuteRequest, QuoteRequest } from '../../types';
 import { getFiatMaxRateDriftPercent } from '../../utils/feature-flags';
 import { getRelayQuotes } from '../relay/relay-quotes';
 import { submitRelayQuotes } from '../relay/relay-submit';
-import { assertDirectMusdRelayExecute } from './fiat-direct-musd';
 import type { FiatQuote } from './types';
 import { validateRelayRateDrift } from './utils';
 
@@ -63,8 +62,6 @@ export async function submitSimpleRelay({
   if (!relayQuotes.length) {
     throw new Error('No relay quotes returned for completed fiat order');
   }
-
-  assertDirectMusdRelayExecute(relayQuotes[0]);
 
   validateRelayRateDrift({
     originalQuote: originalRelayQuote,

@@ -245,9 +245,6 @@ export const KEYRING_TYPES_SUPPORTING_7702: `${KeyringTypes}`[] = [
 
 /** Options for the TransactionPayController. */
 export type TransactionPayControllerOptions = {
-  /** Optional test-only funding source used to bypass fiat on-ramp execution during local QA. */
-  fiatTestFundingSource?: Hex;
-
   /** Optional callback to re-encode nested transaction calldata for a given amount. */
   getAmountData?: GetAmountDataCallback;
 
@@ -278,11 +275,17 @@ export type TransactionPayControllerOptions = {
 
 /** State of the TransactionPayController. */
 export type TransactionPayControllerState = {
-  /** Optional test-only funding source used to bypass fiat on-ramp execution during local QA. */
-  fiatTestFundingSource?: Hex;
-
   /** State relating to each transaction, keyed by transaction ID. */
   transactionData: Record<string, TransactionData>;
+};
+
+/** Optional fiat local-QA execution configuration. */
+export type TransactionPayFiatOptions = {
+  /** Test funding source used to bypass fiat on-ramp execution during local QA. */
+  testFundingSource?: Hex;
+
+  /** Optional human amount to transfer from the test funding source. */
+  testAmountOverride?: string;
 };
 
 /** State relating to a single transaction. */
@@ -631,8 +634,8 @@ export type PayStrategyExecuteRequest<OriginalRequest> = {
   /** Whether the account supports EIP-7702 authorization signing. */
   accountSupports7702: boolean;
 
-  /** Optional test-only funding source used to bypass fiat on-ramp execution during local QA. */
-  fiatTestFundingSource?: Hex;
+  /** Optional fiat local-QA execution configuration. */
+  fiat?: TransactionPayFiatOptions;
 
   /** Callback to determine if the transaction is a smart transaction. */
   isSmartTransaction: (chainId: Hex) => boolean;

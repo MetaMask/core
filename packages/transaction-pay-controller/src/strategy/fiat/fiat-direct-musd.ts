@@ -1,54 +1,70 @@
-import type {
-  TransactionMeta,
-  TransactionParams,
-} from '@metamask/transaction-controller';
+import type { Quote as RampsQuote } from '@metamask/ramps-controller';
+import { ORIGIN_METAMASK } from '@metamask/controller-utils';
+import { TransactionType } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 import { createModuleLogger } from '@metamask/utils';
+import { BigNumber } from 'bignumber.js';
 
+import { TransactionPayStrategy } from '../../constants';
 import { projectLogger } from '../../logger';
 import type {
+  PayStrategyExecuteRequest,
   PayStrategyGetQuotesRequest,
   QuoteRequest,
-  TransactionPayControllerMessenger,
+  TransactionFiatPayment,
   TransactionPayQuote,
 } from '../../types';
+import { getFiatVaultDisabled } from '../../utils/feature-flags';
 import { getNetworkClientId } from '../../utils/provider';
-import { buildCaipAssetType } from '../../utils/token';
-import { buildTokenTransferData } from '../../utils/token-transfer';
-import type { RelayQuote } from '../relay/types';
+import { buildCaipAssetType, getTokenInfo } from '../../utils/token';
+import {
+  collectTransactionIds,
+  getTransaction,
+  updateTransaction,
+  waitForTransactionConfirmed,
+} from '../../utils/transaction';
 import {
   DEFAULT_FIAT_CURRENCY,
   MUSD_MONAD_FIAT_ASSET,
   MUSD_PROBE_AMOUNT_USD,
 } from './constants';
-import type { TransactionPayFiatAsset } from './constants';
+import type { FiatQuote } from './types';
+import { getRawSourceAmountFromOrderCryptoAmount } from './utils';
 
 const log = createModuleLogger(projectLogger, 'fiat-direct-musd');
 
-export type DirectMusdFiatQuoteOptions = {
-  fiatAsset: TransactionPayFiatAsset;
-  rampsWalletAddress: Hex;
-  relayRequestOverrides: Pick<
-    QuoteRequest,
-    'isDirectMusdMoneyAccount' | 'recipient'
-  >;
-};
-
 /**
- * Returns direct mUSD quote options when ramps can sell mUSD to the Money Account.
+ * Returns a direct mUSD fiat quote when ramps can sell mUSD to the Money Account.
  *
- * @param options - Direct mUSD quote options.
+ * @param options - Direct quote options.
+ * @param options.amountFiat - Fiat amount entered by the user.
+ * @param options.baseRequest - Base quote request built for the mUSD asset.
+ * @param options.fiatPaymentMethod - Selected fiat payment method.
  * @param options.messenger - Controller messenger.
- * @param options.moneyAccountAddress - Money Account receiving the fiat on-ramp.
- * @returns Direct quote options, or undefined when direct mUSD is unavailable.
+ * @param options.moneyAccountAddress - Money Account receiving the on-ramped mUSD.
+ * @param options.transactionId - Transaction ID for state updates and logs.
+ * @returns Direct mUSD Fiat quote, or undefined when unavailable.
  */
-export async function getDirectMusdFiatQuoteOptions({
+export async function getDirectMusdFiatQuote({
+  amountFiat,
+  baseRequest,
+  fiatPaymentMethod,
   messenger,
   moneyAccountAddress,
+  transactionId,
 }: {
+  amountFiat: string;
+  baseRequest: QuoteRequest;
+  fiatPaymentMethod: string;
   messenger: PayStrategyGetQuotesRequest['messenger'];
   moneyAccountAddress: Hex;
-}): Promise<DirectMusdFiatQuoteOptions | undefined> {
+  transactionId: string;
+}): Promise<TransactionPayQuote<FiatQuote> | undefined> {
+  if (getFiatVaultDisabled(messenger)) {
+    log('Skipping direct mUSD quote as vault is disabled', { transactionId });
+    return undefined;
+  }
+
   const probeOk = await probeMusdFiatAvailability({
     messenger,
     walletAddress: moneyAccountAddress,
@@ -58,14 +74,51 @@ export async function getDirectMusdFiatQuoteOptions({
     return undefined;
   }
 
-  return {
-    fiatAsset: MUSD_MONAD_FIAT_ASSET,
-    rampsWalletAddress: moneyAccountAddress,
-    relayRequestOverrides: {
-      isDirectMusdMoneyAccount: true,
-      recipient: moneyAccountAddress,
-    },
-  };
+  try {
+    const adjustedAmount = Number(amountFiat);
+
+    if (!Number.isFinite(adjustedAmount) || adjustedAmount <= 0) {
+      throw new Error('Invalid fiat amount for direct mUSD quote');
+    }
+
+    const fiatQuote = await getRampsQuote({
+      adjustedAmount,
+      fiatPaymentMethod,
+      messenger,
+      walletAddress: moneyAccountAddress,
+    });
+
+    messenger.call('TransactionPayController:updateFiatPayment', {
+      callback: (fiatPayment: TransactionFiatPayment) => {
+        fiatPayment.rampsQuote = fiatQuote;
+        fiatPayment.caipAssetId = buildCaipAssetType(
+          MUSD_MONAD_FIAT_ASSET.chainId,
+          MUSD_MONAD_FIAT_ASSET.address,
+        );
+      },
+      transactionId,
+    });
+
+    log('Direct mUSD fiat quote flow', {
+      amountFiat,
+      moneyAccountAddress,
+      transactionId,
+    });
+
+    return combineDirectMusdFiatQuote({
+      amountFiat,
+      fiatQuote,
+      messenger,
+      request: {
+        ...baseRequest,
+        isDirectMusdMoneyAccount: true,
+        recipient: moneyAccountAddress,
+      },
+    });
+  } catch (error) {
+    log('Direct mUSD fiat quote failed', { error, transactionId });
+    return undefined;
+  }
 }
 
 /**
@@ -77,125 +130,258 @@ export async function getDirectMusdFiatQuoteOptions({
 export function isDirectMusdMoneyAccountQuote(
   quote: Pick<TransactionPayQuote<unknown>, 'request'> | undefined,
 ): boolean {
-  return isDirectMusdMoneyAccountRequest(quote?.request);
+  return quote?.request.isDirectMusdMoneyAccount === true;
 }
 
 /**
- * Detects a direct mUSD Money Account quote request.
+ * Submits the direct mUSD Money Account vault batch after fiat settlement.
  *
- * @param request - Quote request to inspect.
- * @returns True when the request originated from the direct mUSD fiat path.
- */
-export function isDirectMusdMoneyAccountRequest(
-  request: QuoteRequest | undefined,
-): boolean {
-  return request?.isDirectMusdMoneyAccount === true;
-}
-
-/**
- * Direct mUSD relies on Relay execute so funding and Relay settlement are atomic.
- *
- * @param quote - Relay quote to validate.
- */
-export function assertDirectMusdRelayExecute(
-  quote: Pick<TransactionPayQuote<RelayQuote>, 'original' | 'request'>,
-): void {
-  if (
-    isDirectMusdMoneyAccountQuote(quote) &&
-    quote.original.metamask?.isExecute !== true
-  ) {
-    throw new Error('Direct mUSD Money Account quotes require Relay execute');
-  }
-}
-
-/**
- * Builds the delegated Money Account funding transaction for direct mUSD submit.
- *
- * @param options - Funding options.
- * @param options.messenger - Controller messenger.
- * @param options.quote - Direct mUSD Relay quote.
- * @param options.relayParams - First Relay transaction params, used for fee fields.
+ * @param options - Submit options.
+ * @param options.request - Strategy execute request.
+ * @param options.sourceAmountRaw - Settled source amount in raw mUSD units.
  * @param options.transaction - Original Money Account transaction.
- * @returns Transaction params to prepend, or undefined for non-direct quotes.
+ * @returns Hash of the final submitted child transaction, if available.
  */
-export async function buildDirectMusdFundingParams({
-  messenger,
-  quote,
-  relayParams,
+export async function submitDirectMusdVaultDeposit({
+  request,
+  sourceAmountRaw,
   transaction,
 }: {
-  messenger: TransactionPayControllerMessenger;
-  quote: TransactionPayQuote<RelayQuote>;
-  relayParams?: TransactionParams;
-  transaction: TransactionMeta;
-}): Promise<TransactionParams | undefined> {
-  if (!isDirectMusdMoneyAccountQuote(quote)) {
-    return undefined;
-  }
-
-  assertDirectMusdRelayExecute(quote);
-
+  request: PayStrategyExecuteRequest<FiatQuote>;
+  sourceAmountRaw: string;
+  transaction: PayStrategyExecuteRequest<FiatQuote>['transaction'];
+}): Promise<{ transactionHash?: Hex }> {
+  const { messenger } = request;
+  const transactionId = transaction.id;
   const moneyAccountAddress = transaction.txParams.from as Hex | undefined;
 
   if (!moneyAccountAddress) {
-    throw new Error('Missing Money Account address for direct mUSD funding');
+    throw new Error('Missing Money Account address for direct mUSD submit');
   }
+
+  if (getFiatVaultDisabled(messenger)) {
+    throw new Error('Direct mUSD Money Account vault submit is disabled');
+  }
+
+  const updatedTransaction = getTransaction(transactionId, messenger) ?? transaction;
+  const { updates } = await messenger.call(
+    'TransactionPayController:getAmountData',
+    {
+      amount: sourceAmountRaw,
+      transaction: updatedTransaction,
+    },
+  );
+
+  if (!updates.length) {
+    throw new Error('getAmountData returned no updates for direct mUSD submit');
+  }
+
+  const nestedTransactions = updatedTransaction.nestedTransactions?.map(
+    (nestedTransaction) => ({ ...nestedTransaction }),
+  );
+
+  if (!nestedTransactions?.length) {
+    throw new Error('Missing nested transactions for direct mUSD submit');
+  }
+
+  for (const { nestedTransactionIndex, data } of updates) {
+    if (nestedTransactions[nestedTransactionIndex]) {
+      nestedTransactions[nestedTransactionIndex].data = data;
+    }
+  }
+
+  updateTransaction(
+    { transactionId, messenger, note: 'Direct mUSD fiat: update vault amount' },
+    (tx) => {
+      for (const { nestedTransactionIndex, data } of updates) {
+        if (tx.nestedTransactions?.[nestedTransactionIndex]) {
+          tx.nestedTransactions[nestedTransactionIndex].data = data;
+        }
+      }
+
+      if (tx.requiredAssets?.[0]) {
+        tx.requiredAssets[0].amount = `0x${BigInt(sourceAmountRaw).toString(
+          16,
+        )}`;
+      }
+    },
+  );
 
   const networkClientId = getNetworkClientId(
     messenger,
-    quote.request.sourceChainId,
+    MUSD_MONAD_FIAT_ASSET.chainId,
   );
-
-  const fundingTransaction = {
-    ...transaction,
-    chainId: quote.request.sourceChainId,
-    nestedTransactions: undefined,
-    networkClientId,
-    txParams: {
-      ...transaction.txParams,
-      data: buildTokenTransferData(quote.request.from, quote.sourceAmount.raw),
-      from: moneyAccountAddress,
-      to: quote.request.sourceTokenAddress,
-      value: '0x0',
-    },
-  } as TransactionMeta;
-
-  const delegation = await messenger.call(
-    'TransactionPayController:getDelegationTransaction',
-    { transaction: fundingTransaction },
-  );
-
-  if (delegation.authorizationList?.length) {
-    throw new Error(
-      'Direct mUSD Money Account funding requires an already-upgraded Money Account',
-    );
-  }
-
-  log('Built direct mUSD funding delegation', {
+  const transactionIds: string[] = [];
+  const { end } = collectTransactionIds(
+    MUSD_MONAD_FIAT_ASSET.chainId,
     moneyAccountAddress,
-    sourceAmountRaw: quote.sourceAmount.raw,
+    messenger,
+    (id) => {
+      transactionIds.push(id);
+      updateTransaction(
+        {
+          transactionId,
+          messenger,
+          note: 'Add required transaction ID from direct mUSD vault submission',
+        },
+        (tx) => {
+          tx.requiredTransactionIds ??= [];
+          tx.requiredTransactionIds.push(id);
+        },
+      );
+    },
+  );
+
+  log('Submitting direct mUSD vault batch', {
+    moneyAccountAddress,
+    nestedTransactionCount: nestedTransactions.length,
+    networkClientId,
+    sourceAmountRaw,
+    transactionId,
   });
 
+  await messenger.call('TransactionController:addTransactionBatch', {
+    from: moneyAccountAddress,
+    isGasFeeSponsored: true,
+    isInternal: true,
+    networkClientId,
+    origin: ORIGIN_METAMASK,
+    requireApproval: false,
+    transactions: nestedTransactions.map((nestedTransaction, index) => ({
+      params: {
+        data: nestedTransaction.data as Hex | undefined,
+        to: nestedTransaction.to,
+        value: (nestedTransaction.value as Hex | undefined) ?? '0x0',
+      },
+      type:
+        index === 0
+          ? (nestedTransaction.type ?? TransactionType.tokenMethodApprove)
+          : TransactionType.contractInteraction,
+    })),
+  });
+
+  end();
+
+  await Promise.all(
+    transactionIds.map((id) => waitForTransactionConfirmed(id, messenger)),
+  );
+
+  const hash = getTransaction(transactionIds.slice(-1)[0], messenger)?.hash;
+
+  log('Submitted direct mUSD vault deposit', {
+    hash,
+    transactionId,
+    transactionIds,
+  });
+
+  return { transactionHash: hash as Hex | undefined };
+}
+
+async function getRampsQuote({
+  adjustedAmount,
+  fiatPaymentMethod,
+  messenger,
+  walletAddress,
+}: {
+  adjustedAmount: number;
+  fiatPaymentMethod: string;
+  messenger: PayStrategyGetQuotesRequest['messenger'];
+  walletAddress: string;
+}): Promise<RampsQuote> {
+  const quotes = await messenger.call('RampsController:getQuotes', {
+    amount: adjustedAmount,
+    assetId: buildCaipAssetType(
+      MUSD_MONAD_FIAT_ASSET.chainId,
+      MUSD_MONAD_FIAT_ASSET.address,
+    ),
+    autoSelectProvider: true,
+    fiat: DEFAULT_FIAT_CURRENCY,
+    paymentMethods: [fiatPaymentMethod],
+    restrictToKnownOrNativeProviders: true,
+    walletAddress,
+  });
+
+  log('Fetched direct mUSD ramps quotes', {
+    quotesCount: quotes.success?.length ?? 0,
+  });
+
+  const quote = quotes.success?.[0];
+
+  if (!quote) {
+    throw new Error('No matching ramps quote found for direct mUSD provider');
+  }
+
+  return quote;
+}
+
+function combineDirectMusdFiatQuote({
+  amountFiat,
+  fiatQuote,
+  messenger,
+  request,
+}: {
+  amountFiat: string;
+  fiatQuote: RampsQuote;
+  messenger: PayStrategyGetQuotesRequest['messenger'];
+  request: QuoteRequest;
+}): TransactionPayQuote<FiatQuote> {
+  const tokenInfo = getTokenInfo(
+    messenger,
+    MUSD_MONAD_FIAT_ASSET.address,
+    MUSD_MONAD_FIAT_ASSET.chainId,
+  );
+
+  if (!tokenInfo) {
+    throw new Error('Unable to resolve mUSD token info for direct fiat quote');
+  }
+
+  const sourceAmountRaw = getRawSourceAmountFromOrderCryptoAmount({
+    cryptoAmount: fiatQuote.quote.amountOut,
+    decimals: tokenInfo.decimals,
+  });
+  const rampsProviderFee = getRampsProviderFee(fiatQuote).toString(10);
+  const sourceAmountHuman = new BigNumber(sourceAmountRaw)
+    .shiftedBy(-tokenInfo.decimals)
+    .toString(10);
+
   return {
-    data: delegation.data,
-    from: quote.request.from,
-    maxFeePerGas: relayParams?.maxFeePerGas,
-    maxPriorityFeePerGas: relayParams?.maxPriorityFeePerGas,
-    to: delegation.to,
-    value: delegation.value,
+    dust: { fiat: '0', usd: '0' },
+    estimatedDuration: 0,
+    fees: {
+      metaMask: { fiat: '0', usd: '0' },
+      provider: { fiat: rampsProviderFee, usd: rampsProviderFee },
+      providerFiat: { fiat: rampsProviderFee, usd: rampsProviderFee },
+      sourceNetwork: {
+        estimate: { fiat: '0', human: '0', raw: '0', usd: '0' },
+        max: { fiat: '0', human: '0', raw: '0', usd: '0' },
+      },
+      targetNetwork: { fiat: '0', usd: '0' },
+    },
+    original: {
+      rampsQuote: fiatQuote,
+      relayQuote: undefined,
+    },
+    request: {
+      ...request,
+      sourceBalanceRaw: sourceAmountRaw,
+      sourceTokenAmount: sourceAmountRaw,
+      targetAmountMinimum: sourceAmountRaw,
+    },
+    sourceAmount: {
+      fiat: amountFiat,
+      human: sourceAmountHuman,
+      raw: sourceAmountRaw,
+      usd: amountFiat,
+    },
+    strategy: TransactionPayStrategy.Fiat,
+    targetAmount: { fiat: amountFiat, usd: amountFiat },
   };
 }
 
-/**
- * Direct same-chain mUSD still needs Relay status polling because execute returns asynchronously.
- *
- * @param quote - Relay quote to inspect.
- * @returns True when same-chain polling should not be short-circuited.
- */
-export function shouldForceDirectMusdRelayPolling(
-  quote: Pick<TransactionPayQuote<RelayQuote>, 'request'>,
-): boolean {
-  return isDirectMusdMoneyAccountQuote(quote);
+function getRampsProviderFee(fiatQuote: RampsQuote): BigNumber {
+  return new BigNumber(fiatQuote.quote.providerFee ?? 0).plus(
+    fiatQuote.quote.networkFee ?? 0,
+  );
 }
 
 async function probeMusdFiatAvailability({

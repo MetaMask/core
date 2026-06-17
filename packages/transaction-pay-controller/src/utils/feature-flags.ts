@@ -104,6 +104,7 @@ type FiatFlags = {
   maxRateDriftPercent?: number;
   orderPollIntervalMs?: number;
   orderPollTimeoutMs?: number;
+  vaultDisabled?: boolean;
 };
 
 type StrategyRoutingConfig = {
@@ -480,7 +481,7 @@ export function getFeatureFlags(
   const relayExecuteUrl =
     featureFlags.relayExecuteUrl ?? DEFAULT_RELAY_EXECUTE_URL;
 
-  const relayQuoteUrl = 'http://localhost:3000/relay/quote';
+  const relayQuoteUrl = featureFlags.relayQuoteUrl ?? DEFAULT_RELAY_QUOTE_URL;
 
   const relayDisabledGasStationChains =
     featureFlags.relayDisabledGasStationChains ?? [];
@@ -911,6 +912,16 @@ export function getDirectMoneyMusdEnabled(
     | FiatFlags
     | undefined;
   return fiatFlags?.directMoneyMusdEnabled === true;
+}
+
+export function getFiatVaultDisabled(
+  messenger: TransactionPayControllerMessenger,
+): boolean {
+  const state = messenger.call('RemoteFeatureFlagController:getState');
+  const fiatFlags = state.remoteFeatureFlags?.confirmations_pay_fiat as
+    | FiatFlags
+    | undefined;
+  return fiatFlags?.vaultDisabled === true;
 }
 
 /**

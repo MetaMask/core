@@ -103,21 +103,18 @@ describe('TransactionPayPublishHook', () => {
     );
   });
 
-  it('passes fiat test funding source from controller state to strategy execution', async () => {
-    getControllerStateMock.mockReturnValue({
-      fiatTestFundingSource: FIAT_TEST_FUNDING_SOURCE_MOCK,
-      transactionData: {
-        [TRANSACTION_META_MOCK.id]: {
-          quotes: [QUOTE_MOCK],
-        },
-      },
-    } as TransactionPayControllerState);
+  it('passes fiat test options from constructor to strategy execution', async () => {
+    hook = new TransactionPayPublishHook({
+      fiat: { testFundingSource: FIAT_TEST_FUNDING_SOURCE_MOCK },
+      isSmartTransaction: isSmartTransactionMock,
+      messenger,
+    });
 
     await runHook();
 
     expect(executeMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        fiatTestFundingSource: FIAT_TEST_FUNDING_SOURCE_MOCK,
+        fiat: { testFundingSource: FIAT_TEST_FUNDING_SOURCE_MOCK },
       }),
     );
   });

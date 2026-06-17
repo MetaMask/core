@@ -9,6 +9,7 @@ export type {
   TransactionData,
   TransactionFiatPayment,
   TransactionFiatPaymentCallback,
+  TransactionPayFiatOptions,
   TransactionPayControllerActions,
   TransactionPayControllerEvents,
   TransactionPayControllerGetStateAction,

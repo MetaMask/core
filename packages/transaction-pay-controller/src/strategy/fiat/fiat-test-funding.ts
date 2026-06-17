@@ -1,3 +1,4 @@
+import { Interface } from '@ethersproject/abi';
 import { ORIGIN_METAMASK, toHex } from '@metamask/controller-utils';
 import type { RampsOrder } from '@metamask/ramps-controller';
 import { RampsOrderStatus } from '@metamask/ramps-controller';
@@ -14,6 +15,7 @@ import { NATIVE_TOKEN_ADDRESS } from '../../constants';
 import { projectLogger } from '../../logger';
 import type {
   TransactionPayControllerMessenger,
+  TransactionPayFiatOptions,
   TransactionPayQuote,
 } from '../../types';
 import { getNetworkClientId } from '../../utils/provider';
@@ -23,7 +25,6 @@ import {
   getNativeToken,
   getTokenInfo,
 } from '../../utils/token';
-import { buildTokenTransferData } from '../../utils/token-transfer';
 import { waitForTransactionConfirmed } from '../../utils/transaction';
 import { isDirectMusdMoneyAccountQuote } from './fiat-direct-musd';
 import type { FiatQuote } from './types';
@@ -31,29 +32,37 @@ import { deriveFiatAssetForFiatPayment } from './utils';
 import { getRawSourceAmountFromOrderCryptoAmount } from './utils';
 
 const log = createModuleLogger(projectLogger, 'fiat-test-funding');
-const DIRECT_MUSD_TEST_FUNDING_CRYPTO_AMOUNT = '0.1';
+const TOKEN_TRANSFER_INTERFACE = new Interface([
+  'function transfer(address to, uint256 amount)',
+]);
 
 /**
  * Funds the fiat recipient from a test source instead of waiting for ramps.
  *
  * @param options - Test funding options.
- * @param options.fundingSource - Source account that holds the fiat asset.
+ * @param options.fiat - Fiat local-QA execution options.
  * @param options.messenger - Controller messenger.
  * @param options.quote - Fiat quote being submitted.
  * @param options.transaction - Original transaction metadata.
  * @returns A synthetic completed ramps order for the existing fiat submit flow.
  */
 export async function fundFiatOrderFromTestSource({
-  fundingSource,
+  fiat,
   messenger,
   quote,
   transaction,
 }: {
-  fundingSource: Hex;
+  fiat: TransactionPayFiatOptions;
   messenger: TransactionPayControllerMessenger;
   quote: TransactionPayQuote<FiatQuote>;
   transaction: TransactionMeta;
 }): Promise<RampsOrder> {
+  const fundingSource = fiat.testFundingSource;
+
+  if (!fundingSource) {
+    throw new Error('Missing fiat test funding source');
+  }
+
   const isDirectMusd = isDirectMusdMoneyAccountQuote(quote);
   const fiatAsset = isDirectMusd
     ? {
@@ -63,9 +72,8 @@ export async function fundFiatOrderFromTestSource({
     : deriveFiatAssetForFiatPayment(transaction, messenger);
 
   const recipient = getFiatFundingRecipient({ quote, transaction });
-  const cryptoAmount = isDirectMusd
-    ? DIRECT_MUSD_TEST_FUNDING_CRYPTO_AMOUNT
-    : quote.original.rampsQuote.quote.amountOut;
+  const cryptoAmount =
+    fiat.testAmountOverride ?? quote.original.rampsQuote.quote.amountOut;
   const tokenInfo = getTokenInfo(
     messenger,
     fiatAsset.address,
@@ -81,6 +89,14 @@ export async function fundFiatOrderFromTestSource({
   const amountRaw = getRawSourceAmountFromOrderCryptoAmount({
     cryptoAmount,
     decimals: tokenInfo.decimals,
+  });
+
+  log('Preparing fiat test funding transfer', {
+    amountRaw,
+    chainId: fiatAsset.chainId,
+    fundingSource,
+    recipient,
+    testAmountOverride: fiat.testAmountOverride,
   });
 
   await assertTestFundingBalances({
@@ -252,6 +268,13 @@ function buildTestFundingTransferParams({
     to: fiatAsset.address,
     value: '0x0',
   };
+}
+
+function buildTokenTransferData(recipient: Hex, amountRaw: string): Hex {
+  return TOKEN_TRANSFER_INTERFACE.encodeFunctionData('transfer', [
+    recipient,
+    amountRaw,
+  ]) as Hex;
 }
 
 function isNativeFiatAsset({

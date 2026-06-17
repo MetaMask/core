@@ -21,7 +21,6 @@ import {
   getRelayPollingTimeout,
 } from '../../utils/feature-flags';
 import { getLiveTokenBalance, normalizeTokenAddress } from '../../utils/token';
-import { buildTokenTransferData } from '../../utils/token-transfer';
 import {
   collectTransactionIds,
   getTransaction,
@@ -1614,17 +1613,8 @@ describe('Relay Submit Utils', () => {
     });
 
     describe('EIP-7702 execute path', () => {
-      const DIRECT_ACCOUNT_OVERRIDE_MOCK =
-        '0x3333333333333333333333333333333333333333' as Hex;
       const DELEGATION_MANAGER_MOCK = '0xdelegationManager' as Hex;
       const DELEGATION_DATA_MOCK = '0xdelegationdata' as Hex;
-      const DIRECT_MONEY_ACCOUNT_MOCK =
-        '0x2222222222222222222222222222222222222222' as Hex;
-      const DIRECT_SOURCE_AMOUNT_RAW_MOCK = '123456';
-      const FUNDING_DELEGATION_DATA_MOCK = '0xfundingdata' as Hex;
-      const FUNDING_DELEGATION_TO_MOCK = '0xfundingmanager' as Hex;
-      const FUNDING_DELEGATION_VALUE_MOCK = '0x0' as Hex;
-
       const DELEGATION_RESULT_MOCK = {
         authorizationList: [
           {
@@ -1650,39 +1640,6 @@ describe('Relay Submit Utils', () => {
         relayExecuteUrl: 'https://api.relay.link/execute',
         relayFallbackGas: { max: 123 },
       } as FeatureFlags;
-
-      function configureDirectMusdRequest({
-        isExecute = true,
-        sameChain = false,
-      }: {
-        isExecute?: boolean;
-        sameChain?: boolean;
-      } = {}): void {
-        request.quotes[0].request = {
-          ...request.quotes[0].request,
-          from: DIRECT_ACCOUNT_OVERRIDE_MOCK,
-          isDirectMusdMoneyAccount: true,
-          isPostQuote: true,
-          sourceChainId: CHAIN_ID_MOCK,
-          sourceTokenAddress: TOKEN_ADDRESS_MOCK,
-        };
-        request.quotes[0].sourceAmount = {
-          ...request.quotes[0].sourceAmount,
-          raw: DIRECT_SOURCE_AMOUNT_RAW_MOCK,
-        };
-        request.quotes[0].original.metamask.isExecute = isExecute;
-        request.transaction = {
-          ...request.transaction,
-          txParams: {
-            from: DIRECT_MONEY_ACCOUNT_MOCK,
-          },
-        } as TransactionMeta;
-
-        if (sameChain) {
-          request.quotes[0].original.details.currencyOut.currency.chainId =
-            request.quotes[0].original.details.currencyIn.currency.chainId;
-        }
-      }
 
       beforeEach(() => {
         request.quotes[0].original.metamask.isExecute = true;
@@ -1922,100 +1879,6 @@ describe('Relay Submit Utils', () => {
         updateCall?.[1](tx);
 
         expect(tx.metamaskPay?.sourceHash).toBe(SOURCE_HASH_MOCK);
-      });
-
-      it('prepends delegated direct mUSD funding before unchanged Relay params', async () => {
-        configureDirectMusdRequest();
-        getDelegationTransactionMock
-          .mockResolvedValueOnce({
-            data: FUNDING_DELEGATION_DATA_MOCK,
-            to: FUNDING_DELEGATION_TO_MOCK,
-            value: FUNDING_DELEGATION_VALUE_MOCK,
-          })
-          .mockResolvedValueOnce(DELEGATION_RESULT_MOCK);
-
-        await submitRelayQuotes(request);
-
-        const fundingData = buildTokenTransferData(
-          DIRECT_ACCOUNT_OVERRIDE_MOCK,
-          DIRECT_SOURCE_AMOUNT_RAW_MOCK,
-        );
-
-        expect(getDelegationTransactionMock).toHaveBeenNthCalledWith(1, {
-          transaction: expect.objectContaining({
-            chainId: CHAIN_ID_MOCK,
-            networkClientId: NETWORK_CLIENT_ID_MOCK,
-            txParams: expect.objectContaining({
-              data: fundingData,
-              from: DIRECT_MONEY_ACCOUNT_MOCK,
-              to: TOKEN_ADDRESS_MOCK,
-              value: '0x0',
-            }),
-          }),
-        });
-        expect(getDelegationTransactionMock).toHaveBeenNthCalledWith(2, {
-          transaction: expect.objectContaining({
-            nestedTransactions: [
-              {
-                data: FUNDING_DELEGATION_DATA_MOCK,
-                to: FUNDING_DELEGATION_TO_MOCK,
-                value: FUNDING_DELEGATION_VALUE_MOCK,
-              },
-              {
-                data: '0x1234',
-                to: '0xfedcb',
-                value: '0x4d2',
-              },
-            ],
-            txParams: expect.objectContaining({
-              from: DIRECT_ACCOUNT_OVERRIDE_MOCK,
-            }),
-          }),
-        });
-      });
-
-      it('throws when direct mUSD funding delegation returns an authorization list', async () => {
-        configureDirectMusdRequest();
-        getDelegationTransactionMock.mockResolvedValueOnce({
-          authorizationList: DELEGATION_RESULT_MOCK.authorizationList,
-          data: FUNDING_DELEGATION_DATA_MOCK,
-          to: FUNDING_DELEGATION_TO_MOCK,
-          value: FUNDING_DELEGATION_VALUE_MOCK,
-        });
-
-        await expect(submitRelayQuotes(request)).rejects.toThrow(
-          'Direct mUSD Money Account funding requires an already-upgraded Money Account',
-        );
-        expect(getDelegationTransactionMock).toHaveBeenCalledTimes(1);
-      });
-
-      it('throws when direct mUSD quote is not Relay execute', async () => {
-        configureDirectMusdRequest({ isExecute: false });
-
-        await expect(submitRelayQuotes(request)).rejects.toThrow(
-          'Direct mUSD Money Account quotes require Relay execute',
-        );
-        expect(getDelegationTransactionMock).not.toHaveBeenCalled();
-        expect(addTransactionMock).not.toHaveBeenCalled();
-        expect(addTransactionBatchMock).not.toHaveBeenCalled();
-      });
-
-      it('polls Relay status for same-chain direct mUSD execute quotes', async () => {
-        configureDirectMusdRequest({ sameChain: true });
-        getDelegationTransactionMock
-          .mockResolvedValueOnce({
-            data: FUNDING_DELEGATION_DATA_MOCK,
-            to: FUNDING_DELEGATION_TO_MOCK,
-            value: FUNDING_DELEGATION_VALUE_MOCK,
-          })
-          .mockResolvedValueOnce(DELEGATION_RESULT_MOCK);
-
-        await submitRelayQuotes(request);
-
-        expect(successfulFetchMock).toHaveBeenCalledWith(
-          `${RELAY_STATUS_URL}?requestId=${REQUEST_ID_MOCK}`,
-          { method: 'GET' },
-        );
       });
 
       it('includes original transaction in nestedTransactions for post-quote flow', async () => {

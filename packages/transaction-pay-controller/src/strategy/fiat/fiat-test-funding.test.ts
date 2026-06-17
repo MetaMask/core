@@ -1,3 +1,4 @@
+import { Interface } from '@ethersproject/abi';
 import type { TransactionMeta } from '@metamask/transaction-controller';
 import { TransactionType } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
@@ -11,7 +12,6 @@ import {
   getNativeToken,
   getTokenInfo,
 } from '../../utils/token';
-import { buildTokenTransferData } from '../../utils/token-transfer';
 import { waitForTransactionConfirmed } from '../../utils/transaction';
 import { fundFiatOrderFromTestSource } from './fiat-test-funding';
 import type { FiatQuote } from './types';
@@ -35,6 +35,9 @@ const RECIPIENT_ADDRESS_MOCK =
   '0x5555555555555555555555555555555555555555' as Hex;
 const TX_HASH_MOCK = '0xtxhash' as Hex;
 const TX_ID_MOCK = 'funding-tx-id';
+const TOKEN_TRANSFER_INTERFACE = new Interface([
+  'function transfer(address to, uint256 amount)',
+]);
 
 const TRANSACTION_MOCK = {
   id: 'tx-id',
@@ -145,11 +148,27 @@ describe('fundFiatOrderFromTestSource', () => {
     waitForTransactionConfirmedMock.mockResolvedValue();
   });
 
+  function getFiatTestOptions({
+    testAmountOverride,
+  }: { testAmountOverride?: string } = {}) {
+    return {
+      testAmountOverride,
+      testFundingSource: FUNDING_SOURCE_MOCK,
+    };
+  }
+
+  function buildTokenTransferData(recipient: Hex, amountRaw: string): Hex {
+    return TOKEN_TRANSFER_INTERFACE.encodeFunctionData('transfer', [
+      recipient,
+      amountRaw,
+    ]) as Hex;
+  }
+
   it('transfers ERC-20 fiat asset from test source and returns synthetic completed order', async () => {
     const { addTransactionMock, messenger } = getMessengerMock();
 
     const order = await fundFiatOrderFromTestSource({
-      fundingSource: FUNDING_SOURCE_MOCK,
+      fiat: getFiatTestOptions(),
       messenger,
       quote: getFiatQuoteMock(),
       transaction: TRANSACTION_MOCK,
@@ -186,7 +205,7 @@ describe('fundFiatOrderFromTestSource', () => {
     const { addTransactionMock, messenger } = getMessengerMock();
 
     const order = await fundFiatOrderFromTestSource({
-      fundingSource: FUNDING_SOURCE_MOCK,
+      fiat: getFiatTestOptions({ testAmountOverride: '0.1' }),
       messenger,
       quote: getFiatQuoteMock({ isDirectMusdMoneyAccount: true }),
       transaction: TRANSACTION_MOCK,
@@ -217,7 +236,7 @@ describe('fundFiatOrderFromTestSource', () => {
     const { addTransactionMock, messenger } = getMessengerMock();
 
     await fundFiatOrderFromTestSource({
-      fundingSource: FUNDING_SOURCE_MOCK,
+      fiat: getFiatTestOptions(),
       messenger,
       quote: getFiatQuoteMock({ sourceTokenAddress: NATIVE_TOKEN_ADDRESS }),
       transaction: TRANSACTION_MOCK,
@@ -240,7 +259,7 @@ describe('fundFiatOrderFromTestSource', () => {
 
     await expect(
       fundFiatOrderFromTestSource({
-        fundingSource: FUNDING_SOURCE_MOCK,
+        fiat: getFiatTestOptions(),
         messenger,
         quote: getFiatQuoteMock(),
         transaction: TRANSACTION_MOCK,

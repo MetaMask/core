@@ -389,12 +389,12 @@ describe('submitFiatQuotes', () => {
 
   it('uses fiat test funding source instead of polling ramps order', async () => {
     const { callMock, request } = getRequest();
-    request.fiatTestFundingSource = FIAT_TEST_FUNDING_SOURCE_MOCK;
+    request.fiat = { testFundingSource: FIAT_TEST_FUNDING_SOURCE_MOCK };
 
     await submitFiatQuotes(request);
 
     expect(fundFiatOrderFromTestSourceMock).toHaveBeenCalledWith({
-      fundingSource: FIAT_TEST_FUNDING_SOURCE_MOCK,
+      fiat: { testFundingSource: FIAT_TEST_FUNDING_SOURCE_MOCK },
       messenger: request.messenger,
       quote: request.quotes[0],
       transaction: request.transaction,
@@ -1041,10 +1041,17 @@ describe('submitFiatQuotes', () => {
             },
             {
               params: { data: '0xdeposit', to: '0xdeposit', value: '0x0' },
-              type: TransactionType.moneyAccountDeposit,
+              type: TransactionType.contractInteraction,
             },
           ],
         }),
+      );
+      expect(updateTransactionMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          note: 'Add required transaction ID from direct mUSD vault submission',
+          transactionId: TRANSACTION_ID_MOCK,
+        }),
+        expect.any(Function),
       );
       expect(result).toStrictEqual({ transactionHash: '0xdirect' });
       expect(

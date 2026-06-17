@@ -55,7 +55,6 @@ import {
   normalizeTokenAddress,
   TokenAddressTarget,
 } from '../../utils/token';
-import { buildTokenTransferData } from '../../utils/token-transfer';
 import { isPredictWithdrawTransaction } from '../../utils/transaction';
 import { TOKEN_TRANSFER_FOUR_BYTE } from './constants';
 import { applyPolymarketDepositWalletOverrides } from './polymarket/withdraw';
@@ -69,6 +68,9 @@ import type {
 } from './types';
 
 const log = createModuleLogger(projectLogger, 'relay-strategy');
+const TOKEN_TRANSFER_INTERFACE = new Interface([
+  'function transfer(address to, uint256 amount)',
+]);
 
 // Buffer applied to the gas cost when reserving native tokens for gas in
 // post-quote flows, accounting for gas limit re-estimation variance.
@@ -76,6 +78,13 @@ const POST_QUOTE_GAS_BUFFER = 1.1;
 
 // Hardcoded gas allowance for the prepended payment override transaction(s).
 const PAYMENT_OVERRIDE_GAS = 75_000;
+
+function buildTokenTransferData(recipient: Hex, amountRaw: string): Hex {
+  return TOKEN_TRANSFER_INTERFACE.encodeFunctionData('transfer', [
+    recipient,
+    amountRaw,
+  ]) as Hex;
+}
 
 /**
  * Fetches Relay quotes.

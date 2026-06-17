@@ -46,12 +46,6 @@ const MESSENGER_EXPOSED_METHODS = [
 ] as const;
 
 const stateMetadata: StateMetadata<TransactionPayControllerState> = {
-  fiatTestFundingSource: {
-    includeInDebugSnapshot: false,
-    includeInStateLogs: false,
-    persist: false,
-    usedInUi: false,
-  },
   transactionData: {
     includeInDebugSnapshot: false,
     includeInStateLogs: true,
@@ -86,7 +80,6 @@ export class TransactionPayController extends BaseController<
   readonly #polymarket?: PolymarketCallbacks;
 
   constructor({
-    fiatTestFundingSource,
     getAmountData,
     getDelegationTransaction,
     getPaymentOverrideData,
@@ -100,7 +93,7 @@ export class TransactionPayController extends BaseController<
       name: CONTROLLER_NAME,
       metadata: stateMetadata,
       messenger,
-      state: { ...getDefaultState(), ...state, fiatTestFundingSource },
+      state: { ...getDefaultState(), ...state },
     });
 
     this.#getAmountData = getAmountData;

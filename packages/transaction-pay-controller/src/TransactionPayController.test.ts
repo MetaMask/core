@@ -35,9 +35,6 @@ const TRANSACTION_ID_MOCK = '123-456';
 const TRANSACTION_META_MOCK = { id: TRANSACTION_ID_MOCK } as TransactionMeta;
 const TOKEN_ADDRESS_MOCK = '0xabc' as Hex;
 const CHAIN_ID_MOCK = '0x1' as Hex;
-const FIAT_TEST_FUNDING_SOURCE_MOCK =
-  '0x1111111111111111111111111111111111111111' as Hex;
-
 describe('TransactionPayController', () => {
   const updateFiatPaymentMock = jest.mocked(updateFiatPayment);
   const updatePaymentTokenMock = jest.mocked(updatePaymentToken);
@@ -59,16 +56,10 @@ describe('TransactionPayController', () => {
    * Create a TransactionPayController.
    *
    * @param options - Controller options.
-   * @param options.fiatTestFundingSource - Optional test funding source.
    * @returns The created controller.
    */
-  function createController({
-    fiatTestFundingSource,
-  }: {
-    fiatTestFundingSource?: Hex;
-  } = {}): TransactionPayController {
+  function createController(): TransactionPayController {
     return new TransactionPayController({
-      fiatTestFundingSource,
       getDelegationTransaction: jest.fn(),
       messenger,
     });
@@ -108,16 +99,6 @@ describe('TransactionPayController', () => {
 
       const getControllerState = subscribeAssetChangesMock.mock.calls[0][1];
       expect(getControllerState()).toBe(controller.state);
-    });
-
-    it('stores fiat test funding source in state when provided', () => {
-      const controller = createController({
-        fiatTestFundingSource: FIAT_TEST_FUNDING_SOURCE_MOCK,
-      });
-
-      expect(controller.state.fiatTestFundingSource).toBe(
-        FIAT_TEST_FUNDING_SOURCE_MOCK,
-      );
     });
   });
 
