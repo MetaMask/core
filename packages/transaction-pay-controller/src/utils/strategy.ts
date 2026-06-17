@@ -9,6 +9,7 @@ import type {
   PayStrategy,
   PayStrategyCheckQuoteSupportRequest,
   PayStrategyGetQuotesRequest,
+  PayStrategyQuoteSupportResult,
 } from '../types';
 
 export type NamedStrategy = {
@@ -106,10 +107,10 @@ export async function checkStrategySupport(
 export async function checkStrategyQuoteSupport(
   strategy: PayStrategy<unknown>,
   request: PayStrategyCheckQuoteSupportRequest<unknown>,
-): Promise<boolean> {
-  if (strategy.checkQuoteSupport) {
-    return await strategy.checkQuoteSupport(request);
+): Promise<PayStrategyQuoteSupportResult> {
+  if (!strategy.checkQuoteSupport) {
+    return { isSupported: true };
   }
 
-  return true;
+  return await strategy.checkQuoteSupport(request);
 }

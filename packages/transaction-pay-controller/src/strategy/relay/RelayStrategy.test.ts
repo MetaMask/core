@@ -1,5 +1,6 @@
 import type { Hex } from '@metamask/utils';
 
+import { TransactionPayStrategy } from '../../constants';
 import type {
   PayStrategyExecuteRequest,
   PayStrategyGetQuotesRequest,
@@ -8,17 +9,20 @@ import type {
 import { getPayStrategiesConfig } from '../../utils/feature-flags';
 import { getRelayQuotes } from './relay-quotes';
 import { submitRelayQuotes } from './relay-submit';
+import { validateRelayQuoteSupport } from './relay-validation';
 import { RelayStrategy } from './RelayStrategy';
 import type { RelayQuote } from './types';
 
 jest.mock('./relay-quotes');
 jest.mock('./relay-submit');
+jest.mock('./relay-validation');
 jest.mock('../../utils/feature-flags');
 
 describe('RelayStrategy', () => {
   const getRelayQuotesMock = jest.mocked(getRelayQuotes);
   const submitRelayQuotesMock = jest.mocked(submitRelayQuotes);
   const getPayStrategiesConfigMock = jest.mocked(getPayStrategiesConfig);
+  const validateRelayQuoteSupportMock = jest.mocked(validateRelayQuoteSupport);
 
   const messenger = {} as never;
 
@@ -57,6 +61,7 @@ describe('RelayStrategy', () => {
         enabled: true,
       },
     });
+    validateRelayQuoteSupportMock.mockResolvedValue({ isSupported: true });
   });
 
   it('returns true from supports when relay is enabled', () => {
@@ -91,6 +96,40 @@ describe('RelayStrategy', () => {
     expect(await strategy.getQuotes(request)).toStrictEqual([quote]);
     expect(getRelayQuotesMock).toHaveBeenCalledWith(request);
   });
+
+  it('delegates checkQuoteSupport', async () => {
+    const quote = buildQuote();
+    const supportResult = {
+      isSupported: false,
+      validationError: 'RPC down',
+    };
+
+    validateRelayQuoteSupportMock.mockResolvedValue(supportResult);
+
+    const strategy = new RelayStrategy();
+    const checkRequest = {
+      messenger,
+      quotes: [quote],
+      transaction: request.transaction,
+    };
+    const result = await strategy.checkQuoteSupport(checkRequest);
+
+    expect(result).toStrictEqual(supportResult);
+    expect(validateRelayQuoteSupportMock).toHaveBeenCalledWith(checkRequest);
+  });
+
+  function buildQuote(
+    requestOverrides: Partial<TransactionPayQuote<RelayQuote>['request']> = {},
+  ): TransactionPayQuote<RelayQuote> {
+    return {
+      request: {
+        sourceChainId: '0x1' as Hex,
+        sourceTokenAddress: '0xabc' as Hex,
+        ...requestOverrides,
+      },
+      strategy: TransactionPayStrategy.Relay,
+    } as TransactionPayQuote<RelayQuote>;
+  }
 
   it('delegates execute', async () => {
     const executeRequest = {

@@ -1,12 +1,15 @@
 import type {
   PayStrategy,
+  PayStrategyCheckQuoteSupportRequest,
   PayStrategyExecuteRequest,
   PayStrategyGetQuotesRequest,
+  PayStrategyQuoteSupportResult,
   TransactionPayQuote,
 } from '../../types';
 import { getPayStrategiesConfig } from '../../utils/feature-flags';
 import { getRelayQuotes } from './relay-quotes';
 import { submitRelayQuotes } from './relay-submit';
+import { validateRelayQuoteSupport } from './relay-validation';
 import type { RelayQuote } from './types';
 
 export class RelayStrategy implements PayStrategy<RelayQuote> {
@@ -19,6 +22,12 @@ export class RelayStrategy implements PayStrategy<RelayQuote> {
     request: PayStrategyGetQuotesRequest,
   ): Promise<TransactionPayQuote<RelayQuote>[]> {
     return getRelayQuotes(request);
+  }
+
+  async checkQuoteSupport(
+    request: PayStrategyCheckQuoteSupportRequest<RelayQuote>,
+  ): Promise<PayStrategyQuoteSupportResult> {
+    return await validateRelayQuoteSupport(request);
   }
 
   async execute(

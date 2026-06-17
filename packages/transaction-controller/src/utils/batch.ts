@@ -108,6 +108,17 @@ type IsAtomicBatchSupportedRequestInternal = {
   publicKeyEIP7702?: Hex;
 };
 
+type PrepareEIP7702BatchTransactionRequest = {
+  messenger: TransactionControllerMessenger;
+  publicKeyEIP7702?: Hex;
+  request: TransactionBatchRequest;
+};
+
+type EIP7702BatchTransaction = {
+  nestedTransactions: NestedTransactionMetadata[];
+  txParams: TransactionParams;
+};
+
 const log = createModuleLogger(projectLogger, 'batch');
 
 export const ERROR_MESSAGE_NO_UPGRADE_CONTRACT =
@@ -238,79 +249,19 @@ export function generateBatchId(): Hex {
   return bytesToHex(idBytes);
 }
 
-/**
- * Generate the metadata for a nested transaction.
- *
- * @param request - The batch request.
- * @param singleRequest - The request for a single transaction.
- * @param messenger - The transaction controller messenger.
- * @param networkClientId - The network client ID.
- * @returns The metadata for the nested transaction.
- */
-async function getNestedTransactionMeta(
-  request: TransactionBatchRequest,
-  singleRequest: TransactionBatchSingleRequest,
-  messenger: TransactionControllerMessenger,
-  networkClientId: NetworkClientId,
-): Promise<NestedTransactionMetadata> {
-  const { from } = request;
-  const { params, type: requestedType } = singleRequest;
-
-  if (requestedType) {
-    return {
-      ...params,
-      type: requestedType,
-    };
-  }
-
-  const { type: determinedType } = await determineTransactionType(
-    { from, ...params },
-    { messenger, networkClientId },
-  );
-
-  return {
-    ...params,
-    type: determinedType,
-  };
-}
-
-/**
- * Process a batch transaction using an EIP-7702 transaction.
- *
- * @param request - The request object including the user request and necessary callbacks.
- * @returns The batch result object including the batch ID.
- */
-async function addTransactionBatchWith7702(
-  request: AddTransactionBatchRequest,
-): Promise<TransactionBatchResult> {
-  const {
-    addTransaction,
-    messenger,
-    publicKeyEIP7702,
-    request: userRequest,
-  } = request;
+async function prepareEIP7702BatchTransaction(
+  request: PrepareEIP7702BatchTransactionRequest,
+): Promise<EIP7702BatchTransaction> {
+  const { messenger, publicKeyEIP7702, request: userRequest } = request;
 
   const {
     atomic,
-    batchId: batchIdOverride,
     disableUpgrade,
     from,
-    gasFeeToken,
     gasLimit7702,
-    isInternal,
     networkClientId,
-    origin,
     overwriteUpgrade,
-    requestId,
-    requiredAssets,
-    requireApproval,
-    securityAlertId,
-    skipInitialGasEstimate,
     transactions,
-    excludeNativeTokenForFee,
-    isGasFeeIncluded,
-    isGasFeeSponsored,
-    validateSecurity,
   } = userRequest;
 
   const chainId = getChainId({ messenger, networkClientId });
@@ -388,6 +339,89 @@ async function addTransactionBatchWith7702(
     txParams.type = TransactionEnvelopeType.setCode;
     txParams.authorizationList = [{ address: upgradeContractAddress }];
   }
+
+  return { nestedTransactions, txParams };
+}
+
+/**
+ * Generate the metadata for a nested transaction.
+ *
+ * @param request - The batch request.
+ * @param singleRequest - The request for a single transaction.
+ * @param messenger - The transaction controller messenger.
+ * @param networkClientId - The network client ID.
+ * @returns The metadata for the nested transaction.
+ */
+async function getNestedTransactionMeta(
+  request: TransactionBatchRequest,
+  singleRequest: TransactionBatchSingleRequest,
+  messenger: TransactionControllerMessenger,
+  networkClientId: NetworkClientId,
+): Promise<NestedTransactionMetadata> {
+  const { from } = request;
+  const { params, type: requestedType } = singleRequest;
+
+  if (requestedType) {
+    return {
+      ...params,
+      type: requestedType,
+    };
+  }
+
+  const { type: determinedType } = await determineTransactionType(
+    { from, ...params },
+    { messenger, networkClientId },
+  );
+
+  return {
+    ...params,
+    type: determinedType,
+  };
+}
+
+/**
+ * Process a batch transaction using an EIP-7702 transaction.
+ *
+ * @param request - The request object including the user request and necessary callbacks.
+ * @returns The batch result object including the batch ID.
+ */
+async function addTransactionBatchWith7702(
+  request: AddTransactionBatchRequest,
+): Promise<TransactionBatchResult> {
+  const {
+    addTransaction,
+    messenger,
+    publicKeyEIP7702,
+    request: userRequest,
+  } = request;
+
+  const {
+    batchId: batchIdOverride,
+    gasFeeToken,
+    isInternal,
+    networkClientId,
+    origin,
+    requestId,
+    requiredAssets,
+    requireApproval,
+    securityAlertId,
+    skipInitialGasEstimate,
+    transactions,
+    excludeNativeTokenForFee,
+    isGasFeeIncluded,
+    isGasFeeSponsored,
+    validateSecurity,
+  } = userRequest;
+
+  const { nestedTransactions, txParams } = await prepareEIP7702BatchTransaction(
+    {
+      messenger,
+      publicKeyEIP7702,
+      request: userRequest,
+    },
+  );
+
+  const chainId = getChainId({ messenger, networkClientId });
 
   if (validateSecurity) {
     const securityRequest: ValidateSecurityRequest = {

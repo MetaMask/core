@@ -178,10 +178,12 @@ describe('Quotes Utils', () => {
     checkStrategyQuoteSupportMock.mockImplementation(
       async (strategy, request) => {
         if (strategy.checkQuoteSupport) {
-          return await strategy.checkQuoteSupport(request);
+          const result = await strategy.checkQuoteSupport(request);
+
+          return typeof result === 'boolean' ? { isSupported: result } : result;
         }
 
-        return true;
+        return { isSupported: true };
       },
     );
 
@@ -209,6 +211,45 @@ describe('Quotes Utils', () => {
 
       expect(transactionDataMock).toMatchObject({
         quotes: [QUOTE_MOCK],
+      });
+    });
+
+    it('stores quote validation errors when quotes are rejected', async () => {
+      const validationError = 'Insufficient source token balance for quote';
+
+      checkStrategyQuoteSupportMock.mockResolvedValue({
+        isSupported: false,
+        validationError,
+      });
+
+      await run();
+
+      const transactionDataMock = {};
+
+      updateTransactionDataMock.mock.calls.map((call) =>
+        call[1](transactionDataMock),
+      );
+
+      expect(transactionDataMock).toMatchObject({
+        quotes: [],
+        quoteValidationError: validationError,
+      });
+    });
+
+    it('clears quote validation error when quote loading starts', async () => {
+      const validationError = 'Insufficient source token balance for quote';
+
+      await run();
+
+      const transactionDataMock = {
+        quoteValidationError: validationError,
+      };
+
+      updateTransactionDataMock.mock.calls[0][1](transactionDataMock);
+
+      expect(transactionDataMock).toStrictEqual({
+        isLoading: true,
+        quoteValidationError: undefined,
       });
     });
 
@@ -409,7 +450,9 @@ describe('Quotes Utils', () => {
     it('falls back to next strategy when post-quote support checks fail', async () => {
       const unsupportedStrategy = {
         supports: jest.fn().mockReturnValue(true),
-        checkQuoteSupport: jest.fn().mockResolvedValue(false),
+        checkQuoteSupport: jest.fn().mockResolvedValue({
+          isSupported: false,
+        }),
         getQuotes: jest.fn().mockResolvedValue([QUOTE_MOCK]),
         getBatchTransactions: jest.fn(),
         execute: jest.fn(),

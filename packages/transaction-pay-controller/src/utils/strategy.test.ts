@@ -135,15 +135,21 @@ describe('Strategy Utils', () => {
       quotes: [],
     } as never;
 
-    it('uses checkQuoteSupport when available', async () => {
+    it('passes through a structured support result unchanged', async () => {
+      const validationError = 'boom';
       const strategy = {
-        checkQuoteSupport: jest.fn().mockReturnValue(false),
+        checkQuoteSupport: jest.fn().mockReturnValue({
+          isSupported: false,
+          validationError,
+        }),
         getQuotes: jest.fn(),
         execute: jest.fn(),
       };
 
-      expect(await checkStrategyQuoteSupport(strategy, request)).toBe(false);
-      expect(strategy.checkQuoteSupport).toHaveBeenCalledWith(request);
+      expect(await checkStrategyQuoteSupport(strategy, request)).toStrictEqual({
+        isSupported: false,
+        validationError,
+      });
     });
 
     it('defaults to supported when no post-quote support check is provided', async () => {
@@ -152,7 +158,9 @@ describe('Strategy Utils', () => {
         execute: jest.fn(),
       };
 
-      expect(await checkStrategyQuoteSupport(strategy, request)).toBe(true);
+      expect(await checkStrategyQuoteSupport(strategy, request)).toStrictEqual({
+        isSupported: true,
+      });
     });
   });
 });

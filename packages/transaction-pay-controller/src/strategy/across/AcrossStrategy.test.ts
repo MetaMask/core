@@ -368,7 +368,7 @@ describe('AcrossStrategy', () => {
       transaction: TRANSACTION_META_MOCK,
     });
 
-    expect(result).toBe(false);
+    expect(result).toStrictEqual({ isSupported: false });
   });
 
   it('supports source 7702 authorization lists for Predict withdraw post-quote quotes without Across actions', () => {
@@ -390,7 +390,9 @@ describe('AcrossStrategy', () => {
       } as TransactionMeta,
     } as PayStrategyCheckQuoteSupportRequest<AcrossQuote>;
 
-    expect(strategy.checkQuoteSupport(request)).toBe(true);
+    expect(strategy.checkQuoteSupport(request)).toStrictEqual({
+      isSupported: true,
+    });
   });
 
   it('does not support first-time 7702 authorization lists for non-post-quote Across quotes', () => {
@@ -404,7 +406,9 @@ describe('AcrossStrategy', () => {
       } as TransactionMeta,
     } as PayStrategyCheckQuoteSupportRequest<AcrossQuote>;
 
-    expect(strategy.checkQuoteSupport(request)).toBe(false);
+    expect(strategy.checkQuoteSupport(request)).toStrictEqual({
+      isSupported: false,
+    });
   });
 
   it('does not support first-time 7702 authorization lists when the Across quote has embedded destination actions', () => {
@@ -441,7 +445,9 @@ describe('AcrossStrategy', () => {
       } as TransactionMeta,
     } as PayStrategyCheckQuoteSupportRequest<AcrossQuote>;
 
-    expect(strategy.checkQuoteSupport(request)).toBe(false);
+    expect(strategy.checkQuoteSupport(request)).toStrictEqual({
+      isSupported: false,
+    });
   });
 
   it('supports 7702 quotes that do not require an authorization list', () => {
@@ -461,7 +467,7 @@ describe('AcrossStrategy', () => {
         quotes: [quote],
         transaction: TRANSACTION_META_MOCK,
       }),
-    ).toBe(true);
+    ).toStrictEqual({ isSupported: true });
   });
 
   it('returns false for unsupported destination actions', () => {

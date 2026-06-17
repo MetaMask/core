@@ -347,6 +347,9 @@ export type TransactionData = {
   /** Quotes retrieved for the transaction. */
   quotes?: TransactionPayQuote<Json>[];
 
+  /** Most relevant validation error message from the latest quote attempt. */
+  quoteValidationError?: string;
+
   /** Timestamp of when quotes were last updated. */
   quotesLastUpdated?: number;
 
@@ -442,6 +445,15 @@ export type TransactionPaySourceAmount = {
 
   /** Address of the target token. */
   targetTokenAddress: Hex;
+};
+
+/** Result returned by a strategy's post-quote support check. */
+export type PayStrategyQuoteSupportResult = {
+  /** Whether the quote set is supported and can be presented to the user. */
+  isSupported: boolean;
+
+  /** Validation error message explaining why the quote set was rejected. */
+  validationError?: string;
 };
 
 /** Source token used to pay for required tokens. */
@@ -711,7 +723,7 @@ export type PayStrategy<OriginalQuote> = {
    */
   checkQuoteSupport?: (
     request: PayStrategyCheckQuoteSupportRequest<OriginalQuote>,
-  ) => boolean | Promise<boolean>;
+  ) => PayStrategyQuoteSupportResult | Promise<PayStrategyQuoteSupportResult>;
 
   /** Retrieve batch transactions for quotes, if supported by the strategy. */
   getBatchTransactions?: (
