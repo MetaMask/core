@@ -7,9 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add test-only fiat execution options to bypass fiat on-ramp settlement during local QA by funding the expected fiat asset from a configured account before continuing the normal MM Pay fiat submit flow ([#9161](https://github.com/MetaMask/core/pull/9161))
+
 ### Fixed
 
 - Sync transaction metadata when fiat payment is selected but no payment token is present ([#9158](https://github.com/MetaMask/core/pull/9158))
+- Fix direct mUSD fiat Money Account deposits by submitting a sponsored Money Account vault batch after fiat settlement instead of requiring Relay execute ([#9161](https://github.com/MetaMask/core/pull/9161))
 
 ## [23.8.0]
 
