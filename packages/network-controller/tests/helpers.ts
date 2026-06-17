@@ -120,7 +120,7 @@ export function buildRootMessenger({
     () => ({
       remoteFeatureFlags: {
         walletFrameworkRpcFailoverEnabled: isRpcFailoverEnabled,
-        'wallet-framework-rpc-failover-force-enabled': isRpcFailoverForced,
+        'core-platform-rpc-failover-force-enabled': isRpcFailoverForced,
       },
       cacheTimestamp: 0,
     }),

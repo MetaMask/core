@@ -4,7 +4,7 @@ describe('getIsRpcFailoverForced', () => {
   it('returns true when the flag is true', () => {
     const state = {
       remoteFeatureFlags: {
-        'wallet-framework-rpc-failover-force-enabled': true,
+        'core-platform-rpc-failover-force-enabled': true,
       },
       cacheTimestamp: 0,
     };
@@ -14,7 +14,7 @@ describe('getIsRpcFailoverForced', () => {
   it('returns false when the flag is false', () => {
     const state = {
       remoteFeatureFlags: {
-        'wallet-framework-rpc-failover-force-enabled': false,
+        'core-platform-rpc-failover-force-enabled': false,
       },
       cacheTimestamp: 0,
     };
@@ -29,7 +29,7 @@ describe('getIsRpcFailoverForced', () => {
   it('passes through non-boolean values without coercion', () => {
     const state = {
       remoteFeatureFlags: {
-        'wallet-framework-rpc-failover-force-enabled': 'yes',
+        'core-platform-rpc-failover-force-enabled': 'yes',
       },
       cacheTimestamp: 0,
     };

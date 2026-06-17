@@ -12,7 +12,7 @@ export function getIsRpcFailoverForced(
   state: RemoteFeatureFlagControllerState,
 ): boolean {
   const forceEnabled = state.remoteFeatureFlags[
-    'wallet-framework-rpc-failover-force-enabled'
+    'core-platform-rpc-failover-force-enabled'
   ] as boolean | undefined;
   return forceEnabled ?? false;
 }
