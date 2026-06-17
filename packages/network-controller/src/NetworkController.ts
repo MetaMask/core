@@ -59,7 +59,7 @@ import type {
   NetworkControllerMethodActions,
 } from './NetworkController-method-action-types';
 import type { RpcServiceOptionsWithDefaults } from './rpc-service/rpc-service';
-import { getIsRpcFailoverEnabled } from './selectors';
+import { getIsRpcFailoverEnabled, getIsRpcFailoverForced } from './selectors';
 import { NetworkClientType } from './types';
 import type {
   BlockTracker,
@@ -672,7 +672,9 @@ type AllowedEvents = RemoteFeatureFlagControllerStateChangeEvent;
 const MESSENGER_EXPOSED_METHODS = [
   'addNetwork',
   'disableRpcFailover',
+  'disableRpcFailoverForced',
   'enableRpcFailover',
+  'enableRpcFailoverForced',
   'findNetworkClientIdByChainId',
   'get1559CompatibilityWithNetworkClientId',
   'getEIP1559Compatibility',
@@ -1392,6 +1394,15 @@ export class NetworkController extends BaseController<
       },
       getIsRpcFailoverEnabled,
     );
+
+    this.messenger.subscribe(
+      // eslint-disable-next-line no-restricted-syntax
+      'RemoteFeatureFlagController:stateChange',
+      (isRpcFailoverForced) => {
+        this.#updateRpcFailoverForced(isRpcFailoverForced);
+      },
+      getIsRpcFailoverForced,
+    );
   }
 
   /**
@@ -1420,6 +1431,24 @@ export class NetworkController extends BaseController<
    */
   disableRpcFailover(): void {
     this.#updateRpcFailoverEnabled(false);
+  }
+
+  /**
+   * Forces RPC failover for Infura endpoints. When enabled, any Infura endpoint
+   * configured with failover URLs will route all traffic to those failover URLs,
+   * bypassing Infura entirely. Infura endpoints without failover URLs continue to
+   * use Infura. Custom endpoints are unaffected.
+   */
+  enableRpcFailoverForced(): void {
+    this.#updateRpcFailoverForced(true);
+  }
+
+  /**
+   * Stops forcing RPC failover for Infura endpoints, restoring the normal
+   * automatic-failover behavior governed by {@link enableRpcFailover}.
+   */
+  disableRpcFailoverForced(): void {
+    this.#updateRpcFailoverForced(false);
   }
 
   /**
@@ -1461,6 +1490,44 @@ export class NetworkController extends BaseController<
     }
 
     this.#isRpcFailoverEnabled = newIsRpcFailoverEnabled;
+  }
+
+  /**
+   * Enables or disables forced RPC failover, depending on the boolean given.
+   * This reconstructs all network clients that were configured with failover
+   * URLs so the new value takes effect. Network client IDs are preserved.
+   *
+   * @param newIsRpcFailoverForced - Whether or not to force RPC failover.
+   */
+  #updateRpcFailoverForced(newIsRpcFailoverForced: boolean): void {
+    if (this.#isRpcFailoverForced === newIsRpcFailoverForced) {
+      return;
+    }
+
+    const autoManagedNetworkClientRegistry =
+      this.#ensureAutoManagedNetworkClientRegistryPopulated();
+
+    for (const networkClientsById of Object.values(
+      autoManagedNetworkClientRegistry,
+    )) {
+      for (const networkClientId of Object.keys(networkClientsById)) {
+        // Type assertion: We can assume that `networkClientId` is valid here.
+        const networkClient =
+          networkClientsById[
+            networkClientId as keyof typeof networkClientsById
+          ];
+        if (
+          networkClient.configuration.failoverRpcUrls &&
+          networkClient.configuration.failoverRpcUrls.length > 0
+        ) {
+          newIsRpcFailoverForced
+            ? networkClient.enableRpcFailoverForced()
+            : networkClient.disableRpcFailoverForced();
+        }
+      }
+    }
+
+    this.#isRpcFailoverForced = newIsRpcFailoverForced;
   }
 
   /**
@@ -1630,6 +1697,7 @@ export class NetworkController extends BaseController<
   init(): void {
     const state = this.messenger.call('RemoteFeatureFlagController:getState');
     this.#updateRpcFailoverEnabled(getIsRpcFailoverEnabled(state));
+    this.#updateRpcFailoverForced(getIsRpcFailoverForced(state));
 
     this.#applyNetworkSelection(this.state.selectedNetworkClientId);
   }

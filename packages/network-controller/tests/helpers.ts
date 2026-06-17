@@ -90,14 +90,17 @@ export const TESTNET = {
  * @param options.connectivityStatus - The connectivity status to return by default.
  * If not provided, defaults to Online.
  * @param options.isRpcFailoverEnabled - The RPC failover feature flag to return, defaults to false.
+ * @param options.isRpcFailoverForced - The forced RPC failover feature flag to return, defaults to false.
  * @returns The messenger.
  */
 export function buildRootMessenger({
   connectivityStatus = CONNECTIVITY_STATUSES.Online,
   isRpcFailoverEnabled = false,
+  isRpcFailoverForced = false,
 }: {
   connectivityStatus?: ConnectivityStatus;
   isRpcFailoverEnabled?: boolean;
+  isRpcFailoverForced?: boolean;
 } = {}): RootMessenger {
   const rootMessenger = new Messenger<
     MockAnyNamespace,
@@ -117,6 +120,7 @@ export function buildRootMessenger({
     () => ({
       remoteFeatureFlags: {
         walletFrameworkRpcFailoverEnabled: isRpcFailoverEnabled,
+        'wallet-framework-rpc-failover-force-enabled': isRpcFailoverForced,
       },
       cacheTimestamp: 0,
     }),
@@ -632,6 +636,7 @@ type WithControllerCallback<ReturnValue> = ({
 
 type WithControllerOptions = Partial<NetworkControllerOptions> & {
   isRpcFailoverEnabled?: boolean;
+  isRpcFailoverForced?: boolean;
   initializeController?: boolean;
 };
 
@@ -655,10 +660,11 @@ export async function withController<ReturnValue>(
   const [{ ...rest }, fn] = args.length === 2 ? args : [{}, args[0]];
   const {
     isRpcFailoverEnabled,
+    isRpcFailoverForced,
     initializeController = true,
     ...controllerOptions
   } = rest;
-  const messenger = buildRootMessenger({ isRpcFailoverEnabled });
+  const messenger = buildRootMessenger({ isRpcFailoverEnabled, isRpcFailoverForced });
   const networkControllerMessenger = buildNetworkControllerMessenger(messenger);
   const controller = new NetworkController({
     messenger: networkControllerMessenger,

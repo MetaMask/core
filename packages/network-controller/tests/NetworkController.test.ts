@@ -1113,6 +1113,496 @@ describe('NetworkController', () => {
     });
   });
 
+  describe('enableRpcFailoverForced', () => {
+    describe('if the controller was initialized with isRpcFailoverForced = false', () => {
+      it('calls enableRpcFailoverForced on only the network clients whose RPC endpoints have configured failover URLs', async () => {
+        const originalCreateAutoManagedNetworkClient =
+          createAutoManagedNetworkClientModule.createAutoManagedNetworkClient;
+        const autoManagedNetworkClients: AutoManagedNetworkClient<NetworkClientConfiguration>[] =
+          [];
+        jest
+          .spyOn(
+            createAutoManagedNetworkClientModule,
+            'createAutoManagedNetworkClient',
+          )
+          .mockImplementation((...args) => {
+            const autoManagedNetworkClient =
+              originalCreateAutoManagedNetworkClient(...args);
+            jest.spyOn(autoManagedNetworkClient, 'enableRpcFailoverForced');
+            autoManagedNetworkClients.push(autoManagedNetworkClient);
+            return autoManagedNetworkClient;
+          });
+
+        await withController(
+          {
+            isRpcFailoverForced: false,
+            state: {
+              selectedNetworkClientId: 'AAAA-AAAA-AAAA-AAAA',
+              networkConfigurationsByChainId: {
+                [ChainId.mainnet]: buildInfuraNetworkConfiguration(
+                  InfuraNetworkType.mainnet,
+                  {
+                    rpcEndpoints: [
+                      buildInfuraRpcEndpoint(InfuraNetworkType.mainnet, {
+                        failoverUrls: [],
+                      }),
+                    ],
+                  },
+                ),
+                '0x200': buildCustomNetworkConfiguration({
+                  chainId: '0x200',
+                  rpcEndpoints: [
+                    buildCustomRpcEndpoint({
+                      networkClientId: 'AAAA-AAAA-AAAA-AAAA',
+                      url: 'https://test.network/1',
+                      failoverUrls: ['https://failover.endpoint/1'],
+                    }),
+                  ],
+                }),
+                '0x300': buildCustomNetworkConfiguration({
+                  chainId: '0x300',
+                  rpcEndpoints: [
+                    buildCustomRpcEndpoint({
+                      networkClientId: 'BBBB-BBBB-BBBB-BBBB',
+                      url: 'https://test.network/2',
+                      failoverUrls: ['https://failover.endpoint/2'],
+                    }),
+                  ],
+                }),
+              },
+            },
+          },
+          async ({ controller }) => {
+            controller.enableRpcFailoverForced();
+
+            expect(autoManagedNetworkClients).toHaveLength(3);
+            expect(
+              autoManagedNetworkClients[0].enableRpcFailoverForced,
+            ).not.toHaveBeenCalled();
+            expect(
+              autoManagedNetworkClients[1].enableRpcFailoverForced,
+            ).toHaveBeenCalled();
+            expect(
+              autoManagedNetworkClients[2].enableRpcFailoverForced,
+            ).toHaveBeenCalled();
+          },
+        );
+      });
+    });
+
+    describe('if the controller was initialized with isRpcFailoverForced = true', () => {
+      it('does not call createAutoManagedNetworkClient at all', async () => {
+        await withController(
+          {
+            isRpcFailoverForced: true,
+            state: {
+              selectedNetworkClientId: 'AAAA-AAAA-AAAA-AAAA',
+              networkConfigurationsByChainId: {
+                [ChainId.mainnet]: buildInfuraNetworkConfiguration(
+                  InfuraNetworkType.mainnet,
+                  {
+                    rpcEndpoints: [
+                      buildInfuraRpcEndpoint(InfuraNetworkType.mainnet, {
+                        failoverUrls: [],
+                      }),
+                    ],
+                  },
+                ),
+                '0x200': buildCustomNetworkConfiguration({
+                  chainId: '0x200',
+                  rpcEndpoints: [
+                    buildCustomRpcEndpoint({
+                      networkClientId: 'AAAA-AAAA-AAAA-AAAA',
+                      url: 'https://test.network/1',
+                      failoverUrls: ['https://failover.endpoint/1'],
+                    }),
+                  ],
+                }),
+                '0x300': buildCustomNetworkConfiguration({
+                  chainId: '0x300',
+                  rpcEndpoints: [
+                    buildCustomRpcEndpoint({
+                      networkClientId: 'BBBB-BBBB-BBBB-BBBB',
+                      url: 'https://test.network/2',
+                      failoverUrls: ['https://failover.endpoint/2'],
+                    }),
+                  ],
+                }),
+              },
+            },
+          },
+          async ({ controller }) => {
+            const originalCreateAutoManagedNetworkClient =
+              createAutoManagedNetworkClientModule.createAutoManagedNetworkClient;
+            const autoManagedNetworkClients: AutoManagedNetworkClient<NetworkClientConfiguration>[] =
+              [];
+            jest
+              .spyOn(
+                createAutoManagedNetworkClientModule,
+                'createAutoManagedNetworkClient',
+              )
+              .mockImplementation((...args) => {
+                const autoManagedNetworkClient =
+                  originalCreateAutoManagedNetworkClient(...args);
+                jest.spyOn(autoManagedNetworkClient, 'enableRpcFailoverForced');
+                autoManagedNetworkClients.push(autoManagedNetworkClient);
+                return autoManagedNetworkClient;
+              });
+
+            controller.enableRpcFailoverForced();
+
+            expect(autoManagedNetworkClients).toHaveLength(0);
+          },
+        );
+      });
+    });
+  });
+
+  describe('disableRpcFailoverForced', () => {
+    describe('if the controller was initialized with isRpcFailoverForced = true', () => {
+      it('calls disableRpcFailoverForced on only the network clients whose RPC endpoints have configured failover URLs', async () => {
+        const originalCreateAutoManagedNetworkClient =
+          createAutoManagedNetworkClientModule.createAutoManagedNetworkClient;
+        const autoManagedNetworkClients: AutoManagedNetworkClient<NetworkClientConfiguration>[] =
+          [];
+        jest
+          .spyOn(
+            createAutoManagedNetworkClientModule,
+            'createAutoManagedNetworkClient',
+          )
+          .mockImplementation((...args) => {
+            const autoManagedNetworkClient =
+              originalCreateAutoManagedNetworkClient(...args);
+            jest.spyOn(autoManagedNetworkClient, 'disableRpcFailoverForced');
+            autoManagedNetworkClients.push(autoManagedNetworkClient);
+            return autoManagedNetworkClient;
+          });
+
+        await withController(
+          {
+            isRpcFailoverForced: true,
+            state: {
+              selectedNetworkClientId: 'AAAA-AAAA-AAAA-AAAA',
+              networkConfigurationsByChainId: {
+                [ChainId.mainnet]: buildInfuraNetworkConfiguration(
+                  InfuraNetworkType.mainnet,
+                  {
+                    rpcEndpoints: [
+                      buildInfuraRpcEndpoint(InfuraNetworkType.mainnet, {
+                        failoverUrls: [],
+                      }),
+                    ],
+                  },
+                ),
+                '0x200': buildCustomNetworkConfiguration({
+                  chainId: '0x200',
+                  rpcEndpoints: [
+                    buildCustomRpcEndpoint({
+                      networkClientId: 'AAAA-AAAA-AAAA-AAAA',
+                      url: 'https://test.network/1',
+                      failoverUrls: ['https://failover.endpoint/1'],
+                    }),
+                  ],
+                }),
+                '0x300': buildCustomNetworkConfiguration({
+                  chainId: '0x300',
+                  rpcEndpoints: [
+                    buildCustomRpcEndpoint({
+                      networkClientId: 'BBBB-BBBB-BBBB-BBBB',
+                      url: 'https://test.network/2',
+                      failoverUrls: ['https://failover.endpoint/2'],
+                    }),
+                  ],
+                }),
+              },
+            },
+          },
+          async ({ controller }) => {
+            controller.disableRpcFailoverForced();
+
+            expect(autoManagedNetworkClients).toHaveLength(3);
+            expect(
+              autoManagedNetworkClients[0].disableRpcFailoverForced,
+            ).not.toHaveBeenCalled();
+            expect(
+              autoManagedNetworkClients[1].disableRpcFailoverForced,
+            ).toHaveBeenCalled();
+            expect(
+              autoManagedNetworkClients[2].disableRpcFailoverForced,
+            ).toHaveBeenCalled();
+          },
+        );
+      });
+    });
+
+    describe('if the controller was initialized with isRpcFailoverForced = false', () => {
+      it('does not call createAutoManagedNetworkClient at all', async () => {
+        await withController(
+          {
+            isRpcFailoverForced: false,
+            state: {
+              selectedNetworkClientId: 'AAAA-AAAA-AAAA-AAAA',
+              networkConfigurationsByChainId: {
+                [ChainId.mainnet]: buildInfuraNetworkConfiguration(
+                  InfuraNetworkType.mainnet,
+                  {
+                    rpcEndpoints: [
+                      buildInfuraRpcEndpoint(InfuraNetworkType.mainnet, {
+                        failoverUrls: [],
+                      }),
+                    ],
+                  },
+                ),
+                '0x200': buildCustomNetworkConfiguration({
+                  chainId: '0x200',
+                  rpcEndpoints: [
+                    buildCustomRpcEndpoint({
+                      networkClientId: 'AAAA-AAAA-AAAA-AAAA',
+                      url: 'https://test.network/1',
+                      failoverUrls: ['https://failover.endpoint/1'],
+                    }),
+                  ],
+                }),
+                '0x300': buildCustomNetworkConfiguration({
+                  chainId: '0x300',
+                  rpcEndpoints: [
+                    buildCustomRpcEndpoint({
+                      networkClientId: 'BBBB-BBBB-BBBB-BBBB',
+                      url: 'https://test.network/2',
+                      failoverUrls: ['https://failover.endpoint/2'],
+                    }),
+                  ],
+                }),
+              },
+            },
+          },
+          async ({ controller }) => {
+            const originalCreateAutoManagedNetworkClient =
+              createAutoManagedNetworkClientModule.createAutoManagedNetworkClient;
+            const autoManagedNetworkClients: AutoManagedNetworkClient<NetworkClientConfiguration>[] =
+              [];
+            jest
+              .spyOn(
+                createAutoManagedNetworkClientModule,
+                'createAutoManagedNetworkClient',
+              )
+              .mockImplementation((...args) => {
+                const autoManagedNetworkClient =
+                  originalCreateAutoManagedNetworkClient(...args);
+                jest.spyOn(
+                  autoManagedNetworkClient,
+                  'disableRpcFailoverForced',
+                );
+                autoManagedNetworkClients.push(autoManagedNetworkClient);
+                return autoManagedNetworkClient;
+              });
+
+            controller.disableRpcFailoverForced();
+
+            expect(autoManagedNetworkClients).toHaveLength(0);
+          },
+        );
+      });
+    });
+  });
+
+  describe('RemoteFeatureFlagController:stateChange (isRpcFailoverForced)', () => {
+    it('calls enableRpcFailoverForced on clients with failover URLs when the flag turns true', async () => {
+      const originalCreateAutoManagedNetworkClient =
+        createAutoManagedNetworkClientModule.createAutoManagedNetworkClient;
+      const autoManagedNetworkClients: AutoManagedNetworkClient<NetworkClientConfiguration>[] =
+        [];
+      jest
+        .spyOn(
+          createAutoManagedNetworkClientModule,
+          'createAutoManagedNetworkClient',
+        )
+        .mockImplementation((...args) => {
+          const autoManagedNetworkClient =
+            originalCreateAutoManagedNetworkClient(...args);
+          jest.spyOn(autoManagedNetworkClient, 'enableRpcFailoverForced');
+          autoManagedNetworkClients.push(autoManagedNetworkClient);
+          return autoManagedNetworkClient;
+        });
+
+      await withController(
+        {
+          isRpcFailoverForced: false,
+          state: {
+            selectedNetworkClientId: 'AAAA-AAAA-AAAA-AAAA',
+            networkConfigurationsByChainId: {
+              [ChainId.mainnet]: buildInfuraNetworkConfiguration(
+                InfuraNetworkType.mainnet,
+                {
+                  rpcEndpoints: [
+                    buildInfuraRpcEndpoint(InfuraNetworkType.mainnet, {
+                      failoverUrls: [],
+                    }),
+                  ],
+                },
+              ),
+              '0x200': buildCustomNetworkConfiguration({
+                chainId: '0x200',
+                rpcEndpoints: [
+                  buildCustomRpcEndpoint({
+                    networkClientId: 'AAAA-AAAA-AAAA-AAAA',
+                    url: 'https://test.network/1',
+                    failoverUrls: ['https://failover.endpoint/1'],
+                  }),
+                ],
+              }),
+            },
+          },
+        },
+        async ({ messenger }) => {
+          messenger.publish(
+            // eslint-disable-next-line no-restricted-syntax
+            'RemoteFeatureFlagController:stateChange',
+            {
+              remoteFeatureFlags: {
+                walletFrameworkRpcFailoverEnabled: false,
+                'wallet-framework-rpc-failover-force-enabled': true,
+              },
+              cacheTimestamp: 0,
+            },
+            [],
+          );
+
+          expect(autoManagedNetworkClients).toHaveLength(2);
+          expect(
+            autoManagedNetworkClients[0].enableRpcFailoverForced,
+          ).not.toHaveBeenCalled();
+          expect(
+            autoManagedNetworkClients[1].enableRpcFailoverForced,
+          ).toHaveBeenCalled();
+        },
+      );
+    });
+
+    it('picks up the initial forced value during init()', async () => {
+      const originalCreateAutoManagedNetworkClient =
+        createAutoManagedNetworkClientModule.createAutoManagedNetworkClient;
+      const autoManagedNetworkClients: AutoManagedNetworkClient<NetworkClientConfiguration>[] =
+        [];
+      jest
+        .spyOn(
+          createAutoManagedNetworkClientModule,
+          'createAutoManagedNetworkClient',
+        )
+        .mockImplementation((...args) => {
+          const autoManagedNetworkClient =
+            originalCreateAutoManagedNetworkClient(...args);
+          jest.spyOn(autoManagedNetworkClient, 'enableRpcFailoverForced');
+          autoManagedNetworkClients.push(autoManagedNetworkClient);
+          return autoManagedNetworkClient;
+        });
+
+      await withController(
+        {
+          isRpcFailoverForced: true,
+          state: {
+            selectedNetworkClientId: 'AAAA-AAAA-AAAA-AAAA',
+            networkConfigurationsByChainId: {
+              [ChainId.mainnet]: buildInfuraNetworkConfiguration(
+                InfuraNetworkType.mainnet,
+                {
+                  rpcEndpoints: [
+                    buildInfuraRpcEndpoint(InfuraNetworkType.mainnet, {
+                      failoverUrls: ['https://failover.endpoint/1'],
+                    }),
+                  ],
+                },
+              ),
+              '0x200': buildCustomNetworkConfiguration({
+                chainId: '0x200',
+                rpcEndpoints: [
+                  buildCustomRpcEndpoint({
+                    networkClientId: 'AAAA-AAAA-AAAA-AAAA',
+                    url: 'https://test.network/1',
+                    failoverUrls: [],
+                  }),
+                ],
+              }),
+            },
+          },
+        },
+        async () => {
+          expect(autoManagedNetworkClients).toHaveLength(2);
+          expect(
+            autoManagedNetworkClients[0].enableRpcFailoverForced,
+          ).toHaveBeenCalled();
+          expect(
+            autoManagedNetworkClients[1].enableRpcFailoverForced,
+          ).not.toHaveBeenCalled();
+        },
+      );
+    });
+
+    it('calls enableRpcFailoverForced but not enableRpcFailover when only the forced flag is true', async () => {
+      const originalCreateAutoManagedNetworkClient =
+        createAutoManagedNetworkClientModule.createAutoManagedNetworkClient;
+      const autoManagedNetworkClients: AutoManagedNetworkClient<NetworkClientConfiguration>[] =
+        [];
+      jest
+        .spyOn(
+          createAutoManagedNetworkClientModule,
+          'createAutoManagedNetworkClient',
+        )
+        .mockImplementation((...args) => {
+          const autoManagedNetworkClient =
+            originalCreateAutoManagedNetworkClient(...args);
+          jest.spyOn(autoManagedNetworkClient, 'enableRpcFailover');
+          jest.spyOn(autoManagedNetworkClient, 'enableRpcFailoverForced');
+          autoManagedNetworkClients.push(autoManagedNetworkClient);
+          return autoManagedNetworkClient;
+        });
+
+      await withController(
+        {
+          isRpcFailoverEnabled: false,
+          isRpcFailoverForced: false,
+          state: {
+            selectedNetworkClientId: 'AAAA-AAAA-AAAA-AAAA',
+            networkConfigurationsByChainId: {
+              '0x200': buildCustomNetworkConfiguration({
+                chainId: '0x200',
+                rpcEndpoints: [
+                  buildCustomRpcEndpoint({
+                    networkClientId: 'AAAA-AAAA-AAAA-AAAA',
+                    url: 'https://test.network/1',
+                    failoverUrls: ['https://failover.endpoint/1'],
+                  }),
+                ],
+              }),
+            },
+          },
+        },
+        async ({ messenger }) => {
+          messenger.publish(
+            // eslint-disable-next-line no-restricted-syntax
+            'RemoteFeatureFlagController:stateChange',
+            {
+              remoteFeatureFlags: {
+                walletFrameworkRpcFailoverEnabled: false,
+                'wallet-framework-rpc-failover-force-enabled': true,
+              },
+              cacheTimestamp: 0,
+            },
+            [],
+          );
+
+          expect(autoManagedNetworkClients).toHaveLength(1);
+          expect(
+            autoManagedNetworkClients[0].enableRpcFailoverForced,
+          ).toHaveBeenCalled();
+          expect(
+            autoManagedNetworkClients[0].enableRpcFailover,
+          ).not.toHaveBeenCalled();
+        },
+      );
+    });
+  });
+
   describe('destroy', () => {
     it('does not throw if called before the provider is initialized', async () => {
       await withController(async ({ controller }) => {
@@ -1677,6 +2167,8 @@ describe('NetworkController', () => {
                 destroy: expect.any(Function),
                 enableRpcFailover: expect.any(Function),
                 disableRpcFailover: expect.any(Function),
+                enableRpcFailoverForced: expect.any(Function),
+                disableRpcFailoverForced: expect.any(Function),
               },
               'base-mainnet': {
                 blockTracker: expect.anything(),
@@ -1692,6 +2184,8 @@ describe('NetworkController', () => {
                 destroy: expect.any(Function),
                 enableRpcFailover: expect.any(Function),
                 disableRpcFailover: expect.any(Function),
+                enableRpcFailoverForced: expect.any(Function),
+                disableRpcFailoverForced: expect.any(Function),
               },
               'bsc-mainnet': {
                 blockTracker: expect.anything(),
@@ -1707,6 +2201,8 @@ describe('NetworkController', () => {
                 destroy: expect.any(Function),
                 enableRpcFailover: expect.any(Function),
                 disableRpcFailover: expect.any(Function),
+                enableRpcFailoverForced: expect.any(Function),
+                disableRpcFailoverForced: expect.any(Function),
               },
               'linea-mainnet': {
                 blockTracker: expect.anything(),
@@ -1722,6 +2218,8 @@ describe('NetworkController', () => {
                 destroy: expect.any(Function),
                 enableRpcFailover: expect.any(Function),
                 disableRpcFailover: expect.any(Function),
+                enableRpcFailoverForced: expect.any(Function),
+                disableRpcFailoverForced: expect.any(Function),
               },
               'linea-sepolia': {
                 blockTracker: expect.anything(),
@@ -1737,6 +2235,8 @@ describe('NetworkController', () => {
                 destroy: expect.any(Function),
                 enableRpcFailover: expect.any(Function),
                 disableRpcFailover: expect.any(Function),
+                enableRpcFailoverForced: expect.any(Function),
+                disableRpcFailoverForced: expect.any(Function),
               },
               mainnet: {
                 blockTracker: expect.anything(),
@@ -1752,6 +2252,8 @@ describe('NetworkController', () => {
                 destroy: expect.any(Function),
                 enableRpcFailover: expect.any(Function),
                 disableRpcFailover: expect.any(Function),
+                enableRpcFailoverForced: expect.any(Function),
+                disableRpcFailoverForced: expect.any(Function),
               },
               'megaeth-testnet': {
                 blockTracker: expect.anything(),
@@ -1766,6 +2268,8 @@ describe('NetworkController', () => {
                 destroy: expect.any(Function),
                 enableRpcFailover: expect.any(Function),
                 disableRpcFailover: expect.any(Function),
+                enableRpcFailoverForced: expect.any(Function),
+                disableRpcFailoverForced: expect.any(Function),
               },
               'megaeth-testnet-v2': {
                 blockTracker: expect.anything(),
@@ -1780,6 +2284,8 @@ describe('NetworkController', () => {
                 destroy: expect.any(Function),
                 enableRpcFailover: expect.any(Function),
                 disableRpcFailover: expect.any(Function),
+                enableRpcFailoverForced: expect.any(Function),
+                disableRpcFailoverForced: expect.any(Function),
               },
               'monad-mainnet': {
                 blockTracker: expect.anything(),
@@ -1795,6 +2301,8 @@ describe('NetworkController', () => {
                 destroy: expect.any(Function),
                 enableRpcFailover: expect.any(Function),
                 disableRpcFailover: expect.any(Function),
+                enableRpcFailoverForced: expect.any(Function),
+                disableRpcFailoverForced: expect.any(Function),
               },
               'monad-testnet': {
                 blockTracker: expect.anything(),
@@ -1809,6 +2317,8 @@ describe('NetworkController', () => {
                 destroy: expect.any(Function),
                 enableRpcFailover: expect.any(Function),
                 disableRpcFailover: expect.any(Function),
+                enableRpcFailoverForced: expect.any(Function),
+                disableRpcFailoverForced: expect.any(Function),
               },
               'optimism-mainnet': {
                 blockTracker: expect.anything(),
@@ -1824,6 +2334,8 @@ describe('NetworkController', () => {
                 destroy: expect.any(Function),
                 enableRpcFailover: expect.any(Function),
                 disableRpcFailover: expect.any(Function),
+                enableRpcFailoverForced: expect.any(Function),
+                disableRpcFailoverForced: expect.any(Function),
               },
               'polygon-mainnet': {
                 blockTracker: expect.anything(),
@@ -1839,6 +2351,8 @@ describe('NetworkController', () => {
                 destroy: expect.any(Function),
                 enableRpcFailover: expect.any(Function),
                 disableRpcFailover: expect.any(Function),
+                enableRpcFailoverForced: expect.any(Function),
+                disableRpcFailoverForced: expect.any(Function),
               },
               sepolia: {
                 blockTracker: expect.anything(),
@@ -1854,6 +2368,8 @@ describe('NetworkController', () => {
                 destroy: expect.any(Function),
                 enableRpcFailover: expect.any(Function),
                 disableRpcFailover: expect.any(Function),
+                enableRpcFailoverForced: expect.any(Function),
+                disableRpcFailoverForced: expect.any(Function),
               },
             });
           },
@@ -1910,6 +2426,8 @@ describe('NetworkController', () => {
                 destroy: expect.any(Function),
                 enableRpcFailover: expect.any(Function),
                 disableRpcFailover: expect.any(Function),
+                enableRpcFailoverForced: expect.any(Function),
+                disableRpcFailoverForced: expect.any(Function),
               },
               'BBBB-BBBB-BBBB-BBBB': {
                 blockTracker: expect.anything(),
@@ -1924,6 +2442,8 @@ describe('NetworkController', () => {
                 destroy: expect.any(Function),
                 enableRpcFailover: expect.any(Function),
                 disableRpcFailover: expect.any(Function),
+                enableRpcFailoverForced: expect.any(Function),
+                disableRpcFailoverForced: expect.any(Function),
               },
             });
           },
@@ -4568,6 +5088,8 @@ describe('NetworkController', () => {
                   getBlockTrackerOptions,
                   messenger: networkControllerMessenger,
                   isRpcFailoverEnabled: true,
+                  isRpcFailoverForced: false,
+                  logger: undefined,
                 },
               );
               expect(createAutoManagedNetworkClientSpy).toHaveBeenNthCalledWith(
@@ -4585,6 +5107,8 @@ describe('NetworkController', () => {
                   getBlockTrackerOptions,
                   messenger: networkControllerMessenger,
                   isRpcFailoverEnabled: true,
+                  isRpcFailoverForced: false,
+                  logger: undefined,
                 },
               );
               expect(createAutoManagedNetworkClientSpy).toHaveBeenNthCalledWith(
@@ -4602,6 +5126,8 @@ describe('NetworkController', () => {
                   getBlockTrackerOptions,
                   messenger: networkControllerMessenger,
                   isRpcFailoverEnabled: true,
+                  isRpcFailoverForced: false,
+                  logger: undefined,
                 },
               );
               const networkConfigurationsByNetworkClientId =
@@ -6069,6 +6595,8 @@ describe('NetworkController', () => {
                   getBlockTrackerOptions,
                   messenger: networkControllerMessenger,
                   isRpcFailoverEnabled: true,
+                  isRpcFailoverForced: false,
+                  logger: undefined,
                 });
 
                 const networkConfigurationsByNetworkClientId =
@@ -6385,6 +6913,8 @@ describe('NetworkController', () => {
                   getBlockTrackerOptions,
                   messenger: networkControllerMessenger,
                   isRpcFailoverEnabled: true,
+                  isRpcFailoverForced: false,
+                  logger: undefined,
                 });
                 expect(
                   createAutoManagedNetworkClientSpy,
@@ -6401,6 +6931,8 @@ describe('NetworkController', () => {
                   getBlockTrackerOptions,
                   messenger: networkControllerMessenger,
                   isRpcFailoverEnabled: true,
+                  isRpcFailoverForced: false,
+                  logger: undefined,
                 });
 
                 const networkConfigurationsByNetworkClientId =
@@ -7378,6 +7910,8 @@ describe('NetworkController', () => {
                   getBlockTrackerOptions,
                   messenger: networkControllerMessenger,
                   isRpcFailoverEnabled: true,
+                  isRpcFailoverForced: false,
+                  logger: undefined,
                 });
                 const networkConfigurationsByNetworkClientId =
                   getNetworkConfigurationsByNetworkClientId(
@@ -8253,6 +8787,8 @@ describe('NetworkController', () => {
                   getBlockTrackerOptions,
                   messenger: networkControllerMessenger,
                   isRpcFailoverEnabled: true,
+                  isRpcFailoverForced: false,
+                  logger: undefined,
                 },
               );
               expect(createAutoManagedNetworkClientSpy).toHaveBeenNthCalledWith(
@@ -8270,6 +8806,8 @@ describe('NetworkController', () => {
                   getBlockTrackerOptions,
                   messenger: networkControllerMessenger,
                   isRpcFailoverEnabled: true,
+                  isRpcFailoverForced: false,
+                  logger: undefined,
                 },
               );
 
@@ -9260,6 +9798,8 @@ describe('NetworkController', () => {
                 getBlockTrackerOptions,
                 messenger: networkControllerMessenger,
                 isRpcFailoverEnabled: true,
+                isRpcFailoverForced: false,
+                logger: undefined,
               });
               expect(
                 getNetworkConfigurationsByNetworkClientId(
@@ -10421,6 +10961,8 @@ describe('NetworkController', () => {
                   getBlockTrackerOptions,
                   messenger: networkControllerMessenger,
                   isRpcFailoverEnabled: true,
+                  isRpcFailoverForced: false,
+                  logger: undefined,
                 });
                 expect(
                   createAutoManagedNetworkClientSpy,
@@ -10437,6 +10979,8 @@ describe('NetworkController', () => {
                   getBlockTrackerOptions,
                   messenger: networkControllerMessenger,
                   isRpcFailoverEnabled: true,
+                  isRpcFailoverForced: false,
+                  logger: undefined,
                 });
 
                 const networkConfigurationsByNetworkClientId =
@@ -11143,6 +11687,8 @@ describe('NetworkController', () => {
                   getBlockTrackerOptions,
                   messenger: networkControllerMessenger,
                   isRpcFailoverEnabled: true,
+                  isRpcFailoverForced: false,
+                  logger: undefined,
                 });
                 expect(createAutoManagedNetworkClientSpy).toHaveBeenCalledWith({
                   networkClientId: 'DDDD-DDDD-DDDD-DDDD',
@@ -11157,6 +11703,8 @@ describe('NetworkController', () => {
                   getBlockTrackerOptions,
                   messenger: networkControllerMessenger,
                   isRpcFailoverEnabled: true,
+                  isRpcFailoverForced: false,
+                  logger: undefined,
                 });
 
                 expect(
@@ -11878,6 +12426,8 @@ describe('NetworkController', () => {
                   getBlockTrackerOptions,
                   messenger: networkControllerMessenger,
                   isRpcFailoverEnabled: true,
+                  isRpcFailoverForced: false,
+                  logger: undefined,
                 });
                 expect(
                   createAutoManagedNetworkClientSpy,
@@ -11894,6 +12444,8 @@ describe('NetworkController', () => {
                   getBlockTrackerOptions,
                   messenger: networkControllerMessenger,
                   isRpcFailoverEnabled: true,
+                  isRpcFailoverForced: false,
+                  logger: undefined,
                 });
 
                 const networkConfigurationsByChainId =
@@ -12581,6 +13133,8 @@ describe('NetworkController', () => {
                 getBlockTrackerOptions,
                 messenger: networkControllerMessenger,
                 isRpcFailoverEnabled: true,
+                isRpcFailoverForced: false,
+                logger: undefined,
               },
             );
             expect(createAutoManagedNetworkClientSpy).toHaveBeenNthCalledWith(
@@ -12598,6 +13152,8 @@ describe('NetworkController', () => {
                 getBlockTrackerOptions,
                 messenger: networkControllerMessenger,
                 isRpcFailoverEnabled: true,
+                isRpcFailoverForced: false,
+                logger: undefined,
               },
             );
 
