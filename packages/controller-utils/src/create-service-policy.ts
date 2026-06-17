@@ -54,6 +54,10 @@ export type CreateServicePolicyOptions = {
    */
   degradedThreshold?: number;
   /**
+   * Predicate function for when an error should be considered a service failure.
+   */
+  isServiceFailure?: (error: unknown) => boolean;
+  /**
    * The maximum number of times that the service is allowed to fail before
    * pausing further retries.
    */
@@ -189,7 +193,7 @@ export const DEFAULT_CIRCUIT_BREAK_DURATION = 30 * 60 * 1000;
  */
 export const DEFAULT_DEGRADED_THRESHOLD = 5_000;
 
-const isServiceFailure = (error: unknown): boolean => {
+const defaultIsServiceFailure = (error: unknown): boolean => {
   if (
     typeof error === 'object' &&
     error !== null &&
@@ -199,8 +203,9 @@ const isServiceFailure = (error: unknown): boolean => {
     return error.httpStatus >= 500;
   }
 
-  // If the error is not an object, or doesn't have a numeric code property,
-  // consider it a service failure (e.g., network errors, timeouts, etc.)
+  // If the error is not an object, or doesn't have a numeric httpStatus
+  // property, consider it a service failure (e.g., network errors, timeouts,
+  // etc.)
   return true;
 };
 
@@ -283,6 +288,7 @@ export function createServicePolicy(
     circuitBreakDuration = DEFAULT_CIRCUIT_BREAK_DURATION,
     degradedThreshold = DEFAULT_DEGRADED_THRESHOLD,
     backoff = new ExponentialBackoff(),
+    isServiceFailure = defaultIsServiceFailure,
   } = options;
 
   let availabilityStatus: AvailabilityStatus = AVAILABILITY_STATUSES.Unknown;
