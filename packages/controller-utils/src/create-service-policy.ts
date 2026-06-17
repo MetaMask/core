@@ -203,8 +203,9 @@ const defaultIsServiceFailure = (error: unknown): boolean => {
     return error.httpStatus >= 500;
   }
 
-  // If the error is not an object, or doesn't have a numeric code property,
-  // consider it a service failure (e.g., network errors, timeouts, etc.)
+  // If the error is not an object, or doesn't have a numeric httpStatus
+  // property, consider it a service failure (e.g., network errors, timeouts,
+  // etc.)
   return true;
 };
 
