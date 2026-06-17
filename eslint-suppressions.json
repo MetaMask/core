@@ -2151,14 +2151,8 @@
     "@typescript-eslint/explicit-function-return-type": {
       "count": 10
     },
-    "@typescript-eslint/no-base-to-string": {
-      "count": 1
-    },
     "@typescript-eslint/no-floating-promises": {
       "count": 4
-    },
-    "@typescript-eslint/restrict-template-expressions": {
-      "count": 1
     },
     "no-restricted-syntax": {
       "count": 4
