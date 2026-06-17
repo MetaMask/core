@@ -120,6 +120,7 @@
 /packages/eth-json-rpc-middleware/src/methods   @MetaMask/confirmations @MetaMask/wallet-api-platform-engineers
 /packages/eth-json-rpc-middleware/src/wallet.*  @MetaMask/confirmations @MetaMask/wallet-api-platform-engineers
 /packages/eth-json-rpc-provider                 @MetaMask/wallet-integrations @MetaMask/core-platform
+/packages/bitcoin-regtest-up                    @MetaMask/mobile-platform @MetaMask/extension-platform @MetaMask/networks
 /packages/foundryup                             @MetaMask/mobile-platform @MetaMask/extension-platform
 /packages/json-rpc-engine                       @MetaMask/wallet-integrations @MetaMask/core-platform
 /packages/json-rpc-middleware-stream            @MetaMask/wallet-integrations @MetaMask/core-platform
@@ -236,6 +237,8 @@
 /packages/bridge-status-controller/CHANGELOG.md         @MetaMask/swaps-engineers @MetaMask/core-platform
 /packages/app-metadata-controller/package.json        @MetaMask/mobile-platform @MetaMask/core-platform
 /packages/app-metadata-controller/CHANGELOG.md        @MetaMask/mobile-platform @MetaMask/core-platform
+/packages/bitcoin-regtest-up/package.json @MetaMask/mobile-platform @MetaMask/extension-platform @MetaMask/networks @MetaMask/core-platform
+/packages/bitcoin-regtest-up/CHANGELOG.md @MetaMask/mobile-platform @MetaMask/extension-platform @MetaMask/networks @MetaMask/core-platform
 /packages/foundryup/package.json @MetaMask/mobile-platform @MetaMask/extension-platform @MetaMask/core-platform
 /packages/foundryup/CHANGELOG.md @MetaMask/mobile-platform @MetaMask/extension-platform @MetaMask/core-platform
 /packages/seedless-onboarding-controller/package.json @MetaMask/web3auth @MetaMask/core-platform

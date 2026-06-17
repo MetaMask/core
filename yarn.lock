@@ -5887,6 +5887,25 @@ __metadata:
   languageName: unknown
   linkType: soft
 
+"@metamask/bitcoin-regtest-up@workspace:packages/bitcoin-regtest-up":
+  version: 0.0.0-use.local
+  resolution: "@metamask/bitcoin-regtest-up@workspace:packages/bitcoin-regtest-up"
+  dependencies:
+    "@metamask/auto-changelog": "npm:^6.1.0"
+    "@ts-bridge/cli": "npm:^0.6.4"
+    "@types/jest": "npm:^29.5.14"
+    deepmerge: "npm:^4.2.2"
+    jest: "npm:^29.7.0"
+    ts-jest: "npm:^29.2.5"
+    tsx: "npm:^4.20.5"
+    typedoc: "npm:^0.25.13"
+    typedoc-plugin-missing-exports: "npm:^2.0.0"
+    typescript: "npm:~5.3.3"
+  bin:
+    bitcoin-regtest-up: ./dist/bin/bitcoin-regtest-up.mjs
+  languageName: unknown
+  linkType: soft
+
 "@metamask/bridge-controller@npm:^75.1.1, @metamask/bridge-controller@workspace:packages/bridge-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/bridge-controller@workspace:packages/bridge-controller"
