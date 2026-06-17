@@ -167,6 +167,7 @@ export type components = {
        */
       created_at: string;
       payload: components['schemas']['OnChainPayload'];
+      template: components['schemas']['LocalizedNotification'];
     };
     OnChainPayload: {
       /** @example 1 */

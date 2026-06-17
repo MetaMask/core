@@ -9,6 +9,15 @@ import type { NormalisedAPINotification } from '../types/notification-api/notifi
 export function createMockNotificationEthSent(): NormalisedAPINotification {
   const mockNotification: NormalisedAPINotification = {
     type: TRIGGER_TYPES.ETH_SENT,
+    template: {
+      image_url: 'https://example.com/eth-sent.svg',
+      title: 'Funds sent',
+      body: 'You successfully sent 0.005 ETH',
+      cta: {
+        content: 'View transaction',
+        link: 'https://etherscan.io/tx/eth-sent',
+      },
+    },
     notification_type: 'on-chain',
     id: '3fa85f64-5717-4562-b3fc-2c963f66afa7',
     unread: true,
@@ -55,6 +64,11 @@ export function createMockNotificationEthSent(): NormalisedAPINotification {
 export function createMockNotificationEthReceived(): NormalisedAPINotification {
   const mockNotification: NormalisedAPINotification = {
     type: TRIGGER_TYPES.ETH_RECEIVED,
+    template: {
+      image_url: 'https://example.com/eth-received.svg',
+      title: 'Funds received',
+      body: 'You received 808 ETH',
+    },
     notification_type: 'on-chain',
     id: '3fa85f64-5717-4562-b3fc-2c963f66afa8',
     unread: true,
@@ -101,6 +115,11 @@ export function createMockNotificationEthReceived(): NormalisedAPINotification {
 export function createMockNotificationERC20Sent(): NormalisedAPINotification {
   const mockNotification: NormalisedAPINotification = {
     type: TRIGGER_TYPES.ERC20_SENT,
+    template: {
+      image_url: 'https://example.com/erc20-sent.svg',
+      title: 'Funds sent',
+      body: 'You successfully sent 4.96K USDC',
+    },
     notification_type: 'on-chain',
     id: '3fa85f64-5717-4562-b3fc-2c963f66afa9',
     unread: true,
@@ -153,6 +172,11 @@ export function createMockNotificationERC20Sent(): NormalisedAPINotification {
 export function createMockNotificationERC20Received(): NormalisedAPINotification {
   const mockNotification: NormalisedAPINotification = {
     type: TRIGGER_TYPES.ERC20_RECEIVED,
+    template: {
+      image_url: 'https://example.com/erc20-received.svg',
+      title: 'Funds received',
+      body: 'You received 8.38B SHIB',
+    },
     notification_type: 'on-chain',
     id: '3fa85f64-5717-4562-b3fc-2c963f66afa6',
     unread: true,
@@ -205,6 +229,11 @@ export function createMockNotificationERC20Received(): NormalisedAPINotification
 export function createMockNotificationERC721Sent(): NormalisedAPINotification {
   const mockNotification: NormalisedAPINotification = {
     type: TRIGGER_TYPES.ERC721_SENT,
+    template: {
+      image_url: 'https://example.com/erc721-sent.svg',
+      title: 'NFT sent',
+      body: 'You have successfully sent an NFT',
+    },
     notification_type: 'on-chain',
     id: 'a4193058-9814-537e-9df4-79dcac727fb6',
     created_at: '2023-11-15T11:08:17.895407Z',
@@ -260,6 +289,11 @@ export function createMockNotificationERC721Sent(): NormalisedAPINotification {
 export function createMockNotificationERC721Received(): NormalisedAPINotification {
   const mockNotification: NormalisedAPINotification = {
     type: TRIGGER_TYPES.ERC721_RECEIVED,
+    template: {
+      image_url: 'https://example.com/erc721-received.svg',
+      title: 'NFT received',
+      body: 'You received new NFTs',
+    },
     notification_type: 'on-chain',
     id: '00a79d24-befa-57ed-a55a-9eb8696e1654',
     created_at: '2023-11-14T17:40:52.319281Z',
@@ -315,6 +349,11 @@ export function createMockNotificationERC721Received(): NormalisedAPINotificatio
 export function createMockNotificationERC1155Sent(): NormalisedAPINotification {
   const mockNotification: NormalisedAPINotification = {
     type: TRIGGER_TYPES.ERC1155_SENT,
+    template: {
+      image_url: 'https://example.com/erc1155-sent.svg',
+      title: 'NFT sent',
+      body: 'You have successfully sent an NFT',
+    },
     notification_type: 'on-chain',
     id: 'a09ff9d1-623a-52ab-a3d4-c7c8c9a58362',
     created_at: '2023-11-20T20:44:10.110706Z',
@@ -370,6 +409,11 @@ export function createMockNotificationERC1155Sent(): NormalisedAPINotification {
 export function createMockNotificationERC1155Received(): NormalisedAPINotification {
   const mockNotification: NormalisedAPINotification = {
     type: TRIGGER_TYPES.ERC1155_RECEIVED,
+    template: {
+      image_url: 'https://example.com/erc1155-received.svg',
+      title: 'NFT received',
+      body: 'You received new NFTs',
+    },
     notification_type: 'on-chain',
     id: 'b6b93c84-e8dc-54ed-9396-7ea50474843a',
     created_at: '2023-11-20T20:44:10.110706Z',
@@ -425,6 +469,11 @@ export function createMockNotificationERC1155Received(): NormalisedAPINotificati
 export function createMockNotificationMetaMaskSwapsCompleted(): NormalisedAPINotification {
   const mockNotification: NormalisedAPINotification = {
     type: TRIGGER_TYPES.METAMASK_SWAP_COMPLETED,
+    template: {
+      image_url: 'https://example.com/swap-completed.svg',
+      title: 'Swap completed',
+      body: 'Your MetaMask Swap was successful',
+    },
     notification_type: 'on-chain',
     id: '7ddfe6a1-ac52-5ffe-aa40-f04242db4b8b',
     created_at: '2023-10-18T13:58:49.854596Z',
@@ -486,6 +535,11 @@ export function createMockNotificationMetaMaskSwapsCompleted(): NormalisedAPINot
 export function createMockNotificationRocketPoolStakeCompleted(): NormalisedAPINotification {
   const mockNotification: NormalisedAPINotification = {
     type: TRIGGER_TYPES.ROCKETPOOL_STAKE_COMPLETED,
+    template: {
+      image_url: 'https://example.com/rocketpool-stake-completed.svg',
+      title: 'Stake complete',
+      body: 'Your RocketPool stake was successful',
+    },
     notification_type: 'on-chain',
     id: 'c2a2f225-b2fb-5d6c-ba56-e27a5c71ffb9',
     created_at: '2023-11-20T12:02:48.796824Z',
@@ -546,6 +600,11 @@ export function createMockNotificationRocketPoolStakeCompleted(): NormalisedAPIN
 export function createMockNotificationRocketPoolUnStakeCompleted(): NormalisedAPINotification {
   const mockNotification: NormalisedAPINotification = {
     type: TRIGGER_TYPES.ROCKETPOOL_UNSTAKE_COMPLETED,
+    template: {
+      image_url: 'https://example.com/rocketpool-unstake-completed.svg',
+      title: 'Unstake complete',
+      body: 'Your RocketPool unstake was successful',
+    },
     notification_type: 'on-chain',
     id: '291ec897-f569-4837-b6c0-21001b198dff',
     created_at: '2023-10-19T13:11:10.623042Z',
@@ -606,6 +665,11 @@ export function createMockNotificationRocketPoolUnStakeCompleted(): NormalisedAP
 export function createMockNotificationLidoStakeCompleted(): NormalisedAPINotification {
   const mockNotification: NormalisedAPINotification = {
     type: TRIGGER_TYPES.LIDO_STAKE_COMPLETED,
+    template: {
+      image_url: 'https://example.com/lido-stake-completed.svg',
+      title: 'Stake complete',
+      body: 'Your Lido stake was successful',
+    },
     notification_type: 'on-chain',
     id: 'ec10d66a-f78f-461f-83c9-609aada8cc50',
     created_at: '2023-11-02T22:28:49.970865Z',
@@ -666,6 +730,11 @@ export function createMockNotificationLidoStakeCompleted(): NormalisedAPINotific
 export function createMockNotificationLidoWithdrawalRequested(): NormalisedAPINotification {
   const mockNotification: NormalisedAPINotification = {
     type: TRIGGER_TYPES.LIDO_WITHDRAWAL_REQUESTED,
+    template: {
+      image_url: 'https://example.com/lido-withdrawal-requested.svg',
+      title: 'Withdrawal requested',
+      body: 'Your Lido withdrawal request was submitted',
+    },
     notification_type: 'on-chain',
     id: 'ef003925-3379-4ba7-9e2d-8218690cadc9',
     created_at: '2023-10-18T15:04:02.482526Z',
@@ -726,6 +795,11 @@ export function createMockNotificationLidoWithdrawalRequested(): NormalisedAPINo
 export function createMockNotificationLidoWithdrawalCompleted(): NormalisedAPINotification {
   const mockNotification: NormalisedAPINotification = {
     type: TRIGGER_TYPES.LIDO_WITHDRAWAL_COMPLETED,
+    template: {
+      image_url: 'https://example.com/lido-withdrawal-completed.svg',
+      title: 'Withdrawal completed',
+      body: 'Your Lido withdrawal was successful',
+    },
     notification_type: 'on-chain',
     id: 'd73df14d-ce73-4f38-bad3-ab028154042f',
     created_at: '2023-10-18T16:35:03.147606Z',
@@ -786,6 +860,11 @@ export function createMockNotificationLidoWithdrawalCompleted(): NormalisedAPINo
 export function createMockNotificationLidoReadyToBeWithdrawn(): NormalisedAPINotification {
   const mockNotification: NormalisedAPINotification = {
     type: TRIGGER_TYPES.LIDO_STAKE_READY_TO_BE_WITHDRAWN,
+    template: {
+      image_url: 'https://example.com/lido-ready-to-be-withdrawn.svg',
+      title: 'Stake ready for withdrawal',
+      body: 'Your Lido stake is now ready to be withdrawn',
+    },
     notification_type: 'on-chain',
     id: 'd73df14d-ce73-4f38-bad3-ab028154042e',
     created_at: '2023-10-18T16:35:03.147606Z',

@@ -16,64 +16,14 @@ import {
   createMockNotificationRocketPoolStakeCompleted,
   createMockNotificationRocketPoolUnStakeCompleted,
 } from '../../NotificationServicesController/mocks';
-import type { TranslationKeys } from './get-notification-message';
 import { createOnChainPushNotificationMessage } from './get-notification-message';
-
-const mockTranslations: TranslationKeys = {
-  pushPlatformNotificationsFundsSentTitle: () => 'Funds sent',
-  pushPlatformNotificationsFundsSentDescriptionDefault: () =>
-    'You successfully sent some tokens',
-  pushPlatformNotificationsFundsSentDescription: (amount, token) =>
-    `You successfully sent ${amount} ${token}`,
-  pushPlatformNotificationsFundsReceivedTitle: () => 'Funds received',
-  pushPlatformNotificationsFundsReceivedDescriptionDefault: () =>
-    'You received some tokens',
-  pushPlatformNotificationsFundsReceivedDescription: (amount, token) =>
-    `You received ${amount} ${token}`,
-  pushPlatformNotificationsSwapCompletedTitle: () => 'Swap completed',
-  pushPlatformNotificationsSwapCompletedDescription: () =>
-    'Your MetaMask Swap was successful',
-  pushPlatformNotificationsNftSentTitle: () => 'NFT sent',
-  pushPlatformNotificationsNftSentDescription: () =>
-    'You have successfully sent an NFT',
-  pushPlatformNotificationsNftReceivedTitle: () => 'NFT received',
-  pushPlatformNotificationsNftReceivedDescription: () =>
-    'You received new NFTs',
-  pushPlatformNotificationsStakingRocketpoolStakeCompletedTitle: () =>
-    'Stake complete',
-  pushPlatformNotificationsStakingRocketpoolStakeCompletedDescription: () =>
-    'Your RocketPool stake was successful',
-  pushPlatformNotificationsStakingRocketpoolUnstakeCompletedTitle: () =>
-    'Unstake complete',
-  pushPlatformNotificationsStakingRocketpoolUnstakeCompletedDescription: () =>
-    'Your RocketPool unstake was successful',
-  pushPlatformNotificationsStakingLidoStakeCompletedTitle: () =>
-    'Stake complete',
-  pushPlatformNotificationsStakingLidoStakeCompletedDescription: () =>
-    'Your Lido stake was successful',
-  pushPlatformNotificationsStakingLidoStakeReadyToBeWithdrawnTitle: () =>
-    'Stake ready for withdrawal',
-  pushPlatformNotificationsStakingLidoStakeReadyToBeWithdrawnDescription: () =>
-    'Your Lido stake is now ready to be withdrawn',
-  pushPlatformNotificationsStakingLidoWithdrawalRequestedTitle: () =>
-    'Withdrawal requested',
-  pushPlatformNotificationsStakingLidoWithdrawalRequestedDescription: () =>
-    'Your Lido withdrawal request was submitted',
-  pushPlatformNotificationsStakingLidoWithdrawalCompletedTitle: () =>
-    'Withdrawal completed',
-  pushPlatformNotificationsStakingLidoWithdrawalCompletedDescription: () =>
-    'Your Lido withdrawal was successful',
-};
 
 const { processNotification } = Processors;
 
 describe('notification-message tests', () => {
   it('displays erc20 sent notification', () => {
     const notification = processNotification(createMockNotificationERC20Sent());
-    const result = createOnChainPushNotificationMessage(
-      notification,
-      mockTranslations,
-    );
+    const result = createOnChainPushNotificationMessage(notification);
 
     expect(result?.title).toBe('Funds sent');
     expect(result?.description).toContain('You successfully sent 4.96K USDC');
@@ -83,10 +33,7 @@ describe('notification-message tests', () => {
     const notification = processNotification(
       createMockNotificationERC20Received(),
     );
-    const result = createOnChainPushNotificationMessage(
-      notification,
-      mockTranslations,
-    );
+    const result = createOnChainPushNotificationMessage(notification);
 
     expect(result?.title).toBe('Funds received');
     expect(result?.description).toContain('You received 8.38B SHIB');
@@ -94,23 +41,33 @@ describe('notification-message tests', () => {
 
   it('displays eth/native sent notification', () => {
     const notification = processNotification(createMockNotificationEthSent());
-    const result = createOnChainPushNotificationMessage(
-      notification,
-      mockTranslations,
-    );
+    const result = createOnChainPushNotificationMessage(notification);
 
     expect(result?.title).toBe('Funds sent');
     expect(result?.description).toContain('You successfully sent 0.005 ETH');
+  });
+
+  it('populates ctaLink from the template cta link', () => {
+    const notification = processNotification(createMockNotificationEthSent());
+    const result = createOnChainPushNotificationMessage(notification);
+
+    expect(result?.ctaLink).toBe('https://etherscan.io/tx/eth-sent');
+  });
+
+  it('omits ctaLink when the template has no cta', () => {
+    const notification = processNotification(
+      createMockNotificationEthReceived(),
+    );
+    const result = createOnChainPushNotificationMessage(notification);
+
+    expect(result?.ctaLink).toBeUndefined();
   });
 
   it('displays eth/native received notification', () => {
     const notification = processNotification(
       createMockNotificationEthReceived(),
     );
-    const result = createOnChainPushNotificationMessage(
-      notification,
-      mockTranslations,
-    );
+    const result = createOnChainPushNotificationMessage(notification);
 
     expect(result?.title).toBe('Funds received');
     expect(result?.description).toContain('You received 808 ETH');
@@ -120,10 +77,7 @@ describe('notification-message tests', () => {
     const notification = processNotification(
       createMockNotificationMetaMaskSwapsCompleted(),
     );
-    const result = createOnChainPushNotificationMessage(
-      notification,
-      mockTranslations,
-    );
+    const result = createOnChainPushNotificationMessage(notification);
 
     expect(result?.title).toBe('Swap completed');
     expect(result?.description).toContain('Your MetaMask Swap was successful');
@@ -133,10 +87,7 @@ describe('notification-message tests', () => {
     const notification = processNotification(
       createMockNotificationERC721Sent(),
     );
-    const result = createOnChainPushNotificationMessage(
-      notification,
-      mockTranslations,
-    );
+    const result = createOnChainPushNotificationMessage(notification);
 
     expect(result?.title).toBe('NFT sent');
     expect(result?.description).toContain('You have successfully sent an NFT');
@@ -146,10 +97,7 @@ describe('notification-message tests', () => {
     const notification = processNotification(
       createMockNotificationERC721Received(),
     );
-    const result = createOnChainPushNotificationMessage(
-      notification,
-      mockTranslations,
-    );
+    const result = createOnChainPushNotificationMessage(notification);
 
     expect(result?.title).toBe('NFT received');
     expect(result?.description).toContain('You received new NFTs');
@@ -159,10 +107,7 @@ describe('notification-message tests', () => {
     const notification = processNotification(
       createMockNotificationERC1155Sent(),
     );
-    const result = createOnChainPushNotificationMessage(
-      notification,
-      mockTranslations,
-    );
+    const result = createOnChainPushNotificationMessage(notification);
 
     expect(result?.title).toBe('NFT sent');
     expect(result?.description).toContain('You have successfully sent an NFT');
@@ -172,10 +117,7 @@ describe('notification-message tests', () => {
     const notification = processNotification(
       createMockNotificationERC1155Received(),
     );
-    const result = createOnChainPushNotificationMessage(
-      notification,
-      mockTranslations,
-    );
+    const result = createOnChainPushNotificationMessage(notification);
 
     expect(result?.title).toBe('NFT received');
     expect(result?.description).toContain('You received new NFTs');
@@ -185,10 +127,7 @@ describe('notification-message tests', () => {
     const notification = processNotification(
       createMockNotificationRocketPoolStakeCompleted(),
     );
-    const result = createOnChainPushNotificationMessage(
-      notification,
-      mockTranslations,
-    );
+    const result = createOnChainPushNotificationMessage(notification);
 
     expect(result?.title).toBe('Stake complete');
     expect(result?.description).toContain(
@@ -200,10 +139,7 @@ describe('notification-message tests', () => {
     const notification = processNotification(
       createMockNotificationRocketPoolUnStakeCompleted(),
     );
-    const result = createOnChainPushNotificationMessage(
-      notification,
-      mockTranslations,
-    );
+    const result = createOnChainPushNotificationMessage(notification);
 
     expect(result?.title).toBe('Unstake complete');
     expect(result?.description).toContain(
@@ -215,10 +151,7 @@ describe('notification-message tests', () => {
     const notification = processNotification(
       createMockNotificationLidoStakeCompleted(),
     );
-    const result = createOnChainPushNotificationMessage(
-      notification,
-      mockTranslations,
-    );
+    const result = createOnChainPushNotificationMessage(notification);
 
     expect(result?.title).toBe('Stake complete');
     expect(result?.description).toContain('Your Lido stake was successful');
@@ -228,10 +161,7 @@ describe('notification-message tests', () => {
     const notification = processNotification(
       createMockNotificationLidoReadyToBeWithdrawn(),
     );
-    const result = createOnChainPushNotificationMessage(
-      notification,
-      mockTranslations,
-    );
+    const result = createOnChainPushNotificationMessage(notification);
 
     expect(result?.title).toBe('Stake ready for withdrawal');
     expect(result?.description).toContain(
@@ -243,10 +173,7 @@ describe('notification-message tests', () => {
     const notification = processNotification(
       createMockNotificationLidoWithdrawalRequested(),
     );
-    const result = createOnChainPushNotificationMessage(
-      notification,
-      mockTranslations,
-    );
+    const result = createOnChainPushNotificationMessage(notification);
 
     expect(result?.title).toBe('Withdrawal requested');
     expect(result?.description).toContain(
@@ -258,10 +185,7 @@ describe('notification-message tests', () => {
     const notification = processNotification(
       createMockNotificationLidoWithdrawalCompleted(),
     );
-    const result = createOnChainPushNotificationMessage(
-      notification,
-      mockTranslations,
-    );
+    const result = createOnChainPushNotificationMessage(notification);
 
     expect(result?.title).toBe('Withdrawal completed');
     expect(result?.description).toContain(
