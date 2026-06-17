@@ -358,7 +358,10 @@ describe('RpcService', () => {
       it.each([400, 429])(
         'does not break the circuit when the endpoint responds with %d',
         async (httpStatus) => {
-          nock(endpointUrl).post('/', jsonRpcRequest).times(3).reply(httpStatus);
+          nock(endpointUrl)
+            .post('/', jsonRpcRequest)
+            .times(3)
+            .reply(httpStatus);
           const service = new RpcService({
             fetch,
             btoa,
@@ -380,7 +383,10 @@ describe('RpcService', () => {
       it.each([401, 500])(
         'breaks the circuit when the endpoint responds with %d',
         async (httpStatus) => {
-          nock(endpointUrl).post('/', jsonRpcRequest).times(2).reply(httpStatus);
+          nock(endpointUrl)
+            .post('/', jsonRpcRequest)
+            .times(2)
+            .reply(httpStatus);
           const service = new RpcService({
             fetch,
             btoa,
