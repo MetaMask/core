@@ -518,8 +518,9 @@ describe('QuoteStatusUpdateManager', () => {
     });
 
     it('triggers immediate processing when no send is in-flight', async () => {
-      // First call: network error — entry stays, mutex released
-      // Second call: both SUBMITTED and FINALIZED_SUCCESS succeed
+      // First call: SUBMITTED network error — entry stays, mutex released.
+      // reportFinalised then collapses the queue to FINALIZED_SUCCESS, so the
+      // obsolete SUBMITTED is dropped and only the final status is sent.
       fetchSpy = jest
         .spyOn(globalThis, 'fetch')
         .mockRejectedValueOnce(new Error('network error'))
@@ -532,10 +533,10 @@ describe('QuoteStatusUpdateManager', () => {
 
       // Entry is in queue but NOT in-flight — reportFinalised triggers immediate processing
       manager.reportFinalised(TX_META_ID, true);
-      await flushPromises(); // Processes SUBMITTED then FINALIZED_SUCCESS
+      await flushPromises(); // Sends only FINALIZED_SUCCESS (SUBMITTED dropped)
 
-      // 1 failed SUBMITTED + 1 re-sent SUBMITTED + 1 FINALIZED_SUCCESS = 3
-      expect(fetchSpy).toHaveBeenCalledTimes(3);
+      // 1 failed SUBMITTED + 1 FINALIZED_SUCCESS = 2 (no re-sent SUBMITTED)
+      expect(fetchSpy).toHaveBeenCalledTimes(2);
       expect(
         JSON.parse(
           (
@@ -547,21 +548,25 @@ describe('QuoteStatusUpdateManager', () => {
       ).toBe(QuoteStatusUpdateStatus.FinalizedSuccess);
     });
 
-    it('does not trigger a second concurrent processing when a send is in-flight', async () => {
+    it('drops an in-flight SUBMITTED and sends only the finalization', async () => {
       fetchSpy = mockFetchOk();
       const { manager } = buildManager();
 
-      // SUBMITTED is in-flight
+      // SUBMITTED is in-flight (suspended on auth resolution)
       manager.reportSubmitted(QUOTE_ID, SRC_TX_HASH, TX_META_ID);
 
-      // While SUBMITTED is in-flight, reportFinalised should NOT call processSingleEntry
-      // (it should just append and wait for the in-flight chain to continue)
+      // A finalized quote cannot return to SUBMITTED, so the queued SUBMITTED
+      // is collapsed and the in-flight send is superseded before it POSTs.
       manager.reportFinalised(TX_META_ID, true);
 
       await flushPromises();
 
-      // Both statuses sent in sequence (2 total)
-      expect(fetchSpy).toHaveBeenCalledTimes(2);
+      // Only FINALIZED_SUCCESS is sent.
+      expect(fetchSpy).toHaveBeenCalledTimes(1);
+      expect(
+        JSON.parse((fetchSpy.mock.calls[0][1] as RequestInit).body as string)
+          .newStatus,
+      ).toBe(QuoteStatusUpdateStatus.FinalizedSuccess);
     });
   });
 
@@ -779,6 +784,60 @@ describe('QuoteStatusUpdateManager', () => {
       });
     });
 
+    describe('when the entry leaves the queue mid-retry', () => {
+      it('stops issuing requests once the entry is no longer queued', async () => {
+        // SUBMITTED keeps getting a retryable error so the send loop stays
+        // alive across retry delays.
+        fetchSpy = mockFetchError({
+          type: QuoteStatusUpdateErrorType.TransactionNotIndexed,
+        });
+
+        const { manager } = buildManager();
+
+        manager.reportSubmitted(QUOTE_ID, SRC_TX_HASH, TX_META_ID);
+
+        // First SUBMITTED attempt fires, then the loop enters its retry delay.
+        await flushPromises();
+        expect(fetchSpy).toHaveBeenCalledTimes(1);
+
+        // The entry is removed from the live queue while the loop is awaiting
+        // its retry delay (drain after finalization, eviction, or reset).
+        manager.destroy();
+
+        // Advance through every remaining immediate retry. The in-flight loop
+        // must bail instead of POSTing SUBMITTED against the now-empty queue.
+        await advanceAndFlush(
+          QUOTE_STATUS_UPDATE_IMMEDIATE_RETRY_DELAY_MS *
+            (QUOTE_STATUS_UPDATE_IMMEDIATE_MAX_RETRIES + 1),
+        );
+
+        expect(fetchSpy).toHaveBeenCalledTimes(1);
+      });
+
+      it('stops issuing requests once reporting is disabled', async () => {
+        fetchSpy = mockFetchError({
+          type: QuoteStatusUpdateErrorType.TransactionNotIndexed,
+        });
+
+        let enabled = true;
+        const { manager } = buildManager({ isEnabled: (): boolean => enabled });
+
+        manager.reportSubmitted(QUOTE_ID, SRC_TX_HASH, TX_META_ID);
+        await flushPromises();
+        expect(fetchSpy).toHaveBeenCalledTimes(1);
+
+        // Feature flag flips off while the loop is mid-retry.
+        enabled = false;
+
+        await advanceAndFlush(
+          QUOTE_STATUS_UPDATE_IMMEDIATE_RETRY_DELAY_MS *
+            (QUOTE_STATUS_UPDATE_IMMEDIATE_MAX_RETRIES + 1),
+        );
+
+        expect(fetchSpy).toHaveBeenCalledTimes(1);
+      });
+    });
+
     describe(`on ${QuoteStatusUpdateErrorType.ConcurrentUpdate} error`, () => {
       it(`retries immediately up to ${QUOTE_STATUS_UPDATE_IMMEDIATE_MAX_RETRIES} times then keeps in deferred queue`, async () => {
         fetchSpy = mockFetchError({
@@ -902,8 +961,44 @@ describe('QuoteStatusUpdateManager', () => {
     });
 
     describe(`on ${QuoteStatusUpdateErrorType.InvalidStatusTransaction} error`, () => {
-      it('attempts finalization with the corrected status', async () => {
-        const correctedStatus = QuoteStatusUpdateStatus.FinalizedFailed;
+      it.each([
+        QuoteStatusUpdateStatus.FinalizedSuccess,
+        QuoteStatusUpdateStatus.FinalizedFailed,
+      ])(
+        'drops the entry without re-POSTing when the quote is already at terminal status %s',
+        async (currentStatus) => {
+          fetchSpy = jest.spyOn(globalThis, 'fetch').mockResolvedValueOnce({
+            ok: false,
+            json: () =>
+              Promise.resolve({
+                type: QuoteStatusUpdateErrorType.InvalidStatusTransaction,
+                currentStatus,
+                newStatus: QuoteStatusUpdateStatus.Submitted,
+                statusCode: 400,
+                message: 'invalid',
+              }),
+          } as unknown as Response);
+
+          const { manager, persistDeferredUpdates, onError } = buildManager();
+
+          manager.reportSubmitted(QUOTE_ID, SRC_TX_HASH, TX_META_ID);
+          await flushPromises();
+
+          // Only the original SUBMITTED POST is sent — the terminal status is
+          // not re-POSTed (that would loop forever across SW restarts).
+          expect(fetchSpy).toHaveBeenCalledTimes(1);
+          expect(onError).not.toHaveBeenCalled();
+
+          const lastPersisted =
+            persistDeferredUpdates.mock.calls[
+              persistDeferredUpdates.mock.calls.length - 1
+            ][0];
+          expect(lastPersisted).toStrictEqual({});
+        },
+      );
+
+      it('attempts finalization with the corrected status when it is non-terminal', async () => {
+        const correctedStatus = QuoteStatusUpdateStatus.Submitted;
 
         fetchSpy = jest
           .spyOn(globalThis, 'fetch')
@@ -913,7 +1008,7 @@ describe('QuoteStatusUpdateManager', () => {
               Promise.resolve({
                 type: QuoteStatusUpdateErrorType.InvalidStatusTransaction,
                 currentStatus: correctedStatus,
-                newStatus: QuoteStatusUpdateStatus.Submitted,
+                newStatus: QuoteStatusUpdateStatus.FinalizedSuccess,
                 statusCode: 400,
                 message: 'invalid',
               }),
@@ -1048,8 +1143,8 @@ describe('QuoteStatusUpdateManager', () => {
       });
     });
 
-    describe('FIFO ordering of pending statuses', () => {
-      it('sends SUBMITTED before FINALIZED_SUCCESS', async () => {
+    describe('finalization supersedes a pending SUBMITTED', () => {
+      it('never sends SUBMITTED once a finalization is queued', async () => {
         const sentStatuses: string[] = [];
         fetchSpy = jest
           .spyOn(globalThis, 'fetch')
@@ -1067,12 +1162,14 @@ describe('QuoteStatusUpdateManager', () => {
         const { manager } = buildManager();
 
         manager.reportSubmitted(QUOTE_ID, SRC_TX_HASH, TX_META_ID);
-        // Append FINALIZED immediately while SUBMITTED is still being sent
+        // Finalize while SUBMITTED is still in-flight — a finalized quote
+        // cannot return to SUBMITTED, so SUBMITTED is dropped entirely.
         manager.reportFinalised(TX_META_ID, true);
         await flushPromises();
 
-        expect(sentStatuses[0]).toBe(QuoteStatusUpdateStatus.Submitted);
-        expect(sentStatuses[1]).toBe(QuoteStatusUpdateStatus.FinalizedSuccess);
+        expect(sentStatuses).toStrictEqual([
+          QuoteStatusUpdateStatus.FinalizedSuccess,
+        ]);
       });
     });
   });
@@ -1115,18 +1212,19 @@ describe('QuoteStatusUpdateManager', () => {
         ...persistDeferredUpdates.mock.calls[0][0][QUEUE_KEY].pendingStatuses,
       ];
 
-      // Append FINALIZED_SUCCESS — triggers a second persist call
+      // Finalize — collapses the queue to ['FINALIZED_SUCCESS'] and triggers a
+      // second persist call.
       manager.reportFinalised(TX_META_ID, true);
       const secondPersistStatuses =
         persistDeferredUpdates.mock.calls[1][0][QUEUE_KEY].pendingStatuses;
 
-      // First persist captured only ['SUBMITTED']
+      // First persist captured only ['SUBMITTED'] and is unaffected by the
+      // later collapse — the persisted arrays are independent copies.
       expect(firstPersistStatuses).toStrictEqual([
         QuoteStatusUpdateStatus.Submitted,
       ]);
-      // Second persist captured ['SUBMITTED', 'FINALIZED_SUCCESS']
+      // Second persist captured the collapsed ['FINALIZED_SUCCESS']
       expect(secondPersistStatuses).toStrictEqual([
-        QuoteStatusUpdateStatus.Submitted,
         QuoteStatusUpdateStatus.FinalizedSuccess,
       ]);
     });

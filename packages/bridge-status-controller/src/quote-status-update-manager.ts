@@ -46,6 +46,14 @@ import { validateQuoteStatusUpdateResponse } from './utils/validators';
  *           allowing retries every 30 minutes for up to 12 hours, similar to how we currently handle
  *           "submitted" statuses.
  */
+/**
+ * Sentinel returned by {@link QuoteStatusUpdateManager.updateQuoteStatus} when
+ * the status to send is no longer the head of the entry's queue — e.g. a
+ * finalization was queued while we awaited authentication. The POST is skipped
+ * so we never report a status the quote has already moved past.
+ */
+const SUPERSEDED = Symbol('superseded');
+
 export class QuoteStatusUpdateManager {
   readonly #messenger: BridgeStatusControllerMessenger;
 
@@ -200,11 +208,16 @@ export class QuoteStatusUpdateManager {
       matchingKey,
     ) as DeferredStatusUpdateEntry;
 
-    entry.pendingStatuses.push(
+    // A finalized quote can never return to SUBMITTED. Replace any not-yet-sent
+    // pre-finalization statuses (e.g. a queued SUBMITTED) with the final
+    // outcome, so we report only the terminal status. Sending SUBMITTED after
+    // the backend has mapped the quote to a terminal status on-chain would 400
+    // ("Invalid status transition from FINALIZED_SUCCESS to SUBMITTED").
+    entry.pendingStatuses = [
       success
         ? QuoteStatusUpdateStatus.FinalizedSuccess
         : QuoteStatusUpdateStatus.FinalizedFailed,
-    );
+    ];
     this.#persistToState();
 
     if (!this.#inFlight.has(matchingKey)) {
@@ -226,6 +239,19 @@ export class QuoteStatusUpdateManager {
     entry: Omit<DeferredStatusUpdateEntry, 'createdAt' | 'lastAttemptAt'>,
   ): string {
     const key = `${entry.quoteId}:${entry.srcTxHash}`;
+
+    // If an entry for this key is already in the queue
+    // do not overwrite it. Re-enqueueing would reset state and
+    // could cause duplicate SUBMITTED events.
+    const existing = this.#deferredRetryQueue.get(key);
+    if (existing) {
+      if (!existing.txMetaId && entry.txMetaId) {
+        existing.txMetaId = entry.txMetaId;
+        this.#persistToState();
+      }
+      return key;
+    }
+
     const now = Date.now();
     this.#deferredRetryQueue.set(key, {
       ...entry,
@@ -309,7 +335,12 @@ export class QuoteStatusUpdateManager {
 
         if (result === QuoteStatusUpdateSendWithRetryResult.Success) {
           // API accepted this status; move on to the next pending value if any.
-          entry.pendingStatuses.shift();
+          // Only shift when the head is still the status we sent — a concurrent
+          // reportFinalised may have collapsed the queue while the POST was in
+          // flight, in which case the head is the finalization status to keep.
+          if (entry.pendingStatuses[0] === currentStatus) {
+            entry.pendingStatuses.shift();
+          }
 
           if (entry.pendingStatuses.length > 0) {
             // Persist the shortened queue, release the lock, then continue same key.
@@ -364,12 +395,24 @@ export class QuoteStatusUpdateManager {
         await sleep(QUOTE_STATUS_UPDATE_IMMEDIATE_RETRY_DELAY_MS);
       }
 
+      // Stop if the entry was removed (drained, evicted, reset) while we were
+      // awaiting — keep no stale requests in flight against a gone entry.
+      if (!this.#shouldKeepProcessing(key)) {
+        return;
+      }
+
       try {
         const response = await this.#updateQuoteStatus(
           entry.quoteId,
           entry.srcTxHash,
           finalizationStatus,
+          key,
         );
+
+        // Entry was collapsed or removed while sending — stop here.
+        if (response === SUPERSEDED) {
+          return;
+        }
 
         // Request succeeded, remove entry from queue.
         if (response === undefined) {
@@ -434,11 +477,29 @@ export class QuoteStatusUpdateManager {
         await sleep(QUOTE_STATUS_UPDATE_IMMEDIATE_RETRY_DELAY_MS);
       }
 
+      // The entry may have been finalized, evicted, or reset by another code
+      // path while we were awaiting. Stop issuing requests so we don't keep
+      // POSTing a status the backend has already moved past (e.g. SUBMITTED
+      // after a successful FINALIZED_SUCCESS) once the queue no longer holds it.
+      if (!this.#shouldKeepProcessing(key)) {
+        this.#inFlight.delete(key);
+        return QuoteStatusUpdateSendWithRetryResult.Handled;
+      }
+
       const response = await this.#updateQuoteStatus(
         entry.quoteId,
         entry.srcTxHash,
         status,
+        key,
       );
+
+      // A finalization was queued while sending; release the mutex and
+      // re-process so the entry reports the final status directly.
+      if (response === SUPERSEDED) {
+        this.#inFlight.delete(key);
+        this.#processSingleEntry(key);
+        return QuoteStatusUpdateSendWithRetryResult.Handled;
+      }
 
       if (response === undefined) {
         return QuoteStatusUpdateSendWithRetryResult.Success;
@@ -467,6 +528,21 @@ export class QuoteStatusUpdateManager {
     response: QuoteStatusUpdateResponse,
   ): Promise<void> {
     const { type } = response;
+
+    // `INVALID_STATUS_TRANSITION` reports the quote's *persisted* status in
+    // `currentStatus`. When that is already terminal the lifecycle is complete
+    // server-side, so there is nothing left to send. Re-POSTing it would always
+    // 400 (e.g. FINALIZED_SUCCESS -> FINALIZED_SUCCESS) and, because the entry is
+    // persisted, keep looping across service-worker restarts. Drop the entry.
+    if (
+      type === QuoteStatusUpdateErrorType.InvalidStatusTransaction &&
+      (response.currentStatus === QuoteStatusUpdateStatus.FinalizedSuccess ||
+        response.currentStatus === QuoteStatusUpdateStatus.FinalizedFailed)
+    ) {
+      this.#inFlight.delete(key);
+      this.#removeEntry(key);
+      return;
+    }
 
     if (
       type === QuoteStatusUpdateErrorType.InvalidStatusTransaction ||
@@ -497,6 +573,21 @@ export class QuoteStatusUpdateManager {
     if (this.#deferredRetryQueue.size === 0) {
       this.#stopRetryTimer();
     }
+  }
+
+  /**
+   * Whether an in-flight retry loop should keep issuing requests for `key`.
+   *
+   * Returns `false` once the entry has left the live queue (drained, evicted,
+   * reset, or expired) or the feature has been disabled, so loops awaiting a
+   * retry delay abort instead of POSTing a status the backend has already
+   * moved past.
+   *
+   * @param key - The deferred queue key being processed.
+   * @returns `true` while the entry is still queued and reporting is enabled.
+   */
+  #shouldKeepProcessing(key: string): boolean {
+    return (this.#isEnabled?.() ?? true) && this.#deferredRetryQueue.has(key);
   }
 
   #ensureRetryTimerRunning(): void {
@@ -574,13 +665,32 @@ export class QuoteStatusUpdateManager {
    * @param quoteId - The quote id
    * @param srcTxHash - The source transaction hash
    * @param newStatus - The new status to report
-   * @returns The parsed error response, or undefined on success
+   * @param key - Optional deferred-queue key; when provided, the POST is
+   * skipped (returning {@link SUPERSEDED}) if `newStatus` is no longer the head
+   * of the entry's queue after authentication resolves.
+   * @returns The parsed error response, `undefined` on success, or
+   * {@link SUPERSEDED} when the status was superseded before sending.
    */
   readonly #updateQuoteStatus = async (
     quoteId: string,
     srcTxHash: string,
     newStatus: QuoteStatusUpdateStatus,
-  ): Promise<QuoteStatusUpdateResponse | undefined> => {
+    key?: string,
+  ): Promise<QuoteStatusUpdateResponse | undefined | typeof SUPERSEDED> => {
+    // Resolve auth first; a finalization may be queued (via reportFinalised)
+    // while we await it.
+    const jwt = await getJwt(this.#messenger);
+
+    // A finalized quote can never return to SUBMITTED. If the head changed
+    // while we were resolving auth (collapsed to a finalization, or the entry
+    // was removed), skip the POST so we don't report an obsolete status.
+    if (
+      key !== undefined &&
+      this.#deferredRetryQueue.get(key)?.pendingStatuses[0] !== newStatus
+    ) {
+      return SUPERSEDED;
+    }
+
     // This method uses `globalThis.fetch` and reads the raw
     // `Response` (including JSON on non-2xx). Wrappers like `handleFetch` that
     // throw on non-2xx would prevent typed error handling in callers.
@@ -596,7 +706,7 @@ export class QuoteStatusUpdateManager {
             : {}),
           ...getClientHeaders({
             clientId: this.#clientId,
-            jwt: await getJwt(this.#messenger),
+            jwt,
           }),
         },
         body: JSON.stringify({

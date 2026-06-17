@@ -160,6 +160,7 @@ export type BridgeHistoryItem = {
   quoteIds?: string[];
   quote: Quote;
   quoteId?: string; // Optional: absent on history items persisted before this field was introduced
+  reportedSubmittedTxHash?: string;
   status: StatusResponse;
   startTime: number; // timestamp in ms
   estimatedProcessingTimeInSeconds: number;
