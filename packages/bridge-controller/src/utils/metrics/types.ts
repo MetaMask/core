@@ -245,7 +245,7 @@ type RequiredEventContextFromClientBase = {
   [UnifiedSwapBridgeEventName.StatusValidationFailed]: {
     failures: string[];
     refresh_count: number;
-  };
+  } & Partial<RequestParams>;
   // Emitted by clients
   [UnifiedSwapBridgeEventName.AllQuotesOpened]: Pick<
     TradeData,
