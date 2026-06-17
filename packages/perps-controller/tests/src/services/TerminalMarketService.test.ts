@@ -258,6 +258,26 @@ describe('TerminalMarketService', () => {
       expect(mockDeps.logger.error).not.toHaveBeenCalled();
     });
 
+    it('accepts any non-empty string as marketType', async () => {
+      jest.spyOn(globalThis, 'fetch').mockResolvedValue({
+        ok: true,
+        status: 200,
+        statusText: 'OK',
+        json: () =>
+          Promise.resolve([
+            { symbol: 'BTC', name: 'Bitcoin', marketType: 'crypto' },
+            { symbol: 'MEME', name: 'MemeCoin', marketType: 'meme' },
+            { symbol: 'FOO', name: 'Foo', marketType: '' },
+          ]),
+      } as Response);
+
+      const { metadata } = await service.fetchMarkets();
+
+      expect(metadata.get('BTC')?.marketType).toBe('crypto');
+      expect(metadata.get('MEME')?.marketType).toBe('meme');
+      expect(metadata.get('FOO')?.marketType).toBeUndefined();
+    });
+
     it('uses defaults for missing numeric fields', async () => {
       jest.spyOn(globalThis, 'fetch').mockResolvedValue({
         ok: true,
