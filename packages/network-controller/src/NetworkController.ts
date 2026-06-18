@@ -54,10 +54,7 @@ import type {
 import { createAutoManagedNetworkClient } from './create-auto-managed-network-client';
 import type { DegradedEventType, RetryReason } from './create-network-client';
 import { projectLogger, createModuleLogger } from './logger';
-import type {
-  NetworkControllerGetNetworkConfigurationByNetworkClientIdAction,
-  NetworkControllerMethodActions,
-} from './NetworkController-method-action-types';
+import type { NetworkControllerMethodActions } from './NetworkController-method-action-types';
 import type { RpcServiceOptionsWithDefaults } from './rpc-service/rpc-service';
 import { getIsRpcFailoverEnabled } from './selectors';
 import { NetworkClientType } from './types';
