@@ -1219,7 +1219,9 @@ function getQuoteUser(
   const isRecipientAccountOverride =
     recipient.toLowerCase() === from.toLowerCase();
 
-  return isSameSourceAndTarget && hasAccountOverride && isRecipientAccountOverride
+  return isSameSourceAndTarget &&
+    hasAccountOverride &&
+    isRecipientAccountOverride
     ? txParamsFrom
     : from;
 }
