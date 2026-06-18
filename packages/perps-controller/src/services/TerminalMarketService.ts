@@ -11,28 +11,19 @@ import {
 } from '@metamask/superstruct';
 
 import { PERPS_CONSTANTS, TERMINAL_API_CONFIG } from '../constants/perpsConfig';
-import type {
-  MarketInfo,
-  MarketType,
-  PerpsPlatformDependencies,
+import {
+  MarketCategory,
+  type MarketInfo,
+  type PerpsPlatformDependencies,
+  type TerminalAssetMetadata,
 } from '../types';
 import { ensureError } from '../utils/errorUtils';
 
-/**
- * Metadata extracted from Terminal API for a single asset.
- * Used downstream by transformMarketData to enrich PerpsMarketData.
- */
-export type TerminalAssetMetadata = {
-  name: string;
-  keywords?: string[];
-  tags?: string[];
-  categories?: string[];
-  marketType?: MarketType;
-};
+const VALID_MARKET_TYPES = new Set<string>(Object.values(MarketCategory));
 
 /**
  * Runtime validation schema for a single market item returned by
- * `GET {terminalApiBaseUrl}/perpetuals`.
+ * `GET {terminalApiUrl}`.
  *
  * Uses `type()` (loose object matching) so that extra fields the API sends
  * (e.g. `price`, `iconUrl`, `trend`) are silently accepted.
@@ -65,10 +56,9 @@ type CacheEntry = {
 /**
  * TerminalMarketService
  *
- * Fetches structured market metadata from the MetaMask Terminal API
- * (`GET {terminalApiBaseUrl}/perpetuals`). Caches responses for
- * {@link TERMINAL_API_CONFIG.CacheTtlMs} to avoid redundant network calls
- * across polling cycles.
+ * Fetches structured market metadata from the MetaMask Terminal API.
+ * Caches responses for {@link TERMINAL_API_CONFIG.CacheTtlMs} to avoid
+ * redundant network calls across polling cycles.
  *
  * Instance-based service with constructor injection of platform dependencies.
  */
@@ -101,13 +91,13 @@ export class TerminalMarketService {
       };
     }
 
-    if (!this.#deps.terminalApiBaseUrl) {
+    if (!this.#deps.terminalApiUrl) {
       throw new Error(
-        'Terminal API base URL not configured (terminalApiBaseUrl is required)',
+        'Terminal API URL not configured (terminalApiUrl is required)',
       );
     }
 
-    const url = `${this.#deps.terminalApiBaseUrl}${TERMINAL_API_CONFIG.PerpetualPath}`;
+    const url = this.#deps.terminalApiUrl;
     const response = await fetch(url, {
       method: 'GET',
       headers: { 'Content-Type': 'application/json' },
@@ -235,8 +225,11 @@ export class TerminalMarketService {
       if (Array.isArray(item.categories) && item.categories.length > 0) {
         entry.categories = item.categories;
       }
-      if (typeof item.marketType === 'string' && item.marketType.length > 0) {
-        entry.marketType = item.marketType as MarketType;
+      if (
+        typeof item.marketType === 'string' &&
+        VALID_MARKET_TYPES.has(item.marketType)
+      ) {
+        entry.marketType = item.marketType as TerminalAssetMetadata['marketType'];
       }
 
       map.set(item.symbol, entry);
@@ -258,7 +251,7 @@ export class TerminalMarketService {
         tags: { feature: PERPS_CONSTANTS.FeatureName, source: 'terminal-api' },
         context: {
           name: `TerminalMarketService.${method}`,
-          data: { url: this.#deps.terminalApiBaseUrl },
+          data: { url: this.#deps.terminalApiUrl },
         },
       },
     );

@@ -86,6 +86,18 @@ export enum MarketCategory {
 
 export type MarketType = `${MarketCategory}`;
 
+/**
+ * Metadata extracted from Terminal API for a single asset.
+ * Used downstream to enrich PerpsMarketData with name, keywords, tags, etc.
+ */
+export type TerminalAssetMetadata = {
+  name: string;
+  keywords?: string[];
+  tags?: string[];
+  categories?: string[];
+  marketType?: MarketType;
+};
+
 // Market type filter for UI category badges
 export type MarketTypeFilter =
   | 'all'
@@ -1670,12 +1682,13 @@ export type PerpsPlatformDependencies = {
 
   // === Terminal API (market metadata source) ===
   /**
-   * Base URL for the MetaMask Terminal API.
-   * Each client build (dev/uat/prd) injects the appropriate environment URL.
+   * Full endpoint URL for the MetaMask Terminal API perpetuals endpoint.
+   * Each client build (dev/uat/prd) injects the correct environment URL
+   * (e.g. `https://terminal.api.cx.metamask.io/v1/perpetuals`).
    * Never hardcoded in controller code — always provided by the platform.
    * Optional: only required when Terminal API features (useTerminalApi) are enabled.
    */
-  terminalApiBaseUrl?: string;
+  terminalApiUrl?: string;
 
   // === Rewards (DI — no RewardsController in Core yet) ===
   rewards: {

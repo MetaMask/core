@@ -127,6 +127,12 @@ import {
 } from './types/transactionTypes';
 import { getSelectedEvmAccountFromMessenger } from './utils/accountUtils';
 import { ensureError } from './utils/errorUtils';
+import { parseAssetName } from './utils/hyperLiquidAdapter';
+import {
+  compileMarketPattern,
+  shouldIncludeMarket,
+} from './utils/marketUtils';
+import type { CompiledMarketPattern } from './utils/marketUtils';
 import {
   hydrateFromDiskSync,
   persistMarketEntriesToDisk,
@@ -954,10 +960,10 @@ export class PerpsController extends BaseController<
     // Services that need cross-controller access receive the messenger
     this.#tradingService = new TradingService(infrastructure);
     this.#terminalMarketService = new TerminalMarketService(infrastructure);
-    this.#marketDataService = new MarketDataService({
-      ...infrastructure,
-      terminalMarketService: this.#terminalMarketService,
-    });
+    this.#marketDataService = new MarketDataService(
+      infrastructure,
+      this.#terminalMarketService,
+    );
     this.#accountService = new AccountService(infrastructure, messenger);
     this.#eligibilityService = new EligibilityService(infrastructure);
     this.#dataLakeService = new DataLakeService(infrastructure, messenger);
@@ -1910,6 +1916,50 @@ export class PerpsController extends BaseController<
    */
   #getControllerState(): PerpsControllerState {
     return this.state as unknown as PerpsControllerState;
+  }
+
+  /**
+   * Build a filter function that mirrors the provider's allowlist/blocklist
+   * logic so that Terminal API results are filtered identically.
+   *
+   * @returns Filter predicate accepting a market symbol.
+   */
+  #buildMarketAllowedFilter(): (symbol: string) => boolean {
+    const hip3Enabled = this.#hip3Enabled;
+    const compiledAllowlist = this.#compilePatternsSafely(
+      this.#hip3AllowlistMarkets,
+    );
+    const compiledBlocklist = this.#compilePatternsSafely(
+      this.#hip3BlocklistMarkets,
+    );
+    return (symbol: string) => {
+      const { dex } = parseAssetName(symbol);
+      return shouldIncludeMarket(
+        symbol,
+        dex,
+        hip3Enabled,
+        compiledAllowlist,
+        compiledBlocklist,
+      );
+    };
+  }
+
+  /**
+   * Compile market patterns safely, skipping any that fail validation.
+   *
+   * @param patterns - Raw pattern strings from config.
+   * @returns Compiled patterns (invalid entries silently skipped).
+   */
+  #compilePatternsSafely(patterns: string[]): CompiledMarketPattern[] {
+    const compiled: CompiledMarketPattern[] = [];
+    for (const pattern of patterns) {
+      try {
+        compiled.push({ pattern, matcher: compileMarketPattern(pattern) });
+      } catch {
+        // Invalid patterns silently skipped — logged at provider level.
+      }
+    }
+    return compiled;
   }
 
   /**
@@ -2924,6 +2974,7 @@ export class PerpsController extends BaseController<
    * @returns Array of available markets matching the filter criteria.
    */
   async getMarkets(params?: GetMarketsParams): Promise<MarketInfo[]> {
+    const isMarketAllowed = this.#buildMarketAllowedFilter();
     if (params?.standalone) {
       const provider =
         this.activeProviderInstance ?? this.#getOrCreateStandaloneProvider();
@@ -2931,6 +2982,7 @@ export class PerpsController extends BaseController<
         provider,
         params,
         context: this.#createServiceContext('getMarkets'),
+        isMarketAllowed,
       });
     }
 
@@ -2939,6 +2991,7 @@ export class PerpsController extends BaseController<
       provider,
       params,
       context: this.#createServiceContext('getMarkets'),
+      isMarketAllowed,
     });
   }
 

@@ -92,7 +92,7 @@ export const createMockInfrastructure =
       },
 
       // === Terminal API ===
-      terminalApiBaseUrl: 'https://terminal.test-api.cx.metamask.io',
+      terminalApiUrl: 'https://terminal.test-api.cx.metamask.io/v1/perpetuals',
 
       // === Rewards (DI — no RewardsController in Core yet) ===
       rewards: {

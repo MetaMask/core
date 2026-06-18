@@ -330,11 +330,11 @@ export const DATA_LAKE_API_CONFIG = {
 
 /**
  * Terminal API configuration.
- * The base URL is injected at runtime via PerpsPlatformDependencies.terminalApiBaseUrl
- * from each client build (dev/uat/prd); only path and cache settings live here.
+ * The full endpoint URL is injected at runtime via
+ * `PerpsPlatformDependencies.terminalApiUrl` from each client build
+ * (dev/uat/prd); only cache settings live here.
  */
 export const TERMINAL_API_CONFIG = {
-  PerpetualPath: '/v1/perpetuals',
   CacheTtlMs: 5 * 60 * 1000, // 5 minutes
 } as const;
 

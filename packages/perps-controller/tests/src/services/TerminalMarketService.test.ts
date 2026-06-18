@@ -62,7 +62,7 @@ describe('TerminalMarketService', () => {
 
       expect(globalThis.fetch).toHaveBeenCalledWith(
         'https://terminal.test-api.cx.metamask.io/v1/perpetuals',
-        { method: 'GET', headers: { 'Content-Type': 'application/json' } },
+        expect.objectContaining({ method: 'GET' }),
       );
 
       expect(markets).toHaveLength(3);
@@ -100,9 +100,9 @@ describe('TerminalMarketService', () => {
       });
     });
 
-    it('constructs URL from injected terminalApiBaseUrl', async () => {
-      (mockDeps as Record<string, unknown>).terminalApiBaseUrl =
-        'https://terminal.api.cx.metamask.io';
+    it('uses the full terminalApiUrl without path concatenation', async () => {
+      (mockDeps as Record<string, unknown>).terminalApiUrl =
+        'https://terminal.api.cx.metamask.io/v1/perpetuals';
 
       jest.spyOn(globalThis, 'fetch').mockResolvedValue({
         ok: true,
@@ -258,7 +258,7 @@ describe('TerminalMarketService', () => {
       expect(mockDeps.logger.error).not.toHaveBeenCalled();
     });
 
-    it('accepts any non-empty string as marketType', async () => {
+    it('accepts only known MarketCategory values as marketType', async () => {
       jest.spyOn(globalThis, 'fetch').mockResolvedValue({
         ok: true,
         status: 200,
@@ -266,6 +266,7 @@ describe('TerminalMarketService', () => {
         json: () =>
           Promise.resolve([
             { symbol: 'BTC', name: 'Bitcoin', marketType: 'crypto' },
+            { symbol: 'TSLA', name: 'Tesla', marketType: 'stock' },
             { symbol: 'MEME', name: 'MemeCoin', marketType: 'meme' },
             { symbol: 'FOO', name: 'Foo', marketType: '' },
           ]),
@@ -274,7 +275,8 @@ describe('TerminalMarketService', () => {
       const { metadata } = await service.fetchMarkets();
 
       expect(metadata.get('BTC')?.marketType).toBe('crypto');
-      expect(metadata.get('MEME')?.marketType).toBe('meme');
+      expect(metadata.get('TSLA')?.marketType).toBe('stock');
+      expect(metadata.get('MEME')?.marketType).toBeUndefined();
       expect(metadata.get('FOO')?.marketType).toBeUndefined();
     });
 
@@ -372,7 +374,7 @@ describe('TerminalMarketService', () => {
           tags: { feature: 'perps', source: 'terminal-api' },
           context: {
             name: 'TerminalMarketService.getMarkets',
-            data: { url: 'https://terminal.test-api.cx.metamask.io' },
+            data: { url: 'https://terminal.test-api.cx.metamask.io/v1/perpetuals' },
           },
         }),
       );

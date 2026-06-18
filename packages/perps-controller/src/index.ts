@@ -244,6 +244,7 @@ export type {
   PerpsInternalAccount,
   PerpsRemoteFeatureFlagState,
   PerpsPlatformDependencies,
+  TerminalAssetMetadata,
   PerpsCacheType,
   InvalidateCacheParams,
   PerpsCacheInvalidator,

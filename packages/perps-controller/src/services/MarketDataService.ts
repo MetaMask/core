@@ -32,6 +32,7 @@ import type {
   AssetRoute,
   PerpsPlatformDependencies,
   PerpsMarketData,
+  TerminalAssetMetadata,
 } from '../types';
 import type { CandleData } from '../types/perps-types';
 import { coalescePerpsRestRequest } from '../utils/coalescePerpsRestRequest';
@@ -39,7 +40,6 @@ import { ensureError, isAbortError } from '../utils/errorUtils';
 import { applyMarketFilters } from '../utils/marketUtils';
 import type { ServiceContext } from './ServiceContext';
 import type { TerminalMarketService } from './TerminalMarketService';
-import type { TerminalAssetMetadata } from './TerminalMarketService';
 
 /**
  * MarketDataService
@@ -59,16 +59,16 @@ export class MarketDataService {
    * Create a new MarketDataService instance
    *
    * @param deps - Platform dependencies for logging, metrics, etc.
-   * @param deps.terminalMarketService - Optional terminal market service for
-   * fetching market data from the Terminal API.
+   * @param terminalMarketService - Optional terminal market service for
+   * fetching market data from the Terminal API. Passed separately to avoid
+   * a circular import (types ↔ services) in PerpsPlatformDependencies.
    */
   constructor(
-    deps: PerpsPlatformDependencies & {
-      terminalMarketService?: TerminalMarketService;
-    },
+    deps: PerpsPlatformDependencies,
+    terminalMarketService?: TerminalMarketService,
   ) {
     this.#deps = deps;
-    this.#terminalMarketService = deps.terminalMarketService;
+    this.#terminalMarketService = terminalMarketService;
   }
 
   /**
@@ -730,14 +730,19 @@ export class MarketDataService {
    * @param options.provider - The perps provider instance.
    * @param options.params - The operation parameters.
    * @param options.context - The service context for dependencies.
+   * @param options.isMarketAllowed - Optional filter callback applied to
+   * Terminal API results so that allowlist/blocklist rules from the provider
+   * layer are enforced even when the provider is bypassed. Skipped when
+   * `params.skipFilters` is true.
    * @returns The result of the operation.
    */
   async getMarkets(options: {
     provider: PerpsProvider;
     params?: GetMarketsParams;
     context: ServiceContext;
+    isMarketAllowed?: (symbol: string) => boolean;
   }): Promise<MarketInfo[]> {
-    const { provider, params, context } = options;
+    const { provider, params, context, isMarketAllowed } = options;
     const useTerminalApi = params?.useTerminalApi;
     const traceId = uuidv4();
     let traceData: { success: boolean; error?: string } | undefined;
@@ -766,13 +771,33 @@ export class MarketDataService {
           const { markets: terminalMarkets } =
             await this.#terminalMarketService.fetchMarkets();
           if (terminalMarkets.length > 0) {
-            const filtered = params?.symbols?.length
-              ? terminalMarkets.filter((market) =>
-                  (params.symbols as string[]).some(
-                    (sym) => market.name.toLowerCase() === sym.toLowerCase(),
-                  ),
-                )
-              : terminalMarkets;
+            let filtered = terminalMarkets;
+
+            // Apply allowlist/blocklist filtering (same as provider path)
+            if (!params?.skipFilters && isMarketAllowed) {
+              filtered = filtered.filter((market) =>
+                isMarketAllowed(market.name),
+              );
+            }
+
+            // Filter by specific DEX when requested
+            if (params?.dex !== undefined) {
+              const dexPrefix = params.dex ? `${params.dex}:` : '';
+              filtered = filtered.filter((market) =>
+                dexPrefix
+                  ? market.name.startsWith(dexPrefix)
+                  : !market.name.includes(':'),
+              );
+            }
+
+            // Filter by symbols when requested
+            if (params?.symbols?.length) {
+              filtered = filtered.filter((market) =>
+                (params.symbols as string[]).some(
+                  (sym) => market.name.toLowerCase() === sym.toLowerCase(),
+                ),
+              );
+            }
 
             if (context.stateManager) {
               context.stateManager.update((state) => {
@@ -884,7 +909,7 @@ export class MarketDataService {
         },
       });
 
-      // Fetch Terminal API metadata in parallel with provider data when enabled.
+      // Fetch Terminal API metadata before provider data when enabled.
       // Terminal metadata enriches the provider result (name, keywords, tags,
       // categories) but never replaces live pricing / funding data.
       let terminalMetadata: Map<string, TerminalAssetMetadata> | undefined;

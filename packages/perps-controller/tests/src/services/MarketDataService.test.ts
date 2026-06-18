@@ -2,7 +2,6 @@ import type { CandlePeriod } from '../../../src/constants/chartConfig';
 import { MarketDataService } from '../../../src/services/MarketDataService';
 import type { ServiceContext } from '../../../src/services/ServiceContext';
 import type { TerminalMarketService } from '../../../src/services/TerminalMarketService';
-import type { TerminalAssetMetadata } from '../../../src/services/TerminalMarketService';
 import type {
   PerpsProvider,
   Position,
@@ -16,6 +15,7 @@ import type {
   AssetRoute,
   PerpsPlatformDependencies,
   PerpsMarketData,
+  TerminalAssetMetadata,
 } from '../../../src/types';
 import type { CandleData } from '../../../src/types/perps-types';
 import { resetPerpsRestCacheForTests } from '../../../src/utils/coalescePerpsRestRequest';
@@ -42,7 +42,7 @@ describe('MarketDataService', () => {
     mockProvider =
       createMockHyperLiquidProvider() as unknown as jest.Mocked<PerpsProvider>;
     mockDeps = createMockInfrastructure();
-    marketDataService = new MarketDataService({ ...mockDeps });
+    marketDataService = new MarketDataService(mockDeps);
     mockContext = createMockServiceContext({
       errorContext: { controller: 'MarketDataService', method: 'test' },
     });
@@ -1165,10 +1165,10 @@ describe('MarketDataService', () => {
         logError: jest.fn(),
       } as unknown as jest.Mocked<TerminalMarketService>;
 
-      serviceWithTerminal = new MarketDataService({
-        ...mockDeps,
-        terminalMarketService: mockTerminalService,
-      });
+      serviceWithTerminal = new MarketDataService(
+        mockDeps,
+        mockTerminalService,
+      );
     });
 
     describe('getMarkets with useTerminalApi', () => {
