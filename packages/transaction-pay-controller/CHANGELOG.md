@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [23.12.0]
+
 ### Changed
 
 - Post-quote source amount filtering no longer bypasses same-token filtering when `isQuoteRequired` is set ([#9194](https://github.com/MetaMask/core/pull/9194))
@@ -1115,7 +1117,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#6820](https://github.com/MetaMask/core/pull/6820))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@23.11.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@23.12.0...HEAD
+[23.12.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@23.11.0...@metamask/transaction-pay-controller@23.12.0
 [23.11.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@23.10.0...@metamask/transaction-pay-controller@23.11.0
 [23.10.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@23.9.0...@metamask/transaction-pay-controller@23.10.0
 [23.9.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@23.8.0...@metamask/transaction-pay-controller@23.9.0
