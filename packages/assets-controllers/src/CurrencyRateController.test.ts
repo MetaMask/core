@@ -1101,6 +1101,162 @@ describe('CurrencyRateController', () => {
     });
   });
 
+  describe('isDeprecated', () => {
+    const initialCurrencyRates = {
+      ETH: {
+        conversionDate: 1234567890,
+        conversionRate: 1800,
+        usdConversionRate: null,
+      },
+    };
+
+    it('clears persisted currencyRates at construction when isDeprecated() returns true', () => {
+      const messenger = getCurrencyRateControllerMessenger();
+      const tokenPricesService = buildMockTokenPricesService();
+      const controller = new CurrencyRateController({
+        messenger,
+        tokenPricesService,
+        state: { currencyRates: initialCurrencyRates },
+        isDeprecated: () => true,
+      });
+
+      expect(controller.state.currencyRates).toStrictEqual({});
+
+      controller.destroy();
+    });
+
+    it('preserves persisted currencyRates at construction when isDeprecated() returns false', () => {
+      const messenger = getCurrencyRateControllerMessenger();
+      const tokenPricesService = buildMockTokenPricesService();
+      const controller = new CurrencyRateController({
+        messenger,
+        tokenPricesService,
+        state: { currencyRates: initialCurrencyRates },
+        isDeprecated: () => false,
+      });
+
+      expect(controller.state.currencyRates).toStrictEqual(initialCurrencyRates);
+
+      controller.destroy();
+    });
+
+    it('does not throw at construction when isDeprecated() is true and currencyRates is already {}', () => {
+      const messenger = getCurrencyRateControllerMessenger();
+      const tokenPricesService = buildMockTokenPricesService();
+      const controller = new CurrencyRateController({
+        messenger,
+        tokenPricesService,
+        state: { currencyRates: {} },
+        isDeprecated: () => true,
+      });
+
+      expect(controller.state.currencyRates).toStrictEqual({});
+
+      controller.destroy();
+    });
+
+    it('does not make any API calls when isDeprecated() returns true from construction', async () => {
+      const messenger = getCurrencyRateControllerMessenger();
+      const tokenPricesService = buildMockTokenPricesService();
+      const fetchExchangeRatesSpy = jest.spyOn(
+        tokenPricesService,
+        'fetchExchangeRates',
+      );
+      const controller = new CurrencyRateController({
+        messenger,
+        tokenPricesService,
+        isDeprecated: () => true,
+      });
+
+      await controller.updateExchangeRate(['ETH']);
+
+      expect(fetchExchangeRatesSpy).not.toHaveBeenCalled();
+
+      controller.destroy();
+    });
+
+    it('does not fetch and clears stale currencyRates when isDeprecated toggles to true at runtime via updateExchangeRate', async () => {
+      let deprecated = false;
+      const messenger = getCurrencyRateControllerMessenger();
+      const tokenPricesService = buildMockTokenPricesService();
+      const fetchExchangeRatesSpy = jest.spyOn(
+        tokenPricesService,
+        'fetchExchangeRates',
+      );
+      const controller = new CurrencyRateController({
+        messenger,
+        tokenPricesService,
+        state: { currencyRates: initialCurrencyRates },
+        isDeprecated: () => deprecated,
+      });
+
+      expect(controller.state.currencyRates).toStrictEqual(initialCurrencyRates);
+
+      deprecated = true;
+
+      await controller.updateExchangeRate(['ETH']);
+
+      expect(fetchExchangeRatesSpy).not.toHaveBeenCalled();
+      expect(controller.state.currencyRates).toStrictEqual({});
+
+      controller.destroy();
+    });
+
+    it('does not fetch and clears stale currencyRates when isDeprecated toggles to true at runtime via setCurrentCurrency', async () => {
+      let deprecated = false;
+      const messenger = getCurrencyRateControllerMessenger();
+      const tokenPricesService = buildMockTokenPricesService();
+      const fetchExchangeRatesSpy = jest.spyOn(
+        tokenPricesService,
+        'fetchExchangeRates',
+      );
+      const controller = new CurrencyRateController({
+        messenger,
+        tokenPricesService,
+        state: { currencyRates: initialCurrencyRates },
+        isDeprecated: () => deprecated,
+      });
+
+      expect(controller.state.currencyRates).toStrictEqual(initialCurrencyRates);
+
+      deprecated = true;
+
+      await controller.setCurrentCurrency('eur');
+
+      expect(fetchExchangeRatesSpy).not.toHaveBeenCalled();
+      expect(controller.state.currencyRates).toStrictEqual({});
+
+      controller.destroy();
+    });
+
+    it('does not poll and clears stale currencyRates when isDeprecated toggles to true at runtime via _executePoll', async () => {
+      let deprecated = false;
+      const messenger = getCurrencyRateControllerMessenger();
+      const tokenPricesService = buildMockTokenPricesService();
+      const fetchExchangeRatesSpy = jest.spyOn(
+        tokenPricesService,
+        'fetchExchangeRates',
+      );
+      const controller = new CurrencyRateController({
+        messenger,
+        tokenPricesService,
+        state: { currencyRates: initialCurrencyRates },
+        isDeprecated: () => deprecated,
+      });
+
+      expect(controller.state.currencyRates).toStrictEqual(initialCurrencyRates);
+
+      deprecated = true;
+
+      await controller._executePoll({ nativeCurrencies: ['ETH'] });
+
+      expect(fetchExchangeRatesSpy).not.toHaveBeenCalled();
+      expect(controller.state.currencyRates).toStrictEqual({});
+
+      controller.destroy();
+    });
+  });
+
   describe('fallback to token prices service (lines 233-316)', () => {
     it('should fallback to fetchTokenPrices when fetchExchangeRates fails and crypto compare fallback also fails', async () => {
       jest.spyOn(global.Date, 'now').mockImplementation(() => getStubbedDate());
