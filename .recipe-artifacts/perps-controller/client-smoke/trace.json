@@ -1,0 +1,11 @@
+[
+  {
+    "nodeId": "run-client-smoke",
+    "action": "command",
+    "startedAt": "2026-06-02T23:30:39.170Z",
+    "endedAt": "2026-06-02T23:30:40.377Z",
+    "durationMs": 1207,
+    "ok": false,
+    "error": "Command exited with 1: mkdir -p .recipe-output && NODE_OPTIONS=--experimental-vm-modules yarn jest --runInBand --no-coverage --runTestsByPath tests/src/PerpsController.client-smoke.test.ts --reporters=default --json --outputFile=.recipe-output/client-smoke-jest.json\n2026-06-02T18:30:40,361: [] fchmod(/Users/matthewdenton/.local/state/watchman/matthewdenton-state, 2700): Operation not permitted\n\nWatchman:  watchman --no-pretty get-sockname returned with exit code=1, signal=null, stderr= 2026-06-02T18:30:40,361: [] fchmod(/Users/matthewdenton/.local/state/watchman/matthewdenton-state, 2700): Operation not permitted\n\nnode:events:486\n      throw er; // Unhandled 'error' event\n      ^\n\nError: watchman --no-pretty get-sockname returned with exit code=1, signal=null, stderr= 2026-06-02T18:30:40,361: [] fchmod(/Users/matthewdenton/.local/state/watchman/matthewdenton-state, 2700): Operation not permitted\n\n    at ChildProcess.<anonymous> (/Users/matthewdenton/code/consensys/core/node_modules/fb-watchman/index.js:203:18)\n    at ChildProcess.emit (node:events:508:28)\n    at maybeClose (node:internal/child_process:1101:16)\n    at ChildProcess._handle.onexit (node:internal/child_process:305:5)\nEmitted 'error' event on Client instance at:\n    at spawnError (/Users/matthewdenton/code/consensys/core/node_modules/fb-watchman/index.js:174:10)\n    at ChildProcess.<anonymous> (/Users/matthewdenton/code/consensys/core/node_modules/fb-watchman/index.js:203:7)\n    at ChildProcess.emit (node:events:508:28)\n    at maybeClose (node:internal/child_process:1101:16)\n    at ChildProcess._handle.onexit (node:internal/child_process:305:5)\n\nNode.js v24.13.0\n"
+  }
+]
