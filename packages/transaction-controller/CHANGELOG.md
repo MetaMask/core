@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add optional `maxGasLimit` to the `gasEstimateFallback` feature flag config, clamping the fixed or percentage-derived gas estimate fallback to a chain's per-transaction gas cap so it can never exceed the limit the RPC will accept ([#9191](https://github.com/MetaMask/core/pull/9191))
+
 ## [68.0.1]
 
 ### Fixed
