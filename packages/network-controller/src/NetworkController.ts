@@ -709,12 +709,6 @@ export type NetworkControllerActions =
   | NetworkControllerMethodActions;
 
 /**
- * @deprecated Use {@link NetworkControllerGetNetworkConfigurationByNetworkClientIdAction} instead.
- */
-export type NetworkControllerGetNetworkConfigurationByNetworkClientId =
-  NetworkControllerGetNetworkConfigurationByNetworkClientIdAction;
-
-/**
  * All actions that {@link NetworkController} calls internally.
  */
 type AllowedActions =
