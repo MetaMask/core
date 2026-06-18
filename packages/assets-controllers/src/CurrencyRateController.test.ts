@@ -41,10 +41,10 @@ function buildMockTokenPricesService(
   overrides: Partial<AbstractTokenPricesService> = {},
 ): AbstractTokenPricesService {
   return {
-    async fetchTokenPrices() {
+    async fetchTokenPrices(): Promise<never[]> {
       return [];
     },
-    async fetchExchangeRates() {
+    async fetchExchangeRates(): Promise<Record<string, never>> {
       return {};
     },
     validateChainIdSupported(_chainId: unknown): _chainId is Hex {
@@ -168,7 +168,7 @@ function getCurrencyRateControllerMessengerWithNetworkState({
   return currencyRateControllerMessenger;
 }
 
-const getStubbedDate = () => {
+const getStubbedDate = (): number => {
   return new Date('2019-04-07T10:20:30Z').getTime();
 };
 
@@ -886,7 +886,7 @@ describe('CurrencyRateController', () => {
       const messenger = getCurrencyRateControllerMessenger();
       const tokenPricesService = buildMockTokenPricesService();
       const controller = new CurrencyRateController({
-        useExternalServices: () => false,
+        useExternalServices: (): boolean => false,
         messenger,
         state: { currentCurrency: 'usd' },
         tokenPricesService,
@@ -913,7 +913,7 @@ describe('CurrencyRateController', () => {
         'fetchExchangeRates',
       );
       const controller = new CurrencyRateController({
-        useExternalServices: () => false,
+        useExternalServices: (): boolean => false,
         interval: 100,
         messenger,
         state: { currentCurrency: 'usd' },
@@ -936,7 +936,7 @@ describe('CurrencyRateController', () => {
       const messenger = getCurrencyRateControllerMessenger();
       const tokenPricesService = buildMockTokenPricesService();
       const controller = new CurrencyRateController({
-        useExternalServices: () => false,
+        useExternalServices: (): boolean => false,
         messenger,
         state: { currentCurrency: 'eur' },
         tokenPricesService,
@@ -959,7 +959,7 @@ describe('CurrencyRateController', () => {
       const messenger = getCurrencyRateControllerMessenger();
       const tokenPricesService = buildMockTokenPricesService();
       const controller = new CurrencyRateController({
-        useExternalServices: () => false,
+        useExternalServices: (): boolean => false,
         messenger,
         state: { currentCurrency: 'cad' },
         tokenPricesService,
@@ -982,7 +982,7 @@ describe('CurrencyRateController', () => {
       const messenger = getCurrencyRateControllerMessenger();
       const tokenPricesService = buildMockTokenPricesService();
       const controller = new CurrencyRateController({
-        useExternalServices: () => false,
+        useExternalServices: (): boolean => false,
         includeUsdRate: true,
         messenger,
         state: { currentCurrency: 'jpy' },
@@ -1018,7 +1018,7 @@ describe('CurrencyRateController', () => {
           },
         });
       const controller = new CurrencyRateController({
-        useExternalServices: () => true,
+        useExternalServices: (): boolean => true,
         messenger,
         state: { currentCurrency: 'eur' },
         tokenPricesService,
@@ -1088,7 +1088,7 @@ describe('CurrencyRateController', () => {
       const messenger = getCurrencyRateControllerMessenger();
       const tokenPricesService = buildMockTokenPricesService();
       const controller = new CurrencyRateController({
-        useExternalServices: () => false,
+        useExternalServices: (): boolean => false,
         messenger,
         state: { currentCurrency: 'usd' },
         tokenPricesService,
@@ -1117,7 +1117,7 @@ describe('CurrencyRateController', () => {
         messenger,
         tokenPricesService,
         state: { currencyRates: initialCurrencyRates },
-        isDeprecated: () => true,
+        isDeprecated: (): boolean => true,
       });
 
       expect(controller.state.currencyRates).toStrictEqual({});
@@ -1132,7 +1132,7 @@ describe('CurrencyRateController', () => {
         messenger,
         tokenPricesService,
         state: { currencyRates: initialCurrencyRates },
-        isDeprecated: () => false,
+        isDeprecated: (): boolean => false,
       });
 
       expect(controller.state.currencyRates).toStrictEqual(
@@ -1149,7 +1149,7 @@ describe('CurrencyRateController', () => {
         messenger,
         tokenPricesService,
         state: { currencyRates: {} },
-        isDeprecated: () => true,
+        isDeprecated: (): boolean => true,
       });
 
       expect(controller.state.currencyRates).toStrictEqual({});
@@ -1167,7 +1167,7 @@ describe('CurrencyRateController', () => {
       const controller = new CurrencyRateController({
         messenger,
         tokenPricesService,
-        isDeprecated: () => true,
+        isDeprecated: (): boolean => true,
       });
 
       await controller.updateExchangeRate(['ETH']);
@@ -1189,7 +1189,7 @@ describe('CurrencyRateController', () => {
         messenger,
         tokenPricesService,
         state: { currencyRates: initialCurrencyRates },
-        isDeprecated: () => deprecated,
+        isDeprecated: (): boolean => deprecated,
       });
 
       expect(controller.state.currencyRates).toStrictEqual(
@@ -1218,7 +1218,7 @@ describe('CurrencyRateController', () => {
         messenger,
         tokenPricesService,
         state: { currencyRates: initialCurrencyRates },
-        isDeprecated: () => deprecated,
+        isDeprecated: (): boolean => deprecated,
       });
 
       expect(controller.state.currencyRates).toStrictEqual(
@@ -1247,7 +1247,7 @@ describe('CurrencyRateController', () => {
         messenger,
         tokenPricesService,
         state: { currencyRates: initialCurrencyRates },
-        isDeprecated: () => deprecated,
+        isDeprecated: (): boolean => deprecated,
       });
 
       expect(controller.state.currencyRates).toStrictEqual(
