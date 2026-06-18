@@ -69,6 +69,11 @@ export type WalletActivityAccount = {
   enabled: boolean;
 };
 
+export type AgenticCliPreference = {
+  inAppNotificationsEnabled: boolean;
+  pushNotificationsEnabled: boolean;
+};
+
 export type WalletActivityPreference = {
   inAppNotificationsEnabled: boolean;
   pushNotificationsEnabled: boolean;
@@ -103,12 +108,21 @@ export type SocialAIPreference = {
   mutedTraderProfileIds: string[];
 };
 
-/** Notification preferences for the authenticated user. */
+/**
+ * Notification preferences for the authenticated user.
+ *
+ * `agenticCli` is optional on this type for the current minor release.
+ * {@link AuthenticatedUserStorageService.getNotificationPreferences} always
+ * backfills it when absent from stored data. The next major release should
+ * make `agenticCli` required on this type.
+ */
 export type NotificationPreferences = {
   walletActivity: WalletActivityPreference;
   marketing: MarketingPreference;
   perps: PerpsPreference;
   socialAI: SocialAIPreference;
+  /** Optional until the next major release; always backfilled on read when absent. */
+  agenticCli?: AgenticCliPreference;
 };
 
 // ---------------------------------------------------------------------------

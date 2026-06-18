@@ -1539,6 +1539,115 @@ describe('NetworkController', () => {
         });
       });
     });
+
+    describe('if the controller was initialized with failoverUrls', () => {
+      it('applies the chain-level failover URLs to an Infura network client, overriding the endpoint value', async () => {
+        const infuraProjectId = 'some-infura-project-id';
+
+        await withController(
+          {
+            infuraProjectId,
+            failoverUrls: {
+              [ChainId[InfuraNetworkType.mainnet]]: ['https://chain.failover'],
+            },
+          },
+          async ({ controller }) => {
+            const networkClient = controller.getNetworkClientById(
+              NetworkType.mainnet,
+            );
+
+            expect(networkClient.configuration).toStrictEqual({
+              chainId: ChainId[InfuraNetworkType.mainnet],
+              failoverRpcUrls: ['https://chain.failover'],
+              infuraProjectId,
+              network: InfuraNetworkType.mainnet,
+              ticker: NetworksTicker[InfuraNetworkType.mainnet],
+              type: NetworkClientType.Infura,
+            });
+          },
+        );
+      });
+
+      it('applies the chain-level failover URLs to a custom network client, overriding the endpoint value', async () => {
+        await withController(
+          {
+            state:
+              buildNetworkControllerStateWithDefaultSelectedNetworkClientId({
+                networkConfigurationsByChainId: {
+                  '0x1337': buildCustomNetworkConfiguration({
+                    chainId: '0x1337',
+                    nativeCurrency: 'TEST',
+                    rpcEndpoints: [
+                      buildCustomRpcEndpoint({
+                        failoverUrls: ['https://endpoint.failover'],
+                        networkClientId: 'AAAA-AAAA-AAAA-AAAA',
+                        url: 'https://test.network',
+                      }),
+                    ],
+                  }),
+                },
+              }),
+            infuraProjectId: 'some-infura-project-id',
+            failoverUrls: {
+              '0x1337': ['https://chain.failover'],
+            },
+          },
+          async ({ controller }) => {
+            const networkClient = controller.getNetworkClientById(
+              'AAAA-AAAA-AAAA-AAAA',
+            );
+
+            expect(networkClient.configuration).toStrictEqual({
+              chainId: '0x1337',
+              failoverRpcUrls: ['https://chain.failover'],
+              rpcUrl: 'https://test.network',
+              ticker: 'TEST',
+              type: NetworkClientType.Custom,
+            });
+          },
+        );
+      });
+
+      it('falls back to the endpoint failover URLs when no entry exists for the chain', async () => {
+        await withController(
+          {
+            state:
+              buildNetworkControllerStateWithDefaultSelectedNetworkClientId({
+                networkConfigurationsByChainId: {
+                  '0x1337': buildCustomNetworkConfiguration({
+                    chainId: '0x1337',
+                    nativeCurrency: 'TEST',
+                    rpcEndpoints: [
+                      buildCustomRpcEndpoint({
+                        failoverUrls: ['https://endpoint.failover'],
+                        networkClientId: 'AAAA-AAAA-AAAA-AAAA',
+                        url: 'https://test.network',
+                      }),
+                    ],
+                  }),
+                },
+              }),
+            infuraProjectId: 'some-infura-project-id',
+            failoverUrls: {
+              '0x9999': ['https://chain.failover'],
+            },
+          },
+          async ({ controller }) => {
+            const networkClient = controller.getNetworkClientById(
+              'AAAA-AAAA-AAAA-AAAA',
+            );
+
+            expect(networkClient.configuration).toStrictEqual({
+              chainId: '0x1337',
+              failoverRpcUrls: ['https://endpoint.failover'],
+              rpcUrl: 'https://test.network',
+              ticker: 'TEST',
+              type: NetworkClientType.Custom,
+            });
+          },
+        );
+      });
+    });
   });
 
   describe('getNetworkClientRegistry', () => {
@@ -1817,6 +1926,65 @@ describe('NetworkController', () => {
                 disableRpcFailover: expect.any(Function),
               },
             });
+          },
+        );
+      });
+    });
+
+    describe('if the controller was initialized with failoverUrls', () => {
+      it('applies the chain-level failover URLs to every endpoint on a matched chain, keeping endpoint URLs for unmatched chains', async () => {
+        await withController(
+          {
+            state:
+              buildNetworkControllerStateWithDefaultSelectedNetworkClientId({
+                networkConfigurationsByChainId: {
+                  '0x1337': buildCustomNetworkConfiguration({
+                    chainId: '0x1337',
+                    nativeCurrency: 'TOKEN1',
+                    rpcEndpoints: [
+                      buildCustomRpcEndpoint({
+                        failoverUrls: ['https://first.endpoint.failover'],
+                        networkClientId: 'AAAA-AAAA-AAAA-AAAA',
+                        url: 'https://test.network/1',
+                      }),
+                      buildCustomRpcEndpoint({
+                        failoverUrls: ['https://second.endpoint.failover'],
+                        networkClientId: 'BBBB-BBBB-BBBB-BBBB',
+                        url: 'https://test.network/2',
+                      }),
+                    ],
+                  }),
+                  '0x2448': buildCustomNetworkConfiguration({
+                    chainId: '0x2448',
+                    nativeCurrency: 'TOKEN2',
+                    rpcEndpoints: [
+                      buildCustomRpcEndpoint({
+                        failoverUrls: ['https://third.endpoint.failover'],
+                        networkClientId: 'CCCC-CCCC-CCCC-CCCC',
+                        url: 'https://test.network/3',
+                      }),
+                    ],
+                  }),
+                },
+              }),
+            failoverUrls: {
+              '0x1337': ['https://chain.failover'],
+            },
+          },
+          async ({ controller }) => {
+            mockCreateNetworkClient().mockReturnValue(buildFakeClient());
+
+            const registry = controller.getNetworkClientRegistry();
+
+            expect(
+              registry['AAAA-AAAA-AAAA-AAAA'].configuration.failoverRpcUrls,
+            ).toStrictEqual(['https://chain.failover']);
+            expect(
+              registry['BBBB-BBBB-BBBB-BBBB'].configuration.failoverRpcUrls,
+            ).toStrictEqual(['https://chain.failover']);
+            expect(
+              registry['CCCC-CCCC-CCCC-CCCC'].configuration.failoverRpcUrls,
+            ).toStrictEqual(['https://third.endpoint.failover']);
           },
         );
       });
@@ -4472,6 +4640,90 @@ describe('NetworkController', () => {
           );
         });
 
+        it('overrides the per-endpoint failover URLs with the chain-level failoverUrls when the controller was initialized with them', async () => {
+          uuidV4Mock
+            .mockReturnValueOnce('BBBB-BBBB-BBBB-BBBB')
+            .mockReturnValueOnce('CCCC-CCCC-CCCC-CCCC');
+          const createAutoManagedNetworkClientSpy = jest.spyOn(
+            createAutoManagedNetworkClientModule,
+            'createAutoManagedNetworkClient',
+          );
+          const infuraProjectId = 'some-infura-project-id';
+
+          await withController(
+            {
+              state:
+                buildNetworkControllerStateWithDefaultSelectedNetworkClientId({
+                  networkConfigurationsByChainId: {
+                    '0x1337': buildCustomNetworkConfiguration({
+                      chainId: '0x1337',
+                      rpcEndpoints: [
+                        buildCustomRpcEndpoint({
+                          networkClientId: 'AAAA-AAAA-AAAA-AAAA',
+                          url: 'https://test.endpoint/1',
+                        }),
+                      ],
+                    }),
+                  },
+                }),
+              infuraProjectId,
+              failoverUrls: {
+                [infuraChainId]: ['https://chain.failover'],
+              },
+              isRpcFailoverEnabled: true,
+            },
+            ({ controller }) => {
+              const defaultRpcEndpoint: InfuraRpcEndpoint = {
+                failoverUrls: ['https://first.failover.endpoint'],
+                name: infuraNetworkNickname,
+                networkClientId: infuraNetworkType,
+                type: RpcEndpointType.Infura as const,
+                url: `https://${infuraNetworkType}.infura.io/v3/{infuraProjectId}` as const,
+              };
+
+              controller.addNetwork({
+                blockExplorerUrls: [],
+                chainId: infuraChainId,
+                defaultRpcEndpointIndex: 1,
+                name: infuraNetworkType,
+                nativeCurrency: infuraNativeTokenName,
+                rpcEndpoints: [
+                  defaultRpcEndpoint,
+                  {
+                    failoverUrls: ['https://second.failover.endpoint'],
+                    name: 'Test Network 1',
+                    type: RpcEndpointType.Custom,
+                    url: 'https://test.endpoint/2',
+                  },
+                ],
+              });
+
+              // Skipping the 1st call because it's for the initial state
+              expect(createAutoManagedNetworkClientSpy).toHaveBeenNthCalledWith(
+                2,
+                expect.objectContaining({
+                  networkClientId: infuraNetworkType,
+                  networkClientConfiguration: expect.objectContaining({
+                    failoverRpcUrls: ['https://chain.failover'],
+                    type: NetworkClientType.Infura,
+                  }),
+                }),
+              );
+              expect(createAutoManagedNetworkClientSpy).toHaveBeenNthCalledWith(
+                3,
+                expect.objectContaining({
+                  networkClientId: 'BBBB-BBBB-BBBB-BBBB',
+                  networkClientConfiguration: expect.objectContaining({
+                    failoverRpcUrls: ['https://chain.failover'],
+                    rpcUrl: 'https://test.endpoint/2',
+                    type: NetworkClientType.Custom,
+                  }),
+                }),
+              );
+            },
+          );
+        });
+
         it('adds the network configuration to state under the chain ID', async () => {
           uuidV4Mock.mockReturnValueOnce('BBBB-BBBB-BBBB-BBBB');
 
@@ -5833,6 +6085,87 @@ describe('NetworkController', () => {
                   ticker: infuraNativeTokenName,
                   type: NetworkClientType.Infura,
                 });
+              },
+            );
+          });
+
+          it('overrides the endpoint failover URLs with the chain-level failoverUrls when the controller was initialized with them', async () => {
+            const createAutoManagedNetworkClientSpy = jest.spyOn(
+              createAutoManagedNetworkClientModule,
+              'createAutoManagedNetworkClient',
+            );
+            const networkConfigurationToUpdate =
+              buildInfuraNetworkConfiguration(infuraNetworkType, {
+                rpcEndpoints: [
+                  buildCustomRpcEndpoint({
+                    networkClientId: 'AAAA-AAAA-AAAA-AAAA',
+                    url: 'https://rpc.network',
+                  }),
+                ],
+              });
+            const infuraProjectId = 'some-infura-project-id';
+
+            await withController(
+              {
+                state: {
+                  networkConfigurationsByChainId: {
+                    [infuraChainId]: networkConfigurationToUpdate,
+                    '0x9999': buildCustomNetworkConfiguration({
+                      chainId: '0x9999',
+                      nativeCurrency: 'TEST-9999',
+                      rpcEndpoints: [
+                        buildCustomRpcEndpoint({
+                          networkClientId: 'ZZZZ-ZZZZ-ZZZZ-ZZZZ',
+                          url: 'https://selected.endpoint',
+                        }),
+                      ],
+                    }),
+                  },
+                  selectedNetworkClientId: 'ZZZZ-ZZZZ-ZZZZ-ZZZZ',
+                },
+                infuraProjectId,
+                failoverUrls: {
+                  [infuraChainId]: ['https://chain.failover'],
+                },
+                isRpcFailoverEnabled: true,
+              },
+              async ({ controller }) => {
+                const infuraRpcEndpoint: InfuraRpcEndpoint = {
+                  failoverUrls: ['https://failover.endpoint'],
+                  networkClientId: infuraNetworkType,
+                  url: `https://${infuraNetworkType}.infura.io/v3/{infuraProjectId}`,
+                  type: RpcEndpointType.Infura,
+                };
+
+                await controller.updateNetwork(infuraChainId, {
+                  ...networkConfigurationToUpdate,
+                  rpcEndpoints: [
+                    ...networkConfigurationToUpdate.rpcEndpoints,
+                    infuraRpcEndpoint,
+                  ],
+                });
+
+                expect(
+                  createAutoManagedNetworkClientSpy,
+                ).toHaveBeenNthCalledWith(
+                  3,
+                  expect.objectContaining({
+                    networkClientId: infuraNetworkType,
+                    networkClientConfiguration: expect.objectContaining({
+                      failoverRpcUrls: ['https://chain.failover'],
+                      type: NetworkClientType.Infura,
+                    }),
+                  }),
+                );
+
+                const networkConfigurationsByNetworkClientId =
+                  getNetworkConfigurationsByNetworkClientId(
+                    controller.getNetworkClientRegistry(),
+                  );
+                expect(
+                  networkConfigurationsByNetworkClientId[infuraNetworkType]
+                    .failoverRpcUrls,
+                ).toStrictEqual(['https://chain.failover']);
               },
             );
           });

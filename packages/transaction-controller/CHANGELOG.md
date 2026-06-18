@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [68.0.1]
+
+### Fixed
+
+- Set `isExternalSign` to `true` when `isGasFeeSponsored` is confirmed by simulation, so gas-sponsored transactions from accounts that cannot locally sign (e.g. Money Account keyring) skip `KeyringController:signTransaction` ([#9148](https://github.com/MetaMask/core/pull/9148))
+
 ## [68.0.0]
 
 ### Changed
@@ -2500,7 +2506,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@68.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@68.0.1...HEAD
+[68.0.1]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@68.0.0...@metamask/transaction-controller@68.0.1
 [68.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@67.1.0...@metamask/transaction-controller@68.0.0
 [67.1.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@67.0.0...@metamask/transaction-controller@67.1.0
 [67.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@66.0.1...@metamask/transaction-controller@67.0.0

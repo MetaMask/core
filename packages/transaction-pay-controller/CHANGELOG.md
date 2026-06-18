@@ -7,9 +7,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [23.10.0]
+
+### Fixed
+
+- Fix post-quote flow for MM Pay transactions transferring between same chain and tokens when `isQuoteRequired` is set ([#9150](https://github.com/MetaMask/core/pull/9150))
+
+## [23.9.0]
+
+### Added
+
+- Add test-only fiat execution options to bypass fiat on-ramp settlement during local QA by funding the expected fiat asset from a configured account before continuing the normal MM Pay fiat submit flow ([#9161](https://github.com/MetaMask/core/pull/9161))
+
+### Changed
+
+- Bump `@metamask/transaction-controller` from `^68.0.0` to `^68.0.1` ([#9177](https://github.com/MetaMask/core/pull/9177))
+
+### Fixed
+
+- Sync transaction metadata when fiat payment is selected but no payment token is present ([#9158](https://github.com/MetaMask/core/pull/9158))
+- Fix direct mUSD fiat Money Account deposits by submitting a sponsored Money Account vault batch after fiat settlement instead of requiring Relay execute ([#9161](https://github.com/MetaMask/core/pull/9161))
+
+## [23.8.0]
+
 ### Changed
 
 - Bump `@metamask/keyring-controller` from `^27.0.0` to `^27.1.0` ([#9129](https://github.com/MetaMask/core/pull/9129))
+
+### Fixed
+
+- Mark MM Pay transactions as externally signed when quotes are available ([#9145](https://github.com/MetaMask/core/pull/9145))
 
 ## [23.7.0]
 
@@ -1078,7 +1105,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#6820](https://github.com/MetaMask/core/pull/6820))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@23.7.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@23.10.0...HEAD
+[23.10.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@23.9.0...@metamask/transaction-pay-controller@23.10.0
+[23.9.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@23.8.0...@metamask/transaction-pay-controller@23.9.0
+[23.8.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@23.7.0...@metamask/transaction-pay-controller@23.8.0
 [23.7.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@23.6.0...@metamask/transaction-pay-controller@23.7.0
 [23.6.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@23.5.1...@metamask/transaction-pay-controller@23.6.0
 [23.5.1]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@23.5.0...@metamask/transaction-pay-controller@23.5.1

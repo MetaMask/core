@@ -436,6 +436,57 @@ describe('Source Amounts Utils', () => {
         ]);
       });
 
+      it('does not filter out same token when isQuoteRequired is true in post-quote flow', () => {
+        const transactionData: TransactionData = {
+          isLoading: false,
+          isPostQuote: true,
+          isQuoteRequired: true,
+          paymentToken: DESTINATION_TOKEN_MOCK,
+          tokens: [
+            {
+              ...TRANSACTION_TOKEN_MOCK,
+              address: DESTINATION_TOKEN_MOCK.address,
+              chainId: DESTINATION_TOKEN_MOCK.chainId,
+              skipIfBalance: false,
+            },
+          ],
+        };
+
+        updateSourceAmounts(TRANSACTION_ID_MOCK, transactionData, messenger);
+
+        expect(transactionData.sourceAmounts).toStrictEqual([
+          {
+            sourceAmountHuman: TRANSACTION_TOKEN_MOCK.amountHuman,
+            sourceAmountRaw: TRANSACTION_TOKEN_MOCK.amountRaw,
+            sourceBalanceRaw: TRANSACTION_TOKEN_MOCK.balanceRaw,
+            sourceChainId: DESTINATION_TOKEN_MOCK.chainId,
+            sourceTokenAddress: DESTINATION_TOKEN_MOCK.address,
+            targetTokenAddress: DESTINATION_TOKEN_MOCK.address,
+          },
+        ]);
+      });
+
+      it('still filters out same token when isQuoteRequired is false in post-quote flow', () => {
+        const transactionData: TransactionData = {
+          isLoading: false,
+          isPostQuote: true,
+          isQuoteRequired: false,
+          paymentToken: DESTINATION_TOKEN_MOCK,
+          tokens: [
+            {
+              ...TRANSACTION_TOKEN_MOCK,
+              address: DESTINATION_TOKEN_MOCK.address,
+              chainId: DESTINATION_TOKEN_MOCK.chainId,
+              skipIfBalance: false,
+            },
+          ],
+        };
+
+        updateSourceAmounts(TRANSACTION_ID_MOCK, transactionData, messenger);
+
+        expect(transactionData.sourceAmounts).toStrictEqual([]);
+      });
+
       it('still filters out same token when isHyperliquidSource is false in post-quote flow', () => {
         const transactionData: TransactionData = {
           isLoading: false,

@@ -116,6 +116,7 @@ yarn skills --reset                 # clear saved local selection
 - [`@metamask/selected-network-controller`](packages/selected-network-controller)
 - [`@metamask/shield-controller`](packages/shield-controller)
 - [`@metamask/signature-controller`](packages/signature-controller)
+- [`@metamask/smart-transactions-controller`](packages/smart-transactions-controller)
 - [`@metamask/snap-account-service`](packages/snap-account-service)
 - [`@metamask/social-controllers`](packages/social-controllers)
 - [`@metamask/storage-service`](packages/storage-service)
@@ -210,6 +211,7 @@ linkStyle default opacity:0.5
   selected_network_controller(["@metamask/selected-network-controller"]);
   shield_controller(["@metamask/shield-controller"]);
   signature_controller(["@metamask/signature-controller"]);
+  smart_transactions_controller(["@metamask/smart-transactions-controller"]);
   snap_account_service(["@metamask/snap-account-service"]);
   social_controllers(["@metamask/social-controllers"]);
   storage_service(["@metamask/storage-service"]);
@@ -537,6 +539,16 @@ linkStyle default opacity:0.5
   signature_controller --> logging_controller;
   signature_controller --> messenger;
   signature_controller --> network_controller;
+  smart_transactions_controller --> base_controller;
+  smart_transactions_controller --> controller_utils;
+  smart_transactions_controller --> eth_json_rpc_provider;
+  smart_transactions_controller --> messenger;
+  smart_transactions_controller --> network_controller;
+  smart_transactions_controller --> polling_controller;
+  smart_transactions_controller --> profile_sync_controller;
+  smart_transactions_controller --> remote_feature_flag_controller;
+  smart_transactions_controller --> transaction_controller;
+  smart_transactions_controller --> json_rpc_engine;
   snap_account_service --> account_tree_controller;
   snap_account_service --> keyring_controller;
   snap_account_service --> messenger;
@@ -596,6 +608,8 @@ linkStyle default opacity:0.5
   wallet --> messenger;
   wallet --> remote_feature_flag_controller;
   wallet --> storage_service;
+  wallet_cli --> base_controller;
+  wallet_cli --> wallet;
 ```
 
 <!-- end dependency graph -->

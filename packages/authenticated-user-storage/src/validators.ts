@@ -13,7 +13,11 @@ import {
   type,
 } from '@metamask/superstruct';
 
-import type { DelegationResponse, NotificationPreferences } from './types';
+import type {
+  AgenticCliPreference,
+  DelegationResponse,
+  NotificationPreferences,
+} from './types';
 
 /**
  * Matches a 0x-prefixed hex string with zero or more hex digits.
@@ -91,12 +95,27 @@ const SocialAIPreferenceSchema = type({
   mutedTraderProfileIds: array(string()),
 });
 
+const AgenticCliPreferenceSchema = type({
+  inAppNotificationsEnabled: boolean(),
+  pushNotificationsEnabled: boolean(),
+});
+
 const NotificationPreferencesSchema = type({
   walletActivity: WalletActivityPreferenceSchema,
   marketing: MarketingPreferenceSchema,
   perps: PerpsPreferenceSchema,
   socialAI: SocialAIPreferenceSchema,
+  agenticCli: AgenticCliPreferenceSchema,
 });
+
+/**
+ * Default Agentic CLI notification preferences applied when coercing legacy
+ * notification-preference blobs that omit `agenticCli`.
+ */
+export const DEFAULT_AGENTIC_CLI_PREFERENCES: AgenticCliPreference = {
+  inAppNotificationsEnabled: true,
+  pushNotificationsEnabled: true,
+};
 
 /**
  * Maximum number of entries allowed in an assets-watchlist on write. Reads

@@ -566,7 +566,7 @@ describe('Quotes Utils', () => {
       expect(strategy.getQuotes).toHaveBeenCalled();
     });
 
-    it('clears state if no payment token', async () => {
+    it('clears state if no payment token and no fiat payment', async () => {
       await run({
         transactionData: {
           ...TRANSACTION_DATA_MOCK,
@@ -730,6 +730,30 @@ describe('Quotes Utils', () => {
       );
     });
 
+    it('marks the transaction as externally signed when quotes are available so the publish hook owns submission', async () => {
+      await run();
+
+      const transactionMetaMock = {} as TransactionMeta;
+      updateTransactionMock.mock.calls[0][1](transactionMetaMock);
+
+      expect(transactionMetaMock).toMatchObject(
+        expect.objectContaining({ isExternalSign: true }),
+      );
+    });
+
+    it('clears the externally signed flag when no quotes are returned so the transaction falls back to local signing', async () => {
+      getQuotesMock.mockResolvedValue([]);
+
+      await run();
+
+      const transactionMetaMock = {} as TransactionMeta;
+      updateTransactionMock.mock.calls[0][1](transactionMetaMock);
+
+      expect(transactionMetaMock).toMatchObject(
+        expect.objectContaining({ isExternalSign: false }),
+      );
+    });
+
     it('updates metrics in metadata', async () => {
       await run();
 
@@ -743,6 +767,30 @@ describe('Quotes Utils', () => {
           networkFeeFiat: TOTALS_MOCK.fees.sourceNetwork.estimate.usd,
           targetFiat: TOTALS_MOCK.targetAmount.usd,
           tokenAddress: TRANSACTION_DATA_MOCK.paymentToken?.address,
+          totalFiat: TOTALS_MOCK.total.usd,
+        },
+      });
+    });
+
+    it('updates metrics in metadata for fiat payment with no payment token', async () => {
+      await run({
+        transactionData: {
+          ...TRANSACTION_DATA_MOCK,
+          paymentToken: undefined,
+          fiatPayment: { selectedPaymentMethodId: 'card-123' },
+        },
+      });
+
+      const transactionMetaMock = {} as TransactionMeta;
+      updateTransactionMock.mock.calls[0][1](transactionMetaMock);
+
+      expect(transactionMetaMock).toMatchObject({
+        metamaskPay: {
+          bridgeFeeFiat: TOTALS_MOCK.fees.provider.usd,
+          chainId: undefined,
+          networkFeeFiat: TOTALS_MOCK.fees.sourceNetwork.estimate.usd,
+          targetFiat: TOTALS_MOCK.targetAmount.usd,
+          tokenAddress: undefined,
           totalFiat: TOTALS_MOCK.total.usd,
         },
       });

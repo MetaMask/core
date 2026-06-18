@@ -739,6 +739,31 @@ export function normalizeProviderCode(providerCode: string): string {
   return providerCode.replace(/^\/providers\//u, '');
 }
 
+/**
+ * Returns the internal MetaMask order code used for state lookups and polling.
+ * Prefers the code embedded in the canonical order `id` path over `providerOrderId`,
+ * which may contain the provider's native order identifier.
+ *
+ * @param orderOrId - Order fields or a full order id / order code string.
+ * @returns The internal order code.
+ */
+export function getInternalOrderCode(
+  orderOrId: Pick<RampsOrder, 'id' | 'providerOrderId'> | string,
+): string {
+  if (typeof orderOrId === 'string') {
+    return orderOrId.includes('/orders/')
+      ? orderOrId.split('/orders/')[1]
+      : orderOrId;
+  }
+
+  const { id, providerOrderId } = orderOrId;
+  if (id?.includes('/orders/')) {
+    return id.split('/orders/')[1];
+  }
+
+  return providerOrderId;
+}
+
 // === ORDER POLLING CONSTANTS ===
 
 const TERMINAL_ORDER_STATUSES = new Set<RampsOrderStatus>([
@@ -2088,23 +2113,29 @@ export class RampsController extends BaseController<
 
   /**
    * Adds or updates a V2 order in controller state.
-   * If an order with the same providerOrderId already exists, the incoming
+   * If an order with the same internal order code already exists, the incoming
    * fields are merged on top of the existing order so that fields not present
    * in the update (e.g. paymentDetails from the Transak API) are preserved.
    *
    * @param order - The RampsOrder to add or update.
    */
   addOrder(order: RampsOrder): void {
+    const internalOrderCode = getInternalOrderCode(order);
+    const healedOrder = {
+      ...order,
+      providerOrderId: internalOrderCode,
+    };
+
     this.update((state) => {
       const idx = state.orders.findIndex(
-        (existing) => existing.providerOrderId === order.providerOrderId,
+        (existing) => getInternalOrderCode(existing) === internalOrderCode,
       );
       if (idx === -1) {
-        state.orders.push(order as Draft<RampsOrder>);
+        state.orders.push(healedOrder as Draft<RampsOrder>);
       } else {
         state.orders[idx] = {
           ...state.orders[idx],
-          ...order,
+          ...healedOrder,
         } as Draft<RampsOrder>;
       }
     });
@@ -2306,9 +2337,7 @@ export class RampsController extends BaseController<
   }): void {
     const { orderId, providerCode, walletAddress, chainId } = params;
 
-    const orderCode = orderId.includes('/orders/')
-      ? orderId.split('/orders/')[1]
-      : orderId;
+    const orderCode = getInternalOrderCode(orderId);
     if (!orderCode?.trim()) {
       return;
     }
@@ -2368,15 +2397,20 @@ export class RampsController extends BaseController<
     );
 
     const healedWalletAddress = order.walletAddress || wallet;
+    const internalOrderCode = getInternalOrderCode({
+      id: order.id,
+      providerOrderId: orderCode,
+    });
     const healedOrder = {
       ...order,
       walletAddress: healedWalletAddress,
-      providerOrderId: orderCode,
+      providerOrderId: internalOrderCode,
     };
 
     this.update((state) => {
       const idx = state.orders.findIndex(
-        (existing: RampsOrder) => existing.providerOrderId === orderCode,
+        (existing: RampsOrder) =>
+          getInternalOrderCode(existing) === internalOrderCode,
       );
       if (idx === -1) {
         state.orders.push(healedOrder as Draft<RampsOrder>);
