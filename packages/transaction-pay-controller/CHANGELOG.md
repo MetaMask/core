@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Fix relay quote `user` field for post-quote same-chain same-token transfers with an account override ([#9187](https://github.com/MetaMask/core/pull/9187))
+
 ## [23.10.0]
 
 ### Fixed
