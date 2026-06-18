@@ -329,17 +329,11 @@ export const DATA_LAKE_API_CONFIG = {
 } as const;
 
 /**
- * Terminal API configuration
- * Endpoints for fetching structured market metadata from the MetaMask Terminal backend.
- * The active URL at runtime comes from PerpsPlatformDependencies.terminalApiBaseUrl,
- * not these constants (they are reference-only for each environment).
+ * Terminal API configuration.
+ * The base URL is injected at runtime via PerpsPlatformDependencies.terminalApiBaseUrl
+ * from each client build (dev/uat/prd); only path and cache settings live here.
  */
 export const TERMINAL_API_CONFIG = {
-  Endpoints: {
-    dev: 'https://terminal.dev-api.cx.metamask.io',
-    uat: 'https://terminal.uat-api.cx.metamask.io',
-    prd: 'https://terminal.api.cx.metamask.io',
-  },
   PerpetualPath: '/v1/perpetuals',
   CacheTtlMs: 5 * 60 * 1000, // 5 minutes
 } as const;
