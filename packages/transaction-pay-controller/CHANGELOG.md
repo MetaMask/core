@@ -76,6 +76,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Prevent Pay-configured transactions from falling back to raw publish when no Pay quote is available ([#9101](https://github.com/MetaMask/core/pull/9101))
 - Clear stale `fiatPayment.rampsQuote` when a fiat quote fetch fails, preventing the "No quotes" alert from being silently suppressed after a prior successful fetch ([#9073](https://github.com/MetaMask/core/pull/9073))
 
 ## [23.5.1]
