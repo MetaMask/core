@@ -351,6 +351,9 @@ export const filterMarketsByQuery = (
   return markets.filter(
     (market) =>
       market.symbol?.toLowerCase().includes(lowerQuery) ||
-      market.name?.toLowerCase().includes(lowerQuery),
+      market.name?.toLowerCase().includes(lowerQuery) ||
+      market.keywords?.some((keyword) =>
+        keyword.toLowerCase().includes(lowerQuery),
+      ),
   );
 };

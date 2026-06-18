@@ -7,8 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Resolve human-readable market names and search keywords from HyperLiquid perp annotations (`perpConciseAnnotations`), layered beneath the curated `HYPERLIQUID_ASSET_NAMES` map ([#9086](https://github.com/MetaMask/core/pull/9086))
+  - `getMarketDataWithPrices()` now fetches `perpConciseAnnotations` (session-cached) and applies each asset's annotation `displayName` and `keywords` to the returned markets. Name resolution precedence is curated map > annotation `displayName` > raw ticker symbol, so first-party names always win and annotation display names only fill gaps. The fetch is non-critical: a failure (or an unsupported environment) falls back to the curated map with no keywords, leaving market data intact.
+  - Exposes the `mergeAssetNamesWithAnnotations(annotations, curatedNames?)` and `extractAssetKeywords(annotations)` helpers (with the `PerpConciseAnnotation` and `PerpConciseAnnotationEntry` types) used to build these overlays.
+
 ### Changed
 
+- `rankMarketsByQuery`, `getMarketMatchRank`, and `filterMarketsByQuery` now also match a market's optional annotation `keywords` — the ranked helpers using the same exact/prefix/substring tiers as `symbol` and `name`, and `filterMarketsByQuery` by the same case-insensitive substring match — so the ranked and unranked search stay aligned ([#9086](https://github.com/MetaMask/core/pull/9086))
+- Add an optional `keywords?: string[]` field to `PerpsMarketData` and an optional `assetKeywords` parameter to `transformMarketData`, both additive (existing callers and consumers are unaffected) ([#9086](https://github.com/MetaMask/core/pull/9086))
 - Bump `@metamask/utils` from `^11.9.0` to `^11.11.0` ([#9074](https://github.com/MetaMask/core/pull/9074))
 
 ## [8.1.0]

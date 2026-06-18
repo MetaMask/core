@@ -414,6 +414,19 @@ export const HIP3_ASSET_MARKET_TYPES: Record<string, MarketType> = {
  *
  * This list is intentionally curated (not exhaustive): unmapped assets simply
  * fall back to their ticker, which matches prior behavior. Add entries as needed.
+ *
+ * REQUIRED — do not delete this in favor of HyperLiquid's `perpConciseAnnotations`
+ * endpoint. That endpoint is layered *beneath* this map (see
+ * `mergeAssetNamesWithAnnotations`), but it cannot replace it. A mainnet probe
+ * (2026-06-11) found:
+ * - Main-DEX crypto (BTC, ETH, SOL, …) has **no annotation entries at all**, so
+ *   without this map "bitcoin" would not resolve to / find the `BTC` market.
+ * - For HIP-3 stocks the annotation `displayName` is usually just the ticker
+ *   again (`xyz:TSLA → "TSLA"`), i.e. lower quality than the curated name
+ *   (`"Tesla"`).
+ * The annotations' real added value is `keywords` (search hints), which we layer
+ * on top — not display names. Revisit only if HyperLiquid starts populating
+ * high-quality per-asset `displayName`s (especially for the main DEX).
  */
 export const HYPERLIQUID_ASSET_NAMES: Record<string, string> = {
   // Main DEX - Crypto majors

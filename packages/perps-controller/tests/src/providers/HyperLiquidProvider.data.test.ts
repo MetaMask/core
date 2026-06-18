@@ -223,6 +223,7 @@ const createMockInfoClient = (overrides: Record<string, unknown> = {}) => ({
     ],
   ]),
   perpDexs: jest.fn().mockResolvedValue([null]),
+  perpConciseAnnotations: jest.fn().mockResolvedValue([]),
   allMids: jest.fn().mockResolvedValue({ BTC: '50000', ETH: '3000' }),
   frontendOpenOrders: jest.fn().mockResolvedValue([]),
   referral: jest.fn().mockResolvedValue({
@@ -699,6 +700,55 @@ describe('HyperLiquidProvider', () => {
 
       expect(Array.isArray(positions)).toBe(true);
       expect(positions.length).toBe(0);
+    });
+
+    it('enriches getMarketDataWithPrices with perp annotation keywords while curated names win', async () => {
+      mockClientService.getInfoClient = jest.fn().mockReturnValue(
+        createMockInfoClient({
+          perpConciseAnnotations: jest.fn().mockResolvedValue([
+            [
+              'BTC',
+              {
+                category: 'crypto',
+                displayName: 'Annotation BTC',
+                keywords: ['digital gold'],
+              },
+            ],
+            ['ETH', { category: 'crypto', keywords: ['smart contracts'] }],
+          ]),
+        }),
+      );
+
+      const markets = await provider.getMarketDataWithPrices();
+      const btc = markets.find((market) => market.symbol === 'BTC');
+      const eth = markets.find((market) => market.symbol === 'ETH');
+
+      // Curated HYPERLIQUID_ASSET_NAMES wins over the annotation displayName.
+      expect(btc?.name).toBe('Bitcoin');
+      // Keywords are surfaced for ranked search.
+      expect(btc?.keywords).toStrictEqual(['digital gold']);
+      expect(eth?.keywords).toStrictEqual(['smart contracts']);
+      expect(
+        mockClientService.getInfoClient().perpConciseAnnotations,
+      ).toHaveBeenCalled();
+    });
+
+    it('still returns market data when perp annotations fail to load', async () => {
+      mockClientService.getInfoClient = jest.fn().mockReturnValue(
+        createMockInfoClient({
+          perpConciseAnnotations: jest
+            .fn()
+            .mockRejectedValue(new Error('annotations unavailable')),
+        }),
+      );
+
+      const markets = await provider.getMarketDataWithPrices();
+      const btc = markets.find((market) => market.symbol === 'BTC');
+
+      expect(markets.length).toBeGreaterThan(0);
+      // Falls back to curated names, with no keywords.
+      expect(btc?.name).toBe('Bitcoin');
+      expect(btc?.keywords).toBeUndefined();
     });
   });
 
