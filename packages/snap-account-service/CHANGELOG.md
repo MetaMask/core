@@ -30,8 +30,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **BREAKING:** Removed `getLegacySnapKeyring` ([#8732](https://github.com/MetaMask/core/pull/8732))
   - The legacy Snap keyring should not be used anymore after the migration has completed.
 
-### Changed
-
 ## [0.3.1]
 
 ### Changed
