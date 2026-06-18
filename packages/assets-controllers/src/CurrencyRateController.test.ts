@@ -1135,7 +1135,9 @@ describe('CurrencyRateController', () => {
         isDeprecated: () => false,
       });
 
-      expect(controller.state.currencyRates).toStrictEqual(initialCurrencyRates);
+      expect(controller.state.currencyRates).toStrictEqual(
+        initialCurrencyRates,
+      );
 
       controller.destroy();
     });
@@ -1190,7 +1192,9 @@ describe('CurrencyRateController', () => {
         isDeprecated: () => deprecated,
       });
 
-      expect(controller.state.currencyRates).toStrictEqual(initialCurrencyRates);
+      expect(controller.state.currencyRates).toStrictEqual(
+        initialCurrencyRates,
+      );
 
       deprecated = true;
 
@@ -1217,7 +1221,9 @@ describe('CurrencyRateController', () => {
         isDeprecated: () => deprecated,
       });
 
-      expect(controller.state.currencyRates).toStrictEqual(initialCurrencyRates);
+      expect(controller.state.currencyRates).toStrictEqual(
+        initialCurrencyRates,
+      );
 
       deprecated = true;
 
@@ -1244,7 +1250,9 @@ describe('CurrencyRateController', () => {
         isDeprecated: () => deprecated,
       });
 
-      expect(controller.state.currencyRates).toStrictEqual(initialCurrencyRates);
+      expect(controller.state.currencyRates).toStrictEqual(
+        initialCurrencyRates,
+      );
 
       deprecated = true;
 
