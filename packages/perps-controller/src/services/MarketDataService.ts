@@ -768,7 +768,10 @@ export class MarketDataService {
           if (terminalMarkets.length > 0) {
             const filtered = params?.symbols?.length
               ? terminalMarkets.filter((market) =>
-                  (params.symbols as string[]).includes(market.name),
+                  (params.symbols as string[]).some(
+                    (sym) =>
+                      market.name.toLowerCase() === sym.toLowerCase(),
+                  ),
                 )
               : terminalMarkets;
 
