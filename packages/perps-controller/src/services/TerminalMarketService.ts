@@ -160,7 +160,10 @@ export class TerminalMarketService {
             'TerminalMarketService.validateItems',
           ),
           {
-            tags: { feature: PERPS_CONSTANTS.FeatureName, source: 'terminal-api' },
+            tags: {
+              feature: PERPS_CONSTANTS.FeatureName,
+              source: 'terminal-api',
+            },
             context: {
               name: 'TerminalMarketService.validateItems',
               data: {
