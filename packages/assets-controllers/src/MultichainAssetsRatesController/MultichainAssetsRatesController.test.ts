@@ -1420,6 +1420,160 @@ describe('MultichainAssetsRatesController', () => {
     });
   });
 
+  describe('isDeprecated', () => {
+    const testAsset =
+      'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501' as CaipAssetType;
+
+    const initialState = {
+      conversionRates: {
+        [testAsset]: {
+          rate: '202.11',
+          conversionTime: 1738539923277,
+          currency: 'swift:0/iso4217:USD' as CaipAssetType,
+        },
+      },
+      historicalPrices: {
+        [testAsset]: {
+          USD: {
+            intervals: {},
+            updateTime: 1737542312,
+          },
+        },
+      },
+    };
+
+    it('clears persisted rates at construction when isDeprecated() returns true', () => {
+      const { controller } = setupController({
+        config: { isDeprecated: () => true, state: initialState },
+      });
+
+      expect(controller.state.conversionRates).toStrictEqual({});
+      expect(controller.state.historicalPrices).toStrictEqual({});
+    });
+
+    it('preserves persisted rates at construction when isDeprecated() returns false', () => {
+      const { controller } = setupController({
+        config: { isDeprecated: () => false, state: initialState },
+      });
+
+      expect(controller.state.conversionRates).toStrictEqual(
+        initialState.conversionRates,
+      );
+      expect(controller.state.historicalPrices).toStrictEqual(
+        initialState.historicalPrices,
+      );
+    });
+
+    it('does not fetch and clears stale rates when isDeprecated returns true', async () => {
+      let deprecated = false;
+      const { controller, messenger } = setupController({
+        config: { isDeprecated: () => deprecated, state: initialState },
+      });
+
+      const snapHandler = jest.fn().mockResolvedValue(fakeAccountRates);
+      messenger.registerActionHandler(
+        'SnapController:handleRequest',
+        snapHandler,
+      );
+
+      deprecated = true;
+
+      await controller.updateAssetsRates();
+
+      expect(snapHandler).not.toHaveBeenCalled();
+      expect(controller.state.conversionRates).toStrictEqual({});
+      expect(controller.state.historicalPrices).toStrictEqual({});
+    });
+
+    it('clears stale rates on _executePoll when isDeprecated toggles to true at runtime', async () => {
+      let deprecated = false;
+      const { controller, messenger } = setupController({
+        config: { isDeprecated: () => deprecated, state: initialState },
+      });
+
+      const snapHandler = jest.fn().mockResolvedValue(fakeAccountRates);
+      messenger.registerActionHandler(
+        'SnapController:handleRequest',
+        snapHandler,
+      );
+
+      deprecated = true;
+
+      await controller._executePoll();
+
+      expect(snapHandler).not.toHaveBeenCalled();
+      expect(controller.state.conversionRates).toStrictEqual({});
+      expect(controller.state.historicalPrices).toStrictEqual({});
+    });
+
+    it('clears stale rates on CurrencyRateController:stateChange when isDeprecated toggles to true at runtime', async () => {
+      let deprecated = false;
+      const { controller, messenger } = setupController({
+        config: { isDeprecated: () => deprecated, state: initialState },
+      });
+
+      deprecated = true;
+
+      messenger.publish(
+        'CurrencyRateController:stateChange',
+        {
+          currentCurrency: 'EUR',
+          currencyRates: {},
+        },
+        [],
+      );
+
+      await Promise.resolve();
+
+      expect(controller.state.conversionRates).toStrictEqual({});
+      expect(controller.state.historicalPrices).toStrictEqual({});
+    });
+
+    it('clears stale rates on MultichainAssetsController:accountAssetListUpdated when isDeprecated toggles to true at runtime', async () => {
+      let deprecated = false;
+      const { controller, messenger } = setupController({
+        config: { isDeprecated: () => deprecated, state: initialState },
+      });
+
+      deprecated = true;
+
+      messenger.publish('MultichainAssetsController:accountAssetListUpdated', {
+        assets: {
+          account1: {
+            added: [testAsset],
+            removed: [],
+          },
+        },
+      });
+
+      await Promise.resolve();
+
+      expect(controller.state.conversionRates).toStrictEqual({});
+      expect(controller.state.historicalPrices).toStrictEqual({});
+    });
+
+    it('does not fetch historical prices when isDeprecated returns true', async () => {
+      let deprecated = false;
+      const { controller, messenger } = setupController({
+        config: { isDeprecated: () => deprecated, state: initialState },
+      });
+
+      const snapHandler = jest.fn().mockResolvedValue(fakeHistoricalPrices);
+      messenger.registerActionHandler(
+        'SnapController:handleRequest',
+        snapHandler,
+      );
+
+      deprecated = true;
+
+      await controller.fetchHistoricalPricesForAsset(testAsset);
+
+      expect(snapHandler).not.toHaveBeenCalled();
+      expect(controller.state.conversionRates).toStrictEqual({});
+      expect(controller.state.historicalPrices).toStrictEqual({});
+    });
+  });
+
   describe('metadata', () => {
     it('includes expected state in debug snapshots', () => {
       const { controller } = setupController();

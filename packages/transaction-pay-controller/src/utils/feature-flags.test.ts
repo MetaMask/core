@@ -24,8 +24,10 @@ import {
   getFiatOrderPollIntervalMs,
   getFiatOrderPollTimeoutMs,
   DEFAULT_RELAY_EXECUTE_URL,
+  getDirectMoneyMusdEnabled,
   getServerPollingInterval,
   getServerPollingTimeout,
+  getFiatVaultDisabled,
   getRelayOriginGasOverhead,
   getRelayPollingInterval,
   getRelayPollingTimeout,
@@ -1657,6 +1659,94 @@ describe('Feature Flags Utils', () => {
       });
 
       expect(getFiatMaxRateDriftPercent(messenger)).toBe(10);
+    });
+  });
+
+  describe('getDirectMoneyMusdEnabled', () => {
+    it('returns false when feature flag is not set', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {},
+      });
+
+      expect(getDirectMoneyMusdEnabled(messenger)).toBe(false);
+    });
+
+    it('returns false when confirmations_pay_fiat exists without direct mUSD flag', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_pay_fiat: {},
+        },
+      });
+
+      expect(getDirectMoneyMusdEnabled(messenger)).toBe(false);
+    });
+
+    it('returns true when direct mUSD flag is true', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_pay_fiat: { directMoneyMusdEnabled: true },
+        },
+      });
+
+      expect(getDirectMoneyMusdEnabled(messenger)).toBe(true);
+    });
+
+    it('returns false when direct mUSD flag is false', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_pay_fiat: { directMoneyMusdEnabled: false },
+        },
+      });
+
+      expect(getDirectMoneyMusdEnabled(messenger)).toBe(false);
+    });
+  });
+
+  describe('getFiatVaultDisabled', () => {
+    it('returns false when feature flag is not set', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {},
+      });
+
+      expect(getFiatVaultDisabled(messenger)).toBe(false);
+    });
+
+    it('returns false when confirmations_pay_fiat exists without vault flag', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_pay_fiat: {},
+        },
+      });
+
+      expect(getFiatVaultDisabled(messenger)).toBe(false);
+    });
+
+    it('returns true when vault disabled flag is true', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_pay_fiat: { vaultDisabled: true },
+        },
+      });
+
+      expect(getFiatVaultDisabled(messenger)).toBe(true);
+    });
+
+    it('returns false when vault disabled flag is false', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_pay_fiat: { vaultDisabled: false },
+        },
+      });
+
+      expect(getFiatVaultDisabled(messenger)).toBe(false);
     });
   });
 

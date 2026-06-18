@@ -30,6 +30,7 @@ import type { TransactionControllerUpdateTransactionAction } from '@metamask/tra
 import type { TransactionPayControllerMessenger } from '..';
 import type {
   TransactionPayControllerGetDelegationTransactionAction,
+  TransactionPayControllerGetFiatOptionsAction,
   TransactionPayControllerGetPaymentOverrideDataAction,
   TransactionPayControllerGetStrategyAction,
   TransactionPayControllerPolymarketGetDepositWalletAddressAction,
@@ -124,6 +125,10 @@ export function getMessengerMock({
 
   const getDelegationTransactionMock: jest.MockedFn<
     TransactionPayControllerGetDelegationTransactionAction['handler']
+  > = jest.fn();
+
+  const getFiatOptionsMock: jest.MockedFn<
+    TransactionPayControllerGetFiatOptionsAction['handler']
   > = jest.fn();
 
   const getPaymentOverrideDataMock: jest.MockedFn<
@@ -271,6 +276,11 @@ export function getMessengerMock({
     );
 
     messenger.registerActionHandler(
+      'TransactionPayController:getFiatOptions',
+      getFiatOptionsMock,
+    );
+
+    messenger.registerActionHandler(
       'TransactionPayController:getPaymentOverrideData',
       getPaymentOverrideDataMock,
     );
@@ -326,6 +336,7 @@ export function getMessengerMock({
     getControllerStateMock,
     getCurrencyRateControllerStateMock,
     getDelegationTransactionMock,
+    getFiatOptionsMock,
     getPaymentOverrideDataMock,
     getGasFeeControllerStateMock,
     getGasFeeTokensMock,
