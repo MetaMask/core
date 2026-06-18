@@ -51,18 +51,22 @@ export function updateSourceAmounts(
   // For post-quote flows, source amounts are calculated differently
   // The source is the transaction's required token, not the selected token
   if (isPostQuote) {
-    const { isHyperliquidSource, isPolymarketDepositWallet } = transactionData;
+    const { isHyperliquidSource, isPolymarketDepositWallet, isQuoteRequired } =
+      transactionData;
     const sourceAmounts = calculatePostQuoteSourceAmounts(
       tokens,
       paymentToken,
       isMaxAmount ?? false,
       isHyperliquidSource,
       isPolymarketDepositWallet,
+      isQuoteRequired,
     );
     log('Updated post-quote source amounts', { transactionId, sourceAmounts });
     transactionData.sourceAmounts = sourceAmounts;
     return;
   }
+
+  const { isQuoteRequired } = transactionData;
 
   const sourceAmounts = tokens
     .map((singleToken) =>
@@ -72,6 +76,7 @@ export function updateSourceAmounts(
         messenger,
         transactionId,
         isMaxAmount ?? false,
+        isQuoteRequired,
       ),
     )
     .filter(Boolean) as TransactionPaySourceAmount[];
@@ -91,6 +96,7 @@ export function updateSourceAmounts(
  * @param isMaxAmount - Whether the transaction is a maximum amount transaction.
  * @param isHyperliquidSource - Whether the source is HyperLiquid (perps withdrawal).
  * @param isPolymarketDepositWallet - Whether the source is a Polymarket deposit wallet.
+ * @param isQuoteRequired - When true, a quote is always fetched even when source and target tokens are identical.
  * @returns Array of source amounts.
  */
 function calculatePostQuoteSourceAmounts(
@@ -99,6 +105,7 @@ function calculatePostQuoteSourceAmounts(
   isMaxAmount: boolean,
   isHyperliquidSource?: boolean,
   isPolymarketDepositWallet?: boolean,
+  isQuoteRequired?: boolean,
 ): TransactionPaySourceAmount[] {
   return tokens
     .filter((token) => {
@@ -118,7 +125,8 @@ function calculatePostQuoteSourceAmounts(
       if (
         isSameToken(token, paymentToken) &&
         !isHyperliquidSource &&
-        !isPolymarketDepositWallet
+        !isPolymarketDepositWallet &&
+        !isQuoteRequired
       ) {
         log('Skipping token as same as destination token');
         return false;
@@ -144,6 +152,7 @@ function calculatePostQuoteSourceAmounts(
  * @param messenger - Controller messenger.
  * @param transactionId - ID of the transaction.
  * @param isMaxAmount - Whether the transaction is a maximum amount transaction.
+ * @param isQuoteRequired - When true, a quote is always fetched even when source and target tokens are identical.
  * @returns The source amount or undefined if calculation failed.
  */
 function calculateSourceAmount(
@@ -152,6 +161,7 @@ function calculateSourceAmount(
   messenger: TransactionPayControllerMessenger,
   transactionId: string,
   isMaxAmount: boolean,
+  isQuoteRequired?: boolean,
 ): TransactionPaySourceAmount | undefined {
   const paymentTokenFiatRate = getTokenFiatRate(
     messenger,
@@ -180,6 +190,7 @@ function calculateSourceAmount(
     token,
     strategy,
     parentTransactionType,
+    isQuoteRequired,
   );
 
   if (isSameToken(token, paymentToken) && !isAlwaysRequired) {
@@ -223,13 +234,19 @@ function calculateSourceAmount(
  * @param token - Target token.
  * @param strategy - Payment strategy.
  * @param parentTransactionType - Parent transaction type, if available.
+ * @param isQuoteRequired - When true, a quote is always fetched even when source and target tokens are identical.
  * @returns True if a quote is always required, false otherwise.
  */
 function isQuoteAlwaysRequired(
   token: TransactionPayRequiredToken,
   strategy: TransactionPayStrategy,
   parentTransactionType?: TransactionType,
+  isQuoteRequired?: boolean,
 ): boolean {
+  if (isQuoteRequired) {
+    return true;
+  }
+
   const isHyperliquidDeposit =
     token.chainId === CHAIN_ID_ARBITRUM &&
     token.address.toLowerCase() === ARBITRUM_USDC_ADDRESS.toLowerCase();

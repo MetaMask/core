@@ -1,4 +1,7 @@
-import type { RampsOrder } from '@metamask/ramps-controller';
+import type {
+  Quote as RampsQuote,
+  RampsOrder,
+} from '@metamask/ramps-controller';
 import type { TransactionMeta } from '@metamask/transaction-controller';
 import { TransactionType } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
@@ -11,11 +14,11 @@ import {
   getFiatAssetPerTransactionType,
   getFiatEnabledTypes,
 } from '../../utils/feature-flags';
-import { getTokenInfo } from '../../utils/token';
+import { buildCaipAssetType, getTokenInfo } from '../../utils/token';
 import { getTransferredAmountFromTxHash } from '../../utils/transaction';
 import type { RelayQuote } from '../relay/types';
 import type { TransactionPayFiatAsset } from './constants';
-import { FIAT_ENABLED_TYPES } from './constants';
+import { DEFAULT_FIAT_CURRENCY, FIAT_ENABLED_TYPES } from './constants';
 
 const log = createModuleLogger(projectLogger, 'fiat-utils');
 
@@ -74,6 +77,56 @@ export function isMoneyAccountDepositTransaction(
     resolveTransactionType(transaction, FIAT_ENABLED_TYPES) ===
     TransactionType.moneyAccountDeposit
   );
+}
+
+/**
+ * Fetches the first matching Ramps quote for a fiat asset and payment method.
+ *
+ * @param options - Quote options.
+ * @param options.adjustedAmount - Fiat amount sent to Ramps.
+ * @param options.errorMessage - Error thrown when no matching quote is returned.
+ * @param options.fiatAsset - Fiat asset to buy.
+ * @param options.fiatPaymentMethod - Selected fiat payment method.
+ * @param options.messenger - Controller messenger.
+ * @param options.walletAddress - Wallet address that receives the on-ramped asset.
+ * @returns The first matching Ramps quote.
+ */
+export async function getRampsQuote({
+  adjustedAmount,
+  errorMessage = 'No matching ramps quote found for selected provider',
+  fiatAsset,
+  fiatPaymentMethod,
+  messenger,
+  walletAddress,
+}: {
+  adjustedAmount: number;
+  errorMessage?: string;
+  fiatAsset: TransactionPayFiatAsset;
+  fiatPaymentMethod: string;
+  messenger: TransactionPayControllerMessenger;
+  walletAddress: string;
+}): Promise<RampsQuote> {
+  const quotes = await messenger.call('RampsController:getQuotes', {
+    amount: adjustedAmount,
+    assetId: buildCaipAssetType(fiatAsset.chainId, fiatAsset.address),
+    autoSelectProvider: true,
+    fiat: DEFAULT_FIAT_CURRENCY,
+    paymentMethods: [fiatPaymentMethod],
+    restrictToKnownOrNativeProviders: true,
+    walletAddress,
+  });
+
+  log('Fetched ramps quotes', {
+    quotesCount: quotes.success?.length ?? 0,
+  });
+
+  const quote = quotes.success?.[0];
+
+  if (!quote) {
+    throw new Error(errorMessage);
+  }
+
+  return quote;
 }
 
 /**

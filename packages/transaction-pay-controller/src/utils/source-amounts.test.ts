@@ -177,6 +177,25 @@ describe('Source Amounts Utils', () => {
       expect(transactionData.sourceAmounts).toHaveLength(1);
     });
 
+    it('does not return empty array if payment token matches but isQuoteRequired is true', () => {
+      const transactionData: TransactionData = {
+        isLoading: false,
+        isQuoteRequired: true,
+        paymentToken: PAYMENT_TOKEN_MOCK,
+        tokens: [
+          {
+            ...TRANSACTION_TOKEN_MOCK,
+            address: PAYMENT_TOKEN_MOCK.address,
+            chainId: PAYMENT_TOKEN_MOCK.chainId,
+          },
+        ],
+      };
+
+      updateSourceAmounts(TRANSACTION_ID_MOCK, transactionData, messenger);
+
+      expect(transactionData.sourceAmounts).toHaveLength(1);
+    });
+
     it('returns empty array if skipIfBalance and has balance', () => {
       const transactionData: TransactionData = {
         isLoading: false,
@@ -415,6 +434,57 @@ describe('Source Amounts Utils', () => {
             targetTokenAddress: ARBITRUM_USDC_ADDRESS,
           },
         ]);
+      });
+
+      it('does not filter out same token when isQuoteRequired is true in post-quote flow', () => {
+        const transactionData: TransactionData = {
+          isLoading: false,
+          isPostQuote: true,
+          isQuoteRequired: true,
+          paymentToken: DESTINATION_TOKEN_MOCK,
+          tokens: [
+            {
+              ...TRANSACTION_TOKEN_MOCK,
+              address: DESTINATION_TOKEN_MOCK.address,
+              chainId: DESTINATION_TOKEN_MOCK.chainId,
+              skipIfBalance: false,
+            },
+          ],
+        };
+
+        updateSourceAmounts(TRANSACTION_ID_MOCK, transactionData, messenger);
+
+        expect(transactionData.sourceAmounts).toStrictEqual([
+          {
+            sourceAmountHuman: TRANSACTION_TOKEN_MOCK.amountHuman,
+            sourceAmountRaw: TRANSACTION_TOKEN_MOCK.amountRaw,
+            sourceBalanceRaw: TRANSACTION_TOKEN_MOCK.balanceRaw,
+            sourceChainId: DESTINATION_TOKEN_MOCK.chainId,
+            sourceTokenAddress: DESTINATION_TOKEN_MOCK.address,
+            targetTokenAddress: DESTINATION_TOKEN_MOCK.address,
+          },
+        ]);
+      });
+
+      it('still filters out same token when isQuoteRequired is false in post-quote flow', () => {
+        const transactionData: TransactionData = {
+          isLoading: false,
+          isPostQuote: true,
+          isQuoteRequired: false,
+          paymentToken: DESTINATION_TOKEN_MOCK,
+          tokens: [
+            {
+              ...TRANSACTION_TOKEN_MOCK,
+              address: DESTINATION_TOKEN_MOCK.address,
+              chainId: DESTINATION_TOKEN_MOCK.chainId,
+              skipIfBalance: false,
+            },
+          ],
+        };
+
+        updateSourceAmounts(TRANSACTION_ID_MOCK, transactionData, messenger);
+
+        expect(transactionData.sourceAmounts).toStrictEqual([]);
       });
 
       it('still filters out same token when isHyperliquidSource is false in post-quote flow', () => {

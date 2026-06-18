@@ -53,14 +53,14 @@
   "dependencies": {
     "@metamask/messenger": "^1.2.0",
     "@metamask/superstruct": "^3.1.0",
-    "@metamask/transaction-controller": "^68.0.0",
+    "@metamask/transaction-controller": "^68.0.1",
     "@metamask/utils": "^11.11.0",
     "lodash": "^4.17.21",
     "uuid": "^8.3.2"
   },
   "devDependencies": {
     "@metamask/auto-changelog": "^6.1.0",
-    "@metamask/keyring-controller": "^27.0.0",
+    "@metamask/keyring-controller": "^27.1.0",
     "@metamask/rpc-errors": "^7.0.2",
     "@ts-bridge/cli": "^0.6.4",
     "@types/jest": "^29.5.14",

@@ -280,6 +280,8 @@ async function getSingleQuote(
       isRelayExecuteEnabled(messenger) &&
       isEIP7702Chain(messenger, sourceChainId);
 
+    const quoteUser = getQuoteUser(request, transaction, from);
+
     const body: RelayQuoteRequest = {
       amount: useExactInput ? sourceTokenAmount : targetAmountMinimum,
       destinationChainId: Number(targetChainId),
@@ -292,7 +294,7 @@ async function getSingleQuote(
       recipient: request.recipient ?? from,
       slippageTolerance,
       tradeType: useExactInput ? 'EXACT_INPUT' : 'EXPECTED_OUTPUT',
-      user: from,
+      user: quoteUser,
     };
 
     if (request.isPolymarketDepositWallet) {
@@ -461,14 +463,15 @@ async function processMoneyAccountPostQuote(
   }
 
   const fundingRecipient = recipient ?? request.from;
+  const rawAmount = transactionData?.tokens?.[0]?.amountRaw ?? '0';
 
   requestBody.authorizationList = normalizeAuthorizationList(authorizationList);
   requestBody.tradeType = 'EXACT_OUTPUT';
-  requestBody.amount = transactionData?.tokens?.[0]?.amountRaw ?? '0';
+  requestBody.amount = rawAmount;
   requestBody.txs = [
     {
       to: request.targetTokenAddress,
-      data: buildTokenTransferData(fundingRecipient, request.sourceTokenAmount),
+      data: buildTokenTransferData(fundingRecipient, rawAmount),
       value: '0x0',
     },
     ...overrideCalls.map((call) => ({
@@ -1180,6 +1183,50 @@ function getTransferRecipient(data: Hex): Hex {
     .decodeFunctionData('transfer', data)
     .to.toLowerCase();
 }
+/**
+ * Determine the `user` address for a Relay quote request.
+ *
+ * When source and destination are the same token on the same chain and an
+ * accountOverride is active, use the original `txParams.from` so that Relay
+ * sees the transaction sender rather than the override address.
+ *
+ * @param request - Quote request.
+ * @param transaction - Parent transaction metadata.
+ * @param from - Resolved wallet address (`accountOverride ?? txParams.from`).
+ * @returns The address to set as `user` on the quote body.
+ */
+function getQuoteUser(
+  request: QuoteRequest,
+  transaction: TransactionMeta,
+  from: Hex,
+): Hex {
+  const {
+    sourceChainId,
+    sourceTokenAddress,
+    targetChainId,
+    targetTokenAddress,
+  } = request;
+
+  const isSameSourceAndTarget =
+    sourceChainId === targetChainId &&
+    sourceTokenAddress.toLowerCase() === targetTokenAddress.toLowerCase();
+
+  const txParamsFrom = transaction.txParams?.from as Hex | undefined;
+  const hasAccountOverride =
+    txParamsFrom && from.toLowerCase() !== txParamsFrom.toLowerCase();
+
+  const recipient = request.recipient ?? from;
+  const isRecipientAccountOverride =
+    recipient.toLowerCase() === from.toLowerCase();
+
+  return isSameSourceAndTarget &&
+    hasAccountOverride &&
+    isRecipientAccountOverride &&
+    !request.isPostQuote
+    ? txParamsFrom
+    : from;
+}
+
 function getSubsidizedFeeAmountUsd(quote: RelayQuote): BigNumber {
   const subsidizedFee = quote.fees?.subsidized;
   const amountUsd = new BigNumber(subsidizedFee?.amountUsd ?? '0');
