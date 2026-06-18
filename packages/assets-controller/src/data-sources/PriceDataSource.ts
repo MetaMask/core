@@ -16,6 +16,7 @@ import type {
   AssetsControllerStateInternal,
 } from '../types';
 import { fetchWithTimeout } from '../utils';
+import { CoalescingBatchFetcher } from '../utils/coalescingBatchFetcher';
 import type { SubscriptionRequest } from './AbstractDataSource';
 import { reduceInBatchesSerially } from './evm-rpc-services';
 
@@ -45,6 +46,13 @@ export type PriceDataSourceConfig = {
    * the batch rejects so the caller can proceed without prices.
    */
   fetchTimeoutMs?: number;
+  /**
+   * Minimum age (ms) before a price is considered stale and re-fetched.
+   * Assets fetched more recently than this are skipped to avoid redundant
+   * API calls from overlapping middleware / subscription / manual triggers.
+   * Defaults to pollInterval (60 000 ms).
+   */
+  priceFreshnessTtlMs?: number;
 };
 
 export type PriceDataSourceOptions = PriceDataSourceConfig & {
@@ -137,6 +145,17 @@ export class PriceDataSource {
 
   readonly #fetchTimeoutMs: number;
 
+  /**
+   * Coalesces price fetches by asset ID: skips assets fetched within the
+   * freshness TTL and joins concurrent in-flight fetches for the same asset so
+   * overlapping triggers (middleware + subscription poll) don't issue duplicate
+   * API requests.
+   */
+  readonly #coalescer: CoalescingBatchFetcher<
+    Caip19AssetId,
+    FungibleAssetPrice
+  >;
+
   /** Active subscriptions by ID */
   readonly #activeSubscriptions: Map<
     string,
@@ -150,9 +169,14 @@ export class PriceDataSource {
 
   constructor(options: PriceDataSourceOptions) {
     this.#getSelectedCurrency = options.getSelectedCurrency;
-    this.#pollInterval = options.pollInterval ?? DEFAULT_POLL_INTERVAL;
+    this.#pollInterval = DEFAULT_POLL_INTERVAL;
     this.#apiClient = options.queryApiClient;
     this.#fetchTimeoutMs = options.fetchTimeoutMs ?? DEFAULT_FETCH_TIMEOUT_MS;
+    this.#coalescer = new CoalescingBatchFetcher({
+      fetchBatch: (assetIds): Promise<Record<Caip19AssetId, FungibleAssetPrice>> =>
+        this.#executeBatchFetch(assetIds),
+      freshnessTtlMs: options.priceFreshnessTtlMs ?? this.#pollInterval,
+    });
   }
 
   // ============================================================================
@@ -277,14 +301,16 @@ export class PriceDataSource {
   }
 
   /**
-   * Fetch spot prices for all provided asset IDs, splitting into batches of
-   * PRICE_API_BATCH_SIZE to respect API limits.
+   * Execute the actual batched API call for a set of asset IDs and return
+   * parsed price results. Used as the `fetchBatch` callback for the coalescer,
+   * so it does NOT check freshness or inflight state — that is handled by
+   * {@link CoalescingBatchFetcher}.
    *
-   * @param assetIds - Array of CAIP-19 asset IDs
-   * @returns Spot prices response
+   * @param assetIds - Asset IDs to fetch (already filtered/deduplicated).
+   * @returns Parsed prices keyed by CAIP-19 asset ID.
    */
-  async #fetchSpotPrices(
-    assetIds: string[],
+  async #executeBatchFetch(
+    assetIds: Caip19AssetId[],
   ): Promise<Record<Caip19AssetId, FungibleAssetPrice>> {
     const selectedCurrency = this.#getSelectedCurrency();
 
@@ -306,6 +332,7 @@ export class PriceDataSource {
       initialResult: [],
     });
 
+    const fetchedAt = Date.now();
     const prices: Record<Caip19AssetId, FungibleAssetPrice> = {};
 
     for (const { selectedCurrencyPrices, usdPrices } of batchResults) {
@@ -321,17 +348,30 @@ export class PriceDataSource {
           continue;
         }
 
-        const caipAssetId = assetId as Caip19AssetId;
-        prices[caipAssetId] = {
+        prices[assetId as Caip19AssetId] = {
           ...marketData,
           assetPriceType: 'fungible',
           usdPrice: usdMarketData.price,
-          lastUpdated: Date.now(),
+          lastUpdated: fetchedAt,
         };
       }
     }
 
     return prices;
+  }
+
+  /**
+   * Fetch spot prices for all provided asset IDs, deduplicating via the
+   * coalescer (freshness TTL + per-asset inflight coalescing).
+   *
+   * @param assetIds - Array of CAIP-19 asset IDs.
+   * @returns Spot prices response (only contains entries for assets that were
+   * actually fetched or joined from inflight).
+   */
+  async #fetchSpotPrices(
+    assetIds: Caip19AssetId[],
+  ): Promise<Record<Caip19AssetId, FungibleAssetPrice>> {
+    return this.#coalescer.fetch(assetIds);
   }
 
   /**
@@ -474,7 +514,20 @@ export class PriceDataSource {
 
     const pollInterval = request.updateInterval ?? this.#pollInterval;
 
-    // Create poll function - fetches prices using getAssetsState from subscription
+    // Ensure the freshness TTL doesn't exceed the effective poll interval.
+    // Otherwise, assets fetched on one poll would still be "fresh" when the
+    // next poll fires, causing the subscription to never re-fetch.
+    this.#coalescer.freshnessTtlMs = Math.min(
+      this.#coalescer.freshnessTtlMs,
+      pollInterval,
+    );
+
+    // Create poll function - fetches prices using getAssetsState from subscription.
+    // The freshness TTL naturally gates re-fetches: assets fetched less than
+    // `priceFreshnessTtlMs` ago are skipped, preventing duplicates when middleware
+    // or other triggers already fetched the same assets between polls.
+    // Concurrent middleware calls will join the inflight promise rather than
+    // issuing duplicate requests.
     const pollFn = async (): Promise<void> => {
       try {
         const subscription = this.#activeSubscriptions.get(subscriptionId);
@@ -482,7 +535,6 @@ export class PriceDataSource {
           return;
         }
 
-        // Fetch prices for all assets in balance state (uses subscription's getAssetsState)
         const fetchResponse = await this.fetch(
           subscription.request,
           subscription.getAssetsState,
@@ -536,6 +588,15 @@ export class PriceDataSource {
   }
 
   /**
+   * Invalidate the price freshness cache, forcing the next fetch to call the
+   * API regardless of TTL. Use when external state changes (e.g. selected
+   * currency) require a full refresh.
+   */
+  invalidatePriceCache(): void {
+    this.#coalescer.invalidate();
+  }
+
+  /**
    * Destroy the data source and clean up all subscriptions.
    */
   destroy(): void {
@@ -543,5 +604,6 @@ export class PriceDataSource {
       subscription.cleanup();
     }
     this.#activeSubscriptions.clear();
+    this.#coalescer.destroy();
   }
 }
