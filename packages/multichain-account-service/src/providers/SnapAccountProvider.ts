@@ -447,6 +447,26 @@ export abstract class SnapAccountProvider extends BaseBip44AccountProvider {
     );
   }
 
+  /**
+   * Delete a snap account by id.
+   *
+   * Resolves the account's address from the tracked account, then forwards to
+   * the legacy `SnapKeyring.removeAccount(address)`. The Snap keyring takes
+   * care of notifying the snap to clean up its own state through the normal
+   * account-removal flow (same path used by `resyncAccounts`).
+   *
+   * @param id - The id of the account to delete.
+   */
+  async deleteAccount(id: Bip44Account<KeyringAccount>['id']): Promise<void> {
+    const account = this.getAccount(id);
+
+    await this.#withSnapKeyring(async ({ keyring }) => {
+      await keyring.removeAccount(account.address);
+    });
+
+    this.accounts.delete(id);
+  }
+
   abstract discoverAccounts(options: {
     entropySource: EntropySourceId;
     groupIndex: number;

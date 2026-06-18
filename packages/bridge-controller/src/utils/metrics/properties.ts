@@ -6,9 +6,10 @@ import type {
   GenericQuoteRequest,
   QuoteMetadata,
   QuoteRequest,
-  QuoteResponse,
+  QuoteResponseV1,
   TxData,
 } from '../../types';
+import { FeatureId } from '../../types';
 import { getNativeAssetForChainId, isCrossChain } from '../bridge';
 import {
   formatAddressToAssetId,
@@ -75,7 +76,7 @@ export const getSwapTypeFromQuote = (
 export const formatProviderLabel = ({
   bridgeId,
   bridges,
-}: QuoteResponse<TxData | string>['quote']): `${string}_${string}` =>
+}: QuoteResponseV1<TxData | string>['quote']): `${string}_${string}` =>
   `${bridgeId}_${bridges[0]}`;
 
 /**
@@ -155,10 +156,10 @@ export const isCustomSlippage = (slippage: GenericQuoteRequest['slippage']) => {
 };
 
 export const getQuotesReceivedProperties = (
-  activeQuote: null | (QuoteResponse & QuoteMetadata),
+  activeQuote: null | (QuoteResponseV1 & QuoteMetadata),
   warnings: QuoteWarning[] = [],
   isSubmittable: boolean = true,
-  recommendedQuote?: null | (QuoteResponse & QuoteMetadata),
+  recommendedQuote?: null | (QuoteResponseV1 & QuoteMetadata),
   usdBalanceSource?: number,
   hasSufficientGasForQuote?: boolean | null,
 ) => {
@@ -182,5 +183,6 @@ export const getQuotesReceivedProperties = (
     ...(hasSufficientGasForQuote !== undefined && {
       has_sufficient_gas_for_quote: hasSufficientGasForQuote,
     }),
+    feature_id: activeQuote?.featureId ?? FeatureId.UNIFIED_SWAP_BRIDGE,
   };
 };

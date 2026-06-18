@@ -7,6 +7,50 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `isDeprecated` option to `MultichainAssetsRatesController` constructor ([#9044](https://github.com/MetaMask/core/pull/9044))
+  - When `isDeprecated()` returns `true`, no Snap requests are sent and `conversionRates` and `historicalPrices` are reset to `{}` at construction and at every entry point (`updateAssetsRates`, `fetchHistoricalPricesForAsset`, `_executePoll`, `CurrencyRateController:stateChange`, and `MultichainAssetsController:accountAssetListUpdated`), so no stale rates remain in state.
+  - The function is re-evaluated on each entry point so it can be toggled at runtime without reconstructing the controller.
+- Add `isDeprecated` option to `MultichainBalancesController` constructor ([#9044](https://github.com/MetaMask/core/pull/9044))
+  - When `isDeprecated()` returns `true`, no Snap requests are sent and `balances` is reset to `{}` at construction and at every entry point (`updateBalance`, `MultichainAssetsController:accountAssetListUpdated`, `AccountsController:accountBalancesUpdated`, and `AccountsController:accountRemoved`), so no stale balances remain in state.
+  - The function is re-evaluated on each entry point so it can be toggled at runtime without reconstructing the controller.
+
+### Changed
+
+- Bump `@metamask/profile-sync-controller` from `^28.1.1` to `^28.2.0` ([#9119](https://github.com/MetaMask/core/pull/9119))
+- Bump `@metamask/keyring-controller` from `^27.0.0` to `^27.1.0` ([#9129](https://github.com/MetaMask/core/pull/9129))
+- Bump `@metamask/transaction-controller` from `^68.0.0` to `^68.0.1` ([#9177](https://github.com/MetaMask/core/pull/9177))
+
+## [109.1.0]
+
+### Added
+
+- Add optional `includeMarketData` parameter to `fetchTokenContractExchangeRates` ([#9042](https://github.com/MetaMask/core/pull/9042))
+  - When `includeMarketData` is `true`, the function returns `ContractMarketData` (full `MarketDataDetails` per token, including percentage changes, market cap, volume, etc.) instead of `ContractExchangeRates` (price-only). Defaults to `false` for backward compatibility.
+
+### Changed
+
+- Bump `@metamask/utils` from `^11.9.0` to `^11.11.0` ([#9074](https://github.com/MetaMask/core/pull/9074))
+- Bump `@metamask/controller-utils` from `^12.1.1` to `^12.2.0` ([#9083](https://github.com/MetaMask/core/pull/9083))
+- Bump `@metamask/transaction-controller` from `^67.1.0` to `^68.0.0` ([#9089](https://github.com/MetaMask/core/pull/9089))
+
+## [109.0.0]
+
+### Added
+
+- Add `ARC` support ([#9006](https://github.com/MetaMask/core/pull/9006))
+  - Add `ARC` in `SupportedTokenDetectionNetworks`
+  - Add `ARC` in `SUPPORTED_NETWORKS_ACCOUNTS_API_V4`
+
+### Changed
+
+- Bump `@metamask/transaction-controller` from `^67.0.0` to `^67.1.0` ([#9066](https://github.com/MetaMask/core/pull/9066))
+
+### Removed
+
+- **BREAKING:** Remove `TransactionController:incomingTransactionsReceived` from `TokenBalancesControllerMessenger` allowed events ([#9012](https://github.com/MetaMask/core/pull/9012))
+
 ## [108.6.0]
 
 ### Added
@@ -3179,7 +3223,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Use Ethers for AssetsContractController ([#845](https://github.com/MetaMask/core/pull/845))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@108.6.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@109.1.0...HEAD
+[109.1.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@109.0.0...@metamask/assets-controllers@109.1.0
+[109.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@108.6.0...@metamask/assets-controllers@109.0.0
 [108.6.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@108.5.0...@metamask/assets-controllers@108.6.0
 [108.5.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@108.4.0...@metamask/assets-controllers@108.5.0
 [108.4.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@108.3.0...@metamask/assets-controllers@108.4.0

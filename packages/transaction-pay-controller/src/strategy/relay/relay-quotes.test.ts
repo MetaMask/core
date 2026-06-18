@@ -906,6 +906,35 @@ describe('Relay Quotes Utils', () => {
       expect(body.refundTo).toBe(refundTo);
     });
 
+    it('uses request.recipient as body recipient when provided', async () => {
+      const recipientOverride =
+        '0xrecipient0000000000000000000000000000001' as Hex;
+
+      successfulFetchMock.mockResolvedValue({
+        ok: true,
+        json: async () => QUOTE_MOCK,
+      } as never);
+
+      await getRelayQuotes({
+        accountSupports7702: true,
+        messenger,
+        requests: [
+          {
+            ...QUOTE_REQUEST_MOCK,
+            recipient: recipientOverride,
+          },
+        ],
+        transaction: TRANSACTION_META_MOCK,
+      });
+
+      const body = JSON.parse(
+        successfulFetchMock.mock.calls[0][1]?.body as string,
+      );
+
+      expect(body.recipient).toBe(recipientOverride);
+      expect(body.user).toBe(FROM_MOCK);
+    });
+
     it('does not set refundTo in request body for post-quote when not provided', async () => {
       successfulFetchMock.mockResolvedValue({
         ok: true,
@@ -1342,6 +1371,190 @@ describe('Relay Quotes Utils', () => {
       });
 
       expect(estimateGasBatchMock).not.toHaveBeenCalled();
+    });
+
+    it('sets user to txParams.from when same token and chain with accountOverride', async () => {
+      const txParamsFrom = '0xOriginalSender000000000000000000000000' as Hex;
+      const accountOverride =
+        '0xOverrideAccount0000000000000000000000000' as Hex;
+      const tokenAddress = '0xTokenAddress00000000000000000000000000' as Hex;
+      const chainId = '0x89' as Hex;
+
+      successfulFetchMock.mockResolvedValue({
+        ok: true,
+        json: async () => QUOTE_MOCK,
+      } as never);
+
+      await getRelayQuotes({
+        accountSupports7702: true,
+        messenger,
+        requests: [
+          {
+            ...QUOTE_REQUEST_MOCK,
+            from: accountOverride,
+            sourceChainId: chainId,
+            sourceTokenAddress: tokenAddress,
+            targetChainId: chainId,
+            targetTokenAddress: tokenAddress,
+          },
+        ],
+        transaction: {
+          ...TRANSACTION_META_MOCK,
+          txParams: { from: txParamsFrom },
+        } as TransactionMeta,
+      });
+
+      const body = JSON.parse(
+        successfulFetchMock.mock.calls[0][1]?.body as string,
+      );
+
+      expect(body.user).toBe(txParamsFrom);
+    });
+
+    it('keeps user as from when same token and chain with accountOverride and isPostQuote', async () => {
+      const txParamsFrom = '0xOriginalSender000000000000000000000000' as Hex;
+      const accountOverride =
+        '0xOverrideAccount0000000000000000000000000' as Hex;
+      const tokenAddress = '0xTokenAddress00000000000000000000000000' as Hex;
+      const chainId = '0x89' as Hex;
+
+      successfulFetchMock.mockResolvedValue({
+        ok: true,
+        json: async () => QUOTE_MOCK,
+      } as never);
+
+      await getRelayQuotes({
+        accountSupports7702: true,
+        messenger,
+        requests: [
+          {
+            ...QUOTE_REQUEST_MOCK,
+            from: accountOverride,
+            isPostQuote: true,
+            sourceChainId: chainId,
+            sourceTokenAddress: tokenAddress,
+            targetChainId: chainId,
+            targetTokenAddress: tokenAddress,
+          },
+        ],
+        transaction: {
+          ...TRANSACTION_META_MOCK,
+          txParams: { from: txParamsFrom },
+        } as TransactionMeta,
+      });
+
+      const body = JSON.parse(
+        successfulFetchMock.mock.calls[0][1]?.body as string,
+      );
+
+      expect(body.user).toBe(accountOverride);
+    });
+
+    it('keeps user as from when same token and chain with accountOverride but recipient differs', async () => {
+      const txParamsFrom = '0xOriginalSender000000000000000000000000' as Hex;
+      const accountOverride =
+        '0xOverrideAccount0000000000000000000000000' as Hex;
+      const externalRecipient =
+        '0xExternalRecipient000000000000000000000000' as Hex;
+      const tokenAddress = '0xTokenAddress00000000000000000000000000' as Hex;
+      const chainId = '0x89' as Hex;
+
+      successfulFetchMock.mockResolvedValue({
+        ok: true,
+        json: async () => QUOTE_MOCK,
+      } as never);
+
+      await getRelayQuotes({
+        accountSupports7702: true,
+        messenger,
+        requests: [
+          {
+            ...QUOTE_REQUEST_MOCK,
+            from: accountOverride,
+            recipient: externalRecipient,
+            sourceChainId: chainId,
+            sourceTokenAddress: tokenAddress,
+            targetChainId: chainId,
+            targetTokenAddress: tokenAddress,
+          },
+        ],
+        transaction: {
+          ...TRANSACTION_META_MOCK,
+          txParams: { from: txParamsFrom },
+        } as TransactionMeta,
+      });
+
+      const body = JSON.parse(
+        successfulFetchMock.mock.calls[0][1]?.body as string,
+      );
+
+      expect(body.user).toBe(accountOverride);
+    });
+
+    it('keeps user as from when source and destination differ even with accountOverride', async () => {
+      const txParamsFrom = '0xOriginalSender000000000000000000000000' as Hex;
+      const accountOverride =
+        '0xOverrideAccount0000000000000000000000000' as Hex;
+
+      successfulFetchMock.mockResolvedValue({
+        ok: true,
+        json: async () => QUOTE_MOCK,
+      } as never);
+
+      await getRelayQuotes({
+        accountSupports7702: true,
+        messenger,
+        requests: [
+          {
+            ...QUOTE_REQUEST_MOCK,
+            from: accountOverride,
+          },
+        ],
+        transaction: {
+          ...TRANSACTION_META_MOCK,
+          txParams: { from: txParamsFrom },
+        } as TransactionMeta,
+      });
+
+      const body = JSON.parse(
+        successfulFetchMock.mock.calls[0][1]?.body as string,
+      );
+
+      expect(body.user).toBe(accountOverride);
+    });
+
+    it('keeps user as from when same token and chain without accountOverride', async () => {
+      const tokenAddress = '0xTokenAddress00000000000000000000000000' as Hex;
+      const chainId = '0x89' as Hex;
+
+      successfulFetchMock.mockResolvedValue({
+        ok: true,
+        json: async () => QUOTE_MOCK,
+      } as never);
+
+      await getRelayQuotes({
+        accountSupports7702: true,
+        messenger,
+        requests: [
+          {
+            ...QUOTE_REQUEST_MOCK,
+            sourceChainId: chainId,
+            sourceTokenAddress: tokenAddress,
+            targetChainId: chainId,
+            targetTokenAddress: tokenAddress,
+          },
+        ],
+        transaction: {
+          ...TRANSACTION_META_MOCK,
+          txParams: { from: FROM_MOCK },
+        } as TransactionMeta,
+      });
+
+      const body = JSON.parse(
+        successfulFetchMock.mock.calls[0][1]?.body as string,
+      );
+
+      expect(body.user).toBe(FROM_MOCK);
     });
 
     it('does not prepend original transaction for post-quote when txParams.to is missing', async () => {
@@ -3073,11 +3286,13 @@ describe('Relay Quotes Utils', () => {
 
       function setupMoneyAccountMocks({
         amountHuman = AMOUNT_HUMAN_MOCK,
+        amountRaw = AMOUNT_RAW_MOCK,
         overrideCalls = [OVERRIDE_CALL_MOCK],
         recipient,
         authorizationList = DELEGATION_RESULT_MOCK.authorizationList,
       }: {
         amountHuman?: string;
+        amountRaw?: string;
         overrideCalls?: { to: Hex; data: Hex; value: Hex }[];
         recipient?: Hex;
         authorizationList?: typeof DELEGATION_RESULT_MOCK.authorizationList;
@@ -3085,7 +3300,7 @@ describe('Relay Quotes Utils', () => {
         getControllerStateMock.mockReturnValue({
           transactionData: {
             [TRANSACTION_ID_MOCK]: {
-              tokens: [{ amountHuman }],
+              tokens: [{ amountHuman, amountRaw }],
             },
           },
         } as never);
@@ -3097,7 +3312,7 @@ describe('Relay Quotes Utils', () => {
         });
       }
 
-      it('sets tradeType to EXACT_OUTPUT and amount from request sourceTokenAmount', async () => {
+      it('sets tradeType to EXACT_OUTPUT and amount from transactionData amountRaw', async () => {
         setupMoneyAccountMocks();
         successfulFetchMock.mockResolvedValue({
           ok: true,
@@ -3116,7 +3331,95 @@ describe('Relay Quotes Utils', () => {
         );
 
         expect(body.tradeType).toBe('EXACT_OUTPUT');
-        expect(body.amount).toBe(QUOTE_REQUEST_MOCK.sourceTokenAmount);
+        expect(body.amount).toBe(AMOUNT_RAW_MOCK);
+      });
+
+      it('uses amountRaw rather than sourceTokenAmount when decimals differ', async () => {
+        const destinationAmountRaw = '100000';
+        const sourceTokenAmountWithDifferentDecimals = '10000000';
+
+        setupMoneyAccountMocks({ amountRaw: destinationAmountRaw });
+        successfulFetchMock.mockResolvedValue({
+          ok: true,
+          json: async () => QUOTE_MOCK,
+        } as never);
+
+        await getRelayQuotes({
+          accountSupports7702: true,
+          messenger,
+          requests: [
+            {
+              ...MONEY_ACCOUNT_REQUEST_MOCK,
+              sourceTokenAmount: sourceTokenAmountWithDifferentDecimals,
+            },
+          ],
+          transaction: MONEY_ACCOUNT_TX_MOCK,
+        });
+
+        const body = JSON.parse(
+          successfulFetchMock.mock.calls[0][1]?.body as string,
+        );
+
+        expect(body.amount).toBe(destinationAmountRaw);
+        expect(body.amount).not.toBe(sourceTokenAmountWithDifferentDecimals);
+      });
+
+      it('defaults amount to 0 when transactionData has no tokens', async () => {
+        getControllerStateMock.mockReturnValue({
+          transactionData: {
+            [TRANSACTION_ID_MOCK]: {},
+          },
+        } as never);
+
+        getPaymentOverrideDataMock.mockResolvedValue({
+          calls: [OVERRIDE_CALL_MOCK],
+        });
+
+        successfulFetchMock.mockResolvedValue({
+          ok: true,
+          json: async () => QUOTE_MOCK,
+        } as never);
+
+        await getRelayQuotes({
+          accountSupports7702: true,
+          messenger,
+          requests: [MONEY_ACCOUNT_REQUEST_MOCK],
+          transaction: MONEY_ACCOUNT_TX_MOCK,
+        });
+
+        const body = JSON.parse(
+          successfulFetchMock.mock.calls[0][1]?.body as string,
+        );
+
+        expect(body.amount).toBe('0');
+      });
+
+      it('defaults amount to 0 when transactionData is missing', async () => {
+        getControllerStateMock.mockReturnValue({
+          transactionData: {},
+        } as never);
+
+        getPaymentOverrideDataMock.mockResolvedValue({
+          calls: [OVERRIDE_CALL_MOCK],
+        });
+
+        successfulFetchMock.mockResolvedValue({
+          ok: true,
+          json: async () => QUOTE_MOCK,
+        } as never);
+
+        await getRelayQuotes({
+          accountSupports7702: true,
+          messenger,
+          requests: [MONEY_ACCOUNT_REQUEST_MOCK],
+          transaction: MONEY_ACCOUNT_TX_MOCK,
+        });
+
+        const body = JSON.parse(
+          successfulFetchMock.mock.calls[0][1]?.body as string,
+        );
+
+        expect(body.amount).toBe('0');
       });
 
       it('includes token transfer and override calls in txs', async () => {

@@ -5,6 +5,7 @@ export type {
   NetworkEnablementControllerGetStateAction,
   NetworkEnablementControllerActions,
   NetworkEnablementControllerEvents,
+  NetworkEnablementControllerStateChangeEvent,
   NetworkEnablementControllerMessenger,
   NativeAssetIdentifier,
   NativeAssetIdentifiersMap,

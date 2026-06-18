@@ -232,7 +232,7 @@ export async function isAtomicBatchSupported(
  *
  * @returns  A unique batch ID as a hexadecimal string.
  */
-function generateBatchId(): Hex {
+export function generateBatchId(): Hex {
   const idString = v4();
   const idBytes = new Uint8Array(parse(idString));
   return bytesToHex(idBytes);

@@ -1005,4 +1005,31 @@ describe('SnapAccountProvider', () => {
       expect(mocks.SnapAccountService.ensureReady).toHaveBeenCalledTimes(1);
     });
   });
+
+  describe('deleteAccount', () => {
+    it('forwards to SnapKeyring.removeAccount(address) using the tracked account address', async () => {
+      const account = MOCK_HD_ACCOUNT_1;
+      const { provider, keyring, messenger } = setup({ accounts: [account] });
+      messenger.registerActionHandler('AccountsController:getAccount', (id) =>
+        id === account.id ? (account as InternalAccount) : undefined,
+      );
+      provider.init([account.id]);
+
+      await provider.deleteAccount(account.id);
+
+      expect(keyring.removeAccount).toHaveBeenCalledWith(account.address);
+      // The provider should no longer track the deleted account.
+      expect(() => provider.getAccount(account.id)).toThrow(
+        `Unable to find account: ${account.id}`,
+      );
+    });
+
+    it('throws if the account is not tracked by the provider', async () => {
+      const { provider } = setup();
+
+      await expect(provider.deleteAccount('unknown-id')).rejects.toThrow(
+        'Unable to find account: unknown-id',
+      );
+    });
+  });
 });
