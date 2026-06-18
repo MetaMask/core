@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `priceFreshnessTtlMs` option to `PriceDataSourceConfig` controlling how long a fetched price is considered fresh before it is re-fetched (defaults to the poll interval, 60 000 ms) ([#9189](https://github.com/MetaMask/core/pull/9189))
+- Add `PriceDataSource.invalidatePriceCache()` to force the next fetch to bypass the freshness cache; `AssetsController` now calls it when the selected currency changes so cached prices in the previous currency are refreshed ([#9189](https://github.com/MetaMask/core/pull/9189))
+
+### Fixed
+
+- Deduplicate price fetches in `PriceDataSource` so overlapping triggers (enrichment middleware, subscription polls, and manual refreshes) no longer issue duplicate price API requests for the same asset; assets fetched within the freshness TTL are skipped and concurrent in-flight fetches are joined ([#9189](https://github.com/MetaMask/core/pull/9189))
+- Remove a redundant one-time balance fetch in `AssetsController` when the enabled network list changes, since subscription refresh and the enabled-networks handler already cover those fetches ([#9189](https://github.com/MetaMask/core/pull/9189))
+
 ## [9.0.2]
 
 ### Changed
