@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add `isDeprecated` option to `TokensController` constructor ([#9186](https://github.com/MetaMask/core/pull/9186))
+  - When `isDeprecated()` returns `true`, no token list enrichment runs and `allTokens`, `allIgnoredTokens`, and `allDetectedTokens` are reset to `{}` at construction and at every entry point (`addToken`, `addTokens`, `ignoreTokens`, `addDetectedTokens`, `updateTokenType`, `watchAsset`, `clearIgnoredTokens`, `NetworkController:stateChange`, and `KeyringController:accountRemoved`), so no stale token data remains in state.
+  - The function is re-evaluated on each entry point so it can be toggled at runtime without reconstructing the controller.
 - Add `isDeprecated` option to `MultichainAssetsRatesController` constructor ([#9044](https://github.com/MetaMask/core/pull/9044))
   - When `isDeprecated()` returns `true`, no Snap requests are sent and `conversionRates` and `historicalPrices` are reset to `{}` at construction and at every entry point (`updateAssetsRates`, `fetchHistoricalPricesForAsset`, `_executePoll`, `CurrencyRateController:stateChange`, and `MultichainAssetsController:accountAssetListUpdated`), so no stale rates remain in state.
   - The function is re-evaluated on each entry point so it can be toggled at runtime without reconstructing the controller.
@@ -3213,7 +3216,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Initial release
+
   - As a result of converting our shared controllers repo into a monorepo ([#831](https://github.com/MetaMask/core/pull/831)), we've created this package from select parts of [`@metamask/controllers` v33.0.0](https://github.com/MetaMask/core/tree/v33.0.0), namely:
+
     - Everything in `src/assets`
     - Asset-related functions from `src/util.ts` and accompanying tests
 
