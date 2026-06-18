@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- Release 1049.0.0 ([#9177](https://github.com/MetaMask/core/pull/9177))
+- Release/1044.0.0 ([#9129](https://github.com/MetaMask/core/pull/9129))
+- Release 1042.0.0 ([#9119](https://github.com/MetaMask/core/pull/9119))
+- Release 1035.0.0 ([#9089](https://github.com/MetaMask/core/pull/9089))
+
 ### Added
 
 - Add Perps Discovery analytics constants to `PERPS_EVENT_PROPERTY` and `PERPS_EVENT_VALUE` so mobile can import them from `@metamask/perps-controller` instead of maintaining a local mirror ([#9178](https://github.com/MetaMask/core/pull/9178))
