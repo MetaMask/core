@@ -7,11 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Changed
-
-- **BREAKING:** Replace `KeyringController:withKeyring` with `KeyringController:withKeyringV2` for the Snap account providers ([#8732](https://github.com/MetaMask/core/pull/8732))
-- Bump `@metamask/eth-snap-keyring` from `^22.0.1` to `^22.1.0` ([#8732](https://github.com/MetaMask/core/pull/8732))
-
 ### Added
 
 - Added `Bip44AccountProvider.deleteAccount(id)` method ([#8960](https://github.com/MetaMask/core/pull/8960))
@@ -24,6 +19,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **BREAKING:** Replace `KeyringController:withKeyring` with `KeyringController:withKeyringV2` for the Snap account providers ([#8732](https://github.com/MetaMask/core/pull/8732))
+- Bump `@metamask/eth-snap-keyring` from `^22.0.1` to `^22.1.0` ([#8732](https://github.com/MetaMask/core/pull/8732))
 - **BREAKING:** `MultichainAccountService.removeMultichainAccountWallet` (and messenger action) now takes a single `entropySource` argument ([#8960](https://github.com/MetaMask/core/pull/8960))
   - The previous `accountAddress` parameter has been removed.
   - All accounts are now unconditionally removed from the wallet and providers (even for disabled `AccountProviderWrapper`).
