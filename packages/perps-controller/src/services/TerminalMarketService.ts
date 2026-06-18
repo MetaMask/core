@@ -229,7 +229,8 @@ export class TerminalMarketService {
         typeof item.marketType === 'string' &&
         VALID_MARKET_TYPES.has(item.marketType)
       ) {
-        entry.marketType = item.marketType as TerminalAssetMetadata['marketType'];
+        entry.marketType =
+          item.marketType as TerminalAssetMetadata['marketType'];
       }
 
       map.set(item.symbol, entry);

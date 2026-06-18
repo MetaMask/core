@@ -374,7 +374,9 @@ describe('TerminalMarketService', () => {
           tags: { feature: 'perps', source: 'terminal-api' },
           context: {
             name: 'TerminalMarketService.getMarkets',
-            data: { url: 'https://terminal.test-api.cx.metamask.io/v1/perpetuals' },
+            data: {
+              url: 'https://terminal.test-api.cx.metamask.io/v1/perpetuals',
+            },
           },
         }),
       );

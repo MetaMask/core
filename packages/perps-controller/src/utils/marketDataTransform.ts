@@ -11,7 +11,11 @@ import {
   getHyperLiquidAssetName,
 } from '../constants/hyperLiquidConfig';
 import { PERPS_CONSTANTS } from '../constants/perpsConfig';
-import type { PerpsMarketData, MarketType, MarketDataFormatters } from '../types';
+import type {
+  PerpsMarketData,
+  MarketType,
+  MarketDataFormatters,
+} from '../types';
 import type {
   AllMidsResponse,
   PerpsUniverse,

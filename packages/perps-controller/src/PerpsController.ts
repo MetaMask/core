@@ -128,10 +128,7 @@ import {
 import { getSelectedEvmAccountFromMessenger } from './utils/accountUtils';
 import { ensureError } from './utils/errorUtils';
 import { parseAssetName } from './utils/hyperLiquidAdapter';
-import {
-  compileMarketPattern,
-  shouldIncludeMarket,
-} from './utils/marketUtils';
+import { compileMarketPattern, shouldIncludeMarket } from './utils/marketUtils';
 import type { CompiledMarketPattern } from './utils/marketUtils';
 import {
   hydrateFromDiskSync,
