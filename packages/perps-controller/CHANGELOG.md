@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Sync `watchlistMarkets` with `AuthenticatedUserStorageService` so the watchlist is persisted server-side per authenticated user account ([#9010](https://github.com/MetaMask/core/pull/9010))
+  - `toggleWatchlistMarket` now performs an optimistic local-state update followed by an async AUS read-merge-write; on failure the local state is reverted.
+  - On `init()`, `state.watchlistMarkets` is hydrated from AUS (source of truth). If no remote watchlist exists yet for the active exchange, any existing local markets are migrated to AUS in a one-time push.
+  - When unauthenticated, or when the active provider is not mapped to an AUS exchange key (e.g. `'aggregated'`), the controller falls back to local-only state without surfacing errors to callers.
+  - `toggleWatchlistMarket` return type changed from `void` to `Promise<void>` to allow callers to await the remote write.
+- Add `resolveWatchlistExchangeKey(activeProvider)` helper that maps a `PerpsActiveProviderMode` to the corresponding `PerpsWatchlistMarkets` exchange key, returning `null` for unsupported modes ([#9010](https://github.com/MetaMask/core/pull/9010))
+
 ## [8.2.0]
 
 ### Added
@@ -18,12 +27,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Extended `PERPS_EVENT_VALUE.INTERACTION_TYPE` with `MARKET_LIST_FILTER`
   - Extended `PERPS_EVENT_VALUE.BUTTON_CLICKED` with `WATCHLIST`, `TOP_MOVERS`, `WHATS_HAPPENING`
   - Extended `PERPS_EVENT_VALUE.BUTTON_LOCATION` with `ASSET_DETAILS`
-- Sync `watchlistMarkets` with `AuthenticatedUserStorageService` so the watchlist is persisted server-side per authenticated user account ([#9010](https://github.com/MetaMask/core/pull/9010))
-  - `toggleWatchlistMarket` now performs an optimistic local-state update followed by an async AUS read-merge-write; on failure the local state is reverted.
-  - On `init()`, `state.watchlistMarkets` is hydrated from AUS (source of truth). If no remote watchlist exists yet for the active exchange, any existing local markets are migrated to AUS in a one-time push.
-  - When unauthenticated, or when the active provider is not mapped to an AUS exchange key (e.g. `'aggregated'`), the controller falls back to local-only state without surfacing errors to callers.
-  - `toggleWatchlistMarket` return type changed from `void` to `Promise<void>` to allow callers to await the remote write.
-- Add `resolveWatchlistExchangeKey(activeProvider)` helper that maps a `PerpsActiveProviderMode` to the corresponding `PerpsWatchlistMarkets` exchange key, returning `null` for unsupported modes ([#9010](https://github.com/MetaMask/core/pull/9010))
 
 ### Changed
 
