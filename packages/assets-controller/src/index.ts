@@ -72,6 +72,8 @@ export type {
   ERC721AssetBalance,
   ERC1155AssetBalance,
   AssetBalance,
+  AccountAssetInfoExtra,
+  GetAccountAssetInfoResponse,
   // Data source types
   AccountWithSupportedChains,
   DataType,
@@ -174,6 +176,19 @@ export {
   formatExchangeRatesForBridge,
   formatStateForTransactionPay,
 } from './utils';
+export {
+  isStellarClassicTrustlineInactiveForDisplay,
+} from './utils/stellar';
+export {
+  isStellarClassicAssetId,
+  isAccountAssetInfoEnrichmentAvailable,
+  filterStellarClassicAssetsForEnrichment,
+  createInvalidatedStellarClassicExtra,
+  mergeAssetBalanceRow,
+  buildEffectiveAccountBalances,
+  GET_ACCOUNT_ASSET_INFO_CLIENT_METHOD,
+} from './utils/account-asset-enrichment';
+export { AccountAssetEnrichmentService } from './services/AccountAssetEnrichmentService';
 export type {
   AccountForLegacyFormat,
   BridgeExchangeRatesFormat,

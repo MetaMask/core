@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add Stellar classic trustline enrichment to `AssetsController` via explicit `refreshAccountAssetInfo` and `invalidateAccountAssetExtras` messenger actions ([#TODO](https://github.com/MetaMask/core/pull/TODO))
+  - Store trustline fields on `FungibleAssetBalance.extra` (`limit`, `authorized`, `sponsored`)
+  - Apply Stellar classic trustline enrichment incrementally per snap batch so successful batches are not blocked by later hung requests ([#TODO](https://github.com/MetaMask/core/pull/TODO))
+  - Batch Stellar classic `getAccountAssetInfo` snap requests and serialize per snap id to avoid mobile snap termination on bulk enrichment ([#TODO](https://github.com/MetaMask/core/pull/TODO))
+  - Refresh Stellar classic trustline enrichment on keyring unlock and after balance sync for tracked classic assets in `assetsBalance` and `customAssets`
+  - `addCustomAsset` triggers async enrichment for Stellar classic assets; `removeCustomAsset` sets `extra.limit` to `'0'`
+  - Export `isStellarClassicTrustlineInactiveForDisplay` for client trustline UX
+
 ### Changed
 
 - Bump `@metamask/transaction-controller` from `^68.1.1` to `^68.2.0` ([#9253](https://github.com/MetaMask/core/pull/9253))

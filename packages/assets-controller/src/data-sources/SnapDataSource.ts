@@ -678,6 +678,17 @@ export class SnapDataSource extends AbstractDataSource<
     }
   }
 
+  /**
+   * Returns the snap id responsible for a given chain, if any.
+   *
+   * @param chainId - CAIP-2 chain id.
+   * @returns Snap id when a keyring snap supports the chain.
+   */
+  getSnapIdForChain(chainId: ChainId): SnapId | undefined {
+    const snapId = this.state.chainToSnap[chainId];
+    return snapId ? (snapId as SnapId) : undefined;
+  }
+
   // ============================================================================
   // KEYRING CLIENT
   // ============================================================================

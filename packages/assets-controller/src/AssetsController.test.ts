@@ -19,6 +19,10 @@ import type {
 } from './AssetsController';
 import type { PriceDataSourceConfig } from './data-sources/PriceDataSource';
 import { PriceDataSource } from './data-sources/PriceDataSource';
+import {
+  ASSETS_PERMISSION,
+  KEYRING_PERMISSION,
+} from './data-sources/SnapDataSource';
 import { TokenDataSource } from './data-sources/TokenDataSource';
 import { buildDefaultAssetsInfo } from './defaults';
 import type {
@@ -29,6 +33,7 @@ import type {
   FungibleAssetMetadata,
 } from './types';
 import { formatExchangeRatesForBridge, normalizeAssetId } from './utils';
+import { GET_ACCOUNT_ASSET_INFO_CLIENT_METHOD } from './utils/account-asset-enrichment';
 
 jest.mock('./utils', () => {
   const actual = jest.requireActual<typeof import('./utils')>('./utils');
@@ -89,6 +94,57 @@ const MOCK_ASSET_ID =
 const MOCK_ASSET_ID_LOWERCASE =
   'eip155:1/erc20:0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48' as Caip19AssetId;
 const MOCK_NATIVE_ASSET_ID = 'eip155:1/slip44:60' as Caip19AssetId;
+const STELLAR_CLASSIC_USDC =
+  'stellar:pubnet/asset:USDC-GA5ZSEJYB37JRC5AVCIA5MOP4RHTM335X2KGX3IHOJAPP5RE34K4KZVN' as Caip19AssetId;
+const STELLAR_SNAP_ID = 'npm:@metamask/stellar-wallet-snap';
+
+function registerStellarSnapMocks(
+  messenger: RootMessenger,
+  handleSnapRequest: jest.Mock,
+): void {
+  (
+    messenger as {
+      registerActionHandler: (a: string, h: (...args: unknown[]) => unknown) => void;
+    }
+  ).registerActionHandler('SnapController:getRunnableSnaps', () => [
+    {
+      id: STELLAR_SNAP_ID,
+      version: '1.0.0',
+      enabled: true,
+      blocked: false,
+    },
+  ]);
+  (
+    messenger as {
+      registerActionHandler: (a: string, h: (...args: unknown[]) => unknown) => void;
+    }
+  ).registerActionHandler('PermissionController:getPermissions', () => ({
+    [KEYRING_PERMISSION]: {
+      id: 'mock-keyring-permission-id',
+      parentCapability: KEYRING_PERMISSION,
+      invoker: 'test',
+      date: Date.now(),
+      caveats: null,
+    },
+    [ASSETS_PERMISSION]: {
+      id: 'mock-assets-permission-id',
+      parentCapability: ASSETS_PERMISSION,
+      invoker: 'test',
+      date: Date.now(),
+      caveats: [
+        {
+          type: 'chainIds',
+          value: ['stellar:pubnet'],
+        },
+      ],
+    },
+  }));
+  (
+    messenger as {
+      registerActionHandler: (a: string, h: (...args: unknown[]) => unknown) => void;
+    }
+  ).registerActionHandler('SnapController:handleRequest', handleSnapRequest);
+}
 
 function createMockInternalAccount(
   overrides?: Partial<InternalAccount>,
@@ -124,6 +180,8 @@ type WithControllerOptions = {
     priceDataSourceConfig: PriceDataSourceConfig;
     isEnabled: () => boolean;
   }>;
+  /** When set, registers Stellar snap mocks before controller construction. */
+  snapHandleRequest?: jest.Mock;
 };
 
 type WithControllerCallback<ReturnValue> = ({
@@ -152,6 +210,7 @@ async function withController<ReturnValue>(
       isBasicFunctionality = (): boolean => true,
       clientControllerState,
       controllerOptions = {},
+      snapHandleRequest,
     },
     fn,
   ]: [WithControllerOptions, WithControllerCallback<ReturnValue>] =
@@ -166,6 +225,10 @@ async function withController<ReturnValue>(
   const messenger: RootMessenger = new Messenger({
     namespace: MOCK_ANY_NAMESPACE,
   });
+
+  if (snapHandleRequest) {
+    registerStellarSnapMocks(messenger, snapHandleRequest);
+  }
 
   // Mock AccountsController
   (
@@ -2355,6 +2418,279 @@ describe('AssetsController', () => {
         [expect.objectContaining({ id: MOCK_ACCOUNT_ID })],
         expect.objectContaining({ forceUpdate: true }),
       );
+    });
+  });
+
+  describe('Stellar classic trustline enrichment', () => {
+    it('preserves extra in merge mode when balance sync is amount-only', async () => {
+      const initialState: Partial<AssetsControllerState> = {
+        assetsBalance: {
+          [MOCK_ACCOUNT_ID]: {
+            [STELLAR_CLASSIC_USDC]: {
+              amount: '1',
+              extra: { limit: '500' },
+            },
+          },
+        },
+      };
+
+      await withController({ state: initialState }, async ({ controller }) => {
+        await controller.handleAssetsUpdate(
+          {
+            assetsBalance: {
+              [MOCK_ACCOUNT_ID]: {
+                [STELLAR_CLASSIC_USDC]: { amount: '2' },
+              },
+            },
+            updateMode: 'merge',
+          },
+          'SnapDataSource',
+        );
+
+        expect(
+          controller.state.assetsBalance[MOCK_ACCOUNT_ID]?.[STELLAR_CLASSIC_USDC],
+        ).toStrictEqual({
+          amount: '2',
+          extra: { limit: '500' },
+        });
+      });
+    });
+
+    it('preserves extra in full mode when balance sync is amount-only', async () => {
+      const initialState: Partial<AssetsControllerState> = {
+        assetsBalance: {
+          [MOCK_ACCOUNT_ID]: {
+            [STELLAR_CLASSIC_USDC]: {
+              amount: '1',
+              extra: { limit: '500' },
+            },
+          },
+        },
+      };
+
+      await withController({ state: initialState }, async ({ controller }) => {
+        await controller.handleAssetsUpdate(
+          {
+            assetsBalance: {
+              [MOCK_ACCOUNT_ID]: {
+                [STELLAR_CLASSIC_USDC]: { amount: '2' },
+              },
+            },
+            updateMode: 'full',
+          },
+          'SnapDataSource',
+        );
+
+        expect(
+          controller.state.assetsBalance[MOCK_ACCOUNT_ID]?.[STELLAR_CLASSIC_USDC],
+        ).toStrictEqual({
+          amount: '2',
+          extra: { limit: '500' },
+        });
+      });
+    });
+
+    it('refreshAccountAssetInfo merges snap trustline extra', async () => {
+      const handleSnapRequest = jest.fn().mockResolvedValue({
+        [STELLAR_CLASSIC_USDC]: { limit: '1000', authorized: true },
+      });
+
+      await withController(
+        {
+          snapHandleRequest: handleSnapRequest,
+          state: {
+            assetsBalance: {
+              [MOCK_ACCOUNT_ID]: {
+                [STELLAR_CLASSIC_USDC]: { amount: '0' },
+              },
+            },
+          },
+        },
+        async ({ controller, messenger }) => {
+          messenger.publish('KeyringController:unlock');
+
+          await controller.refreshAccountAssetInfo(MOCK_ACCOUNT_ID, [
+            STELLAR_CLASSIC_USDC,
+          ]);
+
+          expect(handleSnapRequest).toHaveBeenCalledWith(
+            expect.objectContaining({
+              snapId: STELLAR_SNAP_ID,
+              request: expect.objectContaining({
+                method: GET_ACCOUNT_ASSET_INFO_CLIENT_METHOD,
+              }),
+            }),
+          );
+          expect(
+            controller.state.assetsBalance[MOCK_ACCOUNT_ID]?.[
+              STELLAR_CLASSIC_USDC
+            ],
+          ).toStrictEqual({
+            amount: '0',
+            extra: { limit: '1000', authorized: true },
+          });
+        },
+      );
+    });
+
+    it('invalidateAccountAssetExtras sets limit to zero for Stellar classic assets', async () => {
+      const initialState: Partial<AssetsControllerState> = {
+        assetsBalance: {
+          [MOCK_ACCOUNT_ID]: {
+            [STELLAR_CLASSIC_USDC]: {
+              amount: '5',
+              extra: { limit: '1000', authorized: true, sponsored: false },
+            },
+          },
+        },
+      };
+
+      await withController({ state: initialState }, async ({ controller }) => {
+        controller.invalidateAccountAssetExtras(MOCK_ACCOUNT_ID, [
+          STELLAR_CLASSIC_USDC,
+        ]);
+
+        expect(
+          controller.state.assetsBalance[MOCK_ACCOUNT_ID]?.[STELLAR_CLASSIC_USDC],
+        ).toStrictEqual({
+          amount: '5',
+          extra: { limit: '0', authorized: true, sponsored: false },
+        });
+      });
+    });
+
+    it('addCustomAsset schedules enrichment for Stellar classic assets only', async () => {
+      await withController(async ({ controller }) => {
+        const refreshSpy = jest
+          .spyOn(controller, 'refreshAccountAssetInfo')
+          .mockResolvedValue(undefined);
+
+        await controller.addCustomAsset(MOCK_ACCOUNT_ID, STELLAR_CLASSIC_USDC);
+        await flushPromises();
+
+        expect(refreshSpy).toHaveBeenCalledWith(MOCK_ACCOUNT_ID, [
+          STELLAR_CLASSIC_USDC,
+        ]);
+
+        refreshSpy.mockClear();
+        await controller.addCustomAsset(MOCK_ACCOUNT_ID, MOCK_ASSET_ID);
+        await flushPromises();
+
+        expect(refreshSpy).not.toHaveBeenCalled();
+      });
+    });
+
+    it('does not call snap when keyring is locked', async () => {
+      const handleSnapRequest = jest.fn().mockResolvedValue({
+        [STELLAR_CLASSIC_USDC]: { limit: '1000' },
+      });
+
+      await withController(
+        { snapHandleRequest: handleSnapRequest },
+        async ({ controller }) => {
+          await controller.refreshAccountAssetInfo(MOCK_ACCOUNT_ID, [
+            STELLAR_CLASSIC_USDC,
+          ]);
+
+          expect(handleSnapRequest).not.toHaveBeenCalled();
+        },
+      );
+    });
+
+    it('tolerates snap failures during refreshAccountAssetInfo', async () => {
+      const handleSnapRequest = jest
+        .fn()
+        .mockRejectedValue(new Error('snap failed'));
+
+      await withController(
+        {
+          snapHandleRequest: handleSnapRequest,
+          state: {
+            assetsBalance: {
+              [MOCK_ACCOUNT_ID]: {
+                [STELLAR_CLASSIC_USDC]: { amount: '0' },
+              },
+            },
+          },
+        },
+        async ({ controller, messenger }) => {
+          messenger.publish('KeyringController:unlock');
+
+          await expect(
+            controller.refreshAccountAssetInfo(MOCK_ACCOUNT_ID, [
+              STELLAR_CLASSIC_USDC,
+            ]),
+          ).resolves.toBeUndefined();
+
+          expect(
+            controller.state.assetsBalance[MOCK_ACCOUNT_ID]?.[
+              STELLAR_CLASSIC_USDC
+            ],
+          ).toStrictEqual({ amount: '0' });
+        },
+      );
+    });
+
+    it('schedules refreshAccountAssetInfo for Stellar classic assets in customAssets and assetsBalance on keyring unlock', async () => {
+      await withController(
+        {
+          state: {
+            customAssets: {
+              [MOCK_ACCOUNT_ID]: [STELLAR_CLASSIC_USDC],
+            },
+            assetsBalance: {
+              [MOCK_ACCOUNT_ID]: {
+                [STELLAR_CLASSIC_USDC]: { amount: '1' },
+                'stellar:pubnet/asset:EURC-GDHU6WRG4IEQXM5NZ4BMPKOXHW76MZM4Y2IEMFDVXBSDP6SJY4ITNPP2':
+                  { amount: '0.5' },
+              },
+            },
+          },
+        },
+        async ({ controller, messenger }) => {
+          const refreshSpy = jest
+            .spyOn(controller, 'refreshAccountAssetInfo')
+            .mockResolvedValue(undefined);
+
+          messenger.publish('KeyringController:unlock');
+          await flushPromises();
+
+          expect(refreshSpy).toHaveBeenCalledWith(
+            MOCK_ACCOUNT_ID,
+            expect.arrayContaining([
+              STELLAR_CLASSIC_USDC,
+              'stellar:pubnet/asset:EURC-GDHU6WRG4IEQXM5NZ4BMPKOXHW76MZM4Y2IEMFDVXBSDP6SJY4ITNPP2',
+            ]),
+          );
+        },
+      );
+    });
+
+    it('removeCustomAsset invalidates trustline extra', async () => {
+      const initialState: Partial<AssetsControllerState> = {
+        customAssets: {
+          [MOCK_ACCOUNT_ID]: [STELLAR_CLASSIC_USDC],
+        },
+        assetsBalance: {
+          [MOCK_ACCOUNT_ID]: {
+            [STELLAR_CLASSIC_USDC]: {
+              amount: '0',
+              extra: { limit: '1000' },
+            },
+          },
+        },
+      };
+
+      await withController({ state: initialState }, async ({ controller }) => {
+        controller.removeCustomAsset(MOCK_ACCOUNT_ID, STELLAR_CLASSIC_USDC);
+
+        expect(
+          controller.state.assetsBalance[MOCK_ACCOUNT_ID]?.[STELLAR_CLASSIC_USDC],
+        ).toStrictEqual({
+          amount: '0',
+          extra: { limit: '0' },
+        });
+      });
     });
   });
 });

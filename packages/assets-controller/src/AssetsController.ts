@@ -48,6 +48,7 @@ import type {
   SnapControllerHandleRequestAction,
   SnapControllerSnapInstalledEvent,
 } from '@metamask/snaps-controllers';
+import type { SnapId } from '@metamask/snaps-sdk';
 import type {
   TransactionControllerTransactionConfirmedEvent,
   TransactionControllerUnapprovedTransactionAddedEvent,
@@ -102,6 +103,7 @@ import {
   createParallelMiddleware,
 } from './middlewares/ParallelMiddleware';
 import { RpcFallbackMiddleware } from './middlewares/RpcFallbackMiddleware';
+import { AccountAssetEnrichmentService } from './services/AccountAssetEnrichmentService';
 import type {
   AccountId,
   AssetPreferences,
@@ -125,7 +127,14 @@ import type {
   Middleware,
   SubscriptionResponse,
   Asset,
+  GetAccountAssetInfoResponse,
 } from './types';
+import {
+  buildEffectiveAccountBalances,
+  createInvalidatedStellarClassicExtra,
+  filterStellarClassicAssetsForEnrichment,
+  isStellarClassicAssetId,
+} from './utils/account-asset-enrichment';
 import {
   normalizeAmountString,
   normalizeAssetId,
@@ -183,6 +192,8 @@ const MESSENGER_EXPOSED_METHODS = [
   'hideAsset',
   'unhideAsset',
   'setSelectedCurrency',
+  'refreshAccountAssetInfo',
+  'invalidateAccountAssetExtras',
 ] as const;
 
 /** Default polling interval hint for data sources (30 seconds) */
@@ -773,6 +784,8 @@ export class AssetsController extends BaseController<
 
   readonly #tokenDataSource: TokenDataSource;
 
+  readonly #accountAssetEnrichmentService: AccountAssetEnrichmentService;
+
   #unsubscribeBasicFunctionality: (() => void) | null = null;
 
   readonly #queryApiClient: ApiPlatformClient;
@@ -849,6 +862,14 @@ export class AssetsController extends BaseController<
     this.#snapDataSource = new SnapDataSource({
       messenger: this.messenger,
       onActiveChainsUpdated: this.#onActiveChainsUpdated,
+    });
+    this.#accountAssetEnrichmentService = new AccountAssetEnrichmentService({
+      handleSnapRequest: async (
+        params,
+      ): Promise<unknown> =>
+        this.messenger.call('SnapController:handleRequest', params),
+      getSnapIdForChain: (chainId): SnapId | undefined =>
+        this.#snapDataSource.getSnapIdForChain(chainId),
     });
     this.#rpcDataSource = new RpcDataSource({
       messenger: this.messenger,
@@ -1079,6 +1100,7 @@ export class AssetsController extends BaseController<
     this.messenger.subscribe('KeyringController:unlock', () => {
       this.#keyringUnlocked = true;
       this.#updateActive();
+      this.#scheduleStellarClassicAssetEnrichmentRefresh();
     });
     this.messenger.subscribe('KeyringController:lock', () => {
       this.#keyringUnlocked = false;
@@ -1751,6 +1773,10 @@ export class AssetsController extends BaseController<
     // Re-evaluate subscriptions so the supplemental RPC poll picks up the
     // new customAsset on chains another data source already owns.
     this.#subscribeAssets();
+
+    if (isStellarClassicAssetId(normalizedAssetId)) {
+      this.#scheduleAccountAssetInfoRefresh(accountId, [normalizedAssetId]);
+    }
   }
 
   /**
@@ -1777,6 +1803,8 @@ export class AssetsController extends BaseController<
       }
     });
 
+    this.invalidateAccountAssetExtras(accountId, [normalizedAssetId]);
+
     // Re-evaluate subscriptions so the supplemental RPC poll for that chain
     // is torn down when no more customAssets remain there.
     this.#subscribeAssets();
@@ -1790,6 +1818,180 @@ export class AssetsController extends BaseController<
    */
   getCustomAssets(accountId: AccountId): Caip19AssetId[] {
     return this.state.customAssets[accountId] ?? [];
+  }
+
+  // ============================================================================
+  // ACCOUNT-ASSET ENRICHMENT (Stellar classic trustline)
+  // ============================================================================
+
+  /**
+   * Fetches and merges snap account-asset enrichment for eligible assets.
+   * Only Stellar classic `asset:` tokens on enrichment-enabled chains are processed.
+   * No-ops when the keyring is locked or the snap request fails.
+   *
+   * @param accountId - Internal account UUID.
+   * @param assetIds - CAIP-19 asset ids to enrich.
+   */
+  async refreshAccountAssetInfo(
+    accountId: AccountId,
+    assetIds: Caip19AssetId[],
+  ): Promise<void> {
+    if (!this.#keyringUnlocked || assetIds.length === 0) {
+      return;
+    }
+
+    const assetsByChain = new Map<ChainId, Caip19AssetId[]>();
+
+    for (const assetId of assetIds) {
+      const normalizedAssetId = normalizeAssetId(assetId);
+      let chainId: ChainId;
+      try {
+        chainId = extractChainId(normalizedAssetId);
+      } catch {
+        continue;
+      }
+
+      const eligible = filterStellarClassicAssetsForEnrichment(
+        [normalizedAssetId],
+        chainId,
+      );
+      if (eligible.length === 0) {
+        continue;
+      }
+
+      const chainAssets = assetsByChain.get(chainId) ?? [];
+      chainAssets.push(normalizedAssetId);
+      assetsByChain.set(chainId, chainAssets);
+    }
+
+    for (const [chainId, chainAssetIds] of assetsByChain) {
+      await this.#accountAssetEnrichmentService.fetchExtras({
+        accountId,
+        chainId,
+        assetIds: chainAssetIds,
+        onBatchExtras: (batchExtras) => {
+          this.#applyAccountAssetExtras(accountId, batchExtras);
+        },
+      });
+    }
+  }
+
+  /**
+   * Marks Stellar classic trustline enrichment as inactive for the given assets.
+   * Sets `extra.limit` to `'0'` rather than deleting `extra`, so UI can distinguish
+   * inactive trustlines from not-yet-enriched state.
+   *
+   * @param accountId - Internal account UUID.
+   * @param assetIds - CAIP-19 asset ids to invalidate.
+   */
+  invalidateAccountAssetExtras(
+    accountId: AccountId,
+    assetIds: Caip19AssetId[],
+  ): void {
+    if (assetIds.length === 0) {
+      return;
+    }
+
+    this.update((state) => {
+      const balances = state.assetsBalance as Record<
+        string,
+        Record<string, AssetBalance>
+      >;
+      balances[accountId] ??= {};
+
+      for (const assetId of assetIds) {
+        const normalizedAssetId = normalizeAssetId(assetId);
+        if (!isStellarClassicAssetId(normalizedAssetId)) {
+          continue;
+        }
+
+        const existing = balances[accountId][normalizedAssetId] as
+          | { amount: string; extra?: GetAccountAssetInfoResponse[Caip19AssetId] }
+          | undefined;
+
+        balances[accountId][normalizedAssetId] = {
+          amount: existing?.amount ?? '0',
+          extra: createInvalidatedStellarClassicExtra(existing?.extra),
+        };
+      }
+    });
+  }
+
+  /**
+   * Merges snap enrichment fields into balance rows.
+   *
+   * @param accountId - Internal account UUID.
+   * @param extras - Per-asset enrichment from getAccountAssetInfo.
+   */
+  #applyAccountAssetExtras(
+    accountId: AccountId,
+    extras: GetAccountAssetInfoResponse,
+  ): void {
+    this.update((state) => {
+      const balances = state.assetsBalance as Record<
+        string,
+        Record<string, AssetBalance>
+      >;
+      balances[accountId] ??= {};
+
+      for (const [assetId, extra] of Object.entries(extras)) {
+        const normalizedAssetId = normalizeAssetId(assetId as Caip19AssetId);
+        const existing = balances[accountId][normalizedAssetId] ?? {
+          amount: '0',
+        };
+        balances[accountId][normalizedAssetId] = {
+          ...existing,
+          extra,
+        };
+      }
+    });
+  }
+
+  /**
+   * Fire-and-forget wrapper for {@link refreshAccountAssetInfo}.
+   *
+   * @param accountId - Internal account UUID.
+   * @param assetIds - CAIP-19 asset ids to enrich.
+   */
+  #scheduleAccountAssetInfoRefresh(
+    accountId: AccountId,
+    assetIds: Caip19AssetId[],
+  ): void {
+    this.refreshAccountAssetInfo(accountId, assetIds).catch((error) => {
+      log('Failed to refresh account asset info', {
+        accountId,
+        assetIds,
+        error,
+      });
+    });
+  }
+
+  /**
+   * Refreshes Stellar classic trustline enrichment for tracked assets when the
+   * wallet becomes active (unlock / post-balance-sync start).
+   */
+  #scheduleStellarClassicAssetEnrichmentRefresh(): void {
+    const accountIds = new Set([
+      ...Object.keys(this.state.customAssets),
+      ...Object.keys(this.state.assetsBalance),
+    ]);
+
+    for (const accountId of accountIds) {
+      const fromCustom = this.state.customAssets[accountId] ?? [];
+      const fromBalances = Object.keys(
+        this.state.assetsBalance[accountId] ?? {},
+      ) as Caip19AssetId[];
+
+      const stellarClassicAssetIds = [
+        ...new Set([...fromCustom, ...fromBalances]),
+      ].filter((assetId) => isStellarClassicAssetId(assetId));
+
+      if (stellarClassicAssetIds.length === 0) {
+        continue;
+      }
+
+      this.#scheduleAccountAssetInfoRefresh(accountId, stellarClassicAssetIds);
+    }
   }
 
   // ============================================================================
@@ -2320,41 +2522,15 @@ export class AssetsController extends BaseController<
             //   previous state so unsupported chains (e.g. Ink on AccountsAPI)
             //   are never inadvertently reset to zero.
             // Merge: response overlays previous balances.
-            const effective: Record<string, AssetBalance> =
-              mode === 'merge'
-                ? { ...previousBalances, ...filteredAccountBalances }
-                : ((): Record<string, AssetBalance> => {
-                    // Determine which chain namespaces this response covers.
-                    const coveredChains = new Set(
-                      Object.keys(filteredAccountBalances).map(
-                        (assetId) => assetId.split('/')[0],
-                      ),
-                    );
 
-                    // Start from previous balances, dropping only entries for
-                    // chains this response is authoritative over.
-                    const next: Record<string, AssetBalance> = {};
-                    for (const [assetId, balance] of Object.entries(
-                      previousBalances,
-                    )) {
-                      if (!coveredChains.has(assetId.split('/')[0])) {
-                        next[assetId] = balance;
-                      }
-                    }
-
-                    // Apply the response (authoritative for covered chains).
-                    Object.assign(next, filteredAccountBalances);
-
-                    // Preserve custom assets that the response omitted.
-                    for (const customId of customAssetIds) {
-                      if (!(customId in next)) {
-                        const prev = previousBalances[customId];
-                        next[customId] =
-                          prev ?? ({ amount: '0' } as AssetBalance);
-                      }
-                    }
-                    return next;
-                  })();
+            // Per-row merge preserves account-asset enrichment (e.g. Stellar
+            // trustline extra) when balance sources send amount-only rows.
+            const effective = buildEffectiveAccountBalances(
+              previousBalances,
+              filteredAccountBalances,
+              mode,
+              customAssetIds,
+            );
 
             // Ensure native tokens have an entry (0 if missing) for chains this account supports
             const account = this.#getSelectedAccounts().find(
@@ -2657,9 +2833,14 @@ export class AssetsController extends BaseController<
     this.getAssets(accounts, {
       chainIds,
       forceUpdate: true,
-    }).catch((error) => {
-      log('Failed to fetch assets', error);
-    });
+    })
+      .then(() => {
+        this.#scheduleStellarClassicAssetEnrichmentRefresh();
+        return undefined;
+      })
+      .catch((error) => {
+        log('Failed to fetch assets', error);
+      });
   }
 
   /**
