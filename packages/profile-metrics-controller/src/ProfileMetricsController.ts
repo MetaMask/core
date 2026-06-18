@@ -259,10 +259,7 @@ export class ProfileMetricsController extends StaticIntervalPollingController()<
         // it must have opted in during onboarding, or during a previous session.
         this.skipInitialDelay();
       }
-      this.#queueFirstSyncIfNeeded().catch(
-        this.messenger.captureException ?? console.error,
-      );
-      this.#backfillProofsIfNeeded().catch(
+      this.#enqueueAccountsIfNeeded().catch(
         this.messenger.captureException ?? console.error,
       );
       this.startPolling(null);
@@ -466,72 +463,48 @@ export class ProfileMetricsController extends StaticIntervalPollingController()<
   }
 
   /**
-   * Add existing accounts to the sync queue if it has not been done yet.
+   * Enqueue all currently-known accounts onto the sync queue if needed.
+   * Single entry point covering both the fresh-install first sync and
+   * the one-time proof-of-ownership backfill for users upgrading.
    *
-   * This method ensures that the first sync is only executed once,
-   * and only if the user has opted in to user profile features.
+   * - Fresh install (`initialEnqueueCompleted` false): always enqueue,
+   *   even for opted-out users, so the queue is ready if they opt in
+   *   mid-session.
+   * - Upgrade (`initialEnqueueCompleted` true, `proofBackfillCompleted`
+   *   false): only enqueue if the user is opted in, since the poll
+   *   wouldn't drain the queue otherwise.
+   * - Already done (`proofBackfillCompleted` true): no-op.
+   *
+   * Both flags are flipped on every successful run so this becomes a
+   * permanent no-op for the lifetime of the install.
    */
-  async #queueFirstSyncIfNeeded(): Promise<void> {
+  async #enqueueAccountsIfNeeded(): Promise<void> {
     await this.#mutex.runExclusive(async () => {
-      if (this.state.initialEnqueueCompleted) {
+      if (this.state.proofBackfillCompleted) {
         return;
       }
-      this.#enqueueAllAccounts((state) => {
+      if (this.state.initialEnqueueCompleted && !this.#assertUserOptedIn()) {
+        return;
+      }
+      const groupedAccounts = groupAccountsByEntropySourceId(
+        Object.values(
+          this.messenger.call('AccountsController:getState').internalAccounts
+            .accounts,
+        ),
+      );
+      this.update((state) => {
+        // Replace the queue rather than append. `AccountsController` is
+        // the source of truth and the queue is otherwise kept in sync
+        // with it via the `accountAdded` / `accountRemoved` subscriptions,
+        // so assigning here avoids duplicating entries that survived from
+        // a prior session or were pushed earlier in this same unlock
+        // cycle. Duplicates would matter because nonces are single-use:
+        // letting one through causes `#attachProofs` to sign and submit
+        // twice with the same nonce.
+        state.syncQueue = groupedAccounts;
         state.initialEnqueueCompleted = true;
-        // Fresh installs don't need a proof-of-ownership backfill — the
-        // accounts enqueued here are being synced for the first time and
-        // will carry their proofs from the first poll.
         state.proofBackfillCompleted = true;
       });
-    });
-  }
-
-  /**
-   * Re-enqueue all known accounts so their proofs of ownership are
-   * submitted alongside everything else. Triggered on the first unlock
-   * after upgrading to a version that signs proofs; no-op for fresh
-   * installs (the first sync already enqueues with proofs) and for users
-   * who haven't opted in to profile metrics.
-   */
-  async #backfillProofsIfNeeded(): Promise<void> {
-    await this.#mutex.runExclusive(async () => {
-      if (this.state.proofBackfillCompleted || !this.#assertUserOptedIn()) {
-        return;
-      }
-      this.#enqueueAllAccounts((state) => {
-        state.proofBackfillCompleted = true;
-      });
-    });
-  }
-
-  /**
-   * Enqueue every currently-known account onto the sync queue (grouped by
-   * entropy source ID) and apply `setFlags` in the same atomic update.
-   * Submissions are idempotent at the auth API, so this intentionally
-   * does not dedupe against existing queue contents. Must be called while
-   * holding `this.#mutex`.
-   *
-   * @param setFlags - Mutates the state to flip any completion flags
-   * associated with this enqueue (e.g. `initialEnqueueCompleted`,
-   * `proofBackfillCompleted`).
-   */
-  #enqueueAllAccounts(
-    setFlags: (state: ProfileMetricsControllerState) => void,
-  ): void {
-    const groupedAccounts = groupAccountsByEntropySourceId(
-      Object.values(
-        this.messenger.call('AccountsController:getState').internalAccounts
-          .accounts,
-      ),
-    );
-    this.update((state) => {
-      for (const key of Object.keys(groupedAccounts)) {
-        if (!state.syncQueue[key]) {
-          state.syncQueue[key] = [];
-        }
-        state.syncQueue[key].push(...groupedAccounts[key]);
-      }
-      setFlags(state);
     });
   }
 

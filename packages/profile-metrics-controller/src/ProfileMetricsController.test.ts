@@ -90,9 +90,9 @@ describe('ProfileMetricsController', () => {
         );
       });
 
-      describe('when `initialEnqueueCompleted` is false', () => {
+      describe('when `initialEnqueueCompleted` is false (fresh install)', () => {
         it.each([{ assertUserOptedIn: true }, { assertUserOptedIn: false }])(
-          'adds existing accounts to the queue when `assertUserOptedIn` is $assertUserOptedIn',
+          'enqueues existing accounts and flips both completion flags when `assertUserOptedIn` is $assertUserOptedIn',
           async ({ assertUserOptedIn }) => {
             await withController(
               { options: { assertUserOptedIn: () => assertUserOptedIn } },
@@ -107,6 +107,10 @@ describe('ProfileMetricsController', () => {
                 await Promise.resolve();
 
                 expect(controller.state.initialEnqueueCompleted).toBe(true);
+                // Fresh installs satisfy the proof backfill in the same
+                // enqueue — accounts are queued with proofs in mind from
+                // the very first poll.
+                expect(controller.state.proofBackfillCompleted).toBe(true);
                 expect(controller.state.syncQueue).toStrictEqual({
                   'entropy-0xAccount1': [
                     { address: '0xAccount1', scopes: ['eip155:1'] },
@@ -170,12 +174,7 @@ describe('ProfileMetricsController', () => {
               ]);
 
               rootMessenger.publish('KeyringController:unlock');
-              // Drain enough microtasks for both mutex-guarded sync hooks
-              // (`#queueFirstSyncIfNeeded` then `#backfillProofsIfNeeded`)
-              // to settle.
-              for (let i = 0; i < 5; i++) {
-                await Promise.resolve();
-              }
+              await Promise.resolve();
 
               expect(controller.state.proofBackfillCompleted).toBe(true);
               expect(controller.state.syncQueue).toStrictEqual({
@@ -208,22 +207,39 @@ describe('ProfileMetricsController', () => {
           );
         });
 
-        it('flips the backfill flag without enqueueing twice on a fresh install (first sync also satisfies the backfill)', async () => {
+        it('does not duplicate accounts already pending in the queue (nonces are single-use)', async () => {
           await withController(
-            { options: { assertUserOptedIn: () => true } },
+            {
+              options: {
+                assertUserOptedIn: () => true,
+                state: {
+                  initialEnqueueCompleted: true,
+                  // Simulate an `accountAdded` event having queued one of
+                  // the accounts between session start and this backfill.
+                  syncQueue: {
+                    'entropy-0xAccount1': [
+                      { address: '0xAccount1', scopes: ['eip155:1'] },
+                    ],
+                  },
+                },
+              },
+            },
             async ({ controller, rootMessenger, registerAccounts }) => {
-              registerAccounts([createMockAccount('0xAccount1')]);
+              registerAccounts([
+                createMockAccount('0xAccount1'),
+                createMockAccount('0xAccount2'),
+              ]);
 
               rootMessenger.publish('KeyringController:unlock');
               await Promise.resolve();
 
-              expect(controller.state.initialEnqueueCompleted).toBe(true);
               expect(controller.state.proofBackfillCompleted).toBe(true);
-              // Each account should appear exactly once even though both
-              // first-sync and backfill ran on this same unlock.
               expect(controller.state.syncQueue).toStrictEqual({
                 'entropy-0xAccount1': [
                   { address: '0xAccount1', scopes: ['eip155:1'] },
+                ],
+                'entropy-0xAccount2': [
+                  { address: '0xAccount2', scopes: ['eip155:1'] },
                 ],
               });
             },
