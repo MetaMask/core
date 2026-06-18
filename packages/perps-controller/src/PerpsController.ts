@@ -2926,12 +2926,19 @@ export class PerpsController extends BaseController<
   async getMarkets(params?: GetMarketsParams): Promise<MarketInfo[]> {
     // For standalone mode, access provider directly without initialization check
     // This allows discovery use cases (checking if market exists) without full perps setup
+    const useTerminal = params?.useTerminalApi === true;
+
     if (params?.standalone) {
       // Use activeProviderInstance if available (respects provider abstraction)
       // Fallback to cached standalone provider for pre-initialization discovery
       const provider =
         this.activeProviderInstance ?? this.#getOrCreateStandaloneProvider();
-      return provider.getMarkets(params);
+      return this.#marketDataService.getMarkets({
+        provider,
+        params,
+        context: this.#createServiceContext('getMarkets'),
+        useTerminalApi: useTerminal,
+      });
     }
 
     const provider = this.getActiveProvider();
@@ -2939,7 +2946,7 @@ export class PerpsController extends BaseController<
       provider,
       params,
       context: this.#createServiceContext('getMarkets'),
-      useTerminalApi: params?.useTerminalApi === true,
+      useTerminalApi: useTerminal,
     });
   }
 

@@ -766,6 +766,12 @@ export class MarketDataService {
           const { markets: terminalMarkets } =
             await this.#terminalMarketService.fetchMarkets();
           if (terminalMarkets.length > 0) {
+            const filtered = params?.symbols?.length
+              ? terminalMarkets.filter((market) =>
+                  (params.symbols as string[]).includes(market.name),
+                )
+              : terminalMarkets;
+
             if (context.stateManager) {
               context.stateManager.update((state) => {
                 state.lastError = null;
@@ -773,7 +779,7 @@ export class MarketDataService {
               });
             }
             traceData = { success: true };
-            return terminalMarkets;
+            return filtered;
           }
         } catch (terminalError) {
           this.#terminalMarketService.logError(terminalError, 'getMarkets');
