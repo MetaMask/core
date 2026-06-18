@@ -1,10 +1,10 @@
+import type { DeployedContractsByName } from '@metamask/7715-permission-types';
 import { encodeSingle, decodeSingle } from '@metamask/abi-utils';
 import { decodeDelegations, hashDelegation } from '@metamask/delegation-core';
 import type { Delegation } from '@metamask/delegation-core';
 import { bytesToHex, getChecksumAddress, hexToNumber } from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
 
-import type { DeployedContractsByName } from './decodePermission/types';
 import {
   extractExpiryFromCaveatTerms,
   getChecksumEnforcersByChainId,
