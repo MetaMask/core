@@ -1215,7 +1215,13 @@ function getQuoteUser(
   const hasAccountOverride =
     txParamsFrom && from.toLowerCase() !== txParamsFrom.toLowerCase();
 
-  return isSameSourceAndTarget && hasAccountOverride ? txParamsFrom : from;
+  const recipient = request.recipient ?? from;
+  const isRecipientAccountOverride =
+    recipient.toLowerCase() === from.toLowerCase();
+
+  return isSameSourceAndTarget && hasAccountOverride && isRecipientAccountOverride
+    ? txParamsFrom
+    : from;
 }
 
 function getSubsidizedFeeAmountUsd(quote: RelayQuote): BigNumber {
