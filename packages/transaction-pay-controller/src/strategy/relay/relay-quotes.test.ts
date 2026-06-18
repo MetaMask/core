@@ -1411,45 +1411,6 @@ describe('Relay Quotes Utils', () => {
       expect(body.user).toBe(txParamsFrom);
     });
 
-    it('keeps user as from when same token and chain with accountOverride and isPostQuote', async () => {
-      const txParamsFrom = '0xOriginalSender000000000000000000000000' as Hex;
-      const accountOverride =
-        '0xOverrideAccount0000000000000000000000000' as Hex;
-      const tokenAddress = '0xTokenAddress00000000000000000000000000' as Hex;
-      const chainId = '0x89' as Hex;
-
-      successfulFetchMock.mockResolvedValue({
-        ok: true,
-        json: async () => QUOTE_MOCK,
-      } as never);
-
-      await getRelayQuotes({
-        accountSupports7702: true,
-        messenger,
-        requests: [
-          {
-            ...QUOTE_REQUEST_MOCK,
-            from: accountOverride,
-            isPostQuote: true,
-            sourceChainId: chainId,
-            sourceTokenAddress: tokenAddress,
-            targetChainId: chainId,
-            targetTokenAddress: tokenAddress,
-          },
-        ],
-        transaction: {
-          ...TRANSACTION_META_MOCK,
-          txParams: { from: txParamsFrom },
-        } as TransactionMeta,
-      });
-
-      const body = JSON.parse(
-        successfulFetchMock.mock.calls[0][1]?.body as string,
-      );
-
-      expect(body.user).toBe(accountOverride);
-    });
-
     it('keeps user as from when same token and chain with accountOverride but recipient differs', async () => {
       const txParamsFrom = '0xOriginalSender000000000000000000000000' as Hex;
       const accountOverride =
