@@ -1,9 +1,9 @@
+import type { DeployedContractsByName } from '@metamask/7715-permission-types';
 import type { Caveat } from '@metamask/delegation-core';
 import { getChecksumAddress } from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
 
 import { createPermissionDecodersForContracts } from './decoders';
-import type { DeployedContractsByName } from './types';
 import {
   extractExpiryFromCaveatTerms,
   getChecksumEnforcersByChainId,

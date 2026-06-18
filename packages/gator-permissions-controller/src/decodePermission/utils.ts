@@ -1,11 +1,9 @@
+import type { DeployedContractsByName } from '@metamask/7715-permission-types';
 import type { Caveat } from '@metamask/delegation-core';
 import { getChecksumAddress, hexToNumber } from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
 
-import type {
-  ChecksumEnforcersByChainId,
-  DeployedContractsByName,
-} from './types';
+import type { ChecksumEnforcersByChainId } from './types';
 
 /**
  * The names of the enforcer contracts for each permission type.

@@ -9,11 +9,7 @@ import type {
   ApprovalRevocationTerms,
   Caveat,
 } from '@metamask/delegation-core';
-import type { DELEGATOR_CONTRACTS } from '@metamask/delegation-deployments';
 import type { Hex } from '@metamask/utils';
-
-export type DeployedContractsByName =
-  (typeof DELEGATOR_CONTRACTS)[number][number];
 
 /**
  * Permission type for an unbounded ERC-20 token allowance.
