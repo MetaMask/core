@@ -461,7 +461,7 @@ export abstract class SnapAccountProvider extends BaseBip44AccountProvider {
     const account = this.getAccount(id);
 
     await this.#withSnapKeyring(async ({ keyring }) => {
-      await keyring.removeAccount(account.address);
+      await keyring.deleteAccount(account.id);
     });
 
     this.accounts.delete(id);

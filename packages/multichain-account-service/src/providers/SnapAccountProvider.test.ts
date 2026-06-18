@@ -1007,7 +1007,7 @@ describe('SnapAccountProvider', () => {
   });
 
   describe('deleteAccount', () => {
-    it('forwards to SnapKeyring.removeAccount(address) using the tracked account address', async () => {
+    it('forwards to SnapKeyring.deleteAccount(id) using the tracked account id', async () => {
       const account = MOCK_HD_ACCOUNT_1;
       const { provider, keyring, messenger } = setup({ accounts: [account] });
       messenger.registerActionHandler('AccountsController:getAccount', (id) =>
@@ -1017,7 +1017,7 @@ describe('SnapAccountProvider', () => {
 
       await provider.deleteAccount(account.id);
 
-      expect(keyring.removeAccount).toHaveBeenCalledWith(account.address);
+      expect(keyring.deleteAccount).toHaveBeenCalledWith(account.id);
       // The provider should no longer track the deleted account.
       expect(() => provider.getAccount(account.id)).toThrow(
         `Unable to find account: ${account.id}`,
