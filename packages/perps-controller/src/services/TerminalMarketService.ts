@@ -10,7 +10,7 @@ import {
   type,
 } from '@metamask/superstruct';
 
-import { TERMINAL_API_CONFIG } from '../constants/perpsConfig';
+import { PERPS_CONSTANTS, TERMINAL_API_CONFIG } from '../constants/perpsConfig';
 import type {
   MarketInfo,
   MarketType,
@@ -101,6 +101,12 @@ export class TerminalMarketService {
       };
     }
 
+    if (!this.#deps.terminalApiBaseUrl) {
+      throw new Error(
+        'Terminal API base URL not configured (terminalApiBaseUrl is required)',
+      );
+    }
+
     const url = `${this.#deps.terminalApiBaseUrl}${TERMINAL_API_CONFIG.PerpetualPath}`;
     const response = await fetch(url, {
       method: 'GET',
@@ -154,7 +160,7 @@ export class TerminalMarketService {
             'TerminalMarketService.validateItems',
           ),
           {
-            tags: { feature: 'perps', source: 'terminal-api' },
+            tags: { feature: PERPS_CONSTANTS.FeatureName, source: 'terminal-api' },
             context: {
               name: 'TerminalMarketService.validateItems',
               data: {
@@ -246,7 +252,7 @@ export class TerminalMarketService {
     this.#deps.logger.error(
       ensureError(error, `TerminalMarketService.${method}`),
       {
-        tags: { feature: 'perps', source: 'terminal-api' },
+        tags: { feature: PERPS_CONSTANTS.FeatureName, source: 'terminal-api' },
         context: {
           name: `TerminalMarketService.${method}`,
           data: { url: this.#deps.terminalApiBaseUrl },

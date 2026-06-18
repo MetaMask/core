@@ -822,7 +822,6 @@ describe('PerpsController', () => {
         provider: mockProvider,
         params: undefined,
         context: expect.any(Object),
-        useTerminalApi: expect.any(Boolean),
       });
     });
   });

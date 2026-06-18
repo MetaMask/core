@@ -59,15 +59,16 @@ export class MarketDataService {
    * Create a new MarketDataService instance
    *
    * @param deps - Platform dependencies for logging, metrics, etc.
-   * @param terminalMarketService - Optional terminal market service for
+   * @param deps.terminalMarketService - Optional terminal market service for
    * fetching market data from the Terminal API.
    */
   constructor(
-    deps: PerpsPlatformDependencies,
-    terminalMarketService?: TerminalMarketService,
+    deps: PerpsPlatformDependencies & {
+      terminalMarketService?: TerminalMarketService;
+    },
   ) {
     this.#deps = deps;
-    this.#terminalMarketService = terminalMarketService;
+    this.#terminalMarketService = deps.terminalMarketService;
   }
 
   /**
@@ -729,16 +730,15 @@ export class MarketDataService {
    * @param options.provider - The perps provider instance.
    * @param options.params - The operation parameters.
    * @param options.context - The service context for dependencies.
-   * @param options.useTerminalApi - When true, attempt Terminal API before provider.
    * @returns The result of the operation.
    */
   async getMarkets(options: {
     provider: PerpsProvider;
     params?: GetMarketsParams;
     context: ServiceContext;
-    useTerminalApi?: boolean;
   }): Promise<MarketInfo[]> {
-    const { provider, params, context, useTerminalApi } = options;
+    const { provider, params, context } = options;
+    const useTerminalApi = params?.useTerminalApi;
     const traceId = uuidv4();
     let traceData: { success: boolean; error?: string } | undefined;
 
@@ -855,16 +855,15 @@ export class MarketDataService {
    * @param options.provider - The perps provider instance.
    * @param options.params - Optional filter/sort/limit params.
    * @param options.context - The service context for dependencies.
-   * @param options.useTerminalApi - When true, enrich with Terminal API metadata.
    * @returns The result of the operation.
    */
   async getMarketDataWithPrices(options: {
     provider: PerpsProvider;
     params?: GetMarketDataWithPricesParams;
     context: ServiceContext;
-    useTerminalApi?: boolean;
   }): Promise<PerpsMarketData[]> {
-    const { provider, params, context, useTerminalApi } = options;
+    const { provider, params, context } = options;
+    const useTerminalApi = params?.useTerminalApi;
     const traceId = uuidv4();
     let traceData: { success: boolean; error?: string } | undefined;
 

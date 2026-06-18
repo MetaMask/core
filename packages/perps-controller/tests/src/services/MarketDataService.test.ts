@@ -42,7 +42,7 @@ describe('MarketDataService', () => {
     mockProvider =
       createMockHyperLiquidProvider() as unknown as jest.Mocked<PerpsProvider>;
     mockDeps = createMockInfrastructure();
-    marketDataService = new MarketDataService(mockDeps);
+    marketDataService = new MarketDataService({ ...mockDeps });
     mockContext = createMockServiceContext({
       errorContext: { controller: 'MarketDataService', method: 'test' },
     });
@@ -1165,10 +1165,10 @@ describe('MarketDataService', () => {
         logError: jest.fn(),
       } as unknown as jest.Mocked<TerminalMarketService>;
 
-      serviceWithTerminal = new MarketDataService(
-        mockDeps,
-        mockTerminalService,
-      );
+      serviceWithTerminal = new MarketDataService({
+        ...mockDeps,
+        terminalMarketService: mockTerminalService,
+      });
     });
 
     describe('getMarkets with useTerminalApi', () => {
@@ -1180,8 +1180,8 @@ describe('MarketDataService', () => {
 
         const result = await serviceWithTerminal.getMarkets({
           provider: mockProvider,
+          params: { useTerminalApi: true },
           context: mockContext,
-          useTerminalApi: true,
         });
 
         expect(result).toEqual(terminalMarkets);
@@ -1200,8 +1200,8 @@ describe('MarketDataService', () => {
 
         const result = await serviceWithTerminal.getMarkets({
           provider: mockProvider,
+          params: { useTerminalApi: true },
           context: mockContext,
-          useTerminalApi: true,
         });
 
         expect(result).toEqual(providerMarkets);
@@ -1223,8 +1223,8 @@ describe('MarketDataService', () => {
 
         const result = await serviceWithTerminal.getMarkets({
           provider: mockProvider,
+          params: { useTerminalApi: true },
           context: mockContext,
-          useTerminalApi: true,
         });
 
         expect(result).toEqual(providerMarkets);
@@ -1238,8 +1238,8 @@ describe('MarketDataService', () => {
 
         const result = await serviceWithTerminal.getMarkets({
           provider: mockProvider,
+          params: { useTerminalApi: false },
           context: mockContext,
-          useTerminalApi: false,
         });
 
         expect(result).toEqual(providerMarkets);
@@ -1280,8 +1280,8 @@ describe('MarketDataService', () => {
 
         const result = await serviceWithTerminal.getMarketDataWithPrices({
           provider: mockProvider,
+          params: { useTerminalApi: true },
           context: mockContext,
-          useTerminalApi: true,
         });
 
         expect(result[0]?.name).toBe('Bitcoin');
@@ -1303,8 +1303,8 @@ describe('MarketDataService', () => {
 
         const result = await serviceWithTerminal.getMarketDataWithPrices({
           provider: mockProvider,
+          params: { useTerminalApi: true },
           context: mockContext,
-          useTerminalApi: true,
         });
 
         expect(result[0]?.name).toBe('BTC');
@@ -1319,8 +1319,8 @@ describe('MarketDataService', () => {
 
         const result = await serviceWithTerminal.getMarketDataWithPrices({
           provider: mockProvider,
+          params: { useTerminalApi: false },
           context: mockContext,
-          useTerminalApi: false,
         });
 
         expect(result[0]?.name).toBe('BTC');
