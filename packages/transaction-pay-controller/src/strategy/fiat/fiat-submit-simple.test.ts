@@ -160,6 +160,21 @@ describe('submitSimpleRelay', () => {
     ).rejects.toThrow('No relay quotes returned for completed fiat order');
   });
 
+  it('throws when the original fiat quote is missing a relay quote', async () => {
+    const fiatQuote = buildFiatQuote();
+    fiatQuote.original.relayQuote = undefined;
+    const req = buildRequest({ quotes: [fiatQuote] });
+
+    await expect(
+      submitSimpleRelay({
+        baseRequest: BASE_QUOTE_REQUEST_MOCK,
+        request: req,
+        sourceAmountRaw: '1000000000000000000',
+        transaction: TRANSACTION_MOCK,
+      }),
+    ).rejects.toThrow('Missing Relay quote for fiat submission');
+  });
+
   it('throws when rate drift exceeds configured threshold', async () => {
     getFiatMaxRateDriftPercentMock.mockReturnValue(5);
     getRelayQuotesMock.mockResolvedValue([

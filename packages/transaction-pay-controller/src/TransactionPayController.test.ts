@@ -11,6 +11,7 @@ import { deriveFiatAssetForFiatPayment } from './strategy/fiat/utils';
 import { getMessengerMock } from './tests/messenger-mock';
 import type {
   TransactionPayControllerMessenger,
+  TransactionPayControllerOptions,
   TransactionPaySourceAmount,
   UpdateTransactionDataCallback,
 } from './types';
@@ -35,7 +36,6 @@ const TRANSACTION_ID_MOCK = '123-456';
 const TRANSACTION_META_MOCK = { id: TRANSACTION_ID_MOCK } as TransactionMeta;
 const TOKEN_ADDRESS_MOCK = '0xabc' as Hex;
 const CHAIN_ID_MOCK = '0x1' as Hex;
-
 describe('TransactionPayController', () => {
   const updateFiatPaymentMock = jest.mocked(updateFiatPayment);
   const updatePaymentTokenMock = jest.mocked(updatePaymentToken);
@@ -56,10 +56,14 @@ describe('TransactionPayController', () => {
   /**
    * Create a TransactionPayController.
    *
+   * @param options - Controller options.
    * @returns The created controller.
    */
-  function createController(): TransactionPayController {
+  function createController(
+    options: Partial<TransactionPayControllerOptions> = {},
+  ): TransactionPayController {
     return new TransactionPayController({
+      ...options,
       getDelegationTransaction: jest.fn(),
       messenger,
     });
@@ -560,6 +564,29 @@ describe('TransactionPayController', () => {
       );
 
       expect(result).toStrictEqual({ updates: [] });
+    });
+  });
+
+  describe('getFiatOptions', () => {
+    it('returns configured fiat options', () => {
+      const fiatOptions = {
+        testFundingSource: '0x1111111111111111111111111111111111111111' as Hex,
+        testAmountOverride: '0.1',
+      };
+
+      createController({ fiatOptions });
+
+      const result = messenger.call('TransactionPayController:getFiatOptions');
+
+      expect(result).toBe(fiatOptions);
+    });
+
+    it('returns undefined when no fiat options are configured', () => {
+      createController();
+
+      const result = messenger.call('TransactionPayController:getFiatOptions');
+
+      expect(result).toBeUndefined();
     });
   });
 
