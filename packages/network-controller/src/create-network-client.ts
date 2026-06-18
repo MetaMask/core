@@ -281,17 +281,18 @@ function createRpcServiceChain({
       isFailover: true,
     }),
   );
-  const isInfuraEndpoint = configuration.type === NetworkClientType.Infura;
+  // We explicitly check the URL since some networks have been added with invalid configuration types in the past.
+  const isInfura = new URL(primaryEndpointUrl).hostname.endsWith('.infura.io');
 
   let availableEndpoints: { url: string; isFailover: boolean }[];
-  if (isRpcFailoverForced && isInfuraEndpoint && failoverEndpoints.length > 0) {
+  if (isRpcFailoverForced && isInfura && failoverEndpoints.length > 0) {
     // Force flag is on for an Infura endpoint with failovers: bypass Infura
     // entirely and route all traffic (including block polling) to failovers.
     // The first failover becomes the positional primary of the chain, so
     // availability/degraded events will report that failover URL as the
     // primary endpoint (there is no Infura primary in this mode).
     availableEndpoints = failoverEndpoints;
-  } else if (isRpcFailoverEnabled) {
+  } else if (isRpcFailoverEnabled && isInfura) {
     availableEndpoints = [
       { url: primaryEndpointUrl, isFailover: false },
       ...failoverEndpoints,

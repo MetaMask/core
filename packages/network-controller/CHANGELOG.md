@@ -32,12 +32,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `RemoteFeatureFlagController:stateChange` and `RemoteFeatureFlagController:getState` are now required.
 - Drop `async-mutex` dependency, which was no longer used in source ([#9064](https://github.com/MetaMask/core/pull/9064))
 - Consider all Infura HTTP errors as service failures except `400` and `429` ([#9123](https://github.com/MetaMask/core/pull/9123))
+- Only consider failover endpoints when using Infura ([#9125](https://github.com/MetaMask/core/pull/9125))
 
 ### Removed
 
 - **BREAKING:** Remove `initializeProvider` in favor of `init` ([#9034](https://github.com/MetaMask/core/pull/9034))
   - `init` does not call `lookupNetwork`, if this is required it must be called manually.
-- **BREAKING:** Remove `additionalDefaultNetworks` constructor option ([#9035](https://github.com/MetaMask/core/pull/9035))
+- **BREAKING:** Remove `additionalDefaultNetworks` constructor option ([#9035](https://github.com/MetaMask/core/pull/9035), [#9183](https://github.com/MetaMask/core/pull/9183))
+  - MegaETH v1 is no longer a default network.
 
 ### Fixed
 
