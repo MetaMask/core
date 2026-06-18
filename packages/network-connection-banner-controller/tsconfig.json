@@ -1,0 +1,14 @@
+{
+  "extends": "../../tsconfig.packages.json",
+  "compilerOptions": {
+    "baseUrl": "./"
+  },
+  "references": [
+    { "path": "../base-controller" },
+    { "path": "../connectivity-controller" },
+    { "path": "../messenger" },
+    { "path": "../network-controller" },
+    { "path": "../network-enablement-controller" }
+  ],
+  "include": ["../../types", "./src"]
+}
