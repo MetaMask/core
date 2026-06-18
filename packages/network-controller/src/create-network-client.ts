@@ -264,15 +264,19 @@ function createRpcServiceChain({
   isRpcFailoverEnabled: boolean;
   logger?: Logger;
 }): RpcServiceChain {
-  const availableEndpoints = isRpcFailoverEnabled
-    ? [
-        { url: primaryEndpointUrl, isFailover: false },
-        ...(configuration.failoverRpcUrls ?? []).map((url) => ({
-          url,
-          isFailover: true,
-        })),
-      ]
-    : [{ url: primaryEndpointUrl, isFailover: false }];
+  // We explicitly check the URL since some networks have been added with invalid configuration types in the past.
+  const isInfura = new URL(primaryEndpointUrl).hostname.endsWith('.infura.io');
+
+  const availableEndpoints =
+    isRpcFailoverEnabled && isInfura
+      ? [
+          { url: primaryEndpointUrl, isFailover: false },
+          ...(configuration.failoverRpcUrls ?? []).map((url) => ({
+            url,
+            isFailover: true,
+          })),
+        ]
+      : [{ url: primaryEndpointUrl, isFailover: false }];
 
   const isOffline = (): boolean => {
     const connectivityState = messenger.call('ConnectivityController:getState');

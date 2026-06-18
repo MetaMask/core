@@ -111,7 +111,7 @@ type RequiredEventContextFromClientBase = {
   [UnifiedSwapBridgeEventName.ButtonClicked]: Pick<
     RequestParams,
     'token_symbol_source' | 'token_symbol_destination'
-  >;
+  > & { environment_type?: string };
   // When type is object, the payload can be anything
   [UnifiedSwapBridgeEventName.PageViewed]: object;
   [UnifiedSwapBridgeEventName.InputChanged]: {

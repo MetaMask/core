@@ -1,10 +1,8 @@
 /* eslint-disable no-restricted-syntax */
 import type { TypedTxData } from '@ethereumjs/tx';
 import type {
-  AccountsController,
   AccountsControllerGetSelectedAccountAction,
   AccountsControllerGetStateAction,
-  AccountsControllerSelectedAccountChangeEvent,
 } from '@metamask/accounts-controller';
 import type {
   AcceptResultCallbacks,
@@ -23,11 +21,7 @@ import {
   convertHexToDecimal,
 } from '@metamask/controller-utils';
 import type { TraceCallback, TraceContext } from '@metamask/controller-utils';
-import type {
-  AccountActivityServiceStatusChangedEvent,
-  AccountActivityServiceTransactionUpdatedEvent,
-  BackendWebSocketServiceConnectionStateChangedEvent,
-} from '@metamask/core-backend';
+import type { AccountActivityServiceTransactionUpdatedEvent } from '@metamask/core-backend';
 import type {
   FetchGasFeeEstimateOptions,
   GasFeeControllerFetchGasFeeEstimatesAction,
@@ -79,14 +73,11 @@ import { OptimismLayer1GasFeeFlow } from './gas-flows/OptimismLayer1GasFeeFlow';
 import { RandomisedEstimationsGasFeeFlow } from './gas-flows/RandomisedEstimationsGasFeeFlow';
 import { ScrollLayer1GasFeeFlow } from './gas-flows/ScrollLayer1GasFeeFlow';
 import { TestGasFeeFlow } from './gas-flows/TestGasFeeFlow';
-import { AccountsApiRemoteTransactionSource } from './helpers/AccountsApiRemoteTransactionSource';
 import {
   GasFeePoller,
   updateTransactionGasProperties,
   updateTransactionGasEstimates,
 } from './helpers/GasFeePoller';
-import type { IncomingTransactionOptions } from './helpers/IncomingTransactionHelper';
-import { IncomingTransactionHelper } from './helpers/IncomingTransactionHelper';
 import { MethodDataHelper } from './helpers/MethodDataHelper';
 import { MultichainTrackingHelper } from './helpers/MultichainTrackingHelper';
 import { PendingTransactionTracker } from './helpers/PendingTransactionTracker';
@@ -133,7 +124,6 @@ import type {
   AddTransactionOptions,
   PublishHookResult,
   GetGasFeeTokensRequest,
-  InternalAccount,
 } from './types';
 import {
   GasFeeEstimateLevel,
@@ -339,12 +329,6 @@ export type TransactionControllerOptions = {
    */
   getSimulationConfig?: GetSimulationConfig;
 
-  /** Configuration options for incoming transaction support. */
-  incomingTransactions?: IncomingTransactionOptions & {
-    /** @deprecated Ignored as Etherscan no longer used. */
-    etherscanApiKeysByChainId?: Record<Hex, string>;
-  };
-
   /**
    * Callback to determine whether gas fee updates should be enabled for a given transaction.
    * Returns true to enable updates, false to disable them.
@@ -438,10 +422,7 @@ export type AllowedActions =
  * The external events available to the {@link TransactionController}.
  */
 export type AllowedEvents =
-  | AccountActivityServiceStatusChangedEvent
   | AccountActivityServiceTransactionUpdatedEvent
-  | AccountsControllerSelectedAccountChangeEvent
-  | BackendWebSocketServiceConnectionStateChangedEvent
   | NetworkControllerStateChangeEvent;
 
 /**
@@ -451,14 +432,6 @@ export type TransactionControllerStateChangeEvent = ControllerStateChangeEvent<
   typeof controllerName,
   TransactionControllerState
 >;
-
-/**
- * Represents the `TransactionController:incomingTransactionsReceived` event.
- */
-export type TransactionControllerIncomingTransactionsReceivedEvent = {
-  type: `${typeof controllerName}:incomingTransactionsReceived`;
-  payload: [incomingTransactions: TransactionMeta[]];
-};
 
 /**
  * Represents the `TransactionController:postTransactionBalanceUpdated` event.
@@ -614,7 +587,6 @@ export type TransactionControllerUnapprovedTransactionAddedEvent = {
  * The internal events available to the {@link TransactionController}.
  */
 export type TransactionControllerEvents =
-  | TransactionControllerIncomingTransactionsReceivedEvent
   | TransactionControllerPostTransactionBalanceUpdatedEvent
   | TransactionControllerSpeedupTransactionAddedEvent
   | TransactionControllerStateChangeEvent
@@ -688,13 +660,10 @@ const MESSENGER_EXPOSED_METHODS = [
   'isAtomicBatchSupported',
   'setTransactionActive',
   'speedUpTransaction',
-  'startIncomingTransactionPolling',
-  'stopIncomingTransactionPolling',
   'stopTransaction',
   'updateAtomicBatchData',
   'updateCustodialTransaction',
   'updateEditableParams',
-  'updateIncomingTransactions',
   'updatePreviousGasParams',
   'updateRequiredTransactionIds',
   'updateSecurityAlertResponse',
@@ -733,12 +702,6 @@ export class TransactionController extends BaseController<
   readonly #getSavedGasFees: (chainId: Hex) => SavedGasFees | undefined;
 
   readonly #getSimulationConfig: GetSimulationConfig;
-
-  readonly #incomingTransactionHelper: IncomingTransactionHelper;
-
-  readonly #incomingTransactionOptions: IncomingTransactionOptions & {
-    etherscanApiKeysByChainId?: Record<Hex, string>;
-  };
 
   readonly #internalEvents = new EventEmitter();
 
@@ -793,7 +756,6 @@ export class TransactionController extends BaseController<
       getSavedGasFees,
       getSimulationConfig,
       hooks,
-      incomingTransactions = {},
       isAutomaticGasFeeUpdateEnabled,
       isEIP7702GasFeeTokensEnabled,
       isFirstTimeInteractionEnabled,
@@ -835,7 +797,6 @@ export class TransactionController extends BaseController<
     this.#getSimulationConfig =
       getSimulationConfig ??
       ((): ReturnType<GetSimulationConfig> => Promise.resolve({}));
-    this.#incomingTransactionOptions = incomingTransactions;
     this.#isAutomaticGasFeeUpdateEnabled =
       isAutomaticGasFeeUpdateEnabled ??
       ((_txMeta: TransactionMeta): boolean => false);
@@ -883,9 +844,11 @@ export class TransactionController extends BaseController<
       onNetworkStateChange: (listener): void => {
         this.messenger.subscribe('NetworkController:stateChange', listener);
       },
+      onInitialized: (): void => {
+        this.#checkForPendingTransactionAndStartPolling();
+      },
     });
 
-    this.#multichainTrackingHelper.initialize();
     this.#gasFeeFlows = this.#getGasFeeFlows();
     this.#layer1GasFeeFlows = this.#getLayer1GasFeeFlows();
 
@@ -930,25 +893,6 @@ export class TransactionController extends BaseController<
           _state.methodData[fourBytePrefix] = methodData;
         });
       },
-    );
-
-    this.#incomingTransactionHelper = new IncomingTransactionHelper({
-      client: this.#incomingTransactionOptions.client,
-      getCurrentAccount: (): ReturnType<
-        AccountsController['getSelectedAccount']
-      > => this.#getSelectedAccount(),
-      getLocalTransactions: (): TransactionMeta[] => this.state.transactions,
-      includeTokenTransfers:
-        this.#incomingTransactionOptions.includeTokenTransfers,
-      isEnabled: this.#incomingTransactionOptions.isEnabled,
-      messenger: this.messenger,
-      remoteTransactionSource: new AccountsApiRemoteTransactionSource(),
-      trimTransactions: this.#trimTransactionsForState.bind(this),
-      updateTransactions: this.#incomingTransactionOptions.updateTransactions,
-    });
-
-    this.#addIncomingTransactionHelperListeners(
-      this.#incomingTransactionHelper,
     );
 
     // when transactionsController state changes
@@ -1185,6 +1129,7 @@ export class TransactionController extends BaseController<
       isGasFeeTokenIgnoredIfBalance,
       isGasFeeIncluded,
       isGasFeeSponsored,
+      ...(isGasFeeSponsored ? { isExternalSign: true } : {}),
       // To avoid the property to be set as undefined.
       ...(excludeNativeTokenForFee === undefined
         ? {}
@@ -1326,32 +1271,6 @@ export class TransactionController extends BaseController<
       }),
       transactionMeta: addedTransactionMeta,
     };
-  }
-
-  /**
-   * Starts polling for incoming transactions from the remote transaction source.
-   */
-  startIncomingTransactionPolling(): void {
-    this.#incomingTransactionHelper.start();
-  }
-
-  /**
-   * Stops polling for incoming transactions from the remote transaction source.
-   */
-  stopIncomingTransactionPolling(): void {
-    this.#incomingTransactionHelper.stop();
-  }
-
-  /**
-   * Update the incoming transactions by polling the remote transaction source.
-   *
-   * @param request - Request object.
-   * @param request.tags - Additional tags to identify the source of the request.
-   */
-  async updateIncomingTransactions({
-    tags,
-  }: { tags?: string[] } = {}): Promise<void> {
-    await this.#incomingTransactionHelper.update({ tags });
   }
 
   /**
@@ -3317,8 +3236,13 @@ export class TransactionController extends BaseController<
   #trimTransactionsForState(
     transactions: TransactionMeta[],
   ): TransactionMeta[] {
-    const nonceNetworkSet = new Set();
     const transactionHistoryLimit = getTransactionHistoryLimit(this.messenger);
+
+    if (transactionHistoryLimit === undefined) {
+      return transactions;
+    }
+
+    const nonceNetworkSet = new Set();
 
     const txsToKeep = [...transactions]
       .sort((a, b) => (a.time > b.time ? -1 : 1)) // Descending time order
@@ -3446,55 +3370,6 @@ export class TransactionController extends BaseController<
     const isCompleted = this.#isLocalFinalState(transaction.status);
 
     return { meta: transaction, isCompleted };
-  }
-
-  #onIncomingTransactions(transactions: TransactionMeta[]): void {
-    if (!transactions.length) {
-      return;
-    }
-
-    const finalTransactions: TransactionMeta[] = [];
-
-    for (const tx of transactions) {
-      const { chainId } = tx;
-
-      try {
-        const networkClientId = getNetworkClientId({
-          messenger: this.messenger,
-          chainId,
-        });
-
-        finalTransactions.push({
-          ...tx,
-          networkClientId,
-        });
-      } catch (error) {
-        log('Failed to get network client ID for incoming transaction', {
-          chainId,
-          error,
-        });
-      }
-    }
-
-    this.update((state) => {
-      const { transactions: currentTransactions } = state;
-
-      state.transactions = this.#trimTransactionsForState([
-        ...finalTransactions,
-        ...currentTransactions,
-      ]);
-
-      log(
-        'Added incoming transactions to state',
-        finalTransactions.length,
-        finalTransactions,
-      );
-    });
-
-    this.messenger.publish(
-      `${controllerName}:incomingTransactionsReceived`,
-      finalTransactions,
-    );
   }
 
   #generateDappSuggestedGasFees(
@@ -3936,15 +3811,6 @@ export class TransactionController extends BaseController<
     this.#multichainTrackingHelper.stopAllTracking();
   }
 
-  #addIncomingTransactionHelperListeners(
-    incomingTransactionHelper: IncomingTransactionHelper,
-  ): void {
-    incomingTransactionHelper.hub.on(
-      'transactions',
-      this.#onIncomingTransactions.bind(this),
-    );
-  }
-
   #removePendingTransactionTrackerListeners(
     pendingTransactionTracker: PendingTransactionTracker,
   ): void {
@@ -4212,7 +4078,13 @@ export class TransactionController extends BaseController<
       },
       (txMeta) => {
         txMeta.gasFeeTokens = gasFeeTokens;
-        txMeta.isGasFeeSponsored = isGasFeeSponsored;
+        txMeta.isGasFeeSponsored =
+          txMeta.isGasFeeSponsored ?? isGasFeeSponsored;
+
+        if (txMeta.isGasFeeSponsored) {
+          txMeta.isExternalSign = true;
+        }
+
         txMeta.gasUsed = gasUsed;
 
         if (!this.#isBalanceChangesSkipped(txMeta)) {
@@ -4281,10 +4153,6 @@ export class TransactionController extends BaseController<
 
       state.transactionBatches[index] = updated ?? batch;
     });
-  }
-
-  #getSelectedAccount(): InternalAccount {
-    return this.messenger.call('AccountsController:getSelectedAccount');
   }
 
   #getInternalAccounts(): Hex[] {

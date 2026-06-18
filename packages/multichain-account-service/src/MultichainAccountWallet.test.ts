@@ -943,6 +943,17 @@ describe('MultichainAccountWallet', () => {
         expect.stringContaining('Unable to align some accounts'),
       );
     });
+
+    it('is a no-op when the wallet is already aligned', async () => {
+      const { wallet, providers } = setup({
+        accounts: [[MOCK_WALLET_1_EVM_ACCOUNT], [MOCK_WALLET_1_SOL_ACCOUNT]],
+      });
+
+      await wallet.alignAccounts();
+
+      expect(providers[0].createAccounts).not.toHaveBeenCalled();
+      expect(providers[1].createAccounts).not.toHaveBeenCalled();
+    });
   });
 
   describe('alignGroup', () => {
@@ -991,6 +1002,53 @@ describe('MultichainAccountWallet', () => {
         entropySource: wallet.entropySource,
         range: { from: 1, to: 1 },
       });
+    });
+
+    it('is a no-op when the group is already aligned', async () => {
+      const { wallet, providers } = setup({
+        accounts: [[MOCK_WALLET_1_EVM_ACCOUNT], [MOCK_WALLET_1_SOL_ACCOUNT]],
+      });
+
+      await wallet.alignAccountsOf(0);
+
+      expect(providers[0].createAccounts).not.toHaveBeenCalled();
+      expect(providers[1].createAccounts).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('isAligned', () => {
+    it('returns true when all groups are aligned', () => {
+      const { wallet } = setup({
+        accounts: [[MOCK_WALLET_1_EVM_ACCOUNT], [MOCK_WALLET_1_SOL_ACCOUNT]],
+      });
+
+      expect(wallet.isAligned()).toBe(true);
+    });
+
+    it('returns false when at least one group is not aligned', () => {
+      const { wallet } = setup({
+        accounts: [
+          [MOCK_WALLET_1_EVM_ACCOUNT],
+          [], // second provider has no accounts, so the group is not aligned
+        ],
+      });
+
+      expect(wallet.isAligned()).toBe(false);
+    });
+
+    it('returns true for a wallet with no groups', () => {
+      const serviceMessenger =
+        getMultichainAccountServiceMessenger(getRootMessenger());
+      const wallet = new MultichainAccountWallet<Bip44Account<InternalAccount>>(
+        {
+          entropySource: MOCK_WALLET_1_ENTROPY_SOURCE,
+          providers: [],
+          messenger: serviceMessenger,
+        },
+      );
+      wallet.init({});
+
+      expect(wallet.isAligned()).toBe(true);
     });
   });
 
