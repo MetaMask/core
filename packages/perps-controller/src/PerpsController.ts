@@ -883,24 +883,6 @@ export class PerpsController extends BaseController<
   }
 
   /**
-   * Whether the Terminal API should be used as the primary market data source.
-   * Reads the `perpsTerminalApiMarkets` remote feature flag on every call
-   * (per-fetch, not cached at init) so toggling the flag takes effect immediately.
-   *
-   * @returns True when the flag is enabled.
-   */
-  #isTerminalApiEnabled(): boolean {
-    try {
-      const remoteState = this.messenger.call(
-        'RemoteFeatureFlagController:getState',
-      );
-      return remoteState.remoteFeatureFlags?.perpsTerminalApiMarkets === true;
-    } catch {
-      return false;
-    }
-  }
-
-  /**
    * Active provider instance for routing operations.
    * When activeProvider is 'hyperliquid' or 'myx': points to specific provider directly
    * When activeProvider is 'aggregated': points to AggregatedPerpsProvider wrapper
@@ -2957,7 +2939,7 @@ export class PerpsController extends BaseController<
       provider,
       params,
       context: this.#createServiceContext('getMarkets'),
-      useTerminalApi: this.#isTerminalApiEnabled(),
+      useTerminalApi: params?.useTerminalApi === true,
     });
   }
 
@@ -2979,6 +2961,8 @@ export class PerpsController extends BaseController<
   async getMarketDataWithPrices(
     params?: GetMarketDataWithPricesParams,
   ): Promise<PerpsMarketData[]> {
+    const useTerminal = params?.useTerminalApi === true;
+
     if (params?.standalone) {
       // Use activeProviderInstance if available (respects provider abstraction)
       // Fallback to cached standalone provider for pre-initialization discovery
@@ -2988,7 +2972,7 @@ export class PerpsController extends BaseController<
         provider,
         params,
         context: this.#createServiceContext('getMarketDataWithPrices'),
-        useTerminalApi: this.#isTerminalApiEnabled(),
+        useTerminalApi: useTerminal,
       });
     }
 
@@ -2997,7 +2981,7 @@ export class PerpsController extends BaseController<
       provider,
       params,
       context: this.#createServiceContext('getMarketDataWithPrices'),
-      useTerminalApi: this.#isTerminalApiEnabled(),
+      useTerminalApi: useTerminal,
     });
   }
 
