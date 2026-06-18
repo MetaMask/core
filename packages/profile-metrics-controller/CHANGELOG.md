@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **BREAKING:** Add chain-native proof-of-ownership signing for accounts, with profile-metric submissions now carrying a proof per account ([#9016](https://github.com/MetaMask/core/pull/9016), [#9XXX](https://github.com/MetaMask/core/pull/9XXX))
+- **BREAKING:** Add chain-native proof-of-ownership signing for accounts, with profile-metric submissions now carrying a proof per account ([#9016](https://github.com/MetaMask/core/pull/9016), [#9190](https://github.com/MetaMask/core/pull/9190))
   - New `ProofOfOwnershipService:sign({ account, nonce })` action, dispatching to `KeyringController:signPersonalMessage` for EVM accounts and to the account's snap (via the `signProofOfOwnership` JSON-RPC method) for Solana, Tron, and Bitcoin.
   - `ProfileMetricsController._executePoll` signs a proof for each queued account and submits it alongside the canonicalized address (EIP-55 for `eip155`, lowercase bech32 / bech32m for `bip122`). Consumers must delegate `ProofOfOwnershipService:sign` onto the controller's messenger.
   - Adds a `profileMetricsServiceName` alias for the existing `serviceName` export to disambiguate it from the new `proofOfOwnershipServiceName`.
