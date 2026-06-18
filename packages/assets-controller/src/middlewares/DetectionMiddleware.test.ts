@@ -5,6 +5,7 @@ import type {
   Context,
   DataRequest,
   Caip19AssetId,
+  AccountId,
   AssetsControllerStateInternal,
 } from '../types';
 import { DetectionMiddleware } from './DetectionMiddleware';
@@ -56,26 +57,41 @@ function createDataRequest(
 
 function createAssetsState(
   metadataAssets: Caip19AssetId[] = [],
+  trackedBalances: Record<AccountId, Caip19AssetId[]> = {},
+  customAssets: Record<AccountId, Caip19AssetId[]> = {},
 ): AssetsControllerStateInternal {
   const assetsInfo: Record<Caip19AssetId, { name: string }> = {};
   for (const assetId of metadataAssets) {
     assetsInfo[assetId] = { name: `Asset ${assetId}` };
   }
+  const assetsBalance: Record<AccountId, Record<Caip19AssetId, unknown>> = {};
+  for (const [accountId, assetIds] of Object.entries(trackedBalances)) {
+    assetsBalance[accountId] = {};
+    for (const assetId of assetIds) {
+      assetsBalance[accountId][assetId] = { amount: '0' };
+    }
+  }
   return {
     assetsInfo,
-    assetsBalance: {},
-    customAssets: {},
+    assetsBalance,
+    customAssets,
   } as AssetsControllerStateInternal;
 }
 
 function createMiddlewareContext(
   overrides?: Partial<Context>,
   stateMetadata: Caip19AssetId[] = [],
+  trackedBalances: Record<AccountId, Caip19AssetId[]> = {},
+  customAssets: Record<AccountId, Caip19AssetId[]> = {},
 ): Context {
   return {
     request: createDataRequest(),
     response: {},
-    getAssetsState: jest.fn().mockReturnValue(createAssetsState(stateMetadata)),
+    getAssetsState: jest
+      .fn()
+      .mockReturnValue(
+        createAssetsState(stateMetadata, trackedBalances, customAssets),
+      ),
     ...overrides,
   };
 }
@@ -151,7 +167,7 @@ describe('DetectionMiddleware', () => {
     expect(next).toHaveBeenCalledWith(context);
   });
 
-  it('includes all balance assets in detectedAssets even when they have metadata', async () => {
+  it('excludes assets already tracked in state balance (metadata presence is ignored)', async () => {
     const { middleware } = setupController();
     const context = createMiddlewareContext(
       {
@@ -164,20 +180,21 @@ describe('DetectionMiddleware', () => {
           },
         },
       },
+      // Metadata is irrelevant to detection; only tracked balances matter.
       [MOCK_ASSET_1, MOCK_NATIVE_ASSET],
+      // Both assets are already tracked in state balance.
+      { [MOCK_ACCOUNT_ID]: [MOCK_ASSET_1, MOCK_NATIVE_ASSET] },
     );
     const next = jest.fn().mockImplementation((ctx) => Promise.resolve(ctx));
 
     await middleware.assetsMiddleware(context, next);
 
-    // All assets in balance are included so prices (and metadata when needed) are fetched
-    expect(context.response.detectedAssets).toStrictEqual({
-      [MOCK_ACCOUNT_ID]: [MOCK_ASSET_1, MOCK_NATIVE_ASSET],
-    });
+    // Nothing is new relative to state, so detectedAssets stays undefined.
+    expect(context.response.detectedAssets).toBeUndefined();
     expect(next).toHaveBeenCalledWith(context);
   });
 
-  it('includes all balance assets in mixed scenario (metadata presence is ignored)', async () => {
+  it('includes only assets that are new relative to state balance', async () => {
     const { middleware } = setupController();
     const context = createMiddlewareContext(
       {
@@ -191,14 +208,16 @@ describe('DetectionMiddleware', () => {
           },
         },
       },
-      [MOCK_ASSET_1],
+      [],
+      // MOCK_ASSET_1 is already tracked; the other two are new.
+      { [MOCK_ACCOUNT_ID]: [MOCK_ASSET_1] },
     );
     const next = jest.fn().mockImplementation((ctx) => Promise.resolve(ctx));
 
     await middleware.assetsMiddleware(context, next);
 
     expect(context.response.detectedAssets).toStrictEqual({
-      [MOCK_ACCOUNT_ID]: [MOCK_ASSET_1, MOCK_ASSET_2, MOCK_NATIVE_ASSET],
+      [MOCK_ACCOUNT_ID]: [MOCK_ASSET_2, MOCK_NATIVE_ASSET],
     });
     expect(next).toHaveBeenCalledWith(context);
   });
@@ -259,6 +278,80 @@ describe('DetectionMiddleware', () => {
     expect(context.response.detectedAssets).toStrictEqual({
       [MOCK_ACCOUNT_ID]: [MOCK_ASSET_1],
       [account2Id]: [MOCK_ASSET_2],
+    });
+    expect(next).toHaveBeenCalledWith(context);
+  });
+
+  it('includes new custom assets not yet tracked in state balance', async () => {
+    const { middleware } = setupController();
+    const context = createMiddlewareContext(
+      {
+        response: {
+          assetsBalance: {
+            [MOCK_ACCOUNT_ID]: {
+              [MOCK_ASSET_1]: { amount: '1000' },
+            },
+          },
+        },
+      },
+      [],
+      // MOCK_ASSET_1 already tracked.
+      { [MOCK_ACCOUNT_ID]: [MOCK_ASSET_1] },
+      // MOCK_ASSET_2 is a custom asset with no balance entry yet.
+      { [MOCK_ACCOUNT_ID]: [MOCK_ASSET_2] },
+    );
+    const next = jest.fn().mockImplementation((ctx) => Promise.resolve(ctx));
+
+    await middleware.assetsMiddleware(context, next);
+
+    expect(context.response.detectedAssets).toStrictEqual({
+      [MOCK_ACCOUNT_ID]: [MOCK_ASSET_2],
+    });
+    expect(next).toHaveBeenCalledWith(context);
+  });
+
+  it('excludes custom assets that are already tracked in state balance', async () => {
+    const { middleware } = setupController();
+    const context = createMiddlewareContext(
+      {
+        response: {
+          assetsBalance: {
+            [MOCK_ACCOUNT_ID]: {
+              [MOCK_ASSET_1]: { amount: '1000' },
+            },
+          },
+        },
+      },
+      [],
+      { [MOCK_ACCOUNT_ID]: [MOCK_ASSET_1] },
+      // Custom asset is already tracked in balance, so it is not new.
+      { [MOCK_ACCOUNT_ID]: [MOCK_ASSET_1] },
+    );
+    const next = jest.fn().mockImplementation((ctx) => Promise.resolve(ctx));
+
+    await middleware.assetsMiddleware(context, next);
+
+    expect(context.response.detectedAssets).toBeUndefined();
+    expect(next).toHaveBeenCalledWith(context);
+  });
+
+  it('includes new custom assets for accounts not present in the balance response', async () => {
+    const { middleware } = setupController();
+    const context = createMiddlewareContext(
+      {
+        response: {},
+      },
+      [],
+      {},
+      // Custom asset for an account with no balance response.
+      { [MOCK_ACCOUNT_ID]: [MOCK_ASSET_2] },
+    );
+    const next = jest.fn().mockImplementation((ctx) => Promise.resolve(ctx));
+
+    await middleware.assetsMiddleware(context, next);
+
+    expect(context.response.detectedAssets).toStrictEqual({
+      [MOCK_ACCOUNT_ID]: [MOCK_ASSET_2],
     });
     expect(next).toHaveBeenCalledWith(context);
   });
