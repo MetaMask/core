@@ -1221,7 +1221,8 @@ function getQuoteUser(
 
   return isSameSourceAndTarget &&
     hasAccountOverride &&
-    isRecipientAccountOverride
+    isRecipientAccountOverride &&
+    !request.isPostQuote
     ? txParamsFrom
     : from;
 }
