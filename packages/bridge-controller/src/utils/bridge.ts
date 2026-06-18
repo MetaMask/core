@@ -2,7 +2,7 @@ import { AddressZero } from '@ethersproject/constants';
 import { Contract } from '@ethersproject/contracts';
 import { BtcScope, SolScope, TrxScope } from '@metamask/keyring-api';
 import { abiERC20 } from '@metamask/metamask-eth-abis';
-import { isCaipChainId, isStrictHexString } from '@metamask/utils';
+import { isCaipChainId } from '@metamask/utils';
 import type { CaipAssetType, CaipChainId, Hex } from '@metamask/utils';
 
 import {
@@ -189,15 +189,24 @@ export const isSwapsDefaultTokenSymbol = (
  * @param address - The address to check
  * @returns Whether the address is a native asset
  */
-export const isNativeAddress = (address?: string | null) =>
-  address === AddressZero || // bridge and swap apis set the native asset address to zero
-  address === '' || // assets controllers set the native asset address to an empty string
-  !address ||
-  (!isStrictHexString(address) &&
-    Object.values(SYMBOL_TO_SLIP44_MAP).some(
-      // check if it matches any supported SLIP44 references
-      (reference) => address.includes(reference) || reference.endsWith(address),
-    ));
+export const isNativeAddress = (address?: string | null) => {
+  if (
+    address === AddressZero || // bridge and swap apis set the native asset address to zero
+    address === '' || // assets controllers set the native asset address to an empty string
+    !address
+  ) {
+    return true;
+  }
+  // address may be a bare reference or a full CAIP-19 assetId (e.g.
+  // "eip155:5042/erc20:0x...."); only the segment after the last "/" matters
+  const suffix = address.includes('/') ? address.split('/').at(-1) : address;
+  return Object.values(SYMBOL_TO_SLIP44_MAP).some(
+    (reference) =>
+      reference === suffix ||
+      reference === `slip44:${suffix}` ||
+      reference === `erc20:${suffix}`,
+  );
+};
 
 /**
  * Checks whether the chainId matches Solana in CaipChainId or number format

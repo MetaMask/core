@@ -119,15 +119,15 @@ export const formatChainIdToHex = (
  * @returns The converted address
  */
 export const formatAddressToCaipReference = (address: string) => {
-  if (isStrictHexString(address)) {
-    return getAddress(address);
+  const addressWithoutPrefix = address.split(':').at(-1);
+  if (isStrictHexString(addressWithoutPrefix)) {
+    return getAddress(addressWithoutPrefix);
   }
   // If the address looks like a native token, return the zero address because it's
   // what bridge-api uses to represent a native asset
   if (isNativeAddress(address)) {
     return AddressZero;
   }
-  const addressWithoutPrefix = address.split(':').at(-1);
   // If the address is not a valid hex string or CAIP address, throw an error
   // This should never happen, but it's a sanity check
   if (!addressWithoutPrefix) {

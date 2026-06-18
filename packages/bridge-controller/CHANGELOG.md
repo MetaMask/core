@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Add optional `environment_type` property to the `ButtonClicked` unified swap/bridge event context ([#9121](https://github.com/MetaMask/core/pull/9121))
+- Add support for ERC20 as native token, starting with Arc USDC ([#9196](https://github.com/MetaMask/core/pull/9196))
 
 ### Changed
 
