@@ -627,11 +627,11 @@ describe('Relay Submit Utils', () => {
 
       const result = await submitRelayQuotes(request);
 
-      expect(result.transactionHash).toBe(TRANSACTION_HASH_MOCK);
+      expect(result.transactionHash).toBe('0x0');
       expect(successfulFetchMock).toHaveBeenCalledTimes(0);
     });
 
-    it('returns submitted hash if same-chain polling returns no target hash', async () => {
+    it('returns fallback hash if same-chain polling returns no target hash', async () => {
       request.quotes[0].original.details.currencyOut.currency.chainId = 1;
       request.quotes[0].original.steps = [
         {
@@ -649,7 +649,7 @@ describe('Relay Submit Utils', () => {
 
       const result = await submitRelayQuotes(request);
 
-      expect(result.transactionHash).toBe(TRANSACTION_HASH_MOCK);
+      expect(result.transactionHash).toBe('0x0');
     });
 
     it('waits for relay status if same chain with single deposit step', async () => {

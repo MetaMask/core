@@ -120,7 +120,6 @@ async function executeSingleQuote(
   );
 
   let polymarketPreSubmitUsdceBalance = 0n;
-  let submittedHash: Hex | undefined;
 
   if (quote.request.isHyperliquidSource) {
     await submitHyperliquidWithdraw(quote, quote.request.from, messenger);
@@ -128,10 +127,9 @@ async function executeSingleQuote(
     const { sourceHash, preSubmitUsdceBalance } =
       await submitPolymarketWithdraw(quote, quote.request.from, messenger);
     polymarketPreSubmitUsdceBalance = preSubmitUsdceBalance;
-    submittedHash = sourceHash;
     setRelaySourceHash(transaction, messenger, sourceHash);
   } else {
-    submittedHash = await submitTransactions(quote, transaction, messenger);
+    await submitTransactions(quote, transaction, messenger);
   }
 
   const completion = await waitForRelayCompletion(quote.original, messenger, {
@@ -139,7 +137,6 @@ async function executeSingleQuote(
       log('Source hash received', hash);
       setRelaySourceHash(transaction, messenger, hash);
     },
-    submittedHash,
     tolerateFailure: isPolymarket,
   });
 
@@ -198,11 +195,10 @@ async function waitForRelayCompletion(
   messenger: TransactionPayControllerMessenger,
   options: {
     onSourceHash?: (hash: Hex) => void;
-    submittedHash?: Hex;
     tolerateFailure?: boolean;
   },
 ): Promise<RelayCompletionOutcome> {
-  const { onSourceHash, submittedHash, tolerateFailure } = options;
+  const { onSourceHash, tolerateFailure } = options;
 
   const isSameChain =
     quote.details.currencyIn.currency.chainId ===
@@ -213,7 +209,7 @@ async function waitForRelayCompletion(
 
   if (isSameChain && !isSingleDepositStep) {
     log('Skipping polling as same chain');
-    return { status: 'success', targetHash: submittedHash ?? FALLBACK_HASH };
+    return { status: 'success', targetHash: FALLBACK_HASH };
   }
 
   const { requestId } = quote.steps[0];
@@ -248,9 +244,7 @@ async function waitForRelayCompletion(
 
       if (status.status === 'success') {
         const targetHash =
-          (status.txHashes?.slice(-1)[0] as Hex | undefined) ??
-          (isSameChain ? submittedHash : undefined) ??
-          FALLBACK_HASH;
+          (status.txHashes?.slice(-1)[0] as Hex | undefined) ?? FALLBACK_HASH;
         return { status: 'success', targetHash };
       }
 
