@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [23.13.0]
+
 ### Changed
 
 - Add RPC method, chain ID, and endpoint type context to transaction pay provider errors ([#9144](https://github.com/MetaMask/core/pull/9144))
@@ -1127,7 +1129,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#6820](https://github.com/MetaMask/core/pull/6820))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@23.12.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@23.13.0...HEAD
+[23.13.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@23.12.0...@metamask/transaction-pay-controller@23.13.0
 [23.12.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@23.11.0...@metamask/transaction-pay-controller@23.12.0
 [23.11.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@23.10.0...@metamask/transaction-pay-controller@23.11.0
 [23.10.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@23.9.0...@metamask/transaction-pay-controller@23.10.0
