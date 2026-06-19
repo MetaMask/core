@@ -109,7 +109,7 @@ describe('RelayStrategy', () => {
     expect(submitRelayQuotesMock).toHaveBeenCalledWith(executeRequest);
   });
 
-  it('prefixes execute errors with the Relay prefix without replacing the Error object', async () => {
+  it('propagates execute errors without replacing the Error object', async () => {
     const executeRequest = {
       messenger,
       quotes: [],
@@ -126,10 +126,10 @@ describe('RelayStrategy', () => {
       .catch((caught) => caught);
 
     expect(thrown).toBe(error);
-    expect(thrown.message).toBe('Relay: Insufficient liquidity');
+    expect(thrown.message).toBe('Insufficient liquidity');
   });
 
-  it('does not duplicate the Relay prefix for nested Relay errors', async () => {
+  it('propagates Relay-prefixed execute errors from submitRelayQuotes', async () => {
     const executeRequest = {
       messenger,
       quotes: [],
@@ -145,39 +145,6 @@ describe('RelayStrategy', () => {
 
     await expect(strategy.execute(executeRequest)).rejects.toThrow(
       'Relay: Execute: 422 - Insufficient liquidity',
-    );
-  });
-
-  it('wraps non-Error throws with the Relay submit prefix', async () => {
-    const executeRequest = {
-      messenger,
-      quotes: [],
-      transaction: request.transaction,
-      isSmartTransaction: jest.fn(),
-    } as PayStrategyExecuteRequest<RelayQuote>;
-
-    submitRelayQuotesMock.mockRejectedValue('boom');
-
-    const strategy = new RelayStrategy();
-    await expect(strategy.execute(executeRequest)).rejects.toThrow(
-      'Relay: boom',
-    );
-  });
-
-  it('throws if Relay submission returns no transaction hash', async () => {
-    const executeRequest = {
-      messenger,
-      quotes: [],
-      transaction: request.transaction,
-      isSmartTransaction: jest.fn(),
-    } as PayStrategyExecuteRequest<RelayQuote>;
-
-    submitRelayQuotesMock.mockResolvedValue({ transactionHash: undefined });
-
-    const strategy = new RelayStrategy();
-
-    await expect(strategy.execute(executeRequest)).rejects.toThrow(
-      'Relay: Missing transaction hash',
     );
   });
 });

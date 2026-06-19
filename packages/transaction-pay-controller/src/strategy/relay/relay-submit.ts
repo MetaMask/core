@@ -55,7 +55,8 @@ import type {
 const FALLBACK_HASH = '0x0' as Hex;
 
 const log = createModuleLogger(projectLogger, 'relay-strategy');
-const RELAY_EXECUTE_ERROR_PREFIX = 'Relay: Execute: ';
+const RELAY_ERROR_PREFIX = 'Relay: ';
+const RELAY_EXECUTE_ERROR_PREFIX = 'Execute: ';
 
 /**
  * Submits Relay quotes.
@@ -64,6 +65,16 @@ const RELAY_EXECUTE_ERROR_PREFIX = 'Relay: Execute: ';
  * @returns An object containing the transaction hash if available.
  */
 export async function submitRelayQuotes(
+  request: PayStrategyExecuteRequest<RelayQuote>,
+): Promise<{ transactionHash?: Hex }> {
+  try {
+    return await submitRelayQuotesInternal(request);
+  } catch (error) {
+    throw prefixError(error, RELAY_ERROR_PREFIX);
+  }
+}
+
+async function submitRelayQuotesInternal(
   request: PayStrategyExecuteRequest<RelayQuote>,
 ): Promise<{ transactionHash?: Hex }> {
   log('Executing quotes', request);
@@ -262,7 +273,7 @@ async function waitForRelayCompletion(
         log('Relay polling timed out (tolerated)', statusDetail);
         return { status: 'timeout' };
       }
-      throw new Error(`Relay polling timed out${statusDetail}`);
+      throw new Error(`Polling timed out${statusDetail}`);
     }
 
     await new Promise((resolve) => setTimeout(resolve, pollingInterval));

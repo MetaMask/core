@@ -210,7 +210,7 @@ describe('Relay Submit Utils', () => {
       request.quotes = [];
 
       await expect(submitRelayQuotes(request)).rejects.toThrow(
-        'No quotes to submit',
+        'Relay: No quotes to submit',
       );
     });
 
@@ -609,7 +609,7 @@ describe('Relay Submit Utils', () => {
       request.quotes[0].original.steps[0].kind = 'unsupported' as never;
 
       await expect(submitRelayQuotes(request)).rejects.toThrow(
-        'Unsupported step kind: unsupported',
+        'Relay: Unsupported step kind: unsupported',
       );
     });
 
@@ -686,7 +686,7 @@ describe('Relay Submit Utils', () => {
       );
 
       await expect(submitRelayQuotes(request)).rejects.toThrow(
-        'Transaction failed',
+        'Relay: Transaction failed',
       );
     });
 
@@ -696,7 +696,7 @@ describe('Relay Submit Utils', () => {
       );
 
       await expect(submitRelayQuotes(request)).rejects.toThrow(
-        'addTransaction boom',
+        'Relay: addTransaction boom',
       );
     });
 
@@ -704,7 +704,7 @@ describe('Relay Submit Utils', () => {
       collectTransactionIdsMock.mockReturnValue({ end: jest.fn() });
 
       await expect(submitRelayQuotes(request)).rejects.toThrow(
-        'No transactions submitted',
+        'Relay: No transactions submitted',
       );
     });
 
@@ -712,7 +712,7 @@ describe('Relay Submit Utils', () => {
       getTransactionMock.mockReturnValue({} as TransactionMeta);
 
       await expect(submitRelayQuotes(request)).rejects.toThrow(
-        'Missing transaction hash',
+        'Relay: Missing transaction hash',
       );
     });
 
@@ -725,7 +725,7 @@ describe('Relay Submit Utils', () => {
         } as Response);
 
         await expect(submitRelayQuotes(request)).rejects.toThrow(
-          `Request failed with status: ${status}`,
+          `Relay: Request failed with status: ${status}`,
         );
       },
     );
@@ -737,7 +737,7 @@ describe('Relay Submit Utils', () => {
       } as Response);
 
       await expect(submitRelayQuotes(request)).rejects.toThrow(
-        'Unrecognized status: unknown_status',
+        'Relay: Unrecognized status: unknown_status',
       );
     });
 
@@ -792,7 +792,7 @@ describe('Relay Submit Utils', () => {
         });
 
       await expect(submitRelayQuotes(request)).rejects.toThrow(
-        'Relay polling timed out',
+        'Relay: Polling timed out',
       );
     });
 
@@ -814,7 +814,7 @@ describe('Relay Submit Utils', () => {
         });
 
       await expect(submitRelayQuotes(request)).rejects.toThrow(
-        'Relay polling timed out (last status: pending)',
+        'Relay: Polling timed out (last status: pending)',
       );
     });
 
@@ -1415,7 +1415,7 @@ describe('Relay Submit Utils', () => {
       getLiveTokenBalanceMock.mockResolvedValue('500000');
 
       await expect(submitRelayQuotes(request)).rejects.toThrow(
-        'Insufficient source token balance for relay deposit. Required: 1000000, Available: 500000',
+        'Relay: Insufficient source token balance for relay deposit. Required: 1000000, Available: 500000',
       );
 
       expect(addTransactionMock).not.toHaveBeenCalled();
@@ -1429,7 +1429,7 @@ describe('Relay Submit Utils', () => {
       getLiveTokenBalanceMock.mockResolvedValue('500000');
 
       await expect(submitRelayQuotes(request)).rejects.toThrow(
-        'Insufficient source token balance for relay deposit. Required: 1000000, Available: 500000',
+        'Relay: Insufficient source token balance for relay deposit. Required: 1000000, Available: 500000',
       );
 
       expect(addTransactionBatchMock).not.toHaveBeenCalled();
@@ -1439,7 +1439,7 @@ describe('Relay Submit Utils', () => {
       getLiveTokenBalanceMock.mockResolvedValue('0');
 
       await expect(submitRelayQuotes(request)).rejects.toThrow(
-        'Insufficient source token balance for relay deposit. Required: 1000000, Available: 0',
+        'Relay: Insufficient source token balance for relay deposit. Required: 1000000, Available: 0',
       );
 
       expect(addTransactionMock).not.toHaveBeenCalled();
@@ -1465,7 +1465,7 @@ describe('Relay Submit Utils', () => {
       getLiveTokenBalanceMock.mockRejectedValue(new Error('RPC timeout'));
 
       await expect(submitRelayQuotes(request)).rejects.toThrow(
-        'Cannot validate payment token balance - RPC timeout',
+        'Relay: Cannot validate payment token balance - RPC timeout',
       );
     });
 
@@ -1608,7 +1608,7 @@ describe('Relay Submit Utils', () => {
         } as Response);
 
         await expect(submitRelayQuotes(request)).rejects.toThrow(
-          'Request failed with status: refund',
+          'Relay: Request failed with status: refund',
         );
         expect(sweepPolymarketDepositWallet).toHaveBeenCalledWith(
           FROM_MOCK,
@@ -1630,7 +1630,7 @@ describe('Relay Submit Utils', () => {
         } as Response);
 
         await expect(submitRelayQuotes(request)).rejects.toThrow(
-          'Request failed with status: refunded',
+          'Relay: Request failed with status: refunded',
         );
         expect(sweepPolymarketDepositWallet).toHaveBeenCalledWith(
           FROM_MOCK,
@@ -1648,7 +1648,7 @@ describe('Relay Submit Utils', () => {
         } as Response);
 
         await expect(submitRelayQuotes(request)).rejects.toThrow(
-          'Request failed with status: timeout',
+          'Relay: Request failed with status: timeout',
         );
         expect(sweepPolymarketDepositWallet).toHaveBeenCalledWith(
           FROM_MOCK,
