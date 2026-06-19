@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.1.0]
+
 ### Added
 
 - Add `getAssetsWatchlist` and `setAssetsWatchlist` methods to `AuthenticatedUserStorageService` for managing the authenticated user's assets-watchlist, along with corresponding messenger actions (`AuthenticatedUserStorageService:getAssetsWatchlist`, `AuthenticatedUserStorageService:setAssetsWatchlist`), the `AssetsWatchlistBlob` type, and the `ASSETS_WATCHLIST_MAX_ASSETS` constant ([#8836](https://github.com/MetaMask/core/pull/8836))
@@ -50,7 +52,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **BREAKING**: Rename `SocialAIPreference.traderProfileIds` to `mutedTraderProfileIds` in types and notification-preferences validation to match the API payload. ([#8536](https://github.com/MetaMask/core/pull/8536))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/authenticated-user-storage@2.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/authenticated-user-storage@2.1.0...HEAD
+[2.1.0]: https://github.com/MetaMask/core/compare/@metamask/authenticated-user-storage@2.0.0...@metamask/authenticated-user-storage@2.1.0
 [2.0.0]: https://github.com/MetaMask/core/compare/@metamask/authenticated-user-storage@1.0.1...@metamask/authenticated-user-storage@2.0.0
 [1.0.1]: https://github.com/MetaMask/core/compare/@metamask/authenticated-user-storage@1.0.0...@metamask/authenticated-user-storage@1.0.1
 [1.0.0]: https://github.com/MetaMask/core/releases/tag/@metamask/authenticated-user-storage@1.0.0

@@ -55,10 +55,10 @@
   "dependencies": {
     "@metamask/7715-permission-types": "^0.7.1",
     "@metamask/abi-utils": "^2.0.3",
-    "@metamask/base-controller": "^9.1.0",
+    "@metamask/base-controller": "^9.1.1",
     "@metamask/delegation-core": "^2.2.1",
     "@metamask/delegation-deployments": "^1.4.0",
-    "@metamask/messenger": "^1.2.0",
+    "@metamask/messenger": "^1.2.1",
     "@metamask/network-controller": "^32.0.0",
     "@metamask/snaps-controllers": "^19.0.0",
     "@metamask/snaps-sdk": "^11.0.0",

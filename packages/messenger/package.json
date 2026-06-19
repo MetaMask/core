@@ -1,6 +1,6 @@
 {
   "name": "@metamask/messenger",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "description": "A type-safe message bus library",
   "keywords": [
     "Ethereum",
