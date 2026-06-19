@@ -119,6 +119,7 @@ yarn skills --reset                 # clear saved local selection
 - [`@metamask/smart-transactions-controller`](packages/smart-transactions-controller)
 - [`@metamask/snap-account-service`](packages/snap-account-service)
 - [`@metamask/social-controllers`](packages/social-controllers)
+- [`@metamask/solana-test-validator-up`](packages/solana-test-validator-up)
 - [`@metamask/storage-service`](packages/storage-service)
 - [`@metamask/subscription-controller`](packages/subscription-controller)
 - [`@metamask/transaction-controller`](packages/transaction-controller)
@@ -214,6 +215,7 @@ linkStyle default opacity:0.5
   smart_transactions_controller(["@metamask/smart-transactions-controller"]);
   snap_account_service(["@metamask/snap-account-service"]);
   social_controllers(["@metamask/social-controllers"]);
+  solana_test_validator_up(["@metamask/solana-test-validator-up"]);
   storage_service(["@metamask/storage-service"]);
   subscription_controller(["@metamask/subscription-controller"]);
   transaction_controller(["@metamask/transaction-controller"]);
