@@ -9,6 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add the `@metamask/java-tron-up` package ([#8825](https://github.com/MetaMask/core/pull/8825)).
+- Add the `@metamask/java-tron-up` package ([#9208](https://github.com/MetaMask/core/pull/9208)).
 
 [Unreleased]: https://github.com/MetaMask/core/
