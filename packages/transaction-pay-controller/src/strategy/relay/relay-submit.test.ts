@@ -625,9 +625,31 @@ describe('Relay Submit Utils', () => {
     it('does not wait for relay status if same chain', async () => {
       request.quotes[0].original.details.currencyOut.currency.chainId = 1;
 
-      await submitRelayQuotes(request);
+      const result = await submitRelayQuotes(request);
 
+      expect(result.transactionHash).toBe(TRANSACTION_HASH_MOCK);
       expect(successfulFetchMock).toHaveBeenCalledTimes(0);
+    });
+
+    it('returns submitted hash if same-chain polling returns no target hash', async () => {
+      request.quotes[0].original.details.currencyOut.currency.chainId = 1;
+      request.quotes[0].original.steps = [
+        {
+          ...request.quotes[0].original.steps[0],
+          id: 'deposit',
+        },
+      ];
+      successfulFetchMock.mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          ...STATUS_RESPONSE_MOCK,
+          txHashes: [],
+        }),
+      } as Response);
+
+      const result = await submitRelayQuotes(request);
+
+      expect(result.transactionHash).toBe(TRANSACTION_HASH_MOCK);
     });
 
     it('waits for relay status if same chain with single deposit step', async () => {
@@ -679,7 +701,7 @@ describe('Relay Submit Utils', () => {
         } as Response);
 
         await expect(submitRelayQuotes(request)).rejects.toThrow(
-          `Relay request failed with status: ${status}`,
+          `Request failed with status: ${status}`,
         );
       },
     );
@@ -691,7 +713,7 @@ describe('Relay Submit Utils', () => {
       } as Response);
 
       await expect(submitRelayQuotes(request)).rejects.toThrow(
-        'Relay returned unrecognized status: unknown_status',
+        'Unrecognized status: unknown_status',
       );
     });
 
@@ -1562,7 +1584,7 @@ describe('Relay Submit Utils', () => {
         } as Response);
 
         await expect(submitRelayQuotes(request)).rejects.toThrow(
-          'Relay request failed with status: refund',
+          'Request failed with status: refund',
         );
         expect(sweepPolymarketDepositWallet).toHaveBeenCalledWith(
           FROM_MOCK,
@@ -1584,7 +1606,7 @@ describe('Relay Submit Utils', () => {
         } as Response);
 
         await expect(submitRelayQuotes(request)).rejects.toThrow(
-          'Relay request failed with status: refunded',
+          'Request failed with status: refunded',
         );
         expect(sweepPolymarketDepositWallet).toHaveBeenCalledWith(
           FROM_MOCK,
@@ -1602,7 +1624,7 @@ describe('Relay Submit Utils', () => {
         } as Response);
 
         await expect(submitRelayQuotes(request)).rejects.toThrow(
-          'Relay request failed with status: timeout',
+          'Request failed with status: timeout',
         );
         expect(sweepPolymarketDepositWallet).toHaveBeenCalledWith(
           FROM_MOCK,

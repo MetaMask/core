@@ -435,9 +435,7 @@ describe('fiat-direct-musd', () => {
           sourceAmountRaw: '5000000',
           transaction: TRANSACTION_MOCK,
         }),
-      ).rejects.toThrow(
-        'Vault: getAmountData returned no updates for direct mUSD submit',
-      );
+      ).rejects.toThrow('Vault: No amount updates');
     });
 
     it('throws when nested transactions are missing', async () => {
@@ -463,9 +461,7 @@ describe('fiat-direct-musd', () => {
           sourceAmountRaw: '5000000',
           transaction,
         }),
-      ).rejects.toThrow(
-        'Vault: Missing nested transactions for direct mUSD submit',
-      );
+      ).rejects.toThrow('Vault: Missing nested transactions');
     });
 
     it('throws when no vault transactions are collected', async () => {
@@ -491,9 +487,7 @@ describe('fiat-direct-musd', () => {
           sourceAmountRaw: '5000000',
           transaction: TRANSACTION_MOCK,
         }),
-      ).rejects.toThrow(
-        'Vault: No vault transactions were submitted for direct mUSD submit',
-      );
+      ).rejects.toThrow('Vault: No transactions submitted');
     });
 
     it('throws when the confirmed vault transaction has no hash', async () => {
@@ -525,9 +519,7 @@ describe('fiat-direct-musd', () => {
           sourceAmountRaw: '5000000',
           transaction: TRANSACTION_MOCK,
         }),
-      ).rejects.toThrow(
-        'Vault: Missing transaction hash for direct mUSD vault submission',
-      );
+      ).rejects.toThrow('Vault: Missing transaction hash');
     });
 
     it('skips the vault batch when vaultDisabled is enabled', async () => {
@@ -559,9 +551,7 @@ describe('fiat-direct-musd', () => {
           sourceAmountRaw: '5000000',
           transaction,
         }),
-      ).rejects.toThrow(
-        'Vault: Missing Money Account address for direct mUSD submit',
-      );
+      ).rejects.toThrow('Vault: Missing Money Account address');
     });
   });
 });

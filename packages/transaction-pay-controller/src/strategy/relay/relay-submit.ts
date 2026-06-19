@@ -71,7 +71,7 @@ export async function submitRelayQuotes(
   const { quotes, messenger, transaction } = request;
 
   if (!quotes.length) {
-    throw new Error('No Relay quotes to submit');
+    throw new Error('No quotes to submit');
   }
 
   let transactionHash: Hex | undefined;
@@ -85,7 +85,7 @@ export async function submitRelayQuotes(
   }
 
   if (transactionHash === undefined) {
-    throw new Error('Missing transaction hash for Relay submission');
+    throw new Error('Missing transaction hash');
   }
 
   return { transactionHash };
@@ -120,6 +120,7 @@ async function executeSingleQuote(
   );
 
   let polymarketPreSubmitUsdceBalance = 0n;
+  let submittedHash: Hex | undefined;
 
   if (quote.request.isHyperliquidSource) {
     await submitHyperliquidWithdraw(quote, quote.request.from, messenger);
@@ -127,9 +128,10 @@ async function executeSingleQuote(
     const { sourceHash, preSubmitUsdceBalance } =
       await submitPolymarketWithdraw(quote, quote.request.from, messenger);
     polymarketPreSubmitUsdceBalance = preSubmitUsdceBalance;
+    submittedHash = sourceHash;
     setRelaySourceHash(transaction, messenger, sourceHash);
   } else {
-    await submitTransactions(quote, transaction, messenger);
+    submittedHash = await submitTransactions(quote, transaction, messenger);
   }
 
   const completion = await waitForRelayCompletion(quote.original, messenger, {
@@ -137,6 +139,7 @@ async function executeSingleQuote(
       log('Source hash received', hash);
       setRelaySourceHash(transaction, messenger, hash);
     },
+    submittedHash,
     tolerateFailure: isPolymarket,
   });
 
@@ -149,7 +152,7 @@ async function executeSingleQuote(
     });
 
     if (completion.status !== 'success') {
-      throw new Error(`Relay request failed with status: ${completion.status}`);
+      throw new Error(`Request failed with status: ${completion.status}`);
     }
   }
 
@@ -195,10 +198,11 @@ async function waitForRelayCompletion(
   messenger: TransactionPayControllerMessenger,
   options: {
     onSourceHash?: (hash: Hex) => void;
+    submittedHash?: Hex;
     tolerateFailure?: boolean;
   },
 ): Promise<RelayCompletionOutcome> {
-  const { onSourceHash, tolerateFailure } = options;
+  const { onSourceHash, submittedHash, tolerateFailure } = options;
 
   const isSameChain =
     quote.details.currencyIn.currency.chainId ===
@@ -209,7 +213,7 @@ async function waitForRelayCompletion(
 
   if (isSameChain && !isSingleDepositStep) {
     log('Skipping polling as same chain');
-    return { status: 'success', targetHash: FALLBACK_HASH };
+    return { status: 'success', targetHash: submittedHash ?? FALLBACK_HASH };
   }
 
   const { requestId } = quote.steps[0];
@@ -244,7 +248,9 @@ async function waitForRelayCompletion(
 
       if (status.status === 'success') {
         const targetHash =
-          (status.txHashes?.slice(-1)[0] as Hex) ?? FALLBACK_HASH;
+          (status.txHashes?.slice(-1)[0] as Hex | undefined) ??
+          (isSameChain ? submittedHash : undefined) ??
+          FALLBACK_HASH;
         return { status: 'success', targetHash };
       }
 
@@ -254,9 +260,9 @@ async function waitForRelayCompletion(
             log('Relay ended in failure status (tolerated)', status.status);
             return { status: status.status };
           }
-          throw new Error(`Relay request failed with status: ${status.status}`);
+          throw new Error(`Request failed with status: ${status.status}`);
         }
-        throw new Error(`Relay returned unrecognized status: ${status.status}`);
+        throw new Error(`Unrecognized status: ${status.status}`);
       }
     }
 
@@ -744,7 +750,7 @@ async function submitViaTransactionController(
   log('Added transactions', transactionIds);
 
   if (!transactionIds.length) {
-    throw new Error('No Relay transactions were submitted');
+    throw new Error('No transactions submitted');
   }
 
   if (result) {
@@ -761,7 +767,7 @@ async function submitViaTransactionController(
   const hash = getTransaction(transactionIds.slice(-1)[0], messenger)?.hash;
 
   if (!hash) {
-    throw new Error('Missing transaction hash for Relay submission');
+    throw new Error('Missing transaction hash');
   }
 
   return hash as Hex;

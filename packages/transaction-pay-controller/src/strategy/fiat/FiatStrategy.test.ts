@@ -60,7 +60,7 @@ describe('FiatStrategy', () => {
     });
 
     it('prefixes execute errors with the Fiat prefix without replacing the Error object', async () => {
-      const error = new Error('Missing order ID for fiat submission');
+      const error = new Error('Missing order ID');
       submitFiatQuotesMock.mockRejectedValue(error);
 
       const thrown = await new FiatStrategy()
@@ -73,7 +73,7 @@ describe('FiatStrategy', () => {
         .catch((caught) => caught);
 
       expect(thrown).toBe(error);
-      expect(thrown.message).toBe('Fiat: Missing order ID for fiat submission');
+      expect(thrown.message).toBe('Fiat: Missing order ID');
     });
 
     it('throws if fiat submission returns no transaction hash', async () => {
@@ -86,12 +86,12 @@ describe('FiatStrategy', () => {
           messenger: {} as TransactionPayControllerMessenger,
           transaction: { txParams: { from: '0x1' } } as TransactionMeta,
         }),
-      ).rejects.toThrow('Fiat: Missing transaction hash for fiat submission');
+      ).rejects.toThrow('Fiat: Missing transaction hash');
     });
 
     it('preserves nested Post-Ramp and Vault prefixes', async () => {
       submitFiatQuotesMock.mockRejectedValue(
-        new Error('Post-Ramp: Vault: Missing transaction hash'),
+        new Error('Post-Ramp: Direct mUSD: Vault: Missing transaction hash'),
       );
 
       await expect(
@@ -101,7 +101,9 @@ describe('FiatStrategy', () => {
           messenger: {} as TransactionPayControllerMessenger,
           transaction: { txParams: { from: '0x1' } } as TransactionMeta,
         }),
-      ).rejects.toThrow('Fiat: Post-Ramp: Vault: Missing transaction hash');
+      ).rejects.toThrow(
+        'Fiat: Post-Ramp: Direct mUSD: Vault: Missing transaction hash',
+      );
     });
   });
 });

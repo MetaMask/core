@@ -31,7 +31,7 @@ export class RelayStrategy implements PayStrategy<RelayQuote> {
       const result = await submitRelayQuotes(request);
 
       if (result.transactionHash === undefined) {
-        throw new Error('Missing transaction hash for Relay submission');
+        throw new Error('Missing transaction hash');
       }
 
       return result;

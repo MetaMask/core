@@ -177,7 +177,7 @@ describe('RelayStrategy', () => {
     const strategy = new RelayStrategy();
 
     await expect(strategy.execute(executeRequest)).rejects.toThrow(
-      'Relay: Missing transaction hash for Relay submission',
+      'Relay: Missing transaction hash',
     );
   });
 });
