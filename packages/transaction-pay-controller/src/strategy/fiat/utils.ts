@@ -1,6 +1,7 @@
 import type {
   Quote as RampsQuote,
   RampsOrder,
+  RampsOrderCryptoCurrency,
 } from '@metamask/ramps-controller';
 import type { TransactionMeta } from '@metamask/transaction-controller';
 import { TransactionType } from '@metamask/transaction-controller';
@@ -127,6 +128,46 @@ export async function getRampsQuote({
   }
 
   return quote;
+}
+
+/**
+ * Validates that a completed order's crypto asset matches the expected fiat asset.
+ *
+ * @param options - The validation options.
+ * @param options.expectedAsset - The expected fiat asset derived from the transaction type.
+ * @param options.orderCrypto - The crypto currency information from the completed order.
+ * @param options.transactionId - Transaction ID for error reporting.
+ */
+export function validateOrderAsset({
+  expectedAsset,
+  orderCrypto,
+  transactionId,
+}: {
+  expectedAsset: TransactionPayFiatAsset;
+  orderCrypto: RampsOrderCryptoCurrency | undefined;
+  transactionId: string;
+}): void {
+  const orderAssetId = orderCrypto?.assetId?.toLowerCase();
+  const expectedAssetId = buildCaipAssetType(
+    expectedAsset.chainId,
+    expectedAsset.address,
+  ).toLowerCase();
+  const expectedChainId = expectedAssetId.split('/')[0];
+  const orderChainId = orderCrypto?.chainId?.toLowerCase();
+
+  if (orderAssetId && orderAssetId !== expectedAssetId) {
+    throw new Error(
+      `Order asset mismatch for transaction ${transactionId}: ` +
+        `expected ${expectedAssetId}, got ${orderAssetId}`,
+    );
+  }
+
+  if (orderChainId && orderChainId !== expectedChainId) {
+    throw new Error(
+      `Order chain mismatch for transaction ${transactionId}: ` +
+        `expected ${expectedChainId}, got ${orderChainId}`,
+    );
+  }
 }
 
 /**

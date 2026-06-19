@@ -1138,7 +1138,68 @@ describe('submitFiatQuotes', () => {
       });
 
       await expect(submitFiatQuotes(request)).rejects.toThrow(
-        'Post-Ramp: Direct mUSD: Vault: Missing transaction hash',
+        'Post-Ramp: Direct mUSD: Missing transaction hash',
+      );
+    });
+
+    it('prefixes direct mUSD addTransactionBatch errors as Vault errors', async () => {
+      const { callMock, request } = getRequest({
+        quotes: [
+          getFiatQuoteMock({
+            includeRelayQuote: false,
+            request: MUSD_QUOTE_REQUEST,
+          }),
+        ],
+        transaction: MUSD_TRANSACTION_MOCK,
+      });
+
+      callMock.mockImplementation((action: string) => {
+        if (action === 'TransactionPayController:getState') {
+          return {
+            transactionData: {
+              [MUSD_TRANSACTION_MOCK.id]: {
+                fiatPayment: {
+                  orderId: ORDER_ID_MOCK,
+                  rampsQuote: RAMPS_QUOTE_MOCK,
+                },
+                isLoading: false,
+                tokens: [],
+              },
+            },
+          };
+        }
+
+        if (action === 'TransactionPayController:getFiatOptions') {
+          return undefined;
+        }
+
+        if (action === 'RampsController:getOrder') {
+          return getFiatOrderMock();
+        }
+
+        if (action === 'TransactionPayController:getAmountData') {
+          return Promise.resolve({
+            updates: [{ nestedTransactionIndex: 0, data: '0xapprove' }],
+          });
+        }
+
+        if (action === 'NetworkController:findNetworkClientIdByChainId') {
+          return 'network-client-id-mock';
+        }
+
+        if (action === 'TransactionController:addTransactionBatch') {
+          throw new Error('batch failed');
+        }
+
+        if (action === 'RemoteFeatureFlagController:getState') {
+          return { remoteFeatureFlags: {} };
+        }
+
+        throw new Error(`Unexpected action: ${action}`);
+      });
+
+      await expect(submitFiatQuotes(request)).rejects.toThrow(
+        'Post-Ramp: Direct mUSD: Vault: batch failed',
       );
     });
 

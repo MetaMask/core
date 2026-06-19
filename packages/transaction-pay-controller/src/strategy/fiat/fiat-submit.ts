@@ -1,7 +1,4 @@
-import type {
-  RampsOrder,
-  RampsOrderCryptoCurrency,
-} from '@metamask/ramps-controller';
+import type { RampsOrder } from '@metamask/ramps-controller';
 import { RampsOrderStatus } from '@metamask/ramps-controller';
 import type { Hex } from '@metamask/utils';
 import { createModuleLogger } from '@metamask/utils';
@@ -18,13 +15,10 @@ import {
   getFiatOrderPollIntervalMs,
   getFiatOrderPollTimeoutMs,
 } from '../../utils/feature-flags';
-import { buildCaipAssetType } from '../../utils/token';
 import { updateTransaction } from '../../utils/transaction';
-import type { TransactionPayFiatAsset } from './constants';
-import { MUSD_MONAD_FIAT_ASSET } from './constants';
 import {
   isDirectMusdMoneyAccountQuote,
-  submitDirectMusdVaultDeposit,
+  submitDirectMusdAfterFiatCompletion,
 } from './fiat-direct-musd';
 import { submitSimpleRelay } from './fiat-submit-simple';
 import { submitWithTransactionData } from './fiat-submit-with-transaction-data';
@@ -34,10 +28,10 @@ import {
   deriveFiatAssetForFiatPayment,
   extractProviderCode,
   resolveSourceAmountRaw,
+  validateOrderAsset,
 } from './utils';
 
 const log = createModuleLogger(projectLogger, 'fiat-submit');
-const DIRECT_MUSD_ERROR_PREFIX = 'Direct mUSD: ';
 const POST_RAMP_ERROR_PREFIX = 'Post-Ramp: ';
 
 const TERMINAL_FAILURE_STATUSES: RampsOrderStatus[] = [
@@ -156,46 +150,6 @@ function getFiatOptions(
 }
 
 /**
- * Validates that the completed order's crypto asset matches the expected fiat asset.
- *
- * @param options - The validation options.
- * @param options.expectedAsset - The expected fiat asset derived from the transaction type.
- * @param options.orderCrypto - The crypto currency information from the completed order.
- * @param options.transactionId - Transaction ID for error reporting.
- */
-function validateOrderAsset({
-  expectedAsset,
-  orderCrypto,
-  transactionId,
-}: {
-  expectedAsset: TransactionPayFiatAsset;
-  orderCrypto: RampsOrderCryptoCurrency | undefined;
-  transactionId: string;
-}): void {
-  const orderAssetId = orderCrypto?.assetId?.toLowerCase();
-  const expectedAssetId = buildCaipAssetType(
-    expectedAsset.chainId,
-    expectedAsset.address,
-  ).toLowerCase();
-  const expectedChainId = expectedAssetId.split('/')[0];
-  const orderChainId = orderCrypto?.chainId?.toLowerCase();
-
-  if (orderAssetId && orderAssetId !== expectedAssetId) {
-    throw new Error(
-      `Order asset mismatch for transaction ${transactionId}: ` +
-        `expected ${expectedAssetId}, got ${orderAssetId}`,
-    );
-  }
-
-  if (orderChainId && orderChainId !== expectedChainId) {
-    throw new Error(
-      `Order chain mismatch for transaction ${transactionId}: ` +
-        `expected ${expectedChainId}, got ${orderChainId}`,
-    );
-  }
-}
-
-/**
  * Polls the on-ramp order until it reaches a terminal status.
  *
  * @param options - The polling options.
@@ -292,28 +246,7 @@ async function submitRelayAfterFiatCompletion({
   const isDirectMusd = isDirectMusdMoneyAccountQuote(fiatQuote);
 
   if (isDirectMusd) {
-    try {
-      validateOrderAsset({
-        expectedAsset: MUSD_MONAD_FIAT_ASSET,
-        orderCrypto: order.cryptoCurrency,
-        transactionId,
-      });
-
-      const sourceAmountRaw = await resolveSourceAmountRaw({
-        messenger,
-        order,
-        fiatAsset: MUSD_MONAD_FIAT_ASSET,
-        walletAddress: transaction.txParams.from as Hex,
-      });
-
-      return await submitDirectMusdVaultDeposit({
-        request,
-        sourceAmountRaw,
-        transaction,
-      });
-    } catch (error) {
-      throw prefixError(error, DIRECT_MUSD_ERROR_PREFIX);
-    }
+    return await submitDirectMusdAfterFiatCompletion({ order, request });
   }
 
   const fiatAsset = deriveFiatAssetForFiatPayment(transaction, messenger);
