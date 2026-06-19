@@ -374,7 +374,11 @@ export class ProfileMetricsController extends StaticIntervalPollingController()<
         continue;
       }
       try {
-        const { namespace } = parseCaipChainId(fullAccount.scopes[0] ?? '');
+        const [scope] = fullAccount.scopes;
+        if (!scope) {
+          throw new Error(`Scope not found for account ${fullAccount.id}`);
+        }
+        const { namespace } = parseCaipChainId(scope);
         const canonicalAddress = canonicalizeAddress(
           fullAccount.address,
           namespace,
@@ -464,23 +468,20 @@ export class ProfileMetricsController extends StaticIntervalPollingController()<
    * Single entry point covering both the fresh-install first sync and
    * the one-time proof-of-ownership backfill for users upgrading.
    *
-   * - Fresh install (`initialEnqueueCompleted` false): always enqueue,
-   *   even for opted-out users, so the queue is ready if they opt in
-   *   mid-session.
-   * - Upgrade (`initialEnqueueCompleted` true, `proofBackfillEnqueued`
-   *   false): only enqueue if the user is opted in, since the poll
-   *   wouldn't drain the queue otherwise.
-   * - Already done (`proofBackfillEnqueued` true): no-op.
-   *
-   * Both flags are flipped on every successful run so this becomes a
-   * permanent no-op for the lifetime of the install.
+   * Bails for opted-out users (the poll wouldn't drain the queue
+   * anyway), and bails once both bootstrap steps have already run.
+   * Otherwise enqueues all known accounts and flips both flags so this
+   * becomes a permanent no-op for the lifetime of the install.
    */
   async #enqueueAccountsIfNeeded(): Promise<void> {
     await this.#mutex.runExclusive(async () => {
-      if (this.state.proofBackfillEnqueued) {
+      if (!this.#assertUserOptedIn()) {
         return;
       }
-      if (this.state.initialEnqueueCompleted && !this.#assertUserOptedIn()) {
+      if (
+        this.state.initialEnqueueCompleted &&
+        this.state.proofBackfillEnqueued
+      ) {
         return;
       }
       const groupedAccounts = groupAccountsByEntropySourceId(

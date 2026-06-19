@@ -91,36 +91,49 @@ describe('ProfileMetricsController', () => {
       });
 
       describe('when `initialEnqueueCompleted` is false (fresh install)', () => {
-        it.each([{ assertUserOptedIn: true }, { assertUserOptedIn: false }])(
-          'enqueues existing accounts and flips both completion flags when `assertUserOptedIn` is $assertUserOptedIn',
-          async ({ assertUserOptedIn }) => {
-            await withController(
-              { options: { assertUserOptedIn: () => assertUserOptedIn } },
-              async ({ controller, rootMessenger, registerAccounts }) => {
-                registerAccounts([
-                  createMockAccount('0xAccount1'),
-                  createMockAccount('0xAccount2', false),
-                ]);
+        it('enqueues existing accounts and flips both completion flags when the user has opted in', async () => {
+          await withController(
+            { options: { assertUserOptedIn: () => true } },
+            async ({ controller, rootMessenger, registerAccounts }) => {
+              registerAccounts([
+                createMockAccount('0xAccount1'),
+                createMockAccount('0xAccount2', false),
+              ]);
 
-                rootMessenger.publish('KeyringController:unlock');
-                // Wait for async operations to complete.
-                await Promise.resolve();
+              rootMessenger.publish('KeyringController:unlock');
+              // Wait for async operations to complete.
+              await Promise.resolve();
 
-                expect(controller.state.initialEnqueueCompleted).toBe(true);
-                // Fresh installs satisfy the proof backfill in the same
-                // enqueue — accounts are queued with proofs in mind from
-                // the very first poll.
-                expect(controller.state.proofBackfillEnqueued).toBe(true);
-                expect(controller.state.syncQueue).toStrictEqual({
-                  'entropy-0xAccount1': [
-                    { address: '0xAccount1', scopes: ['eip155:1'] },
-                  ],
-                  null: [{ address: '0xAccount2', scopes: ['eip155:1'] }],
-                });
-              },
-            );
-          },
-        );
+              expect(controller.state.initialEnqueueCompleted).toBe(true);
+              // Fresh installs satisfy the proof backfill in the same
+              // enqueue — accounts are queued with proofs in mind from
+              // the very first poll.
+              expect(controller.state.proofBackfillEnqueued).toBe(true);
+              expect(controller.state.syncQueue).toStrictEqual({
+                'entropy-0xAccount1': [
+                  { address: '0xAccount1', scopes: ['eip155:1'] },
+                ],
+                null: [{ address: '0xAccount2', scopes: ['eip155:1'] }],
+              });
+            },
+          );
+        });
+
+        it('does not enqueue or flip the flags when the user has not opted in', async () => {
+          await withController(
+            { options: { assertUserOptedIn: () => false } },
+            async ({ controller, rootMessenger, registerAccounts }) => {
+              registerAccounts([createMockAccount('0xAccount1')]);
+
+              rootMessenger.publish('KeyringController:unlock');
+              await Promise.resolve();
+
+              expect(controller.state.initialEnqueueCompleted).toBe(false);
+              expect(controller.state.proofBackfillEnqueued).toBe(false);
+              expect(controller.state.syncQueue).toStrictEqual({});
+            },
+          );
+        });
       });
 
       describe('when `initialEnqueueCompleted` is true', () => {
@@ -1303,9 +1316,8 @@ describe('ProfileMetricsController', () => {
                 mockFetchNonces,
                 registerAccounts,
               }) => {
-                // The fallback to `''` in parseCaipChainId only matters if a
-                // live account ends up with an empty scopes array between
-                // enqueue and poll; cover that defensive path explicitly.
+                // Cover the defensive guard that fires when a live account
+                // ends up with an empty scopes array between enqueue and poll.
                 const consoleErrorSpy = jest
                   .spyOn(console, 'error')
                   .mockImplementation();
@@ -1331,7 +1343,9 @@ describe('ProfileMetricsController', () => {
                 );
                 expect(consoleErrorSpy).toHaveBeenCalledWith(
                   `Skipping proof for account id-${address.toLowerCase()}:`,
-                  expect.any(Error),
+                  new Error(
+                    `Scope not found for account id-${address.toLowerCase()}`,
+                  ),
                 );
               },
             );
