@@ -110,7 +110,7 @@ describe('ProfileMetricsController', () => {
                 // Fresh installs satisfy the proof backfill in the same
                 // enqueue — accounts are queued with proofs in mind from
                 // the very first poll.
-                expect(controller.state.proofBackfillCompleted).toBe(true);
+                expect(controller.state.proofBackfillEnqueued).toBe(true);
                 expect(controller.state.syncQueue).toStrictEqual({
                   'entropy-0xAccount1': [
                     { address: '0xAccount1', scopes: ['eip155:1'] },
@@ -133,7 +133,7 @@ describe('ProfileMetricsController', () => {
                   assertUserOptedIn: () => assertUserOptedIn,
                   state: {
                     initialEnqueueCompleted: true,
-                    proofBackfillCompleted: true,
+                    proofBackfillEnqueued: true,
                   },
                 },
               },
@@ -155,15 +155,15 @@ describe('ProfileMetricsController', () => {
         );
       });
 
-      describe('when `proofBackfillCompleted` is false (upgrade path)', () => {
-        it('re-enqueues all known accounts and flips `proofBackfillCompleted` to true when the user has opted in', async () => {
+      describe('when `proofBackfillEnqueued` is false (upgrade path)', () => {
+        it('re-enqueues all known accounts and flips `proofBackfillEnqueued` to true when the user has opted in', async () => {
           await withController(
             {
               options: {
                 assertUserOptedIn: () => true,
                 // Existing user upgrading: they've already first-synced
                 // (`initialEnqueueCompleted` true, persisted) but never had
-                // proofs attached (`proofBackfillCompleted` defaults to false).
+                // proofs attached (`proofBackfillEnqueued` defaults to false).
                 state: { initialEnqueueCompleted: true },
               },
             },
@@ -176,7 +176,7 @@ describe('ProfileMetricsController', () => {
               rootMessenger.publish('KeyringController:unlock');
               await Promise.resolve();
 
-              expect(controller.state.proofBackfillCompleted).toBe(true);
+              expect(controller.state.proofBackfillEnqueued).toBe(true);
               expect(controller.state.syncQueue).toStrictEqual({
                 'entropy-0xAccount1': [
                   { address: '0xAccount1', scopes: ['eip155:1'] },
@@ -201,7 +201,7 @@ describe('ProfileMetricsController', () => {
               rootMessenger.publish('KeyringController:unlock');
               await Promise.resolve();
 
-              expect(controller.state.proofBackfillCompleted).toBe(false);
+              expect(controller.state.proofBackfillEnqueued).toBe(false);
               expect(controller.state.syncQueue).toStrictEqual({});
             },
           );
@@ -233,7 +233,7 @@ describe('ProfileMetricsController', () => {
               rootMessenger.publish('KeyringController:unlock');
               await Promise.resolve();
 
-              expect(controller.state.proofBackfillCompleted).toBe(true);
+              expect(controller.state.proofBackfillEnqueued).toBe(true);
               expect(controller.state.syncQueue).toStrictEqual({
                 'entropy-0xAccount1': [
                   { address: '0xAccount1', scopes: ['eip155:1'] },
@@ -247,7 +247,7 @@ describe('ProfileMetricsController', () => {
         });
       });
 
-      describe('when `proofBackfillCompleted` is true', () => {
+      describe('when `proofBackfillEnqueued` is true', () => {
         it('does not re-enqueue accounts on subsequent unlocks', async () => {
           await withController(
             {
@@ -255,7 +255,7 @@ describe('ProfileMetricsController', () => {
                 assertUserOptedIn: () => true,
                 state: {
                   initialEnqueueCompleted: true,
-                  proofBackfillCompleted: true,
+                  proofBackfillEnqueued: true,
                 },
               },
             },
@@ -1391,7 +1391,7 @@ describe('ProfileMetricsController', () => {
             {
               "initialDelayEndTimestamp": 10,
               "initialEnqueueCompleted": false,
-              "proofBackfillCompleted": false,
+              "proofBackfillEnqueued": false,
             }
           `);
         },
@@ -1412,7 +1412,7 @@ describe('ProfileMetricsController', () => {
             {
               "initialDelayEndTimestamp": 10,
               "initialEnqueueCompleted": false,
-              "proofBackfillCompleted": false,
+              "proofBackfillEnqueued": false,
               "syncQueue": {},
             }
           `);
@@ -1434,7 +1434,7 @@ describe('ProfileMetricsController', () => {
             {
               "initialDelayEndTimestamp": 10,
               "initialEnqueueCompleted": false,
-              "proofBackfillCompleted": false,
+              "proofBackfillEnqueued": false,
               "syncQueue": {},
             }
           `);

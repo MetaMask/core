@@ -73,7 +73,7 @@ export type ProfileMetricsControllerState = {
    * ownership; fresh installs flip this on their initial sync since the
    * first poll already attaches proofs.
    */
-  proofBackfillCompleted: boolean;
+  proofBackfillEnqueued: boolean;
 };
 
 /**
@@ -98,7 +98,7 @@ const profileMetricsControllerMetadata = {
     includeInStateLogs: true,
     usedInUi: false,
   },
-  proofBackfillCompleted: {
+  proofBackfillEnqueued: {
     persist: true,
     includeInDebugSnapshot: true,
     includeInStateLogs: true,
@@ -118,7 +118,7 @@ export function getDefaultProfileMetricsControllerState(): ProfileMetricsControl
   return {
     initialEnqueueCompleted: false,
     syncQueue: {},
-    proofBackfillCompleted: false,
+    proofBackfillEnqueued: false,
   };
 }
 
@@ -467,17 +467,17 @@ export class ProfileMetricsController extends StaticIntervalPollingController()<
    * - Fresh install (`initialEnqueueCompleted` false): always enqueue,
    *   even for opted-out users, so the queue is ready if they opt in
    *   mid-session.
-   * - Upgrade (`initialEnqueueCompleted` true, `proofBackfillCompleted`
+   * - Upgrade (`initialEnqueueCompleted` true, `proofBackfillEnqueued`
    *   false): only enqueue if the user is opted in, since the poll
    *   wouldn't drain the queue otherwise.
-   * - Already done (`proofBackfillCompleted` true): no-op.
+   * - Already done (`proofBackfillEnqueued` true): no-op.
    *
    * Both flags are flipped on every successful run so this becomes a
    * permanent no-op for the lifetime of the install.
    */
   async #enqueueAccountsIfNeeded(): Promise<void> {
     await this.#mutex.runExclusive(async () => {
-      if (this.state.proofBackfillCompleted) {
+      if (this.state.proofBackfillEnqueued) {
         return;
       }
       if (this.state.initialEnqueueCompleted && !this.#assertUserOptedIn()) {
@@ -500,7 +500,7 @@ export class ProfileMetricsController extends StaticIntervalPollingController()<
         // twice with the same nonce.
         state.syncQueue = groupedAccounts;
         state.initialEnqueueCompleted = true;
-        state.proofBackfillCompleted = true;
+        state.proofBackfillEnqueued = true;
       });
     });
   }
