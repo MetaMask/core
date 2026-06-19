@@ -206,6 +206,14 @@ describe('Relay Submit Utils', () => {
   });
 
   describe('submitRelayQuotes', () => {
+    it('throws if there are no Relay quotes to submit', async () => {
+      request.quotes = [];
+
+      await expect(submitRelayQuotes(request)).rejects.toThrow(
+        'No quotes to submit',
+      );
+    });
+
     it('adds transaction', async () => {
       await submitRelayQuotes(request);
 
@@ -689,6 +697,22 @@ describe('Relay Submit Utils', () => {
 
       await expect(submitRelayQuotes(request)).rejects.toThrow(
         'addTransaction boom',
+      );
+    });
+
+    it('throws if no Relay child transactions are collected', async () => {
+      collectTransactionIdsMock.mockReturnValue({ end: jest.fn() });
+
+      await expect(submitRelayQuotes(request)).rejects.toThrow(
+        'No transactions submitted',
+      );
+    });
+
+    it('throws if the confirmed Relay child transaction has no hash', async () => {
+      getTransactionMock.mockReturnValue({} as TransactionMeta);
+
+      await expect(submitRelayQuotes(request)).rejects.toThrow(
+        'Missing transaction hash',
       );
     });
 

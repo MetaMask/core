@@ -84,10 +84,6 @@ export async function submitRelayQuotes(
     ));
   }
 
-  if (transactionHash === undefined) {
-    throw new Error('Missing transaction hash');
-  }
-
   return { transactionHash };
 }
 
