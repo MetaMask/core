@@ -7,12 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [23.13.0]
-
 ### Changed
 
 - Bump `@metamask/bridge-controller` from `^75.1.1` to `^75.2.0` ([#9147](https://github.com/MetaMask/core/pull/9147))
 - Bump `@metamask/bridge-status-controller` from `^72.1.0` to `^72.2.0` ([#9147](https://github.com/MetaMask/core/pull/9147))
+
+## [23.13.0]
+
+### Changed
+
 - Add RPC method, chain ID, and endpoint type context to transaction pay provider errors ([#9144](https://github.com/MetaMask/core/pull/9144))
 - Bump `@metamask/ramps-controller` from `^14.2.0` to `^14.3.0` ([#9199](https://github.com/MetaMask/core/pull/9199))
 - Bump `@metamask/assets-controllers` from `^109.1.0` to `^109.2.0` ([#9202](https://github.com/MetaMask/core/pull/9202))
