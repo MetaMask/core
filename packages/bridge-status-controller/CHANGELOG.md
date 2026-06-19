@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- fix: add token_symbol_source, token_symbol_destination to Unified Swa… ([#9213](https://github.com/MetaMask/core/pull/9213))
+
 ### Changed
 
 - Rename `solanaFeesInLamports` to `nonEvmFeesInNative` in unit test mocks ([#9098](https://github.com/MetaMask/core/pull/9098))
