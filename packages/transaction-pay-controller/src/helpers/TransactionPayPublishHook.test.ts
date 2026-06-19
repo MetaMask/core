@@ -115,6 +115,26 @@ describe('TransactionPayPublishHook', () => {
     expect(executeMock).not.toHaveBeenCalled();
   });
 
+  it('throws if fiat payment is selected but no quotes are in state', async () => {
+    getControllerStateMock.mockReturnValue({
+      transactionData: {
+        [TRANSACTION_META_MOCK.id]: {
+          fiatPayment: {
+            selectedPaymentMethodId: 'debit-card',
+          },
+          isLoading: false,
+          tokens: [],
+        },
+      },
+    } as TransactionPayControllerState);
+
+    await expect(runHook()).rejects.toThrow(
+      'MetaMask Pay: Fiat: Missing quote',
+    );
+    expect(executeMock).not.toHaveBeenCalled();
+    expect(updateTransactionMock).not.toHaveBeenCalled();
+  });
+
   it('sets submittedTime on the transaction before executing strategy', async () => {
     await runHook();
 

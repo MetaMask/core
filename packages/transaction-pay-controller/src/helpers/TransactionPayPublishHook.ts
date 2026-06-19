@@ -63,11 +63,18 @@ export class TransactionPayPublishHook {
       'TransactionPayController:getState',
     );
 
+    const transactionData = controllerState.transactionData?.[transactionId];
     const quotes =
-      (controllerState.transactionData?.[transactionId]
-        ?.quotes as TransactionPayQuote<unknown>[]) ?? [];
+      (transactionData?.quotes as TransactionPayQuote<unknown>[]) ?? [];
+    const isFiatSelected = Boolean(
+      transactionData?.fiatPayment?.selectedPaymentMethodId,
+    );
 
     if (!quotes?.length) {
+      if (isFiatSelected) {
+        throw new Error('Fiat: Missing quote');
+      }
+
       log('Skipping as no quotes found');
       return EMPTY_RESULT;
     }
