@@ -367,6 +367,7 @@ export class ProfileMetricsController extends StaticIntervalPollingController()<
       string,
       { account: InternalAccount; canonicalAddress: string }
     >();
+    const identifiers = new Set<string>();
     for (const queued of accounts) {
       const fullAccount = fullAccountsByAddress.get(queued.address);
       if (!fullAccount) {
@@ -374,10 +375,15 @@ export class ProfileMetricsController extends StaticIntervalPollingController()<
       }
       try {
         const { namespace } = parseCaipChainId(fullAccount.scopes[0] ?? '');
+        const canonicalAddress = canonicalizeAddress(
+          fullAccount.address,
+          namespace,
+        );
         candidates.set(queued.address, {
           account: fullAccount,
-          canonicalAddress: canonicalizeAddress(fullAccount.address, namespace),
+          canonicalAddress,
         });
+        identifiers.add(canonicalAddress);
       } catch (error) {
         // Unsupported namespaces are an expected pass-through; anything
         // else is logged so a new namespace doesn't go unnoticed.
@@ -391,18 +397,10 @@ export class ProfileMetricsController extends StaticIntervalPollingController()<
       return accounts;
     }
 
-    const identifiers = [
-      ...new Set(
-        Array.from(
-          candidates.values(),
-          ({ canonicalAddress }) => canonicalAddress,
-        ),
-      ),
-    ];
     let nonces: Record<string, string> = {};
     try {
       nonces = await this.messenger.call('ProfileMetricsService:fetchNonces', {
-        identifiers,
+        identifiers: [...identifiers],
         entropySourceId,
       });
     } catch (error) {
