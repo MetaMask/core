@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/transaction-controller` from `^68.0.1` to `^68.1.0` ([#9203](https://github.com/MetaMask/core/pull/9203))
+
+## [109.2.0]
+
 ### Added
 
 - Add `isDeprecated` option to `TokensController` constructor ([#9186](https://github.com/MetaMask/core/pull/9186))
@@ -3228,7 +3234,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Use Ethers for AssetsContractController ([#845](https://github.com/MetaMask/core/pull/845))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@109.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@109.2.0...HEAD
+[109.2.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@109.1.0...@metamask/assets-controllers@109.2.0
 [109.1.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@109.0.0...@metamask/assets-controllers@109.1.0
 [109.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@108.6.0...@metamask/assets-controllers@109.0.0
 [108.6.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@108.5.0...@metamask/assets-controllers@108.6.0

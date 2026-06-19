@@ -39,7 +39,7 @@ export async function submitSimpleRelay({
   const originalRelayQuote = request.quotes[0].original.relayQuote;
 
   if (!originalRelayQuote) {
-    throw new Error('Missing Relay quote for fiat submission');
+    throw new Error('Missing Relay quote');
   }
 
   const relayRequest: QuoteRequest = {
