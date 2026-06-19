@@ -9,6 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add the `@metamask/solana-test-validator-up` package ([#8826](https://github.com/MetaMask/core/pull/8826)).
+- Add the `@metamask/solana-test-validator-up` package ([#9210](https://github.com/MetaMask/core/pull/9210)).
 
 [Unreleased]: https://github.com/MetaMask/core/
