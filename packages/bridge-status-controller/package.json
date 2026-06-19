@@ -54,7 +54,7 @@
   "dependencies": {
     "@metamask/accounts-controller": "^39.0.1",
     "@metamask/base-controller": "^9.1.0",
-    "@metamask/bridge-controller": "^75.1.1",
+    "@metamask/bridge-controller": "^75.2.0",
     "@metamask/controller-utils": "^12.2.0",
     "@metamask/gas-fee-controller": "^26.2.2",
     "@metamask/keyring-controller": "^27.1.0",
