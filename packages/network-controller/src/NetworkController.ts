@@ -54,10 +54,7 @@ import type {
 import { createAutoManagedNetworkClient } from './create-auto-managed-network-client';
 import type { DegradedEventType, RetryReason } from './create-network-client';
 import { projectLogger, createModuleLogger } from './logger';
-import type {
-  NetworkControllerGetNetworkConfigurationByNetworkClientIdAction,
-  NetworkControllerMethodActions,
-} from './NetworkController-method-action-types';
+import type { NetworkControllerMethodActions } from './NetworkController-method-action-types';
 import type { RpcServiceOptionsWithDefaults } from './rpc-service/rpc-service';
 import { getIsRpcFailoverEnabled } from './selectors';
 import { NetworkClientType } from './types';
@@ -709,12 +706,6 @@ export type NetworkControllerActions =
   | NetworkControllerMethodActions;
 
 /**
- * @deprecated Use {@link NetworkControllerGetNetworkConfigurationByNetworkClientIdAction} instead.
- */
-export type NetworkControllerGetNetworkConfigurationByNetworkClientId =
-  NetworkControllerGetNetworkConfigurationByNetworkClientIdAction;
-
-/**
  * All actions that {@link NetworkController} calls internally.
  */
 type AllowedActions =
@@ -849,9 +840,6 @@ function getDefaultCustomNetworkConfigurationsByChainId(): Record<
   // Because it is not always guaranteed that the custom networks are included in the
   // default networks.
   return {
-    [ChainId['megaeth-testnet']]: getCustomNetworkConfiguration(
-      CustomNetworkType['megaeth-testnet'],
-    ),
     [ChainId['megaeth-testnet-v2']]: getCustomNetworkConfiguration(
       CustomNetworkType['megaeth-testnet-v2'],
     ),

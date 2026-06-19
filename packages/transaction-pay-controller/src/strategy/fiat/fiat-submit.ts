@@ -10,6 +10,7 @@ import { projectLogger } from '../../logger';
 import type {
   PayStrategy,
   PayStrategyExecuteRequest,
+  TransactionPayFiatOptions,
   TransactionPayControllerMessenger,
 } from '../../types';
 import {
@@ -20,8 +21,13 @@ import { buildCaipAssetType } from '../../utils/token';
 import { updateTransaction } from '../../utils/transaction';
 import type { TransactionPayFiatAsset } from './constants';
 import { MUSD_MONAD_FIAT_ASSET } from './constants';
+import {
+  isDirectMusdMoneyAccountQuote,
+  submitDirectMusdVaultDeposit,
+} from './fiat-direct-musd';
 import { submitSimpleRelay } from './fiat-submit-simple';
 import { submitWithTransactionData } from './fiat-submit-with-transaction-data';
+import { fundFiatOrderFromTestSource } from './fiat-test-funding';
 import type { FiatQuote } from './types';
 import {
   deriveFiatAssetForFiatPayment,
@@ -93,13 +99,28 @@ export async function submitFiatQuotes(
     transactionId,
   });
 
-  const order = await waitForOrderCompletion({
-    messenger,
-    orderCode: orderId,
-    providerCode,
-    transactionId,
-    walletAddress,
-  });
+  const fiatQuote = request.quotes[0];
+
+  if (!fiatQuote) {
+    throw new Error('Missing fiat quote for relay submission');
+  }
+
+  const fiatOptions = getFiatOptions(messenger);
+
+  const order = fiatOptions?.testFundingSource
+    ? await fundFiatOrderFromTestSource({
+        fiat: fiatOptions,
+        messenger,
+        quote: fiatQuote,
+        transaction,
+      })
+    : await waitForOrderCompletion({
+        messenger,
+        orderCode: orderId,
+        providerCode,
+        transactionId,
+        walletAddress,
+      });
 
   log('Fiat order completed', {
     cryptoAmount: order.cryptoAmount,
@@ -108,6 +129,17 @@ export async function submitFiatQuotes(
   });
 
   return await submitRelayAfterFiatCompletion({ order, request });
+}
+
+function getFiatOptions(
+  messenger: TransactionPayControllerMessenger,
+): TransactionPayFiatOptions | undefined {
+  try {
+    return messenger.call('TransactionPayController:getFiatOptions');
+  } catch (error) {
+    log('Failed to retrieve fiat options', error);
+    return undefined;
+  }
 }
 
 /**
@@ -239,18 +271,35 @@ async function submitRelayAfterFiatCompletion({
   const { messenger, quotes, transaction } = request;
   const transactionId = transaction.id;
 
-  if (!quotes.length) {
-    throw new Error('Missing fiat quote for relay submission');
-  }
-
   if (quotes.length > 1) {
     throw new Error('Multiple fiat quotes are not supported for submission');
   }
 
-  const isDirectMusd = isDirectMusdToMoneyAccountQuote(quotes);
-  const fiatAsset = isDirectMusd
-    ? MUSD_MONAD_FIAT_ASSET
-    : deriveFiatAssetForFiatPayment(transaction, messenger);
+  const fiatQuote = quotes[0];
+  const isDirectMusd = isDirectMusdMoneyAccountQuote(fiatQuote);
+
+  if (isDirectMusd) {
+    validateOrderAsset({
+      expectedAsset: MUSD_MONAD_FIAT_ASSET,
+      orderCrypto: order.cryptoCurrency,
+      transactionId,
+    });
+
+    const sourceAmountRaw = await resolveSourceAmountRaw({
+      messenger,
+      order,
+      fiatAsset: MUSD_MONAD_FIAT_ASSET,
+      walletAddress: transaction.txParams.from as Hex,
+    });
+
+    return await submitDirectMusdVaultDeposit({
+      request,
+      sourceAmountRaw,
+      transaction,
+    });
+  }
+
+  const fiatAsset = deriveFiatAssetForFiatPayment(transaction, messenger);
 
   validateOrderAsset({
     expectedAsset: fiatAsset,
@@ -258,18 +307,18 @@ async function submitRelayAfterFiatCompletion({
     transactionId,
   });
 
-  const baseRequest = quotes[0].request;
-
-  const sourceAmountWalletAddress = isDirectMusd
-    ? (transaction.txParams.from as Hex)
-    : baseRequest.from;
+  const baseRequest = fiatQuote.request;
 
   const sourceAmountRaw = await resolveSourceAmountRaw({
     messenger,
     order,
     fiatAsset,
-    walletAddress: sourceAmountWalletAddress,
+    walletAddress: baseRequest.from,
   });
+
+  if (!fiatQuote.original.relayQuote) {
+    throw new Error('Missing Relay quote for fiat submission');
+  }
 
   const hasNestedCalldata = (transaction.nestedTransactions?.length ?? 0) >= 2;
 
@@ -295,26 +344,6 @@ async function submitRelayAfterFiatCompletion({
   });
 }
 
-/**
- * Detects whether the given quotes originated from the direct mUSD-to-
- * Money-Account flow by inspecting the stored quote request's source
- * chain and token. This is more reliable than re-checking the feature
- * flag, which could change between quote and submit.
- *
- * @param quotes - The fiat quotes to inspect.
- * @returns `true` if the first quote targets mUSD on Monad as its source.
- */
-function isDirectMusdToMoneyAccountQuote(
-  quotes: PayStrategyExecuteRequest<FiatQuote>['quotes'],
-): boolean {
-  const request = quotes[0]?.request;
-  return (
-    request?.sourceChainId === MUSD_MONAD_FIAT_ASSET.chainId &&
-    request?.sourceTokenAddress.toLowerCase() ===
-      MUSD_MONAD_FIAT_ASSET.address.toLowerCase()
-  );
-}
-
 function getWalletAddress({
   quotes,
   transaction,
@@ -324,7 +353,7 @@ function getWalletAddress({
   transaction: PayStrategyExecuteRequest<FiatQuote>['transaction'];
   accountOverride: Hex | undefined;
 }): Hex {
-  const address = isDirectMusdToMoneyAccountQuote(quotes)
+  const address = isDirectMusdMoneyAccountQuote(quotes[0])
     ? transaction.txParams.from
     : (accountOverride ?? transaction.txParams.from);
 

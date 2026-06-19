@@ -7,10 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `isDeprecated` option to `TokensController` constructor ([#9186](https://github.com/MetaMask/core/pull/9186))
+  - When `isDeprecated()` returns `true`, no token list enrichment runs and `allTokens`, `allIgnoredTokens`, and `allDetectedTokens` are reset to `{}` at construction and at every entry point (`addToken`, `addTokens`, `ignoreTokens`, `addDetectedTokens`, `updateTokenType`, `watchAsset`, `clearIgnoredTokens`, `NetworkController:stateChange`, and `KeyringController:accountRemoved`), so no stale token data remains in state.
+- Add `isDeprecated` option to `CurrencyRateController` constructor ([#9182](https://github.com/MetaMask/core/pull/9182))
+  - When `isDeprecated()` returns `true`, no API requests are sent and `currencyRates` is reset to `{}` at construction and at every entry point (`setCurrentCurrency`, `updateExchangeRate`, and `_executePoll`), so no stale rates remain in state.
+  - The function is re-evaluated on each entry point so it can be toggled at runtime without reconstructing the controller.
+- Add `isDeprecated` option to `MultichainAssetsRatesController` constructor ([#9044](https://github.com/MetaMask/core/pull/9044))
+  - When `isDeprecated()` returns `true`, no Snap requests are sent and `conversionRates` and `historicalPrices` are reset to `{}` at construction and at every entry point (`updateAssetsRates`, `fetchHistoricalPricesForAsset`, `_executePoll`, `CurrencyRateController:stateChange`, and `MultichainAssetsController:accountAssetListUpdated`), so no stale rates remain in state.
+  - The function is re-evaluated on each entry point so it can be toggled at runtime without reconstructing the controller.
+- Add `isDeprecated` option to `MultichainBalancesController` constructor ([#9044](https://github.com/MetaMask/core/pull/9044))
+  - When `isDeprecated()` returns `true`, no Snap requests are sent and `balances` is reset to `{}` at construction and at every entry point (`updateBalance`, `MultichainAssetsController:accountAssetListUpdated`, `AccountsController:accountBalancesUpdated`, and `AccountsController:accountRemoved`), so no stale balances remain in state.
+  - The function is re-evaluated on each entry point so it can be toggled at runtime without reconstructing the controller.
+
 ### Changed
 
 - Bump `@metamask/profile-sync-controller` from `^28.1.1` to `^28.2.0` ([#9119](https://github.com/MetaMask/core/pull/9119))
 - Bump `@metamask/keyring-controller` from `^27.0.0` to `^27.1.0` ([#9129](https://github.com/MetaMask/core/pull/9129))
+- Bump `@metamask/transaction-controller` from `^68.0.0` to `^68.0.1` ([#9177](https://github.com/MetaMask/core/pull/9177))
 
 ## [109.1.0]
 

@@ -238,11 +238,6 @@
       "count": 2
     }
   },
-  "packages/assets-controllers/src/CurrencyRateController.test.ts": {
-    "@typescript-eslint/explicit-function-return-type": {
-      "count": 10
-    }
-  },
   "packages/assets-controllers/src/CurrencyRateController.ts": {
     "@typescript-eslint/explicit-function-return-type": {
       "count": 1
@@ -2151,14 +2146,8 @@
     "@typescript-eslint/explicit-function-return-type": {
       "count": 10
     },
-    "@typescript-eslint/no-base-to-string": {
-      "count": 1
-    },
     "@typescript-eslint/no-floating-promises": {
       "count": 4
-    },
-    "@typescript-eslint/restrict-template-expressions": {
-      "count": 1
     },
     "no-restricted-syntax": {
       "count": 4
