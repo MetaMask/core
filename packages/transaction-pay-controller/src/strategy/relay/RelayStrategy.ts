@@ -24,11 +24,6 @@ export class RelayStrategy implements PayStrategy<RelayQuote> {
   async execute(
     request: PayStrategyExecuteRequest<RelayQuote>,
   ): ReturnType<PayStrategy<RelayQuote>['execute']> {
-    try {
-      return await submitRelayQuotes(request);
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      throw new Error(`Relay submit: ${message}`);
-    }
+    return await submitRelayQuotes(request);
   }
 }

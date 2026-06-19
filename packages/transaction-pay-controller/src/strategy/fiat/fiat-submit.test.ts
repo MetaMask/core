@@ -563,16 +563,14 @@ describe('submitFiatQuotes', () => {
     });
 
     await expect(submitFiatQuotes(request)).rejects.toThrow(
-      'Missing wallet address for fiat submission',
+      'Missing wallet address',
     );
   });
 
   it('throws if order ID is missing', async () => {
     const { request } = getRequest({ orderId: '' });
 
-    await expect(submitFiatQuotes(request)).rejects.toThrow(
-      'Missing order ID for fiat submission',
-    );
+    await expect(submitFiatQuotes(request)).rejects.toThrow('Missing order ID');
   });
 
   it('throws if ramps quote is missing from fiat payment state', async () => {
@@ -606,7 +604,7 @@ describe('submitFiatQuotes', () => {
     };
 
     await expect(submitFiatQuotes(request)).rejects.toThrow(
-      'Missing provider code for fiat submission',
+      'Missing provider code',
     );
   });
 
@@ -616,7 +614,7 @@ describe('submitFiatQuotes', () => {
     });
 
     await expect(submitFiatQuotes(request)).rejects.toThrow(
-      'Missing provider code for fiat submission',
+      'Missing provider code',
     );
   });
 
@@ -626,7 +624,7 @@ describe('submitFiatQuotes', () => {
     });
 
     await expect(submitFiatQuotes(request)).rejects.toThrow(
-      'Missing provider code for fiat submission',
+      'Missing provider code',
     );
   });
 
@@ -883,7 +881,7 @@ describe('submitFiatQuotes', () => {
     const { request } = getRequest();
 
     await expect(submitFiatQuotes(request)).rejects.toThrow(
-      `Unable to resolve token info for fiat asset ${FIAT_ASSET_MOCK.address} on chain ${FIAT_ASSET_MOCK.chainId}`,
+      `Post-Ramp: Unable to resolve token info for fiat asset ${FIAT_ASSET_MOCK.address} on chain ${FIAT_ASSET_MOCK.chainId}`,
     );
   });
 
@@ -898,7 +896,7 @@ describe('submitFiatQuotes', () => {
     });
 
     await expect(submitFiatQuotes(request)).rejects.toThrow(
-      `Fiat order asset mismatch for transaction ${TRANSACTION_ID_MOCK}: expected ${FIAT_ASSET_CAIP_ID_MOCK.toLowerCase()}, got eip155:137/slip44:60`,
+      `Post-Ramp: Order asset mismatch for transaction ${TRANSACTION_ID_MOCK}: expected ${FIAT_ASSET_CAIP_ID_MOCK.toLowerCase()}, got eip155:137/slip44:60`,
     );
   });
 
@@ -913,7 +911,7 @@ describe('submitFiatQuotes', () => {
     });
 
     await expect(submitFiatQuotes(request)).rejects.toThrow(
-      `Fiat order chain mismatch for transaction ${TRANSACTION_ID_MOCK}: expected eip155:137, got eip155:1`,
+      `Post-Ramp: Order chain mismatch for transaction ${TRANSACTION_ID_MOCK}: expected eip155:137, got eip155:1`,
     );
   });
 
@@ -924,7 +922,7 @@ describe('submitFiatQuotes', () => {
     const { request } = getRequest();
 
     await expect(submitFiatQuotes(request)).rejects.toThrow(
-      'Invalid fiat order crypto amount: 0',
+      'Post-Ramp: Invalid fiat order crypto amount: 0',
     );
   });
 
@@ -932,9 +930,7 @@ describe('submitFiatQuotes', () => {
     const { request } = getRequest();
     request.quotes = [];
 
-    await expect(submitFiatQuotes(request)).rejects.toThrow(
-      'Missing fiat quote for relay submission',
-    );
+    await expect(submitFiatQuotes(request)).rejects.toThrow('Missing quote');
   });
 
   it('throws if request has multiple fiat quotes', async () => {
@@ -942,7 +938,7 @@ describe('submitFiatQuotes', () => {
     request.quotes = [getFiatQuoteMock(), getFiatQuoteMock()];
 
     await expect(submitFiatQuotes(request)).rejects.toThrow(
-      'Multiple fiat quotes are not supported for submission',
+      'Post-Ramp: Multiple fiat quotes are not supported for submission',
     );
   });
 
@@ -952,7 +948,7 @@ describe('submitFiatQuotes', () => {
     });
 
     await expect(submitFiatQuotes(request)).rejects.toThrow(
-      'Missing Relay quote for fiat submission',
+      'Post-Ramp: Missing Relay quote',
     );
   });
 
@@ -963,7 +959,16 @@ describe('submitFiatQuotes', () => {
     const { request } = getRequest();
 
     await expect(submitFiatQuotes(request)).rejects.toThrow(
-      'Computed fiat order source amount is not positive',
+      'Post-Ramp: Computed fiat order source amount is not positive',
+    );
+  });
+
+  it('throws if post-Ramp submission returns no transaction hash', async () => {
+    submitRelayQuotesMock.mockResolvedValue({ transactionHash: undefined });
+    const { request } = getRequest();
+
+    await expect(submitFiatQuotes(request)).rejects.toThrow(
+      'Post-Ramp: Missing transaction hash',
     );
   });
 
@@ -1114,6 +1119,88 @@ describe('submitFiatQuotes', () => {
             action === 'TransactionPayController:getPaymentOverrideData',
         ),
       ).toBe(false);
+    });
+
+    it('prefixes direct mUSD vault errors', async () => {
+      getTransactionMock.mockImplementation((transactionId) =>
+        transactionId === TRANSACTION_ID_MOCK
+          ? MUSD_TRANSACTION_MOCK
+          : undefined,
+      );
+      const { request } = getRequest({
+        quotes: [
+          getFiatQuoteMock({
+            includeRelayQuote: false,
+            request: MUSD_QUOTE_REQUEST,
+          }),
+        ],
+        transaction: MUSD_TRANSACTION_MOCK,
+      });
+
+      await expect(submitFiatQuotes(request)).rejects.toThrow(
+        'Post-Ramp: Direct mUSD: Missing transaction hash',
+      );
+    });
+
+    it('prefixes direct mUSD addTransactionBatch errors as Vault errors', async () => {
+      const { callMock, request } = getRequest({
+        quotes: [
+          getFiatQuoteMock({
+            includeRelayQuote: false,
+            request: MUSD_QUOTE_REQUEST,
+          }),
+        ],
+        transaction: MUSD_TRANSACTION_MOCK,
+      });
+
+      callMock.mockImplementation((action: string) => {
+        if (action === 'TransactionPayController:getState') {
+          return {
+            transactionData: {
+              [MUSD_TRANSACTION_MOCK.id]: {
+                fiatPayment: {
+                  orderId: ORDER_ID_MOCK,
+                  rampsQuote: RAMPS_QUOTE_MOCK,
+                },
+                isLoading: false,
+                tokens: [],
+              },
+            },
+          };
+        }
+
+        if (action === 'TransactionPayController:getFiatOptions') {
+          return undefined;
+        }
+
+        if (action === 'RampsController:getOrder') {
+          return getFiatOrderMock();
+        }
+
+        if (action === 'TransactionPayController:getAmountData') {
+          return Promise.resolve({
+            updates: [{ nestedTransactionIndex: 0, data: '0xapprove' }],
+          });
+        }
+
+        if (action === 'NetworkController:findNetworkClientIdByChainId') {
+          return 'network-client-id-mock';
+        }
+
+        if (action === 'TransactionController:addTransactionBatch') {
+          throw new Error('batch failed');
+        }
+
+        if (action === 'RemoteFeatureFlagController:getState') {
+          return { remoteFeatureFlags: {} };
+        }
+
+        throw new Error(`Unexpected action: ${action}`);
+      });
+
+      await expect(submitFiatQuotes(request)).rejects.toThrow(
+        'Post-Ramp: Direct mUSD: Vault: batch failed',
+      );
     });
 
     it('skips the vault batch and returns an empty hash when vaultDisabled is enabled', async () => {

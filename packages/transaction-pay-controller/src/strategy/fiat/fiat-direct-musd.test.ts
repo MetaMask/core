@@ -435,9 +435,7 @@ describe('fiat-direct-musd', () => {
           sourceAmountRaw: '5000000',
           transaction: TRANSACTION_MOCK,
         }),
-      ).rejects.toThrow(
-        'getAmountData returned no updates for direct mUSD submit',
-      );
+      ).rejects.toThrow('No amount updates');
     });
 
     it('throws when nested transactions are missing', async () => {
@@ -463,7 +461,89 @@ describe('fiat-direct-musd', () => {
           sourceAmountRaw: '5000000',
           transaction,
         }),
-      ).rejects.toThrow('Missing nested transactions for direct mUSD submit');
+      ).rejects.toThrow('Missing nested transactions');
+    });
+
+    it('prefixes addTransactionBatch errors with Vault', async () => {
+      const callMock = jest.fn((action: string) => {
+        if (action === 'TransactionPayController:getAmountData') {
+          return Promise.resolve({
+            updates: [{ data: '0xnewApprove', nestedTransactionIndex: 0 }],
+          });
+        }
+
+        if (action === 'TransactionController:addTransactionBatch') {
+          throw new Error('batch failed');
+        }
+
+        throw new Error(`Unexpected action: ${action}`);
+      });
+
+      await expect(
+        submitDirectMusdVaultDeposit({
+          request: getExecuteRequest({ callMock }),
+          sourceAmountRaw: '5000000',
+          transaction: TRANSACTION_MOCK,
+        }),
+      ).rejects.toThrow('Vault: batch failed');
+    });
+
+    it('throws when no vault transactions are collected', async () => {
+      const callMock = jest.fn((action: string) => {
+        if (action === 'TransactionPayController:getAmountData') {
+          return Promise.resolve({
+            updates: [{ data: '0xnewApprove', nestedTransactionIndex: 0 }],
+          });
+        }
+
+        if (action === 'TransactionController:addTransactionBatch') {
+          return Promise.resolve({ batchId: 'batch-id' });
+        }
+
+        throw new Error(`Unexpected action: ${action}`);
+      });
+
+      collectTransactionIdsMock.mockReturnValue({ end: jest.fn() });
+
+      await expect(
+        submitDirectMusdVaultDeposit({
+          request: getExecuteRequest({ callMock }),
+          sourceAmountRaw: '5000000',
+          transaction: TRANSACTION_MOCK,
+        }),
+      ).rejects.toThrow('No transactions submitted');
+    });
+
+    it('throws when the confirmed vault transaction has no hash', async () => {
+      const callMock = jest.fn((action: string) => {
+        if (action === 'TransactionPayController:getAmountData') {
+          return Promise.resolve({
+            updates: [{ data: '0xnewApprove', nestedTransactionIndex: 0 }],
+          });
+        }
+
+        if (action === 'TransactionController:addTransactionBatch') {
+          return Promise.resolve({ batchId: 'batch-id' });
+        }
+
+        throw new Error(`Unexpected action: ${action}`);
+      });
+
+      getTransactionMock.mockImplementation((transactionId) => {
+        if (transactionId === TRANSACTION_ID_MOCK) {
+          return TRANSACTION_MOCK;
+        }
+
+        return undefined;
+      });
+
+      await expect(
+        submitDirectMusdVaultDeposit({
+          request: getExecuteRequest({ callMock }),
+          sourceAmountRaw: '5000000',
+          transaction: TRANSACTION_MOCK,
+        }),
+      ).rejects.toThrow('Missing transaction hash');
     });
 
     it('skips the vault batch when vaultDisabled is enabled', async () => {
@@ -495,7 +575,7 @@ describe('fiat-direct-musd', () => {
           sourceAmountRaw: '5000000',
           transaction,
         }),
-      ).rejects.toThrow('Missing Money Account address for direct mUSD submit');
+      ).rejects.toThrow('Missing Money Account address');
     });
   });
 });

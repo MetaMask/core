@@ -13,6 +13,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/ramps-controller` from `^14.2.0` to `^14.3.0` ([#9199](https://github.com/MetaMask/core/pull/9199))
 - Bump `@metamask/assets-controllers` from `^109.1.0` to `^109.2.0` ([#9202](https://github.com/MetaMask/core/pull/9202))
 
+### Fixed
+
+- Preserve original error stack traces while prefixing MetaMask Pay, Relay, and Fiat submission errors, and fail closed when Fiat submission has no quote or when Relay or direct mUSD Fiat vault submissions complete without a transaction hash ([#9201](https://github.com/MetaMask/core/pull/9201))
+
 ## [23.12.0]
 
 ### Changed
