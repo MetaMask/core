@@ -88,14 +88,19 @@ export const getClientRequest = (
 
   const transaction = extractTradeData(trade);
 
-  let options: Record<string, unknown> = {
-    ...(sourceAssetId !== undefined && {
-      sourceAssetId,
-    }),
-    ...(destAssetId !== undefined && {
-      destAssetId,
-    }),
-  };
+  let options: Record<string, unknown> | undefined;
+
+  if (sourceAssetId !== undefined || destAssetId !== undefined) {
+    options = {
+      ...(sourceAssetId !== undefined && {
+        sourceAssetId,
+      }),
+      ...(destAssetId !== undefined && {
+        destAssetId,
+      }),
+    };
+  }
+
   if (isTronTrade(trade)) {
     // Tron trades need the visible flag and contract type to be included in the request options
     options = {
