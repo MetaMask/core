@@ -39,7 +39,7 @@
   },
   "dependencies": {
     "@metamask/utils": "^11.11.0",
-    "yargs": "^17.7.2"
+    "yargs": "^17.7.3"
   },
   "devDependencies": {
     "@metamask/auto-changelog": "^6.1.0",
