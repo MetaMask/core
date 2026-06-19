@@ -7,27 +7,52 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [8.2.0]
+
 ### Added
 
 - Surface per-market trading availability so clients can warn before placing an order that would be rejected ([#9205](https://github.com/MetaMask/core/pull/9205))
   - Add an optional `isTradable` boolean to `PriceUpdate`. It is `false` when a market's mid price has drifted past the protocol's oracle-deviation limit (HyperLiquid rejects orders more than 95% away from the reference price, which most often affects HIP-3 markets); `undefined` means tradability is unknown and the market should be treated as tradable.
   - Add an optional, protocol-agnostic `fallbackPriceDeviationLimit` to `PerpsControllerConfig` so clients can tune the deviation threshold; each provider applies its own default when omitted.
   - Export the pure `isMarketTradable` helper and add `HYPERLIQUID_CONFIG.OraclePriceDeviationLimit` (`0.95`, the HyperLiquid default).
-- Add observational hard timeout for order submission: tag the `Perps Order Submission` trace and emit a breadcrumb when a provider round-trip exceeds `PlaceOrderTimeoutMs` (60s), without cancelling the in-flight order ([#21217](https://github.com/MetaMask/core/pull/21217))
+- Add Perps Discovery analytics constants to `PERPS_EVENT_PROPERTY` and `PERPS_EVENT_VALUE` so mobile can import them from `@metamask/perps-controller` instead of maintaining a local mirror ([#9178](https://github.com/MetaMask/core/pull/9178))
+  - New `PERPS_EVENT_PROPERTY` keys: `SOURCE_SECTION`, `RESULT_COUNT`, `SECTION_NAME`, `SECTION_INDEX`, `SECTIONS_DISPLAYED`, `WATCHLIST_COUNT`, `WATCHLIST_MARKETS`
+  - New `PERPS_EVENT_VALUE.SOURCE_SECTION` group: values for home sections (`positions`, `orders`, `watchlist`, `whats_happening`, `products`, `top_gainers`, `top_losers`, `crypto`, `commodity`, `stock`, `forex`), explore sections (`perps_movers`, `perps_crypto`, `perps_stocks_commodities`, `perps_markets`), and market-list sections (`all_markets`, `new`, `active_search`)
+  - New `PERPS_EVENT_VALUE.SECTION_NAME` group: `balance`, `positions`, `orders`, `watchlist`, `whats_happening`, `products`, `top_movers`, `explore_crypto`, `explore_commodities`, `explore_stocks`, `explore_forex`, `recent_activity`
+  - Extended `PERPS_EVENT_VALUE.INTERACTION_TYPE` with `MARKET_LIST_FILTER`
+  - Extended `PERPS_EVENT_VALUE.BUTTON_CLICKED` with `WATCHLIST`, `TOP_MOVERS`, `WHATS_HAPPENING`
+  - Extended `PERPS_EVENT_VALUE.BUTTON_LOCATION` with `ASSET_DETAILS`
 
 ### Changed
 
-- Surface late order completions via trace `reason: 'late_success' | 'late_error'` ([#21217](https://github.com/MetaMask/core/pull/21217))
+- Bump `@metamask/utils` from `^11.9.0` to `^11.11.0` ([#9074](https://github.com/MetaMask/core/pull/9074))
+
+## [8.1.0]
+
+### Added
+
+- Add observational hard timeout for order submission: tag the `Perps Order Submission` trace and emit a breadcrumb when a provider round-trip exceeds `PlaceOrderTimeoutMs` (60s), without cancelling the in-flight order ([#8994](https://github.com/MetaMask/core/pull/8994))
+- Add `HYPERLIQUID_ASSET_NAMES` (a curated `symbol → human-readable name` map, e.g. `BTC → 'Bitcoin'`, `xyz:AAPL → 'Apple'`, `xyz:GOLD → 'Gold'`) and the `getHyperLiquidAssetName(symbol, names?)` helper, both exported from `@metamask/perps-controller/constants`, so clients can match and display markets by full name ([#9082](https://github.com/MetaMask/core/pull/9082))
+  - HyperLiquid does not expose a per-asset human-readable name; this map is maintained client-side and keyed like `HIP3_ASSET_MARKET_TYPES` (bare `SYMBOL` for crypto, `dex:SYMBOL` for HIP-3). Unmapped assets fall back to their ticker.
+- Add `rankMarketsByQuery(markets, query)` and `getMarketMatchRank(market, query)` helpers (and the `MarketMatchRank` enum) for relevance-ranked market search by ticker symbol or human-readable name (exact > prefix > substring, stable within a rank) ([#9082](https://github.com/MetaMask/core/pull/9082))
+  - Complements the existing unranked `filterMarketsByQuery`; same match semantics (case-insensitive substring on `symbol` and `name`), but ordered by relevance. No fuzzy/phonetic matching.
+
+### Changed
+
+- Deliver HyperLiquid positions, orders, and account/spot balance via per-DEX `clearinghouseState` and `openOrders` subscriptions on all paths, removing the dependency on the deprecated `webData2` snapshot channel ([#9081](https://github.com/MetaMask/core/pull/9081))
+  - The non-HIP-3 (main-DEX-only) user data path previously used `webData2`, which HyperLiquid is throttling to a 15s push interval and deprecating. It now uses the same sub-second per-DEX subscriptions as the HIP-3 path, with `webData3` retained only for open-interest caps (not latency-sensitive).
+- Surface late order completions via trace `reason: 'late_success' | 'late_error'` ([#8994](https://github.com/MetaMask/core/pull/8994))
+- `PerpsMarketData.name` returned by `getMarketDataWithPrices()` is now the human-readable market name (resolved via `HYPERLIQUID_ASSET_NAMES`) instead of a copy of the ticker symbol; unmapped assets are unchanged (still equal the symbol) ([#9082](https://github.com/MetaMask/core/pull/9082))
+  - `transformMarketData` gains an optional `assetNames` parameter (defaults to the bundled map) to override the name source.
+- Bump `@metamask/controller-utils` from `^12.1.0` to `^12.2.0` ([#9058](https://github.com/MetaMask/core/pull/9058), [#9083](https://github.com/MetaMask/core/pull/9083))
 
 ### Removed
 
-- Remove unused `Perps Order Submission Toast` trace name from the `PerpsTraceName` union ([#21217](https://github.com/MetaMask/core/pull/21217))
+- Remove unused `Perps Order Submission Toast` trace name from the `PerpsTraceName` union ([#8994](https://github.com/MetaMask/core/pull/8994))
 
 ### Fixed
 
 - Fix `late_error` never being emitted in the `placeOrder` catch path when a provider call succeeded past `PlaceOrderTimeoutMs` but a subsequent step threw; the trace `reason` now correctly reflects `'late_error'` whenever the submission threshold was exceeded, regardless of where the exception originated ([#8994](https://github.com/MetaMask/core/pull/8994))
-
-- Bump `@metamask/controller-utils` from `^12.1.0` to `^12.2.0` ([#9058](https://github.com/MetaMask/core/pull/9058), [#9083](https://github.com/MetaMask/core/pull/9083))
 
 ## [8.0.0]
 
@@ -370,7 +395,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Bump `@metamask/controller-utils` from `^11.18.0` to `^11.19.0` ([#7995](https://github.com/MetaMask/core/pull/7995))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@8.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@8.2.0...HEAD
+[8.2.0]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@8.1.0...@metamask/perps-controller@8.2.0
+[8.1.0]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@8.0.0...@metamask/perps-controller@8.1.0
 [8.0.0]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@7.0.0...@metamask/perps-controller@8.0.0
 [7.0.0]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@6.3.0...@metamask/perps-controller@7.0.0
 [6.3.0]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@6.2.0...@metamask/perps-controller@6.3.0

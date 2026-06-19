@@ -11,6 +11,7 @@ import type { TransactionPayFiatAsset } from './constants';
 import {
   deriveFiatAssetForFiatPayment,
   getRawSourceAmountFromOrderCryptoAmount,
+  isMoneyAccountDepositTransaction,
   resolveSourceAmountRaw,
 } from './utils';
 
@@ -450,6 +451,37 @@ describe('Fiat Utils', () => {
           decimals: 18,
         }),
       ).toThrow('Computed fiat order source amount is not positive');
+    });
+  });
+
+  describe('isMoneyAccountDepositTransaction', () => {
+    it('returns true for batch transaction with moneyAccountDeposit nested type', () => {
+      const transaction = {
+        type: TransactionType.batch,
+        nestedTransactions: [
+          { type: TransactionType.tokenMethodApprove },
+          { type: TransactionType.moneyAccountDeposit },
+        ],
+      } as unknown as TransactionMeta;
+
+      expect(isMoneyAccountDepositTransaction(transaction)).toBe(true);
+    });
+
+    it('returns false for non-money-account transaction types', () => {
+      const transaction = {
+        type: TransactionType.predictDeposit,
+      } as TransactionMeta;
+
+      expect(isMoneyAccountDepositTransaction(transaction)).toBe(false);
+    });
+
+    it('returns false for batch transaction without moneyAccountDeposit nested type', () => {
+      const transaction = {
+        type: TransactionType.batch,
+        nestedTransactions: [{ type: TransactionType.tokenMethodApprove }],
+      } as unknown as TransactionMeta;
+
+      expect(isMoneyAccountDepositTransaction(transaction)).toBe(false);
     });
   });
 });

@@ -6,7 +6,10 @@
  */
 import { hasProperty } from '@metamask/utils';
 
-import { HYPERLIQUID_CONFIG } from '../constants/hyperLiquidConfig';
+import {
+  HYPERLIQUID_CONFIG,
+  getHyperLiquidAssetName,
+} from '../constants/hyperLiquidConfig';
 import { PERPS_CONSTANTS } from '../constants/perpsConfig';
 import type {
   PerpsMarketData,
@@ -226,12 +229,16 @@ function extractFundingData(params: ExtractFundingDataParams): FundingData {
  * @param hyperLiquidData - Raw data from HyperLiquid API
  * @param formatters - Injectable formatters for platform-agnostic formatting
  * @param assetMarketTypes - Optional mapping of asset symbols to market types
+ * @param assetNames - Optional mapping of asset symbols to human-readable names.
+ * Defaults to the bundled HYPERLIQUID_ASSET_NAMES; unmapped assets fall back to
+ * their ticker symbol.
  * @returns Transformed market data ready for UI consumption
  */
 export function transformMarketData(
   hyperLiquidData: HyperLiquidMarketData,
   formatters: MarketDataFormatters,
   assetMarketTypes?: Record<string, MarketType>,
+  assetNames?: Record<string, string>,
 ): PerpsMarketData[] {
   const { universe, assetCtxs, allMids, predictedFundings } = hyperLiquidData;
 
@@ -313,7 +320,7 @@ export function transformMarketData(
 
     return {
       symbol,
-      name: symbol,
+      name: getHyperLiquidAssetName(symbol, assetNames),
       maxLeverage: `${asset.maxLeverage}x`,
       price: isNaN(currentPrice)
         ? PERPS_CONSTANTS.FallbackPriceDisplay

@@ -10,10 +10,12 @@ import type {
   TransactionPayQuote,
 } from '../types';
 import { accountSupports7702 } from '../utils/7702';
+import { prefixError } from '../utils/error-prefix';
 import { getStrategyByName } from '../utils/strategy';
 import { updateTransaction } from '../utils/transaction';
 
 const log = createModuleLogger(projectLogger, 'pay-publish-hook');
+const ERROR_PREFIX = 'MetaMask Pay: ';
 
 const EMPTY_RESULT = {
   transactionHash: undefined,
@@ -47,8 +49,7 @@ export class TransactionPayPublishHook {
       return await this.#publishHook(transactionMeta, _signedTx);
     } catch (error) {
       log('Error', error);
-      const message = error instanceof Error ? error.message : String(error);
-      throw new Error(`MetaMask Pay: ${message}`);
+      throw prefixError(error, ERROR_PREFIX);
     }
   }
 
@@ -62,11 +63,18 @@ export class TransactionPayPublishHook {
       'TransactionPayController:getState',
     );
 
+    const transactionData = controllerState.transactionData?.[transactionId];
     const quotes =
-      (controllerState.transactionData?.[transactionId]
-        ?.quotes as TransactionPayQuote<unknown>[]) ?? [];
+      (transactionData?.quotes as TransactionPayQuote<unknown>[]) ?? [];
+    const isFiatSelected = Boolean(
+      transactionData?.fiatPayment?.selectedPaymentMethodId,
+    );
 
     if (!quotes?.length) {
+      if (isFiatSelected) {
+        throw new Error('Fiat: Missing quote');
+      }
+
       log('Skipping as no quotes found');
       return EMPTY_RESULT;
     }

@@ -20,6 +20,7 @@ import {
   HIP3_ASSET_MARKET_TYPES,
   HIP3_FEE_CONFIG,
   HIP3_MARGIN_CONFIG,
+  HYPERLIQUID_ASSET_NAMES,
   HYPERLIQUID_CONFIG,
   HYPERLIQUID_WITHDRAWAL_MINUTES,
   REFERRAL_CONFIG,
@@ -6823,6 +6824,7 @@ export class HyperLiquidProvider implements PerpsProvider {
       },
       this.#deps.marketDataFormatters,
       HIP3_ASSET_MARKET_TYPES,
+      HYPERLIQUID_ASSET_NAMES,
     );
 
     return this.#cacheFreshMarketDataSnapshot(
@@ -7544,7 +7546,7 @@ export class HyperLiquidProvider implements PerpsProvider {
 
   /**
    * Subscribe to open interest cap updates
-   * Zero additional overhead - data extracted from existing webData2 subscription
+   * Zero additional overhead - data extracted from existing webData3 subscription
    *
    * @param params - The operation parameters.
    * @returns A cleanup function to remove the subscription.

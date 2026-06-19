@@ -177,6 +177,25 @@ describe('Source Amounts Utils', () => {
       expect(transactionData.sourceAmounts).toHaveLength(1);
     });
 
+    it('does not return empty array if payment token matches but isQuoteRequired is true', () => {
+      const transactionData: TransactionData = {
+        isLoading: false,
+        isQuoteRequired: true,
+        paymentToken: PAYMENT_TOKEN_MOCK,
+        tokens: [
+          {
+            ...TRANSACTION_TOKEN_MOCK,
+            address: PAYMENT_TOKEN_MOCK.address,
+            chainId: PAYMENT_TOKEN_MOCK.chainId,
+          },
+        ],
+      };
+
+      updateSourceAmounts(TRANSACTION_ID_MOCK, transactionData, messenger);
+
+      expect(transactionData.sourceAmounts).toHaveLength(1);
+    });
+
     it('returns empty array if skipIfBalance and has balance', () => {
       const transactionData: TransactionData = {
         isLoading: false,

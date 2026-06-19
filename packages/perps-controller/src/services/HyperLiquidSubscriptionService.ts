@@ -3,7 +3,6 @@ import { hasProperty } from '@metamask/utils';
 import type {
   ISubscription,
   AllMidsWsEvent,
-  WebData2WsEvent,
   WebData3WsEvent,
   UserFillsWsEvent,
   ActiveAssetCtxWsEvent,
@@ -798,7 +797,7 @@ export class HyperLiquidSubscriptionService {
 
   /**
    * Extract TP/SL from orders and optionally convert raw SDK orders to Order format.
-   * DRY helper used by both webData2 and clearinghouseState callbacks.
+   * DRY helper used by the clearinghouseState and openOrders callbacks.
    *
    * @param orders - Raw SDK orders from WebSocket event
    * @param positions - Current positions for TP/SL matching
@@ -1004,7 +1003,7 @@ export class HyperLiquidSubscriptionService {
 
   /**
    * Merge TP/SL data into positions
-   * DRY helper used by both webData2 and clearinghouseState callbacks
+   * DRY helper used by the clearinghouseState and openOrders callbacks
    *
    * @param positions - Base positions without TP/SL
    * @param tpslMap - Map of coin -> TP/SL prices
@@ -1670,12 +1669,18 @@ export class HyperLiquidSubscriptionService {
   }
 
   /**
-   * Create WebSocket subscription for user data (positions, orders, account)
-   * - Uses webData2 when HIP-3 disabled (main DEX only)
-   * - Uses webData3 when HIP-3 enabled (main + HIP-3 DEXs)
+   * Create WebSocket subscription for user data (positions, orders, account).
    *
-   * webData2 provides data for main DEX only
-   * webData3 provides perpDexStates[] array containing data for all DEXs:
+   * Positions, orders, and account/spot balance are always delivered via
+   * per-DEX `clearinghouseState` + `openOrders` subscriptions (sub-second
+   * updates). webData3 is used only for OI caps extraction (not
+   * latency-sensitive). The deprecated webData2 snapshot channel is no longer
+   * used (TAT-3332).
+   *
+   * - HIP-3 disabled: subscribe to the main DEX only (`dexsToSubscribe = ['']`).
+   * - HIP-3 enabled: subscribe to the main DEX plus each enabled HIP-3 DEX.
+   *
+   * webData3 provides perpDexStates[] array containing OI caps for all DEXs:
    * - Index 0: Main DEX (dexName = '')
    * - Index 1+: HIP-3 DEXs in order of enabledDexs array
    *
@@ -1718,287 +1723,155 @@ export class HyperLiquidSubscriptionService {
     }
 
     return new Promise<void>((resolve, reject) => {
-      // Choose channel based on HIP-3 master switch
-      if (this.#hip3Enabled) {
-        // HIP-3 enabled: Use individual subscriptions for positions/orders/account
-        // webData3 is only used for OI caps extraction
+      // Use per-DEX clearinghouseState + openOrders subscriptions for
+      // positions/orders/account on every path. webData3 is used only for OI
+      // caps extraction. The deprecated webData2 channel is no longer used.
 
-        // Determine which DEXs to subscribe to
-        const dexsToSubscribe = [
-          '', // Main DEX
-          ...this.#enabledDexs.filter((dexId) => this.#isDexEnabled(dexId)),
-        ];
+      // Determine which DEXs to subscribe to:
+      // - HIP-3 enabled: main DEX + each enabled HIP-3 DEX.
+      // - HIP-3 disabled: main DEX only.
+      const dexsToSubscribe = this.#hip3Enabled
+        ? [
+            '',
+            ...this.#enabledDexs.filter((dexId) => this.#isDexEnabled(dexId)),
+          ]
+        : [''];
 
-        // Track expected DEXs for synchronized notifications
-        // Clear previous tracking and set new expected DEXs
-        this.#expectedDexs = new Set(dexsToSubscribe);
-        this.#initializedDexs = new Set();
+      // Track expected DEXs for synchronized notifications
+      // Clear previous tracking and set new expected DEXs
+      this.#expectedDexs = new Set(dexsToSubscribe);
+      this.#initializedDexs = new Set();
 
-        // Set up individual subscriptions for each DEX
-        const subscriptionPromises: Promise<void>[] = [];
+      // Set up individual subscriptions for each DEX
+      const subscriptionPromises: Promise<void>[] = [];
 
-        for (const currentDexName of dexsToSubscribe) {
-          // Set up clearinghouseState subscription for positions + account
-          subscriptionPromises.push(
-            this.#ensureClearinghouseStateSubscription(
-              userAddress,
-              currentDexName,
+      for (const currentDexName of dexsToSubscribe) {
+        // Set up clearinghouseState subscription for positions + account
+        subscriptionPromises.push(
+          this.#ensureClearinghouseStateSubscription(
+            userAddress,
+            currentDexName,
+          ),
+        );
+
+        // Set up openOrders subscription for orders
+        subscriptionPromises.push(
+          this.#ensureOpenOrdersSubscription(userAddress, currentDexName),
+        );
+      }
+
+      // Also set up webData3 for OI caps only
+      const webData3Promise = subscriptionClient
+        .webData3({ user: userAddress }, (data: WebData3WsEvent) => {
+          try {
+            // webData3 is ONLY used for OI caps extraction
+            // Positions, orders, and account data come from individual subscriptions
+            const allOICaps: string[] = [];
+            data.perpDexStates.forEach((dexState, index) => {
+              // Map webData3 index to DEX name
+              // Index 0 = main DEX (null), Index 1+ = HIP-3 DEXs from discoveredDexNames
+              const dexIdentifier =
+                index === 0 ? null : this.#discoveredDexNames[index - 1];
+
+              // Skip unknown DEXs (not in discoveredDexNames) to prevent main DEX cache corruption
+              if (index > 0 && dexIdentifier === undefined) {
+                return; // Unknown DEX - skip to prevent misidentifying as main DEX
+              }
+
+              // Only process DEXs we care about (skip others silently)
+              if (!this.#isDexEnabled(dexIdentifier ?? null)) {
+                return; // Skip this DEX - not enabled in our configuration
+              }
+
+              const currentDexName = dexIdentifier ?? '';
+
+              const oiCaps = dexState.perpsAtOpenInterestCap ?? [];
+
+              // Add DEX prefix for HIP-3 symbols (e.g., "xyz:TSLA")
+              if (currentDexName) {
+                allOICaps.push(
+                  ...oiCaps.map((symbol) => `${currentDexName}:${symbol}`),
+                );
+              } else {
+                // Main DEX - no prefix needed
+                allOICaps.push(...oiCaps);
+              }
+            });
+
+            // Update OI caps cache and notify if changed
+            const oiCapsHash = [...allOICaps]
+              .sort((a: string, b: string) => a.localeCompare(b))
+              .join(',');
+            if (oiCapsHash !== this.#cachedOICapsHash) {
+              this.#cachedOICaps = allOICaps;
+              this.#cachedOICapsHash = oiCapsHash;
+              this.#oiCapsCacheInitialized = true;
+
+              // Notify all subscribers
+              this.#oiCapSubscribers.forEach((callback) => callback(allOICaps));
+            }
+          } catch (error) {
+            this.#logErrorUnlessClearing(
+              ensureError(
+                error,
+                'HyperLiquidSubscriptionService.createUserDataSubscription',
+              ),
+              this.#getErrorContext('webData3 callback error', {
+                user: userAddress,
+                hasPerpDexStates: data?.perpDexStates !== undefined,
+                perpDexStatesLength: data?.perpDexStates?.length ?? 0,
+              }),
+            );
+          }
+        })
+        .then((sub) => {
+          this.#webData3Subscriptions.set(dexName, sub);
+          this.#deps.debugLogger.log(
+            `webData3 subscription established for OI caps (main + HIP-3)`,
+          );
+          return undefined;
+        })
+        .catch((error) => {
+          this.#logErrorUnlessClearing(
+            ensureError(
+              error,
+              'HyperLiquidSubscriptionService.createUserDataSubscription',
+            ),
+            this.#getErrorContext('createUserDataSubscription (webData3)', {
+              dex: dexName,
+            }),
+          );
+          throw error;
+        });
+
+      subscriptionPromises.push(webData3Promise);
+
+      // Wait for all subscriptions to be established
+      Promise.all(subscriptionPromises)
+        .then(() => {
+          this.#deps.debugLogger.log(
+            `User data subscriptions established for ${dexsToSubscribe.length} DEX(s)`,
+          );
+          resolve();
+          return undefined;
+        })
+        .catch((error) => {
+          this.#logErrorUnlessClearing(
+            ensureError(
+              error,
+              'HyperLiquidSubscriptionService.createUserDataSubscription',
+            ),
+            this.#getErrorContext('createUserDataSubscription', {
+              dexs: dexsToSubscribe,
+            }),
+          );
+          reject(
+            ensureError(
+              error,
+              'HyperLiquidSubscriptionService.createUserDataSubscription',
             ),
           );
-
-          // Set up openOrders subscription for orders
-          subscriptionPromises.push(
-            this.#ensureOpenOrdersSubscription(userAddress, currentDexName),
-          );
-        }
-
-        // Also set up webData3 for OI caps only
-        const webData3Promise = subscriptionClient
-          .webData3({ user: userAddress }, (data: WebData3WsEvent) => {
-            try {
-              // webData3 is ONLY used for OI caps extraction
-              // Positions, orders, and account data come from individual subscriptions
-              const allOICaps: string[] = [];
-              data.perpDexStates.forEach((dexState, index) => {
-                // Map webData3 index to DEX name
-                // Index 0 = main DEX (null), Index 1+ = HIP-3 DEXs from discoveredDexNames
-                const dexIdentifier =
-                  index === 0 ? null : this.#discoveredDexNames[index - 1];
-
-                // Skip unknown DEXs (not in discoveredDexNames) to prevent main DEX cache corruption
-                if (index > 0 && dexIdentifier === undefined) {
-                  return; // Unknown DEX - skip to prevent misidentifying as main DEX
-                }
-
-                // Only process DEXs we care about (skip others silently)
-                if (!this.#isDexEnabled(dexIdentifier ?? null)) {
-                  return; // Skip this DEX - not enabled in our configuration
-                }
-
-                const currentDexName = dexIdentifier ?? '';
-
-                const oiCaps = dexState.perpsAtOpenInterestCap ?? [];
-
-                // Add DEX prefix for HIP-3 symbols (e.g., "xyz:TSLA")
-                if (currentDexName) {
-                  allOICaps.push(
-                    ...oiCaps.map((symbol) => `${currentDexName}:${symbol}`),
-                  );
-                } else {
-                  // Main DEX - no prefix needed
-                  allOICaps.push(...oiCaps);
-                }
-              });
-
-              // Update OI caps cache and notify if changed
-              const oiCapsHash = [...allOICaps]
-                .sort((a: string, b: string) => a.localeCompare(b))
-                .join(',');
-              if (oiCapsHash !== this.#cachedOICapsHash) {
-                this.#cachedOICaps = allOICaps;
-                this.#cachedOICapsHash = oiCapsHash;
-                this.#oiCapsCacheInitialized = true;
-
-                // Notify all subscribers
-                this.#oiCapSubscribers.forEach((callback) =>
-                  callback(allOICaps),
-                );
-              }
-            } catch (error) {
-              this.#logErrorUnlessClearing(
-                ensureError(
-                  error,
-                  'HyperLiquidSubscriptionService.createUserDataSubscription',
-                ),
-                this.#getErrorContext('webData3 callback error', {
-                  user: userAddress,
-                  hasPerpDexStates: data?.perpDexStates !== undefined,
-                  perpDexStatesLength: data?.perpDexStates?.length ?? 0,
-                }),
-              );
-            }
-          })
-          .then((sub) => {
-            this.#webData3Subscriptions.set(dexName, sub);
-            this.#deps.debugLogger.log(
-              `webData3 subscription established for OI caps (main + HIP-3)`,
-            );
-            return undefined;
-          })
-          .catch((error) => {
-            this.#logErrorUnlessClearing(
-              ensureError(
-                error,
-                'HyperLiquidSubscriptionService.createUserDataSubscription',
-              ),
-              this.#getErrorContext('createUserDataSubscription (webData3)', {
-                dex: dexName,
-              }),
-            );
-            throw error;
-          });
-
-        subscriptionPromises.push(webData3Promise);
-
-        // Wait for all subscriptions to be established
-        Promise.all(subscriptionPromises)
-          .then(() => {
-            this.#deps.debugLogger.log(
-              `HIP-3 user data subscriptions established for ${dexsToSubscribe.length} DEXs`,
-            );
-            resolve();
-            return undefined;
-          })
-          .catch((error) => {
-            this.#logErrorUnlessClearing(
-              ensureError(
-                error,
-                'HyperLiquidSubscriptionService.createUserDataSubscription',
-              ),
-              this.#getErrorContext('createUserDataSubscription (HIP-3)', {
-                dexs: dexsToSubscribe,
-              }),
-            );
-            reject(
-              ensureError(
-                error,
-                'HyperLiquidSubscriptionService.createUserDataSubscription',
-              ),
-            );
-          });
-      } else {
-        // HIP-3 disabled: Use webData2 (main DEX only)
-        subscriptionClient
-          .webData2({ user: userAddress }, (data: WebData2WsEvent) => {
-            try {
-              // webData2 returns clearinghouseState for main DEX only
-              const currentDexName = ''; // Main DEX
-
-              // Check for removed fields before accessing
-              if (!data.clearinghouseState) {
-                return;
-              }
-
-              // Extract and process positions from clearinghouseState
-              const positions = data.clearinghouseState.assetPositions
-                .filter((assetPos) => assetPos.position.szi !== '0')
-                .map((assetPos) => adaptPositionFromSDK(assetPos));
-
-              // Extract TP/SL from orders
-              const {
-                tpslMap,
-                tpslCountMap,
-                processedOrders: orders,
-              } = this.#extractTPSLFromOrders(data.openOrders || [], positions);
-
-              // Merge TP/SL data into positions
-              const positionsWithTPSL = this.#mergeTPSLIntoPositions(
-                positions,
-                tpslMap,
-                tpslCountMap,
-              );
-
-              // Extract account data (webData2 provides clearinghouseState)
-              const accountState: AccountState = adaptAccountStateFromSDK(
-                data.clearinghouseState,
-              );
-
-              // Store in caches (main DEX only)
-              this.#dexPositionsCache.set(currentDexName, positionsWithTPSL);
-              this.#dexOrdersCache.set(currentDexName, orders);
-              this.#dexAccountCache.set(currentDexName, accountState);
-
-              // OI caps (main DEX only)
-              const oiCaps = data.perpsAtOpenInterestCap ?? [];
-              const oiCapsHash = [...oiCaps]
-                .sort((a: string, b: string) => a.localeCompare(b))
-                .join(',');
-              if (oiCapsHash !== this.#cachedOICapsHash) {
-                this.#cachedOICaps = oiCaps;
-                this.#cachedOICapsHash = oiCapsHash;
-                this.#oiCapsCacheInitialized = true;
-                this.#oiCapSubscribers.forEach((callback) => callback(oiCaps));
-              }
-
-              // Notify subscribers (no aggregation needed - only main DEX).
-              // Apply spot balance so single-DEX accounts see the same
-              // spot-inclusive totalBalance as the HIP-3 aggregation path.
-              const spotAdjustedAccount = addSpotBalanceToAccountState(
-                accountState,
-                this.#cachedSpotState,
-                this.#getSpotBalanceOptions(),
-              );
-
-              const positionsHash = this.#hashPositions(positionsWithTPSL);
-              const ordersHash = this.#hashOrders(orders);
-              const accountHash = this.#hashAccountState(spotAdjustedAccount);
-
-              if (positionsHash !== this.#cachedPositionsHash) {
-                this.#cachedPositions = positionsWithTPSL;
-                this.#cachedPositionsHash = positionsHash;
-                this.#positionsCacheInitialized = true;
-                this.#positionSubscribers.forEach((callback) =>
-                  callback(positionsWithTPSL),
-                );
-              }
-
-              if (ordersHash !== this.#cachedOrdersHash) {
-                this.#cachedOrders = orders;
-                this.#cachedOrdersHash = ordersHash;
-                this.#ordersCacheInitialized = true;
-                this.#orderSubscribers.forEach((callback) => callback(orders));
-              }
-
-              if (accountHash !== this.#cachedAccountHash) {
-                this.#cachedAccount = spotAdjustedAccount;
-                this.#cachedAccountHash = accountHash;
-                this.#accountSubscribers.forEach((callback) =>
-                  callback(spotAdjustedAccount),
-                );
-              }
-            } catch (error) {
-              this.#logErrorUnlessClearing(
-                ensureError(
-                  error,
-                  'HyperLiquidSubscriptionService.createUserDataSubscription',
-                ),
-                this.#getErrorContext('webData2 callback error', {
-                  user: userAddress,
-                  dataKeys: data ? Object.keys(data) : 'data is null/undefined',
-                  hasClearinghouseState: data?.clearinghouseState !== undefined,
-                  hasOpenOrders: data?.openOrders !== undefined,
-                  hasPerpsAtOpenInterestCap:
-                    data?.perpsAtOpenInterestCap !== undefined,
-                }),
-              );
-            }
-          })
-          .then((subscription) => {
-            this.#webData3Subscriptions.set(dexName, subscription);
-            this.#deps.debugLogger.log(
-              'webData2 subscription established for main DEX only',
-            );
-            resolve();
-            return undefined;
-          })
-          .catch((error) => {
-            this.#logErrorUnlessClearing(
-              ensureError(
-                error,
-                'HyperLiquidSubscriptionService.createUserDataSubscription',
-              ),
-              this.#getErrorContext('createUserDataSubscription (webData2)', {
-                dex: dexName,
-              }),
-            );
-            reject(
-              ensureError(
-                error,
-                'HyperLiquidSubscriptionService.createUserDataSubscription',
-              ),
-            );
-          });
-      }
+        });
     });
   }
 
@@ -2490,7 +2363,7 @@ export class HyperLiquidSubscriptionService {
       this.#cachedAccountHash = '';
 
       this.#deps.debugLogger.log(
-        'All multi-DEX subscriptions cleaned up (webData2/3 + individual subscriptions)',
+        'All multi-DEX subscriptions cleaned up (webData3 + individual subscriptions)',
       );
     }
   }
@@ -2536,7 +2409,7 @@ export class HyperLiquidSubscriptionService {
 
   /**
    * Subscribe to open interest cap updates
-   * OI caps are extracted from webData2 subscription (zero additional overhead)
+   * OI caps are extracted from the shared webData3 subscription (zero additional overhead)
    *
    * @param params - The subscription parameters including callback and account ID.
    * @returns A cleanup function to unsubscribe from OI cap updates.
@@ -2738,7 +2611,7 @@ export class HyperLiquidSubscriptionService {
 
   /**
    * Subscribe to live order updates
-   * Uses the shared webData2 subscription to avoid duplicate connections
+   * Uses the shared per-DEX subscriptions to avoid duplicate connections
    *
    * @param params - The subscription parameters including callback and account ID.
    * @returns A cleanup function to unsubscribe from order updates.
@@ -2775,7 +2648,7 @@ export class HyperLiquidSubscriptionService {
 
   /**
    * Subscribe to live account updates
-   * Uses the shared webData2 subscription to avoid duplicate connections
+   * Uses the shared per-DEX subscriptions to avoid duplicate connections
    *
    * @param params - The subscription parameters including callback and account ID.
    * @returns A cleanup function to unsubscribe from account updates.
@@ -4045,12 +3918,12 @@ export class HyperLiquidSubscriptionService {
       this.#webData3Subscriptions.clear();
       this.#webData3SubscriptionPromise = undefined;
 
-      // Clear individual subscriptions (clearinghouseState + openOrders) for HIP-3 mode
+      // Clear individual subscriptions (clearinghouseState + openOrders)
       this.#clearinghouseStateSubscriptions.clear();
       this.#openOrdersSubscriptions.clear();
 
       // Re-establish the subscription (will use current account)
-      // This will set up webData2 for non-HIP-3, or individual subscriptions + webData3 (OI caps only) for HIP-3
+      // This sets up per-DEX clearinghouseState + openOrders subscriptions plus webData3 (OI caps only)
       await this.#ensureSharedWebData3Subscription();
     }
 
