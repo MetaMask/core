@@ -4,10 +4,13 @@ import type {
   PayStrategyGetQuotesRequest,
   TransactionPayQuote,
 } from '../../types';
+import { prefixError } from '../../utils/error-prefix';
 import { getPayStrategiesConfig } from '../../utils/feature-flags';
 import { getRelayQuotes } from './relay-quotes';
 import { submitRelayQuotes } from './relay-submit';
 import type { RelayQuote } from './types';
+
+const ERROR_PREFIX = 'Relay: ';
 
 export class RelayStrategy implements PayStrategy<RelayQuote> {
   supports(request: PayStrategyGetQuotesRequest): boolean {
@@ -25,10 +28,15 @@ export class RelayStrategy implements PayStrategy<RelayQuote> {
     request: PayStrategyExecuteRequest<RelayQuote>,
   ): ReturnType<PayStrategy<RelayQuote>['execute']> {
     try {
-      return await submitRelayQuotes(request);
+      const result = await submitRelayQuotes(request);
+
+      if (result.transactionHash === undefined) {
+        throw new Error('Missing transaction hash for Relay submission');
+      }
+
+      return result;
     } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      throw new Error(`Relay submit: ${message}`);
+      throw prefixError(error, ERROR_PREFIX);
     }
   }
 }

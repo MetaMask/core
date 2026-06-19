@@ -13,6 +13,7 @@ import type {
   TransactionPayFiatOptions,
   TransactionPayControllerMessenger,
 } from '../../types';
+import { prefixError } from '../../utils/error-prefix';
 import {
   getFiatOrderPollIntervalMs,
   getFiatOrderPollTimeoutMs,
@@ -36,6 +37,7 @@ import {
 } from './utils';
 
 const log = createModuleLogger(projectLogger, 'fiat-submit');
+const POST_RAMP_ERROR_PREFIX = 'Post-Ramp: ';
 
 const TERMINAL_FAILURE_STATUSES: RampsOrderStatus[] = [
   RampsOrderStatus.Cancelled,
@@ -128,7 +130,17 @@ export async function submitFiatQuotes(
     transactionId,
   });
 
-  return await submitRelayAfterFiatCompletion({ order, request });
+  try {
+    const result = await submitRelayAfterFiatCompletion({ order, request });
+
+    if (result.transactionHash === undefined) {
+      throw new Error('Missing transaction hash for fiat post-Ramp submission');
+    }
+
+    return result;
+  } catch (error) {
+    throw prefixError(error, POST_RAMP_ERROR_PREFIX);
+  }
 }
 
 function getFiatOptions(

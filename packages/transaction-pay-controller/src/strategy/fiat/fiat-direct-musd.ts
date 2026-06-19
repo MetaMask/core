@@ -14,6 +14,7 @@ import type {
   TransactionPayRequiredToken,
   TransactionPayQuote,
 } from '../../types';
+import { prefixError } from '../../utils/error-prefix';
 import { getFiatVaultDisabled } from '../../utils/feature-flags';
 import { getNetworkClientId } from '../../utils/provider';
 import { buildCaipAssetType, getTokenInfo } from '../../utils/token';
@@ -31,6 +32,7 @@ import {
 } from './utils';
 
 const log = createModuleLogger(projectLogger, 'fiat-direct-musd');
+const VAULT_ERROR_PREFIX = 'Vault: ';
 
 /**
  * Returns a direct mUSD fiat quote to the Money Account.
@@ -127,6 +129,26 @@ export function isDirectMusdMoneyAccountQuote(
  * @returns Hash of the final submitted child transaction, if available.
  */
 export async function submitDirectMusdVaultDeposit({
+  request,
+  sourceAmountRaw,
+  transaction,
+}: {
+  request: PayStrategyExecuteRequest<FiatQuote>;
+  sourceAmountRaw: string;
+  transaction: PayStrategyExecuteRequest<FiatQuote>['transaction'];
+}): Promise<{ transactionHash?: Hex }> {
+  try {
+    return await submitDirectMusdVaultDepositInternal({
+      request,
+      sourceAmountRaw,
+      transaction,
+    });
+  } catch (error) {
+    throw prefixError(error, VAULT_ERROR_PREFIX);
+  }
+}
+
+async function submitDirectMusdVaultDepositInternal({
   request,
   sourceAmountRaw,
   transaction,
@@ -262,11 +284,23 @@ export async function submitDirectMusdVaultDeposit({
     transactionIds,
   });
 
+  if (!transactionIds.length) {
+    throw new Error(
+      'No vault transactions were submitted for direct mUSD submit',
+    );
+  }
+
   await Promise.all(
     transactionIds.map((id) => waitForTransactionConfirmed(id, messenger)),
   );
 
   const hash = getTransaction(transactionIds.slice(-1)[0], messenger)?.hash;
+
+  if (!hash) {
+    throw new Error(
+      'Missing transaction hash for direct mUSD vault submission',
+    );
+  }
 
   log('Confirmed direct mUSD vault deposit', {
     hash,
@@ -278,7 +312,7 @@ export async function submitDirectMusdVaultDeposit({
     transactionIds,
   });
 
-  return { transactionHash: hash as Hex | undefined };
+  return { transactionHash: hash as Hex };
 }
 
 function combineDirectMusdFiatQuote({

@@ -1759,7 +1759,7 @@ describe('Relay Submit Utils', () => {
         } as Response);
 
         await expect(submitRelayQuotes(request)).rejects.toThrow(
-          'Relay execute: 422 - failed to decode param in array[0] invalid JSON input',
+          'Relay: Execute: 422 - failed to decode param in array[0] invalid JSON input',
         );
       });
 
@@ -1768,7 +1768,7 @@ describe('Relay Submit Utils', () => {
         successfulFetchMock.mockRejectedValueOnce('network down');
 
         await expect(submitRelayQuotes(request)).rejects.toThrow(
-          'Relay execute: network down',
+          'Relay: Execute: network down',
         );
       });
 

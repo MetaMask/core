@@ -44,6 +44,8 @@ describe('FiatStrategy', () => {
 
   describe('execute', () => {
     it('delegates to submitFiatQuotes', async () => {
+      submitFiatQuotesMock.mockResolvedValue({ transactionHash: '0x1234' });
+
       await new FiatStrategy().execute({
         isSmartTransaction: () => false,
         quotes: [QUOTE_MOCK],
@@ -55,6 +57,51 @@ describe('FiatStrategy', () => {
       expect(
         submitFiatQuotesMock.mock.calls[0][0].transaction.txParams.from,
       ).toBe('0x1');
+    });
+
+    it('prefixes execute errors with the Fiat prefix without replacing the Error object', async () => {
+      const error = new Error('Missing order ID for fiat submission');
+      submitFiatQuotesMock.mockRejectedValue(error);
+
+      const thrown = await new FiatStrategy()
+        .execute({
+          isSmartTransaction: () => false,
+          quotes: [QUOTE_MOCK],
+          messenger: {} as TransactionPayControllerMessenger,
+          transaction: { txParams: { from: '0x1' } } as TransactionMeta,
+        })
+        .catch((caught) => caught);
+
+      expect(thrown).toBe(error);
+      expect(thrown.message).toBe('Fiat: Missing order ID for fiat submission');
+    });
+
+    it('throws if fiat submission returns no transaction hash', async () => {
+      submitFiatQuotesMock.mockResolvedValue({ transactionHash: undefined });
+
+      await expect(
+        new FiatStrategy().execute({
+          isSmartTransaction: () => false,
+          quotes: [QUOTE_MOCK],
+          messenger: {} as TransactionPayControllerMessenger,
+          transaction: { txParams: { from: '0x1' } } as TransactionMeta,
+        }),
+      ).rejects.toThrow('Fiat: Missing transaction hash for fiat submission');
+    });
+
+    it('preserves nested Post-Ramp and Vault prefixes', async () => {
+      submitFiatQuotesMock.mockRejectedValue(
+        new Error('Post-Ramp: Vault: Missing transaction hash'),
+      );
+
+      await expect(
+        new FiatStrategy().execute({
+          isSmartTransaction: () => false,
+          quotes: [QUOTE_MOCK],
+          messenger: {} as TransactionPayControllerMessenger,
+          transaction: { txParams: { from: '0x1' } } as TransactionMeta,
+        }),
+      ).rejects.toThrow('Fiat: Post-Ramp: Vault: Missing transaction hash');
     });
   });
 });

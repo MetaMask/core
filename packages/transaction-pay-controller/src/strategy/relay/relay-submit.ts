@@ -15,6 +15,7 @@ import type {
   TransactionPayControllerMessenger,
   TransactionPayQuote,
 } from '../../types';
+import { prefixError } from '../../utils/error-prefix';
 import {
   getFeatureFlags,
   getRelayPollingInterval,
@@ -54,6 +55,7 @@ import type {
 const FALLBACK_HASH = '0x0' as Hex;
 
 const log = createModuleLogger(projectLogger, 'relay-strategy');
+const RELAY_EXECUTE_ERROR_PREFIX = 'Relay: Execute: ';
 
 /**
  * Submits Relay quotes.
@@ -68,6 +70,10 @@ export async function submitRelayQuotes(
 
   const { quotes, messenger, transaction } = request;
 
+  if (!quotes.length) {
+    throw new Error('No Relay quotes to submit');
+  }
+
   let transactionHash: Hex | undefined;
 
   for (const quote of quotes) {
@@ -76,6 +82,10 @@ export async function submitRelayQuotes(
       messenger,
       transaction,
     ));
+  }
+
+  if (transactionHash === undefined) {
+    throw new Error('Missing transaction hash for Relay submission');
   }
 
   return { transactionHash };
@@ -575,8 +585,7 @@ async function submitViaRelayExecute(
   try {
     result = await submitRelayExecute(messenger, executeBody);
   } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    throw new Error(`Relay execute: ${message}`);
+    throw prefixError(error, RELAY_EXECUTE_ERROR_PREFIX);
   }
 
   log('Relay execute response', result);
@@ -734,6 +743,10 @@ async function submitViaTransactionController(
 
   log('Added transactions', transactionIds);
 
+  if (!transactionIds.length) {
+    throw new Error('No Relay transactions were submitted');
+  }
+
   if (result) {
     const txHash = await result.result;
     log('Submitted transaction', txHash);
@@ -746,6 +759,10 @@ async function submitViaTransactionController(
   log('All transactions confirmed', transactionIds);
 
   const hash = getTransaction(transactionIds.slice(-1)[0], messenger)?.hash;
+
+  if (!hash) {
+    throw new Error('Missing transaction hash for Relay submission');
+  }
 
   return hash as Hex;
 }

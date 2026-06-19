@@ -109,7 +109,27 @@ describe('RelayStrategy', () => {
     expect(submitRelayQuotesMock).toHaveBeenCalledWith(executeRequest);
   });
 
-  it('wraps execute errors with the Relay submit prefix', async () => {
+  it('prefixes execute errors with the Relay prefix without replacing the Error object', async () => {
+    const executeRequest = {
+      messenger,
+      quotes: [],
+      transaction: request.transaction,
+      isSmartTransaction: jest.fn(),
+    } as PayStrategyExecuteRequest<RelayQuote>;
+    const error = new Error('Insufficient liquidity');
+
+    submitRelayQuotesMock.mockRejectedValue(error);
+
+    const strategy = new RelayStrategy();
+    const thrown = await strategy
+      .execute(executeRequest)
+      .catch((caught) => caught);
+
+    expect(thrown).toBe(error);
+    expect(thrown.message).toBe('Relay: Insufficient liquidity');
+  });
+
+  it('does not duplicate the Relay prefix for nested Relay errors', async () => {
     const executeRequest = {
       messenger,
       quotes: [],
@@ -118,12 +138,13 @@ describe('RelayStrategy', () => {
     } as PayStrategyExecuteRequest<RelayQuote>;
 
     submitRelayQuotesMock.mockRejectedValue(
-      new Error('Relay execute: 422 - Insufficient liquidity'),
+      new Error('Relay: Execute: 422 - Insufficient liquidity'),
     );
 
     const strategy = new RelayStrategy();
+
     await expect(strategy.execute(executeRequest)).rejects.toThrow(
-      'Relay submit: Relay execute: 422 - Insufficient liquidity',
+      'Relay: Execute: 422 - Insufficient liquidity',
     );
   });
 
@@ -139,7 +160,24 @@ describe('RelayStrategy', () => {
 
     const strategy = new RelayStrategy();
     await expect(strategy.execute(executeRequest)).rejects.toThrow(
-      'Relay submit: boom',
+      'Relay: boom',
+    );
+  });
+
+  it('throws if Relay submission returns no transaction hash', async () => {
+    const executeRequest = {
+      messenger,
+      quotes: [],
+      transaction: request.transaction,
+      isSmartTransaction: jest.fn(),
+    } as PayStrategyExecuteRequest<RelayQuote>;
+
+    submitRelayQuotesMock.mockResolvedValue({ transactionHash: undefined });
+
+    const strategy = new RelayStrategy();
+
+    await expect(strategy.execute(executeRequest)).rejects.toThrow(
+      'Relay: Missing transaction hash for Relay submission',
     );
   });
 });

@@ -883,7 +883,7 @@ describe('submitFiatQuotes', () => {
     const { request } = getRequest();
 
     await expect(submitFiatQuotes(request)).rejects.toThrow(
-      `Unable to resolve token info for fiat asset ${FIAT_ASSET_MOCK.address} on chain ${FIAT_ASSET_MOCK.chainId}`,
+      `Post-Ramp: Unable to resolve token info for fiat asset ${FIAT_ASSET_MOCK.address} on chain ${FIAT_ASSET_MOCK.chainId}`,
     );
   });
 
@@ -898,7 +898,7 @@ describe('submitFiatQuotes', () => {
     });
 
     await expect(submitFiatQuotes(request)).rejects.toThrow(
-      `Fiat order asset mismatch for transaction ${TRANSACTION_ID_MOCK}: expected ${FIAT_ASSET_CAIP_ID_MOCK.toLowerCase()}, got eip155:137/slip44:60`,
+      `Post-Ramp: Fiat order asset mismatch for transaction ${TRANSACTION_ID_MOCK}: expected ${FIAT_ASSET_CAIP_ID_MOCK.toLowerCase()}, got eip155:137/slip44:60`,
     );
   });
 
@@ -913,7 +913,7 @@ describe('submitFiatQuotes', () => {
     });
 
     await expect(submitFiatQuotes(request)).rejects.toThrow(
-      `Fiat order chain mismatch for transaction ${TRANSACTION_ID_MOCK}: expected eip155:137, got eip155:1`,
+      `Post-Ramp: Fiat order chain mismatch for transaction ${TRANSACTION_ID_MOCK}: expected eip155:137, got eip155:1`,
     );
   });
 
@@ -924,7 +924,7 @@ describe('submitFiatQuotes', () => {
     const { request } = getRequest();
 
     await expect(submitFiatQuotes(request)).rejects.toThrow(
-      'Invalid fiat order crypto amount: 0',
+      'Post-Ramp: Invalid fiat order crypto amount: 0',
     );
   });
 
@@ -942,7 +942,7 @@ describe('submitFiatQuotes', () => {
     request.quotes = [getFiatQuoteMock(), getFiatQuoteMock()];
 
     await expect(submitFiatQuotes(request)).rejects.toThrow(
-      'Multiple fiat quotes are not supported for submission',
+      'Post-Ramp: Multiple fiat quotes are not supported for submission',
     );
   });
 
@@ -952,7 +952,7 @@ describe('submitFiatQuotes', () => {
     });
 
     await expect(submitFiatQuotes(request)).rejects.toThrow(
-      'Missing Relay quote for fiat submission',
+      'Post-Ramp: Missing Relay quote for fiat submission',
     );
   });
 
@@ -963,7 +963,16 @@ describe('submitFiatQuotes', () => {
     const { request } = getRequest();
 
     await expect(submitFiatQuotes(request)).rejects.toThrow(
-      'Computed fiat order source amount is not positive',
+      'Post-Ramp: Computed fiat order source amount is not positive',
+    );
+  });
+
+  it('throws if post-Ramp submission returns no transaction hash', async () => {
+    submitRelayQuotesMock.mockResolvedValue({ transactionHash: undefined });
+    const { request } = getRequest();
+
+    await expect(submitFiatQuotes(request)).rejects.toThrow(
+      'Post-Ramp: Missing transaction hash for fiat post-Ramp submission',
     );
   });
 
