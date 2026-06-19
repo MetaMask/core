@@ -43,7 +43,7 @@
     "test:watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch"
   },
   "dependencies": {
-    "@metamask/base-controller": "^9.1.1",
+    "@metamask/base-controller": "^9.1.0",
     "@metamask/utils": "^11.11.0",
     "@metamask/wallet": "^3.0.0",
     "@oclif/core": "^4.10.5",
