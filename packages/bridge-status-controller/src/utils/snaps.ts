@@ -10,7 +10,6 @@ import {
   formatChainIdToCaip,
   formatChainIdToHex,
   isCrossChain,
-  isStellarTrade,
   isTronTrade,
 } from '@metamask/bridge-controller';
 import { SnapController } from '@metamask/snaps-controllers';
@@ -20,7 +19,7 @@ import {
   TransactionType,
 } from '@metamask/transaction-controller';
 import type { TransactionMeta } from '@metamask/transaction-controller';
-import type { CaipChainId, Hex } from '@metamask/utils';
+import type { CaipAssetType, CaipChainId, Hex } from '@metamask/utils';
 import { v4 as uuid } from 'uuid';
 
 import type {
@@ -73,7 +72,8 @@ export const createClientTransactionRequest = (
  * @param srcChainId - The source chain ID
  * @param accountId - The account ID
  * @param snapId - The snap ID
- * @param destChainId - The destination chain ID
+ * @param sourceAssetId - The source asset ID
+ * @param destAssetId - The destination asset ID
  * @returns The snap request object for signing and sending transaction
  */
 export const getClientRequest = (
@@ -81,26 +81,26 @@ export const getClientRequest = (
   srcChainId: number,
   accountId: AccountsControllerState['internalAccounts']['accounts'][string]['id'],
   snapId: string,
-  destChainId?: number,
+  sourceAssetId?: CaipAssetType,
+  destAssetId?: CaipAssetType,
 ): Parameters<SnapController['handleRequest']>[0] => {
   const scope = formatChainIdToCaip(srcChainId);
 
   const transaction = extractTradeData(trade);
 
-  let options: Record<string, unknown> | undefined;
+  let options: Record<string, unknown> = {
+    ...(sourceAssetId !== undefined && {
+      sourceAssetId,
+    }),
+    ...(destAssetId !== undefined && {
+      destAssetId,
+    }),
+  };
   if (isTronTrade(trade)) {
     // Tron trades need the visible flag and contract type to be included in the request options
     options = {
       visible: trade.visible,
       type: trade.raw_data?.contract?.[0]?.type,
-    };
-  } else if (isStellarTrade(trade)) {
-    // Stellar trades need the source and destination chain IDs to be included as metadata
-    options = {
-      sourceChainId: scope,
-      ...(destChainId !== undefined && {
-        destChainId: formatChainIdToCaip(destChainId),
-      }),
     };
   }
 
@@ -262,7 +262,8 @@ export const handleNonEvmTx = async (
     quoteResponse.quote.srcChainId,
     selectedAccount.id,
     selectedAccount.metadata?.snap?.id,
-    quoteResponse.quote.destChainId,
+    quoteResponse.quote.srcAsset.assetId,
+    quoteResponse.quote.destAsset.assetId,
   );
   const requestResponse = (await messenger.call(
     'SnapController:handleRequest',

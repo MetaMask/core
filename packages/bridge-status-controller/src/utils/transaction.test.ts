@@ -4,6 +4,7 @@ import {
   FeeType,
   formatChainIdToCaip,
   formatChainIdToHex,
+  getNativeAssetForChainId,
 } from '@metamask/bridge-controller';
 import type {
   QuoteMetadata,
@@ -1670,7 +1671,7 @@ describe('Bridge Status Controller Transaction Utils', () => {
       createClientRequestSpy.mockRestore();
     });
 
-    it('should include Stellar source and destination chain IDs as options when trade is Stellar', () => {
+    it('should include Stellar source and destination asset IDs as options when trade is not Tron', () => {
       const stellarTrade = {
         xdrBase64: 'AAAABg==',
       } as never;
@@ -1682,12 +1683,16 @@ describe('Bridge Status Controller Transaction Utils', () => {
         },
       };
 
+      const sourceAssetId = getNativeAssetForChainId(ChainId.STELLAR).assetId;
+      const destAssetId = getNativeAssetForChainId(ChainId.ETH).assetId;
+
       const result = snaps.getClientRequest(
         stellarTrade,
         ChainId.STELLAR,
         mockAccount.id,
         mockAccount.metadata.snap.id,
-        ChainId.ETH,
+        sourceAssetId,
+        destAssetId,
       );
 
       expect(result).toMatchObject({
@@ -1703,15 +1708,15 @@ describe('Bridge Status Controller Transaction Utils', () => {
             scope: formatChainIdToCaip(ChainId.STELLAR),
             accountId: 'test-account-id',
             options: {
-              sourceChainId: formatChainIdToCaip(ChainId.STELLAR),
-              destChainId: formatChainIdToCaip(ChainId.ETH),
+              sourceAssetId,
+              destAssetId,
             },
           },
         },
       });
     });
 
-    it('should omit destChainId option for Stellar trades when destination chain ID is not provided', () => {
+    it('should omit destAssetId option for Stellar trades when destination asset ID is not provided', () => {
       const stellarTrade = {
         xdr: 'AAAABg==',
       } as never;
@@ -1723,25 +1728,28 @@ describe('Bridge Status Controller Transaction Utils', () => {
         },
       };
 
+      const sourceAssetId = getNativeAssetForChainId(ChainId.STELLAR).assetId;
+
       const result = snaps.getClientRequest(
         stellarTrade,
         ChainId.STELLAR,
         mockAccount.id,
         mockAccount.metadata.snap.id,
+        sourceAssetId,
       );
 
       expect(result).toMatchObject({
         request: {
           params: {
             options: {
-              sourceChainId: formatChainIdToCaip(ChainId.STELLAR),
+              sourceAssetId,
             },
           },
         },
       });
       expect(
         (result.request.params as { options: Record<string, unknown> }).options,
-      ).not.toHaveProperty('destChainId');
+      ).not.toHaveProperty('destAssetId');
     });
   });
 
