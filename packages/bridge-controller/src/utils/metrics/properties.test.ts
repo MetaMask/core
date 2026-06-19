@@ -1,7 +1,7 @@
 import { SolScope } from '@metamask/keyring-api';
 import type { CaipChainId } from '@metamask/utils';
 
-import type { QuoteResponseV1 } from '../../types';
+import type { QuoteMetadata, QuoteResponseV1 } from '../../types';
 import { getNativeAssetForChainId } from '../bridge';
 import { formatChainIdToCaip } from '../caip-formatters';
 import { MetricsSwapType } from './constants';
@@ -214,7 +214,7 @@ describe('properties', () => {
           chainId: 1,
           to: '0x789',
           from: '0xabc',
-          value: '0',
+          value: '0x0',
           data: '0x',
           gasLimit: 100000,
         },
@@ -361,8 +361,26 @@ describe('properties', () => {
   });
 
   describe('getQuotesReceivedProperties', () => {
+    const mockTokenAmount = { amount: '0', valueInCurrency: '0', usd: '0' };
+    const mockQuoteMetadata: QuoteMetadata = {
+      gasFee: {
+        effective: mockTokenAmount,
+        total: mockTokenAmount,
+        max: mockTokenAmount,
+      },
+      totalNetworkFee: mockTokenAmount,
+      totalMaxNetworkFee: mockTokenAmount,
+      toTokenAmount: mockTokenAmount,
+      minToTokenAmount: mockTokenAmount,
+      adjustedReturn: { valueInCurrency: '0', usd: '0' },
+      sentAmount: mockTokenAmount,
+      swapRate: '0',
+      cost: { valueInCurrency: '0', usd: '0' },
+    };
+
     it('should return quotes received properties correctly', () => {
-      const mockQuoteResponse: QuoteResponseV1 = {
+      const mockQuoteResponse: QuoteResponseV1 & QuoteMetadata = {
+        ...mockQuoteMetadata,
         quote: {
           requestId: 'request1',
           srcChainId: 1,
@@ -407,7 +425,7 @@ describe('properties', () => {
           chainId: 1,
           to: '0x789',
           from: '0xabc',
-          value: '0',
+          value: '0x0',
           data: '0x',
           gasLimit: 100000,
         },
@@ -441,6 +459,73 @@ describe('properties', () => {
           "warnings": [],
         }
       `);
+    });
+
+    it('should return empty source and null destination token symbols when activeQuote is null', () => {
+      const result = getQuotesReceivedProperties(null);
+
+      expect(result.token_symbol_source).toBe('');
+      expect(result.token_symbol_destination).toBeNull();
+    });
+
+    it('should derive token symbols from the active quote asset metadata', () => {
+      const mockQuoteResponse: QuoteResponseV1 & QuoteMetadata = {
+        ...mockQuoteMetadata,
+        quote: {
+          requestId: 'request1',
+          srcChainId: 1,
+          srcAsset: {
+            chainId: 1,
+            address: '0x123',
+            symbol: 'WETH',
+            name: 'Wrapped Ether',
+            decimals: 18,
+            assetId: 'eip155:1/erc20:0x123',
+          },
+          srcTokenAmount: '1000000000000000000',
+          destChainId: 1,
+          destAsset: {
+            chainId: 1,
+            address: '0x456',
+            symbol: 'DAI',
+            name: 'Dai Stablecoin',
+            decimals: 18,
+            assetId: 'eip155:1/erc20:0x456',
+          },
+          destTokenAmount: '1000000',
+          minDestTokenAmount: '950000',
+          feeData: {
+            metabridge: {
+              amount: '10000000000000000',
+              asset: {
+                chainId: 1,
+                address: '0x123',
+                symbol: 'WETH',
+                name: 'Wrapped Ether',
+                decimals: 18,
+                assetId: 'eip155:1/erc20:0x123',
+              },
+            },
+          },
+          bridgeId: 'bridge1',
+          bridges: ['bridge1'],
+          steps: [],
+        },
+        trade: {
+          chainId: 1,
+          to: '0x789',
+          from: '0xabc',
+          value: '0x0',
+          data: '0x',
+          gasLimit: 100000,
+        },
+        estimatedProcessingTimeInSeconds: 60,
+      };
+
+      const result = getQuotesReceivedProperties(mockQuoteResponse);
+
+      expect(result.token_symbol_source).toBe('WETH');
+      expect(result.token_symbol_destination).toBe('DAI');
     });
   });
 });
