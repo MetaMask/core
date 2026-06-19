@@ -95,6 +95,11 @@ async function submitRelayQuotesInternal(
     ));
   }
 
+  /* istanbul ignore if: concrete Relay submit paths return a hash/fallback or throw. */
+  if (transactionHash === undefined) {
+    throw new Error('Missing transaction hash');
+  }
+
   return { transactionHash };
 }
 
