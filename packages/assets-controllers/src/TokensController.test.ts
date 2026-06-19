@@ -3815,7 +3815,7 @@ describe('TokensController', () => {
         { options: { state: initialState, isDeprecated: () => true } },
         async ({ controller }) => {
           // Give any async init work a chance to settle
-          await new Promise(process.nextTick);
+          await new Promise((resolve) => process.nextTick(resolve));
 
           // The tokenListService mock is accessed via the controller factory;
           // we verify by checking that state was not modified by enrichment
