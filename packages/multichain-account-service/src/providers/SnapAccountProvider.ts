@@ -384,16 +384,9 @@ export abstract class SnapAccountProvider extends BaseBip44AccountProvider {
 
       if (options.type === `${AccountCreationType.Bip44DeriveIndexRange}`) {
         if (batched) {
-          const start = performance.now();
-
           // Batch account creations.
           snapAccounts = await createAccountsV2(options);
-
-          console.log(
-            `[PERFORMANCE LOG] createBip44Accounts Bip44DeriveIndexRange batched: ${(performance.now() - start).toFixed(2)}ms`,
-          );
         } else {
-          const start = performance.now();
           const { range } = options;
 
           // Create accounts one by one.
@@ -406,36 +399,21 @@ export abstract class SnapAccountProvider extends BaseBip44AccountProvider {
 
             snapAccounts.push(snapAccount);
           }
-
-          console.log(
-            `[PERFORMANCE LOG] createBip44Accounts Bip44DeriveIndexRange sequential: ${(performance.now() - start).toFixed(2)}ms`,
-          );
         }
 
         // Group indices are sequential, so we just need the starting index.
         groupIndexOffset = options.range.from;
       } else {
         if (batched) {
-          const start = performance.now();
-
           // Create account using new v2-like flow (no async flow + no Snap keyring events).
           snapAccounts = await createAccountsV2(options);
-
-          console.log(
-            `[PERFORMANCE LOG] createBip44Accounts Bip44DeriveIndex batched: ${(performance.now() - start).toFixed(2)}ms`,
-          );
         } else {
-          const start = performance.now();
           const { groupIndex } = options;
 
           // Create account using the existing v1 flow.
           const snapAccount = await createAccountV1(groupIndex);
 
           snapAccounts = [snapAccount];
-
-          console.log(
-            `[PERFORMANCE LOG] createBip44Accounts Bip44DeriveIndex sequential: ${(performance.now() - start).toFixed(2)}ms`,
-          );
         }
 
         // For single account, there will only be 1 account, so we can use the
