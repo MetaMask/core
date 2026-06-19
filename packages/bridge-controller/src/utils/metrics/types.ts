@@ -133,7 +133,7 @@ type RequiredEventContextFromClientBase = {
       | 'token_amount_source';
     input_value: InputValues[keyof InputValues];
     input_amount_preset?: string;
-  } & InputPrimaryDenominationData;
+  };
   [UnifiedSwapBridgeEventName.FiatCryptoToggleClicked]: {
     token_symbol_source: string;
     token_symbol_destination: string | null;
@@ -320,7 +320,7 @@ export type EventPropertiesFromControllerState = {
   [UnifiedSwapBridgeEventName.InputChanged]: {
     input: InputKeys;
     input_value: string;
-  } & InputPrimaryDenominationData;
+  };
   [UnifiedSwapBridgeEventName.FiatCryptoToggleClicked]: RequestParams &
     Pick<RequestMetadata, 'swap_type'>;
   [UnifiedSwapBridgeEventName.InputSourceDestinationSwitched]: RequestParams;
