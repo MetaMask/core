@@ -429,7 +429,8 @@ export class HyperLiquidProvider implements PerpsProvider {
     this.#builderAddressTestnet = options.builderAddressTestnet;
     this.#builderAddressMainnet = options.builderAddressMainnet;
     this.#priceDeviationLimit =
-      options.priceDeviationLimit ?? HYPERLIQUID_CONFIG.OraclePriceDeviationLimit;
+      options.priceDeviationLimit ??
+      HYPERLIQUID_CONFIG.OraclePriceDeviationLimit;
     const isTestnet = options.isTestnet ?? false;
 
     // Dev-friendly defaults: Enable all markets by default for easier testing (discovery mode)

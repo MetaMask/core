@@ -36,16 +36,16 @@ function makeUniverseEntry(name: string): PerpsUniverse {
 describe('marketDataTransform', () => {
   describe('isMarketTradable', () => {
     it('is tradable when mid and oracle prices are equal', () => {
-      expect(
-        isMarketTradable({ midPrice: 50000, oraclePrice: 50000 }),
-      ).toBe(true);
+      expect(isMarketTradable({ midPrice: 50000, oraclePrice: 50000 })).toBe(
+        true,
+      );
     });
 
     it('is tradable for small deviations well within the limit', () => {
       // 0.2% deviation
-      expect(
-        isMarketTradable({ midPrice: 50100, oraclePrice: 50000 }),
-      ).toBe(true);
+      expect(isMarketTradable({ midPrice: 50100, oraclePrice: 50000 })).toBe(
+        true,
+      );
     });
 
     it('is tradable exactly at the deviation limit (inclusive boundary)', () => {
@@ -89,9 +89,7 @@ describe('marketDataTransform', () => {
     it('uses the HyperLiquid 0.95 default when no limit is provided', () => {
       expect(HYPERLIQUID_CONFIG.OraclePriceDeviationLimit).toBe(0.95);
       // Just over 95% -> untradable with the default limit
-      expect(
-        isMarketTradable({ midPrice: 1.96, oraclePrice: 1 }),
-      ).toBe(false);
+      expect(isMarketTradable({ midPrice: 1.96, oraclePrice: 1 })).toBe(false);
     });
 
     it.each([

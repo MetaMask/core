@@ -7,14 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [8.2.0]
-
 ### Added
 
 - Surface per-market trading availability so clients can warn before placing an order that would be rejected ([#9205](https://github.com/MetaMask/core/pull/9205))
   - Add an optional `isTradable` boolean to `PriceUpdate`. It is `false` when a market's mid price has drifted past the protocol's oracle-deviation limit (HyperLiquid rejects orders more than 95% away from the reference price, which most often affects HIP-3 markets); `undefined` means tradability is unknown and the market should be treated as tradable.
   - Add an optional, protocol-agnostic `fallbackPriceDeviationLimit` to `PerpsControllerConfig` so clients can tune the deviation threshold; each provider applies its own default when omitted.
   - Export the pure `isMarketTradable` helper and add `HYPERLIQUID_CONFIG.OraclePriceDeviationLimit` (`0.95`, the HyperLiquid default).
+
+## [8.2.0]
+
+### Added
+
 - Add Perps Discovery analytics constants to `PERPS_EVENT_PROPERTY` and `PERPS_EVENT_VALUE` so mobile can import them from `@metamask/perps-controller` instead of maintaining a local mirror ([#9178](https://github.com/MetaMask/core/pull/9178))
   - New `PERPS_EVENT_PROPERTY` keys: `SOURCE_SECTION`, `RESULT_COUNT`, `SECTION_NAME`, `SECTION_INDEX`, `SECTIONS_DISPLAYED`, `WATCHLIST_COUNT`, `WATCHLIST_MARKETS`
   - New `PERPS_EVENT_VALUE.SOURCE_SECTION` group: values for home sections (`positions`, `orders`, `watchlist`, `whats_happening`, `products`, `top_gainers`, `top_losers`, `crypto`, `commodity`, `stock`, `forex`), explore sections (`perps_movers`, `perps_crypto`, `perps_stocks_commodities`, `perps_markets`), and market-list sections (`all_markets`, `new`, `active_search`)
