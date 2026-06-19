@@ -388,7 +388,7 @@ export class ProfileMetricsController extends StaticIntervalPollingController()<
         // Unsupported namespaces are an expected pass-through; anything
         // else is logged so a new namespace doesn't go unnoticed.
         if (!(error instanceof ProofUnsupportedNamespaceError)) {
-          console.error(`Skipping proof for account ${queued.address}:`, error);
+          console.error(`Skipping proof for account ${fullAccount.id}:`, error);
         }
       }
     }
@@ -428,7 +428,7 @@ export class ProfileMetricsController extends StaticIntervalPollingController()<
           });
         } catch (error) {
           console.error(
-            `Failed to sign proof of ownership for account ${queued.address}:`,
+            `Failed to sign proof of ownership for account ${candidate.account.id}:`,
             error,
           );
           return { ...queued, address: candidate.canonicalAddress };

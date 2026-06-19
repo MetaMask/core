@@ -928,7 +928,7 @@ describe('ProfileMetricsController', () => {
                   }),
                 );
                 expect(consoleErrorSpy).toHaveBeenCalledWith(
-                  `Skipping proof for account ${address}:`,
+                  `Skipping proof for account id-${address}:`,
                   expect.any(Error),
                 );
               },
@@ -1138,7 +1138,7 @@ describe('ProfileMetricsController', () => {
                   }),
                 );
                 expect(consoleErrorSpy).toHaveBeenCalledWith(
-                  `Failed to sign proof of ownership for account ${badLower}:`,
+                  `Failed to sign proof of ownership for account id-${badLower}:`,
                   expect.any(Error),
                 );
               },
@@ -1330,7 +1330,7 @@ describe('ProfileMetricsController', () => {
                   }),
                 );
                 expect(consoleErrorSpy).toHaveBeenCalledWith(
-                  `Skipping proof for account ${address.toLowerCase()}:`,
+                  `Skipping proof for account id-${address.toLowerCase()}:`,
                   expect.any(Error),
                 );
               },
