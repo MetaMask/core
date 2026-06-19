@@ -1105,8 +1105,9 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
         undefined,
         {
           ...preConfirmationProperties,
-          input_primary_denomination:
-            inputPrimaryDenomination ?? 'token_amount',
+          ...(inputPrimaryDenomination && {
+            input_primary_denomination: inputPrimaryDenomination,
+          }),
         },
       );
 
@@ -1398,10 +1399,10 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       ...getTxStatusesFromHistory(historyItem),
       ...getFinalizedTxProperties(historyItem, txMeta, approvalTxMeta),
       ...getPriceImpactFromQuote(quote),
-      ...(eventName === UnifiedSwapBridgeEventName.Completed && {
-        input_primary_denomination:
-          historyItem.inputPrimaryDenomination ?? 'token_amount',
-      }),
+      ...(eventName === UnifiedSwapBridgeEventName.Completed &&
+        historyItem.inputPrimaryDenomination && {
+          input_primary_denomination: historyItem.inputPrimaryDenomination,
+        }),
     };
 
     trackMetricsEvent({
