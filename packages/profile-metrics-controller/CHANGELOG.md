@@ -9,11 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add `ProofOfOwnershipService` for signing chain-native proofs of account ownership ([#9016](https://github.com/MetaMask/core/pull/9016))
-  - Exposes `ProofOfOwnershipService:sign({ account, nonce })`, dispatching by the CAIP-2 namespace of the account's first scope.
-  - EVM accounts are signed via `KeyringController:signPersonalMessage` (EIP-191); Solana, Tron, and Bitcoin accounts are signed via `SnapController:handleRequest` with the `onClientRequest` handler against the snap declared in `account.metadata.snap.id`, which keeps the request silent and client-internal.
-  - The non-EVM snaps are expected to implement a `signProofOfOwnership` JSON-RPC method that validates the message prefix `metamask:proof-of-ownership:` before signing.
-  - Add `profileMetricsServiceName` alias for the existing `serviceName` export, to disambiguate it from the new `proofOfOwnershipServiceName`. The original `serviceName` export is unchanged.
+- **BREAKING:** Add chain-native proof-of-ownership signing for accounts, with profile-metric submissions now carrying a proof per account ([#9016](https://github.com/MetaMask/core/pull/9016), [#9190](https://github.com/MetaMask/core/pull/9190))
+  - New `ProofOfOwnershipService:sign({ account, nonce })` action, dispatching to `KeyringController:signPersonalMessage` for EVM accounts and to the account's snap (via the `signProofOfOwnership` JSON-RPC method) for Solana, Tron, and Bitcoin.
+  - `ProfileMetricsController._executePoll` signs a proof for each queued account and submits it alongside the canonicalized address (EIP-55 for `eip155`, lowercase bech32 / bech32m for `bip122`). Consumers must delegate `ProofOfOwnershipService:sign` onto the controller's messenger.
+  - Adds a `profileMetricsServiceName` alias for the existing `serviceName` export to disambiguate it from the new `proofOfOwnershipServiceName`.
+  - Re-enqueues all known accounts on the first unlock after upgrading so previously-synced records get a proof attached, gated by a new `proofBackfillEnqueued` state flag (fresh installs flip the flag on their initial sync).
 
 ### Changed
 
