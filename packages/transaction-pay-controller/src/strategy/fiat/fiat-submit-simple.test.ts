@@ -172,7 +172,7 @@ describe('submitSimpleRelay', () => {
         sourceAmountRaw: '1000000000000000000',
         transaction: TRANSACTION_MOCK,
       }),
-    ).rejects.toThrow('Missing Relay quote for fiat submission');
+    ).rejects.toThrow('Missing Relay quote');
   });
 
   it('throws when rate drift exceeds configured threshold', async () => {
