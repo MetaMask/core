@@ -1,7 +1,6 @@
 import type { CandlePeriod } from '../../../src/constants/chartConfig';
 import { MarketDataService } from '../../../src/services/MarketDataService';
 import type { ServiceContext } from '../../../src/services/ServiceContext';
-import type { TerminalMarketService } from '../../../src/services/TerminalMarketService';
 import type {
   PerpsProvider,
   Position,
@@ -15,6 +14,7 @@ import type {
   AssetRoute,
   PerpsPlatformDependencies,
   PerpsMarketData,
+  PerpsTerminalMarketService,
   TerminalAssetMetadata,
 } from '../../../src/types';
 import type { CandleData } from '../../../src/types/perps-types';
@@ -1130,7 +1130,7 @@ describe('MarketDataService', () => {
   });
 
   describe('Terminal API integration', () => {
-    let mockTerminalService: jest.Mocked<TerminalMarketService>;
+    let mockTerminalService: jest.Mocked<PerpsTerminalMarketService>;
     let serviceWithTerminal: MarketDataService;
 
     const terminalMarkets: MarketInfo[] = [
@@ -1163,12 +1163,12 @@ describe('MarketDataService', () => {
         fetchMarkets: jest.fn(),
         clearCache: jest.fn(),
         logError: jest.fn(),
-      } as unknown as jest.Mocked<TerminalMarketService>;
+      };
 
-      serviceWithTerminal = new MarketDataService(
-        mockDeps,
-        mockTerminalService,
-      );
+      serviceWithTerminal = new MarketDataService({
+        ...mockDeps,
+        terminalMarketService: mockTerminalService,
+      });
     });
 
     describe('getMarkets with useTerminalApi', () => {

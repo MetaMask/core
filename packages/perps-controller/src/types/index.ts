@@ -1631,6 +1631,23 @@ export type PerpsRemoteFeatureFlagState = {
 };
 
 /**
+ * Injectable interface for the Terminal-market service.
+ *
+ * `MarketDataService` programs against this contract so the concrete
+ * `TerminalMarketService` class (which lives in `services/`) never leaks
+ * into the types barrel — callers can supply any implementation that
+ * satisfies the shape (production, stub, mock, etc.).
+ */
+export type PerpsTerminalMarketService = {
+  fetchMarkets(): Promise<{
+    markets: MarketInfo[];
+    metadata: Map<string, TerminalAssetMetadata>;
+  }>;
+  clearCache(): void;
+  logError(error: unknown, method: string): void;
+};
+
+/**
  * Platform dependencies for PerpsController and services.
  *
  * Architecture:
@@ -1689,6 +1706,16 @@ export type PerpsPlatformDependencies = {
    * Optional: only required when Terminal API features (useTerminalApi) are enabled.
    */
   terminalApiUrl?: string;
+
+  /**
+   * Optional Terminal-market service instance for fetching structured market
+   * metadata from the MetaMask Terminal API.
+   *
+   * When provided, `MarketDataService` uses this service to attempt the
+   * Terminal API path before falling back to the provider.
+   * Clients that do not use the Terminal API can omit this field.
+   */
+  terminalMarketService?: PerpsTerminalMarketService;
 
   // === Rewards (DI — no RewardsController in Core yet) ===
   rewards: {

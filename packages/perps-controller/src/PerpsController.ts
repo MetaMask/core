@@ -915,8 +915,6 @@ export class PerpsController extends BaseController<
 
   readonly #marketDataService: MarketDataService;
 
-  readonly #terminalMarketService: TerminalMarketService;
-
   readonly #accountService: AccountService;
 
   readonly #eligibilityService: EligibilityService;
@@ -956,11 +954,14 @@ export class PerpsController extends BaseController<
     // Instantiate services with platform dependencies
     // Services that need cross-controller access receive the messenger
     this.#tradingService = new TradingService(infrastructure);
-    this.#terminalMarketService = new TerminalMarketService(infrastructure);
-    this.#marketDataService = new MarketDataService(
-      infrastructure,
-      this.#terminalMarketService,
-    );
+    this.#marketDataService = new MarketDataService({
+      ...infrastructure,
+      terminalMarketService:
+        infrastructure.terminalMarketService ??
+        (infrastructure.terminalApiUrl
+          ? new TerminalMarketService(infrastructure)
+          : undefined),
+    });
     this.#accountService = new AccountService(infrastructure, messenger);
     this.#eligibilityService = new EligibilityService(infrastructure);
     this.#dataLakeService = new DataLakeService(infrastructure, messenger);

@@ -39,7 +39,6 @@ import { coalescePerpsRestRequest } from '../utils/coalescePerpsRestRequest';
 import { ensureError, isAbortError } from '../utils/errorUtils';
 import { applyMarketFilters } from '../utils/marketUtils';
 import type { ServiceContext } from './ServiceContext';
-import type { TerminalMarketService } from './TerminalMarketService';
 
 /**
  * MarketDataService
@@ -53,22 +52,13 @@ import type { TerminalMarketService } from './TerminalMarketService';
 export class MarketDataService {
   readonly #deps: PerpsPlatformDependencies;
 
-  readonly #terminalMarketService: TerminalMarketService | undefined;
-
   /**
    * Create a new MarketDataService instance
    *
    * @param deps - Platform dependencies for logging, metrics, etc.
-   * @param terminalMarketService - Optional terminal market service for
-   * fetching market data from the Terminal API. Passed separately to avoid
-   * a circular import (types ↔ services) in PerpsPlatformDependencies.
    */
-  constructor(
-    deps: PerpsPlatformDependencies,
-    terminalMarketService?: TerminalMarketService,
-  ) {
+  constructor(deps: PerpsPlatformDependencies) {
     this.#deps = deps;
-    this.#terminalMarketService = terminalMarketService;
   }
 
   /**
@@ -766,10 +756,10 @@ export class MarketDataService {
       });
 
       // Terminal API path: attempt first when flag is enabled
-      if (useTerminalApi && this.#terminalMarketService) {
+      if (useTerminalApi && this.#deps.terminalMarketService) {
         try {
           const { markets: terminalMarkets } =
-            await this.#terminalMarketService.fetchMarkets();
+            await this.#deps.terminalMarketService.fetchMarkets();
           if (terminalMarkets.length > 0) {
             let filtered = terminalMarkets;
 
@@ -809,7 +799,7 @@ export class MarketDataService {
             return filtered;
           }
         } catch (terminalError) {
-          this.#terminalMarketService.logError(terminalError, 'getMarkets');
+          this.#deps.terminalMarketService.logError(terminalError, 'getMarkets');
         }
       }
 
@@ -913,14 +903,14 @@ export class MarketDataService {
       // Terminal metadata enriches the provider result (name, keywords, tags,
       // categories) but never replaces live pricing / funding data.
       let terminalMetadata: Map<string, TerminalAssetMetadata> | undefined;
-      if (useTerminalApi && this.#terminalMarketService) {
+      if (useTerminalApi && this.#deps.terminalMarketService) {
         try {
-          const result = await this.#terminalMarketService.fetchMarkets();
+          const result = await this.#deps.terminalMarketService.fetchMarkets();
           if (result.metadata.size > 0) {
             terminalMetadata = result.metadata;
           }
         } catch (terminalError) {
-          this.#terminalMarketService.logError(
+          this.#deps.terminalMarketService.logError(
             terminalError,
             'getMarketDataWithPrices',
           );
