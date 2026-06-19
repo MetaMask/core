@@ -1,6 +1,6 @@
 {
   "name": "@metamask/bitcoin-regtest-up",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "description": "Bitcoin Core regtest runtime installer for MetaMask E2E tests",
   "keywords": [
     "Ethereum",
@@ -15,6 +15,7 @@
     "type": "git",
     "url": "https://github.com/MetaMask/core.git"
   },
+  "bin": "./dist/bin/bitcoin-regtest-up.mjs",
   "files": [
     "dist/"
   ],
