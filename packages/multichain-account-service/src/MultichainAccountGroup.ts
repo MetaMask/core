@@ -7,13 +7,17 @@ import type {
 import type { Bip44Account } from '@metamask/account-api';
 import type { AccountSelector } from '@metamask/account-api';
 import type { KeyringAccount } from '@metamask/keyring-api';
+import { Mutex } from 'async-mutex';
 
 import type { Logger } from './logger';
 import { projectLogger as log, createModuleLogger } from './logger';
 import type { ServiceState, StateKeys } from './MultichainAccountService';
 import type { MultichainAccountWallet } from './MultichainAccountWallet';
 import type { Bip44AccountProvider } from './providers';
-import type { MultichainAccountServiceMessenger } from './types';
+import type {
+  MultichainAccountGroupStatus,
+  MultichainAccountServiceMessenger,
+} from './types';
 
 export type GroupState =
   ServiceState[StateKeys['entropySource']][StateKeys['groupIndex']];
@@ -24,6 +28,8 @@ export type GroupState =
 export class MultichainAccountGroup<
   Account extends Bip44Account<KeyringAccount>,
 > implements MultichainAccountGroupDefinition<Account> {
+  readonly #lock = new Mutex();
+
   readonly #id: MultichainAccountGroupId;
 
   readonly #wallet: MultichainAccountWallet<Account>;
@@ -47,6 +53,8 @@ export class MultichainAccountGroup<
   readonly #log: Logger;
 
   #initialized = false;
+
+  #status: MultichainAccountGroupStatus = 'missing-accounts';
 
   constructor({
     groupIndex,
@@ -84,6 +92,53 @@ export class MultichainAccountGroup<
   }
 
   /**
+   * Run a mutable operation while holding the group mutex.
+   *
+   * @param operation - Operation to run.
+   * @returns The operation's result.
+   */
+  async #withLock<Return>(
+    operation: () => Return | Promise<Return>,
+  ): Promise<Return> {
+    const release = await this.#lock.acquire();
+    try {
+      this.#log('Locking group...');
+      return await operation();
+    } finally {
+      release();
+      this.#log('Releasing group lock');
+    }
+  }
+
+  /**
+   * Derive the group status from the current provider alignment and optionally
+   * publish a status change event.
+   *
+   * @param options - Options.
+   * @param options.emitEvent - Whether to publish a status change event when
+   * the status changes. Defaults to `false`.
+   */
+  #syncStatus({ emitEvent = false }: { emitEvent?: boolean } = {}): void {
+    const nextStatus: MultichainAccountGroupStatus = this.isAligned()
+      ? 'aligned'
+      : 'missing-accounts';
+
+    if (nextStatus === this.#status) {
+      return;
+    }
+
+    this.#status = nextStatus;
+
+    if (emitEvent && this.#initialized) {
+      this.#messenger.publish(
+        'MultichainAccountService:multichainAccountGroupStatusChange',
+        this.id,
+        this.#status,
+      );
+    }
+  }
+
+  /**
    * Update the internal representation of accounts with the given group state.
    *
    * @param groupState - The group state.
@@ -106,32 +161,42 @@ export class MultichainAccountGroup<
   /**
    * Initialize the multichain account group and construct the internal representation of accounts.
    *
+   * NOTE: This operation WILL lock the group's mutex.
+   *
    * @param groupState - The group state.
    */
-  init(groupState: GroupState): void {
-    this.#log('Initializing group state...');
-    this.#setState(groupState);
-    this.#log('Finished initializing group state...');
+  async init(groupState: GroupState): Promise<void> {
+    await this.#withLock(async () => {
+      this.#log('Initializing group state...');
+      this.#setState(groupState);
+      this.#syncStatus();
+      this.#log('Finished initializing group state...');
 
-    this.#initialized = true;
+      this.#initialized = true;
+    });
   }
 
   /**
    * Update the group state.
    *
+   * NOTE: This operation WILL lock the group's mutex.
+   *
    * @param groupState - The group state.
    */
-  update(groupState: GroupState): void {
-    this.#log('Updating group state...');
-    this.#setState(groupState);
-    this.#log('Finished updating group state...');
+  async update(groupState: GroupState): Promise<void> {
+    await this.#withLock(async () => {
+      this.#log('Updating group state...');
+      this.#setState(groupState);
+      this.#syncStatus({ emitEvent: true });
+      this.#log('Finished updating group state...');
 
-    if (this.#initialized) {
-      this.#messenger.publish(
-        'MultichainAccountService:multichainAccountGroupUpdated',
-        this,
-      );
-    }
+      if (this.#initialized) {
+        this.#messenger.publish(
+          'MultichainAccountService:multichainAccountGroupUpdated',
+          this,
+        );
+      }
+    });
   }
 
   /**
@@ -168,6 +233,15 @@ export class MultichainAccountGroup<
    */
   get groupIndex(): number {
     return this.#groupIndex;
+  }
+
+  /**
+   * Gets the multichain account group current status.
+   *
+   * @returns The multichain account group current status.
+   */
+  get status(): MultichainAccountGroupStatus {
+    return this.#status;
   }
 
   /**

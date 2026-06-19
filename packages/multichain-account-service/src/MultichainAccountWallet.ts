@@ -113,7 +113,7 @@ export class MultichainAccountWallet<
    *
    * @param walletState - The wallet state.
    */
-  init(walletState: WalletState): void {
+  async init(walletState: WalletState): Promise<void> {
     this.#log('Initializing wallet state...');
     for (const [groupIndexString, groupState] of Object.entries(walletState)) {
       // Have to convert to number because the state keys become strings when we construct the state object in the service
@@ -127,7 +127,7 @@ export class MultichainAccountWallet<
 
       this.#log(`Creating new group for index ${groupIndex}...`);
 
-      group.init(groupState);
+      await group.init(groupState);
 
       this.#accountGroups.set(groupIndex, group);
     }
@@ -270,14 +270,14 @@ export class MultichainAccountWallet<
    * @param groupState The group's state to create or update the group with.
    * @returns The created or updated multichain account group.
    */
-  #createOrUpdateMultichainAccountGroup(
+  async #createOrUpdateMultichainAccountGroup(
     groupIndex: number,
     groupState: GroupState,
-  ): MultichainAccountGroup<Account> {
+  ): Promise<MultichainAccountGroup<Account>> {
     let group = this.#accountGroups.get(groupIndex);
     if (group) {
       // NOTE: This will publish an update event automatically.
-      group.update(groupState);
+      await group.update(groupState);
 
       this.#log(`Group updated: [${group.id}]`);
     } else {
@@ -287,7 +287,7 @@ export class MultichainAccountWallet<
         groupIndex,
         messenger: this.#messenger,
       });
-      group.init(groupState);
+      await group.init(groupState);
 
       this.#accountGroups.set(groupIndex, group);
 
@@ -412,7 +412,7 @@ export class MultichainAccountWallet<
           const groupState = groupStateByGroupIndex.get(groupIndex);
 
           if (groupState) {
-            const group = this.#createOrUpdateMultichainAccountGroup(
+            const group = await this.#createOrUpdateMultichainAccountGroup(
               groupIndex,
               groupState,
             );
@@ -475,7 +475,10 @@ export class MultichainAccountWallet<
         for (let groupIndex = from; groupIndex <= to; groupIndex++) {
           const groupState = groupStateByGroupIndex.get(groupIndex);
           if (groupState) {
-            this.#createOrUpdateMultichainAccountGroup(groupIndex, groupState);
+            await this.#createOrUpdateMultichainAccountGroup(
+              groupIndex,
+              groupState,
+            );
           }
         }
       },
@@ -922,7 +925,7 @@ export class MultichainAccountWallet<
           groupIndex,
           messenger: this.#messenger,
         });
-        group.init(groupState);
+        await group.init(groupState);
         this.#accountGroups.set(groupIndex, group);
       }
 

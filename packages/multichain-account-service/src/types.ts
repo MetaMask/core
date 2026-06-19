@@ -1,6 +1,7 @@
 import type {
   Bip44Account,
   MultichainAccountGroup,
+  MultichainAccountGroupId,
   MultichainAccountWalletId,
   MultichainAccountWalletStatus,
 } from '@metamask/account-api';
@@ -52,9 +53,22 @@ export type MultichainAccountServiceMultichainAccountGroupUpdatedEvent = {
   payload: [MultichainAccountGroup<Bip44Account<KeyringAccount>>];
 };
 
+/**
+ * Multichain account group status.
+ *
+ * Reports whether the group has accounts from every enabled account provider
+ * (EVM, Solana, Bitcoin, and Tron).
+ */
+export type MultichainAccountGroupStatus = 'aligned' | 'missing-accounts';
+
 export type MultichainAccountServiceWalletStatusChangeEvent = {
   type: `${typeof serviceName}:walletStatusChange`;
   payload: [MultichainAccountWalletId, MultichainAccountWalletStatus];
+};
+
+export type MultichainAccountServiceMultichainAccountGroupStatusChangeEvent = {
+  type: `${typeof serviceName}:multichainAccountGroupStatusChange`;
+  payload: [MultichainAccountGroupId, MultichainAccountGroupStatus];
 };
 
 /**
@@ -64,6 +78,7 @@ export type MultichainAccountServiceWalletStatusChangeEvent = {
 export type MultichainAccountServiceEvents =
   | MultichainAccountServiceMultichainAccountGroupCreatedEvent
   | MultichainAccountServiceMultichainAccountGroupUpdatedEvent
+  | MultichainAccountServiceMultichainAccountGroupStatusChangeEvent
   | MultichainAccountServiceWalletStatusChangeEvent;
 
 /**

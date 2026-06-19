@@ -310,7 +310,7 @@ export class MultichainAccountService {
         messenger: this.#messenger,
         trace: this.#trace,
       });
-      wallet.init(serviceState[entropySource]);
+      await wallet.init(serviceState[entropySource]);
       this.#wallets.set(wallet.id, wallet);
     }
 
@@ -542,7 +542,7 @@ export class MultichainAccountService {
 
     assert(wallet, 'Failed to create wallet.');
 
-    wallet.init({});
+    await wallet.init({});
     // READ THIS CAREFULLY:
     // We do not await for non-EVM account creations as they
     // are depending on the Snap platform to be ready (which is, waiting for onboarding to be completed).

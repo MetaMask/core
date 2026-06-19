@@ -3,9 +3,11 @@ export type {
   MultichainAccountServiceEvents,
   MultichainAccountServiceMessenger,
   MultichainAccountServiceMultichainAccountGroupCreatedEvent,
+  MultichainAccountServiceMultichainAccountGroupStatusChangeEvent,
   MultichainAccountServiceMultichainAccountGroupUpdatedEvent,
   MultichainAccountServiceWalletStatusChangeEvent,
 } from './types';
+export type { MultichainAccountGroupStatus } from './types';
 export type {
   MultichainAccountServiceResyncAccountsAction,
   MultichainAccountServiceGetMultichainAccountWalletAction,

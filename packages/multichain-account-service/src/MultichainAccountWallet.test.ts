@@ -38,7 +38,7 @@ import {
 } from './tests';
 import type { MultichainAccountServiceMessenger } from './types';
 
-function setup({
+async function setup({
   entropySource = MOCK_WALLET_1_ENTROPY_SOURCE,
   messenger = getRootMessenger(),
   providers,
@@ -56,11 +56,11 @@ function setup({
   messenger?: RootMessenger;
   providers?: MockAccountProvider[];
   accounts?: InternalAccount[][];
-} = {}): {
+} = {}): Promise<{
   wallet: MultichainAccountWallet<Bip44Account<InternalAccount>>;
   providers: MockAccountProvider[];
   messenger: MultichainAccountServiceMessenger;
-} {
+}> {
   const providersList =
     providers ??
     accounts.map((providerAccounts, i) => {
@@ -100,7 +100,7 @@ function setup({
     {},
   );
 
-  wallet.init(walletState);
+  await wallet.init(walletState);
 
   return { wallet, providers: providersList, messenger: serviceMessenger };
 }
@@ -124,9 +124,9 @@ describe('MultichainAccountWallet', () => {
   });
 
   describe('constructor', () => {
-    it('constructs a multichain account wallet', () => {
+    it('constructs a multichain account wallet', async () => {
       const entropySource = MOCK_WALLET_1_ENTROPY_SOURCE;
-      const { wallet } = setup({
+      const { wallet } = await setup({
         entropySource,
       });
 
@@ -140,8 +140,8 @@ describe('MultichainAccountWallet', () => {
   });
 
   describe('getMultichainAccountGroup', () => {
-    it('gets a multichain account group from its index', () => {
-      const { wallet } = setup();
+    it('gets a multichain account group from its index', async () => {
+      const { wallet } = await setup();
 
       const groupIndex = 0;
       const multichainAccountGroup =
@@ -159,24 +159,24 @@ describe('MultichainAccountWallet', () => {
   });
 
   describe('getAccountGroup', () => {
-    it('gets the default multichain account group', () => {
-      const { wallet } = setup();
+    it('gets the default multichain account group', async () => {
+      const { wallet } = await setup();
 
       const group = wallet.getAccountGroup(toDefaultAccountGroupId(wallet.id));
       expect(group).toBeDefined();
       expect(group?.id).toBe(toMultichainAccountGroupId(wallet.id, 0));
     });
 
-    it('gets a multichain account group when using a multichain account group id', () => {
-      const { wallet } = setup();
+    it('gets a multichain account group when using a multichain account group id', async () => {
+      const { wallet } = await setup();
 
       const group = wallet.getAccountGroup(toDefaultAccountGroupId(wallet.id));
       expect(group).toBeDefined();
       expect(group?.id).toBe(toMultichainAccountGroupId(wallet.id, 0));
     });
 
-    it('returns undefined when using a bad multichain account group id', () => {
-      const { wallet } = setup();
+    it('returns undefined when using a bad multichain account group id', async () => {
+      const { wallet } = await setup();
 
       const group = wallet.getAccountGroup(toAccountGroupId(wallet.id, 'bad'));
       expect(group).toBeUndefined();
@@ -187,7 +187,7 @@ describe('MultichainAccountWallet', () => {
     it('creates a multichain account group for a given index (waitForAllProvidersToFinishCreatingAccounts = false)', async () => {
       const groupIndex = 0;
 
-      const { wallet, providers } = setup({
+      const { wallet, providers } = await setup({
         accounts: [[], []], // 2 providers: EVM + SOL
       });
 
@@ -220,7 +220,7 @@ describe('MultichainAccountWallet', () => {
     });
 
     it('returns the same reference when re-creating using the same index (waitForAllProvidersToFinishCreatingAccounts = false)', async () => {
-      const { wallet } = setup({
+      const { wallet } = await setup({
         accounts: [[MOCK_HD_ACCOUNT_1]],
       });
 
@@ -231,7 +231,7 @@ describe('MultichainAccountWallet', () => {
     });
 
     it('fails to create an account beyond the next index (waitForAllProvidersToFinishCreatingAccounts = false)', async () => {
-      const { wallet } = setup({
+      const { wallet } = await setup({
         accounts: [[MOCK_HD_ACCOUNT_1]],
       });
 
@@ -256,7 +256,7 @@ describe('MultichainAccountWallet', () => {
         .withGroupIndex(0)
         .get();
 
-      const { wallet, providers } = setup({
+      const { wallet, providers } = await setup({
         accounts: [[mockEvmAccount], [mockSolAccount]], // 2 providers
       });
 
@@ -288,7 +288,7 @@ describe('MultichainAccountWallet', () => {
 
     it('captures an error when a provider fails to create its account', async () => {
       const groupIndex = 1;
-      const { wallet, providers, messenger } = setup({
+      const { wallet, providers, messenger } = await setup({
         accounts: [[MOCK_HD_ACCOUNT_1]],
       });
       const [provider] = providers;
@@ -311,7 +311,7 @@ describe('MultichainAccountWallet', () => {
 
     it('does not capture exception when a provider times out creating accounts', async () => {
       const groupIndex = 1;
-      const { wallet, providers, messenger } = setup({
+      const { wallet, providers, messenger } = await setup({
         accounts: [[MOCK_HD_ACCOUNT_1]],
       });
       const [provider] = providers;
@@ -343,7 +343,7 @@ describe('MultichainAccountWallet', () => {
         .withGroupIndex(groupIndex)
         .get();
 
-      const { wallet, providers } = setup({
+      const { wallet, providers } = await setup({
         accounts: [[mockEvmAccount0], []], // EVM has group 0, SOL has none
       });
 
@@ -376,7 +376,7 @@ describe('MultichainAccountWallet', () => {
         .withGroupIndex(0)
         .get();
 
-      const { wallet, providers } = setup({
+      const { wallet, providers } = await setup({
         accounts: [
           [mockEvmAccount], // EVM provider.
           [mockSolAccount], // Solana provider.
@@ -425,7 +425,7 @@ describe('MultichainAccountWallet', () => {
         .withGroupIndex(0)
         .get();
 
-      const { wallet, providers } = setup({
+      const { wallet, providers } = await setup({
         accounts: [
           [mockEvmAccount], // EVM provider.
           [mockSolAccount], // Solana provider.
@@ -468,7 +468,7 @@ describe('MultichainAccountWallet', () => {
 
   describe('createMultichainAccountGroups', () => {
     it('creates multiple groups from 0 to maxGroupIndex when no groups exist (waitForAllProvidersToFinishCreatingAccounts = false)', async () => {
-      const { wallet, providers } = setup({
+      const { wallet, providers } = await setup({
         accounts: [[], []],
       });
 
@@ -524,7 +524,7 @@ describe('MultichainAccountWallet', () => {
         .withGroupIndex(0)
         .get();
 
-      const { wallet, providers } = setup({
+      const { wallet, providers } = await setup({
         accounts: [[mockEvmAccount0], [mockSolAccount0]],
       });
 
@@ -584,7 +584,7 @@ describe('MultichainAccountWallet', () => {
         .withGroupIndex(2)
         .get();
 
-      const { wallet } = setup({
+      const { wallet } = await setup({
         accounts: [[mockEvmAccount0, mockEvmAccount1, mockEvmAccount2]],
       });
 
@@ -599,7 +599,7 @@ describe('MultichainAccountWallet', () => {
     });
 
     it('throws when maxGroupIndex is negative', async () => {
-      const { wallet } = setup({
+      const { wallet } = await setup({
         accounts: [[]],
       });
 
@@ -610,7 +610,7 @@ describe('MultichainAccountWallet', () => {
     });
 
     it('captures an error with batch mode message when EVM provider fails', async () => {
-      const { wallet, providers, messenger } = setup({
+      const { wallet, providers, messenger } = await setup({
         accounts: [[]],
       });
 
@@ -636,7 +636,7 @@ describe('MultichainAccountWallet', () => {
     });
 
     it('does not capture exception when a provider times out creating accounts in batch', async () => {
-      const { wallet, providers, messenger } = setup({
+      const { wallet, providers, messenger } = await setup({
         accounts: [[]],
       });
 
@@ -661,7 +661,7 @@ describe('MultichainAccountWallet', () => {
     });
 
     it('creates accounts for all providers synchronously when waitForAllProvidersToFinishCreatingAccounts is true', async () => {
-      const { wallet, providers } = setup({
+      const { wallet, providers } = await setup({
         accounts: [[], []],
       });
 
@@ -700,7 +700,7 @@ describe('MultichainAccountWallet', () => {
     });
 
     it('defers non-EVM account creation to alignment after group creation (waitForAllProvidersToFinishCreatingAccounts = false)', async () => {
-      const { wallet, providers } = setup({
+      const { wallet, providers } = await setup({
         accounts: [[], []],
       });
 
@@ -736,7 +736,7 @@ describe('MultichainAccountWallet', () => {
         .get();
 
       // Wallet with groups 0 and 2, gap at 1.
-      const { wallet, providers } = setup({
+      const { wallet, providers } = await setup({
         accounts: [[account0, account2]],
       });
 
@@ -774,7 +774,7 @@ describe('MultichainAccountWallet', () => {
     });
 
     it('does not throw if a group cannot be created if it has no accounts', async () => {
-      const { wallet, providers } = setup({
+      const { wallet, providers } = await setup({
         accounts: [[]],
       });
 
@@ -800,7 +800,7 @@ describe('MultichainAccountWallet', () => {
 
     it('logs an error to console when post-alignment fails unexpectedly', async () => {
       // Group 0 exists for EVM; SOL has no accounts yet (will be aligned).
-      const { wallet, providers, messenger } = setup({
+      const { wallet, providers, messenger } = await setup({
         accounts: [[MOCK_WALLET_1_EVM_ACCOUNT], []],
       });
 
@@ -859,7 +859,7 @@ describe('MultichainAccountWallet', () => {
         .withEntropySource(MOCK_HD_KEYRING_1.metadata.id)
         .withGroupIndex(0)
         .get();
-      const { wallet, providers, messenger } = setup({
+      const { wallet, providers, messenger } = await setup({
         accounts: [[mockEvmAccount1, mockEvmAccount2], [mockSolAccount]],
       });
 
@@ -902,7 +902,7 @@ describe('MultichainAccountWallet', () => {
         .withUuid()
         .get();
 
-      const { wallet, providers } = setup({
+      const { wallet, providers } = await setup({
         accounts: [[mockEvmAccount], []], // SOL provider has no accounts yet
       });
 
@@ -925,7 +925,7 @@ describe('MultichainAccountWallet', () => {
         .withGroupIndex(0)
         .get();
 
-      const { wallet, providers } = setup({
+      const { wallet, providers } = await setup({
         accounts: [[mockEvmAccount], []], // EVM + SOL
       });
 
@@ -945,7 +945,7 @@ describe('MultichainAccountWallet', () => {
     });
 
     it('is a no-op when the wallet is already aligned', async () => {
-      const { wallet, providers } = setup({
+      const { wallet, providers } = await setup({
         accounts: [[MOCK_WALLET_1_EVM_ACCOUNT], [MOCK_WALLET_1_SOL_ACCOUNT]],
       });
 
@@ -966,7 +966,7 @@ describe('MultichainAccountWallet', () => {
         .withEntropySource(MOCK_HD_KEYRING_1.metadata.id)
         .withGroupIndex(1)
         .get();
-      const { wallet, providers, messenger } = setup({
+      const { wallet, providers, messenger } = await setup({
         accounts: [[mockEvmAccount], [mockSolAccount]],
       });
 
@@ -1005,7 +1005,7 @@ describe('MultichainAccountWallet', () => {
     });
 
     it('is a no-op when the group is already aligned', async () => {
-      const { wallet, providers } = setup({
+      const { wallet, providers } = await setup({
         accounts: [[MOCK_WALLET_1_EVM_ACCOUNT], [MOCK_WALLET_1_SOL_ACCOUNT]],
       });
 
@@ -1017,16 +1017,16 @@ describe('MultichainAccountWallet', () => {
   });
 
   describe('isAligned', () => {
-    it('returns true when all groups are aligned', () => {
-      const { wallet } = setup({
+    it('returns true when all groups are aligned', async () => {
+      const { wallet } = await setup({
         accounts: [[MOCK_WALLET_1_EVM_ACCOUNT], [MOCK_WALLET_1_SOL_ACCOUNT]],
       });
 
       expect(wallet.isAligned()).toBe(true);
     });
 
-    it('returns false when at least one group is not aligned', () => {
-      const { wallet } = setup({
+    it('returns false when at least one group is not aligned', async () => {
+      const { wallet } = await setup({
         accounts: [
           [MOCK_WALLET_1_EVM_ACCOUNT],
           [], // second provider has no accounts, so the group is not aligned
@@ -1036,7 +1036,7 @@ describe('MultichainAccountWallet', () => {
       expect(wallet.isAligned()).toBe(false);
     });
 
-    it('returns true for a wallet with no groups', () => {
+    it('returns true for a wallet with no groups', async () => {
       const serviceMessenger =
         getMultichainAccountServiceMessenger(getRootMessenger());
       const wallet = new MultichainAccountWallet<Bip44Account<InternalAccount>>(
@@ -1046,7 +1046,7 @@ describe('MultichainAccountWallet', () => {
           messenger: serviceMessenger,
         },
       );
-      wallet.init({});
+      await wallet.init({});
 
       expect(wallet.isAligned()).toBe(true);
     });
@@ -1054,7 +1054,7 @@ describe('MultichainAccountWallet', () => {
 
   describe('discoverAccounts', () => {
     it('runs discovery', async () => {
-      const { wallet, providers, messenger } = setup({
+      const { wallet, providers, messenger } = await setup({
         accounts: [[], []],
       });
 
@@ -1090,7 +1090,7 @@ describe('MultichainAccountWallet', () => {
     });
 
     it('fast-forwards lagging providers to the highest group index', async () => {
-      const { wallet, providers } = setup({
+      const { wallet, providers } = await setup({
         accounts: [[], []],
       });
 
@@ -1133,7 +1133,7 @@ describe('MultichainAccountWallet', () => {
     });
 
     it('stops scheduling a provider when it returns no accounts', async () => {
-      const { wallet, providers } = setup({
+      const { wallet, providers } = await setup({
         accounts: [[MOCK_HD_ACCOUNT_1], []],
       });
 
@@ -1157,7 +1157,7 @@ describe('MultichainAccountWallet', () => {
     });
 
     it('marks a provider stopped on error and does not reschedule it', async () => {
-      const { wallet, providers } = setup({
+      const { wallet, providers } = await setup({
         accounts: [[], []],
       });
 
@@ -1192,7 +1192,7 @@ describe('MultichainAccountWallet', () => {
     });
 
     it('captures an error when a provider fails to discover its accounts', async () => {
-      const { wallet, providers, messenger } = setup({
+      const { wallet, providers, messenger } = await setup({
         accounts: [[], []],
       });
       const providerError = new Error('Unable to discover accounts');
@@ -1213,7 +1213,7 @@ describe('MultichainAccountWallet', () => {
     });
 
     it('does not capture exception when a provider times out during account discovery', async () => {
-      const { wallet, providers, messenger } = setup({
+      const { wallet, providers, messenger } = await setup({
         accounts: [[], []],
       });
       providers[0].discoverAccounts.mockRejectedValueOnce(
