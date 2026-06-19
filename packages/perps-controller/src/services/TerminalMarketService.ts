@@ -11,12 +11,12 @@ import {
 } from '@metamask/superstruct';
 
 import { PERPS_CONSTANTS, TERMINAL_API_CONFIG } from '../constants/perpsConfig';
-import {
-  MarketCategory,
-  type MarketInfo,
-  type PerpsPlatformDependencies,
-  type TerminalAssetMetadata,
+import type {
+  MarketInfo,
+  PerpsPlatformDependencies,
+  TerminalAssetMetadata,
 } from '../types';
+import { MarketCategory } from '../types';
 import { ensureError } from '../utils/errorUtils';
 
 const VALID_MARKET_TYPES = new Set<string>(Object.values(MarketCategory));
