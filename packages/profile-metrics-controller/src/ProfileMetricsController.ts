@@ -363,11 +363,10 @@ export class ProfileMetricsController extends StaticIntervalPollingController()<
     fullAccountsByAddress: Map<string, InternalAccount>,
     entropySourceId: string | null,
   ): Promise<AccountWithScopes[]> {
-    type Candidate = {
-      account: InternalAccount;
-      canonicalAddress: string;
-    };
-    const candidates = new Map<string, Candidate>();
+    const candidates = new Map<
+      string,
+      { account: InternalAccount; canonicalAddress: string }
+    >();
     for (const queued of accounts) {
       const fullAccount = fullAccountsByAddress.get(queued.address);
       if (!fullAccount) {
