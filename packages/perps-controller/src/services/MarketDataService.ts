@@ -799,7 +799,10 @@ export class MarketDataService {
             return filtered;
           }
         } catch (terminalError) {
-          this.#deps.terminalMarketService.logError(terminalError, 'getMarkets');
+          this.#deps.terminalMarketService.logError(
+            terminalError,
+            'getMarkets',
+          );
         }
       }
 
