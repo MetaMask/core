@@ -1289,7 +1289,6 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
       case UnifiedSwapBridgeEventName.Completed:
         return propertiesFromClient;
       case UnifiedSwapBridgeEventName.InputChanged:
-        return baseProperties;
       default:
         return baseProperties;
     }
