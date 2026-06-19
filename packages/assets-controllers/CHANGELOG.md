@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- fix(network-controller): Remove deprecated NetworkControllerGetNetworkConfigurationByNetworkClientId type ([#9185](https://github.com/MetaMask/core/pull/9185))
+
 ### Added
 
 - Add `isDeprecated` option to `TokensController` constructor ([#9186](https://github.com/MetaMask/core/pull/9186))
