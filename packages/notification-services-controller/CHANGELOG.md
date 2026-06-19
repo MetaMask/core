@@ -17,9 +17,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Agentic CLI notification delivery is gated by the Agentic backend using AUS `agenticCli` preferences; `NotificationServicesController` does not filter Agentic CLI notifications at fetch time (same as `perps` and `socialAI`) ([#8933](https://github.com/MetaMask/core/pull/8933))
+- Bump `@metamask/authenticated-user-storage` from `^2.0.0` to `^2.1.0` ([#8933](https://github.com/MetaMask/core/pull/8933))
+- Bump `@metamask/base-controller` from `^9.1.0` to `^9.1.1`
 - Bump `@metamask/utils` from `^11.9.0` to `^11.11.0` ([#9074](https://github.com/MetaMask/core/pull/9074))
-- Bump `@metamask/controller-utils` from `^12.1.1` to `^12.2.0` ([#9083](https://github.com/MetaMask/core/pull/9083))
-- Bump `@metamask/profile-sync-controller` from `^28.1.1` to `^28.2.0` ([#9119](https://github.com/MetaMask/core/pull/9119))
+- Bump `@metamask/controller-utils` from `^12.1.1` to `^12.3.0` ([#9083](https://github.com/MetaMask/core/pull/9083))
+- Bump `@metamask/messenger` from `^1.2.0` to `^1.2.1`
+- Bump `@metamask/profile-sync-controller` from `^28.1.1` to `^28.2.1` ([#9119](https://github.com/MetaMask/core/pull/9119), [#9129](https://github.com/MetaMask/core/pull/9129))
 - Bump `@metamask/keyring-controller` from `^27.0.0` to `^27.1.0` ([#9129](https://github.com/MetaMask/core/pull/9129))
 
 ## [24.1.3]

@@ -9,18 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [9.1.1]
 
-### Uncategorized
-
-- chore: remove unused deps in core-platform packages ([#9064](https://github.com/MetaMask/core/pull/9064))
-- Release 973.0.0 ([#8753](https://github.com/MetaMask/core/pull/8753))
-- Release 970.0.0 ([#8746](https://github.com/MetaMask/core/pull/8746))
-- Release/951.0.0 ([#8661](https://github.com/MetaMask/core/pull/8661))
-- chore: Format changelogs with Oxfmt ([#8442](https://github.com/MetaMask/core/pull/8442))
-
 ### Changed
 
 - Bump `@metamask/utils` from `^11.9.0` to `^11.11.0` ([#9074](https://github.com/MetaMask/core/pull/9074))
-- Bump `@metamask/messenger` from `^1.1.1` to `^1.2.0` ([#8632](https://github.com/MetaMask/core/pull/8632))
+- Bump `@metamask/messenger` from `^1.1.1` to `^1.2.1` ([#8632](https://github.com/MetaMask/core/pull/8632))
 
 ## [9.1.0]
 
