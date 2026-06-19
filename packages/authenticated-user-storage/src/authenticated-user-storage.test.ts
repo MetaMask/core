@@ -229,11 +229,10 @@ describe('AuthenticatedUserStorageService', () => {
       const result = await service.getNotificationPreferences();
 
       expect(result).not.toBeNull();
-      if (!result) {
+      if (!result?.agenticCli) {
         throw new Error('Result is null');
       }
       result.agenticCli.inAppNotificationsEnabled = false;
-
       expect(DEFAULT_AGENTIC_CLI_PREFERENCES.inAppNotificationsEnabled).toBe(
         true,
       );
