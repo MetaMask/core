@@ -30,6 +30,7 @@ import type {
 import { hexToNumber } from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
 
+import { MoneyAccountUpgradeStepError } from './errors';
 import type { MoneyAccountUpgradeControllerMethodActions } from './MoneyAccountUpgradeController-method-action-types';
 import { associateAddressStep } from './steps/associate-address';
 import { buildDelegationStep } from './steps/build-delegations';
@@ -203,7 +204,9 @@ export class MoneyAccountUpgradeController extends BaseController<
    * Runs each step in the upgrade sequence in order. A step that reports
    * `'already-done'` is skipped without performing any action; a step that
    * reports `'completed'` has performed its action. An error thrown by any
-   * step propagates and halts the sequence.
+   * step halts the sequence and is re-thrown wrapped in a
+   * {@link MoneyAccountUpgradeStepError} that records which step failed (the
+   * original error is preserved as `cause`).
    *
    * @param address - The Money Account address to upgrade.
    */
@@ -215,11 +218,15 @@ export class MoneyAccountUpgradeController extends BaseController<
     }
 
     for (const step of this.#steps) {
-      await step.run({
-        messenger: this.messenger,
-        address,
-        ...this.#config,
-      });
+      try {
+        await step.run({
+          messenger: this.messenger,
+          address,
+          ...this.#config,
+        });
+      } catch (error) {
+        throw new MoneyAccountUpgradeStepError(step.name, error);
+      }
     }
   }
 }
