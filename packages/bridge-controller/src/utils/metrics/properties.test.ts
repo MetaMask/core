@@ -433,6 +433,8 @@ describe('properties', () => {
           "price_impact": 0,
           "provider": "bridge1_bridge1",
           "quoted_time_minutes": 1,
+          "token_symbol_destination": "USDC",
+          "token_symbol_source": "ETH",
           "usd_balance_source": 0,
           "usd_quoted_gas": 0,
           "usd_quoted_return": 0,
