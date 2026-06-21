@@ -45,9 +45,14 @@ export async function submitWithTransactionData({
 }): Promise<{ transactionHash?: Hex }> {
   const { messenger } = request;
   const transactionId = transaction.id;
+  const originalRelayQuote = request.quotes[0].original.relayQuote;
+
+  if (!originalRelayQuote) {
+    throw new Error('Missing Relay quote');
+  }
 
   const feeReserveRaw = calculateFeeReserve({
-    feeQuote: request.quotes[0].original.relayQuote,
+    feeQuote: originalRelayQuote,
     multiplier: getFiatFeeReserveMultiplier(messenger),
   });
 
@@ -142,7 +147,6 @@ export async function submitWithTransactionData({
     throw new Error('No relay quotes returned for completed fiat order');
   }
 
-  const originalRelayQuote = request.quotes[0].original.relayQuote;
   validateRelayRateDrift({
     originalQuote: originalRelayQuote,
     discoveryQuote: relayQuotes[0].original,

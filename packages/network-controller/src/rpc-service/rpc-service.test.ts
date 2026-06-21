@@ -344,6 +344,89 @@ describe('RpcService', () => {
     });
   });
 
+  describe('treating errors as service failures', () => {
+    const jsonRpcRequest = {
+      id: 1,
+      jsonrpc: '2.0' as const,
+      method: 'eth_chainId',
+      params: [],
+    };
+
+    describe('when the endpoint is an Infura URL', () => {
+      const endpointUrl = 'https://mainnet.infura.io';
+
+      it.each([400, 429])(
+        'does not break the circuit when the endpoint responds with %d',
+        async (httpStatus) => {
+          nock(endpointUrl)
+            .post('/', jsonRpcRequest)
+            .times(3)
+            .reply(httpStatus);
+          const service = new RpcService({
+            fetch,
+            btoa,
+            endpointUrl,
+            isOffline: (): boolean => false,
+            policyOptions: { maxConsecutiveFailures: 2 },
+          });
+
+          // Make more requests than the max consecutive failures so that the
+          // circuit would open if these errors were treated as failures.
+          await ignoreRejection(service.request(jsonRpcRequest));
+          await ignoreRejection(service.request(jsonRpcRequest));
+          await ignoreRejection(service.request(jsonRpcRequest));
+
+          expect(service.getCircuitState()).toBe(CircuitState.Closed);
+        },
+      );
+
+      it.each([401, 500])(
+        'breaks the circuit when the endpoint responds with %d',
+        async (httpStatus) => {
+          nock(endpointUrl)
+            .post('/', jsonRpcRequest)
+            .times(2)
+            .reply(httpStatus);
+          const service = new RpcService({
+            fetch,
+            btoa,
+            endpointUrl,
+            isOffline: (): boolean => false,
+            policyOptions: { maxConsecutiveFailures: 2 },
+          });
+
+          await ignoreRejection(service.request(jsonRpcRequest));
+          await ignoreRejection(service.request(jsonRpcRequest));
+
+          expect(service.getCircuitState()).toBe(CircuitState.Open);
+        },
+      );
+    });
+
+    describe('when the endpoint is not an Infura URL', () => {
+      const endpointUrl = 'https://rpc.example.chain';
+
+      it('does not break the circuit for a 4xx response that is not a server error', async () => {
+        nock(endpointUrl).post('/', jsonRpcRequest).times(3).reply(401);
+        const service = new RpcService({
+          fetch,
+          btoa,
+          endpointUrl,
+          isOffline: (): boolean => false,
+          policyOptions: { maxConsecutiveFailures: 2 },
+        });
+
+        // Make more requests than the max consecutive failures so that the
+        // circuit would open if these errors were treated as failures.
+        await ignoreRejection(service.request(jsonRpcRequest));
+        await ignoreRejection(service.request(jsonRpcRequest));
+        await ignoreRejection(service.request(jsonRpcRequest));
+
+        expect(service.getCircuitState()).toBe(CircuitState.Closed);
+      });
+    });
+  });
+
   describe('request', () => {
     // NOTE: Keep this list synced with CONNECTION_ERRORS
     describe.each([

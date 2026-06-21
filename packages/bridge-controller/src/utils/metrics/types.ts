@@ -111,7 +111,7 @@ type RequiredEventContextFromClientBase = {
   [UnifiedSwapBridgeEventName.ButtonClicked]: Pick<
     RequestParams,
     'token_symbol_source' | 'token_symbol_destination'
-  >;
+  > & { environment_type?: string };
   // When type is object, the payload can be anything
   [UnifiedSwapBridgeEventName.PageViewed]: object;
   [UnifiedSwapBridgeEventName.InputChanged]: {
@@ -142,14 +142,15 @@ type RequiredEventContextFromClientBase = {
     token_symbol_destination: RequestParams['token_symbol_destination'];
     token_security_type_destination: RequestParams['token_security_type_destination'];
   };
-  [UnifiedSwapBridgeEventName.QuotesReceived]: TradeData & {
-    warnings: QuoteWarning[];
-    best_quote_provider: QuoteFetchData['best_quote_provider'];
-    price_impact: QuoteFetchData['price_impact'];
-    can_submit: QuoteFetchData['can_submit'];
-    usd_balance_source?: number;
-    has_sufficient_gas_for_quote?: boolean | null;
-  };
+  [UnifiedSwapBridgeEventName.QuotesReceived]: TradeData &
+    Pick<RequestParams, 'token_symbol_source' | 'token_symbol_destination'> & {
+      warnings: QuoteWarning[];
+      best_quote_provider: QuoteFetchData['best_quote_provider'];
+      price_impact: QuoteFetchData['price_impact'];
+      can_submit: QuoteFetchData['can_submit'];
+      usd_balance_source?: number;
+      has_sufficient_gas_for_quote?: boolean | null;
+    };
   [UnifiedSwapBridgeEventName.QuotesError]: Pick<
     RequestMetadata,
     'stx_enabled'

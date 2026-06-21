@@ -1129,6 +1129,7 @@ export class TransactionController extends BaseController<
       isGasFeeTokenIgnoredIfBalance,
       isGasFeeIncluded,
       isGasFeeSponsored,
+      ...(isGasFeeSponsored ? { isExternalSign: true } : {}),
       // To avoid the property to be set as undefined.
       ...(excludeNativeTokenForFee === undefined
         ? {}
@@ -3139,38 +3140,24 @@ export class TransactionController extends BaseController<
     transactionMeta: TransactionMeta,
     { skipSubmitHistory }: { skipSubmitHistory?: boolean } = {},
   ): Promise<string> {
-    try {
-      const { networkClientId, rawTx } = transactionMeta;
+    const { networkClientId, rawTx } = transactionMeta;
 
-      if (!rawTx) {
-        throw new Error('Missing raw transaction');
-      }
-
-      const transactionHash = (await rpcRequest({
-        messenger: this.messenger,
-        networkClientId,
-        method: 'eth_sendRawTransaction',
-        params: [rawTx],
-      })) as string;
-
-      if (skipSubmitHistory !== true) {
-        this.#updateSubmitHistory(transactionMeta, transactionHash);
-      }
-
-      return transactionHash;
-    } catch (error: unknown) {
-      const errorObject = error as
-        | {
-            data?: { message?: string };
-            message?: string;
-          }
-        | undefined;
-
-      const errorMessage =
-        errorObject?.data?.message ?? errorObject?.message ?? String(error);
-
-      throw new Error(`RPC submit: ${errorMessage}`);
+    if (!rawTx) {
+      throw new Error('Missing raw transaction');
     }
+
+    const transactionHash = (await rpcRequest({
+      messenger: this.messenger,
+      networkClientId,
+      method: 'eth_sendRawTransaction',
+      params: [rawTx],
+    })) as string;
+
+    if (skipSubmitHistory !== true) {
+      this.#updateSubmitHistory(transactionMeta, transactionHash);
+    }
+
+    return transactionHash;
   }
 
   /**
@@ -4077,7 +4064,13 @@ export class TransactionController extends BaseController<
       },
       (txMeta) => {
         txMeta.gasFeeTokens = gasFeeTokens;
-        txMeta.isGasFeeSponsored = isGasFeeSponsored;
+        txMeta.isGasFeeSponsored =
+          txMeta.isGasFeeSponsored ?? isGasFeeSponsored;
+
+        if (txMeta.isGasFeeSponsored) {
+          txMeta.isExternalSign = true;
+        }
+
         txMeta.gasUsed = gasUsed;
 
         if (!this.#isBalanceChangesSkipped(txMeta)) {
