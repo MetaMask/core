@@ -294,6 +294,7 @@ export async function submitDirectMusdVaultDeposit({
       networkClientId,
       origin: ORIGIN_METAMASK,
       requireApproval: false,
+      skipInitialGasEstimate: true,
       transactions: nestedTransactions.map((nestedTransaction, index) => ({
         params: {
           data: nestedTransaction.data,

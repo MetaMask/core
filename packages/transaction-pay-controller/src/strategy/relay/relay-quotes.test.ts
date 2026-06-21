@@ -2529,6 +2529,64 @@ describe('Relay Quotes Utils', () => {
         );
       });
 
+      it('zeroes source network fees and gas limits when parent sponsorship applies', async () => {
+        successfulFetchMock.mockResolvedValue({
+          ok: true,
+          json: async () => QUOTE_MOCK,
+        } as never);
+
+        const result = await getRelayQuotes({
+          accountSupports7702: true,
+          messenger,
+          requests: [
+            {
+              ...QUOTE_REQUEST_MOCK,
+              targetChainId: QUOTE_REQUEST_MOCK.sourceChainId,
+            },
+          ],
+          transaction: {
+            ...TRANSACTION_META_MOCK,
+            chainId: QUOTE_REQUEST_MOCK.sourceChainId,
+            isGasFeeSponsored: true,
+          },
+        });
+
+        const zeroAmount = { fiat: '0', human: '0', raw: '0', usd: '0' };
+
+        expect(result[0].fees.sourceNetwork.estimate).toStrictEqual(zeroAmount);
+        expect(result[0].fees.sourceNetwork.max).toStrictEqual(zeroAmount);
+        expect(result[0].original.metamask.gasLimits).toStrictEqual([0]);
+      });
+
+      it('does not zero source network fees when parent sponsorship is missing', async () => {
+        successfulFetchMock.mockResolvedValue({
+          ok: true,
+          json: async () => QUOTE_MOCK,
+        } as never);
+
+        const result = await getRelayQuotes({
+          accountSupports7702: true,
+          messenger,
+          requests: [
+            {
+              ...QUOTE_REQUEST_MOCK,
+              targetChainId: QUOTE_REQUEST_MOCK.sourceChainId,
+            },
+          ],
+          transaction: {
+            ...TRANSACTION_META_MOCK,
+            chainId: QUOTE_REQUEST_MOCK.sourceChainId,
+          },
+        });
+
+        expect(result[0].fees.sourceNetwork.estimate).toStrictEqual({
+          fiat: '4.56',
+          human: '1.725',
+          raw: '1725000000000000',
+          usd: '3.45',
+        });
+      });
+
       it('using gas total from multiple transactions', async () => {
         const quoteMock = cloneDeep(QUOTE_MOCK);
 
