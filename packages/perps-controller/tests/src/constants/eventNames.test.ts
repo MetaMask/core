@@ -4,6 +4,22 @@ import {
 } from '../../../src/constants/eventNames';
 
 describe('PERPS_EVENT_PROPERTY', () => {
+  describe('advanced chart analytics property keys', () => {
+    it('exports CHART_LIBRARY key', () => {
+      expect(PERPS_EVENT_PROPERTY.CHART_LIBRARY).toBe('chart_library');
+    });
+
+    it('exports CHART_LOAD_LATENCY_MS key', () => {
+      expect(PERPS_EVENT_PROPERTY.CHART_LOAD_LATENCY_MS).toBe(
+        'chart_load_latency_ms',
+      );
+    });
+
+    it('exports ASSET_TYPE key', () => {
+      expect(PERPS_EVENT_PROPERTY.ASSET_TYPE).toBe('asset_type');
+    });
+  });
+
   describe('discovery analytics property keys', () => {
     it('exports SOURCE_SECTION key', () => {
       expect(PERPS_EVENT_PROPERTY.SOURCE_SECTION).toBe('source_section');
@@ -34,6 +50,26 @@ describe('PERPS_EVENT_PROPERTY', () => {
     it('exports WATCHLIST_MARKETS key', () => {
       expect(PERPS_EVENT_PROPERTY.WATCHLIST_MARKETS).toBe('watchlist_markets');
     });
+  });
+});
+
+describe('PERPS_EVENT_VALUE.CHART_LIBRARY', () => {
+  it('exports LIGHTWEIGHT', () => {
+    expect(PERPS_EVENT_VALUE.CHART_LIBRARY.LIGHTWEIGHT).toBe('lightweight');
+  });
+
+  it('exports ADVANCED', () => {
+    expect(PERPS_EVENT_VALUE.CHART_LIBRARY.ADVANCED).toBe('advanced');
+  });
+});
+
+describe('PERPS_EVENT_VALUE.ASSET_TYPE', () => {
+  it('exports SPOT', () => {
+    expect(PERPS_EVENT_VALUE.ASSET_TYPE.SPOT).toBe('spot');
+  });
+
+  it('exports PERP', () => {
+    expect(PERPS_EVENT_VALUE.ASSET_TYPE.PERP).toBe('perp');
   });
 });
 
