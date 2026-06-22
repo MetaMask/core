@@ -55,7 +55,7 @@
   "dependencies": {
     "@metamask/accounts-controller": "^39.0.1",
     "@metamask/base-controller": "^9.1.0",
-    "@metamask/controller-utils": "^12.1.1",
+    "@metamask/controller-utils": "^12.2.0",
     "@metamask/keyring-api": "^23.1.0",
     "@metamask/keyring-internal-api": "^11.0.1",
     "@metamask/messenger": "^1.2.0",
@@ -67,7 +67,7 @@
   },
   "devDependencies": {
     "@metamask/auto-changelog": "^6.1.0",
-    "@metamask/keyring-controller": "^27.0.0",
+    "@metamask/keyring-controller": "^27.1.0",
     "@ts-bridge/cli": "^0.6.4",
     "@types/jest": "^29.5.14",
     "@types/lodash": "^4.14.191",

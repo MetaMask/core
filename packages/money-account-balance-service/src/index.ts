@@ -5,14 +5,16 @@ export type {
   MoneyAccountBalanceServiceMessenger,
 } from './money-account-balance-service';
 export type {
+  MoneyAccountBalanceServiceGetMoneyAccountBalanceAction,
   MoneyAccountBalanceServiceGetMusdBalanceAction,
-  MoneyAccountBalanceServiceGetMusdSHFvdBalanceAction,
+  MoneyAccountBalanceServiceGetVmusdBalanceAction,
   MoneyAccountBalanceServiceGetExchangeRateAction,
   MoneyAccountBalanceServiceGetMusdEquivalentValueAction,
   MoneyAccountBalanceServiceGetVaultApyAction,
 } from './money-account-balance-service-method-action-types';
 export type {
   ExchangeRateResponse,
+  MoneyAccountBalanceResponse,
   MusdEquivalentValueResponse,
   NormalizedVaultApyResponse,
 } from './response.types';

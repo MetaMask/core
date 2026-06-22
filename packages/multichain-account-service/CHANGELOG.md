@@ -7,9 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Added `Bip44AccountProvider.deleteAccount(id)` method ([#8960](https://github.com/MetaMask/core/pull/8960))
+  - The `KeyringController` will automatically prunes the non-primary empty keyrings when the last EVM account is getting removed.
+  - `AccountProviderWrapper.deleteAccount(id)` always removes the account, even if disabled.
+- Added `AccountProviderWrapper.unwrap` method ([#8960](https://github.com/MetaMask/core/pull/8960))
+  - Use this if you need to access the inner (wrapped) keyring.
+- Add `isAligned` ([#9039](https://github.com/MetaMask/core/pull/9039))
+  - This allows callers to cheaply check whether alignment has already occurred before triggering an explicit alignment operation.
+
 ### Changed
 
+- **BREAKING:** `MultichainAccountService.removeMultichainAccountWallet` (and messenger action) now takes a single `entropySource` argument ([#8960](https://github.com/MetaMask/core/pull/8960))
+  - The previous `accountAddress` parameter has been removed.
+  - All accounts are now unconditionally removed from the wallet and providers (even for disabled `AccountProviderWrapper`).
+  - Per-account deletions are best-effort: a single account's failure does not abort cleanup of the remaining accounts.
+  - Errors are aggregated and reported in case of failure.
 - Bump `@metamask/utils` from `^11.9.0` to `^11.11.0` ([#9074](https://github.com/MetaMask/core/pull/9074))
+- Bump `@metamask/controller-utils` from `^12.1.1` to `^12.2.0` ([#9083](https://github.com/MetaMask/core/pull/9083))
+- Bump `@metamask/keyring-controller` from `^27.0.0` to `^27.1.0` ([#9129](https://github.com/MetaMask/core/pull/9129))
 
 ## [10.0.3]
 

@@ -37,6 +37,8 @@ describe('RelayStrategy', () => {
 
   describe('execute', () => {
     it('calls util', async () => {
+      submitRelayQuotesMock.mockResolvedValue({ transactionHash: '0x1234' });
+
       await new RelayStrategy().execute({
         isSmartTransaction: () => false,
         quotes: [QUOTE_MOCK],

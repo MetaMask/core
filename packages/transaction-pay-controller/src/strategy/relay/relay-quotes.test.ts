@@ -906,6 +906,35 @@ describe('Relay Quotes Utils', () => {
       expect(body.refundTo).toBe(refundTo);
     });
 
+    it('uses request.recipient as body recipient when provided', async () => {
+      const recipientOverride =
+        '0xrecipient0000000000000000000000000000001' as Hex;
+
+      successfulFetchMock.mockResolvedValue({
+        ok: true,
+        json: async () => QUOTE_MOCK,
+      } as never);
+
+      await getRelayQuotes({
+        accountSupports7702: true,
+        messenger,
+        requests: [
+          {
+            ...QUOTE_REQUEST_MOCK,
+            recipient: recipientOverride,
+          },
+        ],
+        transaction: TRANSACTION_META_MOCK,
+      });
+
+      const body = JSON.parse(
+        successfulFetchMock.mock.calls[0][1]?.body as string,
+      );
+
+      expect(body.recipient).toBe(recipientOverride);
+      expect(body.user).toBe(FROM_MOCK);
+    });
+
     it('does not set refundTo in request body for post-quote when not provided', async () => {
       successfulFetchMock.mockResolvedValue({
         ok: true,

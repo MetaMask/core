@@ -428,4 +428,29 @@ export class EvmAccountProvider extends BaseBip44AccountProvider {
     // No-op for the EVM account provider, since keyring accounts are already on
     // the MetaMask side.
   }
+
+  /**
+   * Delete an EVM account by id.
+   *
+   * Resolves the account's entropy source from the tracked account, then
+   * forwards to the v2 HD keyring's `deleteAccount(id)`. When this is the
+   * last account on a non-primary HD keyring, the keyring controller will
+   * automatically prune the empty keyring (see
+   * `KeyringController.#cleanUpEmptiedKeyringsAfter`).
+   *
+   * @param id - The id of the account to delete.
+   */
+  async deleteAccount(id: Bip44Account<KeyringAccount>['id']): Promise<void> {
+    const account = this.getAccount(id);
+    const entropySource = account.options.entropy.id;
+
+    await this.withKeyringV2<Keyring>(
+      { id: entropySource },
+      async ({ keyring }) => {
+        await keyring.deleteAccount(id);
+      },
+    );
+
+    this.accounts.delete(id);
+  }
 }

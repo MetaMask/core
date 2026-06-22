@@ -27,7 +27,7 @@ import type {
   NetworkClientId,
   NetworkControllerFindNetworkClientIdByChainIdAction,
   NetworkControllerGetNetworkClientByIdAction,
-  NetworkControllerGetNetworkConfigurationByNetworkClientId,
+  NetworkControllerGetNetworkConfigurationByNetworkClientIdAction,
   NetworkControllerGetStateAction,
   NetworkControllerNetworkDidChangeEvent,
 } from '@metamask/network-controller';
@@ -121,7 +121,7 @@ export type AllowedActions =
   | AccountsControllerGetSelectedAccountAction
   | AccountsControllerGetAccountAction
   | NetworkControllerGetNetworkClientByIdAction
-  | NetworkControllerGetNetworkConfigurationByNetworkClientId
+  | NetworkControllerGetNetworkConfigurationByNetworkClientIdAction
   | NetworkControllerGetStateAction
   | KeyringControllerGetStateAction
   | PreferencesControllerGetStateAction

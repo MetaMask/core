@@ -10,12 +10,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Add Stellar network enablement: default `enabledNetworkMap` entries for Stellar namespace (pubnet on, testnet off), enable Stellar pubnet during popular-network init when it exists in `MultichainNetworkController`, and include Stellar pubnet in `listPopularMultichainNetworks` ([#8832](https://github.com/MetaMask/core/pull/8832))
+- Export `NetworkEnablementControllerStateChangeEvent` type from the package root ([#9084](https://github.com/MetaMask/core/pull/9084))
 
 ### Changed
 
 - Bump `@metamask/utils` from `^11.9.0` to `^11.11.0` ([#9074](https://github.com/MetaMask/core/pull/9074))
-- Bump `@metamask/transaction-controller` from `^66.0.1` to `^67.1.0` ([#9021](https://github.com/MetaMask/core/pull/9021), [#9066](https://github.com/MetaMask/core/pull/9066))
-- Bump `@metamask/controller-utils` from `^12.1.0` to `^12.1.1` ([#9058](https://github.com/MetaMask/core/pull/9058))
+- Bump `@metamask/controller-utils` from `^12.1.0` to `^12.2.0` ([#9058](https://github.com/MetaMask/core/pull/9058), [#9083](https://github.com/MetaMask/core/pull/9083))
+- Bump `@metamask/transaction-controller` from `^66.0.1` to `^68.1.0` ([#9021](https://github.com/MetaMask/core/pull/9021), [#9066](https://github.com/MetaMask/core/pull/9066), [#9089](https://github.com/MetaMask/core/pull/9089), [#9177](https://github.com/MetaMask/core/pull/9177), [#9203](https://github.com/MetaMask/core/pull/9203))
 
 ## [5.3.0]
 
