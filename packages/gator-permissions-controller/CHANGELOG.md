@@ -18,7 +18,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Bump `@metamask/utils` from `^11.9.0` to `^11.11.0` ([#9074](https://github.com/MetaMask/core/pull/9074))
-- Bump `@metamask/transaction-controller` from `^66.0.0` to `^68.1.0` ([#8999](https://github.com/MetaMask/core/pull/8999), [#9021](https://github.com/MetaMask/core/pull/9021), [#9027](https://github.com/MetaMask/core/pull/9027), [#9066](https://github.com/MetaMask/core/pull/9066), [#9089](https://github.com/MetaMask/core/pull/9089), [#9177](https://github.com/MetaMask/core/pull/9177), [#9203](https://github.com/MetaMask/core/pull/9203))
+- Bump `@metamask/transaction-controller` from `^66.0.0` to `^68.1.1` ([#8999](https://github.com/MetaMask/core/pull/8999), [#9021](https://github.com/MetaMask/core/pull/9021), [#9027](https://github.com/MetaMask/core/pull/9027), [#9066](https://github.com/MetaMask/core/pull/9066), [#9089](https://github.com/MetaMask/core/pull/9089), [#9177](https://github.com/MetaMask/core/pull/9177), [#9203](https://github.com/MetaMask/core/pull/9203), [#9218](https://github.com/MetaMask/core/pull/9218))
+- Bump `@metamask/network-controller` from `^32.0.0` to `^33.0.0` ([#9218](https://github.com/MetaMask/core/pull/9218))
 
 ## [4.2.0]
 

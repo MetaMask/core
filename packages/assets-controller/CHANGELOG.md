@@ -11,10 +11,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Bump `@metamask/assets-controllers` from `^109.0.0` to `^109.2.0` ([#9110](https://github.com/MetaMask/core/pull/9110), [#9202](https://github.com/MetaMask/core/pull/9202))
+- Bump `@metamask/assets-controllers` from `^109.0.0` to `^109.2.1` ([#9110](https://github.com/MetaMask/core/pull/9110), [#9202](https://github.com/MetaMask/core/pull/9202), [#9218](https://github.com/MetaMask/core/pull/9218))
 - Bump `@metamask/utils` from `^11.9.0` to `^11.11.0` ([#9074](https://github.com/MetaMask/core/pull/9074))
-- Bump `@metamask/transaction-controller` from `^67.1.0` to `^68.1.0` ([#9089](https://github.com/MetaMask/core/pull/9089), [#9177](https://github.com/MetaMask/core/pull/9177), [#9203](https://github.com/MetaMask/core/pull/9203))
+- Bump `@metamask/transaction-controller` from `^67.1.0` to `^68.1.1` ([#9089](https://github.com/MetaMask/core/pull/9089), [#9177](https://github.com/MetaMask/core/pull/9177), [#9203](https://github.com/MetaMask/core/pull/9203), [#9218](https://github.com/MetaMask/core/pull/9218))
 - Bump `@metamask/keyring-controller` from `^27.0.0` to `^27.1.0` ([#9129](https://github.com/MetaMask/core/pull/9129))
+- Bump `@metamask/accounts-controller` from `^39.0.1` to `^39.0.2` ([#9218](https://github.com/MetaMask/core/pull/9218))
+- Bump `@metamask/controller-utils` from `^12.2.0` to `^12.3.0` ([#9218](https://github.com/MetaMask/core/pull/9218))
+- Bump `@metamask/network-controller` from `^32.0.0` to `^33.0.0` ([#9218](https://github.com/MetaMask/core/pull/9218))
+- Bump `@metamask/network-enablement-controller` from `^5.3.0` to `^5.4.0` ([#9218](https://github.com/MetaMask/core/pull/9218))
+- Bump `@metamask/polling-controller` from `^16.0.6` to `^16.0.7` ([#9218](https://github.com/MetaMask/core/pull/9218))
 
 ### Fixed
 
