@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [41.2.5]
+
 ### Changed
 
 - Bump `@metamask/utils` from `^11.9.0` to `^11.11.0` ([#9074](https://github.com/MetaMask/core/pull/9074))
@@ -621,7 +623,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial Release ([#3749](https://github.com/MetaMask/core/pull/3749))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/user-operation-controller@41.2.4...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/user-operation-controller@41.2.5...HEAD
+[41.2.5]: https://github.com/MetaMask/core/compare/@metamask/user-operation-controller@41.2.4...@metamask/user-operation-controller@41.2.5
 [41.2.4]: https://github.com/MetaMask/core/compare/@metamask/user-operation-controller@41.2.3...@metamask/user-operation-controller@41.2.4
 [41.2.3]: https://github.com/MetaMask/core/compare/@metamask/user-operation-controller@41.2.2...@metamask/user-operation-controller@41.2.3
 [41.2.2]: https://github.com/MetaMask/core/compare/@metamask/user-operation-controller@41.2.1...@metamask/user-operation-controller@41.2.2

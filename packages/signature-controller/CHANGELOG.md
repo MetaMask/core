@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [39.2.6]
+
 ### Changed
 
 - Bump `@metamask/utils` from `^11.9.0` to `^11.11.0` ([#9074](https://github.com/MetaMask/core/pull/9074))
@@ -793,7 +795,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#1214](https://github.com/MetaMask/core/pull/1214))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@39.2.5...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@39.2.6...HEAD
+[39.2.6]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@39.2.5...@metamask/signature-controller@39.2.6
 [39.2.5]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@39.2.4...@metamask/signature-controller@39.2.5
 [39.2.4]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@39.2.3...@metamask/signature-controller@39.2.4
 [39.2.3]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@39.2.2...@metamask/signature-controller@39.2.3

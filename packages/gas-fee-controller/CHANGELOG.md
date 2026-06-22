@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [26.2.3]
+
 ### Uncategorized
 
 - refactor(network-controller)!: Remove `initializeProvider` in favor of `init` ([#9034](https://github.com/MetaMask/core/pull/9034))
@@ -559,7 +561,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@26.2.2...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@26.2.3...HEAD
+[26.2.3]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@26.2.2...@metamask/gas-fee-controller@26.2.3
 [26.2.2]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@26.2.1...@metamask/gas-fee-controller@26.2.2
 [26.2.1]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@26.2.0...@metamask/gas-fee-controller@26.2.1
 [26.2.0]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@26.1.1...@metamask/gas-fee-controller@26.2.0

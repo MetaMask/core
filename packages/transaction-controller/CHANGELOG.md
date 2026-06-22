@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [68.1.1]
+
 ## [68.1.0]
 
 ### Changed
@@ -2512,7 +2514,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@68.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@68.1.1...HEAD
+[68.1.1]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@68.1.0...@metamask/transaction-controller@68.1.1
 [68.1.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@68.0.1...@metamask/transaction-controller@68.1.0
 [68.0.1]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@68.0.0...@metamask/transaction-controller@68.0.1
 [68.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@67.1.0...@metamask/transaction-controller@68.0.0
