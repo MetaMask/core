@@ -81,9 +81,9 @@ The package currently pins Bitcoin Core `30.2` for `darwin-arm64`,
 
 ## Cache
 
-The cache defaults to `.metamask/cache` in the current repo. If `.yarnrc.yml`
-contains `enableGlobalCache: true`, the cache moves to `~/.cache/metamask`,
-matching the `@metamask/foundryup` behavior.
+The cache defaults to `.metamask/cache` in the current repo. `enableGlobalCache`
+is read by parsing `.yarnrc.yml` as YAML; when it is `true`, the cache moves to
+`~/.cache/metamask`, matching the `@metamask/foundryup` behavior.
 
 Clean only this package's cache namespace:
 

@@ -22,6 +22,7 @@ import { request as requestHttps } from 'node:https';
 import { arch as osArch, homedir, platform as osPlatform } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { pipeline } from 'node:stream/promises';
+import { parse as parseYaml } from 'yaml';
 
 const BITCOIN_REGTEST_CACHE_NAMESPACE = 'bitcoin-regtest-up';
 const BITCOIN_CORE_CACHE_NAMESPACE = 'bitcoin-core';
@@ -106,22 +107,24 @@ export function getBitcoinRegtestCacheDirectory({
   homeDirectory?: string;
 } = {}): string {
   const yarnRcPath = join(cwd, '.yarnrc.yml');
+  let enableGlobalCache = false;
 
   try {
-    const yarnRc = readFileSync(yarnRcPath, 'utf8');
-    if (/^\s*enableGlobalCache:\s*true\s*$/mu.test(yarnRc)) {
-      return join(homeDirectory, '.cache', 'metamask');
-    }
+    const parsedConfig = parseYaml(readFileSync(yarnRcPath, 'utf8'));
+    enableGlobalCache = parsedConfig?.enableGlobalCache ?? false;
   } catch (error) {
-    if (!isFileMissingError(error)) {
-      console.warn(
-        `Warning: Error reading ${yarnRcPath}, using local bitcoin-regtest-up cache:`,
-        error,
-      );
+    if (isFileMissingError(error)) {
+      return join(cwd, '.metamask', 'cache');
     }
+    console.warn(
+      `Warning: Error reading ${yarnRcPath}, using local bitcoin-regtest-up cache:`,
+      error,
+    );
   }
 
-  return join(cwd, '.metamask', 'cache');
+  return enableGlobalCache
+    ? join(homeDirectory, '.cache', 'metamask')
+    : join(cwd, '.metamask', 'cache');
 }
 
 export function readBitcoinRegtestInstallOptionsFromPackageJson({
@@ -131,9 +134,16 @@ export function readBitcoinRegtestInstallOptionsFromPackageJson({
   cwd?: string;
   packageJsonPath?: string;
 } = {}): BitcoinRegtestInstallOptions {
-  const packageJson = JSON.parse(
-    readFileSync(packageJsonPath, 'utf8'),
-  ) as BitcoinRegtestPackageJson;
+  let raw: string;
+  try {
+    raw = readFileSync(packageJsonPath, 'utf8');
+  } catch (error) {
+    if (isFileMissingError(error)) {
+      return {};
+    }
+    throw error;
+  }
+  const packageJson = JSON.parse(raw) as BitcoinRegtestPackageJson;
   const config =
     packageJson.bitcoinRegtestUp ??
     packageJson.bitcoinregtestup ??
@@ -213,7 +223,10 @@ export async function installBitcoinRegtest(
   const binDirectory =
     options.binDirectory ?? join(cwd, 'node_modules', '.bin');
   const platformKey = options.platform ?? getPlatformKey();
-  const bitcoinCore = options.bitcoinCore ?? BITCOIN_REGTEST_DEFAULT_CORE;
+  const bitcoinCore = mergeArtifactConfig(
+    BITCOIN_REGTEST_DEFAULT_CORE,
+    options.bitcoinCore,
+  );
   const bitcoinCoreConfig = resolvePlatformConfig(
     bitcoinCore,
     platformKey,
@@ -380,6 +393,7 @@ if (result.error) {
 
 if (result.signal) {
   process.kill(process.pid, result.signal);
+  process.exit(1);
 }
 
 process.exit(result.status ?? 0);
@@ -470,12 +484,25 @@ function findExecutable(root: string, name: string): string | undefined {
   return undefined;
 }
 
+function mergeArtifactConfig(
+  defaults: BitcoinRegtestArtifactConfig,
+  override: BitcoinRegtestArtifactConfig | undefined,
+): BitcoinRegtestArtifactConfig {
+  if (!override) {
+    return defaults;
+  }
+  return {
+    version: override.version ?? defaults.version,
+    platforms: { ...defaults.platforms, ...override.platforms },
+  };
+}
+
 function resolvePlatformConfig(
   config: BitcoinRegtestArtifactConfig,
   platform: string,
   label: string,
 ): BitcoinRegtestArtifactPlatformConfig {
-  const platformConfig = config.platforms[platform] ?? config.platforms.current;
+  const platformConfig = config.platforms.current ?? config.platforms[platform];
 
   if (!platformConfig) {
     throw new Error(`No ${label} is configured for ${platform}.`);

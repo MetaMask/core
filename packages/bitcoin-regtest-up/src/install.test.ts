@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import {
+  chmodSync,
   existsSync,
   lstatSync,
   mkdtempSync,
@@ -47,6 +48,17 @@ describe('bitcoin-regtest-up installer', () => {
     );
   });
 
+  it('uses the global MetaMask cache when Yarn global cache is enabled', () => {
+    const cwd = createTempDir();
+    const homeDirectory = join(cwd, 'home');
+    writeFileSync(join(cwd, '.yarnrc.yml'), 'enableGlobalCache: true\n');
+
+    assert.equal(
+      getBitcoinRegtestCacheDirectory({ cwd, homeDirectory }),
+      join(homeDirectory, '.cache', 'metamask'),
+    );
+  });
+
   it('uses the local MetaMask cache when Yarn global cache is disabled', () => {
     const cwd = createTempDir();
     writeFileSync(join(cwd, '.yarnrc.yml'), 'enableGlobalCache: false\n');
@@ -55,6 +67,37 @@ describe('bitcoin-regtest-up installer', () => {
       getBitcoinRegtestCacheDirectory({ cwd }),
       join(cwd, '.metamask', 'cache'),
     );
+  });
+
+  it('uses the local MetaMask cache when .yarnrc.yml is missing', () => {
+    const cwd = createTempDir();
+
+    assert.equal(
+      getBitcoinRegtestCacheDirectory({ cwd }),
+      join(cwd, '.metamask', 'cache'),
+    );
+  });
+
+  it('uses the local MetaMask cache when .yarnrc.yml is unreadable', () => {
+    const cwd = createTempDir();
+    const yarnRcPath = join(cwd, '.yarnrc.yml');
+    writeFileSync(yarnRcPath, 'enableGlobalCache: true\n');
+    chmodSync(yarnRcPath, 0o000);
+
+    try {
+      assert.equal(
+        getBitcoinRegtestCacheDirectory({ cwd }),
+        join(cwd, '.metamask', 'cache'),
+      );
+    } finally {
+      chmodSync(yarnRcPath, 0o644);
+    }
+  });
+
+  it('returns empty installer options when package.json is missing', () => {
+    const cwd = createTempDir();
+
+    assert.deepEqual(readBitcoinRegtestInstallOptionsFromPackageJson({ cwd }), {});
   });
 
   it('reads pinned installer options from package.json', () => {
@@ -165,6 +208,108 @@ describe('bitcoin-regtest-up installer', () => {
       { encoding: 'utf8' },
     );
     assert.equal(wrapperOutput.trim(), 'bitcoind -version');
+  });
+
+  it('merges partial bitcoinCore overrides with pinned defaults', async () => {
+    const cwd = createTempDir();
+    const cacheDirectory = join(cwd, '.metamask', 'cache');
+    const binDirectory = join(cwd, 'node_modules', '.bin');
+    const overrideContent = 'override linux archive';
+    const overrideDownloads: { destination: string; url: string }[] = [];
+    const defaultDownloads: { destination: string; url: string }[] = [];
+    const partialOverride = {
+      platforms: {
+        'linux-x64': {
+          checksum: sha256(overrideContent),
+          url: 'https://example.test/override-linux.tar.gz',
+        },
+      },
+      version: 'override-version',
+    };
+
+    const overrideResult = await installBitcoinRegtest(
+      {
+        binDirectory,
+        bitcoinCore: partialOverride,
+        cacheDirectory,
+        cwd,
+        platform: 'linux-x64',
+      },
+      createDependencies({
+        bitcoinCoreContent: overrideContent,
+        downloads: overrideDownloads,
+      }),
+    );
+
+    assert.equal(overrideResult.version, 'override-version');
+    assert.deepEqual(
+      overrideDownloads.map(({ url }) => url),
+      ['https://example.test/override-linux.tar.gz'],
+    );
+
+    await assert.rejects(
+      () =>
+        installBitcoinRegtest(
+          {
+            binDirectory,
+            bitcoinCore: partialOverride,
+            cacheDirectory,
+            cwd,
+            platform: 'darwin-arm64',
+          },
+          {
+            downloadFile: async (url, destination): Promise<void> => {
+              defaultDownloads.push({ destination, url });
+              throw new Error('stop after recording download url');
+            },
+          },
+        ),
+      /stop after recording download url/u,
+    );
+    assert.deepEqual(
+      defaultDownloads.map(({ url }) => url),
+      [BITCOIN_REGTEST_DEFAULT_CORE.platforms['darwin-arm64']?.url],
+    );
+  });
+
+  it('exits non-zero when the wrapped executable terminates via a signal', async () => {
+    const cwd = createTempDir();
+    const cacheDirectory = join(cwd, '.metamask', 'cache');
+    const binDirectory = join(cwd, 'node_modules', '.bin');
+    const bitcoinCoreContent = 'signal-terminated bitcoin core archive';
+
+    const result = await installBitcoinRegtest(
+      {
+        binDirectory,
+        bitcoinCore: {
+          platforms: {
+            'darwin-arm64': {
+              checksum: sha256(bitcoinCoreContent),
+              url: 'https://example.test/bitcoin.tar.gz',
+            },
+          },
+        },
+        cacheDirectory,
+        cwd,
+        platform: 'darwin-arm64',
+      },
+      createDependencies({ bitcoinCoreContent }),
+    );
+
+    writeFileSync(
+      result.sourceBitcoindBinary,
+      `#!/usr/bin/env node\nprocess.kill(process.pid, 'SIGTERM');\n`,
+      { mode: 0o755 },
+    );
+
+    assert.throws(
+      () => {
+        execFileSync(process.execPath, [result.bitcoindBinary, '-version']);
+      },
+      (error: NodeJS.ErrnoException) =>
+        (error.status !== undefined && error.status !== 0) ||
+        Boolean(error.signal),
+    );
   });
 
   it('replaces stale bin symlinks without modifying their targets', async () => {
