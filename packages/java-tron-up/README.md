@@ -89,9 +89,9 @@ arm64 platforms.
 
 ## Cache
 
-The cache defaults to `.metamask/cache` in the current repo. If `.yarnrc.yml`
-contains `enableGlobalCache: true`, the cache moves to `~/.cache/metamask`,
-matching the `@metamask/foundryup` behavior.
+The cache defaults to `.metamask/cache` in the current repo. The installer reads
+`.yarnrc.yml` as YAML and, when `enableGlobalCache` is true, moves the cache to
+`~/.cache/metamask`, matching the `@metamask/foundryup` behavior.
 
 Clean only this package's cache namespace:
 

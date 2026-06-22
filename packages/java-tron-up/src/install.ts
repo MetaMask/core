@@ -13,8 +13,9 @@ import { chmod, mkdir, rename, rm, unlink, writeFile } from 'node:fs/promises';
 import { request as requestHttp } from 'node:http';
 import { request as requestHttps } from 'node:https';
 import { arch as osArch, homedir, platform as osPlatform } from 'node:os';
-import { dirname, join, relative } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
 import { pipeline } from 'node:stream/promises';
+import { parse as parseYaml } from 'yaml';
 
 const JAVA_TRON_CACHE_NAMESPACE = 'java-tron-up';
 const FULL_NODE_CACHE_NAMESPACE = 'fullnode';
@@ -136,22 +137,24 @@ export function getJavaTronCacheDirectory({
   homeDirectory?: string;
 } = {}): string {
   const yarnRcPath = join(cwd, '.yarnrc.yml');
+  let enableGlobalCache = false;
 
   try {
-    const yarnRc = readFileSync(yarnRcPath, 'utf8');
-    if (/^\s*enableGlobalCache:\s*true\s*$/mu.test(yarnRc)) {
-      return join(homeDirectory, '.cache', 'metamask');
-    }
+    const parsedConfig = parseYaml(readFileSync(yarnRcPath, 'utf8'));
+    enableGlobalCache = parsedConfig?.enableGlobalCache ?? false;
   } catch (error) {
-    if (!isFileMissingError(error)) {
-      console.warn(
-        `Warning: Error reading ${yarnRcPath}, using local java-tron-up cache:`,
-        error,
-      );
+    if (isFileMissingError(error)) {
+      return join(cwd, '.metamask', 'cache');
     }
+    console.warn(
+      `Warning: Error reading ${yarnRcPath}, using local java-tron-up cache:`,
+      error,
+    );
   }
 
-  return join(cwd, '.metamask', 'cache');
+  return enableGlobalCache
+    ? join(homeDirectory, '.cache', 'metamask')
+    : join(cwd, '.metamask', 'cache');
 }
 
 export function readJavaTronInstallOptionsFromPackageJson({
@@ -273,8 +276,16 @@ export async function installJavaTron(
   const binDirectory =
     options.binDirectory ?? join(cwd, 'node_modules', '.bin');
   const platformKey = options.platform ?? getPlatformKey();
+  const fullNode = mergeArtifactConfig(
+    JAVA_TRON_DEFAULT_FULL_NODE,
+    options.fullNode,
+  );
+  const javaRuntime = mergeArtifactConfig(
+    JAVA_TRON_DEFAULT_JAVA_RUNTIME,
+    options.javaRuntime,
+  );
   const fullNodeConfig = resolvePlatformConfig(
-    options.fullNode ?? JAVA_TRON_DEFAULT_FULL_NODE,
+    fullNode,
     platformKey,
     'java-tron FullNode',
   );
@@ -283,7 +294,7 @@ export async function installJavaTron(
     (await installJavaRuntime(
       {
         cacheDirectory,
-        javaRuntime: options.javaRuntime ?? JAVA_TRON_DEFAULT_JAVA_RUNTIME,
+        javaRuntime,
         platform: platformKey,
       },
       dependencies,
@@ -295,10 +306,11 @@ export async function installJavaTron(
     },
     dependencies,
   );
-  const binaryPath = await installJavaTronBinary({
+  const binaryPath = await installExecutableWrapper({
     binDirectory,
-    fullNodeJar: fullNodeResult.fullNodeJar,
-    javaBinary,
+    commandName: 'java-tron',
+    executableArgs: ['-jar', fullNodeResult.fullNodeJar],
+    executablePath: javaBinary,
   });
 
   return {
@@ -307,7 +319,7 @@ export async function installJavaTron(
     checksum: fullNodeConfig.checksum,
     fullNodeJar: fullNodeResult.fullNodeJar,
     javaBinary,
-    version: (options.fullNode ?? JAVA_TRON_DEFAULT_FULL_NODE).version,
+    version: fullNode.version,
   };
 }
 
@@ -348,9 +360,14 @@ export async function installJavaRuntime(
     JAVA_CACHE_NAMESPACE,
     cacheKey,
   );
+  const sourceChecksumPath = join(cacheRoot, '.source-checksum');
   const existingJavaBinary = findJavaBinary(cacheRoot);
 
-  if (existingJavaBinary) {
+  if (
+    existingJavaBinary &&
+    existsSync(sourceChecksumPath) &&
+    readFileSync(sourceChecksumPath, 'utf8') === platformConfig.checksum
+  ) {
     return existingJavaBinary;
   }
 
@@ -379,6 +396,10 @@ export async function installJavaRuntime(
       );
     }
 
+    await writeFile(
+      join(tempRoot, '.source-checksum'),
+      platformConfig.checksum,
+    );
     await mkdir(dirname(cacheRoot), { recursive: true });
     await rename(tempRoot, cacheRoot);
 
@@ -444,18 +465,19 @@ async function installFullNodeJar(
   }
 }
 
-async function installJavaTronBinary({
+async function installExecutableWrapper({
   binDirectory,
-  fullNodeJar,
-  javaBinary,
+  commandName,
+  executableArgs = [],
+  executablePath,
 }: {
   binDirectory: string;
-  fullNodeJar: string;
-  javaBinary: string;
+  commandName: string;
+  executableArgs?: string[];
+  executablePath: string;
 }): Promise<string> {
-  const binaryPath = join(binDirectory, 'java-tron');
-  const relativeJavaBinary = relative(binDirectory, javaBinary);
-  const relativeFullNodeJar = relative(binDirectory, fullNodeJar);
+  const binaryPath = join(binDirectory, commandName);
+  const resolvedExecutablePath = resolve(executablePath);
 
   await mkdir(binDirectory, { recursive: true });
   await unlink(binaryPath).catch((error) => {
@@ -467,11 +489,10 @@ async function installJavaTronBinary({
     binaryPath,
     `#!/usr/bin/env node
 const { spawnSync } = require('node:child_process');
-const path = require('node:path');
 
-const javaBinary = path.resolve(__dirname, ${JSON.stringify(relativeJavaBinary)});
-const fullNodeJar = path.resolve(__dirname, ${JSON.stringify(relativeFullNodeJar)});
-const result = spawnSync(javaBinary, ['-jar', fullNodeJar, ...process.argv.slice(2)], {
+const executablePath = ${JSON.stringify(resolvedExecutablePath)};
+const executableArgs = ${JSON.stringify(executableArgs)};
+const result = spawnSync(executablePath, executableArgs.concat(process.argv.slice(2)), {
   stdio: 'inherit',
 });
 
@@ -482,6 +503,7 @@ if (result.error) {
 
 if (result.signal) {
   process.kill(process.pid, result.signal);
+  process.exit(1);
 }
 
 process.exit(result.status ?? 0);
@@ -492,12 +514,25 @@ process.exit(result.status ?? 0);
   return binaryPath;
 }
 
+function mergeArtifactConfig(
+  defaults: JavaTronArtifactConfig,
+  override: JavaTronArtifactConfig | undefined,
+): JavaTronArtifactConfig {
+  if (!override) {
+    return defaults;
+  }
+  return {
+    version: override.version ?? defaults.version,
+    platforms: { ...defaults.platforms, ...override.platforms },
+  };
+}
+
 function resolvePlatformConfig(
   config: JavaTronArtifactConfig,
   platform: string,
   label: string,
 ): JavaTronArtifactPlatformConfig {
-  const platformConfig = config.platforms[platform] ?? config.platforms.current;
+  const platformConfig = config.platforms.current ?? config.platforms[platform];
 
   if (!platformConfig) {
     throw new Error(`No ${label} is configured for ${platform}.`);

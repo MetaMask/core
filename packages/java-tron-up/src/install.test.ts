@@ -48,6 +48,17 @@ describe('java-tron-up installer', () => {
     );
   });
 
+  it('uses the global MetaMask cache when Yarn global cache is enabled', () => {
+    const cwd = createTempDir();
+    const homeDirectory = createTempDir();
+    writeFileSync(join(cwd, '.yarnrc.yml'), 'enableGlobalCache: true\n');
+
+    assert.equal(
+      getJavaTronCacheDirectory({ cwd, homeDirectory }),
+      join(homeDirectory, '.cache', 'metamask'),
+    );
+  });
+
   it('uses the local MetaMask cache when Yarn global cache is disabled', () => {
     const cwd = createTempDir();
     writeFileSync(join(cwd, '.yarnrc.yml'), 'enableGlobalCache: false\n');
@@ -56,6 +67,244 @@ describe('java-tron-up installer', () => {
       getJavaTronCacheDirectory({ cwd }),
       join(cwd, '.metamask', 'cache'),
     );
+  });
+
+  it('uses the local MetaMask cache when .yarnrc.yml is missing', () => {
+    const cwd = createTempDir();
+
+    assert.equal(
+      getJavaTronCacheDirectory({ cwd }),
+      join(cwd, '.metamask', 'cache'),
+    );
+  });
+
+  it('uses the local MetaMask cache when .yarnrc.yml is unreadable', () => {
+    const cwd = createTempDir();
+    const yarnRcPath = join(cwd, '.yarnrc.yml');
+    writeFileSync(yarnRcPath, 'enableGlobalCache: true\n');
+    chmodSync(yarnRcPath, 0o000);
+
+    try {
+      assert.equal(
+        getJavaTronCacheDirectory({ cwd }),
+        join(cwd, '.metamask', 'cache'),
+      );
+    } finally {
+      chmodSync(yarnRcPath, 0o644);
+    }
+  });
+
+  it('merges partial fullNode overrides with pinned defaults', async () => {
+    const cwd = createTempDir();
+    const cacheDirectory = join(cwd, '.metamask', 'cache');
+    const binDirectory = join(cwd, 'node_modules', '.bin');
+    const downloads: string[] = [];
+    const customLinuxUrl = 'https://example.test/custom/FullNode.jar';
+    const customLinuxContent = 'overridden linux jar';
+    const armDefault = JAVA_TRON_DEFAULT_FULL_NODE.platforms['darwin-arm64'];
+    const javaArchiveContent = 'fake java archive';
+
+    const dependencies: JavaTronInstallDependencies = {
+      downloadFile: async (url, destination): Promise<void> => {
+        downloads.push(url);
+        let content = javaArchiveContent;
+        if (url === customLinuxUrl) {
+          content = customLinuxContent;
+        }
+        await writeFile(destination, content);
+      },
+      extractArchive: createDependencies({
+        fullNodeContent: '',
+        javaArchiveContent,
+      }).extractArchive,
+    };
+
+    const partialFullNode = {
+      platforms: {
+        'linux-x64': {
+          checksum: sha256(customLinuxContent),
+          url: customLinuxUrl,
+        },
+      },
+    };
+    const linuxJavaRuntime = {
+      platforms: {
+        'linux-x64': {
+          checksum: sha256(javaArchiveContent),
+          url: 'https://example.test/java-linux.tar.gz',
+        },
+      },
+    };
+    const armJavaRuntime = {
+      platforms: {
+        'darwin-arm64': {
+          checksum: sha256(javaArchiveContent),
+          url: 'https://example.test/java-arm.tar.gz',
+        },
+      },
+    };
+
+    const linuxResult = await installJavaTron(
+      {
+        binDirectory,
+        cacheDirectory,
+        cwd,
+        fullNode: partialFullNode,
+        javaRuntime: linuxJavaRuntime,
+        platform: 'linux-x64',
+      },
+      dependencies,
+    );
+
+    assert.equal(readFileSync(linuxResult.fullNodeJar, 'utf8'), customLinuxContent);
+    assert.equal(
+      linuxResult.version,
+      JAVA_TRON_DEFAULT_FULL_NODE.version,
+    );
+
+    downloads.length = 0;
+    let usedDefaultArmUrl = false;
+
+    await assert.rejects(
+      () =>
+        installJavaTron(
+          {
+            binDirectory,
+            cacheDirectory,
+            cwd,
+            fullNode: partialFullNode,
+            javaRuntime: armJavaRuntime,
+            platform: 'darwin-arm64',
+          },
+          {
+            ...dependencies,
+            downloadFile: async (url, destination): Promise<void> => {
+              downloads.push(url);
+              if (url === armDefault?.url) {
+                usedDefaultArmUrl = true;
+              }
+              await writeFile(destination, javaArchiveContent);
+            },
+          },
+        ),
+      /checksum mismatch/u,
+    );
+
+    assert.ok(usedDefaultArmUrl);
+  });
+
+  it('re-downloads the Java runtime when the cached checksum marker is invalid', async () => {
+    const cwd = createTempDir();
+    const cacheDirectory = join(cwd, '.metamask', 'cache');
+    const binDirectory = join(cwd, 'node_modules', '.bin');
+    const fullNodeContent = 'cached fullnode jar';
+    const javaArchiveContent = 'cached java archive';
+    const downloads: string[] = [];
+    const platformConfig = {
+      checksum: sha256(javaArchiveContent),
+      url: 'https://example.test/java.tar.gz',
+    };
+    const dependencies: JavaTronInstallDependencies = {
+      downloadFile: async (url, destination): Promise<void> => {
+        downloads.push(url);
+        await writeFile(
+          destination,
+          url.includes('FullNode') ? fullNodeContent : javaArchiveContent,
+        );
+      },
+      extractArchive: createDependencies({
+        fullNodeContent,
+        javaArchiveContent,
+      }).extractArchive,
+    };
+
+    const installOptions = {
+      binDirectory,
+      cacheDirectory,
+      cwd,
+      fullNode: {
+        platforms: {
+          'linux-x64': {
+            checksum: sha256(fullNodeContent),
+            url: 'https://example.test/FullNode.jar',
+          },
+        },
+      },
+      javaRuntime: {
+        platforms: {
+          'linux-x64': platformConfig,
+        },
+      },
+      platform: 'linux-x64',
+    };
+
+    await installJavaTron(installOptions, dependencies);
+
+    const cacheKey = createHash('sha256')
+      .update(`${platformConfig.url}:${platformConfig.checksum}`)
+      .digest('hex');
+    const sourceChecksumPath = join(
+      cacheDirectory,
+      'java-tron-up',
+      'java',
+      cacheKey,
+      '.source-checksum',
+    );
+    writeFileSync(sourceChecksumPath, 'stale-checksum');
+
+    downloads.length = 0;
+
+    await installJavaTron(installOptions, dependencies);
+
+    assert.ok(downloads.includes(platformConfig.url));
+  });
+
+  it('exits non-zero when the wrapped process terminates via a signal', async () => {
+    const cwd = createTempDir();
+    const cacheDirectory = join(cwd, '.metamask', 'cache');
+    const binDirectory = join(cwd, 'node_modules', '.bin');
+    const fullNodeContent = 'fake fullnode jar';
+    const signalJavaBinary = join(cwd, 'signal-java');
+
+    writeFileSync(
+      signalJavaBinary,
+      '#!/usr/bin/env node\nprocess.kill(process.pid, "SIGTERM");\n',
+    );
+    chmodSync(signalJavaBinary, 0o755);
+
+    const result = await installJavaTron(
+      {
+        binDirectory,
+        cacheDirectory,
+        cwd,
+        fullNode: {
+          platforms: {
+            'linux-x64': {
+              checksum: sha256(fullNodeContent),
+              url: 'https://example.test/FullNode.jar',
+            },
+          },
+        },
+        javaBinary: signalJavaBinary,
+        platform: 'linux-x64',
+      },
+      {
+        downloadFile: async (_url, destination): Promise<void> => {
+          await writeFile(destination, fullNodeContent);
+        },
+      },
+    );
+
+    let exitStatus: number | null = null;
+    try {
+      execFileSync(process.execPath, [result.binaryPath], {
+        stdio: 'pipe',
+      });
+    } catch (error) {
+      exitStatus = (error as NodeJS.ErrnoException).status ?? null;
+    }
+
+    assert.notEqual(exitStatus, 0);
   });
 
   it('reads pinned installer options from package.json', () => {
