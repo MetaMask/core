@@ -1,8 +1,8 @@
+import { AccountGroupType } from '@metamask/account-api';
 import type {
-  AccountGroupType,
   MultichainAccountGroupId,
+  AccountGroupId,
 } from '@metamask/account-api';
-import type { AccountGroupId } from '@metamask/account-api';
 import type { AccountId } from '@metamask/accounts-controller';
 import {
   AnyAccountType,
@@ -13,6 +13,7 @@ import {
   XlmAccountType,
 } from '@metamask/keyring-api';
 import type { KeyringAccountType } from '@metamask/keyring-api';
+import type { MultichainAccountGroupStatus } from '@metamask/multichain-account-service';
 
 import type { UpdatableField, ExtractFieldValues } from './type-utils';
 import type { AccountTreeControllerState } from './types';
@@ -79,6 +80,7 @@ type IsAccountGroupObject<
 export type AccountGroupMultichainAccountObject = {
   type: AccountGroupType.MultichainAccount;
   id: MultichainAccountGroupId;
+  status: MultichainAccountGroupStatus;
   // Blockchain Accounts (at least 1 account per multichain-accounts):
   accounts: [AccountId, ...AccountId[]];
   metadata: AccountTreeGroupMetadata & {
@@ -140,6 +142,22 @@ export function isAccountGroupNameUniqueFromWallet(
     }
   }
   return true;
+}
+
+/**
+ * Returns `true` if the group is a multichain account group, narrowing its
+ * type to the multichain account variant.
+ *
+ * Works for both {@link AccountGroupObject} state objects and the intermediate
+ * rule-result group shapes used inside `#insert()`.
+ *
+ * @param group - The group to check.
+ * @returns `true` if the group is a multichain account group, `false` otherwise.
+ */
+export function isMultichainAccountGroup<
+  Value extends { type: AccountGroupType },
+>(group: Value): group is Value & { type: AccountGroupType.MultichainAccount } {
+  return group.type === AccountGroupType.MultichainAccount;
 }
 
 /**
