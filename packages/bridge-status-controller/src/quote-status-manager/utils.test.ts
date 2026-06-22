@@ -29,11 +29,14 @@ describe('sleep', () => {
     expect(await promise).toBeUndefined();
   });
 
-  it('schedules the timeout with the provided delay', () => {
+  it('schedules the timeout with the provided delay', async () => {
     const setTimeoutSpy = jest.spyOn(globalThis, 'setTimeout');
 
-    sleep(1234);
+    const promise = sleep(1234);
 
     expect(setTimeoutSpy).toHaveBeenCalledWith(expect.any(Function), 1234);
+
+    await jest.advanceTimersByTimeAsync(1234);
+    await promise;
   });
 });
