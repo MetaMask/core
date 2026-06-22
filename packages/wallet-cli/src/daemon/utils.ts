@@ -1,23 +1,18 @@
-import { hasProperty } from '@metamask/utils';
+import { isErrorWithCode as hasErrorCode } from '@metamask/utils';
 import { readFile } from 'node:fs/promises';
 
 /**
  * Check whether an unknown error is a Node.js system error with the given code.
+ *
+ * Wraps `@metamask/utils`' duck-typed `isErrorWithCode` guard, which omits the
+ * specific-code comparison, to provide an ergonomic single-code check.
  *
  * @param error - The error to check.
  * @param code - The expected error code (e.g. 'ENOENT', 'EPERM').
  * @returns True if the error matches the code.
  */
 export function isErrorWithCode(error: unknown, code: string): boolean {
-  // Duck-typed rather than `instanceof Error` so error values that crossed a
-  // realm boundary (e.g. from Node built-ins under jest's
-  // `--experimental-vm-modules`) still pass.
-  return (
-    typeof error === 'object' &&
-    error !== null &&
-    hasProperty(error, 'code') &&
-    error.code === code
-  );
+  return hasErrorCode(error) && error.code === code;
 }
 
 /**
