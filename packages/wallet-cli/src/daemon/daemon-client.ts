@@ -26,10 +26,15 @@ type SendCommandOptions = {
 async function connectSocket(socketPath: string): Promise<Socket> {
   return new Promise((resolve, reject) => {
     const socket = createConnection(socketPath, () => {
-      socket.removeListener('error', reject);
+      socket.removeAllListeners('error');
       resolve(socket);
     });
-    socket.on('error', reject);
+    socket.on('error', (error) => {
+      // A failed connect never reaches the caller, so destroy the socket here
+      // to avoid leaking its file descriptor.
+      socket.destroy();
+      reject(error);
+    });
   });
 }
 

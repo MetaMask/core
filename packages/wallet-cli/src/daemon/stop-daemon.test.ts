@@ -95,6 +95,29 @@ describe('stopDaemon', () => {
     expect(mockRm).toHaveBeenCalledWith('/tmp/test.sock', { force: true });
   });
 
+  it('falls through to SIGTERM when the socket goes quiet but the process is still alive', async () => {
+    mockReadPidFile.mockResolvedValue(123);
+    mockPingDaemon
+      .mockResolvedValueOnce(RESPONSIVE) // entry: triggers graceful path
+      .mockResolvedValue(ABSENT); // socket dropped after the shutdown RPC
+    mockIsProcessAlive
+      .mockReturnValueOnce(true) // entry snapshot
+      .mockReturnValueOnce(true) // graceful re-check: still alive
+      .mockReturnValue(false); // dies after SIGTERM
+    mockSendCommand.mockResolvedValue({
+      jsonrpc: '2.0',
+      id: '1',
+      result: { status: 'shutting down' },
+    });
+    mockSendSignal.mockReturnValue(true);
+    mockWaitFor.mockImplementation(async (check) => check());
+
+    const result = await stopDaemon('/tmp/test.sock', '/tmp/test.pid');
+
+    expect(result).toBe(true);
+    expect(mockSendSignal).toHaveBeenCalledWith(123, 'SIGTERM');
+  });
+
   it('falls through to SIGTERM when graceful shutdown times out', async () => {
     mockReadPidFile.mockResolvedValue(123);
     mockIsProcessAlive.mockReturnValue(true);

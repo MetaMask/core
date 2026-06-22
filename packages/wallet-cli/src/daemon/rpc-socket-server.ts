@@ -145,17 +145,7 @@ export async function startRpcSocketServer({
   await listen(server, socketPath);
 
   return {
-    close: async (): Promise<void> => {
-      await new Promise<void>((resolve, reject) => {
-        server.close((error) => {
-          if (error) {
-            reject(error);
-          } else {
-            resolve();
-          }
-        });
-      });
-    },
+    close: async (): Promise<void> => closeServer(server),
   };
 }
 
@@ -215,7 +205,6 @@ async function handleRequest(
   const { id, method, params } = parsed;
 
   try {
-    // Intercept shutdown before handler dispatch.
     if (method === 'shutdown') {
       if (onShutdown) {
         setTimeout(() => {
@@ -327,5 +316,30 @@ async function listen(server: Server, socketPath: string): Promise<void> {
   // Restrict the socket to its owner. The daemon hosts an unlocked wallet, so
   // a world-connectable socket would let any local user drive it. listen()
   // creates the socket with umask-derived (typically world-accessible) perms.
-  await chmod(socketPath, 0o600);
+  try {
+    await chmod(socketPath, 0o600);
+  } catch (error) {
+    // Never leave a possibly world-accessible socket listening with no handle
+    // to close it. Cleanup is best-effort so the chmod failure still surfaces.
+    await closeServer(server).catch(() => undefined);
+    await unlink(socketPath).catch(() => undefined);
+    throw error;
+  }
+}
+
+/**
+ * Close a server, resolving once it stops accepting connections.
+ *
+ * @param server - The net.Server instance.
+ */
+async function closeServer(server: Server): Promise<void> {
+  await new Promise<void>((resolve, reject) => {
+    server.close((error) => {
+      if (error) {
+        reject(error);
+      } else {
+        resolve();
+      }
+    });
+  });
 }

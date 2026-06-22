@@ -204,6 +204,33 @@ describe('sendCommand', () => {
 
     expect(socket.destroy).toHaveBeenCalled();
   });
+
+  it('destroys each socket when the connection fails, including the retry', async () => {
+    const sockets: Socket[] = [];
+    mockCreateConnection.mockImplementation((_path: unknown) => {
+      const emitter = new EventEmitter();
+      const socket = Object.assign(emitter, {
+        destroy: jest.fn(),
+        write: jest.fn(),
+        removeListener: emitter.removeListener.bind(emitter),
+      }) as unknown as Socket;
+      sockets.push(socket);
+      process.nextTick(() =>
+        socket.emit(
+          'error',
+          Object.assign(new Error('refused'), { code: 'ECONNREFUSED' }),
+        ),
+      );
+      return socket;
+    });
+
+    await expect(
+      sendCommand({ socketPath: '/tmp/test.sock', method: 'test' }),
+    ).rejects.toThrow('refused');
+
+    expect(sockets).toHaveLength(2);
+    sockets.forEach((socket) => expect(socket.destroy).toHaveBeenCalled());
+  });
 });
 
 describe('pingDaemon', () => {

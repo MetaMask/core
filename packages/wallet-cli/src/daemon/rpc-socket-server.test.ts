@@ -1,5 +1,5 @@
 import { EventEmitter } from 'node:events';
-import { unlink } from 'node:fs/promises';
+import { chmod, unlink } from 'node:fs/promises';
 import { createServer } from 'node:net';
 import type { Server, Socket } from 'node:net';
 
@@ -10,6 +10,7 @@ jest.mock('node:fs/promises');
 jest.mock('node:net');
 
 const mockUnlink = jest.mocked(unlink);
+const mockChmod = jest.mocked(chmod);
 const mockCreateServer = jest.mocked(createServer);
 
 type ConnectionCallback = (socket: Socket) => void;
@@ -97,6 +98,7 @@ function sendRequest(socket: Socket, request: Record<string, unknown>): void {
 describe('startRpcSocketServer', () => {
   beforeEach(() => {
     mockUnlink.mockResolvedValue(undefined);
+    mockChmod.mockResolvedValue(undefined);
   });
 
   it('removes stale socket file before listening', async () => {
@@ -106,6 +108,56 @@ describe('startRpcSocketServer', () => {
       handlers: {},
     });
     expect(mockUnlink).toHaveBeenCalledWith('/tmp/test.sock');
+  });
+
+  it('restricts the socket to its owner after listening', async () => {
+    createMockServer();
+    await startRpcSocketServer({
+      socketPath: '/tmp/test.sock',
+      handlers: {},
+    });
+    expect(mockChmod).toHaveBeenCalledWith('/tmp/test.sock', 0o600);
+  });
+
+  it('tears down the listener and removes the socket when chmod fails', async () => {
+    const { server } = createMockServer();
+    mockChmod.mockRejectedValue(
+      Object.assign(new Error('EPERM'), { code: 'EPERM' }),
+    );
+
+    await expect(
+      startRpcSocketServer({
+        socketPath: '/tmp/test.sock',
+        handlers: {},
+      }),
+    ).rejects.toThrow('EPERM');
+
+    expect(server.close).toHaveBeenCalled();
+    expect(mockUnlink).toHaveBeenLastCalledWith('/tmp/test.sock');
+  });
+
+  it('surfaces the chmod failure even if cleanup also fails', async () => {
+    const { server } = createMockServer();
+    mockChmod.mockRejectedValue(
+      Object.assign(new Error('EPERM'), { code: 'EPERM' }),
+    );
+    (server.close as jest.Mock).mockImplementation(
+      (onClose: (closeError?: Error) => void) => {
+        onClose(new Error('close failed'));
+      },
+    );
+    mockUnlink
+      .mockResolvedValueOnce(undefined)
+      .mockRejectedValue(
+        Object.assign(new Error('ENOENT'), { code: 'ENOENT' }),
+      );
+
+    await expect(
+      startRpcSocketServer({
+        socketPath: '/tmp/test.sock',
+        handlers: {},
+      }),
+    ).rejects.toThrow('EPERM');
   });
 
   it('ignores ENOENT unlink errors for missing files', async () => {
@@ -469,7 +521,6 @@ describe('startRpcSocketServer', () => {
       const socket = createMockSocket();
       simulateConnection(socket);
 
-      // Send a valid request followed by extra data after the newline.
       socket.emit(
         'data',
         Buffer.from(
@@ -630,7 +681,6 @@ describe('startRpcSocketServer', () => {
       const socket = createMockSocket();
       simulateConnection(socket);
 
-      // Send partial data (no newline).
       socket.emit('data', Buffer.from('partial'));
 
       expect(socket.destroy).not.toHaveBeenCalled();

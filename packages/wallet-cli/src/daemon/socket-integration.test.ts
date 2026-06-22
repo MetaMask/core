@@ -79,8 +79,7 @@ describe('socket integration', () => {
     });
 
     // The daemon hosts an unlocked wallet, so the socket must not be
-    // connectable by other local users. The last three octal digits are the
-    // owner/group/other permission bits.
+    // connectable by other local users.
     const stats = await stat(socketPath);
     expect(stats.mode.toString(8).slice(-3)).toBe('600');
   });

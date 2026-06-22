@@ -47,8 +47,13 @@ export async function stopDaemon(
     } catch (error) {
       log?.(`Graceful shutdown request failed: ${String(error)}`);
     }
+    // A quiet socket does not prove the process exited; require the recorded
+    // pid to be gone too, so a daemon that outlived its socket falls through to
+    // SIGTERM/SIGKILL rather than being orphaned.
     stopped = await waitFor(
-      async () => (await pingDaemon(socketPath)).status !== 'responsive',
+      async () =>
+        (await pingDaemon(socketPath)).status !== 'responsive' &&
+        (pid === undefined || !isProcessAlive(pid)),
       5_000,
     );
   }
