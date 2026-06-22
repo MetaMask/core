@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add forced RPC failover for Infura endpoints, driven by the `core-platform-rpc-failover-force-enabled` remote feature flag ([#9175](https://github.com/MetaMask/core/pull/9175))
+  - When enabled, Infura endpoints configured with failover URLs route all traffic to those failover URLs, bypassing Infura entirely. Infura endpoints without failover URLs continue to use Infura, and custom RPC endpoints are unaffected.
+  - Adds the `NetworkController.enableRpcFailoverForced` and `NetworkController.disableRpcFailoverForced` methods, along with the `NetworkControllerEnableRpcFailoverForcedAction` and `NetworkControllerDisableRpcFailoverForcedAction` messenger actions.
+
 ## [33.0.0]
 
 ### Added
@@ -20,9 +26,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - The default `retryTimeout` for the block tracker is now `20` seconds.
 - Add `failoverUrls` constructor argument ([#9140](https://github.com/MetaMask/core/pull/9140))
   - These will override `failoverUrls` from state during network client creation.
-- Add forced RPC failover for Infura endpoints, driven by the `core-platform-rpc-failover-force-enabled` remote feature flag ([#9175](https://github.com/MetaMask/core/pull/9175))
-  - When enabled, Infura endpoints configured with failover URLs route all traffic to those failover URLs, bypassing Infura entirely. Infura endpoints without failover URLs continue to use Infura, and custom RPC endpoints are unaffected.
-  - Adds the `NetworkController.enableRpcFailoverForced` and `NetworkController.disableRpcFailoverForced` methods, along with the `NetworkControllerEnableRpcFailoverForcedAction` and `NetworkControllerDisableRpcFailoverForcedAction` messenger actions.
 
 ### Changed
 
@@ -1223,7 +1226,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Initial release
+
   - As a result of converting our shared controllers repo into a monorepo ([#831](https://github.com/MetaMask/core/pull/831)), we've created this package from select parts of [`@metamask/controllers` v33.0.0](https://github.com/MetaMask/core/tree/v33.0.0), namely:
+
     - Everything in `src/network` (minus `NetworkType` and `NetworksChainId`, which were placed in `@metamask/controller-utils`)
 
     All changes listed after this point were applied to this package following the monorepo conversion.
