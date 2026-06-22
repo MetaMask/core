@@ -935,6 +935,21 @@ export class PerpsController extends BaseController<
 
   #eligibilityCheckDeferred: boolean;
 
+  /**
+   * Serial promise queue for all AUS watchlist operations (hydration and
+   * individual toggles).  Chaining every operation onto this field ensures
+   * that:
+   *
+   * - A toggle that fires immediately after init() always runs *after* the
+   *   init hydration finishes (Bug 3).
+   * - Concurrent toggles are serialised so the last PUT reflects all changes
+   *   rather than racing with each other (Bug 4).
+   *
+   * Errors from individual operations are swallowed inside the queue so that
+   * a failed operation does not stall subsequent ones.
+   */
+  #ausQueue: Promise<void> = Promise.resolve();
+
   // Store options for dependency injection (allows core package to inject platform-specific services)
   readonly #options: PerpsControllerOptions;
 
@@ -1688,7 +1703,9 @@ export class PerpsController extends BaseController<
 
         // Hydrate watchlist from AUS (non-blocking — transient failures are
         // caught inside and must not prevent init from completing).
-        this.#syncWatchlistFromRemote().catch(() => {
+        // Assigning to #ausQueue ensures subsequent toggleWatchlistMarket
+        // calls wait for hydration before running their own GET-merge-PUT.
+        this.#ausQueue = this.#syncWatchlistFromRemote().catch(() => {
           // Errors are already logged inside #syncWatchlistFromRemote.
         });
 
@@ -5145,8 +5162,17 @@ export class PerpsController extends BaseController<
     });
 
     // Step 2: Persist to AUS; revert local state if the write fails.
+    // Enqueue behind #ausQueue so that:
+    //   - concurrent toggles serialize their GET-merge-PUT sequences, and
+    //   - any in-flight init hydration completes before we issue a write.
     try {
-      await this.#persistWatchlistToRemote(currentNetwork);
+      await new Promise<void>((resolve, reject) => {
+        this.#ausQueue = this.#ausQueue
+          .then(() => this.#persistWatchlistToRemote(currentNetwork))
+          .then(resolve, reject)
+          // Swallow the error on the queue chain so later operations can run.
+          .catch(() => undefined);
+      });
     } catch (error) {
       this.#logError(
         ensureError(error, 'PerpsController.toggleWatchlistMarket'),
@@ -5292,7 +5318,15 @@ export class PerpsController extends BaseController<
       const remoteExchangeWatchlist =
         prefs.perps.watchlistMarkets?.[exchangeKey];
 
-      if (remoteExchangeWatchlist) {
+      // Only treat remote as the source of truth when it has actual symbols.
+      // An empty { testnet: [], mainnet: [] } blob (e.g. created by another
+      // device that had no watchlist) must not silently wipe local favorites.
+      const remoteHasContent =
+        remoteExchangeWatchlist !== undefined &&
+        (remoteExchangeWatchlist.testnet.length > 0 ||
+          remoteExchangeWatchlist.mainnet.length > 0);
+
+      if (remoteHasContent && remoteExchangeWatchlist) {
         // AUS has data for this exchange — hydrate local state from it.
         this.update((state) => {
           state.watchlistMarkets.testnet = remoteExchangeWatchlist.testnet;
@@ -5316,11 +5350,10 @@ export class PerpsController extends BaseController<
             mainnetCount: mainnet.length,
           });
           // Push testnet and mainnet together via a single read-merge-write.
-          // #persistWatchlistToRemote writes the network passed to it; call it
-          // for whichever networks have data (or both — duplicate writes are
-          // idempotent since we read before each write, but a single combined
-          // write is cleaner).  We combine both networks in one PUT here.
-          const existingWatchlist: PerpsWatchlistMarkets = {
+          // Start from existing remote watchlistMarkets (or empty fallback) so
+          // that other exchanges already stored in AUS are not overwritten.
+          const existingWatchlist: PerpsWatchlistMarkets = prefs.perps
+            .watchlistMarkets ?? {
             hyperliquid: { testnet: [], mainnet: [] },
             myx: { testnet: [], mainnet: [] },
           };
