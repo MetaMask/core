@@ -9,10 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [72.1.1]
 
-### Uncategorized
-
-- fix: add token_symbol_source, token_symbol_destination to Unified Swa… ([#9213](https://github.com/MetaMask/core/pull/9213))
-
 ### Changed
 
 - Bump `@metamask/bridge-controller` from `^75.1.1` to `^75.2.1` ([#9214](https://github.com/MetaMask/core/pull/9214), [#9218](https://github.com/MetaMask/core/pull/9218))
