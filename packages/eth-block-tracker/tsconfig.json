@@ -3,13 +3,6 @@
   "compilerOptions": {
     "baseUrl": "./"
   },
-  "references": [
-    {
-      "path": "../eth-json-rpc-provider"
-    },
-    {
-      "path": "../json-rpc-engine"
-    }
-  ],
+  "references": [],
   "include": ["../../types", "./src", "./tests"]
 }

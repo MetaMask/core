@@ -3,16 +3,6 @@
   "compilerOptions": {
     "baseUrl": "./"
   },
-  "references": [
-    {
-      "path": "../base-controller"
-    },
-    {
-      "path": "../messenger"
-    },
-    {
-      "path": "../json-rpc-engine"
-    }
-  ],
+  "references": [],
   "include": ["../../types", "./src"]
 }

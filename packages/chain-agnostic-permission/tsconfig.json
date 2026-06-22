@@ -5,10 +5,6 @@
     "resolveJsonModule": true,
     "rootDir": "../.."
   },
-  "references": [
-    { "path": "../controller-utils" },
-    { "path": "../network-controller" },
-    { "path": "../permission-controller" }
-  ],
+  "references": [],
   "include": ["../../types", "./src"]
 }

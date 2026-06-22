@@ -3,40 +3,6 @@
   "compilerOptions": {
     "baseUrl": "./"
   },
-  "references": [
-    {
-      "path": "../account-tree-controller"
-    },
-    {
-      "path": "../base-controller"
-    },
-    {
-      "path": "../bridge-controller"
-    },
-    {
-      "path": "../controller-utils"
-    },
-    {
-      "path": "../geolocation-controller"
-    },
-    {
-      "path": "../keyring-controller"
-    },
-    {
-      "path": "../messenger"
-    },
-    {
-      "path": "../network-controller"
-    },
-    {
-      "path": "../profile-sync-controller"
-    },
-    {
-      "path": "../remote-feature-flag-controller"
-    },
-    {
-      "path": "../transaction-controller"
-    }
-  ],
+  "references": [],
   "include": ["../../types", "./src", "./tests"]
 }

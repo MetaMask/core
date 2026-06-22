@@ -15,6 +15,7 @@ import type {
 } from '.';
 
 const mockReport: MarketInsightsReport = {
+  digestId: 'digest-btc-1',
   version: '1.0',
   asset: 'btc',
   generatedAt: '2026-02-11T10:32:52.403Z',

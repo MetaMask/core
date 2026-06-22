@@ -3,19 +3,6 @@
   "compilerOptions": {
     "baseUrl": "./"
   },
-  "references": [
-    {
-      "path": "../base-controller/tsconfig.json"
-    },
-    {
-      "path": "../messenger/tsconfig.json"
-    },
-    {
-      "path": "../profile-sync-controller/tsconfig.json"
-    },
-    {
-      "path": "../keyring-controller/tsconfig.json"
-    }
-  ],
+  "references": [],
   "include": ["../../types", "./src", "./tests"]
 }
