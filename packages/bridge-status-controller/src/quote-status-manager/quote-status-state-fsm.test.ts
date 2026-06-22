@@ -34,9 +34,7 @@ describe('QuoteStatusStateFsm', () => {
     });
 
     it('treats an unknown/legacy state as terminal', () => {
-      const fsm = new QuoteStatusStateFsm(
-        'LEGACY_STATE' as QuoteStatusState,
-      );
+      const fsm = new QuoteStatusStateFsm('LEGACY_STATE' as QuoteStatusState);
 
       expect(fsm.canTransitionTo(QuoteStatusState.Submitted)).toBe(false);
     });

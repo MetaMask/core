@@ -87,7 +87,9 @@ describe('QuoteStatusUpdateManager', () => {
     const isEnabled = jest.fn().mockReturnValue(true);
 
     const manager = new QuoteStatusUpdateManager({
-      messenger: { call: jest.fn() } as unknown as BridgeStatusControllerMessenger,
+      messenger: {
+        call: jest.fn(),
+      } as unknown as BridgeStatusControllerMessenger,
       clientId: BridgeClientId.EXTENSION,
       clientProduct: 'test-product',
       apiBaseUrl: 'https://bridge.api.test',

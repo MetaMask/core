@@ -1,10 +1,7 @@
 import { QuoteStatusState } from './constants';
 import { QuoteStatusEntryStore } from './quote-status-entry-store';
 import { QuoteStatusStateFsm } from './quote-status-state-fsm';
-import type {
-  QuoteStatusPersistEntry,
-  QuoteStatusRuntimeEntry,
-} from './types';
+import type { QuoteStatusPersistEntry, QuoteStatusRuntimeEntry } from './types';
 
 const TTL_MS = 1000;
 const NOW = 1_000_000;
@@ -16,7 +13,9 @@ const NOW = 1_000_000;
  * @returns A runtime entry without the store-managed timestamps.
  */
 function createPutValue(
-  overrides: Partial<Omit<QuoteStatusRuntimeEntry, 'createdAt' | 'lastAttemptAt'>> = {},
+  overrides: Partial<
+    Omit<QuoteStatusRuntimeEntry, 'createdAt' | 'lastAttemptAt'>
+  > = {},
 ): Omit<QuoteStatusRuntimeEntry, 'createdAt' | 'lastAttemptAt'> {
   return {
     quoteId: 'quote-1',
