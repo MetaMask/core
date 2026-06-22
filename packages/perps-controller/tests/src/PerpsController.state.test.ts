@@ -3,7 +3,6 @@
  * PerpsController Tests
  * Clean, focused test suite for PerpsController
  */
-/* eslint-disable @typescript-eslint/no-explicit-any */
 
 import {
   GasFeeEstimateLevel,
