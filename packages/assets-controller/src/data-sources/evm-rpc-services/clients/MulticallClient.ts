@@ -1,5 +1,8 @@
 import { Interface } from '@ethersproject/abi';
-import { createServicePolicy } from '@metamask/controller-utils';
+import {
+  createServicePolicy,
+  encodeFunctionData,
+} from '@metamask/controller-utils';
 import type { Hex } from '@metamask/utils';
 
 import { ZERO_ADDRESS } from '../../../utils/constants';
@@ -384,9 +387,7 @@ const MULTICALL3_ADDRESS_BY_CHAIN: Record<Hex, Hex> = {
  * @returns The encoded call data.
  */
 function encodeBalanceOf(accountAddress: Address): Hex {
-  return erc20Interface.encodeFunctionData('balanceOf', [
-    accountAddress,
-  ]) as Hex;
+  return encodeFunctionData(erc20Interface, 'balanceOf', [accountAddress]);
 }
 
 /**
@@ -396,9 +397,9 @@ function encodeBalanceOf(accountAddress: Address): Hex {
  * @returns The encoded call data.
  */
 function encodeGetEthBalance(accountAddress: Address): Hex {
-  return multicall3Interface.encodeFunctionData('getEthBalance', [
+  return encodeFunctionData(multicall3Interface, 'getEthBalance', [
     accountAddress,
-  ]) as Hex;
+  ]);
 }
 
 /**
@@ -410,13 +411,13 @@ function encodeGetEthBalance(accountAddress: Address): Hex {
 export function encodeAggregate3(
   calls: readonly { target: Address; allowFailure: boolean; callData: Hex }[],
 ): Hex {
-  return multicall3Interface.encodeFunctionData('aggregate3', [
+  return encodeFunctionData(multicall3Interface, 'aggregate3', [
     calls.map((call) => ({
       target: call.target,
       allowFailure: call.allowFailure,
       callData: call.callData,
     })),
-  ]) as Hex;
+  ]);
 }
 
 /**

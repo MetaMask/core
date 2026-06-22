@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [27.1.0]
+
+### Added
+
+- Add `isKeyringControllerError` predicate ([#9095](https://github.com/MetaMask/core/pull/9095))
+
+### Changed
+
+- Bump `@metamask/utils` from `^11.9.0` to `^11.11.0` ([#9074](https://github.com/MetaMask/core/pull/9074))
+
+### Fixed
+
+- Remove use of `instanceof` for `isKeyringNotFoundError` ([#9095](https://github.com/MetaMask/core/pull/9095))
+  - Using `instanceof` causes a lot of issue if we have 2 major `@metamask/keyring-controller` major versions in the dependency tree, `class KeyringControllerError` could be different classes and this, making the check to fail.
+
 ## [27.0.0]
 
 ### Changed
@@ -1030,7 +1045,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@27.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@27.1.0...HEAD
+[27.1.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@27.0.0...@metamask/keyring-controller@27.1.0
 [27.0.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@26.0.0...@metamask/keyring-controller@27.0.0
 [26.0.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@25.5.0...@metamask/keyring-controller@26.0.0
 [25.5.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@25.4.0...@metamask/keyring-controller@25.5.0

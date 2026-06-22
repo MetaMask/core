@@ -1,6 +1,7 @@
 import type { Infer } from '@metamask/superstruct';
 import {
   enums,
+  nullable,
   number,
   optional,
   string,
@@ -39,6 +40,14 @@ export const TradeStruct = structType({
   direction: enums(['buy', 'sell']),
   intent: enums(['enter', 'exit']),
   category: optional(string()),
+  /** High-level trade classification. `null` when Clicker does not classify. */
+  classification: optional(
+    nullable(enums(['spot', 'perp', 'send', 'receive'])),
+  ),
+  /** Perp side for this fill. `null` for spot trades. */
+  perpPositionType: optional(nullable(enums(['long', 'short']))),
+  /** Leverage multiplier for perp trades (e.g. `5` for 5x). `null` for spot. */
+  perpLeverage: optional(nullable(number())),
   tokenAmount: number(),
   usdCost: number(),
   timestamp: number(),
@@ -114,6 +123,16 @@ export type PerChainBreakdown = {
   /** ROI can be null for chains with no trading activity (zero cost-basis). */
   perChainRoi: Record<string, number | null>;
   perChainVolume: Record<string, number>;
+  /**
+   * 7-day per-chain PnL in USD. Optional: older social-api versions only
+   * return the 30-day breakdown (`perChainPnl`). The unsuffixed fields above
+   * remain the 30-day window for backward compatibility.
+   */
+  perChainPnl7d?: Record<string, number>;
+  /** 7-day per-chain ROI. Null for chains with no trading activity. */
+  perChainRoi7d?: Record<string, number | null>;
+  /** 7-day per-chain volume in USD. */
+  perChainVolume7d?: Record<string, number>;
 };
 
 /**
@@ -153,6 +172,19 @@ export type Position = {
   pnlValueUsd?: number | null;
   /** PnL as a percentage of cost basis. */
   pnlPercent?: number | null;
+  /** Perp side of the position. `null`/absent for spot positions. */
+  perpPositionType?: 'long' | 'short' | null;
+  /** Leverage multiplier for perp positions. `null`/absent for spot. */
+  perpLeverage?: number | null;
+  /**
+   * Leveraged/notional position size as reported by Clicker. NOT necessarily
+   * `positionAmount` × `perpLeverage` — the ratio varies for positions built
+   * across fills at different leverage, so use this field directly rather than
+   * deriving it, and treat `perpLeverage` as the authoritative leverage. This is
+   * notional exposure, not capital at risk (the margin/capital at risk is
+   * `costBasis`). Hyperliquid/perp positions only; absent for spot.
+   */
+  positionAmountWithLeverage?: number | null;
 };
 
 export type Pagination = {

@@ -9,6 +9,7 @@ export type {
   TransactionData,
   TransactionFiatPayment,
   TransactionFiatPaymentCallback,
+  TransactionPayFiatOptions,
   TransactionPayControllerActions,
   TransactionPayControllerEvents,
   TransactionPayControllerGetStateAction,
@@ -28,6 +29,7 @@ export type {
 export type {
   TransactionPayControllerGetAmountDataAction,
   TransactionPayControllerGetDelegationTransactionAction,
+  TransactionPayControllerGetFiatOptionsAction,
   TransactionPayControllerGetStrategyAction,
   TransactionPayControllerPolymarketGetDepositWalletAddressAction,
   TransactionPayControllerPolymarketSubmitDepositWalletBatchAction,

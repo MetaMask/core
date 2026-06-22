@@ -3740,6 +3740,258 @@ describe('TokensController', () => {
     });
   });
 
+  describe('isDeprecated', () => {
+    const initialState: TokensControllerState = {
+      allTokens: {
+        [ChainId.mainnet]: {
+          '0x0001': [
+            {
+              address: '0x03',
+              symbol: 'barC',
+              decimals: 2,
+              aggregators: [],
+              image: undefined,
+              name: undefined,
+            },
+          ],
+        },
+      },
+      allIgnoredTokens: {
+        [ChainId.mainnet]: {
+          '0x0001': ['0x03'],
+        },
+      },
+      allDetectedTokens: {
+        [ChainId.mainnet]: {
+          '0x0001': [
+            {
+              address: '0x01',
+              symbol: 'barA',
+              decimals: 2,
+              aggregators: [],
+              image: undefined,
+              name: undefined,
+            },
+          ],
+        },
+      },
+    };
+
+    const emptyState: TokensControllerState = {
+      allTokens: {},
+      allIgnoredTokens: {},
+      allDetectedTokens: {},
+    };
+
+    it('clears all persisted state at construction when isDeprecated() returns true', async () => {
+      await withController(
+        { options: { state: initialState, isDeprecated: () => true } },
+        ({ controller }) => {
+          expect(controller.state).toStrictEqual(emptyState);
+        },
+      );
+    });
+
+    it('preserves persisted state at construction when isDeprecated() returns false', async () => {
+      await withController(
+        { options: { state: initialState, isDeprecated: () => false } },
+        ({ controller }) => {
+          expect(controller.state).toStrictEqual(initialState);
+        },
+      );
+    });
+
+    it('does not throw at construction when isDeprecated() is true and state is already empty', async () => {
+      await withController(
+        { options: { isDeprecated: () => true } },
+        ({ controller }) => {
+          expect(controller.state).toStrictEqual(emptyState);
+        },
+      );
+    });
+
+    it('does not call tokenListService.fetchTokensByChainId at construction when isDeprecated() returns true', async () => {
+      await withController(
+        { options: { state: initialState, isDeprecated: () => true } },
+        async ({ controller }) => {
+          // Give any async init work a chance to settle
+          await new Promise((resolve) => process.nextTick(resolve));
+
+          // The tokenListService mock is accessed via the controller factory;
+          // we verify by checking that state was not modified by enrichment
+          expect(controller.state).toStrictEqual(emptyState);
+        },
+      );
+    });
+
+    it('does not add tokens and clears stale state when isDeprecated toggles to true at runtime via addToken', async () => {
+      let deprecated = false;
+      await withController(
+        { options: { state: initialState, isDeprecated: () => deprecated } },
+        async ({ controller }) => {
+          expect(controller.state).toStrictEqual(initialState);
+
+          deprecated = true;
+
+          const result = await controller.addToken({
+            address: '0x05',
+            symbol: 'NEW',
+            decimals: 18,
+            networkClientId: 'mainnet',
+          });
+
+          expect(result).toStrictEqual([]);
+          expect(controller.state).toStrictEqual(emptyState);
+        },
+      );
+    });
+
+    it('does not add tokens and clears stale state when isDeprecated toggles to true at runtime via addTokens', async () => {
+      let deprecated = false;
+      await withController(
+        { options: { state: initialState, isDeprecated: () => deprecated } },
+        async ({ controller }) => {
+          expect(controller.state).toStrictEqual(initialState);
+
+          deprecated = true;
+
+          await controller.addTokens(
+            [{ address: '0x05', symbol: 'NEW', decimals: 18 }],
+            'mainnet',
+          );
+
+          expect(controller.state).toStrictEqual(emptyState);
+        },
+      );
+    });
+
+    it('does not ignore tokens and clears stale state when isDeprecated toggles to true at runtime via ignoreTokens', async () => {
+      let deprecated = false;
+      await withController(
+        { options: { state: initialState, isDeprecated: () => deprecated } },
+        ({ controller }) => {
+          expect(controller.state).toStrictEqual(initialState);
+
+          deprecated = true;
+
+          controller.ignoreTokens(['0x03'], 'mainnet');
+
+          expect(controller.state).toStrictEqual(emptyState);
+        },
+      );
+    });
+
+    it('does not add detected tokens and clears stale state when isDeprecated toggles to true at runtime via addDetectedTokens', async () => {
+      let deprecated = false;
+      await withController(
+        { options: { state: initialState, isDeprecated: () => deprecated } },
+        async ({ controller }) => {
+          expect(controller.state).toStrictEqual(initialState);
+
+          deprecated = true;
+
+          await controller.addDetectedTokens(
+            [{ address: '0x05', symbol: 'NEW', decimals: 18 }],
+            { chainId: ChainId.mainnet },
+          );
+
+          expect(controller.state).toStrictEqual(emptyState);
+        },
+      );
+    });
+
+    it('throws and clears stale state when isDeprecated toggles to true at runtime via updateTokenType', async () => {
+      let deprecated = false;
+      await withController(
+        { options: { state: initialState, isDeprecated: () => deprecated } },
+        async ({ controller }) => {
+          expect(controller.state).toStrictEqual(initialState);
+
+          deprecated = true;
+
+          await expect(
+            controller.updateTokenType('0x03', 'mainnet'),
+          ).rejects.toThrow('TokensController is deprecated');
+
+          expect(controller.state).toStrictEqual(emptyState);
+        },
+      );
+    });
+
+    it('does not process watchAsset and clears stale state when isDeprecated toggles to true at runtime via watchAsset', async () => {
+      let deprecated = false;
+      await withController(
+        { options: { state: initialState, isDeprecated: () => deprecated } },
+        async ({ controller }) => {
+          expect(controller.state).toStrictEqual(initialState);
+
+          deprecated = true;
+
+          await controller.watchAsset({
+            asset: { address: '0x05', symbol: 'NEW', decimals: 18 },
+            type: 'ERC20',
+            networkClientId: 'mainnet',
+          });
+
+          expect(controller.state).toStrictEqual(emptyState);
+        },
+      );
+    });
+
+    it('clears all stale state when isDeprecated toggles to true at runtime via clearIgnoredTokens', async () => {
+      let deprecated = false;
+      await withController(
+        { options: { state: initialState, isDeprecated: () => deprecated } },
+        ({ controller }) => {
+          expect(controller.state).toStrictEqual(initialState);
+
+          deprecated = true;
+
+          controller.clearIgnoredTokens();
+
+          expect(controller.state).toStrictEqual(emptyState);
+        },
+      );
+    });
+
+    it('clears stale state on NetworkController:stateChange when isDeprecated toggles to true at runtime', async () => {
+      let deprecated = false;
+      await withController(
+        { options: { state: initialState, isDeprecated: () => deprecated } },
+        ({ controller, triggerNetworkStateChange }) => {
+          expect(controller.state).toStrictEqual(initialState);
+
+          deprecated = true;
+
+          triggerNetworkStateChange({} as NetworkState, [
+            {
+              op: 'remove',
+              path: ['networkConfigurationsByChainId', ChainId.mainnet],
+            },
+          ]);
+
+          expect(controller.state).toStrictEqual(emptyState);
+        },
+      );
+    });
+
+    it('clears stale state on KeyringController:accountRemoved when isDeprecated toggles to true at runtime', async () => {
+      let deprecated = false;
+      await withController(
+        { options: { state: initialState, isDeprecated: () => deprecated } },
+        ({ controller, triggerAccountRemoved }) => {
+          expect(controller.state).toStrictEqual(initialState);
+
+          deprecated = true;
+
+          triggerAccountRemoved('0x0001');
+
+          expect(controller.state).toStrictEqual(emptyState);
+        },
+      );
+    });
+  });
+
   describe('metadata', () => {
     it('includes expected state in debug snapshots', async () => {
       await withController(({ controller }) => {

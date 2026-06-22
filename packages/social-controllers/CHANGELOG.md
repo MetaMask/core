@@ -7,10 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.3.1]
+
+### Added
+
+- Add optional 7-day per-chain fields to the `PerChainBreakdown` type (and `PerChainBreakdownStruct`): `perChainPnl7d` (`Record<string, number>`), `perChainRoi7d` (`Record<string, number | null>`), and `perChainVolume7d` (`Record<string, number>`) — exposing the 7-day Hyperliquid/per-chain breakdown alongside the existing 30-day fields. The unsuffixed fields (`perChainPnl`, `perChainRoi`, `perChainVolume`) remain the 30-day window; the new fields are optional for backward compatibility with social-api versions that only return the 30-day breakdown ([#9165](https://github.com/MetaMask/core/pull/9165))
+
+## [2.3.0]
+
+### Added
+
+- Add optional perp fields to the `Trade` type (and `TradeStruct`): `classification` (`'spot' | 'perp' | 'send' | 'receive' | null`), `perpPositionType` (`'long' | 'short' | null`), and `perpLeverage` (`number | null`) — exposing Hyperliquid/perp trade metadata to consumers ([#9094](https://github.com/MetaMask/core/pull/9094))
+- Add optional perp fields to the `Position` type (and `PositionStruct`): `perpPositionType` (`'long' | 'short' | null`), `perpLeverage` (`number | null`), and `positionAmountWithLeverage` (`number | null`) — exposing Hyperliquid/perp position metadata to consumers ([#9094](https://github.com/MetaMask/core/pull/9094))
+
 ### Changed
 
-- Bump `@metamask/controller-utils` from `^12.0.0` to `^12.1.1` ([#8774](https://github.com/MetaMask/core/pull/8774), [#9058](https://github.com/MetaMask/core/pull/9058))
-- Bump `@metamask/profile-sync-controller` from `^28.0.2` to `^28.1.1` ([#8783](https://github.com/MetaMask/core/pull/8783), [#8912](https://github.com/MetaMask/core/pull/8912))
+- Bump `@metamask/controller-utils` from `^12.0.0` to `^12.2.0` ([#8774](https://github.com/MetaMask/core/pull/8774), [#9058](https://github.com/MetaMask/core/pull/9058), [#9083](https://github.com/MetaMask/core/pull/9083))
+- Bump `@metamask/profile-sync-controller` from `^28.0.2` to `^28.2.0` ([#8783](https://github.com/MetaMask/core/pull/8783), [#8912](https://github.com/MetaMask/core/pull/8912), [#9119](https://github.com/MetaMask/core/pull/9119))
 - Bump `@metamask/base-data-service` from `^0.1.2` to `^0.1.3` ([#8799](https://github.com/MetaMask/core/pull/8799))
 
 ## [2.2.1]
@@ -86,7 +99,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - `unfollowTrader` — unfollows traders and removes addresses from state
     - `updateFollowing` — fetches following list and replaces addresses in state
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/social-controllers@2.2.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/social-controllers@2.3.1...HEAD
+[2.3.1]: https://github.com/MetaMask/core/compare/@metamask/social-controllers@2.3.0...@metamask/social-controllers@2.3.1
+[2.3.0]: https://github.com/MetaMask/core/compare/@metamask/social-controllers@2.2.1...@metamask/social-controllers@2.3.0
 [2.2.1]: https://github.com/MetaMask/core/compare/@metamask/social-controllers@2.2.0...@metamask/social-controllers@2.2.1
 [2.2.0]: https://github.com/MetaMask/core/compare/@metamask/social-controllers@2.1.0...@metamask/social-controllers@2.2.0
 [2.1.0]: https://github.com/MetaMask/core/compare/@metamask/social-controllers@2.0.0...@metamask/social-controllers@2.1.0

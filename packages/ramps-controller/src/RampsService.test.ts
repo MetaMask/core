@@ -1880,11 +1880,37 @@ describe('RampsService', () => {
       );
     });
 
-    it('sends an Authorization header containing the bearer token', async () => {
+    it('does not request a bearer token', async () => {
+      nock('https://on-ramp-cache.uat-api.cx.metamask.io')
+        .get('/v2/regions/us-al/payments')
+        .query({
+          region: 'us-al',
+          fiat: 'usd',
+          crypto: 'eip155:1/slip44:60',
+          provider: '/providers/stripe',
+          sdk: '2.1.6',
+          controller: CONTROLLER_VERSION,
+          context: 'mobile-ios',
+        })
+        .reply(200, mockPaymentMethodsResponse);
+      const { service, mockGetBearerToken } = getService();
+
+      const paymentMethodsPromise = service.getPaymentMethods({
+        region: 'us-al',
+        fiat: 'usd',
+        assetId: 'eip155:1/slip44:60',
+        provider: '/providers/stripe',
+      });
+      await jest.runAllTimersAsync();
+      await flushPromises();
+      await paymentMethodsPromise;
+
+      expect(mockGetBearerToken).not.toHaveBeenCalled();
+    });
+
+    it('does not send an Authorization header', async () => {
       const scope = nock('https://on-ramp-cache.uat-api.cx.metamask.io', {
-        reqheaders: {
-          Authorization: 'Bearer mock-bearer-token',
-        },
+        badheaders: ['authorization'],
       })
         .get('/v2/regions/us-al/payments')
         .query({
@@ -1910,61 +1936,6 @@ describe('RampsService', () => {
       await paymentMethodsPromise;
 
       expect(scope.isDone()).toBe(true);
-    });
-
-    it('requests a bearer token exactly once per call', async () => {
-      nock('https://on-ramp-cache.uat-api.cx.metamask.io', {
-        reqheaders: {
-          Authorization: 'Bearer mock-bearer-token',
-        },
-      })
-        .get('/v2/regions/us-al/payments')
-        .query({
-          region: 'us-al',
-          fiat: 'usd',
-          crypto: 'eip155:1/slip44:60',
-          provider: '/providers/stripe',
-          sdk: '2.1.6',
-          controller: CONTROLLER_VERSION,
-          context: 'mobile-ios',
-        })
-        .reply(200, mockPaymentMethodsResponse);
-      const { service, mockGetBearerToken } = getService();
-
-      const paymentMethodsPromise = service.getPaymentMethods({
-        region: 'us-al',
-        fiat: 'usd',
-        assetId: 'eip155:1/slip44:60',
-        provider: '/providers/stripe',
-      });
-      await jest.runAllTimersAsync();
-      await flushPromises();
-      await paymentMethodsPromise;
-
-      expect(mockGetBearerToken).toHaveBeenCalledTimes(1);
-    });
-
-    it('rejects without making an HTTP call when the bearer token cannot be retrieved', async () => {
-      const interceptor = nock('https://on-ramp-cache.uat-api.cx.metamask.io')
-        .get('/v2/regions/us-al/payments')
-        .query(true)
-        .reply(200, mockPaymentMethodsResponse);
-      const { service } = getService({
-        mockGetBearerToken: jest
-          .fn()
-          .mockRejectedValue(new Error('Wallet is locked')),
-      });
-
-      await expect(
-        service.getPaymentMethods({
-          region: 'us-al',
-          fiat: 'usd',
-          assetId: 'eip155:1/slip44:60',
-          provider: '/providers/stripe',
-        }),
-      ).rejects.toThrow('Wallet is locked');
-      expect(interceptor.isDone()).toBe(false);
-      cleanAll();
     });
   });
 

@@ -11,6 +11,7 @@ import type { TransactionPayFiatAsset } from './constants';
 import {
   deriveFiatAssetForFiatPayment,
   getRawSourceAmountFromOrderCryptoAmount,
+  isMoneyAccountDepositTransaction,
   resolveSourceAmountRaw,
 } from './utils';
 
@@ -192,6 +193,51 @@ describe('Fiat Utils', () => {
         nestedTransactions: [],
         type: TransactionType.batch,
       } as unknown as TransactionMeta;
+
+      const result = deriveFiatAssetForFiatPayment(transaction, messenger);
+
+      expect(result).toStrictEqual(ETH_MAINNET_FIAT_ASSET);
+    });
+
+    it('uses feature flag enabled types to filter nested transactions in batch', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_pay_fiat: {
+            enabledTransactionTypes: [TransactionType.predictDeposit],
+          },
+        },
+      });
+
+      const transaction = {
+        nestedTransactions: [
+          { type: TransactionType.perpsDeposit },
+          { type: TransactionType.predictDeposit },
+        ],
+        type: TransactionType.batch,
+      } as TransactionMeta;
+
+      const result = deriveFiatAssetForFiatPayment(transaction, messenger);
+
+      expect(result).toStrictEqual(
+        FIAT_ASSET_ID_BY_TX_TYPE[TransactionType.predictDeposit],
+      );
+    });
+
+    it('falls back to batch type when no nested transaction matches enabled types', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_pay_fiat: {
+            enabledTransactionTypes: [TransactionType.predictDeposit],
+          },
+        },
+      });
+
+      const transaction = {
+        nestedTransactions: [{ type: TransactionType.perpsDeposit }],
+        type: TransactionType.batch,
+      } as TransactionMeta;
 
       const result = deriveFiatAssetForFiatPayment(transaction, messenger);
 
@@ -405,6 +451,37 @@ describe('Fiat Utils', () => {
           decimals: 18,
         }),
       ).toThrow('Computed fiat order source amount is not positive');
+    });
+  });
+
+  describe('isMoneyAccountDepositTransaction', () => {
+    it('returns true for batch transaction with moneyAccountDeposit nested type', () => {
+      const transaction = {
+        type: TransactionType.batch,
+        nestedTransactions: [
+          { type: TransactionType.tokenMethodApprove },
+          { type: TransactionType.moneyAccountDeposit },
+        ],
+      } as unknown as TransactionMeta;
+
+      expect(isMoneyAccountDepositTransaction(transaction)).toBe(true);
+    });
+
+    it('returns false for non-money-account transaction types', () => {
+      const transaction = {
+        type: TransactionType.predictDeposit,
+      } as TransactionMeta;
+
+      expect(isMoneyAccountDepositTransaction(transaction)).toBe(false);
+    });
+
+    it('returns false for batch transaction without moneyAccountDeposit nested type', () => {
+      const transaction = {
+        type: TransactionType.batch,
+        nestedTransactions: [{ type: TransactionType.tokenMethodApprove }],
+      } as unknown as TransactionMeta;
+
+      expect(isMoneyAccountDepositTransaction(transaction)).toBe(false);
     });
   });
 });

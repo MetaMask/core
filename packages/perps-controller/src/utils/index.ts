@@ -24,6 +24,7 @@ export * from './hyperLiquidOrderBookProcessor';
 export * from './hyperLiquidValidation';
 export * from './idUtils';
 export * from './marketDataTransform';
+export * from './marketSearch';
 export * from './marketUtils';
 export * from './orderCalculations';
 export * from './perpsDiskPersistence';

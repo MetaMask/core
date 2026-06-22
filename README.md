@@ -116,6 +116,7 @@ yarn skills --reset                 # clear saved local selection
 - [`@metamask/selected-network-controller`](packages/selected-network-controller)
 - [`@metamask/shield-controller`](packages/shield-controller)
 - [`@metamask/signature-controller`](packages/signature-controller)
+- [`@metamask/smart-transactions-controller`](packages/smart-transactions-controller)
 - [`@metamask/snap-account-service`](packages/snap-account-service)
 - [`@metamask/social-controllers`](packages/social-controllers)
 - [`@metamask/storage-service`](packages/storage-service)
@@ -124,6 +125,7 @@ yarn skills --reset                 # clear saved local selection
 - [`@metamask/transaction-pay-controller`](packages/transaction-pay-controller)
 - [`@metamask/user-operation-controller`](packages/user-operation-controller)
 - [`@metamask/wallet`](packages/wallet)
+- [`@metamask/wallet-cli`](packages/wallet-cli)
 
 <!-- end package list -->
 
@@ -209,6 +211,7 @@ linkStyle default opacity:0.5
   selected_network_controller(["@metamask/selected-network-controller"]);
   shield_controller(["@metamask/shield-controller"]);
   signature_controller(["@metamask/signature-controller"]);
+  smart_transactions_controller(["@metamask/smart-transactions-controller"]);
   snap_account_service(["@metamask/snap-account-service"]);
   social_controllers(["@metamask/social-controllers"]);
   storage_service(["@metamask/storage-service"]);
@@ -217,6 +220,7 @@ linkStyle default opacity:0.5
   transaction_pay_controller(["@metamask/transaction-pay-controller"]);
   user_operation_controller(["@metamask/user-operation-controller"]);
   wallet(["@metamask/wallet"]);
+  wallet_cli(["@metamask/wallet-cli"]);
   account_tree_controller --> accounts_controller;
   account_tree_controller --> base_controller;
   account_tree_controller --> keyring_controller;
@@ -282,7 +286,6 @@ linkStyle default opacity:0.5
   authenticated_user_storage --> controller_utils;
   authenticated_user_storage --> messenger;
   base_controller --> messenger;
-  base_controller --> json_rpc_engine;
   base_data_service --> controller_utils;
   base_data_service --> messenger;
   bridge_controller --> accounts_controller;
@@ -369,7 +372,6 @@ linkStyle default opacity:0.5
   eth_json_rpc_middleware --> eth_json_rpc_provider;
   eth_json_rpc_middleware --> json_rpc_engine;
   eth_json_rpc_middleware --> message_manager;
-  eth_json_rpc_middleware --> network_controller;
   eth_json_rpc_provider --> json_rpc_engine;
   gas_fee_controller --> base_controller;
   gas_fee_controller --> controller_utils;
@@ -483,7 +485,6 @@ linkStyle default opacity:0.5
   phishing_controller --> messenger;
   phishing_controller --> transaction_controller;
   polling_controller --> base_controller;
-  polling_controller --> controller_utils;
   polling_controller --> network_controller;
   polling_controller --> messenger;
   preferences_controller --> base_controller;
@@ -538,6 +539,16 @@ linkStyle default opacity:0.5
   signature_controller --> logging_controller;
   signature_controller --> messenger;
   signature_controller --> network_controller;
+  smart_transactions_controller --> base_controller;
+  smart_transactions_controller --> controller_utils;
+  smart_transactions_controller --> eth_json_rpc_provider;
+  smart_transactions_controller --> messenger;
+  smart_transactions_controller --> network_controller;
+  smart_transactions_controller --> polling_controller;
+  smart_transactions_controller --> profile_sync_controller;
+  smart_transactions_controller --> remote_feature_flag_controller;
+  smart_transactions_controller --> transaction_controller;
+  smart_transactions_controller --> json_rpc_engine;
   snap_account_service --> account_tree_controller;
   snap_account_service --> keyring_controller;
   snap_account_service --> messenger;
@@ -588,12 +599,17 @@ linkStyle default opacity:0.5
   user_operation_controller --> polling_controller;
   user_operation_controller --> transaction_controller;
   user_operation_controller --> eth_block_tracker;
+  wallet --> accounts_controller;
   wallet --> approval_controller;
   wallet --> base_controller;
+  wallet --> connectivity_controller;
   wallet --> controller_utils;
   wallet --> keyring_controller;
   wallet --> messenger;
+  wallet --> remote_feature_flag_controller;
   wallet --> storage_service;
+  wallet_cli --> base_controller;
+  wallet_cli --> wallet;
 ```
 
 <!-- end dependency graph -->

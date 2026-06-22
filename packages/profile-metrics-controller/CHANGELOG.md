@@ -7,9 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **BREAKING:** Add chain-native proof-of-ownership signing for accounts, with profile-metric submissions now carrying a proof per account ([#9016](https://github.com/MetaMask/core/pull/9016), [#9190](https://github.com/MetaMask/core/pull/9190))
+  - New `ProofOfOwnershipService:sign({ account, nonce })` action, dispatching to `KeyringController:signPersonalMessage` for EVM accounts and to the account's snap (via the `signProofOfOwnership` JSON-RPC method) for Solana, Tron, and Bitcoin.
+  - `ProfileMetricsController._executePoll` signs a proof for each queued account and submits it alongside the canonicalized address (EIP-55 for `eip155`, lowercase bech32 / bech32m for `bip122`). Consumers must delegate `ProofOfOwnershipService:sign` onto the controller's messenger.
+  - Adds a `profileMetricsServiceName` alias for the existing `serviceName` export to disambiguate it from the new `proofOfOwnershipServiceName`.
+  - Re-enqueues all known accounts on the first unlock after upgrading so previously-synced records get a proof attached, gated by a new `proofBackfillEnqueued` state flag (fresh installs flip the flag on their initial sync).
+
 ### Changed
 
-- Bump `@metamask/transaction-controller` from `^67.0.0` to `^67.1.0` ([#9066](https://github.com/MetaMask/core/pull/9066))
+- Bump `@metamask/utils` from `^11.9.0` to `^11.11.0` ([#9074](https://github.com/MetaMask/core/pull/9074))
+- Bump `@metamask/controller-utils` from `^12.1.1` to `^12.2.0` ([#9083](https://github.com/MetaMask/core/pull/9083))
+- Bump `@metamask/transaction-controller` from `^67.0.0` to `^68.1.0` ([#9066](https://github.com/MetaMask/core/pull/9066), [#9089](https://github.com/MetaMask/core/pull/9089), [#9177](https://github.com/MetaMask/core/pull/9177), [#9203](https://github.com/MetaMask/core/pull/9203))
+- Bump `@metamask/profile-sync-controller` from `^28.1.1` to `^28.2.0` ([#9119](https://github.com/MetaMask/core/pull/9119))
+- Bump `@metamask/keyring-controller` from `^27.0.0` to `^27.1.0` ([#9129](https://github.com/MetaMask/core/pull/9129))
 
 ## [3.2.0]
 
