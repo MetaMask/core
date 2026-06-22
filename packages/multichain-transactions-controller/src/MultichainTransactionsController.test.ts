@@ -32,6 +32,7 @@ import {
 import type {
   MultichainTransactionsControllerState,
   MultichainTransactionsControllerMessenger,
+  PendingMultichainTransaction,
 } from './MultichainTransactionsController';
 
 const mockBtcAccount = {
@@ -255,11 +256,26 @@ async function waitForAllPromises(): Promise<void> {
 
 const NEW_ACCOUNT_ID = 'new-account-id';
 const TEST_ACCOUNT_ID = 'test-account-id';
+const MOCK_PENDING_TRANSACTION: PendingMultichainTransaction = {
+  approvalId: 'approval-id',
+  chainId: MultichainNetwork.Solana,
+  accountId: TEST_ACCOUNT_ID,
+  to: 'to-address',
+  amount: '1000000',
+  fee: {
+    amount: '5000',
+  },
+  origin: 'mock-snap',
+  createdAt: 123,
+};
 
 describe('MultichainTransactionsController', () => {
   it('initialize with default state', () => {
     const { controller } = setupController({});
-    expect(controller.state).toStrictEqual({ nonEvmTransactions: {} });
+    expect(controller.state).toStrictEqual({
+      nonEvmTransactions: {},
+      pendingTransactions: {},
+    });
   });
 
   it('updates transactions when "AccountsController:accountAdded" is fired', async () => {
@@ -322,7 +338,51 @@ describe('MultichainTransactionsController', () => {
 
     expect(controller.state).toStrictEqual({
       nonEvmTransactions: {},
+      pendingTransactions: {},
     });
+  });
+
+  it('adds, updates, and removes pending multichain transactions', () => {
+    const { controller } = setupController();
+
+    controller.addPendingTransaction(MOCK_PENDING_TRANSACTION);
+
+    expect(
+      controller.state.pendingTransactions[MOCK_PENDING_TRANSACTION.approvalId],
+    ).toStrictEqual(MOCK_PENDING_TRANSACTION);
+
+    controller.updatePendingTransaction(MOCK_PENDING_TRANSACTION.approvalId, {
+      amount: '2000000',
+    });
+
+    expect(
+      controller.state.pendingTransactions[MOCK_PENDING_TRANSACTION.approvalId],
+    ).toStrictEqual({
+      ...MOCK_PENDING_TRANSACTION,
+      amount: '2000000',
+    });
+
+    controller.removePendingTransaction(MOCK_PENDING_TRANSACTION.approvalId);
+
+    expect(
+      controller.state.pendingTransactions[MOCK_PENDING_TRANSACTION.approvalId],
+    ).toBeUndefined();
+  });
+
+  it('warns when updating or removing a missing pending multichain transaction', () => {
+    const { controller } = setupController();
+    const warnSpy = jest.spyOn(console, 'warn').mockImplementation();
+
+    controller.updatePendingTransaction('missing-approval-id', { amount: '1' });
+    controller.removePendingTransaction('missing-approval-id');
+
+    expect(warnSpy).toHaveBeenCalledTimes(2);
+    expect(warnSpy).toHaveBeenCalledWith(
+      'Pending multichain transaction not found for approvalId',
+      'missing-approval-id',
+    );
+
+    warnSpy.mockRestore();
   });
 
   it('updates transactions for a specific account', async () => {
@@ -564,6 +624,7 @@ describe('MultichainTransactionsController', () => {
             },
           },
         },
+        pendingTransactions: {},
       },
     });
 
@@ -597,6 +658,7 @@ describe('MultichainTransactionsController', () => {
             },
           },
         },
+        pendingTransactions: {},
       },
     });
 
@@ -621,6 +683,7 @@ describe('MultichainTransactionsController', () => {
     const { controller, rootMessenger } = setupController({
       state: {
         nonEvmTransactions: {},
+        pendingTransactions: {},
       },
     });
 
@@ -653,6 +716,7 @@ describe('MultichainTransactionsController', () => {
             },
           },
         },
+        pendingTransactions: {},
       },
       mocks: {
         listMultichainAccounts: [],
@@ -707,6 +771,7 @@ describe('MultichainTransactionsController', () => {
             },
           },
         },
+        pendingTransactions: {},
       },
     });
 
@@ -755,6 +820,7 @@ describe('MultichainTransactionsController', () => {
             },
           },
         },
+        pendingTransactions: {},
       },
     });
 
@@ -844,6 +910,7 @@ describe('MultichainTransactionsController', () => {
             },
           },
         },
+        pendingTransactions: {},
       },
     });
 
@@ -1027,6 +1094,7 @@ describe('MultichainTransactionsController', () => {
       ).toMatchInlineSnapshot(`
         {
           "nonEvmTransactions": {},
+          "pendingTransactions": {},
         }
       `);
     });
@@ -1059,6 +1127,7 @@ describe('MultichainTransactionsController', () => {
       ).toMatchInlineSnapshot(`
         {
           "nonEvmTransactions": {},
+          "pendingTransactions": {},
         }
       `);
     });
