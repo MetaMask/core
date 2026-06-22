@@ -461,6 +461,7 @@ describe('AccountsApiDataSource', () => {
       isUpdate: false,
       onAssetsUpdate: assetsUpdateHandler,
     });
+    await new Promise<void>((resolve) => setTimeout(resolve, 0));
 
     expect(assetsUpdateHandler).toHaveBeenCalledTimes(1);
 
@@ -597,6 +598,7 @@ describe('AccountsApiDataSource', () => {
           assetPreferences: {},
         }),
       });
+      await new Promise<void>((resolve) => setTimeout(resolve, 0));
 
       expect(assetsUpdateHandler).toHaveBeenCalledTimes(1);
       const response = assetsUpdateHandler.mock.calls[0][0];
@@ -643,6 +645,7 @@ describe('AccountsApiDataSource', () => {
           assetPreferences: {},
         }),
       });
+      await new Promise<void>((resolve) => setTimeout(resolve, 0));
 
       expect(assetsUpdateHandler).toHaveBeenCalledTimes(1);
       const response = assetsUpdateHandler.mock.calls[0][0];
@@ -681,6 +684,7 @@ describe('AccountsApiDataSource', () => {
           assetPreferences: {},
         }),
       });
+      await new Promise<void>((resolve) => setTimeout(resolve, 0));
 
       expect(assetsUpdateHandler).toHaveBeenCalledTimes(1);
       const response = assetsUpdateHandler.mock.calls[0][0];

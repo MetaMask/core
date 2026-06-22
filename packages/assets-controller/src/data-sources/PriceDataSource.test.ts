@@ -255,10 +255,10 @@ describe('PriceDataSource', () => {
     controller.destroy();
   });
 
-  it('fetch splits large asset lists into batches of 50', async () => {
-    // Generate 120 distinct mock asset IDs to exceed the 50-item batch limit.
+  it('fetch splits large asset lists into batches of 100', async () => {
+    // Generate 250 distinct mock asset IDs to exceed the 100-item batch limit.
     const assetIds = Array.from(
-      { length: 120 },
+      { length: 250 },
       (_, i) =>
         `eip155:1/erc20:0x${String(i).padStart(40, '0')}` as Caip19AssetId,
     );
@@ -279,19 +279,19 @@ describe('PriceDataSource', () => {
       getAssetsState,
     );
 
-    // With 120 assets and a batch size of 50, the API should be called three times.
+    // With 250 assets and a batch size of 100, the API should be called three times.
     expect(apiClient.prices.fetchV3SpotPrices).toHaveBeenCalledTimes(3);
     expect(apiClient.prices.fetchV3SpotPrices.mock.calls[0][0]).toHaveLength(
-      50,
+      100,
     );
     expect(apiClient.prices.fetchV3SpotPrices.mock.calls[1][0]).toHaveLength(
-      50,
+      100,
     );
     expect(apiClient.prices.fetchV3SpotPrices.mock.calls[2][0]).toHaveLength(
-      20,
+      50,
     );
-    // All 120 prices should be merged into the response.
-    expect(Object.keys(response.assetsPrice ?? {})).toHaveLength(120);
+    // All 250 prices should be merged into the response.
+    expect(Object.keys(response.assetsPrice ?? {})).toHaveLength(250);
 
     controller.destroy();
   });
@@ -489,6 +489,7 @@ describe('PriceDataSource', () => {
       onAssetsUpdate: assetsUpdateHandler,
       getAssetsState,
     });
+    await jest.advanceTimersByTimeAsync(0);
 
     expect(assetsUpdateHandler).toHaveBeenCalledTimes(1);
     expect(assetsUpdateHandler).toHaveBeenCalledWith(
@@ -522,11 +523,11 @@ describe('PriceDataSource', () => {
       isUpdate: false,
       onAssetsUpdate: jest.fn(),
     });
+    await jest.advanceTimersByTimeAsync(0);
 
     expect(apiClient.prices.fetchV3SpotPrices).toHaveBeenCalledTimes(1);
 
-    jest.advanceTimersByTime(5000);
-    await Promise.resolve();
+    await jest.advanceTimersByTimeAsync(5000);
 
     expect(apiClient.prices.fetchV3SpotPrices).toHaveBeenCalledTimes(2);
 
@@ -553,16 +554,15 @@ describe('PriceDataSource', () => {
       onAssetsUpdate: jest.fn(),
       getAssetsState,
     });
+    await jest.advanceTimersByTimeAsync(0);
 
     expect(apiClient.prices.fetchV3SpotPrices).toHaveBeenCalledTimes(1);
 
-    jest.advanceTimersByTime(10000);
-    await Promise.resolve();
+    await jest.advanceTimersByTimeAsync(10000);
 
     expect(apiClient.prices.fetchV3SpotPrices).toHaveBeenCalledTimes(2);
 
-    jest.advanceTimersByTime(50000);
-    await Promise.resolve();
+    await jest.advanceTimersByTimeAsync(50000);
 
     expect(apiClient.prices.fetchV3SpotPrices).toHaveBeenCalledTimes(7);
 
@@ -588,6 +588,7 @@ describe('PriceDataSource', () => {
       onAssetsUpdate: jest.fn(),
       getAssetsState,
     });
+    await jest.advanceTimersByTimeAsync(0);
 
     expect(apiClient.prices.fetchV3SpotPrices).toHaveBeenCalledTimes(1);
 
@@ -645,13 +646,13 @@ describe('PriceDataSource', () => {
       onAssetsUpdate: jest.fn(),
       getAssetsState,
     });
+    await jest.advanceTimersByTimeAsync(0);
 
     expect(apiClient.prices.fetchV3SpotPrices).toHaveBeenCalledTimes(1);
 
     await controller.unsubscribe('sub-1');
 
-    jest.advanceTimersByTime(10000);
-    await Promise.resolve();
+    await jest.advanceTimersByTimeAsync(10000);
 
     expect(apiClient.prices.fetchV3SpotPrices).toHaveBeenCalledTimes(1);
 
@@ -705,7 +706,7 @@ describe('PriceDataSource', () => {
     controller.destroy();
   });
 
-  it('middleware fetches prices when assetsForPriceUpdate has values', async () => {
+  it('middleware passes through even when assetsForPriceUpdate has values', async () => {
     const { controller, apiClient } = setupController({
       priceResponse: {
         [MOCK_TOKEN_ASSET]: createMockPriceData(1.0),
@@ -720,25 +721,13 @@ describe('PriceDataSource', () => {
 
     await controller.assetsMiddleware(context, next);
 
-    expect(apiClient.prices.fetchV3SpotPrices).toHaveBeenCalledWith(
-      [MOCK_TOKEN_ASSET],
-      { currency: 'usd', includeMarketData: true },
-    );
-    expect(context.response.assetsPrice?.[MOCK_TOKEN_ASSET]).toStrictEqual({
-      assetPriceType: 'fungible',
-      price: 1.0,
-      usdPrice: 1.0,
-      pricePercentChange1d: 2.5,
-      lastUpdated: expect.any(Number),
-      marketCap: 1000000000,
-      totalVolume: 50000000,
-    });
+    expect(apiClient.prices.fetchV3SpotPrices).not.toHaveBeenCalled();
     expect(next).toHaveBeenCalledWith(context);
 
     controller.destroy();
   });
 
-  it('middleware fetches prices for detected assets', async () => {
+  it('middleware passes through even when detected assets are present', async () => {
     const { controller, apiClient } = setupController({
       priceResponse: {
         [MOCK_TOKEN_ASSET]: createMockPriceData(1.0),
@@ -756,19 +745,7 @@ describe('PriceDataSource', () => {
 
     await controller.assetsMiddleware(context, next);
 
-    expect(apiClient.prices.fetchV3SpotPrices).toHaveBeenCalledWith(
-      [MOCK_TOKEN_ASSET],
-      { currency: 'usd', includeMarketData: true },
-    );
-    expect(context.response.assetsPrice?.[MOCK_TOKEN_ASSET]).toStrictEqual({
-      assetPriceType: 'fungible',
-      price: 1.0,
-      usdPrice: 1.0,
-      pricePercentChange1d: 2.5,
-      lastUpdated: expect.any(Number),
-      marketCap: 1000000000,
-      totalVolume: 50000000,
-    });
+    expect(apiClient.prices.fetchV3SpotPrices).not.toHaveBeenCalled();
     expect(next).toHaveBeenCalledWith(context);
 
     controller.destroy();
@@ -822,7 +799,7 @@ describe('PriceDataSource', () => {
     controller.destroy();
   });
 
-  it('middleware merges prices into existing response', async () => {
+  it('middleware preserves existing prices in response and passes through', async () => {
     const anotherAsset =
       'eip155:1/erc20:0x6b175474e89094c44da98b954eedeac495271d0f' as Caip19AssetId;
 
@@ -852,7 +829,8 @@ describe('PriceDataSource', () => {
     await controller.assetsMiddleware(context, next);
 
     expect(context.response.assetsPrice?.[anotherAsset]).toBeDefined();
-    expect(context.response.assetsPrice?.[MOCK_TOKEN_ASSET]).toBeDefined();
+    expect(context.response.assetsPrice?.[MOCK_TOKEN_ASSET]).toBeUndefined();
+    expect(next).toHaveBeenCalledWith(context);
 
     controller.destroy();
   });
@@ -882,6 +860,7 @@ describe('PriceDataSource', () => {
       onAssetsUpdate: jest.fn(),
       getAssetsState,
     });
+    await jest.advanceTimersByTimeAsync(0);
 
     await controller.subscribe({
       subscriptionId: 'sub-2',
@@ -890,13 +869,13 @@ describe('PriceDataSource', () => {
       onAssetsUpdate: jest.fn(),
       getAssetsState,
     });
+    await jest.advanceTimersByTimeAsync(0);
 
     expect(apiClient.prices.fetchV3SpotPrices).toHaveBeenCalledTimes(2);
 
     controller.destroy();
 
-    jest.advanceTimersByTime(10000);
-    await Promise.resolve();
+    await jest.advanceTimersByTimeAsync(10000);
 
     expect(apiClient.prices.fetchV3SpotPrices).toHaveBeenCalledTimes(2);
   });

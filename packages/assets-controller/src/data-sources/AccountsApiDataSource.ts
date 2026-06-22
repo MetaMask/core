@@ -22,6 +22,7 @@ import type {
   SubscriptionRequest,
 } from './AbstractDataSource';
 import { AbstractDataSource } from './AbstractDataSource';
+import { makePoller } from './polling-utils';
 
 // ============================================================================
 // CONSTANTS
@@ -185,8 +186,6 @@ export class AccountsApiDataSource extends AbstractDataSource<
     previousChains: ChainId[],
   ) => void;
 
-  readonly #pollInterval: number;
-
   readonly #fetchTimeoutMs: number;
 
   /** Getter avoids stale value when user toggles token detection at runtime. */
@@ -195,8 +194,23 @@ export class AccountsApiDataSource extends AbstractDataSource<
   /** ApiPlatformClient for cached API calls */
   readonly #apiClient: ApiPlatformClient;
 
-  /** Chains refresh timer */
-  #chainsRefreshTimer: ReturnType<typeof setInterval> | null = null;
+  /**
+   * Poller for the 20-minute active-chains refresh.
+   * Uses StaticIntervalPollingControllerOnly via composition (class already
+   * extends AbstractDataSource).
+   */
+  readonly #chainsPoller = makePoller<null>(
+    async () => this.#refreshActiveChains(),
+  );
+
+  /**
+   * Poller for subscription-based balance updates.
+   * startPolling fires immediately (setTimeout 0) then repeats at the
+   * configured interval.
+   */
+  readonly #subscriptionPoller = makePoller<{ subscriptionId: string }>(
+    async ({ subscriptionId }) => this.#executePollForSubscription(subscriptionId),
+  );
 
   /** State accessor from subscriptions (for filtering when tokenDetectionEnabled is false) */
   #getAssetsState?: () => AssetsControllerStateInternal;
@@ -208,11 +222,15 @@ export class AccountsApiDataSource extends AbstractDataSource<
     });
 
     this.#onActiveChainsUpdated = options.onActiveChainsUpdated;
-    this.#pollInterval = options.pollInterval ?? DEFAULT_POLL_INTERVAL;
     this.#fetchTimeoutMs = options.fetchTimeoutMs ?? DEFAULT_FETCH_TIMEOUT_MS;
     this.#tokenDetectionEnabled =
       options.tokenDetectionEnabled ?? ((): boolean => true);
     this.#apiClient = options.queryApiClient;
+
+    this.#chainsPoller.setIntervalLength(20 * 60 * 1000);
+    this.#subscriptionPoller.setIntervalLength(
+      options.pollInterval ?? DEFAULT_POLL_INTERVAL,
+    );
 
     this.#initializeActiveChains().catch(console.error);
   }
@@ -230,12 +248,7 @@ export class AccountsApiDataSource extends AbstractDataSource<
       );
 
       // Periodically refresh active chains (every 20 minutes)
-      this.#chainsRefreshTimer = setInterval(
-        () => {
-          this.#refreshActiveChains().catch(console.error);
-        },
-        20 * 60 * 1000,
-      );
+      this.#chainsPoller.startPolling(null);
     } catch (error) {
       log('Failed to fetch active chains', error);
     }
@@ -543,46 +556,40 @@ export class AccountsApiDataSource extends AbstractDataSource<
     // Clean up existing subscription if any
     await this.unsubscribe(subscriptionId);
 
-    const pollInterval = request.updateInterval ?? this.#pollInterval;
-
-    // Create poll function for this subscription
-    const pollFn = async (): Promise<void> => {
-      try {
-        const subscription = this.activeSubscriptions.get(subscriptionId);
-        if (!subscription?.request) {
-          return;
-        }
-
-        // Use stored request (which gets updated on account changes)
-        const fetchResponse = await this.fetch({
-          ...subscription.request,
-          chainIds: subscription.chains,
-        });
-
-        // Report update to AssetsController via callback
-        await subscription.onAssetsUpdate(fetchResponse);
-      } catch (error) {
-        log('Subscription poll failed', { subscriptionId, error });
-      }
-    };
-
-    // Set up polling
-    const timer = setInterval(() => {
-      pollFn().catch(console.error);
-    }, pollInterval);
-
-    // Store subscription with request for account updates
+    // Store subscription; cleanup stops the polling token for this subscription.
+    const pollingToken = this.#subscriptionPoller.startPolling({ subscriptionId });
     this.activeSubscriptions.set(subscriptionId, {
       cleanup: () => {
-        clearInterval(timer);
+        this.#subscriptionPoller.stopPollingByPollingToken(pollingToken);
       },
       chains: chainsToSubscribe,
       request,
       onAssetsUpdate: subscriptionRequest.onAssetsUpdate,
     });
+  }
 
-    // Initial fetch
-    await pollFn();
+  /**
+   * Execute a single poll cycle for the given subscription.
+   * Called by #subscriptionPoller on every tick.
+   *
+   * @param subscriptionId - ID of the subscription to poll.
+   */
+  async #executePollForSubscription(subscriptionId: string): Promise<void> {
+    try {
+      const subscription = this.activeSubscriptions.get(subscriptionId);
+      if (!subscription?.request) {
+        return;
+      }
+
+      const fetchResponse = await this.fetch({
+        ...subscription.request,
+        chainIds: subscription.chains,
+      });
+
+      await subscription.onAssetsUpdate(fetchResponse);
+    } catch (error) {
+      log('Subscription poll failed', { subscriptionId, error });
+    }
   }
 
   // ============================================================================
@@ -590,12 +597,8 @@ export class AccountsApiDataSource extends AbstractDataSource<
   // ============================================================================
 
   destroy(): void {
-    // Clean up timers
-    if (this.#chainsRefreshTimer) {
-      clearInterval(this.#chainsRefreshTimer);
-    }
-
-    // Clean up subscriptions
+    this.#chainsPoller.stopAllPolling();
+    this.#subscriptionPoller.stopAllPolling();
     super.destroy();
   }
 }
