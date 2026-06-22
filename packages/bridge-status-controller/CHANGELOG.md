@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [72.2.0]
+
 ### Added
 
 - Add input primary denomination to submitted bridge history and post-submit analytics ([#9147](https://github.com/MetaMask/core/pull/9147))
@@ -1301,7 +1303,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#5317](https://github.com/MetaMask/core/pull/5317))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@72.1.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@72.2.0...HEAD
+[72.2.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@72.1.1...@metamask/bridge-status-controller@72.2.0
 [72.1.1]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@72.1.0...@metamask/bridge-status-controller@72.1.1
 [72.1.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@72.0.3...@metamask/bridge-status-controller@72.1.0
 [72.0.3]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@72.0.2...@metamask/bridge-status-controller@72.0.3
