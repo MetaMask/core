@@ -156,11 +156,11 @@ describe('java-tron-up installer', () => {
       dependencies,
     );
 
-    assert.equal(readFileSync(linuxResult.fullNodeJar, 'utf8'), customLinuxContent);
     assert.equal(
-      linuxResult.version,
-      JAVA_TRON_DEFAULT_FULL_NODE.version,
+      readFileSync(linuxResult.fullNodeJar, 'utf8'),
+      customLinuxContent,
     );
+    assert.equal(linuxResult.version, JAVA_TRON_DEFAULT_FULL_NODE.version);
 
     downloads.length = 0;
     let usedDefaultArmUrl = false;
