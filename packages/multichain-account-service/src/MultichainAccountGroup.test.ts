@@ -179,4 +179,44 @@ describe('MultichainAccountGroup', () => {
       expect(group.select({ scopes: [SolScope.Mainnet] })).toStrictEqual([]);
     });
   });
+
+  describe('isAligned', () => {
+    it('returns true when every provider has at least one account in the group', () => {
+      const { group } = setup({
+        accounts: [[MOCK_WALLET_1_EVM_ACCOUNT], [MOCK_WALLET_1_SOL_ACCOUNT]],
+      });
+
+      expect(group.isAligned()).toBe(true);
+    });
+
+    it('returns false when at least one provider has no accounts in the group', () => {
+      const { group } = setup({
+        accounts: [
+          [MOCK_WALLET_1_EVM_ACCOUNT],
+          [], // second provider has no accounts for this group
+        ],
+      });
+
+      expect(group.isAligned()).toBe(false);
+    });
+
+    it('returns true for a group with no providers', () => {
+      const { group } = setup({ accounts: [] });
+
+      expect(group.isAligned()).toBe(true);
+    });
+
+    it('returns true when a provider mock is configured to return true despite having no accounts (simulates disabled wrapper)', () => {
+      const { group, providers } = setup({
+        accounts: [
+          [MOCK_WALLET_1_EVM_ACCOUNT],
+          [], // second provider has no accounts
+        ],
+      });
+      // Simulate a disabled AccountProviderWrapper, which always returns true.
+      providers[1].isAligned.mockReturnValue(true);
+
+      expect(group.isAligned()).toBe(true);
+    });
+  });
 });

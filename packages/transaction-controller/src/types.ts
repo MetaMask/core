@@ -1227,7 +1227,6 @@ export interface RemoteTransactionSourceRequest {
 
 /**
  * An object capable of fetching transaction data from a remote source.
- * Used by the IncomingTransactionHelper to retrieve remote transaction data.
  */
 // This interface was created before this ESLint rule was added.
 // Convert to a `type` in a future major version.
