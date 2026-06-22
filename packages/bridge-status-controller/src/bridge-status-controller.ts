@@ -39,8 +39,12 @@ import {
   MAX_ATTEMPTS,
   REFRESH_INTERVAL_MS,
 } from './constants';
-import { QuoteStatusUpdateError } from './errors';
-import { QuoteStatusUpdateManager } from './quote-status-update-manager';
+import {
+  QUOTE_STATUS_UPDATE_ENTRY_TTL,
+  QUOTE_STATUS_UPDATE_RETRY_INTERVAL_MS,
+} from './quote-status-manager/constants';
+import { QuoteStatusUpdateError } from './quote-status-manager/errors';
+import { QuoteStatusUpdateManager } from './quote-status-manager/quotes-status-update-manager';
 import executeSubmitStrategy from './strategy';
 import { SubmitStep } from './strategy/types';
 import type { SubmitStrategyParams } from './strategy/types';
@@ -103,7 +107,7 @@ const metadata: StateMetadata<BridgeStatusControllerState> = {
     usedInUi: true,
   },
   // Deferred status updates used by QuoteStatusUpdateManager
-  deferredStatusUpdates: {
+  quoteUpdateStatusStore: {
     includeInStateLogs: false,
     persist: true,
     includeInDebugSnapshot: false,
@@ -210,12 +214,14 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       clientProduct,
       clientVersion,
       apiBaseUrl: this.#config.customBridgeApiBaseUrl,
-      initialDeferredUpdates: this.state.deferredStatusUpdates,
-      persistDeferredUpdates: (updates): void => {
+      initialData: this.state.quoteUpdateStatusStore,
+      onPersistUpdates: (updates): void => {
         this.update((draft) => {
-          draft.deferredStatusUpdates = updates;
+          draft.quoteUpdateStatusStore = updates;
         });
       },
+      entryTtlMs: QUOTE_STATUS_UPDATE_ENTRY_TTL,
+      updateIntervalMs: QUOTE_STATUS_UPDATE_RETRY_INTERVAL_MS,
       onError: onQuoteStatusUpdateError,
       isEnabled: isQuoteStatusUpdateEnabled,
     });
@@ -480,8 +486,8 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     this.#quoteStatusUpdateManager.destroy();
     this.update((state) => {
       state.txHistory = DEFAULT_BRIDGE_STATUS_CONTROLLER_STATE.txHistory;
-      state.deferredStatusUpdates =
-        DEFAULT_BRIDGE_STATUS_CONTROLLER_STATE.deferredStatusUpdates;
+      state.quoteUpdateStatusStore =
+        DEFAULT_BRIDGE_STATUS_CONTROLLER_STATE.quoteUpdateStatusStore;
     });
   };
 

@@ -43,14 +43,9 @@ import type {
 import type { CaipAssetType } from '@metamask/utils';
 
 import type { BridgeStatusControllerMethodActions } from './bridge-status-controller-method-action-types';
-import {
-  BRIDGE_STATUS_CONTROLLER_NAME,
-  QuoteStatusUpdateStatus,
-} from './constants';
-import type {
-  QuoteStatusUpdateResponseSchema,
-  StatusResponseSchema,
-} from './utils/validators';
+import { BRIDGE_STATUS_CONTROLLER_NAME } from './constants';
+import { QuoteStatusState } from './quote-status-manager/constants';
+import { StatusResponseSchema } from './utils/validators';
 
 // All fields need to be types not interfaces, same with their children fields
 // o/w you get a type error
@@ -312,10 +307,10 @@ export type StartPollingForBridgeTxStatusArgsSerialized = Omit<
 
 export type SourceChainTxMetaId = string;
 
-export type DeferredStatusUpdateEntry = {
+export type QuoteStatusPersistEntry = {
   quoteId: string;
   srcTxHash: string;
-  pendingStatuses: QuoteStatusUpdateStatus[];
+  status: QuoteStatusState;
   createdAt: number;
   lastAttemptAt: number;
   txMetaId?: string;
@@ -323,7 +318,7 @@ export type DeferredStatusUpdateEntry = {
 
 export type BridgeStatusControllerState = {
   txHistory: Record<SourceChainTxMetaId, BridgeHistoryItem>;
-  deferredStatusUpdates: Record<string, DeferredStatusUpdateEntry>;
+  quoteUpdateStatusStore: Record<string, QuoteStatusPersistEntry>;
 };
 
 // Actions
@@ -389,8 +384,4 @@ export type BridgeStatusControllerMessenger = Messenger<
   typeof BRIDGE_STATUS_CONTROLLER_NAME,
   BridgeStatusControllerActions | AllowedActions,
   BridgeStatusControllerEvents | AllowedEvents
->;
-
-export type QuoteStatusUpdateResponse = Infer<
-  typeof QuoteStatusUpdateResponseSchema
 >;

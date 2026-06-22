@@ -1,5 +1,6 @@
 // Export custom error classes
-export { QuoteStatusUpdateError } from './errors';
+export { QuoteStatusUpdateError } from './quote-status-manager/errors';
+export { BaseQuoteStatusUpdateErrorTypes } from './quote-status-manager/constants';
 
 // Export constants
 export {
@@ -7,7 +8,6 @@ export {
   DEFAULT_BRIDGE_STATUS_CONTROLLER_STATE,
   BRIDGE_STATUS_CONTROLLER_NAME,
   MAX_ATTEMPTS,
-  QuoteStatusUpdateErrorType,
 } from './constants';
 
 export type {
@@ -19,7 +19,7 @@ export type {
   RefuelStatusResponse,
   BridgeHistoryItem,
   BridgeStatusControllerState,
-  DeferredStatusUpdateEntry,
+  QuoteStatusPersistEntry,
   BridgeStatusControllerMessenger,
   BridgeStatusControllerActions,
   BridgeStatusControllerGetStateAction,
