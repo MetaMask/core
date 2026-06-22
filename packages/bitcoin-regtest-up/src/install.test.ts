@@ -97,7 +97,10 @@ describe('bitcoin-regtest-up installer', () => {
   it('returns empty installer options when package.json is missing', () => {
     const cwd = createTempDir();
 
-    assert.deepEqual(readBitcoinRegtestInstallOptionsFromPackageJson({ cwd }), {});
+    assert.deepEqual(
+      readBitcoinRegtestInstallOptionsFromPackageJson({ cwd }),
+      {},
+    );
   });
 
   it('reads pinned installer options from package.json', () => {
