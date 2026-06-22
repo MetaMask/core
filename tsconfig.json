@@ -123,6 +123,9 @@
       "path": "./packages/geolocation-controller"
     },
     {
+      "path": "./packages/java-tron-up"
+    },
+    {
       "path": "./packages/json-rpc-engine"
     },
     {
