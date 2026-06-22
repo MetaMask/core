@@ -9,12 +9,6 @@ describe('PERPS_EVENT_PROPERTY', () => {
       expect(PERPS_EVENT_PROPERTY.CHART_LIBRARY).toBe('chart_library');
     });
 
-    it('exports CHART_LOAD_LATENCY_MS key', () => {
-      expect(PERPS_EVENT_PROPERTY.CHART_LOAD_LATENCY_MS).toBe(
-        'chart_load_latency_ms',
-      );
-    });
-
     it('exports ASSET_TYPE key', () => {
       expect(PERPS_EVENT_PROPERTY.ASSET_TYPE).toBe('asset_type');
     });

@@ -63,7 +63,6 @@ export const PERPS_EVENT_PROPERTY = {
   TIME_SERIE_SELECTED: 'time_serie_selected',
   CANDLE_PERIOD: 'candle_period',
   CHART_LIBRARY: 'chart_library',
-  CHART_LOAD_LATENCY_MS: 'chart_load_latency_ms',
   ASSET_TYPE: 'asset_type',
 
   // Risk management properties
