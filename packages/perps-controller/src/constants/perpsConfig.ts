@@ -336,6 +336,7 @@ export const DATA_LAKE_API_CONFIG = {
  */
 export const TERMINAL_API_CONFIG = {
   CacheTtlMs: 5 * 60 * 1000, // 5 minutes
+  FetchTimeoutMs: 10_000, // 10 seconds – degrade to provider on slow Terminal
 } as const;
 
 /**
