@@ -9,11 +9,7 @@ import type {
   ApprovalRevocationTerms,
   Caveat,
 } from '@metamask/delegation-core';
-import type { DELEGATOR_CONTRACTS } from '@metamask/delegation-deployments';
 import type { Hex } from '@metamask/utils';
-
-export type DeployedContractsByName =
-  (typeof DELEGATOR_CONTRACTS)[number][number];
 
 /**
  * Permission type for an unbounded ERC-20 token allowance.
@@ -123,9 +119,6 @@ export type ChecksumEnforcersByChainId = {
   redeemerEnforcer: Hex;
 };
 
-/** Caveat with checksummed enforcer address; used by rule decode functions. */
-export type ChecksumCaveat = Caveat<Hex>;
-
 /**
  * Result of validating and decoding permission terms from caveats.
  * When valid, includes expiry and decoded data; when invalid, includes the error.
@@ -173,6 +166,6 @@ export type PermissionDecoder = {
  */
 export type RuleDecoder = (args: {
   contractAddresses: ChecksumEnforcersByChainId;
-  caveats: ChecksumCaveat[];
+  caveats: Caveat[];
   requiredEnforcers: Map<Hex, number>;
 }) => Rule | null;

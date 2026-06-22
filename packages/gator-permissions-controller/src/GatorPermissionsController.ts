@@ -30,11 +30,11 @@ import type { Hex } from '@metamask/utils';
 import { DELEGATION_FRAMEWORK_VERSION } from './constants';
 import type { DecodedPermission } from './decodePermission';
 import {
-  createPermissionDecodersForContracts,
   findDecodersWithMatchingCaveatAddresses,
   reconstructDecodedPermission,
   selectUniqueDecoderAndDecodedPermission,
 } from './decodePermission';
+import { createPermissionDecodersForContracts } from './decodePermission/decoders';
 import {
   GatorPermissionsFetchError,
   GatorPermissionsProviderError,

@@ -1,10 +1,11 @@
+import type { DeployedContractsByName } from '@metamask/7715-permission-types';
 import type { Caveat } from '@metamask/delegation-core';
 import { getChecksumAddress } from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
 
 import { createPermissionDecodersForContracts } from './decoders';
-import type { DeployedContractsByName } from './types';
 import {
+  extractExpiryFromCaveatTerms,
   getChecksumEnforcersByChainId,
   getTermsByEnforcer,
   splitHex,
@@ -97,9 +98,8 @@ describe('createPermissionDecodersForContracts', () => {
     // native-token-stream
     // native-token-periodic
     // native-token-allowance
-    // erc20-token-revocation
     // token-approval-revocation
-    const permissionTypeCount = 8;
+    const permissionTypeCount = 7;
     const decoders = createPermissionDecodersForContracts(contracts);
     expect(decoders).toHaveLength(permissionTypeCount);
 
@@ -275,29 +275,6 @@ describe('createPermissionDecodersForContracts', () => {
       ]),
     );
 
-    // erc20-token-revocation
-    expect(byType['erc20-token-revocation']).toBeDefined();
-    expect(byType['erc20-token-revocation'].permissionType).toBe(
-      'erc20-token-revocation',
-    );
-    expect(byType['erc20-token-revocation'].optionalEnforcers.size).toBe(2);
-    expect(
-      byType['erc20-token-revocation'].optionalEnforcers.has(timestampEnforcer),
-    ).toBe(true);
-    expect(
-      byType['erc20-token-revocation'].optionalEnforcers.has(redeemerEnforcer),
-    ).toBe(true);
-    expect(byType['erc20-token-revocation'].requiredEnforcers.size).toBe(3);
-    expect(
-      Array.from(byType['erc20-token-revocation'].requiredEnforcers.entries()),
-    ).toStrictEqual(
-      expect.arrayContaining([
-        [allowedCalldataEnforcer, 2],
-        [valueLteEnforcer, 1],
-        [nonceEnforcer, 1],
-      ]),
-    );
-
     // token-approval-revocation
     expect(byType['token-approval-revocation']).toBeDefined();
     expect(byType['token-approval-revocation'].permissionType).toBe(
@@ -428,6 +405,40 @@ describe('getTermsByEnforcer', () => {
         throwIfNotFound: true,
       }),
     ).toThrow('Invalid caveats');
+  });
+});
+
+describe('extractExpiryFromCaveatTerms', () => {
+  it('returns expiry from valid TimestampEnforcer terms', () => {
+    const expiry = 1735689600n;
+    const terms =
+      `0x${'0'.repeat(32)}${expiry.toString(16).padStart(32, '0')}` as Hex;
+
+    expect(extractExpiryFromCaveatTerms(terms)).toBe(Number(expiry));
+  });
+
+  it('throws if terms length is not 66 characters', () => {
+    const invalidTerms = '0x1234' as Hex;
+    expect(() => extractExpiryFromCaveatTerms(invalidTerms)).toThrow(
+      'Invalid TimestampEnforcer terms length: expected 66 characters (0x + 64 hex), got 6',
+    );
+  });
+
+  it('throws if timestampAfterThreshold is non-zero', () => {
+    const terms =
+      '0x0000000000000000000000000000000100000000000000000000000000000001' as Hex;
+
+    expect(() => extractExpiryFromCaveatTerms(terms)).toThrow(
+      'Invalid expiry: timestampAfterThreshold must be 0',
+    );
+  });
+
+  it('throws if timestampBeforeThreshold is zero', () => {
+    const terms = `0x${'0'.repeat(64)}`;
+
+    expect(() => extractExpiryFromCaveatTerms(terms)).toThrow(
+      'Invalid expiry: timestampBeforeThreshold must be greater than 0',
+    );
   });
 });
 
