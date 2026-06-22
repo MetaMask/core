@@ -22,6 +22,7 @@ import { request as requestHttps } from 'node:https';
 import { arch as osArch, homedir, platform as osPlatform } from 'node:os';
 import { dirname, join, relative } from 'node:path';
 import { pipeline } from 'node:stream/promises';
+import { parse as parseYaml } from 'yaml';
 
 const SOLANA_TEST_VALIDATOR_CACHE_NAMESPACE = 'solana-test-validator-up';
 const RELEASE_CACHE_NAMESPACE = 'release';
@@ -106,22 +107,24 @@ export function getSolanaTestValidatorCacheDirectory({
   homeDirectory?: string;
 } = {}): string {
   const yarnRcPath = join(cwd, '.yarnrc.yml');
+  let enableGlobalCache = false;
 
   try {
-    const yarnRc = readFileSync(yarnRcPath, 'utf8');
-    if (/^\s*enableGlobalCache:\s*true\s*$/mu.test(yarnRc)) {
-      return join(homeDirectory, '.cache', 'metamask');
-    }
+    const parsedConfig = parseYaml(readFileSync(yarnRcPath, 'utf8'));
+    enableGlobalCache = parsedConfig?.enableGlobalCache ?? false;
   } catch (error) {
-    if (!isFileMissingError(error)) {
-      console.warn(
-        `Warning: Error reading ${yarnRcPath}, using local solana-test-validator-up cache:`,
-        error,
-      );
+    if (isFileMissingError(error)) {
+      return join(cwd, '.metamask', 'cache');
     }
+    console.warn(
+      `Warning: Error reading ${yarnRcPath}, using local solana-test-validator-up cache:`,
+      error,
+    );
   }
 
-  return join(cwd, '.metamask', 'cache');
+  return enableGlobalCache
+    ? join(homeDirectory, '.cache', 'metamask')
+    : join(cwd, '.metamask', 'cache');
 }
 
 export function readSolanaTestValidatorInstallOptionsFromPackageJson({
@@ -131,9 +134,16 @@ export function readSolanaTestValidatorInstallOptionsFromPackageJson({
   cwd?: string;
   packageJsonPath?: string;
 } = {}): SolanaTestValidatorInstallOptions {
-  const packageJson = JSON.parse(
-    readFileSync(packageJsonPath, 'utf8'),
-  ) as SolanaTestValidatorPackageJson;
+  let raw: string;
+  try {
+    raw = readFileSync(packageJsonPath, 'utf8');
+  } catch (error) {
+    if (isFileMissingError(error)) {
+      return {};
+    }
+    throw error;
+  }
+  const packageJson = JSON.parse(raw) as SolanaTestValidatorPackageJson;
   const config =
     packageJson.solanaTestValidatorUp ??
     packageJson.solanatestvalidatorup ??
@@ -215,7 +225,10 @@ export async function installSolanaTestValidator(
   const binDirectory =
     options.binDirectory ?? join(cwd, 'node_modules', '.bin');
   const platformKey = options.platform ?? getPlatformKey();
-  const release = options.release ?? SOLANA_TEST_VALIDATOR_DEFAULT_RELEASE;
+  const release = mergeArtifactConfig(
+    SOLANA_TEST_VALIDATOR_DEFAULT_RELEASE,
+    options.release,
+  );
   const releaseConfig = resolvePlatformConfig(
     release,
     platformKey,
@@ -371,6 +384,7 @@ if (result.error) {
 
 if (result.signal) {
   process.kill(process.pid, result.signal);
+  process.exit(1);
 }
 
 process.exit(result.status ?? 0);
@@ -415,12 +429,25 @@ function findExecutable(root: string, name: string): string | undefined {
   return undefined;
 }
 
+function mergeArtifactConfig(
+  defaults: SolanaTestValidatorArtifactConfig,
+  override: SolanaTestValidatorArtifactConfig | undefined,
+): SolanaTestValidatorArtifactConfig {
+  if (!override) {
+    return defaults;
+  }
+  return {
+    version: override.version ?? defaults.version,
+    platforms: { ...defaults.platforms, ...override.platforms },
+  };
+}
+
 function resolvePlatformConfig(
   config: SolanaTestValidatorArtifactConfig,
   platform: string,
   label: string,
 ): SolanaTestValidatorArtifactPlatformConfig {
-  const platformConfig = config.platforms[platform] ?? config.platforms.current;
+  const platformConfig = config.platforms.current ?? config.platforms[platform];
 
   if (!platformConfig) {
     throw new Error(`No ${label} is configured for ${platform}.`);

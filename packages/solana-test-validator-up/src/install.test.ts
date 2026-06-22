@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import {
+  chmodSync,
   existsSync,
   lstatSync,
   mkdtempSync,
@@ -47,6 +48,17 @@ describe('solana-test-validator-up installer', () => {
     );
   });
 
+  it('uses the global MetaMask cache when Yarn global cache is enabled', () => {
+    const cwd = createTempDir();
+    const homeDirectory = join(cwd, 'home');
+    writeFileSync(join(cwd, '.yarnrc.yml'), 'enableGlobalCache: true\n');
+
+    assert.equal(
+      getSolanaTestValidatorCacheDirectory({ cwd, homeDirectory }),
+      join(homeDirectory, '.cache', 'metamask'),
+    );
+  });
+
   it('uses the local MetaMask cache when Yarn global cache is disabled', () => {
     const cwd = createTempDir();
     writeFileSync(join(cwd, '.yarnrc.yml'), 'enableGlobalCache: false\n');
@@ -54,6 +66,40 @@ describe('solana-test-validator-up installer', () => {
     assert.equal(
       getSolanaTestValidatorCacheDirectory({ cwd }),
       join(cwd, '.metamask', 'cache'),
+    );
+  });
+
+  it('uses the local MetaMask cache when .yarnrc.yml is missing', () => {
+    const cwd = createTempDir();
+
+    assert.equal(
+      getSolanaTestValidatorCacheDirectory({ cwd }),
+      join(cwd, '.metamask', 'cache'),
+    );
+  });
+
+  it('uses the local MetaMask cache when .yarnrc.yml is unreadable', () => {
+    const cwd = createTempDir();
+    const yarnRcPath = join(cwd, '.yarnrc.yml');
+    writeFileSync(yarnRcPath, 'enableGlobalCache: true\n');
+    chmodSync(yarnRcPath, 0o000);
+
+    try {
+      assert.equal(
+        getSolanaTestValidatorCacheDirectory({ cwd }),
+        join(cwd, '.metamask', 'cache'),
+      );
+    } finally {
+      chmodSync(yarnRcPath, 0o644);
+    }
+  });
+
+  it('returns empty options when package.json is absent', () => {
+    const cwd = createTempDir();
+
+    assert.deepEqual(
+      readSolanaTestValidatorInstallOptionsFromPackageJson({ cwd }),
+      {},
     );
   });
 
@@ -121,6 +167,59 @@ describe('solana-test-validator-up installer', () => {
     );
   });
 
+  it('merges partial release overrides with pinned defaults', async () => {
+    const cwd = createTempDir();
+    const cacheDirectory = join(cwd, '.metamask', 'cache');
+    const binDirectory = join(cwd, 'node_modules', '.bin');
+    const downloads: { destination: string; url: string }[] = [];
+    const releaseContent = 'fake solana release archive';
+    const customUrl = 'https://example.test/custom-darwin-arm64.tar.bz2';
+    const partialRelease = {
+      platforms: {
+        'darwin-arm64': {
+          checksum: sha256(releaseContent),
+          url: customUrl,
+        },
+      },
+    };
+
+    await installSolanaTestValidator(
+      {
+        binDirectory,
+        cacheDirectory,
+        cwd,
+        platform: 'darwin-arm64',
+        release: partialRelease,
+      },
+      createDependencies({ downloads, releaseContent }),
+    );
+
+    assert.equal(downloads[0]?.url, customUrl);
+
+    downloads.length = 0;
+
+    await assert.rejects(
+      async () => {
+        await installSolanaTestValidator(
+          {
+            binDirectory,
+            cacheDirectory,
+            cwd,
+            platform: 'linux-x64',
+            release: partialRelease,
+          },
+          createDependencies({ downloads, releaseContent }),
+        );
+      },
+      /checksum mismatch/u,
+    );
+
+    assert.equal(
+      downloads[0]?.url,
+      SOLANA_TEST_VALIDATOR_DEFAULT_RELEASE.platforms['linux-x64']?.url,
+    );
+  });
+
   it('downloads, verifies, caches, and installs Solana CLI wrappers', async () => {
     const cwd = createTempDir();
     const cacheDirectory = join(cwd, '.metamask', 'cache');
@@ -168,6 +267,56 @@ describe('solana-test-validator-up installer', () => {
       { encoding: 'utf8' },
     );
     assert.equal(wrapperOutput.trim(), 'solana-test-validator --version');
+  });
+
+  it('exits non-zero when the child terminates via a signal', async () => {
+    const cwd = createTempDir();
+    const cacheDirectory = join(cwd, '.metamask', 'cache');
+    const binDirectory = join(cwd, 'node_modules', '.bin');
+    const releaseContent = 'fake solana release archive';
+    const dependencies: SolanaTestValidatorInstallDependencies = {
+      ...createDependencies({ releaseContent }),
+      extractArchive: async (_archivePath, destination): Promise<void> => {
+        const solanaBinDirectory = join(destination, 'solana-release', 'bin');
+        await mkdir(solanaBinDirectory, { recursive: true });
+        await writeFile(
+          join(solanaBinDirectory, 'solana-test-validator'),
+          "#!/usr/bin/env node\nprocess.kill(process.pid, 'SIGTERM');\n",
+          { mode: 0o755 },
+        );
+        await writeExecutable(join(solanaBinDirectory, 'solana'), 'solana');
+      },
+    };
+
+    const result = await installSolanaTestValidator(
+      {
+        binDirectory,
+        cacheDirectory,
+        cwd,
+        platform: 'darwin-arm64',
+        release: {
+          platforms: {
+            'darwin-arm64': {
+              checksum: sha256(releaseContent),
+              url: 'https://example.test/solana-release-aarch64.tar.bz2',
+            },
+          },
+        },
+      },
+      dependencies,
+    );
+
+    assert.throws(
+      () => {
+        execFileSync(process.execPath, [result.binaryPath], {
+          stdio: 'ignore',
+        });
+      },
+      (error: NodeJS.ErrnoException) => {
+        assert.ok(error.status === 1 || error.signal !== undefined);
+        return true;
+      },
+    );
   });
 
   it('replaces stale bin symlinks without modifying their targets', async () => {
