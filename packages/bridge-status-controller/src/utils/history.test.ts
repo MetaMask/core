@@ -152,5 +152,13 @@ describe('History Utils', () => {
       });
       expect(txHistoryItem.tokenSecurityTypeDestination).toBeNull();
     });
+
+    it('persists inputPrimaryDenomination when provided', () => {
+      const txHistoryItem = getInitialHistoryItem({
+        ...baseArgs,
+        inputPrimaryDenomination: 'fiat_value',
+      });
+      expect(txHistoryItem.inputPrimaryDenomination).toBe('fiat_value');
+    });
   });
 });
