@@ -52,7 +52,7 @@
   },
   "dependencies": {
     "@metamask/api-specs": "^0.15.0",
-    "@metamask/controller-utils": "^12.2.0",
+    "@metamask/controller-utils": "^12.3.0",
     "@metamask/permission-controller": "^13.1.1",
     "@metamask/rpc-errors": "^7.0.2",
     "@metamask/utils": "^11.11.0",

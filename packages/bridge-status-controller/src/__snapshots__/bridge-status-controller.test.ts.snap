@@ -1282,6 +1282,8 @@ exports[`BridgeStatusController submitTx: EVM bridge should handle smart transac
       "price_impact": 0,
       "provider": "lifi_across",
       "quoted_time_minutes": 0.25,
+      "token_symbol_destination": "ETH",
+      "token_symbol_source": "ETH",
       "usd_balance_source": 0,
       "usd_quoted_gas": 2.5778,
       "usd_quoted_return": 0.134214,
