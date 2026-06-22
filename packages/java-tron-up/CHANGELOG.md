@@ -7,8 +7,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- feat: scaffold `@metamask/java-tron-up` package ([#9207](https://github.com/MetaMask/core/pull/9207))
-
 [Unreleased]: https://github.com/MetaMask/core/

@@ -7,8 +7,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- feat: scaffold `@metamask/bitcoin-regtest-up` package ([#9211](https://github.com/MetaMask/core/pull/9211))
-
 [Unreleased]: https://github.com/MetaMask/core/
