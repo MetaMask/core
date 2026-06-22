@@ -229,7 +229,7 @@ export type RampsControllerGetQuotesAction = {
 
 /**
  * Adds or updates a V2 order in controller state.
- * If an order with the same providerOrderId already exists, the incoming
+ * If an order with the same internal order code already exists, the incoming
  * fields are merged on top of the existing order so that fields not present
  * in the update (e.g. paymentDetails from the Transak API) are preserved.
  *

@@ -81,6 +81,18 @@ export type TransactionPayControllerGetAmountDataAction = {
   handler: TransactionPayController['getAmountData'];
 };
 
+/**
+ * Returns optional fiat execution configuration.
+ *
+ * This is intentionally not stored in controller state.
+ *
+ * @returns Fiat execution options, if configured.
+ */
+export type TransactionPayControllerGetFiatOptionsAction = {
+  type: `TransactionPayController:getFiatOptions`;
+  handler: TransactionPayController['getFiatOptions'];
+};
+
 export type TransactionPayControllerGetPaymentOverrideDataAction = {
   type: `TransactionPayController:getPaymentOverrideData`;
   handler: TransactionPayController['getPaymentOverrideData'];
@@ -134,6 +146,7 @@ export type TransactionPayControllerMethodActions =
   | TransactionPayControllerUpdateFiatPaymentAction
   | TransactionPayControllerGetDelegationTransactionAction
   | TransactionPayControllerGetAmountDataAction
+  | TransactionPayControllerGetFiatOptionsAction
   | TransactionPayControllerGetPaymentOverrideDataAction
   | TransactionPayControllerGetStrategyAction
   | TransactionPayControllerPolymarketGetDepositWalletAddressAction

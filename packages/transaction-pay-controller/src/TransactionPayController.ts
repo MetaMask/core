@@ -20,6 +20,7 @@ import type {
   TransactionConfigCallback,
   TransactionData,
   TransactionPayControllerMessenger,
+  TransactionPayFiatOptions,
   TransactionPayControllerOptions,
   TransactionPayControllerState,
   UpdateFiatPaymentRequest,
@@ -36,6 +37,7 @@ import {
 const MESSENGER_EXPOSED_METHODS = [
   'getAmountData',
   'getDelegationTransaction',
+  'getFiatOptions',
   'getPaymentOverrideData',
   'getStrategy',
   'polymarketGetDepositWalletAddress',
@@ -67,6 +69,8 @@ export class TransactionPayController extends BaseController<
 
   readonly #getDelegationTransaction: GetDelegationTransactionCallback;
 
+  readonly #fiatOptions?: TransactionPayFiatOptions;
+
   readonly #getPaymentOverrideData?: GetPaymentOverrideDataCallback;
 
   readonly #getStrategy?: (
@@ -80,6 +84,7 @@ export class TransactionPayController extends BaseController<
   readonly #polymarket?: PolymarketCallbacks;
 
   constructor({
+    fiatOptions,
     getAmountData,
     getDelegationTransaction,
     getPaymentOverrideData,
@@ -98,6 +103,7 @@ export class TransactionPayController extends BaseController<
 
     this.#getAmountData = getAmountData;
     this.#getDelegationTransaction = getDelegationTransaction;
+    this.#fiatOptions = fiatOptions;
     this.#getPaymentOverrideData = getPaymentOverrideData;
     this.#getStrategy = getStrategy;
     this.#getStrategies = getStrategies;
@@ -242,6 +248,17 @@ export class TransactionPayController extends BaseController<
     ...args: Parameters<GetAmountDataCallback>
   ): ReturnType<GetAmountDataCallback> {
     return this.#getAmountData?.(...args) ?? Promise.resolve({ updates: [] });
+  }
+
+  /**
+   * Returns optional fiat execution configuration.
+   *
+   * This is intentionally not stored in controller state.
+   *
+   * @returns Fiat execution options, if configured.
+   */
+  getFiatOptions(): TransactionPayFiatOptions | undefined {
+    return this.#fiatOptions;
   }
 
   getPaymentOverrideData(

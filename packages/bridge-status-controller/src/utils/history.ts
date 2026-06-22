@@ -206,6 +206,7 @@ export const getInitialHistoryItem = (
     originalTransactionId,
     actionId,
     tokenSecurityTypeDestination,
+    inputPrimaryDenomination,
     batchSellData,
     quoteIds,
   } = args;
@@ -256,6 +257,9 @@ export const getInitialHistoryItem = (
     ...(activeAbTests && { activeAbTests }),
     ...(tokenSecurityTypeDestination !== undefined && {
       tokenSecurityTypeDestination,
+    }),
+    ...(inputPrimaryDenomination !== undefined && {
+      inputPrimaryDenomination,
     }),
   };
 

@@ -12,7 +12,6 @@ import {
   getFiatFeeReserveMultiplier,
   getFiatMaxRateDriftPercent,
 } from '../../utils/feature-flags';
-import { getNetworkClientId } from '../../utils/provider';
 import { getTransaction, updateTransaction } from '../../utils/transaction';
 import { getRelayQuotes } from '../relay/relay-quotes';
 import { submitRelayQuotes } from '../relay/relay-submit';
@@ -21,7 +20,6 @@ import { submitWithTransactionData } from './fiat-submit-with-transaction-data';
 import type { FiatQuote } from './types';
 
 jest.mock('../../utils/feature-flags');
-jest.mock('../../utils/provider');
 jest.mock('../../utils/transaction');
 jest.mock('../relay/relay-quotes');
 jest.mock('../relay/relay-submit');
@@ -136,7 +134,6 @@ describe('submitWithCalldataReEncoding', () => {
   const getRelayQuotesMock = jest.mocked(getRelayQuotes);
   const submitRelayQuotesMock = jest.mocked(submitRelayQuotes);
   const getTransactionMock = jest.mocked(getTransaction);
-  const getNetworkClientIdMock = jest.mocked(getNetworkClientId);
   const updateTransactionMock = jest.mocked(updateTransaction);
   const getFiatFeeReserveMultiplierMock = jest.mocked(
     getFiatFeeReserveMultiplier,
@@ -150,7 +147,6 @@ describe('submitWithCalldataReEncoding', () => {
     getRelayQuotesMock.mockResolvedValue([RELAY_QUOTE_MOCK]);
     submitRelayQuotesMock.mockResolvedValue({ transactionHash: '0xabc' });
     getTransactionMock.mockReturnValue(TRANSACTION_MOCK);
-    getNetworkClientIdMock.mockReturnValue('polygon-mainnet');
     getFiatFeeReserveMultiplierMock.mockReturnValue(1);
     getFiatMaxRateDriftPercentMock.mockReturnValue(10);
   });
@@ -399,6 +395,21 @@ describe('submitWithCalldataReEncoding', () => {
     ).rejects.toThrow(
       'getAmountData returned no updates for transaction with nested calldata',
     );
+  });
+
+  it('throws when the original fiat quote is missing a relay quote', async () => {
+    const fiatQuote = buildFiatQuote();
+    fiatQuote.original.relayQuote = undefined;
+    const request = buildRequest({ quotes: [fiatQuote] });
+
+    await expect(
+      submitWithTransactionData({
+        baseRequest: BASE_QUOTE_REQUEST_MOCK,
+        request,
+        sourceAmountRaw: '1000000000000000000',
+        transaction: TRANSACTION_MOCK,
+      }),
+    ).rejects.toThrow('Missing Relay quote');
   });
 
   it('falls back to original transaction when getTransaction returns undefined', async () => {

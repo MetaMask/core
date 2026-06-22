@@ -10,6 +10,7 @@ exports[`BridgeController BatchSell (multiple quote requests) SSE fetch quotes s
   },
   "batchSellTrades": null,
   "batchSellTradesLoadingStatus": 0,
+  "inputPrimaryDenomination": "token_amount",
   "minimumBalanceForRentExemptionInLamports": "0",
   "quoteFetchError": null,
   "quoteRequest": [
@@ -112,6 +113,7 @@ exports[`BridgeController BatchSell (multiple quote requests) SSE fetch quotes s
       "custom_slippage": true,
       "feature_id": "batch_sell",
       "has_sufficient_funds": true,
+      "input_primary_denomination": "token_amount",
       "is_hardware_wallet": false,
       "location": "Main View",
       "security_warnings": [],

@@ -23,7 +23,6 @@ export type {
   NetworkControllerNetworkRemovedEvent,
   NetworkControllerEvents,
   NetworkControllerGetStateAction,
-  NetworkControllerGetNetworkConfigurationByNetworkClientId,
   NetworkControllerActions,
   NetworkControllerMessenger,
   NetworkControllerOptions,

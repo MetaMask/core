@@ -17,6 +17,7 @@ import type {
   BridgeControllerStopPollingForQuotesAction,
   BatchSellTradesResponse,
   BridgeControllerGetStateAction,
+  InputPrimaryDenomination,
 } from '@metamask/bridge-controller';
 import type { KeyringControllerSignTypedMessageAction } from '@metamask/keyring-controller';
 import type { Messenger } from '@metamask/messenger';
@@ -212,6 +213,11 @@ export type BridgeHistoryItem = {
    * available for the destination token.
    */
   tokenSecurityTypeDestination?: string | null;
+  /**
+   * The denomination shown as the primary source amount input when the
+   * swap/bridge was submitted.
+   */
+  inputPrimaryDenomination?: InputPrimaryDenomination;
 };
 
 /**
@@ -291,6 +297,8 @@ export type StartPollingForBridgeTxStatusArgs = {
   // Client-supplied destination token security classification, persisted on
   // the history item for post-submit analytics events.
   tokenSecurityTypeDestination?: BridgeHistoryItem['tokenSecurityTypeDestination'];
+  // Primary denomination at submission time, persisted for post-submit analytics.
+  inputPrimaryDenomination?: BridgeHistoryItem['inputPrimaryDenomination'];
 };
 
 /**

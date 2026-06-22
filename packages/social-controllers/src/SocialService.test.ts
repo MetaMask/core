@@ -404,6 +404,51 @@ describe('SocialService', () => {
 
       expect(result.stats).toStrictEqual({});
     });
+
+    it('accepts and returns the optional 7-day per-chain breakdown', async () => {
+      const withPerChain7d = {
+        ...mockProfileResponse,
+        perChainBreakdown: {
+          perChainPnl: { base: 30000, hyperliquid: 900000 },
+          perChainRoi: { base: 2.5, hyperliquid: null },
+          perChainVolume: { base: 100000, hyperliquid: 0 },
+          perChainPnl7d: { base: 5000, hyperliquid: 120000 },
+          perChainRoi7d: { base: 1.1, hyperliquid: null },
+          perChainVolume7d: { base: 20000, hyperliquid: 0 },
+        },
+      };
+
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve(withPerChain7d),
+      });
+
+      const service = createService();
+      const result = await service.fetchTraderProfile({
+        addressOrId: '0x1234',
+      });
+
+      expect(result.perChainBreakdown).toStrictEqual(
+        withPerChain7d.perChainBreakdown,
+      );
+    });
+
+    it('accepts a profile without the optional 7-day per-chain breakdown', async () => {
+      // The 30-day-only shape older social-api versions return.
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve(mockProfileResponse),
+      });
+
+      const service = createService();
+      const result = await service.fetchTraderProfile({
+        addressOrId: '0x1234',
+      });
+
+      expect(result.perChainBreakdown.perChainPnl7d).toBeUndefined();
+    });
   });
 
   describe('fetchOpenPositions', () => {
