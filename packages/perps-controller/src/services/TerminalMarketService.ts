@@ -98,10 +98,21 @@ export class TerminalMarketService {
     }
 
     const url = this.#deps.terminalApiUrl;
-    const response = await fetch(url, {
-      method: 'GET',
-      headers: { 'Content-Type': 'application/json' },
-    });
+    const abort = new AbortController();
+    const timer = setTimeout(
+      () => abort.abort(),
+      TERMINAL_API_CONFIG.FetchTimeoutMs,
+    );
+    let response: Response;
+    try {
+      response = await fetch(url, {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json' },
+        signal: abort.signal,
+      });
+    } finally {
+      clearTimeout(timer);
+    }
 
     if (!response.ok) {
       throw new Error(
@@ -212,9 +223,11 @@ export class TerminalMarketService {
         continue;
       }
 
-      const entry: TerminalAssetMetadata = {
-        name: item.name ?? item.symbol,
-      };
+      const entry: TerminalAssetMetadata = {};
+
+      if (typeof item.name === 'string' && item.name.length > 0) {
+        entry.name = item.name;
+      }
 
       if (Array.isArray(item.keywords) && item.keywords.length > 0) {
         entry.keywords = item.keywords;

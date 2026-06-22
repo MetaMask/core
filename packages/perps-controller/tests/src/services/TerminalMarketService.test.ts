@@ -155,6 +155,45 @@ describe('TerminalMarketService', () => {
       );
     });
 
+    it('aborts the fetch when the timeout elapses', async () => {
+      jest.useFakeTimers();
+      let capturedSignal: AbortSignal | undefined;
+
+      jest.spyOn(globalThis, 'fetch').mockImplementation(
+        (_url, init) =>
+          new Promise<Response>((_resolve, reject) => {
+            capturedSignal = init?.signal as AbortSignal | undefined;
+            capturedSignal?.addEventListener('abort', () => {
+              reject(new DOMException('The operation was aborted', 'AbortError'));
+            });
+          }),
+      );
+
+      const promise = service.fetchMarkets();
+
+      jest.advanceTimersByTime(10_000);
+      await expect(promise).rejects.toThrow('The operation was aborted');
+      expect(capturedSignal?.aborted).toBe(true);
+
+      jest.useRealTimers();
+    });
+
+    it('passes an AbortSignal to fetch', async () => {
+      jest.spyOn(globalThis, 'fetch').mockResolvedValue({
+        ok: true,
+        status: 200,
+        statusText: 'OK',
+        json: () => Promise.resolve([]),
+      } as Response);
+
+      await service.fetchMarkets();
+
+      expect(globalThis.fetch).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({ signal: expect.any(AbortSignal) }),
+      );
+    });
+
     it('returns empty arrays for empty API response', async () => {
       jest.spyOn(globalThis, 'fetch').mockResolvedValue({
         ok: true,
@@ -298,7 +337,7 @@ describe('TerminalMarketService', () => {
       });
     });
 
-    it('falls back to symbol when name is not provided in metadata', async () => {
+    it('omits name from metadata when name is not provided', async () => {
       jest.spyOn(globalThis, 'fetch').mockResolvedValue({
         ok: true,
         status: 200,
@@ -308,7 +347,20 @@ describe('TerminalMarketService', () => {
 
       const { metadata } = await service.fetchMarkets();
 
-      expect(metadata.get('UNKNOWN')?.name).toBe('UNKNOWN');
+      expect(metadata.get('UNKNOWN')?.name).toBeUndefined();
+    });
+
+    it('omits name from metadata when name is null', async () => {
+      jest.spyOn(globalThis, 'fetch').mockResolvedValue({
+        ok: true,
+        status: 200,
+        statusText: 'OK',
+        json: () => Promise.resolve([{ symbol: 'FOO', name: null }]),
+      } as Response);
+
+      const { metadata } = await service.fetchMarkets();
+
+      expect(metadata.get('FOO')?.name).toBeUndefined();
     });
   });
 

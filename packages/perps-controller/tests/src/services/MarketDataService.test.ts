@@ -1389,6 +1389,28 @@ describe('MarketDataService', () => {
         expect(result[0]?.name).toBe('BTC');
         expect(mockTerminalService.fetchMarkets).not.toHaveBeenCalled();
       });
+
+      it('preserves provider name when terminal metadata has no name', async () => {
+        const metadataWithoutName = new Map<string, TerminalAssetMetadata>([
+          ['BTC', { keywords: ['crypto'] }],
+        ]);
+        mockTerminalService.fetchMarkets.mockResolvedValue({
+          markets: terminalMarkets,
+          metadata: metadataWithoutName,
+        });
+        mockProvider.getMarketDataWithPrices.mockResolvedValue(
+          providerMarketData,
+        );
+
+        const result = await serviceWithTerminal.getMarketDataWithPrices({
+          provider: mockProvider,
+          params: { useTerminalApi: true },
+          context: mockContext,
+        });
+
+        expect(result[0]?.name).toBe('BTC');
+        expect(result[0]?.keywords).toEqual(['crypto']);
+      });
     });
   });
 });

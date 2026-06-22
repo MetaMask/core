@@ -20,8 +20,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Replace unsafe `as` type cast with runtime schema validation (`@metamask/superstruct`) in `TerminalMarketService` ([#9137](https://github.com/MetaMask/core/pull/9137))
-  - Each item in the Terminal API response is now individually validated; items that fail validation are filtered out and logged instead of silently accepted.
 - Bump `@metamask/controller-utils` from `^12.2.0` to `^12.3.0` ([#9218](https://github.com/MetaMask/core/pull/9218))
 
 ## [8.2.0]
