@@ -31,13 +31,7 @@ import {
 } from './constants/bridge';
 import { SWAPS_API_V2_BASE_URL } from './constants/swaps';
 import * as selectors from './selectors';
-import {
-  ChainId,
-  RequestStatus,
-  SortOrder,
-  StatusTypes,
-  FeatureId,
-} from './types';
+import { ChainId, RequestStatus, SortOrder, StatusTypes } from './types';
 import type {
   BridgeControllerMessenger,
   QuoteResponseV1,
@@ -58,6 +52,7 @@ import {
   MetricsSwapType,
   UnifiedSwapBridgeEventName,
 } from './utils/metrics/constants';
+import { FeatureId } from './validators/feature-flags';
 
 const EMPTY_INIT_STATE = DEFAULT_BRIDGE_CONTROLLER_STATE;
 

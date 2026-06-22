@@ -1,11 +1,11 @@
 import { is } from '@metamask/superstruct';
 
+import { validateFeatureFlagsResponse } from './feature-flags';
+import { IntentSchema } from './quote-response';
 import {
-  validateFeatureFlagsResponse,
   validateQuoteStreamComplete,
   QuoteStreamCompleteReason,
-  IntentSchema,
-} from './validators';
+} from './quote-stream-complete';
 
 describe('validators', () => {
   describe('validateFeatureFlagsResponse', () => {

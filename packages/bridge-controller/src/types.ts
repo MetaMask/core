@@ -30,27 +30,32 @@ import type {
 import type { BridgeController } from './bridge-controller';
 import type { BridgeControllerMethodActions } from './bridge-controller-method-action-types';
 import type { BRIDGE_CONTROLLER_NAME } from './constants/bridge';
+import type { SimulatedGasFeeLimitsSchema } from './validators/batch-sell';
+import type { BatchSellTradesResponseSchema } from './validators/batch-sell';
+import type { BridgeAssetSchema } from './validators/bridge-asset';
+import type { FeatureId } from './validators/feature-flags';
 import type {
-  BitcoinTradeDataSchema,
-  BridgeAssetSchema,
   ChainConfigurationSchema,
   ChainRankingSchema,
+  PlatformConfigSchema,
+} from './validators/feature-flags';
+import type {
   FeeDataSchema,
   IntentSchema,
-  PlatformConfigSchema,
   ProtocolSchema,
   QuoteResponseSchema,
   QuoteSchema,
   StepSchema,
-  TokenFeatureSchema,
-  QuoteStreamCompleteSchema,
-  TronTradeDataSchema,
-  TxDataSchema,
-  BatchSellTradesResponseSchema,
   GaslessPropertiesSchema,
-  SimulatedGasFeeLimitsSchema,
   TxFeeGasLimitsSchema,
-} from './utils/validators';
+} from './validators/quote-response';
+import type { QuoteStreamCompleteSchema } from './validators/quote-stream-complete';
+import type { TokenFeatureSchema } from './validators/token-feature';
+import type {
+  BitcoinTradeData,
+  TronTradeData,
+  TxData,
+} from './validators/trade';
 
 export type FetchFunction = (
   input: RequestInfo | URL | string,
@@ -260,16 +265,6 @@ export enum StatusTypes {
   COMPLETE = 'COMPLETE',
 }
 
-export enum FeatureId {
-  UNKNOWN = 'unknown',
-  PERPS = 'perps',
-  QUICK_BUY_FOLLOW_TRADING = 'quick_buy_follow_trading',
-  QUICK_BUY_TOKEN_DETAILS = 'quick_buy_token_details',
-  DAPP_SWAP = 'dapp_swap',
-  BATCH_SELL = 'batch_sell',
-  UNIFIED_SWAP_BRIDGE = 'unified_swap_bridge',
-}
-
 /**
  * These are types that components pass in. Since data is a mix of types when coming from the redux store, we need to use a generic type that can cover all the types.
  * Payloads with this type are transformed into QuoteRequest by fetchBridgeQuotes right before fetching quotes
@@ -290,14 +285,9 @@ export type FeeData = Infer<typeof FeeDataSchema>;
 
 export type Quote = Infer<typeof QuoteSchema>;
 
-export type TxData = Infer<typeof TxDataSchema>;
-
 export type Intent = Infer<typeof IntentSchema>;
 export type IntentOrderLike = Intent['order'];
 
-export type BitcoinTradeData = Infer<typeof BitcoinTradeDataSchema>;
-
-export type TronTradeData = Infer<typeof TronTradeDataSchema>;
 /**
  * This is the type for the quote response from the bridge-api
  * TxDataType can be overriden to be a string when the quote is non-evm

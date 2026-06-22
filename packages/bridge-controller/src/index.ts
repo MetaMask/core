@@ -50,11 +50,8 @@ export type {
   Quote,
   QuoteResponseV1 as QuoteResponse,
   FeeData,
-  TxData,
   Intent,
   IntentOrderLike,
-  BitcoinTradeData,
-  TronTradeData,
   BridgeControllerState,
   InputPrimaryDenomination,
   BridgeControllerAction,
@@ -86,22 +83,28 @@ export {
   SortOrder,
   ChainId,
   RequestStatus,
-  FeatureId,
   type TokenFeature,
   type QuoteStreamCompleteData,
   type BridgeControllerGetStateAction,
   type BridgeControllerStateChangeEvent,
 } from './types';
 
+export type {
+  TxData,
+  BitcoinTradeData,
+  TronTradeData,
+  Trade,
+} from './validators/trade';
+export { isBitcoinTrade, isTronTrade, isEvmTxData } from './validators/trade';
+export { FeeType, ActionTypes } from './validators/quote-response';
 export {
-  FeeType,
-  ActionTypes,
-  BridgeAssetSchema,
-  TokenFeatureType,
   validateQuoteStreamComplete,
   QuoteStreamCompleteReason,
-  BatchSellTransactionType,
-} from './utils/validators';
+} from './validators/quote-stream-complete';
+export { BatchSellTransactionType } from './validators/batch-sell';
+export { TokenFeatureType } from './validators/token-feature';
+export { BridgeAssetSchema } from './validators/bridge-asset';
+export { FeatureId } from './validators/feature-flags';
 
 export {
   ALLOWED_BRIDGE_CHAIN_IDS,
@@ -171,13 +174,7 @@ export {
   formatAddressToAssetId,
 } from './utils/caip-formatters';
 
-export {
-  extractTradeData,
-  isBitcoinTrade,
-  isTronTrade,
-  isEvmTxData,
-  type Trade,
-} from './utils/trade-utils';
+export { extractTradeData } from './utils/trade-utils';
 
 export {
   selectBridgeQuotes,

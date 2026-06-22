@@ -25,7 +25,7 @@ import {
   ExchangeRateSourcesForLookup,
   selectIsAssetExchangeRateInState,
 } from './selectors';
-import { FeatureId, RequestStatus } from './types';
+import { RequestStatus } from './types';
 import type {
   L1GasFees,
   GenericQuoteRequest,
@@ -89,6 +89,7 @@ import {
 } from './utils/quote';
 import { appendFeesToQuotes } from './utils/quote-fees';
 import { getMinimumBalanceForRentExemptionInLamports } from './utils/snaps';
+import type { FeatureId } from './validators/feature-flags';
 
 const metadata: StateMetadata<BridgeControllerState> = {
   quoteRequest: {
