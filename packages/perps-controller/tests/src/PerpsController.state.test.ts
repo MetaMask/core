@@ -43,17 +43,8 @@ import {
   firstNonEmpty,
   resolveMyxAuthConfig,
 } from '../../src/PerpsController';
-import type { PerpsControllerState } from '../../src/PerpsController';
 import { PERPS_ERROR_CODES } from '../../src/perpsErrorCodes';
 import { HyperLiquidProvider } from '../../src/providers/HyperLiquidProvider';
-import type {
-  AccountState,
-  GetAvailableDexsParams,
-  PerpsProvider,
-  PerpsPlatformDependencies,
-  PerpsProviderType,
-  SubscribeAccountParams,
-} from '../../src/types';
 import { PerpsAnalyticsEvent } from '../../src/types';
 
 jest.mock('../../src/providers/HyperLiquidProvider');
@@ -64,7 +55,7 @@ const mockAddTransaction = jest.fn();
 jest.mock(
   '../../../util/transaction-controller',
   () => ({
-    addTransaction: (...args: unknown[]) => mockAddTransaction(...args),
+    addTransaction: (...args) => mockAddTransaction(...args),
   }),
   { virtual: true },
 );
@@ -237,7 +228,7 @@ jest.mock('../../src/services/DataLakeService', () => ({
 
 // Mock FeatureFlagConfigurationService as a class with instance methods
 const mockFeatureFlagConfigurationServiceInstance = {
-  refreshEligibility: jest.fn((options: any) => {
+  refreshEligibility: jest.fn((options) => {
     // Simulate the service's behavior: extract blocked regions from remote flags
     const remoteFlags =
       options.remoteFeatureFlagControllerState.remoteFeatureFlags;
@@ -270,7 +261,7 @@ const mockFeatureFlagConfigurationServiceInstance = {
     }
   }),
   refreshHip3Config: jest.fn(),
-  setBlockedRegions: jest.fn((options: any) => {
+  setBlockedRegions: jest.fn((options) => {
     // Simulate setBlockedRegions behavior
     const { list, source, context } = options;
     if (context.setBlockedRegionList && context.getBlockedRegionList) {
@@ -303,137 +294,74 @@ jest.mock('../../src/services/FeatureFlagConfigurationService', () => ({
  * This follows the pattern used in RewardsController.test.ts
  */
 class TestablePerpsController extends PerpsController {
-  /**
-   * Test-only method to update state directly.
-   * Exposed for scenarios where state needs to be manipulated
-   * outside the normal public API (e.g., testing error conditions).
-   * @param callback
-   */
-  public testUpdate(callback: (state: PerpsControllerState) => void) {
+  testUpdate(callback) {
     this.update(callback);
   }
 
-  /**
-   * Test-only method to mark controller as initialized.
-   * Common test scenario that requires internal state changes.
-   */
-  public testMarkInitialized() {
+  testMarkInitialized() {
     this.isInitialized = true;
     this.update((state) => {
       state.initializationState = InitializationState.Initialized;
     });
   }
 
-  /**
-   * Test-only method to set the providers map with complete providers.
-   * Used in most tests to inject mock providers.
-   * Also sets activeProviderInstance to the first provider (default provider).
-   * @param providers
-   */
-  public testSetProviders(providers: Map<PerpsProviderType, PerpsProvider>) {
+  testSetProviders(providers) {
     this.providers = providers;
-    // Set activeProviderInstance to the first provider (typically 'hyperliquid')
     const firstProvider = providers.values().next().value;
     if (firstProvider) {
       this.activeProviderInstance = firstProvider;
     }
   }
 
-  /**
-   * Test-only method to set the providers map with partial providers.
-   * Used explicitly in tests that verify error handling with incomplete providers.
-   * Type cast is intentional and necessary for testing graceful degradation.
-   * @param providers
-   */
-  public testSetPartialProviders(
-    providers: Map<PerpsProviderType, Partial<PerpsProvider>>,
-  ) {
-    this.providers = providers as Map<PerpsProviderType, PerpsProvider>;
+  testSetPartialProviders(providers) {
+    this.providers = providers;
   }
 
-  /**
-   * Test-only method to get the providers map.
-   * Used to verify provider state in tests.
-   */
-  public testGetProviders(): Map<PerpsProviderType, PerpsProvider> {
+  testGetProviders() {
     return this.providers;
   }
 
-  /**
-   * Test-only method to set initialization state.
-   * Allows tests to simulate both initialized and uninitialized states.
-   * @param value
-   */
-  public testSetInitialized(value: boolean) {
+  testSetInitialized(value) {
     this.isInitialized = value;
   }
 
-  /**
-   * Test-only method to get initialization state.
-   * Used to verify initialization status in tests.
-   */
-  public testGetInitialized(): boolean {
+  testGetInitialized() {
     return this.isInitialized;
   }
 
-  /**
-   * Test-only method to get blocked region list.
-   * Used to verify geo-blocking configuration in tests.
-   */
-  public testGetBlockedRegionList(): { source: string; list: string[] } {
+  testGetBlockedRegionList() {
     return this.blockedRegionList;
   }
 
-  /**
-   * Test-only method to set blocked region list.
-   * Used to test priority logic (remote vs fallback).
-   * @param list
-   * @param source
-   */
-  public testSetBlockedRegionList(
-    list: string[],
-    source: 'remote' | 'fallback',
-  ) {
+  testSetBlockedRegionList(list, source) {
     this.setBlockedRegionList(list, source);
   }
 
-  /**
-   * Test accessor for protected method refreshEligibilityOnFeatureFlagChange.
-   * Wrapper is necessary because protected methods can't be called from test code.
-   * @param remoteFlags
-   */
-  public testRefreshEligibilityOnFeatureFlagChange(remoteFlags: any) {
+  testRefreshEligibilityOnFeatureFlagChange(remoteFlags) {
     this.refreshEligibilityOnFeatureFlagChange(remoteFlags);
   }
 
-  /**
-   * Test accessor for protected method reportOrderToDataLake.
-   * Wrapper is necessary because protected methods can't be called from test code.
-   * @param data
-   */
-  public testReportOrderToDataLake(data: any): Promise<any> {
+  testReportOrderToDataLake(data) {
     return this.reportOrderToDataLake(data);
   }
 
-  public testHasStandaloneProvider(): boolean {
+  testHasStandaloneProvider() {
     return this.hasStandaloneProvider();
   }
 
-  public testRegisterMYXProvider(
-    MYXProvider: new (opts: Record<string, unknown>) => PerpsProvider,
-  ) {
-    this.registerMYXProvider(MYXProvider as never);
+  testRegisterMYXProvider(MYXProvider) {
+    this.registerMYXProvider(MYXProvider);
   }
 
-  public testHandleMYXImportError(error: unknown) {
+  testHandleMYXImportError(error) {
     this.handleMYXImportError(error);
   }
 }
 
 describe('PerpsController', () => {
-  let controller: TestablePerpsController;
-  let mockProvider: jest.Mocked<HyperLiquidProvider>;
-  let mockInfrastructure: jest.Mocked<PerpsPlatformDependencies>;
+  let controller;
+  let mockProvider;
+  let mockInfrastructure;
 
   // Helper to mark controller as initialized for tests
   const markControllerAsInitialized = () => {
@@ -443,34 +371,29 @@ describe('PerpsController', () => {
   beforeEach(() => {
     jest.clearAllMocks();
 
-    (
-      jest.requireMock('../../src/services/EligibilityService')
-        .EligibilityService as jest.Mock
-    ).mockImplementation(() => mockEligibilityServiceInstance);
-    (
-      jest.requireMock('../../src/services/DepositService')
-        .DepositService as jest.Mock
-    ).mockImplementation(() => mockDepositServiceInstance);
-    (
-      jest.requireMock('../../src/services/MarketDataService')
-        .MarketDataService as jest.Mock
-    ).mockImplementation(() => mockMarketDataServiceInstance);
-    (
-      jest.requireMock('../../src/services/TradingService')
-        .TradingService as jest.Mock
-    ).mockImplementation(() => mockTradingServiceInstance);
-    (
-      jest.requireMock('../../src/services/AccountService')
-        .AccountService as jest.Mock
-    ).mockImplementation(() => mockAccountServiceInstance);
-    (
-      jest.requireMock('../../src/services/DataLakeService')
-        .DataLakeService as jest.Mock
-    ).mockImplementation(() => mockDataLakeServiceInstance);
-    (
-      jest.requireMock('../../src/services/FeatureFlagConfigurationService')
-        .FeatureFlagConfigurationService as jest.Mock
-    ).mockImplementation(() => mockFeatureFlagConfigurationServiceInstance);
+    jest
+      .requireMock('../../src/services/EligibilityService')
+      .EligibilityService.mockImplementation(() => mockEligibilityServiceInstance);
+    jest
+      .requireMock('../../src/services/DepositService')
+      .DepositService.mockImplementation(() => mockDepositServiceInstance);
+    jest
+      .requireMock('../../src/services/MarketDataService')
+      .MarketDataService.mockImplementation(() => mockMarketDataServiceInstance);
+    jest
+      .requireMock('../../src/services/TradingService')
+      .TradingService.mockImplementation(() => mockTradingServiceInstance);
+    jest
+      .requireMock('../../src/services/AccountService')
+      .AccountService.mockImplementation(() => mockAccountServiceInstance);
+    jest
+      .requireMock('../../src/services/DataLakeService')
+      .DataLakeService.mockImplementation(() => mockDataLakeServiceInstance);
+    jest
+      .requireMock('../../src/services/FeatureFlagConfigurationService')
+      .FeatureFlagConfigurationService.mockImplementation(
+        () => mockFeatureFlagConfigurationServiceInstance,
+      );
 
     mockEligibilityServiceInstance.checkEligibility.mockResolvedValue(true);
     mockMarketDataServiceInstance.getPositions.mockResolvedValue([]);
@@ -496,7 +419,7 @@ describe('PerpsController', () => {
     mockMarketDataServiceInstance.getAvailableDexs.mockResolvedValue([]);
 
     mockFeatureFlagConfigurationServiceInstance.refreshEligibility.mockImplementation(
-      (options: any) => {
+      (options) => {
         const remoteFlags =
           options.remoteFeatureFlagControllerState.remoteFeatureFlags;
         const perpsGeoBlockedRegionsFeatureFlag =
@@ -531,7 +454,7 @@ describe('PerpsController', () => {
       },
     );
     mockFeatureFlagConfigurationServiceInstance.setBlockedRegions.mockImplementation(
-      (options: any) => {
+      (options) => {
         const { list, source, context } = options;
         if (context.setBlockedRegionList && context.getBlockedRegionList) {
           const currentList = context.getBlockedRegionList();
@@ -555,12 +478,10 @@ describe('PerpsController', () => {
     );
 
     // Reset Engine.context mocks to default state to prevent test interdependence
-    (
-      Engine.context.RewardsController.getPerpsDiscountForAccount as jest.Mock
-    ).mockResolvedValue(null);
-    (
-      Engine.context.NetworkController.getNetworkClientById as jest.Mock
-    ).mockReturnValue({ configuration: { chainId: '0x1' } });
+    Engine.context.RewardsController.getPerpsDiscountForAccount.mockResolvedValue(null);
+    Engine.context.NetworkController.getNetworkClientById.mockReturnValue({
+      configuration: { chainId: '0x1' },
+    });
 
     // Create a fresh mock provider for each test
     mockProvider = createMockHyperLiquidProvider();
@@ -589,11 +510,9 @@ describe('PerpsController', () => {
     );
     mockProvider.getWithdrawalRoutes.mockReturnValue([]);
 
-    (
-      HyperLiquidProvider as jest.MockedClass<typeof HyperLiquidProvider>
-    ).mockImplementation(() => mockProvider);
+    HyperLiquidProvider.mockImplementation(() => mockProvider);
 
-    const mockCall = jest.fn().mockImplementation((action: string) => {
+    const mockCall = jest.fn().mockImplementation((action) => {
       if (action === 'RemoteFeatureFlagController:getState') {
         return {
           remoteFeatureFlags: {
@@ -643,13 +562,13 @@ describe('PerpsController', () => {
           value !== null &&
           'mockClear' in value
         ) {
-          (value as jest.Mock).mockClear();
+          value.mockClear();
         }
       });
     }
-    (mockInfrastructure.metrics.trackPerpsEvent as jest.Mock).mockClear();
-    (mockInfrastructure.logger.error as jest.Mock).mockClear();
-    (mockInfrastructure.debugLogger.log as jest.Mock).mockClear();
+    mockInfrastructure.metrics.trackPerpsEvent.mockClear();
+    mockInfrastructure.logger.error.mockClear();
+    mockInfrastructure.debugLogger.log.mockClear();
   });
   describe('state management', () => {
     it('returns positions without updating state', async () => {
@@ -661,7 +580,7 @@ describe('PerpsController', () => {
           positionValue: '5000',
           unrealizedPnl: '500',
           marginUsed: '2500',
-          leverage: { type: 'cross' as const, value: 2 },
+          leverage: { type: 'cross', value: 2 },
           liquidationPrice: '1500',
           maxLeverage: 100,
           returnOnEquity: '10.0',
@@ -808,7 +727,7 @@ describe('PerpsController', () => {
         newOrder: {
           symbol: 'BTC',
           isBuy: true,
-          orderType: 'limit' as const,
+          orderType: 'limit',
           price: '51000',
           size: '0.2',
         },
@@ -844,7 +763,7 @@ describe('PerpsController', () => {
         newOrder: {
           symbol: 'BTC',
           isBuy: true,
-          orderType: 'limit' as const,
+          orderType: 'limit',
           price: '51000',
           size: '0.2',
         },
@@ -1083,14 +1002,14 @@ describe('PerpsController', () => {
         pushNotificationsEnabled: false,
         mutedTraderProfileIds: [],
       },
-    } as const;
+    };
 
-    let ausController: TestablePerpsController;
-    let mockAusCall: jest.Mock;
-    let mockAusInfrastructure: jest.Mocked<PerpsPlatformDependencies>;
+    let ausController;
+    let mockAusCall;
+    let mockAusInfrastructure;
 
     beforeEach(() => {
-      mockAusCall = jest.fn().mockImplementation((action: string) => {
+      mockAusCall = jest.fn().mockImplementation((action) => {
         if (action === 'RemoteFeatureFlagController:getState') {
           return {
             remoteFeatureFlags: {
@@ -1148,7 +1067,7 @@ describe('PerpsController', () => {
         },
       };
 
-      mockAusCall.mockImplementation((action: string) => {
+      mockAusCall.mockImplementation((action) => {
         if (action === 'RemoteFeatureFlagController:getState') {
           return { remoteFeatureFlags: {} };
         }
@@ -1204,7 +1123,7 @@ describe('PerpsController', () => {
         },
       };
 
-      mockAusCall.mockImplementation((action: string) => {
+      mockAusCall.mockImplementation((action) => {
         if (action === 'RemoteFeatureFlagController:getState') {
           return { remoteFeatureFlags: {} };
         }
@@ -1238,7 +1157,7 @@ describe('PerpsController', () => {
 
     it('skips AUS sync when activeProvider is aggregated', async () => {
       ausController.testUpdate((state) => {
-        (state as any).activeProvider = 'aggregated';
+        state.activeProvider = 'aggregated';
       });
 
       await ausController.toggleWatchlistMarket('BTC');
@@ -1256,7 +1175,7 @@ describe('PerpsController', () => {
     });
 
     it('does not throw when AUS GET throws (unauthenticated)', async () => {
-      mockAusCall.mockImplementation((action: string) => {
+      mockAusCall.mockImplementation((action) => {
         if (action === 'RemoteFeatureFlagController:getState') {
           return { remoteFeatureFlags: {} };
         }
@@ -1317,7 +1236,7 @@ describe('PerpsController', () => {
           },
         };
 
-        mockAusCall.mockImplementation((action: string) => {
+        mockAusCall.mockImplementation((action) => {
           if (action === 'RemoteFeatureFlagController:getState') {
             return {
               remoteFeatureFlags: {
@@ -1353,7 +1272,7 @@ describe('PerpsController', () => {
       it('performs one-time migration when blob exists but has no watchlist for the active provider', async () => {
         const remotePrefsWithoutWatchlist = { ...MOCK_PREFS_BASE };
 
-        mockAusCall.mockImplementation((action: string) => {
+        mockAusCall.mockImplementation((action) => {
           if (action === 'RemoteFeatureFlagController:getState') {
             return {
               remoteFeatureFlags: {
@@ -1433,7 +1352,7 @@ describe('PerpsController', () => {
       });
 
       it('does not throw when AUS GET throws during init', async () => {
-        mockAusCall.mockImplementation((action: string) => {
+        mockAusCall.mockImplementation((action) => {
           if (action === 'RemoteFeatureFlagController:getState') {
             return {
               remoteFeatureFlags: {
@@ -1498,15 +1417,13 @@ describe('PerpsController', () => {
 
     it('updates accountState when subscribeToAccount callback receives non-null account', () => {
       const originalCallback = jest.fn();
-      let wrappedCallback: (account: AccountState | null) => void = () => {
+      let wrappedCallback = () => {
         /* assigned by mock */
       };
-      mockProvider.subscribeToAccount.mockImplementation(
-        (p: SubscribeAccountParams) => {
-          wrappedCallback = p.callback;
-          return jest.fn();
-        },
-      );
+      mockProvider.subscribeToAccount.mockImplementation((p) => {
+        wrappedCallback = p.callback;
+        return jest.fn();
+      });
 
       markControllerAsInitialized();
       controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
