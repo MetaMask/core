@@ -11,7 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **BREAKING:** Add required `quoteId: string` to `BridgeHistoryItem` ([#8462](https://github.com/MetaMask/core/pull/8462))
 - Add `QuoteStatusUpdateManager` for resilient quote-status reporting to the Bridge API; reports `SUBMITTED`/`FINALIZED_SUCCESS`/`FINALIZED_FAILURE`, retries immediately on retryable errors (up to 6×), defers on network failures (every 30 min for up to 12 h), and persists the queue to `quoteUpdateStatusStore` state across service-worker restarts ([#8462](https://github.com/MetaMask/core/pull/8462))
-- Export `QuoteStatusUpdateError`, `QuoteStatusUpdateErrorType`, `QuoteStatusUpdateStatus`, `QuoteStatusUpdateResponse` and related enums ([#8462](https://github.com/MetaMask/core/pull/8462))
+- Export `QuoteStatusUpdateError`, `BaseQuoteStatusUpdateErrorTypes`, `QuoteStatusPersistEntry` ([#8462](https://github.com/MetaMask/core/pull/8462))
 - Add optional `onQuoteStatusUpdateError` and `isQuoteStatusUpdateEnabled` constructor options to `BridgeStatusController` ([#8462](https://github.com/MetaMask/core/pull/8462))
 
 ### Changed
@@ -23,10 +23,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Avoid duplicate quote `SUBMITTED` reports for EVM transactions by handling submission only in `transactionStatusUpdated` (not `transactionSubmitted` or inline `submitIntent`) ([#8462](https://github.com/MetaMask/core/pull/8462))
 
 ## [72.1.1]
-
-### Added
-
-- Add input primary denomination to submitted bridge history and post-submit analytics ([#9147](https://github.com/MetaMask/core/pull/9147))
 
 ### Changed
 
