@@ -198,21 +198,18 @@ describe('solana-test-validator-up installer', () => {
 
     downloads.length = 0;
 
-    await assert.rejects(
-      async () => {
-        await installSolanaTestValidator(
-          {
-            binDirectory,
-            cacheDirectory,
-            cwd,
-            platform: 'linux-x64',
-            release: partialRelease,
-          },
-          createDependencies({ downloads, releaseContent }),
-        );
-      },
-      /checksum mismatch/u,
-    );
+    await assert.rejects(async () => {
+      await installSolanaTestValidator(
+        {
+          binDirectory,
+          cacheDirectory,
+          cwd,
+          platform: 'linux-x64',
+          release: partialRelease,
+        },
+        createDependencies({ downloads, releaseContent }),
+      );
+    }, /checksum mismatch/u);
 
     assert.equal(
       downloads[0]?.url,
