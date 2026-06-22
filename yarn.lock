@@ -5799,7 +5799,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/authenticated-user-storage@npm:^2.1.0, @metamask/authenticated-user-storage@workspace:packages/authenticated-user-storage":
+"@metamask/authenticated-user-storage@npm:^2.0.0, @metamask/authenticated-user-storage@npm:^2.1.0, @metamask/authenticated-user-storage@workspace:packages/authenticated-user-storage":
   version: 0.0.0-use.local
   resolution: "@metamask/authenticated-user-storage@workspace:packages/authenticated-user-storage"
   dependencies:
