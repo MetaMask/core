@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `ChompApiService.setBaseUrl` to update the base URL after construction. The base URL is now part of every query key, so requests are cached per endpoint and a request in flight against a previous endpoint can never be served in place of a result from the new one ([#9056](https://github.com/MetaMask/core/pull/9056))
+
 ### Changed
 
 - Bump `@metamask/utils` from `^11.9.0` to `^11.11.0` ([#9074](https://github.com/MetaMask/core/pull/9074))
