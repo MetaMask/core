@@ -164,6 +164,7 @@ type RequiredEventContextFromClientBase = {
     token_security_type_destination: RequestParams['token_security_type_destination'];
   } & InputPrimaryDenominationData;
   [UnifiedSwapBridgeEventName.QuotesReceived]: TradeData &
+    Pick<RequestParams, 'token_symbol_source' | 'token_symbol_destination'> &
     InputPrimaryDenominationData & {
       warnings: QuoteWarning[];
       best_quote_provider: QuoteFetchData['best_quote_provider'];

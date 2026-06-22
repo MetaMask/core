@@ -245,6 +245,9 @@
       "path": "./packages/social-controllers/tsconfig.build.json"
     },
     {
+      "path": "./packages/solana-test-validator-up/tsconfig.build.json"
+    },
+    {
       "path": "./packages/storage-service/tsconfig.build.json"
     },
     {
