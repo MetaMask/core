@@ -5,6 +5,8 @@ import type { Compute } from '../type-utils';
 
 export type BaseNotification = {
   id: string;
+  // eslint-disable-next-line @typescript-eslint/naming-convention
+  notification_subtype: string;
   createdAt: string;
   isRead: boolean;
 };
