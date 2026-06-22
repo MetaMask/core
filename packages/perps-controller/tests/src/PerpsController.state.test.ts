@@ -3,7 +3,6 @@
  * PerpsController Tests
  * Clean, focused test suite for PerpsController
  */
-
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 import {
@@ -373,13 +372,17 @@ describe('PerpsController', () => {
 
     jest
       .requireMock('../../src/services/EligibilityService')
-      .EligibilityService.mockImplementation(() => mockEligibilityServiceInstance);
+      .EligibilityService.mockImplementation(
+        () => mockEligibilityServiceInstance,
+      );
     jest
       .requireMock('../../src/services/DepositService')
       .DepositService.mockImplementation(() => mockDepositServiceInstance);
     jest
       .requireMock('../../src/services/MarketDataService')
-      .MarketDataService.mockImplementation(() => mockMarketDataServiceInstance);
+      .MarketDataService.mockImplementation(
+        () => mockMarketDataServiceInstance,
+      );
     jest
       .requireMock('../../src/services/TradingService')
       .TradingService.mockImplementation(() => mockTradingServiceInstance);
@@ -478,7 +481,9 @@ describe('PerpsController', () => {
     );
 
     // Reset Engine.context mocks to default state to prevent test interdependence
-    Engine.context.RewardsController.getPerpsDiscountForAccount.mockResolvedValue(null);
+    Engine.context.RewardsController.getPerpsDiscountForAccount.mockResolvedValue(
+      null,
+    );
     Engine.context.NetworkController.getNetworkClientById.mockReturnValue({
       configuration: { chainId: '0x1' },
     });
