@@ -11,10 +11,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Add input primary denomination to submitted bridge history and post-submit analytics ([#9147](https://github.com/MetaMask/core/pull/9147))
 
-### Changed
-
-- Bump `@metamask/bridge-controller` from `^75.2.1` to `^76.0.0` ([#9147](https://github.com/MetaMask/core/pull/9147))
-
 ## [72.1.1]
 
 ### Changed
