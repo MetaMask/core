@@ -18,6 +18,7 @@ export type {
   TxStatusData,
   QuoteFetchData,
   QuoteWarning,
+  InputPrimaryDenominationData,
 } from './utils/metrics/types';
 
 export {
@@ -56,6 +57,7 @@ export type {
   StellarTradeData,
   TronTradeData,
   BridgeControllerState,
+  InputPrimaryDenomination,
   BridgeControllerAction,
   BridgeControllerActions,
   BridgeControllerEvents,
@@ -69,6 +71,7 @@ export type {
   BridgeControllerFetchQuotesAction,
   BridgeControllerStopPollingForQuotesAction,
   BridgeControllerSetLocationAction,
+  BridgeControllerSetInputPrimaryDenominationAction,
   BridgeControllerResetStateAction,
   BridgeControllerSetChainIntervalLengthAction,
   BridgeControllerTrackUnifiedSwapBridgeEventAction,

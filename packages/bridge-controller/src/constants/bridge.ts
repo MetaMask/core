@@ -98,6 +98,7 @@ export const DEFAULT_BRIDGE_CONTROLLER_STATE: BridgeControllerState = {
   minimumBalanceForRentExemptionInLamports: '0',
   tokenWarnings: [],
   tokenSecurityTypeDestination: null,
+  inputPrimaryDenomination: 'token_amount',
   quoteStreamComplete: null,
   batchSellTrades: null,
   batchSellTradesLoadingStatus: null,
