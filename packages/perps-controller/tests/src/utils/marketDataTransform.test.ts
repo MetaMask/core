@@ -134,3 +134,6 @@ describe('transformMarketData - human-readable names', () => {
     expect(result[0].volume).toBe('$1000000');
   });
 });
+
+// Terminal metadata enrichment is handled by MarketDataService.#enrichWithTerminalMetadata
+// and tested in MarketDataService.test.ts — not by transformMarketData.

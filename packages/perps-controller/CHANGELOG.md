@@ -7,8 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add Terminal API integration for market data, controlled via `useTerminalApi` parameter on `GetMarketsParams` / `GetMarketDataWithPricesParams` ([#9137](https://github.com/MetaMask/core/pull/9137))
+  - `TerminalMarketService` fetches structured market metadata from the injected `terminalApiUrl` with a 5-minute cache TTL.
+  - When enabled, `getMarkets()` attempts the Terminal API first; on failure or empty response, falls back silently to HyperLiquid. Terminal results respect the same allowlist/blocklist filtering as the provider path.
+  - `getMarketDataWithPrices()` enriches provider data with Terminal API metadata (name, keywords, tags, categories).
+  - `PerpsPlatformDependencies` gains an optional `terminalApiUrl?: string` field and an optional `terminalMarketService?: PerpsTerminalMarketService` field; clients can inject a pre-built service instance or let the controller create one from the URL.
+  - `PerpsMarketData` gains optional `keywords`, `tags`, and `categories` fields.
+  - Market search (`getMarketMatchRank`, `rankMarketsByQuery`) now indexes the `keywords` field for richer search results.
+  - `HYPERLIQUID_ASSET_NAMES` and `HIP3_ASSET_MARKET_TYPES` remain intact as fallback for assets absent from the Terminal API.
+
 ### Changed
 
+- Replace unsafe `as` type cast with runtime schema validation (`@metamask/superstruct`) in `TerminalMarketService` ([#9137](https://github.com/MetaMask/core/pull/9137))
+  - Each item in the Terminal API response is now individually validated; items that fail validation are filtered out and logged instead of silently accepted.
 - Bump `@metamask/controller-utils` from `^12.2.0` to `^12.3.0` ([#9218](https://github.com/MetaMask/core/pull/9218))
 
 ## [8.2.0]
