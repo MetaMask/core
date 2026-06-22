@@ -789,14 +789,23 @@ export class MarketDataService {
               );
             }
 
-            if (context.stateManager) {
-              context.stateManager.update((state) => {
-                state.lastError = null;
-                state.lastUpdateTimestamp = Date.now();
-              });
+            // Fall back to provider when a constrained query (symbols or dex)
+            // yields no matches — Terminal partial coverage should not hide
+            // valid provider-backed markets.
+            const isConstrainedQuery =
+              (params?.symbols?.length ?? 0) > 0 || params?.dex !== undefined;
+            if (filtered.length === 0 && isConstrainedQuery) {
+              // Let execution continue to the provider path below.
+            } else {
+              if (context.stateManager) {
+                context.stateManager.update((state) => {
+                  state.lastError = null;
+                  state.lastUpdateTimestamp = Date.now();
+                });
+              }
+              traceData = { success: true };
+              return filtered;
             }
-            traceData = { success: true };
-            return filtered;
           }
         } catch (terminalError) {
           this.#deps.terminalMarketService.logError(
