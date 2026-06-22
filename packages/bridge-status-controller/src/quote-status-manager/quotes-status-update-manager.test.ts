@@ -6,8 +6,8 @@ import {
   QuoteStatusUpdateWithRetryOutcomeType,
 } from './constants';
 import { QuoteStatusApiService } from './quote-status-api-service';
-import { QuoteStatusUpdateManager } from './quotes-status-update-manager';
 import { QuoteStatusUpdateWithRetryOutcome } from './quote-status-update-with-retry-outcome';
+import { QuoteStatusUpdateManager } from './quotes-status-update-manager';
 import type {
   QuoteStatusPersistEntry,
   QuoteStatusUpdateResponse,
