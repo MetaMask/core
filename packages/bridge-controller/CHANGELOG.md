@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add `quick_buy_explore` to the `FeatureId` enum ([#TBD](https://github.com/MetaMask/core/pull/TBD))
 - **BREAKING**: Add persisted input primary denomination state and `Unified SwapBridge Fiat Crypto Toggle Clicked` analytics event support ([#9147](https://github.com/MetaMask/core/pull/9147))
 
 ## [75.2.1]
