@@ -4,6 +4,7 @@ describe('@metamask/controller-utils', () => {
   it('has expected JavaScript exports', () => {
     expect(Object.keys(allExports)).toMatchInlineSnapshot(`
       [
+        "encodeFunctionData",
         "BrokenCircuitError",
         "CircuitState",
         "CockatielEventEmitter",

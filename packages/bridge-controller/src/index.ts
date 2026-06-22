@@ -47,7 +47,7 @@ export type {
   Step,
   RefuelData,
   Quote,
-  QuoteResponse,
+  QuoteResponseV1 as QuoteResponse,
   FeeData,
   TxData,
   Intent,

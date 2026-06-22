@@ -12,6 +12,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add Stellar support for bridge token flows: `isStellarChainId`, `ChainId.STELLAR`, native XLM metadata, CAIP/decimal formatting aligned with Bridge API, and Stellar pubnet/testnet in `isNonEvmChainId` ([#8829](https://github.com/MetaMask/core/pull/8829))
 - Add `StellarTradeDataSchema`, `StellarTradeData`, and `isStellarTrade`; extend `extractTradeData` to read Stellar XDR from `{ xdrBase64 }` or `{ xdr }` objects ([#8829](https://github.com/MetaMask/core/pull/8829))
 
+## [75.2.0]
+
+### Added
+
+- Add optional `environment_type` property to the `ButtonClicked` unified swap/bridge event context ([#9121](https://github.com/MetaMask/core/pull/9121))
+
+### Changed
+
+- Bump `@metamask/assets-controllers` from `^109.0.0` to `^109.2.0` ([#9110](https://github.com/MetaMask/core/pull/9110), [#9202](https://github.com/MetaMask/core/pull/9202))
+- Bump `@metamask/assets-controllers` from `^109.0.0` to `^109.1.0` ([#9110](https://github.com/MetaMask/core/pull/9110))
+- Refactor selector unit tests to prepare for V2 QuoteResponse migration ([#9098](https://github.com/MetaMask/core/pull/9098))
+- Bump `@metamask/utils` from `^11.9.0` to `^11.11.0` ([#9074](https://github.com/MetaMask/core/pull/9074))
+- Bump `@metamask/assets-controller` from `^9.0.0` to `^9.0.1` ([#9083](https://github.com/MetaMask/core/pull/9083))
+- Bump `@metamask/controller-utils` from `^12.1.1` to `^12.2.0` ([#9083](https://github.com/MetaMask/core/pull/9083))
+- Bump `@metamask/transaction-controller` from `^67.1.0` to `^68.1.0` ([#9089](https://github.com/MetaMask/core/pull/9089), [#9177](https://github.com/MetaMask/core/pull/9177), [#9203](https://github.com/MetaMask/core/pull/9203))
+- Bump `@metamask/profile-sync-controller` from `^28.1.1` to `^28.2.0` ([#9119](https://github.com/MetaMask/core/pull/9119))
+
+### Fixed
+
+- Include `token_symbol_source` and `token_symbol_destination` in `getQuotesReceivedProperties` return value, derived from the active quote's asset metadata ([#9213](https://github.com/MetaMask/core/pull/9213))
+
+## [75.1.1]
+
+### Changed
+
+- Bump `@metamask/assets-controller` from `^8.3.3` to `^9.0.0` ([#9078](https://github.com/MetaMask/core/pull/9078))
+- Bump `@metamask/assets-controllers` from `^108.6.0` to `^109.0.0` ([#9078](https://github.com/MetaMask/core/pull/9078))
+
 ## [75.1.0]
 
 ### Added
@@ -1596,7 +1624,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#5317](https://github.com/MetaMask/core/pull/5317))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@75.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@75.2.0...HEAD
+[75.2.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@75.1.1...@metamask/bridge-controller@75.2.0
+[75.1.1]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@75.1.0...@metamask/bridge-controller@75.1.1
 [75.1.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@75.0.0...@metamask/bridge-controller@75.1.0
 [75.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@74.0.0...@metamask/bridge-controller@75.0.0
 [74.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@73.2.1...@metamask/bridge-controller@74.0.0

@@ -236,6 +236,9 @@
       "path": "./packages/signature-controller/tsconfig.build.json"
     },
     {
+      "path": "./packages/smart-transactions-controller/tsconfig.build.json"
+    },
+    {
       "path": "./packages/snap-account-service/tsconfig.build.json"
     },
     {
@@ -255,6 +258,9 @@
     },
     {
       "path": "./packages/user-operation-controller/tsconfig.build.json"
+    },
+    {
+      "path": "./packages/wallet-cli/tsconfig.build.json"
     },
     {
       "path": "./packages/wallet-framework-docs/tsconfig.build.json"

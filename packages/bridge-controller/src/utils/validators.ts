@@ -484,7 +484,7 @@ export const QuoteResponseSchema = type({
   ]),
 });
 
-export const validateQuoteResponse = (
+export const validateQuoteResponseV1 = (
   data: unknown,
 ): data is Infer<typeof QuoteResponseSchema> => {
   assert(data, QuoteResponseSchema);
