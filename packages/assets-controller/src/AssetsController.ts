@@ -1115,6 +1115,22 @@ export class AssetsController extends BaseController<
         this.#onUnapprovedTransactionAdded(transactionMeta);
       },
     );
+
+    // Subscribe to account balances updated - Stellar classic asset balance updates
+    // Ensures that Stellar classic asset balance updates are reflected in the assets controller
+    this.messenger.subscribe(
+      'AccountsController:accountBalancesUpdated',
+      ({ balances }) => {
+        for (const [accountId, assets] of Object.entries(balances)) {
+          const stellarClassicAssets = Object.keys(assets).filter(
+            (assetId) => isStellarClassicAssetId(assetId as Caip19AssetId),
+          ) as Caip19AssetId[];
+          if (stellarClassicAssets.length > 0) {
+            this.#scheduleAccountAssetInfoRefresh(accountId, stellarClassicAssets);
+          }
+        }
+      },
+    );
   }
 
   #onUnapprovedTransactionAdded(transactionMeta: TransactionMeta): void {
