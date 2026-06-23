@@ -450,6 +450,57 @@ describe('Wallet', () => {
         'https://example.com/ipfs/',
       );
     });
+
+    it('lets a consumer override the default with a diverging superset controller', () => {
+      // A client (e.g. the extension) whose local PreferencesController is a
+      // superset of the package one can keep it by supplying its own
+      // `PreferencesController` initialization configuration. The same `name`
+      // overrides the package default, so the wallet constructs the superset
+      // instead of the package controller — no convergence required.
+      class SupersetPreferencesController {
+        state = {
+          ipfsGateway: 'https://superset.example/ipfs/',
+          currentLocale: 'en',
+          preferences: { showTestNetworks: true },
+        };
+      }
+
+      const wallet = new Wallet({
+        initializationConfigurations: [
+          {
+            name: 'PreferencesController',
+            getMessenger: (): Messenger<string> =>
+              new Messenger({ namespace: 'PreferencesController' }),
+            init: (): SupersetPreferencesController =>
+              new SupersetPreferencesController(),
+          },
+        ],
+        instanceOptions: {
+          connectivityController: {
+            connectivityAdapter: new AlwaysOnlineAdapter(),
+          },
+          networkController: {
+            infuraProjectId: 'fake-infura-project-id',
+          },
+          storageService: {
+            storage: new InMemoryStorageAdapter(),
+          },
+          remoteFeatureFlagController: REMOTE_FEATURE_FLAG_OPTIONS,
+        },
+      });
+
+      expect(wallet.getInstance('PreferencesController')).toBeInstanceOf(
+        SupersetPreferencesController,
+      );
+      // The superset's shape — including fields absent from the package
+      // controller (`currentLocale`, nested `preferences`) — is what the wallet
+      // exposes, not the package defaults.
+      expect(wallet.state.PreferencesController).toStrictEqual({
+        ipfsGateway: 'https://superset.example/ipfs/',
+        currentLocale: 'en',
+        preferences: { showTestNetworks: true },
+      });
+    });
   });
 
   describe('StorageService', () => {
