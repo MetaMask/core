@@ -7,14 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- Revert "Release/1064.0.0 (#9228)" ([#9228](https://github.com/MetaMask/core/pull/9228))
-- Release/1064.0.0 ([#9228](https://github.com/MetaMask/core/pull/9228))
-
 ### Changed
 
 - **BREAKING:** Default `location` fallback for post-submit Unified SwapBridge events now uses `Unknown` instead of `Main View` ([#9243](https://github.com/MetaMask/core/pull/9243))
+
 - Bump `@metamask/accounts-controller` from `^39.0.2` to `^39.0.3` ([#9231](https://github.com/MetaMask/core/pull/9231))
 
 ### Fixed
