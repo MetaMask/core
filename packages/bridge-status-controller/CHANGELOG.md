@@ -9,18 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **BREAKING:** Add required `quoteId: string` to `BridgeHistoryItem` ([#8462](https://github.com/MetaMask/core/pull/8462))
-- Add `QuoteStatusUpdateManager` for resilient quote-status reporting to the Bridge API; reports `SUBMITTED`/`FINALIZED_SUCCESS`/`FINALIZED_FAILURE`, retries immediately on retryable errors (up to 6×), defers on network failures (every 30 min for up to 12 h), and persists the queue to `quoteUpdateStatusStore` state across service-worker restarts ([#8462](https://github.com/MetaMask/core/pull/8462))
-- Export `QuoteStatusUpdateError`, `BaseQuoteStatusUpdateErrorTypes`, `QuoteStatusPersistEntry` ([#8462](https://github.com/MetaMask/core/pull/8462))
-- Add optional `onQuoteStatusUpdateError` and `isQuoteStatusUpdateEnabled` constructor options to `BridgeStatusController` ([#8462](https://github.com/MetaMask/core/pull/8462))
-
-### Changed
-
-- `BridgeStatusController` reports quote `SUBMITTED` status via `TransactionController:transactionStatusUpdated` when a swap/bridge tx reaches `submitted` (covers batch EVM / STX / 7702-delegated txs whose hash is unavailable at `submitTx` time) ([#8462](https://github.com/MetaMask/core/pull/8462))
-
-### Fixed
-
-- Avoid duplicate quote `SUBMITTED` reports for EVM transactions by handling submission only in `transactionStatusUpdated` (not `transactionSubmitted` or inline `submitIntent`) ([#8462](https://github.com/MetaMask/core/pull/8462))
+- **BREAKING:** Add required `quoteId: string` and `reportedSubmittedTxHash: string` to `BridgeHistoryItem` ([#8462](https://github.com/MetaMask/core/pull/8462))
+- Add `QuoteStatusUpdateManager` for resilient quote-status reporting to the Bridge API; reports `SUBMITTED`/`FINALIZED_SUCCESS`/`FINALIZED_FAILURE`, retries immediately on retryable errors, defers on network failures, and persists the queue to `quoteUpdateStatusStore` state across service-worker restarts ([#8462](https://github.com/MetaMask/core/pull/8462))
 
 ## [72.1.1]
 
