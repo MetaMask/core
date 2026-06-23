@@ -6,7 +6,10 @@
  */
 import { hasProperty } from '@metamask/utils';
 
-import { HYPERLIQUID_CONFIG } from '../constants/hyperLiquidConfig';
+import {
+  HYPERLIQUID_CONFIG,
+  getHyperLiquidAssetName,
+} from '../constants/hyperLiquidConfig';
 import { PERPS_CONSTANTS } from '../constants/perpsConfig';
 import type {
   PerpsMarketData,
@@ -174,12 +177,16 @@ function extractFundingData(params: ExtractFundingDataParams): FundingData {
  * @param hyperLiquidData - Raw data from HyperLiquid API
  * @param formatters - Injectable formatters for platform-agnostic formatting
  * @param assetMarketTypes - Optional mapping of asset symbols to market types
+ * @param assetNames - Optional mapping of asset symbols to human-readable names.
+ * Defaults to the bundled HYPERLIQUID_ASSET_NAMES; unmapped assets fall back to
+ * their ticker symbol.
  * @returns Transformed market data ready for UI consumption
  */
 export function transformMarketData(
   hyperLiquidData: HyperLiquidMarketData,
   formatters: MarketDataFormatters,
   assetMarketTypes?: Record<string, MarketType>,
+  assetNames?: Record<string, string>,
 ): PerpsMarketData[] {
   const { universe, assetCtxs, allMids, predictedFundings } = hyperLiquidData;
 
@@ -248,20 +255,15 @@ export function transformMarketData(
     // Crypto markets (HIP-2) don't have a prefix (e.g., BTC, ETH)
     const isHip3 = Boolean(dex);
 
-    // Determine market type from explicit mapping only
-    // Only explicitly mapped HIP-3 markets get a marketType (e.g., 'xyz:GOLD' → 'commodity')
-    // Unmapped HIP-3 markets (e.g., 'hyna:BTC') have no marketType - they go to "New" tab
-    // Main DEX crypto also has no marketType
-    const explicitMarketType = assetMarketTypes?.[symbol];
-    const marketType: MarketType | undefined = explicitMarketType;
+    // Determine market type from explicit static mapping
+    const marketType: MarketType | undefined = assetMarketTypes?.[symbol];
 
     // Mark as "new" if it's a HIP-3 market but not explicitly categorized
-    // New markets are always HIP-3 (non-crypto) that haven't been assigned a category yet
-    const isNewMarket = isHip3 && !explicitMarketType;
+    const isNewMarket = isHip3 && !marketType;
 
     return {
       symbol,
-      name: symbol,
+      name: getHyperLiquidAssetName(symbol, assetNames),
       maxLeverage: `${asset.maxLeverage}x`,
       price: isNaN(currentPrice)
         ? PERPS_CONSTANTS.FallbackPriceDisplay

@@ -1,6 +1,7 @@
 import type { TransactionType } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 import { createModuleLogger } from '@metamask/utils';
+import { BigNumber } from 'bignumber.js';
 import { uniq } from 'lodash';
 
 import { isTransactionPayStrategy, TransactionPayStrategy } from '../constants';
@@ -9,6 +10,7 @@ import type { TransactionPayFiatAsset } from '../strategy/fiat/constants';
 import {
   ETH_MAINNET_FIAT_ASSET,
   FIAT_ASSET_ID_BY_TX_TYPE,
+  FIAT_ENABLED_TYPES,
 } from '../strategy/fiat/constants';
 import {
   RELAY_EXECUTE_URL,
@@ -24,6 +26,11 @@ import type { TransactionPayControllerMessenger } from '../types';
 const log = createModuleLogger(projectLogger, 'feature-flags');
 
 type StrategyOrder = TransactionPayStrategy[];
+
+export const DEFAULT_FEE_RESERVE_MULTIPLIER = 1.2;
+export const DEFAULT_MAX_RATE_DRIFT_PERCENT = 10;
+export const DEFAULT_ORDER_POLL_INTERVAL_MS = 1000;
+export const DEFAULT_ORDER_POLL_TIMEOUT_MS = 10 * 60 * 1000;
 
 export const DEFAULT_GAS_BUFFER = 1.0;
 export const DEFAULT_FALLBACK_GAS_ESTIMATE = 900000;
@@ -91,6 +98,13 @@ type FiatFlags = {
   assetPerTransactionType?: Partial<
     Record<TransactionType, TransactionPayFiatAsset>
   >;
+  directMoneyMusdEnabled?: boolean;
+  enabledTransactionTypes: TransactionType[];
+  feeReserveMultiplier?: number;
+  maxRateDriftPercent?: number;
+  orderPollIntervalMs?: number;
+  orderPollTimeoutMs?: number;
+  vaultDisabled?: boolean;
 };
 
 type StrategyRoutingConfig = {
@@ -456,10 +470,13 @@ export function getFeatureFlags(
       | FeatureFlagsRaw
       | undefined) ?? {};
 
-  const estimate =
-    featureFlags.relayFallbackGas?.estimate ?? DEFAULT_FALLBACK_GAS_ESTIMATE;
+  const estimate = new BigNumber(
+    featureFlags.relayFallbackGas?.estimate ?? DEFAULT_FALLBACK_GAS_ESTIMATE,
+  ).toNumber();
 
-  const max = featureFlags.relayFallbackGas?.max ?? DEFAULT_FALLBACK_GAS_MAX;
+  const max = new BigNumber(
+    featureFlags.relayFallbackGas?.max ?? DEFAULT_FALLBACK_GAS_MAX,
+  ).toNumber();
 
   const relayExecuteUrl =
     featureFlags.relayExecuteUrl ?? DEFAULT_RELAY_EXECUTE_URL;
@@ -819,6 +836,140 @@ export function getFiatAssetPerTransactionType(
     FIAT_ASSET_ID_BY_TX_TYPE[transactionType] ??
     ETH_MAINNET_FIAT_ASSET
   );
+}
+
+/**
+ * Get the enabled fiat transaction types.
+ *
+ * @param messenger - Controller messenger.
+ * @returns The enabled fiat transaction types.
+ */
+export function getFiatEnabledTypes(
+  messenger: TransactionPayControllerMessenger,
+): TransactionType[] {
+  const state = messenger.call('RemoteFeatureFlagController:getState');
+  const fiatFlags = state.remoteFeatureFlags?.confirmations_pay_fiat as
+    | FiatFlags
+    | undefined;
+
+  return fiatFlags?.enabledTransactionTypes ?? FIAT_ENABLED_TYPES;
+}
+
+/**
+ * Returns the fee reserve multiplier for fiat three-phase submit.
+ *
+ * Controls how much of the original relay fee is reserved from the discovery
+ * quote source amount to prevent EXACT_OUTPUT cost overruns.
+ *
+ * @param messenger - Controller messenger.
+ * @returns The fee reserve multiplier.
+ */
+export function getFiatFeeReserveMultiplier(
+  messenger: TransactionPayControllerMessenger,
+): number {
+  const state = messenger.call('RemoteFeatureFlagController:getState');
+  const fiatFlags = state.remoteFeatureFlags?.confirmations_pay_fiat as
+    | FiatFlags
+    | undefined;
+
+  const multiplier = fiatFlags?.feeReserveMultiplier;
+
+  return typeof multiplier === 'number' && multiplier > 0
+    ? multiplier
+    : DEFAULT_FEE_RESERVE_MULTIPLIER;
+}
+
+/**
+ * Returns the maximum allowed relay rate drift percentage for fiat submit.
+ *
+ * Controls how much the relay exchange rate can drift between the original
+ * quoting phase and the post-settlement discovery quote before failing.
+ * Defaults to 10%.
+ *
+ * @param messenger - Controller messenger.
+ * @returns The maximum rate drift percentage.
+ */
+export function getFiatMaxRateDriftPercent(
+  messenger: TransactionPayControllerMessenger,
+): number {
+  const state = messenger.call('RemoteFeatureFlagController:getState');
+  const fiatFlags = state.remoteFeatureFlags?.confirmations_pay_fiat as
+    | FiatFlags
+    | undefined;
+
+  const maxDrift = fiatFlags?.maxRateDriftPercent;
+
+  return typeof maxDrift === 'number' && maxDrift > 0
+    ? maxDrift
+    : DEFAULT_MAX_RATE_DRIFT_PERCENT;
+}
+
+export function getDirectMoneyMusdEnabled(
+  messenger: TransactionPayControllerMessenger,
+): boolean {
+  const state = messenger.call('RemoteFeatureFlagController:getState');
+  const fiatFlags = state.remoteFeatureFlags?.confirmations_pay_fiat as
+    | FiatFlags
+    | undefined;
+  return fiatFlags?.directMoneyMusdEnabled === true;
+}
+
+export function getFiatVaultDisabled(
+  messenger: TransactionPayControllerMessenger,
+): boolean {
+  const state = messenger.call('RemoteFeatureFlagController:getState');
+  const fiatFlags = state.remoteFeatureFlags?.confirmations_pay_fiat as
+    | FiatFlags
+    | undefined;
+  return fiatFlags?.vaultDisabled === true;
+}
+
+/**
+ * Returns the fiat order poll interval in milliseconds.
+ *
+ * Controls how frequently the fiat order status is polled during
+ * the on-ramp completion wait loop. Defaults to 1 000 ms.
+ *
+ * @param messenger - Controller messenger.
+ * @returns The poll interval in milliseconds.
+ */
+export function getFiatOrderPollIntervalMs(
+  messenger: TransactionPayControllerMessenger,
+): number {
+  const state = messenger.call('RemoteFeatureFlagController:getState');
+  const fiatFlags = state.remoteFeatureFlags?.confirmations_pay_fiat as
+    | FiatFlags
+    | undefined;
+
+  const interval = fiatFlags?.orderPollIntervalMs;
+
+  return typeof interval === 'number' && interval > 0
+    ? interval
+    : DEFAULT_ORDER_POLL_INTERVAL_MS;
+}
+
+/**
+ * Returns the fiat order poll timeout in milliseconds.
+ *
+ * Controls how long the fiat order polling loop waits for a terminal
+ * status before timing out. Defaults to 600 000 ms (10 minutes).
+ *
+ * @param messenger - Controller messenger.
+ * @returns The poll timeout in milliseconds.
+ */
+export function getFiatOrderPollTimeoutMs(
+  messenger: TransactionPayControllerMessenger,
+): number {
+  const state = messenger.call('RemoteFeatureFlagController:getState');
+  const fiatFlags = state.remoteFeatureFlags?.confirmations_pay_fiat as
+    | FiatFlags
+    | undefined;
+
+  const timeout = fiatFlags?.orderPollTimeoutMs;
+
+  return typeof timeout === 'number' && timeout > 0
+    ? timeout
+    : DEFAULT_ORDER_POLL_TIMEOUT_MS;
 }
 
 /**

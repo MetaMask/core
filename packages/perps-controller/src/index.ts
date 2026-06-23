@@ -244,6 +244,8 @@ export type {
   PerpsInternalAccount,
   PerpsRemoteFeatureFlagState,
   PerpsPlatformDependencies,
+  PerpsTerminalMarketService,
+  TerminalAssetMetadata,
   PerpsCacheType,
   InvalidateCacheParams,
   PerpsCacheInvalidator,
@@ -491,7 +493,14 @@ export {
   calculateFundingCountdown,
   calculate24hHighLow,
   filterMarketsByQuery,
+  matchesCategory,
+  getMarketTypeFilter,
+  applyMarketFilters,
+  isHip3Market,
+  rankMarketsByQuery,
+  getMarketMatchRank,
 } from './utils';
+export { MarketMatchRank } from './utils';
 export type { MarketPatternMatcher, CompiledMarketPattern } from './utils';
 export type {
   OrderCalculationsDebugLogger,

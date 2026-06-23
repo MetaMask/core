@@ -88,6 +88,7 @@ export async function updateQuotes(
     isPolymarketDepositWallet,
     paymentOverride,
     paymentToken: originalPaymentToken,
+    fiatPayment,
     refundTo,
     sourceAmounts,
     tokens,
@@ -135,11 +136,12 @@ export async function updateQuotes(
 
     const { batchTransactions, quotes } = await getQuotes(
       transaction,
+      from,
       requests,
       supports7702,
       getStrategies,
       messenger,
-      transactionData.fiatPayment?.selectedPaymentMethodId,
+      fiatPayment?.selectedPaymentMethodId,
       signal,
     );
 
@@ -149,6 +151,7 @@ export async function updateQuotes(
     }
 
     const totals = calculateTotals({
+      fiatPaymentAmount: fiatPayment?.amountFiat,
       isMaxAmount,
       messenger,
       quotes: quotes as TransactionPayQuote<unknown>[],
@@ -160,6 +163,8 @@ export async function updateQuotes(
 
     syncTransaction({
       batchTransactions,
+      selectedFiatPayment: fiatPayment?.selectedPaymentMethodId,
+      hasQuotes: quotes.length > 0,
       isPostQuote,
       messenger: messenger as never,
       paymentToken,
@@ -195,28 +200,34 @@ export async function updateQuotes(
  *
  * @param request - Request object.
  * @param request.batchTransactions - Batch transactions to sync.
+ * @param request.hasQuotes - Whether MM Pay produced any quotes for this transaction.
  * @param request.isPostQuote - Whether this is a post-quote flow.
  * @param request.messenger - Messenger instance.
  * @param request.paymentToken - Payment token (source for standard flows, destination for post-quote).
+ * @param request.selectedFiatPayment - Selected fiat payment method ID.
  * @param request.totals - Calculated totals.
  * @param request.transactionId - ID of the transaction to sync.
  */
 function syncTransaction({
   batchTransactions,
+  hasQuotes,
   isPostQuote,
   messenger,
   paymentToken,
+  selectedFiatPayment,
   totals,
   transactionId,
 }: {
   batchTransactions: BatchTransaction[];
+  selectedFiatPayment?: string;
+  hasQuotes: boolean;
   isPostQuote?: boolean;
   messenger: TransactionPayControllerMessenger;
   paymentToken: TransactionPaymentToken | undefined;
   totals: TransactionPayTotals;
   transactionId: string;
 }): void {
-  if (!paymentToken) {
+  if (!paymentToken && !selectedFiatPayment) {
     return;
   }
 
@@ -230,13 +241,21 @@ function syncTransaction({
       tx.batchTransactions = batchTransactions;
       tx.batchTransactionsOptions = {};
 
+      // When MM Pay has produced quotes, it owns submission of this transaction
+      // via its strategy publish hook, so the parent must be marked externally
+      // signed to skip the local `KeyringController:signTransaction` call.
+      // When there are no quotes (e.g. user selected the target token as the
+      // payment token in a Predict flow), the transaction falls back to normal
+      // local signing, so the flag is cleared to allow that.
+      tx.isExternalSign = hasQuotes;
+
       tx.metamaskPay = {
         bridgeFeeFiat: totals.fees.provider.usd,
-        chainId: paymentToken.chainId,
+        chainId: paymentToken?.chainId,
         isPostQuote,
         networkFeeFiat: totals.fees.sourceNetwork.estimate.usd,
         targetFiat: totals.targetAmount.usd,
-        tokenAddress: paymentToken.address,
+        tokenAddress: paymentToken?.address,
         totalFiat: totals.total.usd,
       };
     },
@@ -561,6 +580,7 @@ async function refreshPaymentTokenBalance({
  * Retrieve quotes for a transaction.
  *
  * @param transaction - Transaction metadata.
+ * @param from - Resolved wallet address (`accountOverride ?? txParams.from`).
  * @param requests - Quote requests.
  * @param isAccountEIP7702Compatible - Whether the account supports EIP-7702.
  * @param getStrategies - Callback to get ordered strategy names for a transaction.
@@ -571,6 +591,7 @@ async function refreshPaymentTokenBalance({
  */
 async function getQuotes(
   transaction: TransactionMeta,
+  from: Hex,
   requests: QuoteRequest[],
   isAccountEIP7702Compatible: boolean,
   getStrategies: (transaction: TransactionMeta) => TransactionPayStrategy[],
@@ -602,6 +623,7 @@ async function getQuotes(
   const request = {
     accountSupports7702: isAccountEIP7702Compatible,
     fiatPaymentMethod,
+    from,
     messenger,
     requests,
     signal,

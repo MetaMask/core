@@ -3,7 +3,7 @@ import { StructError } from '@metamask/superstruct';
 import type { CaipAssetType, CaipChainId, Hex } from '@metamask/utils';
 
 import type {
-  QuoteResponse,
+  QuoteResponseV1,
   FetchFunction,
   GenericQuoteRequest,
   QuoteRequest,
@@ -12,6 +12,7 @@ import type {
   QuoteStreamCompleteData,
   BatchSellTradesRequest,
   BatchSellTradesResponse,
+  FeatureId,
 } from '../types';
 import { getEthUsdtResetData } from './bridge';
 import {
@@ -21,9 +22,8 @@ import {
 } from './caip-formatters';
 import { fetchServerEvents } from './fetch-server-events';
 import { isEvmTxData } from './trade-utils';
-import type { FeatureId } from './validators';
 import {
-  validateQuoteResponse,
+  validateQuoteResponseV1,
   validateSwapsTokenObject,
   validateTokenFeature,
   validateQuoteStreamComplete,
@@ -160,7 +160,7 @@ export async function fetchBridgeQuotes(
   featureId: FeatureId | null,
   clientVersion?: string,
 ): Promise<{
-  quotes: QuoteResponse[];
+  quotes: QuoteResponseV1[];
   validationFailures: string[];
 }> {
   const normalizedRequest = formatQuoteRequest(request);
@@ -174,17 +174,17 @@ export async function fetchBridgeQuotes(
 
   const uniqueValidationFailures: Set<string> = new Set<string>([]);
   const filteredQuotes = quotes
-    .filter((quoteResponse: unknown): quoteResponse is QuoteResponse => {
+    .filter((quoteResponse: unknown): quoteResponse is QuoteResponseV1 => {
       try {
-        return validateQuoteResponse(quoteResponse);
+        return validateQuoteResponseV1(quoteResponse);
       } catch (error) {
         if (error instanceof StructError) {
           error.failures().forEach(({ branch, path }) => {
             const aggregatorId =
               branch?.[0]?.quote?.bridgeId ??
               branch?.[0]?.quote?.bridges?.[0] ??
-              (quoteResponse as QuoteResponse)?.quote?.bridgeId ??
-              (quoteResponse as QuoteResponse)?.quote?.bridges?.[0] ??
+              (quoteResponse as QuoteResponseV1)?.quote?.bridgeId ??
+              (quoteResponse as QuoteResponseV1)?.quote?.bridges?.[0] ??
               'unknown';
             const pathString = path?.join('.') || 'unknown';
             uniqueValidationFailures.add([aggregatorId, pathString].join('|'));
@@ -316,7 +316,7 @@ const getQuoteRequestId = ({
 const getQuoteResponseId = ({
   srcAsset: { address: srcTokenAddress, chainId: srcChainId },
   destAsset: { address: destTokenAddress, chainId: destChainId },
-}: QuoteResponse['quote']): string =>
+}: QuoteResponseV1['quote']): string =>
   `${formatAddressToAssetId(srcTokenAddress, srcChainId)}-${formatAddressToAssetId(destTokenAddress, destChainId)}`;
 
 /**
@@ -325,6 +325,7 @@ const getQuoteResponseId = ({
  * @param fetchFn - The fetch function to use
  * @param quoteRequests - An array of GenericQuoteRequest objects
  * @param signal - The abort signal
+ * @param featureId - The {@link FeatureId} for the experience that's requesting the quotes
  * @param clientId - The client ID for metrics
  * @param jwt - The JWT token for authentication
  * @param bridgeApiBaseUrl - The base URL for the bridge API
@@ -341,13 +342,14 @@ export async function fetchBridgeQuoteStream(
   fetchFn: FetchFunction,
   quoteRequests: GenericQuoteRequest[],
   signal: AbortSignal | undefined,
+  featureId: FeatureId,
   clientId: string,
   jwt: string | undefined,
   bridgeApiBaseUrl: string,
   serverEventHandlers: {
     onClose: () => void | Promise<void>;
     onQuoteValidationFailure: (validationFailures: string[]) => void;
-    onValidQuoteReceived: (quotes: QuoteResponse) => Promise<void>;
+    onValidQuoteReceived: (quotes: QuoteResponseV1) => Promise<void>;
     onTokenWarning: (warning: TokenFeature) => void;
     onComplete: (data: QuoteStreamCompleteData) => void;
   },
@@ -367,7 +369,7 @@ export async function fetchBridgeQuoteStream(
     const uniqueValidationFailures: Set<string> = new Set<string>([]);
 
     try {
-      if (validateQuoteResponse(quoteResponse)) {
+      if (validateQuoteResponseV1(quoteResponse)) {
         // Fallback to 0 if the quote doesn't match any requests
         const matchedQuoteRequestIdx = Math.max(
           quoteRequestIds?.findIndex((id) => {
@@ -380,6 +382,7 @@ export async function fetchBridgeQuoteStream(
 
         return await serverEventHandlers.onValidQuoteReceived({
           ...quoteResponse,
+          featureId,
           // Append the reset approval data to the quote response if the request has resetApproval set to true and the quote has an approval
           resetApproval:
             matchingQuoteRequest.resetApproval &&
@@ -401,8 +404,8 @@ export async function fetchBridgeQuoteStream(
           const aggregatorId =
             branch?.[0]?.quote?.bridgeId ??
             branch?.[0]?.quote?.bridges?.[0] ??
-            (quoteResponse as QuoteResponse)?.quote?.bridgeId ??
-            ((quoteResponse as QuoteResponse)?.quote?.bridges?.[0] ||
+            (quoteResponse as QuoteResponseV1)?.quote?.bridgeId ??
+            ((quoteResponse as QuoteResponseV1)?.quote?.bridges?.[0] ||
               ('unknown' as string));
           const pathString = path?.join('.') || 'unknown';
           uniqueValidationFailures.add([aggregatorId, pathString].join('|'));
@@ -494,10 +497,11 @@ export async function fetchBridgeQuoteStream(
 }
 
 export const formatBatchSellTradesRequest = (
-  quotes: (QuoteResponse | null)[],
+  quotes: (QuoteResponseV1 | null)[],
+  stxEnabled: boolean,
 ): BatchSellTradesRequest => ({
   quotes: quotes
-    .filter((quote): quote is QuoteResponse => quote !== null)
+    .filter((quote): quote is QuoteResponseV1 => quote !== null)
     .map(
       ({
         trade,
@@ -513,12 +517,14 @@ export const formatBatchSellTradesRequest = (
         quoteId,
       }),
     ),
+  stxEnabled,
 });
 
 /**
  * Fetches quotes from the bridge-api's getQuote endpoint
  *
  * @param quotes - The quotes to fetch the gasless transaction data and fees for. May contain null values if a quote is not available for a swap
+ * @param stxEnabled - Flag to estimate gas cost more precisely for the batch sell feature.
  * @param signal - The abort signal
  * @param clientId - The client ID for metrics
  * @param jwt - The JWT token for authentication
@@ -528,7 +534,8 @@ export const formatBatchSellTradesRequest = (
  * @returns The batch sell trades and the total network fee
  */
 export async function fetchBatchSellTrades(
-  quotes: (QuoteResponse | null)[],
+  quotes: (QuoteResponseV1 | null)[],
+  stxEnabled: boolean,
   signal: AbortSignal | null,
   clientId: string,
   jwt: string | undefined,
@@ -537,7 +544,10 @@ export async function fetchBatchSellTrades(
   clientVersion?: string,
 ): Promise<BatchSellTradesResponse> {
   const url = `${bridgeApiBaseUrl}/obtainGaslessBatch`;
-  const request: BatchSellTradesRequest = formatBatchSellTradesRequest(quotes);
+  const request: BatchSellTradesRequest = formatBatchSellTradesRequest(
+    quotes,
+    stxEnabled,
+  );
   const batchSellTradesResponse = await fetchFn(url, {
     headers: {
       ...getClientHeaders({

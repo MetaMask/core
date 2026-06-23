@@ -1,33 +1,38 @@
-import type {
-  RampsOrder,
-  RampsOrderCryptoCurrency,
-} from '@metamask/ramps-controller';
+import type { RampsOrder } from '@metamask/ramps-controller';
 import { RampsOrderStatus } from '@metamask/ramps-controller';
 import type { Hex } from '@metamask/utils';
 import { createModuleLogger } from '@metamask/utils';
-import { BigNumber } from 'bignumber.js';
 
 import { projectLogger } from '../../logger';
 import type {
   PayStrategy,
   PayStrategyExecuteRequest,
-  QuoteRequest,
+  TransactionPayFiatOptions,
   TransactionPayControllerMessenger,
 } from '../../types';
-import { buildCaipAssetType } from '../../utils/token';
+import { prefixError } from '../../utils/error-prefix';
+import {
+  getFiatOrderPollIntervalMs,
+  getFiatOrderPollTimeoutMs,
+} from '../../utils/feature-flags';
 import { updateTransaction } from '../../utils/transaction';
-import { getRelayQuotes } from '../relay/relay-quotes';
-import { submitRelayQuotes } from '../relay/relay-submit';
-import type { RelayQuote } from '../relay/types';
-import type { TransactionPayFiatAsset } from './constants';
+import {
+  isDirectMusdMoneyAccountQuote,
+  submitDirectMusdAfterFiatCompletion,
+} from './fiat-direct-musd';
+import { submitSimpleRelay } from './fiat-submit-simple';
+import { submitWithTransactionData } from './fiat-submit-with-transaction-data';
+import { fundFiatOrderFromTestSource } from './fiat-test-funding';
 import type { FiatQuote } from './types';
-import { deriveFiatAssetForFiatPayment, resolveSourceAmountRaw } from './utils';
+import {
+  deriveFiatAssetForFiatPayment,
+  extractProviderCode,
+  resolveSourceAmountRaw,
+  validateOrderAsset,
+} from './utils';
 
 const log = createModuleLogger(projectLogger, 'fiat-submit');
-
-const ORDER_POLL_INTERVAL_MS = 1000;
-const ORDER_POLL_TIMEOUT_MS = 10 * 60 * 1000;
-const MAX_SLIPPAGE_PERCENT = 5;
+const POST_RAMP_ERROR_PREFIX = 'Post-Ramp: ';
 
 const TERMINAL_FAILURE_STATUSES: RampsOrderStatus[] = [
   RampsOrderStatus.Cancelled,
@@ -51,24 +56,26 @@ export async function submitFiatQuotes(
 ): ReturnType<PayStrategy<FiatQuote>['execute']> {
   const { messenger, transaction } = request;
   const transactionId = transaction.id;
-  const walletAddress = transaction.txParams.from as Hex | undefined;
-
-  if (!walletAddress) {
-    throw new Error('Missing wallet address for fiat submission');
-  }
-
   const state = messenger.call('TransactionPayController:getState');
-  const fiatPayment = state.transactionData[transactionId]?.fiatPayment;
+  const transactionData = state.transactionData[transactionId];
+
+  const walletAddress = getWalletAddress({
+    quotes: request.quotes,
+    transaction,
+    accountOverride: transactionData?.accountOverride,
+  });
+
+  const fiatPayment = transactionData?.fiatPayment;
   const orderId = fiatPayment?.orderId;
 
   if (!orderId) {
-    throw new Error('Missing order ID for fiat submission');
+    throw new Error('Missing order ID');
   }
 
   const providerCode = extractProviderCode(fiatPayment?.rampsQuote?.provider);
 
   if (!providerCode) {
-    throw new Error('Missing provider code for fiat submission');
+    throw new Error('Missing provider code');
   }
 
   updateTransaction(
@@ -89,13 +96,28 @@ export async function submitFiatQuotes(
     transactionId,
   });
 
-  const order = await waitForOrderCompletion({
-    messenger,
-    orderCode: orderId,
-    providerCode,
-    transactionId,
-    walletAddress,
-  });
+  const fiatQuote = request.quotes[0];
+
+  if (!fiatQuote) {
+    throw new Error('Missing quote');
+  }
+
+  const fiatOptions = getFiatOptions(messenger);
+
+  const order = fiatOptions?.testFundingSource
+    ? await fundFiatOrderFromTestSource({
+        fiat: fiatOptions,
+        messenger,
+        quote: fiatQuote,
+        transaction,
+      })
+    : await waitForOrderCompletion({
+        messenger,
+        orderCode: orderId,
+        providerCode,
+        transactionId,
+        walletAddress,
+      });
 
   log('Fiat order completed', {
     cryptoAmount: order.cryptoAmount,
@@ -103,114 +125,27 @@ export async function submitFiatQuotes(
     transactionId,
   });
 
-  return await submitRelayAfterFiatCompletion({ order, request });
-}
+  try {
+    const result = await submitRelayAfterFiatCompletion({ order, request });
 
-/**
- * Extracts the provider code from a ramps provider string.
- *
- * Accepts the canonical provider code (e.g. `transak-native`) and, for
- * backwards compatibility, the legacy path form (e.g. `/providers/transak-native`).
- *
- * @param provider - Canonical provider code, or legacy provider path.
- * @returns The provider code, or `null` if the format is invalid.
- */
-function extractProviderCode(provider: string | undefined): string | null {
-  if (!provider) {
-    return null;
-  }
+    if (result.transactionHash === undefined) {
+      throw new Error('Missing transaction hash');
+    }
 
-  const parts = provider.split('/').filter(Boolean);
-
-  if (parts[0] === 'providers') {
-    return parts[1] ?? null;
-  }
-
-  return parts.length === 1 ? parts[0] : null;
-}
-
-/**
- * Validates that the completed order's crypto asset matches the expected fiat asset.
- *
- * @param options - The validation options.
- * @param options.expectedAsset - The expected fiat asset derived from the transaction type.
- * @param options.orderCrypto - The crypto currency information from the completed order.
- * @param options.transactionId - Transaction ID for error reporting.
- */
-function validateOrderAsset({
-  expectedAsset,
-  orderCrypto,
-  transactionId,
-}: {
-  expectedAsset: TransactionPayFiatAsset;
-  orderCrypto: RampsOrderCryptoCurrency | undefined;
-  transactionId: string;
-}): void {
-  const orderAssetId = orderCrypto?.assetId?.toLowerCase();
-  const expectedAssetId = buildCaipAssetType(
-    expectedAsset.chainId,
-    expectedAsset.address,
-  ).toLowerCase();
-  const expectedChainId = expectedAssetId.split('/')[0];
-  const orderChainId = orderCrypto?.chainId?.toLowerCase();
-
-  if (orderAssetId && orderAssetId !== expectedAssetId) {
-    throw new Error(
-      `Fiat order asset mismatch for transaction ${transactionId}: ` +
-        `expected ${expectedAssetId}, got ${orderAssetId}`,
-    );
-  }
-
-  if (orderChainId && orderChainId !== expectedChainId) {
-    throw new Error(
-      `Fiat order chain mismatch for transaction ${transactionId}: ` +
-        `expected ${expectedChainId}, got ${orderChainId}`,
-    );
+    return result;
+  } catch (error) {
+    throw prefixError(error, POST_RAMP_ERROR_PREFIX);
   }
 }
 
-/**
- * Validates that the re-quoted relay target output hasn't drifted beyond the
- * acceptable slippage threshold compared to the original quote shown to the user.
- *
- * @param options - The validation options.
- * @param options.originalTargetRaw - Raw target amount from the original relay quote.
- * @param options.reQuotedTargetRaw - Raw target amount from the re-quoted relay.
- * @param options.transactionId - Transaction ID for error reporting.
- */
-function validateRelaySlippage({
-  originalTargetRaw,
-  reQuotedTargetRaw,
-  transactionId,
-}: {
-  originalTargetRaw: string;
-  reQuotedTargetRaw: string;
-  transactionId: string;
-}): void {
-  const original = new BigNumber(originalTargetRaw);
-  const reQuoted = new BigNumber(reQuotedTargetRaw);
-
-  if (!original.gt(0) || !reQuoted.gt(0)) {
-    return;
-  }
-
-  const slippagePercent = original
-    .minus(reQuoted)
-    .dividedBy(original)
-    .multipliedBy(100);
-
-  log('Relay slippage check', {
-    originalTargetRaw,
-    reQuotedTargetRaw,
-    slippagePercent: slippagePercent.toFixed(2),
-    transactionId,
-  });
-
-  if (slippagePercent.gt(MAX_SLIPPAGE_PERCENT)) {
-    throw new Error(
-      `Relay re-quote slippage too high for transaction ` +
-        `${slippagePercent.toFixed(2)}% exceeds ${MAX_SLIPPAGE_PERCENT}% max`,
-    );
+function getFiatOptions(
+  messenger: TransactionPayControllerMessenger,
+): TransactionPayFiatOptions | undefined {
+  try {
+    return messenger.call('TransactionPayController:getFiatOptions');
+  } catch (error) {
+    log('Failed to retrieve fiat options', error);
+    return undefined;
   }
 }
 
@@ -238,6 +173,8 @@ async function waitForOrderCompletion({
   transactionId: string;
   walletAddress: string;
 }): Promise<RampsOrder> {
+  const pollIntervalMs = getFiatOrderPollIntervalMs(messenger);
+  const pollTimeoutMs = getFiatOrderPollTimeoutMs(messenger);
   const startTime = Date.now();
   let lastStatus: string | undefined;
 
@@ -273,13 +210,13 @@ async function waitForOrderCompletion({
       }
     }
 
-    if (Date.now() - startTime >= ORDER_POLL_TIMEOUT_MS) {
+    if (Date.now() - startTime >= pollTimeoutMs) {
       throw new Error(
         `Fiat order polling timed out (last status: ${lastStatus})`,
       );
     }
 
-    await new Promise((resolve) => setTimeout(resolve, ORDER_POLL_INTERVAL_MS));
+    await new Promise((resolve) => setTimeout(resolve, pollIntervalMs));
   }
 }
 
@@ -301,12 +238,15 @@ async function submitRelayAfterFiatCompletion({
   const { messenger, quotes, transaction } = request;
   const transactionId = transaction.id;
 
-  if (!quotes.length) {
-    throw new Error('Missing fiat quote for relay submission');
-  }
-
   if (quotes.length > 1) {
     throw new Error('Multiple fiat quotes are not supported for submission');
+  }
+
+  const fiatQuote = quotes[0];
+  const isDirectMusd = isDirectMusdMoneyAccountQuote(fiatQuote);
+
+  if (isDirectMusd) {
+    return await submitDirectMusdAfterFiatCompletion({ order, request });
   }
 
   const fiatAsset = deriveFiatAssetForFiatPayment(transaction, messenger);
@@ -317,68 +257,59 @@ async function submitRelayAfterFiatCompletion({
     transactionId,
   });
 
-  const walletAddress = transaction.txParams.from as Hex;
+  const baseRequest = fiatQuote.request;
 
   const sourceAmountRaw = await resolveSourceAmountRaw({
     messenger,
     order,
     fiatAsset,
-    walletAddress,
+    walletAddress: baseRequest.from,
   });
 
-  const baseRequest = quotes[0].request;
-  const relayRequest: QuoteRequest = {
-    ...baseRequest,
-    isMaxAmount: true,
-    isPostQuote: false,
-    sourceBalanceRaw: sourceAmountRaw,
-    sourceTokenAmount: sourceAmountRaw,
-  };
-
-  log('Re-quoting relay from completed fiat order', {
-    completedOrderAmount: order.cryptoAmount,
-    relayRequest,
-    sourceAmountRaw,
-    transactionId,
-  });
-
-  const relayQuotes = await getRelayQuotes({
-    accountSupports7702: request.accountSupports7702,
-    messenger,
-    requests: [relayRequest],
-    transaction,
-  });
-
-  if (!relayQuotes.length) {
-    throw new Error('No relay quotes returned for completed fiat order');
+  if (!fiatQuote.original.relayQuote) {
+    throw new Error('Missing Relay quote');
   }
 
-  const originalRelayQuote = quotes[0].original.relayQuote;
-  validateRelaySlippage({
-    originalTargetRaw: originalRelayQuote.details.currencyOut.amount,
-    reQuotedTargetRaw: relayQuotes[0].original.details.currencyOut.amount,
-    transactionId,
-  });
+  const hasNestedCalldata = (transaction.nestedTransactions?.length ?? 0) >= 2;
 
-  log('Received relay quotes for completed fiat order', {
-    relayQuoteCount: relayQuotes.length,
-    transactionId,
-  });
+  // Transactions with nested calldata (e.g. moneyAccountDeposit with
+  // approve + deposit) need a three-phase flow: discovery quote to learn
+  // the target amount, calldata re-encoding, then a delegation quote.
+  // Simple deposits (Perps, Predict) skip straight to a single EXACT_INPUT
+  // relay quote — cheaper fees, no leftover dust, one fewer request.
+  if (hasNestedCalldata) {
+    return await submitWithTransactionData({
+      baseRequest,
+      request,
+      sourceAmountRaw,
+      transaction,
+    });
+  }
 
-  const relaySubmitRequest: PayStrategyExecuteRequest<RelayQuote> = {
-    accountSupports7702: request.accountSupports7702,
-    isSmartTransaction: request.isSmartTransaction,
-    messenger,
-    quotes: relayQuotes,
+  return await submitSimpleRelay({
+    baseRequest,
+    request,
+    sourceAmountRaw,
     transaction,
-  };
-
-  const relayResult = await submitRelayQuotes(relaySubmitRequest);
-
-  log('Relay submission completed after fiat order', {
-    relayResult,
-    transactionId,
   });
+}
 
-  return relayResult;
+function getWalletAddress({
+  quotes,
+  transaction,
+  accountOverride,
+}: {
+  quotes: PayStrategyExecuteRequest<FiatQuote>['quotes'];
+  transaction: PayStrategyExecuteRequest<FiatQuote>['transaction'];
+  accountOverride: Hex | undefined;
+}): Hex {
+  const address = isDirectMusdMoneyAccountQuote(quotes[0])
+    ? transaction.txParams.from
+    : (accountOverride ?? transaction.txParams.from);
+
+  if (!address) {
+    throw new Error('Missing wallet address');
+  }
+
+  return address as Hex;
 }

@@ -129,6 +129,52 @@ describe('TokenRatesController', () => {
         },
       );
     });
+
+    it('clears persisted marketData at construction when isDeprecated() returns true', async () => {
+      const initialMarketData = {
+        '0x1': {
+          '0x0000000000000000000000000000000000000000': {
+            currency: 'ETH',
+            price: 0.001,
+          } as unknown as MarketDataDetails,
+        },
+      };
+
+      await withController(
+        {
+          options: {
+            isDeprecated: () => true,
+            state: { marketData: initialMarketData },
+          },
+        },
+        async ({ controller }) => {
+          expect(controller.state.marketData).toStrictEqual({});
+        },
+      );
+    });
+
+    it('preserves persisted marketData at construction when isDeprecated() returns false', async () => {
+      const initialMarketData = {
+        '0x1': {
+          '0x0000000000000000000000000000000000000000': {
+            currency: 'ETH',
+            price: 0.001,
+          } as unknown as MarketDataDetails,
+        },
+      };
+
+      await withController(
+        {
+          options: {
+            isDeprecated: () => false,
+            state: { marketData: initialMarketData },
+          },
+        },
+        async ({ controller }) => {
+          expect(controller.state.marketData).toStrictEqual(initialMarketData);
+        },
+      );
+    });
   });
 
   describe('updateExchangeRates', () => {
@@ -179,6 +225,45 @@ describe('TokenRatesController', () => {
 
           expect(tokenPricesService.fetchTokenPrices).not.toHaveBeenCalled();
           expect(controller.state.marketData).toBe(stateBefore);
+        },
+      );
+    });
+
+    it('clears stale marketData when isDeprecated toggles to true at runtime', async () => {
+      const tokenPricesService = buildMockTokenPricesService();
+      jest.spyOn(tokenPricesService, 'fetchTokenPrices');
+      let deprecated = false;
+      const initialMarketData = {
+        '0x1': {
+          '0x0000000000000000000000000000000000000000': {
+            currency: 'ETH',
+            price: 0.001,
+          } as unknown as MarketDataDetails,
+        },
+      };
+
+      await withController(
+        {
+          options: {
+            tokenPricesService,
+            isDeprecated: () => deprecated,
+            state: { marketData: initialMarketData },
+          },
+        },
+        async ({ controller }) => {
+          expect(controller.state.marketData).toStrictEqual(initialMarketData);
+
+          deprecated = true;
+
+          await controller.updateExchangeRates([
+            {
+              chainId: '0x1',
+              nativeCurrency: 'ETH',
+            },
+          ]);
+
+          expect(tokenPricesService.fetchTokenPrices).not.toHaveBeenCalled();
+          expect(controller.state.marketData).toStrictEqual({});
         },
       );
     });
@@ -756,6 +841,38 @@ describe('TokenRatesController', () => {
         },
       );
     });
+
+    it('clears stale marketData when isDeprecated toggles to true at runtime', async () => {
+      let deprecated = false;
+      const initialMarketData = {
+        '0x1': {
+          '0x0000000000000000000000000000000000000000': {
+            currency: 'ETH',
+            price: 0.001,
+          } as unknown as MarketDataDetails,
+        },
+      };
+
+      await withController(
+        {
+          options: {
+            isDeprecated: () => deprecated,
+            state: { marketData: initialMarketData },
+          },
+        },
+        async ({ controller }) => {
+          jest.spyOn(controller, 'updateExchangeRates');
+          expect(controller.state.marketData).toStrictEqual(initialMarketData);
+
+          deprecated = true;
+
+          await controller._executePoll({ chainIds: ['0x1'] });
+
+          expect(controller.updateExchangeRates).not.toHaveBeenCalled();
+          expect(controller.state.marketData).toStrictEqual({});
+        },
+      );
+    });
   });
 
   describe('TokensController:stateChange', () => {
@@ -1076,7 +1193,7 @@ describe('TokenRatesController', () => {
       );
     });
 
-    it('does not update state when isDeprecated returns true', async () => {
+    it('clears marketData when isDeprecated returns true', async () => {
       const chainId = '0x1';
       const nativeCurrency = 'ETH';
       const initialMarketData = {
@@ -1111,7 +1228,7 @@ describe('TokenRatesController', () => {
 
           await flushPromises();
 
-          expect(controller.state.marketData).toStrictEqual(initialMarketData);
+          expect(controller.state.marketData).toStrictEqual({});
         },
       );
     });

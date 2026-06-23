@@ -1240,10 +1240,8 @@ export class RampsService {
     url.searchParams.set('crypto', options.assetId);
     url.searchParams.set('provider', options.provider);
 
-    const headers = await this.#getRequestHeaders();
-
     const response = await this.#policy.execute(async () => {
-      const fetchResponse = await this.#fetch(url, { headers });
+      const fetchResponse = await this.#fetch(url);
       if (!fetchResponse.ok) {
         throw new HttpError(
           fetchResponse.status,

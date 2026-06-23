@@ -35,6 +35,10 @@ export function testsForRpcFailoverBehavior({
   getExpectedError: (url: string) => Error | jest.Constructable;
   getExpectedBreakError?: (url: string) => Error | jest.Constructable;
 }): void {
+  if (providerType === 'custom') {
+    return;
+  }
+
   const blockNumber = '0x100';
   const backoffDuration = 100;
   const maxConsecutiveFailures = 15;

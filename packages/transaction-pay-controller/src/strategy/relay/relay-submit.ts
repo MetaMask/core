@@ -15,6 +15,7 @@ import type {
   TransactionPayControllerMessenger,
   TransactionPayQuote,
 } from '../../types';
+import { prefixError } from '../../utils/error-prefix';
 import {
   getFeatureFlags,
   getRelayPollingInterval,
@@ -54,6 +55,8 @@ import type {
 const FALLBACK_HASH = '0x0' as Hex;
 
 const log = createModuleLogger(projectLogger, 'relay-strategy');
+const RELAY_ERROR_PREFIX = 'Relay: ';
+const RELAY_EXECUTE_ERROR_PREFIX = 'Execute: ';
 
 /**
  * Submits Relay quotes.
@@ -64,9 +67,23 @@ const log = createModuleLogger(projectLogger, 'relay-strategy');
 export async function submitRelayQuotes(
   request: PayStrategyExecuteRequest<RelayQuote>,
 ): Promise<{ transactionHash?: Hex }> {
+  try {
+    return await submitRelayQuotesInternal(request);
+  } catch (error) {
+    throw prefixError(error, RELAY_ERROR_PREFIX);
+  }
+}
+
+async function submitRelayQuotesInternal(
+  request: PayStrategyExecuteRequest<RelayQuote>,
+): Promise<{ transactionHash?: Hex }> {
   log('Executing quotes', request);
 
   const { quotes, messenger, transaction } = request;
+
+  if (!quotes.length) {
+    throw new Error('No quotes to submit');
+  }
 
   let transactionHash: Hex | undefined;
 
@@ -76,6 +93,11 @@ export async function submitRelayQuotes(
       messenger,
       transaction,
     ));
+  }
+
+  /* istanbul ignore if: concrete Relay submit paths return a hash/fallback or throw. */
+  if (transactionHash === undefined) {
+    throw new Error('Missing transaction hash');
   }
 
   return { transactionHash };
@@ -139,7 +161,7 @@ async function executeSingleQuote(
     });
 
     if (completion.status !== 'success') {
-      throw new Error(`Relay request failed with status: ${completion.status}`);
+      throw new Error(`Request failed with status: ${completion.status}`);
     }
   }
 
@@ -234,7 +256,7 @@ async function waitForRelayCompletion(
 
       if (status.status === 'success') {
         const targetHash =
-          (status.txHashes?.slice(-1)[0] as Hex) ?? FALLBACK_HASH;
+          (status.txHashes?.slice(-1)[0] as Hex | undefined) ?? FALLBACK_HASH;
         return { status: 'success', targetHash };
       }
 
@@ -244,9 +266,9 @@ async function waitForRelayCompletion(
             log('Relay ended in failure status (tolerated)', status.status);
             return { status: status.status };
           }
-          throw new Error(`Relay request failed with status: ${status.status}`);
+          throw new Error(`Request failed with status: ${status.status}`);
         }
-        throw new Error(`Relay returned unrecognized status: ${status.status}`);
+        throw new Error(`Unrecognized status: ${status.status}`);
       }
     }
 
@@ -256,7 +278,7 @@ async function waitForRelayCompletion(
         log('Relay polling timed out (tolerated)', statusDetail);
         return { status: 'timeout' };
       }
-      throw new Error(`Relay polling timed out${statusDetail}`);
+      throw new Error(`Polling timed out${statusDetail}`);
     }
 
     await new Promise((resolve) => setTimeout(resolve, pollingInterval));
@@ -425,10 +447,16 @@ async function submitTransactions(
     }
   } else if (isPostQuote && transaction.txParams.to) {
     const prependedParams = hasAccountOverride
-      ? await buildDelegatedOriginalParams(transaction, messenger)
+      ? await buildDelegatedOriginalParams(
+          transaction,
+          messenger,
+          normalizedParams[0],
+        )
       : ({
           data: transaction.txParams.data as Hex | undefined,
           from: transaction.txParams.from,
+          maxFeePerGas: normalizedParams[0]?.maxFeePerGas,
+          maxPriorityFeePerGas: normalizedParams[0]?.maxPriorityFeePerGas,
           to: transaction.txParams.to,
           value: transaction.txParams.value as Hex | undefined,
         } as TransactionParams);
@@ -465,11 +493,13 @@ async function submitTransactions(
  *
  * @param transaction - Original transaction meta to be redeemed.
  * @param messenger - Controller messenger.
+ * @param relayParams - Optional relay params to copy gas fee fields from.
  * @returns Transaction params for the delegation tx.
  */
 async function buildDelegatedOriginalParams(
   transaction: TransactionMeta,
   messenger: TransactionPayControllerMessenger,
+  relayParams?: TransactionParams,
 ): Promise<TransactionParams> {
   const delegation = await messenger.call(
     'TransactionPayController:getDelegationTransaction',
@@ -481,6 +511,8 @@ async function buildDelegatedOriginalParams(
   return {
     data: delegation.data,
     from: transaction.txParams.from as Hex,
+    maxFeePerGas: relayParams?.maxFeePerGas,
+    maxPriorityFeePerGas: relayParams?.maxPriorityFeePerGas,
     to: delegation.to,
     value: delegation.value,
   };
@@ -565,8 +597,7 @@ async function submitViaRelayExecute(
   try {
     result = await submitRelayExecute(messenger, executeBody);
   } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    throw new Error(`Relay execute: ${message}`);
+    throw prefixError(error, RELAY_EXECUTE_ERROR_PREFIX);
   }
 
   log('Relay execute response', result);
@@ -724,6 +755,10 @@ async function submitViaTransactionController(
 
   log('Added transactions', transactionIds);
 
+  if (!transactionIds.length) {
+    throw new Error('No transactions submitted');
+  }
+
   if (result) {
     const txHash = await result.result;
     log('Submitted transaction', txHash);
@@ -736,6 +771,10 @@ async function submitViaTransactionController(
   log('All transactions confirmed', transactionIds);
 
   const hash = getTransaction(transactionIds.slice(-1)[0], messenger)?.hash;
+
+  if (!hash) {
+    throw new Error('Missing transaction hash');
+  }
 
   return hash as Hex;
 }

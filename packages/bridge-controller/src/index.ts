@@ -18,6 +18,7 @@ export type {
   TxStatusData,
   QuoteFetchData,
   QuoteWarning,
+  InputPrimaryDenominationData,
 } from './utils/metrics/types';
 
 export {
@@ -47,7 +48,7 @@ export type {
   Step,
   RefuelData,
   Quote,
-  QuoteResponse,
+  QuoteResponseV1 as QuoteResponse,
   FeeData,
   TxData,
   Intent,
@@ -55,6 +56,7 @@ export type {
   BitcoinTradeData,
   TronTradeData,
   BridgeControllerState,
+  InputPrimaryDenomination,
   BridgeControllerAction,
   BridgeControllerActions,
   BridgeControllerEvents,
@@ -68,6 +70,7 @@ export type {
   BridgeControllerFetchQuotesAction,
   BridgeControllerStopPollingForQuotesAction,
   BridgeControllerSetLocationAction,
+  BridgeControllerSetInputPrimaryDenominationAction,
   BridgeControllerResetStateAction,
   BridgeControllerSetChainIntervalLengthAction,
   BridgeControllerTrackUnifiedSwapBridgeEventAction,
@@ -83,6 +86,7 @@ export {
   SortOrder,
   ChainId,
   RequestStatus,
+  FeatureId,
   type TokenFeature,
   type QuoteStreamCompleteData,
   type BridgeControllerGetStateAction,
@@ -93,7 +97,6 @@ export {
   FeeType,
   ActionTypes,
   BridgeAssetSchema,
-  FeatureId,
   TokenFeatureType,
   validateQuoteStreamComplete,
   QuoteStreamCompleteReason,

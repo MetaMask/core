@@ -76,6 +76,23 @@ export type TransactionPayControllerGetDelegationTransactionAction = {
  * @param args - The arguments forwarded to the {@link GetPaymentOverrideDataCallback}.
  * @returns A promise resolving to the additional transactions array.
  */
+export type TransactionPayControllerGetAmountDataAction = {
+  type: `TransactionPayController:getAmountData`;
+  handler: TransactionPayController['getAmountData'];
+};
+
+/**
+ * Returns optional fiat execution configuration.
+ *
+ * This is intentionally not stored in controller state.
+ *
+ * @returns Fiat execution options, if configured.
+ */
+export type TransactionPayControllerGetFiatOptionsAction = {
+  type: `TransactionPayController:getFiatOptions`;
+  handler: TransactionPayController['getFiatOptions'];
+};
+
 export type TransactionPayControllerGetPaymentOverrideDataAction = {
   type: `TransactionPayController:getPaymentOverrideData`;
   handler: TransactionPayController['getPaymentOverrideData'];
@@ -128,6 +145,8 @@ export type TransactionPayControllerMethodActions =
   | TransactionPayControllerUpdatePaymentTokenAction
   | TransactionPayControllerUpdateFiatPaymentAction
   | TransactionPayControllerGetDelegationTransactionAction
+  | TransactionPayControllerGetAmountDataAction
+  | TransactionPayControllerGetFiatOptionsAction
   | TransactionPayControllerGetPaymentOverrideDataAction
   | TransactionPayControllerGetStrategyAction
   | TransactionPayControllerPolymarketGetDepositWalletAddressAction

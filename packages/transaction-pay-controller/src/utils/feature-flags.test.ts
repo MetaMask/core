@@ -4,6 +4,7 @@ import type { Hex } from '@metamask/utils';
 import { getDefaultRemoteFeatureFlagControllerState } from '../../../remote-feature-flag-controller/src/remote-feature-flag-controller';
 import { TransactionPayStrategy } from '../constants';
 import type { TransactionPayFiatAsset } from '../strategy/fiat/constants';
+import { FIAT_ENABLED_TYPES } from '../strategy/fiat/constants';
 import { getMessengerMock } from '../tests/messenger-mock';
 import {
   DEFAULT_ACROSS_API_BASE,
@@ -17,9 +18,16 @@ import {
   getAssetsUnifyStateFeature,
   getFallbackGas,
   getFiatAssetPerTransactionType,
+  getFiatEnabledTypes,
+  getFiatFeeReserveMultiplier,
+  getFiatMaxRateDriftPercent,
+  getFiatOrderPollIntervalMs,
+  getFiatOrderPollTimeoutMs,
   DEFAULT_RELAY_EXECUTE_URL,
+  getDirectMoneyMusdEnabled,
   getServerPollingInterval,
   getServerPollingTimeout,
+  getFiatVaultDisabled,
   getRelayOriginGasOverhead,
   getRelayPollingInterval,
   getRelayPollingTimeout,
@@ -1421,6 +1429,15 @@ describe('Feature Flags Utils', () => {
       chainId: '0x89',
     };
 
+    it('returns ETH mainnet fallback when transaction type is undefined', () => {
+      const result = getFiatAssetPerTransactionType(messenger, undefined);
+
+      expect(result).toStrictEqual({
+        address: '0x0000000000000000000000000000000000000000',
+        chainId: '0x1',
+      });
+    });
+
     it('returns ETH mainnet fallback when confirmations_pay_fiat flag is absent', () => {
       const result = getFiatAssetPerTransactionType(
         messenger,
@@ -1513,6 +1530,311 @@ describe('Feature Flags Utils', () => {
       );
 
       expect(result).toStrictEqual(FIAT_ASSET_MOCK);
+    });
+  });
+
+  describe('getFiatEnabledTypes', () => {
+    it('returns hardcoded defaults when feature flag is absent', () => {
+      const result = getFiatEnabledTypes(messenger);
+
+      expect(result).toStrictEqual(FIAT_ENABLED_TYPES);
+    });
+
+    it('returns hardcoded defaults when confirmations_pay_fiat exists but enabledTransactionTypes is missing', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_pay_fiat: {},
+        },
+      });
+
+      const result = getFiatEnabledTypes(messenger);
+
+      expect(result).toStrictEqual(FIAT_ENABLED_TYPES);
+    });
+
+    it('returns enabled types from feature flag when set', () => {
+      const customTypes = [
+        TransactionType.perpsDeposit,
+        TransactionType.predictDeposit,
+      ];
+
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_pay_fiat: {
+            enabledTransactionTypes: customTypes,
+          },
+        },
+      });
+
+      const result = getFiatEnabledTypes(messenger);
+
+      expect(result).toStrictEqual(customTypes);
+    });
+  });
+
+  describe('getFiatFeeReserveMultiplier', () => {
+    it('returns 1.2 when feature flag is not set', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {},
+      });
+
+      expect(getFiatFeeReserveMultiplier(messenger)).toBe(1.2);
+    });
+
+    it('returns the configured multiplier from feature flag', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_pay_fiat: { feeReserveMultiplier: 1.5 },
+        },
+      });
+
+      expect(getFiatFeeReserveMultiplier(messenger)).toBe(1.5);
+    });
+
+    it('returns 1.2 when multiplier is zero', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_pay_fiat: { feeReserveMultiplier: 0 },
+        },
+      });
+
+      expect(getFiatFeeReserveMultiplier(messenger)).toBe(1.2);
+    });
+
+    it('returns 1.2 when multiplier is negative', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_pay_fiat: { feeReserveMultiplier: -2 },
+        },
+      });
+
+      expect(getFiatFeeReserveMultiplier(messenger)).toBe(1.2);
+    });
+  });
+
+  describe('getFiatMaxRateDriftPercent', () => {
+    it('returns 10 when feature flag is not set', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {},
+      });
+
+      expect(getFiatMaxRateDriftPercent(messenger)).toBe(10);
+    });
+
+    it('returns the configured value from feature flag', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_pay_fiat: { maxRateDriftPercent: 25 },
+        },
+      });
+
+      expect(getFiatMaxRateDriftPercent(messenger)).toBe(25);
+    });
+
+    it('returns 10 when value is zero', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_pay_fiat: { maxRateDriftPercent: 0 },
+        },
+      });
+
+      expect(getFiatMaxRateDriftPercent(messenger)).toBe(10);
+    });
+
+    it('returns 10 when value is negative', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_pay_fiat: { maxRateDriftPercent: -5 },
+        },
+      });
+
+      expect(getFiatMaxRateDriftPercent(messenger)).toBe(10);
+    });
+  });
+
+  describe('getDirectMoneyMusdEnabled', () => {
+    it('returns false when feature flag is not set', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {},
+      });
+
+      expect(getDirectMoneyMusdEnabled(messenger)).toBe(false);
+    });
+
+    it('returns false when confirmations_pay_fiat exists without direct mUSD flag', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_pay_fiat: {},
+        },
+      });
+
+      expect(getDirectMoneyMusdEnabled(messenger)).toBe(false);
+    });
+
+    it('returns true when direct mUSD flag is true', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_pay_fiat: { directMoneyMusdEnabled: true },
+        },
+      });
+
+      expect(getDirectMoneyMusdEnabled(messenger)).toBe(true);
+    });
+
+    it('returns false when direct mUSD flag is false', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_pay_fiat: { directMoneyMusdEnabled: false },
+        },
+      });
+
+      expect(getDirectMoneyMusdEnabled(messenger)).toBe(false);
+    });
+  });
+
+  describe('getFiatVaultDisabled', () => {
+    it('returns false when feature flag is not set', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {},
+      });
+
+      expect(getFiatVaultDisabled(messenger)).toBe(false);
+    });
+
+    it('returns false when confirmations_pay_fiat exists without vault flag', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_pay_fiat: {},
+        },
+      });
+
+      expect(getFiatVaultDisabled(messenger)).toBe(false);
+    });
+
+    it('returns true when vault disabled flag is true', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_pay_fiat: { vaultDisabled: true },
+        },
+      });
+
+      expect(getFiatVaultDisabled(messenger)).toBe(true);
+    });
+
+    it('returns false when vault disabled flag is false', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_pay_fiat: { vaultDisabled: false },
+        },
+      });
+
+      expect(getFiatVaultDisabled(messenger)).toBe(false);
+    });
+  });
+
+  describe('getFiatOrderPollIntervalMs', () => {
+    it('returns 1000 when feature flag is not set', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {},
+      });
+
+      expect(getFiatOrderPollIntervalMs(messenger)).toBe(1000);
+    });
+
+    it('returns the configured value from feature flag', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_pay_fiat: { orderPollIntervalMs: 5000 },
+        },
+      });
+
+      expect(getFiatOrderPollIntervalMs(messenger)).toBe(5000);
+    });
+
+    it('returns 1000 when value is zero', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_pay_fiat: { orderPollIntervalMs: 0 },
+        },
+      });
+
+      expect(getFiatOrderPollIntervalMs(messenger)).toBe(1000);
+    });
+
+    it('returns 1000 when value is negative', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_pay_fiat: { orderPollIntervalMs: -500 },
+        },
+      });
+
+      expect(getFiatOrderPollIntervalMs(messenger)).toBe(1000);
+    });
+  });
+
+  describe('getFiatOrderPollTimeoutMs', () => {
+    it('returns 600000 when feature flag is not set', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {},
+      });
+
+      expect(getFiatOrderPollTimeoutMs(messenger)).toBe(600000);
+    });
+
+    it('returns the configured value from feature flag', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_pay_fiat: { orderPollTimeoutMs: 300000 },
+        },
+      });
+
+      expect(getFiatOrderPollTimeoutMs(messenger)).toBe(300000);
+    });
+
+    it('returns 600000 when value is zero', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_pay_fiat: { orderPollTimeoutMs: 0 },
+        },
+      });
+
+      expect(getFiatOrderPollTimeoutMs(messenger)).toBe(600000);
+    });
+
+    it('returns 600000 when value is negative', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_pay_fiat: { orderPollTimeoutMs: -1000 },
+        },
+      });
+
+      expect(getFiatOrderPollTimeoutMs(messenger)).toBe(600000);
     });
   });
 });

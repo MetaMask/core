@@ -59,7 +59,6 @@ import {
   updateTransactionGasEstimates,
   GasFeePoller,
 } from './helpers/GasFeePoller';
-import { IncomingTransactionHelper } from './helpers/IncomingTransactionHelper';
 import { MethodDataHelper } from './helpers/MethodDataHelper';
 import { MultichainTrackingHelper } from './helpers/MultichainTrackingHelper';
 import { PendingTransactionTracker } from './helpers/PendingTransactionTracker';
@@ -151,7 +150,6 @@ jest.mock('./gas-flows/RandomisedEstimationsGasFeeFlow');
 jest.mock('./gas-flows/LineaGasFeeFlow');
 jest.mock('./gas-flows/TestGasFeeFlow');
 jest.mock('./helpers/GasFeePoller');
-jest.mock('./helpers/IncomingTransactionHelper');
 jest.mock('./helpers/MethodDataHelper');
 jest.mock('./helpers/MultichainTrackingHelper');
 jest.mock('./helpers/PendingTransactionTracker');
@@ -457,7 +455,6 @@ describe('TransactionController', () => {
   );
 
   let getNonceLockSpy: jest.Mock;
-  let incomingTransactionHelperMock: jest.Mocked<IncomingTransactionHelper>;
   let pendingTransactionTrackerMock: jest.Mocked<PendingTransactionTracker>;
   let multichainTrackingHelperMock: jest.Mocked<MultichainTrackingHelper>;
   let defaultGasFeeFlowMock: jest.Mocked<DefaultGasFeeFlow>;
@@ -469,11 +466,6 @@ describe('TransactionController', () => {
   let timeCounter = 0;
   let signMock: jest.Mock;
   let isEIP7702GasFeeTokensEnabledMock: jest.Mock;
-
-  const incomingTransactionHelperClassMock =
-    IncomingTransactionHelper as jest.MockedClass<
-      typeof IncomingTransactionHelper
-    >;
 
   const pendingTransactionTrackerClassMock =
     PendingTransactionTracker as jest.MockedClass<
@@ -840,19 +832,6 @@ describe('TransactionController', () => {
     getNonceLockSpy = jest.fn().mockResolvedValue({
       nextNonce: NONCE_MOCK,
       releaseLock: () => Promise.resolve(),
-    });
-
-    incomingTransactionHelperClassMock.mockImplementation(() => {
-      incomingTransactionHelperMock = {
-        start: jest.fn(),
-        stop: jest.fn(),
-        update: jest.fn(),
-        hub: {
-          on: jest.fn(),
-          removeAllListeners: jest.fn(),
-        },
-      } as unknown as jest.Mocked<IncomingTransactionHelper>;
-      return incomingTransactionHelperMock;
     });
 
     pendingTransactionTrackerMock = {
@@ -2599,6 +2578,94 @@ describe('TransactionController', () => {
 
         expect(controller.state.transactions[0].isGasFeeSponsored).toBe(false);
       });
+
+      it('sets isExternalSign to true when transaction is sponsored', async () => {
+        getGasFeeTokensMock.mockResolvedValueOnce({
+          gasFeeTokens: [GAS_FEE_TOKEN_MOCK],
+          isGasFeeSponsored: true,
+        });
+
+        const { controller } = setupController();
+
+        await controller.addTransaction(
+          {
+            from: ACCOUNT_MOCK,
+            to: ACCOUNT_MOCK,
+          },
+          {
+            networkClientId: NETWORK_CLIENT_ID_MOCK,
+          },
+        );
+
+        await flushPromises();
+
+        expect(controller.state.transactions[0].isExternalSign).toBe(true);
+      });
+
+      it('does not set isExternalSign when transaction is not sponsored', async () => {
+        getGasFeeTokensMock.mockResolvedValueOnce({
+          gasFeeTokens: [GAS_FEE_TOKEN_MOCK],
+          isGasFeeSponsored: false,
+        });
+
+        const { controller } = setupController();
+
+        await controller.addTransaction(
+          {
+            from: ACCOUNT_MOCK,
+            to: ACCOUNT_MOCK,
+          },
+          {
+            networkClientId: NETWORK_CLIENT_ID_MOCK,
+          },
+        );
+
+        await flushPromises();
+
+        expect(controller.state.transactions[0].isExternalSign).toBeUndefined();
+      });
+
+      it('sets isExternalSign to true immediately when isGasFeeSponsored is passed in options', async () => {
+        const { controller } = setupController();
+
+        await controller.addTransaction(
+          {
+            from: ACCOUNT_MOCK,
+            to: ACCOUNT_MOCK,
+          },
+          {
+            networkClientId: NETWORK_CLIENT_ID_MOCK,
+            isGasFeeSponsored: true,
+          },
+        );
+
+        expect(controller.state.transactions[0].isExternalSign).toBe(true);
+      });
+
+      it('preserves isGasFeeSponsored and isExternalSign when passed in options even if simulation returns not sponsored', async () => {
+        getGasFeeTokensMock.mockResolvedValueOnce({
+          gasFeeTokens: [],
+          isGasFeeSponsored: false,
+        });
+
+        const { controller } = setupController();
+
+        await controller.addTransaction(
+          {
+            from: ACCOUNT_MOCK,
+            to: ACCOUNT_MOCK,
+          },
+          {
+            networkClientId: NETWORK_CLIENT_ID_MOCK,
+            isGasFeeSponsored: true,
+          },
+        );
+
+        await flushPromises();
+
+        expect(controller.state.transactions[0].isGasFeeSponsored).toBe(true);
+        expect(controller.state.transactions[0].isExternalSign).toBe(true);
+      });
     });
 
     describe('with isStateOnly', () => {
@@ -2806,7 +2873,8 @@ describe('TransactionController', () => {
         );
       });
 
-      it('throws with data message if publish fails', async () => {
+      it('throws with contextual rpcRequest message if publish fails', async () => {
+        const rpcErrorMessage = `RPC 0x5 Custom eth_sendRawTransaction: ${ERROR_MESSAGE_MOCK}`;
         const { controller } = setupController({
           messengerOptions: {
             addTransactionApprovalRequest: {
@@ -2817,12 +2885,7 @@ describe('TransactionController', () => {
 
         rpcRequestMock.mockImplementation(async ({ method }) => {
           if (method === 'eth_sendRawTransaction') {
-            // eslint-disable-next-line @typescript-eslint/only-throw-error
-            throw {
-              data: {
-                message: ERROR_MESSAGE_MOCK,
-              },
-            };
+            throw new Error(rpcErrorMessage);
           }
 
           if (method === 'eth_getBalance') {
@@ -2845,7 +2908,7 @@ describe('TransactionController', () => {
           },
         );
 
-        await expect(result).rejects.toThrow(ERROR_MESSAGE_MOCK);
+        await expect(result).rejects.toThrow(rpcErrorMessage);
       });
 
       it('throws with standard message if publish fails', async () => {
@@ -3795,7 +3858,7 @@ describe('TransactionController', () => {
       rpcRequestMock.mockRejectedValueOnce(error);
 
       await expect(controller.stopTransaction('2')).rejects.toThrow(
-        'RPC submit: Another reason',
+        'Another reason',
       );
 
       const sendRawTransactionCalls = rpcRequestMock.mock.calls.filter(
@@ -4157,7 +4220,7 @@ describe('TransactionController', () => {
       rpcRequestMock.mockRejectedValueOnce(error);
 
       await expect(controller.speedUpTransaction('2')).rejects.toThrow(
-        'RPC submit: Another reason',
+        'Another reason',
       );
 
       const sendRawTransactionCalls = rpcRequestMock.mock.calls.filter(
@@ -4167,11 +4230,10 @@ describe('TransactionController', () => {
       expect(controller.state.transactions).toHaveLength(1);
     });
 
-    it('extracts nested data.message and prefixes it with RPC submit', async () => {
-      const error = {
-        message: 'Outer message',
-        data: { message: 'Nested rpc error message' },
-      };
+    it('propagates contextual rpcRequest errors without masking the message', async () => {
+      const error = new Error(
+        'RPC 0x5 Custom eth_sendRawTransaction: Nested rpc error message',
+      );
       const { controller } = setupController({
         options: {
           state: {
@@ -4195,9 +4257,7 @@ describe('TransactionController', () => {
 
       rpcRequestMock.mockRejectedValueOnce(error);
 
-      await expect(controller.speedUpTransaction('2')).rejects.toThrow(
-        'RPC submit: Nested rpc error message',
-      );
+      await expect(controller.speedUpTransaction('2')).rejects.toBe(error);
     });
 
     it('creates additional transaction with increased gas', async () => {
@@ -4862,119 +4922,6 @@ describe('TransactionController', () => {
       expect(
         transactions.find(({ id }) => id === secondConfirmedTxId)?.status,
       ).toBe(TransactionStatus.confirmed);
-    });
-  });
-
-  describe('on incoming transaction helper transactions event', () => {
-    it('adds new transactions to state', async () => {
-      const { controller } = setupController();
-
-      // TODO: Replace `any` with type
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      await (incomingTransactionHelperMock.hub.on as any).mock.calls[0][1]([
-        TRANSACTION_META_MOCK,
-        TRANSACTION_META_2_MOCK,
-      ]);
-
-      expect(controller.state.transactions).toStrictEqual([
-        {
-          ...TRANSACTION_META_MOCK,
-          networkClientId: InfuraNetworkType.sepolia,
-        },
-        {
-          ...TRANSACTION_META_2_MOCK,
-          networkClientId: InfuraNetworkType.sepolia,
-        },
-      ]);
-    });
-
-    it('limits max transactions when adding to state', async () => {
-      getTransactionHistoryLimitMock.mockReturnValue(1);
-
-      const { controller } = setupController();
-
-      // TODO: Replace `any` with type
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      await (incomingTransactionHelperMock.hub.on as any).mock.calls[0][1]([
-        TRANSACTION_META_MOCK,
-        TRANSACTION_META_2_MOCK,
-      ]);
-
-      expect(controller.state.transactions).toStrictEqual([
-        {
-          ...TRANSACTION_META_2_MOCK,
-          networkClientId: InfuraNetworkType.sepolia,
-        },
-      ]);
-    });
-
-    it('publishes TransactionController:incomingTransactionsReceived', async () => {
-      const listener = jest.fn();
-
-      const { messenger } = setupController();
-      messenger.subscribe(
-        'TransactionController:incomingTransactionsReceived',
-        listener,
-      );
-
-      // TODO: Replace `any` with type
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      await (incomingTransactionHelperMock.hub.on as any).mock.calls[0][1]([
-        TRANSACTION_META_MOCK,
-        TRANSACTION_META_2_MOCK,
-      ]);
-
-      expect(listener).toHaveBeenCalledTimes(1);
-      expect(listener).toHaveBeenCalledWith([
-        {
-          ...TRANSACTION_META_MOCK,
-          networkClientId: InfuraNetworkType.sepolia,
-        },
-        {
-          ...TRANSACTION_META_2_MOCK,
-          networkClientId: InfuraNetworkType.sepolia,
-        },
-      ]);
-    });
-
-    it('does not publish TransactionController:incomingTransactionsReceived if no new transactions', async () => {
-      const listener = jest.fn();
-
-      const { messenger } = setupController();
-
-      messenger.subscribe(
-        'TransactionController:incomingTransactionsReceived',
-        listener,
-      );
-
-      // TODO: Replace `any` with type
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      await (incomingTransactionHelperMock.hub.on as any).mock.calls[0][1]([]);
-
-      expect(listener).toHaveBeenCalledTimes(0);
-    });
-
-    it('ignores transactions with unrecognised chain ID', async () => {
-      const { controller } = setupController();
-
-      const unknownChainTx = {
-        ...TRANSACTION_META_MOCK,
-        chainId: '0xdeadbeef' as const,
-      } as TransactionMeta;
-
-      // TODO: Replace `any` with type
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      await (incomingTransactionHelperMock.hub.on as any).mock.calls[0][1]([
-        unknownChainTx,
-        TRANSACTION_META_2_MOCK,
-      ]);
-
-      expect(controller.state.transactions).toStrictEqual([
-        {
-          ...TRANSACTION_META_2_MOCK,
-          networkClientId: InfuraNetworkType.sepolia,
-        },
-      ]);
     });
   });
 

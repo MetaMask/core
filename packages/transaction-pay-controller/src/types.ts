@@ -138,6 +138,9 @@ export type TransactionConfig = {
   /** Overrides the payment source for the transaction. */
   paymentOverride?: PaymentOverride;
 
+  /** When true, a quote is always fetched even when the source and target tokens are identical. */
+  isQuoteRequired?: boolean;
+
   /**
    * Optional address to receive refunds if the quote provider transaction fails.
    * When set, overrides the default refund recipient (EOA) in the quote
@@ -183,6 +186,29 @@ export type GetPaymentOverrideDataCallback = (
   request: GetPaymentOverrideDataRequest,
 ) => Promise<GetPaymentOverrideDataResponse>;
 
+export type GetAmountDataRequest = {
+  /** Raw token amount (atomic units) to encode into calldata. */
+  amount: string;
+
+  /** Metadata of the transaction whose nested calls need updating. */
+  transaction: TransactionMeta;
+};
+
+export type GetAmountDataResponse = {
+  /** Per-nested-call data updates; empty when no update is needed. */
+  updates: { nestedTransactionIndex: number; data: Hex }[];
+};
+
+/**
+ * Optional callback that re-encodes nested transaction calldata for a given
+ * token amount. Used by transaction types with non-standard nested data
+ * (e.g. vault approve + deposit) that cannot be derived from the amount alone
+ * without client-side context (vault config, RPC providers, etc.).
+ */
+export type GetAmountDataCallback = (
+  request: GetAmountDataRequest,
+) => Promise<GetAmountDataResponse>;
+
 /** Callback to update fiat payment state. */
 export type TransactionFiatPaymentCallback = (
   fiatPayment: TransactionFiatPayment,
@@ -219,8 +245,14 @@ export const KEYRING_TYPES_SUPPORTING_7702: `${KeyringTypes}`[] = [
 
 /** Options for the TransactionPayController. */
 export type TransactionPayControllerOptions = {
+  /** Optional callback to re-encode nested transaction calldata for a given amount. */
+  getAmountData?: GetAmountDataCallback;
+
   /** Callback to convert a transaction into a redeem delegation. */
   getDelegationTransaction: GetDelegationTransactionCallback;
+
+  /** Optional fiat execution configuration. */
+  fiatOptions?: TransactionPayFiatOptions;
 
   /**
    * Optional callback invoked during quote execution when `paymentOverride` is defined.
@@ -248,6 +280,15 @@ export type TransactionPayControllerOptions = {
 export type TransactionPayControllerState = {
   /** State relating to each transaction, keyed by transaction ID. */
   transactionData: Record<string, TransactionData>;
+};
+
+/** Optional fiat execution configuration. */
+export type TransactionPayFiatOptions = {
+  /** Test funding source used to bypass fiat on-ramp execution during local QA. */
+  testFundingSource?: Hex;
+
+  /** Optional human amount to transfer from the test funding source. */
+  testAmountOverride?: string;
 };
 
 /** State relating to a single transaction. */
@@ -285,6 +326,9 @@ export type TransactionData = {
 
   /** Overrides the payment source for the transaction. */
   paymentOverride?: PaymentOverride;
+
+  /** When true, a quote is always fetched even when the source and target tokens are identical. */
+  isQuoteRequired?: boolean;
 
   /**
    * Optional address to receive refunds if the quote provider transaction fails.
@@ -461,8 +505,14 @@ export type QuoteRequest = {
   /** Whether the source of funds is a Polymarket deposit wallet. */
   isPolymarketDepositWallet?: boolean;
 
+  /** Whether this quote is the direct mUSD-to-Money-Account fiat flow. */
+  isDirectMusdMoneyAccount?: boolean;
+
   /** Overrides the payment source for the transaction. */
   paymentOverride?: PaymentOverride;
+
+  /** Optional recipient address for Relay requests. When set, overrides the default `from` address. */
+  recipient?: Hex;
 
   /**
    * Optional address to receive refunds if the quote provider transaction fails.
@@ -470,6 +520,9 @@ export type QuoteRequest = {
    * request.
    */
   refundTo?: Hex;
+
+  /** Whether to skip processTransactions in relay-quotes. Defaults to `isPostQuote`. */
+  skipProcessTransactions?: boolean;
 
   /** Balance of the source token in atomic format without factoring token decimals. */
   sourceBalanceRaw: string;
@@ -554,6 +607,13 @@ export type PayStrategyGetQuotesRequest = {
 
   /** Selected fiat payment method ID, if applicable. */
   fiatPaymentMethod?: string;
+
+  /**
+   * Resolved wallet address for the transaction.
+   * This is `accountOverride ?? txParams.from`, pre-computed by the quote
+   * orchestrator so that individual strategies do not need to re-derive it.
+   */
+  from: Hex;
 
   /** Controller messenger. */
   messenger: TransactionPayControllerMessenger;
