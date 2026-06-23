@@ -12,6 +12,7 @@ import type { HyperLiquidClientService } from '../../../src/services/HyperLiquid
 import { HyperLiquidSubscriptionService } from '../../../src/services/HyperLiquidSubscriptionService';
 import type { HyperLiquidWalletService } from '../../../src/services/HyperLiquidWalletService';
 import type {
+  PriceUpdate,
   SubscribeOrderBookParams,
   SubscribeOrderFillsParams,
   SubscribePositionsParams,
@@ -2557,6 +2558,126 @@ describe('HyperLiquidSubscriptionService', () => {
       // Both should be null before initialization
       expect(result1).toBeNull();
       expect(result2).toBeNull();
+    });
+  });
+
+  describe('Market tradability (isTradable)', () => {
+    const getLastBtcUpdate = (mockCallback: jest.Mock) => {
+      const { calls } = mockCallback.mock;
+      const lastCall = calls[calls.length - 1][0];
+      return lastCall.find((update: PriceUpdate) => update.symbol === 'BTC');
+    };
+
+    it('marks a market tradable when the mid price is close to the oracle price', async () => {
+      // Default mock: mid (allMids) BTC = 50000, oraclePx = 50100 -> ~0.2% deviation
+      const mockCallback = jest.fn();
+
+      const unsubscribe = await service.subscribeToPrices({
+        symbols: ['BTC'],
+        callback: mockCallback,
+        includeMarketData: true,
+      });
+
+      await jest.runAllTimersAsync();
+
+      expect(getLastBtcUpdate(mockCallback)).toEqual(
+        expect.objectContaining({ symbol: 'BTC', isTradable: true }),
+      );
+
+      unsubscribe();
+    });
+
+    it('marks a market untradable when the mid price deviates more than 95% from the oracle price', async () => {
+      // mid (allMids) BTC = 50000, oraclePx = 100 -> deviation far beyond the 95% limit
+      mockSubscriptionClient.activeAssetCtx = jest.fn(
+        (params: any, callback: any) => {
+          setTimeout(() => {
+            callback({
+              coin: params.coin,
+              ctx: {
+                prevDayPx: '49000',
+                funding: '0.01',
+                openInterest: '1000000',
+                dayNtlVlm: '50000000',
+                oraclePx: '100',
+                midPx: '50000',
+              },
+            });
+          }, 0);
+          return Promise.resolve({
+            unsubscribe: jest.fn().mockResolvedValue(undefined),
+          });
+        },
+      );
+
+      const mockCallback = jest.fn();
+
+      const unsubscribe = await service.subscribeToPrices({
+        symbols: ['BTC'],
+        callback: mockCallback,
+        includeMarketData: true,
+      });
+
+      await jest.runAllTimersAsync();
+
+      expect(getLastBtcUpdate(mockCallback)).toEqual(
+        expect.objectContaining({ symbol: 'BTC', isTradable: false }),
+      );
+
+      unsubscribe();
+    });
+
+    it('honors an injected price deviation limit', async () => {
+      // mid (allMids) BTC = 50000, oraclePx = 40000 -> 25% deviation: tradable under the
+      // default 0.95 limit, but untradable under an injected 0.1 (10%) limit.
+      mockSubscriptionClient.activeAssetCtx = jest.fn(
+        (params: any, callback: any) => {
+          setTimeout(() => {
+            callback({
+              coin: params.coin,
+              ctx: {
+                prevDayPx: '49000',
+                funding: '0.01',
+                openInterest: '1000000',
+                dayNtlVlm: '50000000',
+                oraclePx: '40000',
+                midPx: '50000',
+              },
+            });
+          }, 0);
+          return Promise.resolve({
+            unsubscribe: jest.fn().mockResolvedValue(undefined),
+          });
+        },
+      );
+
+      const customService = new HyperLiquidSubscriptionService(
+        mockClientService,
+        mockWalletService,
+        mockDeps,
+        true, // hip3Enabled
+        [], // enabledDexs
+        [], // allowlistMarkets
+        [], // blocklistMarkets
+        0.1, // priceDeviationLimit (10%)
+      );
+
+      const mockCallback = jest.fn();
+
+      const unsubscribe = await customService.subscribeToPrices({
+        symbols: ['BTC'],
+        callback: mockCallback,
+        includeMarketData: true,
+      });
+
+      await jest.runAllTimersAsync();
+
+      expect(getLastBtcUpdate(mockCallback)).toEqual(
+        expect.objectContaining({ symbol: 'BTC', isTradable: false }),
+      );
+
+      unsubscribe();
+      customService.clearAll();
     });
   });
 });
