@@ -31,7 +31,11 @@ export const networkController: InitializationConfiguration<
         'ConnectivityController:getState',
         'RemoteFeatureFlagController:getState',
       ],
-      events: ['RemoteFeatureFlagController:stateChange'],
+
+      events: [
+        // eslint-disable-next-line no-restricted-syntax
+        'RemoteFeatureFlagController:stateChange',
+      ],
     });
 
     return networkControllerMessenger;
