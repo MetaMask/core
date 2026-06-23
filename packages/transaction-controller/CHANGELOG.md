@@ -11,6 +11,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Bump `@metamask/accounts-controller` from `^39.0.2` to `^39.0.3` ([#9231](https://github.com/MetaMask/core/pull/9231))
 
+### Fixed
+
+- Prevent EIP-7702-only transaction batches from falling back to hook or sequential publishing ([#9240](https://github.com/MetaMask/core/pull/9240))
+  - Batches submitted with both hook and sequential fallback disabled now fail when EIP-7702 is unavailable for the account or chain.
+
 ## [68.1.1]
 
 ### Changed

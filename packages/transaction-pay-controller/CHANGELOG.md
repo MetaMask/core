@@ -11,6 +11,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Bump `@metamask/assets-controllers` from `^109.2.1` to `^109.2.2` ([#9231](https://github.com/MetaMask/core/pull/9231))
 
+### Fixed
+
+- Prevent direct mUSD Money Account vault submissions from falling back to standalone child transactions ([#9240](https://github.com/MetaMask/core/pull/9240))
+  - Direct mUSD vault batches now require EIP-7702 submission and always stop collecting submitted transaction IDs after the batch attempt completes.
+
 ## [23.14.0]
 
 ### Changed
