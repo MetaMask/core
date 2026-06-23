@@ -50,6 +50,10 @@ export enum MetaMetricsSwapsEventSource {
   TokenView = 'Token View',
   TrendingExplore = 'Trending Explore',
   Rewards = 'Rewards',
+  ActivityTabEmptyState = 'Activity Tab Empty State',
+  TransactionShield = 'Transaction Shield',
+  TransactionDetails = 'Transaction Details',
+  DeepLink = 'Deep Link',
 }
 
 export enum InputAmountPreset {
