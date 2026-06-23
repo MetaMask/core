@@ -7,13 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Changed
-
-- Replace duplicated installer utilities with `@metamask/local-node-utils` ([#9236](https://github.com/MetaMask/core/pull/9236)).
-
 ### Added
 
 - Add the `@metamask/bitcoin-regtest-up` package ([#9212](https://github.com/MetaMask/core/pull/9212)).
+
+### Changed
+
+- Replace duplicated installer utilities with `@metamask/local-node-utils` ([#9236](https://github.com/MetaMask/core/pull/9236)).
 
 ### Fixed
 
