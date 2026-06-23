@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Replace duplicated installer utilities with `@metamask/local-node-utils` ([#TBD](https://github.com/MetaMask/core/pull/TBD)).
+- Replace duplicated installer utilities with `@metamask/local-node-utils` ([#9236](https://github.com/MetaMask/core/pull/9236)).
 
 ### Added
 
