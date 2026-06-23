@@ -27,6 +27,7 @@ export enum TraceName {
 export const ALLOWED_FEATURE_IDS_FOR_STATUS_EVENTS = [
   FeatureId.QUICK_BUY_FOLLOW_TRADING,
   FeatureId.QUICK_BUY_TOKEN_DETAILS,
+  FeatureId.QUICK_BUY_EXPLORE,
   FeatureId.UNIFIED_SWAP_BRIDGE,
   FeatureId.BATCH_SELL,
 ];

@@ -5242,6 +5242,11 @@ describe('BridgeStatusController', () => {
               srcTxHash: '0xquickBuySrcTxHash1',
               featureId: FeatureId.QUICK_BUY_FOLLOW_TRADING as never,
             }),
+            ...MockTxHistory.getPendingSwap({
+              txMetaId: 'quickBuyExploreBridgeTxMetaId1',
+              srcTxHash: '0xquickBuyExploreSrcTxHash1',
+              featureId: FeatureId.QUICK_BUY_EXPLORE as never,
+            }),
             // ActionId-keyed entries for pre-submission failure tests
             'pre-submission-action-id': {
               ...baseHistoryItem,
@@ -5531,6 +5536,84 @@ describe('BridgeStatusController', () => {
                 "destination_transaction": "FAILED",
                 "error_message": "Transaction failed. tx-error",
                 "feature_id": "quick_buy_follow_trading",
+                "gas_included": false,
+                "gas_included_7702": false,
+                "is_hardware_wallet": false,
+                "location": "Main View",
+                "price_impact": 0,
+                "provider": "lifi_across",
+                "quote_vs_execution_ratio": 0,
+                "quoted_time_minutes": 0.25,
+                "quoted_vs_used_gas_ratio": 0,
+                "security_warnings": [],
+                "slippage_limit": 0,
+                "source_transaction": "COMPLETE",
+                "stx_enabled": false,
+                "swap_type": "single_chain",
+                "token_address_destination": "eip155:42161/slip44:60",
+                "token_address_source": "eip155:42161/slip44:60",
+                "token_security_type_destination": null,
+                "token_symbol_destination": "ETH",
+                "token_symbol_source": "ETH",
+                "usd_actual_gas": 0,
+                "usd_actual_return": 0,
+                "usd_amount_source": 0,
+                "usd_quoted_gas": 0,
+                "usd_quoted_return": 0,
+              },
+            ],
+          ]
+        `);
+      });
+
+      it('should track failed event for transaction with featureId=quick_buy_explore', () => {
+        const messengerCallSpy = jest.spyOn(mockBridgeStatusMessenger, 'call');
+        mockMessenger.publish(
+          'TransactionController:transactionStatusUpdated',
+          {
+            transactionMeta: {
+              error: { name: 'Error', message: 'tx-error' },
+              chainId: CHAIN_IDS.ARBITRUM,
+              networkClientId: 'eth-id',
+              time: Date.now(),
+              txParams: {} as unknown as TransactionParams,
+              type: TransactionType.bridge,
+              status: TransactionStatus.failed,
+              id: 'quickBuyExploreBridgeTxMetaId1',
+              batchId: '0xBatchId3',
+            },
+          },
+        );
+
+        expect(
+          bridgeStatusController.state.txHistory.quickBuyExploreBridgeTxMetaId1
+            .status.status,
+        ).toBe(StatusTypes.FAILED);
+        expect(messengerCallSpy.mock.calls).toMatchInlineSnapshot(`
+          [
+            [
+              "AccountsController:getAccountByAddress",
+              "0xaccount1",
+            ],
+            [
+              "TransactionController:getState",
+            ],
+            [
+              "BridgeController:trackUnifiedSwapBridgeEvent",
+              "Unified SwapBridge Failed",
+              {
+                "account_hardware_type": null,
+                "action_type": "swapbridge-v1",
+                "actual_time_minutes": 833734.9086166667,
+                "allowance_reset_transaction": undefined,
+                "approval_transaction": undefined,
+                "batch_id": "0xBatchId3",
+                "chain_id_destination": "eip155:42161",
+                "chain_id_source": "eip155:42161",
+                "custom_slippage": true,
+                "destination_transaction": "FAILED",
+                "error_message": "Transaction failed. tx-error",
+                "feature_id": "quick_buy_explore",
                 "gas_included": false,
                 "gas_included_7702": false,
                 "is_hardware_wallet": false,
