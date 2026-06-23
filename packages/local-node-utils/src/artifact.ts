@@ -1,3 +1,4 @@
+/* eslint-disable import-x/no-nodejs-modules */
 import { createHash } from 'node:crypto';
 
 import type { ArtifactConfig, ArtifactPlatformConfig } from './types';

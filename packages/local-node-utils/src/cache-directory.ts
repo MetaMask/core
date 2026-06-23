@@ -1,4 +1,4 @@
-/* eslint-disable import-x/no-nodejs-modules */
+/* eslint-disable import-x/no-nodejs-modules, no-restricted-globals */
 import { readFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
