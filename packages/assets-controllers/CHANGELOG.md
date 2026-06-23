@@ -323,6 +323,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **BREAKING:** The `assetId` field in the `Asset` type is now `CaipAssetType` for both EVM and multichain assets ([#8356](https://github.com/MetaMask/core/pull/8356))
+  - For EVM tokens, `assetId` was previously `Hex` (the raw token address); it is now a CAIP-formatted asset type string (e.g. `eip155:1/erc20:0xabc...`). Consumers that compare or parse `assetId` as a hex address must update to handle the new CAIP format.
+- The multichain variant of the `Asset` type now includes a required `address` field of type `CaipAssetType` ([#8356](https://github.com/MetaMask/core/pull/8356))
 - Bump `@metamask/account-tree-controller` from `^7.0.0` to `^7.1.0` ([#8472](https://github.com/MetaMask/core/pull/8472))
 - Bump `@metamask/transaction-controller` from `^64.2.0` to `^64.3.0` ([#8482](https://github.com/MetaMask/core/pull/8482))
 - Bump `@metamask/keyring-api` from `^21.6.0` to `^23.0.1` ([#8464](https://github.com/MetaMask/core/pull/8464))
