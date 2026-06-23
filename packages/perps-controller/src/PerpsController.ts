@@ -1,3 +1,7 @@
+import type {
+  NotificationPreferences,
+  PerpsWatchlistMarkets,
+} from '@metamask/authenticated-user-storage';
 import {
   BaseController,
   ControllerGetStateAction,
@@ -151,6 +155,30 @@ export function firstNonEmpty(...vals: (string | undefined)[]): string {
   return (
     vals.find((val) => val !== null && val !== undefined && val !== '') ?? ''
   );
+}
+
+/**
+ * Maps an active provider mode to the corresponding exchange key used in the
+ * AUS {@link PerpsWatchlistMarkets} schema.
+ *
+ * Returns `null` for modes that are not yet represented in the AUS schema
+ * (e.g. `'aggregated'`), which signals callers to skip remote sync and fall
+ * back to local state only.  Add new entries here as additional DEX providers
+ * gain AUS watchlist support.
+ *
+ * @param activeProvider - The current active provider mode from controller state.
+ * @returns The matching `PerpsWatchlistMarkets` key, or `null` if unsupported.
+ */
+export function resolveWatchlistExchangeKey(
+  activeProvider: PerpsActiveProviderMode,
+): keyof PerpsWatchlistMarkets | null {
+  const map: Partial<
+    Record<PerpsActiveProviderMode, keyof PerpsWatchlistMarkets>
+  > = {
+    hyperliquid: 'hyperliquid',
+    myx: 'myx',
+  };
+  return map[activeProvider] ?? null;
 }
 
 /**
@@ -912,6 +940,21 @@ export class PerpsController extends BaseController<
 
   #eligibilityCheckDeferred: boolean;
 
+  /**
+   * Serial promise queue for all AUS watchlist operations (hydration and
+   * individual toggles).  Chaining every operation onto this field ensures
+   * that:
+   *
+   * - A toggle that fires immediately after init() always runs *after* the
+   *   init hydration finishes (Bug 3).
+   * - Concurrent toggles are serialised so the last PUT reflects all changes
+   *   rather than racing with each other (Bug 4).
+   *
+   * Errors from individual operations are swallowed inside the queue so that
+   * a failed operation does not stall subsequent ones.
+   */
+  #ausQueue: Promise<void> = Promise.resolve();
+
   // Store options for dependency injection (allows core package to inject platform-specific services)
   readonly #options: PerpsControllerOptions;
 
@@ -1663,6 +1706,14 @@ export class PerpsController extends BaseController<
           activeProvider: this.state.activeProvider,
           timestamp: new Date().toISOString(),
           attempts: attempt,
+        });
+
+        // Hydrate watchlist from AUS (non-blocking — transient failures are
+        // caught inside and must not prevent init from completing).
+        // Assigning to #ausQueue ensures subsequent toggleWatchlistMarket
+        // calls wait for hydration before running their own GET-merge-PUT.
+        this.#ausQueue = this.#syncWatchlistFromRemote().catch(() => {
+          // Errors are already logged inside #syncWatchlistFromRemote.
         });
 
         return; // Exit retry loop on success
@@ -5070,12 +5121,21 @@ export class PerpsController extends BaseController<
   }
 
   /**
-   * Toggle watchlist status for a market
-   * Watchlist markets are stored per network (testnet/mainnet)
+   * Toggle watchlist status for a market.
+   *
+   * Updates local state immediately (optimistic UI) and then syncs the new
+   * watchlist to AuthenticatedUserStorageService.  If the remote write fails,
+   * the local state is reverted so it stays consistent with AUS.
+   *
+   * When the user is unauthenticated, or the active provider is not yet
+   * supported by the AUS schema, the controller continues operating with
+   * local-persisted state only — no error is surfaced to the caller.
+   *
+   * Watchlist markets are stored per network (testnet/mainnet).
    *
    * @param symbol - The trading pair symbol.
    */
-  toggleWatchlistMarket(symbol: string): void {
+  async toggleWatchlistMarket(symbol: string): Promise<void> {
     const currentNetwork = this.state.isTestnet ? 'testnet' : 'mainnet';
     const currentWatchlist = this.state.watchlistMarkets[currentNetwork];
     const isWatchlisted = currentWatchlist.includes(symbol);
@@ -5087,17 +5147,54 @@ export class PerpsController extends BaseController<
       action: isWatchlisted ? 'remove' : 'add',
     });
 
+    // Step 1: Optimistic local state update — UI reflects change immediately.
     this.update((state) => {
       if (isWatchlisted) {
-        // Remove from watchlist
         state.watchlistMarkets[currentNetwork] = currentWatchlist.filter(
           (marketSymbol) => marketSymbol !== symbol,
         );
       } else {
-        // Add to watchlist
         state.watchlistMarkets[currentNetwork] = [...currentWatchlist, symbol];
       }
     });
+
+    this.#getMetrics().trackPerpsEvent(PerpsAnalyticsEvent.UiInteraction, {
+      [PERPS_EVENT_PROPERTY.INTERACTION_TYPE]:
+        PERPS_EVENT_VALUE.INTERACTION_TYPE.FAVORITE_TOGGLED,
+      [PERPS_EVENT_PROPERTY.ASSET]: symbol,
+      [PERPS_EVENT_PROPERTY.ACTION_TYPE]: isWatchlisted
+        ? PERPS_EVENT_VALUE.ACTION_TYPE.UNFAVORITE_MARKET
+        : PERPS_EVENT_VALUE.ACTION_TYPE.FAVORITE_MARKET,
+      [PERPS_EVENT_PROPERTY.FAVORITES_COUNT]:
+        this.state.watchlistMarkets[currentNetwork].length,
+    });
+
+    // Step 2: Persist to AUS; revert local state if the write fails.
+    // Enqueue behind #ausQueue so that:
+    //   - concurrent toggles serialize their GET-merge-PUT sequences, and
+    //   - any in-flight init hydration completes before we issue a write.
+    try {
+      await new Promise<void>((resolve, reject) => {
+        this.#ausQueue = this.#ausQueue
+          .then(() => this.#persistWatchlistToRemote(currentNetwork))
+          .then(resolve, reject)
+          // Swallow the error on the queue chain so later operations can run.
+          .catch(() => undefined);
+      });
+    } catch (error) {
+      this.#logError(
+        ensureError(error, 'PerpsController.toggleWatchlistMarket'),
+        this.#getErrorContext('toggleWatchlistMarket', {
+          symbol,
+          network: currentNetwork,
+          action: isWatchlisted ? 'remove' : 'add',
+        }),
+      );
+      // Revert the optimistic update.
+      this.update((state) => {
+        state.watchlistMarkets[currentNetwork] = currentWatchlist;
+      });
+    }
   }
 
   /**
@@ -5119,6 +5216,177 @@ export class PerpsController extends BaseController<
   getWatchlistMarkets(): string[] {
     const currentNetwork = this.state.isTestnet ? 'testnet' : 'mainnet';
     return this.state.watchlistMarkets[currentNetwork];
+  }
+
+  /**
+   * Writes the current local watchlist to AuthenticatedUserStorageService
+   * using a read-merge-write strategy to avoid overwriting other preferences.
+   *
+   * Skips silently when:
+   * - The active provider has no AUS exchange key (e.g. `'aggregated'`).
+   * - The remote preferences blob does not yet exist (returns `null` / 404).
+   *   In that case, `NotificationServicesController.createOnChainTriggers` is
+   *   the canonical owner that creates the initial blob.
+   *
+   * Throws on remote write failure so the caller can decide whether to revert.
+   *
+   * @param network - Which network's list to sync ('testnet' | 'mainnet').
+   */
+  async #persistWatchlistToRemote(
+    network: 'testnet' | 'mainnet',
+  ): Promise<void> {
+    const exchangeKey = resolveWatchlistExchangeKey(this.state.activeProvider);
+    if (!exchangeKey) {
+      this.#debugLog(
+        'PerpsController: Skipping AUS watchlist sync — provider not mapped',
+        { activeProvider: this.state.activeProvider },
+      );
+      return;
+    }
+
+    const prefs = await this.messenger.call(
+      'AuthenticatedUserStorageService:getNotificationPreferences',
+    );
+
+    if (!prefs) {
+      this.#debugLog(
+        'PerpsController: Skipping AUS watchlist write — preferences blob not yet initialised',
+        { exchangeKey, network },
+      );
+      return;
+    }
+
+    const existingWatchlist: PerpsWatchlistMarkets = prefs.perps
+      .watchlistMarkets ?? {
+      hyperliquid: { testnet: [], mainnet: [] },
+      myx: { testnet: [], mainnet: [] },
+    };
+
+    const nextWatchlistMarkets: PerpsWatchlistMarkets = {
+      ...existingWatchlist,
+      [exchangeKey]: {
+        ...existingWatchlist[exchangeKey],
+        [network]: this.state.watchlistMarkets[network],
+      },
+    };
+
+    const nextPrefs: NotificationPreferences = {
+      ...prefs,
+      perps: {
+        ...prefs.perps,
+        watchlistMarkets: nextWatchlistMarkets,
+      },
+    };
+
+    await this.messenger.call(
+      'AuthenticatedUserStorageService:putNotificationPreferences',
+      nextPrefs,
+    );
+
+    this.#debugLog('PerpsController: Watchlist synced to AUS', {
+      exchangeKey,
+      network,
+      count: this.state.watchlistMarkets[network].length,
+    });
+  }
+
+  /**
+   * Hydrates `state.watchlistMarkets` from AuthenticatedUserStorageService on
+   * controller initialisation.
+   *
+   * AUS is the source of truth; local state is used as an offline cache.
+   * This method also handles the one-time migration from local-only state to
+   * AUS for users who had a watchlist before AUS sync was introduced.
+   *
+   * All remote errors are swallowed so a transient network failure does not
+   * block the rest of `init()`.
+   */
+  async #syncWatchlistFromRemote(): Promise<void> {
+    const exchangeKey = resolveWatchlistExchangeKey(this.state.activeProvider);
+    if (!exchangeKey) {
+      this.#debugLog(
+        'PerpsController: Skipping AUS watchlist hydration — provider not mapped',
+        { activeProvider: this.state.activeProvider },
+      );
+      return;
+    }
+
+    try {
+      const prefs = await this.messenger.call(
+        'AuthenticatedUserStorageService:getNotificationPreferences',
+      );
+
+      if (!prefs) {
+        this.#debugLog(
+          'PerpsController: No AUS preferences blob — using local watchlist',
+        );
+        return;
+      }
+
+      const remoteExchangeWatchlist =
+        prefs.perps.watchlistMarkets?.[exchangeKey];
+
+      // AUS is the source of truth: an absent exchange key means this device
+      // has not been migrated yet — push any local favorites up once.
+      // A present key (even with empty arrays) must be honored as-is,
+      // including an intentional remote clear.
+      if (remoteExchangeWatchlist === undefined) {
+        // Blob exists but has no watchlist for this exchange yet.
+        // If local state has any markets, push them up as a one-time migration.
+        const { testnet, mainnet } = this.state.watchlistMarkets;
+        const hasLocalMarkets = testnet.length > 0 || mainnet.length > 0;
+
+        if (hasLocalMarkets) {
+          this.#debugLog('PerpsController: Migrating local watchlist to AUS', {
+            exchangeKey,
+            testnetCount: testnet.length,
+            mainnetCount: mainnet.length,
+          });
+          // Push testnet and mainnet together via a single read-merge-write.
+          // Start from existing remote watchlistMarkets (or empty fallback) so
+          // that other exchanges already stored in AUS are not overwritten.
+          const existingWatchlist: PerpsWatchlistMarkets = prefs.perps
+            .watchlistMarkets ?? {
+            hyperliquid: { testnet: [], mainnet: [] },
+            myx: { testnet: [], mainnet: [] },
+          };
+          const nextWatchlistMarkets: PerpsWatchlistMarkets = {
+            ...existingWatchlist,
+            [exchangeKey]: { testnet, mainnet },
+          };
+          const nextPrefs: NotificationPreferences = {
+            ...prefs,
+            perps: {
+              ...prefs.perps,
+              watchlistMarkets: nextWatchlistMarkets,
+            },
+          };
+          await this.messenger.call(
+            'AuthenticatedUserStorageService:putNotificationPreferences',
+            nextPrefs,
+          );
+          this.#debugLog('PerpsController: Local watchlist migrated to AUS', {
+            exchangeKey,
+          });
+        }
+      } else {
+        // AUS has an entry for this exchange — hydrate local state from it.
+        this.update((state) => {
+          state.watchlistMarkets.testnet = remoteExchangeWatchlist.testnet;
+          state.watchlistMarkets.mainnet = remoteExchangeWatchlist.mainnet;
+        });
+        this.#debugLog('PerpsController: Watchlist hydrated from AUS', {
+          exchangeKey,
+          testnetCount: remoteExchangeWatchlist.testnet.length,
+          mainnetCount: remoteExchangeWatchlist.mainnet.length,
+        });
+      }
+    } catch (error) {
+      this.#logError(
+        ensureError(error, 'PerpsController.syncWatchlistFromRemote'),
+        this.#getErrorContext('syncWatchlistFromRemote'),
+      );
+    }
   }
 
   /**
