@@ -13,6 +13,7 @@
     { "path": "../keyring-controller/tsconfig.json" },
     { "path": "../messenger/tsconfig.json" },
     { "path": "../network-controller/tsconfig.json" },
+    { "path": "../preferences-controller/tsconfig.json" },
     { "path": "../remote-feature-flag-controller/tsconfig.json" },
     { "path": "../storage-service/tsconfig.json" },
     { "path": "../transaction-controller/tsconfig.json" }
