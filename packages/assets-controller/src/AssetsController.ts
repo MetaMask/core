@@ -1204,25 +1204,11 @@ export class AssetsController extends BaseController<
     const removedChains = previous.filter((ch) => !activeChains.includes(ch));
 
     if (addedChains.length > 0 || removedChains.length > 0) {
-      // Refresh subscriptions to use updated data source availability
+      // Refresh subscriptions to use updated data source availability.
+      // No one-time fetch needed here — #handleEnabledNetworksChanged
+      // handles fetches when the user enables a network, and
+      // #subscribeAssets re-subscribes with the correct chain assignment.
       this.#subscribeAssets();
-    }
-
-    // If chains were added and we have selected accounts, do one-time fetch
-    if (addedChains.length > 0 && this.#getSelectedAccounts().length > 0) {
-      const addedEnabledChains = addedChains.filter((chain) =>
-        this.#enabledChains.has(chain),
-      );
-      if (addedEnabledChains.length > 0) {
-        log('Fetching balances for newly added chains', { addedEnabledChains });
-        this.getAssets(this.#getSelectedAccounts(), {
-          chainIds: addedEnabledChains,
-          forceUpdate: true,
-          updateMode: 'merge',
-        }).catch((error) => {
-          log('Failed to fetch balance for added chains', { error });
-        });
-      }
     }
   }
 
@@ -1828,6 +1814,9 @@ export class AssetsController extends BaseController<
     if (!this.#isBasicFunctionality()) {
       return;
     }
+
+    // Currency changed — old cached prices are in the wrong currency.
+    this.#priceDataSource.invalidatePriceCache();
 
     this.getAssets(this.#getSelectedAccounts(), {
       forceUpdate: true,

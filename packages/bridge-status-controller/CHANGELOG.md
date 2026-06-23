@@ -7,10 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/accounts-controller` from `^39.0.2` to `^39.0.3` ([#9231](https://github.com/MetaMask/core/pull/9231))
+
+## [72.2.0]
+
 ### Added
 
 - **BREAKING:** Add required `quoteId: string` and `reportedSubmittedTxHash: string` to `BridgeHistoryItem` ([#8462](https://github.com/MetaMask/core/pull/8462))
 - Add `QuoteStatusUpdateManager` for resilient quote-status reporting to the Bridge API; reports `SUBMITTED`/`FINALIZED_SUCCESS`/`FINALIZED_FAILURE`, retries immediately on retryable errors, defers on network failures, and persists the queue to `quoteUpdateStatusStore` state across service-worker restarts ([#8462](https://github.com/MetaMask/core/pull/8462))
+
+### Changed
+
+- Bump `@metamask/bridge-controller` from `^75.2.1` to `^76.0.0` ([#9225](https://github.com/MetaMask/core/pull/9225))
 
 ## [72.1.1]
 
@@ -1302,7 +1312,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#5317](https://github.com/MetaMask/core/pull/5317))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@72.1.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@72.2.0...HEAD
+[72.2.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@72.1.1...@metamask/bridge-status-controller@72.2.0
 [72.1.1]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@72.1.0...@metamask/bridge-status-controller@72.1.1
 [72.1.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@72.0.3...@metamask/bridge-status-controller@72.1.0
 [72.0.3]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@72.0.2...@metamask/bridge-status-controller@72.0.3

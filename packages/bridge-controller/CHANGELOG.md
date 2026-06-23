@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/assets-controllers` from `^109.2.1` to `^109.2.2` ([#9231](https://github.com/MetaMask/core/pull/9231))
+- Bump `@metamask/accounts-controller` from `^39.0.2` to `^39.0.3` ([#9231](https://github.com/MetaMask/core/pull/9231))
+
+## [76.0.0]
+
 ### Added
 
 - **BREAKING**: Add persisted input primary denomination state and `Unified SwapBridge Fiat Crypto Toggle Clicked` analytics event support ([#9147](https://github.com/MetaMask/core/pull/9147))
@@ -1637,7 +1644,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#5317](https://github.com/MetaMask/core/pull/5317))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@75.2.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@76.0.0...HEAD
+[76.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@75.2.1...@metamask/bridge-controller@76.0.0
 [75.2.1]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@75.2.0...@metamask/bridge-controller@75.2.1
 [75.2.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@75.1.1...@metamask/bridge-controller@75.2.0
 [75.1.1]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@75.1.0...@metamask/bridge-controller@75.1.1
