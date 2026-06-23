@@ -54,7 +54,7 @@
   },
   "dependencies": {
     "@ethereumjs/util": "^9.1.0",
-    "@metamask/accounts-controller": "^39.0.1",
+    "@metamask/accounts-controller": "^39.0.2",
     "@metamask/base-controller": "^9.1.0",
     "@metamask/eth-snap-keyring": "^22.1.0",
     "@metamask/key-tree": "^10.1.1",
@@ -76,7 +76,7 @@
   "devDependencies": {
     "@metamask/account-api": "^1.0.4",
     "@metamask/auto-changelog": "^6.1.0",
-    "@metamask/controller-utils": "^12.2.0",
+    "@metamask/controller-utils": "^12.3.0",
     "@metamask/eth-hd-keyring": "^14.1.1",
     "@metamask/providers": "^22.1.0",
     "@ts-bridge/cli": "^0.6.4",

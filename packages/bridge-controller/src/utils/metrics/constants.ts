@@ -8,6 +8,7 @@ export enum UnifiedSwapBridgeEventName {
   ButtonClicked = `${UNIFIED_SWAP_BRIDGE_EVENT_CATEGORY} Button Clicked`,
   PageViewed = `${UNIFIED_SWAP_BRIDGE_EVENT_CATEGORY} Page Viewed`,
   InputChanged = `${UNIFIED_SWAP_BRIDGE_EVENT_CATEGORY} Input Changed`,
+  FiatCryptoToggleClicked = `${UNIFIED_SWAP_BRIDGE_EVENT_CATEGORY} Fiat Crypto Toggle Clicked`,
   InputSourceDestinationSwitched = `${UNIFIED_SWAP_BRIDGE_EVENT_CATEGORY} Source Destination Switched`,
   QuotesRequested = `${UNIFIED_SWAP_BRIDGE_EVENT_CATEGORY} Quotes Requested`,
   QuotesReceived = `${UNIFIED_SWAP_BRIDGE_EVENT_CATEGORY} Quotes Received`,

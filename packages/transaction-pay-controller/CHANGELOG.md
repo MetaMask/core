@@ -7,6 +7,45 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [23.14.0]
+
+### Changed
+
+- Bump `@metamask/bridge-controller` from `^75.2.1` to `^76.0.0` ([#9225](https://github.com/MetaMask/core/pull/9225))
+- Bump `@metamask/bridge-status-controller` from `^72.1.1` to `^72.2.0` ([#9225](https://github.com/MetaMask/core/pull/9225))
+
+## [23.13.1]
+
+### Changed
+
+- Bump `@metamask/bridge-controller` from `^75.1.1` to `^75.2.1` ([#9214](https://github.com/MetaMask/core/pull/9214), [#9218](https://github.com/MetaMask/core/pull/9218))
+- Bump `@metamask/assets-controller` from `^9.0.1` to `^9.0.2` ([#9218](https://github.com/MetaMask/core/pull/9218))
+- Bump `@metamask/assets-controllers` from `^109.2.0` to `^109.2.1` ([#9218](https://github.com/MetaMask/core/pull/9218))
+- Bump `@metamask/bridge-status-controller` from `^72.1.0` to `^72.1.1` ([#9218](https://github.com/MetaMask/core/pull/9218))
+- Bump `@metamask/controller-utils` from `^12.2.0` to `^12.3.0` ([#9218](https://github.com/MetaMask/core/pull/9218))
+- Bump `@metamask/gas-fee-controller` from `^26.2.2` to `^26.2.3` ([#9218](https://github.com/MetaMask/core/pull/9218))
+- Bump `@metamask/network-controller` from `^32.0.0` to `^33.0.0` ([#9218](https://github.com/MetaMask/core/pull/9218))
+- Bump `@metamask/transaction-controller` from `^68.1.0` to `^68.1.1` ([#9218](https://github.com/MetaMask/core/pull/9218))
+
+## [23.13.0]
+
+### Changed
+
+- Add RPC method, chain ID, and endpoint type context to transaction pay provider errors ([#9144](https://github.com/MetaMask/core/pull/9144))
+- Bump `@metamask/ramps-controller` from `^14.2.0` to `^14.3.0` ([#9199](https://github.com/MetaMask/core/pull/9199))
+- Bump `@metamask/assets-controllers` from `^109.1.0` to `^109.2.0` ([#9202](https://github.com/MetaMask/core/pull/9202))
+- Bump `@metamask/transaction-controller` from `^68.0.1` to `^68.1.0` ([#9203](https://github.com/MetaMask/core/pull/9203))
+
+### Fixed
+
+- Preserve original error stack traces while prefixing MetaMask Pay, Relay, and Fiat submission errors, and fail closed when Fiat submission has no quote or when Relay or direct mUSD Fiat vault submissions complete without a transaction hash ([#9201](https://github.com/MetaMask/core/pull/9201))
+
+## [23.12.0]
+
+### Changed
+
+- Post-quote source amount filtering no longer bypasses same-token filtering when `isQuoteRequired` is set ([#9194](https://github.com/MetaMask/core/pull/9194))
+
 ## [23.11.0]
 
 ### Fixed
@@ -1111,7 +1150,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#6820](https://github.com/MetaMask/core/pull/6820))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@23.11.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@23.14.0...HEAD
+[23.14.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@23.13.1...@metamask/transaction-pay-controller@23.14.0
+[23.13.1]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@23.13.0...@metamask/transaction-pay-controller@23.13.1
+[23.13.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@23.12.0...@metamask/transaction-pay-controller@23.13.0
+[23.12.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@23.11.0...@metamask/transaction-pay-controller@23.12.0
 [23.11.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@23.10.0...@metamask/transaction-pay-controller@23.11.0
 [23.10.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@23.9.0...@metamask/transaction-pay-controller@23.10.0
 [23.9.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@23.8.0...@metamask/transaction-pay-controller@23.9.0

@@ -409,7 +409,7 @@ describe('submitWithCalldataReEncoding', () => {
         sourceAmountRaw: '1000000000000000000',
         transaction: TRANSACTION_MOCK,
       }),
-    ).rejects.toThrow('Missing Relay quote for fiat submission');
+    ).rejects.toThrow('Missing Relay quote');
   });
 
   it('falls back to original transaction when getTransaction returns undefined', async () => {

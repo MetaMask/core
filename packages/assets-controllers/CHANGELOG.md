@@ -7,8 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [109.2.1]
+
+### Changed
+
+- Bump `@metamask/transaction-controller` from `^68.0.1` to `^68.1.1` ([#9203](https://github.com/MetaMask/core/pull/9203), [#9218](https://github.com/MetaMask/core/pull/9218))
+- Bump `@metamask/accounts-controller` from `^39.0.1` to `^39.0.2` ([#9218](https://github.com/MetaMask/core/pull/9218))
+- Bump `@metamask/controller-utils` from `^12.2.0` to `^12.3.0` ([#9218](https://github.com/MetaMask/core/pull/9218))
+- Bump `@metamask/network-controller` from `^32.0.0` to `^33.0.0` ([#9218](https://github.com/MetaMask/core/pull/9218))
+- Bump `@metamask/network-enablement-controller` from `^5.3.0` to `^5.4.0` ([#9218](https://github.com/MetaMask/core/pull/9218))
+- Bump `@metamask/polling-controller` from `^16.0.6` to `^16.0.7` ([#9218](https://github.com/MetaMask/core/pull/9218))
+
+## [109.2.0]
+
 ### Added
 
+- Add `isDeprecated` option to `TokensController` constructor ([#9186](https://github.com/MetaMask/core/pull/9186))
+  - When `isDeprecated()` returns `true`, no token list enrichment runs and `allTokens`, `allIgnoredTokens`, and `allDetectedTokens` are reset to `{}` at construction and at every entry point (`addToken`, `addTokens`, `ignoreTokens`, `addDetectedTokens`, `updateTokenType`, `watchAsset`, `clearIgnoredTokens`, `NetworkController:stateChange`, and `KeyringController:accountRemoved`), so no stale token data remains in state.
+- Add `isDeprecated` option to `CurrencyRateController` constructor ([#9182](https://github.com/MetaMask/core/pull/9182))
+  - When `isDeprecated()` returns `true`, no API requests are sent and `currencyRates` is reset to `{}` at construction and at every entry point (`setCurrentCurrency`, `updateExchangeRate`, and `_executePoll`), so no stale rates remain in state.
+  - The function is re-evaluated on each entry point so it can be toggled at runtime without reconstructing the controller.
 - Add `isDeprecated` option to `MultichainAssetsRatesController` constructor ([#9044](https://github.com/MetaMask/core/pull/9044))
   - When `isDeprecated()` returns `true`, no Snap requests are sent and `conversionRates` and `historicalPrices` are reset to `{}` at construction and at every entry point (`updateAssetsRates`, `fetchHistoricalPricesForAsset`, `_executePoll`, `CurrencyRateController:stateChange`, and `MultichainAssetsController:accountAssetListUpdated`), so no stale rates remain in state.
   - The function is re-evaluated on each entry point so it can be toggled at runtime without reconstructing the controller.
@@ -3223,7 +3241,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Use Ethers for AssetsContractController ([#845](https://github.com/MetaMask/core/pull/845))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@109.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@109.2.1...HEAD
+[109.2.1]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@109.2.0...@metamask/assets-controllers@109.2.1
+[109.2.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@109.1.0...@metamask/assets-controllers@109.2.0
 [109.1.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@109.0.0...@metamask/assets-controllers@109.1.0
 [109.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@108.6.0...@metamask/assets-controllers@109.0.0
 [108.6.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@108.5.0...@metamask/assets-controllers@108.6.0
