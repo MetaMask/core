@@ -42,6 +42,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Add an `isTradable` boolean to `PriceUpdate` that defaults to `true`. It is `false` when a market's mid price has drifted past the protocol's oracle-deviation limit (HyperLiquid rejects orders more than 95% away from the reference price, which most often affects HIP-3 markets); a provider with no such rule, or that cannot yet assess tradability, reports `true`.
   - Add an optional, protocol-agnostic `fallbackPriceDeviationLimit` to `PerpsControllerConfig` so clients can tune the deviation threshold; each provider applies its own default when omitted.
   - Export the pure `isMarketTradable` helper and add `HYPERLIQUID_CONFIG.OraclePriceDeviationLimit` (`0.95`, the HyperLiquid default).
+
 ### Changed
 
 - Bump `@metamask/controller-utils` from `^12.2.0` to `^12.3.0` ([#9218](https://github.com/MetaMask/core/pull/9218))
