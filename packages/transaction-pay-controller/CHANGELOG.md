@@ -13,8 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Prevent direct mUSD Money Account vault submissions from falling back to standalone child transactions ([#9240](https://github.com/MetaMask/core/pull/9240))
-  - Direct mUSD vault batches now require EIP-7702 submission and always stop collecting submitted transaction IDs after the batch attempt completes.
+- Require EIP-7702 for direct mUSD vault deposits and ensure transaction ID collection always stops after the batch attempt ([#9240](https://github.com/MetaMask/core/pull/9240))
 
 ## [23.14.0]
 

@@ -13,8 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Prevent EIP-7702-only transaction batches from falling back to hook or sequential publishing ([#9240](https://github.com/MetaMask/core/pull/9240))
-  - Batches submitted with both hook and sequential fallback disabled now fail when EIP-7702 is unavailable for the account or chain.
+- Add explicit error when submitting a batch that requires EIP-7702 but the account or chain does not support it ([#9240](https://github.com/MetaMask/core/pull/9240))
 
 ## [68.1.1]
 
