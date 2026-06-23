@@ -57,6 +57,7 @@ import {
 } from '../../utils/token';
 import { isPredictWithdrawTransaction } from '../../utils/transaction';
 import { TOKEN_TRANSFER_FOUR_BYTE } from './constants';
+import { applyHyperliquidActivationFee } from './hyperliquid-activation';
 import { applyPolymarketDepositWalletOverrides } from './polymarket/withdraw';
 import { fetchRelayQuote } from './relay-api';
 import { getRelayMaxGasStationQuote } from './relay-max-gas-station';
@@ -90,19 +91,29 @@ export async function getRelayQuotes(
   log('Fetching quotes', requests);
 
   try {
-    const normalizedRequests = requests
-      .filter((singleRequest) => {
-        const hasTargetMinimum = singleRequest.targetAmountMinimum !== '0';
-        const isPostQuote = Boolean(singleRequest.isPostQuote);
-        const isExactInputRequest =
-          Boolean(singleRequest.isMaxAmount) &&
-          new BigNumber(singleRequest.sourceTokenAmount).gt(0);
+    const normalizedRequests = await Promise.all(
+      requests
+        .filter((singleRequest) => {
+          const hasTargetMinimum = singleRequest.targetAmountMinimum !== '0';
+          const isPostQuote = Boolean(singleRequest.isPostQuote);
+          const isExactInputRequest =
+            Boolean(singleRequest.isMaxAmount) &&
+            new BigNumber(singleRequest.sourceTokenAmount).gt(0);
 
-        return hasTargetMinimum || isPostQuote || isExactInputRequest;
-      })
-      .map((singleRequest) =>
-        normalizeRequest(singleRequest, request.transaction),
-      );
+          return hasTargetMinimum || isPostQuote || isExactInputRequest;
+        })
+        .map((singleRequest) =>
+          normalizeRequest(singleRequest, request.transaction),
+        )
+        .map((singleRequest) =>
+          applyHyperliquidActivationFee(
+            singleRequest,
+            request.messenger,
+            request.transaction.type,
+            request.signal,
+          ),
+        ),
+    );
 
     log('Normalized requests', normalizedRequests);
 
@@ -579,11 +590,17 @@ async function normalizeQuote(
   const appFeeUsd = new BigNumber(quote.fees?.app?.amountUsd ?? '0');
   const metaMaskFee = getFiatValueFromUsd(appFeeUsd, usdToFiatRate);
 
-  // Subtract app fee from provider fee since totalImpact.usd already includes it
-  const providerFeeUsd = calculateProviderFee(quote).minus(appFeeUsd);
-  const provider = subsidizedFeeUsd.gt(0)
-    ? { usd: '0', fiat: '0' }
-    : getFiatValueFromUsd(providerFeeUsd, usdToFiatRate);
+  // Subtract app fee from provider fee since totalImpact.usd already includes
+  // it. The relay provider fee is forced to zero when the quote is subsidized,
+  // but any reserved HyperLiquid activation fee is withheld from the source
+  // send regardless, so it must always be surfaced in the provider fee.
+  const activationFeeUsd = new BigNumber(
+    request.hyperliquidActivationFeeUsd ?? '0',
+  );
+  const providerFeeUsd = subsidizedFeeUsd.gt(0)
+    ? activationFeeUsd
+    : calculateProviderFee(quote).minus(appFeeUsd).plus(activationFeeUsd);
+  const provider = getFiatValueFromUsd(providerFeeUsd, usdToFiatRate);
 
   const {
     gasLimits,

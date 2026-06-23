@@ -36,6 +36,8 @@ import {
   isRelayExecuteEnabled,
   getFeatureFlags,
   getGasBuffer,
+  getHyperliquidActivationFeeConfig,
+  DEFAULT_HYPERLIQUID_ACTIVATION_FEE_USD,
   getPayStrategiesConfig,
   getSlippage,
   getStrategy,
@@ -1835,6 +1837,111 @@ describe('Feature Flags Utils', () => {
       });
 
       expect(getFiatOrderPollTimeoutMs(messenger)).toBe(600000);
+    });
+  });
+
+  describe('getHyperliquidActivationFeeConfig', () => {
+    const TRANSACTION_TYPE = 'perpsWithdraw';
+
+    it('returns disabled with the default fee when the flag is unset', () => {
+      expect(
+        getHyperliquidActivationFeeConfig(messenger, TRANSACTION_TYPE),
+      ).toStrictEqual({
+        enabled: false,
+        amountUsd: DEFAULT_HYPERLIQUID_ACTIVATION_FEE_USD,
+      });
+    });
+
+    it('reads the transaction-type override', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_pay_post_quote: {
+            overrides: {
+              perpsWithdraw: {
+                hyperliquidActivationFee: { enabled: true, amountUsd: 2.5 },
+              },
+            },
+          },
+        },
+      });
+
+      expect(
+        getHyperliquidActivationFeeConfig(messenger, TRANSACTION_TYPE),
+      ).toStrictEqual({ enabled: true, amountUsd: 2.5 });
+    });
+
+    it('falls back to the default config when there is no override', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_pay_post_quote: {
+            default: { hyperliquidActivationFee: { enabled: true } },
+          },
+        },
+      });
+
+      expect(
+        getHyperliquidActivationFeeConfig(messenger, TRANSACTION_TYPE),
+      ).toStrictEqual({
+        enabled: true,
+        amountUsd: DEFAULT_HYPERLIQUID_ACTIVATION_FEE_USD,
+      });
+    });
+
+    it('falls back to the default config when no transaction type is provided', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_pay_post_quote: {
+            default: { hyperliquidActivationFee: { enabled: true } },
+          },
+        },
+      });
+
+      expect(getHyperliquidActivationFeeConfig(messenger)).toStrictEqual({
+        enabled: true,
+        amountUsd: DEFAULT_HYPERLIQUID_ACTIVATION_FEE_USD,
+      });
+    });
+
+    it('prefers the transaction-type override over the default', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_pay_post_quote: {
+            default: { hyperliquidActivationFee: { enabled: false } },
+            overrides: {
+              perpsWithdraw: {
+                hyperliquidActivationFee: { enabled: true },
+              },
+            },
+          },
+        },
+      });
+
+      expect(
+        getHyperliquidActivationFeeConfig(messenger, TRANSACTION_TYPE).enabled,
+      ).toBe(true);
+    });
+
+    it('falls back to the default fee when the amount is not positive', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_pay_post_quote: {
+            overrides: {
+              perpsWithdraw: {
+                hyperliquidActivationFee: { enabled: true, amountUsd: 0 },
+              },
+            },
+          },
+        },
+      });
+
+      expect(
+        getHyperliquidActivationFeeConfig(messenger, TRANSACTION_TYPE).amountUsd,
+      ).toBe(DEFAULT_HYPERLIQUID_ACTIVATION_FEE_USD);
     });
   });
 });

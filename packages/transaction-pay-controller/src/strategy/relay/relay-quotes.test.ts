@@ -4346,4 +4346,198 @@ describe('Relay Quotes Utils', () => {
       });
     });
   });
+
+  describe('HyperLiquid activation fee', () => {
+    const HYPERLIQUID_REQUEST_MOCK: QuoteRequest = {
+      from: FROM_MOCK,
+      isHyperliquidSource: true,
+      isPostQuote: true,
+      sourceBalanceRaw: '4800000',
+      sourceChainId: CHAIN_ID_HYPERCORE,
+      sourceTokenAddress: '0x00000000000000000000000000000000' as Hex,
+      // $4.80 at 6 decimals; normalizeRequest shifts to 8 decimals.
+      sourceTokenAmount: '4800000',
+      targetAmountMinimum: '0',
+      targetChainId: CHAIN_ID_ARBITRUM,
+      targetTokenAddress: ARBITRUM_USDC_ADDRESS,
+    };
+
+    const HYPERLIQUID_QUOTE_MOCK = {
+      details: {
+        currencyIn: {
+          amount: '380000000',
+          amountFormatted: '3.8',
+          amountUsd: '3.8',
+          currency: { chainId: 1337, decimals: 8 },
+        },
+        currencyOut: {
+          amount: '3720000',
+          amountFormatted: '3.72',
+          amountUsd: '3.72',
+          currency: { chainId: 42161, decimals: 6 },
+          minimumAmount: '0',
+        },
+        timeEstimate: 30,
+        totalImpact: { usd: '0.08' },
+      },
+      fees: { relayer: { amountUsd: '0' } },
+      steps: [],
+    } as unknown as RelayQuote;
+
+    const PERPS_WITHDRAW_TRANSACTION_MOCK = {
+      txParams: {},
+      type: TransactionType.perpsWithdraw,
+    } as TransactionMeta;
+
+    const enableActivationFeeFlag = (): void => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_pay_post_quote: {
+            overrides: {
+              perpsWithdraw: {
+                hyperliquidActivationFee: { enabled: true },
+              },
+            },
+          },
+        },
+      });
+    };
+
+    it('reserves the fee and adds it to the provider fee when unactivated', async () => {
+      enableActivationFeeFlag();
+
+      successfulFetchMock
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => [
+            {
+              delta: {
+                type: 'send',
+                user: '0x6b9e773128f453f5c2c60935ee2de2cbc5390a24',
+                destination: FROM_MOCK,
+              },
+            },
+          ],
+        } as never)
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => HYPERLIQUID_QUOTE_MOCK,
+        } as never);
+
+      const result = await getRelayQuotes({
+        accountSupports7702: true,
+        messenger,
+        requests: [HYPERLIQUID_REQUEST_MOCK],
+        transaction: PERPS_WITHDRAW_TRANSACTION_MOCK,
+      });
+
+      const relayBody = JSON.parse(
+        successfulFetchMock.mock.calls[1][1]?.body as string,
+      );
+
+      // $4.80 (480000000 after the 8-decimal shift) - $1.00 (100000000).
+      expect(relayBody.amount).toBe('380000000');
+      expect(result[0].fees.provider.usd).toBe('1.08');
+    });
+
+    it('does not reserve the fee when the account is activated', async () => {
+      enableActivationFeeFlag();
+
+      successfulFetchMock
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => [{ delta: { type: 'withdraw' } }],
+        } as never)
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => HYPERLIQUID_QUOTE_MOCK,
+        } as never);
+
+      const result = await getRelayQuotes({
+        accountSupports7702: true,
+        messenger,
+        requests: [HYPERLIQUID_REQUEST_MOCK],
+        transaction: PERPS_WITHDRAW_TRANSACTION_MOCK,
+      });
+
+      const relayBody = JSON.parse(
+        successfulFetchMock.mock.calls[1][1]?.body as string,
+      );
+
+      expect(relayBody.amount).toBe('480000000');
+      expect(result[0].fees.provider.usd).toBe('0.08');
+    });
+
+    it('does not query HyperLiquid when the feature is disabled', async () => {
+      successfulFetchMock.mockResolvedValue({
+        ok: true,
+        json: async () => HYPERLIQUID_QUOTE_MOCK,
+      } as never);
+
+      const result = await getRelayQuotes({
+        accountSupports7702: true,
+        messenger,
+        requests: [HYPERLIQUID_REQUEST_MOCK],
+        transaction: PERPS_WITHDRAW_TRANSACTION_MOCK,
+      });
+
+      // Only the relay quote fetch is made; no HyperLiquid info call.
+      expect(successfulFetchMock).toHaveBeenCalledTimes(1);
+
+      const relayBody = JSON.parse(
+        successfulFetchMock.mock.calls[0][1]?.body as string,
+      );
+
+      expect(relayBody.amount).toBe('480000000');
+      expect(result[0].fees.provider.usd).toBe('0.08');
+    });
+
+    it('surfaces the activation fee in the provider fee even when subsidized', async () => {
+      enableActivationFeeFlag();
+
+      const subsidizedQuote = {
+        ...HYPERLIQUID_QUOTE_MOCK,
+        fees: {
+          relayer: { amountUsd: '0' },
+          subsidized: {
+            amount: '1',
+            amountFormatted: '1',
+            amountUsd: '1',
+            currency: { chainId: 1, address: '0xother', decimals: 6 },
+            minimumAmount: '0',
+          },
+        },
+      } as unknown as RelayQuote;
+
+      successfulFetchMock
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => [
+            {
+              delta: {
+                type: 'send',
+                user: '0x6b9e773128f453f5c2c60935ee2de2cbc5390a24',
+                destination: FROM_MOCK,
+              },
+            },
+          ],
+        } as never)
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => subsidizedQuote,
+        } as never);
+
+      const result = await getRelayQuotes({
+        accountSupports7702: true,
+        messenger,
+        requests: [HYPERLIQUID_REQUEST_MOCK],
+        transaction: PERPS_WITHDRAW_TRANSACTION_MOCK,
+      });
+
+      // The relay provider fee is subsidized to zero, but the $1 activation fee
+      // (withheld from the source send) is still surfaced.
+      expect(result[0].fees.provider.usd).toBe('1');
+    });
+  });
 });
