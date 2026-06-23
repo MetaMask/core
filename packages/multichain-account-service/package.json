@@ -56,7 +56,7 @@
     "@ethereumjs/util": "^9.1.0",
     "@metamask/accounts-controller": "^39.0.2",
     "@metamask/base-controller": "^9.1.0",
-    "@metamask/eth-snap-keyring": "^22.1.0",
+    "@metamask/eth-snap-keyring": "^22.3.0",
     "@metamask/key-tree": "^10.1.1",
     "@metamask/keyring-api": "^23.1.0",
     "@metamask/keyring-controller": "^27.1.0",
