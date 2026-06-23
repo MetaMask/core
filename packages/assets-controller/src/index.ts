@@ -183,6 +183,8 @@ export type {
 
 // Selectors
 export {
+  calculateBalanceForAllWallets,
+  calculateBalanceChangeForAccountGroup,
   getAccountIdsForGroup,
   getAggregatedBalanceForAccount,
   getAggregatedBalanceForAccountIds,
@@ -191,21 +193,13 @@ export {
 } from './selectors/balance';
 
 export type {
+  AccountGroupBalance,
   AccountsById,
   AggregatedBalanceEntry,
   AggregatedBalanceForAccount,
-  EnabledNetworkMap,
-} from './selectors/balance';
-
-export {
-  calculateBalanceForAllWallets,
-  calculateBalanceChangeForAccountGroup,
-} from './selectors/wallet-balance';
-
-export type {
-  AccountGroupBalance,
   AllWalletsBalance,
   BalanceChangePeriod,
   BalanceChangeResult,
+  EnabledNetworkMap,
   WalletBalance,
-} from './selectors/wallet-balance';
+} from './selectors/balance';
