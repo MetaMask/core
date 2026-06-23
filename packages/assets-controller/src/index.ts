@@ -185,9 +185,7 @@ export type {
 export {
   calculateBalanceForAllWallets,
   calculateBalanceChangeForAccountGroup,
-  getAccountIdsForGroup,
   getAggregatedBalanceForAccount,
-  getAggregatedBalanceForAccountIds,
   getGroupIdForAccount,
   getInternalAccountsForGroup,
 } from './selectors/balance';
