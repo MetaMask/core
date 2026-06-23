@@ -5318,15 +5318,11 @@ export class PerpsController extends BaseController<
       const remoteExchangeWatchlist =
         prefs.perps.watchlistMarkets?.[exchangeKey];
 
-      // Only treat remote as the source of truth when it has actual symbols.
-      // An empty { testnet: [], mainnet: [] } blob (e.g. created by another
-      // device that had no watchlist) must not silently wipe local favorites.
-      const remoteHasContent =
-        remoteExchangeWatchlist !== undefined &&
-        (remoteExchangeWatchlist.testnet.length > 0 ||
-          remoteExchangeWatchlist.mainnet.length > 0);
-
-      if (remoteHasContent && remoteExchangeWatchlist) {
+      // AUS is the source of truth: the presence of the exchange key in the
+      // blob (even with empty arrays) signals that this device has already
+      // been migrated and the remote state must be honored — including an
+      // intentional clear. Only an absent key triggers the one-time migration.
+      if (remoteExchangeWatchlist !== undefined) {
         // AUS has data for this exchange — hydrate local state from it.
         this.update((state) => {
           state.watchlistMarkets.testnet = remoteExchangeWatchlist.testnet;

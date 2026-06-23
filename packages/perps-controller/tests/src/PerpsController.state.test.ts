@@ -1273,6 +1273,64 @@ describe('PerpsController', () => {
         expect(ausController.state.watchlistMarkets.mainnet).toEqual(['SOL']);
       });
 
+      it('hydrates (clears) local watchlist when remote entry exists with empty arrays', async () => {
+        // Remote blob has the hyperliquid key present but both arrays are empty —
+        // this represents an intentional clear by another device.  The controller
+        // must honor the remote state rather than treating it as "not migrated".
+        const remotePrefsEmptyWatchlist = {
+          ...MOCK_PREFS_BASE,
+          perps: {
+            ...MOCK_PREFS_BASE.perps,
+            watchlistMarkets: {
+              hyperliquid: { testnet: [], mainnet: [] },
+              myx: { testnet: [], mainnet: [] },
+            },
+          },
+        };
+
+        mockAusCall.mockImplementation((action) => {
+          if (action === 'RemoteFeatureFlagController:getState') {
+            return {
+              remoteFeatureFlags: {
+                perpsPerpTradingGeoBlockedCountriesV2: { blockedRegions: [] },
+              },
+            };
+          }
+          if (
+            action ===
+            'AuthenticatedUserStorageService:getNotificationPreferences'
+          ) {
+            return Promise.resolve(remotePrefsEmptyWatchlist);
+          }
+          return undefined;
+        });
+
+        // Local state has stale favorites from before the remote clear.
+        const staleState = getDefaultPerpsControllerState();
+        staleState.activeProvider = 'hyperliquid';
+        staleState.watchlistMarkets.testnet = ['BTC', 'ETH'];
+        staleState.watchlistMarkets.mainnet = ['SOL'];
+
+        const clearController = new TestablePerpsController({
+          messenger: createMockMessenger({ call: mockAusCall }),
+          state: staleState,
+          infrastructure: mockAusInfrastructure,
+        });
+
+        await clearController.init();
+        await new Promise((resolve) => setTimeout(resolve, 0));
+
+        // Local state must be cleared to match the remote empty arrays.
+        expect(clearController.state.watchlistMarkets.testnet).toEqual([]);
+        expect(clearController.state.watchlistMarkets.mainnet).toEqual([]);
+
+        // No migration PUT should be issued — the remote key is present.
+        expect(mockAusCall).not.toHaveBeenCalledWith(
+          'AuthenticatedUserStorageService:putNotificationPreferences',
+          expect.anything(),
+        );
+      });
+
       it('performs one-time migration when blob exists but has no watchlist for the active provider', async () => {
         const remotePrefsWithoutWatchlist = { ...MOCK_PREFS_BASE };
 
