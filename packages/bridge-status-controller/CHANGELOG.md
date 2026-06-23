@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [72.2.1]
 
+### Added
+
+- Allow `quick_buy_explore` feature id to emit `Submitted`, `Completed`, and `Failed` Unified SwapBridge status events ([#9222](https://github.com/MetaMask/core/pull/9222))
+
 ### Changed
 
 - Bump `@metamask/accounts-controller` from `^39.0.2` to `^39.0.3` ([#9231](https://github.com/MetaMask/core/pull/9231))
@@ -18,7 +22,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Allow `quick_buy_explore` feature id to emit `Submitted`, `Completed`, and `Failed` Unified SwapBridge status events ([#9222](https://github.com/MetaMask/core/pull/9222))
 - Add input primary denomination to submitted bridge history and post-submit analytics ([#9147](https://github.com/MetaMask/core/pull/9147))
 
 ### Changed
