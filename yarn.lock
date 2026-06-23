@@ -8610,6 +8610,7 @@ __metadata:
   resolution: "@metamask/solana-test-validator-up@workspace:packages/solana-test-validator-up"
   dependencies:
     "@metamask/auto-changelog": "npm:^6.1.0"
+    "@metamask/local-node-utils": "workspace:^"
     "@ts-bridge/cli": "npm:^0.6.4"
     "@types/jest": "npm:^29.5.14"
     deepmerge: "npm:^4.2.2"
@@ -8619,7 +8620,6 @@ __metadata:
     typedoc: "npm:^0.25.13"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:~5.3.3"
-    yaml: "npm:^2.3.4"
   bin:
     solana-test-validator-up: ./dist/bin/solana-test-validator-up.mjs
   languageName: unknown
