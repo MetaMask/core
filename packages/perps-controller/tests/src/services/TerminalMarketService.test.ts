@@ -1,3 +1,4 @@
+import { TERMINAL_API_CONFIG } from '../../../src/constants/perpsConfig';
 import { TerminalMarketService } from '../../../src/services/TerminalMarketService';
 import type { PerpsPlatformDependencies } from '../../../src/types';
 import { createMockInfrastructure } from '../../helpers/serviceMocks';
@@ -62,7 +63,10 @@ describe('TerminalMarketService', () => {
 
       expect(globalThis.fetch).toHaveBeenCalledWith(
         'https://terminal.test-api.cx.metamask.io/v1/perpetuals',
-        expect.objectContaining({ method: 'GET' }),
+        expect.objectContaining({
+          method: 'GET',
+          signal: expect.any(AbortSignal),
+        }),
       );
 
       expect(markets).toHaveLength(3);
@@ -153,6 +157,30 @@ describe('TerminalMarketService', () => {
       await expect(service.fetchMarkets()).rejects.toThrow(
         'Network request failed',
       );
+    });
+
+    it('aborts fetch when timeout elapses', async () => {
+      jest.useFakeTimers();
+
+      jest.spyOn(globalThis, 'fetch').mockImplementation(
+        (_url, init) =>
+          new Promise((_resolve, reject) => {
+            (init?.signal as AbortSignal)?.addEventListener('abort', () => {
+              const { reason } = init?.signal as AbortSignal;
+              reject(
+                reason instanceof Error ? reason : new Error(String(reason)),
+              );
+            });
+          }),
+      );
+
+      const promise = service.fetchMarkets();
+
+      jest.advanceTimersByTime(TERMINAL_API_CONFIG.FetchTimeoutMs);
+
+      await expect(promise).rejects.toThrow('Terminal API fetch timed out');
+
+      jest.useRealTimers();
     });
 
     it('returns empty arrays for empty API response', async () => {
@@ -298,7 +326,7 @@ describe('TerminalMarketService', () => {
       });
     });
 
-    it('falls back to symbol when name is not provided in metadata', async () => {
+    it('omits name from metadata when Terminal does not supply one', async () => {
       jest.spyOn(globalThis, 'fetch').mockResolvedValue({
         ok: true,
         status: 200,
@@ -308,7 +336,7 @@ describe('TerminalMarketService', () => {
 
       const { metadata } = await service.fetchMarkets();
 
-      expect(metadata.get('UNKNOWN')?.name).toBe('UNKNOWN');
+      expect(metadata.get('UNKNOWN')?.name).toBeUndefined();
     });
   });
 

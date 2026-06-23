@@ -1356,6 +1356,47 @@ describe('MarketDataService', () => {
         expect(result[1]?.keywords).toEqual(['defi']);
       });
 
+      it('preserves provider name when terminal metadata omits name', async () => {
+        const metadataWithoutName = new Map<string, TerminalAssetMetadata>([
+          ['BTC', { keywords: ['crypto'] }],
+          ['ETH', { name: 'Ethereum' }],
+        ]);
+        mockTerminalService.fetchMarkets.mockResolvedValue({
+          markets: terminalMarkets,
+          metadata: metadataWithoutName,
+        });
+        mockProvider.getMarketDataWithPrices.mockResolvedValue([
+          {
+            symbol: 'BTC',
+            name: 'Bitcoin',
+            maxLeverage: '50x',
+            price: '$50000.00',
+            change24h: '+$500.00',
+            change24hPercent: '+1.00%',
+            volume: '$1000000',
+          },
+          {
+            symbol: 'ETH',
+            name: 'ETH',
+            maxLeverage: '25x',
+            price: '$3000.00',
+            change24h: '+$30.00',
+            change24hPercent: '+1.00%',
+            volume: '$500000',
+          },
+        ]);
+
+        const result = await serviceWithTerminal.getMarketDataWithPrices({
+          provider: mockProvider,
+          params: { useTerminalApi: true },
+          context: mockContext,
+        });
+
+        expect(result[0]?.name).toBe('Bitcoin');
+        expect(result[0]?.keywords).toEqual(['crypto']);
+        expect(result[1]?.name).toBe('Ethereum');
+      });
+
       it('returns provider data unchanged when terminal API fails', async () => {
         mockTerminalService.fetchMarkets.mockRejectedValue(
           new Error('Network error'),

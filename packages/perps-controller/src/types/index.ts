@@ -91,7 +91,7 @@ export type MarketType = `${MarketCategory}`;
  * Used downstream to enrich PerpsMarketData with name, keywords, tags, etc.
  */
 export type TerminalAssetMetadata = {
-  name: string;
+  name?: string;
   keywords?: string[];
   tags?: string[];
   categories?: string[];
@@ -853,7 +853,7 @@ export type GetMarketsParams = {
   dex?: string; // HyperLiquid HIP-3: DEX name (empty string '' or undefined for main DEX). Other protocols: ignored.
   skipFilters?: boolean; // Skip market filtering (both allowlist and blocklist, default: false). When true, returns all markets without filtering.
   standalone?: boolean; // Lightweight mode: skip full initialization, only fetch market metadata (no wallet/WebSocket needed). Only main DEX markets returned. Use for discovery use cases like checking if a perps market exists.
-  useTerminalApi?: boolean; // When true, force Terminal API as market data source regardless of remote feature flag.
+  useTerminalApi?: boolean; // When true, use Terminal API as market data source.
 };
 
 /**
@@ -868,7 +868,7 @@ export type GetMarketDataWithPricesParams = {
   sortBy?: SortField; // Sort results by this field
   direction?: SortDirection; // Sort direction (default: desc)
   limit?: number; // Maximum number of results to return
-  useTerminalApi?: boolean; // When true, force Terminal API as market data source regardless of remote feature flag.
+  useTerminalApi?: boolean; // When true, use Terminal API as market data source.
 };
 
 export type SubscribePricesParams = {
