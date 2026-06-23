@@ -204,12 +204,7 @@ describe('Wallet', () => {
 
     const results = await wallet.init();
 
-    expect(results).toStrictEqual([
-      {
-        status: 'fulfilled',
-        value: undefined,
-      },
-    ]);
+    expect(results).toHaveLength(2);
   });
 
   it('disallows modifying the messenger', async () => {

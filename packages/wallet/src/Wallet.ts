@@ -128,11 +128,16 @@ export class Wallet {
    *
    * @returns The results of all initialization calls.
    */
-  init() {
+  init(): Promise<PromiseSettledResult<unknown>[]> {
     return Promise.allSettled(
       Object.values(this.#instances)
-        .map((instance) => ('init' in instance ? instance.init() : null))
-        .filter(Boolean),
+        .filter(
+          (instance): instance is Extract<typeof instance, { init: unknown }> =>
+            // We do actually want to check the prototype here.
+            // eslint-disable-next-line no-restricted-syntax
+            'init' in instance,
+        )
+        .map(async (instance) => instance.init()),
     );
   }
 
