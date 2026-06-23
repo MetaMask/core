@@ -17,6 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Bump `@metamask/accounts-controller` from `^39.0.2` to `^39.0.3` ([#9231](https://github.com/MetaMask/core/pull/9231))
+- Bump `@metamask/bridge-controller` from `^76.0.0` to `^76.0.1` ([#9242](https://github.com/MetaMask/core/pull/9242))
 
 ## [72.2.0]
 
