@@ -54,6 +54,7 @@ export enum MetaMetricsSwapsEventSource {
   TransactionShield = 'Transaction Shield',
   TransactionDetails = 'Transaction Details',
   DeepLink = 'Deep Link',
+  Unknown = 'Unknown',
 }
 
 export enum InputAmountPreset {

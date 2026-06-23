@@ -7,7 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Post-submit Unified SwapBridge events now fall back to `location` from event properties when no tx history item is available yet (e.g. `Submitted`)
+
 ### Changed
+
+- **BREAKING:** Default `location` fallback for post-submit Unified SwapBridge events now uses `Unknown` instead of `Main View`
 
 - Bump `@metamask/accounts-controller` from `^39.0.2` to `^39.0.3` ([#9231](https://github.com/MetaMask/core/pull/9231))
 

@@ -202,6 +202,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'updateBatchSellTrades',
   'stopPollingForQuotes',
   'setLocation',
+  'getLocation',
   'setInputPrimaryDenomination',
   'resetState',
   'setChainIntervalLength',
@@ -224,7 +225,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
    * Set via setLocation() before navigating to the swap/bridge flow.
    * Used as default for all subsequent internal events.
    */
-  #location: MetaMetricsSwapsEventSource = MetaMetricsSwapsEventSource.MainView;
+  #location: MetaMetricsSwapsEventSource = MetaMetricsSwapsEventSource.Unknown;
 
   readonly #clientId: BridgeClientId;
 
@@ -717,6 +718,15 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
    */
   setLocation = (location: MetaMetricsSwapsEventSource) => {
     this.#location = location;
+  };
+
+  /**
+   * Returns the location/entry point for the current swap or bridge flow.
+   *
+   * @returns The entry point from which the user initiated the flow
+   */
+  getLocation = (): MetaMetricsSwapsEventSource => {
+    return this.#location;
   };
 
   setInputPrimaryDenomination = (
