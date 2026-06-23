@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Adopt `@metamask/local-node-utils` for shared installer utilities.
+- Adopt `@metamask/local-node-utils` for shared installer utilities ([#9235](https://github.com/MetaMask/core/pull/9235)).
 
 ### Added
 
