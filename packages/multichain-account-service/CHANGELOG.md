@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [11.0.0]
+
 ### Added
 
 - Added `Bip44AccountProvider.deleteAccount(id)` method ([#8960](https://github.com/MetaMask/core/pull/8960))
@@ -532,7 +534,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add `MultichainAccountService` ([#6141](https://github.com/MetaMask/core/pull/6141), [#6165](https://github.com/MetaMask/core/pull/6165))
   - This service manages multichain accounts/wallets.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/multichain-account-service@10.0.3...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/multichain-account-service@11.0.0...HEAD
+[11.0.0]: https://github.com/MetaMask/core/compare/@metamask/multichain-account-service@10.0.3...@metamask/multichain-account-service@11.0.0
 [10.0.3]: https://github.com/MetaMask/core/compare/@metamask/multichain-account-service@10.0.2...@metamask/multichain-account-service@10.0.3
 [10.0.2]: https://github.com/MetaMask/core/compare/@metamask/multichain-account-service@10.0.1...@metamask/multichain-account-service@10.0.2
 [10.0.1]: https://github.com/MetaMask/core/compare/@metamask/multichain-account-service@10.0.0...@metamask/multichain-account-service@10.0.1
