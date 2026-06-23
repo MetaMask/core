@@ -9,8 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add wallet- and group-level balance calculation selectors `calculateBalanceForAllWallets` and `calculateBalanceChangeForAccountGroup`, plus the supporting types `AccountGroupBalance`, `WalletBalance`, `AllWalletsBalance`, `BalanceChangePeriod`, and `BalanceChangeResult`, mirroring the legacy `@metamask/assets-controllers` balance shapes so consumers can migrate to the unified `AssetsController` state ([#XXXX](https://github.com/MetaMask/core/pull/XXXX))
-- Add `getAggregatedBalanceForAccountIds`, which aggregates balances for an explicit list of account ids without requiring a "selected account", and `getAccountIdsForGroup`, which reads account ids for a group directly from the account tree ([#XXXX](https://github.com/MetaMask/core/pull/XXXX))
+- Add wallet- and group-level balance calculation selectors `calculateBalanceForAllWallets` and `calculateBalanceChangeForAccountGroup`, plus the supporting types `AccountGroupBalance`, `WalletBalance`, `AllWalletsBalance`, `BalanceChangePeriod`, and `BalanceChangeResult`, mirroring the legacy `@metamask/assets-controllers` balance shapes so consumers can migrate to the unified `AssetsController` state ([#9230](https://github.com/MetaMask/core/pull/9230))
+- Add `getAggregatedBalanceForAccountIds`, which aggregates balances for an explicit list of account ids without requiring a "selected account", and `getAccountIdsForGroup`, which reads account ids for a group directly from the account tree ([#9230](https://github.com/MetaMask/core/pull/9230))
 - Add `priceFreshnessTtlMs` option to `PriceDataSourceConfig` controlling how long a fetched price is considered fresh before it is re-fetched (defaults to the poll interval, 60 000 ms) ([#9189](https://github.com/MetaMask/core/pull/9189))
 - Add `PriceDataSource.invalidatePriceCache()` to force the next fetch to bypass the freshness cache; `AssetsController` now calls it when the selected currency changes so cached prices in the previous currency are refreshed ([#9189](https://github.com/MetaMask/core/pull/9189))
 
