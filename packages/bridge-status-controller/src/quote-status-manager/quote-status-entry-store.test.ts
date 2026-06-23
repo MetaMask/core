@@ -201,15 +201,58 @@ describe('QuoteStatusEntryStore', () => {
       expect(store.get('missing')).toBeNull();
     });
 
-    it('evicts and returns null for an expired entry', () => {
+    it('transitions a stale entry to Expired but keeps it', () => {
       const { store, onPersistUpdates } = createStore();
       store.put('quote-1:0xabc', createPutValue());
       onPersistUpdates.mockClear();
       jest.spyOn(Date, 'now').mockReturnValue(NOW + TTL_MS + 1);
 
-      expect(store.get('quote-1:0xabc')).toBeNull();
-      expect(store.size).toBe(0);
+      expect(store.get('quote-1:0xabc')?.status.state).toBe(
+        QuoteStatusState.Expired,
+      );
+      expect(store.size).toBe(1);
       expect(onPersistUpdates).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('getByQuoteId', () => {
+    it('returns every entry matching the quote id', () => {
+      const { store } = createStore();
+      store.put('quote-1:0xabc', createPutValue());
+      store.put(
+        'quote-1:0xdef',
+        createPutValue({ quoteId: 'quote-1', srcTxHash: '0xdef' }),
+      );
+      store.put(
+        'quote-2:0x123',
+        createPutValue({ quoteId: 'quote-2', srcTxHash: '0x123' }),
+      );
+
+      const matches = store.getByQuoteId('quote-1');
+
+      expect(matches).toHaveLength(2);
+      expect(matches.map((entry) => entry.srcTxHash).sort()).toStrictEqual([
+        '0xabc',
+        '0xdef',
+      ]);
+    });
+
+    it('returns an empty array when no entry matches', () => {
+      const { store } = createStore();
+      store.put('quote-1:0xabc', createPutValue());
+
+      expect(store.getByQuoteId('quote-missing')).toStrictEqual([]);
+    });
+
+    it('transitions stale matches to Expired before returning them', () => {
+      const { store } = createStore();
+      store.put('quote-1:0xabc', createPutValue());
+      jest.spyOn(Date, 'now').mockReturnValue(NOW + TTL_MS + 1);
+
+      const matches = store.getByQuoteId('quote-1');
+
+      expect(matches).toHaveLength(1);
+      expect(matches[0].status.state).toBe(QuoteStatusState.Expired);
     });
   });
 
@@ -228,46 +271,15 @@ describe('QuoteStatusEntryStore', () => {
       expect(store.getByTxMetaId('tx-missing')).toBeNull();
     });
 
-    it('evicts and returns null when the matching entry has expired', () => {
+    it('transitions a stale matching entry to Expired but keeps it', () => {
       const { store } = createStore();
       store.put('quote-1:0xabc', createPutValue({ txMetaId: 'tx-1' }));
       jest.spyOn(Date, 'now').mockReturnValue(NOW + TTL_MS + 1);
 
-      expect(store.getByTxMetaId('tx-1')).toBeNull();
-      expect(store.size).toBe(0);
-    });
-  });
-
-  describe('delete', () => {
-    it('removes an entry and persists', () => {
-      const { store, onPersistUpdates } = createStore();
-      store.put('quote-1:0xabc', createPutValue());
-      onPersistUpdates.mockClear();
-
-      store.delete('quote-1:0xabc');
-
-      expect(store.get('quote-1:0xabc')).toBeNull();
-      expect(onPersistUpdates).toHaveBeenCalledTimes(1);
-    });
-
-    it('does not persist when the key is absent', () => {
-      const { store, onPersistUpdates } = createStore();
-
-      store.delete('missing');
-
-      expect(onPersistUpdates).not.toHaveBeenCalled();
-    });
-
-    it('detaches the FSM listener so later transitions do not persist', () => {
-      const { store, onPersistUpdates } = createStore();
-      store.put('quote-1:0xabc', createPutValue());
-      const entry = store.get('quote-1:0xabc');
-      store.delete('quote-1:0xabc');
-      onPersistUpdates.mockClear();
-
-      entry?.status.transitionTo(QuoteStatusState.FinalizedSuccess);
-
-      expect(onPersistUpdates).not.toHaveBeenCalled();
+      expect(store.getByTxMetaId('tx-1')?.status.state).toBe(
+        QuoteStatusState.Expired,
+      );
+      expect(store.size).toBe(1);
     });
   });
 
@@ -287,7 +299,7 @@ describe('QuoteStatusEntryStore', () => {
       const { store, onPersistUpdates } = createStore();
       store.put('quote-1:0xabc', createPutValue());
       const entry = store.get('quote-1:0xabc') as QuoteStatusRuntimeEntry;
-      store.delete('quote-1:0xabc');
+      store.clear();
       onPersistUpdates.mockClear();
 
       store.update(entry);
@@ -297,7 +309,7 @@ describe('QuoteStatusEntryStore', () => {
   });
 
   describe('values', () => {
-    it('evicts expired entries before yielding', () => {
+    it('transitions stale entries to Expired but keeps yielding them', () => {
       const { store } = createStore();
       store.put('quote-1:0xabc', createPutValue());
       store.put(
@@ -306,7 +318,14 @@ describe('QuoteStatusEntryStore', () => {
       );
       jest.spyOn(Date, 'now').mockReturnValue(NOW + TTL_MS + 1);
 
-      expect([...store.values()]).toHaveLength(0);
+      const entries = [...store.values()];
+
+      expect(entries).toHaveLength(2);
+      expect(
+        entries.every(
+          (entry) => entry.status.state === QuoteStatusState.Expired,
+        ),
+      ).toBe(true);
     });
 
     it('yields all live entries', () => {
@@ -341,33 +360,35 @@ describe('QuoteStatusEntryStore', () => {
     });
   });
 
-  describe('removeEntryIfExpired', () => {
-    it('removes the entry and persists when expired', () => {
+  describe('expireEntryIfStale', () => {
+    it('transitions the entry to Expired (keeping it) and persists when stale', () => {
       const { store, onPersistUpdates } = createStore();
       store.put('quote-1:0xabc', createPutValue());
       const entry = store.get('quote-1:0xabc') as QuoteStatusRuntimeEntry;
       onPersistUpdates.mockClear();
       jest.spyOn(Date, 'now').mockReturnValue(NOW + TTL_MS + 1);
 
-      expect(store.removeEntryIfExpired(entry)).toBe(true);
-      expect(store.size).toBe(0);
+      expect(store.expireEntryIfStale(entry)).toBe(true);
+      expect(store.size).toBe(1);
+      expect(entry.status.state).toBe(QuoteStatusState.Expired);
       expect(onPersistUpdates).toHaveBeenCalledTimes(1);
     });
 
-    it('keeps the entry and returns false when not expired', () => {
+    it('keeps the entry and returns false when not stale', () => {
       const { store, onPersistUpdates } = createStore();
       store.put('quote-1:0xabc', createPutValue());
       const entry = store.get('quote-1:0xabc') as QuoteStatusRuntimeEntry;
       onPersistUpdates.mockClear();
 
-      expect(store.removeEntryIfExpired(entry)).toBe(false);
+      expect(store.expireEntryIfStale(entry)).toBe(false);
       expect(store.size).toBe(1);
+      expect(entry.status.state).toBe(QuoteStatusState.Submitted);
       expect(onPersistUpdates).not.toHaveBeenCalled();
     });
   });
 
-  describe('removeExpiredEntries', () => {
-    it('removes only expired entries and persists once', () => {
+  describe('expireStaleEntries', () => {
+    it('transitions only stale entries to Expired and keeps all entries', () => {
       const { store, onPersistUpdates } = createStore();
       store.put('quote-1:0xabc', createPutValue());
       jest.spyOn(Date, 'now').mockReturnValue(NOW + 900);
@@ -378,19 +399,24 @@ describe('QuoteStatusEntryStore', () => {
       onPersistUpdates.mockClear();
       jest.spyOn(Date, 'now').mockReturnValue(NOW + TTL_MS + 1);
 
-      store.removeExpiredEntries();
+      store.expireStaleEntries();
 
-      expect(store.get('quote-1:0xabc')).toBeNull();
-      expect(store.get('quote-2:0xdef')).not.toBeNull();
+      expect(store.get('quote-1:0xabc')?.status.state).toBe(
+        QuoteStatusState.Expired,
+      );
+      expect(store.get('quote-2:0xdef')?.status.state).toBe(
+        QuoteStatusState.Submitted,
+      );
+      expect(store.size).toBe(2);
       expect(onPersistUpdates).toHaveBeenCalledTimes(1);
     });
 
-    it('does not persist when nothing is expired', () => {
+    it('does not persist when nothing is stale', () => {
       const { store, onPersistUpdates } = createStore();
       store.put('quote-1:0xabc', createPutValue());
       onPersistUpdates.mockClear();
 
-      store.removeExpiredEntries();
+      store.expireStaleEntries();
 
       expect(onPersistUpdates).not.toHaveBeenCalled();
     });

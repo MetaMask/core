@@ -43,6 +43,18 @@ export type QuoteStatusPersistEntry = {
    * Optional transaction metadata identifier assigned after submission.
    */
   txMetaId?: string;
+
+  /**
+   * The lifecycle status most recently accepted (2xx) by the backend, if any.
+   *
+   * Used to avoid redundantly re-sending a status the backend has already
+   * acknowledged. In particular, a `Submitted` entry stays tracked while it
+   * awaits finalization, and this flag stops the retry loop from re-sending the
+   * already-accepted `SUBMITTED` update (which the backend would reject as an
+   * invalid/duplicate transition). It is implicitly superseded once the status
+   * advances past it (e.g. via {@link QuoteStatusUpdateManager.reportFinalised}).
+   */
+  acknowledgedState?: QuoteStatusState;
 };
 
 /**

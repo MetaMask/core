@@ -1,3 +1,9 @@
+import {
+  TransactionStatus,
+  TransactionType,
+} from '@metamask/transaction-controller';
+import type { TransactionMeta } from '@metamask/transaction-controller';
+
 import { BridgeClientId, BridgeStatusControllerMessenger } from '../types';
 import {
   QuoteStatusState,
@@ -63,6 +69,24 @@ function createPersistEntry(
   };
 }
 
+/**
+ * Builds a minimal transaction meta used to seed the messenger's
+ * `TransactionController:getState` response for `init` reconciliation tests.
+ *
+ * @param overrides - Fields to override on the default transaction meta.
+ * @returns A transaction meta object.
+ */
+function createTxMeta(
+  overrides: Partial<TransactionMeta> = {},
+): TransactionMeta {
+  return {
+    id: 'tx-1',
+    status: TransactionStatus.confirmed,
+    type: TransactionType.bridge,
+    ...overrides,
+  } as TransactionMeta;
+}
+
 describe('QuoteStatusUpdateManager', () => {
   let mockUpdate: jest.Mock;
 
@@ -70,25 +94,35 @@ describe('QuoteStatusUpdateManager', () => {
    * Builds a manager with stubbed callbacks and the mocked API service.
    *
    * @param overrides - Partial constructor options to override the defaults.
+   * @param transactions - Transactions returned by the mocked
+   * `TransactionController:getState` action, used by `init` reconciliation.
    * @returns The manager and its stubbed callbacks.
    */
   function createManager(
     overrides: Partial<
       ConstructorParameters<typeof QuoteStatusUpdateManager>[0]
     > = {},
+    transactions: TransactionMeta[] = [],
   ): {
     manager: QuoteStatusUpdateManager;
     onPersistUpdates: jest.Mock;
     onError: jest.Mock;
     isEnabled: jest.Mock;
+    messengerCall: jest.Mock;
   } {
     const onPersistUpdates = jest.fn();
     const onError = jest.fn();
     const isEnabled = jest.fn().mockReturnValue(true);
+    const messengerCall = jest.fn((action: string) => {
+      if (action === 'TransactionController:getState') {
+        return { transactions };
+      }
+      return undefined;
+    });
 
     const manager = new QuoteStatusUpdateManager({
       messenger: {
-        call: jest.fn(),
+        call: messengerCall,
       } as unknown as BridgeStatusControllerMessenger,
       clientId: BridgeClientId.EXTENSION,
       clientProduct: 'test-product',
@@ -102,7 +136,7 @@ describe('QuoteStatusUpdateManager', () => {
       ...overrides,
     });
 
-    return { manager, onPersistUpdates, onError, isEnabled };
+    return { manager, onPersistUpdates, onError, isEnabled, messengerCall };
   }
 
   beforeEach(() => {
@@ -126,45 +160,264 @@ describe('QuoteStatusUpdateManager', () => {
     jest.clearAllMocks();
   });
 
-  describe('constructor / processInitial', () => {
-    it('processes each rehydrated entry', async () => {
-      createManager({
-        initialData: { 'quote-1:0xabc': createPersistEntry() },
+  describe('init', () => {
+    describe('processInitial', () => {
+      it('does not process rehydrated entries before init is called', async () => {
+        createManager({
+          initialData: { 'quote-1:0xabc': createPersistEntry() },
+        });
+        await flush();
+
+        expect(mockUpdate).not.toHaveBeenCalled();
       });
-      await flush();
 
-      expect(mockUpdate).toHaveBeenCalledWith(
-        expect.objectContaining({
-          quoteId: 'quote-1',
-          srcTxHash: '0xabc',
-          newStatus: QuoteStatusUpdateBackendStatus.Submitted,
-        }),
-        expect.anything(),
-      );
-    });
+      it('processes each rehydrated entry', async () => {
+        const { manager } = createManager({
+          initialData: { 'quote-1:0xabc': createPersistEntry() },
+        });
 
-    it('does not start the retry timer when there are no entries', async () => {
-      createManager();
-      await flush();
-      mockUpdate.mockClear();
+        manager.init();
+        await flush();
 
-      await jest.advanceTimersByTimeAsync(UPDATE_INTERVAL_MS * 2);
-
-      expect(mockUpdate).not.toHaveBeenCalled();
-    });
-
-    it('removes a rehydrated entry already in a terminal state', async () => {
-      const { onPersistUpdates } = createManager({
-        initialData: {
-          'quote-1:0xabc': createPersistEntry({
-            status: QuoteStatusState.Completed,
+        expect(mockUpdate).toHaveBeenCalledWith(
+          expect.objectContaining({
+            quoteId: 'quote-1',
+            srcTxHash: '0xabc',
+            newStatus: QuoteStatusUpdateBackendStatus.Submitted,
           }),
-        },
+          expect.anything(),
+        );
       });
-      await flush();
 
-      expect(mockUpdate).not.toHaveBeenCalled();
-      expect(onPersistUpdates).toHaveBeenCalledWith({});
+      it('does not start the retry timer when there are no entries', async () => {
+        const { manager } = createManager();
+
+        manager.init();
+        await flush();
+        mockUpdate.mockClear();
+
+        await jest.advanceTimersByTimeAsync(UPDATE_INTERVAL_MS * 2);
+
+        expect(mockUpdate).not.toHaveBeenCalled();
+      });
+
+      it('keeps a rehydrated entry already in a terminal state and rejects new submissions', async () => {
+        const { manager } = createManager({
+          initialData: {
+            'quote-1:0xabc': createPersistEntry({
+              status: QuoteStatusState.Completed,
+            }),
+          },
+        });
+
+        manager.init();
+        await flush();
+
+        expect(mockUpdate).not.toHaveBeenCalled();
+
+        // The retained terminal entry causes a later submission for the same
+        // quote to be rejected instead of re-sending SUBMITTED.
+        manager.reportSubmitted('quote-1', '0xabc', 'tx-1');
+        await flush();
+
+        expect(mockUpdate).not.toHaveBeenCalled();
+      });
+    });
+
+    describe('reconciliation of missed finalizations', () => {
+      /**
+       * Collects the `newStatus` values reported to the backend so far.
+       *
+       * @returns The list of reported backend statuses.
+       */
+      function getReportedStatuses(): QuoteStatusUpdateBackendStatus[] {
+        return mockUpdate.mock.calls.map(([payload]) => payload.newStatus);
+      }
+
+      it('reports finalized success when the source transaction confirmed', async () => {
+        const { manager, onError } = createManager(
+          {
+            initialData: {
+              'quote-1:0xabc': createPersistEntry({ txMetaId: 'tx-1' }),
+            },
+          },
+          [createTxMeta({ id: 'tx-1', status: TransactionStatus.confirmed })],
+        );
+
+        manager.init();
+        await flush();
+
+        expect(onError).not.toHaveBeenCalled();
+        expect(getReportedStatuses()).toContain(
+          QuoteStatusUpdateBackendStatus.FinalizedSuccess,
+        );
+      });
+
+      it('reports finalized failure when the source transaction failed', async () => {
+        const { manager } = createManager(
+          {
+            initialData: {
+              'quote-1:0xabc': createPersistEntry({ txMetaId: 'tx-1' }),
+            },
+          },
+          [createTxMeta({ id: 'tx-1', status: TransactionStatus.failed })],
+        );
+
+        manager.init();
+        await flush();
+
+        expect(getReportedStatuses()).toContain(
+          QuoteStatusUpdateBackendStatus.FinalizedFailed,
+        );
+      });
+
+      it('reports finalized failure when the source transaction was dropped', async () => {
+        const { manager } = createManager(
+          {
+            initialData: {
+              'quote-1:0xabc': createPersistEntry({ txMetaId: 'tx-1' }),
+            },
+          },
+          [createTxMeta({ id: 'tx-1', status: TransactionStatus.dropped })],
+        );
+
+        manager.init();
+        await flush();
+
+        expect(getReportedStatuses()).toContain(
+          QuoteStatusUpdateBackendStatus.FinalizedFailed,
+        );
+      });
+
+      it('reconciles swaps tracked as batch transactions via nested swap transactions', async () => {
+        const { manager } = createManager(
+          {
+            initialData: {
+              'quote-1:0xabc': createPersistEntry({ txMetaId: 'tx-1' }),
+            },
+          },
+          [
+            createTxMeta({
+              id: 'tx-1',
+              status: TransactionStatus.confirmed,
+              type: TransactionType.batch,
+              nestedTransactions: [{ type: TransactionType.swap }],
+            } as Partial<TransactionMeta>),
+          ],
+        );
+
+        manager.init();
+        await flush();
+
+        expect(getReportedStatuses()).toContain(
+          QuoteStatusUpdateBackendStatus.FinalizedSuccess,
+        );
+      });
+
+      it('does not finalize entries that have no txMetaId', async () => {
+        const { manager } = createManager(
+          {
+            initialData: { 'quote-1:0xabc': createPersistEntry() },
+          },
+          [createTxMeta({ id: 'tx-1', status: TransactionStatus.confirmed })],
+        );
+
+        manager.init();
+        await flush();
+
+        expect(getReportedStatuses()).not.toContain(
+          QuoteStatusUpdateBackendStatus.FinalizedSuccess,
+        );
+      });
+
+      it('does not finalize when the source transaction cannot be found', async () => {
+        const { manager } = createManager(
+          {
+            initialData: {
+              'quote-1:0xabc': createPersistEntry({ txMetaId: 'tx-1' }),
+            },
+          },
+          [],
+        );
+
+        manager.init();
+        await flush();
+
+        expect(getReportedStatuses()).not.toContain(
+          QuoteStatusUpdateBackendStatus.FinalizedSuccess,
+        );
+      });
+
+      it('does not finalize when the source transaction is not a swap or bridge', async () => {
+        const { manager } = createManager(
+          {
+            initialData: {
+              'quote-1:0xabc': createPersistEntry({ txMetaId: 'tx-1' }),
+            },
+          },
+          [
+            createTxMeta({
+              id: 'tx-1',
+              status: TransactionStatus.confirmed,
+              type: TransactionType.simpleSend,
+            }),
+          ],
+        );
+
+        manager.init();
+        await flush();
+
+        expect(getReportedStatuses()).not.toContain(
+          QuoteStatusUpdateBackendStatus.FinalizedSuccess,
+        );
+      });
+
+      it('ignores a rejected source transaction', async () => {
+        const { manager, onError } = createManager(
+          {
+            initialData: {
+              'quote-1:0xabc': createPersistEntry({ txMetaId: 'tx-1' }),
+            },
+          },
+          [createTxMeta({ id: 'tx-1', status: TransactionStatus.rejected })],
+        );
+
+        manager.init();
+        await flush();
+
+        expect(onError).not.toHaveBeenCalled();
+        const reported = getReportedStatuses();
+        expect(reported).not.toContain(
+          QuoteStatusUpdateBackendStatus.FinalizedSuccess,
+        );
+        expect(reported).not.toContain(
+          QuoteStatusUpdateBackendStatus.FinalizedFailed,
+        );
+      });
+
+      it('does not re-finalize entries that are already in a finalized state', async () => {
+        const { manager, onError } = createManager(
+          {
+            initialData: {
+              'quote-1:0xabc': createPersistEntry({
+                status: QuoteStatusState.FinalizedSuccess,
+                txMetaId: 'tx-1',
+              }),
+            },
+          },
+          [createTxMeta({ id: 'tx-1', status: TransactionStatus.failed })],
+        );
+
+        manager.init();
+        await flush();
+
+        expect(onError).not.toHaveBeenCalled();
+        // processInitial re-sends the finalized status, but reconciliation must
+        // not transition it again based on the on-chain status.
+        expect(getReportedStatuses()).not.toContain(
+          QuoteStatusUpdateBackendStatus.FinalizedFailed,
+        );
+      });
     });
   });
 
@@ -197,7 +450,7 @@ describe('QuoteStatusUpdateManager', () => {
       );
     });
 
-    it('removes the entry and stops the timer once the update is accepted', async () => {
+    it('stops re-sending the submitted status once it is accepted', async () => {
       mockUpdate.mockResolvedValueOnce(
         new QuoteStatusUpdateWithRetryOutcome(
           QuoteStatusUpdateWithRetryOutcomeType.Accepted,
@@ -211,6 +464,96 @@ describe('QuoteStatusUpdateManager', () => {
       mockUpdate.mockClear();
 
       await jest.advanceTimersByTimeAsync(UPDATE_INTERVAL_MS * 2);
+
+      expect(mockUpdate).not.toHaveBeenCalled();
+    });
+
+    it('does not re-send an already-acknowledged submitted status on a repeat report', async () => {
+      mockUpdate.mockResolvedValueOnce(
+        new QuoteStatusUpdateWithRetryOutcome(
+          QuoteStatusUpdateWithRetryOutcomeType.Accepted,
+        ),
+      );
+      const { manager } = createManager();
+
+      manager.reportSubmitted('quote-1', '0xabc', 'tx-1');
+      await flush();
+      mockUpdate.mockClear();
+
+      // A repeat report for the same still-Submitted quote finds the acknowledged
+      // entry and short-circuits instead of re-sending the accepted status.
+      manager.reportSubmitted('quote-1', '0xabc', 'tx-1');
+      await flush();
+
+      expect(mockUpdate).not.toHaveBeenCalled();
+    });
+
+    it('keeps the entry tracked after submission is accepted so it can be finalized', async () => {
+      mockUpdate.mockResolvedValueOnce(
+        new QuoteStatusUpdateWithRetryOutcome(
+          QuoteStatusUpdateWithRetryOutcomeType.Accepted,
+        ),
+      );
+      const { manager, onError } = createManager();
+
+      manager.reportSubmitted('quote-1', '0xabc', 'tx-1');
+      await flush();
+      mockUpdate.mockClear();
+
+      // Finalization arrives long after the submission was acknowledged. The
+      // entry must still be tracked so the finalized status is reported.
+      manager.reportFinalised('tx-1', true);
+      await flush();
+
+      expect(onError).not.toHaveBeenCalled();
+      expect(mockUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          newStatus: QuoteStatusUpdateBackendStatus.FinalizedSuccess,
+        }),
+        expect.anything(),
+      );
+    });
+
+    it('rejects a new submission for a quote that already finalized', async () => {
+      mockUpdate.mockResolvedValueOnce(
+        new QuoteStatusUpdateWithRetryOutcome(
+          QuoteStatusUpdateWithRetryOutcomeType.Accepted,
+        ),
+      );
+      const { manager } = createManager();
+
+      // Drive the quote to the terminal Completed state.
+      manager.reportSubmitted('quote-1', '0xabc', 'tx-1');
+      await flush();
+      mockUpdate.mockResolvedValueOnce(
+        new QuoteStatusUpdateWithRetryOutcome(
+          QuoteStatusUpdateWithRetryOutcomeType.Accepted,
+        ),
+      );
+      manager.reportFinalised('tx-1', true);
+      await flush();
+      mockUpdate.mockClear();
+
+      // A late/duplicate submission (even with a different source tx hash) is
+      // dropped instead of re-sending SUBMITTED to an already-finalized quote.
+      manager.reportSubmitted('quote-1', '0xnew', 'tx-2');
+      await flush();
+
+      expect(mockUpdate).not.toHaveBeenCalled();
+    });
+
+    it('rejects a new submission for a quote whose entry expired', async () => {
+      const { manager } = createManager({ entryTtlMs: 500 });
+
+      manager.reportSubmitted('quote-1', '0xabc', 'tx-1');
+      await flush();
+
+      // Move past the TTL so the entry transitions to Expired (but is retained).
+      jest.setSystemTime(new Date('2024-01-01T01:00:00Z'));
+      mockUpdate.mockClear();
+
+      manager.reportSubmitted('quote-1', '0xnew', 'tx-2');
+      await flush();
 
       expect(mockUpdate).not.toHaveBeenCalled();
     });
@@ -288,6 +631,30 @@ describe('QuoteStatusUpdateManager', () => {
         'cannot transition from "FinalizedSuccess" to "FinalizedSuccess"',
       );
     });
+
+    it('completes and retains the entry once a finalized status is accepted', async () => {
+      const { manager, onError } = createManager();
+      manager.reportSubmitted('quote-1', '0xabc', 'tx-1');
+      await flush();
+
+      mockUpdate.mockResolvedValueOnce(
+        new QuoteStatusUpdateWithRetryOutcome(
+          QuoteStatusUpdateWithRetryOutcomeType.Accepted,
+        ),
+      );
+      manager.reportFinalised('tx-1', true);
+      await flush();
+
+      // The entry is retained in the terminal Completed state, so a later
+      // finalization for the same tx can no longer transition it.
+      onError.mockClear();
+      manager.reportFinalised('tx-1', true);
+
+      expect(onError).toHaveBeenCalledTimes(1);
+      expect(onError.mock.calls[0][0].message).toContain(
+        'cannot transition from "Completed" to "FinalizedSuccess"',
+      );
+    });
   });
 
   describe('destroy', () => {
@@ -329,14 +696,15 @@ describe('QuoteStatusUpdateManager', () => {
       expect(mockUpdate).not.toHaveBeenCalled();
     });
 
-    it('stops the timer when all entries have expired', async () => {
+    it('stops the timer once all entries reach a terminal state via TTL', async () => {
       const { manager } = createManager({ entryTtlMs: 500 });
       manager.reportSubmitted('quote-1', '0xabc', 'tx-1');
       await flush();
       mockUpdate.mockClear();
 
-      // First tick (at 1000ms) is past the 500ms TTL: the entry is evicted and
-      // the timer stops.
+      // First tick (at 1000ms) is past the 500ms TTL: the entry transitions to
+      // the terminal Expired state (but is retained), so there is no pending work
+      // left and the timer stops.
       await jest.advanceTimersByTimeAsync(UPDATE_INTERVAL_MS);
       mockUpdate.mockClear();
       await jest.advanceTimersByTimeAsync(UPDATE_INTERVAL_MS * 2);
@@ -438,6 +806,60 @@ describe('QuoteStatusUpdateManager', () => {
         QuoteStatusUpdateBackendStatus.FinalizedSuccess,
       );
     });
+
+    it('passes a retry predicate that stops a stale in-flight retry', async () => {
+      let submittedShouldProceed: (() => boolean) | undefined;
+      mockUpdate.mockImplementationOnce(
+        (_data: unknown, options: { retry?: () => boolean }) => {
+          submittedShouldProceed = options.retry;
+          return Promise.resolve(
+            new QuoteStatusUpdateWithRetryOutcome(
+              QuoteStatusUpdateWithRetryOutcomeType.RetryableExhausted,
+            ),
+          );
+        },
+      );
+      const { manager } = createManager();
+
+      manager.reportSubmitted('quote-1', '0xabc', 'tx-1');
+      await flush();
+
+      // While the entry is still Submitted and unacknowledged the retry proceeds.
+      expect(submittedShouldProceed?.()).toBe(true);
+
+      // Once finalization advances the entry, the SUBMITTED predicate reports
+      // that the retry should stop (its status is no longer the one to report).
+      manager.reportFinalised('tx-1', true);
+      await flush();
+
+      expect(submittedShouldProceed?.()).toBe(false);
+    });
+
+    it('retains the completed entry in the persisted snapshot', async () => {
+      mockUpdate.mockResolvedValueOnce(
+        new QuoteStatusUpdateWithRetryOutcome(
+          QuoteStatusUpdateWithRetryOutcomeType.Accepted,
+        ),
+      );
+      const { manager, onPersistUpdates } = createManager();
+
+      manager.reportSubmitted('quote-1', '0xabc', 'tx-1');
+      await flush();
+      mockUpdate.mockResolvedValueOnce(
+        new QuoteStatusUpdateWithRetryOutcome(
+          QuoteStatusUpdateWithRetryOutcomeType.Accepted,
+        ),
+      );
+      manager.reportFinalised('tx-1', true);
+      await flush();
+
+      const lastSnapshot = onPersistUpdates.mock.calls.at(-1)?.[0];
+      expect(lastSnapshot).toMatchObject({
+        'quote-1:0xabc': expect.objectContaining({
+          status: QuoteStatusState.Completed,
+        }),
+      });
+    });
   });
 
   describe('handleNonRetryableUpdateStatusError', () => {
@@ -498,8 +920,8 @@ describe('QuoteStatusUpdateManager', () => {
       );
     });
 
-    it('surfaces an error and evicts when local state cannot match the backend', async () => {
-      const { manager, onError } = createManager();
+    it('surfaces an error but completes (retains) when the local finalized status differs from the backend', async () => {
+      const { manager, onError, onPersistUpdates } = createManager();
       manager.reportSubmitted('quote-1', '0xabc', 'tx-1');
       await flush();
       manager.reportFinalised('tx-1', false);
@@ -521,6 +943,60 @@ describe('QuoteStatusUpdateManager', () => {
       expect(onError.mock.calls[0][0].message).toContain(
         'cannot transition from "FinalizedFailed" to "FinalizedSuccess"',
       );
+      // The backend is terminal, so the entry converges to Completed (kept)
+      // rather than being abandoned to Expired.
+      const lastSnapshot = onPersistUpdates.mock.calls.at(-1)?.[0];
+      expect(lastSnapshot).toMatchObject({
+        'quote-1:0xabc': expect.objectContaining({
+          status: QuoteStatusState.Completed,
+        }),
+      });
+    });
+
+    it('completes (does not expire) when a racing mismatch reports the status the entry already holds', async () => {
+      // Reproduces the EVM 7702 race: `SUBMITTED` and `FINALIZED_SUCCESS` are
+      // reported back-to-back, so the in-flight `SUBMITTED` request can return a
+      // mismatch carrying the already-finalized status while the entry is locally
+      // FinalizedSuccess. The entry must converge to Completed, not Expired.
+      const submittedAttempt = deferred<QuoteStatusUpdateWithRetryOutcome>();
+      mockUpdate.mockReturnValueOnce(submittedAttempt.promise);
+      const { manager, onError, onPersistUpdates } = createManager();
+
+      manager.reportSubmitted('quote-1', '0xabc', 'tx-1');
+      await flush();
+
+      // Finalization advances the entry to FinalizedSuccess while the SUBMITTED
+      // request is still in flight. Keep its FINALIZED_SUCCESS attempt pending.
+      mockUpdate.mockReturnValueOnce(
+        deferred<QuoteStatusUpdateWithRetryOutcome>().promise,
+      );
+      manager.reportFinalised('tx-1', true);
+      await flush();
+      onError.mockClear();
+
+      // The racing SUBMITTED request resolves with a mismatch reporting the
+      // backend is already FinalizedSuccess.
+      submittedAttempt.resolve(
+        new QuoteStatusUpdateWithRetryOutcome(
+          QuoteStatusUpdateWithRetryOutcomeType.NonRetryable,
+          {
+            statusCode: 400,
+            message: 'mismatch',
+            type: QuoteStatusUpdateBackendErrorType.QuoteStatusOnChainMismatch,
+            currentStatus: QuoteStatusUpdateBackendStatus.FinalizedSuccess,
+            newStatus: QuoteStatusUpdateBackendStatus.Submitted,
+          } as QuoteStatusUpdateResponse,
+        ),
+      );
+      await flush();
+
+      expect(onError).not.toHaveBeenCalled();
+      const lastSnapshot = onPersistUpdates.mock.calls.at(-1)?.[0];
+      expect(lastSnapshot).toMatchObject({
+        'quote-1:0xabc': expect.objectContaining({
+          status: QuoteStatusState.Completed,
+        }),
+      });
     });
 
     it('evicts and surfaces an error for an unreconcilable non-retryable error', async () => {
@@ -536,7 +1012,7 @@ describe('QuoteStatusUpdateManager', () => {
 
       expect(onError).toHaveBeenCalledTimes(1);
       expect(onError.mock.calls[0][0].message).toContain(
-        'evicting due to non-retryable error',
+        'abandoning entry due to non-retryable error',
       );
       expect(onError.mock.calls[0][0].details).toStrictEqual({
         quoteId: 'quote-1',
@@ -544,7 +1020,7 @@ describe('QuoteStatusUpdateManager', () => {
       });
     });
 
-    it('evicts when a mismatch reports a non-finalized current status', async () => {
+    it('abandons the entry when a mismatch reports a non-finalized current status', async () => {
       resolveNonRetryableOnce({
         statusCode: 400,
         message: 'mismatch',
@@ -559,7 +1035,7 @@ describe('QuoteStatusUpdateManager', () => {
 
       expect(onError).toHaveBeenCalledTimes(1);
       expect(onError.mock.calls[0][0].message).toContain(
-        'evicting due to non-retryable error',
+        'abandoning entry due to non-retryable error',
       );
     });
 
@@ -585,17 +1061,6 @@ describe('QuoteStatusUpdateManager', () => {
   });
 
   describe('edge cases', () => {
-    it('surfaces an error when the entry cannot be retrieved after being stored', () => {
-      const { manager, onError } = createManager({ entryTtlMs: -1 });
-
-      manager.reportSubmitted('quote-1', '0xabc', 'tx-1');
-
-      expect(onError).toHaveBeenCalledTimes(1);
-      expect(onError.mock.calls[0][0].message).toBe(
-        'reporting submitted status but entry was not found',
-      );
-    });
-
     it('ignores an unrecognized retry outcome type', async () => {
       mockUpdate.mockResolvedValueOnce(
         new QuoteStatusUpdateWithRetryOutcome(

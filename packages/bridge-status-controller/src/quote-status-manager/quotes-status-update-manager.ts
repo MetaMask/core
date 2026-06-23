@@ -1,3 +1,4 @@
+import { getTransactionMetaById, hasNestedSwapTransactions, isCrossChainTx } from '../utils/transaction';
 import { BridgeClientId, BridgeStatusControllerMessenger } from '../types';
 import {
   QuoteStatusState,
@@ -12,6 +13,7 @@ import { QuoteStatusEntryStore } from './quote-status-entry-store';
 import { QuoteStatusStateFsm } from './quote-status-state-fsm';
 import { QuoteStatusUpdateWithRetryOutcome } from './quote-status-update-with-retry-outcome';
 import { QuoteStatusPersistEntry, QuoteStatusRuntimeEntry } from './types';
+import { TransactionStatus } from '@metamask/transaction-controller';
 
 /**
  * Tracks bridge/swap quotes through their lifecycle and keeps the backend in
@@ -24,6 +26,8 @@ import { QuoteStatusPersistEntry, QuoteStatusRuntimeEntry } from './types';
  * store is empty.
  */
 export class QuoteStatusUpdateManager {
+  readonly #messenger: BridgeStatusControllerMessenger
+
   readonly #quoteStatusApiService: QuoteStatusApiService;
 
   readonly #quoteStatusEntryStore: QuoteStatusEntryStore;
@@ -94,6 +98,7 @@ export class QuoteStatusUpdateManager {
     this.#isEnabled = isEnabled;
     this.#onError = onError;
     this.#updateIntervalMs = updateIntervalMs;
+    this.#messenger = messenger
 
     this.#quoteStatusApiService = new QuoteStatusApiService({
       messenger,
@@ -109,8 +114,6 @@ export class QuoteStatusUpdateManager {
       entryTtlMs,
       initial: initialData,
     });
-
-    this.#processInitial();
   }
 
   /**
@@ -177,29 +180,28 @@ export class QuoteStatusUpdateManager {
       return;
     }
 
+    // Once a quote has advanced past `Submitted` (finalized or terminal), it is
+    // done: reporting `SUBMITTED` again would be rejected by the backend as an
+    // invalid transition. Retained terminal entries let us recognize and drop
+    // these late/duplicate submissions instead of looping on a 400.
+    const isQuoteAlreadyTracked = this.#quoteStatusEntryStore
+      .getByQuoteId(quoteId)
+      .some((entry) => entry.status.state !== QuoteStatusState.Submitted);
+    if (isQuoteAlreadyTracked) {
+      return;
+    }
+
     const entryKey = QuoteStatusEntryStore.hash({
       quoteId,
       srcTxHash,
     });
 
-    this.#quoteStatusEntryStore.put(entryKey, {
+    const entry = this.#quoteStatusEntryStore.put(entryKey, {
       quoteId,
       srcTxHash,
       txMetaId,
       status: new QuoteStatusStateFsm(QuoteStatusState.Submitted),
     });
-
-    const entry = this.#quoteStatusEntryStore.get(entryKey);
-
-    if (!entry) {
-      this.#onError?.(
-        new QuoteStatusUpdateError(
-          'reporting submitted status but entry was not found',
-          { quoteId },
-        ),
-      );
-      return;
-    }
 
     this.#ensureRetryTimerRunning();
     this.#processEntry(entry);
@@ -215,6 +217,57 @@ export class QuoteStatusUpdateManager {
   }
 
   /**
+   * Reconciles quote-status entries whose finalization was missed while the
+   * client was closed. Called once during initialization.
+   *
+   * Swap/bridge source transactions report their final status through the
+   * `TransactionController:transactionStatusUpdated` subscription
+   * ({@link #onTransactionConfirmed}/{@link #onTransactionFailed}). When a source
+   * transaction reaches a terminal state while the client is not running, that
+   * event is never re-emitted on the next startup, so the persisted entry would
+   * remain `Submitted` until it expires via TTL. This replays the missed terminal
+   * event for both swaps and bridges: a confirmed source transaction is reported
+   * as a finalized success and a failed/dropped one as a finalized failure.
+   *
+   * `rejected` is ignored because the transaction was never broadcast.
+   */
+  init(): void {
+    this.#processInitial()
+
+    for (const entry of this.#quoteStatusEntryStore.values()) {
+      // Only entries still awaiting finalization need catching up. Entries
+      // already in a finalized state are re-sent by `processInitial()`.
+      if (entry.status.state !== QuoteStatusState.Submitted || !entry.txMetaId) {
+        continue;
+      }
+
+      const txMeta = getTransactionMetaById(this.#messenger, entry.txMetaId);
+      if (!txMeta) {
+        continue;
+      }
+
+      // Reconcile swaps and bridges alike: a terminal source transaction
+      // finalizes the quote status. `hasNestedSwapTransactions` also covers
+      // batch/7702 swaps whose type may still read as `batch` rather than `swap`.
+      const isCrossChainTrade =
+        (txMeta.type !== undefined && isCrossChainTx(txMeta.type)) ||
+        hasNestedSwapTransactions(txMeta);
+      if (!isCrossChainTrade) {
+        continue;
+      }
+
+      if (txMeta.status === TransactionStatus.confirmed) {
+        this.reportFinalised(entry.txMetaId, true);
+      } else if (
+        txMeta.status === TransactionStatus.failed ||
+        txMeta.status === TransactionStatus.dropped
+      ) {
+        this.reportFinalised(entry.txMetaId, false);
+      }
+    }
+  };
+
+  /**
    * Processes every entry rehydrated from persisted data on startup and starts
    * the retry timer if any entries still require further updates.
    */
@@ -223,11 +276,10 @@ export class QuoteStatusUpdateManager {
       this.#processEntry(entry);
     }
 
-    // Entries that did not resolve synchronously (still Submitted, awaiting
-    // finalization, or pending a successful update) must keep being retried
-    // until they reach a terminal state (Completed/Expired), at which point they
-    // are removed from the store and the timer stops on its own.
-    if (this.#quoteStatusEntryStore.size > 0) {
+    // Terminal entries (Completed/Expired) are retained, so the store is never
+    // empty. Only start the retry timer when there is an entry whose status
+    // still needs to be reported; otherwise it would tick forever doing nothing.
+    if (this.#hasPendingUpdates()) {
       this.#ensureRetryTimerRunning();
     }
   }
@@ -260,21 +312,22 @@ export class QuoteStatusUpdateManager {
   }
 
   /**
-   * Retry tick: re-processes every entry that has not yet reached a terminal
-   * state. Reading `values()` first evicts TTL-expired entries, so expired
-   * entries are dropped and never retried. When no entries remain there is
-   * nothing left to report, so the timer stops until new work is enqueued.
+   * Retry tick: re-processes every entry. Reading `values()` first transitions
+   * TTL-expired entries to `Expired` (keeping them), and `#processEntry` no-ops
+   * for terminal/acknowledged entries. When no entry has a status left to report
+   * the timer stops until new work is enqueued.
    */
   #processRetries(): void {
     if (!this.#isEnabled?.()) {
       return;
     }
 
-    // Snapshot first: `#processEntry` can mutate the store (e.g. removing an
-    // accepted/terminal entry), so iterating a live iterator would be unsafe.
+    // Snapshot first: `#processEntry` can mutate the store (e.g. transitioning an
+    // accepted entry to a terminal state), so iterating a live iterator would be
+    // unsafe.
     const entries = [...this.#quoteStatusEntryStore.values()];
 
-    if (entries.length === 0) {
+    if (!this.#hasPendingUpdates()) {
       this.#stopRetryTimer();
       return;
     }
@@ -285,24 +338,89 @@ export class QuoteStatusUpdateManager {
   }
 
   /**
+   * Returns whether any tracked entry still has a status that needs to be
+   * reported to the backend.
+   *
+   * Terminal entries (`Completed`/`Expired`) and entries whose current status
+   * has already been acknowledged are excluded, so this is the signal used to
+   * decide whether the retry timer has any work left to do.
+   *
+   * @returns `true` when at least one entry has an unreported status.
+   */
+  #hasPendingUpdates(): boolean {
+    for (const entry of this.#quoteStatusEntryStore.values()) {
+      const { state } = entry.status;
+      const isTerminal =
+        state === QuoteStatusState.Completed ||
+        state === QuoteStatusState.Expired;
+      if (!isTerminal && entry.acknowledgedState !== state) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+
+  /**
+   * Stops the retry timer when there are no entries left whose status needs
+   * reporting. Since terminal entries are retained, the store is never empty, so
+   * the timer's idle condition is "no pending updates" rather than "no entries".
+   */
+  #stopRetryTimerIfIdle(): void {
+    if (!this.#hasPendingUpdates()) {
+      this.#stopRetryTimer();
+    }
+  }
+
+  /**
    * Pushes a single entry's current status to the backend and reconciles the
    * local state with the request outcome.
    *
-   * Terminal entries are removed, accepted updates are evicted (or reprocessed
-   * if the status advanced mid-flight), retryable failures are left for the next
-   * retry tick, and non-retryable failures are delegated to
+   * Terminal entries are kept but no longer reported. Accepted finalized updates
+   * advance the entry to `Completed` (kept so duplicate reports are rejected);
+   * accepted non-final updates (e.g. `Submitted`) are kept tracked so a later
+   * {@link reportFinalised} can find them, while being flagged so the retry loop
+   * stops re-sending the acknowledged status. Updates whose status advanced
+   * mid-flight are reprocessed, retryable failures are left for the next retry
+   * tick, and non-retryable failures are delegated to
    * {@link #handleNonRetryableUpdateStatusError}.
    *
    * @param entry - The runtime entry to process.
    */
   #processEntry(entry: QuoteStatusRuntimeEntry): void {
+    // The backend already accepted the entry's current status, so there is
+    // nothing new to report. The entry is kept tracked (e.g. a `Submitted`
+    // quote awaiting finalization) until its status advances past the
+    // acknowledged one, at which point it is reprocessed.
+    if (entry.acknowledgedState === entry.status.state) {
+      return;
+    }
+
     const sentStatus = entry.status.state;
     const sentStatusBackend = QuoteStatusStateToBackendStatus[sentStatus];
 
+    // Terminal states (`Completed`/`Expired`) have no backend status to report.
+    // The entry is retained so future interactions with the quote are rejected.
     if (sentStatusBackend === null) {
-      this.#removeEntry(entry);
+      this.#stopRetryTimerIfIdle();
       return;
     }
+
+    // Re-checked before each retry attempt so an in-flight retry stops early when
+    // the entry has since advanced, been acknowledged, become terminal, or
+    // expired (a later `reportFinalised` re-triggers processing). This avoids
+    // firing a request the backend would reject (e.g. `SUBMITTED` after
+    // finalization).
+    const retry = (): boolean => {
+      const live = this.#quoteStatusEntryStore.get(
+        QuoteStatusEntryStore.hash(entry),
+      );
+      return Boolean(
+        live &&
+          live.status.state === sentStatus &&
+          live.acknowledgedState !== sentStatus,
+      );
+    };
 
     this.#quoteStatusApiService
       .updateQuoteStatusWithRetry(
@@ -314,6 +432,7 @@ export class QuoteStatusUpdateManager {
         {
           maxRetries: 5,
           delayMsBetweenRetries: 3000,
+          retry,
         },
       )
       .then((outcome) => {
@@ -322,18 +441,34 @@ export class QuoteStatusUpdateManager {
             const current = this.#quoteStatusEntryStore.get(
               QuoteStatusEntryStore.hash(entry),
             );
-            // The entry may have been evicted (e.g. via TTL) while the request
-            // was in flight. If it is no longer tracked there is nothing left
-            // to do, and reprocessing it would loop forever.
+            // The entry can only be absent if the store was cleared (e.g. via
+            // `destroy`) while the request was in flight; nothing left to do.
             if (!current) {
               return undefined;
             }
-            if (current.status.state === sentStatus) {
-              this.#removeEntry(current);
-            } else {
+            if (current.status.state !== sentStatus) {
               // The status advanced mid-flight; report the newer status.
               this.#processEntry(current);
+              return undefined;
             }
+            if (
+              sentStatus === QuoteStatusState.FinalizedSuccess ||
+              sentStatus === QuoteStatusState.FinalizedFailed
+            ) {
+              // A finalized status was accepted; advance to the terminal
+              // `Completed` state and keep the entry so any later duplicate
+              // `reportSubmitted` for this quote is rejected instead of looping.
+              this.#markCompleted(current);
+              return undefined;
+            }
+            // A non-final status (e.g. `Submitted`) was accepted. The quote is
+            // not done yet: it still needs to be finalized via a later
+            // `reportFinalised`, which looks the entry up by `txMetaId`. Keep
+            // the entry tracked and record the acknowledgement so the retry
+            // loop stops re-sending the already-accepted status.
+            current.acknowledgedState = sentStatus;
+            this.#quoteStatusEntryStore.update(current);
+            this.#stopRetryTimerIfIdle();
             return undefined;
           }
           case QuoteStatusUpdateWithRetryOutcomeType.NonRetryable:
@@ -357,28 +492,55 @@ export class QuoteStatusUpdateManager {
   }
 
   /**
-   * Removes an entry from the store and stops the retry timer once no entries
-   * remain to be processed.
+   * Advances an entry to the terminal `Completed` state and stops the retry
+   * timer if no work remains. The entry is kept in the store so later duplicate
+   * reports for the same quote are recognized and rejected.
    *
-   * @param entry - The runtime entry to remove.
+   * @param entry - The runtime entry to complete.
+   * @param finalizedState - Optional finalized state the backend reports as
+   * current. When provided and reachable, the entry is first advanced through it
+   * so the FSM's forward-only path (`Submitted -> FinalizedX -> Completed`) is
+   * respected before reaching `Completed`.
    */
-  #removeEntry(entry: QuoteStatusRuntimeEntry): void {
-    this.#quoteStatusEntryStore.delete(QuoteStatusEntryStore.hash(entry));
-
-    // Once every entry has reached a terminal state (Completed/Expired) there is
-    // nothing left to retry, so stop the timer rather than ticking forever.
-    if (this.#quoteStatusEntryStore.size === 0) {
-      this.#stopRetryTimer();
+  #markCompleted(
+    entry: QuoteStatusRuntimeEntry,
+    finalizedState?: QuoteStatusState,
+  ): void {
+    if (finalizedState && entry.status.canTransitionTo(finalizedState)) {
+      entry.status.transitionTo(finalizedState);
     }
+
+    if (entry.status.canTransitionTo(QuoteStatusState.Completed)) {
+      entry.status.transitionTo(QuoteStatusState.Completed);
+    }
+
+    this.#stopRetryTimerIfIdle();
+  }
+
+  /**
+   * Advances an entry to the terminal `Expired` state (abandoning it) and stops
+   * the retry timer if no work remains. The entry is kept in the store so later
+   * interactions with the same quote are rejected.
+   *
+   * @param entry - The runtime entry to abandon.
+   */
+  #markExpired(entry: QuoteStatusRuntimeEntry): void {
+    if (entry.status.canTransitionTo(QuoteStatusState.Expired)) {
+      entry.status.transitionTo(QuoteStatusState.Expired);
+    }
+
+    this.#stopRetryTimerIfIdle();
   }
 
   /**
    * Reconciles local state in response to a non-retryable backend error.
    *
    * When the backend reports a terminal status, the entry is either advanced to
-   * match and reprocessed, or evicted (surfacing an error) if it cannot
-   * transition. Any error that cannot be reconciled results in the entry being
-   * evicted so it does not loop forever.
+   * match and reprocessed (if it is behind) or converged to `Completed` (if it
+   * is already finalized), surfacing an error only for a genuine status
+   * discrepancy. Other non-retryable errors that cannot be reconciled mark the
+   * entry `Expired` (abandoned). Entries are always kept in the store so future
+   * interactions with the quote are rejected rather than looping.
    *
    * @param entry - The runtime entry whose update failed.
    * @param outcome - The non-retryable outcome returned by the API service,
@@ -390,8 +552,18 @@ export class QuoteStatusUpdateManager {
   ): void {
     const { response } = outcome;
 
+    const backendFinalizedToState: Partial<
+      Record<QuoteStatusUpdateBackendStatus, QuoteStatusState>
+    > = {
+      [QuoteStatusUpdateBackendStatus.FinalizedSuccess]:
+        QuoteStatusState.FinalizedSuccess,
+      [QuoteStatusUpdateBackendStatus.FinalizedFailed]:
+        QuoteStatusState.FinalizedFailed,
+    };
+
     // The transition we requested is invalid because the backend is already in a
-    // terminal state. There is nothing left to report, so drop the entry.
+    // terminal state (e.g. we re-sent `SUBMITTED` after finalization). There is
+    // nothing left to report, so advance the entry to `Completed` and keep it.
     if (
       response?.type ===
         QuoteStatusUpdateBackendErrorType.InvalidStatusTransaction &&
@@ -400,7 +572,7 @@ export class QuoteStatusUpdateManager {
         response.currentStatus ===
           QuoteStatusUpdateBackendStatus.FinalizedFailed)
     ) {
-      this.#removeEntry(entry);
+      this.#markCompleted(entry, backendFinalizedToState[response.currentStatus]);
       return;
     }
 
@@ -413,44 +585,50 @@ export class QuoteStatusUpdateManager {
       response?.type ===
         QuoteStatusUpdateBackendErrorType.QuoteStatusOnChainMismatch
     ) {
-      const backendFinalizedToState: Partial<
-        Record<QuoteStatusUpdateBackendStatus, QuoteStatusState>
-      > = {
-        [QuoteStatusUpdateBackendStatus.FinalizedSuccess]:
-          QuoteStatusState.FinalizedSuccess,
-        [QuoteStatusUpdateBackendStatus.FinalizedFailed]:
-          QuoteStatusState.FinalizedFailed,
-      };
       const nextState = backendFinalizedToState[response.currentStatus];
 
       if (nextState) {
-        // Align our local state with the backend's observed terminal status and
-        // reprocess so the correct finalization status is reported.
+        // We are behind the backend's terminal status; advance our local state
+        // and reprocess so the correct finalization status is reported.
         if (entry.status.canTransitionTo(nextState)) {
           entry.status.transitionTo(nextState);
           this.#processEntry(entry);
           return;
         }
 
-        // We cannot move our local state forward to match the backend (e.g. the
-        // entry is already in a conflicting terminal state). Surface the conflict
-        // and evict so we do not loop forever on an unresolvable mismatch.
-        this.#onError?.(
-          new QuoteStatusUpdateError(
-            `reporting finalization status but entry cannot transition from "${entry.status.state}" to "${nextState}"`,
-            { quoteId: entry.quoteId },
-          ),
-        );
-        this.#removeEntry(entry);
+        // The backend is already finalized but our entry cannot advance to that
+        // status because it is already at (or past) a finalized state. The quote
+        // is done, so converge to `Completed` (kept) rather than abandoning it to
+        // `Expired`. Abandoning here is actively wrong for EVM 7702 swaps, which
+        // report `SUBMITTED` and `FINALIZED_SUCCESS` back-to-back: the racing
+        // `SUBMITTED` request can return a mismatch carrying the already-finalized
+        // status, which would otherwise flip a soon-to-be-`Completed` entry to
+        // `Expired` and drop the successful finalization.
+        if (
+          entry.status.state !== nextState &&
+          entry.status.state !== QuoteStatusState.Completed &&
+          entry.status.state !== QuoteStatusState.Expired
+        ) {
+          // Genuine discrepancy between our finalized status and the backend's
+          // (e.g. we observed the opposite outcome); surface it for visibility,
+          // but still complete the entry instead of looping or abandoning it.
+          this.#onError?.(
+            new QuoteStatusUpdateError(
+              `reporting finalization status but entry cannot transition from "${entry.status.state}" to "${nextState}"`,
+              { quoteId: entry.quoteId },
+            ),
+          );
+        }
+        this.#markCompleted(entry);
         return;
       }
     }
 
     // Any non-retryable error we could not reconcile means we cannot make
-    // progress on this entry, so evict it rather than leaving it stuck.
-    this.#removeEntry(entry);
+    // progress on this entry, so abandon it rather than leaving it stuck.
+    this.#markExpired(entry);
     this.#onError?.(
-      new QuoteStatusUpdateError(`evicting due to non-retryable error`, {
+      new QuoteStatusUpdateError(`abandoning entry due to non-retryable error`, {
         quoteId: entry.quoteId,
         errorType: response?.type,
       }),

@@ -310,6 +310,10 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       },
     );
 
+    // Replay swap/bridge finalizations that resolved while the client was
+    // closed, before resuming polling (which recovers in-flight bridges).
+    this.#quoteStatusUpdateManager.init();
+
     // If you close the extension, but keep the browser open, the polling continues
     // If you close the browser, the polling stops
     // Check for historyItems that do not have a status of complete and restart polling
@@ -349,7 +353,12 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
 
     // Report finalized failure for swap/bridge transactions.
     // Note: TransactionStatus.rejected means the user cancelled signing, so the tx was never broadcast.
-    if (txMeta.type && isCrossChainTx(txMeta.type)) {
+    // `hasNestedSwapTransactions` also covers batch/7702 swaps whose type may
+    // still read as `batch` rather than `swap`.
+    if (
+      (txMeta.type && isCrossChainTx(txMeta.type)) ||
+      hasNestedSwapTransactions(txMeta)
+    ) {
       this.#quoteStatusUpdateManager.reportFinalised(txMeta.id, false);
     }
 

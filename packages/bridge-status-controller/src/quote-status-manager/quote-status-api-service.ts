@@ -137,8 +137,10 @@ export class QuoteStatusApiService {
    * retried when the backend returns an error whose type is in
    * {@link QuoteStatusUpdateRetryableBackendTypes}; any other error response
    * resolves immediately as non-retryable. Retries are spaced by
-   * `options.delayMsBetweenRetries`, and the abort signal is checked before each
-   * attempt so an in-flight or pending retry can be cancelled.
+   * `options.delayMsBetweenRetries`, and both the abort signal and the optional
+   * `options.retry` predicate are checked before each attempt so an
+   * in-flight or pending retry can be cancelled (e.g. when the entry's status
+   * changed while sleeping between retries).
    *
    * @param data - Request payload identifying the quote and target transition.
    * @param data.quoteId - Unique quote identifier to update.
@@ -147,6 +149,8 @@ export class QuoteStatusApiService {
    * @param options - Retry configuration.
    * @param options.maxRetries - Maximum number of retries after the initial attempt.
    * @param options.delayMsBetweenRetries - Delay in milliseconds between attempts.
+   * @param options.retry - Optional predicate checked before each attempt;
+   * when it returns `false` the loop stops early and resolves as `Interrupted`.
    * @param signal - Optional abort signal for canceling the request and its retries.
    * @returns An outcome describing how the update resolved:
    * `Accepted` when the backend accepted the update, `NonRetryable` for a
@@ -164,6 +168,7 @@ export class QuoteStatusApiService {
     options: {
       maxRetries: number;
       delayMsBetweenRetries: number;
+      retry?: () => boolean;
     },
     signal?: AbortSignal,
   ): Promise<QuoteStatusUpdateWithRetryOutcome> {
@@ -172,7 +177,7 @@ export class QuoteStatusApiService {
         await sleep(options.delayMsBetweenRetries);
       }
 
-      if (signal?.aborted) {
+      if (signal?.aborted || options.retry?.() === false) {
         return new QuoteStatusUpdateWithRetryOutcome(
           QuoteStatusUpdateWithRetryOutcomeType.Interrupted,
         );

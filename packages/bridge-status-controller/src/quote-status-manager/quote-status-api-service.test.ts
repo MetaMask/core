@@ -322,6 +322,49 @@ describe('QuoteStatusApiService', () => {
       expect(fetchSpy).not.toHaveBeenCalled();
     });
 
+    it('returns Interrupted when retry returns false before the first attempt', async () => {
+      fetchSpy.mockResolvedValue(createFetchResponse({ ok: true }));
+      const { service } = createService();
+
+      const outcome = await service.updateQuoteStatusWithRetry(REQUEST_DATA, {
+        ...RETRY_OPTIONS,
+        retry: () => false,
+      });
+
+      expect(outcome.type).toBe(
+        QuoteStatusUpdateWithRetryOutcomeType.Interrupted,
+      );
+      expect(fetchSpy).not.toHaveBeenCalled();
+    });
+
+    it('stops retrying once retry returns false between attempts', async () => {
+      const errorBody = {
+        statusCode: 409,
+        message: 'concurrent update',
+        type: QuoteStatusUpdateBackendErrorType.ConcurrentUpdate,
+      };
+      fetchSpy.mockResolvedValue(
+        createFetchResponse({ ok: false, body: errorBody }),
+      );
+      const { service } = createService();
+      let proceed = true;
+
+      const outcome = await service.updateQuoteStatusWithRetry(REQUEST_DATA, {
+        ...RETRY_OPTIONS,
+        // Allow the first attempt, then stop before the retry.
+        retry: () => {
+          const current = proceed;
+          proceed = false;
+          return current;
+        },
+      });
+
+      expect(outcome.type).toBe(
+        QuoteStatusUpdateWithRetryOutcomeType.Interrupted,
+      );
+      expect(fetchSpy).toHaveBeenCalledTimes(1);
+    });
+
     it('returns Interrupted when fetch rejects after the signal is aborted', async () => {
       const controller = new AbortController();
       fetchSpy.mockImplementation(async () => {
