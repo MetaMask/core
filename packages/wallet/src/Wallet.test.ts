@@ -199,6 +199,19 @@ describe('Wallet', () => {
     expect(Object.keys(wallet.state)).toStrictEqual(['WithMeta', 'NoMeta']);
   });
 
+  it('calls init on all instances and returns the results', async () => {
+    const wallet = await setupWallet();
+
+    const results = await wallet.init();
+
+    expect(results).toStrictEqual([
+      {
+        status: 'fulfilled',
+        value: undefined,
+      },
+    ]);
+  });
+
   it('disallows modifying the messenger', async () => {
     const wallet = await setupWallet();
 

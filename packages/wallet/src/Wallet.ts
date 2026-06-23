@@ -124,6 +124,19 @@ export class Wallet {
   }
 
   /**
+   * Complete additional initialization of instantiated controllers or services after instantiating `Wallet`.
+   *
+   * @returns The results of all initialization calls.
+   */
+  init() {
+    return Promise.allSettled(
+      Object.values(this.#instances)
+        .map((instance) => ('init' in instance ? instance.init() : null))
+        .filter(Boolean),
+    );
+  }
+
+  /**
    * Destroy the wallet instance.
    */
   async destroy(): Promise<void> {

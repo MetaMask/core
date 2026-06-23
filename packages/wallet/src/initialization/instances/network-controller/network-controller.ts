@@ -27,8 +27,11 @@ export const networkController: InitializationConfiguration<
 
     parent.delegate({
       messenger: networkControllerMessenger,
-      actions: ['ConnectivityController:getState'],
-      events: [],
+      actions: [
+        'ConnectivityController:getState',
+        'RemoteFeatureFlagController:getState',
+      ],
+      events: ['RemoteFeatureFlagController:stateChange'],
     });
 
     return networkControllerMessenger;
