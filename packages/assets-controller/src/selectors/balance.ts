@@ -41,6 +41,7 @@ export type AggregatedBalanceForAccount = {
   entries: AggregatedBalanceEntry[];
   totalBalanceInFiat?: number;
   pricePercentChange1d?: number;
+  previousTotalInFiat?: number;
 };
 
 type AccountLike = { id: AccountId };
@@ -481,6 +482,7 @@ function aggregateBalances(
 
   // If prices exist, compute totals in a single pass over merged.
   let totalBalanceInFiat = 0;
+  let previousTotalInFiat = 0;
   let weightedNumerator = 0;
 
   for (const [assetId, row] of merged.entries()) {
@@ -504,6 +506,12 @@ function aggregateBalances(
       if (contribution > 0) {
         totalBalanceInFiat += contribution;
         weightedNumerator += contribution * pricePercentChange1d;
+
+        // A -100% move makes the denominator zero; treat it as flat so the
+        // previous total never goes to infinity.
+        const denom = Number((1 + pricePercentChange1d / 100).toFixed(8));
+        previousTotalInFiat +=
+          denom === 0 ? contribution : contribution / denom;
       }
     }
   }
@@ -539,6 +547,7 @@ function aggregateBalances(
       entries,
       totalBalanceInFiat,
       pricePercentChange1d,
+      previousTotalInFiat,
     };
   }
 
@@ -645,32 +654,23 @@ function getUserCurrency(assetsControllerState: AssetsControllerState): string {
 }
 
 /**
- * Reconstruct the current and previous totals from the aggregated fiat balance
- * and its 1d price change.
+ * Resolve the current and previous totals for a change calculation.
  *
  * The AssetsController state only exposes a 1d price change, so non-`1d`
- * periods produce a zeroed change (current equals previous).
+ * periods produce a zeroed change (previous equals current).
  *
  * @param totalBalanceInFiat - Aggregated current balance in user currency.
- * @param pricePercentChange1d - Weighted 1d price percentage change.
+ * @param previousTotalInFiat - Aggregated prior balance summed per asset.
  * @param period - Period to compute the change for.
  * @returns The current and previous totals in user currency.
  */
 function getCurrentAndPrevious(
   totalBalanceInFiat: number,
-  pricePercentChange1d: number,
+  previousTotalInFiat: number,
   period: BalanceChangePeriod,
 ): { current: number; previous: number } {
-  const DEFAULT_VALUE = { current: 0, previous: 0 } as const;
-  const percentRaw = period === '1d' ? pricePercentChange1d : 0;
-
-  const denom = Number((1 + percentRaw / 100).toFixed(8));
-  if (denom === 0) {
-    return DEFAULT_VALUE;
-  }
-
   const current = totalBalanceInFiat;
-  const previous = current / denom;
+  const previous = period === '1d' ? previousTotalInFiat : current;
   return { current, previous };
 }
 
@@ -783,7 +783,7 @@ export function calculateBalanceChangeForAccountGroup(
 ): BalanceChangeResult {
   const userCurrency = getUserCurrency(assetsControllerState);
   const accountIds = getAccountIdsForGroup(accountTreeState, groupId);
-  const { totalBalanceInFiat = 0, pricePercentChange1d = 0 } =
+  const { totalBalanceInFiat = 0, previousTotalInFiat = totalBalanceInFiat } =
     getAggregatedBalanceForAccountIds(
       assetsControllerState,
       accountIds,
@@ -793,7 +793,7 @@ export function calculateBalanceChangeForAccountGroup(
 
   const { current, previous } = getCurrentAndPrevious(
     totalBalanceInFiat,
-    pricePercentChange1d,
+    previousTotalInFiat,
     period,
   );
 

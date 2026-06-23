@@ -579,6 +579,7 @@ describe('balance selectors', () => {
 
       expect(result.totalBalanceInFiat).toBe(6000);
       expect(result.pricePercentChange1d).toBeCloseTo(5, 10);
+      expect(result.previousTotalInFiat).toBeCloseTo(6000 / 1.05, 10);
     });
   });
 });
@@ -744,6 +745,38 @@ describe('wallet-balance selectors', () => {
       );
       expect(result.percentChange).toBeCloseTo(10, 4);
       expect(result.userCurrency).toBe('usd');
+    });
+
+    it('sums each asset prior value from its own 1d change for mixed-asset groups', () => {
+      // group0 holds 1 ETH (price 2000, +10%) and 1000 USDC (price 1, 0%).
+      // current = 2000 + 1000 = 3000.
+      // Correct previous (per asset) = 2000 / 1.1 + 1000 / 1 = 2818.1818...
+      // A portfolio-weighted approach would instead use the blended 6.6667%
+      // change (3000 / 1.066667 = 2812.5), which is materially different.
+      const result = calculateBalanceChangeForAccountGroup(
+        buildState(),
+        accountTreeState,
+        groupId0,
+        '1d',
+      );
+
+      const expectedPrevious = 2000 / 1.1 + 1000;
+      expect(result.currentTotalInUserCurrency).toBe(3000);
+      expect(result.previousTotalInUserCurrency).toBeCloseTo(
+        expectedPrevious,
+        4,
+      );
+      expect(result.amountChangeInUserCurrency).toBeCloseTo(
+        3000 - expectedPrevious,
+        4,
+      );
+      expect(result.percentChange).toBeCloseTo(
+        ((3000 - expectedPrevious) / expectedPrevious) * 100,
+        4,
+      );
+
+      // Guard against regressing to the weighted-average reconstruction.
+      expect(result.previousTotalInUserCurrency).not.toBeCloseTo(2812.5, 4);
     });
 
     it('returns a zeroed change for non-1d periods', () => {
