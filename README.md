@@ -85,6 +85,7 @@ yarn skills --reset                 # clear saved local selection
 - [`@metamask/json-rpc-engine`](packages/json-rpc-engine)
 - [`@metamask/json-rpc-middleware-stream`](packages/json-rpc-middleware-stream)
 - [`@metamask/keyring-controller`](packages/keyring-controller)
+- [`@metamask/local-node-utils`](packages/local-node-utils)
 - [`@metamask/logging-controller`](packages/logging-controller)
 - [`@metamask/message-manager`](packages/message-manager)
 - [`@metamask/messenger`](packages/messenger)
@@ -183,6 +184,7 @@ linkStyle default opacity:0.5
   json_rpc_engine(["@metamask/json-rpc-engine"]);
   json_rpc_middleware_stream(["@metamask/json-rpc-middleware-stream"]);
   keyring_controller(["@metamask/keyring-controller"]);
+  local_node_utils(["@metamask/local-node-utils"]);
   logging_controller(["@metamask/logging-controller"]);
   message_manager(["@metamask/message-manager"]);
   messenger(["@metamask/messenger"]);

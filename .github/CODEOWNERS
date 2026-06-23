@@ -125,6 +125,7 @@
 /packages/foundryup                             @MetaMask/mobile-platform @MetaMask/extension-platform
 /packages/bitcoin-regtest-up                    @MetaMask/mobile-platform @MetaMask/extension-platform @MetaMask/networks
 /packages/java-tron-up                          @MetaMask/mobile-platform @MetaMask/extension-platform @MetaMask/networks
+/packages/local-node-utils                      @MetaMask/mobile-platform @MetaMask/extension-platform @MetaMask/networks
 /packages/solana-test-validator-up              @MetaMask/mobile-platform @MetaMask/extension-platform @MetaMask/networks
 /packages/keyring-controller                    @MetaMask/accounts-engineers @MetaMask/core-platform
 /packages/multichain-network-controller         @MetaMask/core-platform @MetaMask/accounts-engineers @MetaMask/metamask-assets
@@ -233,6 +234,8 @@
 /packages/bitcoin-regtest-up/CHANGELOG.md @MetaMask/mobile-platform @MetaMask/extension-platform @MetaMask/networks @MetaMask/core-platform
 /packages/java-tron-up/package.json @MetaMask/mobile-platform @MetaMask/extension-platform @MetaMask/networks @MetaMask/core-platform
 /packages/java-tron-up/CHANGELOG.md @MetaMask/mobile-platform @MetaMask/extension-platform @MetaMask/networks @MetaMask/core-platform
+/packages/local-node-utils/package.json @MetaMask/mobile-platform @MetaMask/extension-platform @MetaMask/networks @MetaMask/core-platform
+/packages/local-node-utils/CHANGELOG.md @MetaMask/mobile-platform @MetaMask/extension-platform @MetaMask/networks @MetaMask/core-platform
 /packages/solana-test-validator-up/package.json @MetaMask/mobile-platform @MetaMask/extension-platform @MetaMask/networks @MetaMask/core-platform
 /packages/solana-test-validator-up/CHANGELOG.md @MetaMask/mobile-platform @MetaMask/extension-platform @MetaMask/networks @MetaMask/core-platform
 /packages/seedless-onboarding-controller/package.json @MetaMask/web3auth @MetaMask/core-platform
