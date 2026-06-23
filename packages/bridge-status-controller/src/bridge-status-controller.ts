@@ -1041,7 +1041,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       | (QuoteResponse<Trade, Trade> & QuoteMetadata)[],
     isStxEnabled: boolean,
     quotesReceivedContext?: RequiredEventContextFromClient[UnifiedSwapBridgeEventName.QuotesReceived],
-    location: MetaMetricsSwapsEventSource = MetaMetricsSwapsEventSource.MainView,
+    location: MetaMetricsSwapsEventSource = MetaMetricsSwapsEventSource.Unknown,
     abTests?: Record<string, string>,
     activeAbTests?: { key: string; value: string }[],
     tokenSecurityTypeDestination?: string | null,
@@ -1326,9 +1326,9 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       eventProperties?.active_ab_tests ?? historyActiveAbTests;
 
     const location =
-      (txHistoryKey
-        ? this.state.txHistory?.[txHistoryKey]?.location
-        : undefined) ?? MetaMetricsSwapsEventSource.MainView;
+      historyItem?.location ??
+      eventProperties?.location ??
+      MetaMetricsSwapsEventSource.Unknown;
 
     const baseProperties = {
       action_type: MetricsActionType.SWAPBRIDGE_V1,

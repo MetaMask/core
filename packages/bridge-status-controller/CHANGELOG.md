@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **BREAKING:** Default `location` fallback for post-submit Unified SwapBridge events now uses `Unknown` instead of `Main View` ([#9243](https://github.com/MetaMask/core/pull/9243))
+
+### Fixed
+
+- Fixed `Submitted` Unified SwapBridge events reporting the wrong `location` metric: when no tx history item exists yet, `#trackUnifiedSwapBridgeEvent` now uses the `location` passed to `submitTx()` (via pre-confirmation event properties) instead of always defaulting to `Main View` ([#9243](https://github.com/MetaMask/core/pull/9243))
+
 ## [72.3.0]
 
 ### Added

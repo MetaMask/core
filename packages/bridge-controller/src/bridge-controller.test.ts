@@ -2896,6 +2896,25 @@ describe('BridgeController', function () {
     );
   });
 
+  describe('getLocation and setLocation', () => {
+    it('returns Unknown by default and updates after setLocation', async () => {
+      await withController(async ({ rootMessenger }) => {
+        expect(rootMessenger.call('BridgeController:getLocation')).toBe(
+          MetaMetricsSwapsEventSource.Unknown,
+        );
+
+        rootMessenger.call(
+          'BridgeController:setLocation',
+          MetaMetricsSwapsEventSource.TokenView,
+        );
+
+        expect(rootMessenger.call('BridgeController:getLocation')).toBe(
+          MetaMetricsSwapsEventSource.TokenView,
+        );
+      });
+    });
+  });
+
   describe('trackUnifiedSwapBridgeEvent client-side calls', () => {
     beforeEach(() => {
       jest.clearAllMocks();
