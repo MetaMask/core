@@ -1,9 +1,11 @@
+import { TransactionStatus } from '@metamask/transaction-controller';
+
+import { BridgeClientId, BridgeStatusControllerMessenger } from '../types';
 import {
   getTransactionMetaById,
   hasNestedSwapTransactions,
   isCrossChainTx,
 } from '../utils/transaction';
-import { BridgeClientId, BridgeStatusControllerMessenger } from '../types';
 import {
   QuoteStatusState,
   QuoteStatusStateToBackendStatus,
@@ -17,7 +19,6 @@ import { QuoteStatusEntryStore } from './quote-status-entry-store';
 import { QuoteStatusStateFsm } from './quote-status-state-fsm';
 import { QuoteStatusUpdateWithRetryOutcome } from './quote-status-update-with-retry-outcome';
 import { QuoteStatusPersistEntry, QuoteStatusRuntimeEntry } from './types';
-import { TransactionStatus } from '@metamask/transaction-controller';
 
 /**
  * Tracks bridge/swap quotes through their lifecycle and keeps the backend in
@@ -424,8 +425,8 @@ export class QuoteStatusUpdateManager {
       );
       return Boolean(
         live &&
-          live.status.state === sentStatus &&
-          live.acknowledgedState !== sentStatus,
+        live.status.state === sentStatus &&
+        live.acknowledgedState !== sentStatus,
       );
     };
 
