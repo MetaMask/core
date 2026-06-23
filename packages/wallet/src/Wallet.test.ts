@@ -1,6 +1,7 @@
 import { getDefaultAddressBookControllerState } from '@metamask/address-book-controller';
 import { CONNECTIVITY_STATUSES } from '@metamask/connectivity-controller';
 import { Messenger } from '@metamask/messenger';
+import { getDefaultPreferencesState } from '@metamask/preferences-controller';
 import { InMemoryStorageAdapter } from '@metamask/storage-service';
 import { Json } from '@metamask/utils';
 import { webcrypto } from 'crypto';
@@ -401,6 +402,53 @@ describe('Wallet', () => {
         keyrings: [],
         vault: expect.any(String),
       });
+    });
+  });
+
+  describe('PreferencesController', () => {
+    it('is wired and exposes its state on the wallet messenger', async () => {
+      const wallet = await setupWallet();
+      const { messenger } = wallet;
+
+      expect(messenger.call('PreferencesController:getState')).toStrictEqual(
+        getDefaultPreferencesState(),
+      );
+    });
+
+    it('applies initial state passed through the Wallet constructor', () => {
+      const wallet = new Wallet({
+        state: {
+          PreferencesController: { privacyMode: true },
+        },
+        instanceOptions: {
+          connectivityController: {
+            connectivityAdapter: new AlwaysOnlineAdapter(),
+          },
+          networkController: {
+            infuraProjectId: 'fake-infura-project-id',
+          },
+          storageService: {
+            storage: new InMemoryStorageAdapter(),
+          },
+          remoteFeatureFlagController: REMOTE_FEATURE_FLAG_OPTIONS,
+        },
+      });
+
+      expect(wallet.state.PreferencesController.privacyMode).toBe(true);
+    });
+
+    it('routes its method actions through the wallet messenger', async () => {
+      const wallet = await setupWallet();
+      const { messenger } = wallet;
+
+      messenger.call(
+        'PreferencesController:setIpfsGateway',
+        'https://example.com/ipfs/',
+      );
+
+      expect(wallet.state.PreferencesController.ipfsGateway).toBe(
+        'https://example.com/ipfs/',
+      );
     });
   });
 
