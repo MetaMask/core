@@ -10,7 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Initial package scaffold ([#9233](https://github.com/MetaMask/core/pull/9233))
-- Shared installer utilities for local node runtime packages ([#TBD](https://github.com/MetaMask/core/pull/TBD))
+- Shared installer utilities for local node runtime packages ([#9234](https://github.com/MetaMask/core/pull/9234))
   - Cache directory resolution from Yarn config
   - Artifact config helpers, checksum verification, and downloads
   - Archive extraction, executable wrappers, and filesystem helpers
