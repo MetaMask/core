@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Bump `@metamask/eth-snap-keyring` from `^22.0.1` to `^22.1.0` ([#8732](https://github.com/MetaMask/core/pull/8732))
+- Bump `@metamask/eth-snap-keyring` from `^22.0.1` to `^22.3.0` ([#8732](https://github.com/MetaMask/core/pull/8732))
 
 ## [39.0.2]
 
