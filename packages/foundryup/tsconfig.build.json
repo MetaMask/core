@@ -6,6 +6,6 @@
     "outDir": "./dist",
     "rootDir": "./src"
   },
-  "references": [],
+  "references": [{ "path": "../local-node-utils/tsconfig.build.json" }],
   "include": ["../../types", "./types", "./src"]
 }
