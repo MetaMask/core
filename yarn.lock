@@ -7067,6 +7067,7 @@ __metadata:
   resolution: "@metamask/java-tron-up@workspace:packages/java-tron-up"
   dependencies:
     "@metamask/auto-changelog": "npm:^6.1.0"
+    "@metamask/local-node-utils": "workspace:^"
     "@ts-bridge/cli": "npm:^0.6.4"
     "@types/jest": "npm:^29.5.14"
     deepmerge: "npm:^4.2.2"
@@ -7076,7 +7077,6 @@ __metadata:
     typedoc: "npm:^0.25.13"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:~5.3.3"
-    yaml: "npm:^2.3.4"
   bin:
     java-tron-up: ./dist/bin/java-tron-up.mjs
   languageName: unknown
@@ -7280,7 +7280,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/local-node-utils@workspace:packages/local-node-utils":
+"@metamask/local-node-utils@workspace:^, @metamask/local-node-utils@workspace:packages/local-node-utils":
   version: 0.0.0-use.local
   resolution: "@metamask/local-node-utils@workspace:packages/local-node-utils"
   dependencies:
