@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Replace duplicated cache directory and cache-clean helpers with
+  `@metamask/local-node-utils` ([#9239](https://github.com/MetaMask/core/pull/9239)).
+  - Scope foundryup downloads under a `foundryup` cache namespace, matching
+    other MetaMask installer packages.
+
 ## [1.0.1]
 
 ### Fixed

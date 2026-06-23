@@ -4,6 +4,6 @@
     "baseUrl": "./",
     "lib": ["ES2021", "DOM"]
   },
-  "references": [],
+  "references": [{ "path": "../local-node-utils/tsconfig.json" }],
   "include": ["../../types", "./types", "./src"]
 }

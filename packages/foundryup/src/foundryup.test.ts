@@ -1,9 +1,11 @@
 import type { Dir } from 'fs';
-import { readFileSync } from 'fs';
+import { mkdtempSync, writeFileSync } from 'fs';
 import fs from 'fs/promises';
 import nock, { cleanAll } from 'nock';
+import { tmpdir } from 'os';
 import { join, relative } from 'path';
-import { parse as parseYaml } from 'yaml';
+
+import { cleanInstallerCache } from '@metamask/local-node-utils';
 
 import {
   checkAndDownloadBinaries,
@@ -52,9 +54,13 @@ jest.mock('fs/promises', () => {
   };
 });
 
-jest.mock('fs');
-jest.mock('yaml');
+jest.mock('node:fs/promises', () => jest.requireMock('fs/promises'));
+
+jest.mock('fs', () => ({
+  ...jest.requireActual('fs'),
+}));
 jest.mock('os', () => ({
+  ...jest.requireActual('os'),
   homedir: jest.fn().mockReturnValue('/home/user'),
 }));
 
@@ -121,7 +127,10 @@ const mockDownloadAndInstallFoundryBinaries = async (): Promise<
   const CACHE_DIR = getCacheDirectory();
 
   if (parsedArgs.command === 'cache clean') {
-    await fs.rm(CACHE_DIR, { recursive: true, force: true });
+    await cleanInstallerCache({
+      cacheDirectory: CACHE_DIR,
+      namespace: 'foundryup',
+    });
     operations.push({ operation: 'cleanCache', details: { path: CACHE_DIR } });
     return operations;
   }
@@ -148,9 +157,12 @@ const mockDownloadAndInstallFoundryBinaries = async (): Promise<
   );
   const url = new URL(BIN_ARCHIVE_URL);
 
+  const cacheKey = 'mock-cache-key';
+  const cachePath = join(CACHE_DIR, 'foundryup', cacheKey);
+
   operations.push({
     operation: 'checkAndDownloadBinaries',
-    details: { url, binaries, cachePath: CACHE_DIR, platform, arch },
+    details: { url, binaries, cachePath, platform, arch },
   });
 
   operations.push({
@@ -158,7 +170,7 @@ const mockDownloadAndInstallFoundryBinaries = async (): Promise<
     details: {
       binaries,
       binDir: 'node_modules/.bin',
-      cachePath: CACHE_DIR,
+      cachePath,
     },
   });
 
@@ -167,20 +179,29 @@ const mockDownloadAndInstallFoundryBinaries = async (): Promise<
 
 describe('foundryup', () => {
   describe('getCacheDirectory', () => {
-    it('uses global cache when enabled in .yarnrc.yml', () => {
-      (parseYaml as jest.Mock).mockReturnValue({ enableGlobalCache: true });
-      (readFileSync as jest.Mock).mockReturnValue('dummy yaml content');
+    const originalCwd = process.cwd;
 
-      const result = getCacheDirectory();
-      expect(result).toMatch(/\/(home|Users)\/.*\/\.cache\/metamask$/u);
+    afterEach(() => {
+      process.chdir(originalCwd());
+    });
+
+    it('uses global cache when enabled in .yarnrc.yml', () => {
+      const projectDir = mkdtempSync(join(tmpdir(), 'foundryup-'));
+      process.chdir(projectDir);
+      writeFileSync(join(projectDir, '.yarnrc.yml'), 'enableGlobalCache: true\n');
+
+      expect(getCacheDirectory()).toMatch(/\.cache\/metamask$/u);
     });
 
     it('uses local cache when global cache is disabled', () => {
-      (parseYaml as jest.Mock).mockReturnValue({ enableGlobalCache: false });
-      (readFileSync as jest.Mock).mockReturnValue('dummy yaml content');
+      const projectDir = mkdtempSync(join(tmpdir(), 'foundryup-'));
+      process.chdir(projectDir);
+      writeFileSync(
+        join(projectDir, '.yarnrc.yml'),
+        'enableGlobalCache: false\n',
+      );
 
-      const result = getCacheDirectory();
-      expect(result).toContain('.metamask/cache');
+      expect(getCacheDirectory()).toContain('.metamask/cache');
     });
   });
 
@@ -398,7 +419,7 @@ describe('foundryup', () => {
       };
 
       (parseArgs as jest.Mock).mockReturnValue(mockCleanArgs);
-      const rmSpy = jest.spyOn(fs, 'rm').mockResolvedValue();
+      const rmSpy = jest.spyOn(fs, 'rm').mockResolvedValue(undefined);
 
       const operations = await mockDownloadAndInstallFoundryBinaries();
 
@@ -411,7 +432,10 @@ describe('foundryup', () => {
           },
         },
       ]);
-      expect(rmSpy).toHaveBeenCalled();
+      expect(rmSpy).toHaveBeenCalledWith(
+        expect.stringContaining('foundryup'),
+        expect.objectContaining({ force: true, recursive: true }),
+      );
     });
 
     it('should handle errors gracefully', async () => {

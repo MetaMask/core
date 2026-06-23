@@ -45,6 +45,7 @@
     "test:watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch"
   },
   "dependencies": {
+    "@metamask/local-node-utils": "workspace:^",
     "minipass": "^7.1.2",
     "tar": "^7.4.3",
     "unzipper": "^0.12.3",
@@ -64,8 +65,7 @@
     "ts-jest": "^29.2.5",
     "typedoc": "^0.25.13",
     "typedoc-plugin-missing-exports": "^2.0.0",
-    "typescript": "~5.3.3",
-    "yaml": "^2.3.4"
+    "typescript": "~5.3.3"
   },
   "engines": {
     "node": "^18.18 || >=20"

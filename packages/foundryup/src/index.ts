@@ -1,20 +1,21 @@
 #!/usr/bin/env -S node --require "./node_modules/tsx/dist/preflight.cjs" --import "./node_modules/tsx/dist/loader.mjs"
 
+import {
+  cleanInstallerCache,
+  getMetamaskCacheDirectory,
+  isFileMissingError,
+} from '@metamask/local-node-utils';
 import { createHash } from 'node:crypto';
-import { readFileSync } from 'node:fs';
 import type { Dir } from 'node:fs';
 import {
   copyFile,
   mkdir,
   opendir,
-  rm,
   symlink,
   unlink,
 } from 'node:fs/promises';
-import { homedir } from 'node:os';
 import { dirname, join, relative } from 'node:path';
 import { cwd, exit } from 'node:process';
-import { parse as parseYaml } from 'yaml';
 
 import { extractFrom } from './extract';
 import { parseArgs, printBanner } from './options';
@@ -28,6 +29,8 @@ import {
   transformChecksums,
 } from './utils';
 
+const FOUNDRYUP_CACHE_NAMESPACE = 'foundryup';
+
 /**
  * Determines the cache directory based on the .yarnrc.yml configuration.
  * If global cache is enabled, returns a path in the user's home directory.
@@ -36,25 +39,10 @@ import {
  * @returns The path to the cache directory
  */
 export function getCacheDirectory(): string {
-  let enableGlobalCache = false;
-  try {
-    const configFileContent = readFileSync('.yarnrc.yml', 'utf8');
-    const parsedConfig = parseYaml(configFileContent);
-    enableGlobalCache = parsedConfig?.enableGlobalCache ?? false;
-  } catch (error) {
-    // If file doesn't exist or can't be read, default to local cache
-    if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
-      return join(cwd(), '.metamask', 'cache');
-    }
-    // For other errors, log but continue with default
-    console.warn(
-      'Warning: Error reading .yarnrc.yml, using local cache:',
-      error,
-    );
-  }
-  return enableGlobalCache
-    ? join(homedir(), '.cache', 'metamask')
-    : join(cwd(), '.metamask', 'cache');
+  return getMetamaskCacheDirectory({
+    cwd: cwd(),
+    toolName: FOUNDRYUP_CACHE_NAMESPACE,
+  });
 }
 
 /**
@@ -104,7 +92,7 @@ export async function checkAndDownloadBinaries(
     say(`found binaries in cache`);
   } catch (e: unknown) {
     say(`binaries not in cache`);
-    if ((e as NodeJS.ErrnoException).code === 'ENOENT') {
+    if (isFileMissingError(e)) {
       say(`installing from ${url.toString()}`);
       // directory doesn't exist, download and extract
       const platformChecksums = transformChecksums(checksums, platform, arch);
@@ -176,7 +164,10 @@ export async function downloadAndInstallFoundryBinaries(): Promise<void> {
   const CACHE_DIR = getCacheDirectory();
 
   if (parsedArgs.command === 'cache clean') {
-    await rm(CACHE_DIR, { recursive: true, force: true });
+    await cleanInstallerCache({
+      cacheDirectory: CACHE_DIR,
+      namespace: FOUNDRYUP_CACHE_NAMESPACE,
+    });
     say('done!');
     exit(0);
   }
@@ -207,7 +198,7 @@ export async function downloadAndInstallFoundryBinaries(): Promise<void> {
   const cacheKey = createHash('sha256')
     .update(`${BIN_ARCHIVE_URL}-${bins}`)
     .digest('hex');
-  const cachePath = join(CACHE_DIR, cacheKey);
+  const cachePath = join(CACHE_DIR, FOUNDRYUP_CACHE_NAMESPACE, cacheKey);
 
   const downloadedBinaries = await checkAndDownloadBinaries(
     url,
