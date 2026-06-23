@@ -393,13 +393,50 @@ function resolveAccountsToAggregate(args: {
   return [selectedInternalAccount];
 }
 
-export function getAggregatedBalanceForAccount(
+/**
+ * Get account ids that belong to a group, reading directly from the account
+ * tree. Unlike {@link getInternalAccountsForGroup}, this does not require an
+ * `accountsById` lookup map, which makes it convenient for balance aggregation
+ * where only the ids are needed.
+ *
+ * @param accountTreeState - AccountTreeController state.
+ * @param groupId - The account group id to look up.
+ * @returns The list of account ids in the group, or an empty array.
+ */
+export function getAccountIdsForGroup(
+  accountTreeState: AccountTreeControllerState,
+  groupId: string,
+): AccountId[] {
+  const wallets = accountTreeState.accountTree?.wallets ?? {};
+  type GroupWithAccounts = { accounts?: AccountId[] };
+  for (const wallet of Object.values(wallets)) {
+    const groups = (wallet?.groups ?? {}) as Record<string, GroupWithAccounts>;
+    const group = groups[groupId];
+    if (group?.accounts) {
+      return [...group.accounts];
+    }
+  }
+  return [];
+}
+
+/**
+ * Aggregate balances across an explicit list of accounts.
+ *
+ * This is the core aggregation engine shared by the account- and group-level
+ * selectors. It intentionally takes a fully-resolved list of accounts so that
+ * callers control account resolution and no "selected account" placeholder is
+ * required.
+ *
+ * @param state - AssetsController state slice.
+ * @param accounts - Accounts whose balances should be aggregated.
+ * @param enabledNetworkMap - Optional map of enabled networks keyed by namespace.
+ * @param trace - Optional trace callback for telemetry spans.
+ * @returns Aggregated balance entries plus fiat totals when prices are present.
+ */
+function aggregateBalances(
   state: AssetsControllerState,
-  selectedInternalAccount: InternalAccount,
+  accounts: AccountLike[],
   enabledNetworkMap?: EnabledNetworkMap,
-  accountTreeState?: AccountTreeControllerState,
-  internalAccountsOrAccountIds?: InternalAccount[] | AccountId[],
-  accountsById?: AccountsById,
   trace?: TraceCallback,
 ): AggregatedBalanceForAccount {
   const startTime = trace ? performance.now() : 0;
@@ -418,12 +455,7 @@ export function getAggregatedBalanceForAccount(
       return false;
     })();
 
-  const accountsToAggregate = resolveAccountsToAggregate({
-    selectedInternalAccount,
-    accountTreeState,
-    internalAccountsOrAccountIds,
-    accountsById,
-  });
+  const accountsToAggregate = accounts;
 
   const assetInfoCache = makeAssetInfoCache();
   const merged = new Map<Caip19AssetId, AggRow>();
@@ -511,4 +543,46 @@ export function getAggregatedBalanceForAccount(
   }
 
   return { entries };
+}
+
+/**
+ * Aggregate balances for an explicit list of account ids.
+ *
+ * Prefer this over {@link getAggregatedBalanceForAccount} when the set of
+ * accounts to aggregate is already known (e.g. all accounts in a group), since
+ * it does not require a "selected account" and therefore avoids the brittle
+ * account-resolution heuristics.
+ *
+ * @param state - AssetsController state slice.
+ * @param accountIds - Account ids whose balances should be aggregated.
+ * @param enabledNetworkMap - Optional map of enabled networks keyed by namespace.
+ * @param trace - Optional trace callback for telemetry spans.
+ * @returns Aggregated balance entries plus fiat totals when prices are present.
+ */
+export function getAggregatedBalanceForAccountIds(
+  state: AssetsControllerState,
+  accountIds: AccountId[],
+  enabledNetworkMap?: EnabledNetworkMap,
+  trace?: TraceCallback,
+): AggregatedBalanceForAccount {
+  const accounts: AccountLike[] = accountIds.map((id) => ({ id }));
+  return aggregateBalances(state, accounts, enabledNetworkMap, trace);
+}
+
+export function getAggregatedBalanceForAccount(
+  state: AssetsControllerState,
+  selectedInternalAccount: InternalAccount,
+  enabledNetworkMap?: EnabledNetworkMap,
+  accountTreeState?: AccountTreeControllerState,
+  internalAccountsOrAccountIds?: InternalAccount[] | AccountId[],
+  accountsById?: AccountsById,
+  trace?: TraceCallback,
+): AggregatedBalanceForAccount {
+  const accountsToAggregate = resolveAccountsToAggregate({
+    selectedInternalAccount,
+    accountTreeState,
+    internalAccountsOrAccountIds,
+    accountsById,
+  });
+  return aggregateBalances(state, accountsToAggregate, enabledNetworkMap, trace);
 }

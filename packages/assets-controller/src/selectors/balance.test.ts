@@ -5,7 +5,9 @@ import type { AssetsControllerState } from '../AssetsController';
 import type { Caip19AssetId } from '../types';
 import type { AccountsById, EnabledNetworkMap } from './balance';
 import {
+  getAccountIdsForGroup,
   getAggregatedBalanceForAccount,
+  getAggregatedBalanceForAccountIds,
   getGroupIdForAccount,
   getInternalAccountsForGroup,
 } from './balance';
@@ -472,6 +474,109 @@ describe('balance selectors', () => {
       const result = getAggregatedBalanceForAccount(state, selectedAccount);
 
       expect(result.entries).toHaveLength(2);
+    });
+  });
+
+  describe('getAccountIdsForGroup', () => {
+    it('returns account ids for an existing group', () => {
+      expect(getAccountIdsForGroup(accountTreeState, groupId0)).toStrictEqual([
+        accountId1,
+        accountId2,
+      ]);
+      expect(getAccountIdsForGroup(accountTreeState, groupId1)).toStrictEqual([
+        accountId2,
+      ]);
+    });
+
+    it('returns a copy of the accounts array (not a reference)', () => {
+      const result = getAccountIdsForGroup(accountTreeState, groupId0);
+      result.push('mutated');
+      expect(getAccountIdsForGroup(accountTreeState, groupId0)).toStrictEqual([
+        accountId1,
+        accountId2,
+      ]);
+    });
+
+    it('returns empty array when group does not exist', () => {
+      expect(
+        getAccountIdsForGroup(accountTreeState, 'nonexistent-group'),
+      ).toStrictEqual([]);
+    });
+
+    it('returns empty array when wallets are missing', () => {
+      const emptyTree: AccountTreeControllerState = {
+        ...accountTreeState,
+        accountTree: { wallets: {} },
+        selectedAccountGroup: '',
+      };
+      expect(getAccountIdsForGroup(emptyTree, groupId0)).toStrictEqual([]);
+    });
+  });
+
+  describe('getAggregatedBalanceForAccountIds', () => {
+    const assetEth = 'eip155:1/slip44:60' as Caip19AssetId;
+
+    const state: AssetsControllerState = {
+      assetsBalance: {
+        [accountId1]: { [assetEth]: { amount: '1' } },
+        [accountId2]: { [assetEth]: { amount: '2' } },
+      },
+      assetsInfo: {
+        [assetEth]: {
+          type: 'native',
+          symbol: 'ETH',
+          name: 'Ethereum',
+          decimals: 18,
+        },
+      },
+      assetsPrice: {},
+      customAssets: {},
+      assetPreferences: {},
+    };
+
+    it('aggregates balances across the provided account ids', () => {
+      const result = getAggregatedBalanceForAccountIds(state, [
+        accountId1,
+        accountId2,
+      ]);
+
+      expect(result.entries).toHaveLength(1);
+      expect(result.entries[0].assetId).toBe(assetEth);
+      expect(result.entries[0].amount).toBe('3');
+    });
+
+    it('aggregates a single account id', () => {
+      const result = getAggregatedBalanceForAccountIds(state, [accountId1]);
+
+      expect(result.entries).toHaveLength(1);
+      expect(result.entries[0].amount).toBe('1');
+    });
+
+    it('returns empty entries for an empty account id list', () => {
+      const result = getAggregatedBalanceForAccountIds(state, []);
+
+      expect(result.entries).toStrictEqual([]);
+      expect(result.totalBalanceInFiat).toBeUndefined();
+    });
+
+    it('computes fiat totals when prices are present', () => {
+      const pricedState: AssetsControllerState = {
+        ...state,
+        assetsPrice: {
+          [assetEth]: {
+            price: 2000,
+            pricePercentChange1d: 5,
+          } as AssetsControllerState['assetsPrice'][Caip19AssetId],
+        },
+      };
+
+      const result = getAggregatedBalanceForAccountIds(pricedState, [
+        accountId1,
+        accountId2,
+      ]);
+
+      expect(result.totalBalanceInFiat).toBe(6000);
+      expect(result.pricePercentChange1d).toBeCloseTo(5, 10);
     });
   });
 });
