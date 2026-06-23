@@ -38,6 +38,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Add a 10-second fetch timeout to `TerminalMarketService` so a stalled Terminal API degrades to the provider promptly instead of blocking indefinitely ([#9224](https://github.com/MetaMask/core/pull/9224))
 - Only override the provider display name when Terminal supplies a non-null value, preventing symbol fallback from replacing good provider names ([#9224](https://github.com/MetaMask/core/pull/9224))
+- Fix `#syncWatchlistFromRemote` to use exchange-key presence instead of symbol count when deciding whether to hydrate from AUS, so an intentionally cleared remote watchlist is honored rather than overwritten by stale local favorites ([#9010](https://github.com/MetaMask/core/pull/9010))
 
 ## [8.2.0]
 
