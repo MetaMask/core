@@ -11,8 +11,7 @@ export function getIsRpcFailoverEnabled(
 export function getIsRpcFailoverForced(
   state: RemoteFeatureFlagControllerState,
 ): boolean {
-  const forceEnabled = state.remoteFeatureFlags[
-    'core-platform-rpc-failover-force-enabled'
-  ] as boolean | undefined;
-  return forceEnabled ?? false;
+  const corePlatformRpcFailoverForceEnabled = state.remoteFeatureFlags
+    .corePlatformRpcFailoverForceEnabled as boolean | undefined;
+  return corePlatformRpcFailoverForceEnabled ?? false;
 }

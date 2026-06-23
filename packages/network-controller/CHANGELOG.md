@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add forced RPC failover for Infura endpoints, driven by the `core-platform-rpc-failover-force-enabled` remote feature flag ([#9175](https://github.com/MetaMask/core/pull/9175))
+- Add forced RPC failover for Infura endpoints, driven by the `corePlatformRpcFailoverForceEnabled` remote feature flag ([#9175](https://github.com/MetaMask/core/pull/9175))
   - When enabled, Infura endpoints configured with failover URLs route all traffic to those failover URLs, bypassing Infura entirely. Infura endpoints without failover URLs continue to use Infura, and custom RPC endpoints are unaffected.
   - Adds the `NetworkController.enableRpcFailoverForced` and `NetworkController.disableRpcFailoverForced` methods, along with the `NetworkControllerEnableRpcFailoverForcedAction` and `NetworkControllerDisableRpcFailoverForcedAction` messenger actions.
 
