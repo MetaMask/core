@@ -1014,9 +1014,8 @@ export function getHyperliquidActivationFeeConfig(
   transactionType?: string,
 ): HyperliquidActivationFeeConfig {
   const state = messenger.call('RemoteFeatureFlagController:getState');
-  const featureFlags = state.remoteFeatureFlags?.confirmations_pay_post_quote as
-    | PostQuoteFeatureFlags
-    | undefined;
+  const featureFlags = state.remoteFeatureFlags
+    ?.confirmations_pay_post_quote as PostQuoteFeatureFlags | undefined;
 
   const override = transactionType
     ? featureFlags?.overrides?.[transactionType]

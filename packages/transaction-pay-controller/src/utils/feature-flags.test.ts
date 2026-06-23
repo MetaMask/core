@@ -1940,7 +1940,8 @@ describe('Feature Flags Utils', () => {
       });
 
       expect(
-        getHyperliquidActivationFeeConfig(messenger, TRANSACTION_TYPE).amountUsd,
+        getHyperliquidActivationFeeConfig(messenger, TRANSACTION_TYPE)
+          .amountUsd,
       ).toBe(DEFAULT_HYPERLIQUID_ACTIVATION_FEE_USD);
     });
   });

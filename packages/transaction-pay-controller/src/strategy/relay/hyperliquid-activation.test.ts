@@ -44,7 +44,11 @@ const HYPERLIQUID_SOURCE_REQUEST_MOCK: QuoteRequest = {
  */
 function inboundSend(): HyperLiquidLedgerUpdate {
   return {
-    delta: { type: 'send', user: OTHER_ADDRESS_MOCK, destination: ADDRESS_MOCK },
+    delta: {
+      type: 'send',
+      user: OTHER_ADDRESS_MOCK,
+      destination: ADDRESS_MOCK,
+    },
   };
 }
 
@@ -55,7 +59,11 @@ function inboundSend(): HyperLiquidLedgerUpdate {
  */
 function outboundSend(): HyperLiquidLedgerUpdate {
   return {
-    delta: { type: 'send', user: ADDRESS_MOCK, destination: OTHER_ADDRESS_MOCK },
+    delta: {
+      type: 'send',
+      user: ADDRESS_MOCK,
+      destination: OTHER_ADDRESS_MOCK,
+    },
   };
 }
 
@@ -104,9 +112,9 @@ describe('HyperLiquid Activation', () => {
     });
 
     it('returns true for an outbound send', () => {
-      expect(isHyperLiquidAccountActivated([outboundSend()], ADDRESS_MOCK)).toBe(
-        true,
-      );
+      expect(
+        isHyperLiquidAccountActivated([outboundSend()], ADDRESS_MOCK),
+      ).toBe(true);
     });
 
     it('returns true for an outbound spotTransfer', () => {
@@ -160,7 +168,10 @@ describe('HyperLiquid Activation', () => {
         isHyperliquidSource: false,
       };
 
-      const result = await applyHyperliquidActivationFee(request, MESSENGER_MOCK);
+      const result = await applyHyperliquidActivationFee(
+        request,
+        MESSENGER_MOCK,
+      );
 
       expect(result).toStrictEqual(request);
       expect(fetchMock).not.toHaveBeenCalled();
@@ -250,7 +261,10 @@ describe('HyperLiquid Activation', () => {
         sourceTokenAmount: '100000000',
       };
 
-      const result = await applyHyperliquidActivationFee(request, MESSENGER_MOCK);
+      const result = await applyHyperliquidActivationFee(
+        request,
+        MESSENGER_MOCK,
+      );
 
       expect(result).toStrictEqual(request);
     });
