@@ -1,4 +1,8 @@
-import { getTransactionMetaById, hasNestedSwapTransactions, isCrossChainTx } from '../utils/transaction';
+import {
+  getTransactionMetaById,
+  hasNestedSwapTransactions,
+  isCrossChainTx,
+} from '../utils/transaction';
 import { BridgeClientId, BridgeStatusControllerMessenger } from '../types';
 import {
   QuoteStatusState,
@@ -26,7 +30,7 @@ import { TransactionStatus } from '@metamask/transaction-controller';
  * store is empty.
  */
 export class QuoteStatusUpdateManager {
-  readonly #messenger: BridgeStatusControllerMessenger
+  readonly #messenger: BridgeStatusControllerMessenger;
 
   readonly #quoteStatusApiService: QuoteStatusApiService;
 
@@ -98,7 +102,7 @@ export class QuoteStatusUpdateManager {
     this.#isEnabled = isEnabled;
     this.#onError = onError;
     this.#updateIntervalMs = updateIntervalMs;
-    this.#messenger = messenger
+    this.#messenger = messenger;
 
     this.#quoteStatusApiService = new QuoteStatusApiService({
       messenger,
@@ -232,12 +236,15 @@ export class QuoteStatusUpdateManager {
    * `rejected` is ignored because the transaction was never broadcast.
    */
   init(): void {
-    this.#processInitial()
+    this.#processInitial();
 
     for (const entry of this.#quoteStatusEntryStore.values()) {
       // Only entries still awaiting finalization need catching up. Entries
       // already in a finalized state are re-sent by `processInitial()`.
-      if (entry.status.state !== QuoteStatusState.Submitted || !entry.txMetaId) {
+      if (
+        entry.status.state !== QuoteStatusState.Submitted ||
+        !entry.txMetaId
+      ) {
         continue;
       }
 
@@ -265,7 +272,7 @@ export class QuoteStatusUpdateManager {
         this.reportFinalised(entry.txMetaId, false);
       }
     }
-  };
+  }
 
   /**
    * Processes every entry rehydrated from persisted data on startup and starts
@@ -572,7 +579,10 @@ export class QuoteStatusUpdateManager {
         response.currentStatus ===
           QuoteStatusUpdateBackendStatus.FinalizedFailed)
     ) {
-      this.#markCompleted(entry, backendFinalizedToState[response.currentStatus]);
+      this.#markCompleted(
+        entry,
+        backendFinalizedToState[response.currentStatus],
+      );
       return;
     }
 
@@ -628,10 +638,13 @@ export class QuoteStatusUpdateManager {
     // progress on this entry, so abandon it rather than leaving it stuck.
     this.#markExpired(entry);
     this.#onError?.(
-      new QuoteStatusUpdateError(`abandoning entry due to non-retryable error`, {
-        quoteId: entry.quoteId,
-        errorType: response?.type,
-      }),
+      new QuoteStatusUpdateError(
+        `abandoning entry due to non-retryable error`,
+        {
+          quoteId: entry.quoteId,
+          errorType: response?.type,
+        },
+      ),
     );
   }
 }
