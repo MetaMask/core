@@ -16,6 +16,7 @@ import type {
   KeyringCapabilities,
 } from '@metamask/keyring-api';
 import type { EntropySourceId, KeyringAccount } from '@metamask/keyring-api';
+import type { KeyringMetadata } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type { JsonRpcRequest, SnapId } from '@metamask/snaps-sdk';
 import deepmerge from 'deepmerge';
@@ -153,10 +154,12 @@ const setup = ({
   config: configOverride = {},
   messenger = getRootMessenger(),
   accounts = [],
+  keyring: keyringOverrides = {},
 }: {
   config?: DeepPartial<SnapAccountProviderConfig>;
   messenger?: RootMessenger;
   accounts?: InternalAccount[];
+  keyring?: { type?: string; snapId?: SnapId };
 } = {}) => {
   const mocks = {
     AccountsController: {
@@ -164,6 +167,9 @@ const setup = ({
     },
     ErrorReportingService: {
       captureException: jest.fn(),
+    },
+    KeyringController: {
+      withKeyringV2: jest.fn(),
     },
     SnapController: {
       handleKeyringRequest: {
@@ -223,18 +229,30 @@ const setup = ({
   );
 
   const keyring = {
+    type: keyringOverrides.type ?? 'snap',
+    snapId: keyringOverrides.snapId ?? TEST_SNAP_ID,
     createAccount: jest.fn(),
     createAccounts: jest.fn(),
-    removeAccount: jest.fn(),
-  };
-
-  messenger.registerActionHandler(
-    'KeyringController:withKeyring',
-    jest
+    deleteAccount: jest.fn().mockResolvedValue(undefined),
+    lookupByAddress: jest
       .fn()
-      .mockImplementation(
-        async (_ /* selector */, operation) => await operation({ keyring }),
+      .mockImplementation((address: string) =>
+        accounts.map(asKeyringAccount).find((a) => a.address === address),
       ),
+  };
+  const metadata = { id: 'mock-keyring-id', name: '' } as KeyringMetadata;
+
+  mocks.KeyringController.withKeyringV2.mockImplementation(
+    async (selector, operation) => {
+      if (selector.filter && !selector.filter(keyring, metadata)) {
+        throw new Error('No keyring matches the selector');
+      }
+      return await operation({ keyring, metadata });
+    },
+  );
+  messenger.registerActionHandler(
+    'KeyringController:withKeyringV2',
+    mocks.KeyringController.withKeyringV2,
   );
 
   const serviceMessenger = getMultichainAccountServiceMessenger(messenger);
@@ -865,10 +883,8 @@ describe('SnapAccountProvider', () => {
         mocks.SnapController.handleKeyringRequest.deleteAccount,
       ).toHaveBeenCalledWith(extraSnapAccount2.id);
 
-      // Should remove from keyring and recreate the missing account
-      expect(keyring.removeAccount).toHaveBeenCalledWith(
-        mockAccounts[1].address,
-      );
+      // Should delete the missing account from the keyring (by id) before recreating it.
+      expect(keyring.deleteAccount).toHaveBeenCalledWith(mockAccounts[1].id);
       expect(createAccountsSpy).toHaveBeenCalledWith({
         entropySource: mockAccounts[1].options.entropy.id,
         groupIndex: mockAccounts[1].options.entropy.groupIndex,
@@ -949,6 +965,37 @@ describe('SnapAccountProvider', () => {
     });
   });
 
+  describe('withKeyringV2 selector', () => {
+    const mockAccounts = [
+      MockAccountBuilder.from(MOCK_HD_ACCOUNT_1)
+        .withUuid()
+        .withSnapId(TEST_SNAP_ID)
+        .get(),
+    ].filter(isBip44Account);
+
+    it('rejects when the keyring type is not a Snap keyring', async () => {
+      const { provider } = setup({
+        accounts: mockAccounts,
+        keyring: { type: 'not-a-snap-keyring' },
+      });
+
+      await expect(provider.resyncAccounts(mockAccounts)).rejects.toThrow(
+        'No keyring matches the selector',
+      );
+    });
+
+    it('rejects when the Snap keyring is for a different Snap ID', async () => {
+      const { provider } = setup({
+        accounts: mockAccounts,
+        keyring: { snapId: 'npm:@metamask/other-snap' as SnapId },
+      });
+
+      await expect(provider.resyncAccounts(mockAccounts)).rejects.toThrow(
+        'No keyring matches the selector',
+      );
+    });
+  });
+
   describe('ensureReady', () => {
     it('delegates Snap platform readiness check to SnapAccountService:ensureReady', async () => {
       const { provider, mocks } = setup();
@@ -960,7 +1007,7 @@ describe('SnapAccountProvider', () => {
   });
 
   describe('deleteAccount', () => {
-    it('forwards to SnapKeyring.removeAccount(address) using the tracked account address', async () => {
+    it('forwards to SnapKeyring.deleteAccount(id) using the tracked account id', async () => {
       const account = MOCK_HD_ACCOUNT_1;
       const { provider, keyring, messenger } = setup({ accounts: [account] });
       messenger.registerActionHandler('AccountsController:getAccount', (id) =>
@@ -970,7 +1017,7 @@ describe('SnapAccountProvider', () => {
 
       await provider.deleteAccount(account.id);
 
-      expect(keyring.removeAccount).toHaveBeenCalledWith(account.address);
+      expect(keyring.deleteAccount).toHaveBeenCalledWith(account.id);
       // The provider should no longer track the deleted account.
       expect(() => provider.getAccount(account.id)).toThrow(
         `Unable to find account: ${account.id}`,

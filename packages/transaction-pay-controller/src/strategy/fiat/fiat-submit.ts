@@ -1,7 +1,4 @@
-import type {
-  RampsOrder,
-  RampsOrderCryptoCurrency,
-} from '@metamask/ramps-controller';
+import type { RampsOrder } from '@metamask/ramps-controller';
 import { RampsOrderStatus } from '@metamask/ramps-controller';
 import type { Hex } from '@metamask/utils';
 import { createModuleLogger } from '@metamask/utils';
@@ -13,17 +10,15 @@ import type {
   TransactionPayFiatOptions,
   TransactionPayControllerMessenger,
 } from '../../types';
+import { prefixError } from '../../utils/error-prefix';
 import {
   getFiatOrderPollIntervalMs,
   getFiatOrderPollTimeoutMs,
 } from '../../utils/feature-flags';
-import { buildCaipAssetType } from '../../utils/token';
 import { updateTransaction } from '../../utils/transaction';
-import type { TransactionPayFiatAsset } from './constants';
-import { MUSD_MONAD_FIAT_ASSET } from './constants';
 import {
   isDirectMusdMoneyAccountQuote,
-  submitDirectMusdVaultDeposit,
+  submitDirectMusdAfterFiatCompletion,
 } from './fiat-direct-musd';
 import { submitSimpleRelay } from './fiat-submit-simple';
 import { submitWithTransactionData } from './fiat-submit-with-transaction-data';
@@ -33,9 +28,11 @@ import {
   deriveFiatAssetForFiatPayment,
   extractProviderCode,
   resolveSourceAmountRaw,
+  validateOrderAsset,
 } from './utils';
 
 const log = createModuleLogger(projectLogger, 'fiat-submit');
+const POST_RAMP_ERROR_PREFIX = 'Post-Ramp: ';
 
 const TERMINAL_FAILURE_STATUSES: RampsOrderStatus[] = [
   RampsOrderStatus.Cancelled,
@@ -72,13 +69,13 @@ export async function submitFiatQuotes(
   const orderId = fiatPayment?.orderId;
 
   if (!orderId) {
-    throw new Error('Missing order ID for fiat submission');
+    throw new Error('Missing order ID');
   }
 
   const providerCode = extractProviderCode(fiatPayment?.rampsQuote?.provider);
 
   if (!providerCode) {
-    throw new Error('Missing provider code for fiat submission');
+    throw new Error('Missing provider code');
   }
 
   updateTransaction(
@@ -102,7 +99,7 @@ export async function submitFiatQuotes(
   const fiatQuote = request.quotes[0];
 
   if (!fiatQuote) {
-    throw new Error('Missing fiat quote for relay submission');
+    throw new Error('Missing quote');
   }
 
   const fiatOptions = getFiatOptions(messenger);
@@ -128,7 +125,17 @@ export async function submitFiatQuotes(
     transactionId,
   });
 
-  return await submitRelayAfterFiatCompletion({ order, request });
+  try {
+    const result = await submitRelayAfterFiatCompletion({ order, request });
+
+    if (result.transactionHash === undefined) {
+      throw new Error('Missing transaction hash');
+    }
+
+    return result;
+  } catch (error) {
+    throw prefixError(error, POST_RAMP_ERROR_PREFIX);
+  }
 }
 
 function getFiatOptions(
@@ -139,46 +146,6 @@ function getFiatOptions(
   } catch (error) {
     log('Failed to retrieve fiat options', error);
     return undefined;
-  }
-}
-
-/**
- * Validates that the completed order's crypto asset matches the expected fiat asset.
- *
- * @param options - The validation options.
- * @param options.expectedAsset - The expected fiat asset derived from the transaction type.
- * @param options.orderCrypto - The crypto currency information from the completed order.
- * @param options.transactionId - Transaction ID for error reporting.
- */
-function validateOrderAsset({
-  expectedAsset,
-  orderCrypto,
-  transactionId,
-}: {
-  expectedAsset: TransactionPayFiatAsset;
-  orderCrypto: RampsOrderCryptoCurrency | undefined;
-  transactionId: string;
-}): void {
-  const orderAssetId = orderCrypto?.assetId?.toLowerCase();
-  const expectedAssetId = buildCaipAssetType(
-    expectedAsset.chainId,
-    expectedAsset.address,
-  ).toLowerCase();
-  const expectedChainId = expectedAssetId.split('/')[0];
-  const orderChainId = orderCrypto?.chainId?.toLowerCase();
-
-  if (orderAssetId && orderAssetId !== expectedAssetId) {
-    throw new Error(
-      `Fiat order asset mismatch for transaction ${transactionId}: ` +
-        `expected ${expectedAssetId}, got ${orderAssetId}`,
-    );
-  }
-
-  if (orderChainId && orderChainId !== expectedChainId) {
-    throw new Error(
-      `Fiat order chain mismatch for transaction ${transactionId}: ` +
-        `expected ${expectedChainId}, got ${orderChainId}`,
-    );
   }
 }
 
@@ -279,24 +246,7 @@ async function submitRelayAfterFiatCompletion({
   const isDirectMusd = isDirectMusdMoneyAccountQuote(fiatQuote);
 
   if (isDirectMusd) {
-    validateOrderAsset({
-      expectedAsset: MUSD_MONAD_FIAT_ASSET,
-      orderCrypto: order.cryptoCurrency,
-      transactionId,
-    });
-
-    const sourceAmountRaw = await resolveSourceAmountRaw({
-      messenger,
-      order,
-      fiatAsset: MUSD_MONAD_FIAT_ASSET,
-      walletAddress: transaction.txParams.from as Hex,
-    });
-
-    return await submitDirectMusdVaultDeposit({
-      request,
-      sourceAmountRaw,
-      transaction,
-    });
+    return await submitDirectMusdAfterFiatCompletion({ order, request });
   }
 
   const fiatAsset = deriveFiatAssetForFiatPayment(transaction, messenger);
@@ -317,7 +267,7 @@ async function submitRelayAfterFiatCompletion({
   });
 
   if (!fiatQuote.original.relayQuote) {
-    throw new Error('Missing Relay quote for fiat submission');
+    throw new Error('Missing Relay quote');
   }
 
   const hasNestedCalldata = (transaction.nestedTransactions?.length ?? 0) >= 2;
@@ -358,7 +308,7 @@ function getWalletAddress({
     : (accountOverride ?? transaction.txParams.from);
 
   if (!address) {
-    throw new Error('Missing wallet address for fiat submission');
+    throw new Error('Missing wallet address');
   }
 
   return address as Hex;

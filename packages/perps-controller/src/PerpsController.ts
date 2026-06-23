@@ -38,6 +38,7 @@ import { FeatureFlagConfigurationService } from './services/FeatureFlagConfigura
 import { MarketDataService } from './services/MarketDataService';
 import { RewardsIntegrationService } from './services/RewardsIntegrationService';
 import type { ServiceContext } from './services/ServiceContext';
+import { TerminalMarketService } from './services/TerminalMarketService';
 import { TradingService } from './services/TradingService';
 // PerpsStreamChannelKey removed: using string for channel keys (PerpsStreamManager.pauseChannel takes string)
 import {
@@ -126,6 +127,9 @@ import {
 } from './types/transactionTypes';
 import { getSelectedEvmAccountFromMessenger } from './utils/accountUtils';
 import { ensureError } from './utils/errorUtils';
+import { parseAssetName } from './utils/hyperLiquidAdapter';
+import { compileMarketPattern, shouldIncludeMarket } from './utils/marketUtils';
+import type { CompiledMarketPattern } from './utils/marketUtils';
 import {
   hydrateFromDiskSync,
   persistMarketEntriesToDisk,
@@ -832,6 +836,11 @@ export class PerpsController extends BaseController<
 
   #hip3ConfigSource: 'remote' | 'fallback' = 'fallback';
 
+  // Optional client override for the max market-vs-oracle price deviation before a
+  // market is reported untradable (PriceUpdate.isTradable). Protocol-agnostic: passed
+  // through to each provider, which applies its own default when this is undefined.
+  readonly #priceDeviationLimit?: number;
+
   /**
    * Check if MYX provider is enabled via feature flag
    * Uses same pattern as other feature flags in FeatureFlagConfigurationService
@@ -950,7 +959,14 @@ export class PerpsController extends BaseController<
     // Instantiate services with platform dependencies
     // Services that need cross-controller access receive the messenger
     this.#tradingService = new TradingService(infrastructure);
-    this.#marketDataService = new MarketDataService(infrastructure);
+    this.#marketDataService = new MarketDataService({
+      ...infrastructure,
+      terminalMarketService:
+        infrastructure.terminalMarketService ??
+        (infrastructure.terminalApiUrl
+          ? new TerminalMarketService(infrastructure)
+          : undefined),
+    });
     this.#accountService = new AccountService(infrastructure, messenger);
     this.#eligibilityService = new EligibilityService(infrastructure);
     this.#dataLakeService = new DataLakeService(infrastructure, messenger);
@@ -971,6 +987,7 @@ export class PerpsController extends BaseController<
     this.#hip3BlocklistMarkets = [
       ...(clientConfig.fallbackHip3BlocklistMarkets ?? []),
     ];
+    this.#priceDeviationLimit = clientConfig.fallbackPriceDeviationLimit;
 
     // Immediately set the fallback region list since RemoteFeatureFlagController is empty by default and takes a moment to populate.
     this.setBlockedRegionList(
@@ -1277,6 +1294,7 @@ export class PerpsController extends BaseController<
       hip3Enabled: this.#hip3Enabled,
       allowlistMarkets: this.#hip3AllowlistMarkets,
       blocklistMarkets: this.#hip3BlocklistMarkets,
+      priceDeviationLimit: this.#priceDeviationLimit,
       platformDependencies: this.#options.infrastructure,
       messenger: this.messenger,
       builderAddressTestnet:
@@ -1718,6 +1736,7 @@ export class PerpsController extends BaseController<
       hip3Enabled: this.#hip3Enabled,
       allowlistMarkets: this.#hip3AllowlistMarkets,
       blocklistMarkets: this.#hip3BlocklistMarkets,
+      priceDeviationLimit: this.#priceDeviationLimit,
       platformDependencies: this.#options.infrastructure,
       messenger: this.messenger,
       builderAddressTestnet:
@@ -1903,6 +1922,50 @@ export class PerpsController extends BaseController<
    */
   #getControllerState(): PerpsControllerState {
     return this.state as unknown as PerpsControllerState;
+  }
+
+  /**
+   * Build a filter function that mirrors the provider's allowlist/blocklist
+   * logic so that Terminal API results are filtered identically.
+   *
+   * @returns Filter predicate accepting a market symbol.
+   */
+  #buildMarketAllowedFilter(): (symbol: string) => boolean {
+    const hip3Enabled = this.#hip3Enabled;
+    const compiledAllowlist = this.#compilePatternsSafely(
+      this.#hip3AllowlistMarkets,
+    );
+    const compiledBlocklist = this.#compilePatternsSafely(
+      this.#hip3BlocklistMarkets,
+    );
+    return (symbol: string) => {
+      const { dex } = parseAssetName(symbol);
+      return shouldIncludeMarket(
+        symbol,
+        dex,
+        hip3Enabled,
+        compiledAllowlist,
+        compiledBlocklist,
+      );
+    };
+  }
+
+  /**
+   * Compile market patterns safely, skipping any that fail validation.
+   *
+   * @param patterns - Raw pattern strings from config.
+   * @returns Compiled patterns (invalid entries silently skipped).
+   */
+  #compilePatternsSafely(patterns: string[]): CompiledMarketPattern[] {
+    const compiled: CompiledMarketPattern[] = [];
+    for (const pattern of patterns) {
+      try {
+        compiled.push({ pattern, matcher: compileMarketPattern(pattern) });
+      } catch {
+        // Invalid patterns silently skipped — logged at provider level.
+      }
+    }
+    return compiled;
   }
 
   /**
@@ -2917,14 +2980,16 @@ export class PerpsController extends BaseController<
    * @returns Array of available markets matching the filter criteria.
    */
   async getMarkets(params?: GetMarketsParams): Promise<MarketInfo[]> {
-    // For standalone mode, access provider directly without initialization check
-    // This allows discovery use cases (checking if market exists) without full perps setup
+    const isMarketAllowed = this.#buildMarketAllowedFilter();
     if (params?.standalone) {
-      // Use activeProviderInstance if available (respects provider abstraction)
-      // Fallback to cached standalone provider for pre-initialization discovery
       const provider =
         this.activeProviderInstance ?? this.#getOrCreateStandaloneProvider();
-      return provider.getMarkets(params);
+      return this.#marketDataService.getMarkets({
+        provider,
+        params,
+        context: this.#createServiceContext('getMarkets'),
+        isMarketAllowed,
+      });
     }
 
     const provider = this.getActiveProvider();
@@ -2932,6 +2997,7 @@ export class PerpsController extends BaseController<
       provider,
       params,
       context: this.#createServiceContext('getMarkets'),
+      isMarketAllowed,
     });
   }
 
@@ -2954,8 +3020,6 @@ export class PerpsController extends BaseController<
     params?: GetMarketDataWithPricesParams,
   ): Promise<PerpsMarketData[]> {
     if (params?.standalone) {
-      // Use activeProviderInstance if available (respects provider abstraction)
-      // Fallback to cached standalone provider for pre-initialization discovery
       const provider =
         this.activeProviderInstance ?? this.#getOrCreateStandaloneProvider();
       return this.#marketDataService.getMarketDataWithPrices({

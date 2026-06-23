@@ -55,9 +55,9 @@
   "dependencies": {
     "@metamask/address-book-controller": "^7.1.2",
     "@metamask/base-controller": "^9.1.0",
-    "@metamask/controller-utils": "^12.2.0",
+    "@metamask/controller-utils": "^12.3.0",
     "@metamask/messenger": "^1.2.0",
-    "@metamask/transaction-controller": "^68.0.1",
+    "@metamask/transaction-controller": "^68.1.1",
     "@noble/hashes": "^1.8.0",
     "@types/punycode": "^2.1.0",
     "ethereum-cryptography": "^2.1.2",
