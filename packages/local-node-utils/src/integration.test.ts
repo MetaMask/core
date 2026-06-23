@@ -1,21 +1,27 @@
+import nock, { cleanAll } from 'nock';
 /* eslint-disable jest/expect-expect, n/no-sync */
 import assert from 'node:assert/strict';
-import { chmodSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import {
+  chmodSync,
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-
-import nock from 'nock';
 
 import { extractTarBz2Archive, extractTarGzArchive } from './archive';
 import { cleanInstallerCache } from './cache';
 import { getMetamaskCacheDirectory } from './cache-directory';
+import { verifyFileChecksum } from './checksum';
 import { runCommand } from './command';
 import { downloadFileFromUrl, openDownloadStream } from './download';
 import { isFileMissingError } from './errors';
 import { installExecutableWrapper } from './executable-wrapper';
-import { getPlatformKey, normalizeSystemArchitecture } from './platform';
-import { verifyFileChecksum } from './checksum';
 import { findExecutable, isDirectory, isFile } from './filesystem';
+import { getPlatformKey, normalizeSystemArchitecture } from './platform';
 
 jest.mock('./command', () => ({
   runCommand: jest.fn(),
@@ -64,13 +70,13 @@ describe('cache', () => {
       namespace: 'java-tron-up',
     });
 
-    assert.equal(require('node:fs').existsSync(namespaceDir), false);
+    assert.equal(existsSync(namespaceDir), false);
   });
 });
 
 describe('download', () => {
   afterEach(() => {
-    nock.cleanAll();
+    cleanAll();
   });
 
   it('downloads a file from a URL', async () => {
@@ -79,10 +85,7 @@ describe('download', () => {
 
     nock('https://example.com').get('/artifact.bin').reply(200, 'artifact');
 
-    await downloadFileFromUrl(
-      'https://example.com/artifact.bin',
-      destination,
-    );
+    await downloadFileFromUrl('https://example.com/artifact.bin', destination);
 
     assert.equal(readFileSync(destination, 'utf8'), 'artifact');
   });
@@ -112,7 +115,7 @@ describe('download', () => {
         'https://example.com/missing.bin',
         join(tmpdir(), 'missing.bin'),
       ),
-      /failed with 500/,
+      /failed with 500/u,
     );
   });
 
@@ -124,7 +127,7 @@ describe('download', () => {
 
     await assert.rejects(
       openDownloadStream(new URL('https://example.com/loop')),
-      /Too many redirects/,
+      /Too many redirects/u,
     );
   });
 });
@@ -132,7 +135,9 @@ describe('download', () => {
 describe('cache directory warnings', () => {
   it('falls back to the local cache when .yarnrc.yml is invalid', () => {
     const cwd = mkdtempSync(join(tmpdir(), 'local-node-utils-'));
-    const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => undefined);
+    const warnSpy = jest
+      .spyOn(console, 'warn')
+      .mockImplementation(() => undefined);
     writeFileSync(join(cwd, '.yarnrc.yml'), 'not: [valid');
 
     assert.equal(
@@ -141,7 +146,7 @@ describe('cache directory warnings', () => {
     );
     assert.match(
       String(warnSpy.mock.calls[0]?.[0]),
-      /using local java-tron-up cache/,
+      /using local java-tron-up cache/u,
     );
 
     warnSpy.mockRestore();
@@ -157,7 +162,7 @@ describe('errors', () => {
 
 describe('platform', () => {
   it('returns a platform key', () => {
-    assert.match(getPlatformKey(), /^(darwin|linux|win32)-/);
+    assert.match(getPlatformKey(), /^(darwin|linux|win32)-/u);
   });
 
   it('normalizes the current architecture', () => {
@@ -185,7 +190,7 @@ describe('checksum', () => {
 
     await assert.rejects(
       verifyFileChecksum(filePath, 'deadbeef', 'test artifact'),
-      /test artifact checksum mismatch/,
+      /test artifact checksum mismatch/u,
     );
   });
 });
@@ -231,7 +236,7 @@ describe('executable wrapper', () => {
       pathResolution: 'absolute',
     });
 
-    assert.match(readFileSync(relativeWrapper, 'utf8'), /path\.resolve/);
-    assert.match(readFileSync(absoluteWrapper, 'utf8'), /--flag/);
+    assert.match(readFileSync(relativeWrapper, 'utf8'), /path\.resolve/u);
+    assert.match(readFileSync(absoluteWrapper, 'utf8'), /--flag/u);
   });
 });

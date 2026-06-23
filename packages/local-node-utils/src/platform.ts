@@ -6,9 +6,7 @@ export function getPlatformKey(): string {
   return `${osPlatform()}-${normalizeSystemArchitecture()}`;
 }
 
-export function normalizeSystemArchitecture(
-  architecture = osArch(),
-): string {
+export function normalizeSystemArchitecture(architecture = osArch()): string {
   if (architecture === 'x64' && osPlatform() === 'darwin') {
     const result = spawnSync('sysctl', ['-n', 'sysctl.proc_translated'], {
       encoding: 'utf8',

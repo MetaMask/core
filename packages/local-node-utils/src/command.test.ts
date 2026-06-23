@@ -11,7 +11,7 @@ describe('runCommand', () => {
   it('rejects when a command fails', async () => {
     await assert.rejects(
       runCommand(process.execPath, ['-e', 'process.exit(2)']),
-      /failed with code 2/,
+      /failed with code 2/u,
     );
   });
 });

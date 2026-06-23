@@ -1,4 +1,4 @@
-/* eslint-disable n/no-sync */
+/* eslint-disable jest/expect-expect, n/no-sync */
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { mkdtempSync, writeFileSync } from 'node:fs';
@@ -75,7 +75,7 @@ describe('artifact helpers', () => {
   it('throws when platform config is missing', () => {
     assert.throws(
       () => resolvePlatformConfig(defaults, 'darwin-arm64', 'test artifact'),
-      /No test artifact is configured for darwin-arm64/,
+      /No test artifact is configured for darwin-arm64/u,
     );
   });
 
@@ -98,8 +98,9 @@ describe('artifact helpers', () => {
       },
     );
     assert.throws(
-      () => requireCompletePlatformConfig({ url: 'https://example.com' }, 'CLI'),
-      /CLI require both a URL and a checksum/,
+      () =>
+        requireCompletePlatformConfig({ url: 'https://example.com' }, 'CLI'),
+      /CLI require both a URL and a checksum/u,
     );
   });
 
@@ -158,7 +159,7 @@ describe('cli helpers', () => {
   it('throws when a CLI value is missing', () => {
     assert.throws(
       () => readCliValue('--platform', undefined),
-      /--platform requires a value/,
+      /--platform requires a value/u,
     );
   });
 });
@@ -211,7 +212,7 @@ describe('package.json helpers', () => {
           cwd,
           configKeys: ['java-tron-up'],
         }),
-      /SyntaxError/,
+      /SyntaxError/u,
     );
   });
 
