@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- fix(perps-controller): add fetch timeout and prevent name downgrade in Terminal API integration ([#9224](https://github.com/MetaMask/core/pull/9224))
+- Release 1057.0.0 ([#9203](https://github.com/MetaMask/core/pull/9203))
+
 ### Added
 
 - Add Terminal API integration for market data, controlled via `useTerminalApi` parameter on `GetMarketsParams` / `GetMarketDataWithPricesParams` ([#9137](https://github.com/MetaMask/core/pull/9137))
