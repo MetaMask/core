@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **BREAKING:** Add `NetworkController` initialization ([#9001](https://github.com/MetaMask/core/pull/9001))
   - Passing `instanceOptions.networkController.infuraProjectId` is now required.
+- Add the `Wallet.init` function which calls `init` on required instances ([#9001](https://github.com/MetaMask/core/pull/9001))
 
 ### Changed
 
