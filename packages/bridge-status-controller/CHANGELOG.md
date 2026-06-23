@@ -12,7 +12,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **BREAKING:** Add required `quoteId: string` and `reportedSubmittedTxHash: string` to `BridgeHistoryItem` ([#8462](https://github.com/MetaMask/core/pull/8462))
 - Add `QuoteStatusUpdateManager` for resilient quote-status reporting to the Bridge API; reports `SUBMITTED`/`FINALIZED_SUCCESS`/`FINALIZED_FAILURE`, retries immediately on retryable errors, defers on network failures, and persists the queue to `quoteUpdateStatusStore` state across service-worker restarts ([#8462](https://github.com/MetaMask/core/pull/8462))
 
-
 ### Changed
 
 - Bump `@metamask/accounts-controller` from `^39.0.2` to `^39.0.3` ([#9231](https://github.com/MetaMask/core/pull/9231))
