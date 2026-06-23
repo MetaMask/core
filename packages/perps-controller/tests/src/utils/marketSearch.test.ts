@@ -6,14 +6,19 @@ import {
 } from '../../../src/utils/marketSearch';
 
 /**
- * Build a minimal market fixture. Only `symbol` and `name` drive search; the
- * remaining fields satisfy the PerpsMarketData type.
+ * Build a minimal market fixture. Only `symbol`, `name`, and optional
+ * `keywords` drive search; the remaining fields satisfy the PerpsMarketData type.
  *
  * @param symbol - Ticker symbol (bare for crypto, `dex:SYMBOL` for HIP-3).
  * @param name - Human-readable name.
+ * @param keywords - Optional keyword array from Terminal API metadata.
  * @returns A PerpsMarketData fixture.
  */
-function makeMarket(symbol: string, name: string): PerpsMarketData {
+function makeMarket(
+  symbol: string,
+  name: string,
+  keywords?: string[],
+): PerpsMarketData {
   return {
     symbol,
     name,
@@ -22,6 +27,7 @@ function makeMarket(symbol: string, name: string): PerpsMarketData {
     change24h: '$0.00',
     change24hPercent: '0.00%',
     volume: '$0',
+    ...(keywords !== undefined && { keywords }),
   };
 }
 
@@ -121,5 +127,52 @@ describe('rankMarketsByQuery', () => {
     expect(
       rankMarketsByQuery(markets, 'gold').map((market) => market.symbol),
     ).toStrictEqual(['xyz:GOLD']);
+  });
+});
+
+describe('keyword matching (Terminal API metadata)', () => {
+  it('matches against keywords for exact, prefix, and substring', () => {
+    const market = makeMarket('BTC', 'Bitcoin', ['layer-1', 'pow', 'defi']);
+
+    expect(getMarketMatchRank(market, 'defi')).toBe(MarketMatchRank.Exact);
+    expect(getMarketMatchRank(market, 'layer')).toBe(MarketMatchRank.Prefix);
+    expect(getMarketMatchRank(market, 'ayer')).toBe(MarketMatchRank.Substring);
+  });
+
+  it('keyword match does not override a better symbol or name match', () => {
+    const market = makeMarket('BTC', 'Bitcoin', ['crypto']);
+    expect(getMarketMatchRank(market, 'btc')).toBe(MarketMatchRank.Exact);
+  });
+
+  it('returns keyword rank when symbol and name do not match', () => {
+    const market = makeMarket('BTC', 'Bitcoin', ['digital-gold']);
+    expect(getMarketMatchRank(market, 'digital-gold')).toBe(
+      MarketMatchRank.Exact,
+    );
+  });
+
+  it('returns null when keywords also do not match', () => {
+    const market = makeMarket('BTC', 'Bitcoin', ['crypto', 'layer-1']);
+    expect(getMarketMatchRank(market, 'forex')).toBeNull();
+  });
+
+  it('handles markets without keywords gracefully', () => {
+    const market = makeMarket('ETH', 'Ethereum');
+    expect(getMarketMatchRank(market, 'defi')).toBeNull();
+  });
+
+  it('rankMarketsByQuery includes keyword-matched markets', () => {
+    const markets = [
+      makeMarket('BTC', 'Bitcoin', ['digital-gold']),
+      makeMarket('xyz:GOLD', 'Gold'),
+      makeMarket('ETH', 'Ethereum'),
+    ];
+
+    const result = rankMarketsByQuery(markets, 'gold').map(
+      (market) => market.symbol,
+    );
+    expect(result).toContain('BTC');
+    expect(result).toContain('xyz:GOLD');
+    expect(result).not.toContain('ETH');
   });
 });

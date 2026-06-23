@@ -16,6 +16,7 @@ import type {
   SpotStateWsEvent,
 } from '@nktkas/hyperliquid';
 
+import { HYPERLIQUID_CONFIG } from '../constants/hyperLiquidConfig';
 import {
   TP_SL_CONFIG,
   PERPS_CONSTANTS,
@@ -59,7 +60,10 @@ import {
   parseAssetName,
 } from '../utils/hyperLiquidAdapter';
 import { processBboData } from '../utils/hyperLiquidOrderBookProcessor';
-import { calculateOpenInterestUSD } from '../utils/marketDataTransform';
+import {
+  calculateOpenInterestUSD,
+  isMarketTradable,
+} from '../utils/marketDataTransform';
 import type { HyperLiquidClientService } from './HyperLiquidClientService';
 import type { HyperLiquidWalletService } from './HyperLiquidWalletService';
 
@@ -81,6 +85,9 @@ export class HyperLiquidSubscriptionService {
   #allowlistMarkets: string[]; // Market filtering (allowlist)
 
   #blocklistMarkets: string[]; // Market filtering (blocklist)
+
+  // Max market-vs-oracle price deviation before a market is reported untradable
+  readonly #priceDeviationLimit: number;
 
   #discoveredDexNames: string[] = []; // DEX order for mapping webData3 perpDexStates indices
 
@@ -326,6 +333,7 @@ export class HyperLiquidSubscriptionService {
     enabledDexs?: string[],
     allowlistMarkets?: string[],
     blocklistMarkets?: string[],
+    priceDeviationLimit?: number,
   ) {
     this.#clientService = clientService;
     this.#walletService = walletService;
@@ -335,6 +343,8 @@ export class HyperLiquidSubscriptionService {
     this.#discoveredDexNames = enabledDexs ?? [];
     this.#allowlistMarkets = allowlistMarkets ?? [];
     this.#blocklistMarkets = blocklistMarkets ?? [];
+    this.#priceDeviationLimit =
+      priceDeviationLimit ?? HYPERLIQUID_CONFIG.OraclePriceDeviationLimit;
   }
 
   /**
@@ -2865,6 +2875,15 @@ export class HyperLiquidSubscriptionService {
         ? marketData?.openInterest
         : undefined,
       volume24h: hasMarketDataSubscribers ? marketData?.volume24h : undefined,
+      // Flag markets that are currently untradable because the mid price has drifted
+      // too far from the oracle price (HyperLiquid rejects such orders). Lets clients
+      // warn the user before they attempt an order that would fail. Defaults to tradable
+      // when the oracle price isn't yet cached.
+      isTradable: isMarketTradable({
+        midPrice: currentPrice,
+        oraclePrice: marketData?.oraclePrice,
+        deviationLimit: this.#priceDeviationLimit,
+      }),
     };
 
     return priceUpdate;

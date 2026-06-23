@@ -30,6 +30,7 @@ describe('hyperLiquidOrderBookProcessor', () => {
       symbol,
       price,
       timestamp: Date.now(),
+      isTradable: true,
     }));
     mockNotifySubscribers = jest.fn();
   });
@@ -325,12 +326,14 @@ describe('hyperLiquidOrderBookProcessor', () => {
         symbol: 'BTC',
         price: '50000',
         timestamp: Date.now() - 1000,
+        isTradable: true,
       };
 
       const newPrice: PriceUpdate = {
         symbol: 'BTC',
         price: '50000',
         timestamp: Date.now(),
+        isTradable: true,
       };
 
       mockCachedPriceData.set('BTC', existingPrice);

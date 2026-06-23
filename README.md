@@ -54,6 +54,7 @@ yarn skills --reset                 # clear saved local selection
 - [`@metamask/authenticated-user-storage`](packages/authenticated-user-storage)
 - [`@metamask/base-controller`](packages/base-controller)
 - [`@metamask/base-data-service`](packages/base-data-service)
+- [`@metamask/bitcoin-regtest-up`](packages/bitcoin-regtest-up)
 - [`@metamask/bridge-controller`](packages/bridge-controller)
 - [`@metamask/bridge-status-controller`](packages/bridge-status-controller)
 - [`@metamask/build-utils`](packages/build-utils)
@@ -80,6 +81,7 @@ yarn skills --reset                 # clear saved local selection
 - [`@metamask/gas-fee-controller`](packages/gas-fee-controller)
 - [`@metamask/gator-permissions-controller`](packages/gator-permissions-controller)
 - [`@metamask/geolocation-controller`](packages/geolocation-controller)
+- [`@metamask/java-tron-up`](packages/java-tron-up)
 - [`@metamask/json-rpc-engine`](packages/json-rpc-engine)
 - [`@metamask/json-rpc-middleware-stream`](packages/json-rpc-middleware-stream)
 - [`@metamask/keyring-controller`](packages/keyring-controller)
@@ -119,6 +121,7 @@ yarn skills --reset                 # clear saved local selection
 - [`@metamask/smart-transactions-controller`](packages/smart-transactions-controller)
 - [`@metamask/snap-account-service`](packages/snap-account-service)
 - [`@metamask/social-controllers`](packages/social-controllers)
+- [`@metamask/solana-test-validator-up`](packages/solana-test-validator-up)
 - [`@metamask/storage-service`](packages/storage-service)
 - [`@metamask/subscription-controller`](packages/subscription-controller)
 - [`@metamask/transaction-controller`](packages/transaction-controller)
@@ -149,6 +152,7 @@ linkStyle default opacity:0.5
   authenticated_user_storage(["@metamask/authenticated-user-storage"]);
   base_controller(["@metamask/base-controller"]);
   base_data_service(["@metamask/base-data-service"]);
+  bitcoin_regtest_up(["@metamask/bitcoin-regtest-up"]);
   bridge_controller(["@metamask/bridge-controller"]);
   bridge_status_controller(["@metamask/bridge-status-controller"]);
   build_utils(["@metamask/build-utils"]);
@@ -175,6 +179,7 @@ linkStyle default opacity:0.5
   gas_fee_controller(["@metamask/gas-fee-controller"]);
   gator_permissions_controller(["@metamask/gator-permissions-controller"]);
   geolocation_controller(["@metamask/geolocation-controller"]);
+  java_tron_up(["@metamask/java-tron-up"]);
   json_rpc_engine(["@metamask/json-rpc-engine"]);
   json_rpc_middleware_stream(["@metamask/json-rpc-middleware-stream"]);
   keyring_controller(["@metamask/keyring-controller"]);
@@ -214,6 +219,7 @@ linkStyle default opacity:0.5
   smart_transactions_controller(["@metamask/smart-transactions-controller"]);
   snap_account_service(["@metamask/snap-account-service"]);
   social_controllers(["@metamask/social-controllers"]);
+  solana_test_validator_up(["@metamask/solana-test-validator-up"]);
   storage_service(["@metamask/storage-service"]);
   subscription_controller(["@metamask/subscription-controller"]);
   transaction_controller(["@metamask/transaction-controller"]);
