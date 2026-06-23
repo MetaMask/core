@@ -167,7 +167,9 @@ describe('TerminalMarketService', () => {
           new Promise((_resolve, reject) => {
             (init?.signal as AbortSignal)?.addEventListener('abort', () => {
               const { reason } = init?.signal as AbortSignal;
-              reject(reason instanceof Error ? reason : new Error(String(reason)));
+              reject(
+                reason instanceof Error ? reason : new Error(String(reason)),
+              );
             });
           }),
       );
