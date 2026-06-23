@@ -721,7 +721,7 @@ export type PriceUpdate = {
   openInterest?: number; // Open interest in USD
   volume24h?: number; // 24h trading volume in USD
   /**
-   * Whether the market is currently tradable.
+   * Whether the market is currently tradable. Defaults to `true`.
    *
    * Some markets — most often HIP-3 builder-deployed ones — become temporarily
    * untradable when their market price drifts too far from the oracle price, in which
@@ -729,11 +729,12 @@ export type PriceUpdate = {
    * away from the reference price"). Clients use this to proactively show a "trading
    * unavailable" warning instead of letting the order fail on submission.
    *
-   * This is computed per provider/protocol from that protocol's own rules; absence
-   * (`undefined`) means tradability is unknown and the market should be treated as
-   * tradable.
+   * Computed per provider/protocol from that protocol's own rules. It is `false` only
+   * when a provider determines the market is currently untradable; a provider that has no
+   * such rule, or cannot assess tradability yet (e.g. before the oracle price is cached),
+   * reports `true`. The value is always a concrete boolean — never `undefined`.
    */
-  isTradable?: boolean;
+  isTradable: boolean;
   providerId?: PerpsProviderType; // Multi-provider: price source (injected by aggregator)
 };
 
