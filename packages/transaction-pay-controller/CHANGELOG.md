@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add opt-in HyperLiquid activation-fee handling for Pay withdrawals, gated by the `confirmations_pay_post_quote` feature flag's `hyperliquidActivationFee` config (resolved from `overrides.<transactionType>.hyperliquidActivationFee`, falling back to `default.hyperliquidActivationFee`; with `enabled` and optional `amountUsd` defaulting to `1`) ([#0000](https://github.com/MetaMask/core/pull/0000))
+- Add opt-in HyperLiquid activation-fee handling for Pay withdrawals, gated by the `confirmations_pay_post_quote` feature flag's `hyperliquidActivationFee` config (resolved from `overrides.<transactionType>.hyperliquidActivationFee`, falling back to `default.hyperliquidActivationFee`; with `enabled` and optional `amountUsd` defaulting to `1`) ([#9238](https://github.com/MetaMask/core/pull/9238))
   - When enabled and the HyperCore source account has not yet been activated, the one-time activation fee is reserved from the amount sent to HyperLiquid (so the `sendAsset` step retains enough balance to cover it) and surfaced as part of the provider fee, leaving the displayed withdrawal amount unchanged.
 
 ### Changed
