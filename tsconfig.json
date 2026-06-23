@@ -138,6 +138,9 @@
       "path": "./packages/keyring-controller"
     },
     {
+      "path": "./packages/local-node-utils"
+    },
+    {
       "path": "./packages/message-manager"
     },
     {

@@ -1,9 +1,15 @@
-/**
- * Example function that returns a greeting for the given name.
- *
- * @param name - The name to greet.
- * @returns The greeting.
- */
-export default function greeter(name: string): string {
-  return `Hello, ${name}!`;
-}
+export {
+  BITCOIN_REGTEST_DEFAULT_CORE,
+  cleanBitcoinRegtestCache,
+  getBitcoinRegtestCacheDirectory,
+  installBitcoinRegtest,
+  parseBitcoinRegtestInstallCliOptions,
+  readBitcoinRegtestInstallOptionsFromPackageJson,
+} from './install';
+export type {
+  BitcoinRegtestArtifactConfig,
+  BitcoinRegtestArtifactPlatformConfig,
+  BitcoinRegtestInstallDependencies,
+  BitcoinRegtestInstallOptions,
+  BitcoinRegtestInstallResult,
+} from './install';

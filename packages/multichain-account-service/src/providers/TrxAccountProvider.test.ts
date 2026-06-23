@@ -1,11 +1,7 @@
 import { isBip44Account } from '@metamask/account-api';
-import type { SnapKeyring } from '@metamask/eth-snap-keyring';
 import { AccountCreationType } from '@metamask/keyring-api';
 import type { KeyringMetadata } from '@metamask/keyring-controller';
-import type {
-  EthKeyring,
-  InternalAccount,
-} from '@metamask/keyring-internal-api';
+import type { InternalAccount } from '@metamask/keyring-internal-api';
 import { SnapControllerState } from '@metamask/snaps-controllers';
 import deepmerge from 'deepmerge';
 
@@ -52,13 +48,39 @@ class MockTronKeyring {
     this.accounts = accounts;
   }
 
-  createAccount: SnapKeyring['createAccount'] = jest
-    .fn()
-    .mockImplementation((_, { index }) => {
-      // Use the provided index or fallback to accounts length
-      const groupIndex = index ?? this.accounts.length;
+  createAccount = jest.fn().mockImplementation(({ index }) => {
+    // Use the provided index or fallback to accounts length
+    const groupIndex = index ?? this.accounts.length;
 
-      // Check if an account already exists for this group index (idempotent behavior)
+    // Check if an account already exists for this group index (idempotent behavior)
+    const found = this.accounts.find(
+      (account) =>
+        isBip44Account(account) &&
+        account.options.entropy.groupIndex === groupIndex,
+    );
+
+    if (found) {
+      return found; // Idempotent.
+    }
+
+    // Create new account with the correct group index
+    const account = MockAccountBuilder.from(MOCK_TRX_ACCOUNT_1)
+      .withUuid()
+      .withAddressSuffix(`${this.accounts.length}`)
+      .withGroupIndex(groupIndex)
+      .get();
+    this.accounts.push(account);
+
+    return account;
+  });
+
+  createAccounts = jest.fn().mockImplementation((options) => {
+    const groupIndices =
+      options.type === 'bip44:derive-index'
+        ? [options.groupIndex]
+        : toGroupIndexRangeArray(options.range);
+
+    return groupIndices.map((groupIndex) => {
       const found = this.accounts.find(
         (account) =>
           isBip44Account(account) &&
@@ -69,45 +91,15 @@ class MockTronKeyring {
         return found; // Idempotent.
       }
 
-      // Create new account with the correct group index
       const account = MockAccountBuilder.from(MOCK_TRX_ACCOUNT_1)
         .withUuid()
-        .withAddressSuffix(`${this.accounts.length}`)
+        .withAddressSuffix(`${groupIndex}`)
         .withGroupIndex(groupIndex)
         .get();
       this.accounts.push(account);
-
       return account;
     });
-
-  createAccounts: SnapKeyring['createAccounts'] = jest
-    .fn()
-    .mockImplementation((_, options) => {
-      const groupIndices =
-        options.type === 'bip44:derive-index'
-          ? [options.groupIndex]
-          : toGroupIndexRangeArray(options.range);
-
-      return groupIndices.map((groupIndex) => {
-        const found = this.accounts.find(
-          (account) =>
-            isBip44Account(account) &&
-            account.options.entropy.groupIndex === groupIndex,
-        );
-
-        if (found) {
-          return found; // Idempotent.
-        }
-
-        const account = MockAccountBuilder.from(MOCK_TRX_ACCOUNT_1)
-          .withUuid()
-          .withAddressSuffix(`${groupIndex}`)
-          .withGroupIndex(groupIndex)
-          .get();
-        this.accounts.push(account);
-        return account;
-      });
-    });
+  });
 
   // Add discoverAccounts method to match the provider's usage
   discoverAccounts = jest.fn().mockResolvedValue([]);
@@ -192,12 +184,10 @@ function setup({
   );
 
   messenger.registerActionHandler(
-    'KeyringController:withKeyring',
+    'KeyringController:withKeyringV2',
     async (_, operation) =>
       operation({
-        // We type-cast here, since `withKeyring` defaults to `EthKeyring` and the
-        // Snap keyring doesn't really implement this interface (this is expected).
-        keyring: keyring as unknown as EthKeyring,
+        keyring,
         metadata: keyring.metadata,
       }),
   );
@@ -223,8 +213,8 @@ function setup({
     mocks: {
       handleRequest: mockHandleRequest,
       keyring: {
-        createAccount: keyring.createAccount as jest.Mock,
-        createAccounts: keyring.createAccounts as jest.Mock,
+        createAccount: keyring.createAccount,
+        createAccounts: keyring.createAccounts,
         discoverAccounts: keyring.discoverAccounts,
       },
       trace: mockTrace,
@@ -466,14 +456,11 @@ describe('TrxAccountProvider', () => {
       });
       expect(newAccounts).toHaveLength(1);
       // Batch endpoint must be called, NOT the singular one.
-      expect(mocks.keyring.createAccounts).toHaveBeenCalledWith(
-        TrxAccountProvider.TRX_SNAP_ID,
-        {
-          type: AccountCreationType.Bip44DeriveIndex,
-          entropySource: MOCK_HD_KEYRING_1.metadata.id,
-          groupIndex: newGroupIndex,
-        },
-      );
+      expect(mocks.keyring.createAccounts).toHaveBeenCalledWith({
+        type: AccountCreationType.Bip44DeriveIndex,
+        entropySource: MOCK_HD_KEYRING_1.metadata.id,
+        groupIndex: newGroupIndex,
+      });
       expect(mocks.keyring.createAccount).not.toHaveBeenCalled();
     });
 

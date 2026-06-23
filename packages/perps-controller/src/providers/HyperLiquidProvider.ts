@@ -21,6 +21,7 @@ import {
   HIP3_FEE_CONFIG,
   HIP3_MARGIN_CONFIG,
   HYPERLIQUID_ASSET_NAMES,
+  HYPERLIQUID_CONFIG,
   HYPERLIQUID_WITHDRAWAL_MINUTES,
   REFERRAL_CONFIG,
   SPOT_ASSET_ID_OFFSET,
@@ -408,11 +409,14 @@ export class HyperLiquidProvider implements PerpsProvider {
 
   readonly #builderAddressMainnet?: string;
 
+  readonly #priceDeviationLimit: number;
+
   constructor(options: {
     isTestnet?: boolean;
     hip3Enabled?: boolean;
     allowlistMarkets?: string[];
     blocklistMarkets?: string[];
+    priceDeviationLimit?: number;
     useUnifiedAccount?: boolean;
     platformDependencies: PerpsPlatformDependencies;
     messenger: PerpsControllerMessengerBase;
@@ -424,6 +428,9 @@ export class HyperLiquidProvider implements PerpsProvider {
     this.#messenger = options.messenger;
     this.#builderAddressTestnet = options.builderAddressTestnet;
     this.#builderAddressMainnet = options.builderAddressMainnet;
+    this.#priceDeviationLimit =
+      options.priceDeviationLimit ??
+      HYPERLIQUID_CONFIG.OraclePriceDeviationLimit;
     const isTestnet = options.isTestnet ?? false;
 
     // Dev-friendly defaults: Enable all markets by default for easier testing (discovery mode)
@@ -458,6 +465,7 @@ export class HyperLiquidProvider implements PerpsProvider {
       [], // enabledDexs - will be populated after DEX discovery in buildAssetMapping
       this.#allowlistMarkets,
       this.#blocklistMarkets,
+      this.#priceDeviationLimit,
     );
 
     // NOTE: Clients are NOT initialized here - they'll be initialized lazily
