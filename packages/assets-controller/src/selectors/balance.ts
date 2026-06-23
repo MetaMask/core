@@ -584,7 +584,12 @@ export function getAggregatedBalanceForAccount(
     internalAccountsOrAccountIds,
     accountsById,
   });
-  return aggregateBalances(state, accountsToAggregate, enabledNetworkMap, trace);
+  return aggregateBalances(
+    state,
+    accountsToAggregate,
+    enabledNetworkMap,
+    trace,
+  );
 }
 
 // ============================================================================
