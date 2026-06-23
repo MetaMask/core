@@ -5326,22 +5326,11 @@ export class PerpsController extends BaseController<
       const remoteExchangeWatchlist =
         prefs.perps.watchlistMarkets?.[exchangeKey];
 
-      // AUS is the source of truth: the presence of the exchange key in the
-      // blob (even with empty arrays) signals that this device has already
-      // been migrated and the remote state must be honored — including an
-      // intentional clear. Only an absent key triggers the one-time migration.
-      if (remoteExchangeWatchlist !== undefined) {
-        // AUS has data for this exchange — hydrate local state from it.
-        this.update((state) => {
-          state.watchlistMarkets.testnet = remoteExchangeWatchlist.testnet;
-          state.watchlistMarkets.mainnet = remoteExchangeWatchlist.mainnet;
-        });
-        this.#debugLog('PerpsController: Watchlist hydrated from AUS', {
-          exchangeKey,
-          testnetCount: remoteExchangeWatchlist.testnet.length,
-          mainnetCount: remoteExchangeWatchlist.mainnet.length,
-        });
-      } else {
+      // AUS is the source of truth: an absent exchange key means this device
+      // has not been migrated yet — push any local favorites up once.
+      // A present key (even with empty arrays) must be honored as-is,
+      // including an intentional remote clear.
+      if (remoteExchangeWatchlist === undefined) {
         // Blob exists but has no watchlist for this exchange yet.
         // If local state has any markets, push them up as a one-time migration.
         const { testnet, mainnet } = this.state.watchlistMarkets;
@@ -5380,6 +5369,17 @@ export class PerpsController extends BaseController<
             exchangeKey,
           });
         }
+      } else {
+        // AUS has an entry for this exchange — hydrate local state from it.
+        this.update((state) => {
+          state.watchlistMarkets.testnet = remoteExchangeWatchlist.testnet;
+          state.watchlistMarkets.mainnet = remoteExchangeWatchlist.mainnet;
+        });
+        this.#debugLog('PerpsController: Watchlist hydrated from AUS', {
+          exchangeKey,
+          testnetCount: remoteExchangeWatchlist.testnet.length,
+          mainnetCount: remoteExchangeWatchlist.mainnet.length,
+        });
       }
     } catch (error) {
       this.#logError(
