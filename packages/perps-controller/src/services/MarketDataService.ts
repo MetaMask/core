@@ -1375,7 +1375,7 @@ export class MarketDataService {
 
       return {
         ...market,
-        name: meta.name,
+        ...(meta.name !== undefined && { name: meta.name }),
         ...(meta.marketType !== undefined && { marketType: meta.marketType }),
         ...(meta.keywords !== undefined && { keywords: meta.keywords }),
         ...(meta.tags !== undefined && { tags: meta.tags }),

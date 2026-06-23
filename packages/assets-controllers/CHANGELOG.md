@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [109.2.2]
+
+### Changed
+
+- Bump `@metamask/account-tree-controller` from `^7.5.2` to `^7.5.3` ([#9231](https://github.com/MetaMask/core/pull/9231))
+- Bump `@metamask/multichain-account-service` from `^10.0.3` to `^11.0.0` ([#9231](https://github.com/MetaMask/core/pull/9231))
+- Bump `@metamask/accounts-controller` from `^39.0.2` to `^39.0.3` ([#9231](https://github.com/MetaMask/core/pull/9231))
+
 ## [109.2.1]
 
 ### Changed
@@ -3241,7 +3249,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Use Ethers for AssetsContractController ([#845](https://github.com/MetaMask/core/pull/845))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@109.2.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@109.2.2...HEAD
+[109.2.2]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@109.2.1...@metamask/assets-controllers@109.2.2
 [109.2.1]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@109.2.0...@metamask/assets-controllers@109.2.1
 [109.2.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@109.1.0...@metamask/assets-controllers@109.2.0
 [109.1.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@109.0.0...@metamask/assets-controllers@109.1.0

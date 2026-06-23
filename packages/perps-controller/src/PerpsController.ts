@@ -864,6 +864,11 @@ export class PerpsController extends BaseController<
 
   #hip3ConfigSource: 'remote' | 'fallback' = 'fallback';
 
+  // Optional client override for the max market-vs-oracle price deviation before a
+  // market is reported untradable (PriceUpdate.isTradable). Protocol-agnostic: passed
+  // through to each provider, which applies its own default when this is undefined.
+  readonly #priceDeviationLimit?: number;
+
   /**
    * Check if MYX provider is enabled via feature flag
    * Uses same pattern as other feature flags in FeatureFlagConfigurationService
@@ -1025,6 +1030,7 @@ export class PerpsController extends BaseController<
     this.#hip3BlocklistMarkets = [
       ...(clientConfig.fallbackHip3BlocklistMarkets ?? []),
     ];
+    this.#priceDeviationLimit = clientConfig.fallbackPriceDeviationLimit;
 
     // Immediately set the fallback region list since RemoteFeatureFlagController is empty by default and takes a moment to populate.
     this.setBlockedRegionList(
@@ -1331,6 +1337,7 @@ export class PerpsController extends BaseController<
       hip3Enabled: this.#hip3Enabled,
       allowlistMarkets: this.#hip3AllowlistMarkets,
       blocklistMarkets: this.#hip3BlocklistMarkets,
+      priceDeviationLimit: this.#priceDeviationLimit,
       platformDependencies: this.#options.infrastructure,
       messenger: this.messenger,
       builderAddressTestnet:
@@ -1780,6 +1787,7 @@ export class PerpsController extends BaseController<
       hip3Enabled: this.#hip3Enabled,
       allowlistMarkets: this.#hip3AllowlistMarkets,
       blocklistMarkets: this.#hip3BlocklistMarkets,
+      priceDeviationLimit: this.#priceDeviationLimit,
       platformDependencies: this.#options.infrastructure,
       messenger: this.messenger,
       builderAddressTestnet:

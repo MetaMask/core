@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `calculateBalanceForAllWallets` and `calculateBalanceChangeForAccountGroup` selectors for computing wallet- and group-level balances from the unified `AssetsController` state ([#9230](https://github.com/MetaMask/core/pull/9230))
+- Add `priceFreshnessTtlMs` option to `PriceDataSourceConfig` controlling how long a fetched price is considered fresh before it is re-fetched (defaults to the poll interval, 60 000 ms) ([#9189](https://github.com/MetaMask/core/pull/9189))
+- Add `PriceDataSource.invalidatePriceCache()` to force the next fetch to bypass the freshness cache; `AssetsController` now calls it when the selected currency changes so cached prices in the previous currency are refreshed ([#9189](https://github.com/MetaMask/core/pull/9189))
+
+### Changed
+
+- Bump `@metamask/account-tree-controller` from `^7.5.2` to `^7.5.3` ([#9231](https://github.com/MetaMask/core/pull/9231))
+- Bump `@metamask/assets-controllers` from `^109.2.1` to `^109.2.2` ([#9231](https://github.com/MetaMask/core/pull/9231))
+- Bump `@metamask/accounts-controller` from `^39.0.2` to `^39.0.3` ([#9231](https://github.com/MetaMask/core/pull/9231))
+
+### Fixed
+
+- Deduplicate price fetches in `PriceDataSource` so overlapping triggers (enrichment middleware, subscription polls, and manual refreshes) no longer issue duplicate price API requests for the same asset; assets fetched within the freshness TTL are skipped and concurrent in-flight fetches are joined ([#9189](https://github.com/MetaMask/core/pull/9189))
+- Remove a redundant one-time balance fetch in `AssetsController` when the enabled network list changes, since subscription refresh and the enabled-networks handler already cover those fetches ([#9189](https://github.com/MetaMask/core/pull/9189))
+- `DetectionMiddleware` no longer triggers redundant metadata and price fetches for assets already present in `assetsBalance` or `assetsInfo` state ([#9215](https://github.com/MetaMask/core/pull/9215))
+- `AccountsApiDataSource` and `SnapDataSource` now use `merge` update mode instead of `full`, preventing assets on custom or partially-supported networks from being incorrectly wiped on each poll ([#9215](https://github.com/MetaMask/core/pull/9215))
+
 ## [9.0.2]
 
 ### Changed

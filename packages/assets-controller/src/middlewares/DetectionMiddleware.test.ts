@@ -151,7 +151,7 @@ describe('DetectionMiddleware', () => {
     expect(next).toHaveBeenCalledWith(context);
   });
 
-  it('includes all balance assets in detectedAssets even when they have metadata', async () => {
+  it('skips balance assets that already have metadata in state', async () => {
     const { middleware } = setupController();
     const context = createMiddlewareContext(
       {
@@ -170,14 +170,12 @@ describe('DetectionMiddleware', () => {
 
     await middleware.assetsMiddleware(context, next);
 
-    // All assets in balance are included so prices (and metadata when needed) are fetched
-    expect(context.response.detectedAssets).toStrictEqual({
-      [MOCK_ACCOUNT_ID]: [MOCK_ASSET_1, MOCK_NATIVE_ASSET],
-    });
+    // Both assets are already in state.assetsInfo → nothing new to detect
+    expect(context.response.detectedAssets).toBeUndefined();
     expect(next).toHaveBeenCalledWith(context);
   });
 
-  it('includes all balance assets in mixed scenario (metadata presence is ignored)', async () => {
+  it('only detects assets not already in state (mixed scenario)', async () => {
     const { middleware } = setupController();
     const context = createMiddlewareContext(
       {
@@ -197,13 +195,14 @@ describe('DetectionMiddleware', () => {
 
     await middleware.assetsMiddleware(context, next);
 
+    // MOCK_ASSET_1 is already in state.assetsInfo → skipped; the other two are new
     expect(context.response.detectedAssets).toStrictEqual({
-      [MOCK_ACCOUNT_ID]: [MOCK_ASSET_1, MOCK_ASSET_2, MOCK_NATIVE_ASSET],
+      [MOCK_ACCOUNT_ID]: [MOCK_ASSET_2, MOCK_NATIVE_ASSET],
     });
     expect(next).toHaveBeenCalledWith(context);
   });
 
-  it('handles multiple accounts', async () => {
+  it('handles multiple accounts, skipping assets already in state per account', async () => {
     const { middleware } = setupController();
     const account2Id = 'account-2-id';
     const context = createMiddlewareContext(
@@ -226,14 +225,15 @@ describe('DetectionMiddleware', () => {
 
     await middleware.assetsMiddleware(context, next);
 
+    // MOCK_NATIVE_ASSET is in state.assetsInfo → skipped for account2; MOCK_ASSET_1 and MOCK_ASSET_2 are new
     expect(context.response.detectedAssets).toStrictEqual({
       [MOCK_ACCOUNT_ID]: [MOCK_ASSET_1],
-      [account2Id]: [MOCK_ASSET_2, MOCK_NATIVE_ASSET],
+      [account2Id]: [MOCK_ASSET_2],
     });
     expect(next).toHaveBeenCalledWith(context);
   });
 
-  it('includes all balance assets per account regardless of metadata', async () => {
+  it('skips an account entirely when all its balance assets are already in state', async () => {
     const { middleware } = setupController();
     const account2Id = 'account-2-id';
     const context = createMiddlewareContext(
@@ -255,9 +255,9 @@ describe('DetectionMiddleware', () => {
 
     await middleware.assetsMiddleware(context, next);
 
-    // Both accounts get their balance assets so prices/metadata can be fetched
+    // MOCK_ASSET_1 is already in state.assetsInfo → MOCK_ACCOUNT_ID produces no new assets;
+    // MOCK_ASSET_2 is new → account2 is included
     expect(context.response.detectedAssets).toStrictEqual({
-      [MOCK_ACCOUNT_ID]: [MOCK_ASSET_1],
       [account2Id]: [MOCK_ASSET_2],
     });
     expect(next).toHaveBeenCalledWith(context);

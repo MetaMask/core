@@ -143,6 +143,9 @@
       "path": "./packages/keyring-controller/tsconfig.build.json"
     },
     {
+      "path": "./packages/local-node-utils/tsconfig.build.json"
+    },
+    {
       "path": "./packages/logging-controller/tsconfig.build.json"
     },
     {
