@@ -57,7 +57,7 @@
     "@ethersproject/abi": "^5.7.0",
     "@ethersproject/providers": "^5.7.0",
     "@metamask/account-tree-controller": "^7.5.3",
-    "@metamask/accounts-controller": "^39.0.2",
+    "@metamask/accounts-controller": "^39.0.3",
     "@metamask/assets-controllers": "^109.2.2",
     "@metamask/base-controller": "^9.1.0",
     "@metamask/client-controller": "^1.0.1",
