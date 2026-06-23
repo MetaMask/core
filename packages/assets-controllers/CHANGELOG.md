@@ -11,9 +11,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Bump `@metamask/account-tree-controller` from `^7.5.2` to `^7.5.3` ([#9228](https://github.com/MetaMask/core/pull/9228))
-- Bump `@metamask/multichain-account-service` from `^10.0.3` to `^11.0.0` ([#9228](https://github.com/MetaMask/core/pull/9228))
-- Bump `@metamask/accounts-controller` from `^39.0.2` to `^39.0.3` ([#9228](https://github.com/MetaMask/core/pull/9228))
+- Bump `@metamask/account-tree-controller` from `^7.5.2` to `^7.5.3` ([#9231](https://github.com/MetaMask/core/pull/9231))
+- Bump `@metamask/multichain-account-service` from `^10.0.3` to `^11.0.0` ([#9231](https://github.com/MetaMask/core/pull/9231))
+- Bump `@metamask/accounts-controller` from `^39.0.2` to `^39.0.3` ([#9231](https://github.com/MetaMask/core/pull/9231))
 
 ## [109.2.1]
 
