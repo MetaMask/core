@@ -689,6 +689,16 @@ export type PerpsControllerConfig = {
   fallbackHip3BlocklistMarkets?: string[];
 
   /**
+   * Override for the maximum allowed deviation of a market's price from its oracle
+   * (reference) price before it is reported as untradable (`PriceUpdate.isTradable`),
+   * as a decimal fraction (e.g. `0.95` = 95%). Protocol-agnostic: each provider applies
+   * its own default when omitted (HyperLiquid uses
+   * `HYPERLIQUID_CONFIG.OraclePriceDeviationLimit`, `0.95`). Lets a client tune the
+   * threshold without a package release.
+   */
+  fallbackPriceDeviationLimit?: number;
+
+  /**
    * Per-provider credentials and configuration.
    * Nested by provider name so each provider's settings are self-contained
    * and new protocols can be added without polluting the top-level config.
@@ -734,6 +744,21 @@ export type PriceUpdate = {
   funding?: number; // Current funding rate
   openInterest?: number; // Open interest in USD
   volume24h?: number; // 24h trading volume in USD
+  /**
+   * Whether the market is currently tradable. Defaults to `true`.
+   *
+   * Some markets — most often HIP-3 builder-deployed ones — become temporarily
+   * untradable when their market price drifts too far from the oracle price, in which
+   * case the protocol rejects orders (HyperLiquid: "Order price cannot be more than 95%
+   * away from the reference price"). Clients use this to proactively show a "trading
+   * unavailable" warning instead of letting the order fail on submission.
+   *
+   * Computed per provider/protocol from that protocol's own rules. It is `false` only
+   * when a provider determines the market is currently untradable; a provider that has no
+   * such rule, or cannot assess tradability yet (e.g. before the oracle price is cached),
+   * reports `true`. The value is always a concrete boolean — never `undefined`.
+   */
+  isTradable: boolean;
   providerId?: PerpsProviderType; // Multi-provider: price source (injected by aggregator)
 };
 

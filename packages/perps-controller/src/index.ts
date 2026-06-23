@@ -472,6 +472,7 @@ export {
 } from './utils';
 export {
   calculateOpenInterestUSD,
+  isMarketTradable,
   transformMarketData,
   formatChange,
 } from './utils';
