@@ -86,6 +86,18 @@ export enum MarketCategory {
 
 export type MarketType = `${MarketCategory}`;
 
+/**
+ * Metadata extracted from Terminal API for a single asset.
+ * Used downstream to enrich PerpsMarketData with name, keywords, tags, etc.
+ */
+export type TerminalAssetMetadata = {
+  name?: string;
+  keywords?: string[];
+  tags?: string[];
+  categories?: string[];
+  marketType?: MarketType;
+};
+
 // Market type filter for UI category badges
 export type MarketTypeFilter =
   | 'all'
@@ -476,6 +488,18 @@ export type PerpsMarketData = {
    * Indicates this market snapshot came from the last known good cache after live fetch failure.
    */
   isStale?: boolean;
+  /**
+   * Searchable keywords from Terminal API metadata (e.g., ['defi', 'layer-1'])
+   */
+  keywords?: string[];
+  /**
+   * Taxonomy tags from Terminal API metadata (e.g., ['top-100', 'gaming'])
+   */
+  tags?: string[];
+  /**
+   * Market categories from Terminal API metadata (e.g., ['crypto', 'meme'])
+   */
+  categories?: string[];
 };
 
 export type ToggleTestnetResult = {
@@ -854,6 +878,7 @@ export type GetMarketsParams = {
   dex?: string; // HyperLiquid HIP-3: DEX name (empty string '' or undefined for main DEX). Other protocols: ignored.
   skipFilters?: boolean; // Skip market filtering (both allowlist and blocklist, default: false). When true, returns all markets without filtering.
   standalone?: boolean; // Lightweight mode: skip full initialization, only fetch market metadata (no wallet/WebSocket needed). Only main DEX markets returned. Use for discovery use cases like checking if a perps market exists.
+  useTerminalApi?: boolean; // When true, use Terminal API as market data source.
 };
 
 /**
@@ -868,6 +893,7 @@ export type GetMarketDataWithPricesParams = {
   sortBy?: SortField; // Sort results by this field
   direction?: SortDirection; // Sort direction (default: desc)
   limit?: number; // Maximum number of results to return
+  useTerminalApi?: boolean; // When true, use Terminal API as market data source.
 };
 
 export type SubscribePricesParams = {
@@ -1630,6 +1656,23 @@ export type PerpsRemoteFeatureFlagState = {
 };
 
 /**
+ * Injectable interface for the Terminal-market service.
+ *
+ * `MarketDataService` programs against this contract so the concrete
+ * `TerminalMarketService` class (which lives in `services/`) never leaks
+ * into the types barrel — callers can supply any implementation that
+ * satisfies the shape (production, stub, mock, etc.).
+ */
+export type PerpsTerminalMarketService = {
+  fetchMarkets(): Promise<{
+    markets: MarketInfo[];
+    metadata: Map<string, TerminalAssetMetadata>;
+  }>;
+  clearCache(): void;
+  logError(error: unknown, method: string): void;
+};
+
+/**
  * Platform dependencies for PerpsController and services.
  *
  * Architecture:
@@ -1678,6 +1721,26 @@ export type PerpsPlatformDependencies = {
     setItem(key: string, value: string): Promise<void>;
     removeItem(key: string): Promise<void>;
   };
+
+  // === Terminal API (market metadata source) ===
+  /**
+   * Full endpoint URL for the MetaMask Terminal API perpetuals endpoint.
+   * Each client build (dev/uat/prd) injects the correct environment URL
+   * (e.g. `https://terminal.api.cx.metamask.io/v1/perpetuals`).
+   * Never hardcoded in controller code — always provided by the platform.
+   * Optional: only required when Terminal API features (useTerminalApi) are enabled.
+   */
+  terminalApiUrl?: string;
+
+  /**
+   * Optional Terminal-market service instance for fetching structured market
+   * metadata from the MetaMask Terminal API.
+   *
+   * When provided, `MarketDataService` uses this service to attempt the
+   * Terminal API path before falling back to the provider.
+   * Clients that do not use the Terminal API can omit this field.
+   */
+  terminalMarketService?: PerpsTerminalMarketService;
 
   // === Rewards (DI — no RewardsController in Core yet) ===
   rewards: {

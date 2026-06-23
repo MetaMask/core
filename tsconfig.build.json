@@ -50,6 +50,9 @@
       "path": "./packages/base-data-service/tsconfig.build.json"
     },
     {
+      "path": "./packages/bitcoin-regtest-up/tsconfig.build.json"
+    },
+    {
       "path": "./packages/bridge-controller/tsconfig.build.json"
     },
     {
@@ -126,6 +129,9 @@
     },
     {
       "path": "./packages/geolocation-controller/tsconfig.build.json"
+    },
+    {
+      "path": "./packages/java-tron-up/tsconfig.build.json"
     },
     {
       "path": "./packages/json-rpc-engine/tsconfig.build.json"

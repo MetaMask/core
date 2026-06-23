@@ -25,6 +25,11 @@ export type BridgeControllerSetLocationAction = {
   handler: BridgeController['setLocation'];
 };
 
+export type BridgeControllerSetInputPrimaryDenominationAction = {
+  type: `BridgeController:setInputPrimaryDenomination`;
+  handler: BridgeController['setInputPrimaryDenomination'];
+};
+
 export type BridgeControllerResetStateAction = {
   type: `BridgeController:resetState`;
   handler: BridgeController['resetState'];
@@ -53,6 +58,7 @@ export type BridgeControllerMethodActions =
   | BridgeControllerFetchQuotesAction
   | BridgeControllerStopPollingForQuotesAction
   | BridgeControllerSetLocationAction
+  | BridgeControllerSetInputPrimaryDenominationAction
   | BridgeControllerResetStateAction
   | BridgeControllerSetChainIntervalLengthAction
   | BridgeControllerTrackUnifiedSwapBridgeEventAction

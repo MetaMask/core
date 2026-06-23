@@ -51,6 +51,9 @@
       "path": "./packages/base-data-service"
     },
     {
+      "path": "./packages/bitcoin-regtest-up"
+    },
+    {
       "path": "./packages/bridge-controller"
     },
     {
@@ -121,6 +124,9 @@
     },
     {
       "path": "./packages/geolocation-controller"
+    },
+    {
+      "path": "./packages/java-tron-up"
     },
     {
       "path": "./packages/json-rpc-engine"

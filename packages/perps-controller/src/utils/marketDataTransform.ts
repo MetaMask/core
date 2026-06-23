@@ -307,16 +307,11 @@ export function transformMarketData(
     // Crypto markets (HIP-2) don't have a prefix (e.g., BTC, ETH)
     const isHip3 = Boolean(dex);
 
-    // Determine market type from explicit mapping only
-    // Only explicitly mapped HIP-3 markets get a marketType (e.g., 'xyz:GOLD' → 'commodity')
-    // Unmapped HIP-3 markets (e.g., 'hyna:BTC') have no marketType - they go to "New" tab
-    // Main DEX crypto also has no marketType
-    const explicitMarketType = assetMarketTypes?.[symbol];
-    const marketType: MarketType | undefined = explicitMarketType;
+    // Determine market type from explicit static mapping
+    const marketType: MarketType | undefined = assetMarketTypes?.[symbol];
 
     // Mark as "new" if it's a HIP-3 market but not explicitly categorized
-    // New markets are always HIP-3 (non-crypto) that haven't been assigned a category yet
-    const isNewMarket = isHip3 && !explicitMarketType;
+    const isNewMarket = isHip3 && !marketType;
 
     return {
       symbol,

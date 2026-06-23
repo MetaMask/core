@@ -69,6 +69,8 @@
   "metamask/eth-json-rpc-middleware": "team-core-platform,team-confirmations",
   "metamask/eth-json-rpc-provider": "team-core-platform",
   "metamask/foundryup": "team-mobile-platform,team-extension-platform",
+  "metamask/bitcoin-regtest-up": "team-mobile-platform,team-extension-platform,team-networks",
+  "metamask/java-tron-up": "team-mobile-platform,team-extension-platform,team-networks",
   "metamask/solana-test-validator-up": "team-mobile-platform,team-extension-platform,team-networks",
   "metamask/json-rpc-engine": "team-core-platform",
   "metamask/json-rpc-middleware-stream": "team-core-platform",
