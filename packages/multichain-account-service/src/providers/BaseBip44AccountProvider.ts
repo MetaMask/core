@@ -11,7 +11,6 @@ import type {
 } from '@metamask/keyring-api/v2';
 import type {
   KeyringMetadata,
-  KeyringSelector,
   KeyringSelectorV2,
 } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
@@ -187,40 +186,6 @@ export abstract class BaseBip44AccountProvider<
       'AccountsController:getAccount',
       id,
     ) as unknown as Account;
-  }
-
-  /**
-   * Run an operation against a V1 keyring selected by `selector`.
-   *
-   * Forwards to `KeyringController:withKeyring`. Use this for keyrings that
-   * have not yet migrated to the unified V2 `Keyring` interface (e.g. the
-   * snap keyring).
-   *
-   * @param selector - The selector identifying the keyring.
-   * @param operation - The operation to run with the selected keyring.
-   * @returns The result of the operation.
-   */
-  protected async withKeyring<SelectedKeyring, CallbackResult = void>(
-    selector: KeyringSelector,
-    operation: ({
-      keyring,
-      metadata,
-    }: {
-      keyring: SelectedKeyring;
-      metadata: KeyringMetadata;
-    }) => Promise<CallbackResult>,
-  ): Promise<CallbackResult> {
-    const result = await this.messenger.call(
-      'KeyringController:withKeyring',
-      selector,
-      ({ keyring, metadata }) =>
-        operation({
-          keyring: keyring as SelectedKeyring,
-          metadata,
-        }),
-    );
-
-    return result as CallbackResult;
   }
 
   /**
