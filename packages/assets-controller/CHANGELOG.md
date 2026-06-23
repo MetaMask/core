@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- Revert "Release/1064.0.0 (#9228)" ([#9228](https://github.com/MetaMask/core/pull/9228))
+- Release/1064.0.0 ([#9228](https://github.com/MetaMask/core/pull/9228))
+
 ### Added
 
 - Add `calculateBalanceForAllWallets` and `calculateBalanceChangeForAccountGroup` selectors for computing wallet- and group-level balances from the unified `AssetsController` state ([#9230](https://github.com/MetaMask/core/pull/9230))

@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- Release/1064.0.0 ([#9231](https://github.com/MetaMask/core/pull/9231))
+- Revert "Release/1064.0.0 (#9228)" ([#9228](https://github.com/MetaMask/core/pull/9228))
+- Release/1064.0.0 ([#9228](https://github.com/MetaMask/core/pull/9228))
+
 ### Added
 
 - Sync `watchlistMarkets` with `AuthenticatedUserStorageService` so the watchlist is persisted server-side per authenticated user account ([#9010](https://github.com/MetaMask/core/pull/9010))
