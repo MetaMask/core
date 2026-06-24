@@ -669,8 +669,6 @@ type AllowedEvents = RemoteFeatureFlagControllerStateChangeEvent;
 
 const MESSENGER_EXPOSED_METHODS = [
   'addNetwork',
-  'disableRpcFailover',
-  'enableRpcFailover',
   'findNetworkClientIdByChainId',
   'get1559CompatibilityWithNetworkClientId',
   'getEIP1559Compatibility',
@@ -1389,24 +1387,6 @@ export class NetworkController extends BaseController<
    */
   getEthQuery(): EthQuery | undefined {
     return this.#ethQuery;
-  }
-
-  /**
-   * Enables the RPC failover functionality. That is, if any RPC endpoints are
-   * configured with failover URLs, then traffic will automatically be diverted
-   * to them if those RPC endpoints are unavailable.
-   */
-  enableRpcFailover(): void {
-    this.#updateRpcFailover('enabled');
-  }
-
-  /**
-   * Disables the RPC failover functionality. That is, even if any RPC endpoints
-   * are configured with failover URLs, then traffic will not automatically be
-   * diverted to them if those RPC endpoints are unavailable.
-   */
-  disableRpcFailover(): void {
-    this.#updateRpcFailover('disabled');
   }
 
   /**
