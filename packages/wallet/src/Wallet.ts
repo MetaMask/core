@@ -135,7 +135,7 @@ export class Wallet {
           (instance): instance is Extract<typeof instance, { init: unknown }> =>
             // We do actually want to check the prototype here.
             // eslint-disable-next-line no-restricted-syntax
-            'init' in instance,
+            'init' in instance && typeof instance.init === 'function',
         )
         .map(async (instance) => instance.init()),
     );
