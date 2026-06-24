@@ -15,6 +15,11 @@ export type BridgeControllerFetchQuotesAction = {
   handler: BridgeController['fetchQuotes'];
 };
 
+export type BridgeControllerUpdateBatchSellTradesAction = {
+  type: `BridgeController:updateBatchSellTrades`;
+  handler: BridgeController['updateBatchSellTrades'];
+};
+
 export type BridgeControllerStopPollingForQuotesAction = {
   type: `BridgeController:stopPollingForQuotes`;
   handler: BridgeController['stopPollingForQuotes'];
@@ -23,6 +28,11 @@ export type BridgeControllerStopPollingForQuotesAction = {
 export type BridgeControllerSetLocationAction = {
   type: `BridgeController:setLocation`;
   handler: BridgeController['setLocation'];
+};
+
+export type BridgeControllerGetLocationAction = {
+  type: `BridgeController:getLocation`;
+  handler: BridgeController['getLocation'];
 };
 
 export type BridgeControllerSetInputPrimaryDenominationAction = {
@@ -45,21 +55,17 @@ export type BridgeControllerTrackUnifiedSwapBridgeEventAction = {
   handler: BridgeController['trackUnifiedSwapBridgeEvent'];
 };
 
-export type BridgeControllerUpdateBatchSellTradesAction = {
-  type: `BridgeController:updateBatchSellTrades`;
-  handler: BridgeController['updateBatchSellTrades'];
-};
-
 /**
  * Union of all BridgeController action types.
  */
 export type BridgeControllerMethodActions =
   | BridgeControllerUpdateBridgeQuoteRequestParamsAction
   | BridgeControllerFetchQuotesAction
+  | BridgeControllerUpdateBatchSellTradesAction
   | BridgeControllerStopPollingForQuotesAction
   | BridgeControllerSetLocationAction
+  | BridgeControllerGetLocationAction
   | BridgeControllerSetInputPrimaryDenominationAction
   | BridgeControllerResetStateAction
   | BridgeControllerSetChainIntervalLengthAction
-  | BridgeControllerTrackUnifiedSwapBridgeEventAction
-  | BridgeControllerUpdateBatchSellTradesAction;
+  | BridgeControllerTrackUnifiedSwapBridgeEventAction;
