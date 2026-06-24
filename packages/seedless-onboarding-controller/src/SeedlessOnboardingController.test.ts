@@ -4696,16 +4696,28 @@ describe('SeedlessOnboardingController', () => {
     // controller runs before validating. The crash happens whenever the primary
     // SRP is NOT in slot 0, which only occurs when it lacks the PrimarySrp tag.
     describe('compare - primary SRP slot-0 scenarios', () => {
-      // Three valid TIMEUUIDs in ascending server-assigned order (T1 < T2 < T3).
+      // Valid TIMEUUIDs in ascending server-assigned order (T1 < T2 < T3 < T4).
       const T1 = '00000001-0000-1000-8000-000000000001';
       const T2 = '00000002-0000-1000-8000-000000000002';
       const T3 = '00000003-0000-1000-8000-000000000003';
+      const T4 = '00000004-0000-1000-8000-000000000004';
 
       // Mirror how the controller orders fetched items before validating slot 0.
       const sortAsc = (
         items: SecretMetadata<Uint8Array>[],
       ): SecretMetadata<Uint8Array>[] =>
         [...items].sort((a, b) => SecretMetadata.compare(a, b, 'asc'));
+
+      // Mirror the controller's promote predicate: a mnemonic whose `dataType`
+      // is PrimarySrp or unset. The old code crashed unless slot 0 matched this;
+      // the fix scans for the first item that does and promotes it.
+      const isPrimaryCandidate = (
+        item: SecretMetadata<Uint8Array>,
+      ): boolean =>
+        (item.dataType === undefined ||
+          item.dataType === null ||
+          item.dataType === EncAccountDataType.PrimarySrp) &&
+        SecretMetadata.matchesType(item, SecretType.Mnemonic);
 
       it('reproduces the bug: a legacy primary and legacy private key with a skewed clock sorts the private key into slot 0', () => {
         // Pure pre-migration data: neither item has a server `createdAt` or a
@@ -4820,6 +4832,148 @@ describe('SeedlessOnboardingController', () => {
         expect(sorted[0].type).toBe(SecretType.Mnemonic);
         expect(sorted[0].dataType).toBe(EncAccountDataType.PrimarySrp);
         expect(sorted[1].type).toBe(SecretType.PrivateKey);
+      });
+
+      it('mixed eras: a legacy private key takes slot 0 while the real primary (old device, real createdAt) stays promotable', () => {
+        // Collection spans all three eras at once. The legacy private key has a
+        // null createdAt, so it sorts first and the old code crashes — but the
+        // first mnemonic candidate is the actual primary, so the fix recovers it.
+        const primaryData = stringToBytes('primary');
+        const legacyImportedPk = new SecretMetadata(stringToBytes('pk'), {
+          type: SecretType.PrivateKey,
+          timestamp: 100,
+          // legacy: null createdAt
+        });
+        const oldDevicePrimary = new SecretMetadata(primaryData, {
+          type: SecretType.Mnemonic, // old device cannot send dataType
+          createdAt: T2, // but the server stamped a real createdAt
+          timestamp: 500,
+        });
+        const v2ImportedSrp = new SecretMetadata(stringToBytes('impSrp'), {
+          dataType: EncAccountDataType.ImportedSrp, // new device
+          createdAt: T3,
+          timestamp: 200,
+        });
+
+        const sorted = sortAsc([
+          oldDevicePrimary,
+          legacyImportedPk,
+          v2ImportedSrp,
+        ]);
+
+        expect(sorted[0].type).toBe(SecretType.PrivateKey);
+        expect(isPrimaryCandidate(sorted[0])).toBe(false); // old code crashes
+        expect(sorted.find(isPrimaryCandidate)?.data).toStrictEqual(primaryData);
+      });
+
+      it('mixed eras: a tagged imported SRP can take slot 0 ahead of an untagged primary, and the fix still finds the primary', () => {
+        // Slot 0 IS a mnemonic, but its dataType is ImportedSrp, so the old
+        // code crashes anyway. The fix skips it and promotes the real primary.
+        const primaryData = stringToBytes('primary');
+        const v2ImportedSrp = new SecretMetadata(stringToBytes('impSrp'), {
+          dataType: EncAccountDataType.ImportedSrp,
+          createdAt: T1,
+          timestamp: 100,
+        });
+        const oldDevicePrimary = new SecretMetadata(primaryData, {
+          type: SecretType.Mnemonic, // untagged
+          createdAt: T2,
+          timestamp: 500,
+        });
+
+        const sorted = sortAsc([oldDevicePrimary, v2ImportedSrp]);
+
+        expect(sorted[0].type).toBe(SecretType.Mnemonic);
+        expect(sorted[0].dataType).toBe(EncAccountDataType.ImportedSrp);
+        expect(isPrimaryCandidate(sorted[0])).toBe(false); // old code crashes
+        expect(sorted.find(isPrimaryCandidate)?.data).toStrictEqual(primaryData);
+      });
+
+      it('mixed legacy mnemonics: without a dataType to separate primary from imported SRP, the fix recovers but may promote the wrong mnemonic', () => {
+        // Two legacy mnemonics: both are untagged Mnemonics, so neither the
+        // comparator nor the promote logic can tell the primary from the
+        // imported SRP. The fix avoids the crash but picks the first mnemonic
+        // by timestamp (the imported SRP here) — the same best-effort heuristic
+        // the dataType migration uses, and the same ambiguity the old code had.
+        const primaryData = stringToBytes('primary');
+        const importedSrpData = stringToBytes('impSrp');
+        const legacyPrimary = new SecretMetadata(primaryData, {
+          type: SecretType.Mnemonic,
+          timestamp: 300, // skewed latest
+        });
+        const legacyImportedSrp = new SecretMetadata(importedSrpData, {
+          type: SecretType.Mnemonic,
+          timestamp: 200,
+        });
+        const legacyImportedPk = new SecretMetadata(stringToBytes('pk'), {
+          type: SecretType.PrivateKey,
+          timestamp: 100, // skewed earliest
+        });
+
+        const sorted = sortAsc([
+          legacyPrimary,
+          legacyImportedSrp,
+          legacyImportedPk,
+        ]);
+
+        expect(sorted[0].type).toBe(SecretType.PrivateKey); // old code crashes
+        // The promoted mnemonic is the imported SRP, NOT the true primary.
+        expect(sorted.find(isPrimaryCandidate)?.data).toStrictEqual(
+          importedSrpData,
+        );
+        expect(sorted.find(isPrimaryCandidate)?.data).not.toStrictEqual(
+          primaryData,
+        );
+      });
+
+      it('mixed collection: a tagged PrimarySrp wins slot 0 over legacy imported SRPs and an earliest-timestamp legacy private key', () => {
+        const primaryData = stringToBytes('primary');
+        const taggedPrimary = new SecretMetadata(primaryData, {
+          dataType: EncAccountDataType.PrimarySrp,
+          createdAt: T4,
+          timestamp: 999,
+        });
+        const legacyImportedSrp1 = new SecretMetadata(stringToBytes('srp1'), {
+          type: SecretType.Mnemonic,
+          timestamp: 100,
+        });
+        const legacyImportedSrp2 = new SecretMetadata(stringToBytes('srp2'), {
+          type: SecretType.Mnemonic,
+          timestamp: 200,
+        });
+        const legacyImportedPk = new SecretMetadata(stringToBytes('pk'), {
+          type: SecretType.PrivateKey,
+          timestamp: 50, // earliest, but the PrimarySrp tag beats timestamp
+        });
+
+        const sorted = sortAsc([
+          legacyImportedSrp1,
+          legacyImportedPk,
+          taggedPrimary,
+          legacyImportedSrp2,
+        ]);
+
+        expect(sorted[0].data).toStrictEqual(primaryData);
+        expect(sorted[0].dataType).toBe(EncAccountDataType.PrimarySrp);
+        expect(isPrimaryCandidate(sorted[0])).toBe(true);
+      });
+
+      it('no mnemonic present: the fix fails closed instead of promoting a private key', () => {
+        // Only private keys exist (one legacy, one v2). There is no primary
+        // candidate, so the controller correctly throws InvalidPrimarySecretDataType.
+        const legacyPk = new SecretMetadata(stringToBytes('pk1'), {
+          type: SecretType.PrivateKey,
+          timestamp: 100,
+        });
+        const v2Pk = new SecretMetadata(stringToBytes('pk2'), {
+          dataType: EncAccountDataType.ImportedPrivateKey,
+          createdAt: T1,
+          timestamp: 200,
+        });
+
+        const sorted = sortAsc([legacyPk, v2Pk]);
+
+        expect(sorted.find(isPrimaryCandidate)).toBeUndefined();
       });
     });
 
