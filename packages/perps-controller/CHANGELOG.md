@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add Perps Advanced Chart analytics constants to `PERPS_EVENT_PROPERTY` and `PERPS_EVENT_VALUE` so mobile can import chart instrumentation keys from `@metamask/perps-controller` instead of maintaining a local mirror ([#9221](https://github.com/MetaMask/core/pull/9221))
+  - New `PERPS_EVENT_PROPERTY` keys: `CHART_LIBRARY`, `ASSET_TYPE`
+  - New `PERPS_EVENT_VALUE.CHART_LIBRARY` group: `lightweight`, `advanced`
+  - New `PERPS_EVENT_VALUE.ASSET_TYPE` group: `spot`, `perp`
+
 ## [9.0.0]
 
 ### Added

@@ -544,6 +544,14 @@ export type QuoteRequest = {
 
   /** Address of the target token. */
   targetTokenAddress: Hex;
+
+  /**
+   * One-time HyperLiquid activation fee (USD) reserved from the source amount
+   * for an unactivated HyperCore account. The source amount sent to the
+   * provider is reduced by this amount so HyperLiquid retains enough balance
+   * for the fee, and the amount is surfaced as part of the provider fee.
+   */
+  hyperliquidActivationFeeUsd?: string;
 };
 
 /** Fees associated with a transaction pay quote. */

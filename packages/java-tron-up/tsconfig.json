@@ -3,6 +3,6 @@
   "compilerOptions": {
     "baseUrl": "./"
   },
-  "references": [],
+  "references": [{ "path": "../local-node-utils/tsconfig.json" }],
   "include": ["../../types", "./src"]
 }
