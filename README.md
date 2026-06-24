@@ -296,6 +296,7 @@ linkStyle default opacity:0.5
   base_controller --> messenger;
   base_data_service --> controller_utils;
   base_data_service --> messenger;
+  bitcoin_regtest_up --> local_node_utils;
   bridge_controller --> accounts_controller;
   bridge_controller --> assets_controller;
   bridge_controller --> assets_controllers;

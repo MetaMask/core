@@ -1,42 +1,36 @@
 /* eslint-disable import-x/no-nodejs-modules, no-restricted-globals */
-import { spawn } from 'node:child_process';
-import { createHash } from 'node:crypto';
 import {
-  createWriteStream,
-  existsSync,
-  readdirSync,
-  readFileSync,
-  statSync,
-} from 'node:fs';
-import {
-  chmod,
-  mkdir,
-  readFile,
-  rename,
-  rm,
-  unlink,
-  writeFile,
-} from 'node:fs/promises';
-import { request as requestHttp } from 'node:http';
-import { request as requestHttps } from 'node:https';
-import { arch as osArch, homedir, platform as osPlatform } from 'node:os';
-import { dirname, join, resolve } from 'node:path';
-import { pipeline } from 'node:stream/promises';
-import { parse as parseYaml } from 'yaml';
+  cleanInstallerCache,
+  downloadFileFromUrl,
+  extractTarGzArchive,
+  findExecutable,
+  getCacheKey,
+  getMetamaskCacheDirectory,
+  getPlatformKey,
+  installExecutableWrapper,
+  mergeArtifactConfig,
+  readCliValue,
+  readPackageJsonToolConfig,
+  requireCompletePlatformConfig,
+  resolvePlatformConfig,
+  runCommand,
+  verifyFileChecksum,
+} from '@metamask/local-node-utils';
+import type {
+  ArtifactConfig,
+  ArtifactPlatformConfig,
+  InstallDependencies,
+} from '@metamask/local-node-utils';
+import { existsSync, readFileSync } from 'node:fs';
+import { mkdir, rename, rm, writeFile } from 'node:fs/promises';
+import { dirname, join } from 'node:path';
 
 const BITCOIN_REGTEST_CACHE_NAMESPACE = 'bitcoin-regtest-up';
 const BITCOIN_CORE_CACHE_NAMESPACE = 'bitcoin-core';
 
-export type BitcoinRegtestArtifactConfig = {
-  platforms: Record<string, BitcoinRegtestArtifactPlatformConfig | undefined>;
-  version?: string;
-};
+export type BitcoinRegtestArtifactConfig = ArtifactConfig;
 
-export type BitcoinRegtestArtifactPlatformConfig = {
-  checksum: string;
-  size?: number;
-  url: string;
-};
+export type BitcoinRegtestArtifactPlatformConfig = ArtifactPlatformConfig;
 
 export type BitcoinRegtestInstallOptions = {
   binDirectory?: string;
@@ -57,16 +51,7 @@ export type BitcoinRegtestInstallResult = {
   version?: string;
 };
 
-export type BitcoinRegtestInstallDependencies = {
-  downloadFile?: (url: string, destination: string) => Promise<void>;
-  extractArchive?: (archivePath: string, destination: string) => Promise<void>;
-};
-
-type BitcoinRegtestPackageJson = {
-  'bitcoin-regtest-up'?: BitcoinRegtestPackageJsonConfig;
-  bitcoinRegtestUp?: BitcoinRegtestPackageJsonConfig;
-  bitcoinregtestup?: BitcoinRegtestPackageJsonConfig;
-};
+export type BitcoinRegtestInstallDependencies = InstallDependencies;
 
 type BitcoinRegtestPackageJsonConfig = Pick<
   BitcoinRegtestInstallOptions,
@@ -101,30 +86,16 @@ export const BITCOIN_REGTEST_DEFAULT_CORE: BitcoinRegtestArtifactConfig = {
 
 export function getBitcoinRegtestCacheDirectory({
   cwd = process.cwd(),
-  homeDirectory = homedir(),
+  homeDirectory,
 }: {
   cwd?: string;
   homeDirectory?: string;
 } = {}): string {
-  const yarnRcPath = join(cwd, '.yarnrc.yml');
-  let enableGlobalCache = false;
-
-  try {
-    const parsedConfig = parseYaml(readFileSync(yarnRcPath, 'utf8'));
-    enableGlobalCache = parsedConfig?.enableGlobalCache ?? false;
-  } catch (error) {
-    if (isFileMissingError(error)) {
-      return join(cwd, '.metamask', 'cache');
-    }
-    console.warn(
-      `Warning: Error reading ${yarnRcPath}, using local bitcoin-regtest-up cache:`,
-      error,
-    );
-  }
-
-  return enableGlobalCache
-    ? join(homeDirectory, '.cache', 'metamask')
-    : join(cwd, '.metamask', 'cache');
+  return getMetamaskCacheDirectory({
+    cwd,
+    homeDirectory,
+    toolName: BITCOIN_REGTEST_CACHE_NAMESPACE,
+  });
 }
 
 export function readBitcoinRegtestInstallOptionsFromPackageJson({
@@ -134,29 +105,20 @@ export function readBitcoinRegtestInstallOptionsFromPackageJson({
   cwd?: string;
   packageJsonPath?: string;
 } = {}): BitcoinRegtestInstallOptions {
-  let raw: string;
-  try {
-    raw = readFileSync(packageJsonPath, 'utf8');
-  } catch (error) {
-    if (isFileMissingError(error)) {
-      return {};
-    }
-    throw error;
-  }
-  const packageJson = JSON.parse(raw) as BitcoinRegtestPackageJson;
-  const config =
-    packageJson.bitcoinRegtestUp ??
-    packageJson.bitcoinregtestup ??
-    packageJson['bitcoin-regtest-up'];
+  const config = readPackageJsonToolConfig({
+    cwd,
+    packageJsonPath,
+    configKeys: ['bitcoinRegtestUp', 'bitcoinregtestup', 'bitcoin-regtest-up'],
+  }) as Partial<BitcoinRegtestPackageJsonConfig>;
   const options: BitcoinRegtestInstallOptions = {};
 
-  if (config?.binDirectory) {
+  if (config.binDirectory) {
     options.binDirectory = config.binDirectory;
   }
-  if (config?.bitcoinCore) {
+  if (config.bitcoinCore) {
     options.bitcoinCore = config.bitcoinCore;
   }
-  if (config?.cacheDirectory) {
+  if (config.cacheDirectory) {
     options.cacheDirectory = config.cacheDirectory;
   }
 
@@ -241,11 +203,13 @@ export async function installBitcoinRegtest(
     commandName: 'bitcoind',
     executableArgs: bitcoinCoreResult.sourceBitcoindArgs,
     executablePath: bitcoinCoreResult.sourceBitcoindBinary,
+    pathResolution: 'absolute',
   });
   const bitcoinCliBinary = await installExecutableWrapper({
     binDirectory,
     commandName: 'bitcoin-cli',
     executablePath: bitcoinCoreResult.sourceBitcoinCliBinary,
+    pathResolution: 'absolute',
   });
 
   return {
@@ -267,9 +231,9 @@ export async function cleanBitcoinRegtestCache(
   const cacheDirectory =
     options.cacheDirectory ?? getBitcoinRegtestCacheDirectory({ cwd });
 
-  await rm(join(cacheDirectory, BITCOIN_REGTEST_CACHE_NAMESPACE), {
-    force: true,
-    recursive: true,
+  await cleanInstallerCache({
+    cacheDirectory,
+    namespace: BITCOIN_REGTEST_CACHE_NAMESPACE,
   });
 }
 
@@ -356,54 +320,6 @@ async function installBitcoinCoreArchive(
   }
 }
 
-async function installExecutableWrapper({
-  binDirectory,
-  commandName,
-  executableArgs = [],
-  executablePath,
-}: {
-  binDirectory: string;
-  commandName: string;
-  executableArgs?: string[];
-  executablePath: string;
-}): Promise<string> {
-  const binaryPath = join(binDirectory, commandName);
-  const resolvedExecutablePath = resolve(executablePath);
-
-  await mkdir(binDirectory, { recursive: true });
-  await unlink(binaryPath).catch((error) => {
-    if (!isFileMissingError(error)) {
-      throw error;
-    }
-  });
-  await writeFile(
-    binaryPath,
-    `#!/usr/bin/env node
-const { spawnSync } = require('node:child_process');
-
-const executablePath = ${JSON.stringify(resolvedExecutablePath)};
-const result = spawnSync(executablePath, ${JSON.stringify(executableArgs)}.concat(process.argv.slice(2)), {
-  stdio: 'inherit',
-});
-
-if (result.error) {
-  console.error(result.error.message);
-  process.exit(1);
-}
-
-if (result.signal) {
-  process.kill(process.pid, result.signal);
-  process.exit(1);
-}
-
-process.exit(result.status ?? 0);
-`,
-  );
-  await chmod(binaryPath, 0o755);
-
-  return binaryPath;
-}
-
 async function areBitcoinCoreBinariesRunnable(binaries: {
   sourceBitcoindArgs: string[];
   sourceBitcoinCliBinary: string;
@@ -461,221 +377,4 @@ function findBitcoinCoreDaemonBinary(
   }
 
   return undefined;
-}
-
-function findExecutable(root: string, name: string): string | undefined {
-  if (!existsSync(root)) {
-    return undefined;
-  }
-
-  for (const entry of readdirSync(root)) {
-    const entryPath = join(root, entry);
-    const stat = statSync(entryPath);
-    if (stat.isDirectory()) {
-      const found = findExecutable(entryPath, name);
-      if (found) {
-        return found;
-      }
-    } else if (entry === name) {
-      return entryPath;
-    }
-  }
-
-  return undefined;
-}
-
-function mergeArtifactConfig(
-  defaults: BitcoinRegtestArtifactConfig,
-  override: BitcoinRegtestArtifactConfig | undefined,
-): BitcoinRegtestArtifactConfig {
-  if (!override) {
-    return defaults;
-  }
-  return {
-    version: override.version ?? defaults.version,
-    platforms: { ...defaults.platforms, ...override.platforms },
-  };
-}
-
-function resolvePlatformConfig(
-  config: BitcoinRegtestArtifactConfig,
-  platform: string,
-  label: string,
-): BitcoinRegtestArtifactPlatformConfig {
-  const platformConfig = config.platforms.current ?? config.platforms[platform];
-
-  if (!platformConfig) {
-    throw new Error(`No ${label} is configured for ${platform}.`);
-  }
-
-  return platformConfig;
-}
-
-function requireCompletePlatformConfig(
-  config: Partial<BitcoinRegtestArtifactPlatformConfig>,
-  label: string,
-): BitcoinRegtestArtifactPlatformConfig {
-  if (!config.url || !config.checksum) {
-    throw new Error(`${label} require both a URL and a checksum.`);
-  }
-
-  return {
-    checksum: config.checksum,
-    url: config.url,
-  };
-}
-
-function getCacheKey(config: BitcoinRegtestArtifactPlatformConfig): string {
-  return createHash('sha256')
-    .update(`${config.url}:${config.checksum}`)
-    .digest('hex');
-}
-
-async function verifyFileChecksum(
-  filePath: string,
-  expectedChecksum: string,
-  label: string,
-): Promise<void> {
-  const checksum = createHash('sha256')
-    .update(await readFile(filePath))
-    .digest('hex');
-
-  if (checksum !== expectedChecksum) {
-    throw new Error(
-      `${label} checksum mismatch. Expected ${expectedChecksum}, got ${checksum}.`,
-    );
-  }
-}
-
-async function downloadFileFromUrl(
-  url: string,
-  destination: string,
-): Promise<void> {
-  await mkdir(dirname(destination), { recursive: true });
-  await pipeline(
-    await openDownloadStream(new URL(url)),
-    createWriteStream(destination),
-  );
-}
-
-async function openDownloadStream(
-  url: URL,
-  redirectsRemaining = 5,
-): Promise<NodeJS.ReadableStream> {
-  const request = url.protocol === 'http:' ? requestHttp : requestHttps;
-
-  return await new Promise((resolvePromise, rejectPromise) => {
-    const req = request(url, (response) => {
-      const { headers, statusCode, statusMessage } = response;
-
-      if (
-        statusCode &&
-        statusCode >= 300 &&
-        statusCode < 400 &&
-        headers.location
-      ) {
-        response.resume();
-        if (redirectsRemaining <= 0) {
-          rejectPromise(new Error(`Too many redirects downloading ${url}`));
-          return;
-        }
-
-        openDownloadStream(
-          new URL(headers.location, url),
-          redirectsRemaining - 1,
-        )
-          .then(resolvePromise)
-          .catch(rejectPromise);
-        return;
-      }
-
-      if (!statusCode || statusCode < 200 || statusCode >= 300) {
-        response.resume();
-        rejectPromise(
-          new Error(
-            `Request to ${url} failed with ${statusCode ?? 'unknown'} ${
-              statusMessage ?? ''
-            }`.trim(),
-          ),
-        );
-        return;
-      }
-
-      resolvePromise(response);
-    });
-
-    req.on('error', rejectPromise);
-    req.end();
-  });
-}
-
-async function extractTarGzArchive(
-  archivePath: string,
-  destination: string,
-): Promise<void> {
-  await runCommand('tar', ['-xzf', archivePath, '-C', destination]);
-}
-
-async function runCommand(command: string, args: string[]): Promise<void> {
-  await new Promise<void>((resolvePromise, rejectPromise) => {
-    const child = spawn(command, args, {
-      shell: false,
-      stdio: ['ignore', 'ignore', 'pipe'],
-    });
-    let stderr = '';
-
-    child.stderr.on('data', (chunk) => {
-      stderr += chunk.toString();
-    });
-    child.on('error', rejectPromise);
-    child.on('close', (code, signal) => {
-      if (code === 0) {
-        resolvePromise();
-        return;
-      }
-      const exitStatus = signal ? `signal ${signal}` : `code ${code ?? 'null'}`;
-      rejectPromise(
-        new Error(
-          `${command} ${args.join(' ')} failed with ${exitStatus}: ${stderr}`,
-        ),
-      );
-    });
-  });
-}
-
-function getPlatformKey(): string {
-  const platform = osPlatform();
-  const arch = osArch();
-
-  if (platform === 'darwin' && arch === 'arm64') {
-    return 'darwin-arm64';
-  }
-  if (platform === 'darwin' && arch === 'x64') {
-    return 'darwin-x64';
-  }
-  if (platform === 'linux' && arch === 'arm64') {
-    return 'linux-arm64';
-  }
-  if (platform === 'linux' && arch === 'x64') {
-    return 'linux-x64';
-  }
-
-  return `${platform}-${arch}`;
-}
-
-function readCliValue(arg: string, value: string | undefined): string {
-  if (!value || value.startsWith('--')) {
-    throw new Error(`${arg} requires a value.`);
-  }
-
-  return value;
-}
-
-function isFileMissingError(error: unknown): boolean {
-  return (
-    typeof error === 'object' &&
-    error !== null &&
-    Object.prototype.hasOwnProperty.call(error, 'code') &&
-    (error as NodeJS.ErrnoException).code === 'ENOENT'
-  );
 }
