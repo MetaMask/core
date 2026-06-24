@@ -1,8 +1,9 @@
 # The MetaMask Multichain API
 
-A readable, wallet-side reference for MetaMask's CAIP-25 / CAIP-27 based Multichain
-API, as actually implemented by `@metamask/multichain-api-middleware` and
-`@metamask/chain-agnostic-permission`.
+This is high-level reference documentation for MetaMask's CAIP-25 / CAIP-27 based
+Multichain API. The API is powered by `@metamask/multichain-api-middleware` and
+`@metamask/chain-agnostic-permission`, and is implemented on both the MetaMask
+extension and mobile clients.
 
 > **Audience.** This document describes the **wallet's JSON-RPC contract** — the
 > requests a caller (dapp / SDK) sends and the responses MetaMask returns. If you
