@@ -46,6 +46,7 @@ export type RampsServiceGetTokensAction = {
 /**
  * Fetches the list of providers for a given region.
  * Supports optional query filters: provider, crypto, payments.
+ * Region local fiat filtering is applied server-side when `fiat` is omitted.
  *
  * @param regionCode - The region code (e.g., "us", "fr", "us-ny").
  * @param options - Optional query parameters for filtering providers.
@@ -61,6 +62,8 @@ export type RampsServiceGetProvidersAction = {
 
 /**
  * Fetches the list of payment methods for a given region, asset, and provider.
+ *
+ * Region local fiat filtering is applied server-side when `fiat` is omitted.
  *
  * @param options - Query parameters for filtering payment methods.
  * @param options.region - User's region code (e.g., "us-al").
