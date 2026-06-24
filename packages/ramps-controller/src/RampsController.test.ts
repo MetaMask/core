@@ -4520,10 +4520,14 @@ describe('RampsController', () => {
             },
           );
 
-          await rootMessenger.call('RampsController:getPaymentMethods', 'us-ca', {
-            assetId: 'eip155:1/slip44:60',
-            provider: '/providers/stripe',
-          });
+          await rootMessenger.call(
+            'RampsController:getPaymentMethods',
+            'us-ca',
+            {
+              assetId: 'eip155:1/slip44:60',
+              provider: '/providers/stripe',
+            },
+          );
 
           expect(receivedFiat).toBeUndefined();
         },
