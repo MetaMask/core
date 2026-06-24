@@ -1489,8 +1489,8 @@ export class NetworkController extends BaseController<
           networkClient.configuration.failoverRpcUrls.length > 0
         ) {
           newIsRpcFailoverForced
-            ? networkClient.enableRpcFailoverForced()
-            : networkClient.disableRpcFailoverForced();
+            ? networkClient.enableForcedRpcFailover()
+            : networkClient.disableForcedRpcFailover();
         }
       }
     }

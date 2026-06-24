@@ -720,7 +720,7 @@ describe('createAutoManagedNetworkClient', () => {
         method: 'test_method',
         params: [],
       });
-      autoManagedNetworkClient.enableRpcFailoverForced();
+      autoManagedNetworkClient.enableForcedRpcFailover();
       await provider.request({
         id: 1,
         jsonrpc: '2.0',
@@ -798,7 +798,7 @@ describe('createAutoManagedNetworkClient', () => {
         method: 'test_method',
         params: [],
       });
-      autoManagedNetworkClient.disableRpcFailoverForced();
+      autoManagedNetworkClient.disableForcedRpcFailover();
       await provider.request({
         id: 1,
         jsonrpc: '2.0',

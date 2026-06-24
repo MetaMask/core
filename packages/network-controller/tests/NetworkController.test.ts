@@ -1096,7 +1096,7 @@ describe('NetworkController', () => {
   });
 
   describe('RemoteFeatureFlagController:stateChange (isRpcFailoverForced)', () => {
-    it('calls enableRpcFailoverForced on clients with failover URLs when the flag turns true', async () => {
+    it('calls enableForcedRpcFailover on clients with failover URLs when the flag turns true', async () => {
       const originalCreateAutoManagedNetworkClient =
         createAutoManagedNetworkClientModule.createAutoManagedNetworkClient;
       const autoManagedNetworkClients: AutoManagedNetworkClient<NetworkClientConfiguration>[] =
@@ -1109,7 +1109,7 @@ describe('NetworkController', () => {
         .mockImplementation((...args) => {
           const autoManagedNetworkClient =
             originalCreateAutoManagedNetworkClient(...args);
-          jest.spyOn(autoManagedNetworkClient, 'enableRpcFailoverForced');
+          jest.spyOn(autoManagedNetworkClient, 'enableForcedRpcFailover');
           autoManagedNetworkClients.push(autoManagedNetworkClient);
           return autoManagedNetworkClient;
         });
@@ -1158,10 +1158,10 @@ describe('NetworkController', () => {
 
           expect(autoManagedNetworkClients).toHaveLength(2);
           expect(
-            autoManagedNetworkClients[0].enableRpcFailoverForced,
+            autoManagedNetworkClients[0].enableForcedRpcFailover,
           ).not.toHaveBeenCalled();
           expect(
-            autoManagedNetworkClients[1].enableRpcFailoverForced,
+            autoManagedNetworkClients[1].enableForcedRpcFailover,
           ).toHaveBeenCalled();
         },
       );
@@ -1180,7 +1180,7 @@ describe('NetworkController', () => {
         .mockImplementation((...args) => {
           const autoManagedNetworkClient =
             originalCreateAutoManagedNetworkClient(...args);
-          jest.spyOn(autoManagedNetworkClient, 'enableRpcFailoverForced');
+          jest.spyOn(autoManagedNetworkClient, 'enableForcedRpcFailover');
           autoManagedNetworkClients.push(autoManagedNetworkClient);
           return autoManagedNetworkClient;
         });
@@ -1217,16 +1217,16 @@ describe('NetworkController', () => {
         async () => {
           expect(autoManagedNetworkClients).toHaveLength(2);
           expect(
-            autoManagedNetworkClients[0].enableRpcFailoverForced,
+            autoManagedNetworkClients[0].enableForcedRpcFailover,
           ).toHaveBeenCalled();
           expect(
-            autoManagedNetworkClients[1].enableRpcFailoverForced,
+            autoManagedNetworkClients[1].enableForcedRpcFailover,
           ).not.toHaveBeenCalled();
         },
       );
     });
 
-    it('calls enableRpcFailoverForced but not enableRpcFailover when only the forced flag is true', async () => {
+    it('calls enableForcedRpcFailover but not enableRpcFailover when only the forced flag is true', async () => {
       const originalCreateAutoManagedNetworkClient =
         createAutoManagedNetworkClientModule.createAutoManagedNetworkClient;
       const autoManagedNetworkClients: AutoManagedNetworkClient<NetworkClientConfiguration>[] =
@@ -1240,7 +1240,7 @@ describe('NetworkController', () => {
           const autoManagedNetworkClient =
             originalCreateAutoManagedNetworkClient(...args);
           jest.spyOn(autoManagedNetworkClient, 'enableRpcFailover');
-          jest.spyOn(autoManagedNetworkClient, 'enableRpcFailoverForced');
+          jest.spyOn(autoManagedNetworkClient, 'enableForcedRpcFailover');
           autoManagedNetworkClients.push(autoManagedNetworkClient);
           return autoManagedNetworkClient;
         });
@@ -1280,7 +1280,7 @@ describe('NetworkController', () => {
 
           expect(autoManagedNetworkClients).toHaveLength(1);
           expect(
-            autoManagedNetworkClients[0].enableRpcFailoverForced,
+            autoManagedNetworkClients[0].enableForcedRpcFailover,
           ).toHaveBeenCalled();
           expect(
             autoManagedNetworkClients[0].enableRpcFailover,
@@ -1854,8 +1854,8 @@ describe('NetworkController', () => {
                 destroy: expect.any(Function),
                 enableRpcFailover: expect.any(Function),
                 disableRpcFailover: expect.any(Function),
-                enableRpcFailoverForced: expect.any(Function),
-                disableRpcFailoverForced: expect.any(Function),
+                enableForcedRpcFailover: expect.any(Function),
+                disableForcedRpcFailover: expect.any(Function),
               },
               'base-mainnet': {
                 blockTracker: expect.anything(),
@@ -1871,8 +1871,8 @@ describe('NetworkController', () => {
                 destroy: expect.any(Function),
                 enableRpcFailover: expect.any(Function),
                 disableRpcFailover: expect.any(Function),
-                enableRpcFailoverForced: expect.any(Function),
-                disableRpcFailoverForced: expect.any(Function),
+                enableForcedRpcFailover: expect.any(Function),
+                disableForcedRpcFailover: expect.any(Function),
               },
               'bsc-mainnet': {
                 blockTracker: expect.anything(),
@@ -1888,8 +1888,8 @@ describe('NetworkController', () => {
                 destroy: expect.any(Function),
                 enableRpcFailover: expect.any(Function),
                 disableRpcFailover: expect.any(Function),
-                enableRpcFailoverForced: expect.any(Function),
-                disableRpcFailoverForced: expect.any(Function),
+                enableForcedRpcFailover: expect.any(Function),
+                disableForcedRpcFailover: expect.any(Function),
               },
               'linea-mainnet': {
                 blockTracker: expect.anything(),
@@ -1905,8 +1905,8 @@ describe('NetworkController', () => {
                 destroy: expect.any(Function),
                 enableRpcFailover: expect.any(Function),
                 disableRpcFailover: expect.any(Function),
-                enableRpcFailoverForced: expect.any(Function),
-                disableRpcFailoverForced: expect.any(Function),
+                enableForcedRpcFailover: expect.any(Function),
+                disableForcedRpcFailover: expect.any(Function),
               },
               'linea-sepolia': {
                 blockTracker: expect.anything(),
@@ -1922,8 +1922,8 @@ describe('NetworkController', () => {
                 destroy: expect.any(Function),
                 enableRpcFailover: expect.any(Function),
                 disableRpcFailover: expect.any(Function),
-                enableRpcFailoverForced: expect.any(Function),
-                disableRpcFailoverForced: expect.any(Function),
+                enableForcedRpcFailover: expect.any(Function),
+                disableForcedRpcFailover: expect.any(Function),
               },
               mainnet: {
                 blockTracker: expect.anything(),
@@ -1939,8 +1939,8 @@ describe('NetworkController', () => {
                 destroy: expect.any(Function),
                 enableRpcFailover: expect.any(Function),
                 disableRpcFailover: expect.any(Function),
-                enableRpcFailoverForced: expect.any(Function),
-                disableRpcFailoverForced: expect.any(Function),
+                enableForcedRpcFailover: expect.any(Function),
+                disableForcedRpcFailover: expect.any(Function),
               },
               'megaeth-testnet-v2': {
                 blockTracker: expect.anything(),
@@ -1955,8 +1955,8 @@ describe('NetworkController', () => {
                 destroy: expect.any(Function),
                 enableRpcFailover: expect.any(Function),
                 disableRpcFailover: expect.any(Function),
-                enableRpcFailoverForced: expect.any(Function),
-                disableRpcFailoverForced: expect.any(Function),
+                enableForcedRpcFailover: expect.any(Function),
+                disableForcedRpcFailover: expect.any(Function),
               },
               'monad-mainnet': {
                 blockTracker: expect.anything(),
@@ -1972,8 +1972,8 @@ describe('NetworkController', () => {
                 destroy: expect.any(Function),
                 enableRpcFailover: expect.any(Function),
                 disableRpcFailover: expect.any(Function),
-                enableRpcFailoverForced: expect.any(Function),
-                disableRpcFailoverForced: expect.any(Function),
+                enableForcedRpcFailover: expect.any(Function),
+                disableForcedRpcFailover: expect.any(Function),
               },
               'monad-testnet': {
                 blockTracker: expect.anything(),
@@ -1988,8 +1988,8 @@ describe('NetworkController', () => {
                 destroy: expect.any(Function),
                 enableRpcFailover: expect.any(Function),
                 disableRpcFailover: expect.any(Function),
-                enableRpcFailoverForced: expect.any(Function),
-                disableRpcFailoverForced: expect.any(Function),
+                enableForcedRpcFailover: expect.any(Function),
+                disableForcedRpcFailover: expect.any(Function),
               },
               'optimism-mainnet': {
                 blockTracker: expect.anything(),
@@ -2005,8 +2005,8 @@ describe('NetworkController', () => {
                 destroy: expect.any(Function),
                 enableRpcFailover: expect.any(Function),
                 disableRpcFailover: expect.any(Function),
-                enableRpcFailoverForced: expect.any(Function),
-                disableRpcFailoverForced: expect.any(Function),
+                enableForcedRpcFailover: expect.any(Function),
+                disableForcedRpcFailover: expect.any(Function),
               },
               'polygon-mainnet': {
                 blockTracker: expect.anything(),
@@ -2022,8 +2022,8 @@ describe('NetworkController', () => {
                 destroy: expect.any(Function),
                 enableRpcFailover: expect.any(Function),
                 disableRpcFailover: expect.any(Function),
-                enableRpcFailoverForced: expect.any(Function),
-                disableRpcFailoverForced: expect.any(Function),
+                enableForcedRpcFailover: expect.any(Function),
+                disableForcedRpcFailover: expect.any(Function),
               },
               sepolia: {
                 blockTracker: expect.anything(),
@@ -2039,8 +2039,8 @@ describe('NetworkController', () => {
                 destroy: expect.any(Function),
                 enableRpcFailover: expect.any(Function),
                 disableRpcFailover: expect.any(Function),
-                enableRpcFailoverForced: expect.any(Function),
-                disableRpcFailoverForced: expect.any(Function),
+                enableForcedRpcFailover: expect.any(Function),
+                disableForcedRpcFailover: expect.any(Function),
               },
             });
           },
@@ -2097,8 +2097,8 @@ describe('NetworkController', () => {
                 destroy: expect.any(Function),
                 enableRpcFailover: expect.any(Function),
                 disableRpcFailover: expect.any(Function),
-                enableRpcFailoverForced: expect.any(Function),
-                disableRpcFailoverForced: expect.any(Function),
+                enableForcedRpcFailover: expect.any(Function),
+                disableForcedRpcFailover: expect.any(Function),
               },
               'BBBB-BBBB-BBBB-BBBB': {
                 blockTracker: expect.anything(),
@@ -2113,8 +2113,8 @@ describe('NetworkController', () => {
                 destroy: expect.any(Function),
                 enableRpcFailover: expect.any(Function),
                 disableRpcFailover: expect.any(Function),
-                enableRpcFailoverForced: expect.any(Function),
-                disableRpcFailoverForced: expect.any(Function),
+                enableForcedRpcFailover: expect.any(Function),
+                disableForcedRpcFailover: expect.any(Function),
               },
             });
           },

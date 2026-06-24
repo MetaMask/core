@@ -49,8 +49,8 @@ export type AutoManagedNetworkClient<
   destroy: () => void;
   enableRpcFailover: () => void;
   disableRpcFailover: () => void;
-  enableRpcFailoverForced: () => void;
-  disableRpcFailoverForced: () => void;
+  enableForcedRpcFailover: () => void;
+  disableForcedRpcFailover: () => void;
 };
 
 /**
@@ -255,13 +255,13 @@ export function createAutoManagedNetworkClient<
     networkClient = undefined;
   };
 
-  const enableRpcFailoverForced = (): void => {
+  const enableForcedRpcFailover = (): void => {
     isRpcFailoverForced = true;
     destroy();
     networkClient = undefined;
   };
 
-  const disableRpcFailoverForced = (): void => {
+  const disableForcedRpcFailover = (): void => {
     isRpcFailoverForced = false;
     destroy();
     networkClient = undefined;
@@ -274,7 +274,7 @@ export function createAutoManagedNetworkClient<
     destroy,
     enableRpcFailover,
     disableRpcFailover,
-    enableRpcFailoverForced,
-    disableRpcFailoverForced,
+    enableForcedRpcFailover,
+    disableForcedRpcFailover,
   };
 }
