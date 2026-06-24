@@ -6,7 +6,10 @@ import { getIsRpcFailoverEnabled, getIsRpcFailoverForced } from './selectors';
  * @param mode - The value to set for `corePlatformRpcFailoverMode`, if any.
  * @returns The state object.
  */
-function buildState(mode?: unknown) {
+function buildState(mode?: unknown): {
+  remoteFeatureFlags: Record<string, unknown>;
+  cacheTimestamp: number;
+} {
   return {
     remoteFeatureFlags:
       mode === undefined ? {} : { corePlatformRpcFailoverMode: mode },
