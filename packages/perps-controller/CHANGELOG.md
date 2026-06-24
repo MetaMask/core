@@ -9,17 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [9.1.0]
 
-### Uncategorized
-
-- fix: move analytics changes to unreleased ([#9254](https://github.com/MetaMask/core/pull/9254))
-- Release 1068.0.0 ([#9253](https://github.com/MetaMask/core/pull/9253))
-
 ### Added
 
 - Add Perps Advanced Chart analytics constants to `PERPS_EVENT_PROPERTY` and `PERPS_EVENT_VALUE` so mobile can import chart instrumentation keys from `@metamask/perps-controller` instead of maintaining a local mirror ([#9221](https://github.com/MetaMask/core/pull/9221))
   - New `PERPS_EVENT_PROPERTY` keys: `CHART_LIBRARY`, `ASSET_TYPE`
   - New `PERPS_EVENT_VALUE.CHART_LIBRARY` group: `lightweight`, `advanced`
   - New `PERPS_EVENT_VALUE.ASSET_TYPE` group: `spot`, `perp`
+
+### Changed
+
+- Bump `@metamask/transaction-controller` from `^68.1.1` to `^68.2.0` ([#9253](https://github.com/MetaMask/core/pull/9253))
 
 ## [9.0.0]
 
