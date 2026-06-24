@@ -616,20 +616,20 @@ describe('QuoteStatusUpdateManager', () => {
       );
     });
 
-    it('surfaces an error when the entry cannot transition to the finalized state', async () => {
+    it('ignores duplicate finalization when the entry cannot transition to the finalized state', async () => {
       const { manager, onError } = createManager();
       manager.reportSubmitted('quote-1', '0xabc', 'tx-1');
       await flush();
       manager.reportFinalised('tx-1', true);
       await flush();
       onError.mockClear();
+      mockUpdate.mockClear();
 
       manager.reportFinalised('tx-1', true);
+      await flush();
 
-      expect(onError).toHaveBeenCalledTimes(1);
-      expect(onError.mock.calls[0][0].message).toContain(
-        'cannot transition from "FinalizedSuccess" to "FinalizedSuccess"',
-      );
+      expect(onError).not.toHaveBeenCalled();
+      expect(mockUpdate).not.toHaveBeenCalled();
     });
 
     it('completes and retains the entry once a finalized status is accepted', async () => {
@@ -646,14 +646,14 @@ describe('QuoteStatusUpdateManager', () => {
       await flush();
 
       // The entry is retained in the terminal Completed state, so a later
-      // finalization for the same tx can no longer transition it.
+      // finalization for the same tx is ignored instead of surfacing an error.
       onError.mockClear();
+      mockUpdate.mockClear();
       manager.reportFinalised('tx-1', true);
+      await flush();
 
-      expect(onError).toHaveBeenCalledTimes(1);
-      expect(onError.mock.calls[0][0].message).toContain(
-        'cannot transition from "Completed" to "FinalizedSuccess"',
-      );
+      expect(onError).not.toHaveBeenCalled();
+      expect(mockUpdate).not.toHaveBeenCalled();
     });
   });
 

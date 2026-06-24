@@ -154,12 +154,12 @@ export class QuoteStatusUpdateManager {
       : QuoteStatusState.FinalizedFailed;
 
     if (!entry.status.canTransitionTo(nextState)) {
-      this.#onError?.(
-        new QuoteStatusUpdateError(
-          `reporting finalization status but entry cannot transition from "${entry.status.state}" to "${nextState}"`,
-          { quoteId: entry.quoteId },
-        ),
-      );
+      // This is expected, there are race conditions where
+      // reportFinalized can be called twice. If the second
+      // call fails due to the first completed sucesfully
+      // backend will report that we cannot transition outside
+      // a final state, which is correct and we can safely abort 
+      // the flow.
       return;
     }
 
@@ -425,8 +425,8 @@ export class QuoteStatusUpdateManager {
       );
       return Boolean(
         live &&
-          live.status.state === sentStatus &&
-          live.acknowledgedState !== sentStatus,
+        live.status.state === sentStatus &&
+        live.acknowledgedState !== sentStatus,
       );
     };
 
