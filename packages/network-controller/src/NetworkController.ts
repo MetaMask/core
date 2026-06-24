@@ -1420,20 +1420,19 @@ export class NetworkController extends BaseController<
   }
 
   /**
-   * Enables or disables the RPC failover functionality, depending on the
-   * boolean given. This is done by reconstructing all network clients that were
-   * originally configured with failover URLs so that those URLs are either
-   * honored or ignored. Network client IDs will be preserved so as not to
-   * invalidate state in other controllers.
+   * Invokes the given callback for each auto-managed network client that was
+   * configured with failover URLs. Used to reconstruct those clients when an
+   * RPC failover setting changes.
    *
-   * @param newIsRpcFailoverEnabled - Whether or not to enable or disable the
-   * RPC failover functionality.
+   * @param callback - Called with each network client that has failover URLs.
    */
-  #updateRpcFailoverEnabled(newIsRpcFailoverEnabled: boolean): void {
-    if (this.#isRpcFailoverEnabled === newIsRpcFailoverEnabled) {
-      return;
-    }
-
+  #forEachNetworkClientWithFailover(
+    callback: (
+      networkClient:
+        | AutoManagedNetworkClient<InfuraNetworkClientConfiguration>
+        | AutoManagedNetworkClient<CustomNetworkClientConfiguration>,
+    ) => void,
+  ): void {
     const autoManagedNetworkClientRegistry =
       this.#ensureAutoManagedNetworkClientRegistryPopulated();
 
@@ -1450,12 +1449,32 @@ export class NetworkController extends BaseController<
           networkClient.configuration.failoverRpcUrls &&
           networkClient.configuration.failoverRpcUrls.length > 0
         ) {
-          newIsRpcFailoverEnabled
-            ? networkClient.enableRpcFailover()
-            : networkClient.disableRpcFailover();
+          callback(networkClient);
         }
       }
     }
+  }
+
+  /**
+   * Enables or disables the RPC failover functionality, depending on the
+   * boolean given. This is done by reconstructing all network clients that were
+   * originally configured with failover URLs so that those URLs are either
+   * honored or ignored. Network client IDs will be preserved so as not to
+   * invalidate state in other controllers.
+   *
+   * @param newIsRpcFailoverEnabled - Whether or not to enable or disable the
+   * RPC failover functionality.
+   */
+  #updateRpcFailoverEnabled(newIsRpcFailoverEnabled: boolean): void {
+    if (this.#isRpcFailoverEnabled === newIsRpcFailoverEnabled) {
+      return;
+    }
+
+    this.#forEachNetworkClientWithFailover((networkClient) => {
+      newIsRpcFailoverEnabled
+        ? networkClient.enableRpcFailover()
+        : networkClient.disableRpcFailover();
+    });
 
     this.#isRpcFailoverEnabled = newIsRpcFailoverEnabled;
   }
@@ -1472,28 +1491,11 @@ export class NetworkController extends BaseController<
       return;
     }
 
-    const autoManagedNetworkClientRegistry =
-      this.#ensureAutoManagedNetworkClientRegistryPopulated();
-
-    for (const networkClientsById of Object.values(
-      autoManagedNetworkClientRegistry,
-    )) {
-      for (const networkClientId of Object.keys(networkClientsById)) {
-        // Type assertion: We can assume that `networkClientId` is valid here.
-        const networkClient =
-          networkClientsById[
-            networkClientId as keyof typeof networkClientsById
-          ];
-        if (
-          networkClient.configuration.failoverRpcUrls &&
-          networkClient.configuration.failoverRpcUrls.length > 0
-        ) {
-          newIsRpcFailoverForced
-            ? networkClient.enableForcedRpcFailover()
-            : networkClient.disableForcedRpcFailover();
-        }
-      }
-    }
+    this.#forEachNetworkClientWithFailover((networkClient) => {
+      newIsRpcFailoverForced
+        ? networkClient.enableForcedRpcFailover()
+        : networkClient.disableForcedRpcFailover();
+    });
 
     this.#isRpcFailoverForced = newIsRpcFailoverForced;
   }
