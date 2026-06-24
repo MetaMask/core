@@ -2213,12 +2213,12 @@
   },
   "packages/snap-account-service/src/SnapPlatformWatcher.test.ts": {
     "no-restricted-syntax": {
-      "count": 2
+      "count": 1
     }
   },
   "packages/snap-account-service/src/SnapPlatformWatcher.ts": {
     "no-restricted-syntax": {
-      "count": 2
+      "count": 1
     }
   },
   "packages/subscription-controller/src/SubscriptionController.test.ts": {

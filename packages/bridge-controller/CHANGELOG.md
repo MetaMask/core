@@ -7,6 +7,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Added `getLocation()` method to `BridgeController` for reading the current swap/bridge entry point ([#9243](https://github.com/MetaMask/core/pull/9243))
+- Added `Unknown` value to `MetaMetricsSwapsEventSource` enum for unattributed swap and bridge flows ([#9243](https://github.com/MetaMask/core/pull/9243))
+- Added `ActivityTabEmptyState`, `TransactionShield`, `TransactionDetails`, and `DeepLink` values to `MetaMetricsSwapsEventSource` enum for attributing swap and bridge flows to additional entry points ([#9241](https://github.com/MetaMask/core/pull/9241))
+
+### Changed
+
+- **BREAKING:** Default `location` fallback for Unified SwapBridge events now uses `Unknown` instead of `Main View` when no entry point is set ([#9243](https://github.com/MetaMask/core/pull/9243))
+
+- Bump `@metamask/assets-controllers` from `^109.2.1` to `^109.2.2` ([#9231](https://github.com/MetaMask/core/pull/9231))
+- Bump `@metamask/accounts-controller` from `^39.0.2` to `^39.0.3` ([#9231](https://github.com/MetaMask/core/pull/9231))
+
+## [76.0.0]
+
+### Added
+
+- Add `quick_buy_explore` to the `FeatureId` enum ([#9222](https://github.com/MetaMask/core/pull/9222))
+- **BREAKING**: Add persisted input primary denomination state and `Unified SwapBridge Fiat Crypto Toggle Clicked` analytics event support ([#9147](https://github.com/MetaMask/core/pull/9147))
+
+## [75.2.1]
+
+### Changed
+
+- Bump `@metamask/accounts-controller` from `^39.0.1` to `^39.0.2` ([#9218](https://github.com/MetaMask/core/pull/9218))
+- Bump `@metamask/assets-controller` from `^9.0.1` to `^9.0.2` ([#9218](https://github.com/MetaMask/core/pull/9218))
+- Bump `@metamask/assets-controllers` from `^109.2.0` to `^109.2.1` ([#9218](https://github.com/MetaMask/core/pull/9218))
+- Bump `@metamask/controller-utils` from `^12.2.0` to `^12.3.0` ([#9218](https://github.com/MetaMask/core/pull/9218))
+- Bump `@metamask/gas-fee-controller` from `^26.2.2` to `^26.2.3` ([#9218](https://github.com/MetaMask/core/pull/9218))
+- Bump `@metamask/multichain-network-controller` from `^3.1.3` to `^3.1.4` ([#9218](https://github.com/MetaMask/core/pull/9218))
+- Bump `@metamask/network-controller` from `^32.0.0` to `^33.0.0` ([#9218](https://github.com/MetaMask/core/pull/9218))
+- Bump `@metamask/polling-controller` from `^16.0.6` to `^16.0.7` ([#9218](https://github.com/MetaMask/core/pull/9218))
+- Bump `@metamask/transaction-controller` from `^68.1.0` to `^68.1.1` ([#9218](https://github.com/MetaMask/core/pull/9218))
+
 ## [75.2.0]
 
 ### Added
@@ -1619,7 +1653,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#5317](https://github.com/MetaMask/core/pull/5317))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@75.2.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@76.0.0...HEAD
+[76.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@75.2.1...@metamask/bridge-controller@76.0.0
+[75.2.1]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@75.2.0...@metamask/bridge-controller@75.2.1
 [75.2.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@75.1.1...@metamask/bridge-controller@75.2.0
 [75.1.1]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@75.1.0...@metamask/bridge-controller@75.1.1
 [75.1.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@75.0.0...@metamask/bridge-controller@75.1.0

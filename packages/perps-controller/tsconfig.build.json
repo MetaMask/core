@@ -7,6 +7,7 @@
   },
   "references": [
     { "path": "../account-tree-controller/tsconfig.build.json" },
+    { "path": "../authenticated-user-storage/tsconfig.build.json" },
     { "path": "../base-controller/tsconfig.build.json" },
     { "path": "../bridge-controller/tsconfig.build.json" },
     { "path": "../controller-utils/tsconfig.build.json" },

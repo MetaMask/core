@@ -35,6 +35,7 @@ import type {
   BridgeControllerState,
   BridgeControllerMessenger,
   FetchFunction,
+  InputPrimaryDenomination,
 } from './types';
 import { getAssetIdsForToken, toExchangeRates } from './utils/assets';
 import { hasSufficientBalance } from './utils/balance';
@@ -156,6 +157,12 @@ const metadata: StateMetadata<BridgeControllerState> = {
     includeInDebugSnapshot: false,
     usedInUi: true,
   },
+  inputPrimaryDenomination: {
+    includeInStateLogs: true,
+    persist: true,
+    includeInDebugSnapshot: false,
+    usedInUi: true,
+  },
   quoteStreamComplete: {
     includeInStateLogs: true,
     persist: false,
@@ -195,6 +202,8 @@ const MESSENGER_EXPOSED_METHODS = [
   'updateBatchSellTrades',
   'stopPollingForQuotes',
   'setLocation',
+  'getLocation',
+  'setInputPrimaryDenomination',
   'resetState',
   'setChainIntervalLength',
   'trackUnifiedSwapBridgeEvent',
@@ -216,7 +225,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
    * Set via setLocation() before navigating to the swap/bridge flow.
    * Used as default for all subsequent internal events.
    */
-  #location: MetaMetricsSwapsEventSource = MetaMetricsSwapsEventSource.MainView;
+  #location: MetaMetricsSwapsEventSource = MetaMetricsSwapsEventSource.Unknown;
 
   readonly #clientId: BridgeClientId;
 
@@ -711,6 +720,23 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
     this.#location = location;
   };
 
+  /**
+   * Returns the location/entry point for the current swap or bridge flow.
+   *
+   * @returns The entry point from which the user initiated the flow
+   */
+  getLocation = (): MetaMetricsSwapsEventSource => {
+    return this.#location;
+  };
+
+  setInputPrimaryDenomination = (
+    inputPrimaryDenomination: InputPrimaryDenomination,
+  ) => {
+    this.update((state) => {
+      state.inputPrimaryDenomination = inputPrimaryDenomination;
+    });
+  };
+
   resetState = (
     reason = AbortReason.ResetState,
     quoteRequestIndex: number | null = null,
@@ -1155,6 +1181,9 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
       location: clientProps?.location ?? this.#location,
       action_type: MetricsActionType.SWAPBRIDGE_V1,
     };
+    const inputPrimaryDenominationProperties = {
+      input_primary_denomination: this.state.inputPrimaryDenomination,
+    };
     const quoteRequest = this.state.quoteRequest[quoteRequestIndex];
     switch (eventName) {
       case UnifiedSwapBridgeEventName.ButtonClicked:
@@ -1172,6 +1201,16 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
             this.state.tokenSecurityTypeDestination,
           ),
           ...this.#getRequestMetadata(),
+          ...inputPrimaryDenominationProperties,
+          ...baseProperties,
+        };
+      case UnifiedSwapBridgeEventName.FiatCryptoToggleClicked:
+        return {
+          ...getRequestParams(
+            quoteRequest,
+            this.state.tokenSecurityTypeDestination,
+          ),
+          swap_type: getSwapTypeFromQuote(quoteRequest),
           ...baseProperties,
         };
       case UnifiedSwapBridgeEventName.QuotesValidationFailed:
@@ -1192,6 +1231,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
           ...this.#getRequestMetadata(),
           ...this.#getQuoteFetchData(),
           refresh_count: this.state.quotesRefreshCount,
+          ...inputPrimaryDenominationProperties,
           ...baseProperties,
         };
       case UnifiedSwapBridgeEventName.QuotesRequested:
@@ -1202,6 +1242,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
           ),
           ...this.#getRequestMetadata(),
           has_sufficient_funds: !quoteRequest.insufficientBal,
+          ...inputPrimaryDenominationProperties,
           ...baseProperties,
         };
       case UnifiedSwapBridgeEventName.QuotesError:
