@@ -7,10 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Added
+### Changed
 
-- Add forced RPC failover for Infura endpoints, driven by the `corePlatformRpcFailoverForceEnabled` remote feature flag ([#9175](https://github.com/MetaMask/core/pull/9175))
-  - When enabled, Infura endpoints configured with failover URLs route all traffic to those failover URLs, bypassing Infura entirely. Infura endpoints without failover URLs continue to use Infura, and custom RPC endpoints are unaffected.
+- **BREAKING:** Drive RPC failover from the single `corePlatformRpcFailoverMode` remote feature flag ([#9175](https://github.com/MetaMask/core/pull/9175))
+  - The flag is a string with three values: `disabled` (failover off), `enabled` (divert to failover URLs when the primary endpoint is unavailable), and `forced` (Infura endpoints that have failover URLs route all traffic to those URLs, bypassing Infura entirely). Custom endpoints are unaffected, and the value defaults to `disabled` when the flag is absent or unrecognized.
+  - `NetworkController` no longer reads the `walletFrameworkRpcFailoverEnabled` flag; the `enabled` mode replaces it. Update your remote feature flag configuration to set `corePlatformRpcFailoverMode`.
 
 ## [33.0.0]
 

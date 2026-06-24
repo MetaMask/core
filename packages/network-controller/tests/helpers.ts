@@ -115,12 +115,17 @@ export function buildRootMessenger({
     }),
   );
 
+  // eslint-disable-next-line no-nested-ternary
+  const corePlatformRpcFailoverMode = isRpcFailoverForced
+    ? 'forced'
+    : isRpcFailoverEnabled
+      ? 'enabled'
+      : 'disabled';
   rootMessenger.registerActionHandler(
     'RemoteFeatureFlagController:getState',
     () => ({
       remoteFeatureFlags: {
-        walletFrameworkRpcFailoverEnabled: isRpcFailoverEnabled,
-        corePlatformRpcFailoverForceEnabled: isRpcFailoverForced,
+        corePlatformRpcFailoverMode,
       },
       cacheTimestamp: 0,
     }),

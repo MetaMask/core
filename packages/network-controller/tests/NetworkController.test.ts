@@ -1148,8 +1148,7 @@ describe('NetworkController', () => {
             'RemoteFeatureFlagController:stateChange',
             {
               remoteFeatureFlags: {
-                walletFrameworkRpcFailoverEnabled: false,
-                corePlatformRpcFailoverForceEnabled: true,
+                corePlatformRpcFailoverMode: 'forced',
               },
               cacheTimestamp: 0,
             },
@@ -1270,8 +1269,7 @@ describe('NetworkController', () => {
             'RemoteFeatureFlagController:stateChange',
             {
               remoteFeatureFlags: {
-                walletFrameworkRpcFailoverEnabled: false,
-                corePlatformRpcFailoverForceEnabled: true,
+                corePlatformRpcFailoverMode: 'forced',
               },
               cacheTimestamp: 0,
             },
