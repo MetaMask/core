@@ -1,36 +1,38 @@
 /* eslint-disable import-x/no-nodejs-modules, no-restricted-globals */
-import { spawn, spawnSync } from 'node:child_process';
-import { createHash } from 'node:crypto';
 import {
-  createReadStream,
-  createWriteStream,
-  existsSync,
-  readdirSync,
-  readFileSync,
-  statSync,
-} from 'node:fs';
-import { chmod, mkdir, rename, rm, unlink, writeFile } from 'node:fs/promises';
-import { request as requestHttp } from 'node:http';
-import { request as requestHttps } from 'node:https';
-import { arch as osArch, homedir, platform as osPlatform } from 'node:os';
-import { dirname, join, resolve } from 'node:path';
-import { pipeline } from 'node:stream/promises';
-import { parse as parseYaml } from 'yaml';
+  cleanInstallerCache,
+  downloadFileFromUrl,
+  extractTarGzArchive,
+  getCacheKey,
+  getMetamaskCacheDirectory,
+  getPlatformKey,
+  installExecutableWrapper,
+  isDirectory,
+  isFile,
+  mergeArtifactConfig,
+  readCliValue,
+  readPackageJsonToolConfig,
+  requireCompletePlatformConfig,
+  resolvePlatformConfig,
+  verifyFileChecksum,
+} from '@metamask/local-node-utils';
+import type {
+  ArtifactConfig,
+  ArtifactPlatformConfig,
+  InstallDependencies,
+} from '@metamask/local-node-utils';
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
+import { mkdir, rename, rm, writeFile } from 'node:fs/promises';
+import { homedir } from 'node:os';
+import { dirname, join } from 'node:path';
 
 const JAVA_TRON_CACHE_NAMESPACE = 'java-tron-up';
 const FULL_NODE_CACHE_NAMESPACE = 'fullnode';
 const JAVA_CACHE_NAMESPACE = 'java';
 
-export type JavaTronArtifactConfig = {
-  platforms: Record<string, JavaTronArtifactPlatformConfig | undefined>;
-  version?: string;
-};
+export type JavaTronArtifactConfig = ArtifactConfig;
 
-export type JavaTronArtifactPlatformConfig = {
-  checksum: string;
-  size?: number;
-  url: string;
-};
+export type JavaTronArtifactPlatformConfig = ArtifactPlatformConfig;
 
 export type JavaTronJavaRuntimeConfig = JavaTronArtifactConfig;
 
@@ -53,21 +55,7 @@ export type JavaTronInstallResult = {
   version?: string;
 };
 
-export type JavaTronInstallDependencies = {
-  downloadFile?: (url: string, destination: string) => Promise<void>;
-  extractArchive?: (archivePath: string, destination: string) => Promise<void>;
-};
-
-type JavaTronPackageJson = {
-  'java-tron-up'?: JavaTronPackageJsonConfig;
-  javaTronUp?: JavaTronPackageJsonConfig;
-  javatronup?: JavaTronPackageJsonConfig;
-};
-
-type JavaTronPackageJsonConfig = Pick<
-  JavaTronInstallOptions,
-  'binDirectory' | 'cacheDirectory' | 'fullNode' | 'javaRuntime'
->;
+export type JavaTronInstallDependencies = InstallDependencies;
 
 export const JAVA_TRON_DEFAULT_FULL_NODE: JavaTronArtifactConfig = {
   version: 'GreatVoyage-v4.8.1',
@@ -136,61 +124,38 @@ export function getJavaTronCacheDirectory({
   cwd?: string;
   homeDirectory?: string;
 } = {}): string {
-  const yarnRcPath = join(cwd, '.yarnrc.yml');
-  let enableGlobalCache = false;
-
-  try {
-    const parsedConfig = parseYaml(readFileSync(yarnRcPath, 'utf8'));
-    enableGlobalCache = parsedConfig?.enableGlobalCache ?? false;
-  } catch (error) {
-    if (isFileMissingError(error)) {
-      return join(cwd, '.metamask', 'cache');
-    }
-    console.warn(
-      `Warning: Error reading ${yarnRcPath}, using local java-tron-up cache:`,
-      error,
-    );
-  }
-
-  return enableGlobalCache
-    ? join(homeDirectory, '.cache', 'metamask')
-    : join(cwd, '.metamask', 'cache');
+  return getMetamaskCacheDirectory({
+    cwd,
+    homeDirectory,
+    toolName: JAVA_TRON_CACHE_NAMESPACE,
+  });
 }
 
 export function readJavaTronInstallOptionsFromPackageJson({
   cwd = process.cwd(),
-  packageJsonPath = join(cwd, 'package.json'),
+  packageJsonPath,
 }: {
   cwd?: string;
   packageJsonPath?: string;
 } = {}): JavaTronInstallOptions {
-  let raw: string;
-  try {
-    raw = readFileSync(packageJsonPath, 'utf8');
-  } catch (error) {
-    if (isFileMissingError(error)) {
-      return {};
-    }
-    throw error;
-  }
-  const packageJson = JSON.parse(raw) as JavaTronPackageJson;
-  const config =
-    packageJson.javaTronUp ??
-    packageJson.javatronup ??
-    packageJson['java-tron-up'];
+  const config = readPackageJsonToolConfig({
+    cwd,
+    packageJsonPath,
+    configKeys: ['javaTronUp', 'javatronup', 'java-tron-up'],
+  });
   const options: JavaTronInstallOptions = {};
 
-  if (config?.binDirectory) {
+  if (typeof config.binDirectory === 'string') {
     options.binDirectory = config.binDirectory;
   }
-  if (config?.cacheDirectory) {
+  if (typeof config.cacheDirectory === 'string') {
     options.cacheDirectory = config.cacheDirectory;
   }
-  if (config?.fullNode) {
-    options.fullNode = config.fullNode;
+  if (config.fullNode && typeof config.fullNode === 'object') {
+    options.fullNode = config.fullNode as JavaTronArtifactConfig;
   }
-  if (config?.javaRuntime) {
-    options.javaRuntime = config.javaRuntime;
+  if (config.javaRuntime && typeof config.javaRuntime === 'object') {
+    options.javaRuntime = config.javaRuntime as JavaTronJavaRuntimeConfig;
   }
 
   return options;
@@ -311,6 +276,7 @@ export async function installJavaTron(
     commandName: 'java-tron',
     executableArgs: ['-jar', fullNodeResult.fullNodeJar],
     executablePath: javaBinary,
+    pathResolution: 'absolute',
   });
 
   return {
@@ -330,9 +296,9 @@ export async function cleanJavaTronCache(
   const cacheDirectory =
     options.cacheDirectory ?? getJavaTronCacheDirectory({ cwd });
 
-  await rm(join(cacheDirectory, JAVA_TRON_CACHE_NAMESPACE), {
-    force: true,
-    recursive: true,
+  await cleanInstallerCache({
+    cacheDirectory,
+    namespace: JAVA_TRON_CACHE_NAMESPACE,
   });
 }
 
@@ -465,214 +431,6 @@ async function installFullNodeJar(
   }
 }
 
-async function installExecutableWrapper({
-  binDirectory,
-  commandName,
-  executableArgs = [],
-  executablePath,
-}: {
-  binDirectory: string;
-  commandName: string;
-  executableArgs?: string[];
-  executablePath: string;
-}): Promise<string> {
-  const binaryPath = join(binDirectory, commandName);
-  const resolvedExecutablePath = resolve(executablePath);
-
-  await mkdir(binDirectory, { recursive: true });
-  await unlink(binaryPath).catch((error) => {
-    if (!isFileMissingError(error)) {
-      throw error;
-    }
-  });
-  await writeFile(
-    binaryPath,
-    `#!/usr/bin/env node
-const { spawnSync } = require('node:child_process');
-
-const executablePath = ${JSON.stringify(resolvedExecutablePath)};
-const executableArgs = ${JSON.stringify(executableArgs)};
-const result = spawnSync(executablePath, executableArgs.concat(process.argv.slice(2)), {
-  stdio: 'inherit',
-});
-
-if (result.error) {
-  console.error(result.error.message);
-  process.exit(1);
-}
-
-if (result.signal) {
-  process.kill(process.pid, result.signal);
-  process.exit(1);
-}
-
-process.exit(result.status ?? 0);
-`,
-  );
-  await chmod(binaryPath, 0o755);
-
-  return binaryPath;
-}
-
-function mergeArtifactConfig(
-  defaults: JavaTronArtifactConfig,
-  override: JavaTronArtifactConfig | undefined,
-): JavaTronArtifactConfig {
-  if (!override) {
-    return defaults;
-  }
-  return {
-    version: override.version ?? defaults.version,
-    platforms: { ...defaults.platforms, ...override.platforms },
-  };
-}
-
-function resolvePlatformConfig(
-  config: JavaTronArtifactConfig,
-  platform: string,
-  label: string,
-): JavaTronArtifactPlatformConfig {
-  const platformConfig = config.platforms.current ?? config.platforms[platform];
-
-  if (!platformConfig) {
-    throw new Error(`No ${label} is configured for ${platform}.`);
-  }
-
-  return platformConfig;
-}
-
-function requireCompletePlatformConfig(
-  config: Partial<JavaTronArtifactPlatformConfig>,
-  label: string,
-): JavaTronArtifactPlatformConfig {
-  if (!config.url || !config.checksum) {
-    throw new Error(`${label} require both a URL and a checksum.`);
-  }
-
-  return {
-    checksum: config.checksum,
-    url: config.url,
-  };
-}
-
-function getCacheKey(config: JavaTronArtifactPlatformConfig): string {
-  return createHash('sha256')
-    .update(`${config.url}:${config.checksum}`)
-    .digest('hex');
-}
-
-async function verifyFileChecksum(
-  filePath: string,
-  expectedChecksum: string,
-  label: string,
-): Promise<void> {
-  const hash = createHash('sha256');
-  await pipeline(createReadStream(filePath), hash);
-  const checksum = hash.digest('hex');
-
-  if (checksum !== expectedChecksum) {
-    throw new Error(
-      `${label} checksum mismatch. Expected ${expectedChecksum}, got ${checksum}.`,
-    );
-  }
-}
-
-async function downloadFileFromUrl(
-  url: string,
-  destination: string,
-): Promise<void> {
-  await mkdir(dirname(destination), { recursive: true });
-  await pipeline(
-    await openDownloadStream(new URL(url)),
-    createWriteStream(destination),
-  );
-}
-
-async function openDownloadStream(
-  url: URL,
-  redirectsRemaining = 5,
-): Promise<NodeJS.ReadableStream> {
-  const request = url.protocol === 'http:' ? requestHttp : requestHttps;
-
-  return await new Promise((resolvePromise, rejectPromise) => {
-    const req = request(url, (response) => {
-      const { headers, statusCode, statusMessage } = response;
-
-      if (
-        statusCode &&
-        statusCode >= 300 &&
-        statusCode < 400 &&
-        headers.location
-      ) {
-        response.resume();
-        if (redirectsRemaining <= 0) {
-          rejectPromise(new Error(`Too many redirects downloading ${url}`));
-          return;
-        }
-
-        openDownloadStream(
-          new URL(headers.location, url),
-          redirectsRemaining - 1,
-        )
-          .then(resolvePromise)
-          .catch(rejectPromise);
-        return;
-      }
-
-      if (!statusCode || statusCode < 200 || statusCode >= 300) {
-        response.resume();
-        rejectPromise(
-          new Error(
-            `Request to ${url} failed with ${statusCode ?? 'unknown'} ${
-              statusMessage ?? ''
-            }`.trim(),
-          ),
-        );
-        return;
-      }
-
-      resolvePromise(response);
-    });
-
-    req.on('error', rejectPromise);
-    req.end();
-  });
-}
-
-async function extractTarGzArchive(
-  archivePath: string,
-  destination: string,
-): Promise<void> {
-  await runCommand('tar', ['-xzf', archivePath, '-C', destination]);
-}
-
-async function runCommand(command: string, args: string[]): Promise<void> {
-  await new Promise<void>((resolvePromise, rejectPromise) => {
-    const child = spawn(command, args, {
-      shell: false,
-      stdio: ['ignore', 'ignore', 'pipe'],
-    });
-    let stderr = '';
-
-    child.stderr.on('data', (chunk) => {
-      stderr += chunk.toString();
-    });
-    child.on('error', rejectPromise);
-    child.on('close', (code) => {
-      if (code === 0) {
-        resolvePromise();
-        return;
-      }
-
-      rejectPromise(
-        new Error(
-          `${command} ${args.join(' ')} exited with code ${code}: ${stderr}`,
-        ),
-      );
-    });
-  });
-}
-
 function findJavaBinary(root: string): string | undefined {
   if (!isDirectory(root)) {
     return undefined;
@@ -696,55 +454,4 @@ function findJavaBinary(root: string): string | undefined {
   }
 
   return undefined;
-}
-
-function isDirectory(path: string): boolean {
-  try {
-    return statSync(path).isDirectory();
-  } catch {
-    return false;
-  }
-}
-
-function isFile(path: string): boolean {
-  try {
-    return statSync(path).isFile();
-  } catch {
-    return false;
-  }
-}
-
-function getPlatformKey(): string {
-  return `${osPlatform()}-${normalizeSystemArchitecture()}`;
-}
-
-function normalizeSystemArchitecture(architecture = osArch()): string {
-  if (architecture === 'x64' && osPlatform() === 'darwin') {
-    const result = spawnSync('sysctl', ['-n', 'sysctl.proc_translated'], {
-      encoding: 'utf8',
-      shell: false,
-      stdio: ['ignore', 'pipe', 'ignore'],
-    });
-    if (result.stdout.trim() === '1') {
-      return 'arm64';
-    }
-  }
-
-  return architecture;
-}
-
-function readCliValue(option: string, value: string | undefined): string {
-  if (!value || value.startsWith('--')) {
-    throw new Error(`${option} requires a value.`);
-  }
-  return value;
-}
-
-function isFileMissingError(error: unknown): boolean {
-  return (
-    typeof error === 'object' &&
-    error !== null &&
-    Object.prototype.hasOwnProperty.call(error, 'code') &&
-    (error as NodeJS.ErrnoException).code === 'ENOENT'
-  );
 }

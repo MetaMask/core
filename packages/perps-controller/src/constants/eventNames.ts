@@ -62,6 +62,8 @@ export const PERPS_EVENT_PROPERTY = {
   INTERACTION_TYPE: 'interaction_type',
   TIME_SERIE_SELECTED: 'time_serie_selected',
   CANDLE_PERIOD: 'candle_period',
+  CHART_LIBRARY: 'chart_library',
+  ASSET_TYPE: 'asset_type',
 
   // Risk management properties
   STOP_LOSS_PRICE: 'stop_loss_price',
@@ -193,6 +195,14 @@ export const PERPS_EVENT_VALUE = {
   ORDER_TYPE_CAPITALIZED: {
     MARKET: 'market',
     LIMIT: 'limit',
+  },
+  CHART_LIBRARY: {
+    LIGHTWEIGHT: 'lightweight',
+    ADVANCED: 'advanced',
+  },
+  ASSET_TYPE: {
+    SPOT: 'spot',
+    PERP: 'perp',
   },
   INPUT_METHOD: {
     SLIDER: 'slider',

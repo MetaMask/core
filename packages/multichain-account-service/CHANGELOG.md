@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `XlmAccountProvider` for Stellar account support ([#8830](https://github.com/MetaMask/core/pull/8830))
+  - Export `XlmAccountProvider`, `XLM_ACCOUNT_PROVIDER_NAME`, and `XlmAccountProviderConfig`.
+
+### Changed
+
+- Bump `@metamask/keyring-api` from `^23.1.0` to `^23.3.0` ([#9249](https://github.com/MetaMask/core/pull/9249))
+- Bump `@metamask/keyring-utils` from `^3.2.1` to `^3.3.1` ([#9249](https://github.com/MetaMask/core/pull/9249))
+
 ## [11.0.0]
 
 ### Added

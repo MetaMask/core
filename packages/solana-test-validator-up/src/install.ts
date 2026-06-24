@@ -1,45 +1,35 @@
 /* eslint-disable import-x/no-nodejs-modules, no-restricted-globals */
-import { spawn } from 'node:child_process';
-import { createHash } from 'node:crypto';
 import {
-  createWriteStream,
-  existsSync,
-  readdirSync,
-  readFileSync,
-  statSync,
-} from 'node:fs';
-import {
-  chmod,
-  mkdir,
-  readFile,
-  rename,
-  rm,
-  unlink,
-  writeFile,
-} from 'node:fs/promises';
-import { request as requestHttp } from 'node:http';
-import { request as requestHttps } from 'node:https';
-import { arch as osArch, homedir, platform as osPlatform } from 'node:os';
-import { dirname, join, relative } from 'node:path';
-import { pipeline } from 'node:stream/promises';
-import { parse as parseYaml } from 'yaml';
+  cleanInstallerCache,
+  downloadFileFromUrl,
+  extractTarBz2Archive,
+  findExecutable,
+  getCacheKey,
+  getMetamaskCacheDirectory,
+  getPlatformKey,
+  installExecutableWrapper,
+  mergeArtifactConfig,
+  readCliValue,
+  readPackageJsonToolConfig,
+  requireCompletePlatformConfig,
+  resolvePlatformConfig,
+  verifyFileChecksum,
+} from '@metamask/local-node-utils';
+import type {
+  ArtifactConfig,
+  ArtifactPlatformConfig,
+  InstallDependencies,
+} from '@metamask/local-node-utils';
+import { existsSync, readFileSync } from 'node:fs';
+import { mkdir, rename, rm, writeFile } from 'node:fs/promises';
+import { dirname, join } from 'node:path';
 
 const SOLANA_TEST_VALIDATOR_CACHE_NAMESPACE = 'solana-test-validator-up';
 const RELEASE_CACHE_NAMESPACE = 'release';
 
-export type SolanaTestValidatorArtifactConfig = {
-  platforms: Record<
-    string,
-    SolanaTestValidatorArtifactPlatformConfig | undefined
-  >;
-  version?: string;
-};
+export type SolanaTestValidatorArtifactConfig = ArtifactConfig;
 
-export type SolanaTestValidatorArtifactPlatformConfig = {
-  checksum: string;
-  size?: number;
-  url: string;
-};
+export type SolanaTestValidatorArtifactPlatformConfig = ArtifactPlatformConfig;
 
 export type SolanaTestValidatorInstallOptions = {
   binDirectory?: string;
@@ -58,16 +48,7 @@ export type SolanaTestValidatorInstallResult = {
   version?: string;
 };
 
-export type SolanaTestValidatorInstallDependencies = {
-  downloadFile?: (url: string, destination: string) => Promise<void>;
-  extractArchive?: (archivePath: string, destination: string) => Promise<void>;
-};
-
-type SolanaTestValidatorPackageJson = {
-  'solana-test-validator-up'?: SolanaTestValidatorPackageJsonConfig;
-  solanaTestValidatorUp?: SolanaTestValidatorPackageJsonConfig;
-  solanatestvalidatorup?: SolanaTestValidatorPackageJsonConfig;
-};
+export type SolanaTestValidatorInstallDependencies = InstallDependencies;
 
 type SolanaTestValidatorPackageJsonConfig = Pick<
   SolanaTestValidatorInstallOptions,
@@ -101,30 +82,16 @@ export const SOLANA_TEST_VALIDATOR_DEFAULT_RELEASE: SolanaTestValidatorArtifactC
 
 export function getSolanaTestValidatorCacheDirectory({
   cwd = process.cwd(),
-  homeDirectory = homedir(),
+  homeDirectory,
 }: {
   cwd?: string;
   homeDirectory?: string;
 } = {}): string {
-  const yarnRcPath = join(cwd, '.yarnrc.yml');
-  let enableGlobalCache = false;
-
-  try {
-    const parsedConfig = parseYaml(readFileSync(yarnRcPath, 'utf8'));
-    enableGlobalCache = parsedConfig?.enableGlobalCache ?? false;
-  } catch (error) {
-    if (isFileMissingError(error)) {
-      return join(cwd, '.metamask', 'cache');
-    }
-    console.warn(
-      `Warning: Error reading ${yarnRcPath}, using local solana-test-validator-up cache:`,
-      error,
-    );
-  }
-
-  return enableGlobalCache
-    ? join(homeDirectory, '.cache', 'metamask')
-    : join(cwd, '.metamask', 'cache');
+  return getMetamaskCacheDirectory({
+    cwd,
+    homeDirectory,
+    toolName: SOLANA_TEST_VALIDATOR_CACHE_NAMESPACE,
+  });
 }
 
 export function readSolanaTestValidatorInstallOptionsFromPackageJson({
@@ -134,29 +101,24 @@ export function readSolanaTestValidatorInstallOptionsFromPackageJson({
   cwd?: string;
   packageJsonPath?: string;
 } = {}): SolanaTestValidatorInstallOptions {
-  let raw: string;
-  try {
-    raw = readFileSync(packageJsonPath, 'utf8');
-  } catch (error) {
-    if (isFileMissingError(error)) {
-      return {};
-    }
-    throw error;
-  }
-  const packageJson = JSON.parse(raw) as SolanaTestValidatorPackageJson;
-  const config =
-    packageJson.solanaTestValidatorUp ??
-    packageJson.solanatestvalidatorup ??
-    packageJson['solana-test-validator-up'];
+  const config = readPackageJsonToolConfig({
+    cwd,
+    packageJsonPath,
+    configKeys: [
+      'solanaTestValidatorUp',
+      'solanatestvalidatorup',
+      'solana-test-validator-up',
+    ],
+  }) as Partial<SolanaTestValidatorPackageJsonConfig>;
   const options: SolanaTestValidatorInstallOptions = {};
 
-  if (config?.binDirectory) {
+  if (config.binDirectory) {
     options.binDirectory = config.binDirectory;
   }
-  if (config?.cacheDirectory) {
+  if (config.cacheDirectory) {
     options.cacheDirectory = config.cacheDirectory;
   }
-  if (config?.release) {
+  if (config.release) {
     options.release = config.release;
   }
 
@@ -242,11 +204,13 @@ export async function installSolanaTestValidator(
     binDirectory,
     commandName: 'solana-test-validator',
     executablePath: releaseResult.validatorBinary,
+    pathResolution: 'relative',
   });
   await installExecutableWrapper({
     binDirectory,
     commandName: 'solana',
     executablePath: releaseResult.solanaBinary,
+    pathResolution: 'relative',
   });
 
   return {
@@ -269,9 +233,9 @@ export async function cleanSolanaTestValidatorCache(
   const cacheDirectory =
     options.cacheDirectory ?? getSolanaTestValidatorCacheDirectory({ cwd });
 
-  await rm(join(cacheDirectory, SOLANA_TEST_VALIDATOR_CACHE_NAMESPACE), {
-    force: true,
-    recursive: true,
+  await cleanInstallerCache({
+    cacheDirectory,
+    namespace: SOLANA_TEST_VALIDATOR_CACHE_NAMESPACE,
   });
 }
 
@@ -348,53 +312,6 @@ async function installSolanaRelease(
   }
 }
 
-async function installExecutableWrapper({
-  binDirectory,
-  commandName,
-  executablePath,
-}: {
-  binDirectory: string;
-  commandName: string;
-  executablePath: string;
-}): Promise<string> {
-  const binaryPath = join(binDirectory, commandName);
-  const relativeExecutablePath = relative(binDirectory, executablePath);
-
-  await mkdir(binDirectory, { recursive: true });
-  await unlink(binaryPath).catch((error) => {
-    if (!isFileMissingError(error)) {
-      throw error;
-    }
-  });
-  await writeFile(
-    binaryPath,
-    `#!/usr/bin/env node
-const { spawnSync } = require('node:child_process');
-const path = require('node:path');
-
-const executablePath = path.resolve(__dirname, ${JSON.stringify(relativeExecutablePath)});
-const result = spawnSync(executablePath, process.argv.slice(2), {
-  stdio: 'inherit',
-});
-
-if (result.error) {
-  console.error(result.error.message);
-  process.exit(1);
-}
-
-if (result.signal) {
-  process.kill(process.pid, result.signal);
-  process.exit(1);
-}
-
-process.exit(result.status ?? 0);
-`,
-  );
-  await chmod(binaryPath, 0o755);
-
-  return binaryPath;
-}
-
 function findSolanaBinaries(
   root: string,
 ): { solanaBinary: string; validatorBinary: string } | undefined {
@@ -406,219 +323,4 @@ function findSolanaBinaries(
   }
 
   return { solanaBinary, validatorBinary };
-}
-
-function findExecutable(root: string, name: string): string | undefined {
-  if (!existsSync(root)) {
-    return undefined;
-  }
-
-  for (const entry of readdirSync(root)) {
-    const entryPath = join(root, entry);
-    const stat = statSync(entryPath);
-    if (stat.isDirectory()) {
-      const found = findExecutable(entryPath, name);
-      if (found) {
-        return found;
-      }
-    } else if (entry === name) {
-      return entryPath;
-    }
-  }
-
-  return undefined;
-}
-
-function mergeArtifactConfig(
-  defaults: SolanaTestValidatorArtifactConfig,
-  override: SolanaTestValidatorArtifactConfig | undefined,
-): SolanaTestValidatorArtifactConfig {
-  if (!override) {
-    return defaults;
-  }
-  return {
-    version: override.version ?? defaults.version,
-    platforms: { ...defaults.platforms, ...override.platforms },
-  };
-}
-
-function resolvePlatformConfig(
-  config: SolanaTestValidatorArtifactConfig,
-  platform: string,
-  label: string,
-): SolanaTestValidatorArtifactPlatformConfig {
-  const platformConfig = config.platforms.current ?? config.platforms[platform];
-
-  if (!platformConfig) {
-    throw new Error(`No ${label} is configured for ${platform}.`);
-  }
-
-  return platformConfig;
-}
-
-function requireCompletePlatformConfig(
-  config: Partial<SolanaTestValidatorArtifactPlatformConfig>,
-  label: string,
-): SolanaTestValidatorArtifactPlatformConfig {
-  if (!config.url || !config.checksum) {
-    throw new Error(`${label} require both a URL and a checksum.`);
-  }
-
-  return {
-    checksum: config.checksum,
-    url: config.url,
-  };
-}
-
-function getCacheKey(
-  config: SolanaTestValidatorArtifactPlatformConfig,
-): string {
-  return createHash('sha256')
-    .update(`${config.url}:${config.checksum}`)
-    .digest('hex');
-}
-
-async function verifyFileChecksum(
-  filePath: string,
-  expectedChecksum: string,
-  label: string,
-): Promise<void> {
-  const checksum = createHash('sha256')
-    .update(await readFile(filePath))
-    .digest('hex');
-
-  if (checksum !== expectedChecksum) {
-    throw new Error(
-      `${label} checksum mismatch. Expected ${expectedChecksum}, got ${checksum}.`,
-    );
-  }
-}
-
-async function downloadFileFromUrl(
-  url: string,
-  destination: string,
-): Promise<void> {
-  await mkdir(dirname(destination), { recursive: true });
-  await pipeline(
-    await openDownloadStream(new URL(url)),
-    createWriteStream(destination),
-  );
-}
-
-async function openDownloadStream(
-  url: URL,
-  redirectsRemaining = 5,
-): Promise<NodeJS.ReadableStream> {
-  const request = url.protocol === 'http:' ? requestHttp : requestHttps;
-
-  return await new Promise((resolvePromise, rejectPromise) => {
-    const req = request(url, (response) => {
-      const { headers, statusCode, statusMessage } = response;
-
-      if (
-        statusCode &&
-        statusCode >= 300 &&
-        statusCode < 400 &&
-        headers.location
-      ) {
-        response.resume();
-        if (redirectsRemaining <= 0) {
-          rejectPromise(new Error(`Too many redirects downloading ${url}`));
-          return;
-        }
-
-        openDownloadStream(
-          new URL(headers.location, url),
-          redirectsRemaining - 1,
-        )
-          .then(resolvePromise)
-          .catch(rejectPromise);
-        return;
-      }
-
-      if (!statusCode || statusCode < 200 || statusCode >= 300) {
-        response.resume();
-        rejectPromise(
-          new Error(
-            `Request to ${url} failed with ${statusCode ?? 'unknown'} ${
-              statusMessage ?? ''
-            }`.trim(),
-          ),
-        );
-        return;
-      }
-
-      resolvePromise(response);
-    });
-
-    req.on('error', rejectPromise);
-    req.end();
-  });
-}
-
-async function extractTarBz2Archive(
-  archivePath: string,
-  destination: string,
-): Promise<void> {
-  await runCommand('tar', ['-xjf', archivePath, '-C', destination]);
-}
-
-async function runCommand(command: string, args: string[]): Promise<void> {
-  await new Promise<void>((resolvePromise, rejectPromise) => {
-    const child = spawn(command, args, {
-      shell: false,
-      stdio: ['ignore', 'ignore', 'pipe'],
-    });
-    let stderr = '';
-
-    child.stderr.on('data', (chunk) => {
-      stderr += chunk.toString();
-    });
-    child.on('error', rejectPromise);
-    child.on('close', (code) => {
-      if (code === 0) {
-        resolvePromise();
-        return;
-      }
-      rejectPromise(
-        new Error(
-          `${command} ${args.join(' ')} failed with code ${code}: ${stderr}`,
-        ),
-      );
-    });
-  });
-}
-
-function getPlatformKey(): string {
-  const platform = osPlatform();
-  const arch = osArch();
-
-  if (platform === 'darwin' && arch === 'arm64') {
-    return 'darwin-arm64';
-  }
-  if (platform === 'darwin' && arch === 'x64') {
-    return 'darwin-x64';
-  }
-  if (platform === 'linux' && arch === 'x64') {
-    return 'linux-x64';
-  }
-
-  return `${platform}-${arch}`;
-}
-
-function readCliValue(arg: string, value: string | undefined): string {
-  if (!value || value.startsWith('--')) {
-    throw new Error(`${arg} requires a value.`);
-  }
-
-  return value;
-}
-
-function isFileMissingError(error: unknown): boolean {
-  return (
-    typeof error === 'object' &&
-    error !== null &&
-    Object.prototype.hasOwnProperty.call(error, 'code') &&
-    (error as NodeJS.ErrnoException).code === 'ENOENT'
-  );
 }

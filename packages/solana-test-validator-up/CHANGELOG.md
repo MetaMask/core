@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Add the `@metamask/solana-test-validator-up` package ([#9210](https://github.com/MetaMask/core/pull/9210)).
 
+### Changed
+
+- Replace duplicated installer utilities with `@metamask/local-node-utils` ([#9237](https://github.com/MetaMask/core/pull/9237)).
+
 ### Fixed
 
 - Parse `.yarnrc.yml` as YAML when resolving the cache directory so
