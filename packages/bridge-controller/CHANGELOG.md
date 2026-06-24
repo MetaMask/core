@@ -19,6 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Bump `@metamask/assets-controllers` from `^109.2.1` to `^109.2.2` ([#9231](https://github.com/MetaMask/core/pull/9231))
 - Bump `@metamask/accounts-controller` from `^39.0.2` to `^39.0.3` ([#9231](https://github.com/MetaMask/core/pull/9231))
+- Bump `@metamask/keyring-api` from `^23.1.0` to `^23.3.0` ([#9249](https://github.com/MetaMask/core/pull/9249))
 
 ## [76.0.0]
 
