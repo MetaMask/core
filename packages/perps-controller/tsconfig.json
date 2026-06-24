@@ -8,6 +8,9 @@
       "path": "../account-tree-controller"
     },
     {
+      "path": "../authenticated-user-storage"
+    },
+    {
       "path": "../base-controller"
     },
     {
