@@ -159,6 +159,8 @@ export type TrackingData = {
 
   // Entry source for analytics (e.g., 'trending' for Trending page discovery)
   source?: string;
+  // Chart library active when the trade was initiated (e.g., lightweight, advanced)
+  chartLibrary?: string;
 
   // Pay with any token: true when user paid with a custom token (not Perps balance)
   tradeWithToken?: boolean;
