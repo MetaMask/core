@@ -626,7 +626,7 @@ function registerDefaultActionHandlers(
       ({
         address: account,
         metadata: { keyring: { type: 'any' } },
-      } as never),
+      }) as never,
   );
 
   rootMessenger.registerActionHandler(
@@ -649,7 +649,7 @@ function registerDefaultActionHandlers(
     () =>
       ({
         selectedNetworkClientId: 'networkClientId',
-      } as NetworkState),
+      }) as NetworkState,
   );
 
   const mockProvider = provider ?? {
