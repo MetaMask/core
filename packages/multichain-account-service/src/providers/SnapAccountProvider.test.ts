@@ -13,9 +13,9 @@ import type {
   CreateAccountOptions,
   DeleteAccountRequest,
   GetAccountRequest,
-  KeyringCapabilities,
 } from '@metamask/keyring-api';
 import type { EntropySourceId, KeyringAccount } from '@metamask/keyring-api';
+import type { KeyringCapabilities } from '@metamask/keyring-api/v2';
 import type { KeyringMetadata } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type { JsonRpcRequest, SnapId } from '@metamask/snaps-sdk';
@@ -33,7 +33,10 @@ import {
 } from '../tests';
 import type { MultichainAccountServiceMessenger } from '../types';
 import { BtcAccountProvider } from './BtcAccountProvider';
-import type { SnapAccountProviderConfig } from './SnapAccountProvider';
+import type {
+  RestrictedSnapKeyring,
+  SnapAccountProviderConfig,
+} from './SnapAccountProvider';
 import {
   isSnapAccountProvider,
   SnapAccountProvider,
@@ -104,6 +107,15 @@ class MockSnapAccountProvider extends SnapAccountProvider {
     return [];
   }
 
+  protected async createAccountV1(
+    keyring: RestrictedSnapKeyring,
+    options: { entropySource: EntropySourceId; groupIndex: number },
+  ): Promise<KeyringAccount> {
+    // Forward to the mocked keyring (no real purposes apart from implementing
+    // this abstract method)..
+    return await keyring.createAccount(options);
+  }
+
   async createAccounts(
     options: CreateAccountOptions,
   ): Promise<Bip44Account<KeyringAccount>[]> {
@@ -141,6 +153,7 @@ class MockSnapAccountProvider extends SnapAccountProvider {
 const DEFAULT_TEST_CONFIG: SnapAccountProviderConfig = {
   createAccounts: {
     timeoutMs: 5000,
+    batched: false,
   },
   discovery: {
     timeoutMs: 2000,
@@ -563,6 +576,7 @@ describe('SnapAccountProvider', () => {
         },
         createAccounts: {
           timeoutMs: 3000,
+          batched: false,
         },
       };
       const testProvider = new MockSnapAccountProvider(
@@ -595,6 +609,7 @@ describe('SnapAccountProvider', () => {
         },
         createAccounts: {
           timeoutMs: 3000,
+          batched: false,
         },
       };
       const testProvider = new MockSnapAccountProvider(
