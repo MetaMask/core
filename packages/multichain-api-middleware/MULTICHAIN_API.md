@@ -63,7 +63,7 @@ rewrite, so don't rely on it for current behavior.
 > ⚠️ **CAIP-25 moved; MetaMask did not (yet).** Upstream CAIP-25 was restructured
 > in July–August 2025 (single `scopes`, `properties`/`capabilities` renames, bare
 > accounts, chain-only scope keys). MetaMask still implements the **pre-rewrite**
-> shape (`requiredScopes`/`optionalScopes`, `sessionProperties`/`scopedProperties`,
+> shape (`requiredScopes`/`optionalScopes`, `sessionProperties`,
 > CAIP-10 accounts, namespace-scoped keys). See
 > [Divergences from current CAIP-25](#divergences-from-current-caip-25).
 
@@ -81,10 +81,6 @@ rewrite, so don't rely on it for current behavior.
   single CAIP-25 permission caveat per origin and **does not** issue or accept a
   `sessionId` (one session per origin, tracked internally).
 - **`sessionProperties`** — global session metadata (allowlisted; see below).
-- **`scopedProperties`** — per-scope metadata kept **outside** `sessionScopes`
-  (MetaMask's term; upstream renamed this to `capabilities` and moved it inside the
-  scope object). Defined in the OpenRPC schema but **not currently read** by the
-  `wallet_createSession` handler — see [Error codes](#error-codes).
 
 ## Methods
 
@@ -352,7 +348,7 @@ and this package's handlers:
 | --- | --- | --- |
 | Request scopes | Single `scopes` (`optionalScopes` → `scopes`, 2025-07-30; `requiredScopes` removed 2025-07-31) | Still `requiredScopes` + `optionalScopes`; **all treated as optional** |
 | Session metadata key | `properties` (renamed from `sessionProperties`, 2025-07-30) | Still `sessionProperties`; **allowlist-filtered** to known keys |
-| Per-scope extras | `capabilities`, merged **into** the scope object (2025-08-04) | Still uses the older `scopedProperties` concept (kept **outside** `sessionScopes`); note the current `wallet_createSession` handler does not read `scopedProperties` at all — it is accepted and ignored, and codes `5300`/`5301` exist only in the OpenRPC schema |
+| Per-scope request extras | Removed from the request — `scopedProperties` was renamed to `capabilities` (2025-07-30), merged into the scope object (2025-08-04), then dropped from the request entirely (2025-08-07). A response-only `capabilities` remains. | Never fully implemented; spec/type-only and now stranded — see [`scopedProperties`: abandoned](#scopedproperties-abandoned) |
 | Scope granularity | Chain-scoped only (namespace-scoped removed 2025-08-03) | Uses namespace-scoped objects (`wallet:eip155`) and a `references` shorthand array |
 | Accounts format | Bare addresses; CAIP-2 prefix removed (2025-08-07) | Fully-qualified **CAIP-10** (`eip155:1:0x…`) |
 | `sessionId` | Optional, supported (CAIP-171 / CAIP-316) | **Not** returned or accepted; one session per origin, tracked internally |
@@ -377,6 +373,32 @@ and this package's handlers:
   active session.
 - **Partial revoke.** `wallet_revokeSession` accepts an optional `scopes` array to
   remove individual scopes; full revoke happens automatically if no accounts remain.
+
+## `scopedProperties`: abandoned
+
+`scopedProperties` was a request-side, per-scope metadata object (kept outside
+`sessionScopes`) intended to carry things like EIP-3085 chain-definition data so the
+wallet could add and authorize a not-yet-known EVM chain as part of session
+creation. It got **partway implemented and then deprioritized**:
+
+- It exists in the OpenRPC schema (`api-specs`, with error codes `5300`/`5301`) and
+  as an optional field on the `Caip25Authorization` type
+  (`chain-agnostic-permission` `src/scope/authorization.ts`).
+- But the `wallet_createSession` handler **never reads it** — `req.params` only
+  destructures `requiredScopes`, `optionalScopes`, and `sessionProperties`. The only
+  traces in the handler are comments (`// intended for future usage with eip3085
+  scopedProperties`) and the `isEvmChainIdSupportable: () => false` stub that was the
+  hook for it.
+
+Meanwhile, upstream CAIP-25 has **removed the concept from the request**:
+`scopedProperties` → `capabilities` (2025-07-30) → merged into the scope object
+(2025-08-04) → dropped from the request entirely (2025-08-07). (A wallet-advertised
+`capabilities` still exists in the *response*, but that is a separate, response-only
+feature.)
+
+Net result: `scopedProperties` is stranded — specced and typed but inert, and no
+longer part of the standard it was tracking. It is very unlikely to be implemented
+as-is and is a good candidate for removal from `api-specs`.
 
 ## Source-of-truth pointers
 
