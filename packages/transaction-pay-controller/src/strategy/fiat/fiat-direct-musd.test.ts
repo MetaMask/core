@@ -390,6 +390,7 @@ describe('fiat-direct-musd', () => {
           networkClientId: NETWORK_CLIENT_ID_MOCK,
           origin: 'metamask',
           requireApproval: false,
+          skipInitialGasEstimate: true,
           transactions: [
             {
               params: { data: '0xnewApprove', to: '0xapprove', value: '0x0' },
