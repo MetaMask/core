@@ -37,26 +37,6 @@ export type NetworkControllerDisableRpcFailoverAction = {
 };
 
 /**
- * Forces RPC failover for Infura endpoints. When enabled, any Infura endpoint
- * configured with failover URLs will route all traffic to those failover URLs,
- * bypassing Infura entirely. Infura endpoints without failover URLs continue to
- * use Infura. Custom endpoints are unaffected.
- */
-export type NetworkControllerEnableRpcFailoverForcedAction = {
-  type: `NetworkController:enableRpcFailoverForced`;
-  handler: NetworkController['enableRpcFailoverForced'];
-};
-
-/**
- * Stops forcing RPC failover for Infura endpoints, restoring the normal
- * automatic-failover behavior governed by {@link enableRpcFailover}.
- */
-export type NetworkControllerDisableRpcFailoverForcedAction = {
-  type: `NetworkController:disableRpcFailoverForced`;
-  handler: NetworkController['disableRpcFailoverForced'];
-};
-
-/**
  * Accesses the provider and block tracker for the currently selected network.
  *
  * @returns The proxy and block tracker proxies.
@@ -331,8 +311,6 @@ export type NetworkControllerMethodActions =
   | NetworkControllerGetEthQueryAction
   | NetworkControllerEnableRpcFailoverAction
   | NetworkControllerDisableRpcFailoverAction
-  | NetworkControllerEnableRpcFailoverForcedAction
-  | NetworkControllerDisableRpcFailoverForcedAction
   | NetworkControllerGetProviderAndBlockTrackerAction
   | NetworkControllerGetSelectedNetworkClientAction
   | NetworkControllerGetSelectedChainIdAction

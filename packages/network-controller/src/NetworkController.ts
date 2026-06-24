@@ -669,9 +669,7 @@ type AllowedEvents = RemoteFeatureFlagControllerStateChangeEvent;
 const MESSENGER_EXPOSED_METHODS = [
   'addNetwork',
   'disableRpcFailover',
-  'disableRpcFailoverForced',
   'enableRpcFailover',
-  'enableRpcFailoverForced',
   'findNetworkClientIdByChainId',
   'get1559CompatibilityWithNetworkClientId',
   'getEIP1559Compatibility',
@@ -1419,24 +1417,6 @@ export class NetworkController extends BaseController<
    */
   disableRpcFailover(): void {
     this.#updateRpcFailoverEnabled(false);
-  }
-
-  /**
-   * Forces RPC failover for Infura endpoints. When enabled, any Infura endpoint
-   * configured with failover URLs will route all traffic to those failover URLs,
-   * bypassing Infura entirely. Infura endpoints without failover URLs continue to
-   * use Infura. Custom endpoints are unaffected.
-   */
-  enableRpcFailoverForced(): void {
-    this.#updateRpcFailoverForced(true);
-  }
-
-  /**
-   * Stops forcing RPC failover for Infura endpoints, restoring the normal
-   * automatic-failover behavior governed by {@link enableRpcFailover}.
-   */
-  disableRpcFailoverForced(): void {
-    this.#updateRpcFailoverForced(false);
   }
 
   /**
