@@ -35,7 +35,7 @@ mm daemon stop            # graceful shutdown (falls back to SIGTERM/SIGKILL)
 mm daemon purge           # stop, then delete all daemon state files (--force to skip the prompt)
 ```
 
-State (socket, PID file, log, and the SQLite database) lives in the per-user oclif data directory; override it with `MM_DAEMON_DATA_DIR`.
+State (socket, PID file, log, and the SQLite database) lives in the per-user oclif data directory; override it with `MM_DATA_DIR`.
 
 ## Troubleshooting
 

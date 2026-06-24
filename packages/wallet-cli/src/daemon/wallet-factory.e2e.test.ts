@@ -25,6 +25,7 @@ describe('createWallet (real Wallet, in-memory)', () => {
       // `@typescript-eslint/await-thenable`.
       const accounts = wallet.messenger.call('AccountsController:listAccounts');
       expect(accounts).toHaveLength(1);
+      expect(accounts[0]?.address).toMatch(/^0x[0-9a-fA-F]{40}$/u);
     } finally {
       await dispose();
     }
