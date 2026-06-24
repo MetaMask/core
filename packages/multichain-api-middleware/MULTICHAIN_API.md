@@ -82,7 +82,8 @@ rewrite, so don't rely on it for current behavior.
 - **`sessionProperties`** — global session metadata (allowlisted; see below).
 - **`scopedProperties`** — per-scope metadata kept **outside** `sessionScopes`
   (MetaMask's term; upstream renamed this to `capabilities` and moved it inside the
-  scope object).
+  scope object). Defined in the OpenRPC schema but **not currently read** by the
+  `wallet_createSession` handler — see [Error codes](#error-codes).
 
 ## Methods
 
@@ -180,8 +181,9 @@ ignored.
 Revokes the session for the origin. Returns `true`.
 
 - With no params (or empty `scopes`), revokes the entire CAIP-25 permission.
-- **MetaMask extension:** accepts an optional `params.scopes: string[]` for
-  **partial** revocation — each listed scope is removed; if no permitted accounts
+- Accepts an optional `params.scopes: string[]` for **partial** revocation
+  (implemented in this middleware handler, `partialRevokePermissions`) — each
+  listed scope is removed; if no permitted accounts
   remain afterward, the whole permission is revoked.
 - Returns `true` even when there was no active session. Any `sessionId` param is
   ignored.
@@ -301,7 +303,7 @@ allowlist; unknown keys are dropped. As of `@metamask/chain-agnostic-permission`
 
 | Key | Purpose |
 | --- | --- |
-| `eip1193-compatible` | Marks the connection as originating from an EIP-1193 client (injected `window.ethereum` middleware or `@metamask/connect-evm`). The extension uses it to gate EVM-connection UX such as the network picker on the dapp connection bar. Pure Multichain API connections — even EVM-only ones — do not set it. |
+| `eip1193-compatible` | Marks the connection as originating from an EIP-1193 client (injected `window.ethereum` middleware or `@metamask/connect-evm`). The extension uses it to gate EVM-connection UX such as the network picker on the dapp connection bar. Newly-created pure Multichain API sessions — even EVM-only ones — do not set it; note the extension also backfills it onto pre-existing connections with any `eip155:*` scope (migration 211), so older Multichain-only EVM connections may carry it. |
 | `solana_accountChanged_notifications` | Opt-in to `accountChanged` notifications for Solana scopes. |
 | `tron_accountChanged_notifications` | Opt-in to `accountChanged` notifications for Tron scopes. |
 | `bip122_accountChanged_notifications` | Opt-in to `accountChanged` notifications for Bitcoin scopes. |
@@ -316,15 +318,22 @@ allowlist; unknown keys are dropped. As of `@metamask/chain-agnostic-permission`
 | Code | Message | When |
 | --- | --- | --- |
 | `5000` | Unknown error with request | Generic failure. |
-| `5100` | Requested scopes are not supported | No supported scopes remain after filtering (and Solana opt-in not applicable). |
-| `5101` | Requested methods are not supported | (CAIP-25; see `chain-agnostic-permission`.) |
-| `5102` | Requested notifications are not supported | (CAIP-25.) |
-| `5201` | Unknown method(s) requested | Dev-mode strict validation. |
-| `5202` | Unknown notification(s) requested | Dev-mode strict validation. |
-| `5300` | Invalid scopedProperties requested | Malformed `scopedProperties`. |
-| `5301` | scopedProperties can only be outside of sessionScopes | `scopedProperties` placement. |
-| `5302` | Invalid sessionProperties requested | `sessionProperties` present but empty `{}`. |
-| `4100` | Unauthorized | `wallet_invokeMethod` on an unauthorized scope/method. |
+| `5100` | Requested scopes are not supported | Actually returned by `wallet_createSession` when no supported scopes remain after filtering (and the Solana opt-in does not apply). |
+| `5302` | Invalid sessionProperties requested | Returned by `wallet_createSession` when `sessionProperties` is present but an empty object `{}`. |
+| `4100` | Unauthorized | Returned by `wallet_invokeMethod` when the origin has no CAIP-25 session, or the requested scope/method is not authorized (`providerErrors.unauthorized()`). |
+
+The codes below are **defined** (in `@metamask/chain-agnostic-permission` and/or
+`@metamask/api-specs`) but are **not** thrown by the current `wallet_createSession`
+handler — included here so you don't expect them on the wire:
+
+| Code | Message | Status |
+| --- | --- | --- |
+| `5101` | Requested methods are not supported | **Not returned.** Unsupported methods are silently filtered out during scope bucketing (`chain-agnostic-permission` `scope/filter.ts`), not rejected. |
+| `5102` | Requested notifications are not supported | **Not returned.** Same as `5101` — filtered, not rejected. |
+| `5201` | Unknown method(s) requested | **Not returned.** Defined in `errors.ts` but currently only a `TODO` (intended for dev-mode strict validation). |
+| `5202` | Unknown notification(s) requested | **Not returned.** Same `TODO` status as `5201`. |
+| `5300` | Invalid scopedProperties requested | **Schema-only.** Present in `openrpc.yaml`, but the handler never reads `scopedProperties`, so this is never thrown. |
+| `5301` | scopedProperties can only be outside of sessionScopes | **Schema-only.** Same as `5300`. |
 
 > Note: code `5100`'s message is "Requested **scopes** are not supported" in this
 > handler, while `chain-agnostic-permission` and the OpenRPC schema phrase the same
@@ -340,9 +349,9 @@ and this package's handlers:
 
 | Concept | Current CAIP-25 | MetaMask implementation |
 | --- | --- | --- |
-| Request scopes | Single `scopes` (`requiredScopes` removed; `optionalScopes` → `scopes`, 2025-07-31) | Still `requiredScopes` + `optionalScopes`; **all treated as optional** |
+| Request scopes | Single `scopes` (`optionalScopes` → `scopes`, 2025-07-30; `requiredScopes` removed 2025-07-31) | Still `requiredScopes` + `optionalScopes`; **all treated as optional** |
 | Session metadata key | `properties` (renamed from `sessionProperties`, 2025-07-30) | Still `sessionProperties`; **allowlist-filtered** to known keys |
-| Per-scope extras | `capabilities`, merged **into** the scope object (2025-08-04) | Still `scopedProperties`, kept **outside** `sessionScopes` (errors `5300`/`5301`) |
+| Per-scope extras | `capabilities`, merged **into** the scope object (2025-08-04) | Still uses the older `scopedProperties` concept (kept **outside** `sessionScopes`); note the current `wallet_createSession` handler does not read `scopedProperties` at all — it is accepted and ignored, and codes `5300`/`5301` exist only in the OpenRPC schema |
 | Scope granularity | Chain-scoped only (namespace-scoped removed 2025-08-03) | Uses namespace-scoped objects (`wallet:eip155`) and a `references` shorthand array |
 | Accounts format | Bare addresses; CAIP-2 prefix removed (2025-08-07) | Fully-qualified **CAIP-10** (`eip155:1:0x…`) |
 | `sessionId` | Optional, supported (CAIP-171 / CAIP-316) | **Not** returned or accepted; one session per origin, tracked internally |
