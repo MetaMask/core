@@ -232,6 +232,52 @@ export function createNetworkClient({
 }
 
 /**
+ * Determines the ordered list of endpoints that make up the RPC service chain
+ * for a network, honoring the RPC failover flags.
+ *
+ * @param args - The arguments.
+ * @param args.primaryEndpointUrl - The primary endpoint URL for the network.
+ * @param args.failoverRpcUrls - The configured failover URLs, if any.
+ * @param args.isRpcFailoverEnabled - Whether requests to the primary endpoint
+ * should automatically divert to the failover URLs when the primary is
+ * unavailable.
+ * @param args.isRpcFailoverForced - Whether to force all traffic for Infura
+ * endpoints that have failover URLs to those failover URLs, bypassing Infura.
+ * @returns The endpoints to use, each flagged as primary or failover.
+ */
+function getAvailableEndpoints({
+  primaryEndpointUrl,
+  failoverRpcUrls,
+  isRpcFailoverEnabled,
+  isRpcFailoverForced,
+}: {
+  primaryEndpointUrl: string;
+  failoverRpcUrls: string[] | undefined;
+  isRpcFailoverEnabled: boolean;
+  isRpcFailoverForced: boolean;
+}): { url: string; isFailover: boolean }[] {
+  const failoverEndpoints = (failoverRpcUrls ?? []).map((url) => ({
+    url,
+    isFailover: true,
+  }));
+  // We explicitly check the URL since some networks have been added with invalid configuration types in the past.
+  const isInfura = new URL(primaryEndpointUrl).hostname.endsWith('.infura.io');
+
+  if (isRpcFailoverForced && isInfura && failoverEndpoints.length > 0) {
+    // Force flag is on for an Infura endpoint with failovers: bypass Infura
+    // entirely and route all traffic (including block polling) to failovers.
+    // The first failover becomes the positional primary of the chain, so
+    // availability/degraded events will report that failover URL as the
+    // primary endpoint (there is no Infura primary in this mode).
+    return failoverEndpoints;
+  }
+  if (isRpcFailoverEnabled && isInfura) {
+    return [{ url: primaryEndpointUrl, isFailover: false }, ...failoverEndpoints];
+  }
+  return [{ url: primaryEndpointUrl, isFailover: false }];
+}
+
+/**
  * Creates an RPC service chain, which represents the primary endpoint URL for
  * the network as well as its failover URLs.
  *
@@ -275,31 +321,12 @@ function createRpcServiceChain({
   isRpcFailoverForced: boolean;
   logger?: Logger;
 }): RpcServiceChain {
-  const failoverEndpoints = (configuration.failoverRpcUrls ?? []).map(
-    (url) => ({
-      url,
-      isFailover: true,
-    }),
-  );
-  // We explicitly check the URL since some networks have been added with invalid configuration types in the past.
-  const isInfura = new URL(primaryEndpointUrl).hostname.endsWith('.infura.io');
-
-  let availableEndpoints: { url: string; isFailover: boolean }[];
-  if (isRpcFailoverForced && isInfura && failoverEndpoints.length > 0) {
-    // Force flag is on for an Infura endpoint with failovers: bypass Infura
-    // entirely and route all traffic (including block polling) to failovers.
-    // The first failover becomes the positional primary of the chain, so
-    // availability/degraded events will report that failover URL as the
-    // primary endpoint (there is no Infura primary in this mode).
-    availableEndpoints = failoverEndpoints;
-  } else if (isRpcFailoverEnabled && isInfura) {
-    availableEndpoints = [
-      { url: primaryEndpointUrl, isFailover: false },
-      ...failoverEndpoints,
-    ];
-  } else {
-    availableEndpoints = [{ url: primaryEndpointUrl, isFailover: false }];
-  }
+  const availableEndpoints = getAvailableEndpoints({
+    primaryEndpointUrl,
+    failoverRpcUrls: configuration.failoverRpcUrls,
+    isRpcFailoverEnabled,
+    isRpcFailoverForced,
+  });
 
   const isOffline = (): boolean => {
     const connectivityState = messenger.call('ConnectivityController:getState');
