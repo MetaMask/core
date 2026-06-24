@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `XlmAccountProvider` for Stellar account support ([#8830](https://github.com/MetaMask/core/pull/8830))
+  - Export `XlmAccountProvider`, `XLM_ACCOUNT_PROVIDER_NAME`, and `XlmAccountProviderConfig`.
+
 ### Changed
 
 - Bump `@metamask/keyring-api` from `^23.1.0` to `^23.3.0` ([#9249](https://github.com/MetaMask/core/pull/9249))
@@ -16,8 +21,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add `XlmAccountProvider` for Stellar account support ([#8830](https://github.com/MetaMask/core/pull/8830))
-  - Export `XlmAccountProvider`, `XLM_ACCOUNT_PROVIDER_NAME`, and `XlmAccountProviderConfig`.
 - Added `Bip44AccountProvider.deleteAccount(id)` method ([#8960](https://github.com/MetaMask/core/pull/8960))
   - The `KeyringController` will automatically prunes the non-primary empty keyrings when the last EVM account is getting removed.
   - `AccountProviderWrapper.deleteAccount(id)` always removes the account, even if disabled.

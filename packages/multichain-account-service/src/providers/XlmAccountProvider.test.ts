@@ -2,10 +2,7 @@ import { isBip44Account } from '@metamask/account-api';
 import type { SnapKeyring } from '@metamask/eth-snap-keyring';
 import { AccountCreationType } from '@metamask/keyring-api';
 import type { KeyringMetadata } from '@metamask/keyring-controller';
-import type {
-  EthKeyring,
-  InternalAccount,
-} from '@metamask/keyring-internal-api';
+import type { InternalAccount } from '@metamask/keyring-internal-api';
 import { SnapControllerState } from '@metamask/snaps-controllers';
 import type { Json } from '@metamask/utils';
 import deepmerge from 'deepmerge';
@@ -82,7 +79,7 @@ class MockStellarKeyring {
 
   createAccounts: SnapKeyring['createAccounts'] = jest
     .fn()
-    .mockImplementation((_, options) => {
+    .mockImplementation((options) => {
       const groupIndices =
         options.type === 'bip44:derive-index'
           ? [options.groupIndex]
@@ -185,10 +182,10 @@ function setup({
   );
 
   messenger.registerActionHandler(
-    'KeyringController:withKeyring',
+    'KeyringController:withKeyringV2',
     async (_, operation) =>
       operation({
-        keyring: keyring as unknown as EthKeyring,
+        keyring,
         metadata: keyring.metadata,
       }),
   );
@@ -332,14 +329,11 @@ describe('XlmAccountProvider', () => {
       });
 
       expect(newAccounts).toHaveLength(1);
-      expect(mocks.keyring.createAccounts).toHaveBeenCalledWith(
-        XlmAccountProvider.XLM_SNAP_ID,
-        {
-          type: AccountCreationType.Bip44DeriveIndex,
-          entropySource: MOCK_HD_KEYRING_2.metadata.id,
-          groupIndex: newGroupIndex,
-        },
-      );
+      expect(mocks.keyring.createAccounts).toHaveBeenCalledWith({
+        type: AccountCreationType.Bip44DeriveIndex,
+        entropySource: MOCK_HD_KEYRING_2.metadata.id,
+        groupIndex: newGroupIndex,
+      });
       expect(mocks.keyring.createAccount).not.toHaveBeenCalled();
     });
 
