@@ -1,6 +1,6 @@
 {
   "name": "@metamask/assets-controller",
-  "version": "9.0.2",
+  "version": "9.1.0",
   "description": "Tracks assets balances/prices and handles token detection across all digital assets",
   "keywords": [
     "Ethereum",
