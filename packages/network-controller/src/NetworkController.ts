@@ -56,7 +56,8 @@ import type { DegradedEventType, RetryReason } from './create-network-client';
 import { projectLogger, createModuleLogger } from './logger';
 import type { NetworkControllerMethodActions } from './NetworkController-method-action-types';
 import type { RpcServiceOptionsWithDefaults } from './rpc-service/rpc-service';
-import { getIsRpcFailoverEnabled, getIsRpcFailoverForced } from './selectors';
+import { getRpcFailoverMode } from './selectors';
+import type { RpcFailoverMode } from './selectors';
 import { NetworkClientType } from './types';
 import type {
   BlockTracker,
@@ -1273,9 +1274,7 @@ export class NetworkController extends BaseController<
     NetworkConfiguration
   >;
 
-  #isRpcFailoverEnabled = false;
-
-  #isRpcFailoverForced = false;
+  #rpcFailoverMode: RpcFailoverMode = 'disabled';
 
   /**
    * Constructs a NetworkController.
@@ -1375,19 +1374,10 @@ export class NetworkController extends BaseController<
     this.messenger.subscribe(
       // eslint-disable-next-line no-restricted-syntax
       'RemoteFeatureFlagController:stateChange',
-      (isRpcFailoverEnabled) => {
-        this.#updateRpcFailoverEnabled(isRpcFailoverEnabled);
+      (rpcFailoverMode) => {
+        this.#updateRpcFailover(rpcFailoverMode);
       },
-      getIsRpcFailoverEnabled,
-    );
-
-    this.messenger.subscribe(
-      // eslint-disable-next-line no-restricted-syntax
-      'RemoteFeatureFlagController:stateChange',
-      (isRpcFailoverForced) => {
-        this.#updateRpcFailoverForced(isRpcFailoverForced);
-      },
-      getIsRpcFailoverForced,
+      getRpcFailoverMode,
     );
   }
 
@@ -1407,7 +1397,7 @@ export class NetworkController extends BaseController<
    * to them if those RPC endpoints are unavailable.
    */
   enableRpcFailover(): void {
-    this.#updateRpcFailoverEnabled(true);
+    this.#updateRpcFailover('enabled');
   }
 
   /**
@@ -1416,7 +1406,7 @@ export class NetworkController extends BaseController<
    * diverted to them if those RPC endpoints are unavailable.
    */
   disableRpcFailover(): void {
-    this.#updateRpcFailoverEnabled(false);
+    this.#updateRpcFailover('disabled');
   }
 
   /**
@@ -1456,48 +1446,37 @@ export class NetworkController extends BaseController<
   }
 
   /**
-   * Enables or disables the RPC failover functionality, depending on the
-   * boolean given. This is done by reconstructing all network clients that were
-   * originally configured with failover URLs so that those URLs are either
-   * honored or ignored. Network client IDs will be preserved so as not to
-   * invalidate state in other controllers.
+   * Applies the given RPC failover mode by reconstructing all network clients
+   * that were configured with failover URLs so that the new mode takes effect.
+   * Network client IDs are preserved so as not to invalidate state in other
+   * controllers.
    *
-   * @param newIsRpcFailoverEnabled - Whether or not to enable or disable the
-   * RPC failover functionality.
+   * @param newMode - The RPC failover mode to apply.
    */
-  #updateRpcFailoverEnabled(newIsRpcFailoverEnabled: boolean): void {
-    if (this.#isRpcFailoverEnabled === newIsRpcFailoverEnabled) {
+  #updateRpcFailover(newMode: RpcFailoverMode): void {
+    if (this.#rpcFailoverMode === newMode) {
       return;
     }
 
-    this.#forEachNetworkClientWithFailover((networkClient) => {
-      newIsRpcFailoverEnabled
-        ? networkClient.enableRpcFailover()
-        : networkClient.disableRpcFailover();
-    });
-
-    this.#isRpcFailoverEnabled = newIsRpcFailoverEnabled;
-  }
-
-  /**
-   * Enables or disables forced RPC failover, depending on the boolean given.
-   * This reconstructs all network clients that were configured with failover
-   * URLs so the new value takes effect. Network client IDs are preserved.
-   *
-   * @param newIsRpcFailoverForced - Whether or not to force RPC failover.
-   */
-  #updateRpcFailoverForced(newIsRpcFailoverForced: boolean): void {
-    if (this.#isRpcFailoverForced === newIsRpcFailoverForced) {
-      return;
-    }
+    const wasEnabled = this.#rpcFailoverMode === 'enabled';
+    const wasForced = this.#rpcFailoverMode === 'forced';
+    const isEnabled = newMode === 'enabled';
+    const isForced = newMode === 'forced';
 
     this.#forEachNetworkClientWithFailover((networkClient) => {
-      newIsRpcFailoverForced
-        ? networkClient.enableForcedRpcFailover()
-        : networkClient.disableForcedRpcFailover();
+      if (isEnabled !== wasEnabled) {
+        isEnabled
+          ? networkClient.enableRpcFailover()
+          : networkClient.disableRpcFailover();
+      }
+      if (isForced !== wasForced) {
+        isForced
+          ? networkClient.enableForcedRpcFailover()
+          : networkClient.disableForcedRpcFailover();
+      }
     });
 
-    this.#isRpcFailoverForced = newIsRpcFailoverForced;
+    this.#rpcFailoverMode = newMode;
   }
 
   /**
@@ -1667,8 +1646,7 @@ export class NetworkController extends BaseController<
    */
   init(): void {
     const state = this.messenger.call('RemoteFeatureFlagController:getState');
-    this.#updateRpcFailoverEnabled(getIsRpcFailoverEnabled(state));
-    this.#updateRpcFailoverForced(getIsRpcFailoverForced(state));
+    this.#updateRpcFailover(getRpcFailoverMode(state));
 
     this.#applyNetworkSelection(this.state.selectedNetworkClientId);
   }
@@ -2912,8 +2890,8 @@ export class NetworkController extends BaseController<
           getRpcServiceOptions: this.#getRpcServiceOptions,
           getBlockTrackerOptions: this.#getBlockTrackerOptions,
           messenger: this.messenger,
-          isRpcFailoverEnabled: this.#isRpcFailoverEnabled,
-          isRpcFailoverForced: this.#isRpcFailoverForced,
+          isRpcFailoverEnabled: this.#rpcFailoverMode === 'enabled',
+          isRpcFailoverForced: this.#rpcFailoverMode === 'forced',
           logger: this.#log,
         });
       } else {
@@ -2932,8 +2910,8 @@ export class NetworkController extends BaseController<
           getRpcServiceOptions: this.#getRpcServiceOptions,
           getBlockTrackerOptions: this.#getBlockTrackerOptions,
           messenger: this.messenger,
-          isRpcFailoverEnabled: this.#isRpcFailoverEnabled,
-          isRpcFailoverForced: this.#isRpcFailoverForced,
+          isRpcFailoverEnabled: this.#rpcFailoverMode === 'enabled',
+          isRpcFailoverForced: this.#rpcFailoverMode === 'forced',
           logger: this.#log,
         });
       }
@@ -3099,8 +3077,8 @@ export class NetworkController extends BaseController<
               getRpcServiceOptions: this.#getRpcServiceOptions,
               getBlockTrackerOptions: this.#getBlockTrackerOptions,
               messenger: this.messenger,
-              isRpcFailoverEnabled: this.#isRpcFailoverEnabled,
-              isRpcFailoverForced: this.#isRpcFailoverForced,
+              isRpcFailoverEnabled: this.#rpcFailoverMode === 'enabled',
+              isRpcFailoverForced: this.#rpcFailoverMode === 'forced',
               logger: this.#log,
             }),
           ] as const;
@@ -3119,8 +3097,8 @@ export class NetworkController extends BaseController<
             getRpcServiceOptions: this.#getRpcServiceOptions,
             getBlockTrackerOptions: this.#getBlockTrackerOptions,
             messenger: this.messenger,
-            isRpcFailoverEnabled: this.#isRpcFailoverEnabled,
-            isRpcFailoverForced: this.#isRpcFailoverForced,
+            isRpcFailoverEnabled: this.#rpcFailoverMode === 'enabled',
+            isRpcFailoverForced: this.#rpcFailoverMode === 'forced',
             logger: this.#log,
           }),
         ] as const;
