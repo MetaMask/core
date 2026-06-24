@@ -105,9 +105,9 @@ export async function getRelayQuotes(
         .map((singleRequest) =>
           normalizeRequest(singleRequest, request.transaction),
         )
-        .map((singleRequest) =>
+        .map((normalizedRequest) =>
           applyHyperliquidActivationFee(
-            singleRequest,
+            normalizedRequest,
             request.messenger,
             request.transaction.type,
             request.signal,

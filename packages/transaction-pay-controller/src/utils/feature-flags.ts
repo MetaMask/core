@@ -108,6 +108,25 @@ type FiatFlags = {
   vaultDisabled?: boolean;
 };
 
+type HyperliquidActivationFeeFlag = {
+  enabled?: boolean;
+  amountUsd?: number;
+};
+
+type PostQuoteConfig = {
+  hyperliquidActivationFee?: HyperliquidActivationFeeFlag;
+};
+
+type PostQuoteFeatureFlags = {
+  default?: PostQuoteConfig;
+  overrides?: Record<string, PostQuoteConfig>;
+};
+
+export type HyperliquidActivationFeeConfig = {
+  enabled: boolean;
+  amountUsd: number;
+};
+
 type StrategyRoutingConfig = {
   payStrategies: {
     across: {
@@ -972,25 +991,6 @@ export function getFiatOrderPollTimeoutMs(
     ? timeout
     : DEFAULT_ORDER_POLL_TIMEOUT_MS;
 }
-
-type HyperliquidActivationFeeFlag = {
-  enabled?: boolean;
-  amountUsd?: number;
-};
-
-type PostQuoteConfig = {
-  hyperliquidActivationFee?: HyperliquidActivationFeeFlag;
-};
-
-type PostQuoteFeatureFlags = {
-  default?: PostQuoteConfig;
-  overrides?: Record<string, PostQuoteConfig>;
-};
-
-export type HyperliquidActivationFeeConfig = {
-  enabled: boolean;
-  amountUsd: number;
-};
 
 /**
  * Get the HyperLiquid activation-fee configuration from the
