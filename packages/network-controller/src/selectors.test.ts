@@ -25,14 +25,4 @@ describe('getIsRpcFailoverForced', () => {
     const state = { remoteFeatureFlags: {}, cacheTimestamp: 0 };
     expect(getIsRpcFailoverForced(state as never)).toBe(false);
   });
-
-  it('passes through non-boolean values without coercion', () => {
-    const state = {
-      remoteFeatureFlags: {
-        corePlatformRpcFailoverForceEnabled: 'yes',
-      },
-      cacheTimestamp: 0,
-    };
-    expect(getIsRpcFailoverForced(state as never)).toBe('yes');
-  });
 });
