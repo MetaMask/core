@@ -16,7 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - **BREAKING:** Default `location` fallback for Unified SwapBridge events now uses `Unknown` instead of `Main View` when no entry point is set ([#9243](https://github.com/MetaMask/core/pull/9243))
-- Bump `@metamask/assets-controller` from `^9.0.2` to `^9.1.0`
+- Bump `@metamask/assets-controller` from `^9.0.2` to `^9.1.0` ([#9244](https://github.com/MetaMask/core/pull/9244))
 
 ## [76.1.0]
 
