@@ -204,21 +204,31 @@ export class RemoteFeatureFlagController extends BaseController<
       isValidSemVerVersion(prevClientVersion) &&
       prevClientVersion !== clientVersion;
 
+    const localOverrides = initialState.localOverrides ?? {};
+
     super({
       name: controllerName,
       metadata: remoteFeatureFlagControllerMetadata,
       messenger,
       state: {
         ...initialState,
+        remoteFeatureFlags: {
+          ...initialState.remoteFeatureFlags,
+          ...localOverrides,
+        },
         cacheTimestamp: hasClientVersionChanged
           ? 0
           : initialState.cacheTimestamp,
       },
     });
 
-    this.#processedRemoteFeatureFlags = { ...initialState.remoteFeatureFlags };
-    for (const flagName of Object.keys(initialState.localOverrides ?? {})) {
-      delete this.#processedRemoteFeatureFlags[flagName];
+    this.#processedRemoteFeatureFlags = {
+      ...initialState.remoteFeatureFlags,
+    };
+    for (const [flagName, overrideValue] of Object.entries(localOverrides)) {
+      if (this.#processedRemoteFeatureFlags[flagName] === overrideValue) {
+        delete this.#processedRemoteFeatureFlags[flagName];
+      }
     }
 
     this.#fetchInterval = fetchInterval;
@@ -459,10 +469,10 @@ export class RemoteFeatureFlagController extends BaseController<
     const remoteFeatureFlags = { ...this.state.remoteFeatureFlags };
     const processedValue = this.#processedRemoteFeatureFlags[flagName];
 
-    if (processedValue !== undefined) {
-      remoteFeatureFlags[flagName] = processedValue;
-    } else {
+    if (processedValue === undefined) {
       delete remoteFeatureFlags[flagName];
+    } else {
+      remoteFeatureFlags[flagName] = processedValue;
     }
 
     this.update(() => {

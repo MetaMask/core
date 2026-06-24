@@ -124,6 +124,18 @@ describe('RemoteFeatureFlagController', () => {
       expect(controller.state).toStrictEqual(customState);
     });
 
+    it('merges undefined localOverrides into remoteFeatureFlags on init', () => {
+      const { controller } = createController({
+        state: {
+          remoteFeatureFlags: { flag: true },
+          localOverrides: undefined,
+        },
+      });
+
+      expect(controller.state.remoteFeatureFlags).toStrictEqual({ flag: true });
+      expect(controller.state.localOverrides).toBeUndefined();
+    });
+
     it('accepts valid 3-part SemVer clientVersion', () => {
       expect(() =>
         createController({ clientVersion: MOCK_BASE_VERSION }),
@@ -1291,6 +1303,35 @@ describe('RemoteFeatureFlagController', () => {
         expect(controller.state.remoteFeatureFlags).toStrictEqual({
           remoteFlag: 'remoteValue',
           overrideFlag: 'overrideValue',
+        });
+      });
+
+      it('merges legacy persisted localOverrides into remoteFeatureFlags on init', () => {
+        const { controller, messenger } = createController({
+          state: {
+            remoteFeatureFlags: {
+              remoteFlag: 'remoteValue',
+              overrideFlag: 'remoteOnlyValue',
+            },
+            localOverrides: {
+              overrideFlag: 'overrideValue',
+            },
+          },
+        });
+
+        expect(controller.state.remoteFeatureFlags).toStrictEqual({
+          remoteFlag: 'remoteValue',
+          overrideFlag: 'overrideValue',
+        });
+
+        messenger.call(
+          'RemoteFeatureFlagController:removeFlagOverride',
+          'overrideFlag',
+        );
+
+        expect(controller.state.remoteFeatureFlags).toStrictEqual({
+          remoteFlag: 'remoteValue',
+          overrideFlag: 'remoteOnlyValue',
         });
       });
     });
