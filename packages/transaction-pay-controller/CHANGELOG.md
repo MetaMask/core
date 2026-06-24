@@ -18,6 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Require EIP-7702 for direct mUSD vault deposits and ensure transaction ID collection always stops after the batch attempt ([#9240](https://github.com/MetaMask/core/pull/9240))
 - Inherit `isGasFeeSponsored` from the parent transaction into same-chain Relay source-network fees and submission options ([#9216](https://github.com/MetaMask/core/pull/9216))
+- Skip EIP-7702 upgrade check for direct mUSD vault deposits since the Money Account is always already upgraded on Monad ([#9250](https://github.com/MetaMask/core/pull/9250))
 
 ## [23.14.0]
 
