@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add optional pre-consent event queue to `AnalyticsController` (disabled by default via `isPreConsentQueueEnabled`), with a `consentDecisionMade` state field, `selectConsentDecisionMade` selector, and `resetConsentDecision` action ([#0000](https://github.com/MetaMask/core/pull/0000))
+- Add optional pre-consent event queue to `AnalyticsController` (disabled by default via `isPreConsentQueueEnabled`), with a `consentDecisionMade` state field, `selectConsentDecisionMade` selector, and `resetConsentDecision` action ([#9252](https://github.com/MetaMask/core/pull/9252))
 
 ### Changed
 
