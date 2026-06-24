@@ -272,7 +272,10 @@ function getAvailableEndpoints({
     return failoverEndpoints;
   }
   if (isRpcFailoverEnabled && isInfura) {
-    return [{ url: primaryEndpointUrl, isFailover: false }, ...failoverEndpoints];
+    return [
+      { url: primaryEndpointUrl, isFailover: false },
+      ...failoverEndpoints,
+    ];
   }
   return [{ url: primaryEndpointUrl, isFailover: false }];
 }
