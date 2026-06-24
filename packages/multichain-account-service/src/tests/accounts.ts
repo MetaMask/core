@@ -162,7 +162,7 @@ export const MOCK_XLM_ACCOUNT_1: Bip44Account<InternalAccount> = {
       type: KeyringAccountEntropyTypeOption.Mnemonic,
       id: MOCK_HD_KEYRING_2.metadata.id,
       groupIndex: 0,
-      derivationPath: '',
+      derivationPath: `m/44'/148'/0'`,
     },
   },
   methods: XLM_METHODS,
