@@ -1207,16 +1207,16 @@ export class RampsService {
   /**
    * Fetches the list of payment methods for a given region, asset, and provider.
    *
+   * Region local fiat filtering is applied server-side when `fiat` is omitted.
+   *
    * @param options - Query parameters for filtering payment methods.
    * @param options.region - User's region code (e.g., "us-al").
-   * @param options.fiat - Optional fiat currency code (e.g., "usd"). When omitted, the API defaults to the region's local currency.
    * @param options.assetId - CAIP-19 cryptocurrency identifier.
    * @param options.provider - Provider ID path.
    * @returns The payment methods response containing payments array.
    */
   async getPaymentMethods(options: {
     region: string;
-    fiat?: string;
     assetId: string;
     provider: string;
   }): Promise<PaymentMethodsResponse> {
@@ -1228,10 +1228,6 @@ export class RampsService {
     this.#addCommonParams(url);
 
     url.searchParams.set('region', options.region.toLowerCase().trim());
-    const normalizedFiat = options.fiat?.trim();
-    if (normalizedFiat) {
-      url.searchParams.set('fiat', normalizedFiat.toLowerCase());
-    }
     url.searchParams.set('crypto', options.assetId);
     url.searchParams.set('provider', options.provider);
 

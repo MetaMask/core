@@ -4464,7 +4464,6 @@ describe('RampsController', () => {
             'RampsService:getPaymentMethods',
             async (options: {
               region: string;
-              fiat?: string;
               assetId: string;
               provider: string;
             }) => {
@@ -4483,39 +4482,31 @@ describe('RampsController', () => {
       );
     });
 
-    it('omits fiat from service call when not provided', async () => {
-      const regionWithoutCurrency: UserRegion = {
-        country: {
-          isoCode: 'US',
-          name: 'United States',
-          flag: '🇺🇸',
-          currency: undefined as unknown as string,
-          phone: { prefix: '+1', placeholder: '', template: '' },
-          supported: { buy: true, sell: true },
-        },
-        state: null,
-        regionCode: 'us-ca',
-      };
-
+    it('does not pass fiat to the service', async () => {
       await withController(
         {
           options: {
             state: {
-              userRegion: regionWithoutCurrency,
+              userRegion: createMockUserRegion('us-ca'),
             },
           },
         },
         async ({ rootMessenger }) => {
-          let receivedFiat: string | undefined;
+          let receivedOptions:
+            | {
+                region: string;
+                assetId: string;
+                provider: string;
+              }
+            | undefined;
           rootMessenger.registerActionHandler(
             'RampsService:getPaymentMethods',
             async (options: {
               region: string;
-              fiat?: string;
               assetId: string;
               provider: string;
             }) => {
-              receivedFiat = options.fiat;
+              receivedOptions = options;
               return { payments: [] };
             },
           );
@@ -4529,35 +4520,13 @@ describe('RampsController', () => {
             },
           );
 
-          expect(receivedFiat).toBeUndefined();
+          expect(receivedOptions).toStrictEqual({
+            region: 'us-ca',
+            assetId: 'eip155:1/slip44:60',
+            provider: '/providers/stripe',
+          });
         },
       );
-    });
-
-    it('passes explicit fiat to the service when provided', async () => {
-      await withController(async ({ rootMessenger }) => {
-        let receivedFiat: string | undefined;
-        rootMessenger.registerActionHandler(
-          'RampsService:getPaymentMethods',
-          async (options: {
-            region: string;
-            fiat?: string;
-            assetId: string;
-            provider: string;
-          }) => {
-            receivedFiat = options.fiat;
-            return { payments: [] };
-          },
-        );
-
-        await rootMessenger.call('RampsController:getPaymentMethods', 'us-ca', {
-          fiat: 'eur',
-          assetId: 'eip155:1/slip44:60',
-          provider: '/providers/stripe',
-        });
-
-        expect(receivedFiat).toBe('eur');
-      });
     });
 
     it('uses selectedToken assetId from state when assetId is not provided', async () => {
@@ -4586,7 +4555,6 @@ describe('RampsController', () => {
             'RampsService:getPaymentMethods',
             async (options: {
               region: string;
-              fiat?: string;
               assetId: string;
               provider: string;
             }) => {
@@ -4639,7 +4607,6 @@ describe('RampsController', () => {
             'RampsService:getPaymentMethods',
             async (options: {
               region: string;
-              fiat?: string;
               assetId: string;
               provider: string;
             }) => {
@@ -4676,7 +4643,6 @@ describe('RampsController', () => {
             'RampsService:getPaymentMethods',
             async (options: {
               region: string;
-              fiat?: string;
               assetId: string;
               provider: string;
             }) => {
@@ -4774,7 +4740,6 @@ describe('RampsController', () => {
             'RampsService:getPaymentMethods',
             async (options: {
               region: string;
-              fiat?: string;
               assetId: string;
               provider: string;
             }) => {

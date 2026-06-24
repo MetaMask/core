@@ -64,7 +64,6 @@ export type RampsServiceGetProvidersAction = {
  *
  * @param options - Query parameters for filtering payment methods.
  * @param options.region - User's region code (e.g., "us-al").
- * @param options.fiat - Optional fiat currency code (e.g., "usd"). When omitted, the API defaults to the region's local currency.
  * @param options.assetId - CAIP-19 cryptocurrency identifier.
  * @param options.provider - Provider ID path.
  * @returns The payment methods response containing payments array.

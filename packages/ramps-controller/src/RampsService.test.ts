@@ -1724,34 +1724,6 @@ describe('RampsService', () => {
       ]);
     });
 
-    it('includes fiat query param when explicitly provided', async () => {
-      nock('https://on-ramp-cache.uat-api.cx.metamask.io')
-        .get('/v2/regions/us-al/payments')
-        .query({
-          region: 'us-al',
-          fiat: 'usd',
-          crypto: 'eip155:1/slip44:60',
-          provider: '/providers/stripe',
-          sdk: '2.1.6',
-          controller: CONTROLLER_VERSION,
-          context: 'mobile-ios',
-        })
-        .reply(200, mockPaymentMethodsResponse);
-      const { service } = getService();
-
-      const paymentMethodsPromise = service.getPaymentMethods({
-        region: 'us-al',
-        fiat: 'USD',
-        assetId: 'eip155:1/slip44:60',
-        provider: '/providers/stripe',
-      });
-      await jest.runAllTimersAsync();
-      await flushPromises();
-      const paymentMethodsResponse = await paymentMethodsPromise;
-
-      expect(paymentMethodsResponse.payments).toHaveLength(2);
-    });
-
     it('normalizes region case', async () => {
       nock('https://on-ramp-cache.uat-api.cx.metamask.io')
         .get('/v2/regions/us-al/payments')

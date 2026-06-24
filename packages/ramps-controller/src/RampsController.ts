@@ -1621,7 +1621,6 @@ export class RampsController extends BaseController<
    *
    * @param region - User's region code (e.g. "fr", "us-ny").
    * @param options - Query parameters for filtering payment methods.
-   * @param options.fiat - Optional fiat currency code (e.g., "usd"). When omitted, the API defaults to the region's local currency.
    * @param options.assetId - CAIP-19 cryptocurrency identifier.
    * @param options.provider - Provider ID path.
    * @returns The payment methods response containing payments array.
@@ -1629,7 +1628,6 @@ export class RampsController extends BaseController<
   async getPaymentMethods(
     region?: string,
     options?: ExecuteRequestOptions & {
-      fiat?: string;
       assetId?: string;
       provider?: string;
     },
@@ -1641,10 +1639,8 @@ export class RampsController extends BaseController<
       options?.provider ?? this.state.providers.selected?.id ?? '';
 
     const normalizedRegion = regionCode.toLowerCase().trim();
-    const normalizedFiat = options?.fiat?.trim().toLowerCase() ?? '';
     const cacheKey = createCacheKey('getPaymentMethods', [
       normalizedRegion,
-      normalizedFiat,
       assetIdToUse,
       providerToUse,
     ]);
@@ -1654,7 +1650,6 @@ export class RampsController extends BaseController<
       async () => {
         return this.messenger.call('RampsService:getPaymentMethods', {
           region: normalizedRegion,
-          ...(normalizedFiat ? { fiat: normalizedFiat } : {}),
           assetId: assetIdToUse,
           provider: providerToUse,
         });
