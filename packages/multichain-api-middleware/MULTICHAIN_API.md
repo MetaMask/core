@@ -40,10 +40,10 @@ extension and mobile clients.
 ## Overview
 
 The Multichain API lets a caller negotiate a single **session** that spans
-multiple chains and ecosystems (EVM, Solana, Bitcoin, Tron) in one authorization,
-then invoke methods on any authorized scope. It replaces the per-chain EIP-1193
-model (`eth_requestAccounts` on one chain at a time) with a chain-agnostic,
-scope-based model.
+multiple chains and ecosystems (EVM, Solana, Bitcoin, Tron) — and multiple accounts
+across those scopes — in one authorization, then invoke methods on any authorized
+scope. It replaces the per-chain EIP-1193 model (`eth_requestAccounts` on one chain
+at a time) with a chain-agnostic, scope-based model.
 
 It is built on the CASA Chain Agnostic standards:
 
