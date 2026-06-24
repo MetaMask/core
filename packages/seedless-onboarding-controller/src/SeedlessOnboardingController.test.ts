@@ -4691,6 +4691,138 @@ describe('SeedlessOnboardingController', () => {
       });
     });
 
+    // These tests trace the `InvalidPrimarySecretDataType` crash back to its
+    // root cause by checking which item lands in slot 0 after the same sort the
+    // controller runs before validating. The crash happens whenever the primary
+    // SRP is NOT in slot 0, which only occurs when it lacks the PrimarySrp tag.
+    describe('compare - primary SRP slot-0 scenarios', () => {
+      // Three valid TIMEUUIDs in ascending server-assigned order (T1 < T2 < T3).
+      const T1 = '00000001-0000-1000-8000-000000000001';
+      const T2 = '00000002-0000-1000-8000-000000000002';
+      const T3 = '00000003-0000-1000-8000-000000000003';
+
+      // Mirror how the controller orders fetched items before validating slot 0.
+      const sortAsc = (
+        items: SecretMetadata<Uint8Array>[],
+      ): SecretMetadata<Uint8Array>[] =>
+        [...items].sort((a, b) => SecretMetadata.compare(a, b, 'asc'));
+
+      it('reproduces the bug: a legacy primary and legacy private key with a skewed clock sorts the private key into slot 0', () => {
+        // Pure pre-migration data: neither item has a server `createdAt` or a
+        // `dataType` tag, so ordering falls back to the client `timestamp`. A
+        // skewed clock stamped the private key earlier than the primary SRP.
+        // No migration code runs here — this is purely legacy data + skew.
+        const primarySrp = new SecretMetadata(MOCK_SEED_PHRASE, {
+          type: SecretType.Mnemonic,
+          timestamp: 2000,
+        });
+        const importedPk = new SecretMetadata(MOCK_SEED_PHRASE, {
+          type: SecretType.PrivateKey,
+          timestamp: 1000, // skewed earlier
+        });
+
+        const sorted = sortAsc([primarySrp, importedPk]);
+
+        // Slot 0 is a private key, not the primary SRP -> the crash.
+        expect(sorted[0].type).toBe(SecretType.PrivateKey);
+        expect(sorted[1].type).toBe(SecretType.Mnemonic);
+      });
+
+      it('does NOT reproduce when an old device adds a private key today: the server `createdAt` sorts it after the legacy primary', () => {
+        // Device A (old version, no migration code) adds a private key now. It
+        // cannot send `dataType`, but the server still stamps `created_at = NOW()`.
+        // The legacy primary has a null `createdAt`, which the comparator treats
+        // as older, so the primary stays in slot 0 and Device B does not crash.
+        const legacyPrimarySrp = new SecretMetadata(MOCK_SEED_PHRASE, {
+          type: SecretType.Mnemonic,
+          timestamp: 2000,
+          // no createdAt (legacy)
+        });
+        const newlyAddedPk = new SecretMetadata(MOCK_SEED_PHRASE, {
+          type: SecretType.PrivateKey,
+          createdAt: T1, // server-assigned on insert
+          timestamp: 1000, // skewed earlier, but irrelevant once createdAt exists
+        });
+
+        const sorted = sortAsc([legacyPrimarySrp, newlyAddedPk]);
+
+        expect(sorted[0].type).toBe(SecretType.Mnemonic);
+        expect(sorted[1].type).toBe(SecretType.PrivateKey);
+      });
+
+      it('reproduces the bug from a legacy private key even when a newer private key (with `createdAt`) is also present', () => {
+        // A freshly added private key (real `createdAt`) does not cause the
+        // crash; the pre-existing legacy private key + skew does. The new item
+        // just sorts last and is irrelevant to slot 0.
+        const legacyPrimarySrp = new SecretMetadata(MOCK_SEED_PHRASE, {
+          type: SecretType.Mnemonic,
+          timestamp: 2000,
+        });
+        const legacyPk = new SecretMetadata(MOCK_SEED_PHRASE, {
+          type: SecretType.PrivateKey,
+          timestamp: 1000, // skewed earlier
+        });
+        const newPk = new SecretMetadata(MOCK_SEED_PHRASE, {
+          type: SecretType.PrivateKey,
+          createdAt: T1,
+          timestamp: 500,
+        });
+
+        const sorted = sortAsc([legacyPrimarySrp, legacyPk, newPk]);
+
+        // Legacy items (null createdAt) come first, ordered by timestamp; the
+        // skewed legacy private key lands in slot 0.
+        expect(sorted[0].type).toBe(SecretType.PrivateKey);
+        expect(sorted[0].createdAt).toBeUndefined();
+        expect(sorted[1].type).toBe(SecretType.Mnemonic);
+        expect(sorted[2].createdAt).toBe(T1);
+      });
+
+      it('reproduces the bug without clock skew: an untagged primary sorts behind a private key with an earlier server `createdAt`', () => {
+        // Both items have a real `createdAt` but neither is tagged PrimarySrp
+        // (no migration has run). If the private key was stamped before the
+        // primary on the server, it wins slot 0 regardless of client timestamp.
+        // Shows the crash is not exclusively a client-clock problem.
+        const untaggedPrimarySrp = new SecretMetadata(MOCK_SEED_PHRASE, {
+          type: SecretType.Mnemonic,
+          createdAt: T2, // stamped later
+          timestamp: 2000,
+        });
+        const importedPk = new SecretMetadata(MOCK_SEED_PHRASE, {
+          type: SecretType.PrivateKey,
+          createdAt: T1, // stamped earlier
+          timestamp: 1000,
+        });
+
+        const sorted = sortAsc([untaggedPrimarySrp, importedPk]);
+
+        expect(sorted[0].type).toBe(SecretType.PrivateKey);
+        expect(sorted[1].type).toBe(SecretType.Mnemonic);
+      });
+
+      it('is fixed once the dataType migration tags the primary: PrimarySrp always sorts to slot 0', () => {
+        // After migration the primary carries dataType=PrimarySrp, which the
+        // comparator ranks first unconditionally, so clock skew no longer
+        // matters. The migration is the cure, not the cause, of the crash.
+        const taggedPrimarySrp = new SecretMetadata(MOCK_SEED_PHRASE, {
+          dataType: EncAccountDataType.PrimarySrp,
+          createdAt: T3,
+          timestamp: 2000,
+        });
+        const importedPk = new SecretMetadata(MOCK_SEED_PHRASE, {
+          dataType: EncAccountDataType.ImportedPrivateKey,
+          createdAt: T1,
+          timestamp: 1000, // skewed earlier
+        });
+
+        const sorted = sortAsc([importedPk, taggedPrimarySrp]);
+
+        expect(sorted[0].type).toBe(SecretType.Mnemonic);
+        expect(sorted[0].dataType).toBe(EncAccountDataType.PrimarySrp);
+        expect(sorted[1].type).toBe(SecretType.PrivateKey);
+      });
+    });
+
     it('should default type to Mnemonic when parsing metadata without type field', () => {
       // Create raw metadata JSON without type field
       const rawMetadataWithoutType = JSON.stringify({
