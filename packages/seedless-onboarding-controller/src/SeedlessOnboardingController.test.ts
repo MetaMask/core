@@ -3472,6 +3472,58 @@ describe('SeedlessOnboardingController', () => {
         },
       );
     });
+
+    it('should promote the primary SRP to first when a legacy non-mnemonic sorts ahead of it (clock skew)', async () => {
+      await withController(
+        {
+          state: getMockInitialControllerState({
+            withMockAuthenticatedUser: true,
+          }),
+        },
+        async ({ controller, toprfClient }) => {
+          mockRecoverEncKey(toprfClient, MOCK_PASSWORD);
+
+          // Legacy data (no dataType, no createdAt). An imported private key
+          // has the earliest client timestamp (e.g. due to clock skew on the
+          // device that imported it), so it sorts ahead of the primary SRP.
+          // The fetch must still recover by promoting the primary SRP, not
+          // throw InvalidPrimarySecretDataType.
+          const mockSecretDataGet = handleMockSecretDataGet({
+            status: 200,
+            body: createMockSecretDataGetResponse(
+              [
+                {
+                  data: new Uint8Array(Buffer.from('importedPk', 'utf-8')),
+                  timestamp: 100,
+                  type: SecretType.PrivateKey,
+                  itemId: 'imported-pk-id',
+                  // No dataType or createdAt (legacy)
+                },
+                {
+                  data: new Uint8Array(Buffer.from('primarySrp', 'utf-8')),
+                  timestamp: 200,
+                  type: SecretType.Mnemonic,
+                  itemId: 'primary-srp-id',
+                  // No dataType or createdAt (legacy)
+                },
+              ],
+              MOCK_PASSWORD,
+            ),
+          });
+
+          const secretData = await controller.fetchAllSecretData(MOCK_PASSWORD);
+
+          expect(mockSecretDataGet.isDone()).toBe(true);
+          expect(secretData).toHaveLength(2);
+          // Primary SRP (mnemonic) promoted to first despite later timestamp.
+          expect(secretData[0].type).toBe(SecretType.Mnemonic);
+          expect(secretData[0].data).toStrictEqual(stringToBytes('primarySrp'));
+          // The private key is preserved, not dropped.
+          expect(secretData[1].type).toBe(SecretType.PrivateKey);
+          expect(secretData[1].data).toStrictEqual(stringToBytes('importedPk'));
+        },
+      );
+    });
   });
 
   describe('submitPassword', () => {

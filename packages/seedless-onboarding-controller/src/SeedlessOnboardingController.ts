@@ -1646,22 +1646,38 @@ export class SeedlessOnboardingController<
       // Sort: PrimarySrp first, then by createdAt/timestamp (oldest first)
       results.sort((a, b) => SecretMetadata.compare(a, b, 'asc'));
 
-      // Validate the first item is the primary SRP
-      const firstItem = results[0];
-      const isDataTypePrimary =
-        firstItem.dataType === undefined ||
-        firstItem.dataType === null ||
-        firstItem.dataType === EncAccountDataType.PrimarySrp;
-      const isMnemonic = SecretMetadata.matchesType(
-        firstItem,
-        SecretType.Mnemonic,
-      );
+      // Find the primary SRP instead of assuming it is at index 0: legacy
+      // items have no `createdAt`, so ordering falls back to the client
+      // `timestamp`, which clock skew can sort a private key ahead of.
+      // A candidate is a mnemonic whose `dataType` is `PrimarySrp` or unset.
+      // `dataType` (a plaintext server field) is the only thing separating
+      // primary from imported SRP; legacy items lack it and the encrypted
+      // `SecretType` groups both, so among legacy mnemonics the primary is
+      // indistinguishable — we take the oldest (best-effort).
+      const primaryIndex = results.findIndex((item) => {
+        const isDataTypePrimary =
+          item.dataType === undefined ||
+          item.dataType === null ||
+          item.dataType === EncAccountDataType.PrimarySrp;
+        return (
+          isDataTypePrimary &&
+          SecretMetadata.matchesType(item, SecretType.Mnemonic)
+        );
+      });
 
-      if (!isDataTypePrimary || !isMnemonic) {
+      // No recoverable primary SRP exists in the metadata store.
+      if (primaryIndex === -1) {
         throw new Error(
           SeedlessOnboardingControllerErrorMessage.InvalidPrimarySecretDataType,
         );
       }
+
+      // Ensure the primary SRP is first; callers rely on `results[0]` being it.
+      if (primaryIndex > 0) {
+        const [primary] = results.splice(primaryIndex, 1);
+        results.unshift(primary);
+      }
+
       return results;
     }
 
