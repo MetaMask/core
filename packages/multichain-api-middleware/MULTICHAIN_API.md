@@ -94,9 +94,13 @@ Prompts the user and grants a CAIP-25 session. `paramStructure: by-name`.
 
 | Field | Type | Required | Notes |
 | --- | --- | --- | --- |
-| `requiredScopes` | `{ [scopeString]: ScopeObject }` | no | Accepted but **treated as optional** (see divergences). |
-| `optionalScopes` | `{ [scopeString]: ScopeObject }` | no | |
+| `requiredScopes` | `{ [scopeString]: ScopeObject }` | conditional | Accepted but **treated as optional** (see divergences). |
+| `optionalScopes` | `{ [scopeString]: ScopeObject }` | conditional | |
 | `sessionProperties` | `{ [key]: Json }` | no | Allowlist-filtered to [known keys](#supported-methods--notifications-per-namespace). An empty object is rejected with `5302`. |
+
+At least one of `requiredScopes` / `optionalScopes` must be present and resolve to
+a supported scope — a request with neither (or with only unsupported scopes) is
+rejected with `5100`, unless it triggers the [Solana opt-in flow](#wallet_createsession).
 
 `ScopeObject` fields: `methods: string[]`, `notifications: string[]`,
 optionally `accounts: CaipAccountId[]` and `references: string[]`.
@@ -305,8 +309,7 @@ allowlist; unknown keys are dropped. As of `@metamask/chain-agnostic-permission`
 > **Version note.** `eip1193-compatible` was added to the allowlist in
 > `@metamask/chain-agnostic-permission` **1.6.0**. In 1.5.x (and earlier) only the
 > three `*_accountChanged_notifications` keys are known, so a 1.5.x wallet would
-> **drop** an incoming `eip1193-compatible` property. See
-> [the eip1193-compatible flow](#the-eip1193-compatible-session-property) below.
+> **drop** an incoming `eip1193-compatible` property.
 
 ## Error codes
 
@@ -364,42 +367,6 @@ and this package's handlers:
   active session.
 - **Partial revoke.** `wallet_revokeSession` accepts an optional `scopes` array to
   remove individual scopes; full revoke happens automatically if no accounts remain.
-
-### The `eip1193-compatible` session property
-
-This property is the bridge between the legacy EIP-1193 world and the Multichain
-session model, and it's a good worked example of how `sessionProperties` flows end
-to end:
-
-1. **Set on the request.** `@metamask/connect-evm` attaches
-   `sessionProperties: { 'eip1193-compatible': true }` to every
-   `wallet_createSession` it issues (`EIP1193_COMPATIBLE_SESSION_PROPERTY` /
-   `CONNECT_EVM_SESSION_PROPERTIES` in `connect-evm/src/constants.ts`). The
-   extension's own injected EIP-1193 middleware sets it too.
-2. **Filtered on the way in.** The `wallet_createSession` handler keeps only keys in
-   the `KnownSessionProperties` allowlist. `eip1193-compatible` is a known key **as
-   of `@metamask/chain-agnostic-permission` 1.6.0**, so it survives and is persisted
-   into the CAIP-25 caveat. On 1.5.x it would be silently dropped — this is the one
-   gotcha to watch for across versions.
-3. **Read by the wallet UI.** The extension selector
-   `getIsEip1193CompatibleConnection` (`ui/selectors/dapp.ts`) returns true when
-   `caveatValue.sessionProperties['eip1193-compatible'] === true`, which gates the
-   EVM network picker on the dapp connection bar. Pure Multichain API connections —
-   even EVM-only ones — omit the flag and therefore don't get that EIP-1193-specific
-   UX.
-4. **Backfilled for old connections.** Extension migration 211 sets
-   `eip1193-compatible: true` on every pre-existing CAIP-25 caveat that has any
-   `eip155:*` scope, so connections established before this property existed don't
-   lose their network picker after upgrade. Solana-only connections are left
-   untouched.
-
-> **Why the apparent mismatch?** If you compare a 1.5.x `chain-agnostic-permission`
-> checkout (whose `KnownSessionProperties` only lists the three
-> `*_accountChanged_notifications`) against `connect-evm` sending
-> `eip1193-compatible`, it looks like the property would always be filtered out. It
-> isn't, in shipping builds: the key was added to the allowlist in 1.6.0, and the
-> extension ships ≥1.6.x. The discrepancy is purely a version-skew artifact of
-> reading an older `core` checkout.
 
 ## Source-of-truth pointers
 
