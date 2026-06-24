@@ -369,29 +369,13 @@ and this package's handlers:
 
 ## `scopedProperties`: abandoned
 
-`scopedProperties` was a request-side, per-scope metadata object (kept outside
-`sessionScopes`) intended to carry things like EIP-3085 chain-definition data so the
-wallet could add and authorize a not-yet-known EVM chain as part of session
-creation. It got **partway implemented and then deprioritized**:
-
-- It exists in the OpenRPC schema (`api-specs`, with error codes `5300`/`5301`) and
-  as an optional field on the `Caip25Authorization` type
-  (`chain-agnostic-permission` `src/scope/authorization.ts`).
-- But the `wallet_createSession` handler **never reads it** — `req.params` only
-  destructures `requiredScopes`, `optionalScopes`, and `sessionProperties`. The only
-  traces in the handler are comments (`// intended for future usage with eip3085
-  scopedProperties`) and the `isEvmChainIdSupportable: () => false` stub that was the
-  hook for it.
-
-Meanwhile, upstream CAIP-25 has **removed the concept from the request**:
-`scopedProperties` → `capabilities` (2025-07-30) → merged into the scope object
-(2025-08-04) → dropped from the request entirely (2025-08-07). (A wallet-advertised
-`capabilities` still exists in the *response*, but that is a separate, response-only
-feature.)
-
-Net result: `scopedProperties` is stranded — specced and typed but inert, and no
-longer part of the standard it was tracking. It is very unlikely to be implemented
-as-is and is a good candidate for removal from `api-specs`.
+A request-side, per-scope metadata object (intended for EIP-3085-style dynamic chain
+addition) that was partly implemented then deprioritized: it lives in the OpenRPC
+schema (error codes `5300`/`5301`) and the `Caip25Authorization` type, but the
+handler never reads it. Upstream CAIP-25 has since removed it from the request
+(`scopedProperties` → `capabilities`, 2025-07-30 → merged into the scope object,
+2025-08-04 → dropped, 2025-08-07). It is stranded and a candidate for removal from
+`api-specs`.
 
 ## Source-of-truth pointers
 
