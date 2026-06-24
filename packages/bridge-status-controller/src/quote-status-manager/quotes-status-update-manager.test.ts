@@ -953,11 +953,12 @@ describe('QuoteStatusUpdateManager', () => {
       });
     });
 
-    it('completes (does not expire) when a racing mismatch reports the status the entry already holds', async () => {
+    it('keeps retrying finalized status when a racing mismatch reports the same finalized status', async () => {
       // Reproduces the EVM 7702 race: `SUBMITTED` and `FINALIZED_SUCCESS` are
       // reported back-to-back, so the in-flight `SUBMITTED` request can return a
       // mismatch carrying the already-finalized status while the entry is locally
-      // FinalizedSuccess. The entry must converge to Completed, not Expired.
+      // FinalizedSuccess. The entry must stay FinalizedSuccess so retries for the
+      // finalized update can continue.
       const submittedAttempt = deferred<QuoteStatusUpdateWithRetryOutcome>();
       mockUpdate.mockReturnValueOnce(submittedAttempt.promise);
       const { manager, onError, onPersistUpdates } = createManager();
@@ -994,7 +995,7 @@ describe('QuoteStatusUpdateManager', () => {
       const lastSnapshot = onPersistUpdates.mock.calls.at(-1)?.[0];
       expect(lastSnapshot).toMatchObject({
         'quote-1:0xabc': expect.objectContaining({
-          status: QuoteStatusState.Completed,
+          status: QuoteStatusState.FinalizedSuccess,
         }),
       });
     });

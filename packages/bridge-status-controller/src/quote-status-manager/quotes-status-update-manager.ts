@@ -425,8 +425,8 @@ export class QuoteStatusUpdateManager {
       );
       return Boolean(
         live &&
-        live.status.state === sentStatus &&
-        live.acknowledgedState !== sentStatus,
+          live.status.state === sentStatus &&
+          live.acknowledgedState !== sentStatus,
       );
     };
 
@@ -607,16 +607,20 @@ export class QuoteStatusUpdateManager {
           return;
         }
 
-        // The backend is already finalized but our entry cannot advance to that
-        // status because it is already at (or past) a finalized state. The quote
-        // is done, so converge to `Completed` (kept) rather than abandoning it to
-        // `Expired`. Abandoning here is actively wrong for EVM 7702 swaps, which
-        // report `SUBMITTED` and `FINALIZED_SUCCESS` back-to-back: the racing
-        // `SUBMITTED` request can return a mismatch carrying the already-finalized
-        // status, which would otherwise flip a soon-to-be-`Completed` entry to
-        // `Expired` and drop the successful finalization.
+        // The backend reports a finalized status but we cannot transition there.
+        // If we already hold that same finalized state, this can be a stale
+        // `SUBMITTED` response racing with an in-flight finalized update. Do not
+        // complete in this case: keep the entry pending so the finalized update
+        // can continue retrying on transient backend errors such as
+        // `CONCURRENT_UPDATE`.
+        if (entry.status.state === nextState) {
+          return;
+        }
+
+        // Any other non-transitionable finalized mismatch indicates we've reached
+        // (or passed) a terminal state but disagree with the backend's final
+        // status. Converge to `Completed` (kept) rather than expiring.
         if (
-          entry.status.state !== nextState &&
           entry.status.state !== QuoteStatusState.Completed &&
           entry.status.state !== QuoteStatusState.Expired
         ) {
