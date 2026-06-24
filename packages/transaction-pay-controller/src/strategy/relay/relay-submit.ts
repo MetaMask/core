@@ -661,9 +661,15 @@ async function submitViaTransactionController(
 
   let result: { result: Promise<string> } | undefined;
 
-  const gasFeeToken = quote.fees.isSourceGasFeeToken
-    ? sourceTokenAddress
-    : undefined;
+  const isSourceGasFeeSponsored =
+    transaction.isGasFeeSponsored &&
+    quote.request.sourceChainId === transaction.chainId &&
+    quote.request.targetChainId === transaction.chainId;
+
+  const gasFeeToken =
+    !isSourceGasFeeSponsored && quote.fees.isSourceGasFeeToken
+      ? sourceTokenAddress
+      : undefined;
 
   log('Submitting transactions', {
     isPostQuote,
@@ -701,6 +707,7 @@ async function submitViaTransactionController(
         networkClientId,
         origin: ORIGIN_METAMASK,
         isInternal: true,
+        isGasFeeSponsored: isSourceGasFeeSponsored,
         requireApproval: false,
         type: getRelayDepositType(getEffectiveTransactionType(transaction)),
       },
@@ -745,6 +752,7 @@ async function submitViaTransactionController(
       networkClientId,
       origin: ORIGIN_METAMASK,
       isInternal: true,
+      isGasFeeSponsored: isSourceGasFeeSponsored,
       overwriteUpgrade: true,
       requireApproval: false,
       transactions,

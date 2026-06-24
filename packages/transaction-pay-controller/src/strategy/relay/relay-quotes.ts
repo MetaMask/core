@@ -76,6 +76,16 @@ const POST_QUOTE_GAS_BUFFER = 1.1;
 
 // Hardcoded gas allowance for the prepended payment override transaction(s).
 const PAYMENT_OVERRIDE_GAS = 75_000;
+const ZERO_AMOUNT = { fiat: '0', human: '0', raw: '0', usd: '0' };
+
+type RelayStepData = RelayTransactionStep['items'][0]['data'];
+
+type RelayGasResult = {
+  totalGasEstimate: number;
+  totalGasLimit: number;
+  gasLimits: number[];
+  is7702: boolean;
+};
 
 /**
  * Fetches Relay quotes.
@@ -766,11 +776,9 @@ async function calculateSourceNetworkCost(
   if (quote.metamask?.isExecute) {
     log('Zeroing network fees for execute flow');
 
-    const zeroAmount = { fiat: '0', human: '0', raw: '0', usd: '0' };
-
     return {
-      estimate: zeroAmount,
-      max: zeroAmount,
+      estimate: ZERO_AMOUNT,
+      max: ZERO_AMOUNT,
       gasLimits: [],
       is7702: false,
     };
@@ -781,13 +789,28 @@ async function calculateSourceNetworkCost(
   if (request.isHyperliquidSource) {
     log('Zeroing network fees for HyperLiquid withdrawal (gasless)');
 
-    const zeroAmount = { fiat: '0', human: '0', raw: '0', usd: '0' };
-
     return {
-      estimate: zeroAmount,
-      max: zeroAmount,
+      estimate: ZERO_AMOUNT,
+      max: ZERO_AMOUNT,
       gasLimits: [],
       is7702: false,
+    };
+  }
+
+  if (
+    transaction.isGasFeeSponsored &&
+    request.sourceChainId === transaction.chainId &&
+    request.targetChainId === transaction.chainId
+  ) {
+    log('Zeroing source network fees for sponsored same-chain Relay route');
+
+    // Gas limit is zero as sponsored transactions go through the EIP-7702
+    // gas station hook and do not require user-paid gas.
+    return {
+      estimate: ZERO_AMOUNT,
+      max: ZERO_AMOUNT,
+      gasLimits: [0],
+      is7702: true,
     };
   }
 
@@ -1036,8 +1059,6 @@ function toRelayQuoteGasTransaction(
   };
 }
 
-type RelayStepData = RelayTransactionStep['items'][0]['data'];
-
 function getOriginalTxGasParams(
   request: QuoteRequest,
   transaction: TransactionMeta,
@@ -1074,13 +1095,6 @@ function getOriginalTxGasParams(
     value: (txParams.value as string) ?? '0',
   };
 }
-
-type RelayGasResult = {
-  totalGasEstimate: number;
-  totalGasLimit: number;
-  gasLimits: number[];
-  is7702: boolean;
-};
 
 function combinePrependedGas(
   relayOnlyGas: RelayGasResult,

@@ -7,9 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add optional `maxGasLimit` to the `gasEstimateFallback` feature flag config, clamping the fixed or percentage-derived gas estimate fallback to a chain's per-transaction gas cap so it can never exceed the limit the RPC will accept ([#9191](https://github.com/MetaMask/core/pull/9191))
+
 ### Changed
 
 - Bump `@metamask/accounts-controller` from `^39.0.2` to `^39.0.3` ([#9231](https://github.com/MetaMask/core/pull/9231))
+
+### Fixed
+
+- Add explicit error when submitting a batch that requires EIP-7702 but the account or chain does not support it ([#9240](https://github.com/MetaMask/core/pull/9240))
 
 ## [68.1.1]
 
