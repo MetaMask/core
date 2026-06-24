@@ -98,7 +98,7 @@ Prompts the user and grants a CAIP-25 session. `paramStructure: by-name`.
 
 At least one of `requiredScopes` / `optionalScopes` must be present and resolve to
 a supported scope — a request with neither (or with only unsupported scopes) is
-rejected with `5100`, unless it triggers the [Solana opt-in flow](#wallet_createsession).
+rejected with `5100`.
 
 `ScopeObject` fields: `methods: string[]`, `notifications: string[]`,
 optionally `accounts: CaipAccountId[]` and `references: string[]`.
@@ -158,12 +158,8 @@ optionally `accounts: CaipAccountId[]` and `references: string[]`.
 - All requested scopes are treated as optional; unsupported scopes, unknown
   methods/notifications, and accounts not held by the wallet are **silently
   dropped** rather than erroring.
-- If, after filtering, **no** scopes remain and Solana was not requested, it
-  returns `5100` (Requested scopes are not supported).
-- **Solana opt-in:** if a Solana scope is requested but the wallet has no Solana
-  account, the handler sets a `promptToCreateSolanaAccount` flag and injects an
-  empty `wallet` scope so the request can pass the CAIP-25 caveat validator (which
-  otherwise rejects zero-scope requests).
+- If, after filtering, **no** scopes remain, it returns `5100` (Requested scopes
+  are not supported).
 
 ### `wallet_getSession`
 
@@ -315,7 +311,7 @@ allowlist; unknown keys are dropped. As of `@metamask/chain-agnostic-permission`
 | Code | Message | When |
 | --- | --- | --- |
 | `5000` | Unknown error with request | Generic failure. |
-| `5100` | Requested scopes are not supported | Actually returned by `wallet_createSession` when no supported scopes remain after filtering (and the Solana opt-in does not apply). |
+| `5100` | Requested scopes are not supported | Actually returned by `wallet_createSession` when no supported scopes remain after filtering. |
 | `5302` | Invalid sessionProperties requested | Returned by `wallet_createSession` when `sessionProperties` is present but an empty object `{}`. |
 | `4100` | Unauthorized | Returned by `wallet_invokeMethod` when the origin has no CAIP-25 session, or the requested scope/method is not authorized (`providerErrors.unauthorized()`). |
 
@@ -363,9 +359,6 @@ and this package's handlers:
   are dropped instead of erroring (reduces fingerprinting and breakage).
 - **`sessionProperties` allowlist.** Only the keys in `KnownSessionProperties` are
   retained; an explicitly empty `sessionProperties: {}` errors with `5302`.
-- **Solana opt-in flow.** Requesting a Solana scope with no Solana account sets
-  `promptToCreateSolanaAccount` and injects an empty `wallet` scope so the
-  zero-scope request passes the caveat validator.
 - **Single session per origin.** `sessionId` is ignored across `getSession`,
   `revokeSession`, and `invokeMethod`.
 - **Graceful no-session results.** `wallet_getSession` returns
