@@ -464,7 +464,8 @@ describe('fiat-direct-musd', () => {
       ).rejects.toThrow('Missing nested transactions');
     });
 
-    it('prefixes addTransactionBatch errors with Vault', async () => {
+    it('prefixes addTransactionBatch errors with Vault and stops collecting transaction IDs', async () => {
+      const endMock = jest.fn();
       const callMock = jest.fn((action: string) => {
         if (action === 'TransactionPayController:getAmountData') {
           return Promise.resolve({
@@ -478,6 +479,7 @@ describe('fiat-direct-musd', () => {
 
         throw new Error(`Unexpected action: ${action}`);
       });
+      collectTransactionIdsMock.mockReturnValue({ end: endMock });
 
       await expect(
         submitDirectMusdVaultDeposit({
@@ -486,6 +488,7 @@ describe('fiat-direct-musd', () => {
           transaction: TRANSACTION_MOCK,
         }),
       ).rejects.toThrow('Vault: batch failed');
+      expect(endMock).toHaveBeenCalledTimes(1);
     });
 
     it('throws when no vault transactions are collected', async () => {

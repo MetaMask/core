@@ -13,6 +13,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/bridge-controller` from `^76.0.0` to `^76.1.0` ([#9242](https://github.com/MetaMask/core/pull/9242))
 - Bump `@metamask/bridge-status-controller` from `^72.2.0` to `^72.3.0` ([#9242](https://github.com/MetaMask/core/pull/9242))
 
+### Fixed
+
+- Require EIP-7702 for direct mUSD vault deposits and ensure transaction ID collection always stops after the batch attempt ([#9240](https://github.com/MetaMask/core/pull/9240))
+
 ## [23.14.0]
 
 ### Changed
