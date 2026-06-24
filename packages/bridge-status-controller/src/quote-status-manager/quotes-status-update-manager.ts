@@ -158,7 +158,7 @@ export class QuoteStatusUpdateManager {
       // reportFinalized can be called twice. If the second
       // call fails due to the first completed sucesfully
       // backend will report that we cannot transition outside
-      // a final state, which is correct and we can safely abort 
+      // a final state, which is correct and we can safely abort
       // the flow.
       return;
     }
