@@ -798,15 +798,20 @@ export class AnalyticsController extends BaseController<
    * handles the rare cases where a consent decision was persisted but the queue
    * was not flushed/cleared (e.g. an interrupted shutdown): replay it if the
    * user is opted in, or clear it if they opted out.
+   *
+   * If the pre-consent queue is disabled, any stale persisted entries (e.g. from
+   * a previous session where it was enabled) are dropped so they can never be
+   * replayed.
    */
   #reconcilePreConsentEvents(): void {
-    if (!this.#isPreConsentQueueEnabled) {
-      return;
-    }
-
     const queue = this.state.preConsentEventQueue;
 
     if (!queue) {
+      return;
+    }
+
+    if (!this.#isPreConsentQueueEnabled) {
+      this.#clearPreConsentEvents();
       return;
     }
 

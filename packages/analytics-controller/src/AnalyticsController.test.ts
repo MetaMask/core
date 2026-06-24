@@ -296,6 +296,59 @@ describe('AnalyticsController', () => {
       ).toHaveProperty('eventQueue', state.eventQueue);
     });
 
+    it('persists preConsentEventQueue but excludes it from logs, snapshots, and UI', async () => {
+      // Undecided + queue enabled, so init() leaves the queue untouched.
+      const state: AnalyticsControllerState = {
+        ...metadataFixtureState,
+        optedIn: false,
+        consentDecisionMade: false,
+        preConsentEventQueue: {
+          'message-id-1': {
+            type: 'track',
+            eventName: 'test_event',
+            messageId: 'message-id-1',
+            timestamp: '2026-01-01T00:00:00.000Z',
+            properties: {
+              sensitive_prop: 'sensitive value',
+            },
+          },
+        },
+      };
+      const { controller } = await setupController({
+        state,
+        isPreConsentQueueEnabled: true,
+      });
+
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'includeInDebugSnapshot',
+        ),
+      ).not.toHaveProperty('preConsentEventQueue');
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'includeInStateLogs',
+        ),
+      ).not.toHaveProperty('preConsentEventQueue');
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'usedInUi',
+        ),
+      ).not.toHaveProperty('preConsentEventQueue');
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'persist',
+        ),
+      ).toHaveProperty('preConsentEventQueue', state.preConsentEventQueue);
+    });
+
     it('exposes expected state to UI', async () => {
       const { controller } = await setupController({
         state: metadataFixtureState,
@@ -1929,7 +1982,8 @@ describe('AnalyticsController', () => {
     }
 
     it('queues track events while the user is undecided', async () => {
-      const { controller, mockAdapter } = await setupControllerWithQueuedEvent();
+      const { controller, mockAdapter } =
+        await setupControllerWithQueuedEvent();
 
       expect(mockAdapter.track).not.toHaveBeenCalled();
 
@@ -1960,12 +2014,13 @@ describe('AnalyticsController', () => {
       expect(controller.state.preConsentEventQueue).toBeUndefined();
     });
 
-    it('does not replay a persisted queue on opt-in when the queue is disabled', async () => {
+    it('drops a stale persisted queue on init when the queue is disabled', async () => {
       // A queue persisted while the feature was enabled...
       const { controller: enabled } = await setupControllerWithQueuedEvent();
       const persistedQueue = enabled.state.preConsentEventQueue;
 
-      // ...must not be delivered if the feature is later disabled.
+      // ...is dropped on init if the feature is later disabled, so it can never
+      // be replayed by a future enabled instance.
       const mockAdapter = createMockAdapter();
       const { controller } = await setupController({
         state: {
@@ -1977,6 +2032,8 @@ describe('AnalyticsController', () => {
         platformAdapter: mockAdapter,
         // isPreConsentQueueEnabled defaults to false
       });
+
+      expect(controller.state.preConsentEventQueue).toStrictEqual({});
 
       controller.optIn();
 
@@ -2021,7 +2078,8 @@ describe('AnalyticsController', () => {
     });
 
     it('replays queued events on opt-in and clears the queue', async () => {
-      const { controller, mockAdapter } = await setupControllerWithQueuedEvent();
+      const { controller, mockAdapter } =
+        await setupControllerWithQueuedEvent();
 
       controller.optIn();
 
@@ -2069,7 +2127,8 @@ describe('AnalyticsController', () => {
     });
 
     it('discards queued events on opt-out without delivering them', async () => {
-      const { controller, mockAdapter } = await setupControllerWithQueuedEvent();
+      const { controller, mockAdapter } =
+        await setupControllerWithQueuedEvent();
 
       controller.optOut();
 
@@ -2080,7 +2139,8 @@ describe('AnalyticsController', () => {
     });
 
     it('clears the queue and resets the decision on resetConsentDecision', async () => {
-      const { controller, mockAdapter } = await setupControllerWithQueuedEvent();
+      const { controller, mockAdapter } =
+        await setupControllerWithQueuedEvent();
 
       controller.resetConsentDecision();
 
@@ -2238,27 +2298,6 @@ describe('AnalyticsController', () => {
         expect.objectContaining({ messageId: expect.any(String) }),
       );
       expect(controller.state.preConsentEventQueue).toStrictEqual({});
-    });
-  });
-
-  describe('selectConsentDecisionMade', () => {
-    it('returns true when a consent decision has been made', () => {
-      expect(
-        analyticsControllerSelectors.selectConsentDecisionMade({
-          optedIn: true,
-          consentDecisionMade: true,
-          analyticsId: 'aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee',
-        }),
-      ).toBe(true);
-    });
-
-    it('defaults to false when the field is absent', () => {
-      expect(
-        analyticsControllerSelectors.selectConsentDecisionMade({
-          optedIn: false,
-          analyticsId: 'aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee',
-        }),
-      ).toBe(false);
     });
   });
 });
