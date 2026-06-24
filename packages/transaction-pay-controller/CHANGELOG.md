@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add opt-in HyperLiquid activation-fee handling for Pay withdrawals, gated by the `confirmations_pay_post_quote` feature flag's `hyperliquidActivationFee` config (resolved from `overrides.<transactionType>.hyperliquidActivationFee`, falling back to `default.hyperliquidActivationFee`; with `enabled` and optional `amountUsd` defaulting to `1`) ([#9238](https://github.com/MetaMask/core/pull/9238))
+  - When enabled and the HyperCore source account has not yet been activated, the one-time activation fee is reserved from the amount sent to HyperLiquid (so the `sendAsset` step retains enough balance to cover it) and surfaced as part of the provider fee, leaving the displayed withdrawal amount unchanged.
+
 ## [23.15.0]
 
 ### Changed
@@ -19,6 +24,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - Require EIP-7702 for direct mUSD vault deposits and ensure transaction ID collection always stops after the batch attempt ([#9240](https://github.com/MetaMask/core/pull/9240))
+- Inherit `isGasFeeSponsored` from the parent transaction into same-chain Relay source-network fees and submission options ([#9216](https://github.com/MetaMask/core/pull/9216))
+- Skip EIP-7702 upgrade check for direct mUSD vault deposits since the Money Account is always already upgraded on Monad ([#9250](https://github.com/MetaMask/core/pull/9250))
 
 ## [23.14.0]
 
