@@ -24,7 +24,9 @@ describe('getIsRpcFailoverEnabled', () => {
   });
 
   it('returns false when the mode is "disabled"', () => {
-    expect(getIsRpcFailoverEnabled(buildState('disabled') as never)).toBe(false);
+    expect(getIsRpcFailoverEnabled(buildState('disabled') as never)).toBe(
+      false,
+    );
   });
 
   it('returns false when the flag is absent', () => {
